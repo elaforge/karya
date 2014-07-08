@@ -333,7 +333,7 @@ get_marks dir minus1 match rank start marklists =
         Rewind
             | minus1 -> descending1
             | otherwise -> with_rank . Ruler.descending start
-    matching = case match of
+    matching = map snd $ case match of
         AllMarklists -> Map.elems marklists
         NamedMarklists names -> mapMaybe (flip Map.lookup marklists) names
     ascending1 mlist

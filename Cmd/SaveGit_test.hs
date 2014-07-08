@@ -79,7 +79,8 @@ test_ruler_checkpoint = do
     states <- checkpoint_sequence repo
         [ ("create", mkview [("1", [])])
         , (,) "destroy" $ do
-            State.modify_ruler UiTest.default_ruler_id (const Ruler.no_ruler)
+            State.modify_ruler UiTest.default_ruler_id
+                (const (Right Ruler.no_ruler))
             State.destroy_ruler UiTest.default_ruler_id
         ]
     -- Mostly just verify that when a ruler is modified and deleted the update

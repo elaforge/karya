@@ -31,8 +31,11 @@ stretch n = do
     selected <- Selection.events
     let start = fromMaybe 0 $ Seq.minimum $
             map (\(_, _, evts) -> maybe 0 Event.start (Seq.head evts)) selected
-    ModifyEvents.selection $ ModifyEvents.event $
-        Event.move (\p -> (p - start) * n + start) . Event.modify_duration (*n)
+    ModifyEvents.selection $ ModifyEvents.event $ stretch_event start n
+
+stretch_event :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
+stretch_event start n =
+    Event.move (\p -> (p - start) * n + start) . Event.modify_duration (*n)
 
 modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
 modify_dur = Edit.modify_dur

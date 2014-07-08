@@ -17,7 +17,7 @@ import Types
 
 test_make_ruler = do
     let adi = Tala.make_ruler Tala.adi_tala 1 1 4 1
-        extract zoom = map snd . extract_marklist zoom . snd . head
+        extract zoom = map snd . extract_marklist zoom . snd . snd . head
             . Map.toList . Ruler.ruler_marklists
     equal (extract 20 adi)
         ["1.0", "1.1", "1.2", "1.3", "1.X", "1.O", "1.X", "1.O", "2.0"]

@@ -50,6 +50,7 @@ import qualified Ui.Track as Track
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Meter as Meter
+import qualified Cmd.Meters as Meters
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
@@ -137,7 +138,7 @@ set_ruler_id ruler_id block_id = do
 local_ruler :: Cmd.M m => Ruler.Ruler -> m ()
 local_ruler ruler = do
     block_id <- Cmd.get_focused_block
-    RulerUtil.local_block block_id (const ruler)
+    RulerUtil.local_block block_id (const (Right ruler))
     -- TODO rederive?
 
 -- | Modify the ruler on the focused block.  Other blocks with the same ruler
@@ -145,7 +146,14 @@ local_ruler ruler = do
 modify_ruler :: Cmd.M m => Ruler.Ruler -> m ()
 modify_ruler ruler = do
     block_id <- Cmd.get_focused_block
-    RulerUtil.modify_block block_id (const ruler)
+    RulerUtil.modify_block block_id (const (Right ruler))
+
+-- | Modify all rulers.
+modify_rulers :: Cmd.M m => (Ruler.Ruler -> Ruler.Ruler) -> m ()
+modify_rulers modify = do
+    ruler_ids <- State.all_ruler_ids
+    forM_ ruler_ids $ \ruler_id ->
+        State.modify_ruler ruler_id (Right . modify)
 
 -- | Replace all occurrences of one RulerId with another.
 replace_ruler_id :: State.M m => RulerId -> RulerId -> m ()
@@ -156,13 +164,13 @@ replace_ruler_id old new = do
 
 -- * query
 
-get_meter :: State.M m => BlockId -> m Meter.Meter
+get_meter :: State.M m => BlockId -> m Meter.LabeledMeter
 get_meter block_id =
     Meter.ruler_meter <$> (State.get_ruler =<< State.ruler_of block_id)
 
 get_marks :: State.M m => BlockId -> m [Ruler.PosMark]
 get_marks block_id =
-    Ruler.ascending 0 . Ruler.get_marklist Ruler.meter <$>
+    Ruler.ascending 0 . snd . Ruler.get_marklist Ruler.meter <$>
         (State.get_ruler =<< State.ruler_of block_id)
 
 -- * Modify
@@ -175,7 +183,7 @@ double = do
     return (block_id, \meter -> Seq.rdrop 1 meter <> meter)
 
 -- | Clip the meter to end at the selection.
-clip :: Cmd.M m => m DeleteModify
+clip :: Cmd.M m => m Modify
 clip = do
     (block_id, _, _, pos) <- Selection.get_insert
     return (block_id, Meter.clip 0 (Meter.time_to_duration pos))
@@ -185,17 +193,18 @@ append :: Cmd.M m => m Modify
 append = do
     (block_id, _, _, start, end) <- Selection.tracks
     return (block_id, \meter ->
-        meter <> Meter.clipm (Meter.time_to_duration start)
+        meter <> Meter.clip (Meter.time_to_duration start)
             (Meter.time_to_duration end) meter)
 
+-- | Append another ruler to this one.
 append_ruler_id :: Cmd.M m => RulerId -> m Modify
 append_ruler_id ruler_id = do
     block_id <- Cmd.get_focused_block
     other <- Meter.ruler_meter <$> State.get_ruler ruler_id
-    return (block_id, (<> other))
+    return (block_id, (<> other) . Seq.rdrop 1)
 
 -- | Remove the selected range of the ruler and shift the rest up.
-delete :: Cmd.M m => m DeleteModify
+delete :: Cmd.M m => m Modify
 delete = do
     (block_id, _, _, start, end) <- Selection.tracks
     return (block_id, Meter.delete
@@ -203,7 +212,7 @@ delete = do
 
 -- | Strip out ranks below a certain value, for the whole block.  Larger scale
 -- blocks don't need the fine resolution and can wind up with huge rulers.
-strip_ranks :: Cmd.M m => Meter.RankName -> m DeleteModify
+strip_ranks :: Cmd.M m => Meter.RankName -> m Modify
 strip_ranks max_rank = do
     block_id <- Cmd.get_focused_block
     return (block_id, Meter.strip_ranks (Meter.name_to_rank max_rank))
@@ -237,8 +246,8 @@ fit_to_selection meter first_measure_number = do
 
 -- | Make a ruler fit in the given duration.
 fit_ruler :: ScoreTime -> [Meter.AbstractMeter] -> Int -> Ruler.Ruler
-fit_ruler dur meters first_measure_number = Ruler.meter_ruler $
-    Meter.meter_marklist first_measure_number $
+fit_ruler dur meters first_measure_number =
+    Meters.ruler $ Meter.meter_marklist first_measure_number $
     Meter.fit_meter (Meter.time_to_duration dur) meters
 
 -- | Replace the meter with the concatenation of the rulers of the given
@@ -249,7 +258,7 @@ concat block_ids = do
     ruler_ids <- mapM State.ruler_of block_ids
     -- Strip the last 0-dur mark off of each meter before concatenating.
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
-    let meter = mconcat meters ++ [(0, 0)]
+    let meter = mconcat meters ++ [final_mark]
     block_id <- Cmd.get_focused_block
     return (block_id, const meter)
 
@@ -263,7 +272,7 @@ extract = do
 
 -- | Extract the meter marklists from the sub-blocks called on the given
 -- track, concatenate them, and replace the current meter with it.
-extract_meters :: Cmd.M m => BlockId -> TrackId -> m Meter.Meter
+extract_meters :: Cmd.M m => BlockId -> TrackId -> m Meter.LabeledMeter
 extract_meters block_id track_id = do
     subs <- extract_calls block_id track_id
     ruler_ids <- mapM State.ruler_of [bid | (_, _, bid) <- subs]
@@ -272,7 +281,10 @@ extract_meters block_id track_id = do
     return $ mconcat $
         [ Meter.scale (Meter.time_to_duration dur) meter
         | ((_start, dur, _), meter) <- zip subs meters
-        ] ++ [[(0, 0)]]
+        ] ++ [[final_mark]]
+
+final_mark :: Meter.LabeledMark
+final_mark = Meter.LabeledMark 0 0 ""
 
 extract_calls :: State.M m => BlockId -> TrackId
     -> m [(ScoreTime, ScoreTime, BlockId)]
@@ -286,16 +298,7 @@ extract_calls block_id track_id =
 
 -- * modify
 
--- | A modification of a simple numbered meter.  It regenerates the mark
--- numbers, so if you had anything more fancy in there it will be destroyed.
--- 'Meter.Meterlike' has details.
-type Modify = ModifyM Meter.Meter
-
--- | A modification that only deletes marks and doesn't generate new ones,
--- so it can work on a LabeledMeter.  See 'Meter.Meterlike' for details.
-type DeleteModify = ModifyM Meter.LabeledMeter
-
-type ModifyM m = (BlockId, m -> m)
+type Modify = (BlockId, Meter.LabeledMeter -> Meter.LabeledMeter)
 
 -- | Just like 'RulerUtil.local_meter' but invalidate performances.  Since
 -- block calls use the ruler length to determine the duration of the block,
@@ -303,10 +306,10 @@ type ModifyM m = (BlockId, m -> m)
 --
 -- I don't add this directly to 'RulerUtil.local_meter' because that would make
 -- it be in Cmd and IO.
-local :: Meter.Meterlike m => ModifyM m -> Cmd.CmdL ()
+local :: Modify -> Cmd.CmdL ()
 local (block_id, f) = RulerUtil.local_meter block_id f
 
-modify :: Meter.Meterlike m => ModifyM m -> Cmd.CmdL ()
+modify :: Modify -> Cmd.CmdL ()
 modify (block_id, f) = RulerUtil.modify_meter block_id f
 
 
@@ -324,11 +327,12 @@ add_cue text = do
 remove_cues :: Cmd.CmdL ()
 remove_cues = do
     block_id <- Cmd.get_focused_block
-    RulerUtil.local_block block_id $ Ruler.remove_marklist cue
+    RulerUtil.local_block block_id $ Right . Ruler.remove_marklist cue
 
 add_cue_at :: BlockId -> ScoreTime -> Text -> Cmd.CmdL ()
 add_cue_at block_id pos text = RulerUtil.local_block block_id $
-    Ruler.modify_marklist cue $ Ruler.insert_mark pos (cue_mark text)
+    Right . Ruler.modify_marklist cue
+        (const (Ruler.insert_mark pos (cue_mark text)))
 
 cue_mark :: Text -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
@@ -341,13 +345,13 @@ reset_colors :: Cmd.CmdL ()
 reset_colors = do
     block_id <- Cmd.get_focused_block
     ruler_id <- State.ruler_of block_id
-    State.modify_ruler ruler_id (set_colors meter_ranks)
+    State.modify_ruler ruler_id (Right . set_colors meter_ranks)
 
 set_colors :: [(Color.Color, Meter.MarkWidth, Int)] -> Ruler.Ruler
     -> Ruler.Ruler
 set_colors ranks =
     Ruler.modify_marklist Ruler.meter
-        (Ruler.marklist . map (second set) . Ruler.ascending 0)
+        (const $ Ruler.marklist . map (second set) . Ruler.ascending 0)
     where
     set mark = case Seq.at ranks (Ruler.mark_rank mark) of
         Nothing -> mark

@@ -24,7 +24,9 @@
 module Cmd.Meter where
 import Prelude hiding (repeat)
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.Read as Text.Read
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -37,41 +39,15 @@ import Types
 
 -- * meter marklist
 
-{- | If a meter's labels are just number counts, they can be generated from
-    a 'Meter'.  However, if they have a more complicated structure, as with
-    "Cmd.Tala", I can't actually generate new meter without knowing the rules.
-    That means generic modification is not possible, unless it's just deleting
-    things (and even then it may be wrong if it should have renumbered).
-
-    I considered some schemes for a mid-level representation, but eventually
-    decided that they were all too complicated, and if you want to modify
-    a complicated ruler, you should just recreate it from scratch, presumably
-    using whatever mid-level representation was appropriate for the function
-    that created it in the first place.
-
-    Except that deletion can still be implemented generically, and 'clip' is
-    still very useful.  So modification works on a Meterlike, and the delete
-    functions can work directly on a LabaledMeter, while the rest work on
-    a Meter.  This means they will renumber and thus mess up fancy meters like
-    talas.
-
-    An alternate approach, perhaps suitable for colotomic patterns, would be
-    a separate Marklist, but I'd run into the same modification problems.  I'll
-    probably have to come up with a better solution once I have more experience
-    with what operations I'll want to perform.
--}
-class Meterlike a where
-    modify_meterlike :: (a -> a) -> Ruler.Marklist -> Ruler.Marklist
-
-instance Meterlike Meter where
-    modify_meterlike f = meter_marklist 1 . f . marklist_meter
-
-instance Meterlike LabeledMeter where
-    modify_meterlike f = labeled_marklist . f . marklist_labeled
-
+-- | Meter is for simple numeric meters, as in "Cmd.Meters".  The labels can
+-- be generated entirely from the 'Ruler.Rank's.
 type Meter = [(Ruler.Rank, Duration)]
-type LabeledMeter = [LabeledMark]
 
+-- | LabeledMeter is for meters that have some structure in their labels, and
+-- can't be generated from the Ranks only, such as "Cmd.Tala".  After
+-- modification, they need a separate pass to renumber the labels, looked up in
+-- 'meter_types'.
+type LabeledMeter = [LabeledMark]
 data LabeledMark = LabeledMark {
     m_rank :: !Ruler.Rank
     , m_duration :: !Duration
@@ -94,23 +70,23 @@ time_to_duration = id
 meter_durations :: LabeledMeter -> [Duration]
 meter_durations = scanl (+) 0 . map m_duration
 
-modify_meter :: Meterlike m => (m -> m) -> Ruler.Ruler -> Ruler.Ruler
-modify_meter f = Ruler.modify_marklist Ruler.meter (modify_meterlike f)
+modify_meter :: (LabeledMeter -> LabeledMeter) -> Ruler.Ruler
+    -> Either Text Ruler.Ruler
+modify_meter modify ruler = case flip Map.lookup meter_types =<< mtype of
+    Nothing -> Left $ "unknown meter type: " <> prettyt mtype
+    Just renumber -> Right $ Ruler.set_marklist Ruler.meter mtype new ruler
+        where
+        new = labeled_marklist $ renumber $ modify $ marklist_labeled mlist
+    where (mtype, mlist) = Ruler.get_marklist Ruler.meter ruler
 
-ruler_meter :: Ruler.Ruler -> Meter
-ruler_meter = marklist_meter . Ruler.get_marklist Ruler.meter
+ruler_meter :: Ruler.Ruler -> LabeledMeter
+ruler_meter = marklist_labeled . snd . Ruler.get_marklist Ruler.meter
 
 -- | Extract the half-open range from start to end.
 clip :: Duration -> Duration -> LabeledMeter -> LabeledMeter
 clip start end meter =
     map snd $ takeWhile ((<=end) . fst) $ dropWhile ((<start) . fst) $
         zip (meter_durations meter) meter
-
--- | Ack.  The Meter \/ LabeledMeter division is not very ideal.
-clipm :: Duration -> Duration -> Meter -> Meter
-clipm start end meter =
-    map snd $ takeWhile ((<end) . fst) $ dropWhile ((<start) . fst) $
-        zip (scanl (+) 0 (map snd meter)) meter
 
 -- | Remove the half-open range.
 delete :: Duration -> Duration -> LabeledMeter -> LabeledMeter
@@ -127,12 +103,13 @@ strip_ranks max_rank = strip
         LabeledMark rank (dur + sum (map m_duration pre)) label : strip post
         where (pre, post) = span ((>max_rank) . m_rank) rest
 
-scale :: Duration -> Meter -> Meter
-scale dur meter = map (second (*factor)) meter
+scale :: Duration -> LabeledMeter -> LabeledMeter
+scale dur meter =
+    [mark { m_duration = m_duration mark * factor } | mark <- meter]
     where factor = if dur == 0 then 1 else dur / time_end meter
 
-time_end :: Meter -> Duration
-time_end = sum . map snd
+time_end :: LabeledMeter -> Duration
+time_end = sum . map m_duration
 
 
 -- ** meter constants
@@ -239,10 +216,6 @@ regular_subdivision ns = foldr subdivide T (reverse ns)
 
 -- *** AbstractMeter utils
 
--- | It's easier to visualize a meter as a list of its ranks.
-mshow :: [AbstractMeter] -> [Ruler.Rank]
-mshow = map fst . make_meter 1
-
 -- | Map the given function over all @T@s in the given AbstractMeter.
 replace_t :: AbstractMeter -> AbstractMeter -> AbstractMeter
 replace_t val (D ts) = D (map (replace_t val) ts)
@@ -289,12 +262,15 @@ label_meter :: Int -- ^ Start at this measure number.  Mostly useful for 0 for
     -- a pickup.
     -> Meter -> LabeledMeter
 label_meter start_at meter =
-    [LabeledMark rank dur label
+    [LabeledMark rank dur (join_label label)
         | (rank, dur, label) <- List.zip3 ranks ps labels]
     where
     (ranks, ps) = unzip meter
     labels = text_labels 1 (count1_labels start_at) $
         collapse_ranks unlabeled_ranks ranks
+
+unlabel_meter :: LabeledMeter -> Meter
+unlabel_meter = map (\m -> (m_rank m, m_duration m))
 
 -- | Create a Marklist from a labeled Meter.
 labeled_marklist :: LabeledMeter -> Ruler.Marklist
@@ -367,20 +343,56 @@ pixels_to_zoom dur pixels
 
 -- * labels
 
-type Label = Text
+mtype_meter, mtype_tala :: Ruler.MeterType
+mtype_meter = "meter"
+mtype_tala = "tala"
 
-data Labeled =
-    -- | The mark gets this text.
-    Literal Label
-    -- | The mark gets a number
-    | Count deriving (Show)
+-- | In order to perform generic operations on meters, such as doubling the
+-- length, I need a way to renumber them.  So rulers keep track of their
+-- created type and use that to look up the 'Renumber' function.
+meter_types :: Map.Map Ruler.MeterType Renumber
+meter_types = Map.fromList
+    [ (mtype_meter, renumber_meter)
+    , (mtype_tala, renumber_topmost)
+    ]
+
+type Renumber = LabeledMeter -> LabeledMeter
+
+-- | Strip all labels and renumber.
+renumber_meter :: Renumber
+renumber_meter = label_meter 1 . map (\(LabeledMark rank dur _) -> (rank, dur))
+
+-- | Renumber only the topmost count.  The number is increased at ranks 0 and
+-- 1, based on 'Tala.unlabeled_ranks'.
+renumber_topmost :: Renumber
+renumber_topmost meter = fromMaybe meter $ do
+    mark <- Seq.head meter
+    label1 : _ <- return $ split_label (m_label mark)
+    start <- case Text.Read.decimal label1 of
+        Right (d, rest) | Text.null rest -> Just (d - 1)
+        _ -> Nothing
+    return $ snd $ List.mapAccumL renumber start meter
+    where
+    renumber n mark = (next_n, mark { m_label = replace next_n (m_label mark) })
+        where
+        next_n = if m_rank mark `elem` [0, 1] then n + 1 else n
+    replace n label = case split_label label of
+        _ : rest -> join_label $ showt n : rest
+        [] -> ""
+
+join_label :: [Label] -> Label
+join_label = Text.intercalate "."
+
+split_label :: Label -> [Label]
+split_label = Text.split (=='.')
+
+type Label = Text
 
 text_labels :: Int -- ^ Labels have at least this many sections.  Otherwise,
     -- \"trailing zeroes\" (actually 1 for 'count1_labels') are omitted.
-    -> [[Label]] -> [Ruler.Rank] -> [Label]
+    -> [[Label]] -> [Ruler.Rank] -> [[Label]]
 text_labels min_depth labels ranks =
-    map (Text.intercalate ".") $ strip $ map (map replace) $
-        apply_labels labels ranks
+    strip $ map (map replace) $ apply_labels labels ranks
     where
     strip = zipWith take (map (max min_depth . (+1)) ranks)
     replace t = if Text.null t then "-" else t
@@ -399,8 +411,7 @@ collapse_ranks omit = map (\r -> r - sub r)
 -- labels, not just the visible ones.
 strip_prefixes :: Text -> [Label] -> [Label]
 strip_prefixes replacement =
-    map (Text.intercalate "." . strip) . Seq.zip_prev
-        . map (Text.splitOn ".")
+    map (join_label . strip) . Seq.zip_prev . map split_label
     where
     strip (prev, cur) =
         [ if Just c == mp then replacement else c

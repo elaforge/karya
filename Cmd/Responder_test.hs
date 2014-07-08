@@ -32,7 +32,7 @@ test_modify_tempo = do
             rid <- Create.ruler "meter44" $
                 RulerUtil.meter_ruler 1 16 (replicate 4 Meters.m44_4)
             ruler <- State.get_ruler rid
-            State.modify_ruler UiTest.default_ruler_id (const ruler)
+            State.modify_ruler UiTest.default_ruler_id (const (Right ruler))
     let cstate = ResponderTest.mk_cmd_state ustate (UiTest.default_view_id)
     results <- ResponderTest.thread False (ustate, cstate)
         -- Delete the tempo and set it to 2.

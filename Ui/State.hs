@@ -1329,13 +1329,16 @@ destroy_ruler ruler_id = do
     unsafe_modify $ \st ->
         st { state_rulers = Map.delete ruler_id (state_rulers st) }
 
-modify_ruler :: (M m) => RulerId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
-modify_ruler ruler_id f = do
+modify_ruler :: (M m) => RulerId -> (Ruler.Ruler -> Either Text Ruler.Ruler)
+    -> m ()
+modify_ruler ruler_id modify = do
     when (ruler_id == no_ruler) $
         throw "can't modify no_ruler"
     ruler <- get_ruler ruler_id
+    modified <- require_right
+        (untxt . (("modify_ruler " <> prettyt ruler_id) <>)) $ modify ruler
     unsafe_modify $ \st ->
-        st { state_rulers = Map.insert ruler_id (f ruler) (state_rulers st) }
+        st { state_rulers = Map.insert ruler_id modified (state_rulers st) }
     update $ Update.CmdRuler ruler_id
 
 ruler_of :: (M m) => BlockId -> m RulerId

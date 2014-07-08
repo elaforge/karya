@@ -4,10 +4,10 @@
 
 module Ui.Ruler (
     -- * Ruler
-    Ruler(..), Marklists, Name, ruler, meter_ruler, meter
+    Ruler(..), Marklists, Name, MeterType, ruler, meter_ruler, meter
     , no_ruler
     , lookup_marklist, get_marklist, set_marklist, remove_marklist
-    , modify_marklist, modify_marklists, map_marklists
+    , modify_marklist, modify_marklists
     , time_end
     -- * Marklist
     , Marklist, MarklistVector, PosMark
@@ -61,8 +61,12 @@ data Ruler = Ruler {
 -- have multiple simultaneous meters, or a separate list of ad-hoc cue points.
 -- All marks are flattened before display, and are drawn in the sort order of
 -- their Names.
-type Marklists = Map.Map Name Marklist
+type Marklists = Map.Map Name (Maybe MeterType, Marklist)
 type Name = Text
+-- | The type of meter that this marklist represents.  This is looked up in
+-- a table of meter types to figure out how to do transformations on the meter,
+-- since different meters follow different rules.
+type MeterType = Text
 
 instance Pretty.Pretty Ruler where
     format (Ruler mlists bg show_names align_to_bottom) = Pretty.record "Ruler"
@@ -75,7 +79,7 @@ instance Pretty.Pretty Ruler where
 instance DeepSeq.NFData Ruler where rnf (Ruler mlists _ _ _) = mlists `seq` ()
 
 -- | Constructor for "plain" rulers.
-ruler :: [(Name, Marklist)] -> Ruler
+ruler :: [(Name, (Maybe MeterType, Marklist))] -> Ruler
 ruler marklists = Ruler
     { ruler_marklists = Map.fromList marklists
     , ruler_bg = Config.ruler_bg
@@ -84,8 +88,8 @@ ruler marklists = Ruler
     }
 
 -- | Create a ruler with just a 'meter' marklist.
-meter_ruler :: Marklist -> Ruler
-meter_ruler marklist = ruler [(meter, marklist)]
+meter_ruler :: Maybe MeterType -> Marklist -> Ruler
+meter_ruler mtype marklist = ruler [(meter, (mtype, marklist))]
 
 -- | The meter marklist by convention has marks corresponding to the meter of
 -- the piece.  Other commands may use this to find out where beats are.
@@ -96,36 +100,36 @@ meter = "meter"
 no_ruler :: Ruler
 no_ruler = ruler []
 
-lookup_marklist :: Name -> Ruler -> Maybe Marklist
+lookup_marklist :: Name -> Ruler -> Maybe (Maybe MeterType, Marklist)
 lookup_marklist name = Map.lookup name . ruler_marklists
 
-get_marklist :: Name -> Ruler -> Marklist
-get_marklist name = fromMaybe empty_marklist . lookup_marklist name
+get_marklist :: Name -> Ruler -> (Maybe MeterType, Marklist)
+get_marklist name = fromMaybe (Nothing, empty_marklist) . lookup_marklist name
 
-set_marklist :: Name -> Marklist -> Ruler -> Ruler
-set_marklist name mlist = modify_marklists (Map.insert name mlist)
+set_marklist :: Name -> Maybe MeterType -> Marklist -> Ruler -> Ruler
+set_marklist name mtype mlist =
+    modify_marklists (Map.insert name (mtype, mlist))
 
 remove_marklist :: Name -> Ruler -> Ruler
 remove_marklist = modify_marklists . Map.delete
 
 -- | If the marklist isn't set, modify will be given an empty one.
-modify_marklist :: Name -> (Marklist -> Marklist) -> Ruler -> Ruler
+modify_marklist :: Name -> (Maybe MeterType -> Marklist -> Marklist)
+    -> Ruler -> Ruler
 modify_marklist name modify ruler =
-    set_marklist name (modify (get_marklist name ruler)) ruler
+    set_marklist name mtype (modify mtype mlist) ruler
+    where (mtype, mlist) = get_marklist name ruler
 
-modify_marklists :: (Map.Map Name Marklist -> Map.Map Name Marklist)
+modify_marklists :: (Map.Map Name (Maybe MeterType, Marklist)
+        -> Map.Map Name (Maybe MeterType, Marklist))
     -> Ruler -> Ruler
 modify_marklists modify ruler =
     ruler { ruler_marklists = modify (ruler_marklists ruler) }
 
--- | Transform all the marklists in a ruler.
-map_marklists :: (Marklist -> Marklist) -> Ruler -> Ruler
-map_marklists f ruler =
-    ruler { ruler_marklists = Map.map f (ruler_marklists ruler) }
-
 -- | Get the position of the last mark of the ruler.
 time_end :: Ruler -> ScoreTime
-time_end = maximum . (0 :) . map marklist_end . Map.elems . ruler_marklists
+time_end = maximum . (0 :) . map (marklist_end . snd) . Map.elems
+    . ruler_marklists
 
 -- * marklist
 

@@ -32,6 +32,7 @@ test_meter_marklist = do
         ]
 
 test_rational_meter = do
+    -- Meters with 1/3 divisions don't get inaccurate.
     let f = Meter.meter_marklist 1 . Meter.fit_meter 4
         extract = extract_marklist 20
         round_trip = Meter.meter_marklist 1 . Meter.marklist_meter
@@ -40,10 +41,13 @@ test_rational_meter = do
         (zip (Seq.range_ 0 1) ["1", "1.2", "1.3", "1.4", "2"])
     equal (extract $ round_trip $ f meter)
         (zip (Seq.range_ 0 1) ["1", "1.2", "1.3", "1.4", "2"])
-    let modify :: Meter.Meter -> Meter.Meter
-        modify = dropWhile ((>=2) . fst) . drop 1
-    equal (extract $ Meter.modify_meterlike modify $ f meter)
-        (zip (Seq.range_ 0 1) ["1.1", "1.2", "1.3", "2"])
+
+    let modify :: Meter.LabeledMeter -> Meter.LabeledMeter
+        modify = dropWhile ((>=2) . Meter.m_rank) . drop 1
+        ruler = Meters.ruler (f meter)
+    equal (extract . snd . Ruler.get_marklist Ruler.meter <$>
+            Meter.modify_meter modify ruler) $
+        Right (zip (Seq.range_ 0 1) ["1.1", "1.2", "1.3", "2"])
 
 extract_marklist :: Double -> Ruler.Marklist -> [(ScoreTime, Text)]
 extract_marklist zoom = mapMaybe name_of . Ruler.ascending 0
@@ -51,6 +55,14 @@ extract_marklist zoom = mapMaybe name_of . Ruler.ascending 0
     name_of (t, m)
         | Ruler.mark_name_zoom_level m <= zoom = Just (t, Ruler.mark_name m)
         | otherwise = Nothing
+
+test_renumber_topmost = do
+    let f = map Meter.m_label . Meter.renumber_topmost . mkmeter
+        mkmeter marks =
+            [Meter.LabeledMark rank 1 label | (rank, label) <- marks]
+    let meter = [(0, "1"), (2, "1.2"), (0, "2"), (2, "2.2")]
+    equal (f meter) (map snd meter)
+    equal (f (meter ++ meter)) (map snd meter ++ ["3", "3.2", "4", "4.2"])
 
 test_apply_labels = do
     let f labels = map (Text.intercalate ".") . Meter.apply_labels labels

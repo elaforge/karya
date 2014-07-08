@@ -21,45 +21,49 @@ import Types
 
 -- | Create a ruler with a meter of the given duration.
 meter_ruler :: Int -> Meter.Duration -> [Meter.AbstractMeter] -> Ruler.Ruler
-meter_ruler start_at dur meters = Ruler.meter_ruler $
+meter_ruler start_at dur meters = Ruler.meter_ruler (Just Meter.mtype_meter) $
     Meter.meter_marklist start_at (Meter.fit_meter dur meters)
 
 -- | Replace or add a marklist with the given name.
-set_marklist :: State.M m => RulerId -> Ruler.Name -> Ruler.Marklist -> m ()
-set_marklist ruler_id name mlist =
-    State.modify_ruler ruler_id (Ruler.set_marklist name mlist)
+set_marklist :: State.M m => RulerId -> Ruler.Name -> Maybe Ruler.MeterType
+    -> Ruler.Marklist -> m ()
+set_marklist ruler_id name mtype mlist =
+    State.modify_ruler ruler_id (Right . Ruler.set_marklist name mtype mlist)
 
 -- | Copy a marklist from one ruler to another.  If it already exists in
 -- the destination ruler, it will be replaced.
 copy_marklist :: State.M m => Ruler.Name -> RulerId -> RulerId -> m ()
 copy_marklist name from_ruler_id to_ruler_id = do
     from_ruler <- State.get_ruler from_ruler_id
-    set_marklist to_ruler_id name $ Ruler.get_marklist name from_ruler
+    let (mtype, mlist) = Ruler.get_marklist name from_ruler
+    set_marklist to_ruler_id name mtype mlist
 
 -- * meter
 
 -- | Modify the meter locally to a block, i.e. the ruler will be copied if it
 -- is shared with other blocks.
-local_meter :: (State.M m, Meter.Meterlike meter) =>
-    BlockId -> (meter -> meter) -> m ()
-local_meter block_id f = local_block block_id (Meter.modify_meter f)
+local_meter :: State.M m => BlockId
+    -> (Meter.LabeledMeter -> Meter.LabeledMeter) -> m ()
+local_meter block_id modify = local_block block_id (Meter.modify_meter modify)
 
 -- | Modify a meter destructively.
-modify_meter :: (State.M m, Meter.Meterlike meter) =>
-    BlockId -> (meter -> meter) -> m ()
+modify_meter :: State.M m => BlockId
+    -> (Meter.LabeledMeter -> Meter.LabeledMeter) -> m ()
 modify_meter block_id = modify_block block_id . Meter.modify_meter
 
-get_meter :: State.M m => RulerId -> m Meter.Meter
+get_meter :: State.M m => RulerId -> m Meter.LabeledMeter
 get_meter = fmap Meter.ruler_meter . State.get_ruler
 
 -- * local modify
 
-local_block :: State.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
+local_block :: State.M m => BlockId -> (Ruler.Ruler -> Either Text Ruler.Ruler)
+    -> m ()
 local_block block_id modify =
     mapM_ (\ruler_id -> local block_id ruler_id modify)
         =<< State.rulers_of block_id
 
-modify_block :: State.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m ()
+modify_block :: State.M m => BlockId
+    -> (Ruler.Ruler -> Either Text Ruler.Ruler) -> m ()
 modify_block block_id modify = do
     ruler_id <- State.ruler_of block_id
     if ruler_id == State.no_ruler
@@ -69,13 +73,13 @@ modify_block block_id modify = do
 -- | Modify the given RulerId, making a new one if it's already in use on
 -- a block other than the give one.
 local :: State.M m => BlockId -> RulerId
-    -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
-local block_id ruler_id f = do
+    -> (Ruler.Ruler -> Either Text Ruler.Ruler) -> m RulerId
+local block_id ruler_id modify = do
     blocks <- State.blocks_with_ruler_id ruler_id
     case blocks of
         [(rblock_id, _)]
             | ruler_id /= State.no_ruler && block_id == rblock_id -> do
-                State.modify_ruler ruler_id f
+                State.modify_ruler ruler_id modify
                 return ruler_id
         _ -> do
             -- Try to the ruler the same name as the block, since it's now
@@ -85,7 +89,7 @@ local block_id ruler_id f = do
             new_ruler_id <- block_id_to_free_ruler <$>
                 State.gets State.state_rulers <*> return block_id
             new_ruler_id <- copy new_ruler_id ruler_id
-            State.modify_ruler new_ruler_id f
+            State.modify_ruler new_ruler_id modify
             sequence_ $ do
                 (rblock_id, tracks) <- blocks
                 guard (rblock_id == block_id)

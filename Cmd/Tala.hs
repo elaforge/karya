@@ -14,6 +14,9 @@ import qualified Cmd.Meter as Meter
 import Cmd.Meter (AbstractMeter(..))
 
 
+ruler :: Ruler.Marklist -> Ruler.Ruler
+ruler = Ruler.meter_ruler (Just Meter.mtype_tala)
+
 -- * presets
 
 -- | n sections of 4 avartanams of everyone's favorite talam.
@@ -93,7 +96,7 @@ make_ruler tala sections avartanams nadai dur =
     make_rulers [Ruler tala sections avartanams nadai dur]
 
 make_rulers :: [Ruler] -> Ruler.Ruler
-make_rulers = Ruler.meter_ruler . rulers_marklist
+make_rulers = ruler . rulers_marklist
 
 -- | Create a marklist from multiple rulers concatenated.
 rulers_marklist :: [Ruler] -> Ruler.Marklist
@@ -146,7 +149,7 @@ angas_to_labels jati = concatMap $ \anga -> case anga of
 
 meter_marklist :: [[Meter.Label]] -> Meter.Meter -> Ruler.Marklist
 meter_marklist labels meter =
-    Meter.labeled_marklist [Meter.LabeledMark rank dur label
+    Meter.labeled_marklist [Meter.LabeledMark rank dur (Meter.join_label label)
         | (rank, dur, label) <- List.zip3 ranks ps all_labels]
     where
     (ranks, ps) = unzip (clean meter)

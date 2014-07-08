@@ -11,7 +11,7 @@ UNSORTED
   * Perform.ConvertUtil.throw should take Text
   * upgrade to fclabels2
   - copy paste that also copies the ruler
-  - it's such a pain to do anything with rulers, even simple things like
+  * it's such a pain to do anything with rulers, even simple things like
     replace a chatusram section with tisram.  Surely there is a better way.
     . I have to come up with where the break point is in the meter, then
       create two concatenated meters, but that doesn't even work if it's not
@@ -24,6 +24,16 @@ UNSORTED
       - 0 1 2 3 X O X O
       - 0.0, 0.1, 0.2, 0.3, 0.X, 0.O, 0.X, 0.O
       . The main thing is that it uses a different cycle for rank 1.
+    . I can easily manipulate plain meters because I can reduce them to
+      Meter.Meter and the renumbering happens automatically.  I need to do the
+      same with tala meters.
+    . Mostly I just want to be able to append n avartanams of some tala to the
+      current ruler.  Being able to use 'double' and 'append' would be nice
+      too.  Basically that just means being able to renumber the top level.
+      So I just add a certain amount.
+    . But this only works if I'm only renumbering the top level, what if
+      I have both section / meter?  It's the same thing with numbers.  Can
+      I re-use the numbering code?
   * shift down arrow in a text box loses the selection
   * clicking on a floating text entry makes it lose focus instead of setting
     the cursor.

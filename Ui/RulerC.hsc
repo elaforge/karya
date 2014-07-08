@@ -24,7 +24,7 @@ with_ruler :: Ruler.Ruler
 with_ruler ruler f =
     with ruler $ \rulerp -> with_marklists marklists $ \len mlists ->
         f rulerp mlists (Util.c_int len)
-    where marklists = Map.elems (Ruler.ruler_marklists ruler)
+    where marklists = map snd $ Map.elems $ Ruler.ruler_marklists ruler
 
 no_ruler :: (Ptr Ruler.Ruler -> Ptr (Ptr Ruler.Marklist) -> CInt -> IO a)
     -> IO a
@@ -85,7 +85,7 @@ instance CStorable Ruler.Ruler where
 -- Doesn't poke the marklists, since those are passed separately, since the
 -- real RulerConfig uses an STL vector which has to be serialized in c++.
 poke_ruler :: Ptr Ruler.Ruler -> Ruler.Ruler -> IO ()
-poke_ruler rulerp (Ruler.Ruler mlists bg show_names align_to_bottom) = do
+poke_ruler rulerp ruler@(Ruler.Ruler _ bg show_names align_to_bottom) = do
     (#poke RulerConfig, bg) rulerp bg
     (#poke RulerConfig, show_names) rulerp (Util.c_bool show_names)
     -- The haskell layer no longer differentiates between ruler track rulers
@@ -95,9 +95,7 @@ poke_ruler rulerp (Ruler.Ruler mlists bg show_names align_to_bottom) = do
     (#poke RulerConfig, use_alpha) rulerp (Util.c_bool True)
     (#poke RulerConfig, full_width) rulerp (Util.c_bool True)
     (#poke RulerConfig, align_to_bottom) rulerp (Util.c_bool align_to_bottom)
-    (#poke RulerConfig, last_mark_pos) rulerp
-        (last_mark_pos (Map.elems mlists))
-    where last_mark_pos mlists = maximum (0 : map Ruler.marklist_end mlists)
+    (#poke RulerConfig, last_mark_pos) rulerp (Ruler.time_end ruler)
 
 instance CStorable Ruler.Mark where
     sizeOf _ = #size Mark

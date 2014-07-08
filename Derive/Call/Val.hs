@@ -376,7 +376,8 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
                 (cf_swing (real dyn) (Meter.name_to_rank rank)
                     (to_function dyn 0 amount) marks t)
         | otherwise = Score.untyped 0
-        where maybe_marks = Map.lookup Ruler.meter (TrackLang.dyn_ruler dyn)
+        where
+        maybe_marks = snd <$> Map.lookup Ruler.meter (TrackLang.dyn_ruler dyn)
 
 cf_swing :: (ScoreTime -> RealTime) -> Ruler.Rank -> Util.Function
     -> Ruler.Marklist -> ScoreTime -> RealTime

@@ -191,8 +191,8 @@ mkblock_marklist marklist block_id title tracks = do
     ruler_id <- mkruler marklist
     mkblock_ruler ruler_id block_id title tracks
 
-mkruler :: (State.M m) => Ruler.Marklist -> m RulerId
-mkruler = Create.ruler "r" . Ruler.meter_ruler
+mkruler :: State.M m => Ruler.Marklist -> m RulerId
+mkruler = Create.ruler "r" . Ruler.meter_ruler (Just Meter.mtype_meter)
 
 mkblocks_skel :: (State.M m) => [(BlockSpec, [Skeleton.Edge])] -> m ()
 mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
@@ -433,7 +433,8 @@ mkmarklist = Ruler.marklist . map (second mark)
 
 ruler_ :: [(Ruler.Name, Ruler.Marklist)] -> Ruler.Ruler
 ruler_ marklists = Ruler.Ruler
-    { Ruler.ruler_marklists = Map.fromList marklists
+    { Ruler.ruler_marklists =
+        Map.fromList $ map (second ((,) (Just Meter.mtype_meter))) marklists
     , Ruler.ruler_bg = Config.ruler_bg
     , Ruler.ruler_show_names = False
     , Ruler.ruler_align_to_bottom = False
