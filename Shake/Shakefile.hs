@@ -34,9 +34,9 @@ import Data.Monoid (mempty, (<>))
 
 import qualified Development.Shake as Shake
 import Development.Shake ((?==), (?>), (?>>), (*>), need)
+import qualified Distribution.Package as Package
 import qualified Distribution.Simple.Configure as Simple.Configure
 import qualified Distribution.Simple.LocalBuildInfo as LocalBuildInfo
-import qualified Distribution.Text
 
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
@@ -688,7 +688,7 @@ makeHaddock config = do
     packages <- getPackages config
     let flags = configFlags config
     interfaces <- Trans.liftIO $ getHaddockInterfaces packages
-    let packageFlags = "-hide-all-packages" : map ("-package="++) packages
+    let packageFlags = "-hide-all-packages" : map ("-package-id="++) packages
     system "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
@@ -775,8 +775,9 @@ extractPackages info = do
     (LocalBuildInfo.CLibName,
             build@(LocalBuildInfo.LibComponentLocalBuildInfo {}), _)
         <- LocalBuildInfo.componentsConfigs info
-    (_, pkg) <- LocalBuildInfo.componentPackageDeps build
-    return $ Distribution.Text.display pkg
+    (Package.InstalledPackageId pkg, _)
+        <- LocalBuildInfo.componentPackageDeps build
+    return pkg
 
 -- ** hs
 
@@ -911,7 +912,7 @@ compileHs packages mode config hs = ("GHC" ++ maybe "" (('-':) . show) mode, hs,
     [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
         ++ mainIs ++ packageFlags ++ [hs, "-o", srcToObj config hs])
     where
-    packageFlags = ["-hide-all-packages"] ++ map ("-package="++) packages
+    packageFlags = ["-hide-all-packages"] ++ map ("-package-id="++) packages
     mainIs = if hs `elem` Map.elems nameToMain
         then ["-main-is", pathToModule hs]
         else []
@@ -920,7 +921,7 @@ linkHs :: Config -> FilePath -> [String] -> [FilePath] -> Util.Cmdline
 linkHs config output packages objs = ("LD-HS", output,
     ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
         ++ ["-lstdc++"]
-        ++ ["-hide-all-packages"] ++ map ("-package="++) packages
+        ++ ["-hide-all-packages"] ++ map ("-package-id="++) packages
         ++ objs ++ ["-o", output])
     where flags = configFlags config
 
