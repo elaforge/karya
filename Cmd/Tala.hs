@@ -2,11 +2,26 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Meters for Carnatic music.
---
--- E.g., 3 avartanams of adi talam chatusra nadai followed by 4 avartanams of
--- tisra nadai: @make_rulers [Ruler adi_tala 1 3 4 1, Ruler adi_tala 2 4 3 1]@
-module Cmd.Tala where
+{- | Meters for Carnatic music.
+
+    The main data type is 'Meter.LabeledMeter', produced by 'make_meter', which
+    can be easily turned into a 'Ruler.Ruler' via 'ruler' if needed.
+
+    E.g., 3 avartanams of adi talam chatusra nadai followed by 4 avartanams of
+    tisra nadai: @make_meter [Ruler adi_tala 1 3 4 1, Ruler adi_tala 2 4 3 1]@
+-}
+module Cmd.Tala (
+    ruler
+    -- * standard talams
+    , adi, adi3
+    , dhruva, matya, rupaka, jhampa, triputa, ata, eka
+    , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
+    , ata_tala, eka_tala
+    , misra_chapu, khanda_chapu, rupaka_fast
+    -- * define talams
+    , Ruler(..)
+    , make_meter
+) where
 import qualified Data.List as List
 
 import qualified Ui.Ruler as Ruler
@@ -14,18 +29,18 @@ import qualified Cmd.Meter as Meter
 import Cmd.Meter (AbstractMeter(..))
 
 
-ruler :: Ruler.Marklist -> Ruler.Ruler
-ruler = Ruler.meter_ruler (Just Meter.mtype_tala)
+ruler :: Meter.LabeledMeter -> Ruler.Ruler
+ruler = Ruler.meter_ruler (Just Meter.mtype_tala) . Meter.labeled_marklist
 
--- * presets
+-- * standard talams
 
 -- | n sections of 4 avartanams of everyone's favorite talam.
-adi_ruler :: Int -> Ruler.Ruler
-adi_ruler sections = make_ruler adi_tala sections 4 4 1
+adi :: Int -> Meter.LabeledMeter
+adi sections = make_meter [Ruler adi_tala sections 4 4 1]
 
--- | 'adi_ruler' but in tisram.
-adi3_ruler :: Int -> Ruler.Ruler
-adi3_ruler sections = make_ruler adi_tala sections 4 3 1
+-- | 'adi' but in tisram.
+adi3 :: Int -> Meter.LabeledMeter
+adi3 sections = make_meter [Ruler adi_tala sections 4 3 1]
 
 -- * implementation
 
@@ -62,8 +77,41 @@ misra_chapu = Tala [Wave 1, Wave 2, Clap 2, Clap 2] 0
 khanda_chapu :: Tala
 khanda_chapu = Tala [Clap 2, Clap 1, Clap 2] 0
 
-rupaka_c :: Tala
-rupaka_c = Tala [Clap 1, Clap 1, Wave 1] 0
+rupaka_fast :: Tala
+rupaka_fast = Tala [Clap 1, Clap 1, Wave 1] 0
+
+-- * define talams
+
+data Ruler = Ruler {
+    ruler_tala :: !Tala
+    , ruler_sections :: !Int
+    , ruler_avartanams :: !Int
+    , ruler_nadai :: !Int
+    , ruler_dur :: !Meter.Duration -- ^ Duration of each akshara.
+    } deriving (Show)
+
+-- | Concatenate the rulers and make a meter.
+make_meter :: [Ruler] -> Meter.LabeledMeter
+make_meter rulers = label_meter (make_labels labels) meter
+    where
+    meter = concatMap ruler_meter rulers
+    labels = concatMap (tala_labels . ruler_tala) rulers
+
+-- * implementation
+
+label_meter :: [[Meter.Label]] -> Meter.Meter -> Meter.LabeledMeter
+label_meter labels meter =
+    [Meter.LabeledMark rank dur (Meter.join_label label)
+        | (rank, dur, label) <- List.zip3 ranks ps all_labels]
+    where
+    (ranks, ps) = unzip (clean meter)
+    all_labels = Meter.text_labels 2 labels $
+        Meter.collapse_ranks unlabeled_ranks ranks
+    -- Appending Meters can result in 0 dur marks in the middle.
+    clean [] = []
+    clean ((r, d) : meter)
+        | d == 0 && not (null meter) = clean meter
+        | otherwise = (r, d) : clean meter
 
 -- Ranks (* marks labeled ranks):
 -- r_section is several avarta -- sections -- *
@@ -80,30 +128,6 @@ rupaka_c = Tala [Clap 1, Clap 1, Wave 1] 0
 unlabeled_ranks :: [Ruler.Rank]
 unlabeled_ranks =
     [Meter.r_section, Meter.r_2, Meter.r_16, Meter.r_64, Meter.r_128]
-
-data Ruler = Ruler {
-    ruler_tala :: !Tala
-    , ruler_sections :: !Int
-    , ruler_avartanams :: !Int
-    , ruler_nadai :: !Int
-    , ruler_dur :: !Meter.Duration -- ^ Duration of each akshara.
-    } deriving (Show)
-
-make_ruler :: Tala -> Int -> Int -> Int
-    -> Meter.Duration -- ^ Duration of each akshara.
-    -> Ruler.Ruler
-make_ruler tala sections avartanams nadai dur =
-    make_rulers [Ruler tala sections avartanams nadai dur]
-
-make_rulers :: [Ruler] -> Ruler.Ruler
-make_rulers = ruler . rulers_marklist
-
--- | Create a marklist from multiple rulers concatenated.
-rulers_marklist :: [Ruler] -> Ruler.Marklist
-rulers_marklist rulers = meter_marklist (make_labels labels) meters
-    where
-    meters = concatMap ruler_meter rulers
-    labels = concatMap (tala_labels . ruler_tala) rulers
 
 ruler_meter :: Ruler -> Meter.Meter
 ruler_meter (Ruler tala sections avartanams nadai dur) =
@@ -138,28 +162,6 @@ tala_labels (Tala angas jati) = concatMap mk angas
         I -> take jati Meter.count0
         O -> ["X", "O"]
         U -> ["X"]
-
-angas_to_labels :: Jati -> [Anga] -> [Meter.Label]
-angas_to_labels jati = concatMap $ \anga -> case anga of
-    Clap n -> "X" : replicate (n-1) "-"
-    Wave n -> "O" : replicate (n-1) "-"
-    I -> take jati Meter.count0
-    O -> ["X", "O"]
-    U -> ["X"]
-
-meter_marklist :: [[Meter.Label]] -> Meter.Meter -> Ruler.Marklist
-meter_marklist labels meter =
-    Meter.labeled_marklist [Meter.LabeledMark rank dur (Meter.join_label label)
-        | (rank, dur, label) <- List.zip3 ranks ps all_labels]
-    where
-    (ranks, ps) = unzip (clean meter)
-    all_labels = Meter.text_labels 2 labels $
-        Meter.collapse_ranks unlabeled_ranks ranks
-    -- Appending Meters can result in 0 dur marks in the middle.
-    clean [] = []
-    clean ((r, d) : meter)
-        | d == 0 && not (null meter) = clean meter
-        | otherwise = (r, d) : clean meter
 
 make_labels :: [Meter.Label] -> [[Meter.Label]]
 make_labels aksharas =

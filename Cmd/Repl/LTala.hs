@@ -2,27 +2,25 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities for Carnatic music.
+-- | Utilities for talams for Carnatic music.
 module Cmd.Repl.LTala where
-import Util.Control
-import qualified Ui.ScoreTime as ScoreTime
-import Types
+import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Edit as Edit
+import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.Repl.LEvent as LEvent
+import qualified Cmd.Repl.LRuler as LRuler
+import qualified Cmd.Selection as Selection
+import qualified Cmd.Tala as Tala
 
--- 4x 3x 2x 1x + x + 4x 3x 2x 1x + x + 4x 3x 2x 1x = 32x
-m3 = pattern1 ["tha", "ki", "ta"]
-m3m = pattern1 ["dit", "thom", "thom", "ka"]
-m4 = pattern1 ["ta", "ka", "din", "na"]
-m4m = pattern1 ["ki", "ta", "ki", "nam", "thom"]
-m5 = pattern1 ["ta", "ti", "ki", "ta", "thom"]
 
-pattern1 = pattern1_ 0.25
-
-pattern1_ :: ScoreTime -> [Text] -> [(ScoreTime, ScoreTime, Text)]
-pattern1_ factor sol =
-    map multiply $ expand $ once ++ gap ++ once ++ gap ++ once
-    where
-    once = concatMap (\n -> map ((,) n) sol) [4, 3, 2, 1]
-    gap = [(ScoreTime.double (fromIntegral (length sol)), "thom")]
-    expand notes = zip3 (scanl (+) 0 durs) (repeat 0) ns
-        where (durs, ns) = unzip notes
-    multiply (start, dur, text) = (start * factor, dur * factor, text)
+-- | Convert the selection from chatusram nadai to tisram nadai.
+chatusram_to_tisram :: Cmd.CmdL ()
+chatusram_to_tisram = do
+    (block_id, _, _, start, end) <- Selection.tracks
+    ModifyEvents.selection $
+        ModifyEvents.event $ LEvent.stretch_event start (2/3)
+    let dur = (end - start) * (2/3)
+    LRuler.local
+        (block_id, LRuler.replace_range start (start + dur) (Tala.adi3 10))
+    -- Delete final 1/3.
+    Edit.delete_block_time block_id (start + dur) end

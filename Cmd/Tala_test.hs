@@ -16,14 +16,14 @@ import Types
 
 
 test_make_ruler = do
-    let adi = Tala.make_ruler Tala.adi_tala 1 1 4 1
+    let adi = Tala.ruler $ Tala.make_meter [Tala.Ruler Tala.adi_tala 1 1 4 1]
         extract zoom = map snd . extract_marklist zoom . snd . snd . head
             . Map.toList . Ruler.ruler_marklists
     equal (extract 20 adi)
         ["1.0", "1.1", "1.2", "1.3", "1.X", "1.O", "1.X", "1.O", "2.0"]
 
-test_rulers_marklist = do
-    let f = Tala.rulers_marklist
+test_make_meter = do
+    let f = Meter.labeled_marklist . Tala.make_meter
         extract = extract_marklist 20
         chatusra = Tala.Ruler Tala.adi_tala 1 1 4 1
         tisra = Tala.Ruler Tala.adi_tala 1 1 3 1

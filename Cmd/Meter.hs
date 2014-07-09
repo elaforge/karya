@@ -82,11 +82,20 @@ modify_meter modify ruler = case flip Map.lookup meter_types =<< mtype of
 ruler_meter :: Ruler.Ruler -> LabeledMeter
 ruler_meter = marklist_labeled . snd . Ruler.get_marklist Ruler.meter
 
--- | Extract the half-open range from start to end.
+-- | Extract the inclusive range from start to end.
 clip :: Duration -> Duration -> LabeledMeter -> LabeledMeter
-clip start end meter =
-    map snd $ takeWhile ((<=end) . fst) $ dropWhile ((<start) . fst) $
-        zip (meter_durations meter) meter
+clip start end =
+    transform $ takeWhile ((<=end) . fst) . dropWhile ((<start) . fst)
+
+take_before :: Duration -> LabeledMeter -> LabeledMeter
+take_before p = transform $ takeWhile ((<p) . fst)
+
+drop_until :: Duration -> LabeledMeter -> LabeledMeter
+drop_until p = transform $ dropWhile ((<p) . fst)
+
+transform :: ([(Duration, LabeledMark)] -> [(Duration, LabeledMark)])
+    -> LabeledMeter -> LabeledMeter
+transform modify meter = map snd $ modify $ zip (meter_durations meter) meter
 
 -- | Remove the half-open range.
 delete :: Duration -> Duration -> LabeledMeter -> LabeledMeter

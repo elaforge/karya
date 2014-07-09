@@ -15,8 +15,7 @@
 
     Examples:
 
-    - Give the current block the standard 4/4 meter.  Since m44 is 4 measures
-    of 4/4, stretching by 16 gives each whole note 1t.
+    - Give the current block the standard 4/4 meter, where each measure gets 1t:
 
         > LRuler.local_ruler $ LRuler.measures 1 Meters.m44 4 4 1
 
@@ -26,6 +25,10 @@
 
     - Make the last measure 5/4 by selecting a quarter note and running
       @LRuler.append@.
+
+    Set a block to 4 sections of 4 avartanams of adi talam:
+
+        > LRuler.local_ruler $ Tala.ruler $ Tala.adi 4
 
     - TODO make a middle measure 5/4?
 
@@ -209,6 +212,21 @@ delete = do
     (block_id, _, _, start, end) <- Selection.tracks
     return (block_id, Meter.delete
         (Meter.time_to_duration start) (Meter.time_to_duration end))
+
+-- | Replace the selected region with another marklist.
+replace :: Cmd.M m => Meter.LabeledMeter -> m Modify
+replace insert = do
+    (block_id, _, _, start, end) <- Selection.tracks
+    return (block_id, replace_range start end insert)
+
+-- | Replace the selected region with another marklist.
+replace_range :: TrackTime -> TrackTime -> Meter.LabeledMeter
+    -> Meter.LabeledMeter -> Meter.LabeledMeter
+replace_range start end insert meter =
+        before <> Meter.take_before (end - start) insert <> after
+        where
+        before = Meter.take_before start meter
+        after = Meter.drop_until end meter
 
 -- | Strip out ranks below a certain value, for the whole block.  Larger scale
 -- blocks don't need the fine resolution and can wind up with huge rulers.

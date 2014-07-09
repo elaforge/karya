@@ -275,12 +275,12 @@ cmd_split_events = do
             ]
 
 -- | Zero dur events are never lengthened.
-set_dur :: ScoreTime -> Event.Event -> Event.Event
+set_dur :: TrackTime -> Event.Event -> Event.Event
 set_dur dur evt
     | Event.duration evt == 0 = evt
     | otherwise = Event.set_duration dur evt
 
-place :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
+place :: TrackTime -> TrackTime -> Event.Event -> Event.Event
 place start dur = Event.move (const start) . set_dur dur
 
 -- | Insert empty space at the beginning of the selection for the length of
@@ -307,7 +307,7 @@ cmd_insert_time = do
 --
 -- TODO both insert_time and delete_time could be faster by just mapping the
 -- shift once the overlapping events are done, but it's probably not worth it.
-insert_time :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
+insert_time :: TrackTime -> TrackTime -> Event.Event -> Event.Event
 insert_time start end event
     | Event.positive event = insertp event
     | otherwise = insertn event
@@ -326,26 +326,39 @@ insert_time start end event
 
 -- | Remove the notes under the selection, and move everything else back.  If
 -- the selection is a point, delete one timestep.
-cmd_delete_time :: (Cmd.M m) => m ()
+cmd_delete_time :: Cmd.M m => m ()
 cmd_delete_time = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- expand_range tracknums start end
-    when (end > start) $ forM_ track_ids $ \track_id -> do
-        track <- State.get_track track_id
-        case Events.split_at_before start (Track.track_events track) of
-            (_, []) -> return ()
-            (_, events@(event:_)) -> do
-                track_end <- State.track_event_end track_id
-                -- +1 to get final event if it's 0 dur, see move_events
-                State.remove_events track_id (min (Event.start event) start)
-                    (track_end + 1)
-                State.insert_block_events block_id track_id
-                    (mapMaybe (delete_time start end) events)
+    when (end > start) $ forM_ track_ids $ \track_id ->
+        delete_time block_id track_id start end
+
+delete_block_time :: State.M m => BlockId -> TrackTime -> TrackTime -> m ()
+delete_block_time block_id start end = do
+    track_ids <- State.track_ids_of block_id
+    forM_ track_ids $ \track_id ->
+        delete_time block_id track_id start end
+
+delete_time :: State.M m => BlockId -> TrackId -> TrackTime -> TrackTime -> m ()
+delete_time block_id track_id start end = do
+    when (start >= end) $
+        Cmd.throw $ "delete_time: start >= end: " <> show (start, end)
+    track <- State.get_track track_id
+    case Events.split_at_before start (Track.track_events track) of
+        (_, []) -> return ()
+        (_, events@(event:_)) -> do
+            track_end <- State.track_event_end track_id
+            -- +1 to get final event if it's 0 dur, see move_events
+            State.remove_events track_id (min (Event.start event) start)
+                (track_end + 1)
+            State.insert_block_events block_id track_id
+                (mapMaybe (delete_event_time start end) events)
 
 -- | Modify the event to delete the time from @start@ to @end@, shortening it
--- if @start@ falls within the event's duration.
-delete_time :: ScoreTime -> ScoreTime -> Event.Event -> Maybe Event.Event
-delete_time start end event
+-- if @start@ falls within the event's duration, or removing it entirely if
+-- it's within the range.
+delete_event_time :: TrackTime -> TrackTime -> Event.Event -> Maybe Event.Event
+delete_event_time start end event
     | Event.positive event = deletep
     | otherwise = deleten
     where
@@ -367,7 +380,7 @@ delete_time start end event
         | otherwise = Just $ Event.move (subtract shift) event
 
 -- | If the range is a point, then expand it to one timestep.
-expand_range :: (Cmd.M m) => [TrackNum] -> ScoreTime -> ScoreTime
+expand_range :: Cmd.M m => [TrackNum] -> ScoreTime -> ScoreTime
     -> m (ScoreTime, ScoreTime)
 expand_range (tracknum:_) start end
     | start == end = do
