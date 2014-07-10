@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Now that the GHC API's link msgs are logged, I can display those better
+    in the repl.  Also, why are compile errors not reported nicely?
   - pass -dynamic-too to let ghci link
     . I can't figure how to get ghci to link compiled even in simple cases.
   / Lilypond emmentaler symbols seem to change unpredictably across versions.
@@ -10,7 +12,7 @@ UNSORTED
     . But `ped` and `mordent` look nice!  `rmordent` is hard to read though...
   * Perform.ConvertUtil.throw should take Text
   * upgrade to fclabels2
-  - copy paste that also copies the ruler
+  / copy paste that also copies the ruler
   * it's such a pain to do anything with rulers, even simple things like
     replace a chatusram section with tisram.  Surely there is a better way.
     . I have to come up with where the break point is in the meter, then
@@ -151,6 +153,18 @@ UNSORTED
       begin
         * p/from takes an arg so it can go to something other than unity
         * jaru
+        - j needs to stretch when the notes are fast, but expand to a maximum
+          otherwise.
+          . Doesn't it already do that?  I want it to still leave a bit of
+            pitch.  If that's universal, I can add that as the default middle
+            or end call.  Or just manually add an unstretchy end to notes that
+            should have a minimum of swaram pitch.
+          . > as a special hack for a 0 length fade-out seems awkward, maybe
+            I should have a special symbol, e.g. <' and >'?  But since it's
+            only ever going to be fade in and fade out I can just reserve <>
+            for it.
+          . Would it better to treat all calls as stretchy, but they
+            themselves decide how much to stretch?
         - janta
       middle
         * kam should adjust number of cycles based on time available, and then
@@ -261,7 +275,6 @@ UNSORTED
     / Can I have ornaments that affect the tempo?  This would be another way
       to control kam ending.  But it would require a separate pass to extract
       tempo modifications.
-    - janta.  Isn't this just Lift?  It's fingered, right?
     - overshoot "curve" for 'smooth': over2 over3, depending how far over
     - ornaments can use more controls than just 'dyn', e.g. bow pressure
     . instead of hardcoding specific times, I should say short, medium, long,
@@ -379,8 +392,6 @@ documentation
 shakefile: build:
   * get package versions from dist/setup-config instead of always using the
     most recent ones
-  - If karya.cabal is phony, it always rebuilds even if the output file
-    didn't change.
   - No-build time doubles from .2s to .45s.  Caching doesn't help.
 
 incremental save / git:

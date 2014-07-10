@@ -6,14 +6,6 @@
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {- | Shakefile for seq and associated binaries.
-
-    TODO
-    - askOracle isn't working like I think it should, why does it only
-    rebuild test_block.cc when I change fltk version?
-
-    - If I update build/test/RunTests.hs, it gets regenerated, even though
-    it's newer than everything else.  Why?
-    Also, if I update generate_run_tests.py it doesn't rebuild anything.
 -}
 module Shake.Shakefile where
 import Control.Applicative ((<$>))
@@ -433,10 +425,7 @@ main = withLockedDatabase $ do
         setupOracle env (modeConfig Debug)
         -- Always build, since it can't tell when 'libraryDependencies' has
         -- changed.
-        -- TODO except if I do, rules it seems like rules that depend on it
-        -- also always fire, even if the file didn't change.
-        -- Shake.phony "karya.cabal" $ makeCabal "karya.cabal"
-        "karya.cabal" *> makeCabal
+        makeCabal
         cabalConfigurationRule
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
@@ -737,14 +726,15 @@ wantsHaddock midi hs = not $ or
 
 -- ** cabal
 
-makeCabal :: FilePath -> Shake.Action ()
-makeCabal fn = do
+makeCabal :: Shake.Rules ()
+makeCabal = "karya.cabal" *> \fn -> do
+    Shake.alwaysRerun
     template <- Shake.readFile' "doc/karya.cabal.template"
     Shake.writeFileChanged fn $ template ++ buildDepends ++ "\n"
     where
     indent = replicate 8 ' '
     buildDepends = (indent++) $ List.intercalate (",\n" ++ indent) $
-        map mkline libraryDependencies
+        List.sort $ map mkline libraryDependencies
     mkline (package, constraint) =
         package ++ if null constraint then "" else " " ++ constraint
 
