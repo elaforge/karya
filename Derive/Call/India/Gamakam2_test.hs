@@ -63,6 +63,8 @@ test_fade = do
         ([( [(0, 60), (4, 60)]
           , [(0, 1), (2, 1), (3, 0.5), (4, 1)]
           )], [])
+    equal (run [(0, 4, "! -< 2;; -- 4c")])
+        ([([(0, 60), (4, 60)], [(0, 1), (1, 0.5), (2, 1)])], [])
 
 test_jaru = do
     let run = run_note_track "| jaru-time=1 | jaru-transition=1"

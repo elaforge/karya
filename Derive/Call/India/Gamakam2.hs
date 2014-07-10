@@ -61,6 +61,7 @@ begin_calls =
     , ("from<", c_from True True)
     , ("jaru", c_jaru False)
     , ("jaru0", c_jaru True)
+    , (fade_in_call, c_fade True)
     ]
 
 middle_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
@@ -74,12 +75,15 @@ end_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 end_calls =
     [ ("to", c_to False)
     , ("to>", c_to True)
-    , (fade_call, c_fade)
+    , (fade_out_call, c_fade False)
     ]
 
 -- | Special behaviour documented in 'sequence_doc'.
-fade_call :: TrackLang.CallId
-fade_call = "fade"
+fade_in_call :: TrackLang.CallId
+fade_in_call = "fade-in"
+
+fade_out_call :: TrackLang.CallId
+fade_out_call = "fade-out"
 
 -- avoid below: ! p< -1 ; - ; p
 -- avoid below, kam: ! p< -1 ; nk 2 ; p>
@@ -105,6 +109,7 @@ begin_aliases = Map.fromList
     , ("-^<", "from<")
     , ("j", "jaru0")
     , ("J", "jaru")
+    , ("-<", fade_in_call)
     ]
 
 middle_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
@@ -116,7 +121,7 @@ end_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
 end_aliases = Map.fromList
     [ ("p", "to")
     , ("p>", "to>")
-    , (">", fade_call)
+    , (">", fade_out_call)
     ]
 
 alias_prefix :: Text -> Text -> [TrackLang.CallId]
@@ -152,9 +157,9 @@ sequence_doc = "Sequence several pitch calls. Calls are divided into\
     \ and are sequenced such that the middle calls stretch based on the\
     \ duration of the note. There are short aliases for calls that are\
     \ designed for sequencing.\
-    \\nThere's a special hack for the `>` or `fade` end call: it's considered\
-    \ to have 0 duration, but is overlaid over any preceding middle call.\
-    \ This is so you can fade without having to flatten the pitch."
+    \\nThere's a special hack for the `-<` and `>` calls: they have 0\
+    \ duration, but are overlaid with their neighbors. This is so you can fade\
+    \ in or out without having to flatten the pitch."
     <> "\nBegin aliases: " <> prettyt begin_aliases
     <> "\nMiddle aliases: " <> prettyt middle_aliases
     <> "\nEnd aliases: " <> prettyt end_aliases
@@ -223,8 +228,8 @@ sequence_calls cinfo (start, end) begin middles maybe_end =
         (test_end_pitch, _) <- detached $
             maybe_eval (eval middle_start end) maybe_end
         end_start <- lift $ signal_start end test_end_pitch
-        (middle_pitch, middle_mods) <-
-            sequence_middles middle_start end_start middles
+        (middle_pitch, middle_mods)
+            <- sequence_middles middle_start end_start middles
         (end_pitch, end_mods) <- maybe_eval
             (eval_end start end_start end) maybe_end
         return (begin_pitch <> middle_pitch <> end_pitch,
@@ -232,10 +237,10 @@ sequence_calls cinfo (start, end) begin middles maybe_end =
     where
     maybe_eval = maybe (return (mempty, mempty))
 
--- | Special behaviour for the @fade@ call, as documented in 'sequence_doc'.
+-- | Special behaviour for the @fade-out@ call, as documented in 'sequence_doc'.
 eval_end :: ScoreTime -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
 eval_end sequence_start start end expr = case expr of
-    EvaluatedExpr call _ | call == fade_call -> eval sequence_start end expr
+    EvaluatedExpr call _ | call == fade_out_call -> eval sequence_start end expr
     _ -> eval start end expr
 
 -- | I need to thread Derive.info_prev_val from each call in the sequence.
@@ -625,12 +630,14 @@ c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
         PitchUtil.make_interpolator id True start pitch end
             (PitchUtil.resolve_pitch_transpose pitch to_pitch)
 
-c_fade :: Derive.Generator Derive.Pitch
-c_fade = generator1 "fade" mempty "Fade out."
+c_fade :: Bool -> Derive.Generator Derive.Pitch
+c_fade fade_in = generator1 "fade" mempty "Fade in or out."
     $ Sig.call (Sig.defaulted "time" (TrackLang.real 0.15) "Time to fade.")
     $ \(TrackLang.DefaultReal time) args -> do
         (start, end) <- Args.real_range args
-        start <- align_to_end start end time
+        (start, end) <- if fade_in
+            then (,) <$> return start <*> get_end start time args
+            else (,) <$> align_to_end start end time <*> return end
         ControlUtil.multiply_dyn end
             =<< ControlUtil.make_signal id start 1 end 0
         return mempty
