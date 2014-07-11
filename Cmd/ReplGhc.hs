@@ -109,15 +109,25 @@ interpreter (Session chan) = do
 
 -- | Convert warnings and a possibly failed compile into a chatty cmd.
 format_response :: (Either String Cmd, [String], [String]) -> Cmd
-format_response (result, logs, warns) = decorate $ case result of
-        Left err -> Cmd.throw $ "compile error: " ++ err
-        Right cmd -> cmd
+format_response (result, logs_, warns) = case result of
+        Left err -> Cmd.throw $ msgs ++ "compile error: " ++ err
+        Right cmd -> (msgs++) <$> cmd
     where
-    decorate = fmap (\s -> log_msg ++ s ++ warn_msg)
+    msgs = warn_msg ++ log_msg ++ "\n"
     warn_msg =
-        if null warns then "" else "\nWarnings:\n" ++ Seq.join "\n" warns
+        if null warns then "" else "Warnings:\n" ++ Seq.join "\n" warns ++ "\n"
     log_msg =
         if null logs then "" else "Logs:\n" ++ Seq.join "\n" logs ++ "\n"
+        where logs = abbreviate_logs logs_
+
+abbreviate_logs :: [String] -> [String]
+abbreviate_logs logs = loaded ++ filter (not . package_log) logs
+    where
+    loaded = if packages > 0
+        then ["Loaded " <> show packages <> " packages"] else []
+    packages = length $ filter ("Loading package" `List.isPrefixOf`) logs
+    package_log log =
+        any (`List.isPrefixOf` log) ["Loading package", "linking ...", "done."]
 
 
 -- * implementation
@@ -164,8 +174,11 @@ handle_errors action = do
     logs <- liftIO $ IORef.newIORef []
     val <- fmap Right (catch_logs logs >> action) `GHC.gcatch`
         \(exc :: Exception.SomeException) -> return (Left (show exc))
-    warns <- get_warnings
     logs <- liftIO $ IORef.readIORef logs
+    -- GHC.getWarnings is gone, apparently replaced by either printing directly
+    -- or throwing an exception, e.g.
+    -- compiler/main/HscTypes.lhs:handleFlagWarnings.
+    let warns = []
     return (val, reverse logs, warns)
     where
     catch_logs logs = modify_flags $ \flags ->
@@ -182,11 +195,6 @@ modify_flags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()
 modify_flags f = do
     dflags <- GHC.getSessionDynFlags
     void $ GHC.setSessionDynFlags $! f dflags
-
-get_warnings :: Ghc [String]
--- GHC.getWarnings is gone, apparently replaced by either printing directly or
--- throwing an exception, e.g. compiler/main/HscTypes.lhs:handleFlagWarnings.
-get_warnings = return []
 
 parse_flags :: [String] -> Ghc ()
 parse_flags args = do

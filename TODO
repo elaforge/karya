@@ -7,11 +7,11 @@ UNSORTED
   * if I get rid of either then I can get rid of lots of ekmett packages
     Write my own?
     . Replace use of EitherT with ExceptT.
-  - Now that the GHC API's link msgs are logged, I can display those better
+  . Now that the GHC API's link msgs are logged, I can display those better
     in the repl.  Also, why are compile errors not reported nicely?
     - Find out what happened to warnings, can I get them back?
-    - Suppress the package linking msgs, and send a summary to the repl.
-    - Where are the package load and package load type errors going?
+    * Suppress the package linking msgs, and send a summary to the repl.
+    * Where are the package load and package load type errors going?
     - Logs on the repl shouldn't make strings print directly.
   - pass -dynamic-too to let ghci link
     . I can't figure how to get ghci to link compiled even in simple cases.
@@ -157,7 +157,7 @@ UNSORTED
       * It's awkward to remember spaces before ;, I suppose I should disallow
         ; in calls.
       * j too fast
-      - if I can fade out with >, I should be able to fade in with <
+      * if I can fade out with >, I should be able to fade in with <
       begin
         * p/from takes an arg so it can go to something other than unity
         * jaru
