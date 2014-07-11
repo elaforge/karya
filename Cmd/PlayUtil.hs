@@ -18,7 +18,7 @@ module Cmd.PlayUtil (
     , update_definition_cache
     , compile_library
 ) where
-import qualified Control.Monad.Trans.Either as Trans.Either
+import qualified Control.Monad.Except as Except
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -338,8 +338,8 @@ cached_load state defs_fname = run $ do
         _ -> fmap Just $ require ("definition file not found: " <> txt fname)
             =<< liftIO (load_definitions fname)
     where
-    run = fmap extract . Trans.Either.runEitherT
-    require msg = maybe (Trans.Either.left msg) return
+    run = fmap extract . Except.runExceptT
+    require msg = maybe (Except.throwError msg) return
     extract (Left msg) = Just (day0, Left msg)
     extract (Right val) = val
     day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0

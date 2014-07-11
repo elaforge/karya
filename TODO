@@ -3,8 +3,16 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - write my own ExceptT to get around mtl-2.2 problem?
+  * if I get rid of either then I can get rid of lots of ekmett packages
+    Write my own?
+    . Replace use of EitherT with ExceptT.
   - Now that the GHC API's link msgs are logged, I can display those better
     in the repl.  Also, why are compile errors not reported nicely?
+    - Find out what happened to warnings, can I get them back?
+    - Suppress the package linking msgs, and send a summary to the repl.
+    - Where are the package load and package load type errors going?
+    - Logs on the repl shouldn't make strings print directly.
   - pass -dynamic-too to let ghci link
     . I can't figure how to get ghci to link compiled even in simple cases.
   / Lilypond emmentaler symbols seem to change unpredictably across versions.
@@ -65,7 +73,7 @@ UNSORTED
       instrument do that?  Make a LookupPattern that looks up the pitch call
       in the scale manually.
       . Another approach would be to apply slew control globally.
-  - error msg: pitch: [key unparseable by given scale: karaharapriya]
+  - error msg: pitch: [unparseable environ: key=bork]
     Firstly, what's up with the []s?  Secondly, should say what scale?
   * %c = 1 can set a control, but what if I want to combine, e.g. *= .5?
     Where can I squeeze in a merge operator?  %c = mul .5?
@@ -254,8 +262,8 @@ UNSORTED
         timed:
           . Momentary dip: 0, -1, 0.  Possibly with dyn drop.
       - all calls take interpolator as env arg
-      - each of the above are individual note calls
-      - but there is another note call that takes them as arguments and
+      . each of the above are individual note calls
+      * but there is another note call that takes them as arguments and
         sequences them, based on start/middle/end.
         > ! j] -1 ; avoid ; to> (4g)
         > ! from< ; ; to

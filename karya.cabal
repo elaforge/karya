@@ -41,7 +41,6 @@ library
         digest,
         directory,
         dlist,
-        either,
         ekg,
         fclabels >=2,
         filepath,
