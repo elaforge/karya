@@ -137,7 +137,9 @@ verify_performance = do
     block_id <- State.get_root_id
     perf <- get_midi_performance block_id
     msgs <- midi_performance block_id
-    return $ fromMaybe "ok!" $ DiffPerformance.diff_midi_performance perf msgs
+    let (diffs, _expected, _got) =
+            DiffPerformance.diff_midi_performance perf msgs
+    return $ fromMaybe "ok!" diffs
 
 midi_performance :: Cmd.M m => BlockId -> m [Midi.WriteMessage]
 midi_performance block_id = do

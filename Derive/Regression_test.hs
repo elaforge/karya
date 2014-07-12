@@ -6,6 +6,7 @@
 -- used to output.
 module Derive.Regression_test where
 import qualified Data.List as List
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
 
@@ -41,15 +42,13 @@ compare_performance :: FilePath -> FilePath -> IO Bool
 compare_performance saved score = timeout score $ do
     cmd_config <- DeriveSaved.load_cmd_config
     expected <- either errorIO
-        (return . DiffPerformance.normalize . Vector.toList)
-            =<< DiffPerformance.load_midi saved
-    got <- DiffPerformance.normalize <$>
-        DeriveSaved.perform_file cmd_config score
+        (return . Vector.toList) =<< DiffPerformance.load_midi saved
+    got <- DeriveSaved.perform_file cmd_config score
+    (diffs, expected, got) <- return $ DiffPerformance.diff_midi expected got
     dir <- tmp_dir "regression"
     let base = dir FilePath.</> FilePath.takeFileName score
-    writeFile (base ++ ".expected") $ unlines $ map pretty expected
-    writeFile (base ++ ".got") $ unlines $ map pretty got
-    let diffs = DiffPerformance.diff_midi expected got
+    Text.IO.writeFile (base ++ ".expected") $ Text.unlines expected
+    Text.IO.writeFile (base ++ ".got") $ Text.unlines got
     -- Too many diffs aren't useful.
     mapM_ Text.IO.putStrLn $ DiffPerformance.limit 40
         (List.intercalate [""] diffs)

@@ -4,7 +4,15 @@
 
 -- | Functions to compare a performance against a previous \"known good\" one.
 -- This is used to detect when code changes cause a performance to change.
-module Cmd.DiffPerformance where
+module Cmd.DiffPerformance (
+    -- * save and load
+    midi_magic, load_midi, save_midi
+    -- * diff lilypond
+    , diff_lilypond
+    -- * diff midi
+    , diff_midi_performance
+    , diff_midi, limit
+) where
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -47,17 +55,20 @@ diff_lilypond prev ly_code
     where diffs = diff_lines (State.perf_performance prev) ly_code
 
 diff_lines :: Text -> Text -> [[Text]]
-diff_lines expected got = mapMaybe (show_diff id) $
+diff_lines expected got = mapMaybe show_diff $
     Diff.getGroupedDiffBy (==) (Text.lines expected) (Text.lines got)
 
--- * diff
+-- * diff midi
 
 diff_midi_performance :: State.MidiPerformance -> [Midi.WriteMessage]
-    -> Maybe Text
-diff_midi_performance prev midi
-    | null diffs = Nothing
-    | otherwise = Just $ show_diffs prev diffs
-    where diffs = diff_midi (Vector.toList (State.perf_performance prev)) midi
+    -> (Maybe Text, [Text], [Text])
+    -- ^ (abbreviated diff, expected, got)
+diff_midi_performance performance msgs
+    | null diffs = (Nothing, expected, got)
+    | otherwise = (Just $ show_diffs performance diffs, expected, got)
+    where
+    (diffs, expected, got) = diff_midi
+        (Vector.toList (State.perf_performance performance)) msgs
 
 show_diffs :: State.Performance a -> [[Text]] -> Text
 show_diffs perf diffs =
@@ -76,10 +87,16 @@ take_more n xs
         [] -> ([], False)
         x : xs -> first (x:) $ take_more (n-1) xs
 
-diff_midi :: [Midi.WriteMessage] -> [Midi.WriteMessage] -> [[Text]]
+-- | Normalize and diff the pretty-printed output.  This ensures that running
+-- @diff@ on the results will give the same diffs as this returns.
+diff_midi :: [Midi.WriteMessage] -> [Midi.WriteMessage]
+    -> ([[Text]], [Text], [Text]) -- ^ (diffs, expected, got)
 diff_midi expected got =
-    mapMaybe (show_diff prettyt) $ Diff.getGroupedDiffBy (==)
-        (normalize expected) (normalize got)
+    (mapMaybe show_diff $ Diff.getGroupedDiffBy (==) expected_s got_s,
+        expected_s, got_s)
+    where
+    expected_s = map prettyt (normalize expected)
+    got_s = map prettyt (normalize got)
 
 -- | To better approximate audible differences, I strip excessive time
 -- precision and ensure notes happening at the same time are in a consistent
@@ -91,6 +108,8 @@ normalize = concatMap List.sort . Seq.group Midi.wmsg_ts . map strip
         { Midi.wmsg_ts = strip_time (Midi.wmsg_ts wmsg)
         , Midi.wmsg_msg = strip_msg (Midi.wmsg_msg wmsg)
         }
+    -- It'll be rounded again by the pretty instance, since I actually diff
+    -- pretty output, so this is likely unnecessary.
     strip_time = RealTime.seconds . round_to 3 . RealTime.to_seconds
     -- PitchBends are serialized as 14-bit numbers, so when they get
     -- deserialized they change.
@@ -99,7 +118,7 @@ normalize = concatMap List.sort . Seq.group Midi.wmsg_ts . map strip
 round_to :: RealFrac d => Int -> d -> d
 round_to n = (/ 10^n) . fromIntegral . round . (* 10^n)
 
-show_diff :: (a -> Text) -> Diff.Diff [a] -> Maybe [Text]
-show_diff _ (Diff.Both {}) = Nothing
-show_diff to_text (Diff.First msgs) = Just $ map (("- " <>) . to_text) msgs
-show_diff to_text (Diff.Second msgs) = Just $ map (("+ " <>) . to_text) msgs
+show_diff :: Diff.Diff [Text] -> Maybe [Text]
+show_diff (Diff.Both {}) = Nothing
+show_diff (Diff.First msgs) = Just $ map ("- " <>) msgs
+show_diff (Diff.Second msgs) = Just $ map ("+ " <>) msgs

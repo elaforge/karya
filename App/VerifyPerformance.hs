@@ -6,6 +6,7 @@
 -- msgs or lilypond code as the last saved performance.
 module App.VerifyPerformance where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Traversable as Traversable
 import qualified Data.Vector as Vector
@@ -136,9 +137,15 @@ verify_midi :: FilePath -> Cmd.Config -> State.State -> BlockId
     -> State.MidiPerformance -> IO Int
 verify_midi fname cmd_config state block_id performance = (handle_left =<<) $
     rightm (perform_block fname cmd_config state block_id) $ \msgs ->
-    return $ case DiffPerformance.diff_midi_performance performance msgs of
-        Nothing -> Right 0
-        Just err -> Left $ untxt err
+    case DiffPerformance.diff_midi_performance performance msgs of
+        (Nothing, _, _) -> return $ Right 0
+        (Just err, expected, got) -> do
+            Text.IO.writeFile (base ++ ".expected") $ Text.unlines expected
+            Text.IO.writeFile (base ++ ".got") $ Text.unlines got
+            putStrLn $ "wrote " ++ base ++ ".{expected,got}"
+            return $ Left $ untxt err
+    where
+    base = FilePath.takeFileName fname
 
 perform_block :: FilePath -> Cmd.Config -> State.State -> BlockId
     -> IO (Either String [Midi.WriteMessage])
@@ -162,7 +169,7 @@ verify_lilypond fname cmd_config state block_id performance = do
     mapM_ Log.write logs
     case result of
         Left err -> do
-            putStrLn $ "error deriving: " ++ err
+            putStrLn $ untxt $ "error deriving: " <> err
             return 1
         Right code -> case DiffPerformance.diff_lilypond performance code of
             Nothing -> putStrLn "ok!" >> return 0
