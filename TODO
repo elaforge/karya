@@ -3,16 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - write my own ExceptT to get around mtl-2.2 problem?
+  * write my own ExceptT to get around mtl-2.2 problem?  Downgrade to ErrorT.
   * if I get rid of either then I can get rid of lots of ekmett packages
     Write my own?
     . Replace use of EitherT with ExceptT.
-  . Now that the GHC API's link msgs are logged, I can display those better
-    in the repl.  Also, why are compile errors not reported nicely?
-    - Find out what happened to warnings, can I get them back?
-    * Suppress the package linking msgs, and send a summary to the repl.
-    * Where are the package load and package load type errors going?
-    - Logs on the repl shouldn't make strings print directly.
   - pass -dynamic-too to let ghci link
     . I can't figure how to get ghci to link compiled even in simple cases.
   / Lilypond emmentaler symbols seem to change unpredictably across versions.
@@ -49,10 +43,11 @@ UNSORTED
     the cursor.
   * Tweak ruler rank colors to make the ranks clearer.  Lower ranks should be
     darker than higher ones.
-  - is the chatusram tisram thing a case for two different meters?
+  / is the chatusram tisram thing a case for two different meters?
     I could generalize meter rulers to be "meter" or "meter-*".
     - toggle time step between different rulers
     - LRuler modifications need to know which ruler to modify
+    . It would be simpler to just write on two different tracks.
   * bind record and play/stop keys on oxygen8
   automatic "All.hs" modules
     - Derive.Calls.All looks for (note|pitch|control)_calls from Derive/Call/,
@@ -856,10 +851,16 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
-  - It's a pain to edit the global transform in the REPL.
+  - Find out what happened to warnings, can I get them back?
+  * Suppress the package linking msgs, and send a summary to the repl.
+  * Where are the package load and package load type errors going?
+  - Logs on the repl shouldn't make strings print directly.
+    I would need a separate record for logs for this.
+  / It's a pain to edit the global transform in the REPL.
     . I could put a "global" section in $(save).karya, but then I have to
       keep it in sync with State.global_transform, which seems error prone.
     . Perhaps a repl feature to open vi on a string?
+    . Use local defs to define an abbreviation.
   - repl should understand --
   - only write history when the cmd succeeded
   - command to open the haddock for a module

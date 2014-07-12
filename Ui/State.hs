@@ -127,7 +127,7 @@ module Ui.State (
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
-import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Trans as Trans
@@ -288,10 +288,11 @@ instance Pretty.Pretty TrackInfo where
 -- mean TrackUpdates can overlap, so 'Ui.Sync.sync' should collapse them.
 type StateStack m = State.StateT State
     (Logger.LoggerT Update.CmdUpdate
-        (Except.ExceptT Error m))
+        (Error.ErrorT Error m))
 newtype StateT m a = StateT (StateStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Except.MonadError Error,
+    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError Error,
         Applicative.Applicative)
+instance Error.Error Error where strMsg = Error
 
 -- | Just a convenient abbreviation.
 type StateId a = StateT Identity.Identity a
@@ -317,7 +318,7 @@ instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     unsafe_put st = StateT (State.put st)
     update upd = (StateT . lift) (Logger.log upd)
     get_updates = (StateT . lift) Logger.peek
-    throw msg = (StateT . lift . lift) (Except.throwError (Error msg))
+    throw msg = (StateT . lift . lift) (Error.throwError (Error msg))
 
 gets :: (M m) => (State -> a) -> m a
 gets f = fmap f get
@@ -353,7 +354,7 @@ modify f = do
 run :: (Monad m) =>
    State -> StateT m a -> m (Either Error (a, State, [Update.CmdUpdate]))
 run state m = do
-    res <- (Except.runExceptT . Logger.run . flip State.runStateT state
+    res <- (Error.runErrorT . Logger.run . flip State.runStateT state
         . (\(StateT x) -> x)) m
     return $ case res of
         Left err -> Left err

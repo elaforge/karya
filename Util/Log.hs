@@ -36,7 +36,7 @@ import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
-import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State as State
 import qualified Control.Monad.State.Lazy as State.Lazy
@@ -269,7 +269,7 @@ write_msg = LogT . Logger.log
 type LogM m = Logger.LoggerT Msg m
 newtype LogT m a = LogT (LogM m a)
     deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
-        Except.MonadError e, State.MonadState st, Reader.MonadReader r)
+        Error.MonadError e, State.MonadState st, Reader.MonadReader r)
 run_log_t (LogT x) = x
 
 instance (Functor m, Monad m) => Applicative.Applicative (LogT m) where
@@ -285,7 +285,7 @@ instance LogMonad m => LogMonad (State.Strict.StateT s m) where
     write = Trans.lift . write
 instance LogMonad m => LogMonad (State.Lazy.StateT s m) where
     write = Trans.lift . write
-instance LogMonad m => LogMonad (Except.ExceptT e m) where
+instance (Error.Error e, LogMonad m) => LogMonad (Error.ErrorT e m) where
     write = Trans.lift . write
 instance LogMonad m => LogMonad (Reader.ReaderT r m) where
     write = Trans.lift . write

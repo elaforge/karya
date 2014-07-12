@@ -8,7 +8,7 @@
 -- It's a terrible name, but what else am I supposed to call it?  Render?
 -- Realize?  Perform?
 module Perform.Lilypond.Process where
-import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 
@@ -529,17 +529,17 @@ get_meter = do
 -- * ConvertM
 
 run_convert :: State -> ConvertM a -> Either Text (a, State)
-run_convert state = Identity.runIdentity . Except.runExceptT
+run_convert state = Identity.runIdentity . Error.runErrorT
     . flip State.runStateT state
 
-type ConvertM = State.StateT State (Except.ExceptT Text Identity.Identity)
+type ConvertM = State.StateT State (Error.ErrorT Text Identity.Identity)
 
 error_context :: Text -> ConvertM a -> ConvertM a
 error_context msg = map_error ((msg <> ": ") <>)
 
 map_error :: (Text -> Text) -> ConvertM a -> ConvertM a
-map_error f action = Except.catchError action $ \err ->
-    Except.throwError (f err)
+map_error f action = Error.catchError action $ \err ->
+    Error.throwError (f err)
 
 data State = State {
     -- Constant:
@@ -577,7 +577,7 @@ make_state config start meters key = State
 throw :: Text -> ConvertM a
 throw msg = do
     now <- State.gets state_time
-    Except.throwError $ prettyt now <> ": " <> msg
+    Error.throwError $ prettyt now <> ": " <> msg
 
 lookup_key :: Event -> ConvertM Key
 lookup_key = lookup_val Environ.key parse_key default_key

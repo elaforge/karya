@@ -5,7 +5,7 @@
 -- | Utilities for writing Convert modules, which take Score.Events to the
 -- performer specific events.
 module Perform.ConvertUtil where
-import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 
@@ -17,9 +17,10 @@ import qualified Derive.Stack as Stack
 
 
 type ConvertT state a =
-    (Except.ExceptT Error (State.StateT state (Log.LogT Identity.Identity)) a)
+    (Error.ErrorT Error (State.StateT state (Log.LogT Identity.Identity)) a)
 
 newtype Error = Error (Maybe Text) deriving (Show)
+instance Error.Error Error where strMsg = Error . Just . txt
 
 convert :: state -> (Score.Event -> ConvertT state a)
     -> [Score.Event] -> [LEvent.LEvent a]
@@ -51,7 +52,7 @@ run_convert state stack conv = case val of
     Right val -> (Just val, logs, out_state)
     where
     run = Identity.runIdentity
-        . Log.run . flip State.runStateT state . Except.runExceptT
+        . Log.run . flip State.runStateT state . Error.runErrorT
     ((val, out_state), stackless_logs) = run conv
     logs = [msg { Log.msg_stack = log_stack } | msg <- stackless_logs]
     log_stack = Just (Stack.to_strings stack)
@@ -60,7 +61,7 @@ require :: Text -> Maybe a -> ConvertT st a
 require msg = maybe (throw $ "event requires " <> msg) return
 
 throw :: Text -> ConvertT st a
-throw = Except.throwError . Error . Just
+throw = Error.throwError . Error . Just
 
 abort :: ConvertT st a
-abort = Except.throwError (Error Nothing)
+abort = Error.throwError (Error Nothing)

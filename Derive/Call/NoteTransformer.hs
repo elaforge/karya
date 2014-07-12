@@ -5,7 +5,7 @@
 -- | Note calls that transform other note calls.  They rely on track slicing
 -- via 'Sub.sub_events'.
 module Derive.Call.NoteTransformer where
-import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Error as Error
 import qualified Data.Text as Text
 
 import Util.Control
@@ -100,24 +100,24 @@ lily_tuplet :: Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
     where
-    lily config = either err return =<< Except.runExceptT . check config
+    lily config = either err return =<< Error.runErrorT . check config
         =<< Sub.sub_events args
     check config notes = do
         notes <- case filter (not . null) notes of
-            [] -> Except.throwError "no sub events"
-            [[]] -> Except.throwError "no sub events"
-            _ : _ : _ -> Except.throwError ">1 non-empty sub track"
+            [] -> Error.throwError "no sub events"
+            [[]] -> Error.throwError "no sub events"
+            _ : _ : _ -> Error.throwError ">1 non-empty sub track"
             [notes] -> return notes
         events <- lift $ LEvent.write_logs
             =<< Sub.place (map (Sub.stretch (Args.start args) 2) notes)
             -- Double the notes duration, since staff notation tuplets shorten
             -- notes.
         dur <- case filter (not . Lily.is_code0) events of
-            [] -> Except.throwError "no sub events"
-            [_] -> Except.throwError "just one event"
+            [] -> Error.throwError "no sub events"
+            [_] -> Error.throwError "just one event"
             e : es
                 | all ((== dur e) . dur) es -> return (dur e)
-                | otherwise -> Except.throwError $
+                | otherwise -> Error.throwError $
                     "all event durations must be equal: "
                     <> Seq.join ", " (map (pretty . dur) (e:es))
                 where dur = Score.event_duration
@@ -132,7 +132,7 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
         Log.warn $ "can't convert to ly tuplet: " <> msg
         not_lily
     to_dur config msg t = maybe
-        (Except.throwError $ msg ++ " duration must be simple")
+        (Error.throwError $ msg ++ " duration must be simple")
         return (Lily.is_duration config t)
 
 tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]

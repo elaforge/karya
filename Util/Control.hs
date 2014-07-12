@@ -37,6 +37,7 @@ import Control.Monad
        ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard,
         liftM, mplus, msum, mzero, replicateM, replicateM_, when, unless, void,
         zipWithM, zipWithM_)
+import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (lift, liftIO)
 
@@ -159,3 +160,7 @@ untxt = Text.unpack
 
 showt :: (Show a) => a -> Text.Text
 showt = txt . show
+
+-- | This is pretty bad, but and I can get rid of it when I upgrade to
+-- transformers-4.
+instance Error.Error Text.Text where strMsg = txt
