@@ -207,7 +207,7 @@ choose_instrument :: Score.Instrument -> IO ()
 choose_instrument inst = do
     let cmd = "set_instrument " ++ show (Score.inst_name inst)
     putStrLn $ "send: " ++ cmd
-    response <- (untxt <$> SendCmd.send cmd)
+    response <- (untxt <$> SendCmd.send (txt cmd))
         `Exception.catch` \(exc :: Exception.SomeException) ->
             return ("error: " <> show exc)
     unless (null response) $

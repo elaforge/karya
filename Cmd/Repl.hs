@@ -20,6 +20,7 @@ module Cmd.Repl (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
+import qualified Data.ByteString.Char8 as ByteString.Char8
 
 import qualified System.IO as IO
 import qualified System.Directory as Directory
@@ -44,6 +45,7 @@ import qualified Cmd.ReplStub as ReplImpl
 #endif
 
 import qualified Derive.Parse as Parse
+import qualified App.ReplUtil as ReplUtil
 
 
 -- | This is the persistent interpreter session which is stored in the global
@@ -68,13 +70,13 @@ repl session repl_dirs msg = do
     Log.debug $ "repl input: " ++ show text
     local_modules <- fmap concat (mapM get_local_modules repl_dirs)
 
-    cmd <- case Fast.fast_interpret text of
+    cmd <- case Fast.fast_interpret (untxt text) of
         Just cmd -> return cmd
         Nothing -> liftIO $ ReplImpl.interpret session local_modules text
-    (response, status) <- run_cmdio $ Cmd.name ("repl: " ++ text) cmd
+    (response, status) <- run_cmdio $ Cmd.name ("repl: " ++ untxt text) cmd
     liftIO $ catch_io_errors $ do
-        unless (null response) $
-            IO.hPutStrLn response_hdl response
+        ByteString.Char8.hPutStrLn response_hdl
+            (ReplUtil.encode_response response)
         IO.hClose response_hdl
     return status
     where
@@ -82,19 +84,21 @@ repl session repl_dirs msg = do
         Log.warn $ "caught exception from socket write: " ++ show exc
 
 -- | Replace \@some-id with @(make_id ns \"some-id\")@
-expand_macros :: Id.Namespace -> String -> Either String String
+expand_macros :: Id.Namespace -> Text -> Either String Text
 expand_macros namespace expr = Parse.expand_macros replace expr
     where
-    replace ident = "(make_id " <> show (Id.un_namespace namespace) <> " "
-        <> show ident <> ")"
+    replace ident = "(make_id " <> showt (Id.un_namespace namespace) <> " "
+        <> showt ident <> ")"
 
 -- | Run the Cmd under an IO exception handler.
-run_cmdio :: Cmd.CmdT IO String -> Cmd.CmdT IO (String, Cmd.Status)
+run_cmdio :: Cmd.CmdT IO ReplUtil.Response
+    -> Cmd.CmdT IO (ReplUtil.Response, Cmd.Status)
 run_cmdio cmd = do
     ui_state <- State.get
     cmd_state <- Cmd.get
     result <- liftIO $ Exception.try $ do
-        (cmd_state, midi, logs, result) <- Cmd.run "<aborted>" ui_state
+        let aborted = ReplUtil.raw "<aborted>"
+        (cmd_state, midi, logs, result) <- Cmd.run aborted ui_state
             (cmd_state { Cmd.state_repl_status = Cmd.Done }) cmd
         mapM_ Log.write logs
         case result of
@@ -103,12 +107,11 @@ run_cmdio cmd = do
             Right (val, _, _) -> val `DeepSeq.deepseq` return ()
         return (cmd_state, midi, result)
     case result of
-        Left (exc :: Exception.SomeException) ->
-            return (unformatted $ "IO exception: " ++ show exc, Cmd.Done)
+        Left (exc :: Exception.SomeException) -> return
+            (ReplUtil.raw $ "IO exception: " <> showt exc, Cmd.Done)
         Right (cmd_state, midi, result) -> case result of
-            Left err ->
-                return (unformatted $ "State error: " ++ pretty err,
-                    Cmd.Done)
+            Left err -> return
+                (ReplUtil.raw $ "State error: " <> prettyt err, Cmd.Done)
             Right (val, ui_state, updates) -> do
                 mapM_ Cmd.write_midi midi
                 Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }
@@ -116,12 +119,6 @@ run_cmdio cmd = do
                 State.unsafe_put ui_state
                 mapM_ State.update updates
                 return (val, Cmd.state_repl_status cmd_state)
-
--- | Prepend a magic character that makes the REPL not try to pretty-print the
--- output.  It won't pretty print it if it's not parseable as haskell, but
--- lots of error msgs wind up being parseable.
-unformatted :: String -> String
-unformatted = ('!':)
 
 get_local_modules :: FilePath -> Cmd.CmdT IO [String]
 get_local_modules repl_dir = do

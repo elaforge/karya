@@ -45,7 +45,7 @@ data Msg =
     -- | Message from the REPL socket, includes the socket handle than can be
     -- used to write a response.  Whoever responds to it should close the
     -- handle.
-    | Socket IO.Handle String
+    | Socket IO.Handle Text
     deriving (Show)
 
 instance Pretty.Pretty Msg where

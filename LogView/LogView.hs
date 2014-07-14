@@ -221,12 +221,12 @@ handle_clicked_word word
         send_to_app (drop 1 (Seq.rdrop 1 word))
     | otherwise = putStrLn $ "unknown clicked word: " ++ show word
 
-send_action :: (State.MonadIO m) => IO a -> m ()
+send_action :: State.MonadIO m => IO a -> m ()
 send_action = liftIO . Fltk.send_action
 
 send_to_app :: String -> IO ()
 send_to_app cmd = do
-    response <- SendCmd.send cmd
+    response <- SendCmd.send (Text.pack cmd)
         `Exception.catch` \(exc :: Exception.SomeException) ->
             return ("error: " <> showt exc)
     unless (Text.null response) $

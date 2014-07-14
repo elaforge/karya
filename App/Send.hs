@@ -41,10 +41,10 @@ main = SendCmd.initialize $ do
     forM_ msgs $ \msg -> do
         putStrLn $ "---> " ++ msg
         if Timing `elem` flags then do
-            (response, time) <- timed $ SendCmd.send (msg ++ "\n")
+            (response, time) <- timed $ SendCmd.send (Text.pack msg)
             Printf.printf "%s - %.3f\n" (Text.unpack response) time
         else do
-            response <- SendCmd.send (msg <> "\n")
+            response <- SendCmd.send (Text.pack msg <> "\n")
             unless (Text.null response) $
                 Text.IO.putStrLn response
 

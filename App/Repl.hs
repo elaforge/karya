@@ -22,7 +22,6 @@ import qualified System.FilePath as FilePath
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 
 import qualified LogView.Process as Process
@@ -84,18 +83,12 @@ repl current_history settings = input_loop current_history settings $
     handle line
         | null line = return ()
         | otherwise = do
-            response <- liftIO $ Exception.handle catch_all $ SendCmd.send line
-            let formatted = Text.strip $ format_response response
-            unless (Text.null formatted) $
-                liftIO $ Text.IO.putStrLn formatted
+            response <- liftIO $ Exception.handle catch_all $
+                SendCmd.send (Text.pack line)
+            unless (Text.null response) $
+                liftIO $ Text.IO.putStrLn response
     catch_all :: Exception.SomeException -> IO Text.Text
     catch_all exc = return ("!error: " <> Text.pack (show exc))
-
-format_response :: Text.Text -> Text.Text
-format_response text
-    | text == "()" = ""
-    | Just ('!', s) <- Text.uncons text = s -- See 'Cmd.Repl.unformatted'.
-    | otherwise = Text.pack $ PPrint.format_str $ Text.unpack text
 
 input_loop :: CurrentHistory -> Haskeline.Settings IO -> Input Bool -> IO ()
 input_loop current_history settings action = outer_loop settings

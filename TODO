@@ -854,7 +854,7 @@ REPL: repl:
   - Find out what happened to warnings, can I get them back?
   * Suppress the package linking msgs, and send a summary to the repl.
   * Where are the package load and package load type errors going?
-  - Logs on the repl shouldn't make strings print directly.
+  * Logs on the repl shouldn't make strings print directly.
     I would need a separate record for logs for this.
   / It's a pain to edit the global transform in the REPL.
     . I could put a "global" section in $(save).karya, but then I have to

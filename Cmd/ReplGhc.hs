@@ -17,6 +17,8 @@ import qualified Control.Exception as Exception
 
 import qualified Data.IORef as IORef
 import qualified Data.List as List
+import qualified Data.Text as Text
+
 -- GHC imports
 import qualified GHC
 import qualified GHC.Exts
@@ -33,12 +35,13 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Cmd.Cmd as Cmd
+import qualified App.ReplUtil as ReplUtil
 
 
 -- | The actual session runs in another thread, so this is the communication
 -- channel.  @(expr, namespace, response_mvar)@
-newtype Session = Session (Chan.Chan (String, MVar.MVar Cmd))
-type Cmd = Cmd.CmdL String
+newtype Session = Session (Chan.Chan (Text, MVar.MVar Cmd))
+type Cmd = Cmd.CmdL ReplUtil.Response
 
 -- | Text version of the Cmd type.
 cmd_type :: String
@@ -49,7 +52,7 @@ type Ghc a = GHC.GhcT IO a
 make_session :: IO Session
 make_session = Session <$> Chan.newChan
 
-interpret :: Session -> [String] -> String -> IO (Cmd.CmdT IO String)
+interpret :: Session -> [String] -> Text -> IO (Cmd.CmdT IO ReplUtil.Response)
 interpret (Session chan) _local_modules expr = do
     mvar <- MVar.newEmptyMVar
     Chan.writeChan chan (expr, mvar)
@@ -86,12 +89,13 @@ interpreter (Session chan) = do
             _ -> return ()
         forever $ do
             (expr, return_mvar) <- liftIO $ Chan.readChan chan
-            result <- case expr of
+            result <- case untxt expr of
                 ':' : colon -> colon_cmd colon
-                _ -> normal_cmd expr
+                _ -> normal_cmd (untxt expr)
                     `GHC.gcatch` \(exc :: Exception.SomeException) ->
                         -- set_context throws if the reload failed.
-                        return $ return $ "Exception: " ++ show exc
+                        return $ return $
+                            ReplUtil.raw $ "Exception: " <> showt exc
             liftIO $ MVar.putMVar return_mvar result
     where
     toplevel = "Cmd.Repl.Environ"
@@ -99,36 +103,31 @@ interpreter (Session chan) = do
     normal_cmd :: String -> Ghc Cmd
     normal_cmd expr = do
         set_context [toplevel]
-        format_response <$> compile expr
+        make_response <$> compile expr
 
     colon_cmd :: String -> Ghc Cmd
-    colon_cmd "r" = format_response <$> reload
-    colon_cmd "R" = format_response <$> reload
-    -- colon_cmd ('b' : mods) = return <$> (browse toplevel (words mods))
-    colon_cmd colon = return $ return $ "Unknown colon command: " ++ show colon
+    colon_cmd "r" = make_response <$> reload
+    colon_cmd "R" = make_response <$> reload
+    -- colon_cmd ('b' : mods) = return <$> browse toplevel (words mods)
+    colon_cmd colon = return $ return $
+        ReplUtil.raw $ "Unknown colon command: " <> showt colon
 
--- | Convert warnings and a possibly failed compile into a chatty cmd.
-format_response :: (Either String Cmd, [String], [String]) -> Cmd
-format_response (result, logs_, warns) = case result of
-        Left err -> Cmd.throw $ msgs ++ "compile error: " ++ err
-        Right cmd -> (msgs++) <$> cmd
-    where
-    msgs = warn_msg ++ log_msg ++ "\n"
-    warn_msg =
-        if null warns then "" else "Warnings:\n" ++ Seq.join "\n" warns ++ "\n"
-    log_msg =
-        if null logs then "" else "Logs:\n" ++ Seq.join "\n" logs ++ "\n"
-        where logs = abbreviate_logs logs_
+make_response :: Result (Cmd.CmdL String) -> Cmd
+make_response (result, logs, warns) = case result of
+    Left err -> return (ReplUtil.Raw ("compile error: " <> txt err), all_logs)
+    Right cmd -> do
+        result <- cmd
+        return (ReplUtil.Format (txt result), all_logs)
+    where all_logs = abbreviate_logs (map txt logs) ++ map txt warns
 
-abbreviate_logs :: [String] -> [String]
+abbreviate_logs :: [Text] -> [Text]
 abbreviate_logs logs = loaded ++ filter (not . package_log) logs
     where
     loaded = if packages > 0
-        then ["Loaded " <> show packages <> " packages"] else []
-    packages = length $ filter ("Loading package" `List.isPrefixOf`) logs
+        then ["Loaded " <> showt packages <> " packages"] else []
+    packages = length $ filter ("Loading package" `Text.isPrefixOf`) logs
     package_log log =
-        any (`List.isPrefixOf` log) ["Loading package", "linking ...", "done."]
-
+        any (`Text.isPrefixOf` log) ["Loading package", "linking ...", "done."]
 
 -- * implementation
 
@@ -136,9 +135,9 @@ abbreviate_logs logs = loaded ++ filter (not . package_log) logs
 type Result a = (Either String a, [String], [String])
 
 -- | Load or reload the target modules.  Return errors if the load failed.
-reload :: Ghc (Result Cmd)
+reload :: Ghc (Result (Cmd.CmdL String))
 reload = do
-    (result, logs, warns) <- handle_errors $ GHC.load GHC.LoadAllTargets
+    (result, logs, warns) <- collect_logs $ GHC.load GHC.LoadAllTargets
     return (mkcmd result, logs, warns)
     where
     mkcmd (Right ok)
@@ -154,13 +153,13 @@ reload = do
     -- show_ppr :: (Outputable.Outputable a) => a -> String
     -- show_ppr = Outputable.showSDoc . Outputable.ppr
 
-compile :: String -> Ghc (Result Cmd)
+compile :: String -> Ghc (Result (Cmd.CmdL String))
 compile expr = do
-    (hval, logs, warns) <- handle_errors $ GHC.compileExpr typed_expr
+    (hval, logs, warns) <- collect_logs $ GHC.compileExpr typed_expr
     return (fmap coerce hval, logs, warns)
     where
     typed_expr = "fmap show (" ++ expr ++ ") :: " ++ cmd_type
-    coerce val = GHC.Exts.unsafeCoerce# val :: Cmd
+    coerce val = GHC.Exts.unsafeCoerce# val :: Cmd.CmdL String
 
 set_context :: [String] -> Ghc ()
 set_context mod_names = do
@@ -169,8 +168,8 @@ set_context mod_names = do
         : map (GHC.IIModule . GHC.mkModuleName) mod_names
 
 -- | Run a Ghc action and collect logs and warns.
-handle_errors :: Ghc a -> Ghc (Result a)
-handle_errors action = do
+collect_logs :: Ghc a -> Ghc (Result a)
+collect_logs action = do
     logs <- liftIO $ IORef.newIORef []
     val <- fmap Right (catch_logs logs >> action) `GHC.gcatch`
         \(exc :: Exception.SomeException) -> return (Left (show exc))

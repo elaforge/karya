@@ -9,8 +9,11 @@ module Cmd.ReplStub (
     , interpreter, interpret
 ) where
 import Control.Monad
+
+import Util.Control
 import qualified Util.Thread as Thread
 import qualified Cmd.Cmd as Cmd
+import qualified App.ReplUtil as ReplUtil
 
 type Session = ()
 
@@ -20,5 +23,6 @@ make_session = return ()
 interpreter :: Session -> IO ()
 interpreter () = forever $ Thread.delay 10
 
-interpret :: Session -> [String] -> String -> IO (Cmd.CmdT IO String)
-interpret () _ text = return (return $ "repl not linked in: " ++ show text)
+interpret :: Session -> [String] -> Text -> IO (Cmd.CmdT IO ReplUtil.Response)
+interpret () _ text = return $ return
+    (ReplUtil.Raw $ "repl not linked in: " <> showt text, [])

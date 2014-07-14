@@ -44,12 +44,6 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
 
 
-from_string :: String -> Text
-from_string = Text.pack
-
-to_string :: Text -> String
-to_string = Text.unpack
-
 parse_expr :: Text -> Either String TrackLang.Expr
 parse_expr = parse (p_pipeline True)
 
@@ -66,7 +60,7 @@ parse_val = ParseText.parse_all (lexeme p_val)
 
 -- | Parse attributes in the form +a+b.
 parse_attrs :: String -> Either String Score.Attributes
-parse_attrs = parse p_attrs . from_string
+parse_attrs = parse p_attrs . Text.pack
 
 -- | Parse a number or hex code, without a type suffix.
 parse_num :: Text -> Either String Signal.Y
@@ -127,19 +121,17 @@ p_lex1 = (str <|> parens <|> word) >> spaces
 
 -- | Map the identifiers after a \"\@\" through the given function.  Used
 -- to implement ID macros for the REPL.
-expand_macros :: (String -> String) -> String -> Either String String
-expand_macros replacement str
-    | '@' `notElem` str = Right str
-    | otherwise = ParseText.parse_all (to_string <$> p_macros replacement) text
-    where text = from_string str
+expand_macros :: (Text -> Text) -> Text -> Either String Text
+expand_macros replacement text
+    | not $ "@" `Text.isInfixOf` text = Right text
+    | otherwise = ParseText.parse_all (p_macros replacement) text
 
-p_macros :: (String -> String) -> A.Parser Text
-p_macros replacement = do
+p_macros :: (Text -> Text) -> A.Parser Text
+p_macros replace = do
     chunks <- A.many1 $ p_macro replace <|> p_chunk <|> p_hs_string
     return $ mconcat chunks
     where
     p_chunk = A.takeWhile1 (\c -> c /= '"' && c /= '@')
-    replace = from_string . replacement . to_string
 
 p_macro :: (Text -> Text) -> A.Parser Text
 p_macro replacement = do

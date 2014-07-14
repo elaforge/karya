@@ -7,12 +7,16 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 
+import Util.Control
 import qualified Util.Pretty as Pretty
 import Util.Test
+
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ReplGhc as ReplGhc
+
+import qualified App.ReplUtil as ReplUtil
 
 
 -- Fiddle around with the REPL by hand.
@@ -29,20 +33,22 @@ test_repl_ghc = do
         line <- getLine
         if line == "quit" then return () else do
         mvar <- MVar.newEmptyMVar
-        Chan.writeChan chan (line, mvar)
+        Chan.writeChan chan (txt line, mvar)
         cmd <- MVar.takeMVar mvar
-        result <- run_io "" cmd
+        result <- run_io cmd
         case result of
             Left err -> putStrLn $ "---> err: " ++ err
-            Right val -> putStrLn $ "---> val: " ++ val
+            Right val -> putStrLn $ "---> val: " ++ untxt val
         go chan
 
-run_io :: a -> Cmd.CmdT IO a -> IO (Either String a)
-run_io deflt cmd = do
-    (_cstate, _midi, _logs, result) <- Cmd.run deflt ui_state cmd_state cmd
+run_io :: Cmd.CmdT IO ReplUtil.Response -> IO (Either String Text)
+run_io cmd = do
+    (_cstate, _midi, _logs, result) <-
+        Cmd.run (ReplUtil.raw "") ui_state cmd_state cmd
     return $ case result of
         Left err -> Left (Pretty.pretty err)
-        Right (val, _ustate, _updates) -> Right val
+        Right (val, _ustate, _updates) ->
+            Right $ ReplUtil.decode_response $ ReplUtil.encode_response val
     where
     ui_state = State.empty
     cmd_state = CmdTest.default_cmd_state

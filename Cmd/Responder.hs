@@ -31,7 +31,7 @@ import Control.Monad
 import qualified Control.Monad.Error as Error
 import qualified Control.Monad.State.Strict as Monad.State
 
-import qualified Data.List as List
+import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Map as Map
 import qualified Network
 import qualified System.IO as IO
@@ -69,7 +69,9 @@ import qualified Cmd.Undo as Undo
 import qualified Derive.Scale.All as Scale.All
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
+import qualified App.ReplUtil as ReplUtil
 import qualified App.StaticConfig as StaticConfig
+
 import Types
 
 
@@ -201,7 +203,7 @@ create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
 -- | Accept a connection on the socket, read everything that comes over, then
 -- place the socket and the read data on @output_chan@.  It's the caller's
 -- responsibility to close the handle after it uses it to reply.
-accept_loop :: Network.Socket -> TChan.TChan (IO.Handle, String) -> IO ()
+accept_loop :: Network.Socket -> TChan.TChan (IO.Handle, Text) -> IO ()
 accept_loop socket output_chan = forever $ catch_io_errors $ do
     (hdl, _host, _port) <- Network.accept socket
     -- Make sure subprocesses don't inherit this.
@@ -209,24 +211,12 @@ accept_loop socket output_chan = forever $ catch_io_errors $ do
     Posix.IO.setFdOption fd Posix.IO.CloseOnExec True
     hdl <- Posix.IO.fdToHandle fd
     IO.hSetBuffering hdl IO.NoBuffering
-    msg <- read_until hdl Config.message_complete_token
-    STM.atomically $ TChan.writeTChan output_chan (hdl, msg)
+    msg <- ByteString.Char8.hGetLine hdl
+    STM.atomically $ TChan.writeTChan output_chan
+        (hdl, ReplUtil.decode_request msg)
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
         Log.warn $ "caught exception from socket read: " ++ show exc
-
-read_until :: IO.Handle -> String -> IO String
-read_until hdl boundary = go ""
-    where
-    rbound = reverse boundary
-    go accum
-        | rbound `List.isPrefixOf` accum =
-            return (reverse (drop (length boundary) accum))
-        | otherwise = do
-            eof <- IO.hIsEOF hdl
-            if eof then return "" else do
-                c <- IO.hGetChar hdl
-                go (c:accum)
 
 
 -- * respond

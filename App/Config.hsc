@@ -143,13 +143,6 @@ initialize_repl_port :: IO ()
 initialize_repl_port =
     void $ File.ignoreEnoent $ Directory.removeFile "seq-repl"
 
--- | This string coming from the repl socket indicates that the message is
--- complete and the server should process it and send a response.  It's
--- necessary because I can't exactly use EOF for this if I want to send
--- a response.
-message_complete_token :: String
-message_complete_token = "\n\NUL"
-
 -- * input
 
 -- | This is the primary mouse button, used to set the insertion selection.

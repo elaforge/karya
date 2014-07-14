@@ -3,13 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module App.SendCmd where
+import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 import qualified Network
 import qualified System.IO as IO
 import qualified System.Posix as Posix
 
 import qualified App.Config as Config
+import qualified App.ReplUtil as ReplUtil
 
 
 initialize :: IO a -> IO a
@@ -20,11 +21,11 @@ initialize app = Network.withSocketsDo $ do
     sigpipe = IO.hPutStrLn IO.stderr
         "caught SIGPIPE, reader must have closed the socket"
 
-
-send :: String -> IO Text.Text
+-- | I don't expect any newlines in the sent message.
+send :: Text.Text -> IO Text.Text
 send msg = do
     hdl <- Network.connectTo "localhost" Config.repl_port
-    IO.hPutStr hdl msg
-    IO.hPutStr hdl Config.message_complete_token
+    ByteString.Char8.hPutStr hdl $ ReplUtil.encode_request $
+        Text.replace "\n" " " $ Text.strip msg
     IO.hFlush hdl
-    fmap Text.strip $ Text.IO.hGetContents hdl
+    fmap ReplUtil.decode_response $ ByteString.Char8.hGetContents hdl

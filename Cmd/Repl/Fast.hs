@@ -7,6 +7,7 @@
 module Cmd.Repl.Fast where
 import qualified Data.Char as Char
 
+import Util.Control
 import qualified Util.Then as Then
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -15,13 +16,16 @@ import qualified Cmd.Repl.Global as Global
 import qualified Cmd.Repl.LInst as LInst
 import qualified Cmd.Repl.LState as LState
 
+import qualified App.ReplUtil as ReplUtil
+
 
 -- | 'interpret' loads a whole bunch of modules and can be slow.  Shortcut a
 -- few common commands so they happen quickly.
-fast_interpret :: String -> Maybe (Cmd.CmdT IO String)
+fast_interpret :: String -> Maybe (Cmd.CmdT IO ReplUtil.Response)
 fast_interpret text = case lex_all text of
     Nothing -> Nothing
-    Just toks -> interpret toks
+    Just toks -> fmap (fmap response) (interpret toks)
+    where response result = (ReplUtil.Format (txt result), [])
 
 interpret :: [String] -> Maybe (Cmd.CmdT IO String)
 interpret toks = case toks of
