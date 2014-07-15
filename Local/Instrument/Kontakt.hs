@@ -31,9 +31,9 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
-import qualified Derive.Eval as Eval
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 import Derive.Score (attr)
@@ -182,17 +182,18 @@ guzheng = MidiInst.with_code code
         <> MidiInst.note_transformers [("standard-strings", standard_strings)]
     standard_strings = DUtil.make_call0t "standard-strings"
         ("Set `open-strings` to standard pitches: " <> ShowVal.show_val strings)
-        $ \_ deriver -> do
-            pitches <- mapM (Eval.eval_pitch 0) (map TrackLang.call0 strings)
-            Derive.with_val "open-strings" pitches deriver
+        $ \_ deriver -> Derive.with_val "open-strings"
+            (map Pitches.nn_pitch strings) deriver
     ks =
         [ (Attrs.harm, Key2.as5)
         , (Attrs.left, Key2.b5) -- left hand, no pick
         , (mempty, Key2.c6) -- right hand, picked
         ]
-    strings = take (4*5 + 1) -- 4 octaves + 1, so D to D
-        [TrackLang.Symbol $ showt oct <> note | oct <- [2..],
-            note <- ["d", "e", "f#", "a", "b"]]
+    strings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
+        concat $ zipWith (\nns oct -> map (oct+) nns) (repeat notes) octaves
+        where
+        notes = [NN.d2, NN.e2, NN.fs2, NN.a2, NN.b2]
+        octaves = map fromIntegral [0, 12 ..]
 
 sc_bali :: [MidiInst.Patch]
 sc_bali = MidiInst.with_code mute_null_call
