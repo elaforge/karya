@@ -436,6 +436,7 @@ integrate / integration:
     - quantization
 
 lilypond:
+  * don't bother converting instruments whose staves won't be shown
   * *twelve converted with pitch_note, otherwise use pitch_nn and pick the
     closest
   - warning if ly-prepend or ly-append is being omitted due to a chord

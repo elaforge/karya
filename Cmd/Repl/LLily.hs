@@ -110,10 +110,6 @@ view = view_block =<< Cmd.get_focused_block
 
 -- * from events
 
-filter_inst :: [Text] -> [Score.Event] -> [Score.Event]
-filter_inst inst_s = filter ((`elem` insts) . Score.event_instrument)
-    where insts = map Score.Instrument inst_s
-
 from_events :: [Score.Event] -> Cmd.CmdL Text
 from_events events = do
     block_id <- Cmd.get_focused_block

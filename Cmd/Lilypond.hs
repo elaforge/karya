@@ -140,9 +140,8 @@ convert :: Lilypond.Config -> [Score.Event] -> ([Lilypond.Event], [Log.Msg])
 convert config score_events =
     (Convert.quantize (Lilypond.config_quantize config) events, logs)
     where
-    (events, logs) = LEvent.partition $
-        Convert.convert (Lilypond.config_quarter_duration config)
-            score_events
+    (events, logs) = LEvent.partition $ Convert.convert config score_events
+
 
 ly_filename :: Cmd.M m => Lilypond.Title -> m FilePath
 ly_filename title = do

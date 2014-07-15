@@ -5,6 +5,7 @@
 -- | Convert Derive.Score output into Lilypond.Events.
 module Perform.Lilypond.Convert where
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
@@ -30,9 +31,17 @@ type ConvertT a = ConvertUtil.ConvertT () a
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: RealTime -- ^ this length of time becomes a quarter note
-    -> [Score.Event] -> [LEvent.LEvent Types.Event]
-convert quarter = ConvertUtil.convert () (convert_event quarter)
+convert :: Types.Config -> [Score.Event] -> [LEvent.LEvent Types.Event]
+convert config =
+    ConvertUtil.convert () (convert_event quarter) . want_instrument
+    where
+    quarter = Types.config_quarter_duration config
+    want_instrument
+        | null (Types.config_staves config) = id
+        | otherwise = filter ((`Set.member` insts) . Score.event_instrument)
+        where
+        insts = Set.fromList [inst | (inst, staff)
+            <- Types.config_staves config, Types.staff_display staff]
 
 -- | Normally events have a duration and a pitch, and the lilypond performer
 -- converts this into a normal lilypond note.  However, the deriver can emit

@@ -283,7 +283,7 @@ eval_notes :: Types.Config -> Meter.Meter -> RealTime -> [Score.Event]
     -> ([Note], [Log.Msg])
 eval_notes config meter start score_events = (map Types.to_lily notes, logs)
     where
-    (events, logs) = LEvent.partition $ Convert.convert quarter score_events
+    (events, logs) = LEvent.partition $ Convert.convert config score_events
     notes = Process.simple_convert config meter
         (Types.real_to_time quarter start)
         (Convert.quantize (Types.config_quantize config) events)
