@@ -90,19 +90,24 @@ convert_event quarter event = do
     code_attrs = [Constants.v_ly_prepend, Constants.v_ly_append_all]
 
 convert_pitch :: Score.Event -> ConvertT (Maybe Pitch.Pitch)
-convert_pitch event = case PitchSignal.at start (Score.event_pitch event) of
+convert_pitch event = case Score.initial_pitch event of
     Nothing -> return Nothing
-    Just pitch -> Just <$> go pitch
+    Just pitch -> Just <$> convert pitch
     where
-    start = Score.event_start event
-    go pitch = do
-        note <- either (throw . ("convert_pitch: "<>) . showt) return $
-            PitchSignal.pitch_note $ PitchSignal.apply
-                (Score.event_environ event)
-                (Score.event_controls_at start event)
-                pitch
-        require ("parseable note: " <> prettyt note) $
-            Twelve.read_absolute_pitch note
+    -- If it's 'twelve' then use pitch_note, else use pitch_nn and pick the
+    -- closest pitch.
+    convert pitch
+        | PitchSignal.pitch_scale_id pitch == Twelve.scale_id = do
+            note <- either (throw . ("convert_pitch: "<>) . showt) return $
+                PitchSignal.pitch_note pitch
+            require ("parseable note: " <> prettyt note) $
+                Twelve.read_absolute_pitch note
+        | otherwise = do
+            nn <- either (throw . ("convert_pitch: "<>) . showt) return $
+                PitchSignal.pitch_nn pitch
+            note <- require ("nn: " <> prettyt nn) $ Twelve.nn_to_note nn
+            require ("parseable note: " <> prettyt note) $
+                Twelve.read_absolute_pitch note
 
 -- * util
 

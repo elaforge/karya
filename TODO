@@ -436,6 +436,8 @@ integrate / integration:
     - quantization
 
 lilypond:
+  * *twelve converted with pitch_note, otherwise use pitch_nn and pick the
+    closest
   - warning if ly-prepend or ly-append is being omitted due to a chord
   - Maybe code events with a voice should go in the voice requested rather
     than mixed into the first one.  E.g. would have fixed grace notes.

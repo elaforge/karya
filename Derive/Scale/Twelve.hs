@@ -20,9 +20,11 @@
 -}
 module Derive.Scale.Twelve where
 import qualified Data.Map as Map
+import qualified Data.Vector as Vector
 import qualified Data.Vector.Unboxed as Unboxed
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
@@ -88,6 +90,11 @@ show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
 read_absolute_pitch :: Pitch.Note -> Maybe Pitch.Pitch
 read_absolute_pitch = either (const Nothing) Just
     . ChromaticScales.read_pitch absolute_scale_map Nothing
+
+-- | Map NoteNumbers to their nearest Note.
+nn_to_note :: Pitch.NoteNumber -> Maybe Pitch.Note
+nn_to_note nn = notes Vector.!? (round nn - 1)
+    where notes = Vector.fromList $ mapMaybe show_nn (Seq.range 1 127 1)
 
 
 -- * implementation
