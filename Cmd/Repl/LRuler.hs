@@ -15,9 +15,10 @@
 
     Examples:
 
-    - Give the current block the standard 4/4 meter, where each measure gets 1t:
+    - Give the current block 6 sections of standard 4/4 meter, where each
+    measure gets 1t:
 
-        > LRuler.local_ruler $ LRuler.measures 1 Meters.m44 4 4 1
+        > LRuler.local_ruler $ LRuler.measures 1 Meters.m44 6 4 1
 
     - Or put the selection at the where the 4 meters should end and run
 

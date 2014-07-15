@@ -75,6 +75,13 @@ test_arrival_notes = do
     equal (run [(1, -1, ""), (2, -1, "")])
         ([((1, 1, "4d"), "+"), ((2, -1, "4e"), "+arrival-note")], [])
 
+test_transpose = do
+    let run = DeriveTest.extract DeriveTest.e_pitch
+            . DeriveTest.derive_tracks ""
+    equal (run [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")]),
+            ("t-chromatic", [(0, 0, "1")])])
+        (["4c#"], [])
+
 test_arrival_notes_postproc = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_blocks_with_ui id

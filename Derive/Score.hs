@@ -205,32 +205,32 @@ controls_at p = Map.map (typed_val . control_val_at p)
 
 -- *** pitch
 
--- | The pitch at the given time.  The transposition controls have not been
--- applied for the reasons given in 'Derive.Derive.pitch_at'.
+-- | Unlike 'Derive.Derive.pitch_at', the transposition has already been
+-- applied.  This is because callers expect to get the actual pitch, not the
+-- pitch plus some homework to do on the pitch.  If you use this pitch to emit
+-- another pitch you proabbly need the raw pitch, but so far everyone doing
+-- that is at the Derive level, not postproc, so they use Derive.pitch_at.
 pitch_at :: RealTime -> Event -> Maybe PitchSignal.Pitch
-pitch_at pos = PitchSignal.at pos . event_pitch
+pitch_at pos event =
+    apply_controls event pos <$> PitchSignal.at pos (event_pitch event)
+
+apply_controls :: Event -> RealTime -> PitchSignal.Pitch -> PitchSignal.Pitch
+apply_controls event pos =
+    PitchSignal.apply (event_environ event) (event_controls_at pos event)
 
 initial_pitch :: Event -> Maybe PitchSignal.Pitch
 initial_pitch event = pitch_at (event_start event) event
 
--- | Unlike 'pitch_at', the transposition has already been applied, because you
--- can't transpose any further once you have a NoteNumber.
 nn_at :: RealTime -> Event -> Maybe Pitch.NoteNumber
-nn_at pos event = do
-    pitch <- pitch_at pos event
-    either (const Nothing) Just $ PitchSignal.pitch_nn $
-        PitchSignal.apply (event_environ event) (event_controls_at pos event)
-            pitch
+nn_at pos event =
+    either (const Nothing) Just . PitchSignal.pitch_nn =<< pitch_at pos event
 
 initial_nn :: Event -> Maybe Pitch.NoteNumber
 initial_nn event = nn_at (event_start event) event
 
 note_at :: RealTime -> Event -> Maybe Pitch.Note
 note_at pos event = do
-    pitch <- pitch_at pos event
-    either (const Nothing) Just $ PitchSignal.pitch_note $
-        PitchSignal.apply (event_environ event) (event_controls_at pos event)
-            pitch
+    either (const Nothing) Just . PitchSignal.pitch_note =<< pitch_at pos event
 
 initial_note :: Event -> Maybe Pitch.Note
 initial_note event = note_at (event_start event) event
