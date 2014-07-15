@@ -7,7 +7,7 @@ UNSORTED
   * if I get rid of either then I can get rid of lots of ekmett packages
     Write my own?
     . Replace use of EitherT with ExceptT.
-  - pass -dynamic-too to let ghci link
+  * pass -dynamic-too to let ghci link
     . I can't figure how to get ghci to link compiled even in simple cases.
   / Lilypond emmentaler symbols seem to change unpredictably across versions.
     Maybe it's too much bother to maintain, and I can just not use symbols.

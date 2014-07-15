@@ -349,7 +349,9 @@ configure midi = do
             "-I" ++ bindingsInclude]
         , fltkCc = fltkCs
         , fltkLd = fltkLds
-        , hcFlags = ["-threaded", "-W"] ++ ghcWarnings ++ ["-fno-warn-amp"]
+        , hcFlags = ["-threaded", "-W"]
+            ++ ["-dynamic"] -- necessary for ghci loading to work in 7.8
+            ++ ghcWarnings ++ ["-fno-warn-amp"]
             ++ ["-F", "-pgmF", hspp]
             ++ case mode of
                 Debug -> []
@@ -357,6 +359,7 @@ configure midi = do
                 Test -> ["-fhpc"]
                 Profile -> ["-O", "-prof", "-fprof-auto-top"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
+            ++ ["-dynamic"]
             ++ ["-prof" | mode == Profile]
             ++ ["-with-rtsopts=-T" | useEkg]
         -- Hackery, make sure ghci gets link flags, otherwise it wants to
@@ -370,6 +373,7 @@ configure midi = do
             -- Always compile c++ with optimization because I don't have much
             -- of it and it compiles quickly.
             fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall", "-O2"]
+                ++ ["-fPIC"] -- necessary for ghci loading to work in 7.8
                 -- Turn on Effective C++ warnings, which includes uninitialized
                 -- variables.  Unfortunately it's very noisy with lots of
                 -- false positives.
@@ -483,8 +487,11 @@ setupOracle :: [(String, String)] -> Config -> Shake.Rules ()
 setupOracle env config = do
     Shake.addOracle $ \(_ :: Question GhcQ) -> return (ghcLib config)
     Shake.addOracle $ \(_ :: Question FltkQ) -> return (fltkVersion config)
+    -- Previously, linking ghc took so long it was worth linking without the
+    -- REPL.  But dynamic linking is fast enough that I can reverse it, and
+    -- eventually remove norepl if I never wind up using it.
     Shake.addOracle $ \(_ :: Question ReplQ) ->
-        return ("repl" `elem` map fst env)
+        return ("norepl" `notElem` map fst env)
     Shake.addOracle $ \(_ :: Question MidiQ) -> return (midiDriver :: String)
     return ()
     where
@@ -941,7 +948,7 @@ writeGhciFlags modeConfig =
 -- | Get the file-independent flags for a haskell compile.
 ghcFlags :: Config -> [String]
 ghcFlags config =
-    [ "-outputdir", oDir config
+    [ "-dynamic", "-outputdir", oDir config
     , "-i" ++ oDir config ++ ":" ++ hscDir config
     ] ++ ghcLanguageFlags ++ define (configFlags config)
     ++ cInclude (configFlags config)
