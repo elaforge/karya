@@ -374,8 +374,10 @@ sync_save_file save = Cmd.set_global_status "save" $ case save of
 
 -- | Sync State.Config changes.
 sync_ui_config :: (Cmd.M m) => State.Config -> m ()
-sync_ui_config config =
+sync_ui_config config = do
     Cmd.set_global_status "global" $ State.config_global_transform config
+    Cmd.set_global_status "defs" $
+        maybe "" txt (State.config_definition_file config)
 
 -- Zoom is actually not very useful.
 sync_zoom_status :: (Cmd.M m) => ViewId -> m ()
