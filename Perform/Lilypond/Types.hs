@@ -25,9 +25,8 @@ class ToLily a where
     to_lily :: a -> Text
 
 instance ToLily Text where
-    -- Lilypond's string literal is undocumented, but from lily/lexer.ll it
-    -- looks haskell-like enough.  It'll probably choke on non-ascii.
-    to_lily = showt
+    -- Lilypond's string literal is undocumented, but this seems to work.
+    to_lily txt = "\"" <> Text.replace "\"" "\\\"" txt <> "\""
 
 -- | Configure how the lilypond score is generated.
 data Config = Config {
