@@ -108,7 +108,7 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     width -= 3;
     xpos += 2;
     this->edit_input = new WrappedInput(
-        xpos, ypos, width, Config::View::track_title_height);
+        xpos, ypos, width, Config::View::track_title_height, false);
     edit_input->callback(edit_input_cb, static_cast<void *>(this));
     edit_input->show();
     // When a widget gets focus from a click, it becomes Fl::focus() and then

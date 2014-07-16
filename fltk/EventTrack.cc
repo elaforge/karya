@@ -150,7 +150,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
     bg_box.color(color_to_fl(config.bg_color.brightness(this->brightness)));
-    this->title_input = new WrappedInput(0, 0, 1, 1);
+    this->title_input = new WrappedInput(0, 0, 1, 1, true);
 }
 
 

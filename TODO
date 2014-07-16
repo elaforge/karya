@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * leading space not working for edit input
   * 71nn = 4s, but shows up as 60nn, MIDI is also 71
     Becomes 71nn when reduced to pevents
     . It's because I don't apply the environ and controls.
@@ -436,9 +437,13 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - to make notes without duration, ignore the existing duration and choose
+    the simplest possible duration.  For zheng, yangqin, percussion.
+    . Exception for +trem
   * don't bother converting instruments whose staves won't be shown
   * *twelve converted with pitch_note, otherwise use pitch_nn and pick the
     closest
+  - grace notes should use the same pitch convert scheme
   - warning if ly-prepend or ly-append is being omitted due to a chord
   - Maybe code events with a voice should go in the voice requested rather
     than mixed into the first one.  E.g. would have fixed grace notes.

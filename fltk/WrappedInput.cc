@@ -22,8 +22,8 @@ enum {
 };
 
 
-WrappedInput::WrappedInput(int X, int Y, int W, int H) :
-    Fl_Multiline_Input(X, Y, W, H)
+WrappedInput::WrappedInput(int X, int Y, int W, int H, bool strip) :
+    Fl_Multiline_Input(X, Y, W, H), strip(strip)
 {
     this->color(FL_WHITE);
     this->textsize(Config::font_size::input);
@@ -148,7 +148,7 @@ WrappedInput::handle(int evt)
         }
     }
     if (evt == FL_UNFOCUS) {
-        if (input_util::strip_value(this))
+        if (this->strip && input_util::strip_value(this))
             this->wrap_text();
         this->position(0);
         this->do_callback();

@@ -36,7 +36,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config, const char *window_title) :
     Fl_Group(X, Y, W, H),
 
-    title(0, 0, 1, 1),
+    title(0, 0, 1, 1, true),
     status_line(0, 0, 1, 1),
     body(0, 0, 1, 1),
         body_resize_group(0, 0, 1, 1, "resize group"),

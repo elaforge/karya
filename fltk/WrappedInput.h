@@ -22,7 +22,7 @@
 // will return its new height and the parent should resize it appropriately.
 class WrappedInput : public Fl_Multiline_Input {
 public:
-    WrappedInput(int X, int Y, int W, int H);
+    WrappedInput(int X, int Y, int W, int H, bool strip);
     void resize(int x, int y, int w, int h);
     // Use this to set newline-free unwrapped text.
     void set_text(const char *text);
@@ -33,6 +33,8 @@ protected:
     void draw();
 private:
     bool wrap_text();
+    // Strip spaces from the text on unfocus.
+    const bool strip;
 };
 
 #endif
