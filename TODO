@@ -3,69 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * leading space not working for edit input
-  * 71nn = 4s, but shows up as 60nn, MIDI is also 71
-    Becomes 71nn when reduced to pevents
-    . It's because I don't apply the environ and controls.
-  * write my own ExceptT to get around mtl-2.2 problem?  Downgrade to ErrorT.
-  * if I get rid of either then I can get rid of lots of ekmett packages
-    Write my own?
-    . Replace use of EitherT with ExceptT.
-  * pass -dynamic-too to let ghci link
-    . I can't figure how to get ghci to link compiled even in simple cases.
-  / Lilypond emmentaler symbols seem to change unpredictably across versions.
-    Maybe it's too much bother to maintain, and I can just not use symbols.
-    . But `ped` and `mordent` look nice!  `rmordent` is hard to read though...
-  * Perform.ConvertUtil.throw should take Text
-  * upgrade to fclabels2
-  / copy paste that also copies the ruler
-  * it's such a pain to do anything with rulers, even simple things like
-    replace a chatusram section with tisram.  Surely there is a better way.
-    . I have to come up with where the break point is in the meter, then
-      create two concatenated meters, but that doesn't even work if it's not
-      on an even boundary.
-    . Ideally I should be able to replace a selection.  So it has to figure
-      out where the ruler left off and continue the counts.  Actually, why
-      can't I do the same thing as Meter.Meter, just leave the count empty to
-      fill in?
-      [(Rank, Duration)] -> [(Maybe Label, Rank, Duration)]
-      - 0 1 2 3 X O X O
-      - 0.0, 0.1, 0.2, 0.3, 0.X, 0.O, 0.X, 0.O
-      . The main thing is that it uses a different cycle for rank 1.
-    . I can easily manipulate plain meters because I can reduce them to
-      Meter.Meter and the renumbering happens automatically.  I need to do the
-      same with tala meters.
-    . Mostly I just want to be able to append n avartanams of some tala to the
-      current ruler.  Being able to use 'double' and 'append' would be nice
-      too.  Basically that just means being able to renumber the top level.
-      So I just add a certain amount.
-    . But this only works if I'm only renumbering the top level, what if
-      I have both section / meter?  It's the same thing with numbers.  Can
-      I re-use the numbering code?
-  * shift down arrow in a text box loses the selection
-  * clicking on a floating text entry makes it lose focus instead of setting
-    the cursor.
-  * Tweak ruler rank colors to make the ranks clearer.  Lower ranks should be
-    darker than higher ones.
-  / is the chatusram tisram thing a case for two different meters?
-    I could generalize meter rulers to be "meter" or "meter-*".
-    - toggle time step between different rulers
-    - LRuler modifications need to know which ruler to modify
-    . It would be simpler to just write on two different tracks.
-  * bind record and play/stop keys on oxygen8
-  automatic "All.hs" modules
-    - Derive.Calls.All looks for (note|pitch|control)_calls from Derive/Call/,
-      but could also take from Local/Call/*
-    - Local.Instrument looks for 'load' from Local/Instrument/
-  - maybe {} for quoted, it's a bit shorter than "()
   - hold support for trill and tremolo
     . also, would it be useful to add an acceleration?
-  * import should either warn about collisions, or import in order
   guzheng support:
-    * port 'kam' trill to zheng
-    * rename Idiom.String to China.Zheng
-      Or maybe leave it as is, but create a new module for zheng.
-    * Should also get 'trem'.  Or put trem in the prelude.
     - bent-string emits "Error: missing pitches" on repeated notes
     - I want to make pitches after the first default to interpolated, like
       i>>.  I would have to wrap all the scale calls, but how can an
@@ -74,12 +14,6 @@ UNSORTED
       . Another approach would be to apply slew control globally.
   - error msg: pitch: [unparseable environ: key=bork]
     Firstly, what's up with the []s?  Secondly, should say what scale?
-  * %c = 1 can set a control, but what if I want to combine, e.g. *= .5?
-    Where can I squeeze in a merge operator?  %c = mul .5?
-  . equal syntax has lots of useless stuff, e.g.
-    `^a = x y z` is an error, `^a = (x y z)` is useless unless `x` returns
-    VQuoted or VSymbol.
-
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
@@ -150,16 +84,7 @@ UNSORTED
     beginning.
   india: gamakam:
     sequence calls:
-      * initial implementation
-      * always using the previous pitch is not so convenient when starting,
-        perhaps I should have an implicit 'start' call that sets the pitch
-      * It's awkward to remember spaces before ;, I suppose I should disallow
-        ; in calls.
-      * j too fast
-      * if I can fade out with >, I should be able to fade in with <
       begin
-        * p/from takes an arg so it can go to something other than unity
-        * jaru
         - j needs to stretch when the notes are fast, but expand to a maximum
           otherwise.
           . Doesn't it already do that?  I want it to still leave a bit of
@@ -174,15 +99,11 @@ UNSORTED
             themselves decide how much to stretch?
         - janta
       middle
-        * kam should adjust number of cycles based on time available, and then
-          stretch to fit
-        * nkam, with fixed number of cycles
         - kam seems not smooth.  Also, maybe transition time should default to
           faster than the speed.
         - test hold and lilt for kam and nkam, adjust for nkam
         - maybe 'hold' should transition to the pitch instead of snapping
       end
-        * > call should have zero pitch length, just overlay a fade
       - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
       - select precomposed calls based on scale degree, previous pitch,
         and tempo
@@ -262,36 +183,16 @@ UNSORTED
           . Momentary dip: 0, -1, 0.  Possibly with dyn drop.
       - all calls take interpolator as env arg
       . each of the above are individual note calls
-      * but there is another note call that takes them as arguments and
-        sequences them, based on start/middle/end.
-        > ! j] -1 ; avoid ; to> (4g)
-        > ! from< ; ; to
-
-        I can merge 'from' and 'to' since I know from location.
-
-        But I need to either make them all parseable vals or implement
-        a "unparsed args" tag or something.  Should be able to pass them as
-        vals normally, but I might want a special token for separator, e.g. ;.
     - higher level ornaments that change based on how much time they have,
       also depend on the previous pitch.
     - nkam doesn't seem to interact correctly with 'h'
     - semi-tone dip.  This is like 1 cycle kam.
-    / It would be possible to implement a general purpose initial-hold
-      transformer by mapping the samples, to e.g. lengthen the first one and
-      compress the rest to compensate.
-    / Can I have ornaments that affect the tempo?  This would be another way
-      to control kam ending.  But it would require a separate pass to extract
-      tempo modifications.
     - overshoot "curve" for 'smooth': over2 over3, depending how far over
     - ornaments can use more controls than just 'dyn', e.g. bow pressure
     . instead of hardcoding specific times, I should say short, medium, long,
       which can vary and have some randomization:
       . short, medium, long: -s = "(rnd low high) | -m = .. | -l = ..
 
-  more scales
-    - wendy carlos' alpha, beta, gamma
-    - overtone series
-    - add ratio transpose signal, that multiplies hz
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
@@ -327,8 +228,6 @@ UNSORTED
     I should extend Util.Format so I can use it for Util.Pretty.
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
-  - There are still some cmds without names, who are they?
-    Do some logging to track them down.
 
 MILESTONES
   0.1
@@ -374,31 +273,20 @@ documentation
   - update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
-    * LBlock.find_doc to get docs of matching calls in scope
     - For call doc, can I group calls with the same doc but different args,
       especially different defaults?
       . Would look like:
         doc doc doc generator
         bind -- name
           args
-    * it's kind of useless for the call doc to say "from builtin", since they
-      all are
-    * hide sections whose calls are all hidden
-      . group sections hierarchically, e.g.
-        <div class=call-type> <h2>note</h2>
-          <div class=call-source> <h3>from builtin</h3>
-            <div class=call-module> <center> Module: bali.gender </center>
-            </div>
-          </div>
-        </div>
-      . Then iterate over the whole list, hiding anything with 0 non-hidden
-        call definition (class=call) children, and unhiding otherwise.
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
 
 shakefile: build:
-  * get package versions from dist/setup-config instead of always using the
-    most recent ones
+  automatic "All.hs" modules
+    - Derive.Calls.All looks for (note|pitch|control)_calls from Derive/Call/,
+      but could also take from Local/Call/*
+    - Local.Instrument looks for 'load' from Local/Instrument/
   - No-build time doubles from .2s to .45s.  Caching doesn't help.
 
 incremental save / git:
@@ -440,10 +328,6 @@ lilypond:
   - to make notes without duration, ignore the existing duration and choose
     the simplest possible duration.  For zheng, yangqin, percussion.
     . Exception for +trem
-  * don't bother converting instruments whose staves won't be shown
-  * *twelve converted with pitch_note, otherwise use pitch_nn and pick the
-    closest
-  * grace notes should use the same pitch convert scheme
   - warning if ly-prepend or ly-append is being omitted due to a chord
   - Maybe code events with a voice should go in the voice requested rather
     than mixed into the first one.  E.g. would have fixed grace notes.
@@ -863,15 +747,6 @@ midi record:
 
 REPL: repl:
   - Find out what happened to warnings, can I get them back?
-  * Suppress the package linking msgs, and send a summary to the repl.
-  * Where are the package load and package load type errors going?
-  * Logs on the repl shouldn't make strings print directly.
-    I would need a separate record for logs for this.
-  / It's a pain to edit the global transform in the REPL.
-    . I could put a "global" section in $(save).karya, but then I have to
-      keep it in sync with State.global_transform, which seems error prone.
-    . Perhaps a repl feature to open vi on a string?
-    . Use local defs to define an abbreviation.
   - repl should understand --
   - only write history when the cmd succeeded
   - command to open the haddock for a module
@@ -972,6 +847,7 @@ Cmd:
 
 Derive:
   tracklang:
+    - maybe use {} for quoted, it's a bit shorter than "()
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
     - it's confusing how some calls expect env vals like 'x = 1' and some
@@ -1091,6 +967,9 @@ Derive:
 
 pitch: scales: scale:
   scales / Derive.Scale:
+    - wendy carlos' alpha, beta, gamma
+    - overtone series
+    - add ratio transpose signal, that multiplies hz
     just intonation
       - interpolate between just scales in different keys
     - meantone
