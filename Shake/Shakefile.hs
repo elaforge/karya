@@ -350,7 +350,10 @@ configure midi = do
         , fltkCc = fltkCs
         , fltkLd = fltkLds
         , hcFlags = ["-threaded", "-W"]
-            ++ ["-dynamic"] -- necessary for ghci loading to work in 7.8
+            -- This is necessary for ghci loading to work in 7.8.
+            -- Except for profiling, where it wants "p_dyn" libraries, which
+            -- don't seem to exist.
+            ++ ["-dynamic" | mode /= Profile]
             ++ ghcWarnings ++ ["-fno-warn-amp"]
             ++ ["-F", "-pgmF", hspp]
             ++ case mode of
@@ -359,7 +362,7 @@ configure midi = do
                 Test -> ["-fhpc"]
                 Profile -> ["-O", "-prof", "-fprof-auto-top"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
-            ++ ["-dynamic"]
+            ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
             ++ ["-with-rtsopts=-T" | useEkg]
         -- Hackery, make sure ghci gets link flags, otherwise it wants to
@@ -571,7 +574,7 @@ dispatch modeConfig targets = do
             Shake.want $
                 [ debug "browser", debug "logview", debug "make_db"
                 , debug "seq", debug "update", debug "dump", debug "repl"
-                , debug "test_midi", runProfile, "karya.cabal"
+                , debug "test_midi", runProfile
                 ] ++ extractableDocs
             -- I used to dispatch to "tests", but putting it here means I can
             -- build and test in parallel.
@@ -938,7 +941,7 @@ writeGhciFlags modeConfig =
     -- non-ghci stuff, not ghcFlags.  I'd have to add a new config field for
     -- non-file-specific ghc flags, or put -I in 'define', where it doesn't
     -- belong.
-    getFlags config = ["-osuf", ".hs.o"]
+    getFlags config = ["-osuf", ".hs.o", "-dynamic"]
         ++ ghcFlags config
         ++ map (resolveSrc config) (ghciFlags (configFlags config))
     resolveSrc config arg
@@ -948,7 +951,7 @@ writeGhciFlags modeConfig =
 -- | Get the file-independent flags for a haskell compile.
 ghcFlags :: Config -> [String]
 ghcFlags config =
-    [ "-dynamic", "-outputdir", oDir config
+    [ "-outputdir", oDir config
     , "-i" ++ oDir config ++ ":" ++ hscDir config
     ] ++ ghcLanguageFlags ++ define (configFlags config)
     ++ cInclude (configFlags config)
