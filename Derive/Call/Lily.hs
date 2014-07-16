@@ -8,7 +8,6 @@ import qualified Data.List as List
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
@@ -23,7 +22,6 @@ import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
-import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -242,16 +240,9 @@ note_pitch deriver = do
     prefix = "Lily.note_pitch: "
 
 pitch_to_lily :: PitchSignal.Pitch -> Derive.Deriver Note
-pitch_to_lily pitch = do
-    note <- right $ PitchSignal.pitch_note pitch
-    pitch <- require ("unparseable note: " <> pretty note) $
-        Twelve.read_absolute_pitch note
-    right $ Types.show_pitch pitch
-    where
-    require = Derive.require . (prefix <>)
-    right :: (Pretty.Pretty a) => Either a b -> Derive.Deriver b
-    right = Derive.require_right ((prefix <>) . pretty)
-    prefix = "Lily.pitch_to_lily: "
+pitch_to_lily =
+    Derive.require_right (untxt . ("Lily.pitch_to_lily: "<>))
+        . Convert.pitch_to_lily
 
 to_time :: Types.Config -> RealTime -> Types.Time
 to_time = Types.real_to_time . Types.config_quarter_duration

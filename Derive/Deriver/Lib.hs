@@ -556,21 +556,26 @@ with_control_mods mods deriver = do
 pitch_at :: RealTime -> Deriver (Maybe PitchSignal.Pitch)
 pitch_at pos = PitchSignal.at pos <$> Internal.get_dynamic state_pitch
 
+-- | Like 'pitch_at', this is a raw pitch.
 named_pitch_at :: Score.Control -> RealTime
     -> Deriver (Maybe PitchSignal.Pitch)
 named_pitch_at name pos = do
     psig <- get_named_pitch name
     return $ maybe Nothing (PitchSignal.at pos) psig
 
+-- | Resolve the raw pitch returned from 'pitch_at' to the final transposed
+-- pitch.
+resolve_pitch :: RealTime -> PitchSignal.Pitch -> Deriver PitchSignal.Pitch
+resolve_pitch pos pitch = do
+    controls <- controls_at pos
+    environ <- Internal.get_environ
+    return $ PitchSignal.apply environ controls pitch
+
 -- | Unlike 'pitch_at', the transposition has already been applied, because you
 -- can't transpose any further once you have a NoteNumber.
 nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
-nn_at pos = do
-    controls <- controls_at pos
-    environ <- Internal.get_environ
-    justm (pitch_at pos) $ \pitch -> do
-        logged_pitch_nn ("nn " ++ pretty pos) $
-            PitchSignal.apply environ controls pitch
+nn_at pos = justm (pitch_at pos) $ \pitch ->
+    logged_pitch_nn ("nn " ++ pretty pos) =<< resolve_pitch pos pitch
 
 get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.Signal)
 get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches

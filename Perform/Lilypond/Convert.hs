@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Convert Derive.Score output into Lilypond.Events.
-module Perform.Lilypond.Convert where
+module Perform.Lilypond.Convert (convert, pitch_to_lily, quantize) where
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -17,10 +17,9 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.ConvertUtil as ConvertUtil
-import Perform.ConvertUtil (require, throw)
+import Perform.ConvertUtil (throw)
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Types as Types
-import qualified Perform.Pitch as Pitch
 
 import Types
 
@@ -40,7 +39,7 @@ convert config =
         | null (Types.config_staves config) = id
         | otherwise = filter ((`Set.member` insts) . Score.event_instrument)
         where
-        insts = Set.fromList [inst | (inst, staff)
+        insts = Set.fromList $ Constants.ly_global : [inst | (inst, staff)
             <- Types.config_staves config, Types.staff_display staff]
 
 -- | Normally events have a duration and a pitch, and the lilypond performer
@@ -68,8 +67,7 @@ convert_event quarter event = do
             | not (has_prepend || has_append) ->
                 throw "event with non-zero duration and no code requires pitch"
             | otherwise -> return ""
-        (_, Just pitch) -> either (throw . ("show_pitch: "<>)) return
-            (Types.show_pitch pitch)
+        (_, Just pitch) -> return pitch
     let converted = Types.Event
             { Types.event_start =
                 Types.real_to_time quarter (Score.event_start event)
@@ -98,27 +96,35 @@ convert_event quarter event = do
         TrackLang.lookup_val v (Score.event_environ event)
     code_attrs = [Constants.v_ly_prepend, Constants.v_ly_append_all]
 
-convert_pitch :: Score.Event -> ConvertT (Maybe Pitch.Pitch)
+type Pitch = Text
+
+convert_pitch :: Score.Event -> ConvertT (Maybe Pitch)
 convert_pitch event = case Score.initial_pitch event of
     Nothing -> return Nothing
-    Just pitch -> Just <$> convert pitch
-    where
-    -- If it's 'twelve' then use pitch_note, else use pitch_nn and pick the
-    -- closest pitch.
-    convert pitch
-        | PitchSignal.pitch_scale_id pitch == Twelve.scale_id = do
-            note <- either (throw . ("convert_pitch: "<>) . showt) return $
-                PitchSignal.pitch_note pitch
-            require ("parseable note: " <> prettyt note) $
-                Twelve.read_absolute_pitch note
-        | otherwise = do
-            nn <- either (throw . ("convert_pitch: "<>) . showt) return $
-                PitchSignal.pitch_nn pitch
-            note <- require ("nn: " <> prettyt nn) $ Twelve.nn_to_note nn
-            require ("parseable note: " <> prettyt note) $
-                Twelve.read_absolute_pitch note
+    Just pitch -> either (throw . ("convert_pitch: "<>)) (return . Just) $
+        pitch_to_lily pitch
 
 -- * util
+
+-- | If it's @*twelve@ then use pitch_note, else use pitch_nn and pick the
+-- closest pitch.
+pitch_to_lily :: PitchSignal.Pitch -> Either Text Pitch
+pitch_to_lily pitch
+    | PitchSignal.pitch_scale_id pitch == Twelve.scale_id = do
+        note <- either (Left . showt) Right $ PitchSignal.pitch_note pitch
+        show_note note
+    | otherwise = do
+        nn <- either (Left . showt) Right $ PitchSignal.pitch_nn pitch
+        note <- require ("nn out of range: " <> prettyt nn) $
+            Twelve.nn_to_note nn
+        show_note note
+    where
+    show_note note = do
+        pitch <- require ("unparseable note: " <> prettyt note) $
+            Twelve.read_absolute_pitch note
+        Types.show_pitch pitch
+    require msg Nothing = Left msg
+    require _ (Just x) = Right x
 
 quantize :: Types.Duration -> [Types.Event] -> [Types.Event]
 quantize dur = map $ \e -> e

@@ -64,7 +64,10 @@ modify_staff inst_ modify = do
             config { Lilypond.config_staves = staves }
     where inst = Score.Instrument inst_
 
--- | Set staff config, [(instrument, long_name, short_name)]
+-- | Set staff config, [(instrument, long_name, short_name)].
+-- If there is no staff config, all instruments get staves.  Otherwise, only
+-- instruments with 'Lilypond.StaffConfig's and 'Lilypond.staff_display' are
+-- displayed.
 set_staves :: [(Text, Lilypond.Instrument, Lilypond.Instrument)]
     -> Lilypond.Config -> Lilypond.Config
 set_staves staves config =

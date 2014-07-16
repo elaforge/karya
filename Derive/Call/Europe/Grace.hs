@@ -98,24 +98,30 @@ c_mordent default_neighbor = Derive.make_call Module.europe "mordent"
 
 lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.NoteDeriver
 lily_mordent args neighbor = do
-    pitch <- Util.get_pitch =<< Args.real_start args
-    lily_grace args [pitch, Pitches.transpose neighbor pitch]
+    start <- Args.real_start args
+    pitch <- Util.get_pitch start
+    lily_grace args start [pitch, Pitches.transpose neighbor pitch]
 
+-- | Grace is in the prelude since it's so commonly used.  Mordent and the
+-- other variations are still in 'Module.europe'.
 c_grace :: Derive.Generator Derive.Note
-c_grace = Derive.make_call Module.europe "grace" (Tags.ornament <> Tags.ly)
+c_grace = Derive.make_call Module.prelude "grace" (Tags.ornament <> Tags.ly)
     "Emit grace notes. The grace notes go through the `(` call, so they will\
     \ overlap or apply a keyswitch, or do whatever `(` does."
     $ Sig.call ((,)
     <$> grace_pitches_arg <*> grace_envs
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
-        base <- Util.get_pitch =<< Args.real_start args
-        ps <- resolve_pitches base pitches
-        Lily.when_lilypond (lily_grace args ps) $
-            grace_call args dyn ps grace_dur place
+        start <- Args.real_start args
+        base <- Util.get_pitch start
+        pitches <- resolve_pitches base pitches
+        Lily.when_lilypond (lily_grace args start pitches) $
+            grace_call args dyn pitches grace_dur place
 
-lily_grace :: Derive.PassedArgs d -> [PitchSignal.Pitch] -> Derive.NoteDeriver
-lily_grace args pitches = do
-    pitches <- mapM Lily.pitch_to_lily pitches
+lily_grace :: Derive.PassedArgs d -> RealTime -> [PitchSignal.Pitch]
+    -> Derive.NoteDeriver
+lily_grace args start pitches = do
+    pitches <- mapM Lily.pitch_to_lily =<< mapM (Derive.resolve_pitch start)
+        pitches
     let ly_notes = map (<> Lilypond.to_lily Lilypond.D8) pitches
         beamed = Seq.first_last (<>"[") (<>"]") ly_notes
         -- I use \acciaccatura instead of \grace because it adds a slur
@@ -202,14 +208,14 @@ c_grace_attr supported =
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
         base <- Util.get_pitch start
-        ps <- resolve_pitches base pitches
-        Lily.when_lilypond (lily_grace args ps) $ do
-            maybe_attrs <- grace_attrs supported ps base
+        pitches <- resolve_pitches base pitches
+        Lily.when_lilypond (lily_grace args start pitches) $ do
+            maybe_attrs <- grace_attrs supported pitches base
             case maybe_attrs of
                 Just attrs -> attr_grace start args grace_dur (length pitches)
                     attrs
                 -- Fall back on normal grace.
-                Nothing -> grace_call args dyn ps grace_dur place
+                Nothing -> grace_call args dyn pitches grace_dur place
     where
     attr_grace real_start args grace_dur notes attrs = do
         let (start, dur) = Args.extent args

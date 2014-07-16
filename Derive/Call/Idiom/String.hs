@@ -10,6 +10,7 @@ import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Post as Post
@@ -57,7 +58,8 @@ c_bent_string = Derive.transformer module_ "bent-string"
         "If the string won't be used for the following note, it will be\
         \ released after this delay."
     <*> open_strings_env
-    ) $ \(attack, release, delay, open_strings) _args deriver -> do
+    ) $ \(attack, release, delay, open_strings) _args deriver ->
+    Lily.when_lilypond deriver $ do
         srate <- Util.get_srate
         let linear = PitchUtil.interpolator srate id
         string_idiom linear linear open_strings attack delay release =<< deriver
