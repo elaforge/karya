@@ -138,19 +138,11 @@ set_ruler_id ruler_id block_id = do
     old <- State.block_ruler block_id
     State.replace_ruler_id block_id old ruler_id
 
--- | Set the ruler on the focused block, without modifying any other blocks.
-local_ruler :: Cmd.M m => Ruler.Ruler -> m ()
-local_ruler ruler = do
-    block_id <- Cmd.get_focused_block
-    RulerUtil.local_block block_id (const (Right ruler))
-    -- TODO rederive?
-
--- | Modify the ruler on the focused block.  Other blocks with the same ruler
--- will also be modified.
-modify_ruler :: Cmd.M m => Ruler.Ruler -> m ()
-modify_ruler ruler = do
-    block_id <- Cmd.get_focused_block
-    RulerUtil.modify_block block_id (const (Right ruler))
+-- | Replace the ruler.
+ruler :: Cmd.M m => Ruler.Ruler -> m Modify
+ruler r = do
+    (block_id, track_id) <- get_block_track
+    return $ make_modify block_id track_id $ const (Right r)
 
 -- | Modify all rulers.
 modify_rulers :: Cmd.M m => (Ruler.Ruler -> Ruler.Ruler) -> m ()
@@ -181,44 +173,41 @@ get_marks block_id =
 
 -- | Double the meter of the current block. You can then trim it down to size.
 double :: Cmd.M m => m Modify
-double = do
-    block_id <- Cmd.get_focused_block
+double = modify_selected $ \meter -> Seq.rdrop 1 meter <> meter
     -- The final 0 duration mark should be replaced by the first mark.
-    return (block_id, \meter -> Seq.rdrop 1 meter <> meter)
 
 -- | Clip the meter to end at the selection.
 clip :: Cmd.M m => m Modify
 clip = do
-    (block_id, _, _, pos) <- Selection.get_insert
-    return (block_id, Meter.clip 0 (Meter.time_to_duration pos))
+    (_, _, _, pos) <- Selection.get_insert
+    modify_selected $ Meter.clip 0 (Meter.time_to_duration pos)
 
 -- | Copy the meter under the selection and append it to the end of the ruler.
 append :: Cmd.M m => m Modify
 append = do
-    (block_id, _, _, start, end) <- Selection.tracks
-    return (block_id, \meter ->
+    (start, end) <- Selection.range
+    modify_selected $ \meter ->
         meter <> Meter.clip (Meter.time_to_duration start)
-            (Meter.time_to_duration end) meter)
+            (Meter.time_to_duration end) meter
 
 -- | Append another ruler to this one.
 append_ruler_id :: Cmd.M m => RulerId -> m Modify
 append_ruler_id ruler_id = do
-    block_id <- Cmd.get_focused_block
     other <- Meter.ruler_meter <$> State.get_ruler ruler_id
-    return (block_id, (<> other) . Seq.rdrop 1)
+    modify_selected $ (<> other) . Seq.rdrop 1
 
 -- | Remove the selected range of the ruler and shift the rest up.
 delete :: Cmd.M m => m Modify
 delete = do
-    (block_id, _, _, start, end) <- Selection.tracks
-    return (block_id, Meter.delete
-        (Meter.time_to_duration start) (Meter.time_to_duration end))
+    (start, end) <- Selection.range
+    modify_selected $ Meter.delete
+        (Meter.time_to_duration start) (Meter.time_to_duration end)
 
 -- | Replace the selected region with another marklist.
 replace :: Cmd.M m => Meter.LabeledMeter -> m Modify
 replace insert = do
-    (block_id, _, _, start, end) <- Selection.tracks
-    return (block_id, replace_range start end insert)
+    (start, end) <- Selection.range
+    modify_selected $ replace_range start end insert
 
 -- | Replace the selected region with another marklist.
 replace_range :: TrackTime -> TrackTime -> Meter.LabeledMeter
@@ -232,9 +221,8 @@ replace_range start end insert meter =
 -- | Strip out ranks below a certain value, for the whole block.  Larger scale
 -- blocks don't need the fine resolution and can wind up with huge rulers.
 strip_ranks :: Cmd.M m => Meter.RankName -> m Modify
-strip_ranks max_rank = do
-    block_id <- Cmd.get_focused_block
-    return (block_id, Meter.strip_ranks (Meter.name_to_rank max_rank))
+strip_ranks max_rank =
+    modify_selected $ Meter.strip_ranks (Meter.name_to_rank max_rank)
 
 -- | Set the ruler to a number of measures of the given meter, where each
 -- measure is the given amount of time.  For example:
@@ -277,20 +265,19 @@ concat block_ids = do
     ruler_ids <- mapM State.ruler_of block_ids
     -- Strip the last 0-dur mark off of each meter before concatenating.
     meters <- map (Seq.rdrop 1) <$> mapM RulerUtil.get_meter ruler_ids
-    let meter = mconcat meters ++ [final_mark]
-    block_id <- Cmd.get_focused_block
-    return (block_id, const meter)
+    modify_selected $ const $ mconcat meters ++ [final_mark]
 
 -- * extract
 
-extract :: Cmd.M m => m Modify
-extract = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    all_meters <- extract_meters block_id track_id
-    return (block_id, const all_meters)
-
 -- | Extract the meter marklists from the sub-blocks called on the given
 -- track, concatenate them, and replace the current meter with it.
+extract :: Cmd.M m => m Modify
+extract = do
+    (block_id, track_id) <- get_block_track
+    all_meters <- extract_meters block_id track_id
+    return $ make_modify block_id track_id $
+        Meter.modify_meter (const all_meters)
+
 extract_meters :: Cmd.M m => BlockId -> TrackId -> m Meter.LabeledMeter
 extract_meters block_id track_id = do
     subs <- extract_calls block_id track_id
@@ -317,19 +304,52 @@ extract_calls block_id track_id =
 
 -- * modify
 
-type Modify = (BlockId, Meter.LabeledMeter -> Meter.LabeledMeter)
+-- | Modify only the selected tracks, or the entire block.  'Section' is the
+-- default.
+tracks :: Cmd.M m => Modify -> m Modify
+tracks modify = do
+    (_, _, track_ids, _, _) <- Selection.tracks
+    return $ modify { m_scope = RulerUtil.Tracks track_ids }
 
--- | Just like 'RulerUtil.local_meter' but invalidate performances.  Since
--- block calls use the ruler length to determine the duration of the block,
--- changing the ruler can affect the performance.
+-- | Modify the entire block.
+block :: Cmd.M m => Modify -> m Modify
+block modify = return $ modify { m_scope = RulerUtil.Block }
+
+-- | Enough information to modify a ruler.
 --
--- I don't add this directly to 'RulerUtil.local_meter' because that would make
--- it be in Cmd and IO.
-local :: Modify -> Cmd.CmdL ()
-local (block_id, f) = RulerUtil.local_meter block_id f
+-- TODO I could also include entire block, and then add_cue etc. could use it,
+-- in addition to being able to clip the entire block.
+data Modify = Modify {
+    m_block_id :: !BlockId
+    , m_scope :: !RulerUtil.Scope
+    , m_modify :: !Meter.ModifyRuler
+    }
 
+modify_selected :: Cmd.M m => (Meter.LabeledMeter -> Meter.LabeledMeter)
+    -> m Modify
+modify_selected modify = do
+    (block_id, track_id) <- get_block_track
+    return $ make_modify block_id track_id (Meter.modify_meter modify)
+
+make_modify :: BlockId -> TrackId -> Meter.ModifyRuler -> Modify
+make_modify block_id track_id = Modify block_id (RulerUtil.Section track_id)
+
+get_block_track :: Cmd.M m => m (BlockId, TrackId)
+get_block_track = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    return (block_id, track_id)
+
+-- | Modify a ruler or rulers, making a copy if they're shared with another
+-- block.
+--
+-- TODO invalidate performances?
+local :: Modify -> Cmd.CmdL [RulerId]
+local (Modify block_id scope modify) = RulerUtil.local scope block_id modify
+
+-- | Modify the ruler on the focused block.  Other blocks with the same ruler
+-- will also be modified.
 modify :: Modify -> Cmd.CmdL ()
-modify (block_id, f) = RulerUtil.modify_meter block_id f
+modify (Modify block_id scope modify) = RulerUtil.modify scope block_id modify
 
 
 -- * cue
@@ -346,10 +366,10 @@ add_cue text = do
 remove_cues :: Cmd.CmdL ()
 remove_cues = do
     block_id <- Cmd.get_focused_block
-    RulerUtil.local_block block_id $ Right . Ruler.remove_marklist cue
+    RulerUtil.modify_block block_id $ Right . Ruler.remove_marklist cue
 
 add_cue_at :: BlockId -> ScoreTime -> Text -> Cmd.CmdL ()
-add_cue_at block_id pos text = RulerUtil.local_block block_id $
+add_cue_at block_id pos text = RulerUtil.modify_block block_id $
     Right . Ruler.modify_marklist cue
         (const (Ruler.insert_mark pos (cue_mark text)))
 

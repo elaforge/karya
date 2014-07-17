@@ -75,8 +75,8 @@ split_time_at from_block_id pos block_name = do
         State.insert_events track_id events
     -- Trim rulers on each.
     let dur = Meter.time_to_duration pos
-    RulerUtil.local_meter from_block_id $ Meter.clip 0 dur
-    RulerUtil.local_meter to_block_id $ Meter.delete 0 dur
+    local_block from_block_id $ Meter.clip 0 dur
+    local_block to_block_id $ Meter.delete 0 dur
     return to_block_id
 
 split_names :: BlockId -> (Text, Text)
@@ -158,7 +158,7 @@ selection_at name block_id tracknums track_ids start end = do
     -- have to get more complicated.
     delete_empty_tracks to_block_id
     -- Create a clipped ruler.
-    RulerUtil.local_meter to_block_id $
+    local_block to_block_id $
         Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id
 
@@ -250,7 +250,7 @@ block_template block_id track_ids start end = do
     clipped_skeleton block_id to_block_id
         =<< mapM (State.get_tracknum_of block_id) track_ids
     -- Create a clipped ruler.
-    RulerUtil.local_meter to_block_id $
+    local_block to_block_id $
         Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id
 
@@ -287,8 +287,14 @@ order_track block_id sub_blocks = do
         starts = scanl (+) 0 durs
         events = [Event.event start dur (block_id_to_call block_id)
             | (start, dur, block_id) <- zip3 starts durs sub_blocks]
-    RulerUtil.local_meter block_id $ const $ mconcat meters
+    local_block block_id $ const $ mconcat meters
     Create.track block_id 9999 ">" (Events.from_list events)
 
 block_id_to_call :: BlockId -> Text
 block_id_to_call = Id.ident_name
+
+-- * util
+
+local_block :: State.M m => BlockId
+    -> (Meter.LabeledMeter -> Meter.LabeledMeter) -> m [RulerId]
+local_block block_id = RulerUtil.local_block block_id . Meter.modify_meter

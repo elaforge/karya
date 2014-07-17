@@ -361,7 +361,6 @@ auto_track_scroll block view sel
     cur_tracknum = Types.sel_cur_track sel
 
 
-
 -- ** mouse
 
 -- | (mouse_down, mouse_modifier, (mouse_track, mouse_pos))
@@ -514,6 +513,9 @@ lookup_selnum selnum =
     justm (State.get_selection view_id selnum) $ \sel ->
     return $ Just (view_id, sel)
 
+range :: Cmd.M m => m (TrackTime, TrackTime)
+range = Types.sel_range . snd <$> get
+
 -- ** selections in RealTime
 
 -- TODO too much hardcoded use of the focused selection means this might not
@@ -658,10 +660,12 @@ events_around_selnum selnum = do
     expand_range (_, [evt], _) _ = Event.range evt
     expand_range _ range = range
 
-
 -- ** select tracks
 
 -- | @(block_id, [tracknums], [track_ids], start, end)@
+--
+-- The TrackNums are sorted, and the TrackIds are likewise in left-to-right
+-- order.  Both lists are never empty.
 type Tracks = (BlockId, [TrackNum], [TrackId], TrackTime, TrackTime)
 
 -- | Get selected event tracks along with the selection.  The tracks are

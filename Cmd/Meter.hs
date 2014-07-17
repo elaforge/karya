@@ -37,6 +37,8 @@ import qualified Ui.ScoreTime as ScoreTime
 import Types
 
 
+type ModifyRuler = Ruler.Ruler -> Either Text Ruler.Ruler
+
 -- * meter marklist
 
 -- | Meter is for simple numeric meters, as in "Cmd.Meters".  The labels can
@@ -70,8 +72,7 @@ time_to_duration = id
 meter_durations :: LabeledMeter -> [Duration]
 meter_durations = scanl (+) 0 . map m_duration
 
-modify_meter :: (LabeledMeter -> LabeledMeter) -> Ruler.Ruler
-    -> Either Text Ruler.Ruler
+modify_meter :: (LabeledMeter -> LabeledMeter) -> ModifyRuler
 modify_meter modify ruler = case flip Map.lookup meter_types =<< mtype of
     Nothing -> Left $ "unknown meter type: " <> prettyt mtype
     Just renumber -> Right $ Ruler.set_marklist Ruler.meter mtype new ruler

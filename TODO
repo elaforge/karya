@@ -3,6 +3,18 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * make ruler modification work where different tracks have different rulers
+    kinds of ruler modification:
+      . modify ruler on track: TrackId, local ruler on track: (BlockId, TrackId)
+      . modify rulers in section: (BlockId, TrackId), local section
+      . modify all in block, local all in block
+    . Stick with 'modify' and 'local', and have a scope field:
+      Track | Section | Block
+  - tests for Cmd.RulerUtil
+  - chatusram-tisram ruler gets increasingly inaccurate
+  - LRuler.unify not unifying, bug/no-unify
+
+  - why does zheng trem have a delay?
   - hold support for trill and tremolo
     . also, would it be useful to add an acceleration?
   guzheng support:
@@ -236,7 +248,7 @@ MILESTONES
       (e.g. octatonic a-h)
     * record chords
     + integration
-    + just scales, and other ratio-oriented scales that use letters and
+    * just scales, and other ratio-oriented scales that use letters and
       accidentals
     * complete Idiom.Wind, experiment with the Idiom postprocs
     + bring back negative duration / arrival beats
@@ -249,7 +261,7 @@ MILESTONES
     * derive cache
     * symbolic score
     + save undo history / incremental save - more extensive testing
-    + solution for audio, plugins, track bouncing, etc.  ardour / reaper + MTC
+    * solution for audio, plugins, track bouncing, etc.  ardour / reaper + MTC
     + jack support on linux
     / simple csound backend
     * lilypond backend: good enough to render viola-sonata
@@ -520,6 +532,7 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
+  - https://github.com/tobami/codespeed can make a web page with perf graphs
   . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
     Derive.with_relative_control -> Perform.sig_multiply
     . So default multiplication for dyn is expensive.
@@ -633,13 +646,13 @@ fltk:
       when scrolling horizontally
   - Should fltk collapse adjacent dividers?
   track titles
-    - Grow the window when the title grows past it.
-    - Grow text past edge of window, when I resize the window the text keeps
+    / Grow the window when the title grows past it.
+    / Grow text past edge of window, when I resize the window the text keeps
       growing with it.  But it doesn't expect that size, and doesn't clear
       when deselected.
-    - Type into track text on the right side, then expand the window so it can
+    / Type into track text on the right side, then expand the window so it can
       be visible.  It doesn't redraw the newly-revealed bit correctly.
-    - If I wrapped track titles I could see the entire thing, but at the cost
+    / If I wrapped track titles I could see the entire thing, but at the cost
       of using more vertical space.
   - There's a focus bug, but I'm not sure how to reproduce it.
   - There's a bug where if you zoom-to-fit and then click, the selection snap
@@ -659,11 +672,12 @@ fltk:
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
   incremental redraw / scrolling
-    I don't like the current situation of incremental redraw and scrolling.
-    It's also buggy, i.e. one pixel difference between scroll and redraw.
-    Get rid of damage and redraw everything every time.  Then I have to make
-    it fast to fetch the data for one screenful.  What makes that slow
-    currently?
+    . I don't like the current situation of incremental redraw and scrolling.
+      It's also buggy, i.e. one pixel difference between scroll and redraw.
+      Get rid of damage and redraw everything every time.  Then I have to make
+      it fast to fetch the data for one screenful.  What makes that slow
+      currently?
+    . Entirely turned it off, speed seems acceptable.
   Track
     / dividers can have separate color for upper part, for collapsable tracks
   + Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
