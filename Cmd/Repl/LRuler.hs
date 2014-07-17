@@ -18,18 +18,18 @@
     - Give the current block 6 sections of standard 4/4 meter, where each
     measure gets 1t:
 
-        > LRuler.local_ruler $ LRuler.measures 1 Meters.m44 6 4 1
+        > LRuler.local =<< LRuler.ruler (LRuler.measures 1 Meters.m44 6 4 1)
 
     - Or put the selection at the where the 4 meters should end and run
 
-        > LRuler.local_ruler =<< LRuler.fit_to_selection Meter.m44 1
+        > LRuler.local =<< LRuler.ruler (LRuler.fit_to_selection Meter.m44 1)
 
     - Make the last measure 5/4 by selecting a quarter note and running
       @LRuler.append@.
 
     Set a block to 4 sections of 4 avartanams of adi talam:
 
-        > LRuler.local_ruler $ Tala.ruler $ Tala.adi 4
+        > LRuler.local =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
 
     - TODO make a middle measure 5/4?
 

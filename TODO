@@ -11,7 +11,17 @@ UNSORTED
     . Stick with 'modify' and 'local', and have a scope field:
       Track | Section | Block
   - tests for Cmd.RulerUtil
-  - chatusram-tisram ruler gets increasingly inaccurate
+  * chatusram-tisram ruler gets increasingly inaccurate
+    . It's 5/8 / 128, which is below the round amount.  The problem is that
+      the accuracy of the whole is the accuracy of the smallest division.
+    . Round first, then add is no good.  But maybe I can convert to rational,
+      then add.
+    . I think it would work, but it seems really inefficient when the common
+      case is that all the durations are the same.  I could store a divisor
+      and have the durations be integral, but this is similar to rational, and
+      I still have to recover them from a Ruler.Marklist.  Which is just about
+      the same.
+  - get rid of Meter.Duration
   - LRuler.unify not unifying, bug/no-unify
 
   - why does zheng trem have a delay?

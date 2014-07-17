@@ -4,6 +4,7 @@
 
 -- | Utilities for talams for Carnatic music.
 module Cmd.Repl.LTala where
+import qualified Ui.Ruler as Ruler
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -20,7 +21,13 @@ chatusram_to_tisram = do
     ModifyEvents.selection $
         ModifyEvents.event $ LEvent.stretch_event start (2/3)
     let dur = (end - start) * (2/3)
-    LRuler.local
-        (block_id, LRuler.replace_range start (start + dur) (Tala.adi3 10))
+    LRuler.local =<< LRuler.modify_selected
+        (LRuler.replace_range start (start + dur) (Tala.adi3 10))
     -- Delete final 1/3.
     Edit.delete_block_time block_id (start + dur) end
+
+-- | Create adi tala in chatusram-tisram.  Assuming 1t per aksharam, there
+-- is 3/4 per c-t aksharam.  So 8 of them fits in 6t, so each one is 6/8t.
+chatis :: Int -> Int -> Int -> Ruler.Ruler
+chatis sections avartanams nadai = Tala.ruler $ Tala.make_meter
+    [Tala.Ruler Tala.adi_tala sections avartanams nadai (6/8)]

@@ -25,6 +25,7 @@ module Cmd.Meter where
 import Prelude hiding (repeat)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
 
@@ -285,14 +286,15 @@ unlabel_meter = map (\m -> (m_rank m, m_duration m))
 -- | Create a Marklist from a labeled Meter.
 labeled_marklist :: LabeledMeter -> Ruler.Marklist
 labeled_marklist meter = Ruler.marklist
-    [ (ScoreTime.round pos, mark is_edge dur rank label)
+    [ (realToFrac pos, mark is_edge dur rank label)
     | (rank, pos, label, dur, is_edge)
         <- List.zip5 ranks
-            (scanl ((+) . ScoreTime.round) 0 (map m_duration meter))
+            (scanl (+) 0 (map (to_rational . m_duration) meter))
             (map m_label meter) durs edges
     ]
-    -- Round at every step to avoid accumulating error, as per 'Duration'.
     where
+    -- Avoid accumulating error, as per 'Duration'.
+    to_rational t = Ratio.approxRational t 0.0000001
     edges = True : map null (drop 2 (List.tails ranks))
     durs = rank_durs (zip ranks (map m_duration meter))
     ranks = map m_rank meter

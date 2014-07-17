@@ -49,6 +49,13 @@ test_rational_meter = do
             Meter.modify_meter modify ruler) $
         Right (zip (Seq.range_ 0 1) ["1.1", "1.2", "1.3", "2"])
 
+test_rational_meter2 = do
+    -- Even awkward fractions add up correctly.
+    let meter = map fst $ Ruler.ascending 0 $ Meter.labeled_marklist $
+            replicate 1025 $ Meter.LabeledMark 0 dur ""
+        dur = 5/8 / 128
+    equal (last meter) 5 -- dur*1024 == 5
+
 extract_marklist :: Double -> Ruler.Marklist -> [(ScoreTime, Text)]
 extract_marklist zoom = mapMaybe name_of . Ruler.ascending 0
     where
