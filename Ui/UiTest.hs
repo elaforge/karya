@@ -59,6 +59,7 @@ import Types
 -- high, so a y of 44 is the minimum.
 default_rect :: Rect.Rect
 default_rect = Rect.xywh 10 50 200 200
+
 default_divider :: Block.Divider
 default_divider = Block.Divider Color.blue
 
@@ -159,13 +160,13 @@ run_mkview tracks = run State.empty $ mkblock_view (default_block_name, tracks)
 run_mkblocks :: [BlockSpec] -> State.State
 run_mkblocks = snd . run State.empty . mkblocks
 
-mkblocks :: (State.M m) => [BlockSpec] -> m [BlockId]
+mkblocks :: State.M m => [BlockSpec] -> m [BlockId]
 mkblocks blocks = mapM (fmap fst . mkblock) blocks
 
-mkviews :: (State.M m) => [BlockSpec] -> m [ViewId]
+mkviews :: State.M m => [BlockSpec] -> m [ViewId]
 mkviews blocks = mapM mkview =<< mkblocks blocks
 
-mkblock :: (State.M m) => BlockSpec -> m (BlockId, [TrackId])
+mkblock :: State.M m => BlockSpec -> m (BlockId, [TrackId])
 mkblock (spec, tracks) = do
     let (block_id, title, has_ruler) = parse_block_spec spec
     ruler_id <- if has_ruler
@@ -185,7 +186,7 @@ mkblock (spec, tracks) = do
     event_end = ceiling . ScoreTime.to_double . maximum . (0:)
         . concatMap (map (\(s, d, _) -> max s (s+d)) . snd)
 
-mkblock_marklist :: (State.M m) => Ruler.Marklist -> BlockId -> String
+mkblock_marklist :: State.M m => Ruler.Marklist -> BlockId -> String
     -> [TrackSpec] -> m (BlockId, [TrackId])
 mkblock_marklist marklist block_id title tracks = do
     ruler_id <- mkruler marklist
@@ -194,7 +195,7 @@ mkblock_marklist marklist block_id title tracks = do
 mkruler :: State.M m => Ruler.Marklist -> m RulerId
 mkruler = Create.ruler "r" . Ruler.meter_ruler (Just Meter.mtype_meter)
 
-mkblocks_skel :: (State.M m) => [(BlockSpec, [Skeleton.Edge])] -> m ()
+mkblocks_skel :: State.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
 mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
     (block_id, track_ids) <- mkblock block
     State.set_skeleton block_id (Skeleton.make skel)
@@ -203,7 +204,7 @@ mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do
 -- | Like 'mkblock', but uses the provided ruler instead of creating its
 -- own.  Important if you are creating multiple blocks and don't want
 -- a separate ruler for each.
-mkblock_ruler :: (State.M m) => RulerId -> BlockId -> String -> [TrackSpec]
+mkblock_ruler :: State.M m => RulerId -> BlockId -> String -> [TrackSpec]
     -> m (BlockId, [TrackId])
 mkblock_ruler ruler_id block_id title tracks = do
     State.set_namespace test_ns
@@ -211,25 +212,29 @@ mkblock_ruler ruler_id block_id title tracks = do
     tids <- forM (zip [1..] tracks) $ \(i, track) ->
         State.create_track (Id.unpack_id (mk_tid_block block_id i))
             (make_track track)
-    create_block (Id.unpack_id block_id) "" $ (Block.RId ruler_id, 20)
-        : [(Block.TId tid ruler_id, 40) | tid <- tids]
+    create_block (Id.unpack_id block_id) "" $ (Block.RId ruler_id)
+        : [Block.TId tid ruler_id | tid <- tids]
     unless (null title) $
         State.set_block_title block_id (txt title)
     State.set_skeleton block_id =<< parse_skeleton block_id
     return (block_id, tids)
 
-parse_skeleton :: (State.M m) => BlockId -> m Skeleton.Skeleton
+create_block :: State.M m => Id.Id -> String -> [Block.TracklikeId] -> m BlockId
+create_block block_id title tracks = State.create_block block_id
+    (txt title) [Block.track tid 30 | tid <- tracks]
+
+parse_skeleton :: State.M m => BlockId -> m Skeleton.Skeleton
 parse_skeleton block_id = do
     tracks <- TrackTree.tracks_of block_id
     return $ ParseSkeleton.default_parser tracks
 
-mkview :: (State.M m) => BlockId -> m ViewId
+mkview :: State.M m => BlockId -> m ViewId
 mkview block_id = do
     block <- State.get_block block_id
     State.create_view (Id.unpack_id (mk_vid block_id)) $
         Block.view block block_id default_rect default_zoom
 
-mkblock_view :: (State.M m) => BlockSpec -> m [TrackId]
+mkblock_view :: State.M m => BlockSpec -> m [TrackId]
 mkblock_view block_spec = (snd <$> mkblock block_spec) <* mkview block_id
     where (block_id, _, _) = parse_block_spec (fst block_spec)
 
@@ -354,7 +359,7 @@ extract_track_ids state =
 
 -- * view
 
-select :: (State.M m) => ViewId -> Types.Selection -> m ()
+select :: State.M m => ViewId -> Types.Selection -> m ()
 select view_id sel =
     State.set_selection view_id Config.insert_selnum (Just sel)
 
@@ -362,12 +367,7 @@ select_point :: (State.M m) => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos =
     select view_id (Types.point_selection tracknum pos)
 
--- * pure make_- functions
-
-create_block :: (State.M m) => Id.Id -> String
-    -> [(Block.TracklikeId, Types.Width)] -> m BlockId
-create_block block_id title tracks = State.create_block block_id
-    (txt title) (map (uncurry Block.track) tracks)
+-- * non-monadic make_- functions
 
 mkstack :: (TrackNum, ScoreTime, ScoreTime) -> Stack.Stack
 mkstack (tracknum, s, e) = mkstack_block (default_block_name, tracknum, s, e)

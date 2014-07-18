@@ -3,15 +3,27 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{- | Work with rulers and meters.  A meter is just a ruler specialized to
-    display regular numbered subdivisions.
+{- | Work with rulers and meters.  A meter is a marklist on a ruler named
+    'Ruler.meter', and is used by "Cmd.TimeStep" to align things.  By
+    convention the meter has regular subdivisions, with 'Ruler.Rank's that
+    correspond roughly to timestep durations (e.g. whole, half, quarter notes).
+    The ruler marks are numbered, and this module, with the support of
+    "Cmd.RulerUtil", lets you modify the meter in a higher level way and takes
+    care of renumbering the labels so e.g. measure numbers always count up even
+    if you double the length of the meter.
 
-    Most of the functions in here operate on a local copy of the ruler, i.e.
-    they will modify the ruler on the given block, making a copy if it is
-    shared with other blocks.  This is not as composable as it could be, e.g.
-    you could pass the transformations to a modify or modify_local function,
-    but for the moment modifying the local ruler and then copying it over to
-    other blocks as needed is convenient.
+    Ultimately this is necessary because I want to manipulate rulers as a high
+    level 'Meter.Meter' or 'Meter.LabeledMeter', but 'Ruler.Marklist' has lost
+    the meter's structure.  That in turn is because different kinds of meters,
+    talams, gong cycles, etc. have different structures and I didn't think
+    I could come up with a single high level data structure that fit them all
+    and still allowed generic manipulation.
+
+    Many functions emit a 'Modify'.  If defaults to 'RulerUtil.Section' scope,
+    but you can change it to work on selected tracks with 'tracks' or all
+    rulers in the block with 'block'.  Then, the 'modify' function will
+    destructively modify selected rulers, while the 'local' function will
+    modify via copy-on-write, so that other blocks or tracks are unaffected.
 
     Examples:
 
@@ -27,13 +39,13 @@
     - Make the last measure 5/4 by selecting a quarter note and running
       @LRuler.append@.
 
-    Set a block to 4 sections of 4 avartanams of adi talam:
-
-        > LRuler.local =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
-
     - TODO make a middle measure 5/4?
 
-    - TODO: inspect a meter
+    - Set a block to 4 sections of 4 avartanams of adi talam, then select
+    tracks and set them to chatusram-tisram:
+
+        > LRuler.modify =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
+        > LRuler.local =<< LRuler.tracks =<< LRuler.ruler (LTala.chatis 4 4 4)
 -}
 module Cmd.Repl.LRuler where
 import Prelude hiding (concat)
@@ -141,8 +153,8 @@ set_ruler_id ruler_id block_id = do
 -- | Replace the ruler.
 ruler :: Cmd.M m => Ruler.Ruler -> m Modify
 ruler r = do
-    (block_id, track_id) <- get_block_track
-    return $ make_modify block_id track_id $ const (Right r)
+    (block_id, tracknum) <- get_block_track
+    return $ make_modify block_id tracknum $ const (Right r)
 
 -- | Modify all rulers.
 modify_rulers :: Cmd.M m => (Ruler.Ruler -> Ruler.Ruler) -> m ()
@@ -273,9 +285,9 @@ concat block_ids = do
 -- track, concatenate them, and replace the current meter with it.
 extract :: Cmd.M m => m Modify
 extract = do
-    (block_id, track_id) <- get_block_track
+    (block_id, tracknum, track_id, _) <- Selection.get_insert
     all_meters <- extract_meters block_id track_id
-    return $ make_modify block_id track_id $
+    return $ make_modify block_id tracknum $
         Meter.modify_meter (const all_meters)
 
 extract_meters :: Cmd.M m => BlockId -> TrackId -> m Meter.LabeledMeter
@@ -308,8 +320,8 @@ extract_calls block_id track_id =
 -- default.
 tracks :: Cmd.M m => Modify -> m Modify
 tracks modify = do
-    (_, _, track_ids, _, _) <- Selection.tracks
-    return $ modify { m_scope = RulerUtil.Tracks track_ids }
+    (_, tracknums, _, _, _) <- Selection.tracks
+    return $ modify { m_scope = RulerUtil.Tracks tracknums }
 
 -- | Modify the entire block.
 block :: Cmd.M m => Modify -> m Modify
@@ -328,16 +340,16 @@ data Modify = Modify {
 modify_selected :: Cmd.M m => (Meter.LabeledMeter -> Meter.LabeledMeter)
     -> m Modify
 modify_selected modify = do
-    (block_id, track_id) <- get_block_track
-    return $ make_modify block_id track_id (Meter.modify_meter modify)
+    (block_id, tracknum) <- get_block_track
+    return $ make_modify block_id tracknum (Meter.modify_meter modify)
 
-make_modify :: BlockId -> TrackId -> Meter.ModifyRuler -> Modify
-make_modify block_id track_id = Modify block_id (RulerUtil.Section track_id)
+make_modify :: BlockId -> TrackNum -> Meter.ModifyRuler -> Modify
+make_modify block_id tracknum = Modify block_id (RulerUtil.Section tracknum)
 
-get_block_track :: Cmd.M m => m (BlockId, TrackId)
+get_block_track :: Cmd.M m => m (BlockId, TrackNum)
 get_block_track = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    return (block_id, track_id)
+    (block_id, tracknum, _, _) <- Selection.get_insert
+    return (block_id, tracknum)
 
 -- | Modify a ruler or rulers, making a copy if they're shared with another
 -- block.

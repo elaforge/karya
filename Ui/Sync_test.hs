@@ -103,8 +103,8 @@ test_rename_block = thread run_setup $
 
 test_create_two_views = thread run_setup $
     ("view created, has big track, track title changes", do
-        b2 <- create_block "b2" "" [(Block.RId t_ruler_id, 20),
-            (Block.TId t_track1_id t_ruler_id, 30)]
+        b2 <- create_block "b2" ""
+            [Block.RId t_ruler_id, Block.TId t_track1_id t_ruler_id]
         create_view "v2" =<<
             make_view b2 (Rect.place 300 20 UiTest.default_rect)
                 UiTest.default_zoom
@@ -464,8 +464,7 @@ setup_state :: (State.M m) => m ViewId
 setup_state = do
     ruler <- create_ruler "r1" (UiTest.mkruler_44 20 1)
     t1 <- create_track "b1.t1" (UiTest.empty_track "t1")
-    b1 <- create_block t_block "hi b1"
-        [(Block.RId ruler, 20), (Block.TId t1 ruler, 30)]
+    b1 <- create_block t_block "hi b1" [Block.RId ruler, Block.TId t1 ruler]
     create_view "v1" =<< make_view b1 UiTest.default_rect UiTest.default_zoom
 
 make_view :: (State.M m) => BlockId -> Rect.Rect -> Types.Zoom -> m Block.View
@@ -476,8 +475,8 @@ make_view block_id rect zoom = do
 create_view :: (State.M m) => String -> Block.View -> m ViewId
 create_view a b = State.create_view (mkid a) b
 
-create_block :: (State.M m) => String -> String
-    -> [(Block.TracklikeId, Types.Width)] -> m BlockId
+create_block :: (State.M m) => String -> String -> [Block.TracklikeId]
+    -> m BlockId
 create_block block_name = UiTest.create_block (UiTest.mkid block_name)
 
 create_track :: (State.M m) => String -> Track.Track -> m TrackId

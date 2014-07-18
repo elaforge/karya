@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - 8va could default to 0, with a duration could end with 0
+  * LRuler.local is broken, this makes extra:
+    > LRuler.local =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
   * make ruler modification work where different tracks have different rulers
     kinds of ruler modification:
       . modify ruler on track: TrackId, local ruler on track: (BlockId, TrackId)
@@ -10,7 +13,7 @@ UNSORTED
       . modify all in block, local all in block
     . Stick with 'modify' and 'local', and have a scope field:
       Track | Section | Block
-  - tests for Cmd.RulerUtil
+  * tests for Cmd.RulerUtil
   * chatusram-tisram ruler gets increasingly inaccurate
     . It's 5/8 / 128, which is below the round amount.  The problem is that
       the accuracy of the whole is the accuracy of the smallest division.
@@ -22,8 +25,6 @@ UNSORTED
       I still have to recover them from a Ruler.Marklist.  Which is just about
       the same.
   - get rid of Meter.Duration
-  - LRuler.unify not unifying, bug/no-unify
-
   - why does zheng trem have a delay?
   - hold support for trill and tremolo
     . also, would it be useful to add an acceleration?
