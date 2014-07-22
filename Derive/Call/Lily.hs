@@ -372,12 +372,13 @@ c_if_ly = make_call "if-ly" mempty
         (Eval.reapply_string args (TrackLang.show_call_val not_ly))
 
 c_8va :: Make.Calls Derive.Note
-c_8va = code0_call "ottava" "Emit lilypond ottava mark."
-    (required "octave" "Transpose this many octaves up or down.") $
-    \oct -> return (Prefix, ottava oct)
+c_8va = code0_pair_call "ottava" "Emit lilypond ottava mark.\
+    \ If it has duration, end with `8va 0`."
+    (Sig.defaulted "octave" 0 "Transpose this many octaves up or down.") $
+    \oct -> return (ottava oct, ottava 0)
     where
-    ottava :: Int -> Ly
-    ottava n = "\\ottava #" <> showt n
+    ottava :: Int -> Code
+    ottava n = (Prefix, "\\ottava #" <> showt n)
 
 c_xstaff :: Make.Calls Derive.Note
 c_xstaff = code0_call "xstaff"
@@ -437,14 +438,14 @@ c_crescendo = make_code_call "ly-crescendo"
     "Start a crescendo hairpin.  If it has non-zero duration, stop the\
     \ crescendo at the event's end, otherwise the crescendo will stop at the\
     \ next hairpin or dynamic marking." Sig.no_args $
-    \() -> crescendo_diminuendo "\\<"
+    \_ () -> crescendo_diminuendo "\\<"
 
 c_diminuendo :: Make.Calls Derive.Note
 c_diminuendo = make_code_call "ly-diminuendo"
     "Start a diminuendo hairpin.  If it has non-zero duration, stop the\
     \ diminuendo at the event's end, otherwise the diminuendo will stop at the\
     \ next hairpin or dynamic marking." Sig.no_args $
-    \() -> crescendo_diminuendo "\\>"
+    \_ () -> crescendo_diminuendo "\\>"
 
 crescendo_diminuendo :: Ly -> Derive.PassedArgs d -> Derive.NoteDeriver
 crescendo_diminuendo hairpin args
@@ -548,11 +549,25 @@ require_nonempty events
 code0_call :: Text -> Text -> Sig.Parser a -> (a -> Derive.Deriver Code)
     -> Make.Calls Derive.Note
 code0_call name doc sig make_code =
-    make_code_call name (doc <> code0_doc) sig $
-        \val args -> code0 (Args.start args) =<< make_code val
-    where
-    code0_doc = "\nThis either be placed in a separate track as a zero-dur\
-        \ event, or it can be attached to an individual note as a transformer."
+    make_code_call name (doc <> code0_doc) sig $ \_ val args ->
+        code0 (Args.start args) =<< make_code val
+
+-- | Like 'code0_call', except that the call can emit 2 Codes.  The second
+-- will be used at the end of the event if it has non-zero duration and is
+-- a transformer.
+code0_pair_call :: Text -> Text -> Sig.Parser a
+    -> (a -> Derive.Deriver (Code, Code))
+    -> Make.Calls Derive.Note
+code0_pair_call name doc sig make_code =
+    make_code_call name (doc <> code0_doc) sig $ \is_transformer val args -> do
+        (code1, code2) <- make_code val
+        let (start, end) = Args.range args
+        code0 start code1 <> if is_transformer || start == end
+            then mempty else code0 end code2
+
+code0_doc :: Text
+code0_doc = "\nThis either be placed in a separate track as a zero-dur\
+    \ event, or it can be attached to an individual note as a transformer."
 
 -- | Just like 'code0_call', but the code uses the 'Constants.ly_global'
 -- instrument.
@@ -560,21 +575,22 @@ global_code0_call :: Text -> Text -> Sig.Parser a
     -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Make.Calls Derive.Note
 global_code0_call name doc sig call =
-    make_code_call name doc sig $ \val args ->
+    make_code_call name doc sig $ \_ val args ->
         global (call val (Derive.place (Args.start args) 0 Util.note))
 
 -- | Emit a free-standing fragment of lilypond code.
 make_code_call :: Text -> Text -> Sig.Parser a
-    -> (a -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver)
+    -> (Bool -> a -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver)
+    -- ^ First arg is True if this is a transformer call.
     -> Make.Calls Derive.Note
 make_code_call name doc sig call = (gen, trans)
     where
     gen = make_call name mempty doc $
         Sig.call sig $ \val args -> only_lilypond $
-            call val args <> place_notes args
+            call False val args <> place_notes args
     trans = transformer name mempty doc $
         Sig.callt sig $ \val args deriver ->
-            when_lilypond (call val args <> deriver) deriver
+            when_lilypond (call True val args <> deriver) deriver
 
 global :: Derive.Deriver a -> Derive.Deriver a
 global = Derive.with_val_raw Environ.instrument Constants.ly_global

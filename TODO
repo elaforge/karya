@@ -22,7 +22,7 @@ UNSORTED
     - Display:
       . This is similar to track signals, and should happen at the same time,
         e.g. when the derive completes.
-  - 8va could default to 0, with a duration could end with 0
+  * 8va could default to 0, with a duration could end with 0
   * LRuler.local is broken, this makes extra:
     > LRuler.local =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
   * make ruler modification work where different tracks have different rulers
