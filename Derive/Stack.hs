@@ -7,7 +7,7 @@ module Derive.Stack (
     Stack, empty, length, from_outermost, from_innermost
     , block, call, add, member, outermost, innermost
     , block_of, track_of, region_of, call_of
-    , block_track_of
+    , block_track_of, block_track_region_of
     , match
     , Frame(..)
     , format_ui, show_ui, show_ui_
@@ -79,6 +79,7 @@ block = from_innermost . (:[]) . Block
 call :: Text -> Stack
 call = from_innermost . (:[]) . Call
 
+-- | Add the frame to the innermost end of the stack.
 add :: Frame -> Stack -> Stack
 add frame (Stack stack) = Stack (frame:stack)
 
@@ -107,16 +108,32 @@ call_of :: Frame -> Maybe Text
 call_of (Call s) = Just s
 call_of _ = Nothing
 
--- | Walk up the stack to discover the innermost BlockId and TrackId.
+-- | Walk up the stack to discover the innermost TrackId, then BlockId.
 block_track_of :: Stack -> Maybe (BlockId, TrackId)
-block_track_of = track . innermost
+block_track_of = find . innermost
     where
-    track (Track track_id : rest) = block track_id rest
-    track (_ : rest) = track rest
-    track [] = Nothing
-    block track_id (Block block_id : _) = Just (block_id, track_id)
-    block track_id (_ : rest) = block track_id rest
-    block _ [] = Nothing
+    find frames = do
+        (track_id, frames) <- find_rest track_of frames
+        (block_id, _) <- find_rest block_of frames
+        return (block_id, track_id)
+
+-- | Walk up the stack to discover the innermost Region, TrackId, then BlockId.
+block_track_region_of :: Stack
+    -> Maybe (BlockId, TrackId, (TrackTime, TrackTime))
+block_track_region_of = find . innermost
+    where
+    find frames = do
+        (region, frames) <- find_rest region_of frames
+        (track_id, frames) <- find_rest track_of frames
+        (block_id, _) <- find_rest block_of frames
+        return (block_id, track_id, region)
+
+-- | Find a value, and return the rest of the list.
+find_rest :: (a -> Maybe b) -> [a] -> Maybe (b, [a])
+find_rest f = go
+    where
+    go (x:xs) = maybe (go xs) (\y -> Just (y, xs)) (f x)
+    go [] = Nothing
 
 -- | Nothing is a wildcard, and matches anything, but if a field is set then it
 -- only matches frames where the corresponding field is set, and is equal (or

@@ -648,6 +648,16 @@ catch collect deriver = do
             Internal.set_threaded (state_threaded st2)
             return $ Just val
 
+-- | Replace the 'state_stack' with the one from the event.  This is useful
+-- for transformers, so they can show a stack trace to the event they are
+-- processing.
+with_event_stack :: Score.Event -> Deriver a -> Deriver a
+with_event_stack event =
+    maybe id with_stack (Stack.block_track_region_of (Score.event_stack event))
+    where
+    with_stack (block_id, track_id, (s, e)) = Internal.with_stack_block block_id
+        . Internal.with_stack_track track_id . Internal.with_stack_region s e
+
 -- * postproc
 
 -- | Shift the controls of a deriver.  You're supposed to apply the warp

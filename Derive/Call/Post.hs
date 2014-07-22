@@ -52,16 +52,11 @@ import Types
 
 -- * map events
 
+-- ** non-monadic
+
 -- Plain map is 'map . fmap'.
 
-mapM :: Monad m => (a -> m b) -> [LEvent.LEvent a] -> m [LEvent.LEvent b]
-mapM _ [] = return []
-mapM f (LEvent.Event e : es) = do
-    e <- LEvent.Event `liftM` f e
-    es <- mapM f es
-    return (e : es)
-mapM f (LEvent.Log e : es) = (LEvent.Log e :) `liftM` mapM f es
-
+-- | Non-monadic map with state.
 map_events :: (state -> event -> (state, [Score.Event])) -> state
     -> [LEvent.LEvent event] -> (state, [Derive.Events])
 map_events f = List.mapAccumL go
@@ -78,30 +73,49 @@ map_events_asc_ :: (event -> [Score.Event]) -> [LEvent.LEvent event]
     -> Derive.Events
 map_events_asc_ f = snd . map_events_asc (\() event -> ((), f event)) ()
 
--- | Monadic version of 'map_events'.
-map_events_m :: (state -> event -> Derive.Deriver (state, [Score.Event]))
+-- ** monadic
+
+-- | Monadic map without state.  Exceptions are caught and logged.
+mapM :: Monad m => (a -> m b) -> [LEvent.LEvent a] -> m [LEvent.LEvent b]
+mapM _ [] = return []
+mapM f (LEvent.Event e : es) = do
+    e <- f e
+    es <- mapM f es
+    return (LEvent.Event e : es)
+mapM f (LEvent.Log e : es) = (LEvent.Log e :) `liftM` mapM f es
+
+-- | Monadic map with state and annotations.  Annotations are are also state,
+-- but unthreaded, which makes them simpler.  You construct them with 'control'
+-- and 'nexts' and the like, and then they get zipped up with the input events.
+map_events_m ::
+    (state -> annot -> Score.Event -> Derive.Deriver (state, [Score.Event]))
     -- ^ Process an event. Exceptions are caught and logged.
-    -> state -> [LEvent.LEvent event] -> Derive.Deriver (state, [Derive.Events])
-map_events_m f = go
+    -> state -> [annot] -> Derive.Events
+    -> Derive.Deriver (state, [Derive.Events])
+    -- ^ events are return as unmerged chunks, so the caller can merge
+map_events_m f state annots = go state . LEvent.zip annots
     where
     go state [] = return (state, [])
     go state (LEvent.Log log : events) =
         fmap ([LEvent.Log log] :) <$> go state events
-    go state (LEvent.Event event : events) = do
+    go state (LEvent.Event (annot, event) : events) = do
         (state, output) <-
-            fromMaybe (state, []) <$> Derive.catch True (f state event)
+            fromMaybe (state, []) <$> Derive.catch True
+                (Derive.with_event_stack event (f state annot event))
         (final, outputs) <- go state events
         return (final, map LEvent.Event output : outputs)
 
+-- | Like 'map_events_m', but assume the function returns sorted chunks in
+-- increasing order, so they can be merged efficiently.
 map_events_asc_m ::
-    (state -> event -> Derive.Deriver (state, [Score.Event]))
-    -> state -> [LEvent.LEvent event] -> Derive.Deriver (state, Derive.Events)
-map_events_asc_m f state =
-    fmap (second Derive.merge_asc_events) . map_events_m f state
+    (state -> annot -> Score.Event -> Derive.Deriver (state, [Score.Event]))
+    -- ^ Process an event. Exceptions are caught and logged.
+    -> state -> [annot] -> Derive.Events
+    -> Derive.Deriver (state, Derive.Events)
+map_events_asc_m f state annots =
+    fmap (second Derive.merge_asc_events) . map_events_m f state annots
 
 -- ** unthreaded state
-
--- Use the LEvent.zipn functions to zip this state up with the events.
 
 control :: (Score.TypedVal -> a) -> TrackLang.ValControl -> Derive.Events
     -> Derive.Deriver [a]
