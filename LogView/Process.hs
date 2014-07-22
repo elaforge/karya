@@ -2,7 +2,21 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module LogView.Process where
+{-# LANGUAGE CPP #-}
+module LogView.Process (
+    -- * state
+    State(..), initial_state, add_msg, state_msgs
+    , compile_filter
+    -- * process_msg
+    , process_msg
+    , CatchPattern, global_status_pattern
+    , render_status
+    , StyledText(..)
+#ifdef TESTING
+    , flatten_ranges, run_formatter, regex_style, style_plain
+    , msg_text_regexes
+#endif
+) where
 import qualified Control.Monad.Trans.State as State
 import qualified Control.Monad.Trans.Writer as Writer
 import qualified Data.ByteString.Lazy as Lazy
@@ -242,9 +256,6 @@ emit_stack stack = do
     fmt frame = "{s " ++ show (Stack.unparse_ui_frame frame) ++ "}"
     last_call = Seq.head . mapMaybe Stack.call_of . Stack.innermost
 
-emit_msg_text :: Style -> String -> Formatter
-emit_msg_text = with_style
-
 msg_text_regexes :: [(Regex.Regex, Style)]
 msg_text_regexes = map (first Regex.make)
     [ ("\\([bvt]id \".*?\"\\)", style_emphasis)
@@ -286,10 +297,6 @@ with_style style text = Writer.tell $
     where utf8 = UTF8.fromString text
 
 type Style = Word.Word8
-
-render_styles :: [(B.ByteString, B.ByteString)] -> StyledText
-render_styles style_pairs = StyledText (mconcat texts) (mconcat styles)
-    where (texts, styles) = unzip style_pairs
 
 style_plain, style_warn, style_clickable, style_emphasis, style_divider,
     style_func_name, style_filename :: Style
