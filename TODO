@@ -3,6 +3,25 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Can I highlight pitches not on zheng strings?  This would also support
+    instrument range.
+    . The easiest way is probably to extend selection to support an arbitrary
+      number of non-contiguous selections, and have a postproc analysis
+    . Or have the note generator emit a special attribute that causes
+      coloring.  That way it can look at open-strings or
+      Environ.instrument_top.
+    . Getting more elaborate, I could have a Set of attributes like
+      OutOfRange, OpenString, DifficultPitch, etc.  Then I can choose how to
+      highlight, e.g. highlight non-OpenString or OpenString or use multiple
+      colors etc.  But that puts more configuration on Cmd side, and I'd want
+      instruments to be able to add the configuration themselves.  So I'd need
+      a whole new system for highlighting config, way complicated.  But if the
+      generator just says what it wants, all that goes away.
+    . So highlight with Notice | Warning | Error, and have config for how to
+      display those.
+    - Display:
+      . This is similar to track signals, and should happen at the same time,
+        e.g. when the derive completes.
   - 8va could default to 0, with a duration could end with 0
   * LRuler.local is broken, this makes extra:
     > LRuler.local =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
@@ -24,8 +43,7 @@ UNSORTED
       and have the durations be integral, but this is similar to rational, and
       I still have to recover them from a Ruler.Marklist.  Which is just about
       the same.
-  - get rid of Meter.Duration
-  - why does zheng trem have a delay?
+  / get rid of Meter.Duration
   - hold support for trill and tremolo
     . also, would it be useful to add an acceleration?
   guzheng support:

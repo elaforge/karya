@@ -332,32 +332,36 @@ cached_load state defs_fname = run $ do
     dir <- require ("need a SaveFile to find " <> showt defs_fname) $
         Cmd.state_save_dir state
     let fname = dir </> defs_fname
-    time <- liftIO $ File.ignoreEnoent (Directory.getModificationTime fname)
-    case Cmd.state_definition_cache state of
-        Just (last_time, _) | time == Just last_time -> return Nothing
-        _ -> fmap Just $ require ("definition file not found: " <> txt fname)
-            =<< liftIO (load_definitions fname)
+    let file_not_found = "definition file not found: " <> txt fname
+    time <- require file_not_found
+        =<< liftIO (File.ignoreEnoent (Directory.getModificationTime fname))
+    if last_time == Just time then return Nothing else do
+        defs <- require file_not_found =<< liftIO (load_definitions fname)
+        return $ Just (time, defs)
     where
     run = fmap extract . Error.runErrorT
     require msg = maybe (Error.throwError msg) return
-    extract (Left msg) = Just (day0, Left msg)
+    extract (Left msg)
+        -- If I failed to load last time too, then don't clear
+        -- 'state_performance_threads' or I'll get an endless loop.
+        | last_time == Just day0 = Nothing
+        | otherwise = Just (day0, Left msg)
     extract (Right val) = val
     day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+    last_time = fst <$> Cmd.state_definition_cache state
 
-load_definitions :: FilePath
-    -> IO (Maybe (Time.UTCTime, Either Text Derive.Library))
+load_definitions :: FilePath -> IO (Maybe (Either Text Derive.Library))
 load_definitions fname = File.ignoreEnoent $ do
     text <- Text.IO.readFile fname
-    Log.notice $ "reload definitions from " <> show fname
-    time <- Directory.getModificationTime fname
+    Log.notice $ "loaded definitions from " <> show fname
     case Parse.parse_definition_file text of
-        Left err -> return (time, Left $ txt fname <> ":" <> err)
+        Left err -> return $ Left $ txt fname <> ":" <> err
         Right defs -> do
             let lib = compile_library defs
             forM_ (Library.shadowed lib) $ \((name, _), calls) ->
                 Log.warn $ "definitions in " <> show fname
                     <> " " <> untxt name <> " shadowed: " <> pretty calls
-            return (time, Right lib)
+            return $ Right lib
 
 compile_library :: Parse.Definitions -> Derive.Library
 compile_library (Parse.Definitions note control pitch val) = Derive.Library

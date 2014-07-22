@@ -39,33 +39,34 @@ import Types
 type SendStatus = BlockId -> Msg.DeriveStatus -> IO ()
 type StateM = Monad.State.StateT Cmd.State IO ()
 
--- | Update the performances by rederiving if necessary.  This means figuring
--- out ScoreDamage, and if there has been damage, killing any in-progress
--- derivation and starting derivation for the focused and root blocks.
---
--- The majority of the calls here will bring neither score damage nor
--- a changed view id, and thus this will do nothing.
---
--- This is tricky, and I've gotten it wrong in the past, so here's a detailed
--- description:
---
--- Merge ui damage with each perf's damage.  Then for each perf, if it's
--- 'Cmd.state_current_performance' has damage, kill its thread, and remove its
--- entry in 'Cmd.state_performance_threads'.  The lack of a thread entry,
--- whether because was removed or never existed, means that a block should be
--- rederived.  Derivation creates a new 'Cmd.Performance' and an evaluate
--- thread, and puts them into 'Cmd.state_current_performance' and
--- 'Cmd.state_performance_threads' respectively, but due to laziness, no actual
--- derivation happens unless someone (like play) happens to look at the
--- performance.  This all happens synchronously, so the next time
--- 'update_performance' is called, it sees a nice clean new Performance with
--- no damage.
---
--- Meanwhile, the evaluate thread asynchronously waits for a bit, then
--- forces the contents of the Performance, and then sends it back to the
--- responder so it can stash it in 'Cmd.state_performance'.  If a new change
--- comes in while it's waiting it'll get killed off, and the out-of-date
--- derivation will never happen.  Yay for laziness!
+{- | Update the performances by rederiving if necessary.  This means figuring
+    out ScoreDamage, and if there has been damage, killing any in-progress
+    derivation and starting derivation for the focused and root blocks.
+
+    The majority of the calls here will bring neither score damage nor
+    a changed view id, and thus this will do nothing.
+
+    This is tricky, and I've gotten it wrong in the past, so here's a detailed
+    description:
+
+    Merge ui damage with each perf's damage.  Then for each perf, if it's
+    'Cmd.state_current_performance' has damage, kill its thread, and remove its
+    entry in 'Cmd.state_performance_threads'.  The lack of a thread entry,
+    whether because was removed or never existed, means that a block should be
+    rederived.  Derivation creates a new 'Cmd.Performance' and an evaluate
+    thread, and puts them into 'Cmd.state_current_performance' and
+    'Cmd.state_performance_threads' respectively, but due to laziness, no actual
+    derivation happens unless someone (like play) happens to look at the
+    performance.  This all happens synchronously, so the next time
+    'update_performance' is called, it sees a nice clean new Performance with
+    no damage.
+
+    Meanwhile, the evaluate thread asynchronously waits for a bit, then
+    forces the contents of the Performance, and then sends it back to the
+    responder so it can stash it in 'Cmd.state_performance'.  If a new change
+    comes in while it's waiting it'll get killed off, and the out-of-date
+    derivation will never happen.  Yay for laziness!
+-}
 update_performance :: SendStatus -> State.State -> Cmd.State
     -> Derive.ScoreDamage -> IO Cmd.State
 update_performance send_status ui_state cmd_state damage =

@@ -57,15 +57,18 @@ data LabeledMark = LabeledMark {
     , m_label :: !Label
     } deriving (Show)
 
--- | The durations in a 'Meter' are summed together, which leads to
--- accumulation of imprecision.  This means meters with unrepresentable
--- fractions will get increasingly inaccurate.  To counteract I use
--- 'ScoreTime.round' as "Ui.Events" does to round events to a likely rational
--- location.
+-- | Duration between ruler marks.  Since these are added together, there is
+-- a risk of accumulating innaccuracy.  I could use rationals if I changed
+-- 'Ruler.PosMark' to rational, but for the moment it's more convenient to
+-- stay as TrackTime, and convert to rationals before adding, assuming that
+-- TrackTime has enough resolution to figure out what the rational should be.
 --
--- Previously I used a rational, but it seems to be just as good to round
--- after every addition.
-type Duration = ScoreTime
+-- TODO If I get more inaccuracy problems I should probably just switch to
+-- rational, but it's a bit of a pain because Ruler.Marklist and its callers
+-- have to change.  Also, I'm not even sure if it's a good idea, because
+-- TrackTime is still floating point, so there will still be rounding in there
+-- somewhere, and this would just put it in more places.
+type Duration = TrackTime
 
 time_to_duration :: ScoreTime -> Duration
 time_to_duration = id
