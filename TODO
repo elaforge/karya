@@ -3,10 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  new C++11 features:
+    - range-for: for (auto sel : sels)
+    - auto
+    - override syntax: virtual void x() override;
+  - If you have a multiple track selection and press an arrow key, the single
+    track selection should start from cur track.
   - rename fltk/geom_util to just geom, and import qualified
   - import f_util qualified
-  - Can I highlight pitches not on zheng strings?  This would also support
-    instrument range.
+  Highlight events.
+    . This way I can highlight pitches not on open strings.  This would also
+      support instrument range.
     . The easiest way is probably to extend selection to support an arbitrary
       number of non-contiguous selections, and have a postproc analysis
     . Or have the note generator emit a special attribute that causes
@@ -64,7 +71,7 @@ UNSORTED
   - hold support for trill and tremolo
     . also, would it be useful to add an acceleration?
   guzheng support:
-    - bent-string emits "Error: missing pitches" on repeated notes
+    * bent-string emits "Error: missing pitches" on repeated notes
     - I want to make pitches after the first default to interpolated, like
       i>>.  I would have to wrap all the scale calls, but how can an
       instrument do that?  Make a LookupPattern that looks up the pitch call

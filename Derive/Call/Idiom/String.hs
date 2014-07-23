@@ -49,7 +49,7 @@ c_bent_string = Derive.transformer module_ "bent-string"
     \ decay, since otherwise you can't hear the transitions.\
     \ Further documentation is in 'Derive.Call.Idiom.String'."
     $ Sig.callt ((,,,)
-    <$> Sig.defaulted "attack" (control "string-attack" 0.1)
+    <$> Sig.defaulted "attack" (control "string-attack" 0.15)
         "Time for a string to bend to its desired pitch. A fast attack\
         \ sounds like a stopped string."
     <*> Sig.defaulted "release" (control "string-release" 0.1)
@@ -142,13 +142,14 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
         process strings attack_interpolator release_interpolator
             (attack, delay, release) state event
 
--- | Monophonic:
---
--- - If the note falls on a new string, release the previously playing note
--- (bend down to its open position) and emit it.
---
--- - If the note falls on the string in use, bend that string up to the note
--- to be played and emit it.
+{- | Monophonic:
+
+    - If the note falls on a new string, release the previously playing note
+    (bend down to its open position) and emit it.
+
+    - If the note falls on the string in use, bend that string up to the note
+    to be played and emit it.
+-}
 process :: Map.Map Pitch.NoteNumber PitchSignal.Pitch
     -- ^ The strings are tuned to Pitches, but to compare Pitches I have to
     -- evaluate them to NoteNumbers first.
@@ -181,7 +182,11 @@ process strings attack_interpolator release_interpolator
 attack :: PitchUtil.Interpolator -> RealTime -> PitchSignal.Pitch -> RealTime
     -> Score.Event -> Maybe Score.Event
 attack interpolator time pitch next_event event = do
-    let start_x = next_event - time
+    -- If there isn't enough time, do the bend faster.  I think I'd like to
+    -- emit part of the transition, and then complete it after the attack, but
+    -- that would require some more complicated code and I'm not sure I need
+    -- it.
+    let start_x = max (Score.event_start event) (next_event - time)
     start_pitch <- Score.pitch_at start_x event
     return $ merge_curve interpolator start_x start_pitch next_event
         pitch event
