@@ -19,6 +19,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Pretty as Pretty
+import qualified Ui.Color as Color
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Instrument(..), Control, PControl(..), Warp(..), Type(..), Typed(..),
@@ -53,6 +54,7 @@ data Event = Event {
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
     , event_stack :: !Stack.Stack
+    , event_highlight :: !Color.Highlight
     , event_instrument :: !Instrument
     , event_environ :: !BaseTypes.Environ
     } deriving (Show)
@@ -66,6 +68,7 @@ empty_event = Event
     , event_pitch = mempty
     , event_pitches = mempty
     , event_stack = Stack.empty
+    , event_highlight = Color.NoHighlight
     , event_instrument = empty_inst
     , event_environ = mempty
     }
@@ -114,12 +117,12 @@ remove_attributes attrs
     | otherwise = modify_attributes (attrs_remove attrs)
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur text controls pitch pitches _ _ _) =
+    rnf (Event start dur text controls pitch pitches _ _ _ _) =
         rnf start `seq` rnf dur `seq` rnf text `seq` rnf controls
             `seq` rnf pitch `seq` rnf pitches
 
 instance Pretty.Pretty Event where
-    format (Event start dur txt controls pitch pitches stack inst env) =
+    format (Event start dur txt controls pitch pitches stack highl inst env) =
         Pretty.record (Pretty.text "Event" Pretty.<+> Pretty.format (start, dur)
                 Pretty.<+> Pretty.format txt)
             [ ("instrument", Pretty.format inst)
@@ -127,6 +130,7 @@ instance Pretty.Pretty Event where
             , ("pitches", Pretty.format pitches)
             , ("controls", Pretty.format controls)
             , ("stack", Pretty.format stack)
+            , ("highlight", Pretty.text $ show highl)
             , ("environ", Pretty.format env)
             ]
 

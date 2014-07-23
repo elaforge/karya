@@ -28,7 +28,7 @@ UNSORTED
       generator just says what it wants, all that goes away.
     . So highlight with Notice | Warning | Error, and have config for how to
       display those.
-    - add Highlight to Score.Event
+    * add Highlight to Score.Event
     support multiple disjoint selections per selnum
       . fltk still uses selnum to deselect the other bits.  So I need to make
         selnum purely into an address for a set of selections.

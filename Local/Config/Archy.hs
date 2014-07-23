@@ -47,7 +47,7 @@ rdev_map =
 -- | Open these read devices on startup.
 read_devices :: [Text]
 read_devices =
-    [ "Oxygen USB Oxygen 8 v2"
+    [ "USB Oxygen 8 v2"
     , "EDIROL UA-25"
     , "828mk2 MIDI Port"
     ] ++ map tapco [1..4]

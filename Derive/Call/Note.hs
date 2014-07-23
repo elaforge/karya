@@ -19,8 +19,10 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
+
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Module as Module
@@ -191,6 +193,7 @@ default_note config args = do
         , Score.event_pitch = pitch
         , Score.event_pitches = Derive.state_pitches dyn
         , Score.event_stack = Derive.state_stack dyn
+        , Score.event_highlight = Color.NoHighlight
         , Score.event_instrument = inst
         , Score.event_environ = environ
         }

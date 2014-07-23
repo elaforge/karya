@@ -8,6 +8,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Midi.Midi as Midi
+import qualified Ui.Color as Color
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Derive.Derive as Derive
@@ -35,6 +36,7 @@ data StaticConfig = StaticConfig {
     -- a focused block will abort.
     , setup_cmd :: [String] -> Cmd.CmdIO
     , midi :: Midi
+    , highlight_colors :: Map.Map Color.Highlight Color.Color
     }
 
 empty :: StaticConfig
@@ -45,6 +47,7 @@ empty = StaticConfig {
     , library = mempty
     , setup_cmd = const (return Cmd.Done)
     , midi = empty_midi
+    , highlight_colors = mempty
     }
 
 data Midi = Midi {

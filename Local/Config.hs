@@ -38,6 +38,7 @@ load_static_config = do
         , StaticConfig.library = Call.All.library
         , StaticConfig.setup_cmd = parse_args
         , StaticConfig.midi = midi
+        , StaticConfig.highlight_colors = Config.highlight_colors
         }
 
 oxygen8_v2 :: Controller.TransportConfig

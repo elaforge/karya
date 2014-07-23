@@ -84,6 +84,7 @@ import qualified Midi.Mmc as Mmc
 import qualified Midi.State
 
 import qualified Ui.Block as Block
+import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -439,6 +440,7 @@ data Config = Config {
     , state_library :: !Derive.Library
     -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
     , state_lookup_scale :: !LookupScale
+    , state_highlight_colors :: !(Map.Map Color.Highlight Color.Color)
     } deriving (Show, Generics.Typeable)
 
 -- | Get a midi writer that takes the 'state_wdev_map' into account.

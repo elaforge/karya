@@ -57,6 +57,7 @@ import qualified Perform.Signal as Signal
 
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
+import qualified App.Config as Config
 import qualified App.MidiInst as MidiInst
 import Types
 
@@ -261,6 +262,7 @@ cmd_config inst_db = Cmd.Config
     , Cmd.state_library = Call.All.library
     , Cmd.state_lookup_scale = Cmd.LookupScale $
         \scale_id -> Map.lookup scale_id Scale.All.scales
+    , Cmd.state_highlight_colors = Config.highlight_colors
     }
 
 -- | Turn BlockSpecs into a state.
@@ -546,14 +548,13 @@ c_note s_start dur = do
     st <- Derive.gets Derive.state_dynamic
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st
-    return $ LEvent.one $ LEvent.Event $ Score.Event
+    return $ LEvent.one $ LEvent.Event $ Score.empty_event
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_text = "evt"
         , Score.event_controls = controls
         , Score.event_pitch = pitch_sig
         , Score.event_pitches = Derive.state_pitches st
-        , Score.event_stack = Stack.empty
         , Score.event_instrument = inst
         , Score.event_environ = environ
         }
@@ -691,16 +692,14 @@ mkevent = mkevent_scale Twelve.scale
 mkevent_scale :: Scale.Scale
     -> (RealTime, RealTime, String, Controls, Score.Instrument)
     -> Score.Event
-mkevent_scale scale (start, dur, pitch, controls, inst) = Score.Event
+mkevent_scale scale (start, dur, pitch, controls, inst) = Score.empty_event
     { Score.event_start = start
     , Score.event_duration = dur
     , Score.event_text = txt pitch
     , Score.event_controls = mkcontrols controls
     , Score.event_pitch = PitchSignal.signal [(start, mkpitch scale pitch)]
-    , Score.event_pitches = mempty
     , Score.event_stack = fake_stack
     , Score.event_instrument = inst
-    , Score.event_environ = mempty
     }
 
 pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal

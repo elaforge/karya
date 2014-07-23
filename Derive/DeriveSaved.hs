@@ -143,4 +143,5 @@ cmd_config inst_db = do
         , Cmd.state_library = Call.All.library
         , Cmd.state_lookup_scale = Cmd.LookupScale $
             \scale_id -> Map.lookup scale_id Scale.All.scales
+        , Cmd.state_highlight_colors = mempty
         }

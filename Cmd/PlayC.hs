@@ -74,15 +74,19 @@ cmd_play_msg ui_chan msg = do
                 ui_state <- State.get
                 liftIO $ Sync.set_track_signals ui_chan block_id ui_state
                     (Cmd.perf_track_signals perf)
+                set_event_highlights (Cmd.perf_events perf)
             _ -> return ()
     derive_status_color status = case status of
         Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
         Msg.Deriving {} -> Just Config.busy_color
         Msg.DeriveComplete {} -> Just Config.box_color
 
-set_all_play_boxes :: (State.M m) => Color.Color -> m ()
+set_all_play_boxes :: State.M m => Color.Color -> m ()
 set_all_play_boxes color =
     mapM_ (flip State.set_play_box color) =<< State.all_block_ids
+
+set_event_highlights :: Cmd.M m => Cmd.Events -> m ()
+set_event_highlights events = return ()
 
 -- * play
 

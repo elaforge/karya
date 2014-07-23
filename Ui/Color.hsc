@@ -12,6 +12,22 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.Util as Util
 
 
+-- | How to highlight an event in the UI.  This can be used to highlight
+-- instrumental restrictions, or for analysis.
+--
+-- This doesn't really belong in this module, but I couldn't think of a better
+-- place to put it that wouldn't incur unnecessary dependencies.
+data Highlight =
+    NoHighlight
+    -- | This note is special in some way, perhaps an open string.
+    | Notice
+    -- | This note might have a problem, e.g. in a difficult range or requires
+    -- difficult fingering or the pitch needs to be adjusted.
+    | Warning
+    -- | This note is probably unplayable, e.g. out of range.
+    | Error
+    deriving (Eq, Ord, Show)
+
 -- r, g, b, alpha, from 0--1
 data Color = Color !Double !Double !Double !Double
     deriving (Eq, Ord, Show, Read)
