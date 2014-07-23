@@ -11,8 +11,7 @@ Or adapt to a Fl_Scrollbar for 1 mouse macs?
 */
 #include <FL/Fl_Scroll.H>
 
-#include "util.h"
-
+#include "Color.h"
 #include "P9Scrollbar.h"
 #include "Ruler.h"
 
@@ -53,8 +52,8 @@ public:
     void set_scroll_zoom(double max, double offset, double displayed_area) {
         // DEBUG("set scroll zoom " << max << " " << offset << " "
         //         << displayed_area << " value " << value());
-        offset = ::clamp(0.0, 1.0, offset / max);
-        displayed_area = ::clamp(0.0, max, displayed_area) / max;
+        offset = util::clamp(0.0, 1.0, offset / max);
+        displayed_area = util::clamp(0.0, max, displayed_area) / max;
         // int Fl_Slider::scrollvalue(int p, int W, int t, int l)
         //  p = position, first line displayed
         //  w = window, number of lines displayed

@@ -309,7 +309,7 @@ BlockView::set_zoom(const ZoomInfo &zoom)
     // ScoreTime max_pos =
     //     std::max(ScoreTime(0), track_tile.time_end() - height);
     //
-    // this->zoom = ZoomInfo(clamp(ScoreTime(0), max_pos, zoom.offset),
+    // this->zoom = ZoomInfo(util::clamp(ScoreTime(0), max_pos, zoom.offset),
     //         zoom.factor);
 
     // This function, and hence set_zoom_attr below, is called from the outside
@@ -330,7 +330,7 @@ BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
     clamped.offset = std::max(ScoreTime(0), clamped.offset);
     ScoreTime visible = clamped.to_time(track_tile.visible_pixels().y);
     ScoreTime max_offset = track_tile.time_end() - visible;
-    clamped.offset = clamp(ScoreTime(0), max_offset, clamped.offset);
+    clamped.offset = util::clamp(ScoreTime(0), max_offset, clamped.offset);
     if (clamped == this->zoom)
         return;
     this->zoom = clamped;
@@ -351,7 +351,7 @@ BlockView::set_track_scroll(int offset)
 {
     int track_end = this->track_tile.track_end();
     int max_offset = std::max(0, track_end - this->track_scroll.w());
-    offset = clamp(0, max_offset, offset);
+    offset = util::clamp(0, max_offset, offset);
     // offset = std::min(max_offset, offset);
 
     // If you update this, also update scrollbar_cb!

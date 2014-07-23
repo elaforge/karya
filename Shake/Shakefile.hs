@@ -285,14 +285,34 @@ ccBinaries =
         "LogView/logview_ui.cc.o", "fltk/f_util.cc.o"]
     ]
 
+-- | Since fltk.a is a library, not a binary, I can't just chase includes to
+-- know all the source files.  I could read fltk/*.cc at runtime, but the fltk
+-- directory changes so rarely it seems not a great burden to just hardcode
+-- them all here.
 fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
-    [ "Block.cc", "EventTrack.cc", "MoveTile.cc"
-    , "MsgCollector.cc", "P9Scrollbar.cc", "Ruler.cc", "SimpleScroll.cc"
-    , "SkeletonDisplay.cc", "StyleTable.cc", "SymbolOutput.cc"
-    , "SymbolTable.cc", "Track.cc", "TrackTile.cc", "WrappedInput.cc"
-    , "alpha_draw.cc", "config.cc", "f_util.cc", "input_util.cc"
-    , "types.cc", "util.cc"
+    [ "Block.cc"
+    , "Color.cc"
+    , "EventTrack.cc"
+    , "MoveTile.cc"
+    , "MsgCollector.cc"
+    , "P9Scrollbar.cc"
+    , "Ruler.cc"
+    , "Selection.cc"
+    , "SimpleScroll.cc"
+    , "SkeletonDisplay.cc"
+    , "StyleTable.cc"
+    , "SymbolOutput.cc"
+    , "SymbolTable.cc"
+    , "Track.cc"
+    , "TrackTile.cc"
+    , "WrappedInput.cc"
+    , "alpha_draw.cc"
+    , "config.cc"
+    , "f_util.cc"
+    , "input_util.cc"
+    , "types.cc"
+    , "util.cc"
     ]
 
 -- * mode

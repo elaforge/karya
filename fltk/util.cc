@@ -43,6 +43,3 @@ bytes(const char *str, int len, int chars)
 }
 
 }
-
-const Color Color::black = Color(0, 0, 0, 0);
-const Color Color::white = Color(255, 255, 255, 0);

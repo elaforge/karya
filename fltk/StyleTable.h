@@ -5,6 +5,8 @@
 #ifndef __STYLE_TABLE_H
 #define __STYLE_TABLE_H
 
+#include "Color.h"
+
 
 // Index into a table of preset styles.  This is intentionally small since
 // every event has one.

@@ -3,6 +3,7 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include "types.h"
+#include <ostream>
 
 
 const ScoreTime ScoreTime::invalid = ScoreTime(-1);
@@ -11,13 +12,6 @@ std::ostream &
 operator<<(std::ostream &os, const ScoreTime &pos)
 {
     return os << "ScoreTime(" << pos._val << ")";
-}
-
-std::ostream &
-operator<<(std::ostream &os, const Selection &sel)
-{
-    return os << "Selection(" << sel.start_track << ", " << sel.start_pos
-        << ", " << sel.cur_track << ", " << sel.cur_pos << ")";
 }
 
 std::ostream &

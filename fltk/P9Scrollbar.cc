@@ -64,8 +64,8 @@ P9Scrollbar::set_scroll(double offset, double size)
 void
 P9Scrollbar::set_scroll_zoom(double max, double offset, double displayed_area)
 {
-    double scaled_offset = ::clamp(0.0, 1.0, offset / max);
-    double size = ::clamp(0.0, max, displayed_area) / max;
+    double scaled_offset = util::clamp(0.0, 1.0, offset / max);
+    double size = util::clamp(0.0, max, displayed_area) / max;
     // DEBUG("set_scroll_zoom " << max << ", " << offset << ", "
     //         << displayed_area << " -> " << DPoint(scaled_offset, size));
     this->set_scroll(scaled_offset, size);
@@ -83,7 +83,7 @@ P9Scrollbar::handle(int evt)
             click = double(Fl::event_x() - this->x()) / this->w();
         }
         click -= this->size / 2;
-        click = ::clamp(0.0, 1 - size, click);
+        click = util::clamp(0.0, 1 - size, click);
         this->set_scroll(click, this->size);
         this->do_callback();
         return 1;

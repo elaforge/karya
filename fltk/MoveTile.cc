@@ -56,7 +56,7 @@ MoveTile::remove_child(Fl_Widget *w)
     int c = this->find(w);
     if (c != this->children()) {
         this->remove(w);
-        vector_erase(this->stiff_children, c);
+        util::vector_erase(this->stiff_children, c);
     }
 }
 

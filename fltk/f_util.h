@@ -13,7 +13,7 @@
 #include <FL/fl_draw.H>
 #include <FL/Fl_Widget.H>
 
-#include "util.h"
+#include "Color.h"
 
 
 // use more convenient types with standard fltk functions

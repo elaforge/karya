@@ -21,7 +21,8 @@
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
 
-#include "util.h"
+#include "Color.h"
+#include "Selection.h"
 #include "f_util.h"
 #include "types.h"
 

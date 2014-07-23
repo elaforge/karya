@@ -9,7 +9,7 @@
 #include <vector>
 #include <utility>
 
-#include "util.h"
+#include "Color.h"
 
 
 struct SkeletonEdge {

@@ -55,7 +55,7 @@ public:
 
     // Child won't resize, and its entire area is used for dragging.
     void set_stiff_child(int child) {
-        vector_put(stiff_children, child, true);
+        util::vector_put(stiff_children, child, true);
     }
     bool stiff_child(int child);
 

@@ -18,9 +18,9 @@
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
 
-#include "util.h"
+#include "Selection.h"
+#include "Color.h"
 #include "config.h"
-
 #include "types.h"
 #include "Track.h"
 

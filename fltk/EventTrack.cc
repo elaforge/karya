@@ -70,7 +70,7 @@ double
 TrackSignal::val_at(int i) const
 {
     ASSERT_MSG(signal, "val_at on empty track signal");
-    return normalize(this->val_min, this->val_max, signal[i].val);
+    return util::normalize(this->val_min, this->val_max, signal[i].val);
 }
 
 
@@ -584,8 +584,8 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
         else
             next_i = i + 1;
 
-        int xpos = floor(scale(double(min_x), double(max_x),
-            clamp(0.0, 1.0, tsig.val_at(i))));
+        int xpos = floor(util::scale(double(min_x), double(max_x),
+            util::clamp(0.0, 1.0, tsig.val_at(i))));
         int next_xpos, next_offset;
         if (i + 1 >= tsig.length) {
             // Out of signal, last sample goes to the bottom.
@@ -593,8 +593,8 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
             next_xpos = xpos;
             next_offset = max_y;
         } else if (next_i > i + 1) {
-            next_xpos = floor(scale(double(min_x), double(max_x),
-                clamp(0.0, 1.0, tsig.val_at(next_i))));
+            next_xpos = floor(util::scale(double(min_x), double(max_x),
+                util::clamp(0.0, 1.0, tsig.val_at(next_i))));
             next_offset = y + tsig.pixel_time_at(zoom, next_i);
         } else {
             next_i = i + 1;

@@ -12,17 +12,8 @@
 using namespace geom_util;
 
 
-namespace utf8 {
-
-const char *backward(const char *str, const char *start);
-const char *forward(const char *str, const char *end);
-int width(const char *str);
-// The byte index of 'chars' char index into a utf8 string, of the given length.
-// Returns 'len' if the index is past the end.
-int bytes(const char *str, int len, int chars);
-
-}
-
+#define DEBUG(X) do { std::cout << __FILE__ << ':' << __LINE__ << ' ' \
+    << X << '\n'; std::cout.flush(); } while (0)
 
 // Assert //////////////////////////////
 
@@ -62,8 +53,21 @@ operator<<(std::ostream &os, const AssertionError &a)
     return os << "'>";
 }
 
+namespace utf8 {
+
+const char *backward(const char *str, const char *start);
+const char *forward(const char *str, const char *end);
+int width(const char *str);
+// The byte index of 'chars' char index into a utf8 string, of the given length.
+// Returns 'len' if the index is past the end.
+int bytes(const char *str, int len, int chars);
+
+}
+
 
 // Numeric /////////////////////////////
+
+namespace util {
 
 // Restrict 'v' to be in the given range, like composed min and max.
 // If 'max' is less than 'min', the result will be 'min'.
@@ -87,10 +91,6 @@ scale(T min, T max, T v)
 {
     return v * (max-min) + min;
 }
-
-
-#define DEBUG(X) do { std::cout << __FILE__ << ':' << __LINE__ << ' ' \
-    << X << '\n'; std::cout.flush(); } while (0)
 
 // vector //////////////////////////////
 
@@ -130,64 +130,13 @@ vector_erase(std::vector<T> &a, int i)
         a.erase(a.begin() + i);
 }
 
+}
 
-
-
+// The stdlib lacks this instance.
 template <class T, class U> inline std::ostream &
 operator<<(std::ostream &os, const std::pair<T, U> &p)
 {
     return os << "(" << p.first << ", " << p.second << ")";
-}
-
-
-// Color ///////////////////////////////
-
-struct Color {
-    Color(unsigned char r, unsigned char g, unsigned char b,
-            unsigned char a=0xff)
-        : r(r), g(g), b(b), a(a) {}
-    explicit Color() : r(0), g(0), b(0), a(0) {}
-    static Color from_doubles(double r, double g, double b, double a) {
-        return Color(clamp(0.0, 255.0, r), clamp(0.0, 255.0, g),
-            clamp(0.0, 255.0, b), clamp(0.0, 255.0, a));
-    }
-    static Color rgb_normalized(double r, double g, double b) {
-        return from_doubles(r * 255, g * 255, b * 255, 255);
-    }
-    static Color from_rgb_word(unsigned int rgb) {
-        return Color(0xff & (rgb >> 16), 0xff & (rgb >> 8), 0xff & rgb, 0xff);
-    }
-    static Color from_rgba_word(unsigned int rgba) {
-        return Color(0xff & (rgba >> 24), 0xff & (rgba >> 16),
-            0xff & (rgba >> 8), 0xff & rgba);
-    }
-    bool operator==(const Color &o) const {
-        return r==o.r && g==o.g && b==o.b && a==o.a;
-    }
-    bool operator!=(const Color &o) const { return !(*this == o); }
-
-    unsigned char r, g, b, a;
-
-    Color brightness(double d) const {
-        if (d < 1) {
-            return Color::from_doubles(
-                    scale(0.0, double(r), d), scale(0.0, double(g), d),
-                    scale(0.0, double(b), d), a);
-        } else {
-            return Color::from_doubles(
-                    scale(double(r), 255.0, d-1), scale(double(g), 255.0, d-1),
-                    scale(double(b), 255.0, d-1), a);
-        }
-    }
-
-    static const Color black, white;
-};
-
-inline std::ostream &
-operator<<(std::ostream &os, const Color &c)
-{
-    return os << "Color(" << (int) c.r << ", " << (int) c.g << ", "
-        << (int) c.b << ", " << (int) c.a << ")";
 }
 
 #endif
