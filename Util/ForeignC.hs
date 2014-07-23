@@ -216,6 +216,12 @@ withArrayLen vals f = allocaArray len $ \ptr -> do
     f len ptr
     where len = length vals
 
+-- | Like 'withArrayLen', except if the list is null, then pass (0, nullPtr).
+withArrayLenNull :: CStorable a => [a] -> (Int -> Ptr a -> IO b) -> IO b
+withArrayLenNull vals f
+    | null vals = f 0 nullPtr
+    | otherwise = withArrayLen vals f
+
 copyArray :: (CStorable a) => Ptr a -> Ptr a -> Int -> IO ()
 copyArray = doCopy undefined
     where

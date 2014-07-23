@@ -26,8 +26,13 @@ UNSORTED
       . fltk still uses selnum to deselect the other bits.  So I need to make
         selnum purely into an address for a set of selections.
       * split Selection and TrackSelection into Selection.cc
-      - TrackSelection has multiple subranges
-      - Block::set_selection takes vector<Selection>
+      * Take Selection out of fltk entirely.  Then it's haskell's job to
+        convert a Types.Selection to a set of TrackSelections.
+        . no longer support NULL Selection to unset it
+      * rename TrackSelection to Selection
+      Block::set_selection takes vector<Selection>
+        * fltk
+        * haskell
     - fill in App.Config.highlight_colors
     - PlayC.cmd_play_msg should check derived events for Highlight and send
       a selection accordingly.

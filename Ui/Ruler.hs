@@ -34,7 +34,6 @@ import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
 import qualified Util.Pretty as Pretty
-import Util.Pretty
 import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.Color as Color
@@ -146,6 +145,8 @@ data Marklist = Marklist
 
 type MarklistVector = TimeVector.Boxed Mark
 
+instance Eq Marklist where
+    m1 == m2 = marklist_vec m1 == marklist_vec m2
 instance Show Marklist where
     show m = "Ruler.marklist " ++ show (ascending 0 m)
 instance Pretty.Pretty Marklist where
@@ -172,9 +173,6 @@ instance Pretty.Pretty Marklist where
 newtype MarklistPtr = MarklistPtr
     (MVar.MVar (Either MarklistVector (Foreign.ForeignPtr Marklist)))
 type PosMark = (ScoreTime, Mark)
-
-instance Eq Marklist where
-    m1 == m2 = marklist_vec m1 == marklist_vec m2
 
 {-# NOINLINE marklist #-}
 marklist :: [PosMark] -> Marklist
@@ -243,7 +241,7 @@ instance DeepSeq.NFData Mark where
     rnf (Mark rank width color name name_zoom zoom) = rank `seq` width
         `seq` color `seq` name `seq` name_zoom `seq` zoom `seq` ()
 
-instance Pretty Mark where
-    pretty m = "<mark: " ++ show (mark_rank m) ++ name ++ ">"
+instance Pretty.Pretty Mark where
+    pretty m = "(mark " ++ show (mark_rank m) ++ name ++ ")"
         where
         name = if Text.null (mark_name m) then "" else ' ' : untxt (mark_name m)

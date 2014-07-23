@@ -57,7 +57,6 @@ namespace View {
 };
 
 enum {
-    max_selections = 6,
     font = FL_HELVETICA
 };
 

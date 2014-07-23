@@ -110,16 +110,8 @@ public:
     // (track, time) dimensions.
     IPoint get_padding() const;
 
-    void set_selection(int selnum, const Selection &sel);
-    // This is different from 'set_selection' because it only sets or clears
-    // the selection for one track.  This way, you can put the selection in
-    // different places on different tracks.  The 'start_track' field of the
-    // Selection is ignored, and 'tracks' can be 0 to clear, and 1 to set.
-    //
-    // It's used by the playback updater to display the play positions going
-    // at different speeds.
-    void set_track_selection(int selnum, int tracknum, const Selection &sel);
-
+    void set_selection(
+        int selnum, int tracknum, const std::vector<Selection> &sels);
     void set_title(const char *s);
     void set_title_focus() { title.take_focus(); }
     const char *get_title() const { return title.get_text(); }

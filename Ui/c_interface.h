@@ -36,9 +36,8 @@ void set_size(BlockViewWindow *view, int x, int y, int w, int h);
 void get_size(BlockViewWindow *view, int *sz);
 void set_zoom(BlockViewWindow *view, const ZoomInfo *zoom);
 void set_track_scroll(BlockViewWindow *view, int pixels);
-void set_selection(BlockViewWindow *view, int selnum, const Selection *sel);
-void set_track_selection(BlockViewWindow *view, int selnum, int tracknum,
-        const Selection *sel);
+void set_selection(BlockViewWindow *view, int selnum, int tracknum,
+    Selection *sels, int nsels);
 void bring_to_front(BlockViewWindow *view);
 
 void set_model_config(BlockViewWindow *view, BlockModelConfig *config);
@@ -54,6 +53,7 @@ void edit_insert(BlockViewWindow *view, const char *text);
 
 // tracks
 
+int tracks(BlockViewWindow *view);
 void insert_track(BlockViewWindow *view, int tracknum,
         Tracklike *track, int width, Marklist **marklists, int nmarklists);
 void remove_track(BlockViewWindow *view, int tracknum);

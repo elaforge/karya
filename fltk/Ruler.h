@@ -106,7 +106,8 @@ class OverlayRuler : public Fl_Widget {
 public:
     explicit OverlayRuler(const RulerConfig &config, bool is_ruler_track);
     void set_zoom(const ZoomInfo &new_zoom) { zoom = new_zoom; }
-    void set_selection(int selnum, int tracknum, const Selection &sel);
+    void set_selection(
+        int selnum, int tracknum, const std::vector<Selection> &sels);
     ScoreTime time_end() const { return config.last_mark_pos; }
     void set_config(bool is_ruler_track, const RulerConfig &config,
         ScoreTime start, ScoreTime end);
@@ -135,7 +136,8 @@ private:
     void draw_marklists();
     bool draw_mark(bool at_zero, int offset, const Mark &mark);
     void draw_selections();
-    TrackSelection selections[Config::max_selections];
+    // Selections indexed by selnum.
+    std::vector<std::vector<Selection> > selections;
 };
 
 
@@ -144,9 +146,9 @@ public:
     explicit RulerTrackView(const RulerConfig &config);
     virtual Fl_Box &title_widget();
     virtual void set_zoom(const ZoomInfo &zoom);
-    virtual void set_selection(int selnum, int tracknum, const Selection &sel)
-    {
-        ruler.set_selection(selnum, tracknum, sel);
+    virtual void set_selection(
+            int selnum, int tracknum, const std::vector<Selection> &sels) {
+        ruler.set_selection(selnum, tracknum, sels);
     }
     virtual ScoreTime time_end() const { return ruler.time_end(); }
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end);

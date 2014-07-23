@@ -43,12 +43,9 @@ module Ui.BlockC (
     , set_size
     , set_zoom
     , set_track_scroll
-    , CSelection(..)
-    , set_selection, set_track_selection
+    , Selection(..)
+    , set_selection
     , bring_to_front
-
-    -- ** constants
-    , max_selections
 
     -- * Block operations
     , set_model_config, set_skeleton, set_title, set_status
@@ -57,7 +54,7 @@ module Ui.BlockC (
     , edit_open, edit_insert
 
     -- ** Track operations
-    , insert_track, remove_track, update_track, update_entire_track
+    , tracks, insert_track, remove_track, update_track, update_entire_track
     , set_track_signal
     , set_track_title, set_track_title_focus, set_block_title_focus
 
@@ -191,34 +188,25 @@ set_track_scroll view_id offset = do
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
--- | This is called asynchronously by the play monitor, so it takes an extra
--- flag to not throw an exception if the ViewId no longer exists.
-set_selection :: Bool -> ViewId -> Types.SelNum -> Maybe CSelection -> Fltk ()
-set_selection fail_on_view view_id selnum maybe_sel
-    | fail_on_view = set =<< get_ptr view_id
+-- | This can be called asynchronously by the play monitor, so it takes an
+-- extra flag to not throw an exception if the ViewId no longer exists.
+set_selection :: Bool -> ViewId -> Types.SelNum -> [TrackNum] -> [Selection]
+    -> Fltk ()
+set_selection require_view view_id selnum tracknums sels
+    | null tracknums = return ()
+    | require_view = set =<< get_ptr view_id
     | otherwise = flip whenJust set =<< lookup_ptr view_id
     where
-    set viewp = maybeWith with maybe_sel $ \selp ->
-        c_set_selection viewp (Util.c_int selnum) selp
+    set viewp = withArrayLenNull sels $ \nsels selsp ->
+        forM_ tracknums $ \tracknum ->
+            c_set_selection viewp (Util.c_int selnum) (Util.c_int tracknum)
+                selsp (Util.c_int nsels)
+
+-- void set_selection(BlockViewWindow *view, int selnum, int tracknum,
+--     Selection *sels, int nsels);
 foreign import ccall "set_selection"
-    c_set_selection :: Ptr CView -> CInt -> Ptr CSelection -> IO ()
-
-set_track_selection :: Bool -> ViewId -> Types.SelNum -> TrackNum
-    -> Maybe CSelection -> Fltk ()
-set_track_selection fail_on_view view_id selnum tracknum maybe_sel
-    | fail_on_view = set =<< get_ptr view_id
-    | otherwise = flip whenJust set =<< lookup_ptr view_id
-    where
-    set viewp = maybeWith with maybe_sel $ \selp ->
-        c_set_track_selection viewp (Util.c_int selnum)
-            (Util.c_int tracknum) selp
-foreign import ccall "set_track_selection"
-    c_set_track_selection :: Ptr CView -> CInt -> CInt -> Ptr CSelection
+    c_set_selection :: Ptr CView -> CInt -> CInt -> Ptr Selection -> CInt
         -> IO ()
-
--- | Max number of selections, hardcoded in ui/config.h.
-max_selections :: Int
-max_selections = (#const Config::max_selections)
 
 bring_to_front :: ViewId -> Fltk ()
 bring_to_front view_id = c_bring_to_front =<< get_ptr view_id
@@ -291,6 +279,11 @@ foreign import ccall "edit_insert"
     c_edit_insert :: Ptr CView -> CString -> IO ()
 
 -- * Track operations
+
+-- | Get the number of tracks on the block.
+tracks :: ViewId -> Fltk TrackNum
+tracks = fmap fromIntegral . c_tracks <=< get_ptr
+foreign import ccall "tracks" c_tracks  :: Ptr CView -> IO CInt
 
 insert_track :: ViewId -> TrackNum -> Block.Tracklike -> [Events.Events]
     -> Track.SetStyle -> Types.Width -> Fltk ()
@@ -529,23 +522,23 @@ instance CStorable SkeletonStatus where
 
 -- ** selection
 
--- | C++ Selections have a color, but in haskell the color is separated into
--- Block.config_selection_colors.
-data CSelection = CSelection Color.Color Types.Selection deriving (Show)
+data Selection = Selection {
+    sel_color :: !Color.Color
+    , sel_start :: !TrackTime
+    , sel_cur :: !TrackTime
+    , sel_draw_arrow :: !Bool
+    }
+    deriving (Eq, Ord, Show)
 
-instance CStorable CSelection where
+instance CStorable Selection where
     sizeOf _ = #size Selection
-    alignment _ = alignment Color.black
-    peek = error "CSelection peek unimplemented"
-    poke = poke_selection
-
-poke_selection selp (CSelection color
-        (Types.Selection start_track start_pos cur_track cur_pos)) = do
-    (#poke Selection, color) selp color
-    (#poke Selection, start_track) selp (Util.c_int start_track)
-    (#poke Selection, start_pos) selp start_pos
-    (#poke Selection, cur_track) selp (Util.c_int cur_track)
-    (#poke Selection, cur_pos) selp cur_pos
+    alignment _ = alignment (0 :: TrackTime)
+    peek = error "Selection peek unimplemented"
+    poke selp (Selection color start cur draw_arrow) = do
+        (#poke Selection, color) selp color
+        (#poke Selection, start) selp start
+        (#poke Selection, cur) selp cur
+        (#poke Selection, draw_arrow) selp (Util.c_bool draw_arrow)
 
 -- * error
 

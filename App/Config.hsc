@@ -7,6 +7,7 @@
 module App.Config where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Bits as Bits
+import qualified Data.Map.Strict as Map
 import qualified Network
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
@@ -79,58 +80,60 @@ save_dir = RelativePath "save"
 
 -- * status view
 
--- The block status bar is not very big, so it's important to control what
--- goes in there.  The format is (sort_key, text).
-
 -- ** per-view
 
-status_chord :: (Int, Text)
+-- The block status bar is not very wide, so it's important to control what
+-- goes in there, and more importantly, which order.  Items with a high order
+-- are more likely to be cut off.
+type SortKey = Int
+
+status_chord :: (SortKey, Text)
 status_chord = (7, "chord")
 
 -- | Selection start and range.  This goes at the end because it changes width
 -- a lot.
-status_selection :: (Int, Text)
+status_selection :: (SortKey, Text)
 status_selection = (8, "s")
 
 -- | Selection start in RealTime.
-status_realtime :: (Int, Text)
+status_realtime :: (SortKey, Text)
 status_realtime = (9, "sec")
 
 -- | Zoom and scroll of the visible area.
-status_zoom :: (Int, Text)
+status_zoom :: (SortKey, Text)
 status_zoom = (10, "z")
 
 -- ** per block
 
 -- | Base octave of the kbd note entry.
-status_octave :: (Int, Text)
+status_octave :: (SortKey, Text)
 status_octave = (0, "8")
 
 -- | Current time step.
-status_step :: (Int, Text)
+status_step :: (SortKey, Text)
 status_step = (1, "t")
 
-status_note_duration :: (Int, Text)
+status_note_duration :: (SortKey, Text)
 status_note_duration = (2, "d")
 
 -- | Various record flags.  Most are reflected in the color of the edit box,
 -- but the secondary ones go here.
-status_record :: (Int, Text)
+status_record :: (SortKey, Text)
 status_record = (4, "r")
 
 -- | Text of the last note, even if it didn't create an event.  Useful to know
 -- what a key would enter.
-status_note :: (Int, Text)
+status_note :: (SortKey, Text)
 status_note = (5, "n")
 
 -- | Track 'Cmd.state_note_text', which is the previously entered note track
 -- text.  This is useful e.g. to set an attribute and maintain that for
 -- several notes in a row.
-status_note_text :: (Int, Text)
+status_note_text :: (SortKey, Text)
 status_note_text = (5, "note")
 
 -- | Show the source block for blocks integrated from another block.
-status_integrate_source :: (Int, Text)
+status_integrate_source :: (SortKey, Text)
 status_integrate_source = (8, "src")
 
 
@@ -139,6 +142,7 @@ status_integrate_source = (8, "src")
 -- | Port to listen on for repl requests.
 repl_port :: Network.PortID
 repl_port = Network.UnixSocket "seq-repl"
+
 initialize_repl_port :: IO ()
 initialize_repl_port =
     void $ File.ignoreEnoent $ Directory.removeFile "seq-repl"
@@ -166,7 +170,16 @@ error_selnum :: Types.SelNum
 step_play_selnum :: Types.SelNum
 -- | Display current play position, managed by play monitor thread.
 play_position_selnum :: Types.SelNum
+-- | Display 'Color.Highlight's.  This has many possible colors.
+highlight_selnum :: Types.SelNum
 
+-- | The most number of SelNums that will be used.  The only reason this needs
+-- a constant is so 'Ui.Diff.refresh_selections' can emit updates for all
+-- selections.
+max_selnums :: Types.SelNum
+max_selnums = 7
+
+-- This must be the same length as 'max_selnums'.
 [ (insert_selnum, _)
     -- Unused.  Secondary select?
     , _
@@ -174,12 +187,17 @@ play_position_selnum :: Types.SelNum
     , (error_selnum, _)
     , (play_position_selnum, play_selection_color)
     , (step_play_selnum, _)
+    , (highlight_selnum, _)
     ] = zip [0..] selection_colors
 
+-- | Colors that come from a SelNum.
 selection_colors :: [Color.Color]
-selection_colors = map to_sel $ take max_selections
-    [Color.blue, Color.green, Color.yellow, Color.red, Color.purple,
-        Color.turquoise]
+selection_colors = map to_sel $ take max_selnums $
+    [ Color.blue, Color.green, Color.yellow, Color.red, Color.purple
+    , Color.turquoise
+    -- This makes a visible artifact rather than crashing with an array index
+    -- bounds error.
+    ] ++ repeat Color.black
     where to_sel = Color.alpha 0.3 . Color.brightness 1.25
 
 lookup_selection_color :: Types.SelNum -> Color.Color
@@ -189,6 +207,11 @@ lookup_selection_color selnum
     where a = Array.from_list selection_colors
 
 -- * colors
+
+highlight_colors :: Map.Map Color.Highlight Color.Color
+highlight_colors = Map.fromList
+    [ (Color.Notice, Color.red)
+    ]
 
 box_color, val_edit_color, method_edit_color :: Color.Color
 box_color = Color.rgb 0.7 0.7 0.7
@@ -313,10 +336,6 @@ clip_block_name = "clip"
 -- | Default contents of track and sb boxes.
 bconfig_box :: (Color.Color, Char)
 bconfig_box = (box_color, ' ')
-
--- | Maximum number of selections supported by the GUI.
-max_selections :: Int
-max_selections = #const Config::max_selections
 
 -- ** fiddly pixel bits
 

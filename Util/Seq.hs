@@ -265,8 +265,12 @@ keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
 
 -- | Similar to 'keyed_group_on', but key on the fst element, and strip the key
 -- out of the groups.
-group_fst :: Ord a => [(a, b)] -> [(a, [b])]
-group_fst = map (Arrow.second (map snd)) . keyed_group_on fst
+group_fst :: Ord a => [(a, b)] -> [(a, NonNull b)]
+group_fst xs = [(key, map snd group) | (key, group) <- keyed_group_on fst xs]
+
+-- | Like 'group_fst', but group on the snd element.
+group_snd :: Ord b => [(a, b)] -> [(NonNull a, b)]
+group_snd xs = [(map fst group, key) | (key, group) <- keyed_group_on snd xs]
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  The list is returned in sorted order.

@@ -106,7 +106,7 @@ refresh_selections state updates = concatMap selections view_ids
         let update selnum = Update.View view_id $
                 Update.Selection selnum
                     (Map.lookup selnum (Block.view_selections view))
-        return $ map update [0 .. Config.max_selections - 1]
+        return $ map update [0 .. Config.max_selnums - 1]
 
 -- | DestroyView, DestroyBlock, DestroyTrack, and DestroyRuler cancel out
 -- previous updates.

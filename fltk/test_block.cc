@@ -229,8 +229,9 @@ creep_selection(void *vp)
         return;
 
     ScoreTime pos(double(i) / 2);
-    view.block.set_selection(0,
-        Selection(selection_colors[0], 1, pos, 4, pos));
+    std::vector<Selection> sels;
+    sels.push_back(Selection(selection_colors[0], pos, pos, true));
+    view.block.set_selection(0, 1, sels);
     Fl::repeat_timeout(.1, creep_selection, vp);
 }
 
@@ -377,15 +378,19 @@ main(int argc, char **argv)
 
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 
-    view.block.set_selection(0, Selection(selection_colors[0],
-                1, ScoreTime(80), 1, ScoreTime(80)));
+    std::vector<Selection> sels;
+    sels.push_back(
+        Selection(selection_colors[0], ScoreTime(80), ScoreTime(80), true));
+    sels.push_back(
+        Selection(selection_colors[0], ScoreTime(90), ScoreTime(100), true));
+    view.block.set_selection(0, 1, sels);
     /*
     view.block.set_selection(0, Selection(selection_colors[0],
-                1, ScoreTime(60), 4, ScoreTime(46)));
+        1, ScoreTime(60), 4, ScoreTime(46)));
     view.block.set_selection(0, Selection(selection_colors[0],
-                1, ScoreTime(0), 4, ScoreTime(56)));
+        1, ScoreTime(0), 4, ScoreTime(56)));
     view.block.set_selection(1, Selection(selection_colors[1],
-                1, ScoreTime(64), 4, ScoreTime(0)));
+        1, ScoreTime(64), 4, ScoreTime(0)));
     */
 
     StyleTable::get()->put(0, EventStyle(FL_HELVETICA, 12, Color::black,

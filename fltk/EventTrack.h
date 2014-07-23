@@ -10,6 +10,7 @@
 #ifndef __EVENT_TRACK_H
 #define __EVENT_TRACK_H
 
+#include <vector>
 #include "types.h"
 
 #include "WrappedInput.h"
@@ -130,9 +131,9 @@ public:
     virtual void set_title(const char *title);
     virtual void set_title_focus();
     void set_zoom(const ZoomInfo &new_zoom);
-    virtual void set_selection(int selnum, int tracknum, const Selection &sel)
-    {
-        overlay_ruler.set_selection(selnum, tracknum, sel);
+    virtual void set_selection(
+        int selnum, int tracknum, const std::vector<Selection> &sels) {
+        overlay_ruler.set_selection(selnum, tracknum, sels);
     }
     virtual void set_event_brightness(double d);
     virtual ScoreTime time_end() const;

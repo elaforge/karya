@@ -82,15 +82,17 @@ test_set_selection = do
     let ruler = mkruler 20 10
     insert_track view 1 (Block.T event_track_1 ruler) 30
     let c = Color.brightness 1.5 Color.blue
+        set = BlockC.set_selection True view 0 [1]
     io_human "point selection appears" $
-        send $ BlockC.set_selection True view 0 (cselection c 1 0 1 0)
+        send $ set [BlockC.Selection c 1 1 True]
     io_human "replaced by long selection" $
-        send $ BlockC.set_selection True view 0 (cselection c 1 10 1 20)
-    io_human "goes away" $
-        send $ BlockC.set_selection True view 0 Nothing
-
-cselection color track start tracks dur =
-    Just (BlockC.CSelection color (Types.Selection track start tracks dur))
+        send $ set [BlockC.Selection c 10 20 True]
+    io_human "lots of pretty colors" $ send $ set
+        [ BlockC.Selection Color.blue 1 10 True
+        , BlockC.Selection Color.red 20 40 True
+        , BlockC.Selection Color.green 45 45 True
+        ]
+    io_human "goes away" $ send $ set []
 
 test_set_model_config = do
     view <- create_empty_view

@@ -9,56 +9,23 @@
 #include "types.h"
 
 
+// The selection on one track.  This is different from the haskell level
+// selection in Ui.Types.Selection, that one is a contiguous block that
+// can cover multiple tracks.
 struct Selection {
-    Selection() : start_track(-1), cur_track(-1) {}
-    Selection(Color color, int start_track, ScoreTime start_pos, int cur_track,
-            ScoreTime cur_pos) :
-        color(color), start_track(start_track), start_pos(start_pos),
-        cur_track(cur_track), cur_pos(cur_pos)
+    Selection() : start(ScoreTime::invalid), cur(ScoreTime::invalid) {}
+    Selection(Color color, ScoreTime start, ScoreTime cur, bool draw_arrow)
+        : color(color), start(start), cur(cur), draw_arrow(draw_arrow)
     {}
-
-    bool operator==(const Selection &o) const {
-        return color == o.color && start_track == o.start_track
-            && start_pos == o.start_pos && cur_track == o.cur_track
-            && cur_pos == o.cur_pos;
-    }
-    bool operator!=(const Selection &o) const { return !(*this == o); }
-
-    // Both being -1 ensures that checking 'low <= track <= high' will be false
-    // for an empty selection.
-    bool empty() const { return cur_track == -1 && start_track == -1; }
-    int low_track() const { return std::min(start_track, cur_track); }
-    int high_track() const { return std::max(start_track, cur_track); }
-
-    Color color;
-    int start_track;
-    ScoreTime start_pos;
-    int cur_track;
-    ScoreTime cur_pos;
-};
-
-struct TrackSelection {
-    TrackSelection() : cur(ScoreTime::invalid) {}
-    TrackSelection(const Selection &sel, int tracknum) {
-        if (sel.low_track() <= tracknum && tracknum <= sel.high_track()) {
-            color = sel.color;
-            start = sel.start_pos;
-            cur = sel.cur_pos;
-            is_cur_track = tracknum == sel.cur_track;
-        } else {
-            start = cur = ScoreTime::invalid;
-        }
-    }
-    bool empty() const {
-        return cur == ScoreTime::invalid;
-    }
+    bool empty() const;
     ScoreTime low() const { return std::min(start, cur); }
     ScoreTime high() const { return std::max(start, cur); }
     bool is_point() const { return start == cur; }
+
     Color color;
     ScoreTime start, cur;
-    // True if this track is the the start or cur track of the selection.
-    bool is_cur_track;
+    // If this is a point selection, draw an arrow to make it more obvious.
+    bool draw_arrow;
 };
 
 std::ostream &operator<<(std::ostream &os, const Selection &sel);

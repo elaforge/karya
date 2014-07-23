@@ -3,6 +3,7 @@
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 #include <sstream>
+#include <vector>
 #include "util.h"
 #include "f_util.h"
 
@@ -375,41 +376,16 @@ BlockView::get_padding() const
 
 
 void
-BlockView::set_selection(int selnum, const Selection &sel)
+BlockView::set_selection(
+    int selnum, int tracknum, const std::vector<Selection> &sels)
 {
-    ASSERT(0 <= selnum && selnum < Config::max_selections);
-
-    // This is a bit tricky because the tile tracks have a -1 view of tracknum.
-    // track_at(0) is the ruler track.
-    track_at(0)->set_selection(selnum, 0, sel);
-    Selection track_sel(sel);
-    track_sel.start_track--;
-    track_sel.cur_track--;
-    for (int i = 1; i < tracks(); i++)
-        track_at(i)->set_selection(selnum, i-1, track_sel);
+    if (tracknum == 0) {
+        track_at(0)->set_selection(selnum, 0, sels);
+    } else {
+        track_at(tracknum)->set_selection(selnum, tracknum-1, sels);
+    }
     // Since the selection counts toward time_end.
     this->update_scrollbars();
-}
-
-
-void
-BlockView::set_track_selection(int selnum, int tracknum, const Selection &sel)
-{
-    ASSERT(0 <= selnum && selnum < Config::max_selections);
-    // It's sort of hacky to reuse Selection (instead of say TrackSelection)
-    // since I then totally ignore the tracknum, but fewer types means less
-    // marshalling code.
-    // TODO an "empty" Selection() should clear the sel, but here it just sets
-    // it to 0.  It's ok for now because I use set_selection to clear for the
-    // whole block.
-    Selection track_sel = sel;
-    if (tracknum == 0) {
-        track_sel.start_track = track_sel.cur_track = tracknum;
-        track_at(0)->set_selection(selnum, 0, track_sel);
-    } else {
-        track_sel.start_track = track_sel.cur_track = tracknum - 1;
-        track_at(tracknum)->set_selection(selnum, tracknum-1, track_sel);
-    }
 }
 
 

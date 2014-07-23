@@ -2,9 +2,8 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-/*
-*/
 #include <math.h>
+#include <utility>
 
 #include "util.h"
 #include "f_util.h"
@@ -68,36 +67,30 @@ OverlayRuler::OverlayRuler(const RulerConfig &config, bool is_ruler_track) :
     }
 }
 
-void
-OverlayRuler::set_selection(int selnum, int tracknum, const Selection &sel)
-{
-    ASSERT(0 <= selnum && selnum < Config::max_selections);
-    // DEBUG("set selection " << sel.start_pos << "--" << sel.cur_pos);
-    TrackSelection news(sel, tracknum);
-    const TrackSelection &olds = this->selections[selnum];
 
-    if (olds.empty() && !news.empty()) {
-        damage_range(news.low(), news.high());
-    } else if (!olds.empty() && news.empty()) {
-        damage_range(olds.low(), olds.high());
-    } else if (!olds.empty() && !news.empty()) {
-        if (olds.high() <= news.low() || news.high() <= olds.low()) {
-            // Not overlapping
-            damage_range(olds.low(), olds.high());
-            damage_range(news.low(), news.high());
-        } else {
-            ScoreTime start0 = std::min(olds.low(), news.low());
-            ScoreTime end0 = std::max(olds.low(), news.low());
-            ScoreTime start1 = std::min(olds.high(), news.high());
-            ScoreTime end1 = std::max(olds.high(), news.high());
-            if (end0 > start0)
-                damage_range(start0, end0);
-            if (end1 > start1)
-                damage_range(start1, end1);
-            // DEBUG("overlap: 0 " << start0 << "--" << end0
-            //     << ", 1 " << start1 << "--" << end1);
-        }
+static void
+damage_selection(OverlayRuler *ruler, const std::vector<Selection> &sels)
+{
+    if (sels.empty())
+        return;
+    ScoreTime low(sels[0].low()), high(sels[0].high());
+    for (int i = 1; i < sels.size(); i++) {
+        low = std::min(low, sels[i].low());
+        high = std::max(high, sels[i].high());
     }
+    // TODO move the code that extends the damage to cover the arrow
+    // DEBUG("damage selection " << low << "--" << high);
+    ruler->damage_range(low, high);
+}
+
+
+void
+OverlayRuler::set_selection(
+    int selnum, int tracknum, const std::vector<Selection> &news)
+{
+    this->selections.resize(std::max(int(selections.size()), selnum + 1));
+    damage_selection(this, selections[selnum]);
+    damage_selection(this, news);
     this->selections[selnum] = news;
 }
 
@@ -328,33 +321,37 @@ OverlayRuler::draw_selections()
 {
     IRect sel_rect;
     int y = this->track_start();
-    for (int i = 0; i < Config::max_selections; i++) {
-        const TrackSelection &sel = this->selections[i];
-        if (sel.empty())
-            continue;
-        int start = y + this->zoom.to_pixels(sel.low() - this->zoom.offset);
-        int height = std::max(selection_min_size,
-            this->zoom.to_pixels(sel.high() - sel.low()));
-        // IRect intersection is half-open ranges, but rect drawing is inclusive
-        // pixel ranges.  So add one to ensure that if I share a pixel border
-        // with the clip rect, I'll still draw that pixel line.
-        sel_rect = clip_rect(IRect(x(), start, w(), height + 1));
-        fl_line_style(FL_SOLID, 0);
-        alpha_rectf(sel_rect, sel.color);
+    for (int i = 0; i < selections.size(); i++) {
+        const std::vector<Selection> &sels = this->selections[i];
+        for (int j = 0; j < sels.size(); j++) {
+            const Selection sel = sels[j];
+            if (sel.empty())
+                continue;
+            int start = y + this->zoom.to_pixels(sel.low() - this->zoom.offset);
+            int height = std::max(selection_min_size,
+                this->zoom.to_pixels(sel.high() - sel.low()));
+            // IRect intersection is half-open ranges, but rect drawing is
+            // inclusive pixel ranges.  So add one to ensure that if I share a
+            // pixel border with the clip rect, I'll still draw that pixel
+            // line.
+            sel_rect = clip_rect(IRect(x(), start, w(), height + 1));
+            fl_line_style(FL_SOLID, 0);
+            alpha_rectf(sel_rect, sel.color);
 
-        // Darken the the cur pos a bit, and make it non-transparent.
-        fl_color(color_to_fl(sel.color.brightness(0.5)));
-        int cur = y + this->zoom.to_pixels(sel.cur - this->zoom.offset);
-        fl_line(x() + 2, cur, x() + w() - 2, cur);
-        if (sel.is_point() && sel.is_cur_track) {
-            // Draw a little bevel thingy.  It can be hard to see a point
-            // selection.
-            const int sz = selection_point_size;
-            fl_color(FL_RED);
-            fl_polygon(
-                x(), cur - sz,
-                x() + sz, cur,
-                x(), cur + sz);
+            // Darken the the cur pos a bit, and make it non-transparent.
+            fl_color(color_to_fl(sel.color.brightness(0.5)));
+            int cur = y + this->zoom.to_pixels(sel.cur - this->zoom.offset);
+            fl_line(x() + 2, cur, x() + w() - 2, cur);
+            if (sel.is_point() && sel.draw_arrow) {
+                // Draw a little bevel thingy.  It can be hard to see a point
+                // selection.
+                const int sz = selection_point_size;
+                fl_color(FL_RED);
+                fl_polygon(
+                    x(), cur - sz,
+                    x() + sz, cur,
+                    x(), cur + sz);
+            }
         }
     }
 }

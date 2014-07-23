@@ -7,9 +7,16 @@
 #include "Selection.h"
 
 
+bool
+Selection::empty() const
+{
+    return cur == ScoreTime::invalid;
+}
+
+
 std::ostream &
 operator<<(std::ostream &os, const Selection &sel)
 {
-    return os << "Selection(" << sel.start_track << ", " << sel.start_pos
-        << ", " << sel.cur_track << ", " << sel.cur_pos << ")";
+    return os << "Selection(" << sel.color << ", " << sel.start
+        << ", " << sel.cur << ", " << sel.draw_arrow << ")";
 }

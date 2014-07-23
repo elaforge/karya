@@ -7,6 +7,7 @@ C procedural interface to the UI level.
 */
 
 #include <utility>
+#include <vector>
 #include "c_interface.h"
 #include "util.h"
 
@@ -99,29 +100,25 @@ set_track_scroll(BlockViewWindow *view, int pixels)
     view->block.set_track_scroll(pixels);
 }
 
-void
-set_selection(BlockViewWindow *view, int selnum, const Selection *sel)
-{
-    if (sel)
-        view->block.set_selection(selnum, *sel);
-    else
-        view->block.set_selection(selnum, Selection());
-}
-
 
 void
-set_track_selection(BlockViewWindow *view, int selnum, int tracknum,
-        const Selection *sel)
+set_selection(BlockViewWindow *view, int selnum, int tracknum,
+    Selection *sels, int nsels)
 {
-    // This function is the only one which is called asynchronously from
-    // the usual diff->sync rigamorale.  So if a track is deleted while
-    // the playback thread is calling this, the tracknum will be incorrect.
-    // It's not worth fixing for real, but at least I can not crash.
-    tracknum = std::min(view->block.tracks() - 1, tracknum);
-    if (sel)
-        view->block.set_track_selection(selnum, tracknum, *sel);
-    else
-        view->block.set_track_selection(selnum, tracknum, Selection());
+    // This function is the only one which may be called independently of the
+    // usual diff->sync rigamorale.  So if a track is deleted while the
+    // playback thread is calling this, the tracknum will be incorrect.  It's
+    // not worth fixing for real, but at least I can not crash.
+    //
+    // The call is still serialized into the fltk thread, so there is no
+    // concurrency issue, it's just that the tracknum in the selection may
+    // no longer exist.
+    if (tracknum > view->block.tracks()) {
+        // 1 ruler + 2 tracks means the valid range is 0--2, so <= tracks().
+        return;
+    }
+    std::vector<Selection> sels_vector(sels, sels + nsels);
+    view->block.set_selection(selnum, tracknum, sels_vector);
 }
 
 
@@ -181,9 +178,15 @@ edit_insert(BlockViewWindow *view, const char *text)
 
 // tracks
 
+int
+tracks(BlockViewWindow *view)
+{
+    return view->block.tracks();
+}
+
 void
 insert_track(BlockViewWindow *view, int tracknum,
-        Tracklike *track, int width, Marklist **marklists, int nmarklists)
+    Tracklike *track, int width, Marklist **marklists, int nmarklists)
 {
     RulerConfig *old_ruler = track->ruler;
     if (track->ruler) {

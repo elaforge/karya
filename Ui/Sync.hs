@@ -162,19 +162,17 @@ set_track_signal = BlockC.set_track_signal
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
 set_play_position :: Ui.Channel -> [(ViewId, [(TrackNum, ScoreTime)])] -> IO ()
-set_play_position ui_chan block_sels = Ui.send_action ui_chan $ sequence_
-    [ BlockC.set_track_selection False view_id
-        Config.play_position_selnum tracknum (Just (sel_at pos))
-    | (view_id, track_pos) <- block_sels, (tracknum, pos) <- track_pos
-    ]
-    where
-    sel_at pos = BlockC.CSelection Config.play_selection_color
-        (Types.selection 0 pos 0 pos)
-        -- The 0s are dummy values since set_track_selection ignores them.
+set_play_position ui_chan block_sels = Ui.send_action ui_chan $ sequence_ $ do
+    (view_id, tracknum_pos) <- Seq.group_fst block_sels
+    (tracknums, pos) <- Seq.group_snd (concat tracknum_pos)
+    return $ BlockC.set_selection False view_id Config.play_position_selnum
+        tracknums [BlockC.Selection Config.play_selection_color pos pos True]
 
 clear_play_position :: Ui.Channel -> ViewId -> IO ()
-clear_play_position ui_chan view_id = Ui.send_action ui_chan $
-    BlockC.set_selection False view_id Config.play_position_selnum Nothing
+clear_play_position ui_chan view_id = Ui.send_action ui_chan $ do
+    tracks <- BlockC.tracks view_id
+    BlockC.set_selection False view_id Config.play_position_selnum
+        [0 .. tracks - 1] []
 
 edit_input :: State.State -> Cmd.EditInput -> IO ()
 edit_input _ (Cmd.EditOpen view_id tracknum at text selection) =
@@ -233,8 +231,11 @@ update_view track_signals set_style view_id Update.CreateView = do
     tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id) dtracks
 
     let sels = Block.view_selections view
-    let csels = map (\(selnum, sel) -> to_csel selnum (Just sel))
-            (Map.assocs sels)
+        selnum_sels :: [(Types.SelNum, [([TrackNum], [BlockC.Selection])])]
+        selnum_sels =
+            [ (selnum, track_selections selnum (length btracks) (Just sel))
+            | (selnum, sel) <- Map.toAscList sels
+            ]
     state <- State.get
     -- I manually sync the new empty view with its state.  It might reduce
     -- repetition to let Diff.diff do that by diffing against a state with an
@@ -255,8 +256,9 @@ update_view track_signals set_style view_id Update.CreateView = do
             BlockC.set_title view_id (Block.block_title block)
         BlockC.set_skeleton view_id (Block.block_skeleton block)
             (Block.integrate_skeleton block) (map Block.dtrack_status dtracks)
-        forM_ (zip (Map.keys sels) csels) $ \(selnum, csel) ->
-            BlockC.set_selection True view_id selnum csel
+        forM_ selnum_sels $ \(selnum, tracknums_sels) ->
+            forM_ tracknums_sels $ \(tracknums, sels) ->
+                BlockC.set_selection True view_id selnum tracknums sels
         BlockC.set_status view_id (Block.show_status (Block.view_status view))
             (Block.status_color (Block.view_block view) block
                 (State.config_root (State.state_config state)))
@@ -274,9 +276,11 @@ update_view _ _ view_id update = case update of
     Update.TrackScroll offset ->
         return $ BlockC.set_track_scroll view_id offset
     Update.Zoom zoom -> return $ BlockC.set_zoom view_id zoom
-    Update.Selection selnum maybe_sel ->
-        return $ BlockC.set_selection True view_id selnum
-            (to_csel selnum maybe_sel)
+    Update.Selection selnum maybe_sel -> return $ do
+        tracks <- BlockC.tracks view_id
+        let tracknums_sels = track_selections selnum tracks maybe_sel
+        forM_ tracknums_sels $ \(tracknums, sels) ->
+            BlockC.set_selection True view_id selnum tracknums sels
     Update.BringToFront -> return $ BlockC.bring_to_front view_id
     Update.TitleFocus tracknum ->
         return $ maybe (BlockC.set_block_title_focus view_id)
@@ -461,8 +465,32 @@ events_of_track_ids state track_ids = mapMaybe events_of track_ids
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
     tracks = State.state_tracks state
 
-to_csel :: Types.SelNum -> Maybe Types.Selection -> Maybe BlockC.CSelection
-to_csel selnum = fmap (BlockC.CSelection (Config.lookup_selection_color selnum))
+-- | Convert Types.Selection to BlockC.Selection.  Return sets of tracknums and
+-- the selections they should have.
+track_selections :: Types.SelNum -> TrackNum -> Maybe Types.Selection
+    -> [([TrackNum], [BlockC.Selection])]
+track_selections selnum tracks maybe_sel = case maybe_sel of
+    Nothing -> [([0 .. tracks - 1], [])]
+    Just sel -> (clear, []) : convert_selection selnum sel
+        where
+        (low, high) = Types.sel_track_range sel
+        clear = [0 .. low - 1] ++ [high + 1 .. tracks - 1]
+
+convert_selection :: Types.SelNum -> Types.Selection
+    -> [([TrackNum], [BlockC.Selection])]
+convert_selection selnum sel =
+    ([cur_track], [selection True])
+    : [(tracks, [selection False]) | not (null tracks)]
+    where
+    tracks = filter (/=cur_track) (Types.sel_tracknums sel)
+    cur_track = Types.sel_cur_track sel
+    selection arrow = BlockC.Selection
+        { BlockC.sel_color = color
+        , BlockC.sel_start = Types.sel_start_pos sel
+        , BlockC.sel_cur = Types.sel_cur_pos sel
+        , BlockC.sel_draw_arrow = arrow
+        }
+    color = Config.lookup_selection_color selnum
 
 dtracks_with_ruler_id :: (State.M m) =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]

@@ -17,6 +17,7 @@
 #ifndef __TRACK_H
 #define __TRACK_H
 
+#include <vector>
 #include <FL/Fl_Widget.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Box.H>
@@ -83,7 +84,8 @@ public:
     virtual int handle(int evt);
 
     virtual void set_zoom(const ZoomInfo &zoom) {}
-    virtual void set_selection(int selnum, int tracknum, const Selection &sel)
+    virtual void set_selection(
+        int selnum, int tracknum, const std::vector<Selection> &sels)
     {}
     virtual bool track_resizable() const { return true; }
     virtual void set_event_brightness(double d) {}
