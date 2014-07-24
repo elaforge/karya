@@ -25,8 +25,10 @@ import qualified Cmd.Repl.LInst as LInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Bali.Kotekan as Kotekan
+import qualified Derive.Call.Highlight as Highlight
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -172,7 +174,8 @@ sonic_couture = concat $
 
 guzheng :: [MidiInst.Patch]
 guzheng = MidiInst.with_code code
-    [ Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
+    [ MidiInst.range bottom top $
+        Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
         Instrument.attribute_map #= Instrument.simple_keyswitches ks $
         patch "guzheng" [(23, Controls.lpf), (24, Controls.q),
             (27, Controls.hpf)]
@@ -180,9 +183,11 @@ guzheng = MidiInst.with_code code
     where
     code = MidiInst.note_generators [("左", DUtil.attrs_note Attrs.left)]
         <> MidiInst.note_transformers [("standard-strings", standard_strings)]
+        <> MidiInst.note_calls (MidiInst.null_call c_highlight_strings)
     standard_strings = DUtil.make_call0t "standard-strings"
-        ("Set `open-strings` to standard pitches: " <> ShowVal.show_val strings)
-        $ \_ deriver -> Derive.with_val "open-strings"
+        ("Set " <> ShowVal.doc_val Environ.open_strings
+            <> " to standard pitches: " <> ShowVal.show_val strings)
+        $ \_ deriver -> Derive.with_val Environ.open_strings
             (map Pitches.nn_pitch strings) deriver
     ks =
         [ (Attrs.harm, Key2.as5)
@@ -194,6 +199,14 @@ guzheng = MidiInst.with_code code
         where
         notes = [NN.d2, NN.e2, NN.fs2, NN.a2, NN.b2]
         octaves = map fromIntegral [0, 12 ..]
+    -- Let's say the top string can bend a minor third.
+    (bottom, top) = (head strings, last strings + 3)
+
+c_highlight_strings :: Derive.Generator Derive.Note
+c_highlight_strings = Note.transformed_note
+    ("Highlight any notes whose initial pitch either is or isn't in "
+    <> ShowVal.doc_val Environ.open_strings <> ".") mempty $ const $
+    Highlight.out_of_range . Highlight.open_strings Highlight.warn_non_open
 
 sc_bali :: [MidiInst.Patch]
 sc_bali = MidiInst.with_code mute_null_call
