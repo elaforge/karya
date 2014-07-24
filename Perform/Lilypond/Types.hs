@@ -95,6 +95,11 @@ global_staff_code :: [Text]
 global_staff_code =
     [ "\\numericTimeSignature" -- Use 4/4 and 2/4 instead of C
     , "\\set Staff.printKeyCancellation = ##f"
+    -- Show bar numbers at (end, middle, beginning), i.e. every bar.  I prefer
+    -- this to spending rehearsal time counting measures.
+    -- This only needs to go on the top staff, but it doesn't hurt to put it on
+    -- all of them.
+    , "\\override Score.BarNumber.break-visibility = ##(#f #t #t)"
     ]
 
 inst_name :: Score.Instrument -> Instrument
