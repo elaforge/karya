@@ -71,6 +71,8 @@ class ToVal a where to_val :: a -> Val
 instance ToVal Val where to_val = id
 instance ToVal Double where to_val = VNum . Score.untyped
 instance ToVal Int where to_val = VNum . Score.untyped . fromIntegral
+instance ToVal Pitch.NoteNumber where
+    to_val = VNum . Score.Typed Score.Nn . Pitch.nn_to_double
 instance ToVal Pitch.Transpose where
     to_val n = case n of
         Pitch.Diatonic n -> VNum $ Score.Typed Score.Diatonic n

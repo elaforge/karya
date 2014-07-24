@@ -17,6 +17,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -82,7 +83,8 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
 
 open_strings_env :: Sig.Parser [PitchSignal.Pitch]
 open_strings_env = Sig.check non_empty $
-    Sig.environ "open-strings" Sig.Unprefixed [] "Pitches of the open strings."
+    Sig.environ (TrackLang.unsym Environ.open_strings) Sig.Unprefixed []
+        "Pitches of the open strings."
     where
     non_empty xs
         | null xs = Just "open-strings required"

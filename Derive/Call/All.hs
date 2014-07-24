@@ -17,6 +17,7 @@ import qualified Derive.Call.Echo as Echo
 import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Europe.Chord as Chord
 import qualified Derive.Call.Europe.Grace as Grace
+import qualified Derive.Call.Highlight as Highlight
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Idiom.Wind as Wind
 import qualified Derive.Call.Import as Import
@@ -49,28 +50,29 @@ library = Derive.Library
 note_maps :: Derive.CallMaps Derive.Note
 note_maps = mconcat
     [ Articulation.note_calls
-    , Equal.note_calls
-    , Gender.note_calls
-    , Kotekan.note_calls
-    , Reyong.note_calls
+    , ArrivalNote.note_calls
     , Block.note_calls
-    , Echo.note_calls
     , Chord.note_calls
+    , Echo.note_calls
+    , Equal.note_calls
     , Gamakam2.note_calls
+    , Gender.note_calls
     , Grace.note_calls
-    , String.note_calls
+    , Highlight.note_calls
+    , Idiom.note_calls
     , Import.calls
     , Integrate.note_calls
+    , Kotekan.note_calls
     , Lily.note_calls
     , Note.note_calls
     , NoteTransformer.note_calls
     , PitchHigh.note_calls
-    , ArrivalNote.note_calls
-    , Idiom.note_calls
     , Post.Reverse.note_calls
     , Random.note_calls
+    , Reyong.note_calls
     , Sekar.note_calls
     , SignalTransform.note_calls
+    , String.note_calls
     , Trill.note_calls
     , Wind.note_calls
     , Zheng.note_calls

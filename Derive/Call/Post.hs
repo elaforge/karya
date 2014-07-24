@@ -31,7 +31,8 @@
     the efficiency difference seems compelling.
 -}
 module Derive.Call.Post where
-import Prelude hiding (mapM)
+import qualified Prelude
+import Prelude hiding (map, mapM)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
@@ -54,7 +55,9 @@ import Types
 
 -- ** non-monadic
 
--- Plain map is 'map . fmap'.
+-- | Non-monadic map without state.
+map :: (a -> b) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
+map = Prelude.map . fmap
 
 -- | Non-monadic map with state.
 map_events :: (state -> event -> (state, [Score.Event])) -> state
@@ -62,7 +65,7 @@ map_events :: (state -> event -> (state, [Score.Event])) -> state
 map_events f = List.mapAccumL go
     where
     go state (LEvent.Log log) = (state, [LEvent.Log log])
-    go state (LEvent.Event event) = map LEvent.Event <$> f state event
+    go state (LEvent.Event event) = Prelude.map LEvent.Event <$> f state event
 
 map_events_asc :: (state -> event -> (state, [Score.Event])) -> state
     -> [LEvent.LEvent event] -> (state, Derive.Events)
@@ -75,7 +78,8 @@ map_events_asc_ f = snd . map_events_asc (\() event -> ((), f event)) ()
 
 -- ** monadic
 
--- | Monadic map without state.  Exceptions are caught and logged.
+-- | Monadic map without state.  Exceptions are not caught.
+-- TODO use Derive.with_event_stack
 mapM :: Monad m => (a -> m b) -> [LEvent.LEvent a] -> m [LEvent.LEvent b]
 mapM _ [] = return []
 mapM f (LEvent.Event e : es) = do
@@ -103,7 +107,7 @@ map_events_m f state annots = go state . LEvent.zip annots
             fromMaybe (state, []) <$> Derive.catch True
                 (Derive.with_event_stack event (f state annot event))
         (final, outputs) <- go state events
-        return (final, map LEvent.Event output : outputs)
+        return (final, Prelude.map LEvent.Event output : outputs)
 
 -- | Like 'map_events_m', but assume the function returns sorted chunks in
 -- increasing order, so they can be merged efficiently.
@@ -121,7 +125,7 @@ control :: (Score.TypedVal -> a) -> TrackLang.ValControl -> Derive.Events
     -> Derive.Deriver [a]
 control f c events = do
     sig <- Util.to_typed_function c
-    return $ map (f . sig . Score.event_start) (LEvent.events_of events)
+    return $ Prelude.map (f . sig . Score.event_start) (LEvent.events_of events)
 
 time_control :: TrackLang.ValControl -> Derive.Events
     -> Derive.Deriver [RealTime]
@@ -202,7 +206,7 @@ signal :: (Monoid.Monoid sig) => (sig -> sig)
     -> Derive.LogsDeriver sig -> Derive.LogsDeriver sig
 signal f deriver = do
     (sig, logs) <- derive_signal deriver
-    return $ LEvent.Event (f sig) : map LEvent.Log logs
+    return $ LEvent.Event (f sig) : Prelude.map LEvent.Log logs
 
 derive_signal :: (Monoid.Monoid sig) => Derive.LogsDeriver sig
     -> Derive.Deriver (sig, [Log.Msg])

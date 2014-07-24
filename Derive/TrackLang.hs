@@ -465,6 +465,9 @@ make_parse_enum :: (ShowVal a) => [a] -> (Text -> Maybe a)
 make_parse_enum vals = flip Map.lookup m
     where m = Map.fromList (zip (map show_val vals) vals)
 
+instance TypecheckEnum Bool
+instance ShowVal Bool where show_val = default_show_val
+
 -- | Make a ShowVal from a Show instance.
 default_show_val :: (Show a) => a -> Text
 default_show_val = Text.toLower . showt
