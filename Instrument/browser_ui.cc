@@ -27,12 +27,12 @@ BrowserInput::handle(int evt)
             return 1;
         case FL_Down:
             this->matches->value(
-                clamp(0, matches->size(), matches->value() + 1));
+                util::clamp(0, matches->size(), matches->value() + 1));
             matches->do_callback();
             return 1;
         case FL_Up:
             this->matches->value(
-                clamp(0, matches->size(), matches->value() - 1));
+                util::clamp(0, matches->size(), matches->value() - 1));
             matches->do_callback();
             return 1;
         }

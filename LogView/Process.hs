@@ -12,6 +12,8 @@ module LogView.Process (
     , CatchPattern, global_status_pattern
     , render_status
     , StyledText(..)
+
+    , match_pattern
 #ifdef TESTING
     , flatten_ranges, run_formatter, regex_style, style_plain
     , msg_text_regexes
