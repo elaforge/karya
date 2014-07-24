@@ -691,10 +691,12 @@ strict_tracks_selnum :: (Cmd.M m) => Types.SelNum -> m Tracks
 strict_tracks_selnum selnum = do
     (view_id, sel) <- get_selnum selnum
     block_id <- State.block_id_of view_id
-    tracklikes <- mapM (State.track_at block_id) (Types.sel_tracknums sel)
-    let (tracknums, track_ids) = unzip
-            [(i, track_id) | (i, Just (Block.TId track_id _))
-                <- zip (Types.sel_tracknums sel) tracklikes]
+    tracks <- State.track_count block_id
+    let tracknums = Types.sel_tracknums tracks sel
+    tracklikes <- mapM (State.track_at block_id) tracknums
+    (tracknums, track_ids) <- return $ unzip
+        [(i, track_id) | (i, Just (Block.TId track_id _))
+            <- zip tracknums tracklikes]
     let (start, end) = Types.sel_range sel
     return (block_id, tracknums, track_ids, start, end)
 

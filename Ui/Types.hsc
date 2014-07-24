@@ -138,8 +138,14 @@ sel_track_range :: Selection -> (TrackNum, TrackNum)
 sel_track_range sel = (min track0 track1, max track0 track1)
     where (track0, track1) = (sel_start_track sel, sel_cur_track sel)
 
-sel_tracknums :: Selection -> [TrackNum]
-sel_tracknums sel = let (start, end) = sel_track_range sel in [start..end]
+-- | TrackNums covered by the selection.  Since Selections may have out of
+-- range tracks, I need the number of tracks to generate a list of valid
+-- TrackNums.
+sel_tracknums :: TrackNum -> Selection -> [TrackNum]
+sel_tracknums tracks sel
+    | tracks <= 0 = []
+    | otherwise = [Num.clamp 0 (tracks-1) start .. Num.clamp 0 (tracks-1) end]
+    where (start, end) = sel_track_range sel
 
 -- | Start and end points, from small to large.
 sel_range :: Selection -> (TrackTime, TrackTime)

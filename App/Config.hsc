@@ -210,7 +210,9 @@ lookup_selection_color selnum
 
 highlight_colors :: Map.Map Color.Highlight Color.Color
 highlight_colors = Map.fromList
-    [ (Color.Notice, Color.red)
+    [ (Color.Notice, Color.alpha 0.15 Color.green)
+    , (Color.Warning, Color.alpha 0.1 Color.red)
+    , (Color.Error, Color.alpha 0.25 Color.red)
     ]
 
 box_color, val_edit_color, method_edit_color :: Color.Color
@@ -434,7 +436,6 @@ note_transformer_color = Color.rgb 1.0 1.0 0.65
 -- | Parse errors.
 parse_error_color :: Color.Color
 parse_error_color = Color.rgb 1.0 0.8 0.8
-
 
 -- | Indicates that this event was integrated from somewhere else.
 integrated_style :: Style.StyleId -> Style.StyleId

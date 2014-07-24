@@ -69,8 +69,9 @@ set :: (Cmd.M m) => Bool -- ^ Rewind from the selection pos by the play step.
 set step_back play_selected_tracks = do
     (block_id, tracknum, _, sel_pos) <- Selection.get_insert
     view_id <- Cmd.get_focused_view
+    tracks <- State.track_count block_id
     play_tracks <- if play_selected_tracks
-        then Types.sel_tracknums . snd <$> Selection.get
+        then Types.sel_tracknums tracks . snd <$> Selection.get
         else return []
     initialize view_id block_id play_tracks
     start <- if step_back

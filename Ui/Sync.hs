@@ -30,7 +30,7 @@
 module Ui.Sync (
     sync
     , set_track_signals
-    , set_play_position, clear_play_position
+    , set_play_position, clear_play_position, set_highlights, clear_highlights
     , edit_input
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -41,10 +41,12 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
+import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -162,17 +164,48 @@ set_track_signal = BlockC.set_track_signal
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
 set_play_position :: Ui.Channel -> [(ViewId, [(TrackNum, ScoreTime)])] -> IO ()
-set_play_position ui_chan block_sels = Ui.send_action ui_chan $ sequence_ $ do
-    (view_id, tracknum_pos) <- Seq.group_fst block_sels
-    (tracknums, pos) <- Seq.group_snd (concat tracknum_pos)
-    return $ BlockC.set_selection False view_id Config.play_position_selnum
-        tracknums [BlockC.Selection Config.play_selection_color pos pos True]
+set_play_position chan block_sels = unless (null block_sels) $
+    Ui.send_action chan $ sequence_ $ do
+        (view_id, tracknum_pos) <- Seq.group_fst block_sels
+        (tracknums, pos) <- Seq.group_snd (concat tracknum_pos)
+        return $ BlockC.set_selection False view_id
+            Config.play_position_selnum tracknums
+            [BlockC.Selection Config.play_selection_color pos pos True]
 
 clear_play_position :: Ui.Channel -> ViewId -> IO ()
-clear_play_position ui_chan view_id = Ui.send_action ui_chan $ do
+clear_play_position = clear_selections Config.play_position_selnum
+
+type Range = (TrackTime, TrackTime)
+
+set_highlights :: Ui.Channel -> [((ViewId, TrackNum), (Range, Color.Color))]
+    -> IO ()
+set_highlights chan view_sels = unless (null view_sels) $
+    Ui.send_action chan $ sequence_ $ do
+        (view_id, tracknum_sels) <- group_by_view view_sels
+        (tracknum, range_colors) <- tracknum_sels
+        return $ BlockC.set_selection False view_id Config.highlight_selnum
+            [tracknum] (map make_sel range_colors)
+    where
+    make_sel ((start, end), color) = BlockC.Selection color start end False
+
+-- | Juggle the selections around into the format that 'BlockC.set_selection'
+-- wants.
+group_by_view :: [((ViewId, TrackNum), (Range, Color.Color))]
+    -> [(ViewId, [(TrackNum, [(Range, Color.Color)])])]
+group_by_view view_sels = map (second Seq.group_fst) by_view
+    where
+    (view_tracknums, range_colors) = unzip view_sels
+    (view_ids, tracknums) = unzip view_tracknums
+    by_view :: [(ViewId, [(TrackNum, (Range, Color.Color))])]
+    by_view = Seq.group_fst $ zip view_ids (zip tracknums range_colors)
+
+clear_highlights :: Ui.Channel -> ViewId -> IO ()
+clear_highlights = clear_selections Config.highlight_selnum
+
+clear_selections :: Types.SelNum -> Ui.Channel -> ViewId -> IO ()
+clear_selections selnum chan view_id = Ui.send_action chan $ do
     tracks <- BlockC.tracks view_id
-    BlockC.set_selection False view_id Config.play_position_selnum
-        [0 .. tracks - 1] []
+    BlockC.set_selection False view_id selnum [0 .. tracks - 1] []
 
 edit_input :: State.State -> Cmd.EditInput -> IO ()
 edit_input _ (Cmd.EditOpen view_id tracknum at text selection) =
@@ -431,7 +464,7 @@ update_set_style state block_id (Block.TId track_id _) (track_bg, set_style) =
         has_note_children block_id track_id
 update_set_style _ _ _ (track_bg, set_style) = (track_bg, set_style False)
 
-has_note_children :: (State.M m) => BlockId -> TrackId -> m Bool
+has_note_children :: State.M m => BlockId -> TrackId -> m Bool
 has_note_children block_id track_id = do
     children <- fromMaybe [] <$> TrackTree.children_of block_id track_id
     return $ any (ParseTitle.is_note_track . State.track_title) children
@@ -471,18 +504,18 @@ track_selections :: Types.SelNum -> TrackNum -> Maybe Types.Selection
     -> [([TrackNum], [BlockC.Selection])]
 track_selections selnum tracks maybe_sel = case maybe_sel of
     Nothing -> [([0 .. tracks - 1], [])]
-    Just sel -> (clear, []) : convert_selection selnum sel
+    Just sel -> (clear, []) : convert_selection selnum tracks sel
         where
         (low, high) = Types.sel_track_range sel
         clear = [0 .. low - 1] ++ [high + 1 .. tracks - 1]
 
-convert_selection :: Types.SelNum -> Types.Selection
+convert_selection :: Types.SelNum -> TrackNum -> Types.Selection
     -> [([TrackNum], [BlockC.Selection])]
-convert_selection selnum sel =
-    ([cur_track], [selection True])
-    : [(tracks, [selection False]) | not (null tracks)]
+convert_selection selnum tracks sel = filter (not . null . fst) $
+    ([cur_track | Num.in_range 0 tracks cur_track], [selection True])
+    : [(tracknums, [selection False]) | not (null tracknums)]
     where
-    tracks = filter (/=cur_track) (Types.sel_tracknums sel)
+    tracknums = filter (/=cur_track) (Types.sel_tracknums tracks sel)
     cur_track = Types.sel_cur_track sel
     selection arrow = BlockC.Selection
         { BlockC.sel_color = color
@@ -492,13 +525,13 @@ convert_selection selnum sel =
         }
     color = Config.lookup_selection_color selnum
 
-dtracks_with_ruler_id :: (State.M m) =>
+dtracks_with_ruler_id :: State.M m =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 dtracks_with_ruler_id ruler_id =
     find_dtracks ((== Just ruler_id) . Block.ruler_id_of)
         <$> State.gets State.state_blocks
 
-dtracks_with_track_id :: (State.M m) =>
+dtracks_with_track_id :: State.M m =>
     TrackId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]
 dtracks_with_track_id track_id =
     find_dtracks ((== Just track_id) . Block.track_id_of)

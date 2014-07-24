@@ -19,10 +19,12 @@ import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Vector as Vector
 
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Num as Num
+import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Ui.Color as Color
@@ -34,6 +36,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 
+import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
@@ -74,7 +78,8 @@ cmd_play_msg ui_chan msg = do
                 ui_state <- State.get
                 liftIO $ Sync.set_track_signals ui_chan block_id ui_state
                     (Cmd.perf_track_signals perf)
-                set_event_highlights (Cmd.perf_events perf)
+                sels <- get_event_highlights (Cmd.perf_events perf)
+                liftIO $ Sync.set_highlights ui_chan sels
             _ -> return ()
     derive_status_color status = case status of
         Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
@@ -85,8 +90,40 @@ set_all_play_boxes :: State.M m => Color.Color -> m ()
 set_all_play_boxes color =
     mapM_ (flip State.set_play_box color) =<< State.all_block_ids
 
-set_event_highlights :: Cmd.M m => Cmd.Events -> m ()
-set_event_highlights events = return ()
+type Range = (TrackTime, TrackTime)
+
+-- | Get highlight selections from the events.
+get_event_highlights :: Cmd.M m => Cmd.Events
+    -> m [((ViewId, TrackNum), (Range, Color.Color))]
+get_event_highlights events = do
+    colors <- Cmd.gets $ Cmd.state_highlight_colors . Cmd.state_config
+    let (tracks, sels) = unzip $ event_highlights colors events
+    flip zip sels <$> resolve_tracks tracks
+
+resolve_tracks :: State.M m => [(BlockId, TrackId)] -> m [(ViewId, TrackNum)]
+resolve_tracks = concatMapM resolve
+    where
+    resolve (block_id, track_id) = do
+        tracknum <- State.get_tracknum_of block_id track_id
+        view_ids <- Map.keys <$> State.views_of block_id
+        return $ map (flip (,) tracknum) view_ids
+
+event_highlights :: Map.Map Color.Highlight Color.Color -> Cmd.Events
+    -> [((BlockId, TrackId), (Range, Color.Color))]
+event_highlights colors
+    | Map.null colors = const []
+    | otherwise = Seq.unique_on key . Vector.foldr collect []
+    where
+    key (track, (range, _)) = (track, range)
+    collect event accum
+        | highlight /= Color.NoHighlight,
+                Just (block_id, track_id, range) <- maybe_pos,
+                Just color <- Map.lookup highlight colors =
+            ((block_id, track_id), (range, color)) : accum
+        | otherwise = accum
+        where
+        highlight = Score.event_highlight event
+        maybe_pos = Stack.block_track_region_of $ Score.event_stack event
 
 -- * play
 

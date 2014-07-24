@@ -5,6 +5,7 @@
 module Ui.Color where
 import Data.Bits
 import qualified Data.List as List
+import qualified Data.Monoid as Monoid
 import Util.ForeignC
 
 import qualified Util.Num as Num
@@ -15,8 +16,8 @@ import qualified Ui.Util as Util
 -- | How to highlight an event in the UI.  This can be used to highlight
 -- instrumental restrictions, or for analysis.
 --
--- This doesn't really belong in this module, but I couldn't think of a better
--- place to put it that wouldn't incur unnecessary dependencies.
+-- TODO This doesn't really belong in this module, but I couldn't think of
+-- a better place to put it that wouldn't incur unnecessary dependencies.
 data Highlight =
     NoHighlight
     -- | This note is special in some way, perhaps an open string.
@@ -26,7 +27,12 @@ data Highlight =
     | Warning
     -- | This note is probably unplayable, e.g. out of range.
     | Error
-    deriving (Eq, Ord, Show)
+    deriving (Bounded, Eq, Enum, Ord, Show)
+
+-- | This is so more serious highlights can override less serious ones.
+instance Monoid.Monoid Highlight where
+    mempty = NoHighlight
+    mappend = max
 
 -- r, g, b, alpha, from 0--1
 data Color = Color !Double !Double !Double !Double

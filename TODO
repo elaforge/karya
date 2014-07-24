@@ -40,12 +40,12 @@ UNSORTED
       Block::set_selection takes vector<Selection>
         * fltk
         * haskell
-    - fill in App.Config.highlight_colors
-    - PlayC.cmd_play_msg should check derived events for Highlight and send
+    * fill in App.Config.highlight_colors
+    * PlayC.cmd_play_msg should check derived events for Highlight and send
       a selection accordingly.
-    - This means I can have simultaneous playback selections, so support that.
     - I can also emit Error highlights for instruments with
       Environ.instrument_top and Environ.instrument_bottom.
+  - I can now have simultaneous playback selections, so support that.
   * 8va could default to 0, with a duration could end with 0
   * LRuler.local is broken, this makes extra:
     > LRuler.local =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
