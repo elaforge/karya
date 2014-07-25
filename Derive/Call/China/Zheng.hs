@@ -9,6 +9,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
+import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.Lily as Lily
@@ -53,36 +54,6 @@ trill_variations make =
 
 -- * gliss
 
-gliss :: [PitchSignal.Pitch] -> RealTime -> Signal.Y -> Signal.Y -> RealTime
-    -> Derive.NoteDeriver
-gliss pitches time start_dyn end_dyn end = do
-    let dur = time / fromIntegral (length pitches)
-        start = end - time
-        ts = take (length pitches) (Seq.range_ start dur)
-        dyns = map (Num.scale start_dyn end_dyn . RealTime.to_seconds
-            . Num.normalize start end) ts
-    score_ts <- mapM Derive.score ts
-    score_dur <- Util.score_duration end dur
-    let note (t, p, dyn) = Derive.place t score_dur $ Util.with_dynamic dyn $
-            Util.pitched_note p
-    mconcat $ map note $ zip3 score_ts pitches dyns
-
-gliss_pitches :: [PitchSignal.Pitch] -> PitchSignal.Pitch -> Int
-    -> Derive.Deriver [PitchSignal.Pitch]
-gliss_pitches open_strings dest_pitch gliss_start = do
-    dest_nn <- Pitches.pitch_nn dest_pitch
-    -- TODO shouldn't need to eval them all
-    open_nns <- mapM Pitches.pitch_nn open_strings
-    let strings = Seq.sort_on snd $ zip open_strings open_nns
-    -- 0 2 4 6 8 10
-    return $ if gliss_start >= 0
-        -- 5 -> 6 8 10 -> 10 8 6 5
-        then reverse $ take gliss_start $ map fst $
-            dropWhile ((<=dest_nn) . snd) strings
-        -- 5 -> 0 2 4
-        else Seq.rtake (-gliss_start) $ map fst $
-            takeWhile ((<dest_nn) . snd) strings
-
 -- | Gracelessly factor both forms of glissando.
 --
 -- The other option would be a single call with an environ to switch between
@@ -113,11 +84,41 @@ make_gliss name is_absolute = Derive.make_call module_ name mempty
         dest_dyn <- Util.dynamic end
         let start_dyn = fromMaybe dest_dyn maybe_start_dyn
         pitches <- gliss_pitches open_strings dest_pitch gliss_start
-        gliss pitches
-            (if is_absolute then time else time * fromIntegral (length pitches))
-            start_dyn dest_dyn end
-            <> Util.placed_note args
+        let total_time = if is_absolute then time
+                else time * fromIntegral (length pitches)
+        Lily.when_lilypond (Grace.lily_grace args (end - time) pitches) $
+            gliss pitches total_time start_dyn dest_dyn end
+                <> Util.placed_note args
 
+gliss_pitches :: [PitchSignal.Pitch] -> PitchSignal.Pitch -> Int
+    -> Derive.Deriver [PitchSignal.Pitch]
+gliss_pitches open_strings dest_pitch gliss_start = do
+    dest_nn <- Pitches.pitch_nn dest_pitch
+    -- TODO shouldn't need to eval them all
+    open_nns <- mapM Pitches.pitch_nn open_strings
+    let strings = Seq.sort_on snd $ zip open_strings open_nns
+    -- 0 2 4 6 8 10
+    return $ if gliss_start >= 0
+        -- 5 -> 6 8 10 -> 10 8 6 5
+        then reverse $ take gliss_start $ map fst $
+            dropWhile ((<=dest_nn) . snd) strings
+        -- 5 -> 0 2 4
+        else Seq.rtake (-gliss_start) $ map fst $
+            takeWhile ((<dest_nn) . snd) strings
+
+gliss :: [PitchSignal.Pitch] -> RealTime -> Signal.Y -> Signal.Y -> RealTime
+    -> Derive.NoteDeriver
+gliss pitches time start_dyn end_dyn end = do
+    let dur = time / fromIntegral (length pitches)
+        start = end - time
+        ts = take (length pitches) (Seq.range_ start dur)
+        dyns = map (Num.scale start_dyn end_dyn . RealTime.to_seconds
+            . Num.normalize start end) ts
+    score_ts <- mapM Derive.score ts
+    score_dur <- Util.score_duration end dur
+    let note (t, p, dyn) = Derive.place t score_dur $ Util.with_dynamic dyn $
+            Util.pitched_note p
+    mconcat $ map note $ zip3 score_ts pitches dyns
 
 -- * trill
 
