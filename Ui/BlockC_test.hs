@@ -82,7 +82,7 @@ test_set_selection = do
     let ruler = mkruler 20 10
     insert_track view 1 (Block.T event_track_1 ruler) 30
     let c = Color.brightness 1.5 Color.blue
-        set = BlockC.set_selection True view 0 [1]
+        set = BlockC.set_selection view 0 [1]
     io_human "point selection appears" $
         send $ set [BlockC.Selection c 1 1 True]
     io_human "replaced by long selection" $

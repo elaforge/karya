@@ -36,6 +36,7 @@ module Ui.BlockC (
     -- | lookup_id and CView are only exported for Ui.UiMsgC which is a slight
     -- abstraction breakage.
     lookup_id, CView
+    , view_exists
 
     -- * view creation
     , create_view, destroy_view
@@ -66,6 +67,7 @@ import qualified Control.Exception as Exception
 import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Typeable as Typeable
 import Util.ForeignC
@@ -91,10 +93,7 @@ import qualified Ui.TrackC as TrackC
 import qualified App.Config as Config
 import Types
 
-
 #include "Ui/c_interface.h"
--- This is from http://haskell.org/haskellwiki/FFI_cook_book.  Is there a
--- better way?  I dunno, but this is clever and looks like it should work.
 
 withText :: Text -> (CString -> IO a) -> IO a
 withText = ByteString.useAsCString . Text.Encoding.encodeUtf8
@@ -131,12 +130,15 @@ lookup_id viewp = do
     ptr_map <- MVar.readMVar view_id_to_ptr
     return $ fst <$> List.find ((==viewp) . snd) (Map.assocs ptr_map)
 
+view_exists :: ViewId -> IO Bool
+view_exists = fmap Maybe.isJust . lookup_ptr
+
 -- * view creation
 
 -- | Create an empty block view with the given configs.  Tracks must be
 -- inserted separately.
 create_view :: ViewId -> Text -> Rect.Rect -> Block.Config -> Fltk ()
-create_view view_id window_title rect block_config =
+create_view view_id window_title rect block_config = annotate "create_view" $
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
         when (view_id `Map.member` ptr_map) $
             throw $ show view_id ++ " already in displayed view list: "
@@ -154,7 +156,7 @@ foreign import ccall "create"
         -> IO (Ptr CView)
 
 destroy_view :: ViewId -> Fltk ()
-destroy_view view_id = do
+destroy_view view_id = annotate "destroy_view" $ do
     viewp <- get_ptr view_id
     MVar.modifyMVar_ view_id_to_ptr $ \ptr_map -> do
         c_destroy viewp
@@ -164,7 +166,7 @@ foreign import ccall "destroy" c_destroy :: Ptr CView -> IO ()
 -- ** Set other attributes
 
 set_size :: ViewId -> Rect.Rect -> Fltk ()
-set_size view_id rect = do
+set_size view_id rect = annotate "set_size" $ do
     viewp <- get_ptr view_id
     c_set_size viewp (i x) (i y) (i w) (i h)
     where
@@ -174,7 +176,7 @@ foreign import ccall "set_size"
     c_set_size :: Ptr CView -> CInt -> CInt -> CInt -> CInt -> IO ()
 
 set_zoom :: ViewId -> Types.Zoom -> Fltk ()
-set_zoom view_id zoom = do
+set_zoom view_id zoom = annotate "set_zoom" $ do
     viewp <- get_ptr view_id
     with zoom $ \zoomp -> c_set_zoom viewp zoomp
 foreign import ccall "set_zoom"
@@ -182,39 +184,27 @@ foreign import ccall "set_zoom"
 
 -- | Set the scroll along the track dimension, in pixels.
 set_track_scroll :: ViewId -> Types.Width -> Fltk ()
-set_track_scroll view_id offset = do
+set_track_scroll view_id offset = annotate "set_track_scroll" $ do
     viewp <- get_ptr view_id
     c_set_track_scroll viewp (Util.c_int offset)
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
-set_selection :: Bool -- ^ If true, silently ignore a bad ViewId or TrackNums.
-    -- This can be called asynchronously by the play monitor, and its snapshot
-    -- of the state may be out of sync with the UI.
-    -> ViewId -> Types.SelNum -> [TrackNum] -> [Selection]
-    -> Fltk ()
-set_selection tolerant view_id selnum tracknums sels
+set_selection :: ViewId -> Types.SelNum -> [TrackNum] -> [Selection] -> Fltk ()
+set_selection view_id selnum tracknums sels
     | null tracknums = return ()
-    | tolerant = flip whenJust set =<< lookup_ptr view_id
-    | otherwise = set =<< get_ptr view_id
-    where
-    set viewp = withArrayLenNull sels $ \nsels selsp -> do
-        tracknums <- if tolerant then restrict tracknums else return tracknums
-        forM_ tracknums $ \tracknum ->
+    | otherwise = annotate "set_selection" $ do
+        viewp <- get_ptr view_id
+        withArrayLenNull sels $ \nsels selsp -> forM_ tracknums $ \tracknum ->
             c_set_selection viewp (Util.c_int selnum) (Util.c_int tracknum)
                 selsp (Util.c_int nsels)
-    restrict tracknums = do
-        n <- tracks view_id
-        return $ filter (<n) tracknums
-
--- void set_selection(BlockViewWindow *view, int selnum, int tracknum,
---     Selection *sels, int nsels);
 foreign import ccall "set_selection"
     c_set_selection :: Ptr CView -> CInt -> CInt -> Ptr Selection -> CInt
         -> IO ()
 
 bring_to_front :: ViewId -> Fltk ()
-bring_to_front view_id = c_bring_to_front =<< get_ptr view_id
+bring_to_front view_id =
+    annotate "bring_to_front" $ c_bring_to_front =<< get_ptr view_id
 foreign import ccall "bring_to_front" c_bring_to_front :: Ptr CView -> IO ()
 
 -- * Block operations
@@ -223,7 +213,7 @@ foreign import ccall "bring_to_front" c_bring_to_front :: Ptr CView -> IO ()
 -- this layer.
 
 set_model_config :: ViewId -> Block.Config -> Fltk ()
-set_model_config view_id config = do
+set_model_config view_id config = annotate "set_model_config" $ do
     viewp <- get_ptr view_id
     with config $ \configp -> c_set_model_config viewp configp
 foreign import ccall "set_model_config"
@@ -231,21 +221,22 @@ foreign import ccall "set_model_config"
 
 set_skeleton :: ViewId -> Skeleton.Skeleton
     -> [(Color.Color, [(TrackNum, TrackNum)])] -> [Block.Status] -> Fltk ()
-set_skeleton view_id skel integrate_edges statuses = do
-    viewp <- get_ptr view_id
-    with_skeleton_config (skeleton_edges skel integrate_edges) statuses $
-        \configp -> c_set_skeleton viewp configp
+set_skeleton view_id skel integrate_edges statuses =
+    annotate "set_skeleton" $ do
+        viewp <- get_ptr view_id
+        with_skeleton_config (skeleton_edges skel integrate_edges) statuses $
+            \configp -> c_set_skeleton viewp configp
 foreign import ccall "set_skeleton"
     c_set_skeleton :: Ptr CView -> Ptr SkeletonConfig -> IO ()
 
 set_title :: ViewId -> Text -> Fltk ()
-set_title view_id title = do
+set_title view_id title = annotate "set_title" $ do
     viewp <- get_ptr view_id
     withText title (c_set_title viewp)
 foreign import ccall "set_title" c_set_title :: Ptr CView -> CString -> IO ()
 
 set_status :: ViewId -> Text -> Color.Color -> Fltk ()
-set_status view_id status color = do
+set_status view_id status color = annotate "set_status" $ do
     viewp <- get_ptr view_id
     withText status $ \statusp -> with color $ \colorp ->
         c_set_status viewp statusp colorp
@@ -254,7 +245,7 @@ foreign import ccall "set_status"
 
 -- | Set block-local track status.
 set_display_track :: ViewId -> TrackNum -> Block.DisplayTrack -> Fltk ()
-set_display_track view_id tracknum dtrack = do
+set_display_track view_id tracknum dtrack = annotate "set_display_track" $ do
     viewp <- get_ptr view_id
     with dtrack $ \dtrackp ->
         c_set_display_track viewp (Util.c_int tracknum) dtrackp
@@ -265,7 +256,7 @@ foreign import ccall "set_display_track"
 
 edit_open :: ViewId -> TrackNum -> ScoreTime -> Text -> Maybe (Int, Int)
     -> Fltk ()
-edit_open view_id tracknum pos text selection = do
+edit_open view_id tracknum pos text selection = annotate "edit_open" $ do
     viewp <- get_ptr view_id
     let (sel_start, sel_end) = fromMaybe (-1, 0) selection
     Util.withText text $ \textp ->
@@ -276,7 +267,7 @@ foreign import ccall "edit_open"
         -> IO ()
 
 edit_insert :: [ViewId] -> Text -> Fltk ()
-edit_insert view_ids text =
+edit_insert view_ids text = annotate "edit_insert" $
     Util.withText text $ \textp -> forM_ view_ids $ \view_id -> do
         viewp <- get_ptr view_id
         c_edit_insert viewp textp
@@ -287,19 +278,21 @@ foreign import ccall "edit_insert"
 
 -- | Get the number of tracks on the block.
 tracks :: ViewId -> Fltk TrackNum
-tracks = fmap fromIntegral . c_tracks <=< get_ptr
+tracks view_id = annotate "tracks" $
+    fromIntegral <$> (c_tracks =<< get_ptr view_id)
 foreign import ccall "tracks" c_tracks  :: Ptr CView -> IO CInt
 
 insert_track :: ViewId -> TrackNum -> Block.Tracklike -> [Events.Events]
     -> Track.SetStyle -> Types.Width -> Fltk ()
-insert_track view_id tracknum tracklike merged set_style width = do
-    viewp <- get_ptr view_id
-    with_tracklike True merged set_style tracklike $ \tp mlistp len ->
-        c_insert_track viewp (Util.c_int tracknum) tp
-            (Util.c_int width) mlistp len
+insert_track view_id tracknum tracklike merged set_style width =
+    annotate "insert_track" $ do
+        viewp <- get_ptr view_id
+        with_tracklike True merged set_style tracklike $ \tp mlistp len ->
+            c_insert_track viewp (Util.c_int tracknum) tp
+                (Util.c_int width) mlistp len
 
 remove_track :: ViewId -> TrackNum -> Fltk ()
-remove_track view_id tracknum = do
+remove_track view_id tracknum = annotate "remove_track" $ do
     viewp <- get_ptr view_id
     c_remove_track viewp (Util.c_int tracknum)
 
@@ -309,7 +302,7 @@ update_track :: Bool -- ^ True if the ruler has changed and should be copied
     -> ViewId -> TrackNum -> Block.Tracklike
     -> [Events.Events] -> Track.SetStyle -> ScoreTime -> ScoreTime -> Fltk ()
 update_track update_ruler view_id tracknum tracklike merged set_style start
-        end = do
+        end = annotate "update_track" $ do
     viewp <- get_ptr view_id
     with_tracklike update_ruler merged set_style tracklike $ \tp mlistp len ->
         c_update_track viewp (Util.c_int tracknum) tp mlistp len
@@ -336,7 +329,7 @@ foreign import ccall "update_track"
 -- found.  That's because it's called asynchronously when derivation is
 -- complete.
 set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Fltk ()
-set_track_signal view_id tracknum tsig = do
+set_track_signal view_id tracknum tsig = annotate "set_track_signal" $ do
     maybe_viewp <- lookup_ptr view_id
     whenJust maybe_viewp $ \viewp -> with tsig $ \tsigp ->
         c_set_track_signal viewp (Util.c_int tracknum) tsigp
@@ -366,21 +359,22 @@ data TracklikePtr =
     | DPtr (Ptr Block.Divider)
 
 set_track_title :: ViewId -> TrackNum -> Text -> Fltk ()
-set_track_title view_id tracknum title = do
+set_track_title view_id tracknum title = annotate "set_track_title" $ do
     viewp <- get_ptr view_id
     withText title (c_set_track_title viewp (Util.c_int tracknum))
 foreign import ccall "set_track_title"
     c_set_track_title :: Ptr CView -> CInt -> CString -> IO ()
 
 set_track_title_focus :: ViewId -> TrackNum -> Fltk ()
-set_track_title_focus view_id tracknum = do
+set_track_title_focus view_id tracknum = annotate "set_track_title_focus" $ do
     viewp <- get_ptr view_id
     c_set_track_title_focus viewp (Util.c_int tracknum)
 foreign import ccall "set_track_title_focus"
     c_set_track_title_focus :: Ptr CView -> CInt -> IO ()
 
 set_block_title_focus :: ViewId -> Fltk ()
-set_block_title_focus view_id = c_set_block_title_focus =<< get_ptr view_id
+set_block_title_focus view_id = annotate "set_block_title_focus " $
+    c_set_block_title_focus =<< get_ptr view_id
 foreign import ccall "set_block_title_focus"
     c_set_block_title_focus :: Ptr CView -> IO ()
 
@@ -388,7 +382,7 @@ foreign import ccall "set_block_title_focus"
 -- ** debugging
 
 show_children :: ViewId -> IO String
-show_children view_id = do
+show_children view_id = annotate "show_children" $ do
     viewp <- get_ptr view_id
     c_show_children viewp (Util.c_int (-1)) >>= peekCString
 foreign import ccall "i_show_children"
@@ -554,3 +548,8 @@ instance Show FltkException where
 
 throw :: String -> IO a
 throw = Exception.throwIO . FltkException
+
+-- | Annotate thrown exceptions with a provenance.
+annotate :: String -> IO a -> IO a
+annotate name action = Exception.catch action $ \(FltkException exc) ->
+    Exception.throwIO $ FltkException $ name <> ": " <> exc

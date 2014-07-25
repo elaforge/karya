@@ -55,6 +55,7 @@ import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
+import qualified Ui.Util as Util
 
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.ParseTitle as ParseTitle
@@ -168,8 +169,8 @@ set_play_position chan block_sels = unless (null block_sels) $
     Ui.send_action chan $ sequence_ $ do
         (view_id, tracknum_pos) <- Seq.group_fst block_sels
         (tracknums, pos) <- Seq.group_snd (concat tracknum_pos)
-        return $ BlockC.set_selection True view_id
-            Config.play_position_selnum tracknums
+        return $ set_selection_carefully view_id
+            Config.play_position_selnum (Just tracknums)
             [BlockC.Selection Config.play_selection_color pos pos True]
 
 clear_play_position :: Ui.Channel -> ViewId -> IO ()
@@ -183,8 +184,8 @@ set_highlights chan view_sels = unless (null view_sels) $
     Ui.send_action chan $ sequence_ $ do
         (view_id, tracknum_sels) <- group_by_view view_sels
         (tracknum, range_colors) <- tracknum_sels
-        return $ BlockC.set_selection True view_id Config.highlight_selnum
-            [tracknum] (map make_sel range_colors)
+        return $ set_selection_carefully view_id Config.highlight_selnum
+            (Just [tracknum]) (map make_sel range_colors)
     where
     make_sel ((start, end), color) = BlockC.Selection color start end False
 
@@ -203,9 +204,21 @@ clear_highlights :: Ui.Channel -> ViewId -> IO ()
 clear_highlights = clear_selections Config.highlight_selnum
 
 clear_selections :: Types.SelNum -> Ui.Channel -> ViewId -> IO ()
-clear_selections selnum chan view_id = Ui.send_action chan $ do
-    tracks <- BlockC.tracks view_id
-    BlockC.set_selection True view_id selnum [0 .. tracks - 1] []
+clear_selections selnum chan view_id = Ui.send_action chan $
+    set_selection_carefully view_id selnum Nothing []
+
+-- | Call 'BlockC.set_selection', but be careful to not pass it a bad ViewId or
+-- TrackNum.
+--
+-- This can be called outside of the responder loop, and the caller may have
+-- an out of date UI state.
+set_selection_carefully :: ViewId -> Types.SelNum -> Maybe [TrackNum]
+    -> [BlockC.Selection] -> Util.Fltk ()
+set_selection_carefully view_id selnum maybe_tracknums sels =
+    whenM (BlockC.view_exists view_id) $ do
+        tracks <- BlockC.tracks view_id
+        let tracknums = maybe [0 .. tracks-1] (filter (<tracks)) maybe_tracknums
+        BlockC.set_selection view_id selnum tracknums sels
 
 edit_input :: State.State -> Cmd.EditInput -> IO ()
 edit_input _ (Cmd.EditOpen view_id tracknum at text selection) =
@@ -291,7 +304,7 @@ update_view track_signals set_style view_id Update.CreateView = do
             (Block.integrate_skeleton block) (map Block.dtrack_status dtracks)
         forM_ selnum_sels $ \(selnum, tracknums_sels) ->
             forM_ tracknums_sels $ \(tracknums, sels) ->
-                BlockC.set_selection False view_id selnum tracknums sels
+                BlockC.set_selection view_id selnum tracknums sels
         BlockC.set_status view_id (Block.show_status (Block.view_status view))
             (Block.status_color (Block.view_block view) block
                 (State.config_root (State.state_config state)))
@@ -313,7 +326,7 @@ update_view _ _ view_id update = case update of
         tracks <- BlockC.tracks view_id
         let tracknums_sels = track_selections selnum tracks maybe_sel
         forM_ tracknums_sels $ \(tracknums, sels) ->
-            BlockC.set_selection False view_id selnum tracknums sels
+            BlockC.set_selection view_id selnum tracknums sels
     Update.BringToFront -> return $ BlockC.bring_to_front view_id
     Update.TitleFocus tracknum ->
         return $ maybe (BlockC.set_block_title_focus view_id)
