@@ -6,12 +6,13 @@ UNSORTED
   - lilypond: I want to put bass clef notes on their own track.
     Then, lilypond has a grand staff but only when the bass is non-empty, and
     all notes are xstaff.
+    . \autochange is not quite right, because I want better control over notes
     . Use StaffGroup, not PianoStaff.
     . Add a "down" staff with s1*n
     . Put \RemoveEmptyStaves after \new Staff = "down"
     . Add \override Staff.VerticalAxisGroup.remove-first = ##t
-
-    \autochange is not quite right, because I want better control over notes
+    - xstaff call wraps all events in (up ... down)
+    - staff setting that emits StaffGroup and the necessary magic
   - delete track while playing gives assertion failed at fltk/TrackTile.cc:255
   new C++11 features:
     - range-for: for (auto sel : sels)

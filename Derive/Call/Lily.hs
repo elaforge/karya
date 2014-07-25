@@ -383,13 +383,15 @@ c_8va = code0_pair_call "ottava" "Emit lilypond ottava mark.\
 c_xstaff :: Make.Calls Derive.Note
 c_xstaff = code0_call "xstaff"
     "Emit lilypond to put the notes on a different staff."
-    (required "staff" "Should be `up` or `down`.") $ \staff -> do
-        when (staff `notElem` ["down", "up"]) $
-            Derive.throw $ "expected 'up' or 'down', got "
-                <> untxt (ShowVal.show_val staff)
+    (TrackLang.get_e <$> required "staff" "Switch to this staff.") $ \staff ->
         return (Prefix, change staff)
     where
-    change staff = "\\change Staff = " <> Types.to_lily (staff :: Text)
+    change :: Direction -> Ly
+    change staff = "\\change Staff = " <> Types.to_lily (ShowVal.show_val staff)
+
+data Direction = Up | Down deriving (Bounded, Eq, Enum, Show)
+instance ShowVal.ShowVal Direction where show_val = TrackLang.default_show_val
+instance TrackLang.TypecheckEnum Direction
 
 c_dyn :: Make.Calls Derive.Note
 c_dyn = code0_call "dyn"
