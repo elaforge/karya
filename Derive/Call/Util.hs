@@ -246,15 +246,12 @@ nn_at pos control = -- TODO throw exception?
 
 -- * dynamic
 
--- | Get the Pitch at the particular point in time in the default pitch
--- signal.  As per 'Derive.pitch_at', the transposition controls have not been
--- applied.
+-- | Unlike 'Derive.pitch_at', the transposition has already been applied.
 pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Pitch)
-pitch = Derive.pitch_at
+pitch pos = justm (Derive.pitch_at pos) $ fmap Just . Derive.resolve_pitch pos
 
 get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
-get_pitch pos = Derive.require ("no pitch at " ++ pretty pos)
-    =<< Derive.pitch_at pos
+get_pitch pos = Derive.require ("no pitch at " ++ pretty pos) =<< pitch pos
 
 get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch) -> RealTime
     -> Derive.Deriver Pitch.Pitch
