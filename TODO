@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - fltk: if I directly change focus from one expanded track title to another,
+    the second track is shifted downwards
   - lilypond: I want to put bass clef notes on their own track.
     Then, lilypond has a grand staff but only when the bass is non-empty, and
     all notes are xstaff.
@@ -11,7 +13,7 @@ UNSORTED
     . Add a "down" staff with s1*n
     . Put \RemoveEmptyStaves after \new Staff = "down"
     . Add \override Staff.VerticalAxisGroup.remove-first = ##t
-    - xstaff call wraps all events in (up ... down)
+    * xstaff call wraps all events in (up ... down)
     - staff setting that emits StaffGroup and the necessary magic
   - delete track while playing gives assertion failed at fltk/TrackTile.cc:255
   new C++11 features:

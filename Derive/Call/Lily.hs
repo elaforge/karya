@@ -191,15 +191,30 @@ code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
 code0 :: ScoreTime -> Code -> Derive.NoteDeriver
-code0 start (pos_, code) = with (Derive.place start 0 Util.note)
-    where
-    -- SuffixFirst and SuffixLast are not used for 0 dur events, so make it
-    -- less error-prone by getting rid of them.  Ick.
-    pos = case pos_ of
-        SuffixFirst -> SuffixAll
-        SuffixLast -> SuffixAll
-        _ -> pos_
-    with = Derive.with_val (position_env pos) code
+code0 start (pos, code) = with (Derive.place start 0 Util.note)
+    where with = Derive.with_val (position_env (code0_pos pos)) code
+
+-- | Make a code0 event directly.  Inherit instrument and environ from an
+-- existing note.  Otherwise, the lilypond backend doesn't know how to group
+-- the code event.
+code0_event :: Score.Event -> RealTime -> Code -> Score.Event
+code0_event event start (pos, code) = Score.empty_event
+    { Score.event_start = start
+    , Score.event_text = code
+    , Score.event_stack = Score.event_stack event
+    , Score.event_instrument = Score.event_instrument event
+    , Score.event_environ = TrackLang.insert_val
+        (position_env (code0_pos pos)) (TrackLang.to_val code)
+        (Score.event_environ event)
+    }
+
+-- | SuffixFirst and SuffixLast are not used for 0 dur events, so make it
+-- less error-prone by getting rid of them.  Ick.
+code0_pos :: CodePosition -> CodePosition
+code0_pos pos = case pos of
+    SuffixFirst -> SuffixAll
+    SuffixLast -> SuffixAll
+    _ -> pos
 
 global_code0 :: ScoreTime -> Code -> Derive.NoteDeriver
 global_code0 start = global . code0 start
@@ -381,13 +396,15 @@ c_8va = code0_pair_call "ottava" "Emit lilypond ottava mark.\
     ottava n = (Prefix, "\\ottava #" <> showt n)
 
 c_xstaff :: Make.Calls Derive.Note
-c_xstaff = code0_call "xstaff"
+c_xstaff = code0_around_call "xstaff"
     "Emit lilypond to put the notes on a different staff."
     (TrackLang.get_e <$> required "staff" "Switch to this staff.") $ \staff ->
-        return (Prefix, change staff)
+        return ((Prefix, change staff), (Prefix, change (other staff)))
     where
     change :: Direction -> Ly
     change staff = "\\change Staff = " <> Types.to_lily (ShowVal.show_val staff)
+    other Up = Down
+    other Down = Up
 
 data Direction = Up | Down deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal Direction where show_val = TrackLang.default_show_val
@@ -553,6 +570,29 @@ code0_call :: Text -> Text -> Sig.Parser a -> (a -> Derive.Deriver Code)
 code0_call name doc sig make_code =
     make_code_call name (doc <> code0_doc) sig $ \_ val args ->
         code0 (Args.start args) =<< make_code val
+
+code0_around_call :: Text -> Text -> Sig.Parser a
+    -> (a -> Derive.Deriver (Code, Code))
+    -> Make.Calls Derive.Note
+code0_around_call name doc sig make_code = (gen, trans)
+    where
+    around_doc = code0_doc
+        <> " The transformer will wrap each event in (start, end) pairs.\
+        \ This way you can wrap all notes on a certain track with\
+        \ complementary bits of lilypond code."
+    gen = make_call name mempty (doc <> around_doc) $
+        Sig.call sig $ \val args -> only_lilypond $ do
+            (code1, _) <- make_code val
+            code0 (Args.start args) code1 <> place_notes args
+    trans = transformer name mempty (doc <> around_doc) $
+        Sig.callt sig $ \val _args deriver ->
+            when_lilypond (transform val deriver) deriver
+    transform val deriver = do
+        (code1, code2) <- make_code val
+        Post.map_events_asc_ (apply code1 code2) <$> deriver
+    apply code1 code2 event =
+        [code0_event event start code1, event, code0_event event end code2]
+        where (start, end) = (Score.event_start event, Score.event_end event)
 
 -- | Like 'code0_call', except that the call can emit 2 Codes.  The second
 -- will be used at the end of the event if it has non-zero duration and is
