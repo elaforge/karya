@@ -188,19 +188,24 @@ set_track_scroll view_id offset = do
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
--- | This can be called asynchronously by the play monitor, so it takes an
--- extra flag to not throw an exception if the ViewId no longer exists.
-set_selection :: Bool -> ViewId -> Types.SelNum -> [TrackNum] -> [Selection]
+set_selection :: Bool -- ^ If true, silently ignore a bad ViewId or TrackNums.
+    -- This can be called asynchronously by the play monitor, and its snapshot
+    -- of the state may be out of sync with the UI.
+    -> ViewId -> Types.SelNum -> [TrackNum] -> [Selection]
     -> Fltk ()
-set_selection require_view view_id selnum tracknums sels
+set_selection tolerant view_id selnum tracknums sels
     | null tracknums = return ()
-    | require_view = set =<< get_ptr view_id
-    | otherwise = flip whenJust set =<< lookup_ptr view_id
+    | tolerant = flip whenJust set =<< lookup_ptr view_id
+    | otherwise = set =<< get_ptr view_id
     where
-    set viewp = withArrayLenNull sels $ \nsels selsp ->
+    set viewp = withArrayLenNull sels $ \nsels selsp -> do
+        tracknums <- if tolerant then restrict tracknums else return tracknums
         forM_ tracknums $ \tracknum ->
             c_set_selection viewp (Util.c_int selnum) (Util.c_int tracknum)
                 selsp (Util.c_int nsels)
+    restrict tracknums = do
+        n <- tracks view_id
+        return $ filter (<n) tracknums
 
 -- void set_selection(BlockViewWindow *view, int selnum, int tracknum,
 --     Selection *sels, int nsels);

@@ -15,7 +15,7 @@ UNSORTED
     . Add \override Staff.VerticalAxisGroup.remove-first = ##t
     * xstaff call wraps all events in (up ... down)
     - staff setting that emits StaffGroup and the necessary magic
-  - delete track while playing gives assertion failed at fltk/TrackTile.cc:255
+  * delete track while playing gives assertion failed at fltk/TrackTile.cc:255
   new C++11 features:
     - range-for: for (auto sel : sels)
     - auto

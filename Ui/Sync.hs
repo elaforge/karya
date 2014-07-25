@@ -168,7 +168,7 @@ set_play_position chan block_sels = unless (null block_sels) $
     Ui.send_action chan $ sequence_ $ do
         (view_id, tracknum_pos) <- Seq.group_fst block_sels
         (tracknums, pos) <- Seq.group_snd (concat tracknum_pos)
-        return $ BlockC.set_selection False view_id
+        return $ BlockC.set_selection True view_id
             Config.play_position_selnum tracknums
             [BlockC.Selection Config.play_selection_color pos pos True]
 
@@ -183,7 +183,7 @@ set_highlights chan view_sels = unless (null view_sels) $
     Ui.send_action chan $ sequence_ $ do
         (view_id, tracknum_sels) <- group_by_view view_sels
         (tracknum, range_colors) <- tracknum_sels
-        return $ BlockC.set_selection False view_id Config.highlight_selnum
+        return $ BlockC.set_selection True view_id Config.highlight_selnum
             [tracknum] (map make_sel range_colors)
     where
     make_sel ((start, end), color) = BlockC.Selection color start end False
@@ -205,7 +205,7 @@ clear_highlights = clear_selections Config.highlight_selnum
 clear_selections :: Types.SelNum -> Ui.Channel -> ViewId -> IO ()
 clear_selections selnum chan view_id = Ui.send_action chan $ do
     tracks <- BlockC.tracks view_id
-    BlockC.set_selection False view_id selnum [0 .. tracks - 1] []
+    BlockC.set_selection True view_id selnum [0 .. tracks - 1] []
 
 edit_input :: State.State -> Cmd.EditInput -> IO ()
 edit_input _ (Cmd.EditOpen view_id tracknum at text selection) =
@@ -291,7 +291,7 @@ update_view track_signals set_style view_id Update.CreateView = do
             (Block.integrate_skeleton block) (map Block.dtrack_status dtracks)
         forM_ selnum_sels $ \(selnum, tracknums_sels) ->
             forM_ tracknums_sels $ \(tracknums, sels) ->
-                BlockC.set_selection True view_id selnum tracknums sels
+                BlockC.set_selection False view_id selnum tracknums sels
         BlockC.set_status view_id (Block.show_status (Block.view_status view))
             (Block.status_color (Block.view_block view) block
                 (State.config_root (State.state_config state)))
@@ -313,7 +313,7 @@ update_view _ _ view_id update = case update of
         tracks <- BlockC.tracks view_id
         let tracknums_sels = track_selections selnum tracks maybe_sel
         forM_ tracknums_sels $ \(tracknums, sels) ->
-            BlockC.set_selection True view_id selnum tracknums sels
+            BlockC.set_selection False view_id selnum tracknums sels
     Update.BringToFront -> return $ BlockC.bring_to_front view_id
     Update.TitleFocus tracknum ->
         return $ maybe (BlockC.set_block_title_focus view_id)
