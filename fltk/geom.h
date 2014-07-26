@@ -15,7 +15,7 @@
 // so code has access to debugging printf
 #include <stdio.h>
 
-namespace geom_util {
+namespace geom {
 
 // Point
 

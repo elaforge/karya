@@ -7,9 +7,9 @@
 
 #include <string.h>
 #include <utility>
-#include "geom_util.h"
+#include "geom.h"
 
-using namespace geom_util;
+using namespace geom;
 
 
 #define DEBUG(X) do { std::cout << __FILE__ << ':' << __LINE__ << ' ' \

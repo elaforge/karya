@@ -30,7 +30,7 @@ UNSORTED
     - override syntax: virtual void x() override;
   - If you have a multiple track selection and press an arrow key, the single
     track selection should start from cur track.
-  - rename fltk/geom_util to just geom, and import qualified
+  * rename fltk/geom_util to just geom
   - import f_util qualified
   Highlight events.
     . This way I can highlight pitches not on open strings.  This would also
