@@ -234,24 +234,24 @@ default_edit_state = Cmd.initial_edit_state
 
 -- ** cmds
 
-set_sel :: (Cmd.M m) => Types.TrackNum -> ScoreTime -> Types.TrackNum
+set_sel :: Cmd.M m => Types.TrackNum -> ScoreTime -> Types.TrackNum
     -> ScoreTime -> m ()
 set_sel = set_sel_on UiTest.default_view_id
 
-set_sel_on :: (Cmd.M m) => ViewId -> Types.TrackNum -> ScoreTime
+set_sel_on :: Cmd.M m => ViewId -> Types.TrackNum -> ScoreTime
     -> Types.TrackNum -> ScoreTime -> m ()
 set_sel_on view_id start_track start_pos cur_track cur_pos = do
     let sel = Types.selection start_track start_pos cur_track cur_pos
     Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
     State.set_selection view_id Config.insert_selnum (Just sel)
 
-set_point_sel :: (State.M m) => Types.TrackNum -> ScoreTime -> m Cmd.Status
+set_point_sel :: State.M m => Types.TrackNum -> ScoreTime -> m Cmd.Status
 set_point_sel tracknum pos = do
     set_point_sel_block UiTest.default_block_name tracknum pos
     return Cmd.Done
 
 -- | Set a point selection on the default view of the given block name.
-set_point_sel_block :: (State.M m) => String -> Types.TrackNum -> ScoreTime
+set_point_sel_block :: State.M m => String -> Types.TrackNum -> ScoreTime
     -> m ()
 set_point_sel_block block_name tracknum pos = State.set_selection view_id
         Config.insert_selnum (Just (Types.point_selection tracknum pos))
@@ -457,13 +457,12 @@ oct_pc oct pc = pitch oct pc 0
 
 -- * setup cmds
 
-set_scale :: (Cmd.M m) => BlockId -> BlockId -> TrackId -> Pitch.ScaleId
-    -> m ()
+set_scale :: Cmd.M m => BlockId -> BlockId -> TrackId -> Pitch.ScaleId -> m ()
 set_scale root_id block_id track_id scale_id = set_env root_id block_id track_id
     [(Environ.scale, TrackLang.VSymbol (TrackLang.scale_id_to_sym scale_id))]
 
 -- | Fake up just enough Performance to have environ in it.
-set_env :: (Cmd.M m) => BlockId -> BlockId -> TrackId
+set_env :: Cmd.M m => BlockId -> BlockId -> TrackId
     -> [(TrackLang.ValName, TrackLang.Val)] -> m ()
 set_env root_id block_id track_id environ =
     Cmd.modify_play_state $ \st -> st

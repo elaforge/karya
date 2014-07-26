@@ -122,7 +122,7 @@ track_edges track_ids = concatMap edges
                 in zip (tracknum : control_nums) control_nums
     tracknum_of track_id = List.elemIndex (Just track_id) track_ids
 
-all_block_tracks :: (State.M m) => BlockId -> m [Maybe TrackId]
+all_block_tracks :: State.M m => BlockId -> m [Maybe TrackId]
 all_block_tracks block_id =
     map Block.track_id . Block.block_tracks <$> State.get_block block_id
 
@@ -247,7 +247,7 @@ score_merge_pair block_id pair = case pair of
         merge_track stacked dest
         return $ Just (source_id, (fst dest, make_index stacked))
 
-clear_generated_events :: (State.M m) => TrackId -> m ()
+clear_generated_events :: State.M m => TrackId -> m ()
 clear_generated_events track_id = State.modify_events track_id $
     Events.from_list . filter (Maybe.isNothing . Event.stack) . Events.ascending
 

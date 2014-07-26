@@ -81,7 +81,7 @@ get_track_cmds = do
     return $ icmds ++ edit_input_cmd : with_input (input_cmds edit_mode track)
         : tcmds ++ kcmds
 
-lookup_midi_info :: (Cmd.M m) => BlockId -> TrackId -> m (Maybe Cmd.MidiInfo)
+lookup_midi_info :: Cmd.M m => BlockId -> TrackId -> m (Maybe Cmd.MidiInfo)
 lookup_midi_info block_id track_id =
     justm (Perf.lookup_instrument block_id (Just track_id)) $ \inst ->
     Cmd.lookup_instrument inst
@@ -123,7 +123,7 @@ track_cmds edit_mode track = case Info.track_type track of
         _ -> []
 
 -- | Track-specific keymaps.
-keymap_cmds :: (Cmd.M m) => Info.Track -> m [Cmd.Cmd]
+keymap_cmds :: Cmd.M m => Info.Track -> m [Cmd.Cmd]
 keymap_cmds track = case Info.track_type track of
     Info.Note {} -> do
         let (cmd_map, warns) = NoteTrackKeymap.make_keymap

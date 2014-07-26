@@ -38,7 +38,7 @@ import Types
 -- renamed with @-1@ and @-2@ suffixes, respectively.  The old block is renamed
 -- for symmetry with the new one, but mostly because it's changed duration, so
 -- previous calls are probably no longer valid.
-split_time :: (Cmd.M m) => m BlockId -- ^ BlockId of new block
+split_time :: Cmd.M m => m BlockId -- ^ BlockId of new block
 split_time = do
     (block_id, _, _, pos) <- Selection.get_insert
     let (from_block, to_block) = split_names block_id
@@ -51,7 +51,7 @@ split_time = do
 -- | Create a new block from template, then copy over all the events below the
 -- given time.  Clear the source track, and trim events that overlap the split
 -- point.  Modify the ruler (locally!) in the old and new blocks.
-split_time_at :: (State.M m) => BlockId -> ScoreTime -> Text -> m BlockId
+split_time_at :: State.M m => BlockId -> ScoreTime -> Text -> m BlockId
 split_time_at from_block_id pos block_name = do
     tracks <- State.tracknums_of from_block_id
     -- Copy over the new events.
@@ -87,7 +87,7 @@ split_names block_id = (name <> "-1", name <> "-2")
 --
 -- Unlike 'split_time' I don't rename the source block, because the length
 -- unchanged.
-split_track :: (Cmd.M m) => m BlockId
+split_track :: Cmd.M m => m BlockId
 split_track = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     to_block_id <- split_track_at block_id tracknum
@@ -95,7 +95,7 @@ split_track = do
     Create.view to_block_id
     return to_block_id
 
-split_track_at :: (State.M m) => BlockId -> TrackNum -> Text -> m BlockId
+split_track_at :: State.M m => BlockId -> TrackNum -> Text -> m BlockId
 split_track_at from_block_id split_at block_name = do
     to_block_id <- Create.named_block block_name
         =<< State.ruler_of from_block_id
@@ -116,15 +116,15 @@ split_track_at from_block_id split_at block_name = do
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
-selection :: (Cmd.M m) => Text -> m BlockId
+selection :: Cmd.M m => Text -> m BlockId
 selection = selection_ False
 
-selection_relative :: (Cmd.M m) => Text -> m BlockId
+selection_relative :: Cmd.M m => Text -> m BlockId
 selection_relative = selection_ True
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
-selection_ :: (Cmd.M m) => Bool -- ^ create dot-prefixed relative block call
+selection_ :: Cmd.M m => Bool -- ^ create dot-prefixed relative block call
     -> Text -> m BlockId
 selection_ create_relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
@@ -213,7 +213,7 @@ make_block_call parent block_id
 -- | If there's a point selection, create a new empty block based on the
 -- current one.  If the selection has time, then the new block will have only
 -- the selected tracks with a ruler clipped to the selected range.
-block_from_template :: (Cmd.M m) => m ()
+block_from_template :: Cmd.M m => m ()
 block_from_template = do
     (_, sel) <- Selection.get
     if Types.sel_is_point sel
@@ -221,7 +221,7 @@ block_from_template = do
             =<< Cmd.get_focused_block
         else void block_template_from_selection
 
-delete_empty_tracks :: (State.M m) => BlockId -> m ()
+delete_empty_tracks :: State.M m => BlockId -> m ()
 delete_empty_tracks block_id = do
     let empty = Events.null . Track.track_events
     track_ids <- filterM (fmap empty . State.get_track)
@@ -230,7 +230,7 @@ delete_empty_tracks block_id = do
 
 -- * named block
 
-block_template_from_selection :: (Cmd.M m) => m BlockId
+block_template_from_selection :: Cmd.M m => m BlockId
 block_template_from_selection =
     Selection.tracks >>= \(block_id, _, track_ids, start, end) -> do
         to_block_id <- block_template block_id track_ids start end
@@ -239,7 +239,7 @@ block_template_from_selection =
 
 -- | Create a new block with the given tracks and ruler clipped to the given
 -- range.
-block_template :: (State.M m) => BlockId -> [TrackId] -> TrackTime -> TrackTime
+block_template :: State.M m => BlockId -> [TrackId] -> TrackTime -> TrackTime
     -> m BlockId
 block_template block_id track_ids start end = do
     to_block_id <- Create.block =<< State.block_ruler block_id
@@ -254,7 +254,7 @@ block_template block_id track_ids start end = do
         Meter.clip (Meter.time_to_duration start) (Meter.time_to_duration end)
     return to_block_id
 
-clipped_skeleton :: (State.M m) => BlockId -> BlockId -> [TrackNum] -> m ()
+clipped_skeleton :: State.M m => BlockId -> BlockId -> [TrackNum] -> m ()
 clipped_skeleton from_block to_block tracknums =
     case (Seq.minimum tracknums, Seq.maximum tracknums) of
         (Just low, Just high) -> do
@@ -268,7 +268,7 @@ clipped_skeleton from_block to_block tracknums =
 -- * order block
 
 -- | Create a new block containing calls to the given BlockIds.
-order_block :: (Cmd.M m) => Text -> [BlockId] -> m BlockId
+order_block :: Cmd.M m => Text -> [BlockId] -> m BlockId
 order_block name block_ids = do
     block_id <- Create.named_block name State.no_ruler
     order_track block_id block_ids
@@ -279,7 +279,7 @@ order_block name block_ids = do
 -- calling track will have a 1:1 time relationship with the calls, which is
 -- useful for lilypond derivation since it only understands 1:1.  Also
 -- modify the ruler to be the concatenation of the rulers of the sub-blocks.
-order_track :: (State.M m) => BlockId -> [BlockId] -> m TrackId
+order_track :: State.M m => BlockId -> [BlockId] -> m TrackId
 order_track block_id sub_blocks = do
     ruler_ids <- mapM State.ruler_of sub_blocks
     meters <- mapM RulerUtil.get_meter ruler_ids

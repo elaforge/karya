@@ -35,7 +35,7 @@ import Types
 
 -- * block
 
-cmd_toggle_edge :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_toggle_edge :: Cmd.M m => Msg.Msg -> m ()
 cmd_toggle_edge msg = do
     (block_id, sel_tracknum, _, _) <- Selection.get_insert
     clicked_tracknum <- Cmd.abort_unless $ clicked_track msg
@@ -59,7 +59,7 @@ clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
 
 -- | Merge all adjacent note/pitch pairs.  If they're already all merged,
 -- unmerge them all.
-toggle_merge_all :: (State.M m) => BlockId -> m ()
+toggle_merge_all :: State.M m => BlockId -> m ()
 toggle_merge_all block_id = do
     tracks <- Info.block_tracks block_id
     let note_pitches = do
@@ -71,11 +71,11 @@ toggle_merge_all block_id = do
         (mapM_ (State.unmerge_track block_id . fst) note_pitches)
         (mapM_ (uncurry (State.merge_track block_id)) note_pitches)
 
-track_merged :: (State.M m) => BlockId -> TrackNum -> m Bool
+track_merged :: State.M m => BlockId -> TrackNum -> m Bool
 track_merged block_id tracknum = not . null . Block.track_merged <$>
     State.get_block_track_at block_id tracknum
 
-cmd_open_block :: (Cmd.M m) => m ()
+cmd_open_block :: Cmd.M m => m ()
 cmd_open_block = do
     sel <- Selection.events
     block_id <- Cmd.get_focused_block
@@ -86,7 +86,7 @@ cmd_open_block = do
             maybe (Create.view block_id >> return ())
                 ViewConfig.bring_to_front (Seq.head (Map.keys views))
 
-cmd_add_block_title :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_add_block_title :: Cmd.M m => Msg.Msg -> m ()
 cmd_add_block_title _ = do
     view_id <- Cmd.get_focused_view
     block_id <- Block.view_block <$> State.get_view view_id
@@ -98,7 +98,7 @@ cmd_add_block_title _ = do
 -- * collapse / expand tracks
 
 -- | Collapse all the children of this track.
-collapse_children :: (State.M m) => BlockId -> TrackId -> m ()
+collapse_children :: State.M m => BlockId -> TrackId -> m ()
 collapse_children block_id track_id = do
     children <- State.require ("no children: " ++ show track_id)
         =<< TrackTree.children_of block_id track_id
@@ -107,7 +107,7 @@ collapse_children block_id track_id = do
 
 -- | Expand all collapsed children of this track.  Tracks that were merged
 -- when they were collapsed will be left merged.
-expand_children :: (State.M m) => BlockId -> TrackId -> m ()
+expand_children :: State.M m => BlockId -> TrackId -> m ()
 expand_children block_id track_id = do
     children <- State.require ("no children: " ++ show track_id)
         =<< TrackTree.children_of block_id track_id
@@ -120,7 +120,7 @@ expand_children block_id track_id = do
 
 -- * merge blocks
 
-append :: (State.M m) => BlockId -> BlockId -> m ()
+append :: State.M m => BlockId -> BlockId -> m ()
 append dest source = do
     -- By convention the first track is just a ruler.
     tracks <- drop 1 . Block.block_tracks <$> State.get_block source
@@ -153,7 +153,7 @@ cmd_toggle_flag flag = do
         then State.remove_track_flag block_id tracknum flag
         else State.add_track_flag block_id tracknum flag
 
-cmd_toggle_flag_clicked :: (Cmd.M m) => Block.TrackFlag -> Msg.Msg -> m ()
+cmd_toggle_flag_clicked :: Cmd.M m => Block.TrackFlag -> Msg.Msg -> m ()
 cmd_toggle_flag_clicked flag msg = do
     tracknum <- Cmd.abort_unless $ clicked_track msg
     block_id <- Cmd.get_focused_block
@@ -162,7 +162,7 @@ cmd_toggle_flag_clicked flag msg = do
 -- | Enable Solo on the track and disable Mute.  It's bound to a double click
 -- so when this cmd fires I have to do undo the results of the single click.
 -- Perhaps mute and solo should be exclusive in general.
-cmd_set_solo :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_set_solo :: Cmd.M m => Msg.Msg -> m ()
 cmd_set_solo msg = do
     tracknum <- Cmd.abort_unless $ clicked_track msg
     block_id <- Cmd.get_focused_block
@@ -170,7 +170,7 @@ cmd_set_solo msg = do
     State.toggle_track_flag block_id tracknum Block.Solo
 
 -- | Unset solo if it's set, otherwise toggle the mute flag.
-cmd_mute_or_unsolo :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_mute_or_unsolo :: Cmd.M m => Msg.Msg -> m ()
 cmd_mute_or_unsolo msg = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.abort_unless $ clicked_track msg
@@ -179,14 +179,14 @@ cmd_mute_or_unsolo msg = do
         then State.remove_track_flag block_id tracknum Block.Solo
         else State.toggle_track_flag block_id tracknum Block.Mute
 
-cmd_expand_track :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_expand_track :: Cmd.M m => Msg.Msg -> m ()
 cmd_expand_track msg = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.abort_unless $ clicked_track msg
     State.remove_track_flag block_id tracknum Block.Collapse
 
 -- | Move selected tracks to the left of the clicked track.
-cmd_move_tracks :: (Cmd.M m) => Msg.Msg -> m ()
+cmd_move_tracks :: Cmd.M m => Msg.Msg -> m ()
 cmd_move_tracks msg = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
     clicked <- Cmd.abort_unless $ clicked_track msg
@@ -196,7 +196,7 @@ cmd_move_tracks msg = do
     whenJust (Seq.minimum_on abs $ map (clicked-) tracknums) $
         Selection.shift False
 
-move_tracks :: (State.M m) => BlockId -> [TrackNum] -> TrackNum -> m ()
+move_tracks :: State.M m => BlockId -> [TrackNum] -> TrackNum -> m ()
 move_tracks block_id sources dest =
     mapM_ (uncurry (State.move_track block_id)) moves
     where

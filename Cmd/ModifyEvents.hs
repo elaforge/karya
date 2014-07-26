@@ -138,7 +138,7 @@ all_pitch_tracks = all_tracks_named ParseTitle.is_pitch_track
 -- * misc
 
 -- | Move everything at or after @start@ by @shift@.
-move_track_events :: (State.M m) => ScoreTime -> ScoreTime -> ScoreTime
+move_track_events :: State.M m => ScoreTime -> ScoreTime -> ScoreTime
     -> TrackId -> m ()
 move_track_events block_end start shift track_id =
     State.modify_events track_id $ \events ->

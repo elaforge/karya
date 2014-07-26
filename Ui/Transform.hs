@@ -23,7 +23,7 @@ import Types
 
 
 -- | Transform TracklikeIds.
-tracks :: (State.M m) => BlockId
+tracks :: State.M m => BlockId
     -> (Block.TracklikeId -> Block.TracklikeId) -> m ()
 tracks block_id f = do
     block <- modify <$> State.get_block block_id
@@ -46,14 +46,14 @@ map_state_ids f state = State.exec state (map_ids f)
 -- when you are sure there are no visible views (\"invisible\" views occur
 -- after they are created but before the sync).  This should probably only be
 -- used by 'map_state_ids'.
-map_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
+map_ids :: State.M m => (Id.Id -> Id.Id) -> m ()
 map_ids f = do
     map_view_ids f
     map_block_ids f
     map_track_ids f
     map_ruler_ids f
 
-map_view_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
+map_view_ids :: State.M m => (Id.Id -> Id.Id) -> m ()
 map_view_ids f = do
     views <- State.gets State.state_views
     let view_f = Id.ViewId . f . Id.unpack_id
@@ -61,7 +61,7 @@ map_view_ids f = do
     State.modify $ \st -> st { State.state_views = new_views }
 
 -- | Rename a BlockId.  Views are updated to point to the new block.
-map_block_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
+map_block_ids :: State.M m => (Id.Id -> Id.Id) -> m ()
 map_block_ids f = do
     maybe_root <- State.lookup_root_id
     let new_root = fmap (Id.BlockId . f . Id.unpack_id) maybe_root
@@ -78,7 +78,7 @@ map_block_ids f = do
         { State.state_blocks = new_blocks, State.state_views = new_views }
     State.modify_config $ \config -> config { State.config_root = new_root }
 
-map_track_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
+map_track_ids :: State.M m => (Id.Id -> Id.Id) -> m ()
 map_track_ids f = do
     tracks <- State.gets State.state_tracks
     let track_f = Id.TrackId . f . Id.unpack_id
@@ -100,7 +100,7 @@ map_track_ids f = do
     map_merged f track = track
         { Block.track_merged = map f (Block.track_merged track) }
 
-map_ruler_ids :: (State.M m) => (Id.Id -> Id.Id) -> m ()
+map_ruler_ids :: State.M m => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do
     rulers <- State.gets State.state_rulers
     let ruler_f = Id.RulerId . f . Id.unpack_id
@@ -131,7 +131,7 @@ safe_map_keys name f fm0
 -- * namespace
 
 -- | Destroy all views, blocks, tracks, and rulers with the given namespace.
-destroy_namespace :: (State.M m) => Id.Namespace -> m ()
+destroy_namespace :: State.M m => Id.Namespace -> m ()
 destroy_namespace ns = do
     -- Will destroy any views too.
     mapM_ State.destroy_block

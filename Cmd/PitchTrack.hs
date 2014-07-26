@@ -73,11 +73,11 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
         _ -> Cmd.abort
     return Cmd.Done
 
-val_edit_at :: (Cmd.M m) => EditUtil.Pos -> Pitch.Note -> m ()
+val_edit_at :: Cmd.M m => EditUtil.Pos -> Pitch.Note -> m ()
 val_edit_at pos note = modify_event_at pos $ \event ->
     (Just $ event { event_val = Pitch.note_text note }, False)
 
-method_edit_at :: (Cmd.M m) => EditUtil.Pos -> EditUtil.Key -> m ()
+method_edit_at :: Cmd.M m => EditUtil.Pos -> EditUtil.Key -> m ()
 method_edit_at pos key = modify_event_at pos $ \event ->
     (Just $ event { event_method = fromMaybe "" $
             EditUtil.modify_text_key [] key (event_method event) },
@@ -98,7 +98,7 @@ cmd_record_note_status msg = do
 -- | old_event -> (new_event, advance?)
 type Modify = Event -> (Maybe Event, Bool)
 
-modify_event_at :: (Cmd.M m) => EditUtil.Pos -> Modify -> m ()
+modify_event_at :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
     (first (fmap unparse) . f . parse . fromMaybe "")
 
@@ -196,7 +196,7 @@ modify_expr f text = case Parse.parse_expr text of
 type ModifyPitch =
     Scale.Scale -> Maybe Pitch.Key -> Pitch.Note -> Either String Pitch.Note
 
-transpose_selection :: (Cmd.M m) => Scale.Transposition -> Pitch.Octave
+transpose_selection :: Cmd.M m => Scale.Transposition -> Pitch.Octave
     -> Pitch.Step -> m ()
 transpose_selection transposition oct steps =
     pitches $ transpose transposition oct steps
@@ -214,11 +214,11 @@ cycle_enharmonics scale maybe_key note = pretty_err $ do
     enharmonics <- Scale.scale_enharmonics scale maybe_key note
     return $ fromMaybe note (Seq.head enharmonics)
 
-pitches :: (Cmd.M m) => ModifyPitch -> m ()
+pitches :: Cmd.M m => ModifyPitch -> m ()
 pitches = ModifyEvents.selection . pitch_tracks
 
 -- | Apply a ModifyPitch to only pitch tracks.
-pitch_tracks :: (Cmd.M m) => ModifyPitch -> ModifyEvents.Track m
+pitch_tracks :: Cmd.M m => ModifyPitch -> ModifyEvents.Track m
 pitch_tracks f = ModifyEvents.tracks_named ParseTitle.is_pitch_track $
         \block_id track_id events -> do
     scale_id <- Perf.get_scale_id block_id (Just track_id)

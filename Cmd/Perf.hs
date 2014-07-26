@@ -78,7 +78,7 @@ derive deriver = do
 
 -- * perform
 
-perform :: (Cmd.M m) => [Score.Event] -> m ([Midi.WriteMessage], [Log.Msg])
+perform :: Cmd.M m => [Score.Event] -> m ([Midi.WriteMessage], [Log.Msg])
 perform = (LEvent.partition <$>) . PlayUtil.perform_events . Vector.fromList
 
 -- * environ
@@ -92,7 +92,7 @@ perform = (LEvent.partition <$>) . PlayUtil.perform_events . Vector.fromList
 -- a newly added note track will always be the default scale, even if
 -- a different scale is below it, because there aren't any events to trigger
 -- inversion.
-get_scale_id :: (Cmd.M m) => BlockId -> Maybe TrackId -> m Pitch.ScaleId
+get_scale_id :: Cmd.M m => BlockId -> Maybe TrackId -> m Pitch.ScaleId
 get_scale_id block_id maybe_track_id = first_just
     [ maybe (return Nothing) (scale_from_titles block_id) maybe_track_id
     , fmap TrackLang.sym_to_scale_id <$>
@@ -109,7 +109,7 @@ first_just (m:ms) deflt = do
     v <- m
     maybe (first_just ms deflt) return v
 
-scale_from_titles :: (State.M m) => BlockId -> TrackId
+scale_from_titles :: State.M m => BlockId -> TrackId
     -> m (Maybe Pitch.ScaleId)
 scale_from_titles block_id track_id = do
     tracks <- TrackTree.parents_children_of block_id track_id
@@ -122,11 +122,11 @@ scale_from_titles block_id track_id = do
         _ -> Nothing
 
 -- | As with 'get_scale_id' but for the Key.
-get_key :: (Cmd.M m) => BlockId -> Maybe TrackId -> m (Maybe Pitch.Key)
+get_key :: Cmd.M m => BlockId -> Maybe TrackId -> m (Maybe Pitch.Key)
 get_key block_id maybe_track_id =
     fmap Pitch.Key <$> lookup_val block_id maybe_track_id Environ.key
 
-lookup_instrument :: (Cmd.M m) => BlockId -> Maybe TrackId
+lookup_instrument :: Cmd.M m => BlockId -> Maybe TrackId
     -> m (Maybe Score.Instrument)
 lookup_instrument block_id maybe_track_id =
     lookup_val block_id maybe_track_id Environ.instrument
@@ -220,14 +220,14 @@ default_scale_id =
 -- the track is Nothing, use the first track that has tempo information.  This
 -- is necessary because if a track is muted it will have no tempo, but it's
 -- confusing if playing from a muted track fails.
-get_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
+get_realtime :: Cmd.M m => Cmd.Performance -> BlockId -> Maybe TrackId
     -> ScoreTime -> m RealTime
 get_realtime perf block_id maybe_track_id pos =
     maybe (Cmd.throw $ show block_id ++ " " ++ pretty maybe_track_id
             ++ " has no tempo information, so it probably failed to derive.")
         return =<< lookup_realtime perf block_id maybe_track_id pos
 
-lookup_realtime :: (Cmd.M m) => Cmd.Performance -> BlockId -> Maybe TrackId
+lookup_realtime :: Cmd.M m => Cmd.Performance -> BlockId -> Maybe TrackId
     -> ScoreTime -> m (Maybe RealTime)
 lookup_realtime perf block_id maybe_track_id pos = do
     track_ids <- maybe (State.track_ids_of block_id) (return . (:[]))
@@ -243,7 +243,7 @@ get_realtimes perf block_id track_id ps =
         <- zip ps (map (Cmd.perf_tempo perf block_id track_id) ps)]
 
 -- | Take a RealTime to all the ScoreTimes it corresponds to, if any.
-find_play_pos :: (State.M m) => Transport.InverseTempoFunction
+find_play_pos :: State.M m => Transport.InverseTempoFunction
     -> RealTime -> m [(ViewId, [(TrackNum, ScoreTime)])]
 find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo
 
@@ -252,11 +252,11 @@ find_play_pos inv_tempo = block_pos_to_play_pos . inv_tempo
 --
 -- This function has to be careful to not throw on non-existent IDs, because
 -- it's called from the monitor_loop.
-block_pos_to_play_pos :: (State.M m) => [(BlockId, [(TrackId, ScoreTime)])]
+block_pos_to_play_pos :: State.M m => [(BlockId, [(TrackId, ScoreTime)])]
     -> m [(ViewId, [(TrackNum, ScoreTime)])]
 block_pos_to_play_pos = concatMapM convert
 
-convert :: (State.M m) => (BlockId, [(TrackId, ScoreTime)])
+convert :: State.M m => (BlockId, [(TrackId, ScoreTime)])
     -> m [(ViewId, [(TrackNum, ScoreTime)])]
 convert (block_id, track_pos) = do
     view_ids <- Map.keys <$> State.views_of block_id
@@ -278,7 +278,7 @@ tracknums_of block (track_id, pos) =
 
 -- | Give a block and score time, return the play position on sub-blocks.
 -- The block itself is filtered out of the result.
-sub_pos :: (Cmd.M m) => BlockId -> TrackId -> ScoreTime
+sub_pos :: Cmd.M m => BlockId -> TrackId -> ScoreTime
     -> m [(BlockId, [(TrackId, ScoreTime)])]
 sub_pos block_id track_id pos = fmap (fromMaybe []) $
     justm (Cmd.lookup_performance block_id) $ \perf ->
@@ -289,8 +289,8 @@ sub_pos block_id track_id pos = fmap (fromMaybe []) $
 
 -- * util
 
-lookup_root :: (Cmd.M m) => m (Maybe Cmd.Performance)
+lookup_root :: Cmd.M m => m (Maybe Cmd.Performance)
 lookup_root = justm State.lookup_root_id Cmd.lookup_performance
 
-get_root :: (Cmd.M m) => m Cmd.Performance
+get_root :: Cmd.M m => m Cmd.Performance
 get_root = Cmd.require "no root performance" =<< lookup_root

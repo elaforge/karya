@@ -151,7 +151,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
 -- is or is on the right of the given track, has either the same instrument or
 -- has the default instrument, and doesn't already have a note_id associated
 -- with it.
-next_control_track :: (Cmd.M m) => BlockId -> TrackNum -> (Text -> Bool)
+next_control_track :: Cmd.M m => BlockId -> TrackNum -> (Text -> Bool)
     -> m (ControlTrack, Bool, Maybe TrackNum)
     -- ^ (selected_track_pair, should_create, next_control_track)
 next_control_track block_id tracknum is_control = do
@@ -185,13 +185,13 @@ next_control_track block_id tracknum is_control = do
 
 -- | The given track should be a note track.  Figure out if it has a control
 -- track, or if one should be created.
-this_control_track :: (Cmd.M m) => BlockId -> TrackNum -> (Text -> Bool)
+this_control_track :: Cmd.M m => BlockId -> TrackNum -> (Text -> Bool)
     -> m (ControlTrack, Bool)
 this_control_track block_id tracknum is_control = do
     track <- Info.get_track_type block_id tracknum
     should_create_control block_id track is_control
 
-should_create_control :: (Cmd.M m) => BlockId -> Info.Track
+should_create_control :: Cmd.M m => BlockId -> Info.Track
     -> (Text -> Bool) -> m (ControlTrack, Bool)
 should_create_control block_id track is_control = case Info.track_type track of
     Info.Note controls -> case find controls of
@@ -204,7 +204,7 @@ should_create_control block_id track is_control = case Info.track_type track of
     find = List.find (is_control . State.track_title)
     tracknum = State.track_tracknum (Info.track_info track)
 
-event_at_or_before :: (Cmd.M m) => TrackId -> ScoreTime -> m ScoreTime
+event_at_or_before :: Cmd.M m => TrackId -> ScoreTime -> m ScoreTime
 event_at_or_before track_id pos = do
     track <- State.get_track track_id
     let (pre, post) = Events.split pos (Track.track_events track)
@@ -213,13 +213,13 @@ event_at_or_before track_id pos = do
         (prev : _, _) -> Event.start prev
         _ -> pos
 
-all_keys_up :: (Cmd.M m) => m Bool
+all_keys_up :: Cmd.M m => m Bool
 all_keys_up = do
     st <- Cmd.get_wdev_state
     return (Map.null (Cmd.wdev_pitch_track st))
 
 -- | Find the pitch track associated with the given NoteId, if one exists.
-find_pitch_track :: (Cmd.M m) => InputNote.NoteId
+find_pitch_track :: Cmd.M m => InputNote.NoteId
     -> m (Maybe (TrackNum, TrackId))
 find_pitch_track note_id = do
     st <- Cmd.get_wdev_state
@@ -258,7 +258,7 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 --
 -- This doesn't use the full Derive.Parse machinery, but is simple and doesn't
 -- require the text to be fully parseable.
-block_call :: (State.M m) => Maybe BlockId -> Text -> m (Maybe BlockId)
+block_call :: State.M m => Maybe BlockId -> Text -> m (Maybe BlockId)
 block_call caller expr = case block_call_of expr of
     Nothing -> return Nothing
     Just sym -> do
@@ -277,13 +277,13 @@ block_call_of = fmap TrackLang.Symbol . Seq.last <=< Seq.last . Parse.split_pipe
 -- * implementation
 
 -- | Create a pitch track.
-create_pitch_track :: (Cmd.M m) => BlockId -> ControlTrack -> m ()
+create_pitch_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
 create_pitch_track block_id (ControlTrack note pitch) = do
     Create.track block_id pitch "*" Events.empty
     -- Link note track underneath newly created pitch track.
     State.splice_skeleton_below block_id pitch note
 
-create_dyn_track :: (Cmd.M m) => BlockId -> ControlTrack -> m ()
+create_dyn_track :: Cmd.M m => BlockId -> ControlTrack -> m ()
 create_dyn_track block_id (ControlTrack note dyn) = do
     tid <- Create.empty_track block_id dyn
     State.splice_skeleton_below block_id dyn note
@@ -291,7 +291,7 @@ create_dyn_track block_id (ControlTrack note dyn) = do
 
 -- | Ensure that a note event exists at the given spot.  An existing event is
 -- left alone, but if there is no existing event a new one will be created.
-ensure_note_event :: (Cmd.M m) => EditUtil.Pos -> m ()
+ensure_note_event :: Cmd.M m => EditUtil.Pos -> m ()
 ensure_note_event pos = do
     text <- Cmd.gets (Cmd.state_note_text . Cmd.state_edit)
     modify_event_at pos False False $
@@ -299,17 +299,17 @@ ensure_note_event pos = do
 
 -- | Instruments with the triggered flag set don't pay attention to note off,
 -- so I can make the duration 0.
-triggered_inst :: (Cmd.M m) => Maybe Score.Instrument -> m Bool
+triggered_inst :: Cmd.M m => Maybe Score.Instrument -> m Bool
 triggered_inst Nothing = return False -- don't know, but guess it's not
 triggered_inst (Just inst) =
     maybe False (Instrument.has_flag Instrument.Triggered . MidiDb.info_patch)
         <$> Cmd.lookup_instrument inst
 
-modify_event_at :: (Cmd.M m) => EditUtil.Pos -> Bool -> Bool
+modify_event_at :: Cmd.M m => EditUtil.Pos -> Bool -> Bool
     -> EditUtil.Modify -> m ()
 modify_event_at pos zero_dur modify_dur f = do
     trigger_inst <- triggered_inst =<< EditUtil.lookup_instrument
     EditUtil.modify_event_at pos (zero_dur || trigger_inst) modify_dur f
 
-get_state :: (Cmd.M m) => (Cmd.EditState -> a) -> m a
+get_state :: Cmd.M m => (Cmd.EditState -> a) -> m a
 get_state f = Cmd.gets (f . Cmd.state_edit)

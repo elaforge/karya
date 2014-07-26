@@ -153,7 +153,7 @@ read_state_ = Serialize.unserialize state_magic
 
 -- ** path
 
-get_state_path :: (Cmd.M m) => m FilePath
+get_state_path :: Cmd.M m => m FilePath
 get_state_path = do
     ns <- State.get_namespace
     state <- Cmd.get
@@ -238,7 +238,7 @@ rethrow caller io =
 
 -- ** path
 
-get_git_path :: (Cmd.M m) => m Git.Repo
+get_git_path :: Cmd.M m => m Git.Repo
 get_git_path = do
     ns <- State.get_namespace
     state <- Cmd.get

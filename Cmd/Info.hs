@@ -57,19 +57,19 @@ data TrackType =
     | Control [State.TrackInfo]
     deriving (Show, Eq)
 
-get_track_type :: (State.M m) => BlockId -> TrackNum -> m Track
+get_track_type :: State.M m => BlockId -> TrackNum -> m Track
 get_track_type block_id tracknum = State.require
     ("get_track_type: bad tracknum: " ++ show (block_id, tracknum))
         =<< lookup_track_type block_id tracknum
 
-lookup_track_type :: (State.M m) => BlockId -> TrackNum -> m (Maybe Track)
+lookup_track_type :: State.M m => BlockId -> TrackNum -> m (Maybe Track)
 lookup_track_type block_id tracknum = do
     track_tree <- TrackTree.track_tree_of block_id
     return $ make_track <$>
         Tree.find_with_parents ((==tracknum) . State.track_tracknum) track_tree
 
 -- | Get all the Tracks in a block, sorted by tracknum.
-block_tracks :: (State.M m) => BlockId -> m [Track]
+block_tracks :: State.M m => BlockId -> m [Track]
 block_tracks block_id = Seq.sort_on (State.track_tracknum . track_info)
     . map make_track . Tree.paths <$> TrackTree.track_tree_of block_id
 
@@ -101,7 +101,7 @@ track_type_of (Tree.Node track subs, parents)
 -- ** specialized lookups
 
 -- | Pitch track of a note track, if any.
-pitch_of_note :: (State.M m) => BlockId -> TrackNum
+pitch_of_note :: State.M m => BlockId -> TrackNum
     -> m (Maybe State.TrackInfo)
 pitch_of_note block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
@@ -111,7 +111,7 @@ pitch_of_note block_id tracknum = do
         _ -> Nothing
 
 -- | Note track of a pitch track, if any.
-note_of_pitch :: (State.M m) => BlockId -> TrackNum
+note_of_pitch :: State.M m => BlockId -> TrackNum
     -> m (Maybe State.TrackInfo)
 note_of_pitch block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
@@ -127,12 +127,12 @@ note_of_pitch block_id tracknum = do
 -- first.  This is useful for new tracks which don't have a performance yet.
 -- But if the track title doesn't specify an instrument it falls back on
 -- 'Perf.lookup_instrument'.
-get_instrument_of :: (Cmd.M m) => BlockId -> TrackNum -> m Score.Instrument
+get_instrument_of :: Cmd.M m => BlockId -> TrackNum -> m Score.Instrument
 get_instrument_of block_id tracknum =
     State.require ("get_instrument_of expected a note track: "
         ++ show (block_id, tracknum)) =<< lookup_instrument_of block_id tracknum
 
-lookup_instrument_of :: (Cmd.M m) => BlockId -> TrackNum
+lookup_instrument_of :: Cmd.M m => BlockId -> TrackNum
     -> m (Maybe Score.Instrument)
 lookup_instrument_of block_id tracknum = do
     track_id <- State.get_event_track_at block_id tracknum
@@ -143,7 +143,7 @@ lookup_instrument_of block_id tracknum = do
 
 -- | If the instrument is 'Score.empty_inst', look up what it really is in
 -- the performance.
-get_default_instrument :: (Cmd.M m) => BlockId -> TrackId
+get_default_instrument :: Cmd.M m => BlockId -> TrackId
     -> Score.Instrument -> m Score.Instrument
 get_default_instrument block_id track_id inst
     | inst == Score.empty_inst =
@@ -153,7 +153,7 @@ get_default_instrument block_id track_id inst
 
 -- * inst info
 
-inst_info :: (Cmd.M m) => Score.Instrument -> m Text
+inst_info :: Cmd.M m => Score.Instrument -> m Text
 inst_info inst = do
     config <- Map.lookup inst <$> State.get_midi_config
     info <- Cmd.lookup_instrument inst
@@ -207,7 +207,7 @@ show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
 --
 -- This should be run whenever the track focus changes, or tracks are expanded
 -- or collapsed.
-set_inst_status :: (Cmd.M m) => BlockId -> TrackNum -> m ()
+set_inst_status :: Cmd.M m => BlockId -> TrackNum -> m ()
 set_inst_status block_id tracknum = do
     status <- get_track_status block_id tracknum
     whenJust status $ Cmd.set_global_status "inst"
@@ -215,7 +215,7 @@ set_inst_status block_id tracknum = do
 -- | Looks like:
 -- title (tracknum): inst_name, allocation, [control tracks]
 -- fm8/inst1 at 1: fm8:0,1,2, [vel {collapse 2}, pedal {expand 3}]
-get_track_status :: (Cmd.M m) => BlockId -> TrackNum -> m (Maybe Text)
+get_track_status :: Cmd.M m => BlockId -> TrackNum -> m (Maybe Text)
 get_track_status block_id tracknum = do
     tree <- TrackTree.track_tree_of block_id
     case find_note_track tree tracknum of
@@ -270,7 +270,7 @@ control_tracks_of tree tracknum =
         where t = State.track_title track
 
 -- | Looks like: [vel {collapse 2}, pedal {expand 3}]
-show_track_status :: (State.M m) => BlockId -> [State.TrackInfo] -> m [String]
+show_track_status :: State.M m => BlockId -> [State.TrackInfo] -> m [String]
 show_track_status block_id status = forM status $ \info -> do
     let tracknum = State.track_tracknum info
     btrack <- State.block_track_at block_id tracknum

@@ -138,14 +138,14 @@ cmd_stop = do
 
 -- * play
 
-local_block :: (Cmd.M m) => m Cmd.PlayMidiArgs
+local_block :: Cmd.M m => m Cmd.PlayMidiArgs
 local_block = do
     block_id <- Cmd.get_focused_block
     from_score block_id Nothing 0 Nothing
 
 -- | Start playing from the point selection on the local block.  If the
 -- selection is a range, loop that range forever.
-local_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
+local_selection :: Cmd.M m => m Cmd.PlayMidiArgs
 local_selection = do
     (block_id, _, track_id, _) <- Selection.get_insert
     (_, sel) <- Selection.get
@@ -156,7 +156,7 @@ local_selection = do
 
 -- | Play the current block's performance from the previous
 -- 'Cmd.state_play_step'.
-local_previous :: (Cmd.M m) => m Cmd.PlayMidiArgs
+local_previous :: Cmd.M m => m Cmd.PlayMidiArgs
 local_previous = do
     step <- gets Cmd.state_play_step
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
@@ -164,31 +164,31 @@ local_previous = do
     local_from block_id track_id (fromMaybe 0 prev)
 
 -- | Play the current block's performance from the top of the window.
-local_top :: (Cmd.M m) => m Cmd.PlayMidiArgs
+local_top :: Cmd.M m => m Cmd.PlayMidiArgs
 local_top = do
     (block_id, track_id, top) <- top_of_block
     local_from block_id track_id top
 
-local_from :: (Cmd.M m) => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs
+local_from :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs
 local_from block_id track_id pos =
     from_score block_id (Just track_id) pos Nothing
 
 -- | Play the root block from the beginning.
-root_block :: (Cmd.M m) => m Cmd.PlayMidiArgs
+root_block :: Cmd.M m => m Cmd.PlayMidiArgs
 root_block = do
     block_id <- State.get_root_id
     from_score block_id Nothing 0 Nothing
 
 -- | Play the root performance from the selection on the root block.  This
 -- is useful to manually set a point to start playing.
-root_from_root_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
+root_from_root_selection :: Cmd.M m => m Cmd.PlayMidiArgs
 root_from_root_selection = do
     (block_id, _, track_id, pos) <- Selection.get_root_insert
     from_score block_id (Just track_id) pos Nothing
 
 -- | Play the root performance from the selection on the current block.  If
 -- this block isn't linked from the root, then fall back on 'local_selection'.
-root_from_local_selection :: (Cmd.M m) => m Cmd.PlayMidiArgs
+root_from_local_selection :: Cmd.M m => m Cmd.PlayMidiArgs
 root_from_local_selection = do
     (block_id, _, track_id, pos) <- Selection.get_insert
     root_id <- State.get_root_id
@@ -199,7 +199,7 @@ root_from_local_selection = do
 -- | Find the previous step on the focused block, get its RealTime, and play
 -- from the root at that RealTime.  If this block isn't linked from the root,
 -- then fall back on 'local_previous'.
-root_previous :: (Cmd.M m) => m Cmd.PlayMidiArgs
+root_previous :: Cmd.M m => m Cmd.PlayMidiArgs
 root_previous = do
     (block_id, tracknum, track_id, pos) <- Selection.get_insert
     step <- gets Cmd.state_play_step
@@ -207,26 +207,26 @@ root_previous = do
     root_from block_id track_id prev
 
 -- | Like 'root_previous', but play from the top of the selected block.
-root_top :: (Cmd.M m) => m Cmd.PlayMidiArgs
+root_top :: Cmd.M m => m Cmd.PlayMidiArgs
 root_top = do
     (block_id, track_id, top) <- top_of_block
     root_from block_id track_id top
 
-top_of_block :: (Cmd.M m) => m (BlockId, TrackId, TrackTime)
+top_of_block :: Cmd.M m => m (BlockId, TrackId, TrackTime)
 top_of_block = do
     (block_id, _, track_id, _) <- Selection.get_insert
     view_id <- Cmd.get_focused_view
     top <- Types.zoom_offset . Block.view_zoom <$> State.get_view view_id
     return (block_id, track_id, top)
 
-root_from :: (Cmd.M m) => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs
+root_from :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m Cmd.PlayMidiArgs
 root_from block_id track_id pos = do
     root_id <- State.get_root_id
     perf <- get_performance root_id
     maybe (local_from block_id track_id pos) (from_realtime root_id Nothing)
         =<< Perf.lookup_realtime perf block_id (Just track_id) pos
 
-from_score :: (Cmd.M m) => BlockId
+from_score :: Cmd.M m => BlockId
     -> Maybe TrackId -- ^ Track to play from.  Since different tracks can have
     -- different tempos, a track is needed to convert to RealTime.  If not
     -- given, use the first track that has tempo information.
@@ -239,7 +239,7 @@ from_score block_id start_track start_pos repeat_at = do
         (fmap Just . get_realtime block_id block_id start_track) repeat_at
     from_realtime block_id repeat_at start
 
-get_realtime :: (Cmd.M m) => BlockId
+get_realtime :: Cmd.M m => BlockId
     -- ^ Lookup realtime according to the performance of this block.
     -> BlockId
     -- ^ Lookup realtime at the position (TrackId, ScoreTime) within this block.
@@ -253,14 +253,14 @@ get_realtime perf_block play_block maybe_track_id pos = do
             ++ " has no tempo information"
         Just start -> return start
 
-get_performance :: (Cmd.M m) => BlockId -> m Cmd.Performance
+get_performance :: Cmd.M m => BlockId -> m Cmd.Performance
 get_performance block_id = do
     perf <- Cmd.require ("no performance for block " ++ show block_id)
         =<< lookup_current_performance block_id
     write_logs block_id perf
     return perf
 
-write_logs :: (Cmd.M m) => BlockId -> Cmd.Performance -> m ()
+write_logs :: Cmd.M m => BlockId -> Cmd.Performance -> m ()
 write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
     -- There are so many cache msgs it clogs up logview.  I'm writing a summary
     -- anyway so I can filter them out.
@@ -287,7 +287,7 @@ write_logs block_id perf = unless (Cmd.perf_logs_written perf) $ do
 -- prefixed with a tilde to make them sort last in the logview status line.
 --
 -- 'Cmd.Repl.LPerf.cache_stats' gives a more complete summary.
-record_cache_stats :: (Cmd.M m) => [Log.Msg] -> m ()
+record_cache_stats :: Cmd.M m => [Log.Msg] -> m ()
 record_cache_stats logs = do
     let (rederived, cached) = extract_cache_stats get_block_id logs
     Cmd.set_global_status "~C" $ "[" <> showt (length cached) <> " / "
@@ -339,7 +339,7 @@ get_track_id :: Log.Msg -> Maybe (BlockId, TrackId)
 get_track_id = Stack.block_track_of . Stack.from_strings <=< Log.msg_stack
 
 -- | Play the performance of the given block starting from the given time.
-from_realtime :: (Cmd.M m) => BlockId -> Maybe RealTime -> RealTime
+from_realtime :: Cmd.M m => BlockId -> Maybe RealTime -> RealTime
     -> m Cmd.PlayMidiArgs
 from_realtime block_id repeat_at start_ = do
     -- Since 0 is considered "the beginning", even if that happens to be before
@@ -406,11 +406,11 @@ generate_mtc (Just sync) start | Cmd.sync_mtc sync =
         Midi.WriteMessage (Cmd.sync_device sync) (RealTime.seconds secs) msg
 generate_mtc _ _ = []
 
-lookup_current_performance :: (Cmd.M m) => BlockId -> m (Maybe Cmd.Performance)
+lookup_current_performance :: Cmd.M m => BlockId -> m (Maybe Cmd.Performance)
 lookup_current_performance block_id =
     Map.lookup block_id <$> gets Cmd.state_current_performance
 
 -- * implementation
 
-gets :: (Cmd.M m) => (Cmd.PlayState -> a) -> m a
+gets :: Cmd.M m => (Cmd.PlayState -> a) -> m a
 gets f = Cmd.gets (f . Cmd.state_play)

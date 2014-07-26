@@ -53,7 +53,7 @@ load fn = liftIO (parse fn) >>= \x -> case x of
         mapM_ (Log.warn . ((fn ++ ": ") ++)) warns
         create tracks skel
 
-create :: (State.M m) => [(Text, Track)] -> Skeleton.Skeleton -> m BlockId
+create :: State.M m => [(Text, Track)] -> Skeleton.Skeleton -> m BlockId
 create tracks skel = do
     block_id <- Create.block State.no_ruler
     mapM_ (add_track block_id) tracks

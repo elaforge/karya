@@ -630,7 +630,7 @@ test_track_cache2 = do
 
 -- ** support
 
-mkblock :: (State.M m) => [UiTest.TrackSpec] -> m BlockId
+mkblock :: State.M m => [UiTest.TrackSpec] -> m BlockId
 mkblock tracks = fst <$> UiTest.mkblock ("top", tracks)
 
 mk_tid :: TrackNum -> TrackId
@@ -683,7 +683,7 @@ r_cache_stacks = map Stack.show_ui_ . Map.keys . Map.filter valid . uncache
 uncache :: Derive.Cache -> Map.Map Stack.Stack Derive.Cached
 uncache (Derive.Cache cache) = cache
 
-mkblocks :: (State.M m) => [UiTest.BlockSpec] -> m BlockId
+mkblocks :: State.M m => [UiTest.BlockSpec] -> m BlockId
 mkblocks blocks = do
     bid : _ <- UiTest.mkblocks blocks
     return bid

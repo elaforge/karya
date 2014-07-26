@@ -47,7 +47,7 @@ import Types
 
 -- * create ui state
 
-create :: (State.M m) => Id.Namespace -> [UiBlock] -> m ()
+create :: State.M m => Id.Namespace -> [UiBlock] -> m ()
 create name ui_blocks = do
     State.set_namespace name
     let mkid = Id.id name
@@ -59,7 +59,7 @@ create name ui_blocks = do
     Create.unfitted_view root
     return ()
 
-create_block :: (State.M m) => (Text -> Id.Id) -> RulerId
+create_block :: State.M m => (Text -> Id.Id) -> RulerId
     -> String -> Int -> UiBlock -> m (BlockId, BlockRows)
 create_block mkid rid inst num (ui_block, block_rows) = do
     block_id <- make_block mkid rid ("b" <> showt num)
@@ -67,7 +67,7 @@ create_block mkid rid inst num (ui_block, block_rows) = do
     return (block_id, block_rows)
     where mktrack (ntrack, ctracks) = ('>' : inst, ntrack) : ctracks
 
-create_order_block :: (State.M m) => (Text -> Id.Id)
+create_order_block :: State.M m => (Text -> Id.Id)
     -> [(BlockId, BlockRows)] -> m BlockId
 create_order_block mkid block_ids = do
     rid <- Create.ruler "order" $ Meters.ruler (order_meter block_rows)
@@ -87,7 +87,7 @@ order_meter =
     Meter.meter_marklist 1 . Meter.make_meter 1 . (:[]) . Meter.D . map mkd
     where mkd dur = Meter.D (replicate dur Meter.T)
 
-make_block :: (State.M m) => (Text -> Id.Id) -> RulerId -> Text
+make_block :: State.M m => (Text -> Id.Id) -> RulerId -> Text
     -> [(String, [Event.Event])] -> m BlockId
 make_block mkid rid name tracks = do
     tids <- forM (zip [0..] tracks) $ \(i, (title, events)) ->

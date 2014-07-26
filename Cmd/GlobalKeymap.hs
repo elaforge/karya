@@ -164,7 +164,7 @@ player_bindings = concat
 
 -- | I bind the mouse by device rather than function, since I can't detect
 -- overlaps as easily for mouse bindings.
-mouse_bindings :: (Cmd.M m) => [Keymap.Binding m]
+mouse_bindings :: Cmd.M m => [Keymap.Binding m]
 mouse_bindings = concat
     [ bind_drag [] btn Keymap.OnTrack "snap drag selection"
         (Selection.cmd_snap_selection btn Config.insert_selnum False)
@@ -200,7 +200,7 @@ mouse_bindings = concat
     where
     btn = Config.mouse_select
 
-selection_bindings :: (Cmd.M m) => [Keymap.Binding m]
+selection_bindings :: Cmd.M m => [Keymap.Binding m]
 selection_bindings = concat
     [ bind_repeatable [] Key.Down "advance selection" $
         Selection.step TimeStep.Advance False
@@ -267,7 +267,7 @@ selection_bindings = concat
     where
     repeatable_char c = bind_repeatable [] (Key.Char c)
 
-step_play_bindings :: (Cmd.M m) => [Keymap.Binding m]
+step_play_bindings :: Cmd.M m => [Keymap.Binding m]
 step_play_bindings = concat
     [ bind_repeatable [PrimaryCommand] Key.Down
         "step play advance" (StepPlay.cmd_set_or_advance False)
@@ -283,7 +283,7 @@ step_play_bindings = concat
         "step play tracks here" (StepPlay.cmd_here True)
     ]
 
-view_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
+view_config_bindings :: Cmd.M m => [Keymap.Binding m]
 view_config_bindings = concat
     [ plain_char '[' "zoom out *0.8"
         (ViewConfig.cmd_zoom_around_insert (*0.8))
@@ -304,7 +304,7 @@ view_config_bindings = concat
     ]
     where secondary c = bind_key [SecondaryCommand] (Key.Char c)
 
-block_config_bindings :: (Cmd.M m) => [Keymap.Binding m]
+block_config_bindings :: Cmd.M m => [Keymap.Binding m]
 block_config_bindings = concat
     [ plain_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
     , plain_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
@@ -316,7 +316,7 @@ block_config_bindings = concat
     ]
 
 -- | Global bindings for edit type things.
-edit_state_bindings :: (Cmd.M m) => [Keymap.Binding m]
+edit_state_bindings :: Cmd.M m => [Keymap.Binding m]
 edit_state_bindings = concat
     [ plain_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
     , bind_key [really_control] (Key.Char '[') "toggle val edit"
@@ -364,7 +364,7 @@ edit_state_bindings = concat
 -- delete = remove events and move following events back
 -- clear = just remove events
 
-event_bindings :: (Cmd.M m) => [Keymap.Binding m]
+event_bindings :: Cmd.M m => [Keymap.Binding m]
 event_bindings = concat
     -- J = move previous event down, K = move next event up.
     [ command_char 'J' "move event forward" Edit.cmd_move_event_forward
@@ -409,7 +409,7 @@ event_bindings = concat
 -- | Bindings which work on pitch tracks.  The reason this is global rather
 -- than in pitch track keymaps is that it's handy to select multiple tracks
 -- and have the cmd automatically skip non pitch tracks.
-pitch_bindings :: (Cmd.M m) => [Keymap.Binding m]
+pitch_bindings :: Cmd.M m => [Keymap.Binding m]
 pitch_bindings = concat
     -- These are named after the vi commands for up and down, but they don't
     -- feel right.
@@ -429,7 +429,7 @@ pitch_bindings = concat
         PitchTrack.transpose_selection Scale.Chromatic (-1) 0
     ]
 
-create_bindings :: (Cmd.M m) => [Keymap.Binding m]
+create_bindings :: Cmd.M m => [Keymap.Binding m]
 create_bindings = concat
     [ command_char 'n' "insert track right" Create.insert_track_right
     , command_char 't' "splice track below" Create.splice_below
@@ -450,7 +450,7 @@ create_bindings = concat
         Refactor.block_from_template
     ]
 
-clip_bindings :: (Cmd.M m) => [Keymap.Binding m]
+clip_bindings :: Cmd.M m => [Keymap.Binding m]
 clip_bindings = concat
     [ command_char 'c' "copy selection" Clip.cmd_copy_selection
     , command_char 'x' "cut selection" Clip.cmd_cut_selection

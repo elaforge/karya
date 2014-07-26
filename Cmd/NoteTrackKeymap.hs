@@ -17,7 +17,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.ParseTitle as ParseTitle
 
 
-make_keymap :: (Cmd.M m) => (Keymap.CmdMap m, [String])
+make_keymap :: Cmd.M m => (Keymap.CmdMap m, [String])
 make_keymap = Keymap.make_cmd_map $ concat
     [ command_char 'm' "toggle merged" toggle_merged
     , command_char '.' "add ." (add_transform_generator ".")
@@ -25,7 +25,7 @@ make_keymap = Keymap.make_cmd_map $ concat
 
 -- | Add a call that works both as a transformer and generator, as long as
 -- it isn't already there.
-add_transform_generator :: (Cmd.M m) => Text -> m ()
+add_transform_generator :: Cmd.M m => Text -> m ()
 add_transform_generator text =
     ModifyEvents.selection_advance $
     ModifyEvents.tracks_named ParseTitle.is_note_track $
@@ -36,7 +36,7 @@ add_transform_generator text =
         | [text] `elem` calls = calls
         | otherwise = [text] : calls
 
-toggle_merged :: (Cmd.M m) => m ()
+toggle_merged :: Cmd.M m => m ()
 toggle_merged = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     pitch <- Cmd.abort_unless =<< Info.pitch_of_note block_id tracknum

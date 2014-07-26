@@ -48,21 +48,21 @@ import Types
 selnum :: Types.SelNum
 selnum = Config.step_play_selnum
 
-cmd_set_or_advance :: (Cmd.M m) => Bool -> m ()
+cmd_set_or_advance :: Cmd.M m => Bool -> m ()
 cmd_set_or_advance play_selected_tracks =
     ifM (Maybe.isJust <$> get)
         cmd_advance (cmd_set play_selected_tracks)
 
 -- | Place the play step position at the 'Cmd.state_play_step' before the
 -- insert point and prepare the performance.
-cmd_set :: (Cmd.M m) => Bool -> m ()
+cmd_set :: Cmd.M m => Bool -> m ()
 cmd_set = set True
 
-cmd_here :: (Cmd.M m) => Bool -> m ()
+cmd_here :: Cmd.M m => Bool -> m ()
 cmd_here = set False
 
 -- | Prepare the step play performance and emit MIDI for the initial position.
-set :: (Cmd.M m) => Bool -- ^ Rewind from the selection pos by the play step.
+set :: Cmd.M m => Bool -- ^ Rewind from the selection pos by the play step.
     -> Bool -- ^ Filter events to include only the ones on the selected
     -- tracks.
     -> m ()
@@ -105,7 +105,7 @@ make_states ts msgs = snd $ List.mapAccumL go (Midi.State.empty, msgs) ts
 -- Previously, I placed points based on score positions of event starts and
 -- ends, but that doesn't work when the events don't line up with the score.
 -- This happens with tuplets, or even if events are a bit randomized.
-initialize :: (Cmd.M m) => ViewId -> BlockId -> [TrackNum] -> m ()
+initialize :: Cmd.M m => ViewId -> BlockId -> [TrackNum] -> m ()
 initialize view_id block_id play_tracks = do
     play_track_ids <- Set.fromList <$>
         mapMaybeM (State.event_track_at block_id) play_tracks
@@ -161,20 +161,20 @@ from_track track_ids event = any (`Set.member` track_ids) $
 
 -- * movement
 
-cmd_clear :: (Cmd.M m) => m ()
+cmd_clear :: Cmd.M m => m ()
 cmd_clear = do
     view_ids <- Map.keys . State.state_views <$> State.get
     forM_ view_ids $ \view_id -> Selection.set_selnum view_id selnum Nothing
     Cmd.modify_play_state $ \st -> st { Cmd.state_step = Nothing }
     Cmd.all_notes_off
 
-cmd_advance :: (Cmd.M m) => m ()
+cmd_advance :: Cmd.M m => m ()
 cmd_advance = move True
 
-cmd_rewind :: (Cmd.M m) => m ()
+cmd_rewind :: Cmd.M m => m ()
 cmd_rewind = move False
 
-move :: (Cmd.M m) => Bool -> m ()
+move :: Cmd.M m => Bool -> m ()
 move forward = do
     step_state <- Cmd.abort_unless =<< get
     let msg = "can't " ++ (if forward then "advance" else "rewind")
@@ -194,7 +194,7 @@ move forward = do
 
 -- | Move to the midi state at the given time and play it.  If there is no
 -- exact match for the time, pick the previous one.
-move_to :: (Cmd.M m) => BlockId -> ScoreTime -> m ()
+move_to :: Cmd.M m => BlockId -> ScoreTime -> m ()
 move_to block_id pos = do
     step_state <- Cmd.abort_unless =<< get
     let (before, after) = zip_backward $ zip_until ((>pos) . fst)
@@ -206,7 +206,7 @@ move_to block_id pos = do
     set_selections view_ids pos (Cmd.step_tracknums step_state)
     mapM_ (uncurry Cmd.midi) $ Midi.State.diff Midi.State.empty mstate
 
-zip_state :: (Cmd.M m) => Cmd.StepState -> Bool ->
+zip_state :: Cmd.M m => Cmd.StepState -> Bool ->
     m (Maybe (ViewId, Midi.State.State, ScoreTime, Midi.State.State))
 zip_state step_state forward = do
     let zipper = (Cmd.step_before step_state, Cmd.step_after step_state)
@@ -242,7 +242,7 @@ zip_until _ (before, []) = (before, [])
 zip_head :: ([a], [a]) -> Maybe a
 zip_head = Seq.head . snd
 
-set_selections :: (Cmd.M m) => [ViewId] -> ScoreTime -> [TrackNum] -> m ()
+set_selections :: Cmd.M m => [ViewId] -> ScoreTime -> [TrackNum] -> m ()
 set_selections view_ids pos tracks = sequence_
     [Selection.set_selnum view_id selnum (sel pos) | view_id <- view_ids]
     where
@@ -251,9 +251,9 @@ set_selections view_ids pos tracks = sequence_
     sel pos = Just $ if null tracks then Types.selection 0 pos 999 pos
         else Types.selection (minimum tracks) pos (maximum tracks) pos
 
-get :: (Cmd.M m) => m (Maybe Cmd.StepState)
+get :: Cmd.M m => m (Maybe Cmd.StepState)
 get = Cmd.gets (Cmd.state_step . Cmd.state_play)
 
-put :: (Cmd.M m) => Maybe Cmd.StepState -> m ()
+put :: Cmd.M m => Maybe Cmd.StepState -> m ()
 put step_state = Cmd.modify_play_state $ \st ->
     st { Cmd.state_step = step_state }

@@ -268,20 +268,19 @@ tid_tracknum = parse . Seq.rtake_while Char.isDigit . untxt . Id.ident_name
 
 -- * actions
 
-insert_event_in :: (State.M m) => String -> TrackNum
+insert_event_in :: State.M m => String -> TrackNum
     -> (ScoreTime, ScoreTime, String) -> m ()
 insert_event_in block_name tracknum (pos, dur, text) =
     State.insert_event (mk_tid_name block_name tracknum)
         (Event.event pos dur (txt text))
 
-insert_event :: (State.M m) => TrackNum -> (ScoreTime, ScoreTime, String)
-    -> m ()
+insert_event :: State.M m => TrackNum -> (ScoreTime, ScoreTime, String) -> m ()
 insert_event = insert_event_in default_block_name
 
-remove_event_in :: (State.M m) => String -> TrackNum -> ScoreTime -> m ()
+remove_event_in :: State.M m => String -> TrackNum -> ScoreTime -> m ()
 remove_event_in name tracknum = State.remove_event (mk_tid_name name tracknum)
 
-remove_event :: (State.M m) => TrackNum -> ScoreTime -> m ()
+remove_event :: State.M m => TrackNum -> ScoreTime -> m ()
 remove_event = remove_event_in default_block_name
 
 -- ** make specs
@@ -363,7 +362,7 @@ select :: State.M m => ViewId -> Types.Selection -> m ()
 select view_id sel =
     State.set_selection view_id Config.insert_selnum (Just sel)
 
-select_point :: (State.M m) => ViewId -> TrackNum -> ScoreTime -> m ()
+select_point :: State.M m => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos =
     select view_id (Types.point_selection tracknum pos)
 

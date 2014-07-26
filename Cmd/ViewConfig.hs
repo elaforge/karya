@@ -30,7 +30,7 @@ import Types
 
 -- * zoom
 
-cmd_zoom_around_insert :: (Cmd.M m) => (Double -> Double) -> m ()
+cmd_zoom_around_insert :: Cmd.M m => (Double -> Double) -> m ()
 cmd_zoom_around_insert f = do
     (view_id, (_, _, pos)) <- Selection.get_any_insert
     cmd_zoom_around view_id pos f
@@ -51,12 +51,12 @@ zoom_around (Types.Zoom offset factor) pos f =
 zoom_pos :: ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime -> ScoreTime
 zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
-set_zoom :: (Cmd.M m) => ViewId -> Types.Zoom -> m ()
+set_zoom :: Cmd.M m => ViewId -> Types.Zoom -> m ()
 set_zoom view_id zoom = do
     State.set_zoom view_id zoom
     Internal.sync_zoom_status view_id
 
-modify_factor :: (Cmd.M m) => ViewId -> (Double -> Double) -> m ()
+modify_factor :: Cmd.M m => ViewId -> (Double -> Double) -> m ()
 modify_factor view_id f = do
     zoom <- State.get_zoom view_id
     set_zoom view_id (zoom { Types.zoom_factor = f (Types.zoom_factor zoom) })
@@ -75,7 +75,7 @@ zoom_to view_id start end =
     set_zoom view_id . Types.Zoom start =<< zoom_factor view_id (end - start)
 
 -- | Set zoom on the given view to make the entire block visible.
-zoom_to_ruler :: (Cmd.M m) => ViewId -> m ()
+zoom_to_ruler :: Cmd.M m => ViewId -> m ()
 zoom_to_ruler view_id = do
     view <- State.get_view view_id
     block_end <- State.block_end (Block.view_block view)
@@ -92,7 +92,7 @@ zoom_factor view_id dur
 
 -- * resize
 
-resize_to_fit :: (Cmd.M m) => Bool -- ^ maximize the window vertically
+resize_to_fit :: Cmd.M m => Bool -- ^ maximize the window vertically
     -> ViewId -> m ()
 resize_to_fit maximize view_id = do
     view <- State.get_view view_id
@@ -111,12 +111,12 @@ resize_to_fit maximize view_id = do
         (Rect.rw r) (Rect.rh screen - Block.view_time_padding view
             - Config.window_decoration_h)
 
-resize_all :: (Cmd.M m) => m ()
+resize_all :: Cmd.M m => m ()
 resize_all = mapM_ (resize_to_fit False) =<< State.all_view_ids
 
 -- | Get the View's Rect, resized to fit its contents.  Its position is
 -- unchanged.
-contents_rect :: (State.M m) => Block.View -> m Rect.Rect
+contents_rect :: State.M m => Block.View -> m Rect.Rect
 contents_rect view = do
     block_end <- State.block_end (Block.view_block view)
     block <- State.get_block (Block.view_block view)
@@ -239,7 +239,7 @@ group_with cmp keys vals = Tuple.swap $ List.mapAccumL go vals keys
 -- | Right and Left would clash with Either.
 data Direction = North | South | East | West deriving (Show)
 
-move_focus :: (Cmd.M m) => Direction -> m ()
+move_focus :: Cmd.M m => Direction -> m ()
 move_focus dir = do
     rects <- State.gets $
         map (second Block.view_rect) . Map.toList . State.state_views
@@ -257,7 +257,7 @@ move_focus dir = do
 -- * saved views
 
 -- | Save the current views under the given name.
-save_views :: (Cmd.M m) => Text -> m ()
+save_views :: Cmd.M m => Text -> m ()
 save_views name = do
     views <- State.gets State.state_views
     focused <- Cmd.lookup_focused_view
@@ -265,7 +265,7 @@ save_views name = do
 
 -- | Replace the current views with the saved ones.  The current one is first
 -- saved as \"prev\".
-restore_views :: (Cmd.M m) => Text -> m ()
+restore_views :: Cmd.M m => Text -> m ()
 restore_views name = do
     (views, focused) <- Cmd.require ("no saved views named: " <> untxt name)
         =<< State.config#State.saved_views # Lens.map name <#> State.get
@@ -275,12 +275,12 @@ restore_views name = do
 
 -- * misc
 
-maximize_and_zoom :: (Cmd.M m) => ViewId -> m ()
+maximize_and_zoom :: Cmd.M m => ViewId -> m ()
 maximize_and_zoom view_id = do
     resize_to_fit True view_id
     zoom_to_ruler view_id
 
-bring_to_front :: (Cmd.M m) => ViewId -> m ()
+bring_to_front :: Cmd.M m => ViewId -> m ()
 bring_to_front view_id = do
     view <- State.lookup_view view_id
     case view of

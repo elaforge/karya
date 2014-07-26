@@ -34,44 +34,44 @@ import Types
 -- | Unlike the other toggle commands, val edit, being the \"default\" toggle,
 -- always turns other modes off.  So you can't switch directly from some other
 -- kind of edit to val edit.
-cmd_toggle_val_edit :: (Cmd.M m) => m ()
+cmd_toggle_val_edit :: Cmd.M m => m ()
 cmd_toggle_val_edit = do
     modify_edit_mode $ \m -> case m of
         Cmd.NoEdit -> Cmd.ValEdit
         _ -> Cmd.NoEdit
 
-cmd_toggle_method_edit :: (Cmd.M m) => m ()
+cmd_toggle_method_edit :: Cmd.M m => m ()
 cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of
     Cmd.MethodEdit -> Cmd.ValEdit
     Cmd.ValEdit -> Cmd.MethodEdit
     _ -> m
 
-get_mode :: (Cmd.M m) => m Cmd.EditMode
+get_mode :: Cmd.M m => m Cmd.EditMode
 get_mode = Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
 
 -- | Toggle kbd entry mode, putting a K in the edit box as a reminder.  This is
 -- orthogonal to the previous edit modes.
-cmd_toggle_kbd_entry :: (Cmd.M m) => m ()
+cmd_toggle_kbd_entry :: Cmd.M m => m ()
 cmd_toggle_kbd_entry = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
 
 -- ** util
 
-modify_edit_mode :: (Cmd.M m) => (Cmd.EditMode -> Cmd.EditMode) -> m ()
+modify_edit_mode :: Cmd.M m => (Cmd.EditMode -> Cmd.EditMode) -> m ()
 modify_edit_mode f = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_edit_mode = f (Cmd.state_edit_mode st) }
 
-toggle_advance :: (Cmd.M m) => m ()
+toggle_advance :: Cmd.M m => m ()
 toggle_advance = modify_advance not
 
-modify_advance :: (Cmd.M m) => (Bool -> Bool) -> m ()
+modify_advance :: Cmd.M m => (Bool -> Bool) -> m ()
 modify_advance f = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_advance = f (Cmd.state_advance st) }
 
-toggle_chord :: (Cmd.M m) => m ()
+toggle_chord :: Cmd.M m => m ()
 toggle_chord = modify_chord not
 
-modify_chord :: (Cmd.M m) => (Bool -> Bool) -> m ()
+modify_chord :: Cmd.M m => (Bool -> Bool) -> m ()
 modify_chord f = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_chord = f (Cmd.state_chord st) }
 
@@ -94,14 +94,14 @@ insert_event text dur = do
 -- Move back the next event, or move down the previous event.  If the
 -- selection is non-zero, the event's duration will be modified to the
 -- selection.
-cmd_move_event_forward :: (Cmd.M m) => m ()
+cmd_move_event_forward :: Cmd.M m => m ()
 cmd_move_event_forward = move_event $ \pos events ->
     case Events.split pos events of
         (_, next : _) | Event.start next == pos -> Nothing
         (prev : _, _) -> Just prev
         _ -> Nothing
 
-cmd_move_event_backward :: (Cmd.M m) => m ()
+cmd_move_event_backward :: Cmd.M m => m ()
 cmd_move_event_backward = move_event $ \pos events ->
     case Events.at_after pos events of
         next : _
@@ -109,7 +109,7 @@ cmd_move_event_backward = move_event $ \pos events ->
             | otherwise -> Just next
         [] -> Nothing
 
-move_event :: (Cmd.M m) =>
+move_event :: Cmd.M m =>
     (ScoreTime -> Events.Events -> Maybe Event.Event) -> m ()
 move_event modify = do
     (block_id, _, track_ids, pos, _) <- Selection.tracks
@@ -127,7 +127,7 @@ move_event modify = do
 -- If the selection is on an event, the previous or next one is extended
 -- instead.  This is more useful than reducing the event to 0, which has its
 -- own cmd anyway.
-cmd_set_duration :: (Cmd.M m) => m ()
+cmd_set_duration :: Cmd.M m => m ()
 cmd_set_duration = modify_event_near_point modify
     where
     modify (start, end) event
@@ -165,7 +165,7 @@ modify_event_near_point modify = do
 -- If the event is non-zero, then make it zero.  Otherwise, set its end to the
 -- cursor.  Unless the cursor is on the event start, and then extend it by
 -- a timestep.
-cmd_toggle_zero_duration :: (Cmd.M m) => m ()
+cmd_toggle_zero_duration :: Cmd.M m => m ()
 cmd_toggle_zero_duration = do
     (_, sel) <- Selection.get
     let point = Selection.point sel
@@ -194,7 +194,7 @@ cmd_toggle_zero_duration = do
 -- TODO for zero duration events, this is equivalent to
 -- 'cmd_move_event_backward'.  I'm not totally happy about the overlap, is
 -- there a more orthogonal organization?
-cmd_set_beginning :: (Cmd.M m) => m ()
+cmd_set_beginning :: Cmd.M m => m ()
 cmd_set_beginning = do
     (_, sel) <- Selection.get
     (_, _, track_ids, _, _) <- Selection.tracks
@@ -219,7 +219,7 @@ cmd_set_beginning = do
 
 -- | Modify event durations by applying a function to them.  0 durations
 -- are passed through, so you can't accidentally give control events duration.
-modify_dur :: (Cmd.M m) => (ScoreTime -> ScoreTime) -> m ()
+modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
 modify_dur f = ModifyEvents.selection $ ModifyEvents.event $ \evt ->
     Event.set_duration (apply (Event.duration evt)) evt
     where apply dur = if dur == 0 then dur else f dur
@@ -228,7 +228,7 @@ modify_dur f = ModifyEvents.selection $ ModifyEvents.event $ \evt ->
 --
 -- Since 0 dur events are neven lengthened, joining control events simply
 -- deletes the later ones.
-cmd_join_events :: (Cmd.M m) => m ()
+cmd_join_events :: Cmd.M m => m ()
 cmd_join_events = mapM_ process =<< Selection.events_around
     where
     -- If I only selected one, join with the next.  Otherwise, join selected
@@ -257,7 +257,7 @@ cmd_join_events = mapM_ process =<< Selection.events_around
             _ -> return () -- no sensible way to join these
 
 -- | Split the events under the cursor.
-cmd_split_events :: (Cmd.M m) => m ()
+cmd_split_events :: Cmd.M m => m ()
 cmd_split_events = do
     (_, _, _, p) <- Selection.get_insert
     ModifyEvents.overlapping $ ModifyEvents.events $
@@ -286,7 +286,7 @@ place start dur = Event.move (const start) . set_dur dur
 -- | Insert empty space at the beginning of the selection for the length of
 -- the selection, pushing subsequent events forwards.  If the selection is
 -- a point, insert one timestep.
-cmd_insert_time :: (Cmd.M m) => m ()
+cmd_insert_time :: Cmd.M m => m ()
 cmd_insert_time = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     (start, end) <- expand_range tracknums start end
@@ -393,18 +393,18 @@ expand_range [] start end = return (start, end)
 
 -- | If the insertion selection is a point, clear any event under it.  If it's
 -- a range, clear all events within its half-open extent.
-cmd_clear_selected :: (Cmd.M m) => m ()
+cmd_clear_selected :: Cmd.M m => m ()
 cmd_clear_selected = do
     (_, _, track_ids, start, end) <- Selection.tracks
     clear_range track_ids start end
 
-clear_range :: (State.M m) => [TrackId] -> TrackTime -> TrackTime -> m ()
+clear_range :: State.M m => [TrackId] -> TrackTime -> TrackTime -> m ()
 clear_range track_ids start end =
     forM_ track_ids $ \track_id -> if start == end
         then State.remove_event track_id start
         else State.remove_events track_id start end
 
-cmd_clear_and_advance :: (Cmd.M m) => m ()
+cmd_clear_and_advance :: Cmd.M m => m ()
 cmd_clear_and_advance = do
     cmd_clear_selected
     (_, sel) <- Selection.get
@@ -415,7 +415,7 @@ cmd_clear_and_advance = do
 -- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank.  Otherwise,
 -- set it to the deflt.  This means the marklist names are sticky, so if you
 -- set it manually the default bindings won't mess it up.
-set_step_rank :: (Cmd.M m) => TimeStep.TimeStep -> Ruler.Rank -> m ()
+set_step_rank :: Cmd.M m => TimeStep.TimeStep -> Ruler.Rank -> m ()
 set_step_rank deflt rank = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_time_step =
         set (TimeStep.to_list (Cmd.state_time_step st)) }
@@ -427,7 +427,7 @@ set_step_rank deflt rank = Cmd.modify_edit_state $ \st ->
     set _ = deflt
 
 -- | Toggle between absolute and relative mark step.
-toggle_absolute_relative_step :: (Cmd.M m) => m ()
+toggle_absolute_relative_step :: Cmd.M m => m ()
 toggle_absolute_relative_step = Cmd.modify_edit_state $ \st ->
         st { Cmd.state_time_step = toggle (Cmd.state_time_step st) }
     where
@@ -438,23 +438,23 @@ toggle_absolute_relative_step = Cmd.modify_edit_state $ \st ->
             TimeStep.time_step (TimeStep.AbsoluteMark names rank)
         _ -> step
 
-set_step :: (Cmd.M m) => TimeStep.TimeStep -> m ()
+set_step :: Cmd.M m => TimeStep.TimeStep -> m ()
 set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
 
-cmd_invert_step_direction :: (Cmd.M m) => m ()
+cmd_invert_step_direction :: Cmd.M m => m ()
 cmd_invert_step_direction = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_note_direction = invert (Cmd.state_note_direction st) }
     where
     invert TimeStep.Advance = TimeStep.Rewind
     invert TimeStep.Rewind = TimeStep.Advance
 
-cmd_modify_octave :: (Cmd.M m) => (Pitch.Octave -> Pitch.Octave) -> m ()
+cmd_modify_octave :: Cmd.M m => (Pitch.Octave -> Pitch.Octave) -> m ()
 cmd_modify_octave f = Cmd.modify_edit_state $ \st -> st
     { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
 
 -- | Toggle the note duration between the end of the block, and the current
 -- time step.
-toggle_note_duration :: (Cmd.M m) => m ()
+toggle_note_duration :: Cmd.M m => m ()
 toggle_note_duration = do
     dur <- Cmd.gets $ Cmd.state_note_duration . Cmd.state_edit
     step <- Cmd.gets $ Cmd.state_time_step . Cmd.state_edit
@@ -471,7 +471,7 @@ toggle_note_duration = do
 -- This is because it's never useful to set a block call to zero duration.
 -- Actually that's not entirely true, I can imagine a zero dur block for
 -- percussion.  But that doesn't seem very common.
-cmd_toggle_zero_or_block_call_duration :: (Cmd.M m) => m ()
+cmd_toggle_zero_or_block_call_duration :: Cmd.M m => m ()
 cmd_toggle_zero_or_block_call_duration = do
     (_, sel) <- Selection.get
     let point = Selection.point sel
@@ -487,14 +487,14 @@ cmd_toggle_zero_or_block_call_duration = do
         | otherwise = Event.set_duration (point - pos) event
         where pos = Event.start event
 
-cmd_set_block_call_duration :: (Cmd.M m) => m ()
+cmd_set_block_call_duration :: Cmd.M m => m ()
 cmd_set_block_call_duration =
     ModifyEvents.selection $ ModifyEvents.events $ mapM $ \event ->
         fromMaybe event <$> set_block_call_duration event
 
 -- | If the event is a block call, set its duration to the duration of the
 -- called block.
-set_block_call_duration :: (Cmd.M m) => Event.Event -> m (Maybe Event.Event)
+set_block_call_duration :: Cmd.M m => Event.Event -> m (Maybe Event.Event)
 set_block_call_duration event = do
     block_id <- Cmd.get_focused_block
     call <- NoteTrack.block_call (Just block_id) (Event.event_text event)
@@ -508,7 +508,7 @@ set_block_call_duration event = do
 
 -- * modify text
 
-strip_transformer :: (Cmd.M m) => m ()
+strip_transformer :: Cmd.M m => m ()
 strip_transformer = ModifyEvents.selection_advance $
     ModifyEvents.text $ ModifyEvents.pipeline $ drop 1
 
@@ -565,27 +565,27 @@ run_action action = do
 
 -- ** edit input
 
-append_text :: (Cmd.M m) => m Cmd.Status
+append_text :: Cmd.M m => m Cmd.Status
 append_text = edit_open (const Nothing)
 
-prepend_text :: (Cmd.M m) => m Cmd.Status
+prepend_text :: Cmd.M m => m Cmd.Status
 prepend_text = edit_open (const $ Just (0, 0))
 
 -- | This will be fooled by a @|@ inside a string, but I'll fix that if it's
 -- ever actually a problem.
-replace_first_call :: (Cmd.M m) => m Cmd.Status
+replace_first_call :: Cmd.M m => m Cmd.Status
 replace_first_call = edit_open $ \text -> case Text.breakOn "|" text of
     (pre, _) ->
         let space = " " `Text.isSuffixOf` pre
         in Just (0, Text.length pre - (if space then 1 else 0))
 
-replace_last_call :: (Cmd.M m) => m Cmd.Status
+replace_last_call :: Cmd.M m => m Cmd.Status
 replace_last_call = edit_open $ \text -> case Text.breakOnEnd "|" text of
     (pre, post) ->
         let space = " " `Text.isPrefixOf` post
         in Just (Text.length pre + (if space then 1 else 0), Text.length text)
 
-edit_open :: (Cmd.M m) => (Text -> Maybe (Int, Int)) -> m Cmd.Status
+edit_open :: Cmd.M m => (Text -> Maybe (Int, Int)) -> m Cmd.Status
 edit_open selection = do
     (view_id, sel) <- Selection.get
     (_, tracknum, track_id, _) <- Selection.get_insert
@@ -597,7 +597,7 @@ edit_open selection = do
     return $ Cmd.EditInput $ Cmd.EditOpen view_id tracknum pos text
         (selection text)
 
-event_text_at :: (State.M m) => TrackId -> ScoreTime -> m (Maybe Text)
+event_text_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Text)
 event_text_at track_id pos = do
     events <- Track.track_events <$> State.get_track track_id
     return $ Event.event_text <$> Events.at pos events

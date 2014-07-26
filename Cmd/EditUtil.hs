@@ -33,7 +33,7 @@ import Types
 data Pos = Pos !BlockId !TrackNum !TrackTime !TrackTime
     deriving (Eq, Show)
 
-get_pos :: (Cmd.M m) => m Pos
+get_pos :: Cmd.M m => m Pos
 get_pos = do
     (view_id, sel) <- Selection.get
     block_id <- State.block_id_of view_id
@@ -45,7 +45,7 @@ get_pos = do
 
 -- | Get the event under insertion point, creating an empty one if there is
 -- none.
-get_event :: (State.M m) =>
+get_event :: State.M m =>
     Bool -> TrackId -> TrackTime -> TrackTime -> m (Event.Event, Bool)
 get_event modify_dur track_id pos dur = do
     track <- State.get_track track_id
@@ -60,12 +60,12 @@ type Modify = Maybe Text
     -> (Maybe Text, Bool)
     -- ^ Nothing deletes the event, True to advance cursor
 
-modify_event :: (Cmd.M m) => Bool -> Bool -> Modify -> m ()
+modify_event :: Cmd.M m => Bool -> Bool -> Modify -> m ()
 modify_event zero_dur modify_dur modify = do
     pos <- get_pos
     modify_event_at pos zero_dur modify_dur modify
 
-modify_event_at :: (Cmd.M m) => Pos
+modify_event_at :: Cmd.M m => Pos
     -> Bool -- ^ Created event has 0 dur, otherwise it's the duration of the
     -- selection, or until next time step if the selection has 0 duration.
     -> Bool -- ^ If True, modify the duration of an existing event.
@@ -91,33 +91,33 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
                 (TimeStep.direction dir) step
             return (end - start)
 
-remove_event :: (Cmd.M m) => Bool -> m ()
+remove_event :: Cmd.M m => Bool -> m ()
 remove_event advance = do
     pos <- get_pos
     remove_event_at pos advance
 
 -- | Special case of 'modify_event_at' to only remove events.
-remove_event_at :: (Cmd.M m) => Pos -> Bool -> m ()
+remove_event_at :: Cmd.M m => Pos -> Bool -> m ()
 remove_event_at pos advance =
     modify_event_at pos False False (const (Nothing, advance))
 
 -- | Insert an event, but only if there isn't already a non-empty one there.
-soft_insert :: (Cmd.M m) => Text -> m ()
+soft_insert :: Cmd.M m => Text -> m ()
 soft_insert text = modify_event True True $ \old_text ->
     if Text.null (fromMaybe "" old_text) then (Just text, True)
         else (old_text, False)
 
-lookup_instrument :: (Cmd.M m) => m (Maybe Score.Instrument)
+lookup_instrument :: Cmd.M m => m (Maybe Score.Instrument)
 lookup_instrument = do
     (block_id, _, track_id, _) <- Selection.get_insert
     Perf.lookup_instrument block_id (Just track_id)
 
-get_scale_id :: (Cmd.M m) => m Pitch.ScaleId
+get_scale_id :: Cmd.M m => m Pitch.ScaleId
 get_scale_id = do
     (block_id, _, track_id, _) <- Selection.get_insert
     Perf.get_scale_id block_id (Just track_id)
 
-get_key :: (Cmd.M m) => m (Maybe Pitch.Key)
+get_key :: Cmd.M m => m (Maybe Pitch.Key)
 get_key = do
     (block_id, _, track_id, _) <- Selection.get_insert
     Perf.get_key block_id (Just track_id)
@@ -167,7 +167,7 @@ extract_key _ _ = Nothing
 --
 -- When edit mode is on, the edit cmds tend to catch all msgs.  However, some
 -- msgs should go through anyway.
-fallthrough :: (Cmd.M m) => Msg.Msg -> m ()
+fallthrough :: Cmd.M m => Msg.Msg -> m ()
 fallthrough msg = do
     keys_down <- fmap Map.keys Cmd.keys_down
     -- Abort if there are modifiers down, so commands still work.
@@ -190,7 +190,7 @@ fallthrough msg = do
 --
 -- Due to enharmonics this can depend on the current key and even be
 -- ambiguous.
-input_to_note :: (Cmd.M m) => Pitch.Input -> m Pitch.Note
+input_to_note :: Cmd.M m => Pitch.Input -> m Pitch.Note
 input_to_note input = do
     scale_id <- get_scale_id
     let me = "EditUtil.input_to_note"

@@ -59,17 +59,17 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
 
 -- | A track is assumed to be normalized if its first event has a @`0x`@ in it.
 -- If the track has no first event, then it defaults to normalized.
-infer_normalized :: (State.M m) => TrackId -> m Bool
+infer_normalized :: State.M m => TrackId -> m Bool
 infer_normalized = fmap (maybe True normal . Seq.head) . State.get_all_events
     where normal event = "`0x`" `Text.isInfixOf` Event.event_text event
 
-edit_non_normalized :: (Cmd.M m) => Msg.Msg -> m ()
+edit_non_normalized :: Cmd.M m => Msg.Msg -> m ()
 edit_non_normalized msg = case msg of
     (EditUtil.num_key -> Just key) -> modify_event (modify_num key)
     (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
     _ -> Cmd.abort
 
-edit_normalized :: (Cmd.M m) => Msg.Msg -> m ()
+edit_normalized :: Cmd.M m => Msg.Msg -> m ()
 edit_normalized msg = case msg of
     (EditUtil.hex_key -> Just key) -> modify_event (modify_hex key)
     (Msg.key_down -> Just (Key.Char '\'')) -> EditUtil.soft_insert "'"
@@ -155,7 +155,7 @@ cmd_method_edit msg =
 
 -- * implementation
 
-val_edit_at :: (Cmd.M m) => EditUtil.Pos -> Signal.Y -> m ()
+val_edit_at :: Cmd.M m => EditUtil.Pos -> Signal.Y -> m ()
 val_edit_at pos val = modify_event_at pos $ \event ->
     (Just $ event { event_val = ShowVal.show_hex_val val }, False)
 
@@ -176,12 +176,12 @@ data Event = Event {
 -- | old_event -> (new_event, advance?)
 type Modify = Event -> (Maybe Event, Bool)
 
-modify_event :: (Cmd.M m) => Modify -> m ()
+modify_event :: Cmd.M m => Modify -> m ()
 modify_event f = do
     pos <- EditUtil.get_pos
     modify_event_at pos f
 
-modify_event_at :: (Cmd.M m) => EditUtil.Pos -> Modify -> m ()
+modify_event_at :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
 modify_event_at pos f = EditUtil.modify_event_at pos True True
     (first (fmap unparse) . f . parse . fromMaybe "")
 

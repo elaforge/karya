@@ -49,7 +49,7 @@ type Call = Text
 
 -- * eval call
 
-insert_call :: (Cmd.M m) => Map.Map Char TrackLang.CallId -> Msg.Msg
+insert_call :: Cmd.M m => Map.Map Char TrackLang.CallId -> Msg.Msg
     -> m Cmd.Status
 insert_call = insert_expr . Map.fromList . map (Keymap.physical_key *** to_expr)
         . Map.toList
@@ -71,7 +71,7 @@ notes_to_calls notes =
 -- part of the performer, ultimately becasue the performer's allocator doesn't
 -- work in real time.  Still, perhaps it would be possible to integrate them
 -- better than I have.
-insert_expr :: (Cmd.M m) => Map.Map Char TrackLang.Expr -> Msg.Msg
+insert_expr :: Cmd.M m => Map.Map Char TrackLang.Expr -> Msg.Msg
     -> m Cmd.Status
 insert_expr char_to_expr msg = do
     unlessM Cmd.is_kbd_entry Cmd.abort
@@ -92,7 +92,7 @@ insert_expr char_to_expr msg = do
             UiMsg.KeyDown -> call_keydown expr
             UiMsg.KeyUp -> call_keyup expr
 
-call_keydown :: (Cmd.M m) => TrackLang.Expr -> m ()
+call_keydown :: Cmd.M m => TrackLang.Expr -> m ()
 call_keydown expr = do
     whenM Cmd.is_val_edit $ suppressed $ do
         pos <- EditUtil.get_pos
@@ -107,7 +107,7 @@ call_keydown expr = do
     suppressed = Cmd.suppress_history Cmd.ValEdit
         (untxt $ "keymap: " <> ShowVal.show_val expr)
 
-call_keyup :: (Cmd.M m) => TrackLang.Expr -> m ()
+call_keyup :: Cmd.M m => TrackLang.Expr -> m ()
 call_keyup expr = do
     -- This runs expr_to_midi twice, and relies on it producing exactly the
     -- same thing twice, so the NoteOffs will cancel out the NoteOns.
@@ -123,7 +123,7 @@ call_keyup expr = do
     mapM_ (uncurry Cmd.midi) note_offs
 
 -- | Call a note call and return the MIDI msgs it produces.
-expr_to_midi :: (Cmd.M m) => BlockId -> TrackId -> TrackTime -> TrackLang.Expr
+expr_to_midi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> TrackLang.Expr
     -> m [Midi.WriteMessage]
 expr_to_midi block_id track_id pos expr = do
     (result, logs) <- Perf.derive_expr block_id track_id pos expr
@@ -149,7 +149,7 @@ expr_to_midi block_id track_id pos expr = do
 -- TODO if I can pull the current or previous note out of the derive then I
 -- could use that to play an example note.  Wait until I have a "play current
 -- line" framework up for that.
-keyswitches :: (Cmd.M m) => [(Char, TrackLang.CallId, Midi.Key)] -> Msg.Msg
+keyswitches :: Cmd.M m => [(Char, TrackLang.CallId, Midi.Key)] -> Msg.Msg
     -> m Cmd.Status
 keyswitches inputs = \msg -> do
     EditUtil.fallthrough msg

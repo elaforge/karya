@@ -41,12 +41,12 @@ profile_small = do
     -- pprint (Map.keys (State.state_tracks ui_state))
     rederive ui_state [modify_pitch "b1.0.0.t1" 2]
 
-modify_note :: (State.M m) => String -> String -> ScoreTime -> m ()
+modify_note :: State.M m => String -> String -> ScoreTime -> m ()
 modify_note note_tid pitch_tid pos = do
     State.insert_event (UiTest.tid note_tid) (Event.event pos 1 "")
     State.insert_event (UiTest.tid pitch_tid) (Event.event pos 0 "1c")
 
-modify_pitch :: (State.M m) => String -> ScoreTime -> m ()
+modify_pitch :: State.M m => String -> ScoreTime -> m ()
 modify_pitch pitch_tid pos =
     State.insert_event (UiTest.tid pitch_tid) (Event.event pos 0 "1c")
 

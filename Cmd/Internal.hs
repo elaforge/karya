@@ -135,7 +135,7 @@ record_focus msg = case msg of
            _ -> Cmd.Continue
     _ -> return Cmd.Continue
 
-set_focused_view :: (Cmd.M m) => ViewId -> m ()
+set_focused_view :: Cmd.M m => ViewId -> m ()
 set_focused_view view_id = do
     focus <- Cmd.gets Cmd.state_focused_view
     unless (focus == Just view_id) $
@@ -308,14 +308,14 @@ selection_hooks sels = do
 
 -- ** sync
 
-sync_edit_state :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_edit_state :: Cmd.M m => Cmd.EditState -> m ()
 sync_edit_state st = do
     sync_edit_box st
     sync_step_status st
     sync_octave_status st
     sync_recorded_actions (Cmd.state_recorded_actions st)
 
-sync_edit_box :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_edit_box :: Cmd.M m => Cmd.EditState -> m ()
 sync_edit_box st = do
     let mode = Cmd.state_edit_mode st
     let skel = Block.Box (skel_color mode (Cmd.state_advance st))
@@ -339,7 +339,7 @@ edit_color mode = case mode of
     Cmd.ValEdit -> Config.val_edit_color
     Cmd.MethodEdit -> Config.method_edit_color
 
-sync_step_status :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_step_status :: Cmd.M m => Cmd.EditState -> m ()
 sync_step_status st = do
     let step_status = TimeStep.show_time_step (Cmd.state_time_step st)
         dur_status = TimeStep.show_direction (Cmd.state_note_direction st)
@@ -347,7 +347,7 @@ sync_step_status st = do
     Cmd.set_status Config.status_step (Just step_status)
     Cmd.set_status Config.status_note_duration (Just dur_status)
 
-sync_octave_status :: (Cmd.M m) => Cmd.EditState -> m ()
+sync_octave_status :: Cmd.M m => Cmd.EditState -> m ()
 sync_octave_status st = do
     let octave = Cmd.state_kbd_entry_octave st
     -- This is technically global state and doesn't belong in the block's
@@ -360,27 +360,27 @@ sync_recorded_actions actions = Cmd.set_global_status "rec" $
     Text.intercalate ", " [Text.singleton i <> "-" <> prettyt act |
         (i, act) <- Map.toAscList actions]
 
-sync_play_state :: (Cmd.M m) => Cmd.PlayState -> m ()
+sync_play_state :: Cmd.M m => Cmd.PlayState -> m ()
 sync_play_state st = do
     Cmd.set_global_status "play-step" $
         TimeStep.show_time_step (Cmd.state_play_step st)
     Cmd.set_global_status "play-mult" $
         ShowVal.show_val (Cmd.state_play_multiplier st)
 
-sync_save_file :: (Cmd.M m) => Cmd.SaveFile -> m ()
+sync_save_file :: Cmd.M m => Cmd.SaveFile -> m ()
 sync_save_file save = Cmd.set_global_status "save" $ case save of
     Cmd.SaveState fn -> txt fn
     Cmd.SaveRepo repo -> txt repo
 
 -- | Sync State.Config changes.
-sync_ui_config :: (Cmd.M m) => State.Config -> m ()
+sync_ui_config :: Cmd.M m => State.Config -> m ()
 sync_ui_config config = do
     Cmd.set_global_status "global" $ State.config_global_transform config
     Cmd.set_global_status "defs" $
         maybe "" txt (State.config_definition_file config)
 
 -- Zoom is actually not very useful.
-sync_zoom_status :: (Cmd.M m) => ViewId -> m ()
+sync_zoom_status :: Cmd.M m => ViewId -> m ()
 sync_zoom_status _view_id = return ()
     -- view <- State.get_view view_id
     -- Cmd.set_view_status view_id Config.status_zoom
@@ -388,7 +388,7 @@ sync_zoom_status _view_id = return ()
 
 -- * selection
 
-sync_selection :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
+sync_selection :: Cmd.M m => ViewId -> Maybe Types.Selection -> m ()
 sync_selection view_id maybe_sel = do
     let set = Cmd.set_view_status view_id Config.status_selection
     case maybe_sel of
@@ -411,14 +411,14 @@ selection_status ns sel maybe_track_id =
     (start, end) = Types.sel_range sel
     (tstart, tend) = Types.sel_track_range sel
 
-realtime_selection :: (Cmd.M m) => ViewId -> Maybe Types.Selection -> m ()
+realtime_selection :: Cmd.M m => ViewId -> Maybe Types.Selection -> m ()
 realtime_selection view_id maybe_sel = case maybe_sel of
     Nothing -> set Nothing
     Just sel -> whenJustM (realtime_at_selection view_id sel) $
         set . Just . RealTime.show_units
     where set = Cmd.set_view_status view_id Config.status_realtime
 
-realtime_at_selection :: (Cmd.M m) => ViewId -> Types.Selection
+realtime_at_selection :: Cmd.M m => ViewId -> Types.Selection
     -> m (Maybe RealTime)
 realtime_at_selection view_id sel = do
     block_id <- State.block_id_of view_id

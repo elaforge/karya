@@ -91,7 +91,7 @@ copy_block block_id new_name = do
 
 -- | Find tracks which are not found in any block.  Probably used to pass them
 -- to State.destroy_track for \"gc\".
-orphan_tracks :: (State.M m) => m (Set.Set TrackId)
+orphan_tracks :: State.M m => m (Set.Set TrackId)
 orphan_tracks = do
     blocks <- State.gets (Map.elems . State.state_blocks)
     let ref_tracks = Set.fromList (concatMap Block.block_track_ids blocks)
@@ -100,13 +100,13 @@ orphan_tracks = do
 
 -- | Like 'orphan_tracks' but more efficiently check if a single track is an
 -- orphan.
-orphan_track :: (State.M m) => TrackId -> m Bool
+orphan_track :: State.M m => TrackId -> m Bool
 orphan_track track_id = do
     blocks <- State.gets (Map.elems . State.state_blocks)
     return $ any ((track_id `elem`) . Block.block_track_ids) blocks
 
 -- | Find rulers which are not found in any block.
-orphan_rulers :: (State.M m) => m [RulerId]
+orphan_rulers :: State.M m => m [RulerId]
 orphan_rulers = do
     blocks <- State.gets (Map.elems . State.state_blocks)
     let ref_rulers = Set.fromList (concatMap Block.block_ruler_ids blocks)
@@ -114,7 +114,7 @@ orphan_rulers = do
     return $ Set.toList (rulers `Set.difference` ref_rulers)
 
 -- | Find blocks with no associated views.
-orphan_blocks :: (State.M m) => m [BlockId]
+orphan_blocks :: State.M m => m [BlockId]
 orphan_blocks = do
     views <- State.gets (Map.elems . State.state_views)
     let ref_blocks = Set.fromList (map Block.view_block views)
@@ -126,7 +126,7 @@ orphan_blocks = do
 -- TODO this is inadequate.  I need a function to get parsed inst and control
 -- track titles separately.  Use TrackTree.track_tree_of to figure inst vs.
 -- control.
-map_track_titles :: (State.M m) => (Text -> Text) -> m ()
+map_track_titles :: State.M m => (Text -> Text) -> m ()
 map_track_titles f = do
     tracks <- Map.assocs . State.state_tracks <$> State.get
     forM_ tracks $ \(track_id, track) ->
@@ -195,7 +195,7 @@ named_block name ruler_id = do
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
 -- that only appeared in that block.
-destroy_block :: (State.M m) => BlockId -> m ()
+destroy_block :: State.M m => BlockId -> m ()
 destroy_block block_id = do
     track_ids <- fmap Block.block_track_ids (State.get_block block_id)
     State.destroy_block block_id
@@ -213,14 +213,14 @@ generate_block_id maybe_parent ns blocks =
 -- * view
 
 -- | Create a view with the default dimensions.
-unfitted_view :: (State.M m) => BlockId -> m ViewId
+unfitted_view :: State.M m => BlockId -> m ViewId
 unfitted_view block_id = do
     (x, y) <- State.gets $ find_rect Nothing Config.view_size
         . map Block.view_rect . Map.elems . State.state_views
     let (w, h) = Config.view_size
     sized_view block_id (Rect.xywh x y w h)
 
-sized_view :: (State.M m) => BlockId -> Rect.Rect -> m ViewId
+sized_view :: State.M m => BlockId -> Rect.Rect -> m ViewId
 sized_view block_id rect = do
     view_id <- require_id "view id" . generate_view_id block_id
         =<< State.gets State.state_views
@@ -245,7 +245,7 @@ sized_view block_id rect = do
 -- Views created during setup are likely to not have the correct height.
 -- That's because I haven't received the screen resolution from fltk yet so
 -- I make a guess in 'Cmd.get_screen'.
-view :: (Cmd.M m) => BlockId -> m ViewId
+view :: Cmd.M m => BlockId -> m ViewId
 view block_id = do
     view_id <- unfitted_view block_id
     ViewConfig.maximize_and_zoom view_id
@@ -259,12 +259,12 @@ view block_id = do
     State.set_view_rect view_id (Rect.place x y rect)
     return view_id
 
-view_screen :: (Cmd.M m) => ViewId -> m Rect.Rect
+view_screen :: Cmd.M m => ViewId -> m Rect.Rect
 view_screen view_id =
     Cmd.get_screen . Rect.upper_left . Block.view_rect
         =<< State.get_view view_id
 
-block_view :: (Cmd.M m) => RulerId -> m ViewId
+block_view :: Cmd.M m => RulerId -> m ViewId
 block_view ruler_id = block ruler_id >>= view
 
 -- | ViewIds look like \"ns/b0.v0\", \"ns/b0.v1\", etc.
@@ -275,7 +275,7 @@ generate_view_id block_id views =
 
 -- | Destroy a view, along with the underlying block if there were no other
 -- views.
-destroy_view :: (State.M m) => ViewId -> m ()
+destroy_view :: State.M m => ViewId -> m ()
 destroy_view view_id = do
     block_id <- State.block_id_of view_id
     State.destroy_view view_id
@@ -287,7 +287,7 @@ destroy_view view_id = do
 
 -- | Create a track and splice it below the current one.  The track will
 -- be inserted to the right of the selected track.
-splice_below :: (Cmd.M m) => m TrackId
+splice_below :: Cmd.M m => m TrackId
 splice_below = do
     -- I want to add a track to the right of the selected track.  Taking the
     -- maximum means I should splice after a merged pitch track, if there is
@@ -302,7 +302,7 @@ splice_below = do
         State.splice_skeleton_below block_id tracknum sel_tracknum
     return track_id
 
-splice_above :: (Cmd.M m) => m TrackId
+splice_above :: Cmd.M m => m TrackId
 splice_above = do
     -- This doesn't need to avoid a merged track like 'splice_below', because
     -- it inserts to the left.
@@ -316,7 +316,7 @@ splice_above = do
 -- siblings.  If the selected track has no parent, the new track will become
 -- parent to all toplevel tracks and be placed at tracknum 1.  Otherwise, it
 -- will be inserted to the right of the parent.
-splice_above_all :: (Cmd.M m) => m TrackId
+splice_above_all :: Cmd.M m => m TrackId
 splice_above_all = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     tree <- State.track_tree_of block_id
@@ -342,7 +342,7 @@ splice_above_all = do
 -- | Get the ancestors (topmost parents) of the selected tracks and create
 -- a parent track to them.  It will be inserted to the left of the leftmost
 -- ancestor.
-splice_above_ancestors :: (Cmd.M m) => m TrackId
+splice_above_ancestors :: Cmd.M m => m TrackId
 splice_above_ancestors = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
     tree <- TrackTree.track_tree_of block_id
@@ -358,7 +358,7 @@ splice_above_ancestors = do
                 Just $ State.track_tracknum $ last (track : parents)
         where find (track, _, _) = State.track_tracknum track == tracknum
 
-insert_branch :: (Cmd.M m) => m ()
+insert_branch :: Cmd.M m => m ()
 insert_branch = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     insert_branch_from block_id tracknum
@@ -368,7 +368,7 @@ insert_branch = do
 -- If the source track has a parent, the new tracks are spliced below its
 -- rightmost child, otherwise they are appended.  The effect is to copy the
 -- branch below the selection.
-insert_branch_from :: (Cmd.M m) => BlockId -> TrackNum -> m ()
+insert_branch_from :: Cmd.M m => BlockId -> TrackNum -> m ()
 insert_branch_from block_id source = do
     tree <- TrackTree.track_tree_of block_id
     case Tree.find_with_parents ((==source) . State.track_tracknum) tree of
@@ -413,7 +413,7 @@ assign_tracknums tracknum tree =
 
 -- | Insert a track after the selection, or just append one if there isn't one.
 -- This is useful for empty blocks which of course have no selection.
-insert_track_right :: (Cmd.M m) => m TrackId
+insert_track_right :: Cmd.M m => m TrackId
 insert_track_right = do
     sel <- Selection.lookup_any_insert
     case sel of
@@ -422,14 +422,14 @@ insert_track_right = do
             block <- State.get_block block_id
             focused_track block_id (track_after block tracknum)
 
-append_track :: (Cmd.M m) => m TrackId
+append_track :: Cmd.M m => m TrackId
 append_track = do
     block_id <- Cmd.get_focused_block
     focused_track block_id 99999
 
 -- | Add a new track, give keyboard focus to the title, and embiggen the view
 -- to make sure it's visible.
-focused_track :: (Cmd.M m) => BlockId -> TrackNum -> m TrackId
+focused_track :: Cmd.M m => BlockId -> TrackNum -> m TrackId
 focused_track block_id tracknum = do
     track_id <- track block_id tracknum "" Events.empty
     view_id <- Cmd.get_focused_view
@@ -439,7 +439,7 @@ focused_track block_id tracknum = do
     return track_id
 
 -- | Hush now, this is the correct technical term.
-embiggen :: (State.M m) => ViewId -> m ()
+embiggen :: State.M m => ViewId -> m ()
 embiggen view_id = do
     view <- State.get_view view_id
     embiggened <- ViewConfig.contents_rect view
@@ -448,11 +448,11 @@ embiggen view_id = do
         State.set_view_rect view_id $ Block.set_visible_rect view $
             Rect.resize (Rect.rw embiggened) (Rect.rh rect) rect
 
-empty_track :: (State.M m) => BlockId -> TrackNum -> m TrackId
+empty_track :: State.M m => BlockId -> TrackNum -> m TrackId
 empty_track block_id tracknum = track block_id tracknum "" Events.empty
 
 -- | Like 'track_events', but copy the ruler from the track to the left.
-track :: (State.M m) => BlockId -> TrackNum -> Text -> Events.Events
+track :: State.M m => BlockId -> TrackNum -> Text -> Events.Events
     -> m TrackId
 track block_id tracknum title events = do
     -- Clip to valid range so callers can use an out of range tracknum.
@@ -468,7 +468,7 @@ track block_id tracknum title events = do
 
 -- | Lowest level track creator.  The new TrackId will be in the same namespace
 -- as the given BlockId.
-track_events :: (State.M m) =>
+track_events :: State.M m =>
     BlockId -> RulerId -> TrackNum -> Types.Width -> Track.Track -> m TrackId
 track_events block_id ruler_id tracknum width track = do
     track_id <- require_id "track id" . generate_track_id block_id "t"
@@ -479,7 +479,7 @@ track_events block_id ruler_id tracknum width track = do
     return tid
 
 -- | Create a track with the given name, in the same namespace as the BlockId.
-named_track :: (State.M m) =>
+named_track :: State.M m =>
     BlockId -> RulerId -> TrackNum -> Text -> Track.Track -> m TrackId
 named_track block_id ruler_id tracknum name track = do
     ident <- State.read_id (Id.ident_name block_id <> "." <> name)
@@ -491,12 +491,12 @@ named_track block_id ruler_id tracknum name track = do
         (Block.track (Block.TId tid ruler_id) Config.track_width)
     return tid
 
-remove_selected_tracks :: (Cmd.M m) => m ()
+remove_selected_tracks :: Cmd.M m => m ()
 remove_selected_tracks = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
     mapM_ (State.remove_track block_id) (reverse tracknums)
 
-destroy_selected_tracks :: (Cmd.M m) => m ()
+destroy_selected_tracks :: Cmd.M m => m ()
 destroy_selected_tracks = do
     (block_id, tracknums, _, _, _) <- Selection.tracks
     -- Deleting each track will decrease the tracknum of the ones after it.
@@ -504,7 +504,7 @@ destroy_selected_tracks = do
 
 -- | Remove a track from a block.  If that was the only block it appeared in,
 -- delete the underlying track.  Rulers are never deleted automatically.
-destroy_track :: (State.M m) => BlockId -> TrackNum -> m ()
+destroy_track :: State.M m => BlockId -> TrackNum -> m ()
 destroy_track block_id tracknum = do
     tracklike <- State.require ("invalid tracknum: " ++ show tracknum)
         =<< State.track_at block_id tracknum
@@ -516,7 +516,7 @@ destroy_track block_id tracknum = do
 -- | Swap the tracks at the given tracknums.  If one of the tracknums is out
 -- of range, the track at the other tracknum will be moved to the beginning or
 -- end, i.e. swapped with empty space.
-swap_tracks :: (State.M m) => BlockId -> TrackNum -> TrackNum -> m ()
+swap_tracks :: State.M m => BlockId -> TrackNum -> TrackNum -> m ()
 swap_tracks block_id num0 num1 = do
     track0 <- State.block_track_at block_id num0
     track1 <- State.block_track_at block_id num1
@@ -534,7 +534,7 @@ swap_tracks block_id num0 num1 = do
 -- ** util
 
 -- | Clip the tracknum to within the valid range.
-clip_tracknum :: (State.M m) => BlockId -> TrackNum -> m TrackNum
+clip_tracknum :: State.M m => BlockId -> TrackNum -> m TrackNum
 clip_tracknum block_id tracknum = do
     tracks <- State.track_count block_id
     return $ max 0 (min tracks tracknum)
@@ -556,19 +556,19 @@ generate_track_id block_id code tracks =
 -- * ruler
 
 -- | Create a ruler with the given name.
-ruler :: (State.M m) => Text -> Ruler.Ruler -> m RulerId
+ruler :: State.M m => Text -> Ruler.Ruler -> m RulerId
 ruler name ruler = do
     ident <- State.read_id name
     State.create_ruler ident ruler
 
 -- | Set a block to a new ruler.
-new_ruler :: (State.M m) => BlockId -> Text -> Ruler.Ruler -> m RulerId
+new_ruler :: State.M m => BlockId -> Text -> Ruler.Ruler -> m RulerId
 new_ruler block_id name r = do
     ruler_id <- ruler name r
     set_block_ruler ruler_id block_id
     return ruler_id
 
-set_block_ruler :: (State.M m) => RulerId -> BlockId -> m ()
+set_block_ruler :: State.M m => RulerId -> BlockId -> m ()
 set_block_ruler ruler_id block_id =
     Transform.tracks block_id (Block.set_ruler_id ruler_id)
 

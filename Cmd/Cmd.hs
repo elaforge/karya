@@ -16,7 +16,7 @@
     When an exception is thrown, the ui and cmd states are rolled back and midi
     output is discarded.
 
-    Cmds should be in the monad @(Cmd.M m) => m ...@.
+    Cmds should be in the monad @Cmd.M m => m ...@.
 
     They have to be polymorphic because they run in both IO and Identity.  IO
     because some cmds such saving and loading files require IO, and Identity
@@ -262,7 +262,7 @@ instance (Applicative.Applicative m, Monad m) => M (CmdT m) where
         catch State.Abort = return Nothing
         catch err = Error.throwError err
 
-midi :: (M m) => Midi.WriteDevice -> Midi.Message -> m ()
+midi :: M m => Midi.WriteDevice -> Midi.Message -> m ()
 midi dev msg = write_midi $ Midi.Interface.Midi $ Midi.WriteMessage dev 0 msg
 
 -- | For some reason, newtype deriving doesn't work on MonadTrans.
@@ -283,11 +283,11 @@ instance (Functor m, Monad m) => State.M (CmdT m) where
 
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
-throw :: (State.M m) => String -> m a
+throw :: State.M m => String -> m a
 throw = State.throw
 
 -- | Run a subcomputation that is allowed to abort.
-ignore_abort :: (M m) => m a -> m ()
+ignore_abort :: M m => m a -> m ()
 ignore_abort m = void $ catch_abort m
 
 -- | Run an IO action, rethrowing any IO exception as a Cmd exception.
@@ -906,22 +906,22 @@ strip_modifier mod = mod
 
 -- ** state access
 
-gets :: (M m) => (State -> a) -> m a
+gets :: M m => (State -> a) -> m a
 gets f = do
     state <- get
     return $! f state
 
-modify :: (M m) => (State -> State) -> m ()
+modify :: M m => (State -> State) -> m ()
 modify f = do
     st <- get
     put $! f st
 
-modify_play_state :: (M m) => (PlayState -> PlayState) -> m ()
+modify_play_state :: M m => (PlayState -> PlayState) -> m ()
 modify_play_state f = modify $ \st ->
     st { state_play = f (state_play st) }
 
 -- | Return the rect of the screen closest to the given point.
-get_screen :: (M m) => (Int, Int) -> m Rect.Rect
+get_screen :: M m => (Int, Int) -> m Rect.Rect
 get_screen point = do
     screens <- gets state_screens
     -- There are no screens yet during setup, so pick something somewhat
@@ -930,11 +930,11 @@ get_screen point = do
     return $ fromMaybe (Rect.xywh 0 0 800 600) $
         Seq.minimum_on (Rect.distance point) screens
 
-lookup_performance :: (M m) => BlockId -> m (Maybe Performance)
+lookup_performance :: M m => BlockId -> m (Maybe Performance)
 lookup_performance block_id =
     gets $ Map.lookup block_id . state_performance . state_play
 
-get_performance :: (M m) => BlockId -> m Performance
+get_performance :: M m => BlockId -> m Performance
 get_performance block_id = abort_unless =<< lookup_performance block_id
 
 -- | Clear all performances, which will cause them to be rederived.
@@ -950,20 +950,20 @@ invalidate_performances = do
         }
 
 -- | Keys currently held down, as in 'state_keys_down'.
-keys_down :: (M m) => m (Map.Map Modifier Modifier)
+keys_down :: M m => m (Map.Map Modifier Modifier)
 keys_down = gets state_keys_down
 
-get_focused_view :: (M m) => m ViewId
+get_focused_view :: M m => m ViewId
 get_focused_view = gets state_focused_view >>= abort_unless
 
-get_focused_block :: (M m) => m BlockId
+get_focused_block :: M m => m BlockId
 get_focused_block = fmap Block.view_block (get_focused_view >>= State.get_view)
 
-lookup_focused_view :: (M m) => m (Maybe ViewId)
+lookup_focused_view :: M m => m (Maybe ViewId)
 lookup_focused_view = gets state_focused_view
 
 -- | In some circumstances I don't want to abort if there's no focused block.
-lookup_focused_block :: (M m) => m (Maybe BlockId)
+lookup_focused_block :: M m => m (Maybe BlockId)
 lookup_focused_block = do
     maybe_view_id <- lookup_focused_view
     case maybe_view_id of
@@ -971,12 +971,12 @@ lookup_focused_block = do
         Just view_id -> fmap (Just . Block.view_block) (State.get_view view_id)
         Nothing -> return Nothing
 
-get_current_step :: (M m) => m TimeStep.TimeStep
+get_current_step :: M m => m TimeStep.TimeStep
 get_current_step = gets (state_time_step . state_edit)
 
 -- | Get the leftmost track covered by the insert selection, which is
 -- considered the "focused" track by convention.
-get_insert_tracknum :: (M m) => m (Maybe TrackNum)
+get_insert_tracknum :: M m => m (Maybe TrackNum)
 get_insert_tracknum = do
     view_id <- get_focused_view
     sel <- State.get_selection view_id Config.insert_selnum
@@ -984,12 +984,12 @@ get_insert_tracknum = do
 
 -- | This just calls 'State.set_view_status', but all status setting should
 -- go through here so they can be uniformly filtered or logged or something.
-set_view_status :: (M m) => ViewId -> (Int, Text) -> Maybe Text -> m ()
+set_view_status :: M m => ViewId -> (Int, Text) -> Maybe Text -> m ()
 set_view_status = State.set_view_status
 
 -- | Emit a special log msg that will cause log view to put this key and value
 -- in its status bar.  A value of \"\" will cause logview to delete that key.
-set_global_status :: (M m) => Text -> Text -> m ()
+set_global_status :: M m => Text -> Text -> m ()
 set_global_status key val = do
     status_map <- gets state_global_status
     when (Map.lookup key status_map /= Just val) $ do
@@ -998,31 +998,31 @@ set_global_status key val = do
         Log.debug $ untxt $ "global status: " <> key <> " -- " <> val
 
 -- | Set a status variable on all views.
-set_status :: (M m) => (Int, Text) -> Maybe Text -> m ()
+set_status :: M m => (Int, Text) -> Maybe Text -> m ()
 set_status key val = do
     view_ids <- State.gets (Map.keys . State.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
-get_midi_instrument :: (M m) => Score.Instrument -> m Instrument.Instrument
+get_midi_instrument :: M m => Score.Instrument -> m Instrument.Instrument
 get_midi_instrument inst = do
     lookup <- get_lookup_midi_instrument
     require ("get_midi_instrument " ++ pretty inst) $ lookup inst
 
-get_lookup_midi_instrument :: (M m) => m MidiDb.LookupMidiInstrument
+get_lookup_midi_instrument :: M m => m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument = do
     aliases <- State.config#State.aliases <#> State.get
     gets $ Instrument.Db.db_lookup_midi
         . Instrument.Db.with_aliases aliases . state_instrument_db
         . state_config
 
-lookup_instrument :: (M m) => Score.Instrument -> m (Maybe MidiInfo)
+lookup_instrument :: M m => Score.Instrument -> m (Maybe MidiInfo)
 lookup_instrument inst = ($ inst) <$> get_lookup_instrument
 
 -- | Get a function to look up a 'Score.Instrument'.  This is where
 -- 'Ui.StateConfig' is applied to the instrument db, applying aliases
 -- and 'Instrument.config_environ', so anyone looking up a Patch should go
 -- through this.
-get_lookup_instrument :: (M m) => m (Score.Instrument -> Maybe MidiInfo)
+get_lookup_instrument :: M m => m (Score.Instrument -> Maybe MidiInfo)
 get_lookup_instrument = do
     aliases <- State.config#State.aliases <#> State.get
     configs <- State.get_midi_config
@@ -1040,48 +1040,48 @@ get_lookup_instrument = do
             Map.lookup inst configs
 
 -- | Lookup a detailed patch along with the environ that it likes.
-get_midi_patch :: (M m) => Score.Instrument -> m Instrument.Patch
+get_midi_patch :: M m => Score.Instrument -> m Instrument.Patch
 get_midi_patch inst = do
     info <- require ("get_midi_patch " ++ pretty inst)
         =<< lookup_instrument inst
     return $ MidiDb.info_patch info
 
-get_lookup_scale :: (M m) => m Derive.LookupScale
+get_lookup_scale :: M m => m Derive.LookupScale
 get_lookup_scale = do
     LookupScale lookup_scale <- gets (state_lookup_scale . state_config)
     return lookup_scale
 
 -- | Lookup a scale_id or throw.
-get_scale :: (M m) => String -> Pitch.ScaleId -> m Scale.Scale
+get_scale :: M m => String -> Pitch.ScaleId -> m Scale.Scale
 get_scale caller scale_id = do
     lookup_scale <- get_lookup_scale
     maybe (throw $ caller <> ": get_scale: unknown " <> pretty scale_id)
         return (lookup_scale scale_id)
 
-get_wdev_state :: (M m) => m WriteDeviceState
+get_wdev_state :: M m => m WriteDeviceState
 get_wdev_state = gets state_wdev_state
 
-modify_wdev_state :: (M m) => (WriteDeviceState -> WriteDeviceState) -> m ()
+modify_wdev_state :: M m => (WriteDeviceState -> WriteDeviceState) -> m ()
 modify_wdev_state f = modify $ \st ->
     st { state_wdev_state = f (state_wdev_state st) }
 
-derive_immediately :: (M m) => [BlockId] -> m ()
+derive_immediately :: M m => [BlockId] -> m ()
 derive_immediately block_ids = modify $ \st -> st { state_derive_immediately =
     Set.fromList block_ids <> state_derive_immediately st }
 
-inflict_damage :: (M m) => Derive.ScoreDamage -> m ()
+inflict_damage :: M m => Derive.ScoreDamage -> m ()
 inflict_damage damage = modify_play_state $ \st -> st
     { state_current_performance = Map.map inflict (state_current_performance st)
     }
     where inflict perf = perf { perf_damage = damage <> perf_damage perf }
 
 -- | Cause a block to rederive even if there haven't been any edits on it.
-inflict_block_damage :: (M m) => BlockId -> m ()
+inflict_block_damage :: M m => BlockId -> m ()
 inflict_block_damage block_id = inflict_damage $ mempty
     { Derive.sdamage_blocks = Set.singleton block_id }
 
 -- | Cause a track to rederive even if there haven't been any edits on it.
-inflict_track_damage :: (M m) => BlockId -> TrackId -> m ()
+inflict_track_damage :: M m => BlockId -> TrackId -> m ()
 inflict_track_damage block_id track_id = inflict_damage $ mempty
     { Derive.sdamage_tracks = Map.singleton track_id Ranges.everything
     , Derive.sdamage_track_blocks = Set.singleton block_id
@@ -1089,25 +1089,25 @@ inflict_track_damage block_id track_id = inflict_damage $ mempty
 
 -- *** EditState
 
-modify_edit_state :: (M m) => (EditState -> EditState) -> m ()
+modify_edit_state :: M m => (EditState -> EditState) -> m ()
 modify_edit_state f = modify $ \st -> st { state_edit = f (state_edit st) }
 
 -- | At the Ui level, the edit box is per-block, but I use it to indicate edit
 -- mode, which is global.  So it gets stored in Cmd.State and must be synced
 -- with new blocks.
-set_edit_box :: (M m) => Block.Box -> Block.Box -> m ()
+set_edit_box :: M m => Block.Box -> Block.Box -> m ()
 set_edit_box skel track = do
     modify_edit_state $ \st -> st { state_edit_box = (skel, track) }
     block_ids <- State.all_block_ids
     forM_ block_ids $ \bid -> State.set_edit_box bid skel track
 
-is_val_edit :: (M m) => m Bool
+is_val_edit :: M m => m Bool
 is_val_edit = (== ValEdit) <$> gets (state_edit_mode . state_edit)
 
-is_kbd_entry :: (M m) => m Bool
+is_kbd_entry :: M m => m Bool
 is_kbd_entry = gets (state_kbd_entry . state_edit)
 
-set_note_text :: (M m) => Text -> m ()
+set_note_text :: M m => Text -> m ()
 set_note_text text = do
     modify_edit_state $ \st -> st { state_note_text = text }
     set_status Config.status_note_text $
@@ -1119,7 +1119,7 @@ set_note_text text = do
 -- | Give a name to a Cmd.  The name is applied when the cmd returns so the
 -- names come out in call order, and it doesn't incur overhead for cmds that
 -- abort.
-name :: (M m) => String -> m a -> m a
+name :: M m => String -> m a -> m a
 name s cmd = cmd <* modify (\st -> st
     { state_history_collect = (state_history_collect st)
         { state_cmd_names = s : state_cmd_names (state_history_collect st) }
@@ -1127,7 +1127,7 @@ name s cmd = cmd <* modify (\st -> st
 
 -- | Like 'name', but also set the 'state_suppress_edit'.  This will suppress
 -- history recording until the edit mode changes from the given one.
-suppress_history :: (M m) => EditMode -> String -> m a -> m a
+suppress_history :: M m => EditMode -> String -> m a -> m a
 suppress_history mode name cmd = cmd <* modify (\st -> st
     { state_history_collect = (state_history_collect st)
         { state_cmd_names = name : state_cmd_names (state_history_collect st)
@@ -1156,5 +1156,5 @@ require_right fmt_err = either (throw . fmt_err) return
 
 -- | Turn off all sounding notes.
 -- TODO clear out WriteDeviceState?
-all_notes_off :: (M m) => m ()
+all_notes_off :: M m => m ()
 all_notes_off = write_midi $ Midi.Interface.AllNotesOff 0

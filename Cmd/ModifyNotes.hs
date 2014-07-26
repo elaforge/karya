@@ -154,7 +154,7 @@ modify_note f _ = return . map (f . fst)
 -- This may add new tracks, but will not delete tracks that are made empty.
 -- It could, but it seems easy enough to delete the tracks by hand once
 -- I verify that the transformation worked.  TODO revisit this if it's annoying
-selection :: (Cmd.M m) => ModifyNotes m -> m ()
+selection :: Cmd.M m => ModifyNotes m -> m ()
 selection modify = do
     (block_id, _, track_ids, start, end) <- Selection.tracks
     note_trees <- extract_note_trees block_id track_ids
@@ -169,7 +169,7 @@ selection modify = do
 
 -- | Find the top-level note tracks in the selection, and reduce them down to
 -- Notes, sorted by start time.
-selection_notes :: (Cmd.M m) => m [(Note, TrackId)]
+selection_notes :: Cmd.M m => m [(Note, TrackId)]
 selection_notes = do
     (block_id, _, track_ids, start, end) <- Selection.tracks
     note_trees <- extract_note_trees block_id track_ids
@@ -179,12 +179,12 @@ selection_notes = do
 
 type Annotated a m = [(Note, a)] -> m [Note]
 
-annotate_nns :: (Cmd.M m) => Annotated (Maybe Pitch.NoteNumber) m
+annotate_nns :: Cmd.M m => Annotated (Maybe Pitch.NoteNumber) m
     -> ModifyNotes m
 annotate_nns modify = annotate_controls (modify . map (second (eval <=< fst)))
     where eval = either (const Nothing) Just . PitchSignal.pitch_nn
 
-annotate_controls :: (Cmd.M m) =>
+annotate_controls :: Cmd.M m =>
     Annotated (Maybe PitchSignal.Pitch, Score.ControlValMap) m
     -> ModifyNotes m
 annotate_controls modify block_id note_track_ids = do
@@ -226,7 +226,7 @@ stack_matches track_id start end =
 
 -- * read
 
-notes_from_range :: (State.M m) => TrackTree.TrackTree -> ScoreTime
+notes_from_range :: State.M m => TrackTree.TrackTree -> ScoreTime
     -> ScoreTime -> m (Either String [(Note, TrackId)])
 notes_from_range note_trees start end = do
     let traverse2 = Traversable.traverse . Traversable.traverse
@@ -237,7 +237,7 @@ notes_from_range note_trees start end = do
         (,) track . Events.in_range_point start end . Track.track_events <$>
             State.get_track (State.track_id track)
 
-extract_note_trees :: (State.M m) => BlockId -> [TrackId]
+extract_note_trees :: State.M m => BlockId -> [TrackId]
     -> m TrackTree.TrackTree
 extract_note_trees block_id track_ids =
     Tree.filter (wanted_track (Set.fromList track_ids)) <$>
@@ -308,7 +308,7 @@ merge_notes = map make_track . Seq.group_on note_index
 
 -- | Write NoteTracks to the given block.  It may create new tracks, but won't
 -- delete ones that are made empty.
-write_tracks :: (State.M m) => BlockId
+write_tracks :: State.M m => BlockId
     -> [TrackId] -- ^ The TrackIds are expected to line up with NoteTracks.
     -- If there are more NoteTracks than TrackIds, new tracks will be created.
     -> [NoteTrack] -> m ()
@@ -339,7 +339,7 @@ write_tracks block_id track_ids tracks = do
                 State.add_edges block_id [(State.track_tracknum p, tracknum)]
             create (tracknum + length tracks) rest
 
-merge_controls :: (State.M m) => BlockId -> TrackId -> TrackTree.TrackTree
+merge_controls :: State.M m => BlockId -> TrackId -> TrackTree.TrackTree
     -> [(Control, Events.Events)] -> m ()
 merge_controls block_id note_track_id tree controls = do
     -- Don't use State.track_tracknum because it will be out of date if
@@ -366,20 +366,20 @@ merge_controls block_id note_track_id tree controls = do
     tracks = concatMap Tree.flatten tree
 
 -- | Get the tracknum after the given tracks.
-tracknum_after :: (State.M m) => BlockId -> [TrackId] -> m TrackNum
+tracknum_after :: State.M m => BlockId -> [TrackId] -> m TrackNum
 tracknum_after block_id track_ids = do
     tracknums <- mapM (State.get_tracknum_of block_id) track_ids
     maybe (State.track_count block_id) (return . (+1)) (Seq.maximum tracknums)
 
 -- | Get the bottom track below the given TrackId.  If there are more than one,
 -- pick the one with the highest TrackNum.
-bottom_track :: (State.M m) => BlockId -> TrackId -> m (Maybe State.TrackInfo)
+bottom_track :: State.M m => BlockId -> TrackId -> m (Maybe State.TrackInfo)
 bottom_track block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
     return $ Seq.maximum_on State.track_tracknum . Tree.leaves
         =<< Tree.find ((==track_id) . State.track_id) tree
 
-parent_of :: (State.M m) => BlockId -> TrackId -> m (Maybe State.TrackInfo)
+parent_of :: State.M m => BlockId -> TrackId -> m (Maybe State.TrackInfo)
 parent_of block_id track_id = do
     tree <- TrackTree.track_tree_of block_id
     return $ Seq.head [track | (track, _, children) <- Tree.flat_paths tree,

@@ -99,7 +99,7 @@ dump_state = do
         , blocks
         )
 
-dump_block :: (State.M m) => BlockId -> m Block
+dump_block :: State.M m => BlockId -> m Block
 dump_block block_id = do
     block <- State.get_block block_id
     let track_ids = Block.block_track_ids block
@@ -115,7 +115,7 @@ dump_block block_id = do
             ++ to_skel subs
     num = State.track_tracknum
 
-dump_track :: (State.M m) => TrackId -> m Track
+dump_track :: State.M m => TrackId -> m Track
 dump_track track_id = do
     track <- State.get_track track_id
     return (simplify_track track_id track)
@@ -161,7 +161,7 @@ read_block fn = do
     simple_block <- liftIO (readIO =<< readFile fn :: IO Block)
     convert_block simple_block
 
-convert_block :: (Cmd.M m) => Block -> m State.State
+convert_block :: Cmd.M m => Block -> m State.State
 convert_block block = State.exec_rethrow "convert block" State.empty $
     make_block block
 

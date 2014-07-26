@@ -191,15 +191,15 @@ prepare_blocks focus blocks = CmdTest.update_perf ustate $
 
 step_state = Cmd.state_step . Cmd.state_play . CmdTest.result_cmd_state
 
-get_sel :: (State.M m) => m (Maybe ScoreTime)
+get_sel :: State.M m => m (Maybe ScoreTime)
 get_sel = fmap Types.sel_cur_pos <$>
     State.get_selection UiTest.default_view_id StepPlay.selnum
 
-get_sel_tracks :: (State.M m) => m (Maybe (ScoreTime, [TrackNum]))
+get_sel_tracks :: State.M m => m (Maybe (ScoreTime, [TrackNum]))
 get_sel_tracks =
     fmap (\s -> (Types.sel_cur_pos s, Types.sel_tracknums 99 s)) <$>
         State.get_selection UiTest.default_view_id StepPlay.selnum
 
-get_block_sel :: (State.M m) => String -> m (Maybe ScoreTime)
+get_block_sel :: State.M m => String -> m (Maybe ScoreTime)
 get_block_sel name = fmap Types.sel_cur_pos <$>
     State.get_selection (UiTest.mk_vid_name name) StepPlay.selnum

@@ -77,32 +77,32 @@ import qualified App.Config as Config
 -- * binding
 
 -- | Bind a Key with no modifiers.
-plain_key :: (Cmd.M m) => Key.Key -> String -> m a -> [Binding m]
+plain_key :: Cmd.M m => Key.Key -> String -> m a -> [Binding m]
 plain_key = bind_key []
 
 -- | Bind a Char with no modifiers.
-plain_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
+plain_char :: Cmd.M m => Char -> String -> m a -> [Binding m]
 plain_char = plain_key . Key.Char
 
-shift_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
+shift_char :: Cmd.M m => Char -> String -> m a -> [Binding m]
 shift_char = bind_key [Shift] . Key.Char
 
 -- | Bind a Char with the PrimaryCommand.
-command_char :: (Cmd.M m) => Char -> String -> m a -> [Binding m]
+command_char :: Cmd.M m => Char -> String -> m a -> [Binding m]
 command_char = bind_key [PrimaryCommand] . Key.Char
 
 -- | Bind a key with the given modifiers.
-bind_key :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
+bind_key :: Cmd.M m => [SimpleMod] -> Key.Key -> String -> m a -> [Binding m]
 bind_key smods key desc cmd = bind smods (Key False key) desc (const cmd)
 
 -- | Bind a key with a Cmd that returns Status.
-bind_key_status :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String
+bind_key_status :: Cmd.M m => [SimpleMod] -> Key.Key -> String
     -> m Cmd.Status -> [Binding m]
 bind_key_status smods key desc cmd =
     bind_status smods (Key False key) desc (const cmd)
 
 -- | Like 'bind_key', but the binding will be retriggered on key repeat.
-bind_repeatable :: (Cmd.M m) => [SimpleMod] -> Key.Key -> String -> m a
+bind_repeatable :: Cmd.M m => [SimpleMod] -> Key.Key -> String -> m a
     -> [Binding m]
 bind_repeatable smods key desc cmd =
     bind smods (Key True key) desc (const cmd)
@@ -110,14 +110,14 @@ bind_repeatable smods key desc cmd =
 -- | 'bind_click' passes the Msg to the cmd, since mouse cmds are more likely
 -- to want the msg to find out where the click was.  @clicks@ is 1 for a single
 -- click, 2 for a double click, etc.
-bind_click :: (Cmd.M m) => [SimpleMod] -> Types.MouseButton -> MouseOn -> Int
+bind_click :: Cmd.M m => [SimpleMod] -> Types.MouseButton -> MouseOn -> Int
     -> String -> (Msg.Msg -> m a) -> [Binding m]
 bind_click smods btn on clicks desc cmd =
     bind smods (Click btn on (clicks-1)) desc cmd
 
 -- | A 'bind_drag' binds both the click and the drag.  It's conceivable to have
 -- click and drag bound to different commands, but I don't have any yet.
-bind_drag :: (Cmd.M m) => [SimpleMod] -> Types.MouseButton -> MouseOn
+bind_drag :: Cmd.M m => [SimpleMod] -> Types.MouseButton -> MouseOn
     -> String -> (Msg.Msg -> m a) -> [Binding m]
 bind_drag smods btn on desc cmd =
     bind smods (Click btn on 0) desc cmd ++ bind smods (Drag btn on) desc cmd
@@ -125,7 +125,7 @@ bind_drag smods btn on desc cmd =
 -- | Like 'bind_status' but the return value of the Cmd is ignored and assumed
 -- to be 'Cmd.Done'.  Since the cmd has already been matched on the bound key
 -- this is likely what it would have done anyway.
-bind :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
+bind :: Cmd.M m => [SimpleMod] -> Bindable -> String
     -> (Msg.Msg -> m a) -> [Binding m]
 bind smods bindable desc cmd =
     bind_status smods bindable desc ((>> return Cmd.Done) . cmd)
@@ -134,7 +134,7 @@ bind smods bindable desc cmd =
 -- modifiers, and don't assume the cmd returns Done.
 --
 -- A capital letter is shorthand for Shift + Char.toLower c.
-bind_status :: (Cmd.M m) => [SimpleMod] -> Bindable -> String
+bind_status :: Cmd.M m => [SimpleMod] -> Bindable -> String
     -> (Msg.Msg -> m Cmd.Status) -> [Binding m]
 bind_status smods_ bindable_ desc cmd =
     [ (key_spec mods bind, cspec desc cmd)
@@ -182,7 +182,7 @@ make_cmd_map bindings = (Map.fromList bindings, warns)
 -- To look up a cmd, the Msg is restricted to a 'Bindable'.  Then modifiers
 -- that are allowed to overlap (such as keys) are stripped out of the mods and
 -- the KeySpec is looked up in the keymap.
-make_cmd :: (Cmd.M m) => CmdMap m -> Msg.Msg -> m Cmd.Status
+make_cmd :: Cmd.M m => CmdMap m -> Msg.Msg -> m Cmd.Status
 make_cmd cmd_map msg = do
     bindable <- Cmd.abort_unless (msg_to_bindable msg)
     mods <- mods_down
@@ -278,7 +278,7 @@ overlaps bindings =
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
 -- so that overlapping keys will still match.  Mouse mods are not filtered, so
 -- each mouse chord can be bound individually.
-mods_down :: (Cmd.M m) => m (Set.Set Cmd.Modifier)
+mods_down :: Cmd.M m => m (Set.Set Cmd.Modifier)
 mods_down = Set.fromList <$> fmap (filter is_mod . Map.keys) Cmd.keys_down
     where
     is_mod (Cmd.KeyMod {}) = True

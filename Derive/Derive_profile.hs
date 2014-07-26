@@ -38,7 +38,7 @@ import Types
 -- | Make a giant block with simple non-overlapping controls and tempo changes.
 profile_big_block = derive_profile "big block" $ make_simple 2000
 
-make_simple :: (State.M m) => Int -> m ()
+make_simple :: State.M m => Int -> m ()
 make_simple size =
     mkblock $ make_tempo size
         : note_tracks inst1 0 ++ note_tracks inst1 2 ++ note_tracks inst2 4
@@ -113,10 +113,10 @@ profile_file fname = do
 
 -- * make states
 
-make_nested_notes :: (State.M m) => Int -> Int -> Int -> m ()
+make_nested_notes :: State.M m => Int -> Int -> Int -> m ()
 make_nested_notes = make_nested [simple_pitch_track, note_track inst1]
 
-make_nested_controls :: (State.M m) => Int -> Int -> Int -> m ()
+make_nested_controls :: State.M m => Int -> Int -> Int -> m ()
 make_nested_controls = make_nested
     [ simple_pitch_track
     , mod_track
@@ -127,7 +127,7 @@ make_nested_controls = make_nested
 -- with the terminal blocks having a more events than the intermediate ones.
 --
 -- This doesn't produce intermediate tempo or control curves.
-make_nested :: (State.M m) => [UiTest.TrackSpec] -> Int -> Int -> Int -> m ()
+make_nested :: State.M m => [UiTest.TrackSpec] -> Int -> Int -> Int -> m ()
 make_nested bottom_tracks size depth bottom_size = do
     ruler_id <- Create.ruler "ruler" UiTest.default_ruler
     go ruler_id UiTest.default_block_name depth
@@ -144,7 +144,7 @@ make_nested bottom_tracks size depth bottom_size = do
             (map (track_take size) [ctrack (fromIntegral step) inst1 sub_bids])
         forM_ sub_bids $ \sub -> go ruler_id sub (depth-1)
 
-mkblock :: (State.M m) => [UiTest.TrackSpec] -> m ()
+mkblock :: State.M m => [UiTest.TrackSpec] -> m ()
 mkblock tracks = do
     UiTest.mkblock (UiTest.default_block_name, tracks)
     tinfo <- TrackTree.tracks_of UiTest.default_block_id

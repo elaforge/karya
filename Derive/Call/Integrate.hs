@@ -56,7 +56,7 @@ block_integrate events = do
 -- unwarp the events if the default tempo was applied.
 --
 -- TODO Getting rid of the default tempo entirely is also an option.
-unwarp :: (State.M m) => BlockId -> Derive.Events -> m Derive.Events
+unwarp :: State.M m => BlockId -> Derive.Events -> m Derive.Events
 unwarp block_id events = ifM (uses_default_tempo block_id)
     (do tempo <- State.get_default State.default_tempo
         return $ move (RealTime.seconds tempo) events)
@@ -64,7 +64,7 @@ unwarp block_id events = ifM (uses_default_tempo block_id)
     where
     move tempo = map $ fmap $ Score.move (*tempo) . Score.duration (*tempo)
 
-uses_default_tempo :: (State.M m) => BlockId -> m Bool
+uses_default_tempo :: State.M m => BlockId -> m Bool
 uses_default_tempo block_id =
     BlockUtil.has_nontempo_track <$> TrackTree.events_tree_of block_id
 

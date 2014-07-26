@@ -323,7 +323,7 @@ with_environ :: TrackLang.Environ -> Derive.Deriver a -> Derive.Deriver a
 with_environ env = Internal.local $ \st -> st { Derive.state_environ = env }
 
 -- | Set UI state defaults that every derivation should have.
-set_defaults :: (State.M m) => m ()
+set_defaults :: State.M m => m ()
 set_defaults = State.modify set_default_midi_config
 
 set_default_midi_config :: State.State -> State.State

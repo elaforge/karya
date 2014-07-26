@@ -128,7 +128,7 @@ derive_control_tree block_end tree = do
 
 -- ** implementation
 
-get_tree :: (State.M m) => BlockId -> m (TrackTree.EventsTree, ScoreTime)
+get_tree :: State.M m => BlockId -> m (TrackTree.EventsTree, ScoreTime)
 get_tree block_id = do
     info_tree <- TrackTree.strip_disabled_tracks block_id
         =<< TrackTree.track_tree_of block_id

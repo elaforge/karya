@@ -395,7 +395,7 @@ test_insert_into_selection = do
         State.remove_track t_block_id 1
     return ()
 
-insert_track :: (State.M m) => BlockId -> TrackNum -> Block.TracklikeId
+insert_track :: State.M m => BlockId -> TrackNum -> Block.TracklikeId
     -> Types.Width -> m ()
 insert_track bid tracknum tracklike_id width =
     State.insert_track bid tracknum (Block.track tracklike_id width)
@@ -448,7 +448,7 @@ parse_dump = either (error . ("failed to parse dump: "++)) id . Dump.parse
 track_with_events :: Track.Track
 track_with_events = UiTest.make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
-set_selection :: (State.M m) => ViewId -> Types.Selection -> m ()
+set_selection :: State.M m => ViewId -> Types.Selection -> m ()
 set_selection view_id sel = State.set_selection view_id 0 (Just sel)
 
 t_block = "b1"
@@ -460,29 +460,29 @@ t_view_id = Id.ViewId (mkid "v1")
 run_setup :: IO State.State
 run_setup = run State.empty setup_state
 
-setup_state :: (State.M m) => m ViewId
+setup_state :: State.M m => m ViewId
 setup_state = do
     ruler <- create_ruler "r1" (UiTest.mkruler_44 20 1)
     t1 <- create_track "b1.t1" (UiTest.empty_track "t1")
     b1 <- create_block t_block "hi b1" [Block.RId ruler, Block.TId t1 ruler]
     create_view "v1" =<< make_view b1 UiTest.default_rect UiTest.default_zoom
 
-make_view :: (State.M m) => BlockId -> Rect.Rect -> Types.Zoom -> m Block.View
+make_view :: State.M m => BlockId -> Rect.Rect -> Types.Zoom -> m Block.View
 make_view block_id rect zoom = do
     block <- State.get_block block_id
     return $ Block.view block block_id rect zoom
 
-create_view :: (State.M m) => String -> Block.View -> m ViewId
+create_view :: State.M m => String -> Block.View -> m ViewId
 create_view a b = State.create_view (mkid a) b
 
-create_block :: (State.M m) => String -> String -> [Block.TracklikeId]
+create_block :: State.M m => String -> String -> [Block.TracklikeId]
     -> m BlockId
 create_block block_name = UiTest.create_block (UiTest.mkid block_name)
 
-create_track :: (State.M m) => String -> Track.Track -> m TrackId
+create_track :: State.M m => String -> Track.Track -> m TrackId
 create_track a b = State.create_track (mkid a) b
 
-create_ruler :: (State.M m) => String -> Ruler.Ruler -> m RulerId
+create_ruler :: State.M m => String -> Ruler.Ruler -> m RulerId
 create_ruler a b = State.create_ruler (mkid a) b
 
 run :: State.State -> State.StateT IO a -> IO State.State
