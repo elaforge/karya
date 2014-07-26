@@ -301,6 +301,9 @@ view_config_bindings = concat
     , secondary 'J' "move focus down" $ ViewConfig.move_focus ViewConfig.South
     , secondary 'K' "move focus up" $ ViewConfig.move_focus ViewConfig.North
     , secondary 'L' "move focus right" $ ViewConfig.move_focus ViewConfig.East
+
+    , secondary 'f' "scroll forward" $ ViewConfig.scroll_pages 0.75
+    , secondary 'b' "scroll backward" $ ViewConfig.scroll_pages (-0.75)
     ]
     where secondary c = bind_key [SecondaryCommand] (Key.Char c)
 

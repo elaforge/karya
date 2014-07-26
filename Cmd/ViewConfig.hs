@@ -90,6 +90,20 @@ zoom_factor view_id dur
         let pixels = Block.view_visible_time view
         return $ fromIntegral pixels / ScoreTime.to_double dur
 
+-- * scroll
+
+scroll_pages :: Cmd.M m => TrackTime -> m ()
+scroll_pages pages = do
+    view_id <- Cmd.get_focused_view
+    view <- State.get_view view_id
+    let visible = Block.visible_time view
+        offset = Types.zoom_offset $ Block.view_zoom view
+    end <- State.block_end $ Block.view_block view
+    State.set_zoom view_id $ (Block.view_zoom view)
+        { Types.zoom_offset =
+            Num.clamp 0 (end - visible) $ offset + pages * visible
+        }
+
 -- * resize
 
 resize_to_fit :: Cmd.M m => Bool -- ^ maximize the window vertically

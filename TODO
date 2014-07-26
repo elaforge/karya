@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * ^f and ^b to scroll by page?
   * fltk: close window when playing kills the event loop
   - fltk: if I directly change focus from one expanded track title to another,
     the second track is shifted downwards

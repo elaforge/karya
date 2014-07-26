@@ -437,7 +437,7 @@ show_status = Text.intercalate " | "
     . map (\((_, k), v) -> k <> ": " <> v) . Map.toAscList
 
 -- | Return how much track is in view.
-visible_time :: View -> ScoreTime
+visible_time :: View -> TrackTime
 visible_time view = Types.zoom_to_time (view_zoom view) (view_visible_time view)
 
 visible_track :: View -> Types.Width
