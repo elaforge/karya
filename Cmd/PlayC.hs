@@ -78,7 +78,7 @@ cmd_play_msg ui_chan msg = do
                 ui_state <- State.get
                 liftIO $ Sync.set_track_signals ui_chan block_id ui_state
                     (Cmd.perf_track_signals perf)
-                sels <- get_event_highlights (Cmd.perf_events perf)
+                sels <- get_event_highlights block_id (Cmd.perf_events perf)
                 liftIO $ Sync.set_highlights ui_chan sels
             _ -> return ()
     derive_status_color status = case status of
@@ -93,11 +93,11 @@ set_all_play_boxes color =
 type Range = (TrackTime, TrackTime)
 
 -- | Get highlight selections from the events.
-get_event_highlights :: Cmd.M m => Cmd.Events
+get_event_highlights :: Cmd.M m => BlockId -> Cmd.Events
     -> m [((ViewId, TrackNum), (Range, Color.Color))]
-get_event_highlights events = do
+get_event_highlights block_id events = do
     colors <- Cmd.gets $ Cmd.state_highlight_colors . Cmd.state_config
-    resolve_tracks $ event_highlights colors events
+    resolve_tracks $ event_highlights block_id colors events
 
 resolve_tracks :: State.M m => [((BlockId, TrackId), a)]
     -> m [((ViewId, TrackNum), a)]
@@ -108,9 +108,9 @@ resolve_tracks = concatMapM resolve
         view_ids <- Map.keys <$> State.views_of block_id
         return [((view_id, tracknum), val) | view_id <- view_ids]
 
-event_highlights :: Map.Map Color.Highlight Color.Color -> Cmd.Events
+event_highlights :: BlockId -> Map.Map Color.Highlight Color.Color -> Cmd.Events
     -> [((BlockId, TrackId), (Range, Color.Color))]
-event_highlights colors
+event_highlights derived_block_id colors
     | Map.null colors = const []
     | otherwise = Seq.unique_on key . Vector.foldr collect []
     where
@@ -118,6 +118,7 @@ event_highlights colors
     collect event accum
         | highlight /= Color.NoHighlight,
                 Just (block_id, track_id, range) <- maybe_pos,
+                block_id == derived_block_id,
                 Just color <- Map.lookup highlight colors =
             ((block_id, track_id), (range, color)) : accum
         | otherwise = accum
