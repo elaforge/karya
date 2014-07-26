@@ -97,16 +97,16 @@ get_event_highlights :: Cmd.M m => Cmd.Events
     -> m [((ViewId, TrackNum), (Range, Color.Color))]
 get_event_highlights events = do
     colors <- Cmd.gets $ Cmd.state_highlight_colors . Cmd.state_config
-    let (tracks, sels) = unzip $ event_highlights colors events
-    flip zip sels <$> resolve_tracks tracks
+    resolve_tracks $ event_highlights colors events
 
-resolve_tracks :: State.M m => [(BlockId, TrackId)] -> m [(ViewId, TrackNum)]
+resolve_tracks :: State.M m => [((BlockId, TrackId), a)]
+    -> m [((ViewId, TrackNum), a)]
 resolve_tracks = concatMapM resolve
     where
-    resolve (block_id, track_id) = do
+    resolve ((block_id, track_id), val) = do
         tracknum <- State.get_tracknum_of block_id track_id
         view_ids <- Map.keys <$> State.views_of block_id
-        return $ map (flip (,) tracknum) view_ids
+        return [((view_id, tracknum), val) | view_id <- view_ids]
 
 event_highlights :: Map.Map Color.Highlight Color.Color -> Cmd.Events
     -> [((BlockId, TrackId), (Range, Color.Color))]

@@ -67,7 +67,8 @@ UNSORTED
     * I can also emit Error highlights for instruments with
       Environ.instrument_top and Environ.instrument_bottom.
     - a new block opens without highlights?
-    - Also highlights get in the wrong place.
+    * Also highlights get in the wrong place.
+    - I should only get highlights from the block that was derived.
   - I can now have simultaneous playback selections, so support that.
   * 8va could default to 0, with a duration could end with 0
   * LRuler.local is broken, this makes extra:
