@@ -32,8 +32,8 @@ import qualified Perform.Lilypond.Types as Types
 import Types
 
 
-default_config :: Lilypond.Config
-default_config = Lilypond.default_config
+default_config :: Types.Config
+default_config = Types.default_config
 
 type Output = Either Process.Voices Process.Ly
 
@@ -126,7 +126,7 @@ simple_event (start, dur, pitch) =
 
 environ_event ::
     (RealTime, RealTime, String, [(TrackLang.ValName, TrackLang.Val)])
-    -> Lilypond.Event
+    -> Types.Event
 environ_event (start, dur, pitch, env) =
     mkevent start dur pitch default_inst env
 
@@ -157,7 +157,7 @@ default_inst = Score.Instrument "test"
 type StaffGroup = (String, [String])
 
 -- | Like 'convert_staves', but expect only one staff.
-convert_measures :: [String] -> [Lilypond.Event] -> Either String String
+convert_measures :: [String] -> [Types.Event] -> Either String String
 convert_measures wanted staves = case convert_staves wanted staves of
     Right [] -> Right ""
     Right [(_, [code])] -> Right code
@@ -168,17 +168,17 @@ convert_measures wanted staves = case convert_staves wanted staves of
 convert_staves ::
     [String] -- ^ Only include lilypond backslash commands listed here.
     -- Or [\"ALL\"] to see them all, for debugging.
-    -> [Lilypond.Event] -> Either String [StaffGroup]
+    -> [Types.Event] -> Either String [StaffGroup]
 convert_staves wanted events = either (Left . untxt) Right $
     map extract_staves <$> Lilypond.convert_staff_groups default_config 0 events
     where
     extract_staves (Lilypond.StaffGroup inst staves) =
-        (untxt $ Lilypond.inst_name inst, map show_staff staves)
+        (untxt $ Types.inst_name inst, map show_staff staves)
     show_staff = unwords . mapMaybe (either show_voices show_ly)
     show_ly ly
         | is_wanted code = Just code
         | otherwise = Nothing
-        where code = untxt $ Lilypond.to_lily ly
+        where code = untxt $ Types.to_lily ly
     show_voices (Process.Voices voices) = Just $
         "<< " <> unwords (map show_voice voices) <> " >>"
     show_voice (v, lys) = "{ " <> show v <> ": "
@@ -205,10 +205,10 @@ measures wanted = first (convert_measures wanted) . partition_logs
 staves :: [String] -> Derive.Result -> (Either String [StaffGroup], [String])
 staves wanted = first (convert_staves wanted) . partition_logs
 
-extract :: (Lilypond.Event -> a) -> Derive.Result -> ([a], [String])
+extract :: (Types.Event -> a) -> Derive.Result -> ([a], [String])
 extract f = first (map f) . partition_logs
 
-partition_logs :: Derive.Result -> ([Lilypond.Event], [String])
+partition_logs :: Derive.Result -> ([Types.Event], [String])
 partition_logs result = (events, extract_logs (dlogs ++ logs))
     where
     (events, logs) = LEvent.partition $ Convert.convert config $
@@ -253,7 +253,7 @@ derive_lilypond state deriver =
     extract (Right Nothing) = error "derive_lilypond: abort"
     extract (Left err) = error $ "derive_lilypond: " ++ err
 
-make_ly :: Types.Config -> [Lilypond.Event] -> String
+make_ly :: Types.Config -> [Types.Event] -> String
 make_ly config events = Text.Lazy.unpack $
     Lilypond.ly_file config "title" $ expect_right "make_ly" $
     Lilypond.extract_movements config events

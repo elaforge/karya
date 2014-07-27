@@ -1,13 +1,10 @@
--- Copyright 2013 Evan Laforge
+-- Copyright 2014 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ScopedTypeVariables, TupleSections #-}
 -- | Convert from Score events to a lilypond score.
-module Perform.Lilypond.Lilypond (
-    module Perform.Lilypond.Lilypond
-    , module Perform.Lilypond.Types
-) where
+module Perform.Lilypond.Lilypond where
 import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -27,7 +24,6 @@ import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
-import Perform.Lilypond.Types
 
 
 -- * config
@@ -54,7 +50,7 @@ paper_config =
 
 type Title = Text
 
-ly_file :: Config -> Title -> [Movement] -> Lazy.Text
+ly_file :: Types.Config -> Title -> [Movement] -> Lazy.Text
 ly_file config title movements = run_output $ do
     outputs
         [ "\\version" <+> str "2.14.2"
@@ -72,22 +68,22 @@ ly_file config title movements = run_output $ do
     write_movement (title, staff_groups) = do
         output "\\score {\n"
         output "<<\n"
-        mapM_ write_staves $ sort_staves (config_staves config) staff_groups
+        mapM_ write_staves $ sort_staves (Types.config_staves config)
+            staff_groups
         output ">>\n"
         unless (Text.null title) $
             output $ "\\header { piece =" <+> str title <+> "}\n"
         output "}\n\n"
     write_staves (StaffGroup _ staves, config)
-        | not (staff_display config) = return ()
-        | staff_add_bass_staff config =
+        | not (Types.staff_display config) = return ()
+        | Types.staff_add_bass_staff config =
             write_staff_group "StaffGroup" config $ \config -> do
                 case staves of
                     staff : staves -> do
                         normal_staff config (Just "up") staff
                         mapM_ (normal_staff config Nothing) staves
                     [] -> return ()
-                whenJust (Seq.head staves) $
-                    write_empty_staff config . Process.convert_to_rests
+                whenJust (Seq.head staves) $ write_empty_staff config
         | otherwise = case staves of
             [staff] -> normal_staff config Nothing staff
             [up, down] -> write_staff_group "PianoStaff" config $ \config -> do
@@ -98,29 +94,30 @@ ly_file config title movements = run_output $ do
     write_staff_group name config contents = do
         outputs
             [ "\\new " <> name <> " <<"
-            , ly_set (name <> ".instrumentName") (staff_long config)
-            , ly_set (name <> ".shortInstrumentName") (staff_short config)
+            , ly_set (name <> ".instrumentName") (Types.staff_long config)
+            , ly_set (name <> ".shortInstrumentName") (Types.staff_short config)
             ]
-        contents $ config { staff_long = "", staff_short = "" }
+        contents $ config { Types.staff_long = "", Types.staff_short = "" }
         output ">>\n\n"
     normal_staff config maybe_name lys =
         write_staff config maybe_name Nothing (mapM_ write_voice_ly lys)
 
--- | Get [(Time, Key | Meter)].  Emit them along with s rests to fill in the
--- gaps.
-write_empty_staff :: StaffConfig -> [Process.Ly] -> Output ()
+-- | Convert ly code to all hidden rests, and emit an empty staff with a bass
+-- clef.
+write_empty_staff :: Types.StaffConfig -> [Process.VoiceLy] -> Output ()
 write_empty_staff config_ lys =
     write_staff config (Just "down") (Just "\\RemoveEmptyStaves") $
-        mapM_ write_ly $ Process.Code "\\clef bass" : lys
+        mapM_ write_ly $ Process.Code "\\clef bass"
+            : (Process.convert_to_rests lys)
     where
-    config = config_ { staff_code = staff_code config_ ++ [code] }
+    config = config_ { Types.staff_code = Types.staff_code config_ ++ [code] }
     -- Normally RemoveEmptyStaves won't remove the staff from the first system,
     -- even if it's empty.  This causes the first system's staff to also be
     -- removed.
     code = "\\override Staff.VerticalAxisGroup.remove-first = ##t"
 
 str :: Text -> Text
-str = to_lily
+str = Types.to_lily
 
 (<+>) :: Text -> Text -> Text
 x <+> y = x <> " " <> y
@@ -129,16 +126,17 @@ infixr 6 <+> -- same as <>
 ly_set :: Text -> Text -> Text
 ly_set name val = "\\set" <+> name <+> "=" <+> str val
 
-write_staff :: StaffConfig -> Maybe Text -> Maybe Text -> Output () -> Output ()
+write_staff :: Types.StaffConfig -> Maybe Text -> Maybe Text -> Output ()
+    -> Output ()
 write_staff config maybe_name context write_contents = do
     output $ "\\new Staff " <> maybe "" (("= "<>) . str) maybe_name
         <> maybe "" (" "<>) context <+> "{\n"
-    unless (Text.null (staff_long config)) $
-        outputs [ly_set "Staff.instrumentName" (staff_long config)]
-    unless (Text.null (staff_short config)) $
-        outputs [ly_set "Staff.shortInstrumentName" (staff_short config)]
+    unless (Text.null (Types.staff_long config)) $
+        outputs [ly_set "Staff.instrumentName" (Types.staff_long config)]
+    unless (Text.null (Types.staff_short config)) $
+        outputs [ly_set "Staff.shortInstrumentName" (Types.staff_short config)]
     outputs Types.global_staff_code
-    outputs (staff_code config)
+    outputs (Types.staff_code config)
     output "{\n"
     set_bar 1
     write_contents
@@ -164,11 +162,11 @@ write_ly :: Process.Ly -> Output ()
 write_ly ly@(Process.Barline {}) = do
     bar <- State.gets output_bar
     stack <- State.gets output_last_stack
-    output $ " " <> to_lily ly <> " % " <> show_stack stack <> showt bar
+    output $ " " <> Types.to_lily ly <> " % " <> show_stack stack <> showt bar
         <> "\n"
     set_bar (bar+1)
 write_ly ly = do
-    output $ " " <> to_lily ly
+    output $ " " <> Types.to_lily ly
     case ly of
         Process.LyNote note -> State.modify $ \state -> state
             { output_last_stack = Process.note_stack note }
@@ -181,17 +179,17 @@ show_stack Nothing = ""
 write_voice :: (Process.Voice, [Process.Ly]) -> Output Int
 write_voice (voice, lys) = do
     output $ (if voice == Process.VoiceOne then "" else "\\new Voice ")
-        <> "{ " <> to_lily voice <> "\n  "
+        <> "{ " <> Types.to_lily voice <> "\n  "
     mapM_ write_ly lys
     output "} "
     State.gets output_bar
 
-sort_staves :: [(Score.Instrument, StaffConfig)] -> [StaffGroup]
-    -> [(StaffGroup, StaffConfig)]
+sort_staves :: [(Score.Instrument, Types.StaffConfig)] -> [StaffGroup]
+    -> [(StaffGroup, Types.StaffConfig)]
 sort_staves inst_configs = map lookup_name . Seq.sort_on inst_key
     where
     lookup_name staff = case lookup (inst_of staff) inst_configs of
-        Nothing -> (staff, default_staff_config (inst_of staff))
+        Nothing -> (staff, Types.default_staff_config (inst_of staff))
         Just config -> (staff, config)
     inst_key staff =
         maybe (1, 0) ((,) 0) $ List.elemIndex (inst_of staff)
@@ -235,15 +233,16 @@ instance Pretty.Pretty StaffGroup where
         , ("staves", Pretty.format staves)
         ]
 
-explicit_movements :: Config -> [(Title, [Event])] -> Either Text [Movement]
+explicit_movements :: Types.Config -> [(Title, [Types.Event])]
+    -> Either Text [Movement]
 explicit_movements config sections = forM sections $ \(title, events) -> do
     staves <- convert_staff_groups config 0 events
     return (title, staves)
 
-extract_movements :: Config -> [Event] -> Either Text [Movement]
+extract_movements :: Types.Config -> [Types.Event] -> Either Text [Movement]
 extract_movements config events = do
     movements <- get_movements $
-        filter ((==Constants.ly_global) . event_instrument) events
+        filter ((==Constants.ly_global) . Types.event_instrument) events
     forM (split_movements movements events) $ \(start, title, events) -> do
         staves <- convert_staff_groups config start events
         return (title, staves)
@@ -251,24 +250,25 @@ extract_movements config events = do
 -- | Group a stream of events into individual staves based on instrument, and
 -- for keyboard instruments, left or right hand.  Then convert each staff of
 -- Events to Notes, divided up into measures.
-convert_staff_groups :: Config -> Time -> [Event] -> Either Text [StaffGroup]
+convert_staff_groups :: Types.Config -> Types.Time -> [Types.Event]
+    -> Either Text [StaffGroup]
 convert_staff_groups config start events = do
-    let (global, normal) =
-            List.partition ((==Constants.ly_global) . event_instrument) events
+    let (global, normal) = List.partition ((==Constants.ly_global)
+            . Types.event_instrument) events
         staff_groups = split_events normal
-    let staff_end = fromMaybe 0 $ Seq.maximum (map event_end events)
+    let staff_end = fromMaybe 0 $ Seq.maximum (map Types.event_end events)
     meters <- get_meters start staff_end global
     forM staff_groups $ \(inst, staves) ->
         staff_group config start meters inst staves
 
 -- | Split events by instrument, and if they have 'Environ.hand', further split
 -- into right and left hand.
-split_events :: [Event] -> [(Score.Instrument, [[Event]])]
+split_events :: [Types.Event] -> [(Score.Instrument, [[Types.Event]])]
 split_events events =
-    [(inst, Seq.group_on (lookup_hand . event_environ) events)
+    [(inst, Seq.group_on (lookup_hand . Types.event_environ) events)
         | (inst, events) <- by_inst]
     where
-    by_inst = Seq.keyed_group_on event_instrument events
+    by_inst = Seq.keyed_group_on Types.event_instrument events
     lookup_hand environ = case TrackLang.get_val Environ.hand environ of
         Right (val :: Text)
             | val == "r" || val == "right" -> 0
@@ -279,8 +279,8 @@ split_events events =
 -- | Right hand goes at the top, left hand goes at the bottom.  Any other hands
 -- go below that.  Events that are don't have a hand are assumed to be in the
 -- right hand.
-staff_group :: Config -> Time -> [Meter.Meter] -> Score.Instrument -> [[Event]]
-    -> Either Text StaffGroup
+staff_group :: Types.Config -> Types.Time -> [Meter.Meter] -> Score.Instrument
+    -> [[Types.Event]] -> Either Text StaffGroup
 staff_group config start meters inst staves = do
     staff_measures <- mapM (Process.process config start meters) staves
     return $ StaffGroup inst staff_measures
@@ -291,26 +291,29 @@ staff_group config start meters inst staves = do
 -- are not shifted in time, so each movement has to start at the proper offset.
 -- The reason is that certain calls, like tuplet, bake in lilypond code, and it
 -- will be wrong if the events change position.
-split_movements :: [(Time, Title)] -> [Event] -> [(Time, Title, [Event])]
+split_movements :: [(Types.Time, Title)] -> [Types.Event]
+    -> [(Types.Time, Title, [Types.Event])]
 split_movements movements =
     filter (not . null . events_of) . split (Seq.zip_next ((0, "") : movements))
     where
     split (((start, title), Just (next, _)) : movements) events =
         (start, title, pre) : split movements post
-        where (pre, post) = break ((>=next) . event_start) events
+        where (pre, post) = break ((>=next) . Types.event_start) events
     split (((start, title), Nothing) : _) events = [(start, title, events)]
     split [] events = [(0, "", events)]
     events_of (_, _, x) = x
 
-get_movements :: [Event] -> Either Text [(Time, Title)]
+get_movements :: [Types.Event] -> Either Text [(Types.Time, Title)]
 get_movements = mapMaybeM $ \event -> do
-    title <- TrackLang.checked_val Constants.v_movement (event_environ event)
-    return $ (,) (event_start event) <$> title
+    title <- TrackLang.checked_val Constants.v_movement
+        (Types.event_environ event)
+    return $ (,) (Types.event_start event) <$> title
 
 -- ** meter
 
 -- | Extract Meters from the Events, and emit one per measure.
-get_meters :: Time -> Time -> [Event] -> Either Text [Meter.Meter]
+get_meters :: Types.Time -> Types.Time -> [Types.Event]
+    -> Either Text [Meter.Meter]
 get_meters start staff_end events = do
     meters <- mapMaybeM get_meter events
     return $ generate start Meter.default_meter meters
@@ -330,15 +333,15 @@ get_meters start staff_end events = do
 
     get_meter event = error_context context $ do
         maybe_val <- TrackLang.checked_val Constants.v_meter
-            (event_environ event)
+            (Types.event_environ event)
         case maybe_val of
             Nothing -> return Nothing
             Just val -> do
                 meter <- Meter.parse_meter val
-                return $ Just (event_start event, meter)
+                return $ Just (Types.event_start event, meter)
         where
         context = prettyt Constants.ly_global <> " event at "
-            <> prettyt (event_start event)
+            <> prettyt (Types.event_start event)
 
 error_context :: Text -> Either Text a -> Either Text a
 error_context msg = either (Left . ((msg <> ": ") <>)) Right

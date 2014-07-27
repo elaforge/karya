@@ -9,8 +9,8 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Lilypond.Constants as Constants
-import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 

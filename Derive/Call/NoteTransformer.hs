@@ -24,7 +24,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
 
-import qualified Perform.Lilypond.Lilypond as Lilypond
+import qualified Perform.Lilypond as Lilypond
 import qualified Perform.RealTime as RealTime
 import Types
 

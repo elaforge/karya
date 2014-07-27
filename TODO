@@ -414,7 +414,7 @@ integrate / integration:
 lilypond:
   - Add lenses for StaffConfig so I can get rid of the ad-hoc functions in
     LLily.
-    - First I should stop importing Types unqualified into Lilypond.
+    * First I should stop importing Types unqualified into Lilypond.
       . Put Types exports into Perform.Lilypond, as a public API.
   - to make notes without duration, ignore the existing duration and choose
     the simplest possible duration.  For zheng, yangqin, percussion.

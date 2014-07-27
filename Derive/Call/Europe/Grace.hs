@@ -29,7 +29,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Lilypond.Lilypond as Lilypond
+import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal

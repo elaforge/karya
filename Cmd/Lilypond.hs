@@ -40,7 +40,7 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Convert as Convert
-import qualified Perform.Lilypond.Lilypond as Lilypond
+import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
 
 import Types

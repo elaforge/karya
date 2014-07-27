@@ -9,7 +9,6 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.Convert as Convert
-import qualified Perform.Lilypond.Lilypond as Lilypond
 import qualified Perform.Lilypond.Types as Types
 
 
@@ -18,7 +17,7 @@ test_convert = do
         config = Types.default_config { Types.config_quarter_duration = 0.05 }
         mkevent (start, dur, pitch) =
             DeriveTest.mkevent (start, dur, pitch, [], Score.empty_inst)
-        extract e = (Lilypond.event_start e, Lilypond.event_duration e,
-            Lilypond.event_pitch e)
+        extract e = (Types.event_start e, Types.event_duration e,
+            Types.event_pitch e)
     equal (f [(0, 0.05, "3b"), (0.05, 0.1, "4c#")])
         [LEvent.Event (0, 32, "b"), LEvent.Event (32, 64, "cs'")]
