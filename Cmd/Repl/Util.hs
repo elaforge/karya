@@ -5,9 +5,16 @@
 module Cmd.Repl.Util where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import qualified Ui.Id as Id
+import qualified Derive.Score as Score
 
+
+-- | Create a 'Score.Instrument'.  Drop a leading @>@, since I often
+-- accidentally include one.
+instrument :: Text.Text -> Score.Instrument
+instrument = Score.Instrument . Text.dropWhile (=='>')
 
 match_map :: Id.Ident id => String -> Map.Map id a -> Map.Map id a
 match_map match = Map.filterWithKey (\k _ -> match_id match k)

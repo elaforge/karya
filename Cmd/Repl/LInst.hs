@@ -21,6 +21,7 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
+import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Save as Save
 
 import qualified Derive.Call.Bali.Kotekan as Kotekan
@@ -39,10 +40,10 @@ import Types
 -- * instrument info
 
 lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.MidiInfo)
-lookup = Cmd.lookup_instrument . instrument
+lookup = Cmd.lookup_instrument . Util.instrument
 
 info :: Instrument -> Cmd.CmdL Text
-info = Info.inst_info . instrument
+info = Info.inst_info . Util.instrument
 
 info_all :: Cmd.CmdL Text
 info_all = do
@@ -102,8 +103,8 @@ rename from_ to_ =
     rename_alias aliases = case Map.lookup from aliases of
         Just source -> Map.insert to source $ Map.delete from aliases
         Nothing -> aliases
-    from = instrument from_
-    to = instrument to_
+    from = Util.instrument from_
+    to = Util.instrument to_
 
 -- | Allocate a new instrument and create an alias for it.
 create :: Instrument -> Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
@@ -134,20 +135,20 @@ remove alias = do
 -- the same as used by 'create'.
 add_alias :: Instrument -> Instrument -> Cmd.CmdL ()
 add_alias alias inst = State.modify $
-    State.config#State.aliases %= Map.insert (instrument alias)
-        (instrument inst)
+    State.config#State.aliases %= Map.insert (Util.instrument alias)
+        (Util.instrument inst)
 
 remove_alias :: Instrument -> Cmd.CmdL ()
 remove_alias inst = State.modify $
-    State.config#State.aliases %= Map.delete (instrument inst)
+    State.config#State.aliases %= Map.delete (Util.instrument inst)
 
 toggle_mute :: State.M m => Instrument -> m Bool
-toggle_mute inst = modify_config (instrument inst) $ \config ->
+toggle_mute inst = modify_config (Util.instrument inst) $ \config ->
     let mute = not $ Instrument.config_mute config
     in (config { Instrument.config_mute = mute }, mute)
 
 toggle_solo :: State.M m => Instrument -> m Bool
-toggle_solo inst = modify_config (instrument inst) $ \config ->
+toggle_solo inst = modify_config (Util.instrument inst) $ \config ->
     let solo = not $ Instrument.config_solo config
     in (config { Instrument.config_solo = solo }, solo)
 
@@ -155,7 +156,7 @@ toggle_solo inst = modify_config (instrument inst) $ \config ->
 add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Instrument
     -> TrackLang.ValName -> a -> m ()
 add_environ inst name val =
-    modify_config_ (instrument inst) $
+    modify_config_ (Util.instrument inst) $
         Instrument.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
     where v = RestrictedEnviron.to_val val
 
@@ -165,11 +166,11 @@ clear_environ :: State.M m => Score.Instrument -> m ()
 clear_environ inst = modify_config_ inst $ Instrument.cenviron #= mempty
 
 set_control :: State.M m => Instrument -> Score.Control -> Double -> m ()
-set_control inst control val = modify_config_ (instrument inst) $
+set_control inst control val = modify_config_ (Util.instrument inst) $
     Instrument.controls#Lens.map control #= Just val
 
 set_controls :: State.M m => Instrument -> [(Score.Control, Double)] -> m ()
-set_controls inst controls = modify_config_ (instrument inst) $
+set_controls inst controls = modify_config_ (Util.instrument inst) $
     Instrument.controls #= Map.fromList controls
 
 get_controls :: State.M m => m (Map.Map Score.Instrument Score.ControlValMap)
@@ -201,19 +202,19 @@ alloc inst wdev chans =
 alloc_voices :: Instrument -> Text -> [(Midi.Channel, Maybe Instrument.Voices)]
     -> Cmd.CmdL ()
 alloc_voices inst_ wdev chan_voices = do
-    let inst = instrument inst_
+    let inst = Util.instrument inst_
     dealloc_instrument inst
     let dev = Midi.write_device wdev
     alloc_instrument inst [((dev, c), v) | (c, v) <- chan_voices]
 
 dealloc :: Instrument -> Cmd.CmdL ()
-dealloc = dealloc_instrument . instrument
+dealloc = dealloc_instrument . Util.instrument
 
 -- | Allocate the given channels for the instrument using its default device.
 alloc_default :: Instrument -> [(Midi.Channel, Maybe Instrument.Voices)]
     -> Cmd.CmdL ()
 alloc_default inst_ chans = do
-    let inst = instrument inst_
+    let inst = Util.instrument inst_
     wdev <- maybe (Cmd.throw $ "inst not in db: " <> pretty inst) return
         =<< device_of inst
     alloc_instrument inst [((wdev, c), v) | (c, v) <- chans]
@@ -241,7 +242,7 @@ merge config = State.modify $ State.config # State.midi %= (config<>)
 -- instrument or send midi init.
 set :: Instrument -> Cmd.CmdL ()
 set inst_ = do
-    let inst = instrument inst_
+    let inst = Util.instrument inst_
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.abort_unless =<< Cmd.get_insert_tracknum
     track_id <- Cmd.abort_unless =<< State.event_track_at block_id tracknum
@@ -370,19 +371,14 @@ teach dev chan cc = Cmd.midi (Midi.write_device dev) $
 
 type Instrument = Text
 
--- | Create a 'Score.Instrument'.  Drop a leading @>@, since I often
--- accidentally include one.
-instrument :: Text -> Score.Instrument
-instrument = Score.Instrument . Text.dropWhile (=='>')
-
 
 -- * higher level
 
 -- | Set up a pair of instruments as polos and sangsih.
 create_pasang :: State.M m => Instrument -> Text -> Text -> Bool -> m ()
 create_pasang pasang polos sangsih polos_umbang = do
-    add_environ pasang Kotekan.inst_polos (instrument polos)
-    add_environ pasang Kotekan.inst_sangsih (instrument sangsih)
+    add_environ pasang Kotekan.inst_polos (Util.instrument polos)
+    add_environ pasang Kotekan.inst_sangsih (Util.instrument sangsih)
     let (ptuning, stuning) = if polos_umbang
             then (Environ.umbang, Environ.isep)
             else (Environ.isep, Environ.umbang)

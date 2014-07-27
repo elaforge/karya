@@ -3,11 +3,19 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE NoMonomorphismRestriction #-}
--- | Lilypond compiles are always kicked off manually.
---
--- I used to have some support for automatically reinvoking lilypond after
--- changes to a block, but it didn't seem too useful, since any useful amount
--- of lilypond score takes quite a while to compile.
+{- | Lilypond compiles are always kicked off manually.
+
+    I used to have some support for automatically reinvoking lilypond after
+    changes to a block, but it didn't seem too useful, since any useful amount
+    of lilypond score takes quite a while to compile.
+
+    Set 1t to equal one quarter note, quantize to 16th notes.  Configure
+    \"inst\" with short and long names, then change them.
+
+    > LLily.modify_config $ LLily.make_config 1 Lilypond.D16
+    > LLily.modify_config =<< LLily.set_staves [("inst", "long", "short")]
+    > LLily.modify_staff "inst" $ Lilypond.short #= "a" . Lilypond.long #= "b"
+-}
 module Cmd.Repl.LLily where
 import qualified Data.Text.Lazy as Lazy
 import qualified System.FilePath as FilePath
@@ -22,6 +30,8 @@ import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Lilypond
+import qualified Cmd.Repl.Util as Util
+
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -44,17 +54,11 @@ make_config quarter quantize = Lilypond.default_config
     , Lilypond.config_quantize = quantize
     }
 
-set_code :: State.M m => Text -> [Text] -> m ()
-set_code inst code = modify_staff inst $ \staff -> staff
-    { Lilypond.staff_code = code }
-
 toggle_display :: State.M m => Text -> m ()
-toggle_display inst = modify_staff inst $ \staff -> staff
-    { Lilypond.staff_display = not $ Lilypond.staff_display staff }
+toggle_display inst = modify_staff inst $ Lilypond.display %= not
 
 modify_staff :: State.M m => Text
-    -> (Lilypond.StaffConfig -> Lilypond.StaffConfig)
-    -> m ()
+    -> (Lilypond.StaffConfig -> Lilypond.StaffConfig) -> m ()
 modify_staff inst_ modify = do
     config <- get_config
     let staves = Lilypond.config_staves config
@@ -62,18 +66,23 @@ modify_staff inst_ modify = do
         Nothing -> State.throw $ "no staff config for " <> pretty inst
         Just staves -> modify_config $ const $
             config { Lilypond.config_staves = staves }
-    where inst = Score.Instrument inst_
+    where inst = Util.instrument inst_
 
--- | Set staff config, [(instrument, long_name, short_name)].
+-- | Set staff config, [(instrument, long_name, short_name)].  The order
+-- determines the order of the staves on the page.
+--
 -- If there is no staff config, all instruments get staves.  Otherwise, only
 -- instruments with 'Lilypond.StaffConfig's and 'Lilypond.staff_display' are
 -- displayed.
-set_staves :: [(Text, Lilypond.Instrument, Lilypond.Instrument)]
-    -> Lilypond.Config -> Lilypond.Config
-set_staves staves config =
-    config { Lilypond.config_staves = map mk staves }
+set_staves :: Cmd.M m => [(Text, Lilypond.Instrument, Lilypond.Instrument)]
+    -> Lilypond.Config -> m Lilypond.Config
+set_staves staves config
+    | not (null dups) = Cmd.throw $ "duplicate instruments: " <> pretty dups
+    | otherwise = return $ config { Lilypond.config_staves = map mk staves }
     where
-    mk (inst, long, short) = (,) (Score.Instrument inst) $
+    dups = map fst $ snd $
+        Seq.partition_dups id [Util.instrument inst | (inst, _, _) <- staves]
+    mk (inst, long, short) = (,) (Util.instrument inst) $
         Lilypond.empty_staff_config
             { Lilypond.staff_long = long, Lilypond.staff_short = short }
 

@@ -412,7 +412,7 @@ integrate / integration:
     - quantization
 
 lilypond:
-  - Add lenses for StaffConfig so I can get rid of the ad-hoc functions in
+  * Add lenses for StaffConfig so I can get rid of the ad-hoc functions in
     LLily.
     * First I should stop importing Types unqualified into Lilypond.
       . Put Types exports into Perform.Lilypond, as a public API.

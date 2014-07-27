@@ -10,7 +10,9 @@ module Perform.Lilypond.Types where
 import qualified Data.Text as Text
 
 import Util.Control
+import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
+
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -42,6 +44,15 @@ data Config = Config {
     , config_staves :: ![(Score.Instrument, StaffConfig)]
     } deriving (Eq, Read, Show)
 
+quarter_duration = Lens.lens config_quarter_duration
+    (\f r -> r { config_quarter_duration = f (config_quarter_duration r) })
+quantize = Lens.lens config_quantize
+    (\f r -> r { config_quantize = f (config_quantize r) })
+dotted_rests = Lens.lens config_dotted_rests
+    (\f r -> r { config_dotted_rests = f (config_dotted_rests r) })
+staves = Lens.lens config_staves
+    (\f r -> r { config_staves = f (config_staves r) })
+
 data StaffConfig = StaffConfig {
     -- | Set Staff.instrumentName or PianoStaff.instrumentName.
     -- If an instrument doesn't have a StaffConfig, the long name defaults to
@@ -63,6 +74,14 @@ data StaffConfig = StaffConfig {
     -- into two hands, like the piano.
     , staff_add_bass_staff :: !Bool
     } deriving (Eq, Read, Show)
+
+long = Lens.lens staff_long (\f r -> r { staff_long = f (staff_long r) })
+short = Lens.lens staff_short (\f r -> r { staff_short = f (staff_short r) })
+code = Lens.lens staff_code (\f r -> r { staff_code = f (staff_code r) })
+display = Lens.lens staff_display
+    (\f r -> r { staff_display = f (staff_display r) })
+add_bass_staff = Lens.lens staff_add_bass_staff
+    (\f r -> r { staff_add_bass_staff = f (staff_add_bass_staff r) })
 
 type Instrument = Text
 
