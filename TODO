@@ -7,7 +7,7 @@ UNSORTED
   * fltk: close window when playing kills the event loop
   - fltk: if I directly change focus from one expanded track title to another,
     the second track is shifted downwards
-  - lilypond: I want to put bass clef notes on their own track.
+  * lilypond: I want to put bass clef notes on their own track.
     Then, lilypond has a grand staff but only when the bass is non-empty, and
     all notes are xstaff.
     . \autochange is not quite right, because I want better control over notes
@@ -16,14 +16,11 @@ UNSORTED
     . Put \RemoveEmptyStaves after \new Staff = "down"
     . Add \override Staff.VerticalAxisGroup.remove-first = ##t
     * xstaff call wraps all events in (up ... down)
-    - staff setting that emits StaffGroup and the necessary magic
+    * staff setting that emits StaffGroup and the necessary magic
       . The problem is that I want to emit an empty track, but what about key
         and time changes?  Time changes are global I think, but not key?
         I could make a Ly Key instead of using Code, and then extract the key
         changes along with meter changes.
-      - Use Key instead of Code for key changes.
-      - extract [(Time, Key | Meter)] from a staff
-      - write_empty_staff then emits the necessariy s-rests from that
   * delete track while playing gives assertion failed at fltk/TrackTile.cc:255
   new C++11 features:
     - range-for: for (auto sel : sels)
@@ -415,6 +412,10 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - Add lenses for StaffConfig so I can get rid of the ad-hoc functions in
+    LLily.
+    - First I should stop importing Types unqualified into Lilypond.
+      . Put Types exports into Perform.Lilypond, as a public API.
   - to make notes without duration, ignore the existing duration and choose
     the simplest possible duration.  For zheng, yangqin, percussion.
     . Exception for +trem
@@ -447,6 +448,10 @@ lilypond:
     I could have parse generate the Meter and memoize it.
   - optionally emit the lilypond to display a compound meter
   - use Util.Format in ly output
+  jianpu
+    - http://people.ds.cam.ac.uk/ssb22/mwrhome/jianpu-ly.html
+    . standalone commercial software:
+      http://www.medeli.com.cn/soft/gb/soft.asp
 
 negative duration / arrival beats:
   represent arrival notes differently

@@ -494,8 +494,8 @@ instance Serialize Lilypond.Config where
             _ -> Serialize.bad_version "Lilypond.Config" v
 
 instance Serialize Lilypond.StaffConfig where
-    put (Lilypond.StaffConfig a b c d) = Serialize.put_version 1
-        >> put a >> put b >> put c >> put d
+    put (Lilypond.StaffConfig a b c d e) = Serialize.put_version 2
+        >> put a >> put b >> put c >> put d >> put e
     get = do
         v <- Serialize.get_version
         case v of
@@ -504,7 +504,14 @@ instance Serialize Lilypond.StaffConfig where
                 short :: Lilypond.Instrument <- get
                 code :: [Text] <- get
                 display :: Bool <- get
-                return $ Lilypond.StaffConfig long short code display
+                return $ Lilypond.StaffConfig long short code display False
+            2 -> do
+                long :: Lilypond.Instrument <- get
+                short :: Lilypond.Instrument <- get
+                code :: [Text] <- get
+                display :: Bool <- get
+                add_bass :: Bool <- get
+                return $ Lilypond.StaffConfig long short code display add_bass
             _ -> Serialize.bad_version "Lilypond.StaffConfig" v
 
 instance Serialize Lilypond.Duration where

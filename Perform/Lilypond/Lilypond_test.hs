@@ -57,6 +57,19 @@ test_staff_configs = do
         "instrumentName = \"viola\"*shortInstrumentName = \"vla\"*viola code\
         \*instrumentName = \"piano\"*piano code"
 
+test_add_bass_staff = do
+    let config = Types.default_config
+            { Types.config_staves = [(Score.Instrument "i1", staff_config)] }
+        staff_config = Types.empty_staff_config
+            { Types.staff_add_bass_staff = True }
+    let (text, logs) = make_ly config $ UiTest.note_spec
+            ("i1", [(0, 1, "clef treble | -- 4c"), (1, 3, "4d")], [])
+    equal logs []
+    -- Key and meter are in, but the clef is replaced.
+    match text
+        "new Staff = \"up\"\
+        \*new Staff = \"down\" \\RemoveEmptyStaves\
+        \*\\clef bass \\time 4/4 \\key c \\major s4 s2. \\bar \"|.\""
 
 test_hands = do
     let run = LilypondTest.derive_staves

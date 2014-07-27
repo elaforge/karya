@@ -44,6 +44,8 @@ data Config = Config {
 
 data StaffConfig = StaffConfig {
     -- | Set Staff.instrumentName or PianoStaff.instrumentName.
+    -- If an instrument doesn't have a StaffConfig, the long name defaults to
+    -- the instrument name.
     staff_long :: !Instrument
     -- | Set Staff.shortInstrumentName or PianoStaff.shortInstrumentName.
     , staff_short :: !Instrument
@@ -51,6 +53,15 @@ data StaffConfig = StaffConfig {
     , staff_code :: ![Text]
     -- | If false, this staff is omitted from the score.
     , staff_display :: !Bool
+    -- | If true, add an additional staff named \"down\".  The new staff has
+    -- a bass clef and all of the notes replaced with hidden rests, but the
+    -- key and meter changes remain.  It is configured so it will be removed
+    -- from the score for systems during which it has no notes.
+    --
+    -- The idea is that you then use xstaff to put notes on this staff.  This
+    -- is for instruments like 揚琴 that have a wide range, but aren't divided
+    -- into two hands, like the piano.
+    , staff_add_bass_staff :: !Bool
     } deriving (Eq, Read, Show)
 
 type Instrument = Text
@@ -64,12 +75,14 @@ instance Pretty.Pretty Config where
         ]
 
 instance Pretty.Pretty StaffConfig where
-    format (StaffConfig long short code display) = Pretty.record "StaffConfig"
-        [ ("long", Pretty.format long)
-        , ("short", Pretty.format short)
-        , ("code", Pretty.format code)
-        , ("display", Pretty.format display)
-        ]
+    format (StaffConfig long short code display add_bass) =
+        Pretty.record "StaffConfig"
+            [ ("long", Pretty.format long)
+            , ("short", Pretty.format short)
+            , ("code", Pretty.format code)
+            , ("display", Pretty.format display)
+            , ("add_bass_staff", Pretty.format add_bass)
+            ]
 
 default_config :: Config
 default_config = Config
@@ -85,6 +98,7 @@ empty_staff_config = StaffConfig
     , staff_short = ""
     , staff_code = []
     , staff_display = True
+    , staff_add_bass_staff = False
     }
 
 default_staff_config :: Score.Instrument -> StaffConfig

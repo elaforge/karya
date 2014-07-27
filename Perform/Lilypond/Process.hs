@@ -62,9 +62,32 @@ modal_articulations =
     , (Attrs.nv, "^\"nv\"", "^\"vib\"")
     ]
 
+-- * convert_to_rests
+
+-- | Convert a staff to all rests, keeping the key, clef, and meter changes.
+-- have predicates that recognize those, and keep those Codes
+convert_to_rests :: [VoiceLy] -> [Ly]
+convert_to_rests = hush . filter wanted . concatMap flatten
+    where
+    flatten (Left (Voices voices)) = case voices of
+        [] -> []
+        (_, lys) : _ -> lys
+    flatten (Right ly) = [ly]
+    wanted (Code code) = any (`Text.isPrefixOf` code)
+        ["\\time ", "\\key ", "\\bar "]
+    wanted _ = True
+    has_duration (LyNote n) = Just $ note_duration n
+    has_duration (LyRest r) = Just $ rest_duration r
+    has_duration _ = Nothing
+    hush lys = -- TODO simplify durs
+        map (LyRest . make_rest HiddenRest) durs ++ case non_notes of
+            ly : rest -> [ly] ++ hush rest
+            [] -> []
+        where (durs, non_notes) = Seq.span_while has_duration lys
+
 -- * process
 
-run_process :: (Monad m) => m [b] -> ([a] -> m ([b], [a])) -> [a] -> m [b]
+run_process :: Monad m => m [b] -> ([a] -> m ([b], [a])) -> [a] -> m [b]
 run_process complete f = go
     where
     go xs = do
@@ -75,8 +98,9 @@ run_process complete f = go
 
 type VoiceLy = Either Voices Ly
 
-process :: Types.Config -> Time -> [Meter.Meter] -> [Event]
-    -> Either Text [VoiceLy]
+-- | This figures out timing and emits a stream of lilypond code.
+process :: Types.Config -> Time -> [Meter.Meter] -- ^ one for each measure
+    -> [Event] -> Either Text [VoiceLy]
 process config start meters events = do
     let state1 = make_state config start meters default_key
     key <- maybe (return default_key)
@@ -200,6 +224,8 @@ zero_dur = (==0) . event_duration
 
 -- ** convert_chord
 
+-- | This is the lowest level of conversion.  It converts a vertical slice of
+-- notes.
 convert_chord :: Meter.Meter -> NonEmpty Event -> ConvertM ([Ly], [Event])
 convert_chord meter events = do
     key <- lookup_key (NonEmpty.head events)
@@ -318,11 +344,6 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
     end = start + allowed_time
 
 -- * convert voices
-
--- | Voices shouldn't be repeated, so this would be more appropriate as a
--- @Map Voice [a]@, but it turns out all the consumers work best with a list
--- so list it is.
-type VoiceMap a = [(Voice, [a])]
 
 convert_voices :: [Event] -> ConvertM ([VoiceLy], [Event])
 convert_voices [] = return ([], [])
@@ -579,12 +600,6 @@ throw msg = do
     now <- State.gets state_time
     Error.throwError $ prettyt now <> ": " <> msg
 
-lookup_key :: Event -> ConvertM Key
-lookup_key = lookup_val Environ.key parse_key default_key
-
-default_key :: Key
-default_key = Key "c" "major"
-
 lookup_val :: TrackLang.ValName -> (Text -> Either Text a) -> a -> Event
     -> ConvertM a
 lookup_val key parse deflt event = prefix $ do
@@ -596,8 +611,8 @@ lookup_val key parse deflt event = prefix $ do
 
 -- * types
 
-data Ly =
-    Barline !(Maybe Meter.Meter) | LyNote !Note | LyRest !Rest | Code !Code
+data Ly = Barline !(Maybe Meter.Meter) | LyNote !Note | LyRest !Rest
+    | Code !Code
     deriving (Show)
 
 ly_duration :: Ly -> Time
@@ -729,11 +744,22 @@ parse_key key_name = do
         , ("mixolydian", "mixolydian")
         ]
 
+lookup_key :: Event -> ConvertM Key
+lookup_key = lookup_val Environ.key parse_key default_key
+
+default_key :: Key
+default_key = Key "c" "major"
+
 -- ** voice
 
 -- | Each Ly list should be the same duration and have the same number of
 -- barlines.
 newtype Voices = Voices (VoiceMap Ly) deriving (Pretty.Pretty, Show)
+
+-- | Voices shouldn't be repeated, so this would be more appropriate as a
+-- @Map Voice [a]@, but it turns out all the consumers work best with a list
+-- so list it is.
+type VoiceMap a = [(Voice, [a])]
 
 data Voice = VoiceOne | VoiceTwo | VoiceThree | VoiceFour
     deriving (Eq, Ord, Show)
