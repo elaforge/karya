@@ -165,13 +165,13 @@ set_track_signal = BlockC.set_track_signal
 -- to work into the responder loop, and isn't part of the usual state that
 -- should be saved anyway.
 set_play_position :: Ui.Channel -> [(ViewId, [(TrackNum, ScoreTime)])] -> IO ()
-set_play_position chan block_sels = unless (null block_sels) $
+set_play_position chan view_sels = unless (null view_sels) $
     Ui.send_action chan $ sequence_ $ do
-        (view_id, tracknum_pos) <- Seq.group_fst block_sels
-        (tracknums, pos) <- Seq.group_snd (concat tracknum_pos)
+        (view_id, tracknum_pos) <- Seq.group_fst view_sels
+        (tracknums, pos) <- Seq.group_fst $ Seq.group_snd (concat tracknum_pos)
         return $ set_selection_carefully view_id
             Config.play_position_selnum (Just tracknums)
-            [BlockC.Selection Config.play_selection_color pos pos True]
+            [BlockC.Selection Config.play_selection_color p p True | p <- pos]
 
 clear_play_position :: Ui.Channel -> ViewId -> IO ()
 clear_play_position = clear_selections Config.play_position_selnum
