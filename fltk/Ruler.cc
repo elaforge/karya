@@ -71,16 +71,10 @@ OverlayRuler::OverlayRuler(const RulerConfig &config, bool is_ruler_track) :
 static void
 damage_selection(OverlayRuler *ruler, const std::vector<Selection> &sels)
 {
-    if (sels.empty())
-        return;
-    ScoreTime low(sels[0].low()), high(sels[0].high());
-    for (int i = 1; i < sels.size(); i++) {
-        low = std::min(low, sels[i].low());
-        high = std::max(high, sels[i].high());
+    for (size_t i = 0; i < sels.size(); i++) {
+        ruler->damage_range(sels[i].low(), sels[i].high());
     }
     // TODO move the code that extends the damage to cover the arrow
-    // DEBUG("damage selection " << low << "--" << high);
-    ruler->damage_range(low, high);
 }
 
 
@@ -169,8 +163,9 @@ OverlayRuler::damage_range(ScoreTime start, ScoreTime end)
         }
     }
 
-    // DEBUG(SHOW_RANGE(damaged_area) << " UNION " << SHOW_RANGE(r)
-    //         << " = " << SHOW_RANGE(damaged_area.union_(r)));
+    // DEBUG("damage_range(" << start << ", " << end << "): "
+    //     << SHOW_RANGE(damaged_area) << " + " << SHOW_RANGE(r)
+    //     << " = " << SHOW_RANGE(damaged_area.union_(r)));
     this->damaged_area = this->damaged_area.union_(r);
     this->damage(OverlayRuler::DAMAGE_RANGE);
 }
@@ -228,10 +223,6 @@ OverlayRuler::draw_marklists()
     end = end + this->zoom.offset;
     // DEBUG("RULER CLIP: " << start << "--" << end << ", "
     //         << SHOW_RANGE(clip));
-
-    // Show updated range, for debugging.
-    // fl_color(color_cycle());
-    // fl_rectf(clip.x + 10, clip.y, 2, clip.h);
 
     fl_font(Config::font, Config::font_size::ruler);
     // Later marklists will draw over earlier ones.
@@ -467,9 +458,11 @@ RulerTrackView::draw()
     } else if (damage() == FL_DAMAGE_CHILD) {
         // Only CHILD damage means a selection was set.  But since I overlap
         // with the child, I have to draw too.
-        // DEBUG("pre intersect " << SHOW_RANGE(draw_area));
+        // DEBUG("intersection with child: "
+        //     << SHOW_RANGE(draw_area) << " + "
+        //     << SHOW_RANGE(ruler.damaged_area) << " = "
+        //     << SHOW_RANGE(draw_area.intersect(ruler.damaged_area)));
         draw_area = draw_area.intersect(this->ruler.damaged_area);
-        // DEBUG("post intersect " << SHOW_RANGE(draw_area));
     } else {
         this->damage(FL_DAMAGE_ALL);
     }

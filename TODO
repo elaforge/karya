@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - when there are two selections, the upper one doesn't clear enough when it
+  * when there are two selections, the upper one doesn't clear enough when it
     redraws
   * ^f and ^b to scroll by page?
   * fltk: close window when playing kills the event loop
