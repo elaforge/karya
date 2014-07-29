@@ -7,3 +7,18 @@
 
 const Color Color::black = Color(0, 0, 0, 0);
 const Color Color::white = Color(255, 255, 255, 0);
+
+Color
+ColorCycle::get()
+{
+    static std::vector<Color> colors;
+    if (colors.empty()) {
+        colors.push_back(Color(0xff, 0, 0));
+        colors.push_back(Color(0, 0xff, 0));
+        colors.push_back(Color(0xff, 0xff, 0));
+        colors.push_back(Color(0, 0, 0xff));
+        colors.push_back(Color(0xff, 0, 0xff));
+        colors.push_back(Color(0, 0xff, 0xff));
+    }
+    return colors[this->index_++ % colors.size()];
+}

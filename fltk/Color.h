@@ -57,4 +57,14 @@ operator<<(std::ostream &os, const Color &c)
         << (int) c.b << ", " << (int) c.a << ")";
 }
 
+// Cycle colors. This is useful for drawing debugging rectangles.
+class ColorCycle {
+public:
+    ColorCycle() : index_(0) {}
+    int index() const { return index_; }
+    Color get();
+private:
+    int index_;
+};
+
 #endif

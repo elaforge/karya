@@ -301,9 +301,11 @@ EventTrackView::draw()
     } else if (this->damage() == FL_DAMAGE_CHILD) {
         // Only CHILD damage means a selection was set.  But since I overlap
         // with the child, I have to draw too.
-        // DEBUG("pre intersect " << SHOW_RANGE(draw_area));
+        // DEBUG("intersection with child: "
+        //     << SHOW_RANGE(draw_area) << " + "
+        //     << SHOW_RANGE(overlay_ruler.damaged_area) << " = "
+        //     << SHOW_RANGE(draw_area.intersect(overlay_ruler.damaged_area)));
         draw_area = draw_area.intersect(this->overlay_ruler.damaged_area);
-        // DEBUG("post intersect " << SHOW_RANGE(draw_area));
     } else {
         // I could technically handle SCROLL | CHILD, but I'd have to tweak
         // the ruler's damaged_area to account for the scroll and that's too
@@ -360,14 +362,13 @@ EventTrackView::draw_area()
     ScoreTime end = start + this->zoom.to_time(clip.h);
     start = start + this->zoom.offset;
     end = end + this->zoom.offset;
-    // DEBUG("TRACK CLIP: " << start << "--" << end << ", "
-    //         << clip.y << "--" << clip.b()
-    //         << " zoom " << zoom);
+    // DEBUG("TRACK CLIP: " << start << "--" << end
+    //     << ", " << SHOW_RANGE(clip));
 
     Event *events;
     int *ranks;
     int count = this->config.find_events(&start, &end, &events, &ranks);
-    // Suppress the unused function msg.
+    // If I comment it, I get an unused function warning.
     if (false)
         show_found_events(start, end, events, count);
 
