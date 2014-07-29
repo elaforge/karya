@@ -71,8 +71,8 @@ OverlayRuler::OverlayRuler(const RulerConfig &config, bool is_ruler_track) :
 static void
 damage_selection(OverlayRuler *ruler, const std::vector<Selection> &sels)
 {
-    for (size_t i = 0; i < sels.size(); i++) {
-        ruler->damage_range(sels[i].low(), sels[i].high());
+    for (auto &sel : sels) {
+        ruler->damage_range(sel.low(), sel.high());
     }
     // TODO move the code that extends the damage to cover the arrow
 }
@@ -107,11 +107,8 @@ OverlayRuler::set_config(bool is_ruler_track, const RulerConfig &config,
 void
 OverlayRuler::delete_config()
 {
-    for (Marklists::iterator mlist = config.marklists.begin();
-            mlist != config.marklists.end(); ++mlist)
-    {
-        (*mlist)->decref();
-    }
+    for (auto &mlist : config.marklists)
+        mlist->decref();
 }
 
 
@@ -226,10 +223,7 @@ OverlayRuler::draw_marklists()
 
     fl_font(Config::font, Config::font_size::ruler);
     // Later marklists will draw over earlier ones.
-    for (Marklists::const_iterator it = config.marklists.begin();
-            it != config.marklists.end(); ++it)
-    {
-        const Marklist *mlist = *it;
+    for (auto &mlist : config.marklists) {
         const PosMark *marks_end = mlist->marks + mlist->length;
         const PosMark *m = std::lower_bound(mlist->marks, marks_end,
             PosMark(start, Mark()), compare_marks);
@@ -312,10 +306,8 @@ OverlayRuler::draw_selections()
 {
     IRect sel_rect;
     int y = this->track_start();
-    for (int i = 0; i < selections.size(); i++) {
-        const std::vector<Selection> &sels = this->selections[i];
-        for (int j = 0; j < sels.size(); j++) {
-            const Selection sel = sels[j];
+    for (const std::vector<Selection> &sels : selections) {
+        for (const Selection &sel : sels) {
             if (sel.empty())
                 continue;
             int start = y + this->zoom.to_pixels(sel.low() - this->zoom.offset);

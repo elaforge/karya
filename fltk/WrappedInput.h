@@ -23,14 +23,14 @@
 class WrappedInput : public Fl_Multiline_Input {
 public:
     WrappedInput(int X, int Y, int W, int H, bool strip);
-    void resize(int x, int y, int w, int h);
+    void resize(int x, int y, int w, int h) override;
     // Use this to set newline-free unwrapped text.
     void set_text(const char *text);
     const char *get_text() const;
     int text_height() const;
-    int handle(int evt);
+    int handle(int evt) override;
 protected:
-    void draw();
+    void draw() override;
 private:
     bool wrap_text();
     // Strip spaces from the text on unfocus.

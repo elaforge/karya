@@ -70,7 +70,7 @@ public:
     void set_width(int tracknum, int width);
 
 protected:
-    void draw();
+    void draw() override;
 
 private:
     struct Track {

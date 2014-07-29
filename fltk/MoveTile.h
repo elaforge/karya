@@ -45,12 +45,12 @@ public:
         grab_area(3)
     {}
 
-    virtual void resize(int X, int Y, int W, int H);
+    void resize(int X, int Y, int W, int H) override;
     // remove and insert aren't virtual, so use these to manage children.
     virtual void remove_child(Fl_Widget *w);
     virtual void insert_child(Fl_Widget &w, int c);
 
-    virtual int handle(int evt);
+    int handle(int evt) override;
     void drag_tile(IPoint drag_from, IPoint drag_to);
 
     // Child won't resize, and its entire area is used for dragging.

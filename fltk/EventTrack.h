@@ -120,31 +120,32 @@ class EventTrackView : public TrackView {
 public:
     EventTrackView(const EventTrackConfig &config,
         const RulerConfig &ruler_config);
-    void resize(int x, int y, int w, int h);
+    void resize(int x, int y, int w, int h) override;
     // Y position of the track start.  Use this instead of y() to avoid
     // colliding with the track bevel.
     int track_start() { return overlay_ruler.track_start(); }
-    virtual WrappedInput &title_widget() { return *this->title_input; }
-    virtual const char *get_title() const {
+    virtual WrappedInput &title_widget() override { return *this->title_input; }
+    virtual const char *get_title() const override {
         return this->title_input->value();
     }
-    virtual void set_title(const char *title);
-    virtual void set_title_focus();
+    virtual void set_title(const char *title) override;
+    virtual void set_title_focus() override;
     void set_zoom(const ZoomInfo &new_zoom);
     virtual void set_selection(
-        int selnum, int tracknum, const std::vector<Selection> &sels) {
+        int selnum, int tracknum, const std::vector<Selection> &sels) override {
         overlay_ruler.set_selection(selnum, tracknum, sels);
     }
-    virtual void set_event_brightness(double d);
-    virtual ScoreTime time_end() const;
-    virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end);
+    virtual void set_event_brightness(double d) override;
+    virtual ScoreTime time_end() const override;
+    virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
+        override;
     // For the moment, only EventTracks can draw a signal.
-    virtual void set_track_signal(const TrackSignal &tsig);
-    virtual void finalize_callbacks();
-    virtual std::string dump() const;
+    virtual void set_track_signal(const TrackSignal &tsig) override;
+    virtual void finalize_callbacks() override;
+    virtual std::string dump() const override;
 
 protected:
-    void draw();
+    void draw() override;
 
 private:
     void draw_area();

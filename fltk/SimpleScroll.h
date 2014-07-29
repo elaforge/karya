@@ -31,7 +31,7 @@ public:
     void set_offset(IPoint offset);
 
 protected:
-    void draw();
+    void draw() override;
 
 private:
     IPoint offset;

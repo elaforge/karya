@@ -23,7 +23,7 @@ public:
 
     void value(const char *text);
 protected:
-    void draw();
+    void draw() override;
 private:
     std::string text;
 };

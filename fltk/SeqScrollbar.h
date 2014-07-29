@@ -31,7 +31,7 @@ public:
     FlSeqScrollbar(int X, int Y, int W, int H) :
         Fl_Scrollbar(X, Y, W, H)
     {}
-    int handle(int evt) {
+    int handle(int evt) override {
         if (evt == FL_RELEASE)
             this->do_callback();
         return Fl_Scrollbar::handle(evt);

@@ -130,7 +130,7 @@ public:
     ScoreTime last_offset;
     ZoomInfo zoom;
 protected:
-    void draw();
+    void draw() override;
 
 private:
     void draw_marklists();
@@ -144,22 +144,23 @@ private:
 class RulerTrackView : public TrackView {
 public:
     explicit RulerTrackView(const RulerConfig &config);
-    virtual Fl_Box &title_widget();
-    virtual void set_zoom(const ZoomInfo &zoom);
+    virtual Fl_Box &title_widget() override;
+    virtual void set_zoom(const ZoomInfo &zoom) override;
     virtual void set_selection(
-            int selnum, int tracknum, const std::vector<Selection> &sels) {
+        int selnum, int tracknum, const std::vector<Selection> &sels) override {
         ruler.set_selection(selnum, tracknum, sels);
     }
-    virtual ScoreTime time_end() const { return ruler.time_end(); }
-    virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end);
-    virtual void set_track_signal(const TrackSignal &tsig) {
+    virtual ScoreTime time_end() const override { return ruler.time_end(); }
+    virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
+        override;
+    virtual void set_track_signal(const TrackSignal &tsig) override {
         DEBUG("WARNING: got a track signal on a ruler track!");
     }
-    virtual void finalize_callbacks();
-    virtual std::string dump() const;
+    virtual void finalize_callbacks() override;
+    virtual std::string dump() const override;
 
 protected:
-    void draw();
+    void draw() override;
 
 private:
     // If created, this is owned by a Fl_Group, which deletes it.

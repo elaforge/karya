@@ -395,7 +395,8 @@ configure midi = do
         { ccFlags =
             -- Always compile c++ with optimization because I don't have much
             -- of it and it compiles quickly.
-            fltkCc flags ++ define flags ++ cInclude flags ++ ["-Wall", "-O2"]
+            fltkCc flags ++ define flags ++ cInclude flags
+                ++ ["-Wall", "-Wno-c++11-extensions", "-O2"]
                 ++ ["-fPIC"] -- necessary for ghci loading to work in 7.8
                 -- Turn on Effective C++ warnings, which includes uninitialized
                 -- variables.  Unfortunately it's very noisy with lots of

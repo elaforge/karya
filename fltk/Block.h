@@ -91,8 +91,8 @@ public:
         const BlockModelConfig &model_config, const char *window_title);
     ~BlockView();
 
-    int handle(int evt);
-    void resize(int X, int Y, int W, int H);
+    int handle(int evt) override;
+    void resize(int X, int Y, int W, int H) override;
 private:
     void set_widget_sizes();
 public:
@@ -214,7 +214,7 @@ class BlockViewWindow : public Fl_Double_Window {
 public:
     BlockViewWindow(int X, int Y, int W, int H,
         const char *label, const BlockModelConfig &model_config);
-    virtual void resize(int X, int Y, int W, int H);
+    void resize(int X, int Y, int W, int H) override;
     BlockView block;
 
     // If true, this is running from c++, not haskell.
@@ -224,7 +224,7 @@ public:
     // done once.
     static void initialize(Config::FreeHaskellFunPtr free_haskell_fun_ptr);
 protected:
-    int handle(int evt);
+    int handle(int evt) override;
 };
 
 #endif

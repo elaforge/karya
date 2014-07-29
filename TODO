@@ -25,9 +25,9 @@ UNSORTED
         changes along with meter changes.
   * delete track while playing gives assertion failed at fltk/TrackTile.cc:255
   new C++11 features:
-    - range-for: for (auto sel : sels)
-    - auto
-    - override syntax: virtual void x() override;
+    * range-for: for (auto sel : sels)
+    * auto
+    * override syntax: virtual void x() override;
   - If you have a multiple track selection and press an arrow key, the single
     track selection should start from cur track.
   * rename fltk/geom_util to just geom

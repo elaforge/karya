@@ -81,7 +81,7 @@ public:
     virtual ~TrackView() {
         // DEBUG("deleted track view " << this);
     }
-    virtual int handle(int evt);
+    int handle(int evt) override;
 
     virtual void set_zoom(const ZoomInfo &zoom) {}
     virtual void set_selection(
@@ -132,7 +132,7 @@ public:
     virtual Fl_Box &title_widget() { return *this->title_box; }
     virtual std::string dump() const;
 protected:
-    void draw();
+    void draw() override;
 private:
     Fl_Box box;
     Fl_Box *title_box;

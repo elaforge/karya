@@ -35,7 +35,7 @@
 class TrackTile : public MoveTile {
 public:
     TrackTile(int X, int Y, int W, int H, Color bg_color, int title_height);
-    virtual int handle(int evt);
+    int handle(int evt) override;
 
     void set_bg_color(Color c) {
         track_pad.color(color_to_fl(c));

@@ -13,7 +13,7 @@
 class P9Scrollbar : public Fl_Group {
 public:
     P9Scrollbar(int X, int Y, int W, int H, Color bg, Color fg);
-    void resize(int x, int y, int w, int h);
+    void resize(int x, int y, int w, int h) override;
 
     enum Orientation { horizontal, vertical };
     void set_orientation(P9Scrollbar::Orientation o);
@@ -28,7 +28,7 @@ public:
     void set_scroll_zoom(double max, double offset, double displayed_area);
 
 protected:
-    int handle(int evt);
+    int handle(int evt) override;
 
 private:
     Orientation orientation;
