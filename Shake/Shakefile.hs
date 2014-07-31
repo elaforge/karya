@@ -1013,7 +1013,8 @@ hsc2hs config useCpp hs hsc = ("hsc2hs", hs,
     ["hsc2hs", "-I" ++ ghcLib config </> "include"]
     ++ (if useCpp
         -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
-        then words "-c g++ --cflag -Wno-invalid-offsetof"
+        then words "-c g++ --cflag -Wno-invalid-offsetof --cflag\
+            \ -Wno-c++11-extensions"
         else [])
     ++ cInclude flags ++ fltkCc flags ++ define flags
     ++ [hsc, "-o", hs])
