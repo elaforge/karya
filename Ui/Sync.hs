@@ -41,7 +41,6 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
@@ -517,26 +516,23 @@ track_selections :: Types.SelNum -> TrackNum -> Maybe Types.Selection
     -> [([TrackNum], [BlockC.Selection])]
 track_selections selnum tracks maybe_sel = case maybe_sel of
     Nothing -> [([0 .. tracks - 1], [])]
-    Just sel -> (clear, []) : convert_selection selnum tracks sel
+    Just sel -> (clear, [])
+        : if null tracknums then []
+            else [(tracknums, [convert_selection selnum sel])]
         where
+        tracknums = Types.sel_tracknums tracks sel
         (low, high) = Types.sel_track_range sel
         clear = [0 .. low - 1] ++ [high + 1 .. tracks - 1]
 
-convert_selection :: Types.SelNum -> TrackNum -> Types.Selection
-    -> [([TrackNum], [BlockC.Selection])]
-convert_selection selnum tracks sel = filter (not . null . fst) $
-    ([cur_track | Num.in_range 0 tracks cur_track], [selection True])
-    : [(tracknums, [selection False]) | not (null tracknums)]
-    where
-    tracknums = filter (/=cur_track) (Types.sel_tracknums tracks sel)
-    cur_track = Types.sel_cur_track sel
-    selection arrow = BlockC.Selection
-        { BlockC.sel_color = color
-        , BlockC.sel_start = Types.sel_start_pos sel
-        , BlockC.sel_cur = Types.sel_cur_pos sel
-        , BlockC.sel_draw_arrow = arrow
-        }
-    color = Config.lookup_selection_color selnum
+convert_selection :: Types.SelNum -> Types.Selection -> BlockC.Selection
+convert_selection selnum sel = BlockC.Selection
+    { BlockC.sel_color = color
+    , BlockC.sel_start = Types.sel_start_pos sel
+    , BlockC.sel_cur = Types.sel_cur_pos sel
+    , BlockC.sel_draw_arrow =
+        Types.sel_start_pos sel == Types.sel_cur_pos sel
+    }
+    where color = Config.lookup_selection_color selnum
 
 dtracks_with_ruler_id :: State.M m =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]

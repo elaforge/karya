@@ -84,6 +84,10 @@ set_current selnum maybe_sel = do
 -- | For point selections, set a play position selection on the equivalent
 -- time in sub-blocks.  This makes it easier to edit the super-block relative
 -- to the sub-block.
+--
+-- TODO if multiple calls overlap, I should draw multiple selections, but
+-- State.set_selection doesn't support that, even though the underlying
+-- BlockC.set_selection does.
 set_subs :: Cmd.M m => ViewId -> Types.Selection -> m ()
 set_subs view_id sel = do
     view_ids <- State.all_view_ids
