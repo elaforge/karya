@@ -112,9 +112,6 @@ OverlayRuler::delete_config()
 }
 
 
-// I redraw the scroll revealed area separately, so pass a dummy to fl_scroll.
-static void dummy_scroll_draw(void *, int, int, int, int) {}
-
 void
 OverlayRuler::draw()
 {
@@ -412,42 +409,10 @@ RulerTrackView::draw()
 {
     IRect draw_area = rect(this);
 
-    // TODO this is mostly a copy from EventTrackView
-    // factor this stuff into a "ScrollableTrack" base class?
-    // DEBUG("ruler track damage " << show_damage(damage()));
-
-    // Fast scrolling is disabled, because it's hard to get right, and it
-    // doesn't actually seem to improve performance.
-    // TODO either fix or remove
-    if (false && damage() == FL_DAMAGE_SCROLL) {
-        // Avoid the one pixel upper and lower bevels.
-        draw_area.x++; draw_area.w -= 2;
-        draw_area.y++; draw_area.h -= 2;
-        draw_area = clip_rect(draw_area);
-
-        // I'm sure there's a better way to scroll than this copy and pastage,
-        // but there are only two cases, so whatever.
-        int scroll = ruler.zoom.to_pixels(ruler.zoom.offset)
-            - ruler.zoom.to_pixels(ruler.last_offset);
-        fl_scroll(draw_area.x, draw_area.y, draw_area.w, draw_area.h,
-            0, -scroll, dummy_scroll_draw, NULL);
-        ScoreTime shift_pos = std::max(
-            ruler.zoom.offset - ruler.last_offset,
-            ruler.last_offset - ruler.zoom.offset);
-        if (scroll > 0) { // Contents moved up, bottom is damaged.
-            ScoreTime bottom = ruler.zoom.offset
-                + ruler.zoom.to_time(draw_area.h);
-            this->ruler.damage_range(bottom - shift_pos, bottom);
-            draw_area.y = draw_area.b() - scroll;
-            draw_area.h = scroll;
-        } else if (scroll < 0) { // Contents moved down, top is damaged.
-            this->ruler.damage_range(
-                ruler.zoom.offset, ruler.zoom.offset + shift_pos);
-            draw_area.h = -scroll;
-        } else {
-            draw_area.h = 0;
-        }
-    } else if (damage() == FL_DAMAGE_CHILD) {
+    // I used to look for FL_DAMAGE_SCROLL and use fl_scroll() for a fast
+    // blit, but it was too hard to get right.  The biggest problem is that
+    // events are at floats which are then rounded to ints for pixel positions.
+    if (damage() == FL_DAMAGE_CHILD) {
         // Only CHILD damage means a selection was set.  But since I overlap
         // with the child, I have to draw too.
         // DEBUG("intersection with child: "
