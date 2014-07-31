@@ -6,6 +6,7 @@
 #include <ctype.h>
 
 #include "util.h"
+#include "f_util.h"
 #include "MsgCollector.h"
 
 
@@ -91,15 +92,15 @@ operator<<(std::ostream &os, const UiMsg::Context &c)
 std::ostream &
 operator<<(std::ostream &os, const UiMsg::Event &e)
 {
-    os << show_event(e.event);
+    os << f_util::show_event(e.event);
     if (FL_KEYDOWN == e.event || FL_KEYUP == e.event) {
-        os << " key=" << show_key(e.key)
+        os << " key=" << f_util::show_key(e.key)
             << (e.is_repeat ? "[r]" : "");
         if (e.text) {
             os << " text=" << e.text;
         }
     }
-    os << " mods=" << show_event_state(e.modifier_state);
+    os << " mods=" << f_util::show_event_state(e.modifier_state);
     if (FL_PUSH == e.event || FL_DRAG == e.event || FL_RELEASE == e.event) {
         os << " button=" << e.button << " clicks=" << e.clicks
             << " is_click=" << (e.is_click ? "t" : "f")
@@ -264,7 +265,7 @@ set_update(UiMsg &m, UiMsg::MsgType type, const char *text)
         break;
     case UiMsg::msg_resize:
         {
-            m.resize.rect = new IRect(rect(block->window()));
+            m.resize.rect = new IRect(f_util::rect(block->window()));
             IPoint padding = block->get_padding();
             m.resize.track_padding = padding.x;
             m.resize.time_padding = padding.y;
@@ -413,7 +414,7 @@ MsgCollector::event_handler(int evt)
         // For some reason fltk sends these to the Fl::add_handler on linux.
         return 1;
     default:
-        DEBUG("unknown event: " << show_event(evt));
+        DEBUG("unknown event: " << f_util::show_event(evt));
     }
     return 0;
 }

@@ -17,6 +17,8 @@
 #include "f_util.h"
 
 
+namespace f_util {
+
 const char *
 show_key(int key)
 {
@@ -280,4 +282,6 @@ color_cycle()
     static int i = -1;
     i = (i+1) % len;
     return colors[i];
+}
+
 }

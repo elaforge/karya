@@ -10,6 +10,7 @@ C procedural interface to the UI level.
 #include <vector>
 #include "c_interface.h"
 #include "util.h"
+#include "f_util.h"
 
 extern "C" {
 
@@ -326,7 +327,7 @@ insert_style(StyleId id, EventStyle *style)
 const char *
 i_show_children(const BlockViewWindow *w, int nlevels)
 {
-    return show_children(w, nlevels);
+    return f_util::show_children(w, nlevels);
 }
 
 const char *

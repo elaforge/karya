@@ -2,6 +2,8 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#include "f_util.h"
+
 #include "Track.h"
 #include "EventTrack.h"
 #include "Ruler.h"
@@ -39,9 +41,9 @@ DividerView::DividerView(const DividerConfig &config) :
 void
 DividerView::draw()
 {
-    IRect r = rect(this);
+    IRect r = f_util::rect(this);
     r.h--;
-    ClipArea c(r);
+    f_util::ClipArea c(r);
     TrackView::draw();
 }
 

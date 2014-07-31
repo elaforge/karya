@@ -15,6 +15,7 @@
 
 #include "Color.h"
 
+namespace f_util {
 
 // use more convenient types with standard fltk functions
 
@@ -46,6 +47,7 @@ const char *show_widget(const Fl_Widget *w);
 // children.
 const char *show_children(const Fl_Widget *w, int nlevels=-1);
 
+// A wrapper around 'string' that prints it surrounded by double quotes.
 class show_string {
 public:
     show_string(const char *s) : s(s) {}
@@ -76,5 +78,7 @@ clip_rect(IRect r)
 }
 
 Fl_Color color_cycle();
+
+}
 
 #endif

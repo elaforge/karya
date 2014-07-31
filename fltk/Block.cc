@@ -198,7 +198,7 @@ BlockView::set_widget_sizes()
     skel_display_scroll.resize(
         skel_box.x() + skel_box.w(), skel_box.y(),
         body.w() - ruler_group_w, Config::View::skel_height);
-    IRect p = rect(skel_display_scroll);
+    IRect p = f_util::rect(skel_display_scroll);
     skel_display.resize(p.x, p.y, p.w, p.h);
 
     // Re-use the existing ruler_track width so it is maintained across calls
@@ -207,7 +207,7 @@ BlockView::set_widget_sizes()
     ruler_group.resize(
         wx, body.y() + Config::View::skel_height,
         ruler_group_w, body.h() - Config::View::skel_height);
-    p = rect(ruler_group);
+    p = f_util::rect(ruler_group);
     track_group.resize(p.r(), p.y, body.w() - p.w, p.h);
 
     // The track_box looks taller than just the track titles because it's
@@ -225,7 +225,7 @@ BlockView::set_widget_sizes()
     ruler_track->resize(p.x + time_sb.w(), p.y + track_box.h(),
         ruler_track->w(), time_sb.h());
 
-    p = rect(track_group);
+    p = f_util::rect(track_group);
     track_sb.resize(p.x, p.b() - Config::View::sb_size,
         p.w, Config::View::sb_size);
     track_scroll.resize(p.x, p.y, p.w, p.h - track_sb.h());
@@ -520,7 +520,7 @@ BlockView::replace_ruler_track(TrackView *track, int width)
     this->ruler_track = track;
     // Initially the widths match, so the inserted track is layed out
     // correctly.
-    IRect p = rect(this->ruler_group);
+    IRect p = f_util::rect(this->ruler_group);
     ruler_track->resize(
         p.x + time_sb.w(), p.y + track_box.h(),
         removed ? removed->w() : 1, time_sb.h());
@@ -580,8 +580,8 @@ BlockView::dump() const
     Fl_Window *win = this->window();
     out << "x " << win->x() << " y " << win->y()
         << " w " << this->w() << " h " << this->h();
-    out << " window-title " << show_string(this->window()->label())
-        << " title " << show_string(this->get_title());
+    out << " window-title " << f_util::show_string(this->window()->label())
+        << " title " << f_util::show_string(this->get_title());
     for (int i = 0; i < this->tracks(); i++) {
         out << " track" << i << " ("
             << "width " << this->get_track_width(i)

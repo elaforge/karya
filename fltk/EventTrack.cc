@@ -6,6 +6,7 @@
 #include <math.h>
 #include "config.h"
 #include "util.h"
+#include "f_util.h"
 #include "alpha_draw.h"
 
 #include "WrappedInput.h"
@@ -157,7 +158,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
 void
 EventTrackView::resize(int x, int y, int w, int h)
 {
-    // DEBUG("resize " << rect(this) << " -> " << IRect(x, y, w, h));
+    // DEBUG("resize " << f_util::rect(this) << " -> " << IRect(x, y, w, h));
     // Don't call Fl_Group::resize because I just did the sizes myself.
     Fl_Widget::resize(x, y, w, h);
     this->overlay_ruler.resize(x, y, w, h);
@@ -264,7 +265,7 @@ EventTrackView::finalize_callbacks()
 void
 EventTrackView::draw()
 {
-    IRect draw_area = rect(this);
+    IRect draw_area = f_util::rect(this);
 
     // I used to look for FL_DAMAGE_SCROLL and use fl_scroll() for a fast
     // blit, but it was too hard to get right.  The biggest problem is that
@@ -289,7 +290,7 @@ EventTrackView::draw()
         // When overlay_ruler.draw() is called it will redundantly clip again
         // on damage_range, but that's ok because it needs the clip when called
         // from RulerTrackView::draw().
-        ClipArea clip_area(draw_area);
+        f_util::ClipArea clip_area(draw_area);
 
         // TODO It might be cleaner to eliminate bg_box and just call fl_rectf
         // and fl_draw_box myself.  But this draws the all-mighty bevel too.
@@ -297,10 +298,10 @@ EventTrackView::draw()
 
         // This is more than one pixel, but otherwise I draw on top of the
         // bevel on retina displays.
-        IRect inside_bevel = rect(this);
+        IRect inside_bevel = f_util::rect(this);
         inside_bevel.x += 2; inside_bevel.w -= 3;
         inside_bevel.y += 2; inside_bevel.h -= 3;
-        ClipArea clip_area2(inside_bevel);
+        f_util::ClipArea clip_area2(inside_bevel);
 
         this->draw_area();
         overlay_ruler.damaged_area.w = overlay_ruler.damaged_area.h = 0;
@@ -323,7 +324,7 @@ show_found_events(ScoreTime start, ScoreTime end, Event *events, int count)
 void
 EventTrackView::draw_area()
 {
-    IRect clip = clip_rect(rect(this));
+    IRect clip = f_util::clip_rect(f_util::rect(this));
     // Expand by a pixel, otherwise I miss little slivers on retina displays.
     clip.y--;
     clip.h++;
@@ -744,6 +745,6 @@ std::string
 EventTrackView::dump() const
 {
     std::ostringstream out;
-    out << "type event title " << show_string(this->get_title());
+    out << "type event title " << f_util::show_string(this->get_title());
     return out.str();
 }

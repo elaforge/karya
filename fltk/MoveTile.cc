@@ -18,18 +18,18 @@
 void
 MoveTile::resize(int x, int y, int w, int h)
 {
-    // DEBUG("resize " << rect(this) << " to " << IRect(x, y, w, h));
+    // DEBUG("resize " << f_util::rect(this) << " to " << IRect(x, y, w, h));
     // Only resize the rightmost and bottommost widgets.  Shrink them down to 1
     // if necessary, but stop resizing children beyond that.
     IPoint edge(0, 0);
     for (int i = 0; i < this->children(); i++) {
-        IRect c = rect(child(i));
+        IRect c = f_util::rect(child(i));
         edge.x = std::max(edge.x, c.r());
         edge.y = std::max(edge.y, c.b());
     }
     IPoint translate(x - this->x(), y - this->y());
     for (int i = 0; i < this->children(); i++) {
-        IRect c = rect(child(i));
+        IRect c = f_util::rect(child(i));
         IRect new_c = c;
         new_c.translate(translate);
         // Resize down to 1 pixel minimum, not 0.  0 width would make it
@@ -39,11 +39,11 @@ MoveTile::resize(int x, int y, int w, int h)
         if (c.b() == edge.y)
             new_c.h = std::max(1, (this->y() + h) - c.y);
         if (new_c != c) {
-            // DEBUG("c" << i << rect(child(i)) << " to " << new_c);
+            // DEBUG("c" << i << f_util::rect(child(i)) << " to " << new_c);
             this->child(i)->resize(new_c.x, new_c.y, new_c.w, new_c.h);
         }
     }
-    if (IRect(x, y, w, h) != rect(this)) {
+    if (IRect(x, y, w, h) != f_util::rect(this)) {
         Fl_Widget::resize(x, y, w, h);
         this->init_sizes();
     }
@@ -101,7 +101,7 @@ MoveTile::handle(int evt)
     // emit a msg.
     if (Fl::event_state() & (FL_SHIFT | FL_CTRL | FL_ALT | FL_META))
         return Fl_Group::handle(evt);
-    IPoint mouse = mouse_pos();
+    IPoint mouse = f_util::mouse_pos();
 
     switch (evt) {
     case FL_MOVE: case FL_ENTER: case FL_PUSH: {
@@ -215,7 +215,7 @@ MoveTile::sort_children()
 int
 MoveTile::handle_move(int evt, BoolPoint *drag_state, int *dragged_child)
 {
-    *dragged_child = this->find_dragged_child(mouse_pos(), drag_state);
+    *dragged_child = this->find_dragged_child(f_util::mouse_pos(), drag_state);
     // TODO Disable vertical drag for now.
     drag_state->y = false;
     set_cursor(this, *drag_state);
@@ -369,7 +369,7 @@ MoveTile::find_dragged_child(IPoint drag_from, BoolPoint *drag_state)
     int prev_r = 0;
     int prev_nonstiff = -1;
     for (int i = 0; i < this->children(); i++) {
-        IRect box = rect(this->child(i));
+        IRect box = f_util::rect(this->child(i));
         // Handle one vertical block of children at a time.
         if (i > 0 && box.r() == prev_r)
             continue;

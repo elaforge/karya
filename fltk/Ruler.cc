@@ -119,7 +119,7 @@ OverlayRuler::draw()
     bool clip = false;
     // DEBUG("ruler damage " << show_damage(damage()));
     if (damage() == OverlayRuler::DAMAGE_RANGE) {
-        IRect c = rect(this).intersect(this->damaged_area);
+        IRect c = f_util::rect(this).intersect(this->damaged_area);
         fl_push_clip(c.x, c.y, c.w, c.h);
         // DEBUG("draw range " << c << ": " << c.height_range());
         clip = true;
@@ -138,7 +138,7 @@ OverlayRuler::draw()
 void
 OverlayRuler::damage_range(ScoreTime start, ScoreTime end)
 {
-    IRect r = rect(this);
+    IRect r = f_util::rect(this);
     if (start == ScoreTime(-1) && end == ScoreTime(-1)) {
         ; // leave it covering the whole widget
     } else {
@@ -205,7 +205,7 @@ rewind_to_prev_visible(const PosMark *begin, const PosMark *cur, double zoom)
 void
 OverlayRuler::draw_marklists()
 {
-    IRect clip = clip_rect(rect(this));
+    IRect clip = f_util::clip_rect(f_util::rect(this));
     // DEBUG("clip: " << clip);
     if (clip.w == 0 || clip.h == 0)
         return;
@@ -314,7 +314,7 @@ OverlayRuler::draw_selections()
             // inclusive pixel ranges.  So add one to ensure that if I share a
             // pixel border with the clip rect, I'll still draw that pixel
             // line.
-            sel_rect = clip_rect(IRect(x(), start, w(), height + 1));
+            sel_rect = f_util::clip_rect(IRect(x(), start, w(), height + 1));
             fl_line_style(FL_SOLID, 0);
             alpha_rectf(sel_rect, sel.color);
 
@@ -407,7 +407,7 @@ RulerTrackView::finalize_callbacks()
 void
 RulerTrackView::draw()
 {
-    IRect draw_area = rect(this);
+    IRect draw_area = f_util::rect(this);
 
     // I used to look for FL_DAMAGE_SCROLL and use fl_scroll() for a fast
     // blit, but it was too hard to get right.  The biggest problem is that
@@ -424,15 +424,15 @@ RulerTrackView::draw()
         this->damage(FL_DAMAGE_ALL);
     }
     // Prevent marks at the top and bottom from drawing outside the ruler.
-    ClipArea clip_area(draw_area);
+    f_util::ClipArea clip_area(draw_area);
     this->draw_child(this->bg_box);
 
     // This is more than one pixel, but otherwise I draw on top of the bevel on
     // retina displays.
-    IRect inside_bevel = rect(this);
+    IRect inside_bevel = f_util::rect(this);
     inside_bevel.x += 2; inside_bevel.w -= 3;
     inside_bevel.y += 2; inside_bevel.h -= 3;
-    ClipArea clip_area2(inside_bevel);
+    f_util::ClipArea clip_area2(inside_bevel);
 
     if (damage() & FL_DAMAGE_ALL)
         this->draw_child(this->ruler);

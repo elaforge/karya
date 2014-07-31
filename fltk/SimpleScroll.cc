@@ -37,7 +37,7 @@ SimpleScroll::set_offset(IPoint offset)
 void
 SimpleScroll::draw()
 {
-    ClipArea clip(rect(this));
+    f_util::ClipArea clip(f_util::rect(this));
     if (this->damage() & FL_DAMAGE_SCROLL) {
         // TODO: implement proper scrolling
         // fl_scroll(...);

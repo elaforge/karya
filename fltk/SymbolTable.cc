@@ -224,7 +224,8 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
     const char *line_start = text.c_str();
     // The last time I saw a space character, for line breaking.
     const char *last_space = line_start;
-    ClipArea clip(clip_rect(IRect(pos.x, pos.y, wrap_width, max_height)));
+    f_util::ClipArea clip(f_util::clip_rect(
+        IRect(pos.x, pos.y, wrap_width, max_height)));
 
     style.set(); // because of utf8::width below
     double line_width = 0;

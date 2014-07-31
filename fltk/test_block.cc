@@ -458,7 +458,7 @@ main(int argc, char **argv)
     view.show();
 
     std::cout << view.block.dump() << '\n';
-    print_children(&view, 3);
+    f_util::print_children(&view, 3);
 
     Fl::run();
 }
