@@ -141,7 +141,7 @@ draw_arrow(IPoint from, IPoint to, int width, Color color, int bottom, int top)
     // DEBUG(from << " -> " << to << ": dist " << distance << " rat " << ratio);
     top = bottom - ((bottom - top) * ratio);
 
-    fl_color(color_to_fl(color));
+    fl_color(color.fl());
     fl_line_style(FL_SOLID, width, 0);
     fl_begin_line();
     fl_curve(from.x, bottom - from.y,
@@ -179,7 +179,7 @@ SkeletonDisplay::draw()
     // Draw status colors.
     for (int i = 0; i < ntracks; i++) {
         if (tracks[i].status1) {
-            fl_color(color_to_fl(tracks[i].color));
+            fl_color(tracks[i].color.fl());
             fl_rectf(x() + tracks[i].left, y(), tracks[i].width, h());
         }
         // Draw the step rectangle so it looks like the arrows are sitting on
@@ -187,10 +187,9 @@ SkeletonDisplay::draw()
         if (tracks[i].height) {
             int height = tracks[i].height * height_step;
             if (tracks[i].status1)
-                fl_color(color_to_fl(tracks[i].color.brightness(0.8)));
+                fl_color(tracks[i].color.brightness(0.8).fl());
             else
-                fl_color(color_to_fl(
-                    Config::skeleton_display_bg.brightness(0.8)));
+                fl_color(Config::skeleton_display_bg.brightness(0.8).fl());
             fl_rectf(x() + tracks[i].left, y() + h() - height,
                 tracks[i].width, height);
         }
@@ -244,7 +243,7 @@ SkeletonDisplay::draw()
             // DEBUG("draw " << i << " " << tracks[i].color);
             int cw = fl_width(c, 2);
             int xpos = this->x() + tracks[i].center - cw/2;
-            fl_color(color_to_fl(tracks[i].color));
+            fl_color(tracks[i].color.fl());
             fl_rectf(xpos-1, bottom - fl_height(), cw + 2, fl_height());
             fl_color(FL_BLACK);
             fl_draw(c, 2, xpos, bottom - fl_descent());

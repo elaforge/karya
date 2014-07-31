@@ -38,7 +38,7 @@ public:
     int handle(int evt) override;
 
     void set_bg_color(Color c) {
-        track_pad.color(color_to_fl(c));
+        track_pad.color(c.fl());
         track_pad.redraw();
     }
     void set_zoom(const ZoomInfo &zoom);

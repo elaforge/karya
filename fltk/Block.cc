@@ -83,7 +83,7 @@ BlockView::BlockView(int X, int Y, int W, int H,
     body.callback(BlockView::track_tile_cb, static_cast<void *>(this));
     track_tile.callback(BlockView::track_tile_cb, static_cast<void *>(this));
 
-    skel_display.color(color_to_fl(Config::skeleton_display_bg));
+    skel_display.color(Config::skeleton_display_bg.fl());
     skel_display.set_title(window_title);
 
     resizable(body);
@@ -263,7 +263,7 @@ BlockView::set_ruler_width(int width)
 static void
 set_block_box(Fl_Box &box, const BlockBox &b)
 {
-        box.color(color_to_fl(b.color));
+        box.color(b.color.fl());
         if (b.c == ' ')
             box.copy_label(NULL);
         else {

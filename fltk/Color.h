@@ -5,6 +5,7 @@
 #ifndef __COLOR_H
 #define __COLOR_H
 
+#include <FL/Fl.H>
 #include "util.h"
 
 
@@ -31,6 +32,9 @@ struct Color {
         return r==o.r && g==o.g && b==o.b && a==o.a;
     }
     bool operator!=(const Color &o) const { return !(*this == o); }
+
+    // Convert to Fl_Color.
+    Fl_Color fl() const { return fl_rgb_color(r, g, b); }
 
     unsigned char r, g, b, a;
 

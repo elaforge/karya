@@ -23,12 +23,6 @@ rect(const Fl_Widget &w) { return IRect(w.x(), w.y(), w.w(), w.h()); }
 inline IRect
 rect(const Fl_Widget *w) { return rect(*w); }
 
-inline Fl_Color
-color_to_fl(const Color &c)
-{
-    return fl_rgb_color(c.r, c.g, c.b);
-}
-
 inline IPoint
 mouse_pos()
 {

@@ -201,7 +201,7 @@ handle(Fl_Input *input, int evt, bool multiline)
         handled = true;
         break;
     case FL_FOCUS:
-        input->color(color_to_fl(focus_color));
+        input->color(focus_color.fl());
         input->redraw();
         // Don't set handled, because Fl_Input still needs to get this.
         break;

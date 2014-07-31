@@ -13,9 +13,9 @@ P9Scrollbar::P9Scrollbar(int X, int Y, int W, int H, Color bg, Color fg) :
     scrollbox(X, Y, W, H)
 {
     box(FL_FLAT_BOX);
-    color(color_to_fl(bg));
+    color(bg.fl());
     scrollbox.box(FL_FLAT_BOX);
-    scrollbox.color(color_to_fl(fg));
+    scrollbox.color(fg.fl());
     add(this->scrollbox);
     end();
     set_scroll(0, 1);

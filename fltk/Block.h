@@ -117,7 +117,7 @@ public:
     const char *get_title() const { return title.get_text(); }
     void set_status(const char *s, const Color &color) {
         status_line.value(s);
-        status_line.color(color_to_fl(color));
+        status_line.color(color.fl());
     }
 
     void insert_track(int tracknum, const Tracklike &track, int width);

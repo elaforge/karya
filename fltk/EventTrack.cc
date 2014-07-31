@@ -149,7 +149,7 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
     this->add(this->overlay_ruler);
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
-    bg_box.color(color_to_fl(config.bg_color.brightness(this->brightness)));
+    bg_box.color(config.bg_color.brightness(this->brightness).fl());
     this->title_input = new WrappedInput(0, 0, 1, 1, true);
 }
 
@@ -203,8 +203,7 @@ void
 EventTrackView::set_event_brightness(double d)
 {
     this->brightness = d;
-    this->bg_box.color(
-            color_to_fl(this->bg_color.brightness(this->brightness)));
+    this->bg_box.color(this->bg_color.brightness(this->brightness).fl());
     this->redraw();
 }
 
@@ -389,7 +388,7 @@ EventTrackView::draw_area()
             ->event_color.brightness(this->brightness);
         if (event.duration < ScoreTime(0))
             c = c.brightness(negative_duration_brightness);
-        fl_color(color_to_fl(c));
+        fl_color(c.fl());
         fl_rectf(this->x() + 1, y0, this->w() - 2, y1-y0);
     }
 
@@ -540,7 +539,7 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
     // TODO alpha not supported, I'd need a non-portable drawing routine for
     // it.
     const Fl_Color signal_color =
-        color_to_fl(config.render.color.brightness(brightness));
+        config.render.color.brightness(brightness).fl();
 
     // Account for both the 1 pixel track border and the width of the line.
     const int min_x = x() + 2;
@@ -630,8 +629,8 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
 
     const EventStyle *event_style = StyleTable::get()->get(event.style_id);
     const SymbolTable::Style style(event_style->font, event_style->size,
-        color_to_fl(rank ? event_style->text_color.brightness(rank_brightness)
-            : event_style->text_color));
+        (rank ? event_style->text_color.brightness(rank_brightness)
+            : event_style->text_color).fl());
 
     // DEBUG("---------event " << event.text << " " << prev_offset << ", "
     //     << offset << ", " << next_offset
@@ -698,7 +697,7 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         trigger_c = Config::event_trigger_color;
     else
         trigger_c = Config::abbreviation_color;
-    fl_color(color_to_fl(trigger_c));
+    fl_color(trigger_c.fl());
     fl_line_style(FL_SOLID, 0);
     if (rank) {
         fl_line(x() + w()/2, offset, x()+w() - 2, offset);

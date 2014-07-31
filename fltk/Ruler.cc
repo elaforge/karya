@@ -282,7 +282,7 @@ OverlayRuler::draw_mark(bool at_zero, int offset, const Mark &mark)
         int xpos = util::clamp(xmin, xmax, x() + w() - int(width) - text_width);
         // Unless there really isn't enough room, then clip on the left.
         if (xpos + text_width > x() + w()) {
-            fl_color(color_to_fl(Config::abbreviation_color));
+            fl_color(Config::abbreviation_color.fl());
             fl_line_style(FL_SOLID, 2);
             fl_line(x() + 2, offset - fl_height(), x() + 2, offset);
             fl_line_style(0);
@@ -319,7 +319,7 @@ OverlayRuler::draw_selections()
             alpha_rectf(sel_rect, sel.color);
 
             // Darken the the cur pos a bit, and make it non-transparent.
-            fl_color(color_to_fl(sel.color.brightness(0.5)));
+            fl_color(sel.color.brightness(0.5).fl());
             int cur = y + this->zoom.to_pixels(sel.cur - this->zoom.offset);
             fl_line(x() + 2, cur, x() + w() - 2, cur);
             if (sel.is_point() && sel.draw_arrow) {
@@ -350,7 +350,7 @@ RulerTrackView::RulerTrackView(const RulerConfig &config) :
     end();
 
     bg_box.box(FL_THIN_DOWN_BOX);
-    bg_box.color(color_to_fl(config.bg));
+    bg_box.color(config.bg.fl());
 }
 
 
@@ -362,7 +362,7 @@ RulerTrackView::title_widget()
     if (!this->title_box) {
         this->title_box = new Fl_Box(0, 0, 1, 1);
         title_box->box(FL_FLAT_BOX);
-        title_box->color(color_to_fl(this->ruler.config.bg));
+        title_box->color(this->ruler.config.bg.fl());
     }
     return *this->title_box;
 }
@@ -388,11 +388,11 @@ RulerTrackView::update(const Tracklike &track, ScoreTime start, ScoreTime end)
     ASSERT_MSG(track.ruler && !track.track,
         "updated a ruler track with an event track config");
     this->ruler.set_config(true, *track.ruler, start, end);
-    if (color_to_fl(track.ruler->bg) != bg_box.color()) {
-        bg_box.color(color_to_fl(track.ruler->bg));
+    if (track.ruler->bg.fl() != bg_box.color()) {
+        bg_box.color(track.ruler->bg.fl());
         bg_box.redraw();
         if (title_box) {
-            title_box->color(color_to_fl(track.ruler->bg));
+            title_box->color(track.ruler->bg.fl());
             title_box->redraw();
         }
     }

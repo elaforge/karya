@@ -298,7 +298,7 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
             // rectangle to indicate that.
             if (total_size.y >= max_height) {
                 if (total_size.y > line_size.y) {
-                    fl_color(color_to_fl(Config::abbreviation_color));
+                    fl_color(Config::abbreviation_color.fl());
                     fl_rectf(pos.x, pos.y + max_height - 2, wrap_width, 2);
                     style.set();
                 }
