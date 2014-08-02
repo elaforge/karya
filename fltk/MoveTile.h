@@ -9,8 +9,8 @@
 
     The children should always be sorted left to right, top to bottom.  There
     is a protected method 'sort_children' that subclasses should call after
-    inserting widgets.  Unfortunately FLTK's 'insert' is not virtual so this
-    can't be done automatically.
+    inserting widgets.  TODO Unfortunately FLTK's 'insert' is not virtual so
+    this can't be done automatically.
 
     Some children may be marked as non-resizable ("stiff").  They are never
     resized, and their entire area can be dragged.

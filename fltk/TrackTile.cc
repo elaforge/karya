@@ -326,16 +326,27 @@ TrackTile::update_sizes()
     redraw();
 }
 
+
 void
 TrackTile::title_input_cb(Fl_Widget *w, void *vp)
 {
     WrappedInput *input = static_cast<WrappedInput *>(w);
     TrackTile *self = static_cast<TrackTile *>(vp);
     if (input == Fl::focus()) {
+        // Expand the widget's height enough to display all its text.
         int height = std::max(self->title_height, input->text_height());
+        // This could be 'if (height != input->h())' and avoid an update on
+        // every character typed, but because update_sizes() updates all
+        // titles, if I switch focus directly from one title to another, the
+        // defocus of the old title will have already expanded this title, so
+        // I'll miss the update.  I could fix it by adding a variant of
+        // update_sizes() that only updates one track, but that gets
+        // complicated and updating everything shouldn't be that expensive.
         if (height != input->h()) {
             self->update_sizes();
             for (int i = 0; i < self->tracks(); i++) {
+                // Scroll the track backwards to account for how much the title
+                // expanded.
                 if (self->child(title_index(i)) == input) {
                     TrackView *track = self->track_at(i);
                     ZoomInfo z = self->zoom;
@@ -346,9 +357,8 @@ TrackTile::title_input_cb(Fl_Widget *w, void *vp)
                 }
             }
         }
-        // scroll the track underneath by an additional title_height - h()
     } else {
-        // Collapse to the default height.
+        // Collapse to the default height, if necessary.
         self->update_sizes();
         // scroll track back
         for (int i = 0; i < self->tracks(); i++) {

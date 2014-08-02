@@ -7,8 +7,11 @@ UNSORTED
     redraws
   * ^f and ^b to scroll by page?
   * fltk: close window when playing kills the event loop
-  - fltk: if I directly change focus from one expanded track title to another,
+  * fltk: if I directly change focus from one expanded track title to another,
     the second track is shifted downwards
+    . The problem is that update_sizes() does them all, but title_input_cb()
+      is called twice.  I need to just update one, but then need child
+      tracknum.
   * lilypond: I want to put bass clef notes on their own track.
     Then, lilypond has a grand staff but only when the bass is non-empty, and
     all notes are xstaff.
@@ -68,7 +71,7 @@ UNSORTED
       Environ.instrument_top and Environ.instrument_bottom.
     * Also highlights get in the wrong place.
     * I should only get highlights from the block that was derived.
-  - I can now have simultaneous playback selections, so support that.
+  * I can now have simultaneous playback selections, so support that.
   * 8va could default to 0, with a duration could end with 0
   * LRuler.local is broken, this makes extra:
     > LRuler.local =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
