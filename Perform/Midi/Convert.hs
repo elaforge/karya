@@ -15,6 +15,7 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 
 import qualified Midi.Midi as Midi
@@ -193,7 +194,7 @@ convert_dynamic pressure controls =
 convert_pitch :: Instrument.PatchScale -> TrackLang.Environ -> Score.ControlMap
     -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale environ controls psig = do
-    unless (null errs) $ Log.warn $ "pitch: " <> pretty errs
+    unless (null errs) $ Log.warn $ "pitch: " <> Seq.join ", " (map pretty errs)
     let (nn_sig, errs) = convert_scale scale (Signal.map_y round_pitch sig)
     unless (null errs) $
         Log.warn $ "out of range for patch scale: " <> pretty errs

@@ -99,12 +99,13 @@ UNSORTED
   guzheng support:
     * gliss should turn into grace notes
     * bent-string emits "Error: missing pitches" on repeated notes
-    - I want to make pitches after the first default to interpolated, like
+    / I want to make pitches after the first default to interpolated, like
       i>>.  I would have to wrap all the scale calls, but how can an
       instrument do that?  Make a LookupPattern that looks up the pitch call
       in the scale manually.
       . Another approach would be to apply slew control globally.
-  - error msg: pitch: [unparseable environ: key=bork]
+      . Doesn't seem worth it, just use 'p'.
+  * error msg: pitch: [unparseable environ: key=bork]
     Firstly, what's up with the []s?  Secondly, should say what scale?
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.

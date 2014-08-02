@@ -206,7 +206,7 @@ transpose transposition octaves steps = \scale key note ->
     case Scale.transpose transposition scale key octaves steps note of
         -- Leave non-pitches alone.
         Left Scale.UnparseableNote -> Right note
-        Left err -> Left (show err)
+        Left err -> Left (pretty err)
         Right note2 -> Right note2
 
 cycle_enharmonics :: ModifyPitch
