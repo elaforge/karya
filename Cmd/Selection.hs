@@ -144,7 +144,7 @@ step_with steps extend step = do
     new_pos <- step_from cur_track cur_pos steps step
     let new_sel = if extend
             then Types.selection start_track start_pos cur_track new_pos
-            else Types.point_selection start_track new_pos
+            else Types.point_selection cur_track new_pos
     set_and_scroll view_id Config.insert_selnum new_sel
 
 -- | Move the selection across tracks by @shift@, skipping non-event tracks
