@@ -5,9 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Pull deriver call documentation out of a Performance and format it nicely.
 module Cmd.CallDoc where
-import Prelude hiding (join)
 import qualified Data.Char as Char
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -145,7 +143,7 @@ html_header hstate = mconcat
     [ "<meta charset=utf-8>\n"
     , "<style type=text/css>\n" <> css <> "</style>\n"
     , "<script>\n" <> javascript <> "\n</script>\n"
-    , join "; "
+    , Seq.join "; "
         [ "<code>arg<sup>?</sup></code> &mdash; optional arg"
         , "<code>arg<sup>*</sup></code> &mdash; zero or more args"
         , "<code>arg<sup>+</sup></code> &mdash; one or more args"
@@ -171,7 +169,7 @@ html_header hstate = mconcat
     where default_search = "-m:internal -m:ly"
 
 css :: Html
-css = join "\n"
+css = Seq.join "\n"
     [ ".main-dl dl { border-bottom: 1px solid #999 }"
     , "dl.compact {"
     , "    margin: 0px;"
@@ -190,7 +188,7 @@ css = join "\n"
     ]
 
 javascript :: Html
-javascript = join "\n"
+javascript = Seq.join "\n"
     [ search_javascript
     , ""
     , hide_empty_javascript
@@ -201,7 +199,7 @@ javascript = join "\n"
     ]
 
 search_javascript :: Html
-search_javascript = join "\n"
+search_javascript = Seq.join "\n"
     [ "var total_calls = 0;"
     , "var displayed_calls = 0;"
     , "var search = function(val) {"
@@ -238,7 +236,7 @@ search_javascript = join "\n"
     ]
 
 hide_empty_javascript :: Html
-hide_empty_javascript = join "\n"
+hide_empty_javascript = Seq.join "\n"
     [ "var hide_all_empty = function() {"
     , "    hide_if_empty('call-module');"
     , "    hide_if_empty('call-source');"
@@ -261,9 +259,6 @@ hide_empty_javascript = join "\n"
     , "    return false;"
     , "};"
     ]
-
-join :: Monoid.Monoid a => a -> [a] -> a
-join sep = mconcat . List.intersperse sep
 
 call_bindings_html :: HtmlState -> Text -> CallBindings -> Html
 call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
@@ -350,7 +345,7 @@ tag_attrs name attrs maybe_content =
         Just content -> content <> "</" <> html name <> ">"
     attrs_text
         | null attrs = ""
-        | otherwise = (" "<>) $ join " "
+        | otherwise = (" "<>) $ Seq.join " "
             [html name <> "=\"" <> html val <> "\"" | (name, val) <- attrs]
 
 newtype Html = Html Text

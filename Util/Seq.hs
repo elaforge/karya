@@ -12,6 +12,7 @@ import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
 import qualified Data.Maybe as Maybe
+import qualified Data.Monoid as Monoid
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 
@@ -662,9 +663,9 @@ split1 [] _ = error "Util.Seq.split1: empty seperator"
 split1 sep xs = (pre, drop (length sep) post)
     where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 
--- | Concat a list with 'sep' in between.
-join :: [a] -> [[a]] -> [a]
-join = List.intercalate
+-- | Interspense a separator and concat.
+join :: Monoid.Monoid a => a -> [a] -> a
+join sep = Monoid.mconcat . List.intersperse sep
 
 -- | Binary join, but the separator is only used if both joinees are non-null.
 join2 :: [a] -> [a] -> [a] -> [a]
