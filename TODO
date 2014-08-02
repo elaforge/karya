@@ -3,110 +3,6 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * when there are two selections, the upper one doesn't clear enough when it
-    redraws
-  * ^f and ^b to scroll by page?
-  * fltk: close window when playing kills the event loop
-  * fltk: if I directly change focus from one expanded track title to another,
-    the second track is shifted downwards
-    . The problem is that update_sizes() does them all, but title_input_cb()
-      is called twice.  I need to just update one, but then need child
-      tracknum.
-  * lilypond: I want to put bass clef notes on their own track.
-    Then, lilypond has a grand staff but only when the bass is non-empty, and
-    all notes are xstaff.
-    . \autochange is not quite right, because I want better control over notes
-    . Use StaffGroup, not PianoStaff.
-    . Add a "down" staff with s1*n
-    . Put \RemoveEmptyStaves after \new Staff = "down"
-    . Add \override Staff.VerticalAxisGroup.remove-first = ##t
-    * xstaff call wraps all events in (up ... down)
-    * staff setting that emits StaffGroup and the necessary magic
-      . The problem is that I want to emit an empty track, but what about key
-        and time changes?  Time changes are global I think, but not key?
-        I could make a Ly Key instead of using Code, and then extract the key
-        changes along with meter changes.
-  * delete track while playing gives assertion failed at fltk/TrackTile.cc:255
-  new C++11 features:
-    * range-for: for (auto sel : sels)
-    * auto
-    * override syntax: virtual void x() override;
-  * If you have a multiple track selection and press an arrow key, the single
-    track selection should start from cur track.
-  * rename fltk/geom_util to just geom
-  * import f_util qualified
-  Highlight events.
-    . This way I can highlight pitches not on open strings.  This would also
-      support instrument range.
-    . The easiest way is probably to extend selection to support an arbitrary
-      number of non-contiguous selections, and have a postproc analysis
-    . Or have the note generator emit a special attribute that causes
-      coloring.  That way it can look at open-strings or
-      Environ.instrument_top.
-    . Getting more elaborate, I could have a Set of attributes like
-      OutOfRange, OpenString, DifficultPitch, etc.  Then I can choose how to
-      highlight, e.g. highlight non-OpenString or OpenString or use multiple
-      colors etc.  But that puts more configuration on Cmd side, and I'd want
-      instruments to be able to add the configuration themselves.  So I'd need
-      a whole new system for highlighting config, way complicated.  But if the
-      generator just says what it wants, all that goes away.
-    . So highlight with Notice | Warning | Error, and have config for how to
-      display those.
-    * add Highlight to Score.Event
-    support multiple disjoint selections per selnum
-      . fltk still uses selnum to deselect the other bits.  So I need to make
-        selnum purely into an address for a set of selections.
-      * split Selection and TrackSelection into Selection.cc
-      * Take Selection out of fltk entirely.  Then it's haskell's job to
-        convert a Types.Selection to a set of TrackSelections.
-        . no longer support NULL Selection to unset it
-      * rename TrackSelection to Selection
-      Block::set_selection takes vector<Selection>
-        * fltk
-        * haskell
-    * fill in App.Config.highlight_colors
-    * PlayC.cmd_play_msg should check derived events for Highlight and send
-      a selection accordingly.
-    * I can also emit Error highlights for instruments with
-      Environ.instrument_top and Environ.instrument_bottom.
-    * Also highlights get in the wrong place.
-    * I should only get highlights from the block that was derived.
-  * I can now have simultaneous playback selections, so support that.
-  * 8va could default to 0, with a duration could end with 0
-  * LRuler.local is broken, this makes extra:
-    > LRuler.local =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
-  * make ruler modification work where different tracks have different rulers
-    kinds of ruler modification:
-      . modify ruler on track: TrackId, local ruler on track: (BlockId, TrackId)
-      . modify rulers in section: (BlockId, TrackId), local section
-      . modify all in block, local all in block
-    . Stick with 'modify' and 'local', and have a scope field:
-      Track | Section | Block
-  * tests for Cmd.RulerUtil
-  * chatusram-tisram ruler gets increasingly inaccurate
-    . It's 5/8 / 128, which is below the round amount.  The problem is that
-      the accuracy of the whole is the accuracy of the smallest division.
-    . Round first, then add is no good.  But maybe I can convert to rational,
-      then add.
-    . I think it would work, but it seems really inefficient when the common
-      case is that all the durations are the same.  I could store a divisor
-      and have the durations be integral, but this is similar to rational, and
-      I still have to recover them from a Ruler.Marklist.  Which is just about
-      the same.
-  / get rid of Meter.Duration
-  - hold support for trill and tremolo
-    . also, would it be useful to add an acceleration?
-  guzheng support:
-    * gliss should turn into grace notes
-    * bent-string emits "Error: missing pitches" on repeated notes
-    / I want to make pitches after the first default to interpolated, like
-      i>>.  I would have to wrap all the scale calls, but how can an
-      instrument do that?  Make a LookupPattern that looks up the pitch call
-      in the scale manually.
-      . Another approach would be to apply slew control globally.
-      . Doesn't seem worth it, just use 'p'.
-  * error msg: pitch: [unparseable environ: key=bork]
-    Firstly, what's up with the []s?  Secondly, should say what scale?
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
@@ -418,10 +314,6 @@ integrate / integration:
     - quantization
 
 lilypond:
-  * Add lenses for StaffConfig so I can get rid of the ad-hoc functions in
-    LLily.
-    * First I should stop importing Types unqualified into Lilypond.
-      . Put Types exports into Perform.Lilypond, as a public API.
   - to make notes without duration, ignore the existing duration and choose
     the simplest possible duration.  For zheng, yangqin, percussion.
     . Exception for +trem
@@ -919,9 +811,6 @@ Cmd:
     - functions to load string serialized tracks for event cut and paste
     - an aux data input for the lang socket might be useful, to paste in data
       without having to quote it
-  Cmd.Play
-    * Playback should have multiple lines when a block is derived multiple
-      times. Have a set of playback selnums?
   copy / paste / Clip
     - clip block should use the ruler, just to make it easier to look at
     - clip could also copy over the skeleton
@@ -981,6 +870,8 @@ Derive:
     track types and block types.
 
   note calls:
+    - hold support for trill and tremolo
+      . also, would it be useful to add an acceleration?
     + chord calls, with automatic dyns for the notes.
       Originally I intended each note to go in its own track, with the idea
       that it takes about the same space but is more powerful and flexible.
