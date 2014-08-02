@@ -8,7 +8,6 @@
 -}
 module Util.Pretty (
     Pretty(..), Doc
-    , prettyt
     , formatted, pprint, render, render_compact
     -- * re-exported
     , PP.char, PP.text, PP.fsep, PP.fcat, PP.nest
@@ -57,15 +56,14 @@ default_width = 75
 class Pretty a where
     pretty :: a -> String
     pretty = render_compact . format
+    prettyt :: Pretty a => a -> Text
+    prettyt = Text.pack . pretty
     format :: a -> Doc
     format = PP.text . pretty
     -- | Everyone's favorite list hack from show, so pretty on String is
     -- treated specially.  Don't implement this.
     format_list :: [a] -> Doc
     format_list = format_commas '[' ']'
-
-prettyt :: Pretty a => a -> Text
-prettyt = Text.pack . pretty
 
 instance Pretty Doc where format = id
 instance (Pretty a) => Pretty [a] where format = format_list

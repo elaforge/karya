@@ -177,7 +177,8 @@ gui log_chan filename history = do
 
 print_logs :: LogChan -> IO ()
 print_logs log_chan = forever $
-    putStrLn . Log.format_msg =<< STM.atomically (TChan.readTChan log_chan)
+    Text.IO.putStrLn . Log.format_msg
+        =<< STM.atomically (TChan.readTChan log_chan)
 
 
 data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String

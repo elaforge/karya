@@ -47,6 +47,7 @@ import qualified Control.Monad.Writer.Lazy as Writer
 import qualified Data.Generics as Generics
 import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Time as Time
 
 import qualified System.CPUTime as CPUTime
@@ -59,11 +60,10 @@ import Util.Control
 import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
 
-type Stack = [String]
+type Stack = [Text]
 
 data Msg = Msg {
     msg_date :: !Time.UTCTime
@@ -83,7 +83,8 @@ msg_string :: Msg -> String
 msg_string = Text.unpack . msg_text
 
 instance Pretty.Pretty Msg where
-    pretty = format_msg
+    pretty = untxt . format_msg
+    prettyt = format_msg
 
 -- | Pure code can't give a date, but making msg_date Maybe makes it awkward
 -- for everyone who processes Msgs, so cheat with this.
@@ -97,7 +98,7 @@ data State = State {
     -- | Function to format a Msg for output.
     -- TODO it could be Text, but there's not much point as long as the
     -- default serialize and deserialize is show and read.
-    , state_log_formatter :: Msg -> String
+    , state_log_formatter :: Msg -> Text
     }
 
 initial_state :: State
@@ -209,7 +210,8 @@ trace_logs :: [Msg] -> a -> a
 trace_logs logs val
     | null logs = val
     | otherwise = Debug.trace_str
-        (Seq.rdrop_while (=='\n') $ unlines $ "\tlogged:" : map format_msg logs)
+        (untxt $ Text.stripEnd $ Text.unlines $
+            "\tlogged:" : map format_msg logs)
         val
 
 -- * LogT
@@ -232,21 +234,21 @@ instance LogMonad IO where
                     -- Go to a little bother to only run 'add_time' for msgs
                     -- that are actually logged.
                     log_msg <- add_time log_msg
-                    IO.hPutStrLn hdl (formatter log_msg)
+                    Text.IO.hPutStrLn hdl (formatter log_msg)
                 _ -> return ()
         when (msg_priority log_msg == Error) $ do
             log_msg <- add_time log_msg
-            IO.hPutStrLn IO.stderr (format_msg log_msg)
+            Text.IO.hPutStrLn IO.stderr (format_msg log_msg)
 
 -- | Format a msg in a nice user readable way.
-format_msg :: Msg -> String
+format_msg :: Msg -> Text
 format_msg (Msg { msg_date = _date, msg_caller = srcpos, msg_priority = prio
         , msg_text = text, msg_stack = stack }) =
-    log_msg ++ maybe "" ((' ':) . Seq.join " / ") stack
+    log_msg <> maybe "" ((" "<>) . Text.intercalate " / ") stack
     where
     prio_stars Timer = "-"
     prio_stars prio = replicate (fromEnum prio) '*'
-    log_msg = printf "%-4s %s - %s"
+    log_msg = txt $ printf "%-4s %s - %s"
         (prio_stars prio) (SrcPos.show_srcpos srcpos) (Text.unpack text)
 
 -- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
@@ -292,8 +294,8 @@ instance (Monoid.Monoid w, LogMonad m) => LogMonad (Writer.WriterT w m) where
 
 -- * serialize
 
-serialize_msg :: Msg -> String
-serialize_msg = show
+serialize_msg :: Msg -> Text
+serialize_msg = showt
 
 deserialize_msg :: String -> IO (Either Exception.SomeException Msg)
 deserialize_msg log_msg = Exception.try (readIO log_msg)

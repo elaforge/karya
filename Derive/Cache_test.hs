@@ -206,7 +206,7 @@ r_block_logs =
         . filter DeriveTest.cache_msg . r_logs
     where
     track_stack msg = case Log.msg_stack msg of
-        Just stack -> case Stack.innermost (Stack.from_strings stack) of
+        Just stack -> case Stack.innermost (Stack.unserialize stack) of
             Stack.Track _ : _ -> True
             _ -> False
         _ -> False
@@ -649,13 +649,13 @@ run state m = case result of
     where result = Identity.runIdentity (State.run state m)
 
 log_with_stack :: Log.Msg -> String
-log_with_stack msg = pretty (Stack.from_strings <$> Log.msg_stack msg)
+log_with_stack msg = pretty (Stack.unserialize <$> Log.msg_stack msg)
     <> ": " <> Log.msg_string msg
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]
 r_cache_collect result = Seq.sort_on fst
-    [(DeriveTest.show_stack (Just (Stack.to_strings stack)), collect ctype)
+    [(DeriveTest.show_stack (Just (Stack.serialize stack)), collect ctype)
         | (stack, ctype) <- Map.assocs cmap]
     where
     cmap = uncache (Derive.r_cache result)

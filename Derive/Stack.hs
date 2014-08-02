@@ -11,7 +11,7 @@ module Derive.Stack (
     , match
     , Frame(..)
     , format_ui, show_ui, show_ui_
-    , to_strings, from_strings
+    , serialize, unserialize
 
     -- * more specialized utils
     , track_regions
@@ -209,15 +209,15 @@ show_ui_ :: Stack -> String
 show_ui_ = Seq.join ": " . map unparse_ui_frame_ . to_ui
 
 -- | Serialize a Stack to and from a list of strings, as used in
--- 'Util.Log.Msg'.  Since I use a list of Strings instead of a String, I can
+-- 'Util.Log.Msg'.  Since I use a list of Text instead of a Text, I can
 -- conceal that internally the stack is stored innermost first.
-to_strings :: Stack -> [String]
-to_strings = map show . outermost
+serialize :: Stack -> [Text]
+serialize = map showt . outermost
 
 -- | Turn strings back into a stack.  This uses 'read' so it WILL CRASH if
 -- the input isn't parseable.
-from_strings :: [String] -> Stack
-from_strings = from_outermost . map read
+unserialize :: [Text] -> Stack
+unserialize = from_outermost . map (read . untxt) -- TODO use a real parser
 
 -- * more specialized utils
 

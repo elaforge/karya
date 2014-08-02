@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module LogView.Tail_test where
+import qualified Data.Text.IO as Text.IO
 import qualified System.IO as IO
 
 import Util.Control
@@ -41,5 +42,5 @@ log_fn :: FilePath
 log_fn = "build/test.log"
 
 write :: IO.Handle -> Text -> IO ()
-write hdl msg = IO.hPutStrLn hdl $
+write hdl msg = Text.IO.hPutStrLn hdl $
     Log.serialize_msg (Log.msg Log.Notice Nothing msg)

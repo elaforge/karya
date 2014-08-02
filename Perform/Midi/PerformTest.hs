@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified System.IO as IO
 
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.ParseText as ParseText
 
@@ -37,7 +38,7 @@ read_perf_events events = do
         (make_perf_event (Instrument.Db.db_lookup_midi db)) events
 
 type Event = (Text, RealTime, RealTime, [(Text, [(RealTime, Signal.Y)])],
-    [(RealTime, Signal.Y)], [String])
+    [(RealTime, Signal.Y)], Log.Stack)
 
 show_perf_event :: Perform.Event -> Event
 show_perf_event (Perform.Event inst start dur controls pitch stack) =
@@ -45,7 +46,7 @@ show_perf_event (Perform.Event inst start dur controls pitch stack) =
     , [(Score.control_name k, Signal.unsignal v)
         | (k, v) <- Map.toList controls]
     , Signal.unsignal pitch
-    , Stack.to_strings stack
+    , Stack.serialize stack
     )
 
 read_perf_event :: MidiDb.LookupMidiInstrument -> String -> Maybe Perform.Event
@@ -61,7 +62,7 @@ make_perf_event lookup_inst (inst, start, dur, controls, pitch, stack) = do
         , Perform.event_duration = dur
         , Perform.event_controls = make_controls controls
         , Perform.event_pitch = Signal.signal pitch
-        , Perform.event_stack = Stack.from_strings stack
+        , Perform.event_stack = Stack.unserialize stack
         }
 
 make_controls :: [(Text, [(RealTime, Signal.Y)])] -> Perform.ControlMap

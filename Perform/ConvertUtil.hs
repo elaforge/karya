@@ -55,7 +55,7 @@ run_convert state stack conv = case val of
         . Log.run . flip State.runStateT state . Error.runErrorT
     ((val, out_state), stackless_logs) = run conv
     logs = [msg { Log.msg_stack = log_stack } | msg <- stackless_logs]
-    log_stack = Just (Stack.to_strings stack)
+    log_stack = Just (Stack.serialize stack)
 
 require :: Text -> Maybe a -> ConvertT st a
 require msg = maybe (throw $ "event requires " <> msg) return

@@ -172,7 +172,7 @@ instance Log.LogMonad Deriver where
     write = DeriveM.write
     initialize_msg msg = do
         -- If the msg was created explicitly, it may already have a stack.
-        stack <- maybe (gets (Stack.to_strings . state_stack . state_dynamic))
+        stack <- maybe (gets (Stack.serialize . state_stack . state_dynamic))
             return (Log.msg_stack msg)
         return $ msg { Log.msg_stack = Just stack }
 
@@ -1489,7 +1489,7 @@ merge_logs result logs = case result of
 
 error_to_warn :: Error -> Log.Msg
 error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
-    (Just (Stack.to_strings stack)) ("Error: " <> prettyt val)
+    (Just (Stack.serialize stack)) ("Error: " <> prettyt val)
 
 merge_events :: Events -> Events -> Events
 merge_events = Seq.merge_on levent_key
