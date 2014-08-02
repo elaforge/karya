@@ -332,11 +332,11 @@ extract_cache_stats key logs = (rederived, cached)
 -- | Get block cache stats.
 get_block_id :: Log.Msg -> Maybe BlockId
 get_block_id = Stack.block_of
-    <=< Seq.head . Stack.innermost . Stack.unserialize <=< Log.msg_stack
+    <=< Seq.head . Stack.innermost <=< Stack.unserialize <=< Log.msg_stack
 
 -- | Get track cache stats.
 get_track_id :: Log.Msg -> Maybe (BlockId, TrackId)
-get_track_id = Stack.block_track_of . Stack.unserialize <=< Log.msg_stack
+get_track_id = Stack.block_track_of <=< Stack.unserialize <=< Log.msg_stack
 
 -- | Play the performance of the given block starting from the given time.
 from_realtime :: Cmd.M m => BlockId -> Maybe RealTime -> RealTime

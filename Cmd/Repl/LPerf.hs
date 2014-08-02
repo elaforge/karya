@@ -281,8 +281,8 @@ logs_matching perf_block block_id track_ids start end = do
     logs <- LEvent.logs_of <$> block_midi perf_block
     let pattern = (Just block_id, Just (Set.fromList track_ids),
             Just (start, end))
-        match = maybe False (Stack.match pattern . Stack.unserialize)
-            . Log.msg_stack
+        match = maybe False (Stack.match pattern)
+            . (Stack.unserialize <=< Log.msg_stack)
     return $ filter match logs
 
 play_midi :: Perform.MidiEvents -> Cmd.CmdL ()
@@ -317,8 +317,8 @@ cache_logs block_id = do
     return $ unlines
         [format_stack msg ++ ": " ++ Log.msg_string msg | msg <- logs]
     where
-    format_stack =
-        maybe "" (Stack.show_ui_ . Stack.unserialize) . Log.msg_stack
+    format_stack = maybe "" Stack.show_ui_
+        . (Stack.unserialize <=< Log.msg_stack)
 
 -- | Stats for both block and track caches from the given block.
 cache_stats :: BlockId -> Cmd.CmdL String

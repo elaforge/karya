@@ -47,7 +47,9 @@ format_log msg = Pretty.fsep
         (Log.msg_caller msg)
     stack = case Log.msg_stack msg of
         Nothing -> Pretty.text "[]"
-        Just stack -> Stack.format_ui (Stack.unserialize stack)
+        Just stack -> case Stack.unserialize stack of
+            Nothing -> "[unparseable]"
+            Just stack -> Stack.format_ui stack
 
 event :: LEvent a -> Maybe a
 event (Event d) = Just d

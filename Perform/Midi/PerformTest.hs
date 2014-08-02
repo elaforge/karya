@@ -62,7 +62,9 @@ make_perf_event lookup_inst (inst, start, dur, controls, pitch, stack) = do
         , Perform.event_duration = dur
         , Perform.event_controls = make_controls controls
         , Perform.event_pitch = Signal.signal pitch
-        , Perform.event_stack = Stack.unserialize stack
+        , Perform.event_stack = fromMaybe
+            (error $ "unparseable stack: " <> show stack)
+            (Stack.unserialize stack)
         }
 
 make_controls :: [(Text, [(RealTime, Signal.Y)])] -> Perform.ControlMap

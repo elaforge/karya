@@ -17,6 +17,13 @@ import qualified Util.File as File
 import qualified Util.Seq as Seq
 
 
+read_maybe :: Read a => String -> Maybe a
+read_maybe s = case reads s of
+    (val, "") : _ -> Just val
+    _ -> Nothing
+
+-- * parsec
+
 type Parser st a = P.Parsec Text st a
 
 parse :: Parser () a -> Text -> Either String a

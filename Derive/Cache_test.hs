@@ -206,10 +206,12 @@ r_block_logs =
         . filter DeriveTest.cache_msg . r_logs
     where
     track_stack msg = case Log.msg_stack msg of
-        Just stack -> case Stack.innermost (Stack.unserialize stack) of
+        Just stack -> case Stack.innermost (unserialize stack) of
             Stack.Track _ : _ -> True
             _ -> False
         _ -> False
+    unserialize s = fromMaybe (error $ "unparseable stack: " <> show s) $
+        Stack.unserialize s
 
 r_all_logs :: Derive.Result -> [String]
 r_all_logs = map DeriveTest.show_log_stack . r_logs

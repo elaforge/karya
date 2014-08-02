@@ -31,6 +31,7 @@ import qualified Text.Read as Read
 
 import Util.Control
 import Util.Crc32Instances ()
+import qualified Util.Parse as Parse
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
@@ -214,10 +215,9 @@ show_ui_ = Seq.join ": " . map unparse_ui_frame_ . to_ui
 serialize :: Stack -> [Text]
 serialize = map showt . outermost
 
--- | Turn strings back into a stack.  This uses 'read' so it WILL CRASH if
--- the input isn't parseable.
-unserialize :: [Text] -> Stack
-unserialize = from_outermost . map (read . untxt) -- TODO use a real parser
+-- | Turn strings back into a stack.
+unserialize :: [Text] -> Maybe Stack
+unserialize = fmap from_outermost . mapM (Parse.read_maybe . untxt)
 
 -- * more specialized utils
 
