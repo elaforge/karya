@@ -204,7 +204,7 @@ c_attr_tremolo = Make.attributed_note Module.prelude Attrs.trem
 -- both the starts and ends, and therefore the last sample will be at the end
 -- time, rather than before it.  It should always emit an even number of
 -- elements.
-full_notes :: (Ord a) => a -> [a] -> [a]
+full_notes :: Ord a => a -> [a] -> [a]
 full_notes end [t]
     | t < end = [t, end]
     | otherwise = []

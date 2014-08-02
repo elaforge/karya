@@ -93,9 +93,9 @@ runIO action = Shake.shake Shake.shakeOptions $ Shake.action $ do
 
 -- * general
 
-ifM :: (Monad m) => m Bool -> m a -> m a -> m a
+ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM cond consequent alternative =
     cond >>= \b -> if b then consequent else alternative
 
-whenM :: (Monad m) => m Bool -> m () -> m ()
+whenM :: Monad m => m Bool -> m () -> m ()
 whenM cond consequent = cond >>= \b -> when b consequent

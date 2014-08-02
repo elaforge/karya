@@ -971,7 +971,7 @@ data PassedArgs val = PassedArgs {
     , passed_info :: !(CallInfo val)
     }
 
-instance (Pretty.Pretty val) => Pretty.Pretty (PassedArgs val) where
+instance Pretty.Pretty val => Pretty.Pretty (PassedArgs val) where
     format (PassedArgs vals call_name info) = Pretty.record "PassedArgs"
         [ ("vals", Pretty.format vals)
         , ("call_name", Pretty.format call_name)

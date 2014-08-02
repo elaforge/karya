@@ -93,7 +93,7 @@ set_pitch_bend = modify
     , put_int "element.1.control.pitch.upper depth" 12
     ]
 
-modify :: (Monad m) => [a -> m a] -> a -> m a
+modify :: Monad m => [a -> m a] -> a -> m a
 modify = foldr (<=<) return
 
 put_int :: String -> Int -> Sysex.RMap -> Either String Sysex.RMap

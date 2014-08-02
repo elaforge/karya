@@ -151,35 +151,33 @@ msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack -> Text -> Msg
 msg_srcpos = Msg no_date_yet
 
 -- | Create a msg with the give prio and text.
-initialized_msg_srcpos :: (LogMonad m) => SrcPos.SrcPos -> Prio -> Text -> m Msg
+initialized_msg_srcpos :: LogMonad m => SrcPos.SrcPos -> Prio -> Text -> m Msg
 initialized_msg_srcpos srcpos prio = make_msg srcpos prio Nothing
 
-initialized_msg :: (LogMonad m) => Prio -> Text -> m Msg
+initialized_msg :: LogMonad m => Prio -> Text -> m Msg
 initialized_msg = initialized_msg_srcpos Nothing
 
 -- | This is the main way to construct a Msg since 'initialize_msg' is called.
-make_msg :: (LogMonad m) =>
-    SrcPos.SrcPos -> Prio -> Maybe Stack -> Text -> m Msg
+make_msg :: LogMonad m => SrcPos.SrcPos -> Prio -> Maybe Stack -> Text -> m Msg
 make_msg srcpos prio stack text =
     initialize_msg (msg_srcpos srcpos prio stack text)
 
-log :: (LogMonad m) => Prio -> SrcPos.SrcPos -> String -> m ()
+log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
 log prio srcpos text = write =<< make_msg srcpos prio Nothing (txt text)
 
-log_stack :: (LogMonad m) => Prio -> SrcPos.SrcPos -> Stack -> String
-    -> m ()
+log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack -> String -> m ()
 log_stack prio srcpos stack text =
     write =<< make_msg srcpos prio (Just stack) (txt text)
 
 timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
-    :: (LogMonad m) => SrcPos.SrcPos -> String -> m ()
+    :: LogMonad m => SrcPos.SrcPos -> String -> m ()
 timer_srcpos = log Timer
 debug_srcpos = log Debug
 notice_srcpos = log Notice
 warn_srcpos = log Warn
 error_srcpos = log Error
 
-timer, debug, notice, warn, error :: (LogMonad m) => String -> m ()
+timer, debug, notice, warn, error :: LogMonad m => String -> m ()
 timer = timer_srcpos Nothing
 debug = debug_srcpos Nothing
 notice = notice_srcpos Nothing
@@ -189,13 +187,13 @@ error = error_srcpos Nothing
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
 debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos, error_stack_srcpos
-    :: (LogMonad m) => SrcPos.SrcPos -> Stack -> String -> m ()
+    :: LogMonad m => SrcPos.SrcPos -> Stack -> String -> m ()
 debug_stack_srcpos = log_stack Debug
 notice_stack_srcpos = log_stack Notice
 warn_stack_srcpos = log_stack Warn
 error_stack_srcpos = log_stack Error
 
-debug_stack, notice_stack, warn_stack, error_stack :: (LogMonad m) =>
+debug_stack, notice_stack, warn_stack, error_stack :: LogMonad m =>
     Stack -> String -> m ()
 debug_stack = debug_stack_srcpos Nothing
 notice_stack = notice_stack_srcpos Nothing
@@ -216,7 +214,7 @@ trace_logs logs val
 
 -- * LogT
 
-class (Monad m) => LogMonad m where
+class Monad m => LogMonad m where
     write :: Msg -> m ()
 
     -- | An instance for whatever monad you're using can use this to add some
@@ -260,7 +258,7 @@ add_time log_msg
         return $ log_msg { msg_date = utc }
     | otherwise = return log_msg
 
-instance (Monad m) => LogMonad (LogT m) where
+instance Monad m => LogMonad (LogT m) where
     write = write_msg
 
 write_msg :: Monad m => Msg -> LogT m ()

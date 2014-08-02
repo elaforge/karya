@@ -170,7 +170,7 @@ expand_mods bindable smods
 
 -- | Create a CmdMap for efficient lookup and return warnings encountered
 -- during construction.
-make_cmd_map :: (Monad m) => [Binding m] -> (CmdMap m, [String])
+make_cmd_map :: Monad m => [Binding m] -> (CmdMap m, [String])
 make_cmd_map bindings = (Map.fromList bindings, warns)
     where
     warns = map warn (overlaps bindings)

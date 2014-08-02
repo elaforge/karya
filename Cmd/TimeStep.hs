@@ -187,7 +187,7 @@ snap tstep block_id tracknum prev_pos pos =
     is_relative _ = False
 
 -- | Drop until the last element before or equal to the given element.
-drop_before :: (Ord a) => a -> [a] -> [a]
+drop_before :: Ord a => a -> [a] -> [a]
 drop_before _ [] = []
 drop_before p (x:xs)
     | p < x = x : xs

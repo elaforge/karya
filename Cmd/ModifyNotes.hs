@@ -140,11 +140,11 @@ sorted_controls = Seq.sort_on (key . fst) . Map.toList
 -- | Modify notes.
 type ModifyNotes m = BlockId -> [(Note, TrackId)] -> m [Note]
 
-modify_notes :: (Monad m) => ([Note] -> [Note]) -> ModifyNotes m
+modify_notes :: Monad m => ([Note] -> [Note]) -> ModifyNotes m
 modify_notes f _ = return . f . map fst
 
 -- | Modify a single note.
-modify_note :: (Monad m) => (Note -> Note) -> ModifyNotes m
+modify_note :: Monad m => (Note -> Note) -> ModifyNotes m
 modify_note f _ = return . map (f . fst)
 
 -- | Modify notes on the selected tracks.  Only the top level note tracks are

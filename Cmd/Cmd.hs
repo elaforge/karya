@@ -25,7 +25,7 @@
     Identity cmds (bound to keystrokes) and the REPL must be polymorphic in the
     monad.
 
-    Formerly this was @(Monad m) => CmdT m ...@, but with the upgrade to mtl2
+    Formerly this was @Monad m => CmdT m ...@, but with the upgrade to mtl2
     Functor would have to be added to the class context, but only for cmds
     that happened to use Applicative operators.  Rather than deal such
     messiness, there's a class @Cmd.M@ that brings in Functor and Applicative
@@ -270,7 +270,7 @@ instance Trans.MonadTrans CmdT where
     lift = CmdT . lift . lift . lift . lift -- whee!!
 
 -- | Give CmdT unlifted access to all the logging functions.
-instance (Monad m) => Log.LogMonad (CmdT m) where
+instance Monad m => Log.LogMonad (CmdT m) where
     write = CmdT . lift . lift . lift . Log.write
 
 -- | And to the UI state operations.

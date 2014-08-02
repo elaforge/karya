@@ -26,11 +26,11 @@ instance Functor LEvent where
     fmap f (Event a) = Event (f a)
     fmap _ (Log a) = Log a
 
-instance (Pretty.Pretty d) => Pretty.Pretty (LEvent d) where
+instance Pretty.Pretty d => Pretty.Pretty (LEvent d) where
     format (Log msg) = format_log msg
     format (Event event) = Pretty.format event
 
-instance (Eq d) => Eq (LEvent d) where
+instance Eq d => Eq (LEvent d) where
     Log e1 == Log e2 = e1 == e2
     Event e1 == Event e2 = e1 == e2
     Log _ == Event _ = False

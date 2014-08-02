@@ -129,7 +129,7 @@ diff_note key (Seq.Both v1 v2)
     | v1 == v2 = []
     | otherwise = [Midi.NoteOff key 0, Midi.NoteOn key v2]
 
-diff_map :: (Ord k) => Map.Map k a -> Map.Map k a -> a -> (k -> a -> a -> [b])
+diff_map :: Ord k => Map.Map k a -> Map.Map k a -> a -> (k -> a -> a -> [b])
     -> [b]
 diff_map m1 m2 deflt f = concatMap go (Map.pairs m1 m2)
     where

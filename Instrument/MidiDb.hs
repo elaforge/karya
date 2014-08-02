@@ -116,7 +116,7 @@ data Info code = Info {
     , info_code :: code
     } deriving (Show)
 
-instance (Pretty.Pretty code) => Pretty.Pretty (Info code) where
+instance Pretty.Pretty code => Pretty.Pretty (Info code) where
     format (Info synth patch code) = Pretty.record "Info"
         [ ("synth", Pretty.format synth)
         , ("patch", Pretty.format patch)

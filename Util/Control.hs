@@ -66,7 +66,7 @@ second f (c, a) = (c, f a)
 (***) :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
 f *** g = \(x, y) -> (f x, g y)
 
-while :: (Monad m) => m Bool -> m a -> m [a]
+while :: Monad m => m Bool -> m a -> m [a]
 while cond op = do
     b <- cond
     case b of
@@ -76,45 +76,45 @@ while cond op = do
             return (val:rest)
         False -> return []
 
-while_ :: (Monad m) => m Bool -> m a -> m ()
+while_ :: Monad m => m Bool -> m a -> m ()
 while_ cond op = do
     b <- cond
     if b then op >> while_ cond op else return ()
 
-whenM :: (Monad m) => m Bool -> m a -> m ()
+whenM :: Monad m => m Bool -> m a -> m ()
 whenM cond op = do
     b <- cond
     if b then op >> return () else return ()
 
-unlessM :: (Monad m) => m Bool -> m a -> m ()
+unlessM :: Monad m => m Bool -> m a -> m ()
 unlessM cond op = do
     b <- cond
     if b then return () else op >> return ()
 
-whenJust :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
+whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust val f = maybe (return ()) f val
 
-whenJustM :: (Monad m) => m (Maybe a) -> (a -> m ()) -> m ()
+whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
 whenJustM mval f = mval >>= \val -> whenJust val f
 
-ifM :: (Monad m) => m Bool -> m a -> m a -> m a
+ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM cond consequent alternative = do
     b <- cond
     if b then consequent else alternative
 
-andM :: (Monad m) => [m Bool] -> m Bool
+andM :: Monad m => [m Bool] -> m Bool
 andM [] = return True
 andM (c:cs) = do
     b <- c
     if b then andM cs else return False
 
-orM :: (Monad m) => [m Bool] -> m Bool
+orM :: Monad m => [m Bool] -> m Bool
 orM [] = return False
 orM (c:cs) = do
     b <- c
     if b then return True else orM cs
 
-findM :: (Monad m) => (a -> m Bool) -> [a] -> m (Maybe a)
+findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
 findM _ [] = return Nothing
 findM f (x:xs) = ifM (f x) (return (Just x)) (findM f xs)
 
@@ -124,7 +124,7 @@ mconcatMap f = mconcat . Prelude.map f
 concatMapM :: (Monad m, Monoid.Monoid b) => (a -> m b) -> [a] -> m b
 concatMapM f = liftM mconcat . mapM f
 
-mapMaybeM :: (Monad m) => (a -> m (Maybe b)) -> [a] -> m [b]
+mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f as = go as
     where
     go [] = return []
@@ -134,7 +134,7 @@ mapMaybeM f as = go as
 --
 -- This is like MaybeT, but using MaybeT itself required lots of annoying
 -- explicit lifting.
-justm :: (Monad m) => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
+justm :: Monad m => m (Maybe a) -> (a -> m (Maybe b)) -> m (Maybe b)
 justm op1 op2 = maybe (return Nothing) op2 =<< op1
 
 -- | The Either equivalent of 'justm'.  EitherT solves the same problem, but

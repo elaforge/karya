@@ -8,7 +8,7 @@ import qualified Data.Set as Set
 
 
 -- | Find a key at or below the given one.
-lookup_below :: (Ord k) => k -> Set.Set k -> Maybe k
+lookup_below :: Ord k => k -> Set.Set k -> Maybe k
 lookup_below k set = case Set.splitMember k set of
     (_, True, _) -> Just k
     (below, False, _) -> find_max below

@@ -54,10 +54,10 @@ check i a
 
 -- | Find the index of the first element >= the given element in the sorted
 -- array.
-bsearch :: (Ord a) => Array a -> a -> Int
+bsearch :: Ord k => Array k -> k -> Int
 bsearch = bsearch_with (<=)
 
-bsearch_on :: (Ord k) => (a -> k) -> Array a -> k -> Int
+bsearch_on :: Ord k => (a -> k) -> Array a -> k -> Int
 bsearch_on key a elt = bsearch_with (\elt e1 -> (elt <= key e1)) a elt
 
 bsearch_with :: (k -> a -> Bool) -> Array a -> k -> Int
@@ -71,15 +71,3 @@ _do_bsearch lte a low high
     | otherwise = _do_bsearch lte a (mid+1) high
     where
     mid = (low + high) `div` 2
-
-
-t1 :: IArray.Array Int Int
-t1 = IArray.listArray (0, 9) [0,2..20]
-t2 :: IArray.Array Int Int
-t2 = IArray.listArray (0, 5) [0, 0, 1, 1, 2, 2]
-t3 :: IArray.Array Int (Int, Char)
-t3 = IArray.listArray (0, 5) [(i, 'z') | i <- [0..5]]
-
-u1 = bsearch t1
-u2 = bsearch t2
-u3 = bsearch_on fst t3

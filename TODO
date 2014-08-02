@@ -273,10 +273,13 @@ documentation
 
 shakefile: build:
   automatic "All.hs" modules
-    - Derive.Calls.All looks for (note|pitch|control)_calls from Derive/Call/,
+    . I'm reluctant because it's simpler to have normal files, and it's not
+      that hard to update them.
+    - Derive.Call.All looks for (note|pitch|control)_calls from Derive/Call/,
       but could also take from Local/Call/*
     - Local.Instrument looks for 'load' from Local/Instrument/
-  - No-build time doubles from .2s to .45s.  Caching doesn't help.
+  - After reading cabal dist/setup-config, the empty build time doubles from
+    .2s to .45s.  Perhaps unrelated to the cabal change.
 
 incremental save / git:
   + try saving individual events for incremental save
@@ -290,7 +293,7 @@ incremental save / git:
     tracks.  Otherwise, would it be worth helping it by e.g. separating
     each event with a newline?  But then it makes serializing events more of
     a hassle.
-  Git docs: http://progit.org/book/ch9-2.html
+  . Git docs: http://progit.org/book/ch9-2.html
 
 integrate / integration:
   score integrate
@@ -477,7 +480,7 @@ cleanup:
       - monoidal interface, not monadic
       - write text, set indent for expression, insert soft break
     - Derive.throw
-    - Ui.Id
+    * Ui.Id
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
     . I could make that a .c file too, and get rid of the sketchy hsc2hs on

@@ -418,5 +418,5 @@ diff_track_events tid e1 e2 =
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (a, b, c) = f a b c
 
-unequal_on :: (Eq eq) => (a -> eq) -> a -> a -> Bool
+unequal_on :: Eq eq => (a -> eq) -> a -> a -> Bool
 unequal_on key a b = key a /= key b

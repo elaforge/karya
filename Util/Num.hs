@@ -48,17 +48,17 @@ read_digit c = case c of
 -- * transform
 
 -- | Clamp a value to be between @low@ and @high@.
-clamp :: (Ord a) => a -> a -> a -> a
+clamp :: Ord a => a -> a -> a -> a
 clamp low high = min high . max low
 
 -- | Confine the given value lie between the first two arguments, but using
 -- modulus, not clamping.
-restrict :: (Real a) => a -> a -> a -> a
+restrict :: Real a => a -> a -> a -> a
 restrict low high
     | high == low = const low -- avoid dividing by 0 in fmod
     | otherwise = (+low) . (`fmod` (high-low)) . subtract low
 
-in_range :: (Ord a) => a -> a -> a -> Bool
+in_range :: Ord a => a -> a -> a -> Bool
 in_range low high x = low <= x && x < high
 
 -- | Scale @v@, which is between 0 and 1 inclusive, to be between @low@ and
@@ -89,7 +89,7 @@ infixl 7 `fmod` -- match `mod`
 
 -- | fmod is in a bizarre place.
 {-# SPECIALIZE fmod :: Double -> Double -> Double #-}
-fmod :: (Real a) => a -> a -> a
+fmod :: Real a => a -> a -> a
 fmod = Fixed.mod'
 
 isEven, isOdd :: Integral a => a -> Bool

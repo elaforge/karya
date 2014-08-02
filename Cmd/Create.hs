@@ -574,7 +574,7 @@ set_block_ruler ruler_id block_id =
 
 -- * general util
 
-generate_id :: (Ord a) => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
+generate_id :: Ord a => Id.Namespace -> Id.Id -> Text -> (Id.Id -> a)
     -> Map.Map a _b -> Maybe Id.Id
 generate_id ns parent_id code typ fm =
     List.find (not . (`Map.member` fm) . typ) candidates

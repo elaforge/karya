@@ -103,7 +103,7 @@ get_scale_id block_id maybe_track_id = first_just
 -- | Try a bunch of actions, and return the first one that is Just, or
 -- fall back on a default.
 -- TODO could go in Util.Control if it's generally useful.
-first_just :: (Monad m) => [m (Maybe a)] -> m a -> m a
+first_just :: Monad m => [m (Maybe a)] -> m a -> m a
 first_just [] deflt = deflt
 first_just (m:ms) deflt = do
     v <- m
