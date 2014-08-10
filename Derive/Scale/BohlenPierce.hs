@@ -33,7 +33,7 @@ scale_id = "bp"
 
 absolute_scale :: Scale.Scale
 absolute_scale =
-    (ChromaticScales.make_scale scale_map scale_id
+    (ChromaticScales.make_scale scale_id scale_map
         "Bohlen-Pierce is for when you want a scale which is systematically\
         \ different in every way from all those other scales, but with its\
         \ own peculiar internal consistency.\n")

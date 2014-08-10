@@ -36,7 +36,7 @@ import qualified Perform.Pitch as Pitch
 -- | Top level scale constructor.
 make_scale :: Pitch.ScaleId -> ScaleMap -> Scale.Scale
 make_scale scale_id smap =
-    (ChromaticScales.make_scale (smap_chromatic smap) scale_id doc)
+    (ChromaticScales.make_scale scale_id (smap_chromatic smap) doc)
     { Scale.scale_enharmonics = Scales.no_enharmonics
     , Scale.scale_note_to_call = note_to_call scale smap
     , Scale.scale_input_to_note = input_to_note smap

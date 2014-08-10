@@ -584,7 +584,7 @@ with_scale scale = modify_constant $ \st ->
 
 mkscale :: Pitch.ScaleId -> [(Text, Pitch.NoteNumber)] -> Scale.Scale
 mkscale scale_id notes =
-    Scales.make_scale dmap scale_id "pattern" "simple test scale"
+    Scales.make_scale scale_id dmap "pattern" "simple test scale"
     where
     dmap = Scales.degree_map 8 0 0 (map (Pitch.Note . fst) notes)
         (map snd notes)

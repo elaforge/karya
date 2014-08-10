@@ -39,11 +39,11 @@ scales = [scale, relative_scale]
 
 scale :: Scale.Scale
 scale = Scales.set_direct_input_to_nn $
-    ChromaticScales.make_scale absolute_scale_map scale_id
+    ChromaticScales.make_scale scale_id absolute_scale_map
         "The world-famous equal tempered twelve note scale."
 
 relative_scale :: Scale.Scale
-relative_scale = ChromaticScales.make_scale relative_scale_map "twelve-r"
+relative_scale = ChromaticScales.make_scale "twelve-r" relative_scale_map
     "This is 12TET, but spelled relative to the current key and mode."
 
 scale_id :: Pitch.ScaleId

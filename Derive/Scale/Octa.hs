@@ -54,7 +54,7 @@ relative_fmt keys = make $ TheoryFormat.RelativeFormat
 make_scale :: Pitch.ScaleId -> Theory.Layout -> ChromaticScales.Keys
     -> TheoryFormat.Format -> Scale.Scale
 make_scale scale_id layout keys fmt = Scales.set_direct_input_to_nn $
-    ChromaticScales.make_scale scale_map scale_id doc
+    ChromaticScales.make_scale scale_id scale_map doc
     where
     scale_map = ChromaticScales.scale_map layout fmt keys default_tkey
     Just default_tkey = Map.lookup default_key keys

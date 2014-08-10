@@ -38,8 +38,8 @@ import Types
 
 -- | Make a simple scale where there is a direct mapping from input to note to
 -- nn.
-make_scale :: DegreeMap -> Pitch.ScaleId -> Text -> Text -> Scale.Scale
-make_scale dmap scale_id pattern doc = Scale.Scale
+make_scale :: Pitch.ScaleId -> DegreeMap -> Text -> Text -> Scale.Scale
+make_scale scale_id dmap pattern doc = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = pattern
     , Scale.scale_symbols = []

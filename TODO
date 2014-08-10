@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - 'make_scale' functions should all take ScaleId as the first arg
+  * 'make_scale' functions should all take ScaleId as the first arg
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
@@ -908,6 +908,8 @@ Derive:
               pemade/kantilan *legong.
               . parse can be with octave
               . show: show_key doesn't want the octave
+        - add saih pitu modes
+        - pick better nns for 4 and 7
         - add 1234567 cipher notation for *legong, call it *pelog
         - if a layout doesn't have an accidental, don't allow its input
         - add range to scale doc

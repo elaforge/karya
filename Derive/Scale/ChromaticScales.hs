@@ -66,8 +66,8 @@ make_keys :: TheoryFormat.Format -> [Theory.Key] -> Keys
 make_keys fmt keys =
     Map.fromList $ zip (map (TheoryFormat.show_key fmt) keys) keys
 
-make_scale :: ScaleMap -> Pitch.ScaleId -> Text -> Scale.Scale
-make_scale smap scale_id doc = Scale.Scale
+make_scale :: Pitch.ScaleId -> ScaleMap -> Text -> Scale.Scale
+make_scale scale_id smap doc = Scale.Scale
     { Scale.scale_id = scale_id
     , Scale.scale_pattern = TheoryFormat.fmt_pattern (smap_fmt smap)
     , Scale.scale_symbols = []
