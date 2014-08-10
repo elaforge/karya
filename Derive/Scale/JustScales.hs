@@ -84,7 +84,7 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Scales.standard_transposers
     , Scale.scale_read = TheoryFormat.read_pitch fmt
-    , Scale.scale_show = \key -> Right . TheoryFormat.show_pitch fmt key
+    , Scale.scale_show = TheoryFormat.scale_show_pitch fmt
     , Scale.scale_layout =
         Scale.diatonic_layout $ TheoryFormat.fmt_pc_per_octave fmt
     , Scale.scale_transpose = transpose fmt

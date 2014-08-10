@@ -63,7 +63,6 @@ test_kotekan = do
             ])
         (interlock, [])
 
-
 test_kempyung = do
     let run title = derive extract (inst_title <> title <> " | kempyung")
         extract e = (Score.event_start e, Score.initial_note e)

@@ -4,9 +4,13 @@
 
 -- | Saih gender wayang.
 module Derive.Scale.Wayang where
+import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
+import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
 
@@ -14,24 +18,28 @@ import qualified Perform.Pitch as Pitch
 scales :: [Scale.Scale]
 scales =
     [ Scales.add_doc "Saih gender wayang." $
-        make_scale scale_id absolute_scale
+        BaliScales.make_scale scale_id complete_scale
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        make_scale "wayang-p" pemade_scale
+        BaliScales.make_scale "wayang-p" pemade_scale
     , Scales.add_doc
         "Kantilan scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        make_scale "wayang-k" kantilan_scale
+        BaliScales.make_scale "wayang-k" kantilan_scale
     ]
 
-make_scale :: Pitch.ScaleId -> BaliScales.ScaleMap -> Scale.Scale
-make_scale = BaliScales.make_scale "[0-9]ioeua"
-    -- TODO I should be able to get the scale pattern directly from the format.
-    -- That would come for free if I switched to TheoryFormat
+complete_scale :: BaliScales.ScaleMap
+complete_scale = scale_map BaliScales.ioeua_absolute $
+    BaliScales.note_numbers layout 1 0 (extend umbang) (extend isep)
 
-scale_id :: Pitch.ScaleId
-scale_id = "wayang"
+pemade_scale :: BaliScales.ScaleMap
+pemade_scale = scale_map (BaliScales.ioeua_absolute_dotted 4) $
+    BaliScales.note_numbers layout 3 1 (take 10 umbang) (take 10 isep)
+
+kantilan_scale :: BaliScales.ScaleMap
+kantilan_scale = scale_map (BaliScales.ioeua_absolute_dotted 5) $
+    BaliScales.note_numbers layout 4 1 (drop 5 umbang) (drop 5 isep)
 
 -- | Use ding deng dong dung dang.  I don't know if this is ever actually used
 -- for gender, but the notation is compact.
@@ -39,35 +47,29 @@ scale_id = "wayang"
 -- > 3o  3e  3u  3a  4i  4o  4e  4u  4a  5i  5o  5e  5u  5a  6i
 -- > pemade -------------------------------
 -- >                     kantilan -----------------------------
-absolute_scale :: BaliScales.ScaleMap
-absolute_scale = BaliScales.scale_map 5 1 0 BaliScales.ioeua
-    (extend umbang) (extend isep)
+scale_map :: TheoryFormat.Format -> BaliScales.NoteNumbers
+    -> BaliScales.ScaleMap
+scale_map fmt nns = BaliScales.scale_map layout fmt all_keys default_key nns
 
-pemade_scale :: BaliScales.ScaleMap
-pemade_scale = BaliScales.scale_map 5 3 1 BaliScales.dotted_ioeua
-    (take 10 umbang) (take 10 isep)
+scale_id :: Pitch.ScaleId
+scale_id = "wayang"
 
-kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = BaliScales.scale_map 5 4 1 BaliScales.dotted_ioeua
-    (drop 5 umbang) (drop 5 isep)
+layout :: Theory.Layout
+layout = Theory.layout [1, 1, 1, 1, 1]
+
+all_keys :: ChromaticScales.Keys
+all_keys = mempty
+
+default_key :: Theory.Key
+default_key = Theory.key (Pitch.Degree 0 0) "default" [1, 1, 1, 1, 1] layout
 
 pemade_bottom, pemade_top :: Pitch.Pitch
-Just pemade_bottom = BaliScales.scale_bottom pemade_scale
-Just pemade_top = BaliScales.scale_top pemade_scale
+pemade_bottom = BaliScales.scale_bottom pemade_scale
+pemade_top = BaliScales.scale_top pemade_scale
 
 kantilan_bottom, kantilan_top :: Pitch.Pitch
-Just kantilan_bottom = BaliScales.scale_bottom kantilan_scale
-Just kantilan_top = BaliScales.scale_top kantilan_scale
-
--- | pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
-extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend nns =
-    ding - 36 : map (subtract 24) low ++ map (subtract 12) low
-        ++ nns ++ map (+12) high ++ map (+24) high
-    where
-    ding = nns !! 4
-    low = take 5 nns -- oeuai
-    high = drop (length nns - 5) nns -- oeuai
+kantilan_bottom = BaliScales.scale_bottom kantilan_scale
+kantilan_top = BaliScales.scale_top kantilan_scale
 
 umbang :: [Pitch.NoteNumber]
 umbang =
@@ -111,3 +113,13 @@ isep =
     , 84
     , 86.78 -- kantilan end
     ]
+
+-- | pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
+extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
+extend nns =
+    ding - 36 : map (subtract 24) low ++ map (subtract 12) low
+        ++ nns ++ map (+12) high ++ map (+24) high
+    where
+    ding = nns !! 4
+    low = take 5 nns -- oeuai
+    high = drop (length nns - 5) nns -- oeuai

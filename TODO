@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - 'make_scale' functions should all take ScaleId as the first arg
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
   - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
@@ -883,10 +884,43 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     bali:
-      - If I put pemero notes in legong, then I can play them when needed.
+      If I put pemero notes in legong, then I can play them when needed.
         But what should they be called?  i o e e# u a a#
+        * convert Derive.Scales to use Pitch.Semi instead of Pitch.Pitch
+          * use dm_start_pc and dm_start_octave
+        * Update BaliScales to use new Scales
+          . DegreeMap doesn't like having empty Notes, everything else becomes
+            empty.  Maybe I can't use it at all.
+          . Why can't I resue ChromaticScales and Theory?  How is it
+            different?
+            . Selecting NN is different, but that should be easy.
+            . No flats, no double sharps, no enharmonics.  It's also always
+              relative.
+          * I think TheoryFormat doesn't support relative octave scales, like
+            wayang-pemade and wayang-kantilan.
+            . The problem is that it hardcodes octave formatting and parsing.
+              I think I have to include the octave in fmt_show and fmt_read.
+            . But if I have [Note] and no key, then I don't need TheoryFormat at
+              all.
+            . The reason TheoryFormat wants to do octave separately is
+              relative->absolute adjustment, so I don't need it for an absolute
+              scale.  show/read octave would be potentially useful for
+              pemade/kantilan *legong.
+              . parse can be with octave
+              . show: show_key doesn't want the octave
+        - add 1234567 cipher notation for *legong, call it *pelog
+        - if a layout doesn't have an accidental, don't allow its input
+        - add range to scale doc
         . I also want to be able to set the scale, to make different notes
           bero.
+        . I should probably switch to TheoryFormat, then I can use relative
+          scales for different saih / pathet.
+        . modeled as a chromatic scale with 7 notes, and 5 diatonic notes
+        . [i o e e# u a a#] or [1 2 3 4 5 6 7]
+        . It's like chromatic, in that it has a layout, and has keys that have
+          a chromatic tonic and a set of 5 chromatic intervals.  It also has
+          chromatic and diatonic transposition.
+
       kotekan ornaments
         - control for norot +mute
         - gender norot: control for polos 234- vs. 434-

@@ -29,9 +29,8 @@ scales =
     keys12 = all_keys layout12
 
 absolute_fmt :: TheoryFormat.Format
-absolute_fmt =
-    TheoryFormat.make_absolute_format (TheoryFormat.make_pattern degrees)
-        degrees TheoryFormat.ascii_accidentals
+absolute_fmt = TheoryFormat.make_absolute_format
+        (TheoryFormat.make_pattern degrees) degrees
     where
     degrees = TheoryFormat.make_degrees ["a", "b", "c", "d", "e", "f", "g", "h"]
 

@@ -27,9 +27,11 @@ test_input_to_note = do
 
 test_transpose = do
     let f smap key_ trans steps =
-            ChromaticScales.show_pitch smap key
+            ChromaticScales.show_pitch (ChromaticScales.smap_layout smap)
+                    (ChromaticScales.smap_fmt smap) key
                 <=< ChromaticScales.transpose smap trans key steps
-                <=< ChromaticScales.read_pitch smap key
+                <=< ChromaticScales.read_pitch (ChromaticScales.smap_fmt smap)
+                    key
             where key = Just (Pitch.Key key_)
         rel = Twelve.relative_scale_map
         abs = Twelve.absolute_scale_map

@@ -53,7 +53,6 @@ pscale = Pitches.scale absolute_scale
 absolute_fmt :: TheoryFormat.Format
 absolute_fmt = TheoryFormat.make_absolute_format
         (TheoryFormat.make_pattern degrees) degrees
-        TheoryFormat.ascii_accidentals
     where
     degrees = TheoryFormat.make_degrees
         ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
@@ -63,20 +62,20 @@ note_to_call smap note =
     case TheoryFormat.read_unadjusted_pitch fmt note of
         Left _ -> ScaleDegree.scale_degree_interval pscale named_intervals note
         Right pitch -> Just $ scale_degree
-            (ChromaticScales.pitch_nn smap degree_to_nn pitch)
-            (ChromaticScales.pitch_note smap pitch)
+            (ChromaticScales.pitch_nn smap semis_to_nn pitch)
+            (ChromaticScales.pitch_note  smap pitch)
     where fmt = ChromaticScales.smap_fmt smap
 
 -- TODO frac should always be 0, right?
-degree_to_nn :: PitchSignal.PitchConfig -> Double -> Pitch.NoteNumber
-degree_to_nn (PitchSignal.PitchConfig env controls) degreef =
-    Pitch.hz_to_nn $ Num.scale hz1 hz2 frac
+semis_to_nn :: ChromaticScales.SemisToNoteNumber
+semis_to_nn (PitchSignal.PitchConfig env controls) fsemi =
+    return $ Pitch.hz_to_nn $ Num.scale hz1 hz2 frac
     where
     hz1 = degree_to_hz base_hz tonic degree
     hz2 = degree_to_hz base_hz tonic (degree + 1)
-    (degree, frac) = properFraction degreef
+    (degree, frac) = properFraction fsemi
     base_hz = Map.findWithDefault default_base_hz just_base_control controls
-    tonic = Theory.note_to_semis layout $ Theory.key_tonic key
+    tonic = Theory.degree_to_semis layout $ Theory.key_tonic key
     key = fromMaybe default_key $ do
         key <- Scales.environ_key env
         Map.lookup key all_keys

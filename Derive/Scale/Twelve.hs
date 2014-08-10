@@ -61,14 +61,7 @@ relative_scale_map = ChromaticScales.scale_map
     layout (TheoryFormat.sargam relative_fmt) all_keys default_theory_key
 
 relative_fmt :: TheoryFormat.RelativeFormat Theory.Key
-relative_fmt = TheoryFormat.RelativeFormat
-    { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
-    , TheoryFormat.rel_parse_key = Scales.get_key default_theory_key all_keys
-    , TheoryFormat.rel_default_key = default_theory_key
-    , TheoryFormat.rel_show_degree = TheoryFormat.show_degree_chromatic
-    , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
-    , TheoryFormat.rel_key_tonic = Pitch.degree_pc . Theory.key_tonic
-    }
+relative_fmt = ChromaticScales.relative_fmt default_theory_key all_keys
 
 
 -- * keys
@@ -81,7 +74,7 @@ Just default_theory_key = Map.lookup default_key all_keys
 
 show_pitch :: Pitch.Pitch -> Maybe Pitch.Note
 show_pitch = either (const Nothing) Just
-    . ChromaticScales.show_pitch absolute_scale_map Nothing
+    . ChromaticScales.show_pitch layout fmt Nothing
 
 show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
 show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
@@ -89,7 +82,7 @@ show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
 
 read_absolute_pitch :: Pitch.Note -> Maybe Pitch.Pitch
 read_absolute_pitch = either (const Nothing) Just
-    . ChromaticScales.read_pitch absolute_scale_map Nothing
+    . ChromaticScales.read_pitch fmt Nothing
 
 -- | Map NoteNumbers to their nearest Note.
 nn_to_note :: Pitch.NoteNumber -> Maybe Pitch.Note
@@ -126,10 +119,8 @@ exotic_keys = make_keys "hijaz" [1, 3, 1, 2, 1, 2, 2]
 layout :: Theory.Layout
 layout = Theory.piano_layout
 
-all_degrees :: [Pitch.Degree]
-all_degrees = [Pitch.Degree pc accs | pc <- [0..6], accs <- [-2..2]]
-
 make_keys :: Text -> [Pitch.Semi] -> [Theory.Key]
 make_keys name intervals =
-    [Theory.key tonic name intervals layout
-        | tonic <- all_degrees, abs (Pitch.degree_accidentals tonic) <= 1]
+    [Theory.key tonic name intervals layout | tonic <- all_degrees]
+    where
+    all_degrees = [Pitch.Degree pc accs | pc <- [0..6], accs <- [-1..1]]

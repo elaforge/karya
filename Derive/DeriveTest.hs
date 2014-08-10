@@ -344,7 +344,6 @@ default_environ = TrackLang.make_environ
     , (Environ.scale,
         TrackLang.VSymbol (TrackLang.scale_id_to_sym Twelve.scale_id))
     , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
-    , (Environ.key, TrackLang.to_val ("c-maj" :: Text))
     ]
 
 -- ** extract

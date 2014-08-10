@@ -8,11 +8,13 @@
 -- degrees in the scale) if you really don't want octaves.
 module Derive.Scale.Scales where
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Vector as Vector
+import Data.Vector ((!?))
 
 import Util.Control
-import qualified Util.Map as Map
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 
@@ -54,68 +56,83 @@ make_scale dmap scale_id pattern doc = Scale.Scale
     }
     where scale = PitchSignal.Scale scale_id standard_transposers
 
+-- | An empty scale that doesn't do anything.
+empty_scale :: Pitch.ScaleId -> Text -> Derive.DocumentedCall -> Scale.Scale
+empty_scale scale_id pattern doc = Scale.Scale
+    { Scale.scale_id = scale_id
+    , Scale.scale_pattern = pattern
+    , Scale.scale_symbols = []
+    , Scale.scale_transposers = standard_transposers
+    , Scale.scale_read = \_ _ -> Left Scale.UnparseableNote
+    , Scale.scale_show = \_ _ -> Left Scale.OutOfRange
+    , Scale.scale_layout = Scale.layout []
+    , Scale.scale_transpose = \_ _ _ _ -> Left Scale.OutOfRange
+    , Scale.scale_enharmonics = no_enharmonics
+    , Scale.scale_note_to_call = const Nothing
+    , Scale.scale_input_to_note = \_ _ -> Left Scale.OutOfRange
+    , Scale.scale_input_to_nn = \ _ _ -> return $ Left $ Scale.OutOfRange
+    , Scale.scale_call_doc = doc
+    }
+
 -- * types
 
 data DegreeMap = DegreeMap {
-    dm_to_pitch :: Map.Map Pitch.Note Pitch.Pitch
-    , dm_to_note :: Map.Map Pitch.Pitch Pitch.Note
-    , dm_to_nn :: Map.Map Pitch.Pitch Pitch.NoteNumber
+    dm_to_semis :: Map.Map Pitch.Note Pitch.Semi
+    , dm_to_note :: Vector.Vector Pitch.Note
+    , dm_to_nn :: Vector.Vector Pitch.NoteNumber
     -- | Number of scale steps per octave.  Actually, simple scales are just
     -- a collection of frequencies and don't need to have a notion of an
     -- octave.  But since the input mechanism wants to orient around octaves,
     -- it needs to know how many keys to assign to each octave.  So if your
     -- scale has no octaves, then just set this to 7, that way it lines up with
     -- the piano keyboard.
-    , dm_per_octave :: Pitch.PitchClass
-    }
+    , dm_per_octave :: Pitch.Semi
+    , dm_start_octave :: Pitch.Octave
+    , dm_start_pc :: Pitch.PitchClass
+    } deriving (Show)
 
 instance Pretty.Pretty DegreeMap where
     format dmap = Pretty.format $ Map.fromList $ do
-        (note, degree) <- Map.toList (dm_to_pitch dmap)
-        let nn = Map.lookup degree (dm_to_nn dmap)
-        return (degree, (note, nn))
+        (note, semis) <- Map.toList (dm_to_semis dmap)
+        return (semis, (note, dm_to_nn dmap !? semis))
 
 degree_map :: Pitch.PitchClass
     -> Pitch.Octave -- ^ The first Note is this Octave and PitchClass.
     -> Pitch.PitchClass
     -> [Pitch.Note] -> [Pitch.NoteNumber] -> DegreeMap
 degree_map per_octave start_octave start_pc notes_ nns_ = DegreeMap
-    { dm_to_pitch = Map.fromList (zip notes pitches)
-    , dm_to_note = Map.fromList (zip pitches notes)
-    , dm_to_nn = Map.fromList (zip pitches nns)
+    { dm_to_semis = Map.fromList (zip notes [0..])
+    , dm_to_note = Vector.fromList notes
+    , dm_to_nn = Vector.fromList nns
     , dm_per_octave = per_octave
+    , dm_start_octave = start_octave
+    , dm_start_pc = start_pc
     }
     where
-    pitches = pitches_from per_octave start_octave start_pc
-    -- Guard against an infinite notes or nns.
+    -- Guard against infinite notes or nns.
     (notes, nns) = unzip $ zip notes_ nns_
 
-pitches_from :: Pitch.PitchClass -> Pitch.Octave -> Pitch.PitchClass
-    -> [Pitch.Pitch]
-pitches_from per_octave start_octave start_pc = drop start_pc
-    [Pitch.Pitch oct (Pitch.Degree pc 0) | oct <- [start_octave..],
-        pc <- [0..per_octave-1]]
-
-type PitchToNoteNumber = PitchSignal.PitchConfig -> Pitch.Pitch
+type SemisToNoteNumber = PitchSignal.PitchConfig -> Pitch.Semi
     -> Either Scale.ScaleError Pitch.NoteNumber
 
 -- * scale functions
 
 read_note :: DegreeMap -> Pitch.Note -> Either Scale.ScaleError Pitch.Pitch
-read_note dmap note = maybe (Left Scale.UnparseableNote) Right $
-    Map.lookup note (dm_to_pitch dmap)
+read_note dmap note = maybe (Left Scale.UnparseableNote)
+    (Right . semis_to_pitch dmap) $ Map.lookup note (dm_to_semis dmap)
 
 show_pitch :: DegreeMap -> Pitch.Pitch -> Either Scale.ScaleError Pitch.Note
 show_pitch dmap pitch = maybe (Left Scale.UnparseableNote) Right $
-    Map.lookup pitch (dm_to_note dmap)
+    dm_to_note dmap !? pitch_to_semis dmap pitch
 
 -- ** transpose
 
 transpose :: DegreeMap -> Derive.Transpose
 transpose dmap _transposition _key steps pitch
-    | Map.member result (dm_to_note dmap) = Right result
+    | Maybe.isJust $ dm_to_note dmap !? transposed =
+        Right $ semis_to_pitch dmap transposed
     | otherwise = Left Scale.InvalidTransposition
-    where result = add_pc dmap steps pitch
+    where transposed = pitch_to_semis dmap pitch + steps
 
 -- | Transpose function for a non-transposing scale.
 non_transposing :: Derive.Transpose
@@ -128,7 +145,7 @@ standard_transposers = Set.fromList
 -- ** note_to_call
 
 -- | A specialization of 'note_to_call' that operates on scales with
--- a ScaleMap, i.e. a static map from notes to degrees, and from degrees to
+-- a 'DegreeMap', i.e. a static map from notes to degrees, and from degrees to
 -- NNs.
 mapped_note_to_call :: DegreeMap -> PitchSignal.Scale
     -> Pitch.Note -> Maybe Derive.ValCall
@@ -136,42 +153,42 @@ mapped_note_to_call dmap scale = note_to_call scale dmap to_nn
     where
     to_nn _config pitch =
         maybe (Left Scale.InvalidTransposition) Right $
-            Map.lookup pitch (dm_to_nn dmap)
+            dm_to_nn dmap !? pitch
 
 -- | Create a note call that respects chromatic and diatonic transposition.
 -- However, diatonic transposition is mapped to chromatic transposition,
 -- so this is for scales that don't distinguish.
-note_to_call :: PitchSignal.Scale -> DegreeMap -> PitchToNoteNumber
+note_to_call :: PitchSignal.Scale -> DegreeMap -> SemisToNoteNumber
     -> Pitch.Note -> Maybe Derive.ValCall
-note_to_call scale dmap pitch_to_nn note =
-    case Map.lookup note (dm_to_pitch dmap) of
+note_to_call scale dmap semis_to_nn note =
+    case Map.lookup note (dm_to_semis dmap) of
         Nothing -> Nothing
-        Just pitch -> Just $ ScaleDegree.scale_degree scale
-            (pitch_nn pitch) (pitch_note pitch)
+        Just semis -> Just $ ScaleDegree.scale_degree scale
+            (pitch_nn semis) (pitch_note semis)
     where
-    pitch_nn :: Pitch.Pitch -> Scale.PitchNn
-    pitch_nn pitch config =
+    pitch_nn :: Pitch.Semi -> Scale.PitchNn
+    pitch_nn semis config =
         scale_to_pitch_error diatonic chromatic $
-            to_note (add_pc dmap steps pitch) frac config
+            to_note (semis + transpose_steps) frac config
         where
-        (steps, frac) = properFraction (chromatic + diatonic)
+        (transpose_steps, frac) = properFraction (chromatic + diatonic)
         controls = PitchSignal.pitch_controls config
         chromatic = Map.findWithDefault 0 Controls.chromatic controls
         diatonic = Map.findWithDefault 0 Controls.diatonic controls
-    to_note pitch frac config
-        | frac == 0 = to_nn pitch
+    to_note semis frac config
+        | frac == 0 = to_nn semis
         | otherwise = Num.scale
-            <$> to_nn pitch
-            <*> to_nn (add_pc dmap 1 pitch)
+            <$> to_nn semis
+            <*> to_nn (semis + 1)
             <*> return (Pitch.NoteNumber frac)
-        where to_nn = pitch_to_nn config
+        where to_nn = semis_to_nn config
 
-    pitch_note :: Pitch.Pitch -> Scale.PitchNote
-    pitch_note pitch config =
-        maybe (Left err) Right $ Map.lookup transposed (dm_to_note dmap)
+    pitch_note :: Pitch.Semi -> Scale.PitchNote
+    pitch_note semis config =
+        maybe (Left err) Right $ dm_to_note dmap !? transposed
         where
         err = invalid_transposition diatonic chromatic
-        transposed = add_pc dmap (floor (chromatic + diatonic)) pitch
+        transposed = semis + floor (chromatic + diatonic)
         chromatic = Map.findWithDefault 0 Controls.chromatic controls
         diatonic = Map.findWithDefault 0 Controls.diatonic controls
         controls = PitchSignal.pitch_controls config
@@ -204,9 +221,9 @@ type InputToNote = Maybe Pitch.Key -> Pitch.Input
 -- | Input to note for simple scales without keys.
 input_to_note :: DegreeMap -> InputToNote
 input_to_note dmap _key (Pitch.Input kbd pitch frac) = do
-    pitch <- simple_kbd_to_scale dmap kbd pitch
+    steps <- simple_kbd_to_scale dmap kbd pitch
     note <- maybe (Left Scale.UnparseableNote) Right $
-        Map.lookup pitch (dm_to_note dmap)
+        dm_to_note dmap !? steps
     return $ ScaleDegree.pitch_expr frac note
 
 type InputToNn = ScoreTime -> Pitch.Input
@@ -216,20 +233,20 @@ type InputToNn = ScoreTime -> Pitch.Input
 -- Degree and NoteNumber.
 mapped_input_to_nn :: DegreeMap -> InputToNn
 mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
-    pitch <- simple_kbd_to_scale dmap kbd pitch
-    maybe (Left Scale.OutOfRange) Right $ to_nn pitch frac
+    semis <- simple_kbd_to_scale dmap kbd pitch
+    maybe (Left Scale.OutOfRange) Right $ to_nn semis frac
     where
-    to_nn pitch frac
-        | frac == 0 = lookup pitch
+    to_nn semis frac
+        | frac == 0 = lookup semis
         | frac > 0 = do
-            nn <- lookup pitch
-            next <- lookup (add_pc dmap 1 pitch)
+            nn <- lookup semis
+            next <- lookup (semis + 1)
             return $ Num.scale nn next (Pitch.NoteNumber frac)
         | otherwise = do
-            nn <- lookup pitch
-            prev <- lookup (add_pc dmap (-1) pitch)
+            nn <- lookup semis
+            prev <- lookup (semis - 1)
             return $ Num.scale prev nn (Pitch.NoteNumber (frac + 1))
-    lookup d = Map.lookup d (dm_to_nn dmap)
+    lookup semis = dm_to_nn dmap !? semis
 
 set_direct_input_to_nn :: Scale.Scale -> Scale.Scale
 set_direct_input_to_nn scale = scale
@@ -276,8 +293,22 @@ make_nn mprev nn mnext frac
 -- *** diatonic
 
 simple_kbd_to_scale :: DegreeMap -> Pitch.KbdType -> Pitch.Pitch
-    -> Either Scale.ScaleError Pitch.Pitch
-simple_kbd_to_scale dmap kbd = kbd_to_scale kbd (dm_per_octave dmap) 0
+    -> Either Scale.ScaleError Pitch.Semi
+simple_kbd_to_scale dmap kbd pitch =
+    pitch_to_semis dmap <$> kbd_to_scale kbd (dm_per_octave dmap) 0 pitch
+
+pitch_to_semis :: DegreeMap -> Pitch.Pitch -> Pitch.Semi
+pitch_to_semis dmap (Pitch.Pitch oct (Pitch.Degree pc accs)) =
+    (oct - dm_start_octave dmap) * dm_per_octave dmap
+        + pc - dm_start_pc dmap + accs
+
+semis_to_pitch :: DegreeMap -> Pitch.Semi -> Pitch.Pitch
+semis_to_pitch dmap semis =
+    Pitch.add_pc per_oct (dm_start_pc dmap) $
+        Pitch.Pitch (oct + dm_start_octave dmap) (Pitch.Degree pc 0)
+    where
+    (oct, pc) = semis `divMod` per_oct
+    per_oct = dm_per_octave dmap
 
 kbd_to_scale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
     -> Pitch.Pitch -> Either Scale.ScaleError Pitch.Pitch
@@ -362,11 +393,13 @@ call_doc :: Set.Set Score.Control -> DegreeMap -> Text -> Derive.DocumentedCall
 call_doc transposers dmap doc =
     annotate_call_doc transposers doc fields default_scale_degree_doc
     where
-    fields = [("note range", map_range snd (dm_to_note dmap))]
-    map_range extract fm = case (Map.min fm, Map.max fm) of
-        (Just kv1, Just kv2) -> prettyt (extract kv1)
-            <> " to " <> prettyt (extract kv2)
-        _ -> ""
+    fields
+        | Vector.null notes = []
+        | otherwise = [("note range", prettyt bottom <> " to " <> prettyt top)]
+        where
+        (bottom, top) = (notes Vector.! 0,
+            notes Vector.! (Vector.length notes - 1))
+        notes = dm_to_note dmap
 
 -- | Documentation of the standard 'Call.Pitch.scale_degree'.
 default_scale_degree_doc :: Derive.DocumentedCall

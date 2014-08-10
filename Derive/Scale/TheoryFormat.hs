@@ -12,6 +12,7 @@ module Derive.Scale.TheoryFormat where
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
+import Data.Vector ((!))
 import qualified Data.Vector.Unboxed as Unboxed
 
 import Util.Control
@@ -26,7 +27,7 @@ import qualified Perform.Pitch as Pitch
 -- | Make an absolute scale starting at @a@.
 letters :: Pitch.PitchClass -> Format
 letters pc_per_octave =
-    make_absolute_format (make_pattern degrees) degrees ascii_accidentals
+    make_absolute_format (make_pattern degrees) degrees
     where degrees = make_degrees $ take pc_per_octave letter_degrees
 
 letter_degrees :: [Text]
@@ -35,7 +36,7 @@ letter_degrees = map Text.singleton ['a'..'z']
 -- | The usual 7 note scale, which wraps around at @c@ instead of @a@.
 absolute_c :: Format
 absolute_c =
-    make_absolute_format (make_pattern degrees) degrees ascii_accidentals
+    make_absolute_format (make_pattern degrees) degrees
     where degrees = make_degrees absolute_c_degrees
 
 absolute_c_degrees :: [Text]
@@ -59,25 +60,27 @@ data RelativeFormat key = RelativeFormat {
     , rel_to_absolute :: ToAbsolute key
     , rel_key_tonic :: key -> Pitch.PitchClass
     }
+type ShowDegree key = key -> ShowOctave -> Degrees -> AccidentalFormat
+    -> Either Pitch.Degree Pitch.Pitch -> Pitch.Note
 
-sargam :: RelativeFormat key -> Format
+sargam :: Show key => RelativeFormat key -> Format
 sargam = make_relative_format (make_pattern degrees) degrees
     where degrees = make_degrees ["s", "r", "g", "m", "p", "d", "n"]
 
-cipher :: Pitch.PitchClass -> RelativeFormat key -> Format
+cipher :: Show key => Pitch.PitchClass -> RelativeFormat key -> Format
 cipher pc_per_octave = make_relative_format pattern degrees
     where
     degrees = make_degrees ["-" <> showt pc | pc <- [1..pc_per_octave]]
     pattern = "-[1-" <> showt pc_per_octave <> "]"
 
-zh_cipher :: Pitch.PitchClass -> RelativeFormat key -> Format
+zh_cipher :: Show key => Pitch.PitchClass -> RelativeFormat key -> Format
 zh_cipher pc_per_octave =
     make_relative_format (make_pattern degrees) degrees
     where
     degrees = make_degrees $ take pc_per_octave ds
     ds = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
 
-gongche :: RelativeFormat key -> Format
+gongche :: Show key => RelativeFormat key -> Format
 gongche = make_relative_format (make_pattern degrees) degrees
     where degrees = make_degrees ["士", "下", "ㄨ", "工", "六"]
 
@@ -87,11 +90,10 @@ make_pattern degrees = "[" <> mconcat (Vector.toList degrees) <> "]"
 -- * Format
 
 data Format = Format {
-    -- | Return the degree and a possible adjustment for the octave.
-    fmt_show :: Maybe Pitch.Key -> Pitch.Degree -> (Pitch.Octave, Text)
+    fmt_show :: ShowPitch
     -- | This doesn't need the key because that work is split off to
     -- 'fmt_to_absolute'.
-    , fmt_read :: A.Parser Pitch.Degree
+    , fmt_read :: A.Parser Pitch.Pitch
     -- | I need the key to parse the pitch, but that can't happen unless I want
     -- to give all pattern_lookup calls access to the env in scope.  But
     -- I don't need the env to recognize if it's a valid call or not.
@@ -103,6 +105,8 @@ data Format = Format {
     -- | True if this scale is relative to the key.
     , fmt_relative :: !Bool
     }
+type ShowPitch = Maybe Pitch.Key -> Either Pitch.Degree Pitch.Pitch
+    -> Pitch.Note
 type ParseKey key = Maybe Pitch.Key -> Either Scale.ScaleError key
 type Degrees = Vector.Vector Text
 
@@ -115,7 +119,7 @@ show_key :: Format -> Theory.Key -> Pitch.Key
 show_key fmt key =
     Pitch.Key $ tonic <> (if Text.null name then "" else "-" <> name)
     where
-    tonic = snd $ fmt_show fmt Nothing (Theory.key_tonic key)
+    tonic = show_degree fmt Nothing (Theory.key_tonic key)
     name = Theory.key_name key
 
 -- | Show a key along with its key signature.
@@ -149,15 +153,16 @@ key_degrees key fmt = map (show_degree fmt Nothing . Pitch.pitch_degree) pitches
 
 -- ** show pitches
 
-type ShowPitch = Maybe Pitch.Key -> Pitch.Pitch -> Pitch.Note
+show_pitch :: Format -> Maybe Pitch.Key -> Pitch.Pitch -> Pitch.Note
+show_pitch fmt key = fmt_show fmt key . Right
 
-show_pitch :: Format -> ShowPitch
-show_pitch fmt key (Pitch.Pitch oct note) =
-    Pitch.Note $ show_octave (oct + octave) <> note_name
-    where (octave, note_name) = fmt_show fmt key note
+-- | 'show_pitch' adapted to 'Scale.scale_show'.
+scale_show_pitch :: Format -> Maybe Pitch.Key -> Pitch.Pitch
+    -> Either Scale.ScaleError Pitch.Note
+scale_show_pitch fmt key = Right . show_pitch fmt key
 
 show_degree :: Format -> Maybe Pitch.Key -> Pitch.Degree -> Text
-show_degree fmt key = snd . fmt_show fmt key
+show_degree fmt key = Pitch.note_text . fmt_show fmt key . Left
 
 read_pitch :: Format -> Maybe Pitch.Key -> Pitch.Note
     -> Either Scale.ScaleError Pitch.Pitch
@@ -169,24 +174,22 @@ read_pitch fmt key = fmt_to_absolute fmt key <=< read_unadjusted_pitch fmt
 read_unadjusted_pitch :: Format -> Pitch.Note
     -> Either Scale.ScaleError Pitch.Pitch
 read_unadjusted_pitch fmt = maybe (Left Scale.UnparseableNote) Right
-    . ParseText.maybe_parse (Pitch.Pitch <$> p_octave <*> fmt_read fmt)
+    . ParseText.maybe_parse (fmt_read fmt)
     . Pitch.note_text
-
-read_unadjusted_note :: Format -> Text -> Maybe Pitch.Degree
-read_unadjusted_note fmt = ParseText.maybe_parse (fmt_read fmt)
-
-show_octave :: Pitch.Octave -> Text
-show_octave = showt
-
-p_octave :: A.Parser Pitch.Octave
-p_octave = ParseText.p_int
 
 -- ** make
 
-make_absolute_format :: Text -> Degrees -> AccidentalFormat -> Format
-make_absolute_format pattern degrees acc_fmt = Format
-    { fmt_show = const $ show_degree_absolute degrees acc_fmt
-    , fmt_read = p_pitch_absolute degrees acc_fmt
+make_absolute_format :: Text -> Degrees -> Format
+make_absolute_format =
+    make_absolute_format_config default_octave_format ascii_accidentals
+
+-- | A configurable version of 'make_absolute_format'.
+make_absolute_format_config :: OctaveFormat -> AccidentalFormat
+    -> Text -> Degrees -> Format
+make_absolute_format_config (show_oct, parse_oct) acc_fmt pattern degrees =
+        Format
+    { fmt_show = show_pitch_absolute show_oct degrees acc_fmt
+    , fmt_read = p_pitch_absolute parse_oct degrees acc_fmt
     , fmt_to_absolute = const Right
     , fmt_key_tonic = const Nothing
     , fmt_pattern = octave_pattern <> pattern <> acc_pattern
@@ -194,9 +197,15 @@ make_absolute_format pattern degrees acc_fmt = Format
     , fmt_relative = False
     }
 
-make_relative_format :: Text -> Degrees -> RelativeFormat key -> Format
-make_relative_format pattern degrees (RelativeFormat acc_fmt parse_key
-        default_key show_degree to_abs key_tonic) =
+make_relative_format :: Show key => Text -> Degrees -> RelativeFormat key
+    -> Format
+make_relative_format = make_relative_format_config default_octave_format
+
+make_relative_format_config :: Show key => OctaveFormat -> Text -> Degrees
+    -> RelativeFormat key -> Format
+make_relative_format_config (show_oct, parse_oct) pattern degrees
+        (RelativeFormat acc_fmt parse_key default_key show_degree to_abs
+            key_tonic) =
     Format
         { fmt_show = p_show
         , fmt_read = p_read
@@ -207,22 +216,19 @@ make_relative_format pattern degrees (RelativeFormat acc_fmt parse_key
         , fmt_relative = True
         }
     where
-    p_show key = show_degree degrees acc_fmt
-        (either (const default_key) id (parse_key key))
-    p_read = p_pitch_relative degrees acc_fmt
+    p_show key = show_degree (either (const default_key) id (parse_key key))
+        show_oct degrees acc_fmt
+    p_read = p_pitch_relative parse_oct degrees acc_fmt
     p_absolute maybe_key pitch = do
         key <- parse_key maybe_key
-        return $ to_abs degrees key pitch
+        return $ to_abs key degrees pitch
     p_tonic maybe_key =
         key_tonic <$> either (const Nothing) Just (parse_key maybe_key)
-
-type ShowDegree key = Degrees -> AccidentalFormat -> key -> Pitch.Degree
-    -> (Pitch.Octave, Text)
 
 -- | Given a relative pitch relative to the default key, adjust it to
 -- be absolute.  This is so I can figure out if a relative pitch is valid
 -- without knowing the key, as described in 'fmt_to_absolute'.
-type ToAbsolute key = Degrees -> key -> Pitch.Pitch -> Pitch.Pitch
+type ToAbsolute key = key -> Degrees -> Pitch.Pitch -> Pitch.Pitch
 
 type Tonic = Pitch.PitchClass
 
@@ -234,27 +240,37 @@ octave_pattern = "[-1-9]"
 
 -- *** absolute
 
-show_degree_absolute :: Degrees -> AccidentalFormat -> Pitch.Degree
-    -> (Pitch.Octave, Text)
-show_degree_absolute degrees acc_fmt (Pitch.Degree pc acc) =
-    (oct, (degrees Vector.! degree) <> show_accidentals acc_fmt acc)
-    where (oct, degree) = pc `divMod` Vector.length degrees
+show_pitch_absolute :: ShowOctave -> Degrees -> AccidentalFormat -> ShowPitch
+show_pitch_absolute show_octave degrees acc_fmt _key pitch =
+    Pitch.Note $ case pitch of
+        Left (Pitch.Degree pc acc) ->
+            degrees ! (pc `mod` Vector.length degrees)
+                <> show_accidentals acc_fmt acc
+        Right (Pitch.Pitch oct (Pitch.Degree pc_ acc)) ->
+            show_octave (oct + pc_oct) $
+                degrees ! pc <> show_accidentals acc_fmt acc
+            where (pc_oct, pc) = pc_ `divMod` Vector.length degrees
 
-p_pitch_absolute :: Degrees -> AccidentalFormat -> A.Parser Pitch.Degree
+p_pitch_absolute :: ParseOctave -> Degrees -> AccidentalFormat
+    -> A.Parser Pitch.Pitch
 p_pitch_absolute = p_pitch_relative
 
 -- *** relative
 
 show_degree_chromatic :: ShowDegree Theory.Key
-show_degree_chromatic degrees acc_fmt key (Pitch.Degree pc acc) =
-    (oct, text <> acc_text)
+show_degree_chromatic key show_octave degrees acc_fmt degree_pitch =
+    Pitch.Note $ case degree_pitch of
+        Left _ -> pc_text <> acc_text
+        Right (Pitch.Pitch oct _) ->
+            show_octave (oct + pc_oct) (pc_text <> acc_text)
     where
+    Pitch.Degree pc acc = either id Pitch.pitch_degree degree_pitch
     acc_text = show_accidentals acc_fmt $ acc - Theory.accidentals_at_pc key pc
-    (oct, text) = show_pc degrees (Pitch.degree_pc tonic) pc
-    tonic = Theory.key_tonic key
+    (pc_oct, pc_text) =
+        show_pc degrees (Pitch.degree_pc (Theory.key_tonic key)) pc
 
 chromatic_to_absolute :: ToAbsolute Theory.Key
-chromatic_to_absolute degrees key (Pitch.Pitch octave (Pitch.Degree pc acc)) =
+chromatic_to_absolute key degrees (Pitch.Pitch octave (Pitch.Degree pc acc)) =
     Pitch.Pitch (octave + oct) (Pitch.Degree pc2 acc2)
     where
     (oct, pc2) = (pc + Pitch.degree_pc tonic) `divMod` Vector.length degrees
@@ -268,28 +284,51 @@ chromatic_to_absolute degrees key (Pitch.Pitch octave (Pitch.Degree pc acc)) =
     tonic = Theory.key_tonic key
 
 show_degree_diatonic :: ShowDegree Tonic
-show_degree_diatonic degrees acc_fmt tonic (Pitch.Degree pc acc) =
-    (oct, text <> show_accidentals acc_fmt acc)
-    where (oct, text) = show_pc degrees tonic pc
+show_degree_diatonic tonic show_octave degrees acc_fmt degree_pitch =
+    Pitch.Note $ case degree_pitch of
+        Left _ -> pc_text <> acc_text
+        Right (Pitch.Pitch oct _) ->
+            show_octave (oct + pc_oct) (pc_text <> acc_text)
+    where
+    Pitch.Degree pc acc = either id Pitch.pitch_degree degree_pitch
+    acc_text = show_accidentals acc_fmt acc
+    (pc_oct, pc_text) = show_pc degrees tonic pc
 
 show_pc :: Degrees -> Tonic -> Pitch.PitchClass -> (Pitch.Octave, Text)
-show_pc degrees tonic pc = (oct, degrees Vector.! degree)
+show_pc degrees tonic pc = (oct, degrees ! degree)
     where (oct, degree) = (pc - tonic) `divMod` Vector.length degrees
 
 diatonic_to_absolute :: ToAbsolute Tonic
-diatonic_to_absolute degrees tonic (Pitch.Pitch octave (Pitch.Degree pc acc)) =
+diatonic_to_absolute tonic degrees (Pitch.Pitch octave (Pitch.Degree pc acc)) =
     Pitch.Pitch (octave + oct) (Pitch.Degree pc2 acc)
     where (oct, pc2) = (pc + tonic) `divMod` Vector.length degrees
 
-p_pitch_relative :: Degrees -> AccidentalFormat -> A.Parser Pitch.Degree
-p_pitch_relative degrees acc_fmt =
-    Pitch.Degree <$> p_degree <*> p_accidentals acc_fmt
+p_pitch_relative :: ParseOctave -> Degrees -> AccidentalFormat
+    -> A.Parser Pitch.Pitch
+p_pitch_relative parse_octave degrees acc_fmt =
+    parse_octave $ Pitch.Degree <$> p_degree <*> p_accidentals acc_fmt
     where
     p_degree = A.choice
         [ A.string text >> return i
         | (i, text) <- zip [0..] (Vector.toList degrees)
         ]
 
+-- * octave
+
+-- | Configure how the octave portion of the 'Pitch.Pitch' is shown.
+type OctaveFormat = (ShowOctave, ParseOctave)
+type ShowOctave = Pitch.Octave -> Text -> Text
+type ParseOctave = A.Parser Pitch.Degree -> A.Parser Pitch.Pitch
+
+-- Most scales display the octave as a leading number.
+default_octave_format :: OctaveFormat
+default_octave_format = (show_octave, parse_octave)
+
+show_octave :: ShowOctave
+show_octave oct = (showt oct <>)
+
+parse_octave :: ParseOctave
+parse_octave p_degree = Pitch.Pitch <$> ParseText.p_int <*> p_degree
 
 -- * accidentals
 

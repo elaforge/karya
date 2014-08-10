@@ -6,7 +6,9 @@ module Derive.Scale.Theory_test where
 import qualified Data.Vector.Unboxed as Vector
 
 import Util.Control
+import qualified Util.ParseText as ParseText
 import Util.Test
+
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
@@ -165,8 +167,12 @@ p s = either (const $ error $ "can't parse pitch: " ++ show s) id $
     TheoryFormat.read_unadjusted_pitch TheoryFormat.absolute_c (Pitch.Note s)
 
 n :: Text -> Pitch.Degree
-n s = fromMaybe (error $ "can't parse degree: " ++ show s) $
-    TheoryFormat.read_unadjusted_note TheoryFormat.absolute_c s
+n s = Pitch.pitch_degree $
+    either (const $ error $ "can't parse degree: " ++ show s) id $
+    TheoryFormat.read_unadjusted_pitch TheoryFormat.absolute_c $
+    Pitch.Note ("0" <> s)
+
+read_degree fmt = ParseText.maybe_parse (TheoryFormat.fmt_read fmt)
 
 show_pitch :: Pitch.Pitch -> Text
 show_pitch p = maybe (error $ "can't show pitch: " ++ show p) Pitch.note_text $

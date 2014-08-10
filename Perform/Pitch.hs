@@ -14,7 +14,7 @@ module Perform.Pitch (
 
     -- * Pitch
     , Pitch(..), Degree(..)
-    , Octave, PitchClass, Accidentals, Semi, Step
+    , Octave, PitchClass, Accidentals, Semi, FSemi, Step
     , pitch_accidentals, pitch_pc
     , add_octave, add_pc, subtract_pitch
     , middle_octave, middle_c
@@ -105,6 +105,11 @@ type Octave = Int
 -- traditional Western notation, though this PitchClass may have fewer or
 -- greater than 7 notes.  The PitchClass is absolute in that it doesn't depend
 -- on the tonic of a key.
+--
+-- These numbers are expected to wrap around at the octave, so they usually use
+-- modular arithmetic, but if an octave is not handy (i.e. they're not in
+-- a 'Pitch'), then steps exceeding an octave will be wrapped into an octave
+-- when one is available.
 type PitchClass = Int
 
 -- | Positive for sharps, negative for flats.
@@ -115,11 +120,11 @@ type Accidentals = Int
 -- steps.
 type Semi = Int
 
--- | Like Semi, but could be diatonic or chromatic.
---
--- TODO I use PitchClass for diatonic steps, even though it's meant to be an
--- absolute measure.  I don't separate absolute and relative types in general
--- anyway, but perhaps Semi should be merged with Step.
+-- | This is like 'Semi', but floating point.
+type FSemi = Double
+
+-- | This is a relative amount of transposition.  It could be either chromatic
+-- or diatonic.
 type Step = Int
 
 pitch_accidentals :: Pitch -> Accidentals

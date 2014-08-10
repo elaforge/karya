@@ -29,7 +29,7 @@ module Derive.Scale.Theory (
     , transpose_diatonic, transpose_chromatic
     -- * input
     , enharmonics_of
-    , pitch_to_semis, note_to_semis
+    , pitch_to_semis, degree_to_semis
     , semis_to_pitch, pick_enharmonic, semis_to_pitch_sharps
     , semis_to_nn, nn_to_semis
     -- ** key
@@ -61,7 +61,7 @@ import qualified Perform.Pitch as Pitch
 
 -- * constants
 
-piano_intervals :: [Int]
+piano_intervals :: [Pitch.Semi]
 piano_intervals = [2, 2, 1, 2, 2, 2, 1]
 
 -- | The layout of keys on everyone's favorite boxed harp.
@@ -128,10 +128,10 @@ transpose_chromatic key steps pitch
 
 pitch_to_semis :: Layout -> Pitch.Pitch -> Pitch.Semi
 pitch_to_semis layout (Pitch.Pitch oct note) =
-    oct * layout_semis_per_octave layout + note_to_semis layout note
+    oct * layout_semis_per_octave layout + degree_to_semis layout note
 
-note_to_semis :: Layout -> Pitch.Degree -> Pitch.Semi
-note_to_semis layout (Pitch.Degree pc_ accs) =
+degree_to_semis :: Layout -> Pitch.Degree -> Pitch.Semi
+degree_to_semis layout (Pitch.Degree pc_ accs) =
     Vector.sum (Vector.take pc (layout_intervals layout)) + accs
         + oct * layout_semis_per_octave layout
     where (oct, pc) = pc_ `divMod` layout_pc_per_octave layout
@@ -217,33 +217,38 @@ enharmonics_of layout pitch =
 
 -- * step
 
--- | A degree is one step of a scale.  Unlike 'Pitch.PitchClass' it's relative
--- to the tonic of the key, but also may have a different range.  This is
--- because some scales, such as whole-tone or octatonic, have fewer or more
--- degrees than 7, even though the underlying notation system uses only
--- 7 letters.  This means that not every Degree will map to a PitchClass.
---
--- Another approach is to change the number of PitchClasses, which would result
--- in a--h for octatonic, but it would not admit easy modulation from an
--- octatonic scale to a septatonic one.
---
--- 'Key' has more documentation about the PitchClass and Step distinction.
+{- | A degree is one step of a scale.  Unlike 'Pitch.PitchClass' it's relative
+    to the tonic of the key, but also may have a different range.  This is
+    because some scales, such as whole-tone or octatonic, have fewer or more
+    degrees than 7, even though the underlying notation system uses only
+    7 letters.  This means that not every Degree will map to a PitchClass.
+
+    Another approach is to change the number of PitchClasses, which would
+    result in a--h for octatonic, but it would not admit easy modulation from
+    an octatonic scale to a septatonic one.
+
+    'Key' has more documentation about the PitchClass and Step distinction.
+-}
 type Step = Int
 
 -- * Key
 
--- | A Key is a scale along with a tonic Pitch.
---
--- There's a distinction between \"diatonic\" and \"chromatic\" keys.  It's not
--- really standard terminology, but within this module I call scales with a 1:1
--- 'Pitch.PitchClass' to 'Degree' mapping \"diatonic\", and the ones without
--- \"chromatic\".  That's because diatonic transposition for the former kind of
--- scale is defined in terms of pitch classes, regardless of what accidentals
--- the 'Pitch.Degree' may have, but the latter kind of scale must resort to
--- chromatic transposition, losing the spelling of the original note.
--- Ultimately there is a tension between diatonic and chromatic systems.
+{- | A Key is a scale along with a tonic Pitch.
+
+    There's a distinction between \"diatonic\" and \"chromatic\" keys.  It's
+    not really standard terminology, but within this module I call scales with
+    a 1:1 'Pitch.PitchClass' to 'Degree' mapping \"diatonic\", and the ones
+    without \"chromatic\".  That's because diatonic transposition for the
+    former kind of scale is defined in terms of pitch classes, regardless of
+    what accidentals the 'Pitch.Degree' may have, but the latter kind of scale
+    must resort to chromatic transposition, losing the spelling of the original
+    note.  Ultimately there is a tension between diatonic and chromatic
+    systems.
+-}
 data Key = Key {
     key_tonic :: !Pitch.Degree
+    -- | This is the name of the key without reference to its tonic, e.g.
+    -- \"dorian\" or \"major\".
     , key_name :: !Text
     -- | Semitones between each scale degree.  This should have at least two
     -- octaves of intervals, as needed by 'chromatic_steps'.  If this is a
@@ -263,7 +268,7 @@ type Intervals = Vector.Vector Pitch.Semi
 -- | Make a Key given intervals and a layout.  If the number of intervals are
 -- equal to the number of intervals in the layout, the scale is considered
 -- diatonic and will get a 'Signature'.
-key :: Pitch.Degree -> Text -> [Pitch.Accidentals] -> Layout -> Key
+key :: Pitch.Degree -> Text -> [Pitch.Semi] -> Layout -> Key
 key tonic name intervals layout = Key
     { key_tonic = tonic
     , key_name = name
@@ -279,7 +284,7 @@ key tonic name intervals layout = Key
 -- so I can start at any degree and go up to an octave of transposition.
 -- Everything past an octave is chopped off by divMod and transposed with
 -- multiplication.
-make_table :: [Int] -> Intervals
+make_table :: [Pitch.Semi] -> Intervals
 make_table intervals = Vector.fromList $
     reverse (drop 1 (make (-) (reverse intervals))) ++ make (+) intervals
     where make f = take (length intervals * 2) . scanl f 0 . cycle
@@ -326,18 +331,12 @@ accidentals_at_pc key pc = fromMaybe 0 $ do
 key_steps_per_octave :: Key -> Step
 key_steps_per_octave = Vector.length . key_intervals
 
-layout_semis_per_octave :: Layout -> Pitch.Semi
-layout_semis_per_octave = Vector.sum . layout_intervals
-
-layout_pc_per_octave :: Layout -> Pitch.PitchClass
-layout_pc_per_octave = Vector.length . layout_intervals
-
 -- | Figure out the relative scale step of a note in the given key.
 step_of :: Key -> Pitch.Degree -> Step
 step_of key note
     | key_is_diatonic key = diatonic_step_of key (Pitch.degree_pc note)
     | otherwise = Vector.find_before semis (key_intervals key)
-    where semis = note_to_semis (key_layout key) note
+    where semis = degree_to_semis (key_layout key) note
 
 -- | Figure out the (relative) scale step of an absolute PitchClass in
 -- a diatonic key.  In a diatonic key, the step and pitch class are relative
@@ -356,10 +355,18 @@ data Layout = Layout {
     , layout_enharmonics :: !(Boxed.Vector [(Pitch.Octave, Pitch.Degree)])
     } deriving (Eq, Show)
 
-layout :: [Pitch.Accidentals] -> Layout
-layout intervals =
-    Layout vec $ Boxed.fromList $
+layout_semis_per_octave :: Layout -> Pitch.Semi
+layout_semis_per_octave = Vector.sum . layout_intervals
+
+layout_pc_per_octave :: Layout -> Pitch.PitchClass
+layout_pc_per_octave = Vector.length . layout_intervals
+
+layout :: [Pitch.Semi] -> Layout
+layout intervals = Layout
+    { layout_intervals = vec
+    , layout_enharmonics = Boxed.fromList $
         map (\n -> (0, n) : get_enharmonics vec n) notes
+    }
     where
     vec = Vector.fromList intervals
     notes = [Pitch.Degree pc accs | (pc, int) <- zip [0..] intervals,

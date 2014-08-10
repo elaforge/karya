@@ -1,4 +1,4 @@
--- Copyright 2013 Evan Laforge
+-- Copyright 2014 Evan Laforge
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -8,49 +8,67 @@
 --
 -- TODO: pengisep and pengumbang
 module Derive.Scale.Legong where
+import qualified Data.Map as Map
+
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
+import qualified Derive.Scale.Theory as Theory
+import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
+
 
 scales :: [Scale.Scale]
 scales =
     [ Scales.add_doc "Saih pelegongan, from my instruments." $
-        make_scale scale_id absolute_scale
-    , make_scale "legong-c" cipher_scale
+        BaliScales.make_scale scale_id complete_scale
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        make_scale "legong-p" pemade_scale
+        BaliScales.make_scale "legong-p" pemade_scale
     , Scales.add_doc
         "Kantilan scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        make_scale "legong-k" kantilan_scale
+        BaliScales.make_scale "legong-k" kantilan_scale
     ]
+
+complete_scale :: BaliScales.ScaleMap
+complete_scale = scale_map
+    (BaliScales.ioeua_relative True default_key all_keys)
+    (BaliScales.note_numbers layout 1 0 umbang isep)
+
+pemade_scale :: BaliScales.ScaleMap
+pemade_scale = scale_map
+    (BaliScales.ioeua_relative_dotted 4 True default_key all_keys)
+    (BaliScales.note_numbers layout 3 1 (strip umbang) (strip isep))
+    where strip = take 10 . drop (7*2 + 1)
+
+kantilan_scale :: BaliScales.ScaleMap
+kantilan_scale = scale_map
+    (BaliScales.ioeua_relative_dotted 5 True default_key all_keys)
+    (BaliScales.note_numbers layout 4 1 (strip umbang) (strip isep))
+    where strip = take 10 . drop (7*3 + 1)
+
+scale_map :: TheoryFormat.Format -> BaliScales.NoteNumbers
+    -> BaliScales.ScaleMap
+scale_map fmt nns =
+    BaliScales.scale_map layout fmt all_keys default_key nns
 
 scale_id :: Pitch.ScaleId
 scale_id = "legong"
 
-make_scale :: Pitch.ScaleId -> BaliScales.ScaleMap -> Scale.Scale
-make_scale = BaliScales.make_scale "[0-9]ioeua"
-    -- TODO I should be able to get the scale pattern directly from the format.
-    -- That would come for free if I switched to TheoryFormat
+layout :: Theory.Layout
+layout = Theory.layout [1, 1, 2, 1, 2]
 
-absolute_scale :: BaliScales.ScaleMap
-absolute_scale = BaliScales.scale_map 5 1 0 BaliScales.ioeua umbang isep
+all_keys :: ChromaticScales.Keys
+all_keys = BaliScales.make_keys layout
+    [ ("selesir", Pitch.Degree 0 0, [1, 1, 2, 1, 2])
+    ]
 
-cipher_scale :: BaliScales.ScaleMap
-cipher_scale = BaliScales.scale_map 5 2 1 BaliScales.dotted12356
-    (drop 6 umbang) (drop 6 isep)
-
-pemade_scale :: BaliScales.ScaleMap
-pemade_scale = BaliScales.scale_map 5 2 1 BaliScales.dotted_ioeua
-    (drop 6 umbang) (drop 6 isep)
-
-kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = BaliScales.scale_map 5 3 1 BaliScales.dotted_ioeua
-    (drop 11 umbang) (drop 11 isep)
+default_key :: Theory.Key
+Just default_key = Map.lookup (Pitch.Key "selesir") all_keys
 
 {- | Extended scale.
 
@@ -71,35 +89,76 @@ kantilan_scale = BaliScales.scale_map 5 3 1 BaliScales.dotted_ioeua
 umbang :: [Pitch.NoteNumber]
 umbang = extend
     [ 51.82 -- deng, rambat begin
+    , 54 -- TODO deng#
     , 55.7
     , 56.82 -- dang, trompong begin
+    , 58 -- TODO
 
     , 60.73
     , 62.8 -- dong, pemade begin
     , 63.35 -- deng, reyong begin
+    , 65 -- TODO
     , 67.7
     , 68.2
+    , 70 -- TODO
 
     , 72.46 -- ding
     , 73.9 -- dong, kantilan begin
     , 75.5
+    , 78 -- TODO
     , 79.4 -- dung, trompong end
     , 80.5
+    , 83 -- TODO
 
     , 84.46 -- ding, rambat end, pemade end
     , 86
     , 87.67
+    , 90 -- TODO
     , 91.74 -- dung, reyong end
     , 92.5
+    , 95 -- TODO
+
+    , 96.46 -- ding, kantilan end
+    ]
+
+-- TODO
+isep :: [Pitch.NoteNumber]
+isep = extend
+    [ 51.82 -- deng, rambat begin
+    , 54 -- TODO
+    , 55.7
+    , 56.82 -- dang, trompong begin
+    , 58 -- TODO
+
+    , 59.73
+    , 62.8 -- dong, pemade begin
+    , 63.35 -- deng, reyong begin
+    , 65 -- TODO
+    , 67.7
+    , 68.2
+    , 70 -- TODO
+
+    , 72.46 -- ding
+    , 73.9 -- dong, kantilan begin
+    , 75.5
+    , 78 -- TODO
+    , 79.4 -- dung, trompong end
+    , 80.5
+    , 83 -- TODO
+
+    , 84.46 -- ding, rambat end, pemade end
+    , 86
+    , 87.67
+    , 90 -- TODO
+    , 91.74 -- dung, reyong end
+    , 92.5
+    , 95 -- TODO
 
     , 96.46 -- ding, kantilan end
     ]
 
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend nns = map (subtract 12) low ++ ding ++ nns
+extend nns = map (subtract 12) (take oct from_ding) ++ from_ding
     where
-    ding = map (subtract 12) (take 2 (drop 3 nns))
-    low = take 5 (ding ++ nns)
-
-isep :: [Pitch.NoteNumber]
-isep = umbang -- TODO
+    from_ding = map (subtract 12) (take 2 (drop (oct-2) nns)) ++ nns
+    oct = 7
