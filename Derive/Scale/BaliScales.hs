@@ -39,9 +39,9 @@ make_scale scale_id smap =
     (ChromaticScales.make_scale scale_id (smap_chromatic smap) doc)
     { Scale.scale_enharmonics = Scales.no_enharmonics
     , Scale.scale_note_to_call = note_to_call scale smap
-    , Scale.scale_input_to_note = input_to_note smap
     , Scale.scale_input_to_nn = Scales.computed_input_to_nn
-        (input_to_note smap) (note_to_call scale smap)
+        (ChromaticScales.input_to_note (smap_chromatic smap))
+        (note_to_call scale smap)
     }
     where
     scale = PitchSignal.Scale scale_id Scales.standard_transposers
@@ -179,21 +179,6 @@ note_to_call scale (ScaleMap smap nns) note =
                 (remove_offset (nn_offset nns) pitch))
             (ChromaticScales.pitch_note smap pitch)
     where fmt = ChromaticScales.smap_fmt smap
-
--- | This is like 'ChromaticScales.input_to_note', but no enharmonics, and
--- no flats.
-input_to_note :: ScaleMap -> Scales.InputToNote
-input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
-    pitch <- Scales.kbd_to_scale kbd_type pc_per_octave
-        (ChromaticScales.key_tonic key) pitch
-    note <- ChromaticScales.smap_show_pitch csmap maybe_key pitch
-    return $ ScaleDegree.pitch_expr frac note
-    where
-    pc_per_octave = Theory.layout_pc_per_octave $
-        ChromaticScales.smap_layout csmap
-    key = fromMaybe (ChromaticScales.smap_default_key csmap) $
-        flip Map.lookup (ChromaticScales.smap_keys csmap) =<< maybe_key
-    csmap = smap_chromatic smap
 
 show_pitch :: Theory.Layout -> TheoryFormat.Format -> NoteNumbers
     -> Maybe Pitch.Key -> Pitch.Pitch -> Either Scale.ScaleError Pitch.Note

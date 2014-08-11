@@ -908,7 +908,7 @@ Derive:
               pemade/kantilan *legong.
               . parse can be with octave
               . show: show_key doesn't want the octave
-        - input note incorrect for other pathet
+        * input note incorrect for other pathet
         * add saih pitu modes
         - pick better nns for 4 and 7
         - add 1234567 cipher notation for *legong, call it *pelog

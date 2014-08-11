@@ -158,6 +158,8 @@ input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
     -- besides it would be wrong since it assumes Pitch 0 0 is C.
     let pick_enharmonic = if TheoryFormat.fmt_relative (smap_fmt smap) then id
             else Theory.pick_enharmonic key
+    -- Don't pass the key, because I want the Input to also be relative, i.e.
+    -- Pitch 0 0 should be scale degree 0 no matter the key.
     note <- smap_show_pitch smap Nothing $ pick_enharmonic pitch
     return $ ScaleDegree.pitch_expr frac note
     where
