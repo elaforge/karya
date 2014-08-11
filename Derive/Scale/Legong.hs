@@ -8,6 +8,7 @@
 --
 -- TODO: pengisep and pengumbang
 module Derive.Scale.Legong where
+import Util.Control
 import qualified Data.Map as Map
 
 import qualified Derive.Scale as Scale
@@ -62,13 +63,25 @@ scale_id = "legong"
 layout :: Theory.Layout
 layout = Theory.layout [1, 1, 2, 1, 2]
 
+-- | These are from Tenzer's kebyar book.
 all_keys :: ChromaticScales.Keys
-all_keys = BaliScales.make_keys layout
-    [ ("selesir", Pitch.Degree 0 0, [1, 1, 2, 1, 2])
+all_keys = BaliScales.make_keys layout $ map make_key
+    [ ("selisir", [1, 2, 3, 5, 6])
+    , ("slendro-gede", [2, 3, 4, 6, 7])
+    , ("baro", [1, 3, 4, 5, 7])
+    , ("tembung", [1, 2, 4, 5, 6])
+    , ("sunaren", [2, 3, 5, 6, 7])
+    , ("pengenter-alit", [1, 3, 4, 6, 7])
+    , ("pengenter", [1, 2, 4, 5, 7])
+    -- , ("lebeng", [1, 2, 3, 4, 5, 6, 7])
     ]
 
+make_key :: (Text, [Pitch.Semi]) -> (Text, Pitch.Semi, [Pitch.Semi])
+make_key (_, []) = error "no semis for scale"
+make_key (name, n : ns) = (name, n - 1, zipWith (-) (ns ++ [n+7]) (n:ns))
+
 default_key :: Theory.Key
-Just default_key = Map.lookup (Pitch.Key "selesir") all_keys
+Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
 
 {- | Extended scale.
 

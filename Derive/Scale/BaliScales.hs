@@ -158,13 +158,14 @@ dotted_octaves center = (show_octave, parse_octave)
 
 -- * keys
 
--- TODO use Pitch.Semi instead of Degree for tonic
-make_keys :: Theory.Layout -> [(Text, Pitch.Degree, [Pitch.Semi])]
+make_keys :: Theory.Layout -> [(Text, Pitch.Semi, [Pitch.Semi])]
     -> ChromaticScales.Keys
 make_keys layout keys = Map.fromList
-    [ (Pitch.Key name, Theory.key tonic name intervals layout)
+    [ (Pitch.Key name, Theory.key (to_degree tonic) name intervals layout)
     | (name, tonic, intervals) <- keys
     ]
+    where
+    to_degree = Pitch.pitch_degree . Theory.semis_to_pitch_sharps layout
 
 -- * implementation
 

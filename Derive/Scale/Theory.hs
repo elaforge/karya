@@ -174,10 +174,10 @@ semis_to_pitch key semis = mkpitch $ case key_signature key of
 
 -- | Like 'semis_to_pitch', but only emits sharps, so it doesn't require a key.
 semis_to_pitch_sharps :: Layout -> Pitch.Semi -> Pitch.Pitch
-semis_to_pitch_sharps layout semis = Pitch.Pitch (octave + oct) note
+semis_to_pitch_sharps layout semis = Pitch.Pitch (octave + oct) degree
     where
     (octave, steps) = semis `divMod` layout_semis_per_octave layout
-    (oct, note) = head $ enharmonics Boxed.! steps
+    (oct, degree) = head $ enharmonics Boxed.! steps
     enharmonics = layout_enharmonics layout
 
 -- | Convert Semis to integral NNs.  This is only valid for 12TET, which is the
