@@ -60,12 +60,21 @@ data ScaleMap = ScaleMap {
 
 scale_map :: Theory.Layout -> TheoryFormat.Format -> ChromaticScales.Keys
     -> Theory.Key -> NoteNumbers -> ScaleMap
-scale_map layout fmt all_keys default_key note_numbers = ScaleMap
-    { smap_chromatic =
-        (ChromaticScales.scale_map layout fmt all_keys default_key)
-        { ChromaticScales.smap_show_pitch = show_pitch layout fmt note_numbers }
-    , smap_note_numbers = note_numbers
-    }
+scale_map layout fmt all_keys default_key note_numbers = result
+    where
+    result = ScaleMap
+        { smap_chromatic =
+            (ChromaticScales.scale_map layout fmt all_keys default_key)
+            { ChromaticScales.smap_show_pitch =
+                show_pitch layout fmt note_numbers
+            , ChromaticScales.smap_range = (bottom, top)
+            }
+        , smap_note_numbers = note_numbers
+        }
+    -- The circular reference is sketchy, but safe as long as these functions
+    -- don't use ChromaticScales.smap_range.
+    bottom = scale_bottom result
+    top = scale_top result
 
 data NoteNumbers = NoteNumbers {
     nn_umbang :: !(Vector.Vector Pitch.NoteNumber)

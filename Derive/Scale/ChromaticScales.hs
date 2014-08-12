@@ -5,6 +5,7 @@
 -- | Utilities for equal-tempered chromatic scales with keys and modes.
 module Derive.Scale.ChromaticScales where
 import qualified Data.Either as Either
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -37,6 +38,8 @@ data ScaleMap = ScaleMap {
         -> Either Scale.ScaleError Pitch.Note)
     , smap_read_pitch :: !(Maybe Pitch.Key -> Pitch.Note
         -> Either Scale.ScaleError Pitch.Pitch)
+    -- | Inclusive (bottom, top) of scale, for documentation.
+    , smap_range :: !(Pitch.Pitch, Pitch.Pitch)
     }
 
 twelve_doc :: Text
@@ -58,7 +61,9 @@ scale_map layout fmt keys default_key = ScaleMap
     , smap_layout = layout
     , smap_show_pitch = show_pitch layout fmt
     , smap_read_pitch = read_pitch fmt
+    , smap_range = (to_pitch 1, to_pitch 127)
     }
+    where to_pitch = Theory.semis_to_pitch_sharps layout . Theory.nn_to_semis
 
 type Keys = Map.Map Pitch.Key Theory.Key
 
@@ -179,15 +184,20 @@ call_doc transposers smap doc =
     call = ScaleDegree.scale_degree PitchSignal.no_scale err err
         where err _ = Left $ PitchSignal.PitchError "it was just an example!"
     extra_doc = doc <> twelve_doc
-    fields =
-        [ ("default key", prettyt $
-            TheoryFormat.show_key (smap_fmt smap) (smap_default_key smap))
-        , ("keys", format_keys $ Map.keys (smap_keys smap))
+    -- Not efficient, but shouldn't matter for docs.
+    default_key = fst <$> List.find ((== smap_default_key smap) . snd)
+        (Map.toList (smap_keys smap))
+    (bottom, top) = smap_range smap
+    show_pitch = either prettyt prettyt . smap_show_pitch smap Nothing
+    fields = concat
+        [ [("range", show_pitch bottom <> " to " <> show_pitch top)]
+        , maybe [] (\n -> [("default key", prettyt n)]) default_key
+        , [ ("keys", format_keys $ Map.keys (smap_keys smap)) ]
         ]
 
 format_keys :: [Pitch.Key] -> Text
 format_keys keys
-    | any (("-" `Text.isInfixOf`) . name) keys = Text.intercalate ", " $
+    | all (("-" `Text.isInfixOf`) . name) keys = Text.intercalate ", " $
         map fst $ group_tonic_mode $ map (flip (,) ()) keys
     | otherwise = Text.intercalate ", " $ map name keys
     where name (Pitch.Key k) = k
@@ -226,8 +236,7 @@ show_pitch layout fmt key pitch
     | 1 <= nn && nn <= 127 =
         Right $ TheoryFormat.show_pitch fmt key pitch
     | otherwise = Left Scale.InvalidTransposition
-    where
-    nn = Theory.semis_to_nn $ Theory.pitch_to_semis layout pitch
+    where nn = Theory.semis_to_nn $ Theory.pitch_to_semis layout pitch
 
 read_pitch :: TheoryFormat.Format -> Maybe Pitch.Key -> Pitch.Note
     -> Either Scale.ScaleError Pitch.Pitch

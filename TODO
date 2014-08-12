@@ -913,7 +913,8 @@ Derive:
         - pick better nns for 4 and 7
         - add 1234567 cipher notation for *legong, call it *pelog
         * if a layout doesn't have an accidental, don't allow its input
-        - add range to scale doc
+        * add range to scale doc
+        - legong-p and legong-k are messed up
         . I also want to be able to set the scale, to make different notes
           bero.
         . I should probably switch to TheoryFormat, then I can use relative
