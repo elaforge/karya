@@ -8,6 +8,7 @@ import Util.Test
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.Pitch as Pitch
@@ -18,12 +19,18 @@ test_input_to_note = do
             ChromaticScales.input_to_note smap (Just (Pitch.Key key))
         abs = Twelve.absolute_scale_map
         rel = Twelve.relative_scale_map
-        ascii (oct, pc, accs) =
-            Pitch.Input Pitch.AsciiKbd (CmdTest.pitch oct pc accs) 0
-    equal (map (f abs "c-maj" . ascii) [(5, 6, 0), (5, 6, 1), (5, 7, 0)])
-        ["5b", "6c", "6c"]
-    equal (map (f rel "d-min" . ascii) [(4, 2, 0), (4, 2, 1), (4, 3, 0)])
-        ["4g", "4g#", "4m"]
+        ascii = CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
+        invalid = "invalid input"
+    equal (map (f abs "c-maj" . ascii)
+            [(4, pc, acc) | pc <- [0..7], acc <- [0, 1]])
+        ["4c", "4c#", "4d", "4d#", "4e", invalid, "4f", "4f#", "4g", "4g#"
+        , "4a", "4a#", "4b", invalid, "5c", "5c#"
+        ]
+    equal (map (f rel "d-min" . ascii)
+            [(4, pc, acc) | pc <- [0..7], acc <- [0, 1]])
+        ["4s", "4s#", "4r", invalid, "4g", "4g#", "4m", "4m#", "4p", invalid
+        , "4d", "4d#", "4n", "4n#", "5s", "5s#"
+        ]
 
 test_transpose = do
     let f smap key_ trans steps =

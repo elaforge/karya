@@ -912,7 +912,7 @@ Derive:
         * add saih pitu modes
         - pick better nns for 4 and 7
         - add 1234567 cipher notation for *legong, call it *pelog
-        - if a layout doesn't have an accidental, don't allow its input
+        * if a layout doesn't have an accidental, don't allow its input
         - add range to scale doc
         . I also want to be able to set the scale, to make different notes
           bero.

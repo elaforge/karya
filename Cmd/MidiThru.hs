@@ -140,7 +140,7 @@ map_scale patch_scale scale environ input = case input of
             Scale.scale_input_to_nn scale pos input
         -- I ignore _logs, any interesting errors should be in 'result'.
         case result of
-            Left err -> throw err
+            Left err -> throw $ "derive_at: " <> err
             Right (Left err) -> throw $ pretty err
             Right (Right nn) -> return $ map_patch_scale patch_scale nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)

@@ -38,6 +38,7 @@ module Derive.Scale.Theory (
     , Signature, Intervals
     , layout
     , layout_pc_per_octave, layout_semis_per_octave
+    , layout_contains_degree
 #ifndef TESTING
     , Layout(layout_intervals)
 #else
@@ -263,6 +264,7 @@ data Key = Key {
 
 -- | Map from a Step to the number of sharps or flats at that Step.
 type Signature = Vector.Vector Pitch.Accidentals
+-- | Semitones between each scale degree.
 type Intervals = Vector.Vector Pitch.Semi
 
 -- | Make a Key given intervals and a layout.  If the number of intervals are
@@ -351,7 +353,7 @@ diatonic_step_of key pc =
 data Layout = Layout {
     -- | Map PitchClass to the number of sharps above it.
     layout_intervals :: !Intervals
-    -- | Map PitchClass to the enharmonic Notes at that PitchClass.
+    -- | Map Pitch.Semis to the enharmonic Notes at that PitchClass.
     , layout_enharmonics :: !(Boxed.Vector [(Pitch.Octave, Pitch.Degree)])
     } deriving (Eq, Show)
 
@@ -397,3 +399,13 @@ get_enharmonics intervals (Pitch.Degree note_pc note_accs) =
 layout_at :: Intervals -> Pitch.PitchClass -> Pitch.Accidentals
 layout_at intervals pc =
     fromMaybe 0 $ intervals Vector.!? (pc `mod` Vector.length intervals)
+
+-- | True if the degree exists as its own key in the layout.
+--
+-- For a relative scale, I pretend the layout is shifted such that the
+-- tonic is at PC 0, and black notes are only where there are intervals >1.
+layout_contains_degree :: Key -> Pitch.Degree -> Bool
+layout_contains_degree key (Pitch.Degree pc acc)
+    | acc >= 0 = acc < at pc
+    | otherwise = at (pc - 1) + acc > 0
+    where at = layout_at (key_intervals key)

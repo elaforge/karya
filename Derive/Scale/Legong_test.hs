@@ -35,9 +35,12 @@ test_input_to_note = do
     let f key = either prettyt Pitch.note_text
             . Scale.scale_input_to_note (head Legong.scales)
                 (Just (Pitch.Key key))
-            . ascii
-        ascii (oct, pc, accs) =
-            Pitch.Input Pitch.AsciiKbd (CmdTest.pitch oct pc accs) 0
-    equal (map (f "baro") [(4, 0, 0), (4, 1, 0), (4, 2, 0)])
-        ["4i", "4o", "4e"]
+            . CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
+        invalid = "invalid input"
+    -- baro is 1 345 7
+    --         i oeu a
+    equal (map (f "baro") [(4, pc, acc) | pc <- [0..5], acc <- [0, 1]])
+        [ "4i", "4i#", "4o", invalid, "4e", invalid, "4u", "4u#", "4a", invalid
+        , "5i", "5i#"
+        ]
     equal (f "sunaren" (4, 0, 0)) "4i"

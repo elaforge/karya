@@ -154,6 +154,8 @@ pitch_nn smap semis_to_nn pitch config@(PitchSignal.PitchConfig env controls) =
 input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
     pitch <- Scales.kbd_to_scale kbd_type pc_per_octave (key_tonic key) pitch
+    unless (Theory.layout_contains_degree key (Pitch.pitch_degree pitch)) $
+        Left Scale.InvalidInput
     -- Relative scales don't need to figure out enharmonic spelling, and
     -- besides it would be wrong since it assumes Pitch 0 0 is C.
     let pick_enharmonic = if TheoryFormat.fmt_relative (smap_fmt smap) then id

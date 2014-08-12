@@ -44,14 +44,6 @@ test_input_to_note = do
     equal [f (piano 5 pc) | pc <- [0..6]] $
         ["2h", "2i"] ++ replicate 5 "invalid input"
 
-ascii :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Input
-ascii oct pc = Pitch.Input Pitch.AsciiKbd
-    (Pitch.Pitch oct (Pitch.Degree pc 0)) 0
-
-piano :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Input
-piano oct pc = Pitch.Input Pitch.PianoKbd
-    (Pitch.Pitch oct (Pitch.Degree pc 0)) 0
-
 test_input_to_nn = do
     let f input = Arrow.right (Arrow.left pretty) $
             DeriveTest.eval State.empty $

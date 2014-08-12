@@ -448,8 +448,7 @@ ascii_kbd pitch = Pitch.Input Pitch.AsciiKbd pitch 0
 piano_kbd :: Pitch.Pitch -> Pitch.Input
 piano_kbd pitch = Pitch.Input Pitch.PianoKbd pitch 0
 
-pitch :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Accidentals
-    -> Pitch.Pitch
+pitch :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Accidentals -> Pitch.Pitch
 pitch oct pc accs = Pitch.Pitch oct (Pitch.Degree pc accs)
 
 oct_pc :: Pitch.Octave -> Pitch.PitchClass -> Pitch.Pitch

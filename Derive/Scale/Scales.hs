@@ -265,20 +265,21 @@ direct_input_to_nn _pos (Pitch.Input _ pitch frac) =
 -- complicated scales that retune based on the environment but is more work.
 computed_input_to_nn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
     -> InputToNn
-computed_input_to_nn input_to_note note_to_call pos input = case get_call of
-    Left err -> return $ Left err
-    Right call -> Eval.apply_pitch pos call >>= \val -> case val of
-        TrackLang.VPitch pitch -> do
-            controls <- Derive.controls_at =<< Derive.real pos
-            environ <- Internal.get_environ
-            p <- Derive.require_right (("evaluating pich: " ++) . pretty) $
-                PitchSignal.eval_pitch pitch
-                    (PitchSignal.PitchConfig environ controls)
-            return $ Right p
-        _ -> Derive.throw $ "non-pitch from pitch call: " <> pretty val
+computed_input_to_nn input_to_note note_to_call pos input = do
+    environ <- Internal.get_environ
+    case get_call (environ_key environ) of
+        Left err -> return $ Left err
+        Right call -> Eval.apply_pitch pos call >>= \val -> case val of
+            TrackLang.VPitch pitch -> do
+                controls <- Derive.controls_at =<< Derive.real pos
+                p <- Derive.require_right (("evaluating pich: " <>) . pretty) $
+                    PitchSignal.eval_pitch pitch
+                        (PitchSignal.PitchConfig environ controls)
+                return $ Right p
+            _ -> Derive.throw $ "non-pitch from pitch call: " <> pretty val
     where
-    get_call = do
-        note <- input_to_note Nothing input
+    get_call maybe_key = do
+        note <- input_to_note maybe_key input
         maybe (Left Scale.UnparseableNote) Right $ note_to_call note
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
