@@ -45,7 +45,8 @@ absolute_scale =
     -- a scale but specify my own pitch aspect.
 
 scale_map :: ChromaticScales.ScaleMap
-scale_map = ChromaticScales.scale_map layout absolute_fmt all_keys default_key
+scale_map = (ChromaticScales.scale_map layout absolute_fmt all_keys default_key)
+    { ChromaticScales.smap_semis_to_nn = semis_to_nn }
 
 pscale :: PitchSignal.Scale
 pscale = Pitches.scale absolute_scale
@@ -62,8 +63,8 @@ note_to_call smap note =
     case TheoryFormat.read_unadjusted_pitch fmt note of
         Left _ -> ScaleDegree.scale_degree_interval pscale named_intervals note
         Right pitch -> Just $ scale_degree
-            (ChromaticScales.pitch_nn smap semis_to_nn pitch)
-            (ChromaticScales.pitch_note  smap pitch)
+            (ChromaticScales.pitch_nn smap pitch)
+            (ChromaticScales.pitch_note smap pitch)
     where fmt = ChromaticScales.smap_fmt smap
 
 -- TODO frac should always be 0, right?

@@ -31,7 +31,7 @@ module Derive.Scale.Theory (
     , enharmonics_of
     , pitch_to_semis, degree_to_semis
     , semis_to_pitch, pick_enharmonic, semis_to_pitch_sharps
-    , semis_to_nn, nn_to_semis
+    , semis_to_nn, fsemis_to_nn, nn_to_semis
     -- ** key
     , Key(key_tonic, key_name, key_intervals, key_signature, key_layout), key
     , accidentals_at_pc
@@ -200,6 +200,9 @@ semis_to_pitch_sharps layout semis = Pitch.Pitch (octave + oct) degree
 -- TheoryFormat.absolute_c?
 semis_to_nn :: Pitch.Semi -> Int
 semis_to_nn = (+12)
+
+fsemis_to_nn :: Pitch.FSemi -> Pitch.NoteNumber
+fsemis_to_nn = Pitch.NoteNumber . (+12)
 
 nn_to_semis :: Int -> Pitch.Semi
 nn_to_semis = subtract 12

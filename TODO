@@ -351,7 +351,17 @@ lilypond:
   - optionally emit the lilypond to display a compound meter
   - use Util.Format in ly output
   jianpu
-    - http://people.ds.cam.ac.uk/ssb22/mwrhome/jianpu-ly.html
+    . Research jianpu conventions, but basically:
+      . Hide staff lines, stems, beams.
+      . Noteheads replaced by numbers
+      . Use a somewhat proportional layout.
+      . Lines for 8th, 16th etc. notes.
+      . Dots for octaves.
+      . Grace notes as superscripts.
+      . I still use lilypond's bars, slurs, tuplets, dynamics, etc.
+    . http://people.ds.cam.ac.uk/ssb22/mwrhome/jianpu-ly.html
+      . Produces extremely mangled lilypond.  I should make my own from first
+        principles.
     . standalone commercial software:
       http://www.medeli.com.cn/soft/gb/soft.asp
 
@@ -684,6 +694,7 @@ fltk:
       . Or perhaps I should just switch to OpenGL?
 
 logview:
+  - use Fl_Help_View and HTML to display text
   - Adding new log msgs causes the status bar to shrink back to one line, even
     though it should be wrapped to two.
   - Logview got some kind of file locked error, presumably trying to track
@@ -884,6 +895,7 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     bali:
+      - add isep to *legong
       If I put pemero notes in legong, then I can play them when needed.
         But what should they be called?  i o e e# u a a#
         * convert Derive.Scales to use Pitch.Semi instead of Pitch.Pitch
@@ -911,10 +923,14 @@ Derive:
         * input note incorrect for other pathet
         * add saih pitu modes
         - pick better nns for 4 and 7
-        - add 1234567 cipher notation for *legong, call it *pelog
+        - add 'lebeng' key with 1234567 cipher notation
         * if a layout doesn't have an accidental, don't allow its input
         * add range to scale doc
-        - legong-p and legong-k are messed up
+        * legong-p and legong-k are messed up
+          . instead of checking for InvalidTransposition from show, I can
+            check range first in input_to_note
+        - when out of range I get "invalid transposition", it should be
+          "invalid input", and then I can suppress that error.
         . I also want to be able to set the scale, to make different notes
           bero.
         . I should probably switch to TheoryFormat, then I can use relative
@@ -1064,6 +1080,7 @@ Perform:
     - some basic midi instrument defs for generic midi (dev, patch)
 
 Instrument DB / browser:
+  - Fl_Help_View supports limited HTML, use it to display formatted help
   - browser has lots of empty space on the bottom
   - z1/virus-bass has UnknownMessage for initialization?
   - patch files could go in the Local/Instrument dir with the source?

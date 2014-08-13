@@ -115,9 +115,10 @@ type PitchClass = Int
 -- | Positive for sharps, negative for flats.
 type Accidentals = Int
 
--- | Number of semitones.  This is a relative measure representing chromatic
--- steps.  If the scale has no concept of chromatic steps, then it's just scale
--- steps.
+-- | Number of semitones.  This is an absolute measure from octave 0,
+-- regardless of whether the scale has notes at octave 0.  This is so you can
+-- convert between Semis and the similarly absolute 'Pitch' in the same way for
+-- all scales.
 type Semi = Int
 
 -- | This is like 'Semi', but floating point.

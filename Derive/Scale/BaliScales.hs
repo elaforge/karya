@@ -18,8 +18,6 @@ import Data.Vector ((!?))
 
 import Util.Control
 import qualified Util.Num as Num
-import qualified Derive.Call.ScaleDegree as ScaleDegree
-import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -37,14 +35,8 @@ import qualified Perform.Pitch as Pitch
 make_scale :: Pitch.ScaleId -> ScaleMap -> Scale.Scale
 make_scale scale_id smap =
     (ChromaticScales.make_scale scale_id (smap_chromatic smap) doc)
-    { Scale.scale_enharmonics = Scales.no_enharmonics
-    , Scale.scale_note_to_call = note_to_call scale smap
-    , Scale.scale_input_to_nn = Scales.computed_input_to_nn
-        (ChromaticScales.input_to_note (smap_chromatic smap))
-        (note_to_call scale smap)
-    }
+    { Scale.scale_enharmonics = Scales.no_enharmonics }
     where
-    scale = PitchSignal.Scale scale_id Scales.standard_transposers
     doc = "Balinese scales come in detuned pairs. They use the `tuning` env var\
         \ to select between pengumbang and pengisep tuning. The env var\
         \ should be set to either `umbang` or `isep`, and if it's not\
@@ -59,70 +51,31 @@ data ScaleMap = ScaleMap {
     }
 
 scale_map :: Theory.Layout -> TheoryFormat.Format -> ChromaticScales.Keys
-    -> Theory.Key -> NoteNumbers -> ScaleMap
-scale_map layout fmt all_keys default_key note_numbers = result
-    where
-    result = ScaleMap
-        { smap_chromatic =
-            (ChromaticScales.scale_map layout fmt all_keys default_key)
-            { ChromaticScales.smap_show_pitch =
-                show_pitch layout fmt note_numbers
-            , ChromaticScales.smap_range = (bottom, top)
-            }
-        , smap_note_numbers = note_numbers
+    -> Theory.Key -> NoteNumbers -> (Pitch.Semi, Pitch.Semi) -> ScaleMap
+scale_map layout fmt all_keys default_key note_numbers range = ScaleMap
+    { smap_chromatic =
+        (ChromaticScales.scale_map layout fmt all_keys default_key)
+        { ChromaticScales.smap_semis_to_nn = semis_to_nn offset note_numbers
+        -- Convert range to absolute.
+        , ChromaticScales.smap_range = ((+offset) *** (+offset)) range
         }
-    -- The circular reference is sketchy, but safe as long as these functions
-    -- don't use ChromaticScales.smap_range.
-    bottom = scale_bottom result
-    top = scale_top result
+    , smap_note_numbers = note_numbers
+    }
+    where
+    -- Scales start at octave 1.
+    offset = Theory.layout_semis_per_octave layout
 
 data NoteNumbers = NoteNumbers {
     nn_umbang :: !(Vector.Vector Pitch.NoteNumber)
     , nn_isep :: !(Vector.Vector Pitch.NoteNumber)
-    , nn_offset :: !Offset
     } deriving (Show)
 
--- | Not all scales start at octave 0, PitchClass 0.
-data Offset = Offset {
-    offset_pc_per_octave :: !Pitch.PitchClass
-    , offset_octave :: !Pitch.Octave
-    , offset_pc :: !Pitch.PitchClass
-    } deriving (Show)
-
-note_numbers :: Theory.Layout -> Pitch.Octave -> Pitch.PitchClass
-    -> [Pitch.NoteNumber] -> [Pitch.NoteNumber] -> NoteNumbers
-note_numbers layout start_octave start_pc umbang isep = NoteNumbers
-    { nn_umbang = Vector.fromList umbang
-    , nn_isep = Vector.fromList isep
-    , nn_offset = Offset
-        { offset_pc_per_octave = Theory.layout_pc_per_octave layout
-        , offset_octave = start_octave
-        , offset_pc = start_pc
-        }
-    }
-
-add_offset :: Offset -> Pitch.Pitch -> Pitch.Pitch
-add_offset (Offset per_oct start_oct start_pc) =
-    Pitch.add_pc per_oct start_pc . Pitch.add_octave start_oct
-
-remove_offset :: Offset -> Pitch.Pitch -> Pitch.Pitch
-remove_offset (Offset per_oct start_oct start_pc) =
-    Pitch.add_pc per_oct (-start_pc) . Pitch.add_octave (-start_oct)
-
--- | Top pitch of the scale.
-scale_top :: ScaleMap -> Pitch.Pitch
-scale_top smap =
-    Theory.semis_to_pitch_sharps layout $
-        Theory.pitch_to_semis layout bottom + semis
+scale_range :: ScaleMap -> (Pitch.Pitch, Pitch.Pitch)
+scale_range smap = (to_pitch bottom, to_pitch top)
     where
-    -- Number of semi steps in between each scale degree.
-    semis = Vector.length (nn_umbang $ smap_note_numbers smap) - 1
-    bottom = scale_bottom smap
-    layout = ChromaticScales.smap_layout (smap_chromatic smap)
-
-scale_bottom :: ScaleMap -> Pitch.Pitch
-scale_bottom smap = Pitch.Pitch oct (Pitch.Degree pc 0)
-    where Offset _ oct pc = nn_offset $ smap_note_numbers smap
+    (bottom, top) = ChromaticScales.smap_range $ smap_chromatic smap
+    to_pitch = Theory.semis_to_pitch_sharps
+        (ChromaticScales.smap_layout (smap_chromatic smap))
 
 -- * Format
 
@@ -176,28 +129,6 @@ make_keys layout keys = Map.fromList
     where
     to_degree = Pitch.pitch_degree . Theory.semis_to_pitch_sharps layout
 
--- * implementation
-
-note_to_call :: PitchSignal.Scale -> ScaleMap -> Pitch.Note
-    -> Maybe Derive.ValCall
-note_to_call scale (ScaleMap smap nns) note =
-    case TheoryFormat.read_unadjusted_pitch fmt note of
-        Left _ -> Nothing
-        Right pitch -> Just $ ScaleDegree.scale_degree scale
-            (ChromaticScales.pitch_nn smap (semis_to_nn nns)
-                (remove_offset (nn_offset nns) pitch))
-            (ChromaticScales.pitch_note smap pitch)
-    where fmt = ChromaticScales.smap_fmt smap
-
-show_pitch :: Theory.Layout -> TheoryFormat.Format -> NoteNumbers
-    -> Maybe Pitch.Key -> Pitch.Pitch -> Either Scale.ScaleError Pitch.Note
-show_pitch layout fmt nns maybe_key pitch
-    | nn_umbang nns !? semis == Nothing = Left Scale.InvalidTransposition
-    | otherwise = Right $ TheoryFormat.show_pitch fmt maybe_key pitch
-    where
-    offset = nn_offset nns
-    semis = Theory.pitch_to_semis layout (remove_offset offset pitch)
-
 -- * tuning
 
 data Tuning = Umbang | Isep deriving (Show)
@@ -214,8 +145,9 @@ c_ombak :: Score.Control
 c_ombak = "ombak"
 
 -- | Convert 'Pitch.FSemi' to 'Pitch.NoteNumber'.
-semis_to_nn :: NoteNumbers -> ChromaticScales.SemisToNoteNumber
-semis_to_nn nns = \(PitchSignal.PitchConfig env controls) fsemis -> do
+semis_to_nn :: Pitch.Semi -> NoteNumbers -> ChromaticScales.SemisToNoteNumber
+semis_to_nn offset nns = \(PitchSignal.PitchConfig env controls) fsemis_ -> do
+    let fsemis = fsemis_ - fromIntegral offset
     tuning <- Scales.read_environ read_tuning Umbang Environ.tuning env
     let to_either = maybe (Left Scale.InvalidTransposition) Right
     to_either $ case Map.lookup c_ombak controls of

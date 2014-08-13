@@ -4,6 +4,8 @@
 
 -- | Saih gender wayang.
 module Derive.Scale.Wayang where
+import qualified Data.Vector as Vector
+
 import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -30,16 +32,16 @@ scales =
     ]
 
 complete_scale :: BaliScales.ScaleMap
-complete_scale = scale_map BaliScales.ioeua_absolute $
-    BaliScales.note_numbers layout 1 0 (extend umbang) (extend isep)
+complete_scale = scale_map BaliScales.ioeua_absolute
+    (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
 
 pemade_scale :: BaliScales.ScaleMap
-pemade_scale = scale_map (BaliScales.ioeua_absolute_dotted 4) $
-    BaliScales.note_numbers layout 3 1 (take 10 umbang) (take 10 isep)
+pemade_scale = scale_map (BaliScales.ioeua_absolute_dotted 4)
+    (2*5 + 1, 4*5)
 
 kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = scale_map (BaliScales.ioeua_absolute_dotted 5) $
-    BaliScales.note_numbers layout 4 1 (drop 5 umbang) (drop 5 isep)
+kantilan_scale = scale_map (BaliScales.ioeua_absolute_dotted 5)
+    (3*5 + 1, 5*5)
 
 -- | Use ding deng dong dung dang.  I don't know if this is ever actually used
 -- for gender, but the notation is compact.
@@ -47,9 +49,10 @@ kantilan_scale = scale_map (BaliScales.ioeua_absolute_dotted 5) $
 -- > 3o  3e  3u  3a  4i  4o  4e  4u  4a  5i  5o  5e  5u  5a  6i
 -- > pemade -------------------------------
 -- >                     kantilan -----------------------------
-scale_map :: TheoryFormat.Format -> BaliScales.NoteNumbers
+scale_map :: TheoryFormat.Format -> (Pitch.Semi, Pitch.Semi)
     -> BaliScales.ScaleMap
-scale_map fmt nns = BaliScales.scale_map layout fmt all_keys default_key nns
+scale_map fmt range =
+    BaliScales.scale_map layout fmt all_keys default_key note_numbers range
 
 scale_id :: Pitch.ScaleId
 scale_id = "wayang"
@@ -64,12 +67,14 @@ default_key :: Theory.Key
 default_key = Theory.key (Pitch.Degree 0 0) "default" [1, 1, 1, 1, 1] layout
 
 pemade_bottom, pemade_top :: Pitch.Pitch
-pemade_bottom = BaliScales.scale_bottom pemade_scale
-pemade_top = BaliScales.scale_top pemade_scale
+(pemade_bottom, pemade_top) = BaliScales.scale_range pemade_scale
 
 kantilan_bottom, kantilan_top :: Pitch.Pitch
-kantilan_bottom = BaliScales.scale_bottom kantilan_scale
-kantilan_top = BaliScales.scale_top kantilan_scale
+(kantilan_bottom, kantilan_top) = BaliScales.scale_range kantilan_scale
+
+note_numbers :: BaliScales.NoteNumbers
+note_numbers = BaliScales.NoteNumbers
+    (Vector.fromList (extend umbang)) (Vector.fromList (extend isep))
 
 umbang :: [Pitch.NoteNumber]
 umbang =

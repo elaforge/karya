@@ -8,9 +8,10 @@
 --
 -- TODO: pengisep and pengumbang
 module Derive.Scale.Legong where
-import Util.Control
 import qualified Data.Map as Map
+import qualified Data.Vector as Vector
 
+import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
@@ -38,24 +39,22 @@ scales =
 complete_scale :: BaliScales.ScaleMap
 complete_scale = scale_map
     (BaliScales.ioeua_relative True default_key all_keys)
-    (BaliScales.note_numbers layout 1 0 umbang isep)
+    (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
 
 pemade_scale :: BaliScales.ScaleMap
 pemade_scale = scale_map
     (BaliScales.ioeua_relative_dotted 4 True default_key all_keys)
-    (BaliScales.note_numbers layout 3 1 (strip umbang) (strip isep))
-    where strip = take 10 . drop (7*2 + 1)
+    (7*2 + 1, 7*4)
 
 kantilan_scale :: BaliScales.ScaleMap
 kantilan_scale = scale_map
     (BaliScales.ioeua_relative_dotted 5 True default_key all_keys)
-    (BaliScales.note_numbers layout 4 1 (strip umbang) (strip isep))
-    where strip = take 10 . drop (7*3 + 1)
+    (7*3 + 1, 7*5)
 
-scale_map :: TheoryFormat.Format -> BaliScales.NoteNumbers
+scale_map :: TheoryFormat.Format -> (Pitch.Semi, Pitch.Semi)
     -> BaliScales.ScaleMap
-scale_map fmt nns =
-    BaliScales.scale_map layout fmt all_keys default_key nns
+scale_map fmt range =
+    BaliScales.scale_map layout fmt all_keys default_key note_numbers range
 
 scale_id :: Pitch.ScaleId
 scale_id = "legong"
@@ -63,7 +62,8 @@ scale_id = "legong"
 layout :: Theory.Layout
 layout = Theory.layout [1, 1, 2, 1, 2]
 
--- | These are from Tenzer's kebyar book.
+-- | These are from Tenzer's kebyar book, for Semar Pegulingan.  McPhee's
+-- book has different names for gambuh, but Tenzer's book is more modern.
 all_keys :: ChromaticScales.Keys
 all_keys = BaliScales.make_keys layout $ map make_key
     [ ("selisir", [1, 2, 3, 5, 6])
@@ -83,6 +83,10 @@ make_key (name, n : ns) = (name, n - 1, zipWith (-) (ns ++ [n+7]) (n:ns))
 default_key :: Theory.Key
 Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
 
+note_numbers :: BaliScales.NoteNumbers
+note_numbers = BaliScales.NoteNumbers
+    (Vector.fromList (extend umbang)) (Vector.fromList (extend isep))
+
 {- | Extended scale.
 
  @
@@ -91,6 +95,7 @@ Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
                  calung--------
                     ugal-------------------------
                        rambat-----------------------------------
+  0              7              14             21             28             35
   11 12 13 15 16 21 22 23 25 26 31 32 33 35 36 41 42 43 45 46 51 52 53 55 56 61
                              trompong---------------------
                                       reyong------------------------------
@@ -100,7 +105,7 @@ Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
  @
 -}
 umbang :: [Pitch.NoteNumber]
-umbang = extend
+umbang =
     [ 51.82 -- deng, rambat begin
     , 54 -- TODO deng#
     , 55.7
@@ -136,7 +141,7 @@ umbang = extend
 
 -- TODO
 isep :: [Pitch.NoteNumber]
-isep = extend
+isep =
     [ 51.82 -- deng, rambat begin
     , 54 -- TODO
     , 55.7

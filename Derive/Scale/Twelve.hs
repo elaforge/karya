@@ -57,8 +57,9 @@ fmt :: TheoryFormat.Format
 fmt = TheoryFormat.absolute_c
 
 relative_scale_map :: ChromaticScales.ScaleMap
-relative_scale_map = ChromaticScales.scale_map
-    layout (TheoryFormat.sargam relative_fmt) all_keys default_theory_key
+relative_scale_map =
+    ChromaticScales.scale_map layout (TheoryFormat.sargam relative_fmt)
+        all_keys default_theory_key
 
 relative_fmt :: TheoryFormat.RelativeFormat Theory.Key
 relative_fmt = ChromaticScales.relative_fmt default_theory_key all_keys
@@ -74,7 +75,7 @@ Just default_theory_key = Map.lookup default_key all_keys
 
 show_pitch :: Pitch.Pitch -> Maybe Pitch.Note
 show_pitch = either (const Nothing) Just
-    . ChromaticScales.show_pitch layout fmt Nothing
+    . ChromaticScales.show_pitch absolute_scale_map Nothing
 
 show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
 show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
@@ -82,7 +83,7 @@ show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
 
 read_absolute_pitch :: Pitch.Note -> Maybe Pitch.Pitch
 read_absolute_pitch = either (const Nothing) Just
-    . ChromaticScales.read_pitch fmt Nothing
+    . ChromaticScales.read_pitch absolute_scale_map Nothing
 
 -- | Map NoteNumbers to their nearest Note.
 nn_to_note :: Pitch.NoteNumber -> Maybe Pitch.Note
