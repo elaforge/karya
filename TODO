@@ -929,7 +929,7 @@ Derive:
         * legong-p and legong-k are messed up
           . instead of checking for InvalidTransposition from show, I can
             check range first in input_to_note
-        - when out of range I get "invalid transposition", it should be
+        * when out of range I get "invalid transposition", it should be
           "invalid input", and then I can suppress that error.
         . I also want to be able to set the scale, to make different notes
           bero.

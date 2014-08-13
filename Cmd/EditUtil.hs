@@ -196,10 +196,13 @@ input_to_note input = do
     let me = "EditUtil.input_to_note"
     scale <- Cmd.get_scale me scale_id
     key <- get_key
-    let msg = "input_to_note " <> pretty input <> " for " <> pretty scale_id
-            <> ": "
-    Cmd.require_right ((msg++) . pretty) $
-        Scale.scale_input_to_note scale key input
+    case Scale.scale_input_to_note scale key input of
+        -- This just means the key isn't in the scale, it happens a lot so no
+        -- need to shout about it.
+        Left Scale.InvalidInput -> Cmd.abort
+        Left err -> Cmd.throw $ "input_to_note " <> pretty input <> " for "
+            <> pretty scale_id <> ": " <> pretty err
+        Right note -> return note
 
 
 -- * modify

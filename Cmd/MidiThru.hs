@@ -141,6 +141,9 @@ map_scale patch_scale scale environ input = case input of
         -- I ignore _logs, any interesting errors should be in 'result'.
         case result of
             Left err -> throw $ "derive_at: " <> err
+            -- This just means the key isn't in the scale, it happens a lot so
+            -- no need to shout about it.
+            Right (Left Scale.InvalidInput) -> Cmd.abort
             Right (Left err) -> throw $ pretty err
             Right (Right nn) -> return $ map_patch_scale patch_scale nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
