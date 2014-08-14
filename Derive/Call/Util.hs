@@ -251,7 +251,14 @@ pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Pitch)
 pitch pos = justm (Derive.pitch_at pos) $ fmap Just . Derive.resolve_pitch pos
 
 get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
-get_pitch pos = Derive.require ("no pitch at " ++ pretty pos) =<< pitch pos
+get_pitch pos = Derive.require ("no pitch at " <> pretty pos) =<< pitch pos
+
+-- | Pitch without the transposition applied.  You have to use this if you
+-- create an event with a pitch based on this pitch, otherwise the
+-- transposition will be applied twice.
+get_raw_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
+get_raw_pitch pos = Derive.require ("no pitch at " <> pretty pos)
+    =<< Derive.pitch_at pos
 
 get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch) -> RealTime
     -> Derive.Deriver Pitch.Pitch

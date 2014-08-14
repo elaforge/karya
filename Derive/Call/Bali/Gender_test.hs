@@ -64,6 +64,14 @@ test_ngoret = do
     equal (run $ c_to_e "" "'_ .5 .5 1")
         ([(0, 1, "4c"), (1.5, 1, "4f"), (2, 1, "4e")], [])
 
+test_ngoret_transpose = do
+    let run = DeriveTest.extract DeriveTest.e_pitch
+            . DeriveTest.derive_tracks "import bali.gender | %t-diatonic=7"
+            . UiTest.note_track
+    -- Make sure the transposition doesn't get applied twice.
+    equal (run [(0, 1, "4c"), (1, 1, "' .5 .5 -- 4e")])
+        (["5c", "5d", "5e"], [])
+
 test_ngoret_slice = do
     let run = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.derive_tracks_linear "import bali.gender"

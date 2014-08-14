@@ -3,6 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * wayang/delima-manis: out of range for patch scale: [(0s, 88.85)]
+  - The problem is transposed pitch vs. raw pitch.  This is error prone, is
+    there a better way to solve it?
+    . I could make separate types, or at least aliases to start with.  The key
+      is that I want to compare transposed pitches to each other, but the
+      Score.Event only has raw pitches.  Also, I don't want to apply the
+      environ's transpositions more than once, though I do transpose multiple
+      times.  And in practice, that happens only in Convert.
+    . So it should be enough to have Derive.pitch_at return Pitch, and
+      Util.pitch return TransposedPitch, and only allow comparisons with
+      TransposedPitch.  That means Pitches.pitch_nn takes a TransposedPitch.
   * 'make_scale' functions should all take ScaleId as the first arg
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
@@ -357,6 +368,7 @@ lilypond:
       . Use a somewhat proportional layout.
       . Lines for 8th, 16th etc. notes.
       . Dots for octaves.
+      . Stack chords vertically.
       . Grace notes as superscripts.
       . I still use lilypond's bars, slurs, tuplets, dynamics, etc.
     . http://people.ds.cam.ac.uk/ssb22/mwrhome/jianpu-ly.html
