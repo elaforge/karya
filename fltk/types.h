@@ -7,7 +7,7 @@
 
 #include <ostream>
 #include <algorithm>
-#include <math.h>
+#include <cmath>
 #include <limits.h>
 #include "Color.h"
 
@@ -21,7 +21,7 @@ public:
     ScoreTime() : _val(0) {}
     explicit ScoreTime(double val) : _val(val) {}
     static const ScoreTime invalid;
-    bool negative_zero() const { return _val == 0 && signbit(_val); }
+    bool negative_zero() const { return _val == 0 && std::signbit(_val); }
 
     // RealTime conversion.
     RealTime to_real() const {
