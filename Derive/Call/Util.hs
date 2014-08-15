@@ -248,23 +248,25 @@ nn_at pos control = -- TODO throw exception?
 -- * dynamic
 
 -- | Unlike 'Derive.pitch_at', the transposition has already been applied.
-pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Transposed)
-pitch pos = justm (Derive.pitch_at pos) $ fmap Just . Derive.resolve_pitch pos
+transposed :: RealTime -> Derive.Deriver (Maybe PitchSignal.Transposed)
+transposed pos =
+    justm (Derive.pitch_at pos) $ fmap Just . Derive.resolve_pitch pos
 
-get_pitch :: RealTime -> Derive.Deriver PitchSignal.Transposed
-get_pitch pos = Derive.require ("no pitch at " <> pretty pos) =<< pitch pos
+get_transposed :: RealTime -> Derive.Deriver PitchSignal.Transposed
+get_transposed pos = Derive.require ("no pitch at " <> pretty pos)
+    =<< transposed pos
 
 -- | Pitch without the transposition applied.  You have to use this if you
 -- create an event with a pitch based on this pitch, otherwise the
 -- transposition will be applied twice.
-get_raw_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
-get_raw_pitch pos = Derive.require ("no pitch at " <> pretty pos)
+get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
+get_pitch pos = Derive.require ("no pitch at " <> pretty pos)
     =<< Derive.pitch_at pos
 
 get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch) -> RealTime
     -> Derive.Deriver Pitch.Pitch
 get_parsed_pitch parse pos = do
-    pitch <- get_pitch pos
+    pitch <- get_transposed pos
     note <- Pitches.pitch_note pitch
     Derive.require "unparseable pitch" $ parse note
 

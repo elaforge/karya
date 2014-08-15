@@ -163,7 +163,7 @@ process :: Map.Map Pitch.NoteNumber PitchSignal.Pitch
 process strings attack_interpolator release_interpolator
         (attack_time, delay_time, release_time)
         state@(State sounding_string prev) event = do
-    pitch <- Derive.require "no pitch" $ Score.raw_pitch_at start event
+    pitch <- Derive.require "no pitch" $ Score.pitch_at start event
     nn <- Derive.require_right pretty $
         PitchSignal.pitch_nn $ Score.apply_controls event start pitch
     case find_string nn strings of
@@ -192,7 +192,7 @@ attack interpolator time pitch next_event event = do
     -- that would require some more complicated code and I'm not sure I need
     -- it.
     let start_x = max (Score.event_start event) (next_event - time)
-    start_pitch <- Score.raw_pitch_at start_x event
+    start_pitch <- Score.pitch_at start_x event
     return $ merge_curve interpolator start_x start_pitch next_event
         pitch event
 
@@ -203,7 +203,7 @@ release :: PitchUtil.Interpolator -> RealTime -> RealTime
     -> Maybe Score.Event
 release interpolator delay time pitch next_event event = do
     let start_x = next_event + delay
-    start_pitch <- Score.raw_pitch_at start_x event
+    start_pitch <- Score.pitch_at start_x event
     return $ merge_curve interpolator start_x start_pitch
         (start_x + time) pitch event
 

@@ -128,11 +128,11 @@ c_norot = Derive.make_call module_ "norot" mempty
     ) $ \(dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
         start <- Args.real_start args
-        pitch <- Util.get_pitch start
+        pitch <- Util.get_transposed start
         scale <- Util.get_scale
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
-        pitch <- Util.get_raw_pitch start
+        pitch <- Util.get_pitch start
         realize_kotekan_pattern (Args.range args) dur pitch under_threshold
             Repeat (gangsa_norot style pasang nsteps)
 
@@ -160,11 +160,11 @@ c_norot_pickup = Derive.make_call module_ "norot" mempty "Emit norot pickup."
     ) $ \(dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
         start <- Args.real_start args
-        pitch <- Util.get_pitch start
+        pitch <- Util.get_transposed start
         scale <- Util.get_scale
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
-        pitch <- Util.get_raw_pitch start
+        pitch <- Util.get_pitch start
         realize_kotekan_pattern (Args.range args) dur pitch under_threshold
             Once (gangsa_norot_pickup style pasang nsteps)
 
@@ -212,7 +212,7 @@ c_gender_norot = Derive.make_call module_ "gender-norot" mempty
     "Gender-style norot."
     $ Sig.call ((,,) <$> dur_arg <*> kotekan_env <*> pasang_env)
     $ \(dur, kotekan, pasang) -> Sub.inverting $ \args -> do
-        pitch <- Util.get_raw_pitch =<< Args.real_start args
+        pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern (Args.range args) dur pitch under_threshold
             Repeat (gender_norot pasang)
@@ -242,7 +242,7 @@ c_kotekan pattern = Derive.make_call module_ "kotekan" mempty
     <*> kotekan_env <*> pasang_env
     ) $ \(dur, TrackLang.E style, kotekan, pasang) ->
     Sub.inverting $ \args -> do
-        pitch <- Util.get_raw_pitch =<< Args.real_start args
+        pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern (Args.range args) dur pitch under_threshold
             Repeat (kotekan_pattern pattern style pasang)

@@ -92,14 +92,14 @@ c_mordent default_neighbor = Derive.make_call Module.europe "mordent"
     ) $ \(TrackLang.DefaultDiatonic neighbor, (grace_dur, dyn, place)) ->
     Sub.inverting $ \args ->
         Lily.when_lilypond (lily_mordent args neighbor) $ do
-            pitch <- Util.get_raw_pitch =<< Args.real_start args
+            pitch <- Util.get_pitch =<< Args.real_start args
             grace_call args dyn [pitch, Pitches.transpose neighbor pitch]
                 grace_dur place
 
 lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.NoteDeriver
 lily_mordent args neighbor = do
     start <- Args.real_start args
-    pitch <- Util.get_raw_pitch start
+    pitch <- Util.get_pitch start
     lily_grace args start [pitch, Pitches.transpose neighbor pitch]
 
 -- | Grace is in the prelude since it's so commonly used.  Mordent and the
@@ -112,7 +112,7 @@ c_grace = Derive.make_call Module.prelude "grace" (Tags.ornament <> Tags.ly)
     <$> grace_pitches_arg <*> grace_envs
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
-        base <- Util.get_raw_pitch start
+        base <- Util.get_pitch start
         pitches <- resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args start pitches) $
             grace_call args dyn pitches grace_dur place
@@ -158,7 +158,7 @@ roll :: Int -> TrackLang.Duration -> Signal.Y -> Derive.PassedArgs a
     -> Derive.NoteDeriver
 roll times time dyn_scale args = do
     start <- Args.real_start args
-    pitch <- Util.get_raw_pitch start
+    pitch <- Util.get_pitch start
     repeat_notes (Util.with_pitch pitch Util.note) times time dyn_scale args
 
 repeat_notes :: Derive.NoteDeriver -> Int -> TrackLang.Duration -> Signal.Y
@@ -207,7 +207,7 @@ c_grace_attr supported =
     <$> grace_pitches_arg <*> grace_envs
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
-        base <- Util.get_raw_pitch start
+        base <- Util.get_pitch start
         pitches <- resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args start pitches) $ do
             maybe_attrs <- grace_attrs start supported pitches base
@@ -222,7 +222,7 @@ c_grace_attr supported =
         grace_dur <- Util.score_duration start grace_dur
         dyn <- Util.dynamic real_start
         let before = fromIntegral notes * grace_dur
-        pitch <- Util.get_raw_pitch real_start
+        pitch <- Util.get_pitch real_start
         Derive.place (start - before) (dur + before) $
             Util.add_attrs attrs $ Util.with_dynamic dyn $
             Util.pitched_note pitch

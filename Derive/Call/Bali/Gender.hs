@@ -62,7 +62,7 @@ ngoret module_ add_damped_tag damp_arg transpose =
         "The grace note's dyn will be this multiplier of the current dyn."
     ) $ \(time, damp, dyn_scale) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
-        transpose <- maybe (infer_transpose args =<< Util.get_pitch start)
+        transpose <- maybe (infer_transpose args =<< Util.get_transposed start)
             return transpose
         time <- Derive.real =<< Util.time_control_at Util.Real time start
         damp <- Util.time_control_at Util.Real damp start
@@ -82,7 +82,7 @@ ngoret module_ add_damped_tag damp_arg transpose =
             with_tag
                 | add_damped_tag && prev_touches = Util.add_attrs damped_tag
                 | otherwise = id
-        pitch <- Util.get_raw_pitch start
+        pitch <- Util.get_pitch start
         Derive.place grace_start (grace_end - grace_start)
                 (with_tag $ Util.with_dynamic (dyn * dyn_scale) $
                     Util.pitched_note (Pitches.transpose transpose pitch))

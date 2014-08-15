@@ -50,7 +50,7 @@ c_chord dir = Derive.make_call Module.europe "chord" mempty
     <$> Sig.defaulted "name" "" "Chord name."
     <*> time_env
     ) $ \(name, time) -> Sub.inverting $ \args -> do
-        base <- Util.get_raw_pitch =<< Args.real_start args
+        base <- Util.get_pitch =<< Args.real_start args
         intervals <- Derive.require_right id $ parse_chord base name
         from_intervals dir base intervals time args
 
@@ -77,7 +77,7 @@ c_stack dir = Derive.make_call Module.europe "stack" mempty
         \ major third, and perfect fourth respectively."
     <*> time_env
     ) $ \(intervals, time) -> Sub.inverting $ \args -> do
-        base <- Util.get_raw_pitch =<< Args.real_start args
+        base <- Util.get_pitch =<< Args.real_start args
         intervals <- resolve_intervals base intervals
         from_intervals dir base intervals time args
 

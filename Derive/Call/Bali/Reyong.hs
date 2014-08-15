@@ -361,7 +361,7 @@ reyong_damp damp_attr dyn dur =
 
 damped_note :: Score.Attributes -> Signal.Y -> Score.Event -> Derive.NoteDeriver
 damped_note attr dyn event =
-    case Score.raw_pitch_at (Score.event_start event) event of
+    case Score.pitch_at (Score.event_start event) event of
         Nothing -> Derive.throw $ "no pitch on " <> pretty event
         Just pitch -> do
             end <- Derive.score (Score.event_end event)

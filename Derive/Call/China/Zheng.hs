@@ -80,7 +80,7 @@ make_gliss name is_absolute = Derive.make_call module_ name mempty
     \args -> do
         end <- Args.real_start args
         time <- Util.real_duration end time
-        dest_pitch <- Util.get_raw_pitch end
+        dest_pitch <- Util.get_pitch end
         dest_dyn <- Util.dynamic end
         let start_dyn = fromMaybe dest_dyn maybe_start_dyn
         pitches <- gliss_pitches open_strings dest_pitch gliss_start
@@ -128,7 +128,7 @@ c_note_trill start_dir = Derive.make_call module_ "tr" Tags.ly
     $ Sig.call ((,,) <$> neighbor_arg <*> speed_arg <*> Trill.hold_env
     ) $ \(neighbor, speed, hold) -> Sub.inverting $ \args ->
     Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
-        pitch <- Util.get_raw_pitch =<< Args.real_start args
+        pitch <- Util.get_pitch =<< Args.real_start args
         sig <- trill_signal start_dir pitch neighbor speed hold args
         Derive.with_pitch Nothing sig $ Util.placed_note args
 
