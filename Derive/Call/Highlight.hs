@@ -9,6 +9,7 @@ import qualified Data.Maybe as Maybe
 import qualified Util.ApproxEq as ApproxEq
 import Util.Control
 import qualified Ui.Color as Color
+import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Derive as Derive
@@ -21,6 +22,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
@@ -50,8 +52,10 @@ c_highlight_strings = Derive.transformer Module.prelude "highlight-strings"
     $ Sig.callt
     ( TrackLang.get_e <$> Sig.environ "open" Sig.Prefixed (TrackLang.E False)
         "If true, put Info on open strings, else put Warning on non-open ones."
-    ) $ \highlight_open _ ->
-        open_strings (if highlight_open then notice_open else warn_non_open)
+    ) $ \highlight_open args deriver -> do
+        pos <- Args.real_start args
+        open_strings pos (if highlight_open then notice_open else warn_non_open)
+            deriver
 
 warn_non_open :: Bool -> Maybe Color.Highlight
 warn_non_open open = if open then Nothing else Just Color.Warning
@@ -59,14 +63,17 @@ warn_non_open open = if open then Nothing else Just Color.Warning
 notice_open :: Bool -> Maybe Color.Highlight
 notice_open open = if open then Just Color.Notice else Nothing
 
-open_strings :: (Bool -> Maybe Color.Highlight)
+open_strings :: RealTime -> (Bool -> Maybe Color.Highlight)
     -- ^ True if this note is on an open string.
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-open_strings highlight deriver = do
+open_strings pos highlight deriver = do
     maybe_pitches <- Derive.lookup_val Environ.open_strings
+    maybe_pitches <- case maybe_pitches of
+        Just pitches -> Just <$> mapM (Derive.resolve_pitch pos) pitches
+        Nothing -> return Nothing
     maybe id (\pitches -> fmap (Post.map (apply pitches))) maybe_pitches deriver
     where
-    apply :: [PitchSignal.Pitch] -> Score.Event -> Score.Event
+    apply :: [PitchSignal.Transposed] -> Score.Event -> Score.Event
     apply pitches event = case Score.initial_nn event of
         Just nn -> case highlight (any (same_pitch nn) pitches) of
             Nothing -> event
@@ -105,23 +112,6 @@ out_of_range deriver = do
             nn <- Score.initial_nn event
             return $ maybe False (<nn) maybe_top
                 || maybe False (>nn) maybe_bottom
-
--- out_of_range :: Derive.NoteDeriver -> Derive.NoteDeriver
--- out_of_range deriver = do
---     scale <- Util.get_scale
---     maybe_top <- Derive.lookup_val Environ.instrument_top
---     maybe_bottom <- Derive.lookup_val Environ.instrument_bottom
---     if all Maybe.isNothing [maybe_top, maybe_bottom] then deriver
---         else Post.map (apply scale maybe_top maybe_bottom) <$> deriver
---     where
---     apply scale maybe_top maybe_bottom event
---         | out_of_range = add_highlight Color.Warning event
---         | otherwise = event
---         where
---         out_of_range = fromMaybe False $ do
---             pitch <- initial_pitch scale event
---             return $ maybe False (<pitch) maybe_top
---                 || maybe False (>pitch) maybe_bottom
 
 initial_pitch :: Scale.Scale -> Score.Event -> Maybe Pitch.Pitch
 initial_pitch scale event = do

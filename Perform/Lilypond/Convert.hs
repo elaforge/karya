@@ -108,7 +108,7 @@ convert_pitch event = case Score.initial_pitch event of
 
 -- | If it's @*twelve@ then use pitch_note, else use pitch_nn and pick the
 -- closest pitch.
-pitch_to_lily :: PitchSignal.Pitch -> Either Text Pitch
+pitch_to_lily :: PitchSignal.Transposed -> Either Text Pitch
 pitch_to_lily pitch
     | PitchSignal.pitch_scale_id pitch == Twelve.scale_id = do
         note <- either (Left . showt) Right $ PitchSignal.pitch_note pitch

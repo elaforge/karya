@@ -369,7 +369,7 @@ c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
     \ previous pitch."
     $ Sig.call0 $ \args -> do
         start <- Args.real_start args
-        pitch <- Util.get_pitch start
+        pitch <- Util.get_raw_pitch start
         return $ PitchSignal.signal [(start, pitch)]
 
 c_from :: Bool -> Bool -> Derive.Generator Derive.Pitch
@@ -387,7 +387,7 @@ c_from from_prev fade_in = generator1 "from" mempty
     ) $ \(from_pitch, TrackLang.DefaultReal time, maybe_to_pitch) args -> do
         start <- Args.real_start args
         end <- get_end start time args
-        current_pitch <- Util.get_pitch start
+        current_pitch <- Util.get_raw_pitch start
         let to_pitch = maybe current_pitch
                 (PitchUtil.resolve_pitch_transpose current_pitch)
                 maybe_to_pitch
@@ -459,7 +459,7 @@ c_jaru append_zero = generator1 "jaru" mempty
         end <- get_end start
             (TrackLang.multiply_duration time_ len) args
         let time = (end - start) / fromIntegral len
-        pitch <- Util.get_pitch start
+        pitch <- Util.get_raw_pitch start
         srate <- Util.get_srate
         (intervals, control) <- parse intervals
         let transition = fromMaybe time maybe_transition
@@ -496,7 +496,7 @@ c_flat = generator1 "flat" mempty "Emit a flat pitch."
         pitch <- case maybe_pitch of
             Nothing -> prev_pitch start args
             Just transpose -> do
-                pitch <- Util.get_pitch start
+                pitch <- Util.get_raw_pitch start
                 return $ PitchUtil.resolve_pitch_transpose pitch transpose
         return $ PitchSignal.signal [(start, pitch)]
             <> PitchSignal.signal [(end, pitch)]
@@ -655,7 +655,7 @@ align_to_end start end dur = do
 -- long it is.
 prev_pitch :: RealTime -> Derive.PitchArgs -> Derive.Deriver PitchSignal.Pitch
 prev_pitch start args = case Args.prev_pitch args of
-    Nothing -> Util.get_pitch start
+    Nothing -> Util.get_raw_pitch start
     Just (_, pitch) -> return pitch
 
 resolve_pitch :: Derive.PitchArgs -> PitchSignal.Pitch

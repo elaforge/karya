@@ -25,8 +25,9 @@ deriving instance Eq TrackLang.Quoted
 
 instance Eq PitchSignal.Signal where
     sig1 == sig2 = PitchSignal.unsignal sig1 == PitchSignal.unsignal sig2
-instance Eq PitchSignal.Pitch where
-    p1 == p2 = PitchSignal.pitch_nn p1 == PitchSignal.pitch_nn p2
+instance Eq (PitchSignal.RawPitch a) where
+    p1 == p2 = PitchSignal.pitch_nn (PitchSignal.coerce p1)
+        == PitchSignal.pitch_nn (PitchSignal.coerce p2)
 
 instance Eq Cmd.Status where
     Cmd.Done == Cmd.Done = True

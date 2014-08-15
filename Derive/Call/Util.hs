@@ -242,15 +242,16 @@ nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
 nn_at pos control = -- TODO throw exception?
     Derive.logged_pitch_nn ("Util.nn_at " ++ pretty (pos, control))
+        =<< Derive.resolve_pitch pos
         =<< pitch_at pos control
 
 -- * dynamic
 
 -- | Unlike 'Derive.pitch_at', the transposition has already been applied.
-pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Pitch)
+pitch :: RealTime -> Derive.Deriver (Maybe PitchSignal.Transposed)
 pitch pos = justm (Derive.pitch_at pos) $ fmap Just . Derive.resolve_pitch pos
 
-get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
+get_pitch :: RealTime -> Derive.Deriver PitchSignal.Transposed
 get_pitch pos = Derive.require ("no pitch at " <> pretty pos) =<< pitch pos
 
 -- | Pitch without the transposition applied.  You have to use this if you

@@ -185,7 +185,7 @@ annotate_nns modify = annotate_controls (modify . map (second (eval <=< fst)))
     where eval = either (const Nothing) Just . PitchSignal.pitch_nn
 
 annotate_controls :: Cmd.M m =>
-    Annotated (Maybe PitchSignal.Pitch, Score.ControlValMap) m
+    Annotated (Maybe PitchSignal.Transposed, Score.ControlValMap) m
     -> ModifyNotes m
 annotate_controls modify block_id note_track_ids = do
     events <- Cmd.perf_events <$> Cmd.get_performance block_id
@@ -196,17 +196,15 @@ annotate_controls modify block_id note_track_ids = do
 -- inaccurate, and inefficient too.  Shouldn't I look up the signal directly
 -- from the performance?
 find_controls :: [(Note, TrackId)] -> Cmd.Events
-    -> [(Note, (Maybe PitchSignal.Pitch, Score.ControlValMap))]
+    -> [(Note, (Maybe PitchSignal.Transposed, Score.ControlValMap))]
 find_controls note_track_ids events =
     zip (map fst note_track_ids) $
         map (extract . convert events) note_track_ids
     where
     convert events (note, track_id) = find_event track_id note events
     extract Nothing = (Nothing, mempty)
-    extract (Just event) =
-        (PitchSignal.at start (Score.event_pitch event),
-            Score.event_controls_at start event)
-        where start = Score.event_start event
+    extract (Just event) = (Score.initial_pitch event,
+        Score.event_controls_at (Score.event_start event) event)
 
 find_event :: TrackId -> Note -> Cmd.Events -> Maybe Score.Event
 find_event track_id note = Vector.find $ \event ->

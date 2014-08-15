@@ -170,9 +170,10 @@ no_pitch_signals = all (PitchSignal.null . Score.event_pitch)
 pitch_signal_events :: Score.Event -> ([Event.Event], [String])
 pitch_signal_events event = (ui_events, pitch_errs)
     where
-    (xs, ys) = unzip $ align_pitch_signal (Score.event_start event) $
-        Score.event_pitch event
-    pitches = zip3 xs ys (map PitchSignal.pitch_note ys)
+    start = Score.event_start event
+    (xs, ys) = unzip $ align_pitch_signal start $ Score.event_pitch event
+    pitches = zip3 xs ys
+        (map (PitchSignal.pitch_note . Score.apply_controls event start) ys)
     pitch_errs =
         [pretty x ++ ": converting " ++ pretty p ++ " " ++ pretty err
             | (x, p, Left err) <- pitches]

@@ -273,7 +273,7 @@ computed_input_to_nn input_to_note note_to_call pos input = do
             TrackLang.VPitch pitch -> do
                 controls <- Derive.controls_at =<< Derive.real pos
                 p <- Derive.require_right (("evaluating pich: " <>) . pretty) $
-                    PitchSignal.eval_pitch pitch
+                    PitchSignal.eval_pitch (PitchSignal.coerce pitch)
                         (PitchSignal.PitchConfig environ controls)
                 return $ Right p
             _ -> Derive.throw $ "non-pitch from pitch call: " <> pretty val

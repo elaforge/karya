@@ -2,9 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeFamilies, RankNTypes #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Derive.PitchSignal (
-    Signal, sig_scale_id
+    Signal, Transposed, RawPitch, sig_scale_id
     , Scale(Scale), no_scale
     -- * construct and convert
     , constant, signal, unsignal, to_nn
@@ -20,10 +20,11 @@ module Derive.PitchSignal (
     , Pitch, PitchConfig(..), pitch_scale_id, pitch_transposers
     , pitch_controls
     , PitchError(..)
-    , pitch, pitch_scale
+    , pitch, coerce, pitch_scale
     , apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
 ) where
 import Prelude hiding (head, take, drop, last, null)
+import qualified Data.Coerce as Coerce
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -36,8 +37,8 @@ import qualified Util.TimeVector as TimeVector
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as TrackLang
 import Derive.BaseTypes
-       (Signal(..), Pitch(..), Scale(..), PitchConfig(..), ControlValMap,
-        PitchError(..))
+       (Signal(..), Transposed, Pitch, RawPitch(..), Scale(..), PitchConfig(..),
+        ControlValMap, PitchError(..))
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -96,7 +97,7 @@ to_nn sig = (Signal.signal nns, Set.toList errs)
     where
     (errs, nns) = split (unsignal sig)
     split [] = (Set.empty, [])
-    split ((x, pitch) : rest) = case pitch_nn pitch of
+    split ((x, pitch) : rest) = case pitch_nn (coerce pitch) of
             -- TODO does this make a giant stack of thunks?
             Left err -> (Set.insert err errs, nns)
             Right (Pitch.NoteNumber nn) -> (errs, (x, nn) : nns)
@@ -121,7 +122,8 @@ apply_controls environ controls sig
     | otherwise = sig { sig_vec = resampled }
     where
     resampled = TimeVector.sig_op2 initial_controls initial_pitch
-        (apply environ) (sample_controls controls (sig_transposers sig))
+        (\vmap -> coerce . apply environ vmap)
+        (sample_controls controls (sig_transposers sig))
         (sig_vec sig)
     TimeVector.Sample start initial_pitch = V.unsafeHead (sig_vec sig)
     initial_controls = controls_at start controls
@@ -203,7 +205,10 @@ pitch scale nn note = Pitch
     , pitch_scale = scale
     }
 
-pitch_scale_id :: Pitch -> Pitch.ScaleId
+coerce :: RawPitch a -> RawPitch b
+coerce = Coerce.coerce
+
+pitch_scale_id :: RawPitch a -> Pitch.ScaleId
 pitch_scale_id = pscale_scale_id . pitch_scale
 
 pitch_transposers :: Pitch -> Set.Set Score.Control
@@ -213,27 +218,27 @@ pitch_controls :: PitchConfig -> ControlValMap
 pitch_controls (PitchConfig _ controls) = controls
 
 -- | Apply controls to a pitch.
-apply :: TrackLang.Environ -> ControlValMap -> Pitch -> Pitch
+apply :: TrackLang.Environ -> ControlValMap -> Pitch -> Transposed
 apply environ controls pitch = pitch
     { pitch_eval_nn = \config2 -> pitch_eval_nn pitch $! config2 <> config
     , pitch_eval_note = \config2 -> pitch_eval_note pitch $! config2 <> config
     } where config = PitchConfig environ controls
 
-add_control :: Score.Control -> Double -> Pitch -> Pitch
+add_control :: Score.Control -> Double -> RawPitch a -> RawPitch a
 add_control control val pitch = pitch
     { pitch_eval_nn = \config2 -> pitch_eval_nn pitch $! config2 <> config
     , pitch_eval_note = \config2 -> pitch_eval_note pitch $! config2 <> config
     }
     where config = PitchConfig mempty (Map.singleton control val)
 
-eval_pitch :: Pitch -> PitchConfig -> Either PitchError Pitch.NoteNumber
+eval_pitch :: Transposed -> PitchConfig -> Either PitchError Pitch.NoteNumber
 eval_pitch = pitch_eval_nn
 
-eval_note :: Pitch -> PitchConfig -> Either PitchError Pitch.Note
+eval_note :: Transposed -> PitchConfig -> Either PitchError Pitch.Note
 eval_note = pitch_eval_note
 
-pitch_nn :: Pitch -> Either PitchError Pitch.NoteNumber
+pitch_nn :: Transposed -> Either PitchError Pitch.NoteNumber
 pitch_nn p = eval_pitch p mempty
 
-pitch_note :: Pitch -> Either PitchError Pitch.Note
+pitch_note :: Transposed -> Either PitchError Pitch.Note
 pitch_note p = eval_note p mempty

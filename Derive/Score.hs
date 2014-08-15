@@ -214,15 +214,18 @@ controls_at p = Map.map (typed_val . control_val_at p)
 -- pitch plus some homework to do on the pitch.  If you use this pitch to emit
 -- another pitch you proabbly need the raw pitch, but so far everyone doing
 -- that is at the Derive level, not postproc, so they use Derive.pitch_at.
-pitch_at :: RealTime -> Event -> Maybe PitchSignal.Pitch
-pitch_at pos event =
-    apply_controls event pos <$> PitchSignal.at pos (event_pitch event)
+pitch_at :: RealTime -> Event -> Maybe PitchSignal.Transposed
+pitch_at pos event = apply_controls event pos <$> raw_pitch_at pos event
 
-apply_controls :: Event -> RealTime -> PitchSignal.Pitch -> PitchSignal.Pitch
+raw_pitch_at :: RealTime -> Event -> Maybe PitchSignal.Pitch
+raw_pitch_at pos event = PitchSignal.at pos (event_pitch event)
+
+apply_controls :: Event -> RealTime -> PitchSignal.Pitch
+    -> PitchSignal.Transposed
 apply_controls event pos =
     PitchSignal.apply (event_environ event) (event_controls_at pos event)
 
-initial_pitch :: Event -> Maybe PitchSignal.Pitch
+initial_pitch :: Event -> Maybe PitchSignal.Transposed
 initial_pitch event = pitch_at (event_start event) event
 
 nn_at :: RealTime -> Event -> Maybe Pitch.NoteNumber

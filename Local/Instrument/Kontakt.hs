@@ -22,6 +22,7 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Repl.LInst as LInst
 
+import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Bali.Kotekan as Kotekan
@@ -205,8 +206,10 @@ guzheng = MidiInst.with_code code
 c_highlight_strings :: Derive.Generator Derive.Note
 c_highlight_strings = Note.transformed_note
     ("Highlight any notes whose initial pitch either is or isn't in "
-    <> ShowVal.doc_val Environ.open_strings <> ".") mempty $ const $
-    Highlight.out_of_range . Highlight.open_strings Highlight.warn_non_open
+    <> ShowVal.doc_val Environ.open_strings <> ".") mempty $ \args deriver -> do
+        start <- Args.real_start args
+        Highlight.out_of_range $
+            Highlight.open_strings start Highlight.warn_non_open deriver
 
 sc_bali :: [MidiInst.Patch]
 sc_bali = MidiInst.with_code mute_null_call

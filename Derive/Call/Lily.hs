@@ -246,15 +246,13 @@ note_pitch :: Derive.NoteDeriver -> Derive.Deriver Note
 note_pitch deriver = do
     events <- deriver
     event <- require "had no event" $ Seq.head (LEvent.events_of events)
-    pitch <- require "note had no pitch" $ Score.initial_pitch event
-    let controls = Score.event_controls_at (Score.event_start event) event
-    pitch_to_lily $ PitchSignal.apply (Score.event_environ event) controls pitch
+    pitch_to_lily =<< require "note had no pitch" (Score.initial_pitch event)
     -- Wow, there are a lot of ways to fail.
     where
     require = Derive.require . (prefix <>)
     prefix = "Lily.note_pitch: "
 
-pitch_to_lily :: PitchSignal.Pitch -> Derive.Deriver Note
+pitch_to_lily :: PitchSignal.Transposed -> Derive.Deriver Note
 pitch_to_lily =
     Derive.require_right (untxt . ("Lily.pitch_to_lily: "<>))
         . Convert.pitch_to_lily

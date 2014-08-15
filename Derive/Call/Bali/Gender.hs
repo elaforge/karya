@@ -88,7 +88,7 @@ ngoret module_ add_damped_tag damp_arg transpose =
                     Util.pitched_note (Pitches.transpose transpose pitch))
             <> Derive.place (Args.start args) (Args.duration args) Util.note
 
-infer_transpose :: Derive.NoteArgs -> PitchSignal.Pitch
+infer_transpose :: Derive.NoteArgs -> PitchSignal.Transposed
     -> Derive.Deriver Pitch.Transpose
 infer_transpose args pitch = do
     prev <- Derive.require "no previous event" $ Args.prev_val args

@@ -360,12 +360,13 @@ reyong_damp damp_attr dyn dur =
         . zip_on (can_damp dur)
 
 damped_note :: Score.Attributes -> Signal.Y -> Score.Event -> Derive.NoteDeriver
-damped_note attr dyn event = case Score.initial_pitch event of
-    Nothing -> Derive.throw $ "no pitch on " <> pretty event
-    Just pitch -> do
-        end <- Derive.score (Score.event_end event)
-        Util.add_attrs attr $ Util.multiply_dynamic dyn $
-            Derive.place end 0 $ Util.pitched_note pitch
+damped_note attr dyn event =
+    case Score.raw_pitch_at (Score.event_start event) event of
+        Nothing -> Derive.throw $ "no pitch on " <> pretty event
+        Just pitch -> do
+            end <- Derive.score (Score.event_end event)
+            Util.add_attrs attr $ Util.multiply_dynamic dyn $
+                Derive.place end 0 $ Util.pitched_note pitch
 
 can_damp :: RealTime -> [Score.Event] -> [Bool]
 can_damp dur = snd . List.mapAccumL damp (0, 0) . zip_next . assign_hands

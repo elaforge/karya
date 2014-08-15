@@ -80,7 +80,7 @@ make_gliss name is_absolute = Derive.make_call module_ name mempty
     \args -> do
         end <- Args.real_start args
         time <- Util.real_duration end time
-        dest_pitch <- Util.get_pitch end
+        dest_pitch <- Util.get_raw_pitch end
         dest_dyn <- Util.dynamic end
         let start_dyn = fromMaybe dest_dyn maybe_start_dyn
         pitches <- gliss_pitches open_strings dest_pitch gliss_start
@@ -93,9 +93,9 @@ make_gliss name is_absolute = Derive.make_call module_ name mempty
 gliss_pitches :: [PitchSignal.Pitch] -> PitchSignal.Pitch -> Int
     -> Derive.Deriver [PitchSignal.Pitch]
 gliss_pitches open_strings dest_pitch gliss_start = do
-    dest_nn <- Pitches.pitch_nn dest_pitch
+    dest_nn <- Pitches.pitch_nn $ PitchSignal.coerce dest_pitch
     -- TODO shouldn't need to eval them all
-    open_nns <- mapM Pitches.pitch_nn open_strings
+    open_nns <- mapM (Pitches.pitch_nn . PitchSignal.coerce) open_strings
     let strings = Seq.sort_on snd $ zip open_strings open_nns
     -- 0 2 4 6 8 10
     return $ if gliss_start >= 0
@@ -128,7 +128,7 @@ c_note_trill start_dir = Derive.make_call module_ "tr" Tags.ly
     $ Sig.call ((,,) <$> neighbor_arg <*> speed_arg <*> Trill.hold_env
     ) $ \(neighbor, speed, hold) -> Sub.inverting $ \args ->
     Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
-        pitch <- Util.get_pitch =<< Args.real_start args
+        pitch <- Util.get_raw_pitch =<< Args.real_start args
         sig <- trill_signal start_dir pitch neighbor speed hold args
         Derive.with_pitch Nothing sig $ Util.placed_note args
 

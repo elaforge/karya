@@ -169,14 +169,17 @@ c_nn :: Derive.ValCall
 c_nn = val_call "nn" mempty
     "Convert a pitch or hz to a NoteNumber." $ Sig.call (required "val" "") $
     \val _ -> case val of
-        Left pitch -> realToFrac <$> Pitches.pitch_nn pitch
+        Left pitch -> realToFrac <$> Pitches.pitch_nn
+            (PitchSignal.coerce (pitch :: PitchSignal.Pitch))
         Right hz -> return (realToFrac (Pitch.hz_to_nn hz) :: Double)
 
 c_hz :: Derive.ValCall
 c_hz = val_call "hz" mempty
     "Convert a pitch or NoteNumber to hz." $ Sig.call (required "val" "") $
     \val _ -> case val of
-        Left pitch -> Pitch.nn_to_hz <$> Pitches.pitch_nn pitch
+        Left pitch -> Pitch.nn_to_hz <$>
+            Pitches.pitch_nn (PitchSignal.coerce (pitch :: PitchSignal.Pitch))
+            -- Not transposed because they asked for a specific pitch.
         Right nn -> return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
 
 c_list :: Derive.ValCall
@@ -217,7 +220,8 @@ make_pitch (Right name_pitch) pc accs
     | otherwise = do
         (note, scale) <- case name_pitch of
             Left name -> (,) <$> return (Pitch.Note name) <*> Util.get_scale
-            Right pitch -> (,) <$> Pitches.pitch_note pitch
+            Right pitch -> (,)
+                <$> Pitches.pitch_note (PitchSignal.coerce pitch)
                 <*> Derive.get_scale (PitchSignal.pitch_scale_id pitch)
         key <- Util.lookup_key
         either (Derive.throw . pretty) return $

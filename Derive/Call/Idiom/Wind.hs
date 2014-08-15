@@ -6,6 +6,7 @@
 module Derive.Call.Idiom.Wind where
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
@@ -39,8 +40,11 @@ c_wind_idiom = Derive.transformer module_ "wind-idiom"
     \\nThe decay of the note will be shifted to the corresponding harmonic\
     \ of the the fundamental of the subsequent note.  If the fundamentals are\
     \ the same then the pitch will remain constant, of course."
-    $ Sig.callt fundamentals_env $ \fundamentals _args deriver -> do
-        fundamentals <- mapM (either return Pitches.pitch_nn) fundamentals
+    $ Sig.callt fundamentals_env $ \fundamentals args deriver -> do
+        start <- Args.real_start args
+        fundamentals <- mapM
+            (either return (Pitches.pitch_nn <=< Derive.resolve_pitch start))
+            fundamentals
         wind_idiom (map Pitch.nn_to_hz fundamentals) =<< deriver
 
 type Fundamentals = [Pitch.Hz]

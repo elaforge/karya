@@ -125,9 +125,11 @@ relative_scale_degree scale named_intervals initial_interval =
             Derive.TagPitch prev <- Args.prev_val args
             modify interval <$> PitchSignal.at start prev
     where
-    modify interval pitch =
-        PitchSignal.pitch scale (pitch_nn interval pitch)
-            (PitchSignal.eval_note pitch)
+    modify interval pitch = PitchSignal.pitch scale
+        (pitch_nn interval (PitchSignal.coerce pitch))
+        (PitchSignal.eval_note (PitchSignal.coerce pitch))
+        -- The coerces are ok because I'm making another untransposed pitch out
+        -- of this one.
     pitch_nn interval pitch controls = do
         nn <- PitchSignal.eval_pitch pitch controls
         return $ Pitch.modify_hz (*interval) nn

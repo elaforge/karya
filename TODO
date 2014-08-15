@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   * wayang/delima-manis: out of range for patch scale: [(0s, 88.85)]
-  - The problem is transposed pitch vs. raw pitch.  This is error prone, is
+  * The problem is transposed pitch vs. raw pitch.  This is error prone, is
     there a better way to solve it?
     . I could make separate types, or at least aliases to start with.  The key
       is that I want to compare transposed pitches to each other, but the
@@ -14,6 +14,11 @@ UNSORTED
     . So it should be enough to have Derive.pitch_at return Pitch, and
       Util.pitch return TransposedPitch, and only allow comparisons with
       TransposedPitch.  That means Pitches.pitch_nn takes a TransposedPitch.
+    . If I do it with a phantom type, then I can have the signal controls
+      apply to both Signal Transposed and Signal Raw.  But I'd want
+      Signal Transposed -> Pitch Transposed.  I could do that with a type
+      family.  But do I really need to get that fancy?
+
   * 'make_scale' functions should all take ScaleId as the first arg
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.

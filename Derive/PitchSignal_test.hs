@@ -54,5 +54,6 @@ trans1 = "trans1"
 trans2 = "trans2"
 
 unsignal :: PitchSignal.Signal -> [(RealTime, Either String Pitch.NoteNumber)]
-unsignal = map (second (unerror . PitchSignal.pitch_nn)) . PitchSignal.unsignal
+unsignal = map (second (unerror . PitchSignal.pitch_nn . PitchSignal.coerce))
+        . PitchSignal.unsignal
     where unerror = either (\(PitchSignal.PitchError s) -> Left (untxt s)) Right

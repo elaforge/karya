@@ -29,30 +29,31 @@ interpolated low high dist =
     PitchSignal.pitch (PitchSignal.pitch_scale low) nn note
     where
     nn controls = do
-        low_nn <- PitchSignal.eval_pitch low controls
-        high_nn <- PitchSignal.eval_pitch high controls
+        low_nn <- PitchSignal.eval_pitch (PitchSignal.coerce low) controls
+        high_nn <- PitchSignal.eval_pitch (PitchSignal.coerce high) controls
         return $ Num.scale low_nn high_nn (Pitch.NoteNumber dist)
-    note = PitchSignal.eval_note (if dist < 1 then low else high)
+    note = PitchSignal.eval_note $ PitchSignal.coerce $
+        if dist < 1 then low else high
 
 -- | Transpose a pitch.
-transpose :: Pitch.Transpose -> PitchSignal.Pitch -> PitchSignal.Pitch
+transpose :: Pitch.Transpose -> PitchSignal.RawPitch a -> PitchSignal.RawPitch a
 transpose t = PitchSignal.add_control control val
     where (val, control) = Controls.transpose_control t
 
-transpose_d :: Pitch.Step -> PitchSignal.Pitch -> PitchSignal.Pitch
+transpose_d :: Pitch.Step -> PitchSignal.RawPitch a -> PitchSignal.RawPitch a
 transpose_d = transpose . Pitch.Diatonic . fromIntegral
 
-transpose_c :: Pitch.Step -> PitchSignal.Pitch -> PitchSignal.Pitch
+transpose_c :: Pitch.Step -> PitchSignal.RawPitch a -> PitchSignal.RawPitch a
 transpose_c = transpose . Pitch.Chromatic . fromIntegral
 
 -- | Convert a Pitch to a NoteNumber, throwing an exception if the pitch
 -- failed.
-pitch_nn :: PitchSignal.Pitch -> Derive.Deriver Pitch.NoteNumber
+pitch_nn :: PitchSignal.Transposed -> Derive.Deriver Pitch.NoteNumber
 pitch_nn = either (Derive.throw . ("evaluating pitch: " ++) . pretty)
     return . PitchSignal.pitch_nn
 
 -- | Like 'pitch_nn', but return the Note.
-pitch_note :: PitchSignal.Pitch -> Derive.Deriver Pitch.Note
+pitch_note :: PitchSignal.Transposed -> Derive.Deriver Pitch.Note
 pitch_note = either (Derive.throw . ("evaluating pitch: " ++) . pretty)
     return . PitchSignal.pitch_note
 

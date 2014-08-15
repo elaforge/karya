@@ -127,10 +127,12 @@ c_norot = Derive.make_call module_ "norot" mempty
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
     ) $ \(dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
-        pitch <- Util.get_pitch =<< Args.real_start args
+        start <- Args.real_start args
+        pitch <- Util.get_pitch start
         scale <- Util.get_scale
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
+        pitch <- Util.get_raw_pitch start
         realize_kotekan_pattern (Args.range args) dur pitch under_threshold
             Repeat (gangsa_norot style pasang nsteps)
 
@@ -157,10 +159,12 @@ c_norot_pickup = Derive.make_call module_ "norot" mempty "Emit norot pickup."
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
     ) $ \(dur, TrackLang.E style, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
-        pitch <- Util.get_pitch =<< Args.real_start args
+        start <- Args.real_start args
+        pitch <- Util.get_pitch start
         scale <- Util.get_scale
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
+        pitch <- Util.get_raw_pitch start
         realize_kotekan_pattern (Args.range args) dur pitch under_threshold
             Once (gangsa_norot_pickup style pasang nsteps)
 
@@ -188,7 +192,9 @@ gangsa_norot_pickup style pasang (pstep, sstep) = (interlock, normal)
     polos = KotekanNote (Just (fst pasang))
     sangsih = KotekanNote (Just (snd pasang))
 
-norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> PitchSignal.Pitch
+norot_steps :: Scale.Scale -> Maybe Pitch.Pitch
+    -> PitchSignal.Transposed
+    -- ^ this is to figure out if the sangsih part will be in range
     -> NorotStyle -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
 norot_steps scale inst_top pitch style
     | out_of_range 1 = ((-1, 0), (-1, 0))
@@ -206,7 +212,7 @@ c_gender_norot = Derive.make_call module_ "gender-norot" mempty
     "Gender-style norot."
     $ Sig.call ((,,) <$> dur_arg <*> kotekan_env <*> pasang_env)
     $ \(dur, kotekan, pasang) -> Sub.inverting $ \args -> do
-        pitch <- Util.get_pitch =<< Args.real_start args
+        pitch <- Util.get_raw_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern (Args.range args) dur pitch under_threshold
             Repeat (gender_norot pasang)
@@ -236,7 +242,7 @@ c_kotekan pattern = Derive.make_call module_ "kotekan" mempty
     <*> kotekan_env <*> pasang_env
     ) $ \(dur, TrackLang.E style, kotekan, pasang) ->
     Sub.inverting $ \args -> do
-        pitch <- Util.get_pitch =<< Args.real_start args
+        pitch <- Util.get_raw_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern (Args.range args) dur pitch under_threshold
             Repeat (kotekan_pattern pattern style pasang)
@@ -480,7 +486,8 @@ instrument_top_env =
         "Top pitch this instrument can play. Normally the instrument sets\
         \ it via the instrument environ."
 
-note_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> PitchSignal.Pitch -> Bool
+note_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> PitchSignal.Transposed
+    -> Bool
 note_too_high scale maybe_top pitchv = fromMaybe False $ do
     top <- maybe_top
     note <- either (const Nothing) Just $ PitchSignal.pitch_note pitchv

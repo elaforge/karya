@@ -257,10 +257,22 @@ instance Monoid.Monoid PitchConfig where
     mappend (PitchConfig env1 c1) (PitchConfig env2 c2) =
         PitchConfig (env1 <> env2) (Map.unionWith (+) c1 c2)
 
+-- | This is an untransposed pitch.  All pitches have transposition signals
+-- from the dynamic state applied when they are converted to MIDI or whatever
+-- backend.  So if I want the final concrete pitch, I have to apply the
+-- transposition signals.  But if I want to emit a note with this pitch, I want
+-- the untransposed one, or the transposition will be applied twice.  I use
+-- a phantom type parameter to keep them straight.
+type Pitch = RawPitch Untransposed_
+-- | The transposed version of 'Pitch'.
+type Transposed = RawPitch Transposed_
+data Transposed_
+data Untransposed_
+
 -- | A pitch is an abstract value that can turn a map of values into
 -- a NoteNumber.  The values are expected to contain transpositions that this
 -- Pitch understands, for example 'Controls.chromatic' and 'Controls.diatonic'.
-data Pitch = Pitch {
+data RawPitch a = Pitch {
     pitch_eval_nn :: !(PitchConfig -> Either PitchError Pitch.NoteNumber)
     , pitch_eval_note :: !(PitchConfig -> Either PitchError Pitch.Note)
     , pitch_scale :: !Scale
@@ -290,21 +302,21 @@ instance Pretty.Pretty Scale where
 
 -- | It can't be reduced since it has lambdas, but at least this way you can
 -- easily rnf things that contain it.
-instance DeepSeq.NFData Pitch where
+instance DeepSeq.NFData (RawPitch a) where
     rnf _ = ()
 
-instance Show Pitch where
+instance Show (RawPitch a) where
     -- Show just the NN, so this is parseable by Util.PPrint.
     show p = either show pretty (pitch_eval_nn p mempty)
 
 -- | Will look like: 62.95nn,4i(*wayang)
-instance Pretty.Pretty Pitch where
+instance Pretty.Pretty (RawPitch a) where
     pretty p = either show pretty (pitch_eval_nn p mempty) <> ","
         <> either show (untxt . Pitch.note_text) (pitch_eval_note p mempty)
         <> "(" <> pretty (pitch_scale p) <> ")"
 
 -- | Pitches have no literal syntax, but I have to print something.
-instance ShowVal.ShowVal Pitch where
+instance ShowVal.ShowVal (RawPitch a) where
     show_val pitch = "<pitch: " <> prettyt pitch <> ">"
 
 -- | Error evaluating a pitch.

@@ -565,7 +565,7 @@ named_pitch_at name pos = do
 
 -- | Resolve the raw pitch returned from 'pitch_at' to the final transposed
 -- pitch.
-resolve_pitch :: RealTime -> PitchSignal.Pitch -> Deriver PitchSignal.Pitch
+resolve_pitch :: RealTime -> PitchSignal.Pitch -> Deriver PitchSignal.Transposed
 resolve_pitch pos pitch = do
     controls <- controls_at pos
     environ <- Internal.get_environ
@@ -589,7 +589,7 @@ named_nn_at name pos = do
             PitchSignal.apply environ controls pitch
 
 -- | Version of 'PitchSignal.pitch_nn' that logs errors.
-logged_pitch_nn :: String -> PitchSignal.Pitch
+logged_pitch_nn :: String -> PitchSignal.Transposed
     -> Deriver (Maybe Pitch.NoteNumber)
 logged_pitch_nn msg pitch = case PitchSignal.pitch_nn pitch of
     Left (PitchSignal.PitchError err) -> do
