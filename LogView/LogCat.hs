@@ -7,6 +7,7 @@
 -- TODO: formatting options
 module LogView.LogCat where
 import Control.Monad
+import qualified Data.Text.IO as Text.IO
 import qualified System.Environment as Environment
 import qualified System.IO as IO
 
@@ -25,4 +26,4 @@ main = do
     forever $ do
         line <- IO.hGetLine hdl
         msg <- Tail.deserialize_line line
-        putStrLn (Log.format_msg msg)
+        Text.IO.putStrLn (Log.format_msg msg)
