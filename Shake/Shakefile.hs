@@ -80,7 +80,7 @@ data Config = Config {
     , getPackages_ :: GetPackages
     } deriving (Show)
 
-getPackages :: Config -> Shake.Action [String]
+getPackages :: Config -> Shake.Action [PackageId]
 getPackages (Config { getPackages_ = GetPackages get }) = get
 
 -- | Root of .o and .hi hierarchy.
@@ -591,7 +591,6 @@ dispatch modeConfig targets = do
         -- I should probably run this in staunch mode, -k.
         "checkin" -> do
             let debug = (modeToDir Debug </>)
-                opt = (modeToDir Opt </>)
             Shake.want $
                 [ debug "browser", debug "logview", debug "make_db"
                 , debug "seq", debug "update", debug "dump", debug "repl"
@@ -707,7 +706,8 @@ makeHaddock config = do
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     packages <- getPackages config
     let flags = configFlags config
-    interfaces <- Trans.liftIO $ getHaddockInterfaces packages
+    interfaces <- Trans.liftIO $
+        getHaddockInterfaces (map stripPackageId packages)
     let packageFlags = "-hide-all-packages" : map ("-package-id="++) packages
     system "haddock" $
         [ "--html", "-B", ghcLib config
@@ -724,19 +724,14 @@ makeHaddock config = do
         ++ hs ++ map (hscToHs (hscDir config)) hscs
 
 -- | Get paths to haddock interface files for all the packages.
-getHaddockInterfaces :: [String] -> IO [String]
+getHaddockInterfaces :: [Package] -> IO [String]
 getHaddockInterfaces packages = do
     -- ghc-pkg annoyingly provides no way to get a field from a list of
     -- packages.
     interfaces <- forM packages $ \package -> Process.readProcess "ghc-pkg"
         ["field", package, "haddock-interfaces"] ""
     return $ map extract interfaces
-    where
-    -- If multiple versions are installed, this will return multiple lines.
-    -- I should probably make sure to get the latest non-hidden one as the
-    -- -package flag does by default, but ghc-pkg is too primitive so I'll
-    -- just pick the first one for now.
-    extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')
+    where extract = drop 1 . dropWhile (/=' ') . takeWhile (/='\n')
 
 getAllHaddock :: Config -> Shake.Action ([FilePath], [FilePath])
 getAllHaddock config = do
@@ -756,6 +751,16 @@ wantsHaddock midi hs = not $ or
     ]
 
 -- ** cabal
+
+-- | Complete package-version-hex, e.g.
+-- containers-0.5.5.1-23e2a2b94d6e452c773209f31d8672c5
+type PackageId = String
+-- | Package-version, e.g. containers-0.5.5.1
+type Package = String
+
+stripPackageId :: PackageId -> Package
+stripPackageId = reverse . drop hexLen . reverse
+    where hexLen = 32 + 1 -- hex hash plus hyphen
 
 makeCabal :: Shake.Rules ()
 makeCabal = "karya.cabal" *> \fn -> do
@@ -785,13 +790,13 @@ cachedGetPackages = do
 
 -- | Rather than trying to figure out which binary needs which packages, I
 -- just union all the packages.
-readCabalConfiguration :: IO [String]
+readCabalConfiguration :: IO [PackageId]
 readCabalConfiguration =
     strip . extractPackages <$> Simple.Configure.getPersistBuildConfig "dist"
     where
     strip = if useEkg then id else filter (not . ("ekg-" `List.isPrefixOf`))
 
-extractPackages :: LocalBuildInfo.LocalBuildInfo -> [String]
+extractPackages :: LocalBuildInfo.LocalBuildInfo -> [PackageId]
 extractPackages info = do
     (LocalBuildInfo.CLibName,
             build@(LocalBuildInfo.LibComponentLocalBuildInfo {}), _)
@@ -928,7 +933,7 @@ matchHsObj fn
     isMain = Map.member hs nameToMain
         || runProfile `List.isPrefixOf` hs || runTests `List.isPrefixOf` hs
 
-compileHs :: [String] -> Maybe Mode -> Config -> FilePath -> Util.Cmdline
+compileHs :: [PackageId] -> Maybe Mode -> Config -> FilePath -> Util.Cmdline
 compileHs packages mode config hs = ("GHC" ++ maybe "" (('-':) . show) mode, hs,
     [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
         ++ mainIs ++ packageFlags ++ [hs, "-o", srcToObj config hs])
@@ -938,7 +943,7 @@ compileHs packages mode config hs = ("GHC" ++ maybe "" (('-':) . show) mode, hs,
         then ["-main-is", pathToModule hs]
         else []
 
-linkHs :: Config -> FilePath -> [String] -> [FilePath] -> Util.Cmdline
+linkHs :: Config -> FilePath -> [PackageId] -> [FilePath] -> Util.Cmdline
 linkHs config output packages objs = ("LD-HS", output,
     ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
         ++ ["-lstdc++"]

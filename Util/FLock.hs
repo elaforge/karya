@@ -41,10 +41,10 @@ flock :: Fd -> CInt -> IO ()
 flock (Fd fd) flags =
     C.Error.throwErrnoIfMinus1Retry_ "flock" (c_flock fd flags)
 
-lock_sh, lock_ex, lock_nb, lock_un :: CInt
-lock_sh = 1
+_lock_sh, lock_ex, _lock_nb, lock_un :: CInt
+_lock_sh = 1
 lock_ex = 2
-lock_nb = 4
+_lock_nb = 4
 lock_un = 8
 
 foreign import ccall "flock" c_flock :: CInt -> CInt -> IO CInt

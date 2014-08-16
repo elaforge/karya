@@ -203,8 +203,6 @@ UNSORTED
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
   calls:
-    - Sometimes tick makes more sense as at attribute of the previous note, or
-      perhaps a freestanding ornament, since it can happen or not on a repeat.
     - 'u' and 'd' have a problem with long notes because pitches can only be
       transposed so far.
       . If I knew how far a pitch could be transposed, I could clip the end
@@ -958,6 +956,9 @@ Derive:
           a chromatic tonic and a set of 5 chromatic intervals.  It also has
           chromatic and diatonic transposition.
 
+      - Sometimes ngoret makes more sense as at attribute of the previous note,
+        or perhaps a freestanding ornament, since it can happen or not on
+        a repeat.
       kotekan ornaments
         - control for norot +mute
         - gender norot: control for polos 234- vs. 434-
@@ -971,6 +972,8 @@ Derive:
             a coincident note.
           - phase: this can make the last note no longer align to the pitch
       wayang in octaves
+        . pemade: >p=>p-umbang | >s=>p-isep
+          kantilan: >p=>k-umbang | >s=>k-isep | %t-diatonic=5
         . I could do it with >wayang-both that emits >wayang-p and >wayang-k. Or
           just call the score twice, once with transpose +1 oct.
         . I definitely want two calls because then kantilan randomizes
@@ -996,6 +999,12 @@ Derive:
       trompong / reyong:
         - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can
           I draw symbols reversed? 入 兩
+          . There are several ngembat variations: fast:
+              5 61    35 61
+                 1        1
+            slow:
+              561   53561
+               21      21
         - various numpuk
         kilitan
           - pickups can mute

@@ -88,8 +88,7 @@ get_transform :: Cmd.CmdL Text
 get_transform = State.config#State.global_transform <#> State.get
 
 set_definitions :: Maybe FilePath -> Cmd.CmdL ()
-set_definitions fname =
-    State.modify_config $ State.definition_file #= fname
+set_definitions = State.modify_config . (State.definition_file #=)
 
 -- ** meta
 
