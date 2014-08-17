@@ -142,10 +142,9 @@ verify_midi fname cmd_config state block_id performance = (handle_left =<<) $
         (Just err, expected, got) -> do
             Text.IO.writeFile (base ++ ".expected") $ Text.unlines expected
             Text.IO.writeFile (base ++ ".got") $ Text.unlines got
-            putStrLn $ "wrote " ++ base ++ ".{expected,got}"
-            return $ Left $ untxt err
-    where
-    base = FilePath.takeFileName fname
+            return $ Left $ untxt $ err
+                <> "wrote " <> txt base <> ".{expected,got}"
+    where base = FilePath.takeFileName fname
 
 perform_block :: FilePath -> Cmd.Config -> State.State -> BlockId
     -> IO (Either String [Midi.WriteMessage])
@@ -163,7 +162,7 @@ perform_block fname cmd_config state block_id = do
 
 verify_lilypond :: FilePath -> Cmd.Config -> State.State -> BlockId
     -> State.LilypondPerformance -> IO Int
-verify_lilypond fname cmd_config state block_id performance = do
+verify_lilypond fname cmd_config state block_id expected = do
     (result, logs) <- DeriveSaved.timed_lilypond fname state
         (Cmd.initial_state cmd_config) block_id
     mapM_ Log.write logs
@@ -171,9 +170,16 @@ verify_lilypond fname cmd_config state block_id performance = do
         Left err -> do
             putStrLn $ untxt $ "error deriving: " <> err
             return 1
-        Right code -> case DiffPerformance.diff_lilypond performance code of
+        Right got -> case DiffPerformance.diff_lilypond expected got of
             Nothing -> putStrLn "ok!" >> return 0
-            Just err -> putStrLn (untxt err) >> return 1
+            Just err -> do
+                let base = FilePath.takeFileName fname
+                Text.IO.writeFile (base ++ ".expected.ly") $
+                    State.perf_performance expected
+                Text.IO.writeFile (base ++ ".got.ly") got
+                Text.IO.putStrLn err
+                putStrLn $ "wrote " <> base <> ".{expected,got}.ly"
+                return 1
 
 get_root :: State.State -> Either String BlockId
 get_root state = maybe (Left "no root block") Right $
