@@ -300,6 +300,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Make.call_maps
     [ ("8va", c_8va)
     , ("xstaff", c_xstaff)
+    , ("xstaff-a", c_xstaff_around)
     , ("dyn", c_dyn)
     , ("clef", c_clef)
     , ("meter", c_meter)
@@ -394,7 +395,16 @@ c_8va = code0_pair_call "ottava" "Emit lilypond ottava mark.\
     ottava n = (Prefix, "\\ottava #" <> showt n)
 
 c_xstaff :: Make.Calls Derive.Note
-c_xstaff = code0_around_call "xstaff"
+c_xstaff = code0_call "xstaff"
+    "Emit lilypond to put the notes on a different staff."
+    (TrackLang.get_e <$> required "staff" "Switch to this staff.") $ \staff ->
+        return (Prefix, change staff)
+    where
+    change :: Direction -> Ly
+    change staff = "\\change Staff = " <> Types.to_lily (ShowVal.show_val staff)
+
+c_xstaff_around :: Make.Calls Derive.Note
+c_xstaff_around = code0_around_call "xstaff-around"
     "Emit lilypond to put the notes on a different staff."
     (TrackLang.get_e <$> required "staff" "Switch to this staff.") $ \staff ->
         return ((Prefix, change staff), (Prefix, change (other staff)))

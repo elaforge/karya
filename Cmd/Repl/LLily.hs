@@ -74,11 +74,12 @@ modify_staff inst_ modify = do
 -- If there is no staff config, all instruments get staves.  Otherwise, only
 -- instruments with 'Lilypond.StaffConfig's and 'Lilypond.staff_display' are
 -- displayed.
-set_staves :: Cmd.M m => [(Text, Lilypond.Instrument, Lilypond.Instrument)]
-    -> Lilypond.Config -> m Lilypond.Config
-set_staves staves config
-    | not (null dups) = Cmd.throw $ "duplicate instruments: " <> pretty dups
-    | otherwise = return $ config { Lilypond.config_staves = map mk staves }
+set_staves :: State.M m => [(Text, Lilypond.Instrument, Lilypond.Instrument)]
+    -> m (Lilypond.Config -> Lilypond.Config)
+set_staves staves
+    | not (null dups) = State.throw $ "duplicate instruments: " <> pretty dups
+    | otherwise = return $ \config ->
+        config { Lilypond.config_staves = map mk staves }
     where
     dups = map fst $ snd $
         Seq.partition_dups id [Util.instrument inst | (inst, _, _) <- staves]
