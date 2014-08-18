@@ -601,6 +601,7 @@ dispatch modeConfig targets = do
             action $ do
                 need [runTests]
                 system "test/run_tests" [runTests]
+            let opt = (modeToDir Opt </>)
             action $ do
                 -- Unfortunately, verify_performance is the only binary in
                 -- opt, which most of the opt tree to build.  I could build
