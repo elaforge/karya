@@ -12,10 +12,12 @@ module LogView.Tail (
     , deserialize_line
 ) where
 import Prelude hiding (read, tail)
+import qualified Control.Exception as Exception
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
+import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 import qualified System.Process as Process
 
@@ -52,7 +54,7 @@ rotate_logs keep max_size log_fn = do
 
 -- * tail
 
--- | The Handle remembers the file and current position so it can detect when
+-- | The Handle remembers the file and the last file size so it can detect when
 -- the logs have been rotated.
 data Handle = Handle !FilePath !IO.Handle !Integer deriving (Show)
 
@@ -89,16 +91,17 @@ deserialize_line line = do
             <> showt exc <> ", line was: " <> showt line
         Right msg -> return msg
 
+-- | (handle, file size)
 type TailState = (IO.Handle, Integer)
 
 read_line :: Handle -> IO (String, Handle)
 read_line (Handle filename hdl size) = go (hdl, size)
     where
-    go state@(hdl, last_size) = IO.hIsEOF hdl >>= \x -> case x of
+    go state@(hdl, size) = IO.hIsEOF hdl >>= \x -> case x of
         True -> do
             new_size <- IO.hFileSize hdl
             -- Check if the file was truncated.
-            state <- if new_size < last_size
+            state <- if new_size < size
                 then IO.hSeek hdl IO.AbsoluteSeek 0 >> return state
                 else ifM (file_renamed filename new_size)
                     (reopen hdl new_size filename)
@@ -109,25 +112,32 @@ read_line (Handle filename hdl size) = go (hdl, size)
             -- impossible to tell if this is a complete line or not.  I'll set
             -- LineBuffering and hope for the best.
             line <- IO.hGetLine hdl
-            return (line, Handle filename hdl last_size)
+            new_size <- IO.hFileSize hdl
+            return (line, Handle filename hdl new_size)
 
 -- | If the filename exists, open it and close the old file.
 reopen :: IO.Handle -> Integer -> FilePath -> IO TailState
-reopen hdl size filename =
+reopen old size filename =
     File.ignoreEnoent (IO.openFile filename IO.ReadMode) >>= \x -> case x of
-        Nothing -> return (hdl, size)
+        Nothing -> return (old, size)
         Just new -> do
-            IO.hClose hdl
+            IO.hClose old
             IO.hSetBuffering new IO.LineBuffering
-            IO.hSeek new IO.AbsoluteSeek 0
             size <- IO.hFileSize new
             return (new, size)
 
 -- | Check if it looks like the file has been renamed.
 file_renamed :: FilePath -> Integer -> IO Bool
-file_renamed filename size = do
+file_renamed filename size = handle $ do
     -- I should really use inode, but ghc's crummy IO libs make that a pain,
     -- since handleToFd closes the handle.
     file_size <- maybe 0 Posix.fileSize <$>
         File.ignoreEnoent (Posix.getFileStatus filename)
     return $ fromIntegral file_size /= size && file_size /= 0
+    where
+    -- I don't know why this happens, but it does occasionally.
+    handle = Exception.handleJust
+        (\e -> if IO.Error.isAlreadyInUseError e then Just e else Nothing) $
+        \e -> do
+            putStrLn $ "file_renamed: error on " ++ filename ++ ": " ++ show e
+            return False

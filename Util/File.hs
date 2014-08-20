@@ -57,5 +57,8 @@ rmDirRecursive dir = void $ Process.rawSystem "rm" ["-rf", dir]
 
 -- | If @op@ raised ENOENT, return Nothing.
 ignoreEnoent :: IO a -> IO (Maybe a)
-ignoreEnoent op = Exception.handleJust (guard . IO.Error.isDoesNotExistError)
-    (const (return Nothing)) (fmap Just op)
+ignoreEnoent = ignoreError IO.Error.isDoesNotExistError
+
+ignoreError :: Exception.Exception e => (e -> Bool) -> IO a -> IO (Maybe a)
+ignoreError ignore action = Exception.handleJust (guard . ignore)
+    (const (return Nothing)) (fmap Just action)

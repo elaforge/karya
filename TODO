@@ -714,11 +714,10 @@ logview:
   - use Fl_Help_View and HTML to display text
   - Adding new log msgs causes the status bar to shrink back to one line, even
     though it should be wrapped to two.
-  - Logview got some kind of file locked error, presumably trying to track
+  + Logview got some kind of file locked error, presumably trying to track
     a rotated log.
     . It happens if the write handle is still open, for some reason
       Posix.getFileStatus then gets openFile: resource busy (file is locked)
-    . Maybe it's when reopen tries to open the file and it's already open.
   - can I get the standard edit menu and copy/paste?
   / haskell and c++ use the same machine readable format
   - tabs are not lining up properly
