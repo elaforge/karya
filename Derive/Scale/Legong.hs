@@ -26,6 +26,7 @@ scales :: [Scale.Scale]
 scales =
     [ Scales.add_doc "Saih pelegongan, from my instruments." $
         BaliScales.make_scale scale_id complete_scale
+    , BaliScales.make_scale "legong-c" cipher_scale
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
@@ -41,14 +42,19 @@ complete_scale = scale_map
     (BaliScales.ioeua_relative True default_key all_keys)
     (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
 
+cipher_scale :: BaliScales.ScaleMap
+cipher_scale = scale_map
+    (BaliScales.cipher_relative_dotted 4 default_key all_keys)
+    (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
+
 pemade_scale :: BaliScales.ScaleMap
 pemade_scale = scale_map
-    (BaliScales.ioeua_relative_dotted 4 True default_key all_keys)
+    (BaliScales.ioeua_relative_arrow 4 True default_key all_keys)
     (7*2 + 1, 7*4)
 
 kantilan_scale :: BaliScales.ScaleMap
 kantilan_scale = scale_map
-    (BaliScales.ioeua_relative_dotted 5 True default_key all_keys)
+    (BaliScales.ioeua_relative_arrow 5 True default_key all_keys)
     (7*3 + 1, 7*5)
 
 scale_map :: TheoryFormat.Format -> (Pitch.Semi, Pitch.Semi)

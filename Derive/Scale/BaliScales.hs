@@ -18,6 +18,8 @@ import Data.Vector ((!?))
 
 import Util.Control
 import qualified Util.Num as Num
+import qualified Util.Seq as Seq
+
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -89,22 +91,22 @@ ioeua_relative chromatic default_key keys =
         ("[1-9][ioeua]" <> if chromatic then "#?" else "")
         ioeua (ChromaticScales.relative_fmt default_key keys)
 
-ioeua_relative_dotted :: Pitch.Octave -> Bool -> Theory.Key
+ioeua_relative_arrow :: Pitch.Octave -> Bool -> Theory.Key
     -> ChromaticScales.Keys -> TheoryFormat.Format
-ioeua_relative_dotted center chromatic default_key keys =
-    TheoryFormat.make_relative_format_config (dotted_octaves center)
+ioeua_relative_arrow center chromatic default_key keys =
+    TheoryFormat.make_relative_format_config (arrow_octaves center)
         ("[ioeua]" <> (if chromatic then "#?" else "") <> "[_^-]")
         ioeua (ChromaticScales.relative_fmt default_key keys)
 
 ioeua_absolute :: TheoryFormat.Format
 ioeua_absolute = TheoryFormat.make_absolute_format "[1-9][ioeua]" ioeua
 
-ioeua_absolute_dotted :: Pitch.Octave -> TheoryFormat.Format
-ioeua_absolute_dotted center = TheoryFormat.make_absolute_format_config
-    (dotted_octaves center) TheoryFormat.ascii_accidentals "[ioeua][_^-]" ioeua
+ioeua_absolute_arrow :: Pitch.Octave -> TheoryFormat.Format
+ioeua_absolute_arrow center = TheoryFormat.make_absolute_format_config
+    (arrow_octaves center) TheoryFormat.ascii_accidentals "[ioeua][_^-]" ioeua
 
-dotted_octaves :: Pitch.Octave -> TheoryFormat.OctaveFormat
-dotted_octaves center = (show_octave, parse_octave)
+arrow_octaves :: Pitch.Octave -> TheoryFormat.OctaveFormat
+arrow_octaves center = (show_octave, parse_octave)
     where
     show_octave oct
         | oct > center = (<> Text.replicate (oct-center) "^")
@@ -116,6 +118,35 @@ dotted_octaves center = (show_octave, parse_octave)
         let oct | "_" `List.isPrefixOf` octs = -(length octs)
                 | "-" `List.isPrefixOf` octs = 0
                 | otherwise = length octs
+        return $ Pitch.Pitch (center + oct) degree
+
+cipher_relative_dotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
+    -> TheoryFormat.Format
+cipher_relative_dotted center default_key keys =
+    TheoryFormat.make_relative_format_config (dotted_octaves center)
+        "[12356]|`[12356][.^]*`" cipher5
+        (ChromaticScales.relative_fmt default_key keys)
+
+cipher5 :: TheoryFormat.Degrees
+cipher5 = TheoryFormat.make_degrees ["1", "2", "3", "5", "6"]
+
+dotted_octaves :: Pitch.Octave -> TheoryFormat.OctaveFormat
+dotted_octaves center = (show_octave, parse_octave)
+    where
+    show_octave oct d
+        | oct == center = d
+        | otherwise = "`" <> d
+            <> (if oct >= center then Text.replicate (oct-center) "^"
+                else Text.replicate (center-oct) ".")
+            <> "`"
+    parse_octave p_degree =
+        Pitch.Pitch center <$> p_degree <|> with_octave p_degree
+    with_octave p_degree = do
+        A.char '`'
+        degree <- p_degree
+        octs <- A.many' $ A.satisfy $ \c -> c == '.' || c == '^'
+        A.char '`'
+        let oct = Seq.count '^' octs - Seq.count '.' octs
         return $ Pitch.Pitch (center + oct) degree
 
 -- * keys

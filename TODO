@@ -941,6 +941,8 @@ Derive:
         * add saih pitu modes
         - pick better nns for 4 and 7
         - add 'lebeng' key with 1234567 cipher notation
+          . This is a bit tricky because the PCs per octave changes.
+        - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
         * if a layout doesn't have an accidental, don't allow its input
         * add range to scale doc
         * legong-p and legong-k are messed up

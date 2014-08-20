@@ -36,11 +36,11 @@ complete_scale = scale_map BaliScales.ioeua_absolute
     (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
 
 pemade_scale :: BaliScales.ScaleMap
-pemade_scale = scale_map (BaliScales.ioeua_absolute_dotted 4)
+pemade_scale = scale_map (BaliScales.ioeua_absolute_arrow 4)
     (2*5 + 1, 4*5)
 
 kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = scale_map (BaliScales.ioeua_absolute_dotted 5)
+kantilan_scale = scale_map (BaliScales.ioeua_absolute_arrow 5)
     (3*5 + 1, 5*5)
 
 -- | Use ding deng dong dung dang.  I don't know if this is ever actually used
