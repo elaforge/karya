@@ -105,7 +105,12 @@ empty_config = Config
 
 -- | Extra data that doesn't have any effect on the score.
 data Meta = Meta {
+    -- | The time the score was created.  This should be reset whenever
+    -- the score is started, or copied from a template.
     meta_creation :: !Time.UTCTime
+    -- | The last time the score was saved.  This is useful to determine which
+    -- of several saves is the latest.
+    , meta_last_save :: !Time.UTCTime
     , meta_notes :: !Text
     , meta_midi_performances :: !(Map.Map BlockId MidiPerformance)
     , meta_lilypond_performances :: !(Map.Map BlockId LilypondPerformance)
@@ -113,6 +118,8 @@ data Meta = Meta {
 
 creation = Lens.lens meta_creation
     (\f r -> r { meta_creation = f (meta_creation r) })
+last_save = Lens.lens meta_last_save
+    (\f r -> r { meta_last_save = f (meta_last_save r) })
 notes = Lens.lens meta_notes
     (\f r -> r { meta_notes = f (meta_notes r) })
 midi_performances = Lens.lens meta_midi_performances
@@ -127,6 +134,7 @@ type LilypondPerformance = Performance Text
 empty_meta :: Meta
 empty_meta = Meta
     { meta_creation = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+    , meta_last_save = Time.UTCTime (Time.ModifiedJulianDay 0) 0
     , meta_notes = ""
     , meta_midi_performances = mempty
     , meta_lilypond_performances = mempty
@@ -186,8 +194,10 @@ instance Pretty.Pretty Config where
             ]
 
 instance Pretty.Pretty Meta where
-    format (Meta creation notes midi_perf lily_perf) = Pretty.record "Meta"
-        [ ("creation", Pretty.text (show creation))
+    format (Meta creation last_save notes midi_perf lily_perf) =
+        Pretty.record "Meta"
+        [ ("creation", Pretty.format creation)
+        , ("last save", Pretty.format last_save)
         , ("notes", Pretty.text (untxt notes))
         , ("midi performances", Pretty.format midi_perf)
         , ("lilypond performances", Pretty.format lily_perf)

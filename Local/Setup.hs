@@ -6,6 +6,7 @@
 -- Mostly just testing hackery.
 module Local.Setup where
 import qualified Control.Monad.Trans as Trans
+import qualified Data.Time as Time
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -29,7 +30,10 @@ import qualified Perform.Midi.Instrument as Instrument
 load_template :: FilePath -> Cmd.CmdIO
 load_template fn = do
     (state, _) <- Save.read_state fn
-    State.put (State.clear state)
+    now <- liftIO $ Time.getCurrentTime
+    State.put $
+        State.config#State.meta#State.creation #= now $
+        State.clear state
     State.set_namespace (Id.namespace "untitled")
     return Cmd.Done
 

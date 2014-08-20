@@ -131,8 +131,11 @@ write_current_state fname = do
         <> ", took " <> Pretty.pretty secs <> "s"
 
 write_state :: FilePath -> State.State -> IO ()
-write_state fname state =
-    Serialize.serialize state_magic fname (State.clear state)
+write_state fname state = do
+    now <- Time.getCurrentTime
+    Serialize.serialize state_magic fname $
+        State.config#State.meta#State.last_save #= now $
+        State.clear state
 
 load_state :: FilePath -> Cmd.CmdT IO ()
 load_state fname = do

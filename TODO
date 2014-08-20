@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * save last save time in StateConfig.Meta
   * wayang/delima-manis: out of range for patch scale: [(0s, 88.85)]
   * The problem is transposed pitch vs. raw pitch.  This is error prone, is
     there a better way to solve it?
@@ -420,7 +421,8 @@ external
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.
   + send a patch to improve Random.Shuffle?
-  - patch for hsc2hs for #alignment
+  / patch for hsc2hs for #alignment
+    Just doing alignment manually now.
   srcloc_annotate pragma
     I think a ghc pragma is needed.
     - read up on how jhc does it
@@ -690,7 +692,7 @@ fltk:
     . Entirely turned it off, speed seems acceptable.
   Track
     / dividers can have separate color for upper part, for collapsable tracks
-  + Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
+  / Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
     do that?  Yes.
     . It has to do with starting from the cmdline, starting with 'open' doesn't
       have this problem.
@@ -959,6 +961,23 @@ Derive:
       - Sometimes ngoret makes more sense as at attribute of the previous note,
         or perhaps a freestanding ornament, since it can happen or not on
         a repeat.
+        . The problem is getting the next pitch.  Either go back to the
+          evaluation thing I had before or do a two-step evaluation.
+        . If the next pitch is on the next block, then a global postproc is
+          the only option.  I have to stash the relevant parameters:
+          direction, time, dyn.  So it winds up being like a delayed call:
+          (call, args), which is called again but with prev and next events
+          available, and in RealTime.
+        . A nicer implementation might be to add Thunk or something to LEvent,
+          and Collect will collect Some monoid to tell to do another pass.  Or
+          I could just unconditionally do one more pass, this way there is no
+          data dependency.
+        . This might work ok for ornaments like ngoret, but what about calls
+          that consistently need the next pitch, and want to work in
+          ScoreTime, like gamakam?  In that case I want to evaluate the whole
+          track once for just pitches, and then another pass for real.
+          However, this won't work for ngoret because of the block boundary!
+          So maybe I need both?
       kotekan ornaments
         - control for norot +mute
         - gender norot: control for polos 234- vs. 434-
