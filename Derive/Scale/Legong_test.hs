@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.Legong_test where
+import qualified Data.List as List
+
 import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
@@ -43,8 +45,8 @@ test_input_to_note = do
     let f scale key = either prettyt Pitch.note_text
             . Scale.scale_input_to_note scale (Pitch.Key <$> key)
             . CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
-        legong = Legong.scales !! 0
-        legong_p = Legong.scales !! 1
+        legong = lookup_scale "legong"
+        legong_p = lookup_scale "legong-p"
         invalid = "invalid input"
     -- baro is 1 345 7
     --         i oeu a
@@ -59,3 +61,7 @@ test_input_to_note = do
         [ invalid, "o_", "e_", "u_", "a_", "i-", "o-", "e-", "u-", "a-"
         , "i^", invalid
         ]
+
+lookup_scale :: Pitch.ScaleId -> Scale.Scale
+lookup_scale scale_id = fromMaybe (error $ "no scale: " <> show scale_id) $
+    List.find ((==scale_id) . Scale.scale_id) Legong.scales
