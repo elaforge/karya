@@ -24,13 +24,6 @@ import Foreign.C
 import qualified Util.Num as Num
 
 
--- | This is similar to Ui.Types.UI, except that it's intended for the low
--- level fltk operations.  The difference is that all fltk operations must be
--- executed serially in the ui thread.
--- Currently this is just a synonym for IO, but in the future I could guarantee
--- only the thread gets to run them with some newtype deriving magic.
-type Fltk = IO
-
 -- | Throw if 'n' isn't between the half open range lo--hi.
 -- Do a fromIntegral as a bonus so it's easy to convert types at the same time.
 in_range :: (Show a, Integral a, Num b) => String -> a -> a -> a -> b

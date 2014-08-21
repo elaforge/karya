@@ -48,13 +48,13 @@ import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.PtrMap as PtrMap
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
-import qualified Ui.Util as Util
 
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.ParseTitle as ParseTitle
@@ -147,7 +147,7 @@ set_track_signals ui_chan block_id state track_signals =
                 track@(Block.Track { Block.tracklike_id = Block.TId tid _ }))
             <- zip [0..] (Block.block_tracks block)]
 
-set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> IO ()
+set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Ui.Fltk ()
 #ifdef TESTING
 -- ResponderTest using tests wind up calling this via set_track_signals, which
 -- is out of band so it bypasses Responder.state_sync, and winds up segfaulting
@@ -214,14 +214,14 @@ clear_selections selnum chan view_ids = unless (null view_ids) $
 -- This can be called outside of the responder loop, and the caller may have
 -- an out of date UI state.
 set_selection_carefully :: ViewId -> Types.SelNum -> Maybe [TrackNum]
-    -> [BlockC.Selection] -> Util.Fltk ()
+    -> [BlockC.Selection] -> Ui.Fltk ()
 set_selection_carefully view_id selnum maybe_tracknums sels =
-    whenM (BlockC.view_exists view_id) $ do
+    whenM (liftIO $ PtrMap.view_exists view_id) $ do
         tracks <- BlockC.tracks view_id
         let tracknums = maybe [0 .. tracks-1] (filter (<tracks)) maybe_tracknums
         BlockC.set_selection view_id selnum tracknums sels
 
-edit_input :: State.State -> Cmd.EditInput -> IO ()
+edit_input :: State.State -> Cmd.EditInput -> Ui.Fltk ()
 edit_input _ (Cmd.EditOpen view_id tracknum at text selection) =
     BlockC.edit_open view_id tracknum at text selection
 edit_input state (Cmd.EditInsert text) =
@@ -251,7 +251,7 @@ edit_input state (Cmd.EditInsert text) =
 -- CreateView Updates will modify the State to add the ViewPtr.  The IO in
 -- the StateT is needed only for some logging.
 run_update :: Track.TrackSignals -> Track.SetStyleHigh -> Update.DisplayUpdate
-    -> State.StateT IO (IO ())
+    -> State.StateT IO (Ui.Fltk ())
 run_update track_signals set_style update = case update of
     Update.View view_id update ->
         update_view track_signals set_style view_id update
@@ -264,7 +264,7 @@ run_update track_signals set_style update = case update of
     Update.State () -> return (return ())
 
 update_view :: Track.TrackSignals -> Track.SetStyleHigh -> ViewId
-    -> Update.View -> State.StateT IO (IO ())
+    -> Update.View -> State.StateT IO (Ui.Fltk ())
 update_view track_signals set_style view_id Update.CreateView = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
@@ -335,7 +335,8 @@ update_view _ _ view_id update = case update of
 
 -- | Block ops apply to every view with that block.
 update_block :: Track.TrackSignals -> Track.SetStyleHigh
-    -> BlockId -> Update.Block Block.DisplayTrack -> State.StateT IO (IO ())
+    -> BlockId -> Update.Block Block.DisplayTrack
+    -> State.StateT IO (Ui.Fltk ())
 update_block track_signals set_style block_id update = do
     view_ids <- fmap Map.keys (State.views_of block_id)
     case update of
@@ -383,7 +384,7 @@ update_block track_signals set_style block_id update = do
                 tlike_id tlike track_signals flags
 
 update_track :: Track.TrackSignals -> Track.SetStyleHigh
-    -> TrackId -> Update.Track -> State.StateT IO (IO ())
+    -> TrackId -> Update.Track -> State.StateT IO (Ui.Fltk ())
 update_track _ set_style track_id update = do
     block_ids <- map fst <$> dtracks_with_track_id track_id
     state <- State.get
@@ -425,7 +426,7 @@ update_track _ set_style track_id update = do
                     merged set_style
 
 update_ruler :: Track.TrackSignals -> Track.SetStyleHigh
-    -> RulerId -> State.StateT IO (IO ())
+    -> RulerId -> State.StateT IO (Ui.Fltk ())
 update_ruler _ set_style ruler_id = do
     blocks <- dtracks_with_ruler_id ruler_id
     state <- State.get
@@ -445,7 +446,7 @@ update_ruler _ set_style ruler_id = do
 -- | Insert a track.  Tracks require a crazy amount of configuration.
 insert_track :: State.State -> Track.SetStyleHigh -> BlockId -> ViewId
     -> TrackNum -> Block.DisplayTrack -> Block.TracklikeId -> Block.Tracklike
-    -> Track.TrackSignals -> Set.Set Block.TrackFlag -> IO ()
+    -> Track.TrackSignals -> Set.Set Block.TrackFlag -> Ui.Fltk ()
 insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
         track_signals flags = do
     BlockC.insert_track view_id tracknum tlike merged set_style_low

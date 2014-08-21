@@ -125,7 +125,7 @@ tracesM msg = write msg (return ())
 -- * in IO
 -- These are like putStrLn, but more easily greppable.
 
-puts :: (Trans.MonadIO m) => String -> m ()
+puts :: Trans.MonadIO m => String -> m ()
 puts = writeIO . (prefix++)
 
 put :: (Trans.MonadIO m, Show a) => String -> a -> m ()

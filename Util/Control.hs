@@ -24,7 +24,7 @@ module Util.Control (
     -- * state
     , (<#>)
     , module Control.Monad
-    , module Control.Monad.Trans
+    , lift, liftIO
     -- * nonempty
     , module Data.List.NonEmpty
     -- * text

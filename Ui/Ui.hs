@@ -2,11 +2,16 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ScopedTypeVariables #-}
-module Ui.Ui (Channel, event_loop, send_action, quit_ui_thread) where
+{-# LANGUAGE ScopedTypeVariables, GeneralizedNewtypeDeriving #-}
+-- | This has the FLTK event thread, and communication with it.
+module Ui.Ui (
+    Fltk, fltk, Channel, event_loop, send_action, quit_ui_thread
+) where
+import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
+import qualified Control.Monad.Trans as Trans
 
 import qualified Foreign
 
@@ -17,18 +22,30 @@ import qualified Ui.UiMsgC as UiMsgC
 import qualified Ui.Util as Util
 
 
+-- | You should only talk to FLTK from the main thread, which is also the FLTK
+-- event thread.  So to call a FLTK function, you have to put it on
+-- the UI 'Channel', where the FLTK thread will pick it up.  This also
+-- serializes them, so I don't have to worry about concurrency at the Fltk
+-- layer.  Since FLTK operations are wrapped in Fltk, and only this module can
+-- unwrap a Fltk, this should enforce that you can't cell them willy-nilly.
+newtype Fltk a = Fltk (IO a)
+    deriving (Applicative.Applicative, Functor, Monad, Trans.MonadIO)
+
+fltk :: IO a -> Fltk a
+fltk = Fltk
+
 -- | Channel to communicate with the FLTK event loop.  Yes it's not a real
 -- channel, but I want to get all actions in one go, and an MVar is suitable
 -- for that.
-type Channel = MVar.MVar [IO ()]
+type Channel = MVar.MVar [Fltk ()]
 
 -- | Putting something into this mvar signals the UI thread to quit.
 type QuitRequest = MVar.MVar ()
 
--- | Run the 'app' thread, passing it a channel that produces msgs, and go
--- into the UI polling loop.  This is intended to be run from the main thread,
--- since some UIs don't work properly unless run from the main thread.
--- When 'app' exits, the ui loop will be aborted.
+-- | Run the FLTK event loop thread, passing it a channel that produces msgs,
+-- and go into the UI polling loop.  This is intended to be run from the main
+-- thread, since some UIs don't work properly unless run from the main thread.
+-- When the app exits, the ui loop will be aborted.
 event_loop :: Channel -> QuitRequest -> STM.TChan UiMsg.UiMsg -> IO ()
 event_loop ui_chan quit_request msg_chan = do
     finalizer <- c_make_free_fun_ptr Util.free_fun_ptr
@@ -45,7 +62,7 @@ foreign import ccall "wrapper"
         -> IO (Foreign.FunPtr (FunPtrFinalizer a))
 
 -- | Send the UI to the ui thread and run it, returning its result.
-send_action :: Channel -> IO () -> IO ()
+send_action :: Channel -> Fltk () -> IO ()
 send_action ui_chan act = do
     MVar.modifyMVar_ ui_chan $ return . (act:)
     awake
@@ -68,7 +85,7 @@ fltk_event_loop acts_mvar msg_chan = do
 handle_actions :: Channel -> IO ()
 handle_actions acts_mvar = MVar.modifyMVar_ acts_mvar $ \acts -> do
     -- Since acts are added to the front, reverse them before executing.
-    sequence_ (reverse acts)
+    sequence_ [act | Fltk act <- reverse acts]
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.error $ "exception in event_loop: " ++ show exc
     return []

@@ -1085,7 +1085,7 @@ dropDir odir fn
 strip :: String -> String
 strip = reverse . dropWhile Char.isSpace . reverse . dropWhile Char.isSpace
 
-errorIO :: (Trans.MonadIO m) => String -> m a
+errorIO :: Trans.MonadIO m => String -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
 
 pathToModule :: FilePath -> String

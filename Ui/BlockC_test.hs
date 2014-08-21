@@ -43,7 +43,7 @@ global_ui_channel :: Ui.Channel
 {-# NOINLINE global_ui_channel #-}
 global_ui_channel = Unsafe.unsafePerformIO (MVar.newMVar [])
 
-send :: IO () -> IO ()
+send :: Ui.Fltk () -> IO ()
 send = Ui.send_action global_ui_channel
 
 -- tests
@@ -51,7 +51,7 @@ send = Ui.send_action global_ui_channel
 test_create_set_size = do
     view <- create_empty_view
     io_human "move and change size" $
-        BlockC.set_size view (Rect.xywh 200 200 200 200)
+        send $ BlockC.set_size view (Rect.xywh 200 200 200 200)
     io_human "view is destroyed" $
         send $ BlockC.destroy_view view
 

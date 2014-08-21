@@ -6,7 +6,7 @@ module Ui.UiMsgC (get_ui_msgs) where
 import Util.Control
 import Util.ForeignC
 
-import qualified Ui.BlockC as BlockC
+import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Key as Key
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -56,9 +56,9 @@ peek_msg msgp = do
 
 peek_context :: Ptr UiMsg.UiMsg -> IO (UiMsg.Context, Maybe ViewId)
 peek_context msgp = do
-    focusp <- (#peek UiMsg, context.focus) msgp :: IO (Ptr BlockC.CView)
+    focusp <- (#peek UiMsg, context.focus) msgp :: IO (Ptr PtrMap.CView)
     focus <- lookup_id focusp
-    viewp <- (#peek UiMsg, context.view) msgp :: IO (Ptr BlockC.CView)
+    viewp <- (#peek UiMsg, context.view) msgp :: IO (Ptr PtrMap.CView)
     view <- lookup_id viewp
 
     track_type <- (#peek UiMsg, context.track_type) msgp :: IO CChar
@@ -71,7 +71,7 @@ peek_context msgp = do
     where
     lookup_id p
         | p == nullPtr = return Nothing
-        | otherwise = BlockC.lookup_id p
+        | otherwise = PtrMap.lookup_id p
 
 decode_track :: CChar -> Int -> Bool -> ScoreTime
     -> Maybe (TrackNum, UiMsg.Track)
