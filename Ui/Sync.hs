@@ -172,7 +172,7 @@ set_play_position chan view_sels = unless (null view_sels) $
             Config.play_position_selnum (Just tracknums)
             [BlockC.Selection Config.play_selection_color p p True | p <- pos]
 
-clear_play_position :: Ui.Channel -> ViewId -> IO ()
+clear_play_position :: Ui.Channel -> [ViewId] -> IO ()
 clear_play_position = clear_selections Config.play_position_selnum
 
 type Range = (TrackTime, TrackTime)
@@ -199,12 +199,14 @@ group_by_view view_sels = map (second Seq.group_fst) by_view
     by_view :: [(ViewId, [(TrackNum, (Range, Color.Color))])]
     by_view = Seq.group_fst $ zip view_ids (zip tracknums range_colors)
 
-clear_highlights :: Ui.Channel -> ViewId -> IO ()
+clear_highlights :: Ui.Channel -> [ViewId] -> IO ()
 clear_highlights = clear_selections Config.highlight_selnum
 
-clear_selections :: Types.SelNum -> Ui.Channel -> ViewId -> IO ()
-clear_selections selnum chan view_id = Ui.send_action chan $
-    set_selection_carefully view_id selnum Nothing []
+clear_selections :: Types.SelNum -> Ui.Channel -> [ViewId] -> IO ()
+clear_selections selnum chan view_ids = unless (null view_ids) $
+    Ui.send_action chan $
+        mapM_ (\view_id -> set_selection_carefully view_id selnum Nothing [])
+            view_ids
 
 -- | Call 'BlockC.set_selection', but be careful to not pass it a bad ViewId or
 -- TrackNum.

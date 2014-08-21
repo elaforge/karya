@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * Once a highlight is added, it doesn't get deleted even if the next
+    derivation doesn't have it any more.
   * save last save time in StateConfig.Meta
   * wayang/delima-manis: out of range for patch scale: [(0s, 88.85)]
   * The problem is transposed pitch vs. raw pitch.  This is error prone, is

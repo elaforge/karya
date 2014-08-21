@@ -78,8 +78,7 @@ cmd_play_msg ui_chan msg = do
                 ui_state <- State.get
                 liftIO $ Sync.set_track_signals ui_chan block_id ui_state
                     (Cmd.perf_track_signals perf)
-                sels <- get_event_highlights block_id (Cmd.perf_events perf)
-                liftIO $ Sync.set_highlights ui_chan sels
+                update_highlights ui_chan block_id (Cmd.perf_events perf)
             _ -> return ()
     derive_status_color status = case status of
         Msg.OutOfDate {} -> Just $ Color.brightness 1.5 Config.busy_color
@@ -91,6 +90,17 @@ set_all_play_boxes color =
     mapM_ (flip State.set_play_box color) =<< State.all_block_ids
 
 type Range = (TrackTime, TrackTime)
+
+-- | Get highlights from the events, clear old highlighs, and set the new ones.
+update_highlights :: Ui.Channel -> BlockId -> Msg.Events -> Cmd.CmdT IO ()
+update_highlights ui_chan block_id events = do
+    sels <- get_event_highlights block_id events
+    view_ids <- State.gets $ Map.keysSet . State.state_views
+    let used_view_ids = Set.fromList [view_id | ((view_id, _), _) <- sels]
+    liftIO $ do
+        Sync.clear_highlights ui_chan $
+            Set.toList $ view_ids `Set.difference` used_view_ids
+        Sync.set_highlights ui_chan sels
 
 -- | Get highlight selections from the events.
 get_event_highlights :: Cmd.M m => BlockId -> Cmd.Events
@@ -176,7 +186,7 @@ play_monitor_thread ui_chan transport_info ctl inv_tempo_func repeat_at = do
             , monitor_ui_channel = ui_chan
             }
     ui_state <- MVar.readMVar (monitor_ui_state state)
-    mapM_ (Sync.clear_play_position ui_chan) $
+    Sync.clear_play_position ui_chan $
         Map.keys $ State.state_views ui_state
     Exception.bracket_
         (Transport.info_send_status transport_info Transport.Playing)
@@ -209,8 +219,8 @@ monitor_loop state = do
 
     let active_sels = Set.fromList
             [(view_id, map fst num_pos) | (view_id, num_pos) <- play_pos]
-    mapM_ (Sync.clear_play_position (monitor_ui_channel state) . fst) $
-        Set.toList (Set.difference (monitor_active_sels state) active_sels)
+    Sync.clear_play_position (monitor_ui_channel state) $ map fst $ Set.toList $
+        Set.difference (monitor_active_sels state) active_sels
     state <- return $ state { monitor_active_sels = active_sels }
 
     stopped <- Transport.poll_player_stopped (monitor_ctl state)
@@ -221,7 +231,7 @@ monitor_loop state = do
     -- player unstoppable, if it's still going.
     if stopped || (null block_pos && Maybe.isNothing (monitor_repeat_at state))
         then do
-            mapM_ (Sync.clear_play_position (monitor_ui_channel state) . fst) $
+            Sync.clear_play_position (monitor_ui_channel state) $ map fst $
                 Set.toList (monitor_active_sels state)
             unless stopped $ wait_for_stop $
                 Transport.poll_player_stopped (monitor_ctl state)
