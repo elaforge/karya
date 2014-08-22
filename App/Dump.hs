@@ -7,6 +7,7 @@
 -- TODO flags not actually used.  Maybe I don't need them?
 module App.Dump where
 import qualified Data.List as List
+import qualified Data.Text as Text
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
 import qualified System.Exit
@@ -73,7 +74,7 @@ dump_git flags repo maybe_arg = do
         (die . (("reading " ++ show repo ++ ":") ++)) return
             =<< SaveGit.load repo maybe_commit
     printf "commit: %s, names: %s\n" (Pretty.pretty commit)
-        (Seq.join ", " names)
+        (Text.unpack (Text.intercalate ", " names))
     pprint_state flags state
 
 pprint_state :: [Flag] -> State.State -> IO ()

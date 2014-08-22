@@ -239,7 +239,7 @@ test_branching_history = do
     res <- next res $ Cmd.name "revert" $ Save.revert (Just "1")
     equal (extract_ui res) "xy"
 
-read_log :: SaveGit.Repo -> [SaveGit.Commit] -> IO [String]
+read_log :: SaveGit.Repo -> [SaveGit.Commit] -> IO [Text]
 read_log repo commits = do
     texts <- mapM (fmap Git.commit_text . Git.read_commit repo) commits
     mapM (fmap head . SaveGit.parse_names) texts
@@ -266,14 +266,14 @@ set_sel pos = Cmd.name "select" $ Selection.set_current Config.insert_selnum
 
 e_hist_names :: ResponderTest.Result -> ([String], String, [String])
 e_hist_names = extract_hist $ \(Cmd.HistoryEntry state _ names _) ->
-    Seq.join "+" names ++ ": " ++ ui_notes 0 state
+    Seq.join "+" (map untxt names) ++ ": " ++ ui_notes 0 state
 
 extract_hist :: (Cmd.HistoryEntry -> a) -> ResponderTest.Result -> ([a], a, [a])
 extract_hist extract res =
     (map extract past, extract present, map extract future)
     where Cmd.History past present future _ = e_hist res
 
-type Commit = ([String], Maybe SaveGit.Commit)
+type Commit = ([Text], Maybe SaveGit.Commit)
 
 e_commits :: ResponderTest.Result -> ([Commit], Commit, [Commit])
 e_commits res = (map extract past, extract present, map extract future)

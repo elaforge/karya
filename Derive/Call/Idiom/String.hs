@@ -168,7 +168,7 @@ process strings attack_interpolator release_interpolator
         PitchSignal.pitch_nn $ Score.apply_controls event start pitch
     case find_string nn strings of
         Nothing -> do
-            Log.warn $ pretty nn ++ " below lowest string: " ++ pretty strings
+            Log.warn $ prettyt nn <> " below lowest string: " <> prettyt strings
             return (state, [])
         Just string -> do
             new_event <- Derive.require "missing pitches" (emit pitch string)

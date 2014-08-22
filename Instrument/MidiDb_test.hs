@@ -41,7 +41,7 @@ test_patch_map = do
 
     equal (f [("a", pgm_change 1), ("*a", pgm_change 1)])
         ([("a", "a")], ["dropped patches with the same initialization as "
-            ++ "a (a.vc): *a (*a.vc)"])
+            <> "a (a.vc): *a (*a.vc)"])
     -- no dropping needed if the names are different
     equal (f [("a", pgm_change 1), ("b", pgm_change 1)])
         ([("a", "a"), ("b", "b")], [])

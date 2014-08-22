@@ -85,7 +85,7 @@ io_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map io_bindings))]
 -- have been stripped, but it's still useful to find keymap collisions and
 -- print a global keymap.
 all_cmd_map :: Keymap.CmdMap (Cmd.CmdT Identity.Identity)
-cmd_map_errors :: [String]
+cmd_map_errors :: [Text]
 (all_cmd_map, cmd_map_errors) =
     -- Pure cmds bind before IO cmds since they are extendable.
     Keymap.make_cmd_map (pure_bindings ++ map strip io_bindings)
@@ -359,7 +359,7 @@ edit_state_bindings = concat
     ]
     where
     step_rank rank =
-        ("set step: " ++ untxt (TimeStep.show_time_step step),
+        ("set step: " <> TimeStep.show_time_step step,
             Edit.set_step_rank step rank)
         where step = TimeStep.time_step (TimeStep.AbsoluteMark meter rank)
     meter = TimeStep.NamedMarklists [Ruler.meter]

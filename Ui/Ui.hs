@@ -87,7 +87,7 @@ handle_actions acts_mvar = MVar.modifyMVar_ acts_mvar $ \acts -> do
     -- Since acts are added to the front, reverse them before executing.
     sequence_ [act | Fltk act <- reverse acts]
         `Exception.catch` \(exc :: Exception.SomeException) ->
-            Log.error $ "exception in event_loop: " ++ show exc
+            Log.error $ "exception in event_loop: " <> showt exc
     return []
 
 quit_ui_thread :: QuitRequest -> IO ()

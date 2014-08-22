@@ -136,6 +136,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import qualified Data.Time as Time
 
 import Util.Control
@@ -1410,25 +1411,26 @@ modify_at msg xs i f = case post of
 -- * verify
 
 -- | Run a @fix_*@ function, and throw an error if it found problems.
-validate :: M m => String -> StateId [String] -> m ()
+validate :: M m => Text -> StateId [Text] -> m ()
 validate caller verify = do
     state <- get
     case run_id state verify of
-        Left err -> throw $ caller ++ ": error validating: " ++ show err
+        Left err -> throw $ untxt caller ++ ": error validating: " ++ show err
         Right (errs, state, _)
             | null errs -> return ()
             | otherwise -> do
                 -- The exception should cause the state to be rolled back, but
                 -- I might as well not let a known broken state stick around.
                 put state
-                throw $ caller ++ ": error validating: " ++ Seq.join "; " errs
+                throw $ untxt $ caller <> ": error validating: "
+                    <> Text.intercalate "; " errs
 
 -- | Unfortunately there are some invariants to protect within State.
 -- They can all be fixed by dropping things, so this will fix them and return
 -- a list of warnings.
-verify :: State -> (State, [String])
+verify :: State -> (State, [Text])
 verify state = case run_id state fix_state of
-    Left err -> (state, ["exception: " ++ pretty err])
+    Left err -> (state, ["exception: " <> prettyt err])
     Right (errs, state, _) -> (state, errs)
 
 -- | This is like 'verify', but less complete.  It returns Left if it wants
@@ -1440,7 +1442,7 @@ verify state = case run_id state fix_state of
 -- module.
 --
 -- TODO a better approach would be to make sure Sync can't be broken by State.
-quick_verify :: State -> Either String (State, [String])
+quick_verify :: State -> Either String (State, [Text])
 quick_verify state = case run_id state quick_fix of
     Left err -> Left $ pretty err
     Right (errs, state, _) -> Right (state, errs)
@@ -1457,7 +1459,7 @@ quick_verify state = case run_id state quick_fix of
         mapM_ get_track (Block.block_track_ids block)
         mapM_ get_ruler (Block.block_ruler_ids block)
 
-fix_state :: StateId [String]
+fix_state :: StateId [Text]
 fix_state = do
     views <- gets (Map.toList . state_views)
     view_errs <- concatMapM (uncurry verify_view) views
@@ -1466,19 +1468,19 @@ fix_state = do
     return $ view_errs ++ block_errs
 
 -- | Drop views with invalid BlockIds.
-verify_view :: ViewId -> Block.View -> StateId [String]
+verify_view :: ViewId -> Block.View -> StateId [Text]
 verify_view view_id view = do
     block <- lookup_block (Block.view_block view)
     case block of
         Just _ -> return []
         Nothing -> do
             destroy_view view_id
-            return [show view_id ++ ": dropped because of invalid "
-                ++ show (Block.view_block view)]
+            return [showt view_id <> ": dropped because of invalid "
+                <> showt (Block.view_block view)]
 
-fix_block :: BlockId -> Block.Block -> StateId [String]
+fix_block :: BlockId -> Block.Block -> StateId [Text]
 fix_block block_id block =
-    map ((show block_id ++ ": ") ++) . concat <$> sequence
+    map ((showt block_id <> ": ") <>) . mconcat <$> sequence
         [ fix_track_ids block_id block
         , unique_track_ids block_id block
         , fix_ruler_ids block_id block
@@ -1490,34 +1492,34 @@ fix_block block_id block =
     where tracks = zip [0..] (Block.block_tracks block)
 
 -- | Drop invalid track ids.
-fix_track_ids :: BlockId -> Block.Block -> StateId [String]
+fix_track_ids :: BlockId -> Block.Block -> StateId [Text]
 fix_track_ids block_id block = do
     all_track_ids <- gets state_tracks
     let is_valid = (`Map.member` all_track_ids)
     let invalid = filter (not . is_valid . snd) (block_event_tracknums block)
     mapM_ (remove_track block_id . fst) invalid
-    return ["tracknum " ++ show tracknum ++ ": dropped invalid "
-        ++ show track_id | (tracknum, track_id) <- invalid]
+    return ["tracknum " <> showt tracknum <> ": dropped invalid "
+        <> showt track_id | (tracknum, track_id) <- invalid]
 
 -- | Replace invalid ruler ids with no_ruler.
-fix_ruler_ids :: BlockId -> Block.Block -> StateId [String]
+fix_ruler_ids :: BlockId -> Block.Block -> StateId [Text]
 fix_ruler_ids _block_id _block = return [] -- TODO
 
 -- | Each TrackId of a block is unique.
-unique_track_ids :: BlockId -> Block.Block -> StateId [String]
+unique_track_ids :: BlockId -> Block.Block -> StateId [Text]
 unique_track_ids block_id block = do
     let invalid = concatMap snd $ snd $
             Seq.partition_dups snd (block_event_tracknums block)
     mapM_ (remove_track block_id . fst) invalid
-    return ["tracknum " ++ show tracknum ++ ": dropped duplicate "
-        ++ show track_id | (tracknum, track_id) <- invalid]
+    return ["tracknum " <> showt tracknum <> ": dropped duplicate "
+        <> showt track_id | (tracknum, track_id) <- invalid]
 
 -- | Skeleton tracknums in range.
-fix_skeleton :: BlockId -> Block.Block -> StateId [String]
+fix_skeleton :: BlockId -> Block.Block -> StateId [Text]
 fix_skeleton _block_id _block = return [] -- TODO
 
 -- | Strip invalid Block.track_merged.
-fix_merged :: BlockId -> (TrackNum, Block.Track) -> StateId [String]
+fix_merged :: BlockId -> (TrackNum, Block.Track) -> StateId [Text]
 fix_merged block_id (tracknum, track) = do
     all_track_ids <- gets state_tracks
     let is_valid = (`Map.member` all_track_ids)
@@ -1525,12 +1527,12 @@ fix_merged block_id (tracknum, track) = do
     unless (null invalid) $
         modify_block_track block_id tracknum
             (const $ track { Block.track_merged = valid })
-    return ["tracknum " ++ show tracknum ++ ": stripped invalid merged "
-        ++ show track_id | track_id <- invalid]
+    return ["tracknum " <> showt tracknum <> ": stripped invalid merged "
+        <> showt track_id | track_id <- invalid]
 
 -- | Drop block_integrated if the source BlockId doesn't exist, and strip out
 -- TrackDestinations whose TrackIds aren't in this block.
-fix_integrated_block :: BlockId -> Block.Block -> StateId [String]
+fix_integrated_block :: BlockId -> Block.Block -> StateId [Text]
 fix_integrated_block block_id block = do
     blocks <- gets state_blocks
     let (integrated, errs) = fix blocks (Block.block_integrated block)
@@ -1543,11 +1545,11 @@ fix_integrated_block block_id block = do
     fix _ Nothing = (Nothing, [])
     fix blocks (Just (source_id, dests)) = case Map.lookup source_id blocks of
         Nothing ->
-            (Nothing, ["removed invalid integrated block: " ++ show source_id])
+            (Nothing, ["removed invalid integrated block: " <> showt source_id])
         Just source -> (Just (source_id, valid), errs)
             where
             (valid, errs) = fix_track_destinations
-                ("block of " <> show source_id)
+                ("block of " <> showt source_id)
                 (Block.block_track_ids source) track_ids dests
 
 -- | Drop integrated tracks whose source TrackId isn't in this block, and
@@ -1556,7 +1558,7 @@ fix_integrated_block block_id block = do
 -- TODO
 -- - No TrackIds duplicated between DeriveDestinations.
 -- - No TrackIds duplicated across integrated tracks.
-fix_integrated_tracks :: BlockId -> Block.Block -> StateId [String]
+fix_integrated_tracks :: BlockId -> Block.Block -> StateId [Text]
 fix_integrated_tracks block_id block = do
     let (dests, errs) = Maybe.catMaybes *** concat $ unzip $ map fix
             (Block.block_integrated_tracks block)
@@ -1568,14 +1570,14 @@ fix_integrated_tracks block_id block = do
     track_ids = Block.block_track_ids block
     fix (track_id, dests)
         | track_id `notElem` track_ids =
-            (Nothing, ["removed invalid integrated track: " <> show track_id])
+            (Nothing, ["removed invalid integrated track: " <> showt track_id])
         | otherwise = (Just (track_id, valid), errs)
         where
-        (valid, errs) = fix_track_destinations ("track of " <> show track_id)
+        (valid, errs) = fix_track_destinations ("track of " <> showt track_id)
             track_ids track_ids dests
 
-fix_track_destinations :: String -> [TrackId] -> [TrackId]
-    -> Block.TrackDestinations -> (Block.TrackDestinations, [String])
+fix_track_destinations :: Text -> [TrackId] -> [TrackId]
+    -> Block.TrackDestinations -> (Block.TrackDestinations, [Text])
 fix_track_destinations err_msg source_track_ids track_ids d = case d of
     Block.DeriveDestinations dests ->
         (Block.DeriveDestinations valid, errs (map derive_track_ids invalid))
@@ -1586,7 +1588,7 @@ fix_track_destinations err_msg source_track_ids track_ids d = case d of
     where
     errs invalid = ["integrated " <> err_msg
         <> ": track destination has track ids not in the right block: "
-        <> pretty dest | dest <- invalid]
+        <> prettyt dest | dest <- invalid]
     derive_track_ids (Block.DeriveDestination note controls) =
         fst note : map fst (Map.elems controls)
     score_track_ids (source_id, (dest_id, _)) = (source_id, dest_id)

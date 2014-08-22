@@ -95,10 +95,10 @@ main = initialize $ \repl_socket midi_interface -> do
     Log.notice "app starting"
     static_config <- Local.Config.load_static_config
     let loaded_msg = "instrument db loaded, "
-            ++ show (Db.size (StaticConfig.instrument_db static_config))
-            ++ " instruments loaded"
+            <> showt (Db.size (StaticConfig.instrument_db static_config))
+            <> " instruments loaded"
     Log.notice loaded_msg
-    putStrLn loaded_msg
+    putStrLn $ untxt loaded_msg
 
     let _x = _x
     -- satellites are out tonight
@@ -147,13 +147,13 @@ main = initialize $ \repl_socket midi_interface -> do
         Responder.responder static_config ui_chan get_msg midi_interface
             setup_cmd session loopback
         `Exception.catch` (\(exc :: Exception.SomeException) ->
-            Log.error $ "responder thread died from exception: " ++ show exc)
+            Log.error $ "responder thread died from exception: " <> showt exc)
             -- It would be possible to restart the responder, but chances are
             -- good it would just die again.
         `Exception.finally` Ui.quit_ui_thread quit_request
     Ui.event_loop ui_chan quit_request msg_chan
         `Exception.catch` \(exc :: Exception.SomeException) ->
-            Log.error $ "ui died from exception: " ++ show exc
+            Log.error $ "ui died from exception: " <> showt exc
 
     Interface.abort midi_interface
     mapM_ (Interface.write_message midi_interface)
@@ -173,10 +173,10 @@ startup_initialization = do
     mapM_ Log.warn GlobalKeymap.cmd_map_errors
     forM_ (Library.shadowed Call.All.library) $
         \((name, (Module.Module module_)), calls) ->
-            Log.warn $ "shadowed " <> untxt name <> " calls in module "
-                <> untxt module_ <> ": " <> pretty calls
+            Log.warn $ "shadowed " <> name <> " calls in module "
+                <> module_ <> ": " <> prettyt calls
     unless (null Scale.All.shadowed) $
-        Log.warn $ "scales shadowed: " <> pretty Scale.All.shadowed
+        Log.warn $ "scales shadowed: " <> prettyt Scale.All.shadowed
 
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do

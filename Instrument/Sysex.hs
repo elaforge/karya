@@ -52,7 +52,7 @@ parse_dir parsers dir = do
     fns <- filter ((==".syx") . FilePath.takeExtension) <$>
         File.listRecursive (const True) dir
     results <- mapM (\fn -> parse_file parsers fn <$> B.readFile fn) fns
-    sequence_ [Log.warn $ "parsing " ++ fn ++ ": " ++ err
+    sequence_ [Log.warn $ "parsing " <> txt fn <> ": " <> txt err
         | (fn, Left err) <- zip fns results]
     return $ concat [patches | Right patches <- results]
 
@@ -76,7 +76,7 @@ parse_builtins bank parser fn = do
     bytes <- B.readFile fn
     case parser bytes of
         Left err -> do
-            Log.warn $ "parsing " ++ fn ++ ": " ++ err
+            Log.warn $ "parsing " <> txt fn <> ": " <> txt err
             return []
         Right patches ->
             return $ zipWith (initialize_program bank) [0..] patches

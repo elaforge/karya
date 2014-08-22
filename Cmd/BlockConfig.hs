@@ -43,7 +43,7 @@ cmd_toggle_edge msg = do
     let edge = (sel_tracknum, clicked_tracknum)
     success <- State.toggle_skeleton_edge block_id edge
     unless success $
-        Log.warn $ "refused to add cycle-creating edge: " ++ show edge
+        Log.warn $ "refused to add cycle-creating edge: " <> showt edge
     -- The shift below is incorrect.  Anyway, a common case is to splice
     -- a track above and then delete the unwanted edges, and moving the
     -- selection makes that inconvenient.

@@ -3,8 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.NoteEntry_test where
+import Util.Control
 import qualified Util.Log as Log
 import Util.Test
+
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -43,7 +45,7 @@ test_key_to_input = do
         ]
 
 test_cmds_with_note = do
-    let cmd_dummy msg = Log.warn (show msg) >> return Cmd.Done
+    let cmd_dummy msg = Log.warn (showt msg) >> return Cmd.Done
     let high_c = '\''
         ctrl_key = CmdTest.make_key_mods [Key.Control] UiMsg.KeyDown
         run cstate cmd = CmdTest.extract id $

@@ -22,7 +22,6 @@ import qualified System.Locale as Locale
 import Util.Control
 import qualified Util.Git as Git
 import qualified Util.Log as Log
-import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -127,8 +126,8 @@ write_current_state :: FilePath -> Cmd.CmdT IO ()
 write_current_state fname = do
     state <- State.get
     ((), secs) <- liftIO $ Log.time_eval $ write_state fname state
-    Log.notice $ "wrote state to " <> show fname
-        <> ", took " <> Pretty.pretty secs <> "s"
+    Log.notice $ "wrote state to " <> showt fname
+        <> ", took " <> prettyt secs <> "s"
 
 write_state :: FilePath -> State.State -> IO ()
 write_state fname state = do
@@ -144,8 +143,8 @@ load_state fname = do
 
 read_state :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
 read_state fname = do
-    let mkmsg = (("load " ++ fname ++ ": ") ++)
-    Log.notice $ "read state from " ++ show fname
+    let mkmsg = (("load " <> fname <> ": ") <>)
+    Log.notice $ "read state from " <> showt fname
     state <- Cmd.require (mkmsg "doesn't exist")
         =<< Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
     return (state, SaveState fname)
@@ -194,7 +193,7 @@ save_git_as repo = do
             rethrow =<< liftIO (SaveGit.checkpoint repo
                 (SaveGit.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
-    Log.notice $ "wrote save " ++ show save ++ " to " ++ show repo
+    Log.notice $ "wrote save " <> showt save <> " to " <> showt repo
     set_save_file (SaveRepo repo commit Nothing) False
 
 load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
@@ -208,8 +207,8 @@ read_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " <> repo <> ": ") <>)
         =<< liftIO (SaveGit.load repo maybe_commit)
-    Log.notice $ "read from " <> show repo <> ", at " <> pretty commit
-        <> " names: " <> show names
+    Log.notice $ "read from " <> showt repo <> ", at " <> prettyt commit
+        <> " names: " <> showt names
     return (state, SaveRepo repo commit (Just names))
 
 -- | Revert to given save point, or the last one.
@@ -223,7 +222,7 @@ revert maybe_ref = do
                 .  ("can't revert to a commit when the save file isn't git: "++)
             load fn
         Cmd.SaveRepo repo -> revert_git repo
-    Log.notice $ "revert to " ++ show save_file
+    Log.notice $ "revert to " <> showt save_file
     where
     revert_git repo = do
         save <- case maybe_ref of
@@ -262,13 +261,13 @@ default_git = "save.git"
 save_midi_config :: FilePath -> Cmd.CmdT IO ()
 save_midi_config fname = do
     config <- State.get_config id
-    Log.notice $ "write midi config to " ++ show fname
+    Log.notice $ "write midi config to " <> showt fname
     liftIO $ Serialize.serialize_pretty_text fname
         (State.config_midi config, State.config_aliases config)
 
 load_midi_config :: FilePath -> Cmd.CmdT IO ()
 load_midi_config fname = do
-    Log.notice $ "load midi config from " ++ show fname
+    Log.notice $ "load midi config from " <> showt fname
     (config, aliases) <- Cmd.require_right
         (("unserializing midi config " ++ show fname ++ ": ") ++)
         =<< liftIO (Serialize.unserialize_text fname)
@@ -296,7 +295,7 @@ data SaveFile =
     SaveState !FilePath
     -- | The Strings are the cmd name of this commit, and only set on a git
     -- load.
-    | SaveRepo !SaveGit.Repo !SaveGit.Commit !(Maybe [String])
+    | SaveRepo !SaveGit.Repo !SaveGit.Commit !(Maybe [Text])
     deriving (Show)
 
 -- | If I switch away from a repo (either to another repo or to a plain state),

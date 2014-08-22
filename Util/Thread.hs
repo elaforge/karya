@@ -14,6 +14,8 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Exception as Exception
 
+import Data.Monoid ((<>))
+import qualified Data.Text as Text
 import qualified System.CPUTime as CPUTime
 import qualified System.Timeout as Timeout
 
@@ -31,13 +33,13 @@ start_logged name op = Concurrent.forkIO (handle_thread name op)
 handle_thread :: String -> IO a -> IO ()
 handle_thread name op = do
     thread_id <- Concurrent.myThreadId
-    let thread_name = show thread_id ++ " " ++ name ++ ": "
-    Log.debug $ thread_name ++ "started"
+    let thread_name = Text.pack $ show thread_id ++ " " ++ name ++ ": "
+    Log.debug $ thread_name <> "started"
     result <- Exception.try op
     case result of
-        Right _ -> Log.debug $ thread_name ++ "completed"
-        Left err -> Log.warn $ thread_name ++ "died: "
-            ++ show (err :: Exception.SomeException)
+        Right _ -> Log.debug $ thread_name <> "completed"
+        Left err -> Log.warn $ thread_name <> "died: "
+            <> Text.pack (show (err :: Exception.SomeException))
 
 start :: IO () -> IO Concurrent.ThreadId
 start = Concurrent.forkIO

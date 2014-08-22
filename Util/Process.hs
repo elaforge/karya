@@ -9,6 +9,9 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Exception as Exception
 
 import qualified Data.ByteString as ByteString
+import Data.Monoid ((<>))
+import qualified Data.Text as Text
+
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
@@ -54,8 +57,9 @@ logged create = do
         code <- Process.waitForProcess pid
         case code of
             Exit.ExitFailure c -> Log.error $
-                "subprocess " ++ show (binaryOf create) ++ " failed: "
-                ++ if c == 127 then "binary not found" else show c
+                "subprocess " <> Text.pack (show (binaryOf create))
+                <> " failed: "
+                <> if c == 127 then "binary not found" else Text.pack (show c)
             _ -> return ()
     return r
     where

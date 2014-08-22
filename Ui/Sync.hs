@@ -95,8 +95,8 @@ check_updates state = filterM $ \update -> case update of
         Update.DestroyView -> return True
         _ | view_id `Map.member` State.state_views state -> return True
         _ -> do
-            Log.warn $ "Update for nonexistent " <> show view_id <> ": "
-                <> pretty u
+            Log.warn $ "Update for nonexistent " <> showt view_id <> ": "
+                <> prettyt u
             return False
     _ -> return True
 
@@ -116,7 +116,7 @@ set_track_signals ui_chan block_id state track_signals =
             -- could happen if I deleted a track before the deriver came back
             -- with its signal.
             -- TODO but I should just filter out the bad track_id in that case
-            Log.warn $ "getting tracknums of track_signals: " ++ show err
+            Log.warn $ "getting tracknums of track_signals: " <> showt err
         Right tracks -> do
             let tsigs = do
                     (view_id, track_id, tracknum) <- tracks
@@ -376,7 +376,7 @@ update_block track_signals set_style block_id update = do
             Nothing -> do
                 liftIO $ Log.warn $
                     "InsertTrack with tracknum that's not in the block's "
-                    ++ "tracks: " ++ show update
+                    <> "tracks: " <> showt update
                 return mempty
             Just btrack -> return (Block.track_flags btrack)
         return $ forM_ view_ids $ \view_id ->

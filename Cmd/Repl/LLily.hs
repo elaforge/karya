@@ -138,7 +138,7 @@ explicit_movements title movements = do
     mapM_ Log.write logs
     case result of
         Left err -> do
-            Log.warn $ "explicit_movements: " <> untxt err
+            Log.warn $ "explicit_movements: " <> err
             return err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title
@@ -152,7 +152,7 @@ extract_movements title events = do
     mapM_ Log.write logs
     case result of
         Left err -> do
-            Log.warn $ "extract_movements: " <> untxt err
+            Log.warn $ "extract_movements: " <> err
             return err
         Right output -> do
             filename <- Cmd.Lilypond.ly_filename title

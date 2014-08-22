@@ -67,13 +67,13 @@ repl session repl_dirs msg = do
         _ -> Cmd.abort
     ns <- State.get_namespace
     text <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns text
-    Log.debug $ "repl input: " ++ show text
+    Log.debug $ "repl input: " <> showt text
     local_modules <- fmap concat (mapM get_local_modules repl_dirs)
 
     cmd <- case Fast.fast_interpret (untxt text) of
         Just cmd -> return cmd
         Nothing -> liftIO $ ReplImpl.interpret session local_modules text
-    (response, status) <- run_cmdio $ Cmd.name ("repl: " ++ untxt text) cmd
+    (response, status) <- run_cmdio $ Cmd.name ("repl: " <> text) cmd
     liftIO $ catch_io_errors $ do
         ByteString.Char8.hPutStrLn response_hdl
             (ReplUtil.encode_response response)
@@ -81,7 +81,7 @@ repl session repl_dirs msg = do
     return status
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
-        Log.warn $ "caught exception from socket write: " ++ show exc
+        Log.warn $ "caught exception from socket write: " <> showt exc
 
 -- | Replace \@some-id with @(make_id ns \"some-id\")@
 expand_macros :: Id.Namespace -> Text -> Either String Text
@@ -124,7 +124,7 @@ get_local_modules :: FilePath -> Cmd.CmdT IO [String]
 get_local_modules repl_dir = do
     fns <- liftIO $ Directory.getDirectoryContents repl_dir
         `Exception.catch` \(exc :: IOError) -> do
-            Log.warn $ "error reading local repl dir: " ++ show exc
+            Log.warn $ "error reading local repl dir: " <> showt exc
             return []
     let mod_fns = map (repl_dir </>) (filter is_hs fns)
     mod_fns <- liftIO $ filterM Directory.doesFileExist mod_fns

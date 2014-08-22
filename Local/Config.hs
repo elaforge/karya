@@ -7,6 +7,7 @@ module Local.Config (load_static_config) where
 import qualified Control.Monad.Trans as Trans
 import qualified Network.BSD
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Midi.Key as Key
 import qualified Cmd.Cmd as Cmd
@@ -62,7 +63,7 @@ get_midi_config db = Network.BSD.getHostName >>= \x -> case x of
     "tammananny" -> return $ Tammananny.midi_config db
     "archy" -> return $ Archy.midi_config db
     host -> do
-      Log.warn $ "no midi configuration for host: " ++ show host
+      Log.warn $ "no midi configuration for host: " <> showt host
       return StaticConfig.empty_midi
 
 parse_args :: [String] -> Cmd.CmdIO

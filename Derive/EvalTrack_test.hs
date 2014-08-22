@@ -87,7 +87,7 @@ test_threaded_last_event = do
         Sig.call0 $ \args -> case Args.prev_val args of
             Nothing -> Derive.throw "no prev val"
             Just prev -> do
-                Log.warn $ show (Score.event_start prev)
+                Log.warn $ showt (Score.event_start prev)
                 return []
 
 test_assign_controls = do
@@ -207,14 +207,13 @@ test_events_around = do
         with_call = CallTest.with_note_generator "around" c_around
         extract = DeriveTest.r_log_strings
     equal logs ["prev: [0.0]", "next: [2.0]"]
-
     where
     c_around = Derive.make_call module_ "around" mempty "doc" $ Sig.call0 $
         Sub.inverting $ \args -> do
             Log.warn $ "prev: "
-                ++ show (map Event.start (Args.prev_events args))
+                <> showt (map Event.start (Args.prev_events args))
             Log.warn $ "next: "
-                ++ show (map Event.start (Args.next_events args))
+                <> showt (map Event.start (Args.next_events args))
             return []
 
 test_track_dynamic = do
@@ -364,7 +363,7 @@ test_orphans = do
     show_subs = Derive.make_call "test" "show" mempty "doc" $
         Sig.call0 $ \args -> do
             let subs = Derive.info_sub_tracks (Derive.passed_info args)
-            Log.warn $ pretty subs
+            Log.warn $ prettyt subs
             return []
 
 test_record_empty_tracks = do

@@ -7,11 +7,10 @@
 module Cmd.ResponderSync (Sync, sync) where
 import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-
 import qualified Ui.Diff as Diff
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -38,11 +37,12 @@ sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
     ui_to <- case State.quick_verify ui_to of
         Left err -> do
             Log.error $ "cmd caused a verify error, rejecting state change: "
-                ++ err
+                <> txt err
             return ui_from
         Right (state, warns) -> do
             unless (null warns) $
-                Log.warn $ "verify fixed issues: " ++ Seq.join "; " warns
+                Log.warn $ "verify fixed issues: "
+                    <> Text.intercalate "; " warns
             return state
 
     let (ui_updates, display_updates) = Diff.diff cmd_updates ui_from ui_to
@@ -51,7 +51,7 @@ sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
     (ui_to, ui_updates, display_updates) <-
         case Integrate.score_integrate ui_updates ui_to of
             Left err -> do
-                Log.error $ "score_integrate failed: " ++ pretty err
+                Log.error $ "score_integrate failed: " <> prettyt err
                 return (ui_from, ui_updates, display_updates)
             Right (logs, state, updates) -> do
                 mapM_ Log.write logs
@@ -67,7 +67,7 @@ sync sync_func ui_from ui_to cmd_state cmd_updates play_monitor_state = do
     err <- sync_func (get_track_signals cmd_state) Internal.set_style
         ui_to display_updates
     whenJust err $ \err ->
-        Log.error $ "syncing updates: " ++ pretty err
+        Log.error $ "syncing updates: " <> prettyt err
     return (ui_updates, ui_to, cmd_state)
 
 -- | Get all track signals already derived.  TrackSignals are only collected

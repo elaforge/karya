@@ -217,7 +217,7 @@ accept_loop socket output_chan = forever $ catch_io_errors $ do
         (hdl, ReplUtil.decode_request msg)
     where
     catch_io_errors = Exception.handle $ \(exc :: IOError) ->
-        Log.warn $ "caught exception from socket read: " ++ show exc
+        Log.warn $ "caught exception from socket read: " <> showt exc
 
 
 -- * respond
@@ -229,7 +229,7 @@ respond_loop rstate msg_reader = do
     result <- Exception.try $ respond rstate msg
     case result of
         Left (exc :: Exception.SomeException) -> do
-            Log.error $ "exception caught in respond_loop: " ++ show exc
+            Log.error $ "exception caught in respond_loop: " <> showt exc
             respond_loop rstate msg_reader
         Right (quit, rstate) -> unless quit (respond_loop rstate msg_reader)
 
@@ -295,7 +295,7 @@ run_responder run_derive state m = do
         <- Monad.State.runStateT m (make_rstate state)
     case val of
         Left err -> do
-            Log.warn (pretty err)
+            Log.warn (prettyt err)
             -- Exception rolls back changes to ui_state and cmd_state.
             return (False, state { state_ui = ui_from, state_cmd = cmd_from })
         Right status -> post_cmd run_derive state ui_from ui_to cmd_to
@@ -459,17 +459,17 @@ type ErrorResponderM = Error.ErrorT Done ResponderM
 
 -- | Run a cmd and ignore the 'Cmd.Status', but log a complaint if it wasn't
 -- Continue.
-run_continue :: String -> EitherCmd
+run_continue :: Text -> EitherCmd
     -> ResponderM (Maybe (Cmd.Status, State.State, Cmd.State))
 run_continue caller cmd = do
     (result, cmd_state) <- run_cmd cmd
     case result of
         Left err -> do
-            liftIO $ Log.error $ caller <> ": " <> pretty err
+            liftIO $ Log.error $ caller <> ": " <> prettyt err
             return Nothing
         Right (status, ui_state) -> do
             when (not_continue status) $ liftIO $
-                Log.error $ caller <> ": expected Continue: " <> show status
+                Log.error $ caller <> ": expected Continue: " <> showt status
             return $ Just (status, ui_state, cmd_state)
 
 -- | Run a Cmd, throwing the 'Cmd.Status' if it wasn't Continue.

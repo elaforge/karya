@@ -64,7 +64,7 @@ cmd_play_msg ui_chan msg = do
             -- This will cover up derive status info, but that should be ok.
             -- And play normally only comes after derive is completed.
             set_all_play_boxes Config.box_color
-        Transport.Died err_msg -> Log.warn ("player died: " ++ err_msg)
+        Transport.Died err_msg -> Log.warn $ "player died: " <> txt err_msg
     derive_status_msg block_id status = do
         whenJust (derive_status_color status) (State.set_play_box block_id)
         case status of
@@ -209,7 +209,7 @@ monitor_loop :: UpdaterState -> IO ()
 monitor_loop state = do
     now <- maybe id (flip Num.fmod) (monitor_repeat_at state)
         . subtract (monitor_offset state) <$> monitor_get_now state
-    let fail err = Log.error ("state error in play monitor: " ++ show err)
+    let fail err = Log.error ("state error in play monitor: " <> showt err)
             >> return []
     ui_state <- MVar.readMVar (monitor_ui_state state)
     let block_pos = monitor_inv_tempo_func state now

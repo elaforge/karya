@@ -61,13 +61,13 @@ load app_dir = do
             </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \x -> case x of
         -- The parsec error already includes the filename.
-        Left err -> Log.warn err >> return mempty
+        Left err -> Log.warn (txt err) >> return mempty
         Right annots -> return annots
     let (midi_db, warns) = MidiDb.midi_db synth_descs
-    forM_ warns $ \msg -> Log.warn $ "inst db: " ++ untxt msg
+    forM_ warns $ \msg -> Log.warn $ "inst db: " <> msg
     (midi_db, not_found) <- return $ MidiDb.annotate annots midi_db
     unless (null not_found) $
-        Log.warn $ "annotated instruments not found: " ++ pretty not_found
+        Log.warn $ "annotated instruments not found: " <> prettyt not_found
     return $ Db.db midi_db
 
 make_dbs :: FilePath -> IO ()

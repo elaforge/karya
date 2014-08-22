@@ -17,16 +17,18 @@ import Control.Monad
 import qualified Data.ByteString as ByteString
 import qualified Data.IORef as IORef
 import qualified Data.Map as Map
+import Data.Monoid ((<>))
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 import Data.Text (Text)
 
 import Foreign hiding (void)
 import Foreign.C
 
 import qualified Util.Log as Log
+import qualified Midi.Encode as Encode
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
-import qualified Midi.Encode as Encode
 
 import qualified Ui.Util
 import qualified Perform.RealTime as RealTime
@@ -279,7 +281,7 @@ check :: CError -> IO Bool
 check err = case error_str err of
     Nothing -> return True
     Just msg -> do
-        Log.error $ "CoreMIDI error: " ++ msg
+        Log.error $ "CoreMIDI error: " <> Text.pack msg
         return False
 
 type CError = CULong

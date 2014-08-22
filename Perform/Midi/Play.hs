@@ -9,6 +9,7 @@ module Perform.Midi.Play (play, cycle_messages) where
 import qualified Control.Exception as Exception
 import qualified Data.Maybe as Maybe
 
+import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -28,7 +29,7 @@ type Messages = [LEvent.LEvent Midi.WriteMessage]
 
 -- | Start a thread to stream a list of WriteMessages, and return
 -- a Transport.Control which can be used to stop and restart the player.
-play :: Transport.Info -> Maybe Cmd.SyncConfig -> String -> Messages
+play :: Transport.Info -> Maybe Cmd.SyncConfig -> Text -> Messages
     -> Maybe RealTime
     -- ^ If given, loop back to the beginning when this time is reached.
     -> IO (Transport.PlayControl, Transport.PlayMonitorControl)
@@ -44,10 +45,10 @@ play transport_info sync name msgs repeat_at = do
     -- Catch msgs up to realtime and cycle them if I'm repeating.
     process now repeat_at = shift_messages now . cycle_messages repeat_at
 
-player_thread :: Maybe Cmd.SyncConfig -> RealTime -> String -> State
+player_thread :: Maybe Cmd.SyncConfig -> RealTime -> Text -> State
     -> Messages -> IO ()
 player_thread maybe_sync start name state msgs = do
-    Log.debug $ "play start: " ++ name
+    Log.debug $ "play start: " <> name
     case maybe_sync of
         Just sync | not (Cmd.sync_mtc sync) ->
             state_write_midi state $ make_mmc sync start Mmc.Play
@@ -61,7 +62,7 @@ player_thread maybe_sync start name state msgs = do
             state_write_midi state $ make_mmc sync start Mmc.Stop
         _ -> return ()
     Transport.player_stopped (state_monitor_control state)
-    Log.debug $ "play complete: " ++ name
+    Log.debug $ "play complete: " <> name
 
 make_mmc :: Cmd.SyncConfig -> RealTime -> Mmc.Mmc -> Midi.WriteMessage
 make_mmc sync start msg = Midi.WriteMessage (Cmd.sync_device sync) start $

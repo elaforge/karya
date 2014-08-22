@@ -102,7 +102,7 @@ put_int path int = Sysex.put_rmap path int
 parse_builtins :: FilePath -> IO [Instrument.Patch]
 parse_builtins fn = do
     results <- parse_file fn
-    mapM_ Log.warn (Either.lefts results)
+    mapM_ (Log.warn . txt) (Either.lefts results)
     return [Sysex.initialize_program 0 i patch
         | (i, Right patch) <- zip [0..] results]
 
@@ -110,7 +110,7 @@ parse_dir :: FilePath -> IO [Instrument.Patch]
 parse_dir dir = do
     fns <- File.listRecursive (const True) dir
     (warns, patches) <- Seq.partition_either . concat <$> mapM parse_file fns
-    mapM_ Log.warn warns
+    mapM_ (Log.warn . txt) warns
     return patches
 
 parse_file :: FilePath -> IO [Either String Instrument.Patch]
@@ -146,7 +146,7 @@ file_to_syx fn = map add_extra_zero <$> case FilePath.takeExtension fn of
         ".syx" -> split_syx <$> B.readFile fn
         ".txt" -> return []
         ".rec" -> return []
-        _ -> Log.warn ("skipping " ++ show fn) >> return []
+        _ -> Log.warn ("skipping " <> showt fn) >> return []
     where
     -- | Convert .1vc format to .syx format.  Derived by looking at vlone70
     -- conversions with od.

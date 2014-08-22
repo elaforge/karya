@@ -5,6 +5,7 @@
 module Derive.Call.CallTest where
 import qualified Control.Monad as Monad
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
@@ -117,8 +118,8 @@ run_val transform call = extract $ DeriveTest.derive_tracks_with
 c_show_args :: Derive.Callable d => Derive.Generator d
 c_show_args = Derive.generator module_ "show-args" mempty "doc" $
     Sig.parsed_manually "doc" $ \args -> do
-        Log.warn $ Seq.join ", " $
-            map (untxt . ShowVal.show_val) (Derive.passed_vals args)
+        Log.warn $ Text.intercalate ", " $
+            map ShowVal.show_val (Derive.passed_vals args)
         return []
 
 generator :: Derive.Taggable y =>

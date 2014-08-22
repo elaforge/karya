@@ -17,7 +17,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.ParseTitle as ParseTitle
 
 
-make_keymap :: Cmd.M m => (Keymap.CmdMap m, [String])
+make_keymap :: Cmd.M m => (Keymap.CmdMap m, [Text])
 make_keymap = Keymap.make_cmd_map $ concat
     [ command_char 'm' "toggle merged" toggle_merged
     , command_char '.' "add ." (add_transform_generator ".")

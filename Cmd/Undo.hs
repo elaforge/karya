@@ -6,11 +6,10 @@
 module Cmd.Undo (undo, redo, maintain_history) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
@@ -76,7 +75,7 @@ undo = do
                 prev : rest -> do_undo hist cur prev rest
     where
     do_undo hist cur prev rest = do
-        Log.notice $ "undo " ++ hist_name cur ++ " -> " ++ hist_name prev
+        Log.notice $ "undo " <> hist_name cur <> " -> " <> hist_name prev
         let updates = Cmd.hist_updates prev
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
@@ -110,7 +109,7 @@ redo = do
                 next : rest -> do_redo cur (Cmd.hist_past hist) next rest
     where
     do_redo cur past next rest = do
-        Log.notice $ "redo " ++ hist_name cur ++ " -> " ++ hist_name next
+        Log.notice $ "redo " <> hist_name cur <> " -> " <> hist_name next
         Cmd.modify $ \st -> st
             { Cmd.state_history = Cmd.History
                 { Cmd.hist_past =
@@ -129,11 +128,11 @@ redo = do
     load_next repo = load_history "load_next_history" $
         SaveGit.load_next_history repo
 
-hist_name :: Cmd.HistoryEntry -> String
-hist_name hist = '[' : Seq.join ", " (Cmd.hist_names hist) ++ "] "
-    ++ pretty (Cmd.hist_commit hist)
+hist_name :: Cmd.HistoryEntry -> Text
+hist_name hist = "[" <> Text.intercalate ", " (Cmd.hist_names hist) <> "] "
+    <> prettyt (Cmd.hist_commit hist)
 
-load_history :: String
+load_history :: Text
     -> (State.State -> SaveGit.Commit
         -> IO (Either String (Maybe SaveGit.LoadHistory)))
      -> Cmd.HistoryEntry -> IO [Cmd.HistoryEntry]
@@ -143,7 +142,7 @@ load_history name load hist = case Cmd.hist_commit hist of
         result <- load (Cmd.hist_state hist) commit
         case result of
             Left err -> do
-                Log.error $ name ++ ": " ++ err
+                Log.error $ name <> ": " <> txt err
                 return []
             Right Nothing -> return []
             Right (Just hist) -> return [entry hist]
@@ -265,7 +264,7 @@ commit_entries repo prev_commit (hist0:hists) = do
     result <- SaveGit.checkpoint repo hist
     case result of
         Left err -> do
-            Log.error $ "error committing history: " ++ err
+            Log.error $ "error committing history: " <> txt err
             return []
         Right commit -> do
             entries <- commit_entries repo commit hists

@@ -10,6 +10,7 @@ import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import qualified Numeric
 import qualified System.FilePath as FilePath
@@ -39,7 +40,7 @@ import Types
 -- | History loaded from disk.  It only has CmdUpdates so you can feed them to
 -- diff.
 data LoadHistory =
-    LoadHistory !State.State !Git.Commit ![Update.CmdUpdate] ![String]
+    LoadHistory !State.State !Git.Commit ![Update.CmdUpdate] ![Text]
     deriving (Show)
 
 -- | History to be saved to disk.  The updates are post-diff to know which bits
@@ -51,7 +52,7 @@ data LoadHistory =
 -- mean anything, and if they're applied on top of the wrong commit the result
 -- will be a corrupted state.
 data SaveHistory =
-    SaveHistory !State.State !(Maybe Git.Commit) [Update.UiUpdate] ![String]
+    SaveHistory !State.State !(Maybe Git.Commit) [Update.UiUpdate] ![Text]
     deriving (Show)
 
 instance Pretty.Pretty SaveHistory where
@@ -145,16 +146,15 @@ checkpoint repo (SaveHistory state (Just commit) updates names) =
     let (warns, mods) = dump_diff False state (filter should_record updates)
     unless (null warns) $
         Log.warn $ "ignored updates for nonexistent "
-            <> Seq.join ", " warns
-            <> "; this probably means 'Ui.Diff.cancel_updates didn't"
-            <> " do its job"
+            <> Text.intercalate ", " warns
+            <> "; this probably means 'Ui.Diff.cancel_updates didn't do its job"
     if null mods then return commit else do
     last_tree <- Git.commit_tree <$> Git.read_commit repo commit
     tree <- Git.modify_tree repo last_tree mods
     commit_tree repo tree (Just commit) $ unparse_names "checkpoint" names
 
 -- | Create a new repo, or throw if it already exists.
-save :: Git.Repo -> State.State -> [String] -> IO Git.Commit
+save :: Git.Repo -> State.State -> [Text] -> IO Git.Commit
 save repo state cmd_names = do
     whenM (Git.init repo) $
         Git.throw "refusing to overwrite a repo that already exists"
@@ -217,7 +217,7 @@ score_to_hex = pad . flip Numeric.showHex "" . Serialize.encode_double
 -- * load
 
 load :: Git.Repo -> Maybe Git.Commit
-    -> IO (Either String (State.State, Git.Commit, [String]))
+    -> IO (Either String (State.State, Git.Commit, [Text]))
     -- ^ (state, commit, name of the cmd this is a checkpoint of)
 load repo maybe_commit = try_e "load" $ do
     -- TODO have to handle both compact and expanded tracks
@@ -292,12 +292,12 @@ default_head repo Nothing =
 -- has the proper name.
 --
 -- TODO save and parse in a more robust way
-parse_names :: String -> IO [String]
+parse_names :: String -> IO [Text]
 parse_names text = case lines text of
-    [_, names] -> readIO names
+    [_, names] -> map txt <$> readIO names
     _ -> error $ "can't parse description: " ++ show text
 
-unparse_names :: String -> [String] -> String
+unparse_names :: String -> [Text] -> String
 unparse_names msg names = msg ++ "\n" ++ show names ++ "\n"
 
 -- * views
@@ -335,17 +335,17 @@ dump_map m = do
 -- twice if two updates occur on it.  But 'Git.modify_dir' will filter out the
 -- extras.
 dump_diff :: Bool -> State.State -> [Update.UiUpdate]
-    -> ([String], [Git.Modification])
+    -> ([Text], [Git.Modification])
     -- ^ warnings for updates to values that no longer exist
 dump_diff track_dir state =
     -- I use Left "" as a nop, so filter those out.
-    first (filter (not . null)) . Seq.partition_either . map mk
+    first (filter (not . Text.null)) . Seq.partition_either . map mk
     where
     mk (Update.View {}) = Left ""
     mk u@(Update.Block block_id _)
         | Just block <- Map.lookup block_id (State.state_blocks state) =
             Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
-        | otherwise = Left $ "block_id: " ++ pretty u
+        | otherwise = Left $ "block_id: " <> prettyt u
     mk u@(Update.Track track_id update)
         | Just track <- Map.lookup track_id (State.state_tracks state) =
             case update of
@@ -353,11 +353,11 @@ dump_diff track_dir state =
                     Right $ dump_events state track_id start end
                 _ -> Right $
                     Git.Add (id_to_path track_id) (Serialize.encode track)
-        | otherwise = Left $ "track_id: " ++ pretty u
+        | otherwise = Left $ "track_id: " <> prettyt u
     mk (Update.Ruler ruler_id)
         | Just ruler <- Map.lookup ruler_id (State.state_rulers state) =
             Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
-        | otherwise = Left $ "ruler_id: " ++ pretty ruler_id
+        | otherwise = Left $ "ruler_id: " <> prettyt ruler_id
     mk (Update.State update) = case update of
         Update.Config config ->
             Right $ Git.Add "config" (Serialize.encode config)

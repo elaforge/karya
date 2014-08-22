@@ -237,7 +237,7 @@ derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
 derive_orphans derive_tracks prev end subs
     | start >= end = Nothing
     | otherwise = case checked of
-        Left err -> Just $ Log.warn err >> return []
+        Left err -> Just $ Log.warn (txt err) >> return []
         Right [] -> Nothing
         Right slices -> Just $ derive_tracks slices
     where
@@ -305,7 +305,7 @@ derive_event :: Derive.Callable d => TrackInfo -> Maybe d
 derive_event tinfo prev_val prev event next
     | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return []
     | otherwise = case Parse.parse_expr text of
-        Left err -> Log.warn err >> return []
+        Left err -> Log.warn (txt err) >> return []
         Right expr -> Internal.with_stack_region (Event.min event + shifted)
             (Event.max event + shifted) $ Eval.apply_toplevel cinfo expr
     where

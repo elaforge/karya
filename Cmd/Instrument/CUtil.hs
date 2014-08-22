@@ -105,7 +105,7 @@ call_keydown expr = do
     mapM_ (uncurry Cmd.midi) note_ons
     where
     suppressed = Cmd.suppress_history Cmd.ValEdit
-        (untxt $ "keymap: " <> ShowVal.show_val expr)
+        ("keymap: " <> ShowVal.show_val expr)
 
 call_keyup :: Cmd.M m => TrackLang.Expr -> m ()
 call_keyup expr = do

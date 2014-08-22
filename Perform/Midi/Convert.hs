@@ -12,10 +12,10 @@ module Perform.Midi.Convert where
 import qualified Control.Monad.State.Strict as State
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 
 import qualified Midi.Midi as Midi
@@ -69,7 +69,7 @@ convert_event lookup event = do
                     `Map.union` lookup_default_controls lookup score_inst)
     whenJust overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
-            <> pretty Controls.dynamic <> ": " <> pretty sig
+            <> prettyt Controls.dynamic <> ": " <> prettyt sig
     let converted = Perform.Event
             { Perform.event_instrument = midi_inst
             , Perform.event_start = Score.event_start event
@@ -195,7 +195,7 @@ convert_pitch :: Instrument.PatchScale -> TrackLang.Environ -> Score.ControlMap
     -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale environ controls psig = do
     unless (null errs) $
-        Log.warn $ "pitch: " <> Seq.join ", " (map pretty errs)
+        Log.warn $ "pitch: " <> Text.intercalate ", " (map prettyt errs)
     let (nn_sig, errs) = convert_scale scale (Signal.map_y round_pitch sig)
     unless (null errs) $
         ConvertUtil.throw $ "out of range for patch scale: " <> prettyt errs

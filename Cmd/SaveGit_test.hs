@@ -99,7 +99,7 @@ test_more_checkpoints = check_sequence
 check_sequence :: [State.StateId ()] -> IO ()
 check_sequence actions = do
     repo <- new_repo
-    state_commits <- checkpoint_sequence repo (zip (map show [0..]) actions)
+    state_commits <- checkpoint_sequence repo (zip (map showt [0..]) actions)
     forM_ (zip state_commits (drop 1 state_commits)) $
         \((state1, commit1), (state2, commit2)) -> do
             io_equal (load_from repo commit1 (Just commit2) state1)
@@ -115,7 +115,7 @@ load_from repo commit_from maybe_commit_to state =
 strip_views :: State.State -> State.State
 strip_views state = state { State.state_views = mempty }
 
-check_load :: FilePath -> (State.State, Git.Commit, [String]) -> IO Bool
+check_load :: FilePath -> (State.State, Git.Commit, [Text]) -> IO Bool
 check_load repo (state, commit, names) =
     io_equal (SaveGit.load repo (Just commit)) (Right (state, commit, names))
 
@@ -125,7 +125,7 @@ check_load_from repo (state1, commit1) (state2, commit2) =
     io_equal (load_from repo commit1 (Just commit2) state1)
         (Right (state2, []))
 
-checkpoint_sequence :: Git.Repo -> [(String, State.StateId ())]
+checkpoint_sequence :: Git.Repo -> [(Text, State.StateId ())]
     -> IO [(State.State, Git.Commit)]
 checkpoint_sequence repo actions = apply (State.empty, Nothing) actions
     where

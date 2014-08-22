@@ -258,9 +258,7 @@ set inst_ = do
 
     State.set_track_title track_id (ParseTitle.instrument_to_title inst)
     initialize inst chan
-    Log.notice $ "allocating " ++ show (dev, chan) ++ " to " ++ show inst
-    -- Log.notice $ "deallocating " ++ show old_inst ++ ", allocating "
-    --     ++ show (dev, chan) ++ " to " ++ show inst
+    Log.notice $ "allocating " <> showt (dev, chan) <> " to " <> showt inst
 
 
 -- ** implementation
@@ -286,11 +284,11 @@ send_initialization :: Instrument.InitializePatch
     -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
 send_initialization init inst dev chan = case init of
     Instrument.InitializeMidi msgs -> do
-        Log.notice $ "sending midi init: " <> pretty msgs
+        Log.notice $ "sending midi init: " <> prettyt msgs
         mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
     Instrument.InitializeMessage msg ->
         -- TODO warn doesn't seem quite right for this...
-        Log.warn $ "initialize instrument " ++ show inst ++ ": " ++ untxt msg
+        Log.warn $ "initialize instrument " <> showt inst <> ": " <> msg
     Instrument.NoInitialization -> return ()
 
 alloc_instrument :: Score.Instrument
@@ -328,7 +326,7 @@ auto_config block_id = do
             ]
     unless (null no_dev) $
         Log.warn $ "no synth or midi device found for instruments: "
-            ++ show no_dev
+            <> showt no_dev
     return $ Instrument.configs addrs
 
 device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)

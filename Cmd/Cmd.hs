@@ -148,7 +148,7 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
 --
 -- Mmc config, descriptive name, events, tempo func to display play position,
 -- optional time to repeat at.
-data PlayMidiArgs = PlayMidiArgs !(Maybe SyncConfig) !String
+data PlayMidiArgs = PlayMidiArgs !(Maybe SyncConfig) !Text
     !Midi.Perform.MidiEvents !(Maybe Transport.InverseTempoFunction)
     !(Maybe RealTime)
 instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
@@ -451,7 +451,7 @@ state_midi_writer state imsg = do
     -- putStrLn $ "PLAY " ++ pretty out
     ok <- Midi.Interface.write_message
         (state_midi_interface (state_config state)) out
-    unless ok $ Log.warn $ "error writing " ++ pretty out
+    unless ok $ Log.warn $ "error writing " <> prettyt out
     where
     map_wdev (Midi.WriteMessage wdev time msg) =
         Midi.WriteMessage (lookup_wdev wdev) time msg
@@ -791,7 +791,7 @@ data LastCmd =
     UndoRedo
     -- | This cmd set the state because of a load.  This should reset all the
     -- history so I can start loading from the new state's history.
-    | Load (Maybe SaveGit.Commit) [String]
+    | Load (Maybe SaveGit.Commit) [Text]
     deriving (Show)
 
 data HistoryConfig = HistoryConfig {
@@ -812,7 +812,7 @@ data HistoryCollect = HistoryCollect {
     -- Hopefully each cmd has at least one name, since this makes the history
     -- more readable.  There can be more than one name if the history records
     -- several cmds or if one cmd calls another.
-    state_cmd_names :: ![String]
+    state_cmd_names :: ![Text]
     -- | Suppress history record until the EditMode changes from the given one.
     -- This is a bit of a hack so that every keystroke in a raw edit isn't
     -- recorded separately.
@@ -841,7 +841,7 @@ data HistoryEntry = HistoryEntry {
     -- like a HistoryEntry has the wrong updates.
     , hist_updates :: ![Update.CmdUpdate]
     -- | Cmds involved creating this entry.
-    , hist_names :: ![String]
+    , hist_names :: ![Text]
     -- | The Commit where this entry was saved.  Nothing if the entry is
     -- unsaved.
     , hist_commit :: !(Maybe SaveGit.Commit)
@@ -860,7 +860,7 @@ instance Pretty.Pretty History where
 
 instance Pretty.Pretty HistoryEntry where
     format (HistoryEntry _state updates commands commit) =
-        Pretty.format commit Pretty.<+> Pretty.string_list commands
+        Pretty.format commit Pretty.<+> Pretty.text_list commands
         Pretty.<+> Pretty.format updates
 
 instance Pretty.Pretty HistoryConfig where
@@ -994,7 +994,7 @@ set_global_status key val = do
     when (Map.lookup key status_map /= Just val) $ do
         modify $ \st ->
             st { state_global_status = Map.insert key val status_map }
-        Log.debug $ untxt $ "global status: " <> key <> " -- " <> val
+        Log.debug $ "global status: " <> key <> " -- " <> val
 
 -- | Set a status variable on all views.
 set_status :: M m => (Int, Text) -> Maybe Text -> m ()
@@ -1118,7 +1118,7 @@ set_note_text text = do
 -- | Give a name to a Cmd.  The name is applied when the cmd returns so the
 -- names come out in call order, and it doesn't incur overhead for cmds that
 -- abort.
-name :: M m => String -> m a -> m a
+name :: M m => Text -> m a -> m a
 name s cmd = cmd <* modify (\st -> st
     { state_history_collect = (state_history_collect st)
         { state_cmd_names = s : state_cmd_names (state_history_collect st) }
@@ -1126,7 +1126,7 @@ name s cmd = cmd <* modify (\st -> st
 
 -- | Like 'name', but also set the 'state_suppress_edit'.  This will suppress
 -- history recording until the edit mode changes from the given one.
-suppress_history :: M m => EditMode -> String -> m a -> m a
+suppress_history :: M m => EditMode -> Text -> m a -> m a
 suppress_history mode name cmd = cmd <* modify (\st -> st
     { state_history_collect = (state_history_collect st)
         { state_cmd_names = name : state_cmd_names (state_history_collect st)

@@ -575,7 +575,7 @@ resolve_pitch pos pitch = do
 -- can't transpose any further once you have a NoteNumber.
 nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
 nn_at pos = justm (pitch_at pos) $ \pitch ->
-    logged_pitch_nn ("nn " ++ pretty pos) =<< resolve_pitch pos pitch
+    logged_pitch_nn ("nn " <> prettyt pos) =<< resolve_pitch pos pitch
 
 get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.Signal)
 get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
@@ -585,15 +585,15 @@ named_nn_at name pos = do
     controls <- controls_at pos
     environ <- Internal.get_environ
     justm (named_pitch_at name pos) $ \pitch -> do
-        logged_pitch_nn ("named_nn " ++ pretty (name, pos)) $
+        logged_pitch_nn ("named_nn " <> prettyt (name, pos)) $
             PitchSignal.apply environ controls pitch
 
 -- | Version of 'PitchSignal.pitch_nn' that logs errors.
-logged_pitch_nn :: String -> PitchSignal.Transposed
+logged_pitch_nn :: Text -> PitchSignal.Transposed
     -> Deriver (Maybe Pitch.NoteNumber)
 logged_pitch_nn msg pitch = case PitchSignal.pitch_nn pitch of
     Left (PitchSignal.PitchError err) -> do
-        Log.warn $ "pitch_nn " <> msg <> ": " <> untxt err
+        Log.warn $ "pitch_nn " <> msg <> ": " <> err
         return Nothing
     Right nn -> return $ Just nn
 

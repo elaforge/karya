@@ -170,7 +170,7 @@ with_empty_collect inflict_control_damage deriver = do
 
 find_generator_cache :: (Cacheable derived) => Type
     -> Stack.Stack -> Ranges -> ScoreDamage -> ControlDamage
-    -> Cache -> Either (Bool, String) (Derive.Collect, LEvent.LEvents derived)
+    -> Cache -> Either (Bool, Text) (Derive.Collect, LEvent.LEvents derived)
 find_generator_cache typ stack (Ranges event_range is_negative) score
         (ControlDamage control) (Cache cache) = do
     cached <- maybe (Left (False, "not in cache")) Right $
@@ -229,11 +229,11 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     -- be just a filter too.  At least this way it only happens once.
     cache_log = LEvent.either (const False) is_cache_log
 
-cached_msg :: Int -> String
-cached_msg ncached = "using cache, " ++ show ncached ++ " vals"
+cached_msg :: Int -> Text
+cached_msg ncached = "using cache, " <> showt ncached <> " vals"
 
-rederived_msg :: String -> String
-rederived_msg reason = "rederived generator because of " ++ reason
+rederived_msg :: Text -> Text
+rederived_msg reason = "rederived generator because of " <> reason
 
 -- | This is a terrible hack so the log msgs from caching can be treated
 -- differently from other log msgs.  Perhaps log msgs should have a general

@@ -4,7 +4,7 @@
 
 -- | One-time startup initialization tasks.
 module App.LoadConfig where
-import Control.Monad
+import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.Style as Style
 import qualified Ui.StyleC as StyleC
@@ -19,9 +19,9 @@ symbols syms = do
     forM_ syms $ \sym -> do
         missing <- SymbolC.insert_symbol sym
         unless (null missing) $
-            Log.warn $ "failed to load symbol " ++ show (Symbol.sym_name sym)
-                ++ ", fonts not found: " ++ show missing
-    Log.notice $ "loaded " ++ show (length syms) ++ " symbols"
+            Log.warn $ "failed to load symbol " <> showt (Symbol.sym_name sym)
+                <> ", fonts not found: " <> showt missing
+    Log.notice $ "loaded " <> showt (length syms) <> " symbols"
 
 styles :: [Style.Style] -> IO ()
 styles style_table =

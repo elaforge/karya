@@ -188,7 +188,7 @@ wildcard_inst_name = "*"
 -- | Build a 'PatchMap' to give to 'midi_db'.  Simplified names are generated
 -- for each patch, and if names collide various heuristics are tried to
 -- discard or combine them, or they are disambiguated with numbers.
-patch_map :: [PatchCode code] -> (PatchMap code, [String])
+patch_map :: [PatchCode code] -> (PatchMap code, [Text])
     -- ^ (PatchMap, log msgs)
 patch_map patches = run $ concatMapM split =<< mapM strip_init by_name
     where
@@ -207,7 +207,7 @@ patch_map patches = run $ concatMapM split =<< mapM strip_init by_name
                     (Instrument.patch_initialize . fst) patches
             forM_ dups $ \(patch, dups) ->
                 log ("dropped patches with the same initialization as "
-                    ++ details patch) dups
+                    <> details patch) dups
             return (name, unique)
 
     -- Remaining patches are probably different and just happened to get the
@@ -215,27 +215,28 @@ patch_map patches = run $ concatMapM split =<< mapM strip_init by_name
     split :: NamedPatch code -> Merge [(Text, PatchCode code)]
     split (name, patches@(_:_:_)) = do
         let named = zip (map ((name<>) . showt) [1..]) patches
-        log ("split into " ++ untxt (Text.intercalate ", " (map fst named)))
-            patches
+        log ("split into " <> Text.intercalate ", " (map fst named)) patches
         return named
     split (name, patches) = return $ map (name,) patches
 
     log _ [] = return ()
-    log msg ps = Logger.log $ msg ++ ": " ++ Seq.join ", " (map details ps)
-    details patch = untxt (Instrument.inst_name (patch_inst patch))
-        ++ " (" ++ FilePath.takeFileName (Instrument.patch_file (fst patch))
-        ++ ")"
+    log msg ps = Logger.log $ msg <> ": "
+        <> Text.intercalate ", " (map details ps)
+    details patch = Instrument.inst_name (patch_inst patch)
+        <> " ("
+        <> txt (FilePath.takeFileName (Instrument.patch_file (fst patch)))
+        <> ")"
 
 type NamedPatch code = (Text, [PatchCode code])
-type Merge = Logger.LoggerT String Identity.Identity
+type Merge = Logger.LoggerT Text Identity.Identity
 
 -- | Make the patches into a PatchMap.  This is just a version of
 -- 'patch_map' that logs colliding patches and is hence in IO.
 logged_synths :: Instrument.Synth -> [PatchCode code] -> IO (SynthDesc code)
 logged_synths synth patches = do
     let (pmap, msgs) = patch_map patches
-    let prefix = "synth " ++ untxt (Instrument.synth_name synth) ++ ": "
-    mapM_ (Log.notice . (prefix++)) msgs
+    let prefix = "synth " <> Instrument.synth_name synth <> ": "
+    mapM_ (Log.notice . (prefix<>)) msgs
     return (synth, pmap)
 
 -- | Build a PatchMap for a synth with a single wildcard patch, documented by

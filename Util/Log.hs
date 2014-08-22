@@ -163,23 +163,23 @@ make_msg :: LogMonad m => SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> Text
 make_msg srcpos prio stack text =
     initialize_msg (msg_srcpos srcpos prio stack text)
 
-log :: LogMonad m => Prio -> SrcPos.SrcPos -> String -> m ()
-log prio srcpos text = write =<< make_msg srcpos prio Nothing (txt text)
+log :: LogMonad m => Prio -> SrcPos.SrcPos -> Text -> m ()
+log prio srcpos text = write =<< make_msg srcpos prio Nothing text
 
-log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack.Stack -> String
+log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack.Stack -> Text
     -> m ()
 log_stack prio srcpos stack text =
-    write =<< make_msg srcpos prio (Just stack) (txt text)
+    write =<< make_msg srcpos prio (Just stack) text
 
 timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
-    :: LogMonad m => SrcPos.SrcPos -> String -> m ()
+    :: LogMonad m => SrcPos.SrcPos -> Text -> m ()
 timer_srcpos = log Timer
 debug_srcpos = log Debug
 notice_srcpos = log Notice
 warn_srcpos = log Warn
 error_srcpos = log Error
 
-timer, debug, notice, warn, error :: LogMonad m => String -> m ()
+timer, debug, notice, warn, error :: LogMonad m => Text -> m ()
 timer = timer_srcpos Nothing
 debug = debug_srcpos Nothing
 notice = notice_srcpos Nothing
@@ -189,14 +189,14 @@ error = error_srcpos Nothing
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
 debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos, error_stack_srcpos
-    :: LogMonad m => SrcPos.SrcPos -> Stack.Stack -> String -> m ()
+    :: LogMonad m => SrcPos.SrcPos -> Stack.Stack -> Text -> m ()
 debug_stack_srcpos = log_stack Debug
 notice_stack_srcpos = log_stack Notice
 warn_stack_srcpos = log_stack Warn
 error_stack_srcpos = log_stack Error
 
 debug_stack, notice_stack, warn_stack, error_stack :: LogMonad m =>
-    Stack.Stack -> String -> m ()
+    Stack.Stack -> Text -> m ()
 debug_stack = debug_stack_srcpos Nothing
 notice_stack = notice_stack_srcpos Nothing
 warn_stack = warn_stack_srcpos Nothing
@@ -241,6 +241,8 @@ instance LogMonad IO where
         when (msg_priority log_msg >= Error) $ do
             log_msg <- add_time log_msg
             Text.IO.hPutStrLn IO.stderr (format_msg log_msg)
+
+    initialize_msg = add_time
 
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> Text

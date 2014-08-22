@@ -31,7 +31,7 @@ track_cmd msg = do
     cmds <- get_track_cmds `Error.catchError` \exc -> do
         case exc of
             State.Abort -> return ()
-            State.Error msg -> Log.warn $ "getting track cmds: " ++ msg
+            State.Error msg -> Log.warn $ "getting track cmds: " <> txt msg
         return []
     Cmd.sequence_cmds cmds msg
 
@@ -127,6 +127,6 @@ keymap_cmds :: Cmd.M m => Info.Track -> m [Cmd.Cmd]
 keymap_cmds track = case Info.track_type track of
     Info.Note {} -> do
         let (cmd_map, warns) = NoteTrackKeymap.make_keymap
-        forM_ warns $ \warn -> Log.warn $ "NoteTrackKeymap: " ++ warn
+        forM_ warns $ \warn -> Log.warn $ "NoteTrackKeymap: " <> warn
         return [Keymap.make_cmd cmd_map]
     _ -> return []

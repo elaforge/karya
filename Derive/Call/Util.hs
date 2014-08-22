@@ -241,7 +241,7 @@ to_pitch_signal control = case control of
 nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
 nn_at pos control = -- TODO throw exception?
-    Derive.logged_pitch_nn ("Util.nn_at " ++ pretty (pos, control))
+    Derive.logged_pitch_nn ("Util.nn_at " <> prettyt (pos, control))
         =<< Derive.resolve_pitch pos
         =<< pitch_at pos control
 

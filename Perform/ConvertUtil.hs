@@ -39,8 +39,8 @@ convert state convert_event = go state Nothing
     convert1 maybe_prev event = do
         -- Sorted is a postcondition of the deriver.
         whenJust maybe_prev $ \prev -> when (Score.event_start event < prev) $
-            Log.warn $ "start time " <> pretty (Score.event_start event)
-                <> " less than previous of " <> pretty prev
+            Log.warn $ "start time " <> prettyt (Score.event_start event)
+                <> " less than previous of " <> prettyt prev
         convert_event event
 
 run_convert :: state -> Stack.Stack -> ConvertT state a

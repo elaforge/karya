@@ -5,8 +5,10 @@
 module Cmd.Keymap_test where
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Log as Log
 import Util.Test
+
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
@@ -21,7 +23,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 test_make_cmd_map = do
     let (_, errors) = Keymap.make_cmd_map binds
-    strings_like errors ["cmds overlap* [1: 1, 1: 12]"]
+    strings_like (map untxt errors) ["cmds overlap* [1: 1, 1: 12]"]
 
 test_make_cmd = do
     let (cmd_map, _) = Keymap.make_cmd_map binds

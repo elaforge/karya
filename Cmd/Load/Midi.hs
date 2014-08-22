@@ -43,14 +43,14 @@ import qualified Perform.RealTime as RealTime
 import Types
 
 
-type Warn = String
+type Warn = Text
 
 load :: FilePath -> Cmd.CmdT IO BlockId
 load fn = liftIO (parse fn) >>= \x -> case x of
-    Left err -> Cmd.throw $ "parsing " ++ show fn ++ ": " ++ err
+    Left err -> Cmd.throw $ "parsing " <> show fn <> ": " <> untxt err
     Right midi_file -> do
         let (tracks, skel, warns) = convert midi_file
-        mapM_ (Log.warn . ((fn ++ ": ") ++)) warns
+        mapM_ (Log.warn . ((txt fn <> ": ") <>)) warns
         create tracks skel
 
 create :: State.M m => [(Text, Track)] -> Skeleton.Skeleton -> m BlockId
@@ -67,7 +67,7 @@ create tracks skel = do
 
 parse :: FilePath -> IO (Either Warn Z.MidiFile)
 parse fn = either (Left . show_error) Right <$> Z.readMidi fn
-    where show_error (Z.ParseErr pos msg) = show pos ++ ": " ++ msg
+    where show_error (Z.ParseErr pos msg) = showt pos <> ": " <> txt msg
 
 convert :: Z.MidiFile -> ([(Text, Track)], Skeleton.Skeleton, [Warn])
 convert = extract . convert_tracks . extract_tracks
@@ -158,8 +158,8 @@ convert_track (title, msgs) =
     where
     (tracks, stuck_on) = split_track msgs
     warns = if null stuck_on then []
-        else [untxt title <> ": omitted notes with no note-offs: "
-            <> pretty stuck_on]
+        else [title <> ": omitted notes with no note-offs: "
+            <> prettyt stuck_on]
 
 -- ** split_track
 

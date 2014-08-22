@@ -24,12 +24,11 @@ module App.MidiInst (
     , save_db, save_patches, load_db
 ) where
 import qualified Data.Monoid as Monoid
+import qualified Data.Text as Text
 import System.FilePath ((</>), (<.>))
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (SynthDesc)
@@ -214,8 +213,8 @@ load_db code_for db_name app_dir = do
     saved <- Serialize.unserialize (make_code . code_for) fname
     case saved of
         Left err -> do
-            Log.warn $ "Error loading instrument db " ++ show fname ++ ": "
-                ++ Seq.strip err
+            Log.warn $ "Error loading instrument db " <> showt fname <> ": "
+                <> Text.strip (txt err)
             return []
         Right (_time, synths) -> return synths
 

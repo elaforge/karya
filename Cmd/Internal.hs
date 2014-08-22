@@ -72,13 +72,13 @@ cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
     insert mod mods = do
         let key = Cmd.strip_modifier mod
         when (key `Map.member` mods) $
-            Log.warn $ "keydown for " ++ show mod ++ " already in modifiers"
+            Log.warn $ "keydown for " <> showt mod <> " already in modifiers"
         return $ Map.insert key mod mods
     delete mod mods = do
         let key = Cmd.strip_modifier mod
         when (key `Map.notMember` mods) $
-            Log.warn $ "keyup for " ++ show key ++ " not in modifiers "
-                ++ show (Map.keys mods)
+            Log.warn $ "keyup for " <> showt key <> " not in modifiers "
+                <> showt (Map.keys mods)
         return $ Map.delete key mods
     set_key_mods mods = case msg_to_key_mods msg of
         Just kmods -> Map.insert_list

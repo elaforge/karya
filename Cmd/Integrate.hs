@@ -83,8 +83,8 @@ cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
         is_dup (x :| xs) = if null xs then Right x else Left x
     unless (null dups) $
         Log.warn $ "these blocks or tracks want to integrate twice: "
-            <> Seq.join ", "
-                (map (either pretty pretty . Derive.integrated_source) dups)
+            <> Text.intercalate ", "
+                (map (either prettyt prettyt . Derive.integrated_source) dups)
     mapM_ (integrate block_id) integrates
     return Cmd.Continue
 cmd_integrate _ = return Cmd.Continue
@@ -110,8 +110,8 @@ integrate_tracks block_id track_id tracks = do
         then (:[]) <$> Merge.merge_tracks block_id tracks []
         else mapM (Merge.merge_tracks block_id tracks) dests
     unless (null new_dests) $
-        Log.notice $ "derive integrated " <> show track_id <> " to: "
-            <> pretty (map (map (fst . Block.dest_note)) new_dests)
+        Log.notice $ "derive integrated " <> showt track_id <> " to: "
+            <> prettyt (map (map (fst . Block.dest_note)) new_dests)
     State.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.DeriveDestinations dests) | dests <- new_dests]
     Cmd.derive_immediately [block_id]
@@ -128,8 +128,8 @@ integrate_block source_id tracks = do
             return [(block_id, dests)]
         integrated -> forM integrated $ \(dest_id, track_dests) ->
             (,) dest_id <$> Merge.merge_block dest_id tracks track_dests
-    Log.notice $ "derive integrated " <> show source_id <> " to: "
-        <> pretty (map fst new_blocks)
+    Log.notice $ "derive integrated " <> showt source_id <> " to: "
+        <> prettyt (map fst new_blocks)
     forM_ new_blocks $ \(new_block_id, track_dests) ->
         State.set_integrated_block new_block_id $
             Just (source_id, Block.DeriveDestinations track_dests)

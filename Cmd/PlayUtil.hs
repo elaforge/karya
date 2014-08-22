@@ -353,14 +353,14 @@ cached_load state defs_fname = run $ do
 load_definitions :: FilePath -> IO (Maybe (Either Text Derive.Library))
 load_definitions fname = File.ignoreEnoent $ do
     text <- Text.IO.readFile fname
-    Log.notice $ "loaded definitions from " <> show fname
+    Log.notice $ "loaded definitions from " <> showt fname
     case Parse.parse_definition_file text of
         Left err -> return $ Left $ txt fname <> ":" <> err
         Right defs -> do
             let lib = compile_library defs
             forM_ (Library.shadowed lib) $ \((name, _), calls) ->
-                Log.warn $ "definitions in " <> show fname
-                    <> " " <> untxt name <> " shadowed: " <> pretty calls
+                Log.warn $ "definitions in " <> showt fname
+                    <> " " <> name <> " shadowed: " <> prettyt calls
             return $ Right lib
 
 compile_library :: Parse.Definitions -> Derive.Library

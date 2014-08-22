@@ -32,8 +32,6 @@ import System.FilePath ((</>))
 
 import Util.Control hiding (liftIO)
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-
 import qualified Cmd.Cmd as Cmd
 import qualified App.ReplUtil as ReplUtil
 
@@ -71,8 +69,8 @@ interpreter (Session chan) = do
     args <- filter (not . is_obj) <$> case flags of
         Left (exc :: Exception.SomeException) -> do
             Log.error $ "error reading ghci flags from "
-                ++ show ghci_flags ++ ": " ++ show exc
-                ++ ", the REPL is probably not going to work"
+                <> showt ghci_flags <> ": " <> showt exc
+                <> ", the REPL is probably not going to work"
             return []
         Right flags -> return $ words flags
 
@@ -84,8 +82,9 @@ interpreter (Session chan) = do
         (result, logs, warns) <- reload
         case result of
             Left err -> liftIO $
-                Log.warn $ "error loading REPL modules: " ++ err
-                    ++ Seq.join "; " warns ++ " / " ++ Seq.join "; " logs
+                Log.warn $ "error loading REPL modules: " <> txt err
+                    <> Text.intercalate "; " (map txt warns) <> " / "
+                    <> Text.intercalate "; " (map txt logs)
             _ -> return ()
         forever $ do
             (expr, return_mvar) <- liftIO $ Chan.readChan chan
@@ -201,11 +200,11 @@ parse_flags args = do
     (dflags, args_left, warns) <- GHC.parseDynamicFlags dflags
         (map (GHC.mkGeneralLocated "cmdline") args)
     unless (null warns) $
-        liftIO $ Log.warn $ "warnings parsing flags " ++ show args ++ ": "
-            ++ show (map GHC.unLoc warns)
+        liftIO $ Log.warn $ "warnings parsing flags " <> showt args <> ": "
+            <> showt (map GHC.unLoc warns)
     unless (null args_left) $
         liftIO $ Log.warn $
-            "ignoring unparsed args: " ++ show (map GHC.unLoc args_left)
+            "ignoring unparsed args: " <> showt (map GHC.unLoc args_left)
     void $ GHC.setSessionDynFlags $ dflags
         { GHC.ghcMode = GHC.CompManager
         , GHC.ghcLink = GHC.LinkInMemory

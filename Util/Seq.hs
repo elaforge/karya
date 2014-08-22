@@ -13,6 +13,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
+import Data.Monoid ((<>))
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 
@@ -667,12 +668,13 @@ split1 sep xs = (pre, drop (length sep) post)
 join :: Monoid.Monoid a => a -> [a] -> a
 join sep = Monoid.mconcat . List.intersperse sep
 
--- | Binary join, but the separator is only used if both joinees are non-null.
-join2 :: [a] -> [a] -> [a] -> [a]
-join2 _ [] [] = []
-join2 _ a [] = a
-join2 _ [] b = b
-join2 sep a b = a ++ sep ++ b
+-- | Binary join, but the separator is only used if both joinees are non-empty.
+join2 :: (Monoid.Monoid a, Eq a) => a -> a -> a -> a
+join2 sep x y
+    | y == Monoid.mempty = x
+    | x == Monoid.mempty = y
+    | otherwise = x <> sep <> y
+
 
 -- | Split the list on the points where the given function returns true.
 --

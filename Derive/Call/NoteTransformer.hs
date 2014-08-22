@@ -119,7 +119,7 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
                 | all ((== dur e) . dur) es -> return (dur e)
                 | otherwise -> Error.throwError $
                     "all event durations must be equal: "
-                    <> Seq.join ", " (map (pretty . dur) (e:es))
+                    <> Text.intercalate ", " (map (prettyt . dur) (e:es))
                 where dur = Score.event_duration
         (start, end) <- lift $ Args.real_range args
         tuplet_dur <- to_dur config "tuplet" (end - start)
@@ -132,7 +132,7 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
         Log.warn $ "can't convert to ly tuplet: " <> msg
         not_lily
     to_dur config msg t = maybe
-        (Error.throwError $ msg ++ " duration must be simple")
+        (Error.throwError $ msg <> " duration must be simple")
         return (Lily.is_duration config t)
 
 tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]
