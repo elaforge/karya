@@ -861,7 +861,7 @@ instance Pretty.Pretty History where
 
 instance Pretty.Pretty HistoryEntry where
     format (HistoryEntry _state updates commands commit) =
-        Pretty.format commit Pretty.<+> Pretty.text_list commands
+        Pretty.format commit Pretty.<+> Pretty.string_list commands
         Pretty.<+> Pretty.format updates
 
 instance Pretty.Pretty HistoryConfig where

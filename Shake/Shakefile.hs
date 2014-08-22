@@ -266,6 +266,8 @@ libraryDependencies = concat $
     , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
     , w "hashable zlib"
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
+
+    , w "aeson" -- serialize and unserialize log msgs
     ]
     where w = map (\p -> (p, "")) . words
 

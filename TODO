@@ -505,6 +505,10 @@ cleanup:
       breaking is wrong.  So I want to say break + indent in one word.
   convert to Text:
     - Log.debug etc.
+      But I also want to write Text to output, which means not using Read and
+      Show anymore.  That means a custom serialization, which means either
+      human readable text, or binary but then I need a binary record format.
+      . Human readable plus newlines seems nice.
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:
       - monoidal interface, not monadic

@@ -404,7 +404,7 @@ r_split = second (filter interesting_log) . LEvent.partition . Derive.r_events
 r_logs :: Derive.Result -> [Log.Msg]
 r_logs = snd . r_split
 
-stack_to_ui :: Stack.Stack -> [String]
+stack_to_ui :: Stack.Stack -> [Text]
 stack_to_ui = map Stack.unparse_ui_frame . Stack.to_ui
 
 r_log_strings :: Derive.Result -> [String]
@@ -485,15 +485,13 @@ e_tsig_logs = filter ("Track signal: " `List.isPrefixOf`) . map show_log
 show_log_stack :: Log.Msg -> String
 show_log_stack msg = show_stack (Log.msg_stack msg) ++ ": " ++ show_log msg
 
-show_stack :: Maybe Log.Stack -> String
+show_stack :: Maybe Stack.Stack -> String
 show_stack Nothing = "<nothing>"
 show_stack (Just stack)
     | null ui = "<no stack>"
     -- This uses ': ' so 'x: *' works regardless of where in the stack x is.
     | otherwise = Seq.join ": " (map Stack.unparse_ui_frame_ ui)
-    where
-    ui = maybe (error $ "unparseable stack: " <> show stack) Stack.to_ui $
-        Stack.unserialize stack
+    where ui = Stack.to_ui stack
 
 show_log :: Log.Msg -> String
 show_log = Log.msg_string

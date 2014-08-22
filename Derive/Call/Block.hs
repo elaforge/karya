@@ -137,7 +137,7 @@ d_block block_id = do
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> TrackLang.Call
 call_from_block_id block_id = TrackLang.call
-    (TrackLang.Symbol $ txt $ Id.show_id $ Id.unpack_id block_id) []
+    (TrackLang.Symbol $ Id.show_id $ Id.unpack_id block_id) []
 
 -- | Like 'Eval.symbol_to_block_id' but make sure the block exists.
 symbol_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)

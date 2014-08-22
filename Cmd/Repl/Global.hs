@@ -255,7 +255,7 @@ get_views :: Cmd.CmdL [ViewId]
 get_views = State.gets (Map.keys . State.state_views)
 
 -- | Show all views whose view id matches a string.
-show_views :: String -> Cmd.CmdL String
+show_views :: Text -> Cmd.CmdL String
 show_views match = do
     st <- State.get
     return $ Pretty.formatted $ Util.match_map match (State.state_views st)
@@ -267,7 +267,7 @@ show_block block_id = Pretty.formatted <$> State.get_block block_id
 
 -- | Show all blocks whose block id matches a string.
 -- Useful for quick block inspection.
-show_blocks :: String -> Cmd.CmdL String
+show_blocks :: Text -> Cmd.CmdL String
 show_blocks match = do
     st <- State.get
     return $ Pretty.formatted $ Util.match_map match (State.state_blocks st)

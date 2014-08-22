@@ -74,7 +74,9 @@ instance CRC32.CRC32 Id where
         n `CRC32.crc32Update` ns `CRC32.crc32Update` name
 
 instance Pretty.Pretty Namespace where pretty = untxt . un_namespace
-instance Pretty.Pretty Id where pretty = show_id
+instance Pretty.Pretty Id where
+    pretty = untxt . show_id
+    prettyt = show_id
 
 instance DeepSeq.NFData Id where
     rnf (Id ns name) = ns `seq` name `seq` ()
@@ -105,8 +107,8 @@ read_id :: Text -> Id
 read_id s = id (namespace pre) (Text.drop 1 post)
     where (pre, post) = Text.breakOn "/" s
 
-show_id :: Id -> String
-show_id (Id ns ident) = pretty ns ++ "/" ++ Text.unpack ident
+show_id :: Id -> Text
+show_id (Id (Namespace ns) ident) = ns <> "/" <> ident
 
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.
@@ -116,9 +118,9 @@ read_short default_ns text = case Text.breakOn "/" text of
     (ns, ident) -> id (namespace ns) (Text.drop 1 ident)
 
 -- | The inverse of 'read_short'.
-show_short :: Namespace -> Id -> String
+show_short :: Namespace -> Id -> Text
 show_short default_ns ident@(Id ns name)
-    | default_ns == ns = Text.unpack name
+    | default_ns == ns = name
     | otherwise = show_id ident
 
 -- * validate
@@ -171,10 +173,10 @@ read_ident = do
 
 -- | SomethingId -> "ns/name"
 ident_string :: Ident a => a -> String
-ident_string = show_id . unpack_id
+ident_string = untxt . show_id . unpack_id
 
 ident_text :: Ident a => a -> Text
-ident_text = txt . show_id . unpack_id
+ident_text = show_id . unpack_id
 
 -- | SomethingId -> "name"
 ident_name :: Ident a => a -> Text

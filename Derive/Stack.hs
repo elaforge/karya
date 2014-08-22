@@ -11,7 +11,6 @@ module Derive.Stack (
     , match
     , Frame(..)
     , format_ui, show_ui, show_ui_
-    , serialize, unserialize
 
     -- * more specialized utils
     , track_regions
@@ -22,16 +21,17 @@ module Derive.Stack (
 import qualified Prelude
 import Prelude hiding (length)
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Aeson as Aeson
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Vector as Vector
 
 import qualified Text.Read as Read
 
 import Util.Control
 import Util.Crc32Instances ()
-import qualified Util.Parse as Parse
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
@@ -50,7 +50,8 @@ import Types
 -- I originally used "Data.Sequence" but it generates more garbage and
 -- I couldn't figure out how to stop that from happening.
 newtype Stack = Stack [Frame]
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32
+        , Aeson.ToJSON, Aeson.FromJSON)
 
 instance Show Stack where
     show stack = "Stack.from_outermost " ++ show (outermost stack)
@@ -182,8 +183,8 @@ instance Serialize.Serialize Frame where
                 tid :: TrackId <- Serialize.get
                 return $ Track tid
             2 -> do
-                s :: ScoreTime <- Serialize.get
-                e :: ScoreTime <- Serialize.get
+                s :: TrackTime <- Serialize.get
+                e :: TrackTime <- Serialize.get
                 return $ Region s e
             3 -> do
                 s :: String <- Serialize.get
@@ -200,24 +201,40 @@ instance CRC32.CRC32 Frame where
         n + 2 `CRC32.crc32Update` s `CRC32.crc32Update` e
     crc32Update n (Call call) = n + 3 `CRC32.crc32Update` call
 
+instance Aeson.ToJSON Frame where
+    toJSON frame = Aeson.Array $ case frame of
+            Block block_id -> tagged "Block" $
+                Aeson.toJSON $ Id.ident_text block_id
+            Track track_id -> tagged "Track" $
+                Aeson.toJSON $ Id.ident_text track_id
+            Region s e -> tagged "Region" $
+                Aeson.toJSON (ScoreTime.to_double s, ScoreTime.to_double e)
+            Call text -> tagged "Call" (Aeson.toJSON text)
+        where tagged name val = Vector.fromList [Aeson.String name, val]
+
+instance Aeson.FromJSON Frame where
+    parseJSON (Aeson.Array a) = case Vector.toList a of
+        [Aeson.String tag, val]
+            | tag == "Block" ->
+                Block . Id.BlockId . Id.read_id <$> Aeson.parseJSON val
+            | tag == "Track" ->
+                Track . Id.TrackId . Id.read_id <$> Aeson.parseJSON val
+            | tag == "Region" ->
+                uncurry Region . (ScoreTime.double *** ScoreTime.double) <$>
+                    Aeson.parseJSON val
+            | tag == "Call" -> Call <$> Aeson.parseJSON val
+            | otherwise -> fail $ "unknown tag: " <> untxt tag
+        _ -> fail "expecting two element array"
+    parseJSON _ = fail "expecting array"
+
 format_ui :: Stack -> Pretty.Doc
 format_ui = Pretty.text_list . map unparse_ui_frame . to_ui
 
-show_ui :: Stack -> String
-show_ui = Seq.join ": " . map unparse_ui_frame . to_ui
+show_ui :: Stack -> Text
+show_ui = Text.intercalate ": " . map unparse_ui_frame . to_ui
 
 show_ui_ :: Stack -> String
 show_ui_ = Seq.join ": " . map unparse_ui_frame_ . to_ui
-
--- | Serialize a Stack to and from a list of strings, as used in
--- 'Util.Log.Msg'.  Since I use a list of Text instead of a Text, I can
--- conceal that internally the stack is stored innermost first.
-serialize :: Stack -> [Text]
-serialize = map showt . outermost
-
--- | Turn strings back into a stack.
-unserialize :: [Text] -> Maybe Stack
-unserialize = fmap from_outermost . mapM (Parse.read_maybe . untxt)
 
 -- * more specialized utils
 
@@ -274,15 +291,15 @@ to_ui stack = reverse $ foldr f [] (innermost stack)
 -- > "untitled/b0 untitled/b0.t2 0-.25"
 -- > "untitled/b0 foo/bar *"
 -- > "untitled/b0 * *"
-unparse_ui_frame :: UiFrame -> String
+unparse_ui_frame :: UiFrame -> Text
 unparse_ui_frame (maybe_bid, maybe_tid, maybe_range) =
-    Seq.join " " [bid_s, tid_s, range_s]
+    Text.intercalate " " [bid_s, tid_s, range_s]
     where
     bid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_bid
     tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
     range_s = maybe "*"
-        (\(from, to) -> float from ++ "-" ++ float to) maybe_range
-    float = Pretty.show_float 2 . ScoreTime.to_double
+        (\(from, to) -> float from <> "-" <> float to) maybe_range
+    float = txt . Pretty.show_float 2 . ScoreTime.to_double
 
 -- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
 -- cluttered but potentially ambiguous output.

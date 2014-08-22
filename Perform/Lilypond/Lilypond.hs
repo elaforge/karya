@@ -173,7 +173,7 @@ write_ly ly = do
         _ -> return ()
 
 show_stack :: Maybe Stack.UiFrame -> Text
-show_stack (Just stack) =  txt (Stack.unparse_ui_frame stack) <> "; "
+show_stack (Just stack) =  Stack.unparse_ui_frame stack <> "; "
 show_stack Nothing = ""
 
 write_voice :: (Process.Voice, [Process.Ly]) -> Output Int

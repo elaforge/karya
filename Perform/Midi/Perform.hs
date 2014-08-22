@@ -138,11 +138,10 @@ channelize_event inst_addrs overlapping event =
     -- maximum channel in use.
     chan = fromMaybe (maximum (-1 : map snd overlapping) + 1) maybe_chan
     (maybe_chan, reasons) = shareable_chan overlapping event
-    log = Log.msg Log.Warn (Just stack) $ Text.unlines $
+    log = Log.msg Log.Warn (Just (event_stack event)) $ Text.unlines $
         (log_prefix event <> ": found chan " <> showt maybe_chan <> ", picked "
             <> showt chan)
         : map mkmsg reasons
-    stack = Stack.serialize (event_stack event)
     mkmsg (chan, reason) = "can't share with " <> showt chan <> ": " <> reason
 
 -- | This is redundant since log msgs have a stack, but it's convenient for
@@ -811,5 +810,4 @@ overlap_map initial = go initial
 
 event_warning :: Event -> Text -> Log.Msg
 event_warning event msg =
-    Log.msg Log.Warn (Just (Stack.serialize (event_stack event)))
-        ("Perform: " <> msg)
+    Log.msg Log.Warn (Just (event_stack event)) ("Perform: " <> msg)

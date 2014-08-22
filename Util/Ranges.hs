@@ -27,7 +27,7 @@ instance Ord n => Monoid.Monoid (Ranges n) where
     mappend (Ranges r1) (Ranges r2) = Ranges (merge r1 r2)
 
 instance Pretty.Pretty n => Pretty.Pretty (Ranges n) where
-    format (Ranges rs) = Pretty.text_list (map f rs)
+    format (Ranges rs) = Pretty.string_list (map f rs)
         where f (s, e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
     format Everything = Pretty.text "[*--*]"
 

@@ -218,10 +218,7 @@ format_msg msg = run_formatter $ do
     whenJust (Log.msg_caller msg) $ \caller -> do
         emit_srcpos caller
         with_plain " "
-    whenJust (Log.msg_stack msg) $ \stack -> do
-        maybe (with_plain $ "unparseable stack: " <> show stack) emit_stack $
-            Stack.unserialize stack
-        with_plain " "
+    whenJust (Log.msg_stack msg) $ \stack -> emit_stack stack >> with_plain " "
     regex_style style msg_text_regexes (Log.msg_string msg)
     with_plain "\n"
     where

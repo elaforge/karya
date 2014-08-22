@@ -46,7 +46,7 @@ list = do
     return [(block_id, Seq.count block_id view_blocks) | block_id <- block_ids]
 
 -- | Find BlockIds that match the string.
-match_id :: State.M m => String -> m [BlockId]
+match_id :: State.M m => Text -> m [BlockId]
 match_id match = filter (Util.match_id match) <$>
     State.gets (Map.keys . State.state_blocks)
 
@@ -62,7 +62,7 @@ pretty block_id = do
     pretty_tracks view_blocks tracks block_id block =
         Pretty.format (Block.block_title block)
             Pretty.<+> Pretty.text ("(" ++ show views ++ " views)")
-            Pretty.<+> Pretty.text_list (map track (Block.block_tracks block))
+            Pretty.<+> Pretty.string_list (map track (Block.block_tracks block))
         where
         track t = Pretty.pretty (Block.tracklike_id t)
             ++ " (" ++ show (track_events t) ++ " events)"

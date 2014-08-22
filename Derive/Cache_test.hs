@@ -206,12 +206,10 @@ r_block_logs =
         . filter DeriveTest.cache_msg . r_logs
     where
     track_stack msg = case Log.msg_stack msg of
-        Just stack -> case Stack.innermost (unserialize stack) of
+        Just stack -> case Stack.innermost stack of
             Stack.Track _ : _ -> True
             _ -> False
         _ -> False
-    unserialize s = fromMaybe (error $ "unparseable stack: " <> show s) $
-        Stack.unserialize s
 
 r_all_logs :: Derive.Result -> [String]
 r_all_logs = map DeriveTest.show_log_stack . r_logs
@@ -651,13 +649,12 @@ run state m = case result of
     where result = Identity.runIdentity (State.run state m)
 
 log_with_stack :: Log.Msg -> String
-log_with_stack msg = pretty (Stack.unserialize <$> Log.msg_stack msg)
-    <> ": " <> Log.msg_string msg
+log_with_stack msg = pretty (Log.msg_stack msg) <> ": " <> Log.msg_string msg
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]
 r_cache_collect result = Seq.sort_on fst
-    [(DeriveTest.show_stack (Just (Stack.serialize stack)), collect ctype)
+    [(DeriveTest.show_stack (Just stack), collect ctype)
         | (stack, ctype) <- Map.assocs cmap]
     where
     cmap = uncache (Derive.r_cache result)

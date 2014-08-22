@@ -14,7 +14,7 @@ module Util.Pretty (
     , (PP.<+>)
 
     -- * formatting
-    , format_commas, text_list, comma_list, record
+    , format_commas, text_list, string_list, comma_list, record
     , constructor
     -- * misc
     , show_float, show_float0, read_word
@@ -173,8 +173,11 @@ format_commas :: (Pretty a) => Char -> Char -> [a] -> Doc
 format_commas left right = comma_list Sometimes left right . map format
 
 -- | A list of strings, but without quotes around them.
-text_list :: [String] -> Doc
-text_list = format_commas '[' ']' . map PP.text
+text_list :: [Text] -> Doc
+text_list = string_list . map Text.unpack
+
+string_list :: [String] -> Doc
+string_list = format_commas '[' ']' . map PP.text
 
 data Spaces = Always | Sometimes | Never deriving (Show, Eq)
 

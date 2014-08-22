@@ -13,6 +13,8 @@ module LogView.Tail (
 ) where
 import Prelude hiding (read, tail)
 import qualified Control.Exception as Exception
+import qualified Data.ByteString as ByteString
+import qualified Data.ByteString.Lazy as Lazy
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
@@ -83,18 +85,16 @@ tail hdl = do
     msg <- deserialize_line line
     return (msg, hdl)
 
-deserialize_line :: String -> IO Log.Msg
-deserialize_line line = do
-    err_msg <- Log.deserialize_msg line
-    case err_msg of
-        Left exc -> Log.initialized_msg Log.Error $ "error parsing: "
-            <> showt exc <> ", line was: " <> showt line
-        Right msg -> return msg
+deserialize_line :: ByteString.ByteString -> IO Log.Msg
+deserialize_line line = case Log.deserialize (Lazy.fromStrict line) of
+    Left err -> Log.initialized_msg Log.Error $ "error parsing "
+        <> showt line <> ": " <> txt err
+    Right msg -> return msg
 
 -- | (handle, file size)
 type TailState = (IO.Handle, Integer)
 
-read_line :: Handle -> IO (String, Handle)
+read_line :: Handle -> IO (ByteString.ByteString, Handle)
 read_line (Handle filename hdl size) = go (hdl, size)
     where
     go state@(hdl, size) = IO.hIsEOF hdl >>= \x -> case x of
@@ -111,7 +111,7 @@ read_line (Handle filename hdl size) = go (hdl, size)
             -- Since hGetLine in its infinite wisdom chops the newline it's
             -- impossible to tell if this is a complete line or not.  I'll set
             -- LineBuffering and hope for the best.
-            line <- IO.hGetLine hdl
+            line <- ByteString.hGetLine hdl
             new_size <- IO.hFileSize hdl
             return (line, Handle filename hdl new_size)
 

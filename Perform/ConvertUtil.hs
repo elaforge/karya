@@ -48,14 +48,13 @@ run_convert :: state -> Stack.Stack -> ConvertT state a
 run_convert state stack conv = case val of
     Left (Error Nothing) -> (Nothing, logs, out_state)
     Left (Error (Just err)) ->
-        (Nothing, Log.msg Log.Warn log_stack err : logs, out_state)
+        (Nothing, Log.msg Log.Warn (Just stack) err : logs, out_state)
     Right val -> (Just val, logs, out_state)
     where
     run = Identity.runIdentity
         . Log.run . flip State.runStateT state . Error.runErrorT
     ((val, out_state), stackless_logs) = run conv
-    logs = [msg { Log.msg_stack = log_stack } | msg <- stackless_logs]
-    log_stack = Just (Stack.serialize stack)
+    logs = [msg { Log.msg_stack = Just stack } | msg <- stackless_logs]
 
 require :: Text -> Maybe a -> ConvertT st a
 require msg = maybe (throw $ "event requires " <> msg) return
