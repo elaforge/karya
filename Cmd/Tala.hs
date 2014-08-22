@@ -13,7 +13,7 @@
 module Cmd.Tala (
     ruler
     -- * standard talams
-    , adi, adi3
+    , adi, adi3, adi_nadai
     , dhruva, matya, rupaka, jhampa, triputa, ata, eka
     , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
     , ata_tala, eka_tala
@@ -36,11 +36,14 @@ ruler = Ruler.meter_ruler (Just Meter.mtype_tala) . Meter.labeled_marklist
 
 -- | n sections of 4 avartanams of everyone's favorite talam.
 adi :: Int -> Meter.LabeledMeter
-adi sections = make_meter [Ruler adi_tala sections 4 4 1]
+adi = adi_nadai 4
 
 -- | 'adi' but in tisram.
 adi3 :: Int -> Meter.LabeledMeter
-adi3 sections = make_meter [Ruler adi_tala sections 4 3 1]
+adi3 = adi_nadai 3
+
+adi_nadai :: Int -> Int -> Meter.LabeledMeter
+adi_nadai nadai sections = make_meter [Ruler adi_tala sections 4 nadai 1]
 
 -- * implementation
 

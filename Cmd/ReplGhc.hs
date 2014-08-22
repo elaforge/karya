@@ -185,10 +185,10 @@ collect_logs action = do
     -- log_action :: GHC.DynFlags -> GHC.Severity -> GHC.SrcSpan -> PprStyle
     --     -> MsgDoc -> IO ()
     log_action logs dflags _severity _span style msg =
-        liftIO $ IORef.modifyIORef logs (err:)
+        liftIO $ IORef.modifyIORef logs (formatted:)
         where
-        err = Outputable.showSDoc dflags $ Outputable.withPprStyle style msg
-            -- ErrUtils.mkLocMessage span msg
+        formatted = Outputable.showSDoc dflags $
+            Outputable.withPprStyle style msg
 
 modify_flags :: (GHC.DynFlags -> GHC.DynFlags) -> Ghc ()
 modify_flags f = do
