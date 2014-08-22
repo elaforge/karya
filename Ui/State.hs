@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable, BangPatterns #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, BangPatterns #-}
 {- | The overall UI state is described here.  This is an immutable data
     structure that contains all the tracks, rulers, note data, and so forth.
     It exports a StateT monad for modification and access.
@@ -132,7 +132,6 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Trans as Trans
 
-import qualified Data.Generics as Generics
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -175,7 +174,7 @@ data State = State {
     , state_tracks :: Map.Map TrackId Track.Track
     , state_rulers :: Map.Map RulerId Ruler.Ruler
     , state_config :: Config
-    } deriving (Eq, Show, Generics.Typeable)
+    } deriving (Eq, Show)
 
 views :: Lens.Lens State (Map.Map ViewId Block.View)
 views = Lens.lens state_views
@@ -391,7 +390,7 @@ exec_rethrow msg state =
 -- | Abort is used by Cmd, so don't throw it from here.  This isn't exactly
 -- modular, but ErrorT can't be composed and extensible exceptions are too
 -- much bother at the moment.
-data Error = Error String | Abort deriving (Generics.Typeable, Show)
+data Error = Error String | Abort deriving (Show)
 
 instance Pretty.Pretty Error where
     pretty (Error msg) = msg

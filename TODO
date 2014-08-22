@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - shakefile: even though the shakefile tries to support multiple versions of
+    packages via 'cabal configure', I think they can still cause problems
+    with ghci loading.  This manifests as a long hang starting up while
+    the repl bytecode compiles a bunch of modules.  Perhaps build/*/ghci-flags
+    needs the full -package-id treatment.
   * Once a highlight is added, it doesn't get deleted even if the next
     derivation doesn't have it any more.
   * save last save time in StateConfig.Meta

@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Core CmdT monad that cmds run in.
 
     A Cmd is what user actions turn into.  The main thing they do is edit
@@ -60,7 +60,6 @@ import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
 
-import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
@@ -132,7 +131,7 @@ data Status = Done | Continue | Quit
     -- | Hack to control import dependencies, see "Cmd.PlayC".
     | PlayMidi !PlayMidiArgs
     | EditInput !EditInput
-    deriving (Show, Generics.Typeable)
+    deriving (Show)
 
 -- | Combine two Statuses by keeping the one with higher priority.
 merge_status :: Status -> Status -> Status
@@ -159,7 +158,7 @@ data EditInput =
     EditOpen !ViewId !TrackNum !ScoreTime !Text !(Maybe (Int, Int))
     -- | Insert the given text into an already open edit box.
     | EditInsert !Text
-    deriving (Show, Generics.Typeable)
+    deriving (Show)
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
 -- just to make things uniform.
@@ -367,10 +366,10 @@ data State = State {
     -- can't do that because they commonly use the return value to return
     -- an interesting String back to the REPL.
     , state_repl_status :: !Status
-    } deriving (Show, Generics.Typeable)
+    } deriving (Show)
 
 data SaveFile = SaveState !FilePath | SaveRepo !SaveGit.Repo
-    deriving (Show, Eq, Generics.Typeable)
+    deriving (Show, Eq)
 
 -- | Directory of the save file.
 state_save_dir :: State -> Maybe FilePath
@@ -441,7 +440,7 @@ data Config = Config {
     -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
     , state_lookup_scale :: !LookupScale
     , state_highlight_colors :: !(Map.Map Color.Highlight Color.Color)
-    } deriving (Show, Generics.Typeable)
+    } deriving (Show)
 
 -- | Get a midi writer that takes the 'state_wdev_map' into account.
 state_midi_writer :: State -> Midi.Interface.Message -> IO ()
@@ -502,7 +501,7 @@ data PlayState = PlayState {
     -- | If set, synchronize with a DAW when the selection is set, and on play
     -- and stop.
     , state_sync :: !(Maybe SyncConfig)
-    } deriving (Show, Generics.Typeable)
+    } deriving (Show)
 
 initial_play_state :: PlayState
 initial_play_state = PlayState
@@ -532,7 +531,7 @@ data StepState = StepState {
     , step_before :: ![(ScoreTime, Midi.State.State)]
     -- | MIDI states after the step play position, in asceding order.
     , step_after :: ![(ScoreTime, Midi.State.State)]
-    } deriving (Show, Generics.Typeable)
+    } deriving (Show)
 
 -- | Configure synchronization.  MMC is used to set the play position and MTC
 -- is used to start and stop playing.
@@ -621,7 +620,7 @@ data EditState = EditState {
     , state_recorded_actions :: !RecordedActions
     -- | See 'set_edit_box'.
     , state_edit_box :: !(Block.Box, Block.Box)
-    } deriving (Eq, Show, Generics.Typeable)
+    } deriving (Eq, Show)
 
 initial_edit_state :: EditState
 initial_edit_state = EditState {
@@ -700,7 +699,7 @@ data WriteDeviceState = WriteDeviceState {
     -- keyswitch can share the same addr, so I need to keep track which one is
     -- active to minimize switches.
     , wdev_addr_inst :: !(Map.Map Instrument.Addr Instrument.Instrument)
-    } deriving (Eq, Show, Generics.Typeable)
+    } deriving (Eq, Show)
 
 type Serial = Int
 
@@ -778,7 +777,7 @@ data History = History {
     , hist_present :: !HistoryEntry
     , hist_future :: ![HistoryEntry]
     , hist_last_cmd :: !(Maybe LastCmd)
-    } deriving (Show, Generics.Typeable)
+    } deriving (Show)
 
 initial_history :: HistoryEntry -> History
 initial_history present = History [] present [] Nothing
@@ -820,7 +819,7 @@ data HistoryCollect = HistoryCollect {
     , state_suppress_edit :: !(Maybe EditMode)
     -- | The Git.Commit in the SaveHistory should definitely be Nothing.
     , state_suppressed :: !(Maybe SaveGit.SaveHistory)
-    } deriving (Show, Generics.Typeable)
+    } deriving (Show)
 
 empty_history_collect :: HistoryCollect
 empty_history_collect = HistoryCollect
@@ -846,7 +845,7 @@ data HistoryEntry = HistoryEntry {
     -- | The Commit where this entry was saved.  Nothing if the entry is
     -- unsaved.
     , hist_commit :: !(Maybe SaveGit.Commit)
-    } deriving (Show, Generics.Typeable)
+    } deriving (Show)
 
 empty_history_entry :: State.State -> HistoryEntry
 empty_history_entry state = HistoryEntry state [] [] Nothing

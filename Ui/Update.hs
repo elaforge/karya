@@ -2,14 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {- | Updates are diffs against Ui.State and are used in a number of contexts.
     They are produced by "Ui.Diff".  The different uses all require slightly
     different data, and I capture the major differences in separate types.
 -}
 module Ui.Update where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 
 import Util.Control
@@ -63,7 +62,7 @@ data Update t u =
     -- ruler update is a full update.
     | Ruler !RulerId
     | State !u
-    deriving (Eq, Show, Generics.Typeable)
+    deriving (Eq, Show)
 
 data View =
     CreateView
@@ -122,7 +121,7 @@ data State =
     | DestroyTrack !TrackId
     | CreateRuler !RulerId !Ruler.Ruler
     | DestroyRuler !RulerId
-    deriving (Eq, Show, Generics.Typeable)
+    deriving (Eq, Show)
 
 instance DeepSeq.NFData (Update t u) where
     rnf update = case update of

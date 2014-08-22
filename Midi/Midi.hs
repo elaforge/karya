@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 module Midi.Midi (
     WriteMessages, ReadMessages
@@ -47,7 +47,6 @@ import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import Data.Bits
 import qualified Data.ByteString as ByteString
-import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text.Encoding as Encoding
@@ -103,11 +102,11 @@ instance Pretty.Pretty WriteMessage where
 -- This can be saved to and loaded from files without regard for the devices
 -- actually installed or opened.
 newtype ReadDevice = ReadDevice ByteString.ByteString
-    deriving (Eq, Ord, Show, Read, Generics.Typeable, Serialize.Serialize)
+    deriving (Eq, Ord, Show, Read, Serialize.Serialize)
     -- Storing these as ByteString gives a cheap marshal and unmarshal.  Not
     -- that it matters, but maybe it will someday for a different MIDI backend.
 newtype WriteDevice = WriteDevice ByteString.ByteString
-    deriving (Eq, Ord, Show, Read, Generics.Typeable, Serialize.Serialize)
+    deriving (Eq, Ord, Show, Read, Serialize.Serialize)
 
 read_device :: Text -> ReadDevice
 read_device = ReadDevice . Encoding.encodeUtf8
@@ -244,7 +243,7 @@ data Message =
     | CommonMessage !CommonMessage
     | RealtimeMessage !RealtimeMessage
     | UnknownMessage !Word8 !Word8 !Word8
-    deriving (Eq, Ord, Show, Read, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Message where
     pretty (CommonMessage (SystemExclusive manuf bytes)) =
@@ -305,7 +304,7 @@ data ChannelMessage =
     | LocalControl !Bool
     | AllNotesOff
     | UndefinedChannelMode !Word8 !Word8
-    deriving (Eq, Ord, Show, Read, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 
 data CommonMessage =
     -- | manufacturer id, data including eox
@@ -315,11 +314,11 @@ data CommonMessage =
     | TuneRequest
     | EOX
     | UndefinedCommon !Word8
-    deriving (Eq, Ord, Show, Read, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 
 data RealtimeMessage = MtcQuarterFrame !Mtc | TimingClock | Start | Continue
     | Stop | ActiveSense | Reset | UndefinedRealtime !Word8
-    deriving (Eq, Ord, Show, Read, Generics.Typeable)
+    deriving (Eq, Ord, Show, Read)
 
 instance DeepSeq.NFData Message where rnf _ = ()
 instance DeepSeq.NFData ChannelMessage where rnf _ = ()

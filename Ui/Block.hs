@@ -2,11 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable #-}
 module Ui.Block where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
-import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -200,7 +198,7 @@ data Track = Track {
     -- | Other tracks are displayed behind this one.  Useful to merge a pitch
     -- track into its note track.
     , track_merged :: ![TrackId]
-    } deriving (Eq, Show, Read, Generics.Typeable)
+    } deriving (Eq, Show, Read)
 
 track_id :: Track -> Maybe TrackId
 track_id = track_id_of . tracklike_id

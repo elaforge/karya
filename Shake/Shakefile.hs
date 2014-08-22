@@ -16,13 +16,13 @@ import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Binary as Binary
 import qualified Data.Char as Char
-import qualified Data.Generics as Generics
 import qualified Data.Hashable as Hashable
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import Data.Monoid (mempty, (<>))
+import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake
 import Development.Shake ((?==), (?>), (?>>), (*>), need)
@@ -250,7 +250,7 @@ libraryDependencies = concat $
     , w "attoparsec" -- Derive: tracklang parsing
     -- shakefile
     , w "Cabal"
-    , [("shake", ">=0.13"), ("binary", ""), ("syb", "")]
+    , [("shake", ">=0.13"), ("binary", "")]
     -- Derive: score randomization
     , w "mersenne-random-pure64 digest random-shuffle"
     , w "dlist" -- Util.TimeVector
@@ -500,14 +500,14 @@ main = withLockedDatabase $ do
 -- ** oracle
 
 newtype Question a = Question () deriving
-    ( Show, Generics.Typeable, Eq, Hashable.Hashable, Binary.Binary
+    ( Show, Typeable.Typeable, Eq, Hashable.Hashable, Binary.Binary
     , DeepSeq.NFData
     )
 
-data GhcQ deriving (Generics.Typeable)
-data FltkQ deriving (Generics.Typeable)
-data ReplQ deriving (Generics.Typeable)
-data MidiQ deriving (Generics.Typeable)
+data GhcQ deriving (Typeable.Typeable)
+data FltkQ deriving (Typeable.Typeable)
+data ReplQ deriving (Typeable.Typeable)
+data MidiQ deriving (Typeable.Typeable)
 
 setupOracle :: [(String, String)] -> Config -> Shake.Rules ()
 setupOracle env config = do

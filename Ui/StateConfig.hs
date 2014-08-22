@@ -2,14 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveDataTypeable, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# OPTIONS_HADDOCK not-home #-}
 -- | State.Config and State.Default, in their own module to avoid circular
 -- imports with "State.Update".  Everyone else should pretend they're defined
 -- in "Ui.State".
 module Ui.StateConfig where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Generics as Generics
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Time as Time
@@ -65,7 +64,7 @@ data Config = Config {
     -- | If set, load local definitions from this file.  The filename is
     -- relative to the score directory, which is defined by the loading code.
     , config_definition_file :: !(Maybe FilePath)
-    } deriving (Eq, Show, Generics.Typeable)
+    } deriving (Eq, Show)
 
 -- Ui.State already has a function called 'namespace'.
 namespace_ = Lens.lens config_namespace
@@ -114,7 +113,7 @@ data Meta = Meta {
     , meta_notes :: !Text
     , meta_midi_performances :: !(Map.Map BlockId MidiPerformance)
     , meta_lilypond_performances :: !(Map.Map BlockId LilypondPerformance)
-    } deriving (Eq, Read, Show, Generics.Typeable)
+    } deriving (Eq, Read, Show)
 
 creation = Lens.lens meta_creation
     (\f r -> r { meta_creation = f (meta_creation r) })
@@ -158,7 +157,7 @@ data Performance a = Performance {
     -- (technically it should be a tag's name, but it doesn't matter as long as
     -- I'm the only developer).  For git, it would be the commit hash.
     , perf_patch :: !Text
-    } deriving (Eq, Read, Show, Generics.Typeable)
+    } deriving (Eq, Read, Show)
 
 -- | Initial values for derivation.
 --
@@ -169,7 +168,7 @@ data Performance a = Performance {
 data Default = Default {
     -- | A toplevel block without a tempo track will get this tempo.
     default_tempo :: !Signal.Y
-    } deriving (Eq, Read, Show, Generics.Typeable)
+    } deriving (Eq, Read, Show)
 
 tempo = Lens.lens default_tempo
     (\f r -> r { default_tempo = f (default_tempo r) })
