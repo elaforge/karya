@@ -51,11 +51,10 @@ note_calls = Derive.call_maps
     -- to handle the args version.
     , ("n", c_note)
     ]
-    [ ("n", c_note_attributes "note-attributes")
+    [ ("n", c_note_attributes)
     -- Called implicitly for note track titles, e.g. '>foo +bar' becomes
-    -- 'note-track >foo +bar'.  It has a different name so the stack shows
-    -- track calls.
-    , ("note-track", c_note_attributes "note-track")
+    -- 'note-track >foo +bar'.
+    , ("note-track", c_note_track)
     ]
 
 -- * note
@@ -131,16 +130,51 @@ normalize args deriver =
         Derive.at (- Args.start args) deriver
     where dur = Args.duration args
 
-c_note_attributes :: Text -> Derive.Transformer Derive.Note
-c_note_attributes name = Derive.transformer Module.prelude name mempty
+c_note_track :: Derive.Transformer Derive.Note
+c_note_track = Derive.transformer Module.prelude "note-track" mempty
+    ("This is the implicit call at the top of every note track. It expects a"
+    <> " instrument as its first argument, since note tracks all start with"
+    <> " `>`. If there is a note transformer of the same name as the"
+    <> " instrument, starting with `>`, it will be called after setting the"
+    <> " instrument. This way, you can set instrument-specific variables or"
+    <> " transformations.")
+    $ Sig.callt ((,)
+    <$> Sig.required_env "inst" Derive.None
+        ("Set this instrument, and run a transformer with the same name, if it"
+        <> " exists.")
+    <*> Sig.many "attribute" "Add attributes."
+    ) $ \(inst, attrs) args deriver ->
+        note_track (Derive.passed_info args) inst attrs deriver
+
+note_track :: Derive.CallInfo Derive.Note -> Score.Instrument
+    -> [Score.Attributes] -> Derive.NoteDeriver -> Derive.NoteDeriver
+note_track cinfo inst attrs deriver = do
+    let call_id = TrackLang.Symbol $ ">" <> Score.inst_name inst
+    maybe_call <- Derive.lookup_transformer call_id
+    let transform = maybe id (call_transformer cinfo) maybe_call
+        with_inst = if inst == Score.empty_inst then id
+            else Derive.with_instrument inst
+    with_inst $ Util.add_attrs (mconcat attrs) $ transform deriver
+
+call_transformer :: Derive.CallInfo d -> Derive.Transformer d
+    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+call_transformer cinfo call deriver =
+    Internal.with_stack_call (Derive.call_name call) $
+        Derive.call_func call passed deriver
+    where
+    passed = Derive.PassedArgs
+        { Derive.passed_vals = []
+        , Derive.passed_call_name = Derive.call_name call
+        , Derive.passed_info = cinfo
+        }
+
+c_note_attributes :: Derive.Transformer Derive.Note
+c_note_attributes = Derive.transformer Module.prelude "note-attributes"
+    mempty
     ("This is similar to to `=`, but it takes any number of `>inst` and"
         <> " `+attr` args and sets the `inst` or `attr` environ.")
-    (Sig.callt parser note_transform)
-    where parser = Sig.many "attribute" "Set instrument or attributes."
-
-note_transform :: [Either Score.Instrument Score.Attributes]
-    -> Derive.PassedArgs d -> Derive.NoteDeriver -> Derive.NoteDeriver
-note_transform vals _ deriver = transform_note vals deriver
+    $ Sig.callt (Sig.many "attribute" "Set instrument or attributes.")
+    $ \inst_attrs _args -> transform_note inst_attrs
 
 -- ** generate
 
@@ -315,4 +349,3 @@ transform_note vals deriver =
     (insts, attrs) = Seq.partition_either vals
     with_inst = maybe id Derive.with_instrument $
         Seq.last $ filter (/=Score.empty_inst) insts
-

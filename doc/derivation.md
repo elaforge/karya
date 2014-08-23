@@ -83,7 +83,11 @@ as arguments to a `note-track` transformer whose default behaviour is to set
 the current instrument and possibly attributes, the same as the [default null
 note call](#call-docs).  Similar to scales, setting the instrument will bring
 the instrument's calls into scope, as documented under
-[instruments](#instruments).
+[instruments](#instruments).  The `note-track` call will apply a transformer
+with the same name as the instrument, if it exists.  You can use this to make
+an instrument automatically apply a certain variable or postproc.  You can
+create the appropriate transformer via a
+[definitions file](ui.md.html#local-definitions).
 
 You can optionally append a [expression pipeline](#expression-pipeline), and
 the expressions will be called as a transformer around the whole track.  So

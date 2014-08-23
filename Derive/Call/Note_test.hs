@@ -3,13 +3,27 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Note_test where
+import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
 
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Note as Note
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Sig as Sig
 
+
+test_note_track_call = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks_with
+                (CallTest.with_note_transformer ">s/1" trans) ""
+        extract e = DeriveTest.e_environ_val "x" e :: Maybe Int
+        trans = Derive.transformer "module" "trans" mempty "doc" $ Sig.call0t
+            $ \_ -> Derive.with_val "x" (42 :: Int)
+    equal (run [(">s/1", [(0, 1, "")])]) ([Just 42], [])
+    equal (run [(">s/2", [(0, 1, "")])]) ([Nothing], [])
 
 test_start_controls = do
     let run = DeriveTest.extract DeriveTest.e_start_dur
