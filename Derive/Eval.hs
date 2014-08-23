@@ -152,14 +152,14 @@ get_val_call :: TrackLang.CallId -> Derive.Deriver Derive.ValCall
 get_val_call call_id =
     require_call False call_id "val call" =<< Derive.lookup_val_call call_id
 
-get_generator :: forall d. (Derive.Callable d) =>
+get_generator :: forall d. Derive.Callable d =>
     TrackLang.CallId -> Derive.Deriver (Derive.Generator d)
 get_generator call_id =
     require_call True call_id (name <> " generator")
         =<< Derive.lookup_generator call_id
     where name = Derive.callable_name (Proxy :: Proxy d)
 
-get_transformer :: forall d. (Derive.Callable d) =>
+get_transformer :: forall d. Derive.Callable d =>
     TrackLang.CallId -> Derive.Deriver (Derive.Transformer d)
 get_transformer call_id =
     require_call False call_id (name <> " transformer")
@@ -267,18 +267,18 @@ replace_generator call_id = fmap replace . Parse.parse_expr
 -- | Apply an expr with the current call info.  This discards the parsed
 -- arguments in the 'Derive.PassedArgs' since it gets args from the
 -- 'TrackLang.Expr'.
-reapply :: (Derive.Callable d) => Derive.PassedArgs d -> TrackLang.Expr
+reapply :: Derive.Callable d => Derive.PassedArgs d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 reapply args = eval_expr False (Derive.passed_info args)
 
 -- | Like 'reapply', but parse the string first.
-reapply_string :: (Derive.Callable d) => Derive.PassedArgs d -> Text
+reapply_string :: Derive.Callable d => Derive.PassedArgs d -> Text
     -> Derive.LogsDeriver d
 reapply_string args s = case Parse.parse_expr s of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr -> reapply args expr
 
-reapply_call :: (Derive.Callable d) => Derive.PassedArgs d -> TrackLang.Symbol
+reapply_call :: Derive.Callable d => Derive.PassedArgs d -> TrackLang.Symbol
     -> [TrackLang.Term] -> Derive.LogsDeriver d
 reapply_call args call_id call_args =
     reapply args (TrackLang.call call_id call_args :| [])
@@ -306,7 +306,7 @@ eval_expr collect cinfo expr =
     fromMaybe [] <$> Derive.catch collect (apply_toplevel cinfo expr)
 
 -- | Parse and apply a transform expression.
-apply_transform :: (Derive.Callable d) => Text -> Text
+apply_transform :: Derive.Callable d => Text -> Text
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 apply_transform name expr_str deriver
     | Text.all Char.isSpace expr_str = deriver

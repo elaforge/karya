@@ -193,7 +193,6 @@ make_cmd cmd_map msg = do
             Log.debug $ "running command " <> showt name
             Cmd.name name (cmd msg)
 
-
 -- | The Msg contains the low level key information, but most commands should
 -- probably use these higher level modifiers.  That way left and right shifts
 -- work the same, and cmds can use Command as customary on the Mac and Control
@@ -225,8 +224,7 @@ really_control = case Config.platform of
 
 -- * implementation
 
--- | TODO This is a hardcoded Mac layout, when I support other platforms
--- it'll have to be configurable.
+-- | Map a SimpleMod to the Key.Modifiers it implies.
 simple_mod_map :: [(SimpleMod, [Key.Modifier])]
 simple_mod_map = case Config.platform of
     Config.Mac ->
@@ -384,7 +382,6 @@ physical_key :: Char -> Char
 physical_key c =
     fromMaybe (error $ "Keymap.physical_key " ++ show c ++ " not found") $
         Map.lookup c hardcoded_kbd_layout
-
 
 qwerty, qwerty_lower, qwerty_upper :: [Char]
 qwerty = qwerty_lower ++ qwerty_upper

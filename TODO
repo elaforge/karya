@@ -3,11 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - shakefile: even though the shakefile tries to support multiple versions of
-    packages via 'cabal configure', I think they can still cause problems
-    with ghci loading.  This manifests as a long hang starting up while
-    the repl bytecode compiles a bunch of modules.  Perhaps build/*/ghci-flags
-    needs the full -package-id treatment.
+  - since an instrument can't setup environ by itself, I wind up with
+    '>zh | zh' everywhere.  Could I have some way that >xyz can also be
+    a transformer?  Maybe >xyz looks for a call called '>xyz', and if found,
+    calls it like 'inst=xyz | >xyz'.
   * Once a highlight is added, it doesn't get deleted even if the next
     derivation doesn't have it any more.
   * save last save time in StateConfig.Meta
@@ -493,7 +492,7 @@ cleanup:
     PitchControl and ValControl.
     . (Control, Signal, Y), (PControl, PSignal, Pitch)
       SignalRef, PSignalRef
-  - clean up Pitch.Semi, Pitch.PitchClass, Pitch.Step, and Theory.Step
+  / clean up Pitch.Semi, Pitch.PitchClass, Pitch.Step, and Theory.Step
   - update shakefile to use new system calls and logging levels
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
@@ -646,7 +645,7 @@ symbolic score
     . But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
     - I can either have a separate app, or use the special Status trick.
-  - namespacing?  don't worry about it for now, if I need it later it can be
+  / namespacing?  don't worry about it for now, if I need it later it can be
     entirely at the haskell level, I can use the per-song config to import
     namespaces
   - feta's tr symbol looks bad especially when small, is there a better one?
@@ -688,7 +687,7 @@ fltk:
     detection.
     + gmail: subject:(scaling text)
       But it's OSX only.
-  - factor scroll redrawing into a single class
+  / factor scroll redrawing into a single class
   / draw arrows in SkeletonDisplay.cc properly?  Meh, they look ok.
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
@@ -711,6 +710,7 @@ fltk:
     http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
     http://developer.apple.com/library/mac/#documentation/General/Conceptual/MOSXAppProgrammingGuide/CoreAppDesign/CoreAppDesign.html#//apple_ref/doc/uid/TP40010543-CH3-SW26
     Can then re-enable ~/Library/Saved Application State.
+    . Did the objc call, but doesn't seem to have any effect.
 
   control track, render signal
     - render option: solid with color gradient
@@ -783,6 +783,11 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - Even though the shakefile tries to support multiple versions of packages
+    via 'cabal configure', I think they can still cause problems with ghci
+    loading.  This manifests as a long hang starting up while the repl
+    bytecode compiles a bunch of modules.  Perhaps build/*/ghci-flags needs
+    the full -package-id treatment.
   - Find out what happened to warnings, can I get them back?
   - repl should understand --
   - only write history when the cmd succeeded
@@ -799,15 +804,16 @@ REPL: repl:
   - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I
     could also get rid of the need for Cmd.Lang.Environ to import everything.
-  - new ghc api lets log_action catch ghci msgs, e.g. "Compiling xyz", added
+  * new ghc api lets log_action catch ghci msgs, e.g. "Compiling xyz", added
     in f81e14bb14e459cdd59ea232f7c711827be85dd6
+  - functions to load string serialized tracks for event cut and paste
+  - an aux data input for the lang socket might be useful, to paste in data
+    without having to quote it
 
-tempo:
+Cmd:
   - Create tempo by "stretching", i.e. select start and end, and create tempo
     mark that will cause the start point to be played where the end point used
     to be played.
-
-Cmd:
   - give Cmd.ModifyEvents.Track the ability to change the track title?
     Cmd.Repl.LPitch.change_scale and to_relative could use this.
   meter / timestep
@@ -849,10 +855,6 @@ Cmd:
     - alternate finale-like note entry: hold down step key to set step and
       turn on edit mode, but only while the key is down
       (merge will clip them to the next event)
-  Cmd.Repl
-    - functions to load string serialized tracks for event cut and paste
-    - an aux data input for the lang socket might be useful, to paste in data
-      without having to quote it
   copy / paste / Clip
     - clip block should use the ruler, just to make it easier to look at
     - clip could also copy over the skeleton
@@ -861,6 +863,8 @@ Cmd:
 
   Undo / UNDO
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
+      . record view changes, at least zoom / scroll so it can be undone
+        and redone separately
     - Suppressed undo for val edit is surprising since I tend to do a lot of
       edits without leaving val edit.  Maybe don't do it for pitch val edit.
       Try going back to using the name to suppress, but ignore cmds with no
@@ -876,8 +880,6 @@ Cmd:
         changes to be included in undo.
     - Visual display of undo history, because stepping back one-by-one is
       a bit of a hassle.
-    - record view changes, at least zoom / scroll so it can be undone / redone
-      separately
 
 Derive:
   tracklang:
@@ -893,6 +895,8 @@ Derive:
       perhaps every note track.  But that doesn't work because they're all
       sliced up.
   postproc
+    performance details / humanization
+      - irregularize runs based on fingering patterns, e.g. groups of 3
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
     - overblow emulation: a set of overblow ranges are defined, along with
@@ -900,10 +904,6 @@ Derive:
       When a note moves from one to another, start a new note at the
       destination pitch and bend the decay of the old one to the fundamental
       or closer harmonic from the previous mode.
-    - rambat damping emulation: notes ring on by default until they can be
-      damped.  Damp at the first opportunity, where opportunity is defined
-      as a break with no notes for a certain amount of time.  Can only damp
-      two neighboring notes at a time.
 
   - consider track calls and block calls:
     note_track :: TrackTree.EventsNode -> Derive.EventDeriver
@@ -990,6 +990,13 @@ Derive:
           track once for just pitches, and then another pass for real.
           However, this won't work for ngoret because of the block boundary!
           So maybe I need both?
+
+        . Postproc approach: I also need to adjust neighbors, e.g. for ngoret.
+          So I think I go back to emitting a tagged event, and then pair that
+          with a postproc.  This already happens for note call ngoret.  Then
+          ngoret note call just emits an extra 'ngoret' tagged event.
+          . I could do this with event_stack, e.g. just look at the innermost
+            Call.
       kotekan ornaments
         - control for norot +mute
         - gender norot: control for polos 234- vs. 434-
@@ -1043,6 +1050,11 @@ Derive:
           - variant patterns, e.g. p1 on dong
           - write an alternate style of kilitan, e.g. with a 6 note scale in
             tisram
+      gender:
+        - rambat damping emulation: notes ring on by default until they can be
+          damped.  Damp at the first opportunity, where opportunity is defined
+          as a break with no notes for a certain amount of time.  Can only damp
+          two neighboring notes at a time.
 
   control calls:
     - signal transformations: +, *, max, min
