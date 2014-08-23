@@ -2,15 +2,25 @@ module Derive.Call.China.Zheng_test where
 import Util.Test
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Perform.NN as NN
 
 
 title :: String
 title = "import china.zheng | open-strings = (list (4c) (4d) (4e) (4g) (4a))"
 
 test_gliss = do
+    let run gliss dest = DeriveTest.extract Score.initial_nn $
+            DeriveTest.derive_tracks title
+            [ ("> | scale=twelve-r | key=g-maj", [(4, 1, gliss)])
+            , ("*", [(4, 0, dest)])
+            ]
+    -- Pitches are correct for relative scale.
+    equal (run "gliss -1 1" "4s") ([Just NN.e4, Just NN.g4], [])
+
+test_gliss_a = do
     let run gliss dest = DeriveTest.extract extract $
             DeriveTest.derive_tracks title
-            [ (">", [(4, 1, gliss)]), ("*", [(4, 0, dest)])]
+            [(">", [(4, 1, gliss)]), ("*", [(4, 0, dest)])]
         extract e = (DeriveTest.e_note e, Score.initial_dynamic e)
     equal (run "gliss-a 2 1 .5" "4f")
         ([((3, 0.5, "4a"), 0.5), ((3.5, 0.5, "4g"), 0.75), ((4, 1, "4f"), 1)],

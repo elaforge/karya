@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - zheng gliss is off again
+  * zheng gliss is off again
   * since an instrument can't setup environ by itself, I wind up with
     '>zh | zh' everywhere.  Could I have some way that >xyz can also be
     a transformer?  Maybe >xyz looks for a call called '>xyz', and if found,

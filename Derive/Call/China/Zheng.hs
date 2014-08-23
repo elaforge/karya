@@ -80,7 +80,7 @@ make_gliss name is_absolute = Derive.make_call module_ name mempty
     \args -> do
         end <- Args.real_start args
         time <- Util.real_duration end time
-        dest_pitch <- Util.get_pitch end
+        dest_pitch <- Util.get_transposed end
         dest_dyn <- Util.dynamic end
         let start_dyn = fromMaybe dest_dyn maybe_start_dyn
         pitches <- gliss_pitches open_strings dest_pitch gliss_start
@@ -90,10 +90,10 @@ make_gliss name is_absolute = Derive.make_call module_ name mempty
             gliss pitches total_time start_dyn dest_dyn end
                 <> Util.placed_note args
 
-gliss_pitches :: [PitchSignal.Pitch] -> PitchSignal.Pitch -> Int
+gliss_pitches :: [PitchSignal.Pitch] -> PitchSignal.Transposed -> Int
     -> Derive.Deriver [PitchSignal.Pitch]
 gliss_pitches open_strings dest_pitch gliss_start = do
-    dest_nn <- Pitches.pitch_nn $ PitchSignal.coerce dest_pitch
+    dest_nn <- Pitches.pitch_nn dest_pitch
     -- TODO shouldn't need to eval them all
     open_nns <- mapM (Pitches.pitch_nn . PitchSignal.coerce) open_strings
     let strings = Seq.sort_on snd $ zip open_strings open_nns
