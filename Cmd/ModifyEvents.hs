@@ -58,7 +58,7 @@ failable_texts f block_id track_id events = do
 
 -- * modify selections
 
--- | Map a function over the selected events.
+-- | Map a function over the selected events, as per 'Selection.events'.
 selection :: Cmd.M m => Track m -> m ()
 selection f = do
     selected <- Selection.events

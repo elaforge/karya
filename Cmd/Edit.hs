@@ -27,6 +27,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.Pitch as Pitch
 import Types
 
@@ -166,17 +167,51 @@ modify_event_near_point modify = do
 -- cursor.  Unless the cursor is on the event start, and then extend it by
 -- a timestep.
 cmd_toggle_zero_duration :: Cmd.M m => m ()
-cmd_toggle_zero_duration = do
-    (_, sel) <- Selection.get
-    let point = Selection.point sel
-    (_, end) <- expand_range [Selection.point_track sel] point point
-    ModifyEvents.selection $ ModifyEvents.event (toggle end point)
+cmd_toggle_zero_duration = alter_duration toggle_zero_timestep
+
+toggle_zero_timestep :: Cmd.M m => BlockId -> TrackId -> Event.Event
+    -> m Event.Event
+toggle_zero_timestep block_id track_id event
+    | Event.duration event /= 0 = return $
+        Event.set_duration (if Event.negative event then -0 else 0) event
+    | otherwise = do
+        tracknum <- State.get_tracknum_of block_id track_id
+        step <- Cmd.get_current_step
+        end <- TimeStep.advance step block_id tracknum (Event.start event)
+        return $ case end of
+            Nothing -> event
+            Just end -> Event.set_duration (end - Event.start event) event
+
+-- | Alter the duration of the selected events.  If the first selected track is
+-- a note track, then modify only note tracks.  This is because control tracks
+-- generally have zero duration events, while note tracks generally don't,
+-- and if you want to alter duration of multiple tracks then you probably want
+-- to affect one or the other, not both.  This is common because of collapsed
+-- pitch tracks.
+alter_duration :: Cmd.M m =>
+    (BlockId -> TrackId -> Event.Event -> m Event.Event) -> m ()
+alter_duration alter = do
+    (view_id, sel) <- Selection.get
+    block_id <- State.block_id_of view_id
+    is_note <- first_track_is_note block_id sel
+    let wanted = if is_note
+            then fmap ParseTitle.is_note_track . State.get_track_title
+            else const (return True)
+    ModifyEvents.selection $ \_ track_id events -> ifM (wanted track_id)
+        (Just <$> mapM (alter block_id track_id) events)
+        (return Nothing)
+
+first_track_is_note :: State.M m => BlockId -> Types.Selection -> m Bool
+first_track_is_note block_id sel =
+    find =<< Types.sel_tracknums <$> State.track_count block_id
+        <*> return sel
     where
-    toggle end point event
-        | Event.duration event /= 0 = Event.set_duration 0 event
-        | pos == point = Event.set_duration (end - pos) event
-        | otherwise = Event.set_duration (point - pos) event
-        where pos = Event.start event
+    find [] = return False
+    find (tracknum:tracknums) =
+        State.event_track_at block_id tracknum >>= \x -> case x of
+            Nothing -> find tracknums
+            Just track_id -> ParseTitle.is_note_track
+                <$> State.get_track_title track_id
 
 -- | Move only the beginning of an event.  As is usual for zero duration
 -- events, their duration will not be changed so this is equivalent to a move.
@@ -380,8 +415,8 @@ delete_event_time start end event
         | otherwise = Just $ Event.move (subtract shift) event
 
 -- | If the range is a point, then expand it to one timestep.
-expand_range :: Cmd.M m => [TrackNum] -> ScoreTime -> ScoreTime
-    -> m (ScoreTime, ScoreTime)
+expand_range :: Cmd.M m => [TrackNum] -> TrackTime -> TrackTime
+    -> m (TrackTime, TrackTime)
 expand_range (tracknum:_) start end
     | start == end = do
         block_id <- Cmd.get_focused_block
@@ -467,25 +502,12 @@ toggle_note_duration = do
 -- | This is a hybrid of 'cmd_toggle_zero_duration' and
 -- 'set_block_call_duration': if it looks like a block call, then set its
 -- duration accordingly.  Otherwise, toggle zero duration.
---
--- This is because it's never useful to set a block call to zero duration.
--- Actually that's not entirely true, I can imagine a zero dur block for
--- percussion.  But that doesn't seem very common.
 cmd_toggle_zero_or_block_call_duration :: Cmd.M m => m ()
-cmd_toggle_zero_or_block_call_duration = do
-    (_, sel) <- Selection.get
-    let point = Selection.point sel
-    (_, end) <- expand_range [Selection.point_track sel] point point
-    ModifyEvents.selection $ ModifyEvents.events $ mapM (toggle end point)
-    where
-    toggle end point event = fromMaybe (toggle_zero end point event) <$>
-        set_block_call_duration event
-    toggle_zero end point event
-        | Event.duration event /= 0 =
-            Event.set_duration (if Event.negative event then -0 else 0) event
-        | pos == point = Event.set_duration (end - pos) event
-        | otherwise = Event.set_duration (point - pos) event
-        where pos = Event.start event
+cmd_toggle_zero_or_block_call_duration = alter_duration $
+    \block_id track_id event ->
+        set_block_call_duration event >>= \x -> case x of
+            Just event -> return event
+            Nothing -> toggle_zero_timestep block_id track_id event
 
 cmd_set_block_call_duration :: Cmd.M m => m ()
 cmd_set_block_call_duration =

@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - move Types.Selection to its own module.  That leaves just aliases
+    TrackNum, Width, SelNum, MouseButton
+  * cmd-z with multiple events makes them -0
+    also, it doesn't seem to affect the selected pitch track
+  - can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
+    modify_event_near_point, doesn't ModifyEvent.selection already do that?
   * zheng gliss is off again
   * since an instrument can't setup environ by itself, I wind up with
     '>zh | zh' everywhere.  Could I have some way that >xyz can also be
