@@ -401,8 +401,7 @@ untyped_control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
 untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
 
 -- | Get a ControlValMap at the given time, taking 'state_control_functions'
--- into account.  Like ControlValMap, this is intended to be used for
--- a 'PitchSignal.Pitch'.
+-- into account.
 controls_at :: RealTime -> Deriver Score.ControlValMap
 controls_at pos = do
     controls <- get_controls

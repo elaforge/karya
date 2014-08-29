@@ -112,9 +112,9 @@ add_attributes attrs
     | otherwise = modify_attributes (<>attrs)
 
 remove_attributes :: Attributes -> Event -> Event
-remove_attributes attrs
-    | attrs == mempty = id
-    | otherwise = modify_attributes (attrs_remove attrs)
+remove_attributes attrs event
+    | attrs == mempty || not (has_attribute attrs event) = event
+    | otherwise = modify_attributes (attrs_remove attrs) event
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch pitches _ _ _ _) =

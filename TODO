@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - rename %t-diatonic to t-dia and %t-chromatic to %t-chrom
   - move Types.Selection to its own module.  That leaves just aliases
     TrackNum, Width, SelNum, MouseButton
   * cmd-z with multiple events makes them -0
@@ -977,7 +978,7 @@ Derive:
           a chromatic tonic and a set of 5 chromatic intervals.  It also has
           chromatic and diatonic transposition.
 
-      - Sometimes ngoret makes more sense as at attribute of the previous note,
+      * Sometimes ngoret makes more sense as at attribute of the previous note,
         or perhaps a freestanding ornament, since it can happen or not on
         a repeat.
         . The problem is getting the next pitch.  Either go back to the
@@ -1004,6 +1005,7 @@ Derive:
           ngoret note call just emits an extra 'ngoret' tagged event.
           . I could do this with event_stack, e.g. just look at the innermost
             Call.
+      - errors for Gender.realize_ngoret
       kotekan ornaments
         - control for norot +mute
         - gender norot: control for polos 234- vs. 434-

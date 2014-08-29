@@ -6,11 +6,13 @@ module Util.Seq where
 import Prelude hiding (head, join, last, tail)
 import qualified Control.Arrow as Arrow
 import qualified Data.Char as Char
+import qualified Data.DList as DList
 import Data.Function
 import Data.Functor ((<$>))
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import Data.Monoid ((<>))
@@ -441,6 +443,21 @@ partition_with f = go
         Just b -> (b:bs, as)
         Nothing -> (bs, x:as)
         where (bs, as) = go xs
+
+-- | Partition by a key function.  The output lists are in the same order they
+-- were in the input.
+partitions :: Ord k => (a -> k) -> [a] -> Map.Map k [a]
+partitions key = foldr go Map.empty
+    where
+    go x collect = Map.alter (Just . maybe [x] (x:)) (key x) collect
+
+-- TODO test with criterion
+partitions2 :: Ord k => (a -> k) -> [a] -> Map.Map k [a]
+partitions2 key = Map.map DList.toList . List.foldl' go Map.empty
+    where
+    go collect x = Map.alter
+        (Just . maybe (DList.singleton x) (`DList.snoc` x)) (key x) collect
+
 
 -- * sublists
 

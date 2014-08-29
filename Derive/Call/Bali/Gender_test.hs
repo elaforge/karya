@@ -9,17 +9,38 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
+transform :: String
+transform = "import bali.gender | realize-ngoret"
+
+test_ngoret_standalone = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks transform . UiTest.note_track
+    equal (run [(0, 1, "4c"), (1, 0, "'- .5 .5 --"), (2, 1, "4e")])
+        ([(0, 2.5, "4c"), (1.5, 1, "4d"), (2, 1, "4e")], [])
+
+    -- The grace note goes at the midpoint if there isn't enough time.
+    equal (run [(0, 1, "4c"), (1, 0, "'- 10 .5 --"), (2, 1, "4e")])
+        ([(0, 2.5, "4c"), (1, 1.5, "4d"), (2, 1, "4e")], [])
+
+    -- Short note doesn't get extended.
+    equal (run [(0, 0.5, "4c"), (1, 0, "'- 1 .5 --"), (2, 1, "4e")])
+        ([(0, 0.5, "4c"), (1, 1.5, "4d"), (2, 1, "4e")], [])
+
+    -- -- Trailing ngoret TODO should be an error
+    -- pprint (run [(0, 0.5, "4c"), (1, 0, "'- 1 .5 --")])
+
 test_ngoret = do
     -- This also tests some error checking and absolute warp functions.
     let run_e extract = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_linear "import bali.gender"
+            . DeriveTest.derive_tracks_linear transform
         run = run_e DeriveTest.e_note
     let c_to_e evt1 evt2 =
             [ (">", [(0, 1, evt1), (2, 1, evt2)])
             , ("*", [(0, 0, "4c"), (2, 0, "4e")])
             ]
 
-    strings_like (snd $ run $ c_to_e "'" "'") ["no previous", "no previous"]
+    -- strings_like (snd $ run $ c_to_e "'" "'") ["no previous", "no previous"]
+    -- pprint (run $ c_to_e "'" "'")
 
     -- Starting at 0 will emit an event at negative time.
     -- Thanks to the "x <= 0 means constant" hack the pitch is accurate even
@@ -66,37 +87,19 @@ test_ngoret = do
 
 test_ngoret_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch
-            . DeriveTest.derive_tracks "import bali.gender | %t-diatonic=7"
+            . DeriveTest.derive_tracks (transform ++ " | %t-diatonic=7")
             . UiTest.note_track
     -- Make sure the transposition doesn't get applied twice.
     equal (run [(0, 1, "4c"), (1, 1, "' .5 .5 -- 4e")])
         (["5c", "5d", "5e"], [])
 
-test_ngoret_slice = do
-    let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks_linear "import bali.gender"
-    -- Make sure ngoret works under slicing.  Specifically, the prev pitch
-    -- stuff broke before.
-    equal (run
-            [ (">", [])
-            , (">", [(0, 1, ""), (1, 1, "' .5 .5")])
-            , ("*", [(0, 0, "4c"), (1, 0, "4e")])
-            ])
-        ([(0, 1, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
-    equal (run
-            [ (">", [(0, 1, "+a")])
-            , (">", [(0, 1, ""), (1, 1, "' .5 .5")])
-            , ("*", [(0, 0, "4c"), (1, 0, "4e")])
-            ])
-        ([(0, 1, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
-
 test_realize_damp = do
     let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks "import bali.gender | realize-damp"
-            . UiTest.note_track
+            . DeriveTest.derive_tracks transform . UiTest.note_track
     -- First note is extended.
-    equal (run [(0, 1, "4c"), (1, 1, "' .5 .5 -- 4e")])
-        ([(0, 1.5, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
+    equal (run [(0, 2, "4c"), (2, 1, "' .5 .5 -- 4e")])
+        ([(0, 2.5, "4c"), (1.5, 1, "4d"), (2, 1, "4e")], [])
+
     -- But not if it has a rest.
-    equal (run [(0, 0.75, "4c"), (1, 1, "' .5 .5 -- 4e")])
-        ([(0, 0.75, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
+    equal (run [(0, 1, "4c"), (2, 1, "' .5 .5 -- 4e")])
+        ([(0, 1, "4c"), (1.5, 1, "4d"), (2, 1, "4e")], [])

@@ -5,7 +5,10 @@
 -- | Ornaments for gender.  The unique thing about gender technique is the
 -- delayed damping, so these calls deal with delayed damping.
 module Derive.Call.Bali.Gender (note_calls, ngoret) where
+import qualified Data.Map as Map
+
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -13,7 +16,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
+import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -27,31 +30,42 @@ import qualified Perform.Pitch as Pitch
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("'", gender_ngoret Nothing)
-    , ("'^", gender_ngoret (Just (Pitch.Diatonic (-1))))
-    , ("'_", gender_ngoret (Just (Pitch.Diatonic 1)))
+    [ ("'", gender_ngoret False Nothing)
+    , ("'^", gender_ngoret False (Just (Pitch.Diatonic (-1))))
+    , ("'_", gender_ngoret False (Just (Pitch.Diatonic 1)))
+
+    , ("'-", gender_ngoret True Nothing)
+    , ("'^-", gender_ngoret True (Just (Pitch.Diatonic (-1))))
+    , ("'_-", gender_ngoret True (Just (Pitch.Diatonic 1)))
+
     ]
-    [ ("realize-damp", c_realize_damp) ]
+    [ ("realize-ngoret", c_realize_ngoret)
+    ]
 
 module_ :: Module.Module
 module_ = "bali" <> "gender"
 
-gender_ngoret :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
-gender_ngoret = ngoret module_ True damp_arg
+gender_ngoret :: Bool -> Maybe Pitch.Transpose -> Derive.Generator Derive.Note
+gender_ngoret is_standalone = ngoret is_standalone module_ True damp_arg
     where
     damp_arg = defaulted "damp" (typed_control "ngoret-damp" 0.5 Score.Real)
         "Time that the grace note overlaps with this one. So the total\
         \ duration is time+damp, though it will be clipped to the\
         \ end of the current note."
 
-ngoret :: Module.Module -> Bool -> Sig.Parser TrackLang.ValControl
+-- | Other instruments also have ngoret, but without gender's special damping
+-- behaviour.
+ngoret :: Bool -> Module.Module -> Bool -> Sig.Parser TrackLang.ValControl
     -> Maybe Pitch.Transpose -> Derive.Generator Derive.Note
-ngoret module_ add_damped_tag damp_arg transpose =
+ngoret is_standalone module_ late_damping damp_arg maybe_transpose =
     Derive.make_call module_ "ngoret"
-    (Tags.inst <> Tags.ornament <> Tags.prev)
+    (Tags.inst <> Tags.ornament <> Tags.requires_postproc)
     ("Insert an intermediate grace note in the \"ngoret\" style.\
-    \ The grace note moves up for `'^`, down for `'_`, or is based\
-    \ on the previous note's pitch for `'`."
+    \ The grace note moves up for `'^`, down for `'`, or is based\
+    \ on the previous note's pitch for `'`. These versions are attached to\
+    \ a note, but there are standalone versions suffixed with `-` that are\
+    \ replaced by the appropriate grace note."
+    -- TODO or maybe I could make a zero-duration ngoret standalone
     ) $ Sig.call ((,,)
     <$> defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)
         "Time between the grace note start and the main note. If there isn't\
@@ -62,13 +76,31 @@ ngoret module_ add_damped_tag damp_arg transpose =
         "The grace note's dyn will be this multiplier of the current dyn."
     ) $ \(time, damp, dyn_scale) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
-        transpose <- maybe (infer_transpose args =<< Util.get_transposed start)
-            return transpose
         time <- Derive.real =<< Util.time_control_at Util.Real time start
-        damp <- Util.time_control_at Util.Real damp start
+        damp <- Derive.real =<< Util.time_control_at Util.Real damp start
+        maybe_pitch <- case maybe_transpose of
+            Nothing -> return Nothing
+            Just transpose ->
+                Just . Pitches.transpose transpose <$> Util.get_pitch start
         dyn_scale <- Util.control_at dyn_scale start
-        dyn <- Util.dynamic start
+        dyn <- (*dyn_scale) <$> Util.dynamic start
+        let with_damped
+                | late_damping && prev_touches = Util.add_attrs damped_tag
+                | otherwise = id
+            prev_touches = maybe False (>= Args.start args) (Args.prev_end args)
+        (if is_standalone then emit_standalone else emit_attached)
+            args start time damp dyn maybe_pitch with_damped
+    where
+    emit_standalone args start time damp dyn maybe_pitch with_damped = do
+        let event_args =
+                [ TrackLang.to_val maybe_pitch, TrackLang.to_val time
+                , TrackLang.to_val damp
+                ]
+        next <- Derive.real (Args.next args)
+        Util.with_dynamic dyn $ with_damped $
+            Post.make_delayed args start next event_args
 
+    emit_attached args start time damp dyn maybe_pitch with_damped = do
         grace_start <- Derive.score (start - time)
         -- If there isn't room for the grace note, use the midpoint between the
         -- prev note and this one.
@@ -77,48 +109,97 @@ ngoret module_ add_damped_tag damp_arg transpose =
             Just prev -> max grace_start $ (prev + Args.start args) / 2
         overlap <- Util.score_duration (Args.start args) damp
         let grace_end = min (Args.end args) (Args.start args + overlap)
-
-        let prev_touches = maybe False (>= Args.start args) (Args.prev_end args)
-            with_tag
-                | add_damped_tag && prev_touches = Util.add_attrs damped_tag
-                | otherwise = id
-        pitch <- Util.get_pitch start
         Derive.place grace_start (grace_end - grace_start)
-                (with_tag $ Util.with_dynamic (dyn * dyn_scale) $
-                    Util.pitched_note (Pitches.transpose transpose pitch))
+                (with_damped $ Util.with_dynamic dyn grace_note)
             <> Derive.place (Args.start args) (Args.duration args) Util.note
+        where
+        grace_note = case maybe_pitch of
+            Nothing -> Util.add_attrs infer_pitch_tag Util.note
+            Just pitch -> Util.pitched_note pitch
 
-infer_transpose :: Derive.NoteArgs -> PitchSignal.Transposed
-    -> Derive.Deriver Pitch.Transpose
-infer_transpose args pitch = do
-    prev <- Derive.require "no previous event" $ Args.prev_val args
-    prev_pitch <- Derive.require "previous event lacks pitch" $
-        Score.initial_pitch prev
-    ifM ((<=) <$> Pitches.pitch_nn prev_pitch <*> Pitches.pitch_nn pitch)
-        (return (Pitch.Diatonic (-1))) (return (Pitch.Diatonic 1))
+-- * realize
 
-c_realize_damp :: Derive.Transformer Derive.Note
-c_realize_damp = Derive.transformer module_ "realize-damp"
+c_realize_ngoret :: Derive.Transformer Derive.Note
+c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
     (Tags.inst <> Tags.postproc)
-    ("Extend the duration of events preceding one with a "
-    <> ShowVal.doc_val damped_tag <> " to the end of the event with the attr.\
-    \ This is because the `ngoret` call can't modify its previous note.\
-    \ TODO: Since there's no correspondence between tracks in different\
-    \ blocks, the damping can't extend across block boundaries. I'd need\
-    \ something like a 'hand' attribute to fix this."
-    ) $ Sig.call0t $ \_ deriver -> do
-        events <- deriver
-        return $ Post.map_events_asc_ realize_damp $
-            LEvent.zip (Post.nexts events) events
+    ("Realize pitches and positions emited by the `ngoret` call.\
+    \ This is necessary because it needs to know the positions and pitches\
+    \ of the previous and next notes, and those aren't necessarily available\
+    \ when evaluating the track. This call needs a "
+    <> ShowVal.doc_val Environ.hand <> " envron to figure out which which note\
+    \ follows which."
+    ) $ Sig.call0t $ \_ deriver -> realize_ngoret <$> deriver
 
-realize_damp :: ([Score.Event], Score.Event) -> [Score.Event]
-realize_damp (nexts, event) = (:[]) $ Score.remove_attributes damped_tag $
-    case Post.filter_next_in_track event nexts of
-        next : _ | Score.event_end event >= Score.event_start next
-                && Score.has_attribute damped_tag next ->
-            Score.set_duration
-                (Score.event_end next - Score.event_start event) event
-        _ -> event
+realize_ngoret :: Derive.Events -> Derive.Events
+realize_ngoret = Post.apply $
+    Seq.merge_lists Score.event_start . map realize . Map.elems
+    . Seq.partitions (\e -> (Score.event_instrument e, event_hand e))
+    -- TODO do I want to ignore streams with irrelevant instruments?
+    where
+    realize = apply realize_damped . apply realize_infer_pitch
+        . apply realize_standalone_ngoret
+    apply f = map (Post.uncurry3 f) . Seq.zip_neighbors
+
+event_hand :: Score.Event -> Maybe Text
+event_hand = TrackLang.maybe_val Environ.hand . Score.event_environ
+
+-- TODO if there's no next or prev, then can I return Left, which turns into
+-- a Log?
+-- But then I go back to LEvents, and Posts.nexts etc.
+realize_standalone_ngoret :: Maybe Score.Event -> Score.Event
+    -> Maybe Score.Event -> Score.Event
+realize_standalone_ngoret maybe_prev event maybe_next = fromMaybe event $ do
+    args <- Post.delayed_args "ngoret" event
+    next <- maybe_next
+    [maybe_pitch, time, damp] <- return args
+    pitch <- case TrackLang.from_val maybe_pitch of
+        Just pitch -> return pitch
+        Nothing -> flip infer_pitch next =<< maybe_prev
+    time <- TrackLang.from_val time
+    damp <- TrackLang.from_val damp
+    let start1 = Score.event_start next - time
+        -- As with attached ngoret, if there isn't room for the grace note, use
+        -- the midpoint between the prev note and the next one.
+        start2 = maybe start1 (max start1 . (/2) . (+ Score.event_start next)
+            . Score.event_start) maybe_prev
+        end = Score.event_start next + damp
+    return $ event
+        { Score.event_start = start2
+        , Score.event_duration = end - start2
+        , Score.event_pitch = PitchSignal.constant pitch
+        , Score.event_environ = TrackLang.delete_val Environ.args $
+            Score.event_environ event
+        }
+
+realize_infer_pitch :: Maybe Score.Event -> Score.Event
+    -> Maybe Score.Event -> Score.Event
+realize_infer_pitch maybe_prev event maybe_next
+    | Score.has_attribute infer_pitch_tag event = fromMaybe event $ do
+        prev <- maybe_prev
+        next <- maybe_next
+        pitch <- infer_pitch prev next
+        return $ Score.remove_attributes infer_pitch_tag $
+            event { Score.event_pitch = PitchSignal.constant pitch }
+    | otherwise = event
+
+realize_damped :: Maybe Score.Event -> Score.Event
+    -> Maybe Score.Event -> Score.Event
+realize_damped _ event maybe_next
+    | Just next <- maybe_next, Score.has_attribute damped_tag next =
+        Score.set_duration (Score.event_end next - Score.event_start event)
+            event
+    | otherwise = Score.remove_attributes damped_tag event
+
+infer_pitch :: Score.Event -> Score.Event -> Maybe PitchSignal.Pitch
+infer_pitch prev next = do
+    steps <- ifM ((<=) <$> Score.initial_nn prev <*> Score.initial_nn next)
+        (return (-1)) (return 1)
+    Pitches.transpose_d steps <$> Score.pitch_at (Score.event_start next) next
+
+-- | Mark events whose should have their pitch inferred from the previous and
+-- next events.
+infer_pitch_tag :: Score.Attributes
+infer_pitch_tag = Score.attr "infer-pitch-tag"
 
 -- | Mark events that were damped late, and whose previous event should be
 -- extended to be damped together.

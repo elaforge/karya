@@ -48,6 +48,11 @@ instrument_top = "inst-top"
 instrument_bottom :: ValName
 instrument_bottom = "inst-bottom"
 
+-- | VList: arguments for a 'Derive.Call.Tags.requires_postproc' call.
+-- Also see 'Derive.Call.Post.make_delayed'.
+args :: ValName
+args = "args"
+
 -- | List VPitch: tuning of open strings for this instrument.  The pitches
 -- should be probably absolute NNs, not in any scale, so they work regardless
 -- of which scale you happen to be in.
@@ -98,7 +103,7 @@ tuning = "tuning"
 voice :: ValName
 voice = "v"
 
--- | VString: @right@, @r@,  @left@, or @l@.  Used by the lilypond backend, and
+-- | VSymbol: @right@, @r@,  @left@, or @l@.  Used by the lilypond backend, and
 -- also by any call that relies on an instrument's parts being divided by hand.
 hand :: ValName
 hand = "hand"

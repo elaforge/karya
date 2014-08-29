@@ -38,8 +38,13 @@ import qualified Data.Monoid as Monoid
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Seq as Seq
+
+import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -55,17 +60,28 @@ import Types
 
 -- ** non-monadic
 
+-- | Apply a function to the events as a list.
+apply :: ([a] -> [b]) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
+apply f = merge . first f . LEvent.partition
+    where
+    -- Prepend logs because there should be fewer logs than events.
+    merge (events, logs) =
+        Prelude.map LEvent.Log logs ++ Prelude.map LEvent.Event events
+
 -- | Non-monadic map without state.
 map :: (a -> b) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
 map = Prelude.map . fmap
 
 -- | Non-monadic map with state.
-map_events :: (state -> event -> (state, [Score.Event])) -> state
-    -> [LEvent.LEvent event] -> (state, [Derive.Events])
+map_events :: (state -> a -> (state, [b])) -> state
+    -> [LEvent.LEvent a] -> (state, [[LEvent.LEvent b]])
 map_events f = List.mapAccumL go
     where
     go state (LEvent.Log log) = (state, [LEvent.Log log])
     go state (LEvent.Event event) = Prelude.map LEvent.Event <$> f state event
+
+map_events_ :: (a -> [b]) -> [LEvent.LEvent a] -> [[LEvent.LEvent b]]
+map_events_ f = snd . map_events (\() event -> ((), f event)) ()
 
 map_events_asc :: (state -> event -> (state, [Score.Event])) -> state
     -> [LEvent.LEvent event] -> (state, Derive.Events)
@@ -148,23 +164,40 @@ uncurry4 f (a, b, c, d) = f a b c d
 -- ** next in track
 
 -- | Return only the events that follow the given event on its track.
-filter_next_in_track :: Score.Event -> [Score.Event] -> [Score.Event]
-filter_next_in_track event = filter (next_in_track (stack event) . stack)
+next_in_track :: Score.Event -> [Score.Event] -> [Score.Event]
+next_in_track event = filter $ next_prev_in_track True (stack event) . stack
     where stack = Stack.to_ui . Score.event_stack
 
--- | Is the second stack from an event that occurs later on the same track as
--- the first?  This is more complicated than it may seem at first because the
--- second event could come from a different deriver.  So it should look like
--- @same ; same ; bid same / tid same / range higher ; *@.
-next_in_track :: [Stack.UiFrame] -> [Stack.UiFrame] -> Bool
-next_in_track (s1@(bid1, tid1, r1) : stack1) (s2@(bid2, tid2, r2) : stack2)
-    | s1 == s2 = next_in_track stack1 stack2
-    | bid1 == bid2 && tid1 == tid2 && r1 `before` r2 = True
+prev_in_track :: Score.Event -> [Score.Event] -> [Score.Event]
+prev_in_track event = filter $ next_prev_in_track False (stack event) . stack
+    where stack = Stack.to_ui . Score.event_stack
+
+-- | Is the second stack from an event that occurs later (or earlier) on the
+-- same track as the first?  This is more complicated than it may seem at first
+-- because the second event could come from a different block.  So it should
+-- look like @same ; same ; bid same / tid same / range higher or lower ; *@.
+next_prev_in_track :: Bool -> [Stack.UiFrame] -> [Stack.UiFrame] -> Bool
+next_prev_in_track next
+        (f1@(bid1, tid1, r1) : stack1) (f2@(bid2, tid2, r2) : stack2)
+    | f1 == f2 = next_prev_in_track next stack1 stack2
+    | bid1 == bid2 && tid1 == tid2 && r1 `before_after` r2 = True
     | otherwise = False
     where
-    before (Just (s1, _)) (Just (s2, _)) = s1 < s2
-    before _ _ = False
-next_in_track _ _ = True
+    before_after (Just (s1, _)) (Just (s2, _)) =
+        if next then s1 < s2 else s1 > s2
+    before_after _ _ = False
+next_prev_in_track _ _ _ = True -- TODO why true?
+
+-- | If the given event has a hand, return only events with the same hand.
+-- Filter for the same instrument regardless.
+same_hand :: Score.Event -> [Score.Event] -> [Score.Event]
+same_hand event = filter ((== inst event) . inst) .  case lookup event of
+    Nothing -> id
+    Just hand -> filter $ (== Just hand) . lookup
+    where
+    inst = Score.event_instrument
+    lookup :: Score.Event -> Maybe Text
+    lookup = TrackLang.maybe_val Environ.hand . Score.event_environ
 
 -- ** misc maps
 
@@ -213,3 +246,39 @@ derive_signal :: (Monoid.Monoid sig) => Derive.LogsDeriver sig
 derive_signal deriver = do
     (chunks, logs) <- LEvent.partition <$> deriver
     return (mconcat chunks, logs)
+
+-- * delayed events
+
+{- | Make a delayed event.
+
+    A delayed event should be realized by an accompanying postproc call. It has
+    an 'Environ.args', which are the arguments to the postproc call, and so
+    it's a little bit like a closure or a delayed thunk.
+
+    It's awkward because you have to manually call the postproc, which then has
+    to extract the args and re-typecheck them.  I considered storing actual
+    thunks as functions, and running a generic postproc which forces them, but
+    I think each one is likely to require a different context.  E.g. previous
+    and next events for the same instrument, or with the same hand, or map
+    over groups of events, etc.  TODO wait until I have more experience.
+-}
+make_delayed :: Derive.PassedArgs a -> RealTime -> RealTime -> [TrackLang.Val]
+    -> Derive.NoteDeriver
+make_delayed args start next event_args = do
+    dyn <- Internal.get_dynamic id
+    control_vals <- Derive.controls_at start
+    let event = delayed_event event_args $
+            Note.make_event args dyn control_vals start 0 next
+    return [LEvent.Event event]
+
+delayed_event :: [TrackLang.Val] -> Score.Event -> Score.Event
+delayed_event args = Score.modify_environ $
+    TrackLang.insert_val Environ.args (TrackLang.VList args)
+
+-- | Return the args if this is a delayed event created by the given call.
+delayed_args :: TrackLang.CallId -> Score.Event -> Maybe [TrackLang.Val]
+delayed_args (TrackLang.Symbol call) event
+    | Seq.head (Stack.innermost (Score.event_stack event))
+            == Just (Stack.Call call) =
+        TrackLang.maybe_val Environ.args (Score.event_environ event)
+    | otherwise = Nothing

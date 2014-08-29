@@ -74,6 +74,11 @@ prev = tag "prev"
 next :: Tags
 next = tag "next"
 
+-- | This call emits events with the 'Derive.Environ.args' set, and requires
+-- a 'postproc' call to emit the proper events.
+requires_postproc :: Tags
+requires_postproc = tag "requires-postproc"
+
 -- | Adds or transforms note in a style idiomatic to a particular instrument.
 inst :: Tags
 inst = tag "inst"

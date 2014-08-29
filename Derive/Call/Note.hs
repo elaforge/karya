@@ -8,7 +8,7 @@ module Derive.Call.Note (
     note_calls
     , c_note, transformed_note, note_call
     , Config(..), use_attributes, no_duration_attributes
-    , GenerateNote, default_note
+    , GenerateNote, default_note, make_event
     , adjust_duration
 #ifdef TESTING
     , trimmed_controls, min_duration
@@ -203,34 +203,45 @@ default_note config args = do
     end <- Args.real_end args
     real_next <- Derive.real (Args.next args)
     (end, is_arrival) <- adjust_end start end $ Seq.head (Args.next_events args)
-    inst <- fromMaybe Score.empty_inst <$> Derive.lookup_val Environ.instrument
-    environ <- Internal.get_environ
-    let attrs = either (const Score.no_attrs) id $
-            TrackLang.get_val Environ.attributes environ
     dyn <- Derive.gets Derive.state_dynamic
+    let attrs = either (const Score.no_attrs) id $
+            TrackLang.get_val Environ.attributes (Derive.state_environ dyn)
 
     control_vals <- Derive.controls_at start
-    let controls = stash_dynamic control_vals $
-            trimmed_controls start real_next (Derive.state_controls dyn)
-        pitch = trimmed_pitch start real_next (Derive.state_pitch dyn)
-    end <- return $ duration_attributes config control_vals attrs start end
-
+    let adjusted_end = duration_attributes config control_vals attrs start end
     -- Add a attribute to get the arrival-note postproc to figure out the
     -- duration.  Details in "Derive.Call.Post.ArrivalNote".
     let add_arrival = if is_arrival
             then Score.add_attributes Attrs.arrival_note else id
-    return $! LEvent.one $! LEvent.Event $! add_arrival $! Score.Event
-        { Score.event_start = start
-        , Score.event_duration = end - start
-        , Score.event_text = Event.event_text (Args.event args)
-        , Score.event_controls = controls
-        , Score.event_pitch = pitch
-        , Score.event_pitches = Derive.state_pitches dyn
-        , Score.event_stack = Derive.state_stack dyn
-        , Score.event_highlight = Color.NoHighlight
-        , Score.event_instrument = inst
-        , Score.event_environ = environ
-        }
+    return $! LEvent.one $! LEvent.Event $! add_arrival $!
+        make_event args dyn control_vals start (adjusted_end - start) real_next
+
+-- | This is the canonical way to make a Score.Event.  It handles all the
+-- control trimming and control function value stashing that the perform layer
+-- relies on.
+make_event :: Derive.PassedArgs a -> Derive.Dynamic -> Score.ControlValMap
+    -> RealTime -> RealTime -> RealTime -> Score.Event
+make_event args dyn control_vals start dur next = Score.Event
+    { Score.event_start = start
+    , Score.event_duration = dur
+    , Score.event_text = Event.event_text (Args.event args)
+    , Score.event_controls = controls
+    , Score.event_pitch = pitch
+    -- I don't have to trim these because the performer doesn't use them,
+    -- they're only there for any possible postproc.
+    , Score.event_pitches = Derive.state_pitches dyn
+    , Score.event_stack = Derive.state_stack dyn
+    , Score.event_highlight = Color.NoHighlight
+    , Score.event_instrument = inst
+    , Score.event_environ = environ
+    }
+    where
+    controls = stash_dynamic control_vals $
+        trimmed_controls start next (Derive.state_controls dyn)
+    pitch = trimmed_pitch start next (Derive.state_pitch dyn)
+    environ = Derive.state_environ dyn
+    inst = fromMaybe Score.empty_inst $
+        TrackLang.maybe_val Environ.instrument environ
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in
