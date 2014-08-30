@@ -78,7 +78,7 @@ logs_of [] = []
 logs_of (Event _ : rest) = logs_of rest
 logs_of (Log log : rest) = log : logs_of rest
 
-write_logs :: (Log.LogMonad m) => [LEvent d] -> m [d]
+write_logs :: Log.LogMonad m => [LEvent d] -> m [d]
 write_logs events = mapM_ Log.write logs >> return vals
     where (vals, logs) = partition events
 
@@ -88,16 +88,9 @@ partition = Seq.partition_either . map to_either
     to_either (Event d) = Left d
     to_either (Log msg) = Right msg
 
-map_state :: state -> (state -> a -> (b, state)) -> [LEvent a] -> [LEvent b]
-map_state _ _ [] = []
-map_state state f (Log log : rest) = Log log : map_state state f rest
-map_state state f (Event event : rest) = Event event2 : map_state state2 f rest
-    where (event2, state2) = f state event
-
-instance (DeepSeq.NFData a) => DeepSeq.NFData (LEvent a) where
+instance DeepSeq.NFData a => DeepSeq.NFData (LEvent a) where
     rnf (Event event) = DeepSeq.rnf event
     rnf (Log msg) = DeepSeq.rnf msg
-
 
 -- | This is similar to 'List.mapAccumL', but lifted into LEvents.  It also
 -- passes future events to the function.

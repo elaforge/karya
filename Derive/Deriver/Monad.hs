@@ -115,7 +115,8 @@ module Derive.Deriver.Monad (
     , ScaleError(..)
 
     -- * merge
-    , error_to_warn, merge_events, merge_asc_events, merge_logs
+    , error_to_warn, merge_events, merge_event_lists, merge_asc_events
+    , merge_logs
 
     -- * testing
     , invalidate_damaged
@@ -1473,13 +1474,11 @@ instance Pretty.Pretty ScaleError where
 d_merge :: [NoteDeriver] -> NoteDeriver
 d_merge [] = mempty
 d_merge [d] = d
-d_merge derivers = do
+d_merge derivers = merge_event_lists <$> sequence derivers
     -- Previously, each deriver was run independently, and their Collects
     -- merged.  The theory was to allow their derivation to be interleaved
     -- on demand as the events themselves are interleaved.  However, profiling
     -- doesn't show a significant difference, and this way is simpler.
-    streams <- sequence derivers
-    return $ Seq.merge_lists levent_key streams
 
 merge_logs :: Either Error (LEvent.LEvents d) -> [Log.Msg]
     -> LEvent.LEvents d
@@ -1493,6 +1492,9 @@ error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
 
 merge_events :: Events -> Events -> Events
 merge_events = Seq.merge_on levent_key
+
+merge_event_lists :: [Events] -> Events
+merge_event_lists = Seq.merge_lists levent_key
 
 -- | Merge sorted lists of events.  If the lists themselves are also sorted,
 -- I can produce output without scanning the entire input list, so this should

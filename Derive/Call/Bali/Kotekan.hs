@@ -372,7 +372,7 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
     "Split part into unison polos and sangsih."
     $ Sig.callt pasang_env $ \(polos, sangsih) _args deriver -> do
         inst <- Util.get_instrument
-        Post.map_events_asc_ (unison inst polos sangsih) <$> deriver
+        Post.emap_asc_ (unison inst polos sangsih) <$> deriver
     where
     unison inst polos sangsih event
         | Score.event_instrument event == inst =
@@ -399,7 +399,7 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
         inst <- Util.get_instrument
         scale <- Util.get_scale
         let too_high = pitch_too_high scale maybe_top
-        Post.map_events_asc_ (kempyung too_high inst polos sangsih) <$> deriver
+        Post.emap_asc_ (kempyung too_high inst polos sangsih) <$> deriver
     where
     kempyung too_high inst polos sangsih event
         | Score.event_instrument event == inst =
@@ -422,7 +422,7 @@ c_nyogcag = Derive.transformer module_ "nyog" Tags.postproc
     "Split a single part into polos and sangsih parts by assigning\
     \ polos and sangsih to alternating notes."
     $ Sig.callt pasang_env $ \pasang _args deriver ->
-        snd . Post.map_events_asc (nyogcag pasang) True <$> deriver
+        snd . Post.emap_asc (nyogcag pasang) True <$> deriver
 
 nyogcag :: Pasang -> Bool -> Score.Event -> (Bool, [Score.Event])
 nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
@@ -441,7 +441,7 @@ c_noltol = Derive.transformer module_ "noltol" Tags.postproc
     $ \time _args deriver -> do
         events <- deriver
         times <- Post.time_control time events
-        return $ Post.map_events_asc_ (Post.uncurry3 noltol)
+        return $ Post.emap_asc_ (Post.uncurry3 noltol)
             (LEvent.zip3 times (Post.nexts events) events)
 
 -- Postproc is seems like the wrong time to be doing this, I can't even change

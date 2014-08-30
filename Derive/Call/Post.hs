@@ -29,10 +29,12 @@
     other functions down the line buggy.  But on the other hand, I'm reluctant
     to abandon it because many transformations do have this property and
     the efficiency difference seems compelling.
+
+    TODO on the other hand, sorting is fast.  Now that I don't care about
+    deriving the score lazily, it may actually be cheaper to remove the ordered
+    constraint and do one sort at the end.
 -}
 module Derive.Call.Post where
-import qualified Prelude
-import Prelude hiding (map, mapM)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
@@ -58,9 +60,41 @@ import Types
 
 -- * map events
 
+-- 'emap' is kind of ugly, but at least it's consistent and short.
+-- I previously used 'map', but it turns out replacing the Prelude map is
+-- really confusing.
+
 -- ** non-monadic
 
--- | Apply a function to the events as a list.
+-- | 1:1 non-monadic map without state.
+emap1 :: (a -> b) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
+emap1 = map . fmap
+
+-- | 1:n non-monadic map with state.
+emap :: (state -> a -> (state, [b])) -> state
+    -> [LEvent.LEvent a] -> (state, [[LEvent.LEvent b]])
+emap f = List.mapAccumL go
+    where
+    go state (LEvent.Log log) = (state, [LEvent.Log log])
+    go state (LEvent.Event event) = map LEvent.Event <$> f state event
+
+-- | 'emap' without state.
+emap_ :: (a -> [b]) -> [LEvent.LEvent a] -> [[LEvent.LEvent b]]
+emap_ f = map flatten . emap1 f
+    where
+    flatten (LEvent.Log log) = [LEvent.Log log]
+    flatten (LEvent.Event events) = map LEvent.Event events
+
+emap_asc :: (state -> event -> (state, [Score.Event])) -> state
+    -> [LEvent.LEvent event] -> (state, Derive.Events)
+emap_asc f state = second Derive.merge_asc_events . emap f state
+
+-- | 'emap_asc' without state.
+emap_asc_ :: (event -> [Score.Event]) -> [LEvent.LEvent event] -> Derive.Events
+emap_asc_ f = Derive.merge_asc_events . emap_ f
+
+-- ** monadic
+
 apply :: ([a] -> [b]) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
 apply f = merge . first f . LEvent.partition
     where
@@ -68,72 +102,62 @@ apply f = merge . first f . LEvent.partition
     merge (events, logs) =
         Prelude.map LEvent.Log logs ++ Prelude.map LEvent.Event events
 
--- | Non-monadic map without state.
-map :: (a -> b) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
-map = Prelude.map . fmap
+-- apply :: Functor m => ([a] -> m [b]) -> [LEvent.LEvent a] -> m [LEvent.LEvent b]
+-- apply f levents = (map LEvent.Log logs ++) . map LEvent.Event <$> f events
+--     where (events, logs) = LEvent.partition levents
 
--- | Non-monadic map with state.
-map_events :: (state -> a -> (state, [b])) -> state
-    -> [LEvent.LEvent a] -> (state, [[LEvent.LEvent b]])
-map_events f = List.mapAccumL go
+-- | Like 'Derive.with_event_stack', but directly add the event's innermost
+-- stack to a log msg.
+add_event_stack :: Score.Event -> Log.Msg -> Log.Msg
+add_event_stack =
+    maybe id with_stack . Stack.block_track_region_of . Score.event_stack
     where
-    go state (LEvent.Log log) = (state, [LEvent.Log log])
-    go state (LEvent.Event event) = Prelude.map LEvent.Event <$> f state event
+    with_stack (block_id, track_id, (s, e)) msg =
+        msg { Log.msg_stack = add_stack msg }
+        where
+        add_stack = Just . add . fromMaybe Stack.empty . Log.msg_stack
+        add = Stack.add (Stack.Region s e) . Stack.add (Stack.Track track_id)
+            . Stack.add (Stack.Block block_id)
 
-map_events_ :: (a -> [b]) -> [LEvent.LEvent a] -> [[LEvent.LEvent b]]
-map_events_ f = snd . map_events (\() event -> ((), f event)) ()
-
-map_events_asc :: (state -> event -> (state, [Score.Event])) -> state
-    -> [LEvent.LEvent event] -> (state, Derive.Events)
-map_events_asc f state = second Derive.merge_asc_events . map_events f state
-
--- | 'map_events_asc' without state.
-map_events_asc_ :: (event -> [Score.Event]) -> [LEvent.LEvent event]
-    -> Derive.Events
-map_events_asc_ f = snd . map_events_asc (\() event -> ((), f event)) ()
-
--- ** monadic
-
--- | Monadic map without state.  Exceptions are not caught.
--- TODO use Derive.with_event_stack
-mapM :: Monad m => (a -> m b) -> [LEvent.LEvent a] -> m [LEvent.LEvent b]
-mapM _ [] = return []
-mapM f (LEvent.Event e : es) = do
-    e <- f e
-    es <- mapM f es
-    return (LEvent.Event e : es)
-mapM f (LEvent.Log e : es) = (LEvent.Log e :) `liftM` mapM f es
-
--- | Monadic map with state and annotations.  Annotations are are also state,
--- but unthreaded, which makes them simpler.  You construct them with 'control'
--- and 'nexts' and the like, and then they get zipped up with the input events.
-map_events_m ::
-    (state -> annot -> Score.Event -> Derive.Deriver (state, [Score.Event]))
+-- | Monadic map with state.  The event type is polymorphic, so you can use
+-- 'LEvent.zip' and co. to zip up unthreaded state, constructed with 'control'
+-- and 'nexts' and such.
+emap_m :: (a -> Score.Event)
+    -> (state -> a -> Derive.Deriver (state, [b]))
     -- ^ Process an event. Exceptions are caught and logged.
-    -> state -> [annot] -> Derive.Events
-    -> Derive.Deriver (state, [Derive.Events])
+    -> state -> [LEvent.LEvent a] -> Derive.Deriver (state, [[LEvent.LEvent b]])
     -- ^ events are return as unmerged chunks, so the caller can merge
-map_events_m f state annots = go state . LEvent.zip annots
+emap_m event_of f state = go state
     where
     go state [] = return (state, [])
     go state (LEvent.Log log : events) =
         fmap ([LEvent.Log log] :) <$> go state events
-    go state (LEvent.Event (annot, event) : events) = do
-        (state, output) <-
-            fromMaybe (state, []) <$> Derive.catch True
-                (Derive.with_event_stack event (f state annot event))
+    go state (LEvent.Event event : events) = do
+        (state, output) <- fromMaybe (state, []) <$>
+            Derive.with_event (event_of event) (f state event)
         (final, outputs) <- go state events
-        return (final, Prelude.map LEvent.Event output : outputs)
+        return (final, map LEvent.Event output : outputs)
+    -- TODO this could also take [(a, LEvent Score.Event)] and omit 'event_of'
+    -- since it's always 'snd', but this is basically the same as the separate
+    -- annots approach I had earlier, and forces you to have a () annotation
+    -- if you don't want one.
 
--- | Like 'map_events_m', but assume the function returns sorted chunks in
+-- | 'emap_m' without the state.
+emap_m_ :: (a -> Score.Event)
+    -> (a -> Derive.Deriver [b]) -> [LEvent.LEvent a]
+    -> Derive.Deriver [[LEvent.LEvent b]]
+emap_m_ event_of f = fmap snd . emap_m event_of (\() e -> (,) () <$> f e) ()
+
+-- | Like 'emap_m', but assume the function returns sorted chunks in
 -- increasing order, so they can be merged efficiently.
-map_events_asc_m ::
-    (state -> annot -> Score.Event -> Derive.Deriver (state, [Score.Event]))
+emap_asc_m ::
+    (a -> Score.Event)
+    -> (state -> a -> Derive.Deriver (state, [Score.Event]))
     -- ^ Process an event. Exceptions are caught and logged.
-    -> state -> [annot] -> Derive.Events
+    -> state -> [LEvent.LEvent a]
     -> Derive.Deriver (state, Derive.Events)
-map_events_asc_m f state annots =
-    fmap (second Derive.merge_asc_events) . map_events_m f state annots
+emap_asc_m event_of f state =
+    fmap (second Derive.merge_asc_events) . emap_m event_of f state
 
 -- ** unthreaded state
 
@@ -146,6 +170,11 @@ control f c events = do
 time_control :: TrackLang.ValControl -> Derive.Events
     -> Derive.Deriver [RealTime]
 time_control = control (RealTime.seconds . Score.typed_val)
+
+-- | Zip each event up with its neighbors.
+neighbors :: [LEvent.LEvent a] -> [LEvent.LEvent (Maybe a, a, Maybe a)]
+neighbors events = emap1 (\(ps, ns, e) -> (Seq.head ps, e, Seq.head ns)) $
+    LEvent.zip3 (prevs events) (nexts events) events
 
 -- | Extract subsequent events.
 nexts :: [LEvent.LEvent e] -> [[e]]
@@ -239,7 +268,7 @@ signal :: (Monoid.Monoid sig) => (sig -> sig)
     -> Derive.LogsDeriver sig -> Derive.LogsDeriver sig
 signal f deriver = do
     (sig, logs) <- derive_signal deriver
-    return $ LEvent.Event (f sig) : Prelude.map LEvent.Log logs
+    return $ LEvent.Event (f sig) : map LEvent.Log logs
 
 derive_signal :: (Monoid.Monoid sig) => Derive.LogsDeriver sig
     -> Derive.Deriver (sig, [Log.Msg])

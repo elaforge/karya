@@ -133,11 +133,11 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
             attack <- Post.control id attack events
             delay <- Post.control id delay events
             release <- Post.control id release events
-            (final, result) <- Post.map_events_asc_m (one_event strings) state
-                (zip3 attack delay release) events
+            (final, result) <- Post.emap_asc_m snd (one_event strings) state
+                (LEvent.zip (zip3 attack delay release) events)
             return $! result ++ [LEvent.Event $ state_event final]
     where
-    one_event strings state (attack, delay, release) event = do
+    one_event strings state ((attack, delay, release), event) = do
         start <- Derive.score (Score.event_start event)
         let dur = Util.typed_real_duration Util.Real start
         attack <- dur attack

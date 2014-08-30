@@ -657,6 +657,10 @@ with_event_stack event =
     with_stack (block_id, track_id, (s, e)) = Internal.with_stack_block block_id
         . Internal.with_stack_track track_id . Internal.with_stack_region s e
 
+-- | A combination of 'catch' and 'with_event_stack'.
+with_event :: Score.Event -> Deriver a -> Deriver (Maybe a)
+with_event event = catch False . with_event_stack event
+
 -- * postproc
 
 -- | Shift the controls of a deriver.  You're supposed to apply the warp

@@ -97,8 +97,7 @@ c_event_echo = Derive.transformer Module.prelude "event echo" Tags.postproc
         delay <- Post.time_control delay events
         feedback <- Post.control Score.typed_val feedback events
         times <- Post.control (floor . Score.typed_val) times events
-        return $ Post.map_events_asc_
-            (Post.uncurry4 echo_event)
+        return $ Post.emap_asc_ (Post.uncurry4 echo_event)
             (LEvent.zip4 delay feedback times events)
 
 -- TODO this modifies the signals to shift by the given amount of time, which
