@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ScopedTypeVariables #-}
 {- | Post-processing utils.  These are transformers that directly modify the
     output of a deriver, as opposed to simply modifying the 'Derive.Dynamic'.
 
@@ -95,16 +96,10 @@ emap_asc_ f = Derive.merge_asc_events . emap_ f
 
 -- ** monadic
 
-apply :: ([a] -> [b]) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
-apply f = merge . first f . LEvent.partition
-    where
-    -- Prepend logs because there should be fewer logs than events.
-    merge (events, logs) =
-        Prelude.map LEvent.Log logs ++ Prelude.map LEvent.Event events
-
--- apply :: Functor m => ([a] -> m [b]) -> [LEvent.LEvent a] -> m [LEvent.LEvent b]
--- apply f levents = (map LEvent.Log logs ++) . map LEvent.Event <$> f events
---     where (events, logs) = LEvent.partition levents
+-- | Apply a function to the non-log events.
+apply :: Functor m => ([a] -> m [b]) -> [LEvent.LEvent a] -> m [LEvent.LEvent b]
+apply f levents = (map LEvent.Log logs ++) . map LEvent.Event <$> f events
+    where (events, logs) = LEvent.partition levents
 
 -- | Like 'Derive.with_event_stack', but directly add the event's innermost
 -- stack to a log msg.
@@ -311,3 +306,11 @@ delayed_args (TrackLang.Symbol call) event
             == Just (Stack.Call call) =
         TrackLang.maybe_val Environ.args (Score.event_environ event)
     | otherwise = Nothing
+
+-- | Typecheck a single Val.
+typecheck :: forall a. TrackLang.Typecheck a => TrackLang.Val -> Either Text a
+typecheck val = case TrackLang.from_val val of
+    Nothing -> Left $ "expected "
+        <> prettyt (TrackLang.to_type (Proxy :: Proxy a)) <> " but got "
+        <> prettyt (TrackLang.type_of val)
+    Just a -> Right a

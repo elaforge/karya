@@ -26,8 +26,9 @@ test_ngoret_standalone = do
     equal (run [(0, 0.5, "4c"), (1, 0, "'- 1 .5 --"), (2, 1, "4e")])
         ([(0, 0.5, "4c"), (1, 1.5, "4d"), (2, 1, "4e")], [])
 
-    -- -- Trailing ngoret TODO should be an error
-    -- pprint (run [(0, 0.5, "4c"), (1, 0, "'- 1 .5 --")])
+    -- Trailing ngoret is an error.
+    equal (run [(0, 0.5, "4c"), (1, 0, "'- 1 .5 --")])
+        ([(0, 0.5, "4c")], ["no next event"])
 
 test_ngoret = do
     -- This also tests some error checking and absolute warp functions.
@@ -39,9 +40,7 @@ test_ngoret = do
             , ("*", [(0, 0, "4c"), (2, 0, "4e")])
             ]
 
-    -- strings_like (snd $ run $ c_to_e "'" "'") ["no previous", "no previous"]
-    -- pprint (run $ c_to_e "'" "'")
-
+    strings_like (snd $ run $ c_to_e "'" "'") ["no previous"]
     -- Starting at 0 will emit an event at negative time.
     -- Thanks to the "x <= 0 means constant" hack the pitch is accurate even
     -- though TimeVector.constant starts it at 0.

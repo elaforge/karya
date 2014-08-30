@@ -6,7 +6,9 @@
 -- delayed damping, so these calls deal with delayed damping.
 module Derive.Call.Bali.Gender (note_calls, ngoret) where
 import Util.Control
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -126,67 +128,79 @@ c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
     \ when evaluating the track. This call needs a "
     <> ShowVal.doc_val Environ.hand <> " envron to figure out which which note\
     \ follows which."
-    ) $ Sig.call0t $ \_ deriver -> realize_ngoret <$> deriver
+    ) $ Sig.call0t $ \_ deriver -> realize_ngoret =<< deriver
 
-realize_ngoret :: Derive.Events -> Derive.Events
-realize_ngoret = Post.apply $
-    Seq.merge_lists Score.event_start . map realize
-    . Seq.group_on (\e -> (Score.event_instrument e, event_hand e))
-    -- TODO do I want to ignore streams with irrelevant instruments?
+realize_ngoret :: Derive.Events -> Derive.Deriver Derive.Events
+realize_ngoret = Post.apply $ fmap merge . mapM realize . Seq.group_on key
     where
-    realize = apply realize_damped . apply realize_infer_pitch
-        . apply realize_standalone_ngoret
-    apply f = map (Post.uncurry3 f) . Seq.zip_neighbors
+    -- TODO do I want to ignore streams with irrelevant instruments?
+    key e = (Score.event_instrument e, event_hand e)
+    realize = apply realize_damped <=< apply realize_infer_pitch
+        <=< apply realize_standalone_ngoret
+    apply f = mapMaybeM (apply1 f) . Seq.zip_neighbors
+        where
+        apply1 f (prev, event, next) = case f prev event next of
+            Right event -> return $ Just event
+            Left err -> do
+                Derive.with_event_stack event $ Log.warn err
+                return Nothing
+    merge = Seq.merge_lists Score.event_start
 
 event_hand :: Score.Event -> Maybe Text
 event_hand = TrackLang.maybe_val Environ.hand . Score.event_environ
 
--- TODO if there's no next or prev, then can I return Left, which turns into
--- a Log?
--- But then I go back to LEvents, and Posts.nexts etc.
 realize_standalone_ngoret :: Maybe Score.Event -> Score.Event
-    -> Maybe Score.Event -> Score.Event
-realize_standalone_ngoret maybe_prev event maybe_next = fromMaybe event $ do
-    args <- Post.delayed_args "ngoret" event
-    next <- maybe_next
-    [maybe_pitch, time, damp] <- return args
-    pitch <- case TrackLang.from_val maybe_pitch of
-        Just pitch -> return pitch
-        Nothing -> flip infer_pitch next =<< maybe_prev
-    time <- TrackLang.from_val time
-    damp <- TrackLang.from_val damp
-    let start1 = Score.event_start next - time
-        -- As with attached ngoret, if there isn't room for the grace note, use
-        -- the midpoint between the prev note and the next one.
-        start2 = maybe start1 (max start1 . (/2) . (+ Score.event_start next)
-            . Score.event_start) maybe_prev
-        end = Score.event_start next + damp
-    return $ event
-        { Score.event_start = start2
-        , Score.event_duration = end - start2
-        , Score.event_pitch = PitchSignal.constant pitch
-        , Score.event_environ = TrackLang.delete_val Environ.args $
-            Score.event_environ event
-        }
+    -> Maybe Score.Event -> Either Text Score.Event
+realize_standalone_ngoret maybe_prev event maybe_next
+    | Just args <- Post.delayed_args "ngoret" event = do
+        next <- require "no next event" maybe_next
+        (maybe_pitch, time, damp) <- require "wrong number of args" $ do
+            [a, b, c] <- return args
+            return (a, b, c)
+        pitch <- case TrackLang.from_val maybe_pitch of
+            Just pitch -> return pitch
+            Nothing -> require "can't infer pitch from previous note" $
+                flip infer_pitch next =<< maybe_prev
+        time <- Post.typecheck time
+        damp <- Post.typecheck damp
+        let start1 = Score.event_start next - time
+            -- As with attached ngoret, if there isn't room for the grace note,
+            -- use the midpoint between the prev note and the next one.
+            start2 = maybe start1
+                (max start1 . (/2) . (+ Score.event_start next)
+                    . Score.event_start)
+                maybe_prev
+            end = Score.event_start next + damp
+        return $ event
+            { Score.event_start = start2
+            , Score.event_duration = end - start2
+            , Score.event_pitch = PitchSignal.constant pitch
+            , Score.event_environ = TrackLang.delete_val Environ.args $
+                Score.event_environ event
+            }
+    | otherwise = Right event
 
 realize_infer_pitch :: Maybe Score.Event -> Score.Event
-    -> Maybe Score.Event -> Score.Event
+    -> Maybe Score.Event -> Either Text Score.Event
 realize_infer_pitch maybe_prev event maybe_next
-    | Score.has_attribute infer_pitch_tag event = fromMaybe event $ do
-        prev <- maybe_prev
-        next <- maybe_next
-        pitch <- infer_pitch prev next
+    | Score.has_attribute infer_pitch_tag event = do
+        prev <- require "no previous event" maybe_prev
+        next <- require "no next event" maybe_next
+        pitch <- require "can't infer pitch" $ infer_pitch prev next
         return $ Score.remove_attributes infer_pitch_tag $
             event { Score.event_pitch = PitchSignal.constant pitch }
-    | otherwise = event
+    | otherwise = return event
+
+require :: Text -> Maybe a -> Either Text a
+require err = maybe (Left err) return
 
 realize_damped :: Maybe Score.Event -> Score.Event
-    -> Maybe Score.Event -> Score.Event
+    -> Maybe Score.Event -> Either Text Score.Event
 realize_damped _ event maybe_next
-    | Just next <- maybe_next, Score.has_attribute damped_tag next =
+    | Just next <- maybe_next, Score.has_attribute damped_tag next = Right $
         Score.set_duration (Score.event_end next - Score.event_start event)
             event
-    | otherwise = Score.remove_attributes damped_tag event
+    | otherwise = Right $ Score.remove_attributes damped_tag event
 
 infer_pitch :: Score.Event -> Score.Event -> Maybe PitchSignal.Pitch
 infer_pitch prev next = do
