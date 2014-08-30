@@ -118,7 +118,7 @@ caching_deriver typ range call = do
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
-        Log.debug $ cached_msg (LEvent.length cached)
+        Log.debug $ cached_msg (length cached)
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
         Internal.merge_collect collect
@@ -168,9 +168,9 @@ with_empty_collect inflict_control_damage deriver = do
     Derive.put old
     return (result, collect)
 
-find_generator_cache :: (Cacheable derived) => Type
-    -> Stack.Stack -> Ranges -> ScoreDamage -> ControlDamage
-    -> Cache -> Either (Bool, Text) (Derive.Collect, LEvent.LEvents derived)
+find_generator_cache :: Cacheable d => Type -> Stack.Stack -> Ranges
+    -> ScoreDamage -> ControlDamage -> Cache
+    -> Either (Bool, Text) (Derive.Collect, [LEvent.LEvent d])
 find_generator_cache typ stack (Ranges event_range is_negative) score
         (ControlDamage control) (Cache cache) = do
     cached <- maybe (Left (False, "not in cache")) Right $
@@ -209,8 +209,8 @@ find_generator_cache typ stack (Ranges event_range is_negative) score
         Left (True, "control damage")
     return (collect, stream)
 
-make_cache :: (Cacheable d) => Stack.Stack -> Derive.Collect
-    -> LEvent.LEvents d -> Cache
+make_cache :: Cacheable d => Stack.Stack -> Derive.Collect
+    -> [LEvent.LEvent d] -> Cache
 make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     where
     stripped = collect

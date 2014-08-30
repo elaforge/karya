@@ -130,7 +130,7 @@ instance Pretty.Pretty TrackInfo where
 
 type GetLastVal d = [d] -> Maybe d
 
-type DeriveResult d = ([LEvent.LEvents d], Derive.Threaded, Derive.Collect)
+type DeriveResult d = ([[LEvent.LEvent d]], Derive.Threaded, Derive.Collect)
 type DeriveEmpty d = TrackInfo -> Maybe Event.Event -> Maybe Event.Event
     -> Maybe (Derive.LogsDeriver d) -> Maybe (Derive.LogsDeriver d)
 

@@ -226,13 +226,14 @@ same_hand event = filter ((== inst event) . inst) .  case lookup event of
 -- ** misc maps
 
 -- | Apply a function on the first Event of an LEvent stream.
-map_first :: (a -> Derive.Deriver a) -> LEvent.LEvents a -> Derive.LogsDeriver a
+map_first :: (a -> Derive.Deriver a) -> [LEvent.LEvent a]
+    -> Derive.LogsDeriver a
 map_first f events = event_head events $ \e es -> do
     e <- f e
     return $ LEvent.Event e : es
 
-event_head :: LEvent.LEvents d
-    -> (d -> LEvent.LEvents d -> Derive.Deriver (LEvent.LEvents d))
+event_head :: [LEvent.LEvent d]
+    -> (d -> [LEvent.LEvent d] -> Derive.Deriver [LEvent.LEvent d])
     -> Derive.LogsDeriver d
 event_head [] _ = return []
 event_head (log@(LEvent.Log _) : rest) f = (log:) <$> event_head rest f

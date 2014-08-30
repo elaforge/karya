@@ -362,7 +362,7 @@ get_cache block_id = do
     return cache
 
 get_cache_events :: (Cache.Cacheable d, Cmd.M m) => BlockId
-    -> m (Map.Map Stack.Stack (LEvent.LEvents d))
+    -> m (Map.Map Stack.Stack [LEvent.LEvent d])
 get_cache_events block_id = do
     cache <- get_cache block_id
     return $ Map.mapMaybe get cache

@@ -82,7 +82,7 @@ write_logs :: Log.LogMonad m => [LEvent d] -> m [d]
 write_logs events = mapM_ Log.write logs >> return vals
     where (vals, logs) = partition events
 
-partition :: Stream (LEvent d) -> ([d], [Log.Msg])
+partition :: [LEvent d] -> ([d], [Log.Msg])
 partition = Seq.partition_either . map to_either
     where
     to_either (Event d) = Left d
@@ -128,18 +128,3 @@ zip4 [] _ _ _ = []
 zip4 _ [] _ _ = []
 zip4 _ _ [] _ = []
 zip4 _ _ _ [] = []
-
--- * stream
-
-type Stream a = [a]
-
-empty_stream :: Stream a
-empty_stream = []
-
-length :: Stream a -> Int
-length = List.length
-
-type LEvents d = Stream (LEvent d)
-
-one :: a -> Stream a
-one x = x `seq` [x]

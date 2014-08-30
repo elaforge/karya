@@ -159,7 +159,7 @@ shift_messages multiplier start events = shift start events
     shift offset = map $ fmap $
         Midi.modify_timestamp ((* multiplier) . subtract offset)
 
-first_time :: LEvent.LEvents Midi.WriteMessage -> RealTime
+first_time :: [LEvent.LEvent Midi.WriteMessage] -> RealTime
 first_time msgs = case LEvent.events_of msgs of
     event : _ -> Midi.wmsg_ts event
     [] -> 0

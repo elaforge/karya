@@ -313,7 +313,7 @@ instance Taggable Score.Event where
 -- Each call generates a chunk [Event], and the chunks are then joined with
 -- 'd_merge_asc'.  This means every cons is copied once, but I think this is
 -- hard to avoid if I want to merge streams.
-type Events = LEvent.LEvents Score.Event
+type Events = [LEvent.LEvent Score.Event]
 
 instance Callable Score.Event where
     lookup_generator = lookup_with (scope_note . scopes_generator)
@@ -1194,7 +1194,7 @@ generator module_ name tags doc (func, arg_docs) =
 generator1 :: Module.Module -> Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> Deriver d) -> Call (GeneratorFunc d)
 generator1 module_ name tags doc (func, arg_docs) =
-    generator module_ name tags doc ((LEvent.one <$>) . func, arg_docs)
+    generator module_ name tags doc (((:[]) <$>) . func, arg_docs)
 
 -- ** transformer
 
@@ -1278,7 +1278,7 @@ instance DeepSeq.NFData CacheEntry where
 
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
-data CallType derived = CallType !Collect !(LEvent.LEvents derived)
+data CallType d = CallType !Collect ![LEvent.LEvent d]
     deriving (Show)
 
 instance (DeepSeq.NFData d) => DeepSeq.NFData (CallType d) where
@@ -1480,8 +1480,7 @@ d_merge derivers = merge_event_lists <$> sequence derivers
     -- on demand as the events themselves are interleaved.  However, profiling
     -- doesn't show a significant difference, and this way is simpler.
 
-merge_logs :: Either Error (LEvent.LEvents d) -> [Log.Msg]
-    -> LEvent.LEvents d
+merge_logs :: Either Error [LEvent.LEvent d] -> [Log.Msg] -> [LEvent.LEvent d]
 merge_logs result logs = case result of
     Left err -> map LEvent.Log (logs ++ [error_to_warn err])
     Right events -> events ++ map LEvent.Log logs

@@ -188,8 +188,8 @@ lookup_default_environ name = do
     -- should be safe.
     result <- derive $ apply $ do
         environ <- Internal.get_environ
-        return $ LEvent.one $ LEvent.Event $
-            Score.empty_event { Score.event_environ = environ }
+        return [LEvent.Event $
+            Score.empty_event { Score.event_environ = environ }]
     environ <- case result of
         Left err -> Cmd.throw $ untxt caller <> ": " <> err
         Right val -> case LEvent.events_of val of

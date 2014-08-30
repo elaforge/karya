@@ -223,7 +223,7 @@ eval_one_at collect start dur expr = eval_expr collect cinfo expr
 -- This is useful if you want to evaluate things out of order, i.e. evaluate
 -- the /next/ pitch.
 eval_event :: Derive.Callable d => Event.Event
-    -> Derive.Deriver (Either String (LEvent.LEvents d))
+    -> Derive.Deriver (Either String [LEvent.LEvent d])
 eval_event event = case Parse.parse_expr (Event.event_text event) of
     Left err -> return $ Left err
     Right expr -> Right <$>

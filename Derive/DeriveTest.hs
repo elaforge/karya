@@ -101,7 +101,7 @@ extract_run _ (Left err) = Left err
 extract_run f (Right (val, _, msgs)) = Right $ trace_logs msgs (f val)
 
 run_events :: (a -> b)
-    -> Either String (LEvent.LEvents a, Derive.State, [Log.Msg])
+    -> Either String ([LEvent.LEvent a], Derive.State, [Log.Msg])
     -> Either String ([b], [String])
 run_events f = extract_run $
     first (map f) . second (map show_log . filter interesting_log)
@@ -547,7 +547,7 @@ c_note s_start dur = do
     st <- Derive.gets Derive.state_dynamic
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st
-    return $ LEvent.one $ LEvent.Event $ Score.empty_event
+    return [LEvent.Event $ Score.empty_event
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_text = "evt"
@@ -556,7 +556,7 @@ c_note s_start dur = do
         , Score.event_pitches = Derive.state_pitches st
         , Score.event_instrument = inst
         , Score.event_environ = environ
-        }
+        }]
 
 -- | Not supposed to do this in general, but it's ok for tests.
 modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()

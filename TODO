@@ -6,7 +6,7 @@ UNSORTED
   - Sorting is fast and there aren't actually that many Score.Events.  Now
     that I don't care about deriving the score lazily, it may actually be
     cheaper to remove the ordered constraint and do one sort at the end.
-  - get rid of LEvent.Stream, I don't use it consistently anyway
+  * get rid of LEvent.Stream, I don't use it consistently anyway
   - rename join to mjoin, and export 'join' from Util.Control, since ghc 7.10
     will export it from the prelude anyway
   - rename %t-diatonic to t-dia and %t-chromatic to %t-chrom
@@ -743,6 +743,10 @@ logview:
     a rotated log.
     . It happens if the write handle is still open, for some reason
       Posix.getFileStatus then gets openFile: resource busy (file is locked)
+    . But I also got:
+      . logview: ./log/seq.log: openFile: resource busy (file is locked)
+      . Apparently not caused by log rotation.  Maybe if it checks for
+        rotation at the same time a new line is written?
   - can I get the standard edit menu and copy/paste?
   / haskell and c++ use the same machine readable format
   - tabs are not lining up properly

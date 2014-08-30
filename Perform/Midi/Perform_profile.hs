@@ -86,7 +86,7 @@ perform :: [Perform.Event] -> ([Midi.WriteMessage], [String])
 perform = split_logs . fst
     . Perform.perform Perform.initial_state midi_config . map LEvent.Event
 
-split_logs :: LEvent.LEvents d -> ([d], [String])
+split_logs :: [LEvent.LEvent d] -> ([d], [String])
 split_logs = second (map DeriveTest.show_log) . LEvent.partition
 
 run_multiple :: a -> (a -> IO String) -> IO ()

@@ -213,8 +213,8 @@ default_note config args = do
     -- duration.  Details in "Derive.Call.Post.ArrivalNote".
     let add_arrival = if is_arrival
             then Score.add_attributes Attrs.arrival_note else id
-    return $! LEvent.one $! LEvent.Event $! add_arrival $!
-        make_event args dyn control_vals start (adjusted_end - start) real_next
+    return [LEvent.Event $ add_arrival $
+        make_event args dyn control_vals start (adjusted_end - start) real_next]
 
 -- | This is the canonical way to make a Score.Event.  It handles all the
 -- control trimming and control function value stashing that the perform layer
