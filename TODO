@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - rename join to mjoin, and export 'join' from Util.Control, since ghc 7.10
+    will export it from the prelude anyway
   - rename %t-diatonic to t-dia and %t-chromatic to %t-chrom
   - move Types.Selection to its own module.  That leaves just aliases
     TrackNum, Width, SelNum, MouseButton
@@ -759,6 +761,7 @@ Ui:
 
 test:
   - try writing criterion tests for midi performance and derivation
+    . It has tons of deps, so it should be optional, like ekg.
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.

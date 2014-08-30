@@ -6,7 +6,6 @@ module Util.Seq where
 import Prelude hiding (head, join, last, tail)
 import qualified Control.Arrow as Arrow
 import qualified Data.Char as Char
-import qualified Data.DList as DList
 import Data.Function
 import Data.Functor ((<$>))
 import qualified Data.List as List
@@ -265,7 +264,8 @@ merge_asc_lists key = foldr go []
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
 -- after @key@ is applied to them.  List is returned in sorted order.
 keyed_group_on :: Ord key => (a -> key) -> [a] -> [(key, NonNull a)]
-keyed_group_on key = map (\gs -> (key (List.head gs), gs)) . group_on key
+keyed_group_on key = Map.toAscList . foldr go Map.empty
+    where go x = Map.alter (Just . maybe [x] (x:)) (key x)
 
 -- | Similar to 'keyed_group_on', but key on the fst element, and strip the key
 -- out of the groups.
@@ -277,11 +277,10 @@ group_snd :: Ord b => [(a, b)] -> [(NonNull a, b)]
 group_snd xs = [(map fst group, key) | (key, group) <- keyed_group_on snd xs]
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
--- function instead of equality.  The list is returned in sorted order.
--- Since the sort is stable, the groups appear in their original order in the
--- input list.
+-- function instead of equality.  The list is returned in sorted order, and
+-- the groups appear in their original order in the input list.
 group_on :: Ord key => (a -> key) -> [a] -> [NonNull a]
-group_on key = group key . sort_on key -- TODO faster to use a map?
+group_on key = map snd . keyed_group_on key
 
 -- | Group each element with all the other elements that compare equal to it.
 -- The heads of the groups appear in their original order.
@@ -443,20 +442,6 @@ partition_with f = go
         Just b -> (b:bs, as)
         Nothing -> (bs, x:as)
         where (bs, as) = go xs
-
--- | Partition by a key function.  The output lists are in the same order they
--- were in the input.
-partitions :: Ord k => (a -> k) -> [a] -> Map.Map k [a]
-partitions key = foldr go Map.empty
-    where
-    go x collect = Map.alter (Just . maybe [x] (x:)) (key x) collect
-
--- TODO test with criterion
-partitions2 :: Ord k => (a -> k) -> [a] -> Map.Map k [a]
-partitions2 key = Map.map DList.toList . List.foldl' go Map.empty
-    where
-    go collect x = Map.alter
-        (Just . maybe (DList.singleton x) (`DList.snoc` x)) (key x) collect
 
 
 -- * sublists
