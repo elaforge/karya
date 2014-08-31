@@ -25,19 +25,19 @@ test_interpolated_transpose = do
             ]
         extract = head . DeriveTest.extract_events DeriveTest.e_nns
     equal (run ">") [(0, 1), (1, 1.5), (2, 2), (3, 2.5), (4, 3)]
-    equal (run "> | %t-chromatic = 1")
+    equal (run "> | %t-chrom = 1")
         [(0, 3), (1, 3.25), (2, 3.5), (3, 3.75), (4, 4)]
 
 test_transpose_out_of_range = do
     equal (run_with_title id ">" "twelve" [(0, "4c")])
         [(0, 60)]
-    equal (run_with_title id "> | %t-chromatic = 10" "twelve" [(0, "4c")])
+    equal (run_with_title id "> | %t-chrom = 10" "twelve" [(0, "4c")])
         [(0, 70)]
-    equal (run_with_title id "> | %t-chromatic = -10" "twelve" [(0, "4c")])
+    equal (run_with_title id "> | %t-chrom = -10" "twelve" [(0, "4c")])
         [(0, 50)]
     -- It's not actually an IO exception but that's how DeriveTest.e_nns
     -- extractor treats an error in the pitch signal.
-    throws (run_with_title id "> | %t-chromatic = 200" "twelve" [(0, "4c")])
+    throws (run_with_title id "> | %t-chrom = 200" "twelve" [(0, "4c")])
         "note can't be transposed"
 
 run_with_title with inst_title pitch_title pitches = extract $

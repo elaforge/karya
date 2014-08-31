@@ -93,7 +93,7 @@ test_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch
             . DeriveTest.derive_tracks ""
     equal (run [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")]),
-            ("t-chromatic", [(0, 0, "1")])])
+            ("t-chrom", [(0, 0, "1")])])
         (["4c#"], [])
 
 test_arrival_notes_postproc = do
@@ -117,7 +117,7 @@ test_arrival_notes_postproc = do
                 ])
             , ("b2=ruler",
                 [ (">", [(1, -1, ""), (2, -1, "")])
-                , ("t-chromatic", [(1, 0, "1"), (2, 0, "0")])
+                , ("t-chrom", [(1, 0, "1"), (2, 0, "0")])
                 ])
             ])
         ([(0.5, 0.5, "4c#"), (1, 0.5, "4c")

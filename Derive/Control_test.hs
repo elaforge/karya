@@ -186,7 +186,7 @@ test_default_merge = do
                 , (control, [(0, 0, ".5")])
                 ]
     equal (run "dyn") ([[(0, 0.25)]], [])
-    equal (run "t-diatonic") ([[(0, 1)]], [])
+    equal (run "t-dia") ([[(0, 1)]], [])
 
 test_stash_signal = do
     -- make sure that TrackSignals are recorded when control tracks are derived

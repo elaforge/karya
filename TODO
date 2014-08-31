@@ -7,11 +7,10 @@ UNSORTED
     that I don't care about deriving the score lazily, it may actually be
     cheaper to remove the ordered constraint and do one sort at the end.
   * get rid of LEvent.Stream, I don't use it consistently anyway
-  - rename join to mjoin, and export 'join' from Util.Control, since ghc 7.10
-    will export it from the prelude anyway
-  - rename %t-diatonic to t-dia and %t-chromatic to %t-chrom
+  * rename %t-diatonic to t-dia and %t-chromatic to %t-chrom
   - move Types.Selection to its own module.  That leaves just aliases
     TrackNum, Width, SelNum, MouseButton
+    . But then it has the same name as Cmd.Selection.  Call it Sel?
   * cmd-z with multiple events makes them -0
     also, it doesn't seem to affect the selected pitch track
   - can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need

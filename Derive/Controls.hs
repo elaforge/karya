@@ -112,12 +112,12 @@ transpose_type t = case t of
 -- requires a key.  This is stepwise transposition for scales with no
 -- distinction between chromatic and diatonic.
 diatonic :: Control
-diatonic = "t-diatonic"
+diatonic = "t-dia"
 
 -- | Pitches respond to this with chromatic transposition.  This is stepwise
 -- transposition for scales with no distinction between chromatic and diatonic.
 chromatic :: Control
-chromatic = "t-chromatic"
+chromatic = "t-chrom"
 
 -- | Transpose by NoteNumber, which is cents \/ 100.
 nn :: Control

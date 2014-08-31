@@ -86,7 +86,7 @@ test_ngoret = do
 
 test_ngoret_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch
-            . DeriveTest.derive_tracks (transform ++ " | %t-diatonic=7")
+            . DeriveTest.derive_tracks (transform ++ " | %t-dia=7")
             . UiTest.note_track
     -- Make sure the transposition doesn't get applied twice.
     equal (run [(0, 1, "4c"), (1, 1, "' .5 .5 -- 4e")])
