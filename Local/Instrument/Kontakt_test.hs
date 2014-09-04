@@ -29,7 +29,7 @@ test_wayang = do
     equal (run [(2, 1, "+mute+loose -- 4i")]) ([Key2.a_2, Key2.e0], [])
 
 test_wayang_pasang = do
-    let run notes = derive "import bali.kotekan" $
+    let run notes = derive "import bali.gangsa" $
             UiTest.note_spec (title, notes, [])
         extract = DeriveTest.e_inst
         title = wayang_title "" <> " | unison"
@@ -52,7 +52,7 @@ test_wayang_pasang = do
 
 test_wayang_kempyung = do
     let run suffix append notes = DeriveTest.extract extract $
-            derive "import bali.kotekan" $ UiTest.note_spec
+            derive "import bali.gangsa" $ UiTest.note_spec
                 (wayang_title suffix <> append <> " | kempyung", notes, [])
         extract e = (DeriveTest.e_inst e, DeriveTest.e_note e)
         umbang = "kontakt/wayang-umbang"

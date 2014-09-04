@@ -24,7 +24,7 @@ import qualified Cmd.Info as Info
 import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Save as Save
 
-import qualified Derive.Call.Bali.Kotekan as Kotekan
+import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Environ as Environ
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
@@ -375,8 +375,8 @@ type Instrument = Text
 -- | Set up a pair of instruments as polos and sangsih.
 create_pasang :: State.M m => Instrument -> Text -> Text -> Bool -> m ()
 create_pasang pasang polos sangsih polos_umbang = do
-    add_environ pasang Kotekan.inst_polos (Util.instrument polos)
-    add_environ pasang Kotekan.inst_sangsih (Util.instrument sangsih)
+    add_environ pasang Gangsa.inst_polos (Util.instrument polos)
+    add_environ pasang Gangsa.inst_sangsih (Util.instrument sangsih)
     let (ptuning, stuning) = if polos_umbang
             then (Environ.umbang, Environ.isep)
             else (Environ.isep, Environ.umbang)

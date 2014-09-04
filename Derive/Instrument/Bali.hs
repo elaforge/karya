@@ -13,7 +13,7 @@ import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.Call.Bali.Kotekan as Kotekan
+import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified App.MidiInst as MidiInst
 
 
@@ -34,8 +34,8 @@ pasang_thru msg = do
             Msg.InputNote input -> return input
             _ -> Cmd.abort
         (block_id, _, track_id, _) <- Selection.get_insert
-        polos <- Perf.lookup_val block_id (Just track_id) Kotekan.inst_polos
-        sangsih <- Perf.lookup_val block_id (Just track_id) Kotekan.inst_sangsih
+        polos <- Perf.lookup_val block_id (Just track_id) Gangsa.inst_polos
+        sangsih <- Perf.lookup_val block_id (Just track_id) Gangsa.inst_sangsih
         whenJust polos $ \inst ->
             MidiThru.midi_thru_instrument inst input
         whenJust sangsih $ \inst ->

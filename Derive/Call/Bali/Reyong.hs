@@ -15,8 +15,8 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
-import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -52,13 +52,13 @@ module_ = "bali" <> "reyong"
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("kilit", realize_pattern Kotekan.Repeat norot_patterns)
-    , (">kilit", realize_pattern Kotekan.Once pickup_patterns)
-    , ("k/_\\", realize_pattern Kotekan.Repeat k_12_1_21)
-    , ("k//", realize_pattern Kotekan.Repeat k12_12_12)
-    , ("k\\\\", realize_pattern Kotekan.Repeat k21_21_21)
-    , ("k_\\", realize_pattern Kotekan.Once k_11_1_21)
-    , ("k\\/", realize_pattern Kotekan.Once rejang)
+    [ ("kilit", realize_pattern Gangsa.Repeat norot_patterns)
+    , (">kilit", realize_pattern Gangsa.Once pickup_patterns)
+    , ("k/_\\", realize_pattern Gangsa.Repeat k_12_1_21)
+    , ("k//", realize_pattern Gangsa.Repeat k12_12_12)
+    , ("k\\\\", realize_pattern Gangsa.Repeat k21_21_21)
+    , ("k_\\", realize_pattern Gangsa.Once k_11_1_21)
+    , ("k\\/", realize_pattern Gangsa.Once rejang)
     , ("/", articulation "cek-loose" ((:[]) . pos_cek)
         (Attrs.rim <> Attrs.loose))
     , ("X", articulation "cek" ((:[]) . pos_cek) Attrs.rim)
@@ -94,10 +94,10 @@ ngoret = Gender.ngoret False module_ False
 -- | Kilitan is implemented as a set of patterns indexed by an absolute pitch
 -- degree.  The patterns are similar to kotekan, except with absolute pitches,
 -- and without a polos \/ sangsih division.
-realize_pattern :: Kotekan.Repeat -> Pattern -> Derive.Generator Derive.Note
+realize_pattern :: Gangsa.Repeat -> Pattern -> Derive.Generator Derive.Note
 realize_pattern repeat pattern =
     Derive.make_call module_ "reyong" Tags.inst "Emit reyong kilitan."
-    $ Sig.call (Kotekan.dur_arg) $ \dur -> Sub.inverting $ \args -> do
+    $ Sig.call (Gangsa.dur_arg) $ \dur -> Sub.inverting $ \args -> do
         (parse_pitch, show_pitch, _) <- Util.get_pitch_functions
         pitch <- Util.get_parsed_pitch parse_pitch =<< Args.real_start args
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
@@ -106,8 +106,8 @@ realize_pattern repeat pattern =
             (zip [1..] positions)
     where
     realize show_pitch (start, end) dur (voice, position) =
-        Kotekan.realize_notes start (realize_note show_pitch voice start) $
-            Kotekan.realize_pattern repeat start end dur (const position)
+        Gangsa.realize_notes start (realize_note show_pitch voice start) $
+            Gangsa.realize_pattern repeat start end dur (const position)
 
 -- * articulation
 

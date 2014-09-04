@@ -2,8 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | Calls that generate notes for instruments that come in polos and sangsih
-    pairs.
+{- | Calls for gangsa techniques.  Gangsa come in polos and sangsih pairs,
+    and play either kotekan patterns or play unison or parallel parts.
 
     Kotekan patterns have a number of features in common.  They are all
     transpositions from a base pitch.  Rhythmically, they consist of notes with
@@ -23,7 +23,7 @@
     - Variable durations.
     - Line up at the start of the event instead of the end.
 -}
-module Derive.Call.Bali.Kotekan where
+module Derive.Call.Bali.Gangsa where
 import qualified Data.List as List
 
 import Util.Control
@@ -86,7 +86,7 @@ note_calls = Derive.call_maps
     ]
 
 module_ :: Module.Module
-module_ = "bali" <> "kotekan"
+module_ = "bali" <> "gangsa"
 
 -- * ngoret
 

@@ -25,7 +25,7 @@ import qualified Cmd.Repl.LInst as LInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Articulation as Articulation
-import qualified Derive.Call.Bali.Kotekan as Kotekan
+import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Highlight as Highlight
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -310,11 +310,11 @@ wayang_patches = MidiInst.with_code mute_null_call
 configure_wayang :: Text -> Cmd.CmdL ()
 configure_wayang dev = do
     LInst.add "p" "kontakt/wayang-p" "" []
-    LInst.add_environ "p" Kotekan.inst_polos (Score.Instrument "p-umbang")
-    LInst.add_environ "p" Kotekan.inst_sangsih (Score.Instrument "p-isep")
+    LInst.add_environ "p" Gangsa.inst_polos (Score.Instrument "p-umbang")
+    LInst.add_environ "p" Gangsa.inst_sangsih (Score.Instrument "p-isep")
     LInst.add "k" "kontakt/wayang-k" "" []
-    LInst.add_environ "k" Kotekan.inst_polos (Score.Instrument "k-umbang")
-    LInst.add_environ "k" Kotekan.inst_sangsih (Score.Instrument "k-isep")
+    LInst.add_environ "k" Gangsa.inst_polos (Score.Instrument "k-umbang")
+    LInst.add_environ "k" Gangsa.inst_sangsih (Score.Instrument "k-isep")
     LInst.add "p-isep" "kontakt/wayang-isep" dev [0]
     LInst.add "p-umbang" "kontakt/wayang-umbang" dev [1]
     LInst.add "k-isep" "kontakt/wayang-isep" dev [2]

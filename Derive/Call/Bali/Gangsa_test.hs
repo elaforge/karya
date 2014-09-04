@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.Call.Bali.Kotekan_test where
+module Derive.Call.Bali.Gangsa_test where
 import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
@@ -127,4 +127,4 @@ pasang :: Score.Instrument
 pasang = Score.Instrument "i3"
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = DeriveTest.derive_tracks "import bali.kotekan"
+derive_tracks = DeriveTest.derive_tracks "import bali.gangsa"

@@ -6,8 +6,8 @@
 module Derive.Call.All (library) where
 import Util.Control
 import qualified Derive.Call.Articulation as Articulation
+import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
-import qualified Derive.Call.Bali.Kotekan as Kotekan
 import qualified Derive.Call.Bali.Reyong as Reyong
 import qualified Derive.Call.Bali.Sekar as Sekar
 import qualified Derive.Call.Block as Block
@@ -56,13 +56,13 @@ note_maps = mconcat
     , Echo.note_calls
     , Equal.note_calls
     , Gamakam2.note_calls
+    , Gangsa.note_calls
     , Gender.note_calls
     , Grace.note_calls
     , Highlight.note_calls
     , Idiom.note_calls
     , Import.calls
     , Integrate.note_calls
-    , Kotekan.note_calls
     , Lily.note_calls
     , Note.note_calls
     , NoteTransformer.note_calls

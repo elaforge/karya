@@ -54,7 +54,7 @@ UNSORTED
     default implementations for Typecheck.
   * gangsa should have a non-muting ' that doesn't require realize-ngoret
     The grace note would overlap a bit though.
-  - rename Derive.Call.Bali.Kotekan to Gangsa
+  * rename Derive.Call.Bali.Kotekan to Gangsa
   - thru on *legong notes is wrong the first time
   - note entry gets the wrong scale if the track hasn't been played
   * get rid of LEvent.Stream, I don't use it consistently anyway
