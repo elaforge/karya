@@ -547,7 +547,8 @@ default_timestep args step =
 
 instance ShowVal.ShowVal Meter.RankName where
     show_val = TrackLang.default_show_val
-instance TrackLang.TypecheckEnum Meter.RankName
+instance TrackLang.Typecheck Meter.RankName
+instance TrackLang.TypecheckSymbol Meter.RankName
 
 
 -- * eval

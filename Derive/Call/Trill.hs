@@ -415,7 +415,8 @@ trill_speed_arg = defaulted "speed" (typed_control "tr-speed" 14 Score.Real)
 -- High-Low I think is more musically intuitive.
 data Direction = High | Low deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal Direction where show_val = TrackLang.default_show_val
-instance TrackLang.TypecheckEnum Direction
+instance TrackLang.Typecheck Direction
+instance TrackLang.TypecheckSymbol Direction
 
 -- | This is the like 'Direction', but in terms of the unison and neighbor
 -- pitches, instead of high and low.
@@ -428,16 +429,14 @@ trill_env start_dir end_dir =
     (,,,) <$> start <*> end <*> hold_env <*> adjust_env
     where
     start = case start_dir of
-        Nothing -> fmap TrackLang.get_e <$>
-            Sig.environ "tr-start" Sig.Unprefixed Nothing
-                "Which note the trill starts with. If not given, it will start\
-                \ the unison note, which means it may move up or down."
+        Nothing -> Sig.environ "tr-start" Sig.Unprefixed Nothing
+            "Which note the trill starts with. If not given, it will start\
+            \ the unison note, which means it may move up or down."
         Just dir -> Applicative.pure (Just dir)
     end = case end_dir of
-        Nothing -> fmap TrackLang.get_e <$>
-            Sig.environ "tr-end" Sig.Unprefixed Nothing
-                "Which note the trill ends with. If not given, it can end with\
-                \ either."
+        Nothing -> Sig.environ "tr-end" Sig.Unprefixed Nothing
+            "Which note the trill ends with. If not given, it can end with\
+            \ either."
         Just dir -> Applicative.pure (Just dir)
 
 -- Its default is both prefixed and unprefixed so you can put in a tr-hold
@@ -505,11 +504,11 @@ data Adjust =
     deriving (Bounded, Eq, Enum, Show)
 
 instance ShowVal.ShowVal Adjust where show_val = TrackLang.default_show_val
-instance TrackLang.TypecheckEnum Adjust
+instance TrackLang.Typecheck Adjust
+instance TrackLang.TypecheckSymbol Adjust
 
 adjust_env :: Sig.Parser Adjust
-adjust_env = TrackLang.get_e <$>
-    Sig.environ "adjust" Sig.Both (TrackLang.E Shorten)
+adjust_env = Sig.environ "adjust" Sig.Both Shorten
     "How to adjust a trill to fulfill its start and end pitch restrictions."
 
 -- ** transitions

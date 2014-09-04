@@ -144,10 +144,9 @@ c_norot = Derive.make_call module_ "norot" mempty
     \ the event, so this is most suitable for a negative duration event."
     $ Sig.call ((,,,,)
     <$> dur_arg
-    <*> Sig.defaulted "style" (TrackLang.E Default) "Norot style."
+    <*> Sig.defaulted "style" Default "Norot style."
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    ) $ \(dur, TrackLang.E style, kotekan, inst_top, pasang) ->
-    Sub.inverting $ \args -> do
+    ) $ \(dur, style, kotekan, inst_top, pasang) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
         pitch <- Util.get_transposed start
         scale <- Util.get_scale
@@ -176,10 +175,9 @@ c_norot_pickup :: Derive.Generator Derive.Note
 c_norot_pickup = Derive.make_call module_ "norot" mempty "Emit norot pickup."
     $ Sig.call ((,,,,)
     <$> dur_arg
-    <*> Sig.defaulted "style" (TrackLang.E Default) "Norot style."
+    <*> Sig.defaulted "style" Default "Norot style."
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    ) $ \(dur, TrackLang.E style, kotekan, inst_top, pasang) ->
-    Sub.inverting $ \args -> do
+    ) $ \(dur, style, kotekan, inst_top, pasang) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
         pitch <- Util.get_transposed start
         scale <- Util.get_scale
@@ -259,10 +257,9 @@ c_kotekan pattern = Derive.make_call module_ "kotekan" mempty
     \ negative durations."
     $ Sig.call ((,,,)
     <$> dur_arg
-    <*> Sig.defaulted "style" (TrackLang.E Telu) "Kotekan style."
+    <*> Sig.defaulted "style" Telu "Kotekan style."
     <*> kotekan_env <*> pasang_env
-    ) $ \(dur, TrackLang.E style, kotekan, pasang) ->
-    Sub.inverting $ \args -> do
+    ) $ \(dur, style, kotekan, pasang) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern (Args.range args) dur pitch under_threshold
@@ -378,12 +375,14 @@ data NorotStyle =
     deriving (Bounded, Eq, Enum, Show)
 
 instance ShowVal.ShowVal NorotStyle where show_val = TrackLang.default_show_val
-instance TrackLang.TypecheckEnum NorotStyle
+instance TrackLang.Typecheck NorotStyle
+instance TrackLang.TypecheckSymbol NorotStyle
 
 data KotekanStyle = Telu | Pat deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal KotekanStyle where
     show_val = TrackLang.default_show_val
-instance TrackLang.TypecheckEnum KotekanStyle
+instance TrackLang.Typecheck KotekanStyle
+instance TrackLang.TypecheckSymbol KotekanStyle
 
 -- * postproc
 

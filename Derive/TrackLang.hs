@@ -4,6 +4,7 @@
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DefaultSignatures #-}
 {- | This module exports the basic types for \"tracklang\", which is the
     language parsed by "Derive.ParseBs" and interpreted by "Derive.Call".
 
@@ -247,10 +248,24 @@ type_of val = case val of
 
 -- ** special types
 
+-- | This can automatically derive a Typecheck instance for 'VSymbol' types
+-- if they are in 'TypecheckSymbol'.
 class (Show a, ShowVal a) => Typecheck a where
     from_val :: Val -> Maybe a
+    default from_val :: TypecheckSymbol a => Val -> Maybe a
+    from_val (VSymbol (Symbol a)) = parse_symbol a
+    from_val _ = Nothing
+
     to_val :: a -> Val
+    -- This could be just ShowVal and thus a plain default method, but I want
+    -- it to only apply when the type is explicitly in TypecheckSymbol, since
+    -- it's not valid in general.
+    default to_val :: TypecheckSymbol a => a -> Val
+    to_val = VSymbol . Symbol . show_val
+
     to_type :: Proxy a -> Type
+    default to_type :: TypecheckSymbol a => Proxy a -> Type
+    to_type proxy = TSymbol (symbol_values proxy)
 
 instance Typecheck Val where
     from_val = Just
@@ -451,58 +466,34 @@ instance Typecheck Text where
 -- *** enum
 
 -- | This is for text strings which are parsed to call-specific types.  You
--- can declare an instance and the automatic Typecheck instance will allow you
+-- can declare an instance and the default Typecheck instance will allow you
 -- to incorporate the type directly into the signature of the call.
 --
--- This is specialized to Bounded and Enum instances, but can use those
--- to provide a default parser, and put the enum values in the 'TSymbol' so
--- the docs can mention them.
-class (ShowVal a, Bounded a, Enum a) => TypecheckEnum a where
-    parse_enum :: Text -> Maybe a
-    parse_enum = make_parse_enum [minBound .. maxBound]
+-- If your type is a Bounded Enum, you get a default parser, and the enum
+-- values go in the 'TSymbol' so the docs can mention them.
+--
+-- So the type needs to be in (Bounded, Enum, ShowVal, TypecheckSymbol,
+-- Typecheck), though all of these can use default implementations.
+class ShowVal a => TypecheckSymbol a where
+    parse_symbol :: Text -> Maybe a
+    default parse_symbol :: (Bounded a, Enum a) => Text -> Maybe a
+    parse_symbol = make_parse_enum [minBound :: a .. maxBound]
 
-make_parse_enum :: (ShowVal a) => [a] -> (Text -> Maybe a)
+    symbol_values :: Proxy a -> Maybe [Text]
+    default symbol_values :: (Bounded a, Enum a) => Proxy a -> Maybe [Text]
+    symbol_values _ = Just $ map show_val [minBound :: a .. maxBound]
+
+make_parse_enum :: ShowVal a => [a] -> (Text -> Maybe a)
 make_parse_enum vals = flip Map.lookup m
     where m = Map.fromList (zip (map show_val vals) vals)
 
-instance TypecheckEnum Bool
-instance ShowVal Bool where show_val = default_show_val
-
 -- | Make a ShowVal from a Show instance.
-default_show_val :: (Show a) => a -> Text
+default_show_val :: Show a => a -> Text
 default_show_val = Text.toLower . showt
 
--- | A wrapper required to make the typeclass instance happy.
-newtype E a = E a deriving (Show, ShowVal)
-
-get_e :: E a -> a
-get_e (E a) = a
-
-instance (Show a, TypecheckEnum a) => Typecheck (E a) where
-    from_val (VSymbol (Symbol a)) = E <$> parse_enum a
-    from_val _ = Nothing
-    to_val = VSymbol . Symbol . show_val . get_e
-    to_type _ = TSymbol (Just (map show_val [minBound :: a .. maxBound]))
-
--- *** any symbol
-
--- | This is like 'TypecheckEnum' but without the Enum constraint.  That
--- means it can parse arbitrary text, but can't document its accepted values.
-class TypecheckSymbol a where
-    parse_symbol :: Text -> Maybe a
-
--- | A wrapper type required to make the typeclass instance happy.
-newtype S a = S a deriving (Show, ShowVal)
-
-get_s :: S a -> a
-get_s (S a) = a
-
-instance (Show a, ShowVal a, TypecheckSymbol a) => Typecheck (S a) where
-    from_val (VSymbol (Symbol a)) = S <$> parse_symbol a
-    from_val _ = Nothing
-    to_val = VSymbol . Symbol . show_val . get_s
-    to_type _ = TSymbol Nothing
-
+instance Typecheck Bool
+instance TypecheckSymbol Bool
+instance ShowVal Bool where show_val = default_show_val
 
 -- ** other types
 

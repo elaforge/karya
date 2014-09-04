@@ -144,7 +144,7 @@ c_timestep = val_call "timestep" mempty
     ) $ Sig.call ((,)
     <$> required "rank" "Emit a duration of this rank."
     <*> defaulted "multiply" 1 "Multiply duration."
-    ) $ \(TrackLang.E rank, steps) args ->
+    ) $ \(rank, steps) args ->
         TrackLang.score_time <$>
             Util.meter_duration (Args.start args) rank steps
 
@@ -321,7 +321,8 @@ data Distribution = Uniform | Normal | Bimodal
     deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal Distribution where
     show_val = TrackLang.default_show_val
-instance TrackLang.TypecheckEnum Distribution
+instance TrackLang.Typecheck Distribution
+instance TrackLang.TypecheckSymbol Distribution
 
 c_cf_rnd :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
 c_cf_rnd combine = val_call "cf-rnd"
@@ -331,9 +332,9 @@ c_cf_rnd combine = val_call "cf-rnd"
     $ Sig.call ((,,)
     <$> required "low" "Low end of the range."
     <*> required "high" "High end of the range."
-    <*> Sig.environ "distribution" Sig.Prefixed (TrackLang.E Normal)
+    <*> Sig.environ "distribution" Sig.Prefixed Normal
         "Random distribution."
-    ) $ \(low, high, TrackLang.E distribution) _args -> return $!
+    ) $ \(low, high, distribution) _args -> return $!
         TrackLang.ControlFunction "cf-rnd" $ \control dyn pos ->
             Score.untyped $ combine
                 (cf_rnd distribution low high (random_stream (dyn_seed dyn)))
@@ -366,12 +367,12 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
     \ to " <> ShowVal.doc_val Controls.start_s <> ". The curve is a sine wave,\
     \ from trough to trough.")
     $ Sig.call ((,)
-    <$> defaulted "rank" (TrackLang.E Meter.Q)
+    <$> defaulted "rank" Meter.Q
         "The time steps are on the beat, and midway between offset by the\
         \ given amount."
     <*> defaulted "amount" (TrackLang.real_control "swing" (1/3))
         "Swing amount, multiplied by the rank duration / 2."
-    ) $ \(TrackLang.E rank, amount) _args -> return $!
+    ) $ \(rank, amount) _args -> return $!
         TrackLang.ControlFunction "cf-swing" (cf_swing_ rank amount)
     where
     cf_swing_ rank amount control dyn pos

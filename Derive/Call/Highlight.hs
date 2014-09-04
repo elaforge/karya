@@ -35,12 +35,13 @@ note_calls = Derive.transformer_call_map
 c_highlight :: Derive.Transformer Derive.Note
 c_highlight = Derive.transformer Module.prelude "highlight" mempty
     "Add a highlight color."
-    $ Sig.callt (TrackLang.get_e <$> Sig.required "highlight" "Highlight code.")
+    $ Sig.callt (Sig.required "highlight" "Highlight code.")
     $ \highlight _ deriver -> Post.emap1 (add_highlight highlight) <$> deriver
 
 instance ShowVal.ShowVal Color.Highlight where
     show_val = TrackLang.default_show_val
-instance TrackLang.TypecheckEnum Color.Highlight
+instance TrackLang.Typecheck Color.Highlight
+instance TrackLang.TypecheckSymbol Color.Highlight
 
 
 -- * open strings
@@ -50,7 +51,7 @@ c_highlight_strings = Derive.transformer Module.prelude "highlight-strings"
     mempty ("Highlight any notes whose initial pitch either is or isn't in "
         <> ShowVal.doc_val Environ.open_strings <> ".")
     $ Sig.callt
-    ( TrackLang.get_e <$> Sig.environ "open" Sig.Prefixed (TrackLang.E False)
+    ( Sig.environ "open" Sig.Prefixed False
         "If true, put Info on open strings, else put Warning on non-open ones."
     ) $ \highlight_open args deriver -> do
         pos <- Args.real_start args

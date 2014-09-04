@@ -42,9 +42,16 @@ UNSORTED
     - Then I need >kontakt/gender to add a 'infer-track-voice' call.  Then
       I can write '>g = infer-track-voice' in local defs and get that
       automatically.
-  - use generic deriving to get rid of TypecheckEnum?
+    . But first, make sure I really want this.  I think if I'm writing kotekan
+      manually, I will want separate >polos and >sangsih instruments.
+      But even so, in a full ensemble with 4 gangsa, polos is a pasang as is
+      sangsih.  Since they play a lot of unison, I still need 4 underlying
+      instruments, e.g. >polos-umbang, >polos-isep, >sangsih-umbang,
+      >sangsih-isep.  A >gangsa instrument would split 4 ways, and a >polos
+      would split 2 ways, in the same way.
+  * use generic deriving to get rid of TypecheckEnum?
     I'd really like to get rid of TrackLang.E.  I would have to make
-    default implementations for Typecheck, that use Generic
+    default implementations for Typecheck.
   * gangsa should have a non-muting ' that doesn't require realize-ngoret
     The grace note would overlap a bit though.
   - rename Derive.Call.Bali.Kotekan to Gangsa
