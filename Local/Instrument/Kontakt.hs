@@ -309,16 +309,16 @@ wayang_patches = MidiInst.with_code mute_null_call
 -- with polos on umbang.
 configure_wayang :: Text -> Cmd.CmdL ()
 configure_wayang dev = do
-    LInst.create "p" "kontakt/wayang-p" "" []
+    LInst.add "p" "kontakt/wayang-p" "" []
     LInst.add_environ "p" Kotekan.inst_polos (Score.Instrument "p-umbang")
     LInst.add_environ "p" Kotekan.inst_sangsih (Score.Instrument "p-isep")
-    LInst.create "k" "kontakt/wayang-k" "" []
+    LInst.add "k" "kontakt/wayang-k" "" []
     LInst.add_environ "k" Kotekan.inst_polos (Score.Instrument "k-umbang")
     LInst.add_environ "k" Kotekan.inst_sangsih (Score.Instrument "k-isep")
-    LInst.create "p-isep" "kontakt/wayang-isep" dev [0]
-    LInst.create "p-umbang" "kontakt/wayang-umbang" dev [1]
-    LInst.create "k-isep" "kontakt/wayang-isep" dev [2]
-    LInst.create "k-umbang" "kontakt/wayang-umbang" dev [3]
+    LInst.add "p-isep" "kontakt/wayang-isep" dev [0]
+    LInst.add "p-umbang" "kontakt/wayang-umbang" dev [1]
+    LInst.add "k-isep" "kontakt/wayang-isep" dev [2]
+    LInst.add "k-umbang" "kontakt/wayang-umbang" dev [3]
 
 mute_null_call :: MidiInst.Code
 mute_null_call = MidiInst.note_calls $ MidiInst.null_call $
@@ -393,9 +393,9 @@ mridangam_right = map (\(c, n, a, d) -> Drums.Note n a c d)
     , ('w', "t", ta, 1)
     , ('e', "n", nam, 1)
     , ('r', "d", din, 1)
-    , ('t', "m", dheem, 1)
-    , ('y', "u", arai, 1)
-    , ('u', "v", muru, 1)
+    , ('5', "v", muru, 1)
+    , ('t', "u", arai, 1)
+    , ('y', "m", dheem, 1)
     ]
 mridangam_keymap = mridangam_left ++ mridangam_right
 

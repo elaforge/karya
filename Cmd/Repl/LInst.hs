@@ -107,8 +107,8 @@ rename from_ to_ =
     to = Util.instrument to_
 
 -- | Allocate a new instrument and create an alias for it.
-create :: Instrument -> Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
-create alias inst wdev chans = do
+add :: Instrument -> Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
+add alias inst wdev chans = do
     alloc alias wdev chans
     add_alias alias inst
 
@@ -123,7 +123,7 @@ load = Save.load_midi_config
 -- derivation.  For instance, pasang instruments are stand-ins for polos
 -- sangsih pairs.
 create_empty :: Instrument -> Instrument -> Cmd.CmdL ()
-create_empty alias inst = create alias inst "empty" []
+create_empty alias inst = add alias inst "empty" []
 
 -- | Remove both an alias and its allocation.
 remove :: Instrument -> Cmd.CmdL ()
