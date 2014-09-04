@@ -4,7 +4,7 @@
 
 -- | Ornaments for gender.  The unique thing about gender technique is the
 -- delayed damping, so these calls deal with delayed damping.
-module Derive.Call.Bali.Gender (note_calls, ngoret) where
+module Derive.Call.Bali.Gender (note_calls, ngoret, c_realize_ngoret) where
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -55,7 +55,9 @@ gender_ngoret is_standalone = ngoret is_standalone module_ True damp_arg
 
 -- | Other instruments also have ngoret, but without gender's special damping
 -- behaviour.
-ngoret :: Bool -> Module.Module -> Bool -> Sig.Parser TrackLang.ValControl
+ngoret :: Bool -> Module.Module -> Bool
+    -- ^ Extend the previous note's duration to the end of the grace note.
+    -> Sig.Parser TrackLang.ValControl
     -> Maybe Pitch.Transpose -> Derive.Generator Derive.Note
 ngoret is_standalone module_ late_damping damp_arg maybe_transpose =
     Derive.make_call module_ "ngoret"

@@ -3,9 +3,53 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Sorting is fast and there aren't actually that many Score.Events.  Now
-    that I don't care about deriving the score lazily, it may actually be
-    cheaper to remove the ordered constraint and do one sort at the end.
+  - I could also get same-track by automatically assigning a tracknum env var.
+    . The problem is that I rely in postproc inferring the pitch now, but that
+      requires a previous event, which in turn requires a hand or voice.
+      That's a hassle I didn't have to do before, but in exchange I get proper
+      pitch inference for the first note on a block.  Each gangsa is
+      monophonic, so if I stick to a conventional order like polos, sangsih,
+      then I can use tracknum.  I can also use this to automatically set
+      tuning.
+    . But I'd actually want it to be the count of tracks with that inst.  The
+      block deriver can do this by first doing ParseTitle.title_to_instrument
+      on each track.  But this doesn't work if the note track uses other means
+      to set the instrument or is just '>'.  So I need to get the instrument
+      within the note track deriver, which means they pass and return an extra
+      'Map Instrument Int'.
+    . But if I want the instrument setting call itself to have access (e.g.
+      automatically set voice, hand, tuning), then it needs to be in Dynamic.
+      Rather, Dynamic has to have the next voice number for each instrument,
+      but then there needs to be some way to increment it when a track uses
+      it.  I could put the instrument in Collect.
+    . On the other hand, if I go purely syntactically, then I can have two
+      tracks get the same voice with e.g. '>g (>, >)'.  The voice number
+      becomes the explicitly labeled note tracks.  This is similar to what
+      I already tend to do, which is '>pno | hand=l (>, >, ...)'.
+    . Name?  Shouldn't be tracknum.  Voice is already taken.  Just 'track'?
+      track-voice, it's lower level than 'voice' because it's per-track.
+    . Another approach is to have a "block template", which is a separate
+      thing that looks at the structure block and infers various variables
+      about it.  But this is not per-instrument.
+    . What I think I really want is something like a separate function that
+      sets up a pair, e.g. you say gangsa-pair and you get tracks for sangsih
+      and polos with the appropriate env vars.  But while I can write
+      something with one track argument, I can't write something with two
+      track arguments.  To do that, I'd need some more UI, e.g.
+      a generalization of the skeleton where you can put function calls in the
+      middle too.  Probably not worth it.
+    - Set Environ.track_voice in block deriver.
+    - Then I need >kontakt/gender to add a 'infer-track-voice' call.  Then
+      I can write '>g = infer-track-voice' in local defs and get that
+      automatically.
+  - use generic deriving to get rid of TypecheckEnum?
+    I'd really like to get rid of TrackLang.E.  I would have to make
+    default implementations for Typecheck, that use Generic
+  * gangsa should have a non-muting ' that doesn't require realize-ngoret
+    The grace note would overlap a bit though.
+  - rename Derive.Call.Bali.Kotekan to Gangsa
+  - thru on *legong notes is wrong the first time
+  - note entry gets the wrong scale if the track hasn't been played
   * get rid of LEvent.Stream, I don't use it consistently anyway
   * rename %t-diatonic to t-dia and %t-chromatic to %t-chrom
   - move Types.Selection to its own module.  That leaves just aliases
@@ -497,6 +541,10 @@ local: plugins:
     map.
 
 cleanup:
+  - Sorting is fast and there aren't actually that many Score.Events.  Now
+    that I don't care about deriving the score lazily, it may actually be
+    cheaper to remove the ordered constraint and do one sort at the end.
+    . List.sort is fast on already sorted input.
   - derive Generic and use GHC.Generics to make a generic pretty for records?
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.

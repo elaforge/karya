@@ -33,6 +33,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
@@ -69,15 +70,36 @@ note_calls = Derive.call_maps
     , ("k\\/",  c_kotekan $ regular_pattern "-12-12-2 1-21-12-"
                                             "3-23-232 -32-3-23"
                                             "44-34-3- 43-434-3")
+
+    , ("'", c_ngoret False Nothing)
+    , ("'^", c_ngoret False (Just (Pitch.Diatonic (-1))))
+    , ("'_", c_ngoret False (Just (Pitch.Diatonic 1)))
+    , ("'-", c_ngoret True Nothing)
+    , ("'^-", c_ngoret True (Just (Pitch.Diatonic (-1))))
+    , ("'_-", c_ngoret True (Just (Pitch.Diatonic 1)))
     ]
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
+    , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     ]
 
 module_ :: Module.Module
 module_ = "bali" <> "kotekan"
+
+-- * ngoret
+
+c_ngoret :: Bool -> Maybe Pitch.Transpose -> Derive.Generator Derive.Note
+c_ngoret is_standalone = Gender.ngoret is_standalone module_ False damp_arg
+    where
+    damp_arg = Sig.defaulted "damp"
+        (Sig.typed_control "ngoret-damp" 0.15 Score.Real)
+        "Time that the grace note overlaps with this one. So the total\
+        \ duration is time+damp, though it will be clipped to the\
+        \ end of the current note."
+
+-- * kotekan
 
 parse_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> [Char]
     -> KotekanPattern
@@ -111,8 +133,7 @@ regular_pattern polos sangsih_telu sangsih_pat =
     merge n '-' = n
     merge n _ = n
 
-
--- * patterns
+-- ** patterns
 
 -- | Initially I implemented this as a postproc, but it now seems to me that
 -- it would be more convenient as a generator.  In any case, as a postproc it
@@ -286,7 +307,6 @@ pattern_steps style (polos, sangsih) (KotekanPattern unison p4 s4 p3 s3) =
     normal = map $ \n -> case n of
         Nothing -> []
         Just steps -> [(Nothing, steps)]
-
 
 -- ** implementation
 
