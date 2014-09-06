@@ -163,6 +163,7 @@ derive_track node@(Tree.Node track subs)
     | ParseTitle.is_note_track (TrackTree.track_title track) =
         with_stack $ Cache.track track (TrackTree.track_children node) $ do
             events <- Internal.track_setup track $
+                with_voice track $
                 Note.d_note_track derive_tracks node
             unless (TrackTree.track_sliced track) defragment
             mapM_ (Note.stash_signal_if_wanted events)
@@ -172,6 +173,8 @@ derive_track node@(Tree.Node track subs)
     -- differently, so it goes inside d_control_track.
     | otherwise = with_stack $ Control.d_control_track node (derive_tracks subs)
     where
+    with_voice = maybe id (Derive.with_val Environ.track_voice)
+        . TrackTree.track_voice
     defragment = do
         warp <- Internal.get_dynamic Derive.state_warp
         Internal.modify_collect $ EvalTrack.defragment_track_signals warp

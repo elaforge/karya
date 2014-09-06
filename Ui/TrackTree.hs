@@ -6,6 +6,7 @@ module Ui.TrackTree where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -20,6 +21,8 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
+import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.Score as Score
 import Types
 
 
@@ -144,6 +147,11 @@ data Track = Track {
     -- | If the events have been shifted from their original positions on the
     -- track, add this to them to put them back in TrackTime.
     , track_shifted :: !TrackTime
+    -- | This is the track's track voice, as defined in 'Environ.track_voices'.
+    -- Originally I tried to keep it all within "Derive.Call.BlockUtil", but
+    -- it gets complicated with child tracks and slicing.  Putting it in
+    -- 'Track' ensures it can't get lost.
+    , track_voice :: !(Maybe Int)
     } deriving (Show)
 
 track_range :: Track -> (TrackTime, TrackTime)
@@ -151,7 +159,7 @@ track_range track = (track_shifted track, track_shifted track + track_end track)
 
 instance Pretty.Pretty Track where
     format (Track title events track_id block_id end sliced inverted around
-            shifted) =
+            shifted voice) =
         Pretty.record "Track"
             [ ("title", Pretty.format title)
             , ("events", Pretty.format events)
@@ -162,6 +170,7 @@ instance Pretty.Pretty Track where
             , ("inverted", Pretty.format inverted)
             , ("around", Pretty.format around)
             , ("shifted", Pretty.format shifted)
+            , ("voice", Pretty.format voice)
             ]
 
 make_track :: Text -> Events.Events -> ScoreTime -> Track
@@ -175,6 +184,7 @@ make_track title events end = Track
     , track_inverted = False
     , track_around = ([], [])
     , track_shifted = 0
+    , track_voice = Nothing
     }
 
 block_track_id :: Track -> Maybe (BlockId, TrackId)
@@ -189,19 +199,45 @@ events_tree_of block_id = do
     end <- State.block_ruler_end block_id
     events_tree block_id end info_tree
 
-events_tree :: State.M m => BlockId -> ScoreTime -> TrackTree -> m EventsTree
-events_tree block_id end = mapM resolve
+events_tree :: State.M m => BlockId -> ScoreTime -> [Tree.Tree State.TrackInfo]
+    -> m EventsTree
+events_tree block_id end = mapM resolve . track_voices
     where
-    resolve (Tree.Node (State.TrackInfo title track_id _) subs) =
-        Tree.Node <$> make title track_id <*> mapM resolve subs
-    make title track_id = do
+    resolve (Tree.Node (State.TrackInfo title track_id _, voice) subs) =
+        Tree.Node <$> make title track_id voice <*> mapM resolve subs
+    make title track_id voice = do
         track <- State.get_track track_id
         return $ (make_track title (Track.track_events track) end)
             { track_id = Just track_id
             , track_block_id = Just block_id
+            , track_voice = voice
             }
 
 -- | All the children of this EventsNode with TrackIds.
 track_children :: EventsNode -> Set.Set TrackId
 track_children = List.foldl' (flip Set.insert) Set.empty
     . mapMaybe track_id . Tree.flatten
+
+-- | Each note track with an instrument gets a count and maximum count, so they
+-- can go in 'Environ.track_voice' and 'Environ.track_voices'.
+track_voices :: [Tree.Tree State.TrackInfo]
+    -> [Tree.Tree (State.TrackInfo, Maybe Int)]
+track_voices tracks = map (fmap only_inst) $ count_occurrences inst_of tracks
+    where
+    inst_of = not_empty <=< ParseTitle.title_to_instrument . State.track_title
+        where
+        not_empty inst = if inst == Score.empty_inst then Nothing else Just inst
+    only_inst (track, voice)
+        | Just _ <- inst_of track = (track, Just voice)
+        | otherwise = (track, Nothing)
+
+-- | For each element, give its index amount its equals, and the total number
+-- of elements equal to it.
+count_occurrences ::
+    (Traversable.Traversable f, Traversable.Traversable g, Ord k) =>
+    (a -> k) -> f (g a) -> f (g (a, Int))
+count_occurrences key =
+    snd . (Traversable.mapAccumL . Traversable.mapAccumL) go mempty
+    where
+    go counts x = (Map.insert (key x) (n+1) counts, (x, n))
+        where n = Map.findWithDefault 0 (key x) counts

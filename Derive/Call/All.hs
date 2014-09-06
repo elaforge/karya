@@ -23,6 +23,7 @@ import qualified Derive.Call.Idiom.Wind as Wind
 import qualified Derive.Call.Import as Import
 import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.India.Gamakam2 as Gamakam2
+import qualified Derive.Call.InferTrackVoice as InferTrackVoice
 import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Note as Note
@@ -62,6 +63,7 @@ note_maps = mconcat
     , Highlight.note_calls
     , Idiom.note_calls
     , Import.calls
+    , InferTrackVoice.note_calls
     , Integrate.note_calls
     , Lily.note_calls
     , Note.note_calls

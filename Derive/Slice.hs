@@ -112,6 +112,7 @@ slice exclude_start start end insert_event = map do_slice
         -- Since a note may be inverted and inserted after 'slice_notes'
         -- and its shifting, I have to get the shift from the parent track.
         , TrackTree.track_shifted = shift
+        , TrackTree.track_voice = Nothing
         }
     slice_t track = track
         { TrackTree.track_events = within

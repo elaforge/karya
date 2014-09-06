@@ -10,6 +10,8 @@ import Data.Text (Text)
 import Derive.BaseTypes (ValName)
 
 
+-- * directly supported by core derivers
+
 -- | VAttributes: Default set of attrs.
 attributes :: ValName
 attributes = "attr"
@@ -32,34 +34,10 @@ merge = "merge"
 instrument :: ValName
 instrument = "inst"
 
--- | VNotePitch or VNum (NN): The top of the instrument's range.
---
--- It's a VNotePitch for instruments that are tied to a particular family of
--- scales, and have an upper note that is independent of any particular
--- frequency. For instance, a kantilan's top note will have a different
--- NoteNumber depending on its scale, or even within a single scale, depending
--- if it is pengumbang or pengisep.
---
--- For other instruments without such complicated scale requirements,
--- NoteNumber is simpler.
-instrument_top :: ValName
-instrument_top = "inst-top"
-
-instrument_bottom :: ValName
-instrument_bottom = "inst-bottom"
-
 -- | VList: arguments for a 'Derive.Call.Tags.requires_postproc' call.
 -- Also see 'Derive.Call.Post.make_delayed'.
 args :: ValName
 args = "args"
-
--- | List VPitch: tuning of open strings for this instrument.  The pitches
--- should be probably absolute NNs, not in any scale, so they work regardless
--- of which scale you happen to be in.
---
--- TODO maybe it should be VNotePitch as with 'instrument_top'?
-open_strings :: ValName
-open_strings = "open-strings"
 
 -- | VSymbol: Diatonic transposition often requires a key.  The interpretation
 -- of the value depends on the scale.
@@ -91,6 +69,38 @@ srate = "srate"
 -- with block call stretching.
 tempo :: ValName
 tempo = "tempo"
+
+-- | VNum: this is the count of the tracks with the same instrument, starting
+-- from 0 on the left.  So three tracks named @>pno@ would be 0, 1, and 2,
+-- respectively.  Used with "Derive.Call.InferTrackVoice".
+track_voice :: ValName
+track_voice = "track-voice"
+
+-- * supported by not so core derivers
+
+-- | VNotePitch or VNum (NN): The top of the instrument's range.
+--
+-- It's a VNotePitch for instruments that are tied to a particular family of
+-- scales, and have an upper note that is independent of any particular
+-- frequency. For instance, a kantilan's top note will have a different
+-- NoteNumber depending on its scale, or even within a single scale, depending
+-- if it is pengumbang or pengisep.
+--
+-- For other instruments without such complicated scale requirements,
+-- NoteNumber is simpler.
+instrument_top :: ValName
+instrument_top = "inst-top"
+
+instrument_bottom :: ValName
+instrument_bottom = "inst-bottom"
+
+-- | List VPitch: tuning of open strings for this instrument.  The pitches
+-- should be probably absolute NNs, not in any scale, so they work regardless
+-- of which scale you happen to be in.
+--
+-- TODO maybe it should be VNotePitch as with 'instrument_top'?
+open_strings :: ValName
+open_strings = "open-strings"
 
 -- | VSymbol: Kind of tuning for the scale in scope.  The meaning is dependent
 -- on the scale, e.g. ngumbang ngisep for Balinese scales.

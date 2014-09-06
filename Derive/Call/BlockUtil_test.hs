@@ -11,6 +11,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -64,3 +65,16 @@ test_control_call = do
         ([(0, 1), (1, 0.5), (2, 1), (3, 0.5)], [])
     equal (run $ UiTest.regular_notes 4 ++ [dyn_call])
         ([(0, 1), (1, 0.5), (2, 1), (3, 0.5)], [])
+
+test_track_voice = do
+    let run skel = DeriveTest.extract extract
+            . DeriveTest.derive_tracks_with_ui id (DeriveTest.with_skel skel) ""
+        extract :: Score.Event -> Maybe Int
+        extract = DeriveTest.e_environ_val Environ.track_voice
+        track inst = (inst, [(0, 1, "")])
+    equal (run [] [track ">s/1", track ">s/2", track ">s/1", track ">"])
+        ([Just 0, Just 0, Just 1, Nothing], [])
+    equal (run [(1, 2), (1, 3)] [(">s/1", []), track ">s/1", track ">s/1"])
+        ([Just 1, Just 2], [])
+    equal (run [(1, 2), (1, 3)] [("dyn", []), track ">s/1", track ">s/1"])
+        ([Just 0, Just 1], [])

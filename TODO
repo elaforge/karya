@@ -3,7 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - I could also get same-track by automatically assigning a tracknum env var.
+  - cache not invalidated: modify bug/cache to change %t-diatonic=5 to
+    %t-dia=5, it still has the old performance.
+  * I could also get same-track by automatically assigning a tracknum env var.
     . The problem is that I rely in postproc inferring the pitch now, but that
       requires a previous event, which in turn requires a hand or voice.
       That's a hassle I didn't have to do before, but in exchange I get proper
@@ -38,8 +40,8 @@ UNSORTED
       track arguments.  To do that, I'd need some more UI, e.g.
       a generalization of the skeleton where you can put function calls in the
       middle too.  Probably not worth it.
-    - Set Environ.track_voice in block deriver.
-    - Then I need >kontakt/gender to add a 'infer-track-voice' call.  Then
+    * Set Environ.track_voice in block deriver.
+    * Then I need >kontakt/gender to add a 'infer-track-voice' call.  Then
       I can write '>g = infer-track-voice' in local defs and get that
       automatically.
     . But first, make sure I really want this.  I think if I'm writing kotekan
@@ -49,6 +51,11 @@ UNSORTED
       instruments, e.g. >polos-umbang, >polos-isep, >sangsih-umbang,
       >sangsih-isep.  A >gangsa instrument would split 4 ways, and a >polos
       would split 2 ways, in the same way.
+    . For gender pieces, I have (>p (>, >)) (>s (>, >)) that would have to
+      become (>p (> | hand=l, > | hand=r)), or (>p | hand=l, >p | hand=r).
+      If >p is a transform call instead of an inst, can I have one that
+      assigns each subtrack to its own hand?  I'd need a track call, e.g.
+      case subtracks of { [left, right] -> ...; _ -> throw "expected two" }
   * use generic deriving to get rid of TypecheckEnum?
     I'd really like to get rid of TrackLang.E.  I would have to make
     default implementations for Typecheck.
@@ -972,7 +979,7 @@ Derive:
       - irregularize runs based on fingering patterns, e.g. groups of 3
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
-    - overblow emulation: a set of overblow ranges are defined, along with
+    * overblow emulation: a set of overblow ranges are defined, along with
       possible pitches for each one (fundamental and overblow harmonics).
       When a note moves from one to another, start a new note at the
       destination pitch and bend the decay of the old one to the fundamental
@@ -1070,7 +1077,7 @@ Derive:
           ngoret note call just emits an extra 'ngoret' tagged event.
           . I could do this with event_stack, e.g. just look at the innermost
             Call.
-      - errors for Gender.realize_ngoret
+      * errors for Gender.realize_ngoret
       kotekan ornaments
         - control for norot +mute
         - gender norot: control for polos 234- vs. 434-

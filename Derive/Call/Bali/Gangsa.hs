@@ -13,6 +13,7 @@
     threshold is passed.  Notes are also possible muted.
 
     There are a number of ways this can be extended:
+
     - Use any attribute instead of just mute.
     - More instruments than just polos and sangsih.
     - Multiple kotekan thresholds.
@@ -20,6 +21,7 @@
     The first two are supported at the 'PatternNote' level of abstraction.  For
     the others, I have to either directly use 'Note's or create a new
     abstraction:
+
     - Variable durations.
     - Line up at the start of the event instead of the end.
 -}
