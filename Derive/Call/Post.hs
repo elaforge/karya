@@ -71,6 +71,14 @@ import Types
 emap1 :: (a -> b) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
 emap1 = map . fmap
 
+-- | 'Data.Maybe.catMaybes' for LEvents.
+cat_maybes :: [LEvent.LEvent (Maybe a)] -> [LEvent.LEvent a]
+cat_maybes [] = []
+cat_maybes (x : xs) = case x of
+    LEvent.Log log -> LEvent.Log log : cat_maybes xs
+    LEvent.Event (Just e) -> LEvent.Event e : cat_maybes xs
+    LEvent.Event Nothing -> cat_maybes xs
+
 -- | 1:n non-monadic map with state.
 emap :: (state -> a -> (state, [b])) -> state
     -> [LEvent.LEvent a] -> (state, [[LEvent.LEvent b]])
@@ -167,8 +175,8 @@ time_control :: TrackLang.ValControl -> Derive.Events
 time_control = control (RealTime.seconds . Score.typed_val)
 
 -- | Zip each event up with its neighbors.
-neighbors :: [LEvent.LEvent a] -> [LEvent.LEvent (Maybe a, a, Maybe a)]
-neighbors events = emap1 (\(ps, ns, e) -> (Seq.head ps, e, Seq.head ns)) $
+neighbors :: [LEvent.LEvent a] -> [LEvent.LEvent ([a], a, [a])]
+neighbors events = emap1 (\(ps, ns, e) -> (ps, e, ns)) $
     LEvent.zip3 (prevs events) (nexts events) events
 
 -- | Extract subsequent events.

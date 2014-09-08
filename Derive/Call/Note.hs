@@ -211,9 +211,10 @@ default_note config args = do
     let adjusted_end = duration_attributes config control_vals attrs start end
     -- Add a attribute to get the arrival-note postproc to figure out the
     -- duration.  Details in "Derive.Call.Post.ArrivalNote".
-    let add_arrival = if is_arrival
-            then Score.add_attributes Attrs.arrival_note else id
-    return [LEvent.Event $ add_arrival $
+    let add_infer = if last_event || is_arrival
+            then Score.add_attributes Attrs.infer_duration else id
+        last_event = null (Args.next_events args) && start == end
+    return [LEvent.Event $ add_infer $
         make_event args dyn control_vals start (adjusted_end - start) real_next]
 
 -- | This is the canonical way to make a Score.Event.  It handles all the

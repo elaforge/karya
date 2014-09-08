@@ -55,6 +55,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
@@ -67,7 +68,10 @@ import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps [] [("arrival-note", c_arrival_note)]
+note_calls = Derive.transformer_call_map
+    [ ("arrival-note", c_arrival_note)
+    , ("infer-duration", c_infer_duration)
+    ]
 
 c_arrival_note :: Derive.Transformer Derive.Note
 c_arrival_note = Derive.transformer Module.prelude "arrival-note" Tags.postproc
@@ -91,13 +95,13 @@ arrival_note final_dur events = zipWith go events (drop 1 (List.tails events))
     where
     go log@(LEvent.Log _) _ = log
     go event@(LEvent.Event e) _
-        | not (Score.has_attribute Attrs.arrival_note e) = event
+        | not (Score.has_attribute Attrs.infer_duration e) = event
     go (LEvent.Event event) rest = case find_next event rest of
         Nothing -> LEvent.Event $ set_dur final_dur event
         Just next -> LEvent.Event $ flip set_dur event $ Note.adjust_duration
             (Score.event_start event) (Score.event_duration event)
             (Score.event_start next) (Score.event_duration next)
-    set_dur dur = Score.remove_attributes Attrs.arrival_note
+    set_dur dur = Score.remove_attributes Attrs.infer_duration
         . Score.set_duration dur
 
 find_next :: Score.Event -> Derive.Events -> Maybe Score.Event
@@ -108,3 +112,36 @@ voice_of :: Score.Event -> (Score.Instrument, Maybe TrackLang.Symbol, Maybe Int)
 voice_of event =
     (Score.event_instrument event, lookup Environ.hand, lookup Environ.voice)
     where lookup name = TrackLang.maybe_val name (Score.event_environ event)
+
+
+-- * infer duration
+
+c_infer_duration :: Derive.Transformer Derive.Note
+c_infer_duration = Derive.transformer Module.prelude "infer-duration"
+    Tags.postproc "Infer durations for `+infer-duration` events."
+    $ Sig.callt
+    ( Sig.defaulted "final-duration" 1
+        "If there is no following note, infer this duration."
+    ) $ \final_dur _args deriver -> infer_duration final_dur <$> deriver
+
+infer_duration :: RealTime -> Derive.Events -> Derive.Events
+infer_duration final_dur = infer_notes . cancel_notes
+    where
+    zip_with f xs = LEvent.zip (f xs) xs
+    infer_notes = Post.emap1 infer . zip_with Post.nexts
+    cancel_notes = Post.cat_maybes . Post.emap1 cancel . zip_with Post.prevs
+
+    -- TODO this is no good, it will be broken by randomization
+    -- I want to know I have end of a block +infer-duration and at TrackTime 0
+    cancel (prevs, event)
+        | Just prev <- Seq.head (Post.same_hand event prevs), has_infer prev
+            && Score.event_start prev == Score.event_start event = Nothing
+        | otherwise = Just event
+    infer (nexts, event)
+        | not (has_infer event) = event
+        | Just next <- Seq.head (Post.same_hand event nexts) =
+            set_dur (Score.event_start next - Score.event_start event) event
+        | otherwise = set_dur final_dur event
+    set_dur dur = Score.remove_attributes Attrs.infer_duration
+        . Score.set_duration dur
+    has_infer = Score.has_attribute Attrs.infer_duration

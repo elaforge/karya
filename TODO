@@ -3,6 +3,34 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * a 0 note at the end of a block should infer its duration
+    I can have note entry at the end of a ruler automatically make it -0
+    Then I have to make sure to resolve the negative durations before
+    realize-ngoret.
+    - I need a better way to cancel events at the beginning of a block than
+      seeing if it has the same start time.
+      . Can the note deriver even tell?  Args.event is unreliable because
+        Util.note sets it to (0, 1).  Otherwise, I could use
+        Args.range_on_track.  It's error-prone anyway, because e.g. duration
+        0 events can still have Args.duration == 1.
+      . Or is it really so bad?  The warp is supposed to be deterministic, and
+        in general an +infer-duration is supposed to cancel notes at the same
+        time.  Well, while warp is deterministic, notes themselves may place
+        randomly, that's how randomization works.
+    . What if I make the block have a negative duration to signify that it
+      gets signals from the end, not the beginning?  I still need to
+      distinguish between "sample" signals and continuous signals.  E.g.
+      a filter cutoff wouldn't have this behaviour, but transposition could be
+      for the whole note, or it could also be to bend the pitch.
+    . Does this mean I can get rid of negative durations entirely?
+    - This has a problem when the next block starts off with a transpose.
+      I want to say that the transpose doesn't apply to the last event of the
+      previous block.
+      . I could put the transpose inside the block, but the whole point is the
+        block is the same except the
+      . Can I have the last event of a block look at signals before the point?
+  - chained transformers should work lazily, right?  Make sure with trace.
+  - simple legato transformer to make a note overlap the next one
   - cache not invalidated: modify bug/cache to change %t-diatonic=5 to
     %t-dia=5, it still has the old performance.
   * I could also get same-track by automatically assigning a tracknum env var.
