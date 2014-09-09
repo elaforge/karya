@@ -111,7 +111,11 @@ ngoret is_standalone module_ late_damping damp_arg maybe_transpose =
             Nothing -> grace_start
             Just prev -> max grace_start $ (prev + Args.start args) / 2
         overlap <- Util.score_duration (Args.start args) damp
-        let grace_end = min (Args.end args) (Args.start args + overlap)
+        -- I originally would limit the grace note to (Args.end args), but
+        -- that's no good if this note is Flags.infer_duration.  Instead, I can
+        -- get 'realize_ngoret' to shorted the duration, if necessary.
+        -- TODO but I don't yet, implement if I actually need it.
+        let grace_end = Args.start args + overlap
         Derive.place grace_start (grace_end - grace_start)
                 (with_damped $ Util.with_dynamic dyn grace_note)
             <> Derive.place (Args.start args) (Args.duration args) Util.note

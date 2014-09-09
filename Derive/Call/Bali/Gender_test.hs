@@ -86,7 +86,7 @@ test_ngoret = do
 
 test_ngoret_infer_duration = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
-        top = "top -- " ++ transform ++ " | infer-duration"
+        top = "top -- " ++ transform ++ " | realize-ngoret | infer-duration"
     -- This also tests the interaction between the default note deriver and
     -- infer-duration, when invoked via Util.note.
     equal (run
@@ -94,8 +94,17 @@ test_ngoret_infer_duration = do
             , ("sub=ruler", UiTest.note_track
                 [(0, 1, "4c"), (1, 0, "' .5 .5 -- 4e")])
             ])
-        ([(0, 1, "4c"), (0.5, 0.5, "4d"), (1, 1, "4e"), (1.5, 0.5, "4d"),
+        ([(0, 1.5, "4c"), (0.5, 1, "4d"), (1, 1.5, "4e"), (1.5, 1, "4d"),
             (2, 1, "4e")], [])
+    --    sub      sub
+    --    4c    '4e|4c      '4e|
+    -- 4c ------------
+    -- 4d       ------      ------
+    -- 4e           --------------
+    -- 4e                      ------
+    --
+    -- TODO Notice that 4e overlaps itself.  To fix this, I need restrikes
+    -- to shorten the original.
 
 test_ngoret_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch
