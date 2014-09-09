@@ -20,6 +20,11 @@ test_constant_val = do
     equal (f [(3, 2)]) Nothing
     equal (f [(0, 1), (3, 1)]) (Just 1)
 
+test_before = do
+    let f x = Signal.before x . signal
+    equal (f 2 [(2, 1), (2, 2)]) 0
+    equal (f 3 [(2, 1), (2, 2)]) 2
+
 test_at_linear = do
     let f vec x = Signal.at_linear x (signal vec)
     equal (map (f [(2, 2), (4, 0)]) (Seq.range 0 5 1)) [0, 0, 2, 1, 0, 0]

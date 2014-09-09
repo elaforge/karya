@@ -30,8 +30,9 @@ module Perform.Signal (
     , check, check_warp
 
     -- * access
-    , at, sample_at, at_linear, at_linear_extend, constant_val
+    , at, sample_at, at_linear, at_linear_extend, before, constant_val
     , head, last, uncons
+    , Sample(..)
 
     -- * transformation
     , merge, concat, interleave, prepend
@@ -41,7 +42,8 @@ module Perform.Signal (
     , sig_max, sig_min, scalar_max, scalar_min, clip_bounds
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift
-    , take, drop, within, drop_after, drop_before, drop_before_strict
+    , take, drop, drop_while, within
+    , drop_after, drop_before, drop_before_strict
     , map_x, map_y, map_err
 
     -- ** special functions
@@ -67,6 +69,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as V
+import Util.TimeVector (Sample(..))
 
 import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
@@ -198,7 +201,7 @@ null = V.null . sig_vec
 coerce :: Signal y1 -> Signal y2
 coerce (Signal vec) = Signal vec
 
-with_ptr :: Display -> (Foreign.Ptr (V.Sample Double) -> Int -> IO a) -> IO a
+with_ptr :: Display -> (Foreign.Ptr (Sample Double) -> Int -> IO a) -> IO a
 with_ptr sig f = V.with_ptr (sig_vec sig) $ \sigp ->
     f sigp (V.length (sig_vec sig))
 
@@ -211,7 +214,7 @@ check = V.check . sig_vec
 check_warp :: Warp -> [String]
 check_warp = reverse . fst . Vector.foldl' check ([], (0, 0, 0)) . sig_vec
     where
-    check (warns, (i, prev_x, prev_y)) (V.Sample x y)
+    check (warns, (i, prev_x, prev_y)) (Sample x y)
         | x < prev_x = first ("index " <> show i <> ": x decreased: "
             <> show x <> " < " <> show prev_x :) next
         | y < prev_y = first ("index " <> show i <> ": y decreased: "
@@ -266,6 +269,10 @@ at_linear_extend x sig = interpolate vec (V.highest_index x vec)
         (x1, y1) = index (i+1)
     index = V.to_pair . V.index vec
 
+-- | Find the value immediately before the point.
+before :: RealTime -> Signal y -> Y
+before x = maybe 0 sy . V.before x . sig_vec
+
 -- | Just if the signal is constant.
 constant_val :: Signal y -> Maybe Y
 constant_val = V.constant_val . sig_vec
@@ -279,7 +286,7 @@ last = fmap V.to_pair . V.last . sig_vec
 uncons :: Signal y -> Maybe ((X, Y), Signal y)
 uncons sig = case V.uncons (sig_vec sig) of
     Nothing -> Nothing
-    Just (V.Sample x y, vec) -> Just ((x, y), Signal vec)
+    Just (Sample x y, vec) -> Just ((x, y), Signal vec)
 
 
 -- * transformation
@@ -346,10 +353,10 @@ clip_bounds low high sig = (clipped, reverse out_of_range)
     out_of_range = case (in_clip, last sig) of
         (Just start, Just (end, _)) -> (start, end) : ranges
         _ -> ranges
-    go state@(accum, Nothing) (V.Sample x y)
+    go state@(accum, Nothing) (Sample x y)
         | y < low || y > high = (accum, Just x)
         | otherwise = state
-    go state@(accum, Just start) (V.Sample x y)
+    go state@(accum, Just start) (Sample x y)
         | y < low || y > high = state
         | otherwise = ((start, x) : accum, Nothing)
 
@@ -362,6 +369,9 @@ take = modify_vec . V.take
 
 drop :: Int -> Signal y -> Signal y
 drop = modify_vec . V.drop
+
+drop_while :: (Sample Y -> Bool) -> Signal y -> Signal y
+drop_while = modify_vec . Vector.dropWhile
 
 within :: X -> X -> Signal y -> Signal y
 within start end = modify_vec $ V.within start end
@@ -381,8 +391,7 @@ map_x = modify_vec . V.map_x
 map_y :: (Y -> Y) -> Signal y -> Signal y
 map_y = modify_vec . V.map_y
 
-map_err :: (V.Sample Y -> Either err (V.Sample Y))
-    -> Signal y -> (Signal y, [err])
+map_err :: (Sample Y -> Either err (Sample Y)) -> Signal y -> (Signal y, [err])
 map_err f = first Signal . V.map_err f . sig_vec
 
 sig_op :: (Y -> Y -> Y) -> Signal y -> Signal y -> Signal y
@@ -414,8 +423,8 @@ inverse_at y sig
     where
     vec = sig_vec sig
     i = bsearch_y y vec
-    V.Sample x0 y0 = if i <= 0 then V.Sample 0 0 else V.index vec (i-1)
-    V.Sample x1 y1 = V.index vec i
+    Sample x0 y0 = if i <= 0 then Sample 0 0 else V.index vec (i-1)
+    Sample x1 y1 = V.index vec i
 
 -- | This is like 'inverse_at', except that if the Y value is past the end
 -- of the signal, it extends the signal at 1:1 as far as necessary.  When
@@ -434,7 +443,7 @@ bsearch_y y vec = go 0 (V.length vec)
     where
     go low high
         | low == high = low
-        | y <= V.sy (V.unsafeIndex vec mid) = go low mid
+        | y <= sy (V.unsafeIndex vec mid) = go low mid
         | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
 
@@ -492,21 +501,21 @@ compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) gen
         | gy0 == gy = gen_flat gx gx0 gy0
         | otherwise = gen_normal gx gy
         where
-        V.Sample gx gy = Vector.unsafeIndex (sig_vec g) i
-        V.Sample gx0 gy0
-            | i == 0 = V.Sample 0 0
+        Sample gx gy = Vector.unsafeIndex (sig_vec g) i
+        Sample gx0 gy0
+            | i == 0 = Sample 0 0
             | otherwise = Vector.unsafeIndex (sig_vec g) (i-1)
     gen_flat gx gx0 gy0 = do
         (y0, _) <- Monad.State.get
         let y = y0 + x_to_y (gx - gx0)
             offset = inverse_at_extend y f - y_to_real gy0
         Monad.State.put (y, offset)
-        return $ V.Sample gx y
+        return $ Sample gx y
     gen_normal gx gy = do
         (_, offset) <- Monad.State.get
         let y = at_linear (y_to_real gy + offset) f
         Monad.State.put (y, offset)
-        return $ V.Sample gx y
+        return $ Sample gx y
 
 -- | Integrate the signal.
 --
@@ -526,12 +535,12 @@ integrate :: X -> Tempo -> Warp
 integrate srate = coerce . modify_vec (V.concat_map_accum 0 go final 0)
     where
     go = integrate_segment srate
-    final accum (V.Sample x _) = [V.Sample x accum]
+    final accum (Sample x _) = [Sample x accum]
 
-integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [V.Sample Y])
+integrate_segment :: X -> Y -> X -> Y -> X -> Y -> (Y, [Sample Y])
 integrate_segment srate accum x0 y0 x1 _y1
     | x0 >= x1 = (accum, [])
-    | otherwise = (y_at x1, [V.Sample x (y_at x) | x <- xs])
+    | otherwise = (y_at x1, [Sample x (y_at x) | x <- xs])
     where
     xs = Seq.range' x0 x1 srate
     y_at x = accum + x_to_y (x-x0) * y0
@@ -558,8 +567,8 @@ unwarp_fused w shift stretch = coerce . modify_vec (V.map_x unwarp)
     where unwarp x = (inverse_at_extend (x_to_y x) w - shift) / stretch
 
 invert :: Warp -> Warp
-invert = modify_vec $ Vector.map $ \(V.Sample x y) ->
-    V.Sample (y_to_real y) (x_to_y x)
+invert = modify_vec $ Vector.map $ \(Sample x y) ->
+    Sample (y_to_real y) (x_to_y x)
 
 --- * comparison
 

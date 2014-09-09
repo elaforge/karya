@@ -12,10 +12,11 @@ module Derive.PitchSignal (
     -- * apply controls
     , apply_controls, apply_control
     -- * signal functions
-    , null, at, sample_at, shift, head, last
-    , take, drop, drop_after, drop_before, drop_before_strict
+    , null, at, sample_at, before, shift, head, last
+    , take, drop, drop_while, drop_after, drop_before, drop_before_strict
     , map_y
     , prepend
+    , Sample(..)
     -- * Pitch
     , Pitch, PitchConfig(..), pitch_scale_id, pitch_transposers
     , pitch_controls
@@ -33,6 +34,7 @@ import qualified Data.Vector as V
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
+import Util.TimeVector (Sample(..))
 
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as TrackLang
@@ -63,8 +65,7 @@ sig_scale_id :: Signal -> Pitch.ScaleId
 sig_scale_id = pscale_scale_id . sig_scale
 
 sig_scale :: Signal -> Scale
-sig_scale = maybe no_scale (pitch_scale . TimeVector.sy)
-    . TimeVector.head . sig_vec
+sig_scale = maybe no_scale (pitch_scale . sy) . TimeVector.head . sig_vec
 
 modify_vector :: (TimeVector.Boxed Pitch -> TimeVector.Boxed Pitch)
     -> Signal -> Signal
@@ -125,7 +126,7 @@ apply_controls environ controls sig
         (\vmap -> coerce . apply environ vmap)
         (sample_controls controls (sig_transposers sig))
         (sig_vec sig)
-    TimeVector.Sample start initial_pitch = V.unsafeHead (sig_vec sig)
+    Sample start initial_pitch = V.unsafeHead (sig_vec sig)
     initial_controls = controls_at start controls
 
 -- | Sample the ControlMap on the sample points of the given set of controls.
@@ -162,6 +163,10 @@ at x = TimeVector.at x . sig_vec
 sample_at :: RealTime -> Signal -> Maybe (RealTime, Pitch)
 sample_at x = TimeVector.sample_at x . sig_vec
 
+-- | Find the pitch immediately before the point.
+before :: RealTime -> Signal -> Maybe Pitch
+before x = fmap sy . TimeVector.before x . sig_vec
+
 shift :: RealTime -> Signal -> Signal
 shift x = modify_vector (TimeVector.shift x)
 
@@ -176,6 +181,9 @@ take = modify_vector . TimeVector.take
 
 drop :: Int -> Signal -> Signal
 drop = modify_vector . TimeVector.drop
+
+drop_while :: (Sample Pitch -> Bool) -> Signal -> Signal
+drop_while f = modify_vector (V.dropWhile f)
 
 drop_after :: RealTime -> Signal -> Signal
 drop_after = modify_vector . TimeVector.drop_after

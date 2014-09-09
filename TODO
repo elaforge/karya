@@ -3,32 +3,87 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Gender infer-pitch should be a flag.
+  - floating edit input at the bottom of a block should appear above
+  - it seems like "floating_input" would be a better name than "edit_input"
+  - replace VAttributes with a general purpose VSet.
+  - TimeVector.drop_after should be drop_at_after
   * a 0 note at the end of a block should infer its duration
     I can have note entry at the end of a ruler automatically make it -0
     Then I have to make sure to resolve the negative durations before
     realize-ngoret.
-    - I need a better way to cancel events at the beginning of a block than
+    * I need a better way to cancel events at the beginning of a block than
       seeing if it has the same start time.
       . Can the note deriver even tell?  Args.event is unreliable because
         Util.note sets it to (0, 1).  Otherwise, I could use
         Args.range_on_track.  It's error-prone anyway, because e.g. duration
-        0 events can still have Args.duration == 1.
+        0 events can still have Args.duration == 1.  The underlying problem is
+        that I should use the warp and 0t--1t for note duration, but instead
+        use a combination of the warp and of the event.
+        . It's actually impossible to know where an event is on a track.
+          To know I could look at the stack
       . Or is it really so bad?  The warp is supposed to be deterministic, and
         in general an +infer-duration is supposed to cancel notes at the same
         time.  Well, while warp is deterministic, notes themselves may place
         randomly, that's how randomization works.
-    . What if I make the block have a negative duration to signify that it
-      gets signals from the end, not the beginning?  I still need to
-      distinguish between "sample" signals and continuous signals.  E.g.
-      a filter cutoff wouldn't have this behaviour, but transposition could be
-      for the whole note, or it could also be to bend the pitch.
+    * I could have the +infer-duration note take the duration of the
+      cancelled note it replaces, if there is one.  This would give a way
+      to control the inferred duration.
     . Does this mean I can get rid of negative durations entirely?
-    - This has a problem when the next block starts off with a transpose.
+    * This has a problem when the next block starts off with a transpose.
       I want to say that the transpose doesn't apply to the last event of the
       previous block.
-      . I could put the transpose inside the block, but the whole point is the
-        block is the same except the
       . Can I have the last event of a block look at signals before the point?
+      . What if I make the block have a negative duration to signify that it
+        gets signals from the end, not the beginning?  I still need to
+        distinguish between "sample" signals and continuous signals.  E.g.
+        a filter cutoff wouldn't have this behaviour, but transposition could
+        be for the whole note, or it could also be to bend the pitch.
+      . If I say before sample, it doesn't get the controls that are on the
+        same block, explicitly on the this event!  What I want is to replace
+        the sample at 'start', the same way the event is replaced.
+      . But what about the t-dia from the caller?  I still need to get the
+        sample before! The thing is, I want the same at when it is attached
+        to the event, but not when it comes from the caller, and there's no
+        way to tell the difference.  What I want is the whole block to
+        not include 'end' from the environ.
+      * I think that has to be done at block call time, it would trim the
+        signals to exclude the end of the block.
+      * Then make infer-duration take the first sample from the inferred
+        event, and the rest from the replaced one.  But if there is none,
+        how do I get controls?  There's no way to get controls from the block,
+        since they're not attached to any note, but what about ones from the
+        caller?
+      * I should put these tags in a different place than Environ.attributes,
+        and leave attributes for the instrument.
+      . I don't want to trim because I might need the controls if I extend the
+        duration.  I do want to trim because I don't want e.g. t-dia at start
+        from the caller, but I do want pitch at start from the block.
+      . t-dia:  0   1   0
+                b1  b2
+                a b|c   d
+                a b|    d
+      - If 'c' is present, then I clip off t-dia because I drop controls
+        starting at 1.  The starts are replaced with ones from b1.
+        So the sample at 'start' should come from the local block only.
+        Samples after start can be used from global.  So what if the block
+        call just deleted samples at exactly block end?  Any local tracks
+        could put a sample there, but otherwise the event gets control signal
+        afterwards.  If there is a note to replace, the >start samples are
+        replaced, but otherwise, I get the ones from the caller.
+      . E.g. global filter sweep.  A infer-duration note would stick out
+        because the sweep is meant to be continuous.  In this case, I can
+        just use the untrimmed control.  But t-dia should not do that, unless
+        I really am treating it continuously.  This is the same problem as
+        whether a control should continue changing into the decay or not.  The
+        sweep should, but a pitch belongs to the next note.  So maybe this is
+        a fundamental limitation of the score language.
+
+        shouldn't I get the samples from the untrimmed global environ?
+        I would have to stash the untrimmed versions when the block is called,
+        and then stash them in the +infer-duration note so it can use them
+        once it figures out the duration.  Ugh.
+    - I can probably get rid of standalone ngoret.
   - chained transformers should work lazily, right?  Make sure with trace.
   - simple legato transformer to make a note overlap the next one
   - cache not invalidated: modify bug/cache to change %t-diatonic=5 to

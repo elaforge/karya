@@ -79,12 +79,25 @@ c_block block_id = Derive.make_call Module.prelude ("block " <> showt block_id)
         -- on the stack.
         Internal.with_stack_block block_id (Cache.block run args)
     where
-    run args = Derive.place start (end-start)
-            (mangle_controls args (d_block block_id))
+    run args = Derive.place start (end-start) $ trim args (d_block block_id)
         where (start, end) = Args.range args
-    mangle_controls args
-        | Event.positive (Args.event args) = id
-        | otherwise = constant_controls_at
+    trim args deriver = do
+        end <- Derive.real (1 :: ScoreTime)
+        if Event.positive (Args.event args) then trim_controls end deriver
+            else constant_controls_at end deriver
+
+-- | Trim all controls to stop before the given RealTime.  This is to support
+-- final block notes and 'Derive.Flags.infer_duration'.  Otherwise, an event
+-- at the end of a block will pick up controls (e.g. a transposition change)
+-- that is meant to start at the beginning of the next block.
+trim_controls :: RealTime -> Derive.Deriver a -> Derive.Deriver a
+trim_controls end = Internal.local $ \dyn -> dyn
+    { Derive.state_controls =
+        fmap (Signal.drop_after end) <$> Derive.state_controls dyn
+    , Derive.state_pitch = PitchSignal.drop_after end (Derive.state_pitch dyn)
+    , Derive.state_pitches =
+        PitchSignal.drop_after end <$> Derive.state_pitches dyn
+    }
 
 block_call_doc :: Text
 block_call_doc =
@@ -98,20 +111,17 @@ block_call_doc =
 -- the event, time-wise.  Since 'Derive.place' has already been called, that's
 -- ScoreTime 1.
 --
--- Details in "Derive.Call.Post.ArrivalNote".
-constant_controls_at :: Derive.Deriver a -> Derive.Deriver a
-constant_controls_at deriver = do
-    start <- Derive.real (1 :: ScoreTime)
-    Internal.local (constant start) deriver
+-- Details in "Derive.Call.Post.ArrivalNote".  TODO probabbly get rid of this
+constant_controls_at :: RealTime -> Derive.Deriver a -> Derive.Deriver a
+constant_controls_at start = Internal.local $ \dyn -> dyn
+    { Derive.state_controls =
+        Map.map (fmap (Signal.constant . Signal.at start))
+            (Derive.state_controls dyn)
+    , Derive.state_pitch = pitch_at start (Derive.state_pitch dyn)
+    , Derive.state_pitches =
+        Map.map (pitch_at start) (Derive.state_pitches dyn)
+    }
     where
-    constant start dyn = dyn
-        { Derive.state_controls =
-            Map.map (fmap (Signal.constant . Signal.at start))
-                (Derive.state_controls dyn)
-        , Derive.state_pitch = pitch_at start (Derive.state_pitch dyn)
-        , Derive.state_pitches =
-            Map.map (pitch_at start) (Derive.state_pitches dyn)
-        }
     pitch_at p = maybe mempty PitchSignal.constant . PitchSignal.at p
 
 d_block :: BlockId -> Derive.NoteDeriver

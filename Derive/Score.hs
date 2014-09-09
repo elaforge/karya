@@ -15,6 +15,7 @@ module Derive.Score (
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
@@ -29,6 +30,7 @@ import Derive.BaseTypes
         set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
         attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
+import qualified Derive.Flags as Flags
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Stack as Stack
 
@@ -57,6 +59,10 @@ data Event = Event {
     , event_highlight :: !Color.Highlight
     , event_instrument :: !Instrument
     , event_environ :: !BaseTypes.Environ
+    -- | Flags have their own field rather than being in 'event_environ', this
+    -- emphasizes that they're meant to be used by calls and not from the
+    -- score.
+    , event_flags :: !Flags.Flags
     } deriving (Show)
 
 empty_event :: Event
@@ -71,6 +77,7 @@ empty_event = Event
     , event_highlight = Color.NoHighlight
     , event_instrument = empty_inst
     , event_environ = mempty
+    , event_flags = mempty
     }
 
 event_end :: Event -> RealTime
@@ -81,6 +88,18 @@ event_end event = event_start event + event_duration event
 event_min, event_max :: Event -> RealTime
 event_min event = min (event_start event) (event_end event)
 event_max event = max (event_start event) (event_end event)
+
+-- ** flags
+
+has_flags :: Flags.Flags -> Event -> Bool
+has_flags flags = Set.isSubsetOf flags . event_flags
+
+add_flags :: Flags.Flags -> Event -> Event
+add_flags flags event = event { event_flags = flags <> event_flags event }
+
+remove_flags :: Flags.Flags -> Event -> Event
+remove_flags flags event =
+    event { event_flags = event_flags event Set.\\ flags }
 
 -- ** environ
 
@@ -117,12 +136,13 @@ remove_attributes attrs event
     | otherwise = modify_attributes (attrs_remove attrs) event
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur text controls pitch pitches _ _ _ _) =
+    rnf (Event start dur text controls pitch pitches _ _ _ _ flags) =
         rnf start `seq` rnf dur `seq` rnf text `seq` rnf controls
-            `seq` rnf pitch `seq` rnf pitches
+            `seq` rnf pitch `seq` rnf pitches `seq` rnf flags
 
 instance Pretty.Pretty Event where
-    format (Event start dur txt controls pitch pitches stack highl inst env) =
+    format (Event start dur txt controls pitch pitches stack highl inst env
+            flags) =
         Pretty.record (Pretty.text "Event" Pretty.<+> Pretty.format (start, dur)
                 Pretty.<+> Pretty.format txt)
             [ ("instrument", Pretty.format inst)
@@ -132,6 +152,7 @@ instance Pretty.Pretty Event where
             , ("stack", Pretty.format stack)
             , ("highlight", Pretty.text $ show highl)
             , ("environ", Pretty.format env)
+            , ("flags", Pretty.format flags)
             ]
 
 event_scale_id :: Event -> Pitch.ScaleId

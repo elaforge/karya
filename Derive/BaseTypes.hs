@@ -162,6 +162,10 @@ instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where
 instance Functor Typed where
     fmap f (Typed typ val) = Typed typ (f val)
 
+instance Monoid.Monoid a => Monoid.Monoid (Typed a) where
+    mempty = Typed mempty mempty
+    mappend (Typed t1 v1) (Typed t2 v2) = Typed (t1<>t2) (v1<>v2)
+
 instance Pretty.Pretty a => Pretty.Pretty (Typed a) where
     format (Typed typ val) =
         Pretty.text (if null c then "" else c ++ ":") <> Pretty.format val

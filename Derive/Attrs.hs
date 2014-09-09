@@ -142,10 +142,3 @@ v3 = attr "v3"
 v4 = attr "v4"
 v5 = attr "v5"
 v6 = attr "v6"
-
--- * post-proc
-
--- | This is a signal to the arrival postproc to find the next note and adjust
--- the duration.  See "Derive.Call.Post.ArrivalNote" for details.
-infer_duration :: Attributes
-infer_duration = attr "infer-duration"

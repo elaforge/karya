@@ -224,6 +224,14 @@ sample_at x vec
         _ -> Nothing
     where i = highest_index x vec
 
+{-# SPECIALIZE before :: X -> Unboxed -> Maybe (Sample UnboxedY) #-}
+{-# INLINEABLE before #-}
+before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (Sample y)
+before x vec
+    | i > 0 = Just $ V.unsafeIndex vec (i-1)
+    | otherwise = Nothing
+    where i = lowest_index x vec
+
 -- | Samples at and above the given time.
 ascending :: V.Vector v (Sample y) => X -> v (Sample y) -> [Sample y]
 ascending x vec =

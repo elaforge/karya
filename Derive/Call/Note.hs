@@ -11,7 +11,7 @@ module Derive.Call.Note (
     , GenerateNote, default_note, make_event
     , adjust_duration
 #ifdef TESTING
-    , trimmed_controls, min_duration
+    , min_duration
 #endif
 ) where
 import qualified Data.Map as Map
@@ -33,10 +33,12 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
+import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -204,25 +206,34 @@ default_note config args = do
     real_next <- Derive.real (Args.next args)
     (end, is_arrival) <- adjust_end start end $ Seq.head (Args.next_events args)
     dyn <- Derive.gets Derive.state_dynamic
+
+    -- Add a flag to get the arrival-note postproc to figure out the duration.
+    -- Details in "Derive.Call.Post.ArrivalNote".
+    let flags =
+            (if infer_dur || is_arrival then Flags.infer_duration else mempty)
+            <> (if (fst <$> stack_range) == Just 0
+                then Flags.track_time_0 else mempty)
+        -- Note that I can't use Args.duration or Args.range_on_track, because
+        -- this may be invoked via e.g. Util.note, which fakes up an event with
+        -- range (0, 1), and sets the duration via the warp.
+        infer_dur = null (Args.next_events args) && start == end
+        stack_range = Seq.head $ mapMaybe Stack.region_of $
+            Stack.innermost $ Derive.state_stack dyn
+    control_vals <- Derive.controls_at start
     let attrs = either (const Score.no_attrs) id $
             TrackLang.get_val Environ.attributes (Derive.state_environ dyn)
-
-    control_vals <- Derive.controls_at start
     let adjusted_end = duration_attributes config control_vals attrs start end
-    -- Add a attribute to get the arrival-note postproc to figure out the
-    -- duration.  Details in "Derive.Call.Post.ArrivalNote".
-    let add_infer = if last_event || is_arrival
-            then Score.add_attributes Attrs.infer_duration else id
-        last_event = null (Args.next_events args) && start == end
-    return [LEvent.Event $ add_infer $
-        make_event args dyn control_vals start (adjusted_end - start) real_next]
+    let event = Score.add_flags flags $
+            make_event args dyn control_vals start (adjusted_end - start)
+                real_next flags
+    return [LEvent.Event event]
 
 -- | This is the canonical way to make a Score.Event.  It handles all the
 -- control trimming and control function value stashing that the perform layer
 -- relies on.
 make_event :: Derive.PassedArgs a -> Derive.Dynamic -> Score.ControlValMap
-    -> RealTime -> RealTime -> RealTime -> Score.Event
-make_event args dyn control_vals start dur next = Score.Event
+    -> RealTime -> RealTime -> RealTime -> Flags.Flags -> Score.Event
+make_event args dyn control_vals start dur next flags = Score.Event
     { Score.event_start = start
     , Score.event_duration = dur
     , Score.event_text = Event.event_text (Args.event args)
@@ -235,11 +246,12 @@ make_event args dyn control_vals start dur next = Score.Event
     , Score.event_highlight = Color.NoHighlight
     , Score.event_instrument = inst
     , Score.event_environ = environ
+    , Score.event_flags = flags
     }
     where
     controls = stash_dynamic control_vals $
-        trimmed_controls start next (Derive.state_controls dyn)
-    pitch = trimmed_pitch start next (Derive.state_pitch dyn)
+        trim_controls start next (Derive.state_controls dyn)
+    pitch = trim_pitch start next (Derive.state_pitch dyn)
     environ = Derive.state_environ dyn
     inst = fromMaybe Score.empty_inst $
         TrackLang.maybe_val Environ.instrument environ
@@ -320,21 +332,17 @@ duration_attributes config controls attrs start end
 -- | In a note track, the pitch signal for each note is constant as soon as
 -- the next note begins.  Otherwise, it looks like each note changes pitch
 -- during its decay.
-trimmed_pitch :: RealTime -> RealTime -> PitchSignal.Signal
-    -> PitchSignal.Signal
-trimmed_pitch start end
+trim_pitch :: RealTime -> RealTime -> PitchSignal.Signal -> PitchSignal.Signal
+trim_pitch start end
+    -- This is the PitchSignal version of 'trim_controls', comments are over
+    -- there.
     | end < start = maybe mempty PitchSignal.constant . PitchSignal.at start
     | start == end = PitchSignal.take 1 . PitchSignal.drop_before start
     | otherwise = PitchSignal.drop_after end . PitchSignal.drop_before start
 
 -- | Trim control signals to the given range.
---
--- Trims will almost all be increasing in time.  Can I save indices or
--- something to make them faster?  That would only work with linear search
--- though.
-trimmed_controls :: RealTime -> RealTime -> Score.ControlMap
-    -> Score.ControlMap
-trimmed_controls start end = Map.map (fmap trim)
+trim_controls :: RealTime -> RealTime -> Score.ControlMap -> Score.ControlMap
+trim_controls start end = Map.map (fmap trim)
     where
     trim
         -- An arrival note at the end of a block doesn't know how long it should
