@@ -96,10 +96,10 @@ with_ptr = Storable.unsafeWith
 
 -- * implementation
 
-index :: (V.Vector v a) => v a -> Int -> a
+index :: V.Vector v a => v a -> Int -> a
 index = (V.!)
 
-head, last :: (V.Vector v a) => v a -> Maybe a
+head, last :: V.Vector v a => v a -> Maybe a
 head v
     | V.null v = Nothing
     | otherwise = Just $ V.unsafeIndex v 0
@@ -107,7 +107,7 @@ last v
     | V.null v = Nothing
     | otherwise = Just $ V.last v
 
-uncons :: (V.Vector v a) => v a -> Maybe (a, v a)
+uncons :: V.Vector v a => v a -> Maybe (a, v a)
 uncons v
     | V.null v = Nothing
     | otherwise = Just (V.unsafeHead v, V.unsafeTail v)
@@ -117,15 +117,15 @@ uncons v
 -- | Construct a TimeVector from a list.
 {-# SPECIALIZE signal :: [(X, UnboxedY)] -> Unboxed #-}
 {-# INLINEABLE signal #-}
-signal :: (V.Vector v (Sample y)) => [(X, y)] -> v (Sample y)
+signal :: V.Vector v (Sample y) => [(X, y)] -> v (Sample y)
 signal = V.fromList . map (uncurry Sample)
 
-unsignal :: (V.Vector v (Sample y)) => v (Sample y) -> [(X, y)]
+unsignal :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
 unsignal = map to_pair . V.toList
 
 {-# SPECIALIZE constant :: UnboxedY -> Unboxed #-}
 {-# INLINEABLE constant #-}
-constant :: (V.Vector v (Sample y)) => y -> v (Sample y)
+constant :: V.Vector v (Sample y) => y -> v (Sample y)
 constant y = V.singleton (Sample 0 y)
     -- Constant starts at 0, as documented in the module haddock.
 
@@ -162,7 +162,7 @@ check = reverse . fst . V.foldl' check ([], (0, 0))
 -- overlap the one with a later first sample wins.
 {-# SPECIALIZE merge :: [Unboxed] -> Unboxed #-}
 {-# INLINEABLE merge #-}
-merge :: (V.Vector v (Sample y)) => [v (Sample y)] -> v (Sample y)
+merge :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
 merge = V.concat . trim . Seq.sort_on (fmap sx . head)
     where
     trim [] = []
@@ -175,7 +175,7 @@ merge = V.concat . trim . Seq.sort_on (fmap sx . head)
 -- | Merge two vectors, interleaving their samples.
 {-# SPECIALIZE interleave :: Unboxed -> Unboxed -> Unboxed #-}
 {-# INLINEABLE interleave #-}
-interleave :: (V.Vector v (Sample y)) => v (Sample y) -> v (Sample y)
+interleave :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
     -> v (Sample y)
 interleave vec1 vec2 = V.unfoldrN (len1 + len2) go (0, 0)
     where
@@ -195,7 +195,7 @@ interleave vec1 vec2 = V.unfoldrN (len1 + len2) go (0, 0)
 -- is the other way: the first one will override the second.
 {-# SPECIALIZE prepend :: Unboxed -> Unboxed -> Unboxed #-}
 {-# INLINEABLE prepend #-}
-prepend :: (V.Vector v (Sample y)) => v (Sample y) -> v (Sample y)
+prepend :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
     -> v (Sample y)
 prepend vec1 vec2 = case last vec1 of
     Nothing -> vec2
@@ -211,7 +211,7 @@ prepend vec1 vec2 = case last vec1 of
 -- @at (-1) [(0, 1)]@ is 1.  More documentation in the module haddock.
 {-# SPECIALIZE at :: X -> Unboxed -> Maybe UnboxedY #-}
 {-# INLINEABLE at #-}
-at :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Maybe y
+at :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe y
 at x = fmap snd . sample_at x
 
 {-# SPECIALIZE sample_at :: X -> Unboxed -> Maybe (X, UnboxedY) #-}
@@ -225,19 +225,19 @@ sample_at x vec
     where i = highest_index x vec
 
 -- | Samples at and above the given time.
-ascending :: (V.Vector v (Sample y)) => X -> v (Sample y) -> [Sample y]
+ascending :: V.Vector v (Sample y) => X -> v (Sample y) -> [Sample y]
 ascending x vec =
     [ V.unsafeIndex vec i
     | i <- Seq.range' (lowest_index x vec) (V.length vec) 1
     ]
 
 -- | Descending samples, starting below the time.
-descending :: (V.Vector v (Sample y)) => X -> v (Sample y) -> [Sample y]
+descending :: V.Vector v (Sample y) => X -> v (Sample y) -> [Sample y]
 descending x vec =
     [V.unsafeIndex vec i | i <- Seq.range (lowest_index x vec - 1) 0 (-1)]
 
 -- | Shift the signal in time.
-shift :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
+shift :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 shift offset vec
     | offset == 0 = vec
     | otherwise = map_x (+offset) vec
@@ -250,7 +250,7 @@ shift offset vec
 -- <=0.
 {-# SPECIALIZE drop_after :: X -> Unboxed -> Unboxed #-}
 {-# INLINEABLE drop_after #-}
-drop_after :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
+drop_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_after x vec
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
     | otherwise = V.take (lowest_index (x - RealTime.eta) vec) vec
@@ -259,7 +259,7 @@ drop_after x vec
 -- sample before it to preserve the value at @x@.
 {-# SPECIALIZE drop_before :: X -> Unboxed -> Unboxed #-}
 {-# INLINEABLE drop_before #-}
-drop_before :: (V.Vector v (Sample y)) => X -> v (Sample y) -> v (Sample y)
+drop_before :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_before x vec
     | i < V.length vec && sx (V.unsafeIndex vec i) == x = V.drop i vec
     | otherwise = V.drop (i-1) vec
@@ -267,26 +267,25 @@ drop_before x vec
 
 -- | The reverse of 'drop_after': trim a signal's head up until, but not
 -- including, the given X.
-drop_before_strict :: (V.Vector v (Sample y)) => X -> v (Sample y)
-    -> v (Sample y)
+drop_before_strict :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_before_strict x vec = V.drop (lowest_index x vec) vec
 
 -- | Return samples within a range.  This is a combination of 'drop_before'
 -- and 'drop_after'.
-within :: (V.Vector v (Sample y)) => X -> X -> v (Sample y) -> v (Sample y)
+within :: V.Vector v (Sample y) => X -> X -> v (Sample y) -> v (Sample y)
 within start end = drop_after end . drop_before start
 
-map_x :: (V.Vector v (Sample y)) => (X -> X) -> v (Sample y) -> v (Sample y)
+map_x :: V.Vector v (Sample y) => (X -> X) -> v (Sample y) -> v (Sample y)
 map_x f = V.map $ \(Sample x y) -> Sample (f x) y
 
-map_y :: (V.Vector v (Sample y)) => (y -> y) -> v (Sample y) -> v (Sample y)
+map_y :: V.Vector v (Sample y) => (y -> y) -> v (Sample y) -> v (Sample y)
 map_y f = V.map $ \(Sample x y) -> Sample x (f y)
 
 {-# SPECIALIZE map_err :: (Sample UnboxedY -> Either err (Sample UnboxedY))
     -> Unboxed -> (Unboxed, [err]) #-}
 {-# INLINEABLE map_err #-}
 -- | A map that can return error msgs.
-map_err :: (V.Vector v a) => (a -> Either err a) -> v a -> (v a, [err])
+map_err :: V.Vector v a => (a -> Either err a) -> v a -> (v a, [err])
 map_err f vec = second reverse $ State.runState (V.mapM go vec) []
     where
     go sample =
@@ -297,7 +296,7 @@ map_err f vec = second reverse $ State.runState (V.mapM go vec) []
 {-# INLINEABLE sig_op #-}
 -- | Combine two vectors with the given function.  They will be resampled so
 -- they have samples at the same time.
-sig_op :: (V.Vector v (Sample y)) =>
+sig_op :: V.Vector v (Sample y) =>
     y -- ^ the implicit y value of a vector before its first sample
     -> (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)
 sig_op initial f vec1 vec2 = V.unfoldr go (initial, initial, 0, 0)
@@ -347,7 +346,7 @@ resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2
 {-# SPECIALIZE find_nonascending :: Unboxed -> [(X, UnboxedY)] #-}
 {-# INLINEABLE find_nonascending #-}
 -- | Find samples whose 'sx' is <= the previous X.
-find_nonascending :: (V.Vector v (Sample y)) => v (Sample y) -> [(X, y)]
+find_nonascending :: V.Vector v (Sample y) => v (Sample y) -> [(X, y)]
 find_nonascending vec = case uncons vec of
     Nothing -> []
     Just (x, xs) -> map to_pair $ reverse $ snd $ V.foldl' go (sx x, []) xs
@@ -401,7 +400,7 @@ lowest_index x vec = go vec 0 (V.length vec)
 -- almost the same will still be considered a match.
 {-# SPECIALIZE highest_index :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE highest_index :: X -> Boxed y -> Int #-}
-highest_index :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Int
+highest_index :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
 highest_index x vec
     | V.null vec = -1
     | otherwise = i - 1
@@ -410,7 +409,7 @@ highest_index x vec
 -- | This gets the index of the value *after* @x@.
 {-# SPECIALIZE bsearch_above :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE bsearch_above :: X -> Boxed y -> Int #-}
-bsearch_above :: (V.Vector v (Sample y)) => X -> v (Sample y) -> Int
+bsearch_above :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
 bsearch_above x vec = go vec 0 (V.length vec)
     where
     go vec low high
