@@ -17,6 +17,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.Flags as Flags
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -87,7 +88,7 @@ ngoret is_standalone module_ late_damping damp_arg maybe_transpose =
         dyn_scale <- Util.control_at dyn_scale start
         dyn <- (*dyn_scale) <$> Util.dynamic start
         let with_damped
-                | late_damping && prev_touches = Util.add_attrs damped_tag
+                | late_damping && prev_touches = Util.add_flags damped_flag
                 | otherwise = id
             prev_touches = maybe False (>= Args.start args) (Args.prev_end args)
         (if is_standalone then emit_standalone else emit_attached)
@@ -116,7 +117,7 @@ ngoret is_standalone module_ late_damping damp_arg maybe_transpose =
             <> Derive.place (Args.start args) (Args.duration args) Util.note
         where
         grace_note = case maybe_pitch of
-            Nothing -> Util.add_attrs infer_pitch_tag Util.note
+            Nothing -> Util.add_flags infer_pitch_flag Util.note
             Just pitch -> Util.pitched_note pitch
 
 -- * realize
@@ -185,11 +186,11 @@ realize_standalone_ngoret maybe_prev event maybe_next
 realize_infer_pitch :: Maybe Score.Event -> Score.Event
     -> Maybe Score.Event -> Either Text Score.Event
 realize_infer_pitch maybe_prev event maybe_next
-    | Score.has_attribute infer_pitch_tag event = do
+    | Score.has_flags infer_pitch_flag event = do
         prev <- require "no previous event" maybe_prev
         next <- require "no next event" maybe_next
         pitch <- require "can't infer pitch" $ infer_pitch prev next
-        return $ Score.remove_attributes infer_pitch_tag $
+        return $ Score.remove_flags infer_pitch_flag $
             event { Score.event_pitch = PitchSignal.constant pitch }
     | otherwise = return event
 
@@ -199,10 +200,10 @@ require err = maybe (Left err) return
 realize_damped :: Maybe Score.Event -> Score.Event
     -> Maybe Score.Event -> Either Text Score.Event
 realize_damped _ event maybe_next
-    | Just next <- maybe_next, Score.has_attribute damped_tag next = Right $
+    | Just next <- maybe_next, Score.has_flags damped_flag next = Right $
         Score.set_duration (Score.event_end next - Score.event_start event)
             event
-    | otherwise = Right $ Score.remove_attributes damped_tag event
+    | otherwise = Right $ Score.remove_flags damped_flag event
 
 infer_pitch :: Score.Event -> Score.Event -> Maybe PitchSignal.Pitch
 infer_pitch prev next = do
@@ -212,10 +213,10 @@ infer_pitch prev next = do
 
 -- | Mark events whose should have their pitch inferred from the previous and
 -- next events.
-infer_pitch_tag :: Score.Attributes
-infer_pitch_tag = Score.attr "infer-pitch-tag"
+infer_pitch_flag :: Flags.Flags
+infer_pitch_flag = Flags.flag "infer-pitch"
 
 -- | Mark events that were damped late, and whose previous event should be
 -- extended to be damped together.
-damped_tag :: Score.Attributes
-damped_tag = Score.attr "damped-tag"
+damped_flag :: Flags.Flags
+damped_flag = Flags.flag "damped-tag"

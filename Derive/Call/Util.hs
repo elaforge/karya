@@ -32,6 +32,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
+import qualified Derive.Flags as Flags
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -392,6 +393,9 @@ add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
 add_attrs attrs
     | attrs == mempty = id
     | otherwise = with_attrs (<> attrs)
+
+add_flags :: Flags.Flags -> Derive.NoteDeriver -> Derive.NoteDeriver
+add_flags flags = fmap (fmap (fmap (Score.add_flags flags)))
 
 -- * random
 

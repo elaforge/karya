@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Gender infer-pitch should be a flag.
+  * Gender infer-pitch should be a flag.
   - floating edit input at the bottom of a block should appear above
   - it seems like "floating_input" would be a better name than "edit_input"
   - replace VAttributes with a general purpose VSet.
