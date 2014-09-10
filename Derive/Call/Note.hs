@@ -338,7 +338,7 @@ trim_pitch start end
     -- there.
     | end < start = maybe mempty PitchSignal.constant . PitchSignal.at start
     | start == end = PitchSignal.take 1 . PitchSignal.drop_before start
-    | otherwise = PitchSignal.drop_after end . PitchSignal.drop_before start
+    | otherwise = PitchSignal.drop_at_after end . PitchSignal.drop_before start
 
 -- | Trim control signals to the given range.
 trim_controls :: RealTime -> RealTime -> Score.ControlMap -> Score.ControlMap
@@ -357,7 +357,7 @@ trim_controls start end = Map.map (fmap trim)
         -- I added this fix for it...
         -- TODO figure it out, add a test
         | start == end = Signal.take 1 . Signal.drop_before start
-        | otherwise = Signal.drop_after end . Signal.drop_before start
+        | otherwise = Signal.drop_at_after end . Signal.drop_before start
 
 -- ** transform
 

@@ -271,7 +271,7 @@ xcut_pitch hold val1 val2 =
         | otherwise = (next, initial <> chunk)
         where
         chopped = PitchSignal.drop_before_strict t val1
-        chunk = maybe chopped (\n -> PitchSignal.drop_after n chopped) next_t
+        chunk = maybe chopped (\n -> PitchSignal.drop_at_after n chopped) next_t
         next = (val2, PitchSignal.drop_before t val1)
         initial = case PitchSignal.at t val1 of
             Nothing -> mempty
@@ -392,7 +392,7 @@ xcut_control hold val1 val2 =
         | otherwise = (next, initial <> chunk)
         where
         chopped = Signal.drop_before_strict t val1
-        chunk = maybe chopped (\n -> Signal.drop_after n chopped) next_t
+        chunk = maybe chopped (\n -> Signal.drop_at_after n chopped) next_t
         next = (val2, Signal.drop_before t val1)
         initial = Signal.signal [(t, Signal.at t val1)]
 

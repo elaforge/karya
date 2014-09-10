@@ -93,10 +93,11 @@ c_block block_id = Derive.make_call Module.prelude ("block " <> showt block_id)
 trim_controls :: RealTime -> Derive.Deriver a -> Derive.Deriver a
 trim_controls end = Internal.local $ \dyn -> dyn
     { Derive.state_controls =
-        fmap (Signal.drop_after end) <$> Derive.state_controls dyn
-    , Derive.state_pitch = PitchSignal.drop_after end (Derive.state_pitch dyn)
+        fmap (Signal.drop_at_after end) <$> Derive.state_controls dyn
+    , Derive.state_pitch =
+        PitchSignal.drop_at_after end (Derive.state_pitch dyn)
     , Derive.state_pitches =
-        PitchSignal.drop_after end <$> Derive.state_pitches dyn
+        PitchSignal.drop_at_after end <$> Derive.state_pitches dyn
     }
 
 block_call_doc :: Text

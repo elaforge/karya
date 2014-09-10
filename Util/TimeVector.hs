@@ -256,10 +256,10 @@ shift offset vec
 -- If the x<=0 the signal will still contain up to and including 0.  That's
 -- because, as per the module haddock, a sample <=0 stands in for all values
 -- <=0.
-{-# SPECIALIZE drop_after :: X -> Unboxed -> Unboxed #-}
-{-# INLINEABLE drop_after #-}
-drop_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
-drop_after x vec
+{-# SPECIALIZE drop_at_after :: X -> Unboxed -> Unboxed #-}
+{-# INLINEABLE drop_at_after #-}
+drop_at_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
+drop_at_after x vec
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
     | otherwise = V.take (lowest_index (x - RealTime.eta) vec) vec
 
@@ -273,15 +273,15 @@ drop_before x vec
     | otherwise = V.drop (i-1) vec
     where i = lowest_index x vec
 
--- | The reverse of 'drop_after': trim a signal's head up until, but not
+-- | The reverse of 'drop_at_after': trim a signal's head up until, but not
 -- including, the given X.
 drop_before_strict :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_before_strict x vec = V.drop (lowest_index x vec) vec
 
 -- | Return samples within a range.  This is a combination of 'drop_before'
--- and 'drop_after'.
+-- and 'drop_at_after'.
 within :: V.Vector v (Sample y) => X -> X -> v (Sample y) -> v (Sample y)
-within start end = drop_after end . drop_before start
+within start end = drop_at_after end . drop_before start
 
 map_x :: V.Vector v (Sample y) => (X -> X) -> v (Sample y) -> v (Sample y)
 map_x f = V.map $ \(Sample x y) -> Sample (f x) y

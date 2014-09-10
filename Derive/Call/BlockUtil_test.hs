@@ -47,7 +47,7 @@ test_compile = do
     let complete_psig = Signal.signal $
                 [(0, 60), (2, 62)] ++ DeriveTest.signal_interpolate 2 62 6 64
     let psig trunc = map (second Signal.y_to_nn) $
-            Signal.unsignal $ Signal.drop_after trunc complete_psig
+            Signal.unsignal $ Signal.drop_at_after trunc complete_psig
 
     equal logs []
     -- The pitch signal gets truncated so it doesn't look like the note's decay

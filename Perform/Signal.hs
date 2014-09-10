@@ -43,7 +43,7 @@ module Perform.Signal (
     , scalar_add, scalar_subtract, scalar_multiply, scalar_divide
     , shift
     , take, drop, drop_while, within
-    , drop_after, drop_before, drop_before_strict
+    , drop_at_after, drop_before, drop_before_strict
     , map_x, map_y, map_err
 
     -- ** special functions
@@ -376,8 +376,8 @@ drop_while = modify_vec . Vector.dropWhile
 within :: X -> X -> Signal y -> Signal y
 within start end = modify_vec $ V.within start end
 
-drop_after :: X -> Signal y -> Signal y
-drop_after = modify_vec . V.drop_after
+drop_at_after :: X -> Signal y -> Signal y
+drop_at_after = modify_vec . V.drop_at_after
 
 drop_before :: X -> Signal y -> Signal y
 drop_before = modify_vec . V.drop_before

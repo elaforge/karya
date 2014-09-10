@@ -25,7 +25,7 @@ UNSORTED
   * floating edit input at the bottom of a block should appear above
   - it seems like "floating_input" would be a better name than "edit_input"
   - replace VAttributes with a general purpose VSet.
-  - TimeVector.drop_after should be drop_at_after
+  * TimeVector.drop_after should be drop_at_after
   * a 0 note at the end of a block should infer its duration
     I can have note entry at the end of a ruler automatically make it -0
     Then I have to make sure to resolve the negative durations before
