@@ -118,7 +118,7 @@ BlockView::handle(int evt)
     if (evt == FL_MOUSEWHEEL) {
         if (Fl::event_dy()) {
             ScoreTime scroll = this->zoom.to_time(
-                    Fl::event_dy() * mousewheel_time_scale);
+                Fl::event_dy() * mousewheel_time_scale);
             ScoreTime old = this->zoom.offset;
             set_zoom(ZoomInfo(this->zoom.offset + scroll, this->zoom.factor));
             if (this->zoom.offset != old)
@@ -302,17 +302,6 @@ BlockView::set_skeleton(const SkeletonConfig &skel)
 void
 BlockView::set_zoom(const ZoomInfo &zoom)
 {
-    // As with set_track_scroll, clamp the time scroll to time_end().
-    // Actually, it's important to be able to scroll down to areas without
-    // events, so I'm going to comment this out for now.
-    // int track_h = track_tile.h() - view_config.track_title_height;
-    // ScoreTime height = zoom.to_time(track_h);
-    // ScoreTime max_pos =
-    //     std::max(ScoreTime(0), track_tile.time_end() - height);
-    //
-    // this->zoom = ZoomInfo(util::clamp(ScoreTime(0), max_pos, zoom.offset),
-    //         zoom.factor);
-
     // This function, and hence set_zoom_attr below, is called from the outside
     // to set the zoom.  Therefore, no msg should be sent back out, since I
     // don't need to tell the outside what it already knows.
@@ -329,7 +318,11 @@ BlockView::set_zoom_attr(const ZoomInfo &new_zoom)
     // a pixel boundary.  Otherwise, some events may move 1 pixel while others
     // move 2 pixels, which messes up the blit-oriented scrolling.
     clamped.offset = std::max(ScoreTime(0), clamped.offset);
-    ScoreTime visible = clamped.to_time(track_tile.visible_pixels().y);
+    // -4 to pretend that the visible area is a bit smaller than it is.
+    // This in turns lets me scroll down a little bit past the end.  Otherwise,
+    // events right at the end are cut off.
+    ScoreTime visible = clamped.to_time(track_tile.visible_pixels().y - 4);
+    // make this a bit bigger
     ScoreTime max_offset = track_tile.time_end() - visible;
     clamped.offset = util::clamp(ScoreTime(0), max_offset, clamped.offset);
     if (clamped == this->zoom)
@@ -622,8 +615,8 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     ScoreTime end = self->track_tile.time_end();
     // This does the same stuff as BlockView::set_zoom, but doesn't call
     // update_scrollbars and collects the msg.
-    ZoomInfo new_zoom(ScoreTime(end.scale(time_offset)),
-            self->get_zoom().factor);
+    ZoomInfo new_zoom(
+        ScoreTime(end.scale(time_offset)), self->get_zoom().factor);
     if (new_zoom != self->get_zoom()) {
         MsgCollector::get()->block(UiMsg::msg_zoom, self);
         self->set_zoom_attr(new_zoom);

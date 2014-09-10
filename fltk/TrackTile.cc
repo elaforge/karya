@@ -105,6 +105,9 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     // +3 gets the input right below the trigger line of an event at this
     // position.
     ypos += y() + title_height + 3;
+    // More pixel tweaks to keep the input from going off the bottom.
+    int max_y = this->y() + this->h() - Config::font_size::input - 4;
+    ypos = std::min(ypos, max_y);
     width -= 3;
     xpos += 2;
     this->edit_input = new WrappedInput(

@@ -679,10 +679,10 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     // to draw.
     int bottom = std::max(
         y() + zoom.to_pixels(overlay_ruler.time_end() - zoom.offset),
-        y() + h() - 3);
+        y() + h() - 4);
         // Just like track_start(), subtract a few pixels from the bottom to
         // avoid the bevel.
-    text_rect.b(std::min( text_rect.b(), bottom));
+    text_rect.b(std::min(text_rect.b(), bottom));
 
     // The various pixel tweaks in here were determined by zooming in and
     // squinting.
