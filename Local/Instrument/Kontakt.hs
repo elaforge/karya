@@ -30,7 +30,6 @@ import qualified Derive.Call.Highlight as Highlight
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
-import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
@@ -212,7 +211,7 @@ c_highlight_strings = Note.transformed_note
             Highlight.open_strings start Highlight.warn_non_open deriver
 
 sc_bali :: [MidiInst.Patch]
-sc_bali = MidiInst.with_code mute_null_call
+sc_bali = MidiInst.with_empty_code
     [ Instrument.text #= "Sonic Couture's Balinese gamelan sample set." $
         Instrument.attribute_map #= Instrument.simple_keyswitches gangsa_ks $
         Instrument.patch $ Instrument.instrument "sc-gangsa12" [] (-2, 2)
@@ -282,7 +281,7 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
     should add just +mute, and can inherit +loose if it's set.
 -}
 wayang_patches :: [MidiInst.Patch]
-wayang_patches = MidiInst.with_code mute_null_call
+wayang_patches = MidiInst.with_empty_code
     [ set_tuning Environ.umbang $ scale Wayang.umbang $ wayang "wayang-umbang"
     , set_tuning Environ.isep $ scale Wayang.isep $ wayang "wayang-isep"
     , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
@@ -319,11 +318,6 @@ configure_wayang dev = do
     LInst.add "p-umbang" "kontakt/wayang-umbang" dev [1]
     LInst.add "k-isep" "kontakt/wayang-isep" dev [2]
     LInst.add "k-umbang" "kontakt/wayang-umbang" dev [3]
-
-mute_null_call :: MidiInst.Code
-mute_null_call = MidiInst.note_calls $ MidiInst.null_call $
-    DUtil.zero_duration "Add `+mute` attribute and scale dyn by 0.75." $
-        Util.add_attrs Attrs.mute . Util.multiply_dynamic 0.75
 
 wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
 wayang_scale scale = Instrument.make_patch_scale $ zip wayang_keys scale

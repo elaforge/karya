@@ -7,7 +7,7 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
-    - delima-manis last arrival note is short
+    * delima-manis last arrival note is short
       It's because the zero-dur -> mute note call applies to the last note.
       . Can I say +mute happens only if the Score.Event winds up being zero dur?
         It would have to be postproc.

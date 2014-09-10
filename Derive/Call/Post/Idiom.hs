@@ -30,6 +30,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps []
     [ ("pizz-arp", c_pizz_arp)
     , ("avoid-overlap", c_avoid_overlap)
+    , ("zero-duration-mute", c_zero_duration_mute)
     ]
 
 -- * pizz arp
@@ -107,3 +108,17 @@ avoid_overlap time events =
         nn = Score.initial_nn event
         same next = Score.event_instrument event == Score.event_instrument next
             && Maybe.isJust nn && nn == Score.initial_nn next
+
+
+-- * zero dur mute
+
+c_zero_duration_mute :: Derive.Transformer Derive.Note
+c_zero_duration_mute = Derive.transformer Module.prelude
+    "zero-duration-mute" (Tags.postproc <> Tags.inst)
+    "Add attributes to zero duration events."
+    $ Sig.callt (defaulted "attr" Attrs.mute "Add this attribute.")
+    $ \attrs _args deriver -> Post.emap1 (add attrs) <$> deriver
+    where
+    add attrs event
+        | Score.event_duration event == 0 = Score.add_attributes attrs event
+        | otherwise = event
