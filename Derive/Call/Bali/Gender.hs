@@ -111,10 +111,6 @@ ngoret is_standalone module_ late_damping damp_arg maybe_transpose =
             Nothing -> grace_start
             Just prev -> max grace_start $ (prev + Args.start args) / 2
         overlap <- Util.score_duration (Args.start args) damp
-        -- I originally would limit the grace note to (Args.end args), but
-        -- that's no good if this note is Flags.infer_duration.  Instead, I can
-        -- get 'realize_ngoret' to shorted the duration, if necessary.
-        -- TODO but I don't yet, implement if I actually need it.
         let grace_end = Args.start args + overlap
         Derive.place grace_start (grace_end - grace_start)
                 (with_damped $ Util.with_dynamic dyn grace_note)
@@ -194,8 +190,13 @@ realize_infer_pitch maybe_prev event maybe_next
         prev <- require "no previous event" maybe_prev
         next <- require "no next event" maybe_next
         pitch <- require "can't infer pitch" $ infer_pitch prev next
-        return $ Score.remove_flags infer_pitch_flag $
-            event { Score.event_pitch = PitchSignal.constant pitch }
+        return $ Score.remove_flags infer_pitch_flag $ event
+            { Score.event_pitch = PitchSignal.constant pitch
+            -- Also make sure the grace note doesn't go past the end of the
+            -- next note.
+            , Score.event_duration = min (Score.event_duration event)
+                (Score.event_end next - Score.event_start event)
+            }
     | otherwise = return event
 
 require :: Text -> Maybe a -> Either Text a
