@@ -5,8 +5,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 
 test_infer_duration = do
-    let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_blocks
+    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
         top = ("top -- infer-duration 2",
             [(">", [(0, 2, "sub")]), (">", [(2, 2, "sub")])])
         sub notes = ("sub=ruler", UiTest.note_track notes)
@@ -20,11 +19,16 @@ test_infer_duration = do
     equal (run [top, sub [(0, 1.5, "4c"), (2, 0, "4d")]])
         ([(0, 1.5, "4c"), (2, 1.5, "4d"), (4, 2, "4d")], [])
 
+    -- A zero duration block doesn't have its duration changed, since otherwise
+    -- I can't write single note calls for e.g. percussion.
+    equal (run [top, sub [(0, 0, "4c")]]) ([(0, 0, "4c"), (2, 0, "4c")], [])
+
+
 test_infer_duration_controls = do
     -- A zero duration note at the end of a block gets controls from right
     -- before.
     let run extract = DeriveTest.extract extract . DeriveTest.derive_blocks
-        top = "top -- infer-duration"
+        top = "top -- infer-duration 1"
 
     -- sub---| sub---|
     -- 4c 4d 4e 4d 4e

@@ -207,16 +207,20 @@ default_note config args = do
     (end, is_arrival) <- adjust_end start end $ Seq.head (Args.next_events args)
     dyn <- Derive.gets Derive.state_dynamic
 
-    -- Add a flag to get the arrival-note postproc to figure out the duration.
+    -- Add flags to get the arrival-note postproc to figure out the duration.
     -- Details in "Derive.Call.Post.ArrivalNote".
-    let flags =
-            (if infer_dur || is_arrival then Flags.infer_duration else mempty)
-            <> (if (fst <$> stack_range) == Just 0
-                then Flags.track_time_0 else mempty)
+    let flags
+            -- An event at TrackTime 0 never gets an inferred duration.
+            -- Otherwise, I couldn't write single note calls for percussion.
+            | infer_dur && track0 = mempty
+            | infer_dur = Flags.infer_duration
+            | track0 = Flags.track_time_0
+            | otherwise = mempty
         -- Note that I can't use Args.duration or Args.range_on_track, because
         -- this may be invoked via e.g. Util.note, which fakes up an event with
         -- range (0, 1), and sets the duration via the warp.
-        infer_dur = null (Args.next_events args) && start == end
+        infer_dur = null (Args.next_events args) && start == end || is_arrival
+        track0 = (fst <$> stack_range) == Just 0
         stack_range = Seq.head $ mapMaybe Stack.region_of $
             Stack.innermost $ Derive.state_stack dyn
     control_vals <- Derive.controls_at start

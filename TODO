@@ -11,10 +11,14 @@ UNSORTED
       It's because the zero-dur -> mute note call applies to the last note.
       . Can I say +mute happens only if the Score.Event winds up being zero dur?
         It would have to be postproc.
-    - delima-manis @b02 has a wonky note at 3.
+    * delima-manis @b02 has a wonky note at 3.
+      . The problem is that omit| omits the note, but the previous note gets
+        the pitch.
+      . In turn, that's because it gets infer-duration.  But I don't want that
+        to happen for a zero dur block.
     - delima-manis final notes chopped off when playing from @score
       Now I get: Error: score: out of range: 228.942012391468s
-  - will infer-duration mess up zero duration blocks like dmp?
+  * will infer-duration mess up zero duration blocks like dmp?
     maybe?  In any case, I think I don't like dmp?
   * allow scroll down a bit further
   - select-all then delete misses the event at the end of the block
