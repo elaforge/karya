@@ -86,7 +86,7 @@ reyong_pattern :: [Char] -> [Char] -> Pattern
 reyong_pattern above below = reyong_kotkean_pattern $ parse_kotekan above below
 
 ngoret :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
-ngoret = Gender.ngoret False module_ False
+ngoret = Gender.ngoret module_ False
     (Applicative.pure (TrackLang.constant_control 1))
 
 -- * kilitan

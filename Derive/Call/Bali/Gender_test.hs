@@ -12,24 +12,6 @@ import qualified Derive.Score as Score
 transform :: String
 transform = "import bali.gender | realize-ngoret"
 
-test_ngoret_standalone = do
-    let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks transform . UiTest.note_track
-    equal (run [(0, 1, "4c"), (1, 0, "'- .5 .5 --"), (2, 1, "4e")])
-        ([(0, 2.5, "4c"), (1.5, 1, "4d"), (2, 1, "4e")], [])
-
-    -- The grace note goes at the midpoint if there isn't enough time.
-    equal (run [(0, 1, "4c"), (1, 0, "'- 10 .5 --"), (2, 1, "4e")])
-        ([(0, 2.5, "4c"), (1, 1.5, "4d"), (2, 1, "4e")], [])
-
-    -- Short note doesn't get extended.
-    equal (run [(0, 0.5, "4c"), (1, 0, "'- 1 .5 --"), (2, 1, "4e")])
-        ([(0, 0.5, "4c"), (1, 1.5, "4d"), (2, 1, "4e")], [])
-
-    -- Trailing ngoret is an error.
-    equal (run [(0, 0.5, "4c"), (1, 0, "'- 1 .5 --")])
-        ([(0, 0.5, "4c")], ["no next event"])
-
 test_ngoret = do
     -- This also tests some error checking and absolute warp functions.
     let run_e extract = DeriveTest.extract extract

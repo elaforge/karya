@@ -294,6 +294,9 @@ derive_signal deriver = do
     I think each one is likely to require a different context.  E.g. previous
     and next events for the same instrument, or with the same hand, or map
     over groups of events, etc.  TODO wait until I have more experience.
+
+    TODO this stuff is now unused, but maybe I'll find a use for it again some
+    day.
 -}
 make_delayed :: Derive.PassedArgs a -> RealTime -> RealTime -> [TrackLang.Val]
     -> Derive.NoteDeriver

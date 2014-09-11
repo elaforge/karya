@@ -108,7 +108,7 @@ UNSORTED
         whether a control should continue changing into the decay or not.  The
         sweep should, but a pitch belongs to the next note.  So maybe this is
         a fundamental limitation of the score language.
-    - I can probably get rid of standalone ngoret.
+    * I can probably get rid of standalone ngoret.
   - chained transformers should work lazily, right?  Make sure with trace.
   - simple legato transformer to make a note overlap the next one
   - cache not invalidated: modify bug/cache to change %t-diatonic=5 to

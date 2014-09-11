@@ -73,12 +73,9 @@ note_calls = Derive.call_maps
                                             "3-23-232 -32-3-23"
                                             "44-34-3- 43-434-3")
 
-    , ("'", c_ngoret False Nothing)
-    , ("'^", c_ngoret False (Just (Pitch.Diatonic (-1))))
-    , ("'_", c_ngoret False (Just (Pitch.Diatonic 1)))
-    , ("'-", c_ngoret True Nothing)
-    , ("'^-", c_ngoret True (Just (Pitch.Diatonic (-1))))
-    , ("'_-", c_ngoret True (Just (Pitch.Diatonic 1)))
+    , ("'", c_ngoret Nothing)
+    , ("'^", c_ngoret (Just (Pitch.Diatonic (-1))))
+    , ("'_", c_ngoret (Just (Pitch.Diatonic 1)))
     ]
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
@@ -92,8 +89,8 @@ module_ = "bali" <> "gangsa"
 
 -- * ngoret
 
-c_ngoret :: Bool -> Maybe Pitch.Transpose -> Derive.Generator Derive.Note
-c_ngoret is_standalone = Gender.ngoret is_standalone module_ False damp_arg
+c_ngoret :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
+c_ngoret = Gender.ngoret module_ False damp_arg
     where
     damp_arg = Sig.defaulted "damp"
         (Sig.typed_control "ngoret-damp" 0.15 Score.Real)
