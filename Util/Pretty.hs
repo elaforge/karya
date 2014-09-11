@@ -126,6 +126,32 @@ instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f) =>
         Pretty (a, b, c, d, e, f) where
     format (a, b, c, d, e, f) = comma_list Never '(' ')'
         [format a, format b, format c, format d, format e, format f]
+instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f,
+            Pretty g) =>
+        Pretty (a, b, c, d, e, f, g) where
+    format (a, b, c, d, e, f, g) = comma_list Never '(' ')'
+        [format a, format b, format c, format d, format e, format f, format g]
+instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f,
+            Pretty g, Pretty h) =>
+        Pretty (a, b, c, d, e, f, g, h) where
+    format (a, b, c, d, e, f, g, h) = comma_list Never '(' ')'
+        [ format a, format b, format c, format d, format e, format f, format g
+        , format h
+        ]
+instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f,
+            Pretty g, Pretty h, Pretty i) =>
+        Pretty (a, b, c, d, e, f, g, h, i) where
+    format (a, b, c, d, e, f, g, h, i) = comma_list Never '(' ')'
+        [ format a, format b, format c, format d, format e, format f, format g
+        , format h, format i
+        ]
+instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f,
+            Pretty g, Pretty h, Pretty i, Pretty j) =>
+        Pretty (a, b, c, d, e, f, g, h, i, j) where
+    format (a, b, c, d, e, f, g, h, i, j) = comma_list Never '(' ')'
+        [ format a, format b, format c, format d, format e, format f, format g
+        , format h, format i, format j
+        ]
 
 instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
     format = format_commas '{' '}' . map mpair . Map.assocs
