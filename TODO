@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Signal render does't go away when you delete events from the track.
+    Likely the same problem as highlights, with the same solution.
   - How to give same left hand to both, without copy pasting?  The problem is
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
@@ -10,226 +12,27 @@ UNSORTED
     - p4 has small variations depending on where the melody is going
     - it also has +mute vs. open variation
     - there are also some interesting tempo changes
-    * delima-manis last arrival note is short
-      It's because the zero-dur -> mute note call applies to the last note.
-      . Can I say +mute happens only if the Score.Event winds up being zero dur?
-        It would have to be postproc.
-    * delima-manis @b02 has a wonky note at 3.
-      . The problem is that omit| omits the note, but the previous note gets
-        the pitch.
-      . In turn, that's because it gets infer-duration.  But I don't want that
-        to happen for a zero dur block.
-    * delima-manis final notes chopped off when playing from @score
-      Now I get: Error: score: out of range: 228.942012391468s
-      . Grace notes are placed in ScoreTime, and damp time causes
-        a real_to_score lookup, which fails.
-        Since score_to_real will do linear extension, real_to_score should do
-        it the same way.
-      . Score.unwarp_pos
-  * will infer-duration mess up zero duration blocks like dmp?
-    maybe?  In any case, I think I don't like dmp?
-  * allow scroll down a bit further
-  * select-all then delete misses the event at the end of the block
+    - Do different things in polos and sangsih:
+      'when (is-polos) |' and 'when (is-sangsih) |'
+      I'd want a boolean type, or should I embed it in Int?
+    - Gradually come in, could do omit with an omit signal that decreases.
   template flag -t is hard to use:
     - the lack of SaveFile messes up the local definitions file
     - the change in default namespace means @block doesn't work
-  * Gender infer-pitch should be a flag.
-  * floating edit input at the bottom of a block should appear above
   - it seems like "floating_input" would be a better name than "edit_input"
-  - replace VAttributes with a general purpose VSet.
-  * TimeVector.drop_after should be drop_at_after
-  * a 0 note at the end of a block should infer its duration
-    I can have note entry at the end of a ruler automatically make it -0
-    Then I have to make sure to resolve the negative durations before
-    realize-ngoret.
-    * I need a better way to cancel events at the beginning of a block than
-      seeing if it has the same start time.
-      . Can the note deriver even tell?  Args.event is unreliable because
-        Util.note sets it to (0, 1).  Otherwise, I could use
-        Args.range_on_track.  It's error-prone anyway, because e.g. duration
-        0 events can still have Args.duration == 1.  The underlying problem is
-        that I should use the warp and 0t--1t for note duration, but instead
-        use a combination of the warp and of the event.
-        . It's actually impossible to know where an event is on a track.
-          To know I could look at the stack
-      . Or is it really so bad?  The warp is supposed to be deterministic, and
-        in general an +infer-duration is supposed to cancel notes at the same
-        time.  Well, while warp is deterministic, notes themselves may place
-        randomly, that's how randomization works.
-    * I could have the +infer-duration note take the duration of the
-      cancelled note it replaces, if there is one.  This would give a way
-      to control the inferred duration.
-    . Does this mean I can get rid of negative durations entirely?
-    * This has a problem when the next block starts off with a transpose.
-      I want to say that the transpose doesn't apply to the last event of the
-      previous block.
-      . Can I have the last event of a block look at signals before the point?
-      . What if I make the block have a negative duration to signify that it
-        gets signals from the end, not the beginning?  I still need to
-        distinguish between "sample" signals and continuous signals.  E.g.
-        a filter cutoff wouldn't have this behaviour, but transposition could
-        be for the whole note, or it could also be to bend the pitch.
-      . If I say before sample, it doesn't get the controls that are on the
-        same block, explicitly on the this event!  What I want is to replace
-        the sample at 'start', the same way the event is replaced.
-      . But what about the t-dia from the caller?  I still need to get the
-        sample before! The thing is, I want the same at when it is attached
-        to the event, but not when it comes from the caller, and there's no
-        way to tell the difference.  What I want is the whole block to
-        not include 'end' from the environ.
-      * I think that has to be done at block call time, it would trim the
-        signals to exclude the end of the block.
-      * Then make infer-duration take the first sample from the inferred
-        event, and the rest from the replaced one.  But if there is none,
-        how do I get controls?  There's no way to get controls from the block,
-        since they're not attached to any note, but what about ones from the
-        caller?
-      * I should put these tags in a different place than Environ.attributes,
-        and leave attributes for the instrument.
-      . I don't want to trim because I might need the controls if I extend the
-        duration.  I do want to trim because I don't want e.g. t-dia at start
-        from the caller, but I do want pitch at start from the block.
-      . t-dia:  0   1   0
-                b1  b2
-                a b|c   d
-                a b|    d
-      - If 'c' is present, then I clip off t-dia because I drop controls
-        starting at 1.  The starts are replaced with ones from b1.
-        So the sample at 'start' should come from the local block only.
-        Samples after start can be used from global.  So what if the block
-        call just deleted samples at exactly block end?  Any local tracks
-        could put a sample there, but otherwise the event gets control signal
-        afterwards.  If there is a note to replace, the >start samples are
-        replaced, but otherwise, I get the ones from the caller.
-      . E.g. global filter sweep.  A infer-duration note would stick out
-        because the sweep is meant to be continuous.  In this case, I can
-        just use the untrimmed control.  But t-dia should not do that, unless
-        I really am treating it continuously.  This is the same problem as
-        whether a control should continue changing into the decay or not.  The
-        sweep should, but a pitch belongs to the next note.  So maybe this is
-        a fundamental limitation of the score language.
-    * I can probably get rid of standalone ngoret.
   - chained transformers should work lazily, right?  Make sure with trace.
   - simple legato transformer to make a note overlap the next one
   - cache not invalidated: modify bug/cache to change %t-diatonic=5 to
     %t-dia=5, it still has the old performance.
-  * I could also get same-track by automatically assigning a tracknum env var.
-    . The problem is that I rely in postproc inferring the pitch now, but that
-      requires a previous event, which in turn requires a hand or voice.
-      That's a hassle I didn't have to do before, but in exchange I get proper
-      pitch inference for the first note on a block.  Each gangsa is
-      monophonic, so if I stick to a conventional order like polos, sangsih,
-      then I can use tracknum.  I can also use this to automatically set
-      tuning.
-    . But I'd actually want it to be the count of tracks with that inst.  The
-      block deriver can do this by first doing ParseTitle.title_to_instrument
-      on each track.  But this doesn't work if the note track uses other means
-      to set the instrument or is just '>'.  So I need to get the instrument
-      within the note track deriver, which means they pass and return an extra
-      'Map Instrument Int'.
-    . But if I want the instrument setting call itself to have access (e.g.
-      automatically set voice, hand, tuning), then it needs to be in Dynamic.
-      Rather, Dynamic has to have the next voice number for each instrument,
-      but then there needs to be some way to increment it when a track uses
-      it.  I could put the instrument in Collect.
-    . On the other hand, if I go purely syntactically, then I can have two
-      tracks get the same voice with e.g. '>g (>, >)'.  The voice number
-      becomes the explicitly labeled note tracks.  This is similar to what
-      I already tend to do, which is '>pno | hand=l (>, >, ...)'.
-    . Name?  Shouldn't be tracknum.  Voice is already taken.  Just 'track'?
-      track-voice, it's lower level than 'voice' because it's per-track.
-    . Another approach is to have a "block template", which is a separate
-      thing that looks at the structure block and infers various variables
-      about it.  But this is not per-instrument.
-    . What I think I really want is something like a separate function that
-      sets up a pair, e.g. you say gangsa-pair and you get tracks for sangsih
-      and polos with the appropriate env vars.  But while I can write
-      something with one track argument, I can't write something with two
-      track arguments.  To do that, I'd need some more UI, e.g.
-      a generalization of the skeleton where you can put function calls in the
-      middle too.  Probably not worth it.
-    * Set Environ.track_voice in block deriver.
-    * Then I need >kontakt/gender to add a 'infer-track-voice' call.  Then
-      I can write '>g = infer-track-voice' in local defs and get that
-      automatically.
-    . But first, make sure I really want this.  I think if I'm writing kotekan
-      manually, I will want separate >polos and >sangsih instruments.
-      But even so, in a full ensemble with 4 gangsa, polos is a pasang as is
-      sangsih.  Since they play a lot of unison, I still need 4 underlying
-      instruments, e.g. >polos-umbang, >polos-isep, >sangsih-umbang,
-      >sangsih-isep.  A >gangsa instrument would split 4 ways, and a >polos
-      would split 2 ways, in the same way.
-    . For gender pieces, I have (>p (>, >)) (>s (>, >)) that would have to
-      become (>p (> | hand=l, > | hand=r)), or (>p | hand=l, >p | hand=r).
-      If >p is a transform call instead of an inst, can I have one that
-      assigns each subtrack to its own hand?  I'd need a track call, e.g.
-      case subtracks of { [left, right] -> ...; _ -> throw "expected two" }
-  * use generic deriving to get rid of TypecheckEnum?
-    I'd really like to get rid of TrackLang.E.  I would have to make
-    default implementations for Typecheck.
-  * gangsa should have a non-muting ' that doesn't require realize-ngoret
-    The grace note would overlap a bit though.
-  * rename Derive.Call.Bali.Kotekan to Gangsa
   - thru on *legong notes is wrong the first time
   - note entry gets the wrong scale if the track hasn't been played
-  * get rid of LEvent.Stream, I don't use it consistently anyway
-  * rename %t-diatonic to t-dia and %t-chromatic to %t-chrom
   - move Types.Selection to its own module.  That leaves just aliases
     TrackNum, Width, SelNum, MouseButton
     . But then it has the same name as Cmd.Selection.  Call it Sel?
-  * cmd-z with multiple events makes them -0
-    also, it doesn't seem to affect the selected pitch track
   - can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
     modify_event_near_point, doesn't ModifyEvent.selection already do that?
-  * zheng gliss is off again
-  * since an instrument can't setup environ by itself, I wind up with
-    '>zh | zh' everywhere.  Could I have some way that >xyz can also be
-    a transformer?  Maybe >xyz looks for a call called '>xyz', and if found,
-    calls it like 'inst=xyz | >xyz'.
-  * Once a highlight is added, it doesn't get deleted even if the next
-    derivation doesn't have it any more.
-  * save last save time in StateConfig.Meta
-  * wayang/delima-manis: out of range for patch scale: [(0s, 88.85)]
-  * The problem is transposed pitch vs. raw pitch.  This is error prone, is
-    there a better way to solve it?
-    . I could make separate types, or at least aliases to start with.  The key
-      is that I want to compare transposed pitches to each other, but the
-      Score.Event only has raw pitches.  Also, I don't want to apply the
-      environ's transpositions more than once, though I do transpose multiple
-      times.  And in practice, that happens only in Convert.
-    . So it should be enough to have Derive.pitch_at return Pitch, and
-      Util.pitch return TransposedPitch, and only allow comparisons with
-      TransposedPitch.  That means Pitches.pitch_nn takes a TransposedPitch.
-    . If I do it with a phantom type, then I can have the signal controls
-      apply to both Signal Transposed and Signal Raw.  But I'd want
-      Signal Transposed -> Pitch Transposed.  I could do that with a type
-      family.  But do I really need to get that fancy?
-
-  * 'make_scale' functions should all take ScaleId as the first arg
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
-  - make Score.unwarp_pos extend the signal in the same way that 'warp_pos'
-    does so I can make id_warp_signal into mempty
-  delima manis:
-    - end is buggy, what's going on?
-      It's due to the wrong octave, i3 is not in range.  But why does it
-      result in funny sounds instead of an out of range error and a normal i4?
-    - Do different things in polos and sangsih:
-      'when (is-polos) |' and 'when (is-sangsih) |'
-      I'd want a boolean type, or should I embed it in Int?
-    . Note which is either damp or absent: 'dmp'
-    - Gradually come in, could do omit with a signal that increases.
-    . How to manage dynamics?  I want to give the overall dyn, but have the
-      parts have dynamics within that.  But the problem with multiplication
-      is that it sets a ceiling on the dynamic, where I want it to set
-      a "normal".  Perhaps overall dynamic should be 1, but they can go >1
-      to express louder than normal.  Or I should do symbolic, that way I
-      could also do absolute.  E.g. numbers multiply.  But then I can have
-      'm+' or 'm-' which is current dyn plus or minus some amount, and
-      mf, f, ff, which are absolute values.
-
-  + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
-    to tile vertically.
   - Ngoret seemingly can't work with negative durations, because it wants to
     make notes overlap, and I can't express that.
     . One way is to extend negative durations to allow overlaps.  It seems
@@ -567,6 +370,29 @@ lilypond:
       http://www.medeli.com.cn/soft/gb/soft.asp
 
 negative duration / arrival beats:
+  new arrival notes scheme infer-duration:
+    . I don't want to trim because I might need the controls if I extend the
+      duration.  I do want to trim because I don't want e.g. t-dia at start
+      from the caller, but I do want pitch at start from the block.
+    . t-dia:  0   1   0
+              b1  b2
+              a b|c   d
+              a b|    d
+    - If 'c' is present, then I clip off t-dia because I drop controls
+      starting at 1.  The starts are replaced with ones from b1.
+      So the sample at 'start' should come from the local block only.
+      Samples after start can be used from global.  So what if the block
+      call just deleted samples at exactly block end?  Any local tracks
+      could put a sample there, but otherwise the event gets control signal
+      afterwards.  If there is a note to replace, the >start samples are
+      replaced, but otherwise, I get the ones from the caller.
+    . E.g. global filter sweep.  A infer-duration note would stick out
+      because the sweep is meant to be continuous.  In this case, I can
+      just use the untrimmed control.  But t-dia should not do that, unless
+      I really am treating it continuously.  This is the same problem as
+      whether a control should continue changing into the decay or not.  The
+      sweep should, but a pitch belongs to the next note.  So maybe this is
+      a fundamental limitation of the score language.
   represent arrival notes differently
     . Instead of representing arrival notes as the sounding time plus
       a negative duration, I could represent them as a start time plus a flag.
@@ -691,17 +517,11 @@ cleanup:
       the whole expression, then because indent is also break priority, the
       breaking is wrong.  So I want to say break + indent in one word.
   convert to Text:
-    * Log.debug etc.
-      But I also want to write Text to output, which means not using Read and
-      Show anymore.  That means a custom serialization, which means either
-      human readable text, or binary but then I need a binary record format.
-      . Human readable plus newlines seems nice.
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter:
       - monoidal interface, not monadic
       - write text, set indent for expression, insert soft break
     - Derive.throw
-    * Ui.Id
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
     . I could make that a .c file too, and get rid of the sketchy hsc2hs on
@@ -992,13 +812,13 @@ REPL: repl:
   - :browse to look in modules... can I use GHC.getBindings for this?
   - :module cmd to move evaluation context to a certain module, maybe I
     could also get rid of the need for Cmd.Lang.Environ to import everything.
-  * new ghc api lets log_action catch ghci msgs, e.g. "Compiling xyz", added
-    in f81e14bb14e459cdd59ea232f7c711827be85dd6
   - functions to load string serialized tracks for event cut and paste
   - an aux data input for the lang socket might be useful, to paste in data
     without having to quote it
 
 Cmd:
+  + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
+    to tile vertically.
   - Create tempo by "stretching", i.e. select start and end, and create tempo
     mark that will cause the start point to be played where the end point used
     to be played.
@@ -1071,6 +891,7 @@ Cmd:
 
 Derive:
   tracklang:
+    - replace VAttributes with a general purpose VSet.
     - maybe use {} for quoted, it's a bit shorter than "()
     - there should be a character that triggers a parse failure, which is used
       by invalid ShowVal instances like ShowVal Pitch
@@ -1087,11 +908,6 @@ Derive:
       - irregularize runs based on fingering patterns, e.g. groups of 3
     - retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
-    * overblow emulation: a set of overblow ranges are defined, along with
-      possible pitches for each one (fundamental and overblow harmonics).
-      When a note moves from one to another, start a new note at the
-      destination pitch and bend the decay of the old one to the fundamental
-      or closer harmonic from the previous mode.
 
   - consider track calls and block calls:
     note_track :: TrackTree.EventsNode -> Derive.EventDeriver
@@ -1113,79 +929,10 @@ Derive:
       - add isep to *legong
       If I put pemero notes in legong, then I can play them when needed.
         But what should they be called?  i o e e# u a a#
-        * convert Derive.Scales to use Pitch.Semi instead of Pitch.Pitch
-          * use dm_start_pc and dm_start_octave
-        * Update BaliScales to use new Scales
-          . DegreeMap doesn't like having empty Notes, everything else becomes
-            empty.  Maybe I can't use it at all.
-          . Why can't I resue ChromaticScales and Theory?  How is it
-            different?
-            . Selecting NN is different, but that should be easy.
-            . No flats, no double sharps, no enharmonics.  It's also always
-              relative.
-          * I think TheoryFormat doesn't support relative octave scales, like
-            wayang-pemade and wayang-kantilan.
-            . The problem is that it hardcodes octave formatting and parsing.
-              I think I have to include the octave in fmt_show and fmt_read.
-            . But if I have [Note] and no key, then I don't need TheoryFormat at
-              all.
-            . The reason TheoryFormat wants to do octave separately is
-              relative->absolute adjustment, so I don't need it for an absolute
-              scale.  show/read octave would be potentially useful for
-              pemade/kantilan *legong.
-              . parse can be with octave
-              . show: show_key doesn't want the octave
-        * input note incorrect for other pathet
-        * add saih pitu modes
         - pick better nns for 4 and 7
         - add 'lebeng' key with 1234567 cipher notation
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
-        * if a layout doesn't have an accidental, don't allow its input
-        * add range to scale doc
-        * legong-p and legong-k are messed up
-          . instead of checking for InvalidTransposition from show, I can
-            check range first in input_to_note
-        * when out of range I get "invalid transposition", it should be
-          "invalid input", and then I can suppress that error.
-        . I also want to be able to set the scale, to make different notes
-          bero.
-        . I should probably switch to TheoryFormat, then I can use relative
-          scales for different saih / pathet.
-        . modeled as a chromatic scale with 7 notes, and 5 diatonic notes
-        . [i o e e# u a a#] or [1 2 3 4 5 6 7]
-        . It's like chromatic, in that it has a layout, and has keys that have
-          a chromatic tonic and a set of 5 chromatic intervals.  It also has
-          chromatic and diatonic transposition.
-
-      * Sometimes ngoret makes more sense as at attribute of the previous note,
-        or perhaps a freestanding ornament, since it can happen or not on
-        a repeat.
-        . The problem is getting the next pitch.  Either go back to the
-          evaluation thing I had before or do a two-step evaluation.
-        . If the next pitch is on the next block, then a global postproc is
-          the only option.  I have to stash the relevant parameters:
-          direction, time, dyn.  So it winds up being like a delayed call:
-          (call, args), which is called again but with prev and next events
-          available, and in RealTime.
-        . A nicer implementation might be to add Thunk or something to LEvent,
-          and Collect will collect Some monoid to tell to do another pass.  Or
-          I could just unconditionally do one more pass, this way there is no
-          data dependency.
-        . This might work ok for ornaments like ngoret, but what about calls
-          that consistently need the next pitch, and want to work in
-          ScoreTime, like gamakam?  In that case I want to evaluate the whole
-          track once for just pitches, and then another pass for real.
-          However, this won't work for ngoret because of the block boundary!
-          So maybe I need both?
-
-        . Postproc approach: I also need to adjust neighbors, e.g. for ngoret.
-          So I think I go back to emitting a tagged event, and then pair that
-          with a postproc.  This already happens for note call ngoret.  Then
-          ngoret note call just emits an extra 'ngoret' tagged event.
-          . I could do this with event_stack, e.g. just look at the innermost
-            Call.
-      * errors for Gender.realize_ngoret
       kotekan ornaments
         - control for norot +mute
         - gender norot: control for polos 234- vs. 434-
