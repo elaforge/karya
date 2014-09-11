@@ -291,8 +291,7 @@ score_to_real pos = do
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
     warp <- get_dynamic state_warp
-    maybe (throw $ "real_to_score: out of range: " ++ show pos) return
-        (Score.unwarp_pos warp pos)
+    return $ Score.unwarp_pos warp pos
 
 in_real_time :: Deriver a -> Deriver a
 in_real_time = with_warp (const Score.id_warp)

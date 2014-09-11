@@ -317,9 +317,9 @@ test_warp_ops = do
     equal (run (Derive.stretch 0.5 . Derive.at 2)) $ Right [1, 2]
 
     -- test compose
-    let plain = Score.signal_to_warp $
+    let plain = Score.warp $
             Signal.signal [(RealTime.seconds n, n) | n <- [0..100]]
-        slow = Score.signal_to_warp $
+        slow = Score.warp $
             Signal.signal [(RealTime.seconds n, n*2) | n <- [0..40]]
 
 
@@ -361,7 +361,7 @@ test_real_to_score = do
     equal (f (Derive.at 5) 1) (Right 1)
     equal (f (Derive.stretch 5) 1) (Right 1)
     equal (f (Derive.stretch 5 . Derive.at 5) 1) (Right 1)
-    let slow = Score.signal_to_warp $
+    let slow = Score.warp $
             Signal.signal [(0, 0), (1, 2), (2, 4), (3, 6), (100, 200)]
     equal (f (Internal.warp slow . Derive.stretch 5 . Derive.at 5) 1)
         (Right 1)

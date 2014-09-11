@@ -140,7 +140,7 @@ closest_warp track_warps block_id track_id pos =
 
 inverse_tempo_func :: [Collection] -> Transport.InverseTempoFunction
 inverse_tempo_func track_warps time = do
-    (block_id, track_ids, Just pos) <- track_pos
+    (block_id, track_ids, pos) <- track_pos
     return (block_id, [(track_id, pos) | track_id <- Set.toList track_ids])
     where
     -- Ornaments and leading keyswitches can result in starting at a negative

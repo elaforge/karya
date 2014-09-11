@@ -84,6 +84,20 @@ test_ngoret = do
     equal (run $ c_to_e "" "'_ .5 .5 1")
         ([(0, 1, "4c"), (1.5, 1, "4f"), (2, 1, "4e")], [])
 
+test_past_end = do
+    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
+    -- A grace note right at the end doesn't cause an error.  Previously this
+    -- would fail because Derive.score_to_real on a ScoreTime past the end of
+    -- the tempo track would fail.
+    equal (run
+            [ ("top=ruler -- import bali.gender",
+                [ ("tempo", [(0, 0, "1"), (1, 0, "2")])
+                , ("*", [(0, 0, "4c")])
+                , (">", [(2, 0, "'^ .5 1")])
+                ])
+            ])
+        ([(1, 1.5, "3b"), (1.5, 0, "4c")], [])
+
 test_ngoret_infer_duration = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
         top = "top -- " ++ transform ++ " | realize-ngoret | infer-duration"

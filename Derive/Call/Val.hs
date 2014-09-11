@@ -376,10 +376,10 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
         TrackLang.ControlFunction "cf-swing" (cf_swing_ rank amount)
     where
     cf_swing_ rank amount control dyn pos
-        | Just marks <- maybe_marks, Just t <- score dyn pos = Score.untyped $
+        | Just marks <- maybe_marks = Score.untyped $
             dyn_control dyn control pos + RealTime.to_seconds
                 (cf_swing (real dyn) (Meter.name_to_rank rank)
-                    (to_function dyn 0 amount) marks t)
+                    (to_function dyn 0 amount) marks (score dyn pos))
         | otherwise = Score.untyped 0
         where
         maybe_marks = snd <$> Map.lookup Ruler.meter (TrackLang.dyn_ruler dyn)
@@ -423,7 +423,7 @@ dyn_control dyn control pos = maybe 0 (Signal.at pos . Score.typed_val) $
 real :: TrackLang.Dynamic -> ScoreTime -> RealTime
 real dyn = Score.warp_pos (TrackLang.dyn_warp dyn)
 
-score :: TrackLang.Dynamic -> RealTime -> Maybe ScoreTime
+score :: TrackLang.Dynamic -> RealTime -> ScoreTime
 score dyn = Score.unwarp_pos (TrackLang.dyn_warp dyn)
 
 -- ** ValControl

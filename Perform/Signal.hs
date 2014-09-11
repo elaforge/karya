@@ -30,7 +30,10 @@ module Perform.Signal (
     , check, check_warp
 
     -- * access
-    , at, sample_at, at_linear, at_linear_extend, before, constant_val
+    , at, sample_at, before
+    , at_linear, at_linear_extend
+    , inverse_at, inverse_at_extend
+    , constant_val
     , head, last, uncons
     , Sample(..)
 
@@ -47,7 +50,6 @@ module Perform.Signal (
     , map_x, map_y, map_err
 
     -- ** special functions
-    , inverse_at, inverse_at_extend
     , compose, compose_hybrid, integrate
     , unwarp, unwarp_fused, invert
     , pitches_share
@@ -230,6 +232,10 @@ at x = fromMaybe 0 . V.at x . sig_vec
 sample_at :: X -> Signal y -> Maybe (X, Y)
 sample_at x = V.sample_at x . sig_vec
 
+-- | Find the value immediately before the point.
+before :: RealTime -> Signal y -> Y
+before x = maybe 0 sy . V.before x . sig_vec
+
 at_linear :: X -> Signal y -> Y
 at_linear x sig = interpolate vec (V.highest_index x vec)
     where
@@ -252,26 +258,69 @@ at_linear x sig = interpolate vec (V.highest_index x vec)
 --
 -- This is used by 'Derive.Score.warp_pos'.
 at_linear_extend :: X -> Warp -> Y
-at_linear_extend x sig = interpolate vec (V.highest_index x vec)
+at_linear_extend x (Signal vec) = interpolate (V.highest_index x vec)
     where
-    vec = sig_vec sig
-    interpolate vec i
+    interpolate i
         | V.null vec = x_to_y x
         | i + 1 >= V.length vec = if i - 1 < 0
             then V.y_at x0 y0 (x0+1) (y0+1) x
-            else let (x_1, y_1) = index (i-1) in V.y_at x_1 y_1 x0 y0 x
+            else let Sample x_1 y_1 = index (i-1) in V.y_at x_1 y_1 x0 y0 x
         | i < 0 = if V.length vec == 1
             then V.y_at x1 y1 (x1+1) (y1+1) x
-            else let (x2, y2) = index 1 in V.y_at x1 y1 x2 y2 x
+            else let Sample x2 y2 = index 1 in V.y_at x1 y1 x2 y2 x
         | otherwise = V.y_at x0 y0 x1 y1 x
         where
-        (x0, y0) = index i
-        (x1, y1) = index (i+1)
-    index = V.to_pair . V.index vec
+        Sample x0 y0 = index i
+        Sample x1 y1 = index (i+1)
+    index = V.index vec
 
--- | Find the value immediately before the point.
-before :: RealTime -> Signal y -> Y
-before x = maybe 0 sy . V.before x . sig_vec
+-- | Find the X at which the signal will attain the given Y.  Assumes Y is
+-- non-decreasing.  This should be the inverse of 'at_linear'.
+--
+-- Unlike the other signal functions, this takes a single Y instead of
+-- a signal, and as a RealTime.  This is because it's used by the play monitor
+-- for the inverse tempo map, and the play monitor polls on intervals defined
+-- by IO latency, so even when signals are lazy it would be impossible to
+-- generate the input signal without unsafeInterleaveIO.  If I really want to
+-- pass a signal, I could pass regular samples and let the monitor interpolate.
+inverse_at :: Y -> Warp -> Maybe X
+inverse_at y sig
+    | i >= V.length vec || i < 0 = Nothing
+    | y1 == y = Just x1
+    | otherwise = V.x_at x0 y0 x1 y1 y
+    where
+    vec = sig_vec sig
+    i = lowest_index_y y vec
+    Sample x0 y0 = if i <= 0 then Sample 0 0 else V.index vec (i-1)
+    Sample x1 y1 = V.index vec i
+
+-- | This is like 'inverse_at', except that if the Y value is past the end
+-- of the signal, it extends the signal as far as necessary.  When used for
+-- warp composition or unwarping, this means that the parent warp is too small
+-- for the child.  Normally this shouldn't happen, but if it does it's
+-- sometimes better to make something up than crash.
+--
+-- The rules for extension are the same as 'at_linear_extend', and this
+-- function should be the inverse of that one.  This ensures that if you warp
+-- and then unwarp a time, you get your original time back.
+inverse_at_extend :: Y -> Warp -> X
+inverse_at_extend y (Signal vec)
+    | V.null vec = y_to_real y
+    -- Nothing means the line is flat and will never reach Y.  I pick a big
+    -- X instead of crashing.
+    | otherwise = fromMaybe RealTime.large $ V.x_at x0 y0 x1 y1 y
+    where
+    -- Has to be the highest index, or it gets hung up on a flat segment.
+    i = index_above_y y vec
+    (Sample x0 y0, Sample x1 y1)
+        | len == 1 =
+            let at0@(Sample x0 y0) = index 0
+            in (at0, Sample (x0+1) (y0+1))
+        | i >= V.length vec = (index (i-2), index (i-1))
+        | i == 0 = (index 0, index 1)
+        | otherwise = (index (i-1), index i)
+        where len = V.length vec
+    index = V.index vec
 
 -- | Just if the signal is constant.
 constant_val :: Signal y -> Maybe Y
@@ -399,47 +448,17 @@ sig_op op sig1 sig2 = Signal $ V.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
 
 -- ** special functions
 
--- | Find the X at which the signal will attain the given Y.  Assumes Y is
--- non-decreasing.
---
--- Unlike the other signal functions, this takes a single Y instead of
--- a signal, and as a RealTime.  This is because it's used by the play monitor
--- for the inverse tempo map, and the play monitor polls on intervals defined
--- by IO latency, so even when signals are lazy it would be impossible to
--- generate the input signal without unsafeInterleaveIO.  If I really want to
--- pass a signal, I could pass regular samples and let the monitor interpolate.
---
--- This uses a bsearch on the vector, which is only reasonable as long as
--- its strict.  When I switch to lazy vectors, I'll have to thread the tails.
-inverse_at :: Y -> Warp -> Maybe X
-inverse_at y sig
-    | i >= V.length vec = Nothing
-    -- This can happen if 'y' is before the start of 'sig', which can happen
-    -- if an events starts at a negative time.  Assume the signal is linear
-    -- before the first sample.
-    | i <= 0 = Just (y_to_real y)
-    | y1 == y = Just x1
-    | otherwise = V.x_at x0 y0 x1 y1 y
+index_above_y :: Y -> V.Unboxed -> Int
+index_above_y y vec = go 0 (V.length vec)
     where
-    vec = sig_vec sig
-    i = bsearch_y y vec
-    Sample x0 y0 = if i <= 0 then Sample 0 0 else V.index vec (i-1)
-    Sample x1 y1 = V.index vec i
+    go low high
+        | low == high = low
+        | y >= sy (V.unsafeIndex vec mid) = go (mid+1) high
+        | otherwise = go low mid
+        where mid = (low + high) `div` 2
 
--- | This is like 'inverse_at', except that if the Y value is past the end
--- of the signal, it extends the signal at 1:1 as far as necessary.  When
--- used for warp composition or unwarping, this means that the parent warp
--- is too small for the child.  Normally this shouldn't happen, but if it does
--- it's sometimes better to make something up than crash.
-inverse_at_extend :: Y -> Warp -> X
-inverse_at_extend ypos sig = fromMaybe extended $ inverse_at ypos sig
-    where
-    extended = case last sig of
-        Nothing -> 0
-        Just (x, y) -> x + y_to_real (ypos - y)
-
-bsearch_y :: Y -> V.Unboxed -> Int
-bsearch_y y vec = go 0 (V.length vec)
+lowest_index_y :: Y -> V.Unboxed -> Int
+lowest_index_y y vec = go 0 (V.length vec)
     where
     go low high
         | low == high = low

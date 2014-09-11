@@ -6,6 +6,7 @@ module Perform.Signal_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Derive.Score as Score
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 
@@ -41,6 +42,23 @@ test_at_linear_extend = do
     equal (map (f [(2, 2), (4, 0)]) (Seq.range 0 5 1)) [4, 3, 2, 1, 0, -1]
     equal (map (f [(2, 0), (4, 2)]) (Seq.range 0 5 1)) [-2, -1, 0, 1, 2, 3]
 
+test_inverse_at_extend = do
+    let f sig y = Signal.inverse_at_extend y (signal sig)
+    let trip sig ys = (map (roundtrip sig) ys, ys)
+        roundtrip sig_ y = Signal.at_linear_extend
+                (Signal.inverse_at_extend y sig) sig
+            where sig = signal sig_
+    equal (map (f []) [-1, 0, 1]) [-1, 0, 1]
+    uncurry equal (trip [] [-1, 0, 1])
+    equal (map (f [(1, 2)]) [1, 2, 3]) [0, 1, 2]
+    uncurry equal (trip [(1, 2)] [1, 2, 3])
+
+    let complicated = [(0, 0), (1, 2), (2, 2), (4, 4)]
+    equal (map (f complicated) [-1 .. 5])
+        [-0.5, 0, 0.5, 2, 3, 4, 5]
+    uncurry equal (trip complicated [-1 .. 5])
+    equal (f [(0, 0), (1, 0)] 1) RealTime.large
+
 -- * transformation
 
 test_scale = do
@@ -64,11 +82,7 @@ test_inverse_at = do
         [Just 0, Just 1, Just 1, Just 2, Nothing]
 
     equal (f [(0, 0), (1, 1)] 5) Nothing
-    equal (f [(0, 0), (1, 1)] (-1)) (Just (-1))
-
-test_inverse_at_extend = do
-    let f pos = Signal.inverse_at_extend pos (signal [(0, 0), (4, 2)])
-    equal (map f [0, 1, 2, 3, 4]) [0, 2, 4, 5, 6]
+    equal (f [(0, 0), (1, 1)] (-1)) Nothing
 
 test_compose = do
     let f s1 s2 = unsignal $ Signal.compose (signal s1) (signal s2)
@@ -151,7 +165,7 @@ test_unwarp_fused = do
             . Signal.signal
         trip warp p = f warp [(Score.warp_pos warp p, 0)]
     let warp = Score.Warp (Signal.signal [(0, 0), (2, 4)]) 2 1
-    equal (Score.unwarp_pos warp (Score.warp_pos warp 0)) (Just 0)
+    equal (Score.unwarp_pos warp (Score.warp_pos warp 0)) 0
     equal (trip warp 0) [(0, 0)]
     let warp2 = Score.Warp (Signal.signal [(0, 0), (2, 4)]) 0 2
     equal (trip warp2 1) [(1, 0)]

@@ -267,17 +267,18 @@ initial_note event = note_at (event_start event) event
 -- ** warp
 
 -- | Convert a Signal to a Warp.
-signal_to_warp :: Signal.Warp -> Warp
-signal_to_warp sig = Warp sig 0 1
+warp :: Signal.Warp -> Warp
+warp sig = Warp sig 0 1
 
 id_warp :: Warp
-id_warp = signal_to_warp id_warp_signal
+id_warp = warp id_warp_signal
 
 id_warp_signal :: Signal.Warp
--- TODO I should be able to make this Signal.empty, but I'd need to make
--- 'unwarp_pos' extend the signal in the same way that 'warp_pos' does.
 id_warp_signal = Signal.signal [(0, 0),
     (RealTime.large, RealTime.to_seconds RealTime.large)]
+    -- This could be Signal.empty and 'warp_pos' would still treat it as 1:1,
+    -- but then I'd need complicated special cases for 'warp_to_signal' and
+    -- 'compose_warps', so don't bother.
 
 is_id_warp :: Warp -> Bool
 is_id_warp = (== id_warp)
@@ -293,17 +294,18 @@ is_id_warp = (== id_warp)
 -- results from ornaments that placed notes before ScoreTime 0.
 warp_pos :: Warp -> ScoreTime -> RealTime
 warp_pos (Warp sig shift stretch) pos
-    | sig == id_warp_signal = pos1
-    | otherwise = Signal.y_to_real $ Signal.at_linear_extend pos1 sig
-    where pos1 = to_real pos * stretch + shift
+    | sig == id_warp_signal = warp pos
+    | otherwise = Signal.y_to_real $ Signal.at_linear_extend (warp pos) sig
+    where warp p = to_real p * stretch + shift
 
--- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
--- warp_pos will project a signal on forever, but 'Signal.inverse_at' won't.
-unwarp_pos :: Warp -> RealTime -> Maybe ScoreTime
-unwarp_pos (Warp sig shift stretch) pos =
-    case Signal.inverse_at (Signal.x_to_y pos) sig of
-        Nothing -> Nothing
-        Just p -> Just $ to_score $ (p - shift) / stretch
+-- | The inverse of 'warp_pos'.  I originally would fail when the RealTime
+-- doesn't occur in the Warp, but now I extend it in the same way as
+-- 'warp_pos'.  Failing caused awkwardness with events at the end of the score.
+unwarp_pos :: Warp -> RealTime -> ScoreTime
+unwarp_pos (Warp sig shift stretch) pos
+    | sig == id_warp_signal = unwarp pos
+    | otherwise = unwarp $ Signal.inverse_at_extend (Signal.x_to_y pos) sig
+    where unwarp p = to_score $ (p - shift) / stretch
 
 -- | Compose two warps.  Warps with id signals are optimized.
 -- This is standard right to left composition

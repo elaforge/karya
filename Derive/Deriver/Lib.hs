@@ -129,7 +129,7 @@ get_stack = gets (state_stack . state_dynamic)
 real_function :: Deriver (ScoreTime -> RealTime)
 real_function = Score.warp_pos <$> Internal.get_dynamic state_warp
 
-score_function :: Deriver (RealTime -> Maybe ScoreTime)
+score_function :: Deriver (RealTime -> ScoreTime)
 score_function = Score.unwarp_pos <$> Internal.get_dynamic state_warp
 
 -- ** import

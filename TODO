@@ -7,6 +7,9 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
+    - p4 has small variations depending on where the melody is going
+    - it also has +mute vs. open variation
+    - there is also some interesting tempo changes
     * delima-manis last arrival note is short
       It's because the zero-dur -> mute note call applies to the last note.
       . Can I say +mute happens only if the Score.Event winds up being zero dur?
@@ -16,8 +19,13 @@ UNSORTED
         the pitch.
       . In turn, that's because it gets infer-duration.  But I don't want that
         to happen for a zero dur block.
-    - delima-manis final notes chopped off when playing from @score
+    * delima-manis final notes chopped off when playing from @score
       Now I get: Error: score: out of range: 228.942012391468s
+      . Grace notes are placed in ScoreTime, and damp time causes
+        a real_to_score lookup, which fails.
+        Since score_to_real will do linear extension, real_to_score should do
+        it the same way.
+      . Score.unwarp_pos
   * will infer-duration mess up zero duration blocks like dmp?
     maybe?  In any case, I think I don't like dmp?
   * allow scroll down a bit further
