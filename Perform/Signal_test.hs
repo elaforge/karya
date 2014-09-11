@@ -149,12 +149,12 @@ test_unwarp_fused = do
     let f (Score.Warp sig shift stretch) = Signal.unsignal
             . Signal.unwarp_fused sig shift stretch
             . Signal.signal
-        trip p warp = f warp [(Score.warp_pos p warp, 0)]
+        trip warp p = f warp [(Score.warp_pos warp p, 0)]
     let warp = Score.Warp (Signal.signal [(0, 0), (2, 4)]) 2 1
-    equal (Score.unwarp_pos (Score.warp_pos 0 warp) warp) (Just 0)
-    equal (trip 0 warp) [(0, 0)]
+    equal (Score.unwarp_pos warp (Score.warp_pos warp 0)) (Just 0)
+    equal (trip warp 0) [(0, 0)]
     let warp2 = Score.Warp (Signal.signal [(0, 0), (2, 4)]) 0 2
-    equal (trip 1 warp2) [(1, 0)]
+    equal (trip warp2 1) [(1, 0)]
 
 make_warp :: Signal.X -> Signal.Y -> Signal.Warp
 make_warp end tempo = tempo_to_warp (signal [(0, tempo), (end, tempo)])

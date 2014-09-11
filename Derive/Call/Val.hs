@@ -421,10 +421,10 @@ dyn_control dyn control pos = maybe 0 (Signal.at pos . Score.typed_val) $
     Map.lookup control $ TrackLang.dyn_controls dyn
 
 real :: TrackLang.Dynamic -> ScoreTime -> RealTime
-real dyn t = Score.warp_pos t (TrackLang.dyn_warp dyn)
+real dyn = Score.warp_pos (TrackLang.dyn_warp dyn)
 
 score :: TrackLang.Dynamic -> RealTime -> Maybe ScoreTime
-score dyn t = Score.unwarp_pos t (TrackLang.dyn_warp dyn)
+score dyn = Score.unwarp_pos (TrackLang.dyn_warp dyn)
 
 -- ** ValControl
 

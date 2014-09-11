@@ -111,7 +111,8 @@ collect prefix a stacks = (prefix, a, bs)
 -- * functions on Collection
 
 tempo_func :: [Collection] -> Transport.TempoFunction
-tempo_func track_warps block_id track_id pos = map (Score.warp_pos pos) warps
+tempo_func track_warps block_id track_id pos =
+    map (flip Score.warp_pos pos) warps
     where
     warps = [tw_warp tw | tw <- track_warps, tw_block tw == block_id,
         Set.member track_id (tw_tracks tw)]
@@ -149,7 +150,7 @@ inverse_tempo_func track_warps time = do
     -- ts <= tw_end means that you can get the ScoreTime for the end of
     -- a block.  This is useful because then "Cmd.StepPlay" can step to the
     -- very end.
-    track_pos = [(tw_block tw, tw_tracks tw, Score.unwarp_pos ts (tw_warp tw))
+    track_pos = [(tw_block tw, tw_tracks tw, Score.unwarp_pos (tw_warp tw) ts)
         | tw <- track_warps, tw_start tw <= ts && ts <= tw_end tw]
 
     -- TODO Comment is obsolete, but I may want to add it back in if I go

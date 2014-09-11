@@ -11,9 +11,8 @@ import qualified Perform.Signal as Signal
 
 
 test_compose_warp = do
-    let f w1 w2 = [Score.warp_pos n warp | n <- Seq.range 0 3 1]
-            where
-            warp = Score.compose_warps w1 w2
+    let f w1 w2 = [Score.warp_pos warp n | n <- Seq.range 0 3 1]
+            where warp = Score.compose_warps w1 w2
         w = Score.id_warp
         shift n warp = warp { Score.warp_shift = n }
         stretch n warp = warp { Score.warp_stretch = n }
@@ -40,7 +39,7 @@ test_compose_warp = do
 test_warp_to_signal = do
     let f warp = Seq.diff (==) (pos warp) (pos wsig)
             where
-            pos w = [Score.warp_pos p w | p <- Seq.range 0 10 1]
+            pos w = [Score.warp_pos w p | p <- Seq.range 0 10 1]
             wsig = Score.signal_to_warp $ Score.warp_to_signal warp
     let w = Score.Warp
         id_sig = Score.id_warp_signal
@@ -57,8 +56,8 @@ test_warp_pos = do
 
         repl = replicate 4
         combinations p =
-            [ f p (id_warp 0), f 0 (id_warp (RealTime.score p))
-            , f p (warp 0), f 0 (warp (RealTime.score p))
+            [ f (id_warp 0) p, f (id_warp (RealTime.score p)) 0
+            , f (warp 0) p, f (warp (RealTime.score p)) 0
             ]
 
     -- Score.id_warp_signal should be the same as any other linear signal.

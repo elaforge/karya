@@ -286,13 +286,13 @@ instance Time TrackLang.DefaultScore where
 score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
     warp <- get_dynamic state_warp
-    return (Score.warp_pos pos warp)
+    return (Score.warp_pos warp pos)
 
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
     warp <- get_dynamic state_warp
-    maybe (throw $ "score: out of range: " ++ show pos) return
-        (Score.unwarp_pos pos warp)
+    maybe (throw $ "real_to_score: out of range: " ++ show pos) return
+        (Score.unwarp_pos warp pos)
 
 in_real_time :: Deriver a -> Deriver a
 in_real_time = with_warp (const Score.id_warp)

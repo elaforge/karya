@@ -64,7 +64,7 @@ with_tempo :: ScoreTime
 with_tempo block_dur maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     stretch_to_1 <- ifM Internal.is_root_block (return id) $ do
-        let real_dur = Score.warp_pos block_dur warp
+        let real_dur = Score.warp_pos warp block_dur
         require_dur block_dur real_dur $
             Derive.stretch (1 / RealTime.to_score real_dur)
     stretch_to_1 $ Internal.warp warp $ do
@@ -107,7 +107,7 @@ with_absolute block_dur maybe_track_id signal deriver = do
     place <- ifM Internal.is_root_block (return id) $ do
         start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
         end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
-        let real_dur = Score.warp_pos block_dur warp
+        let real_dur = Score.warp_pos warp block_dur
         require_dur block_dur real_dur $
             Internal.place start ((end - start) / RealTime.to_score real_dur)
     Internal.in_real_time $ place $ Internal.warp warp $ do
@@ -135,7 +135,7 @@ with_hybrid block_dur maybe_track_id signal deriver = do
         end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
         let absolute = flat_duration (Score.warp_signal warp)
             real_dur = max (RealTime.score absolute)
-                (Score.warp_pos block_dur warp)
+                (Score.warp_pos warp block_dur)
             -- If the block's absolute time is greater than the time allotted,
             -- the non-absolute bits become infinitely fast.  Infinitely fast
             -- is not very musically interesting, so I limit to very fast.

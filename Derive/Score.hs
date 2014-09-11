@@ -291,16 +291,16 @@ is_id_warp = (== id_warp)
 -- 'id_warp_signal' produce inconsistent results with a warp that was linear
 -- but not not equal to id_warp_signal, which in turn led to inconsistent
 -- results from ornaments that placed notes before ScoreTime 0.
-warp_pos :: ScoreTime -> Warp -> RealTime
-warp_pos pos (Warp sig shift stretch)
+warp_pos :: Warp -> ScoreTime -> RealTime
+warp_pos (Warp sig shift stretch) pos
     | sig == id_warp_signal = pos1
     | otherwise = Signal.y_to_real $ Signal.at_linear_extend pos1 sig
     where pos1 = to_real pos * stretch + shift
 
 -- | Unlike 'warp_pos', 'unwarp_pos' can fail.  This asymmetry is because
 -- warp_pos will project a signal on forever, but 'Signal.inverse_at' won't.
-unwarp_pos :: RealTime -> Warp -> Maybe ScoreTime
-unwarp_pos pos (Warp sig shift stretch) =
+unwarp_pos :: Warp -> RealTime -> Maybe ScoreTime
+unwarp_pos (Warp sig shift stretch) pos =
     case Signal.inverse_at (Signal.x_to_y pos) sig of
         Nothing -> Nothing
         Just p -> Just $ to_score $ (p - shift) / stretch
