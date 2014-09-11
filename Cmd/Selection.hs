@@ -197,7 +197,7 @@ cmd_track_all selnum = do
     set_selnum view_id selnum (Just (select_track_all block_end tracks sel))
 
 select_track_all :: TrackTime -> TrackNum -> Types.Selection -> Types.Selection
-select_track_all block_end tracks sel
+select_track_all block_end_ tracks sel
     | sel == select_tracks = select_all
     | sel == select_rest = select_tracks
     | otherwise = select_rest
@@ -210,6 +210,8 @@ select_track_all block_end tracks sel
     select_tracks =
         sel { Types.sel_start_pos = 0, Types.sel_cur_pos = block_end }
     select_all = Types.selection 1 0 tracks block_end
+    -- Otherwise a select-all won't include an event at the end of the block.
+    block_end = block_end_ + ScoreTime.eta
 
 merge_sel :: Types.Selection -> Types.Selection -> Types.Selection
 merge_sel (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =
