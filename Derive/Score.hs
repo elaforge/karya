@@ -295,7 +295,7 @@ is_id_warp = (== id_warp)
 warp_pos :: Warp -> ScoreTime -> RealTime
 warp_pos (Warp sig shift stretch) pos
     | sig == id_warp_signal = warp pos
-    | otherwise = Signal.y_to_real $ Signal.at_linear_extend (warp pos) sig
+    | otherwise = Signal.y_to_x $ Signal.at_linear_extend (warp pos) sig
     where warp p = to_real p * stretch + shift
 
 -- | The inverse of 'warp_pos'.  I originally would fail when the RealTime

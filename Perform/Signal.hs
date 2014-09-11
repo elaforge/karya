@@ -14,7 +14,7 @@
 module Perform.Signal (
     -- * types
     Signal, sig_vec
-    , X, Y, x_to_y, y_to_real, y_to_score, y_to_nn, nn_to_y
+    , X, Y, x_to_y, y_to_x, y_to_score, y_to_nn, nn_to_y
     , tempo_srate
 
     -- * constants
@@ -139,8 +139,8 @@ data DisplaySig
 x_to_y :: X -> Y
 x_to_y = RealTime.to_seconds
 
-y_to_real :: Y -> X
-y_to_real = RealTime.seconds
+y_to_x :: Y -> X
+y_to_x = RealTime.seconds
 
 -- | Some control signals may be interpreted as score time.
 y_to_score :: Y -> ScoreTime
@@ -305,7 +305,7 @@ inverse_at y sig
 -- and then unwarp a time, you get your original time back.
 inverse_at_extend :: Y -> Warp -> X
 inverse_at_extend y (Signal vec)
-    | V.null vec = y_to_real y
+    | V.null vec = y_to_x y
     -- Nothing means the line is flat and will never reach Y.  I pick a big
     -- X instead of crashing.
     | otherwise = fromMaybe RealTime.large $ V.x_at x0 y0 x1 y1 y
@@ -487,7 +487,7 @@ lowest_index_y y vec = go 0 (V.length vec)
 --
 -- TODO Wait, what if the warps don't line up at 0?  Does that happen?
 compose :: Warp -> Warp -> Warp
-compose f = modify_vec $ V.map_y $ \y -> at_linear (y_to_real y) f
+compose f = modify_vec $ V.map_y $ \y -> at_linear (y_to_x y) f
     -- TODO Walking down f would be more efficient, especially once Signal is
     -- lazy.
 
@@ -502,7 +502,7 @@ compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) gen
     where
     -- If 'g' starts with a flat segment, I need to start the linear bit in the
     -- right place.
-    initial = (at_linear (y_to_real y) f, 0)
+    initial = (at_linear (y_to_x y) f, 0)
         where y = maybe 0 snd (head g)
     run state m = Identity.runIdentity $ Monad.State.evalStateT m state
     -- Where h = f•g:
@@ -527,12 +527,12 @@ compose_hybrid f g = Signal $ run initial $ Vector.generateM (length g) gen
     gen_flat gx gx0 gy0 = do
         (y0, _) <- Monad.State.get
         let y = y0 + x_to_y (gx - gx0)
-            offset = inverse_at_extend y f - y_to_real gy0
+            offset = inverse_at_extend y f - y_to_x gy0
         Monad.State.put (y, offset)
         return $ Sample gx y
     gen_normal gx gy = do
         (_, offset) <- Monad.State.get
-        let y = at_linear (y_to_real gy + offset) f
+        let y = at_linear (y_to_x gy + offset) f
         Monad.State.put (y, offset)
         return $ Sample gx y
 
@@ -565,7 +565,7 @@ integrate_segment srate accum x0 y0 x1 _y1
     y_at x = accum + x_to_y (x-x0) * y0
 
 warp :: Warp -> Control -> Control
-warp warp = modify_vec $ V.map_x $ \x -> y_to_real (at_linear x warp)
+warp w = modify_vec $ V.map_x $ \x -> y_to_x (at_linear x w)
 
 -- | Take a Control in RealTime and unwarp it back to ScoreTime.  The only
 -- reason to do this is to display in the UI, so the return type is Display.
@@ -587,7 +587,7 @@ unwarp_fused w shift stretch = coerce . modify_vec (V.map_x unwarp)
 
 invert :: Warp -> Warp
 invert = modify_vec $ Vector.map $ \(Sample x y) ->
-    Sample (y_to_real y) (x_to_y x)
+    Sample (y_to_x y) (x_to_y x)
 
 --- * comparison
 

@@ -49,7 +49,7 @@ real_starts :: (RealTime -> Signal.Y) -> RealTime -> RealTime
 real_starts sig start end = get_starts speed_at start (end + RealTime.eta)
     where
     speed_at t = do
-        let speed = Signal.y_to_real (sig t)
+        let speed = Signal.y_to_x (sig t)
         when (speed <= 0) $
             Derive.throw $ "Speed.real_starts: speed <= 0: " <> pretty speed
         return speed
