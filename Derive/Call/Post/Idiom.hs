@@ -116,9 +116,13 @@ c_zero_duration_mute :: Derive.Transformer Derive.Note
 c_zero_duration_mute = Derive.transformer Module.prelude
     "zero-duration-mute" (Tags.postproc <> Tags.inst)
     "Add attributes to zero duration events."
-    $ Sig.callt (defaulted "attr" Attrs.mute "Add this attribute.")
-    $ \attrs _args deriver -> Post.emap1 (add attrs) <$> deriver
+    $ Sig.callt ((,)
+    <$> defaulted "attr" Attrs.mute "Add this attribute."
+    <*> defaulted "dyn" 0.75 "Scale dynamic by this amount."
+    )
+    $ \(attrs, dyn) _args deriver -> Post.emap1 (add attrs dyn) <$> deriver
     where
-    add attrs event
-        | Score.event_duration event == 0 = Score.add_attributes attrs event
+    add attrs dyn event
+        | Score.event_duration event == 0 =
+            Score.modify_dynamic (*dyn) $ Score.add_attributes attrs event
         | otherwise = event
