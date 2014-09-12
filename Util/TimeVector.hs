@@ -394,12 +394,12 @@ x_at x0 y0 x1 y1 y
 {-# SPECIALIZE lowest_index :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE lowest_index :: X -> Boxed y -> Int #-}
 lowest_index :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
-lowest_index x vec = go vec 0 (V.length vec)
+lowest_index x vec = go 0 (V.length vec)
     where
-    go vec low high
+    go low high
         | low == high = low
-        | x <= sx (V.unsafeIndex vec mid) = go vec low mid
-        | otherwise = go vec (mid+1) high
+        | x <= sx (V.unsafeIndex vec mid) = go low mid
+        | otherwise = go (mid+1) high
         where mid = (low + high) `div` 2
 
 -- | Return the highest index of the given X.  So the next value is
@@ -418,12 +418,12 @@ highest_index x vec
 {-# SPECIALIZE bsearch_above :: X -> Unboxed -> Int #-}
 {-# SPECIALIZE bsearch_above :: X -> Boxed y -> Int #-}
 bsearch_above :: V.Vector v (Sample y) => X -> v (Sample y) -> Int
-bsearch_above x vec = go vec 0 (V.length vec)
+bsearch_above x vec = go 0 (V.length vec)
     where
-    go vec low high
+    go low high
         | low == high = low
-        | x >= sx (V.unsafeIndex vec mid) = go vec (mid+1) high
-        | otherwise = go vec low mid
+        | x >= sx (V.unsafeIndex vec mid) = go (mid+1) high
+        | otherwise = go low mid
         where mid = (low + high) `div` 2
 
 concat_map_accum :: UnboxedY
