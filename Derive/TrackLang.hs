@@ -541,6 +541,12 @@ instance Typecheck ControlFunction where
     to_val = VControlFunction
     to_type _ = TControlFunction
 
+instance Typecheck Quoted where
+    from_val (VQuoted a) = Just a
+    from_val _ = Nothing
+    to_val = VQuoted
+    to_type _ = TQuoted
+
 -- * environ
 
 -- | Insert a new val, but return Left if it changes the type of an existing

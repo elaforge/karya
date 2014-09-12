@@ -218,19 +218,19 @@ required_env name env_default doc = parser arg_doc $ \state1 ->
 defaulted :: forall a. TrackLang.Typecheck a => Text -> a -> Text -> Parser a
 defaulted name = defaulted_env name Derive.Prefixed
 
-defaulted_env :: forall a. (TrackLang.Typecheck a) => Text
+defaulted_env :: forall a. TrackLang.Typecheck a => Text
     -> Derive.EnvironDefault -> a -> Text -> Parser a
 defaulted_env name env_default deflt =
     defaulted_env_ name env_default (Left deflt)
 
 -- | The defaulted value can be a 'TrackLang.Quoted', which will be evaluated
 -- if needed.
-defaulted_env_quoted :: forall a. (TrackLang.Typecheck a) => Text
+defaulted_env_quoted :: forall a. TrackLang.Typecheck a => Text
     -> Derive.EnvironDefault -> TrackLang.Quoted -> Text -> Parser a
 defaulted_env_quoted name env_default quoted =
     defaulted_env_ name env_default (Right quoted)
 
-defaulted_env_ :: forall a. (TrackLang.Typecheck a) => Text
+defaulted_env_ :: forall a. TrackLang.Typecheck a => Text
     -> Derive.EnvironDefault -> Either a TrackLang.Quoted -> Text -> Parser a
 defaulted_env_ name env_default quoted doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
@@ -308,7 +308,7 @@ required_environ name env_default doc = parser arg_doc $ \state ->
 optional :: forall a. TrackLang.Typecheck a => Text -> a -> Text -> Parser a
 optional name = optional_env name Derive.Prefixed
 
-optional_env :: forall a. (TrackLang.Typecheck a) =>
+optional_env :: forall a. TrackLang.Typecheck a =>
     Text -> Derive.EnvironDefault -> a -> Text -> Parser a
 optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
@@ -335,7 +335,7 @@ optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
         }
 
 -- | Collect the rest of the arguments.
-many :: forall a. (TrackLang.Typecheck a) => Text -> Text -> Parser [a]
+many :: forall a. TrackLang.Typecheck a => Text -> Text -> Parser [a]
 many name doc = parser arg_doc $ \state -> do
     vals <- mapM (typecheck state)
         (zip [state_argnum state ..] (state_vals state))
@@ -353,8 +353,7 @@ many name doc = parser arg_doc $ \state -> do
         }
 
 -- | Collect the rest of the arguments, but there must be at least one.
-many1 :: forall a. (TrackLang.Typecheck a) => Text -> Text
-    -> Parser (NonEmpty a)
+many1 :: forall a. TrackLang.Typecheck a => Text -> Text -> Parser (NonEmpty a)
 many1 name doc = parser arg_doc $ \state ->
     case zip [state_argnum state ..] (state_vals state) of
         [] -> Left $
@@ -415,17 +414,19 @@ get_val env_default state name = case state_vals state of
 
 check_arg :: forall a. TrackLang.Typecheck a => State -> Derive.ArgDoc
     -> Derive.ErrorPlace -> Text -> TrackLang.Val -> Either Error a
-check_arg state arg_doc place name val = do
-    (val, maybe_call) <- case val of
+check_arg state arg_doc place name val = case TrackLang.from_val val of
+    Just a -> Right a
+    Nothing -> case val of
+        -- Try to coerce a Quoted to a val and typecheck it.
         TrackLang.VQuoted q@(TrackLang.Quoted call) -> case eval state call of
             Left err -> Left $ Derive.EvalError place q name err
-            Right val -> Right (val, Just q)
-        _ -> Right (val, Nothing)
-    let source = maybe Derive.Literal Derive.Quoted maybe_call
-    case TrackLang.from_val val of
-        Just a -> Right a
-        Nothing -> Left $ Derive.TypeError place
-            source name (Derive.arg_type arg_doc) (Just val)
+            Right val -> case TrackLang.from_val val of
+                Just a -> Right a
+                Nothing -> type_error (Derive.Quoted q) val
+        _ -> type_error Derive.Literal val
+    where
+    type_error source val = Left $ Derive.TypeError place source name
+        (Derive.arg_type arg_doc) (Just val)
 
 eval :: State -> TrackLang.Expr -> Either Derive.Error TrackLang.Val
 eval state expr = result

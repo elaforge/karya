@@ -27,17 +27,25 @@ test_type_error = do
 
 test_eval_quoted = do
     let int :: Sig.Parser Int
-        int = Sig.required "int" ""
-    let quoted sym = TrackLang.VQuoted
-            (TrackLang.Quoted (TrackLang.call sym [] :| []))
+        int = Sig.required "int" "doc"
+    let quoted sym = TrackLang.VQuoted $ TrackLang.Quoted $
+            TrackLang.call0 sym :| []
     let run val = call_with (CallTest.with_val_call "v" (val_call val))
         val_call val = Derive.val_call "test" "v" mempty "" $ Sig.call0 $ \_ ->
             return $ TrackLang.to_val val
+    -- A Quoted can be coerced into an int by evaluating it.
     left_like (run (0 :: Int) int [quoted "not-found"])
         "arg 1/int from \"(not-found): *val call not found"
     left_like (run ("hi" :: Text) int [quoted "v"])
         "arg 1/int from \"(v): expected Num"
     equal (run (0 :: Int) int [quoted "v"]) (Right 0)
+
+    let quot :: Sig.Parser TrackLang.Quoted
+        quot = Sig.required "quot" "doc"
+    left_like (run (0 :: Int) quot [TrackLang.VSymbol "x"])
+        "expected Quoted but got Symbol"
+    equal (run (0 :: Int) quot [quoted "v"])
+        (Right (TrackLang.Quoted (TrackLang.call0 "v" :| [])))
 
 test_not_given = do
     let int :: Sig.Parser (Maybe Int)
