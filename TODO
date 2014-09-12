@@ -9,16 +9,30 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
+    - how about a transformer that derives with each of the given instruments?
+      Or better, each of the given quoted transformers, then I can do
+      "(set-kantilan).
     - p4 has small variations depending on where the melody is going
-    - it also has +mute vs. open variation
+      . @b2 sangsih rh - omit the first note after @b1, because the right hand
+        is busy.
+      . @b1 sangsih rh - after @up, play the first two notes differently
+      . I should be able to let the last note keep ringing onto the next
+        block.
+        . An attr + postproc could do this.
+    - it also has +mute vs. open variation.  They're actually variably muted,
+      but I don't have samples for that, so I'll have to alternate.
     - there are also some interesting tempo changes
     - Do different things in polos and sangsih:
       'when (is-polos) |' and 'when (is-sangsih) |'
       I'd want a boolean type, or should I embed it in Int?
     - Gradually come in, could do omit with an omit signal that decreases.
   template flag -t is hard to use:
-    - the lack of SaveFile messes up the local definitions file
-    - the change in default namespace means @block doesn't work
+    * the lack of SaveFile messes up the local definitions file
+      . I would have to have a separate SaveDir, and not reset that.  Not sure
+        if it's worth it.
+      . Or I could just rename to dir/untitled, this accomplishes the goal of
+        not accidentally overwriting the original.
+    * the change in default namespace means @block doesn't work
   - it seems like "floating_input" would be a better name than "edit_input"
   - chained transformers should work lazily, right?  Make sure with trace.
   - simple legato transformer to make a note overlap the next one
@@ -33,7 +47,7 @@ UNSORTED
     modify_event_near_point, doesn't ModifyEvent.selection already do that?
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
     . I could emit logs giving output msgs along with reason for allocation.
-  - Ngoret seemingly can't work with negative durations, because it wants to
+  / Ngoret seemingly can't work with negative durations, because it wants to
     make notes overlap, and I can't express that.
     . One way is to extend negative durations to allow overlaps.  It seems
       like there's a way to do that.

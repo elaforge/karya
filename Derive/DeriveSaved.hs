@@ -118,11 +118,13 @@ perform cmd_config ui_state events =
 load_score :: FilePath -> IO (Either String State.State)
 load_score fname = print_timer ("load " ++ fname) (\_ _ -> "") $
     rightm (Save.infer_save_type fname) $ \save -> case save of
-        Save.Git repo -> rightm (SaveGit.load repo Nothing) $ \(state, _, _) ->
-            return $ Right state
-        Save.State fname -> rightm (Save.read_state_ fname) $ \x -> case x of
-            Nothing -> return $ Left "file not found"
-            Just state -> return $ Right state
+        Cmd.SaveRepo repo ->
+            rightm (SaveGit.load repo Nothing) $ \(state, _, _) ->
+                return $ Right state
+        Cmd.SaveState fname ->
+            rightm (Save.read_state_ fname) $ \x -> case x of
+                Nothing -> return $ Left "file not found"
+                Just state -> return $ Right state
 
 -- | Load cmd config, which basically means the inst db.
 load_cmd_config :: IO Cmd.Config

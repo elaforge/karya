@@ -68,9 +68,9 @@ get_midi_config db = Network.BSD.getHostName >>= \x -> case x of
 
 parse_args :: [String] -> Cmd.CmdIO
 parse_args argv = case argv of
-    [] -> Setup.load_template "save/default"
+    [] -> Save.load_template "save/default" >> return Cmd.Done
     -- Load a template.
-    ["-t", fn] -> Setup.load_template fn
+    ["-t", fn] -> Save.load_template fn >> return Cmd.Done
     ["views", fn] -> Trans.liftIO (SaveGit.dump_views fn) >> return Cmd.Done
     ["mod", fn] -> Setup.load_mod fn
     ["midi", fn] -> Setup.load_midi fn

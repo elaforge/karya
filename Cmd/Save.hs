@@ -72,24 +72,34 @@ read :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
 read path = do
     save <- Cmd.require_right ("read: "<>) =<< liftIO (infer_save_type path)
     case save of
-        Git repo -> read_git repo Nothing
-        State fn -> read_state fn
+        Cmd.SaveRepo repo -> read_git repo Nothing
+        Cmd.SaveState fn -> read_state fn
 
-data SaveType = Git SaveGit.Repo | State FilePath deriving (Show)
+-- | Like 'load', but set the name to \"untitled\" so you don't overwrite it
+-- when you save.
+load_template :: FilePath -> Cmd.CmdT IO ()
+load_template fn = do
+    (state, _) <- read fn
+    let save_file = SaveState $ FilePath.takeDirectory fn </> "untitled"
+    set_state save_file True state
+    now <- liftIO $ Time.getCurrentTime
+    State.put $
+        State.config#State.meta#State.creation #= now $
+        State.clear state
 
 -- | Given a path, which is either a file or a directory, try to figure out
 -- what to load.  Saves can be either a plain saved state, or a directory
 -- containing either a git repo @save.git@, or a state @save.state@.  If
 -- both are present, the git repo is preferred.
-infer_save_type :: FilePath -> IO (Either String SaveType)
+infer_save_type :: FilePath -> IO (Either String Cmd.SaveFile)
 infer_save_type path = fmap prepend $ if_else
-    [ (return $ SaveGit.is_git path, ok $ Git path)
+    [ (return $ SaveGit.is_git path, ok $ Cmd.SaveRepo path)
     , (is_dir path, if_else
-        [ (is_dir git_fn, ok $ Git git_fn)
-        , (is_file state_fn, ok $ State state_fn)
+        [ (is_dir git_fn, ok $ Cmd.SaveRepo git_fn)
+        , (is_file state_fn, ok $ Cmd.SaveState state_fn)
         ] $ return $ Left $ "directory contains neither " <> git_fn <> " nor "
             <> state_fn)
-    , (is_file path, ok $ State path)
+    , (is_file path, ok $ Cmd.SaveState path)
     ] $ return $ Left "file not found"
     where
     prepend (Left err) = Left $ path <> ": " <> err

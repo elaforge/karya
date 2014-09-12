@@ -6,7 +6,6 @@
 -- Mostly just testing hackery.
 module Local.Setup where
 import qualified Control.Monad.Trans as Trans
-import qualified Data.Time as Time
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -19,23 +18,10 @@ import qualified Cmd.Load.Midi as Load.Midi
 import qualified Cmd.Load.Mod as Load.Mod
 import qualified Cmd.Meters as Meters
 import qualified Cmd.RulerUtil as RulerUtil
-import qualified Cmd.Save as Save
 
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
-
--- | Load from @save/default@, but don't set the save file so a save doesn't
--- overwrite it.
-load_template :: FilePath -> Cmd.CmdIO
-load_template fn = do
-    (state, _) <- Save.read_state fn
-    now <- liftIO $ Time.getCurrentTime
-    State.put $
-        State.config#State.meta#State.creation #= now $
-        State.clear state
-    State.set_namespace (Id.namespace "untitled")
-    return Cmd.Done
 
 load_mod :: FilePath -> Cmd.CmdIO
 load_mod fn = do
