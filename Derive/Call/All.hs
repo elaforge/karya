@@ -26,6 +26,7 @@ import qualified Derive.Call.India.Gamakam2 as Gamakam2
 import qualified Derive.Call.InferTrackVoice as InferTrackVoice
 import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Misc as Misc
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Pitch as Pitch
@@ -66,6 +67,7 @@ note_maps = mconcat
     , InferTrackVoice.note_calls
     , Integrate.note_calls
     , Lily.note_calls
+    , Misc.note_calls
     , Note.note_calls
     , NoteTransformer.note_calls
     , PitchHigh.note_calls
