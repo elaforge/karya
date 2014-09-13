@@ -3,11 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - if >inst in a note track title looks for an '>inst' transformer, shouldn't
+  / if >inst in a note track title looks for an '>inst' transformer, shouldn't
     '>inst' default to setting instrument, and the note track title just
     becomes a transformer?
     . But that means I get clashes with calls that start with >, and I have
       those.
+    . For the time being, if I want that I can call 'note-track >inst'.
   - Signal render does't go away when you delete events from the track.
     Likely the same problem as highlights, with the same solution.
     . Wait, not so simple, I need to find out how to reproduce it.
@@ -15,6 +16,10 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
+    - top of nruk2 is out of range for kantilan
+    - double strike
+    - Pedal up doesn't stop the note, it only stops when the next note starts.
+      My fault or kontakt's?
     * how about a transformer that derives with each of the given instruments?
       Or better, each of the given quoted transformers, then I can do
       multiple "(set-polos) "(set-kantilan)
@@ -27,7 +32,18 @@ UNSORTED
         . An attr + postproc could do this.
     - it also has +mute vs. open variation.  They're actually variably muted,
       but I don't have samples for that, so I'll have to alternate.
-    - there are also some interesting tempo changes
+      . I also want variable mute for nruktuk.  It should be possible to fake
+        it with an envelope.
+      . A %mute control, at 1 I switch on +mute, otherwise use a cc.
+        Then create it with a linear envelope plus some randomization.
+      . How can an instrument do this?  It would have to provide a postproc
+        which operates right before conversion.  Would it be reasonable for
+        the instrument itself to have a Event->Event function?  This is like
+        a free 1:1 postproc, more elaborate postproc would require a call.
+    - How would I apply +mute to only some of the notes in 'trem'?  I would
+      need a signal, and for the instrument to notice and apply the attribute.
+    - there are also some interesting tempo changes, they could be a sub-tempo
+      within @intro.
     - Do different things in polos and sangsih:
       'when (is-polos) |' and 'when (is-sangsih) |'
       I'd want a boolean type, or should I embed it in Int?

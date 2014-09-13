@@ -115,7 +115,7 @@ notes_with :: (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 notes_with f args = when_lilypond $
-    Sub.place . Sub.map_events f . concat =<< Sub.sub_events args
+    Sub.place . map (fmap f) . concat =<< Sub.sub_events args
 
 place_notes :: Derive.PassedArgs d -> Derive.NoteDeriver
 place_notes = Sub.place . concat <=< Sub.sub_events

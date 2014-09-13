@@ -4,10 +4,13 @@
 
 module Derive.Call.Trill_test where
 import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -79,12 +82,11 @@ test_tremolo_transformer = do
         ]
 
 test_chord_tremolo = do
-    let run dur notes1 notes2 = extract $
-            DeriveTest.derive_tracks_with_ui id skel "import europe" $
+    let run dur notes1 notes2 = DeriveTest.extract DeriveTest.e_pitch $
+            DeriveTest.derive_tracks_with_ui id skel "" $
                 (">", [(0, dur, "trem 1s")])
                 : concatMap UiTest.note_track [notes1, notes2]
         skel = DeriveTest.with_skel [(1, 2), (1, 4), (2, 3), (4, 5)]
-        extract = DeriveTest.extract DeriveTest.e_pitch
     equal (run 2 [(0, 2, "4c")] [(0, 2, "4d")])
         (["4c", "4d"], [])
     equal (run 4 [(0, 4, "4c")] [(0, 2, "4d")])
@@ -93,6 +95,15 @@ test_chord_tremolo = do
         (["4c", "4d"], [])
     equal (run 6 [(0, 6, "4c")] [(0, 2, "4d"), (4, 2, "4e")])
         (["4c", "4d", "4c", "4c", "4e", "4c"], [])
+
+test_chord_tremolo_function = do
+    let f dur = map ex_event . Trill.chord_tremolo (Seq.range 0 dur 1)
+            . map (map mkevent)
+        mkevent (s, d, n) = Sub.Event s d (n :: Char)
+        ex_event (Sub.Event s d n) = (s, d, n)
+    equal (f 3 []) []
+    equal (f 6 [[(0, 4, 'a')], [(0, 4, 'b')]])
+        [(0, 1, 'a'), (1, 1, 'b'), (2, 1, 'a'), (3, 1, 'b')]
 
 -- * pitch calls
 

@@ -116,7 +116,7 @@ note_legato :: RealTime -> Maybe RealTime -> Signal.Y -> [[Sub.Event]]
     -> Derive.NoteDeriver
 note_legato overlap maybe_detach dyn = Sub.place . concatMap apply
     where
-    apply = Seq.map_init (Sub.map_event (set_sustain overlap))
+    apply = Seq.map_init (fmap (set_sustain overlap))
         . apply_dyn dyn . maybe id apply_detach maybe_detach
 
 {- NOTE [legato]
@@ -165,10 +165,10 @@ c_attr_legato = Derive.make_call Module.instrument "legato"
             <=< Sub.sub_events
 
 apply_detach :: RealTime -> [Sub.Event] -> [Sub.Event]
-apply_detach detach = Seq.map_last (Sub.map_event (set_sustain (-detach)))
+apply_detach detach = Seq.map_last (fmap (set_sustain (-detach)))
 
 apply_dyn :: Signal.Y -> [Sub.Event] -> [Sub.Event]
-apply_dyn dyn = Seq.map_tail (Sub.map_event (Util.multiply_dynamic dyn))
+apply_dyn dyn = Seq.map_tail (fmap (Util.multiply_dynamic dyn))
 
 set_sustain :: RealTime -> Derive.Deriver a -> Derive.Deriver a
 set_sustain = Util.with_constant Controls.sustain_abs . RealTime.to_seconds

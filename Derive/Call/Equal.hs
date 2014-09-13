@@ -62,7 +62,7 @@ c_equal_generator = Derive.make_call Module.prelude "equal" Tags.subs
     \ a transformed environ."
     (Sig.parsed_manually equal_arg_doc generate)
     where
-    generate args = Sub.place . map (Sub.map_event (equal_transformer args))
+    generate args = Sub.place . map (fmap (equal_transformer args))
         . concat =<< Sub.sub_events args
 
 equal_arg_doc :: Text

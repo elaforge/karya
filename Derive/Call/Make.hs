@@ -51,7 +51,7 @@ transform_notes module_ name tags transform_doc sig transform =
     generator = Derive.make_call module_ name (tags <> Tags.subs) generator_doc
         $ Sig.call sig $ \params args -> Sub.sub_events args >>= \x -> case x of
             [] -> transform params $ Sub.inverting Util.placed_note args
-            subs -> Sub.place $ Sub.map_events (transform params) (concat subs)
+            subs -> Sub.place $ map (fmap (transform params)) (concat subs)
     generator_doc = "If there are notes in child tracks, apply the\
         \ transformation to them. Otherwise apply transformation to the null\
         \ note call."
@@ -70,7 +70,7 @@ transform_notes_subevents module_ name tags sig transform =
     generator = Sig.call sig $ \params args ->
         Sub.sub_events args >>= \x -> case x of
             [] -> transform params $ Sub.inverting Util.placed_note args
-            subs -> Sub.place $ Sub.map_events (transform params) (concat subs)
+            subs -> Sub.place $ map (fmap (transform params)) (concat subs)
 
 -- | Create a transformer that just sets an environ value.  This is higher
 -- level and more concise than using the @=@ transformer.

@@ -42,6 +42,7 @@
 module Derive.Call.Trill where
 import qualified Control.Applicative as Applicative
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Num as Num
@@ -130,13 +131,16 @@ c_attr_trill = Derive.make_call Module.prelude "attr-tr" Tags.attr
 
 c_tremolo_generator :: Derive.Generator Derive.Note
 c_tremolo_generator = Derive.make_call Module.prelude "trem" Tags.ly
-    "Repeat a single note." $ Sig.call Speed.arg $ \speed args -> do
+    "Repeat a single note. Or, if there are sub-notes, alternate with each of\
+    \ the sub-notes in turn."
+    $ Sig.call Speed.arg $ \speed args -> do
         starts <- tremolo_starts speed (Args.range_or_next args)
         notes <- Sub.sub_events args
         case filter (not . null) notes of
             [] -> Sub.inverting_args args $ Lily.note_code code args $
                 simple_tremolo starts [Util.note]
-            notes -> Lily.notes_code code args $ chord_tremolo starts notes
+            notes -> Lily.notes_code code args $
+                Sub.place $ chord_tremolo starts notes
     where code = (Lily.SuffixAll, ":32")
 
 c_tremolo_transformer :: Derive.Transformer Derive.Note
@@ -167,25 +171,27 @@ tremolo_starts speed range = do
 --
 -- This doesn't restart the tremolo when a new note enters, if you want that
 -- you can have multiple tremolo events.
---
--- TODO Optionally, extend each note to the next time that note occurs.
-chord_tremolo :: [ScoreTime] -> [[Sub.Event]] -> Derive.NoteDeriver
+chord_tremolo :: forall a. [ScoreTime] -> [[Sub.GenericEvent a]]
+    -> [Sub.GenericEvent a]
 chord_tremolo starts note_tracks =
-    Sub.place $ concat $ snd $
+    Maybe.catMaybes $ snd $
         List.mapAccumL emit (-1, by_track) $ zip starts (drop 1 starts)
     where
-    emit (tracknum, notes_) (pos, next_pos) = case chosen of
-            Nothing -> ((tracknum, notes), [])
-            Just (tracknum, note) -> ((tracknum, notes),
-                [Sub.Event pos (next_pos-pos) (Sub.event_deriver note)])
+    emit (last_tracknum, notes_) (pos, next_pos) = case chosen of
+        Nothing -> ((last_tracknum, notes), Nothing)
+        Just (tracknum, note) -> ((tracknum, notes),
+            Just $ Sub.Event pos (next_pos-pos) (Sub.event_note note))
         where
-        chosen = Seq.minimum_on fst (filter ((>tracknum) . fst) overlapping)
+        chosen =
+            Seq.minimum_on fst (filter ((>last_tracknum) . fst) overlapping)
             `mplus` Seq.minimum_on fst overlapping
         overlapping = filter (Sub.event_overlaps pos . snd) notes
         notes = dropWhile ((<=pos) . Sub.event_end . snd) notes_
+    by_track :: [(TrackNum, Sub.GenericEvent a)]
     by_track = Seq.sort_on (Sub.event_end . snd)
-        [(tracknum, note) | (tracknum, track) <- zip [0..] note_tracks,
-            note <- track]
+        [ (tracknum, event)
+        | (tracknum, track) <- zip [0..] note_tracks, event <- track
+        ]
 
 -- | Just cycle the given notes.
 simple_tremolo :: [ScoreTime] -> [Derive.NoteDeriver] -> Derive.NoteDeriver

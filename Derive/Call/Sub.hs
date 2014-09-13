@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveFunctor #-}
 -- | This is the basic interface for slicing.  This also includes 'inverting',
 -- which is a special case of slicing.
 module Derive.Call.Sub (
@@ -9,7 +10,7 @@ module Derive.Call.Sub (
     when_under_inversion, unless_under_inversion
     , inverting, inverting_args, invert_call
     -- ** events
-    , Event(..), event_end, event_overlaps, map_event, map_events
+    , Event, GenericEvent(..), event_end, event_overlaps
     , stretch
     , sub_events
     , place, fit_to_range
@@ -166,33 +167,29 @@ non_bottom_note_track tree = Seq.head (concatMap go tree)
 -- abstract but also fully opaque, and some kind of note data structure, which
 -- is fully concrete (and thus inflexible), but also transparent to
 -- modification.
-data Event = Event {
+type Event = GenericEvent Derive.NoteDeriver
+
+data GenericEvent a = Event {
     event_start :: !ScoreTime
     , event_duration :: !ScoreTime
-    , event_deriver :: !Derive.NoteDeriver
-    }
+    , event_note :: !a
+    } deriving (Show, Functor)
 
-event_end :: Event -> ScoreTime
+event_end :: GenericEvent a -> ScoreTime
 event_end event = event_start event + event_duration event
 
-event_overlaps :: ScoreTime -> Event -> Bool
+event_overlaps :: ScoreTime -> GenericEvent a -> Bool
 event_overlaps pos (Event start dur _)
     | dur == 0 = pos == start
     | otherwise = start <= pos && pos < start + dur
 
-map_event :: (Derive.NoteDeriver -> Derive.NoteDeriver) -> Event -> Event
-map_event f event = event { event_deriver = f (event_deriver event) }
+stretch :: ScoreTime -> ScoreTime -> GenericEvent a -> GenericEvent a
+stretch offset factor (Event start dur note) =
+    Event ((start - offset) * factor + offset) (dur * factor) note
 
-map_events :: (Derive.NoteDeriver -> Derive.NoteDeriver) -> [Event] -> [Event]
-map_events f = map (map_event f)
-
-stretch :: ScoreTime -> ScoreTime -> Event -> Event
-stretch offset factor (Event start dur deriver) =
-    Event ((start - offset) * factor + offset) (dur * factor) deriver
-
-instance Show Event where
-    show (Event start dur _) = "Event " ++ show start ++ " " ++ show dur
-instance Pretty.Pretty Event where pretty = show
+instance Pretty.Pretty a => Pretty.Pretty (GenericEvent a) where
+    pretty (Event start dur note) =
+        "Event " <> show start <> " " <> show dur <> " (" <> pretty note <> ")"
 
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other
@@ -211,7 +208,7 @@ sub_events args = case Derive.info_sub_events (Derive.passed_info args) of
     mkevent (shift, stretch, tree) = Event
         { event_start = shift
         , event_duration = stretch
-        , event_deriver = Derive.stretch
+        , event_note = Derive.stretch
             (if stretch == 0 then 1 else recip stretch)
             (BlockUtil.derive_tracks tree)
         }
