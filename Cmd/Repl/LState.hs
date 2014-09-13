@@ -71,7 +71,9 @@ get_default_tempo :: Cmd.CmdL Signal.Y
 get_default_tempo = State.config#State.default_#State.tempo <#> State.get
 
 set_default_tempo :: Signal.Y -> Cmd.CmdL ()
-set_default_tempo t = modify_config $ State.default_#State.tempo #= t
+set_default_tempo t = do
+    modify_config $ State.default_#State.tempo #= t
+    PlayUtil.clear_all_caches
 
 modify_config :: (State.Config -> State.Config) -> Cmd.CmdL ()
 modify_config f = State.modify_config f >> Cmd.invalidate_performances

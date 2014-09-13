@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE NoMonomorphismRestriction #-}
 {- | Work with rulers and meters.  A meter is a marklist on a ruler named
     'Ruler.meter', and is used by "Cmd.TimeStep" to align things.  By
     convention the meter has regular subdivisions, with 'Ruler.Rank's that
@@ -27,10 +26,15 @@
 
     Examples:
 
-    - Give the current block 6 sections of standard 4/4 meter, where each
-    measure gets 1t:
+    - Give the current block 6 sections of standard 4/4 meter, with 4 measures
+    per section, where each measure gets 1t:
 
-        > LRuler.local =<< LRuler.ruler (LRuler.measures 1 Meters.m44 6 4 1)
+        > LRuler.local =<< LRuler.ruler (LRuler.measures 1 Meters.m44 6 4)
+
+    - Or if you want each quarter note to get 1t, and 8 sections with
+    4 measures per section:
+
+        > LRuler.local =<< LRuler.ruler (LRuler.measures 4 Meters.m44 8 4)
 
     - Or put the selection at the where the 4 meters should end and run
 
@@ -239,14 +243,20 @@ strip_ranks max_rank =
 -- | Set the ruler to a number of measures of the given meter, where each
 -- measure is the given amount of time.  For example:
 --
--- > local_ruler $ measures 1 Meters.m44 4 4 1
--- > modify_ruler $ measures 1 Meters.m34 4 8 0
-measures :: TrackTime -- ^ duration of one measure
-    -> Meter.AbstractMeter -> Int -- ^ measures per section
-    -> Int -- ^ sections
-    -> Int -- ^ first measure number, e.g. 0 for a pickup
+-- > local_ruler $ measures 1 Meters.m44 4 4
+-- > modify_ruler $ measures 1 Meters.m34 4 8
+measures :: TrackTime -> Meter.AbstractMeter -> Int -- ^ sections
+    -> Int -- ^ measures per section
     -> Ruler.Ruler
-measures dur meter measures sections first_measure_number =
+measures = measures_at 1
+
+measures_at :: Int -- ^ first measure number, e.g. 0 for a pickup
+    -> TrackTime -- ^ duration of one measure
+    -> Meter.AbstractMeter
+    -> Int -- ^ sections
+    -> Int -- ^ measures per section
+    -> Ruler.Ruler
+measures_at first_measure_number dur meter sections measures =
     fit_ruler (dur * fromIntegral (measures * sections))
         (replicate sections (Meter.repeat measures meter))
         first_measure_number
