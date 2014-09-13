@@ -3,15 +3,21 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - if >inst in a note track title looks for an '>inst' transformer, shouldn't
+    '>inst' default to setting instrument, and the note track title just
+    becomes a transformer?
+    . But that means I get clashes with calls that start with >, and I have
+      those.
   - Signal render does't go away when you delete events from the track.
     Likely the same problem as highlights, with the same solution.
+    . Wait, not so simple, I need to find out how to reproduce it.
   - How to give same left hand to both, without copy pasting?  The problem is
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
-    - how about a transformer that derives with each of the given instruments?
+    * how about a transformer that derives with each of the given instruments?
       Or better, each of the given quoted transformers, then I can do
-      "(set-kantilan).
+      multiple "(set-polos) "(set-kantilan)
     - p4 has small variations depending on where the melody is going
       . @b2 sangsih rh - omit the first note after @b1, because the right hand
         is busy.

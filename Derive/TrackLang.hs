@@ -543,6 +543,7 @@ instance Typecheck ControlFunction where
 
 instance Typecheck Quoted where
     from_val (VQuoted a) = Just a
+    from_val (VSymbol sym) = Just (Quoted (call0 sym :| []))
     from_val _ = Nothing
     to_val = VQuoted
     to_type _ = TQuoted

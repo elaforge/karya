@@ -32,10 +32,7 @@ c_multiple = Derive.transformer Module.prelude "multiple" mempty
     apply cinfo deriver trans = Eval.apply_transformers cinfo
         (to_transformer trans) deriver
 
-to_transformer :: Either TrackLang.Quoted
-    (Either TrackLang.Symbol Score.Instrument) -> [TrackLang.Call]
+to_transformer :: Either TrackLang.Quoted Score.Instrument -> [TrackLang.Call]
 to_transformer val = case val of
     Left (TrackLang.Quoted expr) -> NonEmpty.toList expr
-    Right (Left sym) -> [TrackLang.call0 sym]
-    Right (Right inst) ->
-        [TrackLang.call0 (TrackLang.Symbol (Score.inst_name inst))]
+    Right inst -> [TrackLang.call0 (TrackLang.Symbol (Score.inst_name inst))]
