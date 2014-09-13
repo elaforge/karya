@@ -10,3 +10,5 @@ test_multiple = do
     equal (run
             [("> | multiple \"(inst = >s/1) \"(inst = >s/2)", [(0, 1, "")])])
         ([(0, "s/1"), (0, "s/2")], [])
+    equal (run [("> | multiple >s/1 >s/2", [(0, 1, "")])])
+        ([(0, "s/1"), (0, "s/2")], [])

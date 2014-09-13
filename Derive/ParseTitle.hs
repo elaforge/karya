@@ -193,11 +193,17 @@ is_tempo_track title = case parse_control title of
 -- | Parse a note track like @>inst@ as @note-track >inst@.  Other than
 -- this, note track titles are normal expressions.
 parse_note :: Text -> Either String TrackLang.Expr
-parse_note = Parse.parse_expr . ("note-track "<>)
+parse_note = Parse.parse_expr . (prefix <>)
+    where prefix = TrackLang.unsym note_track_symbol <> " "
 
 unparse_note :: TrackLang.Expr -> Text
 unparse_note = strip . ShowVal.show_val
-    where strip t = fromMaybe t $ Text.stripPrefix "note-track " t
+    where
+    strip t = fromMaybe t $ Text.stripPrefix prefix t
+    prefix = TrackLang.unsym note_track_symbol <> " "
+
+note_track_symbol :: TrackLang.Symbol
+note_track_symbol = "note-track"
 
 -- | Convert a track title into its instrument.
 --

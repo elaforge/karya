@@ -35,6 +35,7 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -56,7 +57,7 @@ note_calls = Derive.call_maps
     [ ("n", c_note_attributes)
     -- Called implicitly for note track titles, e.g. '>foo +bar' becomes
     -- 'note-track >foo +bar'.
-    , ("note-track", c_note_track)
+    , (ParseTitle.note_track_symbol, c_note_track)
     ]
 
 -- * note

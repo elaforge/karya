@@ -11,6 +11,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
@@ -23,16 +24,17 @@ note_calls = Derive.transformer_call_map
 
 c_multiple :: Derive.Transformer Derive.Note
 c_multiple = Derive.transformer Module.prelude "multiple" mempty
-    "Derive the arguments under different transformers."
+    "Derive the transformed score under different transformers."
     $ Sig.callt (Sig.many1 "transformer" "Derive under each transformer.")
     $ \transformers args deriver ->
         mconcat $ map (apply (Args.info args) deriver)
             (NonEmpty.toList transformers)
     where
-    apply cinfo deriver trans = Eval.apply_transformers cinfo
-        (to_transformer trans) deriver
+    apply cinfo deriver trans =
+        Eval.apply_transformers cinfo (to_transformer trans) deriver
 
 to_transformer :: Either TrackLang.Quoted Score.Instrument -> [TrackLang.Call]
 to_transformer val = case val of
     Left (TrackLang.Quoted expr) -> NonEmpty.toList expr
-    Right inst -> [TrackLang.call0 (TrackLang.Symbol (Score.inst_name inst))]
+    Right inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
+        [TrackLang.to_val inst]]
