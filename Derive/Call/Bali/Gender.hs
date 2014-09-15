@@ -159,8 +159,12 @@ realize_damped _ event maybe_next
 
 infer_pitch :: Score.Event -> Score.Event -> Maybe PitchSignal.Pitch
 infer_pitch prev next = do
-    steps <- ifM ((<=) <$> Score.initial_nn prev <*> Score.initial_nn next)
-        (return (-1)) (return 1)
+    prev_nn <- Score.initial_nn prev
+    next_nn <- Score.initial_nn next
+    let steps
+            | prev_nn == next_nn = 0
+            | prev_nn < next_nn = -1
+            | otherwise = 1
     Pitches.transpose_d steps <$> Score.pitch_at (Score.event_start next) next
 
 -- | Mark events whose should have their pitch inferred from the previous and
