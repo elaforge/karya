@@ -95,12 +95,13 @@ poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
     (#poke TrackSignal, shift) tsigp shift
     (#poke TrackSignal, stretch) tsigp stretch
     initialize_track_signal tsigp
-    Signal.with_ptr sig $ \sigp len -> do
-        -- TODO copy an empty signal as a null ptr
-        destp <- mallocArray len
-        copyArray destp sigp len
-        (#poke TrackSignal, signal) tsigp destp
-        (#poke TrackSignal, length) tsigp (Util.c_int len)
+    (destp, len) <- if Signal.null sig then return (nullPtr, 0)
+        else Signal.with_ptr sig $ \sigp len -> do
+            destp <- mallocArray len
+            copyArray destp sigp len
+            return (destp, len)
+    (#poke TrackSignal, signal) tsigp destp
+    (#poke TrackSignal, length) tsigp (Util.c_int len)
 
     -- Calculated by c++, in c_interface.cc.  I'd rather do it here,
     -- but I'm worried all those peeks will generate garbage.

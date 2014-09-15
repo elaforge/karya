@@ -27,9 +27,11 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
+import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
+import qualified Ui.Track as Track
 import qualified Ui.Ui as Ui
 
 import qualified Cmd.Cmd as Cmd
@@ -43,6 +45,8 @@ import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import Types
 
+
+-- * cmd_play_msg
 
 -- | Respond to msgs about derivation and playing status.
 cmd_play_msg :: Ui.Channel -> Msg.Msg -> Cmd.CmdIO
@@ -75,8 +79,7 @@ cmd_play_msg ui_chan msg = do
                     }
                     -- Don't mess with state_current_performance because Play
                     -- may have flipped the 'Cmd.perf_logs_written' bit.
-                ui_state <- State.get
-                liftIO $ Sync.set_track_signals ui_chan block_id ui_state
+                update_track_signals ui_chan block_id
                     (Cmd.perf_track_signals perf)
                 update_highlights ui_chan block_id (Cmd.perf_events perf)
             _ -> return ()
@@ -90,6 +93,47 @@ set_all_play_boxes color =
     mapM_ (flip State.set_play_box color) =<< State.all_block_ids
 
 type Range = (TrackTime, TrackTime)
+
+-- ** track signals
+
+update_track_signals :: Ui.Channel -> BlockId -> Track.TrackSignals
+    -> Cmd.CmdT IO ()
+update_track_signals ui_chan block_id tsigs = do
+    rendering <- rendering_tracks block_id
+    let empty = Track.empty_track_signal
+    liftIO $ Sync.set_track_signals ui_chan $
+        [ (view_id, tracknum, if wants_tsig
+            then Map.findWithDefault empty (block_id, track_id) tsigs
+            else empty)
+        | (view_id, track_id, tracknum, wants_tsig) <- rendering
+        ]
+
+-- | Get the tracks of this block and whether they want to render a signal.
+rendering_tracks :: State.M m => BlockId
+    -> m [(ViewId, TrackId, TrackNum, Bool)]
+rendering_tracks block_id = do
+    view_ids <- Map.keys <$> State.views_of block_id
+    blocks <- mapM State.block_of view_ids
+    btracks <- mapM get_tracks blocks
+    return $ do
+        (view_id, tracks) <- zip view_ids btracks
+        ((tracknum, track_id, flags), track) <- tracks
+        -- I don't even want to send an empty signal to these.
+        guard $ Block.Collapse `Set.notMember` flags
+        return (view_id, track_id, tracknum,
+            Block.track_wants_signal flags track)
+    where
+    get_tracks block = zip triples <$> mapM State.get_track track_ids
+        where
+        track_ids = [tid | (_, tid, _) <- triples]
+        triples =
+            [ (tracknum, tid, Block.track_flags track)
+            | (tracknum,
+                track@(Block.Track { Block.tracklike_id = Block.TId tid _ }))
+                <- zip [0..] (Block.block_tracks block)
+            ]
+
+-- ** highlights
 
 -- | Get highlights from the events, clear old highlighs, and set the new ones.
 update_highlights :: Ui.Channel -> BlockId -> Msg.Events -> Cmd.CmdT IO ()

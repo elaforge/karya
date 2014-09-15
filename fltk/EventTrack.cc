@@ -246,7 +246,8 @@ EventTrackView::set_track_signal(const TrackSignal &tsig)
     // Copy over the pointers, I'm taking ownership now.
     this->config.track_signal = tsig;
     this->redraw();
-    if (this->config.render.style == RenderConfig::render_none) {
+    if (!config.track_signal.empty()
+            && this->config.render.style == RenderConfig::render_none) {
         DEBUG("WARNING: got a track signal even though RenderStyle is none");
     }
 }

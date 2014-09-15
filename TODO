@@ -9,9 +9,12 @@ UNSORTED
     . But that means I get clashes with calls that start with >, and I have
       those.
     . For the time being, if I want that I can call 'note-track >inst'.
-  - Signal render does't go away when you delete events from the track.
+  - Selection continuing from the bottom is inconvenient, because I select
+    a whole track, copy, and when I move to paste, it jumps to the bottom of
+    the track.  Continue from the top?  Or continue from the end that is
+    visible?  Or maybe select all should put cur start at the top.
+  * Signal render does't go away when you delete events from the track.
     Likely the same problem as highlights, with the same solution.
-    . Wait, not so simple, I need to find out how to reproduce it.
   - How to give same left hand to both, without copy pasting?  The problem is
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
@@ -91,8 +94,10 @@ UNSORTED
               |++++|...
             --|  --|
               |++  |...
-  - in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
+  + in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
     a new play send the keyswitch?
+    . can repro with bug/stuck-mute.  But MIDI looks normal.  Record in reaper
+      and play back to see if it's a kontakt bug.
   - Implement 'sequence'.  It sequences its notes, paying attention only to
     their order, not time and duration.  The tricky part is getting the tempo
     right so playback looks right, and controls line up right.

@@ -107,45 +107,14 @@ do_updates ui_chan track_signals set_style updates = do
     actions <- mapM (run_update track_signals set_style) updates
     liftIO $ Ui.send_action ui_chan (sequence_ actions)
 
-set_track_signals :: Ui.Channel -> BlockId -> State.State -> Track.TrackSignals
+set_track_signals :: Ui.Channel -> [(ViewId, TrackNum, Track.TrackSignal)]
     -> IO ()
-set_track_signals ui_chan block_id state track_signals =
-    case State.eval state rendering_tracks of
-        Left err ->
-            -- This could happen if track_signals had a stale track_id.  That
-            -- could happen if I deleted a track before the deriver came back
-            -- with its signal.
-            -- TODO but I should just filter out the bad track_id in that case
-            Log.warn $ "getting tracknums of track_signals: " <> showt err
-        Right tracks -> do
-            let tsigs = do
-                    (view_id, track_id, tracknum) <- tracks
-                    Just tsig <- [Map.lookup (block_id, track_id) track_signals]
-                    return (view_id, tracknum, tsig)
-            -- Make sure tsigs is fully forced, because a hang on the fltk
-            -- event loop can be confusing.
-            tsigs `DeepSeq.deepseq` Ui.send_action ui_chan $
-                forM_ tsigs $ \(view_id, tracknum, tsig) ->
-                    set_track_signal view_id tracknum tsig
-    where
-    -- | Get the tracks of this block which want to render a signal.
-    rendering_tracks :: State.StateId [(ViewId, TrackId, TrackNum)]
-    rendering_tracks = do
-        view_ids <- Map.keys <$> State.views_of block_id
-        blocks <- mapM State.block_of view_ids
-        btracks <- mapM get_tracks blocks
-        return $ do
-            (view_id, tracks) <- zip view_ids btracks
-            ((tracknum, track_id, flags), track) <- tracks
-            guard (wants_tsig flags track)
-            return (view_id, track_id, tracknum)
-    get_tracks block = zip triples <$> mapM State.get_track track_ids
-        where
-        track_ids = [tid | (_, tid, _) <- triples]
-        triples = [(tracknum, tid, Block.track_flags track) |
-            (tracknum,
-                track@(Block.Track { Block.tracklike_id = Block.TId tid _ }))
-            <- zip [0..] (Block.block_tracks block)]
+set_track_signals ui_chan tracks =
+    -- Make sure tracks is fully forced, because a hang on the fltk event loop
+    -- can be confusing.
+    tracks `DeepSeq.deepseq` Ui.send_action ui_chan $
+        forM_ tracks $ \(view_id, tracknum, tsig) ->
+            set_track_signal view_id tracknum tsig
 
 set_track_signal :: ViewId -> TrackNum -> Track.TrackSignal -> Ui.Fltk ()
 #ifdef TESTING
@@ -369,7 +338,7 @@ update_block track_signals set_style block_id update = do
         let tlike_id = Block.dtracklike_id dtrack
         tlike <- State.get_tracklike tlike_id
         state <- State.get
-        -- I need to get this for wants_tsig.
+        -- I need to get this for Block.track_wants_signal.
         mb_btrack <- fmap (\b -> Seq.at (Block.block_tracks b) tracknum)
             (State.get_block block_id)
         flags <- case mb_btrack of
@@ -457,7 +426,7 @@ insert_track state set_style block_id view_id tracknum dtrack tlike_id tlike
             unless (Text.null (Track.track_title t)) $
                 BlockC.set_track_title view_id tracknum (Track.track_title t)
             case Map.lookup (block_id, tid) track_signals of
-                Just tsig | wants_tsig flags t ->
+                Just tsig | Block.track_wants_signal flags t ->
                     BlockC.set_track_signal view_id tracknum tsig
                 _ -> return ()
         _ -> return ()
@@ -489,12 +458,6 @@ merged_events_of state block tracknum =
     case Seq.at (Block.block_tracks block) tracknum of
         Just track -> events_of_track_ids state (Block.track_merged track)
         Nothing -> []
-
--- | Don't send a track signal to a track unless it actually wants to draw it.
-wants_tsig :: Set.Set Block.TrackFlag -> Track.Track -> Bool
-wants_tsig flags track =
-    Track.render_style (Track.track_render track) /= Track.NoRender
-    && Block.Collapse `Set.notMember` flags
 
 -- | Generate the title for block windows.
 --

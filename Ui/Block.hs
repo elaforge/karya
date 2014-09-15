@@ -220,6 +220,12 @@ divider = colored_divider (Color.rgb 0.8 0.8 0.8)
 track_collapsed :: Track -> Bool
 track_collapsed = (Collapse `Set.member`) . track_flags
 
+-- | Don't send a track signal to a track unless it actually wants to draw it.
+track_wants_signal :: Set.Set TrackFlag -> Track.Track -> Bool
+track_wants_signal flags track =
+    Track.render_style (Track.track_render track) /= Track.NoRender
+    && Collapse `Set.notMember` flags
+
 -- | This is the low-level representation of a track, which directly
 -- corresponds with what is displayed by the UI.  The DisplayTracks should be
 -- derivable from a 'Block' deterministically.

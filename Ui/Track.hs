@@ -135,6 +135,9 @@ data TrackSignal = TrackSignal {
     , ts_stretch :: !ScoreTime
     } deriving (Show, Eq)
 
+empty_track_signal :: TrackSignal
+empty_track_signal = TrackSignal Signal.empty 0 1
+
 instance Pretty.Pretty TrackSignal where
     format (TrackSignal sig shift stretch) =
         Pretty.record ("TrackSignal" Pretty.<+> Pretty.format (shift, stretch))

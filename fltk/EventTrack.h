@@ -28,7 +28,7 @@ struct ControlSample {
 
 class TrackSignal {
 public:
-    TrackSignal() : signal(NULL), val_min(0), val_max(0), length(0),
+    TrackSignal() : signal(nullptr), val_min(0), val_max(0), length(0),
         shift(0), stretch(1)
     {}
 
@@ -47,6 +47,7 @@ public:
     ScoreTime shift;
     ScoreTime stretch;
 
+    bool empty() const { return signal == nullptr; }
     RealTime to_real(ScoreTime p) const {
         return (p.multiply(stretch) + shift).to_real();
     }
