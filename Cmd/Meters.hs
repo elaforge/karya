@@ -25,6 +25,9 @@ m44 = regular_subdivision [2, 2, 2, 2, 2]
 m34 = regular_subdivision [1, 3, 2, 2, 2]
 m24 = regular_subdivision [1, 2, 2, 2, 2]
 
+m98 :: AbstractMeter
+m98 = regular_subdivision [1, 3, 3, 2, 2]
+
 -- | A section of 4 4/4 bars.
 m44_4 :: AbstractMeter
 m44_4 = Meter.repeat 4 m44

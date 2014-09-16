@@ -13,12 +13,12 @@ module App.MidiInst (
     , Call
     , generator, transformer, both, note_calls
     , note_generators, note_transformers, null_call
-    , cmd
-    -- ** environ
-    , environ, default_scale, range
+    , postproc, cmd
 
     -- * making patches
     , patch, pressure
+    -- ** environ
+    , environ, default_scale, range
 
     -- * db
     , save_db, save_patches, load_db
@@ -92,13 +92,14 @@ data Code = Code {
     , code_note_transformers ::
         [Derive.LookupCall (Derive.Transformer Derive.Note)]
     , code_val_calls :: [Derive.LookupCall Derive.ValCall]
+    , code_postproc :: Cmd.InstrumentPostproc
     , code_cmds :: [Cmd.Cmd]
     }
 
 instance Monoid.Monoid Code where
-    mempty = Code [] [] mempty []
-    mappend (Code a1 b1 c1 d1) (Code a2 b2 c2 d2) =
-        Code (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
+    mempty = Code [] [] mempty id []
+    mappend (Code g1 t1 v1 post1 cmds1) (Code g2 t2 v2 post2 cmds2) =
+        Code (g1<>g2) (t1<>t2) (v1<>v2) (post1 . post2) (cmds1<>cmds2)
 
 empty_code :: Code
 empty_code = mempty
@@ -110,8 +111,11 @@ with_empty_code :: [Instrument.Patch] -> [Patch]
 with_empty_code = with_code empty_code
 
 make_code :: Code -> Cmd.InstrumentCode
-make_code (Code generator transformer val cmds) =
-    Cmd.InstrumentCode (Derive.InstrumentCalls generator transformer val) cmds
+make_code (Code generator transformer val postproc cmds) = Cmd.InstrumentCode
+    { Cmd.inst_calls = Derive.InstrumentCalls generator transformer val
+    , Cmd.inst_postproc = postproc
+    , Cmd.inst_cmds = cmds
+    }
 
 -- ** code constructors
 
@@ -131,6 +135,11 @@ transformer = Transformer
 both :: TrackLang.CallId -> Make.Calls d -> Call d
 both name (g, t) = Both name g t
 
+-- | Add the given call as the null note call to the note track.  This also
+-- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".
+null_call :: Derive.Generator Derive.Note -> [Call Derive.Note]
+null_call call = [generator "" call, generator "n" call]
+
 note_calls :: [Call Derive.Note] -> Code
 note_calls calls =
     note_generators ([(name, c) | Generator name c <- calls]
@@ -148,13 +157,25 @@ note_transformers :: [(TrackLang.CallId, Derive.Transformer Derive.Note)]
 note_transformers calls = mempty
     { code_note_transformers = Derive.call_map calls }
 
--- | Add the given call as the null note call to the note track.  This also
--- binds @n@, since @n@ is supposed to be the \"named\" way to call \"\".
-null_call :: Derive.Generator Derive.Note -> [Call Derive.Note]
-null_call call = [generator "" call, generator "n" call]
+postproc :: Cmd.InstrumentPostproc -> Code
+postproc post = mempty { code_postproc = post }
 
 cmd :: Cmd.Cmd -> Code
 cmd c = mempty { code_cmds = [c] }
+
+-- * making patches
+
+-- | Make a patch, with a few parameters that tend to be unique per patch.
+patch :: Control.PbRange -> Instrument.InstrumentName
+    -> [(Midi.Control, Score.Control)] -> Instrument.Patch
+patch pb_range name controls =
+    Instrument.patch (Instrument.instrument name controls pb_range)
+
+-- | Set a patch to pressure control.
+pressure :: Instrument.Patch -> Instrument.Patch
+pressure = Instrument.set_decay 0 . Instrument.set_flag Instrument.Pressure
+
+-- ** environ
 
 -- | The instrument will also set the given environ when it comes into scope.
 environ :: RestrictedEnviron.ToVal a => TrackLang.ValName -> a
@@ -172,18 +193,6 @@ range :: RestrictedEnviron.ToVal a => a -> a -> Instrument.Patch
     -> Instrument.Patch
 range bottom top = environ Environ.instrument_bottom bottom
     . environ Environ.instrument_top top
-
--- * making patches
-
--- | Make a patch, with a few parameters that tend to be unique per patch.
-patch :: Control.PbRange -> Instrument.InstrumentName
-    -> [(Midi.Control, Score.Control)] -> Instrument.Patch
-patch pb_range name controls =
-    Instrument.patch (Instrument.instrument name controls pb_range)
-
--- | Set a patch to pressure control.
-pressure :: Instrument.Patch -> Instrument.Patch
-pressure = Instrument.set_decay 0 . Instrument.set_flag Instrument.Pressure
 
 
 -- * db

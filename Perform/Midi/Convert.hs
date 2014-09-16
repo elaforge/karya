@@ -44,7 +44,8 @@ type State = Set.Set Score.Instrument
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
     , lookup_inst :: Score.Instrument -> Maybe Instrument.Instrument
-    , lookup_patch :: Score.Instrument -> Maybe Instrument.Patch
+    , lookup_patch :: Score.Instrument
+        -> Maybe (Instrument.Patch, Score.Event -> Score.Event)
     , lookup_default_controls :: Score.Instrument -> Score.ControlMap
     }
 
@@ -54,9 +55,11 @@ convert :: Lookup -> [Score.Event] -> [LEvent.LEvent Perform.Event]
 convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
 
 convert_event :: Lookup -> Score.Event -> ConvertT Perform.Event
-convert_event lookup event = do
-    let score_inst = Score.event_instrument event
-    patch <- require_patch score_inst $ lookup_patch lookup score_inst
+convert_event lookup event_ = do
+    let score_inst = Score.event_instrument event_
+    (patch, postproc) <- require_patch score_inst $
+        lookup_patch lookup score_inst
+    let event = postproc event_
     midi_inst <- require ("instrument in db: " <> prettyt score_inst) $
         lookup_inst lookup score_inst
     (midi_inst, pitch) <- convert_midi_pitch midi_inst

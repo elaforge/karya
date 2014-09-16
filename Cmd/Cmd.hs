@@ -734,12 +734,24 @@ perf_closest_warp = TrackWarp.closest_warp . perf_warps
 -- This has to be in Cmd.Cmd for circular import reasons.
 data InstrumentCode = InstrumentCode {
     inst_calls :: !Derive.InstrumentCalls
+    , inst_postproc :: !InstrumentPostproc
     , inst_cmds :: ![Cmd]
     }
 
+-- | Process each event before conversion.  This is like a postproc call,
+-- but it can only map events 1:1 and you don't have to explicitly call it.
+--
+-- This can change the duration, but should not change 'Score.event_start',
+-- because the events are not resorted afterwards.  Also, it's applied during
+-- conversion, so it only makes sense to modify 'Score.event_duration',
+-- 'Score.event_controls', 'Score.event_pitch', and 'Score.event_environ'.
+-- TODO so I could have it return just those?  But then it has to return Maybe
+-- to not modify and needs a record type.
+type InstrumentPostproc = Score.Event -> Score.Event
+
 instance Show InstrumentCode where show _ = "((InstrumentCode))"
 instance Pretty.Pretty InstrumentCode where
-    format (InstrumentCode calls cmds) = Pretty.record "InstrumentCode"
+    format (InstrumentCode calls _ cmds) = Pretty.record "InstrumentCode"
         [ ("calls", Pretty.format calls)
         , ("cmds", Pretty.format cmds)
         ]
@@ -753,6 +765,7 @@ derive_instrument info = Derive.Instrument
 empty_code :: InstrumentCode
 empty_code = InstrumentCode
     { inst_calls = Derive.InstrumentCalls [] [] []
+    , inst_postproc = id
     , inst_cmds = []
     }
 

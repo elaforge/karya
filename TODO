@@ -34,7 +34,7 @@ UNSORTED
       . I should be able to let the last note keep ringing onto the next
         block.
         . An attr + postproc could do this.
-    - it also has +mute vs. open variation.  They're actually variably muted,
+    + it also has +mute vs. open variation.  They're actually variably muted,
       but I don't have samples for that, so I'll have to alternate.
       . I also want variable mute for nruktuk.  It should be possible to fake
         it with an envelope.
@@ -44,7 +44,7 @@ UNSORTED
         which operates right before conversion.  Would it be reasonable for
         the instrument itself to have a Event->Event function?  This is like
         a free 1:1 postproc, more elaborate postproc would require a call.
-    - How would I apply +mute to only some of the notes in 'trem'?  I would
+    * How would I apply +mute to only some of the notes in 'trem'?  I would
       need a signal, and for the instrument to notice and apply the attribute.
     - there are also some interesting tempo changes, they could be a sub-tempo
       within @intro.
@@ -61,6 +61,8 @@ UNSORTED
     * the change in default namespace means @block doesn't work
   - it seems like "floating_input" would be a better name than "edit_input"
   - chained transformers should work lazily, right?  Make sure with trace.
+    Probably not, actually, because the state is threaded through.  I'd have
+    to disconnect the state.
   - simple legato transformer to make a note overlap the next one
     Just set %sus or %sus-abs should work.
   * cache not invalidated: modify bug/cache to change %t-diatonic=5 to
