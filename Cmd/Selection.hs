@@ -205,10 +205,10 @@ select_track_all block_end_ tracks sel
     -- Keep sel_cur_pos at the current position, or set it to the top.
     -- This is so 'auto_scroll' won't jump to the bottom of the block.
     select_rest =
-        sel { Types.sel_start_pos = start, Types.sel_cur_pos = block_end }
+        sel { Types.sel_cur_pos = start, Types.sel_start_pos = block_end }
         where start = fst $ Types.sel_range sel
     select_tracks =
-        sel { Types.sel_start_pos = 0, Types.sel_cur_pos = block_end }
+        sel { Types.sel_cur_pos = 0, Types.sel_start_pos = block_end }
     select_all = Types.selection 1 0 tracks block_end
     -- Otherwise a select-all won't include an event at the end of the block.
     block_end = block_end_ + ScoreTime.eta

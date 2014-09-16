@@ -9,7 +9,7 @@ UNSORTED
     . But that means I get clashes with calls that start with >, and I have
       those.
     . For the time being, if I want that I can call 'note-track >inst'.
-  - Selection continuing from the bottom is inconvenient, because I select
+  * Selection continuing from the bottom is inconvenient, because I select
     a whole track, copy, and when I move to paste, it jumps to the bottom of
     the track.  Continue from the top?  Or continue from the end that is
     visible?  Or maybe select all should put cur start at the top.
