@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - can I replace Stack.block_track_of with to_ui_innermost?
   / if >inst in a note track title looks for an '>inst' transformer, shouldn't
     '>inst' default to setting instrument, and the note track title just
     becomes a transformer?
@@ -61,7 +62,8 @@ UNSORTED
   - it seems like "floating_input" would be a better name than "edit_input"
   - chained transformers should work lazily, right?  Make sure with trace.
   - simple legato transformer to make a note overlap the next one
-  - cache not invalidated: modify bug/cache to change %t-diatonic=5 to
+    Just set %sus or %sus-abs should work.
+  * cache not invalidated: modify bug/cache to change %t-diatonic=5 to
     %t-dia=5, it still has the old performance.
   - thru on *legong notes is wrong the first time
   - note entry gets the wrong scale if the track hasn't been played

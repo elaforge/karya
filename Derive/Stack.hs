@@ -16,7 +16,8 @@ module Derive.Stack (
     , track_regions
 
     -- * ui
-    , UiFrame, to_ui, unparse_ui_frame, unparse_ui_frame_, parse_ui_frame
+    , UiFrame, to_ui, to_ui_innermost
+    , unparse_ui_frame, unparse_ui_frame_, parse_ui_frame
 ) where
 import qualified Prelude
 import Prelude hiding (length)
@@ -277,7 +278,10 @@ type UiFrame = (Maybe BlockId, Maybe TrackId, Maybe (TrackTime, TrackTime))
 
 -- | UiFrames are returned in outermost to innermost order.
 to_ui :: Stack -> [UiFrame]
-to_ui stack = reverse $ foldr f [] (innermost stack)
+to_ui = reverse . to_ui_innermost
+
+to_ui_innermost :: Stack -> [UiFrame]
+to_ui_innermost = foldr f [] . innermost
     where
     f (Block bid) accum = (Just bid, Nothing, Nothing) : accum
     f (Track tid) ((bid, _, _) : rest) = (bid, Just tid, Nothing) : rest

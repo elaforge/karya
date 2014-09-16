@@ -1336,14 +1336,14 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
     invalidate stack cached
         | has_damage stack = Invalid
         | otherwise = cached
-    -- Block damage clears caches for that block, but not parents because the
-    -- normal cache machinery will take care of that.
-    has_damage stack
-        | Just (Stack.Block block_id) <- Seq.head (Stack.innermost stack) =
-            Set.member block_id blocks
-        | Just (block_id, track_id) <- Stack.block_track_of stack =
-            Map.member track_id tracks || Set.member block_id blocks
-        | otherwise = False
+    has_damage stack = any overlaps (Stack.to_ui_innermost stack)
+    overlaps (block, track, range) = maybe False (`Set.member` blocks) block
+        || case (track, range) of
+            (Just track_id, Nothing) -> Map.member track_id tracks
+            (Just track_id, Just (s, e))
+                | Just ranges <- Map.lookup track_id tracks ->
+                    Ranges.overlapping ranges (Ranges.range s e)
+            _ -> False
 
 -- | Control damage indicates that a section of control signal has been
 -- modified.  It's dynamically scoped over the same range as the control

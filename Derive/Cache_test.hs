@@ -59,6 +59,21 @@ test_invalidate_damaged = do
     equal (f (mkdamage [] ["top"]) track_stack)
         [(track_stack, False)]
 
+    -- Damage on a track should invalidate all cache keys that have that track
+    -- and range.  Also tested by 'test_stack_damage'.
+    let mkstack track_name s e = Stack.from_outermost
+            [ block "b", track track_name, call "note-track", region s e
+            , call "c1"
+            ]
+    let damage14 = mkdamage [(UiTest.tid "t", Ranges.range 1 4)] []
+    -- Doesn't invalidate if the track is different, or if the range doesn't
+    -- overlap.
+    equal (f damage14 (mkstack "u" 2 3)) [(mkstack "u" 2 3, True)]
+    equal (f damage14 (mkstack "t" 4 5)) [(mkstack "t" 4 5, True)]
+    -- Match.
+    equal (f damage14 (mkstack "t" 2 3)) [(mkstack "t" 2 3, False)]
+
+
 -- * cached generators
 
 -- Test interaction with the rest of the evaluation system.
@@ -191,6 +206,19 @@ test_arrival_notes = do
             insert_event "top.t2" 2 0 "4d"
     equal (diff_events cached uncached) []
 
+test_stack_damage = do
+    -- The stack is the same, since I have an equal, but the actual call
+    -- has changed.
+    let create = mkblocks
+            [ ("top",
+                [ (">", [(0, 1, "%x = 1 | sub")])
+                , ("*", [(0, 0, "4c")])
+                ])
+            , ("sub=ruler", [(">", [(0, 1, "")])])
+            ]
+    let (_, cached, uncached) = compare_cached create $
+            insert_event "top.t1" 0 1 "%t-dia = 1 | sub"
+    equal (diff_events cached uncached) []
 
 -- | Extract cache logs so I can tell who rederived and who used the cache.
 -- I use strings instead of parsing it into structured data because strings
