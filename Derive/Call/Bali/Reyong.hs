@@ -4,7 +4,6 @@
 
 -- | Calls for reyong and trompong techniques.
 module Derive.Call.Bali.Reyong where
-import Control.Applicative (pure)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 

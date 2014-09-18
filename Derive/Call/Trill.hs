@@ -40,7 +40,6 @@
     piece.
 -}
 module Derive.Call.Trill where
-import qualified Control.Applicative as Applicative
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
@@ -438,12 +437,12 @@ trill_env start_dir end_dir =
         Nothing -> Sig.environ "tr-start" Sig.Unprefixed Nothing
             "Which note the trill starts with. If not given, it will start\
             \ the unison note, which means it may move up or down."
-        Just dir -> Applicative.pure (Just dir)
+        Just dir -> pure $ Just dir
     end = case end_dir of
         Nothing -> Sig.environ "tr-end" Sig.Unprefixed Nothing
             "Which note the trill ends with. If not given, it can end with\
             \ either."
-        Just dir -> Applicative.pure (Just dir)
+        Just dir -> pure $ Just dir
 
 -- Its default is both prefixed and unprefixed so you can put in a tr-hold
 -- globally, and so you can have a short @hold=n |@ for a single call.

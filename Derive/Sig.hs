@@ -188,7 +188,7 @@ parsed_manually doc f = (f, Derive.ArgsParsedSpecially doc)
 -- | Parser for nullary calls.  Either use this with 'call' and 'callt', or use
 -- 'call0' and 'call0t' as a shortcut.
 no_args :: Parser ()
-no_args = Applicative.pure ()
+no_args = pure ()
 
 -- | The argument is required to be present, and have the right type.
 required :: forall a. TrackLang.Typecheck a => Text -> Text -> Parser a
@@ -484,9 +484,7 @@ callt parser f = (go, Derive.ArgDocs (parser_docs parser))
 call0t :: Derive.Taggable y => Transformer y d
     -> Derive.WithArgDoc (Transformer y d)
 call0t f = (go, Derive.ArgDocs [])
-    where
-    go args deriver = run_call (Applicative.pure ()) args >>= \() ->
-        f args deriver
+    where go args deriver = run_call (pure ()) args >>= \() -> f args deriver
 
 run_call :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
     -> Derive.Deriver a

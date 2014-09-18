@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.India.Gamakam2 where
-import qualified Control.Applicative as Applicative
 import qualified Control.Monad.State.Strict as Monad.State
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -378,7 +377,7 @@ c_from from_prev fade_in = generator1 "from" mempty
         then "Come for the previous pitch, and possibly fade in."
         else "Come from a pitch, and possibly fade in.")
     $ Sig.call ((,,)
-    <$> (if from_prev then Applicative.pure Nothing
+    <$> (if from_prev then pure Nothing
         else Sig.defaulted "from" Nothing
             "Come from this pitch, or the previous one.")
     <*> Sig.defaulted "transition" default_transition
@@ -563,7 +562,7 @@ kampita_pitch_args two_pitches
         <$> Sig.defaulted "pitch1" (sig "kam-pitch1" 0) "First interval."
         <*> Sig.defaulted "pitch2" (sig "kam-pitch2" 1) "Second interval."
     | otherwise = (,)
-        <$> Applicative.pure (TrackLang.constant_control 0)
+        <$> pure (TrackLang.constant_control 0)
         <*> Sig.defaulted "neighbor" (sig "kam-neighbor" 1)
             "Alternate with a pitch at this interval."
     where sig name deflt = Sig.typed_control name deflt Score.Nn

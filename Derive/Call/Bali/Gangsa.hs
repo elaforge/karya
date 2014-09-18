@@ -26,7 +26,6 @@
     - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
-import Control.Applicative (pure)
 import qualified Data.List as List
 
 import Util.Control

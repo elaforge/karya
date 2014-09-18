@@ -5,7 +5,7 @@
 -- | Control flow and monadic utilities, meant to be imported unqualified.
 module Util.Control (
     Proxy(..)
-    , (<$>), (<*>), (<*), (*>), (<|>)
+    , pure, (<$>), (<*>), (<*), (*>), (<|>)
     , first, second, (***)
     , (<>), mempty, mconcat
     , while, while_
@@ -31,7 +31,7 @@ module Util.Control (
     , Text.Text
     , txt, untxt, showt
 ) where
-import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>))
+import Control.Applicative (pure, (<$>), (<*>), (<*), (*>), (<|>))
 import qualified Control.Exception as Exception
 import Control.Monad
        ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard,

@@ -7,8 +7,6 @@
 module Derive.Call.Bali.Gender (
     note_calls, interval_arg, ngoret, c_realize_ngoret
 ) where
-import Control.Applicative (pure)
-
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
