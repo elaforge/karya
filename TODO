@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - player got stuck in loop mode, space had no effect
+  - calldoc can use a hollow bullet point for optional args
+  * player got stuck in loop mode, space had no effect
   - can I replace Stack.block_track_of with to_ui_innermost?
   / if >inst in a note track title looks for an '>inst' transformer, shouldn't
     '>inst' default to setting instrument, and the note track title just

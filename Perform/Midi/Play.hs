@@ -72,10 +72,11 @@ cycle_messages :: Maybe RealTime -> Messages -> Messages
 cycle_messages _ [] = []
 cycle_messages Nothing msgs = msgs
 cycle_messages (Just repeat_at) msgs =
-    go1 (takeWhile (LEvent.log_or ((<repeat_at) . Midi.wmsg_ts)) msgs)
+    go1 $ takeWhile (LEvent.log_or ((<repeat_at) . Midi.wmsg_ts)) msgs
     where
     go1 msgs = msgs ++ go (shift_messages repeat_at (strip msgs))
     -- Don't bother writing logs the second time around.
+    go [] = []
     go msgs = msgs ++ go (shift_messages repeat_at msgs)
     strip = map LEvent.Event . LEvent.events_of
 
