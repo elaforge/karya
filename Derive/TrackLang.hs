@@ -29,10 +29,10 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, insert_val, delete_val,
-        lookup_val, val_set, null_environ, ValName, Val(..), Quoted(..),
-        ControlFunction(..), Dynamic(..), Symbol(..), ControlRef(..),
-        PitchControl, ValControl, show_call_val, CallId, Expr, Call(..),
-        PitchCall, Term(..))
+        lookup_val, val_set, null_environ, ValName, Val(..), vals_equal,
+        Quoted(..), ControlFunction(..), Dynamic(..), Symbol(..),
+        ControlRef(..), PitchControl, ValControl, show_call_val, CallId, Expr,
+        Call(..), PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import Derive.ShowVal (ShowVal(..))
@@ -43,11 +43,6 @@ import qualified Perform.Signal as Signal
 
 import Types
 
-
--- | An empty instrument literal is a no-op, see 'VInstrument'.
-is_null_instrument :: Score.Instrument -> Bool
-is_null_instrument (Score.Instrument "") = True
-is_null_instrument _ = False
 
 -- | Call used by the infix @=@ syntax.
 c_equal :: CallId

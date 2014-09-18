@@ -327,6 +327,9 @@ instance ShowVal.ShowVal (RawPitch a) where
 newtype PitchError = PitchError Text deriving (Eq, Ord, Read, Show)
 instance Pretty.Pretty PitchError where pretty (PitchError s) = untxt s
 
+pitches_equal :: RawPitch a -> RawPitch a -> Bool
+pitches_equal p1 p2 = either (const False) id $
+    Pitch.nns_equal <$> pitch_eval_nn p1 mempty <*> pitch_eval_nn p2 mempty
 
 -- * Derive.TrackLang
 
@@ -438,6 +441,35 @@ data Val =
     -- Literal: @(list)@, @(list 1 2)@, @(list (x) (y))@
     | VList ![Val]
     deriving (Show)
+
+-- | Return Nothing if the Vals can't be compared, and whether or not they're
+-- equal otherwise.
+vals_equal :: Val -> Val -> Maybe Bool
+vals_equal x y = case (x, y) of
+    (VNum a, VNum b) -> Just $ a == b
+    (VAttributes a, VAttributes b) -> Just $ a == b
+    (VControl a, VControl b) -> Just $ a == b
+    -- This could use pitches_equal, but don't bother until I have a need for
+    -- it.
+    (VPitchControl _, VPitchControl _) -> Nothing
+    (VPitch a, VPitch b) -> Just $ pitches_equal a b
+    (VNotePitch a, VNotePitch b) -> Just $ a == b
+    (VInstrument a, VInstrument b) -> Just $ a == b
+    (VSymbol a, VSymbol b) -> Just $ a == b
+    (VQuoted (Quoted a), VQuoted (Quoted b)) ->
+        lists_equal calls_equal (NonEmpty.toList a) (NonEmpty.toList b)
+    (VControlFunction _, VControlFunction _) -> Nothing
+    (VNotGiven, VNotGiven) -> Just True
+    (VSeparator, VSeparator) -> Just True
+    (VList a, VList b) -> lists_equal vals_equal a b
+    _ -> Nothing
+
+lists_equal :: (a -> a -> Maybe Bool) -> [a] -> [a] -> Maybe Bool
+lists_equal eq = go
+    where
+    go (a:as) (b:bs) = maybe Nothing
+        (\t -> if t then go as bs else Just False) (eq a b)
+    go _ _ = Just False
 
 -- | This instance is actually invalid due to showing VPitch, which has no
 -- literal, and for 'Val', showing 'PitchControl', which amounts to the same
@@ -620,6 +652,16 @@ type CallId = Symbol
 type Expr = NonEmpty Call
 data Call = Call CallId [Term] deriving (Show)
 data Term = ValCall Call | Literal Val deriving (Show)
+
+calls_equal :: Call -> Call -> Maybe Bool
+calls_equal (Call sym1 args1) (Call sym2 args2)
+    | sym1 /= sym2 = Just False
+    | otherwise = lists_equal terms_equal args1 args2
+
+terms_equal :: Term -> Term -> Maybe Bool
+terms_equal (ValCall call1) (ValCall call2) = calls_equal call1 call2
+terms_equal (Literal val1) (Literal val2) = vals_equal val1 val2
+terms_equal _ _ = Just False
 
 -- | This is just a 'Call', but it's expected to return a VPitch.
 type PitchCall = Call

@@ -29,7 +29,7 @@ UNSORTED
       open soft.  I can have a %strength signal that indicates how weak notes
       are played, and then have various calls that are random but biased
       toward a particular value.
-    - solo call takes an instrument and only derives if that instrument is in
+    * solo call takes an instrument and only derives if that instrument is in
       scope.  Can I think solo polos?  It can also take 'env=val'?
     * '? definition is not quite right, I don't want overlap on lower dyn for
       non-ngoret.  Can do with ngoret params.  But now I want to shorten the

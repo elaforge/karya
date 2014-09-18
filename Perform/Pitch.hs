@@ -23,7 +23,7 @@ module Perform.Pitch (
     , Input(..), KbdType(..), Frac
 
     -- * NoteNumber
-    , NoteNumber(..), nn, nn_to_double
+    , NoteNumber(..), nn, nn_to_double, nns_equal
 
     -- * Hz
     , Hz, add_hz, modify_hz, nn_to_hz, hz_to_nn, middle_c_hz
@@ -230,11 +230,15 @@ instance ShowVal.ShowVal NoteNumber where
 
 instance Pretty.Pretty NoteNumber where pretty = show
 
-nn :: (Real a) => a -> NoteNumber
+nn :: Real a => a -> NoteNumber
 nn = NoteNumber . realToFrac
 
 nn_to_double :: NoteNumber -> Double
 nn_to_double (NoteNumber nn) = nn
+
+-- | True if the NoteNumbers are close enough that they sound the same.
+nns_equal :: NoteNumber -> NoteNumber -> Bool
+nns_equal = ApproxEq.approx_eq 0.01
 
 -- * Hz
 
