@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - player got stuck in loop mode, space had no effect
   - can I replace Stack.block_track_of with to_ui_innermost?
   / if >inst in a note track title looks for an '>inst' transformer, shouldn't
     '>inst' default to setting instrument, and the note track title just
@@ -20,10 +21,30 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
-    - top of nruk2 is out of range for kantilan
+    - I should probably use KSP to handle random samples instead of round
+      robin.  Round robin causes artifacts to become audible when a cycle is
+      repeated.
+    - Weak notes are either omitted, +muted soft, +mute normal, half mute, or
+      open soft.  I can have a %strength signal that indicates how weak notes
+      are played, and then have various calls that are random but biased
+      toward a particular value.
+    - solo call takes an instrument and only derives if that instrument is in
+      scope.  Can I think solo polos?  It can also take 'env=val'?
+    * '? definition is not quite right, I don't want overlap on lower dyn for
+      non-ngoret.  Can do with ngoret params.  But now I want to shorten the
+      previous note's duration.  Maybe I just need a separate passing note
+      ornament... or a flag to make ngoret shorten instead of lengthen.
+    - ngoret sholud have an explicit interval arg, for skipping 2 notes
+    - sangsih has a late sample, audible at beginning of @intro.
+      4o pemade-isep
     - double strike
+      . also a +mute +open double strike
     - Pedal up doesn't stop the note, it only stops when the next note starts.
       My fault or kontakt's?
+      . Mine, I cut off the pedal up sample, even though it's before the next
+        event start, because of the subcall.  A block call should get samples
+        until the start of the next event after the block.  So I think I have
+        to pass that in.
     * how about a transformer that derives with each of the given instruments?
       Or better, each of the given quoted transformers, then I can do
       multiple "(set-polos) "(set-kantilan)
@@ -119,6 +140,17 @@ UNSORTED
       a playback cursor, and to be able to mix with "normal" notation)
       then all is fine, but if I do want to mix then I need to get a tempo
       out of it.
+    . In general, I often want a situation where durations are additive, so if
+      I add a bit of time to a block, it gets slightly longer in the caller,
+      and so on up the chain.  An un-timed 'sequence' call would solve that
+      problem but at the cost of not being able to line up controls or tempo.
+      If I still want to do that, I need an automatic way to fix up callers
+      when a block duration changes, essentially an automatic version of what
+      I do by hand anyway.  To wit:
+      . Certain calls are marked as "1:1 time".  When a block changes
+        duration, find all such callers and resize them to the new callee
+        block duration.  Anything below them is moved up or down, and the
+        rulers re-extracted.
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.

@@ -10,7 +10,7 @@ import qualified Derive.Score as Score
 
 
 transform :: String
-transform = "import bali.gender | realize-ngoret"
+transform = "import bali.gender | realize-ngoret | ngoret-damp-threshold=2"
 
 test_ngoret = do
     -- This also tests some error checking and absolute warp functions.
@@ -66,6 +66,10 @@ test_ngoret = do
     equal (run $ c_to_e "" "'_ .5 .5 1")
         ([(0, 1, "4c"), (1.5, 1, "4f"), (2, 1, "4e")], [])
 
+    -- Previous note is shortened instead of lengthened.
+    equal (run $ c_to_e "" "ngoret-damp-threshold=0 | ' 10 0")
+        ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")], [])
+
 test_past_end = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
     -- A grace note right at the end doesn't cause an error.  Previously this
@@ -86,21 +90,19 @@ test_ngoret_infer_duration = do
     -- This also tests the interaction between the default note deriver and
     -- infer-duration, when invoked via Util.note.
     equal (run
-            [ (top, [(">", [(0, 1, "sub"), (1, 1, "sub")])])
-            , ("sub=ruler", UiTest.note_track
+            [ (top, [(">", [(0, 1, "sub1"), (1, 1, "sub2")])])
+            , ("sub1=ruler", UiTest.note_track
                 [(0, 1, "4c"), (1, 0, "'^ .5 .5 -- 4e")])
+            , ("sub2=ruler", UiTest.note_track [(0, 1, "4c")])
             ])
-        ([(0, 1.5, "4c"), (0.5, 1, "4d"), (1, 1.5, "4e"), (1.5, 1, "4d"),
-            (2, 1, "4e")], [])
-    --    sub      sub
-    --    4c    '4e|4c      '4e|
+        ([(0, 1.5, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
+    --    sub1     |sub2
+    --    4c    '4e|4c         |
     -- 4c ------------
-    -- 4d       ------      ------
+    -- 4d       ------
     -- 4e           --------------
-    -- 4e                      ------
-    --
-    -- TODO Notice that 4e overlaps itself.  To fix this, I need restrikes
-    -- to shorten the original.
+
+    -- restrike the same one.  In general, MIDI can't handle restrikes.
 
 test_ngoret_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch

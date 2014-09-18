@@ -61,7 +61,7 @@ ngoret module_ late_damping damp_arg maybe_transpose =
     ("Insert an intermediate grace note in the \"ngoret\" style.\
     \ The grace note moves up for `'^`, down for `'`, or is based\
     \ on the previous note's pitch for `'`."
-    ) $ Sig.call ((,,)
+    ) $ Sig.call ((,,,)
     <$> defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)
         "Time between the grace note start and the main note. If there isn't\
         \ enough room after the previous note, it will be halfway between\
@@ -69,7 +69,11 @@ ngoret module_ late_damping damp_arg maybe_transpose =
     <*> damp_arg
     <*> defaulted "dyn" (control "ngoret-dyn" 0.75)
         "The grace note's dyn will be this multiplier of the current dyn."
-    ) $ \(time, damp, dyn_scale) -> Sub.inverting $ \args -> do
+    <*> Sig.environ "damp-threshold" Sig.Prefixed  0.25
+        "A grace note with this much time will cause the previous note to be\
+        \ shortened to not overlap. Under the threshold, and the damping of\
+        \ the previous note will be delayed until the end of the grace note."
+    ) $ \(time, damp, dyn_scale, damp_threshold) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
         time <- Derive.real =<< Util.time_control_at Util.Real time start
         damp <- Derive.real =<< Util.time_control_at Util.Real damp start
@@ -79,10 +83,6 @@ ngoret module_ late_damping damp_arg maybe_transpose =
                 Just . Pitches.transpose transpose <$> Util.get_pitch start
         dyn_scale <- Util.control_at dyn_scale start
         dyn <- (*dyn_scale) <$> Util.dynamic start
-        let with_damped
-                | late_damping && prev_touches = Util.add_flags damped_flag
-                | otherwise = id
-            prev_touches = maybe False (>= Args.start args) (Args.prev_end args)
 
         grace_start <- Derive.score (start - time)
         -- If there isn't room for the grace note, use the midpoint between the
@@ -90,13 +90,20 @@ ngoret module_ late_damping damp_arg maybe_transpose =
         grace_start <- return $ case Args.prev_start args of
             Nothing -> grace_start
             Just prev -> max grace_start $ (prev + Args.start args) / 2
+        real_grace_start <- Derive.real grace_start
+        let with_flags
+                | late_damping && prev_touches = Util.add_flags $
+                    if start - real_grace_start < damp_threshold
+                        then extend_previous else shorten_previous
+                | otherwise = id
+            prev_touches = maybe False (>= Args.start args) (Args.prev_end args)
         overlap <- Util.score_duration (Args.start args) damp
         let grace_end = Args.start args + overlap
             grace_note = case maybe_pitch of
                 Nothing -> Util.add_flags infer_pitch_flag Util.note
                 Just pitch -> Util.pitched_note pitch
         Derive.place grace_start (grace_end - grace_start)
-                (with_damped $ Util.with_dynamic dyn grace_note)
+                (with_flags $ Util.with_dynamic dyn grace_note)
             <> Derive.place (Args.start args) (Args.duration args) Util.note
 
 -- * realize
@@ -117,7 +124,8 @@ realize_ngoret = Post.apply $ fmap merge . mapM realize . Seq.group_on key
     where
     -- TODO do I want to ignore streams with irrelevant instruments?
     key e = (Score.event_instrument e, event_hand e)
-    realize = apply realize_damped <=< apply realize_infer_pitch
+    realize = fmap (map (uncurry realize_damped) . Seq.zip_next)
+        . apply realize_infer_pitch
     apply f = mapMaybeM (apply1 f) . Seq.zip_neighbors
         where
         apply1 f (prev, event, next) = case f prev event next of
@@ -145,17 +153,20 @@ realize_infer_pitch maybe_prev event maybe_next
                 (Score.event_end next - Score.event_start event)
             }
     | otherwise = return event
+    where require err = maybe (Left err) return
 
-require :: Text -> Maybe a -> Either Text a
-require err = maybe (Left err) return
-
-realize_damped :: Maybe Score.Event -> Score.Event
-    -> Maybe Score.Event -> Either Text Score.Event
-realize_damped _ event maybe_next
-    | Just next <- maybe_next, Score.has_flags damped_flag next = Right $
-        Score.set_duration (Score.event_end next - Score.event_start event)
-            event
-    | otherwise = Right $ Score.remove_flags damped_flag event
+realize_damped :: Score.Event -> Maybe Score.Event -> Score.Event
+realize_damped event maybe_next =
+    Score.remove_flags (extend_previous <> shorten_previous) $
+        maybe id set_dur maybe_next event
+    where
+    set_dur next
+        | Score.has_flags extend_previous next =
+            Score.set_duration (Score.event_end next - start)
+        | Score.has_flags shorten_previous next =
+            Score.set_duration (Score.event_start next - start)
+        | otherwise = id
+        where start = Score.event_start event
 
 infer_pitch :: Score.Event -> Score.Event -> Maybe PitchSignal.Pitch
 infer_pitch prev next = do
@@ -174,5 +185,6 @@ infer_pitch_flag = Flags.flag "infer-pitch"
 
 -- | Mark events that were damped late, and whose previous event should be
 -- extended to be damped together.
-damped_flag :: Flags.Flags
-damped_flag = Flags.flag "damped-tag"
+extend_previous, shorten_previous :: Flags.Flags
+extend_previous = Flags.flag "extend-previous-duration"
+shorten_previous = Flags.flag "shorten-previous-duration"
