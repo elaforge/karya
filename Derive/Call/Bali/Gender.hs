@@ -4,7 +4,11 @@
 
 -- | Ornaments for gender.  The unique thing about gender technique is the
 -- delayed damping, so these calls deal with delayed damping.
-module Derive.Call.Bali.Gender (note_calls, ngoret, c_realize_ngoret) where
+module Derive.Call.Bali.Gender (
+    note_calls, interval_arg, ngoret, c_realize_ngoret
+) where
+import Control.Applicative (pure)
+
 import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -31,9 +35,10 @@ import qualified Perform.Pitch as Pitch
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("'", gender_ngoret Nothing)
-    , ("'^", gender_ngoret (Just (Pitch.Diatonic (-1))))
-    , ("'_", gender_ngoret (Just (Pitch.Diatonic 1)))
+    [ ("'", gender_ngoret $ pure Nothing)
+    , ("'n", gender_ngoret $ Just <$> interval_arg)
+    , ("'^", gender_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
+    , ("'_", gender_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
     [ ("realize-ngoret", c_realize_ngoret)
     ]
@@ -41,7 +46,8 @@ note_calls = Derive.call_maps
 module_ :: Module.Module
 module_ = "bali" <> "gender"
 
-gender_ngoret :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
+gender_ngoret :: Sig.Parser (Maybe Pitch.Transpose)
+    -> Derive.Generator Derive.Note
 gender_ngoret = ngoret module_ True damp_arg
     where
     damp_arg = defaulted "damp" (typed_control "ngoret-damp" 0.5 Score.Real)
@@ -49,20 +55,26 @@ gender_ngoret = ngoret module_ True damp_arg
         \ duration is time+damp, though it will be clipped to the\
         \ end of the current note."
 
+interval_arg :: Sig.Parser Pitch.Transpose
+interval_arg = TrackLang.default_diatonic <$> Sig.required "interval"
+    "The grace note is this interval from the destination pitch."
+
 -- | Other instruments also have ngoret, but without gender's special damping
 -- behaviour.
 ngoret :: Module.Module -> Bool
     -- ^ Extend the previous note's duration to the end of the grace note.
     -> Sig.Parser TrackLang.ValControl
-    -> Maybe Pitch.Transpose -> Derive.Generator Derive.Note
-ngoret module_ late_damping damp_arg maybe_transpose =
+    -> Sig.Parser (Maybe Pitch.Transpose)
+    -> Derive.Generator Derive.Note
+ngoret module_ late_damping damp_arg interval_arg =
     Derive.make_call module_ "ngoret"
     (Tags.inst <> Tags.ornament <> Tags.requires_postproc)
     ("Insert an intermediate grace note in the \"ngoret\" style.\
     \ The grace note moves up for `'^`, down for `'`, or is based\
     \ on the previous note's pitch for `'`."
-    ) $ Sig.call ((,,,)
-    <$> defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)
+    ) $ Sig.call ((,,,,)
+    <$> interval_arg
+    <*> defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)
         "Time between the grace note start and the main note. If there isn't\
         \ enough room after the previous note, it will be halfway between\
         \ the previous note and this one."
@@ -73,11 +85,12 @@ ngoret module_ late_damping damp_arg maybe_transpose =
         "A grace note with this much time will cause the previous note to be\
         \ shortened to not overlap. Under the threshold, and the damping of\
         \ the previous note will be delayed until the end of the grace note."
-    ) $ \(time, damp, dyn_scale, damp_threshold) -> Sub.inverting $ \args -> do
+    ) $ \(maybe_interval, time, damp, dyn_scale, damp_threshold) ->
+    Sub.inverting $ \args -> do
         start <- Args.real_start args
         time <- Derive.real =<< Util.time_control_at Util.Real time start
         damp <- Derive.real =<< Util.time_control_at Util.Real damp start
-        maybe_pitch <- case maybe_transpose of
+        maybe_pitch <- case maybe_interval of
             Nothing -> return Nothing
             Just transpose ->
                 Just . Pitches.transpose transpose <$> Util.get_pitch start

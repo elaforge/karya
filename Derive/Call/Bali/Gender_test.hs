@@ -10,7 +10,7 @@ import qualified Derive.Score as Score
 
 
 transform :: String
-transform = "import bali.gender | realize-ngoret | ngoret-damp-threshold=2"
+transform = "import bali.gender | realize-ngoret | ngoret-damp-threshold=20"
 
 test_ngoret = do
     -- This also tests some error checking and absolute warp functions.
@@ -66,9 +66,9 @@ test_ngoret = do
     equal (run $ c_to_e "" "'_ .5 .5 1")
         ([(0, 1, "4c"), (1.5, 1, "4f"), (2, 1, "4e")], [])
 
-    -- Previous note is shortened instead of lengthened.
-    equal (run $ c_to_e "" "ngoret-damp-threshold=0 | ' 10 0")
-        ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")], [])
+    -- Explicit interval.
+    equal (run $ c_to_e "" "'n -2 10 0")
+        ([(0, 1, "4c"), (1, 1, "4c"), (2, 1, "4e")], [])
 
 test_past_end = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
@@ -89,6 +89,11 @@ test_ngoret_infer_duration = do
         top = "top -- " ++ transform ++ " | realize-ngoret | infer-duration"
     -- This also tests the interaction between the default note deriver and
     -- infer-duration, when invoked via Util.note.
+    --    sub1     |sub2
+    --    4c    '4e|4c         |
+    -- 4c ------------
+    -- 4d       ------
+    -- 4e           --------------
     equal (run
             [ (top, [(">", [(0, 1, "sub1"), (1, 1, "sub2")])])
             , ("sub1=ruler", UiTest.note_track
@@ -96,13 +101,17 @@ test_ngoret_infer_duration = do
             , ("sub2=ruler", UiTest.note_track [(0, 1, "4c")])
             ])
         ([(0, 1.5, "4c"), (0.5, 1, "4d"), (1, 1, "4e")], [])
-    --    sub1     |sub2
-    --    4c    '4e|4c         |
-    -- 4c ------------
-    -- 4d       ------
-    -- 4e           --------------
 
-    -- restrike the same one.  In general, MIDI can't handle restrikes.
+    -- Previous note is shortened instead of lengthened.
+    let mkblock s = [(top,
+            UiTest.note_track [(0, 2, "4c"), (2, 2, s ++ " -- 4e")])]
+    equal (run (mkblock "' 10 0"))
+        ([(0, 2, "4c"), (1, 1, "4d"), (2, 2, "4e")], [])
+    equal (run (mkblock "ngoret-damp-threshold=0 | ' 10 0"))
+        ([(0, 1, "4c"), (1, 1, "4d"), (2, 2, "4e")], [])
+
+    -- TODO If the grace has the same pitch, then they always get damped
+    -- together.
 
 test_ngoret_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch

@@ -35,7 +35,7 @@ UNSORTED
       non-ngoret.  Can do with ngoret params.  But now I want to shorten the
       previous note's duration.  Maybe I just need a separate passing note
       ornament... or a flag to make ngoret shorten instead of lengthen.
-    - ngoret sholud have an explicit interval arg, for skipping 2 notes
+    * ngoret sholud have an explicit interval arg, for skipping 2 notes
     - sangsih has a late sample, audible at beginning of @intro.
       4o pemade-isep
     - double strike

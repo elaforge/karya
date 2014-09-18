@@ -26,6 +26,7 @@
     - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
+import Control.Applicative (pure)
 import qualified Data.List as List
 
 import Util.Control
@@ -73,9 +74,10 @@ note_calls = Derive.call_maps
                                             "3-23-232 -32-3-23"
                                             "44-34-3- 43-434-3")
 
-    , ("'", c_ngoret Nothing)
-    , ("'^", c_ngoret (Just (Pitch.Diatonic (-1))))
-    , ("'_", c_ngoret (Just (Pitch.Diatonic 1)))
+    , ("'", c_ngoret $ pure Nothing)
+    , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
+    , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
+    , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
@@ -89,7 +91,7 @@ module_ = "bali" <> "gangsa"
 
 -- * ngoret
 
-c_ngoret :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
+c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
 c_ngoret = Gender.ngoret module_ False damp_arg
     where
     damp_arg = Sig.defaulted "damp"

@@ -4,7 +4,7 @@
 
 -- | Calls for reyong and trompong techniques.
 module Derive.Call.Bali.Reyong where
-import qualified Control.Applicative as Applicative
+import Control.Applicative (pure)
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 
@@ -64,9 +64,10 @@ note_calls = Derive.call_maps
     , ("X", articulation "cek" ((:[]) . pos_cek) Attrs.rim)
     , ("O", articulation "byong" pos_byong mempty)
     , ("+", articulation "byut" pos_byong Attrs.mute)
-    , ("'", ngoret Nothing)
-    , ("'^", ngoret (Just (Pitch.Diatonic (-1))))
-    , ("'_", ngoret (Just (Pitch.Diatonic 1)))
+    , ("'", c_ngoret $ pure Nothing)
+    , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
+    , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
+    , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
     [ ("reyong-damp", c_reyong_damp)
     ]
@@ -85,9 +86,8 @@ reyong_patterns = [k_12_1_21, k12_12_12, k21_21_21, k_11_1_21, rejang]
 reyong_pattern :: [Char] -> [Char] -> Pattern
 reyong_pattern above below = reyong_kotkean_pattern $ parse_kotekan above below
 
-ngoret :: Maybe Pitch.Transpose -> Derive.Generator Derive.Note
-ngoret = Gender.ngoret module_ False
-    (Applicative.pure (TrackLang.constant_control 1))
+c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
+c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 1))
 
 -- * kilitan
 
