@@ -7,6 +7,7 @@
 module Cmd.CallDoc where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.String as String
@@ -285,13 +286,16 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
         "\n<li><b>Args parsed by call:</b> " <> html_doc hstate doc
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
     arg_doc (Derive.ArgDoc name typ parser env_default doc) =
-        "<li>" <> tag "code" (html name) <> show_char char
+        "<li" <> li_type <> ">" <> tag "code" (html name) <> show_char char
         <> " :: " <> tag "em" (html (prettyt typ))
         <> show_default deflt
         <> " " <> tag "code" (html (environ_keys name env_default))
         <> (if Text.null doc then "" else " &mdash; " <> html_doc hstate doc)
         <> "\n"
-        where (char, deflt) = show_parser parser
+        where
+        (char, deflt) = show_parser parser
+        li_type = if Maybe.isNothing deflt then ""
+            else " style=list-style-type:circle"
     show_default = maybe "" ((" = " <>) . tag "code" . html)
     show_char = maybe "" (tag "sup" . html)
     write_tags tags
