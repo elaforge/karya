@@ -79,7 +79,7 @@ ngoret module_ late_damping damp_arg interval_arg =
     <*> damp_arg
     <*> defaulted "dyn" (control "ngoret-dyn" 0.75)
         "The grace note's dyn will be this multiplier of the current dyn."
-    <*> Sig.environ "damp-threshold" Sig.Prefixed  0.25
+    <*> Sig.environ "damp-threshold" Sig.Prefixed  0.15
         "A grace note with this much time will cause the previous note to be\
         \ shortened to not overlap. Under the threshold, and the damping of\
         \ the previous note will be delayed until the end of the grace note."

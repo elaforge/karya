@@ -749,6 +749,7 @@ instance DeepSeq.NFData Event where
 instance Pretty.Pretty Event where
     format (Event inst start dur controls pitch stack) = Pretty.record "Event"
         [ ("instrument", Pretty.format (Instrument.inst_score inst))
+        , ("keyswitch", Pretty.format (Instrument.inst_keyswitch inst))
         , ("start", Pretty.format start)
         , ("duration", Pretty.format dur)
         , ("controls", Pretty.format controls)

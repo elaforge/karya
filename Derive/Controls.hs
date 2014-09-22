@@ -72,6 +72,12 @@ start_s = "start-s"
 start_t :: Control
 start_t = "start-t"
 
+-- ** specific to instruments
+
+-- | Variable mute control, where 1 is fully muted.
+mute :: Control
+mute = "mute"
+
 -- ** understood by MIDI performer
 
 -- | MIDI velocity and breath.  Generally you should use 'dynamic', which

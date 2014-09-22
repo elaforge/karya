@@ -46,7 +46,8 @@ test_wayang_pasang = do
     -- Note no PitchBend, which means the split instruments applied
     -- tuning=umbang and tuning=isep to their pitches.
     equal (DeriveTest.midi_channel midi)
-        [ (1, Midi.NoteOn Key.e5 127), (0, Midi.NoteOn Key.e5 127)
+        [ (1, Midi.NoteOn Key.e5 127), (1, Midi.ControlChange 1 0)
+        , (0, Midi.NoteOn Key.e5 127), (0, Midi.ControlChange 1 0)
         , (1, Midi.NoteOff Key.e5 127), (0, Midi.NoteOff Key.e5 127)
         ]
 

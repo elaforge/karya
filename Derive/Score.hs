@@ -187,11 +187,6 @@ set_duration = duration . const
 control_val_at :: RealTime -> TypedControl -> TypedVal
 control_val_at t = fmap (Signal.at t)
 
--- | Get control value at the given time.
-control_at :: ControlMap -> Control -> RealTime -> TypedVal
-control_at controls c t =
-    maybe (untyped 0) (control_val_at t) (Map.lookup c controls)
-
 move_controls :: RealTime -> Event -> Event
 move_controls shift event
     | shift == 0 = event
@@ -201,16 +196,16 @@ move_controls shift event
         , event_pitch = PitchSignal.shift shift (event_pitch event)
         }
 
-event_control_at :: RealTime -> Control -> Maybe TypedVal -> Event
-    -> Maybe TypedVal
-event_control_at pos cont deflt event =
-    maybe deflt (Just . control_val_at pos) $
-        Map.lookup cont (event_controls event)
+-- | Get a control value from the event, or Nothing if that control isn't
+-- present.
+event_control_at :: RealTime -> Control -> Event -> Maybe TypedVal
+event_control_at pos cont =
+    (control_val_at pos <$>) . Map.lookup cont . event_controls
 
 initial_dynamic :: Event -> Signal.Y
 initial_dynamic event = maybe 0 typed_val $
      -- Derive.initial_controls should mean Nothing never happens.
-    event_control_at (event_start event) c_dynamic (Just (untyped 0)) event
+    event_control_at (event_start event) c_dynamic event
 
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
@@ -221,6 +216,10 @@ modify_control control modify event = event
     { event_controls = Map.adjust (fmap (Signal.map_y modify)) control
         (event_controls event)
     }
+
+set_control :: Control -> Typed Signal.Control -> Event -> Event
+set_control control signal event = event
+    { event_controls = Map.insert control signal (event_controls event) }
 
 event_controls_at :: RealTime -> Event -> ControlValMap
 event_controls_at t = controls_at t . event_controls

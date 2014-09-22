@@ -281,7 +281,7 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
     should add just +mute, and can inherit +loose if it's set.
 -}
 wayang_patches :: [MidiInst.Patch]
-wayang_patches = MidiInst.with_empty_code
+wayang_patches = MidiInst.with_code code
     [ set_tuning Environ.umbang $ scale Wayang.umbang $ wayang "wayang-umbang"
     , set_tuning Environ.isep $ scale Wayang.isep $ wayang "wayang-isep"
     , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
@@ -291,6 +291,7 @@ wayang_patches = MidiInst.with_empty_code
     , set_range Wayang.kantilan_bottom Wayang.kantilan_top $ wayang "wayang-k"
     ]
     where
+    code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
     wayang = (Instrument.attribute_map #= wayang_keymap) . flip patch []
     scale scale = (Instrument.text #= scale_doc)
         . (Instrument.scale #= wayang_scale scale)

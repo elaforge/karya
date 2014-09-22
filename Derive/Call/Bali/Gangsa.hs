@@ -41,6 +41,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
@@ -54,6 +55,8 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
+
 import Types
 
 
@@ -87,6 +90,27 @@ note_calls = Derive.call_maps
 
 module_ :: Module.Module
 module_ = "bali" <> "gangsa"
+
+-- * instrument transform
+
+-- | Variable mute for gangsa.  Intended for the 'Cmd.Cmd.inst_postproc' field.
+mute_postproc :: Score.Attributes -> Score.Event -> Score.Event
+mute_postproc mute_attr event =
+    case Score.event_control_at (Score.event_start event) Controls.mute event of
+        Nothing -> set_mod 0 event
+        Just tval
+            | mute >= threshold -> Score.add_attributes mute_attr event
+            | mute <= 0 -> set_mod 0 event
+            -- The mod control goes from 1 (least muted) to 0 (most muted).
+            -- Bias mod towards the higher values, since the most audible
+            -- partial mutes are from .75--1.
+            | otherwise -> set_mod (1 - mute**2) $ Score.set_duration 0 event
+            where
+            mute = Score.typed_val tval
+    where
+    set_mod = Score.set_control Controls.mod . Score.untyped . Signal.constant
+    -- Use the mute_attr above this threshold.
+    threshold = 0.85
 
 -- * ngoret
 

@@ -12,9 +12,44 @@ UNSORTED
       difference between local 'end' samples and ones from the caller.  Maybe
       I have to do the thing where I delete the sample at 'end', but keep ones
       beyond it.  It seems like a weird hack though.
-    . Pedal is special because it extends note duration.  Normally the note
-      ends at the end of the block so who cares if there is signal.  Of course
-      it might have a long decay.
+      . If I have a pedal up at the end, I do want it for the final event.
+        Transposition, don't.  Pitch, don't.  Continuous timbre control do,
+        but per-note timbre control, don't.  What is the difference?  I guess
+        it's continuous vs. per-note.  Currently I can't tell the difference,
+        and in fact the same control may be different in different contexts.
+    . Another problem is that the next event is in ScoreTime, and it's the
+      ScoreTime of the caller.  So I can't know... but the caller would.  The
+      block call could stash the start time of the next event, and
+      Args.controls_end or something could fall back on that.
+    . What happens if I don't trim tails at all?  One thing is that I still
+      have to differentiate between per-note and global controls or it thinks
+      that notes change their pitches.  But isn't that difference expressed by
+      inversion?  So don't trim at all, but inversion trims the events
+      themselves.
+    . But inversion includes the next event in case it is a slide, but I don't
+      want it if it's just a set.  So I think I still need to trim.  But what
+      if I don't trim the last event in the block?  But in inversion, every
+      note is the last one of its block.  But why does it only come up with
+      e.g. '+a'?  Because it uses Util.note, which does eval, which fakes up
+      a note with no neighbors.  Perhaps the next event is not a good proxy
+      for the control scope.
+    . Ideally: no trimming for uninverted notes.  Controls are assumed to be
+      at the track level, not the note level.  Inverted controls are specific
+      to the note they are beneath, so they stop before the next event, or the
+      end of the block.  So can I put the trimming in the invert?  A control
+      or pitch track call would notice if it's in a slice, and if so, trim the
+      control before stashing.
+      . If events no longer trim controls after them, how does this affect
+        perform?  Previously perform could just emit all of the remaining
+        controls, but now that's too much.  I think it can just rely on
+        inst_decay.
+
+    . Is there a nicer way to get the final event right than deleting the
+      sample exactly at 'end'?  It seems like I shouldn't have to copy all of
+      the signal just for that. If I figure out a way to not do that, the call
+      itself still has to, if it doesn't want the end sample, but does want
+      ones after it.  The bigger issue is that it's weird to delete a single
+      sample, isn't there a less ad-hoc way to get the effect I want?
 
   * calldoc can use a hollow bullet point for optional args
   * player got stuck in loop mode, space had no effect
@@ -53,8 +88,6 @@ UNSORTED
       called?  How can I do this without adding linear state?
       . Does linear state even matter since I'm not parallelizing derivation?
         Maybe I should try to parallelize derivation or abandon the idea.
-    - sangsih has a late sample, audible at beginning of @intro.
-      4o pemade-isep
     - double strike
       . also a +mute +open double strike
     - many double strikes or ngoret tones land a bit ahead of the beat
@@ -70,12 +103,15 @@ UNSORTED
       . I should be able to let the last note keep ringing onto the next
         block.
         . An attr + postproc could do this.
-    + it also has +mute vs. open variation.  They're actually variably muted,
+    * it also has +mute vs. open variation.  They're actually variably muted,
       but I don't have samples for that, so I'll have to alternate.
       . I also want variable mute for nruktuk.  It should be possible to fake
         it with an envelope.
       . A %mute control, at 1 I switch on +mute, otherwise use a cc.
         Then create it with a linear envelope plus some randomization.
+      . When the control is 0, notes are normal.  When it's >0, they are
+        short, but the envelope decay is long, as it approaches 1, the decay
+        gets faster.
       . How can an instrument do this?  It would have to provide a postproc
         which operates right before conversion.  Would it be reasonable for
         the instrument itself to have a Event->Event function?  This is like
