@@ -22,7 +22,7 @@
     normal controls using transposition signals like 'Controls.chromatic'.
 -}
 module Derive.Control (
-    d_control_track, split_control_tracks
+    d_control_track
     -- * TrackSignal
     , stash_signal, render_of
 #ifdef TESTING
@@ -38,10 +38,7 @@ import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
-import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
@@ -77,65 +74,6 @@ d_control_track (Tree.Node track _) deriver = do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
             return (ParseTitle.parse_control_expr title)
         eval_track track expr ctype deriver
-
--- | Preprocess a track tree by splitting the control tracks.  An event
--- starting with @%@ splits the events below it into a new control track.  The
--- text after the @%@ becomes the new track title.  Split tracks with the same
--- title will be merged together, but they have to have exactly the same title.
--- If they have different titles but create the same control, they will wind up
--- in separate tracks and likely the last one will win, due to the implicit
--- leading 0 sample in each control track.
---
--- Preprocessing at the track tree level means the split tracks act like real
--- tracks and interact with slicing correctly.
---
--- This is experimental.  It provides a way to have short ad-hoc control
--- sections, which is likely to be convenient for individual calls that can use
--- a control signal.  On the other hand, it invisibly rearranges the score, and
--- that has been a real mess with slicing.  Hopefully it's simple enough that
--- it won't be as confusing as slicing and inversion.
---
--- TrackSignals should work out because the split tracks all have the same
--- TrackId, and so their individual signal fragments should be joined as usual.
-split_control_tracks :: TrackTree.EventsTree -> TrackTree.EventsTree
-split_control_tracks = map split
-    where
-    split (Tree.Node track subs) =
-        case ParseTitle.track_type (TrackTree.track_title track) of
-            ParseTitle.ControlTrack -> splice (split_control track) subs
-            _ -> Tree.Node track (map split subs)
-        where
-        splice [] subs = Tree.Node track subs
-        splice [x] subs = Tree.Node x subs
-        splice (x:xs) subs = Tree.Node x [splice xs subs]
-
--- | Look for events starting with @%@, and split the track at each one.
--- Each split-off track is titled with the text after the @%@.
-split_control :: TrackTree.Track -> [TrackTree.Track]
-split_control track = extract $ split $ TrackTree.track_events track
-    where
-    split events = go (TrackTree.track_title track) events $
-        mapMaybe switch_control $ Events.ascending events
-    go title events [] = [(title, events)]
-    go title events ((start, next_title) : switches) =
-        (title, pre) : go next_title post switches
-        where (pre, post) = Events.split_at_exclude start events
-    switch_control event
-        | Just ('%', title) <- Text.uncons (Event.event_text event),
-            not (Text.null title) = Just (Event.start event, title)
-        | otherwise = Nothing
-    extract [] = [track]
-    extract [_] = [track]
-    extract tracks = map convert (merge tracks)
-    convert (title,  events) = track
-        { TrackTree.track_title = title
-        , TrackTree.track_events = events
-        }
-    -- Tracks with the same name are merged back together.
-    -- TODO Group by control, not title.
-    merge = map merge_track . Seq.group_on fst
-    merge_track [] = error "Seq.group_on postcondition violated"
-    merge_track tracks@((title, _) : _) = (title, mconcatMap snd tracks)
 
 -- * eval_track
 

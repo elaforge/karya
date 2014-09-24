@@ -58,7 +58,7 @@ note_deriver :: BlockId -> Derive.NoteDeriver
 note_deriver block_id = do
     (tree, block_end) <- Derive.eval_ui ("note_deriver " <> show block_id) $
         get_tree block_id
-    derive_tree block_end (Control.split_control_tracks tree)
+    derive_tree block_end tree
 
 -- * control deriver
 
