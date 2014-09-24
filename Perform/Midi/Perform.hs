@@ -49,11 +49,26 @@ default_velocity = 0.79
 keyswitch_gap :: RealTime
 keyswitch_gap = RealTime.milliseconds 4
 
--- | Most synths don't respond to pitch bend instantly, but smooth it out, so
--- if you set pitch bend immediately before playing the note you will get
--- a little sproing.  Put pitch bends before their notes by this amount.
+-- | Most synths don't respond to control change and pitch bend instantly, but
+-- smooth it out, so if you set pitch bend immediately before playing the note
+-- you will get a little sproing.  Put pitch bends before their notes by this
+-- amount.
 control_lead_time :: RealTime
 control_lead_time = RealTime.milliseconds 100
+
+-- | 'control_lead_time' can be flattened out if there isn't time for it.  This
+-- happens when there is another note on the same previous channel that would
+-- overlap it.  To avoid an audible artifact on the tail of the previous note,
+-- I omit the lead time in that case.  However, I still need a minimum amount
+-- of lead time because some MIDI patches use the state of the controls at
+-- NoteOn time to configure the whole note.  A tiny gap should be enough to
+-- make sure the control changes arrive first, but short enough that it's not
+-- audible on the previous note.
+--
+-- The root of the problem, like so many problems with MIDI, is that it's
+-- highly stateful, nothing happens simultaneously, and channels are precious.
+min_control_lead_time :: RealTime
+min_control_lead_time = RealTime.milliseconds 4
 
 -- | Subtract this much from every NoteOff.  Some synthesizers don't handle
 -- simultaneous note on and note off of the same pitch well.  I actually only
@@ -389,7 +404,7 @@ empty_perform_state = (Map.empty, Map.empty)
 perform_notes :: PerformState -> [LEvent.LEvent (Event, Instrument.Addr)]
     -> (MidiEvents, PerformState)
 perform_notes state events =
-    (Seq.merge_asc_lists levent_start midi_msgs, final_state)
+    (Seq.merge_asc_lists merge_key midi_msgs, final_state)
     where
     (final_state, midi_msgs) = List.mapAccumL go state
         (zip events (drop 1 (List.tails events)))
@@ -527,6 +542,8 @@ perform_note prev_note_off next_note_on event addr =
     -- note really is adjacent, but if it's supposedly off then it's lower
     -- priority and I can clip off its controls.  Otherwise, the lead-time
     -- controls get messed up by controls from the last note.
+    -- TODO do I really need this, instead of just using note_end?  If so,
+    -- I need a test showing so.
     next_note_cutoff = max (event_end event) . subtract control_lead_time <$>
         next_note_on
 
@@ -554,17 +571,18 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
 perform_control_msgs :: RealTime -> Maybe RealTime -> Event -> Instrument.Addr
     -> Midi.Key -> MidiEvents
 perform_control_msgs prev_note_off next_note_on event (dev, chan) midi_nn =
-    map LEvent.Event (trim control_msgs) ++ map LEvent.Log warns
+    map LEvent.Event control_msgs ++ map LEvent.Log warns
     where
-    trim = maybe id (\t -> takeWhile ((<t) . Midi.wmsg_ts)) next_note_on
     control_msgs = merge_messages $
         map (map chan_msg) (pitch_pos_msgs : control_pos_msgs)
     control_sigs = Map.toList (event_controls event)
     cmap = Instrument.inst_control_map (event_instrument event)
+    control_end = maybe id min next_note_on (note_end event)
     (control_pos_msgs, clip_warns) = unzip $
-        map (perform_control cmap prev_note_off note_on midi_nn) control_sigs
+        map (perform_control cmap prev_note_off note_on control_end midi_nn)
+            control_sigs
     pitch_pos_msgs = perform_pitch (event_pb_range event)
-        midi_nn prev_note_off note_on (event_pitch event)
+        midi_nn prev_note_off note_on control_end (event_pitch event)
     note_on = event_start event
 
     warns = concatMap (make_clip_warnings event)
@@ -618,23 +636,20 @@ control_at event control pos = do
     sig <- Map.lookup control (event_controls event)
     return (Signal.at pos sig)
 
-perform_pitch :: Control.PbRange -> Midi.Key -> RealTime
+perform_pitch :: Control.PbRange -> Midi.Key -> RealTime -> RealTime
     -> RealTime -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
-perform_pitch pb_range nn prev_note_off start sig =
-    [(x, Midi.PitchBend (Control.pb_from_nn pb_range nn (Pitch.NoteNumber y)))
-        | (x, y) <- pos_vals]
-    where
-    -- As per 'perform_control', there shouldn't be much to drop here.
-    trim = dropWhile ((< start) . fst)
-    pos_vals = create_leading_cc prev_note_off start sig $
-        trim (Signal.unsignal sig)
+perform_pitch pb_range nn prev_note_off start end sig =
+    [ (x, Midi.PitchBend (Control.pb_from_nn pb_range nn (Pitch.NoteNumber y)))
+    | (x, y) <- pos_vals
+    ]
+    where pos_vals = create_leading_cc prev_note_off start end sig
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
-perform_control :: Control.ControlMap -> RealTime -> RealTime -> Midi.Key
-    -> (Score.Control, Signal.Control)
+perform_control :: Control.ControlMap -> RealTime -> RealTime -> RealTime
+    -> Midi.Key -> (Score.Control, Signal.Control)
     -> ([(RealTime, Midi.ChannelMessage)], [ClipRange])
-perform_control cmap prev_note_off start midi_key (control, sig) =
+perform_control cmap prev_note_off start end midi_key (control, sig) =
     case Control.control_constructor cmap control midi_key of
         Nothing -> ([], []) -- TODO warn about a control not in the cmap
         Just ctor -> ([(x, ctor y) | (x, y) <- pos_vals], clip_warns)
@@ -643,24 +658,29 @@ perform_control cmap prev_note_off start midi_key (control, sig) =
     -- as per the behaviour of Signal.drop_before, it may have a leading
     -- sample.  I can drop that since it's handled specially by
     -- 'create_leading_cc'.
-    pos_vals = create_leading_cc prev_note_off start sig $
-        trim (Signal.unsignal clipped)
-    trim = dropWhile ((< start) . fst)
+    pos_vals = create_leading_cc prev_note_off start end clipped
     (clipped, out_of_bounds) = Signal.clip_bounds 0 1 sig
     clip_warns = [(s, e) | (s, e) <- out_of_bounds]
 
--- | I rely on postprocessing to eliminate the redundant msgs.
+-- | If the signal has consecutive samples with the same value, this will emit
+-- unnecessary CCs, but they will be eliminated by postprocessing.
+--
 -- Since 'channelize' respects the 'control_lead_time', I expect msgs to be
 -- scheduled on their own channels if possible.
-create_leading_cc :: RealTime -> RealTime -> Signal.Signal y
-    -> [(Signal.X, Signal.Y)] -> [(Signal.X, Signal.Y)]
-create_leading_cc prev_note_off start sig pos_vals =
-    initial : dropWhile ((<= start) . fst) pos_vals
+create_leading_cc :: RealTime -> RealTime -> RealTime -> Signal.Signal y
+    -> [(Signal.X, Signal.Y)]
+create_leading_cc prev_note_off start end sig = initial : pairs
     where
+    -- The signal should already be trimmed to the event start, except that
+    -- it may have a leading sample, due to 'Signal.drop_before'.
+    pairs = Signal.unsignal $
+        Signal.drop_while ((<= start) . Signal.sx) $
+        Signal.drop_at_after end sig
     -- Don't go before the previous note, but don't go after the start of this
     -- note, in case the previous note ends after this one begins.
-    tweak t = max (min prev_note_off start) (t - control_lead_time)
-    initial = (tweak start, Signal.at start sig)
+    tweaked = min (start - min_control_lead_time) $
+        max (min prev_note_off start) (start - control_lead_time)
+    initial = (tweaked, Signal.at start sig)
 
 -- * post process
 
@@ -781,11 +801,12 @@ merge_messages :: [[Midi.WriteMessage]] -> [Midi.WriteMessage]
 merge_messages = Seq.merge_lists Midi.wmsg_ts
 
 merge_events :: MidiEvents -> MidiEvents -> MidiEvents
-merge_events = Seq.merge_on levent_start
+merge_events = Seq.merge_on merge_key
 
-levent_start :: LEvent.LEvent Midi.WriteMessage -> RealTime
-levent_start (LEvent.Log _) = 0
-levent_start (LEvent.Event msg) = Midi.wmsg_ts msg
+merge_key :: LEvent.LEvent Midi.WriteMessage -> RealTime
+merge_key (LEvent.Log _) = 0
+merge_key (LEvent.Event msg) = Midi.wmsg_ts msg
+
 
 -- | Map the given function across the events, passing it previous events it
 -- overlaps with.  The previous events passed to the function are paired with

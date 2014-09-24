@@ -37,6 +37,12 @@ import Types
 gap :: RealTime
 gap = Perform.adjacent_note_gap
 
+cc_lead :: RealTime
+cc_lead = Perform.control_lead_time
+
+min_cc_lead :: RealTime
+min_cc_lead = Perform.min_control_lead_time
+
 -- * perform
 
 test_perform = do
@@ -151,11 +157,11 @@ test_aftertouch = do
             (inst1, pitch, start, dur,
                 [(Controls.aftertouch, Signal.signal aftertouch)])
     equal (f [("a", 0, 1, [(0, 1)]), ("b", 0, 1, [(0, 0)])])
-        [ (0, 0, NoteOn Key.c4 100)
+        [ (-min_cc_lead, 0, Aftertouch Key.c4 127)
+        , (-min_cc_lead, 0, Aftertouch Key.cs4 0)
+        , (-min_cc_lead, 0, PitchBend 0)
+        , (0, 0, NoteOn Key.c4 100)
         , (0, 0, NoteOn Key.cs4 100)
-        , (0, 0, Aftertouch Key.c4 127)
-        , (0, 0, Aftertouch Key.cs4 0)
-        , (0, 0, PitchBend 0)
         , (1 - gap, 0, NoteOff Key.c4 100)
         , (1 - gap, 0, NoteOff Key.cs4 100)
         ]
@@ -173,7 +179,8 @@ test_controls_after_note_off = do
             ]
     -- Signal at 1.95 dropped because of the next note on.
     equal msgs
-        [ (0, NoteOn 60 100), (0, ControlChange 7 127), (0, PitchBend 0)
+        [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
+        , (0, NoteOn 60 100)
         , (1 - gap, NoteOff 60 100)
         , (2, NoteOn 61 100), (3 - gap, NoteOff 61 100)
         ]
@@ -184,10 +191,11 @@ test_controls_after_note_off = do
             ]
     -- But not this time.
     equal msgs
-        [ (0, NoteOn 60 100), (0, ControlChange 7 127), (0, PitchBend 0)
+        [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
+        , (0, NoteOn 60 100)
         , (1.95, ControlChange 7 64)
         , (2 - gap, NoteOff 60 100)
-        , (2, NoteOn 61 100), (2, ControlChange 7 127)
+        , (2 - min_cc_lead, ControlChange 7 127), (2, NoteOn 61 100)
         , (3 - gap, NoteOff 61 100)
         ]
 
@@ -197,7 +205,8 @@ test_controls_after_note_off = do
             ]
     -- Room enough for both.
     equal msgs
-        [ (0, NoteOn 60 100), (0, ControlChange 7 127), (0, PitchBend 0)
+        [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
+        , (0, NoteOn 60 100)
         , (1 - gap, NoteOff 60 100)
         , (1.5, ControlChange 7 64)
         , (1.9, ControlChange 7 127)
@@ -207,70 +216,80 @@ test_controls_after_note_off = do
 test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own
     -- channels, and not if they aren't
-    let lead = Perform.control_lead_time
-    let f = extract . perform midi_config2 . mkevents_inst
+    let run = extract . perform midi_config2 . mkevents
+        run_inst1 = extract . perform midi_config2 . mkevents_inst
         extract (msgs, warns) = (map extract_msg msgs, warns)
-
-    equal (f [("a", 0, 4, []), ("b2", 4, 4, [])])
-        ([(0, 0, NoteOn 60 100)
-        , (0, 0, PitchBend 0)
-
-        , (4 - lead, 1, PitchBend 0.5)
-        , (4 - gap, 0, NoteOff 60 100)
-        , (4, 1, NoteOn 61 100)
-        , (8 - gap, 1, NoteOff 61 100)
-        ], [])
-
     let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
-    equal (f [("a", 0, 4, []), ("b", 2, 4, [vol 2])])
-        ([(0, 0, NoteOn 60 100)
-        , (0, 0, PitchBend 0)
+        mkvol sig = (Controls.vol, Signal.signal sig)
 
-        , (2 - lead, 1, ControlChange 7 0)
-        , (2 - lead, 1, PitchBend 0)
+    -- Even adjacent notes get a 'min_cc_lead' lead time.
+    equal (run
+            [ (inst2, "a", 0, 1, [mkvol [(0, 0.5)]])
+            , (inst2, "a", 1, 1, [mkvol [(1, 0.25)]])
+            ])
+        ([ (-min_cc_lead, 2, ControlChange 7 64), (-min_cc_lead, 2, PitchBend 0)
+         , (0, 2, NoteOn Key.c4 100), (1 - gap, 2, NoteOff Key.c4 100)
+         , (1-min_cc_lead, 2, ControlChange 7 32)
+         , (1, 2, NoteOn Key.c4 100), (2 - gap, 2, NoteOff Key.c4 100)
+         ], [])
 
-        , (2, 1, NoteOn 61 100)
-        , (3, 1, ControlChange 7 64)
-        , (4 - gap, 0, NoteOff 60 100)
-        , (4, 1, ControlChange 7 127)
-        , (6 - gap, 1, NoteOff 61 100)
-        ], [])
+    equal (run_inst1 [("a", 0, 4, []), ("b2", 4, 4, [])])
+        ([ (-min_cc_lead, 0, PitchBend 0)
+         , (0, 0, NoteOn 60 100)
+
+         , (4 - cc_lead, 1, PitchBend 0.5)
+         , (4 - gap, 0, NoteOff 60 100)
+         , (4, 1, NoteOn 61 100)
+         , (8 - gap, 1, NoteOff 61 100)
+         ], [])
+
+    equal (run_inst1 [("a", 0, 4, []), ("b", 2, 4, [vol 2])])
+        ([ (-min_cc_lead, 0, PitchBend 0)
+         , (0, 0, NoteOn 60 100)
+
+         , (2 - cc_lead, 1, ControlChange 7 0)
+         , (2 - cc_lead, 1, PitchBend 0)
+
+         , (2, 1, NoteOn 61 100)
+         , (3, 1, ControlChange 7 64)
+         , (4 - gap, 0, NoteOff 60 100)
+         , (4, 1, ControlChange 7 127)
+         , (6 - gap, 1, NoteOff 61 100)
+         ], [])
 
     -- Non-overlapping notes means they go on the same channel, but there's no
     -- room for control lead.
-    equal (f [("a", 0, 4, []), ("b", 4, 4, [vol 4])])
-        ([(0, 0, NoteOn 60 100)
-        , (0, 0, PitchBend 0)
-        , (4 - gap, 0, NoteOff 60 100)
-        , (4, 0, NoteOn 61 100)
-        , (4, 0, ControlChange 7 0)
-        , (5, 0, ControlChange 7 64)
-        , (6, 0, ControlChange 7 127)
-        , (8 - gap, 0, NoteOff 61 100)
-        ], [])
+    equal (run_inst1 [("a", 0, 4, []), ("b", 4, 4, [vol 4])])
+        ([ (-min_cc_lead, 0, PitchBend 0)
+         , (0, 0, NoteOn 60 100)
+         , (4 - gap, 0, NoteOff 60 100)
+         , (4 - min_cc_lead, 0, ControlChange 7 0)
+         , (4, 0, NoteOn 61 100)
+         , (5, 0, ControlChange 7 64)
+         , (6, 0, ControlChange 7 127)
+         , (8 - gap, 0, NoteOff 61 100)
+         ], [])
 
-    -- Force them to be on the same channel, so there shouldn't be any
-    -- control lead.
-    let f2 = extract . perform midi_config2 . mkevents
-    equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b2", 4, 4, [])])
-        ([(0, 2, NoteOn 60 100)
-        , (0, 2, PitchBend 0)
-        , (4 - gap, 2, NoteOff 60 100)
-        , (4, 2, NoteOn 61 100)
-        , (4, 2, PitchBend 0.5)
-        , (8 - gap, 2, NoteOff 61 100)
-        ], [])
+    -- Force them to be on the same channel, so I wind up with 'min_cc_lead'.
+    equal (run [(inst2, "a", 0, 4, []), (inst2, "b2", 4, 4, [])])
+        ([ (-min_cc_lead, 2, PitchBend 0)
+         , (0, 2, NoteOn 60 100)
+         , (4 - gap, 2, NoteOff 60 100)
+         , (4 - min_cc_lead, 2, PitchBend 0.5)
+         , (4, 2, NoteOn 61 100)
+         , (8 - gap, 2, NoteOff 61 100)
+         ], [])
 
-    equal (f2 [(inst2, "a", 0, 4, []), (inst2, "b", 4, 4, [vol 4])])
-        ([(0, 2, NoteOn 60 100)
-        , (0, 2, PitchBend 0)
-        , (4 - gap, 2, NoteOff 60 100)
-        , (4, 2, NoteOn 61 100)
-        , (4, 2, ControlChange 7 0)
-        , (5, 2, ControlChange 7 64)
-        , (6, 2, ControlChange 7 127)
-        , (8 - gap, 2, NoteOff 61 100)
-        ], [])
+    equal (run [(inst2, "a", 0, 4, []), (inst2, "b", 4, 4, [vol 4])])
+        ([ (-min_cc_lead, 2, PitchBend 0)
+         , (0, 2, NoteOn 60 100)
+         , (4 - gap, 2, NoteOff 60 100)
+         , (4 - min_cc_lead, 2, ControlChange 7 0)
+         , (4, 2, NoteOn 61 100)
+         , (5, 2, ControlChange 7 64)
+         , (6, 2, ControlChange 7 127)
+         , (8 - gap, 2, NoteOff 61 100)
+         ], [])
 
 test_msgs_sorted = do
     -- Ensure that msgs are in order, even after control lead time.
@@ -370,7 +389,7 @@ test_pitch_curve = do
     equal (head (notes 0 (event [(1, 42.5)])))
         (0.9, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
     equal (head (notes 1 (event [(1, 42.5)])))
-        (1, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
+        (1 - min_cc_lead, Midi.ChannelMessage 1 (Midi.PitchBend 0.5))
 
 test_keyswitch = do
     let e_note_on = mapMaybe $ \wmsg ->
@@ -563,7 +582,7 @@ test_perform_control = do
     let sig = (Controls.vol, linear_interp
             [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         (msgs, warns) = Perform.perform_control Control.empty_map
-            (secs 0) (secs 0) 42 sig
+            (secs 0) (secs 0) (secs 4) 42 sig
 
     -- controls are not emitted after they reach steady values
     check $ all Midi.valid_chan_msg (map snd msgs)
@@ -605,7 +624,7 @@ test_channelize = do
         [0, 1]
 
     -- can finally share
-    let evt0_end2 = evt0_end + Perform.control_lead_time
+    let evt0_end2 = evt0_end + cc_lead
     equal (f
         [ (0, 2, [(0, 60)])
         , (evt0_end2, 2, [(evt0_end2, 60.5)])
@@ -646,7 +665,7 @@ test_can_share_chan = do
     equal (f (0, 2, [(0, 60)], []) (e0_end, 2, [(e0_end, 60.5)], [])) False
 
     -- Finally can share.
-    let e0_end2 = e0_end + Perform.control_lead_time
+    let e0_end2 = e0_end + cc_lead
     equal (f (0, 2, [(0, 60)], []) (e0_end2, 2, [(e0_end2, 60.5)], [])) True
 
     -- First pitch can't share because it's bent from its original pitch.
@@ -758,6 +777,9 @@ secs = RealTime.seconds
 type EventSpec = (Instrument.Instrument, String, RealTime, RealTime, [Control])
 type Control = (Score.Control, Signal.Control)
 
+mkevents :: [EventSpec] -> [Perform.Event]
+mkevents = map mkevent
+
 mkevent :: EventSpec -> Perform.Event
 mkevent (inst, pitch, start, dur, controls) =
     Perform.Event inst start dur (Map.fromList controls)
@@ -780,9 +802,6 @@ mkpevent (start, dur, psig, conts) =
 
 mkevents_inst :: [(String, RealTime, RealTime, [Control])] -> [Perform.Event]
 mkevents_inst = map (\(a, b, c, d) -> mkevent (inst1, a, b, c, d))
-
-mkevents :: [EventSpec] -> [Perform.Event]
-mkevents = map mkevent
 
 set_inst :: Instrument.Instrument -> Perform.Event -> Perform.Event
 set_inst inst event = event { Perform.event_instrument = inst }

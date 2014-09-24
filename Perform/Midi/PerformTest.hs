@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ScopedTypeVariables #-}
 module Perform.Midi.PerformTest where
 import qualified Data.Map as Map
 import qualified System.IO as IO
@@ -11,10 +10,12 @@ import Util.Control
 import qualified Util.PPrint as PPrint
 import qualified Util.ParseText as ParseText
 
+import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Db
@@ -67,3 +68,32 @@ make_perf_event lookup_inst (inst, start, dur, controls, pitch, stack) = do
 make_controls :: [(Text, [(RealTime, Signal.Y)])] -> Perform.ControlMap
 make_controls kvs =
     Map.fromList [(Score.control k, Signal.signal v) | (k, v) <- kvs]
+
+
+-- * extract
+
+type Extracted a = (Text, Integer, a)
+
+msg_only :: [Extracted a] -> [a]
+msg_only = map $ \(_, _, a) -> a
+
+msg_ts :: [Extracted a] -> [(Integer, a)]
+msg_ts = map $ \(_, ts, a) -> (ts, a)
+
+extract :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage]
+    -> [Extracted a]
+extract e wmsgs =
+    [ (dev, ts, a)
+    | (dev, ts, msg) <- extract_midi wmsgs, Just a <- [e msg]
+    ]
+
+extract_midi :: [Midi.WriteMessage] -> [Extracted Midi.Message]
+extract_midi wmsgs =
+    [ (Midi.write_device_text dev, RealTime.to_milliseconds ts, msg)
+    | Midi.WriteMessage dev ts msg <- wmsgs
+    ]
+
+e_cc :: Midi.Control -> Midi.Message -> Maybe Midi.ControlValue
+e_cc cc (Midi.ChannelMessage _ (Midi.ControlChange msg_cc val))
+    | cc == msg_cc = Just val
+e_cc _ _ = Nothing

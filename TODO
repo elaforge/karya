@@ -5,7 +5,9 @@ LEGEND
 UNSORTED
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
-  - If I play the first two notes of bug/mute in loop, often the second one
+  - fix control scope in parent events that cover up an orphan, as
+    demonstrated in Sub_test.test_overlapping_parent_control_scope
+  * If I play the first two notes of bug/mute in loop, often the second one
     seems like it winds up with a %mod of 0.  Perhaps this is due to the cc
     appearing after the NoteOn rather than before it.  Why is that happening?
   - The Signal / PitchSignal divide can be annoying.  If I put them in

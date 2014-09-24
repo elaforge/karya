@@ -123,17 +123,17 @@ test_patch_scale = do
 
 -- * keymap
 
-test_keymap = do
+test_pitched_keymap = do
     let patch = (set_keymap [bd], mempty)
         bd = ("bd", Instrument.PitchedKeymap Key.c2 Key.c3 NN.c4)
-        set_keymap kmap = Instrument.attribute_map #=
-            Instrument.keymap (map (first Score.attr) kmap)
+        set_keymap kmap = Instrument.attribute_map
+            #= Instrument.keymap (map (first Score.attr) kmap)
         mktracks ps =
             [ (">s/i", [(n, 1, "+bd") | (n, _) <- vals])
             , ("*", [(n, 0, p) | (n, p) <- vals])
             ]
             where vals = zip (Seq.range_ 0 1) ps
-    let (events, _, logs) = perform patch [("s/i", [0])]
+    let (_, (events, _, logs)) = perform patch [("s/i", [0])]
             (mktracks ["3c", "4c", "5c", "6c"])
     equal logs []
     equal (map (nn_signal . Perform.event_pitch) events)
@@ -150,9 +150,9 @@ nn_signal = map (second Pitch.nn) . Signal.unsignal
 
 perform :: (Instrument.Patch -> Instrument.Patch, MidiInst.Code)
     -> [(Text, [Midi.Channel])] -> [UiTest.TrackSpec]
-    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
+    -> (Derive.Result, ([Perform.Event], [Midi.WriteMessage], [Log.Msg]))
 perform (set_patch, code) alloc tracks =
-    DeriveTest.perform_inst synth alloc (Derive.r_events result)
+    (result, DeriveTest.perform_inst synth alloc (Derive.r_events result))
     where
     synth = mksynth code set_patch
     result = DeriveTest.derive_tracks_with (DeriveTest.with_inst_db synth) ""

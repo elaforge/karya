@@ -134,7 +134,7 @@ test_control_scope_unsliced = do
     let (midi, logs) = perform result
     equal logs []
     -- Decay of 1s means only one sample.
-    equal (extract midi) [(0, 0), (1000, 64)]
+    equal (extract midi) [(-4, 0), (1000, 64)]
 
     let result = DeriveTest.derive_blocks
             [ ("top",
@@ -146,7 +146,7 @@ test_control_scope_unsliced = do
             ]
     let (midi, logs) = perform result
     equal logs []
-    equal (extract midi) [(0, 0), (1500, 64)]
+    equal (extract midi) [(-4, 0), (1500, 64)]
 
 run_sub :: (Score.Event -> a) -> [UiTest.TrackSpec] -> [UiTest.TrackSpec]
     -> ([a], [String])

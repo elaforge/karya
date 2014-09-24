@@ -45,8 +45,8 @@ profile_control = do
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
     let cont = (Controls.mod, sig)
     run_multiple cont $ \arg -> do
-        let (msgs, warns) = Perform.perform_control
-                Control.empty_map 0 0 42 arg
+        let (msgs, warns) = Perform.perform_control Control.empty_map 0 0
+                (RealTime.seconds len) 42 arg
         force warns
         force msgs
         return $ show (length msgs) ++ " msgs"
