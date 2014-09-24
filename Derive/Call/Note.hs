@@ -204,7 +204,6 @@ default_note :: Config -> GenerateNote
 default_note config args = do
     start <- Args.real_start args
     end <- Args.real_end args
-    real_next <- Derive.real (Args.next args)
     (end, is_arrival) <- adjust_end start end $ Seq.head (Args.next_events args)
     dyn <- Derive.gets Derive.state_dynamic
 
@@ -229,16 +228,15 @@ default_note config args = do
             TrackLang.get_val Environ.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
     let event = Score.add_flags flags $
-            make_event args dyn control_vals start (adjusted_end - start)
-                real_next flags
+            make_event args dyn control_vals start (adjusted_end - start) flags
     return [LEvent.Event event]
 
 -- | This is the canonical way to make a Score.Event.  It handles all the
 -- control trimming and control function value stashing that the perform layer
 -- relies on.
 make_event :: Derive.PassedArgs a -> Derive.Dynamic -> Score.ControlValMap
-    -> RealTime -> RealTime -> RealTime -> Flags.Flags -> Score.Event
-make_event args dyn control_vals start dur next flags = Score.Event
+    -> RealTime -> RealTime -> Flags.Flags -> Score.Event
+make_event args dyn control_vals start dur flags = Score.Event
     { Score.event_start = start
     , Score.event_duration = dur
     , Score.event_text = Event.event_text (Args.event args)
@@ -255,8 +253,8 @@ make_event args dyn control_vals start dur next flags = Score.Event
     }
     where
     controls = stash_dynamic control_vals $
-        trim_controls start next (Derive.state_controls dyn)
-    pitch = trim_pitch start next (Derive.state_pitch dyn)
+        trim_controls start (Derive.state_controls dyn)
+    pitch = trim_pitch start (Derive.state_pitch dyn)
     environ = Derive.state_environ dyn
     inst = fromMaybe Score.empty_inst $
         TrackLang.maybe_val Environ.instrument environ
@@ -334,35 +332,17 @@ duration_attributes config controls attrs start end
 
 -- ** controls
 
--- | In a note track, the pitch signal for each note is constant as soon as
--- the next note begins.  Otherwise, it looks like each note changes pitch
--- during its decay.
-trim_pitch :: RealTime -> RealTime -> PitchSignal.Signal -> PitchSignal.Signal
-trim_pitch start end
-    -- This is the PitchSignal version of 'trim_controls', comments are over
-    -- there.
-    | end < start = maybe mempty PitchSignal.constant . PitchSignal.at start
-    | start == end = PitchSignal.take 1 . PitchSignal.drop_before start
-    | otherwise = PitchSignal.drop_at_after end . PitchSignal.drop_before start
+-- | Trim control signals.
+--
+-- Previously I would also trim to the end of the note, but now I leave it
+-- as-is and rely on the performer to trim the end according to the
+-- instrument's decay time.  This is so that a note whose decay persists
+-- outside of its block can still see control changes after its block ends.
+trim_controls :: RealTime -> Score.ControlMap -> Score.ControlMap
+trim_controls start = Map.map (fmap (Signal.drop_before start))
 
--- | Trim control signals to the given range.
-trim_controls :: RealTime -> RealTime -> Score.ControlMap -> Score.ControlMap
-trim_controls start end = Map.map (fmap trim)
-    where
-    trim
-        -- An arrival note at the end of a block doesn't know how long it should
-        -- be, so it remains negative.  Since it doesn't have its final
-        -- duration, it doesn't know it can't get the proper controls.  In
-        -- any case, those controls are in the next block, so they're
-        -- unavailable.
-        | end < start = Signal.constant . Signal.at start
-        -- Otherwise 0 dur events tend to get no controls.
-        -- I'm not sure exactly when this happens because 'generate_note' trims
-        -- until the start of the next note, but I think it did because
-        -- I added this fix for it...
-        -- TODO figure it out, add a test
-        | start == end = Signal.take 1 . Signal.drop_before start
-        | otherwise = Signal.drop_at_after end . Signal.drop_before start
+trim_pitch :: RealTime -> PitchSignal.Signal -> PitchSignal.Signal
+trim_pitch = PitchSignal.drop_before
 
 -- ** transform
 

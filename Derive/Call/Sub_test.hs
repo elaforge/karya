@@ -10,11 +10,14 @@ import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
+import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Slice_test as Slice_test
+
+import qualified Perform.NN as NN
 
 
 test_invert_call = do
@@ -52,6 +55,39 @@ test_inverting = do
     -- Initial empty track is also stripped.
     equal (run [(">", []), (">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
         [((0, 1, "4c"), "+")]
+
+test_inverted_control_scope = do
+    let run = DeriveTest.extract DeriveTest.e_nns . DeriveTest.derive_tracks ""
+    -- Inverted controls are clipped to their note's extent.
+    equal (run $ UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+        ([[(0, 60)], [(1, 62)]], [])
+    equal (run $ UiTest.note_track [(0, 1, "+a -- 4c"), (1, 1, "4d")])
+        ([[(0, 60)], [(1, 62)]], [])
+
+test_overlapping_parent_control_scope = do
+    let run = DeriveTest.extract DeriveTest.e_nns
+            . DeriveTest.derive_tracks_linear "import ly"
+    --          0 1 2 3 4
+    -- >        v=1-----|
+    -- > | ly-t v=2-|
+    -- >        --|-|---|
+    -- *        c d e
+
+    -- ly-track evaluates sub-events, which means a slice from (0, 4).  The
+    -- range is (0, 4), but since there is an orphan note starting at 2,
+    -- I should actually trim the signal to (0, 2).  The key is that inverted
+    -- controls only belong to one note, and the 4e is already beneath the
+    -- orphan event.  Maybe I should make the slice contract so it doesn't
+    -- cover orphans.
+    equal (run
+            [ (">", [(0, 4, "v=1")])
+            , ("> | ly-track", [(0, 2, "v=2")])
+            , (">", [(0, 1, ""), (1, 1, ""), (2, 2, "")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")])
+            ])
+        ([[(0, NN.c4)], [(1, NN.d4), (2, NN.e4)], [(2, NN.e4)]], [])
+        -- TODO should be
+        -- ([[(0, NN.c4)], [(1, NN.d4)], [(2, NN.e4)]], [])
 
 test_sub_notes = do
     let run tracks = DeriveTest.extract extract $

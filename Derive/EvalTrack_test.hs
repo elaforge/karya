@@ -264,7 +264,7 @@ test_track_dynamic = do
             , Just [(0, 0.5)]
             , Just [(0, 0.5)]
             , Just [(0, 0.5)]
-            , Just [(0, 0.125), (1, 0.25)]
+            , Just [(0, 0.125)]
             ])
 
 test_track_dynamic_consistent = do

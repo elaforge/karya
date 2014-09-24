@@ -500,8 +500,9 @@ show_log = Log.msg_string
 
 note_on_vel :: [Midi.WriteMessage] -> [(Integer, Midi.Key, Midi.Velocity)]
 note_on_vel msgs =
-    [(ts, nn, vel) | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel))
-        <- extract_midi msgs]
+    [ (ts, nn, vel)
+    | (ts, Midi.ChannelMessage _ (Midi.NoteOn nn vel)) <- extract_midi msgs
+    ]
 
 note_on :: [Midi.WriteMessage] -> [Midi.Key]
 note_on msgs = [nn | (_, nn, _) <- note_on_vel msgs]

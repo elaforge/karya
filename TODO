@@ -3,7 +3,29 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Make block calls get signals until the next event after the block, not
+  - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
+    write a test if I do need it.
+  - If I play the first two notes of bug/mute in loop, often the second one
+    seems like it winds up with a %mod of 0.  Perhaps this is due to the cc
+    appearing after the NoteOn rather than before it.  Why is that happening?
+  - The Signal / PitchSignal divide can be annoying.  If I put them in
+    a TimeVector class then I should be able to directly apply TimeVector
+    functions to them.
+    . Can't use to/from because from loses information.  Maybe modify / from?
+  - write a test that demonstrates the problem with Block.trim_controls:
+    a control that happens to be at the end of the block will be dropped even
+    if the block doesn't have a final event.
+  - Randomization might sound more natural if I use brown noise.  But can I do
+    that with just (seed, t) and no history?  No, the seed is different too.
+    I could do it easily enough with a pastproc, but that would be moving
+    events.  Still, randomization should exhibit local effects.  I can
+    generate the offset signal, but I'd have to decide on a sampling rate, and
+    it would be nicer to not have to calculate from 0.  Otherwise, I have to
+    generate from 0, choose a sampling rate, and redo it every time the total
+    score length changes (and do I even know that in advance? technically
+    I can't since offset can affect the total score length).  Can't I directly
+    compute the integral of white noise?
+  * Make block calls get signals until the next event after the block, not
     until the end of the callee block.
     . Pass the next event to the block call so it can put it in
       Derive.info_next_events.
@@ -43,7 +65,6 @@ UNSORTED
         perform?  Previously perform could just emit all of the remaining
         controls, but now that's too much.  I think it can just rely on
         inst_decay.
-
     . Is there a nicer way to get the final event right than deleting the
       sample exactly at 'end'?  It seems like I shouldn't have to copy all of
       the signal just for that. If I figure out a way to not do that, the call
@@ -53,7 +74,8 @@ UNSORTED
 
   * calldoc can use a hollow bullet point for optional args
   * player got stuck in loop mode, space had no effect
-  - can I replace Stack.block_track_of with to_ui_innermost?
+  / can I replace Stack.block_track_of with to_ui_innermost?
+    Proabbly, but why bother?
   / if >inst in a note track title looks for an '>inst' transformer, shouldn't
     '>inst' default to setting instrument, and the note track title just
     becomes a transformer?
@@ -70,9 +92,7 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
-    - I should probably use KSP to handle random samples instead of round
-      robin.  Round robin causes artifacts to become audible when a cycle is
-      repeated.
+    - Automatically fill in weak notes?
     - Weak notes are either omitted, +muted soft, +mute normal, half mute, or
       open soft.  I can have a %strength signal that indicates how weak notes
       are played, and then have various calls that are random but biased

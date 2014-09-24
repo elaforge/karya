@@ -25,5 +25,9 @@ controls =
 
 patches :: [Instrument.Patch]
 patches =
-    [ MidiInst.pressure $ MidiInst.patch pb_range "pressure" []
+    -- TODO this is just because the instrument I use this for has a bit
+    -- of decay.  If this sort of thing becomes common maybe I'll need a
+    -- per-score way to override instrument parameters.
+    [ Instrument.set_decay 0.4 $ MidiInst.pressure $
+        MidiInst.patch pb_range "pressure" []
     ]

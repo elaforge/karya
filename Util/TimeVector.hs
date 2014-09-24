@@ -86,7 +86,7 @@ type Boxed y = Vector.Vector (Sample y)
 type Unboxed = Storable.Vector (Sample UnboxedY)
 type UnboxedY = Double
 
-to_foreign_ptr :: (Storable.Storable a) =>
+to_foreign_ptr :: Storable.Storable a =>
     Storable.Vector a -> (Foreign.ForeignPtr a, Int)
 to_foreign_ptr = Storable.unsafeToForeignPtr0
 
@@ -250,8 +250,8 @@ shift offset vec
     | offset == 0 = vec
     | otherwise = map_x (+offset) vec
 
--- | Truncate a signal so it doesn't include the given X.  It's just a view of
--- the old signal, so it doesn't allocate a new signal.
+-- | Truncate a signal so it doesn't include the given X - RealTime.eta.  It's
+-- just a view of the old signal, so it doesn't allocate a new signal.
 --
 -- If the x<=0 the signal will still contain up to and including 0.  That's
 -- because, as per the module haddock, a sample <=0 stands in for all values
@@ -262,6 +262,9 @@ drop_at_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_at_after x vec
     | x <= 0 = V.takeWhile ((<=0) . sx) vec
     | otherwise = V.take (lowest_index (x - RealTime.eta) vec) vec
+
+drop_after :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
+drop_after x = drop_at_after (x + RealTime.eta + RealTime.eta)
 
 -- | Like 'drop_before_strict', except if there is no sample at @x@, keep one
 -- sample before it to preserve the value at @x@.
@@ -277,6 +280,10 @@ drop_before x vec
 -- including, the given X.
 drop_before_strict :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
 drop_before_strict x vec = V.drop (lowest_index x vec) vec
+
+-- | Like 'drop_before_strict', but also drop samples at the X.
+drop_before_at :: V.Vector v (Sample y) => X -> v (Sample y) -> v (Sample y)
+drop_before_at x = V.dropWhile ((<=x) . sx) . drop_before_strict x
 
 -- | Return samples within a range.  This is a combination of 'drop_before'
 -- and 'drop_at_after'.

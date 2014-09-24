@@ -7,6 +7,7 @@ module Derive.Call.Block (eval_root_block, note_calls, control_calls) where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import Util.Control
@@ -86,19 +87,36 @@ c_block block_id = Derive.make_call Module.prelude ("block " <> showt block_id)
         if Event.positive (Args.event args) then trim_controls end deriver
             else constant_controls_at end deriver
 
--- | Trim all controls to stop before the given RealTime.  This is to support
--- final block notes and 'Derive.Flags.infer_duration'.  Otherwise, an event
--- at the end of a block will pick up controls (e.g. a transposition change)
--- that is meant to start at the beginning of the next block.
+-- | Remove samples at the given RealTime.  This is to support final block
+-- notes and 'Derive.Flags.infer_duration'.  Otherwise, an event at the end of
+-- a block will pick up controls (e.g. a transposition change) that is meant to
+-- start at the beginning of the next block.
+--
+-- However, I can't trim the signal entirely because I still want the control
+-- signals past the end of the block to be visible to non-final events.  The
+-- problem is that I do want control samples at the end time to be visible
+-- if they are interior to the block.  So I need a way to tell the difference
+-- between controls from the caller and local ones, so a final event can
+-- exclude the former and include the latter.
+--
+-- TODO this is unsatisfying because it feels ad-hoc and clunky.  In addition,
+-- it drops a sample that I don't actually want to drop for non-final events.
+-- Not to mention it's inefficient.
 trim_controls :: RealTime -> Derive.Deriver a -> Derive.Deriver a
 trim_controls end = Internal.local $ \dyn -> dyn
-    { Derive.state_controls =
-        fmap (Signal.drop_at_after end) <$> Derive.state_controls dyn
-    , Derive.state_pitch =
-        PitchSignal.drop_at_after end (Derive.state_pitch dyn)
-    , Derive.state_pitches =
-        PitchSignal.drop_at_after end <$> Derive.state_pitches dyn
+    { Derive.state_controls = fmap trim_c <$> Derive.state_controls dyn
+    , Derive.state_pitch = trim_p (Derive.state_pitch dyn)
+    , Derive.state_pitches = trim_p <$> Derive.state_pitches dyn
     }
+    where
+    trim_c sig
+        | Maybe.isNothing (Signal.sample_at end sig) = sig
+        | otherwise = Signal.drop_at_after end sig
+            <> Signal.drop_before_at end sig
+    trim_p sig
+        | Maybe.isNothing (PitchSignal.sample_at end sig) = sig
+        | otherwise = PitchSignal.drop_at_after end sig
+            <> PitchSignal.drop_before_at end sig
 
 block_call_doc :: Text
 block_call_doc =

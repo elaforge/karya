@@ -166,19 +166,16 @@ replace_note :: Score.Event -> Score.Event -> Score.Event
 replace_note next event
     | Score.has_flags Flags.track_time_0 next = (set_end (Score.event_end next))
         { Score.event_pitch =
-            Score.event_pitch event <> trim_pitch (Score.event_pitch next)
+            Score.event_pitch event
+                <> PitchSignal.drop_before_at start (Score.event_pitch next)
         , Score.event_pitches = Map.mappend
             (Score.event_pitches event)
-            (trim_pitch <$> Score.event_pitches next)
+            (PitchSignal.drop_before_at start <$> Score.event_pitches next)
         , Score.event_controls = Map.mappend
             (Score.event_controls event)
-            (fmap trim <$> Score.event_controls next)
+            (fmap (Signal.drop_before_at start) <$> Score.event_controls next)
         }
     | otherwise = set_end (Score.event_start next)
     where
     start = Score.event_start event
-    trim = Signal.drop_while ((<=start) . Signal.sx)
-        . Signal.drop_before_strict start
-    trim_pitch = PitchSignal.drop_while ((<=start) . PitchSignal.sx)
-        . PitchSignal.drop_before_strict start
     set_end end = Score.set_duration (end - Score.event_start event) event

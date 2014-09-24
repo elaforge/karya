@@ -230,7 +230,8 @@ control_call track control merge control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track control_deriver
     stash_if_wanted track signal
     -- Apply and strip any control modifications made during the above derive.
-    Derive.eval_control_mods $ merge_logs logs $ with_damage $
+    end <- Derive.real $ TrackTree.track_end track
+    Derive.eval_control_mods end $ merge_logs logs $ with_damage $
         with_control_op control merge signal deriver
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need to
@@ -262,7 +263,8 @@ pitch_call track maybe_name scale_id transform deriver =
             stash_if_wanted track (Signal.coerce nn_sig)
             -- Apply and strip any control modifications made during the above
             -- derive.
-            Derive.eval_control_mods $ merge_logs logs $ with_damage $
+            end <- Derive.real $ TrackTree.track_end track
+            Derive.eval_control_mods end $ merge_logs logs $ with_damage $
                 Derive.with_pitch maybe_name signal deriver
     where
     with_damage = with_control_damage (TrackTree.block_track_id track)
@@ -298,20 +300,50 @@ derive_control is_tempo track transform = do
             | otherwise = ParseTitle.ControlTrack
     (signal, logs) <- derive_track track track_type
         last_signal_val (Cache.track track mempty . transform)
-    real_end <- Derive.real (TrackTree.track_end track)
-    return (extend real_end signal, logs)
+    signal <- extend
+        =<< trim_signal Signal.drop_after Signal.drop_at_after track signal
+    return (signal, logs)
     where
-    extend end
-        | is_tempo = Signal.coerce . Tempo.extend_signal end . Signal.coerce
-        | otherwise = id
+    -- This is a special hack just for tempo tracks, documented by
+    -- 'Tempo.extend_signal'.
+    extend signal
+        | is_tempo = do
+            end <- Derive.real (TrackTree.track_end track)
+            return $ Signal.coerce $ Tempo.extend_signal end $
+                Signal.coerce signal
+        | otherwise = return signal
 
 derive_pitch :: Bool -> TrackTree.Track
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.Deriver (TrackResults PitchSignal.Signal)
 derive_pitch cache track transform = do
     let cache_track = if cache then Cache.track track mempty else id
-    derive_track track ParseTitle.PitchTrack last_signal_val
+    (signal, logs) <- derive_track track ParseTitle.PitchTrack last_signal_val
         (cache_track . transform)
+    signal <- trim_signal PitchSignal.drop_after PitchSignal.drop_at_after
+        track signal
+    return (signal, logs)
+
+-- | The controls under a note track are intended to apply only to the note
+-- above them.  However, since signal calls frequently emit samples before,
+-- "Derive.Slice" includes one event past the end of the slice range.  To avoid
+-- a sample for the next note getting into this one, I trim off samples at and
+-- after the end of the slice.  Otherwise, the decay of each note would want to
+-- change pitch to that of the next note.
+--
+-- Slices with a zero duration have a special exception that causes them to
+-- include a sample at the end time, since otherwise they wouldn't have
+-- any controls.  This also applies to non-zero slices which are nonetheless
+-- made zero by stretching to 0.
+trim_signal :: (RealTime -> sig -> sig) -> (RealTime -> sig -> sig)
+    -> TrackTree.Track -> sig -> Derive.Deriver sig
+trim_signal drop_after drop_at_after track signal
+    | TrackTree.track_sliced track = do
+        start <- Derive.real $
+            Events.time_begin (TrackTree.track_events track)
+        end <- Derive.real $ TrackTree.track_end track
+        return $ (if start == end then drop_after else drop_at_after) end signal
+    | otherwise = return signal
 
 derive_track :: (Monoid.Monoid d, Derive.Callable d) => TrackTree.Track
     -> ParseTitle.Type -> EvalTrack.GetLastVal d

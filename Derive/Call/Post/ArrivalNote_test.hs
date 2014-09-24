@@ -23,7 +23,6 @@ test_infer_duration = do
     -- I can't write single note calls for e.g. percussion.
     equal (run [top, sub [(0, 0, "4c")]]) ([(0, 0, "4c"), (2, 0, "4c")], [])
 
-
 test_infer_duration_controls = do
     -- A zero duration note at the end of a block gets controls from right
     -- before.
@@ -52,23 +51,4 @@ test_infer_duration_controls = do
                 , (">", [(0, 2, ""), (2, 0, "")])
                 ])
             ])
-        ([[(0, 1), (1, 2)], [(2, 3), (3, 2)], [(4, 3)]], [])
-
-    -- But if there is no replaced event, I don't know how to get the controls.
-    equal (run (DeriveTest.e_control "c")
-            [ (top,
-                [ ("c", [(3, 0, "1")])
-                , (">", [(0, 2, "sub1"), (2, 2, "sub2")])
-                ])
-            , ("sub1=ruler",
-                [ (">", [(0, 2, ""), (2, 0, "")])
-                ])
-            , ("sub2=ruler",
-                [ (">", [(2, 0, "")])
-                ])
-            ])
-        -- TODO The note whose duration was inferred should get continuous
-        -- signal changes from the caller, as if it were always that duration:
-        -- ([[], [(3, 1)], [(3, 1)]], [])
-        -- But this is what I actually get:
-        ([[], [], [(3, 1)]], [])
+        ([[(0, 1), (1, 2), (2, 3)], [(2, 3), (3, 2), (4, 3)], [(4, 3)]], [])

@@ -42,6 +42,9 @@ environ_note module_ name tags doc key val =
     transform_notes module_ name tags doc Sig.no_args $
         \() -> Derive.with_val key val
 
+-- | The generator either derives subs or derives a new Util.note if there are
+-- no subs, and then applies the transform.  The transformer call just applies
+-- the transform.
 transform_notes :: Module.Module -> Text -> Tags.Tags -> Text -> Sig.Parser a
     -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Calls Derive.Note

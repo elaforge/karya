@@ -13,7 +13,8 @@ module Derive.PitchSignal (
     , apply_controls, apply_control
     -- * signal functions
     , null, at, sample_at, before, shift, head, last
-    , take, drop, drop_while, drop_at_after, drop_before, drop_before_strict
+    , take, drop, drop_while, drop_after, drop_at_after
+    , drop_before, drop_before_strict, drop_before_at
     , map_y
     , prepend
     , Sample(..)
@@ -185,14 +186,20 @@ drop = modify_vector . TimeVector.drop
 drop_while :: (Sample Pitch -> Bool) -> Signal -> Signal
 drop_while f = modify_vector (V.dropWhile f)
 
+drop_after :: RealTime -> Signal -> Signal
+drop_after = modify_vector . TimeVector.drop_after
+
 drop_at_after :: RealTime -> Signal -> Signal
 drop_at_after = modify_vector . TimeVector.drop_at_after
+
+drop_before :: RealTime -> Signal -> Signal
+drop_before = modify_vector . TimeVector.drop_before
 
 drop_before_strict :: RealTime -> Signal -> Signal
 drop_before_strict = modify_vector . TimeVector.drop_before_strict
 
-drop_before :: RealTime -> Signal -> Signal
-drop_before = modify_vector . TimeVector.drop_before
+drop_before_at :: RealTime -> Signal -> Signal
+drop_before_at = modify_vector . TimeVector.drop_before_at
 
 map_y :: (Pitch -> Pitch) -> Signal -> Signal
 map_y = modify_vector . TimeVector.map_y

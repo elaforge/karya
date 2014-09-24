@@ -525,18 +525,22 @@ modify_control merge control signal = Internal.modify_collect $ \collect ->
         ControlMod control signal merge : collect_control_mods collect }
 
 -- | Apply the collected control mods to the given deriver and clear them out.
-eval_control_mods :: Deriver a -> Deriver a
-eval_control_mods deriver = do
+eval_control_mods :: RealTime -- ^ Trim controls to end at this time.
+    -- If a ControlMod is local to a slice it should end when the slice ends,
+    -- and since it bypasses 'Derive.Control.trim_signal', I have to trim
+    -- it explicitly.
+    -> Deriver a -> Deriver a
+eval_control_mods end deriver = do
     mods <- gets (collect_control_mods . state_collect)
     Internal.modify_collect $ \collect -> collect { collect_control_mods = [] }
-    with_control_mods mods deriver
+    with_control_mods mods end deriver
 
-with_control_mods :: [ControlMod] -> Deriver a -> Deriver a
-with_control_mods mods deriver = do
-    foldr ($) deriver (map apply mods)
+with_control_mods :: [ControlMod] -> RealTime -> Deriver a -> Deriver a
+with_control_mods mods end deriver = foldr ($) deriver (map apply mods)
     where
     apply (ControlMod control signal merge) =
-        with_merged_control merge control (Score.untyped signal)
+        with_merged_control merge control $ Score.untyped $
+            Signal.drop_at_after end signal
 
 -- ** pitch
 

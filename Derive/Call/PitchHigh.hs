@@ -137,10 +137,10 @@ make_pitch_fade name doc pitch_dir =
         case Args.prev_pitch args of
             Nothing -> return mempty
             Just (_, prev_pitch) -> do
-                next <- Derive.real (Args.next args)
                 (slide, dyn) <- pitch_fade AlignEnd prev_pitch pitch_dir
                     interval =<< pitch_fade_ranges AlignStart AlignStart
                         fade time (Args.start args) (Args.start args)
+                next <- Derive.real (Args.next args)
                 ControlUtil.multiply_dyn next dyn
                 return slide
 
