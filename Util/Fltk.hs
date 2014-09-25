@@ -2,55 +2,80 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Util.Fltk where
+module Util.Fltk (
+    Fltk, action, quit, run_action, Channel, new_channel
+    , event_loop, send_action
+    -- * window
+    , Window, win_ptr, MsgCallback, Msg(..)
+    , create_window, read_msg
+) where
+import Data.Functor ((<$>))
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Foreign
 import Foreign.C
-import qualified System.IO.Unsafe as Unsafe
-
-import qualified Util.Control
 
 
-data Window a = Window {
-    win_p :: Ptr (Window a)
-    , win_chan :: STM.TChan (Msg a)
-    }
-type MsgCallback = CInt -> CString -> IO ()
-data Msg a = Msg a String
+data Fltk a = Quit | Action (IO a)
+newtype Channel = Channel (Concurrent.MVar [Fltk ()])
 
-read_msg :: Window a -> STM.STM (Msg a)
-read_msg = STM.readTChan . win_chan
+action :: IO a -> Fltk a
+action = Action
+
+quit :: Channel -> IO ()
+quit chan = send_action chan Quit
+
+-- | Run an action directly in the main thread.
+run_action :: Fltk a -> IO a
+run_action (Action act) = act
+run_action Quit = error "run_action on a Quit"
+
+new_channel :: IO Channel
+new_channel = Channel <$> Concurrent.newMVar []
 
 -- | Enter the fltk event loop.  For portability, this should only be called
 -- from the main thread.
-run :: IO ()
-run = do
+event_loop :: Channel -> IO ()
+event_loop chan = do
     c_initialize
-    Util.Control.while_ (fmap toBool c_has_windows) $ do
-        c_wait
-        handle_actions acts_mvar
+    loop chan
+    where
+    loop chan = do
+        done <- not . toBool <$> c_has_windows
+        if done then return () else do
+            c_wait
+            quit <- handle_actions chan
+            if quit then return () else loop chan
 
-handle_actions :: Concurrent.MVar [IO a] -> IO ()
-handle_actions acts_mvar = Concurrent.modifyMVar_ acts_mvar $ \acts ->
-    sequence_ (reverse acts) >> return []
+handle_actions :: Channel -> IO Bool
+handle_actions (Channel chan) = Concurrent.modifyMVar chan $ \acts -> do
+    let quit = not $ null [Quit | Quit <- acts]
+    if quit then return ([], True) else do
+        sequence_ [act | Action act <- acts]
+        return ([], False)
 
-send_action :: IO a -> IO ()
-send_action act = do
-    Concurrent.modifyMVar_ acts_mvar (return . (act:))
+send_action :: Channel -> Fltk () -> IO ()
+send_action (Channel chan) act = do
+    Concurrent.modifyMVar_ chan (return . (act:))
     c_awake
-
-acts_mvar :: Concurrent.MVar [a]
-acts_mvar = Unsafe.unsafePerformIO (Concurrent.newMVar [])
-{-# NOINLINE acts_mvar #-}
 
 foreign import ccall "initialize" c_initialize :: IO ()
 foreign import ccall "ui_wait" c_wait :: IO ()
 foreign import ccall "ui_awake" c_awake :: IO ()
 foreign import ccall "has_windows" c_has_windows :: IO CInt
 
+-- * window
+
+data Window a = Window {
+    win_ptr :: Ptr (Window a)
+    , win_chan :: STM.TChan (Msg a)
+    }
+type MsgCallback = CInt -> CString -> IO ()
+data Msg a = Msg a String
+
 type CreateWindow a = CInt -> CInt -> CInt -> CInt -> CString
     -> FunPtr MsgCallback -> IO (Ptr (Window a))
+
 create_window :: (CInt -> a) -> CreateWindow a -> Int -> Int -> Int -> Int
     -> String -> IO (Window a)
 create_window decode_type create_win x y w h title = do
@@ -60,6 +85,9 @@ create_window decode_type create_win x y w h title = do
         create_win (c x) (c y) (c w) (c h) titlep cb
     return (Window winp chan)
     where c = fromIntegral
+
+read_msg :: Window a -> STM.STM (Msg a)
+read_msg = STM.readTChan . win_chan
 
 
 -- * implementation

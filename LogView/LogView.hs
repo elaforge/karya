@@ -135,10 +135,16 @@ logview flags = do
     filename <- maybe Tail.log_filename return $ Seq.last [n | File n <- flags]
     hdl <- Tail.open filename seek
     log_chan <- STM.newTChanIO
-    Concurrent.forkIO $ tail_loop log_chan hdl
-    if Print `elem` flags
-        then print_logs log_chan
-        else gui log_chan filename history
+    gui_chan <- if Print `elem` flags then return Nothing
+        else Just <$> Fltk.new_channel
+    main_thread <- Concurrent.myThreadId
+    Concurrent.forkFinally (tail_loop log_chan hdl) $ \result -> do
+        putStrLn $ "tail loop died: " ++ either show (const "no exception")
+            (result :: Either Exception.SomeException ())
+        maybe (Concurrent.killThread main_thread) Fltk.quit gui_chan
+    case gui_chan of
+        Nothing -> print_logs log_chan
+        Just chan -> gui chan log_chan filename history
     where
     tail_loop log_chan hdl = do
         (msg, hdl) <- Tail.tail hdl
@@ -164,16 +170,17 @@ write_pid = do
         ByteString.writeFile pid_file (ByteString.pack (show pid) <> "\n")
     return existing
 
-gui :: LogChan -> FilePath -> Int -> IO ()
-gui log_chan filename history = do
+gui :: Fltk.Channel -> LogChan -> FilePath -> Int -> IO ()
+gui chan log_chan filename history = do
     filename <- Directory.canonicalizePath filename
-    win <- LogViewC.create 20 20 (fst initial_size) (snd initial_size)
-        filename default_max_bytes
-    LogViewC.set_filter win initial_filter
+    win <- Fltk.run_action $
+        LogViewC.create 20 20 (fst initial_size) (snd initial_size)
+            filename default_max_bytes
+    Fltk.run_action $ LogViewC.set_filter win initial_filter
     let state = (Process.initial_state initial_filter)
             { Process.state_catch_patterns = default_catch_patterns }
-    Concurrent.forkIO (handle_msgs state history log_chan win)
-    Fltk.run
+    Concurrent.forkIO $ handle_msgs chan state history log_chan win
+    Fltk.event_loop chan
 
 print_logs :: LogChan -> IO ()
 print_logs log_chan = forever $
@@ -184,36 +191,38 @@ print_logs log_chan = forever $
 data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String
     deriving (Show)
 
-handle_msgs :: Process.State -> Int -> LogChan -> LogViewC.Window -> IO ()
-handle_msgs st history log_chan win = flip State.evalStateT st $ forever $ do
-    msg <- liftIO $ get_msg log_chan win
-    case msg of
-        NewLog log_msg -> do
-            State.modify (Process.add_msg history log_msg)
-            handle_new_msg win log_msg
-        ClickedWord word -> liftIO $ handle_clicked_word word
-        FilterChanged expr -> do
-            -- clear and redisplay msgs with new filter
-            send_action $ LogViewC.clear_logs win
-            State.modify $ \st ->
-                st { Process.state_filter = Process.compile_filter expr }
-            all_msgs <- State.gets (reverse . Process.state_msgs)
-            mapM_ (handle_new_msg win) all_msgs
+handle_msgs :: Fltk.Channel -> Process.State -> Int -> LogChan
+    -> LogViewC.Window -> IO ()
+handle_msgs chan st history log_chan win =
+    flip State.evalStateT st $ forever $ do
+        msg <- liftIO $ get_msg log_chan win
+        case msg of
+            NewLog log_msg -> do
+                State.modify (Process.add_msg history log_msg)
+                handle_new_msg chan win log_msg
+            ClickedWord word -> liftIO $ handle_clicked_word word
+            FilterChanged expr -> do
+                -- clear and redisplay msgs with new filter
+                send_action chan $ LogViewC.clear_logs win
+                State.modify $ \st ->
+                    st { Process.state_filter = Process.compile_filter expr }
+                all_msgs <- State.gets (reverse . Process.state_msgs)
+                mapM_ (handle_new_msg chan win) all_msgs
 
-handle_new_msg :: LogViewC.Window -> Log.Msg
+handle_new_msg :: Fltk.Channel -> LogViewC.Window -> Log.Msg
     -> State.StateT Process.State IO ()
-handle_new_msg win msg = do
+handle_new_msg chan win msg = do
     state <- State.get
     let (styled, new_state) = Process.process_msg state msg
     State.put new_state
     case styled of
-        Just (Process.StyledText txt style) -> send_action $
+        Just (Process.StyledText txt style) -> send_action chan $
             LogViewC.append_log win txt style
         Nothing -> return ()
     let new_status = Process.state_status new_state
     when (Process.state_status state /= new_status) $ do
         let (Process.StyledText status style) = Process.render_status new_status
-        send_action $ LogViewC.set_status win status style
+        send_action chan $ LogViewC.set_status win status style
         State.modify $ \st -> st { Process.state_status = new_status }
 
 handle_clicked_word :: String -> IO ()
@@ -222,8 +231,8 @@ handle_clicked_word word
         send_to_app (drop 1 (Seq.rdrop 1 word))
     | otherwise = putStrLn $ "unknown clicked word: " ++ show word
 
-send_action :: State.MonadIO m => IO a -> m ()
-send_action = liftIO . Fltk.send_action
+send_action :: State.MonadIO m => Fltk.Channel -> Fltk.Fltk () -> m ()
+send_action chan = liftIO . Fltk.send_action chan
 
 send_to_app :: String -> IO ()
 send_to_app cmd = do

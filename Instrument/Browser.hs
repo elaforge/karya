@@ -60,11 +60,15 @@ main :: IO ()
 main = SendCmd.initialize $ do
     db <- Local.Instrument.load =<< Config.get_app_dir
     putStrLn $ "Loaded " ++ show (Db.size db) ++ " instruments."
-    win <- BrowserC.create 50 50 500 300
+    win <- Fltk.run_action $ BrowserC.create 50 50 500 300
     let index_db = Db db (Search.make_index (Db.db_midi_db db))
-    Concurrent.forkIO $ handle_msgs win index_db
-        `Exception.finally` putStrLn "handler thread died"
-    Fltk.run
+    chan <- Fltk.new_channel
+    Concurrent.forkFinally (handle_msgs chan win index_db) $ \result -> do
+        putStrLn $ "handler thread died: "
+            ++ either show (const "no exception")
+                (result :: Either Exception.SomeException ())
+        Fltk.quit chan
+    Fltk.event_loop chan
 
 -- | Bundle a Db along with its search index.
 data Db = Db {
@@ -76,26 +80,26 @@ data State = State {
     state_displayed :: [Score.Instrument]
     }
 
-handle_msgs :: BrowserC.Window -> Db -> IO ()
-handle_msgs win db = do
-    displayed <- liftIO $ process_query win db [] ""
+handle_msgs :: Fltk.Channel -> BrowserC.Window -> Db -> IO ()
+handle_msgs chan win db = do
+    displayed <- liftIO $ process_query chan win db [] ""
     flip State.evalStateT (State displayed) $ forever $ do
         Fltk.Msg typ text <- liftIO $ STM.atomically $ Fltk.read_msg win
         let inst = Score.Instrument (txt text)
         case typ of
-            BrowserC.Select -> liftIO $ show_info win db inst
+            BrowserC.Select -> liftIO $ show_info chan win db inst
             BrowserC.Choose -> liftIO $ choose_instrument inst
             BrowserC.Query -> do
                 state <- State.get
                 displayed <- liftIO $
-                    process_query win db (state_displayed state) (txt text)
+                    process_query chan win db (state_displayed state) (txt text)
                 State.put (state { state_displayed = displayed })
             BrowserC.Unknown c -> liftIO $
                 putStrLn $ "unknown msg type: " ++ show c
 
 -- | Look up the instrument, generate a info sheet on it, and send to the UI.
-show_info :: BrowserC.Window -> Db -> Score.Instrument -> IO ()
-show_info win db inst = Fltk.send_action $ BrowserC.set_info win info
+show_info :: Fltk.Channel -> BrowserC.Window -> Db -> Score.Instrument -> IO ()
+show_info chan win db inst = Fltk.send_action chan $ BrowserC.set_info win info
     where
     info = maybe ("not found: " <> ShowVal.show_val inst) id $ do
         info <- Db.db_lookup (db_db db) inst
@@ -214,15 +218,15 @@ choose_instrument inst = do
         putStrLn $ "response: " ++ response
 
 -- | Find instruments that match the query, and update the UI incrementally.
-process_query :: BrowserC.Window -> Db -> [Score.Instrument] -> Text
-    -> IO [Score.Instrument]
-process_query win db displayed query = do
+process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [Score.Instrument]
+    -> Text -> IO [Score.Instrument]
+process_query chan win db displayed query = do
     let matches = Search.search (db_index db) (Search.parse query)
         diff = Seq.indexed_pairs (==) displayed matches
     forM_ diff $ \(i, paired) -> case paired of
-        Seq.Second inst -> Fltk.send_action $
+        Seq.Second inst -> Fltk.send_action chan $
             BrowserC.insert_line win (i+1) (Score.inst_name inst)
-        Seq.First _inst -> Fltk.send_action $
+        Seq.First _inst -> Fltk.send_action chan $
             BrowserC.remove_line win (i+1)
         _ -> return ()
     return matches
