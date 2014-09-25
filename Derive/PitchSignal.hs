@@ -68,9 +68,9 @@ sig_scale_id = pscale_scale_id . sig_scale
 sig_scale :: Signal -> Scale
 sig_scale = maybe no_scale (pitch_scale . sy) . TimeVector.head . sig_vec
 
-modify_vector :: (TimeVector.Boxed Pitch -> TimeVector.Boxed Pitch)
+modify :: (TimeVector.Boxed Pitch -> TimeVector.Boxed Pitch)
     -> Signal -> Signal
-modify_vector f sig = sig { sig_vec = f (sig_vec sig) }
+modify f sig = sig { sig_vec = f (sig_vec sig) }
 
 no_scale :: Scale
 no_scale = Scale "no-scale" mempty
@@ -169,7 +169,7 @@ before :: RealTime -> Signal -> Maybe Pitch
 before x = fmap sy . TimeVector.before x . sig_vec
 
 shift :: RealTime -> Signal -> Signal
-shift x = modify_vector (TimeVector.shift x)
+shift x = modify (TimeVector.shift x)
 
 head :: Signal -> Maybe (RealTime, Pitch)
 head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
@@ -178,31 +178,31 @@ last :: Signal -> Maybe (RealTime, Pitch)
 last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
 
 take :: Int -> Signal -> Signal
-take = modify_vector . TimeVector.take
+take = modify . TimeVector.take
 
 drop :: Int -> Signal -> Signal
-drop = modify_vector . TimeVector.drop
+drop = modify . TimeVector.drop
 
 drop_while :: (Sample Pitch -> Bool) -> Signal -> Signal
-drop_while f = modify_vector (V.dropWhile f)
+drop_while f = modify (V.dropWhile f)
 
 drop_after :: RealTime -> Signal -> Signal
-drop_after = modify_vector . TimeVector.drop_after
+drop_after = modify . TimeVector.drop_after
 
 drop_at_after :: RealTime -> Signal -> Signal
-drop_at_after = modify_vector . TimeVector.drop_at_after
+drop_at_after = modify . TimeVector.drop_at_after
 
 drop_before :: RealTime -> Signal -> Signal
-drop_before = modify_vector . TimeVector.drop_before
+drop_before = modify . TimeVector.drop_before
 
 drop_before_strict :: RealTime -> Signal -> Signal
-drop_before_strict = modify_vector . TimeVector.drop_before_strict
+drop_before_strict = modify . TimeVector.drop_before_strict
 
 drop_before_at :: RealTime -> Signal -> Signal
-drop_before_at = modify_vector . TimeVector.drop_before_at
+drop_before_at = modify . TimeVector.drop_before_at
 
 map_y :: (Pitch -> Pitch) -> Signal -> Signal
-map_y = modify_vector . TimeVector.map_y
+map_y = modify . TimeVector.map_y
 
 prepend :: Signal -> Signal -> Signal
 prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
