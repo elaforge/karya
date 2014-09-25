@@ -74,7 +74,7 @@ lookup_attr_transformer = make_lookup_attr $ \attrs ->
 
 make_lookup_attr :: (Score.Attributes -> call) -> Derive.LookupCall call
 make_lookup_attr call =
-    Derive.LookupPattern "attribute starting with `+`" doc $
+    Derive.LookupPattern "attribute starting with `+` or `=`" doc $
         \(TrackLang.Symbol sym) -> parse_symbol sym
     where
     parse_symbol sym = case Text.uncons sym of

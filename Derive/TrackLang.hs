@@ -197,7 +197,7 @@ instance Pretty.Pretty Type where
         Seq.join2 ", " (pretty typ) (pretty val)
     pretty (TSymbol enums) =
         append_parens "Symbol" $ maybe "" (unwords . map untxt) enums
-    pretty (TList typ) = "(list " <> pretty typ <> ")"
+    pretty (TList typ) = "list of " <> pretty typ
     pretty typ = drop 1 (show typ)
 
 append_parens :: String -> String -> String

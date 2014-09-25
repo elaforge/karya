@@ -410,7 +410,7 @@ make_transformer (TrackLang.Symbol name) expr =
             reapply call_id
     where
     transformer args deriver =
-        Eval.apply_transformers cinfo (NonEmpty.toList expr) deriver
+        Eval.apply_transformers True cinfo (NonEmpty.toList expr) deriver
         where
         cinfo = (Derive.passed_info args)
             { Derive.info_expr = ShowVal.show_val expr }

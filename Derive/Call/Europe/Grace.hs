@@ -22,6 +22,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -40,6 +41,7 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
     [ ("g", c_grace)
+    , ("grace", c_basic_grace)
     , ("roll", c_roll)
     , ("`mordent`", c_mordent (Pitch.Diatonic 1))
     , ("`rmordent`", c_mordent (Pitch.Diatonic (-1)))
@@ -74,7 +76,10 @@ grace_dyn_env = TrackLang.positive <$>
 
 grace_placement_env :: Sig.Parser TrackLang.ValControl
 grace_placement_env = Sig.environ "grace-place" Sig.Unprefixed
-    (Sig.control "grace-place" 0)
+    (Sig.control "grace-place" 0) grace_placement_doc
+
+grace_placement_doc :: Text
+grace_placement_doc =
     "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
     \ the base note, and the base note is delayed."
 
@@ -117,6 +122,28 @@ c_grace = Derive.make_call Module.prelude "grace" (Tags.ornament <> Tags.ly)
         Lily.when_lilypond (lily_grace args start pitches) $
             grace_call args dyn pitches grace_dur place
 
+c_basic_grace :: Derive.Generator Derive.Note
+c_basic_grace = Derive.make_call Module.prelude "basic-grace"
+    (Tags.ornament <> Tags.ly)
+    "This a grace call where all arguments are required. The idea is that this\
+    \ will be used as the implementation of more specific ornaments, perhaps\
+    \ defined in a definitions file."
+    $ Sig.call ((,,,)
+    <$> Sig.required_env "pitches" Sig.None grace_pitches_doc
+    <*> Sig.required_env "dur" Sig.None "Duration of grace notes."
+    <*> Sig.required_env "place" Sig.None grace_placement_doc
+    <*> Sig.defaulted_env "transformer" Sig.None Nothing
+        "Apply a transformer to grace notes."
+    ) $ \(pitches, grace_dur, place, maybe_transform) ->
+    Sub.inverting $ \args -> do
+        start <- Args.real_start args
+        base <- Util.get_pitch start
+        pitches <- resolve_pitches base pitches
+        let apply = Eval.apply_quoted_transformers (Args.info args)
+        Lily.when_lilypond (lily_grace args start pitches) $
+            Sub.place =<< basic_grace args pitches
+                (maybe id apply maybe_transform) grace_dur place
+
 lily_grace :: Derive.PassedArgs d -> RealTime -> [PitchSignal.Pitch]
     -> Derive.NoteDeriver
 lily_grace args start pitches = do
@@ -135,14 +162,18 @@ grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
     -> TrackLang.Duration -> TrackLang.ValControl -> Derive.NoteDeriver
 grace_call args dyn_scale pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Util.dynamic =<< Args.real_start args)
-    let notes = map (Util.with_dynamic dyn . Util.pitched_note) pitches
-            ++ [Util.note]
-    events <- make_grace_notes (Args.prev_start args) (Args.extent args)
-        notes grace_dur place
+    events <- basic_grace args pitches (Util.with_dynamic dyn) grace_dur place
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
     Derive.with_val "legato-dyn" (1 :: Double) $
         Sub.reapply_call args "(" [] [events]
+
+basic_grace :: Derive.PassedArgs a -> [PitchSignal.Pitch]
+    -> (Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> TrackLang.Duration -> TrackLang.ValControl -> Derive.Deriver [Sub.Event]
+basic_grace args pitches transform =
+    make_grace_notes (Args.prev_start args) (Args.extent args) notes
+    where notes = map (transform . Util.pitched_note) pitches ++ [Util.note]
 
 c_roll :: Derive.Generator Derive.Note
 c_roll = Derive.make_call Module.europe "roll" Tags.ornament
@@ -276,7 +307,10 @@ grace_p grace_dur pitches (start, end) = do
 -- * util
 
 grace_pitches_arg :: Sig.Parser [Either PitchSignal.Pitch Score.TypedVal]
-grace_pitches_arg = Sig.many "pitch" "Grace note pitches. If they are numbers,\
+grace_pitches_arg = Sig.many "pitch" grace_pitches_doc
+
+grace_pitches_doc :: Text
+grace_pitches_doc = "Grace note pitches. If they are numbers,\
     \ they are taken as transpositions and must all be the same type,\
     \ defaulting to diatonic."
 

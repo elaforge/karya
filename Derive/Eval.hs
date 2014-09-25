@@ -7,7 +7,12 @@
 module Derive.Eval (
     -- * eval / apply
     apply_toplevel
-    , reapply_generator, apply_transformers, reapply_transformer
+    -- ** generator
+    , reapply_generator
+    -- ** transformer
+    , reapply_transformer
+    , apply_transformers, apply_quoted_transformers
+    -- ** val calls
     , eval, apply
     , get_val_call
 
@@ -50,9 +55,11 @@ import Types
 -- | Apply a toplevel expression.
 apply_toplevel :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
-apply_toplevel cinfo expr = apply_transformers cinfo transform_calls $
+apply_toplevel cinfo expr = apply_transformers True cinfo transform_calls $
     apply_generator cinfo generator_call
     where (transform_calls, generator_call) = Seq.ne_viewr expr
+
+-- ** generator
 
 apply_generator :: forall d. Derive.Callable d => Derive.CallInfo d
     -> TrackLang.Call -> Derive.LogsDeriver d
@@ -87,29 +94,19 @@ reapply_generator cinfo call_id args expr = do
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed
 
-apply_transformers :: Derive.Callable d => Derive.CallInfo d
-    -> [TrackLang.Call] -> Derive.LogsDeriver d
-    -> Derive.LogsDeriver d
-apply_transformers _ [] deriver = deriver
-apply_transformers cinfo (TrackLang.Call call_id args : calls) deriver = do
-    vals <- mapM (eval cinfo) args
-    call <- get_transformer call_id
-    let under_invert = Derive.cdoc_tags (Derive.call_doc call)
-            `Tags.contains` Tags.under_invert
-        inverted = Derive.info_inverted cinfo
-        -- If there are no subs and I'm not inverted, then inversion won't
-        -- happen, so I'd better run it anyway.
-        skip = not $ inverted == under_invert
-            || null (Derive.info_sub_tracks cinfo) && not inverted
-    let passed = Derive.PassedArgs
-            { Derive.passed_vals = vals
-            , Derive.passed_call_name = Derive.call_name call
-            , Derive.passed_info = cinfo
-            }
-    let rest = apply_transformers cinfo calls deriver
-    if skip then rest
-        else Internal.with_stack_call (Derive.call_name call) $
-            Derive.call_func call passed rest
+-- ** transformer
+
+-- | Parse and apply a transform expression.
+apply_transform :: Derive.Callable d => Text -> Text
+    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+apply_transform name expr_str deriver
+    | Text.all Char.isSpace expr_str = deriver
+    | otherwise = do
+        expr <- case Parse.parse_expr expr_str of
+            Left err -> Derive.throw $ untxt name ++ ": " ++ err
+            Right expr -> return expr
+        let info = Derive.dummy_call_info 0 1 name
+        apply_transformers True info (NonEmpty.toList expr) deriver
 
 -- | The transformer version of 'reapply_generator'.  Like
 -- 'apply_transformers', but apply only one, and apply to already
@@ -127,6 +124,45 @@ reapply_transformer cinfo call_id args deriver = do
             }
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed deriver
+
+apply_transformers :: Derive.Callable d => Bool
+    -- ^ If True, only run transformers under inversion if the call has
+    -- 'Tags.under_invert'.  If False, run all transformers unconditionally.
+    -- This should be True the transformer expression is applied to a generator
+    -- which may invert.  It should be False if you are within an inverting
+    -- generator, since at that point it's too late to apply non
+    -- 'Tags.under_invert' calls.
+    -> Derive.CallInfo d
+    -> [TrackLang.Call] -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+apply_transformers respect_under_invert_tag cinfo calls deriver = go calls
+    where
+    go [] = deriver
+    go (TrackLang.Call call_id args : calls) = do
+        vals <- mapM (eval cinfo) args
+        call <- get_transformer call_id
+        let under_invert = Derive.cdoc_tags (Derive.call_doc call)
+                `Tags.contains` Tags.under_invert
+            inverted = Derive.info_inverted cinfo
+            -- If there are no subs and I'm not inverted, then inversion won't
+            -- happen, so I'd better run it anyway.
+            skip = not $ inverted == under_invert
+                || null (Derive.info_sub_tracks cinfo) && not inverted
+        let passed = Derive.PassedArgs
+                { Derive.passed_vals = vals
+                , Derive.passed_call_name = Derive.call_name call
+                , Derive.passed_info = cinfo
+                }
+        if respect_under_invert_tag && skip then (go calls)
+            else Internal.with_stack_call (Derive.call_name call) $
+                Derive.call_func call passed (go calls)
+
+-- | The same as 'apply_transformers', but get them out of a Quoted.
+apply_quoted_transformers :: Derive.Callable d => Derive.CallInfo d
+    -> TrackLang.Quoted -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+apply_quoted_transformers cinfo (TrackLang.Quoted expr) d =
+    apply_transformers False cinfo (NonEmpty.toList expr) d
+
+-- ** val calls
 
 eval :: Derive.Taggable a => Derive.CallInfo a -> TrackLang.Term
     -> Derive.Deriver TrackLang.Val
@@ -304,18 +340,6 @@ eval_expr :: Derive.Callable d => Bool -> Derive.CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
 eval_expr collect cinfo expr =
     fromMaybe [] <$> Derive.catch collect (apply_toplevel cinfo expr)
-
--- | Parse and apply a transform expression.
-apply_transform :: Derive.Callable d => Text -> Text
-    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-apply_transform name expr_str deriver
-    | Text.all Char.isSpace expr_str = deriver
-    | otherwise = do
-        expr <- case Parse.parse_expr expr_str of
-            Left err -> Derive.throw $ untxt name ++ ": " ++ err
-            Right expr -> return expr
-        let info = Derive.dummy_call_info 0 1 name
-        apply_transformers info (NonEmpty.toList expr) deriver
 
 -- * misc
 

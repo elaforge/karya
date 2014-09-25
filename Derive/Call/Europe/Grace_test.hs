@@ -86,6 +86,12 @@ test_grace = do
     equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
         (["+legato", "+legato", "+legato"], [])
 
+test_basic_grace = do
+    let run = DeriveTest.extract extract . derive_tracks . UiTest.note_track
+        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    equal (run [(0, 2, "grace  (list 1) 1s 1 \"(+a) -- 4c")])
+        ([((0, 1, "4d"), "+a"), ((1, 1, "4c"), "+")], [])
+
 test_grace_args = do
     let run = DeriveTest.extract DeriveTest.e_pitch . derive_tracks
             . UiTest.note_track

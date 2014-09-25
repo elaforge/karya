@@ -98,7 +98,7 @@ eval_track track expr ctype deriver = case ctype of
     where
     transform :: Derive.Callable d => Derive.LogsDeriver d
         -> Derive.LogsDeriver d
-    transform = Eval.apply_transformers cinfo expr
+    transform = Eval.apply_transformers False cinfo expr
     cinfo = Derive.dummy_call_info 0 (TrackTree.track_end track) $ case ctype of
         ParseTitle.Tempo {} -> "tempo track"
         ParseTitle.Control {} -> "control track"
