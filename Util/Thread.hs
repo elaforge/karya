@@ -24,20 +24,13 @@ import qualified Util.Log as Log
 
 -- | Start a noisy thread that will log when it starts and stops, and warn if
 -- it dies from an exception.
---
--- TODO when killed and it logs, the logger can emit mixed up msgs, somehow the
--- lock is not actually serializing it.
 start_logged :: String -> IO () -> IO Concurrent.ThreadId
-start_logged name op = Concurrent.forkIO (handle_thread name op)
-
-handle_thread :: String -> IO a -> IO ()
-handle_thread name op = do
+start_logged name thread = do
     thread_id <- Concurrent.myThreadId
     let thread_name = Text.pack $ show thread_id ++ " " ++ name ++ ": "
     Log.debug $ thread_name <> "started"
-    result <- Exception.try op
-    case result of
-        Right _ -> Log.debug $ thread_name <> "completed"
+    Concurrent.forkFinally thread $ \result -> case result of
+        Right () -> Log.debug $ thread_name <> "completed"
         Left err -> Log.warn $ thread_name <> "died: "
             <> Text.pack (show (err :: Exception.SomeException))
 
@@ -48,14 +41,17 @@ type Seconds = Double
 
 -- | Delay in seconds.  I can never remember what units 'threadDelay' is in.
 delay :: Seconds -> IO ()
-delay secs = Concurrent.threadDelay (floor (1000000 * secs))
+delay = Concurrent.threadDelay . s_to_ms
 
-timeout :: Double -> IO a -> IO (Maybe a)
-timeout secs = Timeout.timeout (round (secs * 1000000))
+timeout :: Seconds -> IO a -> IO (Maybe a)
+timeout = Timeout.timeout . s_to_ms
+
+s_to_ms :: Seconds -> Int
+s_to_ms = round . (*1000000)
 
 -- | Isn't there a simpler way to do this?  All I really want to do is return
 -- when a shared value has changed, or it's timed out.
-take_tmvar_timeout :: Double -> STM.TMVar a -> IO (Maybe a)
+take_tmvar_timeout :: Seconds -> STM.TMVar a -> IO (Maybe a)
 take_tmvar_timeout seconds tmvar = do
     res <- STM.newEmptyTMVarIO
     th1 <- Concurrent.forkIO $ STM.atomically $
@@ -72,12 +68,12 @@ take_tmvar_timeout seconds tmvar = do
 
 -- | Time an IO action in seconds.  Technically not thread related, but I don't
 -- have a better place at the moment.
-time_action :: IO () -> IO Double
+time_action :: IO () -> IO Seconds
 time_action action = do
     start <- CPUTime.getCPUTime
     action
     end <- CPUTime.getCPUTime
     return $ cpu_to_sec (end - start)
 
-cpu_to_sec :: Integer -> Double
+cpu_to_sec :: Integer -> Seconds
 cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
