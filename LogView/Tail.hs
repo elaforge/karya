@@ -19,7 +19,7 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
-import qualified System.IO.Error as IO.Error
+import qualified System.IO.Error as Error
 import qualified System.Posix as Posix
 import qualified System.Process as Process
 
@@ -45,13 +45,13 @@ rotate_logs keep max_size log_fn = do
         forM_ (reverse (zip [1..keep] (drop 1 [1..keep]))) $ \(from, to) ->
             ignore $ Directory.renameFile (rotated_fn from) (rotated_fn to)
         let fn = FilePath.dropExtension (rotated_fn 1)
+        putStrLn $ "rotate logs " ++ log_fn ++ " -> " ++ fn
         ignore $ Directory.renameFile log_fn fn
         Process.waitForProcess =<< Process.runProcess "gzip" [fn]
             Nothing Nothing Nothing Nothing Nothing
         return ()
     IO.openFile log_fn IO.AppendMode
-    where
-    ignore = File.ignoreEnoent
+    where ignore = File.ignoreEnoent
 
 
 -- * tail
@@ -118,7 +118,7 @@ read_line (Handle filename hdl size) = go (hdl, size)
 -- | If the filename exists, open it and close the old file.
 reopen :: IO.Handle -> Integer -> FilePath -> IO TailState
 reopen old size filename =
-    File.ignoreEnoent (IO.openFile filename IO.ReadMode) >>= \x -> case x of
+    ignoreEnoent "reopen" (IO.openFile filename IO.ReadMode) >>= \x -> case x of
         Nothing -> return (old, size)
         Just new -> do
             IO.hClose old
@@ -126,18 +126,21 @@ reopen old size filename =
             size <- IO.hFileSize new
             return (new, size)
 
+ignoreEnoent :: String -> IO a -> IO (Maybe a)
+ignoreEnoent name action = Exception.try action >>= \result -> case result of
+    Left exc
+        | Just e <- Exception.fromException exc, Error.isDoesNotExistError e ->
+            return Nothing
+        | otherwise -> do
+            putStrLn $ name ++ " exception: " ++ show exc
+            return Nothing
+    Right val -> return $ Just val
+
 -- | Check if it looks like the file has been renamed.
 file_renamed :: FilePath -> Integer -> IO Bool
-file_renamed filename size = handle $ do
+file_renamed filename size = do
     -- I should really use inode, but ghc's crummy IO libs make that a pain,
     -- since handleToFd closes the handle.
     file_size <- maybe 0 Posix.fileSize <$>
-        File.ignoreEnoent (Posix.getFileStatus filename)
+        ignoreEnoent "file_renamed" (Posix.getFileStatus filename)
     return $ fromIntegral file_size /= size && file_size /= 0
-    where
-    -- I don't know why this happens, but it does occasionally.
-    handle = Exception.handleJust
-        (\e -> if IO.Error.isAlreadyInUseError e then Just e else Nothing) $
-        \e -> do
-            putStrLn $ "file_renamed: error on " ++ filename ++ ": " ++ show e
-            return False
