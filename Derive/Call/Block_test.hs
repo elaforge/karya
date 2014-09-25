@@ -148,6 +148,16 @@ test_control_scope_unsliced = do
     equal logs []
     equal (extract midi) [(-4, 0), (1500, 64)]
 
+test_trim_controls_problem = do
+    let run = DeriveTest.extract (DeriveTest.e_control "c")
+            . DeriveTest.derive_blocks
+    equal (run
+            [ ("top", [("c", [(1, 0, "1")]), (">", [(0, 1, "sub")])])
+            , ("sub=ruler", [(">", [(0, 1, "")])])
+            ])
+        -- ([[(1, 1)]], []) -- should be this
+        ([[]], [])
+
 run_sub :: (Score.Event -> a) -> [UiTest.TrackSpec] -> [UiTest.TrackSpec]
     -> ([a], [String])
 run_sub extract top sub = DeriveTest.extract extract $ DeriveTest.derive_blocks

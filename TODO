@@ -12,9 +12,14 @@ UNSORTED
     appearing after the NoteOn rather than before it.  Why is that happening?
   - The Signal / PitchSignal divide can be annoying.  If I put them in
     a TimeVector class then I should be able to directly apply TimeVector
-    functions to them.
-    . Can't use to/from because from loses information.  Maybe modify / from?
-  - write a test that demonstrates the problem with Block.trim_controls:
+    functions to them.  Then, make all TimeVector functions polymorphic, and
+    Signal and PitchSignal can just re-export them.
+    . But it seems weird that Signal functions work on PitchSignals, so maybe
+      I should specialize them before re-exporting... but that winds up being
+      not much less work than unwrapping the newtype.  The advantage is that
+      I can write functions generic on the signal, but in practice there are
+      few of those.  So maybe I don't actually care that much.
+  * write a test that demonstrates the problem with Block.trim_controls:
     a control that happens to be at the end of the block will be dropped even
     if the block doesn't have a final event.
   - Randomization might sound more natural if I use brown noise.  But can I do
@@ -157,7 +162,7 @@ UNSORTED
   - chained transformers should work lazily, right?  Make sure with trace.
     Probably not, actually, because the state is threaded through.  I'd have
     to disconnect the state.
-  - simple legato transformer to make a note overlap the next one
+  * simple legato transformer to make a note overlap the next one
     Just set %sus or %sus-abs should work.
   * cache not invalidated: modify bug/cache to change %t-diatonic=5 to
     %t-dia=5, it still has the old performance.
