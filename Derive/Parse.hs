@@ -52,11 +52,11 @@ parse_expr = parse (p_pipeline True)
 -- follow the normal calling process but pattern match directly on vals.
 parse_control_title :: Text
     -> Either String ([TrackLang.Val], [TrackLang.Call])
-parse_control_title = ParseText.parse_all p_control_title
+parse_control_title = ParseText.parse p_control_title
 
 -- | Parse a single Val.
 parse_val :: Text -> Either String TrackLang.Val
-parse_val = ParseText.parse_all (lexeme p_val)
+parse_val = ParseText.parse (lexeme p_val)
 
 -- | Parse attributes in the form +a+b.
 parse_attrs :: String -> Either String Score.Attributes
@@ -64,7 +64,7 @@ parse_attrs = parse p_attrs . Text.pack
 
 -- | Parse a number or hex code, without a type suffix.
 parse_num :: Text -> Either String Signal.Y
-parse_num = ParseText.parse_all (lexeme (p_hex <|> p_untyped_num))
+parse_num = ParseText.parse (lexeme (p_hex <|> p_untyped_num))
 
 -- | Extract only the call part of the text.
 parse_call :: Text -> Maybe Text
@@ -74,7 +74,7 @@ parse_call text = case parse_expr text of
     _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either String a
-parse p = ParseText.parse_all (spaces >> p)
+parse p = ParseText.parse (spaces >> p)
 
 -- * lex
 
@@ -124,7 +124,7 @@ p_lex1 = (str <|> parens <|> word) >> spaces
 expand_macros :: (Text -> Text) -> Text -> Either String Text
 expand_macros replacement text
     | not $ "@" `Text.isInfixOf` text = Right text
-    | otherwise = ParseText.parse_all (p_macros replacement) text
+    | otherwise = ParseText.parse (p_macros replacement) text
 
 p_macros :: (Text -> Text) -> A.Parser Text
 p_macros replace = do
@@ -474,7 +474,6 @@ split_sections =
     strip_header (_, header) = Text.take (Text.length header - 1) header
     check [] = Right []
     check (header : section)
-        | is_header header =
-            Right [(strip_header header, section)]
+        | is_header header = Right [(strip_header header, section)]
         | otherwise = Left $ showt (fst header)
             <> ": section without a header: " <> snd header

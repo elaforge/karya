@@ -13,8 +13,9 @@
 -}
 module Util.ParseText (module Util.ParseText, many) where
 import Control.Applicative (many)
-import Data.Attoparsec.Text ((<?>))
 import qualified Data.Attoparsec.Text as A
+import Data.Attoparsec.Text ((<?>))
+import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
 
@@ -24,28 +25,63 @@ import qualified Util.Seq as Seq
 
 type Parser a = A.Parser a
 
-parse_all :: Parser a -> Text -> Either String a
+-- | Parse all the text, and annotate the error with the char number.  For
+-- single-line input.
+parse :: Parser a -> Text -> Either String a
+parse p text = case parse_all p text of
+    Right val -> Right val
+    Left (rest, msg) -> Left $
+        "parse error: char " <> maybe "?" show ((+1) <$> col) <> " of "
+        <> show_expr col text <> ": " <> msg
+        where col = infer_column text rest
+
+-- | Parse all of the text, and annotate the error with line number and column.
+parse_lines :: String -> Int -> Parser a -> Text -> Either String a
+parse_lines filename start_line p text = case parse_all p text of
+    Right val -> Right val
+    Left (rest, msg) -> Left $ err <> ": " <> msg <> " in "
+        <> maybe "" (\(line, _, column) -> show_expr (Just column) line) loc
+        where
+        loc = infer_line text rest
+        err = filename <> case loc of
+            Nothing -> ""
+            Just (_, lineno, column) ->
+                ":" <> show (start_line + lineno) <> ":" <> show (column + 1)
+
+show_expr :: Maybe Int -> Text -> String
+show_expr Nothing expr = "\"" <> Text.unpack expr <> "\""
+show_expr (Just i) expr = "\"" <> pre <> "»" <> post <> "\""
+    where (pre, post) = splitAt i (Text.unpack expr)
+
+parse_all :: A.Parser a -> Text -> Either (Text, String) a
 parse_all p text = go (A.parse p text)
     where
-    go (A.Fail rest contexts msg) =
-        Left $ err rest ++ msg ++ " [" ++ Seq.join ", " contexts ++ "]"
+    go (A.Fail rest contexts msg) = Left (rest, msg <> c)
+        where
+        c = if null contexts then "" else " [" <> Seq.join ", " contexts <> "]"
     go (A.Partial cont) = go (cont "")
     go (A.Done rest val)
         | Text.null rest = Right val
-        | otherwise = Left $ err rest ++ "expected eof"
-    err rest = "parse error on char " ++ maybe "?" show (column rest) ++ " of "
-        ++ show_expr (column rest) text ++ ": "
-    show_expr Nothing expr = "\"" ++ Text.unpack expr ++ "\""
-    show_expr (Just char) expr = "\"" ++ pre ++ "»" ++ post ++ "\""
-        where (pre, post) = splitAt (char - 1) (Text.unpack expr)
-            -- char starts at 1.  Use a unicode char so it's visually distinct.
-    column t
-        | t `Text.isSuffixOf` text = Just $ Text.length text - Text.length t + 1
-        | otherwise = Nothing
+        | otherwise = Left (rest, "expected eof")
+
+infer_line :: Text -> Text -> Maybe (Text, Int, Int)
+    -- ^ (line, lineno from 0, column from 0)
+infer_line text rest = infer =<< infer_column text rest
+    where
+    infer i = extract i <$> List.find (\(_, end, _) -> end > i)
+        (zip3 sums (drop 1 sums) (zip [0..] lines))
+    extract i (start, _, (lineno, line)) = (line, lineno, i - start)
+    sums = scanl (+) 0 (map ((+1) . Text.length) lines)
+    lines = Text.lines text
+
+infer_column :: Text -> Text -> Maybe Int
+infer_column text rest
+    | rest `Text.isSuffixOf` text = Just $ Text.length text - Text.length rest
+    | otherwise = Nothing
 
 -- * casual parsing
 
-maybe_read :: (Read a) => String -> Maybe a
+maybe_read :: Read a => String -> Maybe a
 maybe_read str = case reads str of
     (a, "") : _ -> Just a
     _ -> Nothing
