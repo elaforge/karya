@@ -179,13 +179,13 @@ lookup_default_environ :: (TrackLang.Typecheck a, Cmd.M m) =>
     TrackLang.ValName -> m (Maybe a)
 lookup_default_environ name = do
     global <- State.config#State.global_transform <#> State.get
-    let apply = Eval.apply_transform caller global
-    -- Eval.apply_transform only applies to things in Derived, so I have to do
-    -- this gross hack where I stash the result in a Score.Event.  Ultimately
-    -- it's because I use the return type to infer the lookup function, and
-    -- I want to use Score.Event transformers.  It might be a better design to
-    -- figure out the lookup function separately, but meanwhile this hack
-    -- should be safe.
+    let apply = Eval.eval_transform_expr caller global
+    -- Eval.eval_transform_expr only applies to things in Derived, so I have to
+    -- do this gross hack where I stash the result in a Score.Event.
+    -- Ultimately it's because I use the return type to infer the lookup
+    -- function, and I want to use Score.Event transformers.  It might be
+    -- a better design to figure out the lookup function separately, but
+    -- meanwhile this hack should be safe.
     result <- derive $ apply $ do
         environ <- Internal.get_environ
         return [LEvent.Event $

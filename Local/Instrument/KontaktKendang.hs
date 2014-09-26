@@ -174,7 +174,7 @@ dispatch :: Kendang -> TrackLang.CallId -> Derive.Generator Derive.Note
 dispatch kendang call = Derive.make_call Module.instrument name Tags.inst
     "Dispatch to wadon or lanang." $ Sig.call pasang_env $ \pasang args ->
         Derive.with_instrument (pasang_inst kendang pasang) $
-            Eval.reapply_gen args call
+        Eval.reapply_generator args call
     where name = showt kendang <> " " <> prettyt call
 
 c_realize_kendang :: Derive.Transformer Derive.Note

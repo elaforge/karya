@@ -261,7 +261,7 @@ quoted_transformer quoted@(TrackLang.Quoted expr) =
     Derive.make_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0t $ \args deriver ->
-        Eval.apply_transformers True (quoted_cinfo args quoted)
+        Eval.eval_transformers True (quoted_cinfo args quoted)
             (NonEmpty.toList expr) deriver
 
 quoted_val_call :: TrackLang.Quoted -> Derive.ValCall

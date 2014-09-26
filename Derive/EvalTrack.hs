@@ -307,7 +307,7 @@ derive_event tinfo prev_val prev event next
     | otherwise = case Parse.parse_expr text of
         Left err -> Log.warn (txt err) >> return []
         Right expr -> Internal.with_stack_region (Event.min event + shifted)
-            (Event.max event + shifted) $ Eval.apply_toplevel cinfo expr
+            (Event.max event + shifted) $ Eval.eval_toplevel cinfo expr
     where
     shifted = TrackTree.track_shifted track
     text = Event.event_text event

@@ -32,7 +32,7 @@ contains super sub = Set.isSubsetOf sub super
 -- inversion, while only the generator runs underneath.  However, some
 -- transformers rely on per-note controls, such as pitch and dyn, and therefore
 -- need to go under the invert.  A special hack in
--- 'Derive.Call.apply_transformers' notices the presence of this tag, and
+-- 'Derive.Call.eval_transformers' notices the presence of this tag, and
 -- delays a transformer to run under inversion if present.
 --
 -- See NOTE [under_invert].
@@ -138,7 +138,7 @@ val = tag "val"
       wants to be under inversion.
 
     . It seems like I could improve these by driving them from a tag.  E.g.
-      if the call has a under-inversion tag, Call.apply_transformers will skip
+      if the call has a under-inversion tag, Call.eval_transformers will skip
       or not skip, as appropriate.  This solves #1 and #2, but not #3.
 
     . This is all just to get lift working under inversion.  Is it that

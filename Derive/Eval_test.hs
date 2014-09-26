@@ -27,14 +27,14 @@ test_recursive_call = do
     recursive = Derive.make_call "test-module" "recursive" mempty "doc" $
         Sig.call0 $ \args -> Eval.reapply_call args "recur" []
 
-test_reapply_gen = do
+test_reapply_generator = do
     let run = DeriveTest.extract DeriveTest.e_attributes .
             DeriveTest.derive_tracks_with with ""
         dyn = ("dyn", [(0, 0, "1")])
     equal (run [(">", [(0, 0, "a")]), dyn]) (["+a"], [])
-    -- If Eval.reapply_gen isn't replacing the info_expr, the inversion will
-    -- wind up with 'ab' as the call again, and 'ab' will be called multiple
-    -- times.
+    -- If Eval.reapply_generator isn't replacing the info_expr, the inversion
+    -- will wind up with 'ab' as the call again, and 'ab' will be called
+    -- multiple times.
     equal (run [(">", [(0, 0, "ab")]), dyn]) (["+a", "+b"], [])
     where
     with = CallTest.with_note_generators $

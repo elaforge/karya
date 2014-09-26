@@ -35,7 +35,7 @@ c_multiple = Derive.transformer Module.prelude "multiple" mempty
             (NonEmpty.toList transformers)
     where
     apply cinfo deriver trans =
-        Eval.apply_transformers True cinfo (to_transformer trans) deriver
+        Eval.eval_transformers True cinfo (to_transformer trans) deriver
 
 to_transformer :: Either TrackLang.Quoted Score.Instrument -> [TrackLang.Call]
 to_transformer val = case val of

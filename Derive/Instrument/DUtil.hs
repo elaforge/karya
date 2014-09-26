@@ -80,7 +80,7 @@ multiple_call name calls = make_call name
     -- combine in the call doc.  Presumably the calls are apparent from the
     -- name.
     "Dispatch to multiple calls." $ Sig.call0 $ \args ->
-        mconcatMap (Eval.reapply_gen args) calls
+        mconcatMap (Eval.reapply_generator args) calls
 
 double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
     -- ^ (call_name, repeated_call)
@@ -94,7 +94,7 @@ double_call repeated = make_call "double"
     <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
     <*> Sig.defaulted "dyn" 0.5 "Dyn scale for grace notes."
     ) $ \(TrackLang.DefaultReal time, dyn) args ->
-        Grace.repeat_notes (Eval.reapply_gen_normalized args repeated)
+        Grace.repeat_notes (Eval.reapply_generator_normalized args repeated)
             1 time dyn args
 
 -- * composite
@@ -176,7 +176,7 @@ composite_call args composites = mconcatMap (split args) composites
     allocated = mconcatMap (fromMaybe mempty . c_controls) composites
     split args (Composite call inst pitch controls) =
         Derive.with_instrument inst $ with_pitch pitch $
-        with_controls controls $ Eval.reapply_gen args call
+        with_controls controls $ Eval.reapply_generator args call
     with_pitch p deriver = case p of
         NoPitch -> Derive.with_pitch Nothing mempty deriver
         Pitch Nothing -> deriver

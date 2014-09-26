@@ -391,10 +391,10 @@ make_generator (TrackLang.Symbol name) expr =
     -- If there are arguments in the definition, then don't accept any in the
     -- score.  I could do partial application, but it seems confusing, so
     -- I won't add it unless I need it.
-    reapply call_id args = Eval.reapply_generator (Derive.passed_info args)
+    reapply call_id args = Eval.apply_generator (Derive.passed_info args)
         call_id (Derive.passed_vals args)
         (Derive.info_expr (Derive.passed_info args))
-    generator args = Eval.apply_toplevel cinfo expr
+    generator args = Eval.eval_toplevel cinfo expr
         where
         cinfo = (Derive.passed_info args)
             { Derive.info_expr = ShowVal.show_val expr }
@@ -410,12 +410,12 @@ make_transformer (TrackLang.Symbol name) expr =
             reapply call_id
     where
     transformer args deriver =
-        Eval.apply_transformers True cinfo (NonEmpty.toList expr) deriver
+        Eval.eval_transformers True cinfo (NonEmpty.toList expr) deriver
         where
         cinfo = (Derive.passed_info args)
             { Derive.info_expr = ShowVal.show_val expr }
     reapply call_id args deriver =
-        Eval.reapply_transformer (Derive.passed_info args) call_id
+        Eval.apply_transformer (Derive.passed_info args) call_id
             (Derive.passed_vals args) deriver
 
 make_val_call :: TrackLang.CallId -> TrackLang.Expr -> Derive.ValCall

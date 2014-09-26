@@ -352,7 +352,7 @@ when_ly inverted args deriver = case Derive.passed_vals args of
     where
     to_sym = TrackLang.Symbol . TrackLang.show_call_val
     when = if inverted then flip when_lilypond else when_lilypond
-    apply args = Eval.reapply_transformer (Derive.passed_info args)
+    apply args = Eval.apply_transformer (Derive.passed_info args)
 
 c_ly_global :: Derive.Transformer Derive.Note
 c_ly_global = transformer "ly-global" mempty

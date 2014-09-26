@@ -48,7 +48,7 @@ eval_root_block :: Text -> BlockId -> Derive.NoteDeriver
     -- except the root one.  The root block should operate in real time, so
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
 eval_root_block global_transform block_id =
-    Eval.apply_transform "global transform" global_transform $
+    Eval.eval_transform_expr "global transform" global_transform $
         Eval.eval_one_call True $ call_from_block_id block_id
 
 -- * note calls
@@ -156,7 +156,7 @@ d_block block_id = do
         else case ParseTitle.parse_block title of
             Left err -> Derive.throw $ "block title: " <> err
             Right expr -> return $
-                Eval.apply_transformers False info (NonEmpty.toList expr)
+                Eval.eval_transformers False info (NonEmpty.toList expr)
                 where info = Derive.dummy_call_info 0 1 "block title"
     transform $ do
         -- Record a dependency on this block.

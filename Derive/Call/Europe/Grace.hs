@@ -139,7 +139,7 @@ c_basic_grace = Derive.make_call Module.prelude "basic-grace"
         start <- Args.real_start args
         base <- Util.get_pitch start
         pitches <- resolve_pitches base pitches
-        let apply = Eval.apply_quoted_transformers (Args.info args)
+        let apply = Eval.eval_quoted_transformers (Args.info args)
         Lily.when_lilypond (lily_grace args start pitches) $
             Sub.place =<< basic_grace args pitches
                 (maybe id apply maybe_transform) grace_dur place

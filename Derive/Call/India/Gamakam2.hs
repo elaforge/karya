@@ -294,9 +294,9 @@ place_event start dur cinfo = cinfo
 
 eval_expr :: Derive.Callable d => Derive.CallInfo d -> Expr
     -> Derive.LogsDeriver d
-eval_expr cinfo (QuotedExpr expr) = Eval.apply_toplevel cinfo expr
+eval_expr cinfo (QuotedExpr expr) = Eval.eval_toplevel cinfo expr
 eval_expr cinfo (EvaluatedExpr call_id args) =
-    Eval.reapply_generator cinfo call_id args ""
+    Eval.apply_generator cinfo call_id args ""
     -- TODO I shouldn't need inversion, so I shouldn't need the expr.
     -- Can I put in Nothing, so I can get a nice error if someone tries?
 
