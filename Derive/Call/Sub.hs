@@ -66,23 +66,25 @@ unless_under_inversion args transform deriver
 under_inversion :: Derive.PassedArgs d -> Bool
 under_inversion = Derive.info_inverted . Derive.passed_info
 
-inverting_args :: Derive.Taggable d => Derive.PassedArgs d -> Derive.NoteDeriver
-    -> Derive.NoteDeriver
-inverting_args args f = inverting (const f) args
-
 -- | Convert a call into an inverting call.  Documented in doc/inverting_calls.
 --
 -- This requires a bit of hackery:
 --
 -- This requires getting the expression being evaluated so it can be inserted
 -- into the inverted track, which is what 'Derive.info_expr' is for.
-inverting :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.NoteDeriver)
-    -> (Derive.PassedArgs d -> Derive.NoteDeriver)
-inverting call args = -- save_prev_val args
+inverting_args :: Derive.Taggable d => Derive.PassedArgs d -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
+inverting_args args call = -- save_prev_val args
     -- If I can invert, the call isn't actually called.  Instead I make a track
     -- with event text that will result in this being called again, and at
     -- that point it actually will be called.
-    maybe (call args) BlockUtil.derive_tracks =<< invert_call args
+    maybe call BlockUtil.derive_tracks =<< invert_call args
+
+-- | A version of 'inverting_args' that passes the args to the call.  This
+-- is convenient to insert it after the signature arg in a call definition.
+inverting :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.NoteDeriver)
+    -> (Derive.PassedArgs d -> Derive.NoteDeriver)
+inverting call args = inverting_args args (call args)
 
 -- When I invert, I call derive_tracks again, which means the inverted bottom
 -- is going to expect to see the current prev val.  TODO but evidently I don't

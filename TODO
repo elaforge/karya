@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - defs file doesn't continue a line if it has a comment
+    . It's harder than I thought... I can't just strip comments because one
+      might be in a string.  But I can't just modify the parser because now
+      I need all 'spaces' to respect indented line continuation.
+    . But then, why not?  Event expressions will never have newlines anyway.
+  * %start-s = (cf-rnd ..) messes up ngoret
+  - Perform/Midi/Perform.hs:835: note:  Perform: %vel clipped: (16.22s, 16.78s)
+    Should say what the clipped value was.
+    But if there is a randomized control function, then >1 or <0 is common.
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
   - fix control scope in parent events that cover up an orphan, as

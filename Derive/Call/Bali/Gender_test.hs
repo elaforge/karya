@@ -70,6 +70,14 @@ test_ngoret = do
     equal (run $ c_to_e "" "'n -2 10 0")
         ([(0, 1, "4c"), (1, 1, "4c"), (2, 1, "4e")], [])
 
+test_ngoret_start_control = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks transform . UiTest.note_track
+    -- Ensure that it obeys start offset controls, and doesn't mess up the
+    -- pitch.
+    equal (run [(0, 4, "4c"), (4, 4, "%start-s=-.5 | ' .5 -- 4e")])
+        ([(0, 4, "4c"), (3, 1, "4d"), (3.5, 4.5, "4e")], [])
+
 test_past_end = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
     -- A grace note right at the end doesn't cause an error.  Previously this

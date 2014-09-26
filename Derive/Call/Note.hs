@@ -10,6 +10,7 @@ module Derive.Call.Note (
     , Config(..), use_attributes, no_duration_attributes
     , GenerateNote, default_note, make_event
     , adjust_duration
+    , with_start_controls
 #ifdef TESTING
     , min_duration
 #endif
@@ -101,37 +102,6 @@ note_call name prepend_doc tags generate =
         <> " setting those fields of the event.  This is bound to the"
         <> " null call, \"\", but any potential arguments would wind up"
         <> " looking like a different call, so it's bound to `n` as well."
-
--- | Adjust the start time based on controls.
-with_start_controls :: Derive.NoteArgs -> Derive.NoteDeriver
-    -> Derive.NoteDeriver
-with_start_controls args deriver = do
-    start <- Args.real_start args
-    start_s <- maybe 0 RealTime.seconds <$>
-        Derive.untyped_control_at Controls.start_s start
-    start_s <- Util.score_duration (Args.start args) start_s
-    start_t <- maybe 0 ScoreTime.double <$>
-        Derive.untyped_control_at Controls.start_t start
-
-    let dur = Args.duration args
-        min_dur = RealTime.to_score min_duration
-        offset
-            | dur > 0 = min (start_s + start_t) (dur - min_dur)
-            | dur == 0 = start_s + start_t
-            | otherwise = max (start_s + start_t) (dur + min_dur)
-        stretch = case () of
-            _ | dur > 0 -> max min_dur (dur - offset)
-            _ | dur == 0 -> 1
-            _ | otherwise -> max min_dur $ abs (dur - offset)
-    if start_s + start_t == 0 then deriver else
-        Derive.place (Args.start args + offset) stretch $
-            normalize args deriver
-
-normalize :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
-normalize args deriver =
-    Derive.stretch (if dur == 0 then 1 else 1 / abs dur) $
-        Derive.at (- Args.start args) deriver
-    where dur = Args.duration args
 
 c_note_track :: Derive.Transformer Derive.Note
 c_note_track = Derive.transformer Module.prelude "note-track" mempty
@@ -267,6 +237,8 @@ stash_dynamic vals = maybe id
     (Map.insert Controls.dynamic_function . Score.untyped . Signal.constant)
     (Map.lookup Controls.dynamic vals)
 
+-- ** adjust start and duration
+
 -- | Adjust the end of the event if it has negative duration.  This only works
 -- for when the next event start time is known.  At the end of a block the
 -- duration stays negative and relies on a postproc to resolve.
@@ -329,6 +301,40 @@ duration_attributes config controls attrs start end
         then lookup_time 1 Controls.sustain else 1
     lookup_time deflt control = maybe deflt RealTime.seconds
         (Map.lookup control controls)
+
+-- | Adjust the start time based on controls.
+with_start_controls :: Derive.NoteArgs -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
+with_start_controls args deriver = do
+    start <- Args.real_start args
+    start_s <- maybe 0 RealTime.seconds <$>
+        Derive.untyped_control_at Controls.start_s start
+    start_s <- Util.score_duration (Args.start args) start_s
+    start_t <- maybe 0 ScoreTime.double <$>
+        Derive.untyped_control_at Controls.start_t start
+
+    let dur = Args.duration args
+        min_dur = RealTime.to_score min_duration
+        offset
+            | dur > 0 = min (start_s + start_t) (dur - min_dur)
+            | dur == 0 = start_s + start_t
+            | otherwise = max (start_s + start_t) (dur + min_dur)
+        stretch = case () of
+            _ | dur > 0 -> max min_dur (dur - offset)
+            _ | dur == 0 -> 1
+            _ | otherwise -> max min_dur $ abs (dur - offset)
+    if start_s + start_t == 0 then deriver else
+        Derive.place (Args.start args + offset) stretch $
+        normalize args $ Derive.with_controls
+            [ (Controls.start_s, Score.untyped Signal.empty)
+            , (Controls.start_t, Score.untyped Signal.empty)
+            ] deriver
+
+normalize :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
+normalize args deriver =
+    Derive.stretch (if dur == 0 then 1 else 1 / abs dur) $
+        Derive.at (- Args.start args) deriver
+    where dur = Args.duration args
 
 -- ** controls
 

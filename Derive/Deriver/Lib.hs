@@ -467,8 +467,11 @@ get_merge name
             (Map.lookup name op_map)
 
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
-with_control control signal = Internal.local $ \st ->
-    st { state_controls = Map.insert control signal (state_controls st) }
+with_control control signal = with_controls [(control, signal)]
+
+with_controls :: [(Score.Control, Score.TypedControl)] -> Deriver a -> Deriver a
+with_controls controls = Internal.local $ \st ->
+    st { state_controls = Util.Map.insert_list controls (state_controls st) }
 
 with_control_function :: Score.Control -> TrackLang.ControlFunction
     -> Deriver a -> Deriver a
