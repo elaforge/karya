@@ -188,6 +188,13 @@ copy copy_events name = do
     block_id <- Cmd.get_focused_block
     Create.view =<< Create.named_block_from_template copy_events block_id name
 
+-- * destroy
+
+destroy_all_except :: [BlockId] -> Cmd.CmdL ()
+destroy_all_except keep = do
+    block_ids <- State.all_block_ids
+    mapM_ State.destroy_block (filter (not . (`elem` keep)) block_ids)
+
 -- * dividers
 
 -- | Insert a divider to the right of the selection.
