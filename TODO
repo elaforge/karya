@@ -3,15 +3,28 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - defs file doesn't continue a line if it has a comment
+  - clean up the Derive.info_expr situation.  Many of the calls in Eval are
+    dangerous because they take CallInfo but don't set it.
+    . If I want to change it to parsed, then I need to let Slice.InsertEvent
+      take an Expr, which means an Either for TrackTree.track_events
+    . The alternative is to use ShowVal, which isn't so bad, because most of
+      the vals I care about can be shown.
+  - It would be useful to have some way to see the current control value on
+    control tracks.  Status bar?
+  - floating edit input is overwritten when track signals update
+  * defs file doesn't continue a line if it has a comment
     . It's harder than I thought... I can't just strip comments because one
       might be in a string.  But I can't just modify the parser because now
       I need all 'spaces' to respect indented line continuation.
     . But then, why not?  Event expressions will never have newlines anyway.
+    . Profile and make sure the changes didn't affect normal parsing.
+  - criterion test for parsing
   * %start-s = (cf-rnd ..) messes up ngoret
+    - nope, still messes some up
   - Perform/Midi/Perform.hs:835: note:  Perform: %vel clipped: (16.22s, 16.78s)
     Should say what the clipped value was.
     But if there is a randomized control function, then >1 or <0 is common.
+    . Or I could make the rnd calls optionally clip at 1 and 0.
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
   - fix control scope in parent events that cover up an orphan, as

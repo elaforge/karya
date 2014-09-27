@@ -36,17 +36,19 @@ parse p text = case parse_all p text of
         where col = infer_column text rest
 
 -- | Parse all of the text, and annotate the error with line number and column.
-parse_lines :: String -> Int -> Parser a -> Text -> Either String a
-parse_lines filename start_line p text = case parse_all p text of
+parse_lines :: Int -> Parser a -> Text -> Either Text a
+parse_lines start_line p text = case parse_all p text of
     Right val -> Right val
-    Left (rest, msg) -> Left $ err <> ": " <> msg <> " in "
-        <> maybe "" (\(line, _, column) -> show_expr (Just column) line) loc
+    Left (rest, msg) -> Left $ err <> ": " <> Text.pack msg <> " in line "
+        <> maybe "" (\(line, _, column) ->
+            Text.pack (show_expr (Just column) line)) loc
         where
         loc = infer_line text rest
-        err = filename <> case loc of
+        err = case loc of
             Nothing -> ""
             Just (_, lineno, column) ->
-                ":" <> show (start_line + lineno) <> ":" <> show (column + 1)
+                showt (start_line + lineno) <> ":" <> showt (column + 1)
+    where showt = Text.pack . show
 
 show_expr :: Maybe Int -> Text -> String
 show_expr Nothing expr = "\"" <> Text.unpack expr <> "\""

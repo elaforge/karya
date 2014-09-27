@@ -41,7 +41,7 @@ test_parse_expr = do
 
     equal (f "a | b = 4 | . >inst %sig") $ Right
         [ Call (Symbol "a") []
-        , Call (Symbol "=") (map Literal [symbol "b", vnum 4])
+        , Call (Symbol "=") (map Literal [VSymbol "b", vnum 4])
         , Call (Symbol ".") (map Literal
             [VInstrument (Score.Instrument "inst"),
                 VControl (LiteralControl "sig")])
@@ -52,7 +52,7 @@ test_parse_expr = do
 
     -- Subcalls, however, use a close paren to delimit.
     equal (f "a (b) c") $
-        Right [Call (Symbol "a") [val_call "b" [], Literal (symbol "c")]]
+        Right [Call (Symbol "a") [val_call "b" [], Literal (VSymbol "c")]]
     equal (f "a (()") $
         Right [Call (Symbol "a") [val_call "(" []]]
     -- Unbalanced parens.
@@ -159,16 +159,16 @@ test_p_equal = do
     let eq a b = Right (Call "=" [Literal a, b])
         num = Literal . VNum . Score.untyped
     let f = ParseText.parse Parse.p_equal
-    equal (f "a = b") (eq (symbol "a") (Literal (symbol "b")))
-    equal (f "a=b") (eq (symbol "a") (Literal (symbol "b")))
-    equal (f "a = 10") (eq (symbol "a") (num 10))
-    equal (f "a = (b c)") (eq (symbol "a")
-        (val_call "b" [Literal (symbol "c")]))
-    equal (f "a] = 1") (eq (symbol "a]") (num 1))
-    equal (f "a) = 1") (eq (symbol "a)") (num 1))
-    equal (f ">a = 1") (eq (symbol ">a") (num 1))
+    equal (f "a = b") (eq (VSymbol "a") (Literal (VSymbol "b")))
+    equal (f "a=b") (eq (VSymbol "a") (Literal (VSymbol "b")))
+    equal (f "a = 10") (eq (VSymbol "a") (num 10))
+    equal (f "a = (b c)") (eq (VSymbol "a")
+        (val_call "b" [Literal (VSymbol "c")]))
+    equal (f "a] = 1") (eq (VSymbol "a]") (num 1))
+    equal (f "a) = 1") (eq (VSymbol "a)") (num 1))
+    equal (f ">a = 1") (eq (VSymbol ">a") (num 1))
     equal (f "a = b c") $
-        Right $ Call "=" $ map (Literal . symbol) ["a", "b", "c"]
+        Right $ Call "=" $ map (Literal . VSymbol) ["a", "b", "c"]
 
     left_like (f "a = ()") "parse error"
     left_like (f "a=") "not enough input"
@@ -184,11 +184,8 @@ test_lex1 = do
     equal (f "1.") $ ("1.", "")
     equal (f "'hi") $ ("'hi", "")
 
-val_call :: Text -> [Term] -> Term
-val_call sym args = ValCall (Call (Symbol sym) args)
-
-symbol :: Text -> TrackLang.Val
-symbol = VSymbol . Symbol
+val_call :: Symbol -> [Term] -> Term
+val_call sym args = ValCall (Call sym args)
 
 test_expand_macros = do
     let f = Parse.expand_macros (\s -> "(" <> s <> ")")
@@ -205,24 +202,32 @@ test_expand_macros = do
 
 -- * definitions file
 
-test_parse_definition_file = do
-    let f extract = either (Left . untxt) (Right . extract)
-            . Parse.parse_definition_file
-    left_like (f id "x:\na = b") "unknown sections: x"
-    left_like (f id "val:\na = b\nc\n") "3: parse error"
-    let text = "val:\n  a = b\n-- comment\n\nnote generator:\nn = t | x"
-    let call sym = Call (Symbol sym) []
-    equal (f Parse.def_val text) $ Right [("a", call "b" :| [])]
-    equal (f (fst . Parse.def_note) text) $
-        Right [("n", call "t" :| [call "x"])]
-
 test_split_sections = do
     let f = either (Left . untxt) (Right . Map.toList) . Parse.split_sections
     equal (f "a:\n1\nb:\n2\na:\n3\n") $
         Right [("a", [(2, "1"), (6, "3")]), ("b", [(4, "2")])]
     left_like (f "1\na:\n2\n") "section without a header"
 
-test_join_lines = do
-    let f = Parse.join_lines
-    equal (f [(0, "a"), (1, " b"), (2, "c"), (3, "d")])
-        [(0, "a b"), (2, "c"), (3, "d")]
+test_parse_definition_file = do
+    let f extract = either (Left . untxt) (Right . extract)
+            . Parse.parse_definition_file
+        note = f (map (second NonEmpty.head) . fst . Parse.def_note)
+            . ("note generator:\n"<>)
+    let sym = Literal . VSymbol
+    left_like (f id "x:\na = b\n") "unknown sections: x"
+    equal (note " --c\na = b\n\n") $
+        Right [("a", Call "b" [])]
+    equal (note "a = b\n --c\n\n c\nd = e\n  -- hi\n") $
+        Right [("a", Call "b" [sym "c"]), ("d", Call "e" [])]
+    equal (note "a = b\n c\n --comment\n\nd = e\n") $
+        Right [("a", Call "b" [sym "c"]), ("d", Call "e" [])]
+    left_like (note "a = b\nc\n") ""
+
+test_p_definition = do
+    let f = either (Left . untxt) Right
+            . ParseText.parse_lines 1 Parse.p_definition
+    equal (f "a =\n b\n c\n") $
+        Right ("a", Call "b" [Literal (VSymbol "c")] :| [])
+    left_like (f "a =\n b\nc = d\n") ""
+    equal (f "a = n +z\n") $
+        Right ("a", Call "n" [Literal (VAttributes (Score.attr "z"))] :| [])

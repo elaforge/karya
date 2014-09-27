@@ -15,15 +15,14 @@ module Derive.Parse (
     , Definitions(..), Definition
     , parse_definition_file
 #ifdef TESTING
-    , p_equal
-    , join_lines, split_sections
+    , p_equal, p_definition
+    , split_sections
 #endif
 ) where
 import Prelude hiding (lex)
 import qualified Control.Applicative as A (many)
 import qualified Data.Attoparsec.Text as A
 import Data.Attoparsec.Text ((<?>))
-import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -60,7 +59,7 @@ parse_val = ParseText.parse (lexeme p_val)
 
 -- | Parse attributes in the form +a+b.
 parse_attrs :: String -> Either String Score.Attributes
-parse_attrs = parse p_attrs . Text.pack
+parse_attrs = parse p_attributes . Text.pack
 
 -- | Parse a number or hex code, without a type suffix.
 parse_num :: Text -> Either String Signal.Y
@@ -200,7 +199,7 @@ p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
 p_val :: A.Parser TrackLang.Val
 p_val =
     TrackLang.VInstrument <$> p_instrument
-    <|> TrackLang.VAttributes <$> p_attrs
+    <|> TrackLang.VAttributes <$> p_attributes
     <|> TrackLang.VNum . Score.untyped <$> p_hex
     <|> TrackLang.VNum <$> p_num
     <|> TrackLang.VSymbol <$> p_string
@@ -264,8 +263,8 @@ p_single_string = do
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
-p_attrs :: A.Parser Score.Attributes
-p_attrs = A.char '+'
+p_attributes :: A.Parser Score.Attributes
+p_attributes = A.char '+'
     *> (Score.attrs <$> A.sepBy (p_identifier "+") (A.char '+'))
 
 p_control :: A.Parser TrackLang.ValControl
@@ -325,7 +324,7 @@ p_identifier :: String -> A.Parser Text
 p_identifier until = do
     -- TODO attoparsec docs say it's faster to do the check manually, profile
     -- and see if it makes a difference.
-    ident <- A.takeWhile1 (A.notInClass (until ++ " |=)"))
+    ident <- A.takeWhile1 (A.notInClass (until ++ " \n\t|=)"))
     -- This forces identifiers to be separated with spaces, except with | and
     -- =.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which I don't
     -- want to support.
@@ -362,7 +361,7 @@ p_null_word = A.takeWhile is_word_char
 -- it unless toplevel gives more more trouble.
 
 is_toplevel_word_char :: Char -> Bool
-is_toplevel_word_char c = c /= ' ' && c /= '='
+is_toplevel_word_char c = c /= ' ' && c /= '\t' && c /= '\n' && c /= '='
     && c /= ';' -- This is so the ; separator can appear anywhere.
 
 is_word_char :: Char -> Bool
@@ -371,12 +370,30 @@ is_word_char c = is_toplevel_word_char c && c /= ')' && c /= ']'
 lexeme :: A.Parser a -> A.Parser a
 lexeme p = p <* spaces
 
+-- | Skip spaces, including a newline as long as the next line, skipping empty
+-- lines, is indented.
 spaces :: A.Parser ()
 spaces = do
-    A.skipWhile (==' ')
+    spaces_to_eol
+    A.option () $ do
+        A.skip (=='\n')
+        A.skipMany empty_line
+        -- The next non-empty line has to be indented.
+        A.skip is_whitespace
+        A.skipWhile is_whitespace
+
+empty_line :: A.Parser ()
+empty_line = spaces_to_eol >> A.skip (=='\n')
+
+spaces_to_eol :: A.Parser ()
+spaces_to_eol = do
+    A.skipWhile is_whitespace
     comment <- A.option "" (A.string "--")
     unless (Text.null comment) $
-        A.skipWhile (const True)
+        A.skipWhile (\c -> c /= '\n')
+
+is_whitespace :: Char -> Bool
+is_whitespace c = c == ' ' || c == '\t'
 
 -- * definition file
 
@@ -415,7 +432,7 @@ type LineNumber = Int
 -}
 parse_definition_file :: Text -> Either Text Definitions
 parse_definition_file text = do
-    sections <- fmap join_lines <$> split_sections text
+    sections <- split_sections text
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList headers
     unless (null extra) $
@@ -439,31 +456,10 @@ parse_definition_file text = do
     transformer = "transformer"
     headers = val : [t1 <> " " <> t2 | t1 <- [note, control, pitch],
         t2 <- [generator, transformer]]
-    parse_section = concatMapM parse_line
-    parse_line (num, line) = case parse p_maybe_definition line of
-        Left err -> Left $ showt num <> ": " <> txt err
-        Right Nothing -> Right []
-        Right (Just val) -> Right [val]
-
-p_maybe_definition :: A.Parser (Maybe Definition)
-p_maybe_definition = (spaces >> A.endOfInput >> return Nothing)
-    <|> (Just <$> p_definition)
-
-p_definition :: A.Parser Definition
-p_definition = do
-    assignee <- p_call_symbol True
-    spaces
-    A.char '='
-    spaces
-    expr <- p_pipeline True
-    return (assignee, expr)
-
-join_lines :: [(LineNumber, Text)] -> [(LineNumber, Text)]
-join_lines = mapMaybe merge . Seq.split_with (not . indented . snd)
-    where
-    indented t = not (Text.null t) && Char.isSpace (Text.index t 0)
-    merge [] = Nothing
-    merge ((num, s) : lines) = Just (num, mconcat $ s : map snd lines)
+    parse_section [] = return []
+    parse_section ((lineno, line0) : lines) =
+        ParseText.parse_lines lineno p_section
+            (Text.unlines (line0 : map snd lines))
 
 split_sections :: Text -> Either Text (Map.Map Text [(LineNumber, Text)])
 split_sections =
@@ -477,3 +473,17 @@ split_sections =
         | is_header header = Right [(strip_header header, section)]
         | otherwise = Left $ showt (fst header)
             <> ": section without a header: " <> snd header
+
+p_section :: A.Parser [Definition]
+p_section =
+    A.skipMany empty_line *> A.many p_definition <* A.skipMany empty_line
+
+p_definition :: A.Parser Definition
+p_definition = do
+    assignee <- p_call_symbol True
+    spaces
+    A.skip (=='=')
+    spaces
+    expr <- p_pipeline True
+    A.skipMany empty_line
+    return (assignee, expr)
