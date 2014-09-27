@@ -317,7 +317,12 @@ type_error argnum name expected received =
 
 -- * control function
 
-data Distribution = Uniform | Normal | Bimodal
+data Distribution =
+    Uniform
+    -- | Approximate a bounded normal distribution.
+    | Normal
+    -- | This is like Normal, but rotated, so the peaks are at the extremities.
+    | Bimodal
     deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal Distribution where
     show_val = TrackLang.default_show_val

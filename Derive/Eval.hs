@@ -6,7 +6,7 @@
 -- | Evaluate tracklang expressions.
 module Derive.Eval (
     -- * eval / apply
-    eval_toplevel
+    eval_toplevel, eval_quoted
     -- ** generator
     , apply_generator
     -- ** transformer
@@ -58,6 +58,11 @@ eval_toplevel :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Expr
 eval_toplevel cinfo expr = eval_transformers True cinfo transform_calls $
     eval_generator cinfo generator_call
     where (transform_calls, generator_call) = Seq.ne_viewr expr
+
+eval_quoted :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Quoted
+    -> Derive.LogsDeriver d
+eval_quoted cinfo_ (TrackLang.Quoted expr) = eval_toplevel cinfo expr
+    where cinfo = cinfo_ { Derive.info_expr = ShowVal.show_val expr }
 
 -- ** generator
 

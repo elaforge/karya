@@ -9,11 +9,13 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
@@ -48,7 +50,10 @@ c_alternate :: Derive.Callable d => Derive.Generator d
 c_alternate = Derive.make_call Module.prelude "alternate" Tags.random
     "Pick one of several expressions and evaluate it."
     $ Sig.call (Sig.many1 "expr" "Expression to evaluate.") $
-    \exprs args -> Util.reapply_val args =<< Util.pick exprs
+    \exprs args -> do
+        let pairs = fmap (flip (,) 1) exprs
+        val <- pick_weighted pairs <$> Util.random
+        Eval.eval_quoted (Args.info args) val
 
 -- | Calls themselves are not first class, so this has to either take a string
 -- and evaluate it, or turn a Val back into a string to evaluate.  That works
@@ -57,7 +62,8 @@ c_alternate_weighted :: Derive.Callable d => Derive.Generator d
 c_alternate_weighted =
     Derive.make_call Module.prelude "alternate-weighted" Tags.random
     "Pick one of several expressions and evaluate it."
-    $ Sig.call (Sig.many1 "weight,expr" "(Num, Val) pair.") $
+    $ Sig.call (Sig.many1 "weight,expr"
+        "An even number of args in (Num, Val) pairs.") $
     \pairs args -> do
         pairs <- mapM (typecheck args)
             =<< Sig.paired_args (NonEmpty.toList pairs)
@@ -65,13 +71,17 @@ c_alternate_weighted =
             Nothing -> Derive.throw "empty list"
             Just pairs -> pick_weighted pairs =<< Util.random
     where
-    typecheck args (weight, val) = case TrackLang.from_val weight of
-        Just weight -> case val of
-            TrackLang.VPitch {} ->
-                Derive.throw "pitches should be passed as quoted strings"
-            _ -> return (Util.reapply_val args val, weight)
-        _ -> Derive.throw $
-            "expected (Num, Val), got " <> pretty (TrackLang.type_of weight)
+    typecheck args (weight, expr) = Derive.require_right untxt $ do
+        weight <- Sig.typecheck weight
+        quoted <- val_to_quoted expr
+        return (Eval.eval_quoted (Args.info args) quoted, weight)
+
+val_to_quoted :: TrackLang.Val -> Either Text TrackLang.Quoted
+val_to_quoted val = case val of
+    TrackLang.VPitch {} -> Left "pitches must be quoted"
+    TrackLang.VQuoted quoted -> Right quoted
+    _ -> Right $ TrackLang.Quoted $
+        TrackLang.call0 (TrackLang.Symbol (TrackLang.show_call_val val)) :| []
 
 c_alternate_tracks :: Derive.Generator Derive.Note
 c_alternate_tracks = Derive.make_call Module.prelude "alternate-tracks"
@@ -117,23 +127,24 @@ val_calls = Derive.call_map
 c_val_alternate :: Derive.ValCall
 c_val_alternate = Derive.val_call Module.prelude "alternate" Tags.random
     "Pick one of the arguments randomly."
-    $ Sig.call (Sig.many1 "val" "Value of any type.") $ \vals _ ->
-        Util.pick (vals :: NonEmpty TrackLang.Val)
+    $ Sig.call (Sig.many1 "val" "Value of any type.") $ \vals _ -> do
+        let pairs = fmap (flip (,) 1) (vals :: NonEmpty TrackLang.Val)
+        pick_weighted pairs <$> Util.random
 
 c_val_alternate_weighted :: Derive.ValCall
 c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
     Tags.random "Pick one of the arguments randomly."
-    $ Sig.call (Sig.many1 "weight,val" "(Num, Val) pair.") $ \pairs _ -> do
+    $ Sig.call (Sig.many1
+        "weight,val" "An even number of args in (Num, Val) pairs.") $
+    \pairs _ -> do
         pairs <- mapM typecheck =<< Sig.paired_args (NonEmpty.toList pairs)
         case NonEmpty.nonEmpty pairs of
             Nothing -> Derive.throw "not reached"
             Just pairs -> pick_weighted pairs <$> Util.random
     where
-    typecheck (weight, val) = case TrackLang.from_val weight of
-        Just weight -> case val of
-            _ -> return (val, weight)
-        _ -> Derive.throw $
-            "expected (Num, Val), got " <> pretty (TrackLang.type_of weight)
+    typecheck (weight, val) = Derive.require_right untxt $ do
+        weight <- Sig.typecheck weight
+        return (val, weight)
 
 c_range :: Derive.ValCall
 c_range = Derive.val_call Module.prelude "range" Tags.random

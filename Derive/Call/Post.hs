@@ -318,11 +318,3 @@ delayed_args (TrackLang.Symbol call) event
             == Just (Stack.Call call) =
         TrackLang.maybe_val Environ.args (Score.event_environ event)
     | otherwise = Nothing
-
--- | Typecheck a single Val.
-typecheck :: forall a. TrackLang.Typecheck a => TrackLang.Val -> Either Text a
-typecheck val = case TrackLang.from_val val of
-    Nothing -> Left $ "expected "
-        <> prettyt (TrackLang.to_type (Proxy :: Proxy a)) <> " but got "
-        <> prettyt (TrackLang.type_of val)
-    Just a -> Right a

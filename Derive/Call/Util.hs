@@ -13,9 +13,7 @@
 -}
 module Derive.Call.Util where
 import qualified Data.List as List
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import Util.Control
@@ -447,11 +445,6 @@ chance v
 shuffle :: [a] -> Derive.Deriver [a]
 shuffle xs = Random.shuffle xs <$> randoms
 
-pick :: NonEmpty a -> Derive.Deriver a
-pick xs = shuffle (NonEmpty.toList xs) >>= \x -> case x of
-    [] -> Derive.throw "Derive.Call.Util.pick expected non-null list"
-    x : _ -> return x
-
 _make_randoms :: (Pure64.PureMT -> (a, Pure64.PureMT)) -> Derive.Deriver [a]
 _make_randoms f = List.unfoldr (Just . f) <$> _random_generator
 
@@ -553,16 +546,3 @@ instance ShowVal.ShowVal Meter.RankName where
     show_val = TrackLang.default_show_val
 instance TrackLang.Typecheck Meter.RankName
 instance TrackLang.TypecheckSymbol Meter.RankName
-
-
--- * eval
-
--- | Calls themselves are not first class, so calls that want to take other
--- calls as arguments have to either take a stirng, and evaluate it, or turn
--- a Val back into a string to evaluate.  That works for most types, but not
--- for Pitch.
-reapply_val :: Derive.Callable d => Derive.PassedArgs d
-    -> TrackLang.Val -> Derive.LogsDeriver d
-reapply_val args val = case val of
-    TrackLang.VPitch p -> Derive.throw $ "can't evaluate pitch: " <> pretty p
-    _ -> Eval.reapply_string args $ TrackLang.show_call_val val

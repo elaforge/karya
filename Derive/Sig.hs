@@ -87,7 +87,7 @@ module Derive.Sig (
     Parser, Generator, Transformer
     , check
     -- * pseudo-parsers
-    , paired_args
+    , paired_args, typecheck
     -- * parsers
     , parsed_manually, no_args
     , required, required_env, defaulted, defaulted_env, defaulted_env_quoted
@@ -176,6 +176,14 @@ paired_args args = case args of
     (x : y : rest) -> ((x, y) :) <$> paired_args rest
     (_ : _) -> Derive.throw "expected an even number of arguments"
     [] -> return []
+
+-- | Typecheck a single Val.
+typecheck :: forall a. TrackLang.Typecheck a => TrackLang.Val -> Either Text a
+typecheck val = case TrackLang.from_val val of
+    Nothing -> Left $ "expected "
+        <> prettyt (TrackLang.to_type (Proxy :: Proxy a)) <> " but got "
+        <> prettyt (TrackLang.type_of val)
+    Just a -> Right a
 
 -- * parsers
 

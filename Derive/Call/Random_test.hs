@@ -35,16 +35,13 @@ test_alternate = do
             , ("s1=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
             , ("s2=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4d")])])
             ]
-    equal (run "alt s1 s2") (["4d", "4d", "4c", "4c", "4d", "4c"], [])
-    let (ps, logs) = run "alt 'bad (call' s2"
-    equal ps $ replicate 4 "4d"
-    strings_like logs $ replicate 2 "parse error"
+    equal (run "alt s1 s2") (["4c", "4c", "4c", "4c", "4d", "4c"], [])
 
 test_alternate_weighted = do
     let run s = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks ""
                 [(">", [(0, 1, "")]), ("c", [(0, 0, s)])]
-    strings_like (snd (run "alt-w a b")) ["expected (Num, Val)"]
+    strings_like (snd (run "alt-w a b")) ["expected Num"]
     equal (run "alt-w 1 '5'") ([[(0, 5)]], [])
     equal (run "alt-w 1 5") ([[(0, 5)]], [])
 
@@ -52,8 +49,7 @@ test_alternate_weighted = do
             DeriveTest.derive_tracks ""
                 [(">", [(0, 1, "")]), ("*", [(0, 0, s)])]
     equal (runp "alt-w 1 '4c'") ([(0, 1, "4c")], [])
-    strings_like (snd (runp "alt-w 1 (4c)"))
-        ["should be passed as quoted string"]
+    strings_like (snd (runp "alt-w 1 (4c)")) ["pitches must be quoted"]
 
 test_alternate_tracks = do
     let run tracks = DeriveTest.extract DeriveTest.e_attributes $
