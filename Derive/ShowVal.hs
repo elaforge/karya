@@ -27,8 +27,11 @@ hex_prefix = "`0x`"
 -- | VNums have hex and decimal literals, and show_val produces the decimal
 -- one.  So I need a way to produce the hex literal.
 show_hex_val :: Double -> Text
-show_hex_val n = hex_prefix <> if Text.length h == 1 then "0" <> h else h
-    where h = txt $ Numeric.showHex (round (n * 0xff)) ""
+show_hex_val n
+    | -1 <= n && n <= 1 = (if n < 0 then "-" else "") <> hex_prefix
+        <> if Text.length h == 1 then "0" <> h else h
+    | otherwise = show_val n
+    where h = txt $ Numeric.showHex (round (abs n * 0xff)) ""
 
 is_hex_val :: Text -> Bool
 is_hex_val = (hex_prefix `Text.isPrefixOf`)
