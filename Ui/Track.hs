@@ -14,6 +14,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 
 import qualified Derive.Score as Score
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Types
@@ -145,3 +146,8 @@ instance Pretty.Pretty TrackSignal where
 
 instance DeepSeq.NFData TrackSignal where
     rnf (TrackSignal sig _ _) = DeepSeq.rnf sig
+
+signal_at :: ScoreTime -> TrackSignal -> Signal.Y
+signal_at x (TrackSignal sig shift stretch) =
+    Signal.at (RealTime.score ((x - shift) / stretch)) sig
+

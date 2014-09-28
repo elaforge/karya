@@ -90,6 +90,10 @@ type SortKey = Int
 status_chord :: (SortKey, Text)
 status_chord = (7, "chord")
 
+-- | Control value, if this is a control track.
+status_control :: (SortKey, Text)
+status_control = (6, "c")
+
 -- | Selection start and range.  This goes at the end because it changes width
 -- a lot.
 status_selection :: (SortKey, Text)

@@ -21,7 +21,6 @@ import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
@@ -398,14 +397,16 @@ entry_events entry = case entry of
 type Ratio = Ratio.Rational
 
 -- | A hook for 'Cmd.hooks_selection'.
-chord_hook :: [(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()
+chord_hook :: [(ViewId, Maybe Cmd.TrackSelection)] -> Cmd.CmdId ()
 chord_hook = mapM_ (uncurry set_chord_status)
 
 -- | Show chord ratios at current selection.
 chord :: Cmd.CmdL Text
 chord = do
     (view_id, sel) <- Selection.get
-    show_chord <$> chord_at_sel view_id sel
+    block_id <- State.block_id_of view_id
+    maybe_track_id <- State.event_track_at block_id (Selection.point_track sel)
+    show_chord <$> chord_at block_id maybe_track_id (Selection.point sel)
 
 show_chord :: [(Pitch.NoteNumber, Pitch.Note, Ratio)] -> Text
 show_chord = Text.intercalate ", " . map pretty
@@ -423,22 +424,22 @@ show_ratio = go 0
     pretty ratio =
         showt (Ratio.numerator ratio) <> "/" <> showt (Ratio.denominator ratio)
 
-set_chord_status :: Cmd.M m => ViewId -> Maybe Types.Selection -> m ()
+set_chord_status :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
 set_chord_status view_id maybe_sel = case maybe_sel of
     Nothing -> set Nothing
-    Just sel -> set . Just . show_chord =<< chord_at_sel view_id sel
+    Just (sel, block_id, maybe_track_id) ->
+        set . Just . show_chord
+            =<< chord_at block_id maybe_track_id (Selection.point sel)
     where set = Cmd.set_view_status view_id Config.status_chord
 
 -- | Show the ratios of the frequencies of the notes at the time of the current
 -- selection.  They are sorted by their track-order, and the track with the
 -- selection is considered unity.
-chord_at_sel :: Cmd.M m => ViewId -> Types.Selection
+chord_at :: Cmd.M m => BlockId -> Maybe TrackId -> ScoreTime
     -> m [(Pitch.NoteNumber, Pitch.Note, Ratio)]
-chord_at_sel view_id sel = do
-    block_id <- State.block_id_of view_id
-    maybe_track_id <- State.event_track_at block_id (Selection.point_track sel)
+chord_at block_id maybe_track_id pos = do
     perf <- Perf.get_root
-    pos <- Perf.get_realtime perf block_id maybe_track_id (Selection.point sel)
+    pos <- Perf.get_realtime perf block_id maybe_track_id pos
     events <- PlayUtil.overlapping_events pos . Cmd.perf_events <$> get block_id
     events <- sort_by_track block_id events
     let selected = do

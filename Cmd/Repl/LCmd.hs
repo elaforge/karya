@@ -7,11 +7,8 @@
 module Cmd.Repl.LCmd where
 import Util.Control
 import qualified Midi.Midi as Midi
-import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Internal as Internal
 import qualified Cmd.TimeStep as TimeStep
-
 import qualified Perform.RealTime as RealTime
 import Types
 
@@ -71,10 +68,7 @@ unset_sync = Cmd.modify_play_state $ \st -> st { Cmd.state_sync = Nothing }
 
 -- * hooks
 
-realtime_selection :: [(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()
-realtime_selection = mapM_ (uncurry Internal.realtime_selection)
-
-add_selection_hook :: ([(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ())
+add_selection_hook :: ([(ViewId, Maybe Cmd.TrackSelection)] -> Cmd.CmdId ())
     -> Cmd.CmdL ()
 add_selection_hook hook = Cmd.modify $ \st -> st
     { Cmd.state_hooks = (Cmd.state_hooks st)

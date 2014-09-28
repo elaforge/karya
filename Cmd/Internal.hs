@@ -11,6 +11,7 @@ import qualified Data.Ratio as Ratio
 import Data.Ratio ((%))
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Vector.Storable as Vector
 
 import Util.Control
 import qualified Util.Log as Log
@@ -44,6 +45,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Types
 
@@ -274,7 +276,7 @@ sync_status ui_from cmd_from = do
 
     when (State.state_config ui_from /= State.state_config ui_to) $
         sync_ui_config (State.state_config ui_to)
-    selection_hooks (mapMaybe selection_update updates)
+    run_selection_hooks (mapMaybe selection_update updates)
     forM_ (new_views ++ mapMaybe zoom_update updates) sync_zoom_status
     return Cmd.Continue
     where
@@ -293,17 +295,26 @@ view_updates ui_from ui_to = fst $ Diff.run $
 
 -- ** hooks
 
-default_selection_hooks :: [[(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()]
+default_selection_hooks ::
+    [[(ViewId, Maybe Cmd.TrackSelection)] -> Cmd.CmdId ()]
 default_selection_hooks =
-    [ mapM_ (uncurry sync_selection)
-    , mapM_ (uncurry realtime_selection)
+    [ mapM_ (uncurry sync_selection_status)
+    , mapM_ (uncurry sync_selection_realtime)
+    , mapM_ (uncurry sync_selection_control)
     ]
 
-selection_hooks :: [(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()
-selection_hooks [] = return ()
-selection_hooks sels = do
+run_selection_hooks :: [(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()
+run_selection_hooks [] = return ()
+run_selection_hooks sels = do
+    sel_tracks <- forM sels $ \(view_id, maybe_sel) -> case maybe_sel of
+        Nothing -> return (view_id, Nothing)
+        Just sel -> do
+            block_id <- State.block_id_of view_id
+            maybe_track_id <- State.event_track_at block_id
+                (Selection.point_track sel)
+            return (view_id, Just (sel, block_id, maybe_track_id))
     hooks <- Cmd.gets (Cmd.hooks_selection . Cmd.state_hooks)
-    mapM_ ($ sels) hooks
+    mapM_ ($ sel_tracks) hooks
 
 
 -- ** sync
@@ -388,16 +399,14 @@ sync_zoom_status _view_id = return ()
 
 -- * selection
 
-sync_selection :: Cmd.M m => ViewId -> Maybe Types.Selection -> m ()
-sync_selection view_id maybe_sel = do
+sync_selection_status :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
+sync_selection_status view_id maybe_sel = do
     let set = Cmd.set_view_status view_id Config.status_selection
     case maybe_sel of
         Nothing -> set Nothing
-        Just sel -> do
-            block_id <- State.block_id_of view_id
+        Just (sel, block_id, maybe_track_id) -> do
             ns <- State.get_namespace
-            tid <- State.event_track_at block_id (Types.sel_cur_track sel)
-            set $ Just (selection_status ns sel tid)
+            set $ Just (selection_status ns sel maybe_track_id)
             Info.set_inst_status block_id (Types.sel_cur_track sel)
 
 selection_status :: Id.Namespace -> Types.Selection -> Maybe TrackId -> Text
@@ -411,20 +420,16 @@ selection_status ns sel maybe_track_id =
     (start, end) = Types.sel_range sel
     (tstart, tend) = Types.sel_track_range sel
 
-realtime_selection :: Cmd.M m => ViewId -> Maybe Types.Selection -> m ()
-realtime_selection view_id maybe_sel = case maybe_sel of
+sync_selection_realtime :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
+sync_selection_realtime view_id maybe_sel = case maybe_sel of
     Nothing -> set Nothing
-    Just sel -> whenJustM (realtime_at_selection view_id sel) $
-        set . Just . RealTime.show_units
-    where set = Cmd.set_view_status view_id Config.status_realtime
-
-realtime_at_selection :: Cmd.M m => ViewId -> Types.Selection
-    -> m (Maybe RealTime)
-realtime_at_selection view_id sel = do
-    block_id <- State.block_id_of view_id
-    track_id <- State.event_track_at block_id (Selection.point_track sel)
-    justm Perf.lookup_root $ \perf ->
-        Perf.lookup_realtime perf block_id track_id (Selection.point sel)
+    Just (sel, block_id, maybe_track_id) ->
+        whenJustM (get block_id maybe_track_id sel) $
+            set . Just . RealTime.show_units
+    where
+    set = Cmd.set_view_status view_id Config.status_realtime
+    get block_id maybe_track_id sel = justm Perf.lookup_root $ \perf ->
+        Perf.lookup_realtime perf block_id maybe_track_id (Selection.point sel)
 
 -- | If a ScoreTime looks like a low fraction, display it thus, rather than as
 -- a decimal.  This is useful because e.g. meters in three will have lots of
@@ -448,3 +453,34 @@ pretty_rational d
         , (1 % 6, "⅙"), (5 % 6, "⅚")
         , (1 % 8, "⅛"), (3 % 8, "⅜"), (5 % 8, "⅝"), (7 % 8, "⅞")
         ]
+
+-- ** selection control value
+
+sync_selection_control :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
+sync_selection_control view_id (Just (sel, block_id, Just track_id)) = do
+    status <- track_control block_id track_id (Selection.point sel)
+    Cmd.set_view_status view_id Config.status_control $
+        Just (fromMaybe "" status)
+sync_selection_control view_id _ = do
+    Cmd.set_view_status view_id Config.status_control (Just "")
+
+-- | This uses 'Cmd.perf_track_signals' rather than 'Cmd.perf_track_dynamic'
+-- because track dynamics have the callers controls on a control track
+track_control :: Cmd.M m => BlockId -> TrackId -> ScoreTime -> m (Maybe Text)
+track_control block_id track_id pos =
+    justm (parse_title <$> State.get_track_title track_id) $ \ctype ->
+    case ctype of
+        ParseTitle.Pitch {} -> return Nothing
+        _ -> justm (Cmd.lookup_performance block_id) $ \perf -> return $ do
+            tsig <- Map.lookup (block_id, track_id)
+                (Cmd.perf_track_signals perf)
+            return $ show_val ctype (Track.ts_signal tsig) $
+                Track.signal_at pos tsig
+    where
+    parse_title = either (const Nothing) Just . ParseTitle.parse_control
+    show_val ctype sig = case ctype of
+        ParseTitle.Tempo {} -> ShowVal.show_val
+        _
+            | Vector.any ((\y -> y < -1 || y > 1) . Signal.sy)
+                (Signal.sig_vec sig) -> ShowVal.show_val
+            | otherwise -> ShowVal.show_hex_val

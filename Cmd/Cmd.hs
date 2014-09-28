@@ -567,8 +567,12 @@ instance Pretty.Pretty SyncConfig where
 -- | Hooks are Cmds that run after some event.
 data Hooks = Hooks {
     -- | Run when the selection changes.
-    hooks_selection :: [[(ViewId, Maybe Types.Selection)] -> CmdId ()]
+    hooks_selection :: [[(ViewId, Maybe TrackSelection)] -> CmdId ()]
     }
+
+-- | Just a 'Types.Selection' annotated with its BlockId and TrackId.  There's
+-- no deep reason for it, it just saves a bit of work for selection hooks.
+type TrackSelection = (Types.Selection, BlockId, Maybe TrackId)
 
 instance Show Hooks where
     show (Hooks sel) = "((Hooks " ++ show (length sel) ++ "))"
