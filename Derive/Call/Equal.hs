@@ -277,7 +277,7 @@ quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
 
 quoted_cinfo :: Derive.PassedArgs d -> TrackLang.Quoted -> Derive.CallInfo d
 quoted_cinfo args (TrackLang.Quoted expr) = (Derive.passed_info args)
-    { Derive.info_expr = ShowVal.show_val expr }
+    { Derive.info_expr = Just expr }
 
 -- | Pseudo-module for val calls generated from a quoted expression.
 quoted_module :: Module.Module

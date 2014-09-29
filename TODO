@@ -3,13 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - clean up the Derive.info_expr situation.  Many of the calls in Eval are
+  + clean up the Derive.info_expr situation.  Many of the calls in Eval are
     dangerous because they take CallInfo but don't set it.
     . If I want to change it to parsed, then I need to let Slice.InsertEvent
       take an Expr, which means an Either for TrackTree.track_events
     . The alternative is to use ShowVal, which isn't so bad, because most of
       the vals I care about can be shown.
-  - It would be useful to have some way to see the current control value on
+    . Or I could make the inserted track not actually a track, but directly
+      a derive event.
+    - move info_expr to PassedArgs, that way it can't be retained
+      accidentally
+  * It would be useful to have some way to see the current control value on
     control tracks.  Status bar?
   - floating edit input is overwritten when track signals update
   * defs file doesn't continue a line if it has a comment

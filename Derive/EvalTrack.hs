@@ -107,6 +107,7 @@ import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -131,6 +132,7 @@ instance Pretty.Pretty TrackInfo where
 type GetLastVal d = [d] -> Maybe d
 
 type DeriveResult d = ([[LEvent.LEvent d]], Derive.Threaded, Derive.Collect)
+-- | TODO YES AND?
 type DeriveEmpty d = TrackInfo -> Maybe Event.Event -> Maybe Event.Event
     -> Maybe (Derive.LogsDeriver d) -> Maybe (Derive.LogsDeriver d)
 
@@ -167,13 +169,31 @@ derive_track :: forall d. Derive.Callable d =>
     DeriveEmpty d -> Derive.State -> TrackInfo -> GetLastVal d
     -> DeriveResult d
 derive_track derive_empty initial_state tinfo get_last_val =
-    track_end $ List.mapAccumL event1 accum_state $ Seq.zipper [] $
-        Events.ascending $ TrackTree.track_events track
+    track_end $ case TrackTree.track_parsed_event track of
+        Just expr | Just event <- Events.head (TrackTree.track_events track) ->
+            derive_expr event expr
+        _ -> List.mapAccumL derive1 accum_state $ Seq.zipper [] $
+            Events.ascending $ TrackTree.track_events track
     where
     accum_state = (record_track_dynamic track initial_state, val, val)
         where val = lookup_prev_val track initial_state
     track = tinfo_track tinfo
-    event1 (prev_state, prev_val, prev_save_val) (prev_events, cur_events) =
+
+    -- docs
+    derive_expr :: Event.Event -> TrackLang.Expr
+        -> ((Derive.State, Maybe d, Maybe d), [[LEvent.LEvent d]])
+    derive_expr event expr = ((state, next_val, next_val), [levents])
+        where
+        (prev_state, prev_val, _) = accum_state
+        (levents, state) = run_derive prev_state $
+            derive_event tinfo prev_val [] event (Just expr) []
+        next_val = get_next_val prev_val levents
+
+    -- docs, and split to toplevel?
+    derive1 :: (Derive.State, Maybe d, Maybe d) ->
+        ([Event.Event], [Event.Event])
+        -> ((Derive.State, Maybe d, Maybe d), [LEvent.LEvent d])
+    derive1 (prev_state, prev_val, prev_save_val) (prev_events, cur_events) =
         ((state, next_val, save_val), levents)
         where
         (levents, state) = maybe ([], prev_state) (run_derive prev_state) $
@@ -183,10 +203,11 @@ derive_track derive_empty initial_state tinfo get_last_val =
                 [] -> derive_empty tinfo (Seq.head prev_events) Nothing d_event
         d_event = case cur_events of
             event : next_events ->
-                Just $ derive_event tinfo prev_val prev_events event next_events
+                Just $ derive_event tinfo prev_val prev_events event Nothing
+                    next_events
             [] -> Nothing
         save_val = if should_save_val then next_val else prev_save_val
-        next_val = mplus (get_last_val (LEvent.events_of levents)) prev_val
+        next_val = get_next_val prev_val levents
         -- Only save a prev val if the event won't be derived again, e.g.
         -- there's a future event <= the start of the next slice.  But this
         -- only applies to control tracks!
@@ -199,6 +220,8 @@ derive_track derive_empty initial_state tinfo get_last_val =
     track_end ((state, _, save_val), result) =
         (result, stash_prev_val track save_val $ Derive.state_threaded state,
             Derive.state_collect state)
+    get_next_val prev_val levents =
+        mplus (get_last_val (LEvent.events_of levents)) prev_val
 
 lookup_prev_val :: Derive.Taggable a => TrackTree.Track -> Derive.State
     -> Maybe a
@@ -300,19 +323,23 @@ is_linear_warp warp
 derive_event :: Derive.Callable d => TrackInfo -> Maybe d
     -> [Event.Event] -- ^ previous events, in reverse order
     -> Event.Event -- ^ cur event
+    -> Maybe TrackLang.Expr
     -> [Event.Event] -- ^ following events
     -> Derive.LogsDeriver d
-derive_event tinfo prev_val prev event next
+derive_event tinfo prev_val prev event maybe_expr next
+    | Just expr <- maybe_expr =
+        Internal.with_stack_region (Event.min event + shifted)
+            (Event.max event + shifted) $ Eval.eval_toplevel (cinfo expr) expr
     | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return []
     | otherwise = case Parse.parse_expr text of
         Left err -> Log.warn (txt err) >> return []
         Right expr -> Internal.with_stack_region (Event.min event + shifted)
-            (Event.max event + shifted) $ Eval.eval_toplevel cinfo expr
+            (Event.max event + shifted) $ Eval.eval_toplevel (cinfo expr) expr
     where
     shifted = TrackTree.track_shifted track
     text = Event.event_text event
-    cinfo = Derive.CallInfo
-        { Derive.info_expr = text
+    cinfo expr = Derive.CallInfo
+        { Derive.info_expr = Just expr
         , Derive.info_prev_val = prev_val
         , Derive.info_event = event
         -- Augment prev and next with the unevaluated "around" notes from

@@ -51,7 +51,6 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -395,10 +394,7 @@ make_generator (TrackLang.Symbol name) expr =
         call_id (Derive.passed_vals args)
         (Derive.info_expr (Derive.passed_info args))
     generator args = Eval.eval_toplevel cinfo expr
-        where
-        cinfo = (Derive.passed_info args)
-            { Derive.info_expr = ShowVal.show_val expr }
-            -- This should be safe since it came from parsed input.
+        where cinfo = (Derive.passed_info args) { Derive.info_expr = Just expr }
 
 make_transformer :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Expr
     -> Derive.Transformer d
@@ -411,9 +407,7 @@ make_transformer (TrackLang.Symbol name) expr =
     where
     transformer args deriver =
         Eval.eval_transformers True cinfo (NonEmpty.toList expr) deriver
-        where
-        cinfo = (Derive.passed_info args)
-            { Derive.info_expr = ShowVal.show_val expr }
+        where cinfo = (Derive.passed_info args) { Derive.info_expr = Just expr }
     reapply call_id args deriver =
         Eval.apply_transformer (Derive.passed_info args) call_id
             (Derive.passed_vals args) deriver

@@ -62,7 +62,7 @@ eval_toplevel cinfo expr = eval_transformers True cinfo transform_calls $
 eval_quoted :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Quoted
     -> Derive.LogsDeriver d
 eval_quoted cinfo_ (TrackLang.Quoted expr) = eval_toplevel cinfo expr
-    where cinfo = cinfo_ { Derive.info_expr = ShowVal.show_val expr }
+    where cinfo = cinfo_ { Derive.info_expr = Just expr }
 
 -- ** generator
 
@@ -83,12 +83,9 @@ eval_generator cinfo (TrackLang.Call call_id args) = do
 -- is probably wrong.  Unfortunately, I can't "unparse" a call_id and args back
 -- to an expr, because pitches are code and can't necessarily be returned to
 -- the expression from whence they sprang.
---
--- The reason @info_expr@ is unparsed text is also thanks to pitch signal
--- expressions.  Maybe I should get rid of them?  TODO they're gone, but
--- info_expr remains.
 apply_generator :: Derive.Callable d => Derive.CallInfo d
-    -> TrackLang.CallId -> [TrackLang.Val] -> Event.Text -> Derive.LogsDeriver d
+    -> TrackLang.CallId -> [TrackLang.Val] -> Maybe TrackLang.Expr
+    -> Derive.LogsDeriver d
 apply_generator cinfo call_id args expr = do
     call <- get_generator call_id
     let passed = Derive.PassedArgs
@@ -277,12 +274,8 @@ reapply_generator :: Derive.Callable d => Derive.PassedArgs d
     -> TrackLang.CallId -> Derive.LogsDeriver d
 reapply_generator args call_id = do
     let cinfo = Derive.passed_info args
-    -- As documented in 'apply_generator', I need the expr that
-    -- (call_id, passed_vals) corresponds to.  Since I'm reusing an existing
-    -- call, it's probably safe to reuse its expr, swapping out the call_id.
-    expr <- Derive.require_right
-        ("reapply_generator: unparseable info_expr: "<>) $
-        replace_generator call_id (Derive.info_expr cinfo)
+    let expr = TrackLang.map_generator (const call_id) <$>
+            Derive.info_expr cinfo
     apply_generator cinfo call_id (Derive.passed_vals args) expr
 
 -- | Like 'reapply_generator', but the note is given normalized time, 0--1,
@@ -300,11 +293,6 @@ reapply_generator_normalized args = reapply_generator $ args
         }
     }
     where cinfo = Derive.passed_info args
-
-replace_generator :: TrackLang.CallId -> Event.Text -> Either String Event.Text
-replace_generator call_id = fmap replace . Parse.parse_expr
-    where
-    replace = ShowVal.show_val . TrackLang.map_generator (const call_id)
 
 -- | Apply an expr with the current call info.  This discards the parsed
 -- arguments in the 'Derive.PassedArgs' since it gets args from the

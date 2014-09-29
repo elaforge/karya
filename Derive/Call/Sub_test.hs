@@ -15,6 +15,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Parse as Parse
 import qualified Derive.Slice_test as Slice_test
 
 import qualified Perform.NN as NN
@@ -110,7 +111,7 @@ mkargs text subs = Derive.PassedArgs [] "call" info
     where
     event = Event.event 0 1 text
     info = Derive.CallInfo
-        { Derive.info_expr = Event.event_text event
+        { Derive.info_expr = Just $ either error id $ Parse.parse_expr text
         , Derive.info_prev_val = Nothing
         , Derive.info_event = event
         , Derive.info_prev_events = prev

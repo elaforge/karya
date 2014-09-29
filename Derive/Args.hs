@@ -41,12 +41,12 @@ prev_val = Derive.info_prev_val . info
 -- | Unused, but might be used again if I need to evaluate the next event.
 eval :: Derive.Callable d => CallInfo x -> Event.Event
     -> [Event.Event] -> Derive.LogsDeriver d
-eval cinfo event prev = case Parse.parse_expr text of
+eval cinfo event prev = case Parse.parse_expr (Event.event_text event) of
     Left err -> Derive.throw $ "parse error: " ++ err
     Right expr -> Eval.eval_expr False prev_cinfo expr
         where
         prev_cinfo = cinfo
-            { Derive.info_expr = text
+            { Derive.info_expr = Nothing
             , Derive.info_prev_val = Nothing
             , Derive.info_event = event
             , Derive.info_prev_events = prev
@@ -54,7 +54,6 @@ eval cinfo event prev = case Parse.parse_expr text of
                 Derive.info_event cinfo : Derive.info_next_events cinfo
             , Derive.info_event_end = Event.start $ Derive.info_event cinfo
             }
-    where text = Event.event_text event
 
 -- * event timing
 

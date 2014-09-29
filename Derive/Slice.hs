@@ -50,14 +50,17 @@ import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.ShowVal as ShowVal
+
 import Types
 
 
 -- | Ask 'slice' to synthesize a note track and insert it at the leaves of
 -- the sliced tree.
 data InsertEvent = InsertEvent {
-    ins_text :: !Text
+    ins_expr :: !BaseTypes.Expr
     , ins_duration :: !ScoreTime
     , ins_around :: !([Event.Event], [Event.Event])
     -- | The TrackId for the track created for this event.  This is required
@@ -99,15 +102,15 @@ slice exclude_start start end insert_event = map do_slice
     -- The synthesized bottom track.  Since slicing only happens within
     -- a block, I assume the BlockId is the same as the parent.  I need
     -- a BlockId to look up the previous val in 'Derive.Threaded'.
-    make shift block_id (InsertEvent text dur around track_id) = TrackTree.Track
+    make shift block_id (InsertEvent expr dur around track_id) = TrackTree.Track
         { TrackTree.track_title = ">"
         , TrackTree.track_events =
-            Events.singleton (Event.event start dur text)
+            Events.singleton (Event.event start dur (ShowVal.show_val expr))
+        , TrackTree.track_parsed_event = Just expr
         , TrackTree.track_id = track_id
         , TrackTree.track_block_id = block_id
         , TrackTree.track_end = end
         , TrackTree.track_sliced = True
-        , TrackTree.track_inverted = True
         , TrackTree.track_around = around
         -- Since a note may be inverted and inserted after 'slice_notes'
         -- and its shifting, I have to get the shift from the parent track.

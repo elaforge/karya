@@ -988,7 +988,7 @@ instance Pretty.Pretty val => Pretty.Pretty (PassedArgs val) where
 data CallInfo val = CallInfo {
     -- | The expression currently being evaluated.  Why I need this is
     -- documented in 'Derive.Call.Sub.invert_call'.
-    info_expr :: !Text
+    info_expr :: !(Maybe TrackLang.Expr)
 
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but
@@ -1071,7 +1071,7 @@ coerce_call_info cinfo = cinfo { info_prev_val = Nothing }
 -- neither to generators for that matter.
 dummy_call_info :: ScoreTime -> ScoreTime -> Text -> CallInfo a
 dummy_call_info start dur text = CallInfo
-    { info_expr = ""
+    { info_expr = Nothing
     , info_inverted = False
     , info_prev_val = Nothing
     , info_event = Event.event start dur s
