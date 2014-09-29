@@ -52,8 +52,6 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.ShowVal as ShowVal
-
 import Types
 
 
@@ -104,9 +102,7 @@ slice exclude_start start end insert_event = map do_slice
     -- a BlockId to look up the previous val in 'Derive.Threaded'.
     make shift block_id (InsertEvent expr dur around track_id) = TrackTree.Track
         { TrackTree.track_title = ">"
-        , TrackTree.track_events =
-            Events.singleton (Event.event start dur (ShowVal.show_val expr))
-        , TrackTree.track_parsed_event = Just expr
+        , TrackTree.track_events_or_parsed = TrackTree.Parsed start dur expr
         , TrackTree.track_id = track_id
         , TrackTree.track_block_id = block_id
         , TrackTree.track_end = end
@@ -118,7 +114,7 @@ slice exclude_start start end insert_event = map do_slice
         , TrackTree.track_voice = Nothing
         }
     slice_t track = track
-        { TrackTree.track_events = within
+        { TrackTree.track_events_or_parsed = TrackTree.Events within
         , TrackTree.track_end = end
         , TrackTree.track_sliced = True
         , TrackTree.track_around = (before, after)
@@ -204,7 +200,7 @@ slice_notes exclude_start start end tracks
             Nothing -> False
             Just (s, e, _) -> s == e && s == n_start
     shift_tree shift next track = track
-        { TrackTree.track_events =
+        { TrackTree.track_events_or_parsed = TrackTree.Events $
             Events.map_events move (TrackTree.track_events track)
         , TrackTree.track_end = next - shift
         , TrackTree.track_around =

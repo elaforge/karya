@@ -5,7 +5,6 @@
 module Ui.TrackTree where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
@@ -25,6 +24,7 @@ import qualified Ui.Track as Track
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 
 import Types
 
@@ -119,15 +119,7 @@ data Track = Track {
     track_title :: !Text
     -- | Events on this track.  These are shifted by
     -- 'Derive.Slice.slice_notes', so they are in ScoreTime, not TrackTime.
-    , track_events :: !Events.Events
-    -- | If this is set, then this track was created as the result of
-    -- inversion.  In that case, there is a single event and its parsed text
-    -- is here.  This is because once you parse an expression you can't unparse
-    -- it for all types.  So even though Expr has a ShowVal, it doesn't
-    -- generate literals for all types.
-    --
-    -- TODO should be combined with track_events
-    , track_parsed_event :: !(Maybe BaseTypes.Expr)
+    , track_events_or_parsed :: !EventsOrParsed
     -- | This goes into the stack when the track is evaluated.  Inverted tracks
     -- will carry the TrackId of the track they were inverted from, so they'll
     -- show up in the stack twice.  This means they can record their environ
@@ -161,19 +153,45 @@ data Track = Track {
     , track_voice :: !(Maybe Int)
     } deriving (Show)
 
+-- | A track can have either a set of events, or a single event that has
+-- already been parsed.  If it's parsed, then this track was created as the
+-- result of inversion, via 'Slice.slice'.  This is a hack so inversion can
+-- re-evaluate an expression after inversion.  It's necessary because sometimes
+-- evaluation happens after parsing when the original expression is no longer
+-- available, for instance if it was 'BaseTypes.Quoted'.
+--
+-- Previously I used ShowVal and re-parsed the expression, but some Vals have
+-- no literal form, so this would create an invalid expression.
+data EventsOrParsed = Events !Events.Events
+    | Parsed !TrackTime !TrackTime !BaseTypes.Expr
+    deriving (Show)
+
 track_range :: Track -> (TrackTime, TrackTime)
 track_range track = (track_shifted track, track_shifted track + track_end track)
 
 track_inverted :: Track -> Bool
-track_inverted = Maybe.isJust . track_parsed_event
+track_inverted track = case track_events_or_parsed track of
+    Events {} -> False
+    Parsed {} -> True
+
+track_events :: Track -> Events.Events
+track_events = to_events . track_events_or_parsed
+
+to_events :: EventsOrParsed -> Events.Events
+to_events (Events events) = events
+to_events (Parsed start dur expr) =
+    Events.singleton $ Event.event start dur (ShowVal.show_val expr)
+
+instance Pretty.Pretty EventsOrParsed where
+    format (Events events) = Pretty.format events
+    format e@(Parsed {}) = "Parsed" Pretty.<+> Pretty.format (to_events e)
 
 instance Pretty.Pretty Track where
-    format (Track title events parsed_event track_id block_id end sliced
-            around shifted voice) =
+    format (Track title events track_id block_id end sliced around shifted
+            voice) =
         Pretty.record "Track"
             [ ("title", Pretty.format title)
             , ("events", Pretty.format events)
-            , ("parsed event", Pretty.format parsed_event)
             , ("track_id", Pretty.format track_id)
             , ("block_id", Pretty.format block_id)
             , ("end", Pretty.format end)
@@ -186,8 +204,7 @@ instance Pretty.Pretty Track where
 make_track :: Text -> Events.Events -> ScoreTime -> Track
 make_track title events end = Track
     { track_title = title
-    , track_events = events
-    , track_parsed_event = Nothing
+    , track_events_or_parsed = Events events
     , track_id = Nothing
     , track_block_id = Nothing
     , track_end = end

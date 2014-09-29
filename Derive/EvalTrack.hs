@@ -106,6 +106,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Slice as Slice
 import qualified Derive.TrackLang as TrackLang
 
@@ -181,13 +182,14 @@ derive_note_track derive_tracks = derive_track derive_empty
 derive_track :: forall d. Derive.Callable d =>
     DeriveEmpty d -> Derive.State -> TrackInfo d -> DeriveResult d
 derive_track derive_empty initial_state tinfo =
-    track_end $ case TrackTree.track_parsed_event track of
-        Just expr | Just event <- Events.head (TrackTree.track_events track) ->
-            derive_expr tinfo state1 val event expr
+    track_end $ case TrackTree.track_events_or_parsed track of
+        TrackTree.Events events ->
+            List.mapAccumL (derive_event_stream derive_empty tinfo)
+                accum_state $ Seq.zipper [] $ Events.ascending events
+        TrackTree.Parsed start dur expr ->
+            derive_expr tinfo state1 val
+                (Event.event start dur (ShowVal.show_val expr)) expr
             where (state1, val, _) = accum_state
-        _ -> List.mapAccumL (derive_event_stream derive_empty tinfo)
-            accum_state $ Seq.zipper [] $
-                Events.ascending $ TrackTree.track_events track
     where
     accum_state = (record_track_dynamic track initial_state, val, val)
         where val = lookup_prev_val track initial_state
