@@ -290,8 +290,8 @@ derive_track :: (Monoid.Monoid d, Derive.Callable d) => TrackTree.Track
 derive_track track track_type get_last_val transform = do
     stream <- transform $ do
         state <- Derive.get
-        let (stream, threaded, collect) = EvalTrack.derive_control_track state
-                tinfo get_last_val
+        let (stream, threaded, collect) =
+                EvalTrack.derive_control_track state tinfo
         Internal.merge_collect collect
         Internal.set_threaded threaded
         return $ compact (concat stream)
@@ -304,6 +304,7 @@ derive_track track track_type get_last_val transform = do
         { EvalTrack.tinfo_track = track
         , EvalTrack.tinfo_sub_tracks = []
         , EvalTrack.tinfo_type = track_type
+        , EvalTrack.tinfo_get_last_val = get_last_val
         }
     -- Merge the signal here so it goes in the cache as one signal event.
     -- I can use concat instead of merge_asc_events because the signals

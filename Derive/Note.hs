@@ -13,6 +13,7 @@ import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import Util.Control
+import qualified Util.Seq as Seq
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Control as Control
@@ -87,7 +88,7 @@ with_title subs end title deriver
         { Derive.info_sub_tracks = subs }
 
 derive_notes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
-    -> EvalTrack.TrackInfo -> Derive.NoteDeriver
+    -> EvalTrack.TrackInfo Score.Event -> Derive.NoteDeriver
 derive_notes derive_tracks tinfo = do
     state <- Derive.get
     let (event_groups, threaded, collect) =
@@ -96,9 +97,11 @@ derive_notes derive_tracks tinfo = do
     Internal.set_threaded threaded
     return $ Derive.merge_asc_events event_groups
 
-track_info :: TrackTree.Track -> [TrackTree.EventsNode] -> EvalTrack.TrackInfo
+track_info :: TrackTree.Track -> [TrackTree.EventsNode]
+    -> EvalTrack.TrackInfo Score.Event
 track_info track subs = EvalTrack.TrackInfo
     { EvalTrack.tinfo_track = track
     , EvalTrack.tinfo_sub_tracks = subs
     , EvalTrack.tinfo_type = ParseTitle.NoteTrack
+    , EvalTrack.tinfo_get_last_val = Seq.last
     }
