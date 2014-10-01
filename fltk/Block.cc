@@ -539,6 +539,8 @@ void
 BlockView::set_track_signal(int tracknum, const TrackSignal &tsig)
 {
     this->track_at(tracknum)->set_track_signal(tsig);
+    // There may be a floating input box that needs to be redrawn.
+    this->track_tile.redraw();
 }
 
 

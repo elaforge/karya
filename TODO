@@ -11,11 +11,11 @@ UNSORTED
       the vals I care about can be shown.
     . Or I could make the inserted track not actually a track, but directly
       a derive event.
-    - move info_expr to PassedArgs, that way it can't be retained
+    / move info_expr to PassedArgs, that way it can't be retained
       accidentally
   * It would be useful to have some way to see the current control value on
     control tracks.  Status bar?
-  - floating edit input is overwritten when track signals update
+  * floating edit input is overwritten when track signals update
   * defs file doesn't continue a line if it has a comment
     . It's harder than I thought... I can't just strip comments because one
       might be in a string.  But I can't just modify the parser because now
@@ -125,6 +125,10 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
+    - pedal (control out of callee range) doesn't work when there is a tempo
+      change, e.g. in @intro
+    - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
+      fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
     - Automatically fill in weak notes?
     - Weak notes are either omitted, +muted soft, +mute normal, half mute, or
       open soft.  I can have a %strength signal that indicates how weak notes
