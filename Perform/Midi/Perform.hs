@@ -414,7 +414,9 @@ perform_notes state events =
     find_addr addr =
         fmap (event_start . fst) . LEvent.find_event ((==addr) . snd)
 
-_perform_note :: PerformState -> Maybe RealTime -> (Event, Instrument.Addr)
+_perform_note :: PerformState
+    -> Maybe RealTime -- ^ next note with the same addr
+    -> (Event, Instrument.Addr)
     -> (PerformState, MidiEvents)
 _perform_note (addr_inst, note_off_map) next_note_on (event, addr) =
     ((addr_inst2, Map.insert addr note_off note_off_map), msgs)
@@ -519,7 +521,8 @@ keyswitch_messages maybe_old_inst new_inst wdev chan start =
 -- ** perform note
 
 -- | Emit MIDI for a single event.
-perform_note :: RealTime -> Maybe RealTime -> Event -> Instrument.Addr
+perform_note :: RealTime -> Maybe RealTime -- ^ next note with the same addr
+    -> Event -> Instrument.Addr
     -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
 perform_note prev_note_off next_note_on event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
@@ -534,18 +537,7 @@ perform_note prev_note_off next_note_on event addr =
     -- big function.  Splitting it apart led to a bit of duplicated work but
     -- hopefully it's easier to understand this way.
     _note_msgs = perform_note_msgs event addr
-    _control_msgs =
-        perform_control_msgs prev_note_off next_note_cutoff event addr
-    -- Drop msgs that would overlap with the next note on.
-    -- The controls after the note off are clipped to make room for the next
-    -- note's leading controls.  Lead time will get pushed forward if the
-    -- note really is adjacent, but if it's supposedly off then it's lower
-    -- priority and I can clip off its controls.  Otherwise, the lead-time
-    -- controls get messed up by controls from the last note.
-    -- TODO do I really need this, instead of just using note_end?  If so,
-    -- I need a test showing so.
-    next_note_cutoff = max (event_end event) . subtract control_lead_time <$>
-        next_note_on
+    _control_msgs = perform_control_msgs prev_note_off next_note_on event addr
 
 -- | Perform the note on and note off.
 perform_note_msgs :: Event -> Instrument.Addr -> Midi.Key
@@ -577,7 +569,18 @@ perform_control_msgs prev_note_off next_note_on event (dev, chan) midi_nn =
         map (map chan_msg) (pitch_pos_msgs : control_pos_msgs)
     control_sigs = Map.toList (event_controls event)
     cmap = Instrument.inst_control_map (event_instrument event)
-    control_end = maybe id min next_note_on (note_end event)
+    -- |===---
+    --      -|===---
+    -- Drop controls that would overlap with the next note on.
+    -- The controls after the note off are clipped to make room for the next
+    -- note's leading controls.  Lead time will get pushed forward if the
+    -- note really is adjacent, but if it's supposedly off then it's lower
+    -- priority and I can clip off its controls.  Otherwise, the lead-time
+    -- controls get messed up by controls from the last note.
+    control_end = case next_note_on of
+        Nothing -> note_end event
+        Just next -> max (event_end event) (next - control_lead_time)
+
     (control_pos_msgs, clip_warns) = unzip $
         map (perform_control cmap prev_note_off note_on control_end midi_nn)
             control_sigs

@@ -15,7 +15,6 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Db
@@ -72,12 +71,12 @@ make_controls kvs =
 
 -- * extract
 
-type Extracted a = (Text, Integer, a)
+type Extracted a = (Text, RealTime, a)
 
 msg_only :: [Extracted a] -> [a]
 msg_only = map $ \(_, _, a) -> a
 
-msg_ts :: [Extracted a] -> [(Integer, a)]
+msg_ts :: [Extracted a] -> [(RealTime, a)]
 msg_ts = map $ \(_, ts, a) -> (ts, a)
 
 extract :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage]
@@ -89,9 +88,13 @@ extract e wmsgs =
 
 extract_midi :: [Midi.WriteMessage] -> [Extracted Midi.Message]
 extract_midi wmsgs =
-    [ (Midi.write_device_text dev, RealTime.to_milliseconds ts, msg)
+    [ (Midi.write_device_text dev, ts, msg)
     | Midi.WriteMessage dev ts msg <- wmsgs
     ]
+
+e_chan_msg :: Midi.Message -> Maybe (Midi.Channel, Midi.ChannelMessage)
+e_chan_msg (Midi.ChannelMessage chan msg) = Just (chan, msg)
+e_chan_msg _ = Nothing
 
 e_cc :: Midi.Control -> Midi.Message -> Maybe Midi.ControlValue
 e_cc cc (Midi.ChannelMessage _ (Midi.ControlChange msg_cc val))

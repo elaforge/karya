@@ -10,6 +10,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
 
 
@@ -125,6 +126,7 @@ test_control_scope_unsliced = do
             . DeriveTest.perform_defaults . Derive.r_events
         extract = PerformTest.msg_ts
             . PerformTest.extract (PerformTest.e_cc 1)
+        cc_lead = Perform.min_control_lead_time
     let result = DeriveTest.derive_tracks ""
             [ ("*", [(0, 0, "4c")])
             , ("mod", [(ScoreTime.double n, 0, val) |
@@ -134,7 +136,7 @@ test_control_scope_unsliced = do
     let (midi, logs) = perform result
     equal logs []
     -- Decay of 1s means only one sample.
-    equal (extract midi) [(-4, 0), (1000, 64)]
+    equal (extract midi) [(-cc_lead, 0), (1, 64)]
 
     let result = DeriveTest.derive_blocks
             [ ("top",
@@ -146,7 +148,7 @@ test_control_scope_unsliced = do
             ]
     let (midi, logs) = perform result
     equal logs []
-    equal (extract midi) [(-4, 0), (1500, 64)]
+    equal (extract midi) [(-cc_lead, 0), (1.5, 64)]
 
 test_trim_controls_problem = do
     let run = DeriveTest.extract (DeriveTest.e_control "c")

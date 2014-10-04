@@ -28,6 +28,7 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.PerformTest as PerformTest
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -169,16 +170,17 @@ test_aftertouch = do
 test_controls_after_note_off = do
     -- Test that controls happen during note off, but don't interfere with
     -- other notes.  This corresponds to the comment in 'Perform.perform_note'.
-    let f = map extract . fst . perform midi_config2 . map mkevent
-        extract msg = (start, m)
-            where (start, _, m) = extract_msg msg
+    let f = fst . perform midi_config2 . map mkevent
+        e_ts_cmsg = PerformTest.msg_ts
+            . PerformTest.extract (fmap snd . PerformTest.e_chan_msg)
         sig xs = [(Controls.vol, Signal.signal xs)]
     let msgs = f
             [ (inst2, "a", 0, 1, sig [(0, 1), (1.95, 0.5)])
             , (inst2, "b", 2, 1, sig [(2, 1)])
             ]
+
     -- Signal at 1.95 dropped because of the next note on.
-    equal msgs
+    equal (e_ts_cmsg msgs)
         [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
         , (0, NoteOn 60 100)
         , (1 - gap, NoteOff 60 100)
@@ -190,7 +192,7 @@ test_controls_after_note_off = do
             , (inst2, "b", 2, 1, sig [(2, 1)])
             ]
     -- But not this time.
-    equal msgs
+    equal (e_ts_cmsg msgs)
         [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
         , (0, NoteOn 60 100)
         , (1.95, ControlChange 7 64)
@@ -204,7 +206,7 @@ test_controls_after_note_off = do
             , (inst2, "b", 2, 1, sig [(2, 1)])
             ]
     -- Room enough for both.
-    equal msgs
+    equal (e_ts_cmsg msgs)
         [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
         , (0, NoteOn 60 100)
         , (1 - gap, NoteOff 60 100)
@@ -212,6 +214,14 @@ test_controls_after_note_off = do
         , (1.9, ControlChange 7 127)
         , (2, NoteOn 61 100), (3 - gap, NoteOff 61 100)
         ]
+
+    -- 0.5 visible even though it's after the end of the decay.
+    let e_cc7 = PerformTest.msg_only . PerformTest.extract (PerformTest.e_cc 7)
+    equal (e_cc7 $ f
+            [ (inst1, "a", 0, 1, sig [(0, 1), (4, 0.5)])
+            , (inst1, "a", 8, 1, [])
+            ])
+        [127, 64]
 
 test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own

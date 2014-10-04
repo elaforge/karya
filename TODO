@@ -3,7 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - control after block call end doesn't work if there is a tempo change
+  * control after block call end doesn't work if there is a tempo change
+    It's due to clipping controls after the decay.  But pedal is an exception.
+    Still, can't I extend the control end time until at least the start of the
+    next event?
   * clean up the Derive.info_expr situation.  Many of the calls in Eval are
     dangerous because they take CallInfo but don't set it.
     . If I want to change it to parsed, then I need to let Slice.InsertEvent
@@ -79,7 +82,7 @@ UNSORTED
   * If I play the first two notes of bug/mute in loop, often the second one
     seems like it winds up with a %mod of 0.  Perhaps this is due to the cc
     appearing after the NoteOn rather than before it.  Why is that happening?
-  - The Signal / PitchSignal divide can be annoying.  If I put them in
+  / The Signal / PitchSignal divide can be annoying.  If I put them in
     a TimeVector class then I should be able to directly apply TimeVector
     functions to them.  Then, make all TimeVector functions polymorphic, and
     Signal and PitchSignal can just re-export them.
@@ -170,8 +173,7 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
-    - pedal (control out of callee range) doesn't work when there is a tempo
-      change, e.g. in @intro
+    - cerucuk-punyah @part2-tran at @b5 has messed up pitches
     - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
       fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
     - Automatically fill in weak notes?
