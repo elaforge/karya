@@ -50,7 +50,6 @@ import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.ParseTitle as ParseTitle
 import Types
 
@@ -58,8 +57,7 @@ import Types
 -- | Ask 'slice' to synthesize a note track and insert it at the leaves of
 -- the sliced tree.
 data InsertEvent = InsertEvent {
-    ins_expr :: !BaseTypes.Expr
-    , ins_duration :: !ScoreTime
+    ins_duration :: !ScoreTime
     , ins_around :: !([Event.Event], [Event.Event])
     -- | The TrackId for the track created for this event.  This is required
     -- so it can collect a TrackDynamic and when the Cmd level looks at at
@@ -100,13 +98,14 @@ slice exclude_start start end insert_event = map do_slice
     -- The synthesized bottom track.  Since slicing only happens within
     -- a block, I assume the BlockId is the same as the parent.  I need
     -- a BlockId to look up the previous val in 'Derive.Threaded'.
-    make shift block_id (InsertEvent expr dur around track_id) = TrackTree.Track
+    make shift block_id (InsertEvent dur around track_id) = TrackTree.Track
         { TrackTree.track_title = ">"
-        , TrackTree.track_events_or_parsed = TrackTree.Parsed start dur expr
+        , TrackTree.track_events = Events.singleton (Event.event start dur "")
         , TrackTree.track_id = track_id
         , TrackTree.track_block_id = block_id
         , TrackTree.track_end = end
         , TrackTree.track_sliced = True
+        , TrackTree.track_inverted = True
         , TrackTree.track_around = around
         -- Since a note may be inverted and inserted after 'slice_notes'
         -- and its shifting, I have to get the shift from the parent track.
@@ -114,7 +113,7 @@ slice exclude_start start end insert_event = map do_slice
         , TrackTree.track_voice = Nothing
         }
     slice_t track = track
-        { TrackTree.track_events_or_parsed = TrackTree.Events within
+        { TrackTree.track_events = within
         , TrackTree.track_end = end
         , TrackTree.track_sliced = True
         , TrackTree.track_around = (before, after)
@@ -200,7 +199,7 @@ slice_notes exclude_start start end tracks
             Nothing -> False
             Just (s, e, _) -> s == e && s == n_start
     shift_tree shift next track = track
-        { TrackTree.track_events_or_parsed = TrackTree.Events $
+        { TrackTree.track_events =
             Events.map_events move (TrackTree.track_events track)
         , TrackTree.track_end = next - shift
         , TrackTree.track_around =

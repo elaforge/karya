@@ -21,11 +21,8 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
-
 import Types
 
 
@@ -119,7 +116,7 @@ data Track = Track {
     track_title :: !Text
     -- | Events on this track.  These are shifted by
     -- 'Derive.Slice.slice_notes', so they are in ScoreTime, not TrackTime.
-    , track_events_or_parsed :: !EventsOrParsed
+    , track_events :: !Events.Events
     -- | This goes into the stack when the track is evaluated.  Inverted tracks
     -- will carry the TrackId of the track they were inverted from, so they'll
     -- show up in the stack twice.  This means they can record their environ
@@ -137,6 +134,7 @@ data Track = Track {
     -- | True if this is a sliced track.  That means it's a fragment of
     -- a track and certain track-level things should be skipped.
     , track_sliced :: !Bool
+    , track_inverted :: !Bool
     -- | These events are not evaluated, but go in
     -- 'Derive.Derive.info_prev_events' and info_next_events.  This is so that
     -- sliced calls (such as inverting calls) can see previous and following
@@ -153,42 +151,12 @@ data Track = Track {
     , track_voice :: !(Maybe Int)
     } deriving (Show)
 
--- | A track can have either a set of events, or a single event that has
--- already been parsed.  If it's parsed, then this track was created as the
--- result of inversion, via 'Slice.slice'.  This is a hack so inversion can
--- re-evaluate an expression after inversion.  It's necessary because sometimes
--- evaluation happens after parsing when the original expression is no longer
--- available, for instance if it was 'BaseTypes.Quoted'.
---
--- Previously I used ShowVal and re-parsed the expression, but some Vals have
--- no literal form, so this would create an invalid expression.
-data EventsOrParsed = Events !Events.Events
-    | Parsed !TrackTime !TrackTime !BaseTypes.Expr
-    deriving (Show)
-
 track_range :: Track -> (TrackTime, TrackTime)
 track_range track = (track_shifted track, track_shifted track + track_end track)
 
-track_inverted :: Track -> Bool
-track_inverted track = case track_events_or_parsed track of
-    Events {} -> False
-    Parsed {} -> True
-
-track_events :: Track -> Events.Events
-track_events = to_events . track_events_or_parsed
-
-to_events :: EventsOrParsed -> Events.Events
-to_events (Events events) = events
-to_events (Parsed start dur expr) =
-    Events.singleton $ Event.event start dur (ShowVal.show_val expr)
-
-instance Pretty.Pretty EventsOrParsed where
-    format (Events events) = Pretty.format events
-    format e@(Parsed {}) = "Parsed" Pretty.<+> Pretty.format (to_events e)
-
 instance Pretty.Pretty Track where
-    format (Track title events track_id block_id end sliced around shifted
-            voice) =
+    format (Track title events track_id block_id end sliced inverted around
+            shifted voice) =
         Pretty.record "Track"
             [ ("title", Pretty.format title)
             , ("events", Pretty.format events)
@@ -196,6 +164,7 @@ instance Pretty.Pretty Track where
             , ("block_id", Pretty.format block_id)
             , ("end", Pretty.format end)
             , ("sliced", Pretty.format sliced)
+            , ("inverted", Pretty.format inverted)
             , ("around", Pretty.format around)
             , ("shifted", Pretty.format shifted)
             , ("voice", Pretty.format voice)
@@ -204,11 +173,12 @@ instance Pretty.Pretty Track where
 make_track :: Text -> Events.Events -> ScoreTime -> Track
 make_track title events end = Track
     { track_title = title
-    , track_events_or_parsed = Events events
+    , track_events = events
     , track_id = Nothing
     , track_block_id = Nothing
     , track_end = end
     , track_sliced = False
+    , track_inverted = False
     , track_around = ([], [])
     , track_shifted = 0
     , track_voice = Nothing

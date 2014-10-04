@@ -358,7 +358,7 @@ note = Eval.eval_one_call True $ TrackLang.call "" []
 -- args, rather than being normalized from 0 to 1.  This is appropriate when
 -- dispatching to the default note call.
 note_here :: Derive.NoteArgs -> Derive.NoteDeriver
-note_here args = Eval.reapply_call args "" []
+note_here args = Eval.reapply_call (Args.info args) "" []
 
 -- | Override the pitch signal and generate a single note.
 pitched_note :: PitchSignal.Pitch -> Derive.NoteDeriver

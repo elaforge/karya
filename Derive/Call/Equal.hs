@@ -14,6 +14,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -253,7 +254,7 @@ quoted_generator :: Derive.Callable d => TrackLang.Quoted -> Derive.Generator d
 quoted_generator quoted@(TrackLang.Quoted expr) =
     Derive.make_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
-    $ Sig.call0 $ \args -> Eval.eval_expr False (quoted_cinfo args quoted) expr
+    $ Sig.call0 $ \args -> Eval.eval_expr False (Args.info args) expr
 
 quoted_transformer :: Derive.Callable d => TrackLang.Quoted
     -> Derive.Transformer d
@@ -261,8 +262,7 @@ quoted_transformer quoted@(TrackLang.Quoted expr) =
     Derive.make_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0t $ \args deriver ->
-        Eval.eval_transformers True (quoted_cinfo args quoted)
-            (NonEmpty.toList expr) deriver
+        Eval.eval_transformers (Args.info args) (NonEmpty.toList expr) deriver
 
 quoted_val_call :: TrackLang.Quoted -> Derive.ValCall
 quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
@@ -273,11 +273,7 @@ quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
             _ -> Derive.throw $
                 "expected a val call, but got a full expression: "
                 <> untxt (ShowVal.show_val quoted)
-        Eval.eval (quoted_cinfo args quoted) call
-
-quoted_cinfo :: Derive.PassedArgs d -> TrackLang.Quoted -> Derive.CallInfo d
-quoted_cinfo args (TrackLang.Quoted expr) = (Derive.passed_info args)
-    { Derive.info_expr = Just expr }
+        Eval.eval (Args.info args) call
 
 -- | Pseudo-module for val calls generated from a quoted expression.
 quoted_module :: Module.Module

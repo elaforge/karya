@@ -75,7 +75,7 @@ test_basic = do
         -- t1 shows up again inverted
         , Stack.Track (UiTest.mk_tid 1)
         , Stack.Call "note-track" -- inverted note track is >
-        , Stack.Region s e, Stack.Call "note"
+        , Stack.Region s e
         ]
     block_call bid = Stack.Call $ "block " <> showt bid
     extract_perf_event (Perform.Event inst start dur _controls _pitch stack) =

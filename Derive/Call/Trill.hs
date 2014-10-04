@@ -136,7 +136,7 @@ c_tremolo_generator = Derive.make_call Module.prelude "trem" Tags.ly
         starts <- tremolo_starts speed (Args.range_or_next args)
         notes <- Sub.sub_events args
         case filter (not . null) notes of
-            [] -> Sub.inverting_args args $ Lily.note_code code args $
+            [] -> Sub.inverting_args args $ \args -> Lily.note_code code args $
                 simple_tremolo starts [Util.note]
             notes -> Lily.notes_code code args $
                 Sub.place $ chord_tremolo starts notes

@@ -166,7 +166,7 @@ grace_call args dyn_scale pitches grace_dur place = do
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
     Derive.with_val "legato-dyn" (1 :: Double) $
-        Sub.reapply_call args "(" [] [events]
+        Sub.reapply_call (Args.info args) "(" [] [events]
 
 basic_grace :: Derive.PassedArgs a -> [PitchSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)

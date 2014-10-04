@@ -89,8 +89,7 @@ note_call name prepend_doc tags generate =
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."
     note_generate generate_note vals args =
-        Sub.unless_under_inversion args (with_start_controls args) $
-            Sub.inverting generate args
+        with_start_controls args $ Sub.inverting generate args
         where generate args = transform_note vals $ generate_note args
     prepended
         | Text.null prepend_doc = generator_doc
@@ -175,7 +174,7 @@ default_note config args = do
     start <- Args.real_start args
     end <- Args.real_end args
     (end, is_arrival) <- adjust_end start end $ Seq.head (Args.next_events args)
-    dyn <- Derive.gets Derive.state_dynamic
+    dyn <- Internal.get_dynamic id
 
     -- Add flags to get the arrival-note postproc to figure out the duration.
     -- Details in "Derive.Call.Post.ArrivalNote".

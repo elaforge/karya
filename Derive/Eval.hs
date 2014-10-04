@@ -38,7 +38,6 @@ import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 
-import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -55,14 +54,13 @@ import Types
 -- | Apply a toplevel expression.
 eval_toplevel :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
-eval_toplevel cinfo expr = eval_transformers True cinfo transform_calls $
+eval_toplevel cinfo expr = eval_transformers cinfo transform_calls $
     eval_generator cinfo generator_call
     where (transform_calls, generator_call) = Seq.ne_viewr expr
 
 eval_quoted :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Quoted
     -> Derive.LogsDeriver d
-eval_quoted cinfo_ (TrackLang.Quoted expr) = eval_toplevel cinfo expr
-    where cinfo = cinfo_ { Derive.info_expr = Just expr }
+eval_quoted cinfo (TrackLang.Quoted expr) = eval_toplevel cinfo expr
 
 -- ** generator
 
@@ -70,64 +68,39 @@ eval_generator :: forall d. Derive.Callable d => Derive.CallInfo d
     -> TrackLang.Call -> Derive.LogsDeriver d
 eval_generator cinfo (TrackLang.Call call_id args) = do
     vals <- mapM (eval cinfo) args
-    apply_generator cinfo call_id vals (Derive.info_expr cinfo)
+    apply_generator cinfo call_id vals
 
 -- | Like 'apply_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
---
--- In addition to a call and args, this also requires the expression that
--- the call and args represents.  The reason is complicated and annoying:
--- 'Derive.info_expr' must have the expression currently being evaluated,
--- because it's used later by inversion.  Since I'm evaluating a new call_id
--- and args, and the cinfo is likely reused from another call, the @info_expr@
--- is probably wrong.  Unfortunately, I can't "unparse" a call_id and args back
--- to an expr, because pitches are code and can't necessarily be returned to
--- the expression from whence they sprang.
 apply_generator :: Derive.Callable d => Derive.CallInfo d
-    -> TrackLang.CallId -> [TrackLang.Val] -> Maybe TrackLang.Expr
-    -> Derive.LogsDeriver d
-apply_generator cinfo call_id args expr = do
+    -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
+apply_generator cinfo call_id args = do
     call <- get_generator call_id
     let passed = Derive.PassedArgs
             { Derive.passed_vals = args
             , Derive.passed_call_name = Derive.call_name call
-            , Derive.passed_info = cinfo { Derive.info_expr = expr  }
+            , Derive.passed_info = cinfo
             }
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed
 
 -- ** transformer
 
-eval_transformers :: Derive.Callable d => Bool
-    -- ^ If True, only run transformers under inversion if the call has
-    -- 'Tags.under_invert'.  If False, run all transformers unconditionally.
-    -- This should be True the transformer expression is applied to a generator
-    -- which may invert.  It should be False if you are within an inverting
-    -- generator, since at that point it's too late to apply non
-    -- 'Tags.under_invert' calls.
-    -> Derive.CallInfo d
+eval_transformers :: Derive.Callable d => Derive.CallInfo d
     -> [TrackLang.Call] -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-eval_transformers respect_under_invert_tag cinfo calls deriver = go calls
+eval_transformers cinfo calls deriver = go calls
     where
     go [] = deriver
     go (TrackLang.Call call_id args : calls) = do
         vals <- mapM (eval cinfo) args
         call <- get_transformer call_id
-        let under_invert = Derive.cdoc_tags (Derive.call_doc call)
-                `Tags.contains` Tags.under_invert
-            inverted = Derive.info_inverted cinfo
-            -- If there are no subs and I'm not inverted, then inversion won't
-            -- happen, so I'd better run it anyway.
-            skip = not $ inverted == under_invert
-                || null (Derive.info_sub_tracks cinfo) && not inverted
         let passed = Derive.PassedArgs
                 { Derive.passed_vals = vals
                 , Derive.passed_call_name = Derive.call_name call
                 , Derive.passed_info = cinfo
                 }
-        if respect_under_invert_tag && skip then (go calls)
-            else Internal.with_stack_call (Derive.call_name call) $
-                Derive.call_func call passed (go calls)
+        Internal.with_stack_call (Derive.call_name call) $
+            Derive.call_func call passed (go calls)
 
 -- | Parse and apply a transformer expression.
 eval_transform_expr :: Derive.Callable d => Text -> Text
@@ -138,19 +111,18 @@ eval_transform_expr name expr_str deriver
         expr <- case Parse.parse_expr expr_str of
             Left err -> Derive.throw $ untxt name ++ ": " ++ err
             Right expr -> return expr
-        let info = Derive.dummy_call_info 0 1 name
-        eval_transformers True info (NonEmpty.toList expr) deriver
+        let cinfo = Derive.dummy_call_info 0 1 name
+        eval_transformers cinfo (NonEmpty.toList expr) deriver
 
 -- | The same as 'eval_transformers', but get them out of a Quoted.
 eval_quoted_transformers :: Derive.Callable d => Derive.CallInfo d
     -> TrackLang.Quoted -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-eval_quoted_transformers cinfo (TrackLang.Quoted expr) d =
-    eval_transformers False cinfo (NonEmpty.toList expr) d
+eval_quoted_transformers cinfo (TrackLang.Quoted expr) =
+    eval_transformers cinfo (NonEmpty.toList expr)
 
--- | The transformer version of 'apply_generator'.  Like
--- 'eval_transformers', but apply only one, and apply to already
--- evaluated 'TrackLang.Val's.  This is useful when you want to re-apply an
--- already parsed set of vals.
+-- | The transformer version of 'apply_generator'.  Like 'eval_transformers',
+-- but apply only one, and apply to already evaluated 'TrackLang.Val's.  This
+-- is useful when you want to re-apply an already parsed set of vals.
 apply_transformer :: Derive.Callable d => Derive.CallInfo d
     -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
@@ -274,9 +246,7 @@ reapply_generator :: Derive.Callable d => Derive.PassedArgs d
     -> TrackLang.CallId -> Derive.LogsDeriver d
 reapply_generator args call_id = do
     let cinfo = Derive.passed_info args
-    let expr = TrackLang.map_generator (const call_id) <$>
-            Derive.info_expr cinfo
-    apply_generator cinfo call_id (Derive.passed_vals args) expr
+    apply_generator cinfo call_id (Derive.passed_vals args)
 
 -- | Like 'reapply_generator', but the note is given normalized time, 0--1,
 -- instead of inheriting the start and duration from the args.  This is
@@ -297,21 +267,21 @@ reapply_generator_normalized args = reapply_generator $ args
 -- | Apply an expr with the current call info.  This discards the parsed
 -- arguments in the 'Derive.PassedArgs' since it gets args from the
 -- 'TrackLang.Expr'.
-reapply :: Derive.Callable d => Derive.PassedArgs d -> TrackLang.Expr
+reapply :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Expr
     -> Derive.LogsDeriver d
-reapply args = eval_expr False (Derive.passed_info args)
+reapply cinfo = eval_expr False cinfo
 
 -- | Like 'reapply', but parse the string first.
-reapply_string :: Derive.Callable d => Derive.PassedArgs d -> Text
+reapply_string :: Derive.Callable d => Derive.CallInfo d -> Text
     -> Derive.LogsDeriver d
-reapply_string args s = case Parse.parse_expr s of
+reapply_string cinfo s = case Parse.parse_expr s of
     Left err -> Derive.throw $ "parse error: " ++ err
-    Right expr -> reapply args expr
+    Right expr -> reapply cinfo expr
 
-reapply_call :: Derive.Callable d => Derive.PassedArgs d -> TrackLang.Symbol
+reapply_call :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Symbol
     -> [TrackLang.Term] -> Derive.LogsDeriver d
-reapply_call args call_id call_args =
-    reapply args (TrackLang.call call_id call_args :| [])
+reapply_call cinfo call_id call_args =
+    reapply cinfo (TrackLang.call call_id call_args :| [])
 
 -- | A version of 'eval' specialized to evaluate pitch calls.
 eval_pitch :: ScoreTime -> TrackLang.PitchCall

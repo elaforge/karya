@@ -296,7 +296,7 @@ eval_expr :: Derive.Callable d => Derive.CallInfo d -> Expr
     -> Derive.LogsDeriver d
 eval_expr cinfo (QuotedExpr expr) = Eval.eval_toplevel cinfo expr
 eval_expr cinfo (EvaluatedExpr call_id args) =
-    Eval.apply_generator cinfo call_id args Nothing
+    Eval.apply_generator cinfo call_id args
 
 with_empty_collect :: Derive.Deriver a
     -> Derive.Deriver (a, [Derive.ControlMod])

@@ -98,7 +98,7 @@ eval_track track expr ctype deriver = case ctype of
     where
     transform :: Derive.Callable d => Derive.LogsDeriver d
         -> Derive.LogsDeriver d
-    transform = Eval.eval_transformers False cinfo expr
+    transform = Eval.eval_transformers cinfo expr
     cinfo = Derive.dummy_call_info 0 (TrackTree.track_end track) $ case ctype of
         ParseTitle.Tempo {} -> "tempo track"
         ParseTitle.Control {} -> "control track"
@@ -221,7 +221,6 @@ with_control_damage maybe_block_track_id track_range =
     get_damage (block_id, track_id) deriver = do
         damage <- Cache.get_control_damage block_id track_id track_range
         Internal.with_control_damage damage deriver
-
 
 -- | Split the signal chunks and log msgs of the 'LEvent.LEvents' stream.
 -- Return signal chunks merged into a signal, the logs cast to Score.Event

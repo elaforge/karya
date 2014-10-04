@@ -3,52 +3,34 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Sub_test where
-import Data.Tree (Tree(Node))
-
 import Util.Control
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
+import qualified Derive.Args as Args
+import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Parse as Parse
+import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 import qualified Derive.Slice_test as Slice_test
 
 import qualified Perform.NN as NN
+import qualified Perform.Signal as Signal
 
-
-test_invert_call = do
-    let run args = DeriveTest.extract_run extract $
-            DeriveTest.run State.empty (Sub.invert_call args)
-        extract = fmap $ fmap $ fmap Slice_test.extract_tree
-    -- it's ok, it's empty
-    equal (run (mkargs "" [Node (">", []) []])) $
-        Right $ Just [Node (">", []) [Node (">", [(0, 1, "")]) []]]
-    -- but put an event in there and we have a problem
-    left_like (run (mkargs "" [Node (">", [(0, 0, "")]) []]))
-        "will lead to an endless loop"
-
-    let control = make_controls "c"
-        note text = (">", [(0, 1, text)])
-    equal (run (mkargs "" [Node (control [0..4]) []])) $ Right $
-        Just [Node (control [0..4]) [Node (note "") []]]
-    equal (run (mkargs "x | y" [Node (control [0..4]) []])) $ Right $
-        Just [Node (control [0..4]) [Node (note "x | y") []]]
-    -- if there are multiple subs, it gets inverted below all of them
-    equal (run (mkargs "x | y"
-        [Node (control [0]) [], Node (control [0..4]) []])) $ Right $ Just
-            [ Node (control [0]) [Node (note "x | y") []]
-            , Node (control [0..4]) [Node (note "x | y") []]
-            ]
 
 test_inverting = do
     let run = DeriveTest.extract_events extract
             . DeriveTest.derive_tracks_linear ""
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    -- Simple inversion.
+    equal (run [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
+        [((0, 1, "4c"), "+")]
     -- Make sure empty tracks are stripped.  But the title of the empty track
     -- is still applied.
     equal (run [(">", [(0, 1, "")]), ("> | +a", []), ("*", [(0, 0, "4c")])])
@@ -56,6 +38,69 @@ test_inverting = do
     -- Initial empty track is also stripped.
     equal (run [(">", []), (">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
         [((0, 1, "4c"), "+")]
+
+test_inverting_block = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_blocks
+    -- This used to fail when I used an Inverted state instead of stripping
+    -- the subtracks in 'Sub.inverting'.
+    equal (run
+            [ ("top", [(">", [(0, 1, "sub")]), ("*", [])])
+            , ("sub=ruler", UiTest.regular_notes 1)
+            ])
+        ([(0, 1, "3c")], [])
+
+test_under_invert = do
+    let run under_invert = DeriveTest.extract (DeriveTest.e_control "out")
+            . DeriveTest.derive_tracks_with (call under_invert) ""
+        call under_invert =
+            CallTest.with_note_transformer "t" (trans under_invert)
+            . CallTest.with_note_generator "g" gen
+
+    -- A normal call sees the outer "c".
+    equal (run False
+            [ ("c", [(0, 0, "1")])
+            , (">", [(0, 1, "t |")])
+            , ("c", [(0, 0, ".5")])
+            ])
+        ([[(0, 1)]], [])
+    -- under_invert sees the inner "c".
+    equal (run True
+            [ ("c", [(0, 0, "1")])
+            , (">", [(0, 1, "t |")])
+            , ("c", [(0, 0, ".5")])
+            ])
+        ([[(0, 0.5)]], [])
+
+    -- under_invert works even with no inversion.
+    equal (run True
+            [ ("c", [(0, 0, "1")])
+            , (">", [(0, 1, "t |")])
+            ])
+        ([[(0, 1)]], [])
+
+    -- And for a generator with subs that still doesn't want to invert.
+    equal (run True
+            [ ("c", [(0, 0, "1")])
+            , (">", [(0, 1, "t | g")])
+            , ("c", [(0, 0, ".5")])
+            ])
+        ([[]], [])
+        -- Well, except the transformer gets lost, see 'Sub.under_invert'.
+        -- ([[(0, 1)]], [])
+    where
+    trans under_invert =
+        Derive.transformer "mod" "trans" mempty "doc" $ Sig.call0t $
+        (if under_invert then Sub.under_invert else ($)) $
+        \args deriver -> do
+            val <- Derive.untyped_control_at "c" =<< Args.real_start args
+            let sig = Score.untyped (Signal.constant (fromMaybe 0 val))
+            Derive.with_control "out" sig deriver
+    gen :: Derive.Generator Derive.Note
+    gen = Derive.generator "mod" "gen" mempty "doc" $ Sig.call0 $ \args -> do
+        dyn <- Internal.get_dynamic id
+        control_vals <- Derive.controls_at 0
+        return [Note.make_event args dyn control_vals 0 1 mempty]
 
 test_inverted_control_scope = do
     let run = DeriveTest.extract DeriveTest.e_nns . DeriveTest.derive_tracks ""
@@ -111,8 +156,7 @@ mkargs text subs = Derive.PassedArgs [] "call" info
     where
     event = Event.event 0 1 text
     info = Derive.CallInfo
-        { Derive.info_expr = Just $ either error id $ Parse.parse_expr text
-        , Derive.info_prev_val = Nothing
+        { Derive.info_prev_val = Nothing
         , Derive.info_event = event
         , Derive.info_prev_events = prev
         , Derive.info_next_events = next

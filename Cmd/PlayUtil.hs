@@ -385,16 +385,8 @@ make_generator (TrackLang.Symbol name) expr =
     case assign_symbol expr of
         Nothing -> Sig.call0 generator
         Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $
-            reapply call_id
-    where
-    -- If there are arguments in the definition, then don't accept any in the
-    -- score.  I could do partial application, but it seems confusing, so
-    -- I won't add it unless I need it.
-    reapply call_id args = Eval.apply_generator (Derive.passed_info args)
-        call_id (Derive.passed_vals args)
-        (Derive.info_expr (Derive.passed_info args))
-    generator args = Eval.eval_toplevel cinfo expr
-        where cinfo = (Derive.passed_info args) { Derive.info_expr = Just expr }
+            \args -> Eval.reapply_generator args call_id
+    where generator args = Eval.eval_toplevel (Derive.passed_info args) expr
 
 make_transformer :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Expr
     -> Derive.Transformer d
@@ -406,8 +398,8 @@ make_transformer (TrackLang.Symbol name) expr =
             reapply call_id
     where
     transformer args deriver =
-        Eval.eval_transformers True cinfo (NonEmpty.toList expr) deriver
-        where cinfo = (Derive.passed_info args) { Derive.info_expr = Just expr }
+        Eval.eval_transformers (Derive.passed_info args)
+            (NonEmpty.toList expr) deriver
     reapply call_id args deriver =
         Eval.apply_transformer (Derive.passed_info args) call_id
             (Derive.passed_vals args) deriver
@@ -428,6 +420,9 @@ make_val_call (TrackLang.Symbol name) expr =
         Derive.vcall_call call $ args
             { Derive.passed_call_name = Derive.vcall_name call }
 
+-- | If there are arguments in the definition, then don't accept any in the
+-- score.  I could do partial application, but it seems confusing, so
+-- I won't add it unless I need it.
 assign_symbol :: TrackLang.Expr -> Maybe TrackLang.CallId
 assign_symbol (TrackLang.Call call_id [] :| []) = Just call_id
 assign_symbol _ = Nothing

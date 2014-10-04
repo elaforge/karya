@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  + clean up the Derive.info_expr situation.  Many of the calls in Eval are
+  - control after block call end doesn't work if there is a tempo change
+  * clean up the Derive.info_expr situation.  Many of the calls in Eval are
     dangerous because they take CallInfo but don't set it.
     . If I want to change it to parsed, then I need to let Slice.InsertEvent
       take an Expr, which means an Either for TrackTree.track_events
@@ -11,8 +12,50 @@ UNSORTED
       the vals I care about can be shown.
     . Or I could make the inserted track not actually a track, but directly
       a derive event.
-    / move info_expr to PassedArgs, that way it can't be retained
-      accidentally
+    / move info_expr to PassedArgs, that way it can't be retained accidentally
+      . no, it's not per call, it's per expression
+    . Wait, but transformers don't invert.  So maybe I can leave expr Nothing
+      for all transformers?  Then what happens when a such transformer is
+      applied to a generator that inverts?
+    . Inversion copies the info_expr to the synthesized event.  So if you are
+      evaluating a generator and it inverts, then you need to have its expr
+      in info_expr.  Transformers also matter, if they have Tags.under_invert.
+    . PlayUtil.make_transformer for local def transform:
+      If it rebinds a name, then it's e.g.
+
+        trans = b
+        a | trans arg arg | c | gen
+        When 'gen' inverts, I get 'a | trans arg arg | c | gen' again.
+        trans should run 'c arg arg', it doesn't invert, so ignore expr.
+
+        trans = b arg arg | q arg arg
+        a | trans | c | gen
+        Same story, right?
+
+        gen = x
+        a | b | x
+        When 'x' inverts, I get a | b | x again, that should be fine.
+
+        gen = y | x
+        a | gen
+
+    . So when is not updaing expr bad?  For Random's alt, because 'alt a b'
+      wants to eval 'a', but if 'a' inverts we're back with 'alt a b'.
+      So if I have a generator that wants to replace itself with another
+      generator, and it might make a different decision if called under
+      inversion, then it should fix up the expr too.
+    . So defs with gen=x don't need to replace the expr, because it always
+      does the same thing.
+
+    * Can I eliminate info_expr entirely?  Sub.inverting saves the deriver
+      in Dynamic.  Tags.under_invert transformers also save themseles.
+    * I need to clear subtracks from the args so inversion doesn't happen
+      again.  Or somehow set something that says I'm under the inversion.
+    * Implement under_invert by saving transformers too.
+    * cerucuk-punyah @b2a broken
+    * Strip out all the info_expr stuff.
+    * Can I get rid of Sub.*inversion* functions?
+
   * It would be useful to have some way to see the current control value on
     control tracks.  Status bar?
   * floating edit input is overwritten when track signals update
@@ -58,6 +101,8 @@ UNSORTED
     score length changes (and do I even know that in advance? technically
     I can't since offset can affect the total score length).  Can't I directly
     compute the integral of white noise?
+    . I might even want a layered scheme, the whole piece has variation, then
+      on top of that each instrument, then each hand.
   * Make block calls get signals until the next event after the block, not
     until the end of the callee block.
     . Pass the next event to the block call so it can put it in

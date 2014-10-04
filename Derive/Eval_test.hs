@@ -25,7 +25,8 @@ test_recursive_call = do
     where
     recursive :: Derive.Generator Derive.Note
     recursive = Derive.make_call "test-module" "recursive" mempty "doc" $
-        Sig.call0 $ \args -> Eval.reapply_call args "recur" []
+        Sig.call0 $ \args ->
+            Eval.reapply_call (Derive.passed_info args) "recur" []
 
 test_reapply_generator = do
     let run = DeriveTest.extract DeriveTest.e_attributes .

@@ -382,8 +382,8 @@ c_if_ly = make_call "if-ly" mempty
     <$> required "is-ly" "Evaluated in lilypond mode."
     <*> required "not-ly" "Evaluated when not in lilypond mode."
     ) $ \(is_ly, not_ly) args -> when_lilypond
-        (Eval.reapply_string args (TrackLang.show_call_val is_ly))
-        (Eval.reapply_string args (TrackLang.show_call_val not_ly))
+        (Eval.reapply_string (Args.info args) (TrackLang.show_call_val is_ly))
+        (Eval.reapply_string (Args.info args) (TrackLang.show_call_val not_ly))
 
 c_8va :: Make.Calls Derive.Note
 c_8va = code0_pair_call "ottava" "Emit lilypond ottava mark.\

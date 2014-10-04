@@ -46,8 +46,7 @@ eval cinfo event prev = case Parse.parse_expr (Event.event_text event) of
     Right expr -> Eval.eval_expr False prev_cinfo expr
         where
         prev_cinfo = cinfo
-            { Derive.info_expr = Nothing
-            , Derive.info_prev_val = Nothing
+            { Derive.info_prev_val = Nothing
             , Derive.info_event = event
             , Derive.info_prev_events = prev
             , Derive.info_next_events =

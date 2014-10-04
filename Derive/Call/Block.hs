@@ -155,8 +155,8 @@ d_block block_id = do
         then return id
         else case ParseTitle.parse_block title of
             Left err -> Derive.throw $ "block title: " <> err
-            Right expr -> return $
-                Eval.eval_transformers False info (NonEmpty.toList expr)
+            Right expr ->
+                return $ Eval.eval_transformers info (NonEmpty.toList expr)
                 where info = Derive.dummy_call_info 0 1 "block title"
     transform $ do
         -- Record a dependency on this block.

@@ -16,6 +16,7 @@ import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.PitchUtil as PitchUtil
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -82,7 +83,8 @@ make_note_fade :: Text -> Text -> PitchDirection -> Align -> Align
 make_note_fade name doc pitch_dir align align_fade =
     Derive.transformer Module.prelude name Tags.under_invert doc
     $ Sig.callt fade_args
-    $ \(interval, TrackLang.DefaultReal time, maybe_fade) args deriver -> do
+    $ \(interval, TrackLang.DefaultReal time, maybe_fade) ->
+    Sub.under_invert $ \args deriver -> do
         let fade = case maybe_fade of
                 Nothing -> time
                 Just (TrackLang.DefaultReal t) -> t

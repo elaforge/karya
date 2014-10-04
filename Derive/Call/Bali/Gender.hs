@@ -85,7 +85,7 @@ ngoret module_ late_damping damp_arg interval_arg =
         \ shortened to not overlap. Under the threshold, and the damping of\
         \ the previous note will be delayed until the end of the grace note."
     ) $ \(maybe_interval, time, damp, dyn_scale, damp_threshold) args ->
-    Note.with_start_controls args $ Sub.inverting_args args $ do
+    Note.with_start_controls args $ Sub.inverting_args args $ \args -> do
         start <- Args.real_start args
         time <- Derive.real =<< Util.time_control_at Util.Real time start
         damp <- Derive.real =<< Util.time_control_at Util.Real damp start

@@ -7,8 +7,8 @@
 -- which is a special case of slicing.
 module Derive.Call.Sub (
     -- * inversion
-    when_under_inversion, unless_under_inversion
-    , inverting, inverting_args, invert_call
+    under_invert
+    , inverting, inverting_args
     -- ** events
     , Event, GenericEvent(..), event_end, event_overlaps
     , stretch
@@ -34,6 +34,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -43,48 +44,78 @@ import Types
 
 -- * inversion
 
--- | Apply the function (likely a transformer) only when at the bottom of
--- the inversion.  This is useful for transforming an inverted call because
--- otherwise the transformation happens twice: once before inversion and once
--- after.
---
--- Track calls avoid this because they skip applying transformers if
--- 'Derive.info_inverted' is true, so transformers applied directly in haskell
--- need to emulate that.
-when_under_inversion :: Derive.PassedArgs d -> (a -> a) -> a -> a
-when_under_inversion args transform deriver
-    | under_inversion args = transform deriver
-    | otherwise = deriver
+{- | Cause this transformer to apply only after inversion.
+    'Derive.Call.Tags.under_invert' documents this, also see
+    NOTE [under-invert].
 
-unless_under_inversion :: Derive.PassedArgs d -> (a -> a) -> a -> a
-unless_under_inversion args transform deriver
-    | under_inversion args = deriver
-    | otherwise = transform deriver
+    Normally when a call is inverted, the transformers run outside the
+    inversion, while only the generator runs underneath.  However, some
+    transformers rely on per-note controls, such as pitch and dyn, and
+    therefore need to go under the invert.  So this saves the transformer, and
+    applies it only after all the inversion has happened.
 
--- | True if the call is under an inversion, which means it's the second time
--- it has been evaluated.
-under_inversion :: Derive.PassedArgs d -> Bool
-under_inversion = Derive.info_inverted . Derive.passed_info
+    If there are no sub-tracks, then inversion won't happen, and the transform
+    is run right here.  However, if there are sub-tracks, but the generator
+    doesn't want to run, then the transform will be lost.
+
+    TODO I could probably fix it by making Eval.eval_generator apply the
+    transform, but it would have to clear it out too to avoid evaluating more
+    than once.  Not sure which way is right.
+-}
+under_invert :: (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver
+under_invert transformer args deriver
+    | null $ Derive.info_sub_tracks $ Derive.passed_info args =
+        transformer args deriver
+    | otherwise = with deriver
+    where
+    with = Internal.local $ \state -> state
+        { Derive.state_under_invert =
+            Derive.state_under_invert state . transformer args
+        }
 
 -- | Convert a call into an inverting call.  Documented in doc/inverting_calls.
---
--- This requires a bit of hackery:
---
--- This requires getting the expression being evaluated so it can be inserted
--- into the inverted track, which is what 'Derive.info_expr' is for.
-inverting_args :: Derive.Taggable d => Derive.PassedArgs d -> Derive.NoteDeriver
+run_invert :: Derive.Taggable d => Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
-inverting_args args call = -- save_prev_val args
-    -- If I can invert, the call isn't actually called.  Instead I make a track
-    -- with event text that will result in this being called again, and at
-    -- that point it actually will be called.
-    maybe call BlockUtil.derive_tracks =<< invert_call args
+run_invert args call = do
+    dyn <- Internal.get_dynamic id
+    case (Derive.state_inversion dyn, Derive.info_sub_tracks cinfo) of
+        (Derive.InversionInProgress {}, _) ->
+            Derive.throw "tried to invert while inverting"
+        (Derive.NotInverted, subs@(_:_)) -> do
+            sliced <- invert subs
+                (Event.start event) (Event.end event) (Args.next args)
+                (Derive.info_prev_events cinfo, Derive.info_next_events cinfo)
+            with_inversion $ BlockUtil.derive_tracks sliced
+        (Derive.NotInverted, []) -> call
+    where
+    with_inversion = Internal.local $ \dyn -> dyn
+        { Derive.state_inversion = Derive.InversionInProgress call }
+    event = Derive.info_event cinfo
+    cinfo = Derive.passed_info args
 
--- | A version of 'inverting_args' that passes the args to the call.  This
--- is convenient to insert it after the signature arg in a call definition.
+-- | Convert a call into an inverting call.  This is designed to be convenient
+-- to insert after the signature arg in a call definition.  The args passed
+-- to the call have been stripped of their sub tracks to avoid another
+-- inversion.
 inverting :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.NoteDeriver)
-    -> (Derive.PassedArgs d -> Derive.NoteDeriver)
-inverting call args = inverting_args args (call args)
+    -> Derive.PassedArgs d -> Derive.NoteDeriver
+inverting call args = run_invert args (call stripped)
+    where
+    stripped = args
+        { Derive.passed_info = (Derive.passed_info args)
+            { Derive.info_sub_tracks = mempty
+            , Derive.info_sub_events = Nothing
+            }
+        }
+
+-- | 'inverting' with its arguments flipped.  This is useful for calls that
+-- want to do stuff with the args before inverting.  Make sure to shadow the
+-- old 'Derive.PassedArgs' with the ones passed to the call, for the reason
+-- documented in 'inverting'.
+inverting_args :: Derive.Taggable d => Derive.PassedArgs d
+    -> (Derive.PassedArgs d -> Derive.NoteDeriver) -> Derive.NoteDeriver
+inverting_args = flip inverting
 
 -- When I invert, I call derive_tracks again, which means the inverted bottom
 -- is going to expect to see the current prev val.  TODO but evidently I don't
@@ -102,25 +133,10 @@ save_prev_val args = case Args.prev_val args of
     modify_threaded modify = Derive.modify $
         \st -> st { Derive.state_threaded = modify (Derive.state_threaded st) }
 
-invert_call :: Derive.PassedArgs d
-    -> Derive.Deriver (Maybe TrackTree.EventsTree)
-invert_call args = case Derive.info_sub_tracks info of
-    [] -> return Nothing
-    subs -> do
-        expr <- Derive.require "invert_call on an event with no info_expr" $
-            Derive.info_expr info
-        Just <$> invert subs (Event.start event) (Event.end event)
-            (Args.next args) expr
-            (Derive.info_prev_events info, Derive.info_next_events info)
-    where
-    event = Derive.info_event info
-    info = Derive.passed_info args
-
-invert :: TrackTree.EventsTree
-    -> ScoreTime -> ScoreTime -> ScoreTime -> TrackLang.Expr
+invert :: TrackTree.EventsTree -> ScoreTime -> ScoreTime -> ScoreTime
     -> ([Event.Event], [Event.Event])
     -> Derive.Deriver TrackTree.EventsTree
-invert subs start end next_start expr events_around = do
+invert subs start end next_start events_around = do
     -- Pick the current TrackId out of the stack, and give that to the track
     -- created by inversion.
     -- TODO I'm not 100% comfortable with this, I don't like putting implicit
@@ -139,8 +155,7 @@ invert subs start end next_start expr events_around = do
     -- Use 'next_start' instead of track_end because in the absence of a next
     -- note, the track end becomes next note and clips controls.
     insert track_id = Slice.InsertEvent
-        { Slice.ins_expr = expr
-        , Slice.ins_duration = end - start
+        { Slice.ins_duration = end - start
         , Slice.ins_around = events_around
         , Slice.ins_track_id = track_id
         }
@@ -240,17 +255,57 @@ fit_to_range (start, end) notes = Derive.place start factor $
 -- because they expect a track structure in 'Derive.info_sub_tracks'.  This
 -- bypasses that and directly passes 'Event's to the note transformer, courtesy
 -- of 'Derive.info_sub_events'.
-reapply :: Derive.NoteArgs -> TrackLang.Expr -> [[Event]] -> Derive.NoteDeriver
-reapply args expr notes = Eval.reapply subs expr
+reapply :: Derive.CallInfo Score.Event -> TrackLang.Expr -> [[Event]]
+    -> Derive.NoteDeriver
+reapply cinfo expr notes = Eval.reapply subs expr
     where
-    subs = args
-        { Derive.passed_info = (Derive.passed_info args)
-            { Derive.info_sub_events =
-                Just $ map (map (\(Event s d n) -> (s, d, n))) notes
-            }
+    subs = cinfo
+        { Derive.info_sub_events =
+            Just $ map (map (\(Event s d n) -> (s, d, n))) notes
         }
 
-reapply_call :: Derive.NoteArgs -> TrackLang.CallId
+reapply_call :: Derive.CallInfo Score.Event -> TrackLang.CallId
     -> [TrackLang.Term] -> [[Event]] -> Derive.NoteDeriver
-reapply_call args call_id call_args =
-    reapply args (TrackLang.call call_id call_args :| [])
+reapply_call cinfo call_id call_args =
+    reapply cinfo (TrackLang.call call_id call_args :| [])
+
+{- NOTE [under-invert]
+    . To make lift to an absolute pitch work outside of inversion, I'd need
+      an abstract way (e.g. like a transpose signal) to say "pitch midway to
+      (4c)"
+    . It's better to have the lift under the pitch.  The only reason it isn't
+      is that inversion assumes all transformers go above.  So either make it
+      a generator (at which point it can't compose), or have some way to put
+      transformers under the inversion, e.g. 'delay | Drop $ lift $ gen' under
+      inversion is 'delay' -> 'Drop' 'lift' 'gen'.
+    . Another way would be to put that in the call itself, so 'lift' has a flag
+      that says it likes to be under the inversion.  Then the invert function
+      has to go look all those up.  But that can't work, because invert is
+      called by a generator, and that's too late.
+    . So call all the transformers pre and post invert.  Normally they check
+      if they're under inversion, and if so do nothing, but ones that would
+      rather be inverted do the inverse.
+
+    Cons:
+      1. Instead of transformers always happening before inversion, they can
+      now vary internally, which is one more subtle thing about inversion.
+      I'll need to expose it in documentation at least, via a tag.
+
+      2. Call stacks get even messier in the presence of inversion, since
+      every transformer appears twice.
+
+      3. Transformers can have their order change, e.g. given
+      'below | above | gen', below is actually called below above, if it
+      wants to be under inversion.
+
+    . It seems like I could improve these by driving them from a tag.  E.g.
+      if the call has a under-inversion tag, Call.eval_transformers will skip
+      or not skip, as appropriate.  This solves #1 and #2, but not #3.
+
+    . This is all just to get lift working under inversion.  Is it that
+      important?
+      . Everything should work under inversion.  It's a hassle to suddenly
+        have to rearrange the pitch track, and now 'd' doesn't work.
+      . This will come up for every note transformer that wants to know the
+        pitch.
+-}

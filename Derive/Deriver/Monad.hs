@@ -48,7 +48,7 @@ module Derive.Deriver.Monad (
     -- * state
     , State(..), initial_state
     , Threaded(..), initial_threaded
-    , Dynamic(..), initial_dynamic
+    , Dynamic(..), Inversion(..), initial_dynamic
     , initial_controls, default_dynamic
 
     -- ** scope
@@ -429,12 +429,25 @@ data Dynamic = Dynamic {
     -- the list.
     , state_instrument_aliases :: ![(Score.Instrument, Score.Instrument)]
     , state_control_damage :: !ControlDamage
+    , state_under_invert :: !(NoteDeriver -> NoteDeriver)
+    , state_inversion :: !Inversion
 
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
     , state_stack :: !Stack.Stack
-    } deriving (Show)
+    }
+
+data Inversion =
+    -- | Pre-inversion.
+    NotInverted
+    -- | After inversion, but not yet at the bottom.  The inverted generator
+    -- is captured here.
+    | InversionInProgress !NoteDeriver
+
+instance Pretty.Pretty Inversion where
+    pretty NotInverted = "NotInverted"
+    pretty (InversionInProgress {}) = "InversionInProgress"
 
 initial_dynamic :: TrackLang.Environ -> Dynamic
 initial_dynamic environ = Dynamic
@@ -448,6 +461,8 @@ initial_dynamic environ = Dynamic
     , state_scopes = empty_scopes
     , state_instrument_aliases = []
     , state_control_damage = mempty
+    , state_under_invert = id
+    , state_inversion = NotInverted
     , state_stack = Stack.empty
     }
 
@@ -469,7 +484,7 @@ default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
     format (Dynamic controls cfuncs cmerge pitches pitch environ warp scopes
-            aliases damage stack) =
+            aliases damage _under_invert inversion stack) =
         Pretty.record "Dynamic"
             [ ("controls", Pretty.format controls)
             , ("control functions", Pretty.format cfuncs)
@@ -481,12 +496,13 @@ instance Pretty.Pretty Dynamic where
             , ("scopes", Pretty.format scopes)
             , ("instrument aliases", Pretty.format aliases)
             , ("damage", Pretty.format damage)
+            , ("inversion", Pretty.format inversion)
             , ("stack", Pretty.format stack)
             ]
 
 instance DeepSeq.NFData Dynamic where
     rnf (Dynamic controls cfuncs cmerge pitches pitch environ warp _scopes
-            aliases damage stack) =
+            aliases damage _under_invert _inverted_gen stack) =
         rnf controls `seq` rnf cfuncs `seq` rnf cmerge `seq` rnf pitches
         `seq` rnf pitch `seq` rnf environ `seq` rnf warp `seq` rnf aliases
         `seq` rnf damage `seq` rnf stack
@@ -806,7 +822,7 @@ data Collect = Collect {
     , collect_cache :: !Cache
     , collect_integrated :: ![Integrated]
     , collect_control_mods :: ![ControlMod]
-    } deriving (Show)
+    }
 
 -- | These are fragments of a signal, which will be later collected into
 -- 'collect_track_signals'.  This is part of a complicated mechanism to
@@ -986,10 +1002,6 @@ instance Pretty.Pretty val => Pretty.Pretty (PassedArgs val) where
 --
 -- TODO make separate types so the irrelevent data need not be passed?
 data CallInfo val = CallInfo {
-    -- | The expression currently being evaluated.  Why I need this is
-    -- documented in 'Derive.Call.Sub.invert_call'.
-    info_expr :: !(Maybe TrackLang.Expr)
-
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but
     -- too much bother.
@@ -1004,7 +1016,7 @@ data CallInfo val = CallInfo {
     -- may snip off the previous event.
     --
     -- See NOTE [prev-val] in "Derive.Args" for details.
-    , info_prev_val :: !(Maybe val)
+    info_prev_val :: !(Maybe val)
 
     , info_event :: !Event.Event
     , info_prev_events :: ![Event.Event]
@@ -1047,11 +1059,10 @@ info_track_range info = (shifted, shifted + info_event_end info)
     where shifted = info_track_shifted info
 
 instance Pretty.Pretty val => Pretty.Pretty (CallInfo val) where
-    format (CallInfo expr prev_val event prev_events next_events event_end
+    format (CallInfo prev_val event prev_events next_events event_end
             track_range inverted sub_tracks sub_events track_type) =
         Pretty.record "CallInfo"
-            [ ("expr", Pretty.format expr)
-            , ("prev_val", Pretty.format prev_val)
+            [ ("prev_val", Pretty.format prev_val)
             , ("event", Pretty.format event)
             , ("prev_events", Pretty.format prev_events)
             , ("next_events", Pretty.format next_events)
@@ -1071,15 +1082,14 @@ coerce_call_info cinfo = cinfo { info_prev_val = Nothing }
 -- neither to generators for that matter.
 dummy_call_info :: ScoreTime -> ScoreTime -> Text -> CallInfo a
 dummy_call_info start dur text = CallInfo
-    { info_expr = Nothing
-    , info_inverted = False
-    , info_prev_val = Nothing
+    { info_prev_val = Nothing
     , info_event = Event.event start dur s
     , info_prev_events = []
     , info_next_events = []
     , info_event_end = start + dur
     , info_track_shifted = 0
     , info_sub_tracks = []
+    , info_inverted = False
     , info_sub_events = Nothing
     , info_track_type = Nothing
     } where s = if Text.null text then "<no-event>" else "<" <> text <> ">"
@@ -1236,7 +1246,7 @@ val_call module_ name tags doc (call, arg_docs) = ValCall
 
 -- instead of a stack, this could be a tree of frames
 newtype Cache = Cache (Map.Map Stack.Stack Cached)
-    deriving (Monoid.Monoid, Show, Pretty.Pretty, DeepSeq.NFData)
+    deriving (Monoid.Monoid, Pretty.Pretty, DeepSeq.NFData)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
 
@@ -1247,7 +1257,6 @@ cache_size (Cache c) = Map.size c
 -- their place.  This is just for a nicer log msg that can tell the difference
 -- between never evaluated and damaged.
 data Cached = Cached !CacheEntry | Invalid
-    deriving (Show)
 
 instance Pretty.Pretty Cached where
     format Invalid = Pretty.text "Invalid"
@@ -1264,7 +1273,6 @@ data CacheEntry =
     CachedEvents !(CallType Score.Event)
     | CachedControl !(CallType Signal.Control)
     | CachedPitch !(CallType PitchSignal.Signal)
-    deriving (Show)
 
 instance Pretty.Pretty CacheEntry where
     format (CachedEvents (CallType _ events)) = Pretty.format events
@@ -1279,7 +1287,6 @@ instance DeepSeq.NFData CacheEntry where
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
 data CallType d = CallType !Collect ![LEvent.LEvent d]
-    deriving (Show)
 
 instance (DeepSeq.NFData d) => DeepSeq.NFData (CallType d) where
     rnf (CallType collect events) = rnf collect `seq` rnf events
