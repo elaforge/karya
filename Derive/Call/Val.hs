@@ -71,6 +71,7 @@ val_calls = Derive.call_map
     , ("cf-rnd+", c_cf_rnd (+))
     , ("cf-rnd*", c_cf_rnd (*))
     , ("cf-swing", c_cf_swing)
+    , ("cf-clamp", c_cf_clamp)
     ]
 
 c_next_val :: Derive.ValCall
@@ -324,6 +325,7 @@ data Distribution =
     -- | This is like Normal, but rotated, so the peaks are at the extremities.
     | Bimodal
     deriving (Bounded, Eq, Enum, Show)
+
 instance ShowVal.ShowVal Distribution where
     show_val = TrackLang.default_show_val
 instance TrackLang.Typecheck Distribution
@@ -408,6 +410,23 @@ swing :: ScoreTime -- ^ time from this beat to the next, normalized 0 to 1
 swing = RealTime.seconds . Num.normalize (-1) 1 . sin . (*pi)
     . Num.scale (-0.5) 1.5 . ScoreTime.to_double
 
+-- * cf-clamp
+
+c_cf_clamp :: Derive.ValCall
+c_cf_clamp = val_call "cf-clamp" Tags.control_function
+    "Clamp the output of a control function to the given range."
+    $ Sig.call ((,,)
+    <$> required "cf" "Control function."
+    <*> defaulted "low" 0 "Low value."
+    <*> defaulted "high" 1 "High value."
+    ) $ \(cf, low, high) _args ->
+        return $ cf_compose "cf-clamp" (Num.clamp low high) cf
+
+cf_compose :: Text -> (Signal.Y -> Signal.Y) -> TrackLang.ControlFunction
+    -> TrackLang.ControlFunction
+cf_compose name f (TrackLang.ControlFunction cf_name cf) =
+    TrackLang.ControlFunction (name <> "." <> cf_name)
+        (\c dyn x -> f <$> cf c dyn x)
 
 -- * TrackLang.Dynamic
 

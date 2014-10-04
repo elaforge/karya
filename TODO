@@ -68,7 +68,7 @@ UNSORTED
   - criterion test for parsing
   * %start-s = (cf-rnd ..) messes up ngoret
     - nope, still messes some up
-  - Perform/Midi/Perform.hs:835: note:  Perform: %vel clipped: (16.22s, 16.78s)
+  * Perform/Midi/Perform.hs:835: note:  Perform: %vel clipped: (16.22s, 16.78s)
     Should say what the clipped value was.
     But if there is a randomized control function, then >1 or <0 is common.
     . Or I could make the rnd calls optionally clip at 1 and 0.

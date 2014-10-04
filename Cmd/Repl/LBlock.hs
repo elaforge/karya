@@ -190,8 +190,11 @@ copy copy_events name = do
 
 -- * destroy
 
-destroy_all_except :: [BlockId] -> Cmd.CmdL ()
-destroy_all_except keep = do
+destroy :: State.M m => [BlockId] -> m ()
+destroy = mapM_ State.destroy_block
+
+destroy_except :: [BlockId] -> Cmd.CmdL ()
+destroy_except keep = do
     block_ids <- State.all_block_ids
     mapM_ State.destroy_block (filter (not . (`elem` keep)) block_ids)
 
