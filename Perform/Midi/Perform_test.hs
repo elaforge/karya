@@ -52,7 +52,8 @@ test_perform = do
                     Seq.sort_on Perform.event_start (map mkevent events)
             equal warns []
             return $ extract msgs
-        extract = map extract_dev_msg . filter (Midi.is_note . Midi.wmsg_msg)
+        extract = PerformTest.extract PerformTest.e_chan_msg
+            . filter (Midi.is_note . Midi.wmsg_msg)
 
     -- fractional notes get their own channels
     msgs <- f
@@ -62,17 +63,17 @@ test_perform = do
         , (inst1, "b2", 3, 1, [])
         ]
     equal msgs
-        [ ("dev1", 0.0, 0, NoteOn 60 100)
-        , ("dev1", 1.0 - gap, 0, NoteOff 60 100)
+        [ ("dev1", 0.0, (0, NoteOn 60 100))
+        , ("dev1", 1.0 - gap, (0, NoteOff 60 100))
 
-        , ("dev1", 1.0, 1, NoteOn 60 100)
-        , ("dev1", 2.0 - gap, 1, NoteOff 60 100)
+        , ("dev1", 1.0, (1, NoteOn 60 100))
+        , ("dev1", 2.0 - gap, (1, NoteOff 60 100))
 
-        , ("dev1", 2.0, 0, NoteOn 61 100)
-        , ("dev1", 3.0 - gap, 0, NoteOff 61 100)
+        , ("dev1", 2.0, (0, NoteOn 61 100))
+        , ("dev1", 3.0 - gap, (0, NoteOff 61 100))
 
-        , ("dev1", 3.0, 1, NoteOn 61 100)
-        , ("dev1", 4.0 - gap, 1, NoteOff 61 100)
+        , ("dev1", 3.0, (1, NoteOn 61 100))
+        , ("dev1", 4.0 - gap, (1, NoteOff 61 100))
         ]
 
     -- channel 0 reused for inst1, inst2 gets its own channel
@@ -82,12 +83,12 @@ test_perform = do
         , (inst2, "c", 0, 1, [])
         ]
     equal msgs
-        [ ("dev1", 0.0, 0, NoteOn 60 100)
-        , ("dev1", 0.0, 0, NoteOn 61 100)
-        , ("dev2", 0.0, 2, NoteOn 62 100)
-        , ("dev1", 1.0 - gap, 0, NoteOff 60 100)
-        , ("dev1", 1.0 - gap, 0, NoteOff 61 100)
-        , ("dev2", 1.0 - gap, 2, NoteOff 62 100)
+        [ ("dev1", 0.0, (0, NoteOn 60 100))
+        , ("dev1", 0.0, (0, NoteOn 61 100))
+        , ("dev2", 0.0, (2, NoteOn 62 100))
+        , ("dev1", 1.0 - gap, (0, NoteOff 60 100))
+        , ("dev1", 1.0 - gap, (0, NoteOff 61 100))
+        , ("dev2", 1.0 - gap, (2, NoteOff 62 100))
         ]
 
     -- identical notes get split across channels 0 and 1
@@ -96,11 +97,11 @@ test_perform = do
         , (inst1, "a", 1, 2, [])
         ]
     equal msgs
-        [ ("dev1", 0.0, 0, NoteOn 60 100)
-        , ("dev1", 1.0, 1, NoteOn 60 100)
+        [ ("dev1", 0.0, (0, NoteOn 60 100))
+        , ("dev1", 1.0, (1, NoteOn 60 100))
 
-        , ("dev1", 2.0 - gap, 0, NoteOff 60 100)
-        , ("dev1", 3.0 - gap, 1, NoteOff 60 100)
+        , ("dev1", 2.0 - gap, (0, NoteOff 60 100))
+        , ("dev1", 3.0 - gap, (1, NoteOff 60 100))
         ]
 
     -- velocity curve shows up in NoteOns and NoteOffs
@@ -110,10 +111,10 @@ test_perform = do
         , (inst1, "b", 2, 2, [c_vel])
         ]
     equal msgs
-        [ ("dev1", 0, 0, NoteOn 60 127)
-        , ("dev1", 2 - gap, 0, NoteOff 60 64)
-        , ("dev1", 2, 0, NoteOn 61 64)
-        , ("dev1", 4 - gap, 0, NoteOff 61 0)
+        [ ("dev1", 0, (0, NoteOn 60 127))
+        , ("dev1", 2 - gap, (0, NoteOff 60 64))
+        , ("dev1", 2, (0, NoteOn 61 64))
+        , ("dev1", 4 - gap, (0, NoteOff 61 0))
         ]
 
     -- Consecutive notes with the same pitch have NoteOff / NoteOn in the right
@@ -123,10 +124,10 @@ test_perform = do
         , (inst1, "a", 1, 1, [])
         ]
     equal msgs
-        [ ("dev1", 0.0, 0, NoteOn 60 100)
-        , ("dev1", 1.0 - gap, 0, NoteOff 60 100)
-        , ("dev1", 1.0, 0, NoteOn 60 100)
-        , ("dev1", 2.0 - gap, 0, NoteOff 60 100)
+        [ ("dev1", 0.0, (0, NoteOn 60 100))
+        , ("dev1", 1.0 - gap, (0, NoteOff 60 100))
+        , ("dev1", 1.0, (0, NoteOn 60 100))
+        , ("dev1", 2.0 - gap, (0, NoteOff 60 100))
         ]
 
 test_perform_voices = do
@@ -152,7 +153,7 @@ test_perform_voices = do
         ([(0, (0, Key.c4)), (0, (0, Key.cs4)), (0, (0, Key.d4))], [])
 
 test_aftertouch = do
-    let f = map extract_msg . fst . perform midi_config1
+    let f = e_ts_chan_msg . fst . perform midi_config1
                 . Seq.sort_on Perform.event_start . map event
         event (pitch, start, dur, aftertouch) = mkevent
             (inst1, pitch, start, dur,
@@ -228,7 +229,7 @@ test_control_lead_time = do
     -- channels, and not if they aren't
     let run = extract . perform midi_config2 . mkevents
         run_inst1 = extract . perform midi_config2 . mkevents_inst
-        extract (msgs, warns) = (map extract_msg msgs, warns)
+        extract = first e_ts_chan_msg
     let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
         mkvol sig = (Controls.vol, Signal.signal sig)
 
@@ -305,7 +306,7 @@ test_msgs_sorted = do
     -- Ensure that msgs are in order, even after control lead time.
     let f = extract . perform midi_config1 . map mkevent
         mkevent (s, dur, pitch) = mkpevent (s, dur, [(s, pitch)], [])
-        extract = first (map extract_msg)
+        extract = first e_ts_chan_msg
     let (msgs, logs) = f [(0, 1, 40.5), (1, 1, 40.5), (1, 1, 42.75)]
         ts = map (\(ts, _, _) -> ts) msgs
     equal logs []
@@ -500,17 +501,10 @@ e_channel_msg wmsg = case Midi.wmsg_msg wmsg of
     Midi.ChannelMessage chan msg -> Just (Midi.wmsg_ts wmsg, (chan, msg))
     _ -> Nothing
 
-extract_msg :: Midi.WriteMessage
-    -> (RealTime, Midi.Channel, Midi.ChannelMessage)
-extract_msg wmsg = (time, chan, msg)
-    where (_, time, chan, msg) = extract_dev_msg wmsg
-
-extract_dev_msg :: Midi.WriteMessage
-    -> (String, RealTime, Midi.Channel, Midi.ChannelMessage)
-extract_dev_msg (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg)) =
-    (pretty dev, ts, chan, msg)
-extract_dev_msg (Midi.WriteMessage _ _ msg) =
-    error $ "unknown msg: " ++ show msg
+e_ts_chan_msg :: [Midi.WriteMessage]
+    -> [(RealTime, Midi.Channel, ChannelMessage)]
+e_ts_chan_msg = map (\(a, (b, c)) -> (a, b, c)) . PerformTest.msg_ts
+    .  PerformTest.extract PerformTest.e_chan_msg
 
 -- TODO move to a more general purpose place?
 run_timeout :: Double -> IO a -> IO (Maybe a)
