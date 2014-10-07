@@ -311,7 +311,6 @@ with_start_controls args deriver = do
     start_s <- Util.score_duration (Args.start args) start_s
     start_t <- maybe 0 ScoreTime.double <$>
         Derive.untyped_control_at Controls.start_t start
-
     let dur = Args.duration args
         min_dur = RealTime.to_score min_duration
         offset
@@ -322,12 +321,9 @@ with_start_controls args deriver = do
             _ | dur > 0 -> max min_dur (dur - offset)
             _ | dur == 0 -> 1
             _ | otherwise -> max min_dur $ abs (dur - offset)
-    if start_s + start_t == 0 then deriver else
-        Derive.place (Args.start args + offset) stretch $
-        normalize args $ Derive.with_controls
-            [ (Controls.start_s, Score.untyped Signal.empty)
-            , (Controls.start_t, Score.untyped Signal.empty)
-            ] deriver
+    if start_s + start_t == 0 then deriver
+        else Derive.place (Args.start args + offset) stretch $ normalize args $
+            Derive.remove_controls [Controls.start_s, Controls.start_t] deriver
 
 normalize :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 normalize args deriver =

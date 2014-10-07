@@ -473,6 +473,15 @@ with_controls :: [(Score.Control, Score.TypedControl)] -> Deriver a -> Deriver a
 with_controls controls = Internal.local $ \st ->
     st { state_controls = Util.Map.insert_list controls (state_controls st) }
 
+-- | Remove both controls and control functions.  Use this when a control has
+-- already been applied, and you don't want it to affect further derivation.
+remove_controls :: [Score.Control] -> Deriver a -> Deriver a
+remove_controls controls = Internal.local $ \st -> st
+    { state_controls = Util.Map.delete_keys controls (state_controls st)
+    , state_control_functions =
+        Util.Map.delete_keys controls (state_control_functions st)
+    }
+
 with_control_function :: Score.Control -> TrackLang.ControlFunction
     -> Deriver a -> Deriver a
 with_control_function control f = Internal.local $ \st -> st

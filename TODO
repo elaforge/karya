@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Move before inversion doesn't work if it's a call.  I can move the whole
+    call, but I probably do want to adjust the individual notes.
+    . So how about get controls in the original place, and then move the
+      event?  That becomes moving controls, which I don't want to do unless
+      I change controls to be relative to event start.
+    . But I don't see any other way around this.
   * control after block call end doesn't work if there is a tempo change
     It's due to clipping controls after the decay.  But pedal is an exception.
     Still, can't I extend the control end time until at least the start of the
@@ -173,7 +179,7 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
-    - cerucuk-punyah @part2-tran at @b5 has messed up pitches
+
     - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
       fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
     - Automatically fill in weak notes?
