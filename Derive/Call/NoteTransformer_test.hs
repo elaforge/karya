@@ -68,7 +68,7 @@ test_tuplet_multiple_tracks = do
             ]
     let i1 = Score.Instrument "i1"
         i2 = Score.Instrument "i2"
-    equal (run tracks) [(i1, 0, 6), (i1, 6, 6), (i2, 0, 12)]
+    equal (run tracks) [(i1, 0, 6), (i2, 0, 12), (i1, 6, 6)]
 
 test_tuplet_ly = do
     let run = LilypondTest.measures ["times", "acciaccatura"]

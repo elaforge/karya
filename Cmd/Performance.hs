@@ -8,12 +8,16 @@
 -- Performance is relative to a toplevel block, so each block has its own set
 -- of caches.  Since performance is lazy, a separate thread will force it
 -- asynchronously.
+{-# LANGUAGE RankNTypes #-}
 module Cmd.Performance (SendStatus, update_performance, performance) where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Monad.ST as ST
 import qualified Control.Monad.State as Monad.State
+
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
+import qualified Data.Vector.Algorithms.Intro as Algorithms.Intro
 
 import Util.Control
 import qualified Util.Log as Log
@@ -29,6 +33,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Score as Score
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.RealTime as RealTime
@@ -176,9 +181,11 @@ derive ui_state cmd_state block_id = (perf, logs)
         Cmd.state_play cmd_state
     (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
         case prev_perf of
-            Nothing -> PlayUtil.derive_block mempty mempty block_id
-            Just perf -> PlayUtil.derive_block (Cmd.perf_derive_cache perf)
-                (Cmd.perf_damage perf) block_id
+            -- I don't ask derive_block to sort it because it's probably more
+            -- efficient to do it once it's in a vector.
+            Nothing -> PlayUtil.derive_block False mempty mempty block_id
+            Just perf -> PlayUtil.derive_block False
+                (Cmd.perf_derive_cache perf) (Cmd.perf_damage perf) block_id
 
 evaluate_performance :: Thread.Seconds -> SendStatus -> BlockId
     -> Cmd.Performance -> IO ()
@@ -213,7 +220,7 @@ broken_performance msg = Cmd.Performance
 performance :: Derive.Result -> Cmd.Performance
 performance result = Cmd.Performance
     { Cmd.perf_derive_cache = Derive.r_cache result
-    , Cmd.perf_events = Vector.fromList events
+    , Cmd.perf_events = sort_events $ Vector.fromList events
     , Cmd.perf_logs = logs
     , Cmd.perf_logs_written = False
     , Cmd.perf_track_dynamic = Derive.r_track_dynamic result
@@ -224,6 +231,13 @@ performance result = Cmd.Performance
     , Cmd.perf_track_signals = Derive.r_track_signals result
     }
     where (events, logs) = LEvent.partition (Derive.r_events result)
+
+sort_events :: Vector.Vector Score.Event -> Vector.Vector Score.Event
+sort_events events = ST.runST $ do
+    mutable <- Vector.thaw events
+    Algorithms.Intro.sortBy key mutable
+    Vector.unsafeFreeze mutable
+    where key a b = compare (Score.event_start a) (Score.event_start b)
 
 modify_play_state :: (Cmd.PlayState -> Cmd.PlayState) -> Cmd.State -> Cmd.State
 modify_play_state modify state =

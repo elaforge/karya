@@ -176,10 +176,10 @@ move modify event =
 place :: RealTime -> RealTime -> Event -> Event
 place start dur event = (move (const start) event) { event_duration = dur }
 
-move_start :: RealTime -> Event -> Event
-move_start offset =
-    duration (if offset >= 0 then subtract offset else (+offset))
-        . move (+offset)
+move_start :: RealTime -> RealTime -> Event -> Event
+move_start min_duration offset
+    | offset == 0 = id
+    | otherwise = duration (max min_duration . subtract offset) . move (+offset)
 
 duration :: (RealTime -> RealTime) -> Event -> Event
 duration modify event = event { event_duration = modify (event_duration event) }

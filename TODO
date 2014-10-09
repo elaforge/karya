@@ -736,7 +736,7 @@ local: plugins:
     map.
 
 cleanup:
-  - Sorting is fast and there aren't actually that many Score.Events.  Now
+  * Sorting is fast and there aren't actually that many Score.Events.  Now
     that I don't care about deriving the score lazily, it may actually be
     cheaper to remove the ordered constraint and do one sort at the end.
     . List.sort is fast on already sorted input.

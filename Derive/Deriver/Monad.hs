@@ -116,6 +116,7 @@ module Derive.Deriver.Monad (
 
     -- * merge
     , error_to_warn, merge_events, merge_event_lists, merge_asc_events
+    , levent_key
     , merge_logs
 
     -- * testing

@@ -11,31 +11,14 @@
     abstract that away, so I wind up with a collection of functions to handle
     specific kinds of maps.
 
-    This is a bit of a mess.  The problem is that there are multiple axes:
-
-    - output is ascending vs. unordered
+    There are variants for each axis:
 
     - monadic vs. pure
 
     - state vs. stateless
-
-    Additionally, there are several kinds of state I'd like to factor out, e.g.
-    sampling controls and previous and next events.  Unfortunately I haven't
-    been able to come up with a nice composable way to do this, so I'm stuck
-    with a million separate functions.
-
-    The _asc functions require the mapped function to emit sorted lists of
-    sorted events.  This is pretty terrible, because it's a somewhat subtle
-    property, and if you break it you get events out of order which makes
-    other functions down the line buggy.  But on the other hand, I'm reluctant
-    to abandon it because many transformations do have this property and
-    the efficiency difference seems compelling.
-
-    TODO on the other hand, sorting is fast.  Now that I don't care about
-    deriving the score lazily, it may actually be cheaper to remove the ordered
-    constraint and do one sort at the end.
 -}
 module Derive.Call.Post where
+import qualified Data.DList as DList
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 
@@ -61,7 +44,7 @@ import Types
 
 -- * map events
 
--- 'emap' is kind of ugly, but at least it's consistent and short.
+-- 'emap' is kind of an ugly name, but at least it's consistent and short.
 -- I previously used 'map', but it turns out replacing the Prelude map is
 -- really confusing.
 
@@ -81,26 +64,18 @@ cat_maybes (x : xs) = case x of
 
 -- | 1:n non-monadic map with state.
 emap :: (state -> a -> (state, [b])) -> state
-    -> [LEvent.LEvent a] -> (state, [[LEvent.LEvent b]])
-emap f = List.mapAccumL go
+    -> [LEvent.LEvent a] -> (state, [LEvent.LEvent b])
+emap f state = second concat . List.mapAccumL go state
     where
     go state (LEvent.Log log) = (state, [LEvent.Log log])
     go state (LEvent.Event event) = map LEvent.Event <$> f state event
 
 -- | 'emap' without state.
-emap_ :: (a -> [b]) -> [LEvent.LEvent a] -> [[LEvent.LEvent b]]
-emap_ f = map flatten . emap1 f
+emap_ :: (a -> [b]) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
+emap_ f = concatMap flatten . emap1 f
     where
     flatten (LEvent.Log log) = [LEvent.Log log]
     flatten (LEvent.Event events) = map LEvent.Event events
-
-emap_asc :: (state -> event -> (state, [Score.Event])) -> state
-    -> [LEvent.LEvent event] -> (state, Derive.Events)
-emap_asc f state = second Derive.merge_asc_events . emap f state
-
--- | 'emap_asc' without state.
-emap_asc_ :: (event -> [Score.Event]) -> [LEvent.LEvent event] -> Derive.Events
-emap_asc_ f = Derive.merge_asc_events . emap_ f
 
 -- ** monadic
 
@@ -128,39 +103,26 @@ add_event_stack =
 emap_m :: (a -> Score.Event)
     -> (state -> a -> Derive.Deriver (state, [b]))
     -- ^ Process an event. Exceptions are caught and logged.
-    -> state -> [LEvent.LEvent a] -> Derive.Deriver (state, [[LEvent.LEvent b]])
-    -- ^ events are return as unmerged chunks, so the caller can merge
-emap_m event_of f state = go state
+    -> state -> [LEvent.LEvent a] -> Derive.Deriver (state, [LEvent.LEvent b])
+emap_m event_of f state = fmap (second DList.toList) . go state
     where
-    go state [] = return (state, [])
+    go state [] = return (state, mempty)
     go state (LEvent.Log log : events) =
-        fmap ([LEvent.Log log] :) <$> go state events
+        fmap (DList.cons (LEvent.Log log)) <$> go state events
     go state (LEvent.Event event : events) = do
         (state, output) <- fromMaybe (state, []) <$>
             Derive.with_event (event_of event) (f state event)
         (final, outputs) <- go state events
-        return (final, map LEvent.Event output : outputs)
+        return (final, DList.fromList (map LEvent.Event output) <> outputs)
     -- TODO this could also take [(a, LEvent Score.Event)] and omit 'event_of'
     -- since it's always 'snd', but this is basically the same as the separate
     -- annots approach I had earlier, and forces you to have a () annotation
     -- if you don't want one.
 
 -- | 'emap_m' without the state.
-emap_m_ :: (a -> Score.Event)
-    -> (a -> Derive.Deriver [b]) -> [LEvent.LEvent a]
-    -> Derive.Deriver [[LEvent.LEvent b]]
+emap_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [b]) -> [LEvent.LEvent a]
+    -> Derive.Deriver [LEvent.LEvent b]
 emap_m_ event_of f = fmap snd . emap_m event_of (\() e -> (,) () <$> f e) ()
-
--- | Like 'emap_m', but assume the function returns sorted chunks in
--- increasing order, so they can be merged efficiently.
-emap_asc_m ::
-    (a -> Score.Event)
-    -> (state -> a -> Derive.Deriver (state, [Score.Event]))
-    -- ^ Process an event. Exceptions are caught and logged.
-    -> state -> [LEvent.LEvent a]
-    -> Derive.Deriver (state, Derive.Events)
-emap_asc_m event_of f state =
-    fmap (second Derive.merge_asc_events) . emap_m event_of f state
 
 -- ** unthreaded state
 

@@ -70,5 +70,6 @@ library
         unix,
         utf8-string,
         vector,
+        vector-algorithms,
         zlib,
         zmidi-core >=0.6

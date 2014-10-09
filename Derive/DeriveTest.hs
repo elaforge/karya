@@ -227,7 +227,7 @@ derive_block_standard inst_db cache damage with ui_state block_id =
     global_transform = State.config#State.global_transform #$ ui_state
     deriver = with $ Call.Block.eval_root_block global_transform block_id
     (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state $
-        Derive.extract_result <$> PlayUtil.run cache damage deriver
+        Derive.extract_result True <$> PlayUtil.run cache damage deriver
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
 derive_dump :: [MidiInst.SynthDesc] -> Simple.State -> BlockId -> Derive.Result
@@ -247,7 +247,7 @@ perform_dump synths (_, midi, aliases, _) =
 -- * misc
 
 derive :: State.State -> Derive.NoteDeriver -> Derive.Result
-derive ui_state deriver = Derive.extract_result $
+derive ui_state deriver = Derive.extract_result True $
     Derive.derive (default_constant ui_state mempty mempty)
         default_environ deriver
 

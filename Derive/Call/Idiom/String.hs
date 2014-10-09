@@ -133,7 +133,7 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
             attack <- Post.control id attack events
             delay <- Post.control id delay events
             release <- Post.control id release events
-            (final, result) <- Post.emap_asc_m snd (one_event strings) state
+            (final, result) <- Post.emap_m snd (one_event strings) state
                 (LEvent.zip (zip3 attack delay release) events)
             return $! result ++ [LEvent.Event $ state_event final]
     where

@@ -598,7 +598,7 @@ code0_around_call name doc sig make_code = (gen, trans)
             when_lilypond (transform val deriver) deriver
     transform val deriver = do
         (code1, code2) <- make_code val
-        Post.emap_asc_ (apply code1 code2) <$> deriver
+        Post.emap_ (apply code1 code2) <$> deriver
     apply code1 code2 event =
         [code0_event event start code1, event, code0_event event end code2]
         where (start, end) = (Score.event_start event, Score.event_end event)

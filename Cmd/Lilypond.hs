@@ -61,7 +61,7 @@ derive :: Cmd.M m => Derive.NoteDeriver -> m Derive.Result
 derive deriver = do
     config <- State.config#State.lilypond <#> State.get
     constant <- PlayUtil.get_constant mempty mempty
-    return $ Derive.extract_result $
+    return $ Derive.extract_result True $
         Derive.derive (tweak config constant) PlayUtil.initial_environ
             (Derive.with_scopes lilypond_scope deriver)
     where
