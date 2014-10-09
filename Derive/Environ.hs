@@ -76,6 +76,17 @@ tempo = "tempo"
 track_voice :: ValName
 track_voice = "track-voice"
 
+-- * messages to Convert
+
+-- | This is a bit of a hack for the dynamic to velocity conversion in
+-- "Perform.Midi.Convert".  The default note deriver stashes the control
+-- function output here, so if it turns out to not be a Pressure instrument
+-- it can use this value.
+--
+-- Details in 'Perform.Midi.Convert.convert_dynamic'.
+dynamic_val :: ValName
+dynamic_val = "dyn-val"
+
 -- * supported by not so core derivers
 
 -- | VNotePitch or VNum (NN): The top of the instrument's range.

@@ -197,15 +197,19 @@ default_note config args = do
             TrackLang.get_val Environ.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
     let event = Score.add_flags flags $
-            make_event args dyn control_vals start (adjusted_end - start) flags
+            make_event args dyn2 start (adjusted_end - start) flags
+        dyn2 = dyn
+            { Derive.state_environ = stash_convert_values control_vals
+                (Derive.state_environ dyn)
+            }
     return [LEvent.Event event]
 
 -- | This is the canonical way to make a Score.Event.  It handles all the
 -- control trimming and control function value stashing that the perform layer
 -- relies on.
-make_event :: Derive.PassedArgs a -> Derive.Dynamic -> Score.ControlValMap
-    -> RealTime -> RealTime -> Flags.Flags -> Score.Event
-make_event args dyn control_vals start dur flags = Score.Event
+make_event :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
+    -> Flags.Flags -> Score.Event
+make_event args dyn start dur flags = Score.Event
     { Score.event_start = start
     , Score.event_duration = dur
     , Score.event_text = Event.event_text (Args.event args)
@@ -221,8 +225,7 @@ make_event args dyn control_vals start dur flags = Score.Event
     , Score.event_flags = flags
     }
     where
-    controls = stash_dynamic control_vals $
-        trim_controls start (Derive.state_controls dyn)
+    controls = trim_controls start (Derive.state_controls dyn)
     pitch = trim_pitch start (Derive.state_pitch dyn)
     environ = Derive.state_environ dyn
     inst = fromMaybe Score.empty_inst $
@@ -231,10 +234,12 @@ make_event args dyn control_vals start dur flags = Score.Event
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in
 -- 'Perform.Midi.Convert.convert_dynamic'.
-stash_dynamic :: Score.ControlValMap -> Score.ControlMap -> Score.ControlMap
-stash_dynamic vals = maybe id
-    (Map.insert Controls.dynamic_function . Score.untyped . Signal.constant)
-    (Map.lookup Controls.dynamic vals)
+stash_convert_values :: Score.ControlValMap -> TrackLang.Environ
+    -> TrackLang.Environ
+stash_convert_values vals = dyn
+    where
+    dyn = maybe id (TrackLang.insert_val Environ.dynamic_val)
+        (Map.lookup Controls.dynamic vals)
 
 -- ** adjust start and duration
 

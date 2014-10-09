@@ -106,6 +106,11 @@ remove_flags flags event =
 modify_environ :: (BaseTypes.Environ -> BaseTypes.Environ) -> Event -> Event
 modify_environ f event = event { event_environ = f (event_environ event) }
 
+modify_environ_key :: BaseTypes.ValName
+    -> (Maybe BaseTypes.Val -> BaseTypes.Val) -> Event -> Event
+modify_environ_key name modify = modify_environ $ \(BaseTypes.Environ env) ->
+    BaseTypes.Environ $ Map.alter (Just . modify) name env
+
 -- ** attributes
 
 event_attributes :: Event -> Attributes
@@ -164,9 +169,9 @@ event_scale_id = PitchSignal.sig_scale_id . event_pitch
 
 -- | Change the start time of an event and move its controls along with it.
 move :: (RealTime -> RealTime) -> Event -> Event
-move f event =
+move modify event =
     move_controls (pos - event_start event) $ event { event_start = pos }
-    where pos = f (event_start event)
+    where pos = modify (event_start event)
 
 place :: RealTime -> RealTime -> Event -> Event
 place start dur event = (move (const start) event) { event_duration = dur }
@@ -177,7 +182,7 @@ move_start offset =
         . move (+offset)
 
 duration :: (RealTime -> RealTime) -> Event -> Event
-duration f event = event { event_duration = f (event_duration event) }
+duration modify event = event { event_duration = modify (event_duration event) }
 
 set_duration :: RealTime -> Event -> Event
 set_duration = duration . const
@@ -209,7 +214,12 @@ initial_dynamic event = maybe 0 typed_val $
 
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
-    modify_control c_dynamic_function modify . modify_control c_dynamic modify
+    modify_environ_key Environ.dynamic_val
+            (BaseTypes.VNum . untyped . modify . num_of)
+        . modify_control c_dynamic modify
+    where
+    num_of (Just (BaseTypes.VNum n)) = typed_val n
+    num_of _ = 0
 
 modify_control :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
 modify_control control modify event = event
@@ -369,10 +379,6 @@ control_name (BaseTypes.Control text) = text
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control
 c_dynamic = "dyn"
-
-c_dynamic_function :: Control
-c_dynamic_function = "_dynamic-function"
-    -- The leading underscore should make it unparseable in tracklang.
 
 to_real :: ScoreTime -> RealTime
 to_real = RealTime.score

@@ -53,20 +53,20 @@ test_convert = do
         ]
 
 test_convert_dynamic = do
-    let f pressure controls = first e_controls $
+    let f pressure controls dyn_function = first e_controls $
             Convert.convert_dynamic pressure
                 (DeriveTest.mkcontrols_const controls)
-        dyn_function = Controls.dynamic_function
+                dyn_function
         e_controls = map (second (Signal.unsignal . Score.typed_val))
             . filter ((`elem` [Controls.velocity, Controls.breath]) . fst)
             . Map.toList
-    equal (f False [(Controls.dynamic, 1), (dyn_function, 0.5)])
+    equal (f False [(Controls.dynamic, 1)] (Just 0.5))
         ([(Controls.velocity, [(0, 0.5)])], Nothing)
-    equal (f True [(Controls.dynamic, 1), (dyn_function, 0.5)])
+    equal (f True [(Controls.dynamic, 1)] (Just 0.5))
         ([(Controls.breath, [(0, 1)])], Nothing)
 
     -- If both vel and dyn are present, dyn shadows vel, but warn about vel.
-    equal (f False [(Controls.velocity, 1), (Controls.dynamic_function, 0.5)])
+    equal (f False [(Controls.velocity, 1)] (Just 0.5))
         ([(Controls.velocity, [(0, 0.5)])], Just Controls.velocity)
 
 test_rnd_vel = do

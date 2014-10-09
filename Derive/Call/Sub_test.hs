@@ -99,8 +99,7 @@ test_under_invert = do
     gen :: Derive.Generator Derive.Note
     gen = Derive.generator "mod" "gen" mempty "doc" $ Sig.call0 $ \args -> do
         dyn <- Internal.get_dynamic id
-        control_vals <- Derive.controls_at 0
-        return [Note.make_event args dyn control_vals 0 1 mempty]
+        return [Note.make_event args dyn 0 1 mempty]
 
 test_inverted_control_scope = do
     let run = DeriveTest.extract DeriveTest.e_nns . DeriveTest.derive_tracks ""

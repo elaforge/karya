@@ -21,6 +21,7 @@ import qualified Util.TimeVector as TimeVector
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -70,6 +71,8 @@ convert_event lookup event_ = do
             convert_dynamic (Instrument.has_flag Instrument.Pressure patch)
                 (Score.event_controls event
                     `Map.union` lookup_default_controls lookup score_inst)
+                (TrackLang.maybe_val Environ.dynamic_val
+                    (Score.event_environ event))
     whenJust overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
             <> prettyt Controls.dynamic <> ": " <> prettyt sig
@@ -182,12 +185,14 @@ convert_controls inst_cmap =
 -}
 convert_dynamic :: Bool -- ^ True if the @p@ control should become breath.
     -> Score.ControlMap -- ^ Controls to convert.
+    -> Maybe Signal.Y
     -> (Score.ControlMap, Maybe Score.Control)
-convert_dynamic pressure controls =
-    maybe (controls, Nothing) insert_dyn (Map.lookup source controls)
+convert_dynamic pressure controls dyn_function =
+    maybe (controls, Nothing) insert_dyn dyn
     where
+    dyn = if pressure then Map.lookup Controls.dynamic controls
+        else Score.untyped . Signal.constant <$> dyn_function
     dest = if pressure then Controls.breath else Controls.velocity
-    source = if pressure then Controls.dynamic else Controls.dynamic_function
     insert_dyn sig = (Map.insert dest sig controls, overridden)
     overridden = case Map.lookup dest controls of
         Just sig | not (Signal.null (Score.typed_val sig))

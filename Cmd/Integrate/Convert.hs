@@ -15,7 +15,6 @@ import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
-import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
@@ -188,8 +187,7 @@ control_events events =
     filter (not . empty_track) $ map (control_track events) controls
     where
     controls = List.sort $ Seq.unique $ concatMap
-        (map typed_control . filter (not . Controls.is_private . fst)
-            . Map.toList . Score.event_controls) events
+        (map typed_control . Map.toList . Score.event_controls) events
     typed_control (control, sig) = Score.Typed (Score.type_of sig) control
 
 control_track :: [Score.Event] -> Score.Typed Score.Control -> Track

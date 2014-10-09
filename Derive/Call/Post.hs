@@ -302,9 +302,8 @@ make_delayed :: Derive.PassedArgs a -> RealTime -> [TrackLang.Val]
     -> Derive.NoteDeriver
 make_delayed args start event_args = do
     dyn <- Internal.get_dynamic id
-    control_vals <- Derive.controls_at start
     let event = delayed_event event_args $
-            Note.make_event args dyn control_vals start 0 mempty
+            Note.make_event args dyn start 0 mempty
     return [LEvent.Event event]
 
 delayed_event :: [TrackLang.Val] -> Score.Event -> Score.Event

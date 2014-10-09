@@ -28,11 +28,12 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import Derive.BaseTypes
-       (Environ, make_environ, environ_to_list, insert_val, delete_val,
+       (Environ, make_environ, environ_to_list, delete_val,
         lookup_val, val_set, null_environ, ValName, Val(..), vals_equal,
         Quoted(..), ControlFunction(..), Dynamic(..), Symbol(..),
         ControlRef(..), PitchControl, ValControl, show_call_val, CallId, Expr,
         Call(..), PitchCall, Term(..))
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import Derive.ShowVal (ShowVal(..))
@@ -546,7 +547,7 @@ instance Typecheck Quoted where
 -- * environ
 
 -- | Insert a new val, but return Left if it changes the type of an existing
--- one, so Once you put a key of a given type into the environ, it can only
+-- one, so once you put a key of a given type into the environ, it can only
 -- ever be overwritten by a Val of the same type.  The idea is that being
 -- inconsistent with types will just lead to confusion.
 --
@@ -557,12 +558,16 @@ put_val name val environ
     | otherwise = case lookup_val name environ of
         Nothing -> case Map.lookup name hardcoded_types of
             Just expected | type_of new_val /= expected -> Left expected
-            _ -> Right $ insert_val name new_val environ
+            _ -> Right $ BaseTypes.insert_val name new_val environ
         Just old_val
             | type_of old_val == type_of new_val ->
-                Right $ insert_val name new_val environ
+                Right $ BaseTypes.insert_val name new_val environ
             | otherwise -> Left (type_of old_val)
     where new_val = to_val val
+
+-- | Insert a val without typechecking.
+insert_val :: Typecheck a => ValName -> a -> Environ -> Environ
+insert_val name = BaseTypes.insert_val name . to_val
 
 -- | If a standard val gets set to the wrong type, it will cause confusing
 -- errors later on.
@@ -592,7 +597,7 @@ get_val name environ = case lookup_val name environ of
 -- | Like 'get_val', except that type errors and not found both turn into
 -- Nothing.
 maybe_val :: Typecheck a => ValName -> Environ -> Maybe a
-maybe_val name = either (const Nothing) Just . get_val name
+maybe_val name = from_val <=< lookup_val name
 
 -- | Like 'get_val' but format a WrongType nicely.
 checked_val :: forall a. Typecheck a => ValName -> Environ

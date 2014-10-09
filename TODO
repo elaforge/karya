@@ -9,6 +9,15 @@ UNSORTED
       event?  That becomes moving controls, which I don't want to do unless
       I change controls to be relative to event start.
     . But I don't see any other way around this.
+    . This means any access will move the whole signal.  Would it be better to
+      build shift and stretch into the signal?  Then I don't have to worry
+      about "rebasing" access to signals in the event.
+    . I still have problems with e.g. 'clip' blocks clip events that move
+      back.  Maybe it should just be a postproc.  This could also do the more
+      fancy distribution, and pay attention to instrument, hand, and
+      neighbors.
+    - randomization should be centered on a value, with variance as a signal,
+      so I can turn accuracy up or down.
   * control after block call end doesn't work if there is a tempo change
     It's due to clipping controls after the decay.  But pedal is an exception.
     Still, can't I extend the control end time until at least the start of the
