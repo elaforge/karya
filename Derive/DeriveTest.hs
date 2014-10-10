@@ -430,15 +430,16 @@ e_inst = Score.inst_name . Score.event_instrument
 
 e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
 e_control cont event = maybe [] (Signal.unsignal . Score.typed_val) $
-    Map.lookup cont (Score.event_controls event)
+    Map.lookup cont (Score.event_transformed_controls event)
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn = e_control Score.c_dynamic
 
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e = signal_to_nn $
-    PitchSignal.apply_controls (Score.event_environ e) (Score.event_controls e)
-        (Score.event_pitch e)
+    PitchSignal.apply_controls (Score.event_environ e)
+        (Score.event_transformed_controls e)
+        (Score.event_transformed_pitch e)
 
 signal_to_nn :: PitchSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
 signal_to_nn psig
@@ -552,9 +553,9 @@ c_note s_start dur = do
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_text = "evt"
-        , Score.event_controls = controls
-        , Score.event_pitch = pitch_sig
-        , Score.event_pitches = Derive.state_pitches st
+        , Score.event_untransformed_controls = controls
+        , Score.event_untransformed_pitch = pitch_sig
+        , Score.event_untransformed_pitches = Derive.state_pitches st
         , Score.event_instrument = inst
         , Score.event_environ = environ
         }]
@@ -698,8 +699,9 @@ mkevent_scale scale (start, dur, pitch, controls, inst) = Score.empty_event
     { Score.event_start = start
     , Score.event_duration = dur
     , Score.event_text = txt pitch
-    , Score.event_controls = mkcontrols controls
-    , Score.event_pitch = PitchSignal.signal [(start, mkpitch scale pitch)]
+    , Score.event_untransformed_controls = mkcontrols controls
+    , Score.event_untransformed_pitch =
+        PitchSignal.signal [(start, mkpitch scale pitch)]
     , Score.event_stack = fake_stack
     , Score.event_instrument = inst
     }

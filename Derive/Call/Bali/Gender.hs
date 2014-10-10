@@ -157,13 +157,12 @@ realize_infer_pitch maybe_prev event maybe_next
         prev <- require "no previous event" maybe_prev
         next <- require "no next event" maybe_next
         pitch <- require "can't infer pitch" $ infer_pitch prev next
-        return $ Score.remove_flags infer_pitch_flag $ event
-            { Score.event_pitch = PitchSignal.constant pitch
-            -- Also make sure the grace note doesn't go past the end of the
-            -- next note.
-            , Score.event_duration = min (Score.event_duration event)
+        -- Also make sure the grace note doesn't go past the end of the next
+        -- note.
+        let dur = min (Score.event_duration event)
                 (Score.event_end next - Score.event_start event)
-            }
+        return $ Score.remove_flags infer_pitch_flag $ Score.set_duration dur $
+            Score.set_pitch (PitchSignal.constant pitch) event
     | otherwise = return event
     where require err = maybe (Left err) return
 

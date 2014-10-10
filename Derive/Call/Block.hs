@@ -311,7 +311,5 @@ c_capture_null_control = Derive.generator1 Module.internal
         sig <- Derive.require "no null control to capture"
             =<< Derive.get_control_signal Controls.null
         stack <- Derive.get_stack
-        return $! Score.empty_event
-            { Score.event_controls = Map.singleton Controls.null sig
-            , Score.event_stack = stack
-            }
+        return $! Score.set_control Controls.null sig Score.empty_event
+            { Score.event_stack = stack }

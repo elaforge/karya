@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Move before inversion doesn't work if it's a call.  I can move the whole
+  * Move before inversion doesn't work if it's a call.  I can move the whole
     call, but I probably do want to adjust the individual notes.
     . So how about get controls in the original place, and then move the
       event?  That becomes moving controls, which I don't want to do unless
@@ -16,8 +16,6 @@ UNSORTED
       back.  Maybe it should just be a postproc.  This could also do the more
       fancy distribution, and pay attention to instrument, hand, and
       neighbors.
-    - randomization should be centered on a value, with variance as a signal,
-      so I can turn accuracy up or down.
   * control after block call end doesn't work if there is a tempo change
     It's due to clipping controls after the decay.  But pedal is an exception.
     Still, can't I extend the control end time until at least the start of the
@@ -83,9 +81,8 @@ UNSORTED
       I need all 'spaces' to respect indented line continuation.
     . But then, why not?  Event expressions will never have newlines anyway.
     . Profile and make sure the changes didn't affect normal parsing.
-  - criterion test for parsing
   * %start-s = (cf-rnd ..) messes up ngoret
-    - nope, still messes some up
+    * nope, still messes some up
   * Perform/Midi/Perform.hs:835: note:  Perform: %vel clipped: (16.22s, 16.78s)
     Should say what the clipped value was.
     But if there is a randomized control function, then >1 or <0 is common.
@@ -109,18 +106,15 @@ UNSORTED
   * write a test that demonstrates the problem with Block.trim_controls:
     a control that happens to be at the end of the block will be dropped even
     if the block doesn't have a final event.
-  - Randomization might sound more natural if I use brown noise.  But can I do
-    that with just (seed, t) and no history?  No, the seed is different too.
-    I could do it easily enough with a pastproc, but that would be moving
-    events.  Still, randomization should exhibit local effects.  I can
-    generate the offset signal, but I'd have to decide on a sampling rate, and
-    it would be nicer to not have to calculate from 0.  Otherwise, I have to
-    generate from 0, choose a sampling rate, and redo it every time the total
-    score length changes (and do I even know that in advance? technically
-    I can't since offset can affect the total score length).  Can't I directly
-    compute the integral of white noise?
-    . I might even want a layered scheme, the whole piece has variation, then
-      on top of that each instrument, then each hand.
+  fancier randomization
+    . How much a note differs depends on its neighbors, so it's not an even
+      distribution.  Use brownian noise, or a fractal subdivision scheme.  But
+      it's also constrained in how far it can wander from the base value.
+      Regardless, I think this means I need history, so it can't be
+      a stateless control function.
+    . Divide on instrument and hand, so each part gets its own individuality.
+    - randomization should be centered on a value, with variance as a signal,
+      so I can turn accuracy up or down.
   * Make block calls get signals until the next event after the block, not
     until the end of the callee block.
     . Pass the next event to the block call so it can put it in
@@ -780,10 +774,11 @@ cleanup:
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.
     Note tracks can't get a GetLastSample at all.
-  - It would be more efficient to move events around if their controls were
-    normalized to start from their beginning, so that you never have to modify
-    the signals.  Of course, it's only worth it if events tend to get moved
-    more than once.
+  * move controls efficiently
+    . It would be more efficient to move events around if their controls were
+      normalized to start from their beginning, so that you never have to
+      modify the signals.  Of course, it's only worth it if events tend to get
+      moved more than once.
     . noltol moves events with Score.move, which is really inefficient.  Think
       more about making event signals relative.  It also means I don't have to
       move signals that are never used.
@@ -798,6 +793,14 @@ cleanup:
       Currently: Map Control (Typed Signal.Control)
       Or I could put shift stretch in the Event, since I expect it to be the
       same for all controls.
+    . If I build shift into TimeVector then I get it everywhere and there's
+      no way to forget to apply it.  But it seems like I should be able to
+      abstract into another layer, but it's annoying to duplicate all those
+      TimeVector functions.  Also, maybe I shouldn't put it on every signal
+      when only applies to signals in events, and is the same for all of them?
+    . If I put it in event, it's error prone because someone can look up
+      a signal and they get the un-translated one.  Instead they have to
+      always use Score.event_control_at
   - storing TrackEvents without duration would make maintaining the
     no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
     each event extends to the next one.  It means after merging I have to
@@ -1004,8 +1007,10 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test:
-  - try writing criterion tests for midi performance and derivation
+  - criterion tests for midi performance and derivation
     . It has tons of deps, so it should be optional, like ekg.
+  - criterion test for parsing
+  - and criterion tests for derivation, why not?
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.

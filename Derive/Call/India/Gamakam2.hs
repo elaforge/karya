@@ -175,7 +175,9 @@ with_sequence args deriver = do
 
 pitch_call_info :: Derive.CallInfo Score.Event -> Derive.CallInfo Derive.Pitch
 pitch_call_info cinfo = cinfo
-    { Derive.info_prev_val = Score.event_pitch <$> Derive.info_prev_val cinfo }
+    { Derive.info_prev_val = Score.event_untransformed_pitch <$>
+        Derive.info_prev_val cinfo
+    }
 
 type Signals = (PitchSignal.Signal, [Derive.ControlMod])
 

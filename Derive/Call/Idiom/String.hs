@@ -210,10 +210,10 @@ release interpolator delay time pitch next_event event = do
 merge_curve :: PitchUtil.Interpolator -> RealTime -> PitchSignal.Pitch
     -> RealTime -> PitchSignal.Pitch -> Score.Event -> Score.Event
 merge_curve interpolator x0 y0 x1 y1 event =
-    event { Score.event_pitch = new_pitch }
+    Score.set_pitch new_pitch event
     where
     curve = interpolator False x0 y0 x1 y1
-    new_pitch = Score.event_pitch event <> curve
+    new_pitch = Score.event_transformed_pitch event <> curve
 
 find_string :: Pitch.NoteNumber -> Map.Map Pitch.NoteNumber PitchSignal.Pitch
     -> Maybe (Pitch.NoteNumber, PitchSignal.Pitch)

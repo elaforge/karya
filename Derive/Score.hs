@@ -2,15 +2,51 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE CPP #-}
 {- | This has the basic data structures for the deriver level.
 
     The events here are generated from UI Events, and will eventually be
     transformed into Perform Events, which are specific to the performance
     backend.
 -}
+{-# LANGUAGE RecordWildCards #-}
 module Derive.Score (
-    module Derive.Score, module Derive.BaseTypes
+    -- * Event
+    Event(..)
+    , empty_event, event_end, event_min, event_max, event_scale_id
+    , event_transformed_controls, event_transformed_pitch
+    , event_transformed_pitches
+    -- ** flags
+    , has_flags, add_flags, remove_flags
+    -- ** environ
+    , modify_environ, modify_environ_key
+    -- ** attributes
+    , event_attributes, has_attribute, environ_attributes
+    , modify_attributes, add_attributes, remove_attributes
+
+    -- ** modify events
+    , move, place, move_start, duration, set_duration
+    -- *** control
+    , control_at, event_control, initial_dynamic, modify_dynamic
+    , modify_control
+    , set_control, event_controls_at
+    -- *** pitch
+    , set_pitch, event_named_pitch
+    , transposed_at, pitch_at, apply_controls
+    , initial_pitch, nn_at, initial_nn, note_at, initial_note
+
+    -- ** warp
+    , warp, id_warp, is_id_warp, id_warp_signal
+    , warp_pos, unwarp_pos, compose_warps
+    , warp_to_signal
+
+    -- * instrument
+    , inst_valid_chars
+    , inst_name, empty_inst, instrument, split_inst
+
+    -- * util
+    , control, control_name, c_dynamic
+
+    , module Derive.BaseTypes
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
@@ -48,10 +84,13 @@ data Event = Event {
     event_start :: !RealTime
     , event_duration :: !RealTime
     , event_text :: !Text
-    , event_controls :: !ControlMap
-    , event_pitch :: !PitchSignal.Signal
+    , event_untransformed_controls :: !ControlMap
+    , event_untransformed_pitch :: !PitchSignal.Signal
     -- | Named pitch signals.
-    , event_pitches :: !PitchMap
+    , event_untransformed_pitches :: !PitchMap
+    -- | This is added to the untransformed controls on acces, so you can move
+    -- an event without having to move all the samples in all the controls.
+    , event_control_offset :: !RealTime
     -- | Keep track of where this event originally came from.  That way, if an
     -- error or warning is emitted concerning this event, its position on the
     -- UI can be highlighted.
@@ -65,14 +104,30 @@ data Event = Event {
     , event_flags :: !Flags.Flags
     } deriving (Show)
 
+-- NOTE [event_control_offset]
+-- event_control_offset is a hack to make moving Events cheap.  Unfortunately
+-- it could be error prone because you don't want to look at the untransformed
+-- signals by accident.  I try to reduce the error-prone-ness by giving the
+-- fields big ugly names to encourage the access functions which apply the
+-- offset.
+--
+-- It might be better to provide a wrapper around a TimeVector with an offset
+-- built-in, then the untransformed signal could never leak out.  But I don't
+-- quite want to duplicate every signal function four times, and it seems silly
+-- to give every single signal an offset when only the ones in Event use it,
+-- and it's the same for all of them.  Also it turns out to be a bit of
+-- a hassle to mess with the signals on events since every time you have to
+-- decide if you need transformed on untransformed.
+
 empty_event :: Event
 empty_event = Event
     { event_start = 0
     , event_duration = 0
     , event_text = mempty
-    , event_controls = mempty
-    , event_pitch = mempty
-    , event_pitches = mempty
+    , event_untransformed_controls = mempty
+    , event_untransformed_pitch = mempty
+    , event_untransformed_pitches = mempty
+    , event_control_offset = 0
     , event_stack = Stack.empty
     , event_highlight = Color.NoHighlight
     , event_instrument = empty_inst
@@ -88,6 +143,24 @@ event_end event = event_start event + event_duration event
 event_min, event_max :: Event -> RealTime
 event_min event = min (event_start event) (event_end event)
 event_max event = max (event_start event) (event_end event)
+
+event_scale_id :: Event -> Pitch.ScaleId
+event_scale_id = PitchSignal.sig_scale_id . event_untransformed_pitch
+
+event_transformed_controls :: Event -> ControlMap
+event_transformed_controls event =
+    Map.map (fmap (Signal.shift (event_control_offset event)))
+        (event_untransformed_controls event)
+
+event_transformed_pitch :: Event -> PitchSignal.Signal
+event_transformed_pitch event =
+    PitchSignal.shift (event_control_offset event)
+        (event_untransformed_pitch event)
+
+event_transformed_pitches :: Event -> PitchMap
+event_transformed_pitches event =
+    Map.map (PitchSignal.shift (event_control_offset event))
+        (event_untransformed_pitches event)
 
 -- ** flags
 
@@ -141,27 +214,23 @@ remove_attributes attrs event
     | otherwise = modify_attributes (attrs_remove attrs) event
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur text controls pitch pitches _ _ _ _ flags) =
+    rnf (Event start dur text controls pitch pitches _ _ _ _ _ flags) =
         rnf start `seq` rnf dur `seq` rnf text `seq` rnf controls
             `seq` rnf pitch `seq` rnf pitches `seq` rnf flags
 
 instance Pretty.Pretty Event where
-    format (Event start dur txt controls pitch pitches stack highl inst env
-            flags) =
-        Pretty.record (Pretty.text "Event" Pretty.<+> Pretty.format (start, dur)
-                Pretty.<+> Pretty.format txt)
-            [ ("instrument", Pretty.format inst)
-            , ("pitch", Pretty.format pitch)
-            , ("pitches", Pretty.format pitches)
-            , ("controls", Pretty.format controls)
-            , ("stack", Pretty.format stack)
-            , ("highlight", Pretty.text $ show highl)
-            , ("environ", Pretty.format env)
-            , ("flags", Pretty.format flags)
+    format (Event {..}) = Pretty.record (Pretty.text "Event"
+                Pretty.<+> Pretty.format (event_start, event_duration)
+                Pretty.<+> Pretty.format event_text)
+            [ ("instrument", Pretty.format event_instrument)
+            , ("pitch", Pretty.format event_untransformed_pitch)
+            , ("pitches", Pretty.format event_untransformed_pitch)
+            , ("controls", Pretty.format event_untransformed_controls)
+            , ("stack", Pretty.format event_stack)
+            , ("highlight", Pretty.text $ show event_highlight)
+            , ("environ", Pretty.format event_environ)
+            , ("flags", Pretty.format event_flags)
             ]
-
-event_scale_id :: Event -> Pitch.ScaleId
-event_scale_id = PitchSignal.sig_scale_id . event_pitch
 
 -- ** modify events
 
@@ -169,8 +238,12 @@ event_scale_id = PitchSignal.sig_scale_id . event_pitch
 
 -- | Change the start time of an event and move its controls along with it.
 move :: (RealTime -> RealTime) -> Event -> Event
-move modify event =
-    move_controls (pos - event_start event) $ event { event_start = pos }
+move modify event
+    | pos == event_start event = event
+    | otherwise = event
+        { event_start = pos
+        , event_control_offset = pos - event_start event
+        }
     where pos = modify (event_start event)
 
 place :: RealTime -> RealTime -> Event -> Event
@@ -189,28 +262,23 @@ set_duration = duration . const
 
 -- *** control
 
-control_val_at :: RealTime -> TypedControl -> TypedVal
-control_val_at t = fmap (Signal.at t)
-
-move_controls :: RealTime -> Event -> Event
-move_controls shift event
-    | shift == 0 = event
-    | otherwise = event
-        { event_controls =
-            Map.map (fmap (Signal.shift shift)) (event_controls event)
-        , event_pitch = PitchSignal.shift shift (event_pitch event)
-        }
+control_val_at :: Event -> RealTime -> TypedControl -> TypedVal
+control_val_at event t = fmap (Signal.at (t - event_control_offset event))
 
 -- | Get a control value from the event, or Nothing if that control isn't
 -- present.
-event_control_at :: RealTime -> Control -> Event -> Maybe TypedVal
-event_control_at pos cont =
-    (control_val_at pos <$>) . Map.lookup cont . event_controls
+control_at :: RealTime -> Control -> Event -> Maybe TypedVal
+control_at pos control event =
+    control_val_at event pos <$>
+        Map.lookup control (event_untransformed_controls event)
+
+event_control :: Control -> Event -> Maybe (Typed Signal.Control)
+event_control control = Map.lookup control . event_transformed_controls
 
 initial_dynamic :: Event -> Signal.Y
 initial_dynamic event = maybe 0 typed_val $
-     -- Derive.initial_controls should mean Nothing never happens.
-    event_control_at (event_start event) c_dynamic event
+     -- Derive.initial_controls should mean this is never Nothing.
+    control_at (event_start event) c_dynamic event
 
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
@@ -223,21 +291,32 @@ modify_dynamic modify =
 
 modify_control :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
 modify_control control modify event = event
-    { event_controls = Map.adjust (fmap (Signal.map_y modify)) control
-        (event_controls event)
+    { event_untransformed_controls =
+        Map.adjust (fmap (Signal.map_y modify)) control
+            (event_untransformed_controls event)
     }
 
 set_control :: Control -> Typed Signal.Control -> Event -> Event
 set_control control signal event = event
-    { event_controls = Map.insert control signal (event_controls event) }
+    { event_untransformed_controls = Map.insert control
+        (Signal.shift (- event_control_offset event) <$> signal)
+        (event_untransformed_controls event)
+    }
 
 event_controls_at :: RealTime -> Event -> ControlValMap
-event_controls_at t = controls_at t . event_controls
-
-controls_at :: RealTime -> ControlMap -> ControlValMap
-controls_at p = Map.map (typed_val . control_val_at p)
+event_controls_at t event = Map.map (typed_val . control_val_at event t)
+    (event_untransformed_controls event)
 
 -- *** pitch
+
+set_pitch :: PitchSignal.Signal -> Event -> Event
+set_pitch pitch event = event
+    { event_untransformed_pitch =
+        PitchSignal.shift (- event_control_offset event) pitch
+    }
+
+event_named_pitch :: Control -> Event -> Maybe PitchSignal.Signal
+event_named_pitch name = Map.lookup name . event_transformed_pitches
 
 -- | Unlike 'Derive.Derive.pitch_at', the transposition has already been
 -- applied.  This is because callers expect to get the actual pitch, not the
@@ -248,7 +327,8 @@ transposed_at :: RealTime -> Event -> Maybe PitchSignal.Transposed
 transposed_at pos event = apply_controls event pos <$> pitch_at pos event
 
 pitch_at :: RealTime -> Event -> Maybe PitchSignal.Pitch
-pitch_at pos event = PitchSignal.at pos (event_pitch event)
+pitch_at pos event = PitchSignal.at (pos - event_control_offset event)
+    (event_untransformed_pitch event)
 
 apply_controls :: Event -> RealTime -> PitchSignal.Pitch
     -> PitchSignal.Transposed
@@ -283,8 +363,8 @@ id_warp :: Warp
 id_warp = warp id_warp_signal
 
 id_warp_signal :: Signal.Warp
-id_warp_signal = Signal.signal [(0, 0),
-    (RealTime.large, RealTime.to_seconds RealTime.large)]
+id_warp_signal = Signal.signal
+    [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
     -- This could be Signal.empty and 'warp_pos' would still treat it as 1:1,
     -- but then I'd need complicated special cases for 'warp_to_signal' and
     -- 'compose_warps', so don't bother.

@@ -381,8 +381,8 @@ control_at :: Score.Control -> RealTime -> Deriver (Maybe Score.TypedVal)
 control_at control pos = get_control_function control >>= \x -> case x of
     Just f -> return $ Just $ f pos
     Nothing -> do
-        sig <- Map.lookup control <$> get_controls
-        return $ Score.control_val_at pos <$> sig
+        maybe_sig <- Map.lookup control <$> get_controls
+        return $ fmap (Signal.at pos) <$> maybe_sig
 
 get_control_function :: Score.Control
     -> Deriver (Maybe (RealTime -> Score.TypedVal))

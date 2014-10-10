@@ -8,7 +8,6 @@
 module Derive.Note (d_note_track, stash_signal_if_wanted) where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
@@ -63,17 +62,17 @@ extract_track_signal source events = mconcat $ case source of
     Track.Control control -> mapMaybe (extract_control control) events
     Track.Pitch control -> mapMaybe (extract_pitch control) events
     where
-    extract_control control = fmap Score.typed_val . Map.lookup control
-        . Score.event_controls
-    extract_pitch Nothing event = Just $ convert event $ Score.event_pitch event
+    extract_control control = fmap Score.typed_val . Score.event_control control
+    extract_pitch Nothing event = Just $ convert event $
+        Score.event_transformed_pitch event
     extract_pitch (Just control) event =
-        fmap (convert event) $ Map.lookup control $ Score.event_pitches event
+        convert event <$> Score.event_named_pitch control event
     convert event psig = Signal.coerce $ fst $ PitchSignal.to_nn $
         -- Since these signals will be mconcatted into one signal, I don't
         -- want one event's control at 0 to wipe out the previous events.
         PitchSignal.drop_before_strict (Score.event_min event) $
         PitchSignal.apply_controls (Score.event_environ event)
-            (Score.event_controls event) psig
+            (Score.event_transformed_controls event) psig
 
 with_title :: TrackTree.EventsTree -> ScoreTime -> Text -> Derive.NoteDeriver
     -> Derive.NoteDeriver

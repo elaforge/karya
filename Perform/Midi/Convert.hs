@@ -63,13 +63,14 @@ convert_event lookup event_ = do
     let event = postproc event_
     midi_inst <- require ("instrument in db: " <> prettyt score_inst) $
         lookup_inst lookup score_inst
+    let event_controls = Score.event_transformed_controls event
     (midi_inst, pitch) <- convert_midi_pitch midi_inst
         (Instrument.patch_environ patch) (Instrument.patch_scale patch)
-        (Instrument.patch_attribute_map patch) event
+        (Instrument.patch_attribute_map patch) event_controls event
     let (controls, overridden) =
             first (convert_controls (Instrument.inst_control_map midi_inst)) $
             convert_dynamic (Instrument.has_flag Instrument.Pressure patch)
-                (Score.event_controls event
+                (event_controls
                     `Map.union` lookup_default_controls lookup score_inst)
                 (TrackLang.maybe_val Environ.dynamic_val
                     (Score.event_environ event))
@@ -109,9 +110,9 @@ require_patch inst Nothing = do
 convert_midi_pitch :: Instrument.Instrument -> TrackLang.Environ
     -- ^ The environ that the instrument itself implies.
     -> Instrument.PatchScale
-    -> Instrument.AttributeMap -> Score.Event
+    -> Instrument.AttributeMap -> Score.ControlMap -> Score.Event
     -> ConvertT (Instrument.Instrument, Signal.NoteNumber)
-convert_midi_pitch inst inst_environ patch_scale attr_map event =
+convert_midi_pitch inst inst_environ patch_scale attr_map controls event =
     case Instrument.lookup_attribute (Score.event_attributes event) attr_map of
         Nothing -> (,) inst <$> pitch_signal
         Just (keyswitches, maybe_keymap) ->
@@ -136,7 +137,7 @@ convert_midi_pitch inst inst_environ patch_scale attr_map event =
     un_nn (Pitch.NoteNumber nn) = nn
     pitch_signal = convert_pitch patch_scale
         (inst_environ <> Score.event_environ event)
-        (Score.event_controls event) (Score.event_pitch event)
+        controls (Score.event_transformed_pitch event)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.

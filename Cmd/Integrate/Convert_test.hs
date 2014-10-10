@@ -61,10 +61,10 @@ test_integrate = do
         )
     where
     no_pitch (start, dur, controls) =
-        (event (start, dur, "4c", controls, inst))
-        { Score.event_pitch = mempty }
-    pitches (start, dur, pitches) = (event (start, dur, "4c", [], inst))
-        { Score.event_pitch = DeriveTest.pitch_signal pitches }
+        Score.set_pitch mempty $ event (start, dur, "4c", controls, inst)
+    pitches (start, dur, pitches) =
+        Score.set_pitch (DeriveTest.pitch_signal pitches) $
+            event (start, dur, "4c", [], inst)
     event = DeriveTest.mkevent
     inst = Score.Instrument "inst"
 

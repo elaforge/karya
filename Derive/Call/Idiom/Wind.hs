@@ -103,6 +103,6 @@ fundamental *# harmonic = fundamental * fromIntegral harmonic
 
 tweak_pitch :: RealTime -> Pitch.Hz -> Score.Event -> Score.Event
 tweak_pitch pos hz event =
-    event { Score.event_pitch = Score.event_pitch event <> tweak }
+    Score.set_pitch (Score.event_transformed_pitch event <> tweak) event
     where
     tweak = PitchSignal.signal [(pos, Pitches.nn_pitch (Pitch.hz_to_nn hz))]

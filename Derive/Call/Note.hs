@@ -210,11 +210,12 @@ make_event args dyn start dur flags = Score.Event
     { Score.event_start = start
     , Score.event_duration = dur
     , Score.event_text = Event.event_text (Args.event args)
-    , Score.event_controls = controls
-    , Score.event_pitch = pitch
+    , Score.event_untransformed_controls = controls
+    , Score.event_untransformed_pitch = pitch
+    , Score.event_control_offset = 0
     -- I don't have to trim these because the performer doesn't use them,
     -- they're only there for any possible postproc.
-    , Score.event_pitches = Derive.state_pitches dyn
+    , Score.event_untransformed_pitches = Derive.state_pitches dyn
     , Score.event_stack = Derive.state_stack dyn
     , Score.event_highlight = Color.NoHighlight
     , Score.event_instrument = inst

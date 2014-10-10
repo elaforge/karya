@@ -25,7 +25,6 @@ module Derive.Call.BlockUtil (
     , derive_tree
 #endif
 ) where
-import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
 import Util.Control
@@ -107,9 +106,8 @@ derive_control_tree block_end tree = do
     -- There are an awful lot of things that can go wrong.  I guess that's why
     -- this is a hack.
     events <- derive_tree block_end tree
-    let lookup_control = Map.lookup Controls.null . Score.event_controls
     case LEvent.partition events of
-        ([event], logs) -> case lookup_control event of
+        ([event], logs) -> case Score.event_control Controls.null event of
             Nothing -> Derive.throw "control call didn't emit Controls.null"
             Just signal -> return $
                 -- The calling control itself will be providing the type since

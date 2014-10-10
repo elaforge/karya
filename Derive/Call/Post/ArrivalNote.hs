@@ -164,18 +164,22 @@ infer_duration final_dur = cancel_notes . infer_notes
 -- end of the last block.  I should fix this, but I'm not sure how.
 replace_note :: Score.Event -> Score.Event -> Score.Event
 replace_note next event
-    | Score.has_flags Flags.track_time_0 next = (set_end (Score.event_end next))
-        { Score.event_pitch =
-            Score.event_pitch event
-                <> PitchSignal.drop_before_at start (Score.event_pitch next)
-        , Score.event_pitches = Map.mappend
-            (Score.event_pitches event)
-            (PitchSignal.drop_before_at start <$> Score.event_pitches next)
-        , Score.event_controls = Map.mappend
-            (Score.event_controls event)
-            (fmap (Signal.drop_before_at start) <$> Score.event_controls next)
-        }
-    | otherwise = set_end (Score.event_start next)
+    | Score.has_flags Flags.track_time_0 next =
+        set_end (Score.event_end next) event
+            { Score.event_untransformed_pitch = pitch event
+                <> PitchSignal.drop_before_at start (pitch next)
+            , Score.event_untransformed_pitches = Map.mappend
+                (pitches event)
+                (PitchSignal.drop_before_at start <$> pitches next)
+            , Score.event_untransformed_controls = Map.mappend
+                (controls event)
+                (fmap (Signal.drop_before_at start) <$> controls next)
+            }
+    | otherwise = set_end (Score.event_start next) event
     where
+    pitch = Score.event_transformed_pitch
+    pitches = Score.event_transformed_pitches
+    controls = Score.event_transformed_controls
+
     start = Score.event_start event
-    set_end end = Score.set_duration (end - Score.event_start event) event
+    set_end end = Score.set_duration (end - Score.event_start event)

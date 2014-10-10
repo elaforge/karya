@@ -96,7 +96,7 @@ module_ = "bali" <> "gangsa"
 -- | Variable mute for gangsa.  Intended for the 'Cmd.Cmd.inst_postproc' field.
 mute_postproc :: Score.Attributes -> Score.Event -> Score.Event
 mute_postproc mute_attr event =
-    case Score.event_control_at (Score.event_start event) Controls.mute event of
+    case Score.control_at (Score.event_start event) Controls.mute event of
         Nothing -> set_mod 0 event
         Just tval
             | mute >= threshold -> Score.add_attributes mute_attr event
@@ -455,9 +455,9 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
         | otherwise = transposed
         where
         transposed = event
-            { Score.event_pitch =
+            { Score.event_untransformed_pitch =
                 PitchSignal.map_y (Pitches.transpose (Pitch.Diatonic 3))
-                    (Score.event_pitch event)
+                    (Score.event_untransformed_pitch event)
             }
 
 c_nyogcag :: Derive.Transformer Derive.Note

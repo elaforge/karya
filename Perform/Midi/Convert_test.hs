@@ -78,7 +78,7 @@ test_rnd_vel = do
     check $ all (Num.in_range 40 90) vels
 
 noinst n = mkevent n "4c" "noinst"
-nopitch n = (mkevent n "4c" "s/1") { Score.event_pitch = mempty }
+nopitch n = Score.set_pitch mempty $ mkevent n "4c" "s/1"
 good n = mkevent n "4c" "s/1"
 
 mkevent :: RealTime -> String -> Text -> Score.Event
