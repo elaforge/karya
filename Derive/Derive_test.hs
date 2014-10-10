@@ -465,10 +465,6 @@ test_fractional_pitch = do
             <- map Midi.wmsg_msg mmsgs]
         [(0, Key.c4), (1, Key.d4)]
 
-e_control :: Score.Control -> Score.Event -> Maybe [(Signal.X, Signal.Y)]
-e_control cont = fmap (Signal.unsignal . Score.typed_val)
-    . Map.lookup cont . Score.event_controls
-
 test_control = do
     let res = DeriveTest.derive_tracks ""
             [ (inst_title, [(0, 1, ""), (1, 1, "")])

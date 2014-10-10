@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE CPP #-}
 -- | Basic calls for note tracks.
 module Derive.Call.Note (
     note_calls
@@ -11,9 +10,7 @@ module Derive.Call.Note (
     , GenerateNote, default_note, make_event
     , adjust_duration
     , with_start_controls
-#ifdef TESTING
     , min_duration
-#endif
 ) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -88,8 +85,7 @@ note_call name prepend_doc tags generate =
         Sig.call parser (note_generate generate)
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."
-    note_generate generate_note vals args =
-        with_start_controls args $ Sub.inverting generate args
+    note_generate generate_note vals args = Sub.inverting generate args
         where generate args = transform_note vals $ generate_note args
     prepended
         | Text.null prepend_doc = generator_doc
@@ -193,13 +189,14 @@ default_note config args = do
         stack_range = Seq.head $ mapMaybe Stack.region_of $
             Stack.innermost $ Derive.state_stack dyn
     control_vals <- Derive.controls_at start
+    offset <- get_start_offset start
     let attrs = either (const Score.no_attrs) id $
             TrackLang.get_val Environ.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
     let event = Score.add_flags flags $
             make_event args dyn2 start (adjusted_end - start) flags
         dyn2 = dyn
-            { Derive.state_environ = stash_convert_values control_vals
+            { Derive.state_environ = stash_convert_values control_vals offset
                 (Derive.state_environ dyn)
             }
     return [LEvent.Event event]
@@ -234,10 +231,11 @@ make_event args dyn start dur flags = Score.Event
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in
 -- 'Perform.Midi.Convert.convert_dynamic'.
-stash_convert_values :: Score.ControlValMap -> TrackLang.Environ
+stash_convert_values :: Score.ControlValMap -> RealTime -> TrackLang.Environ
     -> TrackLang.Environ
-stash_convert_values vals = dyn
+stash_convert_values vals offset = start_offset . dyn
     where
+    start_offset = TrackLang.insert_val Environ.start_offset_val offset
     dyn = maybe id (TrackLang.insert_val Environ.dynamic_val)
         (Map.lookup Controls.dynamic vals)
 
@@ -310,25 +308,30 @@ duration_attributes config controls attrs start end
 with_start_controls :: Derive.NoteArgs -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 with_start_controls args deriver = do
-    start <- Args.real_start args
-    start_s <- maybe 0 RealTime.seconds <$>
-        Derive.untyped_control_at Controls.start_s start
-    start_s <- Util.score_duration (Args.start args) start_s
-    start_t <- maybe 0 ScoreTime.double <$>
-        Derive.untyped_control_at Controls.start_t start
+    offset_s <- get_start_offset =<< Args.real_start args
+    offset_t <- Util.score_duration (Args.start args) offset_s
     let dur = Args.duration args
         min_dur = RealTime.to_score min_duration
         offset
-            | dur > 0 = min (start_s + start_t) (dur - min_dur)
-            | dur == 0 = start_s + start_t
-            | otherwise = max (start_s + start_t) (dur + min_dur)
+            | dur > 0 = min offset_t (dur - min_dur)
+            | dur == 0 = offset_t
+            | otherwise = max offset_t (dur + min_dur)
         stretch = case () of
             _ | dur > 0 -> max min_dur (dur - offset)
             _ | dur == 0 -> 1
             _ | otherwise -> max min_dur $ abs (dur - offset)
-    if start_s + start_t == 0 then deriver
+    if offset_t == 0 then deriver
         else Derive.place (Args.start args + offset) stretch $ normalize args $
             Derive.remove_controls [Controls.start_s, Controls.start_t] deriver
+
+get_start_offset :: RealTime -> Derive.Deriver RealTime
+get_start_offset start = do
+    start_s <- maybe 0 RealTime.seconds <$>
+        Derive.untyped_control_at Controls.start_s start
+    start_t <- maybe 0 ScoreTime.double <$>
+        Derive.untyped_control_at Controls.start_t start
+    start_t <- Util.real_duration start start_t
+    return $ start_s + start_t
 
 normalize :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 normalize args deriver =

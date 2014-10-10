@@ -45,12 +45,6 @@ test_convert = do
         , Left (1, [])
         , Left (2, [(2, 60)])
         ]
-    equal (convert [good 2, good 0, good 1])
-        [ Left (2, [(2, 60)])
-        , Left (0, [(0, 60)])
-        , Right "start time 0s less than previous of 2s"
-        , Left (1, [(1, 60)])
-        ]
 
 test_convert_dynamic = do
     let f pressure controls dyn_function = first e_controls $

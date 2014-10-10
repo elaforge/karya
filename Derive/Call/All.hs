@@ -33,6 +33,7 @@ import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Call.PitchHigh as PitchHigh
 import qualified Derive.Call.Post.ArrivalNote as ArrivalNote
 import qualified Derive.Call.Post.Idiom as Idiom
+import qualified Derive.Call.Post.Move as Move
 import qualified Derive.Call.Post.Reverse as Post.Reverse
 import qualified Derive.Call.Random as Random
 import qualified Derive.Call.SignalTransform as SignalTransform
@@ -73,6 +74,7 @@ note_maps = mconcat
     , PitchHigh.note_calls
     , Post.Reverse.note_calls
     , Random.note_calls
+    , Move.note_calls
     , Reyong.note_calls
     , Sekar.note_calls
     , SignalTransform.note_calls

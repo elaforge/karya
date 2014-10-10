@@ -76,9 +76,9 @@ tempo = "tempo"
 track_voice :: ValName
 track_voice = "track-voice"
 
--- * messages to Convert
+-- * internal
 
--- | This is a bit of a hack for the dynamic to velocity conversion in
+-- | VNum: This is a bit of a hack for the dynamic to velocity conversion in
 -- "Perform.Midi.Convert".  The default note deriver stashes the control
 -- function output here, so if it turns out to not be a Pressure instrument
 -- it can use this value.
@@ -86,6 +86,12 @@ track_voice = "track-voice"
 -- Details in 'Perform.Midi.Convert.convert_dynamic'.
 dynamic_val :: ValName
 dynamic_val = "dyn-val"
+
+-- | RealTime: This stores the RealTime sum of 'Derive.Controls.start_s' and
+-- 'Derive.Controls.start_t', and is later applied by the @apply-start-offset@
+-- postproc.
+start_offset_val :: ValName
+start_offset_val = "start-offset-val"
 
 -- * supported by not so core derivers
 

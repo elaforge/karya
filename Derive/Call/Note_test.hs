@@ -4,12 +4,9 @@
 
 module Derive.Call.Note_test where
 import Util.Control
-import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Sig as Sig
@@ -24,39 +21,6 @@ test_note_track_call = do
             $ \_ -> Derive.with_val "x" (42 :: Int)
     equal (run [(">s/1", [(0, 1, "")])]) ([Just 42], [])
     equal (run [(">s/2", [(0, 1, "")])]) ([Nothing], [])
-
-test_start_controls = do
-    let run = DeriveTest.extract DeriveTest.e_start_dur
-            . DeriveTest.derive_tracks ""
-    let min_dur = Note.min_duration
-    let start_s sig (s, d) = [("> | %start-s = " ++ sig, [(s, d, "")])]
-    equal (run (start_s "0" (0, 1))) ([(0, 1)], [])
-    equal (run (start_s "1" (0, 0))) ([(1, 0)], [])
-    equal (run (start_s "1" (1, -1))) ([(2, -2)], [])
-    equal (run (start_s "-.5" (1, -1))) ([(0.5, -0.5)], [])
-    equal (run (start_s "-1" (1, -1))) ([(min_dur, -min_dur)], [])
-    equal (run (start_s "-1" (0, 1))) ([(-1, 2)], [])
-    equal (run (start_s "1" (0, 1))) ([(1 - min_dur, min_dur)], [])
-
-    let event title = [(title, [(0, 1, "")])]
-    equal (run $ ("tempo", [(0, 0, "2")]) : event "> | start-t = 1")
-        ([(0, 0.5)], [])
-
-    -- Randomization.
-    let events title n = [(title, [(t, 1, "") | t <- Seq.range' 0 n 1])]
-    equal (run $ events ">" 2) ([(0, 1), (1, 1)], [])
-    check $ (run $ events "> | %start-s = (cf-rnd -1 1)" 2)
-        /= ([(0, 1), (1, 1)], [])
-
-    -- The pitch moves with the note.
-    let runp = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks ""
-    let tracks n =
-            [ ("> | %start-s = -1", [(n, 1, "")])
-            , ("*", [(n, 0, "4c")])
-            ]
-    equal (runp (tracks 1)) ([(0, 2, "4c")], [])
-    equal (runp (tracks 2)) ([(1, 2, "4c")], [])
 
 test_orphan_notes = do
     -- Slice out orphans that aren't covered by a parent event.
