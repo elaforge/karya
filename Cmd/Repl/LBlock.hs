@@ -160,27 +160,19 @@ replace_block_call from to =
 
 -- | If the events under the cursor are a block calls, create blocks that don't
 -- already exist.  Optionally use a template block.
-block_for_event :: Maybe BlockId -> Cmd.CmdL ()
-block_for_event template = mapM_ make =<< Selection.events
+for_event :: Maybe BlockId -> Cmd.CmdL ()
+for_event maybe_template = mapM_ make =<< Selection.events
     where
     make (_, _, events) = mapM_
-        (create_named template . Event.event_text) events
+        (maybe named named_from maybe_template . Event.event_text) events
 
-create_named :: Maybe BlockId -> Text -> Cmd.CmdL ()
-create_named template name = whenM (can_create name) $
-    Create.view =<< case template of
-        Nothing -> do
-            template_id <- Cmd.get_focused_block
-            Create.named_block name =<< State.block_ruler template_id
-        Just template_id ->
-            Create.named_block_from_template False template_id name
+-- | Copy the current block into a new empty block with the given name.
+named :: Text -> Cmd.CmdL ViewId
+named name = flip named_from name =<< Cmd.get_focused_block
 
-can_create :: State.M m => Text -> m Bool
-can_create name
-    | Text.null name = return False
-    | otherwise = do
-        block_id <- State.read_id name
-        not . Map.member block_id <$> State.gets State.state_blocks
+named_from :: BlockId -> Text -> Cmd.CmdL ViewId
+named_from template_id name =
+    Create.view =<< Create.named_block_from_template False template_id name
 
 -- | Create a named block with the same structure as the focused one.
 copy :: Bool -> Text -> Cmd.CmdL ViewId

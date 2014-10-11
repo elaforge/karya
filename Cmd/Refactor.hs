@@ -174,7 +174,7 @@ rebase_relative_calls copy from to = do
     forM_ (zip called (map (rebase_call from) called)) $ \(old, new) ->
         (if copy then Create.copy_block else Create.rename_block) old new
 
--- | Move a call from one caller to another.
+-- | Move a relative call from one caller to another.
 --
 -- ns1/caller ns2/old.sub -> ns1/caller.sub
 rebase_call :: BlockId -> BlockId -> BlockId

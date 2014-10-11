@@ -180,9 +180,8 @@ UNSORTED
     visible?  Or maybe select all should put cur start at the top.
   * Signal render does't go away when you delete events from the track.
     Likely the same problem as highlights, with the same solution.
-  - How to give same left hand to both, without copy pasting?  The problem is
-    that it's occasionally different.  Ideally I could just not write sangsih,
-    only when it's different.
+  * I do a lot of creating a new block from a template, and giving it a name.
+    Isn't there an easy repl cmd for that?
   wayang
     - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
       fltk/EventTrack.cc:107 sample time decreased: 64 <= 64

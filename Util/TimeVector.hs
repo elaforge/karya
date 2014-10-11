@@ -90,7 +90,7 @@ to_foreign_ptr :: Storable.Storable a =>
     Storable.Vector a -> (Foreign.ForeignPtr a, Int)
 to_foreign_ptr = Storable.unsafeToForeignPtr0
 
-with_ptr :: (Storable.Storable a) =>
+with_ptr :: Storable.Storable a =>
     Storable.Vector a -> (Foreign.Ptr a -> IO b) -> IO b
 with_ptr = Storable.unsafeWith
 
