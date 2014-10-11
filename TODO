@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Maybe track GC should be automatic, so I don't have to remember to call
+    LTrack.gc all the time.  Same for rulers?
   * Move before inversion doesn't work if it's a call.  I can move the whole
     call, but I probably do want to adjust the individual notes.
     . So how about get controls in the original place, and then move the
@@ -182,7 +184,6 @@ UNSORTED
     that it's occasionally different.  Ideally I could just not write sangsih,
     only when it's different.
   wayang
-
     - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
       fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
     - Automatically fill in weak notes?
@@ -1007,10 +1008,19 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test:
-  - criterion tests for midi performance and derivation
-    . It has tons of deps, so it should be optional, like ekg.
-  - criterion test for parsing
-  - and criterion tests for derivation, why not?
+  criterion
+    * shakefile: build/opt/RunCriterion-Derive.Derive compiles
+      Derive.Derive_criterion
+      . Only depends on criterion package for this binary, so I can avoid
+        incurring the dependency globally.
+      . Can I then use the same mechanism to add ekg only for seq-ekg?
+    * derive and perform simple scores
+    - it seems unreasonably fast, why is it so much faster than in seq?
+      . 5us for 128 events, plus no_invert is slower than invert?
+      . And shouldn't perform for invert and no_invert be the same?
+      . Maybe I should force the track signals too?
+    - score from a file
+    - parsing
   complete quickcheck derive testing
     I switched back to Double for RealTime, but this means the roundoff errors
     are back.  Use quickcheck to repro them.

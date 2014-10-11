@@ -199,7 +199,7 @@ cppFiles = ["App/Main.hs", "Cmd/Repl.hs", "Midi/TestMidi.hs"]
 --
 -- The principled way to do this would be to notice the #include when chasing
 -- deps and 'need' it there, but that would mean interleaving logic in
--- 'HsDeps.transitiveImportsOf' which seems like too much bother for just two
+-- 'HsDeps.transitiveImportsOf' which seems like too much bother for just a few
 -- binaries.
 isHsconfigBinary :: FilePath -> Bool
 isHsconfigBinary fn =
@@ -238,8 +238,8 @@ hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 
 -- | This is used to create karya.cabal, which is then used with cabal
 -- configure to figure out exact version numbers.
-libraryDependencies :: [(String, String)]
-libraryDependencies = concat $
+globalPackages :: [(String, String)]
+globalPackages = concat $
     -- really basic deps
     [ [("base", ">=4.6"), ("containers", ">=0.5")]
     , w "directory filepath process bytestring time unix array pretty"
@@ -270,6 +270,16 @@ libraryDependencies = concat $
     , w "aeson" -- serialize and unserialize log msgs
     ]
     where w = map (\p -> (p, "")) . words
+
+-- | This is a hack so I can add packages that aren't in 'globalPackages'.
+-- This is for packages with tons of dependencies that I usually don't need.
+extraPackagesFor :: FilePath -> [Package]
+extraPackagesFor obj
+    | (criterionHsSuffix <> ".o") `List.isSuffixOf` obj = ["criterion"]
+    | otherwise = []
+
+criterionHsSuffix :: FilePath
+criterionHsSuffix = "_criterion.hs"
 
 -- ** cc
 
@@ -382,7 +392,10 @@ configure midi = do
                 Debug -> []
                 Opt -> ["-O"]
                 Test -> ["-fhpc"]
-                Profile -> ["-O", "-prof", "-fprof-auto-top"]
+                -- TODO I don't want SCCs for criterion tests, but
+                -- not sure for plain profiling, maybe I always want manual
+                -- SCCs anyway?
+                Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
             ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
@@ -453,8 +466,7 @@ main = withLockedDatabase $ do
         let modeConfig = (\c -> c { getPackages_ = getPackages }) . modeConfig_
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
-        -- Always build, since it can't tell when 'libraryDependencies' has
-        -- changed.
+        -- Always build, since it can't tell when 'globalPackages' has changed.
         makeCabal
         cabalConfigurationRule
         -- hspp is depended on by all .hs files.  To avoid recursion, I
@@ -477,7 +489,7 @@ main = withLockedDatabase $ do
             let config = infer fn
             hs <- maybe (errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
-            buildHs config (map (oDir config </>) (hsLibraries binary)) hs fn
+            buildHs config (map (oDir config </>) (hsLibraries binary)) [] hs fn
             case hsGui binary of
                 Just has_icon -> makeBundle fn True has_icon
                 _ -> return ()
@@ -491,6 +503,7 @@ main = withLockedDatabase $ do
         configHeaderRule
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
+        criterionRules (modeConfig Profile)
         markdownRule (buildDir (modeConfig Opt) </> "linkify")
         hsRule (modeConfig Debug) -- hsc2hs only uses mode-independent flags
         hsORule infer
@@ -774,7 +787,7 @@ makeCabal = "karya.cabal" *> \fn -> do
     where
     indent = replicate 8 ' '
     buildDepends = (indent++) $ List.intercalate (",\n" ++ indent) $
-        List.sort $ map mkline libraryDependencies
+        List.sort $ map mkline globalPackages
     mkline (package, constraint) =
         package ++ if null constraint then "" else " " ++ constraint
 
@@ -818,9 +831,9 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
         "-main-is", pathToModule main, main]
 
 -- | Build a haskell binary.
-buildHs :: Config -> [FilePath] -> FilePath -> FilePath
+buildHs :: Config -> [FilePath] -> [Package] -> FilePath -> FilePath
     -> Shake.Action ()
-buildHs config libs hs fn = do
+buildHs config libs extraPackages hs fn = do
     packages <- getPackages config
     when (isHsconfigBinary fn) $
         need [hsconfigPath config]
@@ -829,7 +842,7 @@ buildHs config libs hs fn = do
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ libs
     logDeps config "build" fn objs
-    Util.cmdline $ linkHs config fn packages objs
+    Util.cmdline $ linkHs config fn packages extraPackages objs
 
 makeBundle :: FilePath -> Bool -> Bool -> Shake.Action ()
 makeBundle binary isHaskell hasIcon
@@ -849,10 +862,10 @@ makeBundle binary isHaskell hasIcon
 testRules :: Config -> Shake.Rules ()
 testRules config = do
     runTests ++ "*.hs" *> generateTestHs "_test"
-    hasPrefix runTests ?> \fn -> do
+    binaryWithPrefix runTests ?> \fn -> do
         -- The UI tests use fltk.a.  It would be nicer to have it
         -- automatically added when any .o that uses it is linked in.
-        buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
+        buildHs config [oDir config </> "fltk/fltk.a"] [] (fn ++ ".hs") fn
         -- This sticks around and breaks hpc.
         system "rm" ["-f", replaceExt fn "tix"]
         -- This gets reset on each new test run.
@@ -861,17 +874,12 @@ testRules config = do
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
     runProfile ++ "*.hs" *> generateTestHs "_profile"
-    hasPrefix runProfile ?> \fn ->
-        buildHs config [oDir config </> "fltk/fltk.a"] (fn ++ ".hs") fn
-
--- | Match any filename that starts with the given prefix but doesn't have
--- an extension, i.e. binaries.
-hasPrefix :: FilePath -> FilePath -> Bool
-hasPrefix prefix fn =
-    prefix `List.isPrefixOf` fn && null (FilePath.takeExtension fn)
+    binaryWithPrefix runProfile ?> \fn ->
+        buildHs config [oDir config </> "fltk/fltk.a"] [] (fn ++ ".hs") fn
 
 generateTestHs :: FilePath -> FilePath -> Shake.Action ()
 generateTestHs hsSuffix fn = do
+    -- build/test/RunTests-Xyz.hs -> **/*Xyz*_test.hs
     let contains = drop 1 $ dropWhile (/='-') $ FilePath.dropExtension fn
         pattern = (if null contains then "" else '*' : contains)
             ++ "*" ++ hsSuffix ++ ".hs"
@@ -880,6 +888,25 @@ generateTestHs hsSuffix fn = do
         errorIO $ "no tests match pattern: " ++ show pattern
     need $ "test/generate_run_tests.py" : tests
     system "test/generate_run_tests.py" (fn : tests)
+
+criterionRules :: Config -> Shake.Rules ()
+criterionRules config = buildDir config </> "RunCriterion-*" *> \fn -> do
+    let hs = runCriterionToSrc config fn
+    need [hs]
+    buildHs config [] ["criterion"] hs fn
+
+-- | build/profile/RunCriterion-Derive.Derive -> Derive/Derive_criterion.hs
+runCriterionToSrc :: Config -> FilePath -> FilePath
+runCriterionToSrc config bin = moduleToPath name ++ criterionHsSuffix
+    where
+    -- build/opt/RunCriterion-Derive.Derive -> Derive.Derive
+    name = drop 1 $ dropWhile (/='-') $ dropDir (buildDir config) bin
+
+-- | Match any filename that starts with the given prefix but doesn't have
+-- an extension, i.e. binaries.
+binaryWithPrefix :: FilePath -> FilePath -> Bool
+binaryWithPrefix prefix fn = prefix `List.isPrefixOf` fn
+    && null (FilePath.takeExtension fn)
 
 -- * markdown
 
@@ -918,7 +945,8 @@ hsORule infer = matchHsObj ?>> \fns -> do
     -- updaing the timestamp on the .hi file if its .o didn't need to be
     -- recompiled, so hopefully this will avoid some work.
     logDeps config "hs" obj (hs:his)
-    Util.cmdline $ compileHs packages (targetToMode obj) config hs
+    Util.cmdline $ compileHs packages (extraPackagesFor obj) (targetToMode obj)
+        config hs
 
 -- | Generate both .hs.o and .hi from a .hs file.
 matchHsObj :: FilePath -> Maybe [FilePath]
@@ -936,22 +964,35 @@ matchHsObj fn
     -- so I don't need to track the .hi.
     isMain = Map.member hs nameToMain
         || runProfile `List.isPrefixOf` hs || runTests `List.isPrefixOf` hs
+        || criterionHsSuffix `List.isSuffixOf` hs
 
-compileHs :: [PackageId] -> Maybe Mode -> Config -> FilePath -> Util.Cmdline
-compileHs packages mode config hs = ("GHC" ++ maybe "" (('-':) . show) mode, hs,
-    [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
-        ++ mainIs ++ packageFlags ++ [hs, "-o", srcToObj config hs])
+compileHs :: [PackageId] -> [Package] -> Maybe Mode -> Config -> FilePath
+    -> Util.Cmdline
+compileHs packageIds packages mode config hs =
+    ( "GHC" ++ maybe "" (('-':) . show) mode
+    , hs
+    , [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
+        ++ packageFlags ++ mainIs ++ [hs, "-o", srcToObj config hs]
+    )
     where
-    packageFlags = ["-hide-all-packages"] ++ map ("-package-id="++) packages
-    mainIs = if hs `elem` Map.elems nameToMain
-        then ["-main-is", pathToModule hs]
-        else []
+    packageFlags = ["-hide-all-packages"] ++ map ("-package-id="++) packageIds
+        ++ map ("-package="++) packages
+    mainIs
+        | hs `elem` Map.elems nameToMain
+                || criterionHsSuffix `List.isSuffixOf` hs =
+            ["-main-is", pathToModule hs]
+        | otherwise = []
 
-linkHs :: Config -> FilePath -> [PackageId] -> [FilePath] -> Util.Cmdline
-linkHs config output packages objs = ("LD-HS", output,
+linkHs :: Config -> FilePath -> [PackageId] -> [Package]
+    -- ^ I should use PackageIds for everything. But for the moment I don't
+    -- really know how to integrate optional packages into the
+    -- cabalConfigurationRule.
+    -> [FilePath] -> Util.Cmdline
+linkHs config output packageIds packages objs = ("LD-HS", output,
     ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
         ++ ["-lstdc++"]
-        ++ ["-hide-all-packages"] ++ map ("-package-id="++) packages
+        ++ ["-hide-all-packages"] ++ map ("-package-id="++) packageIds
+        ++ map ("-package="++) packages
         ++ objs ++ ["-o", output])
     where flags = configFlags config
 
@@ -1052,11 +1093,11 @@ srcToObj config fn = addDir $ case FilePath.takeExtension fn of
         | build `List.isPrefixOf` fn = id
         | otherwise = (oDir config </>)
 
--- | build/debug/A/B.hs.o -> A/B.hs
+-- | build/debug/obj/A/B.hs.o -> A/B.hs
 objToSrc :: Config -> FilePath -> FilePath
 objToSrc config = FilePath.dropExtension . dropDir (oDir config)
 
--- | build/debug/A/B.o -> build/hsc/A/B.hs
+-- | build/debug/obj/A/B.o -> build/hsc/A/B.hs
 objToHscHs :: Config -> FilePath -> FilePath
 objToHscHs config = (hscDir config </>) . objToSrc config
 
@@ -1091,8 +1132,13 @@ strip = reverse . dropWhile Char.isSpace . reverse . dropWhile Char.isSpace
 errorIO :: Trans.MonadIO m => String -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
 
+-- | Foor/Bar.hs -> Foo.Bar
 pathToModule :: FilePath -> String
 pathToModule = map (\c -> if c == '/' then '.' else c) . FilePath.dropExtension
+
+-- | Foo.Bar -> Foo/Bar
+moduleToPath :: String -> FilePath
+moduleToPath = map $ \c -> if c == '.' then '/' else c
 
 logDeps :: Config -> String -> FilePath -> [FilePath] -> Shake.Action ()
 logDeps config stage fn deps = do
