@@ -5,109 +5,12 @@ LEGEND
 UNSORTED
   - Maybe track GC should be automatic, so I don't have to remember to call
     LTrack.gc all the time.  Same for rulers?
-  * Move before inversion doesn't work if it's a call.  I can move the whole
-    call, but I probably do want to adjust the individual notes.
-    . So how about get controls in the original place, and then move the
-      event?  That becomes moving controls, which I don't want to do unless
-      I change controls to be relative to event start.
-    . But I don't see any other way around this.
-    . This means any access will move the whole signal.  Would it be better to
-      build shift and stretch into the signal?  Then I don't have to worry
-      about "rebasing" access to signals in the event.
-    . I still have problems with e.g. 'clip' blocks clip events that move
-      back.  Maybe it should just be a postproc.  This could also do the more
-      fancy distribution, and pay attention to instrument, hand, and
-      neighbors.
-  * control after block call end doesn't work if there is a tempo change
-    It's due to clipping controls after the decay.  But pedal is an exception.
-    Still, can't I extend the control end time until at least the start of the
-    next event?
-  * clean up the Derive.info_expr situation.  Many of the calls in Eval are
-    dangerous because they take CallInfo but don't set it.
-    . If I want to change it to parsed, then I need to let Slice.InsertEvent
-      take an Expr, which means an Either for TrackTree.track_events
-    . The alternative is to use ShowVal, which isn't so bad, because most of
-      the vals I care about can be shown.
-    . Or I could make the inserted track not actually a track, but directly
-      a derive event.
-    / move info_expr to PassedArgs, that way it can't be retained accidentally
-      . no, it's not per call, it's per expression
-    . Wait, but transformers don't invert.  So maybe I can leave expr Nothing
-      for all transformers?  Then what happens when a such transformer is
-      applied to a generator that inverts?
-    . Inversion copies the info_expr to the synthesized event.  So if you are
-      evaluating a generator and it inverts, then you need to have its expr
-      in info_expr.  Transformers also matter, if they have Tags.under_invert.
-    . PlayUtil.make_transformer for local def transform:
-      If it rebinds a name, then it's e.g.
-
-        trans = b
-        a | trans arg arg | c | gen
-        When 'gen' inverts, I get 'a | trans arg arg | c | gen' again.
-        trans should run 'c arg arg', it doesn't invert, so ignore expr.
-
-        trans = b arg arg | q arg arg
-        a | trans | c | gen
-        Same story, right?
-
-        gen = x
-        a | b | x
-        When 'x' inverts, I get a | b | x again, that should be fine.
-
-        gen = y | x
-        a | gen
-
-    . So when is not updaing expr bad?  For Random's alt, because 'alt a b'
-      wants to eval 'a', but if 'a' inverts we're back with 'alt a b'.
-      So if I have a generator that wants to replace itself with another
-      generator, and it might make a different decision if called under
-      inversion, then it should fix up the expr too.
-    . So defs with gen=x don't need to replace the expr, because it always
-      does the same thing.
-
-    * Can I eliminate info_expr entirely?  Sub.inverting saves the deriver
-      in Dynamic.  Tags.under_invert transformers also save themseles.
-    * I need to clear subtracks from the args so inversion doesn't happen
-      again.  Or somehow set something that says I'm under the inversion.
-    * Implement under_invert by saving transformers too.
-    * cerucuk-punyah @b2a broken
-    * Strip out all the info_expr stuff.
-    * Can I get rid of Sub.*inversion* functions?
-
-  * It would be useful to have some way to see the current control value on
-    control tracks.  Status bar?
-  * floating edit input is overwritten when track signals update
-  * defs file doesn't continue a line if it has a comment
-    . It's harder than I thought... I can't just strip comments because one
-      might be in a string.  But I can't just modify the parser because now
-      I need all 'spaces' to respect indented line continuation.
-    . But then, why not?  Event expressions will never have newlines anyway.
-    . Profile and make sure the changes didn't affect normal parsing.
-  * %start-s = (cf-rnd ..) messes up ngoret
-    * nope, still messes some up
-  * Perform/Midi/Perform.hs:835: note:  Perform: %vel clipped: (16.22s, 16.78s)
-    Should say what the clipped value was.
-    But if there is a randomized control function, then >1 or <0 is common.
-    . Or I could make the rnd calls optionally clip at 1 and 0.
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
   - fix control scope in parent events that cover up an orphan, as
     demonstrated in Sub_test.test_overlapping_parent_control_scope
-  * If I play the first two notes of bug/mute in loop, often the second one
-    seems like it winds up with a %mod of 0.  Perhaps this is due to the cc
-    appearing after the NoteOn rather than before it.  Why is that happening?
-  / The Signal / PitchSignal divide can be annoying.  If I put them in
-    a TimeVector class then I should be able to directly apply TimeVector
-    functions to them.  Then, make all TimeVector functions polymorphic, and
-    Signal and PitchSignal can just re-export them.
-    . But it seems weird that Signal functions work on PitchSignals, so maybe
-      I should specialize them before re-exporting... but that winds up being
-      not much less work than unwrapping the newtype.  The advantage is that
-      I can write functions generic on the signal, but in practice there are
-      few of those.  So maybe I don't actually care that much.
-  * write a test that demonstrates the problem with Block.trim_controls:
-    a control that happens to be at the end of the block will be dropped even
-    if the block doesn't have a final event.
+  - Better solution for the "sample at end of block" problem, as demonstrated
+    by Block_test.test_trim_controls_problem
   fancier randomization
     . How much a note differs depends on its neighbors, so it's not an even
       distribution.  Use brownian noise, or a fractal subdivision scheme.  But
@@ -117,71 +20,6 @@ UNSORTED
     . Divide on instrument and hand, so each part gets its own individuality.
     - randomization should be centered on a value, with variance as a signal,
       so I can turn accuracy up or down.
-  * Make block calls get signals until the next event after the block, not
-    until the end of the callee block.
-    . Pass the next event to the block call so it can put it in
-      Derive.info_next_events.
-    . Doesn't this conflict with wanting to trim the controls so the note at
-      the end of the block doesn't get it?  I still need to tell the
-      difference between local 'end' samples and ones from the caller.  Maybe
-      I have to do the thing where I delete the sample at 'end', but keep ones
-      beyond it.  It seems like a weird hack though.
-      . If I have a pedal up at the end, I do want it for the final event.
-        Transposition, don't.  Pitch, don't.  Continuous timbre control do,
-        but per-note timbre control, don't.  What is the difference?  I guess
-        it's continuous vs. per-note.  Currently I can't tell the difference,
-        and in fact the same control may be different in different contexts.
-    . Another problem is that the next event is in ScoreTime, and it's the
-      ScoreTime of the caller.  So I can't know... but the caller would.  The
-      block call could stash the start time of the next event, and
-      Args.controls_end or something could fall back on that.
-    . What happens if I don't trim tails at all?  One thing is that I still
-      have to differentiate between per-note and global controls or it thinks
-      that notes change their pitches.  But isn't that difference expressed by
-      inversion?  So don't trim at all, but inversion trims the events
-      themselves.
-    . But inversion includes the next event in case it is a slide, but I don't
-      want it if it's just a set.  So I think I still need to trim.  But what
-      if I don't trim the last event in the block?  But in inversion, every
-      note is the last one of its block.  But why does it only come up with
-      e.g. '+a'?  Because it uses Util.note, which does eval, which fakes up
-      a note with no neighbors.  Perhaps the next event is not a good proxy
-      for the control scope.
-    . Ideally: no trimming for uninverted notes.  Controls are assumed to be
-      at the track level, not the note level.  Inverted controls are specific
-      to the note they are beneath, so they stop before the next event, or the
-      end of the block.  So can I put the trimming in the invert?  A control
-      or pitch track call would notice if it's in a slice, and if so, trim the
-      control before stashing.
-      . If events no longer trim controls after them, how does this affect
-        perform?  Previously perform could just emit all of the remaining
-        controls, but now that's too much.  I think it can just rely on
-        inst_decay.
-    . Is there a nicer way to get the final event right than deleting the
-      sample exactly at 'end'?  It seems like I shouldn't have to copy all of
-      the signal just for that. If I figure out a way to not do that, the call
-      itself still has to, if it doesn't want the end sample, but does want
-      ones after it.  The bigger issue is that it's weird to delete a single
-      sample, isn't there a less ad-hoc way to get the effect I want?
-
-  * calldoc can use a hollow bullet point for optional args
-  * player got stuck in loop mode, space had no effect
-  / can I replace Stack.block_track_of with to_ui_innermost?
-    Proabbly, but why bother?
-  / if >inst in a note track title looks for an '>inst' transformer, shouldn't
-    '>inst' default to setting instrument, and the note track title just
-    becomes a transformer?
-    . But that means I get clashes with calls that start with >, and I have
-      those.
-    . For the time being, if I want that I can call 'note-track >inst'.
-  * Selection continuing from the bottom is inconvenient, because I select
-    a whole track, copy, and when I move to paste, it jumps to the bottom of
-    the track.  Continue from the top?  Or continue from the end that is
-    visible?  Or maybe select all should put cur start at the top.
-  * Signal render does't go away when you delete events from the track.
-    Likely the same problem as highlights, with the same solution.
-  * I do a lot of creating a new block from a template, and giving it a name.
-    Isn't there an easy repl cmd for that?
   wayang
     - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
       fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
@@ -190,25 +28,13 @@ UNSORTED
       open soft.  I can have a %strength signal that indicates how weak notes
       are played, and then have various calls that are random but biased
       toward a particular value.
-    * solo call takes an instrument and only derives if that instrument is in
-      scope.  Can I solo polos?  It can also take 'env=val'?
-    * '? definition is not quite right, I don't want overlap on lower dyn for
-      non-ngoret.  Can do with ngoret params.  But now I want to shorten the
-      previous note's duration.  Maybe I just need a separate passing note
-      ornament... or a flag to make ngoret shorten instead of lengthen.
-    * ngoret sholud have an explicit interval arg, for skipping 2 notes
     - Could I have a 'repeat' count that counts each time a block has a been
       called?  How can I do this without adding linear state?
       . Does linear state even matter since I'm not parallelizing derivation?
         Maybe I should try to parallelize derivation or abandon the idea.
-    * double strike
-      . also a +mute +open double strike
     - many double strikes or ngoret tones land a bit ahead of the beat
     - I want some optional ngoret to happen the same way in both hands.
       I could make it apply to a parallel kempyung or octave.
-    * how about a transformer that derives with each of the given instruments?
-      Or better, each of the given quoted transformers, then I can do
-      multiple "(set-polos) "(set-kantilan)
     - p4 has small variations depending on where the melody is going
       . @b2 sangsih rh - omit the first note after @b1, because the right hand
         is busy.
@@ -216,43 +42,18 @@ UNSORTED
       . I should be able to let the last note keep ringing onto the next
         block.
         . An attr + postproc could do this.
-    * it also has +mute vs. open variation.  They're actually variably muted,
-      but I don't have samples for that, so I'll have to alternate.
-      . I also want variable mute for nruktuk.  It should be possible to fake
-        it with an envelope.
-      . A %mute control, at 1 I switch on +mute, otherwise use a cc.
-        Then create it with a linear envelope plus some randomization.
-      . When the control is 0, notes are normal.  When it's >0, they are
-        short, but the envelope decay is long, as it approaches 1, the decay
-        gets faster.
-      . How can an instrument do this?  It would have to provide a postproc
-        which operates right before conversion.  Would it be reasonable for
-        the instrument itself to have a Event->Event function?  This is like
-        a free 1:1 postproc, more elaborate postproc would require a call.
-    * How would I apply +mute to only some of the notes in 'trem'?  I would
-      need a signal, and for the instrument to notice and apply the attribute.
     - there are also some interesting tempo changes, they could be a sub-tempo
       within @intro.
     - Do different things in polos and sangsih:
       'when (is-polos) |' and 'when (is-sangsih) |'
       I'd want a boolean type, or should I embed it in Int?
     - Gradually come in, could do omit with an omit signal that decreases.
-  template flag -t is hard to use:
-    * the lack of SaveFile messes up the local definitions file
-      . I would have to have a separate SaveDir, and not reset that.  Not sure
-        if it's worth it.
-      . Or I could just rename to dir/untitled, this accomplishes the goal of
-        not accidentally overwriting the original.
-    * the change in default namespace means @block doesn't work
   - it seems like "floating_input" would be a better name than "edit_input"
   - chained transformers should work lazily, right?  Make sure with trace.
     Probably not, actually, because the state is threaded through.  I'd have
     to disconnect the state.
-  * simple legato transformer to make a note overlap the next one
-    Just set %sus or %sus-abs should work.
-  * cache not invalidated: modify bug/cache to change %t-diatonic=5 to
-    %t-dia=5, it still has the old performance.
   - thru on *legong notes is wrong the first time
+    can see this editing rehearsal/kendang-legong
   - note entry gets the wrong scale if the track hasn't been played
   - move Types.Selection to its own module.  That leaves just aliases
     TrackNum, Width, SelNum, MouseButton
@@ -730,10 +531,6 @@ local: plugins:
     map.
 
 cleanup:
-  * Sorting is fast and there aren't actually that many Score.Events.  Now
-    that I don't care about deriving the score lazily, it may actually be
-    cheaper to remove the ordered constraint and do one sort at the end.
-    . List.sort is fast on already sorted input.
   - derive Generic and use GHC.Generics to make a generic pretty for records?
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.
@@ -774,33 +571,6 @@ cleanup:
     I got started but was discouraged when it came time to write
     GetLastSample, maybe I should make another go.
     Note tracks can't get a GetLastSample at all.
-  * move controls efficiently
-    . It would be more efficient to move events around if their controls were
-      normalized to start from their beginning, so that you never have to
-      modify the signals.  Of course, it's only worth it if events tend to get
-      moved more than once.
-    . noltol moves events with Score.move, which is really inefficient.  Think
-      more about making event signals relative.  It also means I don't have to
-      move signals that are never used.
-    . However, this is bad for global controls, currently they can just be
-      directly put in the event.  It seems a shame to have to copy a slice for
-      every event.
-    . Perhaps just store a control offset which the performer and signal
-      lookup functions then have to take into account.
-    . Maybe generalize to have a TransformedSignal !Control !Shift !Stretch
-      Don't I already do that in TrackWarp or something?
-    . Score.place doesn't stretch the conrols, should it?  Probably yes.
-      Currently: Map Control (Typed Signal.Control)
-      Or I could put shift stretch in the Event, since I expect it to be the
-      same for all controls.
-    . If I build shift into TimeVector then I get it everywhere and there's
-      no way to forget to apply it.  But it seems like I should be able to
-      abstract into another layer, but it's annoying to duplicate all those
-      TimeVector functions.  Also, maybe I shouldn't put it on every signal
-      when only applies to signals in events, and is the same for all of them?
-    . If I put it in event, it's error prone because someone can look up
-      a signal and they get the un-translated one.  Instead they have to
-      always use Score.event_control_at
   - storing TrackEvents without duration would make maintaining the
     no-overlap invariant easier.  E.g. have explicit 'off' events, otherwise
     each event extends to the next one.  It means after merging I have to
@@ -1008,12 +778,6 @@ Ui:
 
 test:
   criterion
-    * shakefile: build/opt/RunCriterion-Derive.Derive compiles
-      Derive.Derive_criterion
-      . Only depends on criterion package for this binary, so I can avoid
-        incurring the dependency globally.
-      . Can I then use the same mechanism to add ekg only for seq-ekg?
-    * derive and perform simple scores
     - it seems unreasonably fast, why is it so much faster than in seq?
       . 5us for 128 events, plus no_invert is slower than invert?
       . And shouldn't perform for invert and no_invert be the same?
@@ -1330,6 +1094,17 @@ pitch: scales: scale:
       is.  Then pitch calls use that to tune.  Doing the analysis might be
       tricky since I have to extract a "principle pitch" from each event,
       but it might be useful in general to have an analysis framework.
+
+signal: PitchSignal:
+  / The Signal / PitchSignal divide can be annoying.  If I put them in
+    a TimeVector class then I should be able to directly apply TimeVector
+    functions to them.  Then, make all TimeVector functions polymorphic, and
+    Signal and PitchSignal can just re-export them.
+    . But it seems weird that Signal functions work on PitchSignals, so maybe
+      I should specialize them before re-exporting... but that winds up being
+      not much less work than unwrapping the newtype.  The advantage is that
+      I can write functions generic on the signal, but in practice there are
+      few of those.  So maybe I don't actually care that much.
 
 Perform:
   - I can work around the pianoteq tuning bug by not stripping redundant
