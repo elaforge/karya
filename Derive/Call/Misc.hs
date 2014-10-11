@@ -9,6 +9,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
@@ -18,11 +19,14 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import Types
+
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map
     [ ("multiple", c_multiple)
     , ("solo-env", c_solo_env)
+    , ("solo-v", c_solo_variation)
     , ("solo", c_solo)
     ]
 
@@ -42,6 +46,20 @@ to_transformer val = case val of
     Left (TrackLang.Quoted expr) -> NonEmpty.toList expr
     Right inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
         [TrackLang.to_val inst]]
+
+c_solo_variation :: Derive.Transformer Derive.Note
+c_solo_variation = Derive.transformer Module.prelude "solo-v" mempty
+    "Only derive if the control has the given value."
+    $ Sig.callt ((,)
+    <$> Sig.required "val" "Value."
+    <*> Sig.defaulted "control" (Sig.control "var" 0) "Control."
+    ) $ \(val, control) args deriver ->
+        ifM (has_control control val =<< Args.real_start args) deriver mempty
+
+has_control :: TrackLang.ValControl -> Int -> RealTime -> Derive.Deriver Bool
+has_control control val pos = do
+    cval <- Util.control_at control pos
+    return $ round cval == val
 
 c_solo_env :: Derive.Transformer Derive.Note
 c_solo_env = Derive.transformer Module.prelude "solo-env" mempty
