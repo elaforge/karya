@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Maybe track GC should be automatic, so I don't have to remember to call
+  * Maybe track GC should be automatic, so I don't have to remember to call
     LTrack.gc all the time.  Same for rulers?
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.

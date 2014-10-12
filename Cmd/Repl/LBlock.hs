@@ -183,12 +183,12 @@ copy copy_events name = do
 -- * destroy
 
 destroy :: State.M m => [BlockId] -> m ()
-destroy = mapM_ State.destroy_block
+destroy = mapM_ Create.destroy_block
 
 destroy_except :: [BlockId] -> Cmd.CmdL ()
 destroy_except keep = do
     block_ids <- State.all_block_ids
-    mapM_ State.destroy_block (filter (not . (`elem` keep)) block_ids)
+    mapM_ Create.destroy_block (filter (not . (`elem` keep)) block_ids)
 
 -- * dividers
 

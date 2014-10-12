@@ -197,10 +197,14 @@ named_block name ruler_id = do
 -- that only appeared in that block.
 destroy_block :: State.M m => BlockId -> m ()
 destroy_block block_id = do
-    track_ids <- fmap Block.block_track_ids (State.get_block block_id)
+    block <- State.get_block block_id
+    let track_ids = Block.block_track_ids block
+        ruler_ids = Block.block_ruler_ids block
     State.destroy_block block_id
     orphans <- orphan_tracks
     mapM_ State.destroy_track (filter (`Set.member` orphans) track_ids)
+    orphans <- orphan_rulers
+    mapM_ State.destroy_ruler (filter (`elem` orphans) ruler_ids)
 
 -- ** util
 
