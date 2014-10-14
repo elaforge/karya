@@ -135,9 +135,13 @@ convert_midi_pitch inst inst_environ patch_scale attr_map controls event =
         (clipped, out_of_range) = Signal.clip_bounds low high $
             Signal.scalar_add (low - un_nn low_pitch) sig
     un_nn (Pitch.NoteNumber nn) = nn
+
+    -- Trim controls to avoid applying out of range transpositions.
+    note_end = Score.event_end event + Instrument.inst_decay inst
+    trimmed_controls = fmap (fmap (Signal.drop_after note_end)) controls
     pitch_signal = convert_pitch patch_scale
         (inst_environ <> Score.event_environ event)
-        controls (Score.event_transformed_pitch event)
+        trimmed_controls (Score.event_transformed_pitch event)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.
@@ -203,15 +207,15 @@ convert_dynamic pressure controls dyn_function =
 convert_pitch :: Instrument.PatchScale -> TrackLang.Environ -> Score.ControlMap
     -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale environ controls psig = do
-    unless (null errs) $
-        Log.warn $ "pitch: " <> Text.intercalate ", " (map prettyt errs)
-    let (nn_sig, errs) = convert_scale scale (Signal.map_y round_pitch sig)
-    unless (null errs) $
-        ConvertUtil.throw $ "out of range for patch scale: " <> prettyt errs
+    let (sig, nn_errs) = PitchSignal.to_nn $
+            PitchSignal.apply_controls environ controls psig
+    unless (null nn_errs) $ Log.warn $
+        "convert pitch: " <> Text.intercalate ", " (map prettyt nn_errs)
+    let (nn_sig, scale_errs) =
+            convert_scale scale (Signal.map_y round_pitch sig)
+    unless (null scale_errs) $ Log.warn $
+        "out of range for patch scale: " <> prettyt scale_errs
     return nn_sig
-    where
-    (sig, errs) = PitchSignal.to_nn $
-        PitchSignal.apply_controls environ controls psig
 
 -- | Round pitches to the nearest tenth of a cent.  Differences below this are
 -- probably imperceptible.  Due to floating point inaccuracy, pitches can wind

@@ -3,6 +3,27 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * Convert.convert_pitch converts too much, since transpose signals now
+    extend beyond the end of the event.
+    . pitch out of range error: when played via set-kantilan on i5 88.73
+      But when played by itself as i6 it's 86.88, which is correct.
+    . proper MIDI nn is 100
+    . set-kantilan still winds up as >p-isep?
+    . pitch = <106.14s:72.1nn,4a(*wayang)>
+      pitch = <106.28s:74.83nn,5i(*wayang)>
+      , %t-dia: < 104.85s:5, 131.71s:6, 150s:5 >
+    . due to the t-dia later on
+  - double click in block header not above a track doesn't open the block text
+    input
+  - when I change the tempo in cerucuk-punyah, it unpredictably takes 35s--50s
+    to rederive, even though a complete rederive only takes 11s!
+    . Also if I change the tempo near the end, it should cache most of the
+      blocks, but only the very first one is cached.
+  - save/wayang/bug-bad-pitch
+    It's a cache effect, since it goes away when I reload.
+  - import a b doesn't warn when b shadows a.
+  - Midi thru should probably ignore t-* transpose signals.  Otherwise the
+    sounding pitch doesn't match the entered pitch.
   * Maybe track GC should be automatic, so I don't have to remember to call
     LTrack.gc all the time.  Same for rulers?
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
@@ -21,6 +42,7 @@ UNSORTED
     - randomization should be centered on a value, with variance as a signal,
       so I can turn accuracy up or down.
   wayang
+    - maybe repeated notes could automatically apply pedal
     - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
       fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
     - Automatically fill in weak notes?
@@ -35,18 +57,8 @@ UNSORTED
     - many double strikes or ngoret tones land a bit ahead of the beat
     - I want some optional ngoret to happen the same way in both hands.
       I could make it apply to a parallel kempyung or octave.
-    - p4 has small variations depending on where the melody is going
-      . @b2 sangsih rh - omit the first note after @b1, because the right hand
-        is busy.
-      . @b1 sangsih rh - after @up, play the first two notes differently
-      . I should be able to let the last note keep ringing onto the next
-        block.
-        . An attr + postproc could do this.
-    - there are also some interesting tempo changes, they could be a sub-tempo
-      within @intro.
-    - Do different things in polos and sangsih:
-      'when (is-polos) |' and 'when (is-sangsih) |'
-      I'd want a boolean type, or should I embed it in Int?
+      . I'd need a fancier ngoret that understands 'inst-top' so it can go
+        down if necessary.
     - Gradually come in, could do omit with an omit signal that decreases.
   - it seems like "floating_input" would be a better name than "edit_input"
   - chained transformers should work lazily, right?  Make sure with trace.

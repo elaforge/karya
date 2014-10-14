@@ -32,12 +32,10 @@ import qualified App.MidiInst as MidiInst
 import Types
 
 
-test_lazy = do
-    let events = zipWith ($) (cycle [noinst, nopitch, good])
-            (map RealTime.seconds [0..])
-    equal (length (take 3 (convert events))) 3
-
 test_convert = do
+    let noinst n = mkevent n "4c" "noinst"
+        nopitch n = Score.set_pitch mempty $ mkevent n "4c" "s/1"
+        good n = mkevent n "4c" "s/1"
     equal (convert [noinst 0, nopitch 1, good 2])
         [ Right $ "event requires patch in instrument db: "
             ++ ">noinst (further warnings suppressed)"
@@ -45,6 +43,10 @@ test_convert = do
         , Left (1, [])
         , Left (2, [(2, 60)])
         ]
+    -- Make sure it's lazy.
+    let events = zipWith ($) (cycle [noinst, nopitch, good])
+            (map RealTime.seconds [0..])
+    equal (length (take 3 (convert events))) 3
 
 test_convert_dynamic = do
     let f pressure controls dyn_function = first e_controls $
@@ -77,9 +79,17 @@ test_rnd_vel = do
     check $ not (all (== head vels) vels)
     check $ all (Num.in_range 40 90) vels
 
-noinst n = mkevent n "4c" "noinst"
-nopitch n = Score.set_pitch mempty $ mkevent n "4c" "s/1"
-good n = mkevent n "4c" "s/1"
+test_convert_pitch = do
+    let event tsig = DeriveTest.mkevent
+            (0, 1, "4c", [(Controls.diatonic, tsig)], Score.Instrument "s/1")
+    equal (convert [event []]) [Left (0, [(0, 60)])]
+    equal (convert [event [(0, 1)]]) [Left (0, [(0, 62)])]
+    equal (convert [event [(0, 100)]])
+        [ Left (0, [])
+        , Right "convert pitch: note can't be transposed: 100d"
+        ]
+    -- An out of range transposition shouldn't cause a warning.
+    equal (convert [event [(0, 0), (100, 100)]]) [Left (0, [(0, 60)])]
 
 mkevent :: RealTime -> String -> Text -> Score.Event
 mkevent start pitch inst =
@@ -90,9 +100,11 @@ convert events =
     show_logs extract_event $
         Convert.convert DeriveTest.default_convert_lookup events
 
+extract_event :: Perform.Event -> (Double, [(Signal.X, Signal.Y)])
 extract_event e = (RealTime.to_seconds (Perform.event_start e),
     Signal.unsignal (Perform.event_pitch e))
 
+show_logs :: (a -> b) -> [LEvent.LEvent a] -> [Either b String]
 show_logs extract =
     map $ LEvent.either (Left . extract) (Right . DeriveTest.show_log)
 
