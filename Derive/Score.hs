@@ -8,7 +8,6 @@
     transformed into Perform Events, which are specific to the performance
     backend.
 -}
-{-# LANGUAGE RecordWildCards #-}
 module Derive.Score (
     -- * Event
     Event(..)
@@ -219,17 +218,20 @@ instance DeepSeq.NFData Event where
             `seq` rnf pitch `seq` rnf pitches `seq` rnf flags
 
 instance Pretty.Pretty Event where
-    format (Event {..}) = Pretty.record (Pretty.text "Event"
-                Pretty.<+> Pretty.format (event_start, event_duration)
-                Pretty.<+> Pretty.format event_text)
-            [ ("instrument", Pretty.format event_instrument)
-            , ("pitch", Pretty.format event_untransformed_pitch)
-            , ("pitches", Pretty.format event_untransformed_pitch)
-            , ("controls", Pretty.format event_untransformed_controls)
-            , ("stack", Pretty.format event_stack)
-            , ("highlight", Pretty.text $ show event_highlight)
-            , ("environ", Pretty.format event_environ)
-            , ("flags", Pretty.format event_flags)
+    format (Event start dur text controls pitch pitches coffset stack highlight
+            inst env flags ) =
+        Pretty.record (Pretty.text "Event"
+                Pretty.<+> Pretty.format (start, dur)
+                Pretty.<+> Pretty.format text)
+            [ ("instrument", Pretty.format inst)
+            , ("pitch", Pretty.format pitch)
+            , ("pitches", Pretty.format pitches)
+            , ("controls", Pretty.format controls)
+            , ("control offset", Pretty.format coffset)
+            , ("stack", Pretty.format stack)
+            , ("highlight", Pretty.text $ show highlight)
+            , ("environ", Pretty.format env)
+            , ("flags", Pretty.format flags)
             ]
 
 -- ** modify events
