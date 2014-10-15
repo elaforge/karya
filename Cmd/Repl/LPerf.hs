@@ -93,9 +93,9 @@ sel_to_real = do
     return $ tempo block_id track_id pos
 
 get_realtime :: Cmd.M m => Bool -> m RealTime
-get_realtime root = do
+get_realtime from_root = do
     (block_id, _, track_id, pos) <- Selection.get_insert
-    perf <- if root then get_root else get block_id
+    perf <- if from_root then get_root else get block_id
     Perf.get_realtime perf block_id (Just track_id) pos
 
 -- * analysis
@@ -185,6 +185,9 @@ sel_pevents = convert . LEvent.events_of =<< sel_events
 root_sel_events :: Cmd.CmdL Derive.Events
 root_sel_events = get_sel_events True block_events
 
+root_sel_pevents :: Cmd.CmdL (Events Perform.Event)
+root_sel_pevents = convert . LEvent.events_of =<< root_sel_events
+
 -- * play from
 
 events_from :: Cmd.CmdL Cmd.Events
@@ -205,12 +208,13 @@ perform_from = do
 
 type Events d = [LEvent.LEvent d]
 
-get_sel_events :: Bool -> (BlockId -> Cmd.CmdL (Events Score.Event))
+get_sel_events :: Bool -- ^ from root
+    -> (BlockId -> Cmd.CmdL (Events Score.Event))
     -> Cmd.CmdL (Events Score.Event)
 get_sel_events = get_sel Score.event_start Score.event_stack
 
-get_sel :: (d -> RealTime) -> (d -> Stack.Stack)
-    -> Bool -> (BlockId -> Cmd.CmdL (Events d)) -> Cmd.CmdL (Events d)
+get_sel :: (d -> RealTime) -> (d -> Stack.Stack) -> Bool -- ^ from root
+    -> (BlockId -> Cmd.CmdL (Events d)) -> Cmd.CmdL (Events d)
 get_sel event_start event_stack from_root derive_events = do
     (block_id, start, end) <-
         if from_root then Selection.realtime else Selection.local_realtime
@@ -259,8 +263,15 @@ perform_events = PlayUtil.perform_events
 -- selection range, and the filtering is done post-derivation, so they reflect
 -- what would actually be played.
 sel_midi :: Cmd.CmdL Perform.MidiEvents
-sel_midi = do
-    (block_id, start, end) <- Selection.local_realtime
+sel_midi = get_sel_midi False
+
+root_sel_midi :: Cmd.CmdL Perform.MidiEvents
+root_sel_midi = get_sel_midi True
+
+get_sel_midi :: Bool -> Cmd.CmdL Perform.MidiEvents
+get_sel_midi from_root = do
+    (block_id, start, end) <-
+        if from_root then Selection.realtime else Selection.local_realtime
     events <- block_midi block_id
     return $ takeWhile (LEvent.log_or $ (<=end) . Midi.wmsg_ts) $
         dropWhile (LEvent.log_or $ (<start) . Midi.wmsg_ts) events
