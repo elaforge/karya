@@ -78,9 +78,10 @@ decode_track :: CChar -> Int -> Bool -> ScoreTime
 decode_track track_type tracknum has_pos pos
     | track_type == (#const UiMsg::track_divider) =
         Just (tracknum, UiMsg.Divider)
-    | track_type /= 0 && has_pos = Just (tracknum, UiMsg.Track pos)
-    | track_type /= 0 = Just (tracknum, UiMsg.SkeletonDisplay)
+    | track_type /= track_none && has_pos = Just (tracknum, UiMsg.Track pos)
+    | track_type /= track_none = Just (tracknum, UiMsg.SkeletonDisplay)
     | otherwise = Nothing
+    where track_none = (#const UiMsg::track_none)
 
 peek_event :: Ptr UiMsg.UiMsg -> IO UiMsg.MsgEvent
 peek_event msgp = do

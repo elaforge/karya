@@ -13,15 +13,34 @@ UNSORTED
       pitch = <106.28s:74.83nn,5i(*wayang)>
       , %t-dia: < 104.85s:5, 131.71s:6, 150s:5 >
     . due to the t-dia later on
-  - double click in block header not above a track doesn't open the block text
+  / double click in block header not above a track doesn't open the block text
     input
+    . wait, now it works
+    . It has UiMsg.SkeletonDisplay if track_type /= track_none && not has_pos.
+      has_pos is p=ScoreTime(n), track_type is e.g. normal=5
   - when I change the tempo in cerucuk-punyah, it unpredictably takes 35s--50s
     to rederive, even though a complete rederive only takes 11s!
     . Also if I change the tempo near the end, it should cache most of the
       blocks, but only the very first one is cached.
+    - The complete rederive is due to the dyn track, and solved by inserting
+      ' calls.  I should have an automatic way to work around this.
+      . Namely, control damage shouldn't expand if I know the control call
+        won't be affected by the control change.
+      . Or I could not expand control damage at all.
+
+    - But why the 5x time different from cache vs. from scratch?
   - save/wayang/bug-bad-pitch
-    It's a cache effect, since it goes away when I reload.
-  - import a b doesn't warn when b shadows a.
+    . It's because the t-dia control is not trimmed, so a note gets a bend
+      aferwards.
+    . If the note start is moved, then controls move back, so things that used
+      to be past the end are now before it.
+  / import a b doesn't warn when b shadows a.
+    . But that's on purpose, I did want to shadow ', I just wanted to shadow
+      the other one.
+  - I should be able to move samples only when converting to MIDI, this way
+    I don't need to move parts of the signal that wind up being trimmed.
+    Either try to trim the signal earlier again, or delay transformation to
+    Perform.
   - Midi thru should probably ignore t-* transpose signals.  Otherwise the
     sounding pitch doesn't match the entered pitch.
   * Maybe track GC should be automatic, so I don't have to remember to call
