@@ -463,32 +463,40 @@ test_control_damage2 = do
     equal (diff_events cached uncached) []
 
 test_get_control_damage = do
-    let f tracks s e = run tracks (get_control_damage (0, 10) (mkdamage s e))
+    let f events cdmg sdmg = run events $
+            get_control_damage (0, 10) (mkcdamage cdmg) (mksdamage sdmg)
     -- There are no events to be damaged so the damage was likely removing
     -- them, in which case it should be propagated.
-    equal (f [] 0 4) (Right (Just [(0, 4)]))
-    equal (f [(0, 0, "0")] 0 0)
+    equal (f [] [] [(0, 4)]) (Right (Just [(0, 4)]))
+    equal (f [(0, 0, "0")] [] [(0, 0)])
         (Right (Just [(0, 10)]))
-    equal (f [(0, 0, "0"), (4, 0, "0")] 0 0)
+    equal (f [(0, 0, "0"), (4, 0, "0")] [] [(0, 0)])
         (Right (Just [(0, 4)]))
-    equal (f [(0, 0, "0"), (4, 0, "0")] 1 1)
+    equal (f [(0, 0, "0"), (4, 0, "0")] [] [(1, 1)])
         (Right (Just [(0, 4)]))
-    equal (f [(0, 0, "0"), (4, 0, "0"), (8, 0, "0")] 3 5)
+    equal (f [(0, 0, "0"), (4, 0, "0"), (8, 0, "0")] [] [(3, 5)])
         (Right (Just [(0, 8)]))
-    equal (f [(0, 0, "0"), (4, 0, "0"), (8, 0, "0")] 4 4)
+    equal (f [(0, 0, "0"), (4, 0, "0"), (8, 0, "0")] [] [(4, 4)])
         (Right (Just [(4, 8)]))
+    -- Existing control damage isn't expanded.
+    equal (f [(0, 0, "0"), (4, 0, "0")] [(2, 3)] [])
+        (Right (Just [(2, 3)]))
     where
-    get_control_damage range score_damage = do
-        let set c = c { Derive.state_score_damage = score_damage }
-        Derive.modify $ \st ->
-            st { Derive.state_constant = set (Derive.state_constant st) }
+    get_control_damage range cdmg sdmg = do
+        Derive.modify $ \st -> st
+            { Derive.state_constant = (Derive.state_constant st)
+                { Derive.state_score_damage = sdmg }
+            , Derive.state_dynamic = (Derive.state_dynamic st)
+                { Derive.state_control_damage = cdmg }
+            }
         Cache.get_control_damage UiTest.default_block_id (UiTest.mk_tid 1) range
     extract = DeriveTest.extract_run $
         \(Derive.ControlDamage r) -> Ranges.extract r
     run events d = extract $ DeriveTest.run
         (snd (UiTest.run_mkblock [("cont", events)])) d
-    mkdamage s e = Derive.ScoreDamage
-        (Map.singleton (UiTest.mk_tid 1) (Ranges.range s e))
+    mkcdamage = Derive.ControlDamage . Ranges.ranges
+    mksdamage ranges = Derive.ScoreDamage
+        (Map.singleton (UiTest.mk_tid 1) (Ranges.ranges ranges))
         mempty mempty
 
 test_inverted_control_damage = do

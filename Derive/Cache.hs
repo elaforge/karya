@@ -107,7 +107,7 @@ should_cache :: TrackTree.Track -> Bool
 should_cache track = not (TrackTree.track_sliced track)
     && Maybe.isJust (TrackTree.track_id track)
 
-caching_deriver :: (Cacheable d) => Type -> Ranges
+caching_deriver :: Cacheable d => Type -> Ranges
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 caching_deriver typ range call = do
     st <- Derive.get
@@ -256,31 +256,24 @@ extract_rederived_msg = Text.stripPrefix "rederived generator because of "
 
 -- * get_control_damage
 
--- | ControlDamage works in this manner:
---
--- The way the damage is calculated is complicated.  Firstly, a track with
--- no ControlDamage in scope has its ControlDamage calculated from the
--- ScoreDamage (this is guaranteed to be a control track simply because this
--- function is only called by control tracks).  Secondly, given some
--- ControlDamage, the range must be expanded to the neighbor events.  This is
--- because controls can depend on other controls, so a certain range of
--- ControlDamage may cause other controls to rederived.  Controls generally
--- generate samples based on their previous and next events.
---
--- TODO of course this isn't guaranteed, a control that depends on several
--- previous ones, of which there are many, will fail to expand the control
--- damage enough.  But so far no control calls depend on other controls, so
--- this doesn't come up in practice.  This area needs some thought.  One option
--- is to skip this sketchy expansion stuff, and just say control damage is just
--- a flag that causes everything underneath to rederive.  But that means that
--- editing any control track will be like tempo, i.e. the entire score derives.
--- The cache doesn't actually have to be 100% accurate, it can be mostly
--- accurate and still save lots of time.  But if a control is going to affect
--- another it's mostly likely that it's a parameter, e.g. vibrato speed, in
--- which case I think expansion is the right thing.
+-- | ScoreDamage on the current track is converted into ControlDamage, and
+-- expanded to the neighbor events.  This is because control calls emit samples
+-- between their previous or next events.  Then this is merged with any
+-- ControlDamage inherited from callers.
 --
 -- If a block call is touched by control damage, the the control damage expands
 -- to cover the entire block.
+--
+-- Previously, this inherited damage would also be expanded to its neighbor
+-- events, under the rationale that controls can modify other controls.  While
+-- this is true, it causes an annoying situation where a control track with
+-- a single call under (say) a tempo track will cause any edits to the tempo
+-- track to invalidate the entire score.  This happens a lot in practice, and
+-- I've forgotten about this wrinkle a number of times
+--
+-- The downside, of course, is that control damage will not cause a control
+-- call that lies before its previous event to rederive, even if it should
+-- have.  I'll have to see how annoying this is in practice.
 get_control_damage :: BlockId -> TrackId
     -> (ScoreTime, ScoreTime) -- ^ track_range must be passed explicitly
     -- because the event may have been sliced and shifted, but ControlDamage
@@ -290,8 +283,8 @@ get_control_damage block_id track_id track_range = do
     st <- Derive.get
     let control = Derive.state_control_damage (Derive.state_dynamic st)
         score = Derive.state_score_damage (Derive.state_constant st)
-    extend_damage track_id track_range $
-        control <> score_to_control block_id track_id score
+    (control<>) <$> extend_damage track_id track_range
+        (score_to_control block_id track_id score)
 
 -- | Since the warp is the integral of the tempo track, damage on the tempo
 -- track will affect all events after it.  Actually, the damage extends from

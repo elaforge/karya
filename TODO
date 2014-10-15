@@ -18,16 +18,15 @@ UNSORTED
     . wait, now it works
     . It has UiMsg.SkeletonDisplay if track_type /= track_none && not has_pos.
       has_pos is p=ScoreTime(n), track_type is e.g. normal=5
-  - when I change the tempo in cerucuk-punyah, it unpredictably takes 35s--50s
+  When I change the tempo in cerucuk-punyah, it unpredictably takes 35s--50s
     to rederive, even though a complete rederive only takes 11s!
     . Also if I change the tempo near the end, it should cache most of the
       blocks, but only the very first one is cached.
-    - The complete rederive is due to the dyn track, and solved by inserting
+    * The complete rederive is due to the dyn track, and solved by inserting
       ' calls.  I should have an automatic way to work around this.
       . Namely, control damage shouldn't expand if I know the control call
         won't be affected by the control change.
       . Or I could not expand control damage at all.
-
     - But why the 5x time different from cache vs. from scratch?
   * save/wayang/bug-bad-pitch
     . It's because the t-dia control is not trimmed, so a note gets a bend
