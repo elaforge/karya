@@ -66,7 +66,9 @@ convert_event lookup event_ = do
     let event_controls = Score.event_transformed_controls event
     (midi_inst, pitch) <- convert_midi_pitch midi_inst
         (Instrument.patch_environ patch) (Instrument.patch_scale patch)
-        (Instrument.patch_attribute_map patch) event_controls event
+        (Instrument.patch_attribute_map patch)
+        (Instrument.has_flag Instrument.ConstantPitch patch)
+        event_controls event
     let (controls, overridden) =
             first (convert_controls (Instrument.inst_control_map midi_inst)) $
             convert_dynamic (Instrument.has_flag Instrument.Pressure patch)
@@ -110,9 +112,10 @@ require_patch inst Nothing = do
 convert_midi_pitch :: Instrument.Instrument -> TrackLang.Environ
     -- ^ The environ that the instrument itself implies.
     -> Instrument.PatchScale
-    -> Instrument.AttributeMap -> Score.ControlMap -> Score.Event
+    -> Instrument.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
     -> ConvertT (Instrument.Instrument, Signal.NoteNumber)
-convert_midi_pitch inst inst_environ patch_scale attr_map controls event =
+convert_midi_pitch inst inst_environ patch_scale attr_map constant_pitch
+        controls event =
     case Instrument.lookup_attribute (Score.event_attributes event) attr_map of
         Nothing -> (,) inst <$> pitch_signal
         Just (keyswitches, maybe_keymap) ->
@@ -136,12 +139,19 @@ convert_midi_pitch inst inst_environ patch_scale attr_map controls event =
             Signal.scalar_add (low - un_nn low_pitch) sig
     un_nn (Pitch.NoteNumber nn) = nn
 
-    -- Trim controls to avoid applying out of range transpositions.
-    note_end = Score.event_end event + Instrument.inst_decay inst
-    trimmed_controls = fmap (fmap (Signal.drop_after note_end)) controls
-    pitch_signal = convert_pitch patch_scale
-        (inst_environ <> Score.event_environ event)
-        trimmed_controls (Score.event_transformed_pitch event)
+    pitch_signal
+        | constant_pitch = convert cvals psig
+        | otherwise = convert trimmed (Score.event_transformed_pitch event)
+        where
+        cvals = fmap (Score.untyped . Signal.constant) $
+            Score.event_controls_at (Score.event_start event) event
+        psig = maybe mempty PitchSignal.constant $
+            Score.pitch_at (Score.event_start event) event
+        convert = convert_pitch patch_scale
+            (inst_environ <> Score.event_environ event)
+        -- Trim controls to avoid applying out of range transpositions.
+        trimmed = fmap (fmap (Signal.drop_at_after note_end)) controls
+        note_end = Score.event_end event + Instrument.inst_decay inst
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.

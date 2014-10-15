@@ -292,7 +292,9 @@ wayang_patches = MidiInst.with_code code
     ]
     where
     code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
-    wayang = (Instrument.attribute_map #= wayang_keymap) . flip patch []
+    wayang = Instrument.set_flag Instrument.ConstantPitch
+        . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
+        . (Instrument.attribute_map #= wayang_keymap) . flip patch []
     scale scale = (Instrument.text #= scale_doc)
         . (Instrument.scale #= wayang_scale scale)
     scale_doc = "These set the scale and tuning automatically, and expect the\

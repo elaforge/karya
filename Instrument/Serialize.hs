@@ -94,11 +94,13 @@ instance Serialize Instrument.Patch where
 instance Serialize Instrument.Flag where
     put Instrument.Triggered = put_tag 0
     put Instrument.Pressure = put_tag 1
+    put Instrument.ConstantPitch = put_tag 2
     get = do
         tag <- get_tag
         case tag of
             0 -> return Instrument.Triggered
             1 -> return Instrument.Pressure
+            2 -> return Instrument.ConstantPitch
             _ -> bad_tag "Instrument.Flag" tag
 
 instance Serialize Instrument.Instrument where

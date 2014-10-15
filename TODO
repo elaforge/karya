@@ -29,7 +29,7 @@ UNSORTED
       . Or I could not expand control damage at all.
 
     - But why the 5x time different from cache vs. from scratch?
-  - save/wayang/bug-bad-pitch
+  * save/wayang/bug-bad-pitch
     . It's because the t-dia control is not trimmed, so a note gets a bend
       aferwards.
     . If the note start is moved, then controls move back, so things that used
