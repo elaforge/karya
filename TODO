@@ -18,16 +18,30 @@ UNSORTED
     . wait, now it works
     . It has UiMsg.SkeletonDisplay if track_type /= track_none && not has_pos.
       has_pos is p=ScoreTime(n), track_type is e.g. normal=5
-  When I change the tempo in cerucuk-punyah, it unpredictably takes 35s--50s
-    to rederive, even though a complete rederive only takes 11s!
-    . Also if I change the tempo near the end, it should cache most of the
-      blocks, but only the very first one is cached.
-    * The complete rederive is due to the dyn track, and solved by inserting
-      ' calls.  I should have an automatic way to work around this.
+  - derive performance takes much longer in the app then standalone
+    e.g. in cerucuk-punyah.git:
+    . Previously, a tempo change that invalidated the whole cache could
+      sometimes take 35s--50s to rederive, even though a complete rederive
+      only takes 11s!
+    . Even 11s is 3x more than verify_performance's 2.7s.
+    . Even when forcing everything, there's still a 4x difference between 4s
+      and 15s.
+    * Use Responder_test to directly drive the responder?
+      . Now it's 5s.  Still not 15s, or 50s.
+      . It seems to happen when there are cancelled derives, maybe they are
+        not truly cancelled?
+      . The threads do die, but maybe it's from something put in the
+        performances... e.g. the cache?
+    . That was it, I can't use current perfs for the rederive.
+    - Still, 15s is much longer than 5s for the responder-using test, why the
+      difference?
+
+  complete rederive when I modify tempo near the end
+    * Due to the dyn track, and solved by inserting ' calls.  I should have an
+      automatic way to work around this.
       . Namely, control damage shouldn't expand if I know the control call
         won't be affected by the control change.
       . Or I could not expand control damage at all.
-    - But why the 5x time different from cache vs. from scratch?
   * save/wayang/bug-bad-pitch
     . It's because the t-dia control is not trimmed, so a note gets a bend
       aferwards.
@@ -61,6 +75,11 @@ UNSORTED
       so I can turn accuracy up or down.
   wayang
     - maybe repeated notes could automatically apply pedal
+      But if it's just one repeated note, not all of them, then I wind up with
+      channel splitting, and if there's just one channel, then everyone gets
+      the pedal.  So MIDI is definitely wrong here, but fixing it seems to
+      channel intensive.
+      This could cause lots of channel splitting if there are repeated notes
     - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
       fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
     - Automatically fill in weak notes?

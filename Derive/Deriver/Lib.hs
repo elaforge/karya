@@ -48,20 +48,17 @@ import Types
 -- with 'real'.
 
 -- | Package up the results of a derivation.
---
--- NOTE TO SELF: Don't put bangs on this and then be surprised when the
--- laziness tests fail, you doofus.
 data Result = Result {
-    r_events :: Events
-    , r_cache :: Cache
-    , r_track_warps :: [TrackWarp.Collection]
-    , r_track_signals :: Track.TrackSignals
-    , r_track_dynamic :: TrackDynamic
-    , r_integrated :: [Integrated]
+    r_events :: !Events
+    , r_cache :: !Cache
+    , r_track_warps :: ![TrackWarp.Collection]
+    , r_track_signals :: !Track.TrackSignals
+    , r_track_dynamic :: !TrackDynamic
+    , r_integrated :: ![Integrated]
 
     -- | The relevant parts of the final state should be extracted into the
     -- above fields, but returning the whole state can be useful for testing.
-    , r_state :: State
+    , r_state :: !State
     }
 
 -- | Kick off a derivation.
