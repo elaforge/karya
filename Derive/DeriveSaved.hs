@@ -95,8 +95,8 @@ timed_lilypond name ui_state cmd_state block_id = case result of
     boring msg = Cache.is_cache_log msg
 
 timer_msg :: (a -> Int) -> Double -> a -> String
-timer_msg len secs events = Printf.printf "events: %d (%.2f / sec)"
-    events_len (fromIntegral events_len / secs)
+timer_msg len secs events = Printf.printf "events: %d (%d / sec)"
+    events_len (round (fromIntegral events_len / secs) :: Int)
     where events_len = len events
 
 derive_block :: State.State -> Cmd.State -> BlockId
@@ -154,7 +154,6 @@ load_cmd_config = do
     config <- Local.Config.load_static_config
     cmd_config (StaticConfig.instrument_db config)
 
--- | Config to initialize the Cmd.State, without the instrument db.
 cmd_config :: Cmd.InstrumentDb -> IO Cmd.Config
 cmd_config inst_db = do
     interface <- StubMidi.interface
