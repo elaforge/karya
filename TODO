@@ -18,7 +18,7 @@ UNSORTED
     . wait, now it works
     . It has UiMsg.SkeletonDisplay if track_type /= track_none && not has_pos.
       has_pos is p=ScoreTime(n), track_type is e.g. normal=5
-  - derive performance takes much longer in the app then standalone
+  * derive performance takes much longer in the app then standalone
     e.g. in cerucuk-punyah.git:
     . Previously, a tempo change that invalidated the whole cache could
       sometimes take 35s--50s to rederive, even though a complete rederive

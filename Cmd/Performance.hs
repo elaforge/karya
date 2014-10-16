@@ -46,7 +46,8 @@ type StateM = Monad.State.StateT Cmd.State IO ()
 
 {- | Update the performances by rederiving if necessary.  This means figuring
     out ScoreDamage, and if there has been damage, killing any in-progress
-    derivation and starting derivation for the focused and root blocks.
+    derivation and starting derivation for the focused and root blocks.  This
+    updates performances for the root block and all visible blocks.
 
     The majority of the calls here will bring neither score damage nor
     a changed view id, and thus this will do nothing.
@@ -113,7 +114,6 @@ insert_damage damage = modify_play_state $ \st -> st
     where
     update perf = perf { Cmd.perf_damage = damage <> Cmd.perf_damage perf }
 
-
 -- | Kill all performance threads with damage.  If they are still deriving
 -- they're now out of date and should stop.
 kill_threads :: StateM
@@ -149,7 +149,8 @@ needs_generate state block_id = not (Map.member block_id perfs)
 -- Pull previous caches from the existing performance, if any.  Use them to
 -- generate a new performance, kick off a thread for it, and insert the new
 -- thread into 'Cmd.state_performance_threads' and performance into
--- 'Cmd.state_current_performance'.
+-- 'Cmd.state_current_performance'.  It will be promoted to
+-- 'Cmd.state_performance' when 'evaluate_performance' completes.
 generate_performance :: State.State -> Thread.Seconds -> SendStatus -> BlockId
     -> StateM
 generate_performance ui_state wait send_status block_id = do
@@ -177,15 +178,19 @@ derive ui_state cmd_state block_id = (perf, logs)
             Nothing -> broken_performance $
                 "derivation for " <> showt block_id <> " aborted"
             Just result -> performance result
-    prev_perf = Map.lookup block_id $ Cmd.state_current_performance $
-        Cmd.state_play cmd_state
+    -- The damage comes from the current performance, since that's where it's
+    -- updated, since only its updates happen synchronously.
+    damage = maybe mempty Cmd.perf_damage $ Map.lookup block_id $
+        Cmd.state_current_performance $ Cmd.state_play cmd_state
+    -- But the previous cache comes from the fully evaluated performance,
+    -- since otherwise there's no point killing the 'evaluate_performance'
+    -- thread if the cache makes all derivation serialized.
+    prev_cache = maybe mempty Cmd.perf_derive_cache $ Map.lookup block_id $
+        Cmd.state_performance $ Cmd.state_play cmd_state
     (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
-        case prev_perf of
-            -- I don't ask derive_block to sort it because it's probably more
-            -- efficient to do it once it's in a vector.
-            Nothing -> PlayUtil.derive_block False mempty mempty block_id
-            Just perf -> PlayUtil.derive_block False
-                (Cmd.perf_derive_cache perf) (Cmd.perf_damage perf) block_id
+        PlayUtil.derive_block False prev_cache damage block_id
+        -- I don't ask derive_block to sort it because it's probably more
+        -- efficient to do it once it's in a vector.
 
 evaluate_performance :: Thread.Seconds -> SendStatus -> BlockId
     -> Cmd.Performance -> IO ()
