@@ -14,6 +14,7 @@ module Util.Log (
     configure
     -- * msgs
     , Msg(..), msg_string, Prio(..), State(..)
+    , write_json, write_formatted
     , msg, msg_srcpos, initialized_msg, initialized_msg_srcpos
     , timer, debug, notice, warn, error
     , timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
@@ -97,13 +98,23 @@ no_date_yet = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 
 -- | Logging state.  Don't log if a handle is Nothing.
 data State = State {
-    state_log_hdl :: Maybe IO.Handle
+    state_write_msg :: Msg -> IO ()
     , state_log_level :: Prio
     }
 
+-- | Write logs as JSON to the given handle.
+write_json :: IO.Handle -> Msg -> IO ()
+write_json hdl log_msg = do
+    ByteString.Lazy.hPut hdl (serialize log_msg)
+    ByteString.Lazy.hPut hdl "\n"
+
+-- | Write logs as human-readable text.
+write_formatted :: IO.Handle -> Msg -> IO ()
+write_formatted hdl = Text.IO.hPutStrLn hdl . format_msg
+
 initial_state :: State
 initial_state = State
-    { state_log_hdl = Just IO.stderr
+    { state_write_msg = write_json IO.stderr
     , state_log_level = Debug
     }
 
@@ -114,14 +125,7 @@ global_state = Unsafe.unsafePerformIO (MVar.newMVar initial_state)
 -- | Configure the logging system by modifying its internal state.
 -- Return the old state so you can restore it later.
 configure :: (State -> State) -> IO State
-configure f = MVar.modifyMVar global_state $ \old -> do
-    let new = f old
-    -- This seems like a bit of a hack, but it does seem like the hdl should be
-    -- in line mode.
-    case state_log_hdl new of
-        Just hdl -> IO.hSetBuffering hdl IO.LineBuffering
-        _ -> return ()
-    return (new, new)
+configure f = MVar.modifyMVar global_state $ \old -> return (f old, old)
 
 data Prio =
     -- | Logs to determine where things are hanging when debugging
@@ -229,15 +233,9 @@ instance LogMonad IO where
     write log_msg = do
         -- This is also done by 'initialize_msg', but if the msg was created
         -- outside of IO, it won't have had IO's 'initialize_msg' run on it.
-        MVar.withMVar global_state $ \(State m_hdl prio) ->
-            case m_hdl of
-                Just hdl | prio <= msg_priority log_msg -> do
-                    -- Go to a little bother to only run 'add_time' for msgs
-                    -- that are actually logged.
-                    log_msg <- add_time log_msg
-                    ByteString.Lazy.hPut hdl (serialize log_msg)
-                    ByteString.Lazy.hPut hdl "\n"
-                _ -> return ()
+        MVar.withMVar global_state $ \(State write_msg prio) ->
+            when (prio <= msg_priority log_msg) $
+                write_msg =<< add_time log_msg
         when (msg_priority log_msg >= Error) $ do
             log_msg <- add_time log_msg
             Text.IO.hPutStrLn IO.stderr (format_msg log_msg)

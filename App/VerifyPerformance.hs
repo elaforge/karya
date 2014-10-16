@@ -49,6 +49,8 @@ options =
 main :: IO ()
 main = do
     args <- System.Environment.getArgs
+    Log.configure $ \state -> state
+        { Log.state_write_msg = Log.write_formatted IO.stderr }
     (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs

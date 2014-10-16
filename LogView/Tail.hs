@@ -37,6 +37,7 @@ log_filename = Config.get_app_dir >>= \app_dir -> return $
 
 -- * rotate
 
+-- | Get a file handle for writing log msgs, first rotating logs if necessary.
 rotate_logs :: Int -> Int -> FilePath -> IO IO.Handle
 rotate_logs keep max_size log_fn = do
     let rotated_fn n = log_fn ++ "." ++ show n ++ ".gz"
@@ -50,7 +51,10 @@ rotate_logs keep max_size log_fn = do
         Process.waitForProcess =<< Process.runProcess "gzip" [fn]
             Nothing Nothing Nothing Nothing Nothing
         return ()
-    IO.openFile log_fn IO.AppendMode
+    hdl <- IO.openFile log_fn IO.AppendMode
+    -- Logs are per-line, so ensure they go out promptly.
+    IO.hSetBuffering hdl IO.LineBuffering
+    return hdl
     where ignore = File.ignoreEnoent
 
 
