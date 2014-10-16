@@ -83,14 +83,7 @@ lookup_number = Derive.LookupPattern "numbers and hex" doc $
         \ to be randomized by the given number." $
         Sig.call0 $ \args -> do
             pos <- Args.real_start args
-            maybe_control <- Derive.lookup_val Environ.control
-            rnd <- case maybe_control of
-                Nothing -> return 0
-                Just cname -> do
-                    rnd_max <- fromMaybe 0 <$> Derive.untyped_control_at
-                        (Score.control $ cname <> "-rnd") pos
-                    Util.random_in 0 rnd_max
-            return $! Signal.signal [(pos, val + rnd)]
+            return $! Signal.signal [(pos, val)]
     doc = Derive.extract_doc (set 0)
 
 c_set :: Derive.Generator Derive.Control
