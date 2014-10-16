@@ -4,10 +4,13 @@
 
 -- | Utilities to directly perform a saved score.
 module Derive.DeriveSaved where
+import qualified Control.Monad.Error as Error
 import qualified Data.Map as Map
 import qualified Data.Text.Lazy as Lazy
+import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
+import qualified System.FilePath as FilePath
 import qualified Text.Printf as Printf
 
 import Util.Control
@@ -36,22 +39,27 @@ import Types
 
 perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
-    state <- either errorIO return =<< load_score fname
+    (state, defs_lib) <- either errorIO return =<< load_score fname
     block_id <- maybe (errorIO $ fname <> ": no root block") return $
         State.config#State.root #$ state
+    let cmd_state = add_definition_lib defs_lib (Cmd.initial_state cmd_config)
     (events, logs) <- either (errorIO . ((fname <> ": ") <>)) return
-        =<< timed_derive fname state (Cmd.initial_state cmd_config) block_id
+        =<< timed_derive fname state cmd_state block_id
     mapM_ Log.write logs
-    cmd_config <- load_cmd_config
-    (msgs, logs) <- timed_perform cmd_config ("perform " ++ fname) state events
+    (msgs, logs) <- timed_perform cmd_state ("perform " ++ fname) state events
     mapM_ Log.write logs
     return msgs
 
-timed_perform :: Cmd.Config -> String -> State.State -> Cmd.Events
+add_definition_lib :: Derive.Library -> Cmd.State -> Cmd.State
+add_definition_lib lib state =
+    state { Cmd.state_definition_cache = Just (day0, Right lib) }
+    where day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+
+timed_perform :: Cmd.State -> String -> State.State -> Cmd.Events
     -> IO ([Midi.WriteMessage], [Log.Msg])
-timed_perform cmd_config msg state events =
+timed_perform cmd_state msg state events =
     print_timer msg (timer_msg (length . fst)) $ do
-        let (msgs, logs) = perform cmd_config state events
+        let (msgs, logs) = perform cmd_state state events
         force (msgs, logs)
         return (msgs, logs)
 
@@ -105,26 +113,40 @@ run_cmd ui_state cmd_state cmd = case result of
         Just val -> Right (val, logs)
     where (_, _, logs, result) = Cmd.run_id ui_state cmd_state cmd
 
-perform :: Cmd.Config -> State.State -> Cmd.Events
+perform :: Cmd.State -> State.State -> Cmd.Events
     -> ([Midi.WriteMessage], [Log.Msg])
-perform cmd_config ui_state events =
-    extract $ run_cmd ui_state (Cmd.initial_state cmd_config) $
-        PlayUtil.perform_events events
+perform cmd_state ui_state events =
+    extract $ run_cmd ui_state cmd_state $ PlayUtil.perform_events events
     where
     extract (Left err) = ([], [Log.msg Log.Error Nothing (txt err)])
     extract (Right (levents, logs)) = (events, logs ++ perf_logs)
         where (events, perf_logs) = LEvent.partition levents
 
-load_score :: FilePath -> IO (Either String State.State)
-load_score fname = print_timer ("load " ++ fname) (\_ _ -> "") $
-    rightm (Save.infer_save_type fname) $ \save -> case save of
-        Cmd.SaveRepo repo ->
-            rightm (SaveGit.load repo Nothing) $ \(state, _, _) ->
-                return $ Right state
-        Cmd.SaveState fname ->
-            rightm (Save.read_state_ fname) $ \x -> case x of
-                Nothing -> return $ Left "file not found"
-                Just state -> return $ Right state
+-- | Load a score and its accompanying local definitions library, if it has one.
+load_score :: FilePath -> IO (Either String (State.State, Derive.Library))
+load_score fname =
+    print_timer ("load " ++ fname) (\_ _ -> "") $ Error.runErrorT $ do
+        save <- require_right $ Save.infer_save_type fname
+        state <- case save of
+            Cmd.SaveRepo repo -> do
+                (state, _, _) <- require_right $ SaveGit.load repo Nothing
+                return state
+            Cmd.SaveState fname -> do
+                maybe_state <- require_right $ Save.read_state_ fname
+                maybe (Error.throwError "file not found") return maybe_state
+        case State.config#State.definition_file #$ state of
+            Nothing -> return (state, mempty)
+            Just defs_name -> do
+                let defs_fname =
+                        FilePath.dropFileName fname FilePath.</> defs_name
+                lib <- maybe
+                    (Error.throwError $ "defs file not found: " <> defs_fname)
+                    (either (Error.throwError . untxt) return)
+                        =<< liftIO (PlayUtil.load_definitions defs_fname)
+                return (state, lib)
+
+require_right :: IO (Either String a) -> Error.ErrorT String IO a
+require_right io = either Error.throwError return =<< liftIO io
 
 -- | Load cmd config, which basically means the inst db.
 load_cmd_config :: IO Cmd.Config

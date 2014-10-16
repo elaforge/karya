@@ -25,6 +25,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import Types
 
@@ -38,7 +39,7 @@ options =
     , GetOpt.Option [] ["save"] (GetOpt.NoArg Save)
         "Write saved performances to disk as binary."
     , GetOpt.Option [] ["perform"] (GetOpt.NoArg Perform)
-        "Perform to MIDI and write to stdout."
+        "Perform to MIDI and write to $input.midi."
     , GetOpt.Option [] ["dump-midi"] (GetOpt.NoArg DumpMidi)
         "pretty print binary saved MIDI to stdout"
     ]
@@ -77,36 +78,39 @@ main = do
 handle_left :: Either String Int -> IO Int
 handle_left = either (\err -> putStrLn err >> return 1) return
 
-load :: FilePath -> IO (Either String (State.State, BlockId))
-load fname = rightm (DeriveSaved.load_score fname) $ \state ->
+load :: FilePath -> IO (Either String (State.State, Derive.Library, BlockId))
+load fname = rightm (DeriveSaved.load_score fname) $ \(state, defs_lib) ->
     rightm (return $ get_root state) $ \block_id ->
-        return $ Right (state, block_id)
+        return $ Right (state, defs_lib, block_id)
 
+-- | Extract saved performances and write them to disk.
 save :: FilePath -> IO Int
-save fname = (handle_left =<<) $ rightm (load fname) $ \(state, block_id) -> do
-    let meta = State.config#State.meta #$ state
-        look = Map.lookup block_id
-    midi <- case look (State.meta_midi_performances meta) of
-        Nothing -> return False
-        Just perf -> do
-            let out = FilePath.takeFileName fname <> ".midi"
-            putStrLn $ "write " <> out
-            DiffPerformance.save_midi out (State.perf_performance perf)
-            return True
-    ly <- case look (State.meta_lilypond_performances meta) of
-        Nothing -> return False
-        Just perf -> do
-            let out = FilePath.takeFileName fname <> ".ly"
-            putStrLn $ "write " <> out
-            Text.IO.writeFile out (State.perf_performance perf)
-            return True
-    return $ if midi || ly then Right 0
-        else Left $ fname <> ": no midi or ly performance"
+save fname = (handle_left =<<) $
+    rightm (load fname) $ \(state, _defs_lib, block_id) -> do
+        let meta = State.config#State.meta #$ state
+            look = Map.lookup block_id
+        midi <- case look (State.meta_midi_performances meta) of
+            Nothing -> return False
+            Just perf -> do
+                let out = FilePath.takeFileName fname <> ".midi"
+                putStrLn $ "write " <> out
+                DiffPerformance.save_midi out (State.perf_performance perf)
+                return True
+        ly <- case look (State.meta_lilypond_performances meta) of
+            Nothing -> return False
+            Just perf -> do
+                let out = FilePath.takeFileName fname <> ".ly"
+                putStrLn $ "write " <> out
+                Text.IO.writeFile out (State.perf_performance perf)
+                return True
+        return $ if midi || ly then Right 0
+            else Left $ fname <> ": no midi or ly performance"
 
+-- | Perform to MIDI and write to disk.
 perform :: Cmd.Config -> FilePath -> IO Int
 perform cmd_config fname = (handle_left =<<) $
-    rightm (load fname) $ \(state, block_id) ->
-    rightm (perform_block fname cmd_config state block_id) $ \msgs -> do
+    rightm (load fname) $ \(state, defs_lib, block_id) ->
+    rightm (perform_block fname (make_cmd_state defs_lib cmd_config) state block_id) $ \msgs -> do
         let out = FilePath.takeFileName fname <> ".midi"
         putStrLn $ "write " <> out
         DiffPerformance.save_midi out (Vector.fromList msgs)
@@ -120,11 +124,12 @@ dump_midi fname = (handle_left =<<) $
 
 verify_performance :: Cmd.Config -> FilePath -> IO Int
 verify_performance cmd_config fname = (handle_left =<<) $
-    rightm (load fname) $ \(state, block_id) -> do
+    rightm (load fname) $ \(state, defs_lib, block_id) -> do
         let meta = State.config#State.meta #$ state
-        n <- apply (verify_midi fname cmd_config state block_id) $
+        let cmd_state = make_cmd_state defs_lib cmd_config
+        n <- apply (verify_midi fname cmd_state state block_id) $
             Map.lookup block_id (State.meta_midi_performances meta)
-        m <- apply (verify_lilypond fname cmd_config state block_id) $
+        m <- apply (verify_lilypond fname cmd_state state block_id) $
             Map.lookup block_id (State.meta_lilypond_performances meta)
         return $ case (n, m) of
             (Nothing, Nothing) -> Left "no saved performances!"
@@ -133,10 +138,11 @@ verify_performance cmd_config fname = (handle_left =<<) $
 apply :: Monad m => (a -> m b) -> Maybe a -> m (Maybe b)
 apply = Traversable.mapM
 
-verify_midi :: FilePath -> Cmd.Config -> State.State -> BlockId
+-- | Perform from the given state and compare it to the old MidiPerformance.
+verify_midi :: FilePath -> Cmd.State -> State.State -> BlockId
     -> State.MidiPerformance -> IO Int
-verify_midi fname cmd_config state block_id performance = (handle_left =<<) $
-    rightm (perform_block fname cmd_config state block_id) $ \msgs ->
+verify_midi fname cmd_state state block_id performance = (handle_left =<<) $
+    rightm (perform_block fname cmd_state state block_id) $ \msgs ->
     case DiffPerformance.diff_midi_performance performance msgs of
         (Nothing, _, _) -> return $ Right 0
         (Just err, expected, got) -> do
@@ -146,25 +152,23 @@ verify_midi fname cmd_config state block_id performance = (handle_left =<<) $
                 <> "wrote " <> txt base <> ".{expected,got}"
     where base = FilePath.takeFileName fname
 
-perform_block :: FilePath -> Cmd.Config -> State.State -> BlockId
+perform_block :: FilePath -> Cmd.State -> State.State -> BlockId
     -> IO (Either String [Midi.WriteMessage])
-perform_block fname cmd_config state block_id = do
-    result <- DeriveSaved.timed_derive fname state
-        (Cmd.initial_state cmd_config) block_id
+perform_block fname cmd_state state block_id = do
+    result <- DeriveSaved.timed_derive fname state cmd_state block_id
     case result of
         Left err -> return $ Left $ "error deriving: " ++ err
         Right (events, logs) -> do
             mapM_ Log.write logs
-            (msgs, logs) <- DeriveSaved.timed_perform cmd_config
+            (msgs, logs) <- DeriveSaved.timed_perform cmd_state
                 ("perform " <> fname) state events
             mapM_ Log.write logs
             return $ Right msgs
 
-verify_lilypond :: FilePath -> Cmd.Config -> State.State -> BlockId
+verify_lilypond :: FilePath -> Cmd.State -> State.State -> BlockId
     -> State.LilypondPerformance -> IO Int
-verify_lilypond fname cmd_config state block_id expected = do
-    (result, logs) <- DeriveSaved.timed_lilypond fname state
-        (Cmd.initial_state cmd_config) block_id
+verify_lilypond fname cmd_state state block_id expected = do
+    (result, logs) <- DeriveSaved.timed_lilypond fname state cmd_state block_id
     mapM_ Log.write logs
     case result of
         Left err -> do
@@ -180,6 +184,10 @@ verify_lilypond fname cmd_config state block_id expected = do
                 Text.IO.putStrLn err
                 putStrLn $ "wrote " <> base <> ".{expected,got}.ly"
                 return 1
+
+make_cmd_state :: Derive.Library -> Cmd.Config -> Cmd.State
+make_cmd_state defs_lib cmd_config =
+    DeriveSaved.add_definition_lib defs_lib $ Cmd.initial_state cmd_config
 
 get_root :: State.State -> Either String BlockId
 get_root state = maybe (Left "no root block") Right $

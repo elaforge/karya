@@ -16,6 +16,7 @@ module Cmd.PlayUtil (
     , perform_events, get_convert_lookup
     -- * definition file
     , update_definition_cache
+    , load_definitions
     , compile_library
 ) where
 import qualified Control.Monad.Error as Error
@@ -316,8 +317,8 @@ update_definition_cache ui_state cmd_state = case def_file of
             { Cmd.state_definition_cache = Nothing }
     Just fname -> cached_load cmd_state fname >>= \x -> return $ case x of
         Nothing -> cmd_state
-        Just defs -> cmd_state
-            { Cmd.state_definition_cache = Just defs
+        Just lib -> cmd_state
+            { Cmd.state_definition_cache = Just lib
             , Cmd.state_play = (Cmd.state_play cmd_state)
                 { Cmd.state_performance = mempty
                 , Cmd.state_current_performance = mempty
@@ -339,8 +340,8 @@ cached_load state defs_fname = run $ do
     time <- require file_not_found
         =<< liftIO (File.ignoreEnoent (Directory.getModificationTime fname))
     if last_time == Just time then return Nothing else do
-        defs <- require file_not_found =<< liftIO (load_definitions fname)
-        return $ Just (time, defs)
+        lib <- require file_not_found =<< liftIO (load_definitions fname)
+        return $ Just (time, lib)
     where
     run = fmap extract . Error.runErrorT
     require msg = maybe (Error.throwError msg) return
