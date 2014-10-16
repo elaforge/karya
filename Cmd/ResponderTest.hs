@@ -12,7 +12,7 @@
 module Cmd.ResponderTest (
     -- * States
     States
-    , mkstates, mk_cmd_state, set_midi_config
+    , mkstates, mk_cmd_state
     -- * Result
     , Result(..), result_states, result_ui_state, result_cmd_state
     , result_perf
@@ -50,7 +50,6 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Repl as Repl
 import qualified Cmd.Responder as Responder
 
-import qualified Derive.DeriveTest as DeriveTest
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 import Types
@@ -79,11 +78,6 @@ mk_cmd_state ui_state view_id = CmdTest.default_cmd_state
     , Cmd.state_history = Cmd.History [] present [] Nothing
     }
     where present = Cmd.HistoryEntry ui_state [] ["setup"] Nothing
-
--- | It would be nicer to have this happen automatically.
-set_midi_config :: State.StateId ()
-set_midi_config =
-    State.modify_config $ State.midi #= DeriveTest.default_midi_config
 
 
 -- * result
@@ -138,22 +132,22 @@ respond_until is_complete states cmd = do
 -- | Continue feeding loopback msgs into the responder, or until I time out
 -- reading from the loopback channel.
 continue_until :: (Msg.Msg -> Bool) -> Result -> IO [Result]
-continue_until is_complete result =
-    reverse <$> go [] (result_loopback result) (result_states result)
+continue_until is_complete result = reverse <$> go [] (result_states result)
     where
-    go accum chan states = do
+    chan = result_loopback result
+    go accum states = do
         maybe_msg <- read_msg chan
         putStrLn $ "ResponderTest.continue_until: " ++ pretty maybe_msg
         case maybe_msg of
             Nothing -> return accum
             Just msg -> do
-                result <- respond_msg states msg
+                result <- respond1 (Just chan) states Nothing msg
                 if is_complete msg
                     then return $ result : accum
-                    else go (result:accum) chan (result_states result)
+                    else go (result:accum) (result_states result)
 
 read_msg :: Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
-read_msg = Thread.timeout 6 . Chan.readChan
+read_msg = Thread.timeout 7 . Chan.readChan
 
 is_derive_complete :: Msg.Msg -> Bool
 is_derive_complete (Msg.DeriveStatus _ (Msg.DeriveComplete {})) = True
@@ -184,14 +178,15 @@ thread_delay print_timing states ((msg, delay) : msgs) = do
 
 configure_logging :: IO ()
 configure_logging = do
-    Log.configure $ \st -> st { Log.state_log_hdl = Just IO.stdout }
+    Log.configure $ \state -> state
+        { Log.state_write_msg = Log.write_formatted IO.stdout }
     return ()
 
 -- | Respond to a single Cmd.  This can be used to test cmds in the full
 -- responder context without having to fiddle around with keymaps.
 respond_cmd :: States -> Cmd.CmdT IO a -> IO Result
 respond_cmd states cmd =
-    configure_logging >> respond1 states (Just (mkcmd cmd)) magic
+    configure_logging >> respond1 Nothing states (Just (mkcmd cmd)) magic
     where
     -- I run a cmd by adding a cmd that responds only to a specific Msg, and
     -- then sending that Msg.
@@ -207,14 +202,17 @@ next :: Result -> Cmd.CmdT IO a -> IO Result
 next = respond_cmd . result_states
 
 respond_msg :: States -> Msg.Msg -> IO Result
-respond_msg states = respond1 states Nothing
+respond_msg states = respond1 Nothing states Nothing
 
 type CmdIO = Msg.Msg -> Cmd.CmdIO
 
-respond1 :: States -> Maybe CmdIO -> Msg.Msg -> IO Result
-respond1 (ui_state, cmd_state) maybe_cmd msg = do
+respond1 :: Maybe (Chan.Chan Msg.Msg) -> States -> Maybe CmdIO
+    -- ^ if given, this Cmd will get the Msg, otherwise whoever would normally
+    -- respond will
+    -> Msg.Msg -> IO Result
+respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
     update_chan <- new_chan
-    loopback_chan <- Chan.newChan
+    loopback_chan <- maybe Chan.newChan return reuse_loopback
     (interface, midi_chan) <- make_midi_interface
     ui_chan <- MVar.newMVar []
     let rstate = make_rstate ui_chan update_chan loopback_chan
