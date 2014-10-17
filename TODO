@@ -92,11 +92,12 @@ UNSORTED
     - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
       fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
     - Automatically fill in weak notes?
-    - Weak notes are either omitted, +muted soft, +mute normal, half mute, or
+    * Weak notes are either omitted, +muted soft, +mute normal, half mute, or
       open soft.  I can have a %strength signal that indicates how weak notes
       are played, and then have various calls that are random but biased
       toward a particular value.
       . Maybe I should have zero dur notes be weak?
+    - make zero dur notes weak| instead of +mute+loose
       . zero-duration-transform can't be a general transform, because it can't
         tell if notes are zero dur.  Make a null note call that only applies
         if it's not a block-final event?

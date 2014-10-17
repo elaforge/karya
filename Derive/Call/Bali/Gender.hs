@@ -6,6 +6,7 @@
 -- delayed damping, so these calls deal with delayed damping.
 module Derive.Call.Bali.Gender (
     note_calls, interval_arg, ngoret, c_realize_ngoret
+    , weak
 ) where
 import Util.Control
 import qualified Util.Log as Log
@@ -18,6 +19,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
@@ -26,7 +28,7 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (control, defaulted, typed_control)
+import Derive.Sig (control, typed_control)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -40,16 +42,19 @@ note_calls = Derive.call_maps
     , ("'_", gender_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
     [ ("realize-ngoret", c_realize_ngoret)
+    , ("weak", c_weak)
     ]
 
 module_ :: Module.Module
 module_ = "bali" <> "gender"
 
+-- * ngoret
+
 gender_ngoret :: Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
 gender_ngoret = ngoret module_ True damp_arg
     where
-    damp_arg = defaulted "damp" (typed_control "ngoret-damp" 0.5 Score.Real)
+    damp_arg = Sig.defaulted "damp" (typed_control "ngoret-damp" 0.5 Score.Real)
         "Time that the grace note overlaps with this one. So the total\
         \ duration is time+damp, though it will be clipped to the\
         \ end of the current note."
@@ -73,12 +78,12 @@ ngoret module_ late_damping damp_arg interval_arg =
     \ on the previous note's pitch for `'`."
     ) $ Sig.call ((,,,,)
     <$> interval_arg
-    <*> defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)
+    <*> Sig.defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)
         "Time between the grace note start and the main note. If there isn't\
         \ enough room after the previous note, it will be halfway between\
         \ the previous note and this one."
     <*> damp_arg
-    <*> defaulted "dyn" (control "ngoret-dyn" 0.75)
+    <*> Sig.defaulted "dyn" (control "ngoret-dyn" 0.75)
         "The grace note's dyn will be this multiplier of the current dyn."
     <*> Sig.environ "damp-threshold" Sig.Prefixed  0.15
         "A grace note with this much time will cause the previous note to be\
@@ -118,7 +123,7 @@ ngoret module_ late_damping damp_arg interval_arg =
                 (with_flags $ Util.with_dynamic dyn grace_note)
             <> Derive.place (Args.start args) (Args.duration args) Util.note
 
--- * realize
+-- ** realize
 
 c_realize_ngoret :: Derive.Transformer Derive.Note
 c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
@@ -199,3 +204,26 @@ infer_pitch_flag = Flags.flag "infer-pitch"
 extend_previous, shorten_previous :: Flags.Flags
 extend_previous = Flags.flag "extend-previous-duration"
 shorten_previous = Flags.flag "shorten-previous-duration"
+
+-- * weak
+
+c_weak :: Derive.Transformer Derive.Note
+c_weak = Derive.transformer module_ "weak" Tags.inst
+    "Weak notes are filler notes."
+    $ Sig.callt (
+    Sig.defaulted "strength" (control "strength" 0.5)
+        "From low strength to high, omit the note, then play it muted, and\
+        \ then play it open but softly."
+    ) weak
+
+weak :: TrackLang.ValControl -> Derive.PassedArgs a -> Derive.NoteDeriver
+    -> Derive.NoteDeriver
+weak strength args deriver = do
+    strength <- Util.control_at strength =<< Args.real_start args
+    if strength <= omit_threshold then mempty
+        else Util.with_constant Controls.mute (mute strength) deriver
+    where
+    -- This biases %mute values to be lower, and 0 before it unmutes.
+    mute strength = max 0 $ 1 - (strength + (1 - unmute_threshold))
+    omit_threshold = 0.25
+    unmute_threshold = 0.75

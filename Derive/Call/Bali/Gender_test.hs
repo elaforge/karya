@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Bali.Gender_test where
+import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
@@ -10,12 +11,15 @@ import qualified Derive.Score as Score
 
 
 transform :: String
-transform = "import bali.gender | realize-ngoret | ngoret-damp-threshold=20"
+transform = "import bali.gender"
+
+ngoret_transform :: String
+ngoret_transform = transform ++ " | realize-ngoret | ngoret-damp-threshold=20"
 
 test_ngoret = do
     -- This also tests some error checking and absolute warp functions.
     let run_e extract = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_linear transform
+            . DeriveTest.derive_tracks_linear ngoret_transform
         run = run_e DeriveTest.e_note
     let c_to_e evt1 evt2 =
             [ (">", [(0, 1, evt1), (2, 1, evt2)])
@@ -72,7 +76,7 @@ test_ngoret = do
 
 test_ngoret_start_control = do
     let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks transform . UiTest.note_track
+            . DeriveTest.derive_tracks ngoret_transform . UiTest.note_track
     -- Ensure that it obeys start offset controls, and doesn't mess up the
     -- pitch.
     equal (run [(0, 4, "4c"), (4, 4, "%start-s=-.5 | ' .5 -- 4e")])
@@ -94,7 +98,7 @@ test_past_end = do
 
 test_ngoret_infer_duration = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
-        top = "top -- " ++ transform ++ " | realize-ngoret | infer-duration"
+        top = "top -- " ++ ngoret_transform ++ " | infer-duration"
     -- This also tests the interaction between the default note deriver and
     -- infer-duration, when invoked via Util.note.
     --    sub1     |sub2
@@ -123,7 +127,7 @@ test_ngoret_infer_duration = do
 
 test_ngoret_transpose = do
     let run = DeriveTest.extract DeriveTest.e_pitch
-            . DeriveTest.derive_tracks (transform ++ " | %t-dia=7")
+            . DeriveTest.derive_tracks (ngoret_transform ++ " | %t-dia=7")
             . UiTest.note_track
     -- Make sure the transposition doesn't get applied twice.
     equal (run [(0, 1, "4c"), (1, 1, "' .5 .5 -- 4e")])
@@ -131,7 +135,7 @@ test_ngoret_transpose = do
 
 test_realize_damp = do
     let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks transform . UiTest.note_track
+            . DeriveTest.derive_tracks ngoret_transform . UiTest.note_track
     -- First note is extended.
     equal (run [(0, 2, "4c"), (2, 1, "' .5 .5 -- 4e")])
         ([(0, 2.5, "4c"), (1.5, 1, "4d"), (2, 1, "4e")], [])
@@ -139,3 +143,13 @@ test_realize_damp = do
     -- But not if it has a rest.
     equal (run [(0, 1, "4c"), (2, 1, "' .5 .5 -- 4e")])
         ([(0, 1, "4c"), (1.5, 1, "4d"), (2, 1, "4e")], [])
+
+test_weak = do
+    let run = DeriveTest.extract (DeriveTest.e_control "mute")
+            . DeriveTest.derive_tracks transform
+        strength = zip (Seq.range_ 0 1) ["0", "0.25", "0.5", "0.75", "1"]
+    equal (run
+            [ ("strength", [(n, 0, s) | (n, s) <- strength])
+            , (">", [(n, 1, "weak |") | (n, _) <- strength])
+            ])
+        ([[(0, 0.25)], [(0, 0)], [(0, 0)]], [])
