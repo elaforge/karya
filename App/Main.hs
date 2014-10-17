@@ -19,7 +19,6 @@ import qualified Network
 import qualified System.Environment
 import qualified System.IO as IO
 #ifdef USE_EKG
-import qualified Data.ByteString.Char8 as ByteString
 import qualified System.Remote.Monitoring
 #endif
 
@@ -88,7 +87,7 @@ initialize app = do
 main :: IO ()
 main = initialize $ \repl_socket midi_interface -> do
 #ifdef USE_EKG
-    System.Remote.Monitoring.forkServer (ByteString.pack "localhost") 8080
+    System.Remote.Monitoring.forkServer "localhost" 8080
 #endif
     -- Handy to filter debugging output.
     IO.hSetBuffering IO.stdout IO.LineBuffering

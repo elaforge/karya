@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - I can get rid of Derive.info_inverted
+  - last event gets infer-duration, but it should be at the block end
+    How about, track puts RealTime track start and end in Environ, then I can
+    check against that.  But really I want if it's at the ScoreTime 0 and end.
+    . fst . Args.range_on_track should be correct even for Util.note created
+      notes.
+  - fltk: wrapping for rank>0 event text?
+  - fltk: 0 dur events with no text are hard to see
   * Convert.convert_pitch converts too much, since transpose signals now
     extend beyond the end of the event.
     . pitch out of range error: when played via set-kantilan on i5 88.73
@@ -54,7 +62,7 @@ UNSORTED
     I don't need to move parts of the signal that wind up being trimmed.
     Either try to trim the signal earlier again, or delay transformation to
     Perform.
-  - Midi thru should probably ignore t-* transpose signals.  Otherwise the
+  * Midi thru should probably ignore t-* transpose signals.  Otherwise the
     sounding pitch doesn't match the entered pitch.
   * Maybe track GC should be automatic, so I don't have to remember to call
     LTrack.gc all the time.  Same for rulers?
@@ -74,7 +82,8 @@ UNSORTED
     - randomization should be centered on a value, with variance as a signal,
       so I can turn accuracy up or down.
   wayang
-    - maybe repeated notes could automatically apply pedal
+    - end of p4 is now broken, ngoret to last note winds up muting it
+    / maybe repeated notes could automatically apply pedal
       But if it's just one repeated note, not all of them, then I wind up with
       channel splitting, and if there's just one channel, then everyone gets
       the pedal.  So MIDI is definitely wrong here, but fixing it seems to
@@ -87,7 +96,11 @@ UNSORTED
       open soft.  I can have a %strength signal that indicates how weak notes
       are played, and then have various calls that are random but biased
       toward a particular value.
-    - Could I have a 'repeat' count that counts each time a block has a been
+      . Maybe I should have zero dur notes be weak?
+      . zero-duration-transform can't be a general transform, because it can't
+        tell if notes are zero dur.  Make a null note call that only applies
+        if it's not a block-final event?
+    / Could I have a 'repeat' count that counts each time a block has a been
       called?  How can I do this without adding linear state?
       . Does linear state even matter since I'm not parallelizing derivation?
         Maybe I should try to parallelize derivation or abandon the idea.

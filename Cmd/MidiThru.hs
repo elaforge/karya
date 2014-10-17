@@ -60,6 +60,7 @@
 module Cmd.MidiThru where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Map as Map
@@ -135,10 +136,12 @@ map_scale patch_scale scale environ input = case input of
     where
     convert input = do
         (block_id, _, track_id, pos) <- Selection.get_insert
+        -- I ignore _logs, any interesting errors should be in 'result'.
         (result, _logs) <- Perf.derive_at block_id track_id $
             Derive.with_environ environ $
+            -- Otherwise, the sounding pitch doesn't match the entered pitch.
+            Derive.remove_controls transposers $
             Scale.scale_input_to_nn scale pos input
-        -- I ignore _logs, any interesting errors should be in 'result'.
         case result of
             Left err -> throw $ "derive_at: " <> err
             -- This just means the key isn't in the scale, it happens a lot so
@@ -147,6 +150,7 @@ map_scale patch_scale scale environ input = case input of
             Right (Left err) -> throw $ pretty err
             Right (Right nn) -> return $ map_patch_scale patch_scale nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
+    transposers = Set.toList (Scale.scale_transposers scale)
 
 map_patch_scale :: Instrument.PatchScale -> Pitch.NoteNumber
     -> Maybe Pitch.NoteNumber
