@@ -1035,10 +1035,6 @@ data CallInfo val = CallInfo {
     -- | From 'TrackTree.track_shifted'.
     , info_track_shifted :: !TrackTime
 
-    -- | If true, this call is being run under inversion.  This means that
-    -- it's the second time it's been seen, though not necessarily executed.
-    , info_inverted :: !Bool
-
     -- | The track tree below note tracks.  Not given for control tracks.
     -- TODO should this be Either with info_sub_events?  I don't think I ever
     -- need both set.
@@ -1061,7 +1057,7 @@ info_track_range info = (shifted, shifted + info_event_end info)
 
 instance Pretty.Pretty val => Pretty.Pretty (CallInfo val) where
     format (CallInfo prev_val event prev_events next_events event_end
-            track_range inverted sub_tracks sub_events track_type) =
+            track_range sub_tracks sub_events track_type) =
         Pretty.record "CallInfo"
             [ ("prev_val", Pretty.format prev_val)
             , ("event", Pretty.format event)
@@ -1069,7 +1065,6 @@ instance Pretty.Pretty val => Pretty.Pretty (CallInfo val) where
             , ("next_events", Pretty.format next_events)
             , ("event_end", Pretty.format event_end)
             , ("track_range", Pretty.format track_range)
-            , ("inverted", Pretty.format inverted)
             , ("sub_tracks", Pretty.format sub_tracks)
             , ("sub_events", Pretty.format $
                 map (map (\(s, d, _) -> (s, d))) <$> sub_events)
@@ -1090,7 +1085,6 @@ dummy_call_info start dur text = CallInfo
     , info_event_end = start + dur
     , info_track_shifted = 0
     , info_sub_tracks = []
-    , info_inverted = False
     , info_sub_events = Nothing
     , info_track_type = Nothing
     } where s = if Text.null text then "<no-event>" else "<" <> text <> ">"

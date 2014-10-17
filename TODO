@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - I can get rid of Derive.info_inverted
+  * I can get rid of Derive.info_inverted
   - last event gets infer-duration, but it should be at the block end
     How about, track puts RealTime track start and end in Environ, then I can
     check against that.  But really I want if it's at the ScoreTime 0 and end.

@@ -391,7 +391,6 @@ call_info tinfo prev_val prev event next = Derive.CallInfo
         [] -> TrackTree.track_end track
         event : _ -> Event.start event
     , Derive.info_track_shifted = TrackTree.track_shifted track
-    , Derive.info_inverted = TrackTree.track_inverted track
     , Derive.info_sub_tracks = subs
     , Derive.info_sub_events = Nothing
     , Derive.info_track_type = Just ttype
