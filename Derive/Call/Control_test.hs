@@ -25,14 +25,6 @@ test_set_prev = do
             [("c", [(0, 0, ".5"), (1, 0, "'"), (2, 0, "'")])])
         ([[(0, 0.5)], [(1, 0.5)], [(2, 0.5)]], [])
 
-test_set_rnd = do
-    let run title val = DeriveTest.extract extract $ DeriveTest.derive_tracks ""
-            [(">", [(0, 1, "")]), ("c" <> title, [(0, 0, val)])]
-        extract = DeriveTest.e_control "c"
-    equal (run "" ".5") ([[(0, 0.5)]], [])
-    let ([[(0, val)]], []) = run " | %c-rnd = .5" ".5"
-    check (val /= 0.5 && 0 <= val && val <= 1)
-
 test_abs = do
     let run = DeriveTest.extract (DeriveTest.e_control "c")
             . DeriveTest.derive_tracks_linear "" . (++ [(">", [(0, 1, "")])])
