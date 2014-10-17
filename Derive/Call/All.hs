@@ -31,7 +31,6 @@ import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Pitch as Pitch
 import qualified Derive.Call.PitchHigh as PitchHigh
-import qualified Derive.Call.Post.ArrivalNote as ArrivalNote
 import qualified Derive.Call.Post.Idiom as Idiom
 import qualified Derive.Call.Post.Move as Move
 import qualified Derive.Call.Post.Reverse as Post.Reverse
@@ -53,7 +52,6 @@ library = Derive.Library
 note_maps :: Derive.CallMaps Derive.Note
 note_maps = mconcat
     [ Articulation.note_calls
-    , ArrivalNote.note_calls
     , Block.note_calls
     , Chord.note_calls
     , Echo.note_calls

@@ -169,7 +169,6 @@ default_note :: Config -> GenerateNote
 default_note config args = do
     start <- Args.real_start args
     end <- Args.real_end args
-    (end, is_arrival) <- adjust_end start end $ Seq.head (Args.next_events args)
     dyn <- Internal.get_dynamic id
 
     -- Add flags to get the arrival-note postproc to figure out the duration.
@@ -184,7 +183,7 @@ default_note config args = do
         -- Note that I can't use Args.duration or Args.range_on_track, because
         -- this may be invoked via e.g. Util.note, which fakes up an event with
         -- range (0, 1), and sets the duration via the warp.
-        infer_dur = null (Args.next_events args) && start == end || is_arrival
+        infer_dur = null (Args.next_events args) && start == end
         track0 = (fst <$> stack_range) == Just 0
         stack_range = Seq.head $ mapMaybe Stack.region_of $
             Stack.innermost $ Derive.state_stack dyn
@@ -241,23 +240,6 @@ stash_convert_values vals offset = start_offset . dyn
         (Map.lookup Controls.dynamic vals)
 
 -- ** adjust start and duration
-
--- | Adjust the end of the event if it has negative duration.  This only works
--- for when the next event start time is known.  At the end of a block the
--- duration stays negative and relies on a postproc to resolve.
---
--- But postproc has to do more work because it has to search for the next event
--- with the same instrument, while this one assumes the next event on the track
--- is the one.
-adjust_end :: RealTime -> RealTime -> Maybe Event.Event
-    -> Derive.Deriver (RealTime, Bool)
-adjust_end start end _ | start <= end = return (end, False)
-adjust_end _ end Nothing = return (end, True)
-adjust_end start end (Just next) = do
-    next_start <- Derive.real (Event.start next)
-    next_dur <- subtract start <$> Derive.real (Event.end next)
-    let end2 = start + adjust_duration start (end-start) next_start next_dur
-    return (end2, False)
 
 adjust_duration :: RealTime -> RealTime -> RealTime -> RealTime -> RealTime
 adjust_duration cur_pos cur_dur next_pos next_dur
