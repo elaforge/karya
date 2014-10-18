@@ -27,13 +27,13 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
-import Derive.BaseTypes
-       (Environ, make_environ, environ_to_list, delete_val,
-        lookup_val, val_set, null_environ, ValName, Val(..), vals_equal,
-        Quoted(..), ControlFunction(..), Dynamic(..), Symbol(..),
-        ControlRef(..), PitchControl, ValControl, show_call_val, CallId, Expr,
-        Call(..), PitchCall, Term(..))
 import qualified Derive.BaseTypes as BaseTypes
+import Derive.BaseTypes
+       (Environ, make_environ, environ_to_list, delete_val, lookup_val, val_set,
+        null_environ, ValName, Val(..), vals_equal, Quoted(..),
+        ControlFunction(..), Dynamic(..), Symbol(..), ControlRef(..),
+        PitchControl, ValControl, show_call_val, CallId, Expr, Call(..),
+        PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import Derive.ShowVal (ShowVal(..))
@@ -154,7 +154,7 @@ diatonic = DefaultDiatonic . Pitch.Diatonic
 
 -- * show val
 
-instance (ShowVal a) => ShowVal (Maybe a) where
+instance ShowVal a => ShowVal (Maybe a) where
     show_val Nothing = "Nothing"
     show_val (Just a) = show_val a
 
@@ -163,7 +163,8 @@ instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
 
 -- * types
 
-data Type = TNum NumType NumValue
+data Type =
+    TNum NumType NumValue
     | TAttributes | TControl | TPitchControl | TPitch | TNotePitch | TInstrument
     -- | Text string, with enum values if it's an enum.
     | TSymbol (Maybe [Text])
@@ -175,21 +176,62 @@ data Type = TNum NumType NumValue
     | TList !Type
     deriving (Eq, Ord, Show)
 
-data NumType = TUntyped | TTranspose | TDefaultDiatonic | TDefaultChromatic
+-- | These are kind of muddled.  This is because they were originally just
+-- documentation, so the more specific the better, but are also used for
+-- typechecking in 'put_val', so the subtype relations need to be respected.
+-- But since some are just documentation (e.g. TDefaultReal), they should never
+-- show up on the LHS of a put_val typecheck.
+data NumType = TUntyped | TInt
+    | TTranspose | TDefaultDiatonic | TDefaultChromatic | TNoteNumber
     | TTime | TDefaultReal | TDefaultScore | TRealTime | TScoreTime
-    | TNoteNumber | TInt
     deriving (Eq, Ord, Show)
 
-data NumValue = TAny | TNatural | TPositive deriving (Eq, Ord, Show)
+-- | Numeric subtypes, from most general to most specific.
+data NumValue = TAny
+    -- | >=0
+    | TNatural
+    -- | >0
+    | TPositive
+    deriving (Eq, Ord, Show)
 
-to_num_type :: Score.Type -> NumType
-to_num_type typ = case typ of
-    Score.Untyped -> TUntyped
-    Score.Real -> TTime
-    Score.Score -> TTime
-    Score.Diatonic -> TTranspose
-    Score.Chromatic -> TTranspose
-    Score.Nn -> TTranspose
+-- | This typechecking already exists in the Typecheck instances, but all it
+-- can do is go from a Val to a @Typecheck a => Maybe a@.  So I can't reuse it
+-- to check a type against a type, so it has to be duplicated, similar to how
+-- 'type_of' can't reuse 'to_type'.
+--
+-- The result is I have redundant functions like 'subtypes_of' and 'type_of'
+-- and 'to_num_type', and a mistake or inconsistency with 'to_type' or 'to_val'
+-- will cause typechecking to fail in some subtle case.  Fortunately there are
+-- relatively few types and hopefully won't be many more, and it only affects
+-- 'put_val'.  It could all do with a cleanup, but obviously I don't know
+-- anything aobut how this sort of thing is supposed to be done.
+types_match :: Type -> Type -> Bool
+types_match t1 t2 = case (t1, t2) of
+    (TNum n1 v1, TNum n2 v2) -> num_types_match n1 n2 && num_vals_match v1 v2
+    (TMaybe t1, TMaybe t2) -> types_match t1 t2
+    (TEither t1 u1, TEither t2 u2) -> types_match t1 t2 && types_match u1 u2
+    (TList t1, TList t2) -> types_match t1 t2
+    (t1, t2) -> t1 == t2
+    where
+    num_types_match n1 n2 = n2 `elem` subtypes_of n1
+    num_vals_match v1 v2 = v1 <= v2
+
+-- | Nothing if the type of the rhs matches the lhs, otherwise the expected
+-- type.
+val_types_match :: Val -> Val -> Maybe Type
+val_types_match lhs rhs
+    | types_match expected (type_of rhs) = Nothing
+    | otherwise = Just expected
+    where expected = infer_type_of False lhs
+
+subtypes_of :: NumType -> [NumType]
+subtypes_of n
+    | n `elem` [TTime, TDefaultReal, TDefaultScore] =
+        [TTime, TDefaultReal, TDefaultScore, TRealTime, TScoreTime]
+    | n `elem` transpose = transpose
+    | otherwise = [n]
+    where
+    transpose = [TTranspose, TDefaultDiatonic, TDefaultChromatic, TNoteNumber]
 
 instance Pretty.Pretty Type where
     pretty (TMaybe typ) = "Maybe " <> pretty typ
@@ -227,8 +269,17 @@ instance Pretty.Pretty NumValue where
         TPositive -> ">0"
 
 type_of :: Val -> Type
-type_of val = case val of
-    VNum num -> TNum (to_num_type (Score.type_of num)) TAny
+type_of = infer_type_of True
+
+infer_type_of :: Bool -- ^ If True, infer the most specific type possible.
+    -- Otherwise, infer a general type.  This is because if 'put_val' gets a
+    -- 1 it doesn't mean it's intended to be a TPositive.
+    -> Val -> Type
+infer_type_of specific val = case val of
+    VNum (Score.Typed typ val) -> TNum (to_num_type typ) $ if specific
+        then (if val > 0 then TPositive
+            else if val >= 0 then TNatural else TAny)
+        else TAny
     VAttributes {} -> TAttributes
     VControl {} -> TControl
     VPitchControl {} -> TPitchControl
@@ -241,6 +292,15 @@ type_of val = case val of
     VNotGiven -> TNotGiven
     VSeparator -> TSeparator
     VList {} -> TList TVal
+
+to_num_type :: Score.Type -> NumType
+to_num_type typ = case typ of
+    Score.Untyped -> TUntyped
+    Score.Real -> TRealTime
+    Score.Score -> TScoreTime
+    Score.Diatonic -> TTranspose
+    Score.Chromatic -> TTranspose
+    Score.Nn -> TNoteNumber
 
 -- ** special types
 
@@ -358,7 +418,7 @@ instance Typecheck Pitch.NoteNumber where
         | typ == Score.Untyped || typ == Score.Nn = Just $ Pitch.nn val
         | otherwise = Nothing
     from_val _ = Nothing
-    to_val = to_val . Pitch.nn_to_double
+    to_val = VNum . Score.Typed Score.Nn . Pitch.nn_to_double
     to_type = num_to_type
 
 instance Typecheck ScoreTime where
@@ -554,15 +614,15 @@ instance Typecheck Quoted where
 -- 'VNotGiven' is another special case, it deletes the given key.
 put_val :: Typecheck val => ValName -> val -> Environ -> Either Type Environ
 put_val name val environ
-    | VNotGiven <- to_val val = Right $ delete_val name environ
+    | VNotGiven <- new_val = Right $ delete_val name environ
     | otherwise = case lookup_val name environ of
         Nothing -> case Map.lookup name hardcoded_types of
-            Just expected | type_of new_val /= expected -> Left expected
+            Just expected | not $ types_match expected (type_of new_val) ->
+                Left expected
             _ -> Right $ BaseTypes.insert_val name new_val environ
-        Just old_val
-            | type_of old_val == type_of new_val ->
-                Right $ BaseTypes.insert_val name new_val environ
-            | otherwise -> Left (type_of old_val)
+        Just old_val -> case val_types_match old_val new_val of
+            Just expected -> Left expected
+            Nothing -> Right $ BaseTypes.insert_val name new_val environ
     where new_val = to_val val
 
 -- | Insert a val without typechecking.

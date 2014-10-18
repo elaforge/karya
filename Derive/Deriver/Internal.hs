@@ -105,7 +105,7 @@ insert_environ :: (TrackLang.Typecheck val) => TrackLang.ValName
     -> val -> TrackLang.Environ -> Deriver TrackLang.Environ
 insert_environ name val environ =
     case TrackLang.put_val name val environ of
-        Left typ -> throw $ "can't set " <> show name <> " to "
+        Left typ -> throw $ "can't set " <> pretty name <> " to "
             <> untxt (TrackLang.show_val (TrackLang.to_val val))
             <> ", expected " <> pretty typ
         Right environ2 -> return environ2
