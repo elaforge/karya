@@ -70,6 +70,7 @@ val_calls = Derive.call_map
     , ("cf-rnd", c_cf_rnd const)
     , ("cf-rnd+", c_cf_rnd (+))
     , ("cf-rnd*", c_cf_rnd (*))
+    , ("cf-rnd01", c_cf_rnd01)
     , ("cf-swing", c_cf_swing)
     , ("cf-clamp", c_cf_clamp)
     ]
@@ -347,6 +348,13 @@ c_cf_rnd combine = val_call "cf-rnd"
             Score.untyped $ combine
                 (cf_rnd distribution low high (random_stream (dyn_seed dyn)))
                 (dyn_control dyn control pos)
+
+c_cf_rnd01 :: Derive.ValCall
+c_cf_rnd01 = Make.modify_vcall (c_cf_rnd (+)) Module.prelude "cf-rnd01"
+    "This is an abbreviation for `(cf-clamp (cf-rnd+ ..) 0 1)`." $
+    \val -> case TrackLang.from_val val of
+        Just cf -> TrackLang.to_val $ cf_compose "cf-clamp" (Num.clamp 0 1) cf
+        Nothing -> val
 
 cf_rnd :: Distribution -> Double -> Double -> [Double] -> Double
 cf_rnd dist low high rnds = Num.scale low high $ case dist of
