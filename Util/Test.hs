@@ -164,7 +164,7 @@ equalf = equalf_srcpos Nothing
 equalf_srcpos :: (Show a, ApproxEq.ApproxEq a) => SrcPos.SrcPos -> Double
     -> a -> a -> IO Bool
 equalf_srcpos srcpos eta a b
-    | ApproxEq.approx_eq eta a b = success_srcpos srcpos $ pretty True
+    | ApproxEq.eq eta a b = success_srcpos srcpos $ pretty True
     | otherwise = failure_srcpos srcpos $ pretty False
     where pretty = pretty_compare "~~" "/~" a b
 

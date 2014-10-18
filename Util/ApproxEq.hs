@@ -3,43 +3,53 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | ApproxEq class for comparing floating point numbers.
-module Util.ApproxEq (ApproxEq(approx_eq)) where
+module Util.ApproxEq (ApproxEq(eq), compare) where
+import Prelude hiding (compare)
 
+import qualified Util.Num as Num
+
+
+compare :: (ApproxEq a, Ord a) => Double -> a -> a -> Ordering
+compare eta a b
+    | eq eta a b = EQ
+    | a > b = GT
+    | otherwise = LT
 
 class ApproxEq a where
-    approx_eq :: Double -> a -> a -> Bool
+    eq :: Double -> a -> a -> Bool
 
 instance ApproxEq Float where
-    approx_eq eta x y = abs (x - y) <= realToFrac eta
+    eq eta x y = abs (x - y) <= Num.d2f eta
 instance ApproxEq Double where
-    approx_eq eta x y = abs (x - y) <= eta
+    eq eta x y = abs (x - y) <= eta
 
-instance ApproxEq Char where approx_eq _ = (==)
-instance ApproxEq Int where approx_eq _ = (==)
-instance ApproxEq Integer where approx_eq _ = (==)
-instance ApproxEq Bool where approx_eq _ = (==)
+instance ApproxEq Char where eq _ = (==)
+instance ApproxEq Int where eq _ = (==)
+instance ApproxEq Integer where eq _ = (==)
+instance ApproxEq Bool where eq _ = (==)
 
-instance (ApproxEq a) => ApproxEq [a] where
-    approx_eq eta xs ys =
-        length xs == length ys && and (zipWith (approx_eq eta) xs ys)
+instance ApproxEq a => ApproxEq [a] where
+    eq eta = go
+        where
+        go [] [] = True
+        go [] _ = False
+        go _ [] = False
+        go (x:xs) (y:ys) = eq eta x y && go xs ys
 
-instance (ApproxEq a) => ApproxEq (Maybe a) where
-    approx_eq eta (Just x) (Just y) = approx_eq eta x y
-    approx_eq _ _ _ = False
+instance ApproxEq a => ApproxEq (Maybe a) where
+    eq eta (Just x) (Just y) = eq eta x y
+    eq _ _ _ = False
 
 instance (ApproxEq a, ApproxEq b) => ApproxEq (Either a b) where
-    approx_eq eta (Right x) (Right y) = approx_eq eta x y
-    approx_eq eta (Left x) (Left y) = approx_eq eta x y
-    approx_eq _ _ _ = False
+    eq eta (Right x) (Right y) = eq eta x y
+    eq eta (Left x) (Left y) = eq eta x y
+    eq _ _ _ = False
 
 instance (ApproxEq a, ApproxEq b) => ApproxEq (a, b) where
-    approx_eq eta (a, b) (a', b') =
-        approx_eq eta a a' && approx_eq eta b b'
+    eq eta (a, b) (a', b') = eq eta a a' && eq eta b b'
 instance (ApproxEq a, ApproxEq b, ApproxEq c) => ApproxEq (a, b, c) where
-    approx_eq eta (a, b, c) (a', b', c') =
-        approx_eq eta a a' && approx_eq eta b b' && approx_eq eta c c'
+    eq eta (a, b, c) (a', b', c') = eq eta a a' && eq eta b b' && eq eta c c'
 instance (ApproxEq a, ApproxEq b, ApproxEq c, ApproxEq d) =>
         ApproxEq (a, b, c, d) where
-    approx_eq eta (a, b, c, d) (a', b', c', d') =
-        approx_eq eta a a' && approx_eq eta b b' && approx_eq eta c c'
-            && approx_eq eta d d'
+    eq eta (a, b, c, d) (a', b', c', d') =
+        eq eta a a' && eq eta b b' && eq eta c c' && eq eta d d'

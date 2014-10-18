@@ -103,4 +103,4 @@ eta = 0.00000000000004
 
 -- | ScoreTimes are imprecise, so compare them with this instead of (==).
 eq :: ScoreTime -> ScoreTime -> Bool
-eq = ApproxEq.approx_eq (to_double eta)
+eq = ApproxEq.eq (to_double eta)

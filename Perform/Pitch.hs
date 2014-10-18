@@ -238,7 +238,7 @@ nn_to_double (NoteNumber nn) = nn
 
 -- | True if the NoteNumbers are close enough that they sound the same.
 nns_equal :: NoteNumber -> NoteNumber -> Bool
-nns_equal = ApproxEq.approx_eq 0.01
+nns_equal = ApproxEq.eq 0.01
 
 -- * Hz
 

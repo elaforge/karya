@@ -82,7 +82,7 @@ open_strings pos highlight deriver = do
             Just highlight -> add_highlight highlight event
         _ -> event
     same_pitch nn pitch = case PitchSignal.pitch_nn pitch of
-        Right string_nn -> ApproxEq.approx_eq 0.05 nn string_nn
+        Right string_nn -> ApproxEq.eq 0.05 nn string_nn
         _ -> False
 
 

@@ -167,4 +167,4 @@ eta = 0.0000000000004
 
 -- | RealTimes are imprecise, so compare them with this instead of (==).
 eq :: RealTime -> RealTime -> Bool
-eq = ApproxEq.approx_eq (to_seconds eta)
+eq = ApproxEq.eq (to_seconds eta)
