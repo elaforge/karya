@@ -26,6 +26,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Bali.Gangsa as Gangsa
+import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Highlight as Highlight
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -40,6 +41,7 @@ import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 import Derive.Score (attr)
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -292,6 +294,9 @@ wayang_patches = MidiInst.with_code code
     ]
     where
     code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
+        <> MidiInst.note_calls null_call
+    null_call = MidiInst.null_call $ DUtil.zero_duration "make it a weak note"
+        (Gender.weak (Sig.control "strength" 0.5))
     wayang = Instrument.set_flag Instrument.ConstantPitch
         . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
         . (Instrument.attribute_map #= wayang_keymap) . flip patch []

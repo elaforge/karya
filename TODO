@@ -97,7 +97,7 @@ UNSORTED
       are played, and then have various calls that are random but biased
       toward a particular value.
       . Maybe I should have zero dur notes be weak?
-    - make zero dur notes weak| instead of +mute+loose
+    * make zero dur notes weak| instead of +mute+loose
       . zero-duration-transform can't be a general transform, because it can't
         tell if notes are zero dur.  Make a null note call that only applies
         if it's not a block-final event?

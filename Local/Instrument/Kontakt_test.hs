@@ -15,6 +15,8 @@ import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+
 import qualified Perform.Midi.Perform as Perform
 import qualified Local.Instrument.Kontakt as Kontakt
 
@@ -27,6 +29,23 @@ test_wayang = do
     equal (run [(0, 1, "4i")]) ([Key2.e4], [])
     equal (run [(1, 1, "+mute -- 4i")]) ([Key2.b_2, Key2.e0], [])
     equal (run [(2, 1, "+mute+loose -- 4i")]) ([Key2.a_2, Key2.e0], [])
+
+test_wayang_zero_dur = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_blocks_with with_synth
+        top = "top -- inst = >kontakt/wayang-umbang | import bali.gender"
+            ++ " | realize-ngoret | infer-duration"
+        extract e = (Score.event_duration e,
+            not $ null $ DeriveTest.e_control "mute" e)
+    -- should be muted, since it's 0 dur and not the end
+    equal (run [(top, UiTest.note_track [(0, 0, "3i"), (1, 0, "3i")])])
+        ([(0, True), (0, True)], [])
+    -- The 3o is a final, not a mute.
+    let sub = ("sub=ruler", UiTest.note_track [(0, 1, "3i"), (1, 0, "3o")])
+    equal (run [(top, [(">", [(0, 1, "sub")])]), sub])
+        ([(1, False), (1, False)], [])
+    equal (run [(top, [(">", [(0, 1, "sub"), (1, 1, "sub")])]), sub])
+        ([(1, False), (1, False), (1, False)], [])
 
 test_wayang_pasang = do
     let run notes = derive "import bali.gangsa" $
@@ -101,8 +120,10 @@ test_mridangam = do
         (["+din", "+thom"], [])
 
 derive :: String -> [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_with
-    (DeriveTest.with_inst_db Kontakt.synth_descs)
+derive = DeriveTest.derive_tracks_with with_synth
+
+with_synth :: Derive.Deriver a -> Derive.Deriver a
+with_synth = DeriveTest.with_inst_db Kontakt.synth_descs
 
 perform :: [Text] -> Derive.Events
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
