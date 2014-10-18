@@ -634,10 +634,11 @@ insert_val name = BaseTypes.insert_val name . to_val
 hardcoded_types :: Map.Map ValName Type
 hardcoded_types = Map.fromList
     [ (Environ.attributes, TAttributes)
-    , (Environ.instrument, TInstrument)
+    , (Environ.block_end, TNum TScoreTime TAny)
     , (Environ.control, TSymbol Nothing)
-    , (Environ.merge, TSymbol Nothing)
+    , (Environ.instrument, TInstrument)
     , (Environ.key, TSymbol Nothing)
+    , (Environ.merge, TSymbol Nothing)
     , (Environ.scale, TSymbol Nothing)
     , (Environ.seed, TNum TUntyped TAny)
     , (Environ.srate, TNum TUntyped TAny)

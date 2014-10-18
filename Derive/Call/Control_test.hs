@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Control_test where
-import Util.Control
 import Util.Test
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveTest as DeriveTest

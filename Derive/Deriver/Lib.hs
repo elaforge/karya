@@ -253,7 +253,7 @@ with_val_raw :: TrackLang.Typecheck val => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
 with_val_raw name val = Internal.localm $ \st -> do
     environ <- Internal.insert_environ name val (state_environ st)
-    return $! st { state_environ = environ }
+    environ `seq` return $! st { state_environ = environ }
 
 modify_val :: TrackLang.Typecheck val => TrackLang.ValName
     -> (Maybe val -> val) -> Deriver a -> Deriver a
@@ -474,11 +474,13 @@ with_controls controls = Internal.local $ \st ->
 -- | Remove both controls and control functions.  Use this when a control has
 -- already been applied, and you don't want it to affect further derivation.
 remove_controls :: [Score.Control] -> Deriver a -> Deriver a
-remove_controls controls = Internal.local $ \st -> st
-    { state_controls = Util.Map.delete_keys controls (state_controls st)
-    , state_control_functions =
-        Util.Map.delete_keys controls (state_control_functions st)
-    }
+remove_controls controls
+    | null controls = id
+    | otherwise = Internal.local $ \st -> st
+        { state_controls = Util.Map.delete_keys controls (state_controls st)
+        , state_control_functions =
+            Util.Map.delete_keys controls (state_control_functions st)
+        }
 
 with_control_function :: Score.Control -> TrackLang.ControlFunction
     -> Deriver a -> Deriver a

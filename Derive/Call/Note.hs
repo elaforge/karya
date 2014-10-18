@@ -7,7 +7,7 @@ module Derive.Call.Note (
     note_calls
     , c_note, transformed_note, note_call
     , Config(..), use_attributes, no_duration_attributes
-    , GenerateNote, default_note, make_event
+    , GenerateNote, default_note, note_flags, make_event
     , adjust_duration
     , with_start_controls
     , min_duration
@@ -173,20 +173,8 @@ default_note config args = do
 
     -- Add flags to get the arrival-note postproc to figure out the duration.
     -- Details in "Derive.Call.Post.ArrivalNote".
-    let flags
-            -- An event at TrackTime 0 never gets an inferred duration.
-            -- Otherwise, I couldn't write single note calls for percussion.
-            | infer_dur && track0 = mempty
-            | infer_dur = Flags.infer_duration
-            | track0 = Flags.track_time_0
-            | otherwise = mempty
-        -- Note that I can't use Args.duration or Args.range_on_track, because
-        -- this may be invoked via e.g. Util.note, which fakes up an event with
-        -- range (0, 1), and sets the duration via the warp.
-        infer_dur = null (Args.next_events args) && start == end
-        track0 = (fst <$> stack_range) == Just 0
-        stack_range = Seq.head $ mapMaybe Stack.region_of $
-            Stack.innermost $ Derive.state_stack dyn
+    let flags = note_flags (start == end) (Derive.state_stack dyn)
+            (Derive.state_environ dyn)
     control_vals <- Derive.controls_at start
     offset <- get_start_offset start
     let attrs = either (const Score.no_attrs) id $
@@ -199,6 +187,27 @@ default_note config args = do
                 (Derive.state_environ dyn)
             }
     return [LEvent.Event event]
+
+note_flags :: Bool -> Stack.Stack -> TrackLang.Environ -> Flags.Flags
+note_flags zero_dur stack environ
+    -- An event at TrackTime 0 never gets an inferred duration.
+    -- Otherwise, I couldn't write single note calls for percussion.
+    | infer_dur && track_start = mempty
+    | infer_dur = Flags.infer_duration
+    | track_start = Flags.track_time_0
+    | otherwise = mempty
+    where
+    -- Note that I can't use Args.duration or Args.range_on_track, because
+    -- this may be invoked via e.g. Util.note, which fakes up an event with
+    -- range (0, 1), and sets the duration via the warp.
+    infer_dur = track_end && zero_dur
+    track_start = start == Just 0
+    track_end = start == TrackLang.maybe_val Environ.block_end environ
+    start = fst <$> Seq.head (mapMaybe Stack.region_of (Stack.innermost stack))
+
+    -- zero dur event at end of track
+    -- Ideally it should be the whole first event, regardless of what its call
+    -- is.  Well, except I don't want to replace a block call.
 
 -- | This is the canonical way to make a Score.Event.  It handles all the
 -- control trimming and control function value stashing that the perform layer

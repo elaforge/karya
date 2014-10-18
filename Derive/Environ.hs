@@ -12,14 +12,34 @@ import Derive.BaseTypes (ValName)
 
 -- * directly supported by core derivers
 
+-- | VList: arguments for a 'Derive.Call.Tags.requires_postproc' call.
+-- Also see 'Derive.Call.Post.make_delayed'.
+args :: ValName
+args = "args"
+
 -- | VAttributes: Default set of attrs.
 attributes :: ValName
 attributes = "attr"
+
+-- | ScoreTime: the block deriver sets it to the ScoreTime end of the block.
+-- Blocks always start at zero, but this is the only way for a call to know if
+-- an event is at the end of the block.
+block_end :: ValName
+block_end = "block-end"
 
 -- | VSymbol: Set to the control that is being derived, inside of a control
 -- track.
 control :: ValName
 control = "control"
+
+-- | VInstrument: Default instrument.
+instrument :: ValName
+instrument = "inst"
+
+-- | VSymbol: Diatonic transposition often requires a key.  The interpretation
+-- of the value depends on the scale.
+key :: ValName
+key = "key"
 
 -- | VSymbol: Set along with 'control' to the 'Derive.Derive.Merge' function
 -- which will be used for this control track.  Calls can use this to subvert
@@ -29,20 +49,6 @@ control = "control"
 -- 'Derive.Derive.ControlOp'.
 merge :: ValName
 merge = "merge"
-
--- | VInstrument: Default instrument.
-instrument :: ValName
-instrument = "inst"
-
--- | VList: arguments for a 'Derive.Call.Tags.requires_postproc' call.
--- Also see 'Derive.Call.Post.make_delayed'.
-args :: ValName
-args = "args"
-
--- | VSymbol: Diatonic transposition often requires a key.  The interpretation
--- of the value depends on the scale.
-key :: ValName
-key = "key"
 
 -- | VSymbol: Default scale, used by pitch tracks with a @*@ title.
 scale :: ValName

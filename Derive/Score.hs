@@ -164,7 +164,7 @@ event_transformed_pitches event =
 -- ** flags
 
 has_flags :: Flags.Flags -> Event -> Bool
-has_flags flags = Set.isSubsetOf flags . event_flags
+has_flags flags = (`Flags.has` flags) . event_flags
 
 add_flags :: Flags.Flags -> Event -> Event
 add_flags flags event = event { event_flags = flags <> event_flags event }

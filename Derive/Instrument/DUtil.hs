@@ -19,7 +19,9 @@ import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
+import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -44,11 +46,25 @@ attrs_note attrs =
         "Invoke the default note call with the given attrs." $
     Sig.call0 $ \args -> Util.add_attrs attrs (Util.note_here args)
 
-zero_duration :: Text -> (Derive.NoteDeriver -> Derive.NoteDeriver)
+zero_duration :: Text
+    -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 zero_duration doc transform = Note.transformed_note
-    ("A normal note, but modified when it has zero duration: " <> doc) mempty $
-    \args deriver -> (if Args.duration args == 0 then transform else id) deriver
+    ("A normal note, but modified when it has zero duration: " <> doc)
+    mempty call
+    where
+    call args deriver
+        | Args.duration args == 0 = do
+            -- It turns out it's hard to figure out if a note has zero
+            -- duration, and isn't just an infer-duration note.
+            stack <- Internal.get_stack
+            environ <- Internal.get_environ
+            zero <- (==0) <$> Args.real_duration args
+            let flags = Note.note_flags zero stack environ
+                should_transform =
+                    zero && not (flags `Flags.has` Flags.infer_duration)
+            if should_transform then transform args deriver else deriver
+        | otherwise = deriver
 
 -- | Just like the default note call, except apply a function to the output.
 postproc_note :: Text -> Text -> (Score.Event -> Score.Event)

@@ -57,7 +57,7 @@ note_deriver :: BlockId -> Derive.NoteDeriver
 note_deriver block_id = do
     (tree, block_end) <- Derive.eval_ui ("note_deriver " <> show block_id) $
         get_tree block_id
-    derive_tree block_end tree
+    Derive.with_val Environ.block_end block_end $ derive_tree block_end tree
 
 -- * control deriver
 
@@ -72,7 +72,8 @@ control_deriver block_id = do
     (tree, block_end) <- get_tree block_id
     case check_control_tree block_end tree of
         Left err -> State.throw $ "control block skeleton malformed: " ++ err
-        Right tree -> return $ derive_control_tree block_end tree
+        Right tree -> return $ Derive.with_val Environ.block_end block_end $
+            derive_control_tree block_end tree
 
 -- | Name of the call for the control deriver hack.
 capture_null_control :: TrackLang.CallId

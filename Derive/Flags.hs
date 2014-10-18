@@ -5,7 +5,7 @@
 -- | 'Flags' constants, analogous to "Derive.Attrs".
 module Derive.Flags where
 import qualified Data.Set as Set
-import Data.Text (Text)
+import qualified Data.Text as Text
 
 
 -- | Flags are like 'Derive.Environ.attributes', but are used for internal
@@ -14,10 +14,14 @@ import Data.Text (Text)
 -- performer with various internal attributes that have nothing to do with
 -- instrument.
 type Flags = Set.Set Flag
-type Flag = Text
+type Flag = Text.Text
 
-flag :: Text -> Flags
+flag :: Text.Text -> Flags
 flag = Set.singleton
+
+-- | Does the first argument contain the second argument?
+has :: Flags -> Flags -> Bool
+has = flip Set.isSubsetOf
 
 -- | This note needs to wait until postproc to figure out its duration.  This
 -- is used to implement arrival notes, see "Derive.Call.Post.ArrivalNote" for

@@ -5,7 +5,6 @@
 module Derive.Call.Note_test where
 import Util.Control
 import Util.Test
-import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -50,16 +49,3 @@ test_transpose = do
     equal (run [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")]),
             ("t-chrom", [(0, 0, "1")])])
         (["4c#"], [])
-
-test_arrival_notes_postproc = do
-    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
-        top = "top -- arrival-note 2"
-
-    -- Arrival notes carry across block boundaries.
-    equal (run
-            [ (top, [(">", [(1, -1, "b2"), (2, -1, "b2")])])
-            , ("b2=ruler", UiTest.note_track [(1, -1, "4c"), (2, -1, "4d")])
-            ])
-        ([ (0.5, 0.5, "4c"), (1, 0.5, "4d")
-         , (1.5, 0.5, "4c"), (2, 2, "4d")
-         ], [])

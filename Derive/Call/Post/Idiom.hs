@@ -112,6 +112,10 @@ avoid_overlap time events =
 
 -- * zero dur mute
 
+-- | See DUtil.zero_duration for a version that can apply any kind of
+-- transformation.  This one is limited to attrs because it's a postproc, and
+-- it's a postproc because otherwise it's hard to tell if a note is really
+-- zero duration and not just an infer-duration note.
 c_zero_duration_mute :: Derive.Transformer Derive.Note
 c_zero_duration_mute = Derive.transformer Module.prelude
     "zero-duration-mute" (Tags.postproc <> Tags.inst)
