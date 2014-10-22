@@ -398,7 +398,7 @@ print_test_line srcpos color_code prefix msg = do
     -- A little magic to make failures more obvious in tty output.
     isatty <- Terminal.queryTerminal IO.stdOutput
     putStrLn $ highlight isatty color_code $ prefix
-        ++ SrcPos.show_srcpos srcpos ++ " - " ++ msg
+        ++ SrcPos.show_srcpos srcpos ++ " " ++ msg
 
 -- | Highlight the line unless the text already has highlighting in it.
 highlight :: Bool -> String -> String -> String
