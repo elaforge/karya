@@ -151,6 +151,9 @@ protected:
 private:
     void draw_area();
     void draw_signal(int min_y, int max_y, ScoreTime start);
+    void draw_event_boxes(
+        const Event *events, const int *ranks, int count,
+        const std::vector<int> &offsets);
     std::pair<IRect, IRect> draw_upper_layer(
         int offset,
         const Event &event, int rank, int prev_offset, int next_offset,

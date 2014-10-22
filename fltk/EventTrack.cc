@@ -321,7 +321,6 @@ show_found_events(ScoreTime start, ScoreTime end, Event *events, int count)
     printf("\n");
 }
 
-
 void
 EventTrackView::draw_area()
 {
@@ -350,9 +349,50 @@ EventTrackView::draw_area()
         offsets[i] =
             y + this->zoom.to_pixels(events[i].start - this->zoom.offset);
     }
+    draw_event_boxes(events, ranks, count, offsets);
+    this->draw_signal(clip.y, clip.b(), start);
 
-    // Draw event boxes.  Rank >0 boxes are not drawn since I'd have to figure
-    // out overlaps and they're meant to be used with control tracks anyway.
+    std::pair<IRect, IRect> prev_rects(IRect(0, 0, 0, 0), IRect(0, 0, 0, 0));
+    // Draw the upper layer (event start line, text).
+    for (int i = 0; i < count; i++) {
+        int rank = ranks[i];
+        int next_offset = MAX_PIXEL;
+        int prev_offset = i == 0 ? MIN_PIXEL : offsets[i-1];
+        // TODO negative events should do this for the prev_offset
+        for (int j = i+1; j < count; j++) {
+            if ((rank && ranks[j]) || (!rank && !ranks[j])) {
+                next_offset = offsets[j];
+                break;
+            }
+        }
+        prev_rects = this->draw_upper_layer(
+            offsets[i], events[i], rank, prev_offset, next_offset,
+            prev_rects.first, prev_rects.second);
+    }
+    if (count) {
+        for (int i = 0; i < count; i++) {
+            if (events[i].text)
+                free(const_cast<char *>(events[i].text));
+        }
+        free(events);
+        free(ranks);
+    }
+
+    // The overlay ruler overlaps me entirely, so I'm sure it's damaged.
+    if (damage() & FL_DAMAGE_ALL)
+        this->draw_child(this->overlay_ruler);
+    else
+        this->update_child(this->overlay_ruler);
+}
+
+
+// Draw event boxes.  Rank >0 boxes are not drawn since I'd have to figure out
+// overlaps and they're meant to be used with control tracks anyway.
+void
+EventTrackView::draw_event_boxes(
+    const Event *events, const int *ranks, int count,
+    const std::vector<int> &offsets)
+{
     for (int i = 0; i < count; i++) {
         if (ranks[i])
             continue;
@@ -393,40 +433,6 @@ EventTrackView::draw_area()
         fl_color(c.fl());
         fl_rectf(this->x() + 1, y0, this->w() - 2, y1-y0);
     }
-
-    this->draw_signal(clip.y, clip.b(), start);
-
-    std::pair<IRect, IRect> prev_rects(IRect(0, 0, 0, 0), IRect(0, 0, 0, 0));
-    // Draw the upper layer (event start line, text).
-    for (int i = 0; i < count; i++) {
-        int rank = ranks[i];
-        int next_offset = MAX_PIXEL;
-        int prev_offset = i == 0 ? MIN_PIXEL : offsets[i-1];
-        // TODO negative events should do this for the prev_offset
-        for (int j = i+1; j < count; j++) {
-            if ((rank && ranks[j]) || (!rank && !ranks[j])) {
-                next_offset = offsets[j];
-                break;
-            }
-        }
-        prev_rects = this->draw_upper_layer(
-            offsets[i], events[i], rank, prev_offset, next_offset,
-            prev_rects.first, prev_rects.second);
-    }
-    if (count) {
-        for (int i = 0; i < count; i++) {
-            if (events[i].text)
-                free(const_cast<char *>(events[i].text));
-        }
-        free(events);
-        free(ranks);
-    }
-
-    // The overlay ruler overlaps me entirely, so I'm sure it's damaged.
-    if (damage() & FL_DAMAGE_ALL)
-        this->draw_child(this->overlay_ruler);
-    else
-        this->update_child(this->overlay_ruler);
 }
 
 
