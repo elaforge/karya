@@ -355,7 +355,10 @@ ghcWarnings = map ("-fwarn-"++) $ words
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
     ghcLib <- run ghcBinary ["--print-libdir"]
-    fltkCs <- words <$> run fltkConfig ["--cflags"]
+    let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) "IDL"
+    -- fltk-config --cflags started putting -g and -O2 in the flags, which
+    -- messes up hsc2hs, which wants only CPP flags.
+    fltkCs <- filter wantedFltk . words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
     fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
     bindingsInclude <- run "ghc-pkg" ["field", "bindings-DSL", "include-dirs"]
