@@ -74,7 +74,7 @@ equal_doc =
     "Evaluate the deriver with a value set. Special parser support means this\
     \ can be called infix.  The arguments can take many forms to set different\
     \ kinds of values.\
-    \\nSet environ values by setting a plain symbol or unset it by assigning\
+    \\nSet an environ value by setting a plain symbol or unset it by assigning\
     \ to `_`: `x = 42` or `x = _`.\
     \\nAlias instrument names like: `>alias = >inst`.\
     \\nIf the symbol is prefixed with `^`, `*`, `.`, or `-`, it will add a new\
@@ -94,7 +94,8 @@ equal_doc =
     \ assignment also supports the same merge operators as the control track:\
     \ `%a = add .5` or `%a = add %b`.  However, the second example throws an\
     \ error if `%b` is a ControlFunction. `%a = _ .5` will combine with `a`'s\
-    \ default merge operator."
+    \ default merge operator. Assigning to `_` unsets the control, and any\
+    \ control function."
     -- Previously > was for binding note calls, but that was takes by
     -- instrument aliasing.  ^ at least looks like a rotated >.
 
@@ -150,8 +151,9 @@ parse_equal maybe_merge lhs rhs
         TrackLang.VControlFunction f -> case maybe_merge of
             Just merge -> Left $ merge_error merge
             Nothing -> Right $ Derive.with_control_function control f
-        _ -> Left $ "binding a control expected a control, num, or control\
-            \ function, but got " <> pretty (TrackLang.type_of rhs)
+        TrackLang.VNotGiven -> Right $ Derive.remove_controls [control]
+        _ -> Left $ "binding a control expected a control, num, control\
+            \ function, or _, but got " <> pretty (TrackLang.type_of rhs)
     where
     is_control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing
