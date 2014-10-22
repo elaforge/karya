@@ -423,15 +423,19 @@ EventTrackView::draw_event_boxes(
                 height += 2;
             }
         }
-        int y0 = std::min(offsets[i], offsets[i] + height);
-        int y1 = std::max(offsets[i], offsets[i] + height);
+        if (height != 0) {
+            Color c = StyleTable::get()->get(event.style_id)
+                ->event_color.brightness(this->brightness);
+            if (event.duration != ScoreTime(0)) {
+                int y0 = std::min(offsets[i], offsets[i] + height);
+                int y1 = std::max(offsets[i], offsets[i] + height);
 
-        Color c = StyleTable::get()->get(event.style_id)
-            ->event_color.brightness(this->brightness);
-        if (event.duration < ScoreTime(0))
-            c = c.brightness(negative_duration_brightness);
-        fl_color(c.fl());
-        fl_rectf(this->x() + 1, y0, this->w() - 2, y1-y0);
+                if (event.duration < ScoreTime(0))
+                    c = c.brightness(negative_duration_brightness);
+                fl_color(c.fl());
+                fl_rectf(this->x() + 1, y0, this->w() - 2, y1-y0);
+            }
+        }
     }
 }
 
@@ -711,6 +715,13 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         fl_line(x() + w()/2, offset, x()+w() - 2, offset);
     } else {
         fl_line(x() + 1, offset, x()+w() - 2, offset);
+        if (event.duration == ScoreTime(0)) {
+            // Draw an arrow to highlight zero duration events.  Otherwise they
+            // can be hard to see.
+            int sz = 5;
+            int r = x() + w();
+            fl_polygon(r - sz, offset, r, offset - sz, r, offset + sz);
+        }
     }
 
     if (draw_text) {

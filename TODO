@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - It's hard to replace a 'dyn' track if they combine via merge, since
+    I can't counteract it.  Maybe I can do 'dyn | e-unless no-dyn', and then
+    call like 'no-dyn=t | block'.  But as with 'when-ly', a deriver can't
+    skip a track.
+    . Use this to remove crescendo in cerucuk-punyah, @part2, last @b4a
+  - apply-start-offset should not move past previous or next events
   * I can get rid of Derive.info_inverted
   * The last event gets infer-duration, but it should be at the block end.
     How about, track puts RealTime track start and end in Environ, then I can
@@ -10,7 +16,7 @@ UNSORTED
     . fst . Args.range_on_track should be correct even for Util.note created
       notes.
   - fltk: wrapping for rank>0 event text?
-  - fltk: 0 dur events with no text are hard to see
+  * fltk: 0 dur events with no text are hard to see
   * Convert.convert_pitch converts too much, since transpose signals now
     extend beyond the end of the event.
     . pitch out of range error: when played via set-kantilan on i5 88.73
@@ -82,7 +88,7 @@ UNSORTED
     - randomization should be centered on a value, with variance as a signal,
       so I can turn accuracy up or down.
   wayang
-    - end of p4 is now broken, ngoret to last note winds up muting it
+    * end of p4 is now broken, ngoret to last note winds up muting it
     / maybe repeated notes could automatically apply pedal
       But if it's just one repeated note, not all of them, then I wind up with
       channel splitting, and if there's just one channel, then everyone gets
