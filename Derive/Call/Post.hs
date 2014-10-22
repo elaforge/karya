@@ -126,6 +126,14 @@ emap_m_ event_of f = fmap snd . emap_m event_of (\() e -> (,) () <$> f e) ()
 
 -- ** unthreaded state
 
+zip_on :: ([a] -> [b]) -> [LEvent.LEvent a] -> [LEvent.LEvent (b, a)]
+zip_on f xs = LEvent.zip (f (LEvent.events_of xs)) xs
+
+zip3_on :: ([a] -> [b]) -> ([a] -> [c]) -> [LEvent.LEvent a]
+    -> [LEvent.LEvent (b, c, a)]
+zip3_on f g xs =
+    LEvent.zip3 (f (LEvent.events_of xs)) (g (LEvent.events_of xs)) xs
+
 control :: (Score.TypedVal -> a) -> TrackLang.ValControl -> Derive.Events
     -> Derive.Deriver [a]
 control f c events = do
@@ -139,15 +147,23 @@ time_control = control (RealTime.seconds . Score.typed_val)
 -- | Zip each event up with its neighbors.
 neighbors :: [LEvent.LEvent a] -> [LEvent.LEvent ([a], a, [a])]
 neighbors events = emap1 (\(ps, ns, e) -> (ps, e, ns)) $
-    LEvent.zip3 (prevs events) (nexts events) events
+    zip3_on prevs nexts events
+
+-- | Zip each event with its nearest same-hand neighbor.
+neighbors_same_hand :: (a -> Score.Event) -> [LEvent.LEvent a]
+    -> [LEvent.LEvent (Maybe a, a, Maybe a)]
+neighbors_same_hand event_of = emap1 extract . neighbors
+    where
+    extract (ps, e, ns) = (same ps, e, same ns)
+        where same = Seq.head . same_hand (event_of e) event_of
 
 -- | Extract subsequent events.
-nexts :: [LEvent.LEvent e] -> [[e]]
-nexts = drop 1 . List.tails . LEvent.events_of
+nexts :: [a] -> [[a]]
+nexts = drop 1 . List.tails
 
 -- | Extract previous events.
-prevs :: [LEvent.LEvent e] -> [[e]]
-prevs = scanl (flip (:)) [] . LEvent.events_of
+prevs :: [a] -> [[a]]
+prevs = scanl (flip (:)) []
 
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (a, b, c) = f a b c

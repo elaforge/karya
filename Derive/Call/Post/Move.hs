@@ -4,12 +4,9 @@
 
 -- | Postprocs that change note start and duration.
 module Derive.Call.Post.Move where
-import qualified Data.List as List
-
 import qualified Util.ApproxEq as ApproxEq
 import Util.Control
 import qualified Util.Map as Map
-import qualified Util.Seq as Seq
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
@@ -19,7 +16,6 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -57,20 +53,18 @@ c_infer_duration = Derive.transformer Module.prelude "infer-duration"
 infer_duration :: RealTime -> Derive.Events -> Derive.Events
 infer_duration final_dur = cancel_notes . infer_notes
     where
-    infer_notes = Post.emap1 infer . zip_with Post.nexts
-    cancel_notes = Post.cat_maybes . Post.emap1 cancel . zip_with Post.prevs
-    zip_with f xs = LEvent.zip (f xs) xs
+    infer_notes = Post.emap1 infer . Post.neighbors_same_hand id
+    cancel_notes =
+        Post.cat_maybes . Post.emap1 cancel . Post.neighbors_same_hand id
 
-    cancel (prevs, event)
-        | has Flags.track_time_0 event,
-                Just prev <- Seq.head (Post.same_hand event id prevs),
+    cancel (maybe_prev, event, _)
+        | has Flags.track_time_0 event, Just prev <- maybe_prev,
                 has Flags.infer_duration prev =
             Nothing
         | otherwise = Just event
-    infer (nexts, event)
+    infer (_, event, maybe_next)
         | not (has Flags.infer_duration event) = event
-        | Just next <- Seq.head (Post.same_hand event id nexts) =
-            replace_note next event
+        | Just next <- maybe_next = replace_note next event
         | otherwise = set_dur final_dur event
     set_dur dur = Score.set_duration dur
     has = Score.has_flags
@@ -122,39 +116,31 @@ c_apply_start_offset =
             \ instrument is ignored."
     ) $ \min_dur _args deriver -> apply_start_offset min_dur <$> deriver
 
--- TODO if Post.nexts etc don't use events_of, I can use zip_with
-zip_with :: ([a] -> [b]) -> [LEvent.LEvent a] -> [LEvent.LEvent (b, a)]
-zip_with f xs = LEvent.zip (f (LEvent.events_of xs)) xs
-
 apply_start_offset :: Maybe RealTime -> Derive.Events -> Derive.Events
 apply_start_offset maybe_min_dur =
-    apply_offset . tweak_offset . zip_with (map offset_of)
+    apply_offset . tweak_offset . Post.zip_on (map offset_of)
     where
     tweak_offset = case maybe_min_dur of
         Nothing -> id
-        Just min_dur -> Post.emap1 (tweak min_dur) . Post.neighbors
-    tweak min_dur (prevs, (offset, event), nexts) = (new_offset, event)
+        Just min_dur ->
+            Post.emap1 (tweak min_dur) . Post.neighbors_same_hand snd
+    tweak min_dur (prev, (offset, event), next) = (new_offset, event)
         where
         new_offset = adjust_offset min_dur (extract <$> prev) (extract <$> next)
             offset (Score.event_start event)
         extract (offset, event) = (offset, Score.event_start event)
-        prev = Seq.head $ Post.same_hand event snd prevs
-        next = Seq.head $ Post.same_hand event snd nexts
 
-    apply_offset = Post.emap1 apply . zip_with nexts
-    apply (nexts, (offset, event)) =
+    apply_offset = Post.emap1 apply . Post.neighbors_same_hand snd
+    apply (_, (offset, event), maybe_next) =
         set_dur $ Score.move_start (fromMaybe Note.min_duration maybe_min_dur)
             offset event
         where
-        set_dur event = case Seq.head $ Post.same_hand event snd nexts of
+        set_dur event = case maybe_next of
             Nothing -> event
             Just (next_offset, next) -> Score.duration (const dur) event
                 where
                 dur = adjust_duration (Score.event_start next)
                     (Score.event_start next + next_offset) event
-
-nexts :: [a] -> [[a]]
-nexts = drop 1 . List.tails
 
 -- | Conceptually, all notes move together until they bump into each
 -- other.  Or, they move without restriction, and then go to midway of
@@ -167,11 +153,8 @@ nexts = drop 1 . List.tails
 -- there.  So instead of overlap/2 it's 'max 0 (overlap - n) / 2', where 'n' is
 -- the imbalance between their move offsets.
 --
--- TODO this is still broken when offsets are not injective.
--- Really the core problem is causing overlaps by moving back over the prev
--- event.  To be fully general I could apply all movements, and then fix up to
--- avoid overlaps.  However, I would need to be careful to keep intentional
--- overlaps.
+-- TODO this is still broken if an offset causes an note to skip over another.
+-- But that should be stopped by the next event, right?
 adjust_offset :: RealTime -- ^ don't move notes any closer than this
     -> Maybe (RealTime, RealTime) -> Maybe (RealTime, RealTime)
     -> RealTime -> RealTime -> RealTime
@@ -190,7 +173,6 @@ adjust_offset min_dur prev next offset start
             | overlap <= 0 -> min (next_end - min_dur) end - start
             | otherwise -> (end - overlap + overlap / 2 - min_dur) - start
             where
-            -- overlap = Debug.trace_retp "over+" (end, next_end) $ end - next_end
             overlap = end - next_end
             end = min (max next_start next_end) (start + offset)
             next_end = max start (next_start + next_offset)
@@ -208,7 +190,6 @@ adjust_offset min_dur prev next offset start
             | otherwise -> (end + overlap - overlap / 2) - start
             where
             overlap = prev_end - end
-            -- overlap = Debug.trace_retp "over-" (prev_offset, prev_end, end) $ prev_end - end
             end = max (min prev_start prev_end) (start + offset)
             prev_end = min start (prev_start + prev_offset)
 

@@ -95,8 +95,7 @@ c_avoid_overlap = Derive.transformer Module.prelude "avoid-overlap"
         avoid_overlap time =<< deriver
 
 avoid_overlap :: RealTime -> Derive.Events -> Derive.NoteDeriver
-avoid_overlap time events =
-    return $ Post.emap_ go $ LEvent.zip (Post.nexts events) events
+avoid_overlap time = return . Post.emap_ go . Post.zip_on Post.nexts
     where
     go (nexts, event) =
         (:[]) $ case List.find same (takeWhile overlaps nexts) of

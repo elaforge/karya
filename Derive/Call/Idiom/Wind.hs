@@ -11,7 +11,6 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -50,8 +49,8 @@ c_wind_idiom = Derive.transformer module_ "wind-idiom"
 type Fundamentals = [Pitch.Hz]
 
 wind_idiom :: Fundamentals -> Derive.Events -> Derive.NoteDeriver
-wind_idiom fundamentals events = return $ map (fmap (process fundamentals)) $
-    LEvent.zip (map Seq.head (Post.nexts events)) events
+wind_idiom fundamentals = return . map (fmap (process fundamentals))
+    . Post.zip_on (map Seq.head . Post.nexts)
 
 fundamentals_env :: Sig.Parser [Either Pitch.NoteNumber PitchSignal.Pitch]
 fundamentals_env = Sig.check non_empty $

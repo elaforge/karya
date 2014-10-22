@@ -486,8 +486,8 @@ c_noltol = Derive.transformer module_ "noltol" Tags.postproc
     $ \time _args deriver -> do
         events <- deriver
         times <- Post.time_control time events
-        return $ Post.emap_ (Post.uncurry3 noltol)
-            (LEvent.zip3 times (Post.nexts events) events)
+        return $ Post.emap_ (Post.uncurry3 noltol) $
+            LEvent.zip3 times (Post.nexts (LEvent.events_of events)) events
 
 -- Postproc is seems like the wrong time to be doing this, I can't even change
 -- the dyn conveniently.  However, postproc is the only time I reliably know
