@@ -27,6 +27,7 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
 import qualified Cmd.Play as Play
 import qualified Cmd.PlayUtil as PlayUtil
+import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Selection as Selection
 import qualified Cmd.Simple as Simple
 
@@ -187,6 +188,25 @@ root_sel_events = get_sel_events True block_events
 
 root_sel_pevents :: Cmd.CmdL (Events Perform.Event)
 root_sel_pevents = convert . LEvent.events_of =<< root_sel_events
+
+-- ** extract
+
+control :: Score.Control -> Derive.Events -> [Maybe Score.TypedVal]
+control c = map (\e -> Score.control_at (Score.event_start e) c e)
+    . LEvent.events_of
+
+only_controls :: [Score.Control] -> Derive.Events -> [Score.Event]
+only_controls controls = map strip . LEvent.events_of
+    where
+    strip e = e
+        { Score.event_untransformed_controls =
+            Map.filterWithKey (\c _ -> c `elem` controls)
+                (Score.event_untransformed_controls e)
+        }
+
+insts :: [Text] -> [Score.Event] -> [Score.Event]
+insts instruments = filter ((`elem` is) . Score.event_instrument)
+    where is = map Util.instrument instruments
 
 -- * play from
 
