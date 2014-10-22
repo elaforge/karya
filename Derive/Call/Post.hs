@@ -130,7 +130,7 @@ control :: (Score.TypedVal -> a) -> TrackLang.ValControl -> Derive.Events
     -> Derive.Deriver [a]
 control f c events = do
     sig <- Util.to_typed_function c
-    return $ Prelude.map (f . sig . Score.event_start) (LEvent.events_of events)
+    return $ map (f . sig . Score.event_start) (LEvent.events_of events)
 
 time_control :: TrackLang.ValControl -> Derive.Events
     -> Derive.Deriver [RealTime]
@@ -184,14 +184,15 @@ next_prev_in_track _ _ _ = True -- TODO why true?
 
 -- | If the given event has a hand, return only events with the same hand.
 -- Filter for the same instrument regardless.
-same_hand :: Score.Event -> [Score.Event] -> [Score.Event]
-same_hand event = filter ((== inst event) . inst) .  case lookup event of
-    Nothing -> id
-    Just hand -> filter $ (== Just hand) . lookup
+same_hand :: Score.Event -> (a -> Score.Event) -> [a] -> [a]
+same_hand event event_of =
+    filter ((== inst_of event) . inst_of . event_of) .  case hand_of event of
+        Nothing -> id
+        Just hand -> filter $ (== Just hand) . hand_of . event_of
     where
-    inst = Score.event_instrument
-    lookup :: Score.Event -> Maybe Text
-    lookup = TrackLang.maybe_val Environ.hand . Score.event_environ
+    inst_of = Score.event_instrument
+    hand_of :: Score.Event -> Maybe Text
+    hand_of = TrackLang.maybe_val Environ.hand . Score.event_environ
 
 -- ** misc maps
 

@@ -3,9 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Post.Move_test where
+import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.UiTest as UiTest
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Post.Move as Move
 import qualified Derive.DeriveTest as DeriveTest
 
 
@@ -58,11 +61,13 @@ test_infer_duration_controls = do
             ])
         ([[(0, 1), (1, 2), (2, 3)], [(2, 3), (3, 2), (4, 3)], [(4, 3)]], [])
 
+
 test_apply_start_offset = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
-        top = "top -- apply-start-offset"
+        top = "top -- apply-start-offset .25"
+        min_dur = 0.25
     equal (run [(top, UiTest.note_track [(1, 1, "%start-s=1 | -- 4c")])])
-        ([(2, Note.min_duration, "4c")], [])
+        ([(2, min_dur, "4c")], [])
     equal (run
             [ (top, UiTest.note_track [(2, 2, "%start-s=-1 | sub -- 4c")])
             , ("sub=ruler", [(">", [(0, 1, "")])])
@@ -71,3 +76,71 @@ test_apply_start_offset = do
     equal (run [(top, ("tempo", [(0, 0, "2")])
             : UiTest.note_track [(2, 2, "%start-t=1 | -- 4c")])])
         ([(1.5, 0.5, "4c")], [])
+
+    -- 0   1   2   3
+    -- 4c--4d--4e--|
+    let start offset = "%start-s = " <> offset
+    let neighbors offset = UiTest.note_track
+            [(0, 1, "4c"), (1, 1, start offset <> " | -- 4d") , (2, 1, "4e")]
+
+    equal (run [(top, neighbors "-.5")])
+        ([(0, 0.5, "4c"), (0.5, 1.5, "4d"), (2, 1, "4e")], [])
+
+    -- It's already overlapping, so don't change the duration.
+    equal (run [(top, UiTest.note_track
+            [ (0, 1, "%sus=1.5 | -- 4c"), (1, 1, start "-.5" <> " | -- 4d")
+            , (2, 1, "4e")
+            ])])
+        ([(0, 1.5, "4c"), (0.5, 1.5, "4d"), (2, 1, "4e")], [])
+    -- Not overlapping, but will shorten.
+    equal (run [(top, UiTest.note_track
+            [ (0, 1, "%sus=.75 | -- 4c"), (1, 1, start "-.5" <> " | -- 4d")
+            , (2, 1, "4e")
+            ])])
+        ([(0, 0.5, "4c"), (0.5, 1.5, "4d"), (2, 1, "4e")], [])
+
+    -- Bounded by previous or next notes.
+    equal (run [(top, neighbors "-2")])
+        ([(0, min_dur, "4c"), (min_dur, 2 - min_dur, "4d"), (2, 1, "4e")], [])
+
+test_adjust_offset = do
+    let f (s1, o1) (s2, o2) =
+            ( s1 + Move.adjust_offset d Nothing (Just (o2, s2)) o1 s1
+            , s2 + Move.adjust_offset d (Just (o1, s1)) Nothing o2 s2
+            )
+        d = 0.25
+        range s e = Seq.range s e (if e >= s then 1 else -1)
+    -- There are two variations: they can move in the same direction, or in
+    -- opposite directions.  And then, the directions can be positive or
+    -- negative.
+
+    -- 0   1   2   3   4   5
+    -- |---> - - - - - >
+    --         |---> - - - >
+    equal [[f (0, o1) (2, o2) | o1 <- range 0 4] | o2 <- range 0 3]
+        [ [(0, 2), (1, 2), (2-d, 2), (2-d, 2), (2-d, 2)]
+        , [(0, 3), (1, 3), (2, 3), (3-d, 3), (3-d, 3)]
+        , [(0, 4), (1, 4), (2, 4), (3, 4), (4-d, 4)]
+        , [(0, 5), (1, 5), (2, 5), (3, 5), (4, 5)]
+        ]
+
+    -- 0   1   2   3   4   5
+    --     |---> - - - - - >
+    -- < - - - - - <---|
+    equal [[f (1, o1) (4, o2) | o1 <- range 0 4] | o2 <- range 0 (-3)]
+        [ [(1, 4), (2, 4), (3, 4), (4-d, 4), (4-d, 4)]
+        , [(1, 3), (2, 3), (3-d, 3), (3.5-d, 3.5), (3.5-d, 3.5)]
+        , [(1, 2), (2-d, 2), (2.5-d, 2.5), (3-d, 3), (3-d, 3)]
+        , [(1, 1+d), (1.5-d, 1.5), (2-d, 2), (2.5-d, 2.5), (2.5-d, 2.5)]
+        ]
+
+    -- 0   1   2   3   4   5
+    -- < - - - <---|
+    --     < - - - - - <---|
+    equal [[f (3, o1) (5, o2) | o1 <- range 0 (-3)] | o2 <- range 0 (-4)]
+        [ [(3, 5), (2, 5), (1, 5), (0, 5)]
+        , [(3, 4), (2, 4), (1, 4), (0, 4)]
+        , [(3, 3+d), (2, 3), (1, 3), (0, 3)]
+        , [(3, 3+d), (2, 2+d), (1, 2), (0, 2)]
+        , [(3, 3+d), (2, 2+d), (1, 1+d), (0, 1)]
+        ]

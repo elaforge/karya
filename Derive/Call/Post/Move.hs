@@ -4,6 +4,9 @@
 
 -- | Postprocs that change note start and duration.
 module Derive.Call.Post.Move where
+import qualified Data.List as List
+
+import qualified Util.ApproxEq as ApproxEq
 import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
@@ -54,19 +57,19 @@ c_infer_duration = Derive.transformer Module.prelude "infer-duration"
 infer_duration :: RealTime -> Derive.Events -> Derive.Events
 infer_duration final_dur = cancel_notes . infer_notes
     where
-    zip_with f xs = LEvent.zip (f xs) xs
     infer_notes = Post.emap1 infer . zip_with Post.nexts
     cancel_notes = Post.cat_maybes . Post.emap1 cancel . zip_with Post.prevs
+    zip_with f xs = LEvent.zip (f xs) xs
 
     cancel (prevs, event)
         | has Flags.track_time_0 event,
-                Just prev <- Seq.head (Post.same_hand event prevs),
+                Just prev <- Seq.head (Post.same_hand event id prevs),
                 has Flags.infer_duration prev =
             Nothing
         | otherwise = Just event
     infer (nexts, event)
         | not (has Flags.infer_duration event) = event
-        | Just next <- Seq.head (Post.same_hand event nexts) =
+        | Just next <- Seq.head (Post.same_hand event id nexts) =
             replace_note next event
         | otherwise = set_dur final_dur event
     set_dur dur = Score.set_duration dur
@@ -77,8 +80,6 @@ infer_duration final_dur = cancel_notes . infer_notes
 -- corresponding note at the beginning of the next block.
 --
 -- If there is no note to replace, it extends to the start of the next note.
--- TODO and it doesn't get any controls, other than what it picked up at the
--- end of the last block.  I should fix this, but I'm not sure how.
 replace_note :: Score.Event -> Score.Event -> Score.Event
 replace_note next event
     | Score.has_flags Flags.track_time_0 next =
@@ -97,7 +98,6 @@ replace_note next event
     pitch = Score.event_transformed_pitch
     pitches = Score.event_transformed_pitches
     controls = Score.event_transformed_controls
-
     start = Score.event_start event
     set_end end = Score.set_duration (end - Score.event_start event)
 
@@ -116,15 +116,115 @@ c_apply_start_offset =
      <> ShowVal.doc_val Controls.start_s <> " and "
      <> ShowVal.doc_val Controls.start_t <> " controls, so if you want those\
      \ controls to have an effect, you have to use this postproc."
-    ) $ Sig.call0t $ \_args deriver -> Post.emap1 apply_start_offset <$> deriver
+    ) $ Sig.callt (
+        Sig.defaulted "min-duration" Nothing "If given, notes on the same hand\
+            \ won't be moved closer than this time. Otherwise, hand and\
+            \ instrument is ignored."
+    ) $ \min_dur _args deriver -> apply_start_offset min_dur <$> deriver
 
-apply_start_offset :: Score.Event -> Score.Event
-apply_start_offset event =
-    case TrackLang.maybe_val Environ.start_offset_val env of
-        Nothing -> event
-        Just offset -> Score.move_start Note.min_duration offset event
-    where env = Score.event_environ event
+-- TODO if Post.nexts etc don't use events_of, I can use zip_with
+zip_with :: ([a] -> [b]) -> [LEvent.LEvent a] -> [LEvent.LEvent (b, a)]
+zip_with f xs = LEvent.zip (f (LEvent.events_of xs)) xs
 
--- TODO fancier version that won't move past neighbors:
--- Divide up by instrument and hand, then move each event by the offset control
--- inside it, but not so that it overlaps a neighbor.
+apply_start_offset :: Maybe RealTime -> Derive.Events -> Derive.Events
+apply_start_offset maybe_min_dur =
+    apply_offset . tweak_offset . zip_with (map offset_of)
+    where
+    tweak_offset = case maybe_min_dur of
+        Nothing -> id
+        Just min_dur -> Post.emap1 (tweak min_dur) . Post.neighbors
+    tweak min_dur (prevs, (offset, event), nexts) = (new_offset, event)
+        where
+        new_offset = adjust_offset min_dur (extract <$> prev) (extract <$> next)
+            offset (Score.event_start event)
+        extract (offset, event) = (offset, Score.event_start event)
+        prev = Seq.head $ Post.same_hand event snd prevs
+        next = Seq.head $ Post.same_hand event snd nexts
+
+    apply_offset = Post.emap1 apply . zip_with nexts
+    apply (nexts, (offset, event)) =
+        set_dur $ Score.move_start (fromMaybe Note.min_duration maybe_min_dur)
+            offset event
+        where
+        set_dur event = case Seq.head $ Post.same_hand event snd nexts of
+            Nothing -> event
+            Just (next_offset, next) -> Score.duration (const dur) event
+                where
+                dur = adjust_duration (Score.event_start next)
+                    (Score.event_start next + next_offset) event
+
+nexts :: [a] -> [[a]]
+nexts = drop 1 . List.tails
+
+-- | Conceptually, all notes move together until they bump into each
+-- other.  Or, they move without restriction, and then go to midway of
+-- the overlap.  But the note's start is a hard lower or upper limit, so one
+-- note moving can never cause another note to move, it can just cause it to
+-- not move as much as it wanted.
+--
+-- TODO actually "half of the overlap" is not the same as "all move together".
+-- For the latter, the overlap split depends on how far the note moved to get
+-- there.  So instead of overlap/2 it's 'max 0 (overlap - n) / 2', where 'n' is
+-- the imbalance between their move offsets.
+--
+-- TODO this is still broken when offsets are not injective.
+-- Really the core problem is causing overlaps by moving back over the prev
+-- event.  To be fully general I could apply all movements, and then fix up to
+-- avoid overlaps.  However, I would need to be careful to keep intentional
+-- overlaps.
+adjust_offset :: RealTime -- ^ don't move notes any closer than this
+    -> Maybe (RealTime, RealTime) -> Maybe (RealTime, RealTime)
+    -> RealTime -> RealTime -> RealTime
+adjust_offset min_dur prev next offset start
+    | offset == 0 = offset
+    | offset > 0 = case next of
+        Nothing -> offset
+            -- 0   1   2   3   4
+            -- |----=+=>
+            --     <-+-----|
+            -- |---====+===)--->
+            --     <---+---|
+            -- |------->   )
+            --     |------->
+        Just (next_offset, next_start)
+            | overlap <= 0 -> min (next_end - min_dur) end - start
+            | otherwise -> (end - overlap + overlap / 2 - min_dur) - start
+            where
+            -- overlap = Debug.trace_retp "over+" (end, next_end) $ end - next_end
+            overlap = end - next_end
+            end = min (max next_start next_end) (start + offset)
+            next_end = max start (next_start + next_offset)
+    | otherwise = case prev of
+        Nothing -> offset
+            -- 0   1   2   3   4
+            -- <-------|
+            -- (   <-------|
+        Just (prev_offset, prev_start)
+            -- If the prev_offset is positive, then it will have already given
+            -- the min_dur space.
+            | overlap <= 0 -> if prev_offset > 0
+                then offset
+                else max (prev_end + min_dur) end - start
+            | otherwise -> (end + overlap - overlap / 2) - start
+            where
+            overlap = prev_end - end
+            -- overlap = Debug.trace_retp "over-" (prev_offset, prev_end, end) $ prev_end - end
+            end = max (min prev_start prev_end) (start + offset)
+            prev_end = min start (prev_start + prev_offset)
+
+-- | Change the duration based on the movement of the next event.
+--
+-- If the event end touches the next start, then adjust dur by next_offset.  If
+-- it's less, then shorten but don't lengthen.  If it overlaps the next note,
+-- then leave it alone.
+adjust_duration :: RealTime -> RealTime -> Score.Event -> RealTime
+adjust_duration next new_next event =
+    subtract (Score.event_start event) $ case ApproxEq.compare 0.001 end next of
+        EQ -> new_next
+        LT -> min new_next end
+        GT -> end
+    where end = Score.event_end event
+
+offset_of :: Score.Event -> RealTime
+offset_of = fromMaybe 0 . TrackLang.maybe_val Environ.start_offset_val
+    . Score.event_environ
