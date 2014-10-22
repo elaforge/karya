@@ -42,9 +42,11 @@ c_omit :: Derive.Callable d => Derive.Transformer d
 c_omit = Derive.transformer Module.prelude "omit" Tags.random
     "Omit the derived call a certain percentage of the time."
     $ Sig.callt
-    (Sig.defaulted "chance" 0.5
+    (Sig.defaulted "chance" (Sig.control "omit" 0.5)
         "Chance, from 0 to 1, that the transformed note will be omitted."
-    ) $ \omit _args deriver -> ifM (Util.chance omit) (return mempty) deriver
+    ) $ \omit args deriver -> do
+        omit <- Util.control_at omit =<< Args.real_start args
+        ifM (Util.chance omit) (return mempty) deriver
 
 c_alternate :: Derive.Callable d => Derive.Generator d
 c_alternate = Derive.make_call Module.prelude "alternate" Tags.random
