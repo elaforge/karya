@@ -51,7 +51,9 @@ handle_actions :: Channel -> IO Bool
 handle_actions (Channel chan) = Concurrent.modifyMVar chan $ \acts -> do
     let quit = not $ null [Quit | Quit <- acts]
     if quit then return ([], True) else do
-        sequence_ [act | Action act <- acts]
+        -- The events are consed to the start, so reverse to get them back in
+        -- the right order.
+        sequence_ $ reverse [act | Action act <- acts]
         return ([], False)
 
 send_action :: Channel -> Fltk () -> IO ()
