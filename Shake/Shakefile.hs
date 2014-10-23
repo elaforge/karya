@@ -355,7 +355,7 @@ ghcWarnings = map ("-fwarn-"++) $ words
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
     ghcLib <- run ghcBinary ["--print-libdir"]
-    let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) "IDL"
+    let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) "ID"
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
     fltkCs <- filter wantedFltk . words <$> run fltkConfig ["--cflags"]
@@ -414,7 +414,7 @@ configure midi = do
             -- Always compile c++ with optimization because I don't have much
             -- of it and it compiles quickly.
             fltkCc flags ++ define flags ++ cInclude flags
-                ++ ["-Wall", "-Wno-c++11-extensions", "-O2"]
+                ++ ["-Wall", "-std=c++11", "-O2"]
                 ++ ["-fPIC"] -- necessary for ghci loading to work in 7.8
                 -- Turn on Effective C++ warnings, which includes uninitialized
                 -- variables.  Unfortunately it's very noisy with lots of
@@ -1066,8 +1066,7 @@ hsc2hs config useCpp hs hsc = ("hsc2hs", hs,
     ["hsc2hs", "-I" ++ ghcLib config </> "include"]
     ++ (if useCpp
         -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
-        then words "-c g++ --cflag -Wno-invalid-offsetof --cflag\
-            \ -Wno-c++11-extensions"
+        then words "-c g++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
         else [])
     ++ cInclude flags ++ fltkCc flags ++ define flags
     ++ [hsc, "-o", hs])
