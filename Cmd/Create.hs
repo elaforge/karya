@@ -263,6 +263,13 @@ view block_id = do
     State.set_view_rect view_id (Rect.place x y rect)
     return view_id
 
+-- | Create a view, or focus on it if it already exists.
+view_or_focus :: Cmd.M m => BlockId -> m ()
+view_or_focus block_id = do
+    views <- State.views_of block_id
+    maybe (view block_id >> return ())
+        ViewConfig.bring_to_front (Seq.head (Map.keys views))
+
 view_screen :: Cmd.M m => ViewId -> m Rect.Rect
 view_screen view_id =
     Cmd.get_screen . Rect.upper_left . Block.view_rect

@@ -19,12 +19,12 @@
 module Cmd.NoteTrack where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -252,27 +252,38 @@ cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
 
 -- * parsing
 
--- | Try to to figure out the BlockId of a block call in a note track.
--- It's not guaranteed to be a real block because it might not even be
--- a block call.
+-- | Try to to figure out any blocks that are referenced in the expression.
 --
 -- This doesn't use the full Derive.Parse machinery, but is simple and doesn't
 -- require the text to be fully parseable.
-block_call :: State.M m => Maybe BlockId -> Text -> m (Maybe BlockId)
-block_call caller expr = case block_call_of expr of
-    Nothing -> return Nothing
-    Just sym -> do
-        ns <- State.get_namespace
-        case Eval.symbol_to_block_id ns caller sym of
-            Nothing -> return Nothing
-            Just block_id -> ifM (valid block_id)
-                (return (Just block_id)) (return Nothing)
-    where valid = (Maybe.isJust <$>) . State.lookup_block
+block_calls :: State.M m => Maybe BlockId -> Text -> m [BlockId]
+block_calls caller expr = do
+    blocks <- State.gets State.state_blocks
+    ns <- State.get_namespace
+    let to_bid = to_block_id blocks ns caller
+    return $ case possible_block_calls expr of
+        [] -> []
+        b : bs -> case to_bid b of
+            Nothing -> mapMaybe to_bid bs
+            Just block_id -> [block_id]
 
--- | Assume the last word of the last call is the block id.  This will catch
--- both normal block calls and ones like @clip someblock@.
-block_call_of :: Text -> Maybe TrackLang.CallId
-block_call_of = fmap TrackLang.Symbol . Seq.last <=< Seq.last . Parse.split_pipeline
+block_call :: State.M m => Maybe BlockId -> Text -> m (Maybe BlockId)
+block_call caller = fmap Seq.head . block_calls caller
+
+-- | If the first word names a block, then it's probably a block call with
+-- args, so return just that.  Otherwise, return any argument that names
+-- a block.
+to_block_id :: Map.Map BlockId a -> Id.Namespace -> Maybe BlockId -> Text
+    -> (Maybe BlockId)
+to_block_id blocks ns caller =
+    valid <=< Eval.symbol_to_block_id ns caller . TrackLang.Symbol
+    where
+    valid block_id
+        | Just _ <- Map.lookup block_id blocks = Just block_id
+        | otherwise = Nothing
+
+possible_block_calls :: Text -> [Text]
+possible_block_calls = fromMaybe [] . Seq.last . Parse.split_pipeline
 
 -- * implementation
 

@@ -193,7 +193,8 @@ rebase_call caller block_id = Id.BlockId $ Id.id ns name
 get_block_calls :: State.M m => TrackId -> m [TrackLang.CallId]
 get_block_calls track_id = do
     events <- Events.ascending . Track.track_events <$> State.get_track track_id
-    return $ mapMaybe (NoteTrack.block_call_of . Event.event_text) events
+    return $ map TrackLang.Symbol $
+        concatMap (NoteTrack.possible_block_calls . Event.event_text) events
 
 resolve_relative_call :: Id.Namespace -> BlockId -> TrackLang.CallId
     -> Maybe BlockId

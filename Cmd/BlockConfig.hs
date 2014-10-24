@@ -6,7 +6,6 @@
 -- more specefic modules.
 module Cmd.BlockConfig where
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -27,7 +26,6 @@ import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
-import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Derive.ParseTitle as ParseTitle
 import Types
@@ -79,12 +77,9 @@ cmd_open_block :: Cmd.M m => m ()
 cmd_open_block = do
     sel <- Selection.events
     block_id <- Cmd.get_focused_block
-    let block_call = NoteTrack.block_call (Just block_id) . Event.event_text
+    let block_calls = NoteTrack.block_calls (Just block_id) . Event.event_text
     forM_ sel $ \(_, _, events) -> forM_ events $ \event ->
-        whenJustM (block_call event) $ \block_id -> do
-            views <- State.views_of block_id
-            maybe (Create.view block_id >> return ())
-                ViewConfig.bring_to_front (Seq.head (Map.keys views))
+        mapM_ Create.view_or_focus =<< block_calls event
 
 cmd_add_block_title :: Cmd.M m => Msg.Msg -> m ()
 cmd_add_block_title _ = do
