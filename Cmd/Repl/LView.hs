@@ -15,8 +15,22 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
+import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.ViewConfig as ViewConfig
 
+
+-- * create
+
+create :: Text -> Cmd.CmdL ()
+create name = do
+    blocks <- State.gets State.state_blocks
+    ns <- State.get_namespace
+    caller <- Cmd.get_focused_block
+    whenJust (NoteTrack.to_block_id blocks ns (Just caller) name) $
+        void . Create.view
+
+-- * arrange
 
 -- | Crunch all the views up against each other.
 arrange :: Cmd.CmdL ()
