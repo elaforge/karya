@@ -7,7 +7,7 @@ UNSORTED
   * double-click could look for Symbols, and try to open relative or absolute
     blocks, then it could open "alt '.a1' '.a2'"
   * LView.create "abc" which does the same thing
-  - shift-click on a collapsed track uncollapses, but if it's a merged track,
+  * shift-click on a collapsed track uncollapses, but if it's a merged track,
     the merge is still present
   - It's hard to replace a 'dyn' track if they combine via merge, since
     I can't counteract it.  Maybe I can do 'dyn | e-unless no-dyn', and then

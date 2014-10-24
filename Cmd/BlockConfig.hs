@@ -178,7 +178,16 @@ cmd_expand_track :: Cmd.M m => Msg.Msg -> m ()
 cmd_expand_track msg = do
     block_id <- Cmd.get_focused_block
     tracknum <- Cmd.abort_unless $ clicked_track msg
-    State.remove_track_flag block_id tracknum Block.Collapse
+    expand_or_unmerge block_id tracknum
+
+expand_or_unmerge :: State.M m => BlockId -> TrackNum -> m ()
+expand_or_unmerge block_id tracknum = do
+    track_id <- State.get_event_track_at block_id tracknum
+    btracks <- zip [0..] . Block.block_tracks <$> State.get_block block_id
+    case List.find ((track_id `elem`) . Block.track_merged . snd) btracks of
+        Just (merged_tracknum, _) ->
+            State.unmerge_track block_id merged_tracknum
+        Nothing -> State.remove_track_flag block_id tracknum Block.Collapse
 
 -- | Move selected tracks to the left of the clicked track.
 cmd_move_tracks :: Cmd.M m => Msg.Msg -> m ()

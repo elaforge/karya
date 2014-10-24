@@ -947,8 +947,8 @@ merge_track block_id to from = do
     add_track_flag block_id from Block.Collapse
 
 -- | Reverse 'merge_track': remove the merged tracks and expand their
--- occurrances in the given block.  \"Unmerge\" is not graceful, but at least
--- it's obviously the opposite of \"merge\".
+-- occurrances in the given block.  \"Unmerge\" is not a graceful term, but at
+-- least it's obviously the opposite of \"merge\".
 unmerge_track :: M m => BlockId -> TrackNum -> m ()
 unmerge_track block_id tracknum = do
     track_ids <- Block.track_merged <$> get_block_track_at block_id tracknum
