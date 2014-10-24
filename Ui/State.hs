@@ -942,8 +942,8 @@ set_track_ruler block_id tracknum ruler_id = do
 merge_track :: M m => BlockId -> TrackNum -> TrackNum -> m ()
 merge_track block_id to from = do
     from_id <- get_event_track_at block_id from
-    modify_block_track block_id to $ \btrack ->
-        btrack { Block.track_merged = from_id : Block.track_merged btrack }
+    modify_block_track block_id to $ \btrack -> btrack
+        { Block.track_merged = Set.insert from_id (Block.track_merged btrack) }
     add_track_flag block_id from Block.Collapse
 
 -- | Reverse 'merge_track': remove the merged tracks and expand their
@@ -952,12 +952,13 @@ merge_track block_id to from = do
 unmerge_track :: M m => BlockId -> TrackNum -> m ()
 unmerge_track block_id tracknum = do
     track_ids <- Block.track_merged <$> get_block_track_at block_id tracknum
-    unmerged_tracknums <- mapMaybeM (tracknum_of block_id) track_ids
+    unmerged_tracknums <- mapMaybeM (tracknum_of block_id)
+        (Set.toList track_ids)
     forM_ unmerged_tracknums $ \tracknum ->
         remove_track_flag block_id tracknum Block.Collapse
-    set_merged_tracks block_id tracknum []
+    set_merged_tracks block_id tracknum mempty
 
-set_merged_tracks :: M m => BlockId -> TrackNum -> [TrackId] -> m ()
+set_merged_tracks :: M m => BlockId -> TrackNum -> Set.Set TrackId -> m ()
 set_merged_tracks block_id tracknum merged =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_merged = merged }
@@ -1523,12 +1524,12 @@ fix_merged :: BlockId -> (TrackNum, Block.Track) -> StateId [Text]
 fix_merged block_id (tracknum, track) = do
     all_track_ids <- gets state_tracks
     let is_valid = (`Map.member` all_track_ids)
-    let (valid, invalid) = List.partition is_valid (Block.track_merged track)
-    unless (null invalid) $
+    let (valid, invalid) = Set.partition is_valid (Block.track_merged track)
+    unless (Set.null invalid) $
         modify_block_track block_id tracknum
             (const $ track { Block.track_merged = valid })
     return ["tracknum " <> showt tracknum <> ": stripped invalid merged "
-        <> showt track_id | track_id <- invalid]
+        <> showt track_id | track_id <- Set.toList invalid]
 
 -- | Drop block_integrated if the source BlockId doesn't exist, and strip out
 -- TrackDestinations whose TrackIds aren't in this block.

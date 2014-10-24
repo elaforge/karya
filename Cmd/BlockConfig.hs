@@ -70,7 +70,7 @@ toggle_merge_all block_id = do
         (mapM_ (uncurry (State.merge_track block_id)) note_pitches)
 
 track_merged :: State.M m => BlockId -> TrackNum -> m Bool
-track_merged block_id tracknum = not . null . Block.track_merged <$>
+track_merged block_id tracknum = not . Set.null . Block.track_merged <$>
     State.get_block_track_at block_id tracknum
 
 cmd_open_block :: Cmd.M m => m ()
@@ -106,7 +106,7 @@ expand_children :: State.M m => BlockId -> TrackId -> m ()
 expand_children block_id track_id = do
     children <- State.require ("no children: " ++ show track_id)
         =<< TrackTree.children_of block_id track_id
-    merged <- Set.fromList . concatMap Block.track_merged . Block.block_tracks
+    merged <- mconcatMap Block.track_merged . Block.block_tracks
         <$> State.get_block block_id
     forM_ children $ \track ->
         when (Set.member (State.track_id track) merged) $
@@ -184,7 +184,7 @@ expand_or_unmerge :: State.M m => BlockId -> TrackNum -> m ()
 expand_or_unmerge block_id tracknum = do
     track_id <- State.get_event_track_at block_id tracknum
     btracks <- zip [0..] . Block.block_tracks <$> State.get_block block_id
-    case List.find ((track_id `elem`) . Block.track_merged . snd) btracks of
+    case List.find (Set.member track_id . Block.track_merged . snd) btracks of
         Just (merged_tracknum, _) ->
             State.unmerge_track block_id merged_tracknum
         Nothing -> State.remove_track_flag block_id tracknum Block.Collapse

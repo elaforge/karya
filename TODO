@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Block.track_merged becomes a Set
+  * Block.track_merged becomes a Set
   * double-click could look for Symbols, and try to open relative or absolute
     blocks, then it could open "alt '.a1' '.a2'"
   * LView.create "abc" which does the same thing

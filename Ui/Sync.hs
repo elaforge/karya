@@ -470,8 +470,8 @@ block_window_title ns view_id block_id = block <> " - " <> strip block view
     view = Id.show_short ns (Id.unpack_id view_id)
     strip prefix txt = fromMaybe txt $ Text.stripPrefix prefix txt
 
-events_of_track_ids :: State.State -> [TrackId] -> [Events.Events]
-events_of_track_ids state track_ids = mapMaybe events_of track_ids
+events_of_track_ids :: State.State -> Set.Set TrackId -> [Events.Events]
+events_of_track_ids state = mapMaybe events_of . Set.toList
     where
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
     tracks = State.state_tracks state

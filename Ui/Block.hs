@@ -197,7 +197,7 @@ data Track = Track {
     , track_flags :: !(Set.Set TrackFlag)
     -- | Other tracks are displayed behind this one.  Useful to merge a pitch
     -- track into its note track.
-    , track_merged :: ![TrackId]
+    , track_merged :: !(Set.Set TrackId)
     } deriving (Eq, Show, Read)
 
 track_id :: Track -> Maybe TrackId
@@ -209,7 +209,12 @@ instance Pretty.Pretty Track where
 
 -- | Construct a 'Track' with defaults.
 track :: TracklikeId -> Types.Width -> Track
-track tracklike_id width = Track tracklike_id width mempty []
+track tracklike_id width = Track
+    { tracklike_id = tracklike_id
+    , track_width = width
+    , track_flags = mempty
+    , track_merged = mempty
+    }
 
 colored_divider :: Color.Color -> Track
 colored_divider color = track (DId (Divider color)) 3
@@ -230,11 +235,11 @@ track_wants_signal flags track =
 -- corresponds with what is displayed by the UI.  The DisplayTracks should be
 -- derivable from a 'Block' deterministically.
 data DisplayTrack = DisplayTrack {
-    dtracklike_id :: TracklikeId
-    , dtrack_width :: Types.Width
-    , dtrack_merged :: [TrackId]
-    , dtrack_status :: Status
-    , dtrack_event_brightness :: Double
+    dtracklike_id :: !TracklikeId
+    , dtrack_width :: !Types.Width
+    , dtrack_merged :: !(Set.Set TrackId)
+    , dtrack_status :: !Status
+    , dtrack_event_brightness :: !Double
     } deriving (Eq, Show, Read)
 
 type Status = Maybe (String, Color.Color)
@@ -271,8 +276,13 @@ block_display_tracks :: Block -> [DisplayTrack]
 block_display_tracks = map display_track . block_tracks
 
 display_track :: Track -> DisplayTrack
-display_track track =
-    DisplayTrack tracklike width (track_merged track) status brightness
+display_track track = DisplayTrack
+    { dtracklike_id = tracklike
+    , dtrack_width = width
+    , dtrack_merged = track_merged track
+    , dtrack_status = status
+    , dtrack_event_brightness = brightness
+    }
     where
     (status, brightness) = flags_to_status (track_flags track)
     (tracklike, width)

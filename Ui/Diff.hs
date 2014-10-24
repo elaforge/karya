@@ -154,8 +154,11 @@ merge_updates state updates = updates ++ concatMap propagate updates
         Block.TId track_id _ -> Just (track_id, Block.track_merged track)
         _ -> Nothing
     -- Map from a track to all tracks that merge it.
-    merged_to_track = Map.multimap [(merged_id, track_id)
-        | (track_id, merged_ids) <- track_to_merged, merged_id <- merged_ids]
+    merged_to_track = Map.multimap
+        [ (merged_id, track_id)
+        | (track_id, merged_ids) <- track_to_merged
+        , merged_id <- Set.toList merged_ids
+        ]
     is_event_update (Update.TrackEvents {}) = True
     is_event_update Update.TrackAllEvents {} = True
     is_event_update _ = False

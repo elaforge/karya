@@ -29,19 +29,20 @@ test_display_track = do
     let (ui_updates, display_updates) = diff st1 st2
     equal ui_updates
         [ Update.Block bid $ Update.BlockTrack 1 $
-            Block.Track (Block.TId tid1 rid) 30 mempty [tid2]
+            Block.Track (Block.TId tid1 rid) 30 mempty (Set.singleton tid2)
         , Update.Block bid $ Update.BlockTrack 2 $
             Block.Track (Block.TId tid2 rid) 30
-                (Set.singleton Block.Collapse) []
+                (Set.singleton Block.Collapse) mempty
         ]
 
     let div = Block.DId (Block.Divider Config.abbreviation_color)
     equal display_updates
         [ Update.Block bid $ Update.BlockTrack 1 $
-            Block.DisplayTrack (Block.TId tid1 rid) 30 [tid2] Nothing 1
+            Block.DisplayTrack (Block.TId tid1 rid) 30 (Set.singleton tid2)
+                Nothing 1
         , Update.Block bid (Update.RemoveTrack 2)
         , Update.Block bid $ Update.InsertTrack 2 $
-            Block.DisplayTrack div 3 [] Nothing 1
+            Block.DisplayTrack div 3 mempty Nothing 1
         ]
     -- TODO add more tests if I modify Diff
 

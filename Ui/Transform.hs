@@ -6,6 +6,7 @@
 module Ui.Transform where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import Util.Control
@@ -98,7 +99,7 @@ map_track_ids f = do
             Block.modify_id (const (Block.TId (f tid) rid)) track
         _ -> track
     map_merged f track = track
-        { Block.track_merged = map f (Block.track_merged track) }
+        { Block.track_merged = Set.map f (Block.track_merged track) }
 
 map_ruler_ids :: State.M m => (Id.Id -> Id.Id) -> m ()
 map_ruler_ids f = do

@@ -259,7 +259,7 @@ instance Serialize Skeleton.Skeleton where
     get = get >>= \a -> return (Skeleton.Skeleton a)
 
 instance Serialize Block.Track where
-    put (Block.Track a b c d) = Serialize.put_version 2
+    put (Block.Track a b c d) = Serialize.put_version 3
         >> put a >> put b >> put c >> put d
     get = do
         v <- Serialize.get_version
@@ -269,6 +269,12 @@ instance Serialize Block.Track where
                 width :: Types.Width <- get
                 flags :: Set.Set Block.TrackFlag <- get
                 merged :: [Types.TrackId] <- get
+                return $ Block.Track id width flags (Set.fromList merged)
+            3 -> do
+                id :: Block.TracklikeId <- get
+                width :: Types.Width <- get
+                flags :: Set.Set Block.TrackFlag <- get
+                merged :: Set.Set Types.TrackId <- get
                 return $ Block.Track id width flags merged
             _ -> Serialize.bad_version "Block.Track" v
 

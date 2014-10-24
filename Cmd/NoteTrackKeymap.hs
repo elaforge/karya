@@ -4,6 +4,8 @@
 
 -- | Keymap cmds for a NoteTrack.  These apply regardless of the edit mode.
 module Cmd.NoteTrackKeymap where
+import qualified Data.Set as Set
+
 import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.State as State
@@ -41,6 +43,6 @@ toggle_merged = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     pitch <- Cmd.abort_unless =<< Info.pitch_of_note block_id tracknum
     btrack <- State.get_block_track_at block_id tracknum
-    if null (Block.track_merged btrack)
+    if Set.null (Block.track_merged btrack)
         then State.merge_track block_id tracknum (State.track_tracknum pitch)
         else State.unmerge_track block_id tracknum

@@ -17,6 +17,7 @@ module Cmd.Selection where
 import Prelude hiding (lookup)
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Util.Control
 import qualified Util.Seq as Seq
@@ -685,9 +686,9 @@ tracks_selnum :: Cmd.M m => Types.SelNum -> m Tracks
 tracks_selnum selnum = do
     (block_id, tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
     tracks <- mapM (State.get_block_track_at block_id) tracknums
-    let merged_track_ids = concatMap Block.track_merged tracks
+    let merged_track_ids = mconcatMap Block.track_merged tracks
     block <- State.get_block block_id
-    let merged = tracknums_of block merged_track_ids
+    let merged = tracknums_of block (Set.toList merged_track_ids)
     let (all_tracknums, all_track_ids) = unzip $ List.sort $ List.nub $
             merged ++ zip tracknums track_ids
     return (block_id, all_tracknums, all_track_ids, start, end)

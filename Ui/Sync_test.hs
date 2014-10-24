@@ -25,6 +25,7 @@ import qualified Control.Exception as Exception
 
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified System.IO.Unsafe as Unsafe
 
 import Util.Control
@@ -232,7 +233,7 @@ test_set_track_merge = do
             ]
     state <- io_human "has two tracks" $ run State.empty $ State.put state
     state <- io_human "t2 merged with t1" $ run state $ do
-        State.set_merged_tracks UiTest.default_block_id 1 [t2]
+        State.set_merged_tracks UiTest.default_block_id 1 (Set.singleton t2)
     _ <- io_human "t2 modifications visible in t1" $ run state $ do
         State.insert_event t2 (Event.event 0.5 0 "xxx")
     return ()
@@ -259,7 +260,7 @@ test_update_merged = do
             [ ("t1", [(0, 1, "n1"), (2, 1, "")])
             , ("t2", [(0, 0, "p1"), (0.5, 0, "p2"), (2, 0, "p3")])
             ])
-        State.set_merged_tracks UiTest.default_block_id 1 [t2]
+        State.set_merged_tracks UiTest.default_block_id 1 (Set.singleton t2)
         return t2
     state <- io_human "block with merged track" $ run State.empty $
         State.put state
