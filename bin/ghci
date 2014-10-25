@@ -3,4 +3,6 @@
 # avoid recursion.  That's brittle, I should probably use .ghci magic to
 # read the flags.
 
-exec ghci -v0 $(cat build/debug/ghci-flags) "$@"
+# Turn off idle time GC, since it causes input lag when lots of modules are
+# loaded.
+exec ghci -v0 +RTS -I0 -RTS $(cat build/debug/ghci-flags) "$@"
