@@ -732,14 +732,16 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         // additional code to get them working for negative events, since the
         // text goes up rather than down.
         int track_width = w() - 3;
-        if (config.text_wrap == EventTrackConfig::wrap
-            && event.is_positive() && !rank)
-        {
+        if (config.text_wrap == EventTrackConfig::wrap && event.is_positive()) {
+            // Ranked events align to the right, non-ranked ones align to the
+            // left.
+            bool right_justify = rank > 0;
             // The *_wrapped functions start at upper left, not lower left.
-            IPoint draw_pos(text_rect.x, text_rect.y - 2);
+            IPoint draw_pos(
+                right_justify ? text_rect.r() : text_rect.x, text_rect.y - 2);
             SymbolTable::get()->draw_wrapped(
                 event.text, draw_pos, track_width,
-                next_offset - draw_pos.y, style);
+                next_offset - draw_pos.y, style, right_justify);
         } else {
             // Due to boundary issues, drawing text that touches the bottom of
             // a box means drawing one above the bottom.  I don't totally

@@ -202,44 +202,53 @@ SymbolTable::measure_backticks(const char *text, Size size) const
     }
 }
 
+// Get the width of a character, or a `symbol`.
+double
+SymbolTable::measure_glyph(const char *p, int size) const
+{
+    if (*p == '`') {
+        double width = this->measure_backticks(p, size);
+        if (width == -1)
+            return utf8::width(p);
+        else
+            return width;
+    } else if (*p) {
+        // fl_width seems to under-report widths by a small amount on
+        // retina displays.
+        return utf8::width(p) + 1;
+    } else {
+        return 0;
+    }
+}
+
+
 IPoint
 SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
-    int max_height, Style style) const
+    int max_height, Style style, bool right_justify) const
 {
     // This function is a real rat's nest.
     //
-    // It's probably fairly inefficient, I do lots of measuring before drawing.
-    // But it seems to be fast enough, and in particular fl_width has been
-    // optimized for single characters.
+    // It's probably fairly inefficient since I do lots of measuring before
+    // drawing.  But it seems to be fast enough, and in particular fl_width has
+    // been optimized for single characters.
+
+    // This is the bounding box of the text, returned to the caller.
     IPoint total_size(0, 0);
     // Beginning of the line of text I'm trying to draw.
     const char *line_start = text.c_str();
     // The last time I saw a space character, for line breaking.
     const char *last_space = line_start;
-    f_util::ClipArea clip(f_util::clip_rect(
-        IRect(pos.x, pos.y, wrap_width, max_height)));
+    f_util::ClipArea clip(f_util::clip_rect(right_justify
+        ? IRect(pos.x - wrap_width, pos.y, wrap_width, max_height)
+        : IRect(pos.x, pos.y, wrap_width, max_height)));
 
     style.set(); // because of utf8::width below
+    // This accumulates the space used on the current line.
     double line_width = 0;
     for (const char *p = line_start;;) {
         if (*p == ' ')
             last_space = p;
-        if (*p == '`') {
-            double width = this->measure_backticks(p, style.size);
-            if (width == -1)
-                line_width += utf8::width(p);
-            else
-                line_width += width;
-            // DEBUG("at ``: " << width << " = " << line_width);
-        } else {
-            if (*p) {
-                // fl_width seems to under-report widths by a small amount on
-                // retina displays.
-                line_width += utf8::width(p) + 1;
-            }
-            // DEBUG("at " << string(p, 1) << ": " << utf8::width(p)
-            //     << " = " << line_width << " < " << wrap_width);
-        }
+        line_width += this->measure_glyph(p, style.size);
         // Display at least one char before a line wrap, this prevents an
         // endless loop.
         const bool should_wrap = line_width > wrap_width && p > line_start;
@@ -260,21 +269,27 @@ SymbolTable::draw_wrapped(const string &text, IPoint pos, int wrap_width,
             }
             // DEBUG("break_at '" << string(break_at, 1) << "' "
             //     << break_at - text.c_str());
-            IPoint line_size = this->measure(
-                string(line_start, p - line_start), style);
+
+            const string line(line_start, break_at - line_start);
+            IPoint line_size = this->measure(line, style);
             // For text, line_size.y will be fl_height() - fl_descent(), but
             // it looks a little cramped.
             line_size.y += 2;
             total_size.x = std::max(total_size.x, line_size.x);
             total_size.y += line_size.y;
 
-            const string chunk(line_start, break_at - line_start);
-            // DEBUG("draw '" << chunk << "' at "
-            //     << IPoint(pos.x, pos.y + total_size.y));
-            this->draw(chunk, IPoint(pos.x, pos.y + total_size.y), style);
-            // Done drawing, text has a last char, and the last char is space.
-            if (*break_at == '\0' && text.size() > 0 && *(--text.end()) == ' ')
-            {
+            // Give some extra pixels when right_justify, otherwise the last
+            // character gets cut off.
+            IPoint draw_at(
+                right_justify ? pos.x - line_size.x - 2 : pos.x,
+                pos.y + total_size.y);
+            this->draw(line, draw_at, style);
+            // If I'm done drawing, and text has a last char, and the last char
+            // is space, and the poodle's eating noodles, draw a mark to
+            // indicate that the text has a trailing space.
+            bool trailing_space = !right_justify && *break_at == '\0'
+                && text.size() > 0 && *(--text.end()) == ' ';
+            if (trailing_space) {
                 IPoint trailing(pos.x + line_size.x,
                     pos.y + total_size.y - line_size.y);
                 // I want to put the mark on the last space, not afterwards,

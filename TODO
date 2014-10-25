@@ -22,9 +22,13 @@ UNSORTED
     check against that.  But really I want if it's at the ScoreTime 0 and end.
     . fst . Args.range_on_track should be correct even for Util.note created
       notes.
-  - fltk: wrapping for rank>0 event text?
+  * fltk: wrapping for rank>0 event text?
+    . rank >0 text is allowed to overlap rank 0, and it wraps in the same way,
+      just aligns to the right.
+    . If it's unreadable that way, then wrap rank 1 to the right edge of rank
+      0, and hide if there isn't enough room.
   * fltk: 0 dur events with no text are hard to see
-  - maybe non-0 dur events with no text should also have arrows
+  / maybe non-0 dur events with no text should also have arrows
     Not convenient to implement because rank>0 text is drawn separately.
   * Convert.convert_pitch converts too much, since transpose signals now
     extend beyond the end of the event.

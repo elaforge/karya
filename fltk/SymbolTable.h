@@ -113,7 +113,7 @@ public:
     // inherently go downwards, so unlike SymbolTable::draw() the
     // draw position is the upper left, not the lower left.
     IPoint draw_wrapped(const string &text, IPoint pos, int width,
-        int max_height, Style style) const;
+        int max_height, Style style, bool right_justify) const;
 
     // Measure the Symbol by actually drawing it and seeing how many pixels it
     // occupies.  This is expensive so it's cached.
@@ -124,6 +124,7 @@ public:
     static SymbolTable *get();
 private:
     int measure_backticks(const char *text, Size size) const;
+    double measure_glyph(const char *p, int size) const;
 
     typedef std::map<string, Symbol> SymbolMap;
     SymbolMap symbol_map;
