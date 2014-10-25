@@ -97,7 +97,7 @@ public:
 
     // What to do about text that's too long.  If it's too long but there's
     // no room below, it's always clipped.
-    enum text_wrap_style { clip, rotate, wrap };
+    enum text_wrap_style { clip, wrap };
 
     EventTrackConfig(Color bg_color, FindEvents find_events,
             ScoreTime time_end, RenderConfig render_config) :

@@ -337,6 +337,8 @@ EventTrackView::draw_area()
     // DEBUG("TRACK CLIP: " << start << "--" << end
     //     << ", " << SHOW_RANGE(clip));
 
+    // The results are sorted by (event_start, rank), so lower ranks always
+    // come first.
     Event *events;
     int *ranks;
     int count = this->config.find_events(&start, &end, &events, &ranks);
@@ -358,6 +360,7 @@ EventTrackView::draw_area()
         int rank = ranks[i];
         int next_offset = MAX_PIXEL;
         int prev_offset = i == 0 ? MIN_PIXEL : offsets[i-1];
+        // Find the next event offset on the same side.
         // TODO negative events should do this for the prev_offset
         for (int j = i+1; j < count; j++) {
             if ((rank && ranks[j]) || (!rank && !ranks[j])) {
@@ -725,14 +728,10 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
     }
 
     if (draw_text) {
-        // Rotation and word wrapping only apply to positive events.
-        // I would need additional code to get them working for negative
-        // events, since the text goes up rather than down.
+        // Word wrapping only applies to positive events.  I would need
+        // additional code to get them working for negative events, since the
+        // text goes up rather than down.
         int track_width = w() - 3;
-        bool too_wide = text_rect.w > track_width;
-        bool vertical = event.is_positive()
-            && config.text_wrap == EventTrackConfig::rotate
-            && !rank && too_wide && text_rect.y + text_rect.w < next_offset;
         if (config.text_wrap == EventTrackConfig::wrap
             && event.is_positive() && !rank)
         {
@@ -745,10 +744,8 @@ EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
             // Due to boundary issues, drawing text that touches the bottom of
             // a box means drawing one above the bottom.  I don't totally
             // understand this.
-            IPoint draw_pos = vertical
-                ? IPoint(x() + w()/2 - text_rect.h/2, text_rect.y)
-                : IPoint(text_rect.x, text_rect.b() - 1);
-            SymbolTable::get()->draw(event.text, draw_pos, style, vertical);
+            IPoint draw_pos = IPoint(text_rect.x, text_rect.b() - 1);
+            SymbolTable::get()->draw(event.text, draw_pos, style, false);
         }
     }
     if (rank) {

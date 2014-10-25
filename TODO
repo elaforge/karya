@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * remove event text rotation, I don't think I'll ever want it
   * Block.track_merged becomes a Set
   * double-click could look for Symbols, and try to open relative or absolute
     blocks, then it could open "alt '.a1' '.a2'"

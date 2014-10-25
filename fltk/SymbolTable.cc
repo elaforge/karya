@@ -111,18 +111,16 @@ draw_glyphs(IPoint pos, const SymbolTable::Symbol &sym, SymbolTable::Size size,
 
 
 IPoint
-SymbolTable::draw(const string &text, IPoint pos, Style style, bool vertical,
-    bool measure) const
+SymbolTable::draw(const string &text, IPoint pos, Style style, bool measure)
+    const
 {
     size_t start = 0;
     size_t i, j;
 
     style.set();
     // Keep track of the current bounding box.  The box is the width and height
-    // of the text, so if vertical is true, the box's 'x' is the vertical
-    // "width" of the text.
+    // of the text.
     IPoint box(0, fl_height() - fl_descent());
-    int rotate = vertical ? -90 : 0;
 
     while ((i = text.find('`', start)) < text.size()) {
         i++;
@@ -132,19 +130,16 @@ SymbolTable::draw(const string &text, IPoint pos, Style style, bool vertical,
 
         // Draw text before ``s.
         style.set();
-        box.x += draw_text(text.c_str() + start, i-start-1,
-            vertical ? IPoint(pos.x, pos.y + box.x)
-                : IPoint(pos.x + box.x, pos.y),
-            measure, DPoint(), rotate);
+        box.x += draw_text(
+            text.c_str() + start, i-start-1, IPoint(pos.x + box.x, pos.y),
+            measure, DPoint());
 
         SymbolMap::const_iterator it =
             this->symbol_map.find(text.substr(i, j-i));
         if (it == symbol_map.end()) {
             // Unknown symbol, draw it as plain text including the ``s.
             box.x += draw_text(text.c_str() + i - 1, j-i + 2,
-                vertical ? IPoint(pos.x, pos.y + box.x)
-                    : IPoint(pos.x + box.x, pos.y),
-                measure, DPoint(), rotate);
+                IPoint(pos.x + box.x, pos.y), measure, DPoint());
         } else {
             // Draw symbol inside ``s.
             IRect sym_box = this->measure_symbol(it->second, style.size);
@@ -156,9 +151,8 @@ SymbolTable::draw(const string &text, IPoint pos, Style style, bool vertical,
             //           pos.y + sym_box.y));
             if (!measure) {
                 draw_glyphs(
-                    vertical ? IPoint(pos.x, pos.y + box.x)
-                        : IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y),
-                    it->second, style.size, rotate);
+                    IPoint(pos.x + box.x - sym_box.x, pos.y + sym_box.y),
+                    it->second, style.size, 0);
             }
             box.x += sym_box.w;
             box.y = std::max(box.y, sym_box.h);
@@ -169,9 +163,7 @@ SymbolTable::draw(const string &text, IPoint pos, Style style, bool vertical,
     style.set();
     if (start < text.size()) {
         box.x += draw_text(text.c_str() + start, text.size() - start,
-            vertical ? IPoint(pos.x, pos.y + box.x)
-                : IPoint(pos.x + box.x, pos.y),
-            measure, DPoint(), rotate);
+            IPoint(pos.x + box.x, pos.y), measure, DPoint());
     }
     return box;
 }
@@ -180,7 +172,7 @@ SymbolTable::draw(const string &text, IPoint pos, Style style, bool vertical,
 IPoint
 SymbolTable::measure(const string &text, Style style) const
 {
-    return this->draw(text, IPoint(0, 0), style, false, true);
+    return this->draw(text, IPoint(0, 0), style, true);
 }
 
 
