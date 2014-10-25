@@ -469,7 +469,7 @@ instrument_calls (Derive.InstrumentCalls gs ts vals) =
 track :: Cmd.M m => BlockId -> TrackId -> m Document
 track block_id track_id = do
     dynamic <- Cmd.require "dynamic for doc"
-        =<< Perf.lookup_dynamic block_id (Just track_id)
+        =<< Perf.lookup_root_dynamic block_id (Just track_id)
     ttype <- ParseTitle.track_type <$> State.get_track_title track_id
     return $ track_sections ttype (Derive.state_scopes dynamic)
 

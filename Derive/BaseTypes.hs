@@ -254,6 +254,7 @@ data PitchConfig = PitchConfig !Environ !ControlValMap
 -- It's meant for 'Pitch', so the values are expected to be transpositions, and
 -- hence untyped.
 type ControlValMap = Map.Map Control Signal.Y
+type TypedControlValMap = Map.Map Control (Typed Signal.Y)
 
 instance Monoid.Monoid PitchConfig where
     mempty = PitchConfig mempty mempty

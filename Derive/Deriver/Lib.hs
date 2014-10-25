@@ -398,20 +398,28 @@ untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
 -- into account.
 controls_at :: RealTime -> Deriver Score.ControlValMap
 controls_at pos = do
-    controls <- get_controls
-    fs <- Internal.get_dynamic state_control_functions
-    dyn <- get_control_function_dynamic
-    return $ Map.fromList $ map (resolve dyn pos) $
+    dyn <- Internal.get_dynamic id
+    ruler <- get_ruler
+    return $ state_controls_at pos ruler dyn
+
+state_controls_at :: RealTime -> Ruler.Marklists
+    -- ^ Ruler marklists from the same track as the Dynamic.  Needed by
+    -- control functions, via 'TrackLang.dyn_ruler'.
+    -> Dynamic -> Score.ControlValMap
+state_controls_at pos ruler dyn =
+    Map.fromList $ map (resolve (convert_dynamic ruler dyn) pos) $
         Seq.equal_pairs (\a b -> fst a == fst b)
             (Map.toAscList fs) (Map.toAscList controls)
     where
-    resolve dyn pos p = case p of
+    fs = state_control_functions dyn
+    controls = state_controls dyn
+    resolve cf_dyn pos p = case p of
         Seq.Both (k, f) _ -> (k, call k f)
         Seq.First (k, f) -> (k, call k f)
         Seq.Second (k, sig) -> (k, Signal.at pos (Score.typed_val sig))
         where
         call control f = Score.typed_val $
-            TrackLang.call_control_function f control dyn pos
+            TrackLang.call_control_function f control cf_dyn pos
 
 get_control_function_dynamic :: Deriver BaseTypes.Dynamic
 get_control_function_dynamic = do

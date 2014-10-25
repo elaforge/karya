@@ -61,8 +61,7 @@ derive_expr block_id track_id pos expr = do
 derive_at :: Cmd.M m => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either String a, [Log.Msg])
 derive_at block_id track_id deriver = do
-    dynamic <- fromMaybe empty_dynamic <$>
-        lookup_dynamic block_id (Just track_id)
+    dynamic <- fromMaybe empty_dynamic <$> find_dynamic block_id (Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
     return (either (Left . pretty) Right val, logs)
     where empty_dynamic = Derive.initial_dynamic mempty
@@ -151,20 +150,32 @@ lookup_val block_id maybe_track_id name =
 lookup_environ :: Cmd.M m => BlockId -> Maybe TrackId
     -> m (Maybe TrackLang.Environ)
 lookup_environ block_id maybe_track_id =
-    fmap Derive.state_environ <$> lookup_dynamic block_id maybe_track_id
+    fmap Derive.state_environ <$> find_dynamic block_id maybe_track_id
 
 get_environ :: Cmd.M m => BlockId -> Maybe TrackId -> m TrackLang.Environ
 get_environ block_id = fmap (fromMaybe mempty) . lookup_environ block_id
 
-lookup_dynamic :: Cmd.M m => BlockId -> Maybe TrackId
-    -> m (Maybe Derive.Dynamic)
-lookup_dynamic block_id maybe_track_id = do
-    maybe_dyn <- get <$> lookup_root
+-- | Try to find the Dynamic for the given block and track, first looking in
+-- the root performance, and then in the block's performance.
+find_dynamic :: Cmd.M m => BlockId -> Maybe TrackId -> m (Maybe Derive.Dynamic)
+find_dynamic block_id maybe_track_id = do
+    maybe_dyn <- lookup_root_dynamic block_id maybe_track_id
     case maybe_dyn of
         Just dyn -> return $ Just dyn
-        Nothing -> get <$> Cmd.lookup_performance block_id
+        Nothing -> lookup_dynamic block_id block_id maybe_track_id
+
+lookup_root_dynamic :: Cmd.M m => BlockId -> Maybe TrackId
+    -> m (Maybe Derive.Dynamic)
+lookup_root_dynamic block_id maybe_track_id =
+    justm State.lookup_root_id $ \root_id ->
+        lookup_dynamic root_id block_id maybe_track_id
+
+lookup_dynamic :: Cmd.M m => BlockId -> BlockId -> Maybe TrackId
+    -> m (Maybe Derive.Dynamic)
+lookup_dynamic perf_block_id block_id maybe_track_id =
+    maybe Nothing (lookup . Cmd.perf_track_dynamic) <$>
+        Cmd.lookup_performance perf_block_id
     where
-    get = maybe Nothing (lookup . Cmd.perf_track_dynamic)
     lookup track_dyns = case maybe_track_id of
         Nothing -> do
             (_, dyn) <- List.find ((==block_id) . fst . fst)

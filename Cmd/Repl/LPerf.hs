@@ -19,6 +19,7 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
@@ -73,19 +74,40 @@ environ = do
     Perf.lookup_environ block_id (Just track_id)
 
 -- | Controls in scope at the insert point.
-controls :: Cmd.CmdL Score.ControlMap
-controls = maybe mempty Derive.state_controls <$> dynamic
+controls :: Bool -> Cmd.CmdL Score.ControlMap
+controls from_root = Derive.state_controls <$> dynamic from_root
+
+-- | The control vals at the insertion point, taking the control functions into
+-- account.
+control_vals :: Bool -> Cmd.CmdL Score.ControlValMap
+control_vals from_root = do
+    (block_id, tracknum, _, _) <- Selection.get_insert
+    ruler_id <- fromMaybe State.no_ruler <$>
+        State.ruler_track_at block_id tracknum
+    mlists <- Ruler.ruler_marklists <$> State.get_ruler ruler_id
+    dyn <- dynamic from_root
+    pos <- get_realtime from_root
+    return $ Derive.state_controls_at pos mlists dyn
+
+-- | Like 'control_vals', but without control functions.
+raw_control_vals :: Bool -> Cmd.CmdL Score.TypedControlValMap
+raw_control_vals from_root = do
+    dyn <- dynamic from_root
+    pos <- get_realtime from_root
+    return $ fmap (fmap (Signal.at pos)) (Derive.state_controls dyn)
 
 aliases :: Cmd.CmdL [(Score.Instrument, Score.Instrument)]
-aliases = maybe mempty Derive.state_instrument_aliases <$> dynamic
+aliases = Derive.state_instrument_aliases <$> dynamic True
 
-warp :: Cmd.CmdL Score.Warp
-warp = maybe Score.id_warp Derive.state_warp <$> dynamic
+warp :: Bool -> Cmd.CmdL Score.Warp
+warp from_root = Derive.state_warp <$> dynamic from_root
 
-dynamic :: Cmd.CmdL (Maybe Derive.Dynamic)
-dynamic = do
+dynamic :: Bool -> Cmd.CmdL Derive.Dynamic
+dynamic from_root = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    Perf.lookup_dynamic block_id (Just track_id)
+    Cmd.require "no dynamic" =<< if from_root
+        then Perf.lookup_root_dynamic block_id (Just track_id)
+        else Perf.lookup_dynamic block_id block_id (Just track_id)
 
 sel_to_real :: Cmd.CmdL [RealTime]
 sel_to_real = do

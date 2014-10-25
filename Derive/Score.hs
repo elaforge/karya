@@ -59,10 +59,10 @@ import qualified Ui.Color as Color
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Instrument(..), Control, PControl(..), Warp(..), Type(..), Typed(..),
-        ControlValMap, ControlMap, ControlFunction(..), ControlFunctionMap,
-        PitchMap, untyped, merge_typed, type_to_code, code_to_type,
-        TypedControl, TypedVal, Attributes, Attribute, attr, attrs,
-        set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
+        ControlValMap, TypedControlValMap, ControlMap, ControlFunction(..),
+        ControlFunctionMap, PitchMap, untyped, merge_typed, type_to_code,
+        code_to_type, TypedControl, TypedVal, Attributes, Attribute, attr,
+        attrs, set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
         attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
