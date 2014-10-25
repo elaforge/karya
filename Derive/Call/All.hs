@@ -89,6 +89,7 @@ control_maps = mconcat
     , Equal.control_calls
     , Gamakam.control_calls
     , Import.calls
+    , Misc.control_calls
     , Random.control_calls
     , SignalTransform.control_calls
     , Trill.control_calls
@@ -101,6 +102,7 @@ pitch_maps = mconcat
     , Gamakam2.pitch_calls
     , Grace.pitch_calls
     , Import.calls
+    , Misc.pitch_calls
     , Pitch.pitch_calls
     , PitchHigh.pitch_calls
     , Random.pitch_calls

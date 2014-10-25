@@ -10,7 +10,7 @@ UNSORTED
   * LView.create "abc" which does the same thing
   * shift-click on a collapsed track uncollapses, but if it's a merged track,
     the merge is still present
-  - It's hard to replace a 'dyn' track if they combine via merge, since
+  * It's hard to replace a 'dyn' track if they combine via merge, since
     I can't counteract it.  Maybe I can do 'dyn | e-unless no-dyn', and then
     call like 'no-dyn=t | block'.  But as with 'when-ly', a deriver can't
     skip a track.
