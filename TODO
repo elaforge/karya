@@ -407,6 +407,8 @@ shakefile: build:
     - Local.Instrument looks for 'load' from Local/Instrument/
   - After reading cabal dist/setup-config, the empty build time doubles from
     .2s to .45s.  Perhaps unrelated to the cabal change.
+    * dist/setup-config is huge and has a slow parser, I can cache in a file.
+      . Done, but didn't seem to help.
 
 incremental save / git:
   + try saving individual events for incremental save

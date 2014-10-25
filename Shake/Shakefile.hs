@@ -13,6 +13,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import Control.Monad
 import qualified Control.Monad.Trans as Trans
+import Control.Monad.Trans (liftIO)
 
 import qualified Data.Binary as Binary
 import qualified Data.Char as Char
@@ -67,7 +68,7 @@ defaultOptions = Shake.shakeOptions
     , Shake.shakeProgress = Progress.report
     }
 
-newtype GetPackages = GetPackages (Shake.Action [String])
+newtype GetPackages = GetPackages (Shake.Action [PackageId])
 instance Show GetPackages where show _ = "((GetPackages))"
 
 data Config = Config {
@@ -465,13 +466,10 @@ main = withLockedDatabase $ do
     modeConfig_ <- configure (midiFromEnv env)
     writeGhciFlags modeConfig_
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
-        getPackages <- cachedGetPackages
+        getPackages <- packageConfigurationRules
         let modeConfig = (\c -> c { getPackages_ = getPackages }) . modeConfig_
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
-        -- Always build, since it can't tell when 'globalPackages' has changed.
-        makeCabal
-        cabalConfigurationRule
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
         hspp *> \fn -> do
@@ -648,10 +646,8 @@ dispatch modeConfig targets = do
                     `elem` hcFlags (configFlags (modeConfig Profile))
             system "tools/summarize_profile.py"
                 [if with_scc then "scc" else "no-scc"]
-        "show-debug" -> action $
-            Trans.liftIO $ PPrint.pprint (modeConfig Debug)
-        "show-opt" -> action $
-            Trans.liftIO $ PPrint.pprint (modeConfig Opt)
+        "show-debug" -> action $ liftIO $ PPrint.pprint (modeConfig Debug)
+        "show-opt" -> action $ liftIO $ PPrint.pprint (modeConfig Opt)
         "tests" -> action $ do
             need [runTests]
             system "test/run_tests" [runTests]
@@ -725,8 +721,7 @@ makeHaddock config = do
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     packages <- getPackages config
     let flags = configFlags config
-    interfaces <- Trans.liftIO $
-        getHaddockInterfaces (map stripPackageId packages)
+    interfaces <- liftIO $ getHaddockInterfaces (map stripPackageId packages)
     let packageFlags = "-hide-all-packages" : map ("-package-id="++) packages
     system "haddock" $
         [ "--html", "-B", ghcLib config
@@ -782,8 +777,27 @@ stripPackageId :: PackageId -> Package
 stripPackageId = reverse . drop hexLen . reverse
     where hexLen = 32 + 1 -- hex hash plus hyphen
 
-makeCabal :: Shake.Rules ()
-makeCabal = "karya.cabal" *> \fn -> do
+-- | Add the various cabal rules, and return an action that reads a cached list
+-- of packages with their versions.
+packageConfigurationRules :: Shake.Rules GetPackages
+packageConfigurationRules = do
+    "karya.cabal" *> makeKaryaCabal
+    "dist/setup-config" *> \_ -> do
+        need ["karya.cabal"]
+        system "cabal" ["configure"]
+    build </> "package-versions" *> \fn -> do
+        need ["dist/setup-config"]
+        -- dist/setup-config is huge and it uses a String parser, so cache
+        -- the bits in need in another file.
+        packages <- liftIO $ readCabalConfiguration
+        Shake.writeFileChanged fn $ unlines packages
+    cached <- Shake.newCache $ fmap lines . Shake.readFile'
+    return $ GetPackages $ cached (build </> "package-versions")
+
+makeKaryaCabal :: FilePath -> Shake.Action ()
+makeKaryaCabal fn = do
+    -- Always build, since it can't tell when 'globalPackages' has changed,
+    -- but writeFileChanged will avoid further work if it hasn't.
     Shake.alwaysRerun
     template <- Shake.readFile' "doc/karya.cabal.template"
     Shake.writeFileChanged fn $ template ++ buildDepends ++ "\n"
@@ -793,20 +807,6 @@ makeCabal = "karya.cabal" *> \fn -> do
         List.sort $ map mkline globalPackages
     mkline (package, constraint) =
         package ++ if null constraint then "" else " " ++ constraint
-
-cabalConfigurationRule :: Shake.Rules ()
-cabalConfigurationRule = "dist/setup-config" *> \_ -> do
-    need ["karya.cabal"]
-    system "cabal" ["configure"]
-
--- | Create an action that reads a cached list of packages with their
--- versions.
-cachedGetPackages :: Shake.Rules GetPackages
-cachedGetPackages = do
-    cached <- Shake.newCache $ \fname -> do
-        need [fname]
-        Trans.liftIO readCabalConfiguration
-    return $ GetPackages $ cached "dist/setup-config"
 
 -- | Rather than trying to figure out which binary needs which packages, I
 -- just union all the packages.
@@ -934,8 +934,7 @@ hsORule infer = matchHsObj ?>> \fns -> do
     let Just obj = List.find (".hs.o" `List.isSuffixOf`) fns
     Shake.askOracleWith (Question () :: Question GhcQ) ("" :: String)
     let config = infer obj
-    isHsc <- Trans.liftIO $
-        Directory.doesFileExist (objToSrc config obj ++ "c")
+    isHsc <- liftIO $ Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
     need [hspp]
     imports <- HsDeps.importsOf (cppFlags config hs) hs
@@ -1132,7 +1131,7 @@ strip :: String -> String
 strip = reverse . dropWhile Char.isSpace . reverse . dropWhile Char.isSpace
 
 errorIO :: Trans.MonadIO m => String -> m a
-errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
+errorIO = liftIO . Exception.throwIO . Exception.ErrorCall
 
 -- | Foor/Bar.hs -> Foo.Bar
 pathToModule :: FilePath -> String
@@ -1153,7 +1152,7 @@ includesOf caller config fn = do
     let dirs = includeDirs config
     (includes, notFound) <- hsconfig <$> CcDeps.transitiveIncludesOf dirs fn
     unless (null notFound) $
-        Trans.liftIO $ putStrLn $ caller
+        liftIO $ putStrLn $ caller
             ++ ": WARNING: c includes not found: " ++ show notFound
             ++ " (looked in " ++ show dirs ++ ")"
     return includes
