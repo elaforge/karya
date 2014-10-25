@@ -16,6 +16,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
@@ -55,7 +56,13 @@ c_alternate = Derive.make_call Module.prelude "alternate" Tags.random
     \exprs args -> do
         let pairs = fmap (flip (,) 1) exprs
         val <- pick_weighted pairs <$> Util.random
-        Eval.eval_quoted (Args.info args) val
+        eval (Args.info args) val
+
+eval :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Val
+    -> Derive.Deriver [LEvent.LEvent d]
+eval info val = do
+    quoted <- Derive.require_right untxt $ val_to_quoted val
+    Eval.eval_quoted info quoted
 
 -- | Calls themselves are not first class, so this has to either take a string
 -- and evaluate it, or turn a Val back into a string to evaluate.  That works
