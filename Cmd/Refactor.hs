@@ -129,7 +129,7 @@ selection_ :: Cmd.M m => Bool -- ^ create dot-prefixed relative block call
 selection_ create_relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     name <- return $ if create_relative
-        then Id.ident_name block_id <> "." <> name else name
+        then Eval.make_relative block_id name else name
     to_block_id <- selection_at name block_id tracknums track_ids
         start end
     Create.view to_block_id
@@ -199,7 +199,7 @@ get_block_calls track_id = do
 resolve_relative_call :: Id.Namespace -> BlockId -> TrackLang.CallId
     -> Maybe BlockId
 resolve_relative_call ns caller sym
-    | Eval.is_relative_call sym = Eval.symbol_to_block_id ns (Just caller) sym
+    | Eval.is_relative sym = Eval.symbol_to_block_id ns (Just caller) sym
     | otherwise = Nothing
 
 make_block_call :: BlockId -> BlockId -> Text

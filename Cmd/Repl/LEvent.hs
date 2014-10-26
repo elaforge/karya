@@ -40,18 +40,21 @@ stretch_event start n =
 modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
 modify_dur = Edit.modify_dur
 
--- | Find all events having the given substring.  Call with 'pp' to get
+-- | Find all events containing the given substring.  Call with 'pp' to get
 -- copy-pastable 's' codes.
 find :: Text -> Cmd.CmdL [(State.Range, Text)]
-find text = fmap concat . concatMapM search =<< State.all_block_track_ids
+find substr = find_f (substr `Text.isInfixOf`)
+
+find_f :: (Text -> Bool) -> Cmd.CmdL [(State.Range, Text)]
+find_f matches = fmap concat . concatMapM search =<< State.all_block_track_ids
     where
     search (block_id, track_ids) = forM track_ids $ \track_id -> do
         events <- Events.ascending . Track.track_events
             <$> State.get_track track_id
         let range e = State.Range (Just block_id) track_id
                 (Event.start e) (Event.end e)
-        return [(range event, Event.event_text event) | event <- events,
-            text `Text.isInfixOf` Event.event_text event]
+        return [(range event, Event.event_text event) |
+            event <- events, matches (Event.event_text event)]
 
 -- | Replace text on events.  Call with 'ModifyEvents.all_blocks' to replace it
 -- everywhere, or 'ModifyEvents.all_note_tracks' for just note tracks.

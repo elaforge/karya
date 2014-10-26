@@ -46,8 +46,8 @@ list = do
     return [(block_id, Seq.count block_id view_blocks) | block_id <- block_ids]
 
 -- | Find BlockIds that match the string.
-match_id :: State.M m => Text -> m [BlockId]
-match_id match = filter (Util.match_id match) <$>
+find_id :: State.M m => Text -> m [BlockId]
+find_id match = filter (Util.match_id match) <$>
     State.gets (Map.keys . State.state_blocks)
 
 pretty :: State.M m => BlockId -> m String
@@ -72,11 +72,14 @@ pretty block_id = do
 
 -- | Find all blocks with the given text in their titles.
 find :: Text -> Cmd.CmdL [(BlockId, Text)]
-find search = do
+find substr = find_f (substr `Text.isInfixOf`)
+
+find_f :: (Text -> Bool) -> Cmd.CmdL [(BlockId, Text)]
+find_f match = do
     block_ids <- State.all_block_ids
     titles <- mapM State.get_block_title block_ids
     return [(block_id, title) | (block_id, title) <- zip block_ids titles,
-        search `Text.isInfixOf` title]
+        match title]
 
 -- | Transform all block titles.
 map_titles :: (Text -> Text) -> Cmd.CmdL ()

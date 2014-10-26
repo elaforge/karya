@@ -16,6 +16,7 @@ import Control.Monad.Trans (liftIO)
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Map as Map

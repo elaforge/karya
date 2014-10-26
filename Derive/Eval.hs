@@ -17,7 +17,8 @@ module Derive.Eval (
     , get_val_call
 
     -- * lookup call
-    , unknown_call_id, symbol_to_block_id, is_relative_call
+    , unknown_call_id, symbol_to_block_id
+    , is_relative, make_relative
 
     -- * util
     , eval_one, eval_one_call, eval_one_at
@@ -195,19 +196,22 @@ unknown_call_id name (TrackLang.Symbol sym) = name <> " not found: " <> sym
 -- | Given a CallId, try to come up with the BlockId of the block it could be
 -- a call for.
 symbol_to_block_id :: Id.Namespace -> Maybe BlockId
-    -- ^ If the symbol starts with ., this block is prepended to it.
+    -- ^ If the symbol starts with -, this block is prepended to it.
     -> TrackLang.CallId -> Maybe BlockId
 symbol_to_block_id ns maybe_caller sym
     | sym == "" = Nothing
     | otherwise = Just $ Id.BlockId $ Id.read_short ns relative
     where
     relative
-        | Just caller <- maybe_caller, is_relative_call sym =
+        | Just caller <- maybe_caller, is_relative sym =
             Id.ident_text caller <> TrackLang.unsym sym
         | otherwise = TrackLang.unsym sym
 
-is_relative_call :: TrackLang.CallId -> Bool
-is_relative_call (TrackLang.Symbol sym) = "." `Text.isPrefixOf` sym
+is_relative :: TrackLang.CallId -> Bool
+is_relative (TrackLang.Symbol sym) = "-" `Text.isPrefixOf` sym
+
+make_relative :: BlockId -> Text -> Text
+make_relative block_id name = Id.ident_name block_id <> "-" <> name
 
 -- * util
 

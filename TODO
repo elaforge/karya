@@ -13,7 +13,7 @@ UNSORTED
       I think I need to be in track time, but it seems like weak should be
       a generator.  But then I need to have zero duration take a separate
       generator for zero dur. Maybe I want that anyway?
-  - if . is symbol char, then I don't need quotes around alt '.a' '.b'
+  * if . is symbol char, then I don't need quotes around alt '.a' '.b'
     But then it looks like a number.  Why not use '-' as the divider?
   * should be able to merge pitch or control to the right of a note track, not
     just pitch

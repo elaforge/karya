@@ -39,12 +39,12 @@ test_relative_block = do
     let run call = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_blocks
             [ ("top", [(">", [(0, 1, call)])])
-            , ("top.sub=ruler", UiTest.regular_notes 1)
+            , ("top-sub=ruler", UiTest.regular_notes 1)
             ]
-    equal (run ".sub") ([(0, 1, "3c")], [])
-    equal (run "top.sub") ([(0, 1, "3c")], [])
-    equal (run "test/top.sub") ([(0, 1, "3c")], [])
-    strings_like (snd (run ".bub")) ["note generator not found"]
+    equal (run "-sub") ([(0, 1, "3c")], [])
+    equal (run "top-sub") ([(0, 1, "3c")], [])
+    equal (run "test/top-sub") ([(0, 1, "3c")], [])
+    strings_like (snd (run "-bub")) ["note generator not found"]
 
 test_clip = do
     let run top = run_sub DeriveTest.e_start_dur [(">", top)]
