@@ -60,18 +60,29 @@ clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
 toggle_merge_all :: State.M m => BlockId -> m ()
 toggle_merge_all block_id = do
     tracks <- Info.block_tracks block_id
-    let note_pitches = do
-            Info.Track note (Info.Note controls) <- tracks
-            pitch <- maybe [] (:[]) $ List.find
-                (ParseTitle.is_pitch_track . State.track_title) controls
-            return (State.track_tracknum note, State.track_tracknum pitch)
-    ifM (andM [track_merged block_id tracknum | (tracknum, _) <- note_pitches])
-        (mapM_ (State.unmerge_track block_id . fst) note_pitches)
-        (mapM_ (uncurry (State.merge_track block_id)) note_pitches)
+    let tracknums = [State.track_tracknum note |
+            Info.Track note (Info.Note {}) <- tracks]
+    ifM (andM (map (track_merged block_id) tracknums))
+        (mapM_ (State.unmerge_track block_id) tracknums)
+        (mapM_ (merge_track block_id) tracknums)
+
+merge_track :: State.M m => BlockId -> TrackNum -> m ()
+merge_track block_id tracknum =
+    whenM (is_control_or_pitch block_id (tracknum + 1)) $
+        State.merge_track block_id tracknum (tracknum + 1)
 
 track_merged :: State.M m => BlockId -> TrackNum -> m Bool
 track_merged block_id tracknum = not . Set.null . Block.track_merged <$>
     State.get_block_track_at block_id tracknum
+
+is_control_or_pitch :: State.M m => BlockId -> TrackNum -> m Bool
+is_control_or_pitch block_id tracknum =
+    State.event_track_at block_id tracknum >>= \x -> case x of
+        Nothing -> return False
+        Just track_id -> do
+            ttype <- ParseTitle.track_type <$> State.get_track_title track_id
+            return $ ttype
+                `elem` [ParseTitle.ControlTrack, ParseTitle.PitchTrack]
 
 cmd_open_block :: Cmd.M m => m ()
 cmd_open_block = do

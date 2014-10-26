@@ -101,8 +101,7 @@ track_type_of (Tree.Node track subs, parents)
 -- ** specialized lookups
 
 -- | Pitch track of a note track, if any.
-pitch_of_note :: State.M m => BlockId -> TrackNum
-    -> m (Maybe State.TrackInfo)
+pitch_of_note :: State.M m => BlockId -> TrackNum -> m (Maybe State.TrackInfo)
 pitch_of_note block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
     return $ case maybe_track of

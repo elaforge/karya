@@ -14,7 +14,8 @@ UNSORTED
       a generator.  But then I need to have zero duration take a separate
       generator for zero dur. Maybe I want that anyway?
   - if . is symbol char, then I don't need quotes around alt '.a' '.b'
-  - should be able to merge pitch or control to the right of a note track, not
+    But then it looks like a number.  Why not use '-' as the divider?
+  * should be able to merge pitch or control to the right of a note track, not
     just pitch
   * remove event text rotation, I don't think I'll ever want it
   * Block.track_merged becomes a Set
