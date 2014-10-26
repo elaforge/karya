@@ -26,6 +26,9 @@ import qualified Cmd.TimeStep as TimeStep
 import Types
 
 
+get :: State.M m => TrackId -> m Events.Events
+get = fmap Track.track_events . State.get_track
+
 stretch :: ScoreTime -> Cmd.CmdL ()
 stretch n = do
     selected <- Selection.events

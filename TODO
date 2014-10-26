@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Refactor.selection_relative at the end of the block creates a note that's
+    too long.
+  * And the created blocks scroll below where they should.
+    Scroll is until ruler, so where does it end?
+    TrackTile::time_end, from Events.time_end
+  - add Refactor.selection_alternates?
+  - clean up functions names in Ui.Id, e.g. un_id -> unpack
+    Maybe generic ones should be 'id', Id should be ident.
   - Rethink if I really want track event calls in TrackTime, rather than
     normalized time.  E.g. it's inconvenient that DUtil.zero_duration has
     to modify the event to set the note duration.

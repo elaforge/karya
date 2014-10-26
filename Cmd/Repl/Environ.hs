@@ -28,6 +28,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
+import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime

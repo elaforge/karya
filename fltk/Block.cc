@@ -599,9 +599,10 @@ BlockView::update_scrollbars()
 
     const ZoomInfo &zoom = this->get_zoom();
     // The scale(1)s just convert a ScoreTime to a double.
-    this->time_sb.set_scroll_zoom(track_tile.time_end().scale(1),
-            zoom.offset.scale(1),
-            track_tile.visible_time().scale(1));
+    this->time_sb.set_scroll_zoom(
+        track_tile.time_end().scale(1),
+        zoom.offset.scale(1),
+        track_tile.visible_time().scale(1));
 }
 
 // static callbacks

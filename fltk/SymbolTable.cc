@@ -202,6 +202,7 @@ SymbolTable::measure_backticks(const char *text, Size size) const
     }
 }
 
+
 // Get the width of a character, or a `symbol`.
 double
 SymbolTable::measure_glyph(const char *p, int size) const
