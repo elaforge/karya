@@ -88,9 +88,6 @@ UNSORTED
       aferwards.
     . If the note start is moved, then controls move back, so things that used
       to be past the end are now before it.
-  / import a b doesn't warn when b shadows a.
-    . But that's on purpose, I did want to shadow ', I just wanted to shadow
-      the other one.
   - I should be able to move samples only when converting to MIDI, this way
     I don't need to move parts of the signal that wind up being trimmed.
     Either try to trim the signal earlier again, or delay transformation to
@@ -116,11 +113,6 @@ UNSORTED
       so I can turn accuracy up or down.
   wayang
     * end of p4 is now broken, ngoret to last note winds up muting it
-    / maybe repeated notes could automatically apply pedal
-      But if it's just one repeated note, not all of them, then I wind up with
-      channel splitting, and if there's just one channel, then everyone gets
-      the pedal.  So MIDI is definitely wrong here, but fixing it seems to
-      channel intensive.
       This could cause lots of channel splitting if there are repeated notes
     - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
       fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
@@ -134,10 +126,6 @@ UNSORTED
       . zero-duration-transform can't be a general transform, because it can't
         tell if notes are zero dur.  Make a null note call that only applies
         if it's not a block-final event?
-    / Could I have a 'repeat' count that counts each time a block has a been
-      called?  How can I do this without adding linear state?
-      . Does linear state even matter since I'm not parallelizing derivation?
-        Maybe I should try to parallelize derivation or abandon the idea.
     - many double strikes or ngoret tones land a bit ahead of the beat
     - I want some optional ngoret to happen the same way in both hands.
       I could make it apply to a parallel kempyung or octave.
@@ -157,28 +145,6 @@ UNSORTED
   - can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
     modify_event_near_point, doesn't ModifyEvent.selection already do that?
   - why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
-  / Ngoret seemingly can't work with negative durations, because it wants to
-    make notes overlap, and I can't express that.
-    . One way is to extend negative durations to allow overlaps.  It seems
-      like there's a way to do that.
-    . But this is all really confusing and hard to understand.  Can I get rid
-      of them entirely but keep what I need them for, which is patterns
-      aligned at the end?  I can already have a block end with a note,
-      but I need it to have a duration.  This is the same as the arrival
-      note, and could use an attr + postproc in the same way.
-    . The usual cipher notation leaves duration entirely implicit, so it
-      really is fundamentally higher level.
-    . Or, I could keep negative duration as a way to signal that the call is
-      end-aligned, but have normal notes be positive.
-        ------|
-             ------|
-              |++++++
-                   |...
-
-          ----|----|
-              |++++|...
-            --|  --|
-              |++  |...
   + in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
     a new play send the keyswitch?
     . can repro with bug/stuck-mute.  But MIDI looks normal.  Record in reaper
@@ -455,8 +421,6 @@ integrate / integration:
     - Ensure cascading track integration works.
     - If integrate is committing changes to a track, can that bite me if
       a "canceled" derivation comes through?  Think about this later.
-    - What if an integrate wants to produce a note transformer track?  I
-      think that's currently impossible.
     - quantization
 
 lilypond:
@@ -636,7 +600,6 @@ cleanup:
     PitchControl and ValControl.
     . (Control, Signal, Y), (PControl, PSignal, Pitch)
       SignalRef, PSignalRef
-  / clean up Pitch.Semi, Pitch.PitchClass, Pitch.Step, and Theory.Step
   - update shakefile to use new system calls and logging levels
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
@@ -749,25 +712,12 @@ performance:
       this.  If I revert to linear search then none of this is necessary.
     - at_linear is called a lot by compose, by compose_warp, by d_warp
       can I make this more efficient?
-  Perform
-    / packed midi, encode to storable vector
-      last step of performer is to compact into vector
-      but I'm not sure this will much help
-      The main thing is how to encode the device.  I think I can hash it.  Or
-      use OS X persistent device ID?
-      how many msgs in e.g. the ptrio?
-        127130, [pno 9205, flute 63748, clarinet 54177]
-        5367 for bloom
-        peak for 246114 msgs: 46mb for int, 38.7 for int, 38.7 for w64
 
 symbolic score
   some way to get symbol feedback instantly to make it easier to compose them
     . But it calls SymbolC and I ran into a problem where linux ghci can't
       link FFI-using functions.  Ask on glasgow-haskell-users.
     - I can either have a separate app, or use the special Status trick.
-  / namespacing?  don't worry about it for now, if I need it later it can be
-    entirely at the haskell level, I can use the per-song config to import
-    namespaces
   - feta's tr symbol looks bad especially when small, is there a better one?
   - find or make a font with jian ti symbols?
   - find or make a font with gong che pu
@@ -787,15 +737,6 @@ fltk:
     - tops of tracks and the tops of track text boxes still get gunk, visible
       when scrolling horizontally
   - Should fltk collapse adjacent dividers?
-  track titles
-    / Grow the window when the title grows past it.
-    / Grow text past edge of window, when I resize the window the text keeps
-      growing with it.  But it doesn't expect that size, and doesn't clear
-      when deselected.
-    / Type into track text on the right side, then expand the window so it can
-      be visible.  It doesn't redraw the newly-revealed bit correctly.
-    / If I wrapped track titles I could see the entire thing, but at the cost
-      of using more vertical space.
   - There's a focus bug, but I'm not sure how to reproduce it.
   - There's a bug where if you zoom-to-fit and then click, the selection snap
     can undo the zoom.  Can't figure out how to reproduce this.
@@ -807,8 +748,6 @@ fltk:
     detection.
     + gmail: subject:(scaling text)
       But it's OSX only.
-  / factor scroll redrawing into a single class
-  / draw arrows in SkeletonDisplay.cc properly?  Meh, they look ok.
   - figure out how to have a minimal title bar in os x (win.border(0) removes
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
@@ -822,10 +761,6 @@ fltk:
     . Entirely turned it off, speed seems acceptable.
   Track
     / dividers can have separate color for upper part, for collapsable tracks
-  / Why does seq sometimes leave a app menubar on quit?  Do other fltk apps
-    do that?  Yes.
-    . It has to do with starting from the cmdline, starting with 'open' doesn't
-      have this problem.
   + Disable application persistence for fltk apps:
     http://oleb.net/blog/2011/07/whats-new-for-developers-in-lion-part-1/
     http://developer.apple.com/library/mac/#documentation/General/Conceptual/MOSXAppProgrammingGuide/CoreAppDesign/CoreAppDesign.html#//apple_ref/doc/uid/TP40010543-CH3-SW26
@@ -862,7 +797,6 @@ logview:
 
 Ui:
   Track
-    / benchmark large TrackEvents
     more compact implemnetation than Data.Map?  profile first!
       . priorities: memory efficiency, persistent, merge speed (insert many)
         shallow tree of dense chunks?
