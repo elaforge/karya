@@ -40,9 +40,9 @@ note_calls = Derive.call_maps
     , ("'n", gender_ngoret $ Just <$> interval_arg)
     , ("'^", gender_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
     , ("'_", gender_ngoret $ pure $ Just $ Pitch.Diatonic 1)
+    , ("weak", c_weak)
     ]
     [ ("realize-ngoret", c_realize_ngoret)
-    , ("weak", c_weak)
     ]
 
 module_ :: Module.Module
@@ -207,23 +207,22 @@ shorten_previous = Flags.flag "shorten-previous-duration"
 
 -- * weak
 
-c_weak :: Derive.Transformer Derive.Note
-c_weak = Derive.transformer module_ "weak" Tags.inst
+c_weak :: Derive.Generator Derive.Note
+c_weak = Derive.make_call module_ "weak" Tags.inst
     "Weak notes are filler notes."
-    $ Sig.callt (
+    $ Sig.call (
     Sig.defaulted "strength" (control "strength" 0.5)
         "From low strength to high, omit the note, then play it muted, and\
         \ then play it open but softly."
-    ) weak
+    ) $ \strength -> Sub.inverting (weak strength)
 
 weak :: TrackLang.ValControl -> Derive.PassedArgs a -> Derive.NoteDeriver
-    -> Derive.NoteDeriver
-weak strength args deriver = do
+weak strength args = do
     strength <- Util.control_at strength =<< Args.real_start args
-    if strength <= omit_threshold then mempty
-        else Util.with_constant Controls.mute (mute strength) deriver
-    where
     -- This biases %mute values to be lower, and 0 before it unmutes.
-    mute strength = max 0 $ 1 - (strength + (1 - unmute_threshold))
+    let mute = max 0 $ 1 - (strength + (1 - unmute_threshold))
+    if strength <= omit_threshold then mempty
+        else Util.with_constant Controls.mute mute $ Util.placed_note args
+    where
     omit_threshold = 0.25
     unmute_threshold = 0.75

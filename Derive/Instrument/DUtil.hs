@@ -46,25 +46,30 @@ attrs_note attrs =
         "Invoke the default note call with the given attrs." $
     Sig.call0 $ \args -> Util.add_attrs attrs (Util.note_here args)
 
-zero_duration :: Text
+zero_duration_transform :: Text
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-zero_duration doc transform = Note.transformed_note
+zero_duration_transform doc transform = Note.transformed_note
     ("A normal note, but modified when it has zero duration: " <> doc)
-    mempty call
-    where
-    call args deriver
-        | Args.duration args == 0 = do
-            -- It turns out it's hard to figure out if a note has zero
-            -- duration, and isn't just an infer-duration note.
-            stack <- Internal.get_stack
-            environ <- Internal.get_environ
-            zero <- (==0) <$> Args.real_duration args
-            let flags = Note.note_flags zero stack environ
-                should_transform =
-                    zero && not (flags `Flags.has` Flags.infer_duration)
-            if should_transform then transform args deriver else deriver
-        | otherwise = deriver
+    mempty $ \args deriver ->
+        ifM (is_zero_duration args) (transform args deriver) deriver
+
+zero_duration :: Text -> Text -> (Derive.NoteArgs -> Derive.NoteDeriver)
+    -> (Derive.NoteArgs -> Derive.NoteDeriver) -> Derive.Generator Derive.Note
+zero_duration name doc zero non_zero = make_call name doc $ Sig.call0 $ \args ->
+    ifM (is_zero_duration args) (zero args) (non_zero args)
+
+is_zero_duration :: Derive.PassedArgs a -> Derive.Deriver Bool
+is_zero_duration args
+    | Args.duration args == 0 = do
+        -- It turns out it's hard to figure out if a note has zero
+        -- duration, and isn't just an infer-duration note.
+        stack <- Internal.get_stack
+        environ <- Internal.get_environ
+        zero <- (==0) <$> Args.real_duration args
+        let flags = Note.note_flags zero stack environ
+        return $ zero && not (flags `Flags.has` Flags.infer_duration)
+    | otherwise = return False
 
 -- | Just like the default note call, except apply a function to the output.
 postproc_note :: Text -> Text -> (Score.Event -> Score.Event)

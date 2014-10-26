@@ -33,13 +33,12 @@ test_wayang = do
 test_wayang_zero_dur = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_blocks_with with_synth
-        top = "top -- inst = >kontakt/wayang-umbang | import bali.gender"
-            ++ " | realize-ngoret | infer-duration"
+        top = "top -- inst = >kontakt/wayang-umbang | infer-duration"
         extract e = (Score.event_duration e,
             not $ null $ DeriveTest.e_control "mute" e)
     -- should be muted, since it's 0 dur and not the end
     equal (run [(top, UiTest.note_track [(0, 0, "3i"), (1, 0, "3i")])])
-        ([(0, True), (0, True)], [])
+        ([(1, True), (31, True)], [])
     -- The 3o is a final, not a mute.
     let sub = ("sub=ruler", UiTest.note_track [(0, 1, "3i"), (1, 0, "3o")])
     equal (run [(top, [(">", [(0, 1, "sub")])]), sub])

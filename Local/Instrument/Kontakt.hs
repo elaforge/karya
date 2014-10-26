@@ -31,6 +31,7 @@ import qualified Derive.Call.Highlight as Highlight
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
@@ -283,20 +284,26 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
     should add just +mute, and can inherit +loose if it's set.
 -}
 wayang_patches :: [MidiInst.Patch]
-wayang_patches = MidiInst.with_code code
+wayang_patches = MidiInst.with_code (code <> with_weak)
     [ set_tuning Environ.umbang $ scale Wayang.umbang $ wayang "wayang-umbang"
     , set_tuning Environ.isep $ scale Wayang.isep $ wayang "wayang-isep"
     , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
-    ] ++ MidiInst.with_code Bali.pasang_code
+    ] ++ MidiInst.with_code (Bali.pasang_code <> with_weak)
     [ wayang "wayang"
     , set_range Wayang.pemade_bottom Wayang.pemade_top $ wayang "wayang-p"
     , set_range Wayang.kantilan_bottom Wayang.kantilan_top $ wayang "wayang-k"
     ]
     where
     code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
-        <> MidiInst.note_calls null_call
-    null_call = MidiInst.null_call $ DUtil.zero_duration "make it a weak note"
-        (Gender.weak (Sig.control "strength" 0.5))
+    with_weak = MidiInst.note_calls null_call
+    null_call = MidiInst.null_call $ DUtil.zero_duration "note"
+        "This a normal note with non-zero duration, but when the duration is\
+        \ zero, it uses the `weak` call."
+        (Sub.inverting weak_call)
+        (Sub.inverting $ Note.default_note Note.use_attributes)
+    weak_call args =
+        Gender.weak (Sig.control "strength" 0.5) (Args.set_duration dur args)
+        where dur = Args.next args - Args.start args
     wayang = Instrument.set_flag Instrument.ConstantPitch
         . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
         . (Instrument.attribute_map #= wayang_keymap) . flip patch []

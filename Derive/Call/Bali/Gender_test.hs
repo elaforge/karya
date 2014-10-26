@@ -150,6 +150,6 @@ test_weak = do
         strength = zip (Seq.range_ 0 1) ["0", "0.25", "0.5", "0.75", "1"]
     equal (run
             [ ("strength", [(n, 0, s) | (n, s) <- strength])
-            , (">", [(n, 1, "weak |") | (n, _) <- strength])
+            , (">", [(n, 1, "weak") | (n, _) <- strength])
             ])
         ([[(0, 0.25)], [(0, 0)], [(0, 0)]], [])

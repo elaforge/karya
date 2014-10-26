@@ -103,6 +103,17 @@ prev_events, next_events :: PassedArgs a -> [Event.Event]
 next_events = Derive.info_next_events . info
 prev_events = Derive.info_prev_events . info
 
+-- ** modify
+
+-- | Modify the duration of the info_event.  This is a hack, because calls run
+-- in TrackTime, instead of using Derive.place.
+set_duration :: ScoreTime -> PassedArgs a -> PassedArgs a
+set_duration dur args = args
+    { Derive.passed_info = info
+        { Derive.info_event = Event.set_duration dur $ Derive.info_event info }
+    }
+    where info = Derive.passed_info args
+
 -- ** range
 
 -- | Range of the called event, i.e. (start, end).  Note that range is the

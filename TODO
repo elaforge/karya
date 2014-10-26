@@ -3,6 +3,19 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Rethink if I really want track event calls in TrackTime, rather than
+    normalized time.  E.g. it's inconvenient that DUtil.zero_duration has
+    to modify the event to set the note duration.
+  * save/wayang/sketch1 weak notes should play all open when strength=1, why
+    not?
+    . Because the notes are zero dur even so.  So eval to the next note, but
+      then I need to be a generator, or to change the dur.  For the latter
+      I think I need to be in track time, but it seems like weak should be
+      a generator.  But then I need to have zero duration take a separate
+      generator for zero dur. Maybe I want that anyway?
+  - if . is symbol char, then I don't need quotes around alt '.a' '.b'
+  - should be able to merge pitch or control to the right of a note track, not
+    just pitch
   * remove event text rotation, I don't think I'll ever want it
   * Block.track_merged becomes a Set
   * double-click could look for Symbols, and try to open relative or absolute
