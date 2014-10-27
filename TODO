@@ -3,8 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Refactor.selection_relative at the end of the block creates a note that's
+  * Refactor.selection_relative at the end of the block creates a note that's
     too long.
+    . It happens because I drag off the end of the block, and the selection
+      continues.  Simplest is to disallow selection without the ruler.  If
+      I want to not snap, I can cmd drag.
   * And the created blocks scroll below where they should.
     Scroll is until ruler, so where does it end?
     TrackTile::time_end, from Events.time_end

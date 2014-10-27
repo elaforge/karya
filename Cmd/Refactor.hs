@@ -124,7 +124,7 @@ selection_relative = selection_ True
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
-selection_ :: Cmd.M m => Bool -- ^ create dot-prefixed relative block call
+selection_ :: Cmd.M m => Bool -- ^ create relative block call
     -> Text -> m BlockId
 selection_ create_relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks

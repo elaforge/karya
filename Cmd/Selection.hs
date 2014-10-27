@@ -260,9 +260,9 @@ cmd_snap_selection btn selnum extend msg = do
     old_sel <- State.get_selection view_id selnum
     snap_pos <- TimeStep.snap step block_id mouse_tracknum
         (Types.sel_cur_pos <$> old_sel) mouse_pos
-    snap_pos <- snap_over_threshold view_id mouse_pos snap_pos
+    snap_pos <- snap_over_threshold view_id block_id mouse_pos snap_pos
     let sel = case old_sel of
-            _ | Msg.mouse_down msg && not extend || old_sel == Nothing ->
+            _ | old_sel == Nothing || Msg.mouse_down msg && not extend ->
                 Types.selection down_tracknum snap_pos mouse_tracknum snap_pos
             Just (Types.Selection tracknum pos _ _) ->
                 Types.selection tracknum pos mouse_tracknum snap_pos
@@ -272,10 +272,14 @@ cmd_snap_selection btn selnum extend msg = do
     where
     -- If I'm dragging, only snap if I'm close to a snap point.  Otherwise,
     -- it's easy for the selection to jump way off screen while dragging.
-    snap_over_threshold view_id pos snap = do
+    snap_over_threshold view_id block_id pos snap = do
         zoom <- State.get_zoom view_id
         let over = Types.zoom_to_pixels zoom (abs (snap - pos)) > threshold
-        return $ if not (Msg.mouse_down msg) && over then pos else snap
+        -- Don't go past the end of the ruler.  Otherwise it's easy to
+        -- accidentally select too much by dragging to the end of the block.
+        end <- State.block_ruler_end block_id
+        return $ if not (Msg.mouse_down msg) && over && pos < end
+            then pos else snap
     threshold = 20
 
 -- | Like 'mouse_drag' but specialized for drags on the track.
