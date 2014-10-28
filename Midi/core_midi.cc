@@ -100,7 +100,7 @@ get_name(MIDIEndpointRef dev)
     MIDIObjectGetStringProperty(dev, kMIDIPropertyDisplayName, &pname);
     if (!pname)
         return strdup("");
-    CFStringGetCString(pname, name, sizeof name, 0);
+    CFStringGetCString(pname, name, sizeof name, kCFStringEncodingUTF8);
     CFRelease(pname);
     return strdup(name);
 }
