@@ -172,7 +172,7 @@ keyswitches inputs = \msg -> do
 simple_drum :: Maybe Score.Control -> [(Drums.Note, Midi.Key)]
     -> Instrument.Patch -> MidiInst.Patch
 simple_drum tune_control note_keys patch =
-    MidiInst.with_code1 code (drum_patch note_keys patch)
+    MidiInst.with_code code (drum_patch note_keys patch)
     where code = drum_code tune_control (map fst note_keys)
 
 -- ** code

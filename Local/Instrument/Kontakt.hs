@@ -90,13 +90,13 @@ misc_patches = concat
     ]
 
 library :: [MidiInst.Patch]
-library = MidiInst.with_empty_code
+library = map MidiInst.with_empty_code
     [ patch "choir" [(1, "vowel")]
     ]
 
 -- | From the McGill sample library.
 mcgill :: [MidiInst.Patch]
-mcgill = MidiInst.with_empty_code
+mcgill = map MidiInst.with_empty_code
     [ pressure "viol", pressure "shawm", pressure "crumhorn"
     , plucked "lute"
     ]
@@ -109,10 +109,11 @@ mcgill = MidiInst.with_empty_code
 -- I changed it to support (-24, 24) pb range.
 balalaika :: [MidiInst.Patch]
 balalaika =
-    with_code $ (:[]) $
+    [ with_code $
         Instrument.attribute_map #= Instrument.simple_keyswitches ks $
         Instrument.patch $ (Instrument.hold_keyswitch #= True) $
         Instrument.instrument "balalaika" controls pb_range
+    ]
     where
     with_code = MidiInst.with_code $ MidiInst.note_generators
         [("(", Articulation.c_attr_legato)]
@@ -138,7 +139,7 @@ balalaika =
 -- Change volume to cc 2.
 -- Change b3 and c3 to be normal keyswitches instead of toggles.
 anthology_wind :: [MidiInst.Patch]
-anthology_wind = MidiInst.with_empty_code
+anthology_wind = map MidiInst.with_empty_code
     [ MidiInst.pressure $
         Instrument.attribute_map #= Instrument.simple_keyswitches dizi_ks $
         patch "dizi" [(CC.mod, Controls.vib)]
@@ -167,22 +168,18 @@ anthology_wind = MidiInst.with_empty_code
 -- * sonic couture
 
 sonic_couture :: [MidiInst.Patch]
-sonic_couture = concat $
-    [ MidiInst.with_empty_code
-        [ patch "ebow" [(1, "harm"), (21, Controls.lpf), (22, Controls.q),
-            (23, Controls.hpf)]
-        ]
+sonic_couture =
+    [ MidiInst.with_empty_code $ patch "ebow"
+        [(1, "harm"), (21, Controls.lpf), (22, Controls.q), (23, Controls.hpf)]
     , guzheng
     ]
 
-guzheng :: [MidiInst.Patch]
-guzheng = MidiInst.with_code code
-    [ MidiInst.range bottom top $
-        Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
-        Instrument.attribute_map #= Instrument.simple_keyswitches ks $
-        patch "guzheng" [(23, Controls.lpf), (24, Controls.q),
-            (27, Controls.hpf)]
-    ]
+guzheng :: MidiInst.Patch
+guzheng = MidiInst.with_code code $ MidiInst.range bottom top $
+    Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
+    Instrument.attribute_map #= Instrument.simple_keyswitches ks $
+    patch "guzheng" [(23, Controls.lpf), (24, Controls.q),
+        (27, Controls.hpf)]
     where
     code = MidiInst.note_generators [("左", DUtil.attrs_note Attrs.left)]
         <> MidiInst.note_transformers [("standard-strings", standard_strings)]
@@ -214,11 +211,12 @@ c_highlight_strings = Note.transformed_note
             Highlight.open_strings start Highlight.warn_non_open deriver
 
 sc_bali :: [MidiInst.Patch]
-sc_bali = MidiInst.with_empty_code
-    [ with_doc $
+sc_bali =
+    [ MidiInst.with_empty_code $ with_doc $
         Instrument.attribute_map #= Instrument.simple_keyswitches gangsa_ks $
         patch "sc-gangsa12"
-    ] ++ [CUtil.simple_drum Nothing gong_notes $ with_doc $ patch "sc-gong"]
+    , CUtil.simple_drum Nothing gong_notes $ with_doc $ patch "sc-gong"
+    ]
     where
     patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
     with_doc = Instrument.text #= "Sonic Couture's Balinese gamelan sample set."
@@ -238,12 +236,12 @@ wadon = Score.attr "wadon"
 lanang = Score.attr "lanang"
 
 misc :: [MidiInst.Patch]
-misc = MidiInst.with_code Reaktor.resonant_filter [patch "filtered" []]
+misc = [MidiInst.with_code Reaktor.resonant_filter $ patch "filtered" []]
 
 -- * hang
 
 hang_patches :: [MidiInst.Patch]
-hang_patches = MidiInst.with_code hang_code
+hang_patches = map (MidiInst.with_code hang_code)
     [ Instrument.attribute_map #= Instrument.simple_keyswitches hang_ks $
         patch "hang" []
     ]
@@ -300,11 +298,11 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
     should add just +mute, and can inherit +loose if it's set.
 -}
 wayang_patches :: [MidiInst.Patch]
-wayang_patches = MidiInst.with_code (code <> with_weak)
+wayang_patches = map (MidiInst.with_code (code <> with_weak))
     [ set_tuning Environ.umbang $ scale Wayang.umbang $ wayang "wayang-umbang"
     , set_tuning Environ.isep $ scale Wayang.isep $ wayang "wayang-isep"
     , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
-    ] ++ MidiInst.with_code (Bali.pasang_code <> with_weak)
+    ] ++ map (MidiInst.with_code (Bali.pasang_code <> with_weak))
     [ wayang "wayang"
     , set_range Wayang.pemade_bottom Wayang.pemade_top $ wayang "wayang-p"
     , set_range Wayang.kantilan_bottom Wayang.kantilan_top $ wayang "wayang-k"

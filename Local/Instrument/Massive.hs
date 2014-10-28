@@ -15,7 +15,7 @@ load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
     (MidiInst.softsynth "massive" "Native Instruments Massive" (-24, 24)
             controls)
-        { MidiInst.extra_patches = MidiInst.with_empty_code patches }
+        { MidiInst.extra_patches = map MidiInst.with_empty_code patches }
 
 controls :: [(Midi.Control, Score.Control)]
 controls =

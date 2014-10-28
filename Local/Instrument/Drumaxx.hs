@@ -30,7 +30,7 @@ code :: MidiInst.Code
 code = CUtil.drum_code Nothing (map fst note_keys)
 
 patches :: [MidiInst.Patch]
-patches = MidiInst.with_code composite_code
+patches = map (MidiInst.with_code composite_code)
     [ Instrument.text #= "This drum takes a pitch signal, which is then sent\
         \ to the `composite-pitched` instrument, which is a tuned comb filter.\
         \ The audio routing has to be set up in the VST host." $

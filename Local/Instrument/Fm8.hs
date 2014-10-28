@@ -13,7 +13,7 @@ import qualified App.MidiInst as MidiInst
 load :: FilePath -> IO [MidiInst.SynthDesc]
 load _dir = return $ MidiInst.make $
     (MidiInst.softsynth "fm8" "Native Instruments FM8" pb_range controls)
-        { MidiInst.extra_patches = MidiInst.with_empty_code patches }
+        { MidiInst.extra_patches = map MidiInst.with_empty_code patches }
 
 pb_range = (-96, 96)
 
