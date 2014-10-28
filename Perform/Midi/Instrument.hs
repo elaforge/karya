@@ -272,7 +272,7 @@ data Patch = Patch {
     -- The patch_instrument is not necessarily the same as the one eventually
     -- used in performance, because e.g. synth controls can get added in.
     patch_instrument :: !Instrument
-    , patch_scale :: !PatchScale
+    , patch_scale :: !(Maybe PatchScale)
     -- | This environ is merged into the derive environ when the instrument
     -- comes into scope, and also when the pitch of 'Score.Event's with this
     -- instrument is converted.  Typically it sets things like instrument
@@ -329,9 +329,9 @@ patch inst = Patch
 
 -- | If a patch is tuned to something other than 12TET, this vector maps MIDI
 -- key numbers to their NNs, or 0 if the patch doesn't support that key.
-type PatchScale = Maybe (Vector.Vector Double)
+type PatchScale = Vector.Vector Double
 
-empty_patch_scale :: Vector.Vector Double
+empty_patch_scale :: PatchScale
 empty_patch_scale = Vector.fromList $ replicate 128 0
 
 -- | Fill in non-adjacent MIDI keys by interpolating the neighboring
@@ -341,7 +341,7 @@ empty_patch_scale = Vector.fromList $ replicate 128 0
 -- but it's simpler to just not have patches like that.
 make_patch_scale :: [(Midi.Key, Pitch.NoteNumber)] -> PatchScale
 make_patch_scale keys =
-    Just $ empty_patch_scale Vector.// map convert (interpolate keys)
+    empty_patch_scale Vector.// map convert (interpolate keys)
     where
     convert (k, Pitch.NoteNumber nn) = (Midi.from_key k, nn)
     interpolate ((k1, nn1) : rest@((k2, nn2) : _))

@@ -322,7 +322,7 @@ wayang_patches = map (MidiInst.with_code (code <> with_weak))
         . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
         . (Instrument.attribute_map #= wayang_keymap) . flip patch []
     scale scale = (Instrument.text #= scale_doc)
-        . (Instrument.scale #= wayang_scale scale)
+        . (Instrument.scale #= Just (wayang_scale scale))
     scale_doc = "These set the scale and tuning automatically, and expect the\
         \ patch to be tuned to the instrument's natural scale."
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id

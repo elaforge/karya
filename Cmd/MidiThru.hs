@@ -118,7 +118,7 @@ midi_thru_instrument score_inst input = do
     mapM_ (uncurry Cmd.midi) thru_msgs
 
 -- | Realize the Input as a pitch in the given scale.
-map_scale :: Cmd.M m => Instrument.PatchScale -> Scale.Scale
+map_scale :: Cmd.M m => Maybe Instrument.PatchScale -> Scale.Scale
     -> TrackLang.Environ -- ^ Evaluate the pitch in this environ.  This is
     -- important because some scales change pitch based on environ.
     -> InputNote.Input -> m (Maybe InputNote.InputNn)
@@ -152,7 +152,7 @@ map_scale patch_scale scale environ input = case input of
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
     transposers = Set.toList (Scale.scale_transposers scale)
 
-map_patch_scale :: Instrument.PatchScale -> Pitch.NoteNumber
+map_patch_scale :: Maybe Instrument.PatchScale -> Pitch.NoteNumber
     -> Maybe Pitch.NoteNumber
 map_patch_scale Nothing = Just
 map_patch_scale (Just scale) = Instrument.convert_patch_scale scale

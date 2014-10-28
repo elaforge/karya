@@ -111,7 +111,7 @@ require_patch inst Nothing = do
 -- so maybe I want to put it back in again someday.
 convert_midi_pitch :: Instrument.Instrument -> TrackLang.Environ
     -- ^ The environ that the instrument itself implies.
-    -> Instrument.PatchScale
+    -> Maybe Instrument.PatchScale
     -> Instrument.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
     -> ConvertT (Instrument.Instrument, Signal.NoteNumber)
 convert_midi_pitch inst inst_environ patch_scale attr_map constant_pitch
@@ -214,8 +214,8 @@ convert_dynamic pressure controls dyn_function =
             -> Just dest
         _ -> Nothing
 
-convert_pitch :: Instrument.PatchScale -> TrackLang.Environ -> Score.ControlMap
-    -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
+convert_pitch :: Maybe Instrument.PatchScale -> TrackLang.Environ
+    -> Score.ControlMap -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale environ controls psig = do
     let (sig, nn_errs) = PitchSignal.to_nn $
             PitchSignal.apply_controls environ controls psig
@@ -234,7 +234,7 @@ convert_pitch scale environ controls psig = do
 round_pitch :: Signal.Y -> Signal.Y
 round_pitch nn = fromIntegral (round (nn * 1000)) / 1000
 
-convert_scale :: Instrument.PatchScale -> Signal.NoteNumber
+convert_scale :: Maybe Instrument.PatchScale -> Signal.NoteNumber
     -> (Signal.NoteNumber, [(Signal.X, Signal.Y)])
 convert_scale Nothing = flip (,) []
 convert_scale (Just scale) = Signal.map_err $ \(TimeVector.Sample x y) ->
