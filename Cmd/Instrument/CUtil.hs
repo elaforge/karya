@@ -59,18 +59,19 @@ notes_to_calls :: [Drums.Note] -> Map.Map Char TrackLang.CallId
 notes_to_calls notes =
     Map.fromList [(Drums.note_char n, Drums.note_name n) | n <- notes]
 
--- | Create a custom kbd entry cmd that inserts tracklang expressions at
--- the insertion point.  It also attempts to evaluate the expression to produce
--- MIDI thru.
---
--- This is more accurate and principled than what the usual kbd entry cmds do,
--- since it reuses the deriver and performer directly, while they recreate
--- the performer in an ad-hoc way, e.g. in "Cmd.MidiThru".  However, this
--- allows them to play chords and is thus more suitable for pitched
--- instruments.  Actually, what MidiThru recreates is the channel allocation
--- part of the performer, ultimately becasue the performer's allocator doesn't
--- work in real time.  Still, perhaps it would be possible to integrate them
--- better than I have.
+{- | Create a custom kbd entry cmd that inserts tracklang expressions at
+    the insertion point.  It also attempts to evaluate the expression to produce
+    MIDI thru.
+
+    This is more accurate and principled than what the usual kbd entry cmds do,
+    since it reuses the deriver and performer directly, while they recreate
+    the performer in an ad-hoc way, e.g. in "Cmd.MidiThru".  However, this
+    allows them to play chords and is thus more suitable for pitched
+    instruments.  Actually, what MidiThru recreates is the channel allocation
+    part of the performer, ultimately becasue the performer's allocator doesn't
+    work in real time.  Still, perhaps it would be possible to integrate them
+    better than I have.
+-}
 insert_expr :: Cmd.M m => Map.Map Char TrackLang.Expr -> Msg.Msg
     -> m Cmd.Status
 insert_expr char_to_expr msg = do
@@ -165,16 +166,23 @@ keyswitches inputs = \msg -> do
 
 -- * drums
 
+-- | Create an unpitched drum instrument.  This is an instrument with an
+-- enumeration of symbols and no pitch or duration.  Each key maps to its
+-- own symbol.
+simple_drum :: Maybe Score.Control -> [(Drums.Note, Midi.Key)]
+    -> Instrument.Patch -> MidiInst.Patch
+simple_drum tune_control note_keys patch =
+    MidiInst.with_code1 code (drum_patch note_keys patch)
+    where code = drum_code tune_control (map fst note_keys)
+
 -- ** code
 
 -- | Construct code from drum notes.  This is both the deriver calls to
 -- interpret the stroke names, and the cmds to enter them.
-drum_code :: Maybe Score.Control -- ^ If given, the instrument is considered
-    -- unpitched, and will be given middle C to tune with if able, and should
-    -- map that to the instrument's natural pitch.  If the given control is
-    -- set, it indicates semitone offsets above or below the natural pitch.
-    -- Actual pitched drums which are tuned to a definite note should be tuned
-    -- by setting the pitch track, as always.
+drum_code :: Maybe Score.Control -- ^ If given, this control indicates semitone
+    -- offsets above or below the natural pitch.  Actual pitched drums which
+    -- are tuned to a definite note should use 'pitched_drum_patch' and use a
+    -- pitch track.
     -> [Drums.Note] -> MidiInst.Code
 drum_code tuning_control notes =
     MidiInst.note_generators (drum_calls tuning_control notes)
@@ -230,10 +238,10 @@ make_attribute_map attr_map = Instrument.make_attribute_map $ Seq.unique
 -- "Cmd.Instrument.Drums".
 drum_calls :: Maybe Score.Control -> [Drums.Note]
     -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
-drum_calls maybe_tuning_control notes =
-    [(Drums.note_name n, note_call (Drums.note_dynamic n) (Drums.note_attrs n))
-        | n <- notes]
+drum_calls maybe_tuning_control = map make
     where
+    make note = (Drums.note_name note,
+        note_call (Drums.note_dynamic note) (Drums.note_attrs note))
     note_call dyn attrs = Note.note_call
         ("drum attrs: " <> ShowVal.show_val attrs) doc mempty $ \args ->
         with_dyn dyn $ Call.Util.add_attrs attrs $ with_tuning args $

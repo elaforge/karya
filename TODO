@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * shouldn't there be a combination?
+    MidiInst.with_code (CUtil.drum_notes notes) [CUtil.drum_patch notes patch]
   * Refactor.selection_relative at the end of the block creates a note that's
     too long.
     . It happens because I drag off the end of the block, and the selection
@@ -12,8 +14,8 @@ UNSORTED
     Scroll is until ruler, so where does it end?
     TrackTile::time_end, from Events.time_end
   - add Refactor.selection_alternates?
-  - clean up functions names in Ui.Id, e.g. un_id -> unpack
-    Maybe generic ones should be 'id', Id should be ident.
+    . name = selection_relative (name <> "1"); LBlock.copy True (name <> "2")
+      event_text = "alt -name1 -name2"
   - Rethink if I really want track event calls in TrackTime, rather than
     normalized time.  E.g. it's inconvenient that DUtil.zero_duration has
     to modify the event to set the note duration.
@@ -142,7 +144,7 @@ UNSORTED
       I could make it apply to a parallel kempyung or octave.
       . I'd need a fancier ngoret that understands 'inst-top' so it can go
         down if necessary.
-    - Gradually come in, could do omit with an omit signal that decreases.
+    * Gradually come in, could do omit with an omit signal that decreases.
   - it seems like "floating_input" would be a better name than "edit_input"
   - chained transformers should work lazily, right?  Make sure with trace.
     Probably not, actually, because the state is threaded through.  I'd have

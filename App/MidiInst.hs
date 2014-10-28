@@ -9,7 +9,7 @@ module App.MidiInst (
     , Patch
     , make
     -- * code
-    , Code(..), empty_code, with_code, with_empty_code
+    , Code(..), empty_code, with_code, with_code1, with_empty_code
     , Call
     , generator, transformer, both, note_calls
     , note_generators, note_transformers, null_call
@@ -104,8 +104,11 @@ instance Monoid.Monoid Code where
 empty_code :: Code
 empty_code = mempty
 
+with_code1 :: Code -> Instrument.Patch -> Patch
+with_code1 code patch = (patch, code)
+
 with_code :: Code -> [Instrument.Patch] -> [Patch]
-with_code code = map (\p -> (p, code))
+with_code = map . with_code1
 
 with_empty_code :: [Instrument.Patch] -> [Patch]
 with_empty_code = with_code empty_code

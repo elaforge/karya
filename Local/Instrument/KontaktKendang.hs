@@ -36,13 +36,13 @@ pb_range = (-24, 24)
 
 patches :: [MidiInst.Patch]
 patches =
-    [ (CUtil.pitched_drum_patch tunggal_notes $ inst "kendang", tunggal_code)
-    , (CUtil.drum_patch old_tunggal_notes $ inst "kendang-old", tunggal_code)
-    , (inst "kendang-pasang", pasang_code)
+    [ (CUtil.pitched_drum_patch tunggal_notes $ patch "kendang", tunggal_code)
+    , (CUtil.drum_patch old_tunggal_notes $ patch "kendang-old", tunggal_code)
+    , (patch "kendang-pasang", pasang_code)
     ]
     where
     tunggal_code = CUtil.drum_code (Just "kendang-tune") (map fst tunggal_notes)
-    inst name = Instrument.patch $ Instrument.instrument name [] pb_range
+    patch name = Instrument.patch $ Instrument.instrument name [] pb_range
 
 tunggal_notes :: CUtil.PitchedNotes
 tunggal_notes = do
@@ -90,7 +90,7 @@ tunggal_calls =
 
 -- | Mapping for the old kendang patches.
 old_tunggal_notes :: [(Drums.Note, Midi.Key)]
-old_tunggal_notes = map make_note
+old_tunggal_notes = map (first make_note)
     [ (plak, Key.g1)
     -- left
     , (pak, Key.c5)
@@ -112,10 +112,10 @@ old_tunggal_notes = map make_note
     , (tek, Key.c1)
     ]
     where
-    make_note (attrs, key) = (note, key)
-        where
-        note = Drums.Note call attrs char
+    make_note attrs =
+        Drums.Note call attrs char
             (if Score.attrs_contain attrs soft then 0.3 else 1)
+        where
         Just (char, call, _) =
             List.find (\(_, _, a) -> a == attrs) tunggal_calls
 

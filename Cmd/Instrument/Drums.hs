@@ -27,6 +27,9 @@ data Note = Note {
     , note_dynamic :: !Signal.Y
     } deriving (Show)
 
+note :: TrackLang.CallId -> Attributes -> Char -> Note
+note name attrs char = Note name attrs char 1
+
 instance Pretty.Pretty Note where
     format (Note name attrs char dyn) = Pretty.record "Note"
         [ ("name", Pretty.format name)
@@ -35,21 +38,21 @@ instance Pretty.Pretty Note where
         , ("dynamic", Pretty.format dyn)
         ]
 
-c_bd    = Note "bd"     bd              'z' 1
-c_bd2   = Note "bd2"    (bd <> v2)      's' 1
-c_sn    = Note "sn"     snare           'x' 1
-c_sn2   = Note "sn2"    (snare <> v2)   'd' 1
-c_rim   = Note "rim"    rim             'v' 1
-c_ltom  = Note "ltom"   (tom <> low)    'b' 1
-c_mtom  = Note "mtom"   (tom <> middle) 'n' 1
-c_htom  = Note "htom"   (tom <> high)   'm' 1
+c_bd    = note "bd"     bd              'z'
+c_bd2   = note "bd2"    (bd <> v2)      's'
+c_sn    = note "sn"     snare           'x'
+c_sn2   = note "sn2"    (snare <> v2)   'd'
+c_rim   = note "rim"    rim             'v'
+c_ltom  = note "ltom"   (tom <> low)    'b'
+c_mtom  = note "mtom"   (tom <> middle) 'n'
+c_htom  = note "htom"   (tom <> high)   'm'
 
 -- Also doubles as closed hh, if both exist.
-c_hh    = Note "hh"     hh              'q' 1
-c_ohh   = Note "ohh"    (open <> hh)    'w' 1
-c_phh   = Note "phh"    (pedal <> hh)   'e' 1
+c_hh    = note "hh"     hh              'q'
+c_ohh   = note "ohh"    (open <> hh)    'w'
+c_phh   = note "phh"    (pedal <> hh)   'e'
 
-c_ride  = Note "ride"   ride            't' 1
-c_crash = Note "crash"  crash           'y' 1
+c_ride  = note "ride"   ride            't'
+c_crash = note "crash"  crash           'y'
 
 -- TODO other drum style ornaments like double strikes, rolls, etc.

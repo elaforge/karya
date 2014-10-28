@@ -215,11 +215,27 @@ c_highlight_strings = Note.transformed_note
 
 sc_bali :: [MidiInst.Patch]
 sc_bali = MidiInst.with_empty_code
-    [ Instrument.text #= "Sonic Couture's Balinese gamelan sample set." $
+    [ with_doc $
         Instrument.attribute_map #= Instrument.simple_keyswitches gangsa_ks $
-        Instrument.patch $ Instrument.instrument "sc-gangsa12" [] (-2, 2)
-    ]
-    where gangsa_ks = [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
+        patch "sc-gangsa12"
+    ] ++ [CUtil.simple_drum Nothing gong_notes $ with_doc $ patch "sc-gong"]
+    where
+    patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
+    with_doc = Instrument.text #= "Sonic Couture's Balinese gamelan sample set."
+    gangsa_ks = [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
+    gong_notes = map make
+        [ ("O", gong <> wadon, Key2.b1, 'z')
+        , ("o", gong <> lanang, Key2.c2, 'x')
+        , ("p", kempur, Key2.a2, 'q')
+        , ("m", kemong, Key2.a3, 'w')
+        ]
+        where make (call, attrs, key, char) = (Drums.note call attrs char, key)
+
+gong = Score.attr "gong"
+kemong = Score.attr "kemong"
+kempur = Score.attr "kempur"
+wadon = Score.attr "wadon"
+lanang = Score.attr "lanang"
 
 misc :: [MidiInst.Patch]
 misc = MidiInst.with_code Reaktor.resonant_filter [patch "filtered" []]
