@@ -154,6 +154,17 @@ set_ruler_id ruler_id block_id = do
     old <- State.block_ruler block_id
     State.replace_ruler_id block_id old ruler_id
 
+-- | Copy the ruler of the given block to the current one.
+--
+-- TODO can I use Modify to replace Block, Section, or Track?  I'd need to
+-- extend Meter.ModifyRuler to support setting a RulerId.
+copy :: Cmd.M m => BlockId -> m ()
+copy other_block = do
+    other_ruler <- State.ruler_of other_block
+    this_block <- Cmd.get_focused_block
+    this_ruler <- State.block_ruler this_block
+    State.replace_ruler_id this_block this_ruler other_ruler
+
 -- | Replace the ruler.
 ruler :: Cmd.M m => Ruler.Ruler -> m Modify
 ruler r = do
@@ -184,6 +195,12 @@ get_marks :: State.M m => BlockId -> m [Ruler.PosMark]
 get_marks block_id =
     Ruler.ascending 0 . snd . Ruler.get_marklist Ruler.meter <$>
         (State.get_ruler =<< State.ruler_of block_id)
+
+-- | Ruler of the track under the selection.
+selected :: Cmd.M m => m RulerId
+selected = do
+    (block_id, tracknum, _, _) <- Selection.get_insert
+    Cmd.require "no ruler" =<< State.ruler_track_at block_id tracknum
 
 -- * Modify
 
