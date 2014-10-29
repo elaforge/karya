@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - ruler for balinese tracks should start from 0
+  - even though I sort events after derivation now, I still rely on them being
+    sorted, because of things like Post.same_hand.  It used to be out-of-order
+    would be reported by convert, but now it will just silently mess up
+    a postproc... is that really better?
+  * I should have a sus-abs transformer that does '%sus-abs=', so I can give it
+    default args, etc.
+  * emit KSP retune script so I don't need multiple VSTs
   * shouldn't there be a combination?
     MidiInst.with_code (CUtil.drum_notes notes) [CUtil.drum_patch notes patch]
   * Refactor.selection_relative at the end of the block creates a note that's

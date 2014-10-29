@@ -181,6 +181,7 @@ isep =
     , 96.46 -- ding, kantilan end
     ]
 
+-- | Add one octave on the bottom, so I get down to 1i, in the jegog, up to 6i.
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend nns = map (subtract 12) (take oct from_ding) ++ from_ding
     where

@@ -9,6 +9,7 @@
 module Local.Instrument.Kontakt where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import Util.Control
 import qualified Midi.CC as CC
@@ -38,6 +39,7 @@ import qualified Derive.Environ as Environ
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 import Derive.Score (attr)
@@ -50,7 +52,9 @@ import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
 import qualified Local.Instrument.KontaktKendang as KontaktKendang
+import qualified Local.Instrument.KontaktUtil as KontaktUtil
 import qualified Local.Instrument.Reaktor as Reaktor
+
 import qualified App.MidiInst as MidiInst
 
 
@@ -211,16 +215,41 @@ c_highlight_strings = Note.transformed_note
             Highlight.open_strings start Highlight.warn_non_open deriver
 
 sc_bali :: [MidiInst.Patch]
-sc_bali =
-    [ MidiInst.with_empty_code $ with_doc $
-        Instrument.attribute_map #= Instrument.simple_keyswitches gangsa_ks $
-        patch "sc-gangsa12"
-    , CUtil.simple_drum Nothing gong_notes $ with_doc $ patch "sc-gong"
-    ]
+sc_bali = map (first add_doc) $
+    CUtil.simple_drum Nothing gong_notes (sc_patch "sc-gong")
+    : map MidiInst.with_empty_code gangsa
+    ++ map (MidiInst.with_empty_code . reyong_ks)
+        (sc_patch "sc-reyong" : scale_variations "sc-reyong")
     where
-    patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
-    with_doc = Instrument.text #= "Sonic Couture's Balinese gamelan sample set."
-    gangsa_ks = [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
+    gangsa = map gangsa_ks $
+        sc_patch "sc-gangsa12" : scale_variations "sc-gangsa"
+    -- I don't need all these variations, since the tuning can be up to the
+    -- kontakt patch.  All I need is to emit the right MIDI key.  The
+    -- wayang and legong scales map to different keys, so they should be
+    -- separate, but the actual frequencies are up to the KSP script.
+    -- But at least the variations set the environ var, and it's not like they
+    -- hurt that much.
+    scale_variations name =
+        [ retuned_patch Wayang.scale_id Environ.umbang
+                (extended_wayang_scale Wayang.umbang) $
+            sc_patch (name <> "-wayang-umbang")
+        , retuned_patch Wayang.scale_id Environ.isep
+                (extended_wayang_scale Wayang.isep) $
+            sc_patch (name <> "-wayang-isep")
+        , retuned_patch Legong.scale_id Environ.umbang
+                (extended_legong_scale Legong.umbang) $
+            sc_patch (name <> "-legong-umbang")
+        , retuned_patch Legong.scale_id Environ.isep
+                (extended_legong_scale Legong.isep) $
+            sc_patch (name <> "-legong-isep")
+        ]
+
+    sc_patch name = Instrument.set_flag Instrument.ConstantPitch $
+        Instrument.patch $ Instrument.instrument name [] (-2, 2)
+    add_doc = Instrument.text
+        %= ("Sonic Couture's Balinese gamelan sample set. " <>)
+    gangsa_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
+        [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
     gong_notes = map make
         [ ("O", gong <> wadon, Key2.b1, 'z')
         , ("o", gong <> lanang, Key2.c2, 'x')
@@ -228,6 +257,8 @@ sc_bali =
         , ("m", kemong, Key2.a3, 'w')
         ]
         where make (call, attrs, key, char) = (Drums.note call attrs char, key)
+    reyong_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
+        [(Score.attr "cek", Key2.cs1), (mempty, Key2.c1)]
 
 gong = Score.attr "gong"
 kemong = Score.attr "kemong"
@@ -321,10 +352,11 @@ wayang_patches = map (MidiInst.with_code (code <> with_weak))
     wayang = Instrument.set_flag Instrument.ConstantPitch
         . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
         . (Instrument.attribute_map #= wayang_keymap) . flip patch []
-    scale scale = (Instrument.text #= scale_doc)
-        . (Instrument.scale #= Just (wayang_scale scale))
-    scale_doc = "These set the scale and tuning automatically, and expect the\
-        \ patch to be tuned to the instrument's natural scale."
+    scale nns = (Instrument.text #= doc)
+        . (Instrument.scale #= Just (wayang_scale nns))
+        where
+        doc = "These set the scale and tuning automatically, and expect the\
+            \ patch to be tuned to the instrument's natural scale."
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ Environ.tuning tuning
     set_range bottom top = MidiInst.environ Environ.instrument_bottom bottom
@@ -349,13 +381,52 @@ configure_wayang dev = do
     LInst.add "k-umbang" "kontakt/wayang-umbang" dev [3]
 
 wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
-wayang_scale scale = Instrument.make_patch_scale $ zip wayang_keys scale
+wayang_scale nns = Instrument.make_patch_scale $ zip (wayang_keys False) nns
 
-wayang_keys :: [Midi.Key]
-wayang_keys = take (5*3) $ drop 1 $ concatMap keys [0..]
+-- | A PatchScale for the extended wayang scale, that goes down to i1.
+extended_wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
+extended_wayang_scale nns =
+    Instrument.make_patch_scale $ zip (wayang_keys True) (Wayang.extend nns)
+
+extended_legong_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
+extended_legong_scale nns =
+    Instrument.make_patch_scale $ zip legong_keys (Legong.extend nns)
+
+legong_keys :: [Midi.Key]
+legong_keys = trim $ concatMap keys [3..]
     where
-    keys oct = map (Midi.to_key (oct * 12) +)
-        [Key2.e3, Key2.f3, Key2.a3, Key2.b3, Key2.c4]
+    trim = take (5*7 + 1)
+    keys oct = map (Midi.to_key (oct * 12) +) -- i o e e# u a a#
+        [Key.c_1, Key.d_1, Key.e_1, Key.f_1, Key.g_1, Key.a_1, Key.b_1]
+
+-- | If extended is True, emit i1 on up.  Otherwise, give pemade to kantilan
+-- range.
+wayang_keys :: Bool -> [Midi.Key]
+wayang_keys extended = trim $ concatMap keys [2..]
+    where
+    trim
+        | extended = take (7*5 + 1)
+        | otherwise = take (3*5) . drop (1 + 3*5)
+    keys oct = map (Midi.to_key (oct * 12) +) -- i o e u a
+        [Key2.e_2, Key2.f_2, Key2.a_2, Key2.b_2, Key2.c_1]
+
+-- | Debugging helper to see if scale degrees line up.
+annotate_scale :: [String] -> [Pitch.NoteNumber] -> [Midi.Key]
+    -> [((Midi.Key, Int), (Pitch.Octave, String), Pitch.NoteNumber)]
+annotate_scale notes nns keys = zip3 keynum_keys oct_notes nns
+    where
+    keynum_keys = zip keys (map Midi.from_key keys)
+    oct_notes = [(oct, note) | oct <- [1..], note <- notes]
+
+annot_legong = annotate_scale notes (Legong.extend Legong.umbang) legong_keys
+    where notes = ["i", "o", "e", "e#", "u", "a", "a#"]
+
+annot_wayang_extended =
+    annotate_scale notes (Wayang.extend Wayang.umbang) (wayang_keys True)
+    where notes = map (:"") "ioeua"
+
+annot_wayang = annotate_scale notes Wayang.umbang (wayang_keys False)
+    where notes = map (:"") "ioeua"
 
 wayang_keymap :: Instrument.AttributeMap
 wayang_keymap = Instrument.AttributeMap
@@ -366,6 +437,33 @@ wayang_keymap = Instrument.AttributeMap
     keymap = Just $
         Instrument.PitchedKeymap Key2.c_1 Key2.b2 (Midi.from_key Key2.c3)
 
+-- * retuned patch
+
+retuned_patch :: Pitch.ScaleId -> Text -> Instrument.PatchScale
+    -> Instrument.Patch -> Instrument.Patch
+retuned_patch scale_id tuning patch_scale =
+    MidiInst.default_scale scale_id . MidiInst.environ Environ.tuning tuning
+    . (Instrument.text #= doc) . (Instrument.scale #= Just patch_scale)
+    where
+    doc = "The instrument is expected to tune to the scale using the\
+        \ generated KSP."
+
+-- | Write KSP to retune a 12TET patch.
+write_ksp :: IO ()
+write_ksp = mapM_ (uncurry Text.IO.writeFile) $
+    [ ("wayang-umbang.ksp.txt",
+        KontaktUtil.tuning_ksp "wayang umbang" $
+        extended_wayang_scale Wayang.umbang)
+    , ("wayang-isep.ksp.txt",
+        KontaktUtil.tuning_ksp "wayang isep" $
+        extended_wayang_scale Wayang.isep)
+    , ("legong-umbang.ksp.txt",
+        KontaktUtil.tuning_ksp "legong umbang" $
+        extended_legong_scale Legong.umbang)
+    , ("legong-isep.ksp.txt",
+        KontaktUtil.tuning_ksp "legong isep" $
+        extended_legong_scale Legong.isep)
+    ]
 
 -- * mridangam
 

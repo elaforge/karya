@@ -119,7 +119,9 @@ isep =
     , 86.78 -- kantilan end
     ]
 
--- | pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
+-- | Extend down two octaves so that I start at 1i, and up two octaves to 8i.
+--
+-- pemade starts at 3o - 4i - 5i, kanti is 4o - 5i - 6i
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend nns =
     ding - 36 : map (subtract 24) low ++ map (subtract 12) low
