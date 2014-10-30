@@ -92,7 +92,7 @@ module Ui.State (
     , modify_track_flags
     , set_track_ruler
     , merge_track, unmerge_track, set_merged_tracks
-    , replace_ruler_id
+    , set_ruler_ids, replace_ruler_id
     , get_tracklike
 
     -- * track
@@ -962,6 +962,19 @@ set_merged_tracks :: M m => BlockId -> TrackNum -> Set.Set TrackId -> m ()
 set_merged_tracks block_id tracknum merged =
     modify_block_track block_id tracknum $ \btrack ->
         btrack { Block.track_merged = merged }
+
+-- | Set rulers, one per track.
+set_ruler_ids :: M m => BlockId -> [Maybe RulerId] -> m ()
+set_ruler_ids block_id ruler_ids = modify_block block_id $ \block -> block
+    { Block.block_tracks =
+        map set (zip (Block.block_tracks block) (ruler_ids ++ repeat Nothing))
+    }
+    where
+    set (track, Just ruler_id) = track
+        { Block.tracklike_id =
+            Block.set_ruler_id ruler_id (Block.tracklike_id track)
+        }
+    set (track, Nothing) = track
 
 -- | Replace one RulerId with another on the given block.
 --

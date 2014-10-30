@@ -60,6 +60,7 @@ import qualified Data.Text as Text
 
 import Util.Control
 import qualified Util.Seq as Seq
+import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -157,15 +158,32 @@ set_ruler_id ruler_id block_id = do
     State.replace_ruler_id block_id old ruler_id
 
 -- | Copy the ruler of the given block to the current one.
---
--- TODO can I use Modify to replace Block, Section, or Track?  I'd need to
--- extend Meter.ModifyRuler to support setting a RulerId.
 copy :: Cmd.M m => BlockId -> m ()
 copy other_block = do
     other_ruler <- State.ruler_of other_block
     this_block <- Cmd.get_focused_block
     this_ruler <- State.block_ruler this_block
     State.replace_ruler_id this_block this_ruler other_ruler
+
+-- | Set the ruler of the tracks in the given scope.
+set :: State.M m => RulerId -> BlockId -> RulerUtil.Scope -> m ()
+set ruler_id block_id scope = do
+    ruler_ids <- case scope of
+        RulerUtil.Block -> do
+            count <- State.track_count block_id
+            return $ replicate count (Just ruler_id)
+        RulerUtil.Section tracknum -> replace_tracknums
+            =<< map fst <$> RulerUtil.get_section block_id tracknum
+        RulerUtil.Tracks tracknums -> replace_tracknums tracknums
+    State.set_ruler_ids block_id ruler_ids
+    where
+    replace_tracknums tracknums = do
+        old <- map Block.ruler_id_of . Block.block_tracklike_ids <$>
+                State.get_block block_id
+        let replace tracknum old_ruler
+                | tracknum `elem` tracknums = Just ruler_id
+                | otherwise = old_ruler
+        return $ zipWith replace [0..] old
 
 -- | Replace the ruler.
 ruler :: Cmd.M m => Ruler.Ruler -> m Modify

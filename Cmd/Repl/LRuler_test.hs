@@ -32,7 +32,7 @@ test_extract = do
     equal (e_ruler bid ui_state) [(0, 0)]
     res <- CmdTest.run_ui_io ui_state $ do
         CmdTest.set_sel_on vid 1 0 1 0
-        LRuler.modify =<< LRuler.extract
+        LRuler.modify LRuler.extract
     equal (CmdTest.result_val res) (Right (Just ()))
     equal (e_ruler bid (CmdTest.result_ui_state res))
         [ (0, 2.5), (1, 2.5), (1, 2.5), (1, 2.5)
