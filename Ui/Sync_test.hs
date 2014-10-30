@@ -425,7 +425,7 @@ thread setup tests = do
         return state
 
 match_dumps :: String -> [Dump.Dump] -> [[(String, String)]] -> IO Bool
-match_dumps desc dumps attrs = allM match (Seq.padded_zip dumps attrs)
+match_dumps desc dumps attrs = allM match (Seq.zip_padded dumps attrs)
     where
     match (Seq.Second attrs) =
         fail $ "view missing for attrs: " ++ show attrs

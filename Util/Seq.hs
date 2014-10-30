@@ -342,17 +342,17 @@ paired_first (Both a _) = Just a
 
 -- | Like 'zip', but emit 'First's or 'Second's if the list lengths are
 -- unequal.
-padded_zip :: [a] -> [b] -> [Paired a b]
-padded_zip [] [] = []
-padded_zip [] bs = map Second bs
-padded_zip as [] = map First as
-padded_zip (a:as) (b:bs) = Both a b : padded_zip as bs
+zip_padded :: [a] -> [b] -> [Paired a b]
+zip_padded [] [] = []
+zip_padded [] bs = map Second bs
+zip_padded as [] = map First as
+zip_padded (a:as) (b:bs) = Both a b : zip_padded as bs
 
 -- | Like 'zip', but the second list is padded with Nothings.
-zip_padded2 :: [a] -> [b] -> [(a, Maybe b)]
-zip_padded2 [] _ = []
-zip_padded2 (x:xs) (y:ys) = (x, Just y) : zip_padded2 xs ys
-zip_padded2 (x:xs) [] = [(x, Nothing) | x <- x : xs]
+zip_padded_snd :: [a] -> [b] -> [(a, Maybe b)]
+zip_padded_snd [] _ = []
+zip_padded_snd (x:xs) (y:ys) = (x, Just y) : zip_padded_snd xs ys
+zip_padded_snd (x:xs) [] = [(x, Nothing) | x <- x : xs]
 
 -- | Return the reversed inits paired with the tails.  This is like a zipper
 -- moving focus along the input list.

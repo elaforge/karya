@@ -178,7 +178,7 @@ strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO Bool
 strings_like_srcpos srcpos gotten expected
     | null gotten && null expected = success_srcpos srcpos "[] =~ []"
     | otherwise = foldl (&&) True <$>
-        mapM string_like (zip [0..] (Seq.padded_zip gotten expected))
+        mapM string_like (zip [0..] (Seq.zip_padded gotten expected))
     where
     string_like (n, Seq.Second reg) = failure_srcpos srcpos $
         show n ++ ": gotten list too short: expected " ++ show reg

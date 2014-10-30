@@ -318,7 +318,7 @@ pair_tracks :: [Maybe TrackId] -- ^ tracks in the block, in tracknum order
     -> Convert.Tracks -> [Block.DeriveDestination] -> [[TrackPair]]
 pair_tracks track_ids tracks dests = map (filter is_valid) $
     snd $ List.mapAccumL resolve1 (length track_ids) $ map pairs_of $
-        Seq.padded_zip tracks dests
+        Seq.zip_padded tracks dests
     where
     -- Pair up the tracks.
     pairs_of (Seq.First (note, controls)) = map Seq.First (note : controls)

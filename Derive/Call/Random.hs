@@ -103,7 +103,7 @@ c_alternate_tracks = Derive.make_call Module.prelude "alternate-tracks"
         subs <- Sub.sub_events args
         let err =  "more weights than tracks: " <> show (length weights)
                 <> " > " <> show (length subs) <> " tracks"
-        sub_weights <- mapM (pair err) $ Seq.padded_zip subs weights
+        sub_weights <- mapM (pair err) $ Seq.zip_padded subs weights
         case NonEmpty.nonEmpty sub_weights of
             Nothing -> return mempty
             Just sub_weights ->

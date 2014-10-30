@@ -443,7 +443,7 @@ strip_prefixes replacement =
     where
     strip (prev, cur) =
         [ if Just c == mp then replacement else c
-        | (c, mp) <- Seq.zip_padded2 cur (fromMaybe [] prev)
+        | (c, mp) <- Seq.zip_padded_snd cur (fromMaybe [] prev)
         ]
 
 -- | Apply the labels according to the ranks.  Each Rank input has
