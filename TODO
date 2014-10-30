@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - meter type and the construction functions should be integrated more tightly
   - ruler labels don't seem to be that useful, maybe I should simplify by
     only labelling the measure and quarter ranks.
   - ruler display should clip the right side, not the left

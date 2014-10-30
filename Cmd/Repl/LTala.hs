@@ -21,8 +21,8 @@ chatusram_to_tisram = do
     ModifyEvents.selection $
         ModifyEvents.event $ LEvent.stretch_event start (2/3)
     let dur = (end - start) * (2/3)
-    LRuler.local =<< LRuler.modify_selected
-        (LRuler.replace_range start (start + dur) (Tala.adi3 10))
+    LRuler.local $ LRuler.modify_selected $
+        LRuler.replace_range start (start + dur) (Tala.adi3 10)
     -- Delete final 1/3.
     Edit.delete_block_time block_id (start + dur) end
 

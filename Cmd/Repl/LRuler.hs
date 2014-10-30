@@ -29,17 +29,17 @@
     - Give the current block 6 sections of standard 4/4 meter, with 4 measures
     per section, where each measure gets 1t:
 
-        > LRuler.local =<< LRuler.ruler (LRuler.measures 1 Meters.m44 6 4)
+        > LRuler.local $ LRuler.ruler $ LRuler.measures 1 Meters.m44 6 4
 
     - Or if you want each quarter note to get 1t, and 8 sections with
     4 measures per section:
 
-        > LRuler.local =<< LRuler.ruler (LRuler.measures 4 Meters.m44 8 4)
+        > LRuler.local $ LRuler.ruler $ LRuler.measures 4 Meters.m44 8 4
 
-    - Or put the selection at the where the 4 meters should end and run
+    - Or put the selection at the where the 4 meters should end, then:
 
-        > LRuler.local =<< LRuler.ruler
-        >       (LRuler.fit_to_selection LRuler.config Meter.m44)
+        > LRuler.local $ LRuler.ruler $
+        >       LRuler.fit_to_selection LRuler.config Meter.m44
 
     - Make the last measure 5/4 by selecting a quarter note and running
       @LRuler.append@.
@@ -49,8 +49,8 @@
     - Set a block to 4 sections of 4 avartanams of adi talam, then select
     tracks and set them to chatusram-tisram:
 
-        > LRuler.modify =<< LRuler.ruler (Tala.ruler $ Tala.adi 4)
-        > LRuler.local =<< LRuler.tracks =<< LRuler.ruler (LTala.chatis 4 4 4)
+        > LRuler.modify $ LRuler.ruler $ Tala.ruler $ Tala.adi 4
+        > LRuler.local $ LRuler.tracks $ LRuler.ruler $ LTala.chatis 4 4 4
 -}
 module Cmd.Repl.LRuler where
 import Prelude hiding (concat)
@@ -259,14 +259,14 @@ strip_ranks max_rank =
     modify_selected $ Meter.strip_ranks (Meter.name_to_rank max_rank)
 
 -- | Set the ruler to a number of measures of the given meter, where each
--- measure is the given amount of time.  For example:
+-- measure gets 1t:
 --
--- > local_ruler $ measures 1 Meters.m44 4 4
--- > modify_ruler $ measures 1 Meters.m34 4 8
-measures :: TrackTime -> Meter.AbstractMeter -> Int -- ^ sections
+-- > local $ measures Meters.m44 4 4
+-- > modify $ measures Meters.m34 4 8
+measures :: Meter.AbstractMeter -> Int -- ^ sections
     -> Int -- ^ measures per section
     -> Ruler.Ruler
-measures = make_measures config
+measures = make_measures config 1
 
 make_measures :: Meter.MeterConfig -> TrackTime -- ^ duration of one measure
     -> Meter.AbstractMeter
@@ -350,14 +350,17 @@ extract_calls block_id track_id =
 
 -- | Modify only the selected tracks, or the entire block.  'Section' is the
 -- default.
-tracks :: Cmd.M m => Modify -> m Modify
+tracks :: Cmd.M m => m Modify -> m Modify
 tracks modify = do
+    modify <- modify
     (_, tracknums, _, _, _) <- Selection.tracks
     return $ modify { m_scope = RulerUtil.Tracks tracknums }
 
 -- | Modify the entire block.
-block :: Cmd.M m => Modify -> m Modify
-block modify = return $ modify { m_scope = RulerUtil.Block }
+block :: Cmd.M m => m Modify -> m Modify
+block modify = do
+    modify <- modify
+    return $ modify { m_scope = RulerUtil.Block }
 
 -- | Enough information to modify a ruler.
 --
@@ -383,17 +386,23 @@ get_block_track = do
     (block_id, tracknum, _, _) <- Selection.get_insert
     return (block_id, tracknum)
 
+local :: Cmd.M m => m Modify -> m [RulerId]
+local = (local_m =<<)
+
+modify :: Cmd.M m => m Modify -> m ()
+modify = (modify_m =<<)
+
 -- | Modify a ruler or rulers, making a copy if they're shared with another
 -- block.
 --
 -- TODO invalidate performances?
-local :: Modify -> Cmd.CmdL [RulerId]
-local (Modify block_id scope modify) = RulerUtil.local scope block_id modify
+local_m :: Cmd.M m => Modify -> m [RulerId]
+local_m (Modify block_id scope modify) = RulerUtil.local scope block_id modify
 
 -- | Modify the ruler on the focused block.  Other blocks with the same ruler
 -- will also be modified.
-modify :: Modify -> Cmd.CmdL ()
-modify (Modify block_id scope modify) = RulerUtil.modify scope block_id modify
+modify_m :: Cmd.M m => Modify -> m ()
+modify_m (Modify block_id scope modify) = RulerUtil.modify scope block_id modify
 
 
 -- * cue
