@@ -38,7 +38,8 @@
 
     - Or put the selection at the where the 4 meters should end and run
 
-        > LRuler.local =<< LRuler.ruler (LRuler.fit_to_selection Meter.m44 1)
+        > LRuler.local =<< LRuler.ruler
+        >       (LRuler.fit_to_selection LRuler.config Meter.m44)
 
     - Make the last measure 5/4 by selecting a quarter note and running
       @LRuler.append@.
@@ -265,35 +266,39 @@ strip_ranks max_rank =
 measures :: TrackTime -> Meter.AbstractMeter -> Int -- ^ sections
     -> Int -- ^ measures per section
     -> Ruler.Ruler
-measures = measures_at 1
+measures = make_measures config
 
-measures_at :: Int -- ^ first measure number, e.g. 0 for a pickup
-    -> TrackTime -- ^ duration of one measure
+make_measures :: Meter.MeterConfig -> TrackTime -- ^ duration of one measure
     -> Meter.AbstractMeter
     -> Int -- ^ sections
     -> Int -- ^ measures per section
     -> Ruler.Ruler
-measures_at first_measure_number dur meter sections measures =
-    fit_ruler (dur * fromIntegral (measures * sections))
+make_measures config dur meter sections measures =
+    fit_ruler config (dur * fromIntegral (measures * sections))
         (replicate sections (Meter.repeat measures meter))
-        first_measure_number
 
 -- | Create a meter ruler fitted to the end of the last event on the block.
-fit_to_end :: State.M m => [Meter.AbstractMeter] -> Int -> BlockId
-    -> m Ruler.Ruler
-fit_to_end meter first_measure_number block_id = do
+fit_to_end :: State.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
+    -> BlockId -> m Ruler.Ruler
+fit_to_end config meter block_id = do
     end <- State.block_event_end block_id
-    return $ fit_ruler end meter first_measure_number
+    return $ fit_ruler config end meter
 
-fit_to_selection :: Cmd.M m => [Meter.AbstractMeter] -> Int -> m Ruler.Ruler
-fit_to_selection meter first_measure_number = do
+config :: Meter.MeterConfig
+config = Meter.default_config
+
+fit_to_selection :: Cmd.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
+    -> m Ruler.Ruler
+fit_to_selection config meter = do
     (_, _, _, pos) <- Selection.get_insert
-    return $ fit_ruler pos meter first_measure_number
+    return $ fit_ruler config pos meter
 
 -- | Make a ruler fit in the given duration.
-fit_ruler :: ScoreTime -> [Meter.AbstractMeter] -> Int -> Ruler.Ruler
-fit_ruler dur meters first_measure_number =
-    Meters.ruler $ Meter.meter_marklist first_measure_number $
+fit_ruler :: Meter.MeterConfig -> ScoreTime -> [Meter.AbstractMeter]
+    -> Ruler.Ruler
+fit_ruler config dur meters =
+    (if Meter.meter_from0 config then Meters.ruler0 else Meters.ruler) $
+    Meter.meter_marklist config $
     Meter.fit_meter (Meter.time_to_duration dur) meters
 
 -- | Replace the meter with the concatenation of the rulers of the given

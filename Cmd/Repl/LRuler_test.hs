@@ -17,6 +17,7 @@ import Types
 
 
 test_extract = do
+    let meter_ruler = RulerUtil.meter_ruler Meter.default_config
     let ((vid, bid), ui_state) = UiTest.run State.empty $ do
             [top, b1, b2] <- UiTest.mkblocks
                 [ ("top", [(">", [(0, 10, "b1"), (10, 6, "b2")])])
@@ -24,12 +25,9 @@ test_extract = do
                 , ("b2", [])
                 ]
             vid <- Create.unfitted_view top
-            Create.new_ruler top "r.top" $
-                RulerUtil.meter_ruler 1 16 []
-            Create.new_ruler b1 "r.b1" $
-                RulerUtil.meter_ruler 1 16 [Meter.repeat 4 Meter.T]
-            Create.new_ruler b2 "r.b2" $
-                RulerUtil.meter_ruler 1 16 [Meter.repeat 3 Meter.T]
+            Create.new_ruler top "r.top" $ meter_ruler 16 []
+            Create.new_ruler b1 "r.b1" $ meter_ruler 16 [Meter.repeat 4 Meter.T]
+            Create.new_ruler b2 "r.b2" $ meter_ruler 16 [Meter.repeat 3 Meter.T]
             return (vid, top)
     equal (e_ruler bid ui_state) [(0, 0)]
     res <- CmdTest.run_ui_io ui_state $ do

@@ -23,9 +23,10 @@ import Types
 -- * constructors
 
 -- | Create a ruler with a meter of the given duration.
-meter_ruler :: Int -> Meter.Duration -> [Meter.AbstractMeter] -> Ruler.Ruler
-meter_ruler start_at dur meters = Ruler.meter_ruler (Just Meter.mtype_meter) $
-    Meter.meter_marklist start_at (Meter.fit_meter dur meters)
+meter_ruler :: Meter.MeterConfig -> Meter.Duration -> [Meter.AbstractMeter]
+    -> Ruler.Ruler
+meter_ruler config dur meters = Ruler.meter_ruler (Just Meter.mtype_meter) $
+    Meter.meter_marklist config (Meter.fit_meter dur meters)
 
 -- | Replace or add a marklist with the given name.
 set_marklist :: State.M m => RulerId -> Ruler.Name -> Maybe Ruler.MeterType

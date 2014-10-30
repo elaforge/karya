@@ -162,7 +162,7 @@ tala_labels (Tala angas jati) = concatMap mk angas
     mk anga = case anga of
         Clap n -> "X" : replicate (n-1) "-"
         Wave n -> "O" : replicate (n-1) "-"
-        I -> take jati Meter.count0
+        I -> take jati (Meter.count 0)
         O -> ["X", "O"]
         U -> ["X"]
 
@@ -173,4 +173,4 @@ make_labels aksharas =
     , numbers -- nadai / gati
     , numbers, numbers, numbers, numbers
     ]
-    where numbers = Meter.count1
+    where numbers = Meter.count 1

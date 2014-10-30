@@ -3,7 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - ruler for balinese tracks should start from 0
+  - ruler labels don't seem to be that useful, maybe I should simplify by
+    only labelling the measure and quarter ranks.
+  - ruler display should clip the right side, not the left
+  * ruler for balinese tracks should start from 0
   - even though I sort events after derivation now, I still rely on them being
     sorted, because of things like Post.same_hand.  It used to be out-of-order
     would be reported by convert, but now it will just silently mess up
