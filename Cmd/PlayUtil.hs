@@ -7,7 +7,7 @@
 module Cmd.PlayUtil (
     initial_environ
     , cached_derive, uncached_derive
-    , clear_cache, clear_all_caches
+    , clear_cache, clear_caches
     , derive_block, run, run_with_dynamic
     , get_constant
     -- * perform
@@ -100,8 +100,8 @@ clear_cache block_id = Cmd.modify_play_state $ \st -> st
     }
     where delete = Map.delete block_id
 
-clear_all_caches :: Cmd.M m => m ()
-clear_all_caches = Cmd.modify_play_state $ \st -> st
+clear_caches :: Cmd.M m => m ()
+clear_caches = Cmd.modify_play_state $ \st -> st
     { Cmd.state_performance = mempty
     , Cmd.state_current_performance = mempty
     , Cmd.state_performance_threads = mempty
