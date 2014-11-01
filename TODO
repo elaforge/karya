@@ -4,123 +4,21 @@ LEGEND
 
 UNSORTED
   - meter type and the construction functions should be integrated more tightly
-  / ruler labels don't seem to be that useful, maybe I should simplify by
-    only labelling the measure and quarter ranks.  Or omit section level
-    numbers?
-  * ruler for balinese tracks should start from 0
   - even though I sort events after derivation now, I still rely on them being
     sorted, because of things like Post.same_hand.  It used to be out-of-order
     would be reported by convert, but now it will just silently mess up
     a postproc... is that really better?
-  * I should have a sus-abs transformer that does '%sus-abs=', so I can give it
-    default args, etc.
-  * emit KSP retune script so I don't need multiple VSTs
-  * shouldn't there be a combination?
-    MidiInst.with_code (CUtil.drum_notes notes) [CUtil.drum_patch notes patch]
-  * Refactor.selection_relative at the end of the block creates a note that's
-    too long.
-    . It happens because I drag off the end of the block, and the selection
-      continues.  Simplest is to disallow selection without the ruler.  If
-      I want to not snap, I can cmd drag.
-  * And the created blocks scroll below where they should.
-    Scroll is until ruler, so where does it end?
-    TrackTile::time_end, from Events.time_end
   - add Refactor.selection_alternates?
     . name = selection_relative (name <> "1"); LBlock.copy True (name <> "2")
       event_text = "alt -name1 -name2"
   - Rethink if I really want track event calls in TrackTime, rather than
     normalized time.  E.g. it's inconvenient that DUtil.zero_duration has
     to modify the event to set the note duration.
-  * save/wayang/sketch1 weak notes should play all open when strength=1, why
-    not?
-    . Because the notes are zero dur even so.  So eval to the next note, but
-      then I need to be a generator, or to change the dur.  For the latter
-      I think I need to be in track time, but it seems like weak should be
-      a generator.  But then I need to have zero duration take a separate
-      generator for zero dur. Maybe I want that anyway?
-  * if . is symbol char, then I don't need quotes around alt '.a' '.b'
-    But then it looks like a number.  Why not use '-' as the divider?
-  * should be able to merge pitch or control to the right of a note track, not
-    just pitch
-  * remove event text rotation, I don't think I'll ever want it
-  * Block.track_merged becomes a Set
-  * double-click could look for Symbols, and try to open relative or absolute
-    blocks, then it could open "alt '.a1' '.a2'"
-  * LView.create "abc" which does the same thing
-  * shift-click on a collapsed track uncollapses, but if it's a merged track,
-    the merge is still present
-  * It's hard to replace a 'dyn' track if they combine via merge, since
-    I can't counteract it.  Maybe I can do 'dyn | e-unless no-dyn', and then
-    call like 'no-dyn=t | block'.  But as with 'when-ly', a deriver can't
-    skip a track.
-    . Use this to remove crescendo in cerucuk-punyah, @part2, last @b4a
-  * apply-start-offset should not move past previous or next events
-  * I can get rid of Derive.info_inverted
-  * The last event gets infer-duration, but it should be at the block end.
-    How about, track puts RealTime track start and end in Environ, then I can
-    check against that.  But really I want if it's at the ScoreTime 0 and end.
-    . fst . Args.range_on_track should be correct even for Util.note created
-      notes.
-  * fltk: wrapping for rank>0 event text?
-    . rank >0 text is allowed to overlap rank 0, and it wraps in the same way,
-      just aligns to the right.
-    . If it's unreadable that way, then wrap rank 1 to the right edge of rank
-      0, and hide if there isn't enough room.
-  * fltk: 0 dur events with no text are hard to see
-  / maybe non-0 dur events with no text should also have arrows
-    Not convenient to implement because rank>0 text is drawn separately.
-  * Convert.convert_pitch converts too much, since transpose signals now
-    extend beyond the end of the event.
-    . pitch out of range error: when played via set-kantilan on i5 88.73
-      But when played by itself as i6 it's 86.88, which is correct.
-    . proper MIDI nn is 100
-    . set-kantilan still winds up as >p-isep?
-    . pitch = <106.14s:72.1nn,4a(*wayang)>
-      pitch = <106.28s:74.83nn,5i(*wayang)>
-      , %t-dia: < 104.85s:5, 131.71s:6, 150s:5 >
-    . due to the t-dia later on
-  / double click in block header not above a track doesn't open the block text
-    input
-    . wait, now it works
-    . It has UiMsg.SkeletonDisplay if track_type /= track_none && not has_pos.
-      has_pos is p=ScoreTime(n), track_type is e.g. normal=5
-  * derive performance takes much longer in the app then standalone
-    e.g. in cerucuk-punyah.git:
-    . Previously, a tempo change that invalidated the whole cache could
-      sometimes take 35s--50s to rederive, even though a complete rederive
-      only takes 11s!
-    . Even 11s is 3x more than verify_performance's 2.7s.
-    . Even when forcing everything, there's still a 4x difference between 4s
-      and 15s.
-    * Use Responder_test to directly drive the responder?
-      . Now it's 5s.  Still not 15s, or 50s.
-      . It seems to happen when there are cancelled derives, maybe they are
-        not truly cancelled?
-      . The threads do die, but maybe it's from something put in the
-        performances... e.g. the cache?
-    . That was it, I can't use current perfs for the rederive.
-    - Still, 15s is much longer than 5s for the responder-using test, why the
-      difference?
 
-  complete rederive when I modify tempo near the end
-    * Due to the dyn track, and solved by inserting ' calls.  I should have an
-      automatic way to work around this.
-      . Namely, control damage shouldn't expand if I know the control call
-        won't be affected by the control change.
-      . Or I could not expand control damage at all.
-  * save/wayang/bug-bad-pitch
-    . It's because the t-dia control is not trimmed, so a note gets a bend
-      aferwards.
-    . If the note start is moved, then controls move back, so things that used
-      to be past the end are now before it.
   - I should be able to move samples only when converting to MIDI, this way
     I don't need to move parts of the signal that wind up being trimmed.
     Either try to trim the signal earlier again, or delay transformation to
     Perform.
-  * Midi thru should probably ignore t-* transpose signals.  Otherwise the
-    sounding pitch doesn't match the entered pitch.
-  * Maybe track GC should be automatic, so I don't have to remember to call
-    LTrack.gc all the time.  Same for rulers?
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
   - fix control scope in parent events that cover up an orphan, as
@@ -137,26 +35,12 @@ UNSORTED
     - randomization should be centered on a value, with variance as a signal,
       so I can turn accuracy up or down.
   wayang
-    * end of p4 is now broken, ngoret to last note winds up muting it
-      This could cause lots of channel splitting if there are repeated notes
-    - fltk/EventTrack.cc:107 sample time decreased: 24 <= 24
-      fltk/EventTrack.cc:107 sample time decreased: 64 <= 64
     - Automatically fill in weak notes?
-    * Weak notes are either omitted, +muted soft, +mute normal, half mute, or
-      open soft.  I can have a %strength signal that indicates how weak notes
-      are played, and then have various calls that are random but biased
-      toward a particular value.
-      . Maybe I should have zero dur notes be weak?
-    * make zero dur notes weak| instead of +mute+loose
-      . zero-duration-transform can't be a general transform, because it can't
-        tell if notes are zero dur.  Make a null note call that only applies
-        if it's not a block-final event?
     - many double strikes or ngoret tones land a bit ahead of the beat
     - I want some optional ngoret to happen the same way in both hands.
       I could make it apply to a parallel kempyung or octave.
       . I'd need a fancier ngoret that understands 'inst-top' so it can go
         down if necessary.
-    * Gradually come in, could do omit with an omit signal that decreases.
   - it seems like "floating_input" would be a better name than "edit_input"
   - chained transformers should work lazily, right?  Make sure with trace.
     Probably not, actually, because the state is threaded through.  I'd have
@@ -1177,7 +1061,6 @@ Perform:
     - some basic midi instrument defs for generic midi (dev, patch)
 
 Instrument DB / browser:
-  * instrument display is totally messed up, how did that happen?
   - Fl_Help_View supports limited HTML, use it to display formatted help
   - browser has lots of empty space on the bottom
   - z1/virus-bass has UnknownMessage for initialization?
