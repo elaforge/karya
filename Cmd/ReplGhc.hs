@@ -107,7 +107,6 @@ interpreter (Session chan) = do
     colon_cmd :: String -> Ghc Cmd
     colon_cmd "r" = make_response <$> reload
     colon_cmd "R" = make_response <$> reload
-    -- colon_cmd ('b' : mods) = return <$> browse toplevel (words mods)
     colon_cmd colon = return $ return $
         ReplUtil.raw $ "Unknown colon command: " <> showt colon
 

@@ -98,7 +98,6 @@ import qualified Perform.RealTime as RealTime
 import qualified Instrument.Db as Db
 
 import Cmd.Repl.Global
-import qualified Local.Instrument.Spicy as Spicy
 
 import qualified App.Config as Config
 import Types

@@ -22,6 +22,7 @@ import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Repl.LInst as LInst
+import qualified Cmd.Repl.Util as Repl.Util
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -243,7 +244,6 @@ sc_bali = map (first add_doc) $
                 (extended_legong_scale Legong.isep) $
             sc_patch (name <> "-legong-isep")
         ]
-
     sc_patch name = Instrument.set_flag Instrument.ConstantPitch $
         Instrument.patch $ Instrument.instrument name [] (-2, 2)
     add_doc = Instrument.text
@@ -268,6 +268,26 @@ lanang = Score.attr "lanang"
 
 misc :: [MidiInst.Patch]
 misc = [MidiInst.with_code Reaktor.resonant_filter $ patch "filtered" []]
+
+configure_legong :: Midi.Channel -> Midi.Channel -> Text -> Cmd.CmdL ()
+configure_legong pemade_chan kantilan_chan dev = do
+    configure "pemade" pemade_chan Legong.pemade_bottom Legong.pemade_top
+    configure "kantilan" kantilan_chan
+        Legong.kantilan_bottom Legong.kantilan_top
+    where
+    configure name chan bottom top = do
+        LInst.add name "kontakt/sc-gangsa12" "" []
+        set_pasang name
+        set_range name bottom top
+        LInst.add (name <> "-p") "kontakt/sc-gangsa-legong-umbang" dev [chan]
+        LInst.add (name <> "-s") "kontakt/sc-gangsa-legong-isep" dev [chan+1]
+    set_pasang name = do
+        LInst.add_environ name Gangsa.inst_polos (inst $ name <> "-p")
+        LInst.add_environ name Gangsa.inst_sangsih (inst $ name <> "-s")
+    set_range name bottom top = do
+        LInst.add_environ name Environ.instrument_bottom bottom
+        LInst.add_environ name Environ.instrument_top top
+    inst = Repl.Util.instrument
 
 -- * hang
 

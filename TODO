@@ -3,7 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Long pedal at the end of bloom @b12 sometimes doesn't come up.
+    I think the performer needs to understand the pedal.  But why does it
+    come up properly sometimes?
   - Local.Instrument modules include configuration functions, how to call them?
+    . Kontakt.configure_wayang, configure_legong, Spicy.configure
+    . import into a Local.Repl module
+      - hmm, looks like I'm not importing Local.Repl any more
     . make the repl support :m
     . bundle them into the instrument db
   * The performer needs to cut off controls from the previous note before the

@@ -89,6 +89,12 @@ make_key (name, n : ns) = (name, n - 1, zipWith (-) (ns ++ [n+7]) (n:ns))
 default_key :: Theory.Key
 Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
 
+pemade_bottom, pemade_top :: Pitch.Pitch
+(pemade_bottom, pemade_top) = BaliScales.scale_range pemade_scale
+
+kantilan_bottom, kantilan_top :: Pitch.Pitch
+(kantilan_bottom, kantilan_top) = BaliScales.scale_range kantilan_scale
+
 note_numbers :: BaliScales.NoteNumbers
 note_numbers = BaliScales.NoteNumbers
     (Vector.fromList (extend umbang)) (Vector.fromList (extend isep))
@@ -147,39 +153,7 @@ umbang =
 
 -- TODO
 isep :: [Pitch.NoteNumber]
-isep =
-    [ 51.82 -- deng, rambat begin
-    , 54 -- TODO
-    , 55.7
-    , 56.82 -- dang, trompong begin
-    , 58 -- TODO
-
-    , 59.73
-    , 62.8 -- dong, pemade begin
-    , 63.35 -- deng, reyong begin
-    , 65 -- TODO
-    , 67.7
-    , 68.2
-    , 70 -- TODO
-
-    , 72.46 -- ding
-    , 73.9 -- dong, kantilan begin
-    , 75.5
-    , 78 -- TODO
-    , 79.4 -- dung, trompong end
-    , 80.5
-    , 83 -- TODO
-
-    , 84.46 -- ding, rambat end, pemade end
-    , 86
-    , 87.67
-    , 90 -- TODO
-    , 91.74 -- dung, reyong end
-    , 92.5
-    , 95 -- TODO
-
-    , 96.46 -- ding, kantilan end
-    ]
+isep = map (Pitch.add_hz 4) umbang
 
 -- | Add one octave on the bottom, so I get down to 1i, in the jegog, up to 6i.
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
