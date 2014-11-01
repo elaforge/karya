@@ -302,6 +302,18 @@ test_control_lead_time = do
          , (8 - gap, 2, NoteOff 61 100)
          ], [])
 
+test_pedal = do
+    let run = extract . perform midi_config1 . mkevents
+        extract = first $ PerformTest.extract_msg $ PerformTest.e_cc 64
+    let pedal sig = (Controls.pedal, Signal.signal sig)
+    -- The pedal extends note duration, so I get the pedal-off even though it's
+    -- a long ways past the supposed end of the note.
+    equal (run [(inst1, "a", 0, 2, [pedal [(0, 1), (40, 0)]])]) ([127, 0], [])
+    -- TODO actually this works because I don't clip controls unless there's
+    -- a next note, which works well enough for pedal in simple cases.  There
+    -- are probably still some cases where this isn't enough, but I'll deal
+    -- with them if I come across them.
+
 test_msgs_sorted = do
     -- Ensure that msgs are in order, even after control lead time.
     let f = extract . perform midi_config1 . map mkevent
@@ -585,7 +597,7 @@ test_perform_control = do
     let sig = (Controls.vol, linear_interp
             [(0, 0), (1, 1.5), (2, 0), (2.5, 0), (3, 2)])
         (msgs, warns) = Perform.perform_control Control.empty_map
-            (secs 0) (secs 0) (secs 4) 42 sig
+            (secs 0) (secs 0) (Just $ secs 4) 42 sig
 
     -- controls are not emitted after they reach steady values
     check $ all Midi.valid_chan_msg (map snd msgs)

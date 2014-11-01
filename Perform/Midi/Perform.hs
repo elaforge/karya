@@ -578,8 +578,8 @@ perform_control_msgs prev_note_off next_note_on event (dev, chan) note_off
     -- priority and I can clip off its controls.  Otherwise, the lead-time
     -- controls get messed up by controls from the last note.
     control_end = case next_note_on of
-        Nothing -> note_end event
-        Just next -> max note_off (next - control_lead_time)
+        Nothing -> Nothing
+        Just next -> Just $ max note_off (next - control_lead_time)
 
     (control_pos_msgs, clip_warns) = unzip $
         map (perform_control cmap prev_note_off note_on control_end midi_nn)
@@ -640,7 +640,7 @@ control_at event control pos = do
     return (Signal.at pos sig)
 
 perform_pitch :: Control.PbRange -> Midi.Key -> RealTime -> RealTime
-    -> RealTime -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
+    -> Maybe RealTime -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
 perform_pitch pb_range nn prev_note_off start end sig =
     [ (x, Midi.PitchBend (Control.pb_from_nn pb_range nn (Pitch.NoteNumber y)))
     | (x, y) <- pos_vals
@@ -649,7 +649,7 @@ perform_pitch pb_range nn prev_note_off start end sig =
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
-perform_control :: Control.ControlMap -> RealTime -> RealTime -> RealTime
+perform_control :: Control.ControlMap -> RealTime -> RealTime -> Maybe RealTime
     -> Midi.Key -> (Score.Control, Signal.Control)
     -> ([(RealTime, Midi.ChannelMessage)], [ClipRange])
 perform_control cmap prev_note_off start end midi_key (control, sig) =
@@ -677,7 +677,7 @@ perform_control cmap prev_note_off start end midi_key (control, sig) =
 --
 -- If the signal has consecutive samples with the same value, this will emit
 -- unnecessary CCs, but they will be eliminated by postprocessing.
-perform_signal :: RealTime -> RealTime -> RealTime -> Signal.Signal y
+perform_signal :: RealTime -> RealTime -> Maybe RealTime -> Signal.Signal y
     -> [(Signal.X, Signal.Y)]
 perform_signal prev_note_off start end sig = initial : pairs
     where
@@ -685,7 +685,7 @@ perform_signal prev_note_off start end sig = initial : pairs
     -- it may have a leading sample, due to 'Signal.drop_before'.
     pairs = Signal.unsignal $
         Signal.drop_while ((<= start) . Signal.sx) $
-        Signal.drop_at_after end sig
+        maybe id Signal.drop_at_after end sig
     -- Don't go before the previous note, but don't go after the start of this
     -- note, in case the previous note ends after this one begins.
     tweaked_start = min (start - min_control_lead_time) $

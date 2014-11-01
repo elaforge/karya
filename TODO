@@ -3,9 +3,18 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Long pedal at the end of bloom @b12 sometimes doesn't come up.
-    I think the performer needs to understand the pedal.  But why does it
-    come up properly sometimes?
+  * Long pedal at the end of bloom @b12 sometimes doesn't come up.
+    . I think the performer needs to understand the pedal.  But why does it
+      come up properly sometimes?
+    . Only if I start from the beginning, maybe there's a unmatched down?
+      Apparently not, just the last one doesn't come up.  I should record the
+      MIDI and see what went wrong.
+    . Or, I could just always emit controls until the next note, like before.
+      This would fix the problem with bloom, since there are notes afterwards,
+      but would still stop early if there aren't.
+    . A preprocess could see pedal and extend note durations.  But I don't
+      want to affect either channel sharing or actual note end times.
+      Or control_end can notice the presence of a pedal.
   - Local.Instrument modules include configuration functions, how to call them?
     . Kontakt.configure_wayang, configure_legong, Spicy.configure
     . import into a Local.Repl module
