@@ -172,8 +172,7 @@ test_controls_after_note_off = do
     -- Test that controls happen during note off, but don't interfere with
     -- other notes.  This corresponds to the comment in 'Perform.perform_note'.
     let f = fst . perform midi_config2 . map mkevent
-        e_ts_cmsg = PerformTest.msg_ts
-            . PerformTest.extract (fmap snd . PerformTest.e_chan_msg)
+        e_ts_cmsg = PerformTest.extract_msg_ts PerformTest.e_cmsg
         sig xs = [(Controls.vol, Signal.signal xs)]
 
     let msgs = f
@@ -217,7 +216,7 @@ test_controls_after_note_off = do
         ]
 
     -- 0.5 visible even though it's after the end of the decay.
-    let e_cc7 = PerformTest.msg_only . PerformTest.extract (PerformTest.e_cc 7)
+    let e_cc7 = PerformTest.extract_msg (PerformTest.e_cc 7)
     equal (e_cc7 $ f
             [ (inst1, "a", 0, 1, sig [(0, 1), (4, 0.5)])
             , (inst1, "a", 8, 1, [])
@@ -515,8 +514,8 @@ e_channel_msg wmsg = case Midi.wmsg_msg wmsg of
 
 e_ts_chan_msg :: [Midi.WriteMessage]
     -> [(RealTime, Midi.Channel, ChannelMessage)]
-e_ts_chan_msg = map (\(a, (b, c)) -> (a, b, c)) . PerformTest.msg_ts
-    .  PerformTest.extract PerformTest.e_chan_msg
+e_ts_chan_msg = map (\(a, (b, c)) -> (a, b, c))
+    .  PerformTest.extract_msg_ts PerformTest.e_chan_msg
 
 -- TODO move to a more general purpose place?
 run_timeout :: Double -> IO a -> IO (Maybe a)
@@ -614,7 +613,7 @@ test_control_overlap = do
                 }
             , mkevent (inst2, "b", 1, 1, [])
             ]
-        extract = PerformTest.msg_ts . PerformTest.extract PerformTest.e_cmsg
+        extract = PerformTest.extract_msg_ts PerformTest.e_cmsg
     let (midi, logs) = perform midi_config2 events
     equal logs []
     equal (extract midi)

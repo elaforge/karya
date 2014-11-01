@@ -73,18 +73,12 @@ make_controls kvs =
 
 type Extracted a = (Text, RealTime, a)
 
-msg_only :: [Extracted a] -> [a]
-msg_only = map $ \(_, _, a) -> a
-
-msg_ts :: [Extracted a] -> [(RealTime, a)]
-msg_ts = map $ \(_, ts, a) -> (ts, a)
-
 extract_msg :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage] -> [a]
-extract_msg f = msg_only . extract f
+extract_msg f = map (\(_, _, a) -> a) . extract f
 
 extract_msg_ts :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage]
     -> [(RealTime, a)]
-extract_msg_ts f = msg_ts . extract f
+extract_msg_ts f = map (\(_, ts, a) -> (ts, a)) . extract f
 
 extract :: (Midi.Message -> Maybe a) -> [Midi.WriteMessage]
     -> [Extracted a]
