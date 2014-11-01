@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Local.Instrument modules include configuration functions, how to call them?
+    . make the repl support :m
+    . bundle them into the instrument db
+  * The performer needs to cut off controls from the previous note before the
+    control reset for the current one.
+    . bug/bloom - Make a test that demonstrates it.
   - meter type and the construction functions should be integrated more tightly
   - even though I sort events after derivation now, I still rely on them being
     sorted, because of things like Post.same_hand.  It used to be out-of-order

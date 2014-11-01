@@ -96,6 +96,9 @@ e_chan_msg :: Midi.Message -> Maybe (Midi.Channel, Midi.ChannelMessage)
 e_chan_msg (Midi.ChannelMessage chan msg) = Just (chan, msg)
 e_chan_msg _ = Nothing
 
+e_cmsg :: Midi.Message -> Maybe Midi.ChannelMessage
+e_cmsg = fmap snd . e_chan_msg
+
 e_cc :: Midi.Control -> Midi.Message -> Maybe Midi.ControlValue
 e_cc cc (Midi.ChannelMessage _ (Midi.ControlChange msg_cc val))
     | cc == msg_cc = Just val

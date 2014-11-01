@@ -111,10 +111,10 @@ test_perform = do
         , (inst1, "b", 2, 2, [c_vel])
         ]
     equal msgs
-        [ ("dev1", 0, (0, NoteOn 60 127))
-        , ("dev1", 2 - gap, (0, NoteOff 60 64))
-        , ("dev1", 2, (0, NoteOn 61 64))
-        , ("dev1", 4 - gap, (0, NoteOff 61 0))
+        [ ("dev1", 0,           (0, NoteOn 60 127))
+        , ("dev1", 2 - gap,     (0, NoteOff 60 64))
+        , ("dev1", 2,           (0, NoteOn 61 64))
+        , ("dev1", 4 - gap,     (0, NoteOff 61 0))
         ]
 
     -- Consecutive notes with the same pitch have NoteOff / NoteOn in the right
@@ -175,11 +175,11 @@ test_controls_after_note_off = do
         e_ts_cmsg = PerformTest.msg_ts
             . PerformTest.extract (fmap snd . PerformTest.e_chan_msg)
         sig xs = [(Controls.vol, Signal.signal xs)]
+
     let msgs = f
             [ (inst2, "a", 0, 1, sig [(0, 1), (1.95, 0.5)])
             , (inst2, "b", 2, 1, sig [(2, 1)])
             ]
-
     -- Signal at 1.95 dropped because of the next note on.
     equal (e_ts_cmsg msgs)
         [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
@@ -192,13 +192,13 @@ test_controls_after_note_off = do
             [ (inst2, "a", 0, 2, sig [(0, 1), (1.95, 0.5)])
             , (inst2, "b", 2, 1, sig [(2, 1)])
             ]
-    -- But not this time.
+    -- But not this time, because its within the first note.
     equal (e_ts_cmsg msgs)
         [ (-min_cc_lead, ControlChange 7 127), (-min_cc_lead, PitchBend 0)
         , (0, NoteOn 60 100)
         , (1.95, ControlChange 7 64)
         , (2 - gap, NoteOff 60 100)
-        , (2 - min_cc_lead, ControlChange 7 127), (2, NoteOn 61 100)
+        , (2 - gap, ControlChange 7 127), (2, NoteOn 61 100)
         , (3 - gap, NoteOff 61 100)
         ]
 
@@ -233,21 +233,21 @@ test_control_lead_time = do
     let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
         mkvol sig = (Controls.vol, Signal.signal sig)
 
-    -- Even adjacent notes get a 'min_cc_lead' lead time.
+    -- Even overlapping notes get a 'min_cc_lead' lead time.
     equal (run
-            [ (inst2, "a", 0, 1, [mkvol [(0, 0.5)]])
+            [ (inst2, "a", 0, 2, [mkvol [(0, 0.5)]])
             , (inst2, "a", 1, 1, [mkvol [(1, 0.25)]])
             ])
         ([ (-min_cc_lead, 2, ControlChange 7 64), (-min_cc_lead, 2, PitchBend 0)
-         , (0, 2, NoteOn Key.c4 100), (1 - gap, 2, NoteOff Key.c4 100)
-         , (1-min_cc_lead, 2, ControlChange 7 32)
+         , (0, 2, NoteOn Key.c4 100)
+         , (1 - min_cc_lead, 2, ControlChange 7 32)
          , (1, 2, NoteOn Key.c4 100), (2 - gap, 2, NoteOff Key.c4 100)
+         , (2 - gap, 2, NoteOff Key.c4 100)
          ], [])
 
     equal (run_inst1 [("a", 0, 4, []), ("b2", 4, 4, [])])
         ([ (-min_cc_lead, 0, PitchBend 0)
          , (0, 0, NoteOn 60 100)
-
          , (4 - cc_lead, 1, PitchBend 0.5)
          , (4 - gap, 0, NoteOff 60 100)
          , (4, 1, NoteOn 61 100)
@@ -274,7 +274,7 @@ test_control_lead_time = do
         ([ (-min_cc_lead, 0, PitchBend 0)
          , (0, 0, NoteOn 60 100)
          , (4 - gap, 0, NoteOff 60 100)
-         , (4 - min_cc_lead, 0, ControlChange 7 0)
+         , (4 - gap, 0, ControlChange 7 0)
          , (4, 0, NoteOn 61 100)
          , (5, 0, ControlChange 7 64)
          , (6, 0, ControlChange 7 127)
@@ -282,12 +282,12 @@ test_control_lead_time = do
          ], [])
 
     -- Force them to be on the same channel, so I wind up with 'min_cc_lead'.
-    equal (run [(inst2, "a", 0, 4, []), (inst2, "b2", 4, 4, [])])
+    equal (run [(inst2, "a", 0, 8, []), (inst2, "b2", 4, 4, [])])
         ([ (-min_cc_lead, 2, PitchBend 0)
          , (0, 2, NoteOn 60 100)
-         , (4 - gap, 2, NoteOff 60 100)
          , (4 - min_cc_lead, 2, PitchBend 0.5)
          , (4, 2, NoteOn 61 100)
+         , (8 - gap, 2, NoteOff 60 100)
          , (8 - gap, 2, NoteOff 61 100)
          ], [])
 
@@ -295,7 +295,7 @@ test_control_lead_time = do
         ([ (-min_cc_lead, 2, PitchBend 0)
          , (0, 2, NoteOn 60 100)
          , (4 - gap, 2, NoteOff 60 100)
-         , (4 - min_cc_lead, 2, ControlChange 7 0)
+         , (4 - gap, 2, ControlChange 7 0)
          , (4, 2, NoteOn 61 100)
          , (5, 2, ControlChange 7 64)
          , (6, 2, ControlChange 7 127)
@@ -520,7 +520,6 @@ run_timeout timeout action = do
     mapM_ Concurrent.killThread [th1, th2]
     return result
 
-
 note_key :: Midi.Message -> Maybe (Bool, Midi.Key)
 note_key (Midi.ChannelMessage _ (Midi.NoteOn key _)) = Just (True, key)
 note_key (Midi.ChannelMessage _ (Midi.NoteOff key _)) = Just (False, key)
@@ -592,6 +591,25 @@ test_perform_control = do
     check $ all Midi.valid_chan_msg (map snd msgs)
     -- goes over in 2 places
     equal (length warns) 2
+
+test_control_overlap = do
+    -- Ensure that a control that falls within the adjacent_note_gap won't
+    -- mess up the next note.
+    let events =
+            [ (mkevent (inst2, "a", 0, 1, []))
+                { Perform.event_pitch = Signal.signal
+                    [(0.0, 81.0), (0.9999, 79)]
+                }
+            , mkevent (inst2, "b", 1, 1, [])
+            ]
+        extract = PerformTest.msg_ts . PerformTest.extract PerformTest.e_cmsg
+    let (midi, logs) = perform midi_config2 events
+    equal logs []
+    equal (extract midi)
+        [ (-min_cc_lead, PitchBend 0)
+        , (0, NoteOn Key.a5 100), (1-gap, NoteOff Key.a5 100)
+        , (1, NoteOn Key.cs4 100), (2-gap, NoteOff Key.cs4 100)
+        ]
 
 -- * channelize
 

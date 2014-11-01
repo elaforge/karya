@@ -522,15 +522,14 @@ keyswitch_messages maybe_old_inst new_inst wdev chan start =
 
 -- | Emit MIDI for a single event.
 perform_note :: RealTime -> Maybe RealTime -- ^ next note with the same addr
-    -> Event -> Instrument.Addr
-    -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
+    -> Event -> Instrument.Addr -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
 perform_note prev_note_off next_note_on event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
         Nothing -> ([LEvent.Log $ event_warning event "no pitch signal"],
             prev_note_off)
         Just (midi_nn, _) ->
             let (note_msgs, note_off) = _note_msgs midi_nn
-                control_msgs = _control_msgs midi_nn
+                control_msgs = _control_msgs note_off midi_nn
             in (merge_events control_msgs note_msgs, note_off)
     where
     -- 'perform_note_msgs' and 'perform_control_msgs' are really part of one
@@ -546,23 +545,24 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     where
     events = map LEvent.Event
         [ chan_msg note_on (Midi.NoteOn midi_nn on_vel)
-        , chan_msg tweaked_note_off (Midi.NoteOff midi_nn off_vel)
+        , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
         ]
         ++ map LEvent.Log warns
     note_on = event_start event
-    note_off = event_end event
     -- Subtract the adjacent_note_gap, but leave a little bit of duration for
     -- 0-dur notes.
-    tweaked_note_off = max (note_on + adjacent_note_gap)
-        (note_off - adjacent_note_gap)
-    (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on note_off
+    note_off = max (note_on + adjacent_note_gap)
+        (event_end event - adjacent_note_gap)
+    (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on
+        (event_end event)
     warns = make_clip_warnings event (Controls.velocity, vel_clip_warns)
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
 perform_control_msgs :: RealTime -> Maybe RealTime -> Event -> Instrument.Addr
-    -> Midi.Key -> MidiEvents
-perform_control_msgs prev_note_off next_note_on event (dev, chan) midi_nn =
+    -> RealTime -> Midi.Key -> MidiEvents
+perform_control_msgs prev_note_off next_note_on event (dev, chan) note_off
+        midi_nn =
     map LEvent.Event control_msgs ++ map LEvent.Log warns
     where
     control_msgs = merge_messages $
@@ -579,7 +579,7 @@ perform_control_msgs prev_note_off next_note_on event (dev, chan) midi_nn =
     -- controls get messed up by controls from the last note.
     control_end = case next_note_on of
         Nothing -> note_end event
-        Just next -> max (event_end event) (next - control_lead_time)
+        Just next -> max note_off (next - control_lead_time)
 
     (control_pos_msgs, clip_warns) = unzip $
         map (perform_control cmap prev_note_off note_on control_end midi_nn)
@@ -645,7 +645,7 @@ perform_pitch pb_range nn prev_note_off start end sig =
     [ (x, Midi.PitchBend (Control.pb_from_nn pb_range nn (Pitch.NoteNumber y)))
     | (x, y) <- pos_vals
     ]
-    where pos_vals = create_leading_cc prev_note_off start end sig
+    where pos_vals = perform_signal prev_note_off start end sig
 
 -- | Return the (pos, msg) pairs, and whether the signal value went out of the
 -- allowed control range, 0--1.
@@ -654,25 +654,32 @@ perform_control :: Control.ControlMap -> RealTime -> RealTime -> RealTime
     -> ([(RealTime, Midi.ChannelMessage)], [ClipRange])
 perform_control cmap prev_note_off start end midi_key (control, sig) =
     case Control.control_constructor cmap control midi_key of
-        Nothing -> ([], []) -- TODO warn about a control not in the cmap
+        Nothing -> ([], [])
         Just ctor -> ([(x, ctor y) | (x, y) <- pos_vals], clip_warns)
     where
     -- The signal should already be trimmed to the event range, except that,
     -- as per the behaviour of Signal.drop_before, it may have a leading
     -- sample.  I can drop that since it's handled specially by
-    -- 'create_leading_cc'.
-    pos_vals = create_leading_cc prev_note_off start end clipped
+    -- 'perform_signal'.
+    pos_vals = perform_signal prev_note_off start end clipped
     (clipped, out_of_bounds) = Signal.clip_bounds 0 1 sig
     clip_warns = [(s, e) | (s, e) <- out_of_bounds]
 
--- | If the signal has consecutive samples with the same value, this will emit
--- unnecessary CCs, but they will be eliminated by postprocessing.
+-- | Trim a signal to the proper time range and emit (X, Y) pairs.  The proper
+-- time range is complicated since there are two levels of priority.  Controls
+-- within the note's start to end+decay are always emitted.  The end+decay is
+-- put into the 'NoteOffMap' so the next note will yield 'control_lead_time' if
+-- necessary.  Samples after end+decay are also emitted, but trimmed so they
+-- won't overlap the next note's start - control_lead_time.
 --
--- Since 'channelize' respects the 'control_lead_time', I expect msgs to be
+-- 'channelize' respects 'control_lead_time', so I expect msgs to be
 -- scheduled on their own channels if possible.
-create_leading_cc :: RealTime -> RealTime -> RealTime -> Signal.Signal y
+--
+-- If the signal has consecutive samples with the same value, this will emit
+-- unnecessary CCs, but they will be eliminated by postprocessing.
+perform_signal :: RealTime -> RealTime -> RealTime -> Signal.Signal y
     -> [(Signal.X, Signal.Y)]
-create_leading_cc prev_note_off start end sig = initial : pairs
+perform_signal prev_note_off start end sig = initial : pairs
     where
     -- The signal should already be trimmed to the event start, except that
     -- it may have a leading sample, due to 'Signal.drop_before'.
@@ -681,9 +688,9 @@ create_leading_cc prev_note_off start end sig = initial : pairs
         Signal.drop_at_after end sig
     -- Don't go before the previous note, but don't go after the start of this
     -- note, in case the previous note ends after this one begins.
-    tweaked = min (start - min_control_lead_time) $
+    tweaked_start = min (start - min_control_lead_time) $
         max (min prev_note_off start) (start - control_lead_time)
-    initial = (tweaked, Signal.at start sig)
+    initial = (tweaked_start, Signal.at start sig)
 
 -- * post process
 
@@ -728,12 +735,12 @@ analyze_msg (Just (pb_val, cmap)) msg = case msg of
     _ -> (True, Nothing)
 
 -- | Sort almost-sorted MidiEvents.  Events may be out of order by
--- as much as control_lead_time.  This happens because 'create_leading_cc' adds
+-- as much as control_lead_time.  This happens because 'perform_signal' adds
 -- events between 0--control_lead_time before the note, which can violate the
 -- precondition of 'Seq.merge_asc_lists'.
 --
 -- I tried to come up with a way for the events to come out sorted even with
--- 'create_leading_cc', but creativity failed me, so I resorted to this hammer.
+-- 'perform_signal', but creativity failed me, so I resorted to this hammer.
 resort :: MidiEvents -> MidiEvents
 resort = go mempty
     where
