@@ -28,9 +28,9 @@ test_meter_marklist = do
     let f = extract_marklist 20 . Meter.meter_marklist Meter.default_config
             . Meter.fit_meter 64 . replicate 4
     equal (take 9 $ f Meters.m44_4) $ zip (Seq.range_ 0 1)
-        [ "1", "1.1.2", "1.1.3", "1.1.4"
-        , "1.2", "1.2.2", "1.2.3", "1.2.4"
-        , "1.3"
+        [ "1", "1.2", "1.3", "1.4"
+        , "2", "2.2", "2.3", "2.4"
+        , "3"
         ]
 
 test_rational_meter = do
@@ -41,16 +41,16 @@ test_rational_meter = do
             . Meter.marklist_meter
         meter = [Meter.repeat 4 Meters.m34]
     equal (extract $ f meter)
-        (zip (Seq.range_ 0 1) ["1", "1.2", "1.3", "1.4", "2"])
+        (zip (Seq.range_ 0 1) ["1", "2", "3", "4", "5"])
     equal (extract $ round_trip $ f meter)
-        (zip (Seq.range_ 0 1) ["1", "1.2", "1.3", "1.4", "2"])
+        (zip (Seq.range_ 0 1) ["1", "2", "3", "4", "5"])
 
     let modify :: Meter.LabeledMeter -> Meter.LabeledMeter
         modify = dropWhile ((>=2) . Meter.m_rank) . drop 1
         ruler = Meters.ruler (f meter)
     equal (extract . snd . Ruler.get_marklist Ruler.meter <$>
             Meter.modify_meter modify ruler) $
-        Right (zip (Seq.range_ 0 1) ["1.1", "1.2", "1.3", "2"])
+        Right (zip (Seq.range_ 0 1) ["1", "2", "3", "4"])
 
 test_rational_meter2 = do
     -- Even awkward fractions add up correctly.

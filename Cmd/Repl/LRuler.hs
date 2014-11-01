@@ -282,10 +282,13 @@ strip_ranks max_rank =
 --
 -- > local $ measures Meters.m44 4 4
 -- > modify $ measures Meters.m34 4 8
-measures :: Meter.AbstractMeter -> Int -- ^ sections
+measures :: Cmd.M m => Meter.AbstractMeter -> Int -- ^ sections
     -> Int -- ^ measures per section
-    -> Ruler.Ruler
-measures = make_measures config 1
+    -> m Modify
+measures meter sections measures =
+    ruler $ make_measures config 1 meter sections measures
+measures0 meter sections measures =
+    ruler $ make_measures config0 1 meter sections measures
 
 make_measures :: Meter.MeterConfig -> TrackTime -- ^ duration of one measure
     -> Meter.AbstractMeter
@@ -303,8 +306,10 @@ fit_to_end config meter block_id = do
     end <- State.block_event_end block_id
     return $ fit_ruler config end meter
 
-config :: Meter.MeterConfig
+config, config0 :: Meter.MeterConfig
 config = Meter.default_config
+config0 = Meter.default_config
+    { Meter.meter_start = 0, Meter.meter_from0 = True }
 
 fit_to_selection :: Cmd.M m => Meter.MeterConfig -> [Meter.AbstractMeter]
     -> m Ruler.Ruler

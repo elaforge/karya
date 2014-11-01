@@ -174,7 +174,7 @@ r_section : r_1 : r_2 : r_4 : r_8 : r_16 : r_32 : r_64 : r_128 : r_256 : _ =
 -- the labels wind up being all 0s and 1s, which is not that useful.  The ranks
 -- in this list don't receive their own label.
 unlabeled_ranks :: [Ruler.Rank]
-unlabeled_ranks = [r_2, r_8, r_32, r_64, r_256]
+unlabeled_ranks = [r_section, r_2, r_8, r_32, r_64, r_256]
 
 -- | These are mnemonics for staff notation durations, though they may not
 -- correspond exactly, as documented in "Cmd.Meter".
