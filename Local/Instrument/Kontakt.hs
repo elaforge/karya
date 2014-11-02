@@ -219,44 +219,26 @@ c_highlight_strings = Note.transformed_note
 
 sc_bali :: [MidiInst.Patch]
 sc_bali = map (first add_doc) $
-    CUtil.simple_drum Nothing gong_notes (sc_patch "sc-gong")
-    : CUtil.simple_drum Nothing kempli_kajar_notes (sc_patch "sc-kempli-kajar")
-    : map MidiInst.with_empty_code gangsa
-    ++ map (MidiInst.with_empty_code . reyong_ks
-            . MidiInst.range Legong.reyong_range)
-        (sc_patch "sc-reyong" : scale_variations "sc-reyong")
-    ++ map MidiInst.with_empty_code
-    [ MidiInst.range Legong.ugal_range $ sc_patch "sc-ugal"
-    , MidiInst.range Legong.trompong_range $ sc_patch "sc-trompong"
+    CUtil.simple_drum Nothing gong_notes (sc_patch "gong")
+    : CUtil.simple_drum Nothing kempli_kajar_notes (sc_patch "kempli")
+    : map MidiInst.with_empty_code
+    [ gangsa (range_of Legong.jegog) "jegog"
+    , gangsa (range_of Legong.calung) "calung"
+    , gangsa (range_of Legong.penyacah) "penyacah"
+    , gangsa Legong.ugal_range "ugal"
+    , gangsa (range_of Legong.pemade) "pemade"
+    , gangsa (range_of Legong.kantilan) "kantilan"
+    , reyong_ks $ ranged_patch Legong.reyong_range "reyong"
+    , ranged_patch Legong.trompong_range "trompong"
     ]
     where
-    gangsa = map gangsa_ks $
-        sc_patch "sc-gangsa12" : scale_variations "sc-gangsa"
-    -- I don't need all these variations, since the tuning can be up to the
-    -- kontakt patch.  All I need is to emit the right MIDI key.  The
-    -- wayang and legong scales map to different keys, so they should be
-    -- separate, but the actual frequencies are up to the KSP script.
-    -- But at least the variations set the environ var, and it's not like they
-    -- hurt that much.
-    scale_variations name =
-        [ retuned_patch Wayang.scale_id Environ.umbang
-                (extended_wayang_scale "umbang" Wayang.umbang) $
-            sc_patch (name <> "-wayang-umbang")
-        , retuned_patch Wayang.scale_id Environ.isep
-                (extended_wayang_scale "isep" Wayang.isep) $
-            sc_patch (name <> "-wayang-isep")
-        , retuned_patch Legong.scale_id Environ.umbang
-                (extended_legong_scale "umbang" Legong.umbang) $
-            sc_patch (name <> "-legong-umbang")
-        , retuned_patch Legong.scale_id Environ.isep
-                (extended_legong_scale "isep" Legong.isep) $
-            sc_patch (name <> "-legong-isep")
-        ]
+    gangsa range = gangsa_ks . ranged_patch range
+    range_of = BaliScales.scale_range
+    ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name = Instrument.set_flag Instrument.ConstantPitch $
-        Instrument.patch $ Instrument.instrument name [] (-2, 2)
+        Instrument.patch $ Instrument.instrument ("sc-" <> name) [] (-2, 2)
     add_doc = Instrument.text
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)
-
     gangsa_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
         [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
     reyong_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
@@ -297,66 +279,59 @@ kajar = Score.attr "kajar"
 misc :: [MidiInst.Patch]
 misc = [MidiInst.with_code Reaktor.resonant_filter $ patch "filtered" []]
 
--- TODO if I can add patch scale as inst config, then I should add all insts
--- and their ranges to >kontakt/sc-*, this seems better than per-score
--- configuration.
-
--- | (name, patch, gets_chan, environ)
-gong_kebyar ::
-    [(LInst.Instrument, Text, Bool, [(TrackLang.ValName, RestrictedEnviron.Val)])]
+-- | (name, patch, gets_chan, environ, scale)
+gong_kebyar :: [(LInst.Instrument, Text, Bool,
+    [(TrackLang.ValName, RestrictedEnviron.Val)], Maybe Instrument.PatchScale)]
 gong_kebyar = concat
-    [ gangsa "jegog" (range_of Legong.jegog)
-    , gangsa "calung" (range_of Legong.calung)
-    , gangsa "penyacah" (range_of Legong.penyacah)
-    , gangsa "pemade" (range_of Legong.pemade)
-    , gangsa "kantilan" (range_of Legong.kantilan)
-    ] ++
-    [ ("ugal", gangsa_umbang, True,
-        inst_range Legong.ugal_range <> tuning Environ.umbang)
-    , ("reyong", "kontakt/sc-reyong-legong-isep", True,
-        inst_range Legong.reyong_range <> tuning Environ.isep)
-    , ("trompong", "kontakt/sc-reyong-legong-umbang", True,
-        inst_range Legong.trompong_range <> tuning Environ.umbang)
-    , ("gong", "kontakt/sc-gong", True, [])
-    , ("kempli", "kontakt/sc-kempli-kajar", True, [])
+    [ pasang "jegog"
+    , pasang "calung"
+    , pasang "penyacah"
+    , pasang "pemade"
+    , pasang "kantilan"
+    , [ umbang_patch "ugal"
+      , isep_patch "reyong"
+      , umbang_patch "trompong"
+      , patch "gong"
+      , patch "kempli"
+      ]
     ]
     where
     -- Actually pemade and kantilan have an umbang isep pair for both polos and
     -- sangsih.
-    gangsa name range =
-        [ (name, "kontakt/sc-gangsa12", False, pasang name <> inst_range range)
-        , (name <> "-p", gangsa_umbang, True,
-            inst_range range <> tuning Environ.umbang)
-        , (name <> "-s", gangsa_isep, True,
-            inst_range range <> tuning Environ.isep)
-        ]
     pasang name =
+        [ (name, sc_patch name, False, polos_sangsih name, Nothing)
+        , umbang_patch (name <> "-p")
+        , isep_patch (name <> "-p")
+        ]
+    sc_patch name = "kontakt/sc-" <> name
+    polos_sangsih name =
         [ (Gangsa.inst_polos, (to_val $ inst $ name <> "-p"))
         , (Gangsa.inst_sangsih, (to_val $ inst $ name <> "-s"))
-        ]
-    inst_range (bottom, top) =
-        [ (Environ.instrument_bottom, to_val bottom)
-        , (Environ.instrument_top, to_val top)
         ]
     tuning val = [(Environ.tuning, to_val val)]
     to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
     to_val = RestrictedEnviron.to_val
     inst = Repl.Util.instrument
-    range_of = BaliScales.scale_range
-    gangsa_umbang = "kontakt/sc-gangsa-legong-umbang"
-    gangsa_isep = "kontakt/sc-gangsa-legong-isep"
+    umbang_patch name =
+        (name, sc_patch name, True, tuning Environ.umbang, Just umbang)
+    isep_patch name =
+        (name, sc_patch name, True, tuning Environ.isep, Just isep)
+    patch name = (name, sc_patch name, True, [], Nothing)
+    umbang = extended_legong_scale "umbang" Legong.umbang
+    isep = extended_legong_scale "isep" Legong.isep
 
 configure_gong_kebyar :: Text -> Cmd.CmdL ()
 configure_gong_kebyar dev =
     sequence_ $ snd $ List.mapAccumL allocate 0 gong_kebyar
     where
-    allocate chan (name, patch, gets_chan, environ) =
+    allocate chan (name, patch, gets_chan, environ, scale) =
         (if gets_chan then chan+1 else chan, alloc)
         where
         alloc = do
             if gets_chan then LInst.add name patch dev [chan]
                 else LInst.add name patch "" []
             forM_ environ $ \(k, v) -> LInst.add_environ name k v
+            whenJust scale $ LInst.set_scale name
 
 -- * hang
 

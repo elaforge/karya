@@ -476,8 +476,8 @@ instance Serialize Configs where
             _ -> Serialize.bad_version "Instrument.Configs" v
 
 instance Serialize Instrument.Config where
-    put (Instrument.Config a b c d e) = Serialize.put_version 4
-        >> put a >> put b >> put c >> put d >> put e
+    put (Instrument.Config a b c d e f) = Serialize.put_version 5
+        >> put a >> put b >> put c >> put d >> put e >> put f
     get = do
         v <- Serialize.get_version
         case v of
@@ -487,8 +487,22 @@ instance Serialize Instrument.Config where
                 controls :: Score.ControlValMap <- get
                 mute :: Bool <- get
                 solo :: Bool <- get
-                return $ Instrument.Config addrs environ controls mute solo
+                return $ Instrument.Config addrs environ Nothing controls mute
+                    solo
+            5 -> do
+                addrs :: [(Instrument.Addr, Maybe Instrument.Voices)] <- get
+                environ :: RestrictedEnviron.Environ <- get
+                scale :: Maybe Instrument.PatchScale <- get
+                controls :: Score.ControlValMap <- get
+                mute :: Bool <- get
+                solo :: Bool <- get
+                return $ Instrument.Config addrs environ scale controls mute
+                    solo
             _ -> Serialize.bad_version "Instrument.Config" v
+
+instance Serialize Instrument.PatchScale where
+    put (Instrument.PatchScale a b) = put a >> put b
+    get = Instrument.PatchScale <$> get <*> get
 
 -- ** lilypond
 

@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Can I change (%=) and (#=) to infix 2?  That way I don't need parens with
+    (.).  What else is 1?
   - in save/rehearsal/lelambatan/template, reyong entry defaults to *twelve
     . Probably because it has no direct >inst title, and no performance so it
       doesn't know the environ.  But note entry should look at global
@@ -14,7 +16,7 @@ UNSORTED
     . It's because the environ, along with transpose, is only applied during
       conversion.  This is as intended, but it's confusing for sel_events.
       Should I have it apply controls to the pitch signal before display?
-  - per-score config to set patch_scale, like environ
+  * per-score config to set patch_scale, like environ
     . Then I can get rid of all of the sc-gangsa-wayang-umbang etc. variants,
       and put all instruments and ranges into 'sc_bali'.
     . Add Instrument.config_patch_scale

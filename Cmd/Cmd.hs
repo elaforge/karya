@@ -1047,13 +1047,14 @@ get_lookup_instrument = do
         . state_config
     return $ \inst -> merge_environ configs inst <$> lookup inst
     where
-    merge_environ configs inst info = info
-        { MidiDb.info_patch = Instrument.environ %= (environ <>) $
-            MidiDb.info_patch info
-        }
+    merge_environ configs inst info =
+        info { MidiDb.info_patch = merge $ MidiDb.info_patch info }
         where
-        environ = maybe mempty Instrument.config_restricted_environ $
-            Map.lookup inst configs
+        merge = (Instrument.environ %= (environ <>))
+            . (Instrument.scale %= (scale `mplus`))
+        scale = Instrument.config_scale =<< config
+        environ = maybe mempty Instrument.config_restricted_environ config
+        config = Map.lookup inst configs
 
 -- | Lookup a detailed patch along with the environ that it likes.
 get_midi_patch :: M m => Score.Instrument -> m Instrument.Patch

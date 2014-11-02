@@ -211,6 +211,8 @@ data Config = Config {
     config_addrs :: ![(Addr, Maybe Voices)]
     -- | This is a local version of 'patch_restricted_environ'.
     , config_restricted_environ :: !RestrictedEnviron.Environ
+    -- | A local version of 'patch_scale'.
+    , config_scale :: !(Maybe PatchScale)
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.
@@ -229,6 +231,8 @@ addrs = Lens.lens config_addrs
     (\f r -> r { config_addrs = f (config_addrs r) })
 cenviron = Lens.lens config_restricted_environ
     (\f r -> r { config_restricted_environ = f (config_restricted_environ r) })
+cscale = Lens.lens config_scale
+    (\f r -> r { config_scale = f (config_scale r) })
 controls = Lens.lens config_controls
     (\f r -> r { config_controls = f (config_controls r) })
 mute = Lens.lens config_mute
@@ -240,15 +244,18 @@ config :: [(Addr, Maybe Voices)] -> Config
 config addrs = Config
     { config_addrs = addrs
     , config_restricted_environ = mempty
+    , config_scale = Nothing
     , config_controls = mempty
     , config_mute = False
     , config_solo = False
     }
 
 instance Pretty.Pretty Config where
-    format (Config addrs environ controls mute solo) = Pretty.record "Config"
+    format (Config addrs environ scale controls mute solo) =
+            Pretty.record "Config"
         [ ("addrs", Pretty.format addrs)
         , ("environ", Pretty.format environ)
+        , ("scale", Pretty.format scale)
         , ("mute", Pretty.format mute)
         , ("controls", Pretty.format controls)
         , ("solo", Pretty.format solo)
@@ -330,7 +337,7 @@ patch inst = Patch
 -- | If a patch is tuned to something other than 12TET, this vector maps MIDI
 -- key numbers to their NNs, or 0 if the patch doesn't support that key.
 data PatchScale = PatchScale !Text (Vector.Vector Double)
-    deriving (Eq, Show)
+    deriving (Eq, Show, Read)
 
 instance Pretty.Pretty PatchScale where
     pretty (PatchScale name v) = untxt name <> " ("

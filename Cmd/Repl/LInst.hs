@@ -142,50 +142,55 @@ remove_alias :: Instrument -> Cmd.CmdL ()
 remove_alias inst = State.modify $
     State.config#State.aliases %= Map.delete (Util.instrument inst)
 
+-- | Toggle and return the new value.
 toggle_mute :: State.M m => Instrument -> m Bool
-toggle_mute inst = modify_config (Util.instrument inst) $ \config ->
+toggle_mute inst = modify_config inst $ \config ->
     let mute = not $ Instrument.config_mute config
     in (config { Instrument.config_mute = mute }, mute)
 
+-- | Toggle and return the new value.
 toggle_solo :: State.M m => Instrument -> m Bool
-toggle_solo inst = modify_config (Util.instrument inst) $ \config ->
+toggle_solo inst = modify_config inst $ \config ->
     let solo = not $ Instrument.config_solo config
     in (config { Instrument.config_solo = solo }, solo)
 
 -- | Add an environ val to the instrument config.
 add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Instrument
     -> TrackLang.ValName -> a -> m ()
-add_environ inst name val =
-    modify_config_ (Util.instrument inst) $
-        Instrument.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
+add_environ inst name val = modify_config_ inst $
+    Instrument.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
     where v = RestrictedEnviron.to_val val
 
 -- | Clear the instrument config's environ.  The instrument's built-in environ
 -- from 'Instrument.patch_environ' is still present.
-clear_environ :: State.M m => Score.Instrument -> m ()
+clear_environ :: State.M m => Instrument -> m ()
 clear_environ inst = modify_config_ inst $ Instrument.cenviron #= mempty
 
+set_scale :: State.M m => Instrument -> Instrument.PatchScale -> m ()
+set_scale inst scale = modify_config_ inst $ Instrument.cscale #= Just scale
+
 set_control :: State.M m => Instrument -> Score.Control -> Double -> m ()
-set_control inst control val = modify_config_ (Util.instrument inst) $
+set_control inst control val = modify_config_ inst $
     Instrument.controls#Lens.map control #= Just val
 
 set_controls :: State.M m => Instrument -> [(Score.Control, Double)] -> m ()
-set_controls inst controls = modify_config_ (Util.instrument inst) $
+set_controls inst controls = modify_config_ inst $
     Instrument.controls #= Map.fromList controls
 
 get_controls :: State.M m => m (Map.Map Score.Instrument Score.ControlValMap)
 get_controls = Map.map Instrument.config_controls <$> State.get_midi_config
 
-modify_config :: State.M m => Score.Instrument
+modify_config :: State.M m => Instrument
     -> (Instrument.Config -> (Instrument.Config, a)) -> m a
-modify_config inst modify = do
+modify_config inst_ modify = do
+    let inst = Util.instrument inst_
     config <- State.require ("no config for " <> pretty inst)
         . Map.lookup inst =<< State.get_midi_config
     let (new, result) = modify config
     State.modify $ State.config # State.midi # Lens.map inst #= Just new
     return result
 
-modify_config_ :: State.M m => Score.Instrument
+modify_config_ :: State.M m => Instrument
     -> (Instrument.Config -> Instrument.Config) -> m ()
 modify_config_ inst modify = modify_config inst (\c -> (modify c, ()))
 
