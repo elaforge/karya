@@ -221,11 +221,10 @@ convert_pitch scale environ controls psig = do
             PitchSignal.apply_controls environ controls psig
     unless (null nn_errs) $ Log.warn $
         "convert pitch: " <> Text.intercalate ", " (map prettyt nn_errs)
-    let (nn_sig, scale_errs) =
-            convert_scale scale (Signal.map_y round_pitch sig)
+    let (nn_sig, scale_errs) = convert_scale scale sig
     unless (null scale_errs) $ Log.warn $
         "out of range for patch scale: " <> prettyt scale_errs
-    return nn_sig
+    return $ Signal.map_y round_pitch nn_sig
 
 -- | Round pitches to the nearest tenth of a cent.  Differences below this are
 -- probably imperceptible.  Due to floating point inaccuracy, pitches can wind

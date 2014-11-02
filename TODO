@@ -7,7 +7,7 @@ UNSORTED
     . Probably because it has no direct >inst title, and no performance so it
       doesn't know the environ.  But note entry should look at global
       transform at least.  And look at parent track titles.
-  - pemade-s is messed up, but only in playback
+  * pemade-s is messed up, but only in playback
     . Because it winds up 83.99978169093067 instead of 84.
   - LPerf.sel_events always gets tuning=umbang, even though the derivation
     correctly sees isep.
