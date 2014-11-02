@@ -38,15 +38,16 @@ test_note_to_call = do
             ["4i", "4i#", "4o", "4e", "4u", "4u#", "4a", "5i"])
         (map Just (take 8 from_ding), [])
 
-    equal (run "legong-p" ["i-", "o-", "e-"]) (map Just (take 3 from_ding), [])
-    equal (run "legong-p" ["i-"]) ([Just 72.46], [])
+    equal (run "legong-pemade" ["i-", "o-", "e-"])
+        (map Just (take 3 from_ding), [])
+    equal (run "legong-pemade" ["i-"]) ([Just 72.46], [])
 
 test_input_to_note = do
     let f scale key = either prettyt Pitch.note_text
             . Scale.scale_input_to_note scale (Pitch.Key <$> key)
             . CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
         legong = lookup_scale "legong"
-        legong_p = lookup_scale "legong-p"
+        legong_p = lookup_scale "legong-pemade"
         invalid = "invalid input"
     -- baro is 1 345 7
     --         i oeu a

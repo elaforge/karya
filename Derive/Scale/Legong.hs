@@ -30,11 +30,11 @@ scales =
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "legong-p" pemade_scale
+        BaliScales.make_scale "legong-pemade" pemade
     , Scales.add_doc
         "Kantilan scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "legong-k" kantilan_scale
+        BaliScales.make_scale "legong-kantilan" kantilan
     ]
 
 complete_scale :: BaliScales.ScaleMap
@@ -47,15 +47,29 @@ cipher_scale = scale_map
     (BaliScales.cipher_relative_dotted 4 default_key all_keys)
     (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
 
-pemade_scale :: BaliScales.ScaleMap
-pemade_scale = scale_map
-    (BaliScales.ioeua_relative_arrow 4 True default_key all_keys)
-    (7*2 + 1, 7*4)
+jegog, calung, penyacah :: BaliScales.ScaleMap
+jegog = inst_scale_map 1 (0, 0) (1, -1)
+calung = inst_scale_map 2 (1, 0) (2, -1)
+penyacah = inst_scale_map 3 (2, 0) (3, -1)
 
-kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = scale_map
-    (BaliScales.ioeua_relative_arrow 5 True default_key all_keys)
-    (7*3 + 1, 7*5)
+pemade :: BaliScales.ScaleMap
+pemade = inst_scale_map 4 (2, 1) (4, 0)
+
+kantilan :: BaliScales.ScaleMap
+kantilan = inst_scale_map 5 (3, 1) (5, 0)
+
+ugal_range, rambat_range, trompong_range, reyong_range
+    :: (Pitch.Pitch, Pitch.Pitch)
+ugal_range = (Pitch.pitch 2 1, Pitch.pitch 4 0)
+rambat_range = (Pitch.pitch 2 2, Pitch.pitch 5 0)
+trompong_range = (Pitch.pitch 2 5, Pitch.pitch 4 4)
+reyong_range = (Pitch.pitch 3 2, Pitch.pitch 5 4)
+
+inst_scale_map :: Pitch.Octave -> (Pitch.Octave, Pitch.Semi)
+    -> (Pitch.Octave, Pitch.Semi) -> BaliScales.ScaleMap
+inst_scale_map center_octave (low_oct, low_pc) (high_oct, high_pc) = scale_map
+    (BaliScales.ioeua_relative_arrow center_octave True default_key all_keys)
+    (low_oct * 7 + low_pc, high_oct * 7 + high_pc)
 
 scale_map :: TheoryFormat.Format -> (Pitch.Semi, Pitch.Semi)
     -> BaliScales.ScaleMap
@@ -79,6 +93,8 @@ all_keys = BaliScales.make_keys layout $ map make_key
     , ("sunaren", [2, 3, 5, 6, 7])
     , ("pengenter-alit", [1, 3, 4, 6, 7])
     , ("pengenter", [1, 2, 4, 5, 7])
+    -- TODO these all have a hardcoded layout that assumes some "accidentals".
+    -- For lebeng I can just use selisir with all the notes.
     -- , ("lebeng", [1, 2, 3, 4, 5, 6, 7])
     ]
 
@@ -88,12 +104,6 @@ make_key (name, n : ns) = (name, n - 1, zipWith (-) (ns ++ [n+7]) (n:ns))
 
 default_key :: Theory.Key
 Just default_key = Map.lookup (Pitch.Key "selisir") all_keys
-
-pemade_bottom, pemade_top :: Pitch.Pitch
-(pemade_bottom, pemade_top) = BaliScales.scale_range pemade_scale
-
-kantilan_bottom, kantilan_top :: Pitch.Pitch
-(kantilan_bottom, kantilan_top) = BaliScales.scale_range kantilan_scale
 
 note_numbers :: BaliScales.NoteNumbers
 note_numbers = BaliScales.NoteNumbers
@@ -110,7 +120,7 @@ note_numbers = BaliScales.NoteNumbers
   0              7              14             21             28             35
   11 12 13 15 16 21 22 23 25 26 31 32 33 35 36 41 42 43 45 46 51 52 53 55 56 61
                              trompong---------------------
-                                      reyong------------------------------
+                                      reyong-----------------------------
                                    pemade-----------------------
                                                   kantilan---------------------
   1i 1o 1e 1u 1a 2i 2o 2e 2u 2a 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i

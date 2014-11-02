@@ -13,7 +13,7 @@ module Perform.Pitch (
     Note(..), note_text
 
     -- * Pitch
-    , Pitch(..), Degree(..)
+    , Pitch(..), pitch, Degree(..)
     , Octave, PitchClass, Accidentals, Semi, FSemi, Step
     , pitch_accidentals, pitch_pc
     , add_octave, add_pc, subtract_pitch
@@ -69,6 +69,9 @@ data Pitch = Pitch {
     pitch_octave :: !Octave
     , pitch_degree :: !Degree
     } deriving (Eq, Ord, Read, Show)
+
+pitch :: Octave -> PitchClass -> Pitch
+pitch oct pc = Pitch oct (Degree pc 0)
 
 instance Pretty.Pretty Pitch where
     pretty (Pitch oct degree) = show oct <> "-" <> pretty degree

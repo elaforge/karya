@@ -24,24 +24,22 @@ scales =
     , Scales.add_doc
         "Pemade scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "wayang-p" pemade_scale
+        BaliScales.make_scale "wayang-pemade" pemade
     , Scales.add_doc
         "Kantilan scale. This can be used to give the the same score to both\
             \ pemade and kantilan." $
-        BaliScales.make_scale "wayang-k" kantilan_scale
+        BaliScales.make_scale "wayang-kantilan" kantilan
     ]
 
 complete_scale :: BaliScales.ScaleMap
 complete_scale = scale_map BaliScales.ioeua_absolute
     (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
 
-pemade_scale :: BaliScales.ScaleMap
-pemade_scale = scale_map (BaliScales.ioeua_absolute_arrow 4)
-    (2*5 + 1, 4*5)
+pemade :: BaliScales.ScaleMap
+pemade = scale_map (BaliScales.ioeua_absolute_arrow 4) (2*5 + 1, 4*5)
 
-kantilan_scale :: BaliScales.ScaleMap
-kantilan_scale = scale_map (BaliScales.ioeua_absolute_arrow 5)
-    (3*5 + 1, 5*5)
+kantilan :: BaliScales.ScaleMap
+kantilan = scale_map (BaliScales.ioeua_absolute_arrow 5) (3*5 + 1, 5*5)
 
 -- | Use ding deng dong dung dang.  I don't know if this is ever actually used
 -- for gender, but the notation is compact.
@@ -65,12 +63,6 @@ all_keys = mempty
 
 default_key :: Theory.Key
 default_key = Theory.key (Pitch.Degree 0 0) "default" [1, 1, 1, 1, 1] layout
-
-pemade_bottom, pemade_top :: Pitch.Pitch
-(pemade_bottom, pemade_top) = BaliScales.scale_range pemade_scale
-
-kantilan_bottom, kantilan_top :: Pitch.Pitch
-(kantilan_bottom, kantilan_top) = BaliScales.scale_range kantilan_scale
 
 note_numbers :: BaliScales.NoteNumbers
 note_numbers = BaliScales.NoteNumbers

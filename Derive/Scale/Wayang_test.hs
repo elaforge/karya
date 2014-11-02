@@ -22,12 +22,12 @@ test_read = do
     let f scale pitch = read_scale (get_scale scale) pitch
     -- The same pitch also winds up with the same Pitch and same frequency.
     equal (f "wayang" "5i") (Right "5-0")
-    equal (f "wayang-p" "i^") (Right "5-0")
-    equal (f "wayang-k" "i-") (Right "5-0")
+    equal (f "wayang-pemade" "i^") (Right "5-0")
+    equal (f "wayang-kantilan" "i-") (Right "5-0")
     let run scale pitch = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks "" $ scale_track scale [pitch]
-    equal (run "wayang" "5i") (run "wayang-p" "i^")
-    equal (run "wayang" "5i") (run "wayang-k" "i-")
+    equal (run "wayang" "5i") (run "wayang-pemade" "i^")
+    equal (run "wayang" "5i") (run "wayang-kantilan" "i-")
 
 get_scale :: Text -> Scale.Scale
 get_scale scale_id = fromMaybe (error $ "no scale: " ++ show scale_id) $

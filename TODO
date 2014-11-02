@@ -3,6 +3,20 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - in save/rehearsal/lelambatan/template, reyong entry defaults to *twelve
+    . Probably because it has no direct >inst title, and no performance so it
+      doesn't know the environ.  But note entry should look at global
+      transform at least.  And look at parent track titles.
+  - pemade-s is messed up, but only in playback
+    . Because it winds up 83.99978169093067 instead of 84.
+  - LPerf.sel_events always gets tuning=umbang, even though the derivation
+    correctly sees isep.
+    . It's because the environ, along with transpose, is only applied during
+      conversion.  This is as intended, but it's confusing for sel_events.
+      Should I have it apply controls to the pitch signal before display?
+  - per-score config to set patch_scale, like environ
+  - why does verify_performance not work?  Looks like inconsistent ordering of
+    events at the same time, but doesn't it sort those?
   * Long pedal at the end of bloom @b12 sometimes doesn't come up.
     . I think the performer needs to understand the pedal.  But why does it
       come up properly sometimes?

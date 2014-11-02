@@ -7,6 +7,7 @@
 -- Unfortunately the instruments here have to be hardcoded unless I want to
 -- figure out how to parse .nki files or something.
 module Local.Instrument.Kontakt where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -40,6 +41,8 @@ import qualified Derive.Environ as Environ
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Pitches as Pitches
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
@@ -180,11 +183,10 @@ sonic_couture =
     ]
 
 guzheng :: MidiInst.Patch
-guzheng = MidiInst.with_code code $ MidiInst.range bottom top $
+guzheng = MidiInst.with_code code $ MidiInst.range range $
     Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
     Instrument.attribute_map #= Instrument.simple_keyswitches ks $
-    patch "guzheng" [(23, Controls.lpf), (24, Controls.q),
-        (27, Controls.hpf)]
+    patch "guzheng" [(23, Controls.lpf), (24, Controls.q), (27, Controls.hpf)]
     where
     code = MidiInst.note_generators [("左", DUtil.attrs_note Attrs.left)]
         <> MidiInst.note_transformers [("standard-strings", standard_strings)]
@@ -205,7 +207,7 @@ guzheng = MidiInst.with_code code $ MidiInst.range bottom top $
         notes = [NN.d2, NN.e2, NN.fs2, NN.a2, NN.b2]
         octaves = map fromIntegral [0, 12 ..]
     -- Let's say the top string can bend a minor third.
-    (bottom, top) = (head strings, last strings + 3)
+    range = (head strings, last strings + 3)
 
 c_highlight_strings :: Derive.Generator Derive.Note
 c_highlight_strings = Note.transformed_note
@@ -218,9 +220,15 @@ c_highlight_strings = Note.transformed_note
 sc_bali :: [MidiInst.Patch]
 sc_bali = map (first add_doc) $
     CUtil.simple_drum Nothing gong_notes (sc_patch "sc-gong")
+    : CUtil.simple_drum Nothing kempli_kajar_notes (sc_patch "sc-kempli-kajar")
     : map MidiInst.with_empty_code gangsa
-    ++ map (MidiInst.with_empty_code . reyong_ks)
+    ++ map (MidiInst.with_empty_code . reyong_ks
+            . MidiInst.range Legong.reyong_range)
         (sc_patch "sc-reyong" : scale_variations "sc-reyong")
+    ++ map MidiInst.with_empty_code
+    [ MidiInst.range Legong.ugal_range $ sc_patch "sc-ugal"
+    , MidiInst.range Legong.trompong_range $ sc_patch "sc-trompong"
+    ]
     where
     gangsa = map gangsa_ks $
         sc_patch "sc-gangsa12" : scale_variations "sc-gangsa"
@@ -248,46 +256,107 @@ sc_bali = map (first add_doc) $
         Instrument.patch $ Instrument.instrument name [] (-2, 2)
     add_doc = Instrument.text
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)
+
     gangsa_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
         [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
-    gong_notes = map make
+    reyong_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
+        [(Score.attr "cek", Key2.cs1), (mempty, Key2.c1)]
+    gong_notes = map note
         [ ("O", gong <> wadon, Key2.b1, 'z')
         , ("o", gong <> lanang, Key2.c2, 'x')
         , ("p", kempur, Key2.a2, 'q')
         , ("m", kemong, Key2.a3, 'w')
         ]
-        where make (call, attrs, key, char) = (Drums.note call attrs char, key)
-    reyong_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
-        [(Score.attr "cek", Key2.cs1), (mempty, Key2.c1)]
+    kempli_kajar_notes = map note
+        [ ("+", kempli,                 Key2.d3, 'z')
+        , ("`O+`", kempli <> open,      Key2.ds3, 'a')
+        , ("+1", kempli <> Attrs.v1,    Key2.f3, 'x')
+        , ("+2", kempli <> Attrs.v2,    Key2.g3, 'c')
+        , ("+3", kempli <> Attrs.v3,    Key2.a3, 'v')
+        , ("b", bebende,                Key2.d4, 'b')
+        , ("B", bebende <> open,        Key2.ds4, 'g')
+        -- TODO make sure these are the same as the corresponding kendang
+        , ("o", kajar,                  Key2.f4, 'q')
+        , ("T", kajar <> Attrs.rim <> open, Key2.fs4, 'w')
+        -- The Sonic Couture kajar doesn't have this.
+        , ("P", kajar <> Attrs.rim,     Key2.g4, 'e')
+        -- There is also a low kajar variant.
+        ]
+    open = Attrs.open
+    note (call, attrs, key, char) = (Drums.note call attrs char, key)
 
 gong = Score.attr "gong"
 kemong = Score.attr "kemong"
 kempur = Score.attr "kempur"
+bebende = Score.attr "bebende"
 wadon = Score.attr "wadon"
 lanang = Score.attr "lanang"
+kempli = Score.attr "kempli"
+kajar = Score.attr "kajar"
 
 misc :: [MidiInst.Patch]
 misc = [MidiInst.with_code Reaktor.resonant_filter $ patch "filtered" []]
 
-configure_legong :: Midi.Channel -> Midi.Channel -> Text -> Cmd.CmdL ()
-configure_legong pemade_chan kantilan_chan dev = do
-    configure "pemade" pemade_chan Legong.pemade_bottom Legong.pemade_top
-    configure "kantilan" kantilan_chan
-        Legong.kantilan_bottom Legong.kantilan_top
+-- TODO if I can add patch scale as inst config, then I should add all insts
+-- and their ranges to >kontakt/sc-*, this seems better than per-score
+-- configuration.
+
+-- | (name, patch, gets_chan, environ)
+gong_kebyar ::
+    [(LInst.Instrument, Text, Bool, [(TrackLang.ValName, RestrictedEnviron.Val)])]
+gong_kebyar = concat
+    [ gangsa "jegog" (range_of Legong.jegog)
+    , gangsa "calung" (range_of Legong.calung)
+    , gangsa "penyacah" (range_of Legong.penyacah)
+    , gangsa "pemade" (range_of Legong.pemade)
+    , gangsa "kantilan" (range_of Legong.kantilan)
+    ] ++
+    [ ("ugal", gangsa_umbang, True,
+        inst_range Legong.ugal_range <> tuning Environ.umbang)
+    , ("reyong", "kontakt/sc-reyong-legong-isep", True,
+        inst_range Legong.reyong_range <> tuning Environ.isep)
+    , ("trompong", "kontakt/sc-reyong-legong-umbang", True,
+        inst_range Legong.trompong_range <> tuning Environ.umbang)
+    , ("gong", "kontakt/sc-gong", True, [])
+    , ("kempli", "kontakt/sc-kempli-kajar", True, [])
+    ]
     where
-    configure name chan bottom top = do
-        LInst.add name "kontakt/sc-gangsa12" "" []
-        set_pasang name
-        set_range name bottom top
-        LInst.add (name <> "-p") "kontakt/sc-gangsa-legong-umbang" dev [chan]
-        LInst.add (name <> "-s") "kontakt/sc-gangsa-legong-isep" dev [chan+1]
-    set_pasang name = do
-        LInst.add_environ name Gangsa.inst_polos (inst $ name <> "-p")
-        LInst.add_environ name Gangsa.inst_sangsih (inst $ name <> "-s")
-    set_range name bottom top = do
-        LInst.add_environ name Environ.instrument_bottom bottom
-        LInst.add_environ name Environ.instrument_top top
+    -- Actually pemade and kantilan have an umbang isep pair for both polos and
+    -- sangsih.
+    gangsa name range =
+        [ (name, "kontakt/sc-gangsa12", False, pasang name <> inst_range range)
+        , (name <> "-p", gangsa_umbang, True,
+            inst_range range <> tuning Environ.umbang)
+        , (name <> "-s", gangsa_isep, True,
+            inst_range range <> tuning Environ.isep)
+        ]
+    pasang name =
+        [ (Gangsa.inst_polos, (to_val $ inst $ name <> "-p"))
+        , (Gangsa.inst_sangsih, (to_val $ inst $ name <> "-s"))
+        ]
+    inst_range (bottom, top) =
+        [ (Environ.instrument_bottom, to_val bottom)
+        , (Environ.instrument_top, to_val top)
+        ]
+    tuning val = [(Environ.tuning, to_val val)]
+    to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
+    to_val = RestrictedEnviron.to_val
     inst = Repl.Util.instrument
+    range_of = BaliScales.scale_range
+    gangsa_umbang = "kontakt/sc-gangsa-legong-umbang"
+    gangsa_isep = "kontakt/sc-gangsa-legong-isep"
+
+configure_gong_kebyar :: Text -> Cmd.CmdL ()
+configure_gong_kebyar dev =
+    sequence_ $ snd $ List.mapAccumL allocate 0 gong_kebyar
+    where
+    allocate chan (name, patch, gets_chan, environ) =
+        (if gets_chan then chan+1 else chan, alloc)
+        where
+        alloc = do
+            if gets_chan then LInst.add name patch dev [chan]
+                else LInst.add name patch "" []
+            forM_ environ $ \(k, v) -> LInst.add_environ name k v
 
 -- * hang
 
@@ -355,8 +424,10 @@ wayang_patches = map (MidiInst.with_code (code <> with_weak))
     , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
     ] ++ map (MidiInst.with_code (Bali.pasang_code <> with_weak))
     [ wayang "wayang"
-    , set_range Wayang.pemade_bottom Wayang.pemade_top $ wayang "wayang-p"
-    , set_range Wayang.kantilan_bottom Wayang.kantilan_top $ wayang "wayang-k"
+    , MidiInst.range (BaliScales.scale_range Wayang.pemade) $
+        wayang "wayang-pemade"
+    , MidiInst.range (BaliScales.scale_range Wayang.kantilan) $
+        wayang "wayang-kantilan"
     ]
     where
     code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
@@ -379,8 +450,6 @@ wayang_patches = map (MidiInst.with_code (code <> with_weak))
             \ patch to be tuned to the instrument's natural scale."
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ Environ.tuning tuning
-    set_range bottom top = MidiInst.environ Environ.instrument_bottom bottom
-        . MidiInst.environ Environ.instrument_top top
 
 -- | Set up a gender wayang quartet.
 --
@@ -389,10 +458,10 @@ wayang_patches = map (MidiInst.with_code (code <> with_weak))
 -- with polos on umbang.
 configure_wayang :: Text -> Cmd.CmdL ()
 configure_wayang dev = do
-    LInst.add "p" "kontakt/wayang-p" "" []
+    LInst.add "p" "kontakt/wayang-pemade" "" []
     LInst.add_environ "p" Gangsa.inst_polos (Score.Instrument "p-umbang")
     LInst.add_environ "p" Gangsa.inst_sangsih (Score.Instrument "p-isep")
-    LInst.add "k" "kontakt/wayang-k" "" []
+    LInst.add "k" "kontakt/wayang-kantilan" "" []
     LInst.add_environ "k" Gangsa.inst_polos (Score.Instrument "k-umbang")
     LInst.add_environ "k" Gangsa.inst_sangsih (Score.Instrument "k-isep")
     LInst.add "p-isep" "kontakt/wayang-isep" dev [0]

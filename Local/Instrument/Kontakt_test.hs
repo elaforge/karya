@@ -77,23 +77,24 @@ test_wayang_kempyung = do
         umbang = "kontakt/wayang-umbang"
         isep = "kontakt/wayang-isep"
     -- Top note is 6i.
-    equal (run "-k" "" [(0, 1, "5e"), (1, 1, "5u")])
+    equal (run "-kantilan" "" [(0, 1, "5e"), (1, 1, "5u")])
         ([ (umbang, (0, 1, "5e")), (isep, (0, 1, "6i"))
          , (umbang, (1, 1, "5u")), (isep, (1, 1, "5u"))
          ], [])
-    equal (run "-p" "" [(0, 1, "4e"), (1, 1, "4u")])
+    equal (run "-pemade" "" [(0, 1, "4e"), (1, 1, "4u")])
         ([ (umbang, (0, 1, "4e")), (isep, (0, 1, "5i"))
          , (umbang, (1, 1, "4u")), (isep, (1, 1, "4u"))
          ], [])
-    equal (run "-p" " | inst-top = (pitch (4a))" [(0, 1, "4o"), (1, 1, "4e")])
+    equal (run "-pemade" " | inst-top = (pitch (4a))"
+            [(0, 1, "4o"), (1, 1, "4e")])
         ([ (umbang, (0, 1, "4o")), (isep, (0, 1, "4a"))
          , (umbang, (1, 1, "4e")), (isep, (1, 1, "4e"))
          ], [])
 
 wayang_title :: String -> String
-wayang_title suffix =
-    " | scale = wayang | n >kontakt/wayang" <> suffix <> " | scale = wayang\
-    \ | inst-polos = >kontakt/wayang-umbang\
+wayang_title inst_suffix =
+    " | scale = wayang | n >kontakt/wayang" <> inst_suffix
+    <> " | scale = wayang | inst-polos = >kontakt/wayang-umbang\
     \ | inst-sangsih = >kontakt/wayang-isep"
 
 test_mridangam = do
