@@ -10,17 +10,17 @@ import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Vector as V
 
 
-count :: (Generic.Vector v a) => (a -> Bool) -> v a -> Int
+count :: Generic.Vector v a => (a -> Bool) -> v a -> Int
 count f = Generic.foldl' (\c a -> if f a then succ c else c) 0
 
-fold_abort :: (Generic.Vector v a) => (accum -> a -> Maybe accum) -> accum
+fold_abort :: Generic.Vector v a => (accum -> a -> Maybe accum) -> accum
     -> v a -> accum
 fold_abort f accum vec = go 0 accum
     where go i accum = maybe accum (go (i+1)) $ f accum =<< vec Generic.!? i
 
 -- | Find the index of the last value whose running sum is still below the
 -- given number.
-find_before :: (Generic.Vector v Int) => Int -> v Int -> Int
+find_before :: Generic.Vector v Int => Int -> v Int -> Int
 find_before n = fst . fold_abort go (0, 0)
     where
     go (i, total) a
@@ -37,8 +37,8 @@ bracketing vec a = case Generic.findIndex (>=a) vec of
 
 -- | Binary search for the lowest index of the given value, or where it would
 -- be if it were present.
-{-# SPECIALIZE lowest_index :: (Ord key) =>
-    (a -> key) -> key -> V.Vector a -> Int #-}
+{-# SPECIALIZE lowest_index ::
+    Ord key => (a -> key) -> key -> V.Vector a -> Int #-}
 lowest_index :: (Ord key, Generic.Vector v a) => (a -> key) -> key -> v a -> Int
 lowest_index key x vec = go vec 0 (Generic.length vec)
     where

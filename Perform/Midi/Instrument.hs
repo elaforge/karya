@@ -329,19 +329,21 @@ patch inst = Patch
 
 -- | If a patch is tuned to something other than 12TET, this vector maps MIDI
 -- key numbers to their NNs, or 0 if the patch doesn't support that key.
-type PatchScale = Vector.Vector Double
+data PatchScale = PatchScale !Text (Vector.Vector Double)
+    deriving (Eq, Show)
 
-empty_patch_scale :: PatchScale
-empty_patch_scale = Vector.fromList $ replicate 128 0
+instance Pretty.Pretty PatchScale where
+    pretty (PatchScale name v) = untxt name <> " ("
+        <> show (Util.Vector.count (/=0) v) <> " pitches)"
 
 -- | Fill in non-adjacent MIDI keys by interpolating the neighboring
 -- NoteNumbers.  This is because a 0 between two notes will prevent pitch
 -- slides.  Another problem is that the MIDI performer has no notion of
 -- instruments that don't support certain key numbers.  That could be added
 -- but it's simpler to just not have patches like that.
-make_patch_scale :: [(Midi.Key, Pitch.NoteNumber)] -> PatchScale
-make_patch_scale keys =
-    empty_patch_scale Vector.// map convert (interpolate keys)
+make_patch_scale :: Text -> [(Midi.Key, Pitch.NoteNumber)] -> PatchScale
+make_patch_scale name keys =
+    PatchScale name (empty Vector.// map convert (interpolate keys))
     where
     convert (k, Pitch.NoteNumber nn) = (Midi.from_key k, nn)
     interpolate ((k1, nn1) : rest@((k2, nn2) : _))
@@ -354,10 +356,10 @@ make_patch_scale keys =
             nn = Num.scale nn1 nn2 $ Num.normalize
                 (Midi.from_key k1) (Midi.from_key k2) (Midi.from_key k)
     interpolate xs = xs
+    empty = Vector.fromList $ replicate 128 0
 
-convert_patch_scale :: Vector.Vector Double -> Pitch.NoteNumber
-    -> Maybe Pitch.NoteNumber
-convert_patch_scale scale (Pitch.NoteNumber nn) =
+convert_patch_scale :: PatchScale -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
+convert_patch_scale (PatchScale _ scale) (Pitch.NoteNumber nn) =
     case Util.Vector.bracketing scale nn of
         Just (i, low, high) | low /= 0 -> Just $ Pitch.NoteNumber $
             fromIntegral i + Num.normalize low high nn

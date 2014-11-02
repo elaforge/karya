@@ -145,3 +145,7 @@ instance Serialize Instrument.Keyswitch where
             0 -> Instrument.Keyswitch <$> get
             1 -> Instrument.ControlSwitch <$> get <*> get
             _ -> bad_tag "Instrument.Keyswitch" tag
+
+instance Serialize Instrument.PatchScale where
+    put (Instrument.PatchScale a b) = put a >> put b
+    get = Instrument.PatchScale <$> get <*> get

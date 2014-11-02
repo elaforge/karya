@@ -15,6 +15,10 @@ UNSORTED
       conversion.  This is as intended, but it's confusing for sel_events.
       Should I have it apply controls to the pitch signal before display?
   - per-score config to set patch_scale, like environ
+    . Then I can get rid of all of the sc-gangsa-wayang-umbang etc. variants,
+      and put all instruments and ranges into 'sc_bali'.
+    . Add Instrument.config_patch_scale
+    * Give PatchScale a name?
   - why does verify_performance not work?  Looks like inconsistent ordering of
     events at the same time, but doesn't it sort those?
   * Long pedal at the end of bloom @b12 sometimes doesn't come up.

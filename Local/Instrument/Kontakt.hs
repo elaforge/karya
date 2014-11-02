@@ -240,16 +240,16 @@ sc_bali = map (first add_doc) $
     -- hurt that much.
     scale_variations name =
         [ retuned_patch Wayang.scale_id Environ.umbang
-                (extended_wayang_scale Wayang.umbang) $
+                (extended_wayang_scale "umbang" Wayang.umbang) $
             sc_patch (name <> "-wayang-umbang")
         , retuned_patch Wayang.scale_id Environ.isep
-                (extended_wayang_scale Wayang.isep) $
+                (extended_wayang_scale "isep" Wayang.isep) $
             sc_patch (name <> "-wayang-isep")
         , retuned_patch Legong.scale_id Environ.umbang
-                (extended_legong_scale Legong.umbang) $
+                (extended_legong_scale "umbang" Legong.umbang) $
             sc_patch (name <> "-legong-umbang")
         , retuned_patch Legong.scale_id Environ.isep
-                (extended_legong_scale Legong.isep) $
+                (extended_legong_scale "isep" Legong.isep) $
             sc_patch (name <> "-legong-isep")
         ]
     sc_patch name = Instrument.set_flag Instrument.ConstantPitch $
@@ -419,8 +419,9 @@ hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]
 -}
 wayang_patches :: [MidiInst.Patch]
 wayang_patches = map (MidiInst.with_code (code <> with_weak))
-    [ set_tuning Environ.umbang $ scale Wayang.umbang $ wayang "wayang-umbang"
-    , set_tuning Environ.isep $ scale Wayang.isep $ wayang "wayang-isep"
+    [ set_tuning Environ.umbang $ scale "umbang" Wayang.umbang $
+        wayang "wayang-umbang"
+    , set_tuning Environ.isep $ scale "isep" Wayang.isep $ wayang "wayang-isep"
     , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
     ] ++ map (MidiInst.with_code (Bali.pasang_code <> with_weak))
     [ wayang "wayang"
@@ -443,8 +444,8 @@ wayang_patches = map (MidiInst.with_code (code <> with_weak))
     wayang = Instrument.set_flag Instrument.ConstantPitch
         . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
         . (Instrument.attribute_map #= wayang_keymap) . flip patch []
-    scale nns = (Instrument.text #= doc)
-        . (Instrument.scale #= Just (wayang_scale nns))
+    scale tuning nns = (Instrument.text #= doc)
+        . (Instrument.scale #= Just (wayang_scale tuning nns))
         where
         doc = "These set the scale and tuning automatically, and expect the\
             \ patch to be tuned to the instrument's natural scale."
@@ -469,17 +470,20 @@ configure_wayang dev = do
     LInst.add "k-isep" "kontakt/wayang-isep" dev [2]
     LInst.add "k-umbang" "kontakt/wayang-umbang" dev [3]
 
-wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
-wayang_scale nns = Instrument.make_patch_scale $ zip (wayang_keys False) nns
+wayang_scale :: Text -> [Pitch.NoteNumber] -> Instrument.PatchScale
+wayang_scale tuning nns = Instrument.make_patch_scale ("wayang " <> tuning) $
+    zip (wayang_keys False) nns
 
 -- | A PatchScale for the extended wayang scale, that goes down to i1.
-extended_wayang_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
-extended_wayang_scale nns =
-    Instrument.make_patch_scale $ zip (wayang_keys True) (Wayang.extend nns)
+extended_wayang_scale :: Text -> [Pitch.NoteNumber] -> Instrument.PatchScale
+extended_wayang_scale tuning nns =
+    Instrument.make_patch_scale ("wayang " <> tuning) $
+        zip (wayang_keys True) (Wayang.extend nns)
 
-extended_legong_scale :: [Pitch.NoteNumber] -> Instrument.PatchScale
-extended_legong_scale nns =
-    Instrument.make_patch_scale $ zip legong_keys (Legong.extend nns)
+extended_legong_scale :: Text -> [Pitch.NoteNumber] -> Instrument.PatchScale
+extended_legong_scale tuning nns =
+    Instrument.make_patch_scale ("legong " <> tuning) $
+        zip legong_keys (Legong.extend nns)
 
 legong_keys :: [Midi.Key]
 legong_keys = trim $ concatMap keys [3..]
@@ -541,17 +545,13 @@ retuned_patch scale_id tuning patch_scale =
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Text.IO.writeFile) $
     [ ("wayang-umbang.ksp.txt",
-        KontaktUtil.tuning_ksp "wayang umbang" $
-        extended_wayang_scale Wayang.umbang)
+        KontaktUtil.tuning_ksp $ extended_wayang_scale "umbang" Wayang.umbang)
     , ("wayang-isep.ksp.txt",
-        KontaktUtil.tuning_ksp "wayang isep" $
-        extended_wayang_scale Wayang.isep)
+        KontaktUtil.tuning_ksp $ extended_wayang_scale "isep" Wayang.isep)
     , ("legong-umbang.ksp.txt",
-        KontaktUtil.tuning_ksp "legong umbang" $
-        extended_legong_scale Legong.umbang)
+        KontaktUtil.tuning_ksp $ extended_legong_scale "umbang" Legong.umbang)
     , ("legong-isep.ksp.txt",
-        KontaktUtil.tuning_ksp "legong isep" $
-        extended_legong_scale Legong.isep)
+        KontaktUtil.tuning_ksp $ extended_legong_scale "isep" Legong.isep)
     ]
 
 -- * mridangam

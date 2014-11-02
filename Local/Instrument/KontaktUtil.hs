@@ -13,8 +13,8 @@ import qualified Perform.Midi.Instrument as Instrument
 
 -- | Create a script in Kontakt's hilariously incompetent KSP language to
 -- retune a 12TET patch to the given scale.
-tuning_ksp :: Text -> Instrument.PatchScale -> Text
-tuning_ksp name scale =
+tuning_ksp :: Instrument.PatchScale -> Text
+tuning_ksp (Instrument.PatchScale name scale) =
     "on init\n\
     \    set_script_title(" <> showt name <> ")\n" <> pitch_table scale
     <> "end on\n\
@@ -25,7 +25,7 @@ tuning_ksp name scale =
     -- To ignore notes that don't have a tuning, I could set another %set array
     -- with 0 or one, and do ignore_event($EVENT_ID).
 
-pitch_table :: Instrument.PatchScale -> Text
+pitch_table :: Vector.Vector Double -> Text
 pitch_table scale = Text.unlines $ map ("    "<>) $
     "declare %pitches[" <> showt (Vector.length scale) <> "]"
     : ["%pitches[" <> showt key <> "] := " <> from_nn key nn |
