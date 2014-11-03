@@ -3,8 +3,6 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Can I change (%=) and (#=) to infix 2?  That way I don't need parens with
-    (.).  What else is 1?
   - in save/rehearsal/lelambatan/template, reyong entry defaults to *twelve
     . Probably because it has no direct >inst title, and no performance so it
       doesn't know the environ.  But note entry should look at global

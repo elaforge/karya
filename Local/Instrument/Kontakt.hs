@@ -221,18 +221,23 @@ sc_bali :: [MidiInst.Patch]
 sc_bali = map (first add_doc) $
     CUtil.simple_drum Nothing gong_notes (sc_patch "gong")
     : CUtil.simple_drum Nothing kempli_kajar_notes (sc_patch "kempli")
-    : map MidiInst.with_empty_code
+    : concat
     [ gangsa (range_of Legong.jegog) "jegog"
     , gangsa (range_of Legong.calung) "calung"
     , gangsa (range_of Legong.penyacah) "penyacah"
     , gangsa Legong.ugal_range "ugal"
     , gangsa (range_of Legong.pemade) "pemade"
     , gangsa (range_of Legong.kantilan) "kantilan"
-    , reyong_ks $ ranged_patch Legong.reyong_range "reyong"
+    ] ++ map MidiInst.with_empty_code
+    [ reyong_ks $ ranged_patch Legong.reyong_range "reyong"
     , ranged_patch Legong.trompong_range "trompong"
     ]
     where
-    gangsa range = gangsa_ks . ranged_patch range
+    gangsa range name =
+        [ MidiInst.with_code Bali.pasang_code $
+            ranged_patch range (name <> "-pasang")
+        , MidiInst.with_empty_code $ gangsa_ks $ ranged_patch range name
+        ]
     range_of = BaliScales.scale_range
     ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name = Instrument.set_flag Instrument.ConstantPitch $
@@ -299,9 +304,9 @@ gong_kebyar = concat
     -- Actually pemade and kantilan have an umbang isep pair for both polos and
     -- sangsih.
     pasang name =
-        [ (name, sc_patch name, False, polos_sangsih name, Nothing)
+        [ (name, sc_patch name <> "-pasang", False, polos_sangsih name, Nothing)
         , umbang_patch (name <> "-p")
-        , isep_patch (name <> "-p")
+        , isep_patch (name <> "-s")
         ]
     sc_patch name = "kontakt/sc-" <> name
     polos_sangsih name =
