@@ -39,11 +39,16 @@ import qualified App.Config as Config
 -- * universal
 
 -- | Expand `-delimited macros to make a filepath.
-expand_filename :: FilePath -> IO FilePath
-expand_filename = fmap untxt . TextUtil.mapDelimitedM False '`' expand . txt
+expand_filename :: FilePath -> Cmd.CmdT IO FilePath
+expand_filename =
+    fmap untxt . TextUtil.mapDelimitedM False '`' expand . txt
     where
     expand text
-        | text == "y-m-d" = date
+        | text == "y-m-d" = liftIO date
+        | text == "d" = do
+            dir <- Cmd.require "`d` requires a save dir"
+                =<< Cmd.gets Cmd.state_save_dir
+            return $ txt dir
         | otherwise = return $ "`" <> text <> "`"
 
 date :: IO Text
