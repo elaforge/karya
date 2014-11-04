@@ -69,18 +69,18 @@ test_threaded_last_event = do
     let run = snd . DeriveTest.extract id . DeriveTest.derive_tracks_with_ui
             with_calls DeriveTest.with_linear ""
         with_calls = CallTest.with_note_generator "prev" n_prev
-    equal (run [(">", [(0, 1, ""), (1, 1, "prev")])]) ["0.0s"]
+    equal (run [(">", [(0, 1, ""), (1, 1, "prev")])]) ["0.0"]
     -- Get last event when both are inverted.
     equal (run [(">", [(0, 1, ""), (1, 1, "prev")]),
             ("*", [(0, 0, "3c"), (1, 0, "3d")])])
-        ["0.0s"]
+        ["0.0"]
     -- Get last event when one is an orphan.
     equal (run
             [ (">", [(0, 1, "+a")])
             , (">", [(0, 1, ""), (1, 1, "prev")])
             , ("*", [(0, 0, "4c"), (1, 0, "4e")])
             ])
-        ["0.0s"]
+        ["0.0"]
     where
     n_prev :: Derive.Generator Derive.Note
     n_prev = Derive.generator "test" "prev" mempty "" $

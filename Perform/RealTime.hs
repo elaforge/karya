@@ -54,7 +54,6 @@ import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Foreign
-import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
@@ -93,16 +92,9 @@ instance C.CStorable RealTime where
     peek = Foreign.peek
     poke = Foreign.poke
 
--- | This loses precision so show /= read, but no one should be relying on that
--- anyway.
-instance Show RealTime where
-    show (RealTime t) = show t ++ [suffix]
-instance Read.Read RealTime where
-    readPrec = do
-        n <- Read.readPrec
-        Read.lift ReadP.skipSpaces
-        's' <- Read.get
-        return (seconds n)
+instance Show RealTime where show (RealTime t) = show t
+instance Read.Read RealTime where readPrec = RealTime <$> Read.readPrec
+
 instance Pretty.Pretty RealTime where
     pretty t = Pretty.show_float 2 (to_seconds t) ++ [suffix]
 
