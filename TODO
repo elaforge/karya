@@ -1121,6 +1121,26 @@ signal: PitchSignal:
       few of those.  So maybe I don't actually care that much.
 
 Perform:
+  - Pick the best channel instead of the first one.
+    . An event can share a channel if it has different controls but the events
+      don't overlap.  This is required so that a sequence of notes that each
+      set a different control will go on the same channel.  But since it always
+      picks the first usable channel, you can have controls trade channels,
+      depending on how the coincident events are sorted:
+        [(0, 1, c1), (0, 1, c2), (1, 1, c2), (1, 1, c1)]
+      This should put the c1s together, but they will trade channels if they
+      come in that order.
+    . I think to fix this I'd have to have can_share_chan return
+      Left fail_reason or Right priority, and pick the highest priority.
+      It would have to give a lower priority to events that could share, but
+      have incompatible controls just out of the event range.
+    . let f = Perform.shareable_chan
+      let mkevent start controls pitch =
+              Perform.Event inst1 start 0.33 controls
+                  (Signal.signal [(0, pitch)]) DeriveTest.fake_stack
+      let pedal = Map.fromList [("pedal", Signal.signal [(0, 1), (6, 0)])]
+      pprint (f [(mkevent 3.33 pedal 45, 0)] (mkevent 3.66 mempty 72))
+
   - I can work around the pianoteq tuning bug by not stripping redundant
     conrol changes.  This also means that recorded MIDI can be played from any
     point.  If bandwidth isn't a concern then why not?

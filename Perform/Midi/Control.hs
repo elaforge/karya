@@ -56,8 +56,7 @@ is_midi_control cmap control = control == Controls.velocity
 -- I include all variable note parameters.
 is_channel_control :: Score.Control -> Bool
     -- Don't include c_pitch because that is checked for sharing separately.
-is_channel_control cont =
-    cont `notElem` [Controls.velocity, Controls.aftertouch]
+is_channel_control = (`notElem` [Controls.velocity, Controls.aftertouch])
 
 control_range :: (Signal.Y, Signal.Y)
 control_range = (0, 1)

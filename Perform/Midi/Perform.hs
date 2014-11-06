@@ -154,17 +154,11 @@ channelize_event inst_addrs overlapping event =
     chan = fromMaybe (maximum (-1 : map snd overlapping) + 1) maybe_chan
     (maybe_chan, reasons) = shareable_chan overlapping event
     log = Log.msg Log.Warn (Just (event_stack event)) $ Text.unlines $
-        (log_prefix event <> ": found chan " <> showt maybe_chan <> ", picked "
-            <> showt chan)
+        (short_event event <> ": found chan " <> showt maybe_chan
+            <> ", picked " <> showt chan)
         : map mkmsg reasons
+        ++ [showt c <> ": " <> short_event e | (e, c) <- overlapping]
     mkmsg (chan, reason) = "can't share with " <> showt chan <> ": " <> reason
-
--- | This is redundant since log msgs have a stack, but it's convenient for
--- filtering.
-log_prefix :: Event -> Text
-log_prefix event =
-    prettyt inst <> " at " <> prettyt (event_start event) <> ": "
-    where inst = Instrument.inst_score (event_instrument event)
 
 -- | Find a channel from the list of overlapping (Event, Channel) all of whose
 -- events can share with the given event.  Return the rest of the channels and
@@ -172,13 +166,14 @@ log_prefix event =
 shareable_chan :: [(Event, Channel)] -> Event
     -> (Maybe Channel, [(Channel, Text)])
 shareable_chan overlapping event =
-    (fst <$> List.find (null . snd) unshareable_reasons,
-        map (second (Text.intercalate "; ")) $
-            filter (not . null . snd) unshareable_reasons)
+    ( fst <$> List.find (null . snd) unshareable_reasons
+    , map (second (Text.intercalate "; ")) $
+        filter (not . null . snd) unshareable_reasons
+    )
     where
-    unshareable_reasons = [(chan, reasons evts) | (chan, evts) <- by_chan]
-    by_chan = Seq.keyed_group_on snd overlapping
-    reasons = mapMaybe (flip can_share_chan event . fst)
+    unshareable_reasons = [(chan, reasons evts) | (evts, chan) <- by_chan]
+    by_chan = Seq.group_snd overlapping
+    reasons es = mapMaybe (flip can_share_chan event) es
 
 -- | Can the two events coexist in the same channel without interfering?
 -- The reason this is not commutative is so I can assume the start of @old@
@@ -786,6 +781,15 @@ instance Pretty.Pretty Event where
         , ("pitch", Pretty.format pitch)
         , ("stack", Pretty.format stack)
         ]
+
+-- | Pretty print the event more briefly than the Pretty instance.
+short_event :: Event -> Text
+short_event event =
+    prettyt (start, event_duration event, inst, pitch, event_controls event)
+    where
+    start = event_start event
+    inst = Instrument.inst_score (event_instrument event)
+    pitch = Pitch.NoteNumber $ Signal.at start (event_pitch event)
 
 event_end :: Event -> RealTime
 event_end event = event_start event + event_duration event
