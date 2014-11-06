@@ -81,21 +81,25 @@ test_nyogcag = do
 test_noltol = do
     let run arg = derive extract (" | noltol " <> arg)
         extract e = (Score.event_start e, DeriveTest.e_inst e,
-            DeriveTest.e_attributes e)
+            DeriveTest.e_pitch e, DeriveTest.e_attributes e == "+mute")
     let notes = [(0, 1, "n >i1 -- 4c"), (1, 1, "n >i2 -- 4d"),
             (2, 1, "n >i1 -- 4e")]
-    equal (run "2.5" notes)
-        ([(0, "i1", "+"), (1, "i2", "+"), (2, "i1", "+")], [])
-    equal (run "2" notes)
-        ([ (0, "i1", "+"), (1, "i1", "+loose+mute"), (1, "i2", "+")
-         , (2, "i1", "+")
+    -- 1s of free time between i1
+    equal (run "1.1" notes)
+        ([(0, "i1", "4c", False), (1, "i2", "4d", False),
+            (2, "i1", "4e", False)], [])
+    equal (run "1" notes)
+        ([ (0, "i1", "4c", False), (1, "i1", "4c", True)
+         , (1, "i2", "4d", False), (2, "i1", "4e", False)
          ], [])
 
-    let run2 = derive extract (inst_title <> " | noltol 1 | nyog")
-    equal (run2 [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e"), (3, 1, "4f")])
-        ([ (0, "i1", "+"), (1, "i1", "+loose+mute")
-         , (1, "i2", "+"), (2, "i2", "+loose+mute")
-         , (2, "i1", "+"), (3, "i2", "+")
+    let run2 postproc = derive extract (inst_title <> " | noltol 1" <> postproc)
+    equal (run2 " | nyog"
+            [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e"), (3, 1, "4f")])
+        ([ (0, "i1", "4c", False), (1, "i1", "4c", True)
+         , (1, "i2", "4d", False), (2, "i2", "4d", True)
+         , (2, "i1", "4e", False)
+         , (3, "i2", "4f", False)
          ], [])
 
 derive_pasang :: (Score.Event -> a) -> String -> [UiTest.EventSpec]

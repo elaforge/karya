@@ -14,6 +14,7 @@ module Derive.Score (
     , empty_event, event_end, event_min, event_max, event_scale_id
     , event_transformed_controls, event_transformed_pitch
     , event_transformed_pitches
+    , copy
     -- ** flags
     , has_flags, add_flags, remove_flags
     -- ** environ
@@ -160,6 +161,11 @@ event_transformed_pitches :: Event -> PitchMap
 event_transformed_pitches event =
     Map.map (PitchSignal.shift (event_control_offset event))
         (event_untransformed_pitches event)
+
+-- | If you use an event to create another event, call this to clear out
+-- data that shouldn't go with the copy.
+copy :: Event -> Event
+copy event = event { event_flags = mempty }
 
 -- ** flags
 

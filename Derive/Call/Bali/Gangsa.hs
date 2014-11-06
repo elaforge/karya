@@ -477,8 +477,8 @@ nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
 
 c_noltol :: Derive.Transformer Derive.Note
 c_noltol = Derive.transformer module_ "noltol" Tags.postproc
-    "Play the transformed notes in noltol style. If the distance between each\
-    \ note and the next note of the same instrument is above a threshold,\
+    "Play the transformed notes in noltol style. If the space between \
+    \ notes of the same (instrument, hand) is above a threshold,\
     \ end the note with a `+mute`d copy of itself."
     $ Sig.callt
     (Sig.defaulted "time" (Sig.control "noltol" 0.1)
@@ -486,8 +486,8 @@ c_noltol = Derive.transformer module_ "noltol" Tags.postproc
     $ \time _args deriver -> do
         events <- deriver
         times <- Post.time_control time events
-        return $ Post.emap_ (Post.uncurry3 noltol) $
-            LEvent.zip3 times (Post.nexts (LEvent.events_of events)) events
+        return $ Post.emap_ (uncurry noltol) $
+            LEvent.zip times $ Post.neighbors_same_hand id events
 
 -- Postproc is seems like the wrong time to be doing this, I can't even change
 -- the dyn conveniently.  However, postproc is the only time I reliably know
@@ -497,19 +497,17 @@ c_noltol = Derive.transformer module_ "noltol" Tags.postproc
 
 -- | If the next note of the same instrument is below a threshold, the note's
 -- off time is replaced with a +mute.
-noltol :: RealTime -> [Score.Event] -> Score.Event -> [Score.Event]
-noltol threshold nexts event
-    | maybe False ((>=threshold) . subtract (Score.event_start event)) next =
-        [event, muted]
+noltol :: RealTime -> (Maybe Score.Event, Score.Event, Maybe Score.Event)
+    -> [Score.Event]
+noltol threshold (_, event, maybe_next)
+    | Just next <- maybe_next, space next >= threshold = [event, muted]
     | otherwise = [event]
     where
-    muted = Score.add_attributes (Attrs.mute <> Attrs.loose) $
+    muted = Score.add_attributes Attrs.mute $
         -- TODO this should probably be configurable
         Score.modify_dynamic (*0.65) $
-        Score.move (+ Score.event_duration event) event
-    next = Score.event_start <$>
-        List.find ((== Score.event_instrument event) . Score.event_instrument)
-            nexts
+        Score.move (+ Score.event_duration event) $ Score.copy event
+    space next = Score.event_start next - Score.event_end event
 
 
 -- * util
