@@ -955,7 +955,7 @@ Derive:
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan ornaments
         * mute non-mute alternation is messed up, probably to do with timing
-        - last note should infer its duration
+        * last note should infer its duration
           . But infer duration is not just until the next note start if there is
             another part.  So maybe it also needs the paired instrument, and the
             duration stops when that starts.

@@ -18,28 +18,30 @@ import qualified Perform.Pitch as Pitch
 import Types
 
 
+title :: String
+title = "import bali.reyong | scale=legong | infer-duration"
+
 test_kilitan = do
-    let run notes = e_voice 1 $ DeriveTest.derive_tracks "import bali.reyong" $
-            UiTest.note_spec (" | scale = legong", notes, [])
+    let run = e_voice 1 . DeriveTest.derive_tracks title . UiTest.note_track
     equal (run [(0, 0, "X --"), (1, 0, "O --"), (2, 0, "+ --")])
         (Just [(0, "3u"), (1, "3e"), (1, "3a"), (2, "3e"), (2, "3a")], [])
-    equal (run [(4, -4, ">kilit -- 3u"), (8, -4, "kilit -- 3u")])
+    equal (run [(0, 4, ">kilit -- 3u"), (4, 4, "kilit -- 3u")])
         (Just
             [ (1, "3u"), (2, "3u"), (3, "3a"), (4, "3u")
             , (5, "3a"), (6, "3u"), (7, "3a"), (8, "3u")
             ], [])
 
 test_kotekan = do
-    let run notes = e_voice 1 $ DeriveTest.derive_tracks "import bali.reyong" $
-            UiTest.note_spec (" | scale = legong", notes, [])
-    equal (run [(16, -16, "k\\/ -- 3o")])
+    let run = e_voice 1 . DeriveTest.derive_tracks title . UiTest.note_track
+    equal (run [(0, 16, "k\\/ -- 3o")])
         (Just
             [ (2, "3a"), (3, "4i"), (5, "3a"), (6, "4i"), (8, "4i")
             , (9, "3a"), (11, "4i"), (12, "3a"), (14, "3a"), (15, "4i")
             ], [])
-    equal (run [(8, -8, "k// -- 3a")])
+    equal (run [(0, 8, "k// -- 3a")])
         (Just
-            [ (1, "3u"), (2, "3a"), (4, "3u"), (5, "3a"), (7, "3u"), (8, "3a")
+            [ (0, "3a"), (1, "3u"), (2, "3a"), (4, "3u"), (5, "3a"), (7, "3u")
+            , (8, "3a")
             ], [])
 
 e_voice :: Int -> Derive.Result -> (Maybe [(RealTime, String)], [String])

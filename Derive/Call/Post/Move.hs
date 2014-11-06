@@ -58,7 +58,7 @@ infer_duration final_dur = cancel_notes . infer_notes
         Post.cat_maybes . Post.emap1 cancel . Post.neighbors_same_hand id
 
     cancel (maybe_prev, event, _)
-        | has Flags.track_time_0 event, Just prev <- maybe_prev,
+        | has Flags.can_cancel event, Just prev <- maybe_prev,
                 has Flags.infer_duration prev =
             Nothing
         | otherwise = Just event
@@ -76,7 +76,7 @@ infer_duration final_dur = cancel_notes . infer_notes
 -- If there is no note to replace, it extends to the start of the next note.
 replace_note :: Score.Event -> Score.Event -> Score.Event
 replace_note next event
-    | Score.has_flags Flags.track_time_0 next =
+    | Score.has_flags Flags.can_cancel next =
         set_end (Score.event_end next) event
             { Score.event_untransformed_pitch = pitch event
                 <> PitchSignal.drop_before_at start (pitch next)

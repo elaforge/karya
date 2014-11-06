@@ -26,7 +26,7 @@
     - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
-import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 
 import Util.Control
 import qualified Util.Num as Num
@@ -44,6 +44,7 @@ import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -167,7 +168,7 @@ regular_pattern polos sangsih_telu sangsih_pat =
 c_norot :: Derive.Generator Derive.Note
 c_norot = Derive.make_call module_ "norot" mempty
     "Emit the basic norot pattern. The last note will line up with the end of\
-    \ the event, so this is most suitable for a negative duration event."
+    \ the event."
     $ Sig.call ((,,,,)
     <$> dur_arg
     <*> Sig.defaulted "style" Default "Norot style."
@@ -215,23 +216,22 @@ c_norot_pickup = Derive.make_call module_ "norot" mempty "Emit norot pickup."
 
 gangsa_norot_pickup :: NorotStyle -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
-gangsa_norot_pickup style pasang (pstep, sstep) = (interlock, normal)
+gangsa_norot_pickup style pasang ((p1, p2), (s1, s2)) = (interlock, normal)
     where
     interlock =
-        [ [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
-        , [polos (snd pstep) mempty, sangsih (snd pstep) mempty]
-        , [sangsih (fst pstep) mempty]
-        , [polos (snd pstep) mempty]
+        [ [polos p2 mempty, sangsih p2 mempty]
+        , [polos p2 mempty, sangsih p2 mempty]
+        , [sangsih p1 mempty]
+        , [polos p2 mempty]
         ]
     normal = case style of
-        Default -> [[KotekanNote Nothing step attr] | (step, attr) <-
-            [(snd pstep, mute), (snd pstep, mempty), (fst pstep, mempty),
-                (snd pstep, mempty)]]
+        Default -> map ((:[]) . (uncurry (KotekanNote Nothing)))
+            [(p2, mute), (p2, mempty), (p1, mempty), (p2, mempty)]
         Diamond ->
-            [ [polos (snd pstep) mute, sangsih (snd sstep) mute]
-            , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
-            , [polos (fst pstep) mempty, sangsih (fst sstep) mempty]
-            , [polos (snd pstep) mempty, sangsih (snd sstep) mempty]
+            [ [polos p2 mute, sangsih s2 mute]
+            , [polos p2 mempty, sangsih s2 mempty]
+            , [polos p1 mempty, sangsih s1 mempty]
+            , [polos p2 mempty, sangsih s2 mempty]
             ]
     mute = Attrs.mute -- TODO configurable
     polos = KotekanNote (Just (fst pasang))
@@ -299,6 +299,10 @@ realize_kotekan_pattern (start, end) dur pitch under_threshold repeat cycle =
         realize_pattern repeat start end dur get_cycle
     where
     get_cycle t
+        -- Since realize_pattern passes the of the last note of the cycle, so
+        -- subtract to find the time at the beginning.  Otherwise it's
+        -- confusing if the threshold is checked at the end of the cycle,
+        -- rather than the beginning.
         | under_threshold (t - cycle_dur) = fst cycle
         | otherwise = snd cycle
     cycle_dur = dur * fromIntegral (length (fst cycle))
@@ -344,6 +348,9 @@ data Note a = Note {
     , note_data :: !a
     } deriving (Show)
 
+instance Pretty.Pretty a => Pretty.Pretty (Note a) where
+    format (Note start dur d) = Pretty.format (start, dur, d)
+
 data KotekanNote = KotekanNote {
     -- | If Nothing, retain the instrument in scope.  Presumably it will be
     -- later split into polos and sangsih by a @unison@ or @kempyung@ call.
@@ -352,8 +359,12 @@ data KotekanNote = KotekanNote {
     , note_attributes :: !Score.Attributes
     } deriving (Show)
 
+instance Pretty.Pretty KotekanNote where
+    format (KotekanNote inst steps attrs) = Pretty.format (inst, steps, attrs)
+
 under_threshold_function :: TrackLang.ValControl -> ScoreTime
-    -> Derive.Deriver (ScoreTime -> Bool)
+    -> Derive.Deriver (ScoreTime -> Bool) -- ^ say if a note at this time
+    -- with the given duration would be under the kotekan threshold
 under_threshold_function kotekan dur = do
     to_real <- Derive.real_function
     kotekan <- Util.to_function kotekan
@@ -362,33 +373,37 @@ under_threshold_function kotekan dur = do
         in to_real (t+dur) - real < RealTime.seconds (kotekan real)
 
 realize_pattern :: Repeat -> ScoreTime -> ScoreTime -> ScoreTime
-    -> (ScoreTime -> [[a]]) -> [Note a]
+    -> (ScoreTime -> [[a]])
+    -- ^ Get one cycle of notes, ending at the given time.
+    -> [Note a]
 realize_pattern repeat pattern_start pattern_end dur get_cycle =
-    concat $ reverse $ Seq.map_head negate_dur $ concat $
-        take_cycles $ realize_cycle $
-        Seq.range' pattern_end pattern_start (-dur)
+    concat $ reverse $ concat $ take_cycles $
+        realize_cycle $ Seq.range pattern_end pattern_start (-dur)
     where
     take_cycles = case repeat of
         Repeat -> id
         Once -> take 1
-    negate_dur = map $ \n -> n { note_duration = negate $ note_duration n }
+    -- Zip cycles up with the given times, from end to start.
     realize_cycle [] = []
     realize_cycle ts@(t:_) = map realize pairs : realize_cycle rest_ts
-        where
-        -- To make it easier to line up to the end, the actual notes are placed
-        -- from end to start, and then reversed.  But I want to measure the
-        -- threshold at the actual start of the cycle, otherwise the results
-        -- are confusing (the tempo at the end of the cycle affects whether
-        -- it interlocks, instead of the start).
-        (pairs, rest_ts) = Seq.zip_remainder (reverse (get_cycle t)) ts
-    realize (notes, start) = map (Note start ndur) notes
-        where ndur = if start == pattern_start then -dur else dur
+        where (pairs, rest_ts) = Seq.zip_remainder (reverse (get_cycle t)) ts
+    realize (notes, start) = map (Note start dur) notes
 
 realize_notes :: ScoreTime -> (a -> Derive.NoteDeriver) -> [Note a]
     -> Derive.NoteDeriver
-realize_notes start realize =
-    mconcatMap note . dropWhile ((<=start) . note_start)
-    where note (Note start dur note) = Derive.place start dur (realize note)
+realize_notes call_start realize =
+    -- The dropWhile shouldn't be necessary because 'realize_pattern' doesn't
+    -- create notes before the start.
+    mconcat . map note . Seq.zip_next . dropWhile ((<call_start) . note_start)
+    where
+    note (Note start dur note, next) =
+        add_flag (start == call_start) next $
+            Derive.place start dur (realize note)
+    add_flag at_start next = fmap $ Post.emap1 (modify at_start next . remove)
+    remove = Score.remove_flags $ Flags.can_cancel <> Flags.infer_duration
+    modify at_start next = Score.add_flags $
+        (if at_start then Flags.can_cancel else mempty)
+        <> (if Maybe.isNothing next then Flags.infer_duration else mempty)
 
 -- | Style for non-interlocking norot.  Interlocking norot is always the upper
 -- neighbor (or lower on the top key).

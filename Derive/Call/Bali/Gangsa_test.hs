@@ -8,6 +8,7 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
 
 
@@ -16,36 +17,68 @@ test_norot = do
             inst_title <> " | inst-top = (pitch (4f))"
         extract e = (DeriveTest.e_note e, Score.event_instrument e)
     equal (run [(2, -2, "norot 1 -- 3a")])
-        ([((1, 1, "3b"), pasang), ((2, -1, "3a"), pasang)], [])
+        ([((0, 1, "3a"), pasang), ((1, 1, "3b"), pasang),
+            ((2, 1, "3a"), pasang)], [])
     equal (run [(2, -2, "norot 1 -- 4f")])
-        ([((1, 1, "4e"), pasang), ((2, -1, "4f"), pasang)], [])
+        ([((0, 1, "4f"), pasang), ((1, 1, "4e"), pasang),
+            ((2, 1, "4f"), pasang)], [])
     equal (run [(2, -2, "norot 1 diamond -- 4c")])
-        ([ ((1, 1, "4d"), polos), ((1, 1, "3b"), sangsih)
-         , ((2, -1, "4c"), polos), ((2, -1, "4c"), sangsih)
+        ([ ((0, 1, "4c"), polos), ((0, 1, "4c"), sangsih)
+         , ((1, 1, "4d"), polos), ((1, 1, "3b"), sangsih)
+         , ((2, 1, "4c"), polos), ((2, 1, "4c"), sangsih)
          ], [])
+    -- Under threshold, split sangsih and polos.
     equal (run [(2, -2, "kotekan = 2 | norot 1 -- 3a")])
-        ([((1, 1, "3b"), sangsih), ((2, -1, "3a"), polos)], [])
+        ([((0, 1, "3a"), polos), ((1, 1, "3b"), sangsih),
+            ((2, 1, "3a"), polos)], [])
 
+    -- >norot is a Once pattern.
     equal (run [(8, -8, "kotekan = 2 | >norot 1 -- 3a")])
         ([ ((5, 1, "3a"), polos), ((5, 1, "3a"), sangsih)
          , ((6, 1, "3a"), polos), ((6, 1, "3a"), sangsih)
          , ((7, 1, "3b"), sangsih)
-         , ((8, -1, "3a"), polos)
+         , ((8, 1, "3a"), polos)
          ], [])
+
+    equal (derive DeriveTest.e_note inst_title [(4, -2, "norot 1 -- 3a")])
+        ([(2, 1, "3a"), (3, 1, "3b"), (4, 1, "3a")], [])
+
+    equal (derive Score.event_flags inst_title [(4, -2, "norot 1 -- 3a")])
+        ([Flags.can_cancel, mempty, Flags.infer_duration], [])
+    -- Flags aren't messed up from starting at 0.  Also, non-negative duration
+    -- is the same as negative.
+    equal (derive Score.event_flags inst_title [(0, 4, "norot 1 -- 3a")])
+        ([Flags.can_cancel, mempty, mempty, mempty, Flags.infer_duration], [])
+
+test_norot_infer_duration = do
+    let run = derive DeriveTest.e_pitch (inst_title <> " | infer-duration")
+    -- First note is cancelled out.
+    equal (run [(0, 2, "norot 1 -- 3a"), (2, 2, "norot 1 -- 3c")])
+        (["3a", "3b", "3a", "3d", "3c"], [])
+
+    let run = derive_pasang extract
+            (inst_title <> " | noltol | infer-duration | kotekan=2")
+        extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
+    let mute = "+mute"
+    equal (run [(0, 2, "norot 1 -- 3a"), (2, 2, "norot 1 -- 3c")])
+        (([("3a", "+"), ("3a", mute), ("3a", "+"), ("3a", mute), ("3c", "+")]
+        , [("3b", "+"), ("3b", mute), ("3d", "+")])
+        , []
+        )
 
 test_gender_norot = do
     let run = derive_pasang extract ""
         extract e = (Score.event_start e, DeriveTest.e_pitch e)
-    equal (run [(5, -5, "gnorot 1 -- 3a")])
-        (( [(1, "3a"), (2, "3g"), (3, "3f"), (4, "3g"), (5, "3a")]
-         , [(1, "3a"), (2, "3b"), (3, "3a"), (4, "3b"), (5, "3a")]
+    equal (run [(0, 4, "gnorot 1 -- 3a")])
+        (( [(0, "3a"), (1, "3g"), (2, "3f"), (3, "3g"), (4, "3a")]
+         , [(0, "3a"), (1, "3b"), (2, "3a"), (3, "3b"), (4, "3a")]
          ), [])
 
 test_kotekan = do
     let run kotekan = derive_pasang extract
             (" | unison | kotekan = " <> if kotekan then "2" else "1")
         extract e = (Score.event_start e, DeriveTest.e_pitch e)
-    equal (run True [(8, -8, "k/_\\ 1 -- 4c")])
+    equal (run True [(1, 7, "k/_\\ 1 -- 4c")])
         (( [(2, "4c"), (3, "4d"), (5, "4c"), (7, "4d"), (8, "4c")]
          , [(1, "4e"), (3, "4d"), (4, "4e"), (6, "4e"), (7, "4d")]
          ), [])
@@ -53,12 +86,12 @@ test_kotekan = do
             ( [(1, "3b"), (2, "4c"), (4, "3b"), (5, "4c"), (7, "3b"), (8, "4c")]
             , [(1, "3b"), (3, "3a"), (4, "3b"), (6, "3a"), (7, "3b")]
             )
-    equal (run True [(8, -8, "k// 1 -- 4c")]) (interlock, [])
+    equal (run True [(1, 7, "k// 1 -- 4c")]) (interlock, [])
 
     equal (e_pasang extract $ derive_tracks
             [ ("tempo", [(0, 0, "1"), (8, 0, ".5")])
             , (">" <> inst_title <> " | unison | kotekan = 2",
-                [(8, -8, "k// 1")])
+                [(1, 7, "k// 1")])
             , ("*", [(0, 0, "4c")])
             ])
         (interlock, [])
