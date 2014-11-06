@@ -293,9 +293,9 @@ gong_kebyar = concat
     , pasang "penyacah"
     , pasang "pemade"
     , pasang "kantilan"
-    , [ umbang_patch "ugal"
-      , isep_patch "reyong"
-      , umbang_patch "trompong"
+    , [ umbang_patch "ugal" "ugal"
+      , isep_patch "reyong" "reyong"
+      , umbang_patch "trompong" "trompong"
       , patch "gong"
       , patch "kempli"
       ]
@@ -305,8 +305,8 @@ gong_kebyar = concat
     -- sangsih.
     pasang name =
         [ (name, sc_patch name <> "-pasang", False, polos_sangsih name, Nothing)
-        , umbang_patch (name <> "-p")
-        , isep_patch (name <> "-s")
+        , umbang_patch (name <> "-p") name
+        , isep_patch (name <> "-s") name
         ]
     sc_patch name = "kontakt/sc-" <> name
     polos_sangsih name =
@@ -317,10 +317,10 @@ gong_kebyar = concat
     to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
     to_val = RestrictedEnviron.to_val
     inst = Repl.Util.instrument
-    umbang_patch name =
-        (name, sc_patch name, True, tuning Environ.umbang, Just umbang)
-    isep_patch name =
-        (name, sc_patch name, True, tuning Environ.isep, Just isep)
+    umbang_patch name patch =
+        (name, sc_patch patch, True, tuning Environ.umbang, Just umbang)
+    isep_patch name patch =
+        (name, sc_patch patch, True, tuning Environ.isep, Just isep)
     patch name = (name, sc_patch name, True, [], Nothing)
     umbang = extended_legong_scale "umbang" Legong.umbang
     isep = extended_legong_scale "isep" Legong.isep
