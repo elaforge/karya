@@ -3,7 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - in save/rehearsal/lelambatan/template, reyong entry defaults to *twelve
+  - track signal render is messed up, flattens after the end of first event
+    . probably due to splicing together slices
+  - if I add a track and then undo, I get
+    assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
+    tracknum && tracknum < tracks()'>
+  - in save/lelambatan/template, reyong entry defaults to *twelve
     . Probably because it has no direct >inst title, and no performance so it
       doesn't know the environ.  But note entry should look at global
       transform at least.  And look at parent track titles.
@@ -19,8 +24,19 @@ UNSORTED
       and put all instruments and ranges into 'sc_bali'.
     . Add Instrument.config_patch_scale
     * Give PatchScale a name?
-  - why does verify_performance not work?  Looks like inconsistent ordering of
-    events at the same time, but doesn't it sort those?
+  * why does verify_performance not work?
+    . its performance somehow different from LState.save_midi's
+      Cut down bug/verify/bloom until I have a smaller repro
+    . save_midi has an extra pedal on chan 1, because the e3 goes on chan
+      1 instead of chan 0.
+    . e3 should go on the same chan as the other low notes
+    . chan:1 is for high notes, but e3 winds up on chan:1, so it looks like
+      save_midi is wrong.
+    . Now is d3 winds up in chan:1 c5 track.
+    . >pno at 3.66s: : found chan Just 1, picked 1
+      can't share with 0: controls differ: {%vel: <0s:1>}
+        /= { %pedal: < 3.33s:1, 4.66s:0 >, %vel: <0s:1> }
+
   * Long pedal at the end of bloom @b12 sometimes doesn't come up.
     . I think the performer needs to understand the pedal.  But why does it
       come up properly sometimes?
@@ -938,7 +954,26 @@ Derive:
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan ornaments
-        - control for norot +mute
+        - mute non-mute alternation is messed up, probably to do with timing
+        - last note should infer its duration
+          . But infer duration is not just until the next note start if there is
+            another part.  So maybe it also needs the paired instrument, and the
+            duration stops when that starts.
+          . infer-duration at the end of a block replaces the track-time-0 at
+            the start of the next block.  But in norot, I want it to be a beat
+            length if the next is norot, but full duration if it's the end.
+            Or I could put the start note in norot, and give it track-time-0,
+            which should instead be something like 'cancel'.
+          . Then I need to emit the first note, which is the same as the last
+            one.
+        / All norot notes get track-time-0.  Could I add more reliably with
+          a block postproc?  Then I don't know if it's 0t.
+          . It uses the stack region, so all notes produced by an event at 0
+            get {cancel}.  I only want the notes at the track's 0t.  So look
+            up TrackTime 0 in RealTime, and add to those notes.
+          . RealTime is problematic because they notes may be nudged by
+            controls or whatever.  I really do want ScoreTime 0.
+        - control for noltol +mute dyn
         - gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,
           e.g. 112-2-2-

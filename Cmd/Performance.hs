@@ -17,7 +17,7 @@ import qualified Control.Monad.State as Monad.State
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
-import qualified Data.Vector.Algorithms.Intro as Algorithms.Intro
+import qualified Data.Vector.Algorithms.Merge as Algorithms.Merge
 
 import Util.Control
 import qualified Util.Log as Log
@@ -240,7 +240,13 @@ performance result = Cmd.Performance
 sort_events :: Vector.Vector Score.Event -> Vector.Vector Score.Event
 sort_events events = ST.runST $ do
     mutable <- Vector.thaw events
-    Algorithms.Intro.sortBy key mutable
+    -- This is a stable sort, and it must be stable.  Otherwise, it's
+    -- inconsistent with the sort done by Derive.extract_result, and then
+    -- verify_performance gives different results than this.
+    --
+    -- Using a mutable vector sort was probably a premature optimization, but
+    -- I've already paid for it so I might as well leave it here.
+    Algorithms.Merge.sortBy key mutable
     Vector.unsafeFreeze mutable
     where key a b = compare (Score.event_start a) (Score.event_start b)
 
