@@ -213,9 +213,11 @@ root_sel_pevents = convert . LEvent.events_of =<< root_sel_events
 
 -- ** extract
 
-control :: Score.Control -> Derive.Events -> [Maybe Score.TypedVal]
-control c = map (\e -> Score.control_at (Score.event_start e) c e)
-    . LEvent.events_of
+control :: Score.Control -> Score.Event -> Maybe Score.TypedVal
+control c e = Score.control_at (Score.event_start e) c e
+
+event_controls :: Score.Event -> Score.ControlValMap
+event_controls e = Score.event_controls_at (Score.event_start e) e
 
 only_controls :: [Score.Control] -> Derive.Events -> [Score.Event]
 only_controls controls = map strip . LEvent.events_of
@@ -226,9 +228,10 @@ only_controls controls = map strip . LEvent.events_of
                 (Score.event_untransformed_controls e)
         }
 
-insts :: [Text] -> [Score.Event] -> [Score.Event]
-insts instruments = filter ((`elem` is) . Score.event_instrument)
+with_insts :: [Text] -> [Score.Event] -> [Score.Event]
+with_insts instruments = filter ((`elem` is) . Score.event_instrument)
     where is = map Util.instrument instruments
+
 
 -- * play from
 
@@ -344,17 +347,14 @@ play_midi msgs = do
     where
     to_zero msgs = PlayUtil.shift_messages 1 (PlayUtil.first_time msgs) msgs
 
-filter_chan :: Midi.Channel -> Perform.MidiEvents -> Perform.MidiEvents
-filter_chan chan events =
-    [LEvent.Event msg | (msg, Just mchan) <- zip msgs chans, mchan == chan]
-    where
-    msgs = LEvent.events_of events
-    chans = map (Midi.message_channel . Midi.wmsg_msg) msgs
+-- ** extract
+
+with_chan :: Midi.Channel -> [Midi.WriteMessage] -> [Midi.WriteMessage]
+with_chan chan = filter $ (== Just chan) . Midi.message_channel . Midi.wmsg_msg
 
 -- | Reduce MIDI to an easier to read form.
-simple_midi :: Perform.MidiEvents -> [(RealTime, Midi.Message)]
-simple_midi = map f . LEvent.events_of
-    where f wmsg = (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
+simple_midi :: [Midi.WriteMessage] -> [(RealTime, Midi.Message)]
+simple_midi = map $ \wmsg -> (Midi.wmsg_ts wmsg, Midi.wmsg_msg wmsg)
 
 -- * cache
 
