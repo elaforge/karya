@@ -2,6 +2,7 @@
 // This program is distributed under the terms of the GNU General Public
 // License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+#include <string>
 #include <FL/Fl.H>
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Widget.H>
@@ -91,7 +92,7 @@ void
 TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     int select_start, int select_end)
 {
-    ASSERT(0 <= tracknum && tracknum <= tracks());
+    ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
     this->edit_close();
     int ypos = this->zoom.to_pixels(pos - zoom.offset);
     int xpos, width;
@@ -209,7 +210,7 @@ TrackTile::visible_pixels() const
 void
 TrackTile::insert_track(int tracknum, TrackView *track, int width)
 {
-    ASSERT(0 <= tracknum && tracknum <= tracks());
+    ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
 
     // Track placement assumes [(title, track)], which the extra edit_input
     // child messes up.
@@ -241,7 +242,7 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
 TrackView *
 TrackTile::remove_track(int tracknum)
 {
-    ASSERT(0 <= tracknum && tracknum <= tracks());
+    ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
     this->edit_close();
     TrackView *t = track_at(tracknum);
     this->remove_child(t);
@@ -254,7 +255,7 @@ TrackTile::remove_track(int tracknum)
 TrackView *
 TrackTile::track_at(int tracknum)
 {
-    ASSERT(0 <= tracknum && tracknum < tracks());
+    ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
     return dynamic_cast<TrackView *>(child(track_index(tracknum)));
 }
 
@@ -262,7 +263,7 @@ TrackTile::track_at(int tracknum)
 const TrackView *
 TrackTile::track_at(int tracknum) const
 {
-    ASSERT(0 <= tracknum && tracknum < tracks());
+    ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
     return dynamic_cast<const TrackView *>(child(track_index(tracknum)));
 }
 

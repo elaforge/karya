@@ -5,8 +5,11 @@
 #ifndef __UTIL_H
 #define __UTIL_H
 
+#include <string>
 #include <string.h>
 #include <utility>
+#include <execinfo.h>
+
 #include "geom.h"
 
 using namespace geom;
@@ -33,24 +36,36 @@ using namespace geom;
 } while (0)
 
 
+enum { _backtrace_size = 10 };
+
 struct AssertionError : std::exception {
     AssertionError(const char *expr, const char *file, const char *func,
-            int line, const char *msg) :
+            int line, std::string msg) :
         expr(expr), file(file), func(func), line(line), msg(msg)
-    {}
+    {
+        backtrace(trace, _backtrace_size);
+    }
     const char *expr, *file, *func;
     const int line;
-    const char *msg;
+    std::string msg;
+    void *trace[_backtrace_size];
 };
 
 inline std::ostream &
 operator<<(std::ostream &os, const AssertionError &a)
 {
-    os << "<assertion failed at " << a.file << ':' << a.line << ' '
-        << a.func << "(): '" << a.expr;
-    if (strlen(a.msg))
-        os << "(" << a.msg << ")";
-    return os << "'>";
+    os << "assertion failed at " << a.file << ':' << a.line << ' '
+        << a.func << "(): '" << a.expr << "'";
+    if (a.msg.length() > 0)
+        os << ": " << a.msg;
+    os << '\n';
+    char **symbols = backtrace_symbols(a.trace, _backtrace_size);
+    for (int i = 0; i < _backtrace_size && symbols[i]; i++) {
+        os << symbols[i] << '\n';
+    }
+    free(symbols);
+
+    return os;
 }
 
 namespace utf8 {
