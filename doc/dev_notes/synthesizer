@@ -10,7 +10,7 @@ Figure out how to write synthesizers.
   Looks like the options are haskell + llvm as as sort of high level
   assembler, FAUST, or pure haskell (e.g. jwlato's dsp-extras).  I need to
   learn more about them to judge.
-  - haskell + llvm: Good performance, but more awkward to write in than pure
+  - Haskell + LLVM: Good performance, but more awkward to write in than pure
     haskell.
   - FAUST: Good performance, but likely even more awkward than llvm since it
     has to go to C++ and then needs a wrapper to interact with haskell.
@@ -19,30 +19,39 @@ Figure out how to write synthesizers.
     unpredictable performance.  Even at its best probably won't be as good as
     LLVM or FAUST.
   - http://halide-lang.org/ compile down to fast object code, hasn't been used
-    for audio but should be able.
+    for audio but should be able.  Also C++ like FAUST.
 
 Write OSC synthesizer host.
   osc:
-    /inst/0/on [ 'p' <pitch> 'd' <dyn> ... ]
-    /inst/0/c [ 'p' <pitch> ... ]
-    /inst/0/off
+    bundle:
+      /inst/0/on <duration>
+      /inst/0/c 'name' samples
 
-    /inst/*/off -- all notes off
-    /*/*/off -- all off
+    Configuration:
     /alloc 'inst' [ param param param ... ]
 
-  Each note starts only with the attributes explicitly given in 'on', so
-  there's no state left over from the previous note.
+  I think OSC doesn't have an efficient way to communicate control data, since
+  I'd wind up with either thousands of messages, or one message with thousands
+  of type parameters (timestamp, value, timestamp, value, etc.), and existing
+  OSC libraries are probably not designed to handle that efficiently.
 
-The signals are mixed with loving care by hand picked addition operators for
-a crystal clear warm burnished mix.
+  I can send controls as the control name followed by a blob, which is times
+  and values, in a format that I can pass directly to the synthesizer.
+
+  Control values should be able to change every sample, but I don't want to
+  send that much data.  The key thing is that the sequencer itself doesn't
+  store that kind of high level data.  Really the only distinction is linear
+  interpolation between samples, or change as quickly as possible (presumably
+  still with some interpolation, to avoid clicks).  But it might be simple
+  enough to just always change as quickly as possible, and send more samples
+  if it's audibly jagged.
+
+  AUs have a complicated way of configuring per-sample control changes, but
+  who knows if any of them actually support that API.
 
 How to do a non-realtime synthesizer:
-  - OSC bundles have timestamps, it's the job of the host to schedule them.
-    Realtime and non-realtime should be freely interchangeable.  The only
-    tricky thing is that if I can predict how expensive a second of audio will
-    be then I can guess how far in advance to render.  Of course, disk space
-    and memory is cheap, so it's probably safe to err on the side of caution.
+  - Messages are sent in advance.  I can stream them with 30s or so of buffer,
+    to if the render is aborted I don't have to send the rest of the notes.
   cache
     - To avoid rerendering unnecessarily, I can cache previous renders.
       But this means the sequencer also needs to send cache-invalidate msgs.
@@ -101,3 +110,46 @@ How to do a non-realtime synthesizer:
   - If I have the synthesizer cache visible to the sequencer, I can integrate
     it more directly: I could display the samples inline with the events,
     or have sample-level transformers.
+
+Benefits of not using MIDI:
+  - Per-note addressing, so no more awkward and inefficient banks of VSTs.
+  - No tricky managing channel state and endless channel sharing bugs.
+  - High resolution controls.
+  - Push decisions up to the sequencer, e.g. pitch variation, envelope
+    variation.
+  - Non-realtime means I can have expensive instruments, and no voice limit.
+
+global
+  instrument resonators:
+    - filters and eq
+    - reverb / resonator
+    - convolution / impulse response
+
+sampler
+  - pick samples based on pitch, velocity, and other axes, and vary samples
+    randomly within those parameters.
+  - per-note address lets me replay ringing notes
+
+physical modeling
+  string
+    - repluck a ringing string
+    - buzz from touching
+    - curved bridge ala tambura
+    - muted by damping at the bridge
+    - bowing
+    - harmonics
+    - sympathetic strings
+
+  metal, pitched and unpitched
+    - muted
+    - resonator
+    - sympathetic strings
+    - cymbals / cengceng
+
+  drums
+    - various tensions and skin thickness
+    - hand damping
+    - center weighting
+    - buzzing like snares or kutchi
+    - pitch changing via pressure ala kendang sunda or gumiki
+    - edge damping
