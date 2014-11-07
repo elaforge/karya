@@ -11,7 +11,7 @@ UNSORTED
   - if I add a track and then undo, I get
     assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
     tracknum && tracknum < tracks()'>
-  - in save/lelambatan/template, reyong entry defaults to *twelve
+  * in save/lelambatan/template, reyong entry defaults to *twelve
     . Probably because it has no direct >inst title, and no performance so it
       doesn't know the environ.  But note entry should look at global
       transform at least.  And look at parent track titles.

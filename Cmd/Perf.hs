@@ -66,6 +66,36 @@ derive_at block_id track_id deriver = do
     return (either (Left . pretty) Right val, logs)
     where empty_dynamic = Derive.initial_dynamic mempty
 
+-- | Get the environment established by 'State.config_global_transform'.
+global_environ :: Cmd.M m => m TrackLang.Environ
+global_environ = do
+    global_transform <- State.config#State.global_transform <#> State.get
+    (result, _, logs) <- PlayUtil.run mempty mempty $
+        Eval.eval_transform_expr "global transform" global_transform $ do
+            env <- Internal.get_dynamic Derive.state_environ
+            -- Smuggle the environ out in an event.  It's annoying to require
+            -- such shennanigans, rationale in
+            -- NOTE [transform-withoutderive-callable]
+            return [LEvent.Event $
+                Score.empty_event { Score.event_environ = env } ]
+    mapM_ Log.write logs
+    events <- LEvent.write_logs =<< Cmd.require_right pretty result
+    event <- Cmd.require "Perf.global_transform: expected a single Event" $
+        Seq.head events
+    return $ Score.event_environ event
+
+{- NOTE [transform-without-derive-callable]
+
+    It seems like there should be a way to run a transform without the
+    Derive.Callable restriction, which in turn constrains the return type.
+
+    First I need to specify which namespace of transformers to look in, but the
+    underlying problem is that e.g. Derive.Transformer Score.Event works with
+    Score.Events.  There is a class of them that are agnostic since they only
+    change the environ, but some of them do postproc.  I don't have a separate
+    namespace for those, so it's impossible to evaluate only them.
+-}
+
 -- | A cheap quick derivation that sets up the correct initial state, but
 -- runs without the cache and throws away any logs.
 derive :: Cmd.M m => Derive.Deriver a -> m (Either String a)
@@ -82,39 +112,52 @@ perform = (LEvent.partition <$>) . PlayUtil.perform_events . Vector.fromList
 
 -- * environ
 
--- | Get the scale in scope in a certain track on a certain block.
---
--- Unlike the other Environ functions like 'get_key', this looks at the track
--- titles before falling back on the Environ.  That's because the scale is
--- needed to make sure note entry uses the right notes, and it's especially
--- annoying if the first note entry uses the wrong scale.  The Environ for
--- a newly added note track will always be the default scale, even if
--- a different scale is below it, because there aren't any events to trigger
--- inversion.
+{- | Get the scale in scope in a certain track on a certain block.
+
+    This tries really really hard to find a ScaleId.  The reason is that pitch
+    track entry uses it to insert pitch names, and if it gets the scale wrong
+    it inserts bogus pitches.  I can't rely on 'lookup_val' because a new
+    track has never been derived and thus has no Dynamic.
+-}
 get_scale_id :: Cmd.M m => BlockId -> Maybe TrackId -> m Pitch.ScaleId
-get_scale_id block_id maybe_track_id = first_just
-    [ maybe (return Nothing) (scale_from_titles block_id) maybe_track_id
-    , fmap TrackLang.sym_to_scale_id <$>
-        lookup_val block_id maybe_track_id Environ.scale
-    ]
-    (return (Pitch.ScaleId Config.default_scale_id))
+get_scale_id block_id maybe_track_id =
+    -- Did you know there are so many places to find a ScaleId?  Why are
+    -- there so many places?
+    (fromMaybe (Pitch.ScaleId Config.default_scale_id) <$>) $
+    try (maybe (return Nothing) (scale_from_titles block_id) maybe_track_id) $
+    try (find_scale_id block_id maybe_track_id) $ return Nothing
 
--- | Try a bunch of actions, and return the first one that is Just, or
--- fall back on a default.
--- TODO could go in Util.Control if it's generally useful.
-first_just :: Monad m => [m (Maybe a)] -> m a -> m a
-first_just [] deflt = deflt
-first_just (m:ms) deflt = do
-    v <- m
-    maybe (first_just ms deflt) return v
+find_scale_id :: Cmd.M m => BlockId -> Maybe TrackId -> m (Maybe Pitch.ScaleId)
+find_scale_id block_id maybe_track_id = (to_scale_id <$>) $
+    try (lookup maybe_track_id) $
+    try lookup_parents $
+    try (lookup Nothing) $
+    try (lookup_environ_val Environ.scale =<< global_environ) $
+    return Nothing
+    where
+    to_scale_id = fmap TrackLang.sym_to_scale_id
+    lookup track_id = lookup_val block_id track_id Environ.scale
+    lookup_parents = case maybe_track_id of
+        Nothing -> return Nothing
+        Just track_id -> do
+            parents <- map State.track_id . maybe [] fst <$>
+                TrackTree.parents_children_of block_id track_id
+            tries $ map (lookup . Just) parents
 
+tries :: Monad m => [m (Maybe a)] -> m (Maybe a)
+tries = foldr try (return Nothing)
+
+-- | TODO This is kind of dual to justm, maybe it should go in Util.Control?
+try :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
+try action alternative = maybe alternative (return . Just) =<< action
+
+-- | Try to get a scale from the titles of the parents of the given track.
 scale_from_titles :: State.M m => BlockId -> TrackId
     -> m (Maybe Pitch.ScaleId)
 scale_from_titles block_id track_id = do
-    tracks <- TrackTree.parents_children_of block_id track_id
-    return $ case tracks of
-        Nothing -> Nothing
-        Just (parents, children) -> msum $ map scale_of (children ++ parents)
+    tracks <- maybe [] (uncurry (++)) <$>
+        TrackTree.parents_children_of block_id track_id
+    return $ msum $ map scale_of tracks
     where
     scale_of track = case ParseTitle.title_to_scale (State.track_title track) of
         Just scale_id | scale_id /= Pitch.empty_scale -> Just scale_id
@@ -143,9 +186,13 @@ lookup_val :: (Cmd.M m, TrackLang.Typecheck a) => BlockId
     -- expect the env val to be constant for the entire block.
     -> TrackLang.ValName -> m (Maybe a)
 lookup_val block_id maybe_track_id name =
-    justm (lookup_environ block_id maybe_track_id) $ \env ->
-        either (Cmd.throw . untxt . ("Perf.lookup_val: "<>)) return
-            (TrackLang.checked_val name env)
+    justm (lookup_environ block_id maybe_track_id) $ lookup_environ_val name
+
+lookup_environ_val :: (State.M m, TrackLang.Typecheck a) =>
+    TrackLang.ValName -> TrackLang.Environ -> m (Maybe a)
+lookup_environ_val name env =
+    either (Cmd.throw . untxt . ("Perf.lookup_environ_val: "<>)) return
+        (TrackLang.checked_val name env)
 
 lookup_environ :: Cmd.M m => BlockId -> Maybe TrackId
     -> m (Maybe TrackLang.Environ)

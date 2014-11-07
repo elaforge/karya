@@ -686,7 +686,7 @@ data WriteDeviceState = WriteDeviceState {
     -- | Map an addr to a number that increases when it's assigned a note.
     -- This is used along with 'wdev_serial' to implement addr round-robin.
     , wdev_addr_serial :: !(Map.Map Instrument.Addr Serial)
-    -- | This is incremented every time
+    -- | Next serial number for 'wdev_addr_serial'.
     , wdev_serial :: !Serial
     -- | Last NoteId seen.  This is needed to emit controls (rather than just
     -- mapping them from MIDI input) because otherwise there's no way to know

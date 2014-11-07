@@ -147,10 +147,11 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
         \st -> st { Cmd.wdev_pitch_track =
             Map.insert note_id (block_id, tracknum) (Cmd.wdev_pitch_track st) }
 
--- | Find the next available note track.  An available pitch track is one that
--- is or is on the right of the given track, has either the same instrument or
--- has the default instrument, and doesn't already have a note_id associated
--- with it.
+-- | Find the next available control track.  Available means it is the given
+-- track or is to its right, has either the same instrument or has the default
+-- instrument, and doesn't already have a note_id associated with it.
+--
+-- If none is found, return the tracknum at which one should be created.
 next_control_track :: Cmd.M m => BlockId -> TrackNum -> (Text -> Bool)
     -> m (ControlTrack, Bool, Maybe TrackNum)
     -- ^ (selected_track_pair, should_create, next_control_track)
@@ -171,12 +172,12 @@ next_control_track block_id tracknum is_control = do
                 State.track_tracknum . Info.track_info <$> next)
     where
     -- Wow, monads can be awkward.
-    candidate inst associated right_of
-            (Info.Track track (Info.Note controls)) = andM
-        [ return $ tracknum >= right_of
-        , return $ maybe True (`notElem` associated) pitch_tracknum
-        , (== Just inst) <$> Info.lookup_instrument_of block_id tracknum
-        ]
+    candidate inst associated right_of (Info.Track track (Info.Note controls)) =
+        andM
+            [ return $ tracknum >= right_of
+            , return $ maybe True (`notElem` associated) pitch_tracknum
+            , (== Just inst) <$> Info.lookup_instrument_of block_id tracknum
+            ]
         where
         tracknum = State.track_tracknum track
         pitch_tracknum = State.track_tracknum <$>
@@ -191,6 +192,8 @@ this_control_track block_id tracknum is_control = do
     track <- Info.get_track_type block_id tracknum
     should_create_control block_id track is_control
 
+-- | Find the ControlTrack of the given note Track.  If there is none, return
+-- the tracknum where you should create one.
 should_create_control :: Cmd.M m => BlockId -> Info.Track
     -> (Text -> Bool) -> m (ControlTrack, Bool)
 should_create_control block_id track is_control = case Info.track_type track of
