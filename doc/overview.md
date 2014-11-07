@@ -1,23 +1,27 @@
-<img align=left width=180 src="../../doc/img/karya.png"> Karya is a music
-sequencer.  It's purely a sequencer, so it doesn't deal with actual audio at
-all.  It doesn't record audio, host VSTs, or produce any kind of sound.  It
-produces MIDI (there is also a Lilypond backend) and relies on external
-synthesizers to turn that into sound.  It can sync with DAWs using MTC and MMC
-so you can combine recorded audio and written score.
+<img align=left width=180 src="../../doc/img/karya.png">
 
-It uses its own score format.  It's visually similar to a tracker
-([Renoise](http://www.renoise.com) is a modern example), and the editing style
-may be familiar to people accustomed to them.
+Karya is a music sequencer.
 
-It's main goals are to be a flexible and high level way to *hand write* scores
-(so it's not oriented around realtime use), to produce the complicated control
-signals needed for expressive music, and to support non-western (or
-non-traditional) idioms and scales.
+It's main goal is to let you write a high level score which is then realized to
+expressive and idiomatic instrumental parts, primarily for electronic music.
+It's not oriented around realtime use, or recording realtime input.
 
-As far as I know, there are no other sequencers with a similar feature set,
-but if there are, I'd be interested in hearing about them.  Here are some
-incomplete and biased notes on its
-[relationship with other sequencers](other-sequencers.md.html).
+It uses its own score format.  One way to look at it is a 2D language for
+expressing music along with an editor for that language.  The score language
+has a large built-in library of notation and has basic means for defining new
+notation, but more complicated notation is defined in haskell.  The idea is to
+have a large standard library, but also be able to define notation specific to
+your score.  The editor is graphical but also uses a haskell REPL for
+configuration, automation, and extension.  If you're familiar with Amiga-style
+trackers, it looks somewhat similar.
+
+The primary backend is MIDI, though it can also produce lilypond if you
+restrict yourself to the subset of notation that can be translated to staff
+notation.  It doesn't record audio or host VSTs, but you can sync with a DAW
+via MTC and MMC.
+
+As far as I know, there are no other sequencers with similar goals and
+features, but if there are, I'd be interested in hearing about them.
 
 ## Music
 
@@ -51,6 +55,8 @@ apply customized forms of vibrato, portamento, vocal ornaments, or whatever
 else, all within whatever scale is in use.  The same goes for other control
 signals.  The MIDI backend can automatically multiplex an instrument across
 multiple channels to keep control changes isolated to their intended notes.
+Unfortunately this usually requires multiple instantiations of the same
+softsynth, or a multitimbral setup on a synthesize, but it's a MIDI limitation.
 
 - Scales.  Scales can use custom symbols and can take arguments for per-note
 pitch variations.  Scale pitches can depend on signals (e.g. gradually

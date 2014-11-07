@@ -15,21 +15,25 @@ Copy an existing soft synth, e.g. 'Local.Instrument.Fm8', and add the new
 module's `load` function to 'Local.Instrument.synths'.  If you use
 'App.MidiInst.softsynth' then you don't have to have any explicit patch names.
 
-- Recompile because you edited stuff: `repl=t bin/mk binaries`
+- Recompile because you edited stuff: `bin/mk binaries`
 
-- Start `build/opt/logview` in the background, and the app `build/opt/seq` from
-one terminal, and the REPL `build/opt/repl` from another.
+- Recompile and start `build/opt/logview` and `build/opt/seq` with the
+`bin/opt` shell script.  `bin/run build/opt/repl` to compile and run the REPL
+in another terminal.
 
-- The default block has a tempo track, note track, and pitch track.  Note tracks
-start with `>`, rename it `>synth-name/patch-name`, where `synth-name` is
-whatever you named the new synth, and `patch-name` is whatever you want.
+- The default block has a tempo track, note track, and pitch track.
 
-- Type in the REPL: `LInst.alloc "synth-name/patch-name" "loop1" [0]`
+- Type in the REPL: `LInst.add "inst" "synth-name/patch-name" "loop1" [0]`
 
     `loop1` should be the name of one of the internal MIDI devices you created,
-or its alias if you configured one in 'Local.Config'.  This allocates MIDI
-channel 0 on loop1 to that instrument.  You can see allocation with
-`LInst.configs`.
+or its alias if you configured one in 'Local.Config'.  `synth-name` is whatever
+you named the new synth in its config, and `patch-name` is whatever you want.
+`inst` is the name of the new instrument, which is why the note track
+title is `>inst`.  It will be allocated MIDI channel 0 on loop1, so your DAW or
+MIDI device should be set up to receive it.  You can see the instrument config
+with `LInst.configs`.
+
+- Rename the note track from `>` to `>inst`.
 
 - Click in the note track to set the selection, and turn on edit mode with `^[`
 and kbd entry with `^]`.  The edit box should turn red and get a `K`.  If you
@@ -40,3 +44,6 @@ appear in the score.
 
 - Press enter to play, or cmd-enter to play from the start of the block, and
 space to stop.
+
+- Read `build/doc/keymap.html` to see the keybindings, and
+`build/doc/calls.html` to see what built-in notation is available.

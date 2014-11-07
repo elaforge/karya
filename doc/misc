@@ -1,4 +1,31 @@
-    Misc things to keep in mind
+In theory, events can go on note tracks freely, since each one can set its
+instrument and whatnot individually.  But in practice, there is structure in
+which tracks events are on.  One track will tend to all be one instrument,
+and since it's easy to set an environ var for a whole track, one track will
+tend to be a single hand, or voice, or whatever.  However, this structure is
+lost when the block is evaluated, since all the events are merged together
+in time order.  Some calls then want to reconstruct that structure, e.g. they
+want to see previous and next notes by (instrument, hand).
+
+This seems like a waste, since the track structure is useful information.  One
+problem is that it's not necessarily consistent across blocks.  This becomes a
+problem if I want to, say, find out the next note on the same track, but the
+next note is on a different block.  I have to assign a `hand` or `voice`
+environ variable to create a structure.
+
+If I theoretically wanted to preserve track structure, I'd have to have some
+way to specify it, e.g. one instrument per track and an instrument has a
+hardcoded number of note tracks.  Then I'd need a restriction where you can
+only sequence blocks that have the same structure.  It seems complicated and
+inflexible.  I could have each instrument automatically assign e.g. hand=l to
+the first track, and hand=r to the second, but it's still inflexible and
+invisible.  Make it explicit and I wind up with what I have now.
+
+The advantage of not hardcoding track structure is that any call can emit any
+kind of event.  So a call that wants to assign notes of a chord to different
+instruments, or alternate hands or the like is free to do so.
+
+## Misc things to keep in mind
 
 Keep an eye on the cache status line in logview.  If the cache is not being
 used then rederivations will start to take a long time.  For example, control
