@@ -163,7 +163,7 @@ check = reverse . fst . V.foldl' check ([], (0, 0))
 {-# SPECIALIZE merge :: [Unboxed] -> Unboxed #-}
 {-# INLINEABLE merge #-}
 merge :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
-merge = V.concat . trim . Seq.sort_on (fmap sx . head)
+merge = V.concat . trim
     where
     trim [] = []
     trim (v : vs) = case first_x vs of

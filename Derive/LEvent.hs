@@ -111,20 +111,14 @@ map_around f =
 zip :: [a] -> [LEvent x] -> [LEvent (a, x)]
 zip as (Log x : xs) = Log x : zip as xs
 zip (a:as) (Event x : xs) = Event (a, x) : zip as xs
-zip [] _ = []
-zip _ [] = []
+zip _ _ = []
 
 zip3 :: [a] -> [b] -> [LEvent x] -> [LEvent (a, b, x)]
 zip3 as bs (Log x : xs) = Log x : zip3 as bs xs
 zip3 (a:as) (b:bs) (Event x : xs) = Event (a, b, x) : zip3 as bs xs
-zip3 [] _ _ = []
-zip3 _ [] _ = []
-zip3 _ _ [] = []
+zip3 _ _ _ = []
 
 zip4 :: [a] -> [b] -> [c] -> [LEvent x] -> [LEvent (a, b, c, x)]
 zip4 as bs cs (Log x : xs) = Log x : zip4 as bs cs xs
 zip4 (a:as) (b:bs) (c:cs) (Event x : xs) = Event (a, b, c, x) : zip4 as bs cs xs
-zip4 [] _ _ _ = []
-zip4 _ [] _ _ = []
-zip4 _ _ [] _ = []
-zip4 _ _ _ [] = []
+zip4 _ _ _ _ = []

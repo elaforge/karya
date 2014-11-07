@@ -6,7 +6,9 @@ module Derive.Control_test where
 import qualified Data.Map as Map
 
 import Util.Control
+import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -189,6 +191,11 @@ test_signal_fragments = do
             , ("dyn", [(0, 0, ".25"), (1, 0, ".5"), (2, 0, ".75")])
             ])
         [([(0, 0.25), (1, 0.5), (2, 0.75)], 0, 1)]
+    equal (run [UiTest.mk_tid 2]
+            [ (">", [(0, 4, ""), (4, 4, "")])
+            , ("dyn", [(0, 0, "0"), (8, 0, "i 1")])
+            ])
+        [([(t, RealTime.to_seconds t / 8) | t <- Seq.range 0 8 1], 0, 1)]
 
 test_stash_signal_default_tempo = do
     -- Signal is stretched by the default tempo.

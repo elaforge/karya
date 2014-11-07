@@ -38,6 +38,8 @@ import qualified Data.Tree as Tree
 
 import Util.Control
 import qualified Util.Log as Log
+import qualified Util.Map
+
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
@@ -324,26 +326,32 @@ stash_if_wanted :: TrackTree.Track -> Signal.Control -> Derive.Deriver ()
 stash_if_wanted track sig =
     whenJustM (render_of track) $ \(block_id, track_id, _) ->
         if TrackTree.track_sliced track
-            then stash_signal_fragment block_id track_id sig
+            then stash_signal_fragment block_id track_id
+                -- The start of the range may not be unique in the case of
+                -- orphans, I think because they aren't shifted to 0.  But
+                -- the end should be unique.
+                (snd $ TrackTree.track_range track) sig
             else stash_signal block_id track_id sig
 
-stash_signal_fragment :: BlockId -> TrackId -> Signal.Control
+stash_signal_fragment :: BlockId -> TrackId -> TrackTime -> Signal.Control
     -> Derive.Deriver ()
-stash_signal_fragment block_id track_id sig = Internal.modify_collect $
-    -- TODO profile with Internal.merge_collect
-    \collect -> collect { Derive.collect_signal_fragments =
-        add (Derive.collect_signal_fragments collect) }
+stash_signal_fragment block_id track_id pos sig =
+    -- TODO I think this is faster than Internal.merge_collect, but I haven't
+    -- profiled so I don't know
+    Internal.modify_collect $ \collect -> collect
+        { Derive.collect_signal_fragments =
+            Map.alter insert (block_id, track_id) $
+                Derive.collect_signal_fragments collect
+        }
     where
-    -- See 'Derive.SignalFragments' for the expected (lack of) order.
-    add = Map.alter insert (block_id, track_id)
     -- If a control is constant over multiple inverted notes, I'll get a bunch
     -- of identical signal fragments.  Rather than waiting for merge to
     -- eliminate them, it seems a bit more efficient to not collect them in the
     -- first place.
-    insert (Just old@(prev : _))
-        | sig == prev = Just old
-        | otherwise = Just $ sig : old
-    insert _ = Just [sig]
+    insert (Just old) = Just $ case Util.Map.max old of
+        Just (_, prev) | sig == prev -> old
+        _ -> Map.insert pos sig old
+    insert _ = Just $ Map.singleton pos sig
 
 stash_signal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
 stash_signal block_id track_id sig = do

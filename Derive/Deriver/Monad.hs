@@ -430,6 +430,10 @@ data Dynamic = Dynamic {
     -- the list.
     , state_instrument_aliases :: ![(Score.Instrument, Score.Instrument)]
     , state_control_damage :: !ControlDamage
+    -- | This is a delayed transform.  If a call wants to evaluate under
+    -- inversion, it composes itself on to this, which is then applied as
+    -- a transformation to the eventual synthesized event at the bottom of the
+    -- inversion.
     , state_under_invert :: !(NoteDeriver -> NoteDeriver)
     , state_inversion :: !Inversion
 
@@ -833,10 +837,11 @@ data Collect = Collect {
 -- If the track is then evaluated again, the monoid instance will discard the
 -- duplicate.
 --
--- The signal fragments are collected in essentially arbitrary order, to keep
--- Collect from imposing an order dependence on track slice derivation, and are
--- later merged with 'Signal.merge', which sorts them first.
-type SignalFragments = Map.Map (BlockId, TrackId) [Signal.Control]
+-- The signal fragments are kept sorted by the slice order.  Since
+-- 'Signal.merge' makes the earlier signals win in case of overlaps, this
+-- ensures a trimmed earlier fragment won't replace a more complete later one.
+type SignalFragments =
+    Map.Map (BlockId, TrackId) (Map.Map TrackTime Signal.Control)
 
 instance Pretty.Pretty Collect where
     format (Collect warp_map tsigs frags trackdyn trackdyn_inv deps cache

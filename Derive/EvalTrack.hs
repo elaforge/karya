@@ -335,7 +335,7 @@ defragment_track_signals warp collect
         }
     where
     fragments = Derive.collect_signal_fragments collect
-    defragment = unwarp warp . Signal.merge
+    defragment = unwarp warp . Signal.merge . Map.elems
 
 unwarp :: Score.Warp -> Signal.Control -> Track.TrackSignal
 unwarp warp control = case is_linear_warp warp of

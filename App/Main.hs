@@ -6,7 +6,6 @@
 -- | Sequencer.
 --
 -- Dumadak tan wenten alangan.
--- 希望沒有錯誤。
 module App.Main where
 #include "hsconfig.h"
 import qualified Control.Concurrent.MVar as MVar

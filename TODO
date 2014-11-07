@@ -3,8 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - track signal render is messed up, flattens after the end of first event
+  * track signal render is messed up, flattens after the end of first event
+    . bug/tsig-cutoff
     . probably due to splicing together slices
+    . The first fragment merges before the second, and replaces it.
+      I should merge them in the order of their track slice starts.
   - if I add a track and then undo, I get
     assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
     tracknum && tracknum < tracks()'>
