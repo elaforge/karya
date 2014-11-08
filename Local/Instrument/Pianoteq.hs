@@ -4,12 +4,14 @@
 
 -- | Modartt's amazing Pianoteq softsynth.
 module Local.Instrument.Pianoteq where
+import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.NN as NN
 import qualified App.MidiInst as MidiInst
 
 
@@ -33,6 +35,7 @@ controls =
 patches :: [MidiInst.Patch]
 patches =
     [ (patch "pasang", Bali.pasang_code)
+    , (MidiInst.range (NN.g2, NN.a6) $ patch "yangqin", mempty)
     ]
 
 patch :: Instrument.InstrumentName -> Instrument.Patch

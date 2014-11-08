@@ -93,7 +93,9 @@ c_highlight_out_of_range = Derive.transformer Module.prelude
     "highlight-out-of-range" mempty
     ("Error on notes whose initial pitch is below "
         <> ShowVal.doc_val Environ.instrument_bottom <> " or above "
-        <> ShowVal.doc_val Environ.instrument_top <> ".")
+        <> ShowVal.doc_val Environ.instrument_top <> ". The range must be \
+        \ in NNs.")
+    -- TODO support Pitch.Pitch
     $ Sig.call0t $ \_ -> out_of_range
 
 -- | Highlight with 'Color.Warning' if there is 'Environ.instrument_top' or

@@ -135,11 +135,11 @@ rendering_tracks block_id = do
 
 -- ** highlights
 
--- | Get highlights from the events, clear old highlighs, and set the new ones.
+-- | Get highlights from the events, clear old highlights, and set the new ones.
 update_highlights :: Ui.Channel -> BlockId -> Msg.Events -> Cmd.CmdT IO ()
 update_highlights ui_chan block_id events = do
     sels <- get_event_highlights block_id events
-    view_ids <- State.gets $ Map.keysSet . State.state_views
+    view_ids <- Map.keysSet <$> State.views_of block_id
     let used_view_ids = Set.fromList [view_id | ((view_id, _), _) <- sels]
     liftIO $ do
         Sync.clear_highlights ui_chan $
@@ -147,7 +147,9 @@ update_highlights ui_chan block_id events = do
         Sync.set_highlights ui_chan sels
 
 -- | Get highlight selections from the events.
-get_event_highlights :: Cmd.M m => BlockId -> Cmd.Events
+get_event_highlights :: Cmd.M m => BlockId
+    -- ^ only get highlights for events on this block
+    -> Cmd.Events
     -> m [((ViewId, TrackNum), (Range, Color.Color))]
 get_event_highlights block_id events = do
     colors <- Cmd.gets $ Cmd.state_highlight_colors . Cmd.state_config
