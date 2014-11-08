@@ -66,7 +66,7 @@ note_calls = Derive.generator_call_map
 lookup_note_block :: Derive.LookupCall (Derive.Generator Derive.Note)
 lookup_note_block = Derive.LookupPattern "block name"
     (Derive.extract_doc fake_call)
-    (\sym -> fmap c_block <$> symbol_to_block_id sym)
+    (\sym -> fmap c_block <$> call_to_block_id sym)
     where
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
     fake_call = c_block (Id.BlockId (Id.read_id "example/block"))
@@ -168,12 +168,12 @@ call_from_block_id :: BlockId -> TrackLang.Call
 call_from_block_id block_id = TrackLang.call
     (TrackLang.Symbol $ Id.show_id $ Id.unpack_id block_id) []
 
--- | Like 'Eval.symbol_to_block_id' but make sure the block exists.
-symbol_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)
-symbol_to_block_id sym = do
+-- | Like 'Eval.call_to_block_id' but make sure the block exists.
+call_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)
+call_to_block_id sym = do
     caller <- Internal.lookup_current_block_id
     ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
-    case Eval.symbol_to_block_id ns caller sym of
+    case Eval.call_to_block_id ns caller sym of
         Nothing -> return Nothing
         Just block_id -> do
             blocks <- Derive.get_ui_state State.state_blocks
@@ -184,7 +184,7 @@ require_block_id :: TrackLang.Symbol -> Derive.Deriver BlockId
 require_block_id sym = maybe
     (Derive.throw $ untxt $
         "block not found: " <> TrackLang.show_val sym)
-    return =<< symbol_to_block_id sym
+    return =<< call_to_block_id sym
 
 -- ** clip
 
@@ -274,7 +274,7 @@ control_calls = Derive.CallMaps [lookup_control_block] []
 lookup_control_block :: Derive.LookupCall (Derive.Generator Derive.Control)
 lookup_control_block = Derive.LookupPattern "block id"
     (Derive.extract_doc fake_call)
-    (\sym -> fmap c_control_block <$> symbol_to_block_id sym)
+    (\sym -> fmap c_control_block <$> call_to_block_id sym)
     where
     -- Not evaluated, so it doesn't matter if the BlockId is invalid.
     fake_call = c_control_block (Id.BlockId (Id.read_id "fake/block"))

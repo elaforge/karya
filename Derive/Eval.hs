@@ -17,7 +17,7 @@ module Derive.Eval (
     , get_val_call
 
     -- * lookup call
-    , unknown_call_id, symbol_to_block_id
+    , unknown_call_id, call_to_block_id, block_id_to_call
     , is_relative, make_relative
 
     -- * util
@@ -187,7 +187,7 @@ require_call is_generator call_id name Nothing = do
     when is_generator $ do
         caller <- Internal.lookup_current_block_id
         ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
-        whenJust (symbol_to_block_id ns caller call_id) Internal.add_block_dep
+        whenJust (call_to_block_id ns caller call_id) Internal.add_block_dep
     Derive.throw $ untxt (unknown_call_id name call_id)
 
 unknown_call_id :: Text -> TrackLang.CallId -> Text
@@ -195,10 +195,10 @@ unknown_call_id name (TrackLang.Symbol sym) = name <> " not found: " <> sym
 
 -- | Given a CallId, try to come up with the BlockId of the block it could be
 -- a call for.
-symbol_to_block_id :: Id.Namespace -> Maybe BlockId
+call_to_block_id :: Id.Namespace -> Maybe BlockId
     -- ^ If the symbol starts with -, this block is prepended to it.
     -> TrackLang.CallId -> Maybe BlockId
-symbol_to_block_id ns maybe_caller sym
+call_to_block_id ns maybe_caller sym
     | sym == "" = Nothing
     | otherwise = Just $ Id.BlockId $ Id.read_short ns relative
     where
@@ -207,9 +207,23 @@ symbol_to_block_id ns maybe_caller sym
             Id.ident_text caller <> TrackLang.unsym sym
         | otherwise = TrackLang.unsym sym
 
+-- | Create the symbol to call a given block.
+block_id_to_call :: Bool -> BlockId -> BlockId -> Text
+block_id_to_call relative parent child
+    | Id.ident_namespace parent /= Id.ident_namespace child =
+        Id.show_id (Id.unpack_id child)
+    | relative && (parent_name <> "-") `Text.isPrefixOf` child_name =
+        Text.dropWhile (/='-') child_name
+    | otherwise = child_name
+    where
+    child_name = Id.ident_name child
+    parent_name = Id.ident_name parent
+
+-- | True if this is a relative block call.
 is_relative :: TrackLang.CallId -> Bool
 is_relative (TrackLang.Symbol sym) = "-" `Text.isPrefixOf` sym
 
+-- | Make a block name relative to a parent block.
 make_relative :: BlockId -> Text -> Text
 make_relative block_id name = Id.ident_name block_id <> "-" <> name
 

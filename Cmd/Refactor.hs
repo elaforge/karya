@@ -119,25 +119,49 @@ split_track_at from_block_id split_at block_name = do
 selection :: Cmd.M m => Text -> m BlockId
 selection = selection_ False
 
+-- | Copy the selection to a relative block, and replace it with a relative
+-- block call.
 selection_relative :: Cmd.M m => Text -> m BlockId
 selection_relative = selection_ True
+
+-- | Create a number of alternate versions of the selection, and insert
+-- an @alt@ call.
+selection_alts :: Cmd.M m => Bool -> Int -> Text -> m [BlockId]
+selection_alts relative alts name
+    | alts <= 0 = return []
+    | otherwise = do
+        alt1 <- selection_ relative (name <> "1")
+        (block_id, _, track_ids, start, end) <- Selection.tracks
+        altn <- forM [2..alts] $ \n ->
+            Create.named_block_from_template True alt1
+                (alt_name block_id (name <> showt n))
+        let alts = alt1 : altn
+        mapM_ Create.view alts
+        let call = Text.unwords $
+                "alt" : map (Eval.block_id_to_call relative block_id) alts
+        whenJust (Seq.head track_ids) $ \track_id ->
+            State.insert_event track_id $ Event.event start (end-start) call
+        return alts
+    where
+    alt_name block_id name =
+        if relative then Eval.make_relative block_id name else name
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
 selection_ :: Cmd.M m => Bool -- ^ create relative block call
     -> Text -> m BlockId
-selection_ create_relative name = do
+selection_ relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
-    name <- return $ if create_relative
+    name <- return $ if relative
         then Eval.make_relative block_id name else name
-    to_block_id <- selection_at name block_id tracknums track_ids
+    to_block_id <- selection_at relative name block_id tracknums track_ids
         start end
     Create.view to_block_id
     return to_block_id
 
-selection_at :: State.M m => Text -> BlockId -> [TrackNum]
+selection_at :: State.M m => Bool -> Text -> BlockId -> [TrackNum]
     -> [TrackId] -> TrackTime -> TrackTime -> m BlockId
-selection_at name block_id tracknums track_ids start end = do
+selection_at relative name block_id tracknums track_ids start end = do
     ruler_id <- State.block_ruler block_id
     to_block_id <- Create.named_block name ruler_id
     forM_ (zip [1..] track_ids) $ \(tracknum, track_id) -> do
@@ -152,7 +176,7 @@ selection_at name block_id tracknums track_ids start end = do
     Edit.clear_range track_ids start end
     whenJust (Seq.head track_ids) $ \track_id ->
         State.insert_event track_id $ Event.event start (end-start)
-            (make_block_call block_id to_block_id)
+            (Eval.block_id_to_call relative block_id to_block_id)
     -- It's easier to create all the tracks and then delete the empty ones.
     -- If I tried to just not create those tracks then 'clipped_skeleton' would
     -- have to get more complicated.
@@ -199,17 +223,8 @@ get_block_calls track_id = do
 resolve_relative_call :: Id.Namespace -> BlockId -> TrackLang.CallId
     -> Maybe BlockId
 resolve_relative_call ns caller sym
-    | Eval.is_relative sym = Eval.symbol_to_block_id ns (Just caller) sym
+    | Eval.is_relative sym = Eval.call_to_block_id ns (Just caller) sym
     | otherwise = Nothing
-
-make_block_call :: BlockId -> BlockId -> Text
-make_block_call parent block_id
-    | Id.ident_namespace parent == Id.ident_namespace block_id && is_sub =
-        Text.dropWhile (/='.') child_name
-    | otherwise = child_name
-    where
-    child_name = Id.ident_name block_id
-    is_sub = (Id.ident_name parent <> ".") `Text.isPrefixOf` child_name
 
 -- | If there's a point selection, create a new empty block based on the
 -- current one.  If the selection has time, then the new block will have only
