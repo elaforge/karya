@@ -21,11 +21,10 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Info as Info
+import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Save as Save
 
-import qualified Derive.Call.Bali.Gangsa as Gangsa
-import qualified Derive.Environ as Environ
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
@@ -225,8 +224,11 @@ alloc_default inst_ chans = do
     alloc_instrument inst [((wdev, c), v) | (c, v) <- chans]
 
 -- | Merge the given configs into the existing one.
-merge :: Instrument.Configs -> Cmd.CmdL ()
-merge config = State.modify $ State.config # State.midi %= (config<>)
+merge_config :: State.M m => Instrument.Configs -> m ()
+merge_config config = State.modify $ State.config#State.midi %= (config<>)
+
+merge :: State.M m => MidiConfig.Config -> m ()
+merge = MidiConfig.merge
 
 -- * rest
 
@@ -299,7 +301,8 @@ send_initialization init inst dev chan = case init of
 alloc_instrument :: Score.Instrument
     -> [(Instrument.Addr, Maybe Instrument.Voices)] -> Cmd.CmdL ()
 alloc_instrument inst addrs = State.modify $
-    State.config#State.midi#Lens.map inst #= Just (Instrument.config addrs)
+    State.config#State.midi#Lens.map inst
+        #= Just (Instrument.voice_config addrs)
 
 dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
 dealloc_instrument inst = State.modify $
@@ -373,17 +376,3 @@ teach dev chan cc = Cmd.midi (Midi.write_device dev) $
     Midi.ChannelMessage chan (Midi.ControlChange cc 1)
 
 type Instrument = Text
-
-
--- * higher level
-
--- | Set up a pair of instruments as polos and sangsih.
-create_pasang :: State.M m => Instrument -> Text -> Text -> Bool -> m ()
-create_pasang pasang polos sangsih polos_umbang = do
-    add_environ pasang Gangsa.inst_polos (Util.instrument polos)
-    add_environ pasang Gangsa.inst_sangsih (Util.instrument sangsih)
-    let (ptuning, stuning) = if polos_umbang
-            then (Environ.umbang, Environ.isep)
-            else (Environ.isep, Environ.umbang)
-    add_environ polos Environ.tuning (ptuning :: Text)
-    add_environ sangsih Environ.tuning (stuning :: Text)

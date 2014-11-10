@@ -21,8 +21,8 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
+import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Keymap as Keymap
-import qualified Cmd.Repl.LInst as LInst
 import qualified Cmd.Repl.Util as Repl.Util
 
 import qualified Derive.Args as Args
@@ -284,10 +284,8 @@ kajar = Score.attr "kajar"
 misc :: [MidiInst.Patch]
 misc = [MidiInst.with_code Reaktor.resonant_filter $ patch "filtered" []]
 
--- | (name, patch, gets_chan, environ, scale)
-gong_kebyar :: [(LInst.Instrument, Text, Bool,
-    [(TrackLang.ValName, RestrictedEnviron.Val)], Maybe Instrument.PatchScale)]
-gong_kebyar = concat
+config_kebyar :: Text -> MidiConfig.Config
+config_kebyar dev_ = make_config $ concat
     [ pasang "jegog"
     , pasang "calung"
     , pasang "penyacah"
@@ -301,6 +299,17 @@ gong_kebyar = concat
       ]
     ]
     where
+    -- Expects (name, patch, gets_chan, environ, scale).
+    make_config = MidiConfig.config . snd . List.mapAccumL allocate 0
+        where
+        allocate chan (alias, inst, gets_chan, environ, scale) =
+            (if gets_chan then chan+1 else chan, (alias, inst, config))
+            where
+            config = Instrument.cscale #= scale $
+                Instrument.cenviron #= RestrictedEnviron.make environ $
+                Instrument.config1 dev chan
+    dev = Midi.write_device dev_
+
     -- Actually pemade and kantilan have an umbang isep pair for both polos and
     -- sangsih.
     pasang name =
@@ -324,19 +333,6 @@ gong_kebyar = concat
     patch name = (name, sc_patch name, True, [], Nothing)
     umbang = extended_legong_scale "umbang" Legong.umbang
     isep = extended_legong_scale "isep" Legong.isep
-
-configure_gong_kebyar :: Text -> Cmd.CmdL ()
-configure_gong_kebyar dev =
-    sequence_ $ snd $ List.mapAccumL allocate 0 gong_kebyar
-    where
-    allocate chan (name, patch, gets_chan, environ, scale) =
-        (if gets_chan then chan+1 else chan, alloc)
-        where
-        alloc = do
-            if gets_chan then LInst.add name patch dev [chan]
-                else LInst.add name patch "" []
-            forM_ environ $ \(k, v) -> LInst.add_environ name k v
-            whenJust scale $ LInst.set_scale name
 
 -- * hang
 
@@ -437,18 +433,22 @@ wayang_patches = map (MidiInst.with_code (code <> with_weak))
 -- There are two pasang instruments, which then rely on the kotekan calls to
 -- split into inst-polos and inst-sangsih.  This uses the traditional setup
 -- with polos on umbang.
-configure_wayang :: Text -> Cmd.CmdL ()
-configure_wayang dev = do
-    LInst.add "p" "kontakt/wayang-pemade" "" []
-    LInst.add_environ "p" Gangsa.inst_polos (Score.Instrument "p-umbang")
-    LInst.add_environ "p" Gangsa.inst_sangsih (Score.Instrument "p-isep")
-    LInst.add "k" "kontakt/wayang-kantilan" "" []
-    LInst.add_environ "k" Gangsa.inst_polos (Score.Instrument "k-umbang")
-    LInst.add_environ "k" Gangsa.inst_sangsih (Score.Instrument "k-isep")
-    LInst.add "p-isep" "kontakt/wayang-isep" dev [0]
-    LInst.add "p-umbang" "kontakt/wayang-umbang" dev [1]
-    LInst.add "k-isep" "kontakt/wayang-isep" dev [2]
-    LInst.add "k-umbang" "kontakt/wayang-umbang" dev [3]
+config_wayang :: Text -> MidiConfig.Config
+config_wayang dev_ = MidiConfig.config
+    [ ("p", "kontakt/wayang-pemade",
+        pasang "p-umbang" "p-isep" $ Instrument.config [])
+    , ("k", "kontakt/wayang-kantilan",
+        pasang "k-umbang" "k-isep" $ Instrument.config [])
+    , ("p-isep", "kontakt/wayang-isep", Instrument.config1 dev 0)
+    , ("p-umbang", "kontakt/wayang-umbang", Instrument.config1 dev 1)
+    , ("k-isep", "kontakt/wayang-isep", Instrument.config1 dev 2)
+    , ("k-umbang", "kontakt/wayang-umbang", Instrument.config1 dev 3)
+    ]
+    where
+    pasang polos sangsih = MidiConfig.environ Gangsa.inst_polos (inst polos)
+        . MidiConfig.environ Gangsa.inst_sangsih (inst sangsih)
+    dev = Midi.write_device dev_
+    inst = Score.Instrument
 
 wayang_scale :: Text -> [Pitch.NoteNumber] -> Instrument.PatchScale
 wayang_scale tuning nns = Instrument.make_patch_scale ("wayang " <> tuning) $

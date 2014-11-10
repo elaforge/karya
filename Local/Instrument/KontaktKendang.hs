@@ -15,6 +15,7 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
+import qualified Cmd.Instrument.MidiConfig as MidiConfig
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Module as Module
@@ -119,6 +120,20 @@ old_tunggal_notes = map (first make_note)
         Just (char, call, _) =
             List.find (\(_, _, a) -> a == attrs) tunggal_calls
 
+-- * config
+
+config :: Text -> MidiConfig.Config
+config dev_ = MidiConfig.config
+    [ ("k-wadon", "kontakt/kendang", Instrument.config1 dev 0)
+    , ("k-lanang", "kontakt/kendang", Instrument.config1 dev 1)
+    , ("kendang", "kontakt/kendang-pasang",
+        MidiConfig.environ "wadon" (inst "k-wadon") $
+        MidiConfig.environ "lanang" (inst "k-lanang") $
+        Instrument.config [])
+    ]
+    where
+    dev = Midi.write_device dev_
+    inst = Score.Instrument
 
 -- * pasang
 

@@ -29,12 +29,13 @@
     - Give the current block 6 sections of standard 4/4 meter, with 4 measures
     per section, where each measure gets 1t:
 
-        > LRuler.local $ LRuler.ruler $ LRuler.measures 1 Meters.m44 6 4
+        > LRuler.local $ LRuler.measures Meters.m44 6 4
 
     - Or if you want each quarter note to get 1t, and 8 sections with
     4 measures per section:
 
-        > LRuler.local $ LRuler.ruler $ LRuler.measures 4 Meters.m44 8 4
+        > LRuler.local $ LRuler.ruler $
+        >       LRuler.make_measures LRuler.config 4 Meters.m44 8 4
 
     - Or put the selection at the where the 4 meters should end, then:
 

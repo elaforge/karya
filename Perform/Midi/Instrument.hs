@@ -186,13 +186,10 @@ inst_decay = fromMaybe default_decay . inst_maybe_decay
 type Configs = Map.Map Score.Instrument Config
 
 configs :: [(Score.Instrument, [Addr])] -> Configs
-configs inst_addrs =
-    Map.fromList [(inst, config (map (flip (,) Nothing) addrs))
-        | (inst, addrs) <- inst_addrs]
+configs = Map.fromList . map (second config)
 
 voice_configs :: [(Score.Instrument, [(Addr, Maybe Voices)])] -> Configs
-voice_configs inst_addrs =
-    Map.fromList [(inst, config addrs) | (inst, addrs) <- inst_addrs]
+voice_configs = Map.fromList . map (second voice_config)
 
 get_addrs :: Score.Instrument -> Configs -> [Addr]
 get_addrs inst = maybe [] (map fst . config_addrs) . Map.lookup inst
@@ -240,8 +237,14 @@ mute = Lens.lens config_mute
 solo = Lens.lens config_solo
     (\f r -> r { config_solo = f (config_solo r) })
 
-config :: [(Addr, Maybe Voices)] -> Config
-config addrs = Config
+config1 :: Midi.WriteDevice -> Midi.Channel -> Config
+config1 dev chan = config [(dev, chan)]
+
+config :: [Addr] -> Config
+config = voice_config . map (flip (,) Nothing)
+
+voice_config :: [(Addr, Maybe Voices)] -> Config
+voice_config addrs = Config
     { config_addrs = addrs
     , config_restricted_environ = mempty
     , config_scale = Nothing
