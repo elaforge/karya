@@ -10,6 +10,7 @@ import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Util as Util
@@ -17,7 +18,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

@@ -4,16 +4,18 @@
 
 -- | Image-Line's Drumaxx softsynth.
 module Local.Instrument.Drumaxx where
-import Util.Control
 import qualified Data.Set as Set
+
+import Util.Control
 import Midi.Key
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
+import qualified Cmd.Instrument.MidiInst as MidiInst
+
 import Derive.Attrs
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Perform.Midi.Instrument as Instrument
-import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

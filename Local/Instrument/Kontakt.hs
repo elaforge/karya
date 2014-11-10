@@ -22,6 +22,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiConfig as MidiConfig
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Repl.Util as Repl.Util
 
@@ -58,8 +59,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Local.Instrument.KontaktKendang as KontaktKendang
 import qualified Local.Instrument.KontaktUtil as KontaktUtil
 import qualified Local.Instrument.Reaktor as Reaktor
-
-import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Utilities for the instrument definitions in Local/Instrument.
-module App.MidiInst (
+module Cmd.Instrument.MidiInst (
     SynthDesc
     , Softsynth(..), softsynth
     , Patch

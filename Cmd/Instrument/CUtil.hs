@@ -18,6 +18,7 @@ import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.Instrument.Drums as Drums
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Msg as Msg
@@ -40,7 +41,6 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
-import qualified App.MidiInst as MidiInst
 import Types
 
 

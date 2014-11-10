@@ -7,6 +7,7 @@ module Derive.Instrument.Bali where
 import Util.Control
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.MidiThru as MidiThru
 import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteEntry as NoteEntry
@@ -14,7 +15,6 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call.Bali.Gangsa as Gangsa
-import qualified App.MidiInst as MidiInst
 
 
 -- | Emit events for both polos and sangsih.

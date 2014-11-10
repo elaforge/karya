@@ -16,6 +16,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiConfig as MidiConfig
+import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Module as Module
@@ -29,7 +30,6 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
-import qualified App.MidiInst as MidiInst
 
 
 pb_range :: Instrument.PbRange

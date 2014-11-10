@@ -27,6 +27,7 @@ import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Simple as Simple
 
@@ -58,7 +59,6 @@ import qualified Perform.Signal as Signal
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
-import qualified App.MidiInst as MidiInst
 import Types
 
 

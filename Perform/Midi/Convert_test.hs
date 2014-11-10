@@ -14,6 +14,7 @@ import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -28,7 +29,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified App.MidiInst as MidiInst
 import Types
 
 

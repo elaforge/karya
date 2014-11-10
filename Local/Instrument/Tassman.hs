@@ -4,7 +4,7 @@
 
 -- | Applied Accoustic's Tassman softsynth.
 module Local.Instrument.Tassman where
-import qualified App.MidiInst as MidiInst
+import qualified Cmd.Instrument.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

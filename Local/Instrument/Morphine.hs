@@ -4,7 +4,7 @@
 
 -- | Image-Line's Morphine softsynth.
 module Local.Instrument.Morphine where
-import qualified App.MidiInst as MidiInst
+import qualified Cmd.Instrument.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

@@ -18,6 +18,7 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Articulation as Articulation
@@ -34,7 +35,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Tag as Tag
 import qualified Local.Instrument.VslInst as VslInst
-import qualified App.MidiInst as MidiInst
 
 
 -- * util

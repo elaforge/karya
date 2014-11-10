@@ -8,12 +8,12 @@ import qualified Data.Set as Set
 
 import Util.Control
 import qualified Midi.CC as CC
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
 import qualified Derive.Instrument.DUtil as DUtil
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified App.MidiInst as MidiInst
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

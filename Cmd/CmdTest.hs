@@ -27,6 +27,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
@@ -45,7 +46,6 @@ import qualified Perform.Signal as Signal
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
-import qualified App.MidiInst as MidiInst
 import Types
 
 

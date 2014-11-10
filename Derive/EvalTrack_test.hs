@@ -14,6 +14,7 @@ import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
@@ -33,7 +34,6 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Signal as Signal
 import qualified Instrument.MidiDb as MidiDb
-import qualified App.MidiInst as MidiInst
 import Types
 
 

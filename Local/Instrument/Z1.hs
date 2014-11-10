@@ -17,11 +17,11 @@ import System.FilePath ((</>))
 
 import Util.Control
 import qualified Midi.Midi as Midi
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Sysex as Sysex
 import Local.Instrument.Z1Spec
-import qualified App.MidiInst as MidiInst
 
 
 synth_name :: FilePath

@@ -16,13 +16,13 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import qualified App.MidiInst as MidiInst
 import Types
 
 

@@ -26,16 +26,16 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
 import qualified Midi.CC as CC
-import qualified Midi.Midi as Midi
 import qualified Midi.Encode
+import qualified Midi.Midi as Midi
 
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Sysex as Sysex
 import Local.Instrument.Vl1Spec
-import qualified App.MidiInst as MidiInst
 
 
 synth_name :: String
