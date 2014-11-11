@@ -46,7 +46,7 @@ profile_control = do
     let cont = (Controls.mod, sig)
     run_multiple cont $ \arg -> do
         let (msgs, warns) = Perform.perform_control Control.empty_map 0 0
-                (RealTime.seconds len) 42 arg
+                (Just (RealTime.seconds len)) 42 arg
         force warns
         force msgs
         return $ show (length msgs) ++ " msgs"

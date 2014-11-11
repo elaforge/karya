@@ -5,8 +5,10 @@
 module Cmd.Responder_profile where
 import qualified Data.Map as Map
 
+import Util.Control
 import qualified Util.Log as Log
 import Util.Test
+
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.State as State
