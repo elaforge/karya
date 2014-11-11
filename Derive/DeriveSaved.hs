@@ -127,18 +127,19 @@ load_score :: FilePath -> IO (Either String (State.State, Derive.Library))
 load_score fname =
     print_timer ("load " ++ fname) (\_ _ -> "") $ Error.runErrorT $ do
         save <- require_right $ Save.infer_save_type fname
-        state <- case save of
+        (state, dir) <- case save of
             Cmd.SaveRepo repo -> do
                 (state, _, _) <- require_right $ SaveGit.load repo Nothing
-                return state
+                return (state, FilePath.takeDirectory repo)
             Cmd.SaveState fname -> do
                 maybe_state <- require_right $ Save.read_state_ fname
-                maybe (Error.throwError "file not found") return maybe_state
+                state <- maybe (Error.throwError "file not found") return
+                    maybe_state
+                return (state, FilePath.takeDirectory fname)
         case State.config#State.definition_file #$ state of
             Nothing -> return (state, mempty)
             Just defs_name -> do
-                let defs_fname =
-                        FilePath.dropFileName fname FilePath.</> defs_name
+                let defs_fname = dir FilePath.</> defs_name
                 lib <- maybe
                     (Error.throwError $ "defs file not found: " <> defs_fname)
                     (either (Error.throwError . untxt) return)
