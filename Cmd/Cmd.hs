@@ -320,10 +320,9 @@ data State = State {
     -- | If set, the current 'State.State' was loaded from this file.
     -- This is so save can keep saving to the same file.
     , state_save_file :: !(Maybe SaveFile)
-    -- | A loaded and parsed definition file, or an error string.  This also
-    -- has the timestamp of the last load, to detect when the file changes.
-    , state_definition_cache ::
-        !(Maybe (Time.UTCTime, Either Text Derive.Library))
+    -- | A loaded and parsed ky file, or an error string.  This also has the
+    -- timestamp of the last load, to detect when the file changes.
+    , state_ky_cache :: !(Maybe (Time.UTCTime, Either Text Derive.Library))
     -- | Omit the usual derive delay for these blocks, and trigger a derive.
     -- This is set by integration, which modifies a block in response to
     -- another block being derived.  Blocks set to derive immediately are also
@@ -384,7 +383,7 @@ initial_state :: Config -> State
 initial_state config = State
     { state_config = config
     , state_save_file = Nothing
-    , state_definition_cache = Nothing
+    , state_ky_cache = Nothing
     , state_derive_immediately = Set.empty
     -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally
     -- 'hist_present' should always have the current state, but the initial
@@ -428,7 +427,7 @@ data Config = Config {
     state_app_dir :: !FilePath
     , state_midi_interface :: !Midi.Interface.Interface
     -- | Search path for local definition files, from 'Config.definition_path'.
-    , state_definition_paths :: ![FilePath]
+    , state_ky_paths :: ![FilePath]
     -- | Reroute MIDI inputs and outputs.  These come from
     -- 'App.StaticConfig.read_device_map' and
     -- 'App.StaticConfig.write_device_map' and probably shouldn't be changed

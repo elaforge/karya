@@ -115,8 +115,8 @@ save fname = do
 -- | Perform to MIDI and write to disk.
 perform :: Cmd.Config -> FilePath -> Error Int
 perform cmd_config fname = do
-    (state, defs_lib, block_id) <- load fname
-    msgs <- perform_block fname (make_cmd_state defs_lib cmd_config) state
+    (state, library, block_id) <- load fname
+    msgs <- perform_block fname (make_cmd_state library cmd_config) state
         block_id
     let out = basename fname <> ".midi"
     liftIO $ putStrLn $ "write " <> out
@@ -131,9 +131,9 @@ dump_midi fname = do
 
 verify_performance :: Cmd.Config -> FilePath -> Error Int
 verify_performance cmd_config fname = do
-    (state, defs_lib, block_id) <- load fname
+    (state, library, block_id) <- load fname
     let meta = State.config#State.meta #$ state
-    let cmd_state = make_cmd_state defs_lib cmd_config
+    let cmd_state = make_cmd_state library cmd_config
     n <- apply (verify_midi fname cmd_state state block_id) $
         Map.lookup block_id (State.meta_midi_performances meta)
     m <- apply (verify_lilypond fname cmd_state state block_id) $
@@ -197,13 +197,13 @@ verify_lilypond fname cmd_state state block_id expected = do
 -- | Load a score and get its root block id.
 load :: FilePath -> Error (State.State, Derive.Library, BlockId)
 load fname = do
-     (state, defs_lib) <- require_right $ DeriveSaved.load_score fname
+     (state, library) <- require_right $ DeriveSaved.load_score fname
      block_id <- require_right $ return $ get_root state
-     return (state, defs_lib, block_id)
+     return (state, library, block_id)
 
 make_cmd_state :: Derive.Library -> Cmd.Config -> Cmd.State
-make_cmd_state defs_lib cmd_config =
-    DeriveSaved.add_definition_lib defs_lib $ Cmd.initial_state cmd_config
+make_cmd_state library cmd_config =
+    DeriveSaved.add_library library $ Cmd.initial_state cmd_config
 
 get_root :: State.State -> Either String BlockId
 get_root state = maybe (Left "no root block") Right $

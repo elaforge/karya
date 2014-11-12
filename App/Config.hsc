@@ -63,10 +63,10 @@ get_app_dir = return "."
 local_dir :: RelativePath
 local_dir = "Local"
 
--- | These directories are searched for local definitions files loaded from
--- @import@ statements.
-definition_paths :: [RelativePath]
-definition_paths = [local_dir </> "ky"]
+-- | These directories are searched for ky files containing local definitions.
+-- The directory of the saved score is prepended to the list.
+ky_paths :: [RelativePath]
+ky_paths = [local_dir </> "ky"]
 
 -- | Store instrument db code and data.
 instrument_dir :: RelativePath

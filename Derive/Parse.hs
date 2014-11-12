@@ -11,9 +11,9 @@ module Derive.Parse (
 
     -- * expand macros
     , expand_macros
-    -- * definition file
+    -- * ky file
     , Definitions(..), Definition
-    , load_definitions, find_mtime, parse_definitions
+    , load_ky, find_mtime, parse_ky
 #ifdef TESTING
     , p_equal, p_definition
     , split_sections
@@ -405,17 +405,16 @@ is_whitespace c = c == ' ' || c == '\t'
 
 -- * definition file
 
-load_definitions :: [FilePath] -> FilePath
+load_ky :: [FilePath] -> FilePath
     -> IO (Either Text (Definitions, [FilePath]))
-load_definitions paths fname =
-    fmap annotate . Error.runErrorT $ load Set.empty [fname]
+load_ky paths fname = fmap annotate . Error.runErrorT $ load Set.empty [fname]
     where
     load _ [] = return []
     load loaded (lib:libs)
         | lib `Set.member` loaded = return []
         | otherwise = do
             text <- find lib
-            (imports, defs) <- lift $ parse_definitions text
+            (imports, defs) <- lift $ parse_ky text
             ((defs, lib) :) <$>
                 load (Set.insert lib loaded) (libs ++ imports)
 
@@ -447,6 +446,9 @@ try action alternative = maybe alternative (return . Just) =<< action
 tries :: Monad m => [m (Maybe a)] -> m (Maybe a)
 tries = foldr try (return Nothing)
 
+    -- TODO how to handle shadowing in imported files?  Should I allow
+    -- them to shadow?
+
 -- | This is a mirror of 'Derive.Library', but with expressions instead of
 -- calls.  (generators, transformers)
 data Definitions = Definitions {
@@ -469,7 +471,7 @@ type LineNumber = Int
     in the tracklang language, which is less powerful but more concise than
     haskell.
 
-    The syntax is a sequence of @include 'path/to/file'@ lines followed by
+    The syntax is a sequence of @include path/to/file@ lines followed by
     a sequence of sections.  A section is a @header:@ line followed by
     definitions.  The header determines the type of the calls defined after it,
     e.g.:
@@ -490,8 +492,8 @@ type LineNumber = Int
     @x = a@ (no arguments) is equivalent to @^x = a@, in that @x@ can take the
     same arguments as @a@.
 -}
-parse_definitions :: Text -> Either Text ([FilePath], Definitions)
-parse_definitions text = do
+parse_ky :: Text -> Either Text ([FilePath], Definitions)
+parse_ky text = do
     let (imports, sections) = split_sections text
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList headers

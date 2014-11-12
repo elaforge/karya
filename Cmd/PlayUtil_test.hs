@@ -17,7 +17,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Parse as Parse
 
 
-test_definition_file = do
+test_ky_file = do
     let run text tracks = DeriveTest.extract extract $ CmdTest.eval
             (CmdTest.make_tracks tracks) CmdTest.default_cmd_state $
             put_library text >> PlayUtil.uncached_derive UiTest.default_block_id
@@ -49,9 +49,9 @@ test_definition_file = do
 
 put_library :: Cmd.M m => Text -> m ()
 put_library text =
-    Cmd.modify $ \st -> st { Cmd.state_definition_cache = Just defs }
+    Cmd.modify $ \st -> st { Cmd.state_ky_cache = Just defs }
     where
-    defs = case Parse.parse_definitions text of
+    defs = case Parse.parse_ky text of
         Left err -> (time, Left err)
         Right (_, defs) -> (time, Right $ PlayUtil.compile_library defs)
     time = Time.UTCTime (Time.ModifiedJulianDay 0) 0

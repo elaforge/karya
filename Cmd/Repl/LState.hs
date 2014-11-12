@@ -89,8 +89,8 @@ get_transform = State.config#State.global_transform <#> State.get
 transform :: (Text -> Text) -> Cmd.CmdL ()
 transform = State.modify . (State.config#State.global_transform %=)
 
-set_definitions :: Maybe FilePath -> Cmd.CmdL ()
-set_definitions = State.modify_config . (State.definition_file #=)
+set_ky :: Maybe FilePath -> Cmd.CmdL ()
+set_ky = State.modify_config . (State.ky_file #=)
 
 -- ** meta
 

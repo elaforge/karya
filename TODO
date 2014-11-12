@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - "local definitions file" is a terrible name for the .karya files with
+  * "local definitions file" is a terrible name for the .karya files with
     tracklang.  Also 'definition_paths'.  Maybe 'lib' and 'lib_paths'?  But
     I want it to be specific because there may be other kinds of libs.
     I'm already using 'karya' for the file suffix, but it already has

@@ -28,7 +28,7 @@ module Ui.State (
     -- * config
     , Config(..), empty_config, SavedViews
     , namespace_, meta, root, midi, global_transform, aliases, lilypond
-    , default_, saved_views, definition_file
+    , default_, saved_views, ky_file
     , Meta(..), empty_meta, creation, last_save, notes, midi_performances
     , lilypond_performances
     , Performance(..), MidiPerformance, LilypondPerformance

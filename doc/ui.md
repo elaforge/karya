@@ -132,7 +132,7 @@ flexibility in other places, e.g. @-macros in the [REPL](repl.md.html).
 All the interesting things you can do with 'Ui.State.State' is facilitated by
 cmds, so you should look at the [cmd documentation](cmd.md.html).
 
-## local definitions
+## ky file
 
 There are several ways to define calls for a score, with different trade-offs.
 
@@ -154,8 +154,8 @@ A more concise way is to define the calls in tracklang.  This is limited to
 combinations of standard calls.  Small expressions can be defined inline in the score with the `=` call, e.g. `^down-to = "(g 2 1)`, but this is cumbersome
 if there are a lot of them.
 
-If you set 'Ui.StateConfig.config_definition_file', the tracklang call
-definitions in the file are loaded each time it changes.  Then the built-in
-calls can focus on being flexible if verbose, and rely on local definitions to
-"instantiate" them in a way that makes sense for the specific score.  The
-syntax is described in 'Derive.Parse.parse_definition_file'.
+If you set 'Ui.StateConfig.config_ky_file', the tracklang call definitions in
+the file are loaded each time it changes.  Then the built-in calls can focus on
+being flexible if verbose, and rely on local definitions to "instantiate" them
+in a way that makes sense for the specific score.  The syntax is described in
+'Derive.Parse.parse_ky'.

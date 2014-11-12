@@ -63,7 +63,7 @@ data Config = Config {
     , config_saved_views :: !SavedViews
     -- | If set, load local definitions from this file.  The filename is
     -- relative to the score directory, which is defined by the loading code.
-    , config_definition_file :: !(Maybe FilePath)
+    , config_ky_file :: !(Maybe FilePath)
     } deriving (Eq, Show)
 
 -- Ui.State already has a function called 'namespace'.
@@ -85,8 +85,8 @@ default_ = Lens.lens config_default
     (\f r -> r { config_default = f (config_default r) })
 saved_views = Lens.lens config_saved_views
     (\f r -> r { config_saved_views = f (config_saved_views r) })
-definition_file = Lens.lens config_definition_file
-    (\f r -> r { config_definition_file = f (config_definition_file r) })
+ky_file = Lens.lens config_ky_file
+    (\f r -> r { config_ky_file = f (config_ky_file r) })
 
 empty_config :: Config
 empty_config = Config
@@ -99,7 +99,7 @@ empty_config = Config
     , config_lilypond = Lilypond.default_config
     , config_default = empty_default
     , config_saved_views = mempty
-    , config_definition_file = Nothing
+    , config_ky_file = Nothing
     }
 
 -- | Extra data that doesn't have any effect on the score.

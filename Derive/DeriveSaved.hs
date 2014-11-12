@@ -40,10 +40,10 @@ import Types
 
 perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
-    (state, defs_lib) <- either errorIO return =<< load_score fname
+    (state, library) <- either errorIO return =<< load_score fname
     block_id <- maybe (errorIO $ fname <> ": no root block") return $
         State.config#State.root #$ state
-    let cmd_state = add_definition_lib defs_lib (Cmd.initial_state cmd_config)
+    let cmd_state = add_library library (Cmd.initial_state cmd_config)
     (events, logs) <- either (errorIO . ((fname <> ": ") <>)) return
         =<< timed_derive fname state cmd_state block_id
     mapM_ Log.write logs
@@ -51,9 +51,9 @@ perform_file cmd_config fname = do
     mapM_ Log.write logs
     return msgs
 
-add_definition_lib :: Derive.Library -> Cmd.State -> Cmd.State
-add_definition_lib lib state =
-    state { Cmd.state_definition_cache = Just (day0, Right lib) }
+add_library :: Derive.Library -> Cmd.State -> Cmd.State
+add_library lib state =
+    state { Cmd.state_ky_cache = Just (day0, Right lib) }
     where day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 
 timed_perform :: Cmd.State -> String -> State.State -> Cmd.Events
@@ -137,14 +137,13 @@ load_score fname =
                 state <- maybe (Error.throwError "file not found") return
                     maybe_state
                 return (state, FilePath.takeDirectory fname)
-        case State.config#State.definition_file #$ state of
+        case State.config#State.ky_file #$ state of
             Nothing -> return (state, mempty)
-            Just defs_name -> do
+            Just ky_fname -> do
                 app_dir <- liftIO Config.get_app_dir
-                let paths = dir
-                        : map (Config.make_path app_dir) Config.definition_paths
+                let paths = dir : map (Config.make_path app_dir) Config.ky_paths
                 lib <- either (Error.throwError . untxt) return
-                    =<< liftIO (PlayUtil.load_definitions paths defs_name)
+                    =<< liftIO (PlayUtil.load_ky paths ky_fname)
                 return (state, lib)
 
 require_right :: IO (Either String a) -> Error.ErrorT String IO a
@@ -163,8 +162,7 @@ cmd_config inst_db = do
     return $ Cmd.Config
         { Cmd.state_app_dir = app_dir
         , Cmd.state_midi_interface = interface
-        , Cmd.state_definition_paths =
-            map (Config.make_path app_dir) Config.definition_paths
+        , Cmd.state_ky_paths = map (Config.make_path app_dir) Config.ky_paths
         , Cmd.state_rdev_map = mempty
         , Cmd.state_wdev_map = mempty
         , Cmd.state_instrument_db = inst_db

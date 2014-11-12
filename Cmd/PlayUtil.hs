@@ -16,7 +16,7 @@ module Cmd.PlayUtil (
     , perform_events, get_convert_lookup
     -- * definition file
     , update_definition_cache
-    , load_definitions
+    , load_ky
     , compile_library
 ) where
 import qualified Control.Monad.Error as Error
@@ -297,7 +297,7 @@ get_convert_lookup = do
 -- | Get Library from the cache.
 get_library :: Cmd.M m => m Derive.Library
 get_library = do
-    cache <- Cmd.gets Cmd.state_definition_cache
+    cache <- Cmd.gets Cmd.state_ky_cache
     case cache of
         Nothing -> return mempty
         Just (_, Left err) -> Cmd.throw $ "get_library: " <> untxt err
@@ -305,23 +305,22 @@ get_library = do
 
 -- | Update the definition cache by reading the per-score definition file.
 update_definition_cache :: State.State -> Cmd.State -> IO Cmd.State
-update_definition_cache ui_state cmd_state = case def_file of
+update_definition_cache ui_state cmd_state = case ky_file of
     Nothing
-        | Maybe.isNothing $ Cmd.state_definition_cache cmd_state ->
+        | Maybe.isNothing $ Cmd.state_ky_cache cmd_state ->
             return cmd_state
-        | otherwise -> return $ cmd_state
-            { Cmd.state_definition_cache = Nothing }
+        | otherwise -> return $ cmd_state { Cmd.state_ky_cache = Nothing }
     Just fname -> cached_load cmd_state fname >>= \x -> return $ case x of
         Nothing -> cmd_state
         Just lib -> cmd_state
-            { Cmd.state_definition_cache = Just lib
+            { Cmd.state_ky_cache = Just lib
             , Cmd.state_play = (Cmd.state_play cmd_state)
                 { Cmd.state_performance = mempty
                 , Cmd.state_current_performance = mempty
                 , Cmd.state_performance_threads = mempty
                 }
             }
-    where def_file = State.config#State.definition_file #$ ui_state
+    where ky_file = State.config#State.ky_file #$ ui_state
 
 -- | Load a definition file if the cache is out of date.  Nothing if the cache
 -- is up to date.
@@ -335,11 +334,11 @@ cached_load :: Cmd.State -> FilePath
 cached_load state fname = run $ do
     dir <- require ("need a SaveFile to find " <> showt fname) $
         Cmd.state_save_dir state
-    let paths = dir : Cmd.state_definition_paths (Cmd.state_config state)
+    let paths = dir : Cmd.state_ky_paths (Cmd.state_config state)
     time <- either Error.throwError return
         =<< liftIO (Parse.find_mtime paths fname)
     if last_time == Just time then return Nothing else do
-        lib <- liftIO $ load_definitions paths fname
+        lib <- liftIO $ load_ky paths fname
         return $ Just (time, lib)
     where
     run = fmap extract . Error.runErrorT
@@ -351,11 +350,11 @@ cached_load state fname = run $ do
     extract (Right val) = val
     require msg = maybe (Error.throwError msg) return
     day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0
-    last_time = fst <$> Cmd.state_definition_cache state
+    last_time = fst <$> Cmd.state_ky_cache state
 
-load_definitions :: [FilePath] -> FilePath -> IO (Either Text Derive.Library)
-load_definitions paths fname =
-    Parse.load_definitions paths fname >>= \result -> case result of
+load_ky :: [FilePath] -> FilePath -> IO (Either Text Derive.Library)
+load_ky paths fname =
+    Parse.load_ky paths fname >>= \result -> case result of
         Left err -> return $ Left err
         Right (defs, imported) -> do
             Log.notice $ "imported definitions from "

@@ -118,6 +118,7 @@ Benefits of not using MIDI:
   - Push decisions up to the sequencer, e.g. pitch variation, envelope
     variation.
   - Non-realtime means I can have expensive instruments, and no voice limit.
+  - Multiple pitch signals, for e.g. fundemantal + filter.
 
 global
   instrument resonators:
@@ -126,9 +127,13 @@ global
     - convolution / impulse response
 
 sampler
-  - pick samples based on pitch, velocity, and other axes, and vary samples
-    randomly within those parameters.
-  - per-note address lets me replay ringing notes
+  - Pick samples based on pitch, velocity, and other axes, and vary samples
+    randomly within those parameters.  Sample zones overlap, using probability
+    rather than a hard cutoff.
+  - Per-note addressing lets me replay ringing notes.
+  - Smarter exclusive samples, e.g. same hand cuts off other samples, unless
+    it's the same stroke.
+  - Freedom from keyswitches.  Address variations directly and symbolically.
 
 physical modeling
   string

@@ -204,7 +204,7 @@ test_expand_macros = do
 
 -- * definitions file
 
-test_load_definitions = do
+test_load_ky = do
     let make_ky imports defs = unlines $
             ["import '" <> i <> "'" | i <- imports]
             ++ "note generator:" : [d <> " = z" | d <- defs]
@@ -216,7 +216,7 @@ test_load_definitions = do
     let run imports defs = do
             writeFile (dir </> "defs") (make_ky imports defs)
             either (Left . untxt) (Right . first extract) <$>
-                Parse.load_definitions [dir, lib] "defs"
+                Parse.load_ky [dir, lib] "defs"
         extract = map fst . fst . Parse.def_note
     v <- run ["z"] ["d1"]
     left_like v "imported file not found: z"
@@ -227,9 +227,8 @@ test_load_definitions = do
     io_equal (run ["lib1"] ["d1"]) $
         Right (["d1", "lib1", "lib2"], ["defs", "lib1", "lib2"])
 
-test_parse_definitions = do
-    let f extract = either (Left . untxt) (Right . extract)
-            . Parse.parse_definitions
+test_parse_ky = do
+    let f extract = either (Left . untxt) (Right . extract) . Parse.parse_ky
         note = f (map (second NonEmpty.head) . fst . Parse.def_note . snd)
             . ("note generator:\n"<>)
     let sym = Literal . VSymbol
