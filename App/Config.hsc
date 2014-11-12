@@ -2,16 +2,17 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | Global static app defaults.
--}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+-- | Global static app defaults.
 module App.Config where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Bits as Bits
 import qualified Data.Map.Strict as Map
+import qualified Data.String as String
 import qualified Network
 import qualified System.Directory as Directory
-import System.FilePath ((</>))
 import qualified System.Info
+import qualified System.FilePath as FilePath
 import Util.Control
 
 import qualified Util.Array as Array
@@ -44,10 +45,13 @@ platform = case System.Info.os of
 
 -- | Paths which are intended to be relative to the app dir get this type,
 -- so it's harder to accidentally use them directly.
-newtype RelativePath = RelativePath FilePath deriving (Show)
+newtype RelativePath = RelativePath FilePath deriving (Show, String.IsString)
+
+(</>) :: RelativePath -> RelativePath -> RelativePath
+RelativePath a </> RelativePath b = RelativePath (a FilePath.</> b)
 
 make_path :: FilePath -> RelativePath -> FilePath
-make_path app_dir (RelativePath path) = app_dir </> path
+make_path app_dir (RelativePath path) = app_dir FilePath.</> path
 
 -- | All paths should be relative to this one.
 -- I may later change this to an env var, a flag, or just leave it hardcoded.
@@ -57,26 +61,31 @@ get_app_dir = return "."
 -- | All code and data local to an installation (i.e. specific to a particular
 -- configuration) should go here.
 local_dir :: RelativePath
-local_dir = RelativePath "Local"
+local_dir = "Local"
+
+-- | These directories are searched for local definitions files loaded from
+-- @import@ statements.
+definition_paths :: [RelativePath]
+definition_paths = [local_dir </> "ky"]
 
 -- | Store instrument db code and data.
 instrument_dir :: RelativePath
-instrument_dir = RelativePath "inst_db"
+instrument_dir = "inst_db"
 
 -- | Local CmdL code goes here.
 repl_dir :: RelativePath
-repl_dir = RelativePath $ (\(RelativePath p) -> p) local_dir </> "Repl"
+repl_dir = local_dir </> "Repl"
 
 -- | Directory for instruments with slow patch loading to save their caches.
 instrument_cache_dir :: RelativePath
-instrument_cache_dir = RelativePath "db"
+instrument_cache_dir = "db"
 
 log_dir :: RelativePath
-log_dir = RelativePath "log"
+log_dir = "log"
 
 -- | 'Ui.State.state_project_dir' is in this directory, by default.
 save_dir :: RelativePath
-save_dir = RelativePath "save"
+save_dir = "save"
 
 -- * status view
 

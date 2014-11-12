@@ -1,0 +1,14 @@
+note generator:
+o = norot
+>o = >norot
+
+note transformer:
+global = scale = legong | import bali.gangsa | apply-start-offset
+    | infer-duration 2
+>jegog = unison
+>calung = unison
+>penyacah = unison
+>pemade = unison
+>kantilan = unison
+
+randomize = %dyn = (cf-rnd01 -.25 .25) | %start-s = (cf-rnd -.05 .05)

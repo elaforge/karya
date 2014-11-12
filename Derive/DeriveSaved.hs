@@ -33,6 +33,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.All as Scale.All
 
 import qualified Local.Config
+import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 import Types
 
@@ -139,11 +140,11 @@ load_score fname =
         case State.config#State.definition_file #$ state of
             Nothing -> return (state, mempty)
             Just defs_name -> do
-                let defs_fname = dir FilePath.</> defs_name
-                lib <- maybe
-                    (Error.throwError $ "defs file not found: " <> defs_fname)
-                    (either (Error.throwError . untxt) return)
-                        =<< liftIO (PlayUtil.load_definitions defs_fname)
+                app_dir <- liftIO Config.get_app_dir
+                let paths = dir
+                        : map (Config.make_path app_dir) Config.definition_paths
+                lib <- either (Error.throwError . untxt) return
+                    =<< liftIO (PlayUtil.load_definitions paths defs_name)
                 return (state, lib)
 
 require_right :: IO (Either String a) -> Error.ErrorT String IO a
@@ -158,9 +159,12 @@ load_cmd_config = do
 cmd_config :: Cmd.InstrumentDb -> IO Cmd.Config
 cmd_config inst_db = do
     interface <- StubMidi.interface
+    app_dir <- Config.get_app_dir
     return $ Cmd.Config
-        { Cmd.state_app_dir = "."
+        { Cmd.state_app_dir = app_dir
         , Cmd.state_midi_interface = interface
+        , Cmd.state_definition_paths =
+            map (Config.make_path app_dir) Config.definition_paths
         , Cmd.state_rdev_map = mempty
         , Cmd.state_wdev_map = mempty
         , Cmd.state_instrument_db = inst_db

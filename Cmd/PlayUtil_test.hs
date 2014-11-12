@@ -51,7 +51,7 @@ put_library :: Cmd.M m => Text -> m ()
 put_library text =
     Cmd.modify $ \st -> st { Cmd.state_definition_cache = Just defs }
     where
-    defs = case Parse.parse_definition_file text of
+    defs = case Parse.parse_definitions text of
         Left err -> (time, Left err)
-        Right defs -> (time, Right $ PlayUtil.compile_library defs)
+        Right (_, defs) -> (time, Right $ PlayUtil.compile_library defs)
     time = Time.UTCTime (Time.ModifiedJulianDay 0) 0

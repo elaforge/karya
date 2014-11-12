@@ -24,15 +24,11 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
-import qualified Data.Text.IO as Text.IO
+import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
-import qualified System.Directory as Directory
-import System.FilePath ((</>))
-
 import Util.Control
-import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Tree as Tree
 import qualified Util.Vector as Vector
@@ -325,47 +321,50 @@ update_definition_cache ui_state cmd_state = case def_file of
                 , Cmd.state_performance_threads = mempty
                 }
             }
-    where
-    def_file = State.config#State.definition_file #$ ui_state
+    where def_file = State.config#State.definition_file #$ ui_state
 
 -- | Load a definition file if the cache is out of date.  Nothing if the cache
 -- is up to date.
+--
+-- This only checks the timestamp of the file given.  If that file imports
+-- other files they won't get checked.  Otherwise I have to essentially
+-- recreate shake by tracking all the dependencies and last timestamps and
+-- that's just way too complicated.
 cached_load :: Cmd.State -> FilePath
     -> IO (Maybe (Time.UTCTime, Either Text Derive.Library))
-cached_load state defs_fname = run $ do
-    dir <- require ("need a SaveFile to find " <> showt defs_fname) $
+cached_load state fname = run $ do
+    dir <- require ("need a SaveFile to find " <> showt fname) $
         Cmd.state_save_dir state
-    let fname = dir </> defs_fname
-    let file_not_found = "definition file not found: " <> txt fname
-    time <- require file_not_found
-        =<< liftIO (File.ignoreEnoent (Directory.getModificationTime fname))
+    let paths = dir : Cmd.state_definition_paths (Cmd.state_config state)
+    time <- either Error.throwError return
+        =<< liftIO (Parse.find_mtime paths fname)
     if last_time == Just time then return Nothing else do
-        lib <- require file_not_found =<< liftIO (load_definitions fname)
+        lib <- liftIO $ load_definitions paths fname
         return $ Just (time, lib)
     where
     run = fmap extract . Error.runErrorT
-    require msg = maybe (Error.throwError msg) return
     extract (Left msg)
         -- If I failed to load last time too, then don't clear
         -- 'state_performance_threads' or I'll get an endless loop.
         | last_time == Just day0 = Nothing
         | otherwise = Just (day0, Left msg)
     extract (Right val) = val
+    require msg = maybe (Error.throwError msg) return
     day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0
     last_time = fst <$> Cmd.state_definition_cache state
 
-load_definitions :: FilePath -> IO (Maybe (Either Text Derive.Library))
-load_definitions fname = File.ignoreEnoent $ do
-    text <- Text.IO.readFile fname
-    Log.notice $ "loaded definitions from " <> showt fname
-    case Parse.parse_definition_file text of
-        Left err -> return $ Left $ txt fname <> ":" <> err
-        Right defs -> do
-            let lib = compile_library defs
+load_definitions :: [FilePath] -> FilePath -> IO (Either Text Derive.Library)
+load_definitions paths fname =
+    Parse.load_definitions paths fname >>= \result -> case result of
+        Left err -> return $ Left err
+        Right (defs, imported) -> do
+            Log.notice $ "imported definitions from "
+                <> Text.intercalate ", " (map txt imported)
             forM_ (Library.shadowed lib) $ \((name, _), calls) ->
                 Log.warn $ "definitions in " <> showt fname
                     <> " " <> name <> " shadowed: " <> prettyt calls
             return $ Right lib
+            where lib = compile_library defs
 
 compile_library :: Parse.Definitions -> Derive.Library
 compile_library (Parse.Definitions note control pitch val) = Derive.Library

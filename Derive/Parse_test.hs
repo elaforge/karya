@@ -5,6 +5,8 @@
 module Derive.Parse_test where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified System.Directory as Directory
+import System.FilePath ((</>))
 
 import Util.Control
 import qualified Util.ParseText as ParseText
@@ -202,16 +204,33 @@ test_expand_macros = do
 
 -- * definitions file
 
-test_split_sections = do
-    let f = either (Left . untxt) (Right . Map.toList) . Parse.split_sections
-    equal (f "a:\n1\nb:\n2\na:\n3\n") $
-        Right [("a", [(2, "1"), (6, "3")]), ("b", [(4, "2")])]
-    left_like (f "1\na:\n2\n") "section without a header"
+test_load_definitions = do
+    let make_ky imports defs = unlines $
+            ["import '" <> i <> "'" | i <- imports]
+            ++ "note generator:" : [d <> " = z" | d <- defs]
+    dir <- unique_tmp_dir "ky"
+    let lib = dir </> "lib"
+    Directory.createDirectory lib
+    writeFile (lib </> "lib1") $ make_ky ["lib2"] ["lib1"]
 
-test_parse_definition_file = do
+    let run imports defs = do
+            writeFile (dir </> "defs") (make_ky imports defs)
+            either (Left . untxt) (Right . first extract) <$>
+                Parse.load_definitions [dir, lib] "defs"
+        extract = map fst . fst . Parse.def_note
+    v <- run ["z"] ["d1"]
+    left_like v "imported file not found: z"
+    v <- run ["lib1"] ["d1"]
+    left_like v "imported file not found: lib2"
+
+    writeFile (lib </> "lib2") $ make_ky [] ["lib2"]
+    io_equal (run ["lib1"] ["d1"]) $
+        Right (["d1", "lib1", "lib2"], ["defs", "lib1", "lib2"])
+
+test_parse_definitions = do
     let f extract = either (Left . untxt) (Right . extract)
-            . Parse.parse_definition_file
-        note = f (map (second NonEmpty.head) . fst . Parse.def_note)
+            . Parse.parse_definitions
+        note = f (map (second NonEmpty.head) . fst . Parse.def_note . snd)
             . ("note generator:\n"<>)
     let sym = Literal . VSymbol
     left_like (f id "x:\na = b\n") "unknown sections: x"
@@ -222,6 +241,18 @@ test_parse_definition_file = do
     equal (note "a = b\n c\n --comment\n\nd = e\n") $
         Right [("a", Call "b" [sym "c"]), ("d", Call "e" [])]
     left_like (note "a = b\nc\n") ""
+    -- imports
+    equal (f fst "import 'x' -- blah\nimport 'y'\n") $
+        Right ["x", "y"]
+    equal (f fst "import\n\t'x'\n") $ Right ["x"]
+    left_like (f fst "blort x\nimport y\n") "expected eof"
+
+test_split_sections = do
+    let f = second Map.toList . Parse.split_sections
+    equal (f "a:\n1\nb:\n2\na:\n3\n") $
+        ("", [("a", [(2, "1"), (6, "3")]), ("b", [(4, "2")])])
+    equal (f "import a\nimport b\na:\n2\n")
+        ("import a\nimport b\n", [("a", [(4, "2")])])
 
 test_p_definition = do
     let f = either (Left . untxt) Right

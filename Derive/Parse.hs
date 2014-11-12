@@ -13,7 +13,7 @@ module Derive.Parse (
     , expand_macros
     -- * definition file
     , Definitions(..), Definition
-    , parse_definition_file
+    , load_definitions, find_mtime, parse_definitions
 #ifdef TESTING
     , p_equal, p_definition
     , split_sections
@@ -21,16 +21,24 @@ module Derive.Parse (
 ) where
 import Prelude hiding (lex)
 import qualified Control.Applicative as A (many)
+import qualified Control.Monad.Error as Error
 import qualified Data.Attoparsec.Text as A
 import Data.Attoparsec.Text ((<?>))
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+import qualified Data.Time as Time
 import qualified Data.Traversable as Traversable
 
+import qualified System.Directory as Directory
+import System.FilePath ((</>))
+
 import Util.Control
+import qualified Util.File as File
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
@@ -397,6 +405,48 @@ is_whitespace c = c == ' ' || c == '\t'
 
 -- * definition file
 
+load_definitions :: [FilePath] -> FilePath
+    -> IO (Either Text (Definitions, [FilePath]))
+load_definitions paths fname =
+    fmap annotate . Error.runErrorT $ load Set.empty [fname]
+    where
+    load _ [] = return []
+    load loaded (lib:libs)
+        | lib `Set.member` loaded = return []
+        | otherwise = do
+            text <- find lib
+            (imports, defs) <- lift $ parse_definitions text
+            ((defs, lib) :) <$>
+                load (Set.insert lib loaded) (libs ++ imports)
+
+    annotate (Left err) = Left $ txt fname <> ": " <> err
+    annotate (Right results) = Right (mconcat defs, imports)
+        where (defs, imports) = unzip results
+
+    require msg = maybe (Error.throwError msg) return
+    lift = either Error.throwError return
+    read :: FilePath -> Error.ErrorT Text IO (Maybe Text)
+    read = liftIO . File.ignoreEnoent . Text.IO.readFile
+    find fname =
+        require msg =<< tries (map (\dir -> read (dir </> fname)) paths)
+        where
+        msg = "imported file not found: " <> txt fname <> " in "
+            <> Text.intercalate ", " (map txt paths)
+    -- TODO I warn about shadows, but maybe it should be normal in imports?
+
+find_mtime :: [FilePath] -> FilePath -> IO (Either Text Time.UTCTime)
+find_mtime paths fname =
+    maybe (Left $ "file not found: " <> txt fname) Right <$>
+        tries (map (\dir -> get (dir </> fname)) paths)
+    where get = File.ignoreEnoent . Directory.getModificationTime
+
+-- TODO less generic name, and put in Util.Control?
+try :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
+try action alternative = maybe alternative (return . Just) =<< action
+
+tries :: Monad m => [m (Maybe a)] -> m (Maybe a)
+tries = foldr try (return Nothing)
+
 -- | This is a mirror of 'Derive.Library', but with expressions instead of
 -- calls.  (generators, transformers)
 data Definitions = Definitions {
@@ -406,6 +456,12 @@ data Definitions = Definitions {
     , def_val :: ![Definition]
     } deriving (Show)
 
+instance Monoid.Monoid Definitions where
+    mempty = Definitions ([], []) ([], []) ([], []) []
+    mappend (Definitions (a1, b1) (c1, d1) (e1, f1) g1)
+            (Definitions (a2, b2) (c2, d2) (e2, f2) g2) =
+        Definitions (a1<>a2, b1<>b2) (c1<>c2, d1<>d2) (e1<>e2, f1<>f2) (g1<>g2)
+
 type Definition = (TrackLang.CallId, TrackLang.Expr)
 type LineNumber = Int
 
@@ -413,9 +469,13 @@ type LineNumber = Int
     in the tracklang language, which is less powerful but more concise than
     haskell.
 
-    The syntax is a @header:@ line followed by definitions.  The header
-    determines the type of the calls defined after it, e.g.
+    The syntax is a sequence of @include 'path/to/file'@ lines followed by
+    a sequence of sections.  A section is a @header:@ line followed by
+    definitions.  The header determines the type of the calls defined after it,
+    e.g.:
 
+    > include 'somelib.karya'
+    >
     > note generator:
     > x = y
 
@@ -430,18 +490,19 @@ type LineNumber = Int
     @x = a@ (no arguments) is equivalent to @^x = a@, in that @x@ can take the
     same arguments as @a@.
 -}
-parse_definition_file :: Text -> Either Text Definitions
-parse_definition_file text = do
-    sections <- split_sections text
+parse_definitions :: Text -> Either Text ([FilePath], Definitions)
+parse_definitions text = do
+    let (imports, sections) = split_sections text
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList headers
     unless (null extra) $
         Left $ "unknown sections: " <> Text.intercalate ", " extra
+    imports <- ParseText.parse_lines 1 p_imports imports
     parsed <- Traversable.traverse parse_section sections
     let get header = Map.findWithDefault [] header parsed
         get2 kind = (get (kind <> " " <> generator),
             get (kind <> " " <> transformer))
-    return $ Definitions
+    return $ (,) imports $ Definitions
         { def_note = get2 note
         , def_control = get2 control
         , def_pitch = get2 pitch
@@ -458,21 +519,28 @@ parse_definition_file text = do
         t2 <- [generator, transformer]]
     parse_section [] = return []
     parse_section ((lineno, line0) : lines) =
-        ParseText.parse_lines lineno p_section
-            (Text.unlines (line0 : map snd lines))
+        ParseText.parse_lines lineno p_section $
+            Text.unlines (line0 : map snd lines)
 
-split_sections :: Text -> Either Text (Map.Map Text [(LineNumber, Text)])
+split_sections :: Text -> (Text, Map.Map Text [(LineNumber, Text)])
 split_sections =
-    fmap (Map.fromListWith (flip (++))) . concatMapM check
-        . Seq.split_with is_header . zip [1..] . Text.lines
+    second (Map.fromListWith (flip (++)) . concatMap split_header)
+        . split_imports . Seq.split_with is_header . zip [1..] . Text.lines
     where
     is_header = (":" `Text.isSuffixOf`) . snd
-    strip_header (_, header) = Text.take (Text.length header - 1) header
-    check [] = Right []
-    check (header : section)
-        | is_header header = Right [(strip_header header, section)]
-        | otherwise = Left $ showt (fst header)
-            <> ": section without a header: " <> snd header
+    split_imports [] = ("", [])
+    split_imports ([] : sections) = ("", sections)
+    split_imports (imports : sections) =
+        (Text.unlines $ map snd imports, sections)
+    strip_colon (_, header) = Text.take (Text.length header - 1) header
+    split_header [] = []
+    split_header (header : section) = [(strip_colon header, section)]
+
+p_imports :: A.Parser [FilePath]
+p_imports = A.skipMany empty_line *> A.many p_import <* A.skipMany empty_line
+    where
+    p_import = A.string "import" *> spaces *> (untxt <$> p_single_string)
+        <* spaces <* A.char '\n'
 
 p_section :: A.Parser [Definition]
 p_section =

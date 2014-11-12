@@ -152,6 +152,8 @@ cmd_config :: FilePath -> Interface.Interface -> StaticConfig.StaticConfig
 cmd_config app_dir interface config = Cmd.Config
     { Cmd.state_app_dir = app_dir
     , Cmd.state_midi_interface = interface
+    , Cmd.state_definition_paths =
+        map (Config.make_path app_dir) Config.definition_paths
     , Cmd.state_rdev_map = StaticConfig.rdev_map midi
     , Cmd.state_wdev_map = StaticConfig.wdev_map midi
     , Cmd.state_instrument_db = StaticConfig.instrument_db config

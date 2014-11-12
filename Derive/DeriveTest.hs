@@ -256,6 +256,7 @@ cmd_config :: Cmd.InstrumentDb -> Cmd.Config
 cmd_config inst_db = Cmd.Config
     { Cmd.state_app_dir = "."
     , Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
+    , Cmd.state_definition_paths = []
     , Cmd.state_rdev_map = mempty
     , Cmd.state_wdev_map = mempty
     , Cmd.state_instrument_db = inst_db

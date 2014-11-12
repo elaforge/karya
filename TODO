@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - "local definitions file" is a terrible name for the .karya files with
+    tracklang.  Also 'definition_paths'.  Maybe 'lib' and 'lib_paths'?  But
+    I want it to be specific because there may be other kinds of libs.
+    I'm already using 'karya' for the file suffix, but it already has
+    a broader meaning.  'tracklang' or tl would work but seems ugly.
+    maybe 'ky' for karya, change suffix to .ky, then ky_file, ky_paths, etc.
+  * include for .karya files, and a standard library include directory
+    . Should I allow a direct import from a lib file?  Otherwise each
+      score requires at least a "import 'xyz'" file.
   * track signal render is messed up, flattens after the end of first event
     . bug/tsig-cutoff
     . probably due to splicing together slices

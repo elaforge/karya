@@ -299,21 +299,22 @@ rethrow_io =
 
 -- * State
 
--- | App global state.  Unlike 'Ui.State.State', this is not saved to disk.
--- This is normally modified inside a 'CmdT', which is also a 'State.StateT',
--- so it can also use the UI state functions.  If an exception is thrown, both
--- this state and the UI state will be rolled back.
---
--- This is kind of an unorganized wodge.  The problem is that since state is
--- all centralized in one place, every special snowflake Cmd that needs its own
--- bit of state winds up getting its own little knob in here.  On one hand,
--- it's non-modular.  On the other hand, it lets me keep an eye on it.
---
--- So far, most Cmds are pretty fundamental, so they more or less deserve their
--- spots here.  If it gets out of control, though, I'll have to either come up
--- with a clever way of storing typed data where they can't collide, say by
--- having a Cmd return a new Cmd and keeping the state trapped inside, or
--- a less clever but simpler and easier way like @Map Name Dynamic@.
+{- | | App global state.  Unlike 'Ui.State.State', this is not saved to disk.
+    This is normally modified inside a 'CmdT', which is also a 'State.StateT',
+    so it can also use the UI state functions.  If an exception is thrown, both
+    this state and the UI state will be rolled back.
+
+    This is kind of an unorganized wodge.  The problem is that since state is
+    all centralized in one place, every special snowflake Cmd that needs its
+    own bit of state winds up getting its own little knob in here.  On one
+    hand, it's non-modular.  On the other hand, it lets me keep an eye on it.
+
+    So far, most Cmds are pretty fundamental, so they more or less deserve
+    their spots here.  If it gets out of control, though, I'll have to either
+    come up with a clever way of storing typed data where they can't collide,
+    say by having a Cmd return a new Cmd and keeping the state trapped inside,
+    or a less clever but simpler and easier way like @Map Name Dynamic@.
+-}
 data State = State {
     state_config :: !Config
     -- | If set, the current 'State.State' was loaded from this file.
@@ -426,6 +427,8 @@ data Config = Config {
     -- | App root, initialized from 'Config.get_app_dir'.
     state_app_dir :: !FilePath
     , state_midi_interface :: !Midi.Interface.Interface
+    -- | Search path for local definition files, from 'Config.definition_path'.
+    , state_definition_paths :: ![FilePath]
     -- | Reroute MIDI inputs and outputs.  These come from
     -- 'App.StaticConfig.read_device_map' and
     -- 'App.StaticConfig.write_device_map' and probably shouldn't be changed
