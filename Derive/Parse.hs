@@ -427,7 +427,7 @@ load_ky paths fname = fmap annotate . Error.runErrorT $ load Set.empty [fname]
     read :: FilePath -> Error.ErrorT Text IO (Maybe Text)
     read = liftIO . File.ignoreEnoent . Text.IO.readFile
     find fname =
-        require msg =<< tries (map (\dir -> read (dir </> fname)) paths)
+        require msg =<< firstJusts (map (\dir -> read (dir </> fname)) paths)
         where
         msg = "imported file not found: " <> txt fname <> " in "
             <> Text.intercalate ", " (map txt paths)
@@ -436,15 +436,8 @@ load_ky paths fname = fmap annotate . Error.runErrorT $ load Set.empty [fname]
 find_mtime :: [FilePath] -> FilePath -> IO (Either Text Time.UTCTime)
 find_mtime paths fname =
     maybe (Left $ "file not found: " <> txt fname) Right <$>
-        tries (map (\dir -> get (dir </> fname)) paths)
+        firstJusts (map (\dir -> get (dir </> fname)) paths)
     where get = File.ignoreEnoent . Directory.getModificationTime
-
--- TODO less generic name, and put in Util.Control?
-try :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
-try action alternative = maybe alternative (return . Just) =<< action
-
-tries :: Monad m => [m (Maybe a)] -> m (Maybe a)
-tries = foldr try (return Nothing)
 
     -- TODO how to handle shadowing in imported files?  Should I allow
     -- them to shadow?

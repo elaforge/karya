@@ -13,7 +13,9 @@ module Util.Control (
     , mconcatMap, concatMapM, mapMaybeM
     , mapMaybe, fromMaybe
 
-    , justm, rightm, errorIO
+    , justm, rightm
+    , firstJust, firstJusts
+    , errorIO
     -- * pretty
     , pretty, prettyt
 
@@ -145,7 +147,15 @@ rightm op1 op2 = op1 >>= \x -> case x of
     Left err -> return (Left err)
     Right val -> op2 val
 
-errorIO :: (Trans.MonadIO m) => String -> m a
+-- | Return the first action to return Just.
+firstJust :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
+firstJust action alternative = maybe alternative (return . Just) =<< action
+
+-- | 'firstJust' applied to a list.
+firstJusts :: Monad m => [m (Maybe a)] -> m (Maybe a)
+firstJusts = foldr firstJust (return Nothing)
+
+errorIO :: Trans.MonadIO m => String -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
 
 -- * conversion
@@ -158,9 +168,10 @@ txt = Text.pack
 untxt :: Text.Text -> String
 untxt = Text.unpack
 
-showt :: (Show a) => a -> Text.Text
+showt :: Show a => a -> Text.Text
 showt = txt . show
 
 -- | This is pretty bad, but and I can get rid of it when I upgrade to
--- transformers-4.
+-- transformers-4.  That can only happen when I upgrade ghc, since I use the
+-- ghc package.
 instance Error.Error Text.Text where strMsg = txt

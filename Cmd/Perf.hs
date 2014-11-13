@@ -124,15 +124,16 @@ get_scale_id block_id maybe_track_id =
     -- Did you know there are so many places to find a ScaleId?  Why are
     -- there so many places?
     (fromMaybe (Pitch.ScaleId Config.default_scale_id) <$>) $
-    try (maybe (return Nothing) (scale_from_titles block_id) maybe_track_id) $
-    try (find_scale_id block_id maybe_track_id) $ return Nothing
+    firstJust
+        (maybe (return Nothing) (scale_from_titles block_id) maybe_track_id) $
+    firstJust (find_scale_id block_id maybe_track_id) $ return Nothing
 
 find_scale_id :: Cmd.M m => BlockId -> Maybe TrackId -> m (Maybe Pitch.ScaleId)
 find_scale_id block_id maybe_track_id = (to_scale_id <$>) $
-    try (lookup maybe_track_id) $
-    try lookup_parents $
-    try (lookup Nothing) $
-    try (lookup_environ_val Environ.scale =<< global_environ) $
+    firstJust (lookup maybe_track_id) $
+    firstJust lookup_parents $
+    firstJust (lookup Nothing) $
+    firstJust (lookup_environ_val Environ.scale =<< global_environ) $
     return Nothing
     where
     to_scale_id = fmap TrackLang.sym_to_scale_id
@@ -142,14 +143,7 @@ find_scale_id block_id maybe_track_id = (to_scale_id <$>) $
         Just track_id -> do
             parents <- map State.track_id . maybe [] fst <$>
                 TrackTree.parents_children_of block_id track_id
-            tries $ map (lookup . Just) parents
-
-tries :: Monad m => [m (Maybe a)] -> m (Maybe a)
-tries = foldr try (return Nothing)
-
--- | TODO This is kind of dual to justm, maybe it should go in Util.Control?
-try :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
-try action alternative = maybe alternative (return . Just) =<< action
+            firstJusts $ map (lookup . Just) parents
 
 -- | Try to get a scale from the titles of the parents of the given track.
 scale_from_titles :: State.M m => BlockId -> TrackId
