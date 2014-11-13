@@ -29,7 +29,7 @@ UNSORTED
       transform at least.  And look at parent track titles.
   * pemade-s is messed up, but only in playback
     . Because it winds up 83.99978169093067 instead of 84.
-  - LPerf.sel_events always gets tuning=umbang, even though the derivation
+  * LPerf.sel_events always gets tuning=umbang, even though the derivation
     correctly sees isep.
     . It's because the environ, along with transpose, is only applied during
       conversion.  This is as intended, but it's confusing for sel_events.

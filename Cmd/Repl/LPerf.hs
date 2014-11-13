@@ -46,6 +46,7 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
 import Types
 
@@ -179,10 +180,19 @@ inverse_tempo_func time = do
 -- * block
 
 block_events :: BlockId -> Cmd.CmdL Derive.Events
-block_events block_id = Derive.r_events <$> PlayUtil.cached_derive block_id
+block_events block_id = normalize_events . Derive.r_events
+    =<< PlayUtil.cached_derive block_id
 
 block_uncached_events :: BlockId -> Cmd.CmdL Derive.Events
-block_uncached_events block_id = Derive.r_events <$> uncached_derive block_id
+block_uncached_events block_id = normalize_events . Derive.r_events
+    =<< uncached_derive block_id
+
+normalize_events :: Cmd.M m => Derive.Events -> m Derive.Events
+normalize_events events = do
+    lookup_info <- Cmd.get_lookup_instrument
+    let lookup_env = maybe mempty (Instrument.patch_environ . MidiDb.info_patch)
+            . lookup_info
+    return $ map (fmap (Score.normalize lookup_env)) events
 
 block_perform_events :: BlockId -> Cmd.CmdL [Perform.Event]
 block_perform_events block_id =

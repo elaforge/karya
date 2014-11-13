@@ -14,7 +14,7 @@ module Derive.Score (
     , empty_event, event_end, event_min, event_max, event_scale_id
     , event_transformed_controls, event_transformed_pitch
     , event_transformed_pitches
-    , copy
+    , copy, normalize
     -- ** flags
     , has_flags, add_flags, remove_flags
     -- ** environ
@@ -166,6 +166,24 @@ event_transformed_pitches event =
 -- data that shouldn't go with the copy.
 copy :: Event -> Event
 copy event = event { event_flags = mempty }
+
+-- | Apply 'event_control_offset' and apply environ and controls to pitches.
+-- Normally this is done by Convert, but if you want to see an event for
+-- debugging it can be nicer to see the normalized version.
+--
+-- Unlike Perform.Midi.Convert, this doesn't trim the controls, so it applies
+-- out-of-range transpositions.
+normalize :: (Instrument -> BaseTypes.Environ) -> Event -> Event
+normalize lookup_environ event = event
+    { event_untransformed_pitch = apply $ event_transformed_pitch event
+    , event_untransformed_pitches = apply <$> event_transformed_pitches event
+    , event_untransformed_controls = controls
+    , event_control_offset = 0
+    }
+    where
+    apply = PitchSignal.apply_controls environ controls
+    environ = lookup_environ (event_instrument event) <> event_environ event
+    controls = event_transformed_controls event
 
 -- ** flags
 
