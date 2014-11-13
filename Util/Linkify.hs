@@ -18,10 +18,11 @@ import qualified Data.Text.IO as Text.IO
 
 import qualified System.Environment as Environment
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+
+import Global
 
 
 main :: IO ()

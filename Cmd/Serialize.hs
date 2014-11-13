@@ -25,7 +25,6 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
@@ -49,6 +48,7 @@ import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

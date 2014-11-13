@@ -10,7 +10,6 @@ module Derive.Cache_profile where
 import qualified System.IO as IO
 import qualified Text.Printf as Printf
 
-import Util.Control
 import Util.Test
 import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
@@ -23,6 +22,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive_profile as Derive_profile
 
+import Global
 import Types
 
 

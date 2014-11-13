@@ -7,7 +7,6 @@ module Cmd.Repl.LView where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -18,6 +17,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.ViewConfig as ViewConfig
+
+import Global
 
 
 -- * create

@@ -6,10 +6,8 @@ module Ui.Diff_test where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Util.Ranges as Ranges
 import Util.Test
-
 import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Skeleton as Skeleton
@@ -19,6 +17,7 @@ import qualified Ui.Update as Update
 
 import qualified Derive.Derive as Derive
 import qualified App.Config as Config
+import Global
 import Types
 
 

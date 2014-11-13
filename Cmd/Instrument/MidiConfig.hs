@@ -6,13 +6,13 @@
 module Cmd.Instrument.MidiConfig where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Ui.State as State
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
+import Global
 
 
 data Config = Config {

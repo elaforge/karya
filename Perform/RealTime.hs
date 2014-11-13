@@ -57,7 +57,6 @@ import qualified Foreign
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
-import Util.Control
 import Util.Crc32Instances ()
 import qualified Util.ForeignC as C
 import qualified Util.Pretty as Pretty
@@ -65,6 +64,7 @@ import qualified Util.Serialize as Serialize
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Util as Util
+import Global
 
 
 -- | A concrete unit of time.

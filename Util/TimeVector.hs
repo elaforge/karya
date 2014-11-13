@@ -53,11 +53,12 @@ import qualified Data.Vector.Storable as Storable
 import qualified Foreign
 import qualified Control.Monad.State.Strict as State
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Perform.RealTime as RealTime
 import Util.TimeVectorStorable (X, Sample(..))
+
+import Global
 
 
 x_to_double :: X -> Double

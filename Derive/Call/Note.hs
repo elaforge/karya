@@ -15,7 +15,6 @@ module Derive.Call.Note (
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -42,6 +41,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

@@ -36,10 +36,8 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map
-
 import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.Track as Track
@@ -64,6 +62,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

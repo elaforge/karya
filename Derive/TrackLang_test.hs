@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.TrackLang_test where
-import Util.Control
 import Util.Test
 import qualified Derive.Environ as Environ
 import qualified Derive.Parse as Parse
@@ -12,6 +11,7 @@ import qualified Derive.TrackLang as TrackLang
 import Derive.TrackLang (Type(..), NumType(..), NumValue(..))
 
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

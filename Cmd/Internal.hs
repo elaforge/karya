@@ -13,7 +13,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as Vector
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Rect as Rect
@@ -47,6 +46,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
+import Global
 import Types
 
 

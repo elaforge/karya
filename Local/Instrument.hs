@@ -11,7 +11,6 @@ module Local.Instrument (load, make_dbs, make_named_dbs) where
 import qualified Data.List as List
 import System.FilePath ((</>))
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Db as Db
@@ -33,6 +32,7 @@ import qualified Local.Instrument.Vsl as Vsl
 import qualified Local.Instrument.Z1 as Z1
 
 import qualified App.Config as Config
+import Global
 
 
 -- | Load functions for each synthesizer.

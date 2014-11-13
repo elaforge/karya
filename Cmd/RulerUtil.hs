@@ -9,7 +9,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -17,6 +16,7 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 
 import qualified Cmd.Meter as Meter
+import Global
 import Types
 
 

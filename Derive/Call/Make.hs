@@ -6,7 +6,6 @@
 -- | This is like "Derive.Call.Util", but higher level.  It has templates for
 -- creating calls.
 module Derive.Call.Make where
-import Util.Control
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -16,6 +15,8 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+
+import Global
 
 
 -- | Bundle a generator and transformer together, so I can define them

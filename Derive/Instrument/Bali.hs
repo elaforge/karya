@@ -4,7 +4,6 @@
 
 -- | Calls for Balinese instruments.
 module Derive.Instrument.Bali where
-import Util.Control
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -15,6 +14,7 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Call.Bali.Gangsa as Gangsa
+import Global
 
 
 -- | Emit events for both polos and sangsih.

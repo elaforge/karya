@@ -18,13 +18,13 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Encode as Encode
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Cmd.Serialize as Serialize
 import qualified Perform.RealTime as RealTime
+import Global
 
 
 type Messages = Vector.Vector Midi.WriteMessage

@@ -7,7 +7,6 @@ module Derive.Call.Bali.Reyong where
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -30,6 +29,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

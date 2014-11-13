@@ -8,12 +8,12 @@
 -- The difference between this and "Derive.Scale.Scales" is that this is
 -- intended for using scales, while Scales is intended for implementing them.
 module Derive.Scale (module Derive.Derive, module Derive.Scale) where
-import Util.Control
 import qualified Data.Vector.Unboxed as Vector
 
 import Derive.Derive (Scale(..), Transposition(..), ScaleError(..), Layout)
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 type PitchNn = PitchSignal.PitchConfig

@@ -3,10 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Instrument.CUtil_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
@@ -23,6 +21,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import Global
 import Types
 
 

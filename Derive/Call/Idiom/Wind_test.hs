@@ -3,16 +3,15 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Idiom.Wind_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Idiom.Wind as Wind
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 title :: String

@@ -4,7 +4,6 @@
 
 -- | Collect the various calls into one place.
 module Derive.Call.All (library) where
-import Util.Control
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
@@ -39,6 +38,8 @@ import qualified Derive.Call.SignalTransform as SignalTransform
 import qualified Derive.Call.Trill as Trill
 import qualified Derive.Call.Val as Val
 import qualified Derive.Derive as Derive
+
+import Global
 
 
 library :: Derive.Library

@@ -19,7 +19,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Logger as Logger
 import qualified Util.Map as Map
 import qualified Util.Ranges as Ranges
@@ -36,6 +35,7 @@ import qualified Ui.Update as Update
 
 import qualified Derive.Deriver.Monad as Derive
 import qualified App.Config as Config
+import Global
 import Types
 
 

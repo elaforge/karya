@@ -8,10 +8,8 @@ import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 import Data.Tree (Tree(Node))
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -27,6 +25,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Slice as Slice
 
 import qualified Perform.Lilypond.Constants as Constants
+import Global
 import Types
 
 

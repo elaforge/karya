@@ -8,10 +8,8 @@ import qualified Data.Map as Map
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
-import Util.Control
 import qualified Util.ParseText as ParseText
 import Util.Test
-
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import Derive.TestInstances ()
@@ -20,6 +18,7 @@ import Derive.TrackLang
        (ControlRef(..), Symbol(..), Val(..), Call(..), Term(..))
 
 import qualified Perform.Signal as Signal
+import Global
 
 
 test_parse_expr = do

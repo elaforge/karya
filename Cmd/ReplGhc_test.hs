@@ -7,16 +7,15 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import Util.Test
-
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ReplGhc as ReplGhc
 
 import qualified App.ReplUtil as ReplUtil
+import Global
 
 
 -- Fiddle around with the REPL by hand.

@@ -35,7 +35,6 @@ import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
@@ -47,6 +46,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

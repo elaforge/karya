@@ -5,10 +5,8 @@
 module Derive.Control_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -22,6 +20,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

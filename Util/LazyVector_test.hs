@@ -3,11 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.LazyVector_test where
-import Util.Control
-import Util.Test
-import qualified Util.LazyVector as LazyVector
 import qualified Data.Vector as Vector
-import qualified Test.QuickCheck as Q
+
+import qualified Util.LazyVector as LazyVector
+import Util.Test
+import Global
 
 
 -- property: if you construct out of mixed singletons and fromLists, it will

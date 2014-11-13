@@ -13,10 +13,8 @@ import qualified Data.Vector as Vector
 import qualified System.FilePath as FilePath
 import qualified Text.Printf as Printf
 
-import Util.Control
 import qualified Util.Log as Log
 import Util.Test
-
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
 import qualified Ui.State as State
@@ -35,6 +33,7 @@ import qualified Derive.Scale.All as Scale.All
 import qualified Local.Config
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
+import Global
 import Types
 
 

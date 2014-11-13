@@ -6,7 +6,6 @@
 module Local.Instrument.Drumaxx where
 import qualified Data.Set as Set
 
-import Util.Control
 import Midi.Key
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.CUtil as CUtil
@@ -16,6 +15,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import Derive.Attrs
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Perform.Midi.Instrument as Instrument
+import Global
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

@@ -6,10 +6,10 @@
 -- a circular import with "Midi.Encode".  And putting them in "Midi.Encode"
 -- would make them a bit too hidden.
 module Midi.Instances where
-import Util.Control
-import qualified Midi.Midi as Midi
-import qualified Midi.Encode as Encode
 import qualified Util.Serialize as Serialize
+import qualified Midi.Encode as Encode
+import qualified Midi.Midi as Midi
+import Global
 
 
 instance Serialize.Serialize Midi.ReadMessage where

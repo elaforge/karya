@@ -5,11 +5,11 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds to modify cmd state.
 module Cmd.Repl.LCmd where
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.TimeStep as TimeStep
 import qualified Perform.RealTime as RealTime
+import Global
 import Types
 
 

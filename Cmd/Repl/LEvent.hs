@@ -8,10 +8,8 @@ module Cmd.Repl.LEvent where
 import qualified Data.List as List
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
-
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -23,6 +21,7 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
+import Global
 import Types
 
 

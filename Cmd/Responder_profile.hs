@@ -5,10 +5,8 @@
 module Cmd.Responder_profile where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Log as Log
 import Util.Test
-
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -23,6 +21,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive_profile as Derive_profile
+import Global
 
 
 profile_edits_middle = do

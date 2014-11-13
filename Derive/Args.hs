@@ -5,7 +5,6 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 -- | Extract things from the PassedArgs data structure.
 module Derive.Args where
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Derive as Derive
@@ -16,6 +15,7 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

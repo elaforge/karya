@@ -5,12 +5,13 @@
 module Perform.Lilypond.Meter_test where
 import qualified Data.Text as Text
 
-import Util.Control
 import Util.Test
 import Perform.Lilypond.LilypondTest (mkmeter)
 import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Types as Types
 import Perform.Lilypond.Types (Duration(..))
+
+import Global
 
 
 test_convert_duration = do

@@ -31,7 +31,6 @@ import qualified Data.Vector as Vector
 
 import qualified Text.Read as Read
 
-import Util.Control
 import Util.Crc32Instances ()
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
@@ -41,6 +40,7 @@ import qualified Util.Serialize as Serialize
 
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
+import Global
 import Types
 
 

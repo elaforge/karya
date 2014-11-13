@@ -21,8 +21,8 @@ module LogView.Process (
 ) where
 import qualified Control.Monad.Trans.State as State
 import qualified Control.Monad.Trans.Writer as Writer
-import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as Lazy
 import qualified Data.ByteString.Lazy.Builder as Builder
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Foldable as Foldable
@@ -33,12 +33,12 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Sequence as Sequence
 import qualified Data.Word as Word
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 import qualified Derive.Stack as Stack
+import Global
 
 
 -- * state

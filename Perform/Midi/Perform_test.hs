@@ -8,7 +8,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Util.Thread as Thread
@@ -32,6 +31,7 @@ import qualified Perform.Midi.PerformTest as PerformTest
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

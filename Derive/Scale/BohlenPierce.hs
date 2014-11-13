@@ -9,7 +9,6 @@ import Data.Ratio ((%))
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Derive as Derive
@@ -23,6 +22,7 @@ import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 scales :: [Scale.Scale]

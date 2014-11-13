@@ -19,7 +19,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
@@ -42,6 +41,7 @@ import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
+import Global
 import Types
 
 

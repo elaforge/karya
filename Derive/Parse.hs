@@ -37,7 +37,6 @@ import qualified Data.Traversable as Traversable
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
@@ -49,6 +48,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
+import Global
 
 
 parse_expr :: Text -> Either String TrackLang.Expr

@@ -50,7 +50,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import Util.ForeignC
 
-import Util.Control hiding (Text)
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
@@ -61,6 +60,7 @@ import qualified Ui.Util as Util
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
 import Types
+import Global hiding (Text)
 
 
 data Event = Event {

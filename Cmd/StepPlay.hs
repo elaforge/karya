@@ -24,7 +24,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Midi.State
@@ -42,6 +41,7 @@ import qualified Derive.Stack as Stack
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
+import Global
 import Types
 
 

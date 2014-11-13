@@ -14,10 +14,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.TimeVector as TimeVector
-
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -34,6 +32,8 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+
+import Global
 
 
 type ConvertT a = ConvertUtil.ConvertT State a

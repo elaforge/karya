@@ -10,10 +10,10 @@
 module Derive.Controls where
 import Prelude hiding (null)
 
-import Util.Control
 import qualified Derive.Score as Score
 import Derive.Score (Control)
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 -- | These controls should be combined with addition by default instead of

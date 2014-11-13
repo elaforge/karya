@@ -7,10 +7,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -31,6 +29,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.MidiDb as MidiDb
+import Global
 import Types
 
 

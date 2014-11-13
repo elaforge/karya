@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Repl.LRuler_test where
-import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -13,6 +12,7 @@ import qualified Cmd.Meter as Meter
 import qualified Cmd.Repl.LRuler as LRuler
 import qualified Cmd.RulerUtil as RulerUtil
 
+import Global
 import Types
 
 

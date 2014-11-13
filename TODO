@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - It's inconvenient to have Util.Control and unqualified import be the same
+  * It's inconvenient to have Util.Control and unqualified import be the same
     module, because then all general purpose utils wind up in the global
     namespace.  Maybe I should import a Global.hs analogous to Types.
   * "local definitions file" is a terrible name for the .karya files with

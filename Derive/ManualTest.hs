@@ -8,7 +8,6 @@ module Derive.ManualTest where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Ranges as Ranges
 import Util.Test
@@ -24,6 +23,7 @@ import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.DeriveTest as DeriveTest
 
 import qualified Local.Instrument.Kontakt as Kontakt
+import Global
 
 
 run :: IO ()

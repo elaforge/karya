@@ -8,7 +8,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -20,6 +19,7 @@ import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 
 import qualified App.Config as Config
+import Global
 import Types
 
 

@@ -19,8 +19,8 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
 
-import Util.Control
 import qualified Util.Seq as Seq
+import Global
 
 
 type Parser a = A.Parser a

@@ -8,13 +8,13 @@
 module Perform.Midi.Control where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Global
 
 
 type ControlMap = Map.Map Score.Control Midi.Control

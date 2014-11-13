@@ -103,7 +103,6 @@ module Derive.Sig (
 import qualified Control.Applicative as Applicative
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Derive.Derive as Derive
 import Derive.Derive (EnvironDefault(..))
 import qualified Derive.Eval as Eval
@@ -112,6 +111,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
+import Global
 
 
 type Error = Derive.CallError

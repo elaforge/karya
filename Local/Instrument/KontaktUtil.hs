@@ -7,8 +7,8 @@ module Local.Instrument.KontaktUtil where
 import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector
 
-import Util.Control
 import qualified Perform.Midi.Instrument as Instrument
+import Global
 
 
 -- | Create a script in Kontakt's hilariously incompetent KSP language to

@@ -2,10 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 module Derive.Call.Bali.Reyong_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Bali.Reyong as Reyong
 import Derive.Call.Bali.Reyong (Hand(..))
@@ -15,6 +13,7 @@ import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

@@ -13,7 +13,6 @@ import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.Format as Format
 import qualified Util.Seq as Seq
@@ -30,6 +29,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import Global
 import Types
 
 

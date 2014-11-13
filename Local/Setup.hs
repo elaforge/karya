@@ -7,7 +7,6 @@
 module Local.Setup where
 import qualified Control.Monad.Trans as Trans
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
@@ -22,6 +21,7 @@ import qualified Cmd.RulerUtil as RulerUtil
 
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import Global
 
 
 load_mod :: FilePath -> Cmd.CmdIO

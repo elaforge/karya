@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Lilypond.Lilypond_test where
-import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
@@ -15,6 +14,8 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.Lilypond.Types as Types
+
+import Global
 
 
 test_convert_sections = do

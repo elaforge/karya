@@ -5,10 +5,8 @@
 module Cmd.StepPlay_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Midi.State
@@ -24,6 +22,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.RealTime as RealTime
+import Global
 import Types
 
 

@@ -3,10 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.SaveGit_test where
-import Util.Control
 import qualified Util.Git as Git
 import Util.Test
-
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -18,6 +16,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.Create as Create
 import qualified Cmd.SaveGit as SaveGit
+import Global
 
 
 test_do_save = do

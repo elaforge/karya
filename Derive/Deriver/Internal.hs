@@ -12,7 +12,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Word as Word
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.State as State
@@ -27,6 +26,7 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.RealTime as RealTime
+import Global
 import Types
 
 

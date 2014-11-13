@@ -9,10 +9,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Memory as Memory
-
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -20,6 +18,7 @@ import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 
+import Global
 import Types
 
 

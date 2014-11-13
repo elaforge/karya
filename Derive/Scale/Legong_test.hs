@@ -5,10 +5,8 @@
 module Derive.Scale.Legong_test where
 import qualified Data.List as List
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
@@ -17,6 +15,7 @@ import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 test_note_to_call = do

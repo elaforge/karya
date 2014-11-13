@@ -5,13 +5,12 @@
 module Cmd.Tala_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Tala as Tala
+import Global
 import Types
 
 

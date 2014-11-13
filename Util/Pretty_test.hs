@@ -5,10 +5,9 @@
 module Util.Pretty_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Pretty as Pretty
-
 import qualified Perform.RealTime as RealTime
+import Global
 
 
 -- Some hand tests for the pretty printer.  Not sure how to automate these...

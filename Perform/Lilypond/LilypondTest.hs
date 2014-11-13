@@ -6,10 +6,8 @@ module Perform.Lilypond.LilypondTest where
 import qualified Data.List as List
 import qualified Data.Text.Lazy as Text.Lazy
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
@@ -29,6 +27,7 @@ import qualified Perform.Lilypond.Meter as Meter
 import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
 
+import Global
 import Types
 
 

@@ -7,7 +7,6 @@ module Local.Config (load_static_config) where
 import qualified Control.Monad.Trans as Trans
 import qualified Network.BSD
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Midi.Key as Key
 import qualified Cmd.Cmd as Cmd
@@ -24,6 +23,7 @@ import qualified Local.Setup as Setup
 
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
+import Global
 
 
 load_static_config :: IO StaticConfig.StaticConfig

@@ -7,7 +7,6 @@ module Cmd.Repl.LControl where
 import qualified Prelude
 import Prelude hiding (round)
 
-import Util.Control
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
 import qualified Cmd.ModifyEvents as ModifyEvents
@@ -19,6 +18,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

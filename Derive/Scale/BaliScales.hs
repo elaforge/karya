@@ -16,10 +16,8 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 import Data.Vector ((!?))
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
@@ -31,6 +29,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 -- | Top level scale constructor.

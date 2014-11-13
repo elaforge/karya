@@ -9,11 +9,12 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+
+import Global
 
 
 type ConvertT state a =

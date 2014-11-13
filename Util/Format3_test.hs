@@ -5,11 +5,11 @@
 module Util.Format3_test where
 import qualified Data.Text.Lazy as Lazy
 
-import Util.Control
-import qualified Util.Format3 as Format3
-import Util.Format3 ((</>), indented, break)
+import qualified Util.Format3 as Format
+import Util.Format3 ((</>), (<+/>), indented, break)
 import Util.Test
 
+import Global
 
 test_render = do
     let f = Lazy.toStrict . Format3.render "  " 10

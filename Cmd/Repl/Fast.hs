@@ -7,7 +7,6 @@
 module Cmd.Repl.Fast where
 import qualified Data.Char as Char
 
-import Util.Control
 import qualified Util.Then as Then
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -17,6 +16,7 @@ import qualified Cmd.Repl.LInst as LInst
 import qualified Cmd.Repl.LState as LState
 
 import qualified App.ReplUtil as ReplUtil
+import Global
 
 
 -- | 'interpret' loads a whole bunch of modules and can be slow.  Shortcut a

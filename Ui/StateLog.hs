@@ -8,10 +8,10 @@ module Ui.StateLog where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Trans as Trans
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.State as State
 import qualified Ui.Update as Update
+import Global
 
 
 type StateLogT m = State.StateT (Log.LogT m)

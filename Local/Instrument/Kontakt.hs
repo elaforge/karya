@@ -12,7 +12,6 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import Util.Control
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
@@ -59,6 +58,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Local.Instrument.KontaktKendang as KontaktKendang
 import qualified Local.Instrument.KontaktUtil as KontaktUtil
 import qualified Local.Instrument.Reaktor as Reaktor
+
+import Global
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

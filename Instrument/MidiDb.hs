@@ -15,7 +15,6 @@ import qualified Data.Text as Text
 
 import qualified System.FilePath as FilePath
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Map as Map
@@ -24,6 +23,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import Global
 
 
 -- * midi db

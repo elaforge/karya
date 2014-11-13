@@ -6,7 +6,6 @@ module Derive.EvalTrack_test where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
@@ -34,6 +33,7 @@ import qualified Derive.TrackWarp as TrackWarp
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Signal as Signal
 import qualified Instrument.MidiDb as MidiDb
+import Global
 import Types
 
 

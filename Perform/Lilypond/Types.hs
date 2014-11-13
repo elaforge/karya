@@ -9,16 +9,15 @@
 module Perform.Lilypond.Types where
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
-
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import Global
 import Types
 
 

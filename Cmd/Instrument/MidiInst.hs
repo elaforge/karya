@@ -27,7 +27,6 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import System.FilePath ((</>), (<.>))
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
@@ -46,6 +45,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Serialize as Serialize
 import qualified App.Config as Config
+import Global
 
 
 -- | The arguments for the 'softsynth' function in record form, for default

@@ -8,7 +8,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
-import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
@@ -25,6 +24,7 @@ import qualified Cmd.Internal as Internal
 import qualified Cmd.Selection as Selection
 
 import qualified App.Config as Config
+import Global
 import Types
 
 

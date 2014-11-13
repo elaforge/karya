@@ -34,10 +34,11 @@ import qualified Data.Text as Text
 import qualified Text.ParserCombinators.ReadPrec as ReadPrec
 import qualified Text.Read as Read
 
-import Util.Control
 import Util.Crc32Instances () -- Text instance
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
+
+import Global
 
 
 -- | IDs come in two parts, a namespace and a name.

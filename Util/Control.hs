@@ -2,60 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Control flow and monadic utilities, meant to be imported unqualified.
-module Util.Control (
-    Proxy(..)
-    , pure, (<$>), (<*>), (<*), (*>), (<|>)
-    , first, second, (***)
-    , (<>), mempty, mconcat
-    , while, while_
-    , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM
-    , mconcatMap, concatMapM, mapMaybeM
-    , mapMaybe, fromMaybe
-
-    , justm, rightm
-    , firstJust, firstJusts
-    , errorIO
-    -- * pretty
-    , pretty, prettyt
-
-    -- * lens
-    , Lens, (#)
-    -- * pure
-    , (#$), (#=), (%=)
-    -- * state
-    , (<#>)
-    , module Control.Monad
-    , lift, liftIO
-    -- * nonempty
-    , module Data.List.NonEmpty
-    -- * text
-    , Text.Text
-    , txt, untxt, showt
-) where
-import Control.Applicative (pure, (<$>), (<*>), (<*), (*>), (<|>))
+-- | Control flow and monadic utilities.
+module Util.Control where
 import qualified Control.Exception as Exception
 import Control.Monad
-       ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard,
-        liftM, mplus, msum, mzero, replicateM, replicateM_, when, unless, void,
-        zipWithM, zipWithM_)
-import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Trans as Trans
-import Control.Monad.Trans (lift, liftIO)
 
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.Maybe (mapMaybe, fromMaybe)
 import qualified Data.Monoid as Monoid
-import Data.Monoid (mempty, mconcat, (<>))
-import qualified Data.Text as Text
 
-import Util.Lens
-import Util.Pretty (pretty, prettyt)
-
-
--- | A value proxy for a type, used for class methods that just want a type,
--- not a value.
-data Proxy a = Proxy
 
 -- | Like the Arrow combinators, but specialized to functions for clearer
 -- error messages.
@@ -121,10 +75,10 @@ findM _ [] = return Nothing
 findM f (x:xs) = ifM (f x) (return (Just x)) (findM f xs)
 
 mconcatMap :: Monoid.Monoid b => (a -> b) -> [a] -> b
-mconcatMap f = mconcat . Prelude.map f
+mconcatMap f = Monoid.mconcat . map f
 
 concatMapM :: (Monad m, Monoid.Monoid b) => (a -> m b) -> [a] -> m b
-concatMapM f = liftM mconcat . mapM f
+concatMapM f = liftM Monoid.mconcat . mapM f
 
 mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
 mapMaybeM f as = go as
@@ -157,21 +111,3 @@ firstJusts = foldr firstJust (return Nothing)
 
 errorIO :: Trans.MonadIO m => String -> m a
 errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
-
--- * conversion
-
--- | Utilities to make it easier to convert things to Text.  These are
--- intentionally missing the e to make it easier to search for them.
-txt :: String -> Text.Text
-txt = Text.pack
-
-untxt :: Text.Text -> String
-untxt = Text.unpack
-
-showt :: Show a => a -> Text.Text
-showt = txt . show
-
--- | This is pretty bad, but and I can get rid of it when I upgrade to
--- transformers-4.  That can only happen when I upgrade ghc, since I use the
--- ghc package.
-instance Error.Error Text.Text where strMsg = txt

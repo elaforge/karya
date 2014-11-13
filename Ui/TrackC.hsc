@@ -6,7 +6,6 @@
     the end of the last Event.
 -}
 module Ui.TrackC (with_track) where
-import Util.Control
 import Util.ForeignC
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
@@ -19,6 +18,7 @@ import qualified Ui.Util as Util
 
 import qualified Perform.Signal as Signal
 import Types
+import Global
 
 
 #include "Ui/c_interface.h"

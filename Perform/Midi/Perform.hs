@@ -12,7 +12,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
@@ -30,6 +29,8 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Perform.RealTime (RealTime)
 import qualified Perform.Signal as Signal
+
+import Global
 
 
 -- * constants

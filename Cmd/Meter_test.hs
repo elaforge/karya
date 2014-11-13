@@ -5,13 +5,12 @@
 module Cmd.Meter_test where
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.Ruler as Ruler
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Meters as Meters
+import Global
 import Types
 
 

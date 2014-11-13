@@ -7,7 +7,6 @@ module Derive.Call.Highlight where
 import qualified Data.Maybe as Maybe
 
 import qualified Util.ApproxEq as ApproxEq
-import Util.Control
 import qualified Ui.Color as Color
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -22,6 +21,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

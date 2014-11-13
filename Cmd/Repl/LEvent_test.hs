@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Repl.LEvent_test where
-import Util.Control
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
@@ -11,6 +10,7 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Repl.LEvent as LEvent
+import Global
 import Types
 
 

@@ -5,7 +5,6 @@
 module Midi.Synth_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -15,6 +14,7 @@ import qualified Midi.Synth as Synth
 
 import qualified Perform.NN as NN
 import qualified Perform.RealTime as RealTime
+import Global
 
 
 test_run = do

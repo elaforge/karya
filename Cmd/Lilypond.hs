@@ -20,10 +20,8 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.Process as Process
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Process
-
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -39,10 +37,11 @@ import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond as Lilypond
+import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Pitch as Pitch
 
+import Global
 import Types
 
 

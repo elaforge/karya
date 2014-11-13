@@ -3,10 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Local.Instrument.KontaktKendang_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -14,6 +12,7 @@ import qualified Derive.Score as Score
 
 import qualified Local.Instrument.Kontakt as Kontakt
 import qualified Local.Instrument.KontaktKendang as KontaktKendang
+import Global
 
 
 test_kendang = do

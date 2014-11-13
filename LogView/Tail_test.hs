@@ -6,12 +6,12 @@ module LogView.Tail_test where
 import qualified Data.ByteString.Lazy as ByteString.Lazy
 import qualified System.IO as IO
 
-import Util.Control
 import qualified Util.Log as Log
 import Util.Test
 import qualified Util.Thread as Thread
 
 import qualified LogView.Tail as Tail
+import Global
 
 
 -- TODO

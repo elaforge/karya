@@ -13,11 +13,12 @@
 -- parts can change just by inserting a new note track, which seems
 -- non-obvious.
 module Derive.Call.InferTrackVoice where
-import Util.Control
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Sig as Sig
+
+import Global
 
 
 note_calls :: Derive.CallMaps Derive.Note

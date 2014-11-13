@@ -12,13 +12,13 @@ module Instrument.Serialize (serialize, unserialize) where
 import qualified Data.Map as Map
 import qualified Data.Time as Time
 
-import Util.Control
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import Midi.Instances ()
 import qualified Cmd.Serialize
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
+import Global
 
 
 magic :: Cmd.Serialize.Magic

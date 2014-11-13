@@ -4,7 +4,6 @@
 
 -- | Utilities to modify events in tracks.
 module Cmd.ModifyEvents where
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -17,6 +16,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
+import Global
 import Types
 
 

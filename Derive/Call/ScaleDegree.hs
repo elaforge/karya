@@ -16,7 +16,6 @@ import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
@@ -30,6 +29,7 @@ import Derive.Sig (defaulted)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 -- * equal tempered

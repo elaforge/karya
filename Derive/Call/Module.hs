@@ -8,8 +8,8 @@ import qualified Data.Monoid as Monoid
 import qualified Data.String as String
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Pretty as Pretty
+import Global
 
 
 -- | The module name is dot-separated by convention, and should consist of

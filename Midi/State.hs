@@ -18,12 +18,12 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import Global
 
 
 newtype State = State (Map.Map Addr Channel) deriving (Eq, Show, Pretty.Pretty)

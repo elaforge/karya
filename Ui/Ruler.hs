@@ -32,13 +32,12 @@ import qualified Data.Text as Text
 import qualified Foreign
 import qualified System.IO.Unsafe as Unsafe
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.TimeVector as TimeVector
-
 import qualified Ui.Color as Color
 import qualified Perform.RealTime as RealTime
 import qualified App.Config as Config
+import Global
 import Types
 
 

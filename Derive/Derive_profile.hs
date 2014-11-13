@@ -9,10 +9,8 @@ import qualified System.Mem as Mem
 
 import qualified Text.Printf as Printf
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
@@ -26,6 +24,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseSkeleton as ParseSkeleton
 
 import qualified Perform.Midi.Convert as Convert
+import Global
 import Types
 
 

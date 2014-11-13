@@ -6,7 +6,6 @@ module Cmd.Integrate_test where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import Util.Control
 import Util.Test
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -22,6 +21,7 @@ import qualified Cmd.ResponderTest as ResponderTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified App.Config as Config
+import Global
 import Types
 
 

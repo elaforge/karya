@@ -8,10 +8,8 @@ module Derive.Call.Bali.Gender (
     note_calls, interval_arg, ngoret, c_realize_ngoret
     , weak
 ) where
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
@@ -32,6 +30,7 @@ import Derive.Sig (control, typed_control)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 note_calls :: Derive.CallMaps Derive.Note

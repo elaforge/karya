@@ -16,7 +16,6 @@ import qualified Data.Tuple as Tuple
 
 import qualified Text.Printf as Printf
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -26,6 +25,7 @@ import qualified Midi.State as MState
 import Midi.State (Addr)
 
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

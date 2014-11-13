@@ -19,14 +19,13 @@ import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Transport as Transport
+import Global
 import Types
 
 

@@ -20,13 +20,12 @@ import qualified System.Console.Haskeline.MonadException
        as Haskeline.MonadException
 import qualified System.FilePath as FilePath
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified LogView.Process as Process
 import qualified LogView.Tail as Tail
 import qualified App.SendCmd as SendCmd
+import Global
 
 
 type Input a = Haskeline.InputT IO a

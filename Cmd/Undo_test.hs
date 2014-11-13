@@ -5,7 +5,6 @@
 module Cmd.Undo_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.Git as Git
 import qualified Util.Rect as Rect
@@ -30,6 +29,7 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.Undo as Undo
 
 import qualified App.Config as Config
+import Global
 import Types
 
 

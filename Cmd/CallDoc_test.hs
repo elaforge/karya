@@ -5,11 +5,11 @@
 module Cmd.CallDoc_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import Util.Test
 import qualified Cmd.CallDoc as CallDoc
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Scale.All as Scale.All
+import Global
 
 
 test_doc_html = do

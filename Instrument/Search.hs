@@ -12,16 +12,15 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Tag as Tag
+import Global
 
 
 type Search = Query -> [Score.Instrument]

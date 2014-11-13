@@ -16,7 +16,6 @@ import qualified Numeric
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
-import Util.Control
 import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -34,6 +33,7 @@ import qualified Ui.Update as Update
 
 import qualified Cmd.Serialize
 import qualified App.Config as Config
+import Global
 import Types
 
 

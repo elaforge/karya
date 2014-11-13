@@ -7,11 +7,10 @@ import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.UTF8 as UTF8
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Log as Log
 import Util.Test
-
 import qualified LogView.Process as Process
+import Global
 
 
 test_render_status = do

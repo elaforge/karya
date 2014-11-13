@@ -12,7 +12,6 @@ import Data.Ratio ((%))
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
@@ -48,6 +47,7 @@ import qualified Perform.Signal as Signal
 
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
+import Global
 import Types
 
 

@@ -65,7 +65,6 @@ import qualified Data.Vector.Storable as Vector
 import qualified Foreign
 import qualified Text.Read as Read
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -77,6 +76,7 @@ import qualified Midi.Midi as Midi
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import Global
 import Types
 
 

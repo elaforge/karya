@@ -5,10 +5,10 @@
 module Ui.Events_test where
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import Global
 import Types
 
 

@@ -3,14 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.State_test where
-import Util.Control
 import qualified Util.Ranges as Ranges
 import Util.Test
-
 import qualified Ui.Events as Events
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+
+import Global
 
 
 test_skeleton_cycles = do

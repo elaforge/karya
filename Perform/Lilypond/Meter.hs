@@ -9,15 +9,13 @@ import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector
 import Data.Vector.Unboxed ((!))
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Cmd.Meter as Meter
 import Cmd.Meter (AbstractMeter(..))
 import qualified Perform.Lilypond.Types as Types
-import Perform.Lilypond.Types
-       (Time(..), Duration(..), NoteDuration(..))
+import Perform.Lilypond.Types (Time(..), Duration(..), NoteDuration(..))
+import Global
 
 
 data Meter = Meter {

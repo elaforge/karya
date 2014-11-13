@@ -9,13 +9,13 @@ module Ui.UiMsg where
 import qualified Data.Text as Text
 import Text.Printf (printf)
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
 import qualified Ui.Key as Key
 import qualified Ui.Types as Types
+import Global
 import Types
 
 

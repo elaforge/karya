@@ -48,7 +48,6 @@ import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -70,6 +69,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

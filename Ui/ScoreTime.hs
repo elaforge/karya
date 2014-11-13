@@ -6,20 +6,20 @@
 module Ui.ScoreTime (
     ScoreTime, TrackTime, round, to_double, to_cdouble, double, suffix, eta, eq
 ) where
-import Prelude hiding (round)
 import qualified Prelude
+import Prelude hiding (round)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
-import Util.Control
 import Util.Crc32Instances ()
 import qualified Util.ForeignC as C
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
 import qualified Ui.Util as Util
+import Global
 
 
 -- | Score time is the abstract unit of time, and its mapping to real time

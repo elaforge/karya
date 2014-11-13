@@ -10,7 +10,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
@@ -37,6 +36,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
 
+import Global
 import Types
 
 

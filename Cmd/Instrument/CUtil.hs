@@ -9,10 +9,8 @@
 module Cmd.Instrument.CUtil where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Ui.UiMsg as UiMsg
 import qualified Cmd.Cmd as Cmd
@@ -41,6 +39,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
+import Global
 import Types
 
 

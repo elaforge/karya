@@ -5,12 +5,12 @@
 module Instrument.Parse_test where
 import qualified Text.Parsec as Parsec
 
-import Util.Control
 import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Parse as Parse
+import Global
 
 
 test_parse_annotations = do

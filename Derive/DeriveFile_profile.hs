@@ -1,7 +1,6 @@
 module Derive.DeriveFile_profile where
 import qualified Data.Vector as Vector
 
-import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -12,6 +11,7 @@ import qualified Cmd.Save as Save
 import qualified Derive.Cache as Cache
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified D
+import Global
 
 
 -- Run by hand to manually derive a score to see how long it takes.

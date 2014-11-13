@@ -3,10 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Local.Config.Archy where
-import Util.Control
 import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Db as Db
 import qualified App.StaticConfig as StaticConfig
+import Global
 
 
 midi_config :: Cmd.InstrumentDb -> StaticConfig.Midi

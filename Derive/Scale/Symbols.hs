@@ -8,10 +8,10 @@
 module Derive.Scale.Symbols where
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Ui.Symbol as Symbol
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
+import Global
 
 
 symbols :: [Symbol.Symbol]

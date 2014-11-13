@@ -47,7 +47,6 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -55,6 +54,7 @@ import qualified Util.Serialize as Serialize
 
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
+import Global
 import Types
 
 

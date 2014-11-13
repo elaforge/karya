@@ -11,7 +11,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
@@ -26,6 +25,7 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

@@ -5,10 +5,11 @@
 module Util.Git.Git2_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Git.Git2 as Git
 import Util.Git.Git2 (Modification(..))
 import Util.Test
+
+import Global
 
 
 test_misc = do

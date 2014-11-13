@@ -5,7 +5,6 @@
 module Perform.Midi.Convert_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -29,6 +28,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

@@ -33,7 +33,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Vector
 
-import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -48,6 +47,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

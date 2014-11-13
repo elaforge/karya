@@ -7,7 +7,6 @@
 -- msgs from a keyboard or something which is intended to do something other
 -- than play a note.
 module Cmd.Controller where
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -15,6 +14,8 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Play as Play
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
+
+import Global
 
 
 -- | Buttons you might find on the transport section of a controller keyboard.

@@ -23,12 +23,12 @@ import qualified System.IO.Error as Error
 import qualified System.Posix as Posix
 import qualified System.Process as Process
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
 
 import qualified App.Config as Config
+import Global
 
 
 log_filename :: IO FilePath

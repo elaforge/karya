@@ -46,7 +46,6 @@ import qualified Data.Text as Text
 import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
@@ -63,6 +62,7 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
+import Global
 import Types
 
 

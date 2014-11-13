@@ -6,7 +6,6 @@
 module Cmd.NoteTrackKeymap where
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Cmd.BlockConfig as BlockConfig
@@ -17,6 +16,7 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseTitle as ParseTitle
+import Global
 
 
 make_keymap :: Cmd.M m => (Keymap.CmdMap m, [Text])

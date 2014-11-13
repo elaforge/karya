@@ -20,7 +20,6 @@ module Cmd.NoteTrack where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -49,6 +48,7 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
+import Global
 import Types
 
 

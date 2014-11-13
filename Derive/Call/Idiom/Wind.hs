@@ -4,7 +4,6 @@
 
 -- | Post-process notes to add artifacts characteristic of wind instruments.
 module Derive.Call.Idiom.Wind where
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -17,6 +16,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

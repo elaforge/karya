@@ -6,7 +6,6 @@ module Derive.Scale.BohlenPierce_test where
 import qualified Control.Arrow as Arrow
 
 import qualified Util.Seq as Seq
-import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Cmd.CmdTest as CmdTest
@@ -17,6 +16,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 test_note_to_call = do

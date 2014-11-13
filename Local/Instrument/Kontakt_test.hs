@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Local.Instrument.Kontakt_test where
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
@@ -19,6 +18,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Perform as Perform
 import qualified Local.Instrument.Kontakt as Kontakt
+import Global
 
 
 test_wayang = do

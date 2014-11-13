@@ -7,13 +7,13 @@ import qualified Data.ByteString as B
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 
-import Util.Control
 import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Local.Instrument.Kontakt as Kontakt
+import Global
 
 
 test_lookup_midi = do

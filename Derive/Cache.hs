@@ -21,7 +21,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.ParseText as ParseText
 import qualified Util.Ranges as Ranges
@@ -42,6 +41,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

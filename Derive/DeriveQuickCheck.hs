@@ -33,7 +33,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Test.QuickCheck as Q
 
-import Util.Control
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
@@ -54,6 +53,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

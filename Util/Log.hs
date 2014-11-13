@@ -61,13 +61,13 @@ import qualified System.IO.Unsafe as Unsafe
 
 import Text.Printf (printf)
 
-import Util.Control
 import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.SrcPos as SrcPos
 
 import qualified Derive.Stack as Stack
+import Global
 
 
 data Msg = Msg {

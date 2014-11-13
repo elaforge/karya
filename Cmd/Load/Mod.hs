@@ -11,7 +11,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text.IO as Text.IO
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
@@ -36,6 +35,7 @@ import qualified Cmd.RulerUtil as RulerUtil
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.TrackLang as TrackLang
+import Global
 import Types
 
 

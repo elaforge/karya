@@ -5,13 +5,12 @@
 module Derive.Call.Integrate_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Ranges as Ranges
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import Global
 import Types
 
 

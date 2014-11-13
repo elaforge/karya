@@ -6,7 +6,6 @@ module Perform.Midi.Perform_profile where
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
-import Util.Control
 import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
@@ -20,6 +19,8 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
+import Global
 
 
 total_events :: Int

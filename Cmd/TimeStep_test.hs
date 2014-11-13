@@ -3,14 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.TimeStep_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.TimeStep as TimeStep
 import Cmd.TimeStep (Step(..), MarklistMatch(..), Tracks(..))
+import Global
 import Types
 
 

@@ -54,7 +54,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
 import qualified Derive.BaseTypes as BaseTypes
@@ -74,6 +73,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

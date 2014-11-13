@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Sig_test where
-import Util.Control
 import Util.Test
 import qualified Ui.State as State
 import qualified Derive.Call.CallTest as CallTest
@@ -11,6 +10,8 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+
+import Global
 
 
 test_type_error = do

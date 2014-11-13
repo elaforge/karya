@@ -8,8 +8,9 @@
 -- TODO many of these document internal properties of a call, and it would be
 -- better to extract them automatically, e.g. 'next', 'inverting', 'subs', etc.
 module Derive.Call.Tags where
-import Util.Control
 import qualified Data.Set as Set
+
+import Global
 
 
 type Tags = Set.Set Tag

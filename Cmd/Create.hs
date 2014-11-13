@@ -24,7 +24,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -46,6 +45,7 @@ import qualified Cmd.Selection as Selection
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified App.Config as Config
+import Global
 import Types
 
 

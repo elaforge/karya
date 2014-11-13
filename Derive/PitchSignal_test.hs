@@ -6,12 +6,12 @@ module Derive.PitchSignal_test where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import Util.Test
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

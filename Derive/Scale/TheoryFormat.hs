@@ -15,11 +15,11 @@ import qualified Data.Vector as Vector
 import Data.Vector ((!))
 import qualified Data.Vector.Unboxed as Unboxed
 
-import Util.Control
 import qualified Util.ParseText as ParseText
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 -- * absolute

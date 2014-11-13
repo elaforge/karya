@@ -17,11 +17,11 @@ import qualified Data.Graph as Graph
 import qualified Data.List as List
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Graph as Graph
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import Global
 import Types
 
 

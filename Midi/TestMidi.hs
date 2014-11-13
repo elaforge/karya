@@ -15,7 +15,6 @@ import qualified Data.Time as Time
 import qualified System.Environment
 import qualified System.IO as IO
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import Util.Test
@@ -36,6 +35,7 @@ import qualified Midi.Mmc as Mmc
 import qualified Midi.Encode
 
 import qualified Perform.RealTime as RealTime
+import Global
 
 
 type Interface = Interface.RawInterface Midi.WriteMessage

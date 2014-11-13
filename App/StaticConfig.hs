@@ -6,13 +6,13 @@ module App.StaticConfig where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Ui.Color as Color
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Derive.Derive as Derive
 import qualified Instrument.Db
+import Global
 
 
 -- * static config

@@ -22,8 +22,8 @@ import qualified Data.Typeable as Typeable
 
 import qualified System.IO.Unsafe as Unsafe
 
-import Util.Control
 import Util.ForeignC (Ptr)
+import Global
 import Types
 
 

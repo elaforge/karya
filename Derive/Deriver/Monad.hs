@@ -130,7 +130,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
-import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Map as Map
@@ -164,6 +163,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

@@ -30,10 +30,10 @@ import MonadUtils (liftIO)
 import qualified Outputable
 import System.FilePath ((</>))
 
-import Util.Control hiding (liftIO)
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified App.ReplUtil as ReplUtil
+import Global hiding (liftIO)
 
 
 -- | The actual session runs in another thread, so this is the communication

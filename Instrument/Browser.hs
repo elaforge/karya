@@ -33,7 +33,6 @@ import qualified Data.Text as Text
 
 import Text.Printf (printf)
 
-import Util.Control
 import qualified Util.Fltk as Fltk
 import qualified Util.Format as Format
 import qualified Util.Seq as Seq
@@ -54,6 +53,7 @@ import qualified Instrument.Search as Search
 import qualified Local.Instrument
 import qualified App.Config as Config
 import qualified App.SendCmd as SendCmd
+import Global
 
 
 main :: IO ()

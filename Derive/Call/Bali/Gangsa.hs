@@ -28,7 +28,6 @@
 module Derive.Call.Bali.Gangsa where
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -58,6 +57,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

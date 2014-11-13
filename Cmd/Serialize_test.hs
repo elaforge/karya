@@ -6,10 +6,8 @@ module Cmd.Serialize_test where
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Serialize
 import Util.Test
-
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.State as State
@@ -20,6 +18,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
+import Global
 import Types
 
 

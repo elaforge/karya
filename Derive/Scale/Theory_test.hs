@@ -5,16 +5,15 @@
 module Derive.Scale.Theory_test where
 import qualified Data.Vector.Unboxed as Vector
 
-import Util.Control
 import qualified Util.ParseText as ParseText
 import Util.Test
-
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Twelve as Twelve
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 test_diatonic_to_chromatic_church = do

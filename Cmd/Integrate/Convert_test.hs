@@ -5,13 +5,13 @@
 module Cmd.Integrate.Convert_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Integrate.Convert as Convert
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 test_integrate = do

@@ -10,12 +10,12 @@ module Local.Instrument.Z1Spec (
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
 
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex
-       (Specs, Spec(..), bits, ranged_bits, unsigned, bool_bit, enum,
-        enum_bits, ranged, signed)
+       (Specs, Spec(..), bits, ranged_bits, unsigned, bool_bit, enum, enum_bits,
+        ranged, signed)
+import Global
 
 -- TODO
 -- * finish the effects

@@ -8,7 +8,6 @@
 -- TODO using this module on linux will break the REPL.  Apparently
 -- ghci on linux has a problem when it has to link in a FFI-using module.
 module Cmd.Repl.LSymbol where
-import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -20,6 +19,8 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Selection as Selection
+
+import Global
 
 
 -- | Make a test block with a dummy track and event that will display the

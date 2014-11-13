@@ -139,7 +139,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 
-import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Logger as Logger
 import qualified Util.Num as Num
@@ -163,6 +162,7 @@ import qualified Ui.Update as Update
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
+import Global
 import Types
 
 

@@ -7,7 +7,6 @@ module Local.Instrument.KontaktKendang where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
@@ -30,6 +29,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
+import Global
 
 
 pb_range :: Instrument.PbRange

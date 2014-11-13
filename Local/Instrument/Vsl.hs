@@ -11,7 +11,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -35,6 +34,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Tag as Tag
 import qualified Local.Instrument.VslInst as VslInst
+import Global
 
 
 -- * util

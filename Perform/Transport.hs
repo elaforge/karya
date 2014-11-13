@@ -20,11 +20,11 @@ module Perform.Transport (
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM
 
-import Util.Control
 import qualified Util.Thread as Thread
 import qualified Midi.Interface as Interface
 import qualified Ui.State as State
 import qualified Derive.Score as Score
+import Global
 import Types
 
 

@@ -43,10 +43,8 @@ module Derive.Call.Trill where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -69,6 +67,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

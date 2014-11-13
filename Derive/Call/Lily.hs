@@ -6,10 +6,8 @@
 module Derive.Call.Lily where
 import qualified Data.List as List
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -35,6 +33,7 @@ import qualified Perform.Lilypond.Process as Process
 import qualified Perform.Lilypond.Types as Types
 import qualified Perform.RealTime as RealTime
 
+import Global
 import Types
 
 

@@ -5,10 +5,8 @@
 module Derive.Scale.Wayang_test where
 import qualified Data.List as List
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
@@ -16,6 +14,7 @@ import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 test_read = do

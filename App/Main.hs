@@ -21,7 +21,6 @@ import qualified System.IO as IO
 import qualified System.Remote.Monitoring
 #endif
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Thread as Thread
@@ -60,6 +59,7 @@ import qualified App.LoadConfig as LoadConfig
 import qualified App.StaticConfig as StaticConfig
 
 import qualified Local.Config
+import Global
 
 -- This is only used by the REPL,  but by importing it here I can make
 -- sure it, along with REPL-only modules, are compiled and don't have any

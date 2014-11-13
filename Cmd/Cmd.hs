@@ -69,7 +69,6 @@ import qualified Data.Time as Time
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -112,6 +111,7 @@ import qualified Perform.Transport as Transport
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
+import Global
 import Types
 
 

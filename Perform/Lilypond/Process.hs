@@ -18,10 +18,8 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Environ as Environ
 import qualified Derive.Scale.Theory as Theory
@@ -36,6 +34,8 @@ import qualified Perform.Lilypond.Types as Types
 import Perform.Lilypond.Types
        (Event(..), event_end, event_attributes, ToLily, to_lily, Time(..))
 import qualified Perform.Pitch as Pitch
+
+import Global
 
 
 -- | Automatically add lilypond code for certain attributes.

@@ -7,7 +7,6 @@ import Prelude hiding (length, either, zip, zip3)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import Util.Pretty ((<+>))
@@ -15,6 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
 import qualified Derive.Stack as Stack
+import Global
 
 
 -- * LEvent

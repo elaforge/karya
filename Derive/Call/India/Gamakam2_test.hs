@@ -3,13 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.India.Gamakam2_test where
-import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 
@@ -21,6 +21,7 @@ test_sequence = do
     -- Implicit hold.
     equal (run [(0, 8, "! -- 4c")]) ([[(0, 60), (8, 60)]], [])
     equal (run [(0, 8, "!;; -- 4c")]) ([[(0, 60), (8, 60)]], [])
+
     -- Implicit set pitch if you don't supply a begin call.
     equal (run [(0, 1, "4c"), (1, 1, "! -- 4d")])
         ([[(0, 60)], [(1, 62), (2, 62)]], [])

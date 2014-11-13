@@ -10,7 +10,6 @@ module Cmd.Simple where
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -34,6 +33,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
+import Global
 import Types
 
 

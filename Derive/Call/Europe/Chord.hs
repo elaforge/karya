@@ -6,7 +6,6 @@
 module Derive.Call.Europe.Chord where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -20,6 +19,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 note_calls :: Derive.CallMaps Derive.Note

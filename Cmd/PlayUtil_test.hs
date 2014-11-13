@@ -6,7 +6,6 @@ module Cmd.PlayUtil_test where
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 
-import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
@@ -15,6 +14,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Parse as Parse
+import Global
 
 
 test_ky_file = do

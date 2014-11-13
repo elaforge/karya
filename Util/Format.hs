@@ -15,8 +15,8 @@ import qualified Control.Monad.State.Strict as State
 import qualified Data.List as List
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
+import Global
 
 
 data State = State {

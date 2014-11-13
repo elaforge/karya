@@ -16,10 +16,8 @@ import qualified Data.Tree as Tree
 
 import qualified Text.Printf as Printf
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
-
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -33,6 +31,7 @@ import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
+import Global
 import Types
 
 

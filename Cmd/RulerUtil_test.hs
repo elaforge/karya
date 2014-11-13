@@ -5,10 +5,8 @@
 module Cmd.RulerUtil_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
@@ -17,6 +15,7 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Create as Create
 import qualified Cmd.RulerUtil as RulerUtil
+import Global
 
 
 test_modify = do

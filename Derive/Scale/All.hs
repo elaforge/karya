@@ -9,10 +9,8 @@
 module Derive.Scale.All where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
-
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BohlenPierce as BohlenPierce
 import qualified Derive.Scale.Hex as Hex
@@ -25,6 +23,7 @@ import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Scale.Wayang as Wayang
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 -- | This is the hardcoded scale map.  It is merged with the static config

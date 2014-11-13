@@ -17,8 +17,8 @@ import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
 import qualified Text.Printf as Printf
 
-import Util.Control
 import qualified App.SendCmd as SendCmd
+import Global
 
 
 data Flag = Timing

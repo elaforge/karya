@@ -31,7 +31,6 @@ import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
 
-import Util.Control
 import qualified Util.Log as Log
 import Util.Test
 import qualified Util.Thread as Thread
@@ -52,6 +51,7 @@ import qualified Cmd.Responder as Responder
 
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
+import Global
 import Types
 
 

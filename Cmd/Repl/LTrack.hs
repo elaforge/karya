@@ -8,7 +8,6 @@ module Cmd.Repl.LTrack where
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -26,6 +25,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import Global
 import Types
 
 

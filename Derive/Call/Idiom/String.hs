@@ -6,10 +6,8 @@
 module Derive.Call.Idiom.String where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
-
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
@@ -27,6 +25,7 @@ import Derive.Sig (control)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

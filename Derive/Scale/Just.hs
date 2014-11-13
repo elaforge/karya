@@ -10,7 +10,6 @@ import qualified Data.Map as Map
 import Data.Ratio ((%))
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
@@ -18,6 +17,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 scales :: [Scale.Scale]

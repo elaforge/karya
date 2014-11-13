@@ -10,7 +10,6 @@ import qualified Data.Text as Text
 
 import qualified System.IO.Unsafe as Unsafe
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Ranges as Ranges
@@ -59,6 +58,7 @@ import qualified Perform.Signal as Signal
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
+import Global
 import Types
 
 

@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 import qualified System.IO.Unsafe as Unsafe
 
-import Util.Control
 import qualified Util.Debug as Debug
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -46,6 +45,7 @@ import qualified Perform.Signal as Signal
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
+import Global
 import Types
 
 

@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.PitchTrack_test where
-import Util.Control
 import Util.Test
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
@@ -16,6 +15,7 @@ import qualified Cmd.PitchTrack as PitchTrack
 import qualified Derive.Scale as Scale
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

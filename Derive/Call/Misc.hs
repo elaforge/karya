@@ -6,7 +6,6 @@
 module Derive.Call.Misc where
 import qualified Data.List.NonEmpty as NonEmpty
 
-import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Util as Util
@@ -19,6 +18,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import Global
 import Types
 
 

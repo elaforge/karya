@@ -41,16 +41,15 @@ import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.Then as Then
-
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.ParseTitle as ParseTitle
+import Global
 import Types
 
 

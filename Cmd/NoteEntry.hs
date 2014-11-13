@@ -13,7 +13,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
@@ -27,6 +26,7 @@ import qualified Derive.Controls as Controls
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.MidiDb as MidiDb
+import Global
 
 
 -- * with_note

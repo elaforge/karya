@@ -3,14 +3,14 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Repl.LPitch_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Repl.LPitch as LPitch
+
+import Global
 
 
 test_change_scale = do

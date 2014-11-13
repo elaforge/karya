@@ -7,7 +7,6 @@ module Derive.Call.Random where
 import qualified Data.Foldable as Foldable
 import qualified Data.List.NonEmpty as NonEmpty
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -19,6 +18,8 @@ import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+
+import Global
 
 
 note_calls :: Derive.CallMaps Derive.Note

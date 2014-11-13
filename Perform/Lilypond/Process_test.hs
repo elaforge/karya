@@ -5,7 +5,6 @@
 module Perform.Lilypond.Process_test where
 import qualified Data.Text as Text
 
-import Util.Control
 import Util.Test
 import qualified Derive.Environ as Environ
 import qualified Derive.TrackLang as TrackLang
@@ -15,6 +14,8 @@ import qualified Perform.Lilypond.Process as Process
 import Perform.Lilypond.Process (Voice(..))
 import qualified Perform.Lilypond.Types as Types
 import Perform.Lilypond.Types (Duration(..))
+
+import Global
 
 
 test_rests_until = do

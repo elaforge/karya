@@ -6,7 +6,6 @@
 module Cmd.Track where
 import qualified Control.Monad.Error as Error
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -23,6 +22,7 @@ import qualified Cmd.PitchTrack as PitchTrack
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Instrument.MidiDb as MidiDb
+import Global
 import Types
 
 

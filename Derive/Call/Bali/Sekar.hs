@@ -13,7 +13,6 @@ module Derive.Call.Bali.Sekar where
 import qualified Data.Char as Char
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -22,6 +21,8 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Sig as Sig
 import Derive.Sig (required)
+
+import Global
 
 
 note_calls :: Derive.CallMaps Derive.Note

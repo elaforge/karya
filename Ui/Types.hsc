@@ -14,7 +14,6 @@ module Ui.Types (
     , sel_modify_tracks, sel_expand_tracks, sel_track_range, sel_tracknums
     , sel_range, sel_set_duration
 ) where
-import Util.Control
 import Util.ForeignC
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -23,6 +22,8 @@ import qualified Util.Rect as Rect
 import qualified Ui.ScoreTime as ScoreTime
 import Ui.ScoreTime (TrackTime)
 import qualified Ui.Util as Util
+
+import Global
 
 
 #include "Ui/c_interface.h"

@@ -9,7 +9,6 @@ import qualified Data.Set as Set
 import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
@@ -23,6 +22,7 @@ import qualified Ui.Track as Track
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import Global
 import Types
 
 

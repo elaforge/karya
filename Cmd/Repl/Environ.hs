@@ -18,7 +18,6 @@ import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
@@ -101,6 +100,7 @@ import Cmd.Repl.Global
 
 import qualified App.Config as Config
 import Types
+import Global
 
 import qualified Local.Instrument.Kontakt as Kontakt
 import qualified Local.Instrument.KontaktKendang as KontaktKendang

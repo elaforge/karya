@@ -7,10 +7,10 @@ module Derive.ShowVal where
 import qualified Data.Text as Text
 import qualified Numeric
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.RealTime as RealTime
+import Global
 
 
 -- | Instances of ShowVal can be turned back into tracklang syntax.  Everything

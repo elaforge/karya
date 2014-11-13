@@ -7,10 +7,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
@@ -42,6 +40,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

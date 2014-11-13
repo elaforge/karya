@@ -55,7 +55,6 @@ import Data.Word (Word8)
 import qualified Foreign.C
 import qualified Text.Printf as Printf
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import Util.Pretty (format, (<+>))
@@ -65,6 +64,7 @@ import qualified Util.Serialize as Serialize
 import qualified Midi.CC as CC
 import qualified Ui.Util
 import Perform.RealTime (RealTime)
+import Global
 
 
 -- | Declared abstract here so I can switch to a more compact representation

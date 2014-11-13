@@ -8,7 +8,6 @@
 -- imports---PitchSignal is a low level module imported by other low level
 -- modules like "Derive.Score".
 module Derive.Pitches where
-import Util.Control
 import qualified Util.Num as Num
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -16,6 +15,7 @@ import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 scale :: Scale.Scale -> PitchSignal.Scale

@@ -39,7 +39,6 @@
 module Derive.Call.India.Gamakam where
 import qualified Data.List.NonEmpty as NonEmpty
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
@@ -59,6 +58,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

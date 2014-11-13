@@ -21,7 +21,6 @@ import qualified Data.Text.Lazy as Lazy
 import qualified System.FilePath as FilePath
 import qualified System.Process as Process
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Process
 import qualified Util.Seq as Seq
@@ -37,6 +36,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond as Lilypond
+import Global
 import Types
 
 

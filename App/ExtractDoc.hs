@@ -12,7 +12,6 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Environment as Environment
 import qualified Text.Printf as Printf
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Key as Key
 import qualified Cmd.CallDoc as CallDoc
@@ -23,6 +22,7 @@ import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Scale.All as Scale.All
+import Global
 
 
 main :: IO ()

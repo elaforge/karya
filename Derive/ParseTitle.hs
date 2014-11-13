@@ -16,7 +16,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Derive.Controls as Controls
 import qualified Derive.Parse as Parse
@@ -25,6 +24,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 -- * blocks

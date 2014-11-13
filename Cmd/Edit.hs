@@ -10,7 +10,6 @@ module Cmd.Edit where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
@@ -29,6 +28,7 @@ import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

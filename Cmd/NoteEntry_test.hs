@@ -3,10 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.NoteEntry_test where
-import Util.Control
 import qualified Util.Log as Log
 import Util.Test
-
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.State as State
@@ -20,6 +18,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteEntry as NoteEntry
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 test_key_to_input = do

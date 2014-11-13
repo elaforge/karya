@@ -19,7 +19,6 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.Locale as Locale
 
-import Util.Control
 import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -34,6 +33,7 @@ import qualified Cmd.Serialize as Serialize
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified App.Config as Config
+import Global
 
 
 -- * universal

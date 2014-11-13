@@ -34,7 +34,6 @@
 module Cmd.InputNote where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -49,6 +48,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
+import Global
 
 
 -- | Since the ASCII keyboard isn't pressure sensitive, this is the default

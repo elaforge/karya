@@ -10,10 +10,10 @@ module Cmd.ReplStub (
 ) where
 import Control.Monad
 
-import Util.Control
 import qualified Util.Thread as Thread
 import qualified Cmd.Cmd as Cmd
 import qualified App.ReplUtil as ReplUtil
+import Global
 
 type Session = ()
 

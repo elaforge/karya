@@ -4,10 +4,8 @@
 
 -- | Calls for 箏.
 module Derive.Call.China.Zheng where
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
@@ -27,6 +25,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

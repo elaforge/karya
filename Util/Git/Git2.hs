@@ -53,11 +53,12 @@ import qualified System.Directory as Directory
 import qualified System.Exit as Exit
 import System.FilePath ((</>))
 
-import Util.Control
 import qualified Util.Git.LibGit2 as G
 import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
 import qualified Util.Seq as Seq
+
+import Global
 
 
 newtype Blob = Blob G.OID deriving (Eq, Ord, Show)

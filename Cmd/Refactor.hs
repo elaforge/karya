@@ -7,10 +7,8 @@
 module Cmd.Refactor where
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -30,6 +28,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Eval as Eval
 import qualified Derive.TrackLang as TrackLang
+import Global
 import Types
 
 

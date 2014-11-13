@@ -6,7 +6,6 @@
 --
 -- TODO event delay
 module Derive.Call.Echo where
-import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
@@ -21,6 +20,7 @@ import Derive.Sig (defaulted, typed_control, control)
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

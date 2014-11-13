@@ -12,10 +12,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.State as State
@@ -35,6 +33,7 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
+import Global
 import Types
 
 

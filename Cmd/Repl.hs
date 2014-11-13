@@ -27,7 +27,6 @@ import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 
@@ -46,6 +45,7 @@ import qualified Cmd.ReplStub as ReplImpl
 
 import qualified Derive.Parse as Parse
 import qualified App.ReplUtil as ReplUtil
+import Global
 
 
 -- | This is the persistent interpreter session which is stored in the global

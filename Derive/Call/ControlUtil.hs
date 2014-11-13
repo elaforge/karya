@@ -6,10 +6,8 @@
 module Derive.Call.ControlUtil where
 import qualified Data.Monoid as Monoid
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
@@ -19,6 +17,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

@@ -17,7 +17,6 @@ import System.FilePath ((</>))
 import qualified System.Posix as Posix
 import qualified System.Process as Process
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
@@ -43,6 +42,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
+import Global
 import Types
 
 

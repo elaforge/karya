@@ -9,7 +9,6 @@ import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import Control.Monad
 
-import Util.Control
 import qualified Data.ByteString as ByteString
 import qualified Data.Set as Set
 import qualified Data.IORef as IORef
@@ -25,6 +24,7 @@ import qualified Midi.Encode as Encode
 import qualified Midi.Interface as Interface
 import qualified Perform.RealTime as RealTime
 import Types
+import Global
 
 #include "Midi/jack.h"
 

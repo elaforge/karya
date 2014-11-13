@@ -12,7 +12,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.Seq as Seq
@@ -39,6 +38,7 @@ import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

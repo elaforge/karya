@@ -9,10 +9,8 @@ import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Skeleton as Skeleton
@@ -28,6 +26,7 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseTitle as ParseTitle
+import Global
 import Types
 
 

@@ -43,7 +43,6 @@ import qualified System.Environment
 import qualified System.Exit
 import qualified System.Posix as Posix
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.Fltk as Fltk
 import qualified Util.Log as Log
@@ -55,6 +54,7 @@ import qualified LogView.Process as Process
 import qualified LogView.Tail as Tail
 
 import qualified App.SendCmd as SendCmd
+import Global
 
 
 -- | I use this file to only start one logview at a time.

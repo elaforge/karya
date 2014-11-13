@@ -4,7 +4,6 @@
 
 -- | Modartt's amazing Pianoteq softsynth.
 module Local.Instrument.Pianoteq where
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Controls as Controls
@@ -13,6 +12,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
+import Global
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

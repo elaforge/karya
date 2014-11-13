@@ -22,11 +22,12 @@ import qualified System.Exit as Exit
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
 import qualified Util.Seq as Seq
+
+import Global
 
 
 newtype Blob = Blob Hash deriving (Eq, Ord, Show)

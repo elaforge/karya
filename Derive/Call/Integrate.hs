@@ -5,7 +5,6 @@
 module Derive.Call.Integrate (
     note_calls, unwarp
 ) where
-import Util.Control
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Call.BlockUtil as BlockUtil
@@ -17,6 +16,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 
 import qualified Perform.RealTime as RealTime
+import Global
 import Types
 
 

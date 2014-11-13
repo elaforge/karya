@@ -5,9 +5,7 @@
 -- | Postprocs that change note start and duration.
 module Derive.Call.Post.Move where
 import qualified Util.ApproxEq as ApproxEq
-import Util.Control
 import qualified Util.Map as Map
-
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Post as Post
@@ -23,6 +21,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

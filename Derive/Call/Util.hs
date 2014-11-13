@@ -16,7 +16,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Random as Random
@@ -42,6 +41,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

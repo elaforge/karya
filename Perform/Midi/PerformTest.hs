@@ -6,10 +6,8 @@ module Perform.Midi.PerformTest where
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
-import Util.Control
 import qualified Util.PPrint as PPrint
 import qualified Util.ParseText as ParseText
-
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -21,6 +19,7 @@ import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified Local.Instrument
 import qualified App.Config as Config
+import Global
 import Types
 
 

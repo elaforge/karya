@@ -5,7 +5,6 @@
 module Derive.Call.Europe.Grace_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Articulation as Articulation
@@ -16,6 +15,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
+import Global
 
 
 -- * note calls

@@ -3,9 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Lilypond.Constants where
-import Util.Control
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
+import Global
 
 
 -- | This is a pseudo-instrument used to mark notes which are actually global

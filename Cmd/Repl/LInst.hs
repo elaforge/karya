@@ -10,7 +10,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -33,6 +32,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
+import Global
 import Types
 
 

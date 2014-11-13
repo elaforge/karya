@@ -39,11 +39,11 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
 import qualified Derive.ShowVal as ShowVal
+import Global
 
 
 -- * Note

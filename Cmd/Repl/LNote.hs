@@ -7,7 +7,6 @@ module Cmd.Repl.LNote where
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyNotes as ModifyNotes
@@ -16,6 +15,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

@@ -5,10 +5,8 @@
 module Cmd.Keymap_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Log as Log
 import Util.Test
-
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
@@ -19,6 +17,7 @@ import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.DeriveTest as DeriveTest
+import Global
 
 
 test_make_cmd_map = do

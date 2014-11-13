@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Eval_test where
-import Util.Control
 import Util.Test
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -14,6 +13,8 @@ import qualified Derive.Eval as Eval
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+
+import Global
 
 
 test_recursive_call = do

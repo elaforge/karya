@@ -59,7 +59,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -79,6 +78,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
+import Global
 import Types
 
 

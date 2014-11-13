@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -22,6 +21,7 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
 import qualified App.Config as Config
+import Global
 import Types
 
 

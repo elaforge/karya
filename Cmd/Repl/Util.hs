@@ -6,9 +6,9 @@ module Cmd.Repl.Util where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
+import Global
 
 
 -- | Create a 'Score.Instrument'.  Drop a leading @>@, since I often

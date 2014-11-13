@@ -60,7 +60,6 @@ import qualified Control.Exception as Exception
 import qualified Data.Map as Map
 
 import Util.ForeignC
-import Util.Control
 import qualified Util.Rect as Rect
 
 import qualified Ui.Color as Color
@@ -81,6 +80,7 @@ import qualified Ui.TrackC as TrackC
 
 import qualified App.Config as Config
 import Types
+import Global
 
 #include "Ui/c_interface.h"
 

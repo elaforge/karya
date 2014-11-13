@@ -17,7 +17,6 @@ import qualified System.Environment
 import qualified System.FilePath as FilePath
 import qualified System.IO as IO
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
@@ -29,6 +28,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
+import Global
 import Types
 
 

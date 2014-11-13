@@ -6,7 +6,6 @@ module Cmd.ModifyNotes_test where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import Util.Test
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -17,6 +16,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

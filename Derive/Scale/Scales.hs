@@ -14,10 +14,8 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 import Data.Vector ((!?))
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -33,6 +31,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

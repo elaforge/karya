@@ -26,9 +26,9 @@ import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+
 import qualified System.IO.Unsafe as Unsafe
 
-import Util.Control
 import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -56,6 +56,7 @@ import qualified Ui.Update as Update
 import qualified Cmd.Internal as Internal
 import qualified App.Config as Config
 import qualified App.LoadConfig as LoadConfig
+import Global
 import Types
 
 

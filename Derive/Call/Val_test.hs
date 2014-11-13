@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Val_test where
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import Util.Test
@@ -16,6 +15,7 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.NN as NN
+import Global
 
 
 test_env = do

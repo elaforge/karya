@@ -39,10 +39,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
 import qualified Ui.BlockC as BlockC
 import qualified Ui.Color as Color
@@ -59,6 +57,7 @@ import qualified Ui.Update as Update
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.ParseTitle as ParseTitle
 import qualified App.Config as Config
+import Global
 import Types
 
 

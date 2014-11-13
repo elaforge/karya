@@ -7,7 +7,6 @@ module Derive.Call.Post.Idiom where
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Lily as Lily
@@ -23,6 +22,7 @@ import Derive.Sig (defaulted, control)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
+import Global
 import Types
 
 

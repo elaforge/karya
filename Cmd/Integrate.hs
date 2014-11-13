@@ -55,10 +55,8 @@ module Cmd.Integrate (cmd_integrate, integrate, score_integrate) where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
 import qualified Ui.State as State
 import qualified Ui.Update as Update
@@ -70,6 +68,7 @@ import qualified Cmd.Integrate.Merge as Merge
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Derive as Derive
+import Global
 import Types
 
 

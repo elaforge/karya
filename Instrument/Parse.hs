@@ -11,7 +11,6 @@ import qualified Data.Maybe as Maybe
 import qualified Text.Parsec as Parsec
 import Text.Parsec ((<?>))
 
-import Util.Control
 import qualified Util.Parse as Parse
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
@@ -19,6 +18,7 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Sysex as Sysex
 import qualified Instrument.Tag as Tag
+import Global
 
 
 type Parser st a = Parsec.Parsec Text st a

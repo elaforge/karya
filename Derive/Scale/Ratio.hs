@@ -15,7 +15,6 @@
 module Derive.Scale.Ratio where
 import qualified Data.Attoparsec.Text as A
 
-import Util.Control
 import qualified Util.ParseText as ParseText
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -30,6 +29,7 @@ import Derive.Sig (defaulted)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 scale :: Scale.Scale

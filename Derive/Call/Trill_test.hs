@@ -3,10 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Trill_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.CallTest as CallTest
@@ -18,6 +16,7 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
+import Global
 
 
 test_note_trill = do

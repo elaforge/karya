@@ -10,10 +10,8 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
-import Util.Control hiding (pretty)
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -34,6 +32,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
+import Global hiding (pretty)
 import Types
 
 

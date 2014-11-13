@@ -27,18 +27,18 @@ import Data.Word (Word8)
 import qualified Numeric
 import qualified System.FilePath as FilePath
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
-import qualified Midi.Midi as Midi
 import qualified Midi.Encode
+import qualified Midi.Midi as Midi
 import qualified Ui.Util
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Tag as Tag
+import Global
 
 
 -- * parse files

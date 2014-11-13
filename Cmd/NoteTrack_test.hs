@@ -3,10 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.NoteTrack_test where
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.Key as Key
 import qualified Ui.State as State
 import qualified Ui.UiMsg as UiMsg
@@ -21,6 +19,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.NN as NN
+import Global
 import Types
 
 

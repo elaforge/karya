@@ -6,7 +6,6 @@
 module Local.Instrument.Spicy where
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -18,6 +17,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
+import Global
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

@@ -15,11 +15,12 @@ import qualified Control.Monad.Trans as Trans
 
 import qualified Foreign
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiMsgC as UiMsgC
 import qualified Ui.Util as Util
+
+import Global
 
 
 -- | You should only talk to FLTK from the main thread, which is also the FLTK

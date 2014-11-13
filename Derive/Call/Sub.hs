@@ -20,10 +20,8 @@ module Derive.Call.Sub (
 import qualified Data.Map as Map
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.TrackTree as TrackTree
@@ -39,6 +37,7 @@ import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 
+import Global
 import Types
 
 

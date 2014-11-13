@@ -32,7 +32,6 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector as V
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 import Util.TimeVector (Sample(..))
@@ -45,6 +44,7 @@ import Derive.BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

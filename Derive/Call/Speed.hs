@@ -4,7 +4,6 @@
 
 -- | Utilities dealing with speeds.
 module Derive.Call.Speed where
-import Util.Control
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -14,6 +13,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

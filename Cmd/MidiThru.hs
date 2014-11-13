@@ -62,10 +62,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
-
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -85,6 +83,8 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import Perform.Midi.Instrument (Addr)
 import qualified Perform.Pitch as Pitch
+
+import Global
 
 
 -- | Send midi thru, addressing it to the given Instrument.

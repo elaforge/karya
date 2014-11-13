@@ -6,11 +6,12 @@
 module Derive.Library (Shadowed, shadowed) where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.TrackLang as TrackLang
+
+import Global
 
 
 -- | Warnings for shadowed symbols.  ((call_type, module), call_ids)

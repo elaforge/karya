@@ -9,10 +9,8 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 import qualified System.IO as IO
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-
 import qualified Midi.Midi as Midi
 import qualified Ui.Key as Key
 import qualified Ui.Track as Track
@@ -24,6 +22,7 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Transport as Transport
+import Global
 import Types
 
 

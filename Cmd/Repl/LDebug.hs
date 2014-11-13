@@ -7,7 +7,6 @@
 module Cmd.Repl.LDebug where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -20,6 +19,7 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.LEvent as LEvent
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
+import Global
 import Types
 
 

@@ -13,7 +13,6 @@ module Derive.Tempo (
 ) where
 import qualified Data.Vector.Storable as Vector
 
-import Util.Control
 import qualified Util.TimeVector as TimeVector
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -21,6 +20,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

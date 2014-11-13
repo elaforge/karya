@@ -8,10 +8,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.State as State
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
@@ -23,6 +21,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 test_note_to_call = do

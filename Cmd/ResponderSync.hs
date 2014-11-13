@@ -9,7 +9,6 @@ import qualified Control.Concurrent.MVar as MVar
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.Diff as Diff
 import qualified Ui.State as State
@@ -19,6 +18,8 @@ import qualified Ui.Update as Update
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
+
+import Global
 
 
 type Sync = Track.TrackSignals -> Track.SetStyleHigh -> State.State

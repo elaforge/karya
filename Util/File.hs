@@ -15,7 +15,7 @@ import System.FilePath ((</>))
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
-import Util.Control
+import Global
 
 
 -- | Read and decompress a gzipped file.

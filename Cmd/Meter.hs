@@ -29,12 +29,12 @@ import qualified Data.Ratio as Ratio
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 
+import Global
 import Types
 
 

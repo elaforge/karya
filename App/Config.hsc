@@ -13,7 +13,6 @@ import qualified Network
 import qualified System.Directory as Directory
 import qualified System.Info
 import qualified System.FilePath as FilePath
-import Util.Control
 
 import qualified Util.Array as Array
 import qualified Util.File as File
@@ -23,6 +22,8 @@ import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Ui.Style as Style
 import qualified Ui.Types as Types
+
+import Global
 
 
 #include "fltk/config.h"

@@ -16,12 +16,11 @@ import Data.Vector ((!))
 import qualified Data.Vector.Unboxed as Unboxed
 import qualified Data.Vector.Unboxed.Mutable as Mutable
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
-
 import qualified Midi.Midi as Midi
 import Perform.RealTime (RealTime)
+import Global
 
 
 type ReadChan = TChan.TChan Midi.ReadMessage

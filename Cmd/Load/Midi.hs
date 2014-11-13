@@ -18,7 +18,6 @@ import qualified Data.Word as Word
 
 import qualified ZMidi.Core as Z
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
@@ -40,6 +39,7 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
+import Global
 import Types
 
 

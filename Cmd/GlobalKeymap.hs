@@ -42,7 +42,6 @@
 module Cmd.GlobalKeymap where
 import qualified Control.Monad.Identity as Identity
 
-import Util.Control
 import qualified Ui.Block as Block
 import qualified Ui.Key as Key
 import qualified Ui.Ruler as Ruler
@@ -73,6 +72,7 @@ import qualified Cmd.ViewConfig as ViewConfig
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified App.Config as Config
+import Global
 
 
 pure_cmds :: [Cmd.Cmd]

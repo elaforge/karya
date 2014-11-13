@@ -4,12 +4,13 @@
 
 -- | One-time startup initialization tasks.
 module App.LoadConfig where
-import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.Style as Style
 import qualified Ui.StyleC as StyleC
 import qualified Ui.Symbol as Symbol
 import qualified Ui.SymbolC as SymbolC
+
+import Global
 
 
 -- | Tell the UI layer about the given Symbols.  Warnings are logged for

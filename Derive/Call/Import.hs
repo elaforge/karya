@@ -6,10 +6,11 @@
 module Derive.Call.Import where
 import qualified Data.List.NonEmpty as NonEmpty
 
-import Util.Control
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Sig as Sig
+
+import Global
 
 
 calls :: Derive.Callable d => Derive.CallMaps d

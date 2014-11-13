@@ -37,10 +37,8 @@ import qualified Network
 import qualified System.IO as IO
 import qualified System.Posix.IO as Posix.IO
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Thread as Thread
-
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.Diff as Diff
@@ -72,6 +70,7 @@ import qualified App.Config as Config
 import qualified App.ReplUtil as ReplUtil
 import qualified App.StaticConfig as StaticConfig
 
+import Global
 import Types
 
 

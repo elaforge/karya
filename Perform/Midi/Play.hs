@@ -9,7 +9,6 @@ module Perform.Midi.Play (play, cycle_messages) where
 import qualified Control.Exception as Exception
 import qualified Data.Maybe as Maybe
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
@@ -22,6 +21,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Derive.LEvent as LEvent
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
+import Global
 import Types
 
 

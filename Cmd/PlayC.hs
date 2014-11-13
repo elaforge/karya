@@ -21,7 +21,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -43,6 +42,7 @@ import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Play as Midi.Play
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
+import Global
 import Types
 
 

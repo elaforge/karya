@@ -11,7 +11,6 @@ module Ui.Update where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
@@ -26,6 +25,7 @@ import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
+import Global
 import Types
 
 

@@ -3,10 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.Scales_test where
-import Util.Control
 import Util.Test
 import qualified Derive.Scale.Scales as Scales
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 test_ascii_kbd_pitch = do

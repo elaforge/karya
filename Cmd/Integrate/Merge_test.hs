@@ -5,10 +5,8 @@
 module Cmd.Integrate.Merge_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -21,6 +19,7 @@ import qualified Cmd.Integrate.Merge as Merge
 
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
+import Global
 import Types
 
 

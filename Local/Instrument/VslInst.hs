@@ -8,12 +8,13 @@ module Local.Instrument.VslInst (
 import Prelude hiding (min, (.))
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import Derive.Attrs
 import qualified Derive.Score as Score
 import Derive.Score (attr)
+
+import Global
 
 
 -- | Easier to type and looks good without spaces.

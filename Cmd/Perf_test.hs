@@ -3,10 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Perf_test where
-import Util.Control
 import qualified Util.Log as Log
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Perf as Perf
@@ -15,6 +13,7 @@ import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
+import Global
 
 
 test_derive_expr = do

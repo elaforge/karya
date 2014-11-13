@@ -19,7 +19,6 @@ import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Algorithms.Merge as Algorithms.Merge
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
@@ -38,6 +37,7 @@ import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.RealTime as RealTime
 import qualified App.Config as Config
+import Global
 import Types
 
 

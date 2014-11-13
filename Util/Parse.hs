@@ -12,9 +12,9 @@ import Text.Parsec ((<?>))
 import qualified Text.Parsec.Error as Error
 import Text.Parsec.Text ()
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.Seq as Seq
+import Global
 
 
 read_maybe :: Read a => String -> Maybe a

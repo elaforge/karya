@@ -3,13 +3,13 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Instrument.Sysex_test where
-import qualified Data.Map as Map
 import Data.ByteString (ByteString)
+import qualified Data.Map as Map
 
-import Util.Control
 import Util.Test
 import qualified Instrument.Sysex as Sysex
 import Instrument.Sysex (Record(..))
+import Global
 
 
 test_signed_conversion = do

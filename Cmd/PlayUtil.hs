@@ -28,7 +28,6 @@ import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Tree as Tree
 import qualified Util.Vector as Vector
@@ -60,6 +59,7 @@ import qualified Perform.Signal as Signal
 
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
+import Global
 import Types
 
 

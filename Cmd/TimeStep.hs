@@ -33,10 +33,8 @@ import qualified Data.Text as Text
 
 import qualified Text.Parsec as P
 
-import Util.Control
 import qualified Util.Parse as Parse
 import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
@@ -45,6 +43,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Cmd.Meter as Meter
+import Global
 import Types
 
 

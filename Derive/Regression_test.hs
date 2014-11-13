@@ -12,13 +12,12 @@ import qualified Data.Vector as Vector
 
 import qualified System.FilePath as FilePath
 
-import Util.Control
 import Util.Test
 import qualified Util.Thread as Thread
-
 import Midi.Instances ()
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.DeriveSaved as DeriveSaved
+import Global
 
 
 -- | Perform the input score and save the midi msgs to the output file.

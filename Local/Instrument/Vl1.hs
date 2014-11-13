@@ -20,7 +20,6 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified Text.Printf as Printf
 
-import Util.Control
 import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -36,6 +35,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Sysex as Sysex
 import Local.Instrument.Vl1Spec
+import Global
 
 
 synth_name :: String

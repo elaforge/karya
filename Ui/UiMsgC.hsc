@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Ui.UiMsgC (get_ui_msgs) where
-import Util.Control
 import Util.ForeignC
 
 import qualified Ui.PtrMap as PtrMap
@@ -12,6 +11,7 @@ import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Util as Util
 import Types
+import Global
 
 
 get_ui_msgs :: IO [UiMsg.UiMsg]

@@ -11,7 +11,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
@@ -40,6 +39,7 @@ import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
 import Types
+import Global
 
 
 -- Test functions do things I don't want to include in non-testing code, such

@@ -9,7 +9,6 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
@@ -26,6 +25,7 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 

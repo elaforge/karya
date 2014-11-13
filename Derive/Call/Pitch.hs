@@ -7,7 +7,6 @@
 -- Low level calls should do simple orthogonal things and their names are
 -- generally just one or two characters.
 module Derive.Call.Pitch where
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
@@ -27,6 +26,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
+import Global
 import Types
 
 

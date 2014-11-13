@@ -7,7 +7,6 @@ module Ui.Track where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -17,6 +16,7 @@ import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
+import Global
 import Types
 
 

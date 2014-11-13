@@ -6,10 +6,8 @@ module Cmd.Create_test where
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Rect as Rect
 import Util.Test
-
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -20,6 +18,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Create as Create
 
+import Global
 import Types
 
 

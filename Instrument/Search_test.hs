@@ -5,7 +5,6 @@
 module Instrument.Search_test where
 import qualified Data.Map as Map
 
-import Util.Control
 import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
@@ -14,6 +13,8 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
 import qualified Instrument.Tag as Tag
+
+import Global
 
 
 test_search = do

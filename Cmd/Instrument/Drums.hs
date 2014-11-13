@@ -6,11 +6,11 @@
 -- be imported by both Local.Instrument definitions and Derive.Call instrument
 -- calls.
 module Cmd.Instrument.Drums where
-import Util.Control
 import qualified Util.Pretty as Pretty
 import Derive.Attrs
 import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Signal as Signal
+import Global
 
 
 -- | Description of a generic drum set.  There are many drum set instruments,

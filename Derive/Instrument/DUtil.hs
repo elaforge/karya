@@ -10,7 +10,6 @@ module Derive.Instrument.DUtil where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import Util.Control
 import qualified Util.Pretty as Pretty
 import qualified Derive.Args as Args
 import qualified Derive.Call.Europe.Grace as Grace
@@ -26,6 +25,8 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+
+import Global
 
 
 make_call :: Text -> Text -> Derive.WithArgDoc d -> Derive.Call d

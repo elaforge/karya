@@ -27,7 +27,6 @@ module Derive.Call.BlockUtil (
 ) where
 import qualified Data.Tree as Tree
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -50,6 +49,7 @@ import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

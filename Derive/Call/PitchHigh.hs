@@ -10,7 +10,6 @@
 --
 -- TODO this module has a dumb name.  What would be better?
 module Derive.Call.PitchHigh where
-import Util.Control
 import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -30,6 +29,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

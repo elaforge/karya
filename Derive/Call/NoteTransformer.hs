@@ -8,10 +8,8 @@ module Derive.Call.NoteTransformer where
 import qualified Control.Monad.Error as Error
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
@@ -26,6 +24,7 @@ import Derive.Sig (defaulted)
 
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.RealTime as RealTime
+import Global
 import Types
 
 

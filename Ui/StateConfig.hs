@@ -14,10 +14,8 @@ import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
-
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -26,6 +24,7 @@ import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Signal as Signal
 
+import Global
 import Types
 
 

@@ -4,11 +4,11 @@
 
 -- | Native Instruments' Massive softsynth.
 module Local.Instrument.Massive where
-import Util.Control
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import Global
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]

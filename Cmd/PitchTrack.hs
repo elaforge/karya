@@ -10,7 +10,6 @@
 module Cmd.PitchTrack (module Cmd.PitchTrack, module Cmd.ControlTrack) where
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
@@ -31,6 +30,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
+import Global
 
 
 -- * entry

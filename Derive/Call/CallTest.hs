@@ -7,10 +7,8 @@ import qualified Control.Monad as Monad
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-
 import qualified Ui.State as State
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Util as Util
@@ -24,6 +22,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
+import Global
 import Types
 
 

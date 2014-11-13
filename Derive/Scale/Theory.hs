@@ -51,13 +51,13 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Vector as Boxed
 import qualified Data.Vector.Unboxed as Vector
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Vector as Vector
 
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 -- * constants

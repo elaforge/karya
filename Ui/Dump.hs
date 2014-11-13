@@ -17,9 +17,9 @@ import qualified Control.Applicative as Applicative
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Text as Text
 
-import Util.Control
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
+import Global
 
 
 type Dump = [(String, String)]

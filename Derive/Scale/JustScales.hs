@@ -9,10 +9,8 @@ import Data.Ratio ((%))
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
-import Util.Control
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -27,6 +25,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import Global
 
 
 type Ratios = Vector.Vector (Ratio.Ratio Int)

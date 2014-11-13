@@ -36,7 +36,7 @@ import qualified Data.Vector.Unboxed as Unboxed
 import Foreign
 import qualified System.IO.Unsafe as Unsafe
 
-import Util.Control
+import Global
 
 
 encode :: (Serialize a) => a -> ByteString
