@@ -141,7 +141,8 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
         const RulerConfig &ruler_config) :
     TrackView("events"),
     config(config), last_offset(0), brightness(1), bg_color(config.bg_color),
-    title_input(NULL), bg_box(0, 0, 1, 1),
+    title_input(new WrappedInput(0, 0, 1, 1, true)),
+    bg_box(0, 0, 1, 1),
     overlay_ruler(ruler_config, false)
 {
     // this->resizable(0); // don't resize children
@@ -151,7 +152,6 @@ EventTrackView::EventTrackView(const EventTrackConfig &config,
     // create event widgets
     bg_box.box(FL_THIN_DOWN_BOX);
     bg_box.color(config.bg_color.brightness(this->brightness).fl());
-    this->title_input = new WrappedInput(0, 0, 1, 1, true);
 }
 
 

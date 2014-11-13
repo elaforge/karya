@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - It's inconvenient to have Util.Control and unqualified import be the same
+    module, because then all general purpose utils wind up in the global
+    namespace.  Maybe I should import a Global.hs analogous to Types.
   * "local definitions file" is a terrible name for the .karya files with
     tracklang.  Also 'definition_paths'.  Maybe 'lib' and 'lib_paths'?  But
     I want it to be specific because there may be other kinds of libs.
@@ -974,6 +977,38 @@ Derive:
           . This would also mean I don't need negative durations.
           . I could emit with an {override} flag, same hand notes at about the
             same start get cancelled by infer-duration.
+          . Since infer-duration should happen before randomize, notes should
+            still be at the same time.
+          . But this requires the previous notes and override notes to be
+            simultaneous, which will fail if tempo is changing, or if the
+            previous notes have a different rhythm.  Can I instead wipe out
+            all events in the override range?  That means when I see an
+            override, I drop all notes from it until the next override.
+          . Or maybe it would be simpler to give the first note a "suppress"
+            duration, which has the same effect.  Otherwise there's a gap
+            after the last {suppress} event.
+
+          . Other ways to do norot?  Run the track as a whole instead of each
+            call independently emitting notes.  This means a specialized
+            language.
+          . Or a norot call could emit a kind of override point which causes
+            the previous call to clip.  It could do that by overriding the
+            note end.  This is effectively like the "suppress: dur" env var,
+            except requires a whole new mechanism.
+
+          . First arg is pickup style: 'o' -> default, 'o m' -> muted,
+            'o o' -> open, 'o x' -> none
+
+          . Actually, I randomize before infer-duration.
+            It's because I only want to randomize from the top block, but
+            want to apply global to all blocks.
+        - run randomize before global.
+          global = import x | apply-start-offset | infer-duration
+            [ | randomize ]
+          . Actually, randomize only adds controls, it's apply-start-offset
+            that does the work.
+        - inst postproc can interpret +mute as either just a mute, or open, or
+          in between depending on %mute.
         * mute non-mute alternation is messed up, probably to do with timing
         * last note should infer its duration
           . But infer duration is not just until the next note start if there is
