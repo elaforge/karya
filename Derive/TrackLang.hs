@@ -548,7 +548,7 @@ default_show_val = Text.toLower . showt
 
 instance Typecheck Bool
 instance TypecheckSymbol Bool
-instance ShowVal Bool where show_val = default_show_val
+instance ShowVal Bool where show_val b = if b then "t" else "f"
 
 -- ** other types
 
