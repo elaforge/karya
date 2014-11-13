@@ -361,29 +361,24 @@ instance CStorable Block.Divider where
 instance CStorable TracklikePtr where
     sizeOf _ = #size Tracklike
     alignment _ = alignment nullPtr
-    poke = poke_tracklike_ptr
-
-poke_tracklike_ptr tp tracklike_ptr = do
-    -- Apparently 'with' doesn't zero out the memory it allocates.
-    (#poke Tracklike, track) tp nullPtr
-    (#poke Tracklike, ruler) tp nullPtr
-    (#poke Tracklike, divider) tp nullPtr
-    case tracklike_ptr of
-        TPtr trackp rulerp -> do
-            (#poke Tracklike, track) tp trackp
-            (#poke Tracklike, ruler) tp rulerp
-        RPtr rulerp -> (#poke Tracklike, ruler) tp rulerp
-        DPtr dividerp -> (#poke Tracklike, divider) tp dividerp
+    poke tp tracklike_ptr = do
+        -- Apparently 'with' doesn't zero out the memory it allocates.
+        (#poke Tracklike, track) tp nullPtr
+        (#poke Tracklike, ruler) tp nullPtr
+        (#poke Tracklike, divider) tp nullPtr
+        case tracklike_ptr of
+            TPtr trackp rulerp -> do
+                (#poke Tracklike, track) tp trackp
+                (#poke Tracklike, ruler) tp rulerp
+            RPtr rulerp -> (#poke Tracklike, ruler) tp rulerp
+            DPtr dividerp -> (#poke Tracklike, divider) tp dividerp
 
 -- ** configs
 
 instance CStorable Block.Config where
     sizeOf _ = #size BlockModelConfig
     alignment _ = alignment Color.black
-    poke = poke_block_model_config
-
-poke_block_model_config configp
-    (Block.Config skel_box track_box sb_box) = do
+    poke configp (Block.Config skel_box track_box sb_box) = do
         (#poke BlockModelConfig, skel_box) configp skel_box
         (#poke BlockModelConfig, track_box) configp track_box
         (#poke BlockModelConfig, sb_box) configp sb_box
