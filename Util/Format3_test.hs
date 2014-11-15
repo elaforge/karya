@@ -11,35 +11,89 @@ import Util.Test
 
 import Global
 
-test_render = do
-    let f = Lazy.toStrict . Format3.render "  " 10
+
+ntest_render = do
+    let f = Lazy.toStrict . Format.render "  " 10
     equal (f "") ""
     equal (f $ "" <> "") ""
     -- "c = d" triggers two breaks.
-    equal (f $ "Rec" <> indented ("a = b" </> "c = d") </> "Record2")
+    equal (f $ "Rec" <> indented ("a = b" <+/> "c = d") <+/> "Record2")
         "Rec\n  a = b\n  c = d\nRecord2"
 
+    -- NoSpace break.
+    equal (f $ "123" </> "456" </> "789" </> "0123")
+        "123456789\n0123"
+
     -- Multiple indent levels.
-    equal (f $ "Record" <> indented ("ab =" <> indented "blah") </> "Record2")
+    equal (f $ "Record" <> indented ("ab =" <> indented "blah") <+/> "Record2")
         "Record\n  ab =\n    blah\nRecord2"
 
     -- Multiple indent levels on one line.
-    equal (f $ "Record" <> indented ("a =" <> indented "b" </> "c") </> "Rec2")
+    equal (f $ "Record" <> indented ("a =" <> indented "b" <+/> "c") <+/> "Rec2")
         "Record\n  a = b c\nRec2"
 
     -- Line too long, can't be broken.
-    equal (f $ "Record" <> indented "0123456789" </> "R")
+    equal (f $ "Record" <> indented "0123456789" <+/> "R")
         "Record\n  0123456789\nR"
 
-    equal (f $ ("Record" <> indented ("01234" </> "56789") </> "R"))
+    equal (f $ ("Record" <> indented ("01234" <+/> "56789") <+/> "R"))
         "Record\n  01234\n  56789\nR"
     -- Embedded newline forces a break.
-    equal (f $ ("Record" <> indented "01234\n56789") </> "R")
+    equal (f $ ("Record" <> indented "01234\n56789") <+/> "R")
         "Record\n  01234\n  56789\nR"
 
     -- Multiple indent levels can go on line if they all fit.
-    equal (f $ "A" </> indented ("B" </> indented "C") </> "D")
+    equal (f $ "A" <+/> indented ("B" <+/> indented "C") <+/> "D")
         "A B C D"
+
+ntest_render2 = do
+    let f = Lazy.toStrict . Format.render "  " 30
+    pprint (f $ "Rec" <> indented
+            ("{ hi =" <> indented "there"
+            </> ", hi =" <> indented "there"
+            </> ", hi =" <> indented "there"
+            </> "}"))
+
+{-
+    123456789012345678901234567890
+    Rec { hi = there, hi = there, hi =
+
+    Rec
+      { hi = there, hi = there, hi =
+
+    123456789012345678901234567890
+    Rec
+      { hi = there, hi = there
+      , hi = there
+      }
+-}
+
+-- Rec
+--   { hi = there, hi =
+--      there
+--   , hi = there
+--   }
+--
+--      BAD
+--              (0, "Rec"), (1, "{ hi ="), (2, "there") collect: (1, ", hi =")
+-- Break 1      (0, "Rec"), (1, "{ hi = there, hi =")
+--
+-- It sees (1, ", hi =")  and figures 'hi = there' won't break, which is
+-- correct.  But it also concludes ", hi =" won't break, which it can't
+-- know because it hasn't seen "there" yet.  So it could join
+--
+--              (0, "Rec"), (1, "{ hi = there") collect: (1, ", hi =")
+-- Break 1      (0, "Rec"), (1, "{ hi = there") collect: (1, ", hi =")
+-- "there"      "Rec\n" (1, "{ hi = there")12 collect: (1, ", hi ="6)
+--
+-- 
+
+ntest_renderFlat = do
+    let f = Lazy.toStrict . Format.renderFlat
+    equal (f $ "Rec" <> indented ("a = b" <+/> "c = d") <+/> "Record2")
+        "Rec a = b c = d Record2"
+    equal (f "a\nb") "a b"
+    equal (f $ "a" </> "b") "ab"
 
 {-
     Rec 1 a 1 b 0 rec

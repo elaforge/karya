@@ -48,8 +48,15 @@ instance Monoid.Monoid Space where
 
 type Indent = Int
 
+text :: Text -> Doc
+text = Text
+
+(<+/>) :: Doc -> Doc -> Doc
+d1 <+/> d2 = d1 <> Break Space 0 d2
+infixr 5 <+/> -- less than <>
+
 (</>) :: Doc -> Doc -> Doc
-d1 </> d2 = d1 <> Break Space 0 d2
+d1 </> d2 = d1 <> Break NoSpace 0 d2
 infixr 5 </> -- less than <>
 
 indented :: Doc -> Doc
@@ -82,10 +89,19 @@ data State = State {
 
 type Breaks = Map.Map Indent Chunk
 
+-- simplify doc = case doc of
+--     Union d1 (Text t1 (Union (Text t2) d2)) ->
+--         Union (simplify d1) (Union (Text (t1 <> t2)) d2)
+--     Union d1 d2 -> case (simplify d1, simplify d2) of
+--         (Text t1, Text t2) -> Text (t1 <> t2)
+--         (d1, d2) -> Union d1 d2
+--     doc -> doc
+
 render :: Text -> Width -> Doc -> Lazy.Text
 render indentText_ maxWidth doc =
     Builder.toLazyText $ stateOutput $ flush indentText $
-        Debug.trace "final" $ go doc initialState
+        go doc initialState
+        -- Debug.trace "final" $ go doc initialState
     where
     initialState = State
         { stateOutput = mempty
@@ -94,7 +110,8 @@ render indentText_ maxWidth doc =
         , stateCollectIndent = 0
         , stateBreaks = mempty
         }
-    go doc state = case doc of -- case Debug.traces "doc" (state, doc) doc of
+    -- go doc state = case doc of -- case Debug.traces "doc" (state, doc) doc of
+    go doc state = case Debug.traces "doc" (state, doc) doc of
         Text txt -> goText txt state
         Union d1 d2 -> go d2 (go d1 state)
         Break space indent doc -> goBreak space indent doc state
@@ -104,6 +121,17 @@ render indentText_ maxWidth doc =
     goText txt state =
         List.foldl' (appendLine indentText maxWidth) state (splitLines txt)
     indentText = bFromText indentText_
+
+-- | Render all on one line, without any wrapping.  Hard newlines are turned
+-- into spaces as well.
+renderFlat :: Doc -> Lazy.Text
+renderFlat = Builder.toLazyText . flip go mempty
+    where
+    go doc output = case doc of
+        Text txt -> output <> Builder.fromText (Text.replace "\n" " " txt)
+        Union d1 d2 -> go d2 $ go d1 output
+        Break Space _ doc -> go doc $ output <> Builder.singleton ' '
+        Break NoSpace _ doc -> go doc output
 
 flush :: B -> State -> State
 flush indentText = flushBreaks . flushCollect indentText NoSpace
@@ -133,18 +161,18 @@ hardBreak indentText = clearBreaks . flushCollect indentText NoSpace
 flushCollect :: B -> Space -> State -> State
 flushCollect indentText space state
     | bNull (stateCollect state) = state
-    | Just break@(indent, _) <- lowestBreak breaks, cindent < indent =
+    | Just break@(indent, _) <- lowestBreak breaks, collectIndent < indent =
         -- If I reduce the indent then text that was supposed to be indented
         -- more than the collected text, it will lose the indentation.  So
         -- I have to emit it first.
         flushCollect indentText space $ breakLine indentText break state
     | otherwise = state
         { stateBreaks =
-            insertBreak cindent (Chunk (stateCollect state) space) breaks
+            insertBreak collectIndent (Chunk (stateCollect state) space) breaks
         , stateCollect = mempty
         }
     where
-    cindent = stateCollectIndent state
+    collectIndent = stateCollectIndent state
     breaks = stateBreaks state
 
 insertBreak :: Indent -> Chunk -> Breaks -> Breaks
@@ -181,7 +209,6 @@ appendLine indentText maxWidth state (Just txt)
 breakLine :: B -> (Indent, Chunk) -> State -> State
 breakLine indentText (indent, Chunk b _space) state = state
     { stateOutput = stateOutput state <> indentB <> bToBuilder b <> newline
-    -- , stateCollect = mempty
     , stateBreaks = Map.delete indent (stateBreaks state)
     }
     where
