@@ -521,21 +521,28 @@ typed_real_duration default_type from (Score.Typed typ val)
 -- ** timestep
 
 -- | Take the given number of steps.  Negative means step back.
-timestep :: ScoreTime -> TimeStep.TimeStep -> Int -> Derive.Deriver ScoreTime
+timestep :: ScoreTime -> TimeStep.TimeStep
+    -> [Int] -- ^ pick the first steps that return Just
+    -> Derive.Deriver ScoreTime
 timestep start ts steps = do
     (block_id, tracknum) <- Internal.get_current_tracknum
-    Derive.require ("valid timestep from " <> untxt (ShowVal.show_val start))
+    Derive.require ("no valid timestep from " <> untxt (ShowVal.show_val start))
         =<< Derive.eval_ui "c_timestep"
-            (TimeStep.step_from steps ts block_id tracknum start)
+            (firstJusts [TimeStep.step_from step ts block_id tracknum start |
+                step <- steps])
 
+-- | Get the timestep duration from the given point.  This tries first to
+-- step forward, and then back.  This is because typically you use this to
+-- configure duration for a call, and it's confusing when the call stops
+-- working at the end of the block.
 meter_duration :: ScoreTime -> Meter.RankName -> Double
     -> Derive.Deriver ScoreTime
 meter_duration start rank multiply = do
     let ts = TimeStep.time_step $
             TimeStep.RelativeMark TimeStep.match_meter
                 (Meter.name_to_rank rank)
-    end <- timestep start ts 1
-    return $ (end - start) * ScoreTime.double multiply
+    end <- timestep start ts [1, -1]
+    return $ abs (end - start) * ScoreTime.double multiply
 
 default_timestep :: Derive.PassedArgs a -> Meter.RankName -> Maybe ScoreTime
     -> Derive.Deriver ScoreTime

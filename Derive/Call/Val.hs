@@ -146,9 +146,8 @@ c_timestep = val_call "timestep" mempty
     ) $ Sig.call ((,)
     <$> required "rank" "Emit a duration of this rank."
     <*> defaulted "multiply" 1 "Multiply duration."
-    ) $ \(rank, steps) args ->
-        TrackLang.score_time <$>
-            Util.meter_duration (Args.start args) rank steps
+    ) $ \(rank, steps) args -> TrackLang.score_time <$>
+        Util.meter_duration (Args.start args) rank steps
 
 c_timestep_reciprocal :: Derive.ValCall
 c_timestep_reciprocal = Make.modify_vcall c_timestep Module.prelude

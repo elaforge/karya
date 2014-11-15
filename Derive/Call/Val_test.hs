@@ -94,6 +94,11 @@ test_timestep = do
 
     equal (run 0 "q") ([1], [])
     equal (run 0 "q .5") ([0.5], [])
+    -- It's at the end of the ruler so it can't go forwards.  Take the
+    -- backwards distance instead.
+    equal (run 12 "q") ([14], [])
+    -- Whole step works even though there isn't a whole step left.
+    equal (run 10 "w") ([18], [])
 
     -- TODO should be an error, there are no sixteenths
     equal (run 0 "s") ([1], [])
