@@ -84,6 +84,12 @@ track_voice = "track-voice"
 
 -- * internal
 
+-- | RealTime: suppress other notes until this time, inclusive.  Only events
+-- without a suppress-until will be retained.  Applied by @infer-duration@, see
+-- "Derive.Call.Post.Move".
+suppress_until :: ValName
+suppress_until = "suppress-until"
+
 -- | VNum: This is a bit of a hack for the dynamic to velocity conversion in
 -- "Perform.Midi.Convert".  The default note deriver stashes the control
 -- function output here, so if it turns out to not be a Pressure instrument

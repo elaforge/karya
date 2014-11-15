@@ -8,6 +8,8 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Post.Move as Move
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+
 import Global
 
 
@@ -60,6 +62,20 @@ test_infer_duration_controls = do
             ])
         ([[(0, 1), (1, 2), (2, 3)], [(2, 3), (3, 2), (4, 3)], [(4, 3)]], [])
 
+test_infer_duration_suppress = do
+    let run = DeriveTest.extract Score.event_start
+            . DeriveTest.derive_tracks "infer-duration 1"
+            . map (second (map (\(d, t) -> (d, 1, t))))
+        suppress t = "suppress-until = " <> t <> " | --"
+    equal (run [(">", [(0, ""), (1, "")])]) ([0, 1], [])
+    equal (run [(">", [(0, ""), (1, suppress "2s"), (2, ""), (3, "")])])
+        ([0, 1, 3], [])
+    -- Suppression works even with a coincident note coming later.
+    equal (run
+            [ (">", [(0, ""), (1, ""), (2, ""), (3, "")])
+            , (">", [(1, suppress "2s")])
+            ])
+        ([0, 1, 3], [])
 
 test_apply_start_offset = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks

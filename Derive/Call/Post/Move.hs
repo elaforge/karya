@@ -4,8 +4,13 @@
 
 -- | Postprocs that change note start and duration.
 module Derive.Call.Post.Move where
+import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
+
 import qualified Util.ApproxEq as ApproxEq
-import qualified Util.Map as Map
+import qualified Util.Map
+import qualified Util.Seq as Seq
+
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Post as Post
@@ -20,6 +25,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Global
 import Types
@@ -43,14 +49,16 @@ c_infer_duration = Derive.transformer Module.prelude "infer-duration"
     \ deriver sets `+infer-duration` on it. This note will then replace any\
     \ notes at the beginning of the next block. If it replaces a note, it\
     \ takes on that note's duration and controls. Otherwise, it extends to the\
-    \ start of the next note."
+    \ start of the next note.\
+    \\nThis also applies the 'Environ.suppress_until' env val, so a call can\
+    \ cancel out other events."
     $ Sig.callt
     ( Sig.defaulted "final-duration" 1
         "If there is no following note, infer this duration."
     ) $ \final_dur _args deriver -> infer_duration final_dur <$> deriver
 
 infer_duration :: RealTime -> Derive.Events -> Derive.Events
-infer_duration final_dur = cancel_notes . infer_notes
+infer_duration final_dur = cancel_notes . infer_notes . suppress_note
     where
     infer_notes = Post.emap1_ infer . Post.neighbors_same_hand id
     cancel_notes =
@@ -68,6 +76,37 @@ infer_duration final_dur = cancel_notes . infer_notes
     set_dur dur = Score.set_duration dur
     has = Score.has_flags
 
+-- | Filter out events that fall at and before the 'Environ.suppress_until'
+-- range of an event with the same (instrument, hand).  Only events that don't
+-- have a suppress_until are suppressed.
+--
+-- This is complicated by the fact that an event should suppress coincident
+-- events even if the supressor follows the suppressee in the list, so I have
+-- to look into the future for the greatest suppress_until.
+suppress_note :: Derive.Events -> Derive.Events
+suppress_note =
+    snd . Post.emap go Map.empty . Post.zip_on Post.nexts
+        . Post.zip3_on (map Post.hand_key) (map get_suppress)
+    where
+    go suppressed (nexts, (key, suppress, event)) = case suppress of
+        Nothing -> (,) suppressed $ case suppress_until of
+            Just until | until >= Score.event_start event - RealTime.eta -> []
+            _ -> [event]
+        Just until -> (Map.insert key until suppressed, [event])
+        where
+        suppress_until = Seq.maximum $ Maybe.catMaybes $
+            (Map.lookup key suppressed :) $ map suppress_of $
+            takeWhile (coincident . event_of) $
+            filter ((==key) . key_of) nexts
+        coincident e = Score.event_start e
+            <= Score.event_start event + RealTime.eta
+    get_suppress :: Score.Event -> Maybe RealTime
+    get_suppress =
+        TrackLang.maybe_val Environ.suppress_until . Score.event_environ
+    key_of (k, _, _) = k
+    suppress_of (_, s, _) = s
+    event_of (_, _, e) = e
+
 -- | A note with inferred duration gets its start from the end of the previous
 -- block, but its duration and the rest of its controls come from the
 -- corresponding note at the beginning of the next block.
@@ -79,10 +118,10 @@ replace_note next event
         set_end (Score.event_end next) event
             { Score.event_untransformed_pitch = pitch event
                 <> PitchSignal.drop_before_at start (pitch next)
-            , Score.event_untransformed_pitches = Map.mappend
+            , Score.event_untransformed_pitches = Util.Map.mappend
                 (pitches event)
                 (PitchSignal.drop_before_at start <$> pitches next)
-            , Score.event_untransformed_controls = Map.mappend
+            , Score.event_untransformed_controls = Util.Map.mappend
                 (controls event)
                 (fmap (Signal.drop_before_at start) <$> controls next)
             }

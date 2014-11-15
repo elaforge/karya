@@ -611,7 +611,7 @@ instance Typecheck Quoted where
 -- inconsistent with types will just lead to confusion.
 --
 -- 'VNotGiven' is another special case, it deletes the given key.
-put_val :: Typecheck val => ValName -> val -> Environ -> Either Type Environ
+put_val :: Typecheck a => ValName -> a -> Environ -> Either Type Environ
 put_val name val environ
     | VNotGiven <- new_val = Right $ delete_val name environ
     | otherwise = case lookup_val name environ of
@@ -623,6 +623,13 @@ put_val name val environ
             Just expected -> Left expected
             Nothing -> Right $ BaseTypes.insert_val name new_val environ
     where new_val = to_val val
+
+-- | Like 'put_val', but format the error msg.
+put_val_error :: Typecheck a => ValName -> a -> Environ -> Either Text Environ
+put_val_error name val = either (Left . fmt) Right . put_val name val
+    where
+    fmt typ = "can't set " <> prettyt name <> " to "
+        <> show_val (to_val val) <> ", expected " <> prettyt typ
 
 -- | Insert a val without typechecking.
 insert_val :: Typecheck a => ValName -> a -> Environ -> Environ
@@ -641,6 +648,7 @@ hardcoded_types = Map.fromList
     , (Environ.scale, TSymbol Nothing)
     , (Environ.seed, TNum TUntyped TAny)
     , (Environ.srate, TNum TUntyped TAny)
+    , (Environ.suppress_until, TNum TRealTime TAny)
     , (Environ.tuning, TSymbol Nothing)
     , (Environ.voice, TNum TUntyped TAny)
     ]

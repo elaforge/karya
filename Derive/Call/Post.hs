@@ -217,6 +217,10 @@ same_hand event event_of =
     hand_of :: Score.Event -> Maybe Text
     hand_of = TrackLang.maybe_val Environ.hand . Score.event_environ
 
+hand_key :: Score.Event -> (Score.Instrument, Maybe Text)
+hand_key e = (Score.event_instrument e,
+    TrackLang.maybe_val Environ.hand $ Score.event_environ e)
+
 -- ** misc maps
 
 -- | Apply a function on the first Event of an LEvent stream.

@@ -457,6 +457,9 @@ e_pitch e = maybe "?" (untxt . Pitch.note_text) (Score.initial_note e)
 e_note :: Score.Event -> (RealTime, RealTime, String)
 e_note e = (Score.event_start e, Score.event_duration e, e_pitch e)
 
+e_start_note :: Score.Event -> (RealTime, String)
+e_start_note e = (Score.event_start e, e_pitch e)
+
 e_attributes :: Score.Event -> String
 e_attributes = untxt . ShowVal.show_val . Score.event_attributes
 
