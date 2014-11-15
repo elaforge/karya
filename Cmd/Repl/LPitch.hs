@@ -20,6 +20,7 @@ import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
 import Types
+import Global
 
 
 -- | Turn an nn back to a human-readable note name.
@@ -54,8 +55,8 @@ transpose_d = PitchTrack.transpose_selection Scale.Diatonic
 modify_pitch :: Cmd.M m => (Pitch.Pitch -> Pitch.Pitch)
     -> ModifyEvents.Track m
 modify_pitch modify = PitchTrack.pitch_tracks $ \scale key note -> do
-    pitch <- PitchTrack.pretty_err $ Scale.scale_read scale key note
-    PitchTrack.pretty_err $ Scale.scale_show scale key $ modify pitch
+    pitch <- first pretty $ Scale.scale_read scale key note
+    first pretty $ Scale.scale_show scale key $ modify pitch
 
 -- | Change notes from one scale to another.  This only makes sense if the
 -- scales have the same number of notes per octave.
@@ -66,8 +67,8 @@ change_scale :: Cmd.M m => Pitch.ScaleId -> m (ModifyEvents.Track m)
 change_scale to_scale = do
     to_scale <- Cmd.get_scale "LPitch.change_scale" to_scale
     return $ PitchTrack.pitch_tracks $ \from_scale key note -> do
-        pitch <- PitchTrack.pretty_err $ Scale.scale_read from_scale key note
-        PitchTrack.pretty_err $ Scale.scale_show to_scale key pitch
+        pitch <- first pretty $ Scale.scale_read from_scale key note
+        first pretty $ Scale.scale_show to_scale key pitch
 
 -- | Convert the selected absolute pitch track into a relative one by
 -- subtracting all the notes from the given base note.
@@ -75,8 +76,8 @@ change_scale to_scale = do
 -- TODO as above, would be nice to set thet track title.
 to_relative :: Cmd.M m => Bool -> Pitch.Note -> ModifyEvents.Track m
 to_relative diatonic base = PitchTrack.pitch_tracks $ \scale key note -> do
-    base <- PitchTrack.pretty_err $ Scale.scale_read scale key base
-    pitch <- PitchTrack.pretty_err $ Scale.scale_read scale key note
+    base <- first pretty $ Scale.scale_read scale key base
+    pitch <- first pretty $ Scale.scale_read scale key note
     let layout = Scale.scale_layout scale
     let d = if diatonic then Scale.diatonic_difference layout pitch base
             else Scale.chromatic_difference layout pitch base

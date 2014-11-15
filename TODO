@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - make Util.Control first, second, bimap into Bifunctor so I can apply to
+  * make Util.Control first, second, bimap into Bifunctor so I can apply to
     Either too.  E.g. TrackLang.put_val_error
   - add sigmoid curve
   * It's inconvenient to have Util.Control and unqualified import be the same
@@ -976,7 +976,7 @@ Derive:
         - add 'lebeng' key with 1234567 cipher notation
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
-      kotekan ornaments
+      kotekan
         * writing >norot is still awkward, can't I have that happen
           automatically?  The call would have to emit notes before its start,
           and cancel out any existing notes there.

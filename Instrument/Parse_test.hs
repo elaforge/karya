@@ -14,7 +14,7 @@ import Global
 
 
 test_parse_annotations = do
-    let f = either (Left . show) (Right . map extract)
+    let f = (show *** map extract)
             .  Parsec.runParser Parse.p_annotation_file () "test"
         extract (inst, annots) = (Score.inst_name inst, annots)
     equal (f "s/1 there\n") $ Right [("s/1", [("there", "")])]
@@ -29,7 +29,7 @@ test_parse_annotations = do
 test_parse_patch_file = do
     let parse f = extract f
             . Parsec.runParser Parse.p_patch_file Parse.empty_state "test"
-        extract f = either (Left . show) (Right . map f)
+        extract f = show *** map f
 
     let e_init patch = case Instrument.patch_initialize patch of
             Instrument.InitializeMidi msgs ->

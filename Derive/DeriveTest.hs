@@ -391,7 +391,7 @@ extract_levents e_event levents =
 
 extract_stream :: (Score.Event -> a) -> Derive.Result -> [Either a String]
 extract_stream e_event =
-    map (either (Left . e_event) (Right . show_log) . to_either)
+    map ((e_event *** show_log) . to_either)
         . filter interesting . Derive.r_events
     where
     interesting (LEvent.Log log) = interesting_log log

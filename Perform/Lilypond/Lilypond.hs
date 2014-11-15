@@ -344,4 +344,4 @@ get_meters start staff_end events = do
             <> prettyt (Types.event_start event)
 
 error_context :: Text -> Either Text a -> Either Text a
-error_context msg = either (Left . ((msg <> ": ") <>)) Right
+error_context msg = first ((msg <> ": ") <>)

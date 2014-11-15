@@ -111,10 +111,10 @@ convert_pitch event = case Score.initial_pitch event of
 pitch_to_lily :: PitchSignal.Transposed -> Either Text Pitch
 pitch_to_lily pitch
     | PitchSignal.pitch_scale_id pitch == Twelve.scale_id = do
-        note <- either (Left . showt) Right $ PitchSignal.pitch_note pitch
+        note <- first showt $ PitchSignal.pitch_note pitch
         show_note note
     | otherwise = do
-        nn <- either (Left . showt) Right $ PitchSignal.pitch_nn pitch
+        nn <- first showt $ PitchSignal.pitch_nn pitch
         note <- require ("nn out of range: " <> prettyt nn) $
             Twelve.nn_to_note nn
         show_note note

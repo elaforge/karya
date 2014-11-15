@@ -210,7 +210,7 @@ transpose transposition octaves steps = \scale key note ->
         Right note2 -> Right note2
 
 cycle_enharmonics :: ModifyPitch
-cycle_enharmonics scale maybe_key note = pretty_err $ do
+cycle_enharmonics scale maybe_key note = first pretty $ do
     enharmonics <- Scale.scale_enharmonics scale maybe_key note
     return $ fromMaybe note (Seq.head enharmonics)
 
@@ -226,6 +226,3 @@ pitch_tracks f = ModifyEvents.tracks_named ParseTitle.is_pitch_track $
     maybe_key <- Perf.get_key block_id (Just track_id)
     let modify = modify_note (f scale maybe_key)
     ModifyEvents.failable_texts modify block_id track_id events
-
-pretty_err :: Either Scale.ScaleError a -> Either String a
-pretty_err = either (Left . pretty) Right

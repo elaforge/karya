@@ -62,7 +62,7 @@ derive_at :: Cmd.M m => BlockId -> TrackId
 derive_at block_id track_id deriver = do
     dynamic <- fromMaybe empty_dynamic <$> find_dynamic block_id (Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
-    return (either (Left . pretty) Right val, logs)
+    return (first pretty val, logs)
     where empty_dynamic = Derive.initial_dynamic mempty
 
 -- | Get the environment established by 'State.config_global_transform'.

@@ -66,7 +66,7 @@ create tracks skel = do
                 | (start, (dur, text)) <- Map.toAscList track]
 
 parse :: FilePath -> IO (Either Warn Z.MidiFile)
-parse fn = either (Left . show_error) Right <$> Z.readMidi fn
+parse fn = first show_error <$> Z.readMidi fn
     where show_error (Z.ParseErr pos msg) = showt pos <> ": " <> txt msg
 
 convert :: Z.MidiFile -> ([(Text, Track)], Skeleton.Skeleton, [Warn])

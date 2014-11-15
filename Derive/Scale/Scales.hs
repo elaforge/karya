@@ -197,7 +197,7 @@ add_pc dmap = Pitch.add_pc (dm_per_octave dmap)
 
 scale_to_pitch_error :: Signal.Y -> Signal.Y
     -> Either Scale.ScaleError a -> Either PitchSignal.PitchError a
-scale_to_pitch_error diatonic chromatic = either (Left . msg) Right
+scale_to_pitch_error diatonic chromatic = first msg
     where
     msg err = case err of
         Scale.InvalidTransposition -> invalid_transposition diatonic chromatic

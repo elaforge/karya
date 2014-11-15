@@ -33,7 +33,7 @@ get_scale scale_id = fromMaybe (error $ "no scale: " ++ show scale_id) $
     List.find ((== Pitch.ScaleId scale_id) . Scale.scale_id) Wayang.scales
 
 read_scale :: Scale.Scale -> Pitch.Note -> Either String String
-read_scale scale note = either (Left . pretty) (Right . pretty) $
+read_scale scale note = (pretty *** pretty) $
     Scale.scale_read scale Nothing note
 
 scale_track :: String -> [String] -> [UiTest.TrackSpec]

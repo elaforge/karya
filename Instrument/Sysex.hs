@@ -415,7 +415,7 @@ encode_byte rmap bits = do
     bs <- zipWithM encode1 (zip names fields) vals
     return $ encode_bits (map fst fields) bs
     where
-    add_name name = either (Left . (,) name) Right
+    add_name name = first ((,) name)
     encode1 (name, (width, range)) rec = add_name name $ do
         num <- encode_range range rec
         return $ if range_signed range then from_signed width num
@@ -443,7 +443,7 @@ rmap_lookup rmap name = case Map.lookup name rmap of
 decode :: Config -> Specs -> ByteString -> Either Error (RMap, ByteString)
 decode config = decode_from []
     where
-    decode_from path specs bytes = either (Left . Seq.strip) Right $
+    decode_from path specs bytes = first Seq.strip $
         Get.runGetState (rmap path [] specs) bytes 0
     rmap _ collect [] = return (Map.fromList collect)
     rmap path collect (spec:specs) = do

@@ -35,7 +35,7 @@ parse_annotations :: FilePath
     -> IO (Either String (Map.Map Score.Instrument [Annotation]))
 parse_annotations fn = do
     result <- Parse.file mempty p_annotation_file () fn
-    return $ either (Left . show) (Right . Map.fromListWith (++)) result
+    return $ (show *** Map.fromListWith (++)) result
 
 p_annotation_file :: Parser st [(Score.Instrument, [Annotation])]
 p_annotation_file = concat <$> Parsec.many line <* Parsec.eof

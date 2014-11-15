@@ -626,7 +626,7 @@ put_val name val environ
 
 -- | Like 'put_val', but format the error msg.
 put_val_error :: Typecheck a => ValName -> a -> Environ -> Either Text Environ
-put_val_error name val = either (Left . fmt) Right . put_val name val
+put_val_error name val = first fmt . put_val name val
     where
     fmt typ = "can't set " <> prettyt name <> " to "
         <> show_val (to_val val) <> ", expected " <> prettyt typ

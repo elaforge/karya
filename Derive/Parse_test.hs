@@ -214,8 +214,7 @@ test_load_ky = do
 
     let run imports defs = do
             writeFile (dir </> "defs") (make_ky imports defs)
-            either (Left . untxt) (Right . first extract) <$>
-                Parse.load_ky [dir, lib] "defs"
+            (untxt *** first extract) <$> Parse.load_ky [dir, lib] "defs"
         extract = map fst . fst . Parse.def_note
     v <- run ["z"] ["d1"]
     left_like v "imported file not found: z"
@@ -227,7 +226,7 @@ test_load_ky = do
         Right (["d1", "lib1", "lib2"], ["defs", "lib1", "lib2"])
 
 test_parse_ky = do
-    let f extract = either (Left . untxt) (Right . extract) . Parse.parse_ky
+    let f extract = (untxt *** extract) . Parse.parse_ky
         note = f (map (second NonEmpty.head) . fst . Parse.def_note . snd)
             . ("note generator:\n"<>)
     let sym = Literal . VSymbol
@@ -253,8 +252,7 @@ test_split_sections = do
         ("import a\nimport b\n", [("a", [(4, "2")])])
 
 test_p_definition = do
-    let f = either (Left . untxt) Right
-            . ParseText.parse_lines 1 Parse.p_definition
+    let f = first untxt . ParseText.parse_lines 1 Parse.p_definition
     equal (f "a =\n b\n c\n") $
         Right ("a", Call "b" [Literal (VSymbol "c")] :| [])
     left_like (f "a =\n b\nc = d\n") ""

@@ -11,16 +11,23 @@ import qualified Control.Monad.Trans as Trans
 import qualified Data.Monoid as Monoid
 
 
--- | Like the Arrow combinators, but specialized to functions for clearer
--- error messages.
-first :: (a -> b) -> (a, c) -> (b, c)
-first f (a, c) = (f a, c)
+-- | This is like the hackage bifunctor package, but with no extra
+-- dependencies, and no clowns.
+class Bifunctor p where
+    (***) :: (a -> b) -> (c -> d) -> p a c -> p b d
+    first :: (a -> b) -> p a c -> p b c
+    second :: (c -> d) -> p a c -> p a d
+infixr 3 ***
 
-second :: (a -> b) -> (c, a) -> (c, b)
-second f (c, a) = (c, f a)
+instance Bifunctor (,) where
+    f *** g = \(x, y) -> (f x, g y)
+    first f (a, c) = (f a, c)
+    second f (c, a) = (c, f a)
 
-(***) :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)
-f *** g = \(x, y) -> (f x, g y)
+instance Bifunctor Either where
+    f *** g = either (Left . f) (Right . g)
+    first f = either (Left . f) Right
+    second f = either Left (Right . f)
 
 while :: Monad m => m Bool -> m a -> m [a]
 while cond op = do

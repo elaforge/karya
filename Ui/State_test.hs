@@ -15,8 +15,7 @@ import Global
 
 test_skeleton_cycles = do
     let bid = UiTest.default_block_id
-    let extract = either (Left . pretty) Right
-    let run ntracks m = extract $ State.eval State.empty $ do
+    let run ntracks m = first pretty $ State.eval State.empty $ do
             UiTest.mkblock (UiTest.default_block_name,
                 [('t' : show n, []) | n <- [0..ntracks]])
             State.set_skeleton bid Skeleton.empty
