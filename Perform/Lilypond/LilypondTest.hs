@@ -260,4 +260,4 @@ make_ly config events = Text.Lazy.unpack $
 -- * extract
 
 e_ly_env :: Score.Event -> [(TrackLang.ValName, String)]
-e_ly_env = DeriveTest.e_environ ("ly-" `List.isPrefixOf`)
+e_ly_env = DeriveTest.e_environ_like ("ly-" `List.isPrefixOf`)

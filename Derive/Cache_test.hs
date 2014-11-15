@@ -27,7 +27,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import Global
@@ -637,8 +636,8 @@ test_track_cache = do
     -- Also invalidated on block damage.
     let (_, cached, _) = compare_cached (create <* title "foo = a") $
             title "foo = b"
-    equal (DeriveTest.extract (DeriveTest.e_environ (=="foo")) cached)
-        ([[(TrackLang.Symbol "foo", "b")]], [])
+    equal (DeriveTest.extract (DeriveTest.e_environ "foo") cached)
+        ([Just "b"], [])
     strings_like (r_cache_logs cached)
         [ "top top.t1 \\*: rederived"
         , "top top.t2 \\*: rederived"
@@ -647,8 +646,8 @@ test_track_cache = do
 
     -- Make sure I don't get extra cache entries when the stack changes.
     let (_, cached, _) = compare_cached create $ title "foo = a"
-    equal (DeriveTest.extract (DeriveTest.e_environ (=="foo")) cached)
-        ([[(TrackLang.Symbol "foo", "a")]], [])
+    equal (DeriveTest.extract (DeriveTest.e_environ "foo") cached)
+        ([Just "a"], [])
     equal (r_cache_stacks cached)
         ["top * *", "top top.t1 *", "top top.t2 *"]
 

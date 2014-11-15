@@ -232,7 +232,7 @@ test_slur = do
             . DeriveTest.derive_tracks_with_ui with DeriveTest.with_linear ""
         extract e =
             ( DeriveTest.e_note e
-            , DeriveTest.e_environ ("ly-" `List.isPrefixOf`) e
+            , DeriveTest.e_environ_like ("ly-" `List.isPrefixOf`) e
             , ShowVal.show_val (Score.event_attributes e)
             )
         with = CallTest.with_note_generator "(" Articulation.c_ly_slur
