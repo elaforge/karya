@@ -399,7 +399,7 @@ realize_notes call_start realize =
     note (Note start dur note, next) =
         add_flag (start == call_start) next $
             Derive.place start dur (realize note)
-    add_flag at_start next = fmap $ Post.emap1 (modify at_start next . remove)
+    add_flag at_start next = fmap $ Post.emap1_ (modify at_start next . remove)
     remove = Score.remove_flags $ Flags.can_cancel <> Flags.infer_duration
     modify at_start next = Score.add_flags $
         (if at_start then Flags.can_cancel else mempty)
@@ -529,8 +529,7 @@ noltol threshold (_, event, maybe_next)
 
 dur_arg :: Sig.Parser ScoreTime
 dur_arg = Sig.defaulted_env_quoted "dur" Sig.Prefixed
-    (TrackLang.quoted "ts" [TrackLang.str "e"])
-        "Duration of derived notes."
+    (TrackLang.quoted "ts" [TrackLang.str "e"]) "Duration of derived notes."
 
 kotekan_env :: Sig.Parser TrackLang.ValControl
 kotekan_env =

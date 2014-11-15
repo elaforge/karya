@@ -50,8 +50,16 @@ import Types
 -- ** non-monadic
 
 -- | 1:1 non-monadic map without state.
-emap1 :: (a -> b) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
-emap1 = map . fmap
+emap1_ :: (a -> b) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
+emap1_ = map . fmap
+
+-- | 1:1 non-monadic map with state.
+emap1 :: (state -> a -> (state, b)) -> state -> [LEvent.LEvent a]
+    -> (state, [LEvent.LEvent b])
+emap1 f state = List.mapAccumL go state
+    where
+    go state (LEvent.Log log) = (state, LEvent.Log log)
+    go state (LEvent.Event event) = LEvent.Event <$> f state event
 
 -- | 'Data.Maybe.catMaybes' for LEvents.
 cat_maybes :: [LEvent.LEvent (Maybe a)] -> [LEvent.LEvent a]
@@ -71,7 +79,7 @@ emap f state = second concat . List.mapAccumL go state
 
 -- | 'emap' without state.
 emap_ :: (a -> [b]) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
-emap_ f = concatMap flatten . emap1 f
+emap_ f = concatMap flatten . emap1_ f
     where
     flatten (LEvent.Log log) = [LEvent.Log log]
     flatten (LEvent.Event events) = map LEvent.Event events
@@ -145,13 +153,13 @@ time_control = control (RealTime.seconds . Score.typed_val)
 
 -- | Zip each event up with its neighbors.
 neighbors :: [LEvent.LEvent a] -> [LEvent.LEvent ([a], a, [a])]
-neighbors events = emap1 (\(ps, ns, e) -> (ps, e, ns)) $
+neighbors events = emap1_ (\(ps, ns, e) -> (ps, e, ns)) $
     zip3_on prevs nexts events
 
 -- | Zip each event with its nearest same-hand neighbor.
 neighbors_same_hand :: (a -> Score.Event) -> [LEvent.LEvent a]
     -> [LEvent.LEvent (Maybe a, a, Maybe a)]
-neighbors_same_hand event_of = emap1 extract . neighbors
+neighbors_same_hand event_of = emap1_ extract . neighbors
     where
     extract (ps, e, ns) = (same ps, e, same ns)
         where same = Seq.head . same_hand (event_of e) event_of

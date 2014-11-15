@@ -123,7 +123,7 @@ c_zero_duration_mute = Derive.transformer Module.prelude
     <$> defaulted "attr" Attrs.mute "Add this attribute."
     <*> defaulted "dyn" 0.75 "Scale dynamic by this amount."
     )
-    $ \(attrs, dyn) _args deriver -> Post.emap1 (add attrs dyn) <$> deriver
+    $ \(attrs, dyn) _args deriver -> Post.emap1_ (add attrs dyn) <$> deriver
     where
     add attrs dyn event
         | Score.event_duration event == 0 =

@@ -36,7 +36,7 @@ c_highlight :: Derive.Transformer Derive.Note
 c_highlight = Derive.transformer Module.prelude "highlight" mempty
     "Add a highlight color."
     $ Sig.callt (Sig.required "highlight" "Highlight code.")
-    $ \highlight _ deriver -> Post.emap1 (add_highlight highlight) <$> deriver
+    $ \highlight _ deriver -> Post.emap1_ (add_highlight highlight) <$> deriver
 
 instance ShowVal.ShowVal Color.Highlight where
     show_val = TrackLang.default_show_val
@@ -72,7 +72,7 @@ open_strings pos highlight deriver = do
     maybe_pitches <- case maybe_pitches of
         Just pitches -> Just <$> mapM (Derive.resolve_pitch pos) pitches
         Nothing -> return Nothing
-    maybe id (\pitches -> fmap (Post.emap1 (apply pitches))) maybe_pitches
+    maybe id (\pitches -> fmap (Post.emap1_ (apply pitches))) maybe_pitches
         deriver
     where
     apply :: [PitchSignal.Transposed] -> Score.Event -> Score.Event
@@ -106,7 +106,7 @@ out_of_range deriver = do
     maybe_top <- Derive.lookup_val Environ.instrument_top
     maybe_bottom <- Derive.lookup_val Environ.instrument_bottom
     if all Maybe.isNothing [maybe_top, maybe_bottom] then deriver
-        else Post.emap1 (apply maybe_top maybe_bottom) <$> deriver
+        else Post.emap1_ (apply maybe_top maybe_bottom) <$> deriver
     where
     apply maybe_top maybe_bottom event
         | out_of_range = add_highlight Color.Error event

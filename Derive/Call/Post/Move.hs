@@ -52,9 +52,9 @@ c_infer_duration = Derive.transformer Module.prelude "infer-duration"
 infer_duration :: RealTime -> Derive.Events -> Derive.Events
 infer_duration final_dur = cancel_notes . infer_notes
     where
-    infer_notes = Post.emap1 infer . Post.neighbors_same_hand id
+    infer_notes = Post.emap1_ infer . Post.neighbors_same_hand id
     cancel_notes =
-        Post.cat_maybes . Post.emap1 cancel . Post.neighbors_same_hand id
+        Post.cat_maybes . Post.emap1_ cancel . Post.neighbors_same_hand id
 
     cancel (maybe_prev, event, _)
         | has Flags.can_cancel event, Just prev <- maybe_prev,
@@ -122,14 +122,14 @@ apply_start_offset maybe_min_dur =
     tweak_offset = case maybe_min_dur of
         Nothing -> id
         Just min_dur ->
-            Post.emap1 (tweak min_dur) . Post.neighbors_same_hand snd
+            Post.emap1_ (tweak min_dur) . Post.neighbors_same_hand snd
     tweak min_dur (prev, (offset, event), next) = (new_offset, event)
         where
         new_offset = adjust_offset min_dur (extract <$> prev) (extract <$> next)
             offset (Score.event_start event)
         extract (offset, event) = (offset, Score.event_start event)
 
-    apply_offset = Post.emap1 apply . Post.neighbors_same_hand snd
+    apply_offset = Post.emap1_ apply . Post.neighbors_same_hand snd
     apply (_, (offset, event), maybe_next) =
         set_dur $ Score.move_start (fromMaybe Note.min_duration maybe_min_dur)
             offset event
