@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Bali.Gangsa_test where
+import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
@@ -14,54 +15,78 @@ import Global
 
 
 test_norot = do
-    let run = derive extract $
-            inst_title <> " | inst-top = (pitch (4f))"
+    let run = derive extract title
+        title = inst_title <> " | inst-top = (pitch (4f)) | norot-dur=1"
+            <> " | norot-arrival=f"
         extract e = (DeriveTest.e_note e, Score.event_instrument e)
-    equal (run [(2, -2, "norot 1 -- 3a")])
+    equal (run [(2, -2, "norot -- 3a")])
         ([((0, 1, "3a"), pasang), ((1, 1, "3b"), pasang),
             ((2, 1, "3a"), pasang)], [])
-    equal (run [(2, -2, "norot 1 -- 4f")])
+    equal (run [(2, -2, "norot -- 4f")])
         ([((0, 1, "4f"), pasang), ((1, 1, "4e"), pasang),
             ((2, 1, "4f"), pasang)], [])
-    equal (run [(2, -2, "norot 1 diamond -- 4c")])
+    equal (run [(2, -2, "norot _ _ diamond -- 4c")])
         ([ ((0, 1, "4c"), polos), ((0, 1, "4c"), sangsih)
          , ((1, 1, "4d"), polos), ((1, 1, "3b"), sangsih)
          , ((2, 1, "4c"), polos), ((2, 1, "4c"), sangsih)
          ], [])
     -- Under threshold, split sangsih and polos.
-    equal (run [(2, -2, "kotekan = 2 | norot 1 -- 3a")])
+    equal (run [(2, -2, "kotekan = 2 | norot -- 3a")])
         ([((0, 1, "3a"), polos), ((1, 1, "3b"), sangsih),
             ((2, 1, "3a"), polos)], [])
 
     -- >norot is a Once pattern.
-    equal (run [(8, -8, "kotekan = 2 | >norot 1 -- 3a")])
+    equal (run [(8, -8, "kotekan = 2 | >norot -- 3a")])
         ([ ((5, 1, "3a"), polos), ((5, 1, "3a"), sangsih)
          , ((6, 1, "3a"), polos), ((6, 1, "3a"), sangsih)
          , ((7, 1, "3b"), sangsih)
          , ((8, 1, "3a"), polos)
          ], [])
 
-    equal (derive DeriveTest.e_note inst_title [(4, -2, "norot 1 -- 3a")])
+    equal (derive DeriveTest.e_note title [(4, -2, "norot f -- 3a")])
         ([(2, 1, "3a"), (3, 1, "3b"), (4, 1, "3a")], [])
 
-    equal (derive Score.event_flags inst_title [(4, -2, "norot 1 -- 3a")])
+    equal (derive Score.event_flags title [(4, -2, "norot -- 3a")])
         ([Flags.can_cancel, mempty, Flags.infer_duration], [])
     -- Flags aren't messed up from starting at 0.  Also, non-negative duration
     -- is the same as negative.
-    equal (derive Score.event_flags inst_title [(0, 4, "norot 1 -- 3a")])
+    equal (derive Score.event_flags title [(0, 4, "norot -- 3a")])
         ([Flags.can_cancel, mempty, mempty, mempty, Flags.infer_duration], [])
+
+test_norot_arrival = do
+    let run extract = derive extract title
+        title = inst_title <> " | norot-dur=1 | infer-duration 2"
+    let a = "3a"; b = "3b"; c = "4c"
+        ts start = Seq.range_ start 1
+    equal (run DeriveTest.e_start_note [(4, 4, "norot t -- 3a")])
+        ([(1, a), (2, a), (3, b), (4, a), (5, b), (6, a), (7, b), (8, a)], [])
+    -- The second half of the first call is cancelled out.
+    equal (run DeriveTest.e_start_note
+            [(0, 8, "norot f -- 3a"), (8, 4, "norot t -- 3b")])
+        (zip (ts 0) [a, b, a, b, a, b, b, c, b, c, b, c, b], [])
+
+    -- Ensure that a 0 dur event at the end of the block still has an arrival.
+    -- This actually tests that (ts e) works at the end of the block.
+    let run_block extract notes = DeriveTest.extract extract $
+            DeriveTest.derive_blocks [("b1=ruler -- import bali.gangsa",
+                UiTest.note_spec (title, notes, []))]
+    equal (run_block DeriveTest.e_start_note
+            [ (0, 8, "norot f \"(ts e) -- 3a")
+            , (8, 0, "norot t \"(ts e) -- 3b")
+            ])
+        (zip (ts 0) [a, b, a, b, a, b, b, c, b], [])
 
 test_norot_infer_duration = do
     let run = derive DeriveTest.e_pitch (inst_title <> " | infer-duration")
     -- First note is cancelled out.
-    equal (run [(0, 2, "norot 1 -- 3a"), (2, 2, "norot 1 -- 3c")])
+    equal (run [(0, 2, "norot f 1 -- 3a"), (2, 2, "norot f 1 -- 3c")])
         (["3a", "3b", "3a", "3d", "3c"], [])
 
     let run = derive_pasang extract
             (inst_title <> " | noltol | infer-duration | kotekan=2")
         extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
     let mute = "+mute"
-    equal (run [(0, 2, "norot 1 -- 3a"), (2, 2, "norot 1 -- 3c")])
+    equal (run [(0, 2, "norot f 1 -- 3a"), (2, 2, "norot f 1 -- 3c")])
         (([("3a", "+"), ("3a", mute), ("3a", "+"), ("3a", mute), ("3c", "+")]
         , [("3b", "+"), ("3b", mute), ("3d", "+")])
         , []

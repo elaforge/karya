@@ -64,7 +64,7 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("norot", c_norot)
-    , (">norot", c_norot_pickup)
+    , (">norot", c_norot_arrival)
     , ("gnorot", c_gender_norot)
     , ("k/_\\", c_kotekan $ regular_pattern "-12-1-21" "3-23-32-" "34-343-4")
     -- sangsih telu is below, but sangsih pat is above
@@ -169,19 +169,30 @@ c_norot :: Derive.Generator Derive.Note
 c_norot = Derive.make_call module_ "norot" mempty
     "Emit the basic norot pattern. The last note will line up with the end of\
     \ the event."
-    $ Sig.call ((,,,,)
-    <$> dur_arg
+    $ Sig.call ((,,,,,)
+    <$> Sig.defaulted "arrival" True "If true, emit the norot arrival pattern."
+    <*> dur_arg
     <*> Sig.defaulted "style" Default "Norot style."
     <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    ) $ \(dur, style, kotekan, inst_top, pasang) -> Sub.inverting $ \args -> do
+    ) $ \(arrival, dur, style, kotekan, inst_top, pasang) ->
+    Sub.inverting $ \args -> do
         start <- Args.real_start args
         pitch <- Util.get_transposed start
         scale <- Util.get_scale
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
         pitch <- Util.get_pitch start
-        realize_kotekan_pattern (Args.range args) dur pitch under_threshold
-            Repeat (gangsa_norot style pasang nsteps)
+        -- TODO only thing start does is cut off notes before it, can I pass
+        -- Nothing for start?
+        let arrival_range = (Args.start args - 24, Args.start args)
+        let suppress = Derive.with_val Environ.suppress_until start
+        let arrive = realize_kotekan_pattern False arrival_range dur pitch
+                under_threshold Once (gangsa_norot_arrival style pasang nsteps)
+        (suppress $ if arrival then arrive else mempty)
+            -- If there's an arrival, omit the first note of the pattern to
+            -- save infer-duration the work.
+            <> realize_kotekan_pattern arrival (Args.range args) dur pitch
+                under_threshold Repeat (gangsa_norot style pasang nsteps)
 
 gangsa_norot :: NorotStyle -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
@@ -198,8 +209,8 @@ gangsa_norot style pasang (pstep, sstep) = (interlock, normal)
     polos steps = KotekanNote (Just (fst pasang)) steps mempty
     sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
 
-c_norot_pickup :: Derive.Generator Derive.Note
-c_norot_pickup = Derive.make_call module_ "norot" mempty "Emit norot pickup."
+c_norot_arrival :: Derive.Generator Derive.Note
+c_norot_arrival = Derive.make_call module_ "norot" mempty "Emit norot arrival."
     $ Sig.call ((,,,,)
     <$> dur_arg
     <*> Sig.defaulted "style" Default "Norot style."
@@ -211,12 +222,12 @@ c_norot_pickup = Derive.make_call module_ "norot" mempty "Emit norot pickup."
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
         pitch <- Util.get_pitch start
-        realize_kotekan_pattern (Args.range args) dur pitch under_threshold
-            Once (gangsa_norot_pickup style pasang nsteps)
+        realize_kotekan_pattern False (Args.range args) dur pitch
+            under_threshold Once (gangsa_norot_arrival style pasang nsteps)
 
-gangsa_norot_pickup :: NorotStyle -> Pasang
+gangsa_norot_arrival :: NorotStyle -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
-gangsa_norot_pickup style pasang ((p1, p2), (s1, s2)) = (interlock, normal)
+gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = (interlock, normal)
     where
     interlock =
         [ [polos p2 mempty, sangsih p2 mempty]
@@ -259,8 +270,8 @@ c_gender_norot = Derive.make_call module_ "gender-norot" mempty
     $ \(dur, kotekan, pasang) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern (Args.range args) dur pitch under_threshold
-            Repeat (gender_norot pasang)
+        realize_kotekan_pattern False (Args.range args) dur pitch
+            under_threshold Repeat (gender_norot pasang)
 
 gender_norot :: Pasang -> Cycle
 gender_norot pasang = (interlocking, normal)
@@ -288,14 +299,16 @@ c_kotekan pattern = Derive.make_call module_ "kotekan" mempty
     ) $ \(dur, style, kotekan, pasang) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern (Args.range args) dur pitch under_threshold
-            Repeat (kotekan_pattern pattern style pasang)
+        realize_kotekan_pattern False (Args.range args) dur pitch
+            under_threshold Repeat (kotekan_pattern pattern style pasang)
 
-realize_kotekan_pattern :: (ScoreTime, ScoreTime) -> ScoreTime
+realize_kotekan_pattern :: Bool -> (ScoreTime, ScoreTime) -> ScoreTime
     -> PitchSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
     -> Derive.NoteDeriver
-realize_kotekan_pattern (start, end) dur pitch under_threshold repeat cycle =
+realize_kotekan_pattern drop_start (start, end) dur pitch under_threshold
+        repeat cycle =
     realize_notes start realize $
+        (if drop_start then dropWhile ((<=start) . note_start) else id) $
         realize_pattern repeat start end dur get_cycle
     where
     get_cycle t

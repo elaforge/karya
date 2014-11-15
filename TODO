@@ -977,7 +977,7 @@ Derive:
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan ornaments
-        - writing >norot is still awkward, can't I have that happen
+        * writing >norot is still awkward, can't I have that happen
           automatically?  The call would have to emit notes before its start,
           and cancel out any existing notes there.
           . This would also mean I don't need negative durations.
