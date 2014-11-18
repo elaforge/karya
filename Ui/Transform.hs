@@ -53,6 +53,10 @@ map_ids f = do
     map_track_ids f
     map_ruler_ids f
 
+map_namespace :: State.M m => (Id.Namespace -> Id.Namespace) -> m ()
+map_namespace modify = map_ids set
+    where set ident = Id.set_namespace (modify (Id.id_namespace ident)) ident
+
 map_view_ids :: State.M m => (Id.Id -> Id.Id) -> m ()
 map_view_ids f = do
     views <- State.gets State.state_views

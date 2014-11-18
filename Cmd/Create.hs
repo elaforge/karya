@@ -62,11 +62,8 @@ rename_project ns = do
 
 -- | Rename all IDs in namespace @from@ to @to@.
 renamespace :: State.M m => Id.Namespace -> Id.Namespace -> m ()
-renamespace from to = Transform.map_ids set_ns
-    where
-    set_ns ident
-        | Id.id_namespace ident  == from = Id.set_namespace to ident
-        | otherwise = ident
+renamespace from to = Transform.map_namespace $ \ns ->
+    if ns == from then to else ns
 
 rename_ruler :: State.M m => RulerId -> RulerId -> m ()
 rename_ruler ruler_id new_name = Transform.map_ruler_ids $ \id ->

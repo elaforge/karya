@@ -3,6 +3,21 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - clip calls don't clip note duration according to lilypond
+  - 'c' status incorrect in @b3-end, kendang dyn 7t
+  - why does 's' status only have a trailing 't' for fractional ScoreTime?
+  - Repl modules should standardize on either ID with @ or string with ""
+    . Probably @ is better, otherwise why even have the macro?
+  - Save.expand_filename should be implemented at the 'read' level
+  - @orig/b3 has error:
+    IO exception: invalid characters in id: ("untitled","orig/b3")
+  * load score in a different namespace, aka LState.load_merge but rename at
+    the same time.
+  - the clip/* namespace should live past a load
+  - 'swell' call for dynamics: params bias toward front or back, and
+    pointiness of the peak.
+  - bug/kendang-note-entry kendang note entry gives "tried to invert while
+    inverting"
   * make Util.Control first, second, bimap into Bifunctor so I can apply to
     Either too.  E.g. TrackLang.put_val_error
   - add sigmoid curve

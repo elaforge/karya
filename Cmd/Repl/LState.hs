@@ -217,14 +217,28 @@ load_midi = Load.Midi.load
 -- | Load the state from the file and merge it with the current state.  This
 -- will fail if any IDs collide, so hopefully they live in different
 -- namespaces.  In fact, this is why IDs have namespaces.
---
--- TODO option to rename on load?
-load_merge :: FilePath -> Cmd.CmdL ()
-load_merge fn = do
+load_merge :: Bool -> FilePath -> Cmd.CmdL ()
+load_merge = load_as_ Nothing
+
+-- | Load another score and put it in a new namespace.  Will probably fail if
+-- the score itself uses multiple namespaces.
+load_as :: Text -> Bool -- ^ if True, open views
+    -> FilePath -> Cmd.CmdL ()
+load_as = load_as_ . Just . Id.namespace
+
+load_as_ :: Maybe Id.Namespace -> Bool -> FilePath -> Cmd.CmdL ()
+load_as_ maybe_ns open_views fn = do
     (new_state, _) <- Save.read fn
-    new_state <- State.exec_rethrow "strip clip" new_state $
+    new_state <- State.exec_rethrow "strip clip" new_state $ do
         Transform.destroy_namespace Config.clip_namespace
+        whenJust maybe_ns $ Transform.map_namespace . const
+        unless open_views $
+            mapM_ State.destroy_view =<< State.all_view_ids
     state <- State.get
     merged <- Cmd.require_right (("merge state: "<>) . pretty) $
         Transform.merge_states state new_state
     State.put merged
+
+-- | Destroy the given namespace.
+unload :: State.M m => Text -> m ()
+unload = Transform.destroy_namespace . Id.namespace

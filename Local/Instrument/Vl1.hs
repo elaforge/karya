@@ -119,7 +119,7 @@ parse_file fn = do
     txt <- fromMaybe "" <$> File.ignoreEnoent
         (Text.IO.readFile (FilePath.replaceExtension fn ".txt"))
     let results = map (record_to_patch <=< decode_sysex) syxs
-    return [either (Left . failed i) (Right . combine fn txt syx) result
+    return [(failed i *** combine fn txt syx) result
         | (i, syx, result) <- zip3 [1..] syxs results]
     where
     failed i msg = "parsing " ++ show fn ++ "/" ++ show i ++ ": " ++ msg
