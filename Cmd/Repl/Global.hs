@@ -216,18 +216,18 @@ save_state = Save.save_state
 
 -- | Save to the given filename and switch to saving plain states.
 save_state_as :: FilePath -> Cmd.CmdL ()
-save_state_as fn = Save.save_state_as =<< Save.expand_filename fn
+save_state_as = Save.save_state_as
 
 -- | Like 'save_state', but don't change 'Cmd.state_save_file'.
 write_state :: FilePath -> Cmd.CmdL ()
-write_state fn = Save.write_current_state =<< Save.expand_filename fn
+write_state = Save.write_current_state
 
 save_git :: Cmd.CmdL ()
 save_git = Save.save_git
 
 -- | Save to the given git repo and switch to saving incrementally.
 save_git_as :: FilePath -> Cmd.CmdL ()
-save_git_as fn = Save.save_git_as =<< Save.expand_filename fn
+save_git_as = Save.save_git_as
 
 load :: FilePath -> Cmd.CmdL ()
 load = Save.load

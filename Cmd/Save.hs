@@ -10,7 +10,23 @@
     are lower level and either read the file and return the state, or write the
     given state, without messing with the SaveFile.
 -}
-module Cmd.Save where
+module Cmd.Save (
+    -- * universal
+    save, load, read, load_template
+    , infer_save_type
+    -- * state
+    , save_state, save_state_as, load_state
+    , read_state, read_state_, write_state
+    , write_current_state
+    , get_state_path
+    -- * git
+    , save_git, save_git_as, load_git, revert
+    , get_git_path
+    -- * config
+    , save_midi_config, load_midi_config
+    -- * misc
+    , save_views
+) where
 import Prelude hiding (read)
 import qualified Data.Map as Map
 import qualified Data.Time as Time
@@ -38,25 +54,6 @@ import Global
 
 -- * universal
 
--- | Expand `-delimited macros to make a filepath.
-expand_filename :: FilePath -> Cmd.CmdT IO FilePath
-expand_filename =
-    fmap untxt . TextUtil.mapDelimitedM False '`' expand . txt
-    where
-    expand text
-        | text == "y-m-d" = liftIO date
-        | text == "d" = do
-            dir <- Cmd.require "`d` requires a save dir"
-                =<< Cmd.gets Cmd.state_save_dir
-            return $ txt dir
-        | otherwise = return $ "`" <> text <> "`"
-
-date :: IO Text
-date = do
-    tz <- Time.getCurrentTimeZone
-    today <- Time.utcToLocalTime tz <$> Time.getCurrentTime
-    return $ txt $ Time.formatTime Locale.defaultTimeLocale "%y-%m-%d" today
-
 -- | Save to the current 'Cmd.state_save_file', or create a new git repo if
 -- there is none.
 save :: Cmd.CmdT IO ()
@@ -75,6 +72,7 @@ load path = do
 -- a directory, look inside for a .git or .state save.
 read :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
 read path = do
+    path <- expand_filename path
     save <- Cmd.require_right ("read: "<>) =<< liftIO (infer_save_type path)
     case save of
         Cmd.SaveRepo repo -> read_git repo Nothing
@@ -97,9 +95,9 @@ load_template fn = do
 -- containing either a git repo @save.git@, or a state @save.state@.  If
 -- both are present, the git repo is preferred.
 infer_save_type :: FilePath -> IO (Either String Cmd.SaveFile)
-infer_save_type path = fmap prepend $ if_else
+infer_save_type path = fmap prepend $ cond
     [ (return $ SaveGit.is_git path, ok $ Cmd.SaveRepo path)
-    , (is_dir path, if_else
+    , (is_dir path, cond
         [ (is_dir git_fn, ok $ Cmd.SaveRepo git_fn)
         , (is_file state_fn, ok $ Cmd.SaveState state_fn)
         ] $ return $ Left $ "directory contains neither " <> git_fn <> " nor "
@@ -115,10 +113,32 @@ infer_save_type path = fmap prepend $ if_else
     is_dir = Directory.doesDirectoryExist
     is_file = Directory.doesFileExist
 
-if_else :: Monad m => [(m Bool, m a)] -> m a -> m a
-if_else [] consequent = consequent
-if_else ((condition, result) : rest) consequent =
-    ifM condition result (if_else rest consequent)
+-- | Like guard cases but with monadic conditions.
+cond :: Monad m => [(m Bool, m a)] -> m a -> m a
+cond [] consequent = consequent
+cond ((condition, result) : rest) consequent =
+    ifM condition result (cond rest consequent)
+
+-- * expand path
+
+-- | Expand `-delimited macros to make a filepath.
+expand_filename :: FilePath -> Cmd.CmdT IO FilePath
+expand_filename =
+    fmap untxt . TextUtil.mapDelimitedM False '`' expand . txt
+    where
+    expand text
+        | text == "y-m-d" = liftIO date
+        | text == "d" = do
+            dir <- Cmd.require "`d` requires a save dir"
+                =<< Cmd.gets Cmd.state_save_dir
+            return $ txt dir
+        | otherwise = return $ "`" <> text <> "`"
+
+date :: IO Text
+date = do
+    tz <- Time.getCurrentTimeZone
+    today <- Time.utcToLocalTime tz <$> Time.getCurrentTime
+    return $ txt $ Time.formatTime Locale.defaultTimeLocale "%y-%m-%d" today
 
 -- * plain serialize
 
@@ -139,6 +159,7 @@ save_state_as fname = do
 
 write_current_state :: FilePath -> Cmd.CmdT IO ()
 write_current_state fname = do
+    fname <- expand_filename fname
     state <- State.get
     ((), secs) <- liftIO $ Log.time_eval $ write_state fname state
     Log.notice $ "wrote state to " <> showt fname
@@ -199,6 +220,7 @@ save_git_as ::
     -- 'Cmd.Undo.maintain_history' will start checkpointing to it.
     -> Cmd.CmdT IO ()
 save_git_as repo = do
+    repo <- expand_filename repo
     cmd_state <- Cmd.get
     let rethrow = Cmd.require_right (("save git " <> repo <> ": ") <>)
     commit <- case Cmd.hist_last_commit $ Cmd.state_history_config cmd_state of
