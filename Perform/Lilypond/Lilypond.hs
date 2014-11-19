@@ -107,8 +107,8 @@ ly_file config title movements = run_output $ do
 write_empty_staff :: Types.StaffConfig -> [Process.VoiceLy] -> Output ()
 write_empty_staff config_ lys =
     write_staff config (Just "down") (Just "\\RemoveEmptyStaves") $
-        mapM_ write_ly $ Process.Code "\\clef bass"
-            : (Process.convert_to_rests lys)
+        mapM_ write_ly $
+            Process.Code "\\clef bass" : Process.convert_to_rests lys
     where
     config = config_ { Types.staff_code = Types.staff_code config_ ++ [code] }
     -- Normally RemoveEmptyStaves won't remove the staff from the first system,

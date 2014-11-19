@@ -687,39 +687,42 @@ make_rest typ dur = Rest
     , rest_append = ""
     }
 
-data RestType = NormalRest | FullMeasure !Int | HiddenRest deriving (Show)
+data RestType =
+    NormalRest
+    -- | Unlike other rests, FullMeasure rests have their duration encoded.
+    -- It's redundant with rest_duration, but should always be the same.
+    | FullMeasure !Types.Duration !Int
+    | HiddenRest
+    deriving (Show)
 
 rest_time :: Rest -> Time
-rest_time rest =
-    Types.note_dur_to_time (rest_duration rest) * case rest_type rest of
-        FullMeasure mult -> fromIntegral mult
-        _ -> 1
+rest_time = Types.note_dur_to_time . rest_duration
 
 instance ToLily Rest where
     to_lily (Rest dur typ prepend append) =
-        (prepend<>) . (<>append) $ to_lily typ <> to_lily dur <> mult
-        where
-        mult = case typ of
-            FullMeasure mult -> "*" <> showt mult
-            _ -> ""
+        (prepend<>) . (<>append) $ case typ of
+            FullMeasure {} -> to_lily typ
+            _ -> to_lily typ <> to_lily dur
 
 instance ToLily RestType where
     to_lily r = case r of
         NormalRest -> "r"
-        FullMeasure {} -> "R"
+        FullMeasure dur mult -> "R" <> to_lily dur <> "*" <> showt mult
         HiddenRest -> "s"
 
 make_rests :: Types.Config -> Meter.Meter -> Time -> Time -> [Rest]
 make_rests config meter start end
     | start >= end = []
-    | full_measure = (:[]) $ make_rest
-        (FullMeasure (Meter.time_num meter))
-        (Types.NoteDuration (Meter.meter_denom meter) False)
-    | otherwise = map (make_rest NormalRest) $ Meter.convert_duration meter
-        (Types.config_dotted_rests config) True start (end - start)
+    | full_measure =
+        map (make_rest
+                (FullMeasure (Meter.meter_denom meter) (Meter.time_num meter)))
+            (take 1 dur)
+    | otherwise = map (make_rest NormalRest) dur
     where
     full_measure = start `mod` measure == 0 && end - start >= measure
     measure = Meter.measure_time meter
+    dur = Meter.convert_duration meter
+        (Types.config_dotted_rests config) True start (end - start)
 
 -- ** Key
 

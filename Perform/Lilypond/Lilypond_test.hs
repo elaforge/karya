@@ -72,6 +72,12 @@ test_add_bass_staff = do
         \*new Staff = \"down\" \\RemoveEmptyStaves\
         \*\\clef bass \\time 4/4 \\key c \\major s4 s2. \\bar \"|.\""
 
+    -- FullMeasure rests are correctly converted to an empty track with hidden
+    -- rests.
+    let text = fst $ make_ly config $ UiTest.note_spec
+            ("i1", [(4, 1, "4c")], [])
+    match text "*major R4\\*4 *major s1"
+
 test_hands = do
     let run = LilypondTest.derive_staves
     let (events, logs) = run [] $ concatMap UiTest.note_spec
