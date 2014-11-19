@@ -73,9 +73,9 @@ import Types
 -- (make_id "current-namespace" "xyz")
 make_id :: Id.Ident a => Text -> Text -> a
 make_id ns name
-    | not (Id.valid ns) || not (Id.valid name) =
-        error $ "invalid characters in id: " ++ show (ns, name)
-    | otherwise = Id.make $ Id.read_short (Id.namespace ns) name
+    | valid = Id.make id
+    | otherwise = error $ "invalid characters in id: " ++ show name
+    where (id, valid) = Id.read_short_validate (Id.namespace ns) name
 
 vid :: Text -> ViewId
 vid = Id.ViewId . Id.read_id

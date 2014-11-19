@@ -9,7 +9,7 @@ UNSORTED
   - Repl modules should standardize on either ID with @ or string with ""
     . Probably @ is better, otherwise why even have the macro?
   - Save.expand_filename should be implemented at the 'read' level
-  - @orig/b3 has error:
+  * @orig/b3 has error:
     IO exception: invalid characters in id: ("untitled","orig/b3")
   * load score in a different namespace, aka LState.load_merge but rename at
     the same time.

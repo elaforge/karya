@@ -10,7 +10,7 @@ module Ui.Id (
     , un_id, un_namespace, id_name, id_namespace, set_namespace, set_name
 
     -- * read / show
-    , read_id, show_id, read_short, show_short
+    , read_id, show_id, read_short, read_short_validate, show_short
 
     -- * validate
     , valid, is_id_char, is_lower_alpha, is_digit
@@ -114,9 +114,14 @@ show_id (Id (Namespace ns) ident) = ns <> "/" <> ident
 -- | A smarter constructor that only applies the namespace if the string
 -- doesn't already have one.
 read_short :: Namespace -> Text -> Id
-read_short default_ns text = case Text.breakOn "/" text of
-    (ident, "") -> id default_ns ident
-    (ns, ident) -> id (namespace ns) (Text.drop 1 ident)
+read_short default_ns = fst . read_short_validate default_ns
+
+-- | 'read_short' but also return if the namespace and ident passed 'valid'.
+read_short_validate :: Namespace -> Text -> (Id, Bool)
+read_short_validate default_ns text = case Text.breakOn "/" text of
+    (ident, "") -> (id default_ns ident, valid ident)
+    (ns, ident) -> (id (namespace ns) (Text.drop 1 ident),
+        valid ns && valid (Text.drop 1 ident))
 
 -- | The inverse of 'read_short'.
 show_short :: Namespace -> Id -> Text
