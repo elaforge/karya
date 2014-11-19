@@ -427,6 +427,8 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - Lilypond.write_empty_staff creates incorrect rests for a tuple, as shown
+    in Lilypond_test.test_add_bass_staff
   - to make notes without duration, ignore the existing duration and choose
     the simplest possible duration.  For zheng, yangqin, percussion.
     . Exception for +trem

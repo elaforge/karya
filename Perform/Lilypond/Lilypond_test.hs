@@ -74,9 +74,19 @@ test_add_bass_staff = do
 
     -- FullMeasure rests are correctly converted to an empty track with hidden
     -- rests.
-    let text = fst $ make_ly config $ UiTest.note_spec
-            ("i1", [(4, 1, "4c")], [])
+    let text = fst $ make_ly config $
+            UiTest.note_spec ("i1", [(4, 1, "4c")], [])
     match text "*major R4\\*4 *major s1"
+
+    -- -- Tuple becomes a full measure rest.
+    -- -- TODO not fixed
+    -- let run_linear = first (LilypondTest.make_ly config)
+    --         . LilypondTest.partition_logs . LilypondTest.derive_tracks_linear
+    -- let (text, logs) = run_linear $
+    --         (">i1", [(0, 4, "t")]) : UiTest.note_track
+    --             [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e"), (4, 4, "4f")]
+    -- equal logs []
+    -- match text "major s1 |*s1"
 
 test_hands = do
     let run = LilypondTest.derive_staves

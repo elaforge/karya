@@ -86,7 +86,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 
-import qualified Perform.Lilypond.Lilypond as Lilypond
+import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
