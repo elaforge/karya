@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - clip calls don't clip note duration according to lilypond
   - 'c' status incorrect in @b3-end, kendang dyn 7t
-  - why does 's' status only have a trailing 't' for fractional ScoreTime?
+  * why does 's' status only have a trailing 't' for fractional ScoreTime?
   - Repl modules should standardize on either ID with @ or string with ""
     . Probably @ is better, otherwise why even have the macro?
   - Save.expand_filename should be implemented at the 'read' level

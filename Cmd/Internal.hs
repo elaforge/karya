@@ -399,14 +399,13 @@ sync_zoom_status _view_id = return ()
 -- * selection
 
 sync_selection_status :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
-sync_selection_status view_id maybe_sel = do
-    let set = Cmd.set_view_status view_id Config.status_selection
-    case maybe_sel of
-        Nothing -> set Nothing
-        Just (sel, block_id, maybe_track_id) -> do
-            ns <- State.get_namespace
-            set $ Just (selection_status ns sel maybe_track_id)
-            Info.set_inst_status block_id (Types.sel_cur_track sel)
+sync_selection_status view_id maybe_sel = case maybe_sel of
+    Nothing -> set Nothing
+    Just (sel, block_id, maybe_track_id) -> do
+        ns <- State.get_namespace
+        set $ Just $ selection_status ns sel maybe_track_id
+        Info.set_inst_status block_id (Types.sel_cur_track sel)
+    where set = Cmd.set_view_status view_id Config.status_selection
 
 selection_status :: Id.Namespace -> Types.Selection -> Maybe TrackId -> Text
 selection_status ns sel maybe_track_id =
@@ -436,9 +435,9 @@ sync_selection_realtime view_id maybe_sel = case maybe_sel of
 -- which are just fine in decimal, but the fraction still takes up less space.
 pretty_rational :: ScoreTime -> Text
 pretty_rational d
-    | d == 0 = "0"
+    | d == 0 = "0t"
     | Ratio.denominator ratio <= 12 =
-        Text.strip $ (if int == 0 then "" else showt int) <> pretty
+        Text.strip $ (if int == 0 then "" else showt int) <> pretty <> "t"
     | otherwise = prettyt d
     where
     (int, frac) = properFraction (ScoreTime.to_double d)
