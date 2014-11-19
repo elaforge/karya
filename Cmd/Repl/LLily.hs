@@ -186,3 +186,7 @@ convert = do
         LEvent.partition <$> (derive =<< Cmd.get_focused_block)
     let (events, logs) = Cmd.Lilypond.convert config score_events
     return (events, derive_logs ++ logs)
+
+e_note :: Lilypond.Event -> (Lilypond.Time, Lilypond.Time, Text)
+e_note e = (Lilypond.event_start e, Lilypond.event_duration e,
+    Lilypond.event_pitch e)

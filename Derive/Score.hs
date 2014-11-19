@@ -281,7 +281,10 @@ move_start min_duration offset
     | otherwise = duration (max min_duration . subtract offset) . move (+offset)
 
 duration :: (RealTime -> RealTime) -> Event -> Event
-duration modify event = event { event_duration = modify (event_duration event) }
+duration modify event
+    | dur == event_duration event = event
+    | otherwise = event { event_duration = dur }
+    where dur = modify (event_duration event)
 
 set_duration :: RealTime -> Event -> Event
 set_duration = duration . const

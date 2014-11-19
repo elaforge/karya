@@ -31,33 +31,35 @@ newtype ScoreTime = ScoreTime Double deriving
     , ApproxEq.ApproxEq
     )
 
--- | This is also ScoreTime, but it's relative to the beginning of the track.
--- I.e., UI events are all in track time, but when they get shifted and
--- stretched as by note slicing they're no longer in TrackTime, but not yet in
--- RealTime.
---
--- I'd like to make a type-level distinction because it's easy to get confused
--- about whether a time has or hasn't been transformed, but when I tried it
--- seemed like a big hassle since I'd really like for TrackTime to be a subtype
--- of ScoreTime.  I could do it with a phantom type, but it would change about
--- a million type declarations.  And since Events start in TrackTime but are
--- then ScoreTime if transformed, they would also need a type parameter, along
--- with probably a few other basic data types.
---
--- Unless I work up the courage to do that someday, the least I can do is
--- document the difference with a type synonym.
+{- | This is also ScoreTime, but it's relative to the beginning of the track.
+    I.e., UI events are all in track time, but when they get shifted and
+    stretched as by note slicing they're no longer in TrackTime, but not yet in
+    RealTime.
+
+    I'd like to make a type-level distinction because it's easy to get confused
+    about whether a time has or hasn't been transformed, but when I tried it
+    seemed like a big hassle since I'd really like for TrackTime to be
+    a subtype of ScoreTime.  I could do it with a phantom type, but it would
+    change about a million type declarations.  And since Events start in
+    TrackTime but are then ScoreTime if transformed, they would also need
+    a type parameter, along with probably a few other basic data types.
+
+    Unless I work up the courage to do that someday, the least I can do is
+    document the difference with a type synonym.
+-}
 type TrackTime = ScoreTime
 
--- | Traditionally, time would be an integral type with a highly composite
--- number as the unit.  This is so that common musical durations such as 1/3,
--- 1/6, or 1/64 can be represented exactly.  However, while this is good enough
--- for the score, it's insufficiently accurate for derivation, which uses
--- ScoreTime to shift and stretch events.
---
--- A principled solution would probably be to use an integral type for
--- UI events in "Events.Events" and convert to floating point on derivation.
--- However, that seems like a hassle and simply rounding the event's start and
--- durations when they go into the track should achieve the same effect.
+{- | Traditionally, time would be an integral type with a highly composite
+    number as the unit.  This is so that common musical durations such as 1/3,
+    1/6, or 1/64 can be represented exactly.  However, while this is good
+    enough for the score, it's insufficiently accurate for derivation, which
+    uses ScoreTime to shift and stretch events.
+
+    A principled solution would probably be to use an integral type for UI
+    events in "Events.Events" and convert to floating point on derivation.
+    However, that seems like a hassle and simply rounding the event's start and
+    durations when they go into the track should achieve the same effect.
+-}
 round :: ScoreTime -> ScoreTime
 round t
     | isNegativeZero (to_double t) = t

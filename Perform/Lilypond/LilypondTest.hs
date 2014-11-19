@@ -259,5 +259,8 @@ make_ly config events = Text.Lazy.unpack $
 
 -- * extract
 
+e_note :: Types.Event -> (Types.Time, Types.Time, Text)
+e_note e = (Types.event_start e, Types.event_duration e, Types.event_pitch e)
+
 e_ly_env :: Score.Event -> [(TrackLang.ValName, String)]
 e_ly_env = DeriveTest.e_environ_like ("ly-" `List.isPrefixOf`)

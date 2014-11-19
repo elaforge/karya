@@ -48,6 +48,8 @@ test_clip = do
         ([], ["Error: block not found: blub"])
     -- make sure out of range notes are clipped
     equal (run [(0, 1, "clip sub")]) ([(0, 1)], [])
+    -- notes that overlap the end are shortened
+    equal (run [(1, 1.5, "clip sub")]) ([(1, 1), (2, 0.5)], [])
     -- the tempo of the block is not affected by the duration of the event
     equal (run [(1, 2, "clip sub")]) ([(1, 1), (2, 1)], [])
 

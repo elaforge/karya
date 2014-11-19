@@ -161,6 +161,21 @@ test_ly_code = do
 -- These actually test derivation in lilypond mode.  So maybe they should go
 -- in derive, but if I put them here I can test all the way to lilypond score.
 
+test_clip_block = do
+    let run = LilypondTest.extract LilypondTest.e_note
+            . LilypondTest.derive_blocks
+        q = Types.dur_to_time Types.D4
+    equal (run
+            [ ("b1", [(">", [(0, 4, "sub")])])
+            , ("sub=ruler", UiTest.regular_notes 4)
+            ])
+        ([(0, q, "c"), (q, q, "d"), (q*2, q, "e"), (q*3, q, "f")], [])
+    equal (run
+            [ ("b1", [(">", [(0, 2.5, "clip sub")])])
+            , ("sub=ruler", UiTest.regular_notes 4)
+            ])
+        ([(0, q, "c"), (q, q, "d"), (q*2, Types.dur_to_time Types.D8, "e")], [])
+
 test_meter = do
     let run meter notes = LilypondTest.derive_measures ["time"] $
             (">", meter) : UiTest.note_track notes

@@ -195,11 +195,15 @@ c_clip = make_block_call "clip"
     \ length, the block will be substituted with no stretching. Any\
     \ events that lie beyond the end of the event will be clipped off.\
     \ This can be used to cut a sequence short, for example to substitute\
-    \ a different ending."
+    \ a different ending. Notes that overlap the end of the call will be cut\
+    \ short."
     $ \block_id dur args -> do
         end <- Derive.real (snd (Args.range args))
-        takeWhile (event_before end) <$>
+        map (fmap (clip end)) . takeWhile (event_before end) <$>
             Derive.place (Args.start args) dur (d_block block_id)
+        where
+        clip end event =
+            Score.duration (min (end - Score.event_start event)) event
 
 c_clip_start :: Derive.Generator Derive.Note
 c_clip_start = make_block_call "Clip"

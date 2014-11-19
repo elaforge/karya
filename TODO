@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - clip calls don't clip note duration according to lilypond
+  * clip calls don't clip note duration according to lilypond
+    The notes are clipped, but not the duration of the last note.
   - 'c' status incorrect in @b3-end, kendang dyn 7t
   * why does 's' status only have a trailing 't' for fractional ScoreTime?
   - Repl modules should standardize on either ID with @ or string with ""
