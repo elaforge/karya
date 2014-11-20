@@ -298,34 +298,36 @@ eval_notes config meter start score_events = (map Types.to_lily notes, logs)
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Make.call_maps
     [ ("8va", c_8va)
-    , ("xstaff", c_xstaff)
-    , ("xstaff-a", c_xstaff_around)
-    , ("dyn", c_dyn)
     , ("clef", c_clef)
-    , ("meter", c_meter)
-    , ("movement", c_movement)
+    , ("dyn", c_dyn)
     , ("ly-!", c_reminder_accidental)
+    , ("ly-(", c_ly_begin_slur)
+    , ("ly-)", c_ly_end_slur)
+    , ("ly-<", c_crescendo)
+    , ("ly-<>", c_crescendo_diminuendo)
+    , ("ly->", c_diminuendo)
     , ("ly-?", c_cautionary_accidental)
     , ("ly-^~", c_tie_direction "^")
     , ("ly-_~", c_tie_direction "_")
-    , ("ly-<", c_crescendo)
-    , ("ly->", c_diminuendo)
+    , ("ly-key", c_ly_key)
+    , ("ly-post", c_ly_post)
+    , ("ly-pre", c_ly_pre)
+    , ("ly-span", c_ly_span)
+    , ("ly-sus", c_ly_sus)
     , ("ly^", c_ly_text_above)
     , ("ly_", c_ly_text_below)
-    , ("ly-(", c_ly_begin_slur)
-    , ("ly-)", c_ly_end_slur)
-    , ("ly-pre", c_ly_pre)
-    , ("ly-post", c_ly_post)
-    , ("ly-key", c_ly_key)
-    , ("ly-sus", c_ly_sus)
+    , ("meter", c_meter)
+    , ("movement", c_movement)
+    , ("xstaff", c_xstaff)
+    , ("xstaff-a", c_xstaff_around)
     ]
     [ ("if-ly", c_if_ly)
     ]
-    [ ("when-ly", c_when_ly)
-    , ("unless-ly", c_unless_ly)
-    , ("ly-global", c_ly_global)
+    [ ("ly-global", c_ly_global)
     , ("ly-track", c_ly_track)
     , ("not-ly-track", c_not_ly_track)
+    , ("unless-ly", c_unless_ly)
+    , ("when-ly", c_when_ly)
     ]
 
 c_when_ly :: Derive.Transformer Derive.Note
@@ -474,6 +476,12 @@ c_diminuendo = make_code_call "ly-diminuendo"
     \ next hairpin or dynamic marking." Sig.no_args $
     \_ () -> crescendo_diminuendo "\\>"
 
+c_crescendo_diminuendo :: Make.Calls Derive.Note
+c_crescendo_diminuendo = make_code_call "ly-crescendo-diminuendo"
+    "Crescendo followed by diminuendo, on one note."
+    Sig.no_args $ \_ () args ->
+        code0 (Args.start args) (SuffixFirst, "\\espressivo")
+
 crescendo_diminuendo :: Ly -> Derive.PassedArgs d -> Derive.NoteDeriver
 crescendo_diminuendo hairpin args
     -- TODO or is a transformer, I think I should set transformer duration to 0
@@ -535,11 +543,36 @@ c_ly_sus :: Make.Calls Derive.Note
 c_ly_sus = code0_call "ly-sus" "Emit \\sustainOn and \\sustainOff markup."
     (required "state" "t for \\sustainOn, f for \\sustainOff,\
         \ ft for \\sustainOff\\sustainOn.") $
-    \state -> case untxt state of
-        "f" -> return (SuffixAll, "\\sustainOff")
-        "t" -> return (SuffixAll, "\\sustainOn")
-        "ft" -> return (SuffixAll, "\\sustainOff\\sustainOn")
-        _ -> Derive.throw $ "should be f, t, or ft: " <> untxt state
+    \mode -> case mode of
+        Off -> return (SuffixAll, "\\sustainOff")
+        On -> return (SuffixAll, "\\sustainOn")
+        OffOn -> return (SuffixAll, "\\sustainOff\\sustainOn")
+
+data SustainMode = Off | On | OffOn deriving (Bounded, Eq, Enum, Show)
+instance ShowVal.ShowVal SustainMode where
+    show_val m = case m of
+        Off -> "f"
+        On -> "t"
+        OffOn -> "ft"
+instance TrackLang.Typecheck SustainMode
+instance TrackLang.TypecheckSymbol SustainMode
+
+c_ly_span :: Make.Calls Derive.Note
+c_ly_span = make_code_call "ly-span"
+    "Emit a bit of text followed by a dashed line until the end of the event.\
+    \ This is useful for things like `accel.` or `cresc.`"
+    (Sig.required "text" "Text.") $ \_ text -> ly_span text
+
+ly_span :: Ly -> Derive.PassedArgs a -> Derive.NoteDeriver
+ly_span text args
+    | Args.end args > Args.start args = set <> start <> end
+    | otherwise = Derive.throw "span requires non-zero duration"
+    where
+    set = code0 (Args.start args) $ (,) Prefix $
+        "\\override TextSpanner #'(bound-details left text)\
+        \ = \\markup { " <> Types.to_lily text <> " }"
+    start = code0 (Args.start args) (SuffixFirst, "\\startTextSpan")
+    end = code0 (Args.end args) (SuffixLast, "\\stopTextSpan")
 
 -- * util
 

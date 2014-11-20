@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - lilypond: why do I need e->q and 'ly-span accel.' on separate tracks?
+  - triple quotes for big ly code fragments in .ky?
+  - lilypond: espressivo <> should be like a normal hairpin
+    But the way to do this is awkward, << .. { s4 s4 \< s4 \> s4 \! } >>
+    . I also want tied notes to expand to 'c4~ \< c4 \>'
+      But that has problems, I need a \!.
+    . Even '<< b'2.~ { s4 \< s4 \> s4 } >> | b'4 cs''4 \!'
+      is not ideal, the decrescendo extends to underneath the next note.
+      If I put \! on the tied-to note, it still won't extend.
   * clip calls don't clip note duration according to lilypond
     The notes are clipped, but not the duration of the last note.
   - 'c' status incorrect in @b3-end, kendang dyn 7t
