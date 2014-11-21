@@ -77,14 +77,14 @@ rename_rulers pairs = Transform.map_ruler_ids $ \id ->
         Nothing -> id
         Just new -> new
 
-rename_block :: State.M m => BlockId -> BlockId -> m ()
+rename_block :: State.M m => BlockId -> Id.Id -> m ()
 rename_block block_id new_name = Transform.map_block_ids $ \id ->
-    if Id.BlockId id == block_id then Id.unpack_id new_name else id
+    if Id.BlockId id == block_id then new_name else id
 
-copy_block :: State.M m => BlockId -> BlockId -> m ()
+copy_block :: State.M m => BlockId -> Id.Id -> m ()
 copy_block block_id new_name = do
     from <- State.get_block block_id
-    void $ State.create_config_block (Id.unpack_id new_name) from
+    void $ State.create_config_block new_name from
 
 -- | Find tracks which are not found in any block.  Probably used to pass them
 -- to State.destroy_track for \"gc\".
@@ -132,20 +132,19 @@ map_track_titles f = do
 
 -- * block
 
-block_name :: State.M m => m Text
-block_name = do
+new_block_id :: State.M m => m Id.Id
+new_block_id = do
     ns <- State.get_namespace
-    id <- require_id "block id" . generate_block_id Nothing ns
+    require_id "block id" . generate_block_id Nothing ns
         =<< State.gets State.state_blocks
-    return $ Id.id_name id
 
 block_from_template :: State.M m => Bool -> BlockId -> m BlockId
 block_from_template copy_events template_id =
-    named_block_from_template copy_events template_id =<< block_name
+    named_block_from_template copy_events template_id =<< new_block_id
 
 -- | Create a block which is a copy of another.
 named_block_from_template :: State.M m => Bool -- ^ copy the events
-    -> BlockId -> Text -> m BlockId
+    -> BlockId -> Id.Id -> m BlockId
 named_block_from_template copy_events template_id name = do
     ruler_id <- State.block_ruler template_id
     block_id <- named_block name ruler_id
@@ -184,11 +183,9 @@ sub_block maybe_parent ruler_id = do
 -- | Create a block with the given ID name.  Useful for blocks meant to be
 -- sub-derived.  If the name doesn't contain a @\/@, it gets the current
 -- namespace.
-named_block :: State.M m => Text -> RulerId -> m BlockId
-named_block name ruler_id = do
-    ident <- State.read_id name
-    State.create_block ident ""
-        [Block.track (Block.RId ruler_id) Config.ruler_width]
+named_block :: State.M m => Id.Id -> RulerId -> m BlockId
+named_block name ruler_id = State.create_block name ""
+    [Block.track (Block.RId ruler_id) Config.ruler_width]
 
 -- | Delete a block and any views it appears in.  Also delete any tracks
 -- that only appeared in that block.

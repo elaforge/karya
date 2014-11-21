@@ -7,7 +7,8 @@ module Ui.Id (
     Id, Namespace, id, namespace
 
     -- * access
-    , un_id, un_namespace, id_name, id_namespace, set_namespace, set_name
+    , un_id, un_namespace, id_name, id_namespace, set_namespace
+    , set_name, modify_name
 
     -- * read / show
     , read_id, show_id, read_short, read_short_validate, show_short
@@ -98,6 +99,9 @@ set_namespace ns (Id _ name) = Id ns name
 
 set_name :: Text -> Id -> Id
 set_name name (Id ns _) = id ns name
+
+modify_name :: (Text -> Text) -> Id -> Id
+modify_name modify (Id ns name) = id ns (modify name)
 
 un_namespace :: Namespace -> Text
 un_namespace (Namespace s) = s
@@ -203,6 +207,12 @@ global_namespace = namespace ""
 -- * instances
 
 -- | Reference to a Block.  Use this to look up Blocks in the State.
+--
+-- The convention is that BlockId should name a block which is expected to
+-- exist, and the only way to create a BlockId is via 'Ui.State.create_block'.
+-- The name of a block which is to be created is simply 'Id'.
+--
+-- However, since the constructor is exported, this isn't rigorously enforced.
 newtype BlockId = BlockId Id
     deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32)
 

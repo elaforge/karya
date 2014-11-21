@@ -13,7 +13,7 @@ import qualified Cmd.Refactor as Refactor
 test_selection_alts = do
     let run relative = CmdTest.run_tracks tracks $ do
             CmdTest.set_sel 1 1 1 3
-            Refactor.selection_alts relative 3 "sub"
+            Refactor.selection_alts relative 3 (UiTest.mkid "sub")
         tracks = UiTest.regular_notes 4
     let result = run True
     equal (CmdTest.result_val result)
@@ -32,7 +32,7 @@ test_selection_alts = do
 test_selection_at = do
     let run tracks subs start end = UiTest.extract_all_tracks $
             UiTest.exec (UiTest.run_mkblocks (("b", [(">", tracks)]) : subs)) $
-                Refactor.selection_at False "sub" parent
+                Refactor.selection_at False (UiTest.mkid "sub") parent
                     [1] [UiTest.mk_tid_block parent 1] start end
         parent = UiTest.bid "b"
     equal (run [(0, 1, "a"), (1, 1, "b")] [] 0 1)

@@ -24,7 +24,7 @@ UNSORTED
     The notes are clipped, but not the duration of the last note.
   - 'c' status incorrect in @b3-end, kendang dyn 7t
   * why does 's' status only have a trailing 't' for fractional ScoreTime?
-  - Repl modules should standardize on either ID with @ or string with ""
+  * Repl modules should standardize on either ID with @ or string with ""
     . Probably @ is better, otherwise why even have the macro?
     . Id.Id is nicer than BlockId, because otherwise you can't tell from the
       signature which is the new name.

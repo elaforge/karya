@@ -27,7 +27,8 @@ import Global
 -- symbol under test.
 make :: Cmd.CmdL ()
 make = do
-    bid <- Create.named_block "symbol-test" State.no_ruler
+    ident <- State.read_id "symbol-test"
+    bid <- Create.named_block ident State.no_ruler
     Create.track_events bid State.no_ruler 1 100 $
         Track.track "" (Events.singleton (Event.event 0 5 "symbol"))
     State.set_track_width bid 0 0

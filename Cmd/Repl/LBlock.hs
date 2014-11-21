@@ -121,7 +121,7 @@ track_doc = do
 --
 -- It doesn't update TrackIds so they may still be named under their old block,
 -- but track id names aren't supposed to carry meaning anyway.
-rename :: BlockId -> BlockId -> Cmd.CmdL ()
+rename :: BlockId -> Id.Id -> Cmd.CmdL ()
 rename = Create.rename_block
 
 -- | Rename a block and update all calls to it in all blocks.  This is not
@@ -130,14 +130,14 @@ rename = Create.rename_block
 -- have @clef = treble@ and a block named @treble@, it will update both.  I
 -- could probably solve this by switching back to separate string and symbol
 -- types, but it seems like a minor issue.
-rename_all :: BlockId -> BlockId -> Cmd.CmdL ()
+rename_all :: BlockId -> Id.Id -> Cmd.CmdL ()
 rename_all from to = do
     Create.rename_block from to
     ModifyEvents.all_note_tracks $ ModifyEvents.text $
         replace_block_call from to
 
 -- | Rename block calls in a single block.
-replace :: BlockId -> BlockId -> Cmd.CmdL ()
+replace :: BlockId -> Id.Id -> Cmd.CmdL ()
 replace from to = do
     block_id <- Cmd.get_focused_block
     ModifyEvents.block block_id $
@@ -149,7 +149,7 @@ map_symbol f text =
     either (const text) (ShowVal.show_val . TrackLang.map_symbol f)
         (Parse.parse_expr text)
 
-replace_block_call :: BlockId -> BlockId -> Text -> Text
+replace_block_call :: BlockId -> Id.Id -> Text -> Text
 replace_block_call from to =
     map_symbol $ \(TrackLang.Symbol sym) -> TrackLang.Symbol (f sym)
     where
@@ -165,19 +165,21 @@ replace_block_call from to =
 for_event :: Maybe BlockId -> Cmd.CmdL ()
 for_event maybe_template = mapM_ make =<< Selection.events
     where
-    make (_, _, events) = mapM_
-        (maybe named named_from maybe_template . Event.event_text) events
+    make (_, _, events) = mapM_ make1 events
+    make1 event = do
+        id <- State.read_id (Event.event_text event)
+        maybe named named_from maybe_template id
 
 -- | Copy the current block into a new empty block with the given name.
-named :: Text -> Cmd.CmdL ViewId
+named :: Id.Id -> Cmd.CmdL ViewId
 named name = flip named_from name =<< Cmd.get_focused_block
 
-named_from :: BlockId -> Text -> Cmd.CmdL ViewId
+named_from :: BlockId -> Id.Id -> Cmd.CmdL ViewId
 named_from template_id name =
     Create.view =<< Create.named_block_from_template False template_id name
 
 -- | Create a named block with the same structure as the focused one.
-copy :: Bool -> Text -> Cmd.CmdL ViewId
+copy :: Bool -> Id.Id -> Cmd.CmdL ViewId
 copy copy_events name = do
     block_id <- Cmd.get_focused_block
     Create.view =<< Create.named_block_from_template copy_events block_id name

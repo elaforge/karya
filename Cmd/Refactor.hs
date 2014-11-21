@@ -43,14 +43,13 @@ split_time = do
     let (from_block, to_block) = split_names block_id
     to_block_id <- split_time_at block_id pos to_block
     Create.view to_block_id
-    new_from <- State.read_id from_block
-    Create.rename_block block_id new_from
+    Create.rename_block block_id from_block
     return to_block_id
 
 -- | Create a new block from template, then copy over all the events below the
 -- given time.  Clear the source track, and trim events that overlap the split
 -- point.  Modify the ruler (locally!) in the old and new blocks.
-split_time_at :: State.M m => BlockId -> ScoreTime -> Text -> m BlockId
+split_time_at :: State.M m => BlockId -> ScoreTime -> Id.Id -> m BlockId
 split_time_at from_block_id pos block_name = do
     tracks <- State.tracknums_of from_block_id
     -- Copy over the new events.
@@ -78,9 +77,10 @@ split_time_at from_block_id pos block_name = do
     local_block to_block_id $ Meter.delete 0 dur
     return to_block_id
 
-split_names :: BlockId -> (Text, Text)
-split_names block_id = (name <> "-1", name <> "-2")
-    where name = Id.ident_name block_id
+split_names :: BlockId -> (Id.Id, Id.Id)
+split_names block_id =
+    (Id.modify_name (<>"-1") id, Id.modify_name (<>"-2") id)
+    where id = Id.unpack_id block_id
 
 -- | Put all tracks with a after the selection into a new block.
 --
@@ -94,7 +94,7 @@ split_track = do
     Create.view to_block_id
     return to_block_id
 
-split_track_at :: State.M m => BlockId -> TrackNum -> Text -> m BlockId
+split_track_at :: State.M m => BlockId -> TrackNum -> Id.Id -> m BlockId
 split_track_at from_block_id split_at block_name = do
     to_block_id <- Create.named_block block_name
         =<< State.ruler_of from_block_id
@@ -115,25 +115,25 @@ split_track_at from_block_id split_at block_name = do
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
-selection :: Cmd.M m => Text -> m BlockId
+selection :: Cmd.M m => Id.Id -> m BlockId
 selection = selection_ False
 
 -- | Copy the selection to a relative block, and replace it with a relative
 -- block call.
-selection_relative :: Cmd.M m => Text -> m BlockId
+selection_relative :: Cmd.M m => Id.Id -> m BlockId
 selection_relative = selection_ True
 
 -- | Create a number of alternate versions of the selection, and insert
 -- an @alt@ call.
-selection_alts :: Cmd.M m => Bool -> Int -> Text -> m [BlockId]
+selection_alts :: Cmd.M m => Bool -> Int -> Id.Id -> m [BlockId]
 selection_alts relative alts name
     | alts <= 0 = return []
     | otherwise = do
-        alt1 <- selection_ relative (name <> "1")
+        alt1 <- selection_ relative $ Id.modify_name (<>"1") name
         (block_id, _, track_ids, start, end) <- Selection.tracks
         altn <- forM [2..alts] $ \n ->
-            Create.named_block_from_template True alt1
-                (alt_name block_id (name <> showt n))
+            Create.named_block_from_template True alt1 $
+                alt_name block_id (Id.modify_name (<> showt n) name)
         let alts = alt1 : altn
         mapM_ Create.view alts
         let call = Text.unwords $
@@ -143,22 +143,26 @@ selection_alts relative alts name
         return alts
     where
     alt_name block_id name =
-        if relative then Eval.make_relative block_id name else name
+        if relative then make_relative block_id name else name
 
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
 selection_ :: Cmd.M m => Bool -- ^ create relative block call
-    -> Text -> m BlockId
+    -> Id.Id -> m BlockId
 selection_ relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     name <- return $ if relative
-        then Eval.make_relative block_id name else name
+        then make_relative block_id name else name
     to_block_id <- selection_at relative name block_id tracknums track_ids
         start end
     Create.view to_block_id
     return to_block_id
 
-selection_at :: State.M m => Bool -> Text -> BlockId -> [TrackNum]
+make_relative :: BlockId -> Id.Id -> Id.Id
+make_relative caller name =
+    Id.set_name (Eval.make_relative caller (Id.id_name name)) name
+
+selection_at :: State.M m => Bool -> Id.Id -> BlockId -> [TrackNum]
     -> [TrackId] -> TrackTime -> TrackTime -> m BlockId
 selection_at relative name block_id tracknums track_ids start end = do
     ruler_id <- State.block_ruler block_id
@@ -200,8 +204,8 @@ rebase_relative_calls copy from to = do
 -- | Move a relative call from one caller to another.
 --
 -- ns1/caller ns2/old.sub -> ns1/caller.sub
-rebase_call :: BlockId -> BlockId -> BlockId
-rebase_call caller block_id = Id.BlockId $ Id.id ns name
+rebase_call :: BlockId -> BlockId -> Id.Id
+rebase_call caller block_id = Id.id ns name
     where
     (ns, caller_name) = Id.un_id (Id.unpack_id caller)
     -- old.bar -> caller.bar
@@ -283,7 +287,7 @@ clipped_skeleton from_block to_block tracknums =
 -- * order block
 
 -- | Create a new block containing calls to the given BlockIds.
-order_block :: Cmd.M m => Text -> [BlockId] -> m BlockId
+order_block :: Cmd.M m => Id.Id -> [BlockId] -> m BlockId
 order_block name block_ids = do
     block_id <- Create.named_block name State.no_ruler
     order_track block_id block_ids
