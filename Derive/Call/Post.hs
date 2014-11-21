@@ -307,3 +307,17 @@ delayed_args (TrackLang.Symbol call) event
             == Just (Stack.Call call) =
         TrackLang.maybe_val Environ.args (Score.event_environ event)
     | otherwise = Nothing
+
+-- * modify events
+
+-- | Like 'add_environ', but check the type.
+put_environ :: TrackLang.Typecheck a => TrackLang.ValName -> a
+    -> Score.Event -> Either Text Score.Event
+put_environ name val event =
+    case TrackLang.put_val_error name val (Score.event_environ event) of
+        Left err -> Left err
+        Right env -> Right $ event { Score.event_environ = env }
+
+add_environ :: TrackLang.Typecheck a => TrackLang.ValName -> a
+    -> Score.Event -> Score.Event
+add_environ name val = Score.modify_environ $ TrackLang.insert_val name val
