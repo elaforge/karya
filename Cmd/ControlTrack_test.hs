@@ -31,13 +31,28 @@ test_unparse = do
     equal (f (e "a" "b" "c")) "a b c"
 
 test_cmd_val_edit = do
-    let f = fmap extract . thread [] ControlTrack.cmd_val_edit
+    let f events = fmap extract . thread events ControlTrack.cmd_val_edit
         extract = UiTest.extract_tracks . fst
-    equal (f [CmdTest.m_note_on 60]) $ Right [("c", [(0, 0, "`0x`ff")])]
-    equal (f [CmdTest.m_control 60 "c" 0.5]) $ Right [("c", [(0, 0, "`0x`80")])]
-    equal (f (map CmdTest.key_down "a1")) $ Right [("c", [(0, 0, "`0x`a1")])]
-    equal (f (map CmdTest.key_down "1-")) $ Right [("c", [(0, 0, "-`0x`01")])]
-    equal (f (map CmdTest.key_down "1--")) $ Right [("c", [(0, 0, "`0x`01")])]
+    equal (f [] [CmdTest.m_note_on 60]) $
+        Right [("c", [(0, 0, "`0x`ff")])]
+    equal (f [] [CmdTest.m_control 60 "c" 0.5]) $
+        Right [("c", [(0, 0, "`0x`80")])]
+    equal (f [] (map CmdTest.key_down "a1")) $
+        Right [("c", [(0, 0, "`0x`a1")])]
+    equal (f [] (map CmdTest.key_down "1-")) $
+        Right [("c", [(0, 0, "-`0x`01")])]
+    equal (f [] (map CmdTest.key_down "1--")) $
+        Right [("c", [(0, 0, "`0x`01")])]
+
+    -- Both `0x` and 0x work.
+    equal (f [(0, 0, "`0x`01")] (map CmdTest.key_down "4")) $
+        Right [("c", [(0, 0, "`0x`14")])]
+    equal (f [(0, 0, "0x01")] (map CmdTest.key_down "4")) $
+        Right [("c", [(0, 0, "`0x`14")])]
+
+    -- Duration is preserved.
+    equal (f [(0, 1, "`0x`01")] (map CmdTest.key_down "4")) $
+        Right [("c", [(0, 1, "`0x`14")])]
 
 test_cmd_tempo_val_edit = do
     let f events = fmap extract . thread events ControlTrack.cmd_tempo_val_edit

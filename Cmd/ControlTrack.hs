@@ -27,18 +27,19 @@ import Global
 import Types
 
 
--- | Accept keystrokes and modify the val field of the event.  Also accept
--- 'InputNote.NoteOn' or 'InputNote.Control' msgs and enter a value based on
--- their velocity or value, respectively.  So you can use a MIDI knob to set
--- arbitrary control values.
---
--- Since control vals are typically normalized between 0 and 1, this accepts
--- hexadecimal higits and modifies the event text with 'modify_hex'.  However,
--- not all tracks are normalized, so this only happens if 'infer_normalized'
--- thinks that it's normalized.
---
--- The @'@ key will enter a @'@ call, which repeats the last value.  This is
--- useful to extend a constant pitch value to the desired breakpoint.
+{- | Accept keystrokes and modify the val field of the event.  Also accept
+    'InputNote.NoteOn' or 'InputNote.Control' msgs and enter a value based on
+    their velocity or value, respectively.  So you can use a MIDI knob to set
+    arbitrary control values.
+
+    Since control vals are typically normalized between 0 and 1, this accepts
+    hexadecimal higits and modifies the event text with 'modify_hex'.  However,
+    not all tracks are normalized, so this only happens if 'infer_normalized'
+    thinks that it's normalized.
+
+    The @'@ key will enter a @'@ call, which repeats the last value.  This is
+    useful to extend a constant pitch value to the desired breakpoint.
+-}
 cmd_val_edit :: Cmd.Cmd
 cmd_val_edit msg = suppress "control track val edit" $ do
     EditUtil.fallthrough msg
@@ -59,9 +60,19 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
 
 -- | A track is assumed to be normalized if its first event has a @`0x`@ in it.
 -- If the track has no first event, then it defaults to normalized.
+--
+-- TODO This is kind of bogus since it's just the first event and it just looks
+-- for a substring.  A better check would be to see if the event being edited
+-- can have a normalized number extracted from it, and fall back on this only
+-- if there is no existing event.
 infer_normalized :: State.M m => TrackId -> m Bool
 infer_normalized = fmap (maybe True normal . Seq.head) . State.get_all_events
-    where normal event = "`0x`" `Text.isInfixOf` Event.event_text event
+    where
+    normal event = any (`Text.isInfixOf` Event.event_text event)
+        normalized_prefixes
+
+normalized_prefixes :: [Text]
+normalized_prefixes = ["`0x`", "0x"]
 
 edit_non_normalized :: Cmd.M m => Msg.Msg -> m ()
 edit_non_normalized msg = case msg of
@@ -92,20 +103,21 @@ modify_num key event =
         Nothing -> (Nothing, Text.null $ event_val event)
         Just new_val -> (Just $ event { event_val = new_val }, False)
 
--- | This is tricky because the editing mode is different depending on whether
--- the val is hex or not.
---
--- If it's hex or null, expect higits and rotate them into the value, always
--- staying in the form @`0x`##@.  If it's not hex, act like
--- 'cmd_tempo_val_edit'.
---
--- The one difference is that 'cmd_val_edit' catches all alphanum keys since it
--- is expecting a-f, and will then ignore them if they are other letters, while
--- 'cmd_tempo_val_edit' only catches the keys it will use, passing the rest
--- through.  It's already confusing enough which keys are caught by which
--- editing mode, it would be even worse if it also depended on text of the
--- event being editing.  TODO perhaps I should go further and catch alphanum
--- for the tempo track too, for consistency.
+{- | This is tricky because the editing mode is different depending on whether
+    the val is hex or not.
+
+    If it's hex or null, expect higits and rotate them into the value, always
+    staying in the form @`0x`##@.  If it's not hex, act like
+    'cmd_tempo_val_edit'.
+
+    The one difference is that 'cmd_val_edit' catches all alphanum keys since it
+    is expecting a-f, and will then ignore them if they are other letters, while
+    'cmd_tempo_val_edit' only catches the keys it will use, passing the rest
+    through.  It's already confusing enough which keys are caught by which
+    editing mode, it would be even worse if it also depended on text of the
+    event being editing.  TODO perhaps I should go further and catch alphanum
+    for the tempo track too, for consistency.
+-}
 modify_hex :: EditUtil.Key -> Modify
 modify_hex key event
     | Just new_val <- update_hex (event_val event) key = case new_val of
@@ -136,9 +148,10 @@ update_hex val_ key
     negative = "-" `Text.isPrefixOf` val_
     val = if negative then Text.drop 1 val_ else val_
     higit c = '0' <= c && c <= '9' || 'a' <= c && c <= 'f'
-    parse_val t = case Text.unpack <$> Text.stripPrefix "`0x`" t of
+    parse_val t = case Text.unpack <$> strip t of
         Just [c1, c2] | higit c1 && higit c2 -> Just c2
         _ -> Nothing
+        where strip t = msum $ map (($t) . Text.stripPrefix) normalized_prefixes
 
 cmd_method_edit :: Cmd.Cmd
 cmd_method_edit msg =

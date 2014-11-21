@@ -115,7 +115,7 @@ join_pipeline = mconcat . List.intercalate [" | "]
 p_lex1 :: A.Parser ()
 p_lex1 = (str <|> parens <|> word) >> spaces
     where
-    str = p_single_string >> return ()
+    str = p_single_quote_string >> return ()
     parens = do
         A.char '('
         A.many $ parens <|> str <|> (A.takeWhile1 content_char >> return ())
@@ -261,10 +261,10 @@ parse_hex c1 c2 = higit c1 * 16 + higit c2
 -- | A string is anything between single quotes.  A single quote itself is
 -- represented by two single quotes in a row.
 p_string :: A.Parser TrackLang.Symbol
-p_string = TrackLang.Symbol <$> p_single_string
+p_string = TrackLang.Symbol <$> p_single_quote_string
 
-p_single_string :: A.Parser Text
-p_single_string = do
+p_single_quote_string :: A.Parser Text
+p_single_quote_string = do
     chunks <- A.many1 $
         ParseText.between (A.char '\'') (A.char '\'') (A.takeTill (=='\''))
     return $ Text.intercalate "'" chunks
@@ -534,7 +534,7 @@ split_sections =
 p_imports :: A.Parser [FilePath]
 p_imports = A.skipMany empty_line *> A.many p_import <* A.skipMany empty_line
     where
-    p_import = A.string "import" *> spaces *> (untxt <$> p_single_string)
+    p_import = A.string "import" *> spaces *> (untxt <$> p_single_quote_string)
         <* spaces <* A.char '\n'
 
 p_section :: A.Parser [Definition]
