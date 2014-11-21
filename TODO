@@ -6,7 +6,7 @@ UNSORTED
   control track:
     - val edit sets non-zero duration to zero
     - val edit should understand 0x in addition to `0x`
-    - edit input should use non-zero duration if there is a non-zero
+    * edit input should use non-zero duration if there is a non-zero
       selection, like note track input
   - lilypond: why do I need e->q and 'ly-span accel.' on separate tracks?
   - lilypond: espressivo <> should be like a normal hairpin

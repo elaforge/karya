@@ -66,8 +66,9 @@ modify_event zero_dur modify_dur modify = do
     modify_event_at pos zero_dur modify_dur modify
 
 modify_event_at :: Cmd.M m => Pos
-    -> Bool -- ^ Created event has 0 dur, otherwise it's the duration of the
-    -- selection, or until next time step if the selection has 0 duration.
+    -> Bool -- ^ If the selection is 0, then True means create a 0 dur event,
+    -- otherwise use the time step. f the selection is nonzero, always use
+    -- its duration.
     -> Bool -- ^ If True, modify the duration of an existing event.
     -> Modify -> m ()
 modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
@@ -83,8 +84,8 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
     when advance Selection.advance
     where
     event_dur dir
-        | zero_dur = return $ if dir == TimeStep.Advance then 0 else -0
         | dur /= 0 = return dur
+        | zero_dur = return $ if dir == TimeStep.Advance then 0 else -0
         | otherwise = do
             step <- Cmd.gets (Cmd.state_note_duration . Cmd.state_edit)
             end <- Selection.step_from tracknum start
