@@ -159,14 +159,15 @@ val_edit_at :: Cmd.M m => EditUtil.Pos -> Signal.Y -> m ()
 val_edit_at pos val = modify_event_at pos $ \event ->
     (Just $ event { event_val = ShowVal.show_hex_val val }, False)
 
--- | Semi-parse event text into method, val, and args.  Method is actually the
--- call, val is the first argument to the calll, and args are the remaining
--- arguments.  Control calls have a convention where the first argument is the
--- value to set.  I separate it out so I can replace just that value while
--- leaving any arguments intact.  E.g., exponential interpolation might look
--- like @e 0 3@, where 0 is the destination and 3 is the exponent.
--- Or @e (4c) 3@ in the case of pitches.  If I press a MIDI key I want to
--- replace just the @4c@.
+{- | Semi-parse event text into method, val, and args.  Method is actually the
+    call, val is the first argument to the calll, and args are the remaining
+    arguments.  Control calls have a convention where the first argument is the
+    value to set.  I separate it out so I can replace just that value while
+    leaving any arguments intact.  E.g., exponential interpolation might look
+    like @e 0 3@, where 0 is the destination and 3 is the exponent.
+    Or @e (4c) 3@ in the case of pitches.  If I press a MIDI key I want to
+    replace just the @4c@.
+-}
 data Event = Event {
     event_method :: !Text
     , event_val :: !Text
@@ -182,7 +183,7 @@ modify_event f = do
     modify_event_at pos f
 
 modify_event_at :: Cmd.M m => EditUtil.Pos -> Modify -> m ()
-modify_event_at pos f = EditUtil.modify_event_at pos True True
+modify_event_at pos f = EditUtil.modify_event_at pos True False
     (first (fmap unparse) . f . parse . fromMaybe "")
 
 -- | Try to figure out the call part of the expression and split it from the
