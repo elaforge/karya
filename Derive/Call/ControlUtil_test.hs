@@ -9,7 +9,8 @@ import qualified Perform.Signal as Signal
 
 
 test_breakpoints = do
-    let make = ControlUtil.breakpoints 1 id
+    let make start end = ControlUtil.breakpoints 1 id
+            . ControlUtil.distribute start end
     let f start end = Signal.unsignal . make start end
     equal (f 4 8  []) []
     equal (f 4 8  [1]) [(4, 1)]

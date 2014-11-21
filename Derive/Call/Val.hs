@@ -287,9 +287,11 @@ c_breakpoints argnum f vals args = do
     vals <- num_or_pitch argnum vals
     return $ case vals of
         Left nums -> TrackLang.VControl $ TrackLang.ControlSignal $
-            Score.untyped $ ControlUtil.breakpoints srate f start end nums
+            Score.untyped $ ControlUtil.breakpoints srate f $
+            ControlUtil.distribute start end nums
         Right pitches -> TrackLang.VPitchControl $ TrackLang.ControlSignal $
-            PitchUtil.breakpoints srate f start end pitches
+            PitchUtil.breakpoints srate f $
+            ControlUtil.distribute start end pitches
 
 -- | Insist that the vals be either all numbers or pitches.
 --

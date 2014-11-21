@@ -3,8 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  control track:
+    - val edit sets non-zero duration to zero
+    - val edit should understand 0x in addition to `0x`
+    - edit input should use non-zero duration if there is a non-zero
+      selection, like note track input
   - lilypond: why do I need e->q and 'ly-span accel.' on separate tracks?
-  - triple quotes for big ly code fragments in .ky?
   - lilypond: espressivo <> should be like a normal hairpin
     But the way to do this is awkward, << .. { s4 s4 \< s4 \> s4 \! } >>
     . I also want tied notes to expand to 'c4~ \< c4 \>'
@@ -12,25 +16,38 @@ UNSORTED
     . Even '<< b'2.~ { s4 \< s4 \> s4 } >> | b'4 cs''4 \!'
       is not ideal, the decrescendo extends to underneath the next note.
       If I put \! on the tied-to note, it still won't extend.
+    . see \at in https://github.com/openlilylib/openlilylib/tree/master/input-shorthands/articulations-not-aligned-with-notes
+    . Ideally:
+      a \cresc \decresc % over duration of the note
+      a \cresc ~ a \decresc % same
   * clip calls don't clip note duration according to lilypond
     The notes are clipped, but not the duration of the last note.
   - 'c' status incorrect in @b3-end, kendang dyn 7t
   * why does 's' status only have a trailing 't' for fractional ScoreTime?
   - Repl modules should standardize on either ID with @ or string with ""
     . Probably @ is better, otherwise why even have the macro?
+    . Id.Id is nicer than BlockId, because otherwise you can't tell from the
+      signature which is the new name.
+    . Actually this is due to LBlock.copy, which is due to Create.named_block.
+      But this is used by Refactor, which also uses it as a name for the new
+      event.  If it's an Id, I could pass a different namespace, and
+      refactor's name will be correct for that.  Refactor relative doesn't
+      make sense for a different namespace.
   * Save.expand_filename should be implemented at the 'read' level
   * @orig/b3 has error:
     IO exception: invalid characters in id: ("untitled","orig/b3")
   * load score in a different namespace, aka LState.load_merge but rename at
     the same time.
   - the clip/* namespace should live past a load
-  - 'swell' call for dynamics: params bias toward front or back, and
+  * 'swell' call for dynamics: params bias toward front or back, and
     pointiness of the peak.
   - bug/kendang-note-entry kendang note entry gives "tried to invert while
     inverting"
   * make Util.Control first, second, bimap into Bifunctor so I can apply to
     Either too.  E.g. TrackLang.put_val_error
   - add sigmoid curve
+    But I want to be able to adjust the sharpness, so maybe I should go
+    directly to bezier.
   * It's inconvenient to have Util.Control and unqualified import be the same
     module, because then all general purpose utils wind up in the global
     namespace.  Maybe I should import a Global.hs analogous to Types.

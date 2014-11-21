@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Control_test where
+import qualified Util.Seq as Seq
 import Util.Test
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveTest as DeriveTest
@@ -112,3 +113,9 @@ test_si_next = do
         [(0, 1), (1, 0.75), (2, 0.5), (3, 0.25), (4, 0)]
     equal (run [(0, "si> 1 0 2"), (4, "0")])
         [(0, 1), (1, 0.5), (2, 0)]
+
+test_swell = do
+    equal (CallTest.run_control_dur [(0, 8, "swell 0 1 .5")]) $
+        zip (Seq.range_ 0 1) [0, 0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25, 0]
+    equal (CallTest.run_control_dur [(0, 4, "swell 0 1 0")]) $
+        zip (Seq.range_ 0 1) [1, 0.75, 0.5, 0.25, 0]

@@ -88,22 +88,21 @@ expon2 a b x
 
 -- * breakpoints
 
-breakpoints :: SRate -> Function -> RealTime -> RealTime -> [Signal.Y]
-    -> Signal.Control
+-- | Create line segments between the given breakpoints.
+breakpoints :: SRate -> Function -> [(RealTime, Signal.Y)] -> Signal.Control
 breakpoints srate f =
     signal_breakpoints Signal.signal (interpolate_segment False srate f)
 
 signal_breakpoints :: Monoid.Monoid sig => ([(RealTime, y)] -> sig)
-    -> (RealTime -> y -> RealTime -> y -> sig) -> RealTime -> RealTime
-    -> [y] -> sig
-signal_breakpoints make_signal segment start end =
-    mconcatMap line . Seq.zip_next . make_breakpoints start end
+    -> (RealTime -> y -> RealTime -> y -> sig) -> [(RealTime, y)] -> sig
+signal_breakpoints make_signal make_segment = mconcatMap line . Seq.zip_next
     where
-    line ((x1, y1), Just (x2, y2)) = segment x1 y1 x2 y2
+    line ((x1, y1), Just (x2, y2)) = make_segment x1 y1 x2 y2
     line ((x1, y2), Nothing) = make_signal [(x1, y2)]
 
-make_breakpoints :: RealTime -> RealTime -> [a] -> [(RealTime, a)]
-make_breakpoints start end vals = case vals of
+-- | Distribute the values evenly over the given time range.
+distribute :: RealTime -> RealTime -> [a] -> [(RealTime, a)]
+distribute start end vals = case vals of
     [] -> []
     [x] -> [(start, x)]
     _ -> [(Num.scale start end (n / (len - 1)), x)

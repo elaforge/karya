@@ -7,6 +7,7 @@ module Derive.Call.Control (control_calls) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
+import qualified Util.Num as Num
 import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -58,6 +59,7 @@ control_calls = Derive.generator_call_map
     -- not sure which one I'll like better
     , ("`ped`", c_pedal)
     , ("h", c_pedal)
+    , ("swell", c_swell)
     ]
     <> Derive.CallMaps [lookup_number] []
 
@@ -247,8 +249,8 @@ c_breakpoint_next = generator1 "breakpoint" mempty
     $ \vals args -> do
         (start, end) <- Args.real_range_or_next args
         srate <- Util.get_srate
-        return $ ControlUtil.breakpoints srate id start end
-            (NonEmpty.toList vals)
+        return $ ControlUtil.breakpoints srate id $
+            ControlUtil.distribute start end (NonEmpty.toList vals)
 
 c_neighbor :: Derive.Generator Derive.Control
 c_neighbor = generator1 "neighbor" mempty
@@ -348,6 +350,22 @@ c_pedal = generator1 "pedal" mempty
         (start, end) <- Args.real_range args
         let prev = maybe 0 snd $ Args.prev_control args
         return $ Signal.signal [(start, val), (end, prev)]
+
+c_swell :: Derive.Generator Derive.Control
+c_swell = generator1 "swell" mempty
+    "Start at the given value, interpolate to a peak, then back to the\
+    \ original value. Uses duration."
+    $ Sig.call ((,,)
+    <$> required "val" "Start value."
+    <*> defaulted "peak" 1 "Interpolate to this value."
+    <*> defaulted "bias" 0.5 "0 puts the peak at the start, 1 at the end."
+    ) $ \(val, peak, bias) args -> do
+        (start, end) <- Args.real_range args
+        let middle = Num.clamp start end $
+                Num.scale start end (RealTime.seconds bias)
+        srate <- Util.get_srate
+        return $ ControlUtil.breakpoints srate id
+            [(start, val), (middle, peak), (end, val)]
 
 generator1 :: Text -> Tags.Tags -> Text
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)

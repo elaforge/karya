@@ -88,7 +88,9 @@ interpolate_segment include_end srate f x1 y1 x2 y2 =
 
 -- * breakpoints
 
-breakpoints :: SRate -> Function -> RealTime -> RealTime -> [PitchSignal.Pitch]
+-- | Create line segments between the given breakpoints.
+breakpoints :: SRate -> Function -> [(RealTime, PitchSignal.Pitch)]
     -> PitchSignal.Signal
-breakpoints srate f = ControlUtil.signal_breakpoints PitchSignal.signal
-    (interpolate_segment False srate f)
+breakpoints srate f =
+    ControlUtil.signal_breakpoints PitchSignal.signal
+        (interpolate_segment False srate f)

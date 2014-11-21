@@ -10,6 +10,7 @@ import qualified Data.Text as Text
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.State as State
+import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -43,10 +44,11 @@ run_pitch title = extract . run_pitch_ title
 
 -- | Run a control track and extract the control signal it produces.
 run_control :: [(ScoreTime, String)] -> [(Signal.X, Signal.Y)]
-run_control events = extract $ DeriveTest.derive_tracks ""
-    [ (">", [(0, 10, "")])
-    , ("cont", [(start, 0, text) | (start, text) <- events])
-    ]
+run_control events = run_control_dur [(p, 0, t) | (p, t) <- events]
+
+run_control_dur :: [UiTest.EventSpec] -> [(Signal.X, Signal.Y)]
+run_control_dur events = extract $
+    DeriveTest.derive_tracks "" [(">", [(0, 10, "")]), ("cont", events)]
     where
     -- Slicing implementation details can make dups, but they don't matter for
     -- performance.
