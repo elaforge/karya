@@ -127,28 +127,29 @@ expr_to_midi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> TrackLang.Expr
     -> m [Midi.WriteMessage]
 expr_to_midi block_id track_id pos expr = do
     (result, logs) <- Perf.derive_expr block_id track_id pos expr
-    mapM_ Log.write logs
-    events <- Cmd.require_right ("expr_to_midi: "<>) result
+    mapM_ Log.write $ Log.add_prefix "CUtil.expr_to_midi" logs
+    events <- Cmd.require_right ("CUtil.expr_to_midi: "<>) result
     (msgs, logs) <- Perf.perform events
     mapM_ Log.write logs
     return msgs
 
 -- * keyswitch
 
--- | Create a Cmd to set keyswitches.
---
--- This simply sets the note text for subsequent notes, and also configures the
--- instrument to play in the given keyswitch.
---
--- TODO this just emits keyswitches for every addr and emits them redundantly.
--- This is simpler but it would be more correct to use WriteDeviceState to
--- emit them only when needed.  However, it's more complicated because then
--- I need a current attrs (Map Instrument Attrs) along with current note text,
--- so MidiThru can use the attrs to find the keyswitch.
---
--- TODO if I can pull the current or previous note out of the derive then I
--- could use that to play an example note.  Wait until I have a "play current
--- line" framework up for that.
+{- | Create a Cmd to set keyswitches.
+
+    This simply sets the note text for subsequent notes, and also configures
+    the instrument to play in the given keyswitch.
+
+    TODO this just emits keyswitches for every addr and emits them redundantly.
+    This is simpler but it would be more correct to use WriteDeviceState to
+    emit them only when needed.  However, it's more complicated because then
+    I need a current attrs (Map Instrument Attrs) along with current note text,
+    so MidiThru can use the attrs to find the keyswitch.
+
+    TODO if I can pull the current or previous note out of the derive then
+    I could use that to play an example note.  Wait until I have a "play
+    current line" framework up for that.
+-}
 keyswitches :: Cmd.M m => [(Char, TrackLang.CallId, Midi.Key)] -> Msg.Msg
     -> m Cmd.Status
 keyswitches inputs = \msg -> do

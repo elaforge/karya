@@ -8,7 +8,7 @@
 -}
 module Derive.Deriver.Internal where
 import qualified Data.Digest.CRC32 as CRC32
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Word as Word
 
@@ -110,7 +110,11 @@ insert_environ name val =
 -- in the Collect.  It only needs to be recorded once per track.
 record_track_dynamic :: Dynamic -> Maybe TrackDynamic
 record_track_dynamic dyn = case Stack.block_track_of (state_stack dyn) of
-    Just (bid, tid) -> Just $ Map.singleton (bid, tid) dyn
+    Just (bid, tid) -> Just $! Map.singleton (bid, tid) $!
+        -- If I don't clear the inversion state, any inverting call that uses
+        -- this dynamic will throw a double inversion error.  Also the function
+        -- closure probably causes drag.
+        dyn { state_inversion = NotInverted }
     Nothing -> Nothing
 
 -- | 'record_track_dynamic' for when I already know BlockId and TrackId.

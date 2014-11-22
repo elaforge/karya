@@ -31,24 +31,25 @@ import Global
 
 -- * with_note
 
--- | Take a Key (if @kbd_entry@ is True) or a ReadMessage to a Msg.InputNote
--- and pass it to each of @cmds@.  As a minor optimization, @cmd@ is not called
--- if no InputNote was produced.
---
--- For the ASCII keyboard, the two rows of keys each map one octave of C to C.
--- If the instrument responds to breath control, the key will also emit
--- a breath control CC.
---
--- It's a little less graceful than calling it many times applied to a single
--- cmd, but only has to convert the input once and doesn't need tricks to
--- make sure a converted key winds up with Done.
---
--- Another way to do this would be place this as a transformer at the front of
--- the responder, to transform keystrokes and MIDI keys into InputNotes.  That
--- way, other Cmds don't have to worry about state_kbd_entry.  However, it
--- would either require a privileged position for the transformer, or an
--- additional Cmd feature to re-emits a new Msg.  In addition, it would
--- preclude the ability to shadow it and catch MIDI msgs for other purposes.
+{- | Take a Key (if @kbd_entry@ is True) or a ReadMessage to a Msg.InputNote
+    and pass it to each of @cmds@.  As a minor optimization, @cmd@ is not
+    called if no InputNote was produced.
+
+    For the ASCII keyboard, the two rows of keys each map one octave of C to C.
+    If the instrument responds to breath control, the key will also emit
+    a breath control CC.
+
+    It's a little less graceful than calling it many times applied to a single
+    cmd, but only has to convert the input once and doesn't need tricks to make
+    sure a converted key winds up with Done.
+
+    Another way to do this would be place this as a transformer at the front of
+    the responder, to transform keystrokes and MIDI keys into InputNotes.  That
+    way, other Cmds don't have to worry about state_kbd_entry.  However, it
+    would either require a privileged position for the transformer, or an
+    additional Cmd feature to re-emits a new Msg.  In addition, it would
+    preclude the ability to shadow it and catch MIDI msgs for other purposes.
+-}
 cmds_with_input :: Cmd.M m => Bool -> Maybe Instrument.Patch
     -> [Msg.Msg -> m Cmd.Status] -> (Msg.Msg -> m Cmd.Status)
 cmds_with_input kbd_entry maybe_patch cmds msg =

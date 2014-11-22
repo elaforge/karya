@@ -8,7 +8,9 @@ UNSORTED
     * val edit should understand 0x in addition to `0x`
     * edit input should use non-zero duration if there is a non-zero
       selection, like note track input
-  - lilypond: why do I need e->q and 'ly-span accel.' on separate tracks?
+  * lilypond: why do I need e->q and 'ly-span accel.' on separate tracks?
+    . generator vs. transformer, and the error was in the log.  Should
+      LLily.block also print any error logs?
   - lilypond: espressivo <> should be like a normal hairpin
     But the way to do this is awkward, << .. { s4 s4 \< s4 \> s4 \! } >>
     . I also want tied notes to expand to 'c4~ \< c4 \>'
@@ -41,7 +43,7 @@ UNSORTED
   - the clip/* namespace should live past a load
   * 'swell' call for dynamics: params bias toward front or back, and
     pointiness of the peak.
-  - bug/kendang-note-entry kendang note entry gives "tried to invert while
+  * bug/kendang-note-entry kendang note entry gives "tried to invert while
     inverting"
   * make Util.Control first, second, bimap into Bifunctor so I can apply to
     Either too.  E.g. TrackLang.put_val_error
