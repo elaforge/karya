@@ -63,7 +63,7 @@ duration :: PassedArgs a -> ScoreTime
 duration = Event.duration . event
 
 real_duration :: PassedArgs a -> Derive.Deriver RealTime
-real_duration args = (-) <$> real_start args <*> real_end args
+real_duration args = (-) <$> real_end args <*> real_start args
 
 real_start :: PassedArgs a -> Derive.Deriver RealTime
 real_start = Derive.real . start
