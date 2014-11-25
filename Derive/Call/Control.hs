@@ -38,15 +38,6 @@ control_calls = Derive.generator_call_map
     , ("f", c_dynamic "f" 0.75)
     , ("ff", c_dynamic "ff" 0.95)
 
-    , ("i", c_linear_prev)
-    , ("i<<", c_linear_prev_const)
-    , ("i>", c_linear_next)
-    , ("i>>", c_linear_next_const)
-    , ("e", c_exp_prev)
-    , ("e<<", c_exp_prev_const)
-    , ("e>", c_exp_next)
-    , ("e>>", c_exp_next_const)
-
     -- misc
     , ("bp>", c_breakpoint_next)
     , ("n", c_neighbor)
@@ -61,6 +52,7 @@ control_calls = Derive.generator_call_map
     , ("h", c_pedal)
     , ("swell", c_swell)
     ]
+    <> ControlUtil.standard_interpolators ControlUtil.interpolator_variations
     <> Derive.CallMaps [lookup_number] []
 
 -- | This is a special lookup for control tracks that lets you directly type
@@ -146,96 +138,6 @@ invert_merge merge val current_val = case Map.lookup merge inverters of
         ]
     n (Derive.ControlOp name _) = name
 
--- * linear
-
-linear_interpolation :: TrackLang.Typecheck time =>
-    Text -> Tags.Tags -> time -- ^ arg for duration function
-    -> Text -- ^ doc for time arg
-    -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.Duration)
-    -- ^ function from the time arg to the desired duration
-    -> Derive.Generator Derive.Control
-linear_interpolation name tags time_default time_default_doc get_time =
-    generator1 name tags doc $ Sig.call ((,)
-    <$> required "val" "Destination value."
-    <*> defaulted "time" time_default time_doc
-    ) $ \(val, time) args ->
-        ControlUtil.interpolate id args val =<< get_time args time
-    where
-    doc = "Interpolate from the previous sample to the given one in a straight\
-        \ line."
-    time_doc = "Time to reach destination. " <> time_default_doc
-
-c_linear_prev :: Derive.Generator Derive.Control
-c_linear_prev = linear_interpolation "linear" Tags.prev Nothing
-    "If not given, start from the previous sample." default_prev
-
-default_prev :: Derive.ControlArgs -> Maybe TrackLang.DefaultReal
-    -> Derive.Deriver TrackLang.Duration
-default_prev args Nothing = do
-    start <- Args.real_start args
-    return $ TrackLang.Real $ case Args.prev_control args of
-        -- It's likely the callee won't use the duration if there's no prev
-        -- val.
-        Nothing -> 0
-        Just (prev, _) -> prev - start
-default_prev _ (Just (TrackLang.DefaultReal t)) = return t
-
-c_linear_prev_const :: Derive.Generator Derive.Control
-c_linear_prev_const =
-    linear_interpolation "linear-prev-const" mempty (TrackLang.real (-0.1)) "" $
-        \_ -> return . TrackLang.default_real
-
-c_linear_next :: Derive.Generator Derive.Control
-c_linear_next = linear_interpolation "linear-next" mempty Nothing
-        "If not given, default to the start of the next event." $
-    \args maybe_time ->
-        return $ maybe (next_dur args) TrackLang.default_real maybe_time
-    where next_dur args = TrackLang.Score $ Args.next args - Args.start args
-
-c_linear_next_const :: Derive.Generator Derive.Control
-c_linear_next_const =
-    linear_interpolation "linear-next-const" mempty (TrackLang.real 0.1) "" $
-        \_ -> return . TrackLang.default_real
-
-
--- * exponential
-
--- | Exponential interpolation, with different start times.
-exponential_interpolation :: (TrackLang.Typecheck time) =>
-    Text -> Tags.Tags -> time -> Text
-    -> (Derive.ControlArgs -> time -> Derive.Deriver TrackLang.Duration)
-    -> Derive.Generator Derive.Control
-exponential_interpolation name tags time_default time_default_doc get_time =
-    generator1 name tags doc $ Sig.call ((,,)
-    <$> required "val" "Destination value."
-    <*> defaulted "exp" 2 ControlUtil.exp_doc
-    <*> defaulted "time" time_default time_doc
-    ) $ \(pitch, exp, time) args ->
-        ControlUtil.interpolate (ControlUtil.expon exp) args pitch
-            =<< get_time args time
-    where
-    doc = "Interpolate from the previous value to the given one in a curve."
-    time_doc = "Time to reach destination. " <> time_default_doc
-
-c_exp_prev :: Derive.Generator Derive.Control
-c_exp_prev = exponential_interpolation "exp-prev" Tags.prev Nothing
-    "If not given, start from the previous sample." default_prev
-
-c_exp_prev_const :: Derive.Generator Derive.Control
-c_exp_prev_const = exponential_interpolation "exp-prev-const" mempty
-    (TrackLang.real (-0.1)) "" $ \_ -> return . TrackLang.default_real
-
-c_exp_next :: Derive.Generator Derive.Control
-c_exp_next = exponential_interpolation "exp-next" mempty Nothing
-        "If not given default to the start of the next event." $
-    \args maybe_time ->
-        return $ maybe (next_dur args) TrackLang.default_real maybe_time
-    where next_dur args = TrackLang.Score $ Args.next args - Args.start args
-
-c_exp_next_const :: Derive.Generator Derive.Control
-c_exp_next_const = exponential_interpolation "exp-next-const" mempty
-    (TrackLang.real 0.1) "" $ \_ -> return . TrackLang.default_real
-
 
 -- * misc
 
@@ -317,10 +219,21 @@ c_set_linear = generator1 "si" mempty "A combination of `set` and `i`."
     <$> required "to" "Interpolate to this value."
     <*> required "set" "Set to this value."
     ) $ \(to, set) args -> do
-        dur <- default_prev args Nothing
+        dur <- default_prev_old args Nothing
         start <- Args.real_start args
         segment <- ControlUtil.interpolate id args to dur
         return $ segment <> Signal.signal [(start, set)]
+
+default_prev_old :: Derive.ControlArgs -> Maybe TrackLang.DefaultReal
+    -> Derive.Deriver TrackLang.Duration
+default_prev_old args Nothing = do
+    start <- Args.real_start args
+    return $ TrackLang.Real $ case Args.prev_control args of
+        -- It's likely the callee won't use the duration if there's no prev
+        -- val.
+        Nothing -> 0
+        Just (prev, _) -> prev - start
+default_prev_old _ (Just (TrackLang.DefaultReal t)) = return t
 
 c_set_linear_next :: Derive.Generator Derive.Control
 c_set_linear_next = generator1 "si-next" mempty

@@ -47,9 +47,14 @@ UNSORTED
     inverting"
   * make Util.Control first, second, bimap into Bifunctor so I can apply to
     Either too.  E.g. TrackLang.put_val_error
-  - add sigmoid curve
-    But I want to be able to adjust the sharpness, so maybe I should go
-    directly to bezier.
+  * add sigmoid curve
+  - get rid of Control.default_prev_old and Pitch.linear_interpolation
+  - add bezier curve, you give a y val and weight:
+    [(y1, w1), (y2, w2), ... (yn, wn)] ->
+      sigmoid 0 w1 0 y1 <> sigmoid w1 w2 y1 y2 <> sigmoid w(n-1) wn y(n-1) yn
+    . I can get the previous y with the mechanism that already exists, but
+      how do I get the prev weight?
+  - 'p' call should take a curve cf
   * It's inconvenient to have Util.Control and unqualified import be the same
     module, because then all general purpose utils wind up in the global
     namespace.  Maybe I should import a Global.hs analogous to Types.
@@ -129,8 +134,9 @@ UNSORTED
     . name = selection_relative (name <> "1"); LBlock.copy True (name <> "2")
       event_text = "alt -name1 -name2"
   - Rethink if I really want track event calls in TrackTime, rather than
-    normalized time.  E.g. it's inconvenient that DUtil.zero_duration has
-    to modify the event to set the note duration.
+    normalized time.
+    . It's inconvenient that DUtil.zero_duration has to modify the event to
+      set the note duration.
     . On the other hand, working in TrackTime is convenient, e.g. in gangsa
       norot I can place notes based on the passed-in dur.  If it were
       normalized, I'd have to unwarp back to TrackTime... can I even do that?

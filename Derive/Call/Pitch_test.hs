@@ -76,28 +76,14 @@ test_linear = do
     equal (run [(0, "4c"), (2, "i> (>)"), (4, "4d")])
         [(0, 60), (3, 61), (4, 62)]
 
-    equal (run [(0, "4c"), (2, "i> (4d) 1"), (4, "4c")])
-        [(0, 60), (3, 62), (4, 60)]
-    equal (run [(0, "4c"), (2, "i> (4d) -2")])
-        [(0, 60), (1, 61), (2, 62)]
-    -- i>> and i<< are the same, except with different defaults
-
 test_linear_next = do
-    -- no arg goes to the next event
     equal (run [(0, "4c"), (4, "i> (4d)"), (6, "4c")])
         [(0, 60), (5, 61), (6, 60)]
-    equal (run [(0, "4c"), (4, "i> (4d) 2"), (8, "4c")])
-        [(0, 60), (5, 61), (6, 62), (8, 60)]
-    -- if the time is too long, it is clipped
-    equal (run [(0, "4c"), (4, "i> (4d) 4"), (6, "4c")])
-        [(0, 60), (5, 60.5), (6, 60)]
-
     -- A number is interpreted as a transposition of the previous pitch.
     equal (run [(0, "4c"), (4, "i> 4"), (6, "4c")])
         [(0, 60), (5, 62), (6, 60)]
     equal (run [(0, "4c"), (4, "i> -4"), (6, "4c")])
         [(0, 60), (5, 58), (6, 60)]
-
     -- Test with slicing.
     let run2 = DeriveTest.extract_events DeriveTest.e_nns
             . DeriveTest.derive_tracks "" . UiTest.note_track

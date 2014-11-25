@@ -2,17 +2,23 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE Rank2Types #-}
 -- | Utilities that emit 'Signal.Control's and 'Derive.ControlMod's.
 module Derive.Call.ControlUtil where
 import qualified Data.Monoid as Monoid
 
+import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
 import qualified Derive.Args as Args
+import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -29,8 +35,108 @@ type Interpolator = Bool -- ^ include the initial sample or not
 -- | Sampling rate.
 type SRate = RealTime
 
--- | Interpolation function.  This maps a straight line to the desirned curve.
+-- | Interpolation function.  This maps 0--1 to the desired curve.
 type Function = Double -> Double
+
+-- * interpolator call
+
+-- | Left for an explicit time arg.  Right is for an implicit time, inferred
+-- from the args, along with an extra bit of documentation to describe it.
+type InterpolatorTime a =
+    Either (Sig.Parser TrackLang.Duration) (GetTime a, Text)
+type GetTime a = Derive.PassedArgs a -> Derive.Deriver TrackLang.Duration
+
+interpolator_call :: Text
+    -> (Sig.Parser arg, (arg -> Function))
+    -- ^ get args for the function and the interpolating function
+    -> InterpolatorTime Derive.Control -> Derive.Generator Derive.Control
+interpolator_call name (get_arg, function) interpolator_time =
+    Derive.generator1 Module.prelude name Tags.prev doc $ Sig.call ((,,)
+    <$> Sig.required "val" "Destination value."
+    <*> either id (const $ pure $ TrackLang.Real 0) interpolator_time
+    <*> get_arg
+    ) $ \(val, time, interpolator_arg) args -> do
+        time <- if Args.duration args == 0
+            then case interpolator_time of
+                Left _ -> return time
+                Right (get_time, _) -> get_time args
+            else TrackLang.Real <$> Args.real_duration args
+        interpolate (function interpolator_arg) args val time
+    where
+    doc = "Interpolate from the previous value to the given one."
+        <> either (const "") ((" "<>) . snd) interpolator_time
+
+-- | Create the standard set of interpolator calls.  Generic so it can
+-- be used by PitchUtil as well.
+interpolator_variations_ :: Derive.Taggable a =>
+    (Text -> get_arg -> InterpolatorTime a -> call)
+    -> Text -> Text -> get_arg -> [(TrackLang.CallId, call)]
+interpolator_variations_ make c name function =
+    [ (sym c, make name function prev)
+    , (sym $ c <> "<<", make (name <> "-prev-const")
+        function (Left prev_time_arg))
+    , (sym $ c <> ">", make (name <> "-next")
+        function next)
+    , (sym $ c <> ">>", make (name <> "-next-const")
+        function (Left next_time_arg))
+    -- si -- interpolate to val1, then jump to val2
+    -- si> -- jump to val1, then interpolate to val2
+    ]
+    where
+    sym = TrackLang.Symbol
+    next_time_arg = TrackLang.default_real <$>
+        Sig.defaulted "time" (TrackLang.real default_interpolation_time)
+            "Time to reach destination."
+    prev_time_arg = invert . TrackLang.default_real <$>
+        Sig.defaulted "time" (TrackLang.real default_interpolation_time)
+            "Time to reach destination, starting before the event."
+    invert (TrackLang.Real t) = TrackLang.Real (-t)
+    invert (TrackLang.Score t) = TrackLang.Score (-t)
+    default_interpolation_time = 0.1
+
+    next = Right (next, "If the event's duration is 0, interpolate from this\
+            \ event to the next.")
+        where
+        next args = return $ TrackLang.Score $ Args.next args - Args.start args
+    prev = Right (prev, "If the event's duration is 0, interpolate from the\
+        \ previous event to this one.")
+        where
+        prev args = do
+            start <- Args.real_start args
+            return $ TrackLang.Real $ case Args.prev_val_end args of
+                -- It's likely the callee won't use the duration if there's no
+                -- prev val.
+                Nothing -> 0
+                Just prev -> prev - start
+
+interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Function)
+    -> [(TrackLang.CallId, Derive.Generator Derive.Control)]
+interpolator_variations = interpolator_variations_ interpolator_call
+
+standard_interpolators ::
+    (forall arg. Text -> Text -> (Sig.Parser arg, arg -> Function)
+        -> [(TrackLang.CallId, Derive.Generator result)])
+    -> Derive.CallMaps result
+standard_interpolators make = Derive.generator_call_map $ concat
+    [ make "i" "linear" (pure (), const id)
+    , make "e" "exp" exponential_interpolator
+    , make "s" "sigmoid" sigmoid_interpolator
+    ]
+
+exponential_interpolator :: (Sig.Parser Double, Double -> Function)
+exponential_interpolator = (args, expon)
+    where args = Sig.defaulted "exp" 2 exp_doc
+
+sigmoid_interpolator :: (Sig.Parser (Double, Double),
+        (Double, Double) -> Function)
+sigmoid_interpolator = (args, f)
+    where
+    f (w1, w2) = guess_x $ sigmoid w1 w2
+    args = (,)
+        <$> Sig.defaulted "w1" 0.5 "Start weight."
+        <*> Sig.defaulted "w2" 0.5 "End weight."
+
+-- * interpolate
 
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
@@ -64,6 +170,8 @@ interpolate_segment include_end srate f x1 y1 x2 y2 =
     y_of = Num.scale y1 y2 . f . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds
 
+-- * exponential
+
 exp_doc :: Text
 exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
     \ and will generate a slowly departing and rapidly approaching\
@@ -74,17 +182,49 @@ exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
 -- which doesn't seem too useful, so so hijack the negatives as an easier way
 -- to write 1/n.  That way n is smoothly departing, while -n is smoothly
 -- approaching.
-expon :: Double -> Double -> Double
+expon :: Double -> Function
 expon n x = x**exp
     where exp = if n >= 0 then n else 1 / abs n
 
 -- | I could probably make a nicer curve of this general shape if I knew more
 -- math.
-expon2 :: Double -> Double -> Double -> Double
+expon2 :: Double -> Double -> Function
 expon2 a b x
     | x >= 1 = 1
     | x < 0.5 = expon a (x * 2) / 2
     | otherwise = expon (-b) ((x-0.5) * 2) / 2 + 0.5
+
+-- * bezier
+
+type Point = (Double, Double)
+
+-- | As far as I can tell, there's no direct way to know what value to give to
+-- the bezier function in order to get a specific @x@.  So I guess with binary
+-- search.
+guess_x :: (Double -> (Double, Double)) -> Function
+guess_x f x1 = go 0 1
+    where
+    go low high = case ApproxEq.compare threshold x x1 of
+        EQ -> y
+        LT -> go mid high
+        GT -> go low mid
+        where
+        mid = (low + high) / 2
+        (x, y) = f mid
+    threshold = 0.00015
+
+-- | Generate a sigmoid curve.  The first weight is the flatness at the start,
+-- and the second is the flatness at the end.  Both should range from 0--1.
+sigmoid :: Double -> Double -> Double -> Point
+sigmoid w1 w2 = bezier3 (0, 0) (w1, 0) (1-w2, 1) (1, 1)
+
+-- | Cubic bezier curve.
+bezier3 :: Point -> Point -> Point -> Point -> (Double -> Point)
+bezier3 (x1, y1) (x2, y2) (x3, y3) (x4, y4) t =
+    (f x1 x2 x3 x4 t, f y1 y2 y3 y4 t)
+    where
+    f p1 p2 p3 p4 t =
+        (1-t)^3 * p1 + 3*(1-t)^2*t * p2 + 3*(1-t)*t^2 * p3 + t^3 * p4
 
 -- * breakpoints
 

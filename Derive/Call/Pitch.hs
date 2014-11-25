@@ -6,7 +6,10 @@
 --
 -- Low level calls should do simple orthogonal things and their names are
 -- generally just one or two characters.
-module Derive.Call.Pitch where
+module Derive.Call.Pitch (
+    pitch_calls
+    , approach
+) where
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
@@ -38,21 +41,13 @@ pitch_calls = Derive.generator_call_map
     , ("set", c_set)
     , ("'", c_set_prev)
 
-    , ("i", c_linear_prev)
-    , ("i<<", c_linear_prev_const)
-    , ("i>", c_linear_next)
-    , ("i>>", c_linear_next_const)
-    , ("e", c_exp_prev)
-    , ("e<<", c_exp_prev_const)
-    , ("e>", c_exp_next)
-    , ("e>>", c_exp_next_const)
-
     , ("n", c_neighbor)
     , ("a", c_approach)
     , ("u", c_up)
     , ("d", c_down)
     , ("p", c_porta)
     ]
+    <> ControlUtil.standard_interpolators PitchUtil.interpolator_variations
 
 c_set :: Derive.Generator Derive.Pitch
 c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
@@ -73,100 +68,6 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
         return $ case Args.prev_pitch args of
             Nothing -> []
             Just (x, y) -> [PitchSignal.signal [(start, y)] | start > x]
-
--- * linear
-
--- | Linear interpolation, with different start times.
-linear_interpolation :: TrackLang.Typecheck time => Text -> time -> Text
-    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.Duration)
-    -> Derive.Generator Derive.Pitch
-linear_interpolation name time_default time_default_doc get_time =
-    generator1 name Tags.prev doc $ Sig.call
-        ((,) <$> pitch_arg <*> defaulted "time" time_default time_doc) $
-    \(pitch, time) args ->
-        PitchUtil.interpolate id args pitch =<< get_time args time
-    where
-    doc = "Interpolate from the previous pitch to the given one in a straight\
-        \ line."
-    time_doc = "Time to reach destination. " <> time_default_doc
-
-c_linear_prev :: Derive.Generator Derive.Pitch
-c_linear_prev = linear_interpolation "linear-prev" Nothing
-    "If not given, start from the previous sample." default_prev
-
-c_linear_prev_const :: Derive.Generator Derive.Pitch
-c_linear_prev_const =
-    linear_interpolation "linear-prev-const" (TrackLang.real (-0.1)) "" $
-        \_ -> return . TrackLang.default_real
-
-c_linear_next :: Derive.Generator Derive.Pitch
-c_linear_next =
-    linear_interpolation "linear-next" Nothing
-        "If not given, default to the start of the next event." $
-    \args maybe_time ->
-        return $ maybe (next_dur args) TrackLang.default_real maybe_time
-    where next_dur args = TrackLang.Score $ Args.next args - Args.start args
-
-c_linear_next_const :: Derive.Generator Derive.Pitch
-c_linear_next_const =
-    linear_interpolation "linear-next-const" (TrackLang.real 0.1) "" $
-        \_ -> return . TrackLang.default_real
-
-
--- * exponential
-
--- | Exponential interpolation, with different start times.
-exponential_interpolation :: TrackLang.Typecheck time =>
-    Text -> time -> Text
-    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.Duration)
-    -> Derive.Generator Derive.Pitch
-exponential_interpolation name time_default time_default_doc get_time =
-    generator1 name Tags.prev doc $ Sig.call ((,,)
-    <$> pitch_arg
-    <*> defaulted "exp" 2 ControlUtil.exp_doc
-    <*> defaulted "time" time_default time_doc
-    ) $ \(pitch, exp, time) args ->
-        PitchUtil.interpolate (ControlUtil.expon exp) args pitch
-            =<< get_time args time
-    where
-    doc = "Interpolate from the previous pitch to the given one in a curve."
-    time_doc = "Time to reach destination. " <> time_default_doc
-
-c_exp_prev :: Derive.Generator Derive.Pitch
-c_exp_prev = exponential_interpolation "exp-prev" Nothing
-    "If not given, start from the previous sample." default_prev
-
-default_prev :: Derive.PitchArgs -> Maybe TrackLang.DefaultReal
-    -> Derive.Deriver TrackLang.Duration
-default_prev args Nothing = do
-    start <- Args.real_start args
-    return $ TrackLang.Real $ case Args.prev_pitch args of
-        -- It's likely the callee won't use the duration if there's no prev
-        -- val.
-        Nothing -> 0
-        Just (prev, _) -> prev - start
-default_prev _ (Just (TrackLang.DefaultReal t)) = return t
-
-c_exp_prev_const :: Derive.Generator Derive.Pitch
-c_exp_prev_const =
-    exponential_interpolation "exp-prev-const" (TrackLang.real (-0.1)) "" $
-        \_ -> return . TrackLang.default_real
-
-c_exp_next :: Derive.Generator Derive.Pitch
-c_exp_next = exponential_interpolation "exp-next" Nothing
-        "If not given default to the start of the next event." $
-    \args maybe_time ->
-        return $ maybe (next_dur args) TrackLang.default_real maybe_time
-    where next_dur args = TrackLang.Score $ Args.next args - Args.start args
-
-c_exp_next_const :: Derive.Generator Derive.Pitch
-c_exp_next_const =
-    exponential_interpolation "exp-next-const" (TrackLang.real 0.1) "" $
-        \_ -> return . TrackLang.default_real
-
-pitch_arg :: Sig.Parser PitchUtil.PitchOrTranspose
-pitch_arg = required "pitch"
-    "Destination pitch, or a transposition from the previous one."
 
 -- * misc
 
@@ -240,6 +141,21 @@ c_porta = linear_interpolation "porta" (TrackLang.real 0.1)
     \ instruments or scores can override it to represent an idiomatic\
     \ portamento." $
     \_ -> return . TrackLang.default_real
+
+-- TODO obsolete, remove when I can
+-- | Linear interpolation, with different start times.
+linear_interpolation :: TrackLang.Typecheck time => Text -> time -> Text
+    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.Duration)
+    -> Derive.Generator Derive.Pitch
+linear_interpolation name time_default time_default_doc get_time =
+    generator1 name Tags.prev doc $ Sig.call
+        ((,) <$> PitchUtil.pitch_arg <*> defaulted "time" time_default time_doc)
+    $ \(pitch, time) args ->
+        PitchUtil.interpolate id args pitch =<< get_time args time
+    where
+    doc = "Interpolate from the previous pitch to the given one in a straight\
+        \ line."
+    time_doc = "Time to reach destination. " <> time_default_doc
 
 -- * util
 

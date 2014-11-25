@@ -10,15 +10,19 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import Derive.Call.ControlUtil (Function, SRate)
+import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Types
+import Global
 
 
 type PitchOrTranspose = Either PitchSignal.Pitch Pitch.Transpose
@@ -26,6 +30,40 @@ type PitchOrTranspose = Either PitchSignal.Pitch Pitch.Transpose
 resolve_pitch_transpose :: PitchSignal.Pitch -> PitchOrTranspose
     -> PitchSignal.Pitch
 resolve_pitch_transpose pitch = either id (flip Pitches.transpose pitch)
+
+-- * interpolator call
+
+interpolator_call :: Text
+    -> (Sig.Parser arg, (arg -> Function))
+    -> ControlUtil.InterpolatorTime Derive.Pitch
+    -> Derive.Generator Derive.Pitch
+interpolator_call name (get_arg, function) interpolator_time =
+    Derive.generator1 Module.prelude name Tags.prev doc $ Sig.call ((,,)
+    <$> pitch_arg
+    <*> either id (const $ pure $ TrackLang.Real 0) interpolator_time
+    <*> get_arg
+    ) $ \(val, time, interpolator_arg) args -> do
+        time <- if Args.duration args == 0
+            then case interpolator_time of
+                Left _ -> return time
+                Right (get_time, _) -> get_time args
+            else TrackLang.Real <$> Args.real_duration args
+        interpolate (function interpolator_arg) args val time
+    where
+    doc = "Interpolate from the previous value to the given one."
+        <> either (const "") ((" "<>) . snd) interpolator_time
+    -- The only difference between this and ControlUtil.interpolator_call is
+    -- the 'interpolate' call and 'pitch_arg'.
+
+pitch_arg :: Sig.Parser PitchOrTranspose
+pitch_arg = Sig.required "pitch"
+    "Destination pitch, or a transposition from the previous one."
+
+-- | Pitch version of 'ControlUtil.interpolator_variations'.
+interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Function)
+    -> [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+interpolator_variations = ControlUtil.interpolator_variations_ interpolator_call
+
 
 -- * interpolate
 

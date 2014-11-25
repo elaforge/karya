@@ -34,6 +34,15 @@ prev_pitch = PitchSignal.last <=< prev_val
 prev_score_event :: Derive.NoteArgs -> Maybe Score.Event
 prev_score_event = prev_val
 
+-- | Polymorphic version of 'prev_control' or 'prev_pitch'.
+prev_val_end :: Derive.Taggable a => PassedArgs a -> Maybe RealTime
+prev_val_end = extract <=< prev_val
+    where
+    extract val = case Derive.to_tagged val of
+        Derive.TagEvent event -> Just $ Score.event_end event
+        Derive.TagControl sig -> fst <$> Signal.last sig
+        Derive.TagPitch sig -> fst <$> PitchSignal.last sig
+
 -- | Get the previous val.  See NOTE [prev-val].
 prev_val :: PassedArgs a -> Maybe a
 prev_val = Derive.info_prev_val . info
