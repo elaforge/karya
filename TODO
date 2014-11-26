@@ -7,20 +7,9 @@ UNSORTED
     - add 'set' pitch transformer that inserts the value like
       Control.lookup_transformer
     - make 'sd' call use ControlUtil.from_env, and get rid of 'sd'
-    - get rid of Control.default_prev_old and Pitch.linear_interpolation
+    get rid of Control.default_prev_old and Pitch.linear_interpolation
       * I can generalize si with a 'replace sample' transformer: '1 | i 0'.
-      - But to generalize si>, I need a 'replace prev val' call: 'prev 1 | i> 0'
-        . I could move prev val to environ, just make it an environ val
-          maintained by EvalTrack.  This gets rid of all the Taggable stuff, at
-          the cost of making Args.prev_val in Deriver and dynamically typed.
-        . There's no Val for Score.Event, so I can't use it for note tracks.
-          Of course I could just add one, maybe not a big deal.
-        . The other way would be to have EvalTrack look at environ and possibly
-          override last val, but it seems like it would be easy to do it
-          accidentally unless I then delete the environ val.  Seems pretty
-          gross.
-        . Or, they could just all have an env val, and only use prev val if it's
-          unset. 'from 1 | i> 0'
+      * But to generalize si>, I need a 'replace prev val' call: 'prev 1 | i> 0'
     - add bezier curve, you give a y val and weight:
       [(y1, w1), (y2, w2), ... (yn, wn)] ->
         sigmoid 0 w1 0 y1 <> sigmoid w1 w2 y1 y2 <> sigmoid w(n-1) wn y(n-1) yn
@@ -32,7 +21,7 @@ UNSORTED
     * add sigmoid curve
     * 'swell' call for dynamics: params bias toward front or back, and
       pointiness of the peak.
-  - define functions in .ky?
+  - define functions with arguments in .ky?
     sd x y = from=$x | drop $y
   control track:
     * val edit sets non-zero duration to zero
@@ -652,6 +641,11 @@ local: plugins:
     map.
 
 cleanup:
+  - Move Derive.info_prev_val to the environ, maintained by EvalTrack.
+    . This gets rid of all the Taggable stuff, at the cost of making
+      Args.prev_val in Deriver and dynamically typed.
+    . There's no Val for Score.Event, so I can't use it for note tracks.
+      Of course I could just add one, maybe not a big deal.
   - derive Generic and use GHC.Generics to make a generic pretty for records?
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.

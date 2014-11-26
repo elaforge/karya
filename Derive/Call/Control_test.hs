@@ -21,6 +21,8 @@ test_set = do
 test_set_transformer = do
     -- interpolate, then set
     equal (run [(0, "1"), (2, "3 | i 0")]) [(0, 1), (1, 0.5), (2, 3)]
+    -- set, then interpolate
+    equal (run [(0, "from=0 | i> 1"), (2, "0")]) [(0, 0), (1, 0.5), (2, 0)]
 
 test_set_prev = do
     let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks "" $
@@ -105,12 +107,6 @@ test_up_down = do
 test_sd = do
     equal (run [(0, "sd 1 .5")]) [(0, 1), (1, 0.5), (2, 0)]
     equal (run [(0, "sd .5 .25")]) [(0, 0.5), (1, 0.25), (2, 0)]
-
-test_si_next = do
-    equal (run [(0, "si> 1 0"), (4, "0")])
-        [(0, 1), (1, 0.75), (2, 0.5), (3, 0.25), (4, 0)]
-    equal (run [(0, "si> 1 0 2"), (4, "0")])
-        [(0, 1), (1, 0.5), (2, 0)]
 
 test_swell = do
     equal (CallTest.run_control_dur [(0, 8, "swell 0 1 .5")]) $

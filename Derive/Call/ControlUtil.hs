@@ -51,36 +51,41 @@ interpolator_call :: Text
     -- ^ get args for the function and the interpolating function
     -> InterpolatorTime Derive.Control -> Derive.Generator Derive.Control
 interpolator_call name (get_arg, function) interpolator_time =
-    Derive.generator1 Module.prelude name Tags.prev doc $ Sig.call ((,,)
-    <$> Sig.required "val" "Destination value."
+    Derive.generator1 Module.prelude name Tags.prev doc
+    $ Sig.call ((,,,)
+    <$> Sig.required "to" "Destination value."
     <*> either id (const $ pure $ TrackLang.Real 0) interpolator_time
-    <*> get_arg
-    ) $ \(val, time, interpolator_arg) args -> do
+    <*> get_arg <*> from_env
+    ) $ \(to, time, interpolator_arg, from_) args -> do
+        let from = from_ `mplus` (snd <$> Args.prev_control args)
         time <- if Args.duration args == 0
             then case interpolator_time of
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
             else TrackLang.Real <$> Args.real_duration args
-        interpolate (function interpolator_arg) args val time
+        interpolate_from_start (function interpolator_arg) args from time to
     where
     doc = "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
+
+-- | Use this for calls that start from the previous value, to give a way
+-- to override that behaviour.
+from_env :: Sig.Parser (Maybe Signal.Y)
+from_env = Sig.environ "from" Sig.Both Nothing
+    "Start from this value. If unset, use the previous value."
 
 -- | Create the standard set of interpolator calls.  Generic so it can
 -- be used by PitchUtil as well.
 interpolator_variations_ :: Derive.Taggable a =>
     (Text -> get_arg -> InterpolatorTime a -> call)
     -> Text -> Text -> get_arg -> [(TrackLang.CallId, call)]
-interpolator_variations_ make c name function =
-    [ (sym c, make name function prev)
-    , (sym $ c <> "<<", make (name <> "-prev-const")
-        function (Left prev_time_arg))
-    , (sym $ c <> ">", make (name <> "-next")
-        function next)
-    , (sym $ c <> ">>", make (name <> "-next-const")
-        function (Left next_time_arg))
-    -- si -- interpolate to val1, then jump to val2
-    -- si> -- jump to val1, then interpolate to val2
+interpolator_variations_ make c name get_arg =
+    [ (sym c, make name get_arg prev)
+    , (sym $ c <> "<<", make (name <> "-prev-const") get_arg
+        (Left prev_time_arg))
+    , (sym $ c <> ">", make (name <> "-next") get_arg next)
+    , (sym $ c <> ">>", make (name <> "-next-const") get_arg
+        (Left next_time_arg))
     ]
     where
     sym = TrackLang.Symbol
@@ -98,16 +103,19 @@ interpolator_variations_ make c name function =
             \ event to the next.")
         where
         next args = return $ TrackLang.Score $ Args.next args - Args.start args
-    prev = Right (prev, "If the event's duration is 0, interpolate from the\
+    prev = Right (get_prev_val,
+        "If the event's duration is 0, interpolate from the\
         \ previous event to this one.")
-        where
-        prev args = do
-            start <- Args.real_start args
-            return $ TrackLang.Real $ case Args.prev_val_end args of
-                -- It's likely the callee won't use the duration if there's no
-                -- prev val.
-                Nothing -> 0
-                Just prev -> prev - start
+
+get_prev_val :: Derive.Taggable a => Derive.PassedArgs a
+    -> Derive.Deriver TrackLang.Duration
+get_prev_val args = do
+    start <- Args.real_start args
+    return $ TrackLang.Real $ case Args.prev_val_end args of
+        -- It's likely the callee won't use the duration if there's no
+        -- prev val.
+        Nothing -> 0
+        Just prev -> prev - start
 
 interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Function)
     -> [(TrackLang.CallId, Derive.Generator Derive.Control)]
@@ -140,17 +148,18 @@ sigmoid_interpolator = (args, f)
 
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
-interpolate :: Function -> Derive.ControlArgs
-    -> Signal.Y -> TrackLang.Duration -> Derive.Deriver Signal.Control
-interpolate f args val dur = do
+interpolate_from_start :: Function -> Derive.ControlArgs
+    -> Maybe Signal.Y -> TrackLang.Duration -> Signal.Y
+    -> Derive.Deriver Signal.Control
+interpolate_from_start f args from dur to = do
     (start, end) <- Util.duration_from_start args dur
     srate <- Util.get_srate
-    return $ case Args.prev_control args of
-        Nothing -> Signal.signal [(start, val)]
+    return $ case from of
+        Nothing -> Signal.signal [(start, to)]
         -- I always set include_initial.  It might be redundant, but if the
         -- previous call was sliced off, it won't be.
-        Just (_, prev_val) -> interpolator srate f True
-            (min start end) prev_val (max start end) val
+        Just from -> interpolator srate f True (min start end) from
+            (max start end) to
 
 interpolator :: SRate -> Function -> Interpolator
 interpolator srate f include_initial x1 y1 x2 y2 =

@@ -38,17 +38,19 @@ interpolator_call :: Text
     -> ControlUtil.InterpolatorTime Derive.Pitch
     -> Derive.Generator Derive.Pitch
 interpolator_call name (get_arg, function) interpolator_time =
-    Derive.generator1 Module.prelude name Tags.prev doc $ Sig.call ((,,)
+    Derive.generator1 Module.prelude name Tags.prev doc
+    $ Sig.call ((,,,)
     <$> pitch_arg
     <*> either id (const $ pure $ TrackLang.Real 0) interpolator_time
-    <*> get_arg
-    ) $ \(val, time, interpolator_arg) args -> do
+    <*> get_arg <*> from_env
+    ) $ \(to, time, interpolator_arg, from_) args -> do
+        let from = from_ `mplus` (snd <$> Args.prev_pitch args)
         time <- if Args.duration args == 0
             then case interpolator_time of
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
             else TrackLang.Real <$> Args.real_duration args
-        interpolate (function interpolator_arg) args val time
+        interpolate_from_start (function interpolator_arg) args from time to
     where
     doc = "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
@@ -58,6 +60,12 @@ interpolator_call name (get_arg, function) interpolator_time =
 pitch_arg :: Sig.Parser PitchOrTranspose
 pitch_arg = Sig.required "pitch"
     "Destination pitch, or a transposition from the previous one."
+
+-- | Use this for calls that start from the previous value, to give a way
+-- to override that behaviour.
+from_env :: Sig.Parser (Maybe PitchSignal.Pitch)
+from_env = Sig.environ "from" Sig.Both Nothing
+    "Start from this pitch. If unset, use the previous pitch."
 
 -- | Pitch version of 'ControlUtil.interpolator_variations'.
 interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Function)
@@ -74,20 +82,20 @@ type Interpolator = Bool -- ^ include the initial sample or not
 
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
-interpolate :: Function -> Derive.PitchArgs
-    -> PitchOrTranspose -> TrackLang.Duration
+interpolate_from_start :: Function -> Derive.PitchArgs
+    -> Maybe PitchSignal.Pitch -> TrackLang.Duration -> PitchOrTranspose
     -> Derive.Deriver PitchSignal.Signal
-interpolate f args pitch_transpose dur = do
-    (start, end) <- Util.duration_from_start args dur
-    case Args.prev_pitch args of
-        Nothing -> return $ case pitch_transpose of
+interpolate_from_start f args from time to = do
+    (start, end) <- Util.duration_from_start args time
+    case from of
+        Nothing -> return $ case to of
             Left pitch -> PitchSignal.signal [(start, pitch)]
             Right _ -> PitchSignal.signal []
-        Just (_, prev) -> do
+        Just from ->
             -- I always set include_initial.  It might be redundant, but if the
             -- previous call was sliced off, it won't be.
-            make_interpolator f True (min start end) prev (max start end) $
-                resolve_pitch_transpose prev pitch_transpose
+            make_interpolator f True (min start end) from (max start end) $
+                resolve_pitch_transpose from to
 
 -- | Create samples according to an interpolator function.  The function is
 -- passed values from 0--1 representing position in time and is expected to

@@ -45,7 +45,6 @@ control_calls = Derive.generator_call_map
     , ("d", c_down)
     , ("u", c_up)
     , ("sd", c_set_drop)
-    , ("si>", c_set_linear_next)
 
     -- not sure which one I'll like better
     , ("`ped`", c_pedal)
@@ -222,35 +221,6 @@ c_set_drop = generator1 "sd" mempty
         srate <- Util.get_srate
         let (end, dest) = slope_down speed x1 x2 val
         return $ ControlUtil.interpolator srate id True x1 val end dest
-
-default_prev_old :: Derive.ControlArgs -> Maybe TrackLang.DefaultReal
-    -> Derive.Deriver TrackLang.Duration
-default_prev_old args Nothing = do
-    start <- Args.real_start args
-    return $ TrackLang.Real $ case Args.prev_control args of
-        -- It's likely the callee won't use the duration if there's no prev
-        -- val.
-        Nothing -> 0
-        Just (prev, _) -> prev - start
-default_prev_old _ (Just (TrackLang.DefaultReal t)) = return t
-
-c_set_linear_next :: Derive.Generator Derive.Control
-c_set_linear_next = generator1 "si-next" mempty
-    "A combination of `set` and `i>`: set to one value and interpolate to\
-    \ another."
-    $ Sig.call ((,,)
-    <$> defaulted "start" 1 "Start at this value."
-    <*> defaulted "end" 0 "Interpolate to this value."
-    <*> defaulted "time" Nothing "Take this much time to reach `dest`.\
-        \ If not given, default to the next event."
-    ) $ \(start, end, maybe_time) args -> do
-        time <- Derive.real $
-            maybe (TrackLang.Score $ Args.next args - Args.start args)
-            TrackLang.default_real maybe_time
-        start_t <- Args.real_start args
-        srate <- Util.get_srate
-        return $ ControlUtil.interpolator srate id True
-            start_t start (start_t + time) end
 
 c_pedal :: Derive.Generator Derive.Control
 c_pedal = generator1 "pedal" mempty
