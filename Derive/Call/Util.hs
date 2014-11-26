@@ -165,7 +165,7 @@ to_signal_or_function control = case control of
     where
     get_control default_type deflt cont = get_function cont >>= \x -> case x of
         Just f -> return $ Right $
-            TrackLang.apply_control_function (inherit_type default_type .) f
+            TrackLang.modify_control_function (inherit_type default_type .) f
         Nothing -> Derive.get_control_signal cont >>= \x -> case x of
             Just sig -> return $ Left sig
             Nothing -> deflt

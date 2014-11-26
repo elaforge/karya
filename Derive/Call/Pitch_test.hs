@@ -81,6 +81,11 @@ test_set = do
     equal (run [(0, "4c"), (2, "set (4c) | i (4d)")])
         [(0, 60), (1, 61), (2, 60)]
 
+test_porta = do
+    equal (run [(0, "4c"), (1, "p (4d) 2s")]) [(0, 60), (2, 61), (3, 62)]
+    equal (run [(0, "4c"), (1, "curve=(cf-expon 2) | p (4d) 2s")])
+        [(0, 60), (2, 60.5), (3, 62)]
+
 test_linear_next = do
     equal (run [(0, "4c"), (4, "i> (4d)"), (6, "4c")])
         [(0, 60), (5, 61), (6, 60)]

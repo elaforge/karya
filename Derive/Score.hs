@@ -35,7 +35,7 @@ module Derive.Score (
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
 
     -- ** warp
-    , warp, id_warp, is_id_warp, id_warp_signal
+    , warp, is_id_warp
     , warp_pos, unwarp_pos, compose_warps
     , warp_to_signal
 
@@ -58,12 +58,12 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control, PControl(..), Warp(..), Type(..), Typed(..),
-        ControlValMap, TypedControlValMap, ControlMap, ControlFunction(..),
-        ControlFunctionMap, PitchMap, untyped, merge_typed, type_to_code,
-        code_to_type, TypedControl, TypedVal, Attributes, Attribute, attr,
-        attrs, set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
-        attrs_list, no_attrs)
+       (Instrument(..), Control, PControl(..), Warp(..), id_warp,
+        id_warp_signal, Type(..), Typed(..), ControlValMap, TypedControlValMap,
+        ControlMap, ControlFunction(..), ControlFunctionMap, PitchMap, untyped,
+        merge_typed, type_to_code, code_to_type, TypedControl, TypedVal,
+        Attributes, Attribute, attr, attrs, set_to_attrs, attrs_diff,
+        attrs_contain, attrs_remove, attrs_set, attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.PitchSignal as PitchSignal
@@ -387,16 +387,6 @@ initial_note event = note_at (event_start event) event
 -- | Convert a Signal to a Warp.
 warp :: Signal.Warp -> Warp
 warp sig = Warp sig 0 1
-
-id_warp :: Warp
-id_warp = warp id_warp_signal
-
-id_warp_signal :: Signal.Warp
-id_warp_signal = Signal.signal
-    [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
-    -- This could be Signal.empty and 'warp_pos' would still treat it as 1:1,
-    -- but then I'd need complicated special cases for 'warp_to_signal' and
-    -- 'compose_warps', so don't bother.
 
 is_id_warp :: Warp -> Bool
 is_id_warp = (== id_warp)

@@ -32,6 +32,7 @@ control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.generator_call_map
     [ ("set", c_set)
     , ("'", c_set_prev)
+    , ("p", c_porta)
     , ("abs", c_abs)
     , ("pp", c_dynamic "pp" 0.05)
     , ("p", c_dynamic "p" 0.25)
@@ -92,9 +93,9 @@ lookup_call call = Derive.LookupPattern "numbers and hex" doc $
 c_set :: Derive.Generator Derive.Control
 c_set = generator1 "set" mempty
     "Emit a sample with no interpolation." $
-    Sig.call (required "val" "Destination value.") $ \val args -> do
+    Sig.call (required "to" "Destination value.") $ \to args -> do
         pos <- Args.real_start args
-        return $! Signal.signal [(pos, val)]
+        return $! Signal.signal [(pos, to)]
 
 c_set_prev :: Derive.Generator Derive.Control
 c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
@@ -104,6 +105,23 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
         Just (x, y) -> do
             start <- Args.real_start args
             return [Signal.signal [(start, y)] | start > x]
+
+c_porta :: Derive.Generator Derive.Control
+c_porta = generator1 "porta" mempty
+    "Interpolate between two values. This is similar to `i>>`,  but intended\
+    \ to be higher level, in that instruments or scores can override it to\
+    \ represent an idiomatic portamento."
+    $ Sig.call ((,,,)
+    <$> required "to" "Destination value."
+    <*> defaulted "time" ControlUtil.default_interpolation_time
+        "Time to reach destination."
+    <*> ControlUtil.from_env <*> ControlUtil.curve_env
+    ) $ \(to, TrackLang.DefaultReal time, from_, curve) args -> do
+        let from = from_ `mplus` (snd <$> Args.prev_control args)
+        time <- if Args.duration args == 0
+            then return time
+            else TrackLang.Real <$> Args.real_duration args
+        ControlUtil.interpolate_from_start curve args from time to
 
 c_abs :: Derive.Generator Derive.Control
 c_abs = Derive.generator1 Module.prelude "abs" mempty

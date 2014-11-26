@@ -72,6 +72,9 @@ val_calls = Derive.call_map
     , ("cf-rnd01", c_cf_rnd01)
     , ("cf-swing", c_cf_swing)
     , ("cf-clamp", c_cf_clamp)
+    , ("cf-linear", c_cf_linear)
+    , ("cf-expon", c_cf_expon)
+    , ("cf-sigmoid", c_cf_sigmoid)
     ]
 
 c_next_val :: Derive.ValCall
@@ -260,8 +263,7 @@ c_get_pitch = val_call "pitch" mempty
 c_linear_next :: Derive.ValCall
 c_linear_next = val_call "linear-next" mempty
     "Create straight lines between the given breakpoints."
-    $ Sig.call breakpoints_arg $ \vals args ->
-        c_breakpoints 0 id vals args
+    $ Sig.call breakpoints_arg $ \vals args -> c_breakpoints 0 id vals args
 
 c_exp_next :: Derive.ValCall
 c_exp_next = val_call "exp-next" mempty
@@ -269,8 +271,7 @@ c_exp_next = val_call "exp-next" mempty
     $ Sig.call ((,)
     <$> defaulted "exp" 2 ControlUtil.exp_doc
     <*> breakpoints_arg
-    ) $ \(exp, vals) args ->
-        c_breakpoints 1 (ControlUtil.expon exp) vals args
+    ) $ \(exp, vals) args -> c_breakpoints 1 (ControlUtil.expon exp) vals args
 
 breakpoints_arg :: Sig.Parser (NonEmpty TrackLang.Val)
 breakpoints_arg = Sig.many1 "bp" "Breakpoints are distributed evenly between\
@@ -434,16 +435,34 @@ c_cf_clamp = val_call "cf-clamp" Tags.control_function
 cf_compose :: Text -> (Signal.Y -> Signal.Y) -> TrackLang.ControlFunction
     -> TrackLang.ControlFunction
 cf_compose name f (TrackLang.ControlFunction cf_name cf) =
-    TrackLang.ControlFunction (name <> "." <> cf_name)
+    TrackLang.ControlFunction (name <> " . " <> cf_name)
         (\c dyn x -> f <$> cf c dyn x)
 
--- * TrackLang.Dynamic
+-- * interpolate
 
--- These functions are starting to reinvent the Deriver functions, which is
--- annoying.  Also they are missing logging and exceptions, which would be
--- convenient.  Unfortunately ControlFunction can't just use a Deriver without
--- running into circular imports, or lumping thousands of lines into
--- Derive.Deriver.Monad.
+c_cf_linear :: Derive.ValCall
+c_cf_linear = val_call "cf-linear" Tags.control_function
+    "Linear interpolation function. It's just `id`."
+    $ Sig.call0 $ \_args -> return $ ControlUtil.cf_linear
+
+c_cf_expon :: Derive.ValCall
+c_cf_expon = val_call "cf-expon" Tags.control_function
+    "Exponential interpolation function."
+    $ Sig.call (Sig.defaulted "expon" 2 ControlUtil.exp_doc)
+    $ \n _args -> return $
+        ControlUtil.cf_interpolater "cf-expon" (ControlUtil.expon n)
+
+c_cf_sigmoid :: Derive.ValCall
+c_cf_sigmoid = val_call "cf-sigmoid" Tags.control_function
+    "Sigmoid interpolation function."
+    $ Sig.call ((,)
+    <$> Sig.defaulted "w1" 0.5 "Weight of start."
+    <*> Sig.defaulted "w2" 0.5 "Weight of end."
+    ) $ \(w1, w2) _args ->
+        return $ ControlUtil.cf_interpolater "cf-isgmoid" $
+            ControlUtil.guess_x $ ControlUtil.sigmoid w1 w2
+
+-- * TrackLang.Dynamic
 
 dyn_seed :: TrackLang.Dynamic -> Double
 dyn_seed = fromMaybe 0
@@ -490,7 +509,7 @@ to_signal_or_function dyn control = case control of
     where
     get_control default_type deflt cont = case get_function cont of
         Just f -> return $ Right $
-            TrackLang.apply_control_function (inherit_type default_type .) f
+            TrackLang.modify_control_function (inherit_type default_type .) f
         Nothing -> case get_signal cont of
             Just sig -> return $ Left sig
             Nothing -> deflt

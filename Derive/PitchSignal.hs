@@ -28,7 +28,6 @@ module Derive.PitchSignal (
 import Prelude hiding (head, take, drop, last, null)
 import qualified Data.Coerce as Coerce
 import qualified Data.Map.Strict as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector as V
 
@@ -74,15 +73,6 @@ modify f sig = sig { sig_vec = f (sig_vec sig) }
 
 no_scale :: Scale
 no_scale = Scale "no-scale" mempty
-
-instance Monoid.Monoid Signal where
-    mempty = Signal mempty
-    mappend s1 s2
-        | null s1 = s2
-        | null s2 = s1
-        | otherwise = Monoid.mconcat [s1, s2]
-    mconcat [] = mempty
-    mconcat sigs = Signal (TimeVector.merge (map sig_vec sigs))
 
 constant :: Pitch -> Signal
 constant  = Signal . TimeVector.constant

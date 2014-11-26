@@ -93,6 +93,16 @@ data Warp = Warp {
     , warp_stretch :: !RealTime
     } deriving (Eq, Show)
 
+id_warp :: Warp
+id_warp = Warp id_warp_signal 0 1
+
+id_warp_signal :: Signal.Warp
+id_warp_signal = Signal.signal
+    [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
+    -- This could be Signal.empty and 'warp_pos' would still treat it as 1:1,
+    -- but then I'd need complicated special cases for 'warp_to_signal' and
+    -- 'compose_warps', so don't bother.
+
 instance Pretty.Pretty Warp where
     format (Warp sig shift stretch) =
         Pretty.record (Pretty.text "Warp"
@@ -237,6 +247,15 @@ no_attrs = Attributes Set.empty
 -- are 'Pitch'es instead of plain floating point values.
 newtype Signal = Signal { sig_vec :: TimeVector.Boxed Pitch }
     deriving (Show, Pretty.Pretty)
+
+instance Monoid.Monoid Signal where
+    mempty = Signal mempty
+    mappend s1 s2
+        | TimeVector.null (sig_vec s1) = s2
+        | TimeVector.null (sig_vec s2) = s1
+        | otherwise = Monoid.mconcat [s1, s2]
+    mconcat [] = mempty
+    mconcat sigs = Signal (TimeVector.merge (map sig_vec sigs))
 
 instance DeepSeq.NFData Signal where
     rnf (Signal vec) = vec `seq` ()
@@ -528,11 +547,25 @@ instance ShowVal.ShowVal Quoted where
     UI.  So the convention is that control functions are generally just
     modifications of an underlying signal, rather than synthesizing a signal.
 
+    Another awkward thing about ControlFunction is that it really wants to
+    be in Deriver, but can't, due to circular imports.  The alternative is
+    a giant hs-boot file, or lumping thousands of lines into
+    "Derive.Deriver.Monad".  Currently it's a plain function but if I want
+    logging and exceptions I could use "Derive.Deriver.DeriveM".  It still
+    wouldn't solve the main problem, which is that I can't reuse the Deriver
+    functions, and instead have to rewrite them.
+
     See NOTE [control-function].
 -}
 data ControlFunction =
+    -- | Control is the control name this function was bound to, if it was
+    -- bound to one.  Dynamic is a stripped down Derive State.  For
+    -- ControlFunctions that represent a control signal, the RealTime is the
+    -- desired X value, otherwise it's just some number.
     ControlFunction !Text !(Control -> Dynamic -> RealTime -> TypedVal)
 
+-- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
+-- to use.  The duplication is unfortunate, see 'ControlFunction'.
 data Dynamic = Dynamic {
     dyn_controls :: !ControlMap
     , dyn_control_functions :: !ControlFunctionMap
@@ -542,6 +575,17 @@ data Dynamic = Dynamic {
     , dyn_warp :: !Warp
     , dyn_ruler :: Ruler.Marklists -- intentionally lazy
     } deriving (Show)
+
+empty_dynamic :: Dynamic
+empty_dynamic = Dynamic
+    { dyn_controls = mempty
+    , dyn_control_functions = mempty
+    , dyn_pitches = mempty
+    , dyn_pitch = mempty
+    , dyn_environ = mempty
+    , dyn_warp = id_warp
+    , dyn_ruler = mempty
+    }
 
 type ControlMap = Map.Map Control TypedControl
 type ControlFunctionMap = Map.Map Control ControlFunction

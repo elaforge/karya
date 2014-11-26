@@ -74,6 +74,11 @@ from_env :: Sig.Parser (Maybe Signal.Y)
 from_env = Sig.environ "from" Sig.Both Nothing
     "Start from this value. If unset, use the previous value."
 
+-- | For calls whose curve can be configured.
+curve_env :: Sig.Parser Function
+curve_env = cf_to_interpolator <$>
+    Sig.environ "curve" Sig.Both cf_linear "Interpolator function."
+
 -- | Create the standard set of interpolator calls.  Generic so it can
 -- be used by PitchUtil as well.
 interpolator_variations_ :: Derive.Taggable a =>
@@ -90,14 +95,13 @@ interpolator_variations_ make c name get_arg =
     where
     sym = TrackLang.Symbol
     next_time_arg = TrackLang.default_real <$>
-        Sig.defaulted "time" (TrackLang.real default_interpolation_time)
+        Sig.defaulted "time" default_interpolation_time
             "Time to reach destination."
     prev_time_arg = invert . TrackLang.default_real <$>
-        Sig.defaulted "time" (TrackLang.real default_interpolation_time)
+        Sig.defaulted "time" default_interpolation_time
             "Time to reach destination, starting before the event."
     invert (TrackLang.Real t) = TrackLang.Real (-t)
     invert (TrackLang.Score t) = TrackLang.Score (-t)
-    default_interpolation_time = 0.1
 
     next = Right (next, "If the event's duration is 0, interpolate from this\
             \ event to the next.")
@@ -106,6 +110,9 @@ interpolator_variations_ make c name get_arg =
     prev = Right (get_prev_val,
         "If the event's duration is 0, interpolate from the\
         \ previous event to this one.")
+
+default_interpolation_time :: TrackLang.DefaultReal
+default_interpolation_time = TrackLang.real 0.1
 
 get_prev_val :: Derive.Taggable a => Derive.PassedArgs a
     -> Derive.Deriver TrackLang.Duration
@@ -143,6 +150,23 @@ sigmoid_interpolator = (args, f)
     args = (,)
         <$> Sig.defaulted "w1" 0.5 "Start weight."
         <*> Sig.defaulted "w2" 0.5 "End weight."
+
+-- * control functions
+
+-- | Stuff an interpolator function into a ControlFunction.
+cf_interpolater :: Text -> Function -> TrackLang.ControlFunction
+cf_interpolater name f = TrackLang.ControlFunction name $
+    \_ _ -> Score.untyped . f . RealTime.to_seconds
+
+-- | Convert a ControlFunction back into an interpolator function.
+cf_to_interpolator :: TrackLang.ControlFunction -> Function
+cf_to_interpolator cf =
+    Score.typed_val
+    . TrackLang.call_control_function cf Controls.null TrackLang.empty_dynamic
+    . RealTime.seconds
+
+cf_linear :: TrackLang.ControlFunction
+cf_linear = cf_interpolater "cf-linear" id
 
 -- * interpolate
 

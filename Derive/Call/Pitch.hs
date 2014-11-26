@@ -147,29 +147,21 @@ slope word sign =
                 PitchUtil.make_interpolator id True start prev_pitch next dest
 
 c_porta :: Derive.Generator Derive.Pitch
-c_porta = linear_interpolation "porta" (TrackLang.real 0.1)
-    "Emit a linear slide from the previous pitch to the given one.\
-    \ This is the same as i>>, but intended to be higher level, in that\
-    \ instruments or scores can override it to represent an idiomatic\
-    \ portamento." $
-    \_ -> return . TrackLang.default_real
-
--- TODO obsolete, remove when I can
--- | Linear interpolation, with different start times.
-linear_interpolation :: TrackLang.Typecheck time => Text -> time -> Text
-    -> (Derive.PitchArgs -> time -> Derive.Deriver TrackLang.Duration)
-    -> Derive.Generator Derive.Pitch
-linear_interpolation name time_default time_default_doc get_time =
-    generator1 name Tags.prev doc $ Sig.call
-        ((,) <$> PitchUtil.pitch_arg <*> defaulted "time" time_default time_doc)
-    $ \(to, time) args -> do
-        time <- get_time args time
-        let from = snd <$> Args.prev_pitch args
-        PitchUtil.interpolate_from_start id args from time to
-    where
-    doc = "Interpolate from the previous pitch to the given one in a straight\
-        \ line."
-    time_doc = "Time to reach destination. " <> time_default_doc
+c_porta = generator1 "porta" mempty
+    "Interpolate between two pitches. This is similar to `i>>`,  but intended\
+    \ to be higher level, in that instruments or scores can override it to\
+    \ represent an idiomatic portamento."
+    $ Sig.call ((,,,)
+    <$> PitchUtil.pitch_arg
+    <*> defaulted "time" ControlUtil.default_interpolation_time
+        "Time to reach destination."
+    <*> PitchUtil.from_env <*> ControlUtil.curve_env
+    ) $ \(to, TrackLang.DefaultReal time, from_, curve) args -> do
+        let from = from_ `mplus` (snd <$> Args.prev_pitch args)
+        time <- if Args.duration args == 0
+            then return time
+            else TrackLang.Real <$> Args.real_duration args
+        PitchUtil.interpolate_from_start curve args from time to
 
 -- * util
 

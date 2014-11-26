@@ -3,10 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - move control function calls to their own module
   control and pitch interpolator calls
-    - add 'set' pitch transformer that inserts the value like
+    * add 'set' pitch transformer that inserts the value like
       Control.lookup_transformer
-    - make 'sd' call use ControlUtil.from_env, and get rid of 'sd'
+    - make 'd' call use ControlUtil.from_env, and get rid of 'sd'
     get rid of Control.default_prev_old and Pitch.linear_interpolation
       * I can generalize si with a 'replace sample' transformer: '1 | i 0'.
       * But to generalize si>, I need a 'replace prev val' call: 'prev 1 | i> 0'
@@ -15,7 +16,7 @@ UNSORTED
         sigmoid 0 w1 0 y1 <> sigmoid w1 w2 y1 y2 <> sigmoid w(n-1) wn y(n-1) yn
       . I can get the previous y with the mechanism that already exists, but
         how do I get the prev weight?
-    - 'p' call should take a curve cf
+    * 'p' call should take a curve cf
       and include in the standard_interpolators, so both control and pitch
       get it
     * add sigmoid curve

@@ -29,9 +29,9 @@ import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, delete_val, lookup_val, val_set,
         null_environ, ValName, Val(..), vals_equal, Quoted(..),
-        ControlFunction(..), Dynamic(..), Symbol(..), ControlRef(..),
-        PitchControl, ValControl, show_call_val, CallId, Expr, Call(..),
-        PitchCall, Term(..))
+        ControlFunction(..), Dynamic(..), empty_dynamic, Symbol(..),
+        ControlRef(..), PitchControl, ValControl, show_call_val, CallId, Expr,
+        Call(..), PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import Derive.ShowVal (ShowVal(..))
@@ -740,8 +740,10 @@ call_control_function :: ControlFunction -> Score.Control -> Dynamic
     -> RealTime -> Score.TypedVal
 call_control_function (ControlFunction _ f) = f
 
-apply_control_function ::
+-- | Modify the underlying function, presumably to compose something onto the
+-- input or output.
+modify_control_function ::
     ((RealTime -> Score.TypedVal) -> (RealTime -> Score.TypedVal))
     -> ControlFunction -> ControlFunction
-apply_control_function modify (ControlFunction name f) =
+modify_control_function modify (ControlFunction name f) =
     ControlFunction name (\dyn control -> modify (f dyn control))
