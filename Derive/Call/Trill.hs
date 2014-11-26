@@ -325,11 +325,9 @@ c_saw = Derive.generator1 Module.prelude "saw" mempty
         return $ saw srate starts from to
 
 saw :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
-saw srate starts from to =
-    mconcat $ zipWith saw starts (drop 1 starts)
+saw srate starts from to = mconcat $ zipWith saw starts (drop 1 starts)
     where
-    saw t1 t2 = ControlUtil.interpolate_segment
-        True srate id t1 from (t2-srate) to
+    saw t1 t2 = ControlUtil.segment srate True True id t1 from (t2-srate) to
 
 -- ** sine
 

@@ -157,7 +157,7 @@ c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
     ) $ \(TrackLang.DefaultReal time, dyn) args -> do
         (start, end) <- Util.duration_from_start args time
         ControlUtil.multiply_dyn end
-            =<< ControlUtil.make_signal id start 1 end dyn
+            =<< ControlUtil.make_segment id start 1 end dyn
         Call.Pitch.approach args start end
 
 -- * fade implementation
@@ -219,7 +219,7 @@ pitch_fade_ranges align align_fade fade_time pitch_time start end = do
 segment :: (Double -> Double) -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
 segment f x1 y1 x2 y2 = do
-    sig <- ControlUtil.make_signal f x1 y1 x2 y2
+    sig <- ControlUtil.make_segment f x1 y1 x2 y2
     return $ Signal.signal [(0, y1)] <> sig
 
 pitch_segment :: Align -> RealTime -- ^ start pitch at this time
@@ -232,8 +232,8 @@ pitch_segment align start0 start end pitch interval pitch_dir = case align of
     -- If the pitch segment is at the start of the note, then I may need to
     -- override its base pitch with a flat segment.
     AlignStart -> (initial dest <>) <$>
-        PitchUtil.make_interpolator id False start dest end pitch
-    AlignEnd -> PitchUtil.make_interpolator id False start pitch end dest
+        PitchUtil.make_segment_ False True id start dest end pitch
+    AlignEnd -> PitchUtil.make_segment_ False True id start pitch end dest
     where
     initial p = PitchSignal.signal [(start0, p)]
     dest = case interval of

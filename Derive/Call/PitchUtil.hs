@@ -9,7 +9,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
-import Derive.Call.ControlUtil (Function, SRate)
+import Derive.Call.ControlUtil (Curve, SRate)
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
@@ -34,23 +34,23 @@ resolve_pitch_transpose pitch = either id (flip Pitches.transpose pitch)
 -- * interpolator call
 
 interpolator_call :: Text
-    -> (Sig.Parser arg, (arg -> Function))
+    -> (Sig.Parser arg, (arg -> Curve))
     -> ControlUtil.InterpolatorTime Derive.Pitch
     -> Derive.Generator Derive.Pitch
-interpolator_call name (get_arg, function) interpolator_time =
+interpolator_call name (get_arg, curve) interpolator_time =
     Derive.generator1 Module.prelude name Tags.prev doc
     $ Sig.call ((,,,)
     <$> pitch_arg
     <*> either id (const $ pure $ TrackLang.Real 0) interpolator_time
     <*> get_arg <*> from_env
-    ) $ \(to, time, interpolator_arg, from_) args -> do
+    ) $ \(to, time, curve_arg, from_) args -> do
         let from = from_ `mplus` (snd <$> Args.prev_pitch args)
         time <- if Args.duration args == 0
             then case interpolator_time of
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
             else TrackLang.Real <$> Args.real_duration args
-        interpolate_from_start (function interpolator_arg) args from time to
+        interpolate_from_start (curve curve_arg) args from time to
     where
     doc = "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
@@ -68,21 +68,16 @@ from_env = Sig.environ "from" Sig.Both Nothing
     "Start from this pitch. If unset, use the previous pitch."
 
 -- | Pitch version of 'ControlUtil.interpolator_variations'.
-interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Function)
+interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Curve)
     -> [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 interpolator_variations = ControlUtil.interpolator_variations_ interpolator_call
 
 
 -- * interpolate
 
-type Interpolator = Bool -- ^ include the initial sample or not
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
-    -- ^ start -> starty -> end -> endy
-    -> PitchSignal.Signal
-
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
-interpolate_from_start :: Function -> Derive.PitchArgs
+interpolate_from_start :: Curve -> Derive.PitchArgs
     -> Maybe PitchSignal.Pitch -> TrackLang.Duration -> PitchOrTranspose
     -> Derive.Deriver PitchSignal.Signal
 interpolate_from_start f args from time to = do
@@ -94,35 +89,38 @@ interpolate_from_start f args from time to = do
         Just from ->
             -- I always set include_initial.  It might be redundant, but if the
             -- previous call was sliced off, it won't be.
-            make_interpolator f True (min start end) from (max start end) $
+            make_segment f (min start end) from (max start end) $
                 resolve_pitch_transpose from to
 
--- | Create samples according to an interpolator function.  The function is
--- passed values from 0--1 representing position in time and is expected to
--- return values from 0--1 representing the Y position at that time.  So linear
--- interpolation is simply @id@.
-make_interpolator :: Function
-    -> Bool -- ^ include the initial sample or not
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
-    -> Derive.Deriver PitchSignal.Signal
-make_interpolator f include_initial x1 y1 x2 y2 = do
-    srate <- Util.get_srate
-    return $ (if include_initial then id else PitchSignal.drop 1)
-        (interpolate_segment True srate f x1 y1 x2 y2)
+make_segment :: Curve -> RealTime -> PitchSignal.Pitch -> RealTime
+    -> PitchSignal.Pitch -> Derive.Deriver PitchSignal.Signal
+make_segment = make_segment_ True True
 
--- | This is bundled into 'make_interpolator', but calls still use this to
--- create interpolations.
-interpolator :: SRate -> Function -> Interpolator
-interpolator srate f include_initial x1 y1 x2 y2 =
-    (if include_initial then id else PitchSignal.drop 1)
-        (interpolate_segment True srate f x1 y1 x2 y2)
+make_segment_ :: Bool -> Bool -> Curve -> RealTime -> PitchSignal.Pitch
+    -> RealTime -> PitchSignal.Pitch -> Derive.Deriver PitchSignal.Signal
+make_segment_ include_initial include_end f x1 y1 x2 y2 = do
+    srate <- Util.get_srate
+    return $ segment srate include_initial include_end f x1 y1 x2 y2
+
+type Interpolate = Bool -- ^ include the initial sample or not
+    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
+    -- ^ start -> starty -> end -> endy
+    -> PitchSignal.Signal
+
+-- | This just rearranges the arguments to 'segment' so its more convenient
+-- to pass around as a standalone creator of segments.
+interpolate_segment :: SRate -> Curve -> Interpolate
+interpolate_segment srate f include_initial =
+    segment srate include_initial True f
 
 -- | Interpolate between the given points.
-interpolate_segment :: Bool -> SRate -> Function
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
+segment :: SRate -> Bool -- ^ include the initial sample
+    -> Bool -- ^ add a sample at end time if one doesn't naturally land there
+    -> Curve -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
     -> PitchSignal.Signal
-interpolate_segment include_end srate f x1 y1 x2 y2 =
-    PitchSignal.unfoldr go (Seq.range_ x1 srate)
+segment srate include_initial include_end f x1 y1 x2 y2 =
+    PitchSignal.unfoldr go $
+        (if include_initial then id else drop 1) (Seq.range_ x1 srate)
     where
     go [] = Nothing
     go (x:xs)
@@ -135,8 +133,8 @@ interpolate_segment include_end srate f x1 y1 x2 y2 =
 -- * breakpoints
 
 -- | Create line segments between the given breakpoints.
-breakpoints :: SRate -> Function -> [(RealTime, PitchSignal.Pitch)]
+breakpoints :: SRate -> Curve -> [(RealTime, PitchSignal.Pitch)]
     -> PitchSignal.Signal
 breakpoints srate f =
     ControlUtil.signal_breakpoints PitchSignal.signal
-        (interpolate_segment False srate f)
+        (segment srate True False f)

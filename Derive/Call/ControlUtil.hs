@@ -27,16 +27,12 @@ import Global
 import Types
 
 
-type Interpolator = Bool -- ^ include the initial sample or not
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y
-    -- ^ start -> starty -> end -> endy
-    -> Signal.Control
-
 -- | Sampling rate.
 type SRate = RealTime
 
--- | Interpolation function.  This maps 0--1 to the desired curve.
-type Function = Double -> Double
+-- | Interpolation function.  This maps 0--1 to the desired curve, which is
+-- also normalized to 0--1.
+type Curve = Double -> Double
 
 -- * interpolator call
 
@@ -47,23 +43,23 @@ type InterpolatorTime a =
 type GetTime a = Derive.PassedArgs a -> Derive.Deriver TrackLang.Duration
 
 interpolator_call :: Text
-    -> (Sig.Parser arg, (arg -> Function))
+    -> (Sig.Parser arg, (arg -> Curve))
     -- ^ get args for the function and the interpolating function
     -> InterpolatorTime Derive.Control -> Derive.Generator Derive.Control
-interpolator_call name (get_arg, function) interpolator_time =
+interpolator_call name (get_arg, curve) interpolator_time =
     Derive.generator1 Module.prelude name Tags.prev doc
     $ Sig.call ((,,,)
     <$> Sig.required "to" "Destination value."
     <*> either id (const $ pure $ TrackLang.Real 0) interpolator_time
     <*> get_arg <*> from_env
-    ) $ \(to, time, interpolator_arg, from_) args -> do
+    ) $ \(to, time, curve_arg, from_) args -> do
         let from = from_ `mplus` (snd <$> Args.prev_control args)
         time <- if Args.duration args == 0
             then case interpolator_time of
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
             else TrackLang.Real <$> Args.real_duration args
-        interpolate_from_start (function interpolator_arg) args from time to
+        interpolate_from_start (curve curve_arg) args from time to
     where
     doc = "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
@@ -75,9 +71,9 @@ from_env = Sig.environ "from" Sig.Both Nothing
     "Start from this value. If unset, use the previous value."
 
 -- | For calls whose curve can be configured.
-curve_env :: Sig.Parser Function
-curve_env = cf_to_interpolator <$>
-    Sig.environ "curve" Sig.Both cf_linear "Interpolator function."
+curve_env :: Sig.Parser Curve
+curve_env = cf_to_curve <$>
+    Sig.environ "curve" Sig.Both cf_linear "Curve function."
 
 -- | Create the standard set of interpolator calls.  Generic so it can
 -- be used by PitchUtil as well.
@@ -124,27 +120,27 @@ get_prev_val args = do
         Nothing -> 0
         Just prev -> prev - start
 
-interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Function)
+interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Curve)
     -> [(TrackLang.CallId, Derive.Generator Derive.Control)]
 interpolator_variations = interpolator_variations_ interpolator_call
 
 standard_interpolators ::
-    (forall arg. Text -> Text -> (Sig.Parser arg, arg -> Function)
+    (forall arg. Text -> Text -> (Sig.Parser arg, arg -> Curve)
         -> [(TrackLang.CallId, Derive.Generator result)])
     -> Derive.CallMaps result
 standard_interpolators make = Derive.generator_call_map $ concat
     [ make "i" "linear" (pure (), const id)
-    , make "e" "exp" exponential_interpolator
-    , make "s" "sigmoid" sigmoid_interpolator
+    , make "e" "exp" exponential_curve
+    , make "s" "sigmoid" sigmoid_curve
     ]
 
-exponential_interpolator :: (Sig.Parser Double, Double -> Function)
-exponential_interpolator = (args, expon)
+exponential_curve :: (Sig.Parser Double, Double -> Curve)
+exponential_curve = (args, expon)
     where args = Sig.defaulted "exp" 2 exp_doc
 
-sigmoid_interpolator :: (Sig.Parser (Double, Double),
-        (Double, Double) -> Function)
-sigmoid_interpolator = (args, f)
+sigmoid_curve :: (Sig.Parser (Double, Double),
+        (Double, Double) -> Curve)
+sigmoid_curve = (args, f)
     where
     f (w1, w2) = guess_x $ sigmoid w1 w2
     args = (,)
@@ -153,14 +149,14 @@ sigmoid_interpolator = (args, f)
 
 -- * control functions
 
--- | Stuff an interpolator function into a ControlFunction.
-cf_interpolater :: Text -> Function -> TrackLang.ControlFunction
+-- | Stuff a curve function into a ControlFunction.
+cf_interpolater :: Text -> Curve -> TrackLang.ControlFunction
 cf_interpolater name f = TrackLang.ControlFunction name $
     \_ _ -> Score.untyped . f . RealTime.to_seconds
 
--- | Convert a ControlFunction back into an interpolator function.
-cf_to_interpolator :: TrackLang.ControlFunction -> Function
-cf_to_interpolator cf =
+-- | Convert a ControlFunction back into a curve function.
+cf_to_curve :: TrackLang.ControlFunction -> Curve
+cf_to_curve cf =
     Score.typed_val
     . TrackLang.call_control_function cf Controls.null TrackLang.empty_dynamic
     . RealTime.seconds
@@ -172,7 +168,7 @@ cf_linear = cf_interpolater "cf-linear" id
 
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
-interpolate_from_start :: Function -> Derive.ControlArgs
+interpolate_from_start :: Curve -> Derive.ControlArgs
     -> Maybe Signal.Y -> TrackLang.Duration -> Signal.Y
     -> Derive.Deriver Signal.Control
 interpolate_from_start f args from dur to = do
@@ -182,19 +178,27 @@ interpolate_from_start f args from dur to = do
         Nothing -> Signal.signal [(start, to)]
         -- I always set include_initial.  It might be redundant, but if the
         -- previous call was sliced off, it won't be.
-        Just from -> interpolator srate f True (min start end) from
-            (max start end) to
+        Just from -> segment srate True True f
+            (min start end) from (max start end) to
 
-interpolator :: SRate -> Function -> Interpolator
-interpolator srate f include_initial x1 y1 x2 y2 =
-    (if include_initial then id else Signal.drop 1)
-        (interpolate_segment True srate f x1 y1 x2 y2)
+make_segment :: Curve -> RealTime -> Signal.Y -> RealTime
+    -> Signal.Y -> Derive.Deriver Signal.Control
+make_segment = make_segment_ True True
+
+make_segment_ :: Bool -> Bool -> Curve -> RealTime -> Signal.Y
+    -> RealTime -> Signal.Y -> Derive.Deriver Signal.Control
+make_segment_ include_initial include_end f x1 y1 x2 y2 = do
+    srate <- Util.get_srate
+    return $ segment srate include_initial include_end f x1 y1 x2 y2
 
 -- | Interpolate between the given points.
-interpolate_segment :: Bool -> SRate -> Function
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Signal.Control
-interpolate_segment include_end srate f x1 y1 x2 y2 =
-    Signal.unfoldr go (Seq.range_ x1 srate)
+segment :: SRate -> Bool -- ^ include the initial sample
+    -> Bool -- ^ add a sample at end time if one doesn't naturally land there
+    -> Curve -> RealTime -> Signal.Y -> RealTime -> Signal.Y
+    -> Signal.Control
+segment srate include_initial include_end f x1 y1 x2 y2 =
+    Signal.unfoldr go $
+        (if include_initial then id else drop 1) (Seq.range_ x1 srate)
     where
     go [] = Nothing
     go (x:xs)
@@ -215,13 +219,13 @@ exp_doc = "Slope of an exponential curve. Positive `n` is taken as `x^n`\
 -- which doesn't seem too useful, so so hijack the negatives as an easier way
 -- to write 1/n.  That way n is smoothly departing, while -n is smoothly
 -- approaching.
-expon :: Double -> Function
+expon :: Double -> Curve
 expon n x = x**exp
     where exp = if n >= 0 then n else 1 / abs n
 
 -- | I could probably make a nicer curve of this general shape if I knew more
 -- math.
-expon2 :: Double -> Double -> Function
+expon2 :: Double -> Double -> Curve
 expon2 a b x
     | x >= 1 = 1
     | x < 0.5 = expon a (x * 2) / 2
@@ -234,7 +238,7 @@ type Point = (Double, Double)
 -- | As far as I can tell, there's no direct way to know what value to give to
 -- the bezier function in order to get a specific @x@.  So I guess with binary
 -- search.
-guess_x :: (Double -> (Double, Double)) -> Function
+guess_x :: (Double -> (Double, Double)) -> Curve
 guess_x f x1 = go 0 1
     where
     go low high = case ApproxEq.compare threshold x x1 of
@@ -262,9 +266,9 @@ bezier3 (x1, y1) (x2, y2) (x3, y3) (x4, y4) t =
 -- * breakpoints
 
 -- | Create line segments between the given breakpoints.
-breakpoints :: SRate -> Function -> [(RealTime, Signal.Y)] -> Signal.Control
+breakpoints :: SRate -> Curve -> [(RealTime, Signal.Y)] -> Signal.Control
 breakpoints srate f =
-    signal_breakpoints Signal.signal (interpolate_segment False srate f)
+    signal_breakpoints Signal.signal (segment srate True False f)
 
 signal_breakpoints :: Monoid.Monoid sig => ([(RealTime, y)] -> sig)
     -> (RealTime -> y -> RealTime -> y -> sig) -> [(RealTime, y)] -> sig
@@ -306,11 +310,5 @@ multiply_signal control end sig = do
 add_control :: Score.Control -> (Double -> Double)
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()
 add_control control f x1 y1 x2 y2 = do
-    sig <- make_signal f x1 y1 x2 y2
+    sig <- make_segment f x1 y1 x2 y2
     Derive.modify_control (Derive.Merge Derive.op_add) control sig
-
-make_signal :: (Double -> Double) -> RealTime -> Signal.Y -> RealTime
-    -> Signal.Y -> Derive.Deriver Signal.Control
-make_signal f x1 y1 x2 y2 = do
-    srate <- Util.get_srate
-    return $ interpolator srate f True x1 y1 x2 y2

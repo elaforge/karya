@@ -190,8 +190,7 @@ c_neighbor = generator1 "neighbor" mempty
     <*> defaulted "time" (TrackLang.real 0.1) "Time taken to get to 0."
     ) $ \(neighbor, TrackLang.DefaultReal time) args -> do
         (start, end) <- Util.duration_from_start args time
-        srate <- Util.get_srate
-        return $! ControlUtil.interpolator srate id True start neighbor end 0
+        ControlUtil.make_segment id start neighbor end 0
 
 c_down :: Derive.Generator Derive.Control
 c_down = generator1 "down" Tags.prev
@@ -224,9 +223,8 @@ slope args f = case Args.prev_control args of
     Nothing -> return Signal.empty
     Just (_, prev_y) -> do
         (start, next) <- Args.real_range_or_next args
-        srate <- Util.get_srate
         let (end, dest) = f start next prev_y
-        return $ ControlUtil.interpolator srate id True start prev_y end dest
+        ControlUtil.make_segment id start prev_y end dest
 
 c_set_drop :: Derive.Generator Derive.Control
 c_set_drop = generator1 "sd" mempty
@@ -236,9 +234,8 @@ c_set_drop = generator1 "sd" mempty
     <*> defaulted "speed" 1 "Descend this amount per second."
     ) $ \(val, speed) args -> do
         (x1, x2) <- Args.real_range_or_next args
-        srate <- Util.get_srate
         let (end, dest) = slope_down speed x1 x2 val
-        return $ ControlUtil.interpolator srate id True x1 val end dest
+        ControlUtil.make_segment id x1 val end dest
 
 c_pedal :: Derive.Generator Derive.Control
 c_pedal = generator1 "pedal" mempty

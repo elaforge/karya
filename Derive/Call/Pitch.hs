@@ -94,7 +94,7 @@ c_neighbor = generator1 "neighbor" mempty
     ) $ \(pitch, neighbor, TrackLang.DefaultReal time) args -> do
         (start, end) <- Util.duration_from_start args time
         let pitch1 = Pitches.transpose neighbor pitch
-        PitchUtil.make_interpolator id True start pitch1 end pitch
+        PitchUtil.make_segment id start pitch1 end pitch
 
 c_approach :: Derive.Generator Derive.Pitch
 c_approach = generator1 "approach" Tags.next
@@ -110,7 +110,7 @@ approach args start end = do
     maybe_next <- next_pitch args
     case (Args.prev_pitch args, maybe_next) of
         (Just (_, prev), Just next) ->
-            PitchUtil.make_interpolator id True start prev end next
+            PitchUtil.make_segment id start prev end next
         _ -> return mempty
 
 next_pitch :: Derive.PassedArgs d -> Derive.Deriver (Maybe PitchSignal.Pitch)
@@ -144,7 +144,7 @@ slope word sign =
                 let dest = Pitches.transpose transpose prev_pitch
                     transpose = Pitch.modify_transpose
                         (* (RealTime.to_seconds (next - start) * sign)) slope
-                PitchUtil.make_interpolator id True start prev_pitch next dest
+                PitchUtil.make_segment id start prev_pitch next dest
 
 c_porta :: Derive.Generator Derive.Pitch
 c_porta = generator1 "porta" mempty

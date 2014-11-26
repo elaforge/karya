@@ -61,7 +61,7 @@ c_bent_string = Derive.transformer module_ "bent-string"
     ) $ \(attack, release, delay, open_strings) _args deriver ->
     Lily.when_lilypond deriver $ do
         srate <- Util.get_srate
-        let linear = PitchUtil.interpolator srate id
+        let linear = PitchUtil.interpolate_segment srate id
         string_idiom linear linear open_strings attack delay release =<< deriver
 
 c_stopped_string :: Derive.Transformer Derive.Note
@@ -77,7 +77,7 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
         srate <- Util.get_srate
         let attack = TrackLang.constant_control 0
             release = TrackLang.constant_control 0
-        let linear = PitchUtil.interpolator srate id
+        let linear = PitchUtil.interpolate_segment srate id
         string_idiom linear linear open_strings attack delay release =<< deriver
 
 open_strings_env :: Sig.Parser [PitchSignal.Pitch]
@@ -112,14 +112,14 @@ open_strings_env = Sig.check non_empty $
     one stopped string at a time.
 -}
 string_idiom ::
-    PitchUtil.Interpolator -- ^ interpolator to draw the attack curve
-    -> PitchUtil.Interpolator -- ^ draw the release curve
+    PitchUtil.Interpolate -- ^ interpolator to draw the attack curve
+    -> PitchUtil.Interpolate -- ^ draw the release curve
     -> [PitchSignal.Pitch] -- ^ Pitches of open strings.
     -> TrackLang.ValControl -- ^ Attack time.
     -> TrackLang.ValControl -- ^ Release delay.
     -> TrackLang.ValControl -- ^ Time for string to return to its open pitch.
     -> Derive.Events -> Derive.NoteDeriver
-string_idiom attack_interpolator release_interpolator open_strings attack delay
+string_idiom attack_interpolate release_interpolate open_strings attack delay
         release all_events = Post.event_head all_events $ \event events -> do
     -- Coerce is ok because I don't want open strings in the environ to
     -- transpose.
@@ -142,7 +142,7 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
         attack <- dur attack
         delay <- dur delay
         release <- dur release
-        process strings attack_interpolator release_interpolator
+        process strings attack_interpolate release_interpolate
             (attack, delay, release) state event
 
 {- | Monophonic:
@@ -156,10 +156,10 @@ string_idiom attack_interpolator release_interpolator open_strings attack delay
 process :: Map.Map Pitch.NoteNumber PitchSignal.Pitch
     -- ^ The strings are tuned to Pitches, but to compare Pitches I have to
     -- evaluate them to NoteNumbers first.
-    -> PitchUtil.Interpolator -> PitchUtil.Interpolator
+    -> PitchUtil.Interpolate -> PitchUtil.Interpolate
     -> (RealTime, RealTime, RealTime) -> State -> Score.Event
     -> Derive.Deriver (State, [Score.Event])
-process strings attack_interpolator release_interpolator
+process strings attack_interpolate release_interpolate
         (attack_time, delay_time, release_time)
         state@(State sounding_string prev) event = do
     pitch <- Derive.require "no pitch" $ Score.pitch_at start event
@@ -176,42 +176,42 @@ process strings attack_interpolator release_interpolator
     start = Score.event_start event
     emit pitch string
         -- Re-use an already sounding string.
-        | fst string == fst sounding_string = attack attack_interpolator
+        | fst string == fst sounding_string = attack attack_interpolate
             attack_time pitch start prev
         -- Sounding string is no longer used, so it can be released.
-        | otherwise = release release_interpolator delay_time release_time
+        | otherwise = release release_interpolate delay_time release_time
             (snd sounding_string) start prev
 
 -- | Bend the event up to the next note.
-attack :: PitchUtil.Interpolator -> RealTime -> PitchSignal.Pitch -> RealTime
+attack :: PitchUtil.Interpolate -> RealTime -> PitchSignal.Pitch -> RealTime
     -> Score.Event -> Maybe Score.Event
-attack interpolator time pitch next_event event = do
+attack interpolate time pitch next_event event = do
     -- If there isn't enough time, do the bend faster.  I think I'd like to
     -- emit part of the transition, and then complete it after the attack, but
     -- that would require some more complicated code and I'm not sure I need
     -- it.
     let start_x = max (Score.event_start event) (next_event - time)
     start_pitch <- Score.pitch_at start_x event
-    return $ merge_curve interpolator start_x start_pitch next_event
+    return $ merge_curve interpolate start_x start_pitch next_event
         pitch event
 
 -- | After releasing a note, you release your hand, which means the pitch
 -- should bend down to the open string.
-release :: PitchUtil.Interpolator -> RealTime -> RealTime
+release :: PitchUtil.Interpolate -> RealTime -> RealTime
     -> PitchSignal.Pitch -> RealTime -> Score.Event
     -> Maybe Score.Event
-release interpolator delay time pitch next_event event = do
+release interpolate delay time pitch next_event event = do
     let start_x = next_event + delay
     start_pitch <- Score.pitch_at start_x event
-    return $ merge_curve interpolator start_x start_pitch
+    return $ merge_curve interpolate start_x start_pitch
         (start_x + time) pitch event
 
-merge_curve :: PitchUtil.Interpolator -> RealTime -> PitchSignal.Pitch
+merge_curve :: PitchUtil.Interpolate -> RealTime -> PitchSignal.Pitch
     -> RealTime -> PitchSignal.Pitch -> Score.Event -> Score.Event
-merge_curve interpolator x0 y0 x1 y1 event =
+merge_curve interpolate x0 y0 x1 y1 event =
     Score.set_pitch new_pitch event
     where
-    curve = interpolator False x0 y0 x1 y1
+    curve = interpolate False x0 y0 x1 y1
     new_pitch = Score.event_transformed_pitch event <> curve
 
 find_string :: Pitch.NoteNumber -> Map.Map Pitch.NoteNumber PitchSignal.Pitch

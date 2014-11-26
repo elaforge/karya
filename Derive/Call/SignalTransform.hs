@@ -183,7 +183,7 @@ smooth f srate time =
         Nothing -> (Just (x, y), Signal.signal [(x, y)])
         Just (x0, y0) -> (Signal.last segment `mplus` Just (x, y), segment)
             where
-            segment = drop1 $ ControlUtil.interpolate_segment True srate f
+            segment = drop1 $ ControlUtil.segment srate True True f
                 (max x0 (min x (x+time))) y0
                 (maybe id (min . fst) next (max x (x+time))) y
     -- If the segment length is non-zero, then the first sample is a duplicate

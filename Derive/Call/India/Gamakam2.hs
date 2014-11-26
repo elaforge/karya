@@ -395,8 +395,8 @@ c_from from_prev fade_in = generator1 "from" mempty
         let from = resolve_pitch args to_pitch from_pitch
         when fade_in $
             ControlUtil.multiply_dyn end
-                =<< ControlUtil.make_signal id start 0 end 1
-        PitchUtil.make_interpolator id True start from end to_pitch
+                =<< ControlUtil.make_segment id start 0 end 1
+        PitchUtil.make_segment id start from end to_pitch
 
 -- | Get the end time, given a start and a duration.  Don't go beyond the
 -- maximum, which is the event's duration, if given explicitly, or the next
@@ -627,8 +627,8 @@ c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
         pitch <- prev_pitch start args
         when fade_out $
             ControlUtil.multiply_dyn end
-                =<< ControlUtil.make_signal id start 1 end 0
-        PitchUtil.make_interpolator id True start pitch end
+                =<< ControlUtil.make_segment id start 1 end 0
+        PitchUtil.make_segment id start pitch end
             (PitchUtil.resolve_pitch_transpose pitch to_pitch)
 
 c_fade :: Bool -> Derive.Generator Derive.Pitch
@@ -640,7 +640,7 @@ c_fade fade_in = generator1 "fade" mempty "Fade in or out."
             then (,) <$> return start <*> get_end start time args
             else (,) <$> align_to_end start end time <*> return end
         ControlUtil.multiply_dyn end
-            =<< ControlUtil.make_signal id start 1 end 0
+            =<< ControlUtil.make_segment id start 1 end 0
         return mempty
 
 align_to_end :: RealTime -> RealTime -> TrackLang.Duration
