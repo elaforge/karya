@@ -45,7 +45,6 @@ control_calls = Derive.generator_call_map
     , ("n", c_neighbor)
     , ("d", c_down)
     , ("u", c_up)
-    , ("sd", c_set_drop)
 
     -- not sure which one I'll like better
     , ("`ped`", c_pedal)
@@ -195,47 +194,35 @@ c_neighbor = generator1 "neighbor" mempty
 c_down :: Derive.Generator Derive.Control
 c_down = generator1 "down" Tags.prev
     "Descend at the given speed until the value reaches 0 or the next event."
-    $ Sig.call (defaulted "speed" 1 "Descend this amount per second.") $
-    \speed args -> slope args $ \start next prev_y ->
-        slope_down speed start next prev_y
+    $ Sig.call ((,)
+    <$> defaulted "speed" 1 "Descend this amount per second."
+    <*> ControlUtil.from_env
+    ) $ \(speed, from) args -> slope (ControlUtil.prev_val from args) args $
+    \x1 x2 y1 ->
+        let diff = RealTime.to_seconds (x2 - x1) * speed
+            end = min x2 $ x1 + RealTime.seconds y1 / RealTime.seconds speed
+        in (end, max 0 (y1 - diff))
 
 c_up :: Derive.Generator Derive.Control
 c_up = generator1 "up" Tags.prev
     "Ascend at the given speed until the value reaches 1 or the next event."
-    $ Sig.call (defaulted "speed" 1 "Ascend this amount per second.") $
-    \speed args -> slope args $ \start next prev_y ->
-        let diff = RealTime.to_seconds (next - start) * speed
-            end = min next
-                (start + RealTime.seconds (1-prev_y) / RealTime.seconds speed)
-        in (end, min 1 (prev_y + diff))
+    $ Sig.call ((,)
+    <$> defaulted "speed" 1 "Ascend this amount per second."
+    <*> ControlUtil.from_env
+    ) $ \(speed, from) args -> slope (ControlUtil.prev_val from args) args $
+    \x1 x2 y1 ->
+        let diff = RealTime.to_seconds (x2 - x1) * speed
+            end = min x2 (x1 + RealTime.seconds (1-y1) / RealTime.seconds speed)
+        in (end, min 1 (y1 + diff))
 
--- | Given a start X and maximum end X and start Y, return the end X and end Y.
-slope_down :: Double -> RealTime -> RealTime -> Signal.Y -> (RealTime, Signal.Y)
-slope_down speed x1 x2 y1 = (end, max 0 (y1 - diff))
-    where
-    diff = RealTime.to_seconds (x2 - x1) * speed
-    end = min x2 $ x1 + RealTime.seconds y1 / RealTime.seconds speed
-
-slope :: Derive.ControlArgs
+slope :: Maybe Signal.Y -> Derive.ControlArgs
     -> (RealTime -> RealTime -> Signal.Y -> (RealTime, Signal.Y))
     -> Derive.Deriver Signal.Control
-slope args f = case Args.prev_control args of
-    Nothing -> return Signal.empty
-    Just (_, prev_y) -> do
-        (start, next) <- Args.real_range_or_next args
-        let (end, dest) = f start next prev_y
-        ControlUtil.make_segment id start prev_y end dest
-
-c_set_drop :: Derive.Generator Derive.Control
-c_set_drop = generator1 "sd" mempty
-    "A combination of `set` and `down`: set to the given value, and descend."
-    $ Sig.call ((,)
-    <$> defaulted "val" 1 "Start at this value."
-    <*> defaulted "speed" 1 "Descend this amount per second."
-    ) $ \(val, speed) args -> do
-        (x1, x2) <- Args.real_range_or_next args
-        let (end, dest) = slope_down speed x1 x2 val
-        ControlUtil.make_segment id x1 val end dest
+slope Nothing _ _ = return Signal.empty
+slope (Just from) args f = do
+    (start, next) <- Args.real_range_or_next args
+    let (end, dest) = f start next from
+    ControlUtil.make_segment id start from end dest
 
 c_pedal :: Derive.Generator Derive.Control
 c_pedal = generator1 "pedal" mempty

@@ -7,7 +7,12 @@ UNSORTED
   control and pitch interpolator calls
     * add 'set' pitch transformer that inserts the value like
       Control.lookup_transformer
-    - make 'd' call use ControlUtil.from_env, and get rid of 'sd'
+    * make 'd' call use ControlUtil.from_env, and get rid of 'sd'
+    - it's still annoying to write 'from=1 | d', maybe if I do it a lot
+      make an alias 'f 1 | d'?  Or '1 | d' if the lookup call also set 'from'.
+      For pitch it looks like 'set (4c) | d' or '4c | d' if I make scales also
+      export transformers.
+      . Try using it for a while to see if it matters.
     get rid of Control.default_prev_old and Pitch.linear_interpolation
       * I can generalize si with a 'replace sample' transformer: '1 | i 0'.
       * But to generalize si>, I need a 'replace prev val' call: 'prev 1 | i> 0'
@@ -16,6 +21,8 @@ UNSORTED
         sigmoid 0 w1 0 y1 <> sigmoid w1 w2 y1 y2 <> sigmoid w(n-1) wn y(n-1) yn
       . I can get the previous y with the mechanism that already exists, but
         how do I get the prev weight?
+      . One nice aspect of beziers is that they can overshoot the destination
+        value.  But that only happens if the control points are at an angle.
     * 'p' call should take a curve cf
       and include in the standard_interpolators, so both control and pitch
       get it

@@ -43,14 +43,14 @@ interpolator_call name (get_arg, curve) interpolator_time =
     <$> pitch_arg
     <*> either id (const $ pure $ TrackLang.Real 0) interpolator_time
     <*> get_arg <*> from_env
-    ) $ \(to, time, curve_arg, from_) args -> do
-        let from = from_ `mplus` (snd <$> Args.prev_pitch args)
+    ) $ \(to, time, curve_arg, from) args -> do
         time <- if Args.duration args == 0
             then case interpolator_time of
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
             else TrackLang.Real <$> Args.real_duration args
-        interpolate_from_start (curve curve_arg) args from time to
+        interpolate_from_start (curve curve_arg) args (prev_val from args)
+            time to
     where
     doc = "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
@@ -66,6 +66,10 @@ pitch_arg = Sig.required "pitch"
 from_env :: Sig.Parser (Maybe PitchSignal.Pitch)
 from_env = Sig.environ "from" Sig.Both Nothing
     "Start from this pitch. If unset, use the previous pitch."
+
+prev_val :: Maybe PitchSignal.Pitch -> Derive.PitchArgs
+    -> Maybe PitchSignal.Pitch
+prev_val from args = from `mplus` (snd <$> Args.prev_pitch args)
 
 -- | Pitch version of 'ControlUtil.interpolator_variations'.
 interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Curve)

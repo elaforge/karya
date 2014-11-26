@@ -132,19 +132,19 @@ c_down = generator1 "down" Tags.prev
 
 slope :: Text -> Double -> Derive.WithArgDoc
     (Derive.PitchArgs -> Derive.Deriver PitchSignal.Signal)
-slope word sign =
-    Sig.call (defaulted "slope" (Pitch.Chromatic 1)
-        (word <> " this many steps per second.")) $
-    \slope args -> do
-        case Args.prev_pitch args of
-            Nothing -> return mempty
-            Just (_, prev_pitch) -> do
-                start <- Args.real_start args
-                next <- Derive.real (Args.next args)
-                let dest = Pitches.transpose transpose prev_pitch
-                    transpose = Pitch.modify_transpose
-                        (* (RealTime.to_seconds (next - start) * sign)) slope
-                PitchUtil.make_segment id start prev_pitch next dest
+slope word sign = Sig.call ((,)
+    <$> defaulted "slope" (Pitch.Chromatic 1)
+        (word <> " this many steps per second.")
+    <*> PitchUtil.from_env
+    ) $ \(slope, from) args -> case PitchUtil.prev_val from args of
+        Nothing -> return mempty
+        Just prev_pitch -> do
+            start <- Args.real_start args
+            next <- Derive.real (Args.next args)
+            let dest = Pitches.transpose transpose prev_pitch
+                transpose = Pitch.modify_transpose
+                    (* (RealTime.to_seconds (next - start) * sign)) slope
+            PitchUtil.make_segment id start prev_pitch next dest
 
 c_porta :: Derive.Generator Derive.Pitch
 c_porta = generator1 "porta" mempty

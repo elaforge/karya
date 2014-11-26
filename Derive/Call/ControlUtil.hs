@@ -52,14 +52,14 @@ interpolator_call name (get_arg, curve) interpolator_time =
     <$> Sig.required "to" "Destination value."
     <*> either id (const $ pure $ TrackLang.Real 0) interpolator_time
     <*> get_arg <*> from_env
-    ) $ \(to, time, curve_arg, from_) args -> do
-        let from = from_ `mplus` (snd <$> Args.prev_control args)
+    ) $ \(to, time, curve_arg, from) args -> do
         time <- if Args.duration args == 0
             then case interpolator_time of
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
             else TrackLang.Real <$> Args.real_duration args
-        interpolate_from_start (curve curve_arg) args from time to
+        interpolate_from_start (curve curve_arg) args
+            (prev_val from args) time to
     where
     doc = "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
@@ -69,6 +69,9 @@ interpolator_call name (get_arg, curve) interpolator_time =
 from_env :: Sig.Parser (Maybe Signal.Y)
 from_env = Sig.environ "from" Sig.Both Nothing
     "Start from this value. If unset, use the previous value."
+
+prev_val :: Maybe Signal.Y -> Derive.ControlArgs -> Maybe Signal.Y
+prev_val from args = from `mplus` (snd <$> Args.prev_control args)
 
 -- | For calls whose curve can be configured.
 curve_env :: Sig.Parser Curve
