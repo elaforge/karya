@@ -3,154 +3,22 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * move control function calls to their own module
-  control and pitch interpolator calls
-    * add 'set' pitch transformer that inserts the value like
-      Control.lookup_transformer
-    * make 'd' call use ControlUtil.from_env, and get rid of 'sd'
-    - it's still annoying to write 'from=1 | d', maybe if I do it a lot
-      make an alias 'f 1 | d'?  Or '1 | d' if the lookup call also set 'from'.
-      For pitch it looks like 'set (4c) | d' or '4c | d' if I make scales also
-      export transformers.
-      . Try using it for a while to see if it matters.
-    get rid of Control.default_prev_old and Pitch.linear_interpolation
-      * I can generalize si with a 'replace sample' transformer: '1 | i 0'.
-      * But to generalize si>, I need a 'replace prev val' call: 'prev 1 | i> 0'
-    - add bezier curve, you give a y val and weight:
-      [(y1, w1), (y2, w2), ... (yn, wn)] ->
-        sigmoid 0 w1 0 y1 <> sigmoid w1 w2 y1 y2 <> sigmoid w(n-1) wn y(n-1) yn
-      . I can get the previous y with the mechanism that already exists, but
-        how do I get the prev weight?
-      . One nice aspect of beziers is that they can overshoot the destination
-        value.  But that only happens if the control points are at an angle.
-    * 'p' call should take a curve cf
-      and include in the standard_interpolators, so both control and pitch
-      get it
-    * add sigmoid curve
-    * 'swell' call for dynamics: params bias toward front or back, and
-      pointiness of the peak.
-  - define functions with arguments in .ky?
-    sd x y = from=$x | drop $y
-  control track:
-    * val edit sets non-zero duration to zero
-    * val edit should understand 0x in addition to `0x`
-    * edit input should use non-zero duration if there is a non-zero
-      selection, like note track input
-  * lilypond: why do I need e->q and 'ly-span accel.' on separate tracks?
-    . generator vs. transformer, and the error was in the log.  Should
-      LLily.block also print any error logs?
-  - lilypond: espressivo <> should be like a normal hairpin
-    But the way to do this is awkward, << .. { s4 s4 \< s4 \> s4 \! } >>
-    . I also want tied notes to expand to 'c4~ \< c4 \>'
-      But that has problems, I need a \!.
-    . Even '<< b'2.~ { s4 \< s4 \> s4 } >> | b'4 cs''4 \!'
-      is not ideal, the decrescendo extends to underneath the next note.
-      If I put \! on the tied-to note, it still won't extend.
-    . see \at in https://github.com/openlilylib/openlilylib/tree/master/input-shorthands/articulations-not-aligned-with-notes
-    . Ideally:
-      a \cresc \decresc % over duration of the note
-      a \cresc ~ a \decresc % same
-  * clip calls don't clip note duration according to lilypond
-    The notes are clipped, but not the duration of the last note.
   - 'c' status incorrect in @b3-end, kendang dyn 7t
-  * why does 's' status only have a trailing 't' for fractional ScoreTime?
-  * Repl modules should standardize on either ID with @ or string with ""
-    . Probably @ is better, otherwise why even have the macro?
-    . Id.Id is nicer than BlockId, because otherwise you can't tell from the
-      signature which is the new name.
-    . Actually this is due to LBlock.copy, which is due to Create.named_block.
-      But this is used by Refactor, which also uses it as a name for the new
-      event.  If it's an Id, I could pass a different namespace, and
-      refactor's name will be correct for that.  Refactor relative doesn't
-      make sense for a different namespace.
-  * Save.expand_filename should be implemented at the 'read' level
-  * @orig/b3 has error:
-    IO exception: invalid characters in id: ("untitled","orig/b3")
-  * load score in a different namespace, aka LState.load_merge but rename at
-    the same time.
   - the clip/* namespace should live past a load
-  * bug/kendang-note-entry kendang note entry gives "tried to invert while
-    inverting"
-  * make Util.Control first, second, bimap into Bifunctor so I can apply to
-    Either too.  E.g. TrackLang.put_val_error
-  * It's inconvenient to have Util.Control and unqualified import be the same
-    module, because then all general purpose utils wind up in the global
-    namespace.  Maybe I should import a Global.hs analogous to Types.
-  * "local definitions file" is a terrible name for the .karya files with
-    tracklang.  Also 'definition_paths'.  Maybe 'lib' and 'lib_paths'?  But
-    I want it to be specific because there may be other kinds of libs.
-    I'm already using 'karya' for the file suffix, but it already has
-    a broader meaning.  'tracklang' or tl would work but seems ugly.
-    maybe 'ky' for karya, change suffix to .ky, then ky_file, ky_paths, etc.
-  * include for .karya files, and a standard library include directory
-    . Should I allow a direct import from a lib file?  Otherwise each
-      score requires at least a "import 'xyz'" file.
-  * track signal render is messed up, flattens after the end of first event
-    . bug/tsig-cutoff
-    . probably due to splicing together slices
-    . The first fragment merges before the second, and replaces it.
-      I should merge them in the order of their track slice starts.
   - if I add a track and then undo, I get
     assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
     tracknum && tracknum < tracks()'>
-  * in save/lelambatan/template, reyong entry defaults to *twelve
-    . Probably because it has no direct >inst title, and no performance so it
-      doesn't know the environ.  But note entry should look at global
-      transform at least.  And look at parent track titles.
-  * pemade-s is messed up, but only in playback
-    . Because it winds up 83.99978169093067 instead of 84.
-  * LPerf.sel_events always gets tuning=umbang, even though the derivation
-    correctly sees isep.
-    . It's because the environ, along with transpose, is only applied during
-      conversion.  This is as intended, but it's confusing for sel_events.
-      Should I have it apply controls to the pitch signal before display?
-  * per-score config to set patch_scale, like environ
-    . Then I can get rid of all of the sc-gangsa-wayang-umbang etc. variants,
-      and put all instruments and ranges into 'sc_bali'.
-    . Add Instrument.config_patch_scale
-    * Give PatchScale a name?
-  * why does verify_performance not work?
-    . its performance somehow different from LState.save_midi's
-      Cut down bug/verify/bloom until I have a smaller repro
-    . save_midi has an extra pedal on chan 1, because the e3 goes on chan
-      1 instead of chan 0.
-    . e3 should go on the same chan as the other low notes
-    . chan:1 is for high notes, but e3 winds up on chan:1, so it looks like
-      save_midi is wrong.
-    . Now is d3 winds up in chan:1 c5 track.
-    . >pno at 3.66s: : found chan Just 1, picked 1
-      can't share with 0: controls differ: {%vel: <0s:1>}
-        /= { %pedal: < 3.33s:1, 4.66s:0 >, %vel: <0s:1> }
-
-  * Long pedal at the end of bloom @b12 sometimes doesn't come up.
-    . I think the performer needs to understand the pedal.  But why does it
-      come up properly sometimes?
-    . Only if I start from the beginning, maybe there's a unmatched down?
-      Apparently not, just the last one doesn't come up.  I should record the
-      MIDI and see what went wrong.
-    . Or, I could just always emit controls until the next note, like before.
-      This would fix the problem with bloom, since there are notes afterwards,
-      but would still stop early if there aren't.
-    . A preprocess could see pedal and extend note durations.  But I don't
-      want to affect either channel sharing or actual note end times.
-      Or control_end can notice the presence of a pedal.
   - Local.Instrument modules include configuration functions, how to call them?
     . Kontakt.configure_wayang, configure_legong, Spicy.configure
     . import into a Local.Repl module
       - hmm, looks like I'm not importing Local.Repl any more
     . make the repl support :m
     . bundle them into the instrument db
-  * The performer needs to cut off controls from the previous note before the
-    control reset for the current one.
-    . bug/bloom - Make a test that demonstrates it.
   - meter type and the construction functions should be integrated more tightly
   - even though I sort events after derivation now, I still rely on them being
     sorted, because of things like Post.same_hand.  It used to be out-of-order
     would be reported by convert, but now it will just silently mess up
     a postproc... is that really better?
-  * add Refactor.selection_alternates?
-    . name = selection_relative (name <> "1"); LBlock.copy True (name <> "2")
-      event_text = "alt -name1 -name2"
   - Rethink if I really want track event calls in TrackTime, rather than
     normalized time.
     . It's inconvenient that DUtil.zero_duration has to modify the event to
@@ -169,15 +37,6 @@ UNSORTED
     demonstrated in Sub_test.test_overlapping_parent_control_scope
   - Better solution for the "sample at end of block" problem, as demonstrated
     by Block_test.test_trim_controls_problem
-  fancier randomization
-    . How much a note differs depends on its neighbors, so it's not an even
-      distribution.  Use brownian noise, or a fractal subdivision scheme.  But
-      it's also constrained in how far it can wander from the base value.
-      Regardless, I think this means I need history, so it can't be
-      a stateless control function.
-    . Divide on instrument and hand, so each part gets its own individuality.
-    - randomization should be centered on a value, with variance as a signal,
-      so I can turn accuracy up or down.
   wayang
     - Automatically fill in weak notes?
       This also applies to reyongan, even more so.
@@ -192,14 +51,11 @@ UNSORTED
     to disconnect the state.
   - thru on *legong notes is wrong the first time
     can see this editing rehearsal/kendang-legong
-  * note entry gets the wrong scale if the track hasn't been played
   - move Types.Selection to its own module.  That leaves just aliases
     TrackNum, Width, SelNum, MouseButton
     . But then it has the same name as Cmd.Selection.  Call it Sel?
   - can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
     modify_event_near_point, doesn't ModifyEvent.selection already do that?
-  * why does data/bloom use so many channels?  E.g., c5 at 8.51s on chan 1
-    . incomplete pedal assignment
   + in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
     a new play send the keyswitch?
     . can repro with bug/stuck-mute.  But MIDI looks normal.  Record in reaper
@@ -252,8 +108,6 @@ UNSORTED
             themselves decide how much to stretch?
         - janta
       middle
-        - kam seems not smooth.  Also, maybe transition time should default to
-          faster than the speed.
         - test hold and lilt for kam and nkam, adjust for nkam
         - maybe 'hold' should transition to the pitch instead of snapping
       end
@@ -479,6 +333,17 @@ integrate / integration:
     - quantization
 
 lilypond:
+  - lilypond: espressivo <> should be like a normal hairpin
+    But the way to do this is awkward, << .. { s4 s4 \< s4 \> s4 \! } >>
+    . I also want tied notes to expand to 'c4~ \< c4 \>'
+      But that has problems, I need a \!.
+    . Even '<< b'2.~ { s4 \< s4 \> s4 } >> | b'4 cs''4 \!'
+      is not ideal, the decrescendo extends to underneath the next note.
+      If I put \! on the tied-to note, it still won't extend.
+    . see \at in https://github.com/openlilylib/openlilylib/tree/master/input-shorthands/articulations-not-aligned-with-notes
+    . Ideally:
+      a \cresc \decresc % over duration of the note
+      a \cresc ~ a \decresc % same
   - Lilypond.write_empty_staff creates incorrect rests for a tuple, as shown
     in Lilypond_test.test_add_bass_staff
   - to make notes without duration, ignore the existing duration and choose
@@ -1007,7 +872,20 @@ Cmd:
     - Visual display of undo history, because stepping back one-by-one is
       a bit of a hassle.
 
+local definitions .ky:
+  - define functions with arguments in .ky?
+    sd x y = from=$x | drop $y
+
 Derive:
+  fancier randomization
+    . How much a note differs depends on its neighbors, so it's not an even
+      distribution.  Use brownian noise, or a fractal subdivision scheme.  But
+      it's also constrained in how far it can wander from the base value.
+      Regardless, I think this means I need history, so it can't be
+      a stateless control function.
+    . Divide on instrument and hand, so each part gets its own individuality.
+    - randomization should be centered on a value, with variance as a signal,
+      so I can turn accuracy up or down.
   tracklang:
     - replace VAttributes with a general purpose VSet.
     - maybe use {} for quoted, it's a bit shorter than "()
@@ -1052,51 +930,12 @@ Derive:
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan
-        * writing >norot is still awkward, can't I have that happen
-          automatically?  The call would have to emit notes before its start,
-          and cancel out any existing notes there.
-          . This would also mean I don't need negative durations.
-          . I could emit with an {override} flag, same hand notes at about the
-            same start get cancelled by infer-duration.
-          . Since infer-duration should happen before randomize, notes should
-            still be at the same time.
-          . But this requires the previous notes and override notes to be
-            simultaneous, which will fail if tempo is changing, or if the
-            previous notes have a different rhythm.  Can I instead wipe out
-            all events in the override range?  That means when I see an
-            override, I drop all notes from it until the next override.
-          . Or maybe it would be simpler to give the first note a "suppress"
-            duration, which has the same effect.  Otherwise there's a gap
-            after the last {suppress} event.
-
-          . Other ways to do norot?  Run the track as a whole instead of each
-            call independently emitting notes.  This means a specialized
-            language.
-          . Or a norot call could emit a kind of override point which causes
-            the previous call to clip.  It could do that by overriding the
-            note end.  This is effectively like the "suppress: dur" env var,
-            except requires a whole new mechanism.
-
-          . First arg is pickup style: 'o' -> default, 'o m' -> muted,
-            'o o' -> open, 'o x' -> none
         - in Gangsa.realize_kotekan_pattern, pass Nothing as the start to not
           limit the start
         - inst postproc can interpret +mute as either just a mute, or open, or
           in between depending on %mute.
           . Then I don't need a configurable mute for
             Gangsa.gangsa_norot_arrival.
-        * mute non-mute alternation is messed up, probably to do with timing
-        * last note should infer its duration
-          . But infer duration is not just until the next note start if there is
-            another part.  So maybe it also needs the paired instrument, and the
-            duration stops when that starts.
-          . infer-duration at the end of a block replaces the track-time-0 at
-            the start of the next block.  But in norot, I want it to be a beat
-            length if the next is norot, but full duration if it's the end.
-            Or I could put the start note in norot, and give it track-time-0,
-            which should instead be something like 'cancel'.
-          . Then I need to emit the first note, which is the same as the last
-            one.
         / All norot notes get track-time-0.  Could I add more reliably with
           a block postproc?  Then I don't know if it's 0t.
           . It uses the stack region, so all notes produced by an event at 0
@@ -1163,6 +1002,18 @@ Derive:
           two neighboring notes at a time.
 
   control calls:
+    - it's still annoying to write 'from=1 | d', maybe if I do it a lot
+      make an alias 'f 1 | d'?  Or '1 | d' if the lookup call also set 'from'.
+      For pitch it looks like 'set (4c) | d' or '4c | d' if I make scales also
+      export transformers.
+      . Try using it for a while to see if it matters.
+    - add bezier curve, you give a y val and weight:
+      [(y1, w1), (y2, w2), ... (yn, wn)] ->
+        sigmoid 0 w1 0 y1 <> sigmoid w1 w2 y1 y2 <> sigmoid w(n-1) wn y(n-1) yn
+      . I can get the previous y with the mechanism that already exists, but
+        how do I get the prev weight?
+      . One nice aspect of beziers is that they can overshoot the destination
+        value.  But that only happens if the control points are at an angle.
     - signal transformations: +, *, max, min
     - saturation limit, e.g. flatten sine wave but without clipping
     - continuous tempo warping for signals
@@ -1304,7 +1155,7 @@ Instrument DB / browser:
       - test sending sysexes back
       - move patches to new format
       - figure out how to set category for builtin patches
-        *word shorthand for category=word?
+        . *word shorthand for category=word?
         but I want to use the inst name, not the score name...
 
 OSC backend
