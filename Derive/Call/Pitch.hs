@@ -37,8 +37,7 @@ import Types
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.generator_call_map
-    [ ("", c_set)
-    , ("set", c_set)
+    [ ("set", c_set)
     , ("'", c_set_prev)
 
     , ("n", c_neighbor)
