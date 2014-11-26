@@ -12,6 +12,7 @@ import qualified Derive.Call.Bali.Sekar as Sekar
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.China.Zheng as Zheng
 import qualified Derive.Call.Control as Control
+import qualified Derive.Call.ControlFunction as ControlFunction
 import qualified Derive.Call.Echo as Echo
 import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Europe.Chord as Chord
@@ -113,4 +114,4 @@ pitch_maps = mconcat
     ]
 
 val_map :: [Derive.LookupCall Derive.ValCall]
-val_map = concat [Random.val_calls, Val.val_calls]
+val_map = concat [ControlFunction.val_calls, Random.val_calls, Val.val_calls]

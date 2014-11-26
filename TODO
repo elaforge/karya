@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - move control function calls to their own module
+  * move control function calls to their own module
   control and pitch interpolator calls
     * add 'set' pitch transformer that inserts the value like
       Control.lookup_transformer
