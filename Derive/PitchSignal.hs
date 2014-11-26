@@ -16,7 +16,7 @@ module Derive.PitchSignal (
     , take, drop, drop_while, drop_after, drop_at_after
     , drop_before, drop_before_strict, drop_before_at
     , map_y
-    , prepend
+    , interleave, prepend
     , Sample(..)
     -- * Pitch
     , Pitch, PitchConfig(..), pitch_scale_id, pitch_transposers
@@ -203,6 +203,9 @@ drop_before_at = modify . TimeVector.drop_before_at
 
 map_y :: (Pitch -> Pitch) -> Signal -> Signal
 map_y = modify . TimeVector.map_y
+
+interleave :: Signal -> Signal -> Signal
+interleave s1 s2 = Signal $ TimeVector.interleave (sig_vec s1) (sig_vec s2)
 
 prepend :: Signal -> Signal -> Signal
 prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)

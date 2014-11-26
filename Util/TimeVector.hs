@@ -173,7 +173,9 @@ merge = V.concat . trim
     first_x [] = Nothing
     first_x (v:vs) = maybe (first_x vs) (Just . sx) (head v)
 
--- | Merge two vectors, interleaving their samples.
+-- | Merge two vectors, interleaving their samples.  Analogous to
+-- 'Data.Map.union', if two samples coincide, the one from the first vector
+-- wins.
 {-# SPECIALIZE interleave :: Unboxed -> Unboxed -> Unboxed #-}
 {-# INLINEABLE interleave #-}
 interleave :: V.Vector v (Sample y) => v (Sample y) -> v (Sample y)
@@ -186,8 +188,10 @@ interleave vec1 vec2 = V.unfoldrN (len1 + len2) go (0, 0)
         | i1 >= len1 && i2 >= len2 = Nothing
         | i1 >= len1 = Just (s2, (i1, i2+1))
         | i2 >= len2 = Just (s1, (i1+1, i2))
-        | sx s1 <= sx s2 = Just (s1, (i1+1, i2))
-        | otherwise = Just (s2, (i1, i2+1))
+        | otherwise = Just $ case compare (sx s1) (sx s2) of
+            EQ -> (s1, (i1+1, i2+1))
+            LT -> (s1, (i1+1, i2))
+            GT -> (s2, (i1, i2+1))
         where
         s1 = V.unsafeIndex vec1 i1
         s2 = V.unsafeIndex vec2 i2

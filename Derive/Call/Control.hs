@@ -11,6 +11,7 @@ import qualified Util.Num as Num
 import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -45,7 +46,6 @@ control_calls = Derive.generator_call_map
     , ("u", c_up)
     , ("sd", c_set_drop)
     , ("si>", c_set_linear_next)
-    , ("si", c_set_linear)
 
     -- not sure which one I'll like better
     , ("`ped`", c_pedal)
@@ -53,7 +53,7 @@ control_calls = Derive.generator_call_map
     , ("swell", c_swell)
     ]
     <> ControlUtil.standard_interpolators ControlUtil.interpolator_variations
-    <> Derive.CallMaps [lookup_number] []
+    <> Derive.CallMaps [lookup_generator] [lookup_transformer]
 
 -- | This is a special lookup for control tracks that lets you directly type
 -- a number, and have that be interpreted as setting the control to that value.
@@ -62,23 +62,33 @@ control_calls = Derive.generator_call_map
 -- Formerly, control tracks used a slightly different parser to enable the same
 -- thing, but that turned out to be awkward when I wanted to implement
 -- 'Call.eval_event'.
-lookup_number :: Derive.LookupCall (Derive.Generator Derive.Control)
-lookup_number = Derive.LookupPattern "numbers and hex" doc $
+lookup_generator :: Derive.LookupCall (Derive.Generator Derive.Control)
+lookup_generator = lookup_call $ \val -> generator1 "set" mempty
+    "Emit a sample with no interpolation. This accepts either decimal\
+    \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
+    \ is divided by 255, so they represent a number between 0 and 1.\n\
+    \ Setting a control called `<controlname>-rnd` will cause the set value\
+    \ to be randomized by the given number." $
+    Sig.call0 $ \args -> do
+        pos <- Args.real_start args
+        return $! Signal.signal [(pos, val)]
+
+lookup_transformer :: Derive.LookupCall (Derive.Transformer Derive.Control)
+lookup_transformer = lookup_call $ \val ->
+    Derive.transformer Module.prelude "set" mempty
+    "Prepend a sample to a signal. This is useful to create a discontinuity,\
+    \ e.g. interpolate to a value and then jump to another one."
+    $ Sig.call0t $ \args deriver -> do
+        pos <- Args.real_start args
+        let sig = Signal.signal [(pos, val)]
+        Post.signal (Signal.interleave sig) deriver
+
+lookup_call :: (Signal.Y -> Derive.Call d) -> Derive.LookupCall (Derive.Call d)
+lookup_call call = Derive.LookupPattern "numbers and hex" doc $
     \(TrackLang.Symbol sym) -> return $! case Parse.parse_num sym of
         Left _ -> Nothing
-        Right val -> Just $ set val
-    where
-    set :: Signal.Y -> Derive.Generator Derive.Control
-    set val = generator1 "self-eval" mempty
-        "Emit a sample with no interpolation. This accepts either decimal\
-        \ numbers or hex numbers that look like `\\`0x\\`xx`.  The hex\
-        \ is divided by 255, so they represent a number between 0 and 1.\n\
-        \ Setting a control called `<controlname>-rnd` will cause the set value\
-        \ to be randomized by the given number." $
-        Sig.call0 $ \args -> do
-            pos <- Args.real_start args
-            return $! Signal.signal [(pos, val)]
-    doc = Derive.extract_doc (set 0)
+        Right val -> Just $ call val
+    where doc = Derive.extract_doc (call 0)
 
 c_set :: Derive.Generator Derive.Control
 c_set = generator1 "set" mempty
@@ -212,17 +222,6 @@ c_set_drop = generator1 "sd" mempty
         srate <- Util.get_srate
         let (end, dest) = slope_down speed x1 x2 val
         return $ ControlUtil.interpolator srate id True x1 val end dest
-
-c_set_linear :: Derive.Generator Derive.Control
-c_set_linear = generator1 "si" mempty "A combination of `set` and `i`."
-    $ Sig.call ((,)
-    <$> required "to" "Interpolate to this value."
-    <*> required "set" "Set to this value."
-    ) $ \(to, set) args -> do
-        dur <- default_prev_old args Nothing
-        start <- Args.real_start args
-        segment <- ControlUtil.interpolate id args to dur
-        return $ segment <> Signal.signal [(start, set)]
 
 default_prev_old :: Derive.ControlArgs -> Maybe TrackLang.DefaultReal
     -> Derive.Deriver TrackLang.Duration

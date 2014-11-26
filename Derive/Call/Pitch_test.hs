@@ -76,6 +76,11 @@ test_linear = do
     equal (run [(0, "4c"), (2, "i> (>)"), (4, "4d")])
         [(0, 60), (3, 61), (4, 62)]
 
+test_set = do
+    equal (run [(0, "set (4c)")]) [(0, 60)]
+    equal (run [(0, "4c"), (2, "set (4c) | i (4d)")])
+        [(0, 60), (1, 61), (2, 60)]
+
 test_linear_next = do
     equal (run [(0, "4c"), (4, "i> (4d)"), (6, "4c")])
         [(0, 60), (5, 61), (6, 60)]

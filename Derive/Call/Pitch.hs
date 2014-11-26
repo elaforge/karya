@@ -16,6 +16,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
@@ -36,7 +37,7 @@ import Types
 -- * pitch
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.generator_call_map
+pitch_calls = Derive.call_maps
     [ ("set", c_set)
     , ("'", c_set_prev)
 
@@ -46,6 +47,7 @@ pitch_calls = Derive.generator_call_map
     , ("d", c_down)
     , ("p", c_porta)
     ]
+    [("set", c_set_transformer)]
     <> ControlUtil.standard_interpolators PitchUtil.interpolator_variations
 
 c_set :: Derive.Generator Derive.Pitch
@@ -53,10 +55,21 @@ c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
     -- This could take a transpose too, but then set has to be in
     -- 'require_previous', it gets shadowed for "" because of scales that use
     -- numbers, and it's not clearly useful.
-    Sig.call (required "pitch" "Destination pitch or nn.") $ \pitch_ args -> do
+    Sig.call (required "pitch" "Set this pitch.") $ \pitch_ args -> do
         let pitch = either Pitches.nn_pitch id pitch_
         pos <- Args.real_start args
         return $ PitchSignal.signal [(pos, pitch)]
+
+c_set_transformer :: Derive.Transformer Derive.Pitch
+c_set_transformer = Derive.transformer Module.prelude "set" mempty
+    "Prepend a pitch to a signal. This is useful to create a discontinuity,\
+    \ e.g. interpolate to a pitch and then jump to another one."
+    $ Sig.callt (required "pitch" "Set this pitch.")
+    $ \pitch_ args deriver -> do
+        let pitch = either Pitches.nn_pitch id pitch_
+        pos <- Args.real_start args
+        let sig = PitchSignal.signal [(pos, pitch)]
+        Post.signal (PitchSignal.interleave sig) deriver
 
 -- | Re-set the previous val.  This can be used to extend a breakpoint.
 c_set_prev :: Derive.Generator Derive.Pitch
@@ -149,8 +162,10 @@ linear_interpolation :: TrackLang.Typecheck time => Text -> time -> Text
 linear_interpolation name time_default time_default_doc get_time =
     generator1 name Tags.prev doc $ Sig.call
         ((,) <$> PitchUtil.pitch_arg <*> defaulted "time" time_default time_doc)
-    $ \(pitch, time) args ->
-        PitchUtil.interpolate id args pitch =<< get_time args time
+    $ \(to, time) args -> do
+        time <- get_time args time
+        let from = snd <$> Args.prev_pitch args
+        PitchUtil.interpolate_from_start id args from time to
     where
     doc = "Interpolate from the previous pitch to the given one in a straight\
         \ line."

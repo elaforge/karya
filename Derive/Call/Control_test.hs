@@ -18,6 +18,10 @@ test_set = do
     equal (run [(0, "1"), (1, "0")]) [(0, 1), (1, 0)]
     equal (run [(0, "1"), (1, "")]) [(0, 1)]
 
+test_set_transformer = do
+    -- interpolate, then set
+    equal (run [(0, "1"), (2, "3 | i 0")]) [(0, 1), (1, 0.5), (2, 3)]
+
 test_set_prev = do
     let run ex tracks = DeriveTest.extract ex $ DeriveTest.derive_tracks "" $
             (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]) : tracks
@@ -101,9 +105,6 @@ test_up_down = do
 test_sd = do
     equal (run [(0, "sd 1 .5")]) [(0, 1), (1, 0.5), (2, 0)]
     equal (run [(0, "sd .5 .25")]) [(0, 0.5), (1, 0.25), (2, 0)]
-
-test_si = do
-    equal (run [(0, "1"), (2, "si 0 1")]) [(0, 1), (1, 0.5), (2, 1)]
 
 test_si_next = do
     equal (run [(0, "si> 1 0"), (4, "0")])
