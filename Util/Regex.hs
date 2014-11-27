@@ -2,8 +2,19 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | More user friendly regex api.
-module Util.Regex where
+-- | More user friendly regex api for PCRE regexes.
+module Util.Regex (
+    Regex
+    -- * compile
+    , Option(..)
+    , compile, compileUnsafe, compileOptionsUnsafe
+
+    -- * matching
+    , matches, groups, groupRanges
+
+    -- * misc
+    , escape
+) where
 import qualified Data.Array.IArray as IArray
 import qualified Data.Bits as Bits
 import qualified Data.Maybe as Maybe
@@ -11,53 +22,58 @@ import qualified Data.Maybe as Maybe
 import qualified Text.Regex.PCRE as PCRE
 
 
-data Regex = Regex String PCRE.Regex
-
-regex :: Regex -> PCRE.Regex
-regex (Regex _ r) = r
+data Regex = Regex { regexText :: !String, regexCompiled :: !PCRE.Regex }
 
 instance Show Regex where
-    show (Regex reg _) = "Regex.make " ++ show reg
+    show regex = "Regex.compile " ++ show (regexText regex)
+
+-- * compile
 
 data Option = CaseInsensitive | DotAll
     deriving (Ord, Eq, Show)
 
-makeM :: [Option] -> String -> Either String Regex
-makeM options str = case PCRE.makeRegexOptsM (convert_options options) 0 str of
-    Left msg -> Left $ "compiling regex " ++ show str ++ ": " ++ msg
-    Right reg -> Right (Regex str reg)
+compile :: [Option] -> String -> Either String Regex
+compile options str =
+    case PCRE.makeRegexOptsM (convertOptions options) 0 str of
+        Left msg -> Left $ "compiling regex " ++ show str ++ ": " ++ msg
+        Right reg -> Right (Regex str reg)
 
-convert_options :: [Option] -> PCRE.CompOption
-convert_options = foldr (Bits..|.) 0 . map convert
+convertOptions :: [Option] -> PCRE.CompOption
+convertOptions = foldr (Bits..|.) 0 . map convert
     where
     convert opt = case opt of
         CaseInsensitive -> PCRE.compCaseless
         DotAll -> PCRE.compDotAll
 
 -- | Will throw a runtime error if the regex has an error!
-make :: String -> Regex
-make = make_options []
+compileUnsafe :: String -> String -> Regex
+compileUnsafe caller = compileOptionsUnsafe caller []
 
--- | Like 'make', but you can provide options.
-make_options :: [Option] -> String -> Regex
-make_options options = either error id . makeM options
+-- | Will throw a runtime error if the regex has an error!
+compileOptionsUnsafe :: String -> [Option] -> String -> Regex
+compileOptionsUnsafe caller options =
+    either (error . ((caller ++ ": ") ++)) id . compile options
+
+-- * match
 
 matches :: Regex -> String -> Bool
-matches (Regex _ reg) = PCRE.matchTest reg
+matches = PCRE.matchTest . regexCompiled
 
 -- | Return (complete_match, [group_match]).
-find_groups :: Regex -> String -> [(String, [String])]
-find_groups reg str =
-    Maybe.mapMaybe extract (PCRE.matchAllText (regex reg) str)
+groups :: Regex -> String -> [(String, [String])]
+groups reg str =
+    Maybe.mapMaybe extract (PCRE.matchAllText (regexCompiled reg) str)
     where
     extract arr = case map fst (IArray.elems arr) of
-        (h:rest) -> Just (h, rest)
+        h : rest -> Just (h, rest)
         [] -> Nothing
 
 -- | Half-open ranges of where the regex matches.
-find_ranges :: Regex -> String -> [(Int, Int)]
-find_ranges reg str = concatMap extract (PCRE.matchAll (regex reg) str)
+groupRanges :: Regex -> String -> [(Int, Int)]
+groupRanges reg str = concatMap extract (PCRE.matchAll (regexCompiled reg) str)
     where extract arr = [(i, i+n) | (i, n) <- IArray.elems arr]
+
+-- * misc
 
 -- | Escape a string so the regex matches it literally.
 escape :: String -> String

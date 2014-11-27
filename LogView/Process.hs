@@ -100,7 +100,7 @@ format_status (k, v) = do
 
 clickable_braces :: [(Regex.Regex, Style)]
 clickable_braces =
-    [ (Regex.make "\\{.*?\\}", style_clickable)
+    [ (Regex.compileUnsafe "clickable_braces" "\\{.*?\\}", style_clickable)
     ]
 
 data StyledText = StyledText {
@@ -175,10 +175,12 @@ catch_start msg status
 
 -- | This catches msgs emitted by 'Cmd.Cmd.set_global_status'.
 global_status_pattern :: CatchPattern
-global_status_pattern = ("_", Regex.make "^global status: (.*?) -- (.*)")
+global_status_pattern =
+    ("_", Regex.compileUnsafe "global_status_pattern"
+        "^global status: (.*?) -- (.*)")
 
 match_pattern :: CatchPattern -> String -> Map.Map String String
-match_pattern (title, reg) = Map.fromList . map extract . Regex.find_groups reg
+match_pattern (title, reg) = Map.fromList . map extract . Regex.groups reg
     where
     extract (_, [match]) = (title, match)
     extract (_, [match_title, match]) = (match_title, match)
@@ -257,7 +259,7 @@ emit_stack stack = do
     last_call = Seq.head . mapMaybe Stack.call_of . Stack.innermost
 
 msg_text_regexes :: [(Regex.Regex, Style)]
-msg_text_regexes = map (first Regex.make)
+msg_text_regexes = map (first (Regex.compileUnsafe "msg_text_regexes"))
     [ ("\\([bvt]id \".*?\"\\)", style_emphasis)
     ] ++ clickable_braces
 
@@ -271,7 +273,7 @@ regex_style default_style regex_styles txt =
     ranges = flatten_ranges default_style
         [ (range, style)
         | (reg, style) <- regex_styles
-        , range <- Regex.find_ranges reg txt
+        , range <- Regex.groupRanges reg txt
         ]
 
 flatten_ranges :: a -> [((Int, Int), a)] -> [(Int, a)]

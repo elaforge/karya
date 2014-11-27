@@ -165,14 +165,14 @@ scan_line old_annot line = Annotation
         || "import" `List.isPrefixOf` line)
 
 line_to_func :: String -> Maybe String
-line_to_func line = case Regex.find_groups definition line of
+line_to_func line = case Regex.groups definition line of
         [] -> Nothing
         (_, [fname]) : _ -> Just fname
         groups -> error $ "unexpected groups: " ++ show groups
 
 definition, declaration :: Regex.Regex
-definition = Regex.make "^([a-z0-9_][A-Za-z0-9_]*) .*="
-declaration = Regex.make "^[a-z0-9_][A-Za-z0-9_, ]* *::"
+definition = Regex.compileUnsafe "definition" "^([a-z0-9_][A-Za-z0-9_]*) .*="
+declaration = Regex.compileUnsafe "declaration" "^[a-z0-9_][A-Za-z0-9_, ]* *::"
 
 
 -- * parsing

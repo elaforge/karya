@@ -108,7 +108,9 @@ matchingTests regexes tests = concatMap match regexes
     byName = Map.fromList (zip (map testName tests) tests)
     match reg = case Map.lookup reg byName of
         Just test -> [test]
-        Nothing -> filter (Regex.matches (Regex.make reg) . testName) tests
+        Nothing -> filter
+            (Regex.matches (Regex.compileUnsafe "matchingTests" reg) . testName)
+            tests
 
 runTest :: Test -> IO ()
 runTest test = do

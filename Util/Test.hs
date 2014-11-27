@@ -248,11 +248,12 @@ match_srcpos srcpos gotten pattern
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
 -- to write.  You can escape @*@ with a backslash.
 pattern_matches :: String -> String -> Bool
-pattern_matches pattern s = not $ null $
-    Regex.find_groups (pattern_to_reg pattern) s
+pattern_matches pattern = not . null . Regex.groups (pattern_to_reg pattern)
 
 pattern_to_reg :: String -> Regex.Regex
-pattern_to_reg = Regex.make_options [Regex.DotAll] . mkstar . Regex.escape
+pattern_to_reg =
+    Regex.compileOptionsUnsafe "Test.pattern_to_reg" [Regex.DotAll] . mkstar
+        . Regex.escape
     where
     mkstar "" = ""
     mkstar ('\\' : '\\' : '\\' : '*' : cs) = '\\' : '*' : mkstar cs
