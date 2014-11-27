@@ -265,14 +265,16 @@ track_bg track
 
 sync_status :: State.State -> Cmd.State -> Cmd.CmdId Cmd.Status
 sync_status ui_from cmd_from = do
-    edit_state <- Cmd.gets Cmd.state_edit
+    cstate <- Cmd.get
     ui_to <- State.get
     let updates = view_updates ui_from ui_to
         new_views = mapMaybe create_view updates
+        edit_state = Cmd.state_edit cstate
     when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state) $
         sync_edit_state edit_state
-    sync_play_state =<< Cmd.gets Cmd.state_play
-    flip whenJust sync_save_file =<< Cmd.gets Cmd.state_save_file
+    sync_play_state $ Cmd.state_play cstate
+    sync_save_file $ Cmd.state_save_file cstate
+    sync_defaults $ State.config#State.default_ #$ ui_to
 
     when (State.state_config ui_from /= State.state_config ui_to) $
         sync_ui_config (State.state_config ui_to)
@@ -378,10 +380,15 @@ sync_play_state st = do
     Cmd.set_global_status "play-mult" $
         ShowVal.show_val (Cmd.state_play_multiplier st)
 
-sync_save_file :: Cmd.M m => Cmd.SaveFile -> m ()
+sync_save_file :: Cmd.M m => Maybe Cmd.SaveFile -> m ()
 sync_save_file save = Cmd.set_global_status "save" $ case save of
-    Cmd.SaveState fn -> txt fn
-    Cmd.SaveRepo repo -> txt repo
+    Nothing -> ""
+    Just (Cmd.SaveState fn) -> txt fn
+    Just (Cmd.SaveRepo repo) -> txt repo
+
+sync_defaults :: Cmd.M m => State.Default -> m ()
+sync_defaults (State.Default tempo) =
+    Cmd.set_global_status "tempo" (if tempo == 1 then "" else prettyt tempo)
 
 -- | Sync State.Config changes.
 sync_ui_config :: Cmd.M m => State.Config -> m ()
@@ -459,7 +466,7 @@ sync_selection_control view_id (Just (sel, block_id, Just track_id)) = do
     status <- track_control block_id track_id (Selection.point sel)
     Cmd.set_view_status view_id Config.status_control $
         Just (fromMaybe "" status)
-sync_selection_control view_id _ = do
+sync_selection_control view_id _ =
     Cmd.set_view_status view_id Config.status_control (Just "")
 
 -- | This uses 'Cmd.perf_track_signals' rather than 'Cmd.perf_track_dynamic'
@@ -468,6 +475,9 @@ track_control :: Cmd.M m => BlockId -> TrackId -> ScoreTime -> m (Maybe Text)
 track_control block_id track_id pos =
     justm (parse_title <$> State.get_track_title track_id) $ \ctype ->
     case ctype of
+        -- Since I'm using TrackSignals, I just have numbers, not proper
+        -- pitches.  So I could show pitches, but it would just be an NN,
+        -- which doesn't seem that useful.
         ParseTitle.Pitch {} -> return Nothing
         _ -> justm (Cmd.lookup_performance block_id) $ \perf -> return $ do
             tsig <- Map.lookup (block_id, track_id)

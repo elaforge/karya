@@ -93,7 +93,7 @@ save_dir = "save"
 -- ** per-view
 
 -- The block status bar is not very wide, so it's important to control what
--- goes in there, and more importantly, which order.  Items with a high order
+-- goes in there, and more importantly, which order.  Items with a high key
 -- are more likely to be cut off.
 type SortKey = Int
 
