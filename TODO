@@ -3,11 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - 'c' status incorrect in @b3-end, kendang dyn 7t
+  - fix save/complete/hex sd, but to do that I want LEvent.replace_regex
+    or replace_tokens:
+    . replace_tokens ["sd", H "1", H "2"] [H "1", "| d", H "2"]
+      I think I'd eventually want * and ?, but on the token level.
+      I could actually use parsec, but it would be cumbersome to write inline.
+  * 'c' status incorrect in @b3-end, kendang dyn 7t
+    It's due to default tempo.
   - the clip/* namespace should live past a load
-  - if I add a track and then undo, I get
-    assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
-    tracknum && tracknum < tracks()'>
   - Local.Instrument modules include configuration functions, how to call them?
     . Kontakt.configure_wayang, configure_legong, Spicy.configure
     . import into a Local.Repl module
@@ -650,6 +653,10 @@ symbolic score
   - find or make a font with gong che pu
 
 fltk:
+  - if I add a track and then undo, I get
+    assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
+    tracknum && tracknum < tracks()'>
+    . can't reproduce this now, but I have a stack trace now
   - It would be nicer if WrappedText could take an always_wrap=true flag to
     make it wrap even when there's no space, for edit input.  However, this
     would complicate the wrapping algorithm and would mean I have to store
