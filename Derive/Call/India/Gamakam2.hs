@@ -382,8 +382,7 @@ c_from from_prev fade_in = generator1 "from" mempty
     <$> (if from_prev then pure Nothing
         else Sig.defaulted "from" Nothing
             "Come from this pitch, or the previous one.")
-    <*> Sig.defaulted "transition" default_transition
-        "Time to destination pitch."
+    <*> Sig.defaulted "transition" default_transition "Time to destination."
     <*> Sig.defaulted "to" Nothing "Go to this pitch, or the current one."
     ) $ \(from_pitch, TrackLang.DefaultReal time, maybe_to_pitch) args -> do
         start <- Args.real_start args

@@ -34,11 +34,11 @@ control_calls = Derive.generator_call_map
     , ("'", c_set_prev)
     , ("p", c_porta)
     , ("abs", c_abs)
-    , ("pp", c_dynamic "pp" 0.05)
-    , ("p", c_dynamic "p" 0.25)
-    , ("mf", c_dynamic "mf" 0.5)
-    , ("f", c_dynamic "f" 0.75)
-    , ("ff", c_dynamic "ff" 0.95)
+    , ("dyn-pp", c_dynamic "pp" 0.05)
+    , ("dyn-p", c_dynamic "p" 0.25)
+    , ("dyn-mf", c_dynamic "mf" 0.5)
+    , ("dyn-f", c_dynamic "f" 0.75)
+    , ("dyn-ff", c_dynamic "ff" 0.95)
 
     -- misc
     , ("bp>", c_breakpoint_next)
@@ -184,45 +184,48 @@ c_neighbor :: Derive.Generator Derive.Control
 c_neighbor = generator1 "neighbor" mempty
     ("Emit a slide from a value to 0 in absolute time. This is the control\
     \ equivalent of the neighbor pitch call."
-    ) $ Sig.call ((,)
+    ) $ Sig.call ((,,)
     <$> defaulted "neighbor" 1 "Start at this value."
     <*> defaulted "time" (TrackLang.real 0.1) "Time taken to get to 0."
-    ) $ \(neighbor, TrackLang.DefaultReal time) args -> do
+    <*> ControlUtil.curve_env
+    ) $ \(neighbor, TrackLang.DefaultReal time, curve) args -> do
         (start, end) <- Util.duration_from_start args time
-        ControlUtil.make_segment id start neighbor end 0
+        ControlUtil.make_segment curve start neighbor end 0
 
 c_down :: Derive.Generator Derive.Control
 c_down = generator1 "down" Tags.prev
     "Descend at the given speed until the value reaches 0 or the next event."
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
     <$> defaulted "speed" 1 "Descend this amount per second."
-    <*> ControlUtil.from_env
-    ) $ \(speed, from) args -> slope (ControlUtil.prev_val from args) args $
-    \x1 x2 y1 ->
-        let diff = RealTime.to_seconds (x2 - x1) * speed
-            end = min x2 $ x1 + RealTime.seconds y1 / RealTime.seconds speed
-        in (end, max 0 (y1 - diff))
+    <*> ControlUtil.from_env <*> ControlUtil.curve_env
+    ) $ \(speed, from, curve) args ->
+        slope (ControlUtil.prev_val from args) args curve $
+            \x1 x2 y1 ->
+                let diff = RealTime.to_seconds (x2 - x1) * speed
+                    end = min x2 $
+                        x1 + RealTime.seconds y1 / RealTime.seconds speed
+                in (end, max 0 (y1 - diff))
 
 c_up :: Derive.Generator Derive.Control
 c_up = generator1 "up" Tags.prev
     "Ascend at the given speed until the value reaches 1 or the next event."
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
     <$> defaulted "speed" 1 "Ascend this amount per second."
-    <*> ControlUtil.from_env
-    ) $ \(speed, from) args -> slope (ControlUtil.prev_val from args) args $
-    \x1 x2 y1 ->
+    <*> ControlUtil.from_env <*> ControlUtil.curve_env
+    ) $ \(speed, from, curve) args ->
+        slope (ControlUtil.prev_val from args) args curve $ \x1 x2 y1 ->
         let diff = RealTime.to_seconds (x2 - x1) * speed
             end = min x2 (x1 + RealTime.seconds (1-y1) / RealTime.seconds speed)
         in (end, min 1 (y1 + diff))
 
-slope :: Maybe Signal.Y -> Derive.ControlArgs
+slope :: Maybe Signal.Y -> Derive.ControlArgs -> ControlUtil.Curve
     -> (RealTime -> RealTime -> Signal.Y -> (RealTime, Signal.Y))
     -> Derive.Deriver Signal.Control
-slope Nothing _ _ = return Signal.empty
-slope (Just from) args f = do
+slope Nothing _ _ _ = return Signal.empty
+slope (Just from) args curve get_end = do
     (start, next) <- Args.real_range_or_next args
-    let (end, dest) = f start next from
-    ControlUtil.make_segment id start from end dest
+    let (end, dest) = get_end start next from
+    ControlUtil.make_segment curve start from end dest
 
 c_pedal :: Derive.Generator Derive.Control
 c_pedal = generator1 "pedal" mempty

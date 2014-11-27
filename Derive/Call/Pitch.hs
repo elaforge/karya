@@ -86,31 +86,32 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
 c_neighbor :: Derive.Generator Derive.Pitch
 c_neighbor = generator1 "neighbor" mempty
     ("Emit a slide from a neighboring pitch to the given one."
-    ) $ Sig.call ((,,)
+    ) $ Sig.call ((,,,)
     <$> required "pitch" "Destination pitch."
     <*> defaulted "neighbor" (Pitch.Chromatic 1) "Neighobr interval."
-    <*> defaulted "time" (TrackLang.real 0.1)
-        "Time to get to destination pitch."
-    ) $ \(pitch, neighbor, TrackLang.DefaultReal time) args -> do
+    <*> defaulted "time" (TrackLang.real 0.1) "Time to get to destination."
+    <*> ControlUtil.curve_env
+    ) $ \(pitch, neighbor, TrackLang.DefaultReal time, curve) args -> do
         (start, end) <- Util.duration_from_start args time
         let pitch1 = Pitches.transpose neighbor pitch
-        PitchUtil.make_segment id start pitch1 end pitch
+        PitchUtil.make_segment curve start pitch1 end pitch
 
 c_approach :: Derive.Generator Derive.Pitch
 c_approach = generator1 "approach" Tags.next
-    "Slide to the next pitch." $ Sig.call
-    ( defaulted "time" (TrackLang.real 0.2) "Time to get to destination pitch."
-    ) $ \(TrackLang.DefaultReal time) args -> do
+    "Slide to the next pitch." $ Sig.call ((,)
+    <$> defaulted "time" (TrackLang.real 0.2) "Time to get to destination."
+    <*> ControlUtil.curve_env
+    ) $ \(TrackLang.DefaultReal time, curve) args -> do
         (start, end) <- Util.duration_from_start args time
-        approach args start end
+        approach args curve start end
 
-approach :: Derive.PitchArgs -> RealTime -> RealTime
+approach :: Derive.PitchArgs -> ControlUtil.Curve -> RealTime -> RealTime
     -> Derive.Deriver PitchSignal.Signal
-approach args start end = do
+approach args curve start end = do
     maybe_next <- next_pitch args
     case (Args.prev_pitch args, maybe_next) of
         (Just (_, prev), Just next) ->
-            PitchUtil.make_segment id start prev end next
+            PitchUtil.make_segment curve start prev end next
         _ -> return mempty
 
 next_pitch :: Derive.PassedArgs d -> Derive.Deriver (Maybe PitchSignal.Pitch)
@@ -132,11 +133,11 @@ c_down = generator1 "down" Tags.prev
 
 slope :: Text -> Double -> Derive.WithArgDoc
     (Derive.PitchArgs -> Derive.Deriver PitchSignal.Signal)
-slope word sign = Sig.call ((,)
+slope word sign = Sig.call ((,,)
     <$> defaulted "slope" (Pitch.Chromatic 1)
         (word <> " this many steps per second.")
-    <*> PitchUtil.from_env
-    ) $ \(slope, from) args -> case PitchUtil.prev_val from args of
+    <*> PitchUtil.from_env <*> ControlUtil.curve_env
+    ) $ \(slope, from, curve) args -> case PitchUtil.prev_val from args of
         Nothing -> return mempty
         Just prev_pitch -> do
             start <- Args.real_start args
@@ -144,7 +145,7 @@ slope word sign = Sig.call ((,)
             let dest = Pitches.transpose transpose prev_pitch
                 transpose = Pitch.modify_transpose
                     (* (RealTime.to_seconds (next - start) * sign)) slope
-            PitchUtil.make_segment id start prev_pitch next dest
+            PitchUtil.make_segment curve start prev_pitch next dest
 
 c_porta :: Derive.Generator Derive.Pitch
 c_porta = generator1 "porta" mempty

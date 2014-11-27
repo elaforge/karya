@@ -83,7 +83,7 @@ make_note_fade :: Text -> Text -> PitchDirection -> Align -> Align
 make_note_fade name doc pitch_dir align align_fade =
     Derive.transformer Module.prelude name Tags.under_invert doc
     $ Sig.callt fade_args
-    $ \(interval, TrackLang.DefaultReal time, maybe_fade) ->
+    $ \(interval, TrackLang.DefaultReal time, maybe_fade, curve) ->
     Sub.under_invert $ \args deriver -> do
         let fade = case maybe_fade of
                 Nothing -> time
@@ -93,7 +93,8 @@ make_note_fade name doc pitch_dir align align_fade =
         Derive.pitch_at pitch_start >>= \x -> case x of
             Nothing -> deriver
             Just pitch -> do
-                (slide, dyn) <- pitch_fade align pitch pitch_dir interval ranges
+                (slide, dyn) <-
+                    pitch_fade align curve pitch pitch_dir interval ranges
                 pitch_sig <- Internal.get_dynamic Derive.state_pitch
                 let merged = case align of
                         -- Since the initial slide has to override the base
@@ -106,15 +107,15 @@ multiply_dyn :: Signal.Control -> Derive.Deriver a -> Derive.Deriver a
 multiply_dyn = Derive.with_multiplied_control Score.c_dynamic . Score.untyped
 
 fade_args :: Sig.Parser (Either Pitch.Transpose PitchSignal.Pitch,
-    TrackLang.DefaultReal, Maybe TrackLang.DefaultReal)
-fade_args = ((,,)
+    TrackLang.DefaultReal, Maybe TrackLang.DefaultReal, ControlUtil.Curve)
+fade_args = (,,,)
     <$> defaulted "interval" (Left (Pitch.Chromatic 7))
         "Interval or destination pitch."
     <*> defaulted "time" (TrackLang.real 0.25) "Time to the destination pitch."
     <*> defaulted "fade" Nothing
         "Time to fade from or to nothing. If the fade is longer than the pitch\
         \ time, the pitch will finish moving before the dyn has faded out."
-    )
+    <*> ControlUtil.curve_env
 
 -- * pitch calls
 
@@ -132,14 +133,14 @@ make_pitch_fade :: Text -> Text -> PitchDirection
 make_pitch_fade name doc pitch_dir =
     Derive.generator1 Module.prelude name Tags.cmod doc
     $ Sig.call fade_args
-    $ \(interval, TrackLang.DefaultReal time, mb_fade) args -> do
-        let fade = case mb_fade of
+    $ \(interval, TrackLang.DefaultReal time, maybe_fade, curve) args -> do
+        let fade = case maybe_fade of
                 Nothing -> time
                 Just (TrackLang.DefaultReal t) -> t
         case Args.prev_pitch args of
             Nothing -> return mempty
             Just (_, prev_pitch) -> do
-                (slide, dyn) <- pitch_fade AlignEnd prev_pitch pitch_dir
+                (slide, dyn) <- pitch_fade AlignEnd curve prev_pitch pitch_dir
                     interval =<< pitch_fade_ranges AlignStart AlignStart
                         fade time (Args.start args) (Args.start args)
                 next <- Derive.real (Args.next args)
@@ -150,28 +151,29 @@ c_approach_dyn :: Derive.Generator Derive.Pitch
 c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
     (Tags.cmod <> Tags.next)
     "Like `approach`, slide to the next pitch, but also drop the `dyn`."
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
     <$> defaulted "time" (TrackLang.real 0.2)
         "Time to get to destination pitch and dyn."
     <*> defaulted "dyn" 0.25 "Drop `dyn` by this factor."
-    ) $ \(TrackLang.DefaultReal time, dyn) args -> do
+    <*> ControlUtil.curve_env
+    ) $ \(TrackLang.DefaultReal time, dyn, curve) args -> do
         (start, end) <- Util.duration_from_start args time
         ControlUtil.multiply_dyn end
             =<< ControlUtil.make_segment id start 1 end dyn
-        Call.Pitch.approach args start end
+        Call.Pitch.approach args curve start end
 
 -- * fade implementation
 
 data Align = AlignStart | AlignEnd deriving (Show)
 data PitchDirection = PitchDrop | PitchLift deriving (Show)
 
-pitch_fade :: Align -> PitchSignal.Pitch -> PitchDirection
+pitch_fade :: Align -> ControlUtil.Curve -> PitchSignal.Pitch -> PitchDirection
     -> Either Pitch.Transpose PitchSignal.Pitch
     -> ((RealTime, RealTime), (RealTime, RealTime))
     -> Derive.Deriver (PitchSignal.Signal, Signal.Control)
-pitch_fade align pitch pitch_dir interval
+pitch_fade align curve pitch pitch_dir interval
         ((pitch_start, pitch_end), (fade_start, fade_end)) =
-    (,) <$> pitch_segment align (min pitch_start fade_start) pitch_start
+    (,) <$> pitch_segment align curve (min pitch_start fade_start) pitch_start
                 pitch_end pitch interval pitch_dir
         <*> segment id fade_start dyn1 fade_end dyn2
     where
@@ -222,18 +224,21 @@ segment f x1 y1 x2 y2 = do
     sig <- ControlUtil.make_segment f x1 y1 x2 y2
     return $ Signal.signal [(0, y1)] <> sig
 
-pitch_segment :: Align -> RealTime -- ^ start pitch at this time
+pitch_segment :: Align -> ControlUtil.Curve
+    -> RealTime -- ^ start pitch at this time
     -> RealTime -- ^ start segment
     -> RealTime -- ^ end segment
     -> PitchSignal.Pitch
     -> Either Pitch.Transpose PitchSignal.Pitch -> PitchDirection
     -> Derive.Deriver PitchSignal.Signal
-pitch_segment align start0 start end pitch interval pitch_dir = case align of
-    -- If the pitch segment is at the start of the note, then I may need to
-    -- override its base pitch with a flat segment.
-    AlignStart -> (initial dest <>) <$>
-        PitchUtil.make_segment_ False True id start dest end pitch
-    AlignEnd -> PitchUtil.make_segment_ False True id start pitch end dest
+pitch_segment align curve start0 start end pitch interval pitch_dir =
+    case align of
+        -- If the pitch segment is at the start of the note, then I may need to
+        -- override its base pitch with a flat segment.
+        AlignStart -> (initial dest <>) <$>
+            PitchUtil.make_segment_ False True curve start dest end pitch
+        AlignEnd ->
+            PitchUtil.make_segment_ False True curve start pitch end dest
     where
     initial p = PitchSignal.signal [(start0, p)]
     dest = case interval of
