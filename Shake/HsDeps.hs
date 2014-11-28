@@ -4,12 +4,12 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 module Shake.HsDeps (importsOf, transitiveImportsOf) where
-import Control.Applicative ((<$>))
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.ByteString.Char8 as B
+import Data.Functor ((<$>))
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
@@ -32,8 +32,8 @@ importsOf cppFlags fn = Shake.need [fn] >> Trans.liftIO (importsOf_ cppFlags fn)
 importsOf_ :: Maybe [String] -- ^ If Just, first run CPP with these flags.
     -> FilePath -> IO [FilePath]
 importsOf_ cppFlags fn = do
-    imports <- withCppFile cppFlags fn readImportBlock
-    Maybe.catMaybes <$> mapM fileOf (parseImports imports)
+    contents <- withCppFile cppFlags fn B.hGetContents
+    Maybe.catMaybes <$> mapM fileOf (parseImports contents)
 
 -- | Like 'importsOf' but transitive.  Includes the given module.
 --
@@ -60,35 +60,20 @@ transitiveImportsOf_ cppFlagsOf fn = go Set.empty [fn]
 fileOf :: ModuleName -> IO (Maybe FilePath)
 fileOf mod =
     Util.ifM (Directory.doesFileExist fn) (return (Just fn)) $
-    Util.ifM (Directory.doesFileExist (fn ++ "c"))
-        (return (Just (fn ++ "c"))) (return Nothing)
+    Util.ifM (Directory.doesFileExist (fn ++ "c")) (return (Just (fn ++ "c")))
+        (return Nothing)
     where
     fn = B.unpack $ B.map slash mod `B.append` ".hs"
     slash c = if c == '.' then '/' else c
 
-parseImports :: [B.ByteString] -> [ModuleName]
-parseImports = Maybe.mapMaybe (parse . B.words)
+-- | Any line that starts with @import@ should be an import.  It's a reserved
+-- word so I think that's safe?
+parseImports :: B.ByteString -> [ModuleName]
+parseImports = Maybe.mapMaybe (parse . B.words) . B.lines
     where
     parse (w1:w2:w3:_) | (w1, w2) == ("import", "qualified") = Just w3
     parse (w1:w2:_) | w1 == "import" = Just w2
     parse _ = Nothing
-
-readImportBlock :: IO.Handle -> IO [B.ByteString]
-readImportBlock hdl = header
-    where
-    header = read [] $ \line ->
-        if isImport line then imports [line] else header
-    imports accum = read accum $ \line -> if postImports line
-        -- Read and toss the rest of the data.  Otherwise clang's CPP has
-        -- a hissy fit when it gets SIGPIPE.
-        then B.hGetContents hdl >> return accum
-        else imports (line:accum)
-    isImport = ("import " `B.isPrefixOf`)
-    -- Icky, but if I see a type signature, I'm probably out of the imports.
-    postImports = (" :: " `B.isInfixOf`)
-    read accum rest = do
-        eof <- IO.hIsEOF hdl
-        if eof then return accum else rest =<< B.hGetLine hdl
 
 withCppFile :: Maybe [String] -> FilePath -> (IO.Handle -> IO a) -> IO a
 withCppFile Nothing fn = withFile fn
