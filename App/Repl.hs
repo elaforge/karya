@@ -51,7 +51,7 @@ main = SendCmd.initialize $ do
     done <- MVar.newEmptyMVar
     current_history <- MVar.newMVar Nothing
     repl_thread <- Concurrent.forkIO $ do
-        repl current_history initial_settings
+        input_loop current_history initial_settings
         MVar.putMVar done ()
     hdl <- Tail.open fname (Just 0)
     Concurrent.forkIO $ loop repl_thread current_history hdl
@@ -74,41 +74,47 @@ instance Exception.Exception SaveFileChanged
 
 -- I have to modify history and read lines in the same thread.  But haskeline
 -- blocks in getInputLine, and I don't think I can interrupt it.
-repl :: CurrentHistory -> Haskeline.Settings IO -> IO ()
-repl current_history settings = input_loop current_history settings $
-    maybe (return False) ((>> return True) . handle . Seq.strip)
-        =<< Haskeline.getInputLine prompt
-    where
-    handle line
-        | null line = return ()
-        | otherwise = do
-            response <- liftIO $ Exception.handle catch_all $
-                SendCmd.send (Text.pack line)
-            unless (Text.null response) $
-                liftIO $ Text.IO.putStrLn response
-    catch_all :: Exception.SomeException -> IO Text.Text
-    catch_all exc = return ("!error: " <> Text.pack (show exc))
-
-input_loop :: CurrentHistory -> Haskeline.Settings IO -> Input Bool -> IO ()
-input_loop current_history settings action = outer_loop settings
+input_loop :: CurrentHistory -> Haskeline.Settings IO -> IO ()
+input_loop current_history settings = outer_loop settings
     where
     outer_loop settings = do
-        x <- Haskeline.runInputT settings (Haskeline.withInterrupt action_loop)
+        x <- Haskeline.runInputT settings $ Haskeline.withInterrupt $
+            repl (Haskeline.historyFile settings)
         whenJust x $ \maybe_fname -> do
-            putStrLn $ "loading history from " ++ show maybe_fname
+            putStrLn $ "loading history from "
+                ++ maybe "<no file>" show maybe_fname
             outer_loop $ settings { Haskeline.historyFile = maybe_fname }
 
-    action_loop = run_action >>= \x -> case x of
-        Continue -> action_loop
+    repl maybe_fname = run maybe_fname >>= \x -> case x of
+        Continue -> repl maybe_fname
         Quit -> return Nothing
         Load -> liftIO $ Just <$> MVar.readMVar current_history
-    run_action = Haskeline.MonadException.handle interrupt $
+    run maybe_fname = Haskeline.MonadException.handle interrupt $
         Haskeline.MonadException.handle changed $
-            ifM action (return Continue) (return Quit)
+            ifM (read_eval_print =<< get_input maybe_fname)
+                (return Continue) (return Quit)
     interrupt Haskeline.Interrupt = do
         Haskeline.outputStrLn "interrupted"
         return Continue
     changed SaveFileChanged = return Load
+
+read_eval_print :: Maybe String -> Input Bool
+read_eval_print Nothing = return False
+read_eval_print (Just input)
+    | null input = return True
+    | otherwise = do
+        response <- liftIO $ Exception.handle catch_all $
+            SendCmd.send (Text.pack input)
+        unless (Text.null response) $
+            liftIO $ Text.IO.putStrLn response
+        return True
+    where
+    catch_all :: Exception.SomeException -> IO Text.Text
+    catch_all exc = return ("!error: " <> Text.pack (show exc))
+
+get_input :: Maybe FilePath -> Input (Maybe String)
+get_input maybe_fname =
+    fmap Seq.strip <$> Haskeline.getInputLine (prompt maybe_fname)
 
 data Status = Continue | Quit | Load deriving (Show)
 
@@ -118,8 +124,11 @@ save_dir_of msg =
     where status = Process.match_pattern Process.global_status_pattern msg
 
 -- | Colorize the prompt to make it stand out.
-prompt :: String
-prompt = cyan_bg ++ "入" ++ plain_bg ++ " "
+prompt :: Maybe FilePath -> String
+prompt maybe_fname = fname ++ cyan_bg ++ "入" ++ plain_bg ++ " "
+    where
+    fname = maybe "" (fst . Seq.drop_suffix ".repl" . FilePath.takeFileName)
+        maybe_fname
 
 -- The trailing \STX tells haskeline this is a control sequence, from
 -- http://trac.haskell.org/haskeline/wiki/ControlSequencesInPrompt
