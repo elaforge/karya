@@ -154,16 +154,17 @@ save_state = save_state_as =<< get_state_path
 -- like the saved REPL history and the ly subdirectory will go there.
 save_state_as :: FilePath -> Cmd.CmdT IO ()
 save_state_as fname = do
-    write_current_state fname
+    fname <- write_current_state fname
     set_save_file (SaveState fname) False
 
-write_current_state :: FilePath -> Cmd.CmdT IO ()
+write_current_state :: FilePath -> Cmd.CmdT IO FilePath
 write_current_state fname = do
     fname <- expand_filename fname
     state <- State.get
     ((), secs) <- liftIO $ Log.time_eval $ write_state fname state
     Log.notice $ "wrote state to " <> showt fname
         <> ", took " <> prettyt secs <> "s"
+    return fname
 
 write_state :: FilePath -> State.State -> IO ()
 write_state fname state = do

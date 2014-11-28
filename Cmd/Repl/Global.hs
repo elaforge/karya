@@ -224,7 +224,7 @@ save_state_as :: FilePath -> Cmd.CmdL ()
 save_state_as = Save.save_state_as
 
 -- | Like 'save_state', but don't change 'Cmd.state_save_file'.
-write_state :: FilePath -> Cmd.CmdL ()
+write_state :: FilePath -> Cmd.CmdL FilePath
 write_state = Save.write_current_state
 
 save_git :: Cmd.CmdL ()
