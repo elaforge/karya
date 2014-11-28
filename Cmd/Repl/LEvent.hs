@@ -63,8 +63,24 @@ find_f matches = fmap concat . concatMapM search =<< State.all_block_track_ids
 replace :: Monad m => Text -> Text -> ModifyEvents.Track m
 replace from to = ModifyEvents.text (Text.replace from to)
 
+-- | Multiple replacements.  This is simultaneous replacement, so
+-- [(a, b), (b, a)] will swap @a@ and @b@ as expected.
 replace_many :: Monad m => [(Text, Text)] -> ModifyEvents.Track m
 replace_many = ModifyEvents.text . TextUtil.replaceMany
+
+-- | Modify event text with 'ModifyEvents.substitute'.
+--
+-- For example, to turn \"si .5 .3\" into \".3 | i .5\":
+--
+-- > ModifyEvents.control_tracks $
+-- >    LEvent.replace_pattern ("si" <> w <> w) [F 1, "| s", F 0]
+--
+-- 'w' is a word, 'ws' is >=0 words, 'ws1' is >=1 words, and a string matches
+-- literal text.
+replace_pattern :: Cmd.M m => ModifyEvents.Parser
+    -> [ModifyEvents.Replacement] -> ModifyEvents.Track m
+replace_pattern from to =
+    ModifyEvents.failable_text (ModifyEvents.substitute from to)
 
 -- * quantize
 

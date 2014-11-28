@@ -4,6 +4,12 @@
 
 -- | Utilities to modify events in tracks.
 module Cmd.ModifyEvents where
+import qualified Data.IntMap as IntMap
+import qualified Data.List as List
+import qualified Data.Monoid as Monoid
+import qualified Data.String as String
+import qualified Data.Text as Text
+
 import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
@@ -42,8 +48,8 @@ pipeline modify = Parse.join_pipeline . modify . Parse.split_pipeline
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations
 -- failed.
-failable_texts :: Cmd.M m => (Text -> Either String Text) -> Track m
-failable_texts f block_id track_id events = do
+failable_text :: Cmd.M m => (Text -> Either String Text) -> Track m
+failable_text f block_id track_id events = do
     let (failed, ok) = Seq.partition_either $ map (failing_text f) events
         errs = [err ++ ": " ++ Cmd.log_event block_id track_id evt
             | (err, evt) <- failed]
@@ -157,3 +163,79 @@ move_events block_end point shift events = merged
     shifted = Events.clip block_end $
         map (Event.move (+shift)) (Events.at_after point events)
     merged = Events.insert shifted (Events.remove point end events)
+
+-- * replace tokens
+
+data Replacement =
+    RLiteral !Text -- ^ literal text
+    | F !Int -- ^ field from match
+    deriving (Eq, Show)
+
+instance String.IsString Replacement where
+    fromString = RLiteral . txt
+
+-- | Regex-like substitution on tracklang tokens.
+--
+-- Short names and IsString instances attempt to make it concise enough for
+-- inline use.  If the pattern doesn't match, the input is returned unchanged.
+substitute :: Parser -> [Replacement] -> Text -> Either String Text
+substitute parser replacements text = case match of
+    Nothing -> Right text
+    Just matches -> Text.unwords <$> mapM (replace matches) replacements
+    where
+    match = IntMap.fromList . zip [0..] <$> parse_tokens parser text
+    replace matches r = case r of
+        RLiteral text -> Right text
+        F n -> maybe (Left $ "no match for field " <> show n) Right $
+            IntMap.lookup n matches
+
+-- ** parser
+
+-- | Yet another \"list of successes\" style parser.
+newtype Parser = Parser ([Token] -> [([Match], [Token])])
+type Token = Text
+type Match = [Token]
+
+parse_tokens :: Parser -> Text -> Maybe [Text]
+parse_tokens parser =
+    fmap (map Text.unwords) . Seq.head . parse parser . Parse.lex
+
+parse :: Parser -> [Token] -> [[Match]]
+parse (Parser p) = map fst . filter (null . snd) . p
+
+instance Monoid.Monoid Parser where
+    mempty = Parser $ \tokens -> [([], tokens)]
+    mappend (Parser p1) (Parser p2) = Parser $ \tokens -> do
+        (matches1, rest1) <- p1 tokens
+        (matches2, rest2) <- p2 rest1
+        return (matches1 ++ matches2, rest2)
+
+instance String.IsString Parser where
+    fromString = literal . txt
+
+-- | Match a literal token.
+literal :: Text -> Parser
+literal token = Parser $ \tokens -> case tokens of
+    t : ts
+        | t == token -> [([], ts)]
+        | otherwise -> []
+    [] -> []
+
+-- | Match one token.
+w :: Parser
+w = Parser $ \tokens -> case tokens of
+    t : ts -> [([[t]], ts)]
+    [] -> []
+
+-- | Match 0 or more tokens.
+ws :: Parser
+ws = Parser $ \tokens ->
+    [([pre], post) | (pre, post) <- reverse $ splits tokens]
+
+-- | Match 1 or more tokens.
+ws1 :: Parser
+ws1 = Parser $ \tokens ->
+    [([pre], post) | (pre, post) <- reverse $ drop 1 $ splits tokens]
+
+splits :: [a] -> [([a], [a])]
+splits xs = zip (List.inits xs) (List.tails xs)

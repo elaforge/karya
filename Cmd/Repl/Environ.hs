@@ -101,6 +101,3 @@ import Cmd.Repl.Global
 import qualified App.Config as Config
 import Types
 import Global
-
-import qualified Local.Instrument.Kontakt as Kontakt
-import qualified Local.Instrument.KontaktKendang as KontaktKendang

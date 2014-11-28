@@ -225,4 +225,4 @@ pitch_tracks f = ModifyEvents.tracks_named ParseTitle.is_pitch_track $
     scale <- Cmd.get_scale "PitchTrack.pitches" scale_id
     maybe_key <- Perf.get_key block_id (Just track_id)
     let modify = modify_note (f scale maybe_key)
-    ModifyEvents.failable_texts modify block_id track_id events
+    ModifyEvents.failable_text modify block_id track_id events

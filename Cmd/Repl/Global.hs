@@ -28,7 +28,9 @@
     should go here.  Cmds which are meant to be used from the REPL but may be
     more specialized can go in Cmd.Repl.L* modules.
 -}
-module Cmd.Repl.Global where
+module Cmd.Repl.Global (
+    module Cmd.Repl.Global, module Cmd.ModifyEvents
+) where
 import qualified Data.Map as Map
 
 import qualified Util.PPrint as PPrint
@@ -61,6 +63,9 @@ import qualified Derive.Stack as Stack
 import qualified App.Config as Config
 import Global
 import Types
+
+-- These are used to write patterns for 'ModifyEvents.substitute'.
+import Cmd.ModifyEvents (Replacement(F), w, ws, ws1)
 
 
 -- | Take a string and automatically figure out what kind of ID is expected and
