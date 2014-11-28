@@ -103,15 +103,14 @@ tracks_named wanted f = \block_id track_id events ->
     ifM (wanted <$> State.get_track_title track_id)
         (f block_id track_id events) (return Nothing)
 
--- | Like 'tracks' but only for note tracks.
-note_tracks :: Cmd.M m => Track m -> m ()
-note_tracks = selection . tracks_named ParseTitle.is_note_track
+selected_note :: Cmd.M m => Track m -> m ()
+selected_note = selection . tracks_named ParseTitle.is_note_track
 
-control_tracks :: Cmd.M m => Track m -> m ()
-control_tracks = selection . tracks_named ParseTitle.is_signal_track
+selected_control :: Cmd.M m => Track m -> m ()
+selected_control = selection . tracks_named ParseTitle.is_signal_track
 
-pitch_tracks :: Cmd.M m => Track m -> m ()
-pitch_tracks = selection . tracks_named ParseTitle.is_pitch_track
+selected_pitch :: Cmd.M m => Track m -> m ()
+selected_pitch = selection . tracks_named ParseTitle.is_pitch_track
 
 
 -- * block tracks
@@ -132,14 +131,14 @@ all_blocks f = mapM_ (flip block f) =<< State.all_block_ids
 all_tracks_named :: Cmd.M m => (Text -> Bool) -> Track m -> m ()
 all_tracks_named wanted = all_blocks . tracks_named wanted
 
-all_note_tracks :: Cmd.M m => Track m -> m ()
-all_note_tracks = all_tracks_named ParseTitle.is_note_track
+note_tracks :: Cmd.M m => Track m -> m ()
+note_tracks = all_tracks_named ParseTitle.is_note_track
 
-all_control_tracks :: Cmd.M m => Track m -> m ()
-all_control_tracks = all_tracks_named ParseTitle.is_control_track
+control_tracks :: Cmd.M m => Track m -> m ()
+control_tracks = all_tracks_named ParseTitle.is_control_track
 
-all_pitch_tracks :: Cmd.M m => Track m -> m ()
-all_pitch_tracks = all_tracks_named ParseTitle.is_pitch_track
+pitch_tracks :: Cmd.M m => Track m -> m ()
+pitch_tracks = all_tracks_named ParseTitle.is_pitch_track
 
 -- * misc
 

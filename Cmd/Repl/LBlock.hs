@@ -133,8 +133,7 @@ rename = Create.rename_block
 rename_all :: BlockId -> Id.Id -> Cmd.CmdL ()
 rename_all from to = do
     Create.rename_block from to
-    ModifyEvents.all_note_tracks $ ModifyEvents.text $
-        replace_block_call from to
+    ModifyEvents.note_tracks $ ModifyEvents.text $ replace_block_call from to
 
 -- | Rename block calls in a single block.
 replace :: BlockId -> Id.Id -> Cmd.CmdL ()
