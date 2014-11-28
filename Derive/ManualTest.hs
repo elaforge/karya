@@ -46,7 +46,7 @@ dump = undefined
 run_cached = do
     cmd_config <- DeriveSaved.load_cmd_config
     let cstate = Cmd.initial_state cmd_config
-    state <- expect_right "load" <$> DeriveSaved.load_score "bug/cache"
+    (state, _lib) <- expect_right "load" <$> DeriveSaved.load_score "bug/cache"
     let root = UiTest.bid "kendang-telek/telek1"
         tempot = UiTest.tid "kendang-telek/telek1.t1"
     let (uncached, logs) = expect_right "derive" $
@@ -59,6 +59,6 @@ run_cached = do
             (Set.fromList [root]) mempty
     let (cached, logs) = expect_right "cache derive" $
             DeriveSaved.run_cmd state cstate $
-            PlayUtil.derive_block cache damage root
+            PlayUtil.derive_block True cache damage root
     mapM_ Log.write logs
     prettyp (Cache_test.r_block_logs cached)

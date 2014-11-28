@@ -239,7 +239,7 @@ hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 
 -- | This is used to create karya.cabal, which is then used with cabal
 -- configure to figure out exact version numbers.
-globalPackages :: [(String, String)]
+globalPackages :: [(Package, String)]
 globalPackages = concat $
     -- really basic deps
     [ [("base", ">=4.6"), ("containers", ">=0.5")]
@@ -281,6 +281,11 @@ extraPackagesFor obj
 
 criterionHsSuffix :: FilePath
 criterionHsSuffix = "_criterion.hs"
+
+-- | Ack.  Haddock needs all packages, but it's not convenient to call
+-- 'extraPackagesFor' with everything.
+extraPackages :: [Package]
+extraPackages = ["criterion"]
 
 -- ** cc
 
@@ -723,6 +728,7 @@ makeHaddock config = do
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces (map stripPackageId packages)
     let packageFlags = "-hide-all-packages" : map ("-package-id="++) packages
+            ++ map ("-package="++) extraPackages
     system "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"

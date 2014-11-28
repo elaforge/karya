@@ -201,11 +201,11 @@ adjust_offset min_dur prev next offset start
     | offset > 0 = case next of
         Nothing -> offset
             -- 0   1   2   3   4
-            -- |----=+=>
+            -- [----=+=>
             --     <-+-----|
-            -- |---====+===)--->
+            -- [---====+===)--->
             --     <---+---|
-            -- |------->   )
+            -- [------->   )
             --     |------->
         Just (next_offset, next_start)
             | overlap <= 0 -> min (next_end - min_dur) end - start
