@@ -111,6 +111,10 @@ test_up_down = do
     equal (run [(0, "0"), (1, "u .5"), (5, "1")])
         [(0, 0), (2, 0.5), (3, 1)]
 
+test_down_from = do
+    equal (run [(0, "df 1 .5")]) [(0, 1), (1, 0.5), (2, 0)]
+    equal (run [(0, "df .5 .25")]) [(0, 0.5), (1, 0.25), (2, 0)]
+
 test_swell = do
     equal (CallTest.run_control_dur [(0, 8, "swell 0 1 .5")]) $
         zip (Seq.range_ 0 1) [0, 0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25, 0]

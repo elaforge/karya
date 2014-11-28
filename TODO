@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - sd is still more concise than 'from=x | d', and easier to write and edit.
+  * sd is still more concise than 'from=x | d', and easier to write and edit.
   - repl: prompt could include the current save file
   - repl: the repl gets the unexpanded filename
   * fix save/complete/hex sd, but to do that I want LEvent.replace_regex

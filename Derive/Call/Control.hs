@@ -44,6 +44,7 @@ control_calls = Derive.generator_call_map
     , ("bp>", c_breakpoint_next)
     , ("n", c_neighbor)
     , ("d", c_down)
+    , ("df", c_down_from)
     , ("u", c_up)
 
     -- not sure which one I'll like better
@@ -193,21 +194,34 @@ c_neighbor = generator1 "neighbor" mempty
         ControlUtil.make_segment curve start neighbor end 0
 
 c_down :: Derive.Generator Derive.Control
-c_down = generator1 "down" Tags.prev
+c_down = generator1 "d" Tags.prev
     "Descend at the given speed until the value reaches 0 or the next event."
     $ Sig.call ((,,)
     <$> defaulted "speed" 1 "Descend this amount per second."
     <*> ControlUtil.from_env <*> ControlUtil.curve_env
-    ) $ \(speed, from, curve) args ->
-        slope (ControlUtil.prev_val from args) args curve $
-            \x1 x2 y1 ->
-                let diff = RealTime.to_seconds (x2 - x1) * speed
-                    end = min x2 $
-                        x1 + RealTime.seconds y1 / RealTime.seconds speed
-                in (end, max 0 (y1 - diff))
+    ) $ \(speed, from, curve) args -> slope_down speed from curve args
+
+c_down_from :: Derive.Generator Derive.Control
+c_down_from = generator1 "df" mempty
+    "Drop from a certain value. This is like `d` with `from`, but more\
+    \ convenient to write."
+    $ Sig.call ((,,)
+    <$> defaulted "from" 1 "Start at this value."
+    <*> defaulted "speed" 1 "Descend this amount per second."
+    <*> ControlUtil.curve_env
+    ) $ \(from, speed, curve) args -> slope_down speed (Just from) curve args
+
+slope_down :: Double -> Maybe Signal.Y -> ControlUtil.Curve
+    -> Derive.ControlArgs -> Derive.Deriver Signal.Control
+slope_down speed from curve args =
+    slope (ControlUtil.prev_val from args) args curve $ \x1 x2 y1 ->
+        let diff = RealTime.to_seconds (x2 - x1) * speed
+            end = min x2 $
+                x1 + RealTime.seconds y1 / RealTime.seconds speed
+        in (end, max 0 (y1 - diff))
 
 c_up :: Derive.Generator Derive.Control
-c_up = generator1 "up" Tags.prev
+c_up = generator1 "u" Tags.prev
     "Ascend at the given speed until the value reaches 1 or the next event."
     $ Sig.call ((,,)
     <$> defaulted "speed" 1 "Ascend this amount per second."
