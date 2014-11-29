@@ -81,8 +81,14 @@ data Config = Config {
     , getPackages_ :: GetPackages
     } deriving (Show)
 
+-- TODO rename to getPackageIds
 getPackages :: Config -> Shake.Action [PackageId]
 getPackages (Config { getPackages_ = GetPackages get }) = get
+
+packageFlags :: [PackageId] -> [Package] -> [Flag]
+packageFlags packageIds packages =
+    "-hide-all-packages" : map ("-package-id="++) packageIds
+    ++ map ("-package="++) packages
 
 -- | Root of .o and .hi hierarchy.
 oDir :: Config -> FilePath
@@ -96,30 +102,32 @@ includeDirs config = [dir | '-':'I':dir <- cInclude (configFlags config)]
 
 -- * flags
 
+type Flag = String
+
 data Flags = Flags {
     -- | -D flags.
-    define :: [String]
+    define :: [Flag]
     -- | Linker flags to link in whatever MIDI driver we are using today.
     -- There should be corresponding flags in 'define' to enable said driver.
-    , midiLibs :: [String]
+    , midiLibs :: [Flag]
     -- | There's one global list of include dirs, for both haskell and C++.
     -- Technically they don't all need the same dirs, but it doesn't hurt to
     -- have unneeded ones.
-    , cInclude :: [String]
+    , cInclude :: [Flag]
 
     -- | Flags for g++.  This is the complete list and includes the 'define's
     -- and 'cInclude's.
-    , ccFlags :: [String]
+    , ccFlags :: [Flag]
     -- | Additional flags needed when compiling fltk.
-    , fltkCc :: [String]
+    , fltkCc :: [Flag]
     -- | Additional flags needed when linking fltk.
-    , fltkLd :: [String]
+    , fltkLd :: [Flag]
     -- | GHC-specific flags.  Unlike 'ccFlags', this *isn't* the complete list.
-    , hcFlags :: [String]
+    , hcFlags :: [Flag]
     -- | Flags needed when linking haskell.  Doesn't include the -packages.
-    , hLinkFlags :: [String]
+    , hLinkFlags :: [Flag]
     -- | Flags needed only by ghci.
-    , ghciFlags :: [String]
+    , ghciFlags :: [Flag]
     } deriving (Show)
 
 instance Monoid.Monoid Flags where
@@ -471,8 +479,8 @@ main = withLockedDatabase $ do
     modeConfig_ <- configure (midiFromEnv env)
     writeGhciFlags modeConfig_
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
-        getPackages <- packageConfigurationRules
-        let modeConfig = (\c -> c { getPackages_ = getPackages }) . modeConfig_
+        getPackages_ <- packageConfigurationRules
+        let modeConfig = (\c -> c { getPackages_ = getPackages_ }) . modeConfig_
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
         -- hspp is depended on by all .hs files.  To avoid recursion, I
@@ -480,7 +488,9 @@ main = withLockedDatabase $ do
         hspp *> \fn -> do
             -- But I need to mark hspp's deps so it will rebuild.
             need =<< HsDeps.transitiveImportsOf (const Nothing) "Util/Hspp.hs"
-            Util.cmdline $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
+            packageIds <- getPackages (modeConfig Opt)
+            Util.cmdline $
+                makeHs packageIds (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
         matchObj "fltk/fltk.a" ?> \fn -> do
             let config = infer fn
             need (fltkDeps config)
@@ -727,8 +737,6 @@ makeHaddock config = do
     packages <- getPackages config
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces (map stripPackageId packages)
-    let packageFlags = "-hide-all-packages" : map ("-package-id="++) packages
-            ++ map ("-package="++) extraPackages
     system "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
@@ -740,7 +748,7 @@ makeHaddock config = do
         , "-o", build </> "haddock"
         ] ++ map ("-i"++) interfaces
         ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags
-            ++ ghcLanguageFlags ++ packageFlags]
+            ++ ghcLanguageFlags ++ packageFlags packages extraPackages]
         ++ hs ++ map (hscToHs (hscDir config)) hscs
 
 -- | Get paths to haddock interface files for all the packages.
@@ -833,11 +841,13 @@ extractPackages info = do
 
 -- ** hs
 
-makeHs :: FilePath -> FilePath -> FilePath -> Util.Cmdline
-makeHs dir out main = ("GHC-MAKE", out, cmdline)
+makeHs :: [PackageId] -> FilePath -> FilePath -> FilePath -> Util.Cmdline
+makeHs packageIds dir out main = ("GHC-MAKE", out, cmdline)
     where
-    cmdline = [ghcBinary, "--make", "-outputdir", dir, "-O2", "-o", out,
-        "-main-is", pathToModule main, main]
+    cmdline = ghcBinary : packageFlags packageIds []
+        ++ [ "--make", "-outputdir", dir, "-O2", "-o", out
+        , "-main-is", pathToModule main, main
+        ]
 
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> [Package] -> FilePath -> FilePath
@@ -980,11 +990,10 @@ compileHs packageIds packages mode config hs =
     ( "GHC" ++ maybe "" (('-':) . show) mode
     , hs
     , [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
-        ++ packageFlags ++ mainIs ++ [hs, "-o", srcToObj config hs]
+        ++ packageFlags packageIds packages ++ mainIs
+        ++ [hs, "-o", srcToObj config hs]
     )
     where
-    packageFlags = ["-hide-all-packages"] ++ map ("-package-id="++) packageIds
-        ++ map ("-package="++) packages
     mainIs
         | hs `elem` Map.elems nameToMain
                 || criterionHsSuffix `List.isSuffixOf` hs =
@@ -999,8 +1008,7 @@ linkHs :: Config -> FilePath -> [PackageId] -> [Package]
 linkHs config output packageIds packages objs = ("LD-HS", output,
     ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
         ++ ["-lstdc++"]
-        ++ ["-hide-all-packages"] ++ map ("-package-id="++) packageIds
-        ++ map ("-package="++) packages
+        ++ packageFlags packageIds packages
         ++ objs ++ ["-o", output])
     where flags = configFlags config
 

@@ -43,7 +43,10 @@ sandbox.
 ## INSTALLED SEPARATELY
 
 libpcre library from http://www.pcre.org
-OS X ports puts headers in /opt where configure may not find them.
+OS X package managers like ports or homebrew tend to put headers in funny
+places, so e.g.:
+% cabal configure --extra-include-dirs=$HOME/homebrew/include \
+    --extra-lib-dirs=$HOME/homebrew/lib
 
 libgit2 - It has no official release, but as of 2014-03-12 my binding is to
 v0.20.0.  You can get it with:
