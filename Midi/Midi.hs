@@ -30,7 +30,7 @@ module Midi.Midi (
     -- * types
     , Message(..), Channel, Velocity, Control, Program, ControlValue
     , PitchBendValue, Manufacturer
-    , Key(..), from_key, to_key
+    , Key(..), from_key, to_key, to_closest_key
     , ChannelMessage(..), CommonMessage(..), RealtimeMessage(..)
     , Mtc(..), FrameRate(..), SmpteFragment(..), Smpte(..)
     , seconds_to_frame, frame_to_seconds, frame_to_smpte, seconds_to_smpte
@@ -284,11 +284,17 @@ instance Show Key where
             11 -> "b"
             _ -> ""
 
-from_key :: (Num a) => Key -> a
+from_key :: Num a => Key -> a
 from_key (Key k) = fromIntegral k
 
-to_key :: (Integral a) => a -> Key
+to_key :: Integral a => a -> Key
 to_key = Key . fromIntegral . min 127 . max 0
+
+to_closest_key :: RealFrac a => a -> (Key, a)
+to_closest_key nn
+    | frac >= 0.5 = (to_key (d+1), frac - 1)
+    | otherwise = (to_key d, frac)
+    where (d, frac) = properFraction nn
 
 data ChannelMessage =
     NoteOff !Key !Velocity
