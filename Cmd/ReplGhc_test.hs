@@ -47,7 +47,8 @@ run_io cmd = do
     return $ case result of
         Left err -> Left (Pretty.pretty err)
         Right (val, _ustate, _updates) ->
-            Right $ ReplUtil.decode_response $ ReplUtil.encode_response val
+            Right $ ReplUtil.format_response $ ReplUtil.decode_response $
+                ReplUtil.encode_response val
     where
     ui_state = State.empty
     cmd_state = CmdTest.default_cmd_state

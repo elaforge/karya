@@ -75,8 +75,8 @@ repl session repl_dirs msg = do
         Nothing -> liftIO $ ReplImpl.interpret session local_modules text
     (response, status) <- run_cmdio $ Cmd.name ("repl: " <> text) cmd
     liftIO $ catch_io_errors $ do
-        ByteString.Char8.hPutStrLn response_hdl
-            (ReplUtil.encode_response response)
+        ByteString.Char8.hPutStrLn response_hdl $
+            ReplUtil.encode_response response
         IO.hClose response_hdl
     return status
     where

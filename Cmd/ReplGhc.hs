@@ -6,7 +6,7 @@
 {-# LANGUAGE MagicHash, ScopedTypeVariables #-}
 -- | REPL implementation that directly uses the GHC API.
 --
--- Supported versions: 70, 74, 78
+-- Supported versions: 74, 78
 module Cmd.ReplGhc (
     Session(..), make_session
     , interpreter, interpret
@@ -68,7 +68,8 @@ interpreter (Session chan) = do
     GHC.parseStaticFlags [] -- not sure if this is necessary
     flags <- Exception.try (readFile ghci_flags)
     -- Ghc moved .o to dyn flags, but I'll have to wait for 7.8, or make a .a
-    -- and use -l.
+    -- and use -l.  Update: even though I'm using 7.8 now, I don't seem to have
+    -- any problems from not loading the .o files.
     let is_obj fn = build_dir `List.isPrefixOf` fn && ".o" `List.isSuffixOf` fn
     args <- filter (not . is_obj) <$> case flags of
         Left (exc :: Exception.SomeException) -> do
@@ -120,16 +121,7 @@ make_response (result, logs, warns) = case result of
     Right cmd -> do
         result <- cmd
         return (ReplUtil.Format (txt result), all_logs)
-    where all_logs = abbreviate_logs (map txt logs) ++ map txt warns
-
-abbreviate_logs :: [Text] -> [Text]
-abbreviate_logs logs = loaded ++ filter (not . package_log) logs
-    where
-    loaded = if packages > 0
-        then ["Loaded " <> showt packages <> " packages"] else []
-    packages = length $ filter ("Loading package" `Text.isPrefixOf`) logs
-    package_log log =
-        any (`Text.isPrefixOf` log) ["Loading package", "linking ...", "done."]
+    where all_logs = map txt (logs ++ warns)
 
 -- * implementation
 

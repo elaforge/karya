@@ -53,6 +53,7 @@ import qualified LogView.LogViewC as LogViewC
 import qualified LogView.Process as Process
 import qualified LogView.Tail as Tail
 
+import qualified App.ReplUtil as ReplUtil
 import qualified App.SendCmd as SendCmd
 import Global
 
@@ -236,7 +237,7 @@ send_action chan = liftIO . Fltk.send_action chan
 
 send_to_app :: String -> IO ()
 send_to_app cmd = do
-    response <- SendCmd.send (Text.pack cmd)
+    response <- (ReplUtil.format_response <$> SendCmd.send (Text.pack cmd))
         `Exception.catch` \(exc :: Exception.SomeException) ->
             return ("error: " <> showt exc)
     unless (Text.null response) $

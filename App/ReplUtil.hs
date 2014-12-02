@@ -6,11 +6,11 @@
 module App.ReplUtil (
     Response, Result(..), raw
     , encode_request, decode_request
-    , encode_response, decode_response
+    , encode_response, decode_response, format_response
 ) where
-import Data.Monoid ((<>))
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.ByteString as ByteString
+import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.Encoding as Encoding
@@ -46,10 +46,8 @@ encode_response (result, logs) = encode_record (result_s : logs)
         Raw t -> Text.cons '!' t
         Format t -> t
 
-decode_response :: ByteString.ByteString -> Text
-decode_response bytes =
-    Text.strip $ Text.unlines $
-        (if null logs then [] else "Logs:" : logs ++ [""]) ++ [result]
+decode_response :: ByteString.ByteString -> (Text, [Text])
+decode_response bytes = (Text.strip result, logs)
     where
     (result, logs) = case decode_record bytes of
         [] -> ("", [])
@@ -59,6 +57,20 @@ decode_response bytes =
         | Just ('!', s) <- Text.uncons result = s
         | otherwise = Text.strip $ Text.pack $ PPrint.format_str $
             Text.unpack result
+
+format_response :: (Text, [Text]) -> Text
+format_response (response, logs_) = Text.strip $ Text.unlines $
+    (if null logs then [] else "Logs:" : logs ++ [""]) ++ [response]
+    where logs = abbreviate_logs (map Text.strip logs_)
+
+abbreviate_logs :: [Text] -> [Text]
+abbreviate_logs logs = loaded ++ filter (not . package_log) logs
+    where
+    loaded = if packages > 0
+        then ["Loaded " <> Text.pack (show packages) <> " packages"] else []
+    packages = length $ filter ("Loading package" `Text.isPrefixOf`) logs
+    package_log log =
+        any (`Text.isPrefixOf` log) ["Loading package", "linking ...", "done."]
 
 -- * implementation
 

@@ -24,6 +24,7 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified LogView.Process as Process
 import qualified LogView.Tail as Tail
+import qualified App.ReplUtil as ReplUtil
 import qualified App.SendCmd as SendCmd
 import Global
 
@@ -104,13 +105,13 @@ read_eval_print (Just input)
     | null input = return True
     | otherwise = do
         response <- liftIO $ Exception.handle catch_all $
-            SendCmd.send (Text.pack input)
+            ReplUtil.format_response <$> SendCmd.send (Text.pack input)
         unless (Text.null response) $
             liftIO $ Text.IO.putStrLn response
         return True
     where
     catch_all :: Exception.SomeException -> IO Text.Text
-    catch_all exc = return ("!error: " <> Text.pack (show exc))
+    catch_all exc = return $ "error: " <> Text.pack (show exc)
 
 get_input :: Maybe FilePath -> Input (Maybe String)
 get_input maybe_fname =

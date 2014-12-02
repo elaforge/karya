@@ -66,11 +66,15 @@ import Global
 -- errors.
 import Cmd.Repl.Environ ()
 
+-- | When a log file reaches this size, in bytes, it will be rotated.
+max_log_size :: Int
+max_log_size = 4 * mb
+    where mb = 1024^2
 
 initialize :: (Network.Socket -> Interface.Interface -> IO ()) -> IO ()
 initialize app = do
     log_fn <- Tail.log_filename
-    log_hdl <- Tail.rotate_logs 4 (4 * 1024^2) log_fn
+    log_hdl <- Tail.rotate_logs 4 max_log_size log_fn
     Log.configure $ const $ Log.State (Log.write_json log_hdl) Log.Debug
     MidiDriver.initialize "seq" want_message $ \interface -> case interface of
         Left err -> error $ "initializing midi: " ++ err

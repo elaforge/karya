@@ -5,6 +5,7 @@
 module App.SendCmd where
 import qualified Data.ByteString.Char8 as ByteString.Char8
 import qualified Data.Text as Text
+import Data.Text (Text)
 import qualified Network
 import qualified System.IO as IO
 import qualified System.Posix as Posix
@@ -22,7 +23,7 @@ initialize app = Network.withSocketsDo $ do
         "caught SIGPIPE, reader must have closed the socket"
 
 -- | I don't expect any newlines in the sent message.
-send :: Text.Text -> IO Text.Text
+send :: Text -> IO (Text, [Text])
 send msg = do
     hdl <- Network.connectTo "localhost" Config.repl_port
     ByteString.Char8.hPutStr hdl $ ReplUtil.encode_request $
