@@ -295,6 +295,14 @@ documentation
       that have someone listening to them in a certain scope.
 
 shakefile: build:
+  - clean up the PackageId vs. Package mess
+    . The problem is that I want some packages to be optional.  Specifically,
+      ekg and criterion are only for occasional debugging, but have huge
+      dependency lists.  cabal allows each binary to have its own dependency
+      list, and for that to change based on flags, so to really do it properly
+      I'd need a different list of deps for each binary and to generate
+      a cabal file with multiple targets.
+    . It's probably not worth the effort.
   automatic "All.hs" modules
     . I'm reluctant because it's simpler to have normal files, and it's not
       that hard to update them.
@@ -785,13 +793,18 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - If there are ambiguous packages exposed, e.g. both
+    regex-pcre-builtin (wrong) and regex-pcre (right), then the repl will
+    show 'Exception: Cannot add module Cmd.Repl.Environ to context: not a home'
+    Presumably it gets confused because I don't put the -package-id and
+    -package flags into ghci-flags
   - Even though the shakefile tries to support multiple versions of packages
     via 'cabal configure', I think they can still cause problems with ghci
     loading.  This manifests as a long hang starting up while the repl
     bytecode compiles a bunch of modules.  Perhaps build/*/ghci-flags needs
     the full -package-id treatment.
-  - Find out what happened to warnings, can I get them back?
-  - repl should understand --
+  * Find out what happened to warnings, can I get them back?
+  / repl should understand --
   - only write history when the cmd succeeded
   - command to open the haddock for a module
   - haskeline sucks for long lines, add multiple line editing?

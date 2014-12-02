@@ -20,25 +20,25 @@ interesting music to come out.
 To install the needed haskell dependencies, type:
 
 > cabal install --only-dependencies
-> cabal install hscolour
 
 The actual build is with shake, but there's a dummy cabal file with just
 dependencies to make install easier.
 
-pandoc builds the documentation, but isn't in the cabal file because it has a
-zillion dependencies and I just need the binary.  Or just read the markdown
-directly, that's what it's for.  So many dependencies just to convert text to
-HTML.
+If you want to build the documentation:
 
-One weakness of the shake build system as opposed to cabal is that it doesn't
-have the full constraint solver to figure out which versions of the various
-dependent packages to use.  The result is that it just uses the latest version
-of everything, which will be a problem if another package was compiled against
-an older version.  It might be possible to use just the constraint solver from
-the Cabal library, but it would probably need some refactoring to be usable.
-Meanwhile, I haven't had any trouble with dependency hell, despite not using a
-sandbox.  But if you do other haskell development you might want to use a cabal
-sandbox.
+> cabal install hscolour pandoc
+
+These are separate because pandoc has a ridiculous number of dependencies and
+all it does is turn the `doc/*.md` files into html.
+
+I link to the 'ghc' package, which means that the versions of the GHC boot
+packages are all fixed to the versions included with GHC.  So you can't upgrade
+bytestring or containers or whatever.  Otherwise other packages will want to
+link to the new versions, but the 'ghc' dependency forces karya to link to the
+old version, and you can't link to two versions at the same time.  If you do
+other haskell development you may want to use a cabal sandbox.  It might need
+special support to work with the GHC API though.  I've never used it so I don't
+know.
 
 ## INSTALLED SEPARATELY
 

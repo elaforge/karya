@@ -68,8 +68,8 @@ defaultOptions = Shake.shakeOptions
     , Shake.shakeProgress = Progress.report
     }
 
-newtype GetPackages = GetPackages (Shake.Action [PackageId])
-instance Show GetPackages where show _ = "((GetPackages))"
+newtype GetPackageIds = GetPackageIds (Shake.Action [PackageId])
+instance Show GetPackageIds where show _ = "((GetPackageIds))"
 
 data Config = Config {
     buildDir :: FilePath
@@ -78,12 +78,11 @@ data Config = Config {
     , fltkVersion :: String
     , midiConfig :: MidiConfig
     , configFlags :: Flags
-    , getPackages_ :: GetPackages
+    , getPackageIds_ :: GetPackageIds
     } deriving (Show)
 
--- TODO rename to getPackageIds
-getPackages :: Config -> Shake.Action [PackageId]
-getPackages (Config { getPackages_ = GetPackages get }) = get
+getPackageIds :: Config -> Shake.Action [PackageId]
+getPackageIds (Config { getPackageIds_ = GetPackageIds get }) = get
 
 packageFlags :: [PackageId] -> [Package] -> [Flag]
 packageFlags packageIds packages =
@@ -282,6 +281,9 @@ globalPackages = concat $
 
 -- | This is a hack so I can add packages that aren't in 'globalPackages'.
 -- This is for packages with tons of dependencies that I usually don't need.
+--
+-- I should use PackageIds for everything. But for the moment I don't really
+-- know how to integrate optional packages into the cabalConfigurationRule.
 extraPackagesFor :: FilePath -> [Package]
 extraPackagesFor obj
     | (criterionHsSuffix <> ".o") `List.isSuffixOf` obj = ["criterion"]
@@ -387,7 +389,7 @@ configure midi = do
         , midiConfig = midi
         , configFlags = setCcFlags $
             setConfigFlags fltkCs fltkLds mode osFlags bindingsInclude
-        , getPackages_ = GetPackages (return [])
+        , getPackageIds_ = GetPackageIds (return [])
         }
     where
     setConfigFlags fltkCs fltkLds mode flags bindingsInclude = flags
@@ -479,8 +481,9 @@ main = withLockedDatabase $ do
     modeConfig_ <- configure (midiFromEnv env)
     writeGhciFlags modeConfig_
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
-        getPackages_ <- packageConfigurationRules
-        let modeConfig = (\c -> c { getPackages_ = getPackages_ }) . modeConfig_
+        getPackageIds_ <- packageConfigurationRules
+        let modeConfig = (\c -> c { getPackageIds_ = getPackageIds_ })
+                . modeConfig_
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
         -- hspp is depended on by all .hs files.  To avoid recursion, I
@@ -488,7 +491,7 @@ main = withLockedDatabase $ do
         hspp *> \fn -> do
             -- But I need to mark hspp's deps so it will rebuild.
             need =<< HsDeps.transitiveImportsOf (const Nothing) "Util/Hspp.hs"
-            packageIds <- getPackages (modeConfig Opt)
+            packageIds <- getPackageIds (modeConfig Opt)
             Util.cmdline $
                 makeHs packageIds (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
         matchObj "fltk/fltk.a" ?> \fn -> do
@@ -734,7 +737,7 @@ makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
     (hs, hscs) <- getAllHaddock config
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
-    packages <- getPackages config
+    packages <- getPackageIds config
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces (map stripPackageId packages)
     system "haddock" $
@@ -793,7 +796,7 @@ stripPackageId = reverse . drop hexLen . reverse
 
 -- | Add the various cabal rules, and return an action that reads a cached list
 -- of packages with their versions.
-packageConfigurationRules :: Shake.Rules GetPackages
+packageConfigurationRules :: Shake.Rules GetPackageIds
 packageConfigurationRules = do
     "karya.cabal" *> makeKaryaCabal
     "dist/setup-config" *> \_ -> do
@@ -806,7 +809,7 @@ packageConfigurationRules = do
         packages <- liftIO $ readCabalConfiguration
         Shake.writeFileChanged fn $ unlines packages
     cached <- Shake.newCache $ fmap lines . Shake.readFile'
-    return $ GetPackages $ cached (build </> "package-versions")
+    return $ GetPackageIds $ cached (build </> "package-versions")
 
 makeKaryaCabal :: FilePath -> Shake.Action ()
 makeKaryaCabal fn = do
@@ -853,7 +856,7 @@ makeHs packageIds dir out main = ("GHC-MAKE", out, cmdline)
 buildHs :: Config -> [FilePath] -> [Package] -> FilePath -> FilePath
     -> Shake.Action ()
 buildHs config libs extraPackages hs fn = do
-    packages <- getPackages config
+    packages <- getPackageIds config
     when (isHsconfigBinary fn) $
         need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
@@ -957,7 +960,7 @@ hsORule infer = matchHsObj ?>> \fns -> do
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsORule" config hs else return []
     need includes
-    packages <- getPackages config
+    packages <- getPackageIds config
     let his = map (objToHi . srcToObj config) imports
     -- I depend on the .hi files instead of the .hs.o files.  GHC avoids
     -- updaing the timestamp on the .hi file if its .o didn't need to be
@@ -1001,9 +1004,6 @@ compileHs packageIds packages mode config hs =
         | otherwise = []
 
 linkHs :: Config -> FilePath -> [PackageId] -> [Package]
-    -- ^ I should use PackageIds for everything. But for the moment I don't
-    -- really know how to integrate optional packages into the
-    -- cabalConfigurationRule.
     -> [FilePath] -> Util.Cmdline
 linkHs config output packageIds packages objs = ("LD-HS", output,
     ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
