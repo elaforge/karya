@@ -180,7 +180,8 @@ instance String.IsString Replacement where
 substitute :: Parser -> [Replacement] -> Text -> Either String Text
 substitute parser replacements text = case match of
     Nothing -> Right text
-    Just matches -> Text.unwords <$> mapM (replace matches) replacements
+    Just matches -> Text.unwords . filter (not . Text.null) <$>
+        mapM (replace matches) replacements
     where
     match = IntMap.fromList . zip [0..] <$> parse_tokens parser text
     replace matches r = case r of

@@ -17,6 +17,7 @@ test_substitute = do
         (Right "a | d b")
     equal (f ("sd" <> ws) [F 0] "sd a b") (Right "a b")
     equal (f ("sd" <> ws <> w) [F 0] "sd a b") (Right "a")
+    equal (f ("sd" <> ws) ["df", F 0] "sd") (Right "df")
     -- No match returns the input.
     equal (f ("sd" <> w <> w) [F 0, "| d", F 1] "sd a")
         (Right "sd a")
