@@ -36,6 +36,13 @@ import qualified App.ReplUtil as ReplUtil
 import Global hiding (liftIO)
 
 
+-- | The base directory of this build.  Comes from CPP.
+build_dir :: FilePath
+build_dir = BUILD_DIR
+
+ghci_flags :: FilePath
+ghci_flags = build_dir </> "ghci-flags"
+
 -- | The actual session runs in another thread, so this is the communication
 -- channel.  @(expr, namespace, response_mvar)@
 newtype Session = Session (Chan.Chan (Text, MVar.MVar Cmd))
@@ -56,16 +63,13 @@ interpret (Session chan) _local_modules expr = do
     Chan.writeChan chan (expr, mvar)
     MVar.takeMVar mvar
 
-ghci_flags :: FilePath
-ghci_flags = BUILD_DIR </> "ghci-flags"
-
 interpreter :: Session -> IO ()
 interpreter (Session chan) = do
     GHC.parseStaticFlags [] -- not sure if this is necessary
     flags <- Exception.try (readFile ghci_flags)
     -- Ghc moved .o to dyn flags, but I'll have to wait for 7.8, or make a .a
     -- and use -l.
-    let is_obj fn = BUILD_DIR `List.isPrefixOf` fn && ".o" `List.isSuffixOf` fn
+    let is_obj fn = build_dir `List.isPrefixOf` fn && ".o" `List.isSuffixOf` fn
     args <- filter (not . is_obj) <$> case flags of
         Left (exc :: Exception.SomeException) -> do
             Log.error $ "error reading ghci flags from "
