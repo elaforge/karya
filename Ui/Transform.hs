@@ -145,8 +145,22 @@ destroy_namespace ns = do
     mapM_ State.destroy_ruler
         =<< State.gets (in_ns . Map.keys . State.state_rulers)
     where
-    in_ns :: (Id.Ident a) => [a] -> [a]
+    in_ns :: Id.Ident a => [a] -> [a]
     in_ns = filter $ (==ns) . Id.ident_namespace
+
+-- | Replace the namespace of the second state with the one from the first
+-- state.
+replace_namespace :: Id.Namespace -> State.State -> State.State -> State.State
+replace_namespace ns from to = to
+    { State.state_views = merge State.state_views
+    , State.state_blocks = merge State.state_blocks
+    , State.state_tracks = merge State.state_tracks
+    , State.state_rulers = merge State.state_rulers
+    }
+    where
+    merge field =
+        Map.union (Map.filterWithKey (\k _ -> wanted k) (field from)) (field to)
+        where wanted = (==ns) . Id.ident_namespace
 
 
 -- * merge

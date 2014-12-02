@@ -14,7 +14,11 @@ UNSORTED
       I could actually use parsec, but it would be cumbersome to write inline.
   * 'c' status incorrect in @b3-end, kendang dyn 7t
     It's due to default tempo.
-  - the clip/* namespace should live past a load
+  * the clip/* namespace should live past a load
+    . In fact, I wonder if I should put clip in Cmd.State?  That way I also
+      don't have to worry about it being affected by undo.
+    . On the downside, it means I need special hacks to open, derive, and play
+      the clip/ blocks.
   - Local.Instrument modules include configuration functions, how to call them?
     . Kontakt.configure_wayang, configure_legong, Spicy.configure
     . import into a Local.Repl module

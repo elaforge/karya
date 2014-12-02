@@ -12,6 +12,7 @@ import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Transform as Transform
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
@@ -154,14 +155,12 @@ load_history name load hist = case Cmd.hist_commit hist of
 -- inherit them from the old state.  It's confusing when undo moves a window,
 -- or a selection, or changes the zoom.
 merge_undo_states :: State.State -> State.State -> State.State
-merge_undo_states new old = State.State
-    { State.state_views = keep_clip (State.state_views old) $ Map.mapWithKey
+merge_undo_states new old =
+    (Transform.replace_namespace Config.clip_namespace old new)
+    { State.state_views = Map.mapWithKey
         (merge_view (State.state_views old)) (State.state_views new)
-    , State.state_blocks = keep_clip (State.state_blocks old) $ Map.mapWithKey
+    , State.state_blocks = Map.mapWithKey
         (merge_block (State.state_blocks old)) (State.state_blocks new)
-    , State.state_tracks = keep_clip
-        (State.state_tracks old) (State.state_tracks new)
-    , State.state_rulers = State.state_rulers new
     , State.state_config = State.state_config old
     }
 
@@ -174,13 +173,9 @@ merge_block old_blocks block_id new = case Map.lookup block_id old_blocks of
     Nothing -> new
     Just old -> new { Block.block_config = Block.block_config old }
 
--- | The contents of the clipboard should be preserved across undo and redo.
-keep_clip :: (Id.Ident k, Ord k) => Map.Map k a -> Map.Map k a -> Map.Map k a
-keep_clip old = Map.union (Map.filterWithKey (\k _ -> ns k) old)
-    where ns = (==Config.clip_namespace) . Id.ident_namespace
-
--- | Since 'keep_clip' makes sure the clip\/ namespace doesn't participate in
--- undo\/redo, I don't need to record if I have only those kind of updates.
+-- | Since 'merge_undo_states' makes sure the clip\/ namespace doesn't
+-- participate in undo\/redo, I don't need to record if I have only those kind
+-- of updates.
 is_clip_update :: Update.UiUpdate -> Bool
 is_clip_update = maybe False ((==Config.clip_namespace) . Id.id_namespace)
     . Update.update_id

@@ -42,6 +42,8 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Id as Id
 import qualified Ui.State as State
+import qualified Ui.Transform as Transform
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
@@ -86,9 +88,7 @@ load_template fn = do
     let save_file = SaveState $ FilePath.takeDirectory fn </> "untitled"
     set_state save_file True state
     now <- liftIO $ Time.getCurrentTime
-    State.put $
-        State.config#State.meta#State.creation #= now $
-        State.clear state
+    State.modify_config $ State.meta#State.creation #= now
 
 -- | Given a path, which is either a file or a directory, try to figure out
 -- what to load.  Saves can be either a plain saved state, or a directory
@@ -379,9 +379,11 @@ set_state save_file clear_history state = do
                 { Cmd.hist_last_cmd = Just $ Cmd.Load (Just commit) names }
             }
         _ -> return ()
-    State.put (State.clear state)
+    old <- State.get
+    State.put $ State.clear $
+        Transform.replace_namespace Config.clip_namespace old state
     root <- case State.config_root (State.state_config state) of
         Nothing -> return Nothing
         Just root -> Seq.head . Map.keys <$> State.views_of root
-    let focused = msum [root, Seq.head (Map.keys (State.state_views state))]
+    let focused = msum [root, Seq.head $ Map.keys (State.state_views state)]
     whenJust focused ViewConfig.bring_to_front
