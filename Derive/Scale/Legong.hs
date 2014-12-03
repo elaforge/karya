@@ -11,6 +11,7 @@ module Derive.Scale.Legong where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
+import qualified Util.Seq as Seq
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
@@ -120,9 +121,11 @@ note_numbers = BaliScales.NoteNumbers
   0              7              14             21             28             35
   11 12 13 15 16 21 22 23 25 26 31 32 33 35 36 41 42 43 45 46 51 52 53 55 56 61
                              trompong---------------------
-                                      reyong-----------------------------
                                    pemade-----------------------
                                                   kantilan---------------------
+                                      reyong-----------------------------
+                                      |------|---       |---|---
+                                               |------|---    |---------|
   1i 1o 1e 1u 1a 2i 2o 2e 2u 2a 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i
  @
 -}
@@ -164,6 +167,13 @@ umbang =
 -- TODO
 isep :: [Pitch.NoteNumber]
 isep = map (Pitch.add_hz 4) umbang
+
+strip_pemero :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
+strip_pemero = go
+    where
+    go [] = []
+    go nns = strip nns ++ go (drop 7 nns)
+    strip nns = mapMaybe (Seq.at nns) [0, 2, 3, 5, 6]
 
 -- | Add one octave on the bottom, so I get down to 1i, in the jegog, up to 6i.
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
