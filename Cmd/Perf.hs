@@ -156,11 +156,6 @@ scale_from_titles block_id track_id = do
         Just scale_id | scale_id /= Pitch.empty_scale -> Just scale_id
         _ -> Nothing
 
--- | As with 'get_scale_id' but for the Key.
-get_key :: Cmd.M m => BlockId -> Maybe TrackId -> m (Maybe Pitch.Key)
-get_key block_id maybe_track_id =
-    fmap Pitch.Key <$> lookup_val block_id maybe_track_id Environ.key
-
 lookup_instrument :: Cmd.M m => BlockId -> Maybe TrackId
     -> m (Maybe Score.Instrument)
 lookup_instrument block_id maybe_track_id =

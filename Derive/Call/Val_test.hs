@@ -3,10 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Val_test where
-import qualified Util.Num as Num
-import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Meter as Meter
 import qualified Derive.Call.CallTest as CallTest

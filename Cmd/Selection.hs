@@ -460,6 +460,11 @@ type AnyPoint = (BlockId, TrackNum, TrackTime)
 get_insert :: Cmd.M m => m Point
 get_insert = Cmd.abort_unless =<< lookup_insert
 
+get_insert_track :: Cmd.M m => m (BlockId, TrackId)
+get_insert_track = do
+    (block_id, _, track_id, _) <- get_insert
+    return (block_id, track_id)
+
 lookup_insert :: Cmd.M m => m (Maybe Point)
 lookup_insert = fmap (fmap snd) $ lookup_selnum_insert Config.insert_selnum
 

@@ -1072,11 +1072,23 @@ Derive:
 
 pitch: scales: scale:
   scales / Derive.Scale:
+    - interpolate between different scales with the same pitch names
+      . Or the same scale, but different keys.
+      . Scale with arguments: *interpolate scale-from=from scale-to=to
+      . I don't think I can use environ vals, because all the various scale
+        functions don't have access to it.
+      . If I want a scale with arguments, it winds up being like Environ,
+        except that I can rely on it being in the track title instead of
+        having to look up an environ.  But I would need to generate the scale
+        with a val call, e.g. 'scale = (interpolate-scale from to)', and now
+        I can't really write it directly '*interpolate ..?'.
+      . The Key is analogous, and its from the environ.  So perhaps all the
+        functions that take a Key should take Environ instead.  Everyone who
+        needs a Key already makes you look up in the Environ anyway, why not
+        pass the whole thing?
     - wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose signal, that multiplies hz
-    just intonation
-      - interpolate between just scales in different keys
     - meantone
     - Interpolate between two scales.  The main thing is to establish a note
       to note correspondance.

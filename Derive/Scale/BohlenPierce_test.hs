@@ -34,7 +34,7 @@ test_note_to_call = do
 
 test_input_to_note = do
     let f = either prettyt Pitch.note_text
-            . Scale.scale_input_to_note BP.absolute_scale Nothing
+            . Scale.scale_input_to_note BP.absolute_scale mempty
     let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
         piano oct = CmdTest.piano_kbd . CmdTest.oct_pc oct
     equal [f (ascii 4 pc) | pc <- [0..9]]

@@ -1383,9 +1383,9 @@ data Scale = Scale {
     -- in this set, the pitch won't be reevaluated when they change.
     , scale_transposers :: !(Set.Set Score.Control)
     -- | Parse a Note into a Pitch.Pitch with scale degree and accidentals.
-    , scale_read :: Maybe Pitch.Key -> Pitch.Note
+    , scale_read :: TrackLang.Environ -> Pitch.Note
         -> Either ScaleError Pitch.Pitch
-    , scale_show :: Maybe Pitch.Key -> Pitch.Pitch
+    , scale_show :: TrackLang.Environ -> Pitch.Pitch
         -> Either ScaleError Pitch.Note
     , scale_layout :: !Layout
     , scale_transpose :: !Transpose
@@ -1395,7 +1395,7 @@ data Scale = Scale {
     , scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
 
     -- | Used by note input.
-    , scale_input_to_note :: !(Maybe Pitch.Key -> Pitch.Input
+    , scale_input_to_note :: !(TrackLang.Environ -> Pitch.Input
         -> Either ScaleError Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
     -- @eval . note_to_call . input_to_note@ but can often be implemented more
@@ -1424,13 +1424,13 @@ type LookupScale = Pitch.ScaleId -> Maybe Scale
 -- | Scales may ignore Transposition if they don't support it.
 --
 -- Transposition could almost always succeed, and leaving the error reporting
--- to 'scale_show'.  But for some scales it has to parse the 'Pitch.Key', which
--- can fail.  Parsing the key is pretty unfortunate, since it winds up getting
--- repeated for 'scale_read' and 'scale_show', but I don't want to make the Key
--- type concrete, since each scale has a different one.
+-- to 'scale_show'.  But for some scales it has to parse the 'Pitch.Key' from
+-- the environ, which can fail.  Parsing the key is pretty unfortunate, since
+-- it winds up getting repeated for 'scale_read' and 'scale_show', but I don't
+-- want to make the Key type concrete, since each scale has a different one.
 --
 -- TODO could make the key an existential type and export scale_parse_key?
-type Transpose = Transposition -> Maybe Pitch.Key -> Pitch.Step -> Pitch.Pitch
+type Transpose = Transposition -> TrackLang.Environ -> Pitch.Step -> Pitch.Pitch
     -> Either ScaleError Pitch.Pitch
 
 data Transposition = Chromatic | Diatonic deriving (Show)
@@ -1438,17 +1438,20 @@ data Transposition = Chromatic | Diatonic deriving (Show)
 -- | Get the enharmonics of the note.  The given note is omitted, and the
 -- enharmonics are in ascending order until they wrap around, so if you always
 -- take the head of the list you will cycle through all of the enharmonics.
-type Enharmonics = Maybe Pitch.Key -> Pitch.Note
+type Enharmonics = TrackLang.Environ -> Pitch.Note
     -> Either ScaleError [Pitch.Note]
 
 -- | The number of chromatic intervals between each 'Pitch.PitchClass',
 -- starting from 0, as returned by 'scale_read'.  The length is the number of
--- degree per octave.  A diatonic-only scale will have all 1s, and a scale
+-- degrees per octave.  A diatonic-only scale will have all 1s, and a scale
 -- without octaves has an empty layout.
 --
 -- This is analogous to 'Theory.Layout', but is intended to be a minimal
 -- implementation that all scales can export, without having to support the
 -- full complexity of a chromatic scale.
+--
+-- Combined with 'scale_read' and 'scale_show', I can use this to do math on
+-- scale degrees.
 type Layout = Vector.Unboxed.Vector Pitch.Semi
 
 -- | Things that can go wrong during scale operations.

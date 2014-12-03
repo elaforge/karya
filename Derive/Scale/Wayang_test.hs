@@ -34,7 +34,7 @@ get_scale scale_id = fromMaybe (error $ "no scale: " ++ show scale_id) $
 
 read_scale :: Scale.Scale -> Pitch.Note -> Either String String
 read_scale scale note = (pretty *** pretty) $
-    Scale.scale_read scale Nothing note
+    Scale.scale_read scale mempty note
 
 scale_track :: String -> [String] -> [UiTest.TrackSpec]
 scale_track scale_id pitches =

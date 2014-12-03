@@ -12,6 +12,7 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Legong as Legong
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
@@ -43,7 +44,8 @@ test_note_to_call = do
 
 test_input_to_note = do
     let f scale key = either prettyt Pitch.note_text
-            . Scale.scale_input_to_note scale (Pitch.Key <$> key)
+            . Scale.scale_input_to_note scale
+                (maybe mempty Scales.key_environ key)
             . CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
         legong = lookup_scale "legong"
         legong_p = lookup_scale "legong-pemade"

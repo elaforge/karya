@@ -194,7 +194,7 @@ modify_expr f text = case Parse.parse_expr text of
 -- | Function that modifies the pitch of an event on a pitch track, or a Left
 -- if the operation failed.
 type ModifyPitch =
-    Scale.Scale -> Maybe Pitch.Key -> Pitch.Note -> Either String Pitch.Note
+    Scale.Scale -> TrackLang.Environ -> Pitch.Note -> Either String Pitch.Note
 
 transpose_selection :: Cmd.M m => Scale.Transposition -> Pitch.Octave
     -> Pitch.Step -> m ()
@@ -202,16 +202,16 @@ transpose_selection transposition oct steps =
     pitches $ transpose transposition oct steps
 
 transpose :: Scale.Transposition -> Pitch.Octave -> Pitch.Step -> ModifyPitch
-transpose transposition octaves steps = \scale key note ->
-    case Scale.transpose transposition scale key octaves steps note of
+transpose transposition octaves steps = \scale env note ->
+    case Scale.transpose transposition scale env octaves steps note of
         -- Leave non-pitches alone.
         Left Scale.UnparseableNote -> Right note
         Left err -> Left (pretty err)
         Right note2 -> Right note2
 
 cycle_enharmonics :: ModifyPitch
-cycle_enharmonics scale maybe_key note = first pretty $ do
-    enharmonics <- Scale.scale_enharmonics scale maybe_key note
+cycle_enharmonics scale env note = first pretty $ do
+    enharmonics <- Scale.scale_enharmonics scale env note
     return $ fromMaybe note (Seq.head enharmonics)
 
 pitches :: Cmd.M m => ModifyPitch -> m ()
@@ -223,6 +223,6 @@ pitch_tracks f = ModifyEvents.tracks_named ParseTitle.is_pitch_track $
         \block_id track_id events -> do
     scale_id <- Perf.get_scale_id block_id (Just track_id)
     scale <- Cmd.get_scale "PitchTrack.pitches" scale_id
-    maybe_key <- Perf.get_key block_id (Just track_id)
-    let modify = modify_note (f scale maybe_key)
+    env <- Perf.get_environ block_id (Just track_id)
+    let modify = modify_note (f scale env)
     ModifyEvents.failable_text modify block_id track_id events

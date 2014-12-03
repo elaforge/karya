@@ -82,8 +82,8 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
     , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Scales.standard_transposers
-    , Scale.scale_read = TheoryFormat.read_pitch fmt
-    , Scale.scale_show = TheoryFormat.scale_show_pitch fmt
+    , Scale.scale_read = TheoryFormat.read_pitch fmt . Scales.environ_key
+    , Scale.scale_show = TheoryFormat.scale_show_pitch fmt . Scales.environ_key
     , Scale.scale_layout =
         Scale.diatonic_layout $ TheoryFormat.fmt_pc_per_octave fmt
     , Scale.scale_transpose = transpose fmt
@@ -127,14 +127,16 @@ just_doc =
 -- * input_to_note
 
 enharmonics :: Theory.Layout -> TheoryFormat.Format -> Derive.Enharmonics
-enharmonics layout fmt key note = do
+enharmonics layout fmt env note = do
+    let key = Scales.environ_key env
     pitch <- TheoryFormat.read_pitch fmt key note
     return $ map (TheoryFormat.show_pitch fmt key) $
         Theory.enharmonics_of layout pitch
 
 input_to_note :: ScaleMap -> Scales.InputToNote
-input_to_note smap maybe_key (Pitch.Input kbd pitch _frac) = do
-    key <- Scales.get_key (smap_default_key smap) (smap_keys smap) maybe_key
+input_to_note smap env (Pitch.Input kbd pitch _frac) = do
+    key <- Scales.get_key (smap_default_key smap) (smap_keys smap)
+        (Scales.environ_key env)
     pitch <- Scales.kbd_to_scale kbd pc_per_octave (key_tonic key) pitch
     return $ TheoryFormat.show_pitch (smap_fmt smap) Nothing pitch
     where pc_per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)

@@ -12,6 +12,8 @@ import qualified Data.Vector.Unboxed as Vector
 
 import Derive.Derive (Scale(..), Transposition(..), ScaleError(..), Layout)
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.TrackLang as TrackLang
+
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -62,8 +64,9 @@ chromatic_difference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 acc1))
     oct_diff + (semis_at_pc layout pc1 - semis_at_pc layout pc2) + (acc1 - acc2)
     where oct_diff = semis_per_octave layout * (oct1 - oct2)
 
-transpose :: Transposition -> Scale -> Maybe Pitch.Key -> Pitch.Octave
+transpose :: Transposition -> Scale -> TrackLang.Environ -> Pitch.Octave
     -> Pitch.Step -> Pitch.Note -> Either ScaleError Pitch.Note
-transpose transposition scale key octaves steps =
-    scale_show scale key <=< scale_transpose scale transposition key steps
-        . Pitch.add_octave octaves <=< scale_read scale key
+transpose transposition scale environ octaves steps =
+    scale_show scale environ
+    <=< scale_transpose scale transposition environ steps
+    . Pitch.add_octave octaves <=< scale_read scale environ

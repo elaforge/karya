@@ -561,7 +561,7 @@ note_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> PitchSignal.Transposed
 note_too_high scale maybe_top pitchv = fromMaybe False $ do
     top <- maybe_top
     note <- either (const Nothing) Just $ PitchSignal.pitch_note pitchv
-    pitch <- either (const Nothing) Just $ Scale.scale_read scale Nothing note
+    pitch <- either (const Nothing) Just $ Scale.scale_read scale mempty note
     return $ pitch > top
 
 pitch_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> Score.Event -> Bool

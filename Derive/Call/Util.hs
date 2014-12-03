@@ -334,12 +334,12 @@ get_pitch_functions :: Derive.Deriver
     )
 get_pitch_functions = do
     scale <- get_scale
-    key <- lookup_key
+    env <- Internal.get_environ
     let transpose transposition steps =
-            to_maybe . Scale.scale_transpose scale transposition key steps
+            to_maybe . Scale.scale_transpose scale transposition env steps
     return
-        ( to_maybe . Scale.scale_read scale key
-        , to_maybe . Scale.scale_show scale key
+        ( to_maybe . Scale.scale_read scale env
+        , to_maybe . Scale.scale_show scale env
         , transpose
         )
     where to_maybe = either (const Nothing) Just

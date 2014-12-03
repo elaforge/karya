@@ -120,7 +120,7 @@ out_of_range deriver = do
 initial_pitch :: Scale.Scale -> Score.Event -> Maybe Pitch.Pitch
 initial_pitch scale event = do
     note <- Score.initial_note event
-    either (const Nothing) Just $ Scale.scale_read scale Nothing note
+    either (const Nothing) Just $ Scale.scale_read scale mempty note
 
 
 -- * util

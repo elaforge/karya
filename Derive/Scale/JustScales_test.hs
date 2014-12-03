@@ -16,6 +16,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.JustScales as JustScales
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
 
@@ -86,7 +87,7 @@ test_note_to_call_relative = do
 
 test_input_to_note = do
     let f smap key = either (const "") Pitch.note_text <$>
-            JustScales.input_to_note smap (Just (Pitch.Key key))
+            JustScales.input_to_note smap (Scales.key_environ key)
         rel = make_scale_map True
         abs = make_scale_map False
         ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct

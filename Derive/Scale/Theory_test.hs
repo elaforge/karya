@@ -8,6 +8,7 @@ import qualified Data.Vector.Unboxed as Vector
 import qualified Util.ParseText as ParseText
 import Util.Test
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Scale.Twelve as Twelve
@@ -159,7 +160,7 @@ test_step_of = do
 
 key :: Text -> Theory.Key
 key name = either (error $ "can't parse key: " ++ show name) id $
-    ChromaticScales.read_key Twelve.absolute_scale_map (Just (Pitch.Key name))
+    ChromaticScales.read_key Twelve.absolute_scale_map (Scales.key_environ name)
 
 p :: Text -> Pitch.Pitch
 p s = either (const $ error $ "can't parse pitch: " ++ show s) id $

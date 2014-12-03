@@ -14,6 +14,7 @@ import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
@@ -203,9 +204,9 @@ make_pitch (Right name_pitch) pc accs
             Right pitch -> (,)
                 <$> Pitches.pitch_note (PitchSignal.coerce pitch)
                 <*> Derive.get_scale (PitchSignal.pitch_scale_id pitch)
-        key <- Util.lookup_key
+        env <- Internal.get_environ
         either (Derive.throw . pretty) return $
-            Scale.scale_read scale key note
+            Scale.scale_read scale env note
 
 c_pitch_control :: Derive.ValCall
 c_pitch_control = val_call "pitch-control" mempty

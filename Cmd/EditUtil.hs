@@ -118,11 +118,6 @@ get_scale_id = do
     (block_id, _, track_id, _) <- Selection.get_insert
     Perf.get_scale_id block_id (Just track_id)
 
-get_key :: Cmd.M m => m (Maybe Pitch.Key)
-get_key = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    Perf.get_key block_id (Just track_id)
-
 -- * msgs
 
 data Key = Backspace | Key Char
@@ -196,8 +191,9 @@ input_to_note input = do
     scale_id <- get_scale_id
     let me = "EditUtil.input_to_note"
     scale <- Cmd.get_scale me scale_id
-    key <- get_key
-    case Scale.scale_input_to_note scale key input of
+    (block_id, track_id) <- Selection.get_insert_track
+    env <- Perf.get_environ block_id (Just track_id)
+    case Scale.scale_input_to_note scale env input of
         -- This just means the key isn't in the scale, it happens a lot so no
         -- need to shout about it.
         Left Scale.InvalidInput -> Cmd.abort

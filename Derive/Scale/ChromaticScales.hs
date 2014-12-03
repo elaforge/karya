@@ -27,7 +27,7 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
--- | This contains all that is needed to define a western-like key system.
+-- | This contains all that is needed to define a European-like key system.
 -- It fills a similar role to 'Scales.ScaleMap' for non-keyed scales.
 data ScaleMap = ScaleMap {
     smap_fmt :: !TheoryFormat.Format
@@ -41,7 +41,7 @@ data ScaleMap = ScaleMap {
     }
 
 twelve_doc :: Text
-twelve_doc = "Scales in the \"twelve\" family use western style note naming.\
+twelve_doc = "Scales in the \"twelve\" family use European style note naming.\
     \ That is, note names look like octave-letter-accidentals like \"4c#\".\
     \ They have a notion of a \"layout\", which is a pattern of half and\
     \ whole steps, e.g. the piano layout, and a key, which is a subset of\
@@ -90,8 +90,8 @@ make_scale scale_id smap doc = Scale.Scale
 -- * functions
 
 transpose :: ScaleMap -> Derive.Transpose
-transpose smap transposition maybe_key steps pitch = do
-    key <- read_key smap maybe_key
+transpose smap transposition env steps pitch = do
+    key <- read_key smap env
     return $ trans key steps pitch
     where
     trans = case transposition of
@@ -99,10 +99,10 @@ transpose smap transposition maybe_key steps pitch = do
         Scale.Diatonic -> Theory.transpose_diatonic
 
 enharmonics :: ScaleMap -> Derive.Enharmonics
-enharmonics smap maybe_key note = do
-    pitch <- read_pitch smap maybe_key note
-    key <- read_key smap maybe_key
-    return $ Either.rights $ map (show_pitch smap maybe_key) $
+enharmonics smap env note = do
+    pitch <- read_pitch smap env note
+    key <- read_key smap env
+    return $ Either.rights $ map (show_pitch smap env) $
         Theory.enharmonics_of (Theory.key_layout key) pitch
 
 note_to_call :: PitchSignal.Scale -> ScaleMap -> Pitch.Note
@@ -119,7 +119,7 @@ pitch_note smap pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error diatonic chromatic $ do
         let d = round diatonic
             c = round chromatic
-        show_pitch smap (Scales.environ_key env) =<< if d == 0 && c == 0
+        show_pitch smap env =<< if d == 0 && c == 0
             then return pitch
             else do
                 key <- read_env_key smap env
@@ -152,7 +152,7 @@ pitch_nn smap pitch config@(PitchSignal.PitchConfig env controls) =
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
 input_to_note :: ScaleMap -> Scales.InputToNote
-input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
+input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     pitch <- Scales.kbd_to_scale kbd_type pc_per_octave (key_tonic key) pitch
     unless (Theory.layout_contains_degree key (Pitch.pitch_degree pitch)) $
         Left Scale.InvalidInput
@@ -162,7 +162,7 @@ input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
             else Theory.pick_enharmonic key
     -- Don't pass the key, because I want the Input to also be relative, i.e.
     -- Pitch 0 0 should be scale degree 0 no matter the key.
-    note <- invalid_input $ show_pitch smap Nothing $ pick_enharmonic pitch
+    note <- invalid_input $ show_pitch smap mempty $ pick_enharmonic pitch
     return $ ScaleDegree.pitch_expr frac note
     where
     invalid_input (Left Scale.InvalidTransposition) = Left Scale.InvalidInput
@@ -171,7 +171,7 @@ input_to_note smap maybe_key (Pitch.Input kbd_type pitch frac) = do
     -- Default to a key because otherwise you couldn't enter notes in an
     -- empty score!
     key = fromMaybe (smap_default_key smap) $
-        flip Map.lookup (smap_keys smap) =<< maybe_key
+        flip Map.lookup (smap_keys smap) =<< Scales.environ_key env
 
 call_doc :: Set.Set Score.Control -> ScaleMap -> Text -> Derive.DocumentedCall
 call_doc transposers smap doc =
@@ -185,7 +185,7 @@ call_doc transposers smap doc =
     default_key = fst <$> List.find ((== smap_default_key smap) . snd)
         (Map.toList (smap_keys smap))
     (bottom, top) = smap_range smap
-    show_p = either prettyt prettyt . show_pitch smap Nothing
+    show_p = either prettyt prettyt . show_pitch smap mempty
         . Theory.semis_to_pitch_sharps (smap_layout smap)
     fields = concat
         [ [("range", show_p bottom <> " to " <> show_p top)]
@@ -228,19 +228,19 @@ relative_fmt default_key all_keys  = TheoryFormat.RelativeFormat
 key_tonic :: Theory.Key -> Pitch.PitchClass
 key_tonic = Pitch.degree_pc . Theory.key_tonic
 
-show_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Pitch
+show_pitch :: ScaleMap -> TrackLang.Environ -> Pitch.Pitch
     -> Either Scale.ScaleError Pitch.Note
-show_pitch smap maybe_key pitch
+show_pitch smap env pitch
     | bottom <= semis && semis <= top = Right $
-        TheoryFormat.show_pitch (smap_fmt smap) maybe_key $ pitch
+        TheoryFormat.show_pitch (smap_fmt smap) (Scales.environ_key env) pitch
     | otherwise = Left Scale.InvalidTransposition
     where
     (bottom, top) = smap_range smap
     semis = Theory.pitch_to_semis (smap_layout smap) pitch
 
-read_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
+read_pitch :: ScaleMap -> TrackLang.Environ -> Pitch.Note
     -> Either Scale.ScaleError Pitch.Pitch
-read_pitch = TheoryFormat.read_pitch . smap_fmt
+read_pitch smap = TheoryFormat.read_pitch (smap_fmt smap) . Scales.environ_key
 
 read_env_key :: ScaleMap -> TrackLang.Environ
     -> Either Scale.ScaleError Theory.Key
@@ -248,5 +248,6 @@ read_env_key smap = Scales.read_environ
     (\k -> Map.lookup (Pitch.Key k) (smap_keys smap))
     (smap_default_key smap) Environ.key
 
-read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
+read_key :: ScaleMap -> TrackLang.Environ -> Either Scale.ScaleError Theory.Key
 read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
+    . Scales.environ_key

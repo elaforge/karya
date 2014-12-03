@@ -127,7 +127,7 @@ show_pitch dmap pitch = maybe (Left Scale.UnparseableNote) Right $
 -- ** transpose
 
 transpose :: DegreeMap -> Derive.Transpose
-transpose dmap _transposition _key steps pitch
+transpose dmap _transposition _environ steps pitch
     | Maybe.isJust $ dm_to_note dmap !? transposed =
         Right $ semis_to_pitch dmap transposed
     | otherwise = Left Scale.InvalidTransposition
@@ -214,12 +214,12 @@ invalid_transposition diatonic chromatic =
 
 -- ** input
 
-type InputToNote = Maybe Pitch.Key -> Pitch.Input
+type InputToNote = TrackLang.Environ -> Pitch.Input
     -> Either Scale.ScaleError Pitch.Note
 
 -- | Input to note for simple scales without keys.
 input_to_note :: DegreeMap -> InputToNote
-input_to_note dmap _key (Pitch.Input kbd pitch frac) = do
+input_to_note dmap _environ (Pitch.Input kbd pitch frac) = do
     steps <- simple_kbd_to_scale dmap kbd pitch
     note <- maybe (Left Scale.UnparseableNote) Right $
         dm_to_note dmap !? steps
@@ -266,7 +266,7 @@ computed_input_to_nn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
     -> InputToNn
 computed_input_to_nn input_to_note note_to_call pos input = do
     environ <- Internal.get_environ
-    case get_call (environ_key environ) of
+    case get_call environ of
         Left err -> return $ Left err
         Right call -> Eval.apply_pitch pos call >>= \val -> case val of
             TrackLang.VPitch pitch -> do
@@ -277,8 +277,8 @@ computed_input_to_nn input_to_note note_to_call pos input = do
                 return $ Right p
             _ -> Derive.throw $ "non-pitch from pitch call: " <> pretty val
     where
-    get_call maybe_key = do
-        note <- input_to_note maybe_key input
+    get_call environ = do
+        note <- input_to_note environ input
         maybe (Left Scale.UnparseableNote) Right $ note_to_call note
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
@@ -460,6 +460,9 @@ read_environ read_val deflt name env = case TrackLang.get_val name env of
 
 environ_key :: TrackLang.Environ -> Maybe Pitch.Key
 environ_key = fmap Pitch.Key . TrackLang.maybe_val Environ.key
+
+key_environ :: Text -> TrackLang.Environ
+key_environ key = TrackLang.insert_val Environ.key key mempty
 
 -- | Find a key in a map, or throw a ScaleError.
 get_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key
