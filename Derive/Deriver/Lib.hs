@@ -194,14 +194,19 @@ merge_lookups lookups = LookupMap calls : [p | p@(LookupPattern {}) <- lookups]
 
 -- | Lookup a scale_id or throw.
 get_scale :: Pitch.ScaleId -> Deriver Scale
-get_scale scale_id = maybe
-    (throw $ "get_scale: unknown " <> pretty scale_id)
-    return =<< lookup_scale scale_id
+get_scale scale_id =
+    maybe (throw $ "get_scale: unknown " <> pretty scale_id) return
+    =<< lookup_scale scale_id
 
 lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
 lookup_scale scale_id = do
-    lookup_scale <- gets (state_lookup_scale . state_constant)
-    return $ lookup_scale scale_id
+    LookupScale lookup <- gets (state_lookup_scale . state_constant)
+    env <- Internal.get_environ
+    case lookup env (LookupScale lookup) scale_id of
+        Nothing -> return Nothing
+        Just (Left err) -> throw $ "lookup " <> pretty scale_id <> ": "
+            <> pretty err
+        Just (Right scale) -> return $ Just scale
 
 
 -- ** environment
@@ -307,8 +312,8 @@ with_instrument inst deriver = do
     -- throwing, but it turned out to be error prone, since a misspelled
     -- instrument would derive anyway, only without the right calls and
     -- environ.
-    (real_inst, Instrument calls environ) <- get_instrument inst
-    let with_inst = with_val_raw Environ.instrument real_inst
+    (inst, Instrument calls environ) <- get_instrument inst
+    let with_inst = with_val_raw Environ.instrument inst
     with_inst $ with_scopes (set_scopes calls) $ with_environ environ deriver
     where
     -- Replace the calls in the instrument scope type.
@@ -332,6 +337,9 @@ with_instrument_alias alias inst deriver = do
     with st = st { state_instrument_aliases =
         (alias, inst) : state_instrument_aliases st }
 
+-- | Look up the instrument.  Also return the instrument name after chasing
+-- through aliases.  This is what goes in 'Score.event_instrument', since it's
+-- what the performer understands.
 get_instrument :: Score.Instrument -> Deriver (Score.Instrument, Instrument)
 get_instrument inst = do
     aliases <- Internal.get_dynamic state_instrument_aliases
@@ -587,8 +595,7 @@ named_pitch_at name pos = do
 resolve_pitch :: RealTime -> PitchSignal.Pitch -> Deriver PitchSignal.Transposed
 resolve_pitch pos pitch = do
     controls <- controls_at pos
-    environ <- Internal.get_environ
-    return $ PitchSignal.apply environ controls pitch
+    return $ PitchSignal.apply controls pitch
 
 -- | Unlike 'pitch_at', the transposition has already been applied, because you
 -- can't transpose any further once you have a NoteNumber.
@@ -602,10 +609,9 @@ get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
 named_nn_at :: Score.Control -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do
     controls <- controls_at pos
-    environ <- Internal.get_environ
     justm (named_pitch_at name pos) $ \pitch -> do
         logged_pitch_nn ("named_nn " <> prettyt (name, pos)) $
-            PitchSignal.apply environ controls pitch
+            PitchSignal.apply controls pitch
 
 -- | Version of 'PitchSignal.pitch_nn' that logs errors.
 logged_pitch_nn :: Text -> PitchSignal.Transposed

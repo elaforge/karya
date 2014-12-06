@@ -15,7 +15,8 @@ import Global
 
 test_change_scale = do
     let run scale pitches to_scale = e_pitch $
-            CmdTest.run_tracks (pitch_track scale pitches) $
+            CmdTest.run_tracks (pitch_track scale pitches) $ do
+                CmdTest.set_sel 1 0 1 0
                 ModifyEvents.all_blocks =<< LPitch.change_scale to_scale
     equal (run "twelve" ["4c", "i (4d)"] "twelve-r") $
         Right (("*twelve", ["4s", "i (4r)"]), [])

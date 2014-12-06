@@ -5,7 +5,6 @@
 -- | Utilities to directly perform a saved score.
 module Derive.DeriveSaved where
 import qualified Control.Monad.Error as Error
-import qualified Data.Map as Map
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
@@ -166,7 +165,6 @@ cmd_config inst_db = do
         , Cmd.state_wdev_map = mempty
         , Cmd.state_instrument_db = inst_db
         , Cmd.state_library = Call.All.library
-        , Cmd.state_lookup_scale = Cmd.LookupScale $
-            \scale_id -> Map.lookup scale_id Scale.All.scales
+        , Cmd.state_lookup_scale = Scale.All.lookup_scale
         , Cmd.state_highlight_colors = mempty
         }

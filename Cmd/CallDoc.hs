@@ -25,10 +25,10 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Scale as Scale
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import Global
 import Types
 
@@ -394,9 +394,12 @@ scales_html hstate scales = un_html $ html_header hstate
     where scale_html = mconcatMap (call_bindings_html hstate "scale")
 
 -- | Extract documentation from scales.
-scale_docs :: [Scale.Scale] -> [CallBindings]
+scale_docs :: [(Pitch.ScaleId, Text, Derive.DocumentedCall)] -> [CallBindings]
 scale_docs = sort_calls . lookup_calls ValCall . map convert
-    where convert scale = convert_val_call $ Derive.scale_to_lookup scale id
+    where
+    convert (scale_id, pattern, doc) =
+        Derive.LookupPattern name doc (const (return Nothing))
+        where name = prettyt scale_id <> ": " <> pattern
 
 -- * doc
 
@@ -434,6 +437,8 @@ library (Derive.Library note control pitch val) =
 -- be treated uniformly.
 type LookupCall = Derive.LookupCall Derive.DocumentedCall
 
+-- | Strip out the actual code part of the call, and make it just a lookup for
+-- DocumentedCall.
 convert_call :: Derive.LookupCall (Derive.Call f) -> LookupCall
 convert_call = fmap_lookup Derive.extract_doc
 

@@ -61,12 +61,11 @@ convert_event lookup event_ = do
     (patch, postproc) <- require_patch score_inst $
         lookup_patch lookup score_inst
     let event = postproc event_
-    midi_inst <- require ("instrument in db: " <> prettyt score_inst) $
+    midi_inst <- require ("instrument not in db: " <> prettyt score_inst) $
         lookup_inst lookup score_inst
     let event_controls = Score.event_transformed_controls event
     (midi_inst, pitch) <- convert_midi_pitch midi_inst
-        (Instrument.patch_environ patch) (Instrument.patch_scale patch)
-        (Instrument.patch_attribute_map patch)
+        (Instrument.patch_scale patch) (Instrument.patch_attribute_map patch)
         (Instrument.has_flag Instrument.ConstantPitch patch)
         event_controls event
     let (controls, overridden) =
@@ -109,12 +108,10 @@ require_patch inst Nothing = do
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Instrument.Instrument -> TrackLang.Environ
-    -- ^ The environ that the instrument itself implies.
-    -> Maybe Instrument.PatchScale
+convert_midi_pitch :: Instrument.Instrument -> Maybe Instrument.PatchScale
     -> Instrument.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
     -> ConvertT (Instrument.Instrument, Signal.NoteNumber)
-convert_midi_pitch inst inst_environ patch_scale attr_map constant_pitch
+convert_midi_pitch inst patch_scale attr_map constant_pitch
         controls event =
     case Instrument.lookup_attribute (Score.event_attributes event) attr_map of
         Nothing -> (,) inst <$> pitch_signal
@@ -148,7 +145,6 @@ convert_midi_pitch inst inst_environ patch_scale attr_map constant_pitch
         psig = maybe mempty PitchSignal.constant $
             Score.pitch_at (Score.event_start event) event
         convert = convert_pitch patch_scale
-            (inst_environ <> Score.event_environ event)
         -- Trim controls to avoid applying out of range transpositions.
         trimmed = fmap (fmap (Signal.drop_at_after note_end)) controls
         note_end = Score.event_end event + Instrument.inst_decay inst
@@ -214,11 +210,11 @@ convert_dynamic pressure controls dyn_function =
             -> Just dest
         _ -> Nothing
 
-convert_pitch :: Maybe Instrument.PatchScale -> TrackLang.Environ
-    -> Score.ControlMap -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
-convert_pitch scale environ controls psig = do
+convert_pitch :: Maybe Instrument.PatchScale -> Score.ControlMap
+    -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
+convert_pitch scale controls psig = do
     let (sig, nn_errs) = PitchSignal.to_nn $
-            PitchSignal.apply_controls environ controls psig
+            PitchSignal.apply_controls controls psig
     unless (null nn_errs) $ Log.warn $
         "convert pitch: " <> Text.intercalate ", " (map prettyt nn_errs)
     let (nn_sig, scale_errs) = convert_scale scale sig

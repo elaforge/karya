@@ -3,13 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.Wayang_test where
-import qualified Data.List as List
-
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.ScaleTest as ScaleTest
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 
@@ -18,7 +17,8 @@ import Global
 
 
 test_read = do
-    let f scale pitch = read_scale (get_scale scale) pitch
+    let f scale_id pitch = read_scale
+            (ScaleTest.get_scale Wayang.scales scale_id) pitch
     -- The same pitch also winds up with the same Pitch and same frequency.
     equal (f "wayang" "5i") (Right "5-0")
     equal (f "wayang-pemade" "i^") (Right "5-0")
@@ -27,10 +27,6 @@ test_read = do
             DeriveTest.derive_tracks "" $ scale_track scale [pitch]
     equal (run "wayang" "5i") (run "wayang-pemade" "i^")
     equal (run "wayang" "5i") (run "wayang-kantilan" "i-")
-
-get_scale :: Text -> Scale.Scale
-get_scale scale_id = fromMaybe (error $ "no scale: " ++ show scale_id) $
-    List.find ((== Pitch.ScaleId scale_id) . Scale.scale_id) Wayang.scales
 
 read_scale :: Scale.Scale -> Pitch.Note -> Either String String
 read_scale scale note = (pretty *** pretty) $

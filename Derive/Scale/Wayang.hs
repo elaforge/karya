@@ -17,8 +17,8 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Scale]
-scales =
+scales :: [Scale.Make]
+scales = map Scale.Simple
     [ Scales.add_doc "Saih gender wayang." $
         BaliScales.make_scale scale_id complete_scale
     , Scales.add_doc
@@ -92,19 +92,18 @@ umbang =
 isep :: [Pitch.NoteNumber]
 isep =
     [ 52.3 -- pemade begin
-
     , 54.55
     , 57.35
     , 59.85
+
     , 62.5 -- pemade middle
     , 64.45 -- kantilan begin
-
     , 67.26
     , 69.25
     , 71.81
+
     , 74.63 -- pemade end, kantilan middle
     , 76.73
-
     , 79.35
     , 81.51
     , 84

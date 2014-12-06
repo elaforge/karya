@@ -25,8 +25,8 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Scale]
-scales = [absolute_scale]
+scales :: [Scale.Make]
+scales = map Scale.Simple [absolute_scale]
 
 scale_id :: Pitch.ScaleId
 scale_id = "bp"

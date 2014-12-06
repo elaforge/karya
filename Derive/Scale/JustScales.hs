@@ -14,14 +14,12 @@ import qualified Util.Seq as Seq
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
@@ -175,9 +173,9 @@ note_to_call scale smap note =
 pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
 pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error chromatic diatonic $ do
-        key <- read_key smap env
-        pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
-            (Scales.environ_key env) pitch
+        let maybe_key = Scales.environ_key env
+        key <- read_key smap maybe_key
+        pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
         let hz = transpose_to_hz
                 (TheoryFormat.fmt_pc_per_octave (smap_fmt smap)) base_hz
                 key (chromatic + diatonic) pitch
@@ -193,12 +191,12 @@ pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
 pitch_note :: TheoryFormat.Format -> Pitch.Pitch -> Scale.PitchNote
 pitch_note fmt pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error chromatic diatonic $ do
-        let key = Scales.environ_key env
-        pitch <- TheoryFormat.fmt_to_absolute fmt key pitch
+        let maybe_key = Scales.environ_key env
+        pitch <- TheoryFormat.fmt_to_absolute fmt maybe_key pitch
         let transposed = Pitch.add_pc
                 (TheoryFormat.fmt_pc_per_octave fmt)
                 (round (chromatic + diatonic)) pitch
-        Right $ TheoryFormat.show_pitch fmt key transposed
+        Right $ TheoryFormat.show_pitch fmt maybe_key transposed
     where
     chromatic = Map.findWithDefault 0 Controls.chromatic controls
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
@@ -244,10 +242,8 @@ data Key = Key {
     , key_ratios :: Ratios
     } deriving (Eq, Show)
 
-read_key :: ScaleMap -> TrackLang.Environ -> Either Scale.ScaleError Key
-read_key smap = Scales.read_environ
-    (\k -> Map.lookup (Pitch.Key k) (smap_keys smap))
-    (smap_default_key smap) Environ.key
+read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Key
+read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
 
 make_keys :: [Text] -> [(Text, Ratios)] -> Keys
 make_keys degrees key_ratios = Map.fromList

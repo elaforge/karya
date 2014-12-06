@@ -4,7 +4,6 @@
 
 module Derive.Scale.JustScales_test where
 import qualified Control.Arrow as Arrow
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -16,7 +15,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.JustScales as JustScales
-import qualified Derive.Scale.Scales as Scales
+import qualified Derive.Scale.ScaleTest as ScaleTest
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
 
@@ -87,7 +86,7 @@ test_note_to_call_relative = do
 
 test_input_to_note = do
     let f smap key = either (const "") Pitch.note_text <$>
-            JustScales.input_to_note smap (Scales.key_environ key)
+            JustScales.input_to_note smap (ScaleTest.key_environ key)
         rel = make_scale_map True
         abs = make_scale_map False
         ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
@@ -154,7 +153,7 @@ make_scale_map relative per_oct =
         ]
 
 test_input_to_nn = do
-    let Just scale = List.find ((== "just") . Scale.scale_id) Just.scales
+    let scale = ScaleTest.get_scale Just.scales "just"
     let f = DeriveTest.with_key "c-maj" . Scale.scale_input_to_nn scale 0
         input = CmdTest.ascii_kbd . CmdTest.oct_pc Pitch.middle_octave
         run = Arrow.right (Arrow.left pretty)

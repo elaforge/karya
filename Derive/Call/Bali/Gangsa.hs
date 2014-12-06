@@ -26,6 +26,7 @@
     - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Num as Num
@@ -445,12 +446,14 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
     "Split part into unison polos and sangsih."
     $ Sig.callt pasang_env $ \(polos, sangsih) _args deriver -> do
         inst <- Util.get_instrument
+        polos <- Derive.get_instrument polos
+        sangsih <- Derive.get_instrument sangsih
         Post.emap_ (unison inst polos sangsih) <$> deriver
     where
     unison inst polos sangsih event
         | Score.event_instrument event == inst =
-            [ event { Score.event_instrument = polos }
-            , event { Score.event_instrument = sangsih }
+            [ Post.set_instrument polos event
+            , Post.set_instrument sangsih event
             ]
         | otherwise = [event]
 

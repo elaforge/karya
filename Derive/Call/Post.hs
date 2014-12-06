@@ -321,3 +321,17 @@ put_environ name val event =
 add_environ :: TrackLang.Typecheck a => TrackLang.ValName -> a
     -> Score.Event -> Score.Event
 add_environ name val = Score.modify_environ $ TrackLang.insert_val name val
+
+-- | Set the instrument on an event, and also update its pitches based on
+-- the instrument's environ.
+set_instrument :: (Score.Instrument, Derive.Instrument)
+    -- ^ unaliased instrument name, this should come from Derive.get_instrument
+    -> Score.Event -> Score.Event
+set_instrument (score_inst, inst) event = event
+    { Score.event_instrument = score_inst
+    , Score.event_untransformed_pitch = PitchSignal.apply_environ env $
+        Score.event_untransformed_pitch event
+    , Score.event_untransformed_pitches = PitchSignal.apply_environ env <$>
+        Score.event_untransformed_pitches event
+    }
+    where env = Derive.inst_environ inst

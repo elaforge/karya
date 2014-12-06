@@ -26,13 +26,15 @@ scale scale =
 interpolated :: PitchSignal.Pitch -> PitchSignal.Pitch -> Double
     -> PitchSignal.Pitch
 interpolated low high dist =
-    PitchSignal.pitch (PitchSignal.pitch_scale low) nn note
+    PitchSignal.pitch (PitchSignal.pitch_scale low) nn note mempty
     where
-    nn controls = do
-        low_nn <- PitchSignal.eval_pitch (PitchSignal.coerce low) controls
-        high_nn <- PitchSignal.eval_pitch (PitchSignal.coerce high) controls
+    nn config = do
+        low_nn <- PitchSignal.pitch_nn $ PitchSignal.coerce $
+            PitchSignal.config config low
+        high_nn <- PitchSignal.pitch_nn $ PitchSignal.coerce $
+            PitchSignal.config config high
         return $ Num.scale low_nn high_nn (Pitch.NoteNumber dist)
-    note = PitchSignal.eval_note $ PitchSignal.coerce $
+    note = PitchSignal.pitch_eval_note $ PitchSignal.coerce $
         if dist < 1 then low else high
 
 -- | Transpose a pitch.
@@ -62,3 +64,4 @@ pitch_note = either (Derive.throw . ("evaluating pitch: " ++) . pretty)
 nn_pitch :: Pitch.NoteNumber -> PitchSignal.Pitch
 nn_pitch nn = PitchSignal.pitch PitchSignal.no_scale
     (const (Right nn)) (const $ Right $ Pitch.Note $ prettyt nn)
+    mempty

@@ -12,15 +12,17 @@ module Cmd.Repl.LPitch where
 import qualified Ui.Event as Event
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
+import qualified Cmd.Selection as Selection
 
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
-import Types
 import Global
+import Types
 
 
 -- | Turn an nn back to a human-readable note name.
@@ -64,8 +66,10 @@ modify_pitch modify = PitchTrack.pitch_tracks $ \scale key note -> do
 -- TODO it would be nice to change the track title too, but ModifyEvents.Track
 -- doesn't support that.
 change_scale :: Cmd.M m => Pitch.ScaleId -> m (ModifyEvents.Track m)
-change_scale to_scale = do
-    to_scale <- Cmd.get_scale "LPitch.change_scale" to_scale
+change_scale to_scale_id = do
+    (b, t) <- Selection.track
+    to_scale <- Cmd.require "scale not found"
+        =<< Perf.lookup_scale b t to_scale_id
     return $ PitchTrack.pitch_tracks $ \from_scale key note -> do
         pitch <- first pretty $ Scale.scale_read from_scale key note
         first pretty $ Scale.scale_show to_scale key pitch

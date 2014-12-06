@@ -167,7 +167,7 @@ state_pitch_signal = PitchSignal.constant . mknote . state_pitch
     scale = PitchSignal.Scale Twelve.scale_id
         (Scale.scale_transposers Twelve.scale)
     mknote nn = PitchSignal.pitch scale (const (return nn))
-        (const $ return $ Pitch.Note $ showt nn)
+        (const $ return $ Pitch.Note $ showt nn) mempty
 
 update_state :: [Sample] -> RealTime -> State -> (State, [Sample])
 update_state samples pos state = (List.foldl' go state pre, post)

@@ -200,14 +200,14 @@ derive_block_with :: Transform Derive.Events -> State.State -> BlockId
     -> Derive.Result
 derive_block_with with =
     derive_block_standard default_db mempty mempty
-        (with . with_environ default_environ)
+        (with_environ default_environ . with)
 
 -- | Like 'derive_block_with', but exec the StateId.
 derive_block_with_m :: Transform Derive.Events -> State.StateId a -> BlockId
     -> Derive.Result
 derive_block_with_m with create =
     derive_block_standard default_db mempty mempty
-        (with . with_environ default_environ) (UiTest.exec State.empty create)
+        (with_environ default_environ . with) (UiTest.exec State.empty create)
 
 -- | Derive tracks but with a linear skeleton.  Good for testing note
 -- transformers since the default skeleton parsing won't create those.
@@ -261,8 +261,7 @@ cmd_config inst_db = Cmd.Config
     , Cmd.state_wdev_map = mempty
     , Cmd.state_instrument_db = inst_db
     , Cmd.state_library = Call.All.library
-    , Cmd.state_lookup_scale = Cmd.LookupScale $
-        \scale_id -> Map.lookup scale_id Scale.All.scales
+    , Cmd.state_lookup_scale = Scale.All.lookup_scale
     , Cmd.state_highlight_colors = Config.highlight_colors
     }
 
@@ -333,7 +332,7 @@ set_default_midi_config = State.config#State.midi #= default_midi_config
 -- ** defaults
 
 default_lookup_scale :: Derive.LookupScale
-default_lookup_scale scale_id = Map.lookup scale_id Scale.All.scales
+default_lookup_scale = Scale.All.lookup_scale
 
 default_library :: Derive.Library
 default_library = Call.All.library
@@ -437,10 +436,8 @@ e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn = e_control Score.c_dynamic
 
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns e = signal_to_nn $
-    PitchSignal.apply_controls (Score.event_environ e)
-        (Score.event_transformed_controls e)
-        (Score.event_transformed_pitch e)
+e_nns e = signal_to_nn $ PitchSignal.apply_controls
+    (Score.event_transformed_controls e) (Score.event_transformed_pitch e)
 
 signal_to_nn :: PitchSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
 signal_to_nn psig
@@ -588,8 +585,11 @@ modify_constant f deriver = do
 
 with_scale :: Scale.Scale -> Derive.Deriver a -> Derive.Deriver a
 with_scale scale = modify_constant $ \st ->
-    st { Derive.state_lookup_scale = \scale_id -> Map.lookup scale_id
-        (Map.insert (Scale.scale_id scale) scale Scale.All.scales) }
+    st { Derive.state_lookup_scale = lookup }
+    where
+    lookup = Derive.LookupScale $ \_ _ scale_id ->
+        if scale_id == Scale.scale_id scale then Just (Right scale)
+            else Nothing
 
 mkscale :: Pitch.ScaleId -> [(Text, Pitch.NoteNumber)] -> Scale.Scale
 mkscale scale_id notes =
@@ -674,10 +674,10 @@ default_convert_lookup :: Convert.Lookup
 default_convert_lookup = make_convert_lookup default_db
 
 default_db :: Cmd.InstrumentDb
-default_db = Instrument.Db.with_aliases aliases $ make_db
-    [("s", map make_patch ["1", "2", "3"])]
+default_db = Instrument.Db.with_aliases aliases $
+    make_db [("s", map make_patch ["1", "2", "3"])]
     where
-    -- Lots of tests use >i and >i1, so let's not break them.
+    -- Tests use >i or >i1 rather than the underlying >s/1 and >s/2.
     aliases = Map.fromList $ map (Score.Instrument *** Score.Instrument)
         [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
 
@@ -685,10 +685,15 @@ make_patch :: Text -> Instrument.Patch
 make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
 
 default_midi_config :: Instrument.Configs
-default_midi_config = UiTest.midi_config [("s/1", [0..2]), ("s/2", [3])]
+default_midi_config = UiTest.midi_config [("i1", [0..2]), ("i2", [3])]
 
 default_inst_title :: String
-default_inst_title = ">s/1"
+default_inst_title = ">i1"
+
+i1, i2, i3 :: Score.Instrument
+i1 = Score.Instrument "i1"
+i2 = Score.Instrument "i2"
+i3 = Score.Instrument "i3"
 
 -- * mkevents
 

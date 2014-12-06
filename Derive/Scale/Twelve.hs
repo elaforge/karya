@@ -34,8 +34,8 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Scale]
-scales = [scale, relative_scale]
+scales :: [Scale.Make]
+scales = map Scale.Simple [scale, relative_scale]
 
 scale :: Scale.Scale
 scale = Scales.set_direct_input_to_nn $
@@ -75,7 +75,7 @@ Just default_theory_key = Map.lookup default_key all_keys
 
 show_pitch :: Pitch.Pitch -> Maybe Pitch.Note
 show_pitch = either (const Nothing) Just
-    . ChromaticScales.show_pitch absolute_scale_map mempty
+    . ChromaticScales.show_pitch absolute_scale_map Nothing
 
 show_nn :: Pitch.NoteNumber -> Maybe Pitch.Note
 show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
@@ -83,7 +83,7 @@ show_nn = show_pitch . Theory.semis_to_pitch_sharps layout
 
 read_absolute_pitch :: Pitch.Note -> Maybe Pitch.Pitch
 read_absolute_pitch = either (const Nothing) Just
-    . ChromaticScales.read_pitch absolute_scale_map mempty
+    . ChromaticScales.read_pitch absolute_scale_map Nothing
 
 -- | Map NoteNumbers to their nearest Note.
 nn_to_note :: Pitch.NoteNumber -> Maybe Pitch.Note

@@ -265,20 +265,21 @@ direct_input_to_nn _pos (Pitch.Input _ pitch frac) =
 computed_input_to_nn :: InputToNote -> (Pitch.Note -> Maybe Derive.ValCall)
     -> InputToNn
 computed_input_to_nn input_to_note note_to_call pos input = do
-    environ <- Internal.get_environ
-    case get_call environ of
+    env <- Internal.get_environ
+    case get_call env of
         Left err -> return $ Left err
         Right call -> Eval.apply_pitch pos call >>= \val -> case val of
             TrackLang.VPitch pitch -> do
                 controls <- Derive.controls_at =<< Derive.real pos
-                p <- Derive.require_right (("evaluating pich: " <>) . pretty) $
-                    PitchSignal.eval_pitch (PitchSignal.coerce pitch)
-                        (PitchSignal.PitchConfig environ controls)
-                return $ Right p
+                nn <- Derive.require_right (("evaluating pich: " <>) . pretty) $
+                    PitchSignal.pitch_nn $ PitchSignal.coerce $
+                    PitchSignal.config (PitchSignal.PitchConfig env controls)
+                        pitch
+                return $ Right nn
             _ -> Derive.throw $ "non-pitch from pitch call: " <> pretty val
     where
-    get_call environ = do
-        note <- input_to_note environ input
+    get_call env = do
+        note <- input_to_note env input
         maybe (Left Scale.UnparseableNote) Right $ note_to_call note
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
@@ -460,9 +461,6 @@ read_environ read_val deflt name env = case TrackLang.get_val name env of
 
 environ_key :: TrackLang.Environ -> Maybe Pitch.Key
 environ_key = fmap Pitch.Key . TrackLang.maybe_val Environ.key
-
-key_environ :: Text -> TrackLang.Environ
-key_environ key = TrackLang.insert_val Environ.key key mempty
 
 -- | Find a key in a map, or throw a ScaleError.
 get_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key

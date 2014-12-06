@@ -67,7 +67,7 @@ test_convert_dynamic = do
 
 test_rnd_vel = do
     let run dyn notes = first extract $ DeriveTest.perform_block
-            [ (">s/1 | %dyn = " <> dyn,
+            [ (">i1 | %dyn = " <> dyn,
                 [(n, 1, "") | n <- Seq.range' 0 notes 1])
             , ("*", [(0, 0, "4c")])
             ]

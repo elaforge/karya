@@ -20,12 +20,12 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Parse as Parse
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -40,22 +40,24 @@ import Global
 scale_degree :: PitchSignal.Scale -> Scale.PitchNn -> Scale.PitchNote
     -> Derive.ValCall
 scale_degree scale pitch_nn pitch_note = Derive.val_call Module.scale
-    "pitch" mempty "Emit the pitch of a scale degree." $ Sig.call
-    (defaulted "frac" 0
+    "pitch" mempty "Emit the pitch of a scale degree." $
+    Sig.call (Sig.defaulted "frac" 0
         "Add this many hundredths of a scale degree to the output.")
-    $ \frac _args -> return $! PitchSignal.pitch scale (call frac) pitch_note
-    where
-    call frac config = add config <$>
-        pitch_nn (if frac == 0 then config else chromatic_config frac <> config)
-    add = add_absolute_transposers . PitchSignal.pitch_controls
-    chromatic_config frac = PitchSignal.PitchConfig mempty
-        (Map.singleton Controls.chromatic (frac / 100))
+    $ \frac _args -> do
+        env <- Internal.get_environ
+        let config = PitchSignal.PitchConfig env controls
+            controls = if frac == 0 then mempty
+                else Map.singleton Controls.chromatic (frac / 100)
+        return $! PitchSignal.pitch scale
+            (\config -> add_absolute_transposers config <$> pitch_nn config)
+            pitch_note config
 
-add_absolute_transposers :: Score.ControlValMap -> Pitch.NoteNumber
+add_absolute_transposers :: PitchSignal.PitchConfig -> Pitch.NoteNumber
     -> Pitch.NoteNumber
-add_absolute_transposers controls nn =
+add_absolute_transposers config nn =
     Pitch.add_hz (Map.findWithDefault 0 Controls.hz controls)
         (nn + Pitch.nn (Map.findWithDefault 0 Controls.nn controls))
+    where controls = PitchSignal.pitch_controls config
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.
@@ -67,7 +69,7 @@ pitch_expr frac note
 
 -- * just
 
--- | Map from named intervals to the interal's ratio.
+-- | Map from named intervals to the interval's ratio.
 type NamedIntervals = Map.Map Text Ratio.Rational
 
 -- | A fancier version of 'scale_degree' that takes interval arguments.
@@ -79,13 +81,14 @@ scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
     "Emit the pitch of a scale degree."
     $ Sig.call (intervals_arg named_intervals) $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
+        env <- Internal.get_environ
         return $! PitchSignal.pitch scale
-            (call (extra_interval * interval)) pitch_note
+            (\config -> modify (extra_interval*interval) config <$>
+                pitch_nn config)
+            pitch_note (PitchSignal.PitchConfig env mempty)
     where
-    call interval config =
-        modify interval (PitchSignal.pitch_controls config) <$> pitch_nn config
-    modify interval controls =
-        add_absolute_transposers controls . Pitch.modify_hz (*interval)
+    modify interval config = add_absolute_transposers config
+        . Pitch.modify_hz (*interval)
 
 scale_degree_interval :: PitchSignal.Scale -> NamedIntervals -> Pitch.Note
     -> Maybe Derive.ValCall
@@ -125,13 +128,11 @@ relative_scale_degree scale named_intervals initial_interval =
             Derive.TagPitch prev <- Args.prev_val args
             modify interval <$> PitchSignal.at start prev
     where
-    modify interval pitch = PitchSignal.pitch scale
-        (pitch_nn interval (PitchSignal.coerce pitch))
-        (PitchSignal.eval_note (PitchSignal.coerce pitch))
-        -- The coerces are ok because I'm making another untransposed pitch out
-        -- of this one.
-    pitch_nn interval pitch controls = do
-        nn <- PitchSignal.eval_pitch pitch controls
+    modify interval pitch = PitchSignal.pitch scale (pitch_nn interval pitch)
+        (PitchSignal.pitch_eval_note pitch) (PitchSignal.pitch_config pitch)
+    pitch_nn interval pitch = \config -> do
+        nn <- PitchSignal.pitch_nn $ PitchSignal.coerce $
+            PitchSignal.config config pitch
         return $ Pitch.modify_hz (*interval) nn
 
 resolve_intervals :: NamedIntervals -> [Either Pitch.Hz Text]

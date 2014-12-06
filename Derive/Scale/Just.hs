@@ -20,8 +20,8 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Scale]
-scales =
+scales :: [Scale.Make]
+scales = map Scale.Simple
     [ JustScales.make_scale "just"
         (scale_map TheoryFormat.absolute_c) doc doc_fields
     , JustScales.make_scale "just-r"

@@ -135,7 +135,7 @@ get_constant :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
     -> m Derive.Constant
 get_constant cache damage = do
     ui_state <- State.get
-    lookup_scale <- Cmd.get_lookup_scale
+    lookup_scale <- Cmd.gets $ Cmd.state_lookup_scale . Cmd.state_config
     lookup_inst <- get_lookup_inst
     library <- Cmd.gets $ Cmd.state_library . Cmd.state_config
     defs_library <- get_library
@@ -274,7 +274,7 @@ perform_events events = do
 
 get_convert_lookup :: Cmd.M m => m Convert.Lookup
 get_convert_lookup = do
-    lookup_scale <- Cmd.get_lookup_scale
+    lookup_scale <- Cmd.gets $ Cmd.state_lookup_scale . Cmd.state_config
     lookup_inst <- Cmd.get_lookup_midi_instrument
     lookup_info <- Cmd.get_lookup_instrument
     configs <- State.get_midi_config

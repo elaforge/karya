@@ -23,8 +23,8 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
-scales :: [Scale.Scale]
-scales =
+scales :: [Scale.Make]
+scales = map Scale.Simple
     [ Scales.add_doc "Saih pelegongan, from my instruments." $
         BaliScales.make_scale scale_id complete_scale
     , BaliScales.make_scale "legong-c" cipher_scale

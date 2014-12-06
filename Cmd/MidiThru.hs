@@ -101,11 +101,11 @@ midi_thru_instrument :: Cmd.M m => Score.Instrument -> InputNote.Input -> m ()
 midi_thru_instrument score_inst input = do
     addrs <- Instrument.get_addrs score_inst <$> State.get_midi_config
     if null addrs then return () else do
-    scale_id <- EditUtil.get_scale_id
+    (b, t) <- Selection.track
+    scale <- Perf.get_scale b t
     patch <- Cmd.get_midi_patch score_inst
-
-    scale <- Cmd.get_scale "cmd_midi_thru" scale_id
-    input <- Cmd.require (pretty scale_id <> " doesn't have " <> pretty input)
+    input <- Cmd.require
+        (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
         =<< map_scale (Instrument.patch_scale patch) scale
             (Instrument.patch_environ patch) input
 

@@ -97,7 +97,6 @@ import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Derive as Derive
-import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
@@ -440,7 +439,7 @@ data Config = Config {
     -- | Library of calls for the deriver.
     , state_library :: !Derive.Library
     -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
-    , state_lookup_scale :: !LookupScale
+    , state_lookup_scale :: !Derive.LookupScale
     , state_highlight_colors :: !(Map.Map Color.Highlight Color.Color)
     } deriving (Show)
 
@@ -459,10 +458,6 @@ state_midi_writer state imsg = do
         Midi.WriteMessage (lookup_wdev wdev) time msg
     lookup_wdev wdev = Map.findWithDefault wdev wdev
         (state_wdev_map (state_config state))
-
--- | This is a hack so I can use the default Show instance for 'State'.
-newtype LookupScale = LookupScale Derive.LookupScale
-instance Show LookupScale where show _ = "((LookupScale))"
 
 -- | Convert a relative path to place it in the app dir.
 path :: State -> Config.RelativePath -> FilePath
@@ -1064,18 +1059,6 @@ get_midi_patch inst = do
     info <- require ("get_midi_patch " ++ pretty inst)
         =<< lookup_instrument inst
     return $ MidiDb.info_patch info
-
-get_lookup_scale :: M m => m Derive.LookupScale
-get_lookup_scale = do
-    LookupScale lookup_scale <- gets (state_lookup_scale . state_config)
-    return lookup_scale
-
--- | Lookup a scale_id or throw.
-get_scale :: M m => String -> Pitch.ScaleId -> m Scale.Scale
-get_scale caller scale_id = do
-    lookup_scale <- get_lookup_scale
-    maybe (throw $ caller <> ": get_scale: unknown " <> pretty scale_id)
-        return (lookup_scale scale_id)
 
 get_wdev_state :: M m => m WriteDeviceState
 get_wdev_state = gets state_wdev_state

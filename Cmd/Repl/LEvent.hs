@@ -73,7 +73,7 @@ replace_many = ModifyEvents.text . TextUtil.replaceMany
 -- For example, to turn \"si .5 .3\" into \".3 | i .5\":
 --
 -- > ModifyEvents.control_tracks $
--- >    LEvent.replace_pattern ("si" <> w <> w) [F 1, "| s", F 0]
+-- >    LEvent.replace_pattern ("si"<>w<>w) [F 1, "| i", F 0]
 --
 -- 'w' is a word, 'ws' is >=0 words, 'ws1' is >=1 words, and a string matches
 -- literal text.

@@ -49,13 +49,14 @@ test_wayang_zero_dur = do
 test_wayang_pasang = do
     let run notes = derive "import bali.gangsa" $
             UiTest.note_spec (title, notes, [])
-        extract = DeriveTest.e_inst
         title = wayang_title "" <> " | unison"
-    equal (DeriveTest.extract extract $ run [(0, 1, "")])
+    equal (DeriveTest.extract DeriveTest.e_inst $ run [(0, 1, "")])
         (["kontakt/wayang-umbang", "kontakt/wayang-isep"], [])
     let result = run [(0, 1, "4i")]
-    equal (DeriveTest.extract extract result)
+    equal (DeriveTest.extract DeriveTest.e_inst result)
         (["kontakt/wayang-umbang", "kontakt/wayang-isep"], [])
+    equal (fst $ DeriveTest.extract Score.initial_nn result)
+        [Just 62.95, Just 62.5]
 
     let (_events, midi, logs) = perform
             ["kontakt/wayang-umbang", "kontakt/wayang-isep"]

@@ -110,13 +110,8 @@ soft_insert text = modify_event True True $ \old_text ->
 
 lookup_instrument :: Cmd.M m => m (Maybe Score.Instrument)
 lookup_instrument = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    Perf.lookup_instrument block_id (Just track_id)
-
-get_scale_id :: Cmd.M m => m Pitch.ScaleId
-get_scale_id = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    Perf.get_scale_id block_id (Just track_id)
+    (b, t) <- Selection.track
+    Perf.lookup_instrument b t
 
 -- * msgs
 
@@ -188,19 +183,16 @@ fallthrough msg = do
 -- ambiguous.
 input_to_note :: Cmd.M m => Pitch.Input -> m Pitch.Note
 input_to_note input = do
-    scale_id <- get_scale_id
-    let me = "EditUtil.input_to_note"
-    scale <- Cmd.get_scale me scale_id
-    (block_id, track_id) <- Selection.get_insert_track
-    env <- Perf.get_environ block_id (Just track_id)
+    (b, t) <- Selection.track
+    scale <- Perf.get_scale b t
+    env <- Perf.get_environ b t
     case Scale.scale_input_to_note scale env input of
         -- This just means the key isn't in the scale, it happens a lot so no
         -- need to shout about it.
         Left Scale.InvalidInput -> Cmd.abort
         Left err -> Cmd.throw $ "input_to_note " <> pretty input <> " for "
-            <> pretty scale_id <> ": " <> pretty err
+            <> pretty (Scale.scale_id scale) <> ": " <> pretty err
         Right note -> return note
-
 
 -- * modify
 

@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.CallDoc_test where
-import qualified Data.Map as Map
-
 import Util.Test
 import qualified Cmd.CallDoc as CallDoc
 import qualified Derive.Call.All as Call.All
@@ -17,6 +15,5 @@ test_doc_html = do
     let hstate = ("haddock", mempty)
     check $ CallDoc.doc_html hstate (CallDoc.library Call.All.library)
         /= mempty
-    check $ CallDoc.scales_html hstate
-            (CallDoc.scale_docs (Map.elems Scale.All.scales))
+    check $ CallDoc.scales_html hstate (CallDoc.scale_docs Scale.All.docs)
         /= mempty

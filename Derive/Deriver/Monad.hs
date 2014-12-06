@@ -111,7 +111,8 @@ module Derive.Deriver.Monad (
     -- * scale
     -- $scale_doc
     , Scale(..)
-    , LookupScale, Transpose, Transposition(..), Enharmonics, Layout
+    , LookupScale(..)
+    , Transpose, Transposition(..), Enharmonics, Layout
     , ScaleError(..)
 
     -- * merge
@@ -1419,7 +1420,11 @@ data Scale = Scale {
 instance Pretty.Pretty Scale where
     pretty = pretty . scale_id
 
-type LookupScale = Pitch.ScaleId -> Maybe Scale
+-- | A scale can configure itself by looking in the environment and by looking
+-- up other scales.
+newtype LookupScale = LookupScale (TrackLang.Environ -> LookupScale
+    -> Pitch.ScaleId -> Maybe (Either ScaleError Scale))
+instance Show LookupScale where show _ = "((LookupScale))"
 
 -- | Scales may ignore Transposition if they don't support it.
 --
@@ -1456,26 +1461,31 @@ type Layout = Vector.Unboxed.Vector Pitch.Semi
 
 -- | Things that can go wrong during scale operations.
 data ScaleError =
-    InvalidTransposition | KeyNeeded | UnparseableNote
+    InvalidTransposition | UnparseableNote
     -- | Note out of the scale's range.
     | OutOfRange
     -- | Input note doesn't map to a scale note.
     | InvalidInput
+    -- | An environ value was missing.
+    | EnvironMissing !TrackLang.ValName
     -- | An environ value was unparseable.  Has the environ key and a text
     -- description of the error.
     | UnparseableEnviron !TrackLang.ValName !Text
         -- The Text should be TrackLang.Val except that makes Eq not work.
+    -- | Other kind of error.
+    | ScaleError !Text
     deriving (Eq, Show)
 
 instance Pretty.Pretty ScaleError where
     pretty err = case err of
         InvalidTransposition -> "invalid transposition"
-        KeyNeeded -> "key needed"
         UnparseableNote -> "unparseable note"
         OutOfRange -> "out of range"
         InvalidInput -> "invalid input"
+        EnvironMissing key -> "missing environ value: " <> pretty key
         UnparseableEnviron key val -> "unparseable environ: "
             <> pretty key <> "=" <> untxt val
+        ScaleError msg -> untxt msg
 
 -- * merge
 

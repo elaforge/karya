@@ -14,7 +14,6 @@ import qualified Util.Seq as Seq
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
@@ -39,6 +38,9 @@ data ScaleMap = ScaleMap {
     -- | Inclusive (bottom, top) of scale, for documentation.
     , smap_range :: !(Pitch.Semi, Pitch.Semi)
     }
+
+type SemisToNoteNumber = PitchSignal.PitchConfig -> Pitch.FSemi
+    -> Either Scale.ScaleError Pitch.NoteNumber
 
 twelve_doc :: Text
 twelve_doc = "Scales in the \"twelve\" family use European style note naming.\
@@ -74,8 +76,8 @@ make_scale scale_id smap doc = Scale.Scale
     , Scale.scale_pattern = TheoryFormat.fmt_pattern (smap_fmt smap)
     , Scale.scale_symbols = []
     , Scale.scale_transposers = Scales.standard_transposers
-    , Scale.scale_read = read_pitch smap
-    , Scale.scale_show = show_pitch smap
+    , Scale.scale_read = read_pitch smap . Scales.environ_key
+    , Scale.scale_show = show_pitch smap . Scales.environ_key
     , Scale.scale_layout = Theory.layout_intervals (smap_layout smap)
     , Scale.scale_transpose = transpose smap
     , Scale.scale_enharmonics = enharmonics smap
@@ -91,7 +93,7 @@ make_scale scale_id smap doc = Scale.Scale
 
 transpose :: ScaleMap -> Derive.Transpose
 transpose smap transposition env steps pitch = do
-    key <- read_key smap env
+    key <- read_environ_key smap env
     return $ trans key steps pitch
     where
     trans = case transposition of
@@ -100,9 +102,9 @@ transpose smap transposition env steps pitch = do
 
 enharmonics :: ScaleMap -> Derive.Enharmonics
 enharmonics smap env note = do
-    pitch <- read_pitch smap env note
-    key <- read_key smap env
-    return $ Either.rights $ map (show_pitch smap env) $
+    pitch <- read_pitch smap (Scales.environ_key env) note
+    key <- read_environ_key smap env
+    return $ Either.rights $ map (show_pitch smap (Scales.environ_key env)) $
         Theory.enharmonics_of (Theory.key_layout key) pitch
 
 note_to_call :: PitchSignal.Scale -> ScaleMap -> Pitch.Note
@@ -117,29 +119,27 @@ note_to_call scale smap note =
 pitch_note :: ScaleMap -> Pitch.Pitch -> Scale.PitchNote
 pitch_note smap pitch (PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error diatonic chromatic $ do
+        let maybe_key = Scales.environ_key env
         let d = round diatonic
             c = round chromatic
-        show_pitch smap env =<< if d == 0 && c == 0
+        show_pitch smap maybe_key =<< if d == 0 && c == 0
             then return pitch
             else do
-                key <- read_env_key smap env
+                key <- read_key smap maybe_key
                 return $ Theory.transpose_chromatic key c $
                     Theory.transpose_diatonic key d pitch
     where
     chromatic = Map.findWithDefault 0 Controls.chromatic controls
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
-type SemisToNoteNumber = PitchSignal.PitchConfig -> Pitch.FSemi
-    -> Either Scale.ScaleError Pitch.NoteNumber
-
 -- | Create a PitchNn for 'ScaleDegree.scale_degree'.
 pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
 pitch_nn smap pitch config@(PitchSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error diatonic chromatic $ do
-        pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap)
-            (Scales.environ_key env) pitch
+        let maybe_key = Scales.environ_key env
+        pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
         dsteps <- if diatonic == 0 then Right 0 else do
-            key <- read_env_key smap env
+            key <- read_key smap maybe_key
             return $ Theory.diatonic_to_chromatic key
                 (Pitch.pitch_degree pitch) diatonic
         let semis = Theory.pitch_to_semis (smap_layout smap) pitch
@@ -162,7 +162,7 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
             else Theory.pick_enharmonic key
     -- Don't pass the key, because I want the Input to also be relative, i.e.
     -- Pitch 0 0 should be scale degree 0 no matter the key.
-    note <- invalid_input $ show_pitch smap mempty $ pick_enharmonic pitch
+    note <- invalid_input $ show_pitch smap Nothing $ pick_enharmonic pitch
     return $ ScaleDegree.pitch_expr frac note
     where
     invalid_input (Left Scale.InvalidTransposition) = Left Scale.InvalidInput
@@ -185,7 +185,7 @@ call_doc transposers smap doc =
     default_key = fst <$> List.find ((== smap_default_key smap) . snd)
         (Map.toList (smap_keys smap))
     (bottom, top) = smap_range smap
-    show_p = either prettyt prettyt . show_pitch smap mempty
+    show_p = either prettyt prettyt . show_pitch smap Nothing
         . Theory.semis_to_pitch_sharps (smap_layout smap)
     fields = concat
         [ [("range", show_p bottom <> " to " <> show_p top)]
@@ -228,26 +228,24 @@ relative_fmt default_key all_keys  = TheoryFormat.RelativeFormat
 key_tonic :: Theory.Key -> Pitch.PitchClass
 key_tonic = Pitch.degree_pc . Theory.key_tonic
 
-show_pitch :: ScaleMap -> TrackLang.Environ -> Pitch.Pitch
+show_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Pitch
     -> Either Scale.ScaleError Pitch.Note
-show_pitch smap env pitch
+show_pitch smap key pitch
     | bottom <= semis && semis <= top = Right $
-        TheoryFormat.show_pitch (smap_fmt smap) (Scales.environ_key env) pitch
+        TheoryFormat.show_pitch (smap_fmt smap) key pitch
     | otherwise = Left Scale.InvalidTransposition
     where
     (bottom, top) = smap_range smap
     semis = Theory.pitch_to_semis (smap_layout smap) pitch
 
-read_pitch :: ScaleMap -> TrackLang.Environ -> Pitch.Note
+read_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
     -> Either Scale.ScaleError Pitch.Pitch
-read_pitch smap = TheoryFormat.read_pitch (smap_fmt smap) . Scales.environ_key
+read_pitch smap = TheoryFormat.read_pitch (smap_fmt smap)
 
-read_env_key :: ScaleMap -> TrackLang.Environ
+read_environ_key :: ScaleMap -> TrackLang.Environ
     -> Either Scale.ScaleError Theory.Key
-read_env_key smap = Scales.read_environ
-    (\k -> Map.lookup (Pitch.Key k) (smap_keys smap))
-    (smap_default_key smap) Environ.key
-
-read_key :: ScaleMap -> TrackLang.Environ -> Either Scale.ScaleError Theory.Key
-read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
+read_environ_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
     . Scales.environ_key
+
+read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
+read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)

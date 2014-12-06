@@ -3,14 +3,21 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Bali.Gangsa_test where
+import qualified Data.Map as Map
+import qualified Util.Lens as Lens
 import qualified Util.Seq as Seq
 import Util.Test
+
+import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 
+import qualified Perform.Midi.Instrument as Instrument
 import Global
 
 
@@ -121,6 +128,29 @@ test_kotekan = do
             , ("*", [(0, 0, "4c")])
             ])
         (interlock, [])
+
+test_unison = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks_with_ui id config_inst title
+            . UiTest.note_track
+        title = "import bali.gangsa | inst = >" <> inst_title
+            <> " | scale=wayang | unison"
+        extract e = (pretty $ Score.event_instrument e, Score.initial_nn e)
+        config_inst = set DeriveTest.i1 Environ.umbang
+            . set DeriveTest.i2 Environ.isep
+        set inst tuning = modify_instrument inst $
+            Instrument.cenviron #= RestrictedEnviron.make
+                [(Environ.tuning, RestrictedEnviron.to_val tuning)]
+    equal (run [(0, 1, "4i")]) ([(">i1", Just 62.95), (">i2", Just 62.5)], [])
+
+modify_instrument :: Score.Instrument
+    -> (Instrument.Config -> Instrument.Config) -> State.State -> State.State
+modify_instrument inst modify state =
+    case Map.lookup inst $ State.config#State.midi #$ state of
+        Nothing -> state
+        Just config ->
+            (State.config#State.midi#Lens.map inst #= Just (modify config))
+            state
 
 test_kempyung = do
     let run title = derive extract (inst_title <> title <> " | kempyung")

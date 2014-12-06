@@ -17,7 +17,7 @@ import Types
 
 test_apply_controls = do
     let f controls psig = unsignal $ PitchSignal.apply_controls
-            mempty (mkcontrols controls) (mksignal psig)
+            (mkcontrols controls) (mksignal psig)
         mkcontrols = Map.fromList . map (second (Score.untyped . Signal.signal))
         err = Left "bad transpose"
     -- No effect.
@@ -41,6 +41,7 @@ default_scale = PitchSignal.Scale "test" (Set.fromList [trans1, trans2])
 mkpitch :: Pitch.NoteNumber -> PitchSignal.Pitch
 mkpitch nn =
     PitchSignal.pitch default_scale note (const $ Right $ Pitch.Note $ showt nn)
+        mempty
     where
     note config
         | nn + t >= 4 = Left (PitchSignal.PitchError "bad transpose")

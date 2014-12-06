@@ -4,13 +4,13 @@
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Derive.PitchSignal (
-    Signal, Transposed, RawPitch, sig_scale_id
+    Signal, sig_scale_id
     , Scale(Scale), no_scale
     -- * construct and convert
     , constant, signal, unsignal, to_nn
     , unfoldr
     -- * apply controls
-    , apply_controls, apply_control
+    , apply_controls, apply_control, apply_environ
     -- * signal functions
     , null, at, sample_at, before, shift, head, last
     , take, drop, drop_while, drop_after, drop_at_after
@@ -19,11 +19,12 @@ module Derive.PitchSignal (
     , interleave, prepend
     , Sample(..)
     -- * Pitch
-    , Pitch, PitchConfig(..), pitch_scale_id, pitch_transposers
-    , pitch_controls
+    , Transposed, Pitch
+    , RawPitch, PitchConfig(..), pitch_scale_id, pitch_transposers
+    , pitch_scale, pitch_eval_nn, pitch_eval_note, pitch_config, pitch_controls
     , PitchError(..)
-    , pitch, coerce, pitch_scale
-    , apply, add_control, eval_pitch, eval_note, pitch_nn, pitch_note
+    , pitch, coerce
+    , config, apply, add_control, pitch_nn, pitch_note
 ) where
 import Prelude hiding (head, take, drop, last, null)
 import qualified Data.Coerce as Coerce
@@ -38,9 +39,8 @@ import Util.TimeVector (Sample(..))
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as TrackLang
 import Derive.BaseTypes
-       (Signal(..), Transposed, Pitch, RawPitch(..), Scale(..), PitchConfig(..),
-        ControlValMap, PitchError(..))
-
+       (Signal(..), Transposed, Pitch, pitch, RawPitch(..), Scale(..),
+        PitchConfig(..), ControlValMap, PitchError(..))
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Global
@@ -108,13 +108,13 @@ type ControlMap = Map.Map Score.Control Score.TypedControl
 -- additive so it'll be ok as long as you only apply transposing signals
 -- and only apply the complete ControlMap once at the end (i.e.
 -- "Perform.Midi.Convert").
-apply_controls :: TrackLang.Environ -> ControlMap -> Signal -> Signal
-apply_controls environ controls sig
+apply_controls :: ControlMap -> Signal -> Signal
+apply_controls controls sig
     | V.null (sig_vec sig) = sig
     | otherwise = sig { sig_vec = resampled }
     where
     resampled = TimeVector.sig_op2 initial_controls initial_pitch
-        (\vmap -> coerce . apply environ vmap)
+        (\vmap -> coerce . apply vmap)
         (sample_controls controls (sig_transposers sig))
         (sig_vec sig)
     Sample start initial_pitch = V.unsafeHead (sig_vec sig)
@@ -137,7 +137,12 @@ sample_controls controls transposers =
 
 -- | 'apply_controls' specialized for a single control.
 apply_control :: Score.Control -> Score.TypedControl -> Signal -> Signal
-apply_control cont sig = apply_controls mempty (Map.singleton cont sig)
+apply_control cont sig = apply_controls (Map.singleton cont sig)
+
+-- | Apply an environ to all the pitches in the signal.  Unlike
+-- 'apply_controls', this doesn't have to resample the signal.
+apply_environ :: TrackLang.Environ -> Signal -> Signal
+apply_environ env = modify $ TimeVector.map_y $ config (PitchConfig env mempty)
 
 -- | Not exported, use the one in Derive.Score instead.
 controls_at :: RealTime -> ControlMap -> ControlValMap
@@ -202,17 +207,6 @@ prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
 
 -- * Pitch
 
--- | Make an abstract Pitch.
-pitch :: Scale
-    -> (PitchConfig -> Either PitchError Pitch.NoteNumber)
-    -> (PitchConfig -> Either PitchError Pitch.Note)
-    -> Pitch
-pitch scale nn note = Pitch
-    { pitch_eval_nn = nn
-    , pitch_eval_note = note
-    , pitch_scale = scale
-    }
-
 coerce :: RawPitch a -> RawPitch b
 coerce = Coerce.coerce
 
@@ -225,28 +219,26 @@ pitch_transposers = pscale_transposers . pitch_scale
 pitch_controls :: PitchConfig -> ControlValMap
 pitch_controls (PitchConfig _ controls) = controls
 
--- | Apply controls to a pitch.
-apply :: TrackLang.Environ -> ControlValMap -> Pitch -> Transposed
-apply environ controls pitch = pitch
-    { pitch_eval_nn = \config2 -> pitch_eval_nn pitch $! config2 <> config
-    , pitch_eval_note = \config2 -> pitch_eval_note pitch $! config2 <> config
-    } where config = PitchConfig environ controls
+-- | Apply a config to a pitch.
+config :: PitchConfig -> RawPitch a -> RawPitch a
+config c pitch = pitch { pitch_config = c <> pitch_config pitch }
+
+-- | Apply just the controls part of a config to a pitch.
+apply :: ControlValMap -> Pitch -> Transposed
+apply controls pitch = pitch { pitch_config = config <> pitch_config pitch }
+    where config = PitchConfig mempty controls
 
 add_control :: Score.Control -> Double -> RawPitch a -> RawPitch a
-add_control control val pitch = pitch
-    { pitch_eval_nn = \config2 -> pitch_eval_nn pitch $! config2 <> config
-    , pitch_eval_note = \config2 -> pitch_eval_note pitch $! config2 <> config
-    }
+add_control control val pitch =
+    pitch { pitch_config = config <> pitch_config pitch }
     where config = PitchConfig mempty (Map.singleton control val)
 
-eval_pitch :: Transposed -> PitchConfig -> Either PitchError Pitch.NoteNumber
-eval_pitch = pitch_eval_nn
-
-eval_note :: Transposed -> PitchConfig -> Either PitchError Pitch.Note
-eval_note = pitch_eval_note
-
+-- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
+-- are documented by applying 'coerce'.
 pitch_nn :: Transposed -> Either PitchError Pitch.NoteNumber
-pitch_nn p = eval_pitch p mempty
+pitch_nn p = pitch_eval_nn p (pitch_config p)
 
+-- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
+-- are documented by applying 'coerce'.
 pitch_note :: Transposed -> Either PitchError Pitch.Note
-pitch_note p = eval_note p mempty
+pitch_note p = pitch_eval_note p (pitch_config p)

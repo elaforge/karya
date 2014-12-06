@@ -10,7 +10,10 @@
 module Derive.Scale (module Derive.Derive, module Derive.Scale) where
 import qualified Data.Vector.Unboxed as Vector
 
-import Derive.Derive (Scale(..), Transposition(..), ScaleError(..), Layout)
+import qualified Derive.Derive as Derive
+import Derive.Derive
+       (Scale(..), LookupScale(..), lookup_scale, Transposition(..),
+        ScaleError(..), Layout)
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.TrackLang as TrackLang
 
@@ -18,6 +21,23 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
+data Make =
+    -- | Fancy scales can configure themselves.  Since you can't just look at
+    -- the Scale directly, it has the ScaleId (pattern, doc) extracted.
+    Make !Pitch.ScaleId !(Text, Derive.DocumentedCall)
+        !(TrackLang.Environ -> LookupScale -> Either ScaleError Scale)
+    | Simple !Scale
+
+scale_id_of :: Make -> Pitch.ScaleId
+scale_id_of (Make scale_id _ _) = scale_id
+scale_id_of (Simple scale) = scale_id scale
+
+-- | I would much rather pass a more specific value than Environ.
+-- Unfortunately, ChromaticScales.SemisToNoteNumber needs a per-scale value
+-- (e.g. Environ.key or Environ.tuning).  So pitch_nn needs to be parameterized
+-- with a "get_key" function, but it also needs Environ.key.  I think it's
+-- doable by parameterizing pitch_nn and hence note_to_call and moving
+-- smap_semis_to_nn into note_to_call, but it seems complicated.
 type PitchNn = PitchSignal.PitchConfig
     -> Either PitchSignal.PitchError Pitch.NoteNumber
 type PitchNote = PitchSignal.PitchConfig

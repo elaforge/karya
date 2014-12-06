@@ -15,8 +15,8 @@ import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Perform.Pitch as Pitch
 
 
-scales :: [Scale.Scale]
-scales =
+scales :: [Scale.Make]
+scales = map Scale.Simple
     [ make_scale "octa21" layout21 keys21 absolute_fmt
     , make_scale "octa12" layout12 keys12 absolute_fmt
     , make_scale "octa21-r" layout21 keys21 (relative_fmt keys21)

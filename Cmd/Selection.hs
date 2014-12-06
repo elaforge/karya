@@ -460,11 +460,6 @@ type AnyPoint = (BlockId, TrackNum, TrackTime)
 get_insert :: Cmd.M m => m Point
 get_insert = Cmd.abort_unless =<< lookup_insert
 
-get_insert_track :: Cmd.M m => m (BlockId, TrackId)
-get_insert_track = do
-    (block_id, _, track_id, _) <- get_insert
-    return (block_id, track_id)
-
 lookup_insert :: Cmd.M m => m (Maybe Point)
 lookup_insert = fmap (fmap snd) $ lookup_selnum_insert Config.insert_selnum
 
@@ -684,11 +679,22 @@ events_around_selnum selnum = do
 -- order.  Both lists are never empty.
 type Tracks = (BlockId, [TrackNum], [TrackId], TrackTime, TrackTime)
 
+-- | Yet another flavor of current track selection.  This one is useful for
+-- functions in "Cmd.Perf".
+type Track = (BlockId, Maybe TrackId)
+
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned, and tracks
 -- merged into the selected tracks are included.
 tracks :: Cmd.M m => m Tracks
 tracks = tracks_selnum Config.insert_selnum
+
+track :: Cmd.M m => m Track
+track = do
+    (view_id, sel) <- get_selnum Config.insert_selnum
+    block_id <- State.block_id_of view_id
+    maybe_track_id <- State.event_track_at block_id (point_track sel)
+    return (block_id, maybe_track_id)
 
 -- | Selected tracks, including merged tracks.
 tracks_selnum :: Cmd.M m => Types.SelNum -> m Tracks

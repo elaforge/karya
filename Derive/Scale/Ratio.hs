@@ -19,6 +19,7 @@ import qualified Util.ParseText as ParseText
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -31,6 +32,9 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Pitch as Pitch
 import Global
 
+
+scales :: [Scale.Make]
+scales = map Scale.Simple [scale]
 
 scale :: Scale.Scale
 scale = Scale.Scale
@@ -66,12 +70,14 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
     (defaulted "hz" 0 "Add an absolute hz value to the output.") $
     \hz args -> do
         start <- Args.real_start args
+        env <- Internal.get_environ
         nn <- Derive.require
             ("ratio scale requires " <> untxt (ShowVal.show_val pitch_control))
             =<< Derive.named_nn_at control start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
         return $ PitchSignal.pitch
             pscale (const $ return out_nn) (const $ return note)
+            (PitchSignal.PitchConfig env mempty)
     where
     pitch_control = TrackLang.LiteralControl control :: TrackLang.PitchControl
     control = "ratio-source"

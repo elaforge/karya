@@ -27,6 +27,7 @@ import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -143,6 +144,24 @@ find_scale_id block_id maybe_track_id = (to_scale_id <$>) $
             parents <- map State.track_id . maybe [] fst <$>
                 TrackTree.parents_children_of block_id track_id
             firstJusts $ map (lookup . Just) parents
+
+get_scale :: Cmd.M m => BlockId -> Maybe TrackId -> m Scale.Scale
+get_scale block_id maybe_track_id = do
+    scale_id <- get_scale_id block_id maybe_track_id
+    Cmd.require ("get_scale: can't find " <> pretty scale_id)
+        =<< lookup_scale block_id maybe_track_id scale_id
+
+lookup_scale :: Cmd.M m => BlockId -> Maybe TrackId -> Pitch.ScaleId
+    -> m (Maybe Scale.Scale)
+lookup_scale block_id maybe_track_id scale_id = do
+    Derive.LookupScale lookup <- Cmd.gets $
+        Cmd.state_lookup_scale . Cmd.state_config
+    env <- get_environ block_id maybe_track_id
+    case lookup env (Derive.LookupScale lookup) scale_id of
+        Nothing -> return Nothing
+        Just (Left err) -> Cmd.throw $ "lookup " <> pretty scale_id <> ": "
+            <> pretty err
+        Just (Right scale) -> return $ Just scale
 
 -- | Try to get a scale from the titles of the parents of the given track.
 scale_from_titles :: State.M m => BlockId -> TrackId

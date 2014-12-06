@@ -260,26 +260,6 @@ instance Monoid.Monoid Signal where
 instance DeepSeq.NFData Signal where
     rnf (Signal vec) = vec `seq` ()
 
--- | A PitchConfig is the data that can continue to influence the pitch's
--- frequency.
---
--- The ControlValMap could be embedded in the Environ, but firstly they come
--- from different places, and secondly the ControlValMap is combined
--- additively.
-data PitchConfig = PitchConfig !Environ !ControlValMap
-    deriving (Show)
-
--- | This is a snapshot of the control signals at a certain point in time.
--- It's meant for 'Pitch', so the values are expected to be transpositions, and
--- hence untyped.
-type ControlValMap = Map.Map Control Signal.Y
-type TypedControlValMap = Map.Map Control (Typed Signal.Y)
-
-instance Monoid.Monoid PitchConfig where
-    mempty = PitchConfig mempty mempty
-    mappend (PitchConfig env1 c1) (PitchConfig env2 c2) =
-        PitchConfig (env1 <> env2) (Map.unionWith (+) c1 c2)
-
 -- | This is an untransposed pitch.  All pitches have transposition signals
 -- from the dynamic state applied when they are converted to MIDI or whatever
 -- backend.  So if I want the final concrete pitch, I have to apply the
@@ -292,14 +272,59 @@ type Transposed = RawPitch Transposed_
 data Transposed_
 data Untransposed_
 
--- | A pitch is an abstract value that can turn a map of values into
--- a NoteNumber.  The values are expected to contain transpositions that this
--- Pitch understands, for example 'Controls.chromatic' and 'Controls.diatonic'.
+-- | A pitch is an abstract value that can generate a 'Pitch.NoteNumber' or
+-- symbolic 'Pitch.Note'.
 data RawPitch a = Pitch {
     pitch_eval_nn :: !(PitchConfig -> Either PitchError Pitch.NoteNumber)
     , pitch_eval_note :: !(PitchConfig -> Either PitchError Pitch.Note)
     , pitch_scale :: !Scale
+    , pitch_config :: !PitchConfig
     }
+
+-- | Make an abstract Pitch.
+pitch :: Scale
+    -> (PitchConfig -> Either PitchError Pitch.NoteNumber)
+    -> (PitchConfig -> Either PitchError Pitch.Note)
+    -> PitchConfig -> Pitch
+pitch scale nn note config = Pitch
+    { pitch_eval_nn = nn
+    , pitch_eval_note = note
+    , pitch_scale = scale
+    , pitch_config = config
+    }
+
+{- | A PitchConfig is the data that can continue to influence the pitch's
+    frequency.
+
+    Pitches are configured by controls and by an environ.  The controls
+    are for values that change over time, such as transposition or tuning.
+    They're combined additively, which is really only appropriate for
+    transposition.  Controls are mostly applied only on conversion to the
+    performer.  TODO I don't entirely remember why.  However, this leads to
+    some trickiness because if I want to compare a pitch to an absolute
+    NoteNumber, I need the final transposed value, but if I put it in an event
+    it must be untransposed, or transposition will be applied twice.
+    To avoid double.  To avoid this, there's a phantom type parameter to
+    distinguish an untransposed 'Pitch' from a 'Transposed' one.
+
+    The Environ is for symbolic configuration, such as key or tuning mode.
+    Unlike controls, though, it's taken from the environ in scope when the pith
+    is created.  Otherwise, you can't evaluate a pitch with a different key by
+    setting the environ.
+-}
+data PitchConfig = PitchConfig !Environ !ControlValMap
+    deriving (Show)
+
+-- | This is a snapshot of the control signals at a certain point in time.
+-- It's meant for 'PitchConfig', so the values are expected to be
+-- transpositions, and hence untyped.
+type ControlValMap = Map.Map Control Signal.Y
+type TypedControlValMap = Map.Map Control (Typed Signal.Y)
+
+instance Monoid.Monoid PitchConfig where
+    mempty = PitchConfig mempty mempty
+    mappend (PitchConfig env1 c1) (PitchConfig env2 c2) =
+        PitchConfig (env1 <> env2) (Map.unionWith (+) c1 c2)
 
 -- | Signal can't take a Scale because that would be a circular import.
 -- Fortunately it only needs a few fields.  However, because of the

@@ -6,14 +6,16 @@
 
     This is to scales as Derive.Call.All is to calls.
 -}
-module Derive.Scale.All where
+module Derive.Scale.All (lookup_scale, docs, shadowed) where
 import qualified Data.Map as Map
 
 import qualified Util.Map as Map
 import qualified Util.Seq as Seq
+import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BohlenPierce as BohlenPierce
 import qualified Derive.Scale.Hex as Hex
+import qualified Derive.Scale.Interpolate as Interpolate
 import qualified Derive.Scale.Just as Just
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Octa as Octa
@@ -26,20 +28,35 @@ import qualified Perform.Pitch as Pitch
 import Global
 
 
+lookup_scale :: Scale.LookupScale
+lookup_scale = Scale.LookupScale $ \env lookup scale_id ->
+    let make (Scale.Simple scale) = Right scale
+        make (Scale.Make _ _ make) = make env lookup
+    in make <$> Map.lookup scale_id scales
+
+-- | (scale_id, pattern, doc)
+docs :: [(Pitch.ScaleId, Text, Derive.DocumentedCall)]
+docs = map extract (Map.elems scales)
+    where
+    extract (Scale.Simple scale) = (Scale.scale_id scale,
+        Scale.scale_pattern scale, Scale.scale_call_doc scale)
+    extract (Scale.Make scale_id (pattern, doc) _) = (scale_id, pattern, doc)
+
 -- | This is the hardcoded scale map.  It is merged with the static config
 -- scale map at startup.
-scales :: Map.Map Pitch.ScaleId Scale.Scale
+scales :: Map.Map Pitch.ScaleId Scale.Make
 shadowed :: [Pitch.ScaleId]
-(scales, shadowed) = mk $
-    Ratio.scale
-    : concat
+(scales, shadowed) = mk $ concat
     [ BohlenPierce.scales
     , Hex.scales
+    , Interpolate.scales
     , Just.scales
     , Legong.scales
     , Octa.scales
     , Raga.scales
+    , Ratio.scales
     , Twelve.scales
     , Wayang.scales
     ]
-    where mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id
+    where
+    mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id_of

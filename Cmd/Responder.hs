@@ -157,8 +157,7 @@ cmd_config app_dir interface config = Cmd.Config
     , Cmd.state_instrument_db = StaticConfig.instrument_db config
     , Cmd.state_library = StaticConfig.library config
     -- TODO later this should also be merged with static config
-    , Cmd.state_lookup_scale = Cmd.LookupScale $
-        \scale_id -> Map.lookup scale_id Scale.All.scales
+    , Cmd.state_lookup_scale = Scale.All.lookup_scale
     , Cmd.state_highlight_colors = StaticConfig.highlight_colors config
     }
     where midi = StaticConfig.midi config

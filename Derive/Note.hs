@@ -71,8 +71,7 @@ extract_track_signal source events = mconcat $ case source of
         -- Since these signals will be mconcatted into one signal, I don't
         -- want one event's control at 0 to wipe out the previous events.
         PitchSignal.drop_before_strict (Score.event_min event) $
-        PitchSignal.apply_controls (Score.event_environ event)
-            (Score.event_transformed_controls event) psig
+        PitchSignal.apply_controls (Score.event_transformed_controls event) psig
 
 with_title :: TrackTree.EventsTree -> ScoreTime -> Text -> Derive.NoteDeriver
     -> Derive.NoteDeriver

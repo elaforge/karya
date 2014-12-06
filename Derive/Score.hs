@@ -181,8 +181,8 @@ normalize lookup_environ event = event
     , event_control_offset = 0
     }
     where
-    apply = PitchSignal.apply_controls environ controls
-    environ = lookup_environ (event_instrument event) <> event_environ event
+    apply = PitchSignal.apply_controls controls . PitchSignal.apply_environ env
+    env = lookup_environ (event_instrument event) <> event_environ event
     controls = event_transformed_controls event
 
 -- ** flags
@@ -289,6 +289,8 @@ duration modify event
 set_duration :: RealTime -> Event -> Event
 set_duration = duration . const
 
+-- set_instrument is in "Derive.Call.Post".
+
 -- *** control
 
 control_val_at :: Event -> RealTime -> TypedControl -> TypedVal
@@ -361,8 +363,7 @@ pitch_at pos event = PitchSignal.at (pos - event_control_offset event)
 
 apply_controls :: Event -> RealTime -> PitchSignal.Pitch
     -> PitchSignal.Transposed
-apply_controls event pos =
-    PitchSignal.apply (event_environ event) (event_controls_at pos event)
+apply_controls event pos = PitchSignal.apply (event_controls_at pos event)
 
 initial_pitch :: Event -> Maybe PitchSignal.Transposed
 initial_pitch event = transposed_at (event_start event) event

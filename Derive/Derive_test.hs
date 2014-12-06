@@ -44,13 +44,12 @@ test_basic = do
     -- verify the three phases of derivation
     -- 1: derivation to score events
     let res = DeriveTest.derive_tracks ""
-            [ (inst_title, [(0, 16, ""), (16, 16, "")])
+            [ (">i1", [(0, 16, ""), (16, 16, "")])
             , ("*", [(0, 0, "4c"), (16, 0, "4c#")])
             , ("dyn", [(0, 0, "1"), (16, 0, ".5")])
             ]
     let (perf_events, mmsgs, logs) =
             DeriveTest.perform_defaults (Derive.r_events res)
-
     equal (extract_events res) ([(0, 16, ""), (16, 16, "")], [])
 
     -- 2: conversion to midi perf events
@@ -554,7 +553,7 @@ test_regress_pedal = do
     where
     blocks = [(("b10",
         [("pedal", [(12.5, 2, "`ped`")]),
-         (">s/1", [ (10.0, 5.0, "")]),
+         (">i1", [ (10.0, 5.0, "")]),
          ("*", [ (10.0, 0.0, "4f")])
         ]), [(1, 2), (2, 3)])]
 
