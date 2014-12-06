@@ -68,20 +68,15 @@ synths = Map.keys . MidiDb.midi_db_map . db_midi_db
 -- multiple times.
 with_aliases :: Map.Map Score.Instrument Score.Instrument -> Db code -> Db code
 with_aliases aliases (Db midi lookup midi_db) = Db
-    { db_lookup_midi = \inst -> set_name inst <$> midi (resolve inst)
+    { db_lookup_midi = \inst ->
+        (Instrument.score #= inst) <$> midi (resolve inst)
     , db_lookup = \inst -> set_info inst <$> lookup (resolve inst)
     , db_midi_db = midi_db
     }
     where
+    -- Update Instrument.inst_score with the alias name.
     set_info alias info = info
-        { MidiDb.info_patch = Instrument.instrument_ %= set_name alias $
+        { MidiDb.info_patch = Instrument.instrument_#Instrument.score #= alias $
             MidiDb.info_patch info
         }
     resolve inst = Map.findWithDefault inst inst aliases
-
-set_name :: Score.Instrument -> Instrument.Instrument -> Instrument.Instrument
-set_name to inst = inst
-    { Instrument.inst_name = snd (Score.split_inst to)
-    , Instrument.inst_score = to
-    }
-
