@@ -67,9 +67,9 @@ modify_pitch modify = PitchTrack.pitch_tracks $ \scale key note -> do
 -- doesn't support that.
 change_scale :: Cmd.M m => Pitch.ScaleId -> m (ModifyEvents.Track m)
 change_scale to_scale_id = do
-    (b, t) <- Selection.track
+    track <- Selection.track
     to_scale <- Cmd.require "scale not found"
-        =<< Perf.lookup_scale b t to_scale_id
+        =<< Perf.lookup_scale track to_scale_id
     return $ PitchTrack.pitch_tracks $ \from_scale key note -> do
         pitch <- first pretty $ Scale.scale_read from_scale key note
         first pretty $ Scale.scale_show to_scale key pitch

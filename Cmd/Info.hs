@@ -136,7 +136,7 @@ lookup_instrument_of block_id tracknum = do
     track_id <- State.get_event_track_at block_id tracknum
     track <- State.get_track track_id
     case ParseTitle.title_to_instrument (Track.track_title track) of
-        Nothing -> Perf.lookup_instrument block_id (Just track_id)
+        Nothing -> Perf.lookup_instrument (block_id, Just track_id)
         Just inst -> Just <$> get_default_instrument block_id track_id inst
 
 -- | If the instrument is 'Score.empty_inst', look up what it really is in
@@ -145,7 +145,7 @@ get_default_instrument :: Cmd.M m => BlockId -> TrackId
     -> Score.Instrument -> m Score.Instrument
 get_default_instrument block_id track_id inst
     | inst == Score.empty_inst =
-        fromMaybe inst <$> Perf.lookup_instrument block_id (Just track_id)
+        fromMaybe inst <$> Perf.lookup_instrument (block_id, Just track_id)
     | otherwise = return inst
 
 

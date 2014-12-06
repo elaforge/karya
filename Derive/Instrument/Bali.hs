@@ -33,9 +33,9 @@ pasang_thru msg = do
         input <- case msg of
             Msg.InputNote input -> return input
             _ -> Cmd.abort
-        (block_id, _, track_id, _) <- Selection.get_insert
-        polos <- Perf.lookup_val block_id (Just track_id) Gangsa.inst_polos
-        sangsih <- Perf.lookup_val block_id (Just track_id) Gangsa.inst_sangsih
+        track <- Selection.track
+        polos <- Perf.lookup_val track Gangsa.inst_polos
+        sangsih <- Perf.lookup_val track Gangsa.inst_sangsih
         whenJust polos $ \inst ->
             MidiThru.midi_thru_instrument inst input
         whenJust sangsih $ \inst ->

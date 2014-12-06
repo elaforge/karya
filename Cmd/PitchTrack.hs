@@ -221,7 +221,7 @@ pitches = ModifyEvents.selection . pitch_tracks
 pitch_tracks :: Cmd.M m => ModifyPitch -> ModifyEvents.Track m
 pitch_tracks f = ModifyEvents.tracks_named ParseTitle.is_pitch_track $
         \block_id track_id events -> do
-    scale <- Perf.get_scale block_id (Just track_id)
-    env <- Perf.get_environ block_id (Just track_id)
+    scale <- Perf.get_scale (block_id, Just track_id)
+    env <- Perf.get_environ (block_id, Just track_id)
     let modify = modify_note (f scale env)
     ModifyEvents.failable_text modify block_id track_id events

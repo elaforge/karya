@@ -70,9 +70,7 @@ track_signals = do
 -- * info
 
 environ :: Cmd.CmdL (Maybe TrackLang.Environ)
-environ = do
-    (block_id, _, track_id, _) <- Selection.get_insert
-    Perf.lookup_environ block_id (Just track_id)
+environ = Perf.lookup_environ =<< Selection.track
 
 -- | Controls in scope at the insert point.
 controls :: Bool -> Cmd.CmdL Score.ControlMap
@@ -105,10 +103,10 @@ warp from_root = Derive.state_warp <$> dynamic from_root
 
 dynamic :: Bool -> Cmd.CmdL Derive.Dynamic
 dynamic from_root = do
-    (block_id, _, track_id, _) <- Selection.get_insert
+    track <- Selection.track
     Cmd.require "no dynamic" =<< if from_root
-        then Perf.lookup_root_dynamic block_id (Just track_id)
-        else Perf.lookup_dynamic block_id block_id (Just track_id)
+        then Perf.lookup_root_dynamic track
+        else Perf.lookup_dynamic (fst track) track
 
 sel_to_real :: Cmd.CmdL [RealTime]
 sel_to_real = do

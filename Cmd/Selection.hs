@@ -679,17 +679,13 @@ events_around_selnum selnum = do
 -- order.  Both lists are never empty.
 type Tracks = (BlockId, [TrackNum], [TrackId], TrackTime, TrackTime)
 
--- | Yet another flavor of current track selection.  This one is useful for
--- functions in "Cmd.Perf".
-type Track = (BlockId, Maybe TrackId)
-
 -- | Get selected event tracks along with the selection.  The tracks are
 -- returned in ascending order.  Only event tracks are returned, and tracks
 -- merged into the selected tracks are included.
 tracks :: Cmd.M m => m Tracks
 tracks = tracks_selnum Config.insert_selnum
 
-track :: Cmd.M m => m Track
+track :: Cmd.M m => m Perf.Track
 track = do
     (view_id, sel) <- get_selnum Config.insert_selnum
     block_id <- State.block_id_of view_id

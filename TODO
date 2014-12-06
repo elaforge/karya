@@ -8,7 +8,7 @@ UNSORTED
   - if I enable DisambiguateRecordFields I can make record initializers more
     concise.
   - re-enable StepPlay_test.test_nested and test_tempo?
-  - Perf functions should take a type Track = (BlockId, Maybe TrackId)
+  * Perf functions should take a type Track = (BlockId, Maybe TrackId)
     Then they can be called with 'Perf.get_environ =<< Selection.track'
   * sd is still more concise than 'from=x | d', and easier to write and edit.
   * repl: prompt could include the current save file

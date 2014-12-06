@@ -61,7 +61,8 @@ derive_expr block_id track_id pos expr = do
 derive_at :: Cmd.M m => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either String a, [Log.Msg])
 derive_at block_id track_id deriver = do
-    dynamic <- fromMaybe empty_dynamic <$> find_dynamic block_id (Just track_id)
+    dynamic <- fromMaybe empty_dynamic <$>
+        find_dynamic (block_id, Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
     return (first pretty val, logs)
     where empty_dynamic = Derive.initial_dynamic mempty
@@ -112,6 +113,11 @@ perform = (LEvent.partition <$>) . PlayUtil.perform_events . Vector.fromList
 
 -- * environ
 
+-- | Functions that look in the saved Dynamic use this as a key.
+--
+-- If the TrackId is Nothing, take any old Dynamic found on the given block.
+type Track = (BlockId, Maybe TrackId)
+
 {- | Get the scale in scope in a certain track on a certain block.
 
     This tries really really hard to find a ScaleId.  The reason is that pitch
@@ -119,17 +125,17 @@ perform = (LEvent.partition <$>) . PlayUtil.perform_events . Vector.fromList
     it inserts bogus pitches.  I can't rely on 'lookup_val' because a new
     track has never been derived and thus has no Dynamic.
 -}
-get_scale_id :: Cmd.M m => BlockId -> Maybe TrackId -> m Pitch.ScaleId
-get_scale_id block_id maybe_track_id =
+get_scale_id :: Cmd.M m => Track -> m Pitch.ScaleId
+get_scale_id track@(block_id, maybe_track_id) =
     -- Did you know there are so many places to find a ScaleId?  Why are
     -- there so many places?
     (fromMaybe (Pitch.ScaleId Config.default_scale_id) <$>) $
     firstJust
         (maybe (return Nothing) (scale_from_titles block_id) maybe_track_id) $
-    firstJust (find_scale_id block_id maybe_track_id) $ return Nothing
+    firstJust (find_scale_id track) $ return Nothing
 
-find_scale_id :: Cmd.M m => BlockId -> Maybe TrackId -> m (Maybe Pitch.ScaleId)
-find_scale_id block_id maybe_track_id = (to_scale_id <$>) $
+find_scale_id :: Cmd.M m => Track -> m (Maybe Pitch.ScaleId)
+find_scale_id (block_id, maybe_track_id) = (to_scale_id <$>) $
     firstJust (lookup maybe_track_id) $
     firstJust lookup_parents $
     firstJust (lookup Nothing) $
@@ -137,7 +143,7 @@ find_scale_id block_id maybe_track_id = (to_scale_id <$>) $
     return Nothing
     where
     to_scale_id = fmap TrackLang.sym_to_scale_id
-    lookup track_id = lookup_val block_id track_id Environ.scale
+    lookup maybe_track_id = lookup_val (block_id, maybe_track_id) Environ.scale
     lookup_parents = case maybe_track_id of
         Nothing -> return Nothing
         Just track_id -> do
@@ -145,18 +151,17 @@ find_scale_id block_id maybe_track_id = (to_scale_id <$>) $
                 TrackTree.parents_children_of block_id track_id
             firstJusts $ map (lookup . Just) parents
 
-get_scale :: Cmd.M m => BlockId -> Maybe TrackId -> m Scale.Scale
-get_scale block_id maybe_track_id = do
-    scale_id <- get_scale_id block_id maybe_track_id
+get_scale :: Cmd.M m => Track -> m Scale.Scale
+get_scale track = do
+    scale_id <- get_scale_id track
     Cmd.require ("get_scale: can't find " <> pretty scale_id)
-        =<< lookup_scale block_id maybe_track_id scale_id
+        =<< lookup_scale track scale_id
 
-lookup_scale :: Cmd.M m => BlockId -> Maybe TrackId -> Pitch.ScaleId
-    -> m (Maybe Scale.Scale)
-lookup_scale block_id maybe_track_id scale_id = do
+lookup_scale :: Cmd.M m => Track -> Pitch.ScaleId -> m (Maybe Scale.Scale)
+lookup_scale track scale_id = do
     Derive.LookupScale lookup <- Cmd.gets $
         Cmd.state_lookup_scale . Cmd.state_config
-    env <- get_environ block_id maybe_track_id
+    env <- get_environ track
     case lookup env (Derive.LookupScale lookup) scale_id of
         Nothing -> return Nothing
         Just (Left err) -> Cmd.throw $ "lookup " <> pretty scale_id <> ": "
@@ -175,10 +180,8 @@ scale_from_titles block_id track_id = do
         Just scale_id | scale_id /= Pitch.empty_scale -> Just scale_id
         _ -> Nothing
 
-lookup_instrument :: Cmd.M m => BlockId -> Maybe TrackId
-    -> m (Maybe Score.Instrument)
-lookup_instrument block_id maybe_track_id =
-    lookup_val block_id maybe_track_id Environ.instrument
+lookup_instrument :: Cmd.M m => Track -> m (Maybe Score.Instrument)
+lookup_instrument track = lookup_val track Environ.instrument
 
 -- | Lookup value from the deriver's Environ at the given block and (possibly)
 -- track.  See 'Derive.TrackDynamic' for details on the limitations here.
@@ -187,13 +190,9 @@ lookup_instrument block_id maybe_track_id =
 -- block's performance if not present in the root performance.  This is so
 -- that blocks which are not called from the root at all will still have
 -- environ values.
-lookup_val :: (Cmd.M m, TrackLang.Typecheck a) => BlockId
-    -> Maybe TrackId
-    -- ^ If Nothing, take the env from the first track.  This is for when you
-    -- expect the env val to be constant for the entire block.
-    -> TrackLang.ValName -> m (Maybe a)
-lookup_val block_id maybe_track_id name =
-    justm (lookup_environ block_id maybe_track_id) $ lookup_environ_val name
+lookup_val :: (Cmd.M m, TrackLang.Typecheck a) => Track -> TrackLang.ValName
+    -> m (Maybe a)
+lookup_val track name = justm (lookup_environ track) $ lookup_environ_val name
 
 lookup_environ_val :: (State.M m, TrackLang.Typecheck a) =>
     TrackLang.ValName -> TrackLang.Environ -> m (Maybe a)
@@ -201,32 +200,27 @@ lookup_environ_val name env =
     either (Cmd.throw . untxt . ("Perf.lookup_environ_val: "<>)) return
         (TrackLang.checked_val name env)
 
-lookup_environ :: Cmd.M m => BlockId -> Maybe TrackId
-    -> m (Maybe TrackLang.Environ)
-lookup_environ block_id maybe_track_id =
-    fmap Derive.state_environ <$> find_dynamic block_id maybe_track_id
+lookup_environ :: Cmd.M m => Track -> m (Maybe TrackLang.Environ)
+lookup_environ track = fmap Derive.state_environ <$> find_dynamic track
 
-get_environ :: Cmd.M m => BlockId -> Maybe TrackId -> m TrackLang.Environ
-get_environ block_id = fmap (fromMaybe mempty) . lookup_environ block_id
+get_environ :: Cmd.M m => Track -> m TrackLang.Environ
+get_environ = fmap (fromMaybe mempty) . lookup_environ
 
 -- | Try to find the Dynamic for the given block and track, first looking in
 -- the root performance, and then in the block's performance.
-find_dynamic :: Cmd.M m => BlockId -> Maybe TrackId -> m (Maybe Derive.Dynamic)
-find_dynamic block_id maybe_track_id = do
-    maybe_dyn <- lookup_root_dynamic block_id maybe_track_id
+find_dynamic :: Cmd.M m => Track -> m (Maybe Derive.Dynamic)
+find_dynamic track = do
+    maybe_dyn <- lookup_root_dynamic track
     case maybe_dyn of
         Just dyn -> return $ Just dyn
-        Nothing -> lookup_dynamic block_id block_id maybe_track_id
+        Nothing -> lookup_dynamic (fst track) track
 
-lookup_root_dynamic :: Cmd.M m => BlockId -> Maybe TrackId
-    -> m (Maybe Derive.Dynamic)
-lookup_root_dynamic block_id maybe_track_id =
-    justm State.lookup_root_id $ \root_id ->
-        lookup_dynamic root_id block_id maybe_track_id
+lookup_root_dynamic :: Cmd.M m => Track -> m (Maybe Derive.Dynamic)
+lookup_root_dynamic track =
+    justm State.lookup_root_id $ \root_id -> lookup_dynamic root_id track
 
-lookup_dynamic :: Cmd.M m => BlockId -> BlockId -> Maybe TrackId
-    -> m (Maybe Derive.Dynamic)
-lookup_dynamic perf_block_id block_id maybe_track_id =
+lookup_dynamic :: Cmd.M m => BlockId -> Track -> m (Maybe Derive.Dynamic)
+lookup_dynamic perf_block_id (block_id, maybe_track_id) =
     maybe Nothing (lookup . Cmd.perf_track_dynamic) <$>
         Cmd.lookup_performance perf_block_id
     where

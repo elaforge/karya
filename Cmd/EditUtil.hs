@@ -109,9 +109,7 @@ soft_insert text = modify_event True True $ \old_text ->
         else (old_text, False)
 
 lookup_instrument :: Cmd.M m => m (Maybe Score.Instrument)
-lookup_instrument = do
-    (b, t) <- Selection.track
-    Perf.lookup_instrument b t
+lookup_instrument = Perf.lookup_instrument =<< Selection.track
 
 -- * msgs
 
@@ -183,9 +181,9 @@ fallthrough msg = do
 -- ambiguous.
 input_to_note :: Cmd.M m => Pitch.Input -> m Pitch.Note
 input_to_note input = do
-    (b, t) <- Selection.track
-    scale <- Perf.get_scale b t
-    env <- Perf.get_environ b t
+    track <- Selection.track
+    scale <- Perf.get_scale track
+    env <- Perf.get_environ track
     case Scale.scale_input_to_note scale env input of
         -- This just means the key isn't in the scale, it happens a lot so no
         -- need to shout about it.

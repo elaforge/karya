@@ -83,7 +83,7 @@ get_track_cmds = do
 
 lookup_midi_info :: Cmd.M m => BlockId -> TrackId -> m (Maybe Cmd.MidiInfo)
 lookup_midi_info block_id track_id =
-    justm (Perf.lookup_instrument block_id (Just track_id)) $ \inst ->
+    justm (Perf.lookup_instrument (block_id, Just track_id)) $ \inst ->
     Cmd.lookup_instrument inst
 
 -- | Cmds that use InputNotes, and hence must be called with
