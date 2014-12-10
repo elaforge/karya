@@ -105,64 +105,6 @@ test_move_tracks = do
     -- Ensure the selection is only on one track.
     equal (CmdTest.extract_ui get_sel_tracks res) $ Right (Just (2, [2]), [])
 
-{-
-These test the more complicated version that puts the selections in the right
-spots for all blocks.  Disabled since that won't work anyway until I can do
-discontiguous selections.
-
--- test_nested = do
-    res <- prepare_blocks "sub"
-        [ ("b", [(">", [(0, 8, "sub"), (8, 8, "sub")])])
-        , ("sub", simple_tracks)
-        ]
-    res <- return $ CmdTest.run_again res $ do
-            CmdTest.set_point_sel_block "sub" 1 3
-            StepPlay.cmd_set False
-    pprint (CmdTest.extract_ui (get_block_sel "sub") res)
-    pprint (CmdTest.extract_ui (get_block_sel "b") res)
-    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    pprint (CmdTest.extract_ui (get_block_sel "sub") res)
-    pprint (CmdTest.extract_ui (get_block_sel "b") res)
-    pprint (e_midi res)
-
-    -- The problem is that realtime of 8 gets both the end of the block
-    -- and the beginning of the block.
-    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    pprint (CmdTest.extract_ui (get_block_sel "sub") res)
-    pprint (CmdTest.extract_ui (get_block_sel "b") res)
-    pprint (e_midi res)
-
--- test_tempo = do
-    res <- prepare_blocks UiTest.default_block_name
-        [(UiTest.default_block_name,
-            ("tempo", [(0, 0, ".987")]) : simple_tracks)]
-    res <- return $ CmdTest.run_again res $ do
-            CmdTest.set_point_sel 2 2
-            StepPlay.cmd_set False
-    equal (CmdTest.extract_ui get_sel res) $ Right (Just 1, [])
-    res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-
-    let get_perf = fmap (Cmd.perf_warps . Cmd.step_performance)
-            . Cmd.state_step . Cmd.state_play
-    -- pprint (CmdTest.extract_state (const get_perf) res)
-    let Right (Just tws, _) = CmdTest.extract_state (const get_perf) res
-    let inv = TrackWarp.inverse_tempo_func tws
-        tempo = TrackWarp.tempo_func tws
-    pprint (map (tempo UiTest.default_block_id (UiTest.tid "b1.t0")) [1, 2])
-    let rtimes = concatMap (tempo UiTest.default_block_id (UiTest.tid "b1.t0"))
-            [1, 2]
-    pprint tws
-    pprint rtimes
-    pprint (map inv rtimes)
-    -- let stimes = concatMap (inv . RealTime.seconds) [1, 2]
-    -- pprint stimes
-
-    equal (CmdTest.extract_ui get_sel res) $ Right (Just 2, [])
-    -- res <- return $ CmdTest.run_again res StepPlay.cmd_advance
-    -- equal (CmdTest.extract_ui get_sel res) $ Right (Just 4, [])
--}
-
-
 e_midi :: CmdTest.Result a -> [Midi.ChannelMessage]
 e_midi = mapMaybe Midi.channel_message . CmdTest.e_midi
 
@@ -180,8 +122,8 @@ note_track notes = UiTest.note_spec
     ("i1", [(t, 1, pitch) | (t, pitch) <- zip (Seq.range_ 0 1) notes], [])
 
 prepare_blocks :: String -> [UiTest.BlockSpec] -> IO (CmdTest.Result ())
-prepare_blocks focus blocks = CmdTest.update_perf ustate $
-        CmdTest.run ustate cstate (return ())
+prepare_blocks focus blocks =
+    CmdTest.update_perf ustate $ CmdTest.run ustate cstate (return ())
     where
     ustate = DeriveTest.set_default_midi_config $
         UiTest.exec State.empty (UiTest.mkviews blocks)
