@@ -258,7 +258,7 @@ add_time :: Msg -> IO Msg
 add_time log_msg
     | msg_date log_msg == no_date_yet = do
         utc <- Time.getCurrentTime
-        return $ log_msg { msg_date = utc }
+        return $! log_msg { msg_date = utc }
     | otherwise = return log_msg
 
 instance Monad m => LogMonad (LogT m) where
@@ -268,14 +268,10 @@ write_msg :: Monad m => Msg -> LogT m ()
 write_msg = LogT . Logger.log
 
 type LogM m = Logger.LoggerT Msg m
-newtype LogT m a = LogT (LogM m a)
-    deriving (Functor, Monad, Trans.MonadIO, Trans.MonadTrans,
-        Error.MonadError e, State.MonadState st, Reader.MonadReader r)
-run_log_t (LogT x) = x
-
-instance (Functor m, Monad m) => Applicative.Applicative (LogT m) where
-    pure = return
-    (<*>) = ap
+newtype LogT m a = LogT { run_log_t :: LogM m a }
+    deriving (Applicative.Applicative, Functor, Monad, Trans.MonadIO,
+        Trans.MonadTrans, Error.MonadError e, State.MonadState st,
+        Reader.MonadReader r)
 
 run :: Monad m => LogT m a -> m (a, [Msg])
 run = Logger.run . run_log_t

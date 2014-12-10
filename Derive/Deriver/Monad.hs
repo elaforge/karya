@@ -1466,7 +1466,7 @@ data ScaleError =
     | OutOfRange
     -- | Input note doesn't map to a scale note.
     | InvalidInput
-    -- | An environ value was missing.
+    -- | A required environ value was missing.
     | EnvironMissing !TrackLang.ValName
     -- | An environ value was unparseable.  Has the environ key and a text
     -- description of the error.

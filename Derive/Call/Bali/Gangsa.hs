@@ -26,7 +26,6 @@
     - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
-import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.Num as Num
