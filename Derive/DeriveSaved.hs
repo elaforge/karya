@@ -70,7 +70,8 @@ timed_derive name ui_state cmd_state block_id =
         Right (result, cmd_logs) -> fmap Right $ do
             let (events, derive_logs) = first Vector.fromList $
                     LEvent.partition $ Derive.r_events result
-            events <- print_timer ("derive " ++ name) (timer_msg Vector.length)
+                msg = "derive " <> name <> " " <> pretty block_id
+            events <- print_timer msg (timer_msg Vector.length)
                 (return $! events)
             return (events, cmd_logs ++ filter (not . boring) derive_logs)
     where boring msg = Cache.is_cache_log msg

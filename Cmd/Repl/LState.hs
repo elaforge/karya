@@ -111,7 +111,7 @@ set_notes = State.modify . (State.config#State.meta#State.notes #=)
 save_midi :: Cmd.CmdL ()
 save_midi = do
     block_id <- State.get_root_id
-    midi <- midi_performance block_id
+    midi <- perform_midi block_id
     perf <- make_performance (Vector.fromList midi)
     State.modify_config $
         State.meta#State.midi_performances %= Map.insert block_id perf
@@ -137,13 +137,21 @@ verify_performance :: Cmd.CmdL Text
 verify_performance = do
     block_id <- State.get_root_id
     perf <- get_midi_performance block_id
-    msgs <- midi_performance block_id
+    midi <- perform_midi block_id
     let (diffs, _expected, _got) =
-            DiffPerformance.diff_midi_performance perf msgs
+            DiffPerformance.diff_midi_performance perf midi
     return $ fromMaybe "ok!" diffs
 
-midi_performance :: Cmd.M m => BlockId -> m [Midi.WriteMessage]
-midi_performance block_id = do
+-- | Faster than 'verify_performance', but no diffs.
+verify_performance_quick :: Cmd.CmdL Text
+verify_performance_quick = do
+    block_id <- State.get_root_id
+    perf <- get_midi_performance block_id
+    midi <- perform_midi block_id
+    return $ showt $ DiffPerformance.compare_midi_performance perf midi
+
+perform_midi :: Cmd.M m => BlockId -> m [Midi.WriteMessage]
+perform_midi block_id = do
     perf <- Cmd.get_performance block_id
     LEvent.events_of <$> PlayUtil.perform_from 0 perf
 

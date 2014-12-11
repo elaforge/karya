@@ -10,7 +10,7 @@ module Cmd.DiffPerformance (
     -- * diff lilypond
     , diff_lilypond
     -- * diff midi
-    , diff_midi_performance
+    , diff_midi_performance, compare_midi_performance
     , diff_midi, limit
 ) where
 import qualified Data.Algorithm.Diff as Diff
@@ -69,6 +69,12 @@ diff_midi_performance performance msgs
     where
     (diffs, expected, got) = diff_midi
         (Vector.toList (State.perf_performance performance)) msgs
+
+-- | This is like 'diff_midi_performance', but much faster if there are many
+-- diffs.
+compare_midi_performance :: State.MidiPerformance -> [Midi.WriteMessage] -> Bool
+compare_midi_performance perf msgs =
+    normalize (Vector.toList (State.perf_performance perf)) == normalize msgs
 
 show_diffs :: State.Performance a -> [[Text]] -> Text
 show_diffs perf diffs =
