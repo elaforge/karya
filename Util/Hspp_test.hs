@@ -14,23 +14,29 @@ test_lex_dot = do
     equal (f " A.b c") [("A.b", " c")]
 
 test_macro_matches = do
-    let f mod token macro_mod quals =
-            Hspp.macro_matches  (Just "qq") mod token $
-                Hspp.Macro macro_mod quals "f"
-    -- If module isn't set, look for 'f'.
-    equal (not (f "A.B" "B.f" Nothing [])) True
-    equal (f "A.B" "f" Nothing []) True
+    let f mod token mtype =
+            Hspp.macro_matches  (Just "func") mod token $ Hspp.Macro mtype "sym"
+        qual = Hspp.Qualified ["Q"]
+        unqual = Hspp.Unqualified ["Home"]
+        both = Hspp.Both ["Home"] ["Q"]
+    -- Qualified only matches exactly.
+    equal (f "A.B" "Q.sym" qual) True
+    equal (f "A.B" "B.sym" qual) False
+    equal (f "A.B" "sym" qual) False
+    -- Unqualified matches if you're not Home.
+    equal (f "A.B" "sym" unqual) True
+    equal (f "Home" "sym" unqual) False
+    equal (f "A.B" "Q.sym" unqual) False
+    -- But not in a function definition.
+    equal (Hspp.macro_matches (Just "func") "A.B" "func"
+            (Hspp.Macro unqual "func"))
+        False
 
-    -- In another module, look for 'B.f'
-    equal (f "Q" "B.f" (Just "A.B") ["B"]) True
-    equal (f "Q" "f" (Just "A.B") ["B"]) False
-    -- or C.f
-    equal (f "Q" "C.f" (Just "A.B") ["B", "C"]) True
-    equal (f "Q" "D.f" (Just "A.B") ["B", "C"]) False
-
-    -- In same module, look for 'f'
-    equal (f "A.B" "f" (Just "A.B") ["A"]) True
-    equal (f "A.B" "B.f" (Just "A.B") ["A"]) False
+    -- Both matches unqualified at home, qualified when not.
+    equal (f "A.B" "Q.sym" both) True
+    equal (f "A.B" "sym" both) False
+    equal (f "Home" "Q.sym" both) False
+    equal (f "Home" "sym" both) True
 
 test_annotate = do
     let expected =

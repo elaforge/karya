@@ -32,41 +32,45 @@ import qualified Data.List as List
 import qualified System.Environment
 import qualified System.FilePath as FilePath
 
-import qualified Util.Regex as Regex
-
 
 data Macro = Macro {
-    -- | If Just, in this module the symbol will be matched unqualified, since
-    -- that is how it will be called.  For functions which are always called
-    -- unqualified, this is Nothing.
-    m_home_module :: Maybe ModuleName
-    -- | A list of possible qualifications that may prefix the symbol.
-    -- Normally this is the C of \"A.B.C\", but some symbols may be imported
-    -- under multiple names.
-    , m_qualifications :: [String]
+    m_match_type :: MatchType
     -- | The symbol itself, which will get a 'srcpos_suffix' and be supplied
     -- a SrcPos argument.
     , m_sym :: String
     } deriving (Show)
 
+-- | Dot-separated module name.
 type ModuleName = String
 -- | The X in @import .. as X@.
 type Qualification = String
 
+data MatchType =
+    -- | Always match qualified.
+    Qualified [Qualification]
+    -- | Always match unqualified, but don't match at all in the given modules.
+    | Unqualified [ModuleName]
+    -- | Match unqualified when in the given modules, qualified when not.
+    | Both [ModuleName] [Qualification]
+    deriving (Eq, Show)
+
 -- These are substituted everywhere.
 global_macros :: [Macro]
-global_macros = map (Macro (Just "Util.Log") ["Log"])
+global_macros = map (Macro (Qualified ["Log"]))
     [ "msg", "initialized_msg"
     , "debug", "notice", "warn", "error", "timer"
     , "debug_stack", "notice_stack", "warn_stack", "error_stack"
     ]
-    ++ map (Macro (Just "Derive.Deriver.Internal") ["Derive", "Internal"])
+    ++ map (Macro derive_qual)
     [ "throw", "throw_error", "throw_arg_error"
     ]
+    where
+    derive_qual = Both ["Derive.Deriver.Internal", "Derive.Deriver.Lib"]
+        ["Derive", "Internal"]
 
 -- These are only substituted in test modules.
 test_macros :: [Macro]
-test_macros = map (Macro Nothing [])
+test_macros = map (Macro (Unqualified ["Util.Test"]))
     [ "equal", "equalf", "io_equal", "strings_like", "check_right", "left_like"
     , "io_human", "throws", "check"
     ]
@@ -107,7 +111,8 @@ process fn macros = unlines . (line_pragma:)
 -- lists!
 replace :: [Macro] -> FilePath -> Annotation -> String -> String
 replace macros fn annot tok
-    | a_declaration annot || not (a_after_module_where annot) = tok
+    -- Don't substitute export and import lists.
+    | a_import annot || not (a_after_module_where annot) = tok
     | any (macro_matches func_name (fn_to_module fn) tok) macros =
         "(" <> tok <> srcpos_suffix <> " (" <> srcpos <> "))"
     | otherwise = tok
@@ -116,13 +121,15 @@ replace macros fn annot tok
     srcpos = make_srcpos fn (a_func_name annot) (a_line annot)
 
 macro_matches :: Maybe String -> String -> String -> Macro -> Bool
-macro_matches func_name mod token macro = case macro of
-    Macro Nothing _ sym -> unqualified_match sym
-    Macro (Just macro_mod) quals sym
-        | mod == macro_mod -> unqualified_match sym
-        | otherwise -> any (token==) (qualified_symbol quals sym)
+macro_matches func_name mod token (Macro mtype sym) = case mtype of
+    Qualified quals -> qualified_match quals sym
+    Unqualified mods -> mod `notElem` mods && unqualified_match sym
+    Both mods quals
+        | mod `elem` mods -> unqualified_match sym
+        | otherwise -> qualified_match quals sym
     where
-    qualified_symbol quals sym = [q ++ "." ++ sym | q <- quals]
+    qualified_match quals sym = any ((==token) . qualify sym) quals
+    qualify sym qual = qual ++ "." ++ sym
     -- Match an unqualified symbol, but not inside the function itself, other
     -- wise this would replace the function definition!
     unqualified_match sym = Just token /= func_name && token == sym
@@ -145,12 +152,14 @@ replace_ids replace contents = spaces ++ tok2 ++ replace_ids replace after_tok
     tok2 = replace tok
 
 data Annotation = Annotation {
-    -- | Line Number.
+    -- | Line number.
     a_line :: !Int
     -- | Set to the function name if this token is inside a function.
+    -- This is only Nothing before the first function, otherwise it carries
+    -- over from the last function definition seen.
     , a_func_name :: !(Maybe String)
-    -- | True if left of @::@ or in an import list.
-    , a_declaration :: !Bool
+    -- | True if this is an import line.
+    , a_import :: !Bool
     -- | Line is after the module's @where@
     , a_after_module_where :: !Bool
     } deriving (Show)
@@ -163,24 +172,29 @@ scan_line :: Annotation -> String -> Annotation
 scan_line prev line = Annotation
     { a_line = a_line prev + 1
     , a_func_name = line_to_func line `mplus` a_func_name prev
-    , a_declaration =
-        Regex.matches declaration line || "import " `List.isPrefixOf` line
+    , a_import = "import " `List.isPrefixOf` line
     -- fooled by 'where' in comment or inside another word
     -- doesn't work at all for modules without a name or imports
     , a_after_module_where =
         a_after_module_where prev || "where" `List.isInfixOf` line
-        || "import" `List.isPrefixOf` line
+        || "import " `List.isPrefixOf` line
     }
 
 line_to_func :: String -> Maybe String
-line_to_func line = case Regex.groups definition line of
-    [] -> Nothing
-    (_, [fname]) : _ -> Just fname
-    groups -> error $ "unexpected groups: " ++ show groups
+line_to_func line = match_definition line
 
-definition, declaration :: Regex.Regex
-definition = Regex.compileUnsafe "definition" "^([a-z_][A-Za-z0-9_']*) .*="
-declaration = Regex.compileUnsafe "declaration" "^[a-z_][A-Za-z0-9_', ]* *::"
+-- | "^([a-z_][A-Za-z0-9_]*) .*(=|::)"
+match_definition :: String -> Maybe String
+match_definition [] = Nothing
+match_definition (c:cs)
+    | (within 'a' 'z' c || c == '_')
+            && ('=' `elem` cs || "::" `List.isInfixOf` cs) =
+        Just $ c : takeWhile is_ident cs
+    | otherwise = Nothing
+    where
+    is_ident c = or $ map ($c)
+        [within 'a' 'z', within 'A' 'Z', (=='_'), (=='\'')]
+    within low high v = low <= v && v <= high
 
 
 -- * parsing
