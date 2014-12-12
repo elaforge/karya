@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Hspp_test where
-import qualified Data.Maybe as Maybe
-
 import qualified Util.Hspp as Hspp
 import Util.Test
 
@@ -15,24 +13,24 @@ test_lex_dot = do
     equal (f "$(hi (f a a) (f b)) there") [("$(hi (f a a) (f b))", " there")]
     equal (f " A.b c") [("A.b", " c")]
 
-test_find_macro = do
-    let f mod token macro_mod quals = Maybe.isJust $
-            Hspp.find_macro [Hspp.SrcposMacro macro_mod quals "f"] (Just "qq")
-                mod token
+test_macro_matches = do
+    let f mod token macro_mod quals =
+            Hspp.macro_matches  (Just "qq") mod token $
+                Hspp.Macro macro_mod quals "f"
     -- If module isn't set, look for 'f'.
-    check (not (f "A.B" "B.f" Nothing []))
-    check (f "A.B" "f" Nothing [])
+    equal (not (f "A.B" "B.f" Nothing [])) True
+    equal (f "A.B" "f" Nothing []) True
 
     -- In another module, look for 'B.f'
-    check (f "Q" "B.f" (Just "A.B") ["B"])
-    check (not (f "Q" "f" (Just "A.B") ["B"]))
+    equal (f "Q" "B.f" (Just "A.B") ["B"]) True
+    equal (f "Q" "f" (Just "A.B") ["B"]) False
     -- or C.f
-    check (f "Q" "C.f" (Just "A.B") ["B", "C"])
-    check (not (f "Q" "D.f" (Just "A.B") ["B", "C"]))
+    equal (f "Q" "C.f" (Just "A.B") ["B", "C"]) True
+    equal (f "Q" "D.f" (Just "A.B") ["B", "C"]) False
 
     -- In same module, look for 'f'
-    check (f "A.B" "f" (Just "A.B") ["A"])
-    check (not (f "A.B" "B.f" (Just "A.B") ["A"]))
+    equal (f "A.B" "f" (Just "A.B") ["A"]) True
+    equal (f "A.B" "B.f" (Just "A.B") ["A"]) False
 
 test_annotate = do
     let expected =

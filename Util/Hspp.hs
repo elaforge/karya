@@ -27,46 +27,53 @@
 module Util.Hspp where
 import Control.Monad
 import qualified Data.Char as Char
+import Data.Monoid ((<>))
 import qualified Data.List as List
 import qualified System.Environment
 import qualified System.FilePath as FilePath
 
 import qualified Util.Regex as Regex
-import qualified Util.Seq as Seq
 
 
-data Macro = SrcposMacro {
+data Macro = Macro {
     -- | If Just, in this module the symbol will be matched unqualified, since
     -- that is how it will be called.  For functions which are always called
     -- unqualified, this is Nothing.
-    m_home_module :: Maybe String
+    m_home_module :: Maybe ModuleName
     -- | A list of possible qualifications that may prefix the symbol.
     -- Normally this is the C of \"A.B.C\", but some symbols may be imported
     -- under multiple names.
     , m_qualifications :: [String]
-    -- | The symbol itself, which will get a _srcpos suffix and be supplied
+    -- | The symbol itself, which will get a 'srcpos_suffix' and be supplied
     -- a SrcPos argument.
     , m_sym :: String
     } deriving (Show)
 
+type ModuleName = String
+-- | The X in @import .. as X@.
+type Qualification = String
+
 -- These are substituted everywhere.
 global_macros :: [Macro]
-global_macros = map (SrcposMacro (Just "Util.Log") ["Log"])
+global_macros = map (Macro (Just "Util.Log") ["Log"])
     [ "msg", "initialized_msg"
     , "debug", "notice", "warn", "error", "timer"
     , "debug_stack", "notice_stack", "warn_stack", "error_stack"
     ]
-    ++ map (SrcposMacro (Just "Derive.Deriver.Internal")
-            ["Derive", "Internal"])
+    ++ map (Macro (Just "Derive.Deriver.Internal") ["Derive", "Internal"])
     [ "throw", "throw_error", "throw_arg_error"
     ]
 
 -- These are only substituted in test modules.
 test_macros :: [Macro]
-test_macros = map (SrcposMacro Nothing [])
+test_macros = map (Macro Nothing [])
     [ "equal", "equalf", "io_equal", "strings_like", "check_right", "left_like"
     , "io_human", "throws", "check"
     ]
+
+-- | Append this to replaced symbols, along with the extra SrcPos argument.
+srcpos_suffix :: String
+srcpos_suffix = "_srcpos"
 
 
 main :: IO ()
@@ -100,27 +107,25 @@ process fn macros = unlines . (line_pragma:)
 -- lists!
 replace :: [Macro] -> FilePath -> Annotation -> String -> String
 replace macros fn annot tok
-    | a_declaration annot || not (a_post_header annot) = tok
-    | otherwise = case find_macro macros func_name (fn_to_module fn) tok of
-        Nothing -> tok
-        Just repl -> "(" ++ repl ++ " (" ++ srcpos ++ "))"
+    | a_declaration annot || not (a_after_module_where annot) = tok
+    | any (macro_matches func_name (fn_to_module fn) tok) macros =
+        "(" <> tok <> srcpos_suffix <> " (" <> srcpos <> "))"
+    | otherwise = tok
     where
     func_name = a_func_name annot
     srcpos = make_srcpos fn (a_func_name annot) (a_line annot)
 
-find_macro :: [Macro] -> Maybe String -> String -> String -> Maybe String
-find_macro macros func_name mod token
-    | any matches macros = Just (token ++ "_srcpos")
-    | otherwise = Nothing
+macro_matches :: Maybe String -> String -> String -> Macro -> Bool
+macro_matches func_name mod token macro = case macro of
+    Macro Nothing _ sym -> unqualified_match sym
+    Macro (Just macro_mod) quals sym
+        | mod == macro_mod -> unqualified_match sym
+        | otherwise -> any (token==) (qualified_symbol quals sym)
     where
-    matches (SrcposMacro Nothing _ sym) = unqualified_match sym
-    matches (SrcposMacro (Just macro_mod) quals sym)
-        | mod == macro_mod = unqualified_match sym
-        | otherwise = any (token==) (qualified_symbol quals sym)
+    qualified_symbol quals sym = [q ++ "." ++ sym | q <- quals]
     -- Match an unqualified symbol, but not inside the function itself, other
     -- wise this would replace the function definition!
     unqualified_match sym = Just token /= func_name && token == sym
-    qualified_symbol quals sym = [q ++ "." ++ sym | q <- quals]
 
 fn_to_module :: FilePath -> String
 fn_to_module = map repl . FilePath.dropExtension
@@ -139,15 +144,15 @@ replace_ids replace contents = spaces ++ tok2 ++ replace_ids replace after_tok
         _ -> ("", "")
     tok2 = replace tok
 
-
 data Annotation = Annotation {
-    a_line :: Int
-    -- | If function name if this token is inside a function.
-    , a_func_name :: Maybe String
+    -- | Line Number.
+    a_line :: !Int
+    -- | Set to the function name if this token is inside a function.
+    , a_func_name :: !(Maybe String)
     -- | True if left of @::@ or in an import list.
-    , a_declaration :: Bool
+    , a_declaration :: !Bool
     -- | Line is after the module's @where@
-    , a_post_header :: Bool
+    , a_after_module_where :: !Bool
     } deriving (Show)
 
 annotate :: [String] -> [(String, Annotation)]
@@ -155,24 +160,27 @@ annotate lines =
     zip lines (tail (scanl scan_line (Annotation 0 Nothing False False) lines))
 
 scan_line :: Annotation -> String -> Annotation
-scan_line old_annot line = Annotation
-    (a_line old_annot + 1)
-    (line_to_func line `mplus` a_func_name old_annot)
-    (Regex.matches declaration line || "import " `List.isPrefixOf` line)
+scan_line prev line = Annotation
+    { a_line = a_line prev + 1
+    , a_func_name = line_to_func line `mplus` a_func_name prev
+    , a_declaration =
+        Regex.matches declaration line || "import " `List.isPrefixOf` line
     -- fooled by 'where' in comment or inside another word
     -- doesn't work at all for modules without a name or imports
-    (a_post_header old_annot || "where" `List.isInfixOf` line
-        || "import" `List.isPrefixOf` line)
+    , a_after_module_where =
+        a_after_module_where prev || "where" `List.isInfixOf` line
+        || "import" `List.isPrefixOf` line
+    }
 
 line_to_func :: String -> Maybe String
 line_to_func line = case Regex.groups definition line of
-        [] -> Nothing
-        (_, [fname]) : _ -> Just fname
-        groups -> error $ "unexpected groups: " ++ show groups
+    [] -> Nothing
+    (_, [fname]) : _ -> Just fname
+    groups -> error $ "unexpected groups: " ++ show groups
 
 definition, declaration :: Regex.Regex
-definition = Regex.compileUnsafe "definition" "^([a-z0-9_][A-Za-z0-9_]*) .*="
-declaration = Regex.compileUnsafe "declaration" "^[a-z0-9_][A-Za-z0-9_, ]* *::"
+definition = Regex.compileUnsafe "definition" "^([a-z_][A-Za-z0-9_']*) .*="
+declaration = Regex.compileUnsafe "declaration" "^[a-z_][A-Za-z0-9_', ]* *::"
 
 
 -- * parsing
@@ -182,13 +190,16 @@ lex_dot :: String -> [(String, String)]
 lex_dot s
     -- Half-ass template haskell splice detection.  Otherwise, the '' and '
     -- quotes will fail to lex.
-    | "$(" `List.isPrefixOf` Seq.lstrip s =
-        let (pre, post) = matching 0 (Seq.lstrip s)
+    | "$(" `List.isPrefixOf` lstrip s =
+        let (pre, post) = matching 0 (lstrip s)
         in [(pre, post)]
     | otherwise = case lex s of
         [(tok1, '.':rest1)] ->
             [(tok1 ++ "." ++ tok2, rest2) | (tok2, rest2) <- lex_dot rest1]
         val -> val
+
+lstrip :: String -> String
+lstrip = dropWhile Char.isSpace
 
 -- | Find an opening paren and break after its matching close paren.
 matching :: Int -> String -> (String, String)

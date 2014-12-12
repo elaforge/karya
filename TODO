@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  hspp:
+    - make unqualified calls to 'throw' etc. work in Derive.Deriver.* modules
+    - srcpos annotate for Derive.require, Cmd.throw
+  sekaran
+    - arrival, so the last note lines up at the end, with +infer-duration
+    - cycle the pattern if there are more notes
+    - include rests explicitly, so they aren't flattened out
   / verify_performance thinks save/complete/house1/14-11-16 is wrong even
     though I just saved it.
     . Looks like a totally different performance.
