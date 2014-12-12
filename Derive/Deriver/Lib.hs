@@ -15,6 +15,7 @@ import qualified Data.Maybe as Maybe
 import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.Seq as Seq
+import qualified Util.SrcPos as SrcPos
 
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
@@ -113,10 +114,18 @@ with_default_imported deriver =
 -- * errors
 
 require :: String -> Maybe a -> Deriver a
-require msg = maybe (throw msg) return
+require = require_srcpos Nothing
+
+require_srcpos :: SrcPos.SrcPos -> String -> Maybe a -> Deriver a
+require_srcpos srcpos msg = maybe (throw_srcpos srcpos msg) return
 
 require_right :: (err -> String) -> Either err a -> Deriver a
-require_right fmt_err = either (throw . fmt_err) return
+require_right = require_right_srcpos Nothing
+
+require_right_srcpos :: SrcPos.SrcPos -> (err -> String) -> Either err a
+    -> Deriver a
+require_right_srcpos srcpos fmt_err =
+    either (throw_srcpos srcpos . fmt_err) return
 
 
 -- * state access

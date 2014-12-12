@@ -63,6 +63,7 @@ global_macros = map (Macro (Qualified ["Log"]))
     ]
     ++ map (Macro derive_qual)
     [ "throw", "throw_error", "throw_arg_error"
+    , "require", "require_right"
     ]
     where
     derive_qual = Both ["Derive.Deriver.Internal", "Derive.Deriver.Lib"]
@@ -87,7 +88,7 @@ main = do
         else error "usage: hspp <orig_fn> <src_fn> <dest_fn>"
     input <- readFile src_fn
     let macros = if "_test.hs" `List.isSuffixOf` orig_fn
-            then test_macros else global_macros
+            then global_macros ++ test_macros else global_macros
     writeFile dest_fn (process (clean_fn orig_fn) macros input)
 
 clean_fn :: FilePath -> FilePath
