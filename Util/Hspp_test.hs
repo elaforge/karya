@@ -43,12 +43,14 @@ test_annotate = do
             [ ("module X (", (Nothing, False, False))
             , ("foo", (Nothing, False, False))
             , (") where", (Nothing, False, True))
+            , ("import X", (Nothing, True, True))
             , ("foo = bar", (Just "foo", False, True))
-            , ("bar, buz :: Baz", (Just "foo", True, True))
+            , ("bar, buz :: Baz", (Just "bar", False, True))
             , ("bar a b = a b", (Just "bar", False, True))
             , ("x = 10", (Just "x", False, True))
             ]
-        extract (_, Hspp.Annotation _ func decl post) = (func, decl, post)
+        extract (_, Hspp.Annotation _ func is_import after_where) =
+            (func, is_import, after_where)
     equal (map extract (Hspp.annotate (map fst expected)))
         (map snd expected)
 
