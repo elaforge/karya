@@ -197,7 +197,7 @@ lookup_val track name = justm (lookup_environ track) $ lookup_environ_val name
 lookup_environ_val :: (State.M m, TrackLang.Typecheck a) =>
     TrackLang.ValName -> TrackLang.Environ -> m (Maybe a)
 lookup_environ_val name env =
-    either (Cmd.throw . untxt . ("Perf.lookup_environ_val: "<>)) return
+    either (State.throw . untxt . ("Perf.lookup_environ_val: "<>)) return
         (TrackLang.checked_val name env)
 
 lookup_environ :: Cmd.M m => Track -> m (Maybe TrackLang.Environ)

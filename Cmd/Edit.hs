@@ -377,7 +377,7 @@ delete_block_time block_id start end = do
 delete_time :: State.M m => BlockId -> TrackId -> TrackTime -> TrackTime -> m ()
 delete_time block_id track_id start end = do
     when (start >= end) $
-        Cmd.throw $ "delete_time: start >= end: " <> show (start, end)
+        State.throw $ "delete_time: start >= end: " <> show (start, end)
     track <- State.get_track track_id
     case Events.split_at_before start (Track.track_events track) of
         (_, []) -> return ()

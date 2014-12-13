@@ -94,7 +94,7 @@ quantize_sel = ModifyEvents.selection . quantize_timestep Both
 -- the event to the nearest timestep.
 quantize_timestep :: State.M m => Mode -> Text -> ModifyEvents.Track m
 quantize_timestep mode step block_id track_id events = do
-    step <- Cmd.require_right ("parsing timestep: "++) $
+    step <- State.require_right ("parsing timestep: "++) $
         TimeStep.parse_time_step step
     tracknum <- State.get_tracknum_of block_id track_id
     points <- TimeStep.get_points_from TimeStep.Advance block_id tracknum 0 step

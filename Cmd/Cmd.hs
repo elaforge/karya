@@ -280,12 +280,14 @@ instance (Functor m, Monad m) => State.M (CmdT m) where
     get_updates = CmdT State.get_updates
     throw_srcpos srcpos msg = CmdT (State.throw_srcpos srcpos msg)
 
+-- ** exceptions
+
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
-throw :: State.M m => String -> m a
+throw :: M m => String -> m a
 throw = State.throw
 
-throw_srcpos :: State.M m => SrcPos.SrcPos -> String -> m a
+throw_srcpos :: M m => SrcPos.SrcPos -> String -> m a
 throw_srcpos = State.throw_srcpos
 
 -- | Run a subcomputation that is allowed to abort.
@@ -299,6 +301,26 @@ rethrow_io =
     where
     handle :: Exception.SomeException -> IO (Either String a)
     handle = return . Left . ("io exception: "++) . show
+
+-- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
+-- conditions that don't fit into a Keymap.
+abort_unless :: M m => Maybe a -> m a
+abort_unless = maybe abort return
+
+-- | Throw an exception with the given msg on Nothing
+require :: M m => String -> Maybe a -> m a
+require = require_srcpos Nothing
+
+require_srcpos :: M m => SrcPos.SrcPos -> String -> Maybe a -> m a
+require_srcpos srcpos msg = maybe (throw_srcpos srcpos msg) return
+
+require_right :: M m => (err -> String) -> Either err a -> m a
+require_right = require_right_srcpos Nothing
+
+require_right_srcpos :: M m => SrcPos.SrcPos -> (err -> String)
+    -> Either err a -> m a
+require_right_srcpos srcpos fmt_err =
+    either (throw_srcpos srcpos . fmt_err) return
 
 -- * State
 
@@ -1147,26 +1169,6 @@ log_event block_id track_id event = "{s" ++ show frame ++ "}"
     where
     frame = Stack.unparse_ui_frame
         (Just block_id, Just track_id, Just (Event.range event))
-
--- | Extract a Just value, or 'abort'.  Generally used to check for Cmd
--- conditions that don't fit into a Keymap.
-abort_unless :: M m => Maybe a -> m a
-abort_unless = maybe abort return
-
--- | Throw an exception with the given msg on Nothing
-require :: State.M m => String -> Maybe a -> m a
-require = require_srcpos Nothing
-
-require_srcpos :: State.M m => SrcPos.SrcPos -> String -> Maybe a -> m a
-require_srcpos srcpos msg = maybe (throw_srcpos srcpos msg) return
-
-require_right :: State.M m => (err -> String) -> Either err a -> m a
-require_right = require_right_srcpos Nothing
-
-require_right_srcpos :: State.M m => SrcPos.SrcPos -> (err -> String)
-    -> Either err a -> m a
-require_right_srcpos srcpos fmt_err =
-    either (throw_srcpos srcpos . fmt_err) return
 
 -- | Turn off all sounding notes.
 -- TODO clear out WriteDeviceState?
