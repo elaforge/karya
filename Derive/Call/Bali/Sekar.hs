@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Pattern based derivation in the Javanese sekaran tradition.
+-- | Pattern based derivation.
 --
 -- TODO This is merely a proof of concept.  Sekaran could be implemented a lot
 -- of ways, but I'll have to wait to see which ones are most compositionally
@@ -16,13 +16,17 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Flags as Flags
+import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (required)
 
 import Global
+import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
@@ -36,35 +40,79 @@ module_ = "bali" <> "sekar"
 
 c_sekar :: Derive.Generator Derive.Note
 c_sekar = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
-    "Plain sekaran derivation." $ Sig.call
-    ( required "pattern"
+    "Arrange sub-notes according to a pattern." $ Sig.call ((,)
+    <$> Sig.required "pattern"
         "Apply this pattern to the encompassed notes. The pattern is\
-        \ documented by 'Derive.Call.Bali.Sekar.make_pattern'."
-    ) $ \pattern args -> do
+        \ letters from a-z, where `a` is the first note and `z` is the 26th.\
+        \ Capital letters replace that note with a rest. Gaps in the input\
+        \ notes count as rest notes."
+    <*> Sig.environ "arrive" Sig.Prefixed True ("If true, the last note of the\
+        \ pattern is aligned to the end of the event, and given "
+        <> ShowVal.doc_val Flags.infer_duration <> ".")
+    ) $ \(pattern, arrive) args -> do
         pattern <- make_pattern pattern
-        notes <- Sub.sub_events args
-        Sub.fit_to_range (Args.range args) $ sekar (concat notes) pattern
+        let derive = (if arrive then sekar_arrive else sekar)
+                (Args.range args) pattern
+        mconcatMap derive =<< Sub.sub_rest_events args
 
--- | [(index of note, is rest)]
-type Pattern = [(Int, Bool)]
+sekar_arrive :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
+    -> Derive.NoteDeriver
+sekar_arrive range pattern events =
+    Sub.fit_to_range (((+offset) *** (+offset)) range) placed
+    where
+    (offset, placed) = case Seq.viewr $ realize_groups pattern events of
+        Nothing -> (0, [])
+        Just (init, final) ->
+            (Sub.event_duration final, init ++ [infer_duration <$> final])
+    infer_duration = fmap $ Post.emap1_ (Score.add_flags Flags.infer_duration)
 
--- | Lowercase letters represent a deriver starting from @a@, uppercase ones
--- represent a rest of the duration of that deriver.  E.g. @abAb@.
+sekar :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
+    -> Derive.NoteDeriver
+sekar range pattern = Sub.fit_to_range range . realize_groups pattern
+
+realize_groups :: Pattern -> [Sub.RestEvent] -> [Sub.Event]
+realize_groups pattern = go 0 . split_groups (pattern_length pattern)
+    where
+    go _ [] = []
+    go start (group : groups) =
+        notes ++ go (start + sum (map Sub.event_duration notes)) groups
+        where notes = realize start group pattern
+
+split_groups :: Int -> [a] -> [[a]]
+split_groups n notes = case splitAt n notes of
+    ([], _) -> []
+    (pre, post) -> pre : split_groups n post
+
+type Pattern = [(Index, Element)]
+-- | Index into melody notes.
+type Index = Int
+
+data Element = Note | Rest deriving (Show)
+
+pattern_length :: Pattern -> Int
+pattern_length = maximum . (0:) . map ((+1) . fst)
+
 make_pattern :: Text -> Derive.Deriver Pattern
 make_pattern pattern = do
     when (Text.null pattern || Text.any (not . a_to_z . Char.toLower) pattern) $
         Derive.throw $ "pattern chars must be a-z: " ++ show pattern
-    return [(fromEnum (Char.toLower c) - fromEnum 'a', Char.isUpper c)
-        | c <- Text.unpack pattern]
+    return
+        [ (fromEnum (Char.toLower c) - fromEnum 'a',
+            if Char.isUpper c then Rest else Note)
+        | c <- Text.unpack pattern
+        ]
     where a_to_z c = 'a' <= c && c <= 'z'
 
-sekar :: [Sub.Event] -> Pattern -> [Sub.Event]
-sekar notes = mapMaybe place . add_starts . mapMaybe resolve
+-- | Apply the pattern to the events.
+realize :: ScoreTime -> [Sub.RestEvent] -> Pattern -> [Sub.Event]
+realize start events = mapMaybe place . add_starts . mapMaybe resolve
     where
-    place (start, (dur, Just note)) = Just $ Sub.Event start dur note
-    place (_, (_, Nothing)) = Nothing
-    add_starts notes = zip (scanl (+) 0 (map fst notes)) notes
-    resolve (i, is_rest) = case Seq.at notes i of
-        Nothing -> Nothing
-        Just (Sub.Event _ dur note) ->
-            Just (dur, if is_rest then Nothing else Just note)
+    resolve (i, element) = resolve1 element <$> Seq.at events i
+    -- Rests have a duration, but no deriver.
+    resolve1 element (Sub.Event _ dur d) = case d of
+        Nothing -> (dur, Nothing)
+        Just deriver -> (,) dur $ case element of
+            Note -> Just deriver
+            Rest -> Nothing
+    add_starts events = zip (scanl (+) start (map fst events)) events
+    place (start, (dur, maybe_deriver)) = Sub.Event start dur <$> maybe_deriver

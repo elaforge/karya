@@ -14,6 +14,8 @@ module Derive.Call.Sub (
     , stretch
     , sub_events
     , place, fit_to_range
+    -- ** RestEvent
+    , RestEvent, sub_rest_events
     -- * reapply
     , reapply, reapply_call
 ) where
@@ -246,6 +248,29 @@ fit_to_range (start, end) notes = Derive.place start factor $
     factor = (end - start) / (note_end - note_start)
     note_end = fromMaybe 1 $ Seq.maximum (map event_end notes)
     note_start = fromMaybe 1 $ Seq.minimum (map event_start notes)
+
+-- ** RestEvent
+
+-- | A Nothing represents a rest.
+type RestEvent = GenericEvent (Maybe Derive.NoteDeriver)
+
+-- | This is like 'sub_events', but gaps between the events are returned as
+-- explicit rests.
+sub_rest_events :: Derive.PassedArgs d -> Derive.Deriver [[RestEvent]]
+sub_rest_events args =
+    map (uncurry find_gaps (Args.range args)) <$> sub_events args
+
+find_gaps :: ScoreTime -> ScoreTime -> [GenericEvent a]
+    -> [GenericEvent (Maybe a)]
+find_gaps start end (event : events)
+    | gap > 0 = Event start gap Nothing : rest
+    | otherwise = rest
+    where
+    gap = event_start event - start
+    rest = (Just <$> event) : find_gaps (event_end event) end events
+find_gaps start end []
+    | start < end = [Event start (end-start) Nothing]
+    | otherwise = []
 
 -- * reapply
 

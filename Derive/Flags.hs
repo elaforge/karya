@@ -2,10 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 -- | 'Flags' constants, analogous to "Derive.Attrs".
 module Derive.Flags where
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+
+import qualified Derive.ShowVal as ShowVal
+import Global
 
 
 -- | Flags are like 'Derive.Environ.attributes', but are used for internal
@@ -15,6 +19,9 @@ import qualified Data.Text as Text
 -- instrument.
 type Flags = Set.Set Flag
 type Flag = Text.Text
+
+instance ShowVal.ShowVal Flags where
+    show_val flags = "{" <> Text.intercalate ", " (Set.toList flags) <> "}"
 
 flag :: Text.Text -> Flags
 flag = Set.singleton

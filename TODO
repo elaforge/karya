@@ -9,9 +9,9 @@ UNSORTED
     - srcpos for Cmd.throw
       For this, I have to add SrcPos to State.Error
   sekaran
-    - arrival, so the last note lines up at the end, with +infer-duration
-    - cycle the pattern if there are more notes
-    - include rests explicitly, so they aren't flattened out
+    * arrival, so the last note lines up at the end, with +infer-duration
+    * cycle the pattern if there are more notes
+    * include rests explicitly, so they aren't flattened out
   / verify_performance thinks save/complete/house1/14-11-16 is wrong even
     though I just saved it.
     . Looks like a totally different performance.
