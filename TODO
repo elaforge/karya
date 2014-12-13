@@ -6,7 +6,7 @@ UNSORTED
   hspp:
     * make unqualified calls to 'throw' etc. work in Derive.Deriver.* modules
     * srcpos annotate for Derive.require
-    - srcpos for Cmd.throw
+    * srcpos for Cmd.throw
       For this, I have to add SrcPos to State.Error
   sekaran
     * arrival, so the last note lines up at the end, with +infer-duration

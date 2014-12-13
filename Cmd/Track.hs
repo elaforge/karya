@@ -31,7 +31,9 @@ track_cmd msg = do
     cmds <- get_track_cmds `Error.catchError` \exc -> do
         case exc of
             State.Abort -> return ()
-            State.Error msg -> Log.warn $ "getting track cmds: " <> txt msg
+            State.Error srcpos msg ->
+                Log.write =<< Log.initialized_msg_srcpos srcpos Log.Warn
+                    ("getting track cmds: " <> txt msg)
         return []
     Cmd.sequence_cmds cmds msg
 

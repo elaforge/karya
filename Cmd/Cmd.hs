@@ -75,6 +75,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+import qualified Util.SrcPos as SrcPos
 
 import qualified Midi.Interface
 import qualified Midi.Midi as Midi
@@ -277,12 +278,15 @@ instance (Functor m, Monad m) => State.M (CmdT m) where
     unsafe_put st = CmdT (State.unsafe_put st)
     update upd = CmdT (State.update upd)
     get_updates = CmdT State.get_updates
-    throw msg = CmdT (State.throw msg)
+    throw_srcpos srcpos msg = CmdT (State.throw_srcpos srcpos msg)
 
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
 throw :: State.M m => String -> m a
 throw = State.throw
+
+throw_srcpos :: State.M m => SrcPos.SrcPos -> String -> m a
+throw_srcpos = State.throw_srcpos
 
 -- | Run a subcomputation that is allowed to abort.
 ignore_abort :: M m => m a -> m ()
@@ -1151,10 +1155,18 @@ abort_unless = maybe abort return
 
 -- | Throw an exception with the given msg on Nothing
 require :: State.M m => String -> Maybe a -> m a
-require msg = maybe (throw msg) return
+require = require_srcpos Nothing
+
+require_srcpos :: State.M m => SrcPos.SrcPos -> String -> Maybe a -> m a
+require_srcpos srcpos msg = maybe (throw_srcpos srcpos msg) return
 
 require_right :: State.M m => (err -> String) -> Either err a -> m a
-require_right fmt_err = either (throw . fmt_err) return
+require_right = require_right_srcpos Nothing
+
+require_right_srcpos :: State.M m => SrcPos.SrcPos -> (err -> String)
+    -> Either err a -> m a
+require_right_srcpos srcpos fmt_err =
+    either (throw_srcpos srcpos . fmt_err) return
 
 -- | Turn off all sounding notes.
 -- TODO clear out WriteDeviceState?

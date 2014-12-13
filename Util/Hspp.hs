@@ -65,9 +65,11 @@ global_macros = map (Macro (Qualified ["Log"]))
     [ "throw", "throw_error", "throw_arg_error"
     , "require", "require_right"
     ]
+    ++ map (Macro cmd_qual) ["throw", "require", "require_right"]
     where
     derive_qual = Both ["Derive.Deriver.Internal", "Derive.Deriver.Lib"]
         ["Derive", "Internal"]
+    cmd_qual = Both ["Ui.State", "Cmd.Cmd"] ["State", "Cmd"]
 
 -- These are only substituted in test modules.
 test_macros :: [Macro]

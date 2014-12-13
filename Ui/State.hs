@@ -37,12 +37,13 @@ module Ui.State (
     -- * address types
     , Track(..), Range(..), TrackInfo(..)
     -- * StateT monad
-    , M, StateT, StateId, get, unsafe_put, update, get_updates, throw
+    , M, StateT, StateId, get, unsafe_put, update, get_updates
+    , throw_srcpos, throw
     , run, run_id, eval, eval_rethrow, exec, exec_rethrow
     , gets, unsafe_modify, put, modify
     -- ** errors
     , Error(..)
-    , require, require_right
+    , require, require_srcpos, require_right, require_right_srcpos
 
     -- * config
     , get_namespace, set_namespace
@@ -146,6 +147,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
+import qualified Util.SrcPos as SrcPos
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -292,7 +294,7 @@ type StateStack m = State.StateT State
 newtype StateT m a = StateT (StateStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError Error,
         Applicative.Applicative)
-instance Error.Error Error where strMsg = Error
+instance Error.Error Error where strMsg = Error Nothing
 
 -- | Just a convenient abbreviation.
 type StateId a = StateT Identity.Identity a
@@ -311,14 +313,18 @@ class (Applicative.Applicative m, Monad m) => M m where
     unsafe_put :: State -> m ()
     update :: Update.CmdUpdate -> m ()
     get_updates :: m [Update.CmdUpdate]
-    throw :: String -> m a
+    throw_srcpos :: SrcPos.SrcPos -> String -> m a
 
 instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     get = StateT State.get
     unsafe_put st = StateT (State.put st)
     update upd = (StateT . lift) (Logger.log upd)
     get_updates = (StateT . lift) Logger.peek
-    throw msg = (StateT . lift . lift) (Error.throwError (Error msg))
+    throw_srcpos srcpos msg =
+        (StateT . lift . lift) (Error.throwError (Error srcpos msg))
+
+throw :: M m => String -> m a
+throw = throw_srcpos Nothing
 
 gets :: M m => (State -> a) -> m a
 gets f = fmap f get
@@ -391,17 +397,25 @@ exec_rethrow msg state =
 -- | Abort is used by Cmd, so don't throw it from here.  This isn't exactly
 -- modular, but ErrorT can't be composed and extensible exceptions are too
 -- much bother at the moment.
-data Error = Error String | Abort deriving (Show)
+data Error = Error !SrcPos.SrcPos !String | Abort deriving (Show)
 
 instance Pretty.Pretty Error where
-    pretty (Error msg) = msg
+    pretty (Error srcpos msg) = SrcPos.show_srcpos srcpos <> " " <> msg
     pretty Abort = "(abort)"
 
 require :: M m => String -> Maybe a -> m a
-require err = maybe (throw err) return
+require = require_srcpos Nothing
+
+require_srcpos :: M m => SrcPos.SrcPos -> String -> Maybe a -> m a
+require_srcpos srcpos err = maybe (throw_srcpos srcpos err) return
 
 require_right :: M m => (err -> String) -> Either err a -> m a
-require_right fmt_err = either (throw . fmt_err) return
+require_right = require_right_srcpos Nothing
+
+require_right_srcpos :: M m => SrcPos.SrcPos -> (err -> String)
+    -> Either err a -> m a
+require_right_srcpos srcpos fmt_err =
+    either (throw_srcpos srcpos . fmt_err) return
 
 -- * config
 
