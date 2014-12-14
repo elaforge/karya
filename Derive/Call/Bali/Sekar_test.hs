@@ -25,6 +25,9 @@ test_sekar = do
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c"), (3, 1, "4d")], [])
     equal (run (0, 4, "sekar abAb") cd)
         ([(0, 1, "4c"), (1, 1, "4d"), (3, 1, "4d")], [])
+    -- Trailing rest.
+    equal (run (0, 4, "sekar abbA") cd)
+        ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d")], [])
 
     -- If there are moe notes than pattern, repeat the pattern.
     -- Gaps become rests.
@@ -41,4 +44,3 @@ test_sekar = do
         ([(1, 2, "4c"), (3, 1, "4d"), (4, 2, "4c"), (6, 4, "4d")], [])
     equal (run (0, 6, "sekar-arrive=t | sekar abab") (make_cd 1 2))
         ([(2, 1, "4c"), (3, 2, "4d"), (5, 1, "4c"), (6, 4, "4d")], [])
-

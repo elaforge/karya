@@ -30,10 +30,7 @@ import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
-    [ ("sekar", c_sekar)
-    ]
-    []
+note_calls = Derive.generator_call_map [("sekar", c_sekar)]
 
 module_ :: Module.Module
 module_ = "bali" <> "sekar"
@@ -53,24 +50,32 @@ c_sekar = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
         pattern <- make_pattern pattern
         let derive = (if arrive then sekar_arrive else sekar)
                 (Args.range args) pattern
-        mconcatMap derive =<< Sub.sub_rest_events args
+        mconcatMap derive =<< Sub.sub_rest_events False args
 
 sekar_arrive :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
 sekar_arrive range pattern events =
-    Sub.fit_to_range (((+offset) *** (+offset)) range) placed
+    fit_to_range (((+offset) *** (+offset)) range) placed
     where
     (offset, placed) = case Seq.viewr $ realize_groups pattern events of
         Nothing -> (0, [])
         Just (init, final) ->
-            (Sub.event_duration final, init ++ [infer_duration <$> final])
+            (Sub.event_duration final, init ++ [fmap infer_duration <$> final])
     infer_duration = fmap $ Post.emap1_ (Score.add_flags Flags.infer_duration)
 
 sekar :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
-sekar range pattern = Sub.fit_to_range range . realize_groups pattern
+sekar range pattern = fit_to_range range . realize_groups pattern
 
-realize_groups :: Pattern -> [Sub.RestEvent] -> [Sub.Event]
+fit_to_range :: (ScoreTime, ScoreTime) -> [Sub.RestEvent] -> Derive.NoteDeriver
+fit_to_range range notes =
+    Sub.fit range (note_start, note_end)
+        [Sub.Event s d n | Sub.Event s d (Just n) <- notes]
+    where
+    note_start = fromMaybe 0 $ Seq.minimum (map Sub.event_start notes)
+    note_end = fromMaybe 1 $ Seq.maximum (map Sub.event_end notes)
+
+realize_groups :: Pattern -> [Sub.RestEvent] -> [Sub.RestEvent]
 realize_groups pattern = go 0 . split_groups (pattern_length pattern)
     where
     go _ [] = []
@@ -104,8 +109,8 @@ make_pattern pattern = do
     where a_to_z c = 'a' <= c && c <= 'z'
 
 -- | Apply the pattern to the events.
-realize :: ScoreTime -> [Sub.RestEvent] -> Pattern -> [Sub.Event]
-realize start events = mapMaybe place . add_starts . mapMaybe resolve
+realize :: ScoreTime -> [Sub.RestEvent] -> Pattern -> [Sub.RestEvent]
+realize start events = map place . add_starts . mapMaybe resolve
     where
     resolve (i, element) = resolve1 element <$> Seq.at events i
     -- Rests have a duration, but no deriver.
@@ -115,4 +120,4 @@ realize start events = mapMaybe place . add_starts . mapMaybe resolve
             Note -> Just deriver
             Rest -> Nothing
     add_starts events = zip (scanl (+) start (map fst events)) events
-    place (start, (dur, maybe_deriver)) = Sub.Event start dur <$> maybe_deriver
+    place (start, (dur, maybe_deriver)) = Sub.Event start dur maybe_deriver

@@ -13,7 +13,7 @@ module Derive.Call.Sub (
     , Event, GenericEvent(..), event_end, event_overlaps
     , stretch
     , sub_events
-    , place, fit_to_range
+    , place, fit_to_range, fit
     -- ** RestEvent
     , RestEvent, sub_rest_events
     -- * reapply
@@ -242,12 +242,18 @@ place = mconcatMap (\(Event s d n) -> Derive.place s d n)
 -- the start of the range and the first Event) and trailing space is
 -- eliminated.
 fit_to_range :: (ScoreTime, ScoreTime) -> [Event] -> Derive.NoteDeriver
-fit_to_range (start, end) notes = Derive.place start factor $
-    place [note { event_start = event_start note - note_start } | note <- notes]
+fit_to_range range notes = fit range (note_start, note_end) notes
     where
-    factor = (end - start) / (note_end - note_start)
-    note_end = fromMaybe 1 $ Seq.maximum (map event_end notes)
     note_start = fromMaybe 1 $ Seq.minimum (map event_start notes)
+    note_end = fromMaybe 1 $ Seq.maximum (map event_end notes)
+
+-- | Re-fit the notes from one range to another.
+fit :: (ScoreTime, ScoreTime) -- ^ fit into this range
+    -> (ScoreTime, ScoreTime) -- ^ given notes with this range
+    -> [Event] -> Derive.NoteDeriver
+fit (start, end) (note_start, note_end) notes = Derive.place start factor $
+    place [note { event_start = event_start note - note_start } | note <- notes]
+    where factor = (end - start) / (note_end - note_start)
 
 -- ** RestEvent
 
@@ -256,20 +262,23 @@ type RestEvent = GenericEvent (Maybe Derive.NoteDeriver)
 
 -- | This is like 'sub_events', but gaps between the events are returned as
 -- explicit rests.
-sub_rest_events :: Derive.PassedArgs d -> Derive.Deriver [[RestEvent]]
-sub_rest_events args =
-    map (uncurry find_gaps (Args.range args)) <$> sub_events args
+sub_rest_events :: Bool -- ^ if True, include the trailing gap as a rest
+    -> Derive.PassedArgs d -> Derive.Deriver [[RestEvent]]
+sub_rest_events want_final_rest args =
+    map (uncurry (find_gaps want_final_rest) (Args.range args)) <$>
+        sub_events args
 
-find_gaps :: ScoreTime -> ScoreTime -> [GenericEvent a]
+find_gaps :: Bool -> ScoreTime -> ScoreTime -> [GenericEvent a]
     -> [GenericEvent (Maybe a)]
-find_gaps start end (event : events)
+find_gaps want_final_rest start end (event : events)
     | gap > 0 = Event start gap Nothing : rest
     | otherwise = rest
     where
     gap = event_start event - start
-    rest = (Just <$> event) : find_gaps (event_end event) end events
-find_gaps start end []
-    | start < end = [Event start (end-start) Nothing]
+    rest = (Just <$> event)
+        : find_gaps want_final_rest (event_end event) end events
+find_gaps want_final_rest start end []
+    | want_final_rest && start < end = [Event start (end-start) Nothing]
     | otherwise = []
 
 -- * reapply
