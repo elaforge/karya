@@ -50,33 +50,41 @@ c_sekar = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
         pattern <- make_pattern pattern
         let derive = (if arrive then sekar_arrive else sekar)
                 (Args.range args) pattern
-        mconcatMap derive =<< Sub.sub_rest_events False args
+        mconcatMap derive =<< Sub.sub_rest_events arrive True args
 
 sekar_arrive :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
-sekar_arrive range pattern events =
-    fit_to_range (((+offset) *** (+offset)) range) placed
+sekar_arrive range pattern events_ =
+    Sub.place $ add_flags $ align $ map (Sub.stretch 0 factor) $
+        Sub.strip_rests realized
     where
-    (offset, placed) = case Seq.viewr $ realize_groups pattern events of
-        Nothing -> (0, [])
-        Just (init, final) ->
-            (Sub.event_duration final, init ++ [fmap infer_duration <$> final])
-    infer_duration = fmap $ Post.emap1_ (Score.add_flags Flags.infer_duration)
+    realized = realize_groups pattern events
+    -- The first event should be a rest, since I passed end_bias=True to
+    -- Sub.sub_rest_events.
+    events = drop 1 events_
+    -- Align notes to the end of the range.
+    align es = case Seq.last es of
+        Nothing -> []
+        Just e -> map (Sub.at (snd range - Sub.event_start e)) es
+
+    factor = sum (map Sub.event_duration events)
+        / sum (map Sub.event_duration realized)
+    add_flags = Seq.map_last $ fmap $ fmap $ Post.emap1_ $ Score.add_flags $
+        Flags.infer_duration <> Flags.cancel_next
 
 sekar :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
-sekar range pattern = fit_to_range range . realize_groups pattern
-
-fit_to_range :: (ScoreTime, ScoreTime) -> [Sub.RestEvent] -> Derive.NoteDeriver
-fit_to_range range notes =
-    Sub.fit range (note_start, note_end)
-        [Sub.Event s d n | Sub.Event s d (Just n) <- notes]
+sekar range pattern events =
+    Sub.place $ map (Sub.stretch (fst range) factor) $ Sub.strip_rests realized
     where
-    note_start = fromMaybe 0 $ Seq.minimum (map Sub.event_start notes)
-    note_end = fromMaybe 1 $ Seq.maximum (map Sub.event_end notes)
+    realized = realize_groups pattern events
+    factor = sum (map Sub.event_duration events)
+        / sum (map Sub.event_duration realized)
 
 realize_groups :: Pattern -> [Sub.RestEvent] -> [Sub.RestEvent]
-realize_groups pattern = go 0 . split_groups (pattern_length pattern)
+realize_groups _ [] = []
+realize_groups pattern events@(event:_) =
+    go (Sub.event_start event) $ split_groups (pattern_length pattern) events
     where
     go _ [] = []
     go start (group : groups) =

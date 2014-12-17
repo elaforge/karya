@@ -131,13 +131,13 @@ slice exclude_start start end insert_event = map do_slice
 extract_note_events :: Bool -> ScoreTime -> ScoreTime
     -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
 extract_note_events exclude_start start end events =
-    case (exclude_start, Events.at start within) of
-        (True, Just event) ->
-            (event : pre, Events.remove_event start within, post)
-        _ -> (pre, within, post)
+    (if exclude_start then exclude_s else id) $
+        let (pre, within, post) = Events.split_range_point start end events
+        in (Events.descending pre, within, Events.ascending post)
     where
-    (pre, within, post) = (Events.descending pre, within, Events.ascending post)
-        where (pre, within, post) = Events.split_range_point start end events
+    exclude_s (pre, within, post) = case Events.at start within of
+        Just event -> (event : pre, Events.remove_event start within, post)
+        Nothing -> (pre, within, post)
 
 extract_control_events :: ScoreTime -> ScoreTime
     -> Events.Events -> ([Event.Event], Events.Events, [Event.Event])
@@ -164,16 +164,18 @@ extract_control_events start end events = (pre, Events.from_list within, post2)
     if it is inverting it will do that anyway.  But slicing lets me shift fewer
     events, so it's probably a good idea anyway.
 -}
-slice_notes :: Bool -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
+slice_notes :: Bool -- ^ end_bias means exclude the start and include the end.
+    -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
     -> [[Note]] -- ^ One [Note] per sub note track, in right to left order.
-slice_notes exclude_start start end tracks
-    | null tracks || if exclude_start then start >= end else start > end = []
+slice_notes end_bias start end tracks
+    | null tracks || start > end = []
     | otherwise = filter (not . null) $
         map (mapMaybe strip_note . slice_track) $ concatMap note_tracks tracks
     where
     note_tracks :: TrackTree.EventsNode -> [Sliced]
     note_tracks node@(Tree.Node track subs)
-        | is_note track = [([], track, event_ranges start end node, subs)]
+        | is_note track =
+            [([], track, event_ranges end_bias start end node, subs)]
         | otherwise =
             [ (track : parents, ntrack, slices, nsubs)
             | (parents, ntrack, slices, nsubs) <- concatMap note_tracks subs
@@ -188,12 +190,11 @@ slice_notes exclude_start start end tracks
     slice1 tree (prev, (n_start, n_end, n_next)) =
         (n_start, n_end - n_start,
             map (fmap (shift_tree n_start n_next)) $
-            slice exclude n_start n_end Nothing tree)
+            slice prev_zero n_start n_end Nothing tree)
         where
         -- exclude_start if 's' is still the original 'start', or if the
         -- previous slice was zero dur and is the same as 'start', which means
         -- it already consumed any event at 'start'.
-        exclude = prev_zero || exclude_start && n_start == start
         prev_zero = case prev of
             Nothing -> False
             Just (s, e, _) -> s == e && s == n_start
@@ -217,15 +218,15 @@ type Note = (ScoreTime, ScoreTime, [TrackTree.EventsNode])
 
 -- | Get slice ranges for a track.  This gets the non-overlapping ranges of all
 -- the note tracks events below.
-event_ranges :: ScoreTime -> ScoreTime -> TrackTree.EventsNode
-    -> [(ScoreTime, ScoreTime, ScoreTime)]
+event_ranges :: Bool -> TrackTime -> TrackTime -> TrackTree.EventsNode
+    -> [(TrackTime, TrackTime, TrackTime)]
     -- ^ [(start, end, next_start)]
-event_ranges start end = nonoverlapping . to_ranges
+event_ranges end_bias start end = nonoverlapping . to_ranges
     where
     to_ranges = Seq.merge_lists (\(s, _, _) -> s) . map track_events
         . filter is_note . Tree.flatten
     track_events = map range . Seq.zip_next . Events.ascending
-        . Events.in_range_point start end
+        . events_in_range end_bias start end
         . TrackTree.track_events
     range (event, next) =
         (Event.min event, Event.max event,
@@ -233,6 +234,15 @@ event_ranges start end = nonoverlapping . to_ranges
     nonoverlapping [] = []
     nonoverlapping (r:rs) = r : nonoverlapping (dropWhile (overlaps r) rs)
     overlaps (s1, e1, _) (s2, e2, _) = not $ e1 <= s2 || e2 <= s1
+
+events_in_range :: Bool -> TrackTime -> TrackTime -> Events.Events
+    -> Events.Events
+events_in_range end_bias start end events
+    | start == end = maybe mempty Events.singleton $ Events.at start events
+    | end_bias = Events.remove_event start $
+        maybe within (\e -> Events.insert [e] within) (Events.at end post)
+    | otherwise = within
+    where (_, within, post) = Events.split_range start end events
 
 strip_note :: Note -> Maybe Note
 strip_note (start, dur, tree)
@@ -257,16 +267,18 @@ strip_empty_tracks (Tree.Node track subs)
 -- TODO I think I don't want to allow sub-events larger than their slice, but
 -- currently I do.  Actually I think overlap checking needs an overhaul in
 -- general.
-checked_slice_notes :: Bool -> ScoreTime -> ScoreTime
-    -> TrackTree.EventsTree -> Either String [[Note]]
-checked_slice_notes exclude_start start end tracks = case maybe_err of
+checked_slice_notes :: Bool -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
+    -> Either String [[Note]]
+checked_slice_notes end_bias start end tracks = case maybe_err of
     Nothing -> Right $ filter (not . null) notes
     Just err -> Left err
     where
     maybe_err = if start == end
         then check_greater_than 0 check_tracks
-        else check_overlapping exclude_start 0 check_tracks
-    notes = slice_notes exclude_start start end tracks
+        -- TODO this is probably wrong for 'end_bias', since it really means
+        -- exclude_start.
+        else check_overlapping end_bias 0 check_tracks
+    notes = slice_notes end_bias start end tracks
     -- Only check the first note of each slice.  Since the notes are
     -- increasing, this is the one which might start before the slice.  Since
     -- the events have been shifted back by the slice start, an event that

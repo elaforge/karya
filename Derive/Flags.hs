@@ -41,3 +41,8 @@ infer_duration = flag "infer-duration"
 -- note with +track-time-0.
 can_cancel :: Flags
 can_cancel = flag "can-cancel"
+
+-- | Cancel coincident notes on the same track.  This is like forcing the next
+-- event to have 'can_cancel'.
+cancel_next :: Flags
+cancel_next = flag "cancel-next"

@@ -12,6 +12,20 @@ UNSORTED
     * arrival, so the last note lines up at the end, with +infer-duration
     * cycle the pattern if there are more notes
     * include rests explicitly, so they aren't flattened out
+    arrival is wrong
+      * Take event at the end of the range.  But note transformer slicing
+        doesn't get that one.  So maybe I need a flag for Sub.sub_events to
+        omit the first, and include the last.
+      * end_bias creates a double note since it's in both the note transformer
+        and the orphan.
+        . One way is for the orphan derive to somehow know the previous call
+          used end_bias, and use exclude_start.
+        . Or I can use infer-duration to make it cancel the note.  But if
+          infer-duration unconditionally cancels a coincident note, I can't
+          use it on multiple tracks, because it could cancel a note from
+          another track.  Would be enough to also assert that the source track
+          is the same?
+      - arrival is still messed up when it ends with a long note
   / verify_performance thinks save/complete/house1/14-11-16 is wrong even
     though I just saved it.
     . Looks like a totally different performance.

@@ -154,10 +154,13 @@ test_slice_notes_shift = do
     -- The end is shorter by 1 because of the shift.
     equal (f 0 32 [tree 1 32]) [[(1, 1, [Node (31, 2) []])]]
 
-test_slice_notes_exclude_start = do
-    let f = slice_notes True
+test_slice_end_bias = do
+    let f = slice_notes
     let notes ns = Node (make_notes 0 ns)
-    equal (f 1 10 [notes "abc" []]) [[(2, 1, [notes "c" []])]]
+    equal (f False 1 3 [notes "abcde" []])
+        [[(1, 1, [notes "b" []]), (2, 1, [notes "c" []])]]
+    equal (f True 1 3 [notes "abcde" []])
+        [[(2, 1, [notes "c" []]), (3, 1, [notes "d" []])]]
 
 test_slice_notes_sparse = do
     -- Ensure that an intervening empty note track doesn't hide the notes
@@ -218,9 +221,8 @@ test_slice_notes_sparse = do
 
 slice_notes :: Bool -> ScoreTime -> ScoreTime -> [EventsTree]
     -> [[(ScoreTime, ScoreTime, [EventsTree])]]
-slice_notes exclude_start s e =
-    extract_notes extract_tree . Slice.slice_notes exclude_start s e
-    . map make_tree
+slice_notes end_bias s e =
+    extract_notes extract_tree . Slice.slice_notes end_bias s e . map make_tree
 
 extract_notes :: (TrackTree.Track -> a)
     -> [[(ScoreTime, ScoreTime, TrackTree.EventsTree)]]

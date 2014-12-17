@@ -11,11 +11,12 @@ module Derive.Call.Sub (
     , inverting, inverting_args
     -- ** events
     , Event, GenericEvent(..), event_end, event_overlaps
-    , stretch
-    , sub_events
-    , place, fit_to_range, fit
+    , stretch, at
+    , sub_events, sub_events_end_bias
+    , place, fit_to_range, events_range
     -- ** RestEvent
     , RestEvent, sub_rest_events
+    , fit_rests, strip_rests
     -- * reapply
     , reapply, reapply_call
 ) where
@@ -204,9 +205,13 @@ event_overlaps pos (Event start dur _)
     | dur == 0 = pos == start
     | otherwise = start <= pos && pos < start + dur
 
+-- TODO rename to place
 stretch :: ScoreTime -> ScoreTime -> GenericEvent a -> GenericEvent a
-stretch offset factor (Event start dur note) =
-    Event ((start - offset) * factor + offset) (dur * factor) note
+stretch shift factor (Event start dur note) =
+    Event ((start - shift) * factor + shift) (dur * factor) note
+
+at :: ScoreTime -> GenericEvent a -> GenericEvent a
+at shift (Event start dur note) = Event (start + shift) dur note
 
 instance Pretty.Pretty a => Pretty.Pretty (GenericEvent a) where
     pretty (Event start dur note) =
@@ -216,10 +221,19 @@ instance Pretty.Pretty a => Pretty.Pretty (GenericEvent a) where
 -- note track.  This is the top-level utility for note calls that take other
 -- note calls as arguments.
 sub_events :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
-sub_events args = case Derive.info_sub_events (Derive.passed_info args) of
-    Nothing -> either Derive.throw (return . (map (map mkevent))) $
-        Slice.checked_slice_notes False start end subs
-    Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
+sub_events = sub_events_ False
+
+-- | Like 'sub_events', but exclude events at the start time, and include
+-- events at the end time.
+sub_events_end_bias :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
+sub_events_end_bias = sub_events_ True
+
+sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[Event]]
+sub_events_ end_bias args =
+    case Derive.info_sub_events (Derive.passed_info args) of
+        Nothing -> either Derive.throw (return . (map (map mkevent))) $
+            Slice.checked_slice_notes end_bias start end subs
+        Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
     where
     (start, end) = Args.range args
     subs = Derive.info_sub_tracks (Derive.passed_info args)
@@ -242,18 +256,24 @@ place = mconcatMap (\(Event s d n) -> Derive.place s d n)
 -- the start of the range and the first Event) and trailing space is
 -- eliminated.
 fit_to_range :: (ScoreTime, ScoreTime) -> [Event] -> Derive.NoteDeriver
-fit_to_range range notes = fit range (note_start, note_end) notes
-    where
-    note_start = fromMaybe 1 $ Seq.minimum (map event_start notes)
-    note_end = fromMaybe 1 $ Seq.maximum (map event_end notes)
+fit_to_range range events = fit (events_range events) range events
 
--- | Re-fit the notes from one range to another.
-fit :: (ScoreTime, ScoreTime) -- ^ fit into this range
-    -> (ScoreTime, ScoreTime) -- ^ given notes with this range
+-- | Re-fit the events from one range to another.
+fit :: (ScoreTime, ScoreTime) -- ^ fit this range
+    -> (ScoreTime, ScoreTime) -- ^ into this range
     -> [Event] -> Derive.NoteDeriver
-fit (start, end) (note_start, note_end) notes = Derive.place start factor $
-    place [note { event_start = event_start note - note_start } | note <- notes]
-    where factor = (end - start) / (note_end - note_start)
+fit (from_start, from_end) (to_start, to_end) events =
+    Derive.place to_start factor $ place
+        [e { event_start = event_start e - from_start } | e <- events]
+    -- Subtract from_start because Derive.place is going to add the start back
+    -- on again in the form of to_start.
+    where factor = (to_end - to_start) / (from_end - from_start)
+
+events_range :: [GenericEvent a] -> (ScoreTime, ScoreTime)
+events_range events = (start, end)
+    where
+    start = fromMaybe 0 $ Seq.minimum $ map event_start events
+    end = fromMaybe 1 $ Seq.maximum $ map event_end events
 
 -- ** RestEvent
 
@@ -262,11 +282,12 @@ type RestEvent = GenericEvent (Maybe Derive.NoteDeriver)
 
 -- | This is like 'sub_events', but gaps between the events are returned as
 -- explicit rests.
-sub_rest_events :: Bool -- ^ if True, include the trailing gap as a rest
+sub_rest_events :: Bool -- ^ end bias
+    -> Bool -- ^ if True, include the trailing gap as a rest
     -> Derive.PassedArgs d -> Derive.Deriver [[RestEvent]]
-sub_rest_events want_final_rest args =
+sub_rest_events end_bias want_final_rest args =
     map (uncurry (find_gaps want_final_rest) (Args.range args)) <$>
-        sub_events args
+        sub_events_ end_bias args
 
 find_gaps :: Bool -> ScoreTime -> ScoreTime -> [GenericEvent a]
     -> [GenericEvent (Maybe a)]
@@ -280,6 +301,18 @@ find_gaps want_final_rest start end (event : events)
 find_gaps want_final_rest start end []
     | want_final_rest && start < end = [Event start (end-start) Nothing]
     | otherwise = []
+
+-- | 'fit' for 'RestEvent's.
+fit_rests :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
+    -> [RestEvent] -> Derive.NoteDeriver
+fit_rests (from_start, from_end) (to_start, to_end) events =
+    Derive.place to_start factor $
+        place [e { event_start = event_start e - from_start } |
+            e <- strip_rests events]
+    where factor = (to_end - to_start) / (from_end - from_start)
+
+strip_rests :: [RestEvent] -> [Event]
+strip_rests events = [Event s d n | Event s d (Just n) <- events]
 
 -- * reapply
 

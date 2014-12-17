@@ -68,6 +68,7 @@ infer_duration final_dur = cancel_notes . infer_notes . suppress_note
         | has Flags.can_cancel event, Just prev <- maybe_prev,
                 has Flags.infer_duration prev =
             Nothing
+        | Just prev <- maybe_prev, has Flags.cancel_next prev = Nothing
         | otherwise = Just event
     infer (_, event, maybe_next)
         | not (has Flags.infer_duration event) = event
@@ -114,7 +115,7 @@ suppress_note =
 -- If there is no note to replace, it extends to the start of the next note.
 replace_note :: Score.Event -> Score.Event -> Score.Event
 replace_note next event
-    | Score.has_flags Flags.can_cancel next =
+    | has Flags.can_cancel next || has Flags.cancel_next event =
         set_end (Score.event_end next) event
             { Score.event_untransformed_pitch = pitch event
                 <> PitchSignal.drop_before_at start (pitch next)
@@ -127,6 +128,7 @@ replace_note next event
             }
     | otherwise = set_end (Score.event_start next) event
     where
+    has = Score.has_flags
     pitch = Score.event_transformed_pitch
     pitches = Score.event_transformed_pitches
     controls = Score.event_transformed_controls
