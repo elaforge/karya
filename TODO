@@ -3,53 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  hspp:
-    * make unqualified calls to 'throw' etc. work in Derive.Deriver.* modules
-    * srcpos annotate for Derive.require
-    * srcpos for Cmd.throw
-      For this, I have to add SrcPos to State.Error
   sekaran
-    * arrival, so the last note lines up at the end, with +infer-duration
-    * cycle the pattern if there are more notes
-    * include rests explicitly, so they aren't flattened out
-    arrival is wrong
-      * Take event at the end of the range.  But note transformer slicing
-        doesn't get that one.  So maybe I need a flag for Sub.sub_events to
-        omit the first, and include the last.
-      * end_bias creates a double note since it's in both the note transformer
-        and the orphan.
-        . One way is for the orphan derive to somehow know the previous call
-          used end_bias, and use exclude_start.
-        . Or I can use infer-duration to make it cancel the note.  But if
-          infer-duration unconditionally cancels a coincident note, I can't
-          use it on multiple tracks, because it could cancel a note from
-          another track.  Would be enough to also assert that the source track
-          is the same?
-      - arrival is still messed up when it ends with a long note
-  / verify_performance thinks save/complete/house1/14-11-16 is wrong even
-    though I just saved it.
-    . Looks like a totally different performance.
-    . expected has 6268 lines, got has 9988
-    . Went away on its own.
-  / re-enable StepPlay_test.test_nested and test_tempo?
-  * Perf functions should take a type Track = (BlockId, Maybe TrackId)
-    Then they can be called with 'Perf.get_environ =<< Selection.track'
-  * sd is still more concise than 'from=x | d', and easier to write and edit.
-  * repl: prompt could include the current save file
-  * repl: the repl gets the unexpanded filename
-    so does global status
-  * fix save/complete/hex sd, but to do that I want LEvent.replace_regex
-    or replace_tokens:
-    . replace_tokens ["sd", H "1", H "2"] [H "1", "| d", H "2"]
-      I think I'd eventually want * and ?, but on the token level.
-      I could actually use parsec, but it would be cumbersome to write inline.
-  * 'c' status incorrect in @b3-end, kendang dyn 7t
-    It's due to default tempo.
-  * the clip/* namespace should live past a load
-    . In fact, I wonder if I should put clip in Cmd.State?  That way I also
-      don't have to worry about it being affected by undo.
-    . On the downside, it means I need special hacks to open, derive, and play
-      the clip/ blocks.
+    - arrival is still messed up when it ends with a long note
   - Local.Instrument modules include configuration functions, how to call them?
     . Kontakt.configure_wayang, configure_legong, Spicy.configure
     . import into a Local.Repl module
@@ -88,9 +43,6 @@ UNSORTED
       . I'd need a fancier ngoret that understands 'inst-top' so it can go
         down if necessary.
   - it seems like "floating_input" would be a better name than "edit_input"
-  - chained transformers should work lazily, right?  Make sure with trace.
-    Probably not, actually, because the state is threaded through.  I'd have
-    to disconnect the state.
   - thru on *legong notes is wrong the first time
     can see this editing rehearsal/kendang-legong
   - move Types.Selection to its own module.  That leaves just aliases
@@ -338,6 +290,7 @@ shakefile: build:
       I'd need a different list of deps for each binary and to generate
       a cabal file with multiple targets.
     . It's probably not worth the effort.
+    . cabal sandbox seems like a simpler way to solve all of these problems.
   automatic "All.hs" modules
     . I'm reluctant because it's simpler to have normal files, and it's not
       that hard to update them.
@@ -345,9 +298,7 @@ shakefile: build:
       but could also take from Local/Call/*
     - Local.Instrument looks for 'load' from Local/Instrument/
   - After reading cabal dist/setup-config, the empty build time doubles from
-    .2s to .45s.  Perhaps unrelated to the cabal change.
-    * dist/setup-config is huge and has a slow parser, I can cache in a file.
-      . Done, but didn't seem to help.
+    .2s to .45s.  Seems to be unrelated to the cabal change.
 
 incremental save / git:
   + try saving individual events for incremental save
@@ -453,7 +404,7 @@ negative duration / arrival beats:
               b1  b2
               a b|c   d
               a b|    d
-    - If 'c' is present, then I clip off t-dia because I drop controls
+    . If 'c' is present, then I clip off t-dia because I drop controls
       starting at 1.  The starts are replaced with ones from b1.
       So the sample at 'start' should come from the local block only.
       Samples after start can be used from global.  So what if the block
@@ -490,7 +441,7 @@ negative duration / arrival beats:
     #1 might not be compelling if I've already done the work to get them to
     work, but if it's buggy or turns into continual for for every cmd then it
     becomes a big deal.
-  - ensure inversion works (it should slice >start <=end)
+  / ensure inversion works (it should slice >start <=end)
   - ensure redraw works
     I have to make SymbolTable wrap text above too.
 
@@ -614,6 +565,9 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
+  - chained transformers should work lazily, right?  Make sure with trace.
+    Probably not, actually, because the state is threaded through.  I'd have
+    to disconnect the state.
   - https://github.com/tobami/codespeed can make a web page with perf graphs
   . Signal.sig_op has 4.8% alloc, from Control.cotrol_call ->
     Derive.with_relative_control -> Perform.sig_multiply
@@ -690,15 +644,6 @@ performance:
     - at_linear is called a lot by compose, by compose_warp, by d_warp
       can I make this more efficient?
 
-symbolic score
-  some way to get symbol feedback instantly to make it easier to compose them
-    . But it calls SymbolC and I ran into a problem where linux ghci can't
-      link FFI-using functions.  Ask on glasgow-haskell-users.
-    - I can either have a separate app, or use the special Status trick.
-  - feta's tr symbol looks bad especially when small, is there a better one?
-  - find or make a font with jian ti symbols?
-  - find or make a font with gong che pu
-
 fltk:
   - if I add a track and then undo, I get
     assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
@@ -721,9 +666,6 @@ fltk:
   - There's a focus bug, but I'm not sure how to reproduce it.
   - There's a bug where if you zoom-to-fit and then click, the selection snap
     can undo the zoom.  Can't figure out how to reproduce this.
-  + can I get fltk to omit the jellybean buttons on the window?
-    . Yes, but requires hacking fltk.
-    . Completely disables resizing.  Apparently this is hardcoded.
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
@@ -733,6 +675,9 @@ fltk:
     it altogether)
     I can set something like kUtilityWindowClass in Fl_mac.cxx:Fl_X::make, but
     it doesn't get any kbd input
+    . can I get fltk to omit the jellybean buttons on the window?
+      . Yes, but requires hacking fltk.
+      . Completely disables resizing.  Apparently this is hardcoded.
   incremental redraw / scrolling
     . I don't like the current situation of incremental redraw and scrolling.
       It's also buggy, i.e. one pixel difference between scroll and redraw.
@@ -774,7 +719,6 @@ logview:
   - tabs are not lining up properly
   - option to wrap lines or not?
   - hide or display various attrs: date, file, function, ...
-  - Use Fl_Help_Viewer instead of Fl_Editor for text style?
 
 Ui:
   Track
@@ -838,8 +782,6 @@ REPL: repl:
     loading.  This manifests as a long hang starting up while the repl
     bytecode compiles a bunch of modules.  Perhaps build/*/ghci-flags needs
     the full -package-id treatment.
-  * Find out what happened to warnings, can I get them back?
-  / repl should understand --
   - only write history when the cmd succeeded
   - command to open the haddock for a module
   - haskeline sucks for long lines, add multiple line editing?
@@ -1061,12 +1003,12 @@ Derive:
           two neighboring notes at a time.
 
   control calls:
-    - it's still annoying to write 'from=1 | d', maybe if I do it a lot
+    * it's still annoying to write 'from=1 | d', maybe if I do it a lot
       make an alias 'f 1 | d'?  Or '1 | d' if the lookup call also set 'from'.
       For pitch it looks like 'set (4c) | d' or '4c | d' if I make scales also
       export transformers.
       . Try using it for a while to see if it matters.
-    - add bezier curve, you give a y val and weight:
+    * add bezier curve, you give a y val and weight:
       [(y1, w1), (y2, w2), ... (yn, wn)] ->
         sigmoid 0 w1 0 y1 <> sigmoid w1 w2 y1 y2 <> sigmoid w(n-1) wn y(n-1) yn
       . I can get the previous y with the mechanism that already exists, but
@@ -1103,98 +1045,6 @@ Derive:
 
 pitch: scales: scale:
   scales / Derive.Scale:
-    * interpolate between different scales with the same pitch names
-      . Or the same scale, but different keys.
-      . Scale with arguments: *interpolate scale-from=from scale-to=to
-      . I don't think I can use environ vals, because all the various scale
-        functions don't have access to it.
-      . If I want a scale with arguments, it winds up being like Environ,
-        except that I can rely on it being in the track title instead of
-        having to look up an environ.  But I would need to generate the scale
-        with a val call, e.g. 'scale = (interpolate-scale from to)', and now
-        I can't really write it directly '*interpolate ..?'.
-      . The Key is analogous, and its from the environ.  So perhaps all the
-        functions that take a Key should take Environ instead.  Everyone who
-        needs a Key already makes you look up in the Environ anyway, why not
-        pass the whole thing?
-      . Not just Environ, it also needs LookupScale.
-      . type LookupScale = Pitch.ScaleId -> Maybe Scale.  Maybe I could use
-        the LookupPattern thing for scales, so *interpolate-from-to will have
-        access to those and be able to bake them into the scale creation.
-        This would also solve the problem with scale_transposers and
-        scale_layout.
-      . What about same scale with different keys?  Environ lends itself to
-        that: from-scale, from-key, to-scale, to-key.
-      . Or, I could do both, and pass Environ to LookupScale.  But then the
-        from and to scales are fixed when the scale is created.  Actually it's
-        created again every time the scale is looked up.  Maybe that's not
-        so great?  But actually all it does is make some closures and I'm
-        constantly doing that anyway.
-      . *interpolate.from.to - Otherwise Cmd.get_scale calls all need environ,
-        which means they have to look in the performance, which may not be
-        present.  Doesn't work for keys, but I need key-from key-to anyway.
-        It's a pretty bogus way to pass arguments though.
-      . Well, but even getting the scale id is already looking in environ.
-
-      . Scale degree calls create a ValCall, but they don't look in environ.
-        That happens on NN conversion, so the environ always comes out of
-        the Score.Event, which means that the interpolate scale degree can't
-        influence the environ its callees see.
-      . Shouldn't calls look in the environ and put those values into their
-        closure?  Why pass environ to conversion?  I recall it had to do with
-        the tuning var.  So in convert, inst_environ goes before the event
-        environ.  How exactly should inst environ interact?  It should be
-        added to the environ as a default.
-      . I think this had to do with kotekan calls, because it evaluates the
-        pitch, and then sets a new instrument.  If I took environ back out
-        then the tuning is set, and can't be changed if you switch the
-        instrument.  But perhaps that means kotekan should work on derivers,
-        not as a postproc.  I.e. you can't just change the instrument of an
-        event by updating Score.event_instrument.
-      . Postproc, e.g. Gangsa.c_unison, could either create a new instrument,
-        e.g. Util.pitched_note (event_pitch e) etc.
-        Or it could just know about tuning, and explicitly apply that to the
-        Score.event_pitch.  But I'd need to preserve a way to apply environ
-        to pitches, and then it's unclear whether it should take priority,
-        etc.  Seems messy.
-      . So I'd be undoing this patch: 'make Environ a parameter to Pitch'
-      . ChromaticScales.smap_semis_to_nn needs a key, where that's scale
-        specific (e.g. Environ.tuning).  The thing is, it uses Environ.key
-        too, it just may want additional things.
-      . So, only pitch_nn needs it.  So pass SemisToNn directly to it.
-
-      . Except, rederive_event does not work, because I need to actually
-        re-evaluate the pitch in order to capture the new environ.  Just
-        pulling it from the old event doesn't do that.
-      . Perhaps 'unison' wanting to be a postproc is wrong in general.
-        I could just derive the whole thing twice.  But then I don't get the
-        behaviour where only I can apply it to a whole score and only the
-        pasang instruments are split.  Also for kempyung I'd have to rederive
-        with +3 transpose and the note call has to know to wrap into range.
-        That means +3 transpose and then +kempyung, so if it sees the pitch is
-        out of range, it knows it can transpose -3.
-        What about nyogcag?  It would have to be a note transformer since it
-        needs each note separately.
-      . Ok, so maybe I do want to go back to being able to retune a note.
-        But I don't want to unconditionally replace the environ with the
-        inst's environ, because then I can't override it.  It should be as
-        if the event was derived with that instrument in the first place.
-
-      . So, put Environ back into PitchConfig.  But it's not applied in
-        Convert like control signals, instead applied in ScaleDegree and
-        then manually when you change the instrument.
-
-      . I suppose this means I can't configure a pitch with a transposition...
-        no wait, I can because it applies it directly.  So do the same for
-        environ.  So interpolate could also do that.  But I want to make sure
-        to not override those values later on.  This isn't a problem for
-        controls because they are added, but env vals replace.
-      . So... capture at pitch creation time, but switching instruments
-        overrides with the instrument env vars.
-      . I apply PitchConfig by composing it on to the functions, but that
-        means I can't override existing values.  Wait, I still can... but
-        a separate field seems clearer.
-
     - wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose signal, that multiplies hz
@@ -1204,10 +1054,10 @@ pitch: scales: scale:
       I think this has to be postproc.
     support scales that are different ascending vs. descending
       . Scales have two versions of each degree.
-      - scale_input_to_note takes a previous Note arg, which it can use to
+      . scale_input_to_note takes a previous Note arg, which it can use to
         guess the appropriate variant.
-      - Variants have to have unambiguous names though, maybe 4n^ and 4n.
-      - Use scale_alternate to switch a note between alternates, bind to the
+      . Variants have to have unambiguous names though, maybe 4n^ and 4n_
+      . Use scale_alternate to switch a note between alternates, bind to the
         same key as enharmonic.  If there are no enharmonics, then fall back
         on alternate.
     Raga
