@@ -30,6 +30,7 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 
 import Text.Printf (printf)
 
@@ -211,11 +212,12 @@ choose_instrument :: Score.Instrument -> IO ()
 choose_instrument inst = do
     let cmd = "set_instrument " ++ show (Score.inst_name inst)
     putStrLn $ "send: " ++ cmd
-    response <- (untxt <$> SendCmd.send (txt cmd))
+    (response, logs) <- SendCmd.send (txt cmd)
         `Exception.catch` \(exc :: Exception.SomeException) ->
-            return ("error: " <> show exc)
-    unless (null response) $
-        putStrLn $ "response: " ++ response
+            return ("error: " <> showt exc, [])
+    mapM_ Text.IO.putStrLn logs
+    unless (Text.null response) $
+        Text.IO.putStrLn $ "response: " <> response
 
 -- | Find instruments that match the query, and update the UI incrementally.
 process_query :: Fltk.Channel -> BrowserC.Window -> Db -> [Score.Instrument]

@@ -23,7 +23,7 @@ initialize app = Network.withSocketsDo $ do
         "caught SIGPIPE, reader must have closed the socket"
 
 -- | I don't expect any newlines in the sent message.
-send :: Text -> IO (Text, [Text])
+send :: Text -> IO (Text, [Text]) -- ^ (response, logs)
 send msg = do
     hdl <- Network.connectTo "localhost" Config.repl_port
     ByteString.Char8.hPutStr hdl $ ReplUtil.encode_request $
