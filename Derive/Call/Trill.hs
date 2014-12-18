@@ -107,7 +107,7 @@ c_note_trill hardcoded_start hardcoded_end =
                 let next = fromMaybe end maybe_next
                 return $ Sub.Event x (next-x) Util.note
         Derive.with_added_control control (Score.untyped transpose) $
-            Sub.place notes
+            Sub.derive notes
 
 c_attr_trill :: Derive.Generator Derive.Note
 c_attr_trill = Derive.make_call Module.prelude "attr-tr" Tags.attr
@@ -138,7 +138,7 @@ c_tremolo_generator = Derive.make_call Module.prelude "trem" Tags.ly
             [] -> Sub.inverting_args args $ \args -> Lily.note_code code args $
                 simple_tremolo starts [Util.note]
             notes -> Lily.notes_code code args $
-                Sub.place $ chord_tremolo starts notes
+                Sub.derive $ chord_tremolo starts notes
     where code = (Lily.SuffixAll, ":32")
 
 c_tremolo_transformer :: Derive.Transformer Derive.Note
@@ -193,7 +193,7 @@ chord_tremolo starts note_tracks =
 
 -- | Just cycle the given notes.
 simple_tremolo :: [ScoreTime] -> [Derive.NoteDeriver] -> Derive.NoteDeriver
-simple_tremolo starts notes = Sub.place
+simple_tremolo starts notes = Sub.derive
     [ Sub.Event start (end - start) note
     | (start, end, note) <- zip3 starts (drop 1 starts) $
         if null notes then [] else cycle notes

@@ -140,7 +140,7 @@ c_basic_grace = Derive.make_call Module.prelude "basic-grace"
         pitches <- resolve_pitches base pitches
         let apply = Eval.eval_quoted_transformers (Args.info args)
         Lily.when_lilypond (lily_grace args start pitches) $
-            Sub.place =<< basic_grace args pitches
+            Sub.derive =<< basic_grace args pitches
                 (maybe id apply maybe_transform) grace_dur place
 
 lily_grace :: Derive.PassedArgs d -> RealTime -> [PitchSignal.Pitch]
@@ -197,7 +197,7 @@ repeat_notes note times time dyn_scale args = do
     start <- Args.real_start args
     dyn <- (*dyn_scale) <$> Util.dynamic start
     let notes = replicate times (Util.with_dynamic dyn note) ++ [note]
-    Sub.place =<< make_grace_notes (Args.prev_start args)
+    Sub.derive =<< make_grace_notes (Args.prev_start args)
         (Args.extent args) notes time (TrackLang.constant_control 0)
 
 make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime)

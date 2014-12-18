@@ -44,7 +44,7 @@ c_ap :: Derive.Generator Derive.Note
 c_ap = Derive.make_call Module.prelude "ap" Tags.subs
     "Derive sub events with no changes.  This is used to apply a transformer\
     \ to sub events."
-    $ Sig.call0 $ Sub.place . concat <=< Sub.sub_events
+    $ Sig.call0 $ Sub.derive . concat <=< Sub.sub_events
 
 -- * tuplet
 
@@ -78,7 +78,7 @@ tuplet range events = case infer_duration of
 fit_to_duration :: (ScoreTime, ScoreTime) -> ScoreTime -> [Sub.Event]
     -> Derive.NoteDeriver
 fit_to_duration (start, end) dur notes = Derive.place start factor $
-    Sub.place [note { Sub.event_start = Sub.event_start note - note_start }
+    Sub.derive [note { Sub.event_start = Sub.event_start note - note_start }
         | note <- notes]
     where
     factor = (end - start) / (note_end - note_start)
@@ -108,7 +108,7 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
             _ : _ : _ -> Error.throwError ">1 non-empty sub track"
             [notes] -> return notes
         events <- lift $ LEvent.write_logs
-            =<< Sub.place (map (Sub.stretch (Args.start args) 2) notes)
+            =<< Sub.derive (map (Sub.place (Args.start args) 2) notes)
             -- Double the notes duration, since staff notation tuplets shorten
             -- notes.
         dur <- case filter (not . Lily.is_code0) events of
@@ -182,7 +182,7 @@ arpeggio arp time random tracks = do
         forM track $ \(Sub.Event start dur d) -> do
             delay <- Util.score_duration start delay
             return $ Sub.Event (start+delay) (dur-delay) d
-    Sub.place events
+    Sub.derive events
     where
     jitter tracks
         | random == 0 = return tracks

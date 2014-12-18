@@ -81,7 +81,7 @@ notes_code code = notes_with (add_code code)
 first_note_code :: Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 first_note_code code args = when_lilypond $
-    add_first code $ place_notes args
+    add_first code $ derive_notes args
 
 -- | This is like 'notes_code', but the first event in each track gets the
 -- start code, and the last event in each track gets the end code.
@@ -91,7 +91,7 @@ notes_around start end args = when_lilypond $
     mconcatMap around =<< Sub.sub_events args
     where
     around notes = first_last
-        (add_event_code start) (add_event_code end) <$> Sub.place notes
+        (add_event_code start) (add_event_code end) <$> Sub.derive notes
 
 -- | Like 'notes_around', but for use when you already know you're in lilypond
 -- mode.
@@ -99,25 +99,25 @@ notes_around_ly :: Code -> Code -> Derive.PassedArgs d -> Derive.NoteDeriver
 notes_around_ly start end = mconcatMap around <=< Sub.sub_events
     where
     around notes = first_last
-        (add_event_code start) (add_event_code end) <$> Sub.place notes
+        (add_event_code start) (add_event_code end) <$> Sub.derive notes
 
 -- | Like 'notes_around', but when I'm not in lilypond mode just derive the
 -- sub events unchanged.
 code_around :: Code -> Code -> Derive.PassedArgs d -> Derive.NoteDeriver
 code_around start end args = when_lilypond
     (code0 (Args.start args) start
-        <> place_notes args <> code0 (Args.end args) end)
-    (place_notes args)
+        <> derive_notes args <> code0 (Args.end args) end)
+    (derive_notes args)
 
 -- | Transform and evaluate the sub events.
 notes_with :: (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 notes_with f args = when_lilypond $
-    Sub.place . map (fmap f) . concat =<< Sub.sub_events args
+    Sub.derive . map (fmap f) . concat =<< Sub.sub_events args
 
-place_notes :: Derive.PassedArgs d -> Derive.NoteDeriver
-place_notes = Sub.place . concat <=< Sub.sub_events
+derive_notes :: Derive.PassedArgs d -> Derive.NoteDeriver
+derive_notes = Sub.derive . concat <=< Sub.sub_events
 
 -- ** events around
 
@@ -266,7 +266,7 @@ eval :: Types.Config -> Derive.PassedArgs d -> [Sub.Event]
     -> Derive.Deriver [Note]
 eval config args notes = do
     start <- Args.real_start args
-    (events, logs) <- LEvent.partition <$> Sub.place notes
+    (events, logs) <- LEvent.partition <$> Sub.derive notes
     mapM_ Log.write logs
     eval_events config start events
 
@@ -368,14 +368,14 @@ c_ly_track = transformer "ly-track" mempty
     \ track but evaluate its subtracks. Apply this to a track\
     \ to omit lilypond-only articulations, or to apply different articulations\
     \ to lilypond and non-lilypond output. Only use it in the track title!"
-    $ Sig.call0t $ \args deriver -> when_lilypond deriver $ place_notes args
+    $ Sig.call0t $ \args deriver -> when_lilypond deriver $ derive_notes args
 
 c_not_ly_track :: Derive.Transformer Derive.Note
 c_not_ly_track = transformer "not-ly-track" mempty
     "The inverse of `ly-track`, evaluate the track only when not in lilypond\
     \ mode. Only use it in the track title!"
     $ Sig.call0t $ \args deriver -> flip when_lilypond deriver $
-        place_notes args
+        derive_notes args
 
 c_if_ly :: Derive.Generator Derive.Note
 c_if_ly = make_call "if-ly" mempty
@@ -593,7 +593,7 @@ code_call name doc sig make_code = (gen, trans)
             --
             -- The price is that if I want to put the call on the note track,
             -- I have to append |, which is easy to forget.
-            require_nonempty =<< first_note_code code args (place_notes args)
+            require_nonempty =<< first_note_code code args (derive_notes args)
     trans = transformer name mempty doc $
         Sig.callt sig $ \val _args deriver -> flip when_lilypond deriver $ do
             code <- make_code val
@@ -624,7 +624,7 @@ code0_around_call name doc sig make_code = (gen, trans)
     gen = make_call name mempty (doc <> around_doc) $
         Sig.call sig $ \val args -> only_lilypond $ do
             (code1, _) <- make_code val
-            code0 (Args.start args) code1 <> place_notes args
+            code0 (Args.start args) code1 <> derive_notes args
     trans = transformer name mempty (doc <> around_doc) $
         Sig.callt sig $ \val _args deriver ->
             when_lilypond (transform val deriver) deriver
@@ -670,7 +670,7 @@ make_code_call name doc sig call = (gen, trans)
     where
     gen = make_call name mempty doc $
         Sig.call sig $ \val args -> only_lilypond $
-            call False val args <> place_notes args
+            call False val args <> derive_notes args
     trans = transformer name mempty doc $
         Sig.callt sig $ \val args deriver ->
             when_lilypond (call True val args <> deriver) deriver

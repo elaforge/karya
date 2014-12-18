@@ -108,7 +108,7 @@ c_alternate_tracks = Derive.make_call Module.prelude "alternate-tracks"
         case NonEmpty.nonEmpty sub_weights of
             Nothing -> return mempty
             Just sub_weights ->
-                Sub.place . pick_weighted sub_weights =<< Util.random
+                Sub.derive . pick_weighted sub_weights =<< Util.random
     where
     pair _ (Seq.Both sub weight) = return (sub, weight)
     pair _ (Seq.First sub) = return (sub, 1)

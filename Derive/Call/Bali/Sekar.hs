@@ -55,7 +55,7 @@ c_sekar = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
 sekar_arrive :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
 sekar_arrive range pattern events_ =
-    Sub.place $ add_flags $ align $ map (Sub.stretch 0 factor) $
+    Sub.derive $ add_flags $ align $ map (Sub.stretch factor) $
         Sub.strip_rests realized
     where
     realized = realize_groups pattern events
@@ -75,7 +75,7 @@ sekar_arrive range pattern events_ =
 sekar :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
 sekar range pattern events =
-    Sub.place $ map (Sub.stretch (fst range) factor) $ Sub.strip_rests realized
+    Sub.derive $ map (Sub.place (fst range) factor) $ Sub.strip_rests realized
     where
     realized = realize_groups pattern events
     factor = sum (map Sub.event_duration events)

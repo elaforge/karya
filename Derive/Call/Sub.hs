@@ -11,9 +11,9 @@ module Derive.Call.Sub (
     , inverting, inverting_args
     -- ** events
     , Event, GenericEvent(..), event_end, event_overlaps
-    , stretch, at
+    , place, stretch, at
     , sub_events, sub_events_end_bias
-    , place, fit_to_range, events_range
+    , derive, fit_to_range, events_range
     -- ** RestEvent
     , RestEvent, sub_rest_events
     , fit_rests, strip_rests
@@ -205,10 +205,12 @@ event_overlaps pos (Event start dur _)
     | dur == 0 = pos == start
     | otherwise = start <= pos && pos < start + dur
 
--- TODO rename to place
-stretch :: ScoreTime -> ScoreTime -> GenericEvent a -> GenericEvent a
-stretch shift factor (Event start dur note) =
+place :: ScoreTime -> ScoreTime -> GenericEvent a -> GenericEvent a
+place shift factor (Event start dur note) =
     Event ((start - shift) * factor + shift) (dur * factor) note
+
+stretch :: ScoreTime -> GenericEvent a -> GenericEvent a
+stretch factor = place 0 factor
 
 at :: ScoreTime -> GenericEvent a -> GenericEvent a
 at shift (Event start dur note) = Event (start + shift) dur note
@@ -248,9 +250,9 @@ sub_events_ end_bias args =
             (BlockUtil.derive_tracks tree)
         }
 
--- | Place and merge a list of Events.
-place :: [Event] -> Derive.NoteDeriver
-place = mconcatMap (\(Event s d n) -> Derive.place s d n)
+-- | Derive and merge Events.
+derive :: [Event] -> Derive.NoteDeriver
+derive = mconcatMap (\(Event s d n) -> Derive.place s d n)
 
 -- | Fit the given events into a time range.  Any leading space (time between
 -- the start of the range and the first Event) and trailing space is
@@ -263,7 +265,7 @@ fit :: (ScoreTime, ScoreTime) -- ^ fit this range
     -> (ScoreTime, ScoreTime) -- ^ into this range
     -> [Event] -> Derive.NoteDeriver
 fit (from_start, from_end) (to_start, to_end) events =
-    Derive.place to_start factor $ place
+    Derive.place to_start factor $ derive
         [e { event_start = event_start e - from_start } | e <- events]
     -- Subtract from_start because Derive.place is going to add the start back
     -- on again in the form of to_start.
@@ -307,7 +309,7 @@ fit_rests :: (ScoreTime, ScoreTime) -> (ScoreTime, ScoreTime)
     -> [RestEvent] -> Derive.NoteDeriver
 fit_rests (from_start, from_end) (to_start, to_end) events =
     Derive.place to_start factor $
-        place [e { event_start = event_start e - from_start } |
+        derive [e { event_start = event_start e - from_start } |
             e <- strip_rests events]
     where factor = (to_end - to_start) / (from_end - from_start)
 
