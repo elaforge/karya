@@ -58,19 +58,31 @@ sekar_arrive range pattern events_ =
     Sub.derive $ add_flags $ align $ map (Sub.stretch factor) $
         Sub.strip_rests realized
     where
-    realized = realize_groups pattern events
     -- The first event should be a rest, since I passed end_bias=True to
-    -- Sub.sub_rest_events.
-    events = drop 1 events_
+    -- Sub.sub_rest_events.  The stretch factor assumes the event durations add
+    -- up to 'range'.  For that to be true, I have to give the initial rest
+    -- duration to the destination note.
+    events = case events_ of
+        [] -> []
+        rest : events -> case Seq.viewr events of
+            Nothing -> events
+            Just (initial, final)
+                | Sub.event_start final >= snd range ->
+                    initial ++ [final { Sub.event_duration = dur }]
+                | otherwise -> events ++ [Sub.Event (snd range) dur Nothing]
+                where dur = Sub.event_duration rest
+
+    realized = realize_groups pattern events
+    factor = sum_duration events / sum_duration realized
     -- Align notes to the end of the range.
     align es = case Seq.last es of
         Nothing -> []
         Just e -> map (Sub.at (snd range - Sub.event_start e)) es
-
-    factor = sum (map Sub.event_duration events)
-        / sum (map Sub.event_duration realized)
     add_flags = Seq.map_last $ fmap $ fmap $ Post.emap1_ $ Score.add_flags $
         Flags.infer_duration <> Flags.cancel_next
+
+sum_duration :: [Sub.GenericEvent a] -> ScoreTime
+sum_duration = sum . map Sub.event_duration
 
 sekar :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
@@ -78,8 +90,7 @@ sekar range pattern events =
     Sub.derive $ map (Sub.place (fst range) factor) $ Sub.strip_rests realized
     where
     realized = realize_groups pattern events
-    factor = sum (map Sub.event_duration events)
-        / sum (map Sub.event_duration realized)
+    factor = sum_duration events / sum_duration realized
 
 realize_groups :: Pattern -> [Sub.RestEvent] -> [Sub.RestEvent]
 realize_groups _ [] = []
@@ -88,7 +99,7 @@ realize_groups pattern events@(event:_) =
     where
     go _ [] = []
     go start (group : groups) =
-        notes ++ go (start + sum (map Sub.event_duration notes)) groups
+        notes ++ go (start + sum_duration notes) groups
         where notes = realize start group pattern
 
 split_groups :: Int -> [a] -> [[a]]
