@@ -27,7 +27,7 @@ test_process_msg = do
             where styled = fst $ Process.process_msg state msg
 
     -- test general formatting
-    msg <- Log.initialized_msg Log.Debug "hi"
+    msg <- Log.initialized_msg_srcpos Nothing Log.Debug "hi"
     equal (f state msg) (Just "*\thi\n")
 
     -- test catch patterns

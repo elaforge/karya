@@ -231,10 +231,10 @@ sub_events_end_bias :: Derive.PassedArgs d -> Derive.Deriver [[Event]]
 sub_events_end_bias = sub_events_ True
 
 sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[Event]]
-sub_events_ end_bias args =
+sub_events_ include_end args =
     case Derive.info_sub_events (Derive.passed_info args) of
         Nothing -> either Derive.throw (return . (map (map mkevent))) $
-            Slice.checked_slice_notes end_bias start end subs
+            Slice.checked_slice_notes include_end start end subs
         Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
     where
     (start, end) = Args.range args
@@ -287,9 +287,9 @@ type RestEvent = GenericEvent (Maybe Derive.NoteDeriver)
 sub_rest_events :: Bool -- ^ end bias
     -> Bool -- ^ if True, include the trailing gap as a rest
     -> Derive.PassedArgs d -> Derive.Deriver [[RestEvent]]
-sub_rest_events end_bias want_final_rest args =
+sub_rest_events include_end want_final_rest args =
     map (uncurry (find_gaps want_final_rest) (Args.range args)) <$>
-        sub_events_ end_bias args
+        sub_events_ include_end args
 
 find_gaps :: Bool -> ScoreTime -> ScoreTime -> [GenericEvent a]
     -> [GenericEvent (Maybe a)]

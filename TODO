@@ -4,7 +4,23 @@ LEGEND
 
 UNSORTED
   sekaran
-    * arrival is still messed up when it ends with a long note
+    . With different durations, there's no way to know how to split up rests.
+      So the number of gaps and notes has to be consistent.  But it seems more
+      convenient to set the number of subdivisions, and chop up the input
+      evenly.
+    direct substitution
+      . Difference with arrival is that the last note gets the duration of the
+        initial gap.
+      - I could have different patterns for different numbers of notes in range.
+        Otherwise, I can only take the first n notes, and the rest become
+        rests.
+    even subdivision
+      * Given a pattern_length of n, divide the input into n parts.  If it has
+        a note start, assign that note.  If it's the continuation of a note,
+        then mark as a continuation.  If it's a rest, it cuts off any sounding
+        note.  So arrange 'Note Index | Rest | Continue' into a sequence, then
+        convert to Sub.Events, then Sub.derive.
+      - test non-arrival mode
   - Local.Instrument modules include configuration functions, how to call them?
     . Kontakt.configure_wayang, configure_legong, Spicy.configure
     . import into a Local.Repl module

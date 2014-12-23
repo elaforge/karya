@@ -164,10 +164,10 @@ extract_control_events start end events = (pre, Events.from_list within, post2)
     if it is inverting it will do that anyway.  But slicing lets me shift fewer
     events, so it's probably a good idea anyway.
 -}
-slice_notes :: Bool -- ^ end_bias means exclude the start and include the end.
+slice_notes :: Bool -- ^ include a note at the end
     -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
     -> [[Note]] -- ^ One [Note] per sub note track, in right to left order.
-slice_notes end_bias start end tracks
+slice_notes include_end start end tracks
     | null tracks || start > end = []
     | otherwise = filter (not . null) $
         map (mapMaybe strip_note . slice_track) $ concatMap note_tracks tracks
@@ -175,7 +175,7 @@ slice_notes end_bias start end tracks
     note_tracks :: TrackTree.EventsNode -> [Sliced]
     note_tracks node@(Tree.Node track subs)
         | is_note track =
-            [([], track, event_ranges end_bias start end node, subs)]
+            [([], track, event_ranges include_end start end node, subs)]
         | otherwise =
             [ (track : parents, ntrack, slices, nsubs)
             | (parents, ntrack, slices, nsubs) <- concatMap note_tracks subs
@@ -221,12 +221,12 @@ type Note = (ScoreTime, ScoreTime, [TrackTree.EventsNode])
 event_ranges :: Bool -> TrackTime -> TrackTime -> TrackTree.EventsNode
     -> [(TrackTime, TrackTime, TrackTime)]
     -- ^ [(start, end, next_start)]
-event_ranges end_bias start end = nonoverlapping . to_ranges
+event_ranges include_end start end = nonoverlapping . to_ranges
     where
     to_ranges = Seq.merge_lists (\(s, _, _) -> s) . map track_events
         . filter is_note . Tree.flatten
     track_events = map range . Seq.zip_next . Events.ascending
-        . events_in_range end_bias start end
+        . events_in_range include_end start end
         . TrackTree.track_events
     range (event, next) =
         (Event.min event, Event.max event,
@@ -237,9 +237,9 @@ event_ranges end_bias start end = nonoverlapping . to_ranges
 
 events_in_range :: Bool -> TrackTime -> TrackTime -> Events.Events
     -> Events.Events
-events_in_range end_bias start end events
+events_in_range include_end start end events
     | start == end = maybe mempty Events.singleton $ Events.at start events
-    | end_bias = Events.remove_event start $
+    | include_end =
         maybe within (\e -> Events.insert [e] within) (Events.at end post)
     | otherwise = within
     where (_, within, post) = Events.split_range start end events
@@ -269,16 +269,14 @@ strip_empty_tracks (Tree.Node track subs)
 -- general.
 checked_slice_notes :: Bool -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
     -> Either String [[Note]]
-checked_slice_notes end_bias start end tracks = case maybe_err of
+checked_slice_notes include_end start end tracks = case maybe_err of
     Nothing -> Right $ filter (not . null) notes
     Just err -> Left err
     where
     maybe_err = if start == end
         then check_greater_than 0 check_tracks
-        -- TODO this is probably wrong for 'end_bias', since it really means
-        -- exclude_start.
-        else check_overlapping end_bias 0 check_tracks
-    notes = slice_notes end_bias start end tracks
+        else check_overlapping include_end 0 check_tracks
+    notes = slice_notes include_end start end tracks
     -- Only check the first note of each slice.  Since the notes are
     -- increasing, this is the one which might start before the slice.  Since
     -- the events have been shifted back by the slice start, an event that
@@ -303,11 +301,13 @@ find_greater_than start = msum . map (find (has_gt <=< note_track))
 
 check_overlapping :: Bool -> ScoreTime -> [[TrackTree.EventsNode]]
     -> Maybe String
-check_overlapping exclude_start start tracks
+check_overlapping include_end start tracks
     | null overlaps = Nothing
     | otherwise = Just $ "slice has overlaps: "
         <> Seq.join ", " (map show_overlap overlaps)
-    where overlaps = mapMaybe (find_overlapping exclude_start start) tracks
+    -- TODO 'include_end' is used incorrectly, it becomes 'exclude_start'
+    -- need to fix find_overlapping
+    where overlaps = mapMaybe (find_overlapping include_end start) tracks
 
 {- | Slice overlaps are when an event overlaps the start of the slice range,
     or extends past the end.  They're bad because they tend to cause notes to
