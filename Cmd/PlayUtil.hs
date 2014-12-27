@@ -124,10 +124,10 @@ run_with_dynamic :: Cmd.M m => Derive.Dynamic -> Derive.Deriver a
 run_with_dynamic dynamic deriver = do
     constant <- get_constant mempty mempty
     let state = Derive.State
-            { Derive.state_threaded = Derive.initial_threaded
-            , Derive.state_dynamic = dynamic
-            , Derive.state_collect = mempty
-            , Derive.state_constant = constant
+            { state_threaded = Derive.initial_threaded
+            , state_dynamic = dynamic
+            , state_collect = mempty
+            , state_constant = constant
             }
     return $ Derive.run state deriver
 
@@ -281,10 +281,10 @@ get_convert_lookup = do
     let defaults = Map.map (Map.map (Score.untyped . Signal.constant)
             . Instrument.config_controls) configs
     return $ Convert.Lookup
-        { Convert.lookup_scale = lookup_scale
-        , Convert.lookup_inst = lookup_inst
-        , Convert.lookup_patch = fmap extract . lookup_info
-        , Convert.lookup_default_controls = \inst ->
+        { lookup_scale = lookup_scale
+        , lookup_inst = lookup_inst
+        , lookup_patch = fmap extract . lookup_info
+        , lookup_default_controls = \inst ->
             Map.findWithDefault mempty inst defaults
         }
     where
@@ -367,10 +367,10 @@ load_ky paths fname =
 
 compile_library :: Parse.Definitions -> Derive.Library
 compile_library (Parse.Definitions note control pitch val) = Derive.Library
-    { Derive.lib_note = call_maps note
-    , Derive.lib_control = call_maps control
-    , Derive.lib_pitch = call_maps pitch
-    , Derive.lib_val = Derive.call_map $ compile make_val_call val
+    { lib_note = call_maps note
+    , lib_control = call_maps control
+    , lib_pitch = call_maps pitch
+    , lib_val = Derive.call_map $ compile make_val_call val
     }
     where
     call_maps (gen, trans) = Derive.call_maps

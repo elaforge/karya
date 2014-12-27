@@ -1044,7 +1044,8 @@ ghcFlags config =
     ++ cInclude (configFlags config)
 
 ghcLanguageFlags :: [String]
-ghcLanguageFlags = map ("-X"++) ["OverloadedStrings"]
+ghcLanguageFlags = map ("-X"++)
+    ["OverloadedStrings", "DisambiguateRecordFields"]
 
 -- * cc
 
