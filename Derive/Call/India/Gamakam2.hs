@@ -6,7 +6,6 @@
 module Derive.Call.India.Gamakam2 where
 import qualified Control.Monad.State.Strict as Monad.State
 import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -45,23 +44,51 @@ import Types
 module_ :: Module.Module
 module_ = "india" <> "gamakam2"
 
+-- | Calls in these modules are meant to be used via the sequence call, so they
+-- are only in scope under the relevant phase.
+begin_module, middle_module, end_module :: Module.Module
+begin_module = module_ <> "begin"
+middle_module = module_ <> "middle"
+end_module = module_ <> "end"
+
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps [("!", c_sequence)] [("!", c_sequence_transform)]
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.generator_call_map $
-    begin_calls ++ middle_calls ++ end_calls
+pitch_calls = Derive.generator_call_map $ concat
+    [ begin_calls
+    , begin_aliases
+    , middle_calls
+    , middle_aliases
+    , end_calls
+    , end_aliases
+    ]
 
 begin_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 begin_calls =
     [ ("set-pitch", c_set_pitch)
     , ("flat-start", c_flat_start)
-    , ("from-prev", c_from False False)
-    , ("from-prev<", c_from False True)
-    , ("from", c_from True False)
-    , ("from<", c_from True True)
+    , ("cur", c_from PitchFromCurrent NoFade)
+    , ("cur<", c_from PitchFromCurrent Fade)
+    , ("prev", c_from PitchFromPrev NoFade)
+    , ("prev<", c_from PitchFromPrev Fade)
     , ("jaru", c_jaru False)
     , ("jaru0", c_jaru True)
+    , ("fade-in", c_fade True)
+    ]
+
+-- | I don't want to take up short names for the whole track scope, but within
+-- a sequence call it seems reasonable.  In addition, I know if it's a begin or
+-- end call, and use the same name for logically similar things.
+begin_aliases :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+begin_aliases = map (second (Derive.set_module begin_module))
+    [ ("-", c_flat_start)
+    , ("c", c_from PitchFromCurrent NoFade)
+    , ("c<", c_from PitchFromCurrent Fade)
+    , ("p", c_from PitchFromPrev NoFade)
+    , ("p<", c_from PitchFromPrev Fade)
+    , ("J", c_jaru False)
+    , ("j", c_jaru True)
     , (fade_in_call, c_fade True)
     ]
 
@@ -72,56 +99,6 @@ middle_calls = ("flat", c_flat)
     ++ kampita_variations "nkam" (c_nkampita False)
     ++ kampita_variations "nkam2" (c_nkampita True)
 
-end_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
-end_calls =
-    [ ("flat-end", c_flat_end)
-    , ("to", c_to False)
-    , ("to>", c_to True)
-    , (fade_out_call, c_fade False)
-    ]
-
--- | Special behaviour documented in 'sequence_doc'.
-fade_in_call :: TrackLang.CallId
-fade_in_call = "fade-in"
-
-fade_out_call :: TrackLang.CallId
-fade_out_call = "fade-out"
-
--- | I don't want to take up short names for the whole track scope, but within
--- a sequence call it seems reasonable.  In addition, I know if it's a begin or
--- end call, and use the same name for logically similar things.
-begin_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
-begin_aliases = Map.fromList
-    [ ("-", "flat-start")
-    , ("p", "from-prev")
-    , ("p<", "from-prev<")
-    , ("-^", "from") -- TODO hard to remember
-    , ("-^<", "from<") -- TODO also hard to remember
-    , ("j", "jaru0")
-    , ("J", "jaru")
-    , ("-<", fade_in_call)
-    ]
-
-middle_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
-middle_aliases = Map.fromList $ ("-", "flat")
-    : alias_prefix "k" "kam" (map fst middle_calls)
-    ++ alias_prefix "nk" "nkam" (map fst middle_calls)
-
-end_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
-end_aliases = Map.fromList
-    [ ("-", "flat-end")
-    , ("p", "to")
-    , ("p>", "to>")
-    , (">", fade_out_call)
-    ]
-
-alias_prefix :: Text -> Text -> [TrackLang.CallId]
-    -> [(TrackLang.CallId, TrackLang.CallId)]
-alias_prefix from to calls = do
-    TrackLang.Symbol call <- calls
-    Just rest <- [Text.stripPrefix to call]
-    return (TrackLang.Symbol (from <> rest), TrackLang.Symbol call)
-
 kampita_variations :: Text -> (Maybe Trill.Direction -> call)
     -> [(TrackLang.CallId, call)]
 kampita_variations name call =
@@ -129,6 +106,44 @@ kampita_variations name call =
     | end <- dirs
     ]
     where dirs = [Nothing, Just Trill.Low, Just Trill.High]
+
+middle_aliases :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+middle_aliases = map (second (Derive.set_module middle_module)) $
+    ("-", c_flat)
+    : alias_prefix "k" "kam" middle_calls
+    ++ alias_prefix "nk" "nkam" middle_calls
+
+alias_prefix :: Text -> Text -> [(TrackLang.CallId, call)]
+    -> [(TrackLang.CallId, call)]
+alias_prefix from to calls = do
+    (TrackLang.Symbol name, call) <- calls
+    Just rest <- [Text.stripPrefix to name]
+    return (TrackLang.Symbol (from <> rest), call)
+
+end_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+end_calls =
+    [ ("flat-end", c_flat_end)
+    , ("to", c_to NoFade)
+    , ("to>", c_to Fade)
+    , ("fade-out", c_fade False)
+    ]
+
+end_aliases :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+end_aliases = map (second (Derive.set_module end_module))
+    [ ("-", c_flat_end)
+    , ("t", c_to NoFade)
+    , ("t>", c_to Fade)
+    , (fade_out_call, c_fade False)
+    ]
+
+-- | Special behaviour documented in 'sequence_doc'.
+fade_out_call :: TrackLang.CallId
+fade_out_call = "->"
+    -- The leading dash makes these parse as symbols.
+
+-- | Unlike 'fade_out_call', this doesn't need special treatment.
+fade_in_call :: TrackLang.CallId
+fade_in_call = "-<"
 
 -- * sequence
 
@@ -144,16 +159,20 @@ c_sequence_transform = Derive.transformer module_ "sequence" mempty
 
 sequence_doc :: Text
 sequence_doc = "Sequence several pitch calls. Calls are divided into\
-    \ begin ; middle1 ; middle2; ... ; end calls. Calls are pitch generators,\
-    \ and are sequenced such that the middle calls stretch based on the\
-    \ duration of the note. There are short aliases for calls that are\
-    \ designed for sequencing.\
-    \\nThere's a special hack for the `-<` and `>` calls: they have 0\
+    \ `begin ; middle1 ; middle2; ... ; end` phases. Calls are pitch\
+    \ generators, and are sequenced such that the middle calls stretch\
+    \ based on the duration of the note. The " <> doc begin_module <> ", "
+    <> doc middle_module <> ", and " <> doc end_module <> " modules are\
+    \ in scope during the begin, middle, and end phases. All calls\
+    \ below the " <> doc module_ <> " module are designed for\
+    \ sequencing. This just means they emit samples at the beginning and end\
+    \ of their range, so the sequence call knows their extent. Normal pitch\
+    \ calls may not do that.\
+    \\nThere's a special hack for the " <> ShowVal.doc_val fade_in_call
+    <> " and " <> ShowVal.doc_val fade_out_call <> " calls: they have 0\
     \ duration, but are overlaid with their neighbors. This is so you can fade\
     \ in or out without having to flatten the pitch."
-    <> "\nBegin aliases: " <> prettyt begin_aliases
-    <> "\nMiddle aliases: " <> prettyt middle_aliases
-    <> "\nEnd aliases: " <> prettyt end_aliases
+    where doc v = "`" <> prettyt v <> "`"
 
 with_sequence :: Derive.PassedArgs Score.Event -> Derive.Deriver a
     -> Derive.Deriver a
@@ -196,9 +215,9 @@ type Signals = (PitchSignal.Signal, [Derive.ControlMod])
     Actually, there's a circular problem in that I don't know how long the
     middle section can be until I know how long the end call is, but the end
     call likely relies on 'Derive.info_prev_val', so it has to be evaluated
-    after the middle.  is going to consume.  So I evaluate the end twice, once
-    before the middle to find out its length, and again after evaluating the
-    middle.
+    after the middle.  So I evaluate the end twice, once before the middle to
+    find out its length, and again after evaluating the middle to get the pitch
+    right.
 
     I considered a specially calling mode where calls could return their
     desired duration rather than a signal, but it seems much simpler to just
@@ -206,22 +225,22 @@ type Signals = (PitchSignal.Signal, [Derive.ControlMod])
 
     A possibly useful extension would be to allow middle calls to be shorter
     than their allotted time, for instance a trill might want to complete
-    a cycle and allow a hold call to take up remaining space.  I could put the
-    requested time in @Derive.real 1@ and the hard limit it @Args.next@, but
-    that wouldn't allow time before the call to stretch, only time after.
+    a cycle and allow a @flat@ call to take up remaining space.  I could put
+    the requested time in @Derive.real 1@ and the hard limit in @Args.next@,
+    but that wouldn't allow time before the call to stretch, only time after.
     But I could indicate stretchiness with a special tag on the call.
 -}
 sequence_calls :: Derive.CallInfo Derive.Pitch -> (ScoreTime, ScoreTime)
     -> Expr -> [Expr] -> Maybe Expr -> Derive.Deriver Signals
 sequence_calls cinfo (start, end) begin middles maybe_end =
     fmap fst $ flip Monad.State.runStateT cinfo $ do
-        (begin_pitch, begin_mods) <- eval start end begin
+        (begin_pitch, begin_mods) <- eval begin_module start end begin
         middle_start <- lift $ signal_end start begin_pitch
         -- This is a test eval of 'end', just to see how long it is.  The
         -- middle isn't evaluated yet, so it doesn't have the right
         -- info_prev_val.
         (test_end_pitch, _) <- detached $
-            maybe_eval (eval middle_start end) maybe_end
+            maybe_eval (eval end_module middle_start end) maybe_end
         end_start <- lift $ signal_start end test_end_pitch
         (middle_pitch, middle_mods)
             <- sequence_middles middle_start end_start middles
@@ -235,8 +254,9 @@ sequence_calls cinfo (start, end) begin middles maybe_end =
 -- | Special behaviour for the @fade-out@ call, as documented in 'sequence_doc'.
 eval_end :: ScoreTime -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
 eval_end sequence_start start end expr = case expr of
-    EvaluatedExpr call _ | call == fade_out_call -> eval sequence_start end expr
-    _ -> eval start end expr
+    EvaluatedExpr call _ | call == fade_out_call ->
+        eval end_module sequence_start end expr
+    _ -> eval end_module start end expr
 
 -- | I need to thread Derive.info_prev_val from each call in the sequence.
 type SequenceM =
@@ -258,7 +278,7 @@ sequence_middles _ _ [] = return (mempty, mempty)
 sequence_middles start end _ | start >= end = return (mempty, mempty)
 sequence_middles start end (expr:exprs) = do
     let dur = (end - start) / fromIntegral (length exprs + 1)
-    (pitch, mods) <- eval start (start + dur) expr
+    (pitch, mods) <- eval middle_module start (start + dur) expr
     sig_end <- lift $ signal_end start pitch
     (pitch_rest, mods_rest) <- sequence_middles sig_end end exprs
     return (pitch <> pitch_rest, mods <> mods_rest)
@@ -270,10 +290,11 @@ signal_start deflt =
 signal_end :: ScoreTime -> PitchSignal.Signal -> Derive.Deriver ScoreTime
 signal_end deflt = maybe (return deflt) (Derive.score . fst) .  PitchSignal.last
 
-eval :: ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
-eval start end expr = do
+eval :: Module.Module -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
+eval module_ start end expr = do
     cinfo <- Monad.State.get
     (result, cmods) <- lift $ with_empty_collect $
+        Derive.with_imported True module_ $
         eval_expr (place_event start (end - start) cinfo) expr
     let (chunks, logs) = LEvent.partition result
     mapM_ Log.write logs
@@ -334,11 +355,9 @@ parse_sequence exprs = postproc $
             [] -> (Just begin, [], Nothing)
     where
     postproc (begin, middles, end) =
-        ( substitute_aliases begin_aliases $
-            fromMaybe (EvaluatedExpr "set-pitch" []) $ to_expr =<< begin
-        , map (substitute_aliases middle_aliases) $
-            add_hold $ mapMaybe to_expr middles
-        , fmap (substitute_aliases end_aliases) . to_expr =<< end
+        ( fromMaybe (EvaluatedExpr "set-pitch" []) $ to_expr =<< begin
+        , add_hold $ mapMaybe to_expr middles
+        , to_expr =<< end
         )
     add_hold [] = [EvaluatedExpr "-" []]
     add_hold xs = xs
@@ -349,12 +368,6 @@ parse_sequence exprs = postproc $
         _ -> EvaluatedExpr (TrackLang.Symbol (ShowVal.show_val call)) args
     is_separator TrackLang.VSeparator = True
     is_separator _ = False
-
-substitute_aliases :: Map.Map TrackLang.CallId TrackLang.CallId -> Expr -> Expr
-substitute_aliases aliases expr = case expr of
-    EvaluatedExpr call_id vals -> EvaluatedExpr (subst call_id) vals
-    QuotedExpr expr -> QuotedExpr $ TrackLang.map_generator subst expr
-    where subst call_id = Map.findWithDefault call_id call_id aliases
 
 -- * start
 
@@ -382,15 +395,19 @@ c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
         pitch <- Util.get_pitch start
         return $ PitchSignal.signal [(start, pitch)]
 
-c_from :: Bool -> Bool -> Derive.Generator Derive.Pitch
-c_from from_prev fade_in = generator1 "from" mempty
-    (if from_prev
-        then "Come for the previous pitch, and possibly fade in."
-        else "Come from a pitch, and possibly fade in.")
+data PitchFrom = PitchFromPrev | PitchFromCurrent deriving (Eq, Show)
+data Fade = Fade | NoFade deriving (Eq, Show)
+
+c_from :: PitchFrom -> Fade -> Derive.Generator Derive.Pitch
+c_from pitch_from fade = generator1 "from" mempty
+    (case pitch_from of
+        PitchFromPrev -> "Come for the previous pitch, and possibly fade in."
+        PitchFromCurrent -> "Come from a pitch, and possibly fade in.")
     $ Sig.call ((,,)
-    <$> (if from_prev then pure Nothing
-        else Sig.defaulted "from" Nothing
-            "Come from this pitch, or the previous one.")
+    <$> case pitch_from of
+        PitchFromPrev -> pure Nothing
+        PitchFromCurrent -> Sig.defaulted "from" Nothing
+            "Come from this pitch, or the previous one."
     <*> Sig.defaulted "transition" default_transition "Time to destination."
     <*> Sig.defaulted "to" Nothing "Go to this pitch, or the current one."
     ) $ \(from_pitch, TrackLang.DefaultReal time, maybe_to_pitch) args -> do
@@ -398,9 +415,10 @@ c_from from_prev fade_in = generator1 "from" mempty
         end <- get_end start time args
         to_pitch <- optional_pitch maybe_to_pitch <$> Util.get_pitch start
         let from = resolve_pitch args to_pitch from_pitch
-        when fade_in $
-            ControlUtil.multiply_dyn end
+        case fade of
+            Fade -> ControlUtil.multiply_dyn end
                 =<< ControlUtil.make_segment id start 0 end 1
+            NoFade -> return ()
         PitchUtil.make_segment id start from end to_pitch
 
 -- | Get the end time, given a start and a duration.  Don't go beyond the
@@ -634,8 +652,8 @@ c_flat_end = generator1 "flat-end" mempty
         pitch <- optional_pitch maybe_pitch <$> prev_pitch start args
         return $ PitchSignal.signal [(start, pitch), (end, pitch)]
 
-c_to :: Bool -> Derive.Generator Derive.Pitch
-c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
+c_to :: Fade -> Derive.Generator Derive.Pitch
+c_to fade = generator1 "to" mempty "Go to a pitch, and possibly fade out."
     $ Sig.call ((,)
     <$> Sig.required "pitch" "Go to this pitch or interval."
     <*> Sig.defaulted "transition" default_transition
@@ -644,16 +662,19 @@ c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
         (start, end) <- Args.real_range args
         start <- align_to_end start end time
         pitch <- prev_pitch start args
-        when fade_out $
-            ControlUtil.multiply_dyn end
+        case fade of
+            Fade -> ControlUtil.multiply_dyn end
                 =<< ControlUtil.make_segment id start 1 end 0
+            NoFade -> return ()
         PitchUtil.make_segment id start pitch end
             (PitchUtil.resolve_pitch_transpose pitch to_pitch)
 
 c_fade :: Bool -> Derive.Generator Derive.Pitch
 c_fade fade_in = generator1 "fade" mempty
-        (if fade_in then "Fade in." else "Fade out.")
-    $ Sig.call (Sig.defaulted "time" (TrackLang.real 0.15) "Time to fade.")
+    ((if fade_in then "Fade in." else "Fade out.")
+    <> " This will overlap with the pitch part of the "
+    <> (if fade_in then "next" else "previous") <> " call."
+    ) $ Sig.call (Sig.defaulted "time" (TrackLang.real 0.15) "Time to fade.")
     $ \(TrackLang.DefaultReal time) args -> do
         (start, end) <- Args.real_range args
         (start, end) <- if fade_in

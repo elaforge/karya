@@ -27,35 +27,35 @@ test_sequence = do
         ([[(0, 60)], [(1, 62), (2, 62)]], [])
 
     -- From call.
-    equal (run [(0, 1, "4c"), (1, 4, "! -^ 2 -- 4d")])
+    equal (run [(0, 1, "4c"), (1, 4, "! prev 2 -- 4d")])
         ([[(0, 60)], [(1, 60), (2, 61), (3, 62), (5, 62)]], [])
-    equal (run [(0, 4, "! p 1 1 -- 4c")])
+    equal (run [(0, 4, "! cur 1 1 -- 4c")])
         ([[(0, 61), (1, 60), (4, 60)]], [])
 
     -- To call.
-    equal (run [(0, 4, "!; - ; p 2 2 -- 4c")])
+    equal (run [(0, 4, "!; - ; to 2 2 -- 4c")])
         ([[(0, 60), (2, 60), (3, 61), (4, 62)]], [])
-    equal (run [(0, 4, "!;; p 2 2 -- 4c")])
+    equal (run [(0, 4, "!;; to 2 2 -- 4c")])
         ([[(0, 60), (2, 60), (3, 61), (4, 62)]], [])
 
     -- Enough room.
-    equal (run [(0, 8, "!;; p 2 2 -- 4c")])
+    equal (run [(0, 8, "!;; to 2 2 -- 4c")])
         ([[(0, 60), (6, 60), (7, 61), (8, 62)]], [])
-    equal (run [(0, 2, "!;; p 2 2 -- 4c")])
+    equal (run [(0, 2, "!;; to 2 2 -- 4c")])
         ([[(0, 60), (1, 61), (2, 62)]], [])
     -- Not enough room.
-    equal (run [(0, 1, "!;; p 2 2 -- 4c")])
+    equal (run [(0, 1, "!;; to 2 2 -- 4c")])
         ([[(0, 60), (1, 62)]], [])
 
-    -- Medium is divided evenly.
+    -- Middle is divided evenly.
     equal (run [(0, 8, "!; - 1; - 0; -- 4c")])
         ([[(0, 61), (4, 60), (8, 60)]], [])
 
     -- Begin, middle, end.
-    equal (run [(0, 8, "! p 1 1;; p 1 1 -- 4c")])
+    equal (run [(0, 8, "! cur 1 1;; to 1 1 -- 4c")])
         ([[(0, 61), (1, 60), (7, 60), (8, 61)]], [])
     -- Middle divided equally between 59 and 60.
-    equal (run [(0, 8, "! p 1 1; - -1; - 0; p 1 1 -- 4c")])
+    equal (run [(0, 8, "! cur 1 1; - -1; - 0; to 1 1 -- 4c")])
         ([[(0, 61), (1, 59), (4, 60), (7, 60), (8, 61)]], [])
 
 test_flat_start_end = do
@@ -65,7 +65,7 @@ test_flat_start_end = do
 
 test_fade = do
     let run = run_note_track_dyn ""
-    equal (run [(0, 4, "!;; > 2 -- 4c")])
+    equal (run [(0, 4, "!;; -> 2 -- 4c")])
         ([( [(0, 60), (4, 60)]
           , [(0, 1), (2, 1), (3, 0.5), (4, 1)]
           )], [])

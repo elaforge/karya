@@ -15,7 +15,11 @@ import Global
 -- | The module name is dot-separated by convention, and should consist of
 -- lowercase letters, digits, and dots.
 newtype Module = Module Text.Text
-    deriving (Eq, Ord, Show, String.IsString, Pretty.Pretty)
+    deriving (Eq, Ord, Show, String.IsString)
+
+instance Pretty.Pretty Module where
+    prettyt (Module m) = m
+    pretty (Module m) = untxt m
 
 instance Monoid.Monoid Module where
     mempty = ""
