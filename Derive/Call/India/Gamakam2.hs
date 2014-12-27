@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Calls for Carnatic gamakam.
 module Derive.Call.India.Gamakam2 where
 import qualified Control.Monad.State.Strict as Monad.State
 import qualified Data.List.NonEmpty as NonEmpty
@@ -54,8 +55,9 @@ pitch_calls = Derive.generator_call_map $
 begin_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 begin_calls =
     [ ("set-pitch", c_set_pitch)
-    , ("from-p", c_from False False)
-    , ("from-p<", c_from False True)
+    , ("flat-start", c_flat_start)
+    , ("from-prev", c_from False False)
+    , ("from-prev<", c_from False True)
     , ("from", c_from True False)
     , ("from<", c_from True True)
     , ("jaru", c_jaru False)
@@ -72,7 +74,8 @@ middle_calls = ("flat", c_flat)
 
 end_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 end_calls =
-    [ ("to", c_to False)
+    [ ("flat-end", c_flat_end)
+    , ("to", c_to False)
     , ("to>", c_to True)
     , (fade_out_call, c_fade False)
     ]
@@ -84,28 +87,16 @@ fade_in_call = "fade-in"
 fade_out_call :: TrackLang.CallId
 fade_out_call = "fade-out"
 
--- avoid below: ! p< -1 ; - ; p
--- avoid below, kam: ! p< -1 ; nk 2 ; p>
---
--- kharaharapriya avarohana:
--- sa: j 0 -2
--- ni: ; k_^ -1 ;
--- da: -
--- pa: -
--- ma: j 1 ; - ; j 1
--- ga: p -1 ; - ; p
--- ri: p
--- sa: -
-
 -- | I don't want to take up short names for the whole track scope, but within
 -- a sequence call it seems reasonable.  In addition, I know if it's a begin or
 -- end call, and use the same name for logically similar things.
 begin_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
 begin_aliases = Map.fromList
-    [ ("p", "from-p")
-    , ("p<", "from-p<")
-    , ("-^", "from")
-    , ("-^<", "from<")
+    [ ("-", "flat-start")
+    , ("p", "from-prev")
+    , ("p<", "from-prev<")
+    , ("-^", "from") -- TODO hard to remember
+    , ("-^<", "from<") -- TODO also hard to remember
     , ("j", "jaru0")
     , ("J", "jaru")
     , ("-<", fade_in_call)
@@ -118,7 +109,8 @@ middle_aliases = Map.fromList $ ("-", "flat")
 
 end_aliases :: Map.Map TrackLang.CallId TrackLang.CallId
 end_aliases = Map.fromList
-    [ ("p", "to")
+    [ ("-", "flat-end")
+    , ("p", "to")
     , ("p>", "to>")
     , (">", fade_out_call)
     ]
@@ -363,6 +355,20 @@ substitute_aliases aliases expr = case expr of
 
 -- * start
 
+c_flat_start :: Derive.Generator Derive.Pitch
+c_flat_start = generator1 "flat-start" mempty
+    "Emit a flat pitch for the given duration."
+    $ Sig.call ((,)
+    <$> Sig.defaulted "pitch" Nothing
+        "Emit this pitch, or continue the previous pitch if not given."
+    <*> Sig.defaulted "time" (TrackLang.real 0.15)
+        "Pitch lasts for this duration."
+    ) $ \(maybe_pitch, TrackLang.DefaultReal time) args -> do
+        start <- Args.real_start args
+        end <- get_end start time args
+        pitch <- optional_pitch maybe_pitch <$> Util.get_pitch start
+        return $ PitchSignal.signal [(start, pitch), (end, pitch)]
+
 c_set_pitch :: Derive.Generator Derive.Pitch
 c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
     \ Sequence pitch calls normally use the previous pitch, and this is an\
@@ -387,10 +393,7 @@ c_from from_prev fade_in = generator1 "from" mempty
     ) $ \(from_pitch, TrackLang.DefaultReal time, maybe_to_pitch) args -> do
         start <- Args.real_start args
         end <- get_end start time args
-        current_pitch <- Util.get_pitch start
-        let to_pitch = maybe current_pitch
-                (PitchUtil.resolve_pitch_transpose current_pitch)
-                maybe_to_pitch
+        to_pitch <- optional_pitch maybe_to_pitch <$> Util.get_pitch start
         let from = resolve_pitch args to_pitch from_pitch
         when fade_in $
             ControlUtil.multiply_dyn end
@@ -614,6 +617,20 @@ end_wants_even_transitions start (pitch1, pitch2) dir = case dir of
 
 -- * end
 
+c_flat_end :: Derive.Generator Derive.Pitch
+c_flat_end = generator1 "flat-end" mempty
+    "Emit a flat pitch for the given duration."
+    $ Sig.call ((,)
+    <$> Sig.defaulted "pitch" Nothing
+        "Emit this pitch, or continue the previous pitch if not given."
+    <*> Sig.defaulted "time" (TrackLang.real 0.15)
+        "Pitch lasts for this duration."
+    ) $ \(maybe_pitch, TrackLang.DefaultReal time) args -> do
+        (start, end) <- Args.real_range args
+        start <- align_to_end start end time
+        pitch <- optional_pitch maybe_pitch <$> prev_pitch start args
+        return $ PitchSignal.signal [(start, pitch), (end, pitch)]
+
 c_to :: Bool -> Derive.Generator Derive.Pitch
 c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
     $ Sig.call ((,)
@@ -631,7 +648,8 @@ c_to fade_out = generator1 "to" mempty "Go to a pitch, and possibly fade out."
             (PitchUtil.resolve_pitch_transpose pitch to_pitch)
 
 c_fade :: Bool -> Derive.Generator Derive.Pitch
-c_fade fade_in = generator1 "fade" mempty "Fade in or out."
+c_fade fade_in = generator1 "fade" mempty
+        (if fade_in then "Fade in." else "Fade out.")
     $ Sig.call (Sig.defaulted "time" (TrackLang.real 0.15) "Time to fade.")
     $ \(TrackLang.DefaultReal time) args -> do
         (start, end) <- Args.real_range args
@@ -642,6 +660,8 @@ c_fade fade_in = generator1 "fade" mempty "Fade in or out."
             =<< ControlUtil.make_segment id start 1 end 0
         return mempty
 
+-- | Subtract the duration from the given end time, but don't go past the
+-- start.
 align_to_end :: RealTime -> RealTime -> TrackLang.Duration
     -> Derive.Deriver RealTime
 align_to_end start end dur = do
@@ -666,6 +686,14 @@ resolve_pitch args this_pitch maybe_pitch = case maybe_pitch of
         Just (_, prev) -> prev
     Just (Left pitch) -> pitch
     Just (Right transpose) -> Pitches.transpose transpose this_pitch
+
+-- | A number of calls take an optional pitch, and default to either
+-- the current or previous pitch.
+optional_pitch :: Maybe PitchUtil.PitchOrTranspose -> PitchSignal.Pitch
+    -> PitchSignal.Pitch
+optional_pitch maybe_pitch current_pitch =
+    maybe current_pitch (PitchUtil.resolve_pitch_transpose current_pitch)
+        maybe_pitch
 
 generator1 :: Text -> Tags.Tags -> Text
     -> Derive.WithArgDoc (Derive.PassedArgs d -> Derive.Deriver d)

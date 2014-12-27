@@ -58,6 +58,11 @@ test_sequence = do
     equal (run [(0, 8, "! p 1 1; - -1; - 0; p 1 1 -- 4c")])
         ([[(0, 61), (1, 59), (4, 60), (7, 60), (8, 61)]], [])
 
+test_flat_start_end = do
+    let run = run_note_track ""
+    equal (run [(0, 4, "! - 0 1; - 1; - -1 1 -- 4c")])
+        ([[(0, 60), (1, 61), (3, 60), (4, 60)]], [])
+
 test_fade = do
     let run = run_note_track_dyn ""
     equal (run [(0, 4, "!;; > 2 -- 4c")])

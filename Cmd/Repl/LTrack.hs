@@ -128,7 +128,7 @@ line = do
     PlayUtil.clear_cache block_id
     mapM_ (State.set_render_style (Track.Line Nothing)) track_ids
 
--- | Just # for the pitch track.
+-- | Pass \"#\" for the pitch track.
 nline :: Text -> Cmd.CmdL ()
 nline = note_render Track.Line
 

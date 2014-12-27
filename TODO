@@ -103,6 +103,9 @@ UNSORTED
     beginning.
   india: gamakam:
     sequence calls:
+      - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
+        "pitch generator not found: 'k'".  Should mention that it's an end
+        call.
       begin
         - j needs to stretch when the notes are fast, but expand to a maximum
           otherwise.
