@@ -319,14 +319,17 @@ instance Pretty.Pretty Expr where
 -- added.  This is so that if there is just an end call, there will still be
 -- a signal from the beginning of the note.
 --
--- > begin ; middle1 ; middle2; ...; end
--- > begin; end
--- > ; middle ;
+-- The positions are inferred according to the number of sections:
+--
+-- > ; middle1;
+-- > begin1; middle2
+-- > begin1; middle2; middle3; ...; end_n
 parse_sequence :: [TrackLang.Val] -> (Expr, [Expr], Maybe Expr)
 parse_sequence exprs = postproc $
     case Seq.map_tail (drop 1) $ Seq.split_with is_separator exprs of
         [] -> (Nothing, [], Nothing)
         begin : rest -> case reverse rest of
+            [middle] -> (Just begin, [middle], Nothing)
             end : middle -> (Just begin, reverse middle, Just end)
             [] -> (Just begin, [], Nothing)
     where

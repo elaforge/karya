@@ -121,6 +121,11 @@ UNSORTED
             themselves decide how much to stretch?
         - janta
       middle
+        - calls for "from above" or "from below", use lilt
+          . o_ - from below, like 'k2^ -1 0'
+          . o^ - from above, like 'k2_ 1 0'
+          . o* - around, like 'k2 -1 1'
+        - accelerate near end
         - test hold and lilt for kam and nkam, adjust for nkam
         - maybe 'hold' should transition to the pitch instead of snapping
       end
