@@ -94,10 +94,11 @@ begin_aliases = map (second (Derive.set_module begin_module))
 
 middle_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
 middle_calls = ("flat", c_flat)
-    : kampita_variations "kam" (c_kampita False)
-    ++ kampita_variations "kam2" (c_kampita True)
-    ++ kampita_variations "nkam" (c_nkampita False)
-    ++ kampita_variations "nkam2" (c_nkampita True)
+    : kampita_variations "kam" (c_kampita "" neighbor)
+    ++ kampita_variations "kam2" (c_kampita "" Kampita2)
+    ++ kampita_variations "nkam" (c_nkampita "" neighbor)
+    ++ kampita_variations "nkam2" (c_nkampita "" Kampita2)
+    where neighbor = Kampita1 0
 
 kampita_variations :: Text -> (Maybe Trill.Direction -> call)
     -> [(TrackLang.CallId, call)]
@@ -108,10 +109,27 @@ kampita_variations name call =
     where dirs = [Nothing, Just Trill.Low, Just Trill.High]
 
 middle_aliases :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
-middle_aliases = map (second (Derive.set_module middle_module)) $
-    ("-", c_flat)
-    : alias_prefix "k" "kam" middle_calls
-    ++ alias_prefix "nk" "nkam" middle_calls
+middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
+    [ ("-", c_flat)
+    ] :
+    [ hardcoded "o^" (Kampita0 1 0) (Just Trill.High)
+    , hardcoded "o_" (Kampita0 (-1) 0) (Just Trill.Low)
+    , hardcoded "o*" (Kampita0 (-1) 1) (Just Trill.Low)
+    , alias_prefix "k" "kam" middle_calls
+    , alias_prefix "nk" "nkam" middle_calls
+    ]
+    where
+    hardcoded name arg dir =
+        [ (name, c_kampita doc arg dir)
+        , (TrackLang.Symbol $ "n" <> TrackLang.unsym name,
+            c_nkampita doc arg dir)
+        ]
+    doc = Text.unlines
+        [ "These are hardcoded `k` variants:"
+        , "`o^` touches the swaram from above, like `k2^ 1 0`."
+        , "`o_` touches the swaram from below, like `k2_ -1 0`."
+        , "`o*` avoids the swaram, like `k2_ -1 1`."
+        ]
 
 alias_prefix :: Text -> Text -> [(TrackLang.CallId, call)]
     -> [(TrackLang.CallId, call)]
@@ -138,8 +156,7 @@ end_aliases = map (second (Derive.set_module end_module))
 
 -- | Special behaviour documented in 'sequence_doc'.
 fade_out_call :: TrackLang.CallId
-fade_out_call = "->"
-    -- The leading dash makes these parse as symbols.
+fade_out_call = "->" -- The leading dash makes these parse as symbols.
 
 -- | Unlike 'fade_out_call', this doesn't need special treatment.
 fade_in_call :: TrackLang.CallId
@@ -527,35 +544,48 @@ c_flat = generator1 "flat" mempty "Emit a flat pitch."
 
 -- ** kampita
 
-c_kampita:: Bool -> Maybe Trill.Direction -> Derive.Generator Derive.Pitch
-c_kampita two_pitches end_dir = generator1 "kam" mempty
-    "This is a kind of trill, but its interval defaults to NNs,\
+data KampitaArgs =
+    -- | Both interval arguments are hardcoded.
+    Kampita0 !Signal.Y !Signal.Y
+    -- | The starting pitch is hardcoded.
+    | Kampita1 !Signal.Y
+    -- | Both arguments must be provided.
+    | Kampita2
+    deriving (Show)
+
+c_kampita:: Text -> KampitaArgs -> Maybe Trill.Direction
+    -> Derive.Generator Derive.Pitch
+c_kampita doc kam_args end_dir = generator1 "kam" mempty
+    ("This is a kind of trill, but its interval defaults to NNs,\
     \ and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
+    <> if doc == "" then "" else "\n" <> doc)
     $ Sig.call ((,,)
-    <$> kampita_pitch_args two_pitches
+    <$> kampita_pitch_args kam_args
     <*> Sig.defaulted "speed" (Sig.typed_control "kam-speed" 6 Score.Real)
         "Alternate pitches at this speed."
     <*> kampita_env
     ) $ \(pitches, speed, (transition, hold, lilt, adjust)) args -> do
-        (pitches, control) <- resolve_pitches two_pitches pitches
+        (pitches, control) <- resolve_pitches kam_args pitches
         start <- Args.real_start args
         let even = end_wants_even_transitions start pitches end_dir
         transpose <- kampita_transpose even adjust pitches speed
             transition hold lilt (Args.range args)
         kampita start args control transpose
 
-c_nkampita :: Bool -> Maybe Trill.Direction -> Derive.Generator Derive.Pitch
-c_nkampita two_pitches end_dir = generator1 "nkam" mempty
-    "`kam` with a set number of cycles. The speed adjusts to fit the cycles in\
+c_nkampita :: Text -> KampitaArgs -> Maybe Trill.Direction
+    -> Derive.Generator Derive.Pitch
+c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
+    ("`kam` with a set number of cycles. The speed adjusts to fit the cycles in\
     \ before the next event."
+    <> if doc == "" then "" else "\n" <> doc)
     $ Sig.call ((,,)
     <$> Sig.defaulted "cycles" (TrackLang.Positive 1) "Number of cycles."
-    <*> kampita_pitch_args two_pitches
+    <*> kampita_pitch_args kam_args
     <*> kampita_env
     ) $ \(TrackLang.Positive cycles, pitches, (transition, hold, lilt, adjust))
             args -> do
-        (pitches, control) <- resolve_pitches two_pitches pitches
+        (pitches, control) <- resolve_pitches kam_args pitches
         (start, end) <- Args.real_range_or_next args
         let even = end_wants_even_transitions start pitches end_dir
         -- 1 cycle means a complete cycle, which is 3 transitions, but
@@ -570,27 +600,33 @@ c_nkampita two_pitches end_dir = generator1 "nkam" mempty
 
 -- ** implementation
 
-resolve_pitches :: Bool -> (TrackLang.ValControl, TrackLang.ValControl)
+resolve_pitches :: KampitaArgs -> (TrackLang.ValControl, TrackLang.ValControl)
     -> Derive.Deriver ((Util.Function, Util.Function), Score.Control)
-resolve_pitches two_pitches (pitch1, pitch2) = do
+resolve_pitches kam_args (pitch1, pitch2) = do
     (pitch1, control1) <- Util.to_transpose_function Util.Nn pitch1
     (pitch2, control2) <- Util.to_transpose_function Util.Nn pitch2
+    let two_pitches = case kam_args of
+            Kampita2 -> False
+            _ -> True
     when (two_pitches && control1 /= control2) $ Derive.throw $
         "pitch1 and pitch2 signals should have the same type: "
         <> pretty control1 <> " /= " <> pretty control2
     return ((pitch1, pitch2), control1)
 
-kampita_pitch_args :: Bool
+kampita_pitch_args :: KampitaArgs
     -> Sig.Parser (TrackLang.ValControl, TrackLang.ValControl)
-kampita_pitch_args two_pitches
-    | two_pitches = (,)
-        <$> Sig.defaulted "pitch1" (sig "kam-pitch1" 0) "First interval."
-        <*> Sig.defaulted "pitch2" (sig "kam-pitch2" 1) "Second interval."
-    | otherwise = (,)
-        <$> pure (TrackLang.constant_control 0)
+kampita_pitch_args kam_args = case kam_args of
+    Kampita0 p1 p2 -> (,) <$> pure (control p1) <*> pure (control p2)
+    Kampita1 p1 -> (,) <$> pure (control p1)
         <*> Sig.defaulted "neighbor" (sig "kam-neighbor" 1)
             "Alternate with a pitch at this interval."
-    where sig name deflt = Sig.typed_control name deflt Score.Nn
+    Kampita2 -> (,)
+        <$> Sig.defaulted "pitch1" (sig "kam-pitch1" 0) "First interval."
+        <*> Sig.defaulted "pitch2" (sig "kam-pitch2" 1) "Second interval."
+    where
+    control val =
+        TrackLang.ControlSignal $ Score.untyped (Signal.constant val)
+    sig name deflt = Sig.typed_control name deflt Score.Nn
 
 kampita_env :: Sig.Parser (RealTime, TrackLang.Duration, Double, Trill.Adjust)
 kampita_env = (,,,)
