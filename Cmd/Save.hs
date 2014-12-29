@@ -29,7 +29,9 @@ module Cmd.Save (
 ) where
 import Prelude hiding (read)
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Time as Time
+
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
@@ -123,16 +125,22 @@ cond ((condition, result) : rest) consequent =
 
 -- | Expand `-delimited macros to make a filepath.
 expand_filename :: FilePath -> Cmd.CmdT IO FilePath
-expand_filename =
-    fmap untxt . TextUtil.mapDelimitedM False '`' expand . txt
+expand_filename = fmap untxt . TextUtil.mapDelimitedM False '`' expand . txt
     where
-    expand text
-        | text == "y-m-d" = liftIO date
-        | text == "d" = do
-            dir <- Cmd.require "`d` requires a save dir"
-                =<< Cmd.gets Cmd.state_save_dir
-            return $ txt dir
-        | otherwise = return $ "`" <> text <> "`"
+    expand text = case lookup text filename_macros of
+        Just get -> get
+        Nothing -> Cmd.throw $ "unknown macro " <> show text
+            <> ", known macros are: "
+            <> untxt (Text.intercalate ", " (map fst filename_macros))
+
+filename_macros :: [(Text, Cmd.CmdT IO Text)]
+filename_macros =
+    [ ("y-m-d", liftIO date)
+    , ("d", do
+        dir <- Cmd.require "`d` requires a save dir"
+            =<< Cmd.gets Cmd.state_save_dir
+        return $ txt dir)
+    ]
 
 date :: IO Text
 date = do
