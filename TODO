@@ -103,7 +103,7 @@ UNSORTED
     beginning.
   india: gamakam:
     sequence calls:
-      - pitch calls should take ControlUtil.curve_env arg
+      * pitch calls should take ControlUtil.curve_env arg
       - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
         "pitch generator not found: 'k'".  Should mention that it's an end
         call.
@@ -182,33 +182,6 @@ UNSORTED
     . Medium level ornaments are for generic pitch, and go on a generic
       transpose track, they use arg types for diatonic vs. nn.  They can also
       emit dyn control.  They are specific motions, e.g. (-1 1)
-    . High level ornaments apply to a whole note, and are compositions of
-      medium level ornaments.  I could also have a "" call that selects the
-      high level ornament based on swaram and ragam.
-
-    . Ornaments:
-        start:
-          . Start from pitch, possibly fade in.  Default to previous pitch.
-            > from, from<
-          . Attack, e.g. 0 -2 0.  Only at beginning of note.  Doesn't shorten,
-            though it might speed up a bit.  Diatonic.  Jaru.
-            > j) 0 -2, j] -1, sgr
-        middle:
-          . Avoid around: -1 1, end on low or high.  Shortens by dropping
-            cycles.  When it's long, can have hold on the beginning.  Diatonic.
-            > avoid
-          . Avoid below: -1 0 -1 0.  Always ends on 0.  Shortens by dropping
-            cycles.  Has lilt, i.e. spends more time on -1, but if there's no
-            time the ratio becomes even.  Fade on final approach to 0.
-          . Avoid below: -1, then lift at end.
-        end:
-          . go to pitch, possibly fade out.  Can either fade while sliding, or
-            fingered change then fade.
-            > to, to>
-        timed:
-          . Momentary dip: 0, -1, 0.  Possibly with dyn drop.
-      - all calls take interpolator as env arg
-      . each of the above are individual note calls
     - higher level ornaments that change based on how much time they have,
       also depend on the previous pitch.
     - nkam doesn't seem to interact correctly with 'h'

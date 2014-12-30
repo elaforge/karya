@@ -15,7 +15,6 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
-import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.SignalTransform as SignalTransform
@@ -420,14 +419,16 @@ c_from pitch_from fade = generator1 "from" mempty
     (case pitch_from of
         PitchFromPrev -> "Come for the previous pitch, and possibly fade in."
         PitchFromCurrent -> "Come from a pitch, and possibly fade in.")
-    $ Sig.call ((,,)
+    $ Sig.call ((,,,)
     <$> case pitch_from of
         PitchFromPrev -> pure Nothing
         PitchFromCurrent -> Sig.defaulted "from" Nothing
             "Come from this pitch, or the previous one."
     <*> Sig.defaulted "transition" default_transition "Time to destination."
     <*> Sig.defaulted "to" Nothing "Go to this pitch, or the current one."
-    ) $ \(from_pitch, TrackLang.DefaultReal time, maybe_to_pitch) args -> do
+    <*> ControlUtil.curve_env
+    ) $ \(from_pitch, TrackLang.DefaultReal time, maybe_to_pitch, curve)
+            args -> do
         start <- Args.real_start args
         end <- get_end start time args
         to_pitch <- optional_pitch maybe_to_pitch <$> Util.get_pitch start
@@ -436,7 +437,7 @@ c_from pitch_from fade = generator1 "from" mempty
             Fade -> ControlUtil.multiply_dyn end
                 =<< ControlUtil.make_segment id start 0 end 1
             NoFade -> return ()
-        PitchUtil.make_segment id start from end to_pitch
+        PitchUtil.make_segment curve start from end to_pitch
 
 -- | Get the end time, given a start and a duration.  Don't go beyond the
 -- maximum, which is the event's duration, if given explicitly, or the next
@@ -485,13 +486,15 @@ c_jaru :: Bool -> Derive.Generator Derive.Pitch
 c_jaru append_zero = generator1 "jaru" mempty
     "This is a series of grace notes whose pitches are relative to the\
     \ base pitch. The 0 variant appends a 0 on the end."
-    $ Sig.call ((,,)
+    $ Sig.call ((,,,)
     <$> Sig.many1 "interval" "Intervals from base pitch."
     <*> Sig.environ "time" Sig.Both default_transition "Time for each note."
     -- TODO This should also be a Duration
     <*> Sig.environ "transition" Sig.Both Nothing
         "Time for each slide, defaults to `time`."
-    ) $ \(intervals, TrackLang.DefaultReal time_, maybe_transition) args -> do
+    <*> ControlUtil.curve_env
+    ) $ \(intervals, TrackLang.DefaultReal time_, maybe_transition, curve)
+            args -> do
         start <- Args.real_start args
         -- Adjust time per note based on the available duration.
         -- Since transitions can start at 0 and end at the end, I'm dividing
@@ -504,7 +507,7 @@ c_jaru append_zero = generator1 "jaru" mempty
         srate <- Util.get_srate
         (intervals, control) <- parse intervals
         let transition = fromMaybe time maybe_transition
-        let sig = jaru srate start time transition $
+        let sig = jaru curve srate start time transition $
                 NonEmpty.toList intervals ++ if append_zero then [0] else []
         return $ PitchSignal.apply_control control (Score.untyped sig) $
             PitchSignal.signal [(start, pitch)]
@@ -517,12 +520,10 @@ c_jaru append_zero = generator1 "jaru" mempty
             (Controls.transpose_control . TrackLang.default_diatonic)
             intervals
 
-jaru :: RealTime -> RealTime -> RealTime -> RealTime -> [Signal.Y]
-    -> Signal.Control
-jaru srate start time transition intervals =
-    -- TODO use segments from PitchUtil?  That way I can use the
-    -- interpolate-type.  Of course, 'smooth' takes a function too...
-    SignalTransform.smooth id srate (-transition) $
+jaru :: ControlUtil.Curve -> RealTime -> RealTime -> RealTime -> RealTime
+    -> [Signal.Y] -> Signal.Control
+jaru curve srate start time transition intervals =
+    SignalTransform.smooth curve srate (-transition) $
         Signal.signal (zip (Seq.range_ start time) intervals)
 
 -- * middle
@@ -560,16 +561,16 @@ c_kampita doc kam_args end_dir = generator1 "kam" mempty
     \ and transitions between the notes are smooth.  It's intended for\
     \ the vocal microtonal trills common in Carnatic music."
     <> if doc == "" then "" else "\n" <> doc)
-    $ Sig.call ((,,)
+    $ Sig.call ((,,,)
     <$> kampita_pitch_args kam_args
     <*> Sig.defaulted "speed" (Sig.typed_control "kam-speed" 6 Score.Real)
         "Alternate pitches at this speed."
-    <*> kampita_env
-    ) $ \(pitches, speed, (transition, hold, lilt, adjust)) args -> do
+    <*> kampita_env <*> ControlUtil.curve_env
+    ) $ \(pitches, speed, (transition, hold, lilt, adjust), curve) args -> do
         (pitches, control) <- resolve_pitches kam_args pitches
         start <- Args.real_start args
         let even = end_wants_even_transitions start pitches end_dir
-        transpose <- kampita_transpose even adjust pitches speed
+        transpose <- kampita_transpose curve even adjust pitches speed
             transition hold lilt (Args.range args)
         kampita start args control transpose
 
@@ -579,12 +580,12 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
     ("`kam` with a set number of cycles. The speed adjusts to fit the cycles in\
     \ before the next event."
     <> if doc == "" then "" else "\n" <> doc)
-    $ Sig.call ((,,)
+    $ Sig.call ((,,,)
     <$> Sig.defaulted "cycles" (TrackLang.Positive 1) "Number of cycles."
     <*> kampita_pitch_args kam_args
-    <*> kampita_env
-    ) $ \(TrackLang.Positive cycles, pitches, (transition, hold, lilt, adjust))
-            args -> do
+    <*> kampita_env <*> ControlUtil.curve_env
+    ) $ \(TrackLang.Positive cycles, pitches, (transition, hold, lilt, adjust),
+            curve) args -> do
         (pitches, control) <- resolve_pitches kam_args pitches
         (start, end) <- Args.real_range_or_next args
         let even = end_wants_even_transitions start pitches end_dir
@@ -594,7 +595,7 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
         let num_transitions = cycles * 2 + if even == Just True then 0 else 1
         let speed = TrackLang.constant_control $
                 (num_transitions - 1) / RealTime.to_seconds (end - start)
-        transpose <- kampita_transpose even adjust pitches speed
+        transpose <- kampita_transpose curve even adjust pitches speed
             transition hold lilt (Args.range args)
         kampita start args control transpose
 
@@ -654,15 +655,38 @@ kampita start args control transpose = do
         (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
 -- | You don't think there are too many arguments, do you?
-kampita_transpose :: Maybe Bool -> Trill.Adjust
+kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
     -> (Util.Function, Util.Function) -> TrackLang.ValControl -> RealTime
     -> TrackLang.Duration -> Double -> (ScoreTime, ScoreTime)
     -> Derive.Deriver Signal.Control
-kampita_transpose even adjust (pitch1, pitch2) speed transition hold lilt
+kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
         (start, end) = do
     hold <- Util.score_duration start hold
-    Gamakam.smooth_trill (-transition) pitch1 pitch2
-        =<< Gamakam.trill_transitions even adjust lilt hold speed (start, end)
+    smooth_trill curve (-transition) pitch1 pitch2
+        =<< trill_transitions even adjust lilt hold speed (start, end)
+
+smooth_trill :: ControlUtil.Curve -> RealTime -> Util.Function -> Util.Function
+    -> [RealTime] -> Derive.Deriver Signal.Control
+smooth_trill curve time val1 val2 transitions = do
+    srate <- Util.get_srate
+    return $ SignalTransform.smooth curve srate time $
+        trill_from_transitions val1 val2 transitions
+
+-- | Make a trill signal from a list of transition times.
+trill_from_transitions :: Util.Function -> Util.Function
+    -> [RealTime] -> Signal.Control
+trill_from_transitions val1 val2 transitions = Signal.signal
+    [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
+
+trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
+    -> TrackLang.ValControl -> (ScoreTime, ScoreTime)
+    -> Derive.Deriver [RealTime]
+trill_transitions = Trill.adjusted_transitions include_end
+    where
+    -- Trills usually omit the transition that coincides with the end because
+    -- that would create a zero duration note.  But these trills are smoothed
+    -- and thus will still have a segment leading to the cut-off transition.
+    include_end = True
 
 end_wants_even_transitions :: RealTime -> (Util.Function, Util.Function)
     -> Maybe Trill.Direction -> Maybe Bool
