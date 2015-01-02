@@ -180,6 +180,7 @@ scale_from_titles block_id track_id = do
         Just scale_id | scale_id /= Pitch.empty_scale -> Just scale_id
         _ -> Nothing
 
+-- | Find the instrument in scope.
 lookup_instrument :: Cmd.M m => Track -> m (Maybe Score.Instrument)
 lookup_instrument track = lookup_val track Environ.instrument
 

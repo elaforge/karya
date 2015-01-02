@@ -221,7 +221,6 @@ test_track_dynamic = do
             (env_lookup Environ.scale env, env_lookup Environ.instrument env)
             where env = Derive.state_environ dyn
         block_id = UiTest.default_block_id
-
     let res = DeriveTest.derive_blocks
             [ ("b", [("*legong", [(0, 0, "1")]), (">i1", [(0, 1, "sub")])])
             , ("sub", [(">", [(0, 1, "")]), ("*", [(0, 0, "2")])])
@@ -237,7 +236,6 @@ test_track_dynamic = do
     -- on it.
     let res = DeriveTest.derive_tracks ""
             [(">i1", [(0, 1, "")]), ("*legong", [])]
-            -- [(">i1", [(0, 1, "")]), ("*legong", [(0, 0, "4i")])]
     equal (e_track_dynamic e_scale_inst res)
         [ ((block_id, 1), ("legong", ">i1"))
         , ((block_id, 2), ("legong", ">i1"))

@@ -80,7 +80,15 @@ extract_result sort_events (result, state, logs) = Result
     }
     where collect = state_collect state
 
--- | See 'TrackDynamic'.
+-- | Extract the merged TrackDynamic from the Collect.
+--
+-- 'Environ.scale' comes from the inverted Collect because the scale track is
+-- often inverted below the note track.  However, the others come from the
+-- non-inverted Collect because if the note track sets an instrument, I want to
+-- use its instrument, instead of any instrument on individual events.  E.g.
+-- @>kendang-pasang@ has events that are @>kendang-wadon@ or @>kendang-lanang@.
+--
+-- See 'Collect' and 'TrackDynamic' for why.
 extract_track_dynamic :: Collect -> TrackDynamic
 extract_track_dynamic collect =
     Map.fromList $ map extract $ Util.Map.pairs
@@ -88,8 +96,13 @@ extract_track_dynamic collect =
     where
     extract (k, Seq.First dyn) = (k, dyn)
     extract (k, Seq.Second dyn) = (k, dyn)
-    extract (k, Seq.Both normal inverted) = (k,
-        inverted { state_controls = state_controls normal })
+    extract (k, Seq.Both normal inverted) = (k, merge normal inverted)
+    merge normal inverted = normal
+        { state_environ = keep (state_environ inverted) <> state_environ normal
+        }
+    keep env = maybe mempty
+        (TrackLang.make_environ . (:[]) . (,) Environ.scale) $
+            TrackLang.lookup_val Environ.scale env
 
 -- | Given an environ, bring instrument and scale calls into scope.
 with_initial_scope :: TrackLang.Environ -> Deriver d -> Deriver d

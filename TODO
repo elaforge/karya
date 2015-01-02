@@ -3,6 +3,23 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - empty track doesn't get an Environ, which causes Cmd.Track to not be able
+    to find the instrument.
+    . It was because the kendang tracks were below >pno, not "tempo".  So, two
+      problems:
+      . It's too hard to see that the skeleton is wrong.
+      . Note track children should have dynamics too.
+    . bug/no-env
+  * First note entry in >k uses pasang, but the second sees the first note.
+    It's because 'inst' comes from the inversion.  But I take env from the
+    inversion so I can get the scale.
+    . So, I could take the scale from under but the inst from over?  Or, if
+      there's an inst in the title, just take that.
+    . Just the title doesn't work for thru, because Perf.derive_at still gets
+      the other Dynamic.  Best to get it right in Dynamic, but how?
+    . The key thing is that the note track sets an instrument.  Only scale has
+      to wait for the invert, instrument shouldn't.  I could hard-code environ
+      keys.
   sekaran
     . With different durations, there's no way to know how to split up rests.
       So the number of gaps and notes has to be consistent.  But it seems more
