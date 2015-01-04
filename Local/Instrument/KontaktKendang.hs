@@ -39,7 +39,7 @@ patches :: [MidiInst.Patch]
 patches =
     [ (CUtil.pitched_drum_patch tunggal_notes $ patch "kendang", tunggal_code)
     , (CUtil.drum_patch old_tunggal_notes $ patch "kendang-old", tunggal_code)
-    , (patch "kendang-pasang", pasang_code)
+    , (Instrument.triggered $ patch "kendang-pasang", pasang_code)
     ]
     where
     tunggal_code = CUtil.drum_code (Just "kendang-tune") (map fst tunggal_notes)
@@ -122,13 +122,14 @@ old_tunggal_notes = map (first make_note)
 
 -- * config
 
-config :: Text -> MidiConfig.Config
-config dev_ = MidiConfig.config
-    [ ("k-wadon", "kontakt/kendang", Instrument.config1 dev 0)
-    , ("k-lanang", "kontakt/kendang", Instrument.config1 dev 1)
-    , ("kendang", "kontakt/kendang-pasang",
-        MidiConfig.environ "wadon" (inst "k-wadon") $
-        MidiConfig.environ "lanang" (inst "k-lanang") $
+-- | @LInst.merge $ KontaktKendang.config ...@
+config :: Text -> Text -> MidiConfig.Config
+config name dev_ = MidiConfig.config
+    [ (name <> "-wadon", "kontakt/kendang", Instrument.config1 dev 0)
+    , (name <> "-lanang", "kontakt/kendang", Instrument.config1 dev 1)
+    , (name, "kontakt/kendang-pasang",
+        MidiConfig.environ "wadon" (inst $ name <> "-wadon") $
+        MidiConfig.environ "lanang" (inst $ name <> "-lanang") $
         Instrument.config [])
     ]
     where
