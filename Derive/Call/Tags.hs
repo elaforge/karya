@@ -44,6 +44,11 @@ cmod = tag "cmod"
 control_function :: Tags
 control_function = tag "control-function"
 
+-- | This call is a curve intorpolator, intended for the curve argument for
+-- calls that interpolate curves.
+curve :: Tags
+curve = control_function <> tag "curve"
+
 -- | Call uses randomness, and depends on the random seed.
 random :: Tags
 random = tag "random"
