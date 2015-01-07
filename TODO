@@ -21,6 +21,18 @@ UNSORTED
       to wait for the invert, instrument shouldn't.  I could hard-code environ
       keys.
   sekaran
+    - How to apply sekaran?
+      . >hang -> sekar abab -> notes
+      . I want to change the pattern, so the problem is how to set an env
+        var for a range on one track?
+      . I can add a 'sekar-pattern = abc', but I need to repeat it whenever
+        there is a gap.
+    * Mode to bend pitches instead of setting new notes?
+      But I'd want transition speed and curve, and now it's getting a lot of
+      extraneous arguments.
+      . Maybe a transform could take every N notes and combine with pitch
+        transitions?  I would have to configure it to match the sekaran
+        length, but it could also not match for a different effect.
     . With different durations, there's no way to know how to split up rests.
       So the number of gaps and notes has to be consistent.  But it seems more
       convenient to set the number of subdivisions, and chop up the input

@@ -111,8 +111,8 @@ type Interpolate = Bool -- ^ include the initial sample or not
     -- ^ start -> starty -> end -> endy
     -> PitchSignal.Signal
 
--- | This just rearranges the arguments to 'segment' so its more convenient
--- to pass around as a standalone creator of segments.
+-- | This defaults some arguments to 'segment' so its more convenient to pass
+-- around as a standalone creator of segments.
 interpolate_segment :: SRate -> Curve -> Interpolate
 interpolate_segment srate f include_initial =
     segment srate include_initial True f

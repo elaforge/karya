@@ -78,6 +78,10 @@ curve_env :: Sig.Parser Curve
 curve_env = cf_to_curve <$>
     Sig.environ "curve" Sig.Both cf_linear "Curve function."
 
+curve_time_env :: Sig.Parser (Curve, RealTime)
+curve_time_env = (,) <$> curve_env <*> time
+    where time = Sig.environ "curve-time" Sig.Both 0 "Curve transition time."
+
 -- | Create the standard set of interpolator calls.  Generic so it can
 -- be used by PitchUtil as well.
 interpolator_variations_ :: Derive.Taggable a =>

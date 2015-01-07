@@ -14,7 +14,7 @@ module Derive.PitchSignal (
     -- * signal functions
     , null, at, sample_at, before, shift, head, last
     , take, drop, drop_while, drop_after, drop_at_after
-    , drop_before, drop_before_strict, drop_before_at
+    , drop_before, drop_before_strict, drop_before_at, within
     , map_y
     , interleave, prepend
     , Sample(..)
@@ -195,6 +195,9 @@ drop_before_strict = modify . TimeVector.drop_before_strict
 
 drop_before_at :: RealTime -> Signal -> Signal
 drop_before_at = modify . TimeVector.drop_before_at
+
+within :: RealTime -> RealTime -> Signal -> Signal
+within start end = modify $ TimeVector.within start end
 
 map_y :: (Pitch -> Pitch) -> Signal -> Signal
 map_y = modify . TimeVector.map_y
