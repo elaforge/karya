@@ -116,9 +116,9 @@ c_slur_dur = Derive.transformer Module.prelude "slur-dur" Tags.postproc
     "Merge groups of notes into one note, where the pitch is taken from each\
     \ merged note. The groups are by duration."
     $ Sig.callt ((,,)
-    <$> (TrackLang.default_real <$> Sig.required "dur"
+    <$> (TrackLang.default_score <$> Sig.required "dur"
         "How long each group is.")
-    <*> (TrackLang.default_real <$> Sig.defaulted "offset" (TrackLang.real 0)
+    <*> (TrackLang.default_score <$> Sig.defaulted "offset" (TrackLang.score 0)
         "Groups start at this time.")
     <*> ControlUtil.curve_time_env
     ) $ \(dur, offset, curve) args deriver -> do
