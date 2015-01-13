@@ -82,11 +82,11 @@ equal_doc =
     \ the generator\
     \ by default, but will set the transformer if you prefix another `-`.  You\
     \ need quoting for symbols that don't match 'Derive.Parse.p_symbol'.\
-    \\nE.g.: set note generator: `>phrase = some-block`,\
-    \ note transformer: `>-mute = +mute+loose`,\
+    \\nE.g.: set note generator: `^phrase = some-block`,\
+    \ note transformer: `^-mute = +mute+loose`,\
     \ control transfomrer: `'.-i' = t`, val call: `'-4c' = 5c`.\
     \\nIf you bind a call to a quoted expression, this creates a new\
-    \ call: `>abc = \"(a b c)` will create a `abc` call, which is a macro for\
+    \ call: `^abc = \"(a b c)` will create a `abc` call, which is a macro for\
     \ `a b c`. The created call does not take arguments (yet!).\
     \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
     \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal.\
@@ -96,7 +96,7 @@ equal_doc =
     \ error if `%b` is a ControlFunction. `%a = _ .5` will combine with `a`'s\
     \ default merge operator. Assigning to `_` unsets the control, and any\
     \ control function."
-    -- Previously > was for binding note calls, but that was takes by
+    -- Previously > was for binding note calls, but that was taken by
     -- instrument aliasing.  ^ at least looks like a rotated >.
 
 equal_transformer :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
