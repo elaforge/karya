@@ -585,7 +585,7 @@ mridangam_right = map (\(c, n, a, d) -> Drums.Note n a c d)
     , ('r', "d", din, 1)
     , ('5', "v", muru, 1)
     , ('t', "u", arai, 1)
-    , ('y', "m", dheem, 1)
+    , ('y', "i", dheem, 1)
     ]
 mridangam_keymap = mridangam_left ++ mridangam_right
 

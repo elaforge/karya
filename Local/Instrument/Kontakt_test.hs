@@ -106,7 +106,7 @@ test_mridangam = do
             ] ++ tracks
         perf = perform ["kontakt/mridangam"] . Derive.r_events
     let (_events, midi, logs) =
-            perf $ run "3b" ["k", "t", "n", "d", "m"] []
+            perf $ run "3b" ["k", "t", "n", "d", "i"] []
     equal logs []
     equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $
             map snd (DeriveTest.extract_midi midi))

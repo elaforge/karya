@@ -3,6 +3,30 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - sometimes I want a single call, but not to import a whole module, e.g.
+    india.mridangam.faran.ktkn
+    . add qualified symbol that looks up in the module?
+      Or maybe it should be 'm india.mridangam.faran ktkn' to avoid using up
+      dots for all calls.  Otherwise '.' call is broken.
+  - import only one symbol, e.g. 'import india.mridangam.faran.ktkn'
+  - library of mridangam patterns
+    . I can write them down in a specialized language in the source, and then
+      they become a module with call names.  If I want to edit them, I can run
+      a cmd to materialize as a block.
+    faran
+      * fix irregular farans
+      * transform Faran into a call that emits those mridangam calls
+      - dynamics
+      . I want to experiment with tisram, I think it's easier to set a tisram
+        tempo, then let it clip naturally.
+      . Wouldn't it be easier to set the tempo, then clip to the event?  Then
+        I need a start offset arg to get middle or end.
+      . Also if I want something from the middle, I need start and end
+        aksharas.
+    * tadinginatoms
+    + Cmd to turn a call into a block.  This is like integration, except that
+      the call emits other calls, so I don't need to go from attributes back
+      to call names.  Or maybe I should go the attribute route?
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
     . It was because the kendang tracks were below >pno, not "tempo".  So, two
