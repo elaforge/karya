@@ -137,9 +137,17 @@ score = DefaultScore . Score
 
 -- | An annotation that says this value must be >0.  Instances only exist
 -- for numeric types.
-newtype Positive a = Positive { positive :: a } deriving (Show, Eq, ShowVal)
+--
+-- This is an instance of Num just so numeric literals work.  Of course that
+-- means you also have (-) which can make it not positive, but this is only
+-- intended to be a type tag for signatures, unwrapped as soon as it gets
+-- passed to the call.
+newtype Positive a = Positive { positive :: a }
+    deriving (Show, Eq, ShowVal, Num, Fractional)
+
 -- | Like 'Positive', but >=0.
-newtype Natural a = Natural { natural :: a } deriving (Show, Eq, ShowVal)
+newtype Natural a = Natural { natural :: a }
+    deriving (Show, Eq, ShowVal, Num, Fractional)
 
 -- | Normally Transpose will default to Chromatic if the val is untyped,
 -- but some calls would prefer to default to Diatonic.

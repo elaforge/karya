@@ -308,12 +308,11 @@ c_nkampita_c start_dir end_dir = generator1 "nkam" mempty
     \ before the next event."
     $ Sig.call ((,,,,)
     <$> neighbor_arg
-    <*> defaulted "cycles" (TrackLang.Positive 1) "Number of cycles."
+    <*> (TrackLang.positive <$> defaulted "cycles" 1 "Number of cycles.")
     <*> lilt_env <*> Trill.hold_env
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
-    ) $ \(neighbor, TrackLang.Positive cycles, lilt, hold, transition) args ->
-            do
+    ) $ \(neighbor, cycles, lilt, hold, transition) args -> do
         (start, end) <- Args.real_range_or_next args
         neighbor <- Util.to_function neighbor
         let ((val1, val2), even_transitions) = convert_directions start

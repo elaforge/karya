@@ -581,11 +581,10 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
     \ before the next event."
     <> if doc == "" then "" else "\n" <> doc)
     $ Sig.call ((,,,)
-    <$> Sig.defaulted "cycles" (TrackLang.Positive 1) "Number of cycles."
+    <$> (TrackLang.positive <$> Sig.defaulted "cycles" 1 "Number of cycles.")
     <*> kampita_pitch_args kam_args
     <*> kampita_env <*> ControlUtil.curve_env
-    ) $ \(TrackLang.Positive cycles, pitches, (transition, hold, lilt, adjust),
-            curve) args -> do
+    ) $ \(cycles, pitches, (transition, hold, lilt, adjust), curve) args -> do
         (pitches, control) <- resolve_pitches kam_args pitches
         (start, end) <- Args.real_range_or_next args
         let even = end_wants_even_transitions start pitches end_dir

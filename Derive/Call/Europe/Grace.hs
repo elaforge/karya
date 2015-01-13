@@ -69,9 +69,8 @@ grace_dur_env = TrackLang.default_real <$>
         "Duration of grace notes."
 
 grace_dyn_env :: Sig.Parser Double
-grace_dyn_env = TrackLang.positive <$>
-    Sig.environ "grace-dyn" Sig.Unprefixed (TrackLang.Positive 0.5)
-        "Scale the dyn of the grace notes."
+grace_dyn_env = TrackLang.positive <$> Sig.environ "grace-dyn" Sig.Unprefixed
+    0.5 "Scale the dyn of the grace notes."
 
 grace_placement_env :: Sig.Parser TrackLang.ValControl
 grace_placement_env = Sig.environ "grace-place" Sig.Unprefixed
