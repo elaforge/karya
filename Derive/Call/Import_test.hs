@@ -9,11 +9,12 @@ import qualified Derive.Score as Score
 
 
 test_import = do
-    let run title = DeriveTest.extract Score.event_start
-            . DeriveTest.derive_tracks title
-    strings_like (snd (run "" [(">", [(0, 1, "X")])]))
-        ["note generator not found"]
-    equal (run "import bali.reyong" [(">", [(0, 1, "X")])]) ([0, 0, 0, 0], [])
-    strings_like
-        (snd (run "import europe no-such-module" [(">", [(0, 1, "")])]))
+    let run title = DeriveTest.extract Score.event_start $
+            DeriveTest.derive_tracks title [(">", [(0, 1, "X")])]
+    strings_like (snd (run "")) ["note generator not found"]
+    equal (run "import bali.reyong") ([0, 0, 0, 0], [])
+    strings_like (snd (run "import europe no-such-module"))
         ["no calls in the imported module"]
+
+    strings_like (snd (run "imports bali.reyong no-sym")) ["symbols not in"]
+    equal (run "imports bali.reyong X") ([0, 0, 0, 0], [])

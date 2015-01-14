@@ -11,6 +11,7 @@ module Derive.Deriver.Lib where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 
 import qualified Util.Log as Log
 import qualified Util.Map
@@ -165,6 +166,18 @@ with_imported empty_ok module_ deriver = do
         extracted -> return extracted
     with_scopes (import_library lib) deriver
 
+-- | Import only the given symbols from the module.
+with_imported_symbols :: Module.Module -> Set.Set TrackLang.CallId -> Deriver a
+    -> Deriver a
+with_imported_symbols module_ syms deriver = do
+    lib <- extract_symbols (`Set.member` syms) . extract_module module_ <$>
+        Internal.get_constant state_library
+    let missing = syms `Set.difference` Set.fromList (library_symbols lib)
+    unless (Set.null missing) $
+        throw $ "symbols not in module " <> pretty module_ <> ": "
+            <> pretty (Set.toList missing)
+    with_scopes (import_library lib) deriver
+
 -- | Filter out any calls that aren't in the given modules.
 extract_module :: Module.Module -> Library -> Library
 extract_module module_ (Library note control pitch val) =
@@ -182,6 +195,30 @@ extract_module module_ (Library note control pitch val) =
         | wanted doc = Just lookup
         | otherwise = Nothing
     wanted = (== module_) . cdoc_module
+
+-- | Filter out calls that don't match the predicate.  LookupCalls are also
+-- filtered out.  This might be confusing since you might not even know a
+-- call comes from a LookupPattern, but then you can't import it by name.
+extract_symbols :: (TrackLang.CallId -> Bool) -> Library -> Library
+extract_symbols wanted (Library note control pitch val) =
+    Library (extract2 note) (extract2 control) (extract2 pitch) (extract val)
+    where
+    extract2 (CallMaps gs ts) = CallMaps (extract gs) (extract ts)
+    extract = mapMaybe has_name
+    has_name (LookupMap calls)
+        | Map.null include = Nothing
+        | otherwise = Just (LookupMap include)
+        where include = Util.Map.filter_key wanted calls
+    has_name (LookupPattern {}) = Nothing
+
+library_symbols :: Library -> [TrackLang.CallId]
+library_symbols (Library note control pitch val) =
+    extract2 note <> extract2 control <> extract2 pitch <> extract val
+    where
+    extract2 (CallMaps gs ts) = extract gs <> extract ts
+    extract = concatMap names_of
+    names_of (LookupMap calls) = Map.keys calls
+    names_of (LookupPattern {}) = []
 
 import_library :: Library -> Scopes -> Scopes
 import_library (Library lib_note lib_control lib_pitch lib_val)

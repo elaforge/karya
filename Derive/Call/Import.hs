@@ -5,6 +5,7 @@
 -- | The @import@ call, and support.
 module Derive.Call.Import where
 import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Set as Set
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
@@ -14,7 +15,10 @@ import Global
 
 
 calls :: Derive.Callable d => Derive.CallMaps d
-calls = Derive.transformer_call_map [("import", c_import)]
+calls = Derive.transformer_call_map
+    [ ("import", c_import)
+    , ("imports", c_import_symbol)
+    ]
 
 c_import :: Derive.Callable d => Derive.Transformer d
 c_import = Derive.transformer Module.prelude "import" mempty
@@ -24,3 +28,13 @@ c_import = Derive.transformer Module.prelude "import" mempty
     $ Sig.callt (Sig.many1 "module" "Import these modules.") $ \modules _ d ->
         foldr (Derive.with_imported False) d $
             map Module.Module (NonEmpty.toList modules)
+
+c_import_symbol :: Derive.Callable d => Derive.Transformer d
+c_import_symbol = Derive.transformer Module.prelude "import-symbol" mempty
+    "Import a single symbol, or list of symbols."
+    $ Sig.callt ((,)
+    <$> Sig.required "module" "Import this module."
+    <*> Sig.many1 "symbol" "Import these symbols."
+    ) $ \(module_, syms) _args ->
+        Derive.with_imported_symbols (Module.Module module_)
+            (Set.fromList (NonEmpty.toList syms))

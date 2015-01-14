@@ -3,12 +3,8 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - sometimes I want a single call, but not to import a whole module, e.g.
-    india.mridangam.faran.ktkn
-    . add qualified symbol that looks up in the module?
-      Or maybe it should be 'm india.mridangam.faran ktkn' to avoid using up
-      dots for all calls.  Otherwise '.' call is broken.
-  - import only one symbol, e.g. 'import india.mridangam.faran.ktkn'
+  * import only one symbol, e.g. 'import india.mridangam.faran.ktkn'
+    Or better, 'import module sym sym'
   - library of mridangam patterns
     . I can write them down in a specialized language in the source, and then
       they become a module with call names.  If I want to edit them, I can run
