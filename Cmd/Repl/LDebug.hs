@@ -6,16 +6,19 @@
 -- | Debugging utilities.
 module Cmd.Repl.LDebug where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
+import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Repl.LPerf as LPerf
 import qualified Cmd.Simple as Simple
 
@@ -79,13 +82,17 @@ show_history = do
 -- * cache
 
 -- | Extract the cache logs, with no summarizing.
-cache_logs :: BlockId -> Cmd.CmdL String
+cache_logs :: BlockId -> Cmd.CmdL Text
 cache_logs block_id = do
     perf <- Cmd.get_performance block_id
-    let logs = filter Cache.is_cache_log $ Cmd.perf_logs perf
-    return $ unlines
-        [format_stack msg ++ ": " ++ Log.msg_string msg | msg <- logs]
-    where format_stack = maybe "" Stack.show_ui_ . Log.msg_stack
+    let logs = filter wanted $ Cmd.perf_logs perf
+    return $ Text.unlines
+        [ TextUtil.joinWith ": " (format_stack msg) (Log.msg_text msg)
+        | msg <- logs
+        ]
+    where
+    wanted log = Cache.is_cache_log log || PlayUtil.is_score_damage_log log
+    format_stack = maybe "" (txt . Stack.show_ui_) . Log.msg_stack
 
 -- | Stats for both block and track caches from the given block.
 cache_stats :: BlockId -> Cmd.CmdL String

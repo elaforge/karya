@@ -9,6 +9,7 @@ module Cmd.PlayUtil (
     , cached_derive, uncached_derive
     , clear_cache, clear_caches
     , derive_block, run, run_with_dynamic
+    , is_score_damage_log
     , get_constant
     -- * perform
     , perform_from, shift_messages, first_time
@@ -108,8 +109,14 @@ derive_block :: Cmd.M m => Bool -> Derive.Cache -> Derive.ScoreDamage
     -> BlockId -> m Derive.Result
 derive_block sort cache damage block_id = do
     global_transform <- State.config#State.global_transform <#> State.get
-    Derive.extract_result sort <$> run cache damage
-        (Call.Block.eval_root_block global_transform block_id)
+    fmap (Derive.extract_result sort) $ run cache damage $ do
+        unless (damage == mempty) $
+            Log.debug $ "score damage for " <> showt block_id <> ": "
+                <> prettyt damage
+        Call.Block.eval_root_block global_transform block_id
+
+is_score_damage_log :: Log.Msg -> Bool
+is_score_damage_log = ("score damage for " `Text.isPrefixOf`) . Log.msg_text
 
 run :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
     -> Derive.Deriver a -> m (Derive.RunResult a)

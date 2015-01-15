@@ -14,7 +14,7 @@ UNSORTED
 
       Should have rederived b5.t3.  Maybe it's because damage on t1 lost the
       pending t3 damage?
-    - Cache logs should log ScoreDamage.
+    * Cache logs should log ScoreDamage.
   library of mridangam patterns
     . I can write them down in a specialized language in the source, and then
       they become a module with call names.  If I want to edit them, I can run

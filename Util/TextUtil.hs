@@ -35,6 +35,9 @@ replaceMany replace = mconcat . go
 join2 :: Text -> Text -> Text
 join2 t1 t2 = Text.unwords $ filter (not . Text.null) [t1, t2]
 
+joinWith :: Text -> Text -> Text -> Text
+joinWith sep t1 t2 = Text.intercalate sep $ filter (not . Text.null) [t1, t2]
+
 -- | Format the given rows into columns, aligned vertically.
 formatColumns :: Int -> [[Text]] -> [Text]
 formatColumns padding rows = map format_row rows
