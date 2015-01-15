@@ -229,11 +229,7 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     -- be just a filter too.  At least this way it only happens once.
     cache_log = LEvent.either (const False) is_cache_log
 
-cached_msg :: Int -> Text
-cached_msg ncached = "using cache, " <> showt ncached <> " vals"
-
-rederived_msg :: Text -> Text
-rederived_msg reason = "rederived generator because of " <> reason
+-- * logs
 
 -- | This is a terrible hack so the log msgs from caching can be treated
 -- differently from other log msgs.  Perhaps log msgs should have a general
@@ -242,38 +238,43 @@ is_cache_log :: Log.Msg -> Bool
 is_cache_log msg = prefix "using cache, " || prefix "rederived generator "
     where prefix = (`Text.isPrefixOf` Log.msg_text msg)
 
-extract_cached_msg :: Text -> Maybe Int
-extract_cached_msg = extract . Text.stripPrefix "using cache, "
-    where
-    extract (Just rest)
-        | Just vals <- ParseText.int (Text.takeWhile Char.isDigit rest) =
-            Just vals
-    extract _ = Nothing
+cached_msg :: Int -> Text
+cached_msg ncached = "using cache, " <> showt ncached <> " vals"
 
+-- | Get the number of cached values from a 'cached_msg'.
+extract_cached_msg :: Text -> Maybe Int
+extract_cached_msg = extract <=< Text.stripPrefix "using cache, "
+    where extract = ParseText.int . Text.takeWhile Char.isDigit
+
+rederived_msg :: Text -> Text
+rederived_msg reason = "rederived generator because of " <> reason
+
+-- | Get the reason from a 'rederived_msg'.
 extract_rederived_msg :: Text -> Maybe Text
 extract_rederived_msg = Text.stripPrefix "rederived generator because of "
 
 
 -- * get_control_damage
 
--- | ScoreDamage on the current track is converted into ControlDamage, and
--- expanded to the neighbor events.  This is because control calls emit samples
--- between their previous or next events.  Then this is merged with any
--- ControlDamage inherited from callers.
---
--- If a block call is touched by control damage, the the control damage expands
--- to cover the entire block.
---
--- Previously, this inherited damage would also be expanded to its neighbor
--- events, under the rationale that controls can modify other controls.  While
--- this is true, it causes an annoying situation where a control track with
--- a single call under (say) a tempo track will cause any edits to the tempo
--- track to invalidate the entire score.  This happens a lot in practice, and
--- I've forgotten about this wrinkle a number of times
---
--- The downside, of course, is that control damage will not cause a control
--- call that lies before its previous event to rederive, even if it should
--- have.  I'll have to see how annoying this is in practice.
+{- | ScoreDamage on the current track is converted into ControlDamage, and
+    expanded to the neighbor events.  This is because control calls emit samples
+    between their previous or next events.  Then this is merged with any
+    ControlDamage inherited from callers.
+
+    If a block call is touched by control damage, the the control damage expands
+    to cover the entire block.
+
+    Previously, this inherited damage would also be expanded to its neighbor
+    events, under the rationale that controls can modify other controls.  While
+    this is true, it causes an annoying situation where a control track with
+    a single call under (say) a tempo track will cause any edits to the tempo
+    track to invalidate the entire score.  This happens a lot in practice, and
+    I've forgotten about this wrinkle a number of times
+
+    The downside, of course, is that control damage will not cause a control
+    call that lies before its previous event to rederive, even if it should
+    have.  I'll have to see how annoying this is in practice.
+-}
 get_control_damage :: BlockId -> TrackId
     -> (ScoreTime, ScoreTime) -- ^ track_range must be passed explicitly
     -- because the event may have been sliced and shifted, but ControlDamage
@@ -286,15 +287,16 @@ get_control_damage block_id track_id track_range = do
     (control<>) <$> extend_damage track_id track_range
         (score_to_control block_id track_id score)
 
--- | Since the warp is the integral of the tempo track, damage on the tempo
--- track will affect all events after it.  Actually, the damage extends from
--- the previous event to the end of the track, since interpolating calls extend
--- from the previous event.
---
--- It would be simpler to have any edit invalidate the whole track, but it
--- seems like editing a score at the end is a common case, and it would be
--- a shame to rederive the entire score on each edit when only the very end has
--- changed.
+{- | Since the warp is the integral of the tempo track, damage on the tempo
+    track will affect all events after it.  Actually, the damage extends from
+    the previous event to the end of the track, since interpolating calls extend
+    from the previous event.
+
+    It would be simpler to have any edit invalidate the whole track, but it
+    seems like editing a score at the end is a common case, and it would be
+    a shame to rederive the entire score on each edit when only the very end has
+    changed.
+-}
 get_tempo_damage :: BlockId -> TrackId -> TrackTime
     -> Events.Events -> Derive.Deriver ControlDamage
 get_tempo_damage block_id track_id track_end events = do

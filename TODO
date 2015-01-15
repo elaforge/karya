@@ -5,7 +5,17 @@ LEGEND
 UNSORTED
   * import only one symbol, e.g. 'import india.mridangam.faran.ktkn'
     Or better, 'import module sym sym'
-  - library of mridangam patterns
+  - new notes don't play after adding to the end of a track
+    . It's a cache thing, a rederive clears it up.
+    . b5 b5.t1 *: rederived generator because of track damage
+      b5 b5.t3 *: using cache, 16 vals
+      b5 b5.t2 *: using cache, 128 vals
+      b5 * *: rederived generator because of track block damage
+
+      Should have rederived b5.t3.  Maybe it's because damage on t1 lost the
+      pending t3 damage?
+    - Cache logs should log ScoreDamage.
+  library of mridangam patterns
     . I can write them down in a specialized language in the source, and then
       they become a module with call names.  If I want to edit them, I can run
       a cmd to materialize as a block.
