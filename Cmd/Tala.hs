@@ -13,13 +13,14 @@
 module Cmd.Tala (
     ruler
     -- * standard talams
-    , adi, adi3, adi_nadai
+    , simple_ruler, simple
+    , adi, adi3
     , dhruva, matya, rupaka, jhampa, triputa, ata, eka
     , adi_tala, dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala
     , ata_tala, eka_tala
     , misra_chapu, khanda_chapu, rupaka_fast
     -- * define talams
-    , Ruler(..)
+    , Ruler(..), Sections, Avartanams, Nadai
     , make_meter
 ) where
 import qualified Data.List as List
@@ -34,16 +35,20 @@ ruler = Ruler.meter_ruler (Just Meter.mtype_tala) . Meter.labeled_marklist
 
 -- * standard talams
 
+simple_ruler :: Tala -> Nadai -> Sections -> Ruler.Ruler
+simple_ruler tala nadai sections = ruler $ simple tala nadai sections
+
+-- | 4 avartanams of the given tala.
+simple :: Tala -> Nadai -> Sections -> Meter.LabeledMeter
+simple tala nadai sections = make_meter [Ruler tala sections 4 nadai 1]
+
 -- | n sections of 4 avartanams of everyone's favorite talam.
-adi :: Int -> Meter.LabeledMeter
-adi = adi_nadai 4
+adi :: Sections -> Ruler.Ruler
+adi = simple_ruler adi_tala 4
 
 -- | 'adi' but in tisram.
-adi3 :: Int -> Meter.LabeledMeter
-adi3 = adi_nadai 3
-
-adi_nadai :: Int -> Int -> Meter.LabeledMeter
-adi_nadai nadai sections = make_meter [Ruler adi_tala sections 4 nadai 1]
+adi3 :: Sections -> Ruler.Ruler
+adi3 = simple_ruler adi_tala 3
 
 -- * implementation
 
@@ -63,6 +68,9 @@ triputa = [I, O, O]
 ata = [I, I, O, O]
 eka = [I]
 
+-- | Talas with default jati.
+dhruva_tala, matya_tala, rupaka_tala, jhampa_tala, triputa_tala, ata_tala,
+    eka_tala :: Tala
 dhruva_tala = Tala dhruva 4
 matya_tala = Tala matya 4
 rupaka_tala = Tala rupaka 4
@@ -87,11 +95,15 @@ rupaka_fast = Tala [Clap 1, Clap 1, Wave 1] 0
 
 data Ruler = Ruler {
     ruler_tala :: !Tala
-    , ruler_sections :: !Int
-    , ruler_avartanams :: !Int
-    , ruler_nadai :: !Int
+    , ruler_sections :: !Sections
+    , ruler_avartanams :: !Avartanams
+    , ruler_nadai :: !Nadai
     , ruler_dur :: !Meter.Duration -- ^ Duration of each akshara.
     } deriving (Show)
+
+type Sections = Int
+type Avartanams = Int
+type Nadai = Int
 
 -- | Concatenate the rulers and make a meter.
 make_meter :: [Ruler] -> Meter.LabeledMeter

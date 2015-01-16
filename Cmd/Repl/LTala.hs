@@ -22,12 +22,13 @@ chatusram_to_tisram = do
         ModifyEvents.event $ LEvent.stretch_event start (2/3)
     let dur = (end - start) * (2/3)
     LRuler.local $ LRuler.modify_selected $
-        LRuler.replace_range start (start + dur) (Tala.adi3 10)
+        LRuler.replace_range start (start + dur) $
+        Tala.simple Tala.adi_tala 3 10
     -- Delete final 1/3.
     Edit.delete_block_time block_id (start + dur) end
 
 -- | Create adi tala in chatusram-tisram.  Assuming 1t per aksharam, there
 -- is 3/4 per c-t aksharam.  So 8 of them fits in 6t, so each one is 6/8t.
-chatis :: Int -> Int -> Int -> Ruler.Ruler
+chatis :: Tala.Sections -> Tala.Avartanams -> Tala.Nadai -> Ruler.Ruler
 chatis sections avartanams nadai = Tala.ruler $ Tala.make_meter
     [Tala.Ruler Tala.adi_tala sections avartanams nadai (6/8)]
