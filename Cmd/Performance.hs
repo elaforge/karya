@@ -2,12 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | This module manages the performance of music, specifically the creation
--- of performance threads.
---
--- Performance is relative to a toplevel block, so each block has its own set
--- of caches.  Since performance is lazy, a separate thread will force it
--- asynchronously.
+{- | This module manages the performance of music, specifically the creation
+    of performance threads.
+
+    Performance is relative to a toplevel block, so each block has its own set
+    of caches.  Since performance is lazy, a separate thread will force it
+    asynchronously.
+-}
 {-# LANGUAGE RankNTypes #-}
 module Cmd.Performance (SendStatus, update_performance, performance) where
 import qualified Control.Concurrent as Concurrent
@@ -108,8 +109,21 @@ derive_wait cmd_state block_id
 -- when a new performance is created from the old one.
 insert_damage :: Derive.ScoreDamage -> Cmd.State -> Cmd.State
 insert_damage damage = modify_play_state $ \st -> st
+    -- Damage update is tricky.  Damage in 'Cmd.state_current_performance'
+    -- is a signal that the performance for that block is out of date and needs
+    -- to be updated.  Technically all I need is a Bool since it just checks
+    -- (damage /= mempty).  But this signal has to go in the current
+    -- performance, since it's updated (and hence the damage is cleared)
+    -- synchronously, and otherwise I'd get stuck in a loop killing and
+    -- starting new derivations.
+    --
+    -- However, the derivation is relative to 'Cmd.state_performance', so the
+    -- damage is also relative to it.  So this damage is actually used for
+    -- derivation, not as a out-of-date flag.  When state_current_performance
+    -- is promoted to state_performance, the damage is also cleared.
     { Cmd.state_current_performance =
         Map.map update (Cmd.state_current_performance st)
+    , Cmd.state_performance = Map.map update (Cmd.state_performance st)
     }
     where
     update perf = perf { Cmd.perf_damage = damage <> Cmd.perf_damage perf }
@@ -178,14 +192,14 @@ derive ui_state cmd_state block_id = (perf, logs)
             Nothing -> broken_performance $
                 "derivation for " <> showt block_id <> " aborted"
             Just result -> performance result
-    -- The damage comes from the current performance, since that's where it's
-    -- updated, since only its updates happen synchronously.
-    damage = maybe mempty Cmd.perf_damage $ Map.lookup block_id $
-        Cmd.state_current_performance $ Cmd.state_play cmd_state
-    -- But the previous cache comes from the fully evaluated performance,
-    -- since otherwise there's no point killing the 'evaluate_performance'
-    -- thread if the cache makes all derivation serialized.
+    -- The previous cache comes from the fully evaluated performance, since
+    -- otherwise there's no point killing the 'evaluate_performance' thread if
+    -- the cache makes all derivation serialized.
     prev_cache = maybe mempty Cmd.perf_derive_cache $ Map.lookup block_id $
+        Cmd.state_performance $ Cmd.state_play cmd_state
+    -- The damage also comes from the current performance, since that's where
+    -- the performance is deriving from.
+    damage = maybe mempty Cmd.perf_damage $ Map.lookup block_id $
         Cmd.state_performance $ Cmd.state_play cmd_state
     (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
         PlayUtil.derive_block False prev_cache damage block_id

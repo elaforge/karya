@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   * import only one symbol, e.g. 'import india.mridangam.faran.ktkn'
     Or better, 'import module sym sym'
-  - new notes don't play after adding to the end of a track
+  * new notes don't play after adding to the end of a track
     . It's a cache thing, a rederive clears it up.
     . b5 b5.t1 *: rederived generator because of track damage
       b5 b5.t3 *: using cache, 16 vals
