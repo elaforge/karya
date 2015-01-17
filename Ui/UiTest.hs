@@ -313,6 +313,10 @@ note_spec (inst, pitches, controls) =
 note_track :: [EventSpec] -> [TrackSpec]
 note_track pitches = note_spec ("", pitches, [])
 
+-- | Like 'note_track', but all notes have a duration of 1.
+note_track1 :: [String] -> [TrackSpec]
+note_track1 ps = note_track [(s, 1, p) | (s, p) <- zip (Seq.range_ 0 1) ps]
+
 regular_notes :: Int -> [TrackSpec]
 regular_notes n = note_track $ take n
     [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) (cycle pitches)]

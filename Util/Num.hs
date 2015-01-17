@@ -92,6 +92,10 @@ infixl 7 `fmod` -- match `mod`
 fmod :: Real a => a -> a -> a
 fmod = Fixed.mod'
 
+{-# SPECIALIZE fDivMod :: Double -> Double -> (Int, Double) #-}
+fDivMod :: (Integral div, RealFrac mod) => mod -> mod -> (div, mod)
+fDivMod a b = (floor (a / b), fmod a b)
+
 isEven, isOdd :: Integral a => a -> Bool
 isEven n = n `mod` 2 == 0
 isOdd = not . isEven
