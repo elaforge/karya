@@ -27,13 +27,9 @@ contains super sub = Set.isSubsetOf sub super
 
 -- * normal
 
--- | Takes sub-events.
-subs :: Tags
-subs = tag "subs"
-
--- | Inverting call.
-inverting :: Tags
-inverting = tag "inverting"
+-- | Adds (or removes) attributes from notes.
+attr :: Tags
+attr = tag "attr"
 
 -- | Uses control modification, this is a control or pitch call that can modify
 -- controls other than the control track in appears in.
@@ -49,42 +45,46 @@ control_function = tag "control-function"
 curve :: Tags
 curve = control_function <> tag "curve"
 
--- | Call uses randomness, and depends on the random seed.
-random :: Tags
-random = tag "random"
+-- | Adds or transforms note in a style idiomatic to a particular instrument.
+inst :: Tags
+inst = tag "inst"
+
+-- | Inverting call.
+inverting :: Tags
+inverting = tag "inverting"
+
+-- | Can emit lilypond.
+ly :: Tags
+ly = tag "ly"
+
+-- | Depends on the next event.
+next :: Tags
+next = tag "next"
 
 -- | Adds ornaments an existing note, generally to its attack.
 ornament :: Tags
 ornament = tag "ornament"
 
+-- | Transforms Score.Events.
+postproc :: Tags
+postproc = tag "postproc"
+
 -- | Depends on the previous event.
 prev :: Tags
 prev = tag "prev"
 
--- | Depends on the next event.
-next :: Tags
-next = tag "next"
+-- | Call uses randomness, and depends on the random seed.
+random :: Tags
+random = tag "random"
 
 -- | This call emits events with the 'Derive.Environ.args' set, and requires
 -- a 'postproc' call to emit the proper events.
 requires_postproc :: Tags
 requires_postproc = tag "requires-postproc"
 
--- | Adds or transforms note in a style idiomatic to a particular instrument.
-inst :: Tags
-inst = tag "inst"
-
--- | Transforms Score.Events.
-postproc :: Tags
-postproc = tag "postproc"
-
--- | Adds (or removes) attributes from notes.
-attr :: Tags
-attr = tag "attr"
-
--- | Can emit lilypond.
-ly :: Tags
-ly = tag "ly"
+-- | Takes sub-events.
+subs :: Tags
+subs = tag "subs"
 
 -- | This transformer runs under inversion, via 'Derive.Call.Sub.under_invert'.
 under_invert :: Tags
