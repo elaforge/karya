@@ -115,8 +115,8 @@ start_offset_val = "start-offset-val"
 -- NoteNumber depending on its scale, or even within a single scale, depending
 -- if it is pengumbang or pengisep.
 --
--- For other instruments without such complicated scale requirements,
--- NoteNumber is simpler.
+-- For instruments with less complicated scale requirements, NoteNumber is
+-- simpler.
 instrument_top :: ValName
 instrument_top = "inst-top"
 
@@ -130,6 +130,10 @@ instrument_bottom = "inst-bottom"
 -- TODO maybe it should be VNotePitch as with 'instrument_top'?
 open_strings :: ValName
 open_strings = "open-strings"
+
+-- | VSymbol: Instrument role, e.g. 'polos' or 'sangsih'.
+role :: ValName
+role = "role"
 
 -- | VSymbol: Kind of tuning for the scale in scope.  The meaning is dependent
 -- on the scale, e.g. ngumbang ngisep for Balinese scales.
@@ -155,6 +159,12 @@ hold = "hold"
 
 -- * values
 
+-- | Scale tuning.
 umbang, isep :: Text
 umbang = "umbang"
 isep = "isep"
+
+-- | Instrument role.
+polos, sangsih :: Text
+polos = "polos"
+sangsih = "sangsih"

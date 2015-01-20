@@ -118,4 +118,9 @@ pitch_maps = mconcat
     ]
 
 val_map :: [Derive.LookupCall Derive.ValCall]
-val_map = concat [ControlFunction.val_calls, Random.val_calls, Val.val_calls]
+val_map = concat
+    [ Gangsa.val_calls
+    , ControlFunction.val_calls
+    , Random.val_calls
+    , Val.val_calls
+    ]

@@ -89,6 +89,11 @@ note_calls = Derive.call_maps
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     ]
 
+val_calls :: [Derive.LookupCall Derive.ValCall]
+val_calls = Derive.call_map
+    [ ("pasangan", c_pasangan)
+    ]
+
 module_ :: Module.Module
 module_ = "bali" <> "gangsa"
 
@@ -539,8 +544,21 @@ noltol threshold (_, event, maybe_next)
         Score.move (+ Score.event_duration event) $ Score.copy event
     space next = Score.event_start next - Score.event_end event
 
-
 -- * util
+
+c_pasangan :: Derive.ValCall
+c_pasangan = Derive.val_call module_ "pasangan" mempty
+    ("Choose a value depending on the value of the "
+    <> ShowVal.doc_val Environ.role <> " variable."
+    ) $ Sig.call ((,,)
+    <$> Sig.required "polos" "Value for polos."
+    <*> Sig.required "sangsih" "Value for sangsih."
+    <*> role_env
+    ) $ \(polos, sangsih, role) _args -> case role of
+        Polos -> return (polos :: TrackLang.Val)
+        Sangsih -> return (sangsih :: TrackLang.Val)
+
+-- * implementation
 
 dur_arg :: Sig.Parser ScoreTime
 dur_arg = Sig.defaulted_env_quoted "dur" Sig.Prefixed
@@ -585,3 +603,12 @@ inst_polos = "inst-polos"
 
 inst_sangsih :: TrackLang.ValName
 inst_sangsih = "inst-sangsih"
+
+data Role = Polos | Sangsih deriving (Bounded, Eq, Enum, Show)
+instance ShowVal.ShowVal Role where show_val = TrackLang.default_show_val
+instance TrackLang.Typecheck Role
+instance TrackLang.TypecheckSymbol Role
+
+role_env :: Sig.Parser Role
+role_env = Sig.required_environ (TrackLang.unsym Environ.role) Sig.Unprefixed
+    "Instrument role."
