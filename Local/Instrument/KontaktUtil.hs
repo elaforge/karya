@@ -8,6 +8,7 @@ module Local.Instrument.KontaktUtil where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Vector
 
 import qualified Util.MultiString as MultiString
@@ -20,37 +21,55 @@ import qualified Perform.Midi.Instrument as Instrument
 import Global
 
 
+write :: FilePath -> Either Text Text -> IO ()
+write fname = either (errorIO . untxt) $ \t -> do
+    putStrLn $ "write " <> fname
+    Text.IO.writeFile fname t
+
 -- * tuning_ksp
 
 -- | Create a script in Kontakt's hilariously incompetent KSP language to
 -- retune a 12TET patch to the given scale.
-tuning_ksp :: Instrument.PatchScale -> Text
+tuning_ksp :: Instrument.PatchScale -> Either Text Text
 tuning_ksp (Instrument.PatchScale name scale) =
-    "on init\n\
-    \    set_script_title(" <> showt name <> ")\n" <> pitch_table scale
-    <> "end on\n\
-    \\n\
-    \on note\n\
-    \    change_tune($EVENT_ID, %pitches[$EVENT_NOTE], 0)\n\
-    \end on\n"
-    -- To ignore notes that don't have a tuning, I could set another %set array
-    -- with 0 or one, and do ignore_event($EVENT_ID).
-
-pitch_table :: Vector.Vector Double -> Text
-pitch_table scale = Text.unlines $ map ("    "<>) $
-    "declare %pitches[" <> showt (Vector.length scale) <> "]"
-    : ["%pitches[" <> showt key <> "] := " <> from_nn key nn |
-        (key, nn) <- zip [0..] (Vector.toList scale)]
+    interpolate values tuning_template
     where
+    values = Map.fromList
+        [ ("TITLE", showt name)
+        , ("PITCHES", ksp_array pitches)
+        ]
+    pitches = map (uncurry from_nn) (zip [0..] (Vector.toList scale))
     from_nn key nn
-        | nn == 0 = "0"
-        | otherwise = showt (round ((nn - fromIntegral key) * millicent) :: Int)
+        | nn == 0 = 0
+        | otherwise = round ((nn - fromIntegral key) * millicent)
+    millicent :: Double
     millicent = 1000 * 100 -- silly scent willy sent
 
+tuning_template :: Text
+tuning_template = [MultiString.s|
+on init
+    set_script_title(*TITLE*)
+    declare %Pitches[128] := *PITCHES*
+end on
+
+on note
+    change_tune($EVENT_ID, %Pitches[$EVENT_NOTE], 0)
+end on
+|]
+-- To ignore notes that don't have a tuning, I could set another %set array
+-- with 0 or 1, and do ignore_event($EVENT_ID).
 
 -- * drum_mute_ksp
 
+-- | Create KSP to handle sample stopping.  Each drum Note has a Group, and
+-- each Group can stop a set of other groups from sounding.
+--
+-- Kontakt has a built-in mechanism, but as usual it gets it wrong.  The
+-- built-in mechanism lets you assign notes to a group, and limit voices in the
+-- group, which means that two of the same strokes in a row will mute each
+-- other.
 drum_mute_ksp :: Text -> CUtil.PitchedNotes -> [(Drums.Group, [Drums.Group])]
+    -- ^ each Group along with a set of Groups that it stops
     -> Either Text Text
 drum_mute_ksp instrument notes stop_groups = do
     stop_group_ids <- make_stop_groups stop_groups groups

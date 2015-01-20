@@ -10,9 +10,7 @@ module Local.Instrument.Kontakt where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified Data.Text.IO as Text.IO
 
-import qualified Util.Seq as Seq
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
@@ -525,14 +523,14 @@ retuned_patch scale_id tuning patch_scale =
 
 -- | Write KSP to retune a 12TET patch.
 write_wayang_ksp :: IO ()
-write_wayang_ksp = mapM_ (uncurry Text.IO.writeFile)
-    [ ("wayang-umbang.ksp.txt",
+write_wayang_ksp = mapM_ (uncurry KontaktUtil.write)
+    [ ("wayang-umbang.ksp",
         KontaktUtil.tuning_ksp $ extended_wayang_scale "umbang" Wayang.umbang)
-    , ("wayang-isep.ksp.txt",
+    , ("wayang-isep.ksp",
         KontaktUtil.tuning_ksp $ extended_wayang_scale "isep" Wayang.isep)
-    , ("legong-umbang.ksp.txt",
+    , ("legong-umbang.ksp",
         KontaktUtil.tuning_ksp $ extended_legong_scale "umbang" Legong.umbang)
-    , ("legong-isep.ksp.txt",
+    , ("legong-isep.ksp",
         KontaktUtil.tuning_ksp $ extended_legong_scale "isep" Legong.isep)
     ]
 
@@ -647,14 +645,12 @@ mridangam_notes = make_mridangam_notes $
     ]
 
 write_mridangam_ksp :: IO ()
-write_mridangam_ksp = mapM_ write
+write_mridangam_ksp = mapM_ (uncurry KontaktUtil.write)
     [ ("mridangam.ksp", KontaktUtil.drum_mute_ksp "mridangam"
         mridangam_notes mridangam_stops)
     , ("mridangam-old.ksp", KontaktUtil.drum_mute_ksp "mridangam"
         old_mridangam_notes mridangam_stops)
     ]
-    where
-    write (fname, text) = either (error . untxt) (Text.IO.writeFile fname) text
 
 old_mridangam_notes :: CUtil.PitchedNotes
 old_mridangam_notes = make_mridangam_notes $ map make
