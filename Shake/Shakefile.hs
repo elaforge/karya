@@ -254,6 +254,7 @@ globalPackages = concat $
     , w "ghc-prim old-locale"
     --  basic
     , w "transformers mtl deepseq data-ordlist cereal text stm network"
+    , w "template-haskell"
     , w "vector vector-algorithms utf8-string semigroups"
     , w "attoparsec" -- Derive: tracklang parsing
     -- shakefile
@@ -1021,27 +1022,26 @@ writeGhciFlags modeConfig =
         writeFile (buildDir config </> "ghci-flags") $
             unwords (getFlags config) ++ "\n"
     where
-    -- Make sure -osuf .hs.o is in the flags, otherwise ghci won't know
-    -- how to find the .o files.  But it's redundant for the ghc compile,
-    -- which uses -o.
     -- I have to add -I. manually too since it's in hcFlags along with
     -- non-ghci stuff, not ghcFlags.  I'd have to add a new config field for
     -- non-file-specific ghc flags, or put -I in 'define', where it doesn't
     -- belong.
-    getFlags config = ["-osuf", ".hs.o", "-dynamic"]
-        ++ ghcFlags config
+    getFlags config = "-dynamic" : ghcFlags config
         ++ map (resolveSrc config) (ghciFlags (configFlags config))
     resolveSrc config arg
         | FilePath.takeExtension arg == ".cc" = srcToObj config arg
         | otherwise = arg
 
 -- | Get the file-independent flags for a haskell compile.
-ghcFlags :: Config -> [String]
-ghcFlags config =
-    [ "-outputdir", oDir config
+ghcFlags :: Config -> [Flag]
+ghcFlags config = concat $
+    [ "-outputdir", oDir config, "-osuf", ".hs.o"
     , "-i" ++ oDir config ++ ":" ++ hscDir config
-    ] ++ ghcLanguageFlags ++ define (configFlags config)
-    ++ cInclude (configFlags config)
+    ] :
+    [ ghcLanguageFlags
+    , define (configFlags config)
+    , cInclude (configFlags config)
+    ]
 
 ghcLanguageFlags :: [String]
 ghcLanguageFlags = map ("-X"++)

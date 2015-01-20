@@ -63,6 +63,7 @@ library
         semigroups,
         shake >=0.13,
         stm,
+        template-haskell,
         terminfo,
         text,
         time,
