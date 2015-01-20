@@ -42,6 +42,6 @@ test_reapply_generator = do
     with = CallTest.with_note_generators $
         ("ab", DUtil.multiple_call "ab" ["a", "b"])
         : CUtil.drum_calls Nothing
-            [ Drums.Note "a" (Score.attr "a") 'a' 1
-            , Drums.Note "b" (Score.attr "b") 'b' 1
+            [ Drums.note 'a' "a" (Score.attr "a")
+            , Drums.note 'b' "b" (Score.attr "b")
             ]

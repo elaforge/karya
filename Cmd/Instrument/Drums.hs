@@ -25,34 +25,48 @@ data Note = Note {
     -- | Scale the dynamic by this value.  This is for drums that have
     -- different symbols for soft strokes.
     , note_dynamic :: !Signal.Y
+    , note_group :: !Group
     } deriving (Show)
 
-note :: TrackLang.CallId -> Attributes -> Char -> Note
-note name attrs char = Note name attrs char 1
+-- | An arbitrary symbol.  A group can stop other groups from sounding.
+type Group = Text
+
+note :: Char -> TrackLang.CallId -> Attributes -> Note
+note char name attrs = Note
+    { note_name = name
+    , note_attrs = attrs
+    , note_char = char
+    , note_dynamic = 1
+    , note_group = ""
+    }
+
+note_dyn :: Char -> TrackLang.CallId -> Attributes -> Signal.Y -> Note
+note_dyn char name attrs dyn = (note char name attrs) { note_dynamic = dyn }
 
 instance Pretty.Pretty Note where
-    format (Note name attrs char dyn) = Pretty.record "Note"
+    format (Note name attrs char dyn group) = Pretty.record "Note"
         [ ("name", Pretty.format name)
         , ("attrs", Pretty.format attrs)
         , ("char", Pretty.format char)
         , ("dynamic", Pretty.format dyn)
+        , ("group", Pretty.format group)
         ]
 
-c_bd    = note "bd"     bd              'z'
-c_bd2   = note "bd2"    (bd <> v2)      's'
-c_sn    = note "sn"     snare           'x'
-c_sn2   = note "sn2"    (snare <> v2)   'd'
-c_rim   = note "rim"    rim             'v'
-c_ltom  = note "ltom"   (tom <> low)    'b'
-c_mtom  = note "mtom"   (tom <> middle) 'n'
-c_htom  = note "htom"   (tom <> high)   'm'
+c_bd    = note 'z' "bd"     bd
+c_bd2   = note 's' "bd2"    (bd <> v2)
+c_sn    = note 'x' "sn"     snare
+c_sn2   = note 'd' "sn2"    (snare <> v2)
+c_rim   = note 'v' "rim"    rim
+c_ltom  = note 'b' "ltom"   (tom <> low)
+c_mtom  = note 'n' "mtom"   (tom <> middle)
+c_htom  = note 'm' "htom"   (tom <> high)
 
 -- Also doubles as closed hh, if both exist.
-c_hh    = note "hh"     hh              'q'
-c_ohh   = note "ohh"    (open <> hh)    'w'
-c_phh   = note "phh"    (pedal <> hh)   'e'
+c_hh    = note 'q' "hh"     hh
+c_ohh   = note 'w' "ohh"    (open <> hh)
+c_phh   = note 'e' "phh"    (pedal <> hh)
 
-c_ride  = note "ride"   ride            't'
-c_crash = note "crash"  crash           'y'
+c_ride  = note 't' "ride"   ride
+c_crash = note 'y' "crash"  crash
 
 -- TODO other drum style ornaments like double strikes, rolls, etc.

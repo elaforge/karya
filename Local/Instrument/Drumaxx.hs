@@ -54,7 +54,7 @@ note_keys =
     , (Drums.c_bd2, b1)
     , (Drums.c_sn, d2)
     , (Drums.c_sn2, e2)
-    , (Drums.Note "sn3" (snare <> v3) 'c' 1, ds2)
+    , (Drums.note 'c' "sn3" (snare <> v3), ds2)
     , (Drums.c_rim, cs2)
     , (Drums.c_ltom, g2)
     , (Drums.c_mtom, b2)

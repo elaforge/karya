@@ -49,7 +49,7 @@ tunggal_notes :: CUtil.PitchedNotes
 tunggal_notes = do
     (char, call, attrs) <- tunggal_calls
     let Just ks_range = lookup (Score.attrs_remove soft attrs) tunggal_keymap
-    let note = Drums.Note call attrs char
+    let note = Drums.note_dyn char call attrs
             (if Score.attrs_contain attrs soft then 0.3 else 1)
     return (note, ks_range)
 
@@ -113,8 +113,7 @@ old_tunggal_notes = map (first make_note)
     , (tek, Key.c1)
     ]
     where
-    make_note attrs =
-        Drums.Note call attrs char
+    make_note attrs = Drums.note_dyn char call attrs
             (if Score.attrs_contain attrs soft then 0.3 else 1)
         where
         Just (char, call, _) =

@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified Util.Seq as Seq
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
@@ -248,29 +249,30 @@ sc_bali = map (first add_doc) $
         [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
     reyong_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
         [(Score.attr "cek", Key2.cs1), (mempty, Key2.c1)]
-    gong_notes = map note
-        [ ("O", gong <> wadon, Key2.b1, 'z')
-        , ("o", gong <> lanang, Key2.c2, 'x')
-        , ("p", kempur, Key2.a2, 'q')
-        , ("m", kemong, Key2.a3, 'w')
+    gong_notes =
+        [ (n 'z' "O" (gong <> wadon),   Key2.b1)
+        , (n 'x' "o" (gong <> lanang),  Key2.c2)
+        , (n 'q' "p" kempur,            Key2.a2)
+        , (n 'w' "m" kemong,            Key2.a3)
         ]
-    kempli_kajar_notes = map note
-        [ ("+", kempli,                 Key2.d3, 'z')
-        , ("`O+`", kempli <> open,      Key2.ds3, 'a')
-        , ("+1", kempli <> Attrs.v1,    Key2.f3, 'x')
-        , ("+2", kempli <> Attrs.v2,    Key2.g3, 'c')
-        , ("+3", kempli <> Attrs.v3,    Key2.a3, 'v')
-        , ("b", bebende,                Key2.d4, 'b')
-        , ("B", bebende <> open,        Key2.ds4, 'g')
-        -- TODO make sure these are the same as the corresponding kendang
-        , ("o", kajar,                  Key2.f4, 'q')
-        , ("T", kajar <> Attrs.rim <> open, Key2.fs4, 'w')
+        where n = Drums.note
+    kempli_kajar_notes =
+        [ (n 'z' "+"    kempli,                 Key2.d3)
+        , (n 'a' "`O+`" (kempli <> open),       Key2.ds3)
+        , (n 'x' "+1"   (kempli <> Attrs.v1),   Key2.f3)
+        , (n 'c' "+2"   (kempli <> Attrs.v2),   Key2.g3)
+        , (n 'v' "+3"   (kempli <> Attrs.v3),   Key2.a3)
+        , (n 'b' "b"    bebende,                Key2.d4)
+        , (n 'g' "B"    (bebende <> open),      Key2.ds4)
+        -- TODO make sure these names are the same as the corresponding kendang
+        , (n 'q' "o"    kajar,                  Key2.f4)
+        , (n 'w' "T"    (kajar <> Attrs.rim <> open), Key2.fs4)
         -- The Sonic Couture kajar doesn't have this.
-        , ("P", kajar <> Attrs.rim,     Key2.g4, 'e')
-        -- There is also a low kajar variant.
+        , (n 'e' "P"    (kajar <> Attrs.rim),   Key2.g4)
+        -- Soniccouture also has a low kajar variant.
         ]
+        where n = Drums.note
     open = Attrs.open
-    note (call, attrs, key, char) = (Drums.note call attrs char, key)
 
 gong = Score.attr "gong"
 kemong = Score.attr "kemong"
@@ -522,8 +524,8 @@ retuned_patch scale_id tuning patch_scale =
         \ generated KSP."
 
 -- | Write KSP to retune a 12TET patch.
-write_ksp :: IO ()
-write_ksp = mapM_ (uncurry Text.IO.writeFile) $
+write_wayang_ksp :: IO ()
+write_wayang_ksp = mapM_ (uncurry Text.IO.writeFile)
     [ ("wayang-umbang.ksp.txt",
         KontaktUtil.tuning_ksp $ extended_wayang_scale "umbang" Wayang.umbang)
     , ("wayang-isep.ksp.txt",
@@ -572,22 +574,58 @@ mridangam_both =
         ]
     u = TrackLang.unsym
 
-mridangam_keymap, mridangam_left, mridangam_right :: [Drums.Note]
-mridangam_left = map (\(c, n, a, d) -> Drums.Note n a c d)
-    [ ('z', "+", tha, 1)
-    , ('x', "o", thom, 1)
-    , ('s', ".", thom, 0.5)
-    ]
-mridangam_right = map (\(c, n, a, d) -> Drums.Note n a c d)
-    [ ('q', "k", ki, 1)
-    , ('w', "t", ta, 1)
-    , ('e', "n", nam, 1)
-    , ('r', "d", din, 1)
-    , ('5', "v", muru, 1)
-    , ('t', "u", arai, 1)
-    , ('y', "i", dheem, 1)
-    ]
+-- | The convention is symbols for thoppi, and letters for valantalai.  Also,
+-- vowels for open sounds, consonants for closed ones.  Soft strokes look like
+-- simpler version of their equivalent loud strokes.
+mridangam_left, mridangam_right :: [Drums.Note]
+mridangam_stops :: [(Drums.Group, [Drums.Group])]
+(mridangam_left, mridangam_right, mridangam_stops) = (left, right, stops)
+    where
+    left = concat $
+        [ group t_closed
+            [ n 'a' "-" tha 0.5
+            , n 'z' "+" tha 1
+            ]
+        , group t_open
+            [ n 'x' "o" thom 1
+            , n 's' "." thom 0.5
+            ]
+        ]
+    right = concat $
+        [ group v_closed
+            [ n '1' "l" ki 0.5 -- TODO ki<>soft once I have the separate sample
+            , n 'q' "k" ki 1
+            , n 'w' "t" ta 1
+            ]
+        , group v_sadam
+            [ n 'e' "n" nam 1
+            , n 'r' "d" din 1
+            ]
+        , group v_chapu
+            [ n '5' "v" muru 1
+            , n 't' "u" arai 1
+            ]
+        , group v_dheem [n 'y' "i" dheem 1]
+        ]
+
+    stops =
+        [ (t_closed, [t_open])
+        , (v_closed, [v_sadam, v_chapu, v_dheem])
+        , (v_sadam, [v_chapu, v_dheem])
+        , (v_chapu, [v_dheem])
+        ]
+    v_closed = "v-closed"
+    v_sadam = "v-sadam"
+    v_chapu = "v-chapu"
+    v_dheem = "v-dheem"
+    t_closed = "t-closed"
+    t_open = "t-open"
+    group name = map $ \n -> n { Drums.note_group = name }
+    n = Drums.note_dyn
+
+mridangam_keymap :: [Drums.Note]
 mridangam_keymap = mridangam_left ++ mridangam_right
+
 
 
 {- | Layout:
@@ -607,6 +645,16 @@ mridangam_notes = make_mridangam_notes $
     , [dheem, dheem <> Attrs.staccato]
     , [meetu]
     ]
+
+write_mridangam_ksp :: IO ()
+write_mridangam_ksp = mapM_ write
+    [ ("mridangam.ksp", KontaktUtil.drum_mute_ksp "mridangam"
+        mridangam_notes mridangam_stops)
+    , ("mridangam-old.ksp", KontaktUtil.drum_mute_ksp "mridangam"
+        old_mridangam_notes mridangam_stops)
+    ]
+    where
+    write (fname, text) = either (error . untxt) (Text.IO.writeFile fname) text
 
 old_mridangam_notes :: CUtil.PitchedNotes
 old_mridangam_notes = make_mridangam_notes $ map make
