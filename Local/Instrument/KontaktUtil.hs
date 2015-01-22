@@ -118,8 +118,9 @@ on init
     set_script_title("drum-mute for *INSTRUMENT*")
 
     {- constant, CamelCase -}
+    declare const $None := -1
     declare const $FadeTimeUs := 100 * 1000
-    {- map pitch note number to group, or -1 to apply no processing -}
+    {- map pitch note number to group, or $None to apply no processing -}
     declare %PitchToGroup[128] := *PITCH_TO_GROUP*
     declare const $MaxGroups := *MAX_GROUPS*
     {- remember this many sounding notes -}
@@ -141,14 +142,14 @@ on init
 
     $i := 0
     while ($i < $MaxGroups * $MaxGroups)
-        %sounding_groups[$i] := -1
+        %sounding_groups[$i] := $None
         $i := $i + 1
     end while
 end on
 
 on note
     $group := %PitchToGroup[$EVENT_NOTE]
-    if ($group = 0)
+    if ($group = $None)
         exit
     end if
 
@@ -157,13 +158,13 @@ on note
     $i := 0
     while ($i < $MaxGroups)
         $stop_group := %StopGroups[$group * $MaxGroups + $i]
-        if ($stop_group # -1)
+        if ($stop_group # $None)
             $j := 0
             while ($j < $MaxVoices)
                 $event := %sounding_groups[$stop_group * $MaxVoices + $j]
-                if ($event # -1)
+                if ($event # $None)
                     fade_out($event, $FadeTimeUs, 1)
-                    %sounding_groups[$stop_group * $MaxVoices + $j] := 0
+                    %sounding_groups[$stop_group * $MaxVoices + $j] := $None
                 end if
                 $j := $j + 1
             end while
@@ -173,7 +174,7 @@ on note
 
     {- put this note into %sounding_groups -}
     {- if I've run out of voices, turn off the last note -}
-    if (%sounding_groups[$addr + $MaxVoices - 1] # -1)
+    if (%sounding_groups[$addr + $MaxVoices - 1] # $None)
         fade_out(%sounding_groups[$addr + $MaxVoices - 1], $FadeTimeUs, 1)
     end if
 
