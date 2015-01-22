@@ -7,10 +7,12 @@
 module Local.Instrument.KontaktUtil where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Vector
 
+import qualified Util.Map
 import qualified Util.MultiString as MultiString
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
@@ -75,23 +77,40 @@ drum_mute_ksp instrument notes stop_groups = do
     stop_group_ids <- make_stop_groups stop_groups groups
     let values = Map.fromList
             [ ("INSTRUMENT", instrument)
-            , ("PITCH_TO_GROUP", ksp_array pitch_to_group)
             , ("MAX_GROUPS", showt (length groups))
+            , ("MAX_KEYSWITCHES", showt max_keyswitches)
+            , ("PITCH_TO_GROUP", ksp_array pitch_to_group)
+            , ("PITCH_TO_KEYSWITCH", ksp_array pitch_to_keyswitch)
             , ("STOP_GROUPS", ksp_array stop_group_ids)
             ]
     interpolate values drum_mute_template
     where
-    groups = Seq.drop_dups id (List.sort (map fst ranges))
-    group_to_id = Map.fromList $ zip groups [0..]
-    group_id g = Map.findWithDefault (-1) g group_to_id
-    pitch_to_group = Vector.toList $ midi_pitch_array (-1)
+    (pitch_to_keyswitch, pitch_to_group, groups, max_keyswitches) =
+        drum_mute_values notes
+
+drum_mute_values :: CUtil.PitchedNotes -> ([Int], [Int], [Drums.Group], Int)
+drum_mute_values notes =
+    (pitch_to_keyswitch, pitch_to_group, groups, length keyswitch_notes)
+    where
+    pitch_to_group = Vector.toList $ mconcat $ map make keyswitch_notes
+    make ks_notes = midi_pitch_array none
         [ ((Midi.from_key s, Midi.from_key e), group_id group)
-        | (group, (s, e)) <- ranges
+        | (group, (s, e)) <- ks_notes
         ]
-    ranges =
-        [ (Drums.note_group note, (low, high))
-        | (note, (_, low, high, _)) <- notes
+    pitch_to_keyswitch = Vector.toList $ Vector.replicate 128 none
+        Vector.// zip (map Midi.from_key (Maybe.catMaybes keyswitches)) [0..]
+    (keyswitches, keyswitch_notes) = unzip $ Map.toAscList keyswitch_to_notes
+    keyswitch_to_notes = Util.Map.multimap
+        [ (ks, (Drums.note_group note, (low, high)))
+        | (note, (ks, low, high, _)) <- notes
         ]
+    groups = Seq.drop_dups id (List.sort (map (Drums.note_group . fst) notes))
+    group_to_id = Map.fromList $ zip groups [0..]
+    group_id g = Map.findWithDefault none g group_to_id
+
+-- | Used in KSP for a nothing value.
+none :: Int
+none = -1
 
 make_stop_groups :: [(Drums.Group, [Drums.Group])] -> [Drums.Group]
     -> Either Text [Int]
@@ -102,7 +121,7 @@ make_stop_groups stop_groups groups = do
     ngroups = length groups
     realize group = do
         stops <- mapM get stops
-        return $ take ngroups $ stops ++ repeat (-1)
+        return $ take ngroups $ stops ++ repeat none
         where stops = fromMaybe [] $ lookup group stop_groups
     get g = maybe (Left $ "no group: " <> showt g) Right $
         List.elemIndex g groups
@@ -121,17 +140,22 @@ on init
     declare const $None := -1
     declare const $FadeTimeUs := 100 * 1000
     {- map pitch note number to group, or $None to apply no processing -}
-    declare %PitchToGroup[128] := *PITCH_TO_GROUP*
     declare const $MaxGroups := *MAX_GROUPS*
+    declare const $MaxKeyswitches := *MAX_KEYSWITCHES*
     {- remember this many sounding notes -}
     declare const $MaxVoices := 4
+    declare %PitchToGroup[128 * $MaxKeyswitches] := *PITCH_TO_GROUP*
+    declare %PitchToKeyswitch[128] := *PITCH_TO_KEYSWITCH*
     {- map a group to the other groups it should stop -}
     declare %StopGroups[$MaxGroups * $MaxGroups] := *STOP_GROUPS*
 
     {- mutable, lower_under -}
     {- map a group to sounding events in that event -}
     declare %sounding_groups[$MaxGroups * $MaxVoices]
+    {- current active keyswitch -}
+    declare $keyswitch
 
+    {- scratch -}
     declare $addr
     declare $event
     declare $group
@@ -141,14 +165,20 @@ on init
     declare $to
 
     $i := 0
-    while ($i < $MaxGroups * $MaxGroups)
+    while ($i < num_elements(%sounding_groups))
         %sounding_groups[$i] := $None
         $i := $i + 1
     end while
+
+    $keyswitch := 0
 end on
 
 on note
-    $group := %PitchToGroup[$EVENT_NOTE]
+    if (%PitchToKeyswitch[$EVENT_NOTE] # $None)
+        $keyswitch := %PitchToKeyswitch[$EVENT_NOTE]
+    end if
+
+    $group := %PitchToGroup[$EVENT_NOTE + $keyswitch * 128]
     if ($group = $None)
         exit
     end if

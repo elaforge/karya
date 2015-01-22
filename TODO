@@ -15,48 +15,6 @@ UNSORTED
       Should have rederived b5.t3.  Maybe it's because damage on t1 lost the
       pending t3 damage?
     * Cache logs should log ScoreDamage.
-  library of mridangam patterns
-    kanakku:
-      . I could come up with a notation for various transformations, but it
-        would have to be its own little language, due to the time aspect.  Or
-        just write haskell.  Furthermore, they're only useful so far as they
-        allow me to easily experiment, otherwise I might as well write them
-        out by hand.
-      . One possibility is to write durations, then have a layer mapping
-        durations to patterns in a specific instrument.  This way I can also
-        map to different instruments.
-      . There should also be performance rules for variations, e.g. tk can be
-        played kk.  These can also apply to pitch instruments to make a pitch
-        contour more natural.
-      . If I realize a pattern in score, it should retain the structure, e.g.
-        [p5 p5 p5] 2 [p5 p5 p5] 2 [p5 p5 p5] can emit each p5 as a sub-block.
-        If it uses a standard name, it can reuse an existing one.
-      . Conditional derivation that depends on position in the tala, e.g.
-        thali / khali.
-      - reduction / augmentation: repeat a pattern, clipping either a constant
-        time or one note from the beginning or end.
-        . It could be a transformer, but it seems like conceptually it seems
-          like it wants to be a score level transform that takes 'p' to 'p'
-          'Clip p' etc.
-      - multiplication: internal section repeats
-      - shell game: take time from one place and add to another
-    . I can write them down in a specialized language in the source, and then
-      they become a module with call names.  If I want to edit them, I can run
-      a cmd to materialize as a block.
-    faran
-      * fix irregular farans
-      * transform Faran into a call that emits those mridangam calls
-      - dynamics
-      . I want to experiment with tisram, I think it's easier to set a tisram
-        tempo, then let it clip naturally.
-      . Wouldn't it be easier to set the tempo, then clip to the event?  Then
-        I need a start offset arg to get middle or end.
-      . Also if I want something from the middle, I need start and end
-        aksharas.
-    * tadinginatoms
-    + Cmd to turn a call into a block.  This is like integration, except that
-      the call emits other calls, so I don't need to go from attributes back
-      to call names.  Or maybe I should go the attribute route?
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
     . It was because the kendang tracks were below >pno, not "tempo".  So, two
@@ -1007,6 +965,42 @@ Derive:
       block, though perhaps that's a side-effect of having blocks which are
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
+    mridangam
+      kanakku:
+        . I could come up with a notation for various transformations, but it
+          would have to be its own little language, due to the time aspect.  Or
+          just write haskell.  Furthermore, they're only useful so far as they
+          allow me to easily experiment, otherwise I might as well write them
+          out by hand.
+        . There should also be performance rules for variations, e.g. tk can be
+          played kk.  These can also apply to pitch instruments to make a pitch
+          contour more natural.
+        . If I realize a pattern in score, it should retain the structure, e.g.
+          [p5 p5 p5] 2 [p5 p5 p5] 2 [p5 p5 p5] can emit each p5 as a sub-block.
+          If it uses a standard name, it can reuse an existing one.
+        . Conditional derivation that depends on position in the tala, e.g.
+          thali / khali.
+        . reduction / augmentation: repeat a pattern, clipping either a constant
+          time or one note from the beginning or end.
+          . It could be a transformer, but it seems like conceptually it seems
+            like it wants to be a score level transform that takes 'p' to 'p'
+            'Clip p' etc.
+        . multiplication: internal section repeats
+        . shell game: take time from one place and add to another
+      . I can write them down in a specialized language in the source, and then
+        they become a module with call names.  If I want to edit them, I can run
+        a cmd to materialize as a block.
+      . Higher level notation that uses durations.
+        . Then a layer maps them to patterns in a specific instrument.  This way
+          I can also map to different instruments.
+        . This seems too vague to be useful.  Just duration is not enough to
+          capture much interesting about the pattern, but solkattu doesn't have
+          a predictable mapping.
+      faran
+        * fix irregular farans
+        * transform Faran into a call that emits those mridangam calls
+        - dynamics
+      * tadinginatoms
     bali:
       - add isep to *legong
       If I put pemero notes in legong, then I can play them when needed.
