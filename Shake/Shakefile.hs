@@ -365,9 +365,10 @@ targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
 data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
 ghcWarnings :: [String]
-ghcWarnings = map ("-fwarn-"++) $ words
-    "identities tabs incomplete-record-updates missing-fields unused-matches\
-    \ wrong-do-bind"
+ghcWarnings = "-W" : map ("-fwarn-"++) (words warns)
+    where
+    warns = "identities tabs incomplete-record-updates missing-fields\
+        \ unused-matches  wrong-do-bind"
 
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
@@ -401,7 +402,7 @@ configure midi = do
             "-I" ++ bindingsInclude]
         , fltkCc = fltkCs
         , fltkLd = fltkLds
-        , hcFlags = ["-threaded", "-W"]
+        , hcFlags = ["-threaded"]
             -- This is necessary for ghci loading to work in 7.8.
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
