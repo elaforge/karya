@@ -356,9 +356,10 @@ instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
     to_type _ = TEither (to_type (Proxy :: Proxy a))
         (to_type (Proxy :: Proxy b))
 
+-- | Non-lists are coerced into singleton lists.
 instance Typecheck a => Typecheck [a] where
     from_val (VList xs) = mapM from_val xs
-    from_val _ = Nothing
+    from_val v = (:[]) <$> from_val v
     to_val = VList . map to_val
     to_type _ = TList $ to_type (Proxy :: Proxy a)
 
