@@ -36,7 +36,7 @@ test_kendang = do
 test_pasang_calls = do
     -- every pasang call should be a tunggal call
     let extract (_, _, _, call) =
-            [sym | (_, sym, _) <- KontaktKendang.tunggal_calls, sym == call]
+            [sym | (_, sym, _, _) <- KontaktKendang.tunggal_calls, sym == call]
     equal (map extract KontaktKendang.pasang_calls)
         [[call] | (_, _, _, call) <- KontaktKendang.pasang_calls]
 

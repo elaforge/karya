@@ -29,6 +29,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
+import qualified Local.Instrument.KontaktUtil as KontaktUtil
 import Global
 
 
@@ -47,10 +48,10 @@ patches =
 
 tunggal_notes :: CUtil.PitchedNotes
 tunggal_notes = do
-    (char, call, attrs) <- tunggal_calls
+    (char, call, attrs, group) <- tunggal_calls
     let Just ks_range = lookup (Score.attrs_remove soft attrs) tunggal_keymap
-    let note = Drums.note_dyn char call attrs
-            (if Score.attrs_contain attrs soft then 0.3 else 1)
+    let note = (Drums.note_dyn char call attrs dyn) { Drums.note_group = group }
+        dyn = if Score.attrs_contain attrs soft then 0.3 else 1
     return (note, ks_range)
 
 tunggal_keymap :: [(Score.Attributes, CUtil.KeyswitchRange)]
@@ -66,28 +67,40 @@ tunggal_keymap = CUtil.make_keymap Key2.e_2 Key2.c_1 12 NN.fs3
     , [de <> Attrs.left, tut <> Attrs.left]
     ]
 
-tunggal_calls :: [(Char, TrackLang.CallId, Score.Attributes)]
-tunggal_calls =
-    [ ('b', "PL", plak)
+tunggal_calls :: [(Char, TrackLang.CallId, Score.Attributes, Drums.Group)]
+kendang_stops :: [(Drums.Group, [Drums.Group])]
+(kendang_stops, tunggal_calls) = (,) stops $
+    [ ('b', "PL", plak,                 both)
     -- left
-    , ('q', "P", pak)
-    , ('w', "T", pang)
-    , ('1', "^", pak <> soft)
-    , ('e', "Ø", tut <> Attrs.left)
-    , ('r', "`O+`", de <> Attrs.left)
+    , ('q', "P", pak,                   left_closed)
+    , ('w', "T", pang,                  left_open)
+    , ('1', "^", pak <> soft,           left_closed)
+    , ('e', "Ø", tut <> Attrs.left,     left_open)
+    , ('r', "`O+`", de <> Attrs.left,   left_open)
     -- right
-    , ('z', "+", de)
-    , ('a', "-", de <> soft)
-    , ('s', "+.", de <> Attrs.thumb)
-    , ('d', "+/", de <> Attrs.staccato)
-    , ('x', "o", tut)
-    , ('c', ".", ka <> soft)
-    , ('f', "..", ka)
-    , ('.', "<", dag)
-    , ('l', "-<", dag <> soft)
-    , ('/', "[", tek)
-    , (';', "-[", tek <> soft)
+    , ('z', "+", de,                    right_open)
+    , ('a', "-", de <> soft,            right_open)
+    , ('s', "+.", de <> Attrs.thumb,    right_open)
+    , ('d', "+/", de <> Attrs.staccato, right_open)
+    , ('x', "o", tut,                   right_open)
+    , ('c', ".", ka <> soft,            right_closed)
+    , ('f', "..", ka,                   right_closed)
+    , ('.', "<", dag,                   right_open)
+    , ('l', "-<", dag <> soft,          right_open)
+    , ('/', "[", tek,                   right_closed)
+    , (';', "-[", tek <> soft,          right_closed)
     ]
+    where
+    stops =
+        [ (both, [left_open, right_open])
+        , (left_closed, [left_open])
+        , (right_closed, [right_open])
+        ]
+    both = "both"
+    left_closed = "left-closed"
+    left_open = "left-open"
+    right_closed = "right-closed"
+    right_open = "right-open"
 
 -- | Mapping for the old kendang patches.
 old_tunggal_notes :: [(Drums.Note, Midi.Key)]
@@ -116,8 +129,14 @@ old_tunggal_notes = map (first make_note)
     make_note attrs = Drums.note_dyn char call attrs
             (if Score.attrs_contain attrs soft then 0.3 else 1)
         where
-        Just (char, call, _) =
-            List.find (\(_, _, a) -> a == attrs) tunggal_calls
+        Just (char, call, _, _) = List.find ((==attrs) . attrs_of) tunggal_calls
+    attrs_of (_, _, a, _) = a
+
+write_ksp :: IO ()
+write_ksp = mapM_ (uncurry KontaktUtil.write)
+    [ ("kendang.ksp", KontaktUtil.drum_mute_ksp "kendang"
+        tunggal_notes kendang_stops)
+    ]
 
 -- * config
 
