@@ -16,10 +16,10 @@ import Types
 
 
 test_sekar = do
-    let extract = DeriveTest.extract DeriveTest.e_note
-        run sekar_event notes = extract $ DeriveTest.derive_tracks_linear
+    let run sekar_event notes = extract $ DeriveTest.derive_tracks_linear
             "import bali.sekar | sekar-arrive=f" $
             (">", [sekar_event]) : UiTest.note_track notes
+        extract = DeriveTest.extract DeriveTest.e_note
     let cd = [(2, 2, "4c"), (4, 2, "4d")]
 
     equal (run (2, 4, "sekar 'a b'") [])
@@ -66,6 +66,17 @@ test_sekar = do
         ([ (2, 1, "4c"), (3, 1, "4d"), (4, 1, "4c"), (5, 1, "4d")
          , (7, 1, "4e"), (9, 1, "4e")
          ], [])
+
+test_sekar_multiple = do
+    let run dur notes = extract $ DeriveTest.derive_tracks_linear
+            "import bali.sekar | sekar-arrive=f" $
+            (">", [(0, dur, "sekar (list AaAa abab abac abcd)")])
+                : UiTest.note_track notes
+        extract = DeriveTest.extract DeriveTest.e_note
+    equal (run 8 [(0, 4, "4c"), (4, 4, "4d")])
+        ([(0, 2, "4c"), (2, 2, "4d"), (4, 2, "4c"), (6, 2, "4d")], [])
+    equal (run 6 [(0, 3, "4c"), (3, 1.5, "4d"), (4.5, 1.5, "4e")])
+        ([(0, 2, "4c"), (2, 1, "4d"), (3, 2, "4c"), (5, 1, "4e")], [])
 
 test_sekar_arrive = do
     let run e = DeriveTest.extract DeriveTest.e_note . run_ e

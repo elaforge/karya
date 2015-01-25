@@ -56,7 +56,7 @@ UNSORTED
     direct substitution
       . Difference with arrival is that the last note gets the duration of the
         initial gap.
-      - I could have different patterns for different numbers of notes in range.
+      * I could have different patterns for different numbers of notes in range.
         Otherwise, I can only take the first n notes, and the rest become
         rests.
     even subdivision

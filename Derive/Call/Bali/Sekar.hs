@@ -4,15 +4,10 @@
 
 {-# LANGUAGE DeriveFunctor #-}
 -- | Pattern based derivation.
---
--- TODO This is merely a proof of concept.  Sekaran could be implemented a lot
--- of ways, but I'll have to wait to see which ones are most compositionally
--- useful.  It would definitely be more natural, though, if the notation marked
--- the seleh instead of the first note.  But that would require either
--- a preproc pass or deriving the notes backwards.
 module Derive.Call.Bali.Sekar where
 import qualified Data.Char as Char
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
@@ -24,53 +19,84 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Flags as Flags
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
-import qualified Perform.Pitch as Pitch
 import Global
 import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
-    [ ("sekar", c_sekar False direct_doc)
-    , ("sekar-e", c_sekar True even_doc)
+    [ ("sekar", c_sekar_direct)
+    , ("sekar-e", c_sekar_even)
     ]
 
 module_ :: Module.Module
 module_ = "bali" <> "sekar"
 
-c_sekar :: Bool-> Text -> Derive.Generator Derive.Note
-c_sekar even doc = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
-    ("Arrange sub-notes according to a pattern.\n" <> doc)  $ Sig.call ((,)
-    <$> Sig.required "pattern"
-        "Apply this pattern to the encompassed notes. The pattern is\
-        \ letters from a-z, where `a` is the first note and `z` is the 26th.\
-        \ Capital letters replace that note with a rest. Gaps in the input\
-        \ notes count as rest notes."
-    <*> Sig.environ "arrive" Sig.Prefixed True ("If true, the last note of the\
-        \ pattern is aligned to the end of the event, and given "
-        <> ShowVal.doc_val Flags.infer_duration <> ".")
-    ) $ \(pattern, arrive) args -> do
-        pattern <- make_pattern pattern
+c_sekar_direct :: Derive.Generator Derive.Note
+c_sekar_direct = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
+    "Arrange sub-notes according to a pattern.\
+    \\nIn the direct substitution style, each note retains its relative\
+    \ duration as it is rearranged by the pattern. A rest is considered a\
+    \ note, but just one note, so you can't have two rests in a row."
+    $ Sig.call ((,)
+    <$> Sig.required "pattern" ("If there is a list of patterns, they are for\
+        \ different numbers of notes, starting with 1. A single pattern is\
+        \ applied to all numbers though. " <> pattern_doc)
+    <*> arrive_env
+    ) $ \(pattern_text, arrive) args -> do
+        patterns <- mapM make_pattern pattern_text
+        patterns <- Derive.require_right id $
+            check_patterns (zip patterns pattern_text)
+        let range = Args.range args
         let derive
-                | even = sekar_even arrive
-                | arrive = sekar_direct_arrive
-                | otherwise = sekar_direct
-        mconcatMap (derive (Args.range args) pattern)
-            =<< Sub.sub_rest_events arrive True args
+                | arrive = sekar_direct_arrive range patterns
+                | otherwise = sekar_direct range patterns
+        mconcatMap derive =<< Sub.sub_rest_events arrive True args
 
-even_doc :: Text
-even_doc =
-    "In the even subdivision style, the range is divided evenly based\
+c_sekar_even :: Derive.Generator Derive.Note
+c_sekar_even = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
+    "Arrange sub-notes according to a pattern.\
+    \\nIn the even subdivision style, the range is divided evenly based\
     \ on the highest index of the pattern (so `abcac` would divide into 3\
     \ parts). The melody is sampled at those points for note attacks,\
     \ sustains, and rests, which are then rearranged by the pattern.\
     \ Thus, the output is always notes in a regular tempo determined by the\
     \ length of the pattern."
+    $ Sig.call ((,)
+    <$> Sig.required "pattern" pattern_doc
+    <*> arrive_env
+    ) $ \(pattern, arrive) args -> do
+        pattern <- make_pattern pattern
+        let derive = sekar_even arrive (Args.range args) pattern
+        mconcatMap derive =<< Sub.sub_rest_events arrive True args
+
+arrive_env :: Sig.Parser Bool
+arrive_env = Sig.environ "arrive" Sig.Prefixed True $
+    "If true, the last note of the pattern is aligned to the end of the event,\
+    \ and given " <> ShowVal.doc_val Flags.infer_duration <> "."
+
+pattern_doc :: Text
+pattern_doc =
+    "The pattern is letters from a-z, where `a` is the first note and `z` is\
+    \ the 26th. Capital letters replace that note with a rest. Gaps in the\
+    \ input notes count as rest notes."
+
+check_patterns :: [(Pattern, Text)] -> Either String (NonEmpty Pattern)
+check_patterns [(pattern, _)] = Right (pattern :| [])
+check_patterns patterns = do
+    mapM_ check (zip [1..] patterns)
+    case NonEmpty.nonEmpty (map fst patterns) of
+        Nothing -> Left "require at least one pattern"
+        Just ps -> Right ps
+    where
+    check (n, (pattern, ptext))
+        | pattern_length pattern /= n = Left $
+            "expected pattern of length " <> show n <> " but got " <> show ptext
+        | otherwise = return ()
 
 -- ** even subdivision
 
@@ -131,29 +157,13 @@ drop_until_next f xs = case xs of
 
 -- ** direct substitution
 
-direct_doc :: Text
-direct_doc =
-    "In the direct substitution style, each note retains its relative \
-    \ duration as it is rearranged by the pattern.  A rest is considered a\
-    \ note, but just one note, so you can't have two rests in a row."
-
-apply f (Sub.Event s d n) = Sub.Event s d <$> f n
-
-showr :: Maybe Derive.NoteDeriver -> Derive.Deriver Text
-showr = maybe (return "-") showd
-
-showd :: Derive.NoteDeriver -> Derive.Deriver Text
-showd d = do
-    es <- LEvent.events_of <$> d
-    return $ maybe "?" Pitch.note_text $ Score.initial_note =<< Seq.head es
-
-sekar_direct_arrive :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
-    -> Derive.NoteDeriver
-sekar_direct_arrive range pattern events_ = do
-    -- Debug.traceM "events" =<< mapM (apply showr) events
-    -- Debug.traceM "realized" =<< mapM (apply showr) realized
+-- | Like 'sekar_direct', but expect sub-events excluding the start and
+-- including the end, and align the last note to the end of the call.
+sekar_direct_arrive :: (ScoreTime, ScoreTime) -> NonEmpty Pattern
+    -> [Sub.RestEvent] -> Derive.NoteDeriver
+sekar_direct_arrive range patterns events_ = do
     Sub.derive $ add_flags $ align $ map (Sub.stretch factor) $
-        Sub.strip_rests $ realized
+        Sub.strip_rests realized
     where
     -- The first event should be a rest, since I passed end_bias=True to
     -- Sub.sub_rest_events.  The stretch factor assumes the event durations add
@@ -169,7 +179,7 @@ sekar_direct_arrive range pattern events_ = do
                 | otherwise -> events ++ [Sub.Event (snd range) dur Nothing]
                 where dur = Sub.event_duration rest
 
-    realized = realize_groups pattern events
+    realized = realize_groups patterns events
     factor = sum_duration events / sum_duration realized
     -- Align notes to the end of the range.
     align es = case Seq.last es of
@@ -184,23 +194,32 @@ add_last_note_flags = fmap $ Post.emap1_ $ Score.add_flags $
 sum_duration :: [Sub.GenericEvent a] -> ScoreTime
 sum_duration = sum . map Sub.event_duration
 
-sekar_direct :: (ScoreTime, ScoreTime) -> Pattern -> [Sub.RestEvent]
+-- | Sekaran derivation via direct substitution of the sub-events.
+sekar_direct :: (ScoreTime, ScoreTime) -> NonEmpty Pattern -> [Sub.RestEvent]
     -> Derive.NoteDeriver
-sekar_direct range pattern events =
+sekar_direct range patterns events =
     Sub.derive $ map (Sub.place (fst range) factor) $ Sub.strip_rests realized
     where
-    realized = realize_groups pattern events
+    realized = realize_groups patterns events
     factor = sum_duration events / sum_duration realized
 
-realize_groups :: Pattern -> [Sub.RestEvent] -> [Sub.RestEvent]
+realize_groups :: NonEmpty Pattern -> [Sub.RestEvent] -> [Sub.RestEvent]
 realize_groups _ [] = []
-realize_groups pattern events@(event:_) =
-    go (Sub.event_start event) $ split_groups (pattern_length pattern) events
+realize_groups patterns events@(event:rest) =
+    go (Sub.event_start event) $
+        split_groups (pattern_length pattern) events
     where
+    pattern = index_with (event :| rest) patterns
     go _ [] = []
-    go start (group : groups) =
-        notes ++ go (start + sum_duration notes) groups
+    go start (group : groups) = notes ++ go (start + sum_duration notes) groups
         where notes = realize start group pattern
+
+index_with :: NonEmpty a -> NonEmpty b -> b
+index_with (x :| xs) (y :| ys) = go x xs y ys
+    where
+    go _ (x:xs) _ (y:ys) = go x xs y ys
+    go _ [] y _ = y
+    go _ _ y [] = y
 
 split_groups :: Int -> [a] -> [[a]]
 split_groups n notes = case splitAt n notes of
