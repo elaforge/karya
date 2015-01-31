@@ -33,7 +33,7 @@ UNSORTED
       to wait for the invert, instrument shouldn't.  I could hard-code environ
       keys.
   sekaran
-    - How to apply sekaran?
+    How to apply sekaran?
       . >hang -> sekar abab -> notes
       . I want to change the pattern, so the problem is how to set an env
         var for a range on one track?
@@ -587,9 +587,7 @@ cleanup:
       breaking is wrong.  So I want to say break + indent in one word.
   convert to Text:
     - Pretty.pretty
-      For this I need to extend Util.Format to be a simplified prettyprinter:
-      - monoidal interface, not monadic
-      - write text, set indent for expression, insert soft break
+      For this I need to extend Util.Format to be a simplified prettyprinter.
     - Derive.throw
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
