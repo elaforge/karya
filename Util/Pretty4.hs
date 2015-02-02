@@ -24,7 +24,7 @@ import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import Data.Monoid (mempty, (<>))
+import Data.Monoid (mempty, mconcat, (<>))
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -194,9 +194,11 @@ constructor name fields =
 
 delimitedList :: Bool -> Char -> Char -> [Doc] -> Doc
 delimitedList spacedDelimiter leftc rightc xs = case xs of
-        [] -> left <-> right
-        [x] -> left <-> x <-> right
-        x : xs -> (left <+> x) </> wrap (map (","<+>) xs) <> "\n" <> right
+    [] -> left <-> right
+    [x] -> left <-> x <-> right
+    x : xs -> Format.shortForm
+        (left <-> x <> mconcat (map (","<+>) xs) <-> right)
+        ((left <+> x) </> wrap (map (","<+>) xs) <> "\n" <> right <> "\n")
     where
     (<->) = if spacedDelimiter then (<+>) else (<>)
     left = text $ Text.singleton leftc

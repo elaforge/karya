@@ -9,7 +9,7 @@ import Util.Test
 import Global
 
 
-test_all = do
+test_render = do
     let f = Format.render "  " 10
     equal (f $ "a" <+/> "b") "a b\n"
     equal (f $ "a" </> "b") "ab\n"
@@ -27,6 +27,28 @@ test_all = do
             ("f =" <> _indented "12345"
             <+/> "g =" <> _indented "12345"))
         "12345\n  f =\n    12345\n  g =\n    12345\n"
+
+test_shortForm = do
+    let f = Format.render "  "
+        sf = Format.shortForm
+    let abc = sf "[abc]" ("a," </> "b," </> "c")
+    equal (f 5 abc) "[abc]\n"
+    equal (f 4 abc) "a,b,\nc\n"
+    equal (f 10 $ "xyz" <> _indented abc) "xyz [abc]\n"
+    equal (f 8 $ "xyz" <> _indented abc) "xyz\n  [abc]\n"
+    equal (f 6 $ "xyz" <> _indented abc) "xyz\n  a,b,\n  c\n"
+
+test_flatten = do
+    let f = Format.flatten
+        mapSubs f = map (map f . Format.sectionSubs)
+    let result = f $ Format.shortForm "short" ("long" </> "form")
+    equal (map (bText . Format.sectionB) result) ["short"]
+    equal (mapSubs (bText . Format.sectionB) result) [["long", "form"]]
+
+    let result = f $ "a"
+            <> _indented (Format.shortForm "short" ("long" </> "form"))
+    equal (map Format.sectionIndent result) [0, 1]
+    equal (mapSubs Format.sectionIndent result) [[], [1, 1]]
 
 test_spanLine = do
     let f = extract . Format.spanLine 2 10 . map section
@@ -55,11 +77,12 @@ test_findBreak = do
         (["a"], ["b", "c"])
 
 section :: (Int, Text, BreakType) -> Format.Section
-section (indent, text, break) =
-    Format.Section indent (Format.bFromText text) break
-
-unsection :: Format.Section -> (Int, Text, BreakType)
-unsection (Format.Section indent b break) = (indent, bText b, break)
+section (indent, text, break) = Format.Section
+    { sectionIndent = indent
+    , sectionB = Format.bFromText text
+    , sectionSubs = []
+    , sectionBreak = break
+    }
 
 sectionText :: Format.Section -> Text
 sectionText = bText . Format.sectionB

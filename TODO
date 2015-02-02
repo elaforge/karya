@@ -575,16 +575,20 @@ cleanup:
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
     else like Derive.Call.Val.num_or_pitch it would be worth trying out.
-  Format3
-    . Converting Pretty to Text is blocked on this.
-    . Rethink how indent breaking happens.
-      Maybe indent should be a flag on SoftBreak
-      If pre is null, then maybe I should indent to the next level, e.g.
-      [(0, ("", "a")), (2, ("", "b"))]
-    . The problem is that 'text <+/> indent 2 (...)' behaves unintuitively:
-      the indent happens after the newline.  But if I put indent around
-      the whole expression, then because indent is also break priority, the
-      breaking is wrong.  So I want to say break + indent in one word.
+  Format4
+    * I need a way to do an alternate render if the contents would wrap.
+      . Lists are either [a, b, c] or [ a, b\n, c\n]
+        Unwrapped is no spaces on brackets, and the closing bracket wraps.
+      . Records are the same, but the unwrapped braces also have spaces.
+      . So if I have a special Bracket Doc, I still need to switch between
+        space and no space.
+      . But alternate renders seem a lot more elegant and powerful.
+        W-L works with a 'group' function that adds a possible layout where
+        each newline is replaced by space.
+      . What I can do is give two layouts, the first one will be used if the
+        group fits on one line, otherwise the second.
+    - don't use 'reverse' in 'flatten'
+    - lazy implementation?
   convert to Text:
     - Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter.

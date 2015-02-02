@@ -4,13 +4,13 @@
 
 {-# LANGUAGE CPP #-}
 module Util.Format4 (
-    Doc, text
+    Doc, shortForm, text
     , (</>), (<+/>), (<+>)
     , newline, indented, _indented_, _indented, indented_
     , Width, render, renderFlat
 #ifdef TESTING
     , BreakType(..), Section(..), B(..), bFromText
-    , spanLine, findBreak
+    , flatten, spanLine, findBreak
 #endif
 ) where
 import qualified Data.List as List
@@ -29,10 +29,25 @@ import qualified Data.Text.Lazy.Builder as Builder
 data Doc =
     Text !Text -- use 'text' instead of this
     | Doc :+ Doc -- intentionally lazy
+    -- | The first Doc is the short form, which will be used if it doesn't have
+    -- to wrap.
+    | ShortForm Doc Doc
     -- | Line break.  If the Indent is non-zero, this increments the indent
     -- level.
     | Break !BreakType !Indent
     deriving (Show)
+
+{-
+-- This should actually be something like:
+-- Text is its own type, and is in Monoid.
+-- Docs can only be combined with a Break, so the Doc type is:
+
+data Doc = Chunk Chunk | Union Doc Break Doc
+type Chunk = TextChenk !Text | ShortFormChunk !ShortForm
+
+(</>) :: Doc -> Doc -> Doc
+d1 </> d2 = Union d1 (Break NoSpace 0) d2
+-}
 
 instance Monoid.Monoid Doc where
     mempty = Text mempty
@@ -41,17 +56,22 @@ instance Monoid.Monoid Doc where
 instance String.IsString Doc where
     fromString = text . String.fromString
 
-emptyDoc :: Doc -> Bool
-emptyDoc (Text t) = Text.null t
-emptyDoc _ = False
+-- | The first Doc is the short form, which will be used if it doesn't have
+-- to wrap.
+shortForm :: Doc -> Doc -> Doc
+shortForm = ShortForm
 
 text :: Text -> Doc
 text t = case make t of
     [] -> mempty
     ts -> foldr1 (:+) ts
     where
-    make = filter (not . emptyDoc) . List.intersperse newline . map Text
+    make = filter (not . isEmpty) . List.intersperse newline . map Text
         . Text.split (=='\n')
+
+isEmpty :: Doc -> Bool
+isEmpty (Text t) = Text.null t
+isEmpty _ = False
 
 
 -- | Space becomes a space when it doesn't break, NoSpace doesn't.
@@ -97,8 +117,10 @@ infixr 6 <+> -- same as <>
 type Width = Int
 
 data State = State {
-    -- | Collect here for each Section.
+    -- | Collect text each Section.
     stateCollect :: !B
+    -- | Collect long form Sections.
+    , stateSubs :: ![Section]
     -- | If a break has been seen, (prevText, space, indent).
     , stateSections :: ![Section]
     , stateIndent :: !Indent
@@ -107,8 +129,15 @@ data State = State {
 data Section = Section {
     sectionIndent :: !Indent
     , sectionB :: !B
+    -- | If present, the B is a short version.  If it doesn't fit on a line of
+    -- its own, then flatten the subs.  Normally I put down Sections until
+    -- I have to break.  A short layout stands in for a list of Sections.  When
+    -- I see one, I try to place it, and if it doesn't fit, use the
+    -- sub-Sections.
+    , sectionSubs :: ![Section]
     , sectionBreak :: !BreakType
     } deriving (Show)
+
 
 type Indent = Int
 
@@ -121,19 +150,30 @@ flatten = collapse . reverse . stateSections . go newline . flip go initialState
     where
     initialState = State
         { stateCollect = mempty
+        , stateSubs = []
         , stateSections = []
         , stateIndent = 0
         }
     go doc state = case doc of
         Text t -> state { stateCollect = stateCollect state <> bFromText t }
         d1 :+ d2 -> go d2 (go d1 state)
+        ShortForm short long -> state
+            { stateCollect =
+                stateCollect state <> renderSectionsB (flatten short)
+            , stateSubs = map (addIndent (stateIndent state)) (flatten long)
+            }
         Break btype indent -> state
             { stateCollect = mempty
-            , stateSections =
-                Section (stateIndent state) (stateCollect state) btype
-                    : stateSections state
+            , stateSubs = []
+            , stateSections = (: stateSections state) $ Section
+                { sectionIndent = stateIndent state
+                , sectionB = stateCollect state
+                , sectionSubs = stateSubs state
+                , sectionBreak = btype
+                }
             , stateIndent = indent + stateIndent state
             }
+    addIndent i section = section { sectionIndent = i + sectionIndent section }
     -- Empty sections can happen after dedents.  I don't want them, but I do
     -- want to get the break if it's stronger.
     collapse [] = []
@@ -144,47 +184,35 @@ flatten = collapse . reverse . stateSections . go newline . flip go initialState
             break = sectionBreak section <> mconcat (map sectionBreak nulls)
 
 render :: Text -> Width -> Doc -> Lazy.Text
--- render indent width = renderText indent width . Debug.trace "secs" . flatten
 render indent width = renderText indent width . flatten
 
 renderFlat :: Doc -> Lazy.Text
 renderFlat = renderTextFlat . flatten
-
--- Brackets change [break, "}", break] to [Hard, "}", Hard] if there has been
--- a newline since the corresponding "{".
--- I can do that it 'renderText'.  Each time I see a "{", I put a ("{", False).
--- When I emit a newline, all Falses become True.  When I get to the
--- corresponding "}", I check if it has True.  To know it's corresponding, each
--- "{" has a stack, and when I see the "}", pull the front of the stack.
---
--- Or, have another kind of 'sectionB' with nested [Section].  When
--- 'renderText' sees it, it invokes a recursive 'go', which returns True if it
--- emitted a newline, unless it was immediately previous.  If True, the caller
--- emits a newline, drops any following breaks, and continues.
 
 
 -- | Take sections until they go over the width, or I see a hard newline, or
 -- run out.  If they went over, then find a break in the collected, emit before
 -- the break, and try again.
 renderText :: Text -> Width -> [Section] -> Lazy.Text
-renderText indentS width = Builder.toLazyText . flip go mempty
+renderText indentS maxWidth = Builder.toLazyText . flip renderLine mempty
     where
-    go [] out = out
-    go allSections@(Section indent _ _ : _) out =
-        -- out <> case Debug.trace "line" $ spanLine (Text.length indentS) width allSections of
-        out <> case spanLine (Text.length indentS) width allSections of
+    renderLine [] out = out
+    renderLine (Section indent b subs _ : sections) out
+        | not (null subs) && indent * textWidth indentS + bWidth b > maxWidth =
+            renderLine (subs ++ sections) out
+    renderLine allSections@(Section indent _ _ _ : _) out =
+        out <> case spanLine (textWidth indentS) maxWidth allSections of
             (_, [], []) -> mempty
             (_, [], section : sections) ->
-                go sections (emitLine (sectionBuilder section))
+                renderLine sections (emitLine (sectionBuilder section))
             (False, line, rest) ->
-                go rest (emitLine (renderSections line))
-            -- (True, line, rest) -> case Debug.trace "break" $ findBreak line of
+                renderLine rest (emitLine (renderSections line))
             (True, line, rest) -> case findBreak line of
                 ([], []) -> mempty -- shouldn't be possible
-                ([], section : sections) ->
-                    go (sections ++ rest) (emitLine (sectionBuilder section))
+                ([], section : sections) -> renderLine (sections ++ rest)
+                    (emitLine (sectionBuilder section))
                 (line, rest2) ->
-                    go (rest2 ++ rest) (emitLine (renderSections line))
+                    renderLine (rest2 ++ rest) (emitLine (renderSections line))
         where
         emitLine b = indentB <> b <> nl
             where
@@ -195,18 +223,21 @@ renderText indentS width = Builder.toLazyText . flip go mempty
 renderTextFlat :: [Section] -> Lazy.Text
 renderTextFlat = Builder.toLazyText . renderSections
 
-renderSections :: [Section] -> Builder.Builder
-renderSections sections =
-    mconcat $ interleave (map sectionBuilder sections) spaces
+renderSectionsB :: [Section] -> B
+renderSectionsB sections =
+    mconcat $ interleave (map sectionB sections) spaces
     where
     spaces = map (toSpace . sectionBreak) sections
-    toSpace Space = Builder.singleton ' '
-    toSpace _ = mempty
+    toSpace Space = B (Builder.singleton ' ') 1
+    toSpace _ = B mempty 0
+
+renderSections :: [Section] -> Builder.Builder
+renderSections = bBuilder . renderSectionsB
 
 -- | Collect a line's worth of Sections.  If break is True, it has one extra.
 spanLine :: Width -> Width -> [Section] -> (Bool, [Section], [Section])
 spanLine _ _ [] = (False, [], [])
-spanLine indentWidth maxWidth sections@(Section indent _ _ : _) =
+spanLine indentWidth maxWidth sections@(Section indent _ _ _ : _) =
     go (indentWidth * indent) sections
     where
     go _ [] = (False, [], [])
@@ -227,74 +258,6 @@ findBreak sections = case lowest of
     Just (i, _) -> splitAt i sections
     where lowest = minimumOn snd $ zip [0..] (map sectionIndent sections)
 
-{-
-    t0 = "Rec" <> indented
-        ("{ f1 =" <> indented "valu1"
-        </> ", f2 =" <> indented "valu2"
-        </> ", f3 =" <> indented "valu3"
-        </> "}")
-
-    123456789012345678901234567890
-    Rec { f1 = valu1, f2 = valu2, f3 = valu3
-
-    Rec
-    Rec { f1 =
-       |
-    Rec { f1 = valu1
-       |      ^
-        { f1 = valu1, f2 =
-       |             ^
-        { f1 = valu1, f2 = valu2
-       |             ^
-        { f1 = valu1, f2 = valu2, f3 =
-       |                         ^
-        { f1 = valu1, f2 = valu2, f3 = valu3
-       |                         ^
-
-    -- break on the last section 0 where everything before it fits
-    Section 0 "Rec" Space *
-    Section 1 "{ f1 =" Space
-    Section 2 "valu1" NoSpace
-    Section 1 ", f2 =" Space
-    Section 2 "valu2" NoSpace
-    Section 1 ", f3 =" Space
-    Section 2 "valu3" NoSpace
-    Section 1 "}" NoSpace
-
-    123456789012345678901234567890
-    Rec
-      { f1 = valu1, f2 = valu2, f3 = valu3
-
-    -- break on the last section 1 where everything before it fits
-    Section 1 "{ f1 =" Space
-    Section 2 "valu1" NoSpace
-    Section 1 ", f2 =" Space
-    Section 2 "valu2" NoSpace
-    Section 1 ", f3 =" Space *
-    Section 2 "valu3" NoSpace
-    Section 1 "}" NoSpace
-
-    123456789012345678901234567890
-    Rec
-      { f1 = valu1, f2 = valu2
-      , f3 = valu3
-
-    -- both fit, but I have to break before "}" because I have broken after the
-    -- corresponding "{"
-    Section 1 ", f3 =" Space
-    Section 2 "valu3" NoSpace
-    Section 1 "}" NoSpace *
-
-    123456789012345678901234567890
-    Rec
-      { f1 = valu1, f2 = valu2
-      , f3 = valu3
-      }
-
-    -- Emit newline after "}" because I broke after the corresponding "{".
-    Section 1 "}" NoSpace
-
--}
 
 -- * B
 
@@ -327,11 +290,13 @@ bNull = (==0) . bWidth
 
 -- * misc
 
+-- | Find the *last* minimum element.
 minimumOn :: Ord k => (a -> k) -> [a] -> Maybe a
 minimumOn _ [] = Nothing
 minimumOn key xs = Just (List.foldl1' f xs)
     where f low x = if key x <= key low then x else low
 
+-- | Interleave so there is a y between each x.
 interleave :: [a] -> [a] -> [a]
 interleave [x] _ = [x]
 interleave (x:xs) (y:ys) = x : y : interleave xs ys
