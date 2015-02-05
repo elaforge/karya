@@ -2,23 +2,21 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE CPP #-}
 {- | Like Show, but designed to be easy to read rather than unambiguous and
     complete.
 -}
-module Util.Pretty4 (module Util.Format4, module Util.Pretty4) where
--- (
---     module Util.Format4
---     , Pretty(..)
---     , formatted, pprint
---     , char
---
---     -- * formatting
---     , textList, formattedList, delimitedList, record, recordTitle
---     , constructor
---     -- * misc
---     , showFloat, showFloat0, readWord
--- ) where
+module Util.Pretty4 (
+    module Util.Format4
+    , Pretty(..)
+    , formatted, pprint
+    , char
+
+    -- * formatting
+    , textList, formattedList, delimitedList, record, recordTitle
+    , constructor
+    -- * misc
+    , showFloat, showFloat0, readWord
+) where
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
 import qualified Data.List as List
@@ -44,8 +42,7 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.Format4 as Format
-import Util.Format4 (Doc, (</>), (<+/>), (<+>), text, render, indented,
-    _indented, indented_, _indented_)
+import Util.Format4 (Doc, (</>), (<//>), (<+/>), (<+>), text, render, indented)
 import qualified Util.Seq as Seq
 
 
@@ -55,7 +52,7 @@ defaultWidth = 75
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
 -- to produce any kind of valid syntax, or even preserve information.
 class Pretty a where
-    -- TODO MINIMAL pragma?
+    {-# MINIMAL pretty | format #-}
     pretty :: a -> Text
     pretty = Lazy.toStrict . Format.renderFlat . format
     format :: a -> Doc
@@ -131,11 +128,11 @@ instance Pretty a => Pretty (Set.Set a) where
 
 instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
     format = formattedList '{' '}' . map pair . Map.toList
-        where pair (k, v) = format k <> indented (":" <+> format v)
+        where pair (k, v) = format k </> indented (":" <+> format v)
 
 instance Pretty a => Pretty (Tree.Tree a) where
     format (Tree.Node val children) =
-        "Node" <+> indented ("(" <> format val <> ")" <+/> format children)
+        "Node" <+/> indented ("(" <> format val <> ")" <+/> format children)
 
 -- ** text
 
@@ -179,8 +176,8 @@ formattedList left right = delimitedList False left right . map format
 
 record :: Doc -> [(Text, Doc)] -> Doc
 record title fields =
-    title <> _indented_ (delimitedList True '{' '}' (map field fields))
-    where field (name, val) = text name <+> "=" <> _indented val
+    title <+/> indented (delimitedList True '{' '}' (map field fields))
+    where field (name, val) = text name <+> "=" <+/> indented val
 
 recordTitle :: Text -> [(Text, Doc)] -> Doc
 recordTitle = record . text
@@ -188,7 +185,7 @@ recordTitle = record . text
 constructor :: Text -> [Doc] -> Doc
 constructor name [] = text name
 constructor name fields =
-    text name <+> indented (wrapWords $ map (surround '(' ')') fields)
+    text name <+/> indented (wrapWords $ map (surround '(' ')') fields)
     where surround left right x = char left <> x <> char right
     -- TODO only surround ()s if it has spaces in it
 

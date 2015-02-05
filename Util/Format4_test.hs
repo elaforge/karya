@@ -3,7 +3,7 @@ import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
 import qualified Util.Format4 as Format
-import Util.Format4 (_indented_, _indented, (<+/>), (</>), BreakType(..))
+import Util.Format4 (indented, (<+/>), (</>), BreakType(..))
 import Util.Test
 
 import Global
@@ -14,18 +14,18 @@ test_render = do
     equal (f $ "a" <+/> "b") "a b\n"
     equal (f $ "a" </> "b") "ab\n"
     equal (f $ "1234" <+/> "6789" <+/> "ab") "1234 6789\nab\n"
-    equal (f $ "12345" <> _indented_ ("f =" <> _indented "1234"))
+    equal (f $ "12345" <+/> indented ("f =" <+/> indented "1234"))
         "12345\n  f = 1234\n"
     -- It always prefers to break on a lower indent.
-    equal (f $ "12345" <> _indented_
-            ("f" <> _indented "1"
-            <+/> "g" <> _indented "1"
-            <+/> "h" <> _indented "1"))
+    equal (f $ "12345" <+/> indented
+            ("f" <+/> indented "1"
+            <+/> "g" <+/> indented "1"
+            <+/> "h" <+/> indented "1"))
         "12345\n  f 1 g 1\n  h 1\n"
     -- But break on a higher indent if there's no choice.
-    equal (f $ "12345" <> _indented_
-            ("f =" <> _indented "12345"
-            <+/> "g =" <> _indented "12345"))
+    equal (f $ "12345" <+/> indented
+            ("f =" <+/> indented "12345"
+            <+/> "g =" <+/> indented "12345"))
         "12345\n  f =\n    12345\n  g =\n    12345\n"
 
 test_shortForm = do
@@ -34,19 +34,37 @@ test_shortForm = do
     let abc = sf "[abc]" ("a," </> "b," </> "c")
     equal (f 5 abc) "[abc]\n"
     equal (f 4 abc) "a,b,\nc\n"
-    equal (f 10 $ "xyz" <> _indented abc) "xyz [abc]\n"
-    equal (f 8 $ "xyz" <> _indented abc) "xyz\n  [abc]\n"
-    equal (f 6 $ "xyz" <> _indented abc) "xyz\n  a,b,\n  c\n"
+    equal (f 10 $ "xyz" <+/> indented abc) "xyz [abc]\n"
+    equal (f 8 $ "xyz" <+/> indented abc) "xyz\n  [abc]\n"
+    equal (f 6 $ "xyz" <+/> indented abc) "xyz\n  a,b,\n  c\n"
 
 test_flatten = do
     let f = Format.flatten
         mapSubs f = map (map f . Format.sectionSubs)
+        extract = map $ \s ->
+            (Format.sectionIndent s, bText $ Format.sectionB s,
+                Format.sectionBreak s)
+    -- Interaction with 'indented'.
+    equal (extract $ f $ "a" <+/> indented "b" </> "c")
+        [(0, "a", Space), (1, "b", NoSpace), (0, "c", Hard)]
+    equal (extract $ f $ ("a" <+/> indented "b") </> "c")
+        [(0, "a", Space), (1, "b", NoSpace), (0, "c", Hard)]
+    equal (extract $ f $ "a" <+/> indented ("b" </> indented "c") <+/> "d")
+        [(0, "a", Space), (1, "b", NoSpace), (2, "c", Space), (0, "d", Hard)]
+    equal (extract $ f $ "a" <+/> indented (indented "b") </> "c")
+        [(0, "a", Space), (2, "b", NoSpace), (0, "c", Hard)]
+    -- <> merges text, and inherits the highest indent.  This isn't really
+    -- on purpose, but is the easiest to implement.
+    equal (extract $ f $ "a" <> indented "b" <> "c")
+        [(1, "abc", Hard)]
+
+    -- shortForm
     let result = f $ Format.shortForm "short" ("long" </> "form")
     equal (map (bText . Format.sectionB) result) ["short"]
     equal (mapSubs (bText . Format.sectionB) result) [["long", "form"]]
 
     let result = f $ "a"
-            <> _indented (Format.shortForm "short" ("long" </> "form"))
+            </> indented (Format.shortForm "short" ("long" </> "form"))
     equal (map Format.sectionIndent result) [0, 1]
     equal (mapSubs Format.sectionIndent result) [[], [1, 1]]
 

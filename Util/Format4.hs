@@ -5,8 +5,8 @@
 {-# LANGUAGE CPP #-}
 module Util.Format4 (
     Doc, shortForm, text
-    , (</>), (<+/>), (<+>)
-    , newline, indented, _indented_, _indented, indented_
+    , (</>), (<//>), (<+/>), (<+>)
+    , indented
     , Width, render, renderFlat
 #ifdef TESTING
     , BreakType(..), Section(..), B(..), bFromText
@@ -22,9 +22,6 @@ import Data.Text (Text)
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
--- import qualified Util.Debug as Debug
--- import Util.PPrint (pprint)
-
 
 data Doc =
     Text !Text -- use 'text' instead of this
@@ -32,21 +29,24 @@ data Doc =
     -- | The first Doc is the short form, which will be used if it doesn't have
     -- to wrap.
     | ShortForm Doc Doc
-    -- | Line break.  If the Indent is non-zero, this increments the indent
-    -- level.
-    | Break !BreakType !Indent
+    -- | The contained Doc will be indented by a number of steps.
+    | Indented !Indent Doc
+    -- | Line break.
+    | Break !BreakType
     deriving (Show)
 
 {-
--- This should actually be something like:
--- Text is its own type, and is in Monoid.
--- Docs can only be combined with a Break, so the Doc type is:
+    I tried to define (:+) as @Union Doc Break Doc@ to enforce that exactly
+    one break is between each Doc.  I also hoped to avoid awkward constructions
+    like @"text" <> indented "x"@ or texed with ShortForm by making Doc
+    no longer a Monoid.  Unfortunately, I do in fact want to stick text on
+    Docs, e.g. @map (","<+>) docs@, and I can no longer write
+    @"a" <> "b" </> "c"@ since I'd have to manually wrap the text parts in
+    a constructor.  Trying to automatically promote with a typeclass runs into
+    ambiguity errors with IsString.
 
-data Doc = Chunk Chunk | Union Doc Break Doc
-type Chunk = TextChenk !Text | ShortFormChunk !ShortForm
-
-(</>) :: Doc -> Doc -> Doc
-d1 </> d2 = Union d1 (Break NoSpace 0) d2
+    It's probably still possible if I don't mind some manual promotion, but
+    (<>) sticking text inside Indented or ShortForm doesn't seem that bad.
 -}
 
 instance Monoid.Monoid Doc where
@@ -66,13 +66,12 @@ text t = case make t of
     [] -> mempty
     ts -> foldr1 (:+) ts
     where
-    make = filter (not . isEmpty) . List.intersperse newline . map Text
+    make = filter (not . isEmpty) . List.intersperse (Break Hard) . map Text
         . Text.split (=='\n')
 
 isEmpty :: Doc -> Bool
 isEmpty (Text t) = Text.null t
 isEmpty _ = False
-
 
 -- | Space becomes a space when it doesn't break, NoSpace doesn't.
 data BreakType = NoSpace | Space | Hard deriving (Eq, Ord, Show)
@@ -83,28 +82,20 @@ instance Monoid.Monoid BreakType where
 
 -- | Soft break with a space.
 (<+/>) :: Doc -> Doc -> Doc
-d1 <+/> d2 = d1 <> Break Space 0 <> d2
+d1 <+/> d2 = d1 <> Break Space <> d2
 infixr 5 <+/> -- less than <>
 
 -- | Soft break with no space.
 (</>) :: Doc -> Doc -> Doc
-d1 </> d2 = d1 <> Break NoSpace 0 <> d2
+d1 </> d2 = d1 <> Break NoSpace <> d2
 infixr 5 </> -- less than <>
 
-newline :: Doc
-newline = Break Hard 0
+-- | Hard break.
+(<//>) :: Doc -> Doc -> Doc
+d1 <//> d2 = d1 <> Break Hard <> d2
 
 indented :: Doc -> Doc
-indented d = Break NoSpace 1 <> d <> Break NoSpace (-1)
-
-_indented_ :: Doc -> Doc
-_indented_ d = Break Space 1 <> d <> Break Space (-1)
-
-_indented :: Doc -> Doc
-_indented d = Break Space 1 <> d <> Break NoSpace (-1)
-
-indented_ :: Doc -> Doc
-indented_ d = Break NoSpace 1 <> d <> Break Space (-1)
+indented = Indented 1
 
 -- | Join two docs with a space.
 (<+>) :: Doc -> Doc -> Doc
@@ -115,6 +106,9 @@ infixr 6 <+> -- same as <>
 
 -- | Width of monospace text, in characters.
 type Width = Int
+-- | Number of indent levels.  The provided indent text will be replicated this
+-- many times.
+type Indent = Int
 
 data State = State {
     -- | Collect text each Section.
@@ -124,6 +118,7 @@ data State = State {
     -- | If a break has been seen, (prevText, space, indent).
     , stateSections :: ![Section]
     , stateIndent :: !Indent
+    , stateBreakIndent :: !Indent
     } deriving (Show)
 
 data Section = Section {
@@ -138,21 +133,20 @@ data Section = Section {
     , sectionBreak :: !BreakType
     } deriving (Show)
 
-
-type Indent = Int
-
 sectionBuilder :: Section -> Builder.Builder
 sectionBuilder = bBuilder . sectionB
 
 flatten :: Doc -> [Section]
-flatten = collapse . reverse . stateSections . go newline . flip go initialState
-    -- TODO use dlist so I don't have to reverse
+flatten =
+    collapse . reverse . stateSections . go (Break Hard) . flip go initialState
+    -- TODO use dlist so I don't have to reverse, but benchmark first
     where
     initialState = State
         { stateCollect = mempty
         , stateSubs = []
         , stateSections = []
         , stateIndent = 0
+        , stateBreakIndent = 0
         }
     go doc state = case doc of
         Text t -> state { stateCollect = stateCollect state <> bFromText t }
@@ -162,16 +156,23 @@ flatten = collapse . reverse . stateSections . go newline . flip go initialState
                 stateCollect state <> renderSectionsB (flatten short)
             , stateSubs = map (addIndent (stateIndent state)) (flatten long)
             }
-        Break btype indent -> state
+        Indented n doc -> dedent $ go doc $ indent state
+            where
+            indent state = state
+                { stateIndent = stateIndent state + n
+                , stateBreakIndent = stateIndent state + n
+                }
+            dedent state = state { stateIndent = stateIndent state - n }
+        Break btype -> state
             { stateCollect = mempty
             , stateSubs = []
             , stateSections = (: stateSections state) $ Section
-                { sectionIndent = stateIndent state
+                { sectionIndent = stateBreakIndent state
                 , sectionB = stateCollect state
                 , sectionSubs = stateSubs state
                 , sectionBreak = btype
                 }
-            , stateIndent = indent + stateIndent state
+            , stateBreakIndent = stateIndent state
             }
     addIndent i section = section { sectionIndent = i + sectionIndent section }
     -- Empty sections can happen after dedents.  I don't want them, but I do
@@ -234,7 +235,9 @@ renderSectionsB sections =
 renderSections :: [Section] -> Builder.Builder
 renderSections = bBuilder . renderSectionsB
 
--- | Collect a line's worth of Sections.  If break is True, it has one extra.
+-- | Collect a line's worth of Sections.  If break is True, it has one Section
+-- past the break point.  This is so 'findBreak' can know what the indent
+-- past the wrap break is, so it can know if it's ok to break there.
 spanLine :: Width -> Width -> [Section] -> (Bool, [Section], [Section])
 spanLine _ _ [] = (False, [], [])
 spanLine indentWidth maxWidth sections@(Section indent _ _ _ : _) =
