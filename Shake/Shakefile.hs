@@ -254,7 +254,6 @@ globalPackages = concat $
     , w "ghc-prim old-locale"
     --  basic
     , w "transformers mtl deepseq data-ordlist cereal text stm network"
-    , w "template-haskell"
     , w "vector vector-algorithms utf8-string semigroups"
     , w "attoparsec" -- Derive: tracklang parsing
     -- shakefile

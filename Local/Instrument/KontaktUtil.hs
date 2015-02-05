@@ -13,7 +13,6 @@ import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Vector
 
 import qualified Util.Map
-import qualified Util.MultiString as MultiString
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 import qualified Midi.Midi as Midi
@@ -48,18 +47,18 @@ tuning_ksp (Instrument.PatchScale name scale) =
     millicent = 1000 * 100 -- silly scent willy sent
 
 tuning_template :: Text
-tuning_template = [MultiString.s|
-on init
-    set_script_title(*TITLE*)
-    declare %Pitches[128] := *PITCHES*
-end on
-
-on note
-    change_tune($EVENT_ID, %Pitches[$EVENT_NOTE], 0)
-end on
-|]
--- To ignore notes that don't have a tuning, I could set another %set array
--- with 0 or 1, and do ignore_event($EVENT_ID).
+tuning_template =
+    -- To ignore notes that don't have a tuning, I could set another %set array
+    -- with 0 or 1, and do ignore_event($EVENT_ID).
+    "on init\n\
+    \    set_script_title(*TITLE*)\n\
+    \    declare %Pitches[128] := *PITCHES*\n\
+    \end on\n\
+    \\n\
+    \on note\n\
+    \    change_tune($EVENT_ID, %Pitches[$EVENT_NOTE], 0)\n\
+    \end on\n\
+    \|]\n"
 
 -- * drum_mute_ksp
 
@@ -132,91 +131,90 @@ midi_pitch_array deflt ranges =
     where expand ((s, e), v) = [(i, v) | i <- Seq.range' s e 1]
 
 drum_mute_template :: Text
-drum_mute_template = [MultiString.s|
-on init
-    set_script_title("drum-mute for *INSTRUMENT*")
-
-    {- constant, CamelCase -}
-    declare const $None := -1
-    declare const $FadeTimeUs := 100 * 1000
-    {- map pitch note number to group, or $None to apply no processing -}
-    declare const $MaxGroups := *MAX_GROUPS*
-    declare const $MaxKeyswitches := *MAX_KEYSWITCHES*
-    {- remember this many sounding notes -}
-    declare const $MaxVoices := 4
-    declare %PitchToGroup[128 * $MaxKeyswitches] := *PITCH_TO_GROUP*
-    declare %PitchToKeyswitch[128] := *PITCH_TO_KEYSWITCH*
-    {- map a group to the other groups it should stop -}
-    declare %StopGroups[$MaxGroups * $MaxGroups] := *STOP_GROUPS*
-
-    {- mutable, lower_under -}
-    {- map a group to sounding events in that event -}
-    declare %sounding_groups[$MaxGroups * $MaxVoices]
-    {- current active keyswitch -}
-    declare $keyswitch
-
-    {- scratch -}
-    declare $addr
-    declare $event
-    declare $group
-    declare $i
-    declare $j
-    declare $stop_group
-    declare $to
-
-    $i := 0
-    while ($i < num_elements(%sounding_groups))
-        %sounding_groups[$i] := $None
-        $i := $i + 1
-    end while
-
-    $keyswitch := 0
-end on
-
-on note
-    if (%PitchToKeyswitch[$EVENT_NOTE] # $None)
-        $keyswitch := %PitchToKeyswitch[$EVENT_NOTE]
-    end if
-
-    $group := %PitchToGroup[$EVENT_NOTE + $keyswitch * 128]
-    if ($group = $None)
-        exit
-    end if
-
-    $addr := $group * $MaxVoices
-    {- turn off all sounding notes stopped by this group -}
-    $i := 0
-    while ($i < $MaxGroups)
-        $stop_group := %StopGroups[$group * $MaxGroups + $i]
-        if ($stop_group # $None)
-            $j := 0
-            while ($j < $MaxVoices)
-                $event := %sounding_groups[$stop_group * $MaxVoices + $j]
-                if ($event # $None)
-                    fade_out($event, $FadeTimeUs, 1)
-                    %sounding_groups[$stop_group * $MaxVoices + $j] := $None
-                end if
-                $j := $j + 1
-            end while
-        end if
-        $i := $i + 1
-    end while
-
-    {- put this note into %sounding_groups -}
-    {- if I've run out of voices, turn off the last note -}
-    if (%sounding_groups[$addr + $MaxVoices - 1] # $None)
-        fade_out(%sounding_groups[$addr + $MaxVoices - 1], $FadeTimeUs, 1)
-    end if
-
-    {- move notes up, and insert a new one at 0 -}
-    $i := $MaxVoices - 1
-    while ($i > 0)
-        %sounding_groups[$addr + $i] := %sounding_groups[$addr + $i - 1]
-        $i := $i - 1
-    end while
-    %sounding_groups[$addr] := $EVENT_ID
-end on
-|]
+drum_mute_template =
+    "on init\n\
+    \    set_script_title(\"drum-mute for *INSTRUMENT*\")\n\
+    \\n\
+    \    {- constant, CamelCase -}\n\
+    \    declare const $None := -1\n\
+    \    declare const $FadeTimeUs := 100 * 1000\n\
+    \    {- map pitch note number to group, or $None to apply no processing -}\n\
+    \    declare const $MaxGroups := *MAX_GROUPS*\n\
+    \    declare const $MaxKeyswitches := *MAX_KEYSWITCHES*\n\
+    \    {- remember this many sounding notes -}\n\
+    \    declare const $MaxVoices := 4\n\
+    \    declare %PitchToGroup[128 * $MaxKeyswitches] := *PITCH_TO_GROUP*\n\
+    \    declare %PitchToKeyswitch[128] := *PITCH_TO_KEYSWITCH*\n\
+    \    {- map a group to the other groups it should stop -}\n\
+    \    declare %StopGroups[$MaxGroups * $MaxGroups] := *STOP_GROUPS*\n\
+    \\n\
+    \    {- mutable, lower_under -}\n\
+    \    {- map a group to sounding events in that event -}\n\
+    \    declare %sounding_groups[$MaxGroups * $MaxVoices]\n\
+    \    {- current active keyswitch -}\n\
+    \    declare $keyswitch\n\
+    \\n\
+    \    {- scratch -}\n\
+    \    declare $addr\n\
+    \    declare $event\n\
+    \    declare $group\n\
+    \    declare $i\n\
+    \    declare $j\n\
+    \    declare $stop_group\n\
+    \    declare $to\n\
+    \\n\
+    \    $i := 0\n\
+    \    while ($i < num_elements(%sounding_groups))\n\
+    \        %sounding_groups[$i] := $None\n\
+    \        $i := $i + 1\n\
+    \    end while\n\
+    \\n\
+    \    $keyswitch := 0\n\
+    \end on\n\
+    \\n\
+    \on note\n\
+    \    if (%PitchToKeyswitch[$EVENT_NOTE] # $None)\n\
+    \        $keyswitch := %PitchToKeyswitch[$EVENT_NOTE]\n\
+    \    end if\n\
+    \\n\
+    \    $group := %PitchToGroup[$EVENT_NOTE + $keyswitch * 128]\n\
+    \    if ($group = $None)\n\
+    \        exit\n\
+    \    end if\n\
+    \\n\
+    \    $addr := $group * $MaxVoices\n\
+    \    {- turn off all sounding notes stopped by this group -}\n\
+    \    $i := 0\n\
+    \    while ($i < $MaxGroups)\n\
+    \        $stop_group := %StopGroups[$group * $MaxGroups + $i]\n\
+    \        if ($stop_group # $None)\n\
+    \            $j := 0\n\
+    \            while ($j < $MaxVoices)\n\
+    \                $event := %sounding_groups[$stop_group * $MaxVoices + $j]\n\
+    \                if ($event # $None)\n\
+    \                    fade_out($event, $FadeTimeUs, 1)\n\
+    \                    %sounding_groups[$stop_group * $MaxVoices + $j] := $None\n\
+    \                end if\n\
+    \                $j := $j + 1\n\
+    \            end while\n\
+    \        end if\n\
+    \        $i := $i + 1\n\
+    \    end while\n\
+    \\n\
+    \    {- put this note into %sounding_groups -}\n\
+    \    {- if I've run out of voices, turn off the last note -}\n\
+    \    if (%sounding_groups[$addr + $MaxVoices - 1] # $None)\n\
+    \        fade_out(%sounding_groups[$addr + $MaxVoices - 1], $FadeTimeUs, 1)\n\
+    \    end if\n\
+    \\n\
+    \    {- move notes up, and insert a new one at 0 -}\n\
+    \    $i := $MaxVoices - 1\n\
+    \    while ($i > 0)\n\
+    \        %sounding_groups[$addr + $i] := %sounding_groups[$addr + $i - 1]\n\
+    \        $i := $i - 1\n\
+    \    end while\n\
+    \    %sounding_groups[$addr] := $EVENT_ID\n\
+    \end on\n"
 
 
 -- * util
