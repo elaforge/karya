@@ -4,8 +4,9 @@
 
 module Ui.Color where
 import Data.Bits
-import qualified Data.List as List
+import Data.Monoid ((<>))
 import qualified Data.Monoid as Monoid
+import qualified Data.Text as Text
 import Util.ForeignC
 
 import qualified Util.Num as Num
@@ -39,8 +40,8 @@ data Color = Color !Double !Double !Double !Double
     deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Color where
-    pretty (Color r g b a) = "rgba:"
-        ++ List.intercalate "/" (map (Pretty.show_float 2) [r, g, b, a])
+    prettyt (Color r g b a) = "rgba:"
+        <> Text.intercalate "/" (map (Pretty.showFloat 2) [r, g, b, a])
 
 -- | An opaque color with the given r, g, and b.
 rgb :: Double -> Double -> Double -> Color

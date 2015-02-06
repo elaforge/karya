@@ -10,6 +10,7 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.State.Strict as State
 
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 import qualified Data.Vector as Vector
 import Data.Vector ((!))
@@ -79,10 +80,12 @@ data Message =
     deriving (Show)
 
 instance Pretty.Pretty Message where
-    pretty msg = case msg of
-        Midi msg -> pretty msg
-        AllNotesOff time -> unwords ["AllNotesOff", pretty time]
-        AllDevices time msgs -> unwords ["AllDevices", pretty time, pretty msgs]
+    prettyt msg = case msg of
+        Midi msg -> prettyt msg
+        AllNotesOff time ->
+            Text.unwords ["AllNotesOff", prettyt time]
+        AllDevices time msgs ->
+            Text.unwords ["AllDevices", prettyt time, prettyt msgs]
 
 instance DeepSeq.NFData Message where
     rnf (Midi msg) = DeepSeq.rnf msg

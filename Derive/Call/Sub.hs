@@ -216,8 +216,9 @@ at :: ScoreTime -> GenericEvent a -> GenericEvent a
 at shift (Event start dur note) = Event (start + shift) dur note
 
 instance Pretty.Pretty a => Pretty.Pretty (GenericEvent a) where
-    pretty (Event start dur note) =
-        "Event " <> show start <> " " <> show dur <> " (" <> pretty note <> ")"
+    prettyt (Event start dur note) =
+        "Event " <> showt start <> " " <> showt dur
+            <> " (" <> prettyt note <> ")"
 
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other

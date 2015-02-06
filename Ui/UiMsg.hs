@@ -7,12 +7,9 @@
 -}
 module Ui.UiMsg where
 import qualified Data.Text as Text
-import Text.Printf (printf)
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
-import qualified Util.Seq as Seq
-
 import qualified Ui.Key as Key
 import qualified Ui.Types as Types
 import Global
@@ -105,34 +102,34 @@ data MouseState = MouseMove | MouseDrag Types.MouseButton
 data KbdState = KeyDown | KeyRepeat | KeyUp deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty UiMsg where
-    pretty ui_msg = case ui_msg of
+    prettyt ui_msg = case ui_msg of
         UiMsg ctx (MsgEvent mdata) -> case mdata of
-            Mouse mstate mods coords clicks is_click ->
-                printf "Mouse: %s %s %s %s click: %s %d" (show mstate)
-                    (show mods) (show coords) (pretty ctx)
-                    (show is_click) clicks
-            Kbd kstate mods key text -> printf "Kbd: %s %s %s %s%s"
-                (show kstate) (show mods)
-                (show key) (maybe "" (\c -> '(':c:") ") text)
-                (pretty ctx)
-            AuxMsg msg -> printf "Aux: %s %s" (show msg) (pretty ctx)
-            Unhandled x -> printf "Unhandled: %d" x
-        UiMsg ctx msg ->
-            printf "Other Event: %s %s" (show msg) (pretty ctx)
+            Mouse mstate mods coords clicks is_click -> Text.unwords
+                [ "Mouse:", showt mstate, showt mods, showt coords, prettyt ctx
+                , "click:", showt is_click, showt clicks
+                ]
+            Kbd kstate mods key maybe_char -> Text.unwords
+                [ "Kbd:", showt kstate, showt mods, showt key
+                , maybe "" (\c -> "(" <> Text.singleton c <> ") ") maybe_char
+                    <> prettyt ctx
+                ]
+            AuxMsg msg -> Text.unwords ["Aux:", showt msg, prettyt ctx]
+            Unhandled x -> "Unhandled: " <> showt x
+        UiMsg ctx msg -> Text.unwords ["Other Event:", showt msg, prettyt ctx]
 
 instance Pretty.Pretty Context where
-    pretty (Context focus track edit_input) = "{" ++ contents ++ "}"
+    prettyt (Context focus track edit_input) = "{" <> contents <> "}"
         where
-        contents = Seq.join " " $ filter (not.null)
+        contents = Text.unwords $ filter (not . Text.null)
             [ show_maybe "focus" focus
             , maybe "" show_track track
             , if edit_input then "edit_input" else ""
             ]
         show_track (tnum, track) =
-            "track=" ++ show tnum ++ ":" ++ pretty track
-        show_maybe desc = maybe "" (\v -> desc ++ "=" ++ show v)
+            "track=" <> showt tnum <> ":" <> prettyt track
+        show_maybe desc = maybe "" (\v -> desc <> "=" <> showt v)
 
 instance Pretty.Pretty Track where
-    pretty (Track pos) = "track:" ++ pretty pos
-    pretty Divider = "div"
-    pretty SkeletonDisplay = "skel"
+    prettyt (Track pos) = "track:" <> prettyt pos
+    prettyt Divider = "div"
+    prettyt SkeletonDisplay = "skel"

@@ -47,12 +47,12 @@ import Types
 
 
 -- | Find text in block titles, track titles, or events.
-find :: Text -> Cmd.CmdL String
+find :: Text -> Cmd.CmdL Text
 find search = do
     blocks <- LBlock.find search
     tracks <- LTrack.find search
     events <- Repl.LEvent.find search
-    return $ unlines $ concatMap section $ concat
+    return $ Text.unlines $ concatMap section $ concat
         [ [("blocks:", Pretty.formatted blocks) | not (null blocks)]
         , [("tracks:", Pretty.formatted tracks) | not (null tracks)]
         , [("events:", Pretty.formatted events) | not (null events)]

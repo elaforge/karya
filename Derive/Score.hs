@@ -253,7 +253,7 @@ instance Pretty.Pretty Event where
             , ("controls", Pretty.format controls)
             , ("control offset", Pretty.format coffset)
             , ("stack", Pretty.format stack)
-            , ("highlight", Pretty.text $ show highlight)
+            , ("highlight", Pretty.text $ showt highlight)
             , ("environ", Pretty.format env)
             , ("flags", Pretty.format flags)
             ]

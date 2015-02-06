@@ -23,6 +23,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.TextUtil as TextUtil
+
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as BaseTypes
@@ -111,8 +113,8 @@ instance ShowVal Duration where
     show_val (Score x) = show_val x
 
 instance Pretty.Pretty Duration where
-    pretty (Real t) = pretty t
-    pretty (Score t) = pretty t
+    prettyt (Real t) = prettyt t
+    prettyt (Score t) = prettyt t
 
 multiply_duration :: Duration -> Int -> Duration
 multiply_duration (Real t) n = Real (t * fromIntegral n)
@@ -241,22 +243,22 @@ subtypes_of n
     transpose = [TTranspose, TDefaultDiatonic, TDefaultChromatic, TNoteNumber]
 
 instance Pretty.Pretty Type where
-    pretty (TMaybe typ) = "Maybe " <> pretty typ
-    pretty (TEither a b) = pretty a <> " or " <> pretty b
-    pretty (TNum typ val) = append_parens "Num" $
-        Seq.join2 ", " (pretty typ) (pretty val)
-    pretty (TSymbol enums) =
-        append_parens "Symbol" $ maybe "" (unwords . map untxt) enums
-    pretty (TList typ) = "list of " <> pretty typ
-    pretty typ = drop 1 (show typ)
+    prettyt (TMaybe typ) = "Maybe " <> prettyt typ
+    prettyt (TEither a b) = prettyt a <> " or " <> prettyt b
+    prettyt (TNum typ val) = append_parens "Num" $
+        TextUtil.joinWith ", " (prettyt typ) (prettyt val)
+    prettyt (TSymbol enums) =
+        append_parens "Symbol" $ maybe "" Text.unwords enums
+    prettyt (TList typ) = "list of " <> prettyt typ
+    prettyt typ = Text.drop 1 (showt typ)
 
-append_parens :: String -> String -> String
+append_parens :: Text -> Text -> Text
 append_parens name desc
-    | null desc = name
+    | Text.null desc = name
     | otherwise = name <> " (" <> desc <> ")"
 
 instance Pretty.Pretty NumType where
-    pretty t = case t of
+    prettyt t = case t of
         TUntyped -> ""
         TInt -> "integral"
         TTranspose -> "transposition"
@@ -270,7 +272,7 @@ instance Pretty.Pretty NumType where
         TNoteNumber -> "nn"
 
 instance Pretty.Pretty NumValue where
-    pretty t = case t of
+    prettyt t = case t of
         TAny -> ""
         TNatural -> ">=0"
         TPositive -> ">0"

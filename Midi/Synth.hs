@@ -14,8 +14,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
-import qualified Text.Printf as Printf
-
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -256,16 +254,20 @@ pretty_state (State _chan active notes warns _) = Text.intercalate "\n" $ concat
     ]
 
 instance Pretty.Pretty dur => Pretty.Pretty (NoteT dur) where
-    pretty (Note start dur _key vel pitch pitches controls (dev, chan)) =
-        Printf.printf "%s %s %s--%s: vel:%x" addr_s (pretty (round_cents pitch))
-            (pretty start) (pretty dur) vel
-        <> (if null pitches then "" else " p:" <> pretty pitches)
-        <> (if Map.null controls then "" else " c:" <> pretty_controls controls)
-        where addr_s = pretty dev ++ ":" ++ show chan
+    prettyt (Note start dur _key vel pitch pitches controls (dev, chan)) =
+        Text.unwords $ filter (not . Text.null)
+            [ addr_s, prettyt (round_cents pitch)
+            , prettyt start <> "--" <> prettyt dur <> ":"
+            , "vel:" <> txt (Num.hex vel)
+            , if null pitches then "" else " p:" <> prettyt pitches
+            , if Map.null controls then ""
+                else " c:" <> pretty_controls controls
+            ]
+        where addr_s = prettyt dev <> ":" <> showt chan
 
-pretty_controls :: ControlMap -> String
-pretty_controls controls = Seq.join "\n\t"
-    [show cont ++ ":" ++ pretty vals | (cont, vals) <- Map.assocs controls]
+pretty_controls :: ControlMap -> Text
+pretty_controls controls = Text.intercalate "\n\t"
+    [showt cont <> ":" <> prettyt vals | (cont, vals) <- Map.assocs controls]
 
 pretty_warn :: (Midi.WriteMessage, Text) -> Text
 pretty_warn (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg), warn) =

@@ -142,11 +142,11 @@ data Valantalai = Ki | Ta | Nam | Din | Chapu | Dim deriving (Eq, Show)
 -- | 'note_to_call' uses these, so they should match up with the calls in the
 -- instrument.
 instance Pretty.Pretty Thoppi where
-    pretty x = case x of
+    prettyt x = case x of
         Tha -> "+"
         Thom -> "o"
 instance Pretty.Pretty Valantalai where
-    pretty x = case x of
+    prettyt x = case x of
         Ki -> "k"
         Ta -> "t"
         Nam -> "n"
@@ -158,8 +158,8 @@ data Note = Note (Maybe Thoppi) (Maybe Valantalai)
     deriving (Eq, Show)
 
 instance Pretty.Pretty Note where
-    pretty (Note Nothing Nothing) = "-"
-    pretty (Note thoppi val) = maybe "" pretty thoppi <> maybe "" pretty val
+    prettyt (Note Nothing Nothing) = "-"
+    prettyt (Note thoppi val) = maybe "" prettyt thoppi <> maybe "" prettyt val
 
 type Pattern = [Note]
 

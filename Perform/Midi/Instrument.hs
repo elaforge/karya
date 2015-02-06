@@ -343,8 +343,8 @@ data PatchScale = PatchScale !Text (Vector.Vector Double)
     deriving (Eq, Show, Read)
 
 instance Pretty.Pretty PatchScale where
-    pretty (PatchScale name v) = untxt name <> " ("
-        <> show (Util.Vector.count (/=0) v) <> " pitches)"
+    prettyt (PatchScale name v) = name <> " ("
+        <> showt (Util.Vector.count (/=0) v) <> " pitches)"
 
 -- | Fill in non-adjacent MIDI keys by interpolating the neighboring
 -- NoteNumbers.  This is because a 0 between two notes will prevent pitch
@@ -435,7 +435,7 @@ data Flag =
     | ConstantPitch
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Flag where pretty = show
+instance Pretty.Pretty Flag where prettyt = showt
 
 -- ** attribute map
 
@@ -470,9 +470,9 @@ data Keymap =
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Keymap where
-    pretty (UnpitchedKeymap k) = pretty k
-    pretty (PitchedKeymap low high nn) = pretty low <> "--"
-        <> pretty high <> "(" <> pretty nn <> ")"
+    prettyt (UnpitchedKeymap k) = prettyt k
+    prettyt (PitchedKeymap low high nn) = prettyt low <> "--"
+        <> prettyt high <> "(" <> prettyt nn <> ")"
 
 -- | A Keyswitch changes the timbre of a patch, but does so in a channel-global
 -- way.  So overlapping notes with different keyswitches will be split into
@@ -614,7 +614,7 @@ data InitializePatch =
 instance Pretty.Pretty InitializePatch where
     format (InitializeMidi msgs) =
         Pretty.text "InitializeMidi" Pretty.<+> Pretty.format msgs
-    format init = Pretty.text (show init)
+    format init = Pretty.text (showt init)
 
 add_tag :: Tag -> Patch -> Patch
 add_tag tag = tags %= (tag:)

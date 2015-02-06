@@ -621,7 +621,7 @@ ly_duration ly = case ly of
     LyRest rest -> rest_time rest
     _ -> 0
 
-instance Pretty.Pretty Ly where pretty = untxt . to_lily
+instance Pretty.Pretty Ly where prettyt = to_lily
 
 instance ToLily Ly where
     to_lily ly = case ly of
@@ -772,7 +772,7 @@ instance ToLily Voice where
         VoiceOne -> "\\voiceOne"; VoiceTwo -> "\\voiceTwo"
         VoiceThree -> "\\voiceThree"; VoiceFour -> "\\voiceFour"
 
-instance Pretty.Pretty Voice where pretty = show
+instance Pretty.Pretty Voice where prettyt = showt
 
 parse_voice :: Int -> Maybe Voice
 parse_voice v = case v of

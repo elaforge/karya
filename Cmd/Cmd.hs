@@ -582,7 +582,7 @@ instance Pretty.Pretty SyncConfig where
         [ ("device", Pretty.format dev)
         , ("device_id", Pretty.format dev_id)
         , ("mtc", Pretty.format mtc)
-        , ("frame_rate", Pretty.text (show rate))
+        , ("frame_rate", Pretty.text (showt rate))
         ]
 
 -- ** hooks
@@ -671,7 +671,7 @@ initial_edit_state = EditState {
 -- | These enable various commands to edit event text.  What exactly val
 -- and method mean are dependent on the track.
 data EditMode = NoEdit | ValEdit | MethodEdit deriving (Eq, Show)
-instance Pretty.Pretty EditMode where pretty = show
+instance Pretty.Pretty EditMode where prettyt = showt
 
 type RecordedActions = Map.Map Char Action
 
@@ -688,12 +688,12 @@ data Action =
     deriving (Show, Eq)
 
 instance Pretty.Pretty Action where
-    pretty act = case act of
+    prettyt act = case act of
         InsertEvent maybe_dur text ->
-            pretty text ++ maybe "" ((" ("++) . (++")") . pretty) maybe_dur
-        ReplaceText text -> '=' : pretty text
-        PrependText text -> pretty text ++ "+"
-        AppendText text -> '+' : pretty text
+            prettyt text <> maybe "" ((" ("<>) . (<>")") . prettyt) maybe_dur
+        ReplaceText text -> "=" <> prettyt text
+        PrependText text -> prettyt text <> "+"
+        AppendText text -> "+" <> prettyt text
 
 -- *** midi devices
 
@@ -895,12 +895,12 @@ instance Pretty.Pretty History where
         [ ("past", Pretty.format past)
         , ("present", Pretty.format present)
         , ("future", Pretty.format future)
-        , ("last_cmd", Pretty.text (show last_cmd))
+        , ("last_cmd", Pretty.text (showt last_cmd))
         ]
 
 instance Pretty.Pretty HistoryEntry where
     format (HistoryEntry _state updates commands commit) =
-        Pretty.format commit Pretty.<+> Pretty.text_list commands
+        Pretty.format commit Pretty.<+> Pretty.textList commands
         Pretty.<+> Pretty.format updates
 
 instance Pretty.Pretty HistoryConfig where

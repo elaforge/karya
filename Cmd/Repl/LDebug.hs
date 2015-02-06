@@ -11,7 +11,6 @@ import qualified Data.Text as Text
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Id as Id
@@ -71,13 +70,13 @@ dump_perf_events fname events =
 
 -- * undo
 
-show_history :: Cmd.CmdL String
+show_history :: Cmd.CmdL Text
 show_history = do
-    save_file <- ("save file: "++) . show <$> Cmd.gets Cmd.state_save_file
+    save_file <- ("save file: "<>) . showt <$> Cmd.gets Cmd.state_save_file
     hist <- Pretty.formatted <$> Cmd.gets Cmd.state_history
     config <- Pretty.formatted <$> Cmd.gets Cmd.state_history_config
     collect <- Pretty.formatted <$> Cmd.gets Cmd.state_history_collect
-    return $ unlines $ map Seq.strip [save_file, hist, config, collect]
+    return $ Text.unlines $ map Text.strip [save_file, hist, config, collect]
 
 -- * cache
 

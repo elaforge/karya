@@ -94,7 +94,7 @@ instance Show (Signal y) where
     show (Signal vec) = "Signal " ++ show (TimeVector.unsignal vec)
 instance Read.Read (Signal y) where
     readPrec = do
-        Pretty.read_word
+        Pretty.readWord
         vec <- Read.readPrec
         return $ Signal (TimeVector.signal vec)
 

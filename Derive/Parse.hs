@@ -225,8 +225,7 @@ p_num = do
     typ <- A.choice $ map suffix codes
     return $ Score.Typed typ num
     where
-    codes = zip BaseTypes.all_types $
-        map (Text.pack . Score.type_to_code) BaseTypes.all_types
+    codes = zip BaseTypes.all_types $ map Score.type_to_code BaseTypes.all_types
 
 p_untyped_num :: A.Parser Signal.Y
 p_untyped_num = p_ratio <|> ParseText.p_float

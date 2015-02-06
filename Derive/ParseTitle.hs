@@ -38,7 +38,7 @@ parse_block = Parse.parse_expr
 data Type = TempoTrack | ControlTrack | PitchTrack | NoteTrack
     deriving (Eq, Show)
 
-instance Pretty.Pretty Type where pretty = show
+instance Pretty.Pretty Type where prettyt = showt
 
 track_type :: Text -> Type
 track_type title
@@ -59,7 +59,7 @@ data ControlType =
     deriving (Show)
 
 instance Pretty.Pretty ControlType where
-    pretty = untxt . unparse_control
+    prettyt = unparse_control
 
 parse_control :: Text -> Either String ControlType
 parse_control = fmap fst . parse_control_expr
@@ -135,9 +135,8 @@ parse_control_type (TrackLang.Symbol name) = case Text.uncons post of
 
 unparse_typed :: Score.Typed Score.Control -> Text
 unparse_typed (Score.Typed typ c) =
-    Score.control_name c <> case Score.type_to_code typ of
-        "" -> ""
-        code -> txt $ ':' : code
+    Score.control_name c <> if Text.null code then "" else ":" <> code
+    where code = Score.type_to_code typ
 
 unparse_control_expr :: ControlType -> [TrackLang.Call] -> Text
 unparse_control_expr ctype calls

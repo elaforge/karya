@@ -152,7 +152,7 @@ infixl 1 $> -- put it above ($) but below everything else
 infixl 9 .>
 
 -- | Pretty-print the result of a cmd with 'Pretty.format'.
-pp :: Pretty.Pretty a => Cmd.CmdL a -> Cmd.CmdL String
+pp :: Pretty.Pretty a => Cmd.CmdL a -> Cmd.CmdL Text
 pp = fmap Pretty.formatted
 
 quit :: Cmd.CmdL ()
@@ -205,7 +205,7 @@ unerror = do
 
 -- * show / modify cmd state
 
-show_history :: Cmd.CmdL String
+show_history :: Cmd.CmdL Text
 show_history = do
     hist <- Cmd.gets Cmd.state_history
     return $ Pretty.formatted hist
@@ -245,11 +245,11 @@ revert_to = Save.revert . Just
 
 -- * show / modify UI state
 
-show_state :: Cmd.CmdL String
+show_state :: Cmd.CmdL Text
 show_state = do
     State.State views blocks tracks rulers _ <- State.get
     let f fm = PPrint.list (map show (Map.keys fm))
-    return $ PPrint.record
+    return $ txt $ PPrint.record
         [ ("views", f views), ("blocks", f blocks)
         , ("tracks", f tracks), ("rulers", f rulers)
         ]
@@ -260,19 +260,19 @@ get_views :: Cmd.CmdL [ViewId]
 get_views = State.gets (Map.keys . State.state_views)
 
 -- | Show all views whose view id matches a string.
-show_views :: Text -> Cmd.CmdL String
+show_views :: Text -> Cmd.CmdL Text
 show_views match = do
     st <- State.get
     return $ Pretty.formatted $ Util.match_map match (State.state_views st)
 
 -- ** blocks
 
-show_block :: BlockId -> Cmd.CmdL String
+show_block :: BlockId -> Cmd.CmdL Text
 show_block block_id = Pretty.formatted <$> State.get_block block_id
 
 -- | Show all blocks whose block id matches a string.
 -- Useful for quick block inspection.
-show_blocks :: Text -> Cmd.CmdL String
+show_blocks :: Text -> Cmd.CmdL Text
 show_blocks match = do
     st <- State.get
     return $ Pretty.formatted $ Util.match_map match (State.state_blocks st)

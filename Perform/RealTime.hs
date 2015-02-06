@@ -53,6 +53,7 @@ module Perform.RealTime (
 import Prelude hiding (div)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
+import qualified Data.Text as Text
 import qualified Foreign
 import qualified Text.Read as Read
 
@@ -96,7 +97,7 @@ instance Show RealTime where show (RealTime t) = show t
 instance Read.Read RealTime where readPrec = RealTime <$> Read.readPrec
 
 instance Pretty.Pretty RealTime where
-    pretty t = Pretty.show_float 2 (to_seconds t) ++ [suffix]
+    prettyt t = Pretty.showFloat 2 (to_seconds t) <> Text.singleton suffix
 
 div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)

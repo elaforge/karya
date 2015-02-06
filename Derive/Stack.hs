@@ -58,7 +58,7 @@ instance Show Stack where
     show stack = "Stack.from_outermost " ++ show (outermost stack)
 instance Read.Read Stack where
     readPrec = do
-        Pretty.read_word
+        Pretty.readWord
         frames <- Read.readPrec
         return (from_outermost frames)
 
@@ -160,13 +160,13 @@ instance DeepSeq.NFData Frame where
     rnf f = f `seq` ()
 
 instance Pretty.Pretty Stack where
-    format = Pretty.format_list . outermost
+    format = Pretty.formatList . outermost
 
 instance Pretty.Pretty Frame where
-    pretty (Block bid) = show bid
-    pretty (Track tid) = show tid
-    pretty (Region s e) = pretty s <> "--" <> pretty e
-    pretty (Call call) = untxt call
+    prettyt (Block bid) = showt bid
+    prettyt (Track tid) = showt tid
+    prettyt (Region s e) = prettyt s <> "--" <> prettyt e
+    prettyt (Call call) = call
 
 instance Serialize.Serialize Frame where
     put frame = case frame of
@@ -229,7 +229,7 @@ instance Aeson.FromJSON Frame where
     parseJSON _ = fail "expecting array"
 
 format_ui :: Stack -> Pretty.Doc
-format_ui = Pretty.text_list . map unparse_ui_frame . to_ui
+format_ui = Pretty.textList . map unparse_ui_frame . to_ui
 
 show_ui :: Stack -> Text
 show_ui = Text.intercalate ": " . map unparse_ui_frame . to_ui
@@ -303,7 +303,7 @@ unparse_ui_frame (maybe_bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from <> "-" <> float to) maybe_range
-    float = txt . Pretty.show_float 2 . ScoreTime.to_double
+    float = Pretty.showFloat 2 . ScoreTime.to_double
 
 -- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
 -- cluttered but potentially ambiguous output.
@@ -315,7 +315,7 @@ unparse_ui_frame_ (maybe_bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" Id.ident_name maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from <> "-" <> float to) maybe_range
-    float = txt . Pretty.show_float 2 . ScoreTime.to_double
+    float = Pretty.showFloat 2 . ScoreTime.to_double
 
 parse_ui_frame :: String -> Maybe UiFrame
 parse_ui_frame = ParseText.maybe_parse_string $ do

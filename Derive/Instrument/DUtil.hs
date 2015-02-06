@@ -9,6 +9,7 @@
 module Derive.Instrument.DUtil where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
 import qualified Derive.Args as Args
@@ -142,12 +143,14 @@ data Composite = Composite {
     } deriving (Show)
 
 instance Pretty.Pretty Composite where
-    pretty (Composite call inst pitch controls) = unwords
-        [pretty inst <> ":", pretty call, ppitch, maybe "(all)" pretty controls]
+    prettyt (Composite call inst pitch controls) = Text.unwords
+        [ prettyt inst <> ":", prettyt call, ppitch
+        , maybe "(all)" prettyt controls
+        ]
         where
         ppitch = case pitch of
             NoPitch -> "(no pitch)"
-            Pitch control -> untxt $ ShowVal.show_val (Score.PControl control)
+            Pitch control -> ShowVal.show_val (Score.PControl control)
 
 data Pitch = NoPitch | Pitch (Maybe Score.Control) deriving (Show)
 -- | If Nothing, then this Composite gets all the controls that are not given

@@ -53,7 +53,6 @@ import qualified Data.Text.Encoding as Encoding
 import Data.Word (Word8)
 
 import qualified Foreign.C
-import qualified Text.Printf as Printf
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -89,11 +88,11 @@ instance DeepSeq.NFData WriteMessage where rnf _ = ()
 instance DeepSeq.NFData ReadMessage where rnf _ = ()
 
 instance Pretty.Pretty ReadMessage where
-    pretty (ReadMessage dev ts msg) = Printf.printf "%s %s: %s"
-        (pretty dev) (pretty ts) (pretty msg)
+    prettyt (ReadMessage dev ts msg) =
+        prettyt dev <> " " <> prettyt ts <> ": " <> prettyt msg
 instance Pretty.Pretty WriteMessage where
-    pretty (WriteMessage dev ts msg) = Printf.printf "%s %s: %s"
-        (pretty dev) (pretty ts) (pretty msg)
+    prettyt (WriteMessage dev ts msg) =
+        prettyt dev <> " " <> prettyt ts <> ": " <> prettyt msg
 
 -- * devices
 
@@ -132,8 +131,8 @@ with_wdev (WriteDevice dev) = ByteString.useAsCString dev
 with_rdev :: ReadDevice -> (Foreign.C.CString -> IO a) -> IO a
 with_rdev (ReadDevice dev) = ByteString.useAsCString dev
 
-instance Pretty.Pretty ReadDevice where pretty = untxt . read_device_text
-instance Pretty.Pretty WriteDevice where pretty = untxt . write_device_text
+instance Pretty.Pretty ReadDevice where prettyt = read_device_text
+instance Pretty.Pretty WriteDevice where prettyt = write_device_text
 
 add_timestamp :: RealTime -> WriteMessage -> WriteMessage
 add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }
@@ -246,12 +245,12 @@ data Message =
     deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Message where
-    pretty (CommonMessage (SystemExclusive manuf bytes)) =
-        Printf.printf "sysex %s <%d bytes>" (manufacturer_name manuf)
-            (ByteString.length bytes)
-    pretty (ChannelMessage chan msg) =
-        Printf.printf "chan:%d %s" chan (pretty msg)
-    pretty msg = show msg
+    prettyt (CommonMessage (SystemExclusive manuf bytes)) =
+        "sysex " <> manufacturer_name manuf
+            <> " <" <> showt (ByteString.length bytes) <> " bytes>"
+    prettyt (ChannelMessage chan msg) =
+        "chan:" <> showt chan <> " " <> prettyt msg
+    prettyt msg = showt msg
 
 -- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
 -- On the other hand, these all have 7 bit ranges, so I can still check for
@@ -267,7 +266,7 @@ type Manufacturer = Word8
 
 newtype Key = Key Word8 deriving (Eq, Ord, Num, Enum, Read)
 
-instance Pretty.Pretty Key where pretty = show
+instance Pretty.Pretty Key where prettyt = showt
 -- | This means the show is not the inverse of Read, but I can get that back
 -- later if necessary, and named pitches are very convenient.
 instance Show Key where
@@ -336,7 +335,7 @@ instance Pretty.Pretty ChannelMessage where
         NoteOff key vel -> "NoteOff" <+> format key <+> format vel
         NoteOn key vel -> "NoteOn" <+> format key <+> format vel
         Aftertouch key vel -> "Aftertouch" <+> format key <+> format vel
-        _ -> Pretty.text (show msg)
+        _ -> Pretty.text (showt msg)
 
 -- ** MTC
 
@@ -458,8 +457,8 @@ join4 d1 d2 = (shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
 
 -- ** manufacturer
 
-manufacturer_name :: Manufacturer -> String
-manufacturer_name code = Maybe.fromMaybe (show code) $
+manufacturer_name :: Manufacturer -> Text
+manufacturer_name code = Maybe.fromMaybe (showt code) $
     Map.lookup code manufacturer_codes
 
 korg_code, yamaha_code :: Manufacturer
@@ -467,6 +466,6 @@ korg_code = 0x42
 yamaha_code = 0x43
 
 -- | TODO get a more complete list
-manufacturer_codes :: Map.Map Manufacturer String
+manufacturer_codes :: Map.Map Manufacturer Text
 manufacturer_codes = Map.fromList
     [(korg_code, "korg"), (yamaha_code, "yamaha")]

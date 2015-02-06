@@ -57,7 +57,7 @@ note_text :: Note -> Text
 note_text (Note s) = s
 
 instance Pretty.Pretty Note where
-    pretty (Note n) = untxt n
+    prettyt (Note n) = n
 
 
 -- * pitch
@@ -74,7 +74,7 @@ pitch :: Octave -> PitchClass -> Pitch
 pitch oct pc = Pitch oct (Degree pc 0)
 
 instance Pretty.Pretty Pitch where
-    pretty (Pitch oct degree) = show oct <> "-" <> pretty degree
+    prettyt (Pitch oct degree) = showt oct <> "-" <> prettyt degree
 
 -- | This relies on the presence of a @pitch@ val call.
 instance ShowVal.ShowVal Pitch where
@@ -94,8 +94,9 @@ data Degree = Degree {
     } deriving (Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Degree where
-    pretty (Degree pc acc) = show pc
-        <> if acc < 0 then replicate (abs acc) 'b' else replicate acc '#'
+    prettyt (Degree pc acc) = showt pc
+        <> if acc < 0 then Text.replicate (abs acc) "b"
+            else Text.replicate acc "#"
 
 instance Serialize.Serialize Degree where
     put (Degree a b) = Serialize.put a >> Serialize.put b
@@ -204,8 +205,8 @@ data KbdType =
 type Frac = Double
 
 instance Pretty.Pretty Input where
-    pretty (Input kbd pitch frac) = show kbd <> ":" <> pretty pitch
-        <> if frac == 0 then "" else "+" <> pretty frac
+    prettyt (Input kbd pitch frac) = showt kbd <> ":" <> prettyt pitch
+        <> if frac == 0 then "" else "+" <> prettyt frac
 
 -- * NoteNumber
 
@@ -220,7 +221,7 @@ newtype NoteNumber = NoteNumber Double
         Serialize.Serialize)
 
 instance Show NoteNumber where
-    show (NoteNumber nn) = Pretty.show_float0 3 nn <> "nn"
+    show (NoteNumber nn) = untxt $ Pretty.showFloat0 3 nn <> "nn"
 instance Read NoteNumber where
     readPrec = do
         n <- Read.readPrec
@@ -231,7 +232,7 @@ instance ShowVal.ShowVal NoteNumber where
     show_val (NoteNumber nn) = ShowVal.show_val nn <> "nn"
     -- The suffix should be the same as BaseTypes.type_to_code Nn
 
-instance Pretty.Pretty NoteNumber where pretty = show
+instance Pretty.Pretty NoteNumber where prettyt = showt
 
 nn :: Real a => a -> NoteNumber
 nn = NoteNumber . realToFrac
@@ -299,7 +300,7 @@ newtype ScaleId = ScaleId Text
 
 instance Pretty.Pretty ScaleId where
     -- This is the pitch track syntax.
-    pretty (ScaleId s) = '*' : untxt s
+    prettyt (ScaleId s) = "*" <> s
 
 -- | Usually this means to use the scale currently in scope.
 empty_scale :: ScaleId
@@ -316,7 +317,7 @@ data Transpose = Chromatic Double | Diatonic Double
     | Nn Double
     deriving (Eq, Ord, Show)
 
-instance Pretty.Pretty Transpose where pretty = untxt . ShowVal.show_val
+instance Pretty.Pretty Transpose where prettyt = ShowVal.show_val
 instance ShowVal.ShowVal Transpose where
     -- TODO convert to a Score.TypedVal and use its ShowVal
     show_val (Chromatic d) = ShowVal.show_val d <> "c"
@@ -346,4 +347,4 @@ key_text :: Key -> Text
 key_text (Key t) = t
 
 instance Pretty.Pretty Key where
-    format (Key s) = Pretty.text (untxt s)
+    format (Key s) = Pretty.text s

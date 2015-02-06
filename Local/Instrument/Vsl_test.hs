@@ -31,7 +31,7 @@ test_natural_harmonic = do
         extract = Midi.to_key . maybe 0 round . Score.initial_nn
         with = DeriveTest.with_inst_db Vsl.synth_descs
     equal (run ">vsl/violin" "+harm+nat" "4c")
-        ([], ["Error: c4 unplayable on [ +g, +d, +a, +e ]"])
+        ([], ["Error: c4 unplayable on [+g, +d, +a, +e]"])
     equal (run ">vsl/violin" "+harm+nat" "3g") ([Key.c3], [])
     equal (run ">vsl/violin" "+harm+nat" "4g") ([Key.d3], [])
     equal (run ">vsl/violin" "+harm+nat" "6d") ([Key.gs3], [])

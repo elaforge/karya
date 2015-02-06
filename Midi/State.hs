@@ -56,9 +56,9 @@ type Addr = (Midi.WriteDevice, Midi.Channel)
 type Message = (Midi.WriteDevice, Midi.Message)
 
 instance Pretty.Pretty Control where
-    pretty (CC cc) = pretty cc
-    pretty (Aftertouch key) = "at:" ++ pretty key
-    pretty Pressure = "pressure"
+    prettyt (CC cc) = prettyt cc
+    prettyt (Aftertouch key) = "at:" <> prettyt key
+    prettyt Pressure = "pressure"
 
 cc_msg :: Control -> Midi.ControlValue -> Midi.ChannelMessage
 cc_msg (CC cc) val = Midi.ControlChange cc val

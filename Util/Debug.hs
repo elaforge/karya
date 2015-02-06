@@ -55,23 +55,23 @@ fullM f msg val
 -- * forced by evaluation
 
 -- | Print a showable value en passant.
-trace :: (Show a) => String -> a -> a
+trace :: Show a => String -> a -> a
 trace msg val = traces msg val val
 
 -- | Pretty print a value en passant.
 tracep :: Pretty.Pretty a => String -> a -> a
-tracep msg val = write (with_msg msg (Pretty.formatted val)) val
+tracep msg val = write (with_msg msg (Pretty.formatteds val)) val
 
 -- | Print a showable value.
-traces :: (Show b) => String -> b -> a -> a
+traces :: Show b => String -> b -> a -> a
 traces msg val = write (with_msg msg (pshow val))
 
 -- | Pretty print a value.
 tracesp :: Pretty.Pretty b => String -> b -> a -> a
-tracesp msg traced = write (with_msg msg (Pretty.formatted traced))
+tracesp msg traced = write (with_msg msg (Pretty.formatteds traced))
 
 -- | Print a value after applying a function to it.
-tracef :: (Show b) => String -> (a -> b) -> a -> a
+tracef :: Show b => String -> (a -> b) -> a -> a
 tracef msg f val = write (with_msg msg (pshow (f val))) val
 
 tracefp :: Pretty.Pretty b => String -> (a -> b) -> a -> a
@@ -103,8 +103,8 @@ trace_retp function a ret = trace_str text ret
         , pret
         ]
     multiline = '\n' `elem` pa || '\n' `elem` pret
-    pa = Seq.strip $ Pretty.formatted a
-    pret = Seq.strip $ Pretty.formatted ret
+    pa = Seq.strip $ Pretty.formatteds a
+    pret = Seq.strip $ Pretty.formatteds ret
 
 -- | Show a raw string, equivalent to 'Debug.Trace.trace'.
 trace_str :: String -> a -> a
@@ -117,7 +117,7 @@ traceM :: (Show a, Monad m) => String -> a -> m ()
 traceM msg val = write (with_msg msg (pshow val)) (return ())
 
 tracepM :: (Pretty.Pretty a, Monad m) => String -> a -> m ()
-tracepM msg val = write (with_msg msg (Pretty.formatted val)) (return ())
+tracepM msg val = write (with_msg msg (Pretty.formatteds val)) (return ())
 
 tracesM :: Monad m => String -> m ()
 tracesM msg = write msg (return ())
@@ -132,7 +132,7 @@ put :: (Trans.MonadIO m, Show a) => String -> a -> m ()
 put msg = writeIO . with_msg msg . pshow
 
 putp :: (Trans.MonadIO m, Pretty.Pretty a) => String -> a -> m ()
-putp msg = writeIO . with_msg msg . Pretty.formatted
+putp msg = writeIO . with_msg msg . Pretty.formatteds
 
 
 -- * implementation

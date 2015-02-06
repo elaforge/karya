@@ -11,6 +11,7 @@ module Util.Ranges (
 import Prelude hiding (fmap)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
+import Data.Monoid ((<>))
 import qualified Data.Monoid as Monoid
 
 import qualified Util.Pretty as Pretty
@@ -27,8 +28,8 @@ instance Ord n => Monoid.Monoid (Ranges n) where
     mappend (Ranges r1) (Ranges r2) = Ranges (merge r1 r2)
 
 instance Pretty.Pretty n => Pretty.Pretty (Ranges n) where
-    format (Ranges rs) = Pretty.string_list (map f rs)
-        where f (s, e) = Pretty.pretty s ++ "--" ++ Pretty.pretty e
+    format (Ranges rs) = Pretty.textList (map f rs)
+        where f (s, e) = Pretty.prettyt s <> "--" <> Pretty.prettyt e
     format Everything = Pretty.text "[*--*]"
 
 instance DeepSeq.NFData n => DeepSeq.NFData (Ranges n) where

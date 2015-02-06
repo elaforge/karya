@@ -186,15 +186,16 @@ data Error = Error SrcPos.SrcPos Stack.Stack ErrorVal
     deriving (Show)
 
 instance Pretty.Pretty Error where
-    pretty (Error srcpos stack val) =
-        SrcPos.show_srcpos srcpos ++ " " ++ pretty stack ++ ": " ++ pretty val
+    prettyt (Error srcpos stack val) =
+        txt (SrcPos.show_srcpos srcpos) <> " " <> prettyt stack
+            <> ": " <> prettyt val
 
 data ErrorVal = GenericError String | CallError CallError
     deriving (Show)
 
 instance Pretty.Pretty ErrorVal where
-    pretty (GenericError s) = s
-    pretty (CallError err) = pretty err
+    prettyt (GenericError s) = txt s
+    prettyt (CallError err) = prettyt err
 
 data CallError =
     -- | ErrorPlace, EvalSource, arg name, expected type, received val
@@ -221,28 +222,28 @@ data EvalSource =
     deriving (Show)
 
 instance Pretty.Pretty CallError where
-    pretty err = case err of
+    prettyt err = case err of
         TypeError place source name expected received ->
-            "TypeError: arg " <> pretty place <> "/" <> untxt name
-            <> source_desc <> ": expected " <> pretty expected
-            <> " but got " <> pretty (TrackLang.type_of <$> received)
-            <> ": " <> pretty received
+            "TypeError: arg " <> prettyt place <> "/" <> name
+            <> source_desc <> ": expected " <> prettyt expected
+            <> " but got " <> prettyt (TrackLang.type_of <$> received)
+            <> ": " <> prettyt received
             where
             source_desc = case source of
                 Literal -> ""
-                Quoted call -> " from " <> untxt (ShowVal.show_val call)
+                Quoted call -> " from " <> ShowVal.show_val call
         EvalError place call name (Error _ _ error_val) ->
             -- The srcpos and stack of the derive error is probably not
             -- interesting, so I strip those out.
-            "EvalError: arg " <> pretty place <> "/" <> untxt name
-            <> " from " <> untxt (ShowVal.show_val call)
-            <> ": " <> pretty error_val
-        ArgError err -> "ArgError: " <> untxt err
-        CallNotFound call_id -> "CallNotFound: " <> pretty call_id
+            "EvalError: arg " <> prettyt place <> "/" <> name
+            <> " from " <> ShowVal.show_val call
+            <> ": " <> prettyt error_val
+        ArgError err -> "ArgError: " <> err
+        CallNotFound call_id -> "CallNotFound: " <> prettyt call_id
 
 instance Pretty.Pretty ErrorPlace where
-    pretty (TypeErrorArg num) = show (num + 1)
-    pretty (TypeErrorEnviron key) = "environ:" <> pretty key
+    prettyt (TypeErrorArg num) = showt (num + 1)
+    prettyt (TypeErrorEnviron key) = "environ:" <> prettyt key
 
 throw :: String -> Deriver a
 throw msg = throw_error (GenericError msg)
@@ -452,8 +453,8 @@ data Inversion =
     | InversionInProgress !NoteDeriver
 
 instance Pretty.Pretty Inversion where
-    pretty NotInverted = "NotInverted"
-    pretty (InversionInProgress {}) = "InversionInProgress"
+    prettyt NotInverted = "NotInverted"
+    prettyt (InversionInProgress {}) = "InversionInProgress"
 
 initial_dynamic :: TrackLang.Environ -> Dynamic
 initial_dynamic environ = Dynamic
@@ -762,7 +763,7 @@ data Merge = Set -- ^ Replace the existing signal.
     | Merge !ControlOp -- ^ Merge with a specific operator.
     deriving (Show)
 
-instance Pretty.Pretty Merge where pretty = show
+instance Pretty.Pretty Merge where prettyt = showt
 instance DeepSeq.NFData Merge where rnf _ = ()
 
 -- | This is a monoid used for combining two signals.  The identity value
@@ -944,7 +945,7 @@ data LookupCall call =
 instance Pretty.Pretty (LookupCall call) where
     format c = case c of
         LookupMap calls -> "Map: " <> Pretty.format (Map.keys calls)
-        LookupPattern name _ _ -> "Pattern: " <> Pretty.text (untxt name)
+        LookupPattern name _ _ -> "Pattern: " <> Pretty.text name
 
 -- | Previously, a single Call contained both generator and transformer.
 -- This turned out to not be flexible enough, because an instrument that
@@ -1121,7 +1122,7 @@ type Transformer d = Call (TransformerFunc d)
 instance Show (Call derived) where
     show (Call name _ _) = "((Call " <> show name <> "))"
 instance Pretty.Pretty (Call derived) where
-    pretty (Call name _ _) = untxt name
+    prettyt (Call name _ _) = name
 
 -- | Documentation for a call.  The documentation is in markdown format, except
 -- that a single newline will be replaced with two, so a single \n is enough
@@ -1418,7 +1419,7 @@ data Scale = Scale {
     }
 
 instance Pretty.Pretty Scale where
-    pretty = pretty . scale_id
+    prettyt = prettyt . scale_id
 
 -- | A scale can configure itself by looking in the environment and by looking
 -- up other scales.
@@ -1477,15 +1478,15 @@ data ScaleError =
     deriving (Eq, Show)
 
 instance Pretty.Pretty ScaleError where
-    pretty err = case err of
+    prettyt err = case err of
         InvalidTransposition -> "invalid transposition"
         UnparseableNote -> "unparseable note"
         OutOfRange -> "out of range"
         InvalidInput -> "invalid input"
-        EnvironMissing key -> "missing environ value: " <> pretty key
+        EnvironMissing key -> "missing environ value: " <> prettyt key
         UnparseableEnviron key val -> "unparseable environ: "
-            <> pretty key <> "=" <> untxt val
-        ScaleError msg -> untxt msg
+            <> prettyt key <> "=" <> val
+        ScaleError msg -> msg
 
 -- * merge
 

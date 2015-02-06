@@ -60,8 +60,8 @@ import Types
 data TransposeType = Diatonic | Chromatic | Nn deriving (Eq, Show)
 data TimeType = Real | Score deriving (Eq, Show)
 
-instance Pretty.Pretty TransposeType where pretty = show
-instance Pretty.Pretty TimeType where pretty = show
+instance Pretty.Pretty TransposeType where prettyt = showt
+instance Pretty.Pretty TimeType where prettyt = showt
 
 transpose_control :: TransposeType -> Score.Control
 transpose_control Diatonic = Controls.diatonic

@@ -321,7 +321,7 @@ instance Pretty.Pretty Key where
         ]
         where
         title = Pretty.text "Key" Pretty.<+> Pretty.format tonic
-            Pretty.<+> Pretty.text (untxt name)
+            Pretty.<+> Pretty.text name
 
 -- | The number of accidentals in the key signature at the given pitch class.
 accidentals_at_pc :: Key -> Pitch.PitchClass -> Pitch.Accidentals

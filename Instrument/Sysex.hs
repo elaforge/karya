@@ -164,7 +164,7 @@ instance Pretty.Pretty Record where
         RNum x -> Pretty.format x
         RStr x -> Pretty.format x
         RUnion x -> Pretty.format x
-        RUnparsed x -> Pretty.text $ show (B.length x) ++ " unparsed bytes"
+        RUnparsed x -> Pretty.text $ showt (B.length x) <> " unparsed bytes"
 
 -- | Show an RMap as a flat list of paths and values.
 show_flat :: RMap -> [String]

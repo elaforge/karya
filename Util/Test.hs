@@ -53,6 +53,7 @@ import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import Data.Monoid ((<>))
+import qualified Data.Text.IO as Text.IO
 
 import qualified System.CPUTime as CPUTime
 import qualified System.Directory as Directory
@@ -366,7 +367,8 @@ pmlist msg xs
     | otherwise = putStrLn (msg++":") >> plist xs
 
 prettyp :: Pretty.Pretty a => a -> IO ()
-prettyp val = s `DeepSeq.deepseq` putStr s -- ensure log tracing happens first
+prettyp val = s `DeepSeq.deepseq` Text.IO.putStr s
+    -- deepseq to ensure log tracing happens first
     where s = Pretty.formatted val
 
 pprint :: Show a => a -> IO ()

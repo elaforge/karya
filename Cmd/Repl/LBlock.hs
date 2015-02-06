@@ -49,7 +49,7 @@ find_id :: State.M m => Text -> m [BlockId]
 find_id match = filter (Util.match_id match) <$>
     State.gets (Map.keys . State.state_blocks)
 
-pretty :: State.M m => BlockId -> m String
+pretty :: State.M m => BlockId -> m Text
 pretty block_id = do
     block <- State.get_block block_id
     tracks <- State.gets State.state_tracks
@@ -60,11 +60,11 @@ pretty block_id = do
     where
     pretty_tracks view_blocks tracks block_id block =
         Pretty.format (Block.block_title block)
-            Pretty.<+> Pretty.text ("(" ++ show views ++ " views)")
-            Pretty.<+> Pretty.string_list (map track (Block.block_tracks block))
+            Pretty.<+> Pretty.text ("(" <> showt views <> " views)")
+            Pretty.<+> Pretty.textList (map track (Block.block_tracks block))
         where
-        track t = Pretty.pretty (Block.tracklike_id t)
-            ++ " (" ++ show (track_events t) ++ " events)"
+        track t = Pretty.prettyt (Block.tracklike_id t)
+            <> " (" <> showt (track_events t) <> " events)"
         views = Seq.count block_id view_blocks
         get = flip Map.lookup tracks <=< Block.track_id
         track_events = maybe 0 (Events.length . Track.track_events) . get

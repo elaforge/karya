@@ -249,8 +249,8 @@ data Track = Track !BlockId !TrackNum
     deriving (Eq, Show)
 
 instance Pretty.Pretty Track where
-    pretty (Track block_id tracknum) =
-        pretty block_id ++ "/" ++ show tracknum
+    prettyt (Track block_id tracknum) =
+        prettyt block_id <> "/" <> showt tracknum
 
 -- | A position on a track that can be indicated on the UI.  Its Pretty
 -- instance emits a string, which if logged or copy-pasted into the REPL, will
@@ -259,9 +259,9 @@ data Range = Range !(Maybe BlockId) !TrackId !TrackTime !TrackTime
     deriving (Eq, Show)
 
 instance Pretty.Pretty Range where
-    pretty (Range maybe_block_id track_id start end) = "{s \"" <> addr <> "\"}"
+    prettyt (Range maybe_block_id track_id start end) = "{s \"" <> addr <> "\"}"
         where
-        addr = untxt $ Stack.unparse_ui_frame
+        addr = Stack.unparse_ui_frame
             (maybe_block_id, Just track_id, Just (start, end))
 
 -- * other types
@@ -274,9 +274,10 @@ data TrackInfo = TrackInfo {
     } deriving (Eq, Show)
 
 instance Pretty.Pretty TrackInfo where
-    pretty (TrackInfo title track_id tracknum) =
-        "(" ++ unwords ["TrackInfo", show title, show track_id, show tracknum]
-        ++ ")"
+    prettyt (TrackInfo title track_id tracknum) =
+        "(" <> Text.unwords
+            ["TrackInfo", showt title, showt track_id, showt tracknum]
+        <> ")"
 
 -- * StateT monad
 
@@ -400,8 +401,9 @@ exec_rethrow msg state =
 data Error = Error !SrcPos.SrcPos !String | Abort deriving (Show)
 
 instance Pretty.Pretty Error where
-    pretty (Error srcpos msg) = SrcPos.show_srcpos srcpos <> " " <> msg
-    pretty Abort = "(abort)"
+    prettyt (Error srcpos msg) =
+        txt (SrcPos.show_srcpos srcpos) <> " " <> txt msg
+    prettyt Abort = "(abort)"
 
 require :: M m => String -> Maybe a -> m a
 require = require_srcpos Nothing
@@ -855,8 +857,8 @@ get_block_track_at block_id tracknum =
     where
     tracknum_in_range block_id tracknum Nothing = do
         count <- track_count block_id
-        throw $ "track " ++ pretty (Track block_id tracknum)
-            ++ " out of range 0--" ++ show count
+        throw $ "track " <> pretty (Track block_id tracknum)
+            <> " out of range 0--" <> show count
     tracknum_in_range _ _ (Just a) = return a
 
 track_at :: M m => BlockId -> TrackNum -> m (Maybe Block.TracklikeId)
@@ -874,8 +876,8 @@ event_track_at block_id tracknum = do
 get_event_track_at :: M m => BlockId -> TrackNum -> m TrackId
 get_event_track_at block_id tracknum = do
     track <- get_block_track_at block_id tracknum
-    require ("track " ++ pretty (Track block_id tracknum)
-            ++ " not an event track") $
+    require ("track " <> pretty (Track block_id tracknum)
+            <> " not an event track") $
         Block.track_id track
 
 -- | Get the RulerId of an event or ruler track, or Nothing if the tracknum is

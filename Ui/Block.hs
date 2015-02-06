@@ -179,7 +179,8 @@ data Box = Box { box_color :: !Color.Color, box_char :: !Char }
     deriving (Eq, Show, Read)
 
 instance Pretty.Pretty Box where
-    pretty (Box color c) = pretty color ++ if c == ' ' then [] else [c]
+    prettyt (Box color c) =
+        prettyt color <> if c == ' ' then "" else Text.singleton c
 
 -- | Like 'Track.Track', this has per-track data, but unlike Track.Track,
 -- this is data that can vary per-block.
@@ -204,8 +205,8 @@ track_id :: Track -> Maybe TrackId
 track_id = track_id_of . tracklike_id
 
 instance Pretty.Pretty Track where
-    pretty (Track tid width flags merged) = pretty tid <> ": "
-        <> unwords [pretty width, pretty flags, pretty merged]
+    prettyt (Track tid width flags merged) = prettyt tid <> ": "
+        <> Text.unwords [prettyt width, prettyt flags, prettyt merged]
 
 -- | Construct a 'Track' with defaults.
 track :: TracklikeId -> Types.Width -> Track
@@ -269,7 +270,7 @@ data TrackFlag =
     | Disable
     deriving (Eq, Ord, Enum, Bounded, Show, Read)
 
-instance Pretty.Pretty TrackFlag where pretty = show
+instance Pretty.Pretty TrackFlag where prettyt = showt
 
 -- | Convert logical block level tracks to display tracks.
 block_display_tracks :: Block -> [DisplayTrack]
@@ -328,10 +329,10 @@ data TracklikeId =
     deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty TracklikeId where
-    pretty tlike_id = case tlike_id of
-        TId tid rid -> pretty tid <> "/" <> pretty rid
-        RId rid -> pretty rid
-        DId divider -> show divider
+    prettyt tlike_id = case tlike_id of
+        TId tid rid -> prettyt tid <> "/" <> prettyt rid
+        RId rid -> prettyt rid
+        DId divider -> showt divider
 
 track_id_of :: TracklikeId -> Maybe TrackId
 track_id_of (TId tid _) = Just tid

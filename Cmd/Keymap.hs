@@ -325,44 +325,44 @@ mouse_on = maybe Elsewhere on . UiMsg.ctx_track
     on (_, UiMsg.SkeletonDisplay) = OnSkeleton
 
 instance Pretty.Pretty MouseOn where
-    pretty OnTrack = "track"
-    pretty OnDivider = "divider"
-    pretty OnSkeleton = "skeleton"
-    pretty Elsewhere = "elsewhere"
+    prettyt OnTrack = "track"
+    prettyt OnDivider = "divider"
+    prettyt OnSkeleton = "skeleton"
+    prettyt Elsewhere = "elsewhere"
 
 
 -- * pretty printing
 
 instance Pretty.Pretty KeySpec where
-    pretty (KeySpec mods bindable) =
+    prettyt (KeySpec mods bindable) =
         Seq.join2 " " (show_mods mods) (show_bindable True bindable)
-        where show_mods = Seq.join " + " . map show_mod . Set.toList
+        where show_mods = Text.intercalate " + " . map show_mod . Set.toList
 
-show_mod :: Cmd.Modifier -> String
+show_mod :: Cmd.Modifier -> Text
 show_mod m = case m of
     -- TODO this is only true on OS X
     Cmd.KeyMod Key.Meta -> "cmd"
     Cmd.KeyMod Key.Control -> "ctrl"
-    Cmd.KeyMod mod -> map Char.toLower (show mod)
-    Cmd.MouseMod button _ -> "mouse " ++ show button
-    Cmd.MidiMod chan key -> "midi " ++ show key ++ " chan " ++ show chan
+    Cmd.KeyMod mod -> Text.toLower (showt mod)
+    Cmd.MouseMod button _ -> "mouse " <> showt button
+    Cmd.MidiMod chan key -> "midi " <> showt key <> " chan " <> showt chan
 
 instance Pretty.Pretty Bindable where
-    pretty = show_bindable True
+    prettyt = show_bindable True
 
-show_bindable :: Bool -> Bindable -> String
+show_bindable :: Bool -> Bindable -> Text
 show_bindable show_repeatable b = case b of
-    Key is_repeat key -> pretty key
-        ++ if show_repeatable && is_repeat then " (repeatable)" else ""
-    Click button on times -> click_times times ++ "click "
-        ++ show button ++ " on " ++ pretty on
-    Drag button on -> "drag " ++ show button ++ " on " ++ pretty on
-    Note chan key -> "midi " ++ show key ++ " channel " ++ show chan
+    Key is_repeat key -> prettyt key
+        <> if show_repeatable && is_repeat then " (repeatable)" else ""
+    Click button on times -> click_times times <> "click "
+        <> showt button <> " on " <> prettyt on
+    Drag button on -> "drag " <> showt button <> " on " <> prettyt on
+    Note chan key -> "midi " <> showt key <> " channel " <> showt chan
     where
     click_times 0 = ""
     click_times 1 = "double-"
     click_times 2 = "triple-"
-    click_times n = show n ++ "-"
+    click_times n = showt n <> "-"
 
 
 -- * key layout

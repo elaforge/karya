@@ -88,7 +88,6 @@ msg_string :: Msg -> String
 msg_string = Text.unpack . msg_text
 
 instance Pretty.Pretty Msg where
-    pretty = untxt . format_msg
     prettyt = format_msg
 
 -- | Pure code can't give a date, but making msg_date Maybe makes it awkward

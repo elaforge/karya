@@ -66,11 +66,11 @@ newtype Tree = Tree G.OID deriving (Eq, Ord, Show)
 newtype Commit = Commit G.OID deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Blob where
-    pretty (Blob (G.OID oid)) = Char8.unpack oid
+    prettyt (Blob (G.OID oid)) = txt $ Char8.unpack oid
 instance Pretty.Pretty Tree where
-    pretty (Tree (G.OID oid)) = Char8.unpack oid
+    prettyt (Tree (G.OID oid)) = txt $ Char8.unpack oid
 instance Pretty.Pretty Commit where
-    pretty (Commit (G.OID oid)) = Char8.unpack oid
+    prettyt (Commit (G.OID oid)) = txt $ Char8.unpack oid
 
 type Repo = FilePath
 -- | Repo-internal path.
@@ -555,10 +555,10 @@ data Modification = Remove FilePath | Add FilePath ByteString
     deriving (Eq, Show)
 
 instance Pretty.Pretty Modification where
-    pretty (Remove fn) = "rm " ++ fn
-    pretty (Add fn bytes) = "add" ++ fn
-        ++ " {" ++ show (Char8.length bytes) ++ "}"
-        -- ++ maybe "/" (\b -> " {" ++ show (Char8.length b) ++ "}") bytes
+    prettyt (Remove fn) = "rm " <> txt fn
+    prettyt (Add fn bytes) = "add" <> txt fn
+        <> " {" <> showt (Char8.length bytes) <> "}"
+        -- <> maybe "/" (\b -> " {" <> showt (Char8.length b) <> "}") bytes
 
 type ModifyDir = [(FileName, ModifyFile)]
 data ModifyFile = ModifyFile (Maybe ByteString) | ModifyDir ModifyDir

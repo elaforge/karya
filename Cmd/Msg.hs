@@ -48,12 +48,12 @@ data Msg =
     deriving (Show)
 
 instance Pretty.Pretty Msg where
-    pretty (Ui msg) = "Ui: " ++ pretty msg
-    pretty (Midi msg) = "Midi: " ++ pretty msg
-    pretty (InputNote msg) = "Input: " ++ show msg
-    pretty (DeriveStatus bid status) = "DeriveStatus: " ++ show bid ++ ": "
-        ++ pretty status
-    pretty msg = show msg
+    prettyt (Ui msg) = "Ui: " <> prettyt msg
+    prettyt (Midi msg) = "Midi: " <> prettyt msg
+    prettyt (InputNote msg) = "Input: " <> showt msg
+    prettyt (DeriveStatus bid status) = "DeriveStatus: " <> showt bid <> ": "
+        <> prettyt status
+    prettyt msg = showt msg
 
 data DeriveStatus =
     -- | The current derivation is out of date, but work has not yet started
@@ -64,7 +64,7 @@ data DeriveStatus =
     | DeriveComplete Performance
     deriving (Show)
 
-instance Pretty.Pretty DeriveStatus where pretty = show
+instance Pretty.Pretty DeriveStatus where prettyt = showt
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.
 

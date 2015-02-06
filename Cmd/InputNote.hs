@@ -33,6 +33,7 @@
 -}
 module Cmd.InputNote where
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 
 import qualified Util.Map as Map
 import qualified Util.Num as Num
@@ -79,9 +80,9 @@ data GenericInput pitch =
 
 instance (Show pitch, Pretty.Pretty pitch) =>
         Pretty.Pretty (GenericInput pitch) where
-    pretty (NoteOn id pitch vel) =
-        unwords ["NoteOn", "(" <> show id <> ")", pretty pitch, pretty vel]
-    pretty input = show input
+    prettyt (NoteOn id pitch vel) = Text.unwords
+        ["NoteOn", "(" <> showt id <> ")", prettyt pitch, prettyt vel]
+    prettyt input = showt input
 
 input_id :: GenericInput x -> NoteId
 input_id input = case input of

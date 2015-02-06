@@ -62,14 +62,14 @@ compact screen =
 -- * save and restore
 
 -- | Show the list of saved views, with a star on the focused one.
-saved :: Cmd.CmdL String
+saved :: Cmd.CmdL Text
 saved = do
     saved <- State.config#State.saved_views <#> State.get
     return $ Pretty.formatted $ Map.map pretty saved
     where
     pretty (views, focused) =
         map (\view_id -> Pretty.text $
-                (if Just view_id == focused then "*" else "") ++ show view_id)
+                (if Just view_id == focused then "*" else "") <> showt view_id)
             (Map.keys views)
 
 save :: Text -> Cmd.CmdL ()

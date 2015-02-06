@@ -25,9 +25,9 @@ fast_interpret :: String -> Maybe (Cmd.CmdT IO ReplUtil.Response)
 fast_interpret text = case lex_all text of
     Nothing -> Nothing
     Just toks -> fmap (fmap response) (interpret toks)
-    where response result = (ReplUtil.Format (txt result), [])
+    where response result = (ReplUtil.Format result, [])
 
-interpret :: [String] -> Maybe (Cmd.CmdT IO String)
+interpret :: [String] -> Maybe (Cmd.CmdT IO Text)
 interpret toks = case toks of
         -- Called by logview.
         ["s", str] | Just arg <- val str -> action $ Global.s arg
@@ -64,13 +64,13 @@ interpret toks = case toks of
             Just $ Global.show_blocks arg
 
         -- State
-        ["State.lookup_root_id"] -> Just $ fmap show State.lookup_root_id
+        ["State.lookup_root_id"] -> Just $ fmap showt State.lookup_root_id
         ["State.set_root_id", str] | Just arg <- val str ->
             action $ State.set_root_id arg
         ["State.get_midi_config"] -> action State.get_midi_config
         _ -> Nothing
     where
-    action c = Just (fmap show c)
+    action c = Just (fmap showt c)
 
 val :: Read a => String -> Maybe a
 val text = case reads text of

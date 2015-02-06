@@ -5,8 +5,9 @@
 module Ui.Key (Key(..), Modifier(..), decode_key, decode_modifiers) where
 import Prelude hiding (Char, Left, Right)
 import Data.Bits ((.&.))
-import qualified Data.Map as Map
 import qualified Data.Char as Char
+import qualified Data.Map as Map
+import qualified Data.Text as Text
 import Foreign.C
 import qualified System.Info
 
@@ -31,9 +32,9 @@ data Modifier = Shift | CapsLock | Control | Alt | NumLock | Meta | ScrollLock
     deriving (Eq, Ord, Read, Show)
 
 instance Pretty.Pretty Key where
-    pretty (Char ' ') = "␠" -- unicode space symbol
-    pretty (Char c) = c : ""
-    pretty key = map Char.toLower (show key)
+    prettyt (Char ' ') = "␠" -- unicode space symbol
+    prettyt (Char c) = Text.singleton c
+    prettyt key = Text.toLower $ Text.pack $ show key
 
 decode_key :: CInt -> Key
 decode_key code

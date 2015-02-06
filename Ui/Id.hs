@@ -75,10 +75,8 @@ instance CRC32.CRC32 Id where
     crc32Update n (Id ns name) =
         n `CRC32.crc32Update` ns `CRC32.crc32Update` name
 
-instance Pretty.Pretty Namespace where pretty = untxt . un_namespace
-instance Pretty.Pretty Id where
-    pretty = untxt . show_id
-    prettyt = show_id
+instance Pretty.Pretty Namespace where prettyt = un_namespace
+instance Pretty.Pretty Id where prettyt = show_id
 
 instance DeepSeq.NFData Id where
     rnf (Id ns name) = ns `seq` name `seq` ()
@@ -231,10 +229,10 @@ instance Show ViewId where show = show_ident
 instance Show TrackId where show = show_ident
 instance Show RulerId where show = show_ident
 
-instance Pretty.Pretty BlockId where pretty = show
-instance Pretty.Pretty ViewId where pretty = show
-instance Pretty.Pretty TrackId where pretty = show
-instance Pretty.Pretty RulerId where pretty = show
+instance Pretty.Pretty BlockId where prettyt = showt
+instance Pretty.Pretty ViewId where prettyt = showt
+instance Pretty.Pretty TrackId where prettyt = showt
+instance Pretty.Pretty RulerId where prettyt = showt
 
 instance Read BlockId where readPrec = read_ident
 instance Read ViewId where readPrec = read_ident

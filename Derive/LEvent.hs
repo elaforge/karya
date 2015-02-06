@@ -6,10 +6,11 @@ module Derive.LEvent where
 import Prelude hiding (length, either, zip, zip3)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
+import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import Util.Pretty ((<+>))
+import Util.Pretty ((<+>), (<+/>))
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
@@ -38,12 +39,12 @@ instance Eq d => Eq (LEvent d) where
 
 -- | A variation on 'Log.format_msg', except this can format the stack nicely.
 format_log :: Log.Msg -> Pretty.Doc
-format_log msg = Pretty.fsep
-    [Pretty.text stars <+> Pretty.text srcpos <+> Pretty.format stack,
-        Pretty.nest 2 $ Pretty.text (Log.msg_string msg)]
+format_log msg =
+    Pretty.text stars <+> Pretty.text srcpos <+> Pretty.format stack
+        <+/> Pretty.indented (Pretty.text (Log.msg_text msg))
     where
-    stars = replicate (fromEnum (Log.msg_priority msg)) '*'
-    srcpos = maybe "" ((++": ") . SrcPos.show_srcpos . Just)
+    stars = Text.replicate (fromEnum (Log.msg_priority msg)) "*"
+    srcpos = maybe "" ((<>": ") . txt . SrcPos.show_srcpos . Just)
         (Log.msg_caller msg)
     stack = case Log.msg_stack msg of
         Nothing -> Pretty.text "[]"

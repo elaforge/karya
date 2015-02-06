@@ -223,7 +223,7 @@ type NoteTable = Map.Map Char Chord
 
 -- | Pentatonic pitch degree.
 data Degree = I | O | E | U | A deriving (Eq, Ord, Enum, Show)
-instance Pretty.Pretty Degree where pretty = show
+instance Pretty.Pretty Degree where prettyt = showt
 
 to_pc :: Degree -> Pitch.PitchClass
 to_pc = fromEnum
@@ -334,7 +334,7 @@ undamped :: Score.Attributes
 undamped = Score.attr "undamped"
 
 data Hand = L | R deriving (Eq, Show)
-instance Pretty.Pretty Hand where pretty = show
+instance Pretty.Pretty Hand where prettyt = showt
 
 other :: Hand -> Hand
 other L = R

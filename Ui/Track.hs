@@ -88,7 +88,7 @@ line_render :: RenderConfig
 line_render = RenderConfig (Line Nothing) Config.render_color
 
 instance Pretty.Pretty RenderConfig where
-    pretty (RenderConfig style color) = pretty (style, color)
+    prettyt (RenderConfig style color) = prettyt (style, color)
 
 -- | RenderStyles can take an optional source which says which control the
 -- signal comes from.  This is only for note tracks, and will extract the
@@ -108,7 +108,7 @@ data RenderStyle = NoRender | Line !(Maybe RenderSource)
 data RenderSource = Control Score.Control | Pitch (Maybe Score.Control)
     deriving (Eq, Read, Show)
 
-instance Pretty.Pretty RenderStyle where pretty = show
+instance Pretty.Pretty RenderStyle where prettyt = showt
 
 set_render_style :: RenderStyle -> Track -> Track
 set_render_style style track =

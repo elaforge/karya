@@ -19,7 +19,6 @@ newtype Module = Module Text.Text
 
 instance Pretty.Pretty Module where
     prettyt (Module m) = m
-    pretty (Module m) = untxt m
 
 instance Monoid.Monoid Module where
     mempty = ""

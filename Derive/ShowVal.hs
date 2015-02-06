@@ -51,12 +51,12 @@ instance ShowVal Int where
     show_val = showt
 
 instance ShowVal Double where
-    show_val = txt . Pretty.show_float 3
+    show_val = Pretty.showFloat 3
 
 instance ShowVal ScoreTime.ScoreTime where
-    show_val = (`Text.snoc` ScoreTime.suffix) . txt . Pretty.show_float 3
+    show_val = (`Text.snoc` ScoreTime.suffix) . Pretty.showFloat 3
         . ScoreTime.to_double
 
 instance ShowVal RealTime.RealTime where
-    show_val = (`Text.snoc` RealTime.suffix) . txt . Pretty.show_float 3
+    show_val = (`Text.snoc` RealTime.suffix) . Pretty.showFloat 3
         . RealTime.to_seconds

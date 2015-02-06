@@ -11,6 +11,7 @@ import qualified Prelude
 import Prelude hiding (round)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
+import qualified Data.Text as Text
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
@@ -84,7 +85,7 @@ instance Show ScoreTime where show (ScoreTime n) = show n
 instance Read.Read ScoreTime where readPrec = ScoreTime <$> Read.readPrec
 
 instance Pretty.Pretty ScoreTime where
-    pretty (ScoreTime p) = Pretty.show_float 3 p ++ [suffix]
+    prettyt (ScoreTime p) = Pretty.showFloat 3 p <> Text.singleton suffix
 
 to_double :: ScoreTime -> Double
 to_double (ScoreTime p) = p

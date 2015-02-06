@@ -196,7 +196,7 @@ instance Pretty.Pretty Meta where
         Pretty.record "Meta"
         [ ("creation", Pretty.format creation)
         , ("last save", Pretty.format last_save)
-        , ("notes", Pretty.text (untxt notes))
+        , ("notes", Pretty.text notes)
         , ("midi performances", Pretty.format midi_perf)
         , ("lilypond performances", Pretty.format lily_perf)
         ]
@@ -204,15 +204,15 @@ instance Pretty.Pretty Meta where
 instance Pretty.Pretty MidiPerformance where
     format (Performance midi creation patch) = Pretty.record "MidiPerformance"
         [ ("events", Pretty.format $ Vector.length midi)
-        , ("creation", Pretty.text $ pretty creation)
-        , ("patch", Pretty.text (untxt patch))
+        , ("creation", Pretty.text $ prettyt creation)
+        , ("patch", Pretty.text patch)
         ]
 
 instance Pretty.Pretty LilypondPerformance where
     format (Performance ly creation patch) = Pretty.record "LilypondPerformance"
         [ ("lilypond lines", Pretty.format $ Text.count "\n" ly)
-        , ("creation", Pretty.text $ pretty creation)
-        , ("patch", Pretty.text (untxt patch))
+        , ("creation", Pretty.text $ prettyt creation)
+        , ("patch", Pretty.text patch)
         ]
 
 instance Pretty.Pretty Default where

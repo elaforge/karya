@@ -35,9 +35,10 @@ newtype Tree = Tree Hash deriving (Eq, Ord, Show)
 newtype Commit = Commit Hash deriving (Eq, Ord, Show)
 type Hash = ByteString
 
-instance Pretty.Pretty Blob where pretty (Blob hash) = unparse_hash hash
-instance Pretty.Pretty Tree where pretty (Tree hash) = unparse_hash hash
-instance Pretty.Pretty Commit where pretty (Commit hash) = unparse_hash hash
+instance Pretty.Pretty Blob where prettyt (Blob hash) = txt $ unparse_hash hash
+instance Pretty.Pretty Tree where prettyt (Tree hash) = txt $ unparse_hash hash
+instance Pretty.Pretty Commit where
+    prettyt (Commit hash) = txt $ unparse_hash hash
 
 type Repo = FilePath
 -- | Repo-internal path.
@@ -271,9 +272,9 @@ data Modification = Remove FilePath | Add FilePath ByteString
     deriving (Show)
 
 instance Pretty.Pretty Modification where
-    pretty (Remove fn) = "rm " ++ fn
-    pretty (Add fn bytes) =
-        "add " ++ fn ++ "{" ++ show (Char8.length bytes) ++ "}"
+    prettyt (Remove fn) = "rm " <> txt fn
+    prettyt (Add fn bytes) =
+        "add " <> txt fn <> "{" <> showt (Char8.length bytes) <> "}"
 
 modify_tree :: Repo -> Tree -> [Modification] -> IO Tree
 modify_tree repo (Tree tree) mods = do
@@ -319,9 +320,6 @@ git repo = git_env repo []
 git_env :: Repo -> [(String, String)] -> [String] -> ByteString -> IO ByteString
 git_env repo env args stdin = do
     (code, out, err) <- run_git repo env args stdin
-    -- let sin = " <" ++ show (Char8.length stdin)
-    -- let sin = if Char8.null stdin then "" else " <" ++ show stdin
-    -- putStrLn $ unwords ("git" : args) ++ sin ++ " ==> " ++ Seq.strip (Char8.unpack out)
     if code == 0 then return out
         else throw $ unwords ("git" : args) ++ " returned " ++ show code
             ++ " " ++ Seq.strip (Char8.unpack err)
