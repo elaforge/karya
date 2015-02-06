@@ -38,7 +38,7 @@ data Doc =
 {-
     I tried to define (:+) as @Union Doc Break Doc@ to enforce that exactly
     one break is between each Doc.  I also hoped to avoid awkward constructions
-    like @"text" <> indented "x"@ or texed with ShortForm by making Doc
+    like @"text" <> indented "x"@ or text <> ShortForm by making Doc
     no longer a Monoid.  Unfortunately, I do in fact want to stick text on
     Docs, e.g. @map (","<+>) docs@, and I can no longer write
     @"a" <> "b" </> "c"@ since I'd have to manually wrap the text parts in
@@ -111,11 +111,12 @@ type Width = Int
 type Indent = Int
 
 data State = State {
-    -- | Collect text each Section.
+    -- | Collect text for each Section, for 'sectionB'.
     stateCollect :: !B
-    -- | Collect long form Sections.
+    -- | Collect long form Sections for 'sectionSubs'.  Like stateSections, is
+    -- also in reverse order.
     , stateSubs :: ![Section]
-    -- | If a break has been seen, (prevText, space, indent).
+    -- | Collect sections in reverse order.
     , stateSections :: ![Section]
     , stateIndent :: !Indent
     , stateBreakIndent :: !Indent
@@ -151,11 +152,21 @@ flatten =
     go doc state = case doc of
         Text t -> state { stateCollect = stateCollect state <> bFromText t }
         d1 :+ d2 -> go d2 (go d1 state)
+
         ShortForm short long -> state
             { stateCollect =
                 stateCollect state <> renderSectionsB (flatten short)
-            , stateSubs = map (addIndent (stateIndent state)) (flatten long)
+            , stateSubs = stateSections sub
+            , stateBreakIndent = stateBreakIndent sub
             }
+            where
+            -- The Break Hard will be replaced by the actual break when I come
+            -- across it.
+            sub = go (Break Hard) $ go long $ initialState
+                { stateIndent = stateIndent state
+                , stateBreakIndent = stateBreakIndent state
+                }
+
         Indented n doc -> dedent $ go doc $ indent state
             where
             indent state = state
@@ -169,12 +180,15 @@ flatten =
             , stateSections = (: stateSections state) $ Section
                 { sectionIndent = stateBreakIndent state
                 , sectionB = stateCollect state
-                , sectionSubs = stateSubs state
+                , sectionSubs = collapse $ reverse $ replaceBreak $
+                    stateSubs state
                 , sectionBreak = btype
                 }
             , stateBreakIndent = stateIndent state
             }
-    addIndent i section = section { sectionIndent = i + sectionIndent section }
+            where
+            replaceBreak [] = []
+            replaceBreak (x:xs) = x { sectionBreak = btype } : xs
     -- Empty sections can happen after dedents.  I don't want them, but I do
     -- want to get the break if it's stronger.
     collapse [] = []
@@ -199,6 +213,7 @@ renderText indentS maxWidth = Builder.toLazyText . flip renderLine mempty
     where
     renderLine [] out = out
     renderLine (Section indent b subs _ : sections) out
+        -- break is ignored, because the last sub should have the same break.
         | not (null subs) && indent * textWidth indentS + bWidth b > maxWidth =
             renderLine (subs ++ sections) out
     renderLine allSections@(Section indent _ _ _ : _) out =

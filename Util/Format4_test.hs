@@ -39,34 +39,53 @@ test_shortForm = do
     equal (f 6 $ "xyz" <+/> indented abc) "xyz\n  a,b,\n  c\n"
 
 test_flatten = do
-    let f = Format.flatten
-        mapSubs f = map (map f . Format.sectionSubs)
-        extract = map $ \s ->
-            (Format.sectionIndent s, bText $ Format.sectionB s,
-                Format.sectionBreak s)
+    let f = map unsection . Format.flatten
     -- Interaction with 'indented'.
-    equal (extract $ f $ "a" <+/> indented "b" </> "c")
-        [(0, "a", Space), (1, "b", NoSpace), (0, "c", Hard)]
-    equal (extract $ f $ ("a" <+/> indented "b") </> "c")
-        [(0, "a", Space), (1, "b", NoSpace), (0, "c", Hard)]
-    equal (extract $ f $ "a" <+/> indented ("b" </> indented "c") <+/> "d")
-        [(0, "a", Space), (1, "b", NoSpace), (2, "c", Space), (0, "d", Hard)]
-    equal (extract $ f $ "a" <+/> indented (indented "b") </> "c")
-        [(0, "a", Space), (2, "b", NoSpace), (0, "c", Hard)]
+    equal (f $ "a" <+/> indented "b" </> "c")
+        [S 0 "a" Space [], S 1 "b" NoSpace [], S 0 "c" Hard []]
+    equal (f $ ("a" <+/> indented "b") </> "c")
+        [S 0 "a" Space [], S 1 "b" NoSpace [], S 0 "c" Hard []]
+    equal (f $ "a" <+/> indented ("b" </> indented "c") <+/> "d")
+        [ S 0 "a" Space [], S 1 "b" NoSpace [], S 2 "c" Space []
+        , S 0 "d" Hard []
+        ]
+    equal (f $ "a" <+/> indented (indented "b") </> "c")
+        [S 0 "a" Space [], S 2 "b" NoSpace [], S 0 "c" Hard []]
     -- <> merges text, and inherits the highest indent.  This isn't really
     -- on purpose, but is the easiest to implement.
-    equal (extract $ f $ "a" <> indented "b" <> "c")
-        [(1, "abc", Hard)]
+    equal (f $ "a" <> indented "b" <> "c")
+        [S 1 "abc" Hard []]
 
-    -- shortForm
-    let result = f $ Format.shortForm "short" ("long" </> "form")
-    equal (map (bText . Format.sectionB) result) ["short"]
-    equal (mapSubs (bText . Format.sectionB) result) [["long", "form"]]
+    -- ShortForm
+    equal (f $ Format.shortForm "short" ("long" </> "form"))
+        [ S 0 "short" Hard
+            [S 0 "long" NoSpace [], S 0 "form" Hard []]
+        ]
 
-    let result = f $ "a"
-            </> indented (Format.shortForm "short" ("long" </> "form"))
-    equal (map Format.sectionIndent result) [0, 1]
-    equal (mapSubs Format.sectionIndent result) [[], [1, 1]]
+    equal (f $ "a" </> indented (Format.shortForm "short" ("long" </> "form")))
+        [ S 0 "a" NoSpace []
+        , S 1 "short" Hard [S 1 "long" NoSpace [], S 1 "form" Hard []]
+        ]
+
+    -- Doubly nested ShortForm, relies on propagating stateBreakIndent for
+    -- the last text chunk to get the right indent.
+    let doc = "a" <+/> indented ((Format.shortForm "sf1")
+            ("b" <+/> indented ((Format.shortForm "sf2") "c")))
+    equal (f doc)
+        [ S 0 "a" Space []
+        , S 1 "sf1" Hard
+            [ S 1 "b" Space []
+            , S 2 "sf2" Hard
+                [ S 2 "c" Hard [] ]
+            ]
+        ]
+
+    -- The last sub section has the same break as the section itself.
+    equal (f $ Format.shortForm "sf" "a" </> "d")
+        [ S 0 "sf" NoSpace
+            [ S 0 "a" NoSpace []]
+        , S 0 "d" Hard []
+        ]
 
 test_spanLine = do
     let f = extract . Format.spanLine 2 10 . map section
@@ -101,6 +120,12 @@ section (indent, text, break) = Format.Section
     , sectionSubs = []
     , sectionBreak = break
     }
+
+data S = S Int Text BreakType [S] deriving (Show, Eq)
+
+unsection :: Format.Section -> S
+unsection (Format.Section indent b subs break) =
+    S indent (bText b) break (map unsection subs)
 
 sectionText :: Format.Section -> Text
 sectionText = bText . Format.sectionB

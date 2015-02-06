@@ -7,15 +7,14 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Lazy
 
-import qualified Util.Format4 as Format4
 import qualified Util.Pretty as Pretty
 import Util.Test
 import Global
 
 
-render :: Pretty.Pretty a => Int -> a -> [Text]
-render width = Text.lines . Lazy.toStrict . Pretty.render "  " width
-    . Pretty.format
+render :: Pretty.Pretty a => Int -> a -> [String]
+render width = map untxt . Text.lines . Lazy.toStrict
+    . Pretty.render "  " width . Pretty.format
 
 formats :: String -> Pretty.Doc
 formats = Pretty.format
@@ -31,7 +30,9 @@ test_list = do
     equal (f 16) ["[0, 1, 2, 3, 4]"]
 
 test_record = do
-    let f = render 32 . Pretty.record (Pretty.text "Rec")
+    let f = render 32 . make
+        make = Pretty.record (Pretty.text "Rec")
+
     -- fit on one line
     equal (f [("hi", formats "there")])
         ["Rec { hi = \"there\" }"]
@@ -43,6 +44,21 @@ test_record = do
         [ "Rec"
         , "  { hi = \"there\", hi = \"there\""
         , "  , hi = \"there\""
+        , "  }"
+        ]
+
+    equal (f $ replicate 2 ("sub", make (replicate 2 ("field", "value"))))
+        [ "Rec"
+        , "  { sub ="
+        , "    Rec"
+        , "      { field = value"
+        , "      , field = value"
+        , "      }"
+        , "  , sub ="
+        , "    Rec"
+        , "      { field = value"
+        , "      , field = value"
+        , "      }"
         , "  }"
         ]
 

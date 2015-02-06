@@ -66,7 +66,7 @@ pretty = Text.unpack . prettyt
 
 -- | Render a Pretty value to the default width.
 formatted :: Pretty a => a -> Text
-formatted = Lazy.toStrict . render "  " defaultWidth . format
+formatted = Lazy.toStrict . render "    " defaultWidth . format
 
 formatteds :: Pretty a => a -> String
 formatteds = Text.unpack . formatted
