@@ -370,7 +370,7 @@ sync_octave_status st = do
 
 sync_recorded_actions :: Cmd.M m => Cmd.RecordedActions -> m ()
 sync_recorded_actions actions = Cmd.set_global_status "rec" $
-    Text.intercalate ", " [Text.singleton i <> "-" <> prettyt act |
+    Text.intercalate ", " [Text.singleton i <> "-" <> pretty act |
         (i, act) <- Map.toAscList actions]
 
 sync_play_state :: Cmd.M m => Cmd.PlayState -> m ()
@@ -388,7 +388,7 @@ sync_save_file save = Cmd.set_global_status "save" $ case save of
 
 sync_defaults :: Cmd.M m => State.Default -> m ()
 sync_defaults (State.Default tempo) =
-    Cmd.set_global_status "tempo" (if tempo == 1 then "" else prettyt tempo)
+    Cmd.set_global_status "tempo" (if tempo == 1 then "" else pretty tempo)
 
 -- | Sync State.Config changes.
 sync_ui_config :: Cmd.M m => State.Config -> m ()
@@ -444,12 +444,12 @@ pretty_rational :: ScoreTime -> Text
 pretty_rational d
     | d == 0 = "0t"
     | Ratio.denominator ratio <= 12 =
-        Text.strip $ (if int == 0 then "" else showt int) <> pretty <> "t"
-    | otherwise = prettyt d
+        Text.strip $ (if int == 0 then "" else showt int) <> pp <> "t"
+    | otherwise = pretty d
     where
     (int, frac) = properFraction (ScoreTime.to_double d)
     ratio = Ratio.approxRational frac 0.0001
-    pretty = Map.findWithDefault (" " <> prettyt ratio) ratio fractions
+    pp = Map.findWithDefault (" " <> pretty ratio) ratio fractions
     fractions = Map.fromList
         [ (0 % 1, "")
         , (1 % 4, "¼"), (1 % 2, "½"), (3 % 4, "¾")

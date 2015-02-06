@@ -63,7 +63,7 @@ pretty block_id = do
             Pretty.<+> Pretty.text ("(" <> showt views <> " views)")
             Pretty.<+> Pretty.textList (map track (Block.block_tracks block))
         where
-        track t = Pretty.prettyt (Block.tracklike_id t)
+        track t = Pretty.pretty (Block.tracklike_id t)
             <> " (" <> showt (track_events t) <> " events)"
         views = Seq.count block_id view_blocks
         get = flip Map.lookup tracks <=< Block.track_id

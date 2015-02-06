@@ -200,7 +200,7 @@ instance Pretty.Pretty State where
             [Pretty.format ruler_id]
 
 instance Pretty.Pretty CmdUpdate where
-    prettyt = showt
+    pretty = showt
 
 update_id :: Update t State -> Maybe Id.Id
 update_id u = case u of

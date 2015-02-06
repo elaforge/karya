@@ -176,9 +176,9 @@ startup_initialization = do
     forM_ (Library.shadowed Call.All.library) $
         \((name, (Module.Module module_)), calls) ->
             Log.warn $ "shadowed " <> name <> " calls in module "
-                <> module_ <> ": " <> prettyt calls
+                <> module_ <> ": " <> pretty calls
     unless (null Scale.All.shadowed) $
-        Log.warn $ "scales shadowed: " <> prettyt Scale.All.shadowed
+        Log.warn $ "scales shadowed: " <> pretty Scale.All.shadowed
 
 {-
 midi_thru remap_rmsg midi_chan write_midi = forever $ do
@@ -202,10 +202,10 @@ print_devs opened_rdevs rdevs wdevs = do
     putStrLn "read devs:"
     forM_ rdevs $ \(rdev, aliases) ->
         let prefix = if opened rdev aliases then "* " else "  "
-        in putStrLn $ prefix ++ pretty rdev ++ " " ++ pretty aliases
+        in putStrLn $ prefix ++ prettys rdev ++ " " ++ prettys aliases
     putStrLn "write devs:"
     forM_ wdevs $ \(wdev, aliases) ->
-        putStrLn $ "* " ++ pretty wdev ++ " " ++ pretty aliases
+        putStrLn $ "* " ++ prettys wdev ++ " " ++ prettys aliases
     where
     opened rdev aliases = rdev `Set.member` opened_rdevs
         || any (`Set.member` opened_rdevs) aliases

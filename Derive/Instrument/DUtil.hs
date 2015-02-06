@@ -143,9 +143,9 @@ data Composite = Composite {
     } deriving (Show)
 
 instance Pretty.Pretty Composite where
-    prettyt (Composite call inst pitch controls) = Text.unwords
-        [ prettyt inst <> ":", prettyt call, ppitch
-        , maybe "(all)" prettyt controls
+    pretty (Composite call inst pitch controls) = Text.unwords
+        [ pretty inst <> ":", pretty call, ppitch
+        , maybe "(all)" pretty controls
         ]
         where
         ppitch = case pitch of
@@ -158,7 +158,7 @@ data Pitch = NoPitch | Pitch (Maybe Score.Control) deriving (Show)
 type Controls = Maybe (Set.Set Score.Control)
 
 show_controls :: Controls -> Text
-show_controls = maybe "(all)" prettyt
+show_controls = maybe "(all)" pretty
 
 redirect_pitch :: Text -> TrackLang.CallId -> Controls -> TrackLang.CallId
     -> Controls -> Derive.Generator Derive.Note

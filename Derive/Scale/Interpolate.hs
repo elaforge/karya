@@ -31,8 +31,8 @@ scales = scale_make $ \env (Scale.LookupScale lookup) -> do
         -- interpolate.
         env2 = TrackLang.delete_val scale_from $
             TrackLang.delete_val scale_to env
-    from <- find ("from scale " <> prettyt from_id) from_id
-    to <- find ("to scale " <> prettyt to_id) to_id
+    from <- find ("from scale " <> pretty from_id) from_id
+    to <- find ("to scale " <> pretty to_id) to_id
     return $ make from to
     where
     scale_make = (:[]) . Scale.Make scale_id ("same as from scale", doc)

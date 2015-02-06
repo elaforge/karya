@@ -3,8 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Scale.BohlenPierce_test where
-import qualified Control.Arrow as Arrow
-
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.State as State
@@ -33,7 +31,7 @@ test_note_to_call = do
     equalf 0.001 (run ["5a"]) ([Just (c * 3)], [])
 
 test_input_to_note = do
-    let f = either prettyt Pitch.note_text
+    let f = either pretty Pitch.note_text
             . Scale.scale_input_to_note BP.absolute_scale mempty
     let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
         piano oct = CmdTest.piano_kbd . CmdTest.oct_pc oct
@@ -45,8 +43,7 @@ test_input_to_note = do
         ["2h", "2i"] ++ replicate 5 "invalid input"
 
 test_input_to_nn = do
-    let f input = Arrow.right (Arrow.left pretty) $
-            DeriveTest.eval State.empty $
+    let f input = second (first prettys) $ DeriveTest.eval State.empty $
             Scale.scale_input_to_nn BP.absolute_scale 0 input
     let ascii oct = CmdTest.ascii_kbd . CmdTest.oct_pc oct
     equalf 0.001 (f (ascii 4 0)) $ Right (Right NN.middle_c)

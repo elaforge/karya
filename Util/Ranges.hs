@@ -29,7 +29,7 @@ instance Ord n => Monoid.Monoid (Ranges n) where
 
 instance Pretty.Pretty n => Pretty.Pretty (Ranges n) where
     format (Ranges rs) = Pretty.textList (map f rs)
-        where f (s, e) = Pretty.prettyt s <> "--" <> Pretty.prettyt e
+        where f (s, e) = Pretty.pretty s <> "--" <> Pretty.pretty e
     format Everything = Pretty.text "[*--*]"
 
 instance DeepSeq.NFData n => DeepSeq.NFData (Ranges n) where

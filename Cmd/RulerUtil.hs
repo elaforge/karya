@@ -183,7 +183,7 @@ modify_ruler block_id tracknums ruler_id modify
 -- | The section RulerId is the first ruler of the section.
 section_ruler_id :: State.M m => BlockId -> TrackNum -> m RulerId
 section_ruler_id block_id tracknum =
-    State.require ("no rulers in " <> pretty (block_id, tracknum))
+    State.require ("no rulers in " <> prettys (block_id, tracknum))
             . Seq.head . Block.ruler_ids_of . map snd
         =<< get_section block_id tracknum
 

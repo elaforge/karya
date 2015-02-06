@@ -330,8 +330,8 @@ cast :: forall a. TrackLang.Typecheck a => Text -> TrackLang.Val
     -> Derive.Deriver a
 cast name val = case TrackLang.from_val val of
     Nothing -> Derive.throw $ untxt $
-        name <> ": expected " <> prettyt return_type
-        <> " but val was " <> prettyt (TrackLang.type_of val)
+        name <> ": expected " <> pretty return_type
+        <> " but val was " <> pretty (TrackLang.type_of val)
         <> " " <> TrackLang.show_val val
     Just a -> return a
     where return_type = TrackLang.to_type (Proxy :: Proxy a)

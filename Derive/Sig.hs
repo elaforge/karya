@@ -181,8 +181,8 @@ paired_args args = case args of
 typecheck :: forall a. TrackLang.Typecheck a => TrackLang.Val -> Either Text a
 typecheck val = case TrackLang.from_val val of
     Nothing -> Left $ "expected "
-        <> prettyt (TrackLang.to_type (Proxy :: Proxy a)) <> " but got "
-        <> prettyt (TrackLang.type_of val)
+        <> pretty (TrackLang.to_type (Proxy :: Proxy a)) <> " but got "
+        <> pretty (TrackLang.type_of val)
     Just a -> Right a
 
 -- * parsers

@@ -32,7 +32,7 @@ import Types
 newtype Skeleton = Skeleton Graph.Graph deriving (Read, Show)
 
 instance Pretty.Pretty Skeleton where
-    prettyt = prettyt . flatten
+    pretty = pretty . flatten
 
 -- Data.Graph is just a type synonym to Data.Array, which means that
 -- 'make [(1, 2), (1, 3)]' compare inequal even though they describe the same

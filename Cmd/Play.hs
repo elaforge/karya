@@ -373,7 +373,7 @@ from_realtime block_id repeat_at start_ = do
         in return $ if start == 0 && mstart < 0 then mstart else start
     msgs <- return $ PlayUtil.shift_messages multiplier start msgs
     -- See doc for "Cmd.PlayC" for why I return a magic value.
-    return $ Cmd.PlayMidiArgs maybe_sync (prettyt block_id)
+    return $ Cmd.PlayMidiArgs maybe_sync (pretty block_id)
         (merge_midi msgs mtc)
         (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
         ((*multiplier) . subtract start <$> repeat_at)

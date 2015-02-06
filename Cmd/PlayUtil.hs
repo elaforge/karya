@@ -112,7 +112,7 @@ derive_block sort cache damage block_id = do
     fmap (Derive.extract_result sort) $ run cache damage $ do
         unless (damage == mempty) $
             Log.debug $ "score damage for " <> showt block_id <> ": "
-                <> prettyt damage
+                <> pretty damage
         Call.Block.eval_root_block global_transform block_id
 
 is_score_damage_log :: Log.Msg -> Bool
@@ -368,7 +368,7 @@ load_ky paths fname =
                 <> Text.intercalate ", " (map txt imported)
             forM_ (Library.shadowed lib) $ \((name, _), calls) ->
                 Log.warn $ "definitions in " <> showt fname
-                    <> " " <> name <> " shadowed: " <> prettyt calls
+                    <> " " <> name <> " shadowed: " <> pretty calls
             return $ Right lib
             where lib = compile_library defs
 

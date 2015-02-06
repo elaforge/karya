@@ -60,8 +60,8 @@ import Types
 data TransposeType = Diatonic | Chromatic | Nn deriving (Eq, Show)
 data TimeType = Real | Score deriving (Eq, Show)
 
-instance Pretty.Pretty TransposeType where prettyt = showt
-instance Pretty.Pretty TimeType where prettyt = showt
+instance Pretty.Pretty TransposeType where pretty = showt
+instance Pretty.Pretty TimeType where pretty = showt
 
 transpose_control :: TransposeType -> Score.Control
 transpose_control Diatonic = Controls.diatonic
@@ -93,7 +93,7 @@ time_control_at default_type control pos = do
         Score.Score -> return Score
         Score.Real -> return Real
         _ -> Derive.throw $ "expected time type for "
-            <> untxt (TrackLang.show_val control) <> " but got " <> pretty typ
+            <> untxt (TrackLang.show_val control) <> " but got " <> prettys typ
     return $ case time_type of
         Real -> TrackLang.Real (RealTime.seconds val)
         Score -> TrackLang.Score (ScoreTime.double val)
@@ -116,7 +116,7 @@ transpose_control_at default_type control pos = do
         Score.Chromatic -> return Chromatic
         Score.Diatonic -> return Diatonic
         _ -> Derive.throw $ "expected transpose type for "
-            <> untxt (TrackLang.show_val control) <> " but got " <> pretty typ
+            <> untxt (TrackLang.show_val control) <> " but got " <> prettys typ
     return (val, transpose_type)
 
 
@@ -147,7 +147,7 @@ to_function = fmap (Score.typed_val .) . to_typed_function
 
 to_typed_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
 to_typed_signal control =
-    either return (const $ Derive.throw $ "not found: " <> pretty control)
+    either return (const $ Derive.throw $ "not found: " <> prettys control)
         =<< to_signal_or_function control
 
 to_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control
@@ -194,7 +194,7 @@ to_transpose_function default_type control = do
             Just control -> return (untyped, control)
             _ -> Derive.throw $ "expected transpose type for "
                 <> untxt (TrackLang.show_val control) <> " but got "
-                <> pretty typ
+                <> prettys typ
 
 -- | Version of 'to_function' that will complain if the control isn't a time
 -- type.
@@ -210,7 +210,7 @@ to_time_function default_type control = do
         Score.Real -> return (untyped, Real)
         _ -> Derive.throw $ "expected time type for "
             <> untxt (TrackLang.show_val control) <> " but got "
-            <> pretty typ
+            <> prettys typ
 
 -- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
 pitch_at :: RealTime -> TrackLang.PitchControl
@@ -225,7 +225,7 @@ pitch_at pos control = case control of
         maybe (Derive.throw $ "pitch not found and no default given: "
             ++ show cont) return maybe_pitch
     where
-    require = Derive.require ("ControlSignal pitch at " <> pretty pos)
+    require = Derive.require ("ControlSignal pitch at " <> prettys pos)
         . PitchSignal.at pos
 
 to_pitch_signal :: TrackLang.PitchControl -> Derive.Deriver PitchSignal.Signal
@@ -240,7 +240,7 @@ to_pitch_signal control = case control of
 nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
 nn_at pos control = -- TODO throw exception?
-    Derive.logged_pitch_nn ("Util.nn_at " <> prettyt (pos, control))
+    Derive.logged_pitch_nn ("Util.nn_at " <> pretty (pos, control))
         =<< Derive.resolve_pitch pos
         =<< pitch_at pos control
 
@@ -252,14 +252,14 @@ transposed pos =
     justm (Derive.pitch_at pos) $ fmap Just . Derive.resolve_pitch pos
 
 get_transposed :: RealTime -> Derive.Deriver PitchSignal.Transposed
-get_transposed pos = Derive.require ("no pitch at " <> pretty pos)
+get_transposed pos = Derive.require ("no pitch at " <> prettys pos)
     =<< transposed pos
 
 -- | Pitch without the transposition applied.  You have to use this if you
 -- create an event with a pitch based on this pitch, otherwise the
 -- transposition will be applied twice.
 get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
-get_pitch pos = Derive.require ("no pitch at " <> pretty pos)
+get_pitch pos = Derive.require ("no pitch at " <> prettys pos)
     =<< Derive.pitch_at pos
 
 get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch) -> RealTime

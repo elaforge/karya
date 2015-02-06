@@ -188,8 +188,8 @@ input_to_note input = do
         -- This just means the key isn't in the scale, it happens a lot so no
         -- need to shout about it.
         Left Scale.InvalidInput -> Cmd.abort
-        Left err -> Cmd.throw $ "input_to_note " <> pretty input <> " for "
-            <> pretty (Scale.scale_id scale) <> ": " <> pretty err
+        Left err -> Cmd.throw $ "input_to_note " <> prettys input <> " for "
+            <> prettys (Scale.scale_id scale) <> ": " <> prettys err
         Right note -> return note
 
 -- * modify

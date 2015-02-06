@@ -303,7 +303,7 @@ test_prev_val = do
         ([0, 0.25, 0.5, 0.75], [])
 
 env_lookup :: TrackLang.ValName -> TrackLang.Environ -> String
-env_lookup key = pretty . TrackLang.lookup_val key
+env_lookup key = prettys . TrackLang.lookup_val key
 
 e_track_dynamic :: (Derive.Dynamic -> a) -> Derive.Result
     -> [((BlockId, TrackNum), a)]
@@ -316,7 +316,7 @@ test_track_dynamic_invert = do
     let run = e_track_dynamic (e_env . Derive.state_environ)
             . DeriveTest.derive_tracks ""
         e_env e = (lookup Environ.instrument e, lookup Environ.scale e)
-        lookup val = pretty . TrackLang.lookup_val val
+        lookup val = prettys . TrackLang.lookup_val val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">i", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
         [ ((UiTest.default_block_id, 1), (">i", "legong"))
@@ -361,7 +361,7 @@ test_orphans = do
     show_subs = Derive.make_call "test" "show" mempty "doc" $
         Sig.call0 $ \args -> do
             let subs = Derive.info_sub_tracks (Derive.passed_info args)
-            Log.warn $ prettyt subs
+            Log.warn $ pretty subs
             return []
 
 test_record_empty_tracks = do

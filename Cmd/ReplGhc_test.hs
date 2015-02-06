@@ -7,7 +7,6 @@ import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.Chan as Chan
 import qualified Control.Concurrent.MVar as MVar
 
-import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -45,7 +44,7 @@ run_io cmd = do
     (_cstate, _midi, _logs, result) <-
         Cmd.run (ReplUtil.raw "") ui_state cmd_state cmd
     return $ case result of
-        Left err -> Left (Pretty.pretty err)
+        Left err -> Left (prettys err)
         Right (val, _ustate, _updates) ->
             Right $ ReplUtil.format_response $ ReplUtil.decode_response $
                 ReplUtil.encode_response val

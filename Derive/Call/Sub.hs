@@ -149,7 +149,7 @@ invert subs start end next_start events_around = do
     let sliced = slice track_id
     whenJust (non_bottom_note_track sliced) $ \track -> Derive.throw $
         "inverting below a note track will lead to an endless loop: "
-        <> pretty (TrackTree.track_id track)
+        <> prettys (TrackTree.track_id track)
     return sliced
     where
     slice track_id =
@@ -216,9 +216,9 @@ at :: ScoreTime -> GenericEvent a -> GenericEvent a
 at shift (Event start dur note) = Event (start + shift) dur note
 
 instance Pretty.Pretty a => Pretty.Pretty (GenericEvent a) where
-    prettyt (Event start dur note) =
+    pretty (Event start dur note) =
         "Event " <> showt start <> " " <> showt dur
-            <> " (" <> prettyt note <> ")"
+            <> " (" <> pretty note <> ")"
 
 -- | Get the Events of subtracks, if any, returning one list of events per sub
 -- note track.  This is the top-level utility for note calls that take other

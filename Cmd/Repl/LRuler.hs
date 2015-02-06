@@ -131,15 +131,15 @@ sync_ids :: State.M m => m Text
 sync_ids = do
     deleted <- unify
     let unified = if null deleted then "" else Text.unlines $
-            "Unified:" : [prettyt x <> " <- " <> prettyt xs | x : xs <- deleted]
+            "Unified:" : [pretty x <> " <- " <> pretty xs | x : xs <- deleted]
             ++ [""]
     misnamed <- list_misnamed
     let renames = [(ruler_id, RulerUtil.block_id_to_ruler block_id)
             | (ruler_id, block_id) <- misnamed]
     Create.rename_rulers renames
     let renamed = if null renames then "" else Text.unlines $
-            "Renamed:" : [ prettyt from <> " -> "
-                <> prettyt (Id.RulerId to) | (from, to) <- renames]
+            "Renamed:" : [ pretty from <> " -> "
+                <> pretty (Id.RulerId to) | (from, to) <- renames]
     return $ unified <> renamed
 
 list_misnamed :: State.M m => m [(RulerId, BlockId)]

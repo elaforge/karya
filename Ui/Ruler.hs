@@ -149,7 +149,7 @@ instance Eq Marklist where
 instance Show Marklist where
     show m = "Ruler.marklist " ++ show (ascending 0 m)
 instance Pretty.Pretty Marklist where
-    prettyt m = "((" <> showt (TimeVector.length (marklist_vec m)) <> " marks))"
+    pretty m = "((" <> showt (TimeVector.length (marklist_vec m)) <> " marks))"
 
 -- | This should be opaque, but it needs to be exported for RulerC.  Don't look
 -- inside if you're not RulerC, OK?
@@ -241,5 +241,5 @@ instance DeepSeq.NFData Mark where
         `seq` color `seq` name `seq` name_zoom `seq` zoom `seq` ()
 
 instance Pretty.Pretty Mark where
-    prettyt m = "(mark " <> showt (mark_rank m) <> name <> ")"
+    pretty m = "(mark " <> showt (mark_rank m) <> name <> ")"
         where name = if Text.null (mark_name m) then "" else " " <> mark_name m

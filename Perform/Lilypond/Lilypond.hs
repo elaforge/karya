@@ -340,8 +340,8 @@ get_meters start staff_end events = do
                 meter <- Meter.parse_meter val
                 return $ Just (Types.event_start event, meter)
         where
-        context = prettyt Constants.ly_global <> " event at "
-            <> prettyt (Types.event_start event)
+        context = pretty Constants.ly_global <> " event at "
+            <> pretty (Types.event_start event)
 
 error_context :: Text -> Either Text a -> Either Text a
 error_context msg = first ((msg <> ": ") <>)

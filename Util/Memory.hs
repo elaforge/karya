@@ -39,8 +39,8 @@ instance (Bytes k, Bytes a) => Bytes (Map.Map k a) where
 newtype Size = Size Int deriving (Eq, Ord, Num, Show)
 
 instance Pretty.Pretty Size where
-    prettyt (Size n) =
-        Pretty.prettyt (fromIntegral n / 1024 / 1024 :: Double) <> "m"
+    pretty (Size n) =
+        Pretty.pretty (fromIntegral n / 1024 / 1024 :: Double) <> "m"
 
 tagged_box :: Size
 tagged_box = from_words 3 -- gc overhead, tag, ptr

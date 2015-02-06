@@ -59,7 +59,7 @@ import Types
 newtype Instrument = Instrument Text
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Serialize.Serialize)
 
-instance Pretty.Pretty Instrument where prettyt = ShowVal.show_val
+instance Pretty.Pretty Instrument where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Instrument where
     show_val (Instrument inst) = Text.cons '>' inst
 
@@ -119,7 +119,7 @@ instance DeepSeq.NFData Warp where
 data Type = Untyped | Chromatic | Diatonic | Nn | Score | Real
     deriving (Eq, Enum, Ord, Read, Show)
 
-instance Pretty.Pretty Type where prettyt = showt
+instance Pretty.Pretty Type where pretty = showt
 
 instance Serialize.Serialize Type where
     put = Serialize.put . fromEnum
@@ -153,7 +153,7 @@ instance Monoid.Monoid Type where
     mappend Untyped typed = typed
     mappend typed _ = typed
 
-instance Pretty.Pretty Control where prettyt = ShowVal.show_val
+instance Pretty.Pretty Control where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Control where
     show_val (Control c) = Text.cons '%' c
 instance ShowVal.ShowVal PControl where
@@ -207,7 +207,7 @@ newtype Attributes = Attributes (Set.Set Attribute)
     deriving (Monoid.Monoid, Eq, Ord, Read, Show, Serialize.Serialize,
         DeepSeq.NFData)
 
-instance Pretty.Pretty Attributes where prettyt = ShowVal.show_val
+instance Pretty.Pretty Attributes where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Attributes where
     show_val = ("+"<>) . Text.intercalate "+" . attrs_list
 
@@ -346,7 +346,7 @@ data Scale = Scale {
     } deriving (Show)
 
 instance Pretty.Pretty Scale where
-    prettyt = prettyt . pscale_scale_id
+    pretty = pretty . pscale_scale_id
 
 -- | It can't be reduced since it has lambdas, but at least this way you can
 -- easily rnf things that contain it.
@@ -355,21 +355,21 @@ instance DeepSeq.NFData (RawPitch a) where
 
 instance Show (RawPitch a) where
     -- Show just the NN, so this is parseable by Util.PPrint.
-    show p = either show pretty (pitch_eval_nn p mempty)
+    show p = either show prettys (pitch_eval_nn p mempty)
 
 -- | Will look like: 62.95nn,4i(*wayang)
 instance Pretty.Pretty (RawPitch a) where
-    prettyt p = either showt prettyt (pitch_eval_nn p mempty) <> ","
+    pretty p = either showt pretty (pitch_eval_nn p mempty) <> ","
         <> either showt Pitch.note_text (pitch_eval_note p mempty)
-        <> "(" <> prettyt (pitch_scale p) <> ")"
+        <> "(" <> pretty (pitch_scale p) <> ")"
 
 -- | Pitches have no literal syntax, but I have to print something.
 instance ShowVal.ShowVal (RawPitch a) where
-    show_val pitch = "<pitch: " <> prettyt pitch <> ">"
+    show_val pitch = "<pitch: " <> pretty pitch <> ">"
 
 -- | Error evaluating a pitch.
 newtype PitchError = PitchError Text deriving (Eq, Ord, Read, Show)
-instance Pretty.Pretty PitchError where prettyt (PitchError s) = s
+instance Pretty.Pretty PitchError where pretty (PitchError s) = s
 
 pitches_equal :: RawPitch a -> RawPitch a -> Bool
 pitches_equal p1 p2 = either (const False) id $
@@ -537,7 +537,7 @@ instance ShowVal.ShowVal Val where
         VList vals -> ShowVal.show_val vals
 
 instance Pretty.Pretty Val where
-    prettyt = ShowVal.show_val
+    pretty = ShowVal.show_val
 
 instance DeepSeq.NFData Val where
     rnf (VNum d) = DeepSeq.rnf d
@@ -617,7 +617,7 @@ type ControlFunctionMap = Map.Map Control ControlFunction
 type PitchMap = Map.Map Control Signal
 
 instance Show ControlFunction where show = untxt . ShowVal.show_val
-instance Pretty.Pretty ControlFunction where prettyt = showt
+instance Pretty.Pretty ControlFunction where pretty = showt
 -- | Not parseable.
 instance ShowVal.ShowVal ControlFunction where
     show_val (ControlFunction name _) = "((ControlFunction " <> name <> "))"
@@ -627,7 +627,7 @@ instance DeepSeq.NFData ControlFunction where
 newtype Symbol = Symbol Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
         Serialize.Serialize)
-instance Pretty.Pretty Symbol where prettyt = ShowVal.show_val
+instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
 
 instance ShowVal.ShowVal Symbol where
     -- TODO This is actually kind of error prone.  The problem is that symbols
@@ -669,7 +669,7 @@ data ControlRef val =
 type PitchControl = ControlRef Signal
 type ValControl = ControlRef TypedControl
 
-instance Pretty.Pretty PitchControl where prettyt = ShowVal.show_val
+instance Pretty.Pretty PitchControl where pretty = ShowVal.show_val
 
 instance Serialize.Serialize val => Serialize.Serialize (ControlRef val) where
     put val = case val of
@@ -695,7 +695,7 @@ instance ShowVal.ShowVal PitchControl where
         Nothing -> "<none>"
         Just p -> ShowVal.show_val p
 
-instance Pretty.Pretty ValControl where prettyt = ShowVal.show_val
+instance Pretty.Pretty ValControl where pretty = ShowVal.show_val
 
 -- | This can only represent constant signals, since there's no literal for an
 -- arbitrary signal.  Non-constant signals will turn into a constant of
@@ -746,7 +746,7 @@ instance ShowVal.ShowVal Term where
     show_val (ValCall call) = "(" <> ShowVal.show_val call <> ")"
     show_val (Literal val) = ShowVal.show_val val
 
-instance Pretty.Pretty Call where prettyt = ShowVal.show_val
+instance Pretty.Pretty Call where pretty = ShowVal.show_val
 
 instance DeepSeq.NFData Call where
     rnf (Call call_id terms) = call_id `seq` DeepSeq.rnf terms

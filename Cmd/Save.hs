@@ -171,7 +171,7 @@ write_current_state fname = do
     state <- State.get
     ((), secs) <- liftIO $ Log.time_eval $ write_state fname state
     Log.notice $ "wrote state to " <> showt fname
-        <> ", took " <> prettyt secs <> "s"
+        <> ", took " <> pretty secs <> "s"
     return fname
 
 write_state :: FilePath -> State.State -> IO ()
@@ -253,7 +253,7 @@ read_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " <> repo <> ": ") <>)
         =<< liftIO (SaveGit.load repo maybe_commit)
-    Log.notice $ "read from " <> showt repo <> ", at " <> prettyt commit
+    Log.notice $ "read from " <> showt repo <> ", at " <> pretty commit
         <> " names: " <> showt names
     return (state, SaveRepo repo commit (Just names))
 

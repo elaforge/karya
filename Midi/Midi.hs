@@ -88,11 +88,11 @@ instance DeepSeq.NFData WriteMessage where rnf _ = ()
 instance DeepSeq.NFData ReadMessage where rnf _ = ()
 
 instance Pretty.Pretty ReadMessage where
-    prettyt (ReadMessage dev ts msg) =
-        prettyt dev <> " " <> prettyt ts <> ": " <> prettyt msg
+    pretty (ReadMessage dev ts msg) =
+        pretty dev <> " " <> pretty ts <> ": " <> pretty msg
 instance Pretty.Pretty WriteMessage where
-    prettyt (WriteMessage dev ts msg) =
-        prettyt dev <> " " <> prettyt ts <> ": " <> prettyt msg
+    pretty (WriteMessage dev ts msg) =
+        pretty dev <> " " <> pretty ts <> ": " <> pretty msg
 
 -- * devices
 
@@ -131,8 +131,8 @@ with_wdev (WriteDevice dev) = ByteString.useAsCString dev
 with_rdev :: ReadDevice -> (Foreign.C.CString -> IO a) -> IO a
 with_rdev (ReadDevice dev) = ByteString.useAsCString dev
 
-instance Pretty.Pretty ReadDevice where prettyt = read_device_text
-instance Pretty.Pretty WriteDevice where prettyt = write_device_text
+instance Pretty.Pretty ReadDevice where pretty = read_device_text
+instance Pretty.Pretty WriteDevice where pretty = write_device_text
 
 add_timestamp :: RealTime -> WriteMessage -> WriteMessage
 add_timestamp ts wmsg = wmsg { wmsg_ts = wmsg_ts wmsg + ts }
@@ -245,12 +245,12 @@ data Message =
     deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Message where
-    prettyt (CommonMessage (SystemExclusive manuf bytes)) =
+    pretty (CommonMessage (SystemExclusive manuf bytes)) =
         "sysex " <> manufacturer_name manuf
             <> " <" <> showt (ByteString.length bytes) <> " bytes>"
-    prettyt (ChannelMessage chan msg) =
-        "chan:" <> showt chan <> " " <> prettyt msg
-    prettyt msg = showt msg
+    pretty (ChannelMessage chan msg) =
+        "chan:" <> showt chan <> " " <> pretty msg
+    pretty msg = showt msg
 
 -- TODO using Word8 here is kind of iffy.  Word8s silently overflow after 0xff.
 -- On the other hand, these all have 7 bit ranges, so I can still check for
@@ -266,7 +266,7 @@ type Manufacturer = Word8
 
 newtype Key = Key Word8 deriving (Eq, Ord, Num, Enum, Read)
 
-instance Pretty.Pretty Key where prettyt = showt
+instance Pretty.Pretty Key where pretty = showt
 -- | This means the show is not the inverse of Read, but I can get that back
 -- later if necessary, and named pitches are very convenient.
 instance Show Key where

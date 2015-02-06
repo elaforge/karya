@@ -158,8 +158,7 @@ convert_track (title, msgs) =
     where
     (tracks, stuck_on) = split_track msgs
     warns = if null stuck_on then []
-        else [title <> ": omitted notes with no note-offs: "
-            <> prettyt stuck_on]
+        else [title <> ": omitted notes with no note-offs: " <> pretty stuck_on]
 
 -- ** split_track
 

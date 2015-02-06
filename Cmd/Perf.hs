@@ -64,7 +64,7 @@ derive_at block_id track_id deriver = do
     dynamic <- fromMaybe empty_dynamic <$>
         find_dynamic (block_id, Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
-    return (first pretty val, logs)
+    return (first prettys val, logs)
     where empty_dynamic = Derive.initial_dynamic mempty
 
 -- | Get the environment established by 'State.config_global_transform'.
@@ -80,7 +80,7 @@ global_environ = do
             return [LEvent.Event $
                 Score.empty_event { Score.event_environ = env } ]
     mapM_ Log.write logs
-    events <- LEvent.write_logs =<< Cmd.require_right pretty result
+    events <- LEvent.write_logs =<< Cmd.require_right prettys result
     event <- Cmd.require "Perf.global_transform: expected a single Event" $
         Seq.head events
     return $ Score.event_environ event
@@ -103,7 +103,7 @@ derive :: Cmd.M m => Derive.Deriver a -> m (Either String a)
 derive deriver = do
     (val, _, _) <- PlayUtil.run mempty mempty deriver
     return $ case val of
-        Left err -> Left $ pretty err
+        Left err -> Left $ prettys err
         Right val -> Right val
 
 -- * perform
@@ -154,7 +154,7 @@ find_scale_id (block_id, maybe_track_id) = (to_scale_id <$>) $
 get_scale :: Cmd.M m => Track -> m Scale.Scale
 get_scale track = do
     scale_id <- get_scale_id track
-    Cmd.require ("get_scale: can't find " <> pretty scale_id)
+    Cmd.require ("get_scale: can't find " <> prettys scale_id)
         =<< lookup_scale track scale_id
 
 lookup_scale :: Cmd.M m => Track -> Pitch.ScaleId -> m (Maybe Scale.Scale)
@@ -164,8 +164,8 @@ lookup_scale track scale_id = do
     env <- get_environ track
     case lookup env (Derive.LookupScale lookup) scale_id of
         Nothing -> return Nothing
-        Just (Left err) -> Cmd.throw $ "lookup " <> pretty scale_id <> ": "
-            <> pretty err
+        Just (Left err) -> Cmd.throw $ "lookup " <> prettys scale_id <> ": "
+            <> prettys err
         Just (Right scale) -> return $ Just scale
 
 -- | Try to get a scale from the titles of the parents of the given track.
@@ -263,7 +263,7 @@ lookup_default_environ name = do
 get_default_environ :: (TrackLang.Typecheck a, Cmd.M m) =>
     TrackLang.ValName -> m a
 get_default_environ name =
-    Cmd.require ("no default val for " <> pretty name)
+    Cmd.require ("no default val for " <> prettys name)
         =<< lookup_default_environ name
 
 -- | The default scale established by 'State.config_global_transform', or
@@ -283,7 +283,7 @@ default_scale_id =
 get_realtime :: Cmd.M m => Cmd.Performance -> BlockId -> Maybe TrackId
     -> ScoreTime -> m RealTime
 get_realtime perf block_id maybe_track_id pos =
-    maybe (Cmd.throw $ show block_id ++ " " ++ pretty maybe_track_id
+    maybe (Cmd.throw $ show block_id ++ " " ++ prettys maybe_track_id
             ++ " has no tempo information, so it probably failed to derive.")
         return =<< lookup_realtime perf block_id maybe_track_id pos
 

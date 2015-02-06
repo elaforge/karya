@@ -206,7 +206,7 @@ run_val ui_state cmd_state cmd = do
         run Nothing ui_state cmd_state (liftM Just cmd)
     mapM_ Log.write logs
     return $ case result of
-        Left err -> Left $ pretty err
+        Left err -> Left $ prettys err
         Right (val, ui_state, _updates) -> case val of
             Nothing -> Left "aborted"
             Just v -> Right (v, cmd_state, ui_state)
@@ -475,10 +475,9 @@ state_midi_writer state imsg = do
     let out = case imsg of
             Midi.Interface.Midi wmsg -> Midi.Interface.Midi $ map_wdev wmsg
             _ -> imsg
-    -- putStrLn $ "PLAY " ++ pretty out
     ok <- Midi.Interface.write_message
         (state_midi_interface (state_config state)) out
-    unless ok $ Log.warn $ "error writing " <> prettyt out
+    unless ok $ Log.warn $ "error writing " <> pretty out
     where
     map_wdev (Midi.WriteMessage wdev time msg) =
         Midi.WriteMessage (lookup_wdev wdev) time msg
@@ -671,7 +670,7 @@ initial_edit_state = EditState {
 -- | These enable various commands to edit event text.  What exactly val
 -- and method mean are dependent on the track.
 data EditMode = NoEdit | ValEdit | MethodEdit deriving (Eq, Show)
-instance Pretty.Pretty EditMode where prettyt = showt
+instance Pretty.Pretty EditMode where pretty = showt
 
 type RecordedActions = Map.Map Char Action
 
@@ -688,12 +687,12 @@ data Action =
     deriving (Show, Eq)
 
 instance Pretty.Pretty Action where
-    prettyt act = case act of
+    pretty act = case act of
         InsertEvent maybe_dur text ->
-            prettyt text <> maybe "" ((" ("<>) . (<>")") . prettyt) maybe_dur
-        ReplaceText text -> "=" <> prettyt text
-        PrependText text -> prettyt text <> "+"
-        AppendText text -> "+" <> prettyt text
+            pretty text <> maybe "" ((" ("<>) . (<>")") . pretty) maybe_dur
+        ReplaceText text -> "=" <> pretty text
+        PrependText text -> pretty text <> "+"
+        AppendText text -> "+" <> pretty text
 
 -- *** midi devices
 
@@ -1045,7 +1044,7 @@ set_status key val = do
 get_midi_instrument :: M m => Score.Instrument -> m Instrument.Instrument
 get_midi_instrument inst = do
     lookup <- get_lookup_midi_instrument
-    require ("get_midi_instrument " ++ pretty inst) $ lookup inst
+    require ("get_midi_instrument " <> prettys inst) $ lookup inst
 
 get_lookup_midi_instrument :: M m => m MidiDb.LookupMidiInstrument
 get_lookup_midi_instrument = do
@@ -1082,7 +1081,7 @@ get_lookup_instrument = do
 -- | Lookup a detailed patch along with the environ that it likes.
 get_midi_patch :: M m => Score.Instrument -> m Instrument.Patch
 get_midi_patch inst = do
-    info <- require ("get_midi_patch " ++ pretty inst)
+    info <- require ("get_midi_patch " ++ prettys inst)
         =<< lookup_instrument inst
     return $ MidiDb.info_patch info
 

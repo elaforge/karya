@@ -111,7 +111,7 @@ txt_fmt = Text.unlines . map (uncurry show_binding)
 
 show_binding :: Text -> [Keymap.KeySpec] -> Text
 show_binding name keyspecs = Seq.join2 " - " mods name
-    where mods = "[" <> Text.intercalate ", " (map prettyt keyspecs) <> "]"
+    where mods = "[" <> Text.intercalate ", " (map pretty keyspecs) <> "]"
 
 -- * html fmt
 

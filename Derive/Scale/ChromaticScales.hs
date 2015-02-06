@@ -185,11 +185,11 @@ call_doc transposers smap doc =
     default_key = fst <$> List.find ((== smap_default_key smap) . snd)
         (Map.toList (smap_keys smap))
     (bottom, top) = smap_range smap
-    show_p = either prettyt prettyt . show_pitch smap Nothing
+    show_p = either pretty pretty . show_pitch smap Nothing
         . Theory.semis_to_pitch_sharps (smap_layout smap)
     fields = concat
         [ [("range", show_p bottom <> " to " <> show_p top)]
-        , maybe [] (\n -> [("default key", prettyt n)]) default_key
+        , maybe [] (\n -> [("default key", pretty n)]) default_key
         , [ ("keys", format_keys $ Map.keys (smap_keys smap)) ]
         ]
 

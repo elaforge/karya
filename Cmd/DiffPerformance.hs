@@ -78,7 +78,7 @@ compare_midi_performance perf msgs =
 
 show_diffs :: State.Performance a -> [[Text]] -> Text
 show_diffs perf diffs =
-    "Diffs from " <> prettyt (State.perf_creation perf)
+    "Diffs from " <> pretty (State.perf_creation perf)
     <> "\nPatch: " <> State.perf_patch perf
     <> "\n" <> Text.unlines (limit 50 (List.intercalate [""] diffs))
 
@@ -101,8 +101,8 @@ diff_midi expected got =
     (mapMaybe show_diff $ Diff.getGroupedDiffBy (==) expected_s got_s,
         expected_s, got_s)
     where
-    expected_s = map prettyt (normalize expected)
-    got_s = map prettyt (normalize got)
+    expected_s = map pretty (normalize expected)
+    got_s = map pretty (normalize got)
 
 -- | To better approximate audible differences, I strip excessive time
 -- precision and ensure notes happening at the same time are in a consistent

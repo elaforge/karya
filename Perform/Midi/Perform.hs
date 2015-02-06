@@ -196,11 +196,11 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         | not (Signal.pitches_share in_decay start end
             initial_old (event_pitch old) initial_new (event_pitch new)) ->
                 Just $ "pitch signals incompatible: "
-                    <> prettyt (event_pitch old) <> " /= "
-                    <> prettyt (event_pitch new)
+                    <> pretty (event_pitch old) <> " /= "
+                    <> pretty (event_pitch new)
         | not c_equal ->
-            Just $ "controls differ: " <> prettyt (event_controls old)
-                <> " /= " <> prettyt (event_controls new)
+            Just $ "controls differ: " <> pretty (event_controls old)
+                <> " /= " <> pretty (event_controls new)
         | otherwise -> Nothing
     _ -> Nothing
     where
@@ -332,7 +332,7 @@ allot_event inst_addrs state (event, ichan) =
         }
     inst = Instrument.inst_score $ event_instrument event
     update = update_allot_state (inst, ichan) (event_end event)
-    no_alloc = event_warning event ("no allocation for " <> prettyt inst)
+    no_alloc = event_warning event ("no allocation for " <> pretty inst)
 
 -- | Record this addr as now being allotted, and add its voice allocation.
 update_allot_state :: (Score.Instrument, Channel) -> RealTime
@@ -627,8 +627,8 @@ type ClipRange = (RealTime, RealTime)
 
 make_clip_warnings :: Event -> (Score.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
-    [event_warning event (prettyt control <> " clipped: "
-        <> prettyt (s, e)) | (s, e) <- clip_warns]
+    [event_warning event (pretty control <> " clipped: "
+        <> pretty (s, e)) | (s, e) <- clip_warns]
 
 control_at :: Event -> Score.Control -> RealTime -> Maybe Signal.Y
 control_at event control pos = do
@@ -786,7 +786,7 @@ instance Pretty.Pretty Event where
 -- | Pretty print the event more briefly than the Pretty instance.
 short_event :: Event -> Text
 short_event event =
-    prettyt (start, event_duration event, inst, pitch, event_controls event)
+    pretty (start, event_duration event, inst, pitch, event_controls event)
     where
     start = event_start event
     inst = Instrument.inst_score (event_instrument event)

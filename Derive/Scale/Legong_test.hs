@@ -41,7 +41,7 @@ test_note_to_call = do
     equal (run "legong-pemade" ["i-"]) ([Just 72.46], [])
 
 test_input_to_note = do
-    let f scale key = either prettyt Pitch.note_text
+    let f scale key = either pretty Pitch.note_text
             . Scale.scale_input_to_note scale
                 (maybe mempty ScaleTest.key_environ key)
             . CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)

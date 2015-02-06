@@ -35,10 +35,10 @@ newtype Tree = Tree Hash deriving (Eq, Ord, Show)
 newtype Commit = Commit Hash deriving (Eq, Ord, Show)
 type Hash = ByteString
 
-instance Pretty.Pretty Blob where prettyt (Blob hash) = txt $ unparse_hash hash
-instance Pretty.Pretty Tree where prettyt (Tree hash) = txt $ unparse_hash hash
+instance Pretty.Pretty Blob where pretty (Blob hash) = txt $ unparse_hash hash
+instance Pretty.Pretty Tree where pretty (Tree hash) = txt $ unparse_hash hash
 instance Pretty.Pretty Commit where
-    prettyt (Commit hash) = txt $ unparse_hash hash
+    pretty (Commit hash) = txt $ unparse_hash hash
 
 type Repo = FilePath
 -- | Repo-internal path.
@@ -272,8 +272,8 @@ data Modification = Remove FilePath | Add FilePath ByteString
     deriving (Show)
 
 instance Pretty.Pretty Modification where
-    prettyt (Remove fn) = "rm " <> txt fn
-    prettyt (Add fn bytes) =
+    pretty (Remove fn) = "rm " <> txt fn
+    pretty (Add fn bytes) =
         "add " <> txt fn <> "{" <> showt (Char8.length bytes) <> "}"
 
 modify_tree :: Repo -> Tree -> [Modification] -> IO Tree

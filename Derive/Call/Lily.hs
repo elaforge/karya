@@ -280,7 +280,7 @@ eval_events config start events = do
     return notes
     where
     parse_meter = either (err . untxt) return . Meter.parse_meter
-    err = Derive.throw . (("parse " <> pretty Constants.v_meter) <>)
+    err = Derive.throw . (("parse " <> prettys Constants.v_meter) <>)
 
 eval_notes :: Types.Config -> Meter.Meter -> RealTime -> [Score.Event]
     -> ([Note], [Log.Msg])

@@ -204,14 +204,14 @@ instance Pretty.Pretty Meta where
 instance Pretty.Pretty MidiPerformance where
     format (Performance midi creation patch) = Pretty.record "MidiPerformance"
         [ ("events", Pretty.format $ Vector.length midi)
-        , ("creation", Pretty.text $ prettyt creation)
+        , ("creation", Pretty.text $ pretty creation)
         , ("patch", Pretty.text patch)
         ]
 
 instance Pretty.Pretty LilypondPerformance where
     format (Performance ly creation patch) = Pretty.record "LilypondPerformance"
         [ ("lilypond lines", Pretty.format $ Text.count "\n" ly)
-        , ("creation", Pretty.text $ prettyt creation)
+        , ("creation", Pretty.text $ pretty creation)
         , ("patch", Pretty.text patch)
         ]
 

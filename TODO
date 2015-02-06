@@ -265,7 +265,7 @@ UNSORTED
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
-  - Pretty on a lot of events causes a stack overflow
+  * Pretty on a lot of events causes a stack overflow
     Need a reproduction.
     I should extend Util.Format so I can use it for Util.Pretty.
   - if I added the cmd name before running the cmd, I could put it in the
@@ -590,7 +590,7 @@ cleanup:
     - don't use 'reverse' in 'flatten'
     - lazy implementation?
   convert to Text:
-    - Pretty.pretty
+    * Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter.
     - Derive.throw
   - I could make the fltk interface clearer by putting c_interface.cc into

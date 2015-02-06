@@ -6,12 +6,13 @@
 module Cmd.CmdTest where
 import qualified Control.Concurrent.Chan as Chan
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Vector as Vector
+
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Debug as Debug
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
@@ -100,7 +101,7 @@ run ustate1 cstate1 cmd = Result val cstate2 ustate2 updates logs midi_msgs
     where
     (cstate2, midi_msgs, logs, result) = Cmd.run_id ustate1 cstate1 cmd
     (val, ustate2, updates) = case result of
-        Left err -> (Left (pretty err), ustate1, [])
+        Left err -> (Left (prettys err), ustate1, [])
         Right (v, ustate2, updates) -> (Right v, ustate2, updates)
 
 run_io :: State.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
@@ -108,7 +109,7 @@ run_io ustate1 cstate1 cmd = do
     (cstate2, midi_msgs, logs, result) <-
         Cmd.run Nothing ustate1 cstate1 (Just <$> cmd)
     let (val, ustate2, updates) = case result of
-            Left err -> (Left (pretty err), ustate1, [])
+            Left err -> (Left (prettys err), ustate1, [])
             Right (v, ustate2, updates) -> (Right v, ustate2, updates)
     return $ Result val cstate2 ustate2 updates logs midi_msgs
 
@@ -270,7 +271,9 @@ trace_logs :: Extracted a -> Either String a
 trace_logs res = case res of
     Right (b, logs) -> (if null logs then id else trace logs) (Right b)
     Left a -> Left a
-    where trace = Debug.trace_str . Seq.strip . unlines . ("\tlogged:":)
+    where
+    trace = Debug.trace_str . Text.strip . Text.unlines . ("\tlogged:":)
+        . map txt
 
 e_logs :: Result a -> [String]
 e_logs = map DeriveTest.show_log . DeriveTest.trace_low_prio . result_logs

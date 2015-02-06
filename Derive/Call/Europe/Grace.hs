@@ -327,10 +327,10 @@ check_pitches base pitches = do
                 Score.Diatonic -> Right Pitch.Diatonic
                 Score.Chromatic -> Right Pitch.Chromatic
                 Score.Nn -> Right Pitch.Nn
-                _ -> Left $ "expected transpose type, but got " ++ pretty t
+                _ -> Left $ "expected transpose type, but got " <> prettys t
             | otherwise ->
                 Left $ "arguments should all have the same type, got "
-                    <> pretty types
+                    <> prettys types
         [] -> Right Pitch.Diatonic
     return $ map (either id (resolve make . Score.typed_val)) pitches
     where

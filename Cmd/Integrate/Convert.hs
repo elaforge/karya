@@ -61,7 +61,7 @@ convert source_block levents = do
     when (any ((>=Log.Warn) . Log.msg_priority) logs) $
         Cmd.throw "aborting integrate due to warnings"
     unless (null errs) $
-        Cmd.throw $ "integrating events: " ++ Seq.join "; " errs
+        Cmd.throw $ "integrating events: " <> Seq.join "; " errs
     return tracks
 
 -- | Convert derived score events back into UI events.
@@ -174,7 +174,7 @@ pitch_signal_events event = (ui_events, pitch_errs)
     pitches = zip3 xs ys
         (map (PitchSignal.pitch_note . Score.apply_controls event start) ys)
     pitch_errs =
-        [pretty x ++ ": converting " ++ pretty p ++ " " ++ pretty err
+        [prettys x <> ": converting " <> prettys p <> " " <> prettys err
             | (x, p, Left err) <- pitches]
     ui_events = [ui_event (Score.event_stack event) (RealTime.to_score x) 0
             (Pitch.note_text note)

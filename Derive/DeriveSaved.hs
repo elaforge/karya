@@ -70,7 +70,7 @@ timed_derive name ui_state cmd_state block_id =
         Right (result, cmd_logs) -> fmap Right $ do
             let (events, derive_logs) = first Vector.fromList $
                     LEvent.partition $ Derive.r_events result
-                msg = "derive " <> name <> " " <> pretty block_id
+                msg = "derive " <> name <> " " <> prettys block_id
             events <- print_timer msg (timer_msg Vector.length)
                 (return $! events)
             return (events, cmd_logs ++ filter (not . boring) derive_logs)
@@ -107,7 +107,7 @@ derive_block ui_state cmd_state block_id =
 run_cmd :: State.State -> Cmd.State -> Cmd.CmdId a
     -> Either String (a, [Log.Msg])
 run_cmd ui_state cmd_state cmd = case result of
-    Left err -> Left $ pretty err
+    Left err -> Left $ prettys err
     Right (val, _, _) -> case val of
         Nothing -> Left "cmd had no result"
         Just val -> Right (val, logs)

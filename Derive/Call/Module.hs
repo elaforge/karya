@@ -18,7 +18,7 @@ newtype Module = Module Text.Text
     deriving (Eq, Ord, Show, String.IsString)
 
 instance Pretty.Pretty Module where
-    prettyt (Module m) = m
+    pretty (Module m) = m
 
 instance Monoid.Monoid Module where
     mempty = ""

@@ -85,7 +85,7 @@ instance Show ScoreTime where show (ScoreTime n) = show n
 instance Read.Read ScoreTime where readPrec = ScoreTime <$> Read.readPrec
 
 instance Pretty.Pretty ScoreTime where
-    prettyt (ScoreTime p) = Pretty.showFloat 3 p <> Text.singleton suffix
+    pretty (ScoreTime p) = Pretty.showFloat 3 p <> Text.singleton suffix
 
 to_double :: ScoreTime -> Double
 to_double (ScoreTime p) = p

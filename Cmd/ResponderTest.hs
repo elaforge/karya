@@ -137,7 +137,7 @@ continue_until is_complete result = reverse <$> go [] (result_states result)
     chan = result_loopback result
     go accum states = do
         maybe_msg <- read_msg chan
-        putStrLn $ "ResponderTest.continue_until: " ++ pretty maybe_msg
+        putStrLn $ "ResponderTest.continue_until: " <> prettys maybe_msg
         case maybe_msg of
             Nothing -> return accum
             Just msg -> do
@@ -167,10 +167,10 @@ thread print_timing states msgs =
 thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
 thread_delay _ _ [] = return []
 thread_delay print_timing states ((msg, delay) : msgs) = do
-    Printf.printf "thread msg: %s\n" (pretty msg)
+    Printf.printf "thread msg: %s\n" (prettys msg)
     (result, secs) <- timer $ respond_msg states msg
     when print_timing $
-        Printf.printf "%s -> lag: %.2fs\n" (pretty msg) secs
+        Printf.printf "%s -> lag: %.2fs\n" (prettys msg) secs
     Thread.delay delay
     (result:) <$> thread_delay print_timing (result_states result) msgs
 

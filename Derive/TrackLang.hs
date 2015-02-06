@@ -113,8 +113,8 @@ instance ShowVal Duration where
     show_val (Score x) = show_val x
 
 instance Pretty.Pretty Duration where
-    prettyt (Real t) = prettyt t
-    prettyt (Score t) = prettyt t
+    pretty (Real t) = pretty t
+    pretty (Score t) = pretty t
 
 multiply_duration :: Duration -> Int -> Duration
 multiply_duration (Real t) n = Real (t * fromIntegral n)
@@ -243,14 +243,14 @@ subtypes_of n
     transpose = [TTranspose, TDefaultDiatonic, TDefaultChromatic, TNoteNumber]
 
 instance Pretty.Pretty Type where
-    prettyt (TMaybe typ) = "Maybe " <> prettyt typ
-    prettyt (TEither a b) = prettyt a <> " or " <> prettyt b
-    prettyt (TNum typ val) = append_parens "Num" $
-        TextUtil.joinWith ", " (prettyt typ) (prettyt val)
-    prettyt (TSymbol enums) =
+    pretty (TMaybe typ) = "Maybe " <> pretty typ
+    pretty (TEither a b) = pretty a <> " or " <> pretty b
+    pretty (TNum typ val) = append_parens "Num" $
+        TextUtil.joinWith ", " (pretty typ) (pretty val)
+    pretty (TSymbol enums) =
         append_parens "Symbol" $ maybe "" Text.unwords enums
-    prettyt (TList typ) = "list of " <> prettyt typ
-    prettyt typ = Text.drop 1 (showt typ)
+    pretty (TList typ) = "list of " <> pretty typ
+    pretty typ = Text.drop 1 (showt typ)
 
 append_parens :: Text -> Text -> Text
 append_parens name desc
@@ -258,7 +258,7 @@ append_parens name desc
     | otherwise = name <> " (" <> desc <> ")"
 
 instance Pretty.Pretty NumType where
-    prettyt t = case t of
+    pretty t = case t of
         TUntyped -> ""
         TInt -> "integral"
         TTranspose -> "transposition"
@@ -272,7 +272,7 @@ instance Pretty.Pretty NumType where
         TNoteNumber -> "nn"
 
 instance Pretty.Pretty NumValue where
-    prettyt t = case t of
+    pretty t = case t of
         TAny -> ""
         TNatural -> ">=0"
         TPositive -> ">0"
@@ -639,8 +639,8 @@ put_val name val environ
 put_val_error :: Typecheck a => ValName -> a -> Environ -> Either Text Environ
 put_val_error name val = first fmt . put_val name val
     where
-    fmt typ = "can't set " <> prettyt name <> " to "
-        <> show_val (to_val val) <> ", expected " <> prettyt typ
+    fmt typ = "can't set " <> pretty name <> " to "
+        <> show_val (to_val val) <> ", expected " <> pretty typ
 
 -- | Insert a val without typechecking.
 insert_val :: Typecheck a => ValName -> a -> Environ -> Environ
@@ -684,8 +684,8 @@ checked_val :: forall a. Typecheck a => ValName -> Environ
 checked_val name environ = case get_val name environ of
         Left NotFound -> return Nothing
         Left (WrongType typ) ->
-            Left $ showt name <> ": expected " <> prettyt return_type
-                <> " but val type is " <> prettyt typ
+            Left $ showt name <> ": expected " <> pretty return_type
+                <> " but val type is " <> pretty typ
         Right v -> return (Just v)
     where return_type = to_type (Proxy :: Proxy a)
 

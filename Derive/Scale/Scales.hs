@@ -201,7 +201,7 @@ scale_to_pitch_error diatonic chromatic = first msg
     where
     msg err = case err of
         Scale.InvalidTransposition -> invalid_transposition diatonic chromatic
-        _ -> PitchSignal.PitchError $ prettyt err
+        _ -> PitchSignal.PitchError $ pretty err
 
 invalid_transposition :: Signal.Y -> Signal.Y -> PitchSignal.PitchError
 invalid_transposition diatonic chromatic =
@@ -210,7 +210,7 @@ invalid_transposition diatonic chromatic =
             [fmt "d" diatonic, fmt "c" chromatic])
     where
     fmt _ 0 = ""
-    fmt code val = prettyt val <> code
+    fmt code val = pretty val <> code
 
 -- ** input
 
@@ -271,12 +271,12 @@ computed_input_to_nn input_to_note note_to_call pos input = do
         Right call -> Eval.apply_pitch pos call >>= \val -> case val of
             TrackLang.VPitch pitch -> do
                 controls <- Derive.controls_at =<< Derive.real pos
-                nn <- Derive.require_right (("evaluating pich: " <>) . pretty) $
+                nn <- Derive.require_right (("evaluating pich: "<>) . prettys) $
                     PitchSignal.pitch_nn $ PitchSignal.coerce $
                     PitchSignal.config (PitchSignal.PitchConfig env controls)
                         pitch
                 return $ Right nn
-            _ -> Derive.throw $ "non-pitch from pitch call: " <> pretty val
+            _ -> Derive.throw $ "non-pitch from pitch call: " <> prettys val
     where
     get_call env = do
         note <- input_to_note env input
@@ -396,7 +396,7 @@ call_doc transposers dmap doc =
     where
     fields
         | Vector.null notes = []
-        | otherwise = [("note range", prettyt bottom <> " to " <> prettyt top)]
+        | otherwise = [("note range", pretty bottom <> " to " <> pretty top)]
         where
         (bottom, top) = (notes Vector.! 0,
             notes Vector.! (Vector.length notes - 1))
@@ -419,7 +419,7 @@ annotate_call_doc transposers doc fields = prepend_doc extra_doc
     where
     extra_doc = doc <> "\n\n" <> join (transposers_field <> fields)
     transposers_field =
-        [("transposers", prettyt transposers) | not (Set.null transposers)]
+        [("transposers", pretty transposers) | not (Set.null transposers)]
     join = Text.unlines
         . map (\(k, v) -> k <> ": " <> v) . filter (not . Text.null . snd)
 
@@ -449,7 +449,7 @@ read_environ :: TrackLang.Typecheck a => (a -> Maybe val) -> val
     -> TrackLang.ValName -> TrackLang.Environ -> Either Scale.ScaleError val
 read_environ read_val deflt name env = case TrackLang.get_val name env of
     Left (TrackLang.WrongType expected) ->
-        unparseable ("expected type " <> prettyt expected)
+        unparseable ("expected type " <> pretty expected)
     Left TrackLang.NotFound -> Right deflt
     Right val -> parse val
     where

@@ -97,7 +97,7 @@ instance Show RealTime where show (RealTime t) = show t
 instance Read.Read RealTime where readPrec = RealTime <$> Read.readPrec
 
 instance Pretty.Pretty RealTime where
-    prettyt t = Pretty.showFloat 2 (to_seconds t) <> Text.singleton suffix
+    pretty t = Pretty.showFloat 2 (to_seconds t) <> Text.singleton suffix
 
 div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)
@@ -117,7 +117,7 @@ suffix = 's'
 
 -- | Show RealTime as hours, minutes, seconds.
 show_units :: RealTime -> Text
-show_units t = units <> prettyt (seconds (fromIntegral secs + frac))
+show_units t = units <> pretty (seconds (fromIntegral secs + frac))
     where
     units = mconcatMap (\(a, b) -> showt a <> b) $
         filter ((>0) . fst) [(hours, "h"), (mins, "m")]

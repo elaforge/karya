@@ -110,7 +110,7 @@ equal_transformer args deriver =
         [TrackLang.VSymbol lhs, TrackLang.VNotGiven, val] ->
             parse_equal (Just Default) lhs val
         args -> Left $ "unexpected arg types: "
-            <> Seq.join ", " (map (pretty . TrackLang.type_of) args)
+            <> Seq.join ", " (map (prettys . TrackLang.type_of) args)
 
 parse_equal :: Maybe Merge -> TrackLang.Symbol -> TrackLang.Val
     -> Either String (Derive.Deriver a -> Derive.Deriver a)
@@ -133,7 +133,7 @@ parse_equal Nothing (TrackLang.Symbol lhs) rhs
         TrackLang.VInstrument inst -> Right $
             Derive.with_instrument_alias (Score.Instrument new) inst
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
-            <> pretty (TrackLang.type_of rhs)
+            <> prettys (TrackLang.type_of rhs)
 parse_equal maybe_merge lhs rhs
     | Just control <- is_control =<< parse_val lhs = case rhs of
         TrackLang.VControl rhs -> Right $ \deriver ->
@@ -153,7 +153,7 @@ parse_equal maybe_merge lhs rhs
             Nothing -> Right $ Derive.with_control_function control f
         TrackLang.VNotGiven -> Right $ Derive.remove_controls [control]
         _ -> Left $ "binding a control expected a control, num, control\
-            \ function, or _, but got " <> pretty (TrackLang.type_of rhs)
+            \ function, or _, but got " <> prettys (TrackLang.type_of rhs)
     where
     is_control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing
@@ -165,7 +165,7 @@ parse_equal Nothing lhs rhs
             sig <- Util.to_pitch_signal rhs
             Derive.with_pitch control sig deriver
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
-            <> " control, but got " <> pretty (TrackLang.type_of rhs)
+            <> " control, but got " <> prettys (TrackLang.type_of rhs)
     where
     is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))
         | c == Controls.null = Just Nothing
@@ -178,7 +178,7 @@ merge_error :: Merge -> String
 merge_error merge = "operator is only supported when assigning to a control: "
     <> case merge of
         Default -> "_"
-        Merge sym -> pretty sym
+        Merge sym -> prettys sym
 
 data Merge = Default | Merge TrackLang.CallId deriving (Show)
 

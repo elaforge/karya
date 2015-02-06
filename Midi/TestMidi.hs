@@ -54,10 +54,10 @@ test_midi (Left err) = error $ "initializing midi: " ++ err
 test_midi (Right interface) = do
     rdevs <- Interface.read_devices interface
     putStrLn $ "read devs:"
-    mapM_ (putStrLn . ("    " ++) . pretty) rdevs
+    mapM_ (putStrLn . ("    " <>) . prettys) rdevs
     wdevs <- Interface.write_devices interface
     putStrLn $ "write devs:"
-    mapM_ (putStrLn . ("    " ++) . pretty) wdevs
+    mapM_ (putStrLn . ("    " <>) . prettys) wdevs
     rdevs <- return $ map fst rdevs
 
     let open = open_devs interface

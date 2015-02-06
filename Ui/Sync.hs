@@ -95,7 +95,7 @@ check_updates state = filterM $ \update -> case update of
         _ | view_id `Map.member` State.state_views state -> return True
         _ -> do
             Log.warn $ "Update for nonexistent " <> showt view_id <> ": "
-                <> prettyt u
+                <> pretty u
             return False
     _ -> return True
 

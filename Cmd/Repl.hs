@@ -111,7 +111,7 @@ run_cmdio cmd = do
             (ReplUtil.raw $ "IO exception: " <> showt exc, Cmd.Done)
         Right (cmd_state, midi, result) -> case result of
             Left err -> return
-                (ReplUtil.raw $ "State error: " <> prettyt err, Cmd.Done)
+                (ReplUtil.raw $ "State error: " <> pretty err, Cmd.Done)
             Right (val, ui_state, updates) -> do
                 mapM_ Cmd.write_midi midi
                 Cmd.put $ cmd_state { Cmd.state_repl_status = Cmd.Continue }

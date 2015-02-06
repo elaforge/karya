@@ -64,8 +64,8 @@ data Zoom = Zoom {
     } deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Zoom where
-    prettyt (Zoom offset factor) =
-        "+" <> prettyt offset <> "*" <> Pretty.showFloat 1 factor
+    pretty (Zoom offset factor) =
+        "+" <> pretty offset <> "*" <> Pretty.showFloat 1 factor
 
 instance CStorable Zoom where
     sizeOf _ = #size ZoomInfo
@@ -106,8 +106,8 @@ data Selection = Selection {
     } deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty Selection where
-    prettyt (Selection strack spos ctrack cpos) =
-        "Selection " <> prettyt (strack, spos) <> "--" <> prettyt (ctrack, cpos)
+    pretty (Selection strack spos ctrack cpos) =
+        "Selection " <> pretty (strack, spos) <> "--" <> pretty (ctrack, cpos)
 
 selection :: TrackNum -> TrackTime -> TrackNum -> TrackTime -> Selection
 selection start_track start_pos cur_track cur_pos =

@@ -29,7 +29,7 @@ test_read = do
     equal (run "wayang" "5i") (run "wayang-kantilan" "i-")
 
 read_scale :: Scale.Scale -> Pitch.Note -> Either String String
-read_scale scale note = (pretty *** pretty) $
+read_scale scale note = (prettys *** prettys) $
     Scale.scale_read scale mempty note
 
 scale_track :: String -> [String] -> [UiTest.TrackSpec]

@@ -65,7 +65,7 @@ call_bindings_text (binds, ctype, call_doc) = do
         write_doc doc
     arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
     arg_doc (Derive.ArgDoc name typ parser env_default doc) = do
-        Format.write $ name <> super <> " :: " <> prettyt typ
+        Format.write $ name <> super <> " :: " <> pretty typ
             <> maybe "" (" = "<>) deflt <> " " <> environ_keys name env_default
             <> " -- "
         write_doc doc
@@ -287,7 +287,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
     arg_doc (Derive.ArgDoc name typ parser env_default doc) =
         "<li" <> li_type <> ">" <> tag "code" (html name) <> show_char char
-        <> " :: " <> tag "em" (html (prettyt typ))
+        <> " :: " <> tag "em" (html (pretty typ))
         <> show_default deflt
         <> " " <> tag "code" (html (environ_keys name env_default))
         <> (if Text.null doc then "" else " &mdash; " <> html_doc hstate doc)
@@ -399,7 +399,7 @@ scale_docs = sort_calls . lookup_calls ValCall . map convert
     where
     convert (scale_id, pattern, doc) =
         Derive.LookupPattern name doc (const (return Nothing))
-        where name = prettyt scale_id <> ": " <> pattern
+        where name = pretty scale_id <> ": " <> pattern
 
 -- * doc
 

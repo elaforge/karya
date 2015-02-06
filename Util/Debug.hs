@@ -18,12 +18,16 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Trans as Trans
 import qualified Data.IORef as IORef
 import qualified Data.Monoid as Monoid
+import Data.Monoid ((<>))
+import qualified Data.Text as Text
+import Data.Text (Text)
+import qualified Data.Text.IO as Text.IO
+
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 
 
 {-# NOINLINE active #-}
@@ -55,107 +59,107 @@ fullM f msg val
 -- * forced by evaluation
 
 -- | Print a showable value en passant.
-trace :: Show a => String -> a -> a
+trace :: Show a => Text -> a -> a
 trace msg val = traces msg val val
 
 -- | Pretty print a value en passant.
-tracep :: Pretty.Pretty a => String -> a -> a
-tracep msg val = write (with_msg msg (Pretty.formatteds val)) val
+tracep :: Pretty.Pretty a => Text -> a -> a
+tracep msg val = write (with_msg msg (Pretty.formatted val)) val
 
 -- | Print a showable value.
-traces :: Show b => String -> b -> a -> a
+traces :: Show b => Text -> b -> a -> a
 traces msg val = write (with_msg msg (pshow val))
 
 -- | Pretty print a value.
-tracesp :: Pretty.Pretty b => String -> b -> a -> a
-tracesp msg traced = write (with_msg msg (Pretty.formatteds traced))
+tracesp :: Pretty.Pretty b => Text -> b -> a -> a
+tracesp msg traced = write (with_msg msg (Pretty.formatted traced))
 
 -- | Print a value after applying a function to it.
-tracef :: Show b => String -> (a -> b) -> a -> a
+tracef :: Show b => Text -> (a -> b) -> a -> a
 tracef msg f val = write (with_msg msg (pshow (f val))) val
 
-tracefp :: Pretty.Pretty b => String -> (a -> b) -> a -> a
+tracefp :: Pretty.Pretty b => Text -> (a -> b) -> a -> a
 tracefp msg f val = write (with_msg msg (Pretty.pretty (f val))) val
 
 -- | Trace input and output of a function.
-trace_ret :: (Show a, Show b) => String -> a -> b -> b
+trace_ret :: (Show a, Show b) => Text -> a -> b -> b
 trace_ret function a ret = trace_str text ret
     where
-    text = concat
+    text = Monoid.mconcat
         [ function
         , if multiline then "\n" else " "
         , pa
         , if multiline then "\n\t\t=>\n" else " => "
         , pret
         ]
-    multiline = '\n' `elem` pa || '\n' `elem` pret
+    multiline = "\n" `Text.isInfixOf` pa || "\n" `Text.isInfixOf` pret
     pa = pshow a
     pret = pshow ret
 
-trace_retp :: (Pretty.Pretty a, Pretty.Pretty b) => String -> a -> b -> b
+trace_retp :: (Pretty.Pretty a, Pretty.Pretty b) => Text -> a -> b -> b
 trace_retp function a ret = trace_str text ret
     where
-    text = concat
+    text = Monoid.mconcat
         [ function
         , if multiline then "\n" else " "
         , pa
         , if multiline then "\n\t\t=>\n" else " => "
         , pret
         ]
-    multiline = '\n' `elem` pa || '\n' `elem` pret
-    pa = Seq.strip $ Pretty.formatteds a
-    pret = Seq.strip $ Pretty.formatteds ret
+    multiline = "\n" `Text.isInfixOf` pa || "\n" `Text.isInfixOf` pret
+    pa = Text.strip $ Pretty.formatted a
+    pret = Text.strip $ Pretty.formatted ret
 
 -- | Show a raw string, equivalent to 'Debug.Trace.trace'.
-trace_str :: String -> a -> a
-trace_str = write . (prefix++)
+trace_str :: Text -> a -> a
+trace_str = write . (prefix<>)
 
 -- * forced by monad
 
 -- | Print a value in a monad.  The monad will force it to be printed.
-traceM :: (Show a, Monad m) => String -> a -> m ()
+traceM :: (Show a, Monad m) => Text -> a -> m ()
 traceM msg val = write (with_msg msg (pshow val)) (return ())
 
-tracepM :: (Pretty.Pretty a, Monad m) => String -> a -> m ()
-tracepM msg val = write (with_msg msg (Pretty.formatteds val)) (return ())
+tracepM :: (Pretty.Pretty a, Monad m) => Text -> a -> m ()
+tracepM msg val = write (with_msg msg (Pretty.formatted val)) (return ())
 
-tracesM :: Monad m => String -> m ()
+tracesM :: Monad m => Text -> m ()
 tracesM msg = write msg (return ())
 
 -- * in IO
 -- These are like putStrLn, but more easily greppable.
 
-puts :: Trans.MonadIO m => String -> m ()
-puts = writeIO . (prefix++)
+puts :: Trans.MonadIO m => Text -> m ()
+puts = writeIO . (prefix<>)
 
-put :: (Trans.MonadIO m, Show a) => String -> a -> m ()
+put :: (Trans.MonadIO m, Show a) => Text -> a -> m ()
 put msg = writeIO . with_msg msg . pshow
 
-putp :: (Trans.MonadIO m, Pretty.Pretty a) => String -> a -> m ()
-putp msg = writeIO . with_msg msg . Pretty.formatteds
+putp :: (Trans.MonadIO m, Pretty.Pretty a) => Text -> a -> m ()
+putp msg = writeIO . with_msg msg . Pretty.formatted
 
 
 -- * implementation
 
-write :: String -> a -> a
+write :: Text -> a -> a
 write msg val = msg `DeepSeq.deepseq` Unsafe.unsafePerformIO
     (writeIO msg >> return val)
     -- deepseq to prevent debug msgs from being interleaved.
 
-writeIO :: Trans.MonadIO m => String -> m ()
+writeIO :: Trans.MonadIO m => Text -> m ()
 writeIO msg = Trans.liftIO $ IORef.readIORef active >>= \x -> case x of
     Nothing -> return ()
-    Just hdl -> IO.hPutStrLn hdl msg
+    Just hdl -> Text.IO.hPutStrLn hdl msg
 
-with_msg :: String -> String -> String
+with_msg :: Text -> Text -> Text
 with_msg msg text_ =
-    prefix ++ msg ++ (if multiline then ":\n" else ": ") ++ text
+    prefix <> msg <> (if multiline then ":\n" else ": ") <> text
     where
-    text = Seq.strip text_
-    multiline = Seq.count '\n' text > 2
+    text = Text.strip text_
+    multiline = Text.count "\n" text > 2
 
-prefix :: String
+prefix :: Text
 prefix = "** "
 
-pshow :: (Show a) => a -> String
-pshow = Seq.strip . PPrint.pshow
+pshow :: Show a => a -> Text
+pshow = Text.strip . Text.pack . PPrint.pshow

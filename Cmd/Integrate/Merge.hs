@@ -456,7 +456,7 @@ instance Pretty.Pretty Edit where
     format (Edit key mods) = Pretty.constructor "Edit"
         [Pretty.format key, Pretty.format mods]
 
-instance Pretty.Pretty Modify where prettyt = showt
+instance Pretty.Pretty Modify where pretty = showt
 
 is_modified :: Edit -> Bool
 is_modified (Edit _ mods) = not (null mods)

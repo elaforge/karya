@@ -122,12 +122,12 @@ info_of db score_inst (MidiDb.Info synth patch code) =
         , ("Val calls", show_calls CallDoc.ValCall
             (map CallDoc.convert_val_call val_calls))
         , ("Environ",
-            if environ == mempty then "" else prettyt environ)
+            if environ == mempty then "" else pretty environ)
 
         -- implementation details
         , ("Attribute map", show_attribute_map attr_map)
         , ("Pitchbend range", showt (Instrument.inst_pitch_bend_range inst))
-        , ("Scale", maybe "" prettyt scale)
+        , ("Scale", maybe "" pretty scale)
         , ("Initialization", show_initialize initialize)
         -- info
         , ("Text", text)
@@ -168,13 +168,13 @@ show_attribute_map :: Instrument.AttributeMap -> Text
 show_attribute_map (Instrument.AttributeMap table) =
     Text.unlines (map fmt table)
     where
-    attrs = map (\(a, _, _) -> pretty a) table
+    attrs = map (\(a, _, _) -> prettys a) table
     longest = fromMaybe 0 $ Seq.maximum (map length attrs)
 
     fmt (attrs, keyswitches, maybe_keymap) =
         -- Still not quite right for lining up columns.
-        txt (printf "%-*s\t" longest (pretty attrs))
-            <> prettyt keyswitches <> maybe "" ((" "<>) . prettyt) maybe_keymap
+        txt (printf "%-*s\t" longest (prettys attrs))
+            <> pretty keyswitches <> maybe "" ((" "<>) . pretty) maybe_keymap
 
 show_control_map :: Control.ControlMap -> Text
 show_control_map cmap =
@@ -199,7 +199,7 @@ show_initialize :: Instrument.InitializePatch -> Text
 show_initialize Instrument.NoInitialization = ""
 show_initialize (Instrument.InitializeMessage msg) = "Message: " <> msg
 show_initialize (Instrument.InitializeMidi msgs) =
-    Text.unlines (map prettyt msgs)
+    Text.unlines (map pretty msgs)
 
 quote :: Text -> Text
 quote s

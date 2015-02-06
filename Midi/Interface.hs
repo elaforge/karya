@@ -80,12 +80,12 @@ data Message =
     deriving (Show)
 
 instance Pretty.Pretty Message where
-    prettyt msg = case msg of
-        Midi msg -> prettyt msg
+    pretty msg = case msg of
+        Midi msg -> pretty msg
         AllNotesOff time ->
-            Text.unwords ["AllNotesOff", prettyt time]
+            Text.unwords ["AllNotesOff", pretty time]
         AllDevices time msgs ->
-            Text.unwords ["AllDevices", prettyt time, prettyt msgs]
+            Text.unwords ["AllDevices", pretty time, pretty msgs]
 
 instance DeepSeq.NFData Message where
     rnf (Midi msg) = DeepSeq.rnf msg

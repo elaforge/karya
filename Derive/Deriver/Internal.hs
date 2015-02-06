@@ -164,13 +164,13 @@ get_block block_id = lookup_id block_id =<< get_ui_state State.state_blocks
 eval_ui :: String -> State.StateId a -> Deriver a
 eval_ui caller action = do
     ui_state <- get_ui_state id
-    let rethrow exc = throw $ caller ++ ": " ++ pretty exc
+    let rethrow exc = throw $ caller <> ": " <> prettys exc
     either rethrow return (State.eval ui_state action)
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k) => k -> Map.Map k a -> Deriver a
 lookup_id key map = case Map.lookup key map of
-    Nothing -> throw $ "unknown " ++ show key
+    Nothing -> throw $ "unknown " <> show key
     Just val -> return val
 
 -- * stack
@@ -219,7 +219,7 @@ with_stack :: Stack.Frame -> Deriver a -> Deriver a
 with_stack frame = localm $ \st -> do
     stack <- get_stack
     when (Stack.length stack >= max_depth) $
-        throw $ "call stack too deep: " ++ pretty frame
+        throw $ "call stack too deep: " <> prettys frame
     return $ add_stack_frame frame st
     where
     -- A recursive loop will result in an unfriendly hang.  So limit the total

@@ -48,12 +48,12 @@ data Msg =
     deriving (Show)
 
 instance Pretty.Pretty Msg where
-    prettyt (Ui msg) = "Ui: " <> prettyt msg
-    prettyt (Midi msg) = "Midi: " <> prettyt msg
-    prettyt (InputNote msg) = "Input: " <> showt msg
-    prettyt (DeriveStatus bid status) = "DeriveStatus: " <> showt bid <> ": "
-        <> prettyt status
-    prettyt msg = showt msg
+    pretty (Ui msg) = "Ui: " <> pretty msg
+    pretty (Midi msg) = "Midi: " <> pretty msg
+    pretty (InputNote msg) = "Input: " <> showt msg
+    pretty (DeriveStatus bid status) = "DeriveStatus: " <> showt bid <> ": "
+        <> pretty status
+    pretty msg = showt msg
 
 data DeriveStatus =
     -- | The current derivation is out of date, but work has not yet started
@@ -64,7 +64,7 @@ data DeriveStatus =
     | DeriveComplete Performance
     deriving (Show)
 
-instance Pretty.Pretty DeriveStatus where prettyt = showt
+instance Pretty.Pretty DeriveStatus where pretty = showt
 
 -- Performance should be in "Cmd.Cmd", but that would be a circular import.
 
@@ -106,7 +106,7 @@ force_performance perf = perf_logs perf `DeepSeq.deepseq` perf_events perf
 type Events = Vector.Vector Score.Event
 
 instance Show Performance where
-    show perf = "((Performance " ++ pretty len ++ "))"
+    show perf = "((Performance " <> prettys len <> "))"
         where len = Derive.cache_size (perf_derive_cache perf)
 
 instance Pretty.Pretty Performance where

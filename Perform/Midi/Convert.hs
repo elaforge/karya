@@ -61,7 +61,7 @@ convert_event lookup event_ = do
     (patch, postproc) <- require_patch score_inst $
         lookup_patch lookup score_inst
     let event = postproc event_
-    midi_inst <- require ("instrument not in db: " <> prettyt score_inst) $
+    midi_inst <- require ("instrument not in db: " <> pretty score_inst) $
         lookup_inst lookup score_inst
     let event_controls = Score.event_transformed_controls event
     (midi_inst, pitch) <- convert_midi_pitch midi_inst
@@ -77,7 +77,7 @@ convert_event lookup event_ = do
                     (Score.event_environ event))
     whenJust overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
-            <> prettyt Controls.dynamic <> ": " <> prettyt sig
+            <> pretty Controls.dynamic <> ": " <> pretty sig
     let converted = Perform.Event
             { Perform.event_instrument = midi_inst
             , Perform.event_start = Score.event_start event
@@ -98,7 +98,7 @@ require_patch inst Nothing = do
     if Set.member inst not_found then ConvertUtil.abort
         else do
             State.put (Set.insert inst not_found)
-            require ("patch in instrument db: " <> prettyt inst
+            require ("patch in instrument db: " <> pretty inst
                 <> " (further warnings suppressed)") Nothing
 
 -- | If the Event has an attribute matching its keymap, use the pitch from the
@@ -216,10 +216,10 @@ convert_pitch scale controls psig = do
     let (sig, nn_errs) = PitchSignal.to_nn $
             PitchSignal.apply_controls controls psig
     unless (null nn_errs) $ Log.warn $
-        "convert pitch: " <> Text.intercalate ", " (map prettyt nn_errs)
+        "convert pitch: " <> Text.intercalate ", " (map pretty nn_errs)
     let (nn_sig, scale_errs) = convert_scale scale sig
     unless (null scale_errs) $ Log.warn $
-        "out of range for patch scale: " <> prettyt scale_errs
+        "out of range for patch scale: " <> pretty scale_errs
     return $ Signal.map_y round_pitch nn_sig
 
 -- | Round pitches to the nearest tenth of a cent.  Differences below this are

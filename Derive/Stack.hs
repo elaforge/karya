@@ -163,10 +163,10 @@ instance Pretty.Pretty Stack where
     format = Pretty.formatList . outermost
 
 instance Pretty.Pretty Frame where
-    prettyt (Block bid) = showt bid
-    prettyt (Track tid) = showt tid
-    prettyt (Region s e) = prettyt s <> "--" <> prettyt e
-    prettyt (Call call) = call
+    pretty (Block bid) = showt bid
+    pretty (Track tid) = showt tid
+    pretty (Region s e) = pretty s <> "--" <> pretty e
+    pretty (Call call) = call
 
 instance Serialize.Serialize Frame where
     put frame = case frame of

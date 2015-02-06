@@ -206,11 +206,11 @@ transpose transposition octaves steps = \scale env note ->
     case Scale.transpose transposition scale env octaves steps note of
         -- Leave non-pitches alone.
         Left Scale.UnparseableNote -> Right note
-        Left err -> Left (pretty err)
+        Left err -> Left (prettys err)
         Right note2 -> Right note2
 
 cycle_enharmonics :: ModifyPitch
-cycle_enharmonics scale env note = first pretty $ do
+cycle_enharmonics scale env note = first prettys $ do
     enharmonics <- Scale.scale_enharmonics scale env note
     return $ fromMaybe note (Seq.head enharmonics)
 

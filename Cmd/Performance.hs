@@ -187,7 +187,7 @@ derive ui_state cmd_state block_id = (perf, logs)
     where
     perf = case cmd_result of
         Left err -> broken_performance $
-            "derivation for " <> showt block_id <> " failed: " <> prettyt err
+            "derivation for " <> showt block_id <> " failed: " <> pretty err
         Right (derive_result, _, _) -> case derive_result of
             Nothing -> broken_performance $
                 "derivation for " <> showt block_id <> " aborted"
@@ -216,7 +216,7 @@ evaluate_performance wait send_status block_id perf = do
     ((), secs) <- Log.time_eval $ return $ Msg.force_performance perf
     when (secs > 1) $
         Log.notice $ "derived " <> showt block_id <> " in "
-            <> prettyt (RealTime.seconds secs)
+            <> pretty (RealTime.seconds secs)
     send_status block_id $ Msg.DeriveComplete perf
 
 -- | Make a broken performance with just an error msg.  This ensures that

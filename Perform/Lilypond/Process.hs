@@ -107,7 +107,7 @@ process config start meters events = do
         (fmap fst . run_convert state1 . lookup_key) (Seq.head events)
     let state2 = state1 { state_key = key }
     (lys, _) <- run_convert state2 $
-        error_context ("start: " <> prettyt start) $ convert events
+        error_context ("start: " <> pretty start) $ convert events
     let meter = fromMaybe Meter.default_meter (Seq.head meters)
     return $ Right (Code $ "\\time " <> to_lily meter)
         : Right (Code $ to_lily key) : lys
@@ -160,7 +160,7 @@ convert_chunk events = error_context current $ case zero_dur_in_rest events of
         meter <- get_meter
         (lys, remaining) <- convert_chord meter (event :| events)
         return (rests <> lys, remaining)
-    where current = maybe "no more events" prettyt (Seq.head events)
+    where current = maybe "no more events" pretty (Seq.head events)
 
 -- | Code events are mixed into the Lys, depending on their prepend or append
 -- attrs.
@@ -373,7 +373,7 @@ collect_voices events = do
         voice <- maybe (Left $ "voice should be 1--4: " <> showt num) Right $
             parse_voice num
         return (voice, event)
-    check_type (Left err, event) = Left $ prettyt event <> ": " <> err
+    check_type (Left err, event) = Left $ pretty event <> ": " <> err
 
 -- | Strip off events with voices.  This is complicated by the possibility of
 -- intervening zero_dur code events.
@@ -516,7 +516,7 @@ advance_measure time = advance =<< State.get
     where
     advance state
         | time < state_time state =
-            throw $ "can't advance time backward: " <> prettyt time
+            throw $ "can't advance time backward: " <> pretty time
         | time < state_measure_end state = do
             State.put $ state { state_time = time }
             return Nothing
@@ -524,10 +524,10 @@ advance_measure time = advance =<< State.get
             case state_meters state of
                 prev_meter : meters -> advance1 prev_meter meters
                 _ -> throw $ "out of meters, can't advance time to "
-                    <> prettyt time
+                    <> pretty time
         | otherwise =
-            throw $ "can't advance time past barline: " <> prettyt time
-                <> " > " <> prettyt (state_measure_end state)
+            throw $ "can't advance time past barline: " <> pretty time
+                <> " > " <> pretty (state_measure_end state)
     advance1 prev_meter meters = do
         State.modify $ \state -> state
             { state_meters = meters
@@ -598,7 +598,7 @@ make_state config start meters key = State
 throw :: Text -> ConvertM a
 throw msg = do
     now <- State.gets state_time
-    Error.throwError $ prettyt now <> ": " <> msg
+    Error.throwError $ pretty now <> ": " <> msg
 
 lookup_val :: TrackLang.ValName -> (Text -> Either Text a) -> a -> Event
     -> ConvertM a
@@ -606,7 +606,7 @@ lookup_val key parse deflt event = prefix $ do
     maybe_val <- TrackLang.checked_val key (event_environ event)
     maybe (Right deflt) parse maybe_val
     where
-    prefix = either (throw . ((prettyt key <> ": ") <>)) return
+    prefix = either (throw . ((pretty key <> ": ") <>)) return
 
 
 -- * types
@@ -621,7 +621,7 @@ ly_duration ly = case ly of
     LyRest rest -> rest_time rest
     _ -> 0
 
-instance Pretty.Pretty Ly where prettyt = to_lily
+instance Pretty.Pretty Ly where pretty = to_lily
 
 instance ToLily Ly where
     to_lily ly = case ly of
@@ -772,7 +772,7 @@ instance ToLily Voice where
         VoiceOne -> "\\voiceOne"; VoiceTwo -> "\\voiceTwo"
         VoiceThree -> "\\voiceThree"; VoiceFour -> "\\voiceFour"
 
-instance Pretty.Pretty Voice where prettyt = showt
+instance Pretty.Pretty Voice where pretty = showt
 
 parse_voice :: Int -> Maybe Voice
 parse_voice v = case v of

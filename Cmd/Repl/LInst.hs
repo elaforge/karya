@@ -72,10 +72,10 @@ list = do
         Just source -> " (source: " <> ShowVal.show_val source <> ")"
     show_controls controls
         | Map.null controls = ""
-        | otherwise = " " <> prettyt controls
+        | otherwise = " " <> pretty controls
     show_environ environ
         | environ == mempty = ""
-        | otherwise = " " <> prettyt environ
+        | otherwise = " " <> pretty environ
     show_flags config
         | null flags = ""
         | otherwise = " {" <> Text.intercalate ", " flags <> "}"
@@ -183,7 +183,7 @@ modify_config :: State.M m => Instrument
     -> (Instrument.Config -> (Instrument.Config, a)) -> m a
 modify_config inst_ modify = do
     let inst = Util.instrument inst_
-    config <- State.require ("no config for " <> pretty inst)
+    config <- State.require ("no config for " <> prettys inst)
         . Map.lookup inst =<< State.get_midi_config
     let (new, result) = modify config
     State.modify $ State.config # State.midi # Lens.map inst #= Just new
@@ -219,7 +219,7 @@ alloc_default :: Instrument -> [(Midi.Channel, Maybe Instrument.Voices)]
     -> Cmd.CmdL ()
 alloc_default inst_ chans = do
     let inst = Util.instrument inst_
-    wdev <- maybe (Cmd.throw $ "inst not in db: " <> pretty inst) return
+    wdev <- maybe (Cmd.throw $ "inst not in db: " <> prettys inst) return
         =<< device_of inst
     alloc_instrument inst [((wdev, c), v) | (c, v) <- chans]
 
@@ -291,7 +291,7 @@ send_initialization :: Instrument.InitializePatch
     -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
 send_initialization init inst dev chan = case init of
     Instrument.InitializeMidi msgs -> do
-        Log.notice $ "sending midi init: " <> prettyt msgs
+        Log.notice $ "sending midi init: " <> pretty msgs
         mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
     Instrument.InitializeMessage msg ->
         -- TODO warn doesn't seem quite right for this...

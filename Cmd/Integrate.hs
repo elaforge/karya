@@ -83,7 +83,7 @@ cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
     unless (null dups) $
         Log.warn $ "these blocks or tracks want to integrate twice: "
             <> Text.intercalate ", "
-                (map (either prettyt prettyt . Derive.integrated_source) dups)
+                (map (either pretty pretty . Derive.integrated_source) dups)
     mapM_ (integrate block_id) integrates
     return Cmd.Continue
 cmd_integrate _ = return Cmd.Continue
@@ -110,7 +110,7 @@ integrate_tracks block_id track_id tracks = do
         else mapM (Merge.merge_tracks block_id tracks) dests
     unless (null new_dests) $
         Log.notice $ "derive integrated " <> showt track_id <> " to: "
-            <> prettyt (map (map (fst . Block.dest_note)) new_dests)
+            <> pretty (map (map (fst . Block.dest_note)) new_dests)
     State.modify_integrated_tracks block_id $ replace track_id
         [(track_id, Block.DeriveDestinations dests) | dests <- new_dests]
     Cmd.derive_immediately [block_id]
@@ -128,7 +128,7 @@ integrate_block source_id tracks = do
         integrated -> forM integrated $ \(dest_id, track_dests) ->
             (,) dest_id <$> Merge.merge_block dest_id tracks track_dests
     Log.notice $ "derive integrated " <> showt source_id <> " to: "
-        <> prettyt (map fst new_blocks)
+        <> pretty (map fst new_blocks)
     forM_ new_blocks $ \(new_block_id, track_dests) ->
         State.set_integrated_block new_block_id $
             Just (source_id, Block.DeriveDestinations track_dests)
@@ -166,7 +166,7 @@ score_integrate_block source_id = do
         State.set_integrated_block dest_id $
             Just (source_id, Block.ScoreDestinations dests)
     return $ "score integrated " <> showt source_id <> " to: "
-        <> prettyt (map fst integrated)
+        <> pretty (map fst integrated)
     where
     integrated_from blocks =
         [ (block_id, dests)
@@ -187,7 +187,7 @@ score_integrate_tracks (block_id, track_id) = do
     where
     msg dests = "score integrated " <> showt track_id <> ": "
         <> Text.intercalate ", "
-            [prettyt source_id <> " -> " <> prettyt dest_id
+            [pretty source_id <> " -> " <> pretty dest_id
                 | (source_id, (dest_id, _)) <- dests]
 
 replace :: Eq key => key -> [(key, a)] -> [(key, a)] -> [(key, a)]

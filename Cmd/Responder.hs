@@ -294,7 +294,7 @@ run_responder run_derive state m = do
         <- Monad.State.runStateT m (make_rstate state)
     case val of
         Left err -> do
-            Log.warn (prettyt err)
+            Log.warn (pretty err)
             -- Exception rolls back changes to ui_state and cmd_state.
             return (False, state { state_ui = ui_from, state_cmd = cmd_from })
         Right status -> post_cmd run_derive state ui_from ui_to cmd_to
@@ -464,7 +464,7 @@ run_continue caller cmd = do
     (result, cmd_state) <- run_cmd cmd
     case result of
         Left err -> do
-            liftIO $ Log.error $ caller <> ": " <> prettyt err
+            liftIO $ Log.error $ caller <> ": " <> pretty err
             return Nothing
         Right (status, ui_state) -> do
             when (not_continue status) $ liftIO $

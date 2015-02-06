@@ -272,7 +272,7 @@ overlaps :: [Binding m] -> [[Text]]
 overlaps bindings =
     [map cmd_name grp | grp <- Seq.group_on fst bindings, length grp > 1]
     where
-    cmd_name (kspec, CmdSpec name _) = prettyt kspec <> ": " <> name
+    cmd_name (kspec, CmdSpec name _) = pretty kspec <> ": " <> name
 
 -- | Return the mods currently down, stripping out non-modifier keys and notes,
 -- so that overlapping keys will still match.  Mouse mods are not filtered, so
@@ -325,16 +325,16 @@ mouse_on = maybe Elsewhere on . UiMsg.ctx_track
     on (_, UiMsg.SkeletonDisplay) = OnSkeleton
 
 instance Pretty.Pretty MouseOn where
-    prettyt OnTrack = "track"
-    prettyt OnDivider = "divider"
-    prettyt OnSkeleton = "skeleton"
-    prettyt Elsewhere = "elsewhere"
+    pretty OnTrack = "track"
+    pretty OnDivider = "divider"
+    pretty OnSkeleton = "skeleton"
+    pretty Elsewhere = "elsewhere"
 
 
 -- * pretty printing
 
 instance Pretty.Pretty KeySpec where
-    prettyt (KeySpec mods bindable) =
+    pretty (KeySpec mods bindable) =
         Seq.join2 " " (show_mods mods) (show_bindable True bindable)
         where show_mods = Text.intercalate " + " . map show_mod . Set.toList
 
@@ -348,15 +348,15 @@ show_mod m = case m of
     Cmd.MidiMod chan key -> "midi " <> showt key <> " chan " <> showt chan
 
 instance Pretty.Pretty Bindable where
-    prettyt = show_bindable True
+    pretty = show_bindable True
 
 show_bindable :: Bool -> Bindable -> Text
 show_bindable show_repeatable b = case b of
-    Key is_repeat key -> prettyt key
+    Key is_repeat key -> pretty key
         <> if show_repeatable && is_repeat then " (repeatable)" else ""
     Click button on times -> click_times times <> "click "
-        <> showt button <> " on " <> prettyt on
-    Drag button on -> "drag " <> showt button <> " on " <> prettyt on
+        <> showt button <> " on " <> pretty on
+    Drag button on -> "drag " <> showt button <> " on " <> pretty on
     Note chan key -> "midi " <> showt key <> " channel " <> showt chan
     where
     click_times 0 = ""

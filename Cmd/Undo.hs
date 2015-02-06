@@ -131,7 +131,7 @@ redo = do
 
 hist_name :: Cmd.HistoryEntry -> Text
 hist_name hist = "[" <> Text.intercalate ", " (Cmd.hist_names hist) <> "] "
-    <> prettyt (Cmd.hist_commit hist)
+    <> pretty (Cmd.hist_commit hist)
 
 load_history :: Text
     -> (State.State -> SaveGit.Commit

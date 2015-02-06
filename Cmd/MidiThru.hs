@@ -104,7 +104,7 @@ midi_thru_instrument score_inst input = do
     scale <- Perf.get_scale =<< Selection.track
     patch <- Cmd.get_midi_patch score_inst
     input <- Cmd.require
-        (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
+        (prettys (Scale.scale_id scale) <> " doesn't have " <> prettys input)
         =<< map_scale (Instrument.patch_scale patch) scale
             (Instrument.patch_environ patch) input
 
@@ -146,7 +146,7 @@ map_scale patch_scale scale environ input = case input of
             -- This just means the key isn't in the scale, it happens a lot so
             -- no need to shout about it.
             Right (Left Scale.InvalidInput) -> Cmd.abort
-            Right (Left err) -> throw $ pretty err
+            Right (Left err) -> throw $ prettys err
             Right (Right nn) -> return $ map_patch_scale patch_scale nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
     transposers = Set.toList (Scale.scale_transposers scale)

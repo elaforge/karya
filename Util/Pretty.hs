@@ -7,8 +7,9 @@
 -}
 module Util.Pretty (
     module Util.Format4
-    , Pretty(..), pretty
-    , formatted, formatteds, pprint
+    , Pretty, pretty, format, formatList
+    , prettys
+    , formatted, pprint
     , char
 
     -- * formatting
@@ -53,23 +54,23 @@ defaultWidth = 75
 -- | Format values in an eye-pleasing way.  Unlike Show, this isn't intended
 -- to produce any kind of valid syntax, or even preserve information.
 class Pretty a where
-    {-# MINIMAL prettyt | format #-}
-    prettyt :: a -> Text
-    prettyt = Lazy.toStrict . Format.renderFlat . format
+    {-# MINIMAL pretty | format #-}
+    pretty :: a -> Text
+    pretty = Lazy.toStrict . Format.renderFlat . format
     format :: a -> Doc
-    format = text . prettyt
+    format = text . pretty
     formatList :: [a] -> Doc
     formatList = formattedList '[' ']'
 
-pretty :: Pretty a => a -> String
-pretty = Text.unpack . prettyt
+prettys :: Pretty a => a -> String
+prettys = Text.unpack . pretty
 
 -- | Render a Pretty value to the default width.
 formatted :: Pretty a => a -> Text
 formatted = Lazy.toStrict . render "    " defaultWidth . format
 
-formatteds :: Pretty a => a -> String
-formatteds = Text.unpack . formatted
+-- formatteds :: Pretty a => a -> String
+-- formatteds = Text.unpack . formatted
 
 pprint :: Pretty a => a -> IO ()
 pprint = Text.IO.putStr . formatted
@@ -89,20 +90,20 @@ instance Pretty Char where
     format c = text $ "'" <> Text.singleton c <> "'"
     formatList = format . Text.pack
 
-instance Pretty (a -> b) where prettyt _ = "<function>"
-instance Pretty () where prettyt () = "()"
-instance Pretty Bool where prettyt = showt
-instance Pretty Int where prettyt = showt
-instance Pretty Integer where prettyt = showt
-instance Pretty Word.Word8 where prettyt = showt
-instance Pretty Word.Word16 where prettyt = showt
-instance Pretty Word.Word32 where prettyt = showt
-instance Pretty Word.Word64 where prettyt = showt
-instance Pretty Double where prettyt = showFloat 3
-instance Pretty Float where prettyt = showFloat 3
+instance Pretty (a -> b) where pretty _ = "<function>"
+instance Pretty () where pretty () = "()"
+instance Pretty Bool where pretty = showt
+instance Pretty Int where pretty = showt
+instance Pretty Integer where pretty = showt
+instance Pretty Word.Word8 where pretty = showt
+instance Pretty Word.Word16 where pretty = showt
+instance Pretty Word.Word32 where pretty = showt
+instance Pretty Word.Word64 where pretty = showt
+instance Pretty Double where pretty = showFloat 3
+instance Pretty Float where pretty = showFloat 3
 
 instance (Integral a, Pretty a) => Pretty (Ratio.Ratio a) where
-    prettyt r = prettyt (Ratio.numerator r) <> "/" <> prettyt (Ratio.denominator r)
+    pretty r = pretty (Ratio.numerator r) <> "/" <> pretty (Ratio.denominator r)
 
 instance Pretty a => Pretty (Maybe a) where
     format Nothing = text "Nothing"
@@ -128,7 +129,7 @@ instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f) =>
     format (a, b, c, d, e, f) = formattedList '(' ')'
         [format a, format b, format c, format d, format e, format f]
 
-instance Pretty Time.UTCTime where prettyt = showt
+instance Pretty Time.UTCTime where pretty = showt
 
 -- ** containers
 

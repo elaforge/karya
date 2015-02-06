@@ -249,8 +249,8 @@ data Track = Track !BlockId !TrackNum
     deriving (Eq, Show)
 
 instance Pretty.Pretty Track where
-    prettyt (Track block_id tracknum) =
-        prettyt block_id <> "/" <> showt tracknum
+    pretty (Track block_id tracknum) =
+        pretty block_id <> "/" <> showt tracknum
 
 -- | A position on a track that can be indicated on the UI.  Its Pretty
 -- instance emits a string, which if logged or copy-pasted into the REPL, will
@@ -259,7 +259,7 @@ data Range = Range !(Maybe BlockId) !TrackId !TrackTime !TrackTime
     deriving (Eq, Show)
 
 instance Pretty.Pretty Range where
-    prettyt (Range maybe_block_id track_id start end) = "{s \"" <> addr <> "\"}"
+    pretty (Range maybe_block_id track_id start end) = "{s \"" <> addr <> "\"}"
         where
         addr = Stack.unparse_ui_frame
             (maybe_block_id, Just track_id, Just (start, end))
@@ -274,7 +274,7 @@ data TrackInfo = TrackInfo {
     } deriving (Eq, Show)
 
 instance Pretty.Pretty TrackInfo where
-    prettyt (TrackInfo title track_id tracknum) =
+    pretty (TrackInfo title track_id tracknum) =
         "(" <> Text.unwords
             ["TrackInfo", showt title, showt track_id, showt tracknum]
         <> ")"
@@ -380,7 +380,7 @@ eval state m = case result of
 
 eval_rethrow :: M m => String -> State -> StateId a -> m a
 eval_rethrow msg state =
-    require_right (((msg <> ": ") <>) . pretty) . eval state
+    require_right (((msg <> ": ") <>) . prettys) . eval state
 
 exec :: State -> StateId a -> Either Error State
 exec state m = case result of
@@ -390,7 +390,7 @@ exec state m = case result of
 
 exec_rethrow :: M m => String -> State -> StateId a -> m State
 exec_rethrow msg state =
-    require_right (((msg <> ": ") <>) . pretty) . exec state
+    require_right (((msg <> ": ") <>) . prettys) . exec state
 
 
 -- ** error
@@ -401,9 +401,9 @@ exec_rethrow msg state =
 data Error = Error !SrcPos.SrcPos !String | Abort deriving (Show)
 
 instance Pretty.Pretty Error where
-    prettyt (Error srcpos msg) =
+    pretty (Error srcpos msg) =
         txt (SrcPos.show_srcpos srcpos) <> " " <> txt msg
-    prettyt Abort = "(abort)"
+    pretty Abort = "(abort)"
 
 require :: M m => String -> Maybe a -> m a
 require = require_srcpos Nothing
@@ -857,7 +857,7 @@ get_block_track_at block_id tracknum =
     where
     tracknum_in_range block_id tracknum Nothing = do
         count <- track_count block_id
-        throw $ "track " <> pretty (Track block_id tracknum)
+        throw $ "track " <> prettys (Track block_id tracknum)
             <> " out of range 0--" <> show count
     tracknum_in_range _ _ (Just a) = return a
 
@@ -876,7 +876,7 @@ event_track_at block_id tracknum = do
 get_event_track_at :: M m => BlockId -> TrackNum -> m TrackId
 get_event_track_at block_id tracknum = do
     track <- get_block_track_at block_id tracknum
-    require ("track " <> pretty (Track block_id tracknum)
+    require ("track " <> prettys (Track block_id tracknum)
             <> " not an event track") $
         Block.track_id track
 
@@ -1367,7 +1367,7 @@ modify_ruler ruler_id modify = do
         throw "can't modify no_ruler"
     ruler <- get_ruler ruler_id
     modified <- require_right
-        (untxt . (("modify_ruler " <> prettyt ruler_id) <>)) $ modify ruler
+        (untxt . (("modify_ruler " <> pretty ruler_id) <>)) $ modify ruler
     unsafe_modify $ \st ->
         st { state_rulers = Map.insert ruler_id modified (state_rulers st) }
     update $ Update.CmdRuler ruler_id
@@ -1460,7 +1460,7 @@ validate caller verify = do
 -- a list of warnings.
 verify :: State -> (State, [Text])
 verify state = case run_id state fix_state of
-    Left err -> (state, ["exception: " <> prettyt err])
+    Left err -> (state, ["exception: " <> pretty err])
     Right (errs, state, _) -> (state, errs)
 
 -- | This is like 'verify', but less complete.  It returns Left if it wants
@@ -1474,7 +1474,7 @@ verify state = case run_id state fix_state of
 -- TODO a better approach would be to make sure Sync can't be broken by State.
 quick_verify :: State -> Either String (State, [Text])
 quick_verify state = case run_id state quick_fix of
-    Left err -> Left $ pretty err
+    Left err -> Left $ prettys err
     Right (errs, state, _) -> Right (state, errs)
     where
     quick_fix = do
@@ -1618,7 +1618,7 @@ fix_track_destinations err_msg source_track_ids track_ids d = case d of
     where
     errs invalid = ["integrated " <> err_msg
         <> ": track destination has track ids not in the right block: "
-        <> prettyt dest | dest <- invalid]
+        <> pretty dest | dest <- invalid]
     derive_track_ids (Block.DeriveDestination note controls) =
         fst note : map fst (Map.elems controls)
     score_track_ids (source_id, (dest_id, _)) = (source_id, dest_id)

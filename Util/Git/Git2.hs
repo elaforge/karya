@@ -66,11 +66,11 @@ newtype Tree = Tree G.OID deriving (Eq, Ord, Show)
 newtype Commit = Commit G.OID deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Blob where
-    prettyt (Blob (G.OID oid)) = txt $ Char8.unpack oid
+    pretty (Blob (G.OID oid)) = txt $ Char8.unpack oid
 instance Pretty.Pretty Tree where
-    prettyt (Tree (G.OID oid)) = txt $ Char8.unpack oid
+    pretty (Tree (G.OID oid)) = txt $ Char8.unpack oid
 instance Pretty.Pretty Commit where
-    prettyt (Commit (G.OID oid)) = txt $ Char8.unpack oid
+    pretty (Commit (G.OID oid)) = txt $ Char8.unpack oid
 
 type Repo = FilePath
 -- | Repo-internal path.
@@ -555,8 +555,8 @@ data Modification = Remove FilePath | Add FilePath ByteString
     deriving (Eq, Show)
 
 instance Pretty.Pretty Modification where
-    prettyt (Remove fn) = "rm " <> txt fn
-    prettyt (Add fn bytes) = "add" <> txt fn
+    pretty (Remove fn) = "rm " <> txt fn
+    pretty (Add fn bytes) = "add" <> txt fn
         <> " {" <> showt (Char8.length bytes) <> "}"
         -- <> maybe "/" (\b -> " {" <> showt (Char8.length b) <> "}") bytes
 

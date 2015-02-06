@@ -102,23 +102,23 @@ data MouseState = MouseMove | MouseDrag Types.MouseButton
 data KbdState = KeyDown | KeyRepeat | KeyUp deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty UiMsg where
-    prettyt ui_msg = case ui_msg of
+    pretty ui_msg = case ui_msg of
         UiMsg ctx (MsgEvent mdata) -> case mdata of
             Mouse mstate mods coords clicks is_click -> Text.unwords
-                [ "Mouse:", showt mstate, showt mods, showt coords, prettyt ctx
+                [ "Mouse:", showt mstate, showt mods, showt coords, pretty ctx
                 , "click:", showt is_click, showt clicks
                 ]
             Kbd kstate mods key maybe_char -> Text.unwords
                 [ "Kbd:", showt kstate, showt mods, showt key
                 , maybe "" (\c -> "(" <> Text.singleton c <> ") ") maybe_char
-                    <> prettyt ctx
+                    <> pretty ctx
                 ]
-            AuxMsg msg -> Text.unwords ["Aux:", showt msg, prettyt ctx]
+            AuxMsg msg -> Text.unwords ["Aux:", showt msg, pretty ctx]
             Unhandled x -> "Unhandled: " <> showt x
-        UiMsg ctx msg -> Text.unwords ["Other Event:", showt msg, prettyt ctx]
+        UiMsg ctx msg -> Text.unwords ["Other Event:", showt msg, pretty ctx]
 
 instance Pretty.Pretty Context where
-    prettyt (Context focus track edit_input) = "{" <> contents <> "}"
+    pretty (Context focus track edit_input) = "{" <> contents <> "}"
         where
         contents = Text.unwords $ filter (not . Text.null)
             [ show_maybe "focus" focus
@@ -126,10 +126,10 @@ instance Pretty.Pretty Context where
             , if edit_input then "edit_input" else ""
             ]
         show_track (tnum, track) =
-            "track=" <> showt tnum <> ":" <> prettyt track
+            "track=" <> showt tnum <> ":" <> pretty track
         show_maybe desc = maybe "" (\v -> desc <> "=" <> showt v)
 
 instance Pretty.Pretty Track where
-    prettyt (Track pos) = "track:" <> prettyt pos
-    prettyt Divider = "div"
-    prettyt SkeletonDisplay = "skel"
+    pretty (Track pos) = "track:" <> pretty pos
+    pretty Divider = "div"
+    pretty SkeletonDisplay = "skel"

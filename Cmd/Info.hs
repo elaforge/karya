@@ -176,7 +176,7 @@ show_instrument_info config info = fields
 -- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
 show_addrs :: [Instrument.Addr] -> Text
 show_addrs addrs = semicolon_list
-    [ prettyt wdev <> " "
+    [ pretty wdev <> " "
         <> "[" <> Text.intercalate "," (show_runs (map snd addrs)) <> "]"
     | (wdev, addrs) <- Seq.keyed_group_on fst addrs
     ]

@@ -345,7 +345,7 @@ dump_diff track_dir state =
     mk u@(Update.Block block_id _)
         | Just block <- Map.lookup block_id (State.state_blocks state) =
             Right $ Git.Add (id_to_path block_id) (Serialize.encode block)
-        | otherwise = Left $ "block_id: " <> prettyt u
+        | otherwise = Left $ "block_id: " <> pretty u
     mk u@(Update.Track track_id update)
         | Just track <- Map.lookup track_id (State.state_tracks state) =
             case update of
@@ -353,11 +353,11 @@ dump_diff track_dir state =
                     Right $ dump_events state track_id start end
                 _ -> Right $
                     Git.Add (id_to_path track_id) (Serialize.encode track)
-        | otherwise = Left $ "track_id: " <> prettyt u
+        | otherwise = Left $ "track_id: " <> pretty u
     mk (Update.Ruler ruler_id)
         | Just ruler <- Map.lookup ruler_id (State.state_rulers state) =
             Right $ Git.Add (id_to_path ruler_id) (Serialize.encode ruler)
-        | otherwise = Left $ "ruler_id: " <> prettyt ruler_id
+        | otherwise = Left $ "ruler_id: " <> pretty ruler_id
     mk (Update.State update) = case update of
         Update.Config config ->
             Right $ Git.Add "config" (Serialize.encode config)

@@ -78,7 +78,7 @@ meter_durations = scanl (+) 0 . map m_duration
 
 modify_meter :: (LabeledMeter -> LabeledMeter) -> ModifyRuler
 modify_meter modify ruler = case flip Map.lookup meter_types =<< mtype of
-    Nothing -> Left $ "unknown meter type: " <> prettyt mtype
+    Nothing -> Left $ "unknown meter type: " <> pretty mtype
     Just renumber -> Right $ Ruler.set_marklist Ruler.meter mtype new ruler
         where
         new = labeled_marklist $ renumber $ modify $ marklist_labeled mlist

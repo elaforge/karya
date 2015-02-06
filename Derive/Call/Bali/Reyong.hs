@@ -99,7 +99,7 @@ realize_pattern repeat pattern =
     $ Sig.call (Gangsa.dur_arg) $ \dur -> Sub.inverting $ \args -> do
         (parse_pitch, show_pitch, _) <- Util.get_pitch_functions
         pitch <- Util.get_parsed_pitch parse_pitch =<< Args.real_start args
-        positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
+        positions <- Derive.require ("no pattern for pitch: " <> prettys pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
         mconcatMap (realize show_pitch (Args.range args) dur)
             (zip [1..] positions)
@@ -129,7 +129,7 @@ realize_note :: (Pitch.Pitch -> Maybe Pitch.Note) -> Voice -> ScoreTime
 realize_note show_pitch voice start (pitch, attrs) =
     Util.add_attrs attrs $
     Derive.with_val Environ.voice voice $ do
-        note <- Derive.require ("unshowable pitch: " ++ Pretty.pretty pitch)
+        note <- Derive.require ("unshowable pitch: " <> prettys pitch)
             (show_pitch pitch)
         Util.pitched_note =<< Util.eval_note start note
 
@@ -223,7 +223,7 @@ type NoteTable = Map.Map Char Chord
 
 -- | Pentatonic pitch degree.
 data Degree = I | O | E | U | A deriving (Eq, Ord, Enum, Show)
-instance Pretty.Pretty Degree where prettyt = showt
+instance Pretty.Pretty Degree where pretty = showt
 
 to_pc :: Degree -> Pitch.PitchClass
 to_pc = fromEnum
@@ -236,7 +236,7 @@ parse_note :: NoteTable -> Char -> Note
 parse_note table = extract . head . parse_absolute table . (:[])
     where
     extract [x] = x
-    extract xs = error $ "parse_note: expected only one: " <> pretty xs
+    extract xs = error $ "parse_note: expected only one: " <> prettys xs
 
 norot_patterns :: Map.Map Pitch.PitchClass [[Chord]]
 norot_patterns = Map.fromList $ zip [0..] $ map parse by_degree
@@ -334,7 +334,7 @@ undamped :: Score.Attributes
 undamped = Score.attr "undamped"
 
 data Hand = L | R deriving (Eq, Show)
-instance Pretty.Pretty Hand where prettyt = showt
+instance Pretty.Pretty Hand where pretty = showt
 
 other :: Hand -> Hand
 other L = R
@@ -361,7 +361,7 @@ reyong_damp damp_attr dyn dur =
 damped_note :: Score.Attributes -> Signal.Y -> Score.Event -> Derive.NoteDeriver
 damped_note attr dyn event =
     case Score.pitch_at (Score.event_start event) event of
-        Nothing -> Derive.throw $ "no pitch on " <> pretty event
+        Nothing -> Derive.throw $ "no pitch on " <> prettys event
         Just pitch -> do
             end <- Derive.score (Score.event_end event)
             Util.add_attrs attr $ Util.multiply_dynamic dyn $

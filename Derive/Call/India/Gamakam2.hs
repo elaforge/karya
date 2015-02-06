@@ -188,7 +188,7 @@ sequence_doc = "Sequence several pitch calls. Calls are divided into\
     <> " and " <> ShowVal.doc_val fade_out_call <> " calls: they have 0\
     \ duration, but are overlaid with their neighbors. This is so you can fade\
     \ in or out without having to flatten the pitch."
-    where doc v = "`" <> prettyt v <> "`"
+    where doc v = "`" <> pretty v <> "`"
 
 with_sequence :: Derive.PassedArgs Score.Event -> Derive.Deriver a
     -> Derive.Deriver a
@@ -610,7 +610,7 @@ resolve_pitches kam_args (pitch1, pitch2) = do
             _ -> True
     when (two_pitches && control1 /= control2) $ Derive.throw $
         "pitch1 and pitch2 signals should have the same type: "
-        <> pretty control1 <> " /= " <> pretty control2
+        <> prettys control1 <> " /= " <> prettys control2
     return ((pitch1, pitch2), control1)
 
 kampita_pitch_args :: KampitaArgs

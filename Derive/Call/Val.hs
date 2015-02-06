@@ -117,9 +117,9 @@ c_env = val_call "env" mempty
     check name deflt (Just val) =
         case TrackLang.val_types_match deflt val of
             Nothing -> return val
-            Just expected -> Derive.throw $ "env " <> pretty name
-                <> " expected " <> pretty expected
-                <> " but got " <> pretty (TrackLang.infer_type_of False val)
+            Just expected -> Derive.throw $ "env " <> prettys name
+                <> " expected " <> prettys expected
+                <> " but got " <> prettys (TrackLang.infer_type_of False val)
 
 c_timestep :: Derive.ValCall
 c_timestep = val_call "timestep" mempty
@@ -205,7 +205,7 @@ make_pitch (Right name_pitch) pc accs
                 <$> Pitches.pitch_note (PitchSignal.coerce pitch)
                 <*> Derive.get_scale (PitchSignal.pitch_scale_id pitch)
         env <- Internal.get_environ
-        either (Derive.throw . pretty) return $
+        either (Derive.throw . prettys) return $
             Scale.scale_read scale env note
 
 c_pitch_control :: Derive.ValCall

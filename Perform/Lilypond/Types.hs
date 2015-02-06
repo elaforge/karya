@@ -143,7 +143,7 @@ inst_name = Text.dropWhile (=='/') . Text.dropWhile (/='/') . Score.inst_name
 data Duration = D1 | D2 | D4 | D8 | D16 | D32 | D64 | D128
     deriving (Enum, Bounded, Eq, Ord, Read, Show)
 
-instance Pretty.Pretty Duration where prettyt = showt
+instance Pretty.Pretty Duration where pretty = showt
 instance ToLily Duration where to_lily = txt . drop 1 . show
 
 read_duration :: String -> Maybe Duration
@@ -225,7 +225,7 @@ time_to_note_durs t
 newtype Time = Time Int deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
 
 instance Pretty.Pretty Time where
-    prettyt t = Pretty.showFloat 10
+    pretty t = Pretty.showFloat 10
         (fromIntegral t / fromIntegral time_per_whole) <> "t"
 
 time_per_whole :: Time

@@ -684,7 +684,7 @@ run state m = case result of
     where result = Identity.runIdentity (State.run state m)
 
 log_with_stack :: Log.Msg -> String
-log_with_stack msg = pretty (Log.msg_stack msg) <> ": " <> Log.msg_string msg
+log_with_stack msg = prettys (Log.msg_stack msg) <> ": " <> Log.msg_string msg
 
 -- | Pull the collects out of the cache, pairing them up with the cache keys.
 r_cache_collect :: Derive.Result -> [(String, Maybe Derive.Collect)]

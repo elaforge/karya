@@ -286,8 +286,8 @@ checked_slice_notes include_end start end tracks = case maybe_err of
 check_greater_than :: ScoreTime -> [[TrackTree.EventsNode]] -> Maybe String
 check_greater_than start tracks
     | null events = Nothing
-    | otherwise = Just $ "zero duration slice has note events >" <> pretty start
-        <> ": " <> Seq.join ", " (map pretty events)
+    | otherwise = Just $ "zero duration slice has note events >"
+        <> prettys start <> ": " <> Seq.join ", " (map prettys events)
     where events = mapMaybe (find_greater_than start) tracks
 
 find_greater_than :: ScoreTime -> [TrackTree.EventsNode] -> Maybe Event.Event
@@ -375,9 +375,9 @@ find_overlapping exclude_start start = msum . map (find has_overlap)
 
 show_overlap :: (Maybe TrackId, (TrackTime, TrackTime)) -> String
 show_overlap (Nothing, (start, end)) =
-    pretty start <> "--" <> pretty end
+    prettys start <> "--" <> prettys end
 show_overlap (Just track_id, (start, end)) =
-    pretty $ State.Range Nothing track_id start end
+    prettys $ State.Range Nothing track_id start end
 
 -- * orphans
 

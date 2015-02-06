@@ -113,7 +113,7 @@ data Control = Control Score.Control | Pitch Pitch.ScaleId
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Control where
-    prettyt = control_to_title
+    pretty = control_to_title
 
 control_to_title :: Control -> Text
 control_to_title control = ParseTitle.unparse_control $ case control of

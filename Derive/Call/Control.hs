@@ -146,7 +146,7 @@ set_absolute val pos = do
     where
     set Nothing _ = return val
     set (Just control) Nothing =
-        Derive.throw $ "merge not set for " <> pretty control
+        Derive.throw $ "merge not set for " <> prettys control
     set (Just control) (Just merge) =
         maybe (return val) (Derive.require_right id . invert_merge merge val)
             =<< Derive.untyped_control_at (Score.control control) pos

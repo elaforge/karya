@@ -162,7 +162,7 @@ with_imported empty_ok module_ deriver = do
     lib <- case extract_module module_ lib of
         Library (CallMaps [] []) (CallMaps [] []) (CallMaps [] []) []
             | not empty_ok -> -- Likely the module name was typoed.
-                throw $ "no calls in the imported module: " <> pretty module_
+                throw $ "no calls in the imported module: " <> prettys module_
         extracted -> return extracted
     with_scopes (import_library lib) deriver
 
@@ -174,8 +174,8 @@ with_imported_symbols module_ syms deriver = do
         Internal.get_constant state_library
     let missing = syms `Set.difference` Set.fromList (library_symbols lib)
     unless (Set.null missing) $
-        throw $ "symbols not in module " <> pretty module_ <> ": "
-            <> pretty (Set.toList missing)
+        throw $ "symbols not in module " <> prettys module_ <> ": "
+            <> prettys (Set.toList missing)
     with_scopes (import_library lib) deriver
 
 -- | Filter out any calls that aren't in the given modules.
@@ -254,7 +254,7 @@ merge_lookups lookups = LookupMap calls : [p | p@(LookupPattern {}) <- lookups]
 -- | Lookup a scale_id or throw.
 get_scale :: Pitch.ScaleId -> Deriver Scale
 get_scale scale_id =
-    maybe (throw $ "get_scale: unknown " <> pretty scale_id) return
+    maybe (throw $ "get_scale: unknown " <> prettys scale_id) return
     =<< lookup_scale scale_id
 
 lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
@@ -263,8 +263,8 @@ lookup_scale scale_id = do
     env <- Internal.get_environ
     case lookup env (LookupScale lookup) scale_id of
         Nothing -> return Nothing
-        Just (Left err) -> throw $ "lookup " <> pretty scale_id <> ": "
-            <> pretty err
+        Just (Left err) -> throw $ "lookup " <> prettys scale_id <> ": "
+            <> prettys err
         Just (Right scale) -> return $ Just scale
 
 
@@ -283,7 +283,7 @@ is_val_set name =
 get_val :: TrackLang.Typecheck a => TrackLang.ValName -> Deriver a
 get_val name = do
     val <- lookup_val name
-    maybe (throw $ "environ val not found: " ++ pretty name) return val
+    maybe (throw $ "environ val not found: " <> prettys name) return val
 
 is_lilypond_derive :: Deriver Bool
 is_lilypond_derive = Maybe.isJust <$> lookup_lilypond_config
@@ -341,7 +341,7 @@ scale_to_lookup scale convert =
     LookupPattern name (scale_call_doc scale) $ \call_id ->
         return $ convert <$> scale_note_to_call scale (to_note call_id)
     where
-    name = prettyt (scale_id scale) <> ": " <> scale_pattern scale
+    name = pretty (scale_id scale) <> ": " <> scale_pattern scale
     to_note (TrackLang.Symbol sym) = Pitch.Note sym
 
 -- | Convert a val call to a pitch call.  This is used so scales can export
@@ -660,7 +660,7 @@ resolve_pitch pos pitch = do
 -- can't transpose any further once you have a NoteNumber.
 nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
 nn_at pos = justm (pitch_at pos) $ \pitch ->
-    logged_pitch_nn ("nn " <> prettyt pos) =<< resolve_pitch pos pitch
+    logged_pitch_nn ("nn " <> pretty pos) =<< resolve_pitch pos pitch
 
 get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.Signal)
 get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
@@ -669,7 +669,7 @@ named_nn_at :: Score.Control -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do
     controls <- controls_at pos
     justm (named_pitch_at name pos) $ \pitch -> do
-        logged_pitch_nn ("named_nn " <> prettyt (name, pos)) $
+        logged_pitch_nn ("named_nn " <> pretty (name, pos)) $
             PitchSignal.apply controls pitch
 
 -- | Version of 'PitchSignal.pitch_nn' that logs errors.

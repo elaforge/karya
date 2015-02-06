@@ -85,7 +85,7 @@ convert_event quarter event = do
         | not is_ly_global && not has_prepend && not has_append = throw $
             "zero duration event must have one of "
             <> Text.intercalate ", " (map ShowVal.show_val code_attrs)
-            <> "; had " <> prettyt (Score.event_environ event)
+            <> "; had " <> pretty (Score.event_environ event)
         | has_prepend && has_append = throw
             "zero duration event with both prepend and append is ambiguous"
         | otherwise = return ()
@@ -115,12 +115,12 @@ pitch_to_lily pitch
         show_note note
     | otherwise = do
         nn <- first showt $ PitchSignal.pitch_nn pitch
-        note <- require ("nn out of range: " <> prettyt nn) $
+        note <- require ("nn out of range: " <> pretty nn) $
             Twelve.nn_to_note nn
         show_note note
     where
     show_note note = do
-        pitch <- require ("unparseable note: " <> prettyt note) $
+        pitch <- require ("unparseable note: " <> pretty note) $
             Twelve.read_absolute_pitch note
         Types.show_pitch pitch
     require msg Nothing = Left msg

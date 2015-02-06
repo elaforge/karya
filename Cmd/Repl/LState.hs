@@ -243,7 +243,7 @@ load_as_ maybe_ns open_views fn = do
         unless open_views $
             mapM_ State.destroy_view =<< State.all_view_ids
     state <- State.get
-    merged <- Cmd.require_right (("merge state: "<>) . pretty) $
+    merged <- Cmd.require_right (("merge state: "<>) . prettys) $
         Transform.merge_states state new_state
     State.put merged
 

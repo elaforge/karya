@@ -163,11 +163,11 @@ process strings attack_interpolate release_interpolate
         (attack_time, delay_time, release_time)
         state@(State sounding_string prev) event = do
     pitch <- Derive.require "no pitch" $ Score.pitch_at start event
-    nn <- Derive.require_right pretty $
+    nn <- Derive.require_right prettys $
         PitchSignal.pitch_nn $ Score.apply_controls event start pitch
     case find_string nn strings of
         Nothing -> do
-            Log.warn $ prettyt nn <> " below lowest string: " <> prettyt strings
+            Log.warn $ pretty nn <> " below lowest string: " <> pretty strings
             return (state, [])
         Just string -> do
             new_event <- Derive.require "missing pitches" (emit pitch string)

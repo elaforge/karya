@@ -88,7 +88,7 @@ msg_string :: Msg -> String
 msg_string = Text.unpack . msg_text
 
 instance Pretty.Pretty Msg where
-    prettyt = format_msg
+    pretty = format_msg
 
 -- | Pure code can't give a date, but making msg_date Maybe makes it awkward
 -- for everyone who processes Msgs, so cheat with this.
@@ -214,8 +214,7 @@ trace_logs :: [Msg] -> a -> a
 trace_logs logs val
     | null logs = val
     | otherwise = Debug.trace_str
-        (untxt $ Text.stripEnd $ Text.unlines $
-            "\tlogged:" : map format_msg logs)
+        (Text.stripEnd $ Text.unlines $ "\tlogged:" : map format_msg logs)
         val
 
 -- * LogT
@@ -244,7 +243,7 @@ instance LogMonad IO where
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> Text
 format_msg (Msg _date caller prio stack text) =
-    log_msg <> maybe "" ((" "<>) . prettyt) stack
+    log_msg <> maybe "" ((" "<>) . pretty) stack
     where
     prio_stars Timer = "-"
     prio_stars prio = replicate (fromEnum prio) '*'

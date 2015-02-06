@@ -38,7 +38,7 @@ parse_block = Parse.parse_expr
 data Type = TempoTrack | ControlTrack | PitchTrack | NoteTrack
     deriving (Eq, Show)
 
-instance Pretty.Pretty Type where prettyt = showt
+instance Pretty.Pretty Type where pretty = showt
 
 track_type :: Text -> Type
 track_type title
@@ -59,7 +59,7 @@ data ControlType =
     deriving (Show)
 
 instance Pretty.Pretty ControlType where
-    prettyt = unparse_control
+    pretty = unparse_control
 
 parse_control :: Text -> Either String ControlType
 parse_control = fmap fst . parse_control_expr

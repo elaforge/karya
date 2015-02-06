@@ -132,7 +132,7 @@ make_track duration notes aksharas =
 
 note_to_call :: Note -> TrackLang.CallId
 note_to_call (Note t v) =
-    TrackLang.Symbol $ maybe "" prettyt v <> maybe "" prettyt t
+    TrackLang.Symbol $ maybe "" pretty v <> maybe "" pretty t
 
 -- * implementation
 
@@ -142,11 +142,11 @@ data Valantalai = Ki | Ta | Nam | Din | Chapu | Dim deriving (Eq, Show)
 -- | 'note_to_call' uses these, so they should match up with the calls in the
 -- instrument.
 instance Pretty.Pretty Thoppi where
-    prettyt x = case x of
+    pretty x = case x of
         Tha -> "+"
         Thom -> "o"
 instance Pretty.Pretty Valantalai where
-    prettyt x = case x of
+    pretty x = case x of
         Ki -> "k"
         Ta -> "t"
         Nam -> "n"
@@ -158,8 +158,8 @@ data Note = Note (Maybe Thoppi) (Maybe Valantalai)
     deriving (Eq, Show)
 
 instance Pretty.Pretty Note where
-    prettyt (Note Nothing Nothing) = "-"
-    prettyt (Note thoppi val) = maybe "" prettyt thoppi <> maybe "" prettyt val
+    pretty (Note Nothing Nothing) = "-"
+    pretty (Note thoppi val) = maybe "" pretty thoppi <> maybe "" pretty val
 
 type Pattern = [Note]
 

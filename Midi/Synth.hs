@@ -98,7 +98,7 @@ run state msgs = postproc $ run_state (mapM_ msg1 (Seq.zip_prev msgs))
     msg1 (prev, wmsg) = flip Reader.runReaderT wmsg $ do
         let prev_t = maybe 0 Midi.wmsg_ts prev
         when (Midi.wmsg_ts wmsg < prev_t) $
-            warn $ "timestamp less than previous: " <> prettyt prev_t
+            warn $ "timestamp less than previous: " <> pretty prev_t
         run_msg wmsg
 
 postproc :: State -> State
@@ -170,7 +170,7 @@ note_on addr ts key vel = do
     active <- State.gets $ Map.findWithDefault [] addr . state_active
     let sounding = filter (key_sounding key) active
     unless (null sounding) $
-        warn $ "sounding notes: " <> prettyt sounding
+        warn $ "sounding notes: " <> pretty sounding
     channel <- State.gets $ MState.get_channel addr . state_channel
     pb_range <- State.gets $ get_pb_range addr
     modify_notes addr (make_note pb_range channel addr ts key vel :)
@@ -197,7 +197,7 @@ note_off addr ts key = do
         [] -> warn "no sounding notes"
         n : ns -> do
             unless (null ns) $
-                warn $ "multiple sounding notes: " <> prettyt sounding
+                warn $ "multiple sounding notes: " <> pretty sounding
             modify_notes addr $ const $
                 n { note_duration = Just ts } : rest
 
@@ -248,30 +248,30 @@ warn msg = do
 -- | Format synth state in an easier to read way.
 pretty_state :: State -> Text
 pretty_state (State _chan active notes warns _) = Text.intercalate "\n" $ concat
-    [ ["active:"], map prettyt (concat (Map.elems active))
+    [ ["active:"], map pretty (concat (Map.elems active))
     , ["", "warns:"], map pretty_warn warns
-    , ["", "notes:"], map prettyt notes
+    , ["", "notes:"], map pretty notes
     ]
 
 instance Pretty.Pretty dur => Pretty.Pretty (NoteT dur) where
-    prettyt (Note start dur _key vel pitch pitches controls (dev, chan)) =
+    pretty (Note start dur _key vel pitch pitches controls (dev, chan)) =
         Text.unwords $ filter (not . Text.null)
-            [ addr_s, prettyt (round_cents pitch)
-            , prettyt start <> "--" <> prettyt dur <> ":"
+            [ addr_s, pretty (round_cents pitch)
+            , pretty start <> "--" <> pretty dur <> ":"
             , "vel:" <> txt (Num.hex vel)
-            , if null pitches then "" else " p:" <> prettyt pitches
+            , if null pitches then "" else " p:" <> pretty pitches
             , if Map.null controls then ""
                 else " c:" <> pretty_controls controls
             ]
-        where addr_s = prettyt dev <> ":" <> showt chan
+        where addr_s = pretty dev <> ":" <> showt chan
 
 pretty_controls :: ControlMap -> Text
 pretty_controls controls = Text.intercalate "\n\t"
-    [showt cont <> ":" <> prettyt vals | (cont, vals) <- Map.assocs controls]
+    [showt cont <> ":" <> pretty vals | (cont, vals) <- Map.assocs controls]
 
 pretty_warn :: (Midi.WriteMessage, Text) -> Text
 pretty_warn (Midi.WriteMessage dev ts (Midi.ChannelMessage chan msg), warn) =
-    prettyt ts <> " " <> prettyt dev <> ":" <> showt chan
+    pretty ts <> " " <> pretty dev <> ":" <> showt chan
         <> " " <> showt msg <> ": " <> warn
 pretty_warn (Midi.WriteMessage dev ts msg, warn) =
-    prettyt ts <> " " <> prettyt dev <> ":" <> showt msg <> ": " <> warn
+    pretty ts <> " " <> pretty dev <> ":" <> showt msg <> ": " <> warn

@@ -111,7 +111,7 @@ group_relative_keys = mapMaybe fmt . Seq.group_eq_on snd
     fmt_names = Text.intercalate ", " . map Pitch.key_text
 
 show_ratios :: Ratios -> Text
-show_ratios = Text.intercalate ", " . map prettyt . Vector.toList
+show_ratios = Text.intercalate ", " . map pretty . Vector.toList
 
 just_doc :: Text
 just_doc =

@@ -17,7 +17,7 @@ module Global (
     , firstJust, firstJusts
     , errorIO
     -- * pretty
-    , pretty, prettyt
+    , pretty, prettys
 
     -- * lens
     , Lens, (#)
@@ -47,7 +47,7 @@ import Data.Monoid (mempty, mconcat, (<>))
 import qualified Data.Text as Text
 
 import Util.Lens
-import Util.Pretty (pretty, prettyt)
+import Util.Pretty (pretty, prettys)
 import Util.Control
 
 

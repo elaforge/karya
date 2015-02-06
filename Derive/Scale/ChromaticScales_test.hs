@@ -15,7 +15,7 @@ import Global
 
 
 test_input_to_note = do
-    let f smap key = either prettyt Pitch.note_text <$>
+    let f smap key = either pretty Pitch.note_text <$>
             ChromaticScales.input_to_note smap (ScaleTest.key_environ key)
         abs = Twelve.absolute_scale_map
         rel = Twelve.relative_scale_map

@@ -89,7 +89,7 @@ run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
 run_ :: State.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
 run_ ui_state m = case Derive.run derive_state m of
-        (Left err, _, _logs) -> Left (pretty err)
+        (Left err, _, _logs) -> Left (prettys err)
         (Right val, state, logs) -> Right (val, state, logs)
     where
     derive_state = Derive.initial_state
