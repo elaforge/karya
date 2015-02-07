@@ -1,0 +1,29 @@
+-- Copyright 2015 Evan Laforge
+-- This program is distributed under the terms of the GNU General Public
+-- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
+-- | Utilities to debug derivers.  These are intended for temporary use via
+-- "Util.Debug".  They're not in a test because I wind up putting them in
+-- call definitions, and non-test code can't link test modules.
+module Derive.DDebug where
+import qualified Util.Seq as Seq
+import qualified Derive.Call.Sub as Sub
+import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
+import qualified Derive.Score as Score
+
+import qualified Perform.Pitch as Pitch
+import Global
+
+
+apply_sub :: Functor f => (a -> f b) -> Sub.GenericEvent a
+    -> f (Sub.GenericEvent b)
+apply_sub f (Sub.Event s d n) = Sub.Event s d <$> f n
+
+showr :: Maybe Derive.NoteDeriver -> Derive.Deriver Text
+showr = maybe (return "-") showd
+
+showd :: Derive.NoteDeriver -> Derive.Deriver Text
+showd d = do
+    es <- LEvent.events_of <$> d
+    return $ maybe "?" Pitch.note_text $ Score.initial_note =<< Seq.head es

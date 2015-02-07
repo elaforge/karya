@@ -32,6 +32,7 @@ import qualified Cmd.Simple as Simple
 
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Block as Call.Block
+import Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
