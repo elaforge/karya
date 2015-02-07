@@ -66,8 +66,7 @@ repl session repl_dirs msg = do
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
     ns <- State.get_namespace
-    text <- Cmd.require_right (("expand_macros: "<>) . txt) $
-        expand_macros ns text
+    text <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns text
     Log.debug $ "repl input: " <> showt text
     local_modules <- fmap concat (mapM get_local_modules repl_dirs)
 
@@ -85,7 +84,7 @@ repl session repl_dirs msg = do
         Log.warn $ "caught exception from socket write: " <> showt exc
 
 -- | Replace \@some-id with @(make_id ns \"some-id\")@
-expand_macros :: Id.Namespace -> Text -> Either String Text
+expand_macros :: Id.Namespace -> Text -> Either Text Text
 expand_macros namespace expr = Parse.expand_macros replace expr
     where
     replace ident = "(make_id " <> showt (Id.un_namespace namespace) <> " "

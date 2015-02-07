@@ -30,7 +30,7 @@ import Global
 -- * blocks
 
 -- | A block title is a normal expression, applied as a transform.
-parse_block :: Text -> Either String TrackLang.Expr
+parse_block :: Text -> Either Text TrackLang.Expr
 parse_block = Parse.parse_expr
 
 -- * tracks
@@ -61,16 +61,16 @@ data ControlType =
 instance Pretty.Pretty ControlType where
     pretty = unparse_control
 
-parse_control :: Text -> Either String ControlType
+parse_control :: Text -> Either Text ControlType
 parse_control = fmap fst . parse_control_expr
 
-parse_control_expr :: Text -> Either String (ControlType, [TrackLang.Call])
+parse_control_expr :: Text -> Either Text (ControlType, [TrackLang.Call])
 parse_control_expr title = do
     (vals, expr) <- Parse.parse_control_title title
     ctrack <- parse_control_vals vals
     return (ctrack, expr)
 
-parse_control_vals :: [TrackLang.Val] -> Either String ControlType
+parse_control_vals :: [TrackLang.Val] -> Either Text ControlType
 parse_control_vals vals = case vals of
     --  *twelve -> default pitch track in twelve
     [scale -> Just scale_id] -> Right $ Pitch scale_id Nothing
@@ -105,7 +105,7 @@ parse_control_vals vals = case vals of
     [TrackLang.VSymbol call, TrackLang.VControl
             (TrackLang.LiteralControl control)] | control == Controls.null ->
         Right $ Control (Just call) (Score.untyped Controls.null)
-    _ -> Left $ untxt $ "control track must be one of [\"tempo\", control,\
+    _ -> Left $ "control track must be one of [\"tempo\", control,\
         \ op control, %, op %, *scale, *scale #name, op #, op #name],\
         \ got: " <> Text.unwords (map TrackLang.show_val vals)
     where
@@ -115,7 +115,7 @@ parse_control_vals vals = case vals of
             _ -> Nothing
     scale _ = Nothing
     control_of sym = maybe
-        (Left $ untxt $ "control should look like 'name:[cdsr]': "
+        (Left $ "control should look like 'name:[cdsr]': "
             <> TrackLang.show_val sym)
         Right (parse_control_type sym)
 
@@ -191,7 +191,7 @@ is_tempo_track title = case parse_control title of
 
 -- | Parse a note track like @>inst@ as @note-track >inst@.  Other than
 -- this, note track titles are normal expressions.
-parse_note :: Text -> Either String TrackLang.Expr
+parse_note :: Text -> Either Text TrackLang.Expr
 parse_note = Parse.parse_expr . (prefix <>)
     where prefix = TrackLang.unsym note_track_symbol <> " "
 

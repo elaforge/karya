@@ -154,7 +154,7 @@ d_block block_id = do
     transform <- if Text.all Char.isSpace title
         then return id
         else case ParseTitle.parse_block title of
-            Left err -> Derive.throw $ "block title: " <> txt err
+            Left err -> Derive.throw $ "block title: " <> err
             Right expr ->
                 return $ Eval.eval_transformers info (NonEmpty.toList expr)
                 where info = Derive.dummy_call_info 0 1 "block title"

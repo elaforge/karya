@@ -121,12 +121,11 @@ control_to_title control = ParseTitle.unparse_control $ case control of
     Pitch scale_id -> ParseTitle.Pitch scale_id Nothing
 
 title_to_control :: Text -> Either Text Control
-title_to_control title =
-    first txt (ParseTitle.parse_control title) >>= \x -> case x of
-        ParseTitle.Control Nothing (Score.Typed Score.Untyped c) ->
-            return $ Control c
-        ParseTitle.Pitch scale_id Nothing -> return $ Pitch scale_id
-        _ -> Left $ "complicated controls unsupported: " <> title
+title_to_control title = ParseTitle.parse_control title >>= \x -> case x of
+    ParseTitle.Control Nothing (Score.Typed Score.Untyped c) ->
+        return $ Control c
+    ParseTitle.Pitch scale_id Nothing -> return $ Pitch scale_id
+    _ -> Left $ "complicated controls unsupported: " <> title
 
 -- | Put the pitch tracks next to the note, the rest go in alphabetical order.
 sorted_controls :: Controls -> [(Control, Events.Events)]

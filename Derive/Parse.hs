@@ -51,26 +51,26 @@ import qualified Perform.Signal as Signal
 import Global
 
 
-parse_expr :: Text -> Either String TrackLang.Expr
+parse_expr :: Text -> Either Text TrackLang.Expr
 parse_expr = parse (p_pipeline True)
 
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
 parse_control_title :: Text
-    -> Either String ([TrackLang.Val], [TrackLang.Call])
+    -> Either Text ([TrackLang.Val], [TrackLang.Call])
 parse_control_title = ParseText.parse p_control_title
 
 -- | Parse a single Val.
-parse_val :: Text -> Either String TrackLang.Val
+parse_val :: Text -> Either Text TrackLang.Val
 parse_val = ParseText.parse (lexeme p_val)
 
 -- | Parse attributes in the form +a+b.
-parse_attrs :: String -> Either String Score.Attributes
+parse_attrs :: String -> Either Text Score.Attributes
 parse_attrs = parse p_attributes . Text.pack
 
 -- | Parse a number or hex code, without a type suffix.
-parse_num :: Text -> Either String Signal.Y
+parse_num :: Text -> Either Text Signal.Y
 parse_num = ParseText.parse (lexeme (p_hex <|> p_untyped_num))
 
 -- | Extract only the call part of the text.
@@ -80,7 +80,7 @@ parse_call text = case parse_expr text of
         TrackLang.Call (TrackLang.Symbol call) _ -> Just call
     _ -> Nothing
 
-parse :: A.Parser a -> Text -> Either String a
+parse :: A.Parser a -> Text -> Either Text a
 parse p = ParseText.parse (spaces >> p)
 
 -- * lex
@@ -128,7 +128,7 @@ p_lex1 = (str <|> parens <|> word) >> spaces
 
 -- | Map the identifiers after a \"\@\" through the given function.  Used
 -- to implement ID macros for the REPL.
-expand_macros :: (Text -> Text) -> Text -> Either String Text
+expand_macros :: (Text -> Text) -> Text -> Either Text Text
 expand_macros replacement text
     | not $ "@" `Text.isInfixOf` text = Right text
     | otherwise = ParseText.parse (p_macros replacement) text

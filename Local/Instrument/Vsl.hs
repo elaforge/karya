@@ -45,7 +45,7 @@ find_attrs inst with_attrs =
     map ShowVal.show_val $ filter (`Score.attrs_contain` search)
         (patch_attrs patch)
     where
-    search = either error id (Parse.parse_attrs with_attrs)
+    search = either (error . untxt) id (Parse.parse_attrs with_attrs)
     patch = fromMaybe (error $ "patch not found: " ++ show inst) $
         List.find ((==inst) . Instrument.patch_name) (map fst patches)
 

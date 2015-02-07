@@ -134,7 +134,7 @@ module_ :: Module.Module
 module_ = "test-module"
 
 expr :: Text -> TrackLang.Expr
-expr = either (error . ("CallTest.expr: " ++)) id . Parse.parse_expr
+expr = either (error . ("CallTest.expr: " ++) . untxt) id . Parse.parse_expr
 
 val :: Text -> TrackLang.Val
-val = either (error . ("CallTest.val: " ++)) id . Parse.parse_val
+val = either (error . ("CallTest.val: " ++) . untxt) id . Parse.parse_val

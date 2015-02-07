@@ -78,7 +78,7 @@ with_title :: TrackTree.EventsTree -> ScoreTime -> Text -> Derive.NoteDeriver
 with_title subs end title deriver
     | Text.all Char.isSpace title = deriver
     | otherwise = do
-        track_expr <- Derive.require_right (("track title: "<>) . txt) $
+        track_expr <- Derive.require_right ("track title: "<>) $
             ParseTitle.parse_note title
         Eval.eval_transformers cinfo (NonEmpty.toList track_expr) deriver
     where

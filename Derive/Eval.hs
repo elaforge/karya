@@ -110,7 +110,7 @@ eval_transform_expr name expr_str deriver
     | Text.all Char.isSpace expr_str = deriver
     | otherwise = do
         expr <- case Parse.parse_expr expr_str of
-            Left err -> Derive.throw $ name <> ": " <> txt err
+            Left err -> Derive.throw $ name <> ": " <> err
             Right expr -> return expr
         let cinfo = Derive.dummy_call_info 0 1 name
         eval_transformers cinfo (NonEmpty.toList expr) deriver
@@ -253,7 +253,7 @@ eval_one_at collect start dur expr = eval_expr collect cinfo expr
 eval_event :: Derive.Callable d => Event.Event
     -> Derive.Deriver (Either Text [LEvent.LEvent d])
 eval_event event = case Parse.parse_expr (Event.event_text event) of
-    Left err -> return $ Left (txt err)
+    Left err -> return $ Left err
     Right expr -> Right <$>
         -- TODO eval it separately to catch any exception?
         eval_one_at False (Event.start event) (Event.duration event) expr
@@ -293,7 +293,7 @@ reapply cinfo = eval_expr False cinfo
 reapply_string :: Derive.Callable d => Derive.CallInfo d -> Text
     -> Derive.LogsDeriver d
 reapply_string cinfo s = case Parse.parse_expr s of
-    Left err -> Derive.throw $ "parse error: " <> txt err
+    Left err -> Derive.throw $ "parse error: " <> err
     Right expr -> reapply cinfo expr
 
 reapply_call :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Symbol

@@ -443,7 +443,8 @@ match_dumps desc dumps attrs = allM match (Seq.zip_padded dumps attrs)
     pass = success . ((desc ++ ": ") ++)
 
 parse_dump :: String -> Dump.Dump
-parse_dump = either (error . ("failed to parse dump: "++)) id . Dump.parse
+parse_dump = either (error . ("failed to parse dump: "++) . untxt) id
+    . Dump.parse
 
 -- * util
 

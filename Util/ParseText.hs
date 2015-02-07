@@ -19,7 +19,6 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.Read as Text.Read
 
-import qualified Util.Seq as Seq
 import Global
 
 
@@ -27,40 +26,39 @@ type Parser a = A.Parser a
 
 -- | Parse all the text, and annotate the error with the char number.  For
 -- single-line input.
-parse :: Parser a -> Text -> Either String a
+parse :: Parser a -> Text -> Either Text a
 parse p text = case parse_all p text of
     Right val -> Right val
     Left (rest, msg) -> Left $
-        "parse error: char " <> maybe "?" show ((+1) <$> col) <> " of "
-        <> show_expr col text <> ": " <> msg
+        "parse error: char " <> maybe "?" showt ((+1) <$> col) <> " of "
+            <> show_expr col text <> ": " <> msg
         where col = infer_column text rest
 
 -- | Parse all of the text, and annotate the error with line number and column.
 parse_lines :: Int -> Parser a -> Text -> Either Text a
 parse_lines start_line p text = case parse_all p text of
     Right val -> Right val
-    Left (rest, msg) -> Left $ err <> ": " <> Text.pack msg <> " in line "
-        <> maybe "" (\(line, _, column) ->
-            Text.pack (show_expr (Just column) line)) loc
+    Left (rest, msg) -> Left $ err <> ": " <> msg <> " in line "
+        <> maybe "" (\(line, _, column) -> show_expr (Just column) line) loc
         where
         loc = infer_line text rest
         err = case loc of
             Nothing -> ""
             Just (_, lineno, column) ->
                 showt (start_line + lineno) <> ":" <> showt (column + 1)
-    where showt = Text.pack . show
 
-show_expr :: Maybe Int -> Text -> String
-show_expr Nothing expr = "\"" <> Text.unpack expr <> "\""
+show_expr :: Maybe Int -> Text -> Text
+show_expr Nothing expr = "\"" <> expr <> "\""
 show_expr (Just i) expr = "\"" <> pre <> "»" <> post <> "\""
-    where (pre, post) = splitAt i (Text.unpack expr)
+    where (pre, post) = (Text.take i expr, Text.drop i expr)
 
-parse_all :: A.Parser a -> Text -> Either (Text, String) a
+parse_all :: A.Parser a -> Text -> Either (Text, Text) a
 parse_all p text = go (A.parse p text)
     where
-    go (A.Fail rest contexts msg) = Left (rest, msg <> c)
+    go (A.Fail rest contexts msg) = Left (rest, txt msg <> c)
         where
-        c = if null contexts then "" else " [" <> Seq.join ", " contexts <> "]"
+        c = if null contexts then ""
+            else " [" <> Text.intercalate ", " (map txt contexts) <> "]"
     go (A.Partial cont) = go (cont "")
     go (A.Done rest val)
         | Text.null rest = Right val
@@ -92,7 +90,7 @@ maybe_parse :: Parser a -> Text -> Maybe a
 maybe_parse parser text = either (const Nothing) Just (parse_all parser text)
 
 maybe_parse_string :: Parser a -> String -> Maybe a
-maybe_parse_string parser = maybe_parse parser . Text.pack
+maybe_parse_string parser = maybe_parse parser . txt
 
 float :: Text -> Maybe Double
 float = maybe_parse p_float

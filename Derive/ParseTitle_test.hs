@@ -5,10 +5,12 @@
 module Derive.ParseTitle_test where
 import Util.Test
 import qualified Derive.ParseTitle as ParseTitle
+import Global
 
 
 test_parse_unparse_control = do
-    let f = fmap ParseTitle.unparse_control . ParseTitle.parse_control
+    let f = first untxt . fmap ParseTitle.unparse_control
+            . ParseTitle.parse_control
     equal (f "*") (Right "*")
     equal (f "*scale") (Right "*scale")
     equal (f "*scale #") (Right "*scale")

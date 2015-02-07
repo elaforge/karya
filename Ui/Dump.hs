@@ -27,7 +27,7 @@ type Dump = [(String, String)]
 newtype Tree = Tree [(String, Val)] deriving (Show)
 data Val = Val String | Sub Tree deriving (Show)
 
-parse :: String -> Either String Dump
+parse :: String -> Either Text Dump
 parse = fmap flatten . ParseText.parse p_tree . Text.pack
 
 flatten :: Tree -> Dump

@@ -364,7 +364,7 @@ derive_event :: Derive.Callable d => TrackInfo d -> Maybe d
 derive_event tinfo prev_val prev event next
     | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return []
     | otherwise = case Parse.parse_expr text of
-        Left err -> Log.warn (txt err) >> return []
+        Left err -> Log.warn err >> return []
         Right expr ->
             with_event_region tinfo event $ Eval.eval_toplevel cinfo expr
     where

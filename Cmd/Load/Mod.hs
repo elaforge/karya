@@ -260,7 +260,7 @@ block_notes = concatMap row_notes . block_rows
     block_rows (Block rows) = rows
     row_notes (Row notes) = notes
 
-parse :: FilePath -> IO (Either String [Block])
+parse :: FilePath -> IO (Either Text [Block])
 parse fn = ParseText.parse p_blocks <$> Text.IO.readFile fn
 
 p_blocks = A.many p_block

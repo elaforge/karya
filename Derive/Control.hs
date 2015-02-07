@@ -72,7 +72,7 @@ d_control_track :: TrackTree.EventsNode
 d_control_track (Tree.Node track _) deriver = do
     let title = TrackTree.track_title track
     if Text.all Char.isSpace title then deriver else do
-        (ctype, expr) <- either (\err -> Derive.throw $ "track title: " <> txt err)
+        (ctype, expr) <- either (\err -> Derive.throw $ "track title: " <> err)
             return (ParseTitle.parse_control_expr title)
         eval_track track expr ctype deriver
 
