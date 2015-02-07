@@ -68,9 +68,6 @@ prettys = Text.unpack . pretty
 formatted :: Pretty a => a -> Text
 formatted = Lazy.toStrict . render "    " defaultWidth . format
 
--- formatteds :: Pretty a => a -> String
--- formatteds = Text.unpack . formatted
-
 pprint :: Pretty a => a -> IO ()
 pprint = Text.IO.putStr . formatted
 
@@ -178,7 +175,7 @@ instance (Pretty a, Pretty b) => Pretty (Seq.Paired a b) where
 
 -- | A list of strings, but without quotes around them.
 textList :: [Text] -> Doc
-textList = formattedList '[' ']' . map text
+textList = delimitedList False '[' ']' . map text
 
 formattedList :: Pretty a => Char -> Char -> [a] -> Doc
 formattedList left right = delimitedList False left right . map format
@@ -204,8 +201,7 @@ delimitedList spacedDelimiter leftc rightc xs = case xs of
     [x] -> left <-> x <-> right
     x : xs -> Format.shortForm
         (left <-> x <> mconcat (map (","<+>) xs) <-> right)
-        ((left <+> x) </> Format.wrap (map (","<+>) xs) <> "\n" <> right
-            <> "\n")
+        ((left <+> x) </> Format.wrap (map (","<+>) xs) <> "\n" <> right)
     where
     (<->) = if spacedDelimiter then (<+>) else (<>)
     left = text $ Text.singleton leftc
