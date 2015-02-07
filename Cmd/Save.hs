@@ -96,18 +96,18 @@ load_template fn = do
 -- what to load.  Saves can be either a plain saved state, or a directory
 -- containing either a git repo @save.git@, or a state @save.state@.  If
 -- both are present, the git repo is preferred.
-infer_save_type :: FilePath -> IO (Either String Cmd.SaveFile)
+infer_save_type :: FilePath -> IO (Either Text Cmd.SaveFile)
 infer_save_type path = fmap prepend $ cond
     [ (return $ SaveGit.is_git path, ok $ Cmd.SaveRepo path)
     , (is_dir path, cond
         [ (is_dir git_fn, ok $ Cmd.SaveRepo git_fn)
         , (is_file state_fn, ok $ Cmd.SaveState state_fn)
-        ] $ return $ Left $ "directory contains neither " <> git_fn <> " nor "
-            <> state_fn)
+        ] $ return $ Left $ "directory contains neither " <> txt git_fn
+            <> " nor " <> txt state_fn)
     , (is_file path, ok $ Cmd.SaveState path)
     ] $ return $ Left "file not found"
     where
-    prepend (Left err) = Left $ path <> ": " <> err
+    prepend (Left err) = Left $ txt path <> ": " <> err
     prepend (Right val) = Right val
     ok = return . Right
     git_fn = path </> default_git
@@ -129,9 +129,9 @@ expand_filename = fmap untxt . TextUtil.mapDelimitedM False '`' expand . txt
     where
     expand text = case lookup text filename_macros of
         Just get -> get
-        Nothing -> Cmd.throw $ "unknown macro " <> show text
+        Nothing -> Cmd.throw $ "unknown macro " <> showt text
             <> ", known macros are: "
-            <> untxt (Text.intercalate ", " (map fst filename_macros))
+            <> Text.intercalate ", " (map fst filename_macros)
 
 filename_macros :: [(Text, Cmd.CmdT IO Text)]
 filename_macros =
@@ -188,14 +188,14 @@ load_state fname = do
 
 read_state :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
 read_state fname = do
-    let mkmsg = (("load " <> fname <> ": ") <>)
+    let mkmsg err = "load " <> txt fname <> ": " <> err
     Log.notice $ "read state from " <> showt fname
     state <- Cmd.require (mkmsg "doesn't exist")
         =<< Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
     return (state, SaveState fname)
 
 -- | Lower level 'read_state'.
-read_state_ :: FilePath -> IO (Either String (Maybe State.State))
+read_state_ :: FilePath -> IO (Either Text (Maybe State.State))
 read_state_ = Serialize.unserialize state_magic
 
 -- ** path
@@ -231,7 +231,7 @@ save_git_as ::
 save_git_as repo = do
     repo <- expand_filename repo
     cmd_state <- Cmd.get
-    let rethrow = Cmd.require_right (("save git " <> repo <> ": ") <>)
+    let rethrow = Cmd.require_right (("save git " <> txt repo <> ": ") <>)
     commit <- case Cmd.hist_last_commit $ Cmd.state_history_config cmd_state of
         Just commit -> return commit
         Nothing -> do
@@ -251,7 +251,7 @@ read_git :: FilePath -> Maybe SaveGit.Commit
     -> Cmd.CmdT IO (State.State, SaveFile)
 read_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
-        (("load git " <> repo <> ": ") <>)
+        (("load git " <> txt repo <> ": ") <>)
         =<< liftIO (SaveGit.load repo maybe_commit)
     Log.notice $ "read from " <> showt repo <> ", at " <> pretty commit
         <> " names: " <> showt names
@@ -264,8 +264,9 @@ revert maybe_ref = do
         =<< Cmd.gets Cmd.state_save_file
     case save_file of
         Cmd.SaveState fn -> do
-            whenJust maybe_ref $ Cmd.throw
-                .  ("can't revert to a commit when the save file isn't git: "++)
+            whenJust maybe_ref $ \ref -> Cmd.throw $
+                "can't revert to a commit when the save file isn't git: "
+                <> txt ref
             load fn
         Cmd.SaveRepo repo -> revert_git repo
     Log.notice $ "revert to " <> showt save_file
@@ -274,15 +275,14 @@ revert maybe_ref = do
         save <- case maybe_ref of
             Nothing -> fmap fst $ Cmd.require "no last save"
                 =<< liftIO (SaveGit.read_last_save repo Nothing)
-            Just ref -> Cmd.require ("unparseable SavePoint: " ++ show ref)
+            Just ref -> Cmd.require ("unparseable SavePoint: " <> showt ref)
                 (SaveGit.ref_to_save ref)
-        commit <- Cmd.require ("save ref not found: " ++ show save)
+        commit <- Cmd.require ("save ref not found: " <> showt save)
             =<< rethrow "revert" (SaveGit.read_save_ref repo save)
         load_git repo (Just commit)
 
-rethrow :: String -> IO a -> Cmd.CmdT IO a
-rethrow caller io =
-    Cmd.require_right id =<< liftIO (SaveGit.try caller io)
+rethrow :: Text -> IO a -> Cmd.CmdT IO a
+rethrow caller io = Cmd.require_right id =<< liftIO (SaveGit.try caller io)
 
 -- ** path
 
@@ -315,7 +315,7 @@ load_midi_config :: FilePath -> Cmd.CmdT IO ()
 load_midi_config fname = do
     Log.notice $ "load midi config from " <> showt fname
     (config, aliases) <- Cmd.require_right
-        (("unserializing midi config " ++ show fname ++ ": ") ++)
+        (\err -> "unserializing midi config " <> showt fname <> ": " <> err)
         =<< liftIO (Serialize.unserialize_text fname)
     State.modify_config $ (State.midi #= config) . (State.aliases #= aliases)
 

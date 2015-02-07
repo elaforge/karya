@@ -69,7 +69,7 @@ is_git = (".git" `List.isSuffixOf`)
 -- * save point
 
 -- | Add a new save point tag to the given commit, unless it already has one.
-set_save_tag :: Git.Repo -> Git.Commit -> IO (Either String SavePoint)
+set_save_tag :: Git.Repo -> Git.Commit -> IO (Either Text SavePoint)
 set_save_tag repo commit = try "set_save_tag" $ do
     Git.gc repo -- Might as well clean things up at this point.
     read_last_save repo (Just commit) >>= \x -> case x of
@@ -138,7 +138,7 @@ save_to_ref (SavePoint versions) =
 
 -- | Checkpoint the given SaveHistory.  If it has no previous commit, create
 -- a new repo.
-checkpoint :: Git.Repo -> SaveHistory -> IO (Either String Git.Commit)
+checkpoint :: Git.Repo -> SaveHistory -> IO (Either Text Git.Commit)
 checkpoint repo (SaveHistory state Nothing _ names) =
     try "save" $ save repo state names
 checkpoint repo (SaveHistory state (Just commit) updates names) =
@@ -217,7 +217,7 @@ score_to_hex = pad . flip Numeric.showHex "" . Serialize.encode_double
 -- * load
 
 load :: Git.Repo -> Maybe Git.Commit
-    -> IO (Either String (State.State, Git.Commit, [Text]))
+    -> IO (Either Text (State.State, Git.Commit, [Text]))
     -- ^ (state, commit, name of the cmd this is a checkpoint of)
 load repo maybe_commit = try_e "load" $ do
     -- TODO have to handle both compact and expanded tracks
@@ -233,7 +233,7 @@ load repo maybe_commit = try_e "load" $ do
 
 -- | Try to go get the previous history entry.
 load_previous_history :: Git.Repo -> State.State -> Git.Commit
-    -> IO (Either String (Maybe LoadHistory))
+    -> IO (Either Text (Maybe LoadHistory))
 load_previous_history repo state commit = try_e "load_previous_history" $ do
     commit_data <- Git.read_commit repo commit
     case Seq.head (Git.commit_parents commit_data) of
@@ -242,7 +242,7 @@ load_previous_history repo state commit = try_e "load_previous_history" $ do
 
 -- | Try to a commits that has this one as a parent.
 load_next_history :: Git.Repo -> State.State -> Git.Commit
-    -> IO (Either String (Maybe LoadHistory))
+    -> IO (Either Text (Maybe LoadHistory))
 load_next_history repo state commit = try_e "load_next_history" $ do
     -- This won't work if I loaded something off-head.  In that case, I need
     -- the checkpoint I started from so I can start from there instead of HEAD.
@@ -265,7 +265,7 @@ load_next_history repo state commit = try_e "load_next_history" $ do
 -- history commit will set the HEAD to this branch, and the old HEAD will only
 -- be preserved if it had a ref.
 load_history :: Git.Repo -> State.State -> Git.Commit -> Git.Commit
-    -> IO (Either String (Maybe LoadHistory))
+    -> IO (Either Text (Maybe LoadHistory))
 load_history repo state from_commit to_commit = do
     names <- parse_names . Git.commit_text
         =<< Git.read_commit repo to_commit
@@ -276,7 +276,7 @@ load_history repo state from_commit to_commit = do
             (LoadHistory new_state to_commit cmd_updates names)
 
 load_from :: Git.Repo -> Git.Commit -> Maybe Git.Commit -> State.State
-    -> IO (Either String (State.State, [Update.CmdUpdate]))
+    -> IO (Either Text (State.State, [Update.CmdUpdate]))
 load_from repo commit_from maybe_commit_to state = do
     commit_to <- default_head repo maybe_commit_to
     mods <- Git.diff_commits repo commit_from commit_to
@@ -308,7 +308,7 @@ views_magic = Cmd.Serialize.Magic 'v' 'i' 'e' 'w'
 save_views :: Git.Repo -> Map.Map ViewId Block.View -> IO ()
 save_views repo = Cmd.Serialize.serialize views_magic (repo </> "views")
 
-load_views :: Git.Repo -> IO (Either String (Map.Map ViewId Block.View))
+load_views :: Git.Repo -> IO (Either Text (Map.Map ViewId Block.View))
 load_views repo = fmap (fromMaybe mempty) <$>
     Cmd.Serialize.unserialize views_magic (repo </> "views")
 
@@ -316,7 +316,7 @@ dump_views :: Git.Repo -> IO ()
 dump_views fn = do
     views <- fmap (fromMaybe mempty) <$>
         Cmd.Serialize.unserialize views_magic fn
-    Pretty.pprint (views :: Either String (Map.Map ViewId Block.View))
+    Pretty.pprint (views :: Either Text (Map.Map ViewId Block.View))
 
 -- * dump / undump
 
@@ -374,7 +374,7 @@ dump_diff track_dir state =
         Update.DestroyRuler ruler_id ->
             Right $ Git.Remove (id_to_path ruler_id)
 
-undump :: Git.Dir -> Either String State.State
+undump :: Git.Dir -> Either Text State.State
 undump dir = do
     blocks <- undump_map Id.BlockId =<< get_dir "blocks"
     tracks <- undump_map Id.TrackId =<< get_dir "tracks"
@@ -384,36 +384,36 @@ undump dir = do
     where
     get_dir name = case Map.lookup name dir of
         Nothing -> return Map.empty
-        Just (Git.File _) -> Left $ "expected dir but got file: " ++ show name
+        Just (Git.File _) -> Left $ "expected dir but got file: " <> showt name
         Just (Git.Dir dir) -> return dir
     get_file name = case Map.lookup name dir of
-        Nothing -> Left $ "file not found: " ++ show name
-        Just (Git.Dir _) -> Left $ "expected file but got dir: " ++ show name
+        Nothing -> Left $ "file not found: " <> showt name
+        Just (Git.Dir _) -> Left $ "expected file but got dir: " <> showt name
         Just (Git.File bytes) -> return bytes
 
 undump_map :: (Serialize.Serialize a, Ord id) =>
     (Id.Id -> id) -> Map.Map Git.FileName Git.File
-    -> Either String (Map.Map id a)
+    -> Either Text (Map.Map id a)
 undump_map mkid dir =
     Map.fromList . concat <$> mapM dir_subs (Map.toAscList dir)
     where
     dir_subs (name, Git.File _) =
-        Left $ "expected dir but got file: " ++ show name
+        Left $ "expected dir but got file: " <> showt name
     dir_subs (name, Git.Dir subs) = mapM (undump_file name) (Map.toList subs)
     undump_file _ (name, Git.Dir _) =
-        Left $ "expected file but got dir: " ++ show name
+        Left $ "expected file but got dir: " <> showt name
     undump_file ns (name, Git.File bytes) =
-        (,) (path_to_id mkid ns name) <$> decode name bytes
+        (,) (path_to_id mkid ns name) <$> decode (txt name) bytes
 
 undump_diff :: State.State -> [Git.Modification]
-    -> Either String (State.State, [Update.CmdUpdate])
+    -> Either Text (State.State, [Update.CmdUpdate])
 undump_diff state = foldM apply (state, [])
     where
     apply (state, updates) (Git.Remove path) = case split path of
         ["blocks", ns, name] -> delete ns name Id.BlockId State.blocks
         ["tracks", ns, name] -> delete ns name Id.TrackId State.tracks
         ["rulers", ns, name] -> delete ns name Id.RulerId State.rulers
-        _ -> Left $ "unknown file deleted: " ++ show path
+        _ -> Left $ "unknown file deleted: " <> showt path
         where
         delete ns name mkid lens = do
             let ident = path_to_id mkid ns name
@@ -435,13 +435,13 @@ undump_diff state = foldM apply (state, [])
             let rid = path_to_id Id.RulerId ns name
             return (state_to, Update.CmdRuler rid : updates)
         ["config"] -> do
-            val <- decode path bytes
+            val <- decode (txt path) bytes
             return ((State.config #= val) state, updates)
-        _ -> Left $ "unknown file modified: " ++ show path
+        _ -> Left $ "unknown file modified: " <> showt path
         where
         add ns name mkid lens = do
             let ident = path_to_id mkid ns name
-            val <- decode path bytes
+            val <- decode (txt path) bytes
             return ((lens %= Map.insert ident val) state, updates)
     split = FilePath.splitDirectories
 
@@ -481,31 +481,31 @@ catch io = do
         Left (Git.GitException _) -> Nothing
         Right val -> Just val
 
-try :: String -> IO a -> IO (Either String a)
+try :: Text -> IO a -> IO (Either Text a)
 try caller io = do
     result <- Exception.try io
     return $ case result of
-        Left (Git.GitException err) -> Left $ caller ++ ": " ++ err
+        Left (Git.GitException err) -> Left $ caller <> ": " <> txt err
         Right val -> Right val
 
-try_e :: String -> IO (Either String a) -> IO (Either String a)
+try_e :: Text -> IO (Either Text a) -> IO (Either Text a)
 try_e caller io = do
     result <- Exception.try io
     return $ case result of
-        Left (Git.GitException err) -> Left $ caller ++ ": " ++ err
-        Right (Left err) -> Left $ caller ++ ": " ++ err
+        Left (Git.GitException err) -> Left $ caller <> ": " <> txt err
+        Right (Left err) -> Left $ caller <> ": " <> err
         Right (Right val) -> Right val
 
-delete_key :: (Show k, Ord k) => k -> Map.Map k a -> Either String (Map.Map k a)
+delete_key :: (Show k, Ord k) => k -> Map.Map k a -> Either Text (Map.Map k a)
 delete_key k m
     | Map.member k m = Right $ Map.delete k m
-    | otherwise = Left $ "deleted key " ++ show k ++ " not present: "
-        ++ show (Map.keys m)
+    | otherwise = Left $ "deleted key " <> showt k <> " not present: "
+        <> showt (Map.keys m)
 
-decode :: (Serialize.Serialize a) => String -> ByteString -> Either String a
-decode msg = with_msg msg . Serialize.decode
+decode :: Serialize.Serialize a => Text -> ByteString -> Either Text a
+decode msg = with_msg msg . first txt . Serialize.decode
 
 -- | Annotate a failable computation.
-with_msg :: String -> Either String a -> Either String a
-with_msg msg (Left err) = Left $ msg ++ ": " ++ err
+with_msg :: Text -> Either Text a -> Either Text a
+with_msg msg (Left err) = Left $ msg <> ": " <> err
 with_msg _ (Right val) = Right val

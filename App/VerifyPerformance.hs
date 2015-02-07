@@ -79,12 +79,13 @@ main = do
         putStr (GetOpt.usageInfo msg options)
         Process.exit 1
 
-type Error a = Error.ErrorT String IO a
+type Error a = Error.ErrorT Text IO a
 
 run :: Error Int -> IO Int
-run = either (\err -> putStrLn err >> return 1) return <=< Error.runErrorT
+run = either (\err -> Text.IO.putStrLn err >> return 1) return
+    <=< Error.runErrorT
 
-require_right :: IO (Either String a) -> Error.ErrorT String IO a
+require_right :: IO (Either Text a) -> Error.ErrorT Text IO a
 require_right io = either Error.throwError return =<< liftIO io
 
 -- * implementation
@@ -110,7 +111,7 @@ save fname = do
             liftIO $ Text.IO.writeFile out (State.perf_performance perf)
             return True
     if midi || ly then return 0
-        else Error.throwError $ fname <> ": no midi or ly performance"
+        else Error.throwError $ txt fname <> ": no midi or ly performance"
 
 -- | Perform to MIDI and write to disk.
 perform :: Cmd.Config -> FilePath -> Error Int
@@ -156,8 +157,7 @@ verify_midi fname cmd_state state block_id performance = do
             liftIO $ do
                 Text.IO.writeFile (base ++ ".expected") $ Text.unlines expected
                 Text.IO.writeFile (base ++ ".got") $ Text.unlines got
-            Error.throwError $
-                untxt err <> "wrote " <> base <> ".{expected,got}"
+            Error.throwError $ err <> "wrote " <> txt base <> ".{expected,got}"
     where base = basename fname
 
 perform_block :: FilePath -> Cmd.State -> State.State -> BlockId
@@ -178,7 +178,7 @@ verify_lilypond fname cmd_state state block_id expected = do
         DeriveSaved.timed_lilypond fname state cmd_state block_id
     liftIO $ mapM_ Log.write logs
     case result of
-        Left err -> Error.throwError $ untxt $ "error deriving: " <> err
+        Left err -> Error.throwError $ "error deriving: " <> err
         Right got -> case DiffPerformance.diff_lilypond expected got of
             Nothing -> do
                 liftIO $ putStrLn "ok!"
@@ -190,7 +190,7 @@ verify_lilypond fname cmd_state state block_id expected = do
                         State.perf_performance expected
                     Text.IO.writeFile (base ++ ".got.ly") got
                     Text.IO.putStrLn err
-                Error.throwError $ "wrote " <> base <> ".{expected,got}.ly"
+                Error.throwError $ "wrote " <> txt base <> ".{expected,got}.ly"
 
 -- * util
 
@@ -205,7 +205,7 @@ make_cmd_state :: Derive.Library -> Cmd.Config -> Cmd.State
 make_cmd_state library cmd_config =
     DeriveSaved.add_library library $ Cmd.initial_state cmd_config
 
-get_root :: State.State -> Either String BlockId
+get_root :: State.State -> Either Text BlockId
 get_root state = maybe (Left "no root block") Right $
     State.config#State.root #$ state
 

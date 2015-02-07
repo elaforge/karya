@@ -118,18 +118,18 @@ save_midi = do
 
 get_midi_performance :: BlockId -> Cmd.CmdL State.MidiPerformance
 get_midi_performance block_id =
-    Cmd.require ("saved performance for " ++ show block_id)
+    Cmd.require ("saved performance for " <> showt block_id)
         =<< State.get_config
             (State.meta#State.midi_performances # Lens.map block_id #$)
 
 -- | This assumes the current dir is in the darcs repo.
-get_current_patch :: IO (Either String Text)
+get_current_patch :: IO (Either Text Text)
 get_current_patch = do
     (exit, stdout, stderr) <- Process.readProcessWithExitCode "darcs"
         ["changes", "--last=1"] ""
     return $ case exit of
-        Exit.ExitFailure n -> Left $ "darcs failed with " <> show n
-            <> ": " <> stderr
+        Exit.ExitFailure n -> Left $ "darcs failed with " <> showt n
+            <> ": " <> txt stderr
         Exit.ExitSuccess -> Right $ Text.strip $ txt stdout
 
 -- | Compare the current root block performance against the saved one.
@@ -183,7 +183,7 @@ lilypond_performance block_id = do
     config <- State.config#State.lilypond <#> State.get
     let (result, logs) = Cmd.Lilypond.extract_movements config "title" events
     mapM_ Log.write logs
-    Text.Lazy.toStrict <$> Cmd.require_right untxt result
+    Text.Lazy.toStrict <$> Cmd.require_right id result
 
 
 -- * transform
@@ -243,7 +243,7 @@ load_as_ maybe_ns open_views fn = do
         unless open_views $
             mapM_ State.destroy_view =<< State.all_view_ids
     state <- State.get
-    merged <- Cmd.require_right (("merge state: "<>) . prettys) $
+    merged <- Cmd.require_right (("merge state: "<>) . pretty) $
         Transform.merge_states state new_state
     State.put merged
 

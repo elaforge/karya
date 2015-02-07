@@ -177,8 +177,8 @@ cmd_rewind = move False
 move :: Cmd.M m => Bool -> m ()
 move forward = do
     step_state <- Cmd.abort_unless =<< get
-    let msg = "can't " ++ (if forward then "advance" else "rewind")
-            ++ " for step play"
+    let msg = "can't " <> (if forward then "advance" else "rewind")
+            <> " for step play"
     (view_id, prev_state, pos, state) <- Cmd.require msg
         =<< zip_state step_state forward
     block_id <- State.block_id_of view_id

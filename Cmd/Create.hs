@@ -378,7 +378,7 @@ insert_branch_from block_id source = do
     tree <- TrackTree.track_tree_of block_id
     case Tree.find_with_parents ((==source) . State.track_tracknum) tree of
         Nothing -> Cmd.throw $ "selected track doesn't exist: "
-            ++ show (block_id, source)
+            <> showt (block_id, source)
         Just (track, parents)
             -- If there's a parent, find it's right most child.
             | Tree.Node parent siblings : _ <- parents -> do
@@ -490,7 +490,7 @@ named_track block_id ruler_id tracknum name track = do
     ident <- State.read_id (Id.ident_name block_id <> "." <> name)
     all_tracks <- State.gets State.state_tracks
     when (Id.TrackId ident `Map.member` all_tracks) $
-        State.throw $ "track " ++ show ident ++ " already exists"
+        State.throw $ "track " <> showt ident <> " already exists"
     tid <- State.create_track ident track
     State.insert_track block_id tracknum
         (Block.track (Block.TId tid ruler_id) Config.track_width)
@@ -511,7 +511,7 @@ destroy_selected_tracks = do
 -- delete the underlying track.  Rulers are never deleted automatically.
 destroy_track :: State.M m => BlockId -> TrackNum -> m ()
 destroy_track block_id tracknum = do
-    tracklike <- State.require ("invalid tracknum: " ++ show tracknum)
+    tracklike <- State.require ("invalid tracknum: " <> showt tracknum)
         =<< State.track_at block_id tracknum
     State.remove_track block_id tracknum
     whenJust (Block.track_id_of tracklike) $ \track_id ->
@@ -598,9 +598,9 @@ ids_for ns parent code =
     [Id.id ns (dotted parent <> code <> showt n) | n <- [1..]]
     where dotted s = if Text.null s then "" else s <> "."
 
-require_id :: State.M m => String -> Maybe a -> m a
+require_id :: State.M m => Text -> Maybe a -> m a
 require_id msg =
-    maybe (State.throw $ "somehow can't find ID for " ++ msg) return
+    maybe (State.throw $ "somehow can't find ID for " <> msg) return
 
 -- | Find a place to fit the given rect.  This is like a tiny window manager.
 find_rect :: Maybe Rect.Rect -> (Int, Int) -> [Rect.Rect] -> (Int, Int)

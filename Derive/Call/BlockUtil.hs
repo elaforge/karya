@@ -71,7 +71,7 @@ control_deriver :: BlockId -> State.StateId Derive.ControlDeriver
 control_deriver block_id = do
     (tree, block_end) <- get_tree block_id
     case check_control_tree block_end tree of
-        Left err -> State.throw $ "control block skeleton malformed: " ++ err
+        Left err -> State.throw $ "control block skeleton malformed: " <> err
         Right tree -> return $ Derive.with_val Environ.block_end block_end $
             derive_control_tree block_end tree
 
@@ -82,20 +82,20 @@ capture_null_control = "capture-null-control"
 -- | Ensure the tree meets the requirements documented by 'control_deriver'
 -- and append the fake note track if it does.
 check_control_tree :: ScoreTime -> TrackTree.EventsTree
-    -> Either String TrackTree.EventsTree
+    -> Either Text TrackTree.EventsTree
 check_control_tree block_end forest = case forest of
     [] -> Left "empty block"
     [Tree.Node track []]
         | TrackTree.track_title track == "%" ->
             Right [Tree.Node track [Tree.Node capture_track []]]
         | otherwise -> Left $ "skeleton must end in % track, ends with "
-            ++ show (TrackTree.track_title track)
+            <> showt (TrackTree.track_title track)
     [Tree.Node track subs] -> do
         subs <- check_control_tree block_end subs
         return [Tree.Node track subs]
     tracks -> Left $ "skeleton must have only a single branch, "
-        ++ "but there are multiple children: "
-        ++ show (map (TrackTree.track_title . Tree.rootLabel) tracks)
+        <> "but there are multiple children: "
+        <> showt (map (TrackTree.track_title . Tree.rootLabel) tracks)
     where
     events = Events.singleton $
         Event.event 0 block_end (TrackLang.unsym capture_null_control)

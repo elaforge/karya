@@ -58,7 +58,7 @@ data TrackType =
 
 get_track_type :: State.M m => BlockId -> TrackNum -> m Track
 get_track_type block_id tracknum = State.require
-    ("get_track_type: bad tracknum: " ++ show (block_id, tracknum))
+    ("get_track_type: bad tracknum: " <> showt (block_id, tracknum))
         =<< lookup_track_type block_id tracknum
 
 lookup_track_type :: State.M m => BlockId -> TrackNum -> m (Maybe Track)
@@ -128,7 +128,8 @@ note_of_pitch block_id tracknum = do
 get_instrument_of :: Cmd.M m => BlockId -> TrackNum -> m Score.Instrument
 get_instrument_of block_id tracknum =
     State.require ("get_instrument_of expected a note track: "
-        ++ show (block_id, tracknum)) =<< lookup_instrument_of block_id tracknum
+            <> showt (block_id, tracknum))
+        =<< lookup_instrument_of block_id tracknum
 
 lookup_instrument_of :: Cmd.M m => BlockId -> TrackNum
     -> m (Maybe Score.Instrument)

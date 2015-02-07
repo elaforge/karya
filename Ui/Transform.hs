@@ -128,8 +128,8 @@ safe_map_keys :: (State.M m, Ord k, Show k) =>
     String -> (k -> k) -> Map.Map k v -> m (Map.Map k v)
 safe_map_keys name f fm0
     | Map.size fm1 == Map.size fm0 = return fm1
-    | otherwise = State.throw $ "keys collided in " ++ show name ++ ": "
-        ++ show (Map.keys (Map.difference fm0 fm1))
+    | otherwise = State.throw $ "keys collided in " <> showt name <> ": "
+        <> showt (Map.keys (Map.difference fm0 fm1))
     where fm1 = Map.mapKeys f fm0
 
 -- * namespace
@@ -186,8 +186,8 @@ safe_union :: (State.M m, Ord k, Show k) => String
     -> Map.Map k a -> Map.Map k a -> m (Map.Map k a)
 safe_union name fm0 fm1
     | Map.null overlapping = return fm
-    | otherwise = State.throw $
-        "keys collided in " ++ show name ++ ": " ++ show (Map.keys overlapping)
+    | otherwise = State.throw $ "keys collided in " <> showt name <> ": "
+        <> showt (Map.keys overlapping)
     where (fm, overlapping) = Map.unique_union fm0 fm1
 
 

@@ -128,7 +128,7 @@ expr_to_midi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> TrackLang.Expr
 expr_to_midi block_id track_id pos expr = do
     (result, logs) <- Perf.derive_expr block_id track_id pos expr
     mapM_ Log.write $ Log.add_prefix "CUtil.expr_to_midi" logs
-    events <- Cmd.require_right ("CUtil.expr_to_midi: "<>) result
+    events <- Cmd.require_right (("CUtil.expr_to_midi: "<>) . txt) result
     (msgs, logs) <- Perf.perform events
     mapM_ Log.write logs
     return msgs

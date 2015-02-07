@@ -26,7 +26,8 @@ import Global
 
 load_mod :: FilePath -> Cmd.CmdIO
 load_mod fn = do
-    blocks <- either Cmd.throw return =<< Trans.liftIO (Load.Mod.parse fn)
+    blocks <- either (Cmd.throw . txt) return
+        =<< Trans.liftIO (Load.Mod.parse fn)
     let blocks2 = map
             (Load.Mod.map_block (Load.Mod.add_default_volume 1 38)) blocks
     Load.Mod.create (Id.namespace $ txt $ head $ Seq.split "." fn)

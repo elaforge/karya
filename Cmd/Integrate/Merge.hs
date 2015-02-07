@@ -133,7 +133,7 @@ score_merge_tracks :: State.M m => BlockId -> TrackId
     -> Block.ScoreDestinations -> m Block.ScoreDestinations
 score_merge_tracks block_id source_id dests = do
     tree <- TrackTree.track_tree_of block_id
-    children <- State.require ("source track not found: " <> show source_id) $
+    children <- State.require ("source track not found: " <> showt source_id) $
         Tree.find ((==source_id) . State.track_id) tree
     score_merge block_id [children] dests
 
@@ -162,7 +162,7 @@ get_children =
 source_to_dest :: State.M m => BlockId -> Block.ScoreDestinations
     -> [Tree.Tree TrackId] -> m [Tree.Tree TrackNum]
 source_to_dest block_id dests = mapM $ Traversable.mapM $ \track_id -> do
-    dest_id <- maybe (State.throw $ "no destination for " <> show track_id)
+    dest_id <- maybe (State.throw $ "no destination for " <> showt track_id)
         (return . fst) (lookup track_id dests)
     dest_tracknum block_id dest_id
 
@@ -182,7 +182,7 @@ destination_edges block_id dests = do
 
 dest_tracknum :: State.M m => BlockId -> TrackId -> m TrackNum
 dest_tracknum block_id track_id = State.require
-    ("integrated track " <> show track_id <> " not in " <> show block_id)
+    ("integrated track " <> showt track_id <> " not in " <> showt block_id)
     =<< State.tracknum_of block_id track_id
 
 add_skeleton :: State.M m => BlockId -> [Tree.Tree TrackNum] -> m ()

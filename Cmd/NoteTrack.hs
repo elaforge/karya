@@ -79,7 +79,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
                 note_on block_id sel_tracknum pos dur note_id note vel
             InputNote.PitchChange note_id input -> do
                 (pitch_tracknum, track_id) <- Cmd.require
-                    ("no track for note_id " ++ show note_id)
+                    ("no track for note_id " <> showt note_id)
                     =<< find_pitch_track note_id
                 note <- EditUtil.input_to_note input
                 -- If advance is set, the selection may have advanced past
@@ -164,7 +164,7 @@ next_control_track block_id tracknum is_control = do
     let find right_of = findM (candidate inst associated right_of) tracks
     found <- find tracknum
     case found of
-        Nothing -> Cmd.throw $ "no next note track in " ++ show block_id
+        Nothing -> Cmd.throw $ "no next note track in " <> showt block_id
         Just track -> do
             (ctrack, create) <- should_create_control block_id track is_control
             next <- find (track_control ctrack + 1)
@@ -202,7 +202,7 @@ should_create_control block_id track is_control = case Info.track_type track of
         Just control ->
             return (ControlTrack tracknum (State.track_tracknum control), False)
     ttype -> Cmd.throw $ "expected a note track for "
-        <> show (block_id, tracknum) <> " but got " <> show ttype
+        <> showt (block_id, tracknum) <> " but got " <> showt ttype
     where
     find = List.find (is_control . State.track_title)
     tracknum = State.track_tracknum (Info.track_info track)

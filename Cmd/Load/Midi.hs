@@ -47,7 +47,7 @@ type Warn = Text
 
 load :: FilePath -> Cmd.CmdT IO BlockId
 load fn = liftIO (parse fn) >>= \x -> case x of
-    Left err -> Cmd.throw $ "parsing " <> show fn <> ": " <> untxt err
+    Left err -> Cmd.throw $ "parsing " <> showt fn <> ": " <> err
     Right midi_file -> do
         let (tracks, skel, warns) = convert midi_file
         mapM_ (Log.warn . ((txt fn <> ": ") <>)) warns

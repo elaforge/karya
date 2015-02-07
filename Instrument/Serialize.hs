@@ -33,13 +33,13 @@ serialize fname synths = Cmd.Serialize.serialize magic fname =<< saved_db synths
 -- 'serialize', it must be provided on a per-patch basis to reconstitute the
 -- definitions.
 unserialize :: (Instrument.Patch -> code) -> FilePath
-    -> IO (Either String (Time.UTCTime, [MidiDb.SynthDesc code]))
+    -> IO (Either Text (Time.UTCTime, [MidiDb.SynthDesc code]))
 unserialize code_for fname = do
     result <- Cmd.Serialize.unserialize magic fname
     return $ case result of
         Right (Just (SavedDb (time, db))) ->
             Right (time, make_synths code_for db)
-        Right Nothing -> Left $ fname ++ ": file doesn't exist"
+        Right Nothing -> Left $ txt fname <> ": file doesn't exist"
         Left err -> Left err
 
 

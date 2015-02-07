@@ -105,7 +105,7 @@ check_sequence actions = do
                 (Right (state2, []))
 
 load_from :: Git.Repo -> Git.Commit -> Maybe Git.Commit -> State.State
-    -> IO (Either String (State.State, [Update.CmdUpdate]))
+    -> IO (Either Text (State.State, [Update.CmdUpdate]))
 load_from repo commit_from maybe_commit_to state =
     fmap (first strip_views) <$>
         SaveGit.load_from repo commit_from maybe_commit_to state

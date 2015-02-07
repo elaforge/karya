@@ -5,6 +5,7 @@
 module Cmd.Integrate.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Log as Log
@@ -61,14 +62,14 @@ convert source_block levents = do
     when (any ((>=Log.Warn) . Log.msg_priority) logs) $
         Cmd.throw "aborting integrate due to warnings"
     unless (null errs) $
-        Cmd.throw $ "integrating events: " <> Seq.join "; " errs
+        Cmd.throw $ "integrating events: " <> Text.intercalate "; " errs
     return tracks
 
 -- | Convert derived score events back into UI events.
 --
 -- TODO optionally quantize the ui events
 integrate :: Config -> Map.Map TrackId TrackNum -> [Score.Event]
-    -> (Tracks, [String])
+    -> (Tracks, [Text])
     -- ^ (tracks, errs)
 integrate config tracknums =
     Tuple.swap . Seq.partition_either . map (integrate_track config)
@@ -117,13 +118,13 @@ type TrackKey = (Maybe TrackNum, Score.Instrument, Pitch.ScaleId, Voice)
 type Voice = Int
 
 integrate_track :: Config -> (TrackKey, [Score.Event])
-    -> Either String (Track, [Track])
+    -> Either Text (Track, [Track])
 integrate_track (lookup_call, default_scale_id)
         ((_, inst, scale_id, _), events) = do
     pitch_track <- if no_pitch_signals events then return []
         else case pitch_events default_scale_id scale_id events of
             (track, []) -> return [track]
-            (_, errs) -> Left $ Seq.join "; " errs
+            (_, errs) -> Left $ Text.intercalate "; " errs
     return (note_events inst (lookup_call inst) events,
         pitch_track ++ control_events events)
 
@@ -148,7 +149,7 @@ note_event call_map event = ui_event (Score.event_stack event)
 -- event.  This is because it's more normal to think of each note as
 -- establishing a new pitch, even if it's the same as the last one.
 pitch_events :: Pitch.ScaleId -> Pitch.ScaleId -> [Score.Event]
-    -> (Track, [String])
+    -> (Track, [Text])
 pitch_events default_scale_id scale_id events =
     (make_track pitch_title (tidy_pitches ui_events), concat errs)
     where
@@ -165,7 +166,7 @@ no_pitch_signals = all (PitchSignal.null . Score.event_untransformed_pitch)
 -- continuous pitch changes (it's not even clear how to spell those).  I could
 -- try to convert back from NoteNumbers, but I still have the problem of how
 -- to convert the curve back to high level pitches.
-pitch_signal_events :: Score.Event -> ([Event.Event], [String])
+pitch_signal_events :: Score.Event -> ([Event.Event], [Text])
 pitch_signal_events event = (ui_events, pitch_errs)
     where
     start = Score.event_start event
@@ -174,11 +175,14 @@ pitch_signal_events event = (ui_events, pitch_errs)
     pitches = zip3 xs ys
         (map (PitchSignal.pitch_note . Score.apply_controls event start) ys)
     pitch_errs =
-        [prettys x <> ": converting " <> prettys p <> " " <> prettys err
-            | (x, p, Left err) <- pitches]
-    ui_events = [ui_event (Score.event_stack event) (RealTime.to_score x) 0
+        [ pretty x <> ": converting " <> pretty p <> " " <> pretty err
+        | (x, p, Left err) <- pitches
+        ]
+    ui_events =
+        [ ui_event (Score.event_stack event) (RealTime.to_score x) 0
             (Pitch.note_text note)
-        | (x, _, Right note) <- pitches]
+        | (x, _, Right note) <- pitches
+        ]
 
 -- ** control
 

@@ -63,7 +63,7 @@ modify_staff inst_ modify = do
     config <- get_config
     let staves = Lilypond.config_staves config
     case Seq.find_modify ((==inst) . fst) (second modify) staves of
-        Nothing -> State.throw $ "no staff config for " <> prettys inst
+        Nothing -> State.throw $ "no staff config for " <> pretty inst
         Just staves -> modify_config $ const $
             config { Lilypond.config_staves = staves }
     where inst = Util.instrument inst_
@@ -77,7 +77,7 @@ modify_staff inst_ modify = do
 set_staves :: State.M m => [(Text, Lilypond.Instrument, Lilypond.Instrument)]
     -> m (Lilypond.Config -> Lilypond.Config)
 set_staves staves
-    | not (null dups) = State.throw $ "duplicate instruments: " <> prettys dups
+    | not (null dups) = State.throw $ "duplicate instruments: " <> pretty dups
     | otherwise = return $ \config ->
         config { Lilypond.config_staves = map mk staves }
     where

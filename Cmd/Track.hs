@@ -33,7 +33,7 @@ track_cmd msg = do
             State.Abort -> return ()
             State.Error srcpos msg ->
                 Log.write =<< Log.initialized_msg_srcpos srcpos Log.Warn
-                    ("getting track cmds: " <> txt msg)
+                    ("getting track cmds: " <> msg)
         return []
     Cmd.sequence_cmds cmds msg
 

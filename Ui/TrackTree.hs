@@ -81,8 +81,8 @@ track_tree_of block_id = do
     -- they have no edges.
     let really_missing = filter (not . Skeleton.lonely_vertex skel) missing
     unless (null really_missing) $
-        State.throw $ "skeleton of " ++ show block_id
-            ++ " names missing tracknums: " ++ show really_missing
+        State.throw $ "skeleton of " <> showt block_id
+            <> " names missing tracknums: " <> showt really_missing
     return resolved
 
 -- | Resolve the TrackNum indices in a tree into whatever values as given by

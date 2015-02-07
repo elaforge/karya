@@ -163,8 +163,8 @@ quit = Cmd.modify $ \st -> st { Cmd.state_repl_status = Cmd.Quit }
 -- | Called from logview
 s :: String -> Cmd.CmdL ()
 s "" = unerror
-s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " ++ show stackpos)
-        highlight_error (Stack.parse_ui_frame stackpos)
+s stackpos = maybe (Cmd.throw $ "can't parse stackpos: " <> showt stackpos)
+    highlight_error (Stack.parse_ui_frame stackpos)
 
 highlight_error :: Stack.UiFrame -> Cmd.CmdL ()
 highlight_error (maybe_bid, maybe_tid, maybe_range) = do
@@ -192,8 +192,8 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
     find_block = case maybe_tid of
         Nothing -> Cmd.throw $
             "can't highlight stack frame with neither block nor track: "
-            <> show (maybe_bid, maybe_tid, maybe_range)
-        Just track_id -> maybe (Cmd.throw $ "no block with " <> show track_id)
+            <> showt (maybe_bid, maybe_tid, maybe_range)
+        Just track_id -> maybe (Cmd.throw $ "no block with " <> showt track_id)
             (return . fst) . Seq.head
                 =<< State.blocks_with_track_id track_id
 

@@ -40,7 +40,7 @@ large_test_viola_sonata = check =<< compare_performance
 compare_performance :: FilePath -> FilePath -> IO Bool
 compare_performance saved score = timeout score $ do
     cmd_config <- DeriveSaved.load_cmd_config
-    expected <- either errorIO
+    expected <- either (errorIO . untxt)
         (return . Vector.toList) =<< DiffPerformance.load_midi saved
     got <- DeriveSaved.perform_file cmd_config score
     (diffs, expected, got) <- return $ DiffPerformance.diff_midi expected got

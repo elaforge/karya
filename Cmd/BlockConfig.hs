@@ -105,7 +105,7 @@ cmd_add_block_title _ = do
 -- | Collapse all the children of this track.
 collapse_children :: State.M m => BlockId -> TrackId -> m ()
 collapse_children block_id track_id = do
-    children <- State.require ("no children: " ++ show track_id)
+    children <- State.require ("no children: " <> showt track_id)
         =<< TrackTree.children_of block_id track_id
     forM_ children $ \track -> State.add_track_flag
         block_id (State.track_tracknum track) Block.Collapse
@@ -114,7 +114,7 @@ collapse_children block_id track_id = do
 -- when they were collapsed will be left merged.
 expand_children :: State.M m => BlockId -> TrackId -> m ()
 expand_children block_id track_id = do
-    children <- State.require ("no children: " ++ show track_id)
+    children <- State.require ("no children: " <> showt track_id)
         =<< TrackTree.children_of block_id track_id
     merged <- mconcatMap Block.track_merged . Block.block_tracks
         <$> State.get_block block_id

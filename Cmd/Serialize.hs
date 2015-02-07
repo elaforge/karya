@@ -62,13 +62,13 @@ magic_bytes (Magic c1 c2 c3 c4) = Char8.pack [c1, c2, c3, c4]
 magic_length :: Int
 magic_length = 4
 
-serialize :: (Serialize a) => Magic -> FilePath -> a -> IO ()
+serialize :: Serialize a => Magic -> FilePath -> a -> IO ()
 serialize magic fname state = do
     backup_file fname
     make_dir fname
     File.writeGz fname $ magic_bytes magic <> Serialize.encode state
 
-serialize_text :: (Show a) => FilePath -> a -> IO ()
+serialize_text :: Show a => FilePath -> a -> IO ()
 serialize_text fname state = do
     backup_file fname
     make_dir fname
@@ -76,7 +76,7 @@ serialize_text fname state = do
 
 -- | Like 'serialize_text' but pretty-print it.  Probably not suitable for
 -- giant things.
-serialize_pretty_text :: (Show a) => FilePath -> a -> IO ()
+serialize_pretty_text :: Show a => FilePath -> a -> IO ()
 serialize_pretty_text fname state = do
     backup_file fname
     make_dir fname
@@ -84,8 +84,8 @@ serialize_pretty_text fname state = do
 
 -- | Returns Left if there was a parsing error, and Right Nothing if the file
 -- didn't exist.
-unserialize :: (Serialize a) => Magic -> FilePath
-    -> IO (Either String (Maybe a))
+unserialize :: Serialize a => Magic -> FilePath
+    -> IO (Either Text (Maybe a))
 unserialize magic fname = do
     maybe_bytes <- File.ignoreEnoent $ File.readGz fname
     case maybe_bytes of
@@ -93,8 +93,8 @@ unserialize magic fname = do
         Just bytes
             | not (magic_bytes magic `B.isPrefixOf` bytes) ->
                 return $ Left $ "expected magic code "
-                    <> show (magic_bytes magic) <> " but got "
-                    <> show (B.take magic_length bytes)
+                    <> showt (magic_bytes magic) <> " but got "
+                    <> showt (B.take magic_length bytes)
             | otherwise -> do
                 -- This is subtle.  Apparently Serialize.decode can still throw
                 -- an exception unless the contents of the Either is forced to
@@ -102,15 +102,15 @@ unserialize magic fname = do
                 val <- Exception.evaluate
                         (Serialize.decode (B.drop magic_length bytes))
                     `Exception.catch` \(exc :: Exception.SomeException) ->
-                        return $ Left $ "exception: " ++ show exc
-                return $ Just <$> val
+                        return $ Left $ "exception: " <> show exc
+                return $ either (Left . txt) (Right . Just) val
 
-unserialize_text :: (Read a) => FilePath -> IO (Either String a)
+unserialize_text :: Read a => FilePath -> IO (Either Text a)
 unserialize_text fname = do
     ui_str <- IO.readFile fname
     result <- Exception.try $ readIO ui_str
     return $ case result of
-        Left (exc :: Exception.SomeException) -> Left (show exc)
+        Left (exc :: Exception.SomeException) -> Left (showt exc)
         Right val -> Right val
 
 

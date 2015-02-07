@@ -223,7 +223,7 @@ load_db code_for db_name app_dir = do
     case saved of
         Left err -> do
             Log.warn $ "Error loading instrument db " <> showt fname <> ": "
-                <> Text.strip (txt err)
+                <> Text.strip err
             return []
         Right (_time, synths) -> return synths
 

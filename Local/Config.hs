@@ -76,7 +76,7 @@ parse_args argv = case argv of
     ["midi", fn] -> Setup.load_midi fn
     [fn] -> Save.load fn >> return Cmd.Done
     [fn, ref_or_commit] -> do
-        commit <- Cmd.require ("not a ref or commit: " ++ ref_or_commit)
+        commit <- Cmd.require ("not a ref or commit: " <> txt ref_or_commit)
             =<< Trans.liftIO (SaveGit.infer_commit fn ref_or_commit)
         Save.load_git fn (Just commit) >> return Cmd.Done
     _ -> error $ "bad args: " ++ show argv

@@ -48,13 +48,13 @@ pipeline modify = Parse.join_pipeline . modify . Parse.split_pipeline
 -- | Take a text transformation that can fail to a Track transformation that
 -- transforms all the events and throws if any of the text transformations
 -- failed.
-failable_text :: Cmd.M m => (Text -> Either String Text) -> Track m
+failable_text :: Cmd.M m => (Text -> Either Text Text) -> Track m
 failable_text f block_id track_id events = do
     let (failed, ok) = Seq.partition_either $ map (failing_text f) events
-        errs = [err ++ ": " ++ Cmd.log_event block_id track_id evt
+        errs = [err <> ": " <> Cmd.log_event block_id track_id evt
             | (err, evt) <- failed]
     unless (null errs) $ Cmd.throw $
-        "transformation failed: " ++ Seq.join ", " errs
+        "transformation failed: " <> Text.intercalate ", " errs
     return $ Just ok
     where
     failing_text f event = case f (Event.event_text event) of
@@ -177,7 +177,7 @@ instance String.IsString Replacement where
 --
 -- Short names and IsString instances attempt to make it concise enough for
 -- inline use.  If the pattern doesn't match, the input is returned unchanged.
-substitute :: Parser -> [Replacement] -> Text -> Either String Text
+substitute :: Parser -> [Replacement] -> Text -> Either Text Text
 substitute parser replacements text = case match of
     Nothing -> Right text
     Just matches -> Text.unwords . filter (not . Text.null) <$>
@@ -186,7 +186,7 @@ substitute parser replacements text = case match of
     match = IntMap.fromList . zip [0..] <$> parse_tokens parser text
     replace matches r = case r of
         RLiteral text -> Right text
-        F n -> maybe (Left $ "no match for field " <> show n) Right $
+        F n -> maybe (Left $ "no match for field " <> showt n) Right $
             IntMap.lookup n matches
 
 -- ** parser

@@ -120,12 +120,13 @@ control_to_title control = ParseTitle.unparse_control $ case control of
     Control c -> ParseTitle.Control Nothing (Score.untyped c)
     Pitch scale_id -> ParseTitle.Pitch scale_id Nothing
 
-title_to_control :: Text -> Either String Control
-title_to_control title = ParseTitle.parse_control title >>= \x -> case x of
-    ParseTitle.Control Nothing (Score.Typed Score.Untyped c) ->
-        return $ Control c
-    ParseTitle.Pitch scale_id Nothing -> return $ Pitch scale_id
-    _ -> Left $ "complicated controls unsupported: " <> untxt title
+title_to_control :: Text -> Either Text Control
+title_to_control title =
+    first txt (ParseTitle.parse_control title) >>= \x -> case x of
+        ParseTitle.Control Nothing (Score.Typed Score.Untyped c) ->
+            return $ Control c
+        ParseTitle.Pitch scale_id Nothing -> return $ Pitch scale_id
+        _ -> Left $ "complicated controls unsupported: " <> title
 
 -- | Put the pitch tracks next to the note, the rest go in alphabetical order.
 sorted_controls :: Controls -> [(Control, Events.Events)]
@@ -225,7 +226,7 @@ stack_matches track_id start end =
 -- * read
 
 notes_from_range :: State.M m => TrackTree.TrackTree -> ScoreTime
-    -> ScoreTime -> m (Either String [(Note, TrackId)])
+    -> ScoreTime -> m (Either Text [(Note, TrackId)])
 notes_from_range note_trees start end = do
     let traverse2 = Traversable.traverse . Traversable.traverse
     event_tracks <- traverse2 (get_events start end) note_trees
@@ -253,16 +254,16 @@ extract_note_trees block_id track_ids =
 -- trying to reuse it, but it's different enough that
 -- most of the work that slice does doesn't apply here.
 extract_notes :: [Tree.Tree (State.TrackInfo, Events.Events)]
-    -> Either String [(Note, TrackId)]
+    -> Either Text [(Note, TrackId)]
 extract_notes tree =
     Seq.merge_lists (note_start . fst) <$> zipWithM extract_track [0..] tree
     where
     extract_track index (Tree.Node (track, events) subs) =
-        annotate ("note track " ++ show (State.track_id track)) $
+        annotate ("note track " <> showt (State.track_id track)) $
         mapM (fmap (, State.track_id track) . extract_note index subs)
             (Events.ascending events)
     extract_note :: Index -> [Tree.Tree (State.TrackInfo, Events.Events)]
-        -> Event.Event -> Either String Note
+        -> Event.Event -> Either Text Note
     extract_note index subs event = do
         controls <- extract_controls (Event.range event) subs
         return $ Note
@@ -274,14 +275,14 @@ extract_notes tree =
             }
     extract_controls _ [] = return []
     extract_controls range [Tree.Node (track, events) subs] = do
-        control <- annotate (show (State.track_id track)) $
+        control <- annotate (showt (State.track_id track)) $
             title_to_control (State.track_title track)
         rest <- extract_controls range subs
         return $ (control, slice range events) : rest
     extract_controls _ subs = Left $ ">1 subtrack: "
-        ++ show (map (State.track_id . fst . Tree.rootLabel) subs)
+        <> showt (map (State.track_id . fst . Tree.rootLabel) subs)
     slice (start, end) = Events.in_range_point start end
-    annotate prefix (Left err) = Left $ prefix ++ ": " ++ err
+    annotate prefix (Left err) = Left $ prefix <> ": " <> err
     annotate _ (Right val) = Right val
 
 -- * write

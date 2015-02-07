@@ -135,7 +135,7 @@ hist_name hist = "[" <> Text.intercalate ", " (Cmd.hist_names hist) <> "] "
 
 load_history :: Text
     -> (State.State -> SaveGit.Commit
-        -> IO (Either String (Maybe SaveGit.LoadHistory)))
+        -> IO (Either Text (Maybe SaveGit.LoadHistory)))
      -> Cmd.HistoryEntry -> IO [Cmd.HistoryEntry]
 load_history name load hist = case Cmd.hist_commit hist of
     Nothing -> return []
@@ -143,7 +143,7 @@ load_history name load hist = case Cmd.hist_commit hist of
         result <- load (Cmd.hist_state hist) commit
         case result of
             Left err -> do
-                Log.error $ name <> ": " <> txt err
+                Log.error $ name <> ": " <> err
                 return []
             Right Nothing -> return []
             Right (Just hist) -> return [entry hist]
@@ -259,7 +259,7 @@ commit_entries repo prev_commit (hist0:hists) = do
     result <- SaveGit.checkpoint repo hist
     case result of
         Left err -> do
-            Log.error $ "error committing history: " <> txt err
+            Log.error $ "error committing history: " <> err
             return []
         Right commit -> do
             entries <- commit_entries repo commit hists

@@ -183,7 +183,7 @@ modify_config :: State.M m => Instrument
     -> (Instrument.Config -> (Instrument.Config, a)) -> m a
 modify_config inst_ modify = do
     let inst = Util.instrument inst_
-    config <- State.require ("no config for " <> prettys inst)
+    config <- State.require ("no config for " <> pretty inst)
         . Map.lookup inst =<< State.get_midi_config
     let (new, result) = modify config
     State.modify $ State.config # State.midi # Lens.map inst #= Just new
@@ -219,7 +219,7 @@ alloc_default :: Instrument -> [(Midi.Channel, Maybe Instrument.Voices)]
     -> Cmd.CmdL ()
 alloc_default inst_ chans = do
     let inst = Util.instrument inst_
-    wdev <- maybe (Cmd.throw $ "inst not in db: " <> prettys inst) return
+    wdev <- maybe (Cmd.throw $ "inst not in db: " <> pretty inst) return
         =<< device_of inst
     alloc_instrument inst [((wdev, c), v) | (c, v) <- chans]
 
@@ -259,7 +259,7 @@ set inst_ = do
         =<< State.get_event_track_at block_id tracknum
     whenJust (ParseTitle.title_to_instrument title) dealloc_instrument
 
-    dev <- Cmd.require ("no device for " ++ show inst) =<< device_of inst
+    dev <- Cmd.require ("no device for " <> showt inst) =<< device_of inst
     chan <- find_chan_for dev
     alloc_instrument inst [((dev, chan), Nothing)]
 
@@ -277,11 +277,11 @@ find_chan_for dev = do
     let addrs = map ((,) dev) [0..15]
         taken = concatMap (map fst . Instrument.config_addrs) (Map.elems config)
     let match = fmap snd $ List.find (not . (`elem` taken)) addrs
-    Cmd.require ("couldn't find free channel for " ++ show dev) match
+    Cmd.require ("couldn't find free channel for " <> showt dev) match
 
 initialize :: Score.Instrument -> Midi.Channel -> Cmd.CmdL ()
 initialize inst chan = do
-    info <- Cmd.require ("inst not found: " ++ show inst)
+    info <- Cmd.require ("inst not found: " <> showt inst)
         =<< Cmd.lookup_instrument inst
     let init = Instrument.patch_initialize (MidiDb.info_patch info)
     let dev = Instrument.synth_device (MidiDb.info_synth info)

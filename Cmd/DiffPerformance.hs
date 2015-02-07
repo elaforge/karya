@@ -34,10 +34,10 @@ type Messages = Vector.Vector Midi.WriteMessage
 midi_magic :: Serialize.Magic
 midi_magic = Serialize.Magic 'm' 'i' 'd' 'i'
 
-load_midi :: FilePath -> IO (Either String Messages)
+load_midi :: FilePath -> IO (Either Text Messages)
 load_midi fname = Serialize.unserialize midi_magic fname >>= \x -> case x of
-    Left err -> return $ Left $ "loading " ++ fname ++ ": " ++ err
-    Right Nothing -> return $ Left $ "not found: " ++ fname
+    Left err -> return $ Left $ "loading " <> showt fname <> ": " <> err
+    Right Nothing -> return $ Left $ "not found: " <> showt fname
     Right (Just msgs) -> return $ Right msgs
 
 -- | Perform the input score and save the midi msgs to the output file.

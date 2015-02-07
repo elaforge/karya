@@ -38,12 +38,12 @@ import Types
 
 perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
-    (state, library) <- either errorIO return =<< load_score fname
+    (state, library) <- either (errorIO . untxt) return =<< load_score fname
     block_id <- maybe (errorIO $ fname <> ": no root block") return $
         State.config#State.root #$ state
     let cmd_state = add_library library (Cmd.initial_state cmd_config)
-    (events, logs) <- either (errorIO . ((fname <> ": ") <>)) return
-        =<< timed_derive fname state cmd_state block_id
+    (events, logs) <- either (\err -> errorIO $ fname <> ": " <> untxt err)
+        return =<< timed_derive fname state cmd_state block_id
     mapM_ Log.write logs
     (msgs, logs) <- timed_perform cmd_state ("perform " ++ fname) state events
     mapM_ Log.write logs
@@ -54,7 +54,7 @@ add_library lib state =
     state { Cmd.state_ky_cache = Just (day0, Right lib) }
     where day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0
 
-timed_perform :: Cmd.State -> String -> State.State -> Cmd.Events
+timed_perform :: Cmd.State -> FilePath -> State.State -> Cmd.Events
     -> IO ([Midi.WriteMessage], [Log.Msg])
 timed_perform cmd_state msg state events =
     print_timer msg (timer_msg (length . fst)) $ do
@@ -62,8 +62,8 @@ timed_perform cmd_state msg state events =
         force (msgs, logs)
         return (msgs, logs)
 
-timed_derive :: String -> State.State -> Cmd.State -> BlockId
-    -> IO (Either String (Cmd.Events, [Log.Msg]))
+timed_derive :: FilePath -> State.State -> Cmd.State -> BlockId
+    -> IO (Either Text (Cmd.Events, [Log.Msg]))
 timed_derive name ui_state cmd_state block_id =
     case derive_block ui_state cmd_state block_id of
         Left err -> return $ Left err
@@ -76,13 +76,13 @@ timed_derive name ui_state cmd_state block_id =
             return (events, cmd_logs ++ filter (not . boring) derive_logs)
     where boring msg = Cache.is_cache_log msg
 
-timed_lilypond :: String -> State.State -> Cmd.State -> BlockId
+timed_lilypond :: FilePath -> State.State -> Cmd.State -> BlockId
     -> IO (Either Text Text, [Log.Msg])
 timed_lilypond name ui_state cmd_state block_id = case result of
-    Left err -> return (Left (txt err), [])
+    Left err -> return (Left err, [])
     Right (levents, cmd_logs) -> do
         let (events, derive_logs) = LEvent.partition levents
-        events <- print_timer ("lilypond " ++ name) (timer_msg length)
+        events <- print_timer ("lilypond " <> name) (timer_msg length)
             (return $! events)
         let (result, ly_logs) = Cmd.Lilypond.extract_movements
                 config "title" events
@@ -100,14 +100,14 @@ timer_msg len secs events = Printf.printf "events: %d (%d / sec)"
     where events_len = len events
 
 derive_block :: State.State -> Cmd.State -> BlockId
-    -> Either String (Derive.Result, [Log.Msg])
+    -> Either Text (Derive.Result, [Log.Msg])
 derive_block ui_state cmd_state block_id =
     run_cmd ui_state cmd_state $ PlayUtil.uncached_derive block_id
 
 run_cmd :: State.State -> Cmd.State -> Cmd.CmdId a
-    -> Either String (a, [Log.Msg])
+    -> Either Text (a, [Log.Msg])
 run_cmd ui_state cmd_state cmd = case result of
-    Left err -> Left $ prettys err
+    Left err -> Left $ pretty err
     Right (val, _, _) -> case val of
         Nothing -> Left "cmd had no result"
         Just val -> Right (val, logs)
@@ -118,12 +118,12 @@ perform :: Cmd.State -> State.State -> Cmd.Events
 perform cmd_state ui_state events =
     extract $ run_cmd ui_state cmd_state $ PlayUtil.perform_events events
     where
-    extract (Left err) = ([], [Log.msg Log.Error Nothing (txt err)])
+    extract (Left err) = ([], [Log.msg Log.Error Nothing err])
     extract (Right (levents, logs)) = (events, logs ++ perf_logs)
         where (events, perf_logs) = LEvent.partition levents
 
 -- | Load a score and its accompanying local definitions library, if it has one.
-load_score :: FilePath -> IO (Either String (State.State, Derive.Library))
+load_score :: FilePath -> IO (Either Text (State.State, Derive.Library))
 load_score fname =
     print_timer ("load " ++ fname) (\_ _ -> "") $ Error.runErrorT $ do
         save <- require_right $ Save.infer_save_type fname
@@ -141,11 +141,11 @@ load_score fname =
             Just ky_fname -> do
                 app_dir <- liftIO Config.get_app_dir
                 let paths = dir : map (Config.make_path app_dir) Config.ky_paths
-                lib <- either (Error.throwError . untxt) return
+                lib <- either Error.throwError return
                     =<< liftIO (PlayUtil.load_ky paths ky_fname)
                 return (state, lib)
 
-require_right :: IO (Either String a) -> Error.ErrorT String IO a
+require_right :: IO (Either Text a) -> Error.ErrorT Text IO a
 require_right io = either Error.throwError return =<< liftIO io
 
 -- | Load cmd config, which basically means the inst db.

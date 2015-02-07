@@ -307,7 +307,7 @@ get_library = do
     cache <- Cmd.gets Cmd.state_ky_cache
     case cache of
         Nothing -> return mempty
-        Just (_, Left err) -> Cmd.throw $ "get_library: " <> untxt err
+        Just (_, Left err) -> Cmd.throw $ "get_library: " <> err
         Just (_, Right library) -> return library
 
 -- | Update the definition cache by reading the per-score definition file.

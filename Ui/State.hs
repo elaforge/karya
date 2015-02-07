@@ -295,7 +295,7 @@ type StateStack m = State.StateT State
 newtype StateT m a = StateT (StateStack m a)
     deriving (Functor, Monad, Trans.MonadIO, Error.MonadError Error,
         Applicative.Applicative)
-instance Error.Error Error where strMsg = Error Nothing
+instance Error.Error Error where strMsg = Error Nothing . txt
 
 -- | Just a convenient abbreviation.
 type StateId a = StateT Identity.Identity a
@@ -314,7 +314,7 @@ class (Applicative.Applicative m, Monad m) => M m where
     unsafe_put :: State -> m ()
     update :: Update.CmdUpdate -> m ()
     get_updates :: m [Update.CmdUpdate]
-    throw_srcpos :: SrcPos.SrcPos -> String -> m a
+    throw_srcpos :: SrcPos.SrcPos -> Text -> m a
 
 instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     get = StateT State.get
@@ -324,7 +324,7 @@ instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     throw_srcpos srcpos msg =
         (StateT . lift . lift) (Error.throwError (Error srcpos msg))
 
-throw :: M m => String -> m a
+throw :: M m => Text -> m a
 throw = throw_srcpos Nothing
 
 gets :: M m => (State -> a) -> m a
@@ -378,9 +378,9 @@ eval state m = case result of
         Right (val, _, _) -> Right val
     where result = Identity.runIdentity (run state m)
 
-eval_rethrow :: M m => String -> State -> StateId a -> m a
+eval_rethrow :: M m => Text -> State -> StateId a -> m a
 eval_rethrow msg state =
-    require_right (((msg <> ": ") <>) . prettys) . eval state
+    require_right (((msg <> ": ") <>) . pretty) . eval state
 
 exec :: State -> StateId a -> Either Error State
 exec state m = case result of
@@ -388,9 +388,9 @@ exec state m = case result of
         Right (_, state', _) -> Right state'
     where result = Identity.runIdentity (run state m)
 
-exec_rethrow :: M m => String -> State -> StateId a -> m State
+exec_rethrow :: M m => Text -> State -> StateId a -> m State
 exec_rethrow msg state =
-    require_right (((msg <> ": ") <>) . prettys) . exec state
+    require_right (((msg <> ": ") <>) . pretty) . exec state
 
 
 -- ** error
@@ -398,23 +398,22 @@ exec_rethrow msg state =
 -- | Abort is used by Cmd, so don't throw it from here.  This isn't exactly
 -- modular, but ErrorT can't be composed and extensible exceptions are too
 -- much bother at the moment.
-data Error = Error !SrcPos.SrcPos !String | Abort deriving (Show)
+data Error = Error !SrcPos.SrcPos !Text | Abort deriving (Show)
 
 instance Pretty.Pretty Error where
-    pretty (Error srcpos msg) =
-        txt (SrcPos.show_srcpos srcpos) <> " " <> txt msg
+    pretty (Error srcpos msg) = txt (SrcPos.show_srcpos srcpos) <> " " <> msg
     pretty Abort = "(abort)"
 
-require :: M m => String -> Maybe a -> m a
+require :: M m => Text -> Maybe a -> m a
 require = require_srcpos Nothing
 
-require_srcpos :: M m => SrcPos.SrcPos -> String -> Maybe a -> m a
+require_srcpos :: M m => SrcPos.SrcPos -> Text -> Maybe a -> m a
 require_srcpos srcpos err = maybe (throw_srcpos srcpos err) return
 
-require_right :: M m => (err -> String) -> Either err a -> m a
+require_right :: M m => (err -> Text) -> Either err a -> m a
 require_right = require_right_srcpos Nothing
 
-require_right_srcpos :: M m => SrcPos.SrcPos -> (err -> String)
+require_right_srcpos :: M m => SrcPos.SrcPos -> (err -> Text)
     -> Either err a -> m a
 require_right_srcpos srcpos fmt_err =
     either (throw_srcpos srcpos . fmt_err) return
@@ -708,8 +707,8 @@ modify_skeleton block_id f = do
         tracks = length $ Block.block_tracks block
     forM_ (Skeleton.flatten skel) $ \(parent, child) ->
         unless (1<=parent && parent < tracks && 1 <= child && child < tracks) $
-            throw $ "modify_skeleton: edge " <> show (parent, child)
-                <> " out of range for " <> show block_id
+            throw $ "modify_skeleton: edge " <> showt (parent, child)
+                <> " out of range for " <> showt block_id
     modify_block block_id $ \block -> block { Block.block_skeleton = skel }
 
 -- | Toggle the given edge in the block's skeleton.  If a cycle would be
@@ -718,7 +717,7 @@ modify_skeleton block_id f = do
 toggle_skeleton_edge :: M m => BlockId -> Skeleton.Edge -> m Bool
 toggle_skeleton_edge block_id edge = do
     block <- get_block block_id
-    whenJust (edges_in_range block edge) (throw . ("toggle: " ++))
+    whenJust (edges_in_range block edge) (throw . ("toggle: "<>))
     let skel = Block.block_skeleton block
     case Skeleton.toggle_edge edge skel of
         Nothing -> return False
@@ -732,9 +731,9 @@ add_edges block_id edges = do
     skel <- get_skeleton block_id
     block <- get_block block_id
     whenJust (msum (map (edges_in_range block) edges))
-        (throw . ("add_edges: " ++))
-    maybe (throw $ "add_edges " ++ show edges ++ " to " ++ show skel
-            ++ " would have caused a cycle")
+        (throw . ("add_edges: " <>))
+    maybe (throw $ "add_edges " <> showt edges <> " to " <> showt skel
+            <> " would have caused a cycle")
         (set_skeleton block_id) (Skeleton.add_edges edges skel)
 
 remove_edges :: M m => BlockId -> [Skeleton.Edge] -> m ()
@@ -756,21 +755,21 @@ _splice_skeleton :: M m => Bool -> BlockId -> TrackNum -> TrackNum -> m ()
 _splice_skeleton above block_id new to = do
     block <- get_block block_id
     whenJust (msum (map (edge_in_range block) [new, to]))
-        (throw . ("splice: " ++))
+        (throw . ("splice: " <>))
     let splice = if above then Skeleton.splice_above else Skeleton.splice_below
-    maybe (throw $ "splice_skeleton: " ++ show (new, to)
-            ++ " would have caused a cycle")
+    maybe (throw $ "splice_skeleton: " <> showt (new, to)
+            <> " would have caused a cycle")
         (set_skeleton block_id) (splice new to (Block.block_skeleton block))
 
-edge_in_range :: Block.Block -> TrackNum -> Maybe String
+edge_in_range :: Block.Block -> TrackNum -> Maybe Text
 edge_in_range block tracknum =
     case Seq.at (Block.block_tracks block) tracknum of
-        Nothing -> Just $ "tracknum out of range: " ++ show tracknum
+        Nothing -> Just $ "tracknum out of range: " <> showt tracknum
         Just t -> case Block.tracklike_id t of
             Block.TId {} -> Nothing
-            _ -> Just $ "edge points to non-event track: " ++ show t
+            _ -> Just $ "edge points to non-event track: " <> showt t
 
-edges_in_range :: Block.Block -> Skeleton.Edge -> Maybe String
+edges_in_range :: Block.Block -> Skeleton.Edge -> Maybe Text
 edges_in_range block (from, to) =
     mplus (edge_in_range block from) (edge_in_range block to)
 
@@ -789,8 +788,8 @@ insert_track block_id tracknum track = do
     whenJust (Block.track_id track) $ \track_id -> do
         track_ids <- track_ids_of block_id
         when (track_id `elem` track_ids) $
-            throw $ "insert_track: block " ++ show block_id
-                ++ " already contains " ++ show track_id
+            throw $ "insert_track: block " <> showt block_id
+                <> " already contains " <> showt track_id
     let tracks = Seq.insert_at tracknum track (Block.block_tracks block)
         -- Make sure the views are up to date.
         views' = Map.map (insert_into_view block tracknum) views
@@ -808,8 +807,8 @@ remove_track block_id tracknum = do
     block <- get_block block_id
     let tracks = Block.block_tracks block
     unless (0 <= tracknum && tracknum < length tracks) $
-        throw $ "remove_track " ++ show block_id ++ " " ++ show tracknum
-            ++ " out of range 0--" ++ show (length tracks)
+        throw $ "remove_track " <> showt block_id <> " " <> showt tracknum
+            <> " out of range 0--" <> showt (length tracks)
     views <- Map.map (remove_from_view block tracknum) <$>
         views_of block_id
     set_block block_id $ block
@@ -823,7 +822,7 @@ remove_track block_id tracknum = do
 move_track :: M m => BlockId -> TrackNum -> TrackNum -> m ()
 move_track block_id from to = do
     block <- get_block block_id
-    let msg = "move_track: from index " ++ show from ++ " out of range"
+    let msg = "move_track: from index " <> showt from <> " out of range"
     modify_block block_id . const =<< require msg
         (move_block_track from to block)
 
@@ -846,7 +845,7 @@ track_count block_id = do
 block_track_at :: M m => BlockId -> TrackNum -> m (Maybe Block.Track)
 block_track_at block_id tracknum
     | tracknum < 0 =
-        throw $ "block_track_at: negative tracknum: " ++ show tracknum
+        throw $ "block_track_at: negative tracknum: " <> showt tracknum
     | otherwise = do
         block <- get_block block_id
         return $ Seq.at (Block.block_tracks block) tracknum
@@ -857,8 +856,8 @@ get_block_track_at block_id tracknum =
     where
     tracknum_in_range block_id tracknum Nothing = do
         count <- track_count block_id
-        throw $ "track " <> prettys (Track block_id tracknum)
-            <> " out of range 0--" <> show count
+        throw $ "track " <> pretty (Track block_id tracknum)
+            <> " out of range 0--" <> showt count
     tracknum_in_range _ _ (Just a) = return a
 
 track_at :: M m => BlockId -> TrackNum -> m (Maybe Block.TracklikeId)
@@ -876,7 +875,7 @@ event_track_at block_id tracknum = do
 get_event_track_at :: M m => BlockId -> TrackNum -> m TrackId
 get_event_track_at block_id tracknum = do
     track <- get_block_track_at block_id tracknum
-    require ("track " <> prettys (Track block_id tracknum)
+    require ("track " <> pretty (Track block_id tracknum)
             <> " not an event track") $
         Block.track_id track
 
@@ -913,7 +912,7 @@ tracknum_of block_id tid = lookup tid <$> tracknums_of block_id
 
 get_tracknum_of :: M m => BlockId -> TrackId -> m TrackNum
 get_tracknum_of block_id tid =
-    require ("tracknum_of: track " ++ show tid ++ " not in " ++ show block_id)
+    require ("tracknum_of: track " <> showt tid <> " not in " <> showt block_id)
         =<< tracknum_of block_id tid
 
 -- *** block track
@@ -1366,14 +1365,14 @@ modify_ruler ruler_id modify = do
     when (ruler_id == no_ruler) $
         throw "can't modify no_ruler"
     ruler <- get_ruler ruler_id
-    modified <- require_right
-        (untxt . (("modify_ruler " <> pretty ruler_id) <>)) $ modify ruler
+    modified <- require_right (("modify_ruler " <> pretty ruler_id) <>) $
+        modify ruler
     unsafe_modify $ \st ->
         st { state_rulers = Map.insert ruler_id modified (state_rulers st) }
     update $ Update.CmdRuler ruler_id
 
 ruler_of :: M m => BlockId -> m RulerId
-ruler_of block_id = require ("no ruler in " ++ show block_id)
+ruler_of block_id = require ("no ruler in " <> showt block_id)
     =<< Seq.head <$> Block.block_ruler_ids <$> get_block block_id
 
 rulers_of :: M m => BlockId -> m [RulerId]
@@ -1416,7 +1415,7 @@ find_tracks f blocks = do
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k, M m) => k -> Map.Map k a -> m a
 lookup_id key map = case Map.lookup key map of
-    Nothing -> throw $ "State.lookup: unknown " ++ show key
+    Nothing -> throw $ "State.lookup: unknown " <> showt key
     Just val -> return val
 
 -- | Insert @val@ at @key@ in @get_map state@, throwing if it already exists.
@@ -1426,15 +1425,15 @@ insert :: (M m, Ord k, Show k) => k -> a -> (State -> Map.Map k a)
 insert key val get_map set_map = do
     state <- get
     when (key `Map.member` get_map state) $
-        throw $ show key ++ " already exists"
+        throw $ showt key <> " already exists"
     unsafe_put (set_map (Map.insert key val (get_map state)) state)
     return key
 
 -- | Modify the @i@th element of @xs@ by applying @f@ to it.
-modify_at :: M m => String -> [a] -> Int -> (a -> a) -> m [a]
+modify_at :: M m => Text -> [a] -> Int -> (a -> a) -> m [a]
 modify_at msg xs i f = case post of
-    [] -> throw $ msg ++ ": can't replace index " ++ show i
-        ++ " of list with length " ++ show (length xs)
+    [] -> throw $ msg <> ": can't replace index " <> showt i
+        <> " of list with length " <> showt (length xs)
     (elt:rest) -> return (pre ++ f elt : rest)
     where (pre, post) = splitAt i xs
 
@@ -1445,14 +1444,14 @@ validate :: M m => Text -> StateId [Text] -> m ()
 validate caller verify = do
     state <- get
     case run_id state verify of
-        Left err -> throw $ untxt caller ++ ": error validating: " ++ show err
+        Left err -> throw $ caller <> ": error validating: " <> showt err
         Right (errs, state, _)
             | null errs -> return ()
             | otherwise -> do
                 -- The exception should cause the state to be rolled back, but
                 -- I might as well not let a known broken state stick around.
                 put state
-                throw $ untxt $ caller <> ": error validating: "
+                throw $ caller <> ": error validating: "
                     <> Text.intercalate "; " errs
 
 -- | Unfortunately there are some invariants to protect within State.
@@ -1639,12 +1638,12 @@ block_event_tracknums block =
 read_id :: (Id.Ident a, M m) => Text -> m a
 read_id name = do
     unless (Id.valid name) $
-        throw $ "invalid characters in id name: " ++ show name
+        throw $ "invalid characters in id name: " <> showt name
     ns <- get_namespace
     return $ Id.make $ Id.id ns name
 
 namespace :: M m => Text -> m Id.Namespace
 namespace ns = do
     unless (Id.valid ns) $
-        throw $ "invalid characters in namespace: " ++ show ns
+        throw $ "invalid characters in namespace: " <> showt ns
     return $ Id.namespace ns

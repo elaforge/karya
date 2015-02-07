@@ -158,8 +158,8 @@ unparse (ControlTrack.Event method val args)
 --
 -- This works with the convention that pitch calls take the \"base\" pitch as
 -- their first argument.
-modify_note :: (Pitch.Note -> Either String Pitch.Note) -> Text
-    -> Either String Text
+modify_note :: (Pitch.Note -> Either Text Pitch.Note) -> Text
+    -> Either Text Text
 modify_note f = modify_expr $ \note_str -> case Text.uncons note_str of
     Just ('(', rest) ->
         let (note, post) = Text.break (`elem` " )") rest
@@ -168,7 +168,7 @@ modify_note f = modify_expr $ \note_str -> case Text.uncons note_str of
 
 -- | Modify the note expression, e.g. in @i (a b c)@ it would be @(a b c)@,
 -- including the parens.
-modify_expr :: (Text -> Either String Text) -> Text -> Either String Text
+modify_expr :: (Text -> Either Text Text) -> Text -> Either Text Text
 modify_expr f text = case Parse.parse_expr text of
     Left _ -> Right text
     Right expr -> case expr of
@@ -194,7 +194,7 @@ modify_expr f text = case Parse.parse_expr text of
 -- | Function that modifies the pitch of an event on a pitch track, or a Left
 -- if the operation failed.
 type ModifyPitch =
-    Scale.Scale -> TrackLang.Environ -> Pitch.Note -> Either String Pitch.Note
+    Scale.Scale -> TrackLang.Environ -> Pitch.Note -> Either Text Pitch.Note
 
 transpose_selection :: Cmd.M m => Scale.Transposition -> Pitch.Octave
     -> Pitch.Step -> m ()
@@ -206,11 +206,11 @@ transpose transposition octaves steps = \scale env note ->
     case Scale.transpose transposition scale env octaves steps note of
         -- Leave non-pitches alone.
         Left Scale.UnparseableNote -> Right note
-        Left err -> Left (prettys err)
+        Left err -> Left (pretty err)
         Right note2 -> Right note2
 
 cycle_enharmonics :: ModifyPitch
-cycle_enharmonics scale env note = first prettys $ do
+cycle_enharmonics scale env note = first pretty $ do
     enharmonics <- Scale.scale_enharmonics scale env note
     return $ fromMaybe note (Seq.head enharmonics)
 

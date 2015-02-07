@@ -66,7 +66,8 @@ repl session repl_dirs msg = do
         Msg.Socket hdl s -> return (hdl, s)
         _ -> Cmd.abort
     ns <- State.get_namespace
-    text <- Cmd.require_right ("expand_macros: "<>) $ expand_macros ns text
+    text <- Cmd.require_right (("expand_macros: "<>) . txt) $
+        expand_macros ns text
     Log.debug $ "repl input: " <> showt text
     local_modules <- fmap concat (mapM get_local_modules repl_dirs)
 

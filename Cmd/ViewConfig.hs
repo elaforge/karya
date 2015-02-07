@@ -281,7 +281,7 @@ save_views name = do
 -- saved as \"prev\".
 restore_views :: Cmd.M m => Text -> m ()
 restore_views name = do
-    (views, focused) <- Cmd.require ("no saved views named: " <> untxt name)
+    (views, focused) <- Cmd.require ("no saved views named: " <> name)
         =<< State.config#State.saved_views # Lens.map name <#> State.get
     save_views "prev"
     State.put_views views
@@ -299,6 +299,6 @@ bring_to_front view_id = do
     view <- State.lookup_view view_id
     case view of
         Nothing -> Cmd.throw $ "can't bring to front non-existent view "
-            ++ show view_id
+            <> showt view_id
         _ -> return ()
     State.update $ Update.CmdBringToFront view_id

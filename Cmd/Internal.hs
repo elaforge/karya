@@ -186,7 +186,7 @@ ui_update maybe_tracknum view_id update = case update of
             -- to know which one changed.  See BlockView::track_tile_cb.
             unless collapsed $
                 State.set_track_width block_id tracknum width
-        Nothing -> State.throw $ "update with no track: " ++ show update
+        Nothing -> State.throw $ "update with no track: " <> showt update
     -- Handled by 'ui_update_state'.
     UiMsg.UpdateClose -> return ()
     UiMsg.UpdateInput {} -> return ()
@@ -219,8 +219,8 @@ ui_update_state maybe_tracknum view_id update = case update of
             track_id <- State.event_track_at block_id tracknum
             case track_id of
                 Just track_id -> State.set_track_title track_id text
-                Nothing -> State.throw $ show (UiMsg.UpdateInput text)
-                    ++ " on non-event track " ++ show tracknum
+                Nothing -> State.throw $ showt (UiMsg.UpdateInput text)
+                    <> " on non-event track " <> showt tracknum
         Nothing -> State.set_block_title block_id text
 
 update_of :: Msg.Msg -> Maybe (UiMsg.Context, ViewId, UiMsg.UiUpdate)
