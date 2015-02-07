@@ -9,6 +9,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Text.Lazy as Lazy
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -94,10 +95,10 @@ replace_titles from to = map_titles $ Text.replace from to
 -- * doc
 
 doc :: Cmd.CmdL Text
-doc = CallDoc.doc_text <$> track_doc
+doc = Lazy.toStrict . CallDoc.doc_text <$> track_doc
 
 find_doc :: Text -> Cmd.CmdL Text
-find_doc search  = CallDoc.doc_text
+find_doc search  = Lazy.toStrict . CallDoc.doc_text
     . CallDoc.filter_calls (search `Text.isInfixOf`) <$> track_doc
 
 -- | Write HTML documentation for the selected track to

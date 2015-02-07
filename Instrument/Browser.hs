@@ -36,7 +36,7 @@ import qualified Data.Text.Lazy as Lazy
 import Text.Printf (printf)
 
 import qualified Util.Fltk as Fltk
-import qualified Util.Format4 as Format
+import qualified Util.Format as Format
 import qualified Util.Seq as Seq
 
 import qualified Cmd.CallDoc as CallDoc

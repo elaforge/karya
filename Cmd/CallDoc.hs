@@ -15,8 +15,8 @@ import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Lazy
 
 import qualified Util.File as File
-import qualified Util.Format4 as Format
-import Util.Format4 ((<+>), (</>), (<//>), (<+/>))
+import qualified Util.Format as Format
+import Util.Format ((<+>), (</>), (<//>), (<+/>))
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 

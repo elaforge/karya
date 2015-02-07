@@ -6,7 +6,7 @@
     complete.
 -}
 module Util.Pretty (
-    module Util.Format4
+    module Util.Format
     , Pretty, pretty, format, formatList
     , prettys
     , formatted, pprint
@@ -42,8 +42,8 @@ import qualified Data.Word as Word
 import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
-import qualified Util.Format4 as Format
-import Util.Format4 (Doc, (</>), (<//>), (<+/>), (<+>), text, render, indented)
+import qualified Util.Format as Format
+import Util.Format (Doc, (</>), (<//>), (<+/>), (<+>), text, render, indented)
 import qualified Util.Seq as Seq
 
 
