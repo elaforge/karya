@@ -103,8 +103,7 @@ get_environ = get_dynamic state_environ
 
 insert_environ :: TrackLang.Typecheck val => TrackLang.ValName
     -> val -> TrackLang.Environ -> Deriver TrackLang.Environ
-insert_environ name val =
-    either (throw . untxt) return . TrackLang.put_val_error name val
+insert_environ name val = either throw return . TrackLang.put_val_error name val
 
 -- | Figure out the current block and track, and record the current environ
 -- in the Collect.  It only needs to be recorded once per track.
@@ -161,16 +160,16 @@ get_block :: BlockId -> Deriver Block.Block
 get_block block_id = lookup_id block_id =<< get_ui_state State.state_blocks
 
 -- | Evaluate a State.M computation, rethrowing any errors.
-eval_ui :: String -> State.StateId a -> Deriver a
+eval_ui :: Text -> State.StateId a -> Deriver a
 eval_ui caller action = do
     ui_state <- get_ui_state id
-    let rethrow exc = throw $ caller <> ": " <> prettys exc
+    let rethrow exc = throw $ caller <> ": " <> pretty exc
     either rethrow return (State.eval ui_state action)
 
 -- | Lookup @map!key@, throwing if it doesn't exist.
 lookup_id :: (Ord k, Show k) => k -> Map.Map k a -> Deriver a
 lookup_id key map = case Map.lookup key map of
-    Nothing -> throw $ "unknown " <> show key
+    Nothing -> throw $ "unknown " <> showt key
     Just val -> return val
 
 -- * stack
@@ -219,7 +218,7 @@ with_stack :: Stack.Frame -> Deriver a -> Deriver a
 with_stack frame = localm $ \st -> do
     stack <- get_stack
     when (Stack.length stack >= max_depth) $
-        throw $ "call stack too deep: " <> prettys frame
+        throw $ "call stack too deep: " <> pretty frame
     return $ add_stack_frame frame st
     where
     -- A recursive loop will result in an unfriendly hang.  So limit the total
@@ -377,14 +376,14 @@ add_new_track_warp track_id = do
 get_block_dur :: BlockId -> Deriver ScoreTime
 get_block_dur block_id = do
     ui_state <- gets (state_ui . state_constant)
-    either (throw . ("get_block_dur: "++) . show) return
+    either (throw . ("get_block_dur: "<>) . showt) return
         (State.eval ui_state (State.block_ruler_end block_id))
 
 -- | Get the duration of the block according to the last event.
 get_total_block_dur :: BlockId -> Deriver ScoreTime
 get_total_block_dur block_id = do
     ui_state <- gets (state_ui . state_constant)
-    either (throw . ("get_total_block_dur: "++) . show) return
+    either (throw . ("get_total_block_dur: "<>) . showt) return
         (State.eval ui_state (State.block_event_end block_id))
 
 

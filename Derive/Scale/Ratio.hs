@@ -72,7 +72,7 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
         start <- Args.real_start args
         env <- Internal.get_environ
         nn <- Derive.require
-            ("ratio scale requires " <> untxt (ShowVal.show_val pitch_control))
+            ("ratio scale requires " <> ShowVal.show_val pitch_control)
             =<< Derive.named_nn_at control start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
         return $ PitchSignal.pitch

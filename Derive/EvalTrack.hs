@@ -296,7 +296,7 @@ derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
 derive_orphans derive_tracks prev end subs
     | start >= end = Nothing
     | otherwise = case checked of
-        Left err -> Just $ Log.warn (txt err) >> return []
+        Left err -> Just $ Log.warn err >> return []
         Right [] -> Nothing
         Right slices -> Just $ derive_tracks slices
     where

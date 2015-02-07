@@ -127,16 +127,16 @@ with_default_imported deriver =
 
 -- * errors
 
-require :: String -> Maybe a -> Deriver a
+require :: Text -> Maybe a -> Deriver a
 require = require_srcpos Nothing
 
-require_srcpos :: SrcPos.SrcPos -> String -> Maybe a -> Deriver a
+require_srcpos :: SrcPos.SrcPos -> Text -> Maybe a -> Deriver a
 require_srcpos srcpos msg = maybe (throw_srcpos srcpos msg) return
 
-require_right :: (err -> String) -> Either err a -> Deriver a
+require_right :: (err -> Text) -> Either err a -> Deriver a
 require_right = require_right_srcpos Nothing
 
-require_right_srcpos :: SrcPos.SrcPos -> (err -> String) -> Either err a
+require_right_srcpos :: SrcPos.SrcPos -> (err -> Text) -> Either err a
     -> Deriver a
 require_right_srcpos srcpos fmt_err =
     either (throw_srcpos srcpos . fmt_err) return
@@ -162,7 +162,7 @@ with_imported empty_ok module_ deriver = do
     lib <- case extract_module module_ lib of
         Library (CallMaps [] []) (CallMaps [] []) (CallMaps [] []) []
             | not empty_ok -> -- Likely the module name was typoed.
-                throw $ "no calls in the imported module: " <> prettys module_
+                throw $ "no calls in the imported module: " <> pretty module_
         extracted -> return extracted
     with_scopes (import_library lib) deriver
 
@@ -174,8 +174,8 @@ with_imported_symbols module_ syms deriver = do
         Internal.get_constant state_library
     let missing = syms `Set.difference` Set.fromList (library_symbols lib)
     unless (Set.null missing) $
-        throw $ "symbols not in module " <> prettys module_ <> ": "
-            <> prettys (Set.toList missing)
+        throw $ "symbols not in module " <> pretty module_ <> ": "
+            <> pretty (Set.toList missing)
     with_scopes (import_library lib) deriver
 
 -- | Filter out any calls that aren't in the given modules.
@@ -254,7 +254,7 @@ merge_lookups lookups = LookupMap calls : [p | p@(LookupPattern {}) <- lookups]
 -- | Lookup a scale_id or throw.
 get_scale :: Pitch.ScaleId -> Deriver Scale
 get_scale scale_id =
-    maybe (throw $ "get_scale: unknown " <> prettys scale_id) return
+    maybe (throw $ "get_scale: unknown " <> pretty scale_id) return
     =<< lookup_scale scale_id
 
 lookup_scale :: Pitch.ScaleId -> Deriver (Maybe Scale)
@@ -263,8 +263,8 @@ lookup_scale scale_id = do
     env <- Internal.get_environ
     case lookup env (LookupScale lookup) scale_id of
         Nothing -> return Nothing
-        Just (Left err) -> throw $ "lookup " <> prettys scale_id <> ": "
-            <> prettys err
+        Just (Left err) -> throw $ "lookup " <> pretty scale_id <> ": "
+            <> pretty err
         Just (Right scale) -> return $ Just scale
 
 
@@ -273,7 +273,7 @@ lookup_scale scale_id = do
 lookup_val :: TrackLang.Typecheck a => TrackLang.ValName -> Deriver (Maybe a)
 lookup_val name = do
     environ <- Internal.get_environ
-    either (throw . untxt) return (TrackLang.checked_val name environ)
+    either throw return (TrackLang.checked_val name environ)
 
 is_val_set :: TrackLang.ValName -> Deriver Bool
 is_val_set name =
@@ -283,7 +283,7 @@ is_val_set name =
 get_val :: TrackLang.Typecheck a => TrackLang.ValName -> Deriver a
 get_val name = do
     val <- lookup_val name
-    maybe (throw $ "environ val not found: " <> prettys name) return val
+    maybe (throw $ "environ val not found: " <> pretty name) return val
 
 is_lilypond_derive :: Deriver Bool
 is_lilypond_derive = Maybe.isJust <$> lookup_lilypond_config
@@ -323,8 +323,7 @@ modify_val :: TrackLang.Typecheck val => TrackLang.ValName
     -> (Maybe val -> val) -> Deriver a -> Deriver a
 modify_val name modify = Internal.localm $ \st -> do
     let env = state_environ st
-    val <- modify <$> either (throw . untxt) return
-        (TrackLang.checked_val name env)
+    val <- modify <$> either throw return (TrackLang.checked_val name env)
     return $! st { state_environ =
         TrackLang.insert_val name (TrackLang.to_val val) env }
 
@@ -362,8 +361,8 @@ val_to_pitch (ValCall name doc vcall) = Call
             -- you can then override '', but is also less efficient.
             pos <- Internal.real $ Event.start $ info_event $ passed_info args
             return [LEvent.Event $ PitchSignal.signal [(pos, pitch)]]
-        _ -> throw $ "scale call " <> untxt name
-            <> " returned non-pitch: " <> untxt (ShowVal.show_val val)
+        _ -> throw $ "scale call " <> name
+            <> " returned non-pitch: " <> ShowVal.show_val val
 
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
@@ -407,8 +406,7 @@ get_instrument inst = do
     lookup_inst <- gets $ state_lookup_instrument . state_constant
     let msg = ShowVal.show_val real_inst <> if real_inst == inst then ""
             else " (aliased via " <> ShowVal.show_val inst <> ")"
-    val <- require ("no instrument found for " <> untxt msg) $
-        lookup_inst real_inst
+    val <- require ("no instrument found for " <> msg) $ lookup_inst real_inst
     return (real_inst, val)
 
 -- | Merge the given environ into the environ in effect.
@@ -536,7 +534,7 @@ get_merge name
     | name == "set" = return Set
     | otherwise = do
         op_map <- gets (state_control_op_map . state_constant)
-        Merge <$> require ("unknown control op: " ++ show name)
+        Merge <$> require ("unknown control op: " <> showt name)
             (Map.lookup name op_map)
 
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a

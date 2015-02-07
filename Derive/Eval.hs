@@ -110,7 +110,7 @@ eval_transform_expr name expr_str deriver
     | Text.all Char.isSpace expr_str = deriver
     | otherwise = do
         expr <- case Parse.parse_expr expr_str of
-            Left err -> Derive.throw $ untxt name ++ ": " ++ err
+            Left err -> Derive.throw $ name <> ": " <> txt err
             Right expr -> return expr
         let cinfo = Derive.dummy_call_info 0 1 name
         eval_transformers cinfo (NonEmpty.toList expr) deriver
@@ -188,7 +188,7 @@ require_call is_generator call_id name Nothing = do
         caller <- Internal.lookup_current_block_id
         ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
         whenJust (call_to_block_id ns caller call_id) Internal.add_block_dep
-    Derive.throw $ untxt (unknown_call_id name call_id)
+    Derive.throw $ unknown_call_id name call_id
 
 unknown_call_id :: Text -> TrackLang.CallId -> Text
 unknown_call_id name (TrackLang.Symbol sym) = name <> " not found: " <> sym
@@ -251,9 +251,9 @@ eval_one_at collect start dur expr = eval_expr collect cinfo expr
 -- This is useful if you want to evaluate things out of order, i.e. evaluate
 -- the /next/ pitch.
 eval_event :: Derive.Callable d => Event.Event
-    -> Derive.Deriver (Either String [LEvent.LEvent d])
+    -> Derive.Deriver (Either Text [LEvent.LEvent d])
 eval_event event = case Parse.parse_expr (Event.event_text event) of
-    Left err -> return $ Left err
+    Left err -> return $ Left (txt err)
     Right expr -> Right <$>
         -- TODO eval it separately to catch any exception?
         eval_one_at False (Event.start event) (Event.duration event) expr
@@ -293,7 +293,7 @@ reapply cinfo = eval_expr False cinfo
 reapply_string :: Derive.Callable d => Derive.CallInfo d -> Text
     -> Derive.LogsDeriver d
 reapply_string cinfo s = case Parse.parse_expr s of
-    Left err -> Derive.throw $ "parse error: " ++ err
+    Left err -> Derive.throw $ "parse error: " <> txt err
     Right expr -> reapply cinfo expr
 
 reapply_call :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Symbol
@@ -329,8 +329,7 @@ eval_expr collect cinfo expr =
 cast :: forall a. TrackLang.Typecheck a => Text -> TrackLang.Val
     -> Derive.Deriver a
 cast name val = case TrackLang.from_val val of
-    Nothing -> Derive.throw $ untxt $
-        name <> ": expected " <> pretty return_type
+    Nothing -> Derive.throw $ name <> ": expected " <> pretty return_type
         <> " but val was " <> pretty (TrackLang.type_of val)
         <> " " <> TrackLang.show_val val
     Just a -> return a

@@ -89,7 +89,7 @@ require_dur :: ScoreTime -> RealTime -> (a -> a) -> Derive.Deriver (a -> a)
 require_dur block_dur real_dur ok
     | block_dur == 0 = return id
     | real_dur == 0 = Derive.throw $
-        "real time of block with dur " <> show block_dur <> " was zero"
+        "real time of block with dur " <> showt block_dur <> " was zero"
     | otherwise = return ok
 
 

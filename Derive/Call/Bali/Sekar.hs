@@ -85,7 +85,7 @@ pattern_doc =
     \ the 26th. Capital letters replace that note with a rest. Gaps in the\
     \ input notes count as rest notes."
 
-check_patterns :: [(Pattern, Text)] -> Either String (NonEmpty Pattern)
+check_patterns :: [(Pattern, Text)] -> Either Text (NonEmpty Pattern)
 check_patterns [(pattern, _)] = Right (pattern :| [])
 check_patterns patterns = do
     mapM_ check (zip [1..] patterns)
@@ -95,7 +95,8 @@ check_patterns patterns = do
     where
     check (n, (pattern, ptext))
         | pattern_length pattern /= n = Left $
-            "expected pattern of length " <> show n <> " but got " <> show ptext
+            "expected pattern of length " <> showt n <> " but got "
+            <> showt ptext
         | otherwise = return ()
 
 -- ** even subdivision
@@ -237,7 +238,7 @@ pattern_length = maximum . (0:) . map ((+1) . fst)
 make_pattern :: Text -> Derive.Deriver Pattern
 make_pattern pattern = do
     when (Text.null pattern || Text.any (not . a_to_z . Char.toLower) pattern) $
-        Derive.throw $ "pattern chars must be a-z: " ++ show pattern
+        Derive.throw $ "pattern chars must be a-z: " <> showt pattern
     return
         [ (fromEnum (Char.toLower c) - fromEnum 'a',
             if Char.isUpper c then Rest else Note)

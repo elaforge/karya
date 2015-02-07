@@ -72,7 +72,7 @@ d_control_track :: TrackTree.EventsNode
 d_control_track (Tree.Node track _) deriver = do
     let title = TrackTree.track_title track
     if Text.all Char.isSpace title then deriver else do
-        (ctype, expr) <- either (\err -> Derive.throw $ "track title: " ++ err)
+        (ctype, expr) <- either (\err -> Derive.throw $ "track title: " <> txt err)
             return (ParseTitle.parse_control_expr title)
         eval_track track expr ctype deriver
 
@@ -160,7 +160,7 @@ dispatch_tempo sym block_dur maybe_track_id signal deriver = case sym of
         | sym == "abs" ->
             Tempo.with_absolute block_dur maybe_track_id signal deriver
         | otherwise -> Derive.throw $
-            "unknown tempo modifier: " <> untxt (ShowVal.show_val sym)
+            "unknown tempo modifier: " <> ShowVal.show_val sym
 
 control_call :: TrackTree.Track -> Score.Typed Score.Control
     -> Derive.Merge -> (Derive.Deriver (TrackResults Signal.Control))
@@ -385,8 +385,8 @@ get_block_track block_id track_id = do
     track <- Derive.get_track track_id
     block <- Derive.get_block block_id
     btrack <- Derive.require
-        ("get_block_track: " <> show block_id <> " doesn't have "
-            <> show track_id) $
+        ("get_block_track: " <> showt block_id <> " doesn't have "
+            <> showt track_id) $
         List.find ((== Just track_id) . Block.track_id)
             (Block.block_tracks block)
     return (btrack, track)

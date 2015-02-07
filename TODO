@@ -421,7 +421,7 @@ lilypond:
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.
   - optionally emit the lilypond to display a compound meter
-  - use Util.Format in ly output
+  / use Util.Format in ly output
   jianpu
     . Research jianpu conventions, but basically:
       . Hide staff lines, stems, beams.
@@ -592,7 +592,7 @@ cleanup:
   convert to Text:
     * Pretty.pretty
       For this I need to extend Util.Format to be a simplified prettyprinter.
-    - Derive.throw
+    * Derive.throw
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
     . I could make that a .c file too, and get rid of the sketchy hsc2hs on

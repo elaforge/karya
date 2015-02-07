@@ -117,9 +117,9 @@ c_env = val_call "env" mempty
     check name deflt (Just val) =
         case TrackLang.val_types_match deflt val of
             Nothing -> return val
-            Just expected -> Derive.throw $ "env " <> prettys name
-                <> " expected " <> prettys expected
-                <> " but got " <> prettys (TrackLang.infer_type_of False val)
+            Just expected -> Derive.throw $ "env " <> pretty name
+                <> " expected " <> pretty expected
+                <> " but got " <> pretty (TrackLang.infer_type_of False val)
 
 c_timestep :: Derive.ValCall
 c_timestep = val_call "timestep" mempty
@@ -197,7 +197,7 @@ make_pitch :: Either Pitch.Octave (Either Text PitchSignal.Pitch)
 make_pitch (Left oct) pc accs = return $ Pitch.Pitch oct (Pitch.Degree pc accs)
 make_pitch (Right name_pitch) pc accs
     | pc /= 0 || accs /= 0 = Derive.throw $
-        "pc and accs args must be 0 when a pitch is given: " ++ show (pc, accs)
+        "pc and accs args must be 0 when a pitch is given: " <> showt (pc, accs)
     | otherwise = do
         (note, scale) <- case name_pitch of
             Left name -> (,) <$> return (Pitch.Note name) <*> Util.get_scale
@@ -205,7 +205,7 @@ make_pitch (Right name_pitch) pc accs
                 <$> Pitches.pitch_note (PitchSignal.coerce pitch)
                 <*> Derive.get_scale (PitchSignal.pitch_scale_id pitch)
         env <- Internal.get_environ
-        either (Derive.throw . prettys) return $
+        either (Derive.throw . pretty) return $
             Scale.scale_read scale env note
 
 c_pitch_control :: Derive.ValCall

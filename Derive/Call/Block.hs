@@ -154,7 +154,7 @@ d_block block_id = do
     transform <- if Text.all Char.isSpace title
         then return id
         else case ParseTitle.parse_block title of
-            Left err -> Derive.throw $ "block title: " <> err
+            Left err -> Derive.throw $ "block title: " <> txt err
             Right expr ->
                 return $ Eval.eval_transformers info (NonEmpty.toList expr)
                 where info = Derive.dummy_call_info 0 1 "block title"
@@ -181,10 +181,9 @@ call_to_block_id sym = do
                 else Nothing
 
 require_block_id :: TrackLang.Symbol -> Derive.Deriver BlockId
-require_block_id sym = maybe
-    (Derive.throw $ untxt $
-        "block not found: " <> TrackLang.show_val sym)
-    return =<< call_to_block_id sym
+require_block_id sym =
+    Derive.require ("block not found: " <> TrackLang.show_val sym)
+        =<< call_to_block_id sym
 
 -- ** clip
 
@@ -302,7 +301,7 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
     when (Map.lookup block_id blocks == Nothing) $
         Derive.throw "block_id not found"
     Internal.add_block_dep block_id
-    deriver <- Derive.eval_ui ("d_control_block " ++ show block_id)
+    deriver <- Derive.eval_ui ("d_control_block " <> showt block_id)
         (BlockUtil.control_deriver block_id)
     deriver
 

@@ -173,8 +173,8 @@ natural_harmonic config (strings, hmap) args = do
             =<< Derive.nn_at =<< Args.real_start args
         let pitch = Midi.to_key (round nn)
         case find_harmonic hmap pitch maybe_string of
-            Nothing -> Derive.throw $ prettys pitch <> " unplayable on "
-                <> maybe (prettys strings) prettys maybe_string
+            Nothing -> Derive.throw $ pretty pitch <> " unplayable on "
+                <> maybe (pretty strings) pretty maybe_string
             Just key -> return $
                 Util.with_pitch (Pitches.nn_pitch (Midi.from_key key))
 

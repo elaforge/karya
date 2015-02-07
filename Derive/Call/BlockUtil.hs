@@ -55,7 +55,7 @@ import Types
 
 note_deriver :: BlockId -> Derive.NoteDeriver
 note_deriver block_id = do
-    (tree, block_end) <- Derive.eval_ui ("note_deriver " <> show block_id) $
+    (tree, block_end) <- Derive.eval_ui ("note_deriver " <> showt block_id) $
         get_tree block_id
     Derive.with_val Environ.block_end block_end $ derive_tree block_end tree
 

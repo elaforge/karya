@@ -610,7 +610,7 @@ resolve_pitches kam_args (pitch1, pitch2) = do
             _ -> True
     when (two_pitches && control1 /= control2) $ Derive.throw $
         "pitch1 and pitch2 signals should have the same type: "
-        <> prettys control1 <> " /= " <> prettys control2
+        <> pretty control1 <> " /= " <> pretty control2
     return ((pitch1, pitch2), control1)
 
 kampita_pitch_args :: KampitaArgs

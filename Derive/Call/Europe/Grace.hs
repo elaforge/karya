@@ -319,7 +319,7 @@ resolve_pitches base = either Derive.throw return . check_pitches base
 
 check_pitches :: PitchSignal.Pitch
     -> [Either PitchSignal.Pitch Score.TypedVal]
-    -> Either String [PitchSignal.Pitch]
+    -> Either Text [PitchSignal.Pitch]
 check_pitches base pitches = do
     make <- case types of
         t : ts
@@ -327,10 +327,10 @@ check_pitches base pitches = do
                 Score.Diatonic -> Right Pitch.Diatonic
                 Score.Chromatic -> Right Pitch.Chromatic
                 Score.Nn -> Right Pitch.Nn
-                _ -> Left $ "expected transpose type, but got " <> prettys t
+                _ -> Left $ "expected transpose type, but got " <> pretty t
             | otherwise ->
                 Left $ "arguments should all have the same type, got "
-                    <> prettys types
+                    <> pretty types
         [] -> Right Pitch.Diatonic
     return $ map (either id (resolve make . Score.typed_val)) pitches
     where

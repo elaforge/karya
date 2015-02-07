@@ -39,6 +39,7 @@ module Derive.Slice (
 import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
+import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
 import qualified Util.Seq as Seq
@@ -268,7 +269,7 @@ strip_empty_tracks (Tree.Node track subs)
 -- currently I do.  Actually I think overlap checking needs an overhaul in
 -- general.
 checked_slice_notes :: Bool -> ScoreTime -> ScoreTime -> TrackTree.EventsTree
-    -> Either String [[Note]]
+    -> Either Text [[Note]]
 checked_slice_notes include_end start end tracks = case maybe_err of
     Nothing -> Right $ filter (not . null) notes
     Just err -> Left err
@@ -283,11 +284,11 @@ checked_slice_notes include_end start end tracks = case maybe_err of
     -- extends over 0 means it overlaps the beginning of the slice.
     check_tracks = map (\(_, _, subs) -> subs) $ mapMaybe Seq.head notes
 
-check_greater_than :: ScoreTime -> [[TrackTree.EventsNode]] -> Maybe String
+check_greater_than :: ScoreTime -> [[TrackTree.EventsNode]] -> Maybe Text
 check_greater_than start tracks
     | null events = Nothing
     | otherwise = Just $ "zero duration slice has note events >"
-        <> prettys start <> ": " <> Seq.join ", " (map prettys events)
+        <> pretty start <> ": " <> Text.intercalate ", " (map pretty events)
     where events = mapMaybe (find_greater_than start) tracks
 
 find_greater_than :: ScoreTime -> [TrackTree.EventsNode] -> Maybe Event.Event
@@ -300,11 +301,11 @@ find_greater_than start = msum . map (find (has_gt <=< note_track))
         . TrackTree.track_events
 
 check_overlapping :: Bool -> ScoreTime -> [[TrackTree.EventsNode]]
-    -> Maybe String
+    -> Maybe Text
 check_overlapping include_end start tracks
     | null overlaps = Nothing
     | otherwise = Just $ "slice has overlaps: "
-        <> Seq.join ", " (map show_overlap overlaps)
+        <> Text.intercalate ", " (map show_overlap overlaps)
     -- TODO 'include_end' is used incorrectly, it becomes 'exclude_start'
     -- need to fix find_overlapping
     where overlaps = mapMaybe (find_overlapping include_end start) tracks
@@ -373,18 +374,18 @@ find_overlapping exclude_start start = msum . map (find has_overlap)
     -- me for the moment so I'm letting it be.
     edge = if exclude_start then Event.min else Event.max
 
-show_overlap :: (Maybe TrackId, (TrackTime, TrackTime)) -> String
+show_overlap :: (Maybe TrackId, (TrackTime, TrackTime)) -> Text
 show_overlap (Nothing, (start, end)) =
-    prettys start <> "--" <> prettys end
+    pretty start <> "--" <> pretty end
 show_overlap (Just track_id, (start, end)) =
-    prettys $ State.Range Nothing track_id start end
+    pretty $ State.Range Nothing track_id start end
 
 -- * orphans
 
 -- | This is a variant of 'slice' used by note track evaluation to derive
 -- orphan events.
 slice_orphans :: Bool -> ScoreTime -> ScoreTime -> [TrackTree.EventsNode]
-    -> Either String [TrackTree.EventsNode]
+    -> Either Text [TrackTree.EventsNode]
 slice_orphans exclude_start start end subs =
     maybe (Right slices) Left $ check_overlapping exclude_start start [slices]
     where

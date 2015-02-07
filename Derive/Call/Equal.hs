@@ -12,7 +12,6 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -110,10 +109,10 @@ equal_transformer args deriver =
         [TrackLang.VSymbol lhs, TrackLang.VNotGiven, val] ->
             parse_equal (Just Default) lhs val
         args -> Left $ "unexpected arg types: "
-            <> Seq.join ", " (map (prettys . TrackLang.type_of) args)
+            <> Text.intercalate ", " (map (pretty . TrackLang.type_of) args)
 
 parse_equal :: Maybe Merge -> TrackLang.Symbol -> TrackLang.Val
-    -> Either String (Derive.Deriver a -> Derive.Deriver a)
+    -> Either Text (Derive.Deriver a -> Derive.Deriver a)
 parse_equal Nothing (TrackLang.Symbol lhs) rhs
     | Just new <- Text.stripPrefix "^" lhs = Right $
         override_call new rhs "note"
@@ -133,7 +132,7 @@ parse_equal Nothing (TrackLang.Symbol lhs) rhs
         TrackLang.VInstrument inst -> Right $
             Derive.with_instrument_alias (Score.Instrument new) inst
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
-            <> prettys (TrackLang.type_of rhs)
+            <> pretty (TrackLang.type_of rhs)
 parse_equal maybe_merge lhs rhs
     | Just control <- is_control =<< parse_val lhs = case rhs of
         TrackLang.VControl rhs -> Right $ \deriver ->
@@ -153,7 +152,7 @@ parse_equal maybe_merge lhs rhs
             Nothing -> Right $ Derive.with_control_function control f
         TrackLang.VNotGiven -> Right $ Derive.remove_controls [control]
         _ -> Left $ "binding a control expected a control, num, control\
-            \ function, or _, but got " <> prettys (TrackLang.type_of rhs)
+            \ function, or _, but got " <> pretty (TrackLang.type_of rhs)
     where
     is_control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing
@@ -165,7 +164,7 @@ parse_equal Nothing lhs rhs
             sig <- Util.to_pitch_signal rhs
             Derive.with_pitch control sig deriver
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
-            <> " control, but got " <> prettys (TrackLang.type_of rhs)
+            <> " control, but got " <> pretty (TrackLang.type_of rhs)
     where
     is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))
         | c == Controls.null = Just Nothing
@@ -174,11 +173,11 @@ parse_equal Nothing lhs rhs
 parse_equal (Just merge) _ _ = Left $ merge_error merge
 parse_equal Nothing lhs val = Right $ Derive.with_val lhs val
 
-merge_error :: Merge -> String
+merge_error :: Merge -> Text
 merge_error merge = "operator is only supported when assigning to a control: "
     <> case merge of
         Default -> "_"
-        Merge sym -> prettys sym
+        Merge sym -> pretty sym
 
 data Merge = Default | Merge TrackLang.CallId deriving (Show)
 
@@ -233,7 +232,7 @@ override_val_call lhs rhs deriver = do
 get_call :: Text -> (Derive.Scopes -> Derive.ScopeType call)
     -> TrackLang.CallId -> Derive.Deriver call
 get_call name get call_id =
-    maybe (Derive.throw $ untxt $ Eval.unknown_call_id name call_id)
+    maybe (Derive.throw $ Eval.unknown_call_id name call_id)
         return =<< Derive.lookup_with get call_id
 
 single_lookup :: Text -> Derive.Call d
@@ -274,7 +273,7 @@ quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
             TrackLang.Quoted (call :| []) -> return $ TrackLang.ValCall call
             _ -> Derive.throw $
                 "expected a val call, but got a full expression: "
-                <> untxt (ShowVal.show_val quoted)
+                <> ShowVal.show_val quoted
         Eval.eval (Args.info args) call
 
 -- | Pseudo-module for val calls generated from a quoted expression.

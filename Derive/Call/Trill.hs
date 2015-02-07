@@ -124,7 +124,7 @@ c_attr_trill = Derive.make_call Module.prelude "attr-tr" Tags.attr
             (2, Util.Chromatic) -> return Attrs.whole
             _ -> Derive.throw $
                 "attribute trill only supports 1c and 2c trills: "
-                <> untxt (ShowVal.show_val neighbor)
+                <> ShowVal.show_val neighbor
         Util.add_attrs (Attrs.trill <> width_attr) (Util.placed_note args)
 
 c_tremolo_generator :: Derive.Generator Derive.Note

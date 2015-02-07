@@ -105,6 +105,6 @@ has_environ name maybe_val = Derive.lookup_val name >>= \x -> case x of
     Just env_val -> case maybe_val of
         Nothing -> return True
         Just val -> case TrackLang.vals_equal val env_val of
-            Nothing -> Derive.throw $ untxt $ "vals can't be compared: "
+            Nothing -> Derive.throw $ "vals can't be compared: "
                 <> ShowVal.show_val val <> " " <> ShowVal.show_val env_val
             Just t -> return t

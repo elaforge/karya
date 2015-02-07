@@ -62,7 +62,7 @@ c_alternate = Derive.make_call Module.prelude "alternate" Tags.random
 eval :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Val
     -> Derive.Deriver [LEvent.LEvent d]
 eval info val = do
-    quoted <- Derive.require_right untxt $ val_to_quoted val
+    quoted <- Derive.require_right id $ val_to_quoted val
     Eval.eval_quoted info quoted
 
 -- | Calls themselves are not first class, so this has to either take a string
@@ -81,7 +81,7 @@ c_alternate_weighted =
             Nothing -> Derive.throw "empty list"
             Just pairs -> pick_weighted pairs =<< Util.random
     where
-    typecheck args (weight, expr) = Derive.require_right untxt $ do
+    typecheck args (weight, expr) = Derive.require_right id $ do
         weight <- Sig.typecheck weight
         quoted <- val_to_quoted expr
         return (Eval.eval_quoted (Args.info args) quoted, weight)
@@ -102,8 +102,8 @@ c_alternate_tracks = Derive.make_call Module.prelude "alternate-tracks"
         \ an error to have more numbers than tracks.") $
     \weights args -> do
         subs <- Sub.sub_events args
-        let err =  "more weights than tracks: " <> show (length weights)
-                <> " > " <> show (length subs) <> " tracks"
+        let err =  "more weights than tracks: " <> showt (length weights)
+                <> " > " <> showt (length subs) <> " tracks"
         sub_weights <- mapM (pair err) $ Seq.zip_padded subs weights
         case NonEmpty.nonEmpty sub_weights of
             Nothing -> return mempty
@@ -152,7 +152,7 @@ c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
             Nothing -> Derive.throw "not reached"
             Just pairs -> pick_weighted pairs <$> Util.random
     where
-    typecheck (weight, val) = Derive.require_right untxt $ do
+    typecheck (weight, val) = Derive.require_right id $ do
         weight <- Sig.typecheck weight
         return (val, weight)
 

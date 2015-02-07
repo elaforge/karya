@@ -51,7 +51,7 @@ prev_val = Derive.info_prev_val . info
 eval :: Derive.Callable d => CallInfo x -> Event.Event
     -> [Event.Event] -> Derive.LogsDeriver d
 eval cinfo event prev = case Parse.parse_expr (Event.event_text event) of
-    Left err -> Derive.throw $ "parse error: " ++ err
+    Left err -> Derive.throw $ "parse error: " <> txt err
     Right expr -> Eval.eval_expr False prev_cinfo expr
         where
         prev_cinfo = cinfo

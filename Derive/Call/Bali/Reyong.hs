@@ -99,7 +99,7 @@ realize_pattern repeat pattern =
     $ Sig.call (Gangsa.dur_arg) $ \dur -> Sub.inverting $ \args -> do
         (parse_pitch, show_pitch, _) <- Util.get_pitch_functions
         pitch <- Util.get_parsed_pitch parse_pitch =<< Args.real_start args
-        positions <- Derive.require ("no pattern for pitch: " <> prettys pitch)
+        positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
         mconcatMap (realize show_pitch (Args.range args) dur)
             (zip [1..] positions)
@@ -129,7 +129,7 @@ realize_note :: (Pitch.Pitch -> Maybe Pitch.Note) -> Voice -> ScoreTime
 realize_note show_pitch voice start (pitch, attrs) =
     Util.add_attrs attrs $
     Derive.with_val Environ.voice voice $ do
-        note <- Derive.require ("unshowable pitch: " <> prettys pitch)
+        note <- Derive.require ("unshowable pitch: " <> pretty pitch)
             (show_pitch pitch)
         Util.pitched_note =<< Util.eval_note start note
 
@@ -361,7 +361,7 @@ reyong_damp damp_attr dyn dur =
 damped_note :: Score.Attributes -> Signal.Y -> Score.Event -> Derive.NoteDeriver
 damped_note attr dyn event =
     case Score.pitch_at (Score.event_start event) event of
-        Nothing -> Derive.throw $ "no pitch on " <> prettys event
+        Nothing -> Derive.throw $ "no pitch on " <> pretty event
         Just pitch -> do
             end <- Derive.score (Score.event_end event)
             Util.add_attrs attr $ Util.multiply_dynamic dyn $

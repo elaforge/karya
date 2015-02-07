@@ -59,7 +59,7 @@ c_chord dir = Derive.make_call Module.europe "chord" mempty
 -- Ninths:
 -- Arguments for modification: inversion, transpose 3 5 7 9 up an octave,
 -- drop 3 5 7 9.
-parse_chord :: PitchSignal.Pitch -> Text -> Either String [PitchSignal.Pitch]
+parse_chord :: PitchSignal.Pitch -> Text -> Either Text [PitchSignal.Pitch]
 parse_chord _base _name = Left "not implemented" -- TODO
 
 
@@ -106,7 +106,7 @@ resolve_intervals b = fmap snd . Seq.mapAccumLM resolve b
         where p = Pitches.transpose_d (steps - 1) base
     resolve base (Right (Right sym)) = do
         p <- maybe
-            (Derive.throw $ "can't parse: " <> untxt (ShowVal.show_val sym))
+            (Derive.throw $ "can't parse: " <> ShowVal.show_val sym)
             (return . flip Pitches.transpose_c base) (parse_interval sym)
         return (p, p)
 

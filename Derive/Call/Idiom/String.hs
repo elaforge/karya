@@ -127,7 +127,7 @@ string_idiom attack_interpolate release_interpolate open_strings attack delay
     let strings = Map.fromList (zip open_nns open_strings)
     case initial_state strings event of
         Nothing -> Derive.throw $ "initial pitch below lowest string: "
-            ++ show (Score.initial_nn event)
+            <> pretty (Score.initial_nn event)
         Just state -> do
             attack <- Post.control id attack events
             delay <- Post.control id delay events
@@ -163,7 +163,7 @@ process strings attack_interpolate release_interpolate
         (attack_time, delay_time, release_time)
         state@(State sounding_string prev) event = do
     pitch <- Derive.require "no pitch" $ Score.pitch_at start event
-    nn <- Derive.require_right prettys $
+    nn <- Derive.require_right pretty $
         PitchSignal.pitch_nn $ Score.apply_controls event start pitch
     case find_string nn strings of
         Nothing -> do

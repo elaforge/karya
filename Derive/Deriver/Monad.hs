@@ -190,11 +190,11 @@ instance Pretty.Pretty Error where
         txt (SrcPos.show_srcpos srcpos) <> " " <> pretty stack
             <> ": " <> pretty val
 
-data ErrorVal = GenericError String | CallError CallError
+data ErrorVal = GenericError !Text | CallError !CallError
     deriving (Show)
 
 instance Pretty.Pretty ErrorVal where
-    pretty (GenericError s) = txt s
+    pretty (GenericError s) = s
     pretty (CallError err) = pretty err
 
 data CallError =
@@ -245,18 +245,18 @@ instance Pretty.Pretty ErrorPlace where
     pretty (TypeErrorArg num) = showt (num + 1)
     pretty (TypeErrorEnviron key) = "environ:" <> pretty key
 
-throw :: String -> Deriver a
-throw msg = throw_error (GenericError msg)
+throw :: Text -> Deriver a
+throw = throw_error . GenericError
 
-throw_srcpos :: SrcPos.SrcPos -> String -> Deriver a
-throw_srcpos srcpos msg = throw_error_srcpos srcpos (GenericError msg)
+throw_srcpos :: SrcPos.SrcPos -> Text -> Deriver a
+throw_srcpos srcpos = throw_error_srcpos srcpos . GenericError
 
-throw_arg_error :: String -> Deriver a
+throw_arg_error :: Text -> Deriver a
 throw_arg_error = throw_arg_error_srcpos Nothing
 
-throw_arg_error_srcpos :: SrcPos.SrcPos -> String -> Deriver a
+throw_arg_error_srcpos :: SrcPos.SrcPos -> Text -> Deriver a
 throw_arg_error_srcpos srcpos =
-    throw_error_srcpos srcpos . CallError . ArgError . txt
+    throw_error_srcpos srcpos . CallError . ArgError
 
 throw_error :: ErrorVal -> Deriver a
 throw_error = throw_error_srcpos Nothing

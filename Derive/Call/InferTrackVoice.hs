@@ -38,5 +38,5 @@ c_infer_hands = Derive.transformer Module.prelude "infer-hands" mempty
                 Just 0 -> Derive.with_val Environ.hand ("l" :: Text) deriver
                 Just 1 -> Derive.with_val Environ.hand ("r" :: Text) deriver
                 Just n -> Derive.throw $
-                    "expected <=2 track-voices, got " <> show n
+                    "expected <=2 track-voices, got " <> showt n
                 Nothing -> deriver

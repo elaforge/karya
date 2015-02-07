@@ -3,7 +3,7 @@ import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
 import qualified Util.Format as Format
-import Util.Format4 (indented, (<+/>), (</>), BreakType(..))
+import Util.Format (indented, (<+/>), (</>), BreakType(..))
 import Util.Test
 
 import Global

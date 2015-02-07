@@ -96,7 +96,7 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
                 p2 <- require . Sig.typecheck =<< apply key_to to
                 return $ TrackLang.to_val $ Pitches.interpolated p1 p2 n
     where
-    require = Derive.require_right (("interpolated_degree: "<>) . untxt)
+    require = Derive.require_right ("interpolated_degree: "<>)
     doc :: ShowVal.ShowVal a => a -> Text
     doc = ShowVal.doc_val
 

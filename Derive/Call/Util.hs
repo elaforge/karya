@@ -80,8 +80,7 @@ typed_control_at control pos = case control of
     TrackLang.DefaultedControl cont deflt ->
         fromMaybe (Signal.at pos <$> deflt) <$> Derive.control_at cont pos
     TrackLang.LiteralControl cont ->
-        maybe (Derive.throw $ "not found and no default: "
-                <> untxt (TrackLang.show_val cont)) return
+        Derive.require ("not found and no default: " <> TrackLang.show_val cont)
             =<< Derive.control_at cont pos
 
 time_control_at :: TimeType -> TrackLang.ValControl -> RealTime
@@ -93,7 +92,7 @@ time_control_at default_type control pos = do
         Score.Score -> return Score
         Score.Real -> return Real
         _ -> Derive.throw $ "expected time type for "
-            <> untxt (TrackLang.show_val control) <> " but got " <> prettys typ
+            <> TrackLang.show_val control <> " but got " <> pretty typ
     return $ case time_type of
         Real -> TrackLang.Real (RealTime.seconds val)
         Score -> TrackLang.Score (ScoreTime.double val)
@@ -104,8 +103,7 @@ real_time_at control pos = do
     case val of
         TrackLang.Real t -> return t
         TrackLang.Score t -> Derive.throw $ "expected RealTime for "
-            <> untxt (TrackLang.show_val control) <> " but got "
-            <> untxt (TrackLang.show_val t)
+            <> TrackLang.show_val control <> " but got " <> TrackLang.show_val t
 
 transpose_control_at :: TransposeType -> TrackLang.ValControl -> RealTime
     -> Derive.Deriver (Signal.Y, TransposeType)
@@ -116,7 +114,7 @@ transpose_control_at default_type control pos = do
         Score.Chromatic -> return Chromatic
         Score.Diatonic -> return Diatonic
         _ -> Derive.throw $ "expected transpose type for "
-            <> untxt (TrackLang.show_val control) <> " but got " <> prettys typ
+            <> TrackLang.show_val control <> " but got " <> pretty typ
     return (val, transpose_type)
 
 
@@ -147,7 +145,7 @@ to_function = fmap (Score.typed_val .) . to_typed_function
 
 to_typed_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
 to_typed_signal control =
-    either return (const $ Derive.throw $ "not found: " <> prettys control)
+    either return (const $ Derive.throw $ "not found: " <> pretty control)
         =<< to_signal_or_function control
 
 to_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control
@@ -160,7 +158,7 @@ to_signal_or_function control = case control of
     TrackLang.DefaultedControl cont deflt ->
         get_control (Score.type_of deflt) (return (Left deflt)) cont
     TrackLang.LiteralControl cont ->
-        get_control Score.Untyped (Derive.throw $ "not found: " ++ show cont)
+        get_control Score.Untyped (Derive.throw $ "not found: " <> showt cont)
             cont
     where
     get_control default_type deflt cont = get_function cont >>= \x -> case x of
@@ -193,8 +191,7 @@ to_transpose_function default_type control = do
         _ -> case Controls.transpose_type typ of
             Just control -> return (untyped, control)
             _ -> Derive.throw $ "expected transpose type for "
-                <> untxt (TrackLang.show_val control) <> " but got "
-                <> prettys typ
+                <> TrackLang.show_val control <> " but got " <> pretty typ
 
 -- | Version of 'to_function' that will complain if the control isn't a time
 -- type.
@@ -209,8 +206,7 @@ to_time_function default_type control = do
         Score.Score -> return (untyped, Score)
         Score.Real -> return (untyped, Real)
         _ -> Derive.throw $ "expected time type for "
-            <> untxt (TrackLang.show_val control) <> " but got "
-            <> prettys typ
+            <> TrackLang.show_val control <> " but got " <> pretty typ
 
 -- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
 pitch_at :: RealTime -> TrackLang.PitchControl
@@ -222,10 +218,10 @@ pitch_at pos control = case control of
         maybe (require deflt) return maybe_pitch
     TrackLang.LiteralControl cont -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
-        maybe (Derive.throw $ "pitch not found and no default given: "
-            ++ show cont) return maybe_pitch
+        Derive.require ("pitch not found and no default given: " <> showt cont)
+            maybe_pitch
     where
-    require = Derive.require ("ControlSignal pitch at " <> prettys pos)
+    require = Derive.require ("ControlSignal pitch at " <> pretty pos)
         . PitchSignal.at pos
 
 to_pitch_signal :: TrackLang.PitchControl -> Derive.Deriver PitchSignal.Signal
@@ -234,7 +230,7 @@ to_pitch_signal control = case control of
     TrackLang.DefaultedControl cont deflt ->
         maybe (return deflt) return =<< Derive.get_named_pitch cont
     TrackLang.LiteralControl cont ->
-        maybe (Derive.throw $ "not found: " ++ show cont) return
+        Derive.require ("not found: " <> showt cont)
             =<< Derive.get_named_pitch cont
 
 nn_at :: RealTime -> TrackLang.PitchControl
@@ -252,14 +248,14 @@ transposed pos =
     justm (Derive.pitch_at pos) $ fmap Just . Derive.resolve_pitch pos
 
 get_transposed :: RealTime -> Derive.Deriver PitchSignal.Transposed
-get_transposed pos = Derive.require ("no pitch at " <> prettys pos)
+get_transposed pos = Derive.require ("no pitch at " <> pretty pos)
     =<< transposed pos
 
 -- | Pitch without the transposition applied.  You have to use this if you
 -- create an event with a pitch based on this pitch, otherwise the
 -- transposition will be applied twice.
 get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
-get_pitch pos = Derive.require ("no pitch at " <> prettys pos)
+get_pitch pos = Derive.require ("no pitch at " <> pretty pos)
     =<< Derive.pitch_at pos
 
 get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch) -> RealTime
@@ -515,8 +511,8 @@ typed_real_duration default_type from (Score.Typed typ val)
         return (RealTime.seconds val)
     | typ == Score.Score || typ == Score.Untyped && default_type == Score =
         real_duration from (ScoreTime.double val)
-    | otherwise = Derive.throw $ "expected time type for "
-        <> untxt (TrackLang.show_val (Score.Typed typ val))
+    | otherwise = Derive.throw $
+        "expected time type for " <> TrackLang.show_val (Score.Typed typ val)
 
 -- ** timestep
 
@@ -526,7 +522,7 @@ timestep :: ScoreTime -> TimeStep.TimeStep
     -> Derive.Deriver ScoreTime
 timestep start ts steps = do
     (block_id, tracknum) <- Internal.get_current_tracknum
-    Derive.require ("no valid timestep from " <> untxt (ShowVal.show_val start))
+    Derive.require ("no valid timestep from " <> ShowVal.show_val start)
         =<< Derive.eval_ui "c_timestep"
             (firstJusts [TimeStep.step_from step ts block_id tracknum start |
                 step <- steps])

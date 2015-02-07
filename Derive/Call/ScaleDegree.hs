@@ -140,7 +140,7 @@ resolve_intervals :: NamedIntervals -> [Either Pitch.Hz Text]
 resolve_intervals named_intervals intervals =
     product . map unsign <$> mapM (either return resolve) intervals
     where
-    resolve text = Derive.require ("unknown named interval: " <> show text) $
+    resolve text = Derive.require ("unknown named interval: " <> showt text) $
         resolve_interval named_intervals text
     unsign val = if val < 0 then recip (abs val) else val
 

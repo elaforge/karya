@@ -149,7 +149,7 @@ invert subs start end next_start events_around = do
     let sliced = slice track_id
     whenJust (non_bottom_note_track sliced) $ \track -> Derive.throw $
         "inverting below a note track will lead to an endless loop: "
-        <> prettys (TrackTree.track_id track)
+        <> pretty (TrackTree.track_id track)
     return sliced
     where
     slice track_id =
