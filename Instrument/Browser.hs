@@ -31,11 +31,12 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Text.Lazy as Lazy
 
 import Text.Printf (printf)
 
 import qualified Util.Fltk as Fltk
-import qualified Util.Format as Format
+import qualified Util.Format4 as Format
 import qualified Util.Seq as Seq
 
 import qualified Cmd.CallDoc as CallDoc
@@ -187,8 +188,11 @@ show_cmds cmds = showt (length cmds) <> " cmds (cmds can't be introspected yet)"
 
 show_calls :: CallDoc.CallType -> [CallDoc.LookupCall] -> Text
 show_calls ctype lookups =
-    -- Pass a Nothing for width because I should let fltk do the wrapping.
-    Format.run Nothing $ mapM_ CallDoc.call_bindings_text bindings
+    -- Let fltk do the wrapping.  Of course it doesn't know how the indentation
+    -- works, so wrapped lines don't get indented, but it doesn't look that
+    -- bad.
+    Lazy.toStrict $ Format.render "\t" 500 $ Format.unlines $
+        map CallDoc.call_bindings_text bindings
     where bindings = CallDoc.lookup_calls ctype lookups
 
 show_tags :: [(Text, Text)] -> Text

@@ -12,9 +12,11 @@ import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
+import qualified Data.Text.Lazy as Lazy
 
 import qualified Util.File as File
-import qualified Util.Format as Format
+import qualified Util.Format4 as Format
+import Util.Format4 ((<+>), (</>), (<//>), (<+/>))
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -36,45 +38,44 @@ import Types
 -- * output
 
 -- | Convert a Document to plain text.
-doc_text :: Document -> Text
-doc_text = Format.run (Just 75) . mapM_ section
+doc_text :: Document -> Lazy.Text
+doc_text = Format.render "  " 75 . mconcatMap section
     where
-    section (call_type, scope_docs) = do
-        Format.write $ "## " <> call_type <> " calls" <> "\n\n"
-        mapM_ scope_doc scope_docs
-    scope_doc (source, calls) = do
-        Format.write $ "### from " <> source <> "\n\n"
-        mapM_ call_bindings_text calls
+    section (call_type, scope_docs) =
+        "##" <+> Format.text call_type <+> "calls" <> "\n\n"
+        <> mconcatMap scope_doc scope_docs
+    scope_doc (source, calls) = "### from" <+> Format.text source <> "\n\n"
+        <> Format.unlines (map call_bindings_text calls)
 
-call_bindings_text :: CallBindings -> Format.FormatM ()
-call_bindings_text (binds, ctype, call_doc) = do
+call_bindings_text :: CallBindings -> Format.Doc
+call_bindings_text (binds, ctype, call_doc) =
     show_module (Derive.cdoc_module call_doc)
-    mapM_ show_bind binds
-    Format.indented 2 $ show_call_doc call_doc
-    Format.newline
+    <//> Format.unlines (map show_bind binds)
+    </> show_call_doc call_doc
     where
-    show_module (Module.Module m) = Format.write $ "\tModule: " <> m <> "\n"
-    show_bind (sym, name) = Format.write $
-        sym <> " -- " <> name <> ": (" <> show_call_type ctype <> ")\n"
-    show_call_doc (Derive.CallDoc _module tags doc args) = do
-        write_doc doc
-        write_tags tags
-        Format.indented 2 $ arg_docs args
-    arg_docs (Derive.ArgsParsedSpecially doc) = do
-        Format.write "Args parsed by call: "
-        write_doc doc
-    arg_docs (Derive.ArgDocs args) = mapM_ arg_doc args
-    arg_doc (Derive.ArgDoc name typ parser env_default doc) = do
-        Format.write $ name <> super <> " :: " <> pretty typ
-            <> maybe "" (" = "<>) deflt <> " " <> environ_keys name env_default
-            <> " -- "
-        write_doc doc
+    show_module (Module.Module m) = Format.text $ "\tModule: " <> m
+    show_bind (sym, name) = Format.text $
+        sym <> " -- " <> name <> ": (" <> show_call_type ctype <> ")"
+    show_call_doc (Derive.CallDoc _module tags doc args) =
+        write_doc doc <//> write_tags tags <//> Format.indented (arg_docs args)
+    arg_docs (Derive.ArgsParsedSpecially doc) =
+        "Args parsed by call:" <+/> write_doc doc <> "\n"
+    arg_docs (Derive.ArgDocs args) = Format.unlines (map arg_doc args)
+    arg_doc (Derive.ArgDoc name typ parser env_default doc) =
+        Format.text (name <> super <> " :: " <> pretty typ
+            <> maybe "" (" = "<>) deflt
+            <> " " <> environ_keys name env_default
+            <> " --")
+        <+/> write_doc doc
         where
         (super_, deflt) = show_parser parser
         super = maybe "" (\t -> if Text.length t == 1 then t else " " <> t)
             super_
-    write_tags tags = when (tags /= mempty) $ Format.write $
-        " Tags: " <> Text.intercalate ", " (Tags.untag tags) <> "\n"
+    write_tags tags
+        -- Otherwise there's nothing separating the call doc and args doc.
+        | tags == mempty = "Args:"
+        | otherwise = Format.text $ "Tags: "
+            <> Text.intercalate ", " (Tags.untag tags)
 
 environ_keys :: Text -> Sig.EnvironDefault -> Text
 environ_keys name deflt =
@@ -82,10 +83,8 @@ environ_keys name deflt =
         <> "]"
     where unsym (TrackLang.Symbol sym) = sym
 
-write_doc :: Text -> Format.FormatM ()
-write_doc text = do
-    Format.wrapped_words 4 text
-    Format.newline
+write_doc :: Text -> Format.Doc
+write_doc = Format.indented . Format.wrapWords . map Format.text . Text.words
 
 show_parser :: Derive.ArgParser -> (Maybe Text, Maybe Text)
     -- ^ (superscript to mark this arg, default value)
