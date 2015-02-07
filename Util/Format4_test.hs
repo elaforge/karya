@@ -27,6 +27,7 @@ test_render = do
             ("f =" <+/> indented "12345"
             <+/> "g =" <+/> indented "12345"))
         "12345\n  f =\n    12345\n  g =\n    12345\n"
+    equal (f $ "hi\n\nthere\n") "hi\n\nthere\n"
 
 test_shortForm = do
     let f = Format.render "  "

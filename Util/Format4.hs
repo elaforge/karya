@@ -6,6 +6,7 @@
 module Util.Format4 (
     Doc, shortForm, text
     , (</>), (<//>), (<+/>), (<+>)
+    , newline, unlines, wrap, wrapWords
     , indented
     , Width, render, renderFlat
 #ifdef TESTING
@@ -13,6 +14,7 @@ module Util.Format4 (
     , flatten, spanLine, findBreak
 #endif
 ) where
+import Prelude hiding (unlines)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import Data.Monoid ((<>), mempty, mconcat)
@@ -66,7 +68,7 @@ text t = case make t of
     [] -> mempty
     ts -> foldr1 (:+) ts
     where
-    make = filter (not . isEmpty) . List.intersperse (Break Hard) . map Text
+    make = filter (not . isEmpty) . List.intersperse newline . map Text
         . Text.split (=='\n')
 
 isEmpty :: Doc -> Bool
@@ -92,7 +94,7 @@ infixr 5 </> -- less than <>
 
 -- | Hard break.
 (<//>) :: Doc -> Doc -> Doc
-d1 <//> d2 = d1 <> Break Hard <> d2
+d1 <//> d2 = d1 <> newline <> d2
 
 indented :: Doc -> Doc
 indented = Indented 1
@@ -101,6 +103,20 @@ indented = Indented 1
 (<+>) :: Doc -> Doc -> Doc
 d1 <+> d2 = d1 <> Text " " <> d2
 infixr 6 <+> -- same as <>
+
+newline :: Doc
+newline = Break Hard
+
+-- | Analogous to 'Prelude.unlines', terminate each Doc with a newline.
+unlines :: [Doc] -> Doc
+unlines [] = mempty
+unlines docs = mconcat (List.intersperse newline docs) <> newline
+
+wrapWords :: [Doc] -> Doc
+wrapWords = List.foldl' (<+/>) mempty
+
+wrap :: [Doc] -> Doc
+wrap = List.foldl' (</>) mempty
 
 -- * render
 
@@ -138,8 +154,7 @@ sectionBuilder :: Section -> Builder.Builder
 sectionBuilder = bBuilder . sectionB
 
 flatten :: Doc -> [Section]
-flatten =
-    collapse . reverse . stateSections . go (Break Hard) . flip go initialState
+flatten = collapse . reverse . stateSections . flush . flip go initialState
     -- TODO use dlist so I don't have to reverse, but benchmark first
     where
     initialState = State
@@ -152,7 +167,6 @@ flatten =
     go doc state = case doc of
         Text t -> state { stateCollect = stateCollect state <> bFromText t }
         d1 :+ d2 -> go d2 (go d1 state)
-
         ShortForm short long -> state
             { stateCollect =
                 stateCollect state <> renderSectionsB (flatten short)
@@ -160,13 +174,12 @@ flatten =
             , stateBreakIndent = stateBreakIndent sub
             }
             where
-            -- The Break Hard will be replaced by the actual break when I come
+            -- The newline will be replaced by the actual break when I come
             -- across it.
-            sub = go (Break Hard) $ go long $ initialState
+            sub = go newline $ go long $ initialState
                 { stateIndent = stateIndent state
                 , stateBreakIndent = stateBreakIndent state
                 }
-
         Indented n doc -> dedent $ go doc $ indent state
             where
             indent state = state
@@ -174,29 +187,39 @@ flatten =
                 , stateBreakIndent = stateIndent state + n
                 }
             dedent state = state { stateIndent = stateIndent state - n }
-        Break btype -> state
-            { stateCollect = mempty
-            , stateSubs = []
-            , stateSections = (: stateSections state) $ Section
-                { sectionIndent = stateBreakIndent state
-                , sectionB = stateCollect state
-                , sectionSubs = collapse $ reverse $ replaceBreak $
-                    stateSubs state
-                , sectionBreak = btype
-                }
-            , stateBreakIndent = stateIndent state
+        Break break -> goBreak break state
+    goBreak break state = state
+        { stateCollect = mempty
+        , stateSubs = []
+        , stateSections = (: stateSections state) $ Section
+            { sectionIndent = stateBreakIndent state
+            , sectionB = stateCollect state
+            , sectionSubs = collapse $ reverse $ replaceBreak $ stateSubs state
+            , sectionBreak = break
             }
-            where
-            replaceBreak [] = []
-            replaceBreak (x:xs) = x { sectionBreak = btype } : xs
+        , stateBreakIndent = stateIndent state
+        }
+        where
+        replaceBreak [] = []
+        replaceBreak (x:xs) = x { sectionBreak = break } : xs
+
+    -- If there is trailing text, break it with a Hard newline.  Otherwise,
+    -- convert the last break to Hard.
+    flush state
+        | not (bNull (stateCollect state)) = goBreak Hard state
+        | final : sections <- stateSections state = state
+            { stateSections = final { sectionBreak = Hard } : sections }
+        | otherwise = state
+
     -- Empty sections can happen after dedents.  I don't want them, but I do
     -- want to get the break if it's stronger.
     collapse [] = []
-    collapse (section : sections) = case span (bNull . sectionB) sections of
+    collapse (section : sections) = case span empty sections of
         ([], _) -> section : collapse sections
         (nulls, rest) -> section { sectionBreak = break } : collapse rest
             where
             break = sectionBreak section <> mconcat (map sectionBreak nulls)
+    empty section = bNull (sectionB section) && sectionBreak section /= Hard
 
 render :: Text -> Width -> Doc -> Lazy.Text
 render indent width = renderText indent width . flatten

@@ -20,10 +20,9 @@ module Util.Pretty (
 ) where
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
-import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import Data.Monoid (mempty, mconcat, (<>))
+import Data.Monoid (mconcat, (<>))
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -195,7 +194,7 @@ recordTitle = record . text
 constructor :: Text -> [Doc] -> Doc
 constructor name [] = text name
 constructor name fields =
-    text name <+/> indented (wrapWords $ map (surround '(' ')') fields)
+    text name <+/> indented (Format.wrapWords $ map (surround '(' ')') fields)
     where surround left right x = char left <> x <> char right
     -- TODO only surround ()s if it has spaces in it
 
@@ -205,17 +204,12 @@ delimitedList spacedDelimiter leftc rightc xs = case xs of
     [x] -> left <-> x <-> right
     x : xs -> Format.shortForm
         (left <-> x <> mconcat (map (","<+>) xs) <-> right)
-        ((left <+> x) </> wrap (map (","<+>) xs) <> "\n" <> right <> "\n")
+        ((left <+> x) </> Format.wrap (map (","<+>) xs) <> "\n" <> right
+            <> "\n")
     where
     (<->) = if spacedDelimiter then (<+>) else (<>)
     left = text $ Text.singleton leftc
     right = text $ Text.singleton rightc
-
-wrapWords :: [Doc] -> Doc
-wrapWords = List.foldl' (<+/>) mempty
-
-wrap :: [Doc] -> Doc
-wrap = List.foldl' (</>) mempty
 
 -- * misc
 
