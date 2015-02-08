@@ -171,7 +171,7 @@ regular_pattern polos sangsih_telu sangsih_pat =
 -- it would be more convenient as a generator.  In any case, as a postproc it
 -- gets really complicated.
 c_norot :: Derive.Generator Derive.Note
-c_norot = Derive.make_call module_ "norot" mempty
+c_norot = Derive.make_call module_ "norot" Tags.inst
     "Emit the basic norot pattern. The last note will line up with the end of\
     \ the event."
     $ Sig.call ((,,,,,)
@@ -215,7 +215,8 @@ gangsa_norot style pasang (pstep, sstep) = (interlock, normal)
     sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
 
 c_norot_arrival :: Derive.Generator Derive.Note
-c_norot_arrival = Derive.make_call module_ "norot" mempty "Emit norot arrival."
+c_norot_arrival = Derive.make_call module_ "norot" Tags.inst
+    "Emit norot arrival."
     $ Sig.call ((,,,,)
     <$> dur_arg
     <*> Sig.defaulted "style" Default "Norot style."
@@ -269,7 +270,7 @@ norot_steps scale inst_top pitch style
         Pitches.transpose_d steps pitch
 
 c_gender_norot :: Derive.Generator Derive.Note
-c_gender_norot = Derive.make_call module_ "gender-norot" mempty
+c_gender_norot = Derive.make_call module_ "gender-norot" Tags.inst
     "Gender-style norot."
     $ Sig.call ((,,) <$> dur_arg <*> kotekan_env <*> pasang_env)
     $ \(dur, kotekan, pasang) -> Sub.inverting $ \args -> do
@@ -293,7 +294,7 @@ gender_norot pasang = (interlocking, normal)
     sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
 
 c_kotekan :: KotekanPattern -> Derive.Generator Derive.Note
-c_kotekan pattern = Derive.make_call module_ "kotekan" mempty
+c_kotekan pattern = Derive.make_call module_ "kotekan" Tags.inst
     "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
     \ They line up at the end of the event, and are intended to be used with\
     \ negative durations."

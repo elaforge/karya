@@ -74,7 +74,8 @@ ngoret module_ late_damping damp_arg interval_arg =
     (Tags.inst <> Tags.ornament <> Tags.requires_postproc)
     ("Insert an intermediate grace note in the \"ngoret\" style.\
     \ The grace note moves up for `'^`, down for `'`, or is based\
-    \ on the previous note's pitch for `'`."
+    \ on the previous note's pitch for `'`.\
+    \\nThis requires the `realize-ngoret` postproc."
     ) $ Sig.call ((,,,,)
     <$> interval_arg
     <*> Sig.defaulted "time" (typed_control "ngoret-time" 0.1 Score.Real)
