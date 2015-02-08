@@ -307,12 +307,14 @@ default_git = "save.git"
 save_midi_config :: FilePath -> Cmd.CmdT IO ()
 save_midi_config fname = do
     config <- State.get_config id
+    fname <- expand_filename fname
     Log.notice $ "write midi config to " <> showt fname
     liftIO $ Serialize.serialize_pretty_text fname
         (State.config_midi config, State.config_aliases config)
 
 load_midi_config :: FilePath -> Cmd.CmdT IO ()
 load_midi_config fname = do
+    fname <- expand_filename fname
     Log.notice $ "load midi config from " <> showt fname
     (config, aliases) <- Cmd.require_right
         (\err -> "unserializing midi config " <> showt fname <> ": " <> err)
