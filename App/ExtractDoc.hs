@@ -148,19 +148,5 @@ html_binding name keyspecs =
 html_keyspec :: Keymap.KeySpec -> Text
 html_keyspec (Keymap.KeySpec mods bindable) =
     Seq.join2 " " (show_mods mods)
-        ("<b>" <> txt (Keymap.show_bindable False bindable) <> "</b>")
-    where
-    show_mods = Text.intercalate " + " . map (txt . Keymap.show_mod)
-        . Set.toList
-
-
--- * test
-
--- test = putStrLn (txt_fmt (extract test_binds))
---
--- test_binds :: CmdMap
--- test_binds = fst $ Keymap.make_cmd_map $ concat
---     [ Keymap.bind_repeatable [Keymap.PrimaryCommand] Key.Down "repeatable"
---         (return ())
---     , Keymap.bind_drag [] 1 "drag" (const (return ()))
---     ]
+        ("<b>" <> Keymap.show_bindable False bindable <> "</b>")
+    where show_mods = Text.intercalate " + " . map Keymap.show_mod . Set.toList
