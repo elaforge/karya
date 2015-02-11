@@ -117,13 +117,13 @@ notify_callback wanted_reads wanted_writes clientp namep c_is_add c_is_read =
         b <- Set.member dev <$> IORef.readIORef wanted_reads
         when b $ void $ Concurrent.forkIO $
             void $ Midi.with_rdev dev $ \devp ->
-                check ("create_read_port " ++ show dev)
+                check ("create_read_port " <> showt dev)
                     =<< c_create_read_port clientp devp
     notify_write dev = do
         b <- Set.member dev <$> IORef.readIORef wanted_writes
         when b $ void $ Concurrent.forkIO $
             void $ Midi.with_wdev dev $ \devp ->
-                check ("create_write_port " ++ show dev)
+                check ("create_write_port " <> showt dev)
                     =<< c_create_write_port clientp devp
 
 type NotifyCallback = Ptr CClient -> CString -> CInt -> CInt -> IO ()
@@ -141,7 +141,7 @@ connect_read_device :: Client -> Midi.ReadDevice -> IO Bool
 connect_read_device client dev = do
     IORef.modifyIORef (client_wanted_reads client) (Set.insert dev)
     Midi.with_rdev dev $ \devp ->
-        check ("create_read_port " ++ show dev)
+        check ("create_read_port " <> showt dev)
             =<< c_create_read_port (client_ptr client) devp
 
 foreign import ccall "create_read_port"
@@ -151,7 +151,7 @@ disconnect_read_device :: Client -> Midi.ReadDevice -> IO Bool
 disconnect_read_device client dev = do
     IORef.modifyIORef (client_wanted_reads client) (Set.delete dev)
     Midi.with_rdev dev $ \devp ->
-        check ("remove_read_port " ++ show dev)
+        check ("remove_read_port " <> showt dev)
             =<< c_remove_read_port (client_ptr client) devp
 
 foreign import ccall "remove_read_port"
@@ -161,7 +161,7 @@ connect_write_device :: Client -> Midi.WriteDevice -> IO Bool
 connect_write_device client dev = do
     IORef.modifyIORef (client_wanted_writes client) (Set.insert dev)
     Midi.with_wdev dev $ \devp ->
-        check ("create_write_port " ++ show dev)
+        check ("create_write_port " <> showt dev)
             =<< c_create_write_port (client_ptr client) devp
 
 foreign import ccall "create_write_port"
@@ -174,7 +174,7 @@ write_message :: Client -> Midi.WriteMessage -> IO Bool
 write_message client (Midi.WriteMessage dev time msg) =
     Midi.with_wdev dev $ \devp ->
     ByteString.useAsCStringLen (Encode.encode msg) $ \(bytesp, len) ->
-    check ("write_message " ++ show (dev, time, msg))
+    check ("write_message " <> showt (dev, time, msg))
         =<< c_write_message (client_ptr client) devp
             (fromIntegral (RealTime.to_microseconds time))
             bytesp (fromIntegral len)
@@ -231,7 +231,7 @@ foreign import ccall "get_midi_ports"
 get_port_aliases :: Client -> String -> IO [String]
 get_port_aliases client name = do
     alloca $ \alias1p -> alloca $ \alias2p -> withCString name $ \namep -> do
-        check ("get_port_aliases " ++ show name)
+        check ("get_port_aliases " <> showt name)
             =<< c_get_port_aliases (client_ptr client) namep alias1p alias2p
         (++) <$> maybe_peek alias1p <*> maybe_peek alias2p
     where
@@ -245,11 +245,11 @@ foreign import ccall "get_port_aliases"
         -> IO CString
 
 -- | Log any error and return False if there was one.
-check :: String -> CString -> IO Bool
+check :: Text -> CString -> IO Bool
 check msg err
     | err == nullPtr = return True
     | otherwise = do
         error_msg <- peekCString err
         unless (null error_msg) $
-            Log.error $ "JACK error: " ++ msg ++ ": " ++ error_msg
+            Log.error $ "JACK error: " <> msg <> ": " <> txt error_msg
         return False
