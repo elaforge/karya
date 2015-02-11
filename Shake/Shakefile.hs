@@ -622,15 +622,15 @@ dispatch modeConfig targets = do
     handled <- mapM hardcoded targets
     Shake.want [target | (False, target) <- zip handled targets]
     where
+    allBinaries =
+        [ "browser", "dump", "extract_doc", "logview", "make_db"
+        , "repl", "seq", "test_midi", "update", "verify_performance"
+        ]
     hardcoded target = case target of
         -- I should probably run this in staunch mode, -k.
         "checkin" -> do
-            let debug = (modeToDir Debug </>)
-            Shake.want $
-                [ debug "browser", debug "logview", debug "make_db"
-                , debug "seq", debug "update", debug "dump", debug "repl"
-                , debug "test_midi", runProfile
-                ] ++ extractableDocs
+            Shake.want $ map (modeToDir Debug </>) allBinaries ++ [runProfile]
+                ++ extractableDocs
             -- I used to dispatch to "tests", but putting it here means I can
             -- build and test in parallel.
             action $ do
@@ -644,11 +644,12 @@ dispatch modeConfig targets = do
                 need [opt "verify_performance"]
                 Util.shell $ opt "verify_performance" <> " save/complete/*"
             return True
+        -- Compile everything, like checkin but when I don't want to test.
+        "typecheck" -> do
+            Shake.want $ map (modeToDir Debug </>) allBinaries ++ [runTests]
+            return True
         "binaries" -> do
-            Shake.want $ map (modeToDir Opt </>)
-                [ "browser", "logview", "make_db", "seq", "repl", "test_midi"
-                , "verify_performance"
-                ]
+            Shake.want $ map (modeToDir Opt </>) allBinaries
             return True
         "clean" -> action $ do
             -- The shake database will remain because shake creates it after the
