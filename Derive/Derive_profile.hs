@@ -160,7 +160,7 @@ derive_saved with_perform fname = do
     result <- print_timer ("unserialize " ++ show fname) (\_ _ -> "") $
         Save.read_state_ fname
     state <- case result of
-        Left err -> error $ "loading " ++ show fname ++ ": " ++ err
+        Left err -> error $ "loading " ++ show fname ++ ": " ++ untxt err
         Right Nothing -> error $ "loading " ++ show fname ++ ": doesn't exist"
         Right (Just state) -> return state
     let lookup = if with_perform

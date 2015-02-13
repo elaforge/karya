@@ -647,7 +647,8 @@ dispatch modeConfig targets = do
             return True
         -- Compile everything, like checkin but when I don't want to test.
         "typecheck" -> do
-            Shake.want $ map (modeToDir Debug </>) allBinaries ++ [runTests]
+            Shake.want $ map (modeToDir Debug </>) allBinaries
+                ++ [runTests, runProfile]
             return True
         "binaries" -> do
             Shake.want $ map (modeToDir Opt </>) allBinaries
