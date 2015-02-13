@@ -273,7 +273,7 @@ regex_style default_style regex_styles txt =
     ranges = flatten_ranges default_style
         [ (range, style)
         | (reg, style) <- regex_styles
-        , range <- Regex.groupRanges reg txt
+        , (range, _) <- Regex.groupRanges reg txt
         ]
 
 flatten_ranges :: a -> [((Int, Int), a)] -> [(Int, a)]

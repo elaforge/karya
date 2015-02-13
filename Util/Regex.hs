@@ -74,9 +74,9 @@ groups :: Regex -> String -> [(String, [String])]
 groups = PCRE.scan
 
 -- | Half-open ranges of where the regex matches.
--- TODO group matches should be included
-groupRanges :: Regex -> String -> [(Int, Int)]
-groupRanges regex = map fst . PCRE.scanRanges regex
+groupRanges :: Regex -> Text -> [((Int, Int), [(Int, Int)])]
+    -- ^ (entire, [group])
+groupRanges = PCRE.scanRanges
 
 -- * misc
 
