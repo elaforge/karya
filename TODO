@@ -42,7 +42,6 @@ UNSORTED
       * Maybe a call that uses conditions to set an env var, e.g.
         . sekar-pattern = "(if inst == >sangsih then p[0] else p[1])
         . sekar-pattern = "(pasangan abcAbc aBCaBC)
-
     * Mode to bend pitches instead of setting new notes?
       But I'd want transition speed and curve, and now it's getting a lot of
       extraneous arguments.
@@ -1030,11 +1029,23 @@ Derive:
         - an optional special pattern which switching between kotekan and back,
           e.g. 112-2-2-
         kotekan:
+          from kernel:
+            . generate from patterns from (kernel, inverted, rotation) so
+              I have a way to describe all common patterns
+            - generate polos and sangsih from (kernel, inverted, rotation)
+            - call that generates kotekan
+            - perhaps come up with a more intuitive way to address patterns
+          - generate all possible patterns following some playability rules,
+            e.g. no more than 2 notes in a row, only one rest
+            . I could then use that to automatically select a pattern for
+              a given destination, with some constraints like playability from
+              the previous pattern (no fast jumps), above vs. below, telu vs.
+              empat.
+
           - verify realization with integration
           - Some patterns do play on the beat, they should be able to do that
             and suppress the previous note.  I could do this by emitting the
-            note with a +weak attr, which will be cancelled out in postproc by
-            a coincident note.
+            note with a Flags.can_cancel.
           - phase: this can make the last note no longer align to the pitch
       wayang in octaves
         . pemade: >p=>p-umbang | >s=>p-isep

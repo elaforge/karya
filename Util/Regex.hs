@@ -11,6 +11,8 @@ module Util.Regex (
 
     -- * matching
     , matches, groups, groupRanges
+    -- * substitute
+    , substitute, substituteGroups
 
     -- * misc
     , escape
@@ -72,6 +74,18 @@ groups = PCRE.scan
 groupRanges :: Regex -> Text -> [((Int, Int), [(Int, Int)])]
     -- ^ (entire, [group])
 groupRanges = PCRE.scanRanges
+
+-- * substitute
+
+-- | TODO this is not the usual thing where it replaces \1 \2 etc., but
+-- it replaces the entire match.
+substitute :: Regex -> Text -> Text -> Text
+substitute regex sub = PCRE.gsub regex sub
+
+substituteGroups :: Regex -> (Text -> [Text] -> Text)
+    -- ^ (complete_match -> groups -> replacement)
+    -> Text -> Text
+substituteGroups = PCRE.gsub
 
 -- * misc
 

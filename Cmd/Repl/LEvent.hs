@@ -8,8 +8,10 @@ module Cmd.Repl.LEvent where
 import qualified Data.List as List
 import qualified Data.Text as Text
 
+import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
@@ -81,6 +83,17 @@ replace_pattern :: Cmd.M m => ModifyEvents.Parser
     -> [ModifyEvents.Replacement] -> ModifyEvents.Track m
 replace_pattern from to =
     ModifyEvents.failable_text (ModifyEvents.substitute from to)
+
+-- | Modify event text with 'Regex.substituteGroups'.
+--
+-- For example, to turn \"si .5 .3\" into \".3 | i .5\":
+--
+-- > ModifyEvents.control_tracks $ LEvent.replace_regex
+-- >    "si (\\W+) (\\W+)" (\[f0 f1] -> f1 <> " | i " <> f0)
+replace_regex :: Monad m => String -> ([Text] -> Text) -> ModifyEvents.Track m
+replace_regex regex modify =
+    ModifyEvents.text (Regex.substituteGroups reg (const modify))
+    where reg = Regex.compileUnsafe "LEvent.replace_regex" regex
 
 -- * quantize
 
