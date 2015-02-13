@@ -269,7 +269,8 @@ globalPackages = concat $
     -- Instrument.Parse, could use attoparsec, but parsec errors are better
     , w "parsec"
     , w "haskell-src" -- Util.PPrint
-    , [("regex-pcre", ""), ("Diff", ">=0.2")] -- Util.Test
+    , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")]
+    , [("Diff", ">=0.2")] -- Util.Test
     , w "QuickCheck" -- Derive.DeriveQuickCheck
     , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
     , w "hashable zlib"

@@ -15,35 +15,45 @@ module Util.Regex (
     -- * misc
     , escape
 ) where
-import qualified Data.Array.IArray as IArray
-import qualified Data.Bits as Bits
-import qualified Data.Maybe as Maybe
+import qualified Data.ByteString as ByteString
+import Data.Text (Text)
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Encoding
 
-import qualified Text.Regex.PCRE as PCRE
+import qualified Text.Regex.PCRE.Heavy as PCRE
+import qualified Text.Regex.PCRE.Light as PCRE
+import Text.Regex.PCRE.Heavy (Regex)
 
-
-data Regex = Regex { regexText :: !String, regexCompiled :: !PCRE.Regex }
-
-instance Show Regex where
-    show regex = "Regex.compile " ++ show (regexText regex)
 
 -- * compile
+
+fromText :: Text -> ByteString.ByteString
+fromText = Encoding.encodeUtf8
+
+-- toText :: ByteString.ByteString -> Text
+-- toText = Encoding.decodeUtf8With Encoding.Error.lenientDecode
 
 data Option = CaseInsensitive | DotAll
     deriving (Ord, Eq, Show)
 
+-- TODO default options to []
 compile :: [Option] -> String -> Either String Regex
-compile options str =
-    case PCRE.makeRegexOptsM (convertOptions options) 0 str of
-        Left msg -> Left $ "compiling regex " ++ show str ++ ": " ++ msg
-        Right reg -> Right (Regex str reg)
+compile options = compileOptions options
 
-convertOptions :: [Option] -> PCRE.CompOption
-convertOptions = foldr (Bits..|.) 0 . map convert
+compileOptions :: [Option] -> String -> Either String Regex
+compileOptions options text =
+    -- TODO take Text instead of String
+    case PCRE.compileM (fromText (Text.pack text)) (convertOptions options) of
+        Left msg -> Left $ "compiling regex " ++ show text ++ ": " ++ msg
+        Right regex -> Right regex
+
+convertOptions :: [Option] -> [PCRE.PCREOption]
+convertOptions = (options++) . map convert
     where
     convert opt = case opt of
-        CaseInsensitive -> PCRE.compCaseless
-        DotAll -> PCRE.compDotAll
+        CaseInsensitive -> PCRE.caseless
+        DotAll -> PCRE.dotall
+    options = [PCRE.utf8, PCRE.no_utf8_check]
 
 -- | Will throw a runtime error if the regex has an error!
 compileUnsafe :: String -> String -> Regex
@@ -52,26 +62,21 @@ compileUnsafe caller = compileOptionsUnsafe caller []
 -- | Will throw a runtime error if the regex has an error!
 compileOptionsUnsafe :: String -> [Option] -> String -> Regex
 compileOptionsUnsafe caller options =
-    either (error . ((caller ++ ": ") ++)) id . compile options
+    either (error . ((caller ++ ": ") ++)) id . compileOptions options
 
 -- * match
 
 matches :: Regex -> String -> Bool
-matches = PCRE.matchTest . regexCompiled
+matches = flip (PCRE.=~)
 
 -- | Return (complete_match, [group_match]).
 groups :: Regex -> String -> [(String, [String])]
-groups reg str =
-    Maybe.mapMaybe extract (PCRE.matchAllText (regexCompiled reg) str)
-    where
-    extract arr = case map fst (IArray.elems arr) of
-        h : rest -> Just (h, rest)
-        [] -> Nothing
+groups = PCRE.scan
 
 -- | Half-open ranges of where the regex matches.
+-- TODO group matches should be included
 groupRanges :: Regex -> String -> [(Int, Int)]
-groupRanges reg str = concatMap extract (PCRE.matchAll (regexCompiled reg) str)
-    where extract arr = [(i, i+n) | (i, n) <- IArray.elems arr]
+groupRanges regex = map fst . PCRE.scanRanges regex
 
 -- * misc
 
