@@ -180,10 +180,10 @@ global_status_pattern =
         "^global status: (.*?) -- (.*)")
 
 match_pattern :: CatchPattern -> String -> Map.Map String String
-match_pattern (title, reg) = Map.fromList . map extract . Regex.groups reg
+match_pattern (title, reg) = Map.fromList . map extract . Regex.groups reg . txt
     where
-    extract (_, [match]) = (title, match)
-    extract (_, [match_title, match]) = (match_title, match)
+    extract (_, [match]) = (title, untxt match)
+    extract (_, [match_title, match]) = (untxt match_title, untxt match)
     extract _ = error $ show reg ++ " has >2 groups"
 
 
@@ -240,7 +240,7 @@ instance Monoid.Monoid Builder where
 run_formatter :: Formatter -> StyledText
 run_formatter = build . Writer.execWriter
     where
-    build (Builder txt styles) = StyledText (b txt) (b styles)
+    build (Builder text styles) = StyledText (b text) (b styles)
     b = Lazy.toStrict . Builder.toLazyByteString
 
 emit_srcpos :: (String, Maybe String, Int) -> Formatter
@@ -264,16 +264,16 @@ msg_text_regexes = map (first (Regex.compileUnsafe "msg_text_regexes"))
     ] ++ clickable_braces
 
 regex_style :: Style -> [(Regex.Regex, Style)] -> String -> Formatter
-regex_style default_style regex_styles txt =
+regex_style default_style regex_styles text =
     sequence_ emits >> with_style default_style rest
     where
-    (rest, emits) = List.mapAccumL emit txt ranges
-    emit txt (chars, style) = (post, with_style style pre)
-        where (pre, post) = splitAt chars txt
+    (rest, emits) = List.mapAccumL emit text ranges
+    emit text (chars, style) = (post, with_style style pre)
+        where (pre, post) = splitAt chars text
     ranges = flatten_ranges default_style
         [ (range, style)
         | (reg, style) <- regex_styles
-        , (range, _) <- Regex.groupRanges reg txt
+        , (range, _) <- Regex.groupRanges reg (txt text)
         ]
 
 flatten_ranges :: a -> [((Int, Int), a)] -> [(Int, a)]

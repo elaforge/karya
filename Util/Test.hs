@@ -53,6 +53,7 @@ import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.List as List
 import Data.Monoid ((<>))
+import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
 import qualified System.CPUTime as CPUTime
@@ -249,7 +250,8 @@ match_srcpos srcpos gotten pattern
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
 -- to write.  You can escape @*@ with a backslash.
 pattern_matches :: String -> String -> Bool
-pattern_matches pattern = not . null . Regex.groups (pattern_to_reg pattern)
+pattern_matches pattern =
+    not . null . Regex.groups (pattern_to_reg pattern) . Text.pack
 
 pattern_to_reg :: String -> Regex.Regex
 pattern_to_reg =

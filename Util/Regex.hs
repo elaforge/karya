@@ -42,7 +42,6 @@ compile options = compileOptions options
 
 compileOptions :: [Option] -> String -> Either String Regex
 compileOptions options text =
-    -- TODO take Text instead of String
     case PCRE.compileM (fromText (Text.pack text)) (convertOptions options) of
         Left msg -> Left $ "compiling regex " ++ show text ++ ": " ++ msg
         Right regex -> Right regex
@@ -66,11 +65,11 @@ compileOptionsUnsafe caller options =
 
 -- * match
 
-matches :: Regex -> String -> Bool
+matches :: Regex -> Text -> Bool
 matches = flip (PCRE.=~)
 
 -- | Return (complete_match, [group_match]).
-groups :: Regex -> String -> [(String, [String])]
+groups :: Regex -> Text -> [(Text, [Text])]
 groups = PCRE.scan
 
 -- | Half-open ranges of where the regex matches.

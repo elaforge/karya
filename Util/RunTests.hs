@@ -12,6 +12,7 @@ import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import qualified Numeric
 import qualified System.CPUTime as CPUTime
@@ -109,7 +110,8 @@ matchingTests regexes tests = concatMap match regexes
     match reg = case Map.lookup reg byName of
         Just test -> [test]
         Nothing -> filter
-            (Regex.matches (Regex.compileUnsafe "matchingTests" reg) . testName)
+            (Regex.matches (Regex.compileUnsafe "matchingTests" reg)
+                . Text.pack . testName)
             tests
 
 runTest :: Test -> IO ()
