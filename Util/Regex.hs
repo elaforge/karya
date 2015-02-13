@@ -16,13 +16,13 @@ module Util.Regex (
     , escape
 ) where
 import qualified Data.ByteString as ByteString
-import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.Text (Text)
 import qualified Data.Text.Encoding as Encoding
 
 import qualified Text.Regex.PCRE.Heavy as PCRE
-import qualified Text.Regex.PCRE.Light as PCRE
 import Text.Regex.PCRE.Heavy (Regex)
+import qualified Text.Regex.PCRE.Light as PCRE
 
 
 -- * compile
@@ -30,15 +30,11 @@ import Text.Regex.PCRE.Heavy (Regex)
 fromText :: Text -> ByteString.ByteString
 fromText = Encoding.encodeUtf8
 
--- toText :: ByteString.ByteString -> Text
--- toText = Encoding.decodeUtf8With Encoding.Error.lenientDecode
-
 data Option = CaseInsensitive | DotAll
     deriving (Ord, Eq, Show)
 
--- TODO default options to []
-compile :: [Option] -> String -> Either String Regex
-compile options = compileOptions options
+compile :: String -> Either String Regex
+compile = compileOptions []
 
 compileOptions :: [Option] -> String -> Either String Regex
 compileOptions options text =
