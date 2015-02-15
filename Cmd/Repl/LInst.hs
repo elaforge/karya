@@ -87,6 +87,7 @@ list = do
 midi_config :: State.M m => m Instrument.Configs
 midi_config = State.get_midi_config
 
+-- | Alias map.  It maps from alias to underlying instrument.
 aliases :: State.M m => m (Map.Map Score.Instrument Score.Instrument)
 aliases = State.config#State.aliases <#> State.get
 
@@ -121,8 +122,8 @@ load = Save.load_midi_config
 -- instruments which are expected to be converted into other instruments during
 -- derivation.  For instance, pasang instruments are stand-ins for polos
 -- sangsih pairs.
-create_empty :: Instrument -> Instrument -> Cmd.CmdL ()
-create_empty alias inst = add alias inst "empty" []
+add_empty :: Instrument -> Instrument -> Cmd.CmdL ()
+add_empty alias inst = add alias inst "empty" []
 
 -- | Remove both an alias and its allocation.
 remove :: Instrument -> Cmd.CmdL ()
@@ -131,15 +132,15 @@ remove alias = do
     dealloc alias
 
 -- | Add a new instrument, copied from an existing one.  The argument order is
--- the same as used by 'create'.
+-- the same as used by 'add'.
 add_alias :: Instrument -> Instrument -> Cmd.CmdL ()
 add_alias alias inst = State.modify $
     State.config#State.aliases %= Map.insert (Util.instrument alias)
         (Util.instrument inst)
 
 remove_alias :: Instrument -> Cmd.CmdL ()
-remove_alias inst = State.modify $
-    State.config#State.aliases %= Map.delete (Util.instrument inst)
+remove_alias alias = State.modify $
+    State.config#State.aliases %= Map.delete (Util.instrument alias)
 
 -- | Toggle and return the new value.
 toggle_mute :: State.M m => Instrument -> m Bool

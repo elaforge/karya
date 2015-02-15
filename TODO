@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Derive.get_instrument only understands derive level aliases.  So if the
+    instrument is not found it gives a confusing error giving the alias.
+  - Util.Pretty doesn't correctly display ("a", ["b", "c"]) where the list
+    wraps
   * import only one symbol, e.g. 'import india.mridangam.faran.ktkn'
     Or better, 'import module sym sym'
   * new notes don't play after adding to the end of a track
