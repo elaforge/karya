@@ -103,6 +103,17 @@ quoted name args = Quoted $ literal_call name args :| []
 unsym :: Symbol -> Text
 unsym (Symbol sym) = sym
 
+-- * general purpose types
+
+-- | This is for arguments which can be high or low.
+data UpDown = Up | Down deriving (Show, Enum, Bounded, Eq, Ord)
+
+instance Typecheck UpDown
+instance TypecheckSymbol UpDown
+instance ShowVal UpDown where
+    show_val Up = "u"
+    show_val Down = "d"
+
 -- * type wrappers
 
 -- | Some calls can operate in either RealTime or ScoreTime.

@@ -1015,6 +1015,18 @@ Derive:
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan
+        kotekan kernel:
+          . generate from patterns from (kernel, inverted, rotation) so
+            I have a way to describe all common patterns
+          * generate polos and sangsih from (kernel, inverted, rotation)
+          * call that generates kotekan
+          - perhaps come up with a more intuitive way to address patterns
+          - generate all possible patterns following some playability rules,
+            e.g. no more than 2 notes in a row, only one rest
+            . I could then use that to automatically select a pattern for
+              a given destination, with some constraints like playability from
+              the previous pattern (no fast jumps), above vs. below, telu vs.
+              empat.
         - in Gangsa.realize_kotekan_pattern, pass Nothing as the start to not
           limit the start
         - inst postproc can interpret +mute as either just a mute, or open, or
@@ -1032,19 +1044,6 @@ Derive:
         - gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,
           e.g. 112-2-2-
-        kotekan:
-          from kernel:
-            . generate from patterns from (kernel, inverted, rotation) so
-              I have a way to describe all common patterns
-            - generate polos and sangsih from (kernel, inverted, rotation)
-            - call that generates kotekan
-            - perhaps come up with a more intuitive way to address patterns
-          - generate all possible patterns following some playability rules,
-            e.g. no more than 2 notes in a row, only one rest
-            . I could then use that to automatically select a pattern for
-              a given destination, with some constraints like playability from
-              the previous pattern (no fast jumps), above vs. below, telu vs.
-              empat.
 
           - verify realization with integration
           - Some patterns do play on the beat, they should be able to do that

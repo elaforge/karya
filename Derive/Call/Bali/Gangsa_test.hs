@@ -129,6 +129,17 @@ test_kotekan = do
             ])
         (interlock, [])
 
+test_kotekan_kernel = do
+    let run kotekan = derive_pasang extract
+            (" | unison | kotekan = " <> if kotekan then "2" else "1")
+        extract e = (Score.event_start e, DeriveTest.e_pitch e)
+    equal (run True [(2, 8, "k/\\ 0 u -- 4c")])
+        (( [(2, "4c"), (4, "4c"), (5, "4d"), (7, "4c"), (9, "4d"), (10, "4c")]
+         , [(3, "4e"), (5, "4d"), (6, "4e"), (8, "4e"), (9, "4d")]
+         ), [])
+    -- Don't bother doing further tests since I'll just change this.
+    -- pprint (run True [(2, 8, "k/\\ 0 d -- 4c")])
+
 test_unison = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_with_ui id config_inst title
