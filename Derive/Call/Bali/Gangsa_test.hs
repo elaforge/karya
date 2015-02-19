@@ -19,6 +19,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
 import Global
+import Types
 
 
 test_norot = do
@@ -107,38 +108,35 @@ test_gender_norot = do
          , [(0, "3a"), (1, "3b"), (2, "3a"), (3, "3b"), (4, "3a")]
          ), [])
 
-test_kotekan = do
-    let run kotekan = derive_pasang extract
-            (" | unison | kotekan = " <> if kotekan then "2" else "1")
-        extract e = (Score.event_start e, DeriveTest.e_pitch e)
-    equal (run True [(1, 7, "k/_\\ 1 -- 4c")])
-        (( [(2, "4c"), (3, "4d"), (5, "4c"), (7, "4d"), (8, "4c")]
-         , [(1, "4e"), (3, "4d"), (4, "4e"), (6, "4e"), (7, "4d")]
-         ), [])
-    let interlock =
-            ( [(1, "3b"), (2, "4c"), (4, "3b"), (5, "4c"), (7, "3b"), (8, "4c")]
-            , [(1, "3b"), (3, "3a"), (4, "3b"), (6, "3a"), (7, "3b")]
-            )
-    equal (run True [(1, 7, "k// 1 -- 4c")]) (interlock, [])
+test_kotekan_irregular = do
+    let run kotekan = e_pattern 0 . derive_kotekan (ngotek kotekan)
+    equal (run True [(0, 8, "k_\\ -- 4c")])
+        ([(polos, "1-11-1-21"), (sangsih, "4-44-43-4")], [])
+    equal (run False [(0, 8, "k_\\ -- 4c")])
+        ([(pasang, "1-11-1321")], [])
 
-    equal (e_pasang extract $ derive_tracks
-            [ ("tempo", [(0, 0, "1"), (8, 0, ".5")])
-            , (">" <> inst_title <> " | unison | kotekan = 2",
-                [(1, 7, "k// 1")])
-            , ("*", [(0, 0, "4c")])
-            ])
-        (interlock, [])
+test_kotekan_cancel = do
+    let run kotekan = e_pattern 0 . derive_kotekan (ngotek kotekan)
+    pprint (run True [(0, 8, "-12-1-21 -- 4c"), (8, 8, "-12-1-21 -- 4c")])
 
-test_kotekan_kernel = do
-    let run kotekan = derive_pasang extract
-            (" | unison | kotekan = " <> if kotekan then "2" else "1")
-        extract e = (Score.event_start e, DeriveTest.e_pitch e)
-    equal (run True [(2, 8, "k/\\ 0 u -- 4c")])
-        (( [(2, "4c"), (4, "4c"), (5, "4d"), (7, "4c"), (9, "4d"), (10, "4c")]
-         , [(3, "4e"), (5, "4d"), (6, "4e"), (8, "4e"), (9, "4d")]
-         ), [])
-    -- Don't bother doing further tests since I'll just change this.
-    -- pprint (run True [(2, 8, "k/\\ 0 d -- 4c")])
+test_kotekan_regular = do
+    let run kotekan = e_pattern 2 . derive_kotekan (ngotek kotekan)
+    equal (run True [(2, 8, "-12-1-21 -- 4c")])
+        ([(polos, "1-12-1-21"), (sangsih, "-3-23-32")], [])
+    equal (run False [(2, 8, "-12-1-21 -- 4c")])
+        ([(pasang, "131231321")], [])
+    equal (run True [(2, 8, "-12-1-21 _ pat -- 4c")])
+        ([(polos, "1-12-1-21"), (sangsih, "434-343-4")], [])
+    equal (run False [(2, 8, "-12-1-21 _ pat -- 4c")])
+        ([(polos, "131231321"), (sangsih, "434234324")], [])
+    equal (run True [(2, 8, "-12-1-21 d -- 4e")])
+        ([(polos, "3-34-3-43"), (sangsih, "323-232-3")], [])
+    equal (run False [(2, 8, "-12-1-21 d -- 4e")])
+        ([(pasang, "323423243")], [])
+    equal (run True [(2, 8, "-12-1-21 d pat -- 4e")])
+        ([(polos, "3-34-3-43"), (sangsih, "-2-12-21")], [])
+    equal (run False [(2, 8, "-12-1-21 d pat -- 4e")])
+        ([(polos, "323423243"), (sangsih, "323123213")], [])
 
 test_unison = do
     let run = DeriveTest.extract extract
@@ -202,10 +200,39 @@ test_noltol = do
          , (3, "i2", "4f", False)
          ], [])
 
+ngotek :: Bool -> String
+ngotek b = " | kotekan=" <> if b then "2" else "1"
+
 derive_pasang :: (Score.Event -> a) -> String -> [UiTest.EventSpec]
     -> (([a], [a]), [String])
-derive_pasang extract title notes = e_pasang extract $ derive_tracks $
+derive_pasang extract title notes =
+    e_pasang extract $ derive_kotekan title notes
+
+derive_kotekan :: String -> [UiTest.EventSpec] -> Derive.Result
+derive_kotekan title notes = derive_tracks $
     UiTest.note_spec (inst_title <> title, notes, [])
+
+-- e_pattern :: RealTime -> Derive.Result -> ((String, String), [String])
+e_pattern :: RealTime -> Derive.Result
+    -> ([(Score.Instrument, String)], [String])
+e_pattern start =
+    first (map (second (as_pattern start)) . Seq.group_fst)
+        . DeriveTest.extract extract
+    where
+    extract e = (Score.event_instrument e,
+        (Score.event_start e, DeriveTest.e_pitch e))
+    as_pattern _ [] = ""
+    as_pattern at ns@((t, pitch) : rest)
+        | at >= t = to_digit pitch : as_pattern (at+1) rest
+        | otherwise = '-' : as_pattern (at+1) ns
+    to_digit p = case p of
+        "4c" -> '1'
+        "4d" -> '2'
+        "4e" -> '3'
+        "4f" -> '4'
+        _ -> error $ "unknown pitch: " <> show p
+    polos_sangsih pairs =
+        (fromMaybe "" (lookup polos pairs), fromMaybe "" (lookup sangsih pairs))
 
 e_pasang :: (Score.Event -> a) -> Derive.Result -> (([a], [a]), [String])
 e_pasang extract = first group_inst

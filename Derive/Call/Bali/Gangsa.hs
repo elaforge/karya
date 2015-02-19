@@ -63,39 +63,33 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("norot", c_norot)
+    ([ ("norot", c_norot)
     , (">norot", c_norot_arrival)
     , ("gnorot", c_gender_norot)
-    , ("k/_\\", c_kotekan $ regular_pattern "-12-1-21" "3-23-32-" "34-343-4")
-    -- sangsih telu is below, but sangsih pat is above
-    -- TODO it seems like I shouldn't need separate telu and pat, I should have
-    -- telu, and then infer pat.
-    -- , ("k//",   c_kotekan $ regular_pattern "23-23-23" "2-12-12-" "5-45-45-")
-
-    -- , ("k\\\\", c_kotekan $ regular_pattern "21-21-21" "2-32-32-" "-43-43-4")
-    , ("k_\\",  c_kotekan $ regular_pattern "-11-1-21" "3-32-32-" "-44-43-4")
-    , ("k//\\\\", c_kotekan $ regular_pattern "-12-12-2 1-21-12-"
-                                              "3-23-232 -32-3-23"
-                                              "44-34-3- 43-434-3")
-
-    , ("k/\\", c_kotekan_kernel kernel_up_down False)
-    , ("k\\/", c_kotekan_kernel kernel_up_down True)
-    , ("k\\\\", c_kotekan_kernel kernel_down1 False)
-    , ("k//", c_kotekan_kernel kernel_down1 True)
-    , ("k-\\", c_kotekan_kernel kernel_down2 False)
-    , ("k-/", c_kotekan_kernel kernel_down2 True)
+    , ("k_\\",  c_kotekan_irregular Pat $
+        irregular_pattern "-11-1321" "-11-1-21" "3-32-32-" "-44-43-4")
+    , ("k//\\\\", c_kotekan_irregular Pat $
+        irregular_pattern "3123123213213123"
+            "-12-12-2 1-21-12-" "3-23-232 -32-3-23" "44-34-3- 43-434-3")
+    , ("kotekan", c_kotekan_kernel)
 
     , ("'", c_ngoret $ pure Nothing)
     , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
     , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
     , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
-    ]
+    ] ++ kotekan_calls)
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     ]
+
+kotekan_calls :: [(TrackLang.Symbol, Derive.Generator Derive.Note)]
+kotekan_calls =
+    [ ("k\\\\", c_kotekan_regular kernel_1_21_21 False 0)
+    , ("k//",   c_kotekan_regular kernel_1_21_21 True 0)
+    ] ++ concatMap make_kotekan_calls all_kernels
 
 val_calls :: [Derive.LookupCall Derive.ValCall]
 val_calls = Derive.call_map
@@ -139,16 +133,7 @@ c_ngoret = Gender.ngoret module_ False damp_arg
         \ duration is time+damp, though it will be clipped to the\
         \ end of the current note."
 
--- * kotekan
-
-parse_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> [Char]
-    -> KotekanPattern
-parse_pattern unison polos_pat sangsih_pat polos_telu sangsih_telu =
-    KotekanPattern (parse unison) (parse polos_pat) (parse sangsih_pat)
-        (parse polos_telu) (parse sangsih_telu)
-    where
-    Just destination = Seq.last $ mapMaybe Num.read_digit unison
-    parse = map (fmap (subtract destination) . Num.read_digit) . filter (/=' ')
+-- * patterns
 
 data KotekanPattern = KotekanPattern {
     kotekan_unison :: [Maybe Pitch.Step]
@@ -164,16 +149,26 @@ instance Pretty.Pretty KotekanPattern where
             ["unison", "polos pat", "sangsih pat", "polos telu", "sangsih telu"]
             (map Pretty.format [unison, p4, s4, p3, s3])
 
-regular_pattern :: [Char] -> [Char] -> [Char] -> KotekanPattern
-regular_pattern polos sangsih_telu sangsih_pat =
-    parse_pattern (zipWith merge polos sangsih_telu)
-        polos sangsih_pat polos sangsih_telu
+ip = irregular_pattern "-11-1321" "-11-1-21" "3-32-32-" "-44-43-4"
+
+irregular_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> KotekanPattern
+irregular_pattern unison polos sangsih_telu sangsih_pat =
+    parse_pattern unison polos sangsih_pat polos sangsih_telu
     where
     merge '-' n = n
     merge n '-' = n
     merge n _ = n
 
--- ** patterns
+parse_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> [Char]
+    -> KotekanPattern
+parse_pattern unison polos_pat sangsih_pat polos_telu sangsih_telu =
+    KotekanPattern (parse unison) (parse polos_pat) (parse sangsih_pat)
+        (parse polos_telu) (parse sangsih_telu)
+    where
+    Just destination = Seq.last $ mapMaybe Num.read_digit unison
+    parse = map (fmap (subtract destination) . Num.read_digit) . filter (/=' ')
+
+-- ** norot
 
 -- | Initially I implemented this as a postproc, but it now seems to me that
 -- it would be more convenient as a generator.  In any case, as a postproc it
@@ -301,14 +296,22 @@ gender_norot pasang = (interlocking, normal)
     polos steps = KotekanNote (Just (fst pasang)) steps mempty
     sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
 
-c_kotekan :: KotekanPattern -> Derive.Generator Derive.Note
-c_kotekan pattern = Derive.make_call module_ "kotekan" Tags.inst
+-- * kotekan
+
+kotekan_doc :: Text
+kotekan_doc =
     "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
-    \ They line up at the end of the event, and are intended to be used with\
-    \ negative durations."
+    \ They line up at the end of the event."
+
+c_kotekan_irregular :: KotekanStyle -> KotekanPattern
+    -> Derive.Generator Derive.Note
+c_kotekan_irregular default_style pattern =
+    Derive.make_call module_ "kotekan" Tags.inst
+    ("Render a kotekan pattern where both polos and sangsih are explicitly\
+    \ specified. This is for irregular patterns.\n" <> kotekan_doc)
     $ Sig.call ((,,,)
     <$> dur_arg
-    <*> Sig.defaulted "style" Telu "Kotekan style."
+    <*> Sig.defaulted "style" default_style "Kotekan style."
     <*> kotekan_env <*> pasang_env
     ) $ \(dur, style, kotekan, pasang) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
@@ -361,6 +364,236 @@ pattern_steps style (polos, sangsih) (KotekanPattern unison p4 s4 p3 s3) =
     normal = map $ \n -> case n of
         Nothing -> []
         Just steps -> [(Nothing, steps)]
+
+-- ** regular
+
+-- For regular kotekan, the sangsih can be derived mechanically from the
+-- polos.
+
+c_kotekan_kernel :: Derive.Generator Derive.Note
+c_kotekan_kernel =
+    Derive.make_call module_ "kotekan" Tags.inst
+    ("Render a kotekan pattern from a kernel. The sangsih part is inferred.\n"
+        <> kotekan_doc)
+    $ Sig.call ((,,,,,,,)
+    <$> Sig.defaulted "rotation" 0 "Rotate kotekan pattern."
+    <*> Sig.defaulted "sangsih" TrackLang.Up
+        "Whether sangsih is above or below polos."
+    <*> Sig.defaulted "style" Telu "Kotekan style."
+    <*> Sig.environ "invert" Sig.Prefixed False
+        "Flip the pattern upside down."
+    <*> dur_arg
+    <*> Sig.required_environ "kernel" Sig.Prefixed
+        "Polos part in transposition steps.\
+        \ This will be normalized to end on the destination pitch.\
+        \ It should consist of `-`, `1`, and `2`."
+    <*> kotekan_env <*> pasang_env
+    ) $ \(rotation, sangsih_above, style, inverted, dur, kernel_s, kotekan,
+        pasang) ->
+    Sub.inverting $ \args -> do
+        kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
+        pitch <- Util.get_pitch =<< Args.real_start args
+        under_threshold <- under_threshold_function kotekan dur
+        realize_kotekan_pattern False (Args.range args) dur pitch
+            under_threshold Repeat $
+                realize_kernel inverted rotation sangsih_above style pasang
+                    kernel
+
+make_kotekan_calls :: Kernel
+    -> [(TrackLang.Symbol, Derive.Generator Derive.Note)]
+make_kotekan_calls kernel =
+    [ (name inverted rotation, c_kotekan_regular kernel inverted rotation)
+    | inverted <- [False, True]
+    , rotation <- [0 .. length kernel]
+    ]
+    where
+    name inverted rotation = TrackLang.Symbol $ txt $ map to_char $
+        (if inverted then invert else id) $ rotate rotation kernel
+
+c_kotekan_regular :: Kernel -> Bool -> Int -> Derive.Generator Derive.Note
+c_kotekan_regular kernel inverted rotation =
+    Derive.make_call module_ "kotekan" Tags.inst
+    ("Render a standard kotekan pattern. These have a regular derivation in\
+    \ that the sangsih can be automatically derived from the polos.\n"
+        <> kotekan_doc)
+    $ Sig.call ((,,,,)
+    <$> Sig.defaulted "sangsih"
+        (if inverted then TrackLang.Down else TrackLang.Up)
+        "Whether sangsih is above or below polos."
+    <*> Sig.defaulted "style" Telu "Kotekan style."
+    <*> dur_arg <*> kotekan_env <*> pasang_env
+    ) $ \(sangsih_above, style, dur, kotekan, pasang) ->
+    Sub.inverting $ \args -> do
+        pitch <- Util.get_pitch =<< Args.real_start args
+        under_threshold <- under_threshold_function kotekan dur
+        realize_kotekan_pattern False (Args.range args) dur pitch
+            under_threshold Repeat $
+                realize_kernel inverted rotation sangsih_above style pasang
+                    kernel
+
+realize_kernel :: Bool -> Int -> TrackLang.UpDown -> KotekanStyle
+    -> Pasang -> Kernel -> Cycle
+realize_kernel inverted rotation sangsih_above style pasang kernel =
+    end_on_zero $ kernel_to_pattern
+        ((if inverted then invert else id) (rotate rotation kernel))
+        sangsih_above style pasang
+
+type Kernel = [Atom]
+-- Rest, up, down.
+data Atom = Rest | Low | High deriving (Eq, Ord, Show)
+
+instance Pretty.Pretty Atom where
+    format = Pretty.char . to_char
+    formatList cs =
+        "make_kernel \"" <> Pretty.text (txt (map to_char cs)) <> "\""
+
+make_kernel :: [Char] -> Either Text Kernel
+make_kernel = mapM from_char
+
+from_char :: Char -> Either Text Atom
+from_char '-' = Right Rest
+from_char '1' = Right Low
+from_char '2' = Right High
+from_char c = Left $ "kernel must be `-`, `1` or `2`, but got " <> showt c
+
+to_char :: Atom -> Char
+to_char c = case c of
+    Rest -> '-'
+    Low -> '1'
+    High -> '2'
+
+-- | Make both parts end on zero by subtracting the pitch of the final
+-- non-interlocking note.
+end_on_zero :: Cycle -> Cycle
+end_on_zero (interlocking, non_interlocking) =
+    (add (-steps) interlocking, add (-steps) non_interlocking)
+    where
+    add steps = map $ map $ \note ->
+        note { note_steps = steps + note_steps note }
+    steps = fromMaybe 0 $ do
+        final : _ <- Seq.last non_interlocking
+        return $ note_steps final
+
+t0 =
+    map (filter ((== Just s) . note_instrument)) $ fst $
+        kernel_to_pattern kernel_12_1_21 TrackLang.Up Pat (p, s)
+    where
+    p = Score.Instrument "p"
+    s = Score.Instrument "s"
+
+kernel_to_pattern :: Kernel -> TrackLang.UpDown -> KotekanStyle -> Pasang
+    -> Cycle
+kernel_to_pattern kernel sangsih_above kotekan_style pasang =
+    (interlocking, non_interlocking)
+    where
+    interlocking = map interlock kernel
+    non_interlocking = map non_interlock kernel
+    interlock atom = case (sangsih_above, kotekan_style) of
+        (TrackLang.Up, Telu) -> case atom of
+            Rest -> [sangsih 2]
+            Low -> [polos 0]
+            High -> [polos 1, sangsih 1]
+        (TrackLang.Up, Pat) -> case atom of
+            Rest -> [sangsih 2]
+            Low -> [polos 0, sangsih 3]
+            High -> [polos 1]
+        (TrackLang.Down, Telu) -> case atom of
+            Rest -> [sangsih (-1)]
+            Low -> [polos 0, sangsih 0]
+            High -> [polos 1]
+        (TrackLang.Down, Pat) -> case atom of
+            Rest -> [sangsih (-1)]
+            Low -> [polos 0]
+            High -> [polos 1, sangsih (-2)]
+    non_interlock atom = case (sangsih_above, kotekan_style) of
+        (TrackLang.Up, Telu) -> case atom of
+            Rest -> [both 2]
+            Low -> [both 0]
+            High -> [both 1]
+        (TrackLang.Up, Pat) -> case atom of
+            Rest -> [polos 2, sangsih 2]
+            Low -> [polos 0, sangsih 3]
+            High -> [polos 1, sangsih 1]
+        (TrackLang.Down, Telu) -> case atom of
+            Rest -> [both (-1)]
+            Low -> [both 0]
+            High -> [both 1]
+        (TrackLang.Down, Pat) -> case atom of
+            Rest -> [polos (-1), sangsih (-1)]
+            Low -> [polos 0, sangsih 0]
+            High -> [polos 1, sangsih (-2)]
+    polos steps = KotekanNote (Just (fst pasang)) steps mempty
+    sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
+    both steps = KotekanNote Nothing steps mempty
+
+variations :: Kernel -> [(Kernel, (Bool, Int))]
+variations kernel_ = Seq.unique_on fst
+    [ (variant, (inverted, rotate))
+    | (inverted, kernel) <- [(False, kernel_), (True, invert kernel_)]
+    , (rotate, variant) <- zip [0..] (rotations kernel)
+    ]
+
+rotate :: Int -> [a] -> [a]
+rotate n xs = cycle (rotations xs) !! n
+
+rotations :: [a] -> [[a]]
+rotations xs = xs : go xs (reverse xs)
+    where
+    go [] _ = []
+    go _ [_] = []
+    go _ [] = []
+    go xs (z:zs) = p : go p zs
+        where p = take len (z : xs)
+    len = length xs
+
+invert :: Kernel -> Kernel
+invert = map $ \x -> case x of
+    Rest -> Rest
+    High -> Low
+    Low -> High
+
+kernel_12_1_21, kernel_1_21_21, kernel_2_21_21 :: Kernel
+Right kernel_12_1_21 = make_kernel "-12-1-21"
+Right kernel_1_21_21 = make_kernel "-1-21-21"
+Right kernel_2_21_21 = make_kernel "-2-21-21"
+
+-- *** all kernels
+
+all_kernels :: [Kernel]
+all_kernels = [kernel_12_1_21, kernel_1_21_21, kernel_2_21_21]
+
+kernel_names = map fst . make_kotekan_calls
+
+find_kernel :: Kernel -> Maybe (Kernel, Bool, Int)
+find_kernel kernel = lookup kernel variants
+    where
+    variants =
+        [ (variant, (kernel, inverted, rotation))
+        | kernel <- all_kernels
+        , (variant, (inverted, rotation)) <- variations kernel
+        ]
+
+-- Whether sangsih is above or below, the polos is still the same.
+-- all_kotekan :: Kernel -> [(String, [(Char, TrackLang.UpDown, Int)])]
+all_kotekan kernels = mapM_ print $ Seq.group_fst
+    [ (fmt $ realize_kernel inverted rotation TrackLang.Up style pasang kernel,
+        (if inverted then 'v' else '^', rotation))
+    | kernel <- kernels
+    , inverted <- [False, True]
+    , rotation <- [0..7]
+    ]
+    where
+    style = Telu
+    pasang = (Score.Instrument "polos", Score.Instrument "sangsih")
+    fmt = concatMap pretty . normalize . map (map note_steps . filter is_polos)
+        . fst
+    is_polos = (== Just (fst pasang)) . note_instrument
+    normalize :: [[Int]] -> [[Int]]
+    normalize steps = map (map (subtract m)) steps
+        where
+        m = minimum $ concat $ filter (not . null) steps
+    pretty [] = "-"
+    pretty (steps : _) = show (steps + 1)
 
 -- ** implementation
 
@@ -623,152 +856,3 @@ instance TrackLang.TypecheckSymbol Role
 role_env :: Sig.Parser Role
 role_env = Sig.required_environ (TrackLang.unsym Environ.role) Sig.Unprefixed
     "Instrument role."
-
-
--- * kernels
-
-data Inverted = NotInverted | Inverted deriving (Show, Eq, Ord)
-
-c_kotekan_kernel :: Kernel -> Bool -> Derive.Generator Derive.Note
-c_kotekan_kernel kernel inverted =
-    Derive.make_call module_ "kotekan" Tags.inst
-    "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
-    \ They line up at the end of the event."
-    $ Sig.call ((,,,,,)
-    <$> Sig.defaulted "rotation" 0 "Rotate kotekan pattern."
-    <*> Sig.defaulted "sangsih" TrackLang.Up
-        "Whether sangsih is above or below polos."
-    <*> dur_arg
-    <*> Sig.defaulted "style" Telu "Kotekan style."
-    <*> kotekan_env <*> pasang_env
-    ) $ \(rotation, sangsih_above, dur, style, kotekan, pasang) ->
-    Sub.inverting $ \args -> do
-        pitch <- Util.get_pitch =<< Args.real_start args
-        under_threshold <- under_threshold_function kotekan dur
-        let pattern = kernel_to_pattern
-                ((if inverted then invert else id) (rotate rotation kernel))
-                sangsih_above style pasang
-        realize_kotekan_pattern False (Args.range args) dur pitch
-            under_threshold Repeat pattern
-
--- more useful ways to address:
--- The pattern should always end on the pitch.  If the kernel ends with Rest,
--- then the sangsih has the pitch, and it depends on sangsih_above.
---
--- So we have: from above vs. from below vs. in the middle,
--- polos has it vs. sangsih has it, rotation
---
--- This means that not all rotations are available, so they skip invalid
--- states.
-
-
-type Kernel = [Atom]
--- Rest, up, down.
-data Atom = Rest | Low | High deriving (Show, Eq, Ord)
-
-instance Pretty.Pretty Atom where
-    format = Pretty.char . to_char
-    formatList cs = "kernel \"" <> Pretty.text (txt (map to_char cs)) <> "\""
-
-kernel :: [Char] -> Kernel
-kernel = map from_char
-
-from_char :: Char -> Atom
-from_char '-' = Rest
-from_char '0' = Low
-from_char '1' = High
-from_char c = error $ "from_char: unknown char " <> show c
-
-to_char :: Atom -> Char
-to_char c = case c of
-    Rest -> '-'
-    Low -> '0'
-    High -> '1'
-
-kernel_to_pattern :: Kernel -> TrackLang.UpDown -> KotekanStyle -> Pasang
-    -> Cycle
-kernel_to_pattern kernel sangsih_above kotekan_style pasang =
-    (interlocking, non_interlocking)
-    where
-    interlocking = map interlock kernel
-    non_interlocking = map non_interlock kernel
-    non_interlock atom = case (sangsih_above, kotekan_style) of
-        (TrackLang.Up, Telu) -> case atom of
-            Rest -> [both 2]
-            Low -> [both 0]
-            High -> [both 1]
-        (TrackLang.Up, Pat) -> case atom of
-            Rest -> [polos 2, sangsih 2]
-            Low -> [polos 0, sangsih 3]
-            High -> [polos 1, sangsih 1]
-        (TrackLang.Down, Telu) -> case atom of
-            Rest -> [both (-1)]
-            Low -> [both 0]
-            High -> [both 1]
-        (TrackLang.Down, Pat) -> case atom of
-            Rest -> [polos (-1), sangsih (-1)]
-            Low -> [polos 0, sangsih 0]
-            High -> [polos 1, sangsih (-2)]
-    interlock atom = case (sangsih_above, kotekan_style) of
-        (TrackLang.Up, Telu) -> case atom of
-            Rest -> [sangsih 2]
-            Low -> [polos 0]
-            High -> [polos 1, sangsih 1]
-        (TrackLang.Up, Pat) -> case atom of
-            Rest -> [sangsih 2]
-            Low -> [polos 0, sangsih 3]
-            High -> [polos 1, sangsih 1]
-        (TrackLang.Down, Telu) -> case atom of
-            Rest -> [sangsih (-1)]
-            Low -> [polos 0, sangsih 0]
-            High -> [polos 1]
-        (TrackLang.Down, Pat) -> case atom of
-            Rest -> [sangsih (-1)]
-            Low -> [polos 0]
-            High -> [polos 1, sangsih (-2)]
-    polos steps = KotekanNote (Just (fst pasang)) steps mempty
-    sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
-    both steps = KotekanNote Nothing steps mempty
-
-find_kernel :: Kernel -> Maybe (Kernel, Bool, Int)
-find_kernel kernel = lookup kernel variants
-    where
-    variants =
-        [ (variant, (kernel, inverted, rotation))
-        | kernel <- kernels
-        , (variant, (inverted, rotation)) <- variations kernel
-        ]
-
-variations :: Kernel -> [(Kernel, (Bool, Int))]
-variations kernel_ = Seq.unique_on fst
-    [ (variant, (inverted, rotate))
-    | (inverted, kernel) <- [(False, kernel_), (True, invert kernel_)]
-    , (rotate, variant) <- zip [0..] (rotations kernel)
-    ]
-
-rotate :: Int -> [a] -> [a]
-rotate n xs = cycle (rotations xs) !! n
-
-rotations :: [a] -> [[a]]
-rotations xs = xs : go xs (reverse xs)
-    where
-    go [] _ = []
-    go _ [_] = []
-    go _ [] = []
-    go xs (z:zs) = p : go p zs
-        where p = take len (z : xs)
-    len = length xs
-
-invert :: Kernel -> Kernel
-invert = map $ \x -> case x of
-    Rest -> Rest
-    High -> Low
-    Low -> High
-
-kernels :: [Kernel]
-kernels = [kernel_up_down, kernel_down1, kernel_down2]
-
-kernel_up_down :: Kernel
-kernel_up_down = map from_char "-01-0-10"
-kernel_down1 = map from_char "-0-10-10"
-kernel_down2 = map from_char "-1-10-10"

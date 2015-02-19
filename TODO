@@ -1021,7 +1021,7 @@ Derive:
           * generate polos and sangsih from (kernel, inverted, rotation)
           * call that generates kotekan
           - perhaps come up with a more intuitive way to address patterns
-          - generate all possible patterns following some playability rules,
+          - generate all possible kernels following some playability rules,
             e.g. no more than 2 notes in a row, only one rest
             . I could then use that to automatically select a pattern for
               a given destination, with some constraints like playability from

@@ -108,6 +108,7 @@ unsym (Symbol sym) = sym
 -- | This is for arguments which can be high or low.
 data UpDown = Up | Down deriving (Show, Enum, Bounded, Eq, Ord)
 
+instance Pretty.Pretty UpDown where pretty = showt
 instance Typecheck UpDown
 instance TypecheckSymbol UpDown
 instance ShowVal UpDown where
