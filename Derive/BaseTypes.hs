@@ -28,6 +28,7 @@
 module Derive.BaseTypes where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Char as Char
+import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
@@ -293,6 +294,19 @@ pitch scale nn note config = Pitch
     , pitch_config = config
     }
 
+coerce :: RawPitch a -> RawPitch b
+coerce = Coerce.coerce
+
+-- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
+-- are documented by applying 'coerce'.
+pitch_nn :: Transposed -> Either PitchError Pitch.NoteNumber
+pitch_nn p = pitch_eval_nn p (pitch_config p)
+
+-- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
+-- are documented by applying 'coerce'.
+pitch_note :: Transposed -> Either PitchError Pitch.Note
+pitch_note p = pitch_eval_note p (pitch_config p)
+
 {- | A PitchConfig is the data that can continue to influence the pitch's
     frequency.
 
@@ -355,12 +369,12 @@ instance DeepSeq.NFData (RawPitch a) where
 
 instance Show (RawPitch a) where
     -- Show just the NN, so this is parseable by Util.PPrint.
-    show p = either show prettys (pitch_eval_nn p mempty)
+    show p = either show prettys (pitch_nn (coerce p))
 
 -- | Will look like: 62.95nn,4i(*wayang)
 instance Pretty.Pretty (RawPitch a) where
-    pretty p = either showt pretty (pitch_eval_nn p mempty) <> ","
-        <> either showt Pitch.note_text (pitch_eval_note p mempty)
+    pretty p = either showt pretty (pitch_nn (coerce p)) <> ","
+        <> either showt Pitch.note_text (pitch_note (coerce p))
         <> "(" <> pretty (pitch_scale p) <> ")"
 
 -- | Pitches have no literal syntax, but I have to print something.
@@ -371,9 +385,15 @@ instance ShowVal.ShowVal (RawPitch a) where
 newtype PitchError = PitchError Text deriving (Eq, Ord, Read, Show)
 instance Pretty.Pretty PitchError where pretty (PitchError s) = s
 
+instance Pretty.Pretty PitchConfig where
+    format (PitchConfig env controls) = Pretty.record "PitchConfig"
+        [ ("environ", Pretty.format env)
+        , ("controls", Pretty.format controls)
+        ]
+
 pitches_equal :: RawPitch a -> RawPitch a -> Bool
 pitches_equal p1 p2 = either (const False) id $
-    Pitch.nns_equal <$> pitch_eval_nn p1 mempty <*> pitch_eval_nn p2 mempty
+    Pitch.nns_equal <$> pitch_nn (coerce p1) <*> pitch_nn (coerce p2)
 
 -- * Derive.TrackLang
 

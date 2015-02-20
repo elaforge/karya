@@ -27,7 +27,6 @@ module Derive.PitchSignal (
     , config, apply, add_control, pitch_nn, pitch_note
 ) where
 import Prelude hiding (head, take, drop, last, null)
-import qualified Data.Coerce as Coerce
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as V
@@ -39,8 +38,9 @@ import Util.TimeVector (Sample(..))
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as TrackLang
 import Derive.BaseTypes
-       (Signal(..), Transposed, Pitch, pitch, RawPitch(..), Scale(..),
-        PitchConfig(..), ControlValMap, PitchError(..))
+       (Signal(..), Transposed, Pitch, pitch, coerce, pitch_nn, pitch_note,
+        RawPitch(..), Scale(..), PitchConfig(..), ControlValMap, PitchError(..))
+
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Global
@@ -210,9 +210,6 @@ prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
 
 -- * Pitch
 
-coerce :: RawPitch a -> RawPitch b
-coerce = Coerce.coerce
-
 pitch_scale_id :: RawPitch a -> Pitch.ScaleId
 pitch_scale_id = pscale_scale_id . pitch_scale
 
@@ -235,13 +232,3 @@ add_control :: Score.Control -> Double -> RawPitch a -> RawPitch a
 add_control control val pitch =
     pitch { pitch_config = config <> pitch_config pitch }
     where config = PitchConfig mempty (Map.singleton control val)
-
--- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
--- are documented by applying 'coerce'.
-pitch_nn :: Transposed -> Either PitchError Pitch.NoteNumber
-pitch_nn p = pitch_eval_nn p (pitch_config p)
-
--- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
--- are documented by applying 'coerce'.
-pitch_note :: Transposed -> Either PitchError Pitch.Note
-pitch_note p = pitch_eval_note p (pitch_config p)
