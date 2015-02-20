@@ -7,6 +7,12 @@ UNSORTED
     instrument is not found it gives a confusing error giving the alias.
   - Util.Pretty doesn't correctly display ("a", ["b", "c"]) where the list
     wraps
+  - Util.Pretty also formats lists wrong:
+    , stack =
+        [ block (bid "test/b1"), (bid "test/b1"), import
+        ...
+        ], highlight = NoHighlight
+    There should be a line break after ].
   * import only one symbol, e.g. 'import india.mridangam.faran.ktkn'
     Or better, 'import module sym sym'
   * new notes don't play after adding to the end of a track
@@ -1015,12 +1021,23 @@ Derive:
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan
+        - k//\\ should have a version with space at the beginning and end
+          In fact maybe none of the patterns should emit the first note, then
+          I don't have to cancel it.
+        - k// needs 1 2-12-12- 21-21-21, I can do it by writing sangsih d pat,
+          but then sangsih and polos are reversed
+          . I can do it with k '21-121-12', and it's only a couple more
+            characters, so why not do everything that way?
+        - 2-121-21 can be written
+        . 23-2-32-2
+          -61-16-1
+        - k// and k\\ should not have UpDown as the first arg
         kotekan kernel:
           . generate from patterns from (kernel, inverted, rotation) so
             I have a way to describe all common patterns
           * generate polos and sangsih from (kernel, inverted, rotation)
           * call that generates kotekan
-          - perhaps come up with a more intuitive way to address patterns
+          * perhaps come up with a more intuitive way to address patterns
           - generate all possible kernels following some playability rules,
             e.g. no more than 2 notes in a row, only one rest
             . I could then use that to automatically select a pattern for

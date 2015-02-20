@@ -4,6 +4,7 @@
 
 module Derive.Call.Bali.Gangsa_test where
 import qualified Data.Map as Map
+
 import qualified Util.Lens as Lens
 import qualified Util.Seq as Seq
 import Util.Test
@@ -90,8 +91,7 @@ test_norot_infer_duration = do
     equal (run [(0, 2, "norot f 1 -- 3a"), (2, 2, "norot f 1 -- 3c")])
         (["3a", "3b", "3a", "3d", "3c"], [])
 
-    let run = derive_pasang extract
-            (inst_title <> " | noltol | infer-duration | kotekan=2")
+    let run = derive_pasang extract (" | noltol | infer-duration | kotekan=2")
         extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
     let mute = "+mute"
     equal (run [(0, 2, "norot f 1 -- 3a"), (2, 2, "norot f 1 -- 3c")])
@@ -101,12 +101,9 @@ test_norot_infer_duration = do
         )
 
 test_gender_norot = do
-    let run = derive_pasang extract ""
-        extract e = (Score.event_start e, DeriveTest.e_pitch e)
-    equal (run [(0, 4, "gnorot 1 -- 3a")])
-        (( [(0, "3a"), (1, "3g"), (2, "3f"), (3, "3g"), (4, "3a")]
-         , [(0, "3a"), (1, "3b"), (2, "3a"), (3, "3b"), (4, "3a")]
-         ), [])
+    let run = e_pattern 0 . derive_kotekan ""
+    equal (run [(0, 4, "gnorot 1 -- 4e")])
+        ([(polos, "32123"), (sangsih, "34343")], [])
 
 test_kotekan_irregular = do
     let run kotekan = e_pattern 0 . derive_kotekan (ngotek kotekan)
@@ -116,8 +113,30 @@ test_kotekan_irregular = do
         ([(pasang, "1-11-1321")], [])
 
 test_kotekan_cancel = do
-    let run kotekan = e_pattern 0 . derive_kotekan (ngotek kotekan)
-    pprint (run True [(0, 8, "-12-1-21 -- 4c"), (8, 8, "-12-1-21 -- 4c")])
+    -- The end of the previous kotekan will cancel the first note of the
+    -- next one.
+    let run extract title kotekan =
+            e_by_inst extract . derive_kotekan (title <> ngotek kotekan)
+    let notes = [(0, 8, "-12-1-21 -- 4c"), (8, 8, "-12-1-21 -- 4c")]
+    equal (first head $
+            run DeriveTest.e_start_note " | infer-duration" True notes)
+        ( (polos,
+            [ (0, "4c"), (2, "4c"), (3, "4d"), (5, "4c"), (7, "4d")
+            , (8, "4c"), (10, "4c"), (11, "4d"), (13, "4c"), (15, "4d")
+            , (16, "4c")
+            ])
+        , []
+        )
+    let notes = [(0, 8, "-12-1-21 -- 4c"), (8, 8, "-12-1-21 -- 4d")]
+    equal (first head $
+            run DeriveTest.e_start_note " | infer-duration" True notes)
+        ( (polos,
+            [ (0, "4c"), (2, "4c"), (3, "4d"), (5, "4c"), (7, "4d")
+            , (8, "4c"), (10, "4d"), (11, "4e"), (13, "4d"), (15, "4e")
+            , (16, "4d")
+            ])
+        , []
+        )
 
 test_kotekan_regular = do
     let run kotekan = e_pattern 2 . derive_kotekan (ngotek kotekan)
@@ -212,27 +231,29 @@ derive_kotekan :: String -> [UiTest.EventSpec] -> Derive.Result
 derive_kotekan title notes = derive_tracks $
     UiTest.note_spec (inst_title <> title, notes, [])
 
--- e_pattern :: RealTime -> Derive.Result -> ((String, String), [String])
+e_by_inst :: (Score.Event -> a) -> Derive.Result
+    -> ([(Score.Instrument, [a])], [String])
+e_by_inst extract =
+    first Seq.group_fst
+        . DeriveTest.extract (\e -> (Score.event_instrument e, extract e))
+
 e_pattern :: RealTime -> Derive.Result
     -> ([(Score.Instrument, String)], [String])
 e_pattern start =
-    first (map (second (as_pattern start)) . Seq.group_fst)
-        . DeriveTest.extract extract
+    first (map (second (as_pattern start)))
+        . e_by_inst DeriveTest.e_start_note
     where
-    extract e = (Score.event_instrument e,
-        (Score.event_start e, DeriveTest.e_pitch e))
     as_pattern _ [] = ""
-    as_pattern at ns@((t, pitch) : rest)
-        | at >= t = to_digit pitch : as_pattern (at+1) rest
-        | otherwise = '-' : as_pattern (at+1) ns
+    as_pattern at ns@((t, pitch) : rest) = case compare at t of
+        GT -> as_pattern at rest
+        EQ -> to_digit pitch : as_pattern (at+1) rest
+        LT -> '-' : as_pattern (at+1) ns
     to_digit p = case p of
         "4c" -> '1'
         "4d" -> '2'
         "4e" -> '3'
         "4f" -> '4'
         _ -> error $ "unknown pitch: " <> show p
-    polos_sangsih pairs =
-        (fromMaybe "" (lookup polos pairs), fromMaybe "" (lookup sangsih pairs))
 
 e_pasang :: (Score.Event -> a) -> Derive.Result -> (([a], [a]), [String])
 e_pasang extract = first group_inst

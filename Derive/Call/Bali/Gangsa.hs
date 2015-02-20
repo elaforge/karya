@@ -72,6 +72,7 @@ note_calls = Derive.call_maps
         irregular_pattern "3123123213213123"
             "-12-12-2 1-21-12-" "3-23-232 -32-3-23" "44-34-3- 43-434-3")
     , ("kotekan", c_kotekan_kernel)
+    , ("k", c_kotekan_generic)
 
     , ("'", c_ngoret $ pure Nothing)
     , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
@@ -149,15 +150,9 @@ instance Pretty.Pretty KotekanPattern where
             ["unison", "polos pat", "sangsih pat", "polos telu", "sangsih telu"]
             (map Pretty.format [unison, p4, s4, p3, s3])
 
-ip = irregular_pattern "-11-1321" "-11-1-21" "3-32-32-" "-44-43-4"
-
 irregular_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> KotekanPattern
 irregular_pattern unison polos sangsih_telu sangsih_pat =
     parse_pattern unison polos sangsih_pat polos sangsih_telu
-    where
-    merge '-' n = n
-    merge n '-' = n
-    merge n _ = n
 
 parse_pattern :: [Char] -> [Char] -> [Char] -> [Char] -> [Char]
     -> KotekanPattern
@@ -301,7 +296,8 @@ gender_norot pasang = (interlocking, normal)
 kotekan_doc :: Text
 kotekan_doc =
     "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
-    \ They line up at the end of the event."
+    \ They line up at the end of the event but may also emit a note at the\
+    \ start of the event, so use `infer-duration` to cancel the extra notes."
 
 c_kotekan_irregular :: KotekanStyle -> KotekanPattern
     -> Derive.Generator Derive.Note
@@ -398,6 +394,29 @@ c_kotekan_kernel =
             under_threshold Repeat $
                 realize_kernel inverted rotation sangsih_above style pasang
                     kernel
+
+c_kotekan_generic :: Derive.Generator Derive.Note
+c_kotekan_generic =
+    Derive.make_call module_ "kotekan" Tags.inst
+    ("Render a kotekan pattern from a kernel. The sangsih part is inferred.\n"
+        <> kotekan_doc)
+    $ Sig.call ((,,,,,)
+    <$> Sig.required "kernel" "Polos part in transposition steps.\
+        \ This will be normalized to end on the destination pitch.\
+        \ It should consist of `-`, `1`, and `2`."
+    <*> Sig.defaulted "sangsih" TrackLang.Up
+        "Whether sangsih is above or below polos."
+    <*> Sig.defaulted "style" Telu "Kotekan style."
+    <*> dur_arg
+    <*> kotekan_env <*> pasang_env
+    ) $ \(kernel_s, sangsih_above, style, dur, kotekan, pasang) ->
+    Sub.inverting $ \args -> do
+        kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
+        pitch <- Util.get_pitch =<< Args.real_start args
+        under_threshold <- under_threshold_function kotekan dur
+        realize_kotekan_pattern False (Args.range args) dur pitch
+            under_threshold Repeat $
+                realize_kernel False 0 sangsih_above style pasang kernel
 
 make_kotekan_calls :: Kernel
     -> [(TrackLang.Symbol, Derive.Generator Derive.Note)]
