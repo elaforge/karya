@@ -96,7 +96,7 @@ c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 1))
 realize_pattern :: Gangsa.Repeat -> Pattern -> Derive.Generator Derive.Note
 realize_pattern repeat pattern =
     Derive.make_call module_ "reyong" Tags.inst "Emit reyong kilitan."
-    $ Sig.call (Gangsa.dur_arg) $ \dur -> Sub.inverting $ \args -> do
+    $ Sig.call (Gangsa.dur_env) $ \dur -> Sub.inverting $ \args -> do
         (parse_pitch, show_pitch, _) <- Util.get_pitch_functions
         pitch <- Util.get_parsed_pitch parse_pitch =<< Args.real_start args
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)

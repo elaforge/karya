@@ -71,6 +71,8 @@ note_calls = Derive.call_maps
     , ("k//\\\\", c_kotekan_irregular Pat $
         irregular_pattern "3123123213213123"
             "-12-12-2 1-21-12-" "3-23-232 -32-3-23" "44-34-3- 43-434-3")
+    , ("k\\\\", c_kotekan_regular kernel_1_21_21 False 0)
+    , ("k//",   c_kotekan_regular kernel_1_21_21 True 0)
     , ("kotekan", c_kotekan_kernel)
     , ("k", c_kotekan_generic)
 
@@ -87,10 +89,7 @@ note_calls = Derive.call_maps
     ]
 
 kotekan_calls :: [(TrackLang.Symbol, Derive.Generator Derive.Note)]
-kotekan_calls =
-    [ ("k\\\\", c_kotekan_regular kernel_1_21_21 False 0)
-    , ("k//",   c_kotekan_regular kernel_1_21_21 True 0)
-    ] ++ concatMap make_kotekan_calls all_kernels
+kotekan_calls = concatMap make_kotekan_calls all_kernels
 
 val_calls :: [Derive.LookupCall Derive.ValCall]
 val_calls = Derive.call_map
@@ -174,10 +173,9 @@ c_norot = Derive.make_call module_ "norot" Tags.inst
     \ the event."
     $ Sig.call ((,,,,,)
     <$> Sig.defaulted "arrival" True "If true, emit the norot arrival pattern."
-    <*> dur_arg
     <*> Sig.defaulted "style" Default "Norot style."
-    <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    ) $ \(arrival, dur, style, kotekan, inst_top, pasang) ->
+    <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
+    ) $ \(arrival, style, dur, kotekan, inst_top, pasang) ->
     Sub.inverting $ \args -> do
         start <- Args.real_start args
         pitch <- Util.get_transposed start
@@ -216,10 +214,9 @@ c_norot_arrival :: Derive.Generator Derive.Note
 c_norot_arrival = Derive.make_call module_ "norot" Tags.inst
     "Emit norot arrival."
     $ Sig.call ((,,,,)
-    <$> dur_arg
-    <*> Sig.defaulted "style" Default "Norot style."
-    <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    ) $ \(dur, style, kotekan, inst_top, pasang) -> Sub.inverting $ \args -> do
+    <$> Sig.defaulted "style" Default "Norot style."
+    <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
+    ) $ \(style, dur, kotekan, inst_top, pasang) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
         pitch <- Util.get_transposed start
         scale <- Util.get_scale
@@ -270,7 +267,7 @@ norot_steps scale inst_top pitch style
 c_gender_norot :: Derive.Generator Derive.Note
 c_gender_norot = Derive.make_call module_ "gender-norot" Tags.inst
     "Gender-style norot."
-    $ Sig.call ((,,) <$> dur_arg <*> kotekan_env <*> pasang_env)
+    $ Sig.call ((,,) <$> dur_env <*> kotekan_env <*> pasang_env)
     $ \(dur, kotekan, pasang) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
@@ -306,10 +303,9 @@ c_kotekan_irregular default_style pattern =
     ("Render a kotekan pattern where both polos and sangsih are explicitly\
     \ specified. This is for irregular patterns.\n" <> kotekan_doc)
     $ Sig.call ((,,,)
-    <$> dur_arg
-    <*> Sig.defaulted "style" default_style "Kotekan style."
-    <*> kotekan_env <*> pasang_env
-    ) $ \(dur, style, kotekan, pasang) -> Sub.inverting $ \args -> do
+    <$> Sig.defaulted "style" default_style "Kotekan style."
+    <*> dur_env <*> kotekan_env <*> pasang_env
+    ) $ \(style, dur, kotekan, pasang) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern False (Args.range args) dur pitch
@@ -373,18 +369,17 @@ c_kotekan_kernel =
         <> kotekan_doc)
     $ Sig.call ((,,,,,,,)
     <$> Sig.defaulted "rotation" 0 "Rotate kotekan pattern."
+    <*> Sig.defaulted "style" Telu "Kotekan style."
     <*> Sig.defaulted "sangsih" TrackLang.Up
         "Whether sangsih is above or below polos."
-    <*> Sig.defaulted "style" Telu "Kotekan style."
     <*> Sig.environ "invert" Sig.Prefixed False
         "Flip the pattern upside down."
-    <*> dur_arg
     <*> Sig.required_environ "kernel" Sig.Prefixed
         "Polos part in transposition steps.\
         \ This will be normalized to end on the destination pitch.\
         \ It should consist of `-`, `1`, and `2`."
-    <*> kotekan_env <*> pasang_env
-    ) $ \(rotation, sangsih_above, style, inverted, dur, kernel_s, kotekan,
+    <*> dur_env <*> kotekan_env <*> pasang_env
+    ) $ \(rotation, style, sangsih_above, inverted, kernel_s, dur, kotekan,
         pasang) ->
     Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
@@ -404,12 +399,11 @@ c_kotekan_generic =
     <$> Sig.required "kernel" "Polos part in transposition steps.\
         \ This will be normalized to end on the destination pitch.\
         \ It should consist of `-`, `1`, and `2`."
+    <*> Sig.defaulted "style" Telu "Kotekan style."
     <*> Sig.defaulted "sangsih" TrackLang.Up
         "Whether sangsih is above or below polos."
-    <*> Sig.defaulted "style" Telu "Kotekan style."
-    <*> dur_arg
-    <*> kotekan_env <*> pasang_env
-    ) $ \(kernel_s, sangsih_above, style, dur, kotekan, pasang) ->
+    <*> dur_env <*> kotekan_env <*> pasang_env
+    ) $ \(kernel_s, style, sangsih_above, dur, kotekan, pasang) ->
     Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         pitch <- Util.get_pitch =<< Args.real_start args
@@ -423,7 +417,7 @@ make_kotekan_calls :: Kernel
 make_kotekan_calls kernel =
     [ (name inverted rotation, c_kotekan_regular kernel inverted rotation)
     | inverted <- [False, True]
-    , rotation <- [0 .. length kernel]
+    , rotation <- [0 .. length kernel - 1]
     ]
     where
     name inverted rotation = TrackLang.Symbol $ txt $ map to_char $
@@ -436,12 +430,12 @@ c_kotekan_regular kernel inverted rotation =
     \ that the sangsih can be automatically derived from the polos.\n"
         <> kotekan_doc)
     $ Sig.call ((,,,,)
-    <$> Sig.defaulted "sangsih"
+    <$> Sig.defaulted "style" Telu "Kotekan style."
+    <*> Sig.defaulted "sangsih"
         (if inverted then TrackLang.Down else TrackLang.Up)
         "Whether sangsih is above or below polos."
-    <*> Sig.defaulted "style" Telu "Kotekan style."
-    <*> dur_arg <*> kotekan_env <*> pasang_env
-    ) $ \(sangsih_above, style, dur, kotekan, pasang) ->
+    <*> dur_env <*> kotekan_env <*> pasang_env
+    ) $ \(style, sangsih_above, dur, kotekan, pasang) ->
     Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
@@ -823,8 +817,8 @@ c_pasangan = Derive.val_call module_ "pasangan" mempty
 
 -- * implementation
 
-dur_arg :: Sig.Parser ScoreTime
-dur_arg = Sig.defaulted_env_quoted "dur" Sig.Prefixed
+dur_env :: Sig.Parser ScoreTime
+dur_env = Sig.environ_quoted "dur" Sig.Prefixed
     (TrackLang.quoted "ts" [TrackLang.str "e"]) "Duration of derived notes."
 
 kotekan_env :: Sig.Parser TrackLang.ValControl

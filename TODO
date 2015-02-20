@@ -1031,7 +1031,7 @@ Derive:
         - 2-121-21 can be written
         . 23-2-32-2
           -61-16-1
-        - k// and k\\ should not have UpDown as the first arg
+        * k// and k\\ should not have UpDown as the first arg
         kotekan kernel:
           . generate from patterns from (kernel, inverted, rotation) so
             I have a way to describe all common patterns

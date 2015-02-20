@@ -34,7 +34,7 @@ test_norot = do
     equal (run [(2, -2, "norot -- 4f")])
         ([((0, 1, "4f"), pasang), ((1, 1, "4e"), pasang),
             ((2, 1, "4f"), pasang)], [])
-    equal (run [(2, -2, "norot _ _ diamond -- 4c")])
+    equal (run [(2, -2, "norot _ diamond -- 4c")])
         ([ ((0, 1, "4c"), polos), ((0, 1, "4c"), sangsih)
          , ((1, 1, "4d"), polos), ((1, 1, "3b"), sangsih)
          , ((2, 1, "4c"), polos), ((2, 1, "4c"), sangsih)
@@ -80,21 +80,21 @@ test_norot_arrival = do
             DeriveTest.derive_blocks [("b1=ruler -- import bali.gangsa",
                 UiTest.note_spec (title, notes, []))]
     equal (run_block DeriveTest.e_start_note
-            [ (0, 8, "norot f \"(ts e) -- 3a")
-            , (8, 0, "norot t \"(ts e) -- 3b")
+            [ (0, 8, "norot f -- 3a")
+            , (8, 0, "norot t -- 3b")
             ])
         (zip (ts 0) [a, b, a, b, a, b, b, c, b], [])
 
 test_norot_infer_duration = do
     let run = derive DeriveTest.e_pitch (inst_title <> " | infer-duration")
     -- First note is cancelled out.
-    equal (run [(0, 2, "norot f 1 -- 3a"), (2, 2, "norot f 1 -- 3c")])
+    equal (run [(0, 2, "norot f -- 3a"), (2, 2, "norot f -- 3c")])
         (["3a", "3b", "3a", "3d", "3c"], [])
 
     let run = derive_pasang extract (" | noltol | infer-duration | kotekan=2")
         extract e = (DeriveTest.e_pitch e, DeriveTest.e_attributes e)
     let mute = "+mute"
-    equal (run [(0, 2, "norot f 1 -- 3a"), (2, 2, "norot f 1 -- 3c")])
+    equal (run [(0, 2, "norot f -- 3a"), (2, 2, "norot f -- 3c")])
         (([("3a", "+"), ("3a", mute), ("3a", "+"), ("3a", mute), ("3c", "+")]
         , [("3b", "+"), ("3b", mute), ("3d", "+")])
         , []
@@ -102,7 +102,7 @@ test_norot_infer_duration = do
 
 test_gender_norot = do
     let run = e_pattern 0 . derive_kotekan ""
-    equal (run [(0, 4, "gnorot 1 -- 4e")])
+    equal (run [(0, 4, "gnorot -- 4e")])
         ([(polos, "32123"), (sangsih, "34343")], [])
 
 test_kotekan_irregular = do
@@ -144,17 +144,17 @@ test_kotekan_regular = do
         ([(polos, "1-12-1-21"), (sangsih, "-3-23-32")], [])
     equal (run False [(2, 8, "-12-1-21 -- 4c")])
         ([(pasang, "131231321")], [])
-    equal (run True [(2, 8, "-12-1-21 _ pat -- 4c")])
+    equal (run True [(2, 8, "-12-1-21 pat -- 4c")])
         ([(polos, "1-12-1-21"), (sangsih, "434-343-4")], [])
-    equal (run False [(2, 8, "-12-1-21 _ pat -- 4c")])
+    equal (run False [(2, 8, "-12-1-21 pat -- 4c")])
         ([(polos, "131231321"), (sangsih, "434234324")], [])
-    equal (run True [(2, 8, "-12-1-21 d -- 4e")])
+    equal (run True [(2, 8, "-12-1-21 _ d -- 4e")])
         ([(polos, "3-34-3-43"), (sangsih, "323-232-3")], [])
-    equal (run False [(2, 8, "-12-1-21 d -- 4e")])
+    equal (run False [(2, 8, "-12-1-21 _ d -- 4e")])
         ([(pasang, "323423243")], [])
-    equal (run True [(2, 8, "-12-1-21 d pat -- 4e")])
+    equal (run True [(2, 8, "-12-1-21 pat d -- 4e")])
         ([(polos, "3-34-3-43"), (sangsih, "-2-12-21")], [])
-    equal (run False [(2, 8, "-12-1-21 d pat -- 4e")])
+    equal (run False [(2, 8, "-12-1-21 pat d -- 4e")])
         ([(polos, "323423243"), (sangsih, "323123213")], [])
 
 test_unison = do

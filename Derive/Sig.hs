@@ -91,7 +91,7 @@ module Derive.Sig (
     -- * parsers
     , parsed_manually, no_args
     , required, required_env, defaulted, defaulted_env, defaulted_env_quoted
-    , environ, required_environ
+    , environ, environ_quoted, required_environ
     , optional, optional_env, many, many1
     -- ** defaults
     , EnvironDefault(..)
@@ -213,11 +213,11 @@ required_env name env_default doc = parser arg_doc $ \state1 ->
     where
     expected = TrackLang.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
-        { Derive.arg_name = name
-        , Derive.arg_type = expected
-        , Derive.arg_parser = Derive.Required
-        , Derive.arg_environ_default = env_default
-        , Derive.arg_doc = doc
+        { arg_name = name
+        , arg_type = expected
+        , arg_parser = Derive.Required
+        , arg_environ_default = env_default
+        , arg_doc = doc
         }
 
 
@@ -251,11 +251,11 @@ defaulted_env_ name env_default quoted doc = parser arg_doc $ \state1 ->
     show_deflt = either ShowVal.show_val ShowVal.show_val quoted
     expected = TrackLang.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
-        { Derive.arg_name = name
-        , Derive.arg_type = expected
-        , Derive.arg_parser = Derive.Defaulted show_deflt
-        , Derive.arg_environ_default = env_default
-        , Derive.arg_doc = doc
+        { arg_name = name
+        , arg_type = expected
+        , arg_parser = Derive.Defaulted show_deflt
+        , arg_environ_default = env_default
+        , arg_doc = doc
         }
 
 -- | Eval a Quoted default value.
@@ -267,28 +267,42 @@ eval_default arg_doc place name state (Right q@(TrackLang.Quoted call)) =
         Left err -> Left $ Derive.EvalError place q name err
         Right val -> (,) state <$> check_arg state arg_doc place name val
 
--- | This is a phantom argument which is not actually parsed from the argument
--- list.  Instead it's looked up it the environ according to the normal
--- defaulting rules.
+-- | This is an argument which is not actually parsed from the argument list.
+-- Instead it's looked up it the environ according to the normal defaulting
+-- rules.
 --
 -- Of course, the call could just look in the environ itself, but this way it's
 -- uniform and automatically documented.
 environ :: forall a. TrackLang.Typecheck a => Text -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
     -> a -> Text -> Parser a
-environ name env_default deflt doc = parser arg_doc $ \state ->
+environ name env_default = environ_ name env_default . Left
+
+-- | This is like 'environ', but the default is a 'TrackLang.Quoted', which
+-- will be evaluated if needed.
+environ_quoted :: forall a. TrackLang.Typecheck a => Text
+    -> Derive.EnvironDefault -> TrackLang.Quoted -> Text -> Parser a
+environ_quoted name env_default = environ_ name env_default . Right
+
+-- Internal function that handles both quoted and unquoted default.
+environ_ :: forall a. TrackLang.Typecheck a => Text -> Derive.EnvironDefault
+    -- ^ None doesn't make any sense, but, well, don't pass that then.
+    -> Either a TrackLang.Quoted -> Text -> Parser a
+environ_ name env_default quoted doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
-        Nothing -> Right (state, deflt)
+        Nothing -> deflt state
         Just val -> (,) state <$>
             check_arg state arg_doc (environ_error state name) name val
     where
+    deflt state = eval_default arg_doc (argnum_error state) name state quoted
+    show_deflt = either ShowVal.show_val ShowVal.show_val quoted
     expected = TrackLang.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
-        { Derive.arg_name = name
-        , Derive.arg_type = expected
-        , Derive.arg_parser = Derive.Environ (Just (ShowVal.show_val deflt))
-        , Derive.arg_environ_default = env_default
-        , Derive.arg_doc = doc
+        { arg_name = name
+        , arg_type = expected
+        , arg_parser = Derive.Environ (Just (ShowVal.show_val show_deflt))
+        , arg_environ_default = env_default
+        , arg_doc = doc
         }
 
 -- | This is like 'environ', but without a default.
@@ -303,11 +317,11 @@ required_environ name env_default doc = parser arg_doc $ \state ->
     where
     expected = TrackLang.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
-        { Derive.arg_name = name
+        { arg_name = name
         , Derive.arg_type = expected
         , Derive.arg_parser = Derive.Environ Nothing
         , Derive.arg_environ_default = env_default
-        , Derive.arg_doc = doc
+        , arg_doc = doc
         }
 
 -- | This is like 'defaulted', but if the argument is the wrong type return
@@ -335,11 +349,11 @@ optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
     where
     expected = TrackLang.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
-        { Derive.arg_name = name
-        , Derive.arg_type = expected
-        , Derive.arg_parser = Derive.Optional (ShowVal.show_val deflt)
-        , Derive.arg_environ_default = env_default
-        , Derive.arg_doc = doc
+        { arg_name = name
+        , arg_type = expected
+        , arg_parser = Derive.Optional (ShowVal.show_val deflt)
+        , arg_environ_default = env_default
+        , arg_doc = doc
         }
 
 -- | Collect the rest of the arguments.
@@ -353,11 +367,11 @@ many name doc = parser arg_doc $ \state -> do
         check_arg state arg_doc (Derive.TypeErrorArg argnum) name val
     expected = TrackLang.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
-        { Derive.arg_name = name
-        , Derive.arg_type = expected
-        , Derive.arg_parser = Derive.Many
-        , Derive.arg_environ_default = Derive.None
-        , Derive.arg_doc = doc
+        { arg_name = name
+        , arg_type = expected
+        , arg_parser = Derive.Many
+        , arg_environ_default = Derive.None
+        , arg_doc = doc
         }
 
 -- | Collect the rest of the arguments, but there must be at least one.
@@ -375,11 +389,11 @@ many1 name doc = parser arg_doc $ \state ->
         check_arg state arg_doc (Derive.TypeErrorArg argnum) name val
     expected = TrackLang.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
-        { Derive.arg_name = name
-        , Derive.arg_type = expected
-        , Derive.arg_parser = Derive.Many1
-        , Derive.arg_environ_default = Derive.None
-        , Derive.arg_doc = doc
+        { arg_name = name
+        , arg_type = expected
+        , arg_parser = Derive.Many1
+        , arg_environ_default = Derive.None
+        , arg_doc = doc
         }
 
 argnum_error :: State -> Derive.ErrorPlace
