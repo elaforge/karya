@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - 'a' to enter an event in a mridangam track should make a zero duration
+    event
+  - 'clip' etc. calls require a block argument, which doesn't work as soon
+    as it's assigned e.g. '^b = xyz'.  The problem is that it really does need
+    the underlying block so it can know how long it is.
+    . Maybe Derivers give their length.
   - Derive.get_instrument only understands derive level aliases.  So if the
     instrument is not found it gives a confusing error giving the alias.
   - Util.Pretty doesn't correctly display ("a", ["b", "c"]) where the list
@@ -1024,10 +1030,12 @@ Derive:
         - k//\\ should have a version with space at the beginning and end
           In fact maybe none of the patterns should emit the first note, then
           I don't have to cancel it.
+          . Except norot?  Definitely if norot has a pickup
         - k// needs 1 2-12-12- 21-21-21, I can do it by writing sangsih d pat,
           but then sangsih and polos are reversed
           . I can do it with k '21-121-12', and it's only a couple more
             characters, so why not do everything that way?
+          . If I prefix a letter I can get rid of the quotes: k k-12-1-21
         - 2-121-21 can be written
         . 23-2-32-2
           -61-16-1

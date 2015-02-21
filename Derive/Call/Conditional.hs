@@ -2,8 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | I don't know where to put these.
-module Derive.Call.Misc where
+-- | Transformers that evaluate their deriver conditionally.
+module Derive.Call.Conditional where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Derive.Args as Args

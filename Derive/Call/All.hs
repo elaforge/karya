@@ -11,6 +11,7 @@ import qualified Derive.Call.Bali.Reyong as Reyong
 import qualified Derive.Call.Bali.Sekar as Sekar
 import qualified Derive.Call.Block as Block
 import qualified Derive.Call.China.Zheng as Zheng
+import qualified Derive.Call.Conditional as Conditional
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.ControlFunction as ControlFunction
 import qualified Derive.Call.Echo as Echo
@@ -27,7 +28,6 @@ import qualified Derive.Call.India.Mridangam as Mridangam
 import qualified Derive.Call.InferTrackVoice as InferTrackVoice
 import qualified Derive.Call.Integrate as Integrate
 import qualified Derive.Call.Lily as Lily
-import qualified Derive.Call.Misc as Misc
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Pitch as Pitch
@@ -70,7 +70,7 @@ note_maps = mconcat
     , InferTrackVoice.note_calls
     , Integrate.note_calls
     , Lily.note_calls
-    , Misc.note_calls
+    , Conditional.note_calls
     , Note.note_calls
     , NoteTransformer.note_calls
     , Mridangam.note_calls
@@ -95,7 +95,7 @@ control_maps = mconcat
     , Equal.control_calls
     , Gamakam.control_calls
     , Import.calls
-    , Misc.control_calls
+    , Conditional.control_calls
     , Random.control_calls
     , SignalTransform.control_calls
     , Trill.control_calls
@@ -108,7 +108,7 @@ pitch_maps = mconcat
     , Gamakam2.pitch_calls
     , Grace.pitch_calls
     , Import.calls
-    , Misc.pitch_calls
+    , Conditional.pitch_calls
     , Pitch.pitch_calls
     , PitchHigh.pitch_calls
     , Random.pitch_calls
