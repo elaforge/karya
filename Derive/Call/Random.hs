@@ -57,12 +57,12 @@ c_alternate = Derive.make_call Module.prelude "alternate" Tags.random
     \exprs args -> do
         let pairs = fmap (flip (,) 1) exprs
         val <- pick_weighted pairs <$> Util.random
-        eval (Args.info args) val
+        Util.eval (Args.info args) val
 
 eval :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Val
     -> Derive.Deriver [LEvent.LEvent d]
 eval info val = do
-    quoted <- Derive.require_right id $ val_to_quoted val
+    quoted <- Derive.require_right id $ Util.val_to_quoted val
     Eval.eval_quoted info quoted
 
 -- | Calls themselves are not first class, so this has to either take a string
@@ -83,15 +83,8 @@ c_alternate_weighted =
     where
     typecheck args (weight, expr) = Derive.require_right id $ do
         weight <- Sig.typecheck weight
-        quoted <- val_to_quoted expr
+        quoted <- Util.val_to_quoted expr
         return (Eval.eval_quoted (Args.info args) quoted, weight)
-
-val_to_quoted :: TrackLang.Val -> Either Text TrackLang.Quoted
-val_to_quoted val = case val of
-    TrackLang.VPitch {} -> Left "pitches must be quoted"
-    TrackLang.VQuoted quoted -> Right quoted
-    _ -> Right $ TrackLang.Quoted $
-        TrackLang.call0 (TrackLang.Symbol (TrackLang.show_call_val val)) :| []
 
 c_alternate_tracks :: Derive.Generator Derive.Note
 c_alternate_tracks = Derive.make_call Module.prelude "alternate-tracks"

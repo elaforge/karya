@@ -30,6 +30,7 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.Flags as Flags
+import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -549,3 +550,22 @@ instance ShowVal.ShowVal Meter.RankName where
     show_val = TrackLang.default_show_val
 instance TrackLang.Typecheck Meter.RankName
 instance TrackLang.TypecheckSymbol Meter.RankName
+
+
+-- * evaluation
+
+eval :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Val
+    -> Derive.Deriver [LEvent.LEvent d]
+eval info val = do
+    quoted <- Derive.require_right id $ val_to_quoted val
+    Eval.eval_quoted info quoted
+
+-- | Coerce an argument to a Quoted.  Used when you want to take another
+-- call to possibly evaluate.  This way you can directly pass a symbol or
+-- @+attr@ without having to quote it.
+val_to_quoted :: TrackLang.Val -> Either Text TrackLang.Quoted
+val_to_quoted val = case val of
+    TrackLang.VPitch {} -> Left "pitches must be quoted"
+    TrackLang.VQuoted quoted -> Right quoted
+    _ -> Right $ TrackLang.Quoted $
+        TrackLang.call0 (TrackLang.Symbol (TrackLang.show_call_val val)) :| []

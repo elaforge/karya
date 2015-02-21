@@ -23,7 +23,9 @@ import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+note_calls = Derive.call_maps
+    [ ("if-e", c_if_e)
+    ]
     [ ("multiple", c_multiple)
     , ("solo", c_solo)
     ]
@@ -37,11 +39,29 @@ pitch_calls = poly_calls
 
 poly_calls :: Derive.Taggable d => Derive.CallMaps d
 poly_calls = Derive.transformer_call_map
-    [ ("when-e", c_when_e False)
-    , ("unless-e", c_when_e True)
-    , ("when-c", c_when_c False)
+    [ ("when-c", c_when_c False)
     , ("unless-c", c_when_c True)
+    , ("when-e", c_when_e False)
+    , ("unless-e", c_when_e True)
     ]
+
+-- * generator
+
+c_if_e :: Derive.Callable d => Derive.Generator d
+c_if_e = Derive.make_call Module.prelude "if-e" mempty
+    "Derive based on the value of an environment variable."
+    $ Sig.call ((,,,)
+    <$> Sig.required "name" "Environ key."
+    <*> Sig.defaulted "value" Nothing "Environ value. If not given, require\
+        \ only that the environ key is set."
+    <*> Sig.required "true" "Eval if true."
+    <*> Sig.required "false" "Eval if false."
+    ) $ \(name, maybe_value, true, false) args ->
+        ifM (has_environ name maybe_value)
+            (Util.eval (Args.info args) true)
+            (Util.eval (Args.info args) false)
+
+-- * transformer
 
 c_multiple :: Derive.Transformer Derive.Note
 c_multiple = Derive.transformer Module.prelude "multiple" mempty
@@ -59,6 +79,15 @@ to_transformer val = case val of
     Left (TrackLang.Quoted expr) -> NonEmpty.toList expr
     Right inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
         [TrackLang.to_val inst]]
+
+c_solo :: Derive.Transformer Derive.Note
+c_solo = Derive.transformer Module.prelude "solo" mempty
+    "Only derive if `inst` is set to the given value. This is a specialized\
+    \ version of `when-e`."
+    $ Sig.callt (Sig.required "inst" "Instrument.")
+    $ \inst _args deriver ->
+        ifM (has_environ Environ.instrument (Just (TrackLang.VInstrument inst)))
+            deriver mempty
 
 c_when_c :: Derive.Taggable d => Bool -> Derive.Transformer d
 c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
@@ -89,15 +118,6 @@ c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty
     ) $ \(name, maybe_value) _args deriver ->
         ifM (invert $ has_environ name maybe_value) deriver (return mempty)
     where invert = if inverted then (not <$>) else id
-
-c_solo :: Derive.Transformer Derive.Note
-c_solo = Derive.transformer Module.prelude "solo" mempty
-    "Only derive if `inst` is set to the given value. This is a specialized\
-    \ version of `when-e`."
-    $ Sig.callt (Sig.required "inst" "Instrument.")
-    $ \inst _args deriver ->
-        ifM (has_environ Environ.instrument (Just (TrackLang.VInstrument inst)))
-            deriver mempty
 
 has_environ :: TrackLang.ValName -> Maybe TrackLang.Val -> Derive.Deriver Bool
 has_environ name maybe_val = Derive.lookup_val name >>= \x -> case x of
