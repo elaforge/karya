@@ -415,12 +415,14 @@ sync_selection_status view_id maybe_sel = case maybe_sel of
     where set = Cmd.set_view_status view_id Config.status_selection
 
 selection_status :: Id.Namespace -> Types.Selection -> Maybe TrackId -> Text
-selection_status ns sel maybe_track_id =
-    pretty_rational start
+selection_status ns sel maybe_track_id = Text.unwords $ filter (not . Text.null)
+    [ pretty_rational start
         <> (if start == end then "" else Text.cons '-' (pretty_rational end))
-    <> " " <> showt tstart
+    , if start == end then "" else "(" <> pretty_rational (end - start) <> ")"
+    , showt tstart
         <> (if tstart == tend then "" else Text.cons '-' (showt tend))
-    <> maybe "" ((" "<>) . Id.show_short ns . Id.unpack_id) maybe_track_id
+    <> maybe "" (Id.show_short ns . Id.unpack_id) maybe_track_id
+    ]
     where
     (start, end) = Types.sel_range sel
     (tstart, tend) = Types.sel_track_range sel
@@ -464,10 +466,9 @@ pretty_rational d
 sync_selection_control :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
 sync_selection_control view_id (Just (sel, block_id, Just track_id)) = do
     status <- track_control block_id track_id (Selection.point sel)
-    Cmd.set_view_status view_id Config.status_control $
-        Just (fromMaybe "" status)
+    Cmd.set_view_status view_id Config.status_control status
 sync_selection_control view_id _ =
-    Cmd.set_view_status view_id Config.status_control (Just "")
+    Cmd.set_view_status view_id Config.status_control Nothing
 
 -- | This uses 'Cmd.perf_track_signals' rather than 'Cmd.perf_track_dynamic'
 -- because track dynamics have the callers controls on a control track
