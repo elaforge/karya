@@ -203,11 +203,11 @@ timeout_func(void *vp)
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        view.block.edit_open(1, ScoreTime(16), "hi there", 10, 10);
+        view.block.floating_open(1, ScoreTime(16), "hi there", 10, 10);
         // view.block.insert_track(2, Tracklike(&empty_track, &ruler), 30);
         break;
     case 1:
-        view.block.edit_insert("haha");
+        view.block.floating_insert("haha");
         return;
         // view.block.insert_track(2, Tracklike(&track1, &truler), 30);
         break;

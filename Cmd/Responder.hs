@@ -344,11 +344,11 @@ handle_special_status ui_chan ui_state cmd_state transport_info status =
                 { Cmd.state_play = (Cmd.state_play cmd_state)
                     { Cmd.state_play_control = Just play_ctl }
                 }
-        Cmd.EditInput edit -> do
-            Ui.send_action ui_chan $ Sync.edit_input ui_state edit
+        Cmd.FloatingInput edit -> do
+            Ui.send_action ui_chan $ Sync.floating_input ui_state edit
             return $! cmd_state
                 { Cmd.state_edit = (Cmd.state_edit cmd_state)
-                    { Cmd.state_edit_input = True }
+                    { Cmd.state_floating_input = True }
                 }
         _ -> return cmd_state
 

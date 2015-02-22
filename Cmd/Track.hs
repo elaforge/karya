@@ -60,9 +60,10 @@ get_track_cmds = do
     let with_input = NoteEntry.cmds_with_input
             (Cmd.state_kbd_entry edit_state) (MidiDb.info_patch <$> maybe_info)
         tcmds = track_cmds edit_mode track
-    let edit_input_cmd = Edit.edit_input $ case Info.track_type track of
-            Info.Note {} -> False
-            _ -> True
+    let floating_input_cmd = Edit.handle_floating_input $
+            case Info.track_type track of
+                Info.Note {} -> False
+                _ -> True
     kcmds <- keymap_cmds track
     -- The order is important:
     -- - Per-instrument cmds can override all others.
@@ -80,7 +81,8 @@ get_track_cmds = do
     -- kbd entry then they will want the underlying keystrokes, as drum
     -- mappings do.  If they want 'Pitch.Input's, they can call
     -- 'NoteEntry.cmds_with_input'.
-    return $ icmds ++ edit_input_cmd : with_input (input_cmds edit_mode track)
+    return $ icmds ++ floating_input_cmd
+        : with_input (input_cmds edit_mode track)
         : tcmds ++ kcmds
 
 lookup_midi_info :: Cmd.M m => BlockId -> TrackId -> m (Maybe Cmd.MidiInfo)

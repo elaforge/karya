@@ -160,10 +160,10 @@ public:
     int get_track_width(int tracknum) const;
     void set_track_width(int tracknum, int width);
 
-    // Documented at TrackTile::edit_open.
-    void edit_open(int tracknum, ScoreTime pos, const char *text,
+    // Documented at TrackTile::floating_open.
+    void floating_open(int tracknum, ScoreTime pos, const char *text,
         int select_start, int select_end);
-    void edit_insert(const char *text);
+    void floating_insert(const char *text);
 
     const char *dump() const;
     // Just so the MsgCollector can know if the mouse is in a track.

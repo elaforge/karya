@@ -3,12 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - 'a' to enter an event in a mridangam track should make a zero duration
+  / 'a' to enter an event in a mridangam track should make a zero duration
     event
+    . Actually, it can't really know whether the call should be zero dur,
+      unless calls could somehow be introspected.  So rely on using a leading
+      space.
   - 'clip' etc. calls require a block argument, which doesn't work as soon
     as it's assigned e.g. '^b = xyz'.  The problem is that it really does need
     the underlying block so it can know how long it is.
     . Maybe Derivers give their length.
+    . Can't I just derive in 1:1?  It would work for 'clip', but not for
+      'Clip' or 'loop', since I don't know where the end is.
   - Derive.get_instrument only understands derive level aliases.  So if the
     instrument is not found it gives a confusing error giving the alias.
   - Util.Pretty doesn't correctly display ("a", ["b", "c"]) where the list
@@ -118,7 +123,7 @@ UNSORTED
       I could make it apply to a parallel kempyung or octave.
       . I'd need a fancier ngoret that understands 'inst-top' so it can go
         down if necessary.
-  - it seems like "floating_input" would be a better name than "edit_input"
+  * it seems like "floating_input" would be a better name than "edit_input"
   - thru on *legong notes is wrong the first time
     can see this editing rehearsal/kendang-legong
   - move Types.Selection to its own module.  That leaves just aliases

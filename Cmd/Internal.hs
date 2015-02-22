@@ -197,9 +197,10 @@ ui_update maybe_tracknum view_id update = case update of
 update_ui_state :: Cmd.Cmd
 update_ui_state msg = do
     (ctx, view_id, update) <- Cmd.abort_unless (update_of msg)
-    if UiMsg.ctx_edit_input ctx
+    if UiMsg.ctx_floating_input ctx
         then do
-            Cmd.modify_edit_state $ \st -> st { Cmd.state_edit_input = False }
+            Cmd.modify_edit_state $ \st -> st
+                { Cmd.state_floating_input = False }
             return Cmd.Continue
         else do
             ui_update_state (fst <$> UiMsg.ctx_track ctx) view_id update

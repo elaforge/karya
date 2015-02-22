@@ -74,8 +74,8 @@ operator<<(std::ostream &os, const UiMsg::Context &c)
         case UiMsg::track_normal:
             os << "normal";
             break;
-        case UiMsg::track_edit_input:
-            os << "edit_input";
+        case UiMsg::track_floating_input:
+            os << "floating_input";
             break;
         case UiMsg::track_divider:
             os << "div";
@@ -351,11 +351,11 @@ MsgCollector::track_title(Fl_Widget *w, int tracknum, const char *text)
 
 
 void
-MsgCollector::edit_input(Fl_Widget *w, const char *edit_input)
+MsgCollector::floating_input(Fl_Widget *w, const char *floating_input)
 {
     UiMsg::Context c(context(window(w)));
-    c.track_type = UiMsg::track_edit_input;
-    push_update(UiMsg::msg_input, c, edit_input);
+    c.track_type = UiMsg::track_floating_input;
+    push_update(UiMsg::msg_input, c, floating_input);
 }
 
 

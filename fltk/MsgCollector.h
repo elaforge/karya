@@ -110,8 +110,8 @@ struct UiMsg {
     enum TrackType {
         track_none = 0, track_normal,
         // Like track_normal, but indicates that this msg comes from the
-        // floating edit_input.
-        track_edit_input,
+        // floating_input.
+        track_floating_input,
         track_divider
     };
 
@@ -199,7 +199,7 @@ public:
     void track(UiMsg::MsgType type, Fl_Widget *w, int tracknum);
     // Record msg_input for text changes.
     void track_title(Fl_Widget *w, int tracknum, const char *text);
-    void edit_input(Fl_Widget *w, const char *edit_input);
+    void floating_input(Fl_Widget *w, const char *floating_input);
     void view(UiMsg::MsgType type, BlockViewWindow *view);
 
     // Send one msg_screen_size msg for each screen.

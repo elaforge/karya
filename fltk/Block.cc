@@ -457,20 +457,20 @@ BlockView::set_display_track(int tracknum, const DisplayTrack &dtrack)
 
 
 void
-BlockView::edit_open(int tracknum, ScoreTime pos, const char *text,
+BlockView::floating_open(int tracknum, ScoreTime pos, const char *text,
     int select_start, int select_end)
 {
     ASSERT(0 <= tracknum && tracknum < this->tracks());
     // Unlike all the other TrackTile methods, this one doesn't subtract 1
-    // from the tracknum.  Documented in TrackTile::edit_open.
-    track_tile.edit_open(tracknum, pos, text, select_start, select_end);
+    // from the tracknum.  Documented in TrackTile::floating_open.
+    track_tile.floating_open(tracknum, pos, text, select_start, select_end);
 }
 
 
 void
-BlockView::edit_insert(const char *text)
+BlockView::floating_insert(const char *text)
 {
-    track_tile.edit_insert(text);
+    track_tile.floating_insert(text);
 }
 
 

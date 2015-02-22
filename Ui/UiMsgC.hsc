@@ -66,8 +66,8 @@ peek_context msgp = do
     has_pos <- toBool <$> ((#peek UiMsg, context.has_pos) msgp :: IO CChar)
     cpos <- (#peek UiMsg, context.pos) msgp
     let track = decode_track track_type tracknum has_pos cpos
-        is_edit_input = track_type == (#const UiMsg::track_edit_input)
-    return (UiMsg.Context focus track is_edit_input, view)
+        is_floating_input = track_type == (#const UiMsg::track_floating_input)
+    return (UiMsg.Context focus track is_floating_input, view)
     where
     lookup_id p
         | p == nullPtr = return Nothing

@@ -585,30 +585,31 @@ run_action action = do
             Nothing -> (Nothing, False)
             Just old -> (Just $ old <> text, True)
 
--- ** edit input
+-- ** floating text input
 
 append_text :: Cmd.M m => m Cmd.Status
-append_text = edit_open (const Nothing)
+append_text = open_floating (const Nothing)
 
 prepend_text :: Cmd.M m => m Cmd.Status
-prepend_text = edit_open (const $ Just (0, 0))
+prepend_text = open_floating (const $ Just (0, 0))
 
 -- | This will be fooled by a @|@ inside a string, but I'll fix that if it's
 -- ever actually a problem.
 replace_first_call :: Cmd.M m => m Cmd.Status
-replace_first_call = edit_open $ \text -> case Text.breakOn "|" text of
+replace_first_call = open_floating $ \text -> case Text.breakOn "|" text of
     (pre, _) ->
         let space = " " `Text.isSuffixOf` pre
         in Just (0, Text.length pre - (if space then 1 else 0))
 
 replace_last_call :: Cmd.M m => m Cmd.Status
-replace_last_call = edit_open $ \text -> case Text.breakOnEnd "|" text of
+replace_last_call = open_floating $ \text -> case Text.breakOnEnd "|" text of
     (pre, post) ->
         let space = " " `Text.isPrefixOf` post
         in Just (Text.length pre + (if space then 1 else 0), Text.length text)
 
-edit_open :: Cmd.M m => (Text -> Maybe (Int, Int)) -> m Cmd.Status
-edit_open selection = do
+-- | Open a floating text entry with a selection set.
+open_floating :: Cmd.M m => (Text -> Maybe (Int, Int)) -> m Cmd.Status
+open_floating selection = do
     (view_id, sel) <- Selection.get
     (_, tracknum, track_id, _) <- Selection.get_insert
     dir <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
@@ -616,7 +617,7 @@ edit_open selection = do
             TimeStep.Advance -> fst (Types.sel_range sel)
             TimeStep.Rewind -> snd (Types.sel_range sel)
     text <- fromMaybe "" <$> event_text_at track_id pos
-    return $ Cmd.EditInput $ Cmd.EditOpen view_id tracknum pos text
+    return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum pos text
         (selection text)
 
 event_text_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Text)
@@ -624,17 +625,17 @@ event_text_at track_id pos = do
     events <- Track.track_events <$> State.get_track track_id
     return $ Event.event_text <$> Events.at pos events
 
--- ** handle edit input msg
+-- ** handle floating input msg
 
--- | Handle UpdateInput that comes back from the floating edit input.
+-- | Handle UpdateInput that comes back from the floating input.
 --
 -- A leading space will create a zero duration event.
-edit_input :: Bool -> Cmd.Cmd
-edit_input zero_dur msg = do
-    text <- Cmd.abort_unless $ edit_input_msg msg
+handle_floating_input :: Bool -> Cmd.Cmd
+handle_floating_input zero_dur msg = do
+    text <- Cmd.abort_unless $ floating_input_msg msg
     EditUtil.Pos block_id tracknum start dur <- EditUtil.get_pos
     (start, dur) <- event_range start dur
-    track_id <- Cmd.require "edit_input on non-event track"
+    track_id <- Cmd.require "handle_floating_input on non-event track"
         =<< State.event_track_at block_id tracknum
     old_text <- event_text_at track_id start
     let space = " " `Text.isPrefixOf` text
@@ -651,8 +652,8 @@ edit_input zero_dur msg = do
             TimeStep.Advance -> (start, dur)
             TimeStep.Rewind -> (start + dur, -dur)
 
-edit_input_msg :: Msg.Msg -> Maybe Text
-edit_input_msg (Msg.Ui (UiMsg.UiMsg ctx
+floating_input_msg :: Msg.Msg -> Maybe Text
+floating_input_msg (Msg.Ui (UiMsg.UiMsg ctx
         (UiMsg.UiUpdate _ (UiMsg.UpdateInput text))))
-    | UiMsg.ctx_edit_input ctx = Just text
-edit_input_msg _ = Nothing
+    | UiMsg.ctx_floating_input ctx = Just text
+floating_input_msg _ = Nothing

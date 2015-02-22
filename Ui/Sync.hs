@@ -31,7 +31,7 @@ module Ui.Sync (
     sync
     , set_track_signals
     , set_play_position, clear_play_position, set_highlights, clear_highlights
-    , edit_input
+    , floating_input
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
@@ -189,11 +189,11 @@ set_selection_carefully view_id selnum maybe_tracknums sels =
         let tracknums = maybe [0 .. tracks-1] (filter (<tracks)) maybe_tracknums
         BlockC.set_selection view_id selnum tracknums sels
 
-edit_input :: State.State -> Cmd.EditInput -> Ui.Fltk ()
-edit_input _ (Cmd.EditOpen view_id tracknum at text selection) =
-    BlockC.edit_open view_id tracknum at text selection
-edit_input state (Cmd.EditInsert text) =
-    BlockC.edit_insert (Map.keys (State.state_views state)) text
+floating_input :: State.State -> Cmd.FloatingInput -> Ui.Fltk ()
+floating_input _ (Cmd.FloatingOpen view_id tracknum at text selection) =
+    BlockC.floating_open view_id tracknum at text selection
+floating_input state (Cmd.FloatingInsert text) =
+    BlockC.floating_insert (Map.keys (State.state_views state)) text
 
 
 -- * run_update

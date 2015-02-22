@@ -172,10 +172,10 @@ midi_input _ = return Nothing
 
 edit_insert :: Cmd.M m => Msg.Msg -> m Cmd.Status
 edit_insert msg = do
-    edit_input <- Cmd.gets $ Cmd.state_edit_input . Cmd.state_edit
+    floating_input <- Cmd.gets $ Cmd.state_floating_input . Cmd.state_edit
     case msg of
-        Msg.InputNote (InputNote.NoteOn _ input _) | edit_input -> do
+        Msg.InputNote (InputNote.NoteOn _ input _) | floating_input -> do
             note <- EditUtil.input_to_note input
-            return $ Cmd.EditInput $ Cmd.EditInsert $
+            return $ Cmd.FloatingInput $ Cmd.FloatingInsert $
                 " (" <> Pitch.note_text note <> ")"
         _ -> return Cmd.Continue

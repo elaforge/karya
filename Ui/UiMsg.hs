@@ -26,9 +26,9 @@ data Context = Context
     -- | Index into block tracks.  The TrackNum will be one greater than the
     -- last track if the cursor has moved beyond it.
     , ctx_track :: Maybe (TrackNum, Track)
-    -- | Indicates that the msg originated from the floating edit_input.
+    -- | Indicates that the msg originated from the floating input.
     -- It should be an 'UpdateInput'.
-    , ctx_edit_input :: !Bool
+    , ctx_floating_input :: !Bool
     } deriving (Show)
 
 -- | Whether the context is on the track itself or the skeleton display above
@@ -118,12 +118,12 @@ instance Pretty.Pretty UiMsg where
         UiMsg ctx msg -> Text.unwords ["Other Event:", showt msg, pretty ctx]
 
 instance Pretty.Pretty Context where
-    pretty (Context focus track edit_input) = "{" <> contents <> "}"
+    pretty (Context focus track floating_input) = "{" <> contents <> "}"
         where
         contents = Text.unwords $ filter (not . Text.null)
             [ show_maybe "focus" focus
             , maybe "" show_track track
-            , if edit_input then "edit_input" else ""
+            , if floating_input then "floating_input" else ""
             ]
         show_track (tnum, track) =
             "track=" <> showt tnum <> ":" <> pretty track

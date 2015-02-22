@@ -45,8 +45,8 @@ module Ui.BlockC (
     -- * Block operations
     , set_model_config, set_skeleton, set_title, set_status
     , set_display_track
-    -- ** edit input
-    , edit_open, edit_insert
+    -- ** floating input
+    , floating_open, floating_insert
 
     -- ** Track operations
     , tracks, insert_track, remove_track, update_track, update_entire_track
@@ -204,27 +204,29 @@ set_display_track view_id tracknum dtrack = fltk $ exc "set_display_track" $ do
 foreign import ccall "set_display_track"
     c_set_display_track :: Ptr CView -> CInt -> Ptr Block.DisplayTrack -> IO ()
 
--- ** edit input
+-- ** floating input
 
-edit_open :: ViewId -> TrackNum -> ScoreTime -> Text -> Maybe (Int, Int)
+floating_open :: ViewId -> TrackNum -> ScoreTime -> Text -> Maybe (Int, Int)
     -> Fltk ()
-edit_open view_id tracknum pos text selection = fltk $ exc "edit_open" $ do
-    viewp <- PtrMap.get view_id
-    let (sel_start, sel_end) = fromMaybe (-1, 0) selection
-    Util.withText text $ \textp ->
-        c_edit_open viewp (Util.c_int tracknum) (ScoreTime.to_cdouble pos)
-            textp (Util.c_int sel_start) (Util.c_int sel_end)
-foreign import ccall "edit_open"
-    c_edit_open :: Ptr CView -> CInt -> CDouble -> CString -> CInt -> CInt
+floating_open view_id tracknum pos text selection =
+    fltk $ exc "floating_open" $ do
+        viewp <- PtrMap.get view_id
+        let (sel_start, sel_end) = fromMaybe (-1, 0) selection
+        Util.withText text $ \textp ->
+            c_floating_open viewp (Util.c_int tracknum)
+                (ScoreTime.to_cdouble pos) textp (Util.c_int sel_start)
+                (Util.c_int sel_end)
+foreign import ccall "floating_open"
+    c_floating_open :: Ptr CView -> CInt -> CDouble -> CString -> CInt -> CInt
         -> IO ()
 
-edit_insert :: [ViewId] -> Text -> Fltk ()
-edit_insert view_ids text = fltk $ exc "edit_insert" $
+floating_insert :: [ViewId] -> Text -> Fltk ()
+floating_insert view_ids text = fltk $ exc "floating_insert" $
     Util.withText text $ \textp -> forM_ view_ids $ \view_id -> do
         viewp <- PtrMap.get view_id
-        c_edit_insert viewp textp
-foreign import ccall "edit_insert"
-    c_edit_insert :: Ptr CView -> CString -> IO ()
+        c_floating_insert viewp textp
+foreign import ccall "floating_insert"
+    c_floating_insert :: Ptr CView -> CString -> IO ()
 
 -- * Track operations
 

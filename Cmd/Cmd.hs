@@ -130,7 +130,7 @@ type CmdL a = CmdT IO a
 data Status = Done | Continue | Quit
     -- | Hack to control import dependencies, see "Cmd.PlayC".
     | PlayMidi !PlayMidiArgs
-    | EditInput !EditInput
+    | FloatingInput !FloatingInput
     deriving (Show)
 
 -- | Combine two Statuses by keeping the one with higher priority.
@@ -141,7 +141,7 @@ merge_status s1 s2 = if prio s1 >= prio s2 then s1 else s2
         Continue -> 0
         Done -> 1
         PlayMidi {} -> 2
-        EditInput {} -> 3
+        FloatingInput {} -> 3
         Quit -> 4
 
 -- | Arguments for "Cmd.PlayC.play".
@@ -153,11 +153,12 @@ data PlayMidiArgs = PlayMidiArgs !(Maybe SyncConfig) !Text
     !(Maybe RealTime)
 instance Show PlayMidiArgs where show _ = "((PlayMidiArgs))"
 
-data EditInput =
-    -- | Open a new text input.  View, track, pos, (select start, select end).
-    EditOpen !ViewId !TrackNum !ScoreTime !Text !(Maybe (Int, Int))
+data FloatingInput =
+    -- | Open a new floating text input.
+    -- View, track, pos, (select start, select end).
+    FloatingOpen !ViewId !TrackNum !ScoreTime !Text !(Maybe (Int, Int))
     -- | Insert the given text into an already open edit box.
-    | EditInsert !Text
+    | FloatingInsert !Text
     deriving (Show)
 
 -- | Cmds can run in either Identity or IO, but are generally returned in IO,
@@ -610,7 +611,7 @@ data EditState = EditState {
     -- | Edit mode enables various commands that write to tracks.
     state_edit_mode :: !EditMode
     -- | True if the floating input edit is open.
-    , state_edit_input :: !Bool
+    , state_floating_input :: !Bool
     -- | Whether or not to advance the insertion point after a note is
     -- entered.
     , state_advance :: Bool
@@ -651,7 +652,7 @@ data EditState = EditState {
 initial_edit_state :: EditState
 initial_edit_state = EditState {
     state_edit_mode = NoEdit
-    , state_edit_input = False
+    , state_floating_input = False
     , state_kbd_entry = False
     , state_advance = True
     , state_chord = False

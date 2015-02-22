@@ -47,9 +47,9 @@ void set_status(BlockViewWindow *view, const char *status, Color *color);
 void set_display_track(BlockViewWindow *view, int tracknum,
         DisplayTrack *dtrack);
 
-void edit_open(BlockViewWindow *view, int tracknum, double pos,
+void floating_open(BlockViewWindow *view, int tracknum, double pos,
     const char *text, int select_start, int select_end);
-void edit_insert(BlockViewWindow *view, const char *text);
+void floating_insert(BlockViewWindow *view, const char *text);
 
 // tracks
 

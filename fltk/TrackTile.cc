@@ -20,7 +20,7 @@ TrackTile::TrackTile(int X, int Y, int W, int H, Color bg_color,
     MoveTile(X, Y, W, H),
     title_height(title_height),
     track_pad(X, Y, W, H),
-    edit_input(NULL)
+    floating_input(NULL)
 {
     ASSERT(title_height >= 0);
     end(); // don't automatically put more children in here
@@ -46,8 +46,8 @@ title_index(int tracknum)
 int
 TrackTile::handle(int evt)
 {
-    if (this->edit_input && Fl::event_inside(edit_input))
-        return edit_input->handle(evt);
+    if (this->floating_input && Fl::event_inside(floating_input))
+        return floating_input->handle(evt);
     if (evt == FL_PUSH) {
         // If the click is on a track I want to take focus off of a text input.
         for (int i = 0; i < tracks(); i++) {
@@ -73,10 +73,10 @@ TrackTile::set_zoom(const ZoomInfo &zoom)
 // edit input //////////////////////////
 
 void
-TrackTile::edit_input_cb(Fl_Widget *_w, void *vp)
+TrackTile::floating_input_cb(Fl_Widget *_w, void *vp)
 {
     TrackTile *self = static_cast<TrackTile *>(vp);
-    WrappedInput *input = self->edit_input;
+    WrappedInput *input = self->floating_input;
     if (input == Fl::focus()) {
         int height = input->text_height();
         if (height != input->h()) {
@@ -84,16 +84,16 @@ TrackTile::edit_input_cb(Fl_Widget *_w, void *vp)
             self->redraw();
         }
     } else {
-        self->edit_close();
+        self->floating_close();
     }
 }
 
 void
-TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
+TrackTile::floating_open(int tracknum, ScoreTime pos, const char *text,
     int select_start, int select_end)
 {
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
-    this->edit_close();
+    this->floating_close();
     int ypos = this->zoom.to_pixels(pos - zoom.offset);
     int xpos, width;
     if (tracks() == 0) {
@@ -111,53 +111,53 @@ TrackTile::edit_open(int tracknum, ScoreTime pos, const char *text,
     ypos = std::min(ypos, max_y);
     width -= 3;
     xpos += 2;
-    this->edit_input = new WrappedInput(
+    this->floating_input = new WrappedInput(
         xpos, ypos, width, Config::View::track_title_height, false);
-    edit_input->callback(edit_input_cb, static_cast<void *>(this));
-    edit_input->show();
+    floating_input->callback(floating_input_cb, static_cast<void *>(this));
+    floating_input->show();
     // When a widget gets focus from a click, it becomes Fl::focus() and then
     // gets FL_FOCUS.  But when it gets focus from take_focus(), it gets
-    // FL_FOCUS and then becomes Fl::focus().  edit_input_cb relies on the
+    // FL_FOCUS and then becomes Fl::focus().  floating_input_cb relies on the
     // former, so I have to assign focus first, or it will delete the widget
     // while I'm still working on it.
-    Fl::focus(edit_input);
-    edit_input->take_focus();
+    Fl::focus(floating_input);
+    floating_input->take_focus();
     if (*text)
-        edit_input->set_text(text);
+        floating_input->set_text(text);
     if (select_start >= 0) {
         int len = strlen(text);
-        edit_input->position(
+        floating_input->position(
             utf8::bytes(text, len, select_end),
             utf8::bytes(text, len, select_start));
     }
 
-    this->add(edit_input);
+    this->add(floating_input);
     this->redraw();
 }
 
 
 void
-TrackTile::edit_close()
+TrackTile::floating_close()
 {
-    if (!this->edit_input)
+    if (!this->floating_input)
         return;
-    MsgCollector::get()->edit_input(this, edit_input->get_text());
-    this->remove(edit_input);
+    MsgCollector::get()->floating_input(this, floating_input->get_text());
+    this->remove(floating_input);
     // This function can be called from the callback, and you can't delete
     // yourself from inside a callback without crashing.  So I have to delay
     // the delete until its safe to do so.
-    Fl::delete_widget(edit_input);
-    edit_input = NULL;
+    Fl::delete_widget(floating_input);
+    floating_input = NULL;
     this->redraw();
 }
 
 
 void
-TrackTile::edit_insert(const char *text)
+TrackTile::floating_insert(const char *text)
 {
-    if (!this->edit_input)
+    if (!this->floating_input)
         return;
-    edit_input->insert(text);
+    floating_input->insert(text);
 }
 
 ////////////////////////////////////////
@@ -212,9 +212,9 @@ TrackTile::insert_track(int tracknum, TrackView *track, int width)
 {
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
 
-    // Track placement assumes [(title, track)], which the extra edit_input
+    // Track placement assumes [(title, track)], which the extra floating_input
     // child messes up.
-    this->edit_close();
+    this->floating_close();
     // Can't create a track smaller than you could resize, except dividers
     // which are supposed to be small.
     if (track->track_resizable())
@@ -243,7 +243,7 @@ TrackView *
 TrackTile::remove_track(int tracknum)
 {
     ASSERT_MSG(0 <= tracknum && tracknum <= tracks(), std::to_string(tracknum));
-    this->edit_close();
+    this->floating_close();
     TrackView *t = track_at(tracknum);
     this->remove_child(t);
     this->remove_child(&t->title_widget());

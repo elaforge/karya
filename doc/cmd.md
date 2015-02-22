@@ -217,11 +217,12 @@ example, you would turn on ValEdit, type a number like `1`, then switch to
 MethodEdit (tab, by default) and type `i` to wind up with `i 1`.  What that
 means, of course, is documented in [control calls](calls.html).
 
-### raw input
+### floating input
 
-Edit input is technically not a edit mode since it's not in 'Cmd.Cmd.EditMode',
-but it's used to enter or alter text.  For example, the "append text" cmd
-(bound to 'a' by default), brings up a text input to edit event text directly.
+Floating input is technically not a edit mode since it's not in
+'Cmd.Cmd.EditMode', but it's used to enter or alter text.  For example, the
+"append text" cmd (bound to 'a' by default), brings up a floating text input to
+edit event text directly.
 
 Events created on control and pitch tracks will normally be zero duration.
 Events on a note track will use the duration of the current TimeStep, but if

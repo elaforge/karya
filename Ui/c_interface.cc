@@ -163,17 +163,17 @@ set_display_track(BlockViewWindow *view, int tracknum,
 }
 
 void
-edit_open(BlockViewWindow *view, int tracknum, double pos, const char *text,
+floating_open(BlockViewWindow *view, int tracknum, double pos, const char *text,
     int select_start, int select_end)
 {
-    view->block.edit_open(tracknum, ScoreTime(pos), text,
+    view->block.floating_open(tracknum, ScoreTime(pos), text,
         select_start, select_end);
 }
 
 void
-edit_insert(BlockViewWindow *view, const char *text)
+floating_insert(BlockViewWindow *view, const char *text)
 {
-    view->block.edit_insert(text);
+    view->block.floating_insert(text);
 }
 
 
