@@ -61,11 +61,10 @@ derive_expr block_id track_id pos expr = do
 derive_at :: Cmd.M m => BlockId -> TrackId
     -> Derive.Deriver a -> m (Either String a, [Log.Msg])
 derive_at block_id track_id deriver = do
-    dynamic <- fromMaybe empty_dynamic <$>
+    dynamic <- fromMaybe PlayUtil.initial_dynamic <$>
         find_dynamic (block_id, Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
     return (first prettys val, logs)
-    where empty_dynamic = Derive.initial_dynamic mempty
 
 -- | Get the environment established by 'State.config_global_transform'.
 global_environ :: Cmd.M m => m TrackLang.Environ

@@ -10,7 +10,7 @@ module Cmd.PlayUtil (
     , clear_cache, clear_caches
     , derive_block, run, run_with_dynamic
     , is_score_damage_log
-    , get_constant
+    , get_constant, initial_dynamic
     -- * perform
     , perform_from, shift_messages, first_time
     , events_from, overlapping_events
@@ -122,7 +122,7 @@ run :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
     -> Derive.Deriver a -> m (Derive.RunResult a)
 run cache damage deriver = do
     constant <- get_constant cache damage
-    return $ Derive.derive constant initial_environ deriver
+    return $ Derive.derive constant initial_dynamic deriver
 
 -- | Run a derivation when you already know the Dynamic.  This is the case when
 -- deriving at a certain point in the score via the TrackDynamic.
@@ -143,14 +143,17 @@ get_constant :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
 get_constant cache damage = do
     ui_state <- State.get
     lookup_scale <- Cmd.gets $ Cmd.state_lookup_scale . Cmd.state_config
-    lookup_inst <- get_lookup_inst
+    lookup_inst <- get_lookup
     library <- Cmd.gets $ Cmd.state_library . Cmd.state_config
     defs_library <- get_library
     return $ Derive.initial_constant ui_state (defs_library <> library)
         lookup_scale lookup_inst cache damage
+    where
+    get_lookup :: Cmd.M m => m (Score.Instrument -> Maybe Derive.Instrument)
+    get_lookup = (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument
 
-get_lookup_inst :: Cmd.M m => m (Score.Instrument -> Maybe Derive.Instrument)
-get_lookup_inst = (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument
+initial_dynamic :: Derive.Dynamic
+initial_dynamic = Derive.initial_dynamic initial_environ
 
 perform_from :: Cmd.M m => RealTime -> Cmd.Performance -> m Perform.MidiEvents
 perform_from start = perform_events . events_from start . Cmd.perf_events

@@ -8,14 +8,36 @@ UNSORTED
     . Actually, it can't really know whether the call should be zero dur,
       unless calls could somehow be introspected.  So rely on using a leading
       space.
-  - 'clip' etc. calls require a block argument, which doesn't work as soon
-    as it's assigned e.g. '^b = xyz'.  The problem is that it really does need
-    the underlying block so it can know how long it is.
+  - make derivers expose their ScoreTime duration
+    . symptom is that 'clip' etc. calls require a block argument, which
+      doesn't work as soon as it's assigned e.g. '^b = xyz'.  The problem is
+      that it really does need the underlying block so it can know how long it
+      is.
     . Maybe Derivers give their length.
     . Can't I just derive in 1:1?  It would work for 'clip', but not for
       'Clip' or 'loop', since I don't know where the end is.
-  - Derive.get_instrument only understands derive level aliases.  So if the
+    . I can modify Derive.LogsDeriver to be
+        type LogsDeriver d = Deriver ([LEvent.LEvent d], RealTime)
+      but then if I want to sequence derivers, I have to evaluate twice?  No,
+      I can do:
+        (events, end) <- deriver1
+        (rest, _) <- Derive.at end deriver1
+    . Most note calls can figure out end by taking the end of the last event.
+    . Another approach would be to emit a special "empty" sentinel event to
+      signal the end.
+    . This could also be useful to set the "normal" duration for an arbitrary
+      call, not just a block call.  But I'd need a ScoreTime duration for
+      that.
+    . Actually, ScoreTime is what blocks use and I can't RealTime unless I
+      put it in Collect so I can set it after the tempo track.
+  * Derive.get_instrument only understands derive level aliases.  So if the
     instrument is not found it gives a confusing error giving the alias.
+    . Derive aliases have to be [(from, to)] because... why?  If one alias
+      maps to another, I just need to look up the destination when I bind
+      a new alias.
+    . Actually, merging StateConfig and Derive aliases breaks things.  It's
+      because I actually want derive aliases to map to the StateConfig level
+      name, because that's the one that has allocation.
   - Util.Pretty doesn't correctly display ("a", ["b", "c"]) where the list
     wraps
   - Util.Pretty also formats lists wrong:

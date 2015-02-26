@@ -8,7 +8,6 @@
     "Derive.Deriver.Monad".
 -}
 module Derive.Deriver.Lib where
-import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -64,9 +63,9 @@ data Result = Result {
     }
 
 -- | Kick off a derivation.
-derive :: Constant -> TrackLang.Environ -> Deriver a -> RunResult a
-derive constant environ = run (initial_state environ constant)
-    . with_initial_scope environ . with_default_imported
+derive :: Constant -> Dynamic -> Deriver a -> RunResult a
+derive constant dynamic = run (initial_state constant dynamic)
+    . with_initial_scope (state_environ dynamic) . with_default_imported
 
 extract_result :: Bool -> RunResult Events -> Result
 extract_result sort_events (result, state, logs) = Result
@@ -392,8 +391,10 @@ with_instrument_alias alias inst deriver = do
     _ <- get_instrument inst -- ensure it exists
     Internal.local with deriver
     where
-    with st = st { state_instrument_aliases =
-        (alias, inst) : state_instrument_aliases st }
+    with st = st
+        { state_instrument_aliases = insert (state_instrument_aliases st) }
+    insert aliases =
+        Map.insert alias (Map.findWithDefault inst inst aliases) aliases
 
 -- | Look up the instrument.  Also return the instrument name after chasing
 -- through aliases.  This is what goes in 'Score.event_instrument', since it's
@@ -401,11 +402,10 @@ with_instrument_alias alias inst deriver = do
 get_instrument :: Score.Instrument -> Deriver (Score.Instrument, Instrument)
 get_instrument inst = do
     aliases <- Internal.get_dynamic state_instrument_aliases
-    let real_inst = List.foldl'
-            (\inst (from, to) -> if inst == from then to else inst) inst aliases
+    let real_inst = Map.findWithDefault inst inst aliases
     lookup_inst <- gets $ state_lookup_instrument . state_constant
     let msg = ShowVal.show_val real_inst <> if real_inst == inst then ""
-            else " (aliased via " <> ShowVal.show_val inst <> ")"
+            else " (aliased from " <> ShowVal.show_val inst <> ")"
     val <- require ("no instrument found for " <> msg) $ lookup_inst real_inst
     return (real_inst, val)
 

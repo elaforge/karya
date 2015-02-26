@@ -3,7 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Equal_test where
+import qualified Data.Map as Map
+
 import Util.Test
+import qualified Ui.State as State
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import Global
@@ -44,12 +47,27 @@ test_equal_modify = do
     equal (run [(0, 1, "%c = .5 | %c = add .5 |")]) ([[(0, 1)]], [])
 
 test_equal_inst = do
-    let run title track = DeriveTest.extract DeriveTest.e_inst $
-            DeriveTest.derive_tracks title [(track, [(0, 1, "")])]
-    strings_like (snd $ run ">new = hi" ">new") ["expected an instrument"]
-    strings_like (snd $ run ">new = >nonexistent" ">new")
+    let run with_ui title track = DeriveTest.extract DeriveTest.e_inst $
+            DeriveTest.derive_tracks_with_ui id with_ui title
+                [(track, [(0, 1, "")])]
+    strings_like (snd $ run id ">new = hi" ">new") ["expected an instrument"]
+    strings_like (snd $ run id ">new = >nonexistent" ">new")
         ["no instrument found for >nonexistent"]
-    equal (run ">new = >s/1" ">new") (["s/1"], [])
+    equal (run id ">new = >s/1" ">new") (["s/1"], [])
+    equal (run id ">new = >s/1 | >newer = >new" ">newer") (["s/1"], [])
+
+    -- Alias to an instrument that doesn't exist.
+    let with_alias to = State.config#State.aliases %= Map.insert
+            (Score.Instrument "alias") (Score.Instrument to)
+    equal (run (with_alias "s/1") "" ">alias") (["alias"], [])
+    equal (run (with_alias "s/1") ">new = >alias" ">new") (["alias"], [])
+
+    strings_like (snd $ run (with_alias "unknown") "" ">alias")
+        ["no instrument found for >alias"]
+    -- I don't get ">unknown (aliased from >alias)" because it's the equal call
+    -- itself that throws the error.
+    strings_like (snd $ run (with_alias "unknown") ">new = >alias" ">new")
+        ["no instrument found for >alias"]
 
 test_equal_note_transformer = do
     let run events = DeriveTest.extract e_inst $

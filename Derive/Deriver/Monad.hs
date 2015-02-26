@@ -379,10 +379,10 @@ data State = State {
     , state_constant :: !Constant
     }
 
-initial_state :: TrackLang.Environ -> Constant -> State
-initial_state environ constant = State
+initial_state :: Constant -> Dynamic -> State
+initial_state constant dynamic = State
     { state_threaded = initial_threaded
-    , state_dynamic = initial_dynamic environ
+    , state_dynamic = dynamic
     , state_collect = mempty
     , state_constant = constant
     }
@@ -428,9 +428,9 @@ data Dynamic = Dynamic {
     -- | Instrument aliases as (alias, destination) pairs.  Map through this
     -- before looking in 'state_lookup_instrument'.  This is analogous to the
     -- instrument db level aliasing, except this only present in a dynamically
-    -- scoped part of derivation.  An alias can map to another alias later in
-    -- the list.
-    , state_instrument_aliases :: ![(Score.Instrument, Score.Instrument)]
+    -- scoped part of derivation.  The alias destination is always the final
+    -- instrument, not another alias.
+    , state_instrument_aliases :: !(Map.Map Score.Instrument Score.Instrument)
     , state_control_damage :: !ControlDamage
     -- | This is a delayed transform.  If a call wants to evaluate under
     -- inversion, it composes itself on to this, which is then applied as
@@ -466,7 +466,7 @@ initial_dynamic environ = Dynamic
     , state_environ = environ
     , state_warp = Score.id_warp
     , state_scopes = empty_scopes
-    , state_instrument_aliases = []
+    , state_instrument_aliases = mempty
     , state_control_damage = mempty
     , state_under_invert = id
     , state_inversion = NotInverted

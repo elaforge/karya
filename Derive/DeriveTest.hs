@@ -90,11 +90,11 @@ run ui_state m = run_ ui_state (Internal.with_stack_block bid m)
 run_ :: State.State -> Derive.Deriver a
     -> Either String (a, Derive.State, [Log.Msg])
 run_ ui_state m = case Derive.run derive_state m of
-        (Left err, _, _logs) -> Left (prettys err)
-        (Right val, state, logs) -> Right (val, state, logs)
+    (Left err, _, _logs) -> Left (prettys err)
+    (Right val, state, logs) -> Right (val, state, logs)
     where
     derive_state = Derive.initial_state
-        default_environ (default_constant ui_state mempty mempty)
+        (default_constant ui_state mempty mempty) default_dynamic
 
 extract_run :: (a -> b) -> Either String (a, Derive.State, [Log.Msg])
     -> Either String b
@@ -107,11 +107,6 @@ run_events :: (a -> b)
 run_events f = extract_run $
     first (map f) . second (map show_log . filter interesting_log)
         . LEvent.partition
-
-default_constant :: State.State -> Derive.Cache -> Derive.ScoreDamage
-    -> Derive.Constant
-default_constant ui_state cache damage = Derive.initial_constant ui_state
-    default_library default_lookup_scale (const Nothing) cache damage
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)
@@ -200,14 +195,14 @@ derive_block = derive_block_with id
 derive_block_with :: Transform Derive.Events -> State.State -> BlockId
     -> Derive.Result
 derive_block_with with =
-    derive_block_standard default_db mempty mempty
+    derive_block_standard default_cmd_state mempty mempty
         (with_environ default_environ . with)
 
 -- | Like 'derive_block_with', but exec the StateId.
 derive_block_with_m :: Transform Derive.Events -> State.StateId a -> BlockId
     -> Derive.Result
 derive_block_with_m with create =
-    derive_block_standard default_db mempty mempty
+    derive_block_standard default_cmd_state mempty mempty
         (with_environ default_environ . with) (UiTest.exec State.empty create)
 
 -- | Derive tracks but with a linear skeleton.  Good for testing note
@@ -216,15 +211,14 @@ derive_tracks_linear :: String -> [UiTest.TrackSpec] -> Derive.Result
 derive_tracks_linear = derive_tracks_with_ui id with_linear
 
 -- | Derive a block in the same way that the app does.
-derive_block_standard :: Cmd.InstrumentDb -> Derive.Cache -> Derive.ScoreDamage
+derive_block_standard :: Cmd.State -> Derive.Cache -> Derive.ScoreDamage
     -> Transform Derive.Events -> State.State -> BlockId -> Derive.Result
-derive_block_standard inst_db cache damage with ui_state block_id =
+derive_block_standard cmd_state cache damage with ui_state block_id =
     case result of
         Right (Just result, _, _) -> result
         Right (Nothing, _, _) -> error "derive_block_with: Cmd aborted"
         Left err -> error $ "derive_block_with: Cmd error: " ++ show err
     where
-    cmd_state = Cmd.initial_state (cmd_config inst_db)
     global_transform = State.config#State.global_transform #$ ui_state
     deriver = with $ Call.Block.eval_root_block global_transform block_id
     (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state $
@@ -250,21 +244,7 @@ perform_dump synths (_, midi, aliases, _) =
 derive :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result True $
     Derive.derive (default_constant ui_state mempty mempty)
-        default_environ deriver
-
--- | Config to initialize the Cmd.State, without the instrument db.
-cmd_config :: Cmd.InstrumentDb -> Cmd.Config
-cmd_config inst_db = Cmd.Config
-    { Cmd.state_app_dir = "."
-    , Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
-    , Cmd.state_ky_paths = []
-    , Cmd.state_rdev_map = mempty
-    , Cmd.state_wdev_map = mempty
-    , Cmd.state_instrument_db = inst_db
-    , Cmd.state_library = Call.All.library
-    , Cmd.state_lookup_scale = Scale.All.lookup_scale
-    , Cmd.state_highlight_colors = Config.highlight_colors
-    }
+        default_dynamic deriver
 
 -- | Turn BlockSpecs into a state.
 mkblocks :: [UiTest.BlockSpec] -> ([BlockId], State.State)
@@ -332,11 +312,36 @@ set_default_midi_config = State.config#State.midi #= default_midi_config
 
 -- ** defaults
 
+default_cmd_state :: Cmd.State
+default_cmd_state = Cmd.initial_state (cmd_config default_db)
+
+-- | Config to initialize the Cmd.State.
+cmd_config :: Cmd.InstrumentDb -> Cmd.Config
+cmd_config inst_db = Cmd.Config
+    { Cmd.state_app_dir = "."
+    , Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
+    , Cmd.state_ky_paths = []
+    , Cmd.state_rdev_map = mempty
+    , Cmd.state_wdev_map = mempty
+    , Cmd.state_instrument_db = inst_db
+    , Cmd.state_library = Call.All.library
+    , Cmd.state_lookup_scale = Scale.All.lookup_scale
+    , Cmd.state_highlight_colors = Config.highlight_colors
+    }
+
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale = Scale.All.lookup_scale
 
 default_library :: Derive.Library
 default_library = Call.All.library
+
+default_constant :: State.State -> Derive.Cache -> Derive.ScoreDamage
+    -> Derive.Constant
+default_constant ui_state cache damage = Derive.initial_constant ui_state
+    default_library default_lookup_scale (const Nothing) cache damage
+
+default_dynamic :: Derive.Dynamic
+default_dynamic = Derive.initial_dynamic default_environ
 
 default_environ :: TrackLang.Environ
 default_environ = TrackLang.make_environ
@@ -346,6 +351,16 @@ default_environ = TrackLang.make_environ
         TrackLang.VSymbol (TrackLang.scale_id_to_sym Twelve.scale_id))
     , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
     ]
+
+-- *** defaults for instruments
+
+default_db :: Cmd.InstrumentDb
+default_db = Instrument.Db.with_aliases aliases $
+    make_db [("s", map make_patch ["1", "2", "3"])]
+    where
+    -- Tests use >i or >i1 rather than the underlying >s/1 and >s/2.
+    aliases = Map.fromList $ map (Score.Instrument *** Score.Instrument)
+        [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
 
 -- ** extract
 
@@ -674,14 +689,6 @@ lookup_from_state state = lookup_from_insts $
 
 default_convert_lookup :: Convert.Lookup
 default_convert_lookup = make_convert_lookup default_db
-
-default_db :: Cmd.InstrumentDb
-default_db = Instrument.Db.with_aliases aliases $
-    make_db [("s", map make_patch ["1", "2", "3"])]
-    where
-    -- Tests use >i or >i1 rather than the underlying >s/1 and >s/2.
-    aliases = Map.fromList $ map (Score.Instrument *** Score.Instrument)
-        [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
 
 make_patch :: Text -> Instrument.Patch
 make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)

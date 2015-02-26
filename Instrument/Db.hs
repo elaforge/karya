@@ -67,12 +67,13 @@ synths = Map.keys . MidiDb.midi_db_map . db_midi_db
 -- score-specific names for instruments, and to instantiate a single instrument
 -- multiple times.
 with_aliases :: Map.Map Score.Instrument Score.Instrument -> Db code -> Db code
-with_aliases aliases (Db midi lookup midi_db) = Db
-    { db_lookup_midi = \inst ->
-        (Instrument.score #= inst) <$> midi (resolve inst)
-    , db_lookup = \inst -> set_info inst <$> lookup (resolve inst)
-    , db_midi_db = midi_db
-    }
+with_aliases aliases db
+    | Map.null aliases = db
+    | otherwise = db
+        { db_lookup_midi = \inst ->
+            (Instrument.score #= inst) <$> db_lookup_midi db (resolve inst)
+        , db_lookup = \inst -> set_info inst <$> db_lookup db (resolve inst)
+        }
     where
     -- Update Instrument.inst_score with the alias name.
     set_info alias info = info

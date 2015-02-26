@@ -225,10 +225,10 @@ Floating input is technically not a edit mode since it's not in
 edit event text directly.
 
 Events created on control and pitch tracks will normally be zero duration.
-Events on a note track will use the duration of the current TimeStep, but if
-you select a range of time and then create an event, the event will be exactly
-that duration.  Additionally, if the text has a leading space, the space will
-be stripped and the event created with a zero duration.
+Events on a note track will use the duration of the current note duration
+TimeStep, but if you select a range of time and then create an event, the event
+will be exactly that duration.  Additionally, if the text has a leading space,
+the space will be stripped and the event created with a zero duration.
 
 ### note entry
 

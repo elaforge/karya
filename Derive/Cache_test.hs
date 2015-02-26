@@ -756,7 +756,8 @@ run_cached root_id result state1 modify =
 derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> BlockId -> Derive.Result
 derive_block_cache cache damage =
-    DeriveTest.derive_block_standard DeriveTest.default_db cache damage id
+    DeriveTest.derive_block_standard DeriveTest.default_cmd_state cache damage
+        id
 
 insert_event :: State.M m => String -> ScoreTime -> ScoreTime -> Text -> m ()
 insert_event tid pos dur text =

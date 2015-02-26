@@ -93,7 +93,7 @@ raw_control_vals from_root = do
     pos <- get_realtime from_root
     return $ fmap (fmap (Signal.at pos)) (Derive.state_controls dyn)
 
-aliases :: Cmd.CmdL [(Score.Instrument, Score.Instrument)]
+aliases :: Cmd.CmdL (Map.Map Score.Instrument Score.Instrument)
 aliases = Derive.state_instrument_aliases <$> dynamic True
 
 warp :: Bool -> Cmd.CmdL Score.Warp

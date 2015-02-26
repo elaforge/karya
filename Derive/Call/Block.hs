@@ -197,7 +197,7 @@ c_clip = make_block_call "clip"
     \ a different ending. Notes that overlap the end of the call will be cut\
     \ short."
     $ \block_id dur args -> do
-        end <- Derive.real (snd (Args.range args))
+        end <- Derive.real $ snd (Args.range args)
         map (fmap (clip end)) . takeWhile (event_before end) <$>
             Derive.place (Args.start args) dur (d_block block_id)
         where
@@ -256,10 +256,9 @@ make_block_call name doc call = Derive.make_call Module.prelude name mempty doc
         \ this duration. Otherwise, it retains its own duration."
     ) $ \(sym, maybe_dur) -> Sub.inverting $ \args -> do
         block_id <- require_block_id sym
-        sub_dur <- Derive.get_block_dur block_id
-        let dur = case maybe_dur of
-                Nothing -> sub_dur
-                Just (TrackLang.Positive dur) -> dur
+        dur <- case maybe_dur of
+            Nothing -> Derive.get_block_dur block_id
+            Just (TrackLang.Positive dur) -> return dur
         Internal.with_stack_block block_id $
             Cache.block (call block_id dur) args
 
