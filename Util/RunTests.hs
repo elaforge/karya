@@ -89,8 +89,8 @@ runTests argv0 tests flags args
     where
     matches = matchingTests args tests
     printTests
-        | null matches = putStrLn $ "no tests match: " ++ show args
-        | otherwise = mapM_ putStrLn (List.sort (map testName matches))
+        | null matches = return ()
+        | otherwise = mapM_ putStrLn $ List.sort (map testName matches)
 
 runSubprocess :: String -> Test -> IO ()
 runSubprocess argv0 test = do

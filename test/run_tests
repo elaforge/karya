@@ -46,7 +46,6 @@ rm -rf $tmp $test_output
 mkdir -p $tmp
 rm -f *.tix(N)
 
-
 time (
 if [[ -n $parallel && -z $prefixes ]]; then
     # Only run in parallel if no explicit prefixes were given.
@@ -76,7 +75,7 @@ failures=$(grep '^__->' $test_output | wc -l)
 tests=$(grep '^===> run-test' $test_output | wc -l)
 echo $failures failed / $passes passed / $tests tests
 
-# hpc is super slow.
+# hpc is super slow
 echo 'Generating hpc markup in the background...'
 (
     wait # for hpc sum above to complete
