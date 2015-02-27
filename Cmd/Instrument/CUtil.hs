@@ -39,6 +39,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
+import qualified App.Config as Config
 import Global
 import Types
 
@@ -89,7 +90,9 @@ insert_expr char_to_expr msg = do
             | otherwise -> return Cmd.Continue
         Just expr -> (>> return Cmd.Done) $ case kstate of
             UiMsg.KeyRepeat -> return ()
-            UiMsg.KeyDown -> call_keydown expr
+            UiMsg.KeyDown -> do
+                Cmd.set_status Config.status_note $ Just $ ShowVal.show_val expr
+                call_keydown expr
             UiMsg.KeyUp -> call_keyup expr
 
 call_keydown :: Cmd.M m => TrackLang.Expr -> m ()
