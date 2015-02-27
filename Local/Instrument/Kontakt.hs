@@ -562,7 +562,7 @@ mridangam_both :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
 mridangam_both =
     [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
     where
-    keys = [("do", 'c'), ("ko", 'v'), ("to", 'b')]
+    keys = [("k+", 'd'), ("do", 'c'), ("ko", 'v'), ("to", 'b')]
     pairs =
         [ (TrackLang.Symbol $ u rcall <> u lcall, [rcall, lcall])
         | lcall <- map Drums.note_name mridangam_left
@@ -623,7 +623,6 @@ mridangam_stops :: [(Drums.Group, [Drums.Group])]
 
 mridangam_keymap :: [Drums.Note]
 mridangam_keymap = mridangam_left ++ mridangam_right
-
 
 
 {- | Layout:
