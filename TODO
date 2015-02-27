@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Perhaps I should have a separation between "" as called by Util.note by
+    other calls, and "" as called from the track.  The problem is that it
+    applies Flags.can_cancel at TrackTime 0, which is only appropriate for
+    a direct call from the track.  This is the reason for
+    Gangsa.realize_notes.remove.
   / 'a' to enter an event in a mridangam track should make a zero duration
     event
     . Actually, it can't really know whether the call should be zero dur,
@@ -1054,10 +1059,10 @@ Derive:
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan
+        / Maybe no patterns should emit the first note?  Then I don't have to
+          cancel it.  But then I have to put "start" notes every place kotekan
+          is followed by normal notes.
         - k//\\ should have a version with space at the beginning and end
-          In fact maybe none of the patterns should emit the first note, then
-          I don't have to cancel it.
-          . Except norot?  Definitely if norot has a pickup
         - k// needs 1 2-12-12- 21-21-21, I can do it by writing sangsih d pat,
           but then sangsih and polos are reversed
           . I can do it with k '21-121-12', and it's only a couple more

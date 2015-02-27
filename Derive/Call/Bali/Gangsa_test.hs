@@ -52,7 +52,7 @@ test_norot = do
          , ((8, 1, "3a"), polos)
          ], [])
 
-    equal (derive DeriveTest.e_note title [(4, -2, "norot f -- 3a")])
+    equal (derive DeriveTest.e_note title [(4, -2, "norot -- 3a")])
         ([(2, 1, "3a"), (3, 1, "3b"), (4, 1, "3a")], [])
 
     equal (derive Score.event_flags title [(4, -2, "norot -- 3a")])

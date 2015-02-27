@@ -311,7 +311,10 @@ c_kotekan_irregular default_style pattern =
         realize_kotekan_pattern False (Args.range args) dur pitch
             under_threshold Repeat (kotekan_pattern pattern style pasang)
 
-realize_kotekan_pattern :: Bool -> (ScoreTime, ScoreTime) -> ScoreTime
+-- | Take a Cycle, which is an abstract description of a pattern via
+-- 'KotekanNote's, to real notes in a NoteDeriver.
+realize_kotekan_pattern :: Bool -- ^ if True, only emit notes after the start
+    -> (ScoreTime, ScoreTime) -> ScoreTime
     -> PitchSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
     -> Derive.NoteDeriver
 realize_kotekan_pattern drop_start (start, end) dur pitch under_threshold
@@ -664,17 +667,20 @@ realize_pattern repeat pattern_start pattern_end dur get_cycle =
         where (pairs, rest_ts) = Seq.zip_remainder (reverse (get_cycle t)) ts
     realize (notes, start) = map (Note start dur) notes
 
+-- | Turn Notes into a NoteDeriver.  A note at the start time gets
+-- 'Flags.can_cancel', and one at the end time gets 'Flags.infer_duration'.
 realize_notes :: ScoreTime -> (a -> Derive.NoteDeriver) -> [Note a]
     -> Derive.NoteDeriver
-realize_notes call_start realize =
-    -- The dropWhile shouldn't be necessary because 'realize_pattern' doesn't
-    -- create notes before the start.
-    mconcat . map note . Seq.zip_next . dropWhile ((<call_start) . note_start)
+realize_notes call_start realize = mconcat . map note . Seq.zip_next
     where
     note (Note start dur note, next) =
         add_flag (start == call_start) next $
             Derive.place start dur (realize note)
     add_flag at_start next = fmap $ Post.emap1_ (modify at_start next . remove)
+    -- Strip existing flags.  This is because the notes come from
+    -- 'Util.pitched_note', which calls \"\", which in turn sets
+    -- Flags.can_cancel on TrackTime 0.  So if the kotekan starts at 0 all
+    -- notes get can_cancel.
     remove = Score.remove_flags $ Flags.can_cancel <> Flags.infer_duration
     modify at_start next = Score.add_flags $
         (if at_start then Flags.can_cancel else mempty)
