@@ -76,12 +76,11 @@ peek_context msgp = do
 decode_track :: CChar -> Int -> Bool -> ScoreTime
     -> Maybe (TrackNum, UiMsg.Track)
 decode_track track_type tracknum has_pos pos
-    | track_type == (#const UiMsg::track_divider) =
-        Just (tracknum, UiMsg.Divider)
-    | track_type /= track_none && has_pos = Just (tracknum, UiMsg.Track pos)
-    | track_type /= track_none = Just (tracknum, UiMsg.SkeletonDisplay)
-    | otherwise = Nothing
-    where track_none = (#const UiMsg::track_none)
+    | track_type == (#const UiMsg::track_none) = Nothing
+    | has_pos = if track_type == (#const UiMsg::track_divider)
+        then Just (tracknum, UiMsg.Divider)
+        else Just (tracknum, UiMsg.Track pos)
+    | otherwise = Just (tracknum, UiMsg.SkeletonDisplay)
 
 peek_event :: Ptr UiMsg.UiMsg -> IO UiMsg.MsgEvent
 peek_event msgp = do
