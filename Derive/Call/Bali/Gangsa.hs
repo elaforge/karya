@@ -71,8 +71,8 @@ note_calls = Derive.call_maps
     , ("k//\\\\", c_kotekan_irregular Pat $
         irregular_pattern "3123123213213123"
             "-12-12-2 1-21-12-" "3-23-232 -32-3-23" "44-34-3- 43-434-3")
-    , ("k\\\\", c_kotekan_regular kernel_1_21_21 False 0)
-    , ("k//",   c_kotekan_regular kernel_1_21_21 True 0)
+    , ("k\\\\", c_kotekan_regular kernel_1_21_21 False)
+    , ("k//",   c_kotekan_regular kernel_1_21_21 True)
     , ("kotekan", c_kotekan_kernel)
     , ("k", c_kotekan_generic)
 
@@ -387,8 +387,8 @@ c_kotekan_kernel =
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern False (Args.range args) dur pitch
             under_threshold Repeat $
-                realize_kernel inverted rotation sangsih_above style pasang
-                    kernel
+                realize_kernel inverted sangsih_above style pasang
+                    (rotate rotation kernel)
 
 c_kotekan_generic :: Derive.Generator Derive.Note
 c_kotekan_generic =
@@ -408,7 +408,7 @@ c_kotekan_generic =
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern False (Args.range args) dur pitch
             under_threshold Repeat $
-                realize_kernel False 0 sangsih_above style pasang kernel
+                realize_kernel False sangsih_above style pasang kernel
 
 kernel_doc :: Text
 kernel_doc = "Polos part in transposition steps.\
@@ -419,7 +419,8 @@ kernel_doc = "Polos part in transposition steps.\
 make_kotekan_calls :: Kernel
     -> [(TrackLang.Symbol, Derive.Generator Derive.Note)]
 make_kotekan_calls kernel =
-    [ (name inverted rotation, c_kotekan_regular kernel inverted rotation)
+    [ (name inverted rotation,
+        c_kotekan_regular (rotate rotation kernel) inverted)
     | inverted <- [False, True]
     , rotation <- [0 .. length kernel - 1]
     ]
@@ -427,8 +428,8 @@ make_kotekan_calls kernel =
     name inverted rotation = TrackLang.Symbol $ txt $ map to_char $
         (if inverted then invert else id) $ rotate rotation kernel
 
-c_kotekan_regular :: Kernel -> Bool -> Int -> Derive.Generator Derive.Note
-c_kotekan_regular kernel inverted rotation =
+c_kotekan_regular :: Kernel -> Bool -> Derive.Generator Derive.Note
+c_kotekan_regular kernel inverted =
     Derive.make_call module_ "kotekan" Tags.inst
     ("Render a standard kotekan pattern. These have a regular derivation in\
     \ that the sangsih can be automatically derived from the polos.\n"
@@ -445,15 +446,13 @@ c_kotekan_regular kernel inverted rotation =
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern False (Args.range args) dur pitch
             under_threshold Repeat $
-                realize_kernel inverted rotation sangsih_above style pasang
-                    kernel
+                realize_kernel inverted sangsih_above style pasang kernel
 
-realize_kernel :: Bool -> Int -> TrackLang.UpDown -> KotekanStyle
+realize_kernel :: Bool -> TrackLang.UpDown -> KotekanStyle
     -> Pasang -> Kernel -> Cycle
-realize_kernel inverted rotation sangsih_above style pasang kernel =
+realize_kernel inverted sangsih_above style pasang kernel =
     end_on_zero $ kernel_to_pattern
-        ((if inverted then invert else id) (rotate rotation kernel))
-        sangsih_above style pasang
+        ((if inverted then invert else id) kernel) sangsih_above style pasang
 
 type Kernel = [Atom]
 -- Rest, up, down.
@@ -582,8 +581,6 @@ Right kernel_2_21_21 = make_kernel "-2-21-21"
 all_kernels :: [Kernel]
 all_kernels = [kernel_12_1_21, kernel_1_21_21, kernel_2_21_21]
 
-kernel_names = map fst . make_kotekan_calls
-
 find_kernel :: Kernel -> Maybe (Kernel, Bool, Int)
 find_kernel kernel = lookup kernel variants
     where
@@ -596,7 +593,8 @@ find_kernel kernel = lookup kernel variants
 -- Whether sangsih is above or below, the polos is still the same.
 -- all_kotekan :: Kernel -> [(String, [(Char, TrackLang.UpDown, Int)])]
 all_kotekan kernels = mapM_ print $ Seq.group_fst
-    [ (fmt $ realize_kernel inverted rotation TrackLang.Up style pasang kernel,
+    [ (fmt $ realize_kernel inverted TrackLang.Up style pasang
+            (rotate rotation kernel),
         (if inverted then 'v' else '^', rotation))
     | kernel <- kernels
     , inverted <- [False, True]

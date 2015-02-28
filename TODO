@@ -1059,10 +1059,17 @@ Derive:
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan
+        - There are still uncancelled notes where patterns touch, e.g.
+          (k k2-12-12, '4o'), then (k k21-21-21, '3a')
+        ? The '-12-1-21' calls are almost obsolete, because I can just write
+          'k k-12-1-21'.  But they automatically choose whether sangsih should
+          go above or below based on inversion.  Is it useful enough to keep?
+          Wait until I have more experience.
         / Maybe no patterns should emit the first note?  Then I don't have to
           cancel it.  But then I have to put "start" notes every place kotekan
           is followed by normal notes.
-        - k//\\ should have a version with space at the beginning and end
+        / k//\\ should have a version with space at the beginning and end
+          . I can already do that by clipping off the start of the event.
         . k// needs 1 2-12-12- 21-21-21, I can do it by writing sangsih d pat,
           but then sangsih and polos are reversed
           . I can do it with k '21-121-12', and it's only a couple more
