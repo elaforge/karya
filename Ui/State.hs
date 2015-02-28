@@ -60,7 +60,7 @@ module Ui.State (
     , set_view_padding
     -- ** selections
     , get_selection, set_selection
-    , shift_selection, shift_tracknum
+    , shift_selection, skip_unselectable_tracks
 
     -- * block
     , get_block, lookup_block, all_block_ids, all_block_track_ids
@@ -1045,7 +1045,7 @@ remove_from_view block tracknum view = view
 insert_into_selection :: Block.Block -> TrackNum -> Types.Selection
     -> Types.Selection
 insert_into_selection block tracknum sel
-    | tracknum <= low = shift_selection block 1 sel
+    | tracknum <= low = shift_selection True block 1 sel
     | tracknum <= high = Types.sel_expand_tracks 1 sel
     | otherwise = sel
     where (low, high) = Types.sel_track_range sel
@@ -1058,30 +1058,33 @@ insert_into_selection block tracknum sel
 remove_from_selection :: Block.Block -> TrackNum
     -> Types.SelNum -> Types.Selection -> Maybe Types.Selection
 remove_from_selection block tracknum selnum sel
-    | tracknum < low = Just $ shift_selection block (-1) sel
+    | tracknum < low = Just $ shift_selection True block (-1) sel
     | tracknum == high && high == low =
         if selnum == Config.insert_selnum
-        then Just $ shift_selection block (-1) sel
+        then Just $ shift_selection True block (-1) sel
         else Nothing
     | tracknum <= high = Just $ Types.sel_expand_tracks (-1) sel
     | otherwise = Just sel
     where (low, high) = Types.sel_track_range sel
 
--- | Shift the selection along selectable tracks, clipping if it's out of
--- range.  While the sel_cur_track won't be on a non-selectable track after
--- this, the selection may still include one.
-shift_selection :: Block.Block -> TrackNum -> Types.Selection
-    -> Types.Selection
-shift_selection block shift sel =
+-- | Shift the selection, clipping if it's out of range.  While the
+-- sel_cur_track won't be on a non-selectable track after this, the selection
+-- may still include one.
+shift_selection :: Bool -- ^ skip unselectable tracks
+    -> Block.Block -> TrackNum -> Types.Selection -> Types.Selection
+shift_selection skip_unselectable block shift sel =
     Types.sel_modify_tracks (Num.clamp 0 max_track . (+shift2)) sel
     where
-    new_tracknum = shift_tracknum block (Types.sel_cur_track sel) shift
-    shift2 = new_tracknum - Types.sel_cur_track sel
+    shift2
+        | skip_unselectable =
+            skip_unselectable_tracks block (Types.sel_cur_track sel) shift
+                - Types.sel_cur_track sel
+        | otherwise = shift
     max_track = length (Block.block_tracks block)
 
 -- | Shift a tracknum to another track, skipping unselectable tracks.
-shift_tracknum :: Block.Block -> TrackNum -> Int -> TrackNum
-shift_tracknum block tracknum shift
+skip_unselectable_tracks :: Block.Block -> TrackNum -> Int -> TrackNum
+skip_unselectable_tracks block tracknum shift
     | shift == 0 = tracknum
     | shift > 0 = find_track (dropWhile (<tracknum) selectable)
     | otherwise = find_track (dropWhile (>tracknum) (List.reverse selectable))

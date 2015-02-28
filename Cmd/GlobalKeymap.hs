@@ -213,14 +213,14 @@ selection_bindings = concat
         Selection.step TimeStep.Rewind True
 
     , bind_repeatable [] Key.Right "shift selection right" $
-        Selection.shift False 1
+        Selection.shift True False 1
     , bind_repeatable [Shift] Key.Right "extend shift selection right" $
-        Selection.shift True 1
+        Selection.shift True True 1
 
     , bind_repeatable [] Key.Left "shift selection left" $
-        Selection.shift False (-1)
+        Selection.shift True False (-1)
     , bind_repeatable [Shift] Key.Left "extend shift selection left" $
-        Selection.shift True (-1)
+        Selection.shift True True (-1)
 
     -- It would be more consistent to use shift to extend the selection, but
     -- the "large step"s seem to be more useful.  I could use 'w' and 'b' for
@@ -229,13 +229,13 @@ selection_bindings = concat
     -- temptation to want to use it everywhere.
 
     , repeatable_char 'h' "move selection left" $
-        Selection.shift False (-1)
+        Selection.shift True False (-1)
     , repeatable_char 'H' "move selection left" $
-        Selection.shift True (-1)
+        Selection.shift True True (-1)
     , repeatable_char 'l' "move selection right" $
-        Selection.shift False 1
+        Selection.shift True False 1
     , repeatable_char 'L' "move selection right" $
-        Selection.shift True 1
+        Selection.shift True True 1
     , repeatable_char 'j' "move selection advance" $
         Selection.step TimeStep.Advance False
     , repeatable_char 'J' "move selection advance" $
@@ -246,10 +246,10 @@ selection_bindings = concat
         Selection.step TimeStep.Rewind True
     -- Mnemonic: next, previous.
     , repeatable_char 'n' "move selection right to note track" $
-        Selection.shift False
+        Selection.shift True False
             =<< Selection.find_track Selection.R ParseTitle.is_note_track
     , repeatable_char 'p' "move selection left to note track" $
-        Selection.shift False
+        Selection.shift True False
             =<< Selection.find_track Selection.L ParseTitle.is_note_track
 
     , repeatable_char 'w' "move selection next event" $

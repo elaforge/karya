@@ -551,7 +551,7 @@ track_after block tracknum
     -- It must already be the rightmost tracknum.
     | tracknum == next_tracknum = length (Block.block_tracks block)
     | otherwise = next_tracknum
-    where next_tracknum = State.shift_tracknum block tracknum 1
+    where next_tracknum = State.skip_unselectable_tracks block tracknum 1
 
 generate_track_id :: BlockId -> Text -> Map.Map TrackId _a -> Maybe Id.Id
 generate_track_id block_id code tracks =

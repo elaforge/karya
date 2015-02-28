@@ -208,7 +208,7 @@ cmd_move_tracks msg = do
     -- Shift from the max tracknum or the minimum tracknum, depending on
     -- the move direction.
     whenJust (Seq.minimum_on abs $ map (clicked-) tracknums) $
-        Selection.shift False
+        Selection.shift False False
 
 move_tracks :: State.M m => BlockId -> [TrackNum] -> TrackNum -> m ()
 move_tracks block_id sources dest =

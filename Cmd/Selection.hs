@@ -148,19 +148,19 @@ step_with steps extend step = do
             else Types.point_selection cur_track new_pos
     set_and_scroll view_id Config.insert_selnum new_sel
 
--- | Move the selection across tracks by @shift@, skipping non-event tracks
--- and collapsed tracks.
+-- | Move the selection across tracks by @shift@, possibly skipping non-event
+-- tracks and collapsed tracks.
 --
 -- If @extend@ is true, extend the current selection instead of setting a new
 -- selection.
-shift :: Cmd.M m => Bool -> TrackNum -> m ()
-shift extend shift = do
+shift :: Cmd.M m => Bool -> Bool -> TrackNum -> m ()
+shift skip_unselectable extend shift = do
     view_id <- Cmd.get_focused_view
     block <- State.block_of view_id
     sel <- Cmd.abort_unless =<< State.get_selection view_id Config.insert_selnum
-    let new_sel = State.shift_selection block shift sel
-    set_and_scroll view_id Config.insert_selnum
-        (if extend then merge_sel sel new_sel else new_sel)
+    let new_sel = State.shift_selection skip_unselectable block shift sel
+    set_and_scroll view_id Config.insert_selnum $
+        if extend then merge_sel sel new_sel else new_sel
 
 -- | Shift a selection right or left.
 data Shift = R | L deriving (Show)
