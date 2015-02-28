@@ -377,10 +377,7 @@ c_kotekan_kernel =
         "Whether sangsih is above or below polos."
     <*> Sig.environ "invert" Sig.Prefixed False
         "Flip the pattern upside down."
-    <*> Sig.required_environ "kernel" Sig.Prefixed
-        "Polos part in transposition steps.\
-        \ This will be normalized to end on the destination pitch.\
-        \ It should consist of `-`, `1`, and `2`."
+    <*> Sig.required_environ "kernel" Sig.Prefixed kernel_doc
     <*> dur_env <*> kotekan_env <*> pasang_env
     ) $ \(rotation, style, sangsih_above, inverted, kernel_s, dur, kotekan,
         pasang) ->
@@ -396,12 +393,10 @@ c_kotekan_kernel =
 c_kotekan_generic :: Derive.Generator Derive.Note
 c_kotekan_generic =
     Derive.make_call module_ "kotekan" Tags.inst
-    ("Render a kotekan pattern from a kernel. The sangsih part is inferred.\n"
-        <> kotekan_doc)
+    ("Render a kotekan pattern from a kernel representing the polos.\
+    \ The sangsih is inferred.\n" <> kotekan_doc)
     $ Sig.call ((,,,,,)
-    <$> Sig.required "kernel" "Polos part in transposition steps.\
-        \ This will be normalized to end on the destination pitch.\
-        \ It should consist of `-`, `1`, and `2`."
+    <$> Sig.required "kernel" kernel_doc
     <*> Sig.defaulted "style" Telu "Kotekan style."
     <*> Sig.defaulted "sangsih" TrackLang.Up
         "Whether sangsih is above or below polos."
@@ -414,6 +409,12 @@ c_kotekan_generic =
         realize_kotekan_pattern False (Args.range args) dur pitch
             under_threshold Repeat $
                 realize_kernel False 0 sangsih_above style pasang kernel
+
+kernel_doc :: Text
+kernel_doc = "Polos part in transposition steps.\
+    \ This will be normalized to end on the destination pitch.\
+    \ It should consist of `-`, `1`, and `2`. You can start with `k` to\
+    \ avoid needing quotes."
 
 make_kotekan_calls :: Kernel
     -> [(TrackLang.Symbol, Derive.Generator Derive.Note)]
@@ -464,7 +465,10 @@ instance Pretty.Pretty Atom where
         "make_kernel \"" <> Pretty.text (txt (map to_char cs)) <> "\""
 
 make_kernel :: [Char] -> Either Text Kernel
-make_kernel = mapM from_char
+make_kernel = mapM from_char . drop_k
+    where
+    drop_k ('k':xs) = xs
+    drop_k xs = xs
 
 from_char :: Char -> Either Text Atom
 from_char '-' = Right Rest

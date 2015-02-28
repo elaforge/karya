@@ -1063,14 +1063,11 @@ Derive:
           cancel it.  But then I have to put "start" notes every place kotekan
           is followed by normal notes.
         - k//\\ should have a version with space at the beginning and end
-        - k// needs 1 2-12-12- 21-21-21, I can do it by writing sangsih d pat,
+        . k// needs 1 2-12-12- 21-21-21, I can do it by writing sangsih d pat,
           but then sangsih and polos are reversed
           . I can do it with k '21-121-12', and it's only a couple more
             characters, so why not do everything that way?
-          . If I prefix a letter I can get rid of the quotes: k k-12-1-21
-        - 2-121-21 can be written
-        . 23-2-32-2
-          -61-16-1
+          * If I prefix a letter I can get rid of the quotes: k k-12-1-21
         * k// and k\\ should not have UpDown as the first arg
         kotekan kernel:
           . generate from patterns from (kernel, inverted, rotation) so
