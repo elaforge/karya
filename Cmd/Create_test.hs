@@ -27,10 +27,10 @@ test_track_ruler = do
             State.no_ruler tracknum 20 Track.empty
         run track_specs cmd = CmdTest.trace_logs $ CmdTest.e_tracks $
             CmdTest.run_tracks track_specs cmd
-    equal (run [] (f 0)) $ Right [("", [])]
+    equal (run [] (f 1)) $ Right [("", [])]
     equal (run [] (f 10)) $ Right [("", [])]
     equal (run [("1", [])] (f 10)) $ Right [("1", []), ("", [])]
-    equal (run [("1", [])] (f 0)) $ Right [("", []), ("1", [])]
+    equal (run [("1", [])] (f 1)) $ Right [("", []), ("1", [])]
 
 -- test_splice_above_all = do
 --     let run = run_skel_point Create.splice_above_all

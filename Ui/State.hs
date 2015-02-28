@@ -790,6 +790,10 @@ insert_track block_id tracknum track = do
         when (track_id `elem` track_ids) $
             throw $ "insert_track: block " <> showt block_id
                 <> " already contains " <> showt track_id
+    -- You can only put a ruler in tracknum 0.
+    unless (tracknum > 0 || is_ruler track) $
+        throw $ "non-ruler track can't go at tracknum " <> showt tracknum
+            <> ": " <> pretty track
     let tracks = Seq.insert_at tracknum track (Block.block_tracks block)
         -- Make sure the views are up to date.
         views' = Map.map (insert_into_view block tracknum) views
@@ -800,15 +804,19 @@ insert_track block_id tracknum track = do
         }
     unsafe_modify $ \st ->
         st { state_views = Map.union views' (state_views st) }
+    where
+    is_ruler t = case Block.tracklike_id t of
+        Block.RId {} -> True
+        _ -> False
 
 -- | Remove the track at the given tracknum.
 remove_track :: M m => BlockId -> TrackNum -> m ()
 remove_track block_id tracknum = do
     block <- get_block block_id
     let tracks = Block.block_tracks block
-    unless (0 <= tracknum && tracknum < length tracks) $
+    unless (1 <= tracknum && tracknum < length tracks) $
         throw $ "remove_track " <> showt block_id <> " " <> showt tracknum
-            <> " out of range 0--" <> showt (length tracks)
+            <> " out of range 1--" <> showt (length tracks)
     views <- Map.map (remove_from_view block tracknum) <$>
         views_of block_id
     set_block block_id $ block
@@ -819,15 +827,20 @@ remove_track block_id tracknum = do
     unsafe_modify $ \st ->
         st { state_views = Map.union views (state_views st) }
 
+-- | Move a track from one tracknum to another.
 move_track :: M m => BlockId -> TrackNum -> TrackNum -> m ()
 move_track block_id from to = do
     block <- get_block block_id
-    let msg = "move_track: from index " <> showt from <> " out of range"
+    let msg = "move_track: from " <> showt from <> " to " <> showt to
+            <> " out of range"
     modify_block block_id . const =<< require msg
         (move_block_track from to block)
 
 move_block_track :: TrackNum -> TrackNum -> Block.Block -> Maybe Block.Block
 move_block_track from to block = do
+    -- Things get generally messed up if you try to move an event track to the
+    -- ruler spot.
+    guard (from /= 0 && to /= 0)
     tracks <- Seq.move from to (Block.block_tracks block)
     let skel = Skeleton.move from to (Block.block_skeleton block)
     return $ block
