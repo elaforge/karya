@@ -44,7 +44,9 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.Format as Format
-import Util.Format (Doc, (</>), (<//>), (<+/>), (<+>), text, render, indented)
+import Util.Format
+       (Doc, (</>), (<//>), (<+/>), (<+>), text, render, withIndent, indent_,
+        indent, indentLine)
 import qualified Util.Seq as Seq
 
 
@@ -135,11 +137,11 @@ instance Pretty a => Pretty (Set.Set a) where
 
 instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
     format = formattedList '{' '}' . map pair . Map.toList
-        where pair (k, v) = format k </> indented (":" <+> format v)
+        where pair (k, v) = format k </> (":" <+> format v)
 
 instance Pretty a => Pretty (Tree.Tree a) where
     format (Tree.Node val children) =
-        "Node" <+/> indented ("(" <> format val <> ")" <+/> format children)
+        "Node" <> indent_ ("(" <> format val <> ")" <+/> format children)
 
 -- ** text
 
@@ -183,8 +185,10 @@ formattedList left right = delimitedList False left right . map format
 
 record :: Doc -> [(Text, Doc)] -> Doc
 record title fields =
-    title <+/> indented (delimitedList True '{' '}' (map field fields))
-    where field (name, val) = text name <+> "=" <+/> indented val
+    title <> indent_ (delimitedList True '{' '}' (map field fields))
+    where field (name, val) = text name <+> "=" <+/> val
+    -- The "name = val" is already indented due to delimitedList, so if it
+    -- wraps it will already be at one level of indentation.
 
 recordTitle :: Text -> [(Text, Doc)] -> Doc
 recordTitle = record . text
@@ -192,21 +196,28 @@ recordTitle = record . text
 constructor :: Text -> [Doc] -> Doc
 constructor name [] = text name
 constructor name fields =
-    text name <+/> indented (Format.wrapWords $ map (surround '(' ')') fields)
+    text name <> indent_ (Format.wrapWords $ map (surround '(' ')') fields)
     where surround left right x = char left <> x <> char right
     -- TODO only surround ()s if it has spaces in it
 
-delimitedList :: Bool -> Char -> Char -> [Doc] -> Doc
+-- | Format a comma-separated list.  Try to put it on one line, but break
+-- before commas if that's not possible.
+delimitedList :: Bool -- ^ Always spaces around the delimiters.  Otherwise,
+    -- they only get spaces if the list wraps.
+    -> Char -> Char -> [Doc] -> Doc
 delimitedList spacedDelimiter leftc rightc xs = case xs of
     [] -> left <-> right
     [x] -> left <-> x <-> right
     x : xs -> Format.shortForm
-        (left <-> x <> mconcat (map (","<+>) xs) <-> right)
-        ((left <+> x) </> Format.wrap (map (","<+>) xs) <> "\n" <> right)
+        (left <-> x <> mconcat (map (","<+>) xs) <-> right) $
+        (left <+> withIndent x) </> Format.wrap (map element xs)
+            <//> right <> "\n"
     where
+    element x = "," <+> withIndent x
     (<->) = if spacedDelimiter then (<+>) else (<>)
     left = text $ Text.singleton leftc
     right = text $ Text.singleton rightc
+
 
 -- * misc
 

@@ -10,7 +10,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import Util.Pretty ((<+>), (<+/>))
+import Util.Pretty ((<+>))
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
@@ -41,7 +41,7 @@ instance Eq d => Eq (LEvent d) where
 format_log :: Log.Msg -> Pretty.Doc
 format_log msg =
     Pretty.text stars <+> Pretty.text srcpos <+> Pretty.format stack
-        <+/> Pretty.indented (Pretty.text (Log.msg_text msg))
+        <> Pretty.indent_ (Pretty.text (Log.msg_text msg))
     where
     stars = Text.replicate (fromEnum (Log.msg_priority msg)) "*"
     srcpos = maybe "" ((<>": ") . txt . SrcPos.show_srcpos . Just)

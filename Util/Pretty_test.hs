@@ -80,11 +80,47 @@ test_map = do
         ]
 
 test_tuple = do
-    let t :: (String, String, String)
-        t = ("hi", "there", "really long string and stuff")
-    equal (render 15 t)
+    equal (Pretty.pretty ('a', 'b')) "('a', 'b')"
+    let t1 :: (String, String, String)
+        t1 = ("hi", "there", "really long string and stuff")
+    equal (render 15 t1)
         [ "( \"hi\", \"there\""
         , ", \"really long string and stuff\""
         , ")"
         ]
-    equal (Pretty.pretty ('a', 'b')) "('a', 'b')"
+    let t2 :: (String, [String])
+        t2 = ("hi there", words "it wraps")
+    equal (render 10 t2)
+        [ "( \"hi there\""
+        , ", [ \"it\""
+        , "  , \"wraps\""
+        , "  ]"
+        , ")"
+        ]
+
+test_delimitedList = do
+    let f = Pretty.delimitedList False '[' ']'
+    -- shortForm omits the newlines and spaces.
+    equal (unlines $ render 8 $ f ["a", "b"]) "[a, b]\n"
+    equal (render 8 $ f ["abc", "def"])
+        [ "[ abc"
+        , ", def"
+        , "]"
+        ]
+
+    equal (render 8 $ f ["hi", f ["nest", "wrap"]])
+        [ "[ hi"
+        , ", [ nest"
+        , "  , wrap"
+        , "  ]"
+        , "]"
+        ]
+
+    equal (render 8 $ f ["hi", f ["nest", "wrap"], "x"])
+        [ "[ hi"
+        , ", [ nest"
+        , "  , wrap"
+        , "  ]"
+        , ", x"
+        , "]"
+        ]

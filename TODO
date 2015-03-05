@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - give Format.Hard an Int value for the number of newlines.
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it
     applies Flags.can_cancel at TrackTime 0, which is only appropriate for
@@ -43,9 +44,12 @@ UNSORTED
     . Actually, merging StateConfig and Derive aliases breaks things.  It's
       because I actually want derive aliases to map to the StateConfig level
       name, because that's the one that has allocation.
-  - Util.Pretty doesn't correctly display ("a", ["b", "c"]) where the list
+  * Util.Pretty doesn't correctly display ("a", ["b", "c"]) where the list
     wraps
-  - Util.Pretty also formats lists wrong:
+    . The problem is that the leading ", " only applies to the short form.
+      (text <> shortForm a b) should make the text distribute over both 'a'
+      and 'b'.
+  * Util.Pretty also formats lists wrong:
     , stack =
         [ block (bid "test/b1"), (bid "test/b1"), import
         ...
@@ -1061,6 +1065,8 @@ Derive:
       kotekan
         - There are still uncancelled notes where patterns touch, e.g.
           (k k2-12-12, '4o'), then (k k21-21-21, '3a')
+        - things are confusing if the kernel is not 8 chars long, maybe throw
+          an error in that case?  Is there a use for different length kernels?
         ? The '-12-1-21' calls are almost obsolete, because I can just write
           'k k-12-1-21'.  But they automatically choose whether sangsih should
           go above or below based on inversion.  Is it useful enough to keep?

@@ -6,11 +6,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Util.Format (
     Doc, shortForm, text
-    , (</>), (<//>), (<+/>), (<+>)
+    , (</>), (<+/>), (<//>), (<+>)
     , newline, unlines, wrap, wrapWords
-    , indented
+    , withIndent, indent, indent_, indentLine
     , Width, render, renderFlat
+    , simplify
 #ifdef TESTING
+    , Doc(..)
     , BreakType(..), Section(..), B(..), bFromText
     , flatten, spanLine, findBreak
 #endif
@@ -32,7 +34,8 @@ data Doc =
     -- | The first Doc is the short form, which will be used if it doesn't have
     -- to wrap.
     | ShortForm Doc Doc
-    -- | The contained Doc will be indented by a number of steps.
+    -- | The contained Doc will be indented by a number of steps.  The new
+    -- indent level only takes effect after the first Break.
     | Indented !Indent Doc
     -- | Line break.
     | Break !BreakType
@@ -61,6 +64,10 @@ instance String.IsString Doc where
 
 -- | The first Doc is the short form, which will be used if it doesn't have
 -- to wrap.
+--
+-- Prepending text to a shortForm will distribute over both short and long
+-- forms.  Otherwise, if you write @"prefix " <> x@, and @x@ happens to be
+-- a shortForm, the long form loses the prefix.
 shortForm :: Doc -> Doc -> Doc
 shortForm = ShortForm
 
@@ -83,28 +90,62 @@ instance Monoid.Monoid BreakType where
     mempty = NoSpace
     mappend = max
 
--- | Soft break with a space.
-(<+/>) :: Doc -> Doc -> Doc
-d1 <+/> d2 = d1 <> Break Space <> d2
-infixr 5 <+/> -- less than <>
-
 -- | Soft break with no space.
 (</>) :: Doc -> Doc -> Doc
 d1 </> d2 = d1 <> Break NoSpace <> d2
-infixr 5 </> -- less than <>
+infixr 5 </> -- looser than <>
 
--- | Hard break.
+-- | Soft break with a space.
+(<+/>) :: Doc -> Doc -> Doc
+d1 <+/> d2 = d1 <> Break Space <> d2
+infixr 5 <+/> -- looser than <>
+
+-- | Hard break, see 'newline'.
 (<//>) :: Doc -> Doc -> Doc
 d1 <//> d2 = d1 <> newline <> d2
+infixr 4 <//> -- looser than </>
 
-indented :: Doc -> Doc
-indented = Indented 1
+-- | Increase the indent level for the given Doc.  The indent change only
+-- takes effect after the first break, so if you want it to take effect
+-- immediately, use one of 'indent', 'indent_', or 'indentLine'.
+--
+-- The reason indent is delayed is that this way you can do a hanging indent,
+-- where the current line is unindented, but it will be indented if it wraps.
+-- Otherwise you don't know where to put the indent, since you don't know
+-- where the break will happen.
+withIndent :: Doc -> Doc
+withIndent = Indented 1
+
+indentBreak :: BreakType -> Doc -> Doc
+indentBreak break doc = Indented 1 (Break break :+ doc)
+
+-- | Change the indent level and add a no-space break so it takes effect
+-- immediately.
+indent :: Doc -> Doc
+indent = indentBreak NoSpace
+
+-- | Change the indent level and add a spaced break so it takes effect
+-- immediately.
+indent_ :: Doc -> Doc
+indent_ = indentBreak Space
+
+-- | Change the indent level and add a hard break so it takes effect
+-- immediately.
+indentLine :: Doc -> Doc
+indentLine = indentBreak Hard
 
 -- | Join two docs with a space.
 (<+>) :: Doc -> Doc -> Doc
 d1 <+> d2 = d1 <> Text " " <> d2
 infixr 6 <+> -- same as <>
 
+-- | A hard break will definitely cause a line break.
+--
+-- Consecutive breaks are merged together, and a hard break always wins.
+-- Also, multiple hard breaks are merged into one.  The rationale is that
+-- if you are formatting a list of sub-Docs, and you want to put each on its
+-- own line, you need a hard break after each one, but if one of them does
+-- the same thing, you wind up with two breaks in a row.
 newline :: Doc
 newline = Break Hard
 
@@ -114,10 +155,12 @@ unlines [] = mempty
 unlines docs = mconcat (List.intersperse newline docs) <> newline
 
 wrapWords :: [Doc] -> Doc
-wrapWords = List.foldl' (<+/>) mempty
+wrapWords (d:ds) = List.foldl' (<+/>) d ds
+wrapWords [] = mempty
 
 wrap :: [Doc] -> Doc
-wrap = List.foldl' (</>) mempty
+wrap (d:ds) = List.foldl' (</>) d ds
+wrap [] = mempty
 
 -- * render
 
@@ -136,6 +179,10 @@ data State = State {
     -- | Collect sections in reverse order.
     , stateSections :: ![Section]
     , stateIndent :: !Indent
+    -- | Indent for the next break.  This is different from 'stateIndent',
+    -- which is the current indent value because the new indent only applies
+    -- *after* the next break, and after a dedent, I still need the indented
+    -- value to apply to the section.
     , stateBreakIndent :: !Indent
     } deriving (Show)
 
@@ -178,15 +225,16 @@ flatten = collapse . reverse . stateSections . flush . flip go initialState
             -- The newline will be replaced by the actual break when I come
             -- across it.
             sub = go newline $ go long $ initialState
-                { stateIndent = stateIndent state
+                -- This causes @a <> ShortForm b c@ to distribute the @a@
+                -- over @b@ and @c@, as documented by 'shortForm'.
+                { stateCollect = stateCollect state
+                , stateIndent = stateIndent state
                 , stateBreakIndent = stateBreakIndent state
                 }
         Indented n doc -> dedent $ go doc $ indent state
             where
             indent state = state
-                { stateIndent = stateIndent state + n
-                , stateBreakIndent = stateIndent state + n
-                }
+                { stateIndent = stateIndent state + n }
             dedent state = state { stateIndent = stateIndent state - n }
         Break break -> goBreak break state
     goBreak break state = state
@@ -220,7 +268,7 @@ flatten = collapse . reverse . stateSections . flush . flip go initialState
         (nulls, rest) -> section { sectionBreak = break } : collapse rest
             where
             break = sectionBreak section <> mconcat (map sectionBreak nulls)
-    empty section = bNull (sectionB section) && sectionBreak section /= Hard
+    empty section = bNull (sectionB section)
 
 render :: Text -> Width -> Doc -> Lazy.Text
 render indent width = renderText indent width . flatten
@@ -328,6 +376,23 @@ textWidth = Text.length
 
 bNull :: B -> Bool
 bNull = (==0) . bWidth
+
+-- * debug
+
+-- | Merge Texts so the Doc is easier to read.
+simplify :: Doc -> Doc
+simplify doc = case doc of
+    Text t1 :+ d1 -> case simplify d1 of
+        Text t2 :+ d2 -> Text (t1<>t2) :+ d2
+        Text t2 -> Text (t1<>t2)
+        doc -> Text t1 :+ doc
+    d1 :+ d2 -> case (simplify d1, simplify d2) of
+        (Text t1, Text t2) -> Text (t1 <> t2)
+        (d1, d2) -> d1 :+ d2
+    ShortForm d1 d2 ->
+        ShortForm (Text (Lazy.toStrict (renderFlat d1))) (simplify d2)
+    Indented i d -> Indented i (simplify d)
+    _ -> doc
 
 
 -- * misc

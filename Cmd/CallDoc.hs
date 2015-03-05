@@ -57,7 +57,7 @@ call_bindings_text (binds, ctype, call_doc) =
     show_bind (sym, name) = Format.text $
         sym <> " -- " <> name <> ": (" <> show_call_type ctype <> ")"
     show_call_doc (Derive.CallDoc _module tags doc args) =
-        write_doc doc <//> write_tags tags <//> Format.indented (arg_docs args)
+        write_doc doc <//> write_tags tags <> Format.indentLine (arg_docs args)
     arg_docs (Derive.ArgsParsedSpecially doc) =
         "Args parsed by call:" <+/> write_doc doc <> "\n"
     arg_docs (Derive.ArgDocs args) = Format.unlines (map arg_doc args)
@@ -84,7 +84,7 @@ environ_keys name deflt =
     where unsym (TrackLang.Symbol sym) = sym
 
 write_doc :: Text -> Format.Doc
-write_doc = Format.indented . Format.wrapWords . map Format.text . Text.words
+write_doc = Format.indent . Format.wrapWords . map Format.text . Text.words
 
 show_parser :: Derive.ArgParser -> (Maybe Text, Maybe Text)
     -- ^ (superscript to mark this arg, default value)
