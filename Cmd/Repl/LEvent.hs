@@ -16,6 +16,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -33,13 +34,32 @@ get = fmap Track.track_events . State.get_track
 stretch :: ScoreTime -> Cmd.CmdL ()
 stretch n = do
     selected <- Selection.events
-    let start = fromMaybe 0 $ Seq.minimum $
-            map (\(_, _, evts) -> maybe 0 Event.start (Seq.head evts)) selected
-    ModifyEvents.selection $ ModifyEvents.event $ stretch_event start n
+    let maybe_start = Seq.minimum $
+            mapMaybe (\(_, _, events) -> Event.start <$> Seq.head events)
+                selected
+    whenJust maybe_start $ \start ->
+        ModifyEvents.selection $ ModifyEvents.event $ stretch_event start n
 
 stretch_event :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
 stretch_event start n =
     Event.move (\p -> (p - start) * n + start) . Event.modify_duration (*n)
+
+-- | Stretch events to fit in the given duration.
+stretch_to :: TrackTime -> Cmd.CmdL ()
+stretch_to dur = do
+    selected <- Selection.events
+    let maybe_end = Seq.maximum $
+            mapMaybe (\(_, _, events) -> Event.end <$> Seq.last events) selected
+        maybe_start = Seq.minimum [s | (_, (s, _), _) <- selected]
+    whenJust ((,) <$> maybe_start <*> maybe_end) $ \(start, end) ->
+        ModifyEvents.selection $ ModifyEvents.event $
+            stretch_event start (dur / (end - start))
+
+-- | Duration of the current selection, e.g. @stretch_to =<< sel_dur@.
+sel_dur :: Cmd.M m => m TrackTime
+sel_dur = do
+    (_, sel) <- Selection.get
+    return $ Types.sel_duration sel
 
 modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
 modify_dur = Edit.modify_dur

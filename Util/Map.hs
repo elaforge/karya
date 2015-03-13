@@ -28,6 +28,9 @@ filter_key f = Map.filterWithKey (\k _ -> f k)
 delete_keys :: Ord k => [k] -> Map.Map k a -> Map.Map k a
 delete_keys keys fm = Map.difference fm (Map.fromList [(k, ()) | k <- keys])
 
+insert_list :: Ord k => [(k, v)] -> Map.Map k v -> Map.Map k v
+insert_list kvs m = List.foldl' (\m (k, v) -> Map.insert k v m) m kvs
+
 -- | Like 'Data.Map.split', except include a matched key in the above map.
 split2 :: Ord k => k -> Map.Map k a -> (Map.Map k a, Map.Map k a)
 split2 k fm = (pre, post')
@@ -100,9 +103,6 @@ unique_unions = flip List.foldl' (Map.empty, Map.empty) $
     \(collect, rejected) fm ->
         let (collect2, rejected2) = unique_union collect fm
         in (collect2, Map.union rejected rejected2)
-
-insert_list :: Ord k => [(k, v)] -> Map.Map k v -> Map.Map k v
-insert_list kvs m = List.foldl' (\m (k, v) -> Map.insert k v m) m kvs
 
 -- | Safe versions of findMin and findMax.
 min :: Map.Map k a -> Maybe (k, a)

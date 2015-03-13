@@ -12,7 +12,7 @@ module Ui.Types (
     -- * Selection
     , Selection(..), selection, point_selection, sel_is_point
     , sel_modify_tracks, sel_expand_tracks, sel_track_range, sel_tracknums
-    , sel_range, sel_set_duration
+    , sel_range, sel_duration, sel_set_duration
 ) where
 import Util.ForeignC
 import qualified Util.Num as Num
@@ -152,6 +152,9 @@ sel_tracknums tracks sel
 sel_range :: Selection -> (TrackTime, TrackTime)
 sel_range sel = (min pos0 pos1, max pos0 pos1)
     where (pos0, pos1) = (sel_start_pos sel, sel_cur_pos sel)
+
+sel_duration :: Selection -> TrackTime
+sel_duration sel = abs (sel_start_pos sel - sel_cur_pos sel)
 
 sel_set_duration :: TrackTime -> Selection -> Selection
 sel_set_duration dur sel
