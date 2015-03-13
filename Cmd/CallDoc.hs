@@ -56,8 +56,10 @@ call_bindings_text (binds, ctype, call_doc) =
     show_module (Module.Module m) = Format.text $ "\tModule: " <> m
     show_bind (sym, name) = Format.text $
         sym <> " -- " <> name <> ": (" <> show_call_type ctype <> ")"
-    show_call_doc (Derive.CallDoc _module tags doc args) =
-        write_doc doc <//> write_tags tags <> Format.indentLine (arg_docs args)
+    show_call_doc (Derive.CallDoc _module tags doc args)
+        | tags == mempty && no_args args = write_doc doc
+        | otherwise = write_doc doc <//> write_tags tags
+            <> Format.indentLine (arg_docs args)
     arg_docs (Derive.ArgsParsedSpecially doc) =
         "Args parsed by call:" <+/> write_doc doc <> "\n"
     arg_docs (Derive.ArgDocs args) = Format.unlines (map arg_doc args)
@@ -76,6 +78,8 @@ call_bindings_text (binds, ctype, call_doc) =
         | tags == mempty = "Args:"
         | otherwise = Format.text $ "Tags: "
             <> Text.intercalate ", " (Tags.untag tags)
+    no_args (Derive.ArgDocs []) = True
+    no_args _ = False
 
 environ_keys :: Text -> Sig.EnvironDefault -> Text
 environ_keys name deflt =

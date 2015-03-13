@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  format bugs:
+    - first line is indented
+      . ShortForm subs have less indent than above
+    - ", tail" should be on its own line
+    - ShortForm is "[ Record [abc, def]", presumably the formatter nedes to
+      use a break, not a (<>).
   - give Format.Hard an Int value for the number of newlines.
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it
