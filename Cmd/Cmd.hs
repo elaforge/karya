@@ -86,6 +86,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Key as Key
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -593,9 +594,9 @@ data Hooks = Hooks {
     hooks_selection :: [[(ViewId, Maybe TrackSelection)] -> CmdId ()]
     }
 
--- | Just a 'Types.Selection' annotated with its BlockId and TrackId.  There's
+-- | Just a 'Sel.Selection' annotated with its BlockId and TrackId.  There's
 -- no deep reason for it, it just saves a bit of work for selection hooks.
-type TrackSelection = (Types.Selection, BlockId, Maybe TrackId)
+type TrackSelection = (Sel.Selection, BlockId, Maybe TrackId)
 
 instance Show Hooks where
     show (Hooks sel) = "((Hooks " ++ show (length sel) ++ "))"
@@ -1019,7 +1020,7 @@ get_insert_tracknum :: M m => m (Maybe TrackNum)
 get_insert_tracknum = do
     view_id <- get_focused_view
     sel <- State.get_selection view_id Config.insert_selnum
-    return (fmap Types.sel_start_track sel)
+    return (fmap Sel.start_track sel)
 
 -- | This just calls 'State.set_view_status', but all status setting should
 -- go through here so they can be uniformly filtered or logged or something.

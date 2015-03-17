@@ -20,6 +20,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
@@ -71,7 +72,7 @@ data View =
     | Status !(Map.Map (Int, Text) Text) !Color.Color -- ^ background color
     | TrackScroll !Types.Width
     | Zoom !Types.Zoom
-    | Selection !Types.SelNum !(Maybe Types.Selection)
+    | Selection !Sel.Num !(Maybe Sel.Selection)
     -- | Bring the window to the front.  Unlike most other updates, this is
     -- recorded directly and is not reflected in Ui.State.
     | BringToFront

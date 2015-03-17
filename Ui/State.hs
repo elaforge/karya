@@ -155,6 +155,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import Ui.StateConfig
 import qualified Ui.Track as Track
@@ -536,14 +537,13 @@ set_view_padding view_id (track, time) = modify_view view_id $ \view -> view
 -- ** selections
 
 -- | Get @view_id@'s selection at @selnum@, or Nothing if there is none.
-get_selection :: M m => ViewId -> Types.SelNum -> m (Maybe Types.Selection)
+get_selection :: M m => ViewId -> Sel.Num -> m (Maybe Sel.Selection)
 get_selection view_id selnum = do
     view <- get_view view_id
     return (Map.lookup selnum (Block.view_selections view))
 
 -- | Replace any selection on @view_id@ at @selnum@ with @sel@.
-set_selection :: M m => ViewId -> Types.SelNum
-    -> Maybe Types.Selection -> m ()
+set_selection :: M m => ViewId -> Sel.Num -> Maybe Sel.Selection -> m ()
 set_selection view_id selnum maybe_sel = do
     view <- get_view view_id
     update_view view_id $ view
@@ -1055,13 +1055,13 @@ remove_from_view block tracknum view = view
 
 -- | If tracknum is before or at the selection, push it to the right.  If it's
 -- inside, extend it.  If it's to the right, do nothing.
-insert_into_selection :: Block.Block -> TrackNum -> Types.Selection
-    -> Types.Selection
+insert_into_selection :: Block.Block -> TrackNum -> Sel.Selection
+    -> Sel.Selection
 insert_into_selection block tracknum sel
     | tracknum <= low = shift_selection True block 1 sel
-    | tracknum <= high = Types.sel_expand_tracks 1 sel
+    | tracknum <= high = Sel.expand_tracks 1 sel
     | otherwise = sel
-    where (low, high) = Types.sel_track_range sel
+    where (low, high) = Sel.track_range sel
 
 -- | Remove the given track from the selection.  The selection will be moved or
 -- shrunk as per 'insert_into_selection', possibly to nothing if the selection
@@ -1069,29 +1069,29 @@ insert_into_selection block tracknum sel
 -- moves one track to the left, if possible.  That's because it's convenient to
 -- delete consecutive tracks.
 remove_from_selection :: Block.Block -> TrackNum
-    -> Types.SelNum -> Types.Selection -> Maybe Types.Selection
+    -> Sel.Num -> Sel.Selection -> Maybe Sel.Selection
 remove_from_selection block tracknum selnum sel
     | tracknum < low = Just $ shift_selection True block (-1) sel
     | tracknum == high && high == low =
         if selnum == Config.insert_selnum
         then Just $ shift_selection True block (-1) sel
         else Nothing
-    | tracknum <= high = Just $ Types.sel_expand_tracks (-1) sel
+    | tracknum <= high = Just $ Sel.expand_tracks (-1) sel
     | otherwise = Just sel
-    where (low, high) = Types.sel_track_range sel
+    where (low, high) = Sel.track_range sel
 
 -- | Shift the selection, clipping if it's out of range.  While the
 -- sel_cur_track won't be on a non-selectable track after this, the selection
 -- may still include one.
 shift_selection :: Bool -- ^ skip unselectable tracks
-    -> Block.Block -> TrackNum -> Types.Selection -> Types.Selection
+    -> Block.Block -> TrackNum -> Sel.Selection -> Sel.Selection
 shift_selection skip_unselectable block shift sel =
-    Types.sel_modify_tracks (Num.clamp 0 max_track . (+shift2)) sel
+    Sel.modify_tracks (Num.clamp 0 max_track . (+shift2)) sel
     where
     shift2
         | skip_unselectable =
-            skip_unselectable_tracks block (Types.sel_cur_track sel) shift
-                - Types.sel_cur_track sel
+            skip_unselectable_tracks block (Sel.cur_track sel) shift
+                - Sel.cur_track sel
         | otherwise = shift
     max_track = length (Block.block_tracks block)
 

@@ -15,6 +15,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Block as Block
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
@@ -66,9 +67,9 @@ modify_factor view_id f = do
 zoom_to_ruler_or_selection :: Cmd.M m => m ()
 zoom_to_ruler_or_selection = do
     (view_id, sel) <- Selection.get
-    if Types.sel_is_point sel
+    if Sel.is_point sel
         then zoom_to_ruler view_id
-        else uncurry (zoom_to view_id) (Types.sel_range sel)
+        else uncurry (zoom_to view_id) (Sel.range sel)
 
 zoom_to :: Cmd.M m => ViewId -> TrackTime -> TrackTime -> m ()
 zoom_to view_id start end =

@@ -11,8 +11,8 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Midi.State
 
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
@@ -133,14 +133,14 @@ prepare_blocks focus blocks =
 step_state = Cmd.state_step . Cmd.state_play . CmdTest.result_cmd_state
 
 get_sel :: State.M m => m (Maybe ScoreTime)
-get_sel = fmap Types.sel_cur_pos <$>
+get_sel = fmap Sel.cur_pos <$>
     State.get_selection UiTest.default_view_id StepPlay.selnum
 
 get_sel_tracks :: State.M m => m (Maybe (ScoreTime, [TrackNum]))
 get_sel_tracks =
-    fmap (\s -> (Types.sel_cur_pos s, Types.sel_tracknums 99 s)) <$>
+    fmap (\s -> (Sel.cur_pos s, Sel.tracknums 99 s)) <$>
         State.get_selection UiTest.default_view_id StepPlay.selnum
 
 get_block_sel :: State.M m => String -> m (Maybe ScoreTime)
-get_block_sel name = fmap Types.sel_cur_pos <$>
+get_block_sel name = fmap Sel.cur_pos <$>
     State.get_selection (UiTest.mk_vid_name name) StepPlay.selnum

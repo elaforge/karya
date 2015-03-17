@@ -28,9 +28,9 @@ import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Derive.Deriver.Monad as Derive
@@ -205,7 +205,7 @@ status_color state view =
     where block_id = Block.view_block view
 
 diff_selection :: (Update.View -> DiffM ())
-    -> Types.SelNum -> Seq.Paired Types.Selection Types.Selection -> DiffM ()
+    -> Sel.Num -> Seq.Paired Sel.Selection Sel.Selection -> DiffM ()
 diff_selection _ _ (Seq.Both sel1 sel2) | sel1 == sel2 = return ()
 diff_selection emit selnum paired = case paired of
     Seq.Both sel1 sel2

@@ -26,6 +26,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
@@ -51,25 +52,24 @@ import Types
 --
 -- This is the Cmd level of State.set_selection and should be called by
 -- any Cmd that wants to set the selection.
-set :: Cmd.M m => ViewId -> Maybe Types.Selection -> m ()
+set :: Cmd.M m => ViewId -> Maybe Sel.Selection -> m ()
 set view_id = set_selnum view_id Config.insert_selnum
 
-set_selnum :: Cmd.M m => ViewId -> Types.SelNum -> Maybe Types.Selection
-    -> m ()
+set_selnum :: Cmd.M m => ViewId -> Sel.Num -> Maybe Sel.Selection -> m ()
 set_selnum view_id selnum maybe_sel = do
     State.set_selection view_id selnum maybe_sel
     when (selnum == Config.insert_selnum) $ case maybe_sel of
-        Just sel | Types.sel_is_point sel -> do
+        Just sel | Sel.is_point sel -> do
             set_subs view_id sel
             whenJustM (Cmd.gets (Cmd.state_sync . Cmd.state_play)) $
                 mmc_goto_sel view_id sel
         _ -> return ()
 
-mmc_goto_sel :: Cmd.M m => ViewId -> Types.Selection -> Cmd.SyncConfig -> m ()
+mmc_goto_sel :: Cmd.M m => ViewId -> Sel.Selection -> Cmd.SyncConfig -> m ()
 mmc_goto_sel view_id sel sync = do
     block_id <- State.block_id_of view_id
-    maybe_track_id <- State.event_track_at block_id (Types.sel_cur_track sel)
-    whenJustM (root_realtime block_id maybe_track_id (Types.sel_cur_pos sel)) $
+    maybe_track_id <- State.event_track_at block_id (Sel.cur_track sel)
+    whenJustM (root_realtime block_id maybe_track_id (Sel.cur_pos sel)) $
         Cmd.midi (Cmd.sync_device sync) . mmc_goto sync
 
 mmc_goto :: Cmd.SyncConfig -> RealTime -> Midi.Message
@@ -77,7 +77,7 @@ mmc_goto sync pos = Mmc.encode (Cmd.sync_device_id sync) $
     Mmc.goto_seconds (Cmd.sync_frame_rate sync) (RealTime.to_seconds pos)
 
 -- | Set a selection in the current view.
-set_current :: Cmd.M m => Types.SelNum -> Maybe Types.Selection -> m ()
+set_current :: Cmd.M m => Sel.Num -> Maybe Sel.Selection -> m ()
 set_current selnum maybe_sel = do
     view_id <- Cmd.get_focused_view
     set_selnum view_id selnum maybe_sel
@@ -89,16 +89,16 @@ set_current selnum maybe_sel = do
 -- TODO if multiple calls overlap, I should draw multiple selections, but
 -- State.set_selection doesn't support that, even though the underlying
 -- BlockC.set_selection does.
-set_subs :: Cmd.M m => ViewId -> Types.Selection -> m ()
+set_subs :: Cmd.M m => ViewId -> Sel.Selection -> m ()
 set_subs view_id sel = do
     view_ids <- State.all_view_ids
     forM_ view_ids $ \vid ->
         State.set_selection vid Config.play_position_selnum Nothing
     block_id <- State.block_id_of view_id
-    maybe_track_id <- State.event_track_at block_id (Types.sel_cur_track sel)
+    maybe_track_id <- State.event_track_at block_id (Sel.cur_track sel)
     whenJust maybe_track_id $ \track_id ->
         mapM_ (uncurry set_block) =<<
-            Perf.sub_pos block_id track_id (Types.sel_cur_pos sel)
+            Perf.sub_pos block_id track_id (Sel.cur_pos sel)
 
 set_block :: State.M m => BlockId -> [(TrackId, TrackTime)] -> m ()
 set_block _ [] = return ()
@@ -106,14 +106,14 @@ set_block block_id ((_, pos) : _) = do
     view_ids <- Map.keys <$> State.views_of block_id
     forM_ view_ids $ \view_id ->
         State.set_selection view_id Config.play_position_selnum
-            (Just (Types.selection 0 pos 999 pos))
+            (Just (Sel.selection 0 pos 999 pos))
 
 -- | Figure out how much to scroll to keep the selection visible and with
 -- reasonable space around it.
 --
 -- Anyone who wants to set a selection and automatically scroll the window to
 -- follow the selection should use this function.
-set_and_scroll :: Cmd.M m => ViewId -> Types.SelNum -> Types.Selection -> m ()
+set_and_scroll :: Cmd.M m => ViewId -> Sel.Num -> Sel.Selection -> m ()
 set_and_scroll view_id selnum sel = do
     old <- State.get_selection view_id selnum
     set_selnum view_id selnum (Just sel)
@@ -140,12 +140,12 @@ step dir extend = do
 step_with :: Cmd.M m => Int -> Bool -> TimeStep.TimeStep -> m ()
 step_with steps extend step = do
     view_id <- Cmd.get_focused_view
-    Types.Selection start_track start_pos cur_track cur_pos <-
+    Sel.Selection start_track start_pos cur_track cur_pos <-
         Cmd.abort_unless =<< State.get_selection view_id Config.insert_selnum
     new_pos <- step_from cur_track cur_pos steps step
     let new_sel = if extend
-            then Types.selection start_track start_pos cur_track new_pos
-            else Types.point_selection cur_track new_pos
+            then Sel.selection start_track start_pos cur_track new_pos
+            else Sel.point_selection cur_track new_pos
     set_and_scroll view_id Config.insert_selnum new_sel
 
 -- | Move the selection across tracks by @shift@, possibly skipping non-event
@@ -176,11 +176,11 @@ find_track shift stop = do
             (order sel tracks)
     return $ case maybe_next of
         Nothing -> 0
-        Just next -> State.track_tracknum next - Types.sel_cur_track sel
+        Just next -> State.track_tracknum next - Sel.cur_track sel
     where
     order sel = case shift of
-        R -> dropWhile ((<= Types.sel_cur_track sel) . State.track_tracknum)
-        L -> dropWhile ((>= Types.sel_cur_track sel) . State.track_tracknum)
+        R -> dropWhile ((<= Sel.cur_track sel) . State.track_tracknum)
+        L -> dropWhile ((>= Sel.cur_track sel) . State.track_tracknum)
             . reverse
 
 -- | Progressive selection: select the rest of the track, then the entire
@@ -188,7 +188,7 @@ find_track shift stop = do
 --
 -- TrackNum 0, assumed to be a ruler, is omitted, since selecting the ruler is
 -- not only not useful, it tends to make cmds that want to get a TrackId abort.
-cmd_track_all :: Cmd.M m => Types.SelNum -> m ()
+cmd_track_all :: Cmd.M m => Sel.Num -> m ()
 cmd_track_all selnum = do
     view_id <- Cmd.get_focused_view
     sel <- Cmd.abort_unless =<< State.get_selection view_id selnum
@@ -197,7 +197,7 @@ cmd_track_all selnum = do
     tracks <- length . Block.block_tracks <$> State.get_block block_id
     set_selnum view_id selnum (Just (select_track_all block_end tracks sel))
 
-select_track_all :: TrackTime -> TrackNum -> Types.Selection -> Types.Selection
+select_track_all :: TrackTime -> TrackNum -> Sel.Selection -> Sel.Selection
 select_track_all block_end_ tracks sel
     | sel == select_tracks = select_all
     | sel == select_rest = select_tracks
@@ -205,52 +205,49 @@ select_track_all block_end_ tracks sel
     where
     -- Keep sel_cur_pos at the current position, or set it to the top.
     -- This is so 'auto_scroll' won't jump to the bottom of the block.
-    select_rest =
-        sel { Types.sel_cur_pos = start, Types.sel_start_pos = block_end }
-        where start = fst $ Types.sel_range sel
-    select_tracks =
-        sel { Types.sel_cur_pos = 0, Types.sel_start_pos = block_end }
-    select_all = Types.selection 1 0 tracks block_end
+    select_rest = sel { Sel.cur_pos = start, Sel.start_pos = block_end }
+        where start = fst $ Sel.range sel
+    select_tracks = sel { Sel.cur_pos = 0, Sel.start_pos = block_end }
+    select_all = Sel.selection 1 0 tracks block_end
     -- Otherwise a select-all won't include an event at the end of the block.
     block_end = block_end_ + ScoreTime.eta
 
-merge_sel :: Types.Selection -> Types.Selection -> Types.Selection
-merge_sel (Types.Selection strack spos _ _) (Types.Selection _ _ ctrack cpos) =
-    Types.Selection strack spos ctrack cpos
+merge_sel :: Sel.Selection -> Sel.Selection -> Sel.Selection
+merge_sel (Sel.Selection strack spos _ _) (Sel.Selection _ _ ctrack cpos) =
+    Sel.Selection strack spos ctrack cpos
 
 -- ** set selection from clicks
 
 -- | Select clicked on track.
-cmd_select_track :: Cmd.M m => Types.MouseButton -> Types.SelNum -> Msg.Msg
+cmd_select_track :: Cmd.M m => Types.MouseButton -> Sel.Num -> Msg.Msg
     -> m ()
 cmd_select_track btn selnum msg = do
     view_id <- Cmd.get_focused_view
     ((down_tracknum, _), (mouse_tracknum, _)) <- mouse_drag btn msg
     select_tracks selnum view_id down_tracknum mouse_tracknum
 
-select_tracks :: Cmd.M m => Types.SelNum -> ViewId -> TrackNum -> TrackNum
-    -> m ()
+select_tracks :: Cmd.M m => Sel.Num -> ViewId -> TrackNum -> TrackNum -> m ()
 select_tracks selnum view_id from to = do
     dur <- State.block_event_end =<< State.block_id_of view_id
-    set_selnum view_id selnum $ Just (Types.selection from dur to 0)
+    set_selnum view_id selnum $ Just (Sel.selection from dur to 0)
 
 -- | Set the selection based on a click or drag.
 cmd_mouse_selection :: Cmd.M m =>
-    Types.MouseButton -> Types.SelNum -> Bool -> Msg.Msg -> m ()
+    Types.MouseButton -> Sel.Num -> Bool -> Msg.Msg -> m ()
 cmd_mouse_selection btn selnum extend msg = do
     ((down_tracknum, down_pos), (mouse_tracknum, mouse_pos))
         <- mouse_drag_pos btn msg
     view_id <- Cmd.get_focused_view
     old_sel <- State.get_selection view_id selnum
     let (start_tracknum, start_pos) = case (extend, old_sel) of
-            (True, Just (Types.Selection tracknum pos _ _)) -> (tracknum, pos)
+            (True, Just (Sel.Selection tracknum pos _ _)) -> (tracknum, pos)
             _ -> (down_tracknum, down_pos)
-    let sel = Types.selection start_tracknum start_pos mouse_tracknum mouse_pos
+    let sel = Sel.selection start_tracknum start_pos mouse_tracknum mouse_pos
     set_and_scroll view_id selnum sel
 
 -- | Like 'cmd_mouse_selection', but snap the selection to the current time
 -- step.
-cmd_snap_selection :: Cmd.M m => Types.MouseButton -> Types.SelNum -> Bool
+cmd_snap_selection :: Cmd.M m => Types.MouseButton -> Sel.Num -> Bool
     -> Msg.Msg -> m ()
 cmd_snap_selection btn selnum extend msg = do
     ((down_tracknum, _), (mouse_tracknum, mouse_pos)) <- mouse_drag_pos btn msg
@@ -259,13 +256,13 @@ cmd_snap_selection btn selnum extend msg = do
     view_id <- Cmd.get_focused_view
     old_sel <- State.get_selection view_id selnum
     snap_pos <- TimeStep.snap step block_id mouse_tracknum
-        (Types.sel_cur_pos <$> old_sel) mouse_pos
+        (Sel.cur_pos <$> old_sel) mouse_pos
     snap_pos <- snap_over_threshold view_id block_id mouse_pos snap_pos
     let sel = case old_sel of
             _ | old_sel == Nothing || Msg.mouse_down msg && not extend ->
-                Types.selection down_tracknum snap_pos mouse_tracknum snap_pos
-            Just (Types.Selection tracknum pos _ _) ->
-                Types.selection tracknum pos mouse_tracknum snap_pos
+                Sel.selection down_tracknum snap_pos mouse_tracknum snap_pos
+            Just (Sel.Selection tracknum pos _ _) ->
+                Sel.selection tracknum pos mouse_tracknum snap_pos
             -- ghc doesn't realize it is exhaustive
             _ -> error "Cmd.Selection: not reached"
     set_and_scroll view_id selnum sel
@@ -322,13 +319,13 @@ mouse_drag btn msg = do
 
 -- | If the selection has scrolled off the edge of the window, automatically
 -- scroll it so that the \"current\" end of the selection is in view.
-auto_scroll :: Cmd.M m => ViewId -> Maybe Types.Selection -> Types.Selection
+auto_scroll :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection
     -> m ()
 auto_scroll view_id old new = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
     let zoom_offset = auto_time_scroll view
-            (Types.sel_cur_pos <$> old) (Types.sel_cur_pos new)
+            (Sel.cur_pos <$> old) (Sel.cur_pos new)
         track_offset = auto_track_scroll block view new
     State.set_zoom view_id $
         (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
@@ -353,7 +350,7 @@ auto_time_scroll view prev_pos pos
     visible_pixels = 30
 
 -- | Find the track scroll that would put the given selection into view.
-auto_track_scroll :: Block.Block -> Block.View -> Types.Selection
+auto_track_scroll :: Block.Block -> Block.View -> Sel.Selection
     -> Types.Width
 auto_track_scroll block view sel
     | track_end > view_end = track_end - visible
@@ -369,7 +366,7 @@ auto_track_scroll block view sel
     -- Visible does include the pesky ruler.
     visible = Block.view_visible_track view - maybe 0
         Block.display_track_width (Seq.head (Block.block_tracks block))
-    cur_tracknum = Types.sel_cur_track sel
+    cur_tracknum = Sel.cur_track sel
 
 
 -- ** mouse
@@ -413,13 +410,13 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 {- Getting the selection may seem pretty simple, but there are a number of
     orthogonal flavors:
 
-    - Return a raw Types.Selection, or return its
+    - Return a raw Sel.Selection, or return its
     (ViewId, BlockId, TrackId, TrackTime) context.
 
     - Get a single point from a selection, or a range on a single track, or
     a range of tracks.
 
-    - Get an arbitrary Types.SelNum or use the Config.insert_selnum.
+    - Get an arbitrary Sel.Num or use the Config.insert_selnum.
 
     - Return a Maybe or abort on Nothing.
 
@@ -441,15 +438,15 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 -}
 
 -- | Get the \"point\" position of a Selection.
-point :: Types.Selection -> TrackTime
-point sel = point_pos (Types.sel_start_pos sel) (Types.sel_cur_pos sel)
+point :: Sel.Selection -> TrackTime
+point sel = point_pos (Sel.start_pos sel) (Sel.cur_pos sel)
 
 -- | Given a selection start and end, give the \"point\" position for it.
 point_pos :: TrackTime -> TrackTime -> TrackTime
 point_pos = min
 
-point_track :: Types.Selection -> TrackNum
-point_track sel = min (Types.sel_start_track sel) (Types.sel_cur_track sel)
+point_track :: Sel.Selection -> TrackNum
+point_track sel = min (Sel.start_track sel) (Sel.cur_track sel)
 
 -- | A point on a track.
 type Point = (BlockId, TrackNum, TrackId, TrackTime)
@@ -463,7 +460,7 @@ get_insert = Cmd.abort_unless =<< lookup_insert
 lookup_insert :: Cmd.M m => m (Maybe Point)
 lookup_insert = fmap (fmap snd) $ lookup_selnum_insert Config.insert_selnum
 
-lookup_selnum_insert :: Cmd.M m => Types.SelNum -> m (Maybe (ViewId, Point))
+lookup_selnum_insert :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, Point))
 lookup_selnum_insert selnum =
     justm (lookup_any_selnum_insert selnum) $
     \(view_id, (block_id, tracknum, pos)) ->
@@ -479,8 +476,7 @@ lookup_any_insert :: Cmd.M m => m (Maybe (ViewId, AnyPoint))
 lookup_any_insert = lookup_any_selnum_insert Config.insert_selnum
 
 -- | The most general insertion point function.
-lookup_any_selnum_insert :: Cmd.M m => Types.SelNum
-    -> m (Maybe (ViewId, AnyPoint))
+lookup_any_selnum_insert :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, AnyPoint))
 lookup_any_selnum_insert selnum =
     justm (lookup_selnum selnum) $ \(view_id, sel) -> do
         block_id <- State.block_id_of view_id
@@ -501,31 +497,30 @@ lookup_block_insert block_id = do
             return $ Just (block_id, point_track sel, track_id, point sel)
 
 -- | Get the point track of a selection.
-sel_track :: State.M m => BlockId -> Types.Selection -> m (Maybe TrackId)
+sel_track :: State.M m => BlockId -> Sel.Selection -> m (Maybe TrackId)
 sel_track block_id sel = State.event_track_at block_id (point_track sel)
 
 -- ** plain Selection
 
 -- | Get the insertion selection in the focused view.
-get :: Cmd.M m => m (ViewId, Types.Selection)
+get :: Cmd.M m => m (ViewId, Sel.Selection)
 get = get_selnum Config.insert_selnum
 
 -- | Get the requested selnum in the focused view.
-get_selnum :: Cmd.M m => Types.SelNum -> m (ViewId, Types.Selection)
+get_selnum :: Cmd.M m => Sel.Num -> m (ViewId, Sel.Selection)
 get_selnum selnum = Cmd.abort_unless =<< lookup_selnum selnum
 
-lookup :: Cmd.M m => m (Maybe (ViewId, Types.Selection))
+lookup :: Cmd.M m => m (Maybe (ViewId, Sel.Selection))
 lookup = lookup_selnum Config.insert_selnum
 
-lookup_selnum :: Cmd.M m => Types.SelNum
-    -> m (Maybe (ViewId, Types.Selection))
+lookup_selnum :: Cmd.M m => Sel.Num -> m (Maybe (ViewId, Sel.Selection))
 lookup_selnum selnum =
     justm Cmd.lookup_focused_view $ \view_id ->
     justm (State.get_selection view_id selnum) $ \sel ->
     return $ Just (view_id, sel)
 
 range :: Cmd.M m => m (TrackTime, TrackTime)
-range = Types.sel_range . snd <$> get
+range = Sel.range . snd <$> get
 
 -- ** selections in RealTime
 
@@ -578,7 +573,7 @@ relative_realtime root_id = do
     perf <- Cmd.get_performance root_id
     let root_pos = point_to_real (Cmd.perf_tempo perf) maybe_root_sel
     let warp = Cmd.perf_closest_warp perf block_id track_id root_pos
-    let (start, end) = Types.sel_range sel
+    let (start, end) = Sel.range sel
     return (Score.warp_pos warp start, Score.warp_pos warp end)
 
 -- | Get the RealTime range of the current selection, as derived from current
@@ -589,7 +584,7 @@ local_realtime = do
     block_id <- State.block_id_of view_id
     track_id <- Cmd.abort_unless =<< sel_track block_id sel
     perf <- Cmd.get_performance block_id
-    let (start, end) = Types.sel_range sel
+    let (start, end) = Sel.range sel
     let warp = Cmd.perf_closest_warp perf block_id track_id 0
     return (block_id, Score.warp_pos warp start, Score.warp_pos warp end)
 
@@ -630,7 +625,7 @@ events_around :: Cmd.M m => m SelectedAround
 events_around = events_around_selnum Config.insert_selnum
 
 -- | Select events whose @pos@ lie strictly within the selection range.
-strict_events_around :: Cmd.M m => Types.SelNum -> m SelectedAround
+strict_events_around :: Cmd.M m => Sel.Num -> m SelectedAround
 strict_events_around selnum = do
     (_, _, track_ids, start, end) <- tracks_selnum selnum
     tracks <- mapM State.get_track track_ids
@@ -649,7 +644,7 @@ strict_events_around selnum = do
 --
 -- This is the standard definition of a selection, and should be used in all
 -- standard selection using commands.
-events_around_selnum :: Cmd.M m => Types.SelNum -> m SelectedAround
+events_around_selnum :: Cmd.M m => Sel.Num -> m SelectedAround
 events_around_selnum selnum = do
     selected <- strict_events_around selnum
     return $ do
@@ -693,7 +688,7 @@ track = do
     return (block_id, maybe_track_id)
 
 -- | Selected tracks, including merged tracks.
-tracks_selnum :: Cmd.M m => Types.SelNum -> m Tracks
+tracks_selnum :: Cmd.M m => Sel.Num -> m Tracks
 tracks_selnum selnum = do
     (block_id, tracknums, track_ids, start, end) <- strict_tracks_selnum selnum
     tracks <- mapM (State.get_block_track_at block_id) tracknums
@@ -705,17 +700,17 @@ tracks_selnum selnum = do
     return (block_id, all_tracknums, all_track_ids, start, end)
 
 -- | Selected tracks, not including merged tracks.
-strict_tracks_selnum :: Cmd.M m => Types.SelNum -> m Tracks
+strict_tracks_selnum :: Cmd.M m => Sel.Num -> m Tracks
 strict_tracks_selnum selnum = do
     (view_id, sel) <- get_selnum selnum
     block_id <- State.block_id_of view_id
     tracks <- State.track_count block_id
-    let tracknums = Types.sel_tracknums tracks sel
+    let tracknums = Sel.tracknums tracks sel
     tracklikes <- mapM (State.track_at block_id) tracknums
     (tracknums, track_ids) <- return $ unzip
         [(i, track_id) | (i, Just (Block.TId track_id _))
             <- zip tracknums tracklikes]
-    let (start, end) = Types.sel_range sel
+    let (start, end) = Sel.range sel
     return (block_id, tracknums, track_ids, start, end)
 
 tracknums_of :: Block.Block -> [TrackId] -> [(TrackNum, TrackId)]

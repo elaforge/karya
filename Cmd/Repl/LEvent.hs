@@ -14,9 +14,9 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
@@ -59,7 +59,7 @@ stretch_to dur = do
 sel_dur :: Cmd.M m => m TrackTime
 sel_dur = do
     (_, sel) <- Selection.get
-    return $ Types.sel_duration sel
+    return $ Sel.duration sel
 
 modify_dur :: Cmd.M m => (ScoreTime -> ScoreTime) -> m ()
 modify_dur = Edit.modify_dur

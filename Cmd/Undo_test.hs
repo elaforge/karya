@@ -13,8 +13,8 @@ import Util.Test
 
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
@@ -259,7 +259,7 @@ insert_event pos text = UiTest.insert_event 1 (pos, 1, text)
 
 set_sel :: Cmd.M m => ScoreTime -> m ()
 set_sel pos = Cmd.name "select" $ Selection.set_current Config.insert_selnum
-    (Just (Types.point_selection 1 pos))
+    (Just (Sel.point_selection 1 pos))
 
 
 -- ** extract

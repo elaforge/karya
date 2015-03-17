@@ -74,6 +74,7 @@ import Ui.PtrMap (CView)
 import qualified Ui.Ruler as Ruler
 import qualified Ui.RulerC as RulerC
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.TrackC as TrackC
@@ -142,7 +143,7 @@ set_track_scroll view_id offset = fltk $ exc "set_track_scroll" $ do
 foreign import ccall "set_track_scroll"
     c_set_track_scroll :: Ptr CView -> CInt -> IO ()
 
-set_selection :: ViewId -> Types.SelNum -> [TrackNum] -> [Selection] -> Fltk ()
+set_selection :: ViewId -> Sel.Num -> [TrackNum] -> [Selection] -> Fltk ()
 set_selection view_id selnum tracknums sels
     | null tracknums = fltk $ return ()
     | otherwise = fltk $ exc "set_selection" $ do

@@ -13,9 +13,9 @@ import qualified Data.Text as Text
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
@@ -141,9 +141,9 @@ modify_event_near_point :: Cmd.M m =>
     ((ScoreTime, ScoreTime) -> Event.Event -> Event.Event) -> m ()
 modify_event_near_point modify = do
     (_, sel) <- Selection.get
-    if Types.sel_is_point sel
-        then modify_prev (Types.sel_start_pos sel)
-        else modify_selection (Types.sel_range sel)
+    if Sel.is_point sel
+        then modify_prev (Sel.start_pos sel)
+        else modify_selection (Sel.range sel)
     where
     modify_selection = ModifyEvents.selection . ModifyEvents.event . modify
     modify_prev pos = do
@@ -201,10 +201,9 @@ alter_duration alter = do
         (Just <$> mapM (alter block_id track_id) events)
         (return Nothing)
 
-first_track_is_note :: State.M m => BlockId -> Types.Selection -> m Bool
+first_track_is_note :: State.M m => BlockId -> Sel.Selection -> m Bool
 first_track_is_note block_id sel =
-    find =<< Types.sel_tracknums <$> State.track_count block_id
-        <*> return sel
+    find =<< Sel.tracknums <$> State.track_count block_id <*> return sel
     where
     find [] = return False
     find (tracknum:tracknums) =
@@ -443,8 +442,7 @@ cmd_clear_and_advance :: Cmd.M m => m ()
 cmd_clear_and_advance = do
     cmd_clear_selected
     (_, sel) <- Selection.get
-    when (Types.sel_is_point sel
-            && Types.sel_start_track sel == Types.sel_cur_track sel)
+    when (Sel.is_point sel && Sel.start_track sel == Sel.cur_track sel)
         Selection.advance
 
 -- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank.  Otherwise,
@@ -614,8 +612,8 @@ open_floating selection = do
     (_, tracknum, track_id, _) <- Selection.get_insert
     dir <- Cmd.gets (Cmd.state_note_direction . Cmd.state_edit)
     let pos = case dir of
-            TimeStep.Advance -> fst (Types.sel_range sel)
-            TimeStep.Rewind -> snd (Types.sel_range sel)
+            TimeStep.Advance -> fst (Sel.range sel)
+            TimeStep.Rewind -> snd (Sel.range sel)
     text <- fromMaybe "" <$> event_text_at track_id pos
     return $ Cmd.FloatingInput $ Cmd.FloatingOpen view_id tracknum pos text
         (selection text)

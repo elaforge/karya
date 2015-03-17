@@ -37,6 +37,7 @@ import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -329,7 +330,7 @@ instance Serialize Block.View where
                 status :: Map.Map (Int, Text) Text <- get
                 track_scroll :: Types.Width <- get
                 zoom :: Types.Zoom <- get
-                selections :: Map.Map Types.SelNum Types.Selection <- get
+                selections :: Map.Map Sel.Num Sel.Selection <- get
                 return $ Block.View block rect visible_track visible_time
                     status track_scroll zoom selections
             _ -> Serialize.bad_version "Block.View" v
@@ -347,14 +348,14 @@ instance Serialize Types.Zoom where
         factor :: Double <- get
         return $ Types.Zoom offset factor
 
-instance Serialize Types.Selection where
-    put (Types.Selection a b c d) = put a >> put b >> put c >> put d
+instance Serialize Sel.Selection where
+    put (Sel.Selection a b c d) = put a >> put b >> put c >> put d
     get = do
         strack :: Int <- get
         stime :: ScoreTime <- get
         ctrack :: Int <- get
         ctime :: ScoreTime <- get
-        return $ Types.Selection strack stime ctrack ctime
+        return $ Sel.Selection strack stime ctrack ctime
 
 -- ** Types, Color, Font
 

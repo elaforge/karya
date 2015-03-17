@@ -27,8 +27,8 @@ import qualified Data.Vector as Vector
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Midi.State
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
@@ -45,7 +45,7 @@ import Global
 import Types
 
 
-selnum :: Types.SelNum
+selnum :: Sel.Num
 selnum = Config.step_play_selnum
 
 cmd_set_or_advance :: Cmd.M m => Bool -> m ()
@@ -71,7 +71,7 @@ set step_back play_selected_tracks = do
     view_id <- Cmd.get_focused_view
     tracks <- State.track_count block_id
     play_tracks <- if play_selected_tracks
-        then Types.sel_tracknums tracks . snd <$> Selection.get
+        then Sel.tracknums tracks . snd <$> Selection.get
         else return []
     initialize view_id block_id play_tracks
     start <- if step_back
@@ -248,8 +248,8 @@ set_selections view_ids pos tracks = sequence_
     where
     -- I can't display disjoint selections so assume the tracks are
     -- contiguous.
-    sel pos = Just $ if null tracks then Types.selection 0 pos 999 pos
-        else Types.selection (minimum tracks) pos (maximum tracks) pos
+    sel pos = Just $ if null tracks then Sel.selection 0 pos 999 pos
+        else Sel.selection (minimum tracks) pos (maximum tracks) pos
 
 get :: Cmd.M m => m (Maybe Cmd.StepState)
 get = Cmd.gets (Cmd.state_step . Cmd.state_play)

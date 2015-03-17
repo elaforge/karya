@@ -90,6 +90,7 @@ import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 
@@ -148,9 +149,9 @@ local_selection :: Cmd.M m => m Cmd.PlayMidiArgs
 local_selection = do
     (block_id, _, track_id, _) <- Selection.get_insert
     (_, sel) <- Selection.get
-    let (pos, repeat_at) = if Types.sel_is_point sel
-            then (Types.sel_start_pos sel, Nothing)
-            else Just <$> Types.sel_range sel
+    let (pos, repeat_at) = if Sel.is_point sel
+            then (Sel.start_pos sel, Nothing)
+            else Just <$> Sel.range sel
     from_score block_id (Just track_id) pos repeat_at
 
 -- | Play the current block's performance from the previous

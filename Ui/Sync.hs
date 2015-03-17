@@ -47,10 +47,10 @@ import qualified Ui.Color as Color
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.PtrMap as PtrMap
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
-import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.Update as Update
 
@@ -170,7 +170,7 @@ group_by_view view_sels = map (second Seq.group_fst) by_view
 clear_highlights :: Ui.Channel -> [ViewId] -> IO ()
 clear_highlights = clear_selections Config.highlight_selnum
 
-clear_selections :: Types.SelNum -> Ui.Channel -> [ViewId] -> IO ()
+clear_selections :: Sel.Num -> Ui.Channel -> [ViewId] -> IO ()
 clear_selections selnum chan view_ids = unless (null view_ids) $
     Ui.send_action chan $
         mapM_ (\view_id -> set_selection_carefully view_id selnum Nothing [])
@@ -181,7 +181,7 @@ clear_selections selnum chan view_ids = unless (null view_ids) $
 --
 -- This can be called outside of the responder loop, and the caller may have
 -- an out of date UI state.
-set_selection_carefully :: ViewId -> Types.SelNum -> Maybe [TrackNum]
+set_selection_carefully :: ViewId -> Sel.Num -> Maybe [TrackNum]
     -> [BlockC.Selection] -> Ui.Fltk ()
 set_selection_carefully view_id selnum maybe_tracknums sels =
     whenM (liftIO $ PtrMap.view_exists view_id) $ do
@@ -246,7 +246,7 @@ update_view track_signals set_style view_id Update.CreateView = do
     tracklikes <- mapM (State.get_tracklike . Block.dtracklike_id) dtracks
 
     let sels = Block.view_selections view
-        selnum_sels :: [(Types.SelNum, [([TrackNum], [BlockC.Selection])])]
+        selnum_sels :: [(Sel.Num, [([TrackNum], [BlockC.Selection])])]
         selnum_sels =
             [ (selnum, track_selections selnum (length btracks) (Just sel))
             | (selnum, sel) <- Map.toAscList sels
@@ -475,9 +475,9 @@ events_of_track_ids state = mapMaybe events_of . Set.toList
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
     tracks = State.state_tracks state
 
--- | Convert Types.Selection to BlockC.Selection.  Return sets of tracknums and
+-- | Convert Sel.Selection to BlockC.Selection.  Return sets of tracknums and
 -- the selections they should have.
-track_selections :: Types.SelNum -> TrackNum -> Maybe Types.Selection
+track_selections :: Sel.Num -> TrackNum -> Maybe Sel.Selection
     -> [([TrackNum], [BlockC.Selection])]
 track_selections selnum tracks maybe_sel = case maybe_sel of
     Nothing -> [([0 .. tracks - 1], [])]
@@ -485,17 +485,16 @@ track_selections selnum tracks maybe_sel = case maybe_sel of
         : if null tracknums then []
             else [(tracknums, [convert_selection selnum sel])]
         where
-        tracknums = Types.sel_tracknums tracks sel
-        (low, high) = Types.sel_track_range sel
+        tracknums = Sel.tracknums tracks sel
+        (low, high) = Sel.track_range sel
         clear = [0 .. low - 1] ++ [high + 1 .. tracks - 1]
 
-convert_selection :: Types.SelNum -> Types.Selection -> BlockC.Selection
+convert_selection :: Sel.Num -> Sel.Selection -> BlockC.Selection
 convert_selection selnum sel = BlockC.Selection
     { BlockC.sel_color = color
-    , BlockC.sel_start = Types.sel_start_pos sel
-    , BlockC.sel_cur = Types.sel_cur_pos sel
-    , BlockC.sel_draw_arrow =
-        Types.sel_start_pos sel == Types.sel_cur_pos sel
+    , BlockC.sel_start = Sel.start_pos sel
+    , BlockC.sel_cur = Sel.cur_pos sel
+    , BlockC.sel_draw_arrow = Sel.start_pos sel == Sel.cur_pos sel
     }
     where color = Config.lookup_selection_color selnum
 

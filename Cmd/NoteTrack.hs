@@ -25,9 +25,9 @@ import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ControlTrack as ControlTrack
@@ -140,7 +140,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
     is_dyn = (== Just Score.c_dynamic) . ParseTitle.title_to_control
     set_temp_sel pos maybe_tracknum = Selection.set_current
         Config.temporary_insert_selnum $
-            fmap (\num -> Types.point_selection num pos) maybe_tracknum
+            fmap (\num -> Sel.point_selection num pos) maybe_tracknum
     dissociate_note_id note_id = Cmd.modify_wdev_state $ \st -> st
         { Cmd.wdev_pitch_track = Map.delete note_id (Cmd.wdev_pitch_track st) }
     associate_note_id block_id tracknum note_id = Cmd.modify_wdev_state $

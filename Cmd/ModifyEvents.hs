@@ -14,9 +14,9 @@ import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
@@ -80,7 +80,7 @@ selection f = do
 selection_advance :: Cmd.M m => Track m -> m ()
 selection_advance f = do
     selection f
-    whenM (Types.sel_is_point . snd <$> Selection.get)
+    whenM (Sel.is_point . snd <$> Selection.get)
         Selection.advance
 
 -- | Map a function over the events that overlap the selection point.

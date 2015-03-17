@@ -22,6 +22,7 @@ import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
@@ -362,13 +363,13 @@ extract_track_ids state =
 
 -- * view
 
-select :: State.M m => ViewId -> Types.Selection -> m ()
+select :: State.M m => ViewId -> Sel.Selection -> m ()
 select view_id sel =
     State.set_selection view_id Config.insert_selnum (Just sel)
 
 select_point :: State.M m => ViewId -> TrackNum -> ScoreTime -> m ()
 select_point view_id tracknum pos =
-    select view_id (Types.point_selection tracknum pos)
+    select view_id (Sel.point_selection tracknum pos)
 
 -- * non-monadic make_- functions
 

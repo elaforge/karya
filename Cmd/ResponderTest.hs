@@ -37,8 +37,8 @@ import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
 import qualified Midi.StubMidi as StubMidi
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 import qualified Ui.Ui as Ui
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
@@ -67,7 +67,7 @@ mkstates tracks = (ui_state, mk_cmd_state ui_state UiTest.default_view_id)
     ui_state = UiTest.exec State.empty $ do
         UiTest.mkblock_view (UiTest.default_block_name, tracks)
         State.set_selection UiTest.default_view_id Config.insert_selnum $
-            Just $ Types.selection 1 0 1 0
+            Just $ Sel.selection 1 0 1 0
 
 -- | Many cmds rely on a focused view, and it's easy to forget to add it, so
 -- make it mandatory.

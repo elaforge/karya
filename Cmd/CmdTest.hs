@@ -19,6 +19,7 @@ import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
@@ -242,7 +243,7 @@ set_sel = set_sel_on UiTest.default_view_id
 set_sel_on :: Cmd.M m => ViewId -> Types.TrackNum -> ScoreTime
     -> Types.TrackNum -> ScoreTime -> m ()
 set_sel_on view_id start_track start_pos cur_track cur_pos = do
-    let sel = Types.selection start_track start_pos cur_track cur_pos
+    let sel = Sel.selection start_track start_pos cur_track cur_pos
     Cmd.modify $ \st -> st { Cmd.state_focused_view = Just view_id }
     State.set_selection view_id Config.insert_selnum (Just sel)
 
@@ -255,7 +256,7 @@ set_point_sel tracknum pos = do
 set_point_sel_block :: State.M m => String -> Types.TrackNum -> ScoreTime
     -> m ()
 set_point_sel_block block_name tracknum pos = State.set_selection view_id
-        Config.insert_selnum (Just (Types.point_selection tracknum pos))
+        Config.insert_selnum (Just (Sel.point_selection tracknum pos))
     where view_id = UiTest.mk_vid_name block_name
 
 

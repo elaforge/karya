@@ -13,10 +13,10 @@ import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
+import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -235,7 +235,7 @@ resolve_relative_call ns caller sym
 block_from_template :: Cmd.M m => m ()
 block_from_template = do
     (_, sel) <- Selection.get
-    if Types.sel_is_point sel
+    if Sel.is_point sel
         then void $ Create.view =<< Create.block_from_template False
             =<< Cmd.get_focused_block
         else void block_template_from_selection

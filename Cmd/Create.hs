@@ -33,6 +33,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
@@ -232,7 +233,7 @@ sized_view block_id rect = do
             _ -> Just 1
     whenJust maybe_tracknum $ \tracknum ->
         State.set_selection view_id Config.insert_selnum $
-            Just $ Types.point_selection tracknum 0
+            Just $ Sel.point_selection tracknum 0
     return view_id
 
 -- | This is like 'unfitted_view', but tries to fit the view size to its

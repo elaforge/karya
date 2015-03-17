@@ -41,8 +41,8 @@ import qualified Util.Seq as Seq
 import Midi.Synth ()
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -177,17 +177,17 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
             Selection.set_selnum vid Config.error_selnum
-                (Just (Types.selection 0 0 9999 9999))
+                (Just (Sel.selection 0 0 9999 9999))
         (Just tid, Nothing) -> do
             tracknum <- State.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
                 Selection.set_selnum vid Config.error_selnum
-                    (Just (Types.selection tracknum 0 tracknum 9999))
+                    (Just (Sel.selection tracknum 0 tracknum 9999))
         (Just tid, Just (from, to)) -> do
             tracknum <- State.get_tracknum_of block_id tid
             forM_ view_ids $ \vid ->
                 Selection.set_and_scroll vid Config.error_selnum
-                    (Types.selection tracknum to tracknum from)
+                    (Sel.selection tracknum to tracknum from)
     where
     find_block = case maybe_tid of
         Nothing -> Cmd.throw $

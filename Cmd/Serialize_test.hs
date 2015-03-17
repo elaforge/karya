@@ -10,9 +10,9 @@ import qualified Util.Serialize
 import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.Score as Score
@@ -46,7 +46,7 @@ test_serialize = do
     equal tdest (recode tdest)
     let flags = [minBound .. maxBound] :: [Block.TrackFlag]
     equal flags (recode flags)
-    let sel = Types.Selection 1 2 3 4
+    let sel = Sel.Selection 1 2 3 4
     equal sel (recode sel)
 
     let rstyle =

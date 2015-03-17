@@ -10,11 +10,11 @@
 module Cmd.Repl.LSymbol where
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Symbol as Symbol
 import qualified Ui.SymbolC as SymbolC
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
@@ -33,7 +33,7 @@ make = do
         Track.track "" (Events.singleton (Event.event 0 5 "symbol"))
     State.set_track_width bid 0 0
     vid <- Create.view bid
-    Selection.set vid (Just (Types.point_selection 1 0))
+    Selection.set vid (Just (Sel.point_selection 1 0))
 
 -- | Put the given Symbol into the test block.
 set :: Symbol.Symbol -> Cmd.CmdL ()

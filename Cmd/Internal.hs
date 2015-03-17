@@ -26,9 +26,9 @@ import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Key as Key
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
@@ -306,7 +306,7 @@ default_selection_hooks =
     , mapM_ (uncurry sync_selection_control)
     ]
 
-run_selection_hooks :: [(ViewId, Maybe Types.Selection)] -> Cmd.CmdId ()
+run_selection_hooks :: [(ViewId, Maybe Sel.Selection)] -> Cmd.CmdId ()
 run_selection_hooks [] = return ()
 run_selection_hooks sels = do
     sel_tracks <- forM sels $ \(view_id, maybe_sel) -> case maybe_sel of
@@ -412,10 +412,10 @@ sync_selection_status view_id maybe_sel = case maybe_sel of
     Just (sel, block_id, maybe_track_id) -> do
         ns <- State.get_namespace
         set $ Just $ selection_status ns sel maybe_track_id
-        Info.set_inst_status block_id (Types.sel_cur_track sel)
+        Info.set_inst_status block_id (Sel.cur_track sel)
     where set = Cmd.set_view_status view_id Config.status_selection
 
-selection_status :: Id.Namespace -> Types.Selection -> Maybe TrackId -> Text
+selection_status :: Id.Namespace -> Sel.Selection -> Maybe TrackId -> Text
 selection_status ns sel maybe_track_id = Text.unwords $ filter (not . Text.null)
     [ pretty_rational start
         <> (if start == end then "" else Text.cons '-' (pretty_rational end))
@@ -425,8 +425,8 @@ selection_status ns sel maybe_track_id = Text.unwords $ filter (not . Text.null)
     <> maybe "" (Id.show_short ns . Id.unpack_id) maybe_track_id
     ]
     where
-    (start, end) = Types.sel_range sel
-    (tstart, tend) = Types.sel_track_range sel
+    (start, end) = Sel.range sel
+    (tstart, tend) = Sel.track_range sel
 
 sync_selection_realtime :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
 sync_selection_realtime view_id maybe_sel = case maybe_sel of

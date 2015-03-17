@@ -5,14 +5,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Miscellaneous low level types with few dependencies.
 module Ui.Types (
-    TrackNum, Width, SelNum, MouseButton
+    TrackNum, Width, MouseButton
     , Zoom(..)
     , zoom_to_pixels, zoom_to_time
-
-    -- * Selection
-    , Selection(..), selection, point_selection, sel_is_point
-    , sel_modify_tracks, sel_expand_tracks, sel_track_range, sel_tracknums
-    , sel_range, sel_duration, sel_set_duration
 ) where
 import Util.ForeignC
 import qualified Util.Num as Num
@@ -34,8 +29,6 @@ import Global
 type TrackNum = Int
 -- | Width of a track in pixels.
 type Width = Int
--- | Index into the the selection list.
-type SelNum = Int
 -- | Mouse button number.
 type MouseButton = Int
 
@@ -88,78 +81,3 @@ zoom_to_pixels zoom pos = Num.d2i $ ScoreTime.to_double pos * zoom_factor zoom
 zoom_to_time :: Zoom -> Int -> TrackTime
 zoom_to_time zoom pixels =
     ScoreTime.double (fromIntegral pixels / zoom_factor zoom)
-
-
--- * selection
-
-data Selection = Selection {
-    -- | The position the selection was established at.
-    sel_start_track :: TrackNum
-    , sel_start_pos :: TrackTime
-
-    -- | The position the selection is now at.  The tracks are an inclusive
-    -- range, the pos are half-open.  This is because these pairs are meant to
-    -- be symmetrical, but the c++ layer only supports half-open pos ranges.
-    -- I don't think there's much I can do about this.
-    , sel_cur_track :: TrackNum
-    , sel_cur_pos :: TrackTime
-    } deriving (Eq, Ord, Show, Read)
-
-instance Pretty.Pretty Selection where
-    pretty (Selection strack spos ctrack cpos) =
-        "Selection " <> pretty (strack, spos) <> "--" <> pretty (ctrack, cpos)
-
-selection :: TrackNum -> TrackTime -> TrackNum -> TrackTime -> Selection
-selection start_track start_pos cur_track cur_pos =
-    Selection start_track start_pos cur_track cur_pos
-
--- | A point is a selection with no duration.
-point_selection :: TrackNum -> TrackTime -> Selection
-point_selection tracknum pos = selection tracknum pos tracknum pos
-
-sel_is_point :: Selection -> Bool
-sel_is_point sel = sel_start_pos sel == sel_cur_pos sel
-
-sel_modify_tracks :: (TrackNum -> TrackNum) -> Selection -> Selection
-sel_modify_tracks f sel = sel
-    { sel_start_track = f (sel_start_track sel)
-    , sel_cur_track = f (sel_cur_track sel)
-    }
-
-sel_expand_tracks :: TrackNum -> Selection -> Selection
-sel_expand_tracks n sel
-    | cur > start = sel { sel_cur_track = cur + n }
-    | otherwise = sel { sel_start_track = start + n }
-    where
-    start = sel_start_track sel
-    cur = sel_cur_track sel
-
--- | Start and end tracks, from small to large.
-sel_track_range :: Selection -> (TrackNum, TrackNum)
-sel_track_range sel = (min track0 track1, max track0 track1)
-    where (track0, track1) = (sel_start_track sel, sel_cur_track sel)
-
--- | TrackNums covered by the selection.  Since Selections may have out of
--- range tracks, I need the number of tracks to generate a list of valid
--- TrackNums.
-sel_tracknums :: TrackNum -> Selection -> [TrackNum]
-sel_tracknums tracks sel
-    | tracks <= 0 = []
-    | otherwise = [Num.clamp 0 (tracks-1) start .. Num.clamp 0 (tracks-1) end]
-    where (start, end) = sel_track_range sel
-
--- | Start and end points, from small to large.
-sel_range :: Selection -> (TrackTime, TrackTime)
-sel_range sel = (min pos0 pos1, max pos0 pos1)
-    where (pos0, pos1) = (sel_start_pos sel, sel_cur_pos sel)
-
-sel_duration :: Selection -> TrackTime
-sel_duration sel = abs (sel_start_pos sel - sel_cur_pos sel)
-
-sel_set_duration :: TrackTime -> Selection -> Selection
-sel_set_duration dur sel
-    | cur > start = sel { sel_cur_pos = start + (max 0 dur) }
-    | otherwise = sel { sel_start_pos = cur + (max 0 dur) }
-    where
-    start = sel_start_pos sel
-    cur = sel_cur_pos sel

@@ -42,6 +42,7 @@ import qualified Ui.Dump as Dump
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.Sync as Sync
@@ -80,7 +81,7 @@ test_create_resize_destroy_view = thread (return State.empty) $
     ("view with selection and titles", do
         v1 <- setup_state
         State.set_view_rect v1 (Rect.xywh 200 200 200 200)
-        set_selection v1 (Types.point_selection 1 20)
+        set_selection v1 (Sel.point_selection 1 20)
         view <- State.get_view v1
         State.set_block_title (Block.view_block view) "block title"
         State.set_track_title t_track1_id "new track"
@@ -120,7 +121,7 @@ test_create_two_views = thread run_setup $
 test_set_block_config = do
     state <- run State.empty $ do
         setup_state
-        set_selection t_view_id (Types.selection 1 10 2 60)
+        set_selection t_view_id (Sel.selection 1 10 2 60)
     io_human "boxes go red" $ run state $ do
         block <- State.get_block t_block_id
         let config = Block.block_config block
@@ -326,7 +327,7 @@ test_create_track = do
     let msg = "new track with selection and new title, all bgs green"
     _ <- io_human msg $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 50
-        set_selection t_view_id (Types.selection 1 10 1 60)
+        set_selection t_view_id (Sel.selection 1 10 1 60)
         State.set_track_title t_track1_id "new track"
         State.set_track_bg t_track1_id Color.green
     return ()
@@ -343,9 +344,9 @@ test_alter_track = do
 test_selection = do
     state <- run_setup
     state <- io_human "selection is set" $ run state $ do
-        set_selection t_view_id (Types.selection 0 10 1 20)
+        set_selection t_view_id (Sel.selection 0 10 1 20)
     _ <- io_human "selection is cleared" $ run state $ do
-        set_selection t_view_id (Types.selection 0 10 0 20)
+        set_selection t_view_id (Sel.selection 0 10 0 20)
     return ()
 
 cue_marklist :: Ruler.Marklist
@@ -376,7 +377,7 @@ test_modify_ruler = do
 test_selection_change_tracks = do
     state <- run_setup
     state <- run state $
-        set_selection t_view_id (Types.selection 1 10 1 20)
+        set_selection t_view_id (Sel.selection 1 10 1 20)
     state <- io_human "sel moves when new track is added" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 40
     _ <- io_human "sel moves back" $ run state $ do
@@ -390,7 +391,7 @@ test_insert_into_selection = do
         insert_track t_block_id 1 (Block.TId t2 t_ruler_id) 60
         create_track "b1.t3" track_with_events
         insert_track t_block_id 2 (Block.TId t2 t_ruler_id) 60
-        set_selection v1 (Types.selection 0 10 2 60)
+        set_selection v1 (Sel.selection 0 10 2 60)
     state <- io_human "insert into sel, gets bigger" $ run state $ do
         insert_track t_block_id 1 (Block.TId t_track1_id t_ruler_id) 20
     _ <- io_human "remove from sel, gets smaller" $ run state $ do
@@ -451,7 +452,7 @@ parse_dump = either (error . ("failed to parse dump: "++) . untxt) id
 track_with_events :: Track.Track
 track_with_events = UiTest.make_track ("2", [(16, 10, "ho"), (30, 32, "eyo")])
 
-set_selection :: State.M m => ViewId -> Types.Selection -> m ()
+set_selection :: State.M m => ViewId -> Sel.Selection -> m ()
 set_selection view_id sel = State.set_selection view_id 0 (Just sel)
 
 t_block = "b1"

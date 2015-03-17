@@ -176,7 +176,6 @@ name_to_nn (pc : name) =
     pcs = Map.fromList $ zip "cdefgab" (scanl (+) 0 Theory.piano_intervals)
 name_to_nn _ = Nothing
 
-
 c_hz :: Derive.ValCall
 c_hz = val_call "hz" mempty "Convert a pitch or NoteNumber to hz." $
     Sig.call (Sig.required "val" "") $ \val _ -> case val of

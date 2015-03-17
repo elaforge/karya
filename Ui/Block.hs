@@ -16,6 +16,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
+import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
@@ -402,7 +403,7 @@ data View = View {
     , view_track_scroll :: !Types.Width
     , view_zoom :: !Types.Zoom
 
-    , view_selections :: !(Map.Map Types.SelNum Types.Selection)
+    , view_selections :: !(Map.Map Sel.Num Sel.Selection)
     } deriving (Eq, Ord, Show, Read)
 
 instance Pretty.Pretty View where

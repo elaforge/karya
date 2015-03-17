@@ -166,7 +166,7 @@ UNSORTED
   * it seems like "floating_input" would be a better name than "edit_input"
   - thru on *legong notes is wrong the first time
     can see this editing rehearsal/kendang-legong
-  - move Types.Selection to its own module.  That leaves just aliases
+  * move Types.Selection to its own module.  That leaves just aliases
     TrackNum, Width, SelNum, MouseButton
     . But then it has the same name as Cmd.Selection.  Call it Sel?
   - can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need

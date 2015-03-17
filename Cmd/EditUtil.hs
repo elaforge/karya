@@ -12,9 +12,9 @@ import qualified Data.Text as Text
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
+import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
@@ -37,7 +37,7 @@ get_pos :: Cmd.M m => m Pos
 get_pos = do
     (view_id, sel) <- Selection.get
     block_id <- State.block_id_of view_id
-    let (start, end) = Types.sel_range sel
+    let (start, end) = Sel.range sel
     return $ Pos block_id (Selection.point_track sel) (Selection.point sel)
         (end - start)
 
@@ -173,7 +173,7 @@ fallthrough msg = do
     -- When clearing a range, let the global Edit.cmd_clear_selected handle it.
     let is_backspace = Msg.key_down msg == Just Key.Backspace
     (_, sel) <- Selection.get
-    when (is_backspace && not (Types.sel_is_point sel)) Cmd.abort
+    when (is_backspace && not (Sel.is_point sel)) Cmd.abort
 
 -- | Convert an InputKey to the symbolic Note that it should be.
 --
