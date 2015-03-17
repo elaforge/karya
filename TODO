@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - val calls for twelve NNs?  e.g. (hz c4)
+  * val calls for twelve NNs?  e.g. (hz c4)
   * factor out replicated mridangam / pakhawaj code
   * move Local.Instrument.Kontakt* modules into subdir
   format bugs:

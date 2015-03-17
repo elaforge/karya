@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Val where
+import qualified Data.Map as Map
+
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
@@ -21,6 +23,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
+import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
@@ -149,11 +152,30 @@ c_reciprocal = val_call "reciprocal" mempty
             else return (1 / num :: Double)
 
 c_nn :: Derive.ValCall
-c_nn = val_call "nn" mempty "Convert a pitch or hz to a NoteNumber." $
-    Sig.call (Sig.required "val" "") $ \val _ -> case val of
+c_nn = val_call "nn" mempty
+    "Convert a pitch, hz, or twelve-tone pitch name to a NoteNumber.\
+    \ A pitch name looks like `[a-g]s?[-1-9]`."
+    $ Sig.call (Sig.required "val" "") $ \val _ -> case val of
         Left pitch -> realToFrac <$> Pitches.pitch_nn
             (PitchSignal.coerce (pitch :: PitchSignal.Pitch))
-        Right hz -> return (realToFrac (Pitch.hz_to_nn hz) :: Double)
+        Right (Left hz) -> return (realToFrac (Pitch.hz_to_nn hz) :: Double)
+        Right (Right (TrackLang.Symbol name)) ->
+            maybe (Derive.throw $ "unknown pitch: " <> showt name)
+                (return . realToFrac) (name_to_nn (untxt name))
+
+-- | c-1 is 0, g9 is 127
+name_to_nn :: String -> Maybe Pitch.NoteNumber
+name_to_nn (pc : name) =
+    make <$> Map.lookup pc pcs <*> Map.lookup oct_s octaves
+    where
+    make pc oct = Pitch.NoteNumber $ fromIntegral $ pc + sharp + oct * 12
+    (sharp, oct_s) = case name of
+        's' : rest -> (1, rest)
+        _ -> (0, name)
+    octaves = Map.fromList $ zip (map show [-1 .. 9]) [0..]
+    pcs = Map.fromList $ zip "cdefgab" (scanl (+) 0 Theory.piano_intervals)
+name_to_nn _ = Nothing
+
 
 c_hz :: Derive.ValCall
 c_hz = val_call "hz" mempty "Convert a pitch or NoteNumber to hz." $
