@@ -8,8 +8,6 @@
 -- figure out how to parse .nki files or something.
 module Local.Instrument.Kontakt where
 import qualified Data.List as List
-import qualified Data.Map as Map
-import qualified Data.Text as Text
 
 import qualified Midi.CC as CC
 import qualified Midi.Key as Key
@@ -45,7 +43,6 @@ import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
-import Derive.Score (attr)
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
@@ -54,6 +51,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
+import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Pakhawaj as Pakhawaj
 import qualified Local.Instrument.KontaktKendang as KontaktKendang
 import qualified Local.Instrument.KontaktUtil as KontaktUtil
@@ -77,8 +75,7 @@ patches :: [MidiInst.Patch]
 patches = concat
     [ misc_patches
     , hang_patches, wayang_patches, KontaktKendang.patches
-    , mridangam_patches
-    , Pakhawaj.patches
+    , Mridangam.patches, Pakhawaj.patches
     ]
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
@@ -535,158 +532,3 @@ write_wayang_ksp = mapM_ (uncurry KontaktUtil.write)
     , ("legong-isep.ksp",
         KontaktUtil.tuning_ksp $ extended_legong_scale "isep" Legong.isep)
     ]
-
--- * mridangam
-
-mridangam_patches :: [MidiInst.Patch]
-mridangam_patches =
-    [ (patch "mridangam2" mridangam_pitched_notes, code)
-    , (patch "mridangam" old_mridangam_notes, code)
-    ]
-    where
-    patch name notes = CUtil.pitched_drum_patch notes $
-        Instrument.patch $ Instrument.instrument name [] pb_range
-    code = MidiInst.note_generators call_code
-        <> MidiInst.cmd (CUtil.insert_call char_to_call)
-    call_code = concat
-        [ CUtil.drum_calls Nothing mridangam_notes
-        , DUtil.multiple_calls
-            [(call, subcalls) | (call, subcalls, _) <- mridangam_both]
-        ]
-    char_to_call = Map.fromList $ concat
-        [ [(Drums.note_char n, Drums.note_name n) | n <- mridangam_notes]
-        , [(char, call) | (call, _, Just char) <- mridangam_both]
-        ]
-
--- | Create calls for all simultaneous left and right hand combinations, and
--- key bindings for a few common ones.
-mridangam_both :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
-mridangam_both =
-    [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
-    where
-    keys = [("k+", 'd'), ("do", 'c'), ("ko", 'v'), ("to", 'b')]
-    pairs =
-        [ (TrackLang.Symbol $ u rcall <> u lcall, [rcall, lcall])
-        | lcall <- map Drums.note_name mridangam_left
-        , rcall <- map Drums.note_name mridangam_right
-        , Text.length (u lcall) == 1
-        , Text.length (u rcall) == 1
-        ]
-    u = TrackLang.unsym
-
--- | The convention is symbols for thoppi, and letters for valantalai.  Also,
--- vowels for open sounds, consonants for closed ones.  Soft strokes look like
--- simpler version of their equivalent loud strokes.
-mridangam_left, mridangam_right :: [Drums.Note]
-mridangam_stops :: [(Drums.Group, [Drums.Group])]
-(mridangam_left, mridangam_right, mridangam_stops) = (left, right, stops)
-    where
-    left = concat $
-        [ group t_closed
-            [ n 'a' "-" tha 0.5
-            , n 'z' "+" tha 1
-            ]
-        , group t_open
-            [ n 'x' "o" thom 1
-            , n 's' "." thom 0.5
-            ]
-        ]
-    right = concat $
-        [ group v_closed
-            [ n '1' "l" ki 0.5 -- TODO ki<>soft once I have the separate sample
-            , n 'q' "k" ki 1
-            , n 'w' "t" ta 1
-            ]
-        , group v_sadam
-            [ n 'e' "n" nam 1
-            , n 'r' "d" din 1
-            ]
-        , group v_chapu
-            [ n '5' "v" muru 1
-            , n 't' "u" arai 1
-            ]
-        , group v_dheem [n 'y' "i" dheem 1]
-        ]
-
-    stops =
-        [ (t_closed, [t_open])
-        , (v_closed, [v_sadam, v_chapu, v_dheem])
-        , (v_sadam, [v_chapu, v_dheem])
-        , (v_chapu, [v_dheem])
-        ]
-    v_closed = "v-closed"
-    v_sadam = "v-sadam"
-    v_chapu = "v-chapu"
-    v_dheem = "v-dheem"
-    t_closed = "t-closed"
-    t_open = "t-open"
-    group name = map $ \n -> n { Drums.note_group = name }
-    n = Drums.note_dyn
-
-mridangam_notes :: [Drums.Note]
-mridangam_notes = mridangam_left ++ mridangam_right
-
-
-{- | Layout:
-
-    > 0         10        20        30        40        50        60        70        80        90        100       110       120    127
-    > 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567
-    > c-2         c-1         c0          c1          c2          c3          c4          c5          c6          c7          c8     g8
-    >         XXXXtha -------|thom ------|ta --------|ki --------|nam -------|din -------|arai ------|dheem -----|meetu -----|
--}
-mridangam_pitched_notes :: CUtil.PitchedNotes
-mridangam_pitched_notes = make_mridangam_notes $
-    CUtil.make_keymap Key2.g_2 Key2.c_1 12 NN.c4
-    [ [tha]
-    , [thom, thom <> Attrs.low, thom <> Attrs.open]
-    , [ta], [ki], [nam], [din]
-    , [arai, muru]
-    , [dheem, dheem <> Attrs.staccato]
-    , [meetu]
-    ]
-
-write_mridangam_ksp :: IO ()
-write_mridangam_ksp = mapM_ (uncurry KontaktUtil.write)
-    [ ("mridangam.ksp", KontaktUtil.drum_mute_ksp "mridangam"
-        mridangam_pitched_notes mridangam_stops)
-    , ("mridangam-old.ksp", KontaktUtil.drum_mute_ksp "mridangam"
-        old_mridangam_notes mridangam_stops)
-    ]
-
-old_mridangam_notes :: CUtil.PitchedNotes
-old_mridangam_notes = make_mridangam_notes $ map make
-    -- left
-    [ (tha, (Key.g_1, Key.e0))
-    , (thom, (Key.g0, Key.e1))
-    , (thom <> Attrs.staccato, (Key.g1, Key.e2))
-    -- right
-    , (ki, (Key.g2, Key.e3))
-    , (ta, (Key.g3, Key.e4))
-    , (nam, (Key.g4, Key.e5))
-    , (din, (Key.g5, Key.e6))
-    , (din <> Attrs.v2, (Key.g6, Key.e7))
-    , (dheem, (Key.g7, Key.e8))
-    , (arai, (Key.g8, Key.e9))
-    , (muru, (Key.g9, Key.g9))
-    ]
-    where make (attrs, (low, high)) = (attrs, (Nothing, low, high, NN.e3))
-
-make_mridangam_notes :: [(Score.Attributes, CUtil.KeyswitchRange)]
-    -> CUtil.PitchedNotes
-make_mridangam_notes keymap = do
-    note <- mridangam_notes
-    let Just ks_range = lookup (Drums.note_attrs note) keymap
-    return (note, ks_range)
-
--- * attrs
-
-tha = attr "tha"
-thom = attr "thom"
-ki = attr "ki"
-ta = attr "ta"
-nam = attr "nam"
-din = attr "din"
-dheem = attr "dheem"
-arai = attr "arai"
-muru = attr "muru"
-meetu = attr "meetu"

@@ -235,6 +235,17 @@ make_attribute_map attr_map = Instrument.make_attribute_map $ Seq.unique
     | (note, (ks, low, high, root)) <- attr_map
     ]
 
+-- | Make PitchedNotes by pairing each 'Drums.Note' with its 'KeyswitchRange'.
+drum_pitched_notes :: [Drums.Note] -> [(Score.Attributes, KeyswitchRange)]
+    -> Either String PitchedNotes
+drum_pitched_notes notes keymap
+    | null not_found = Right found
+    | otherwise = Left $ "KeyswitchRange not found for notes: "
+        ++ show not_found
+    where
+    (not_found, found) = Seq.partition_either $ map find notes
+    find n = maybe (Left n) (Right . (,) n) (lookup (Drums.note_attrs n) keymap)
+
 -- | Create 0 duration calls from the given drum notes.
 --
 -- This should probably go in DUtil, but that would make it depend on

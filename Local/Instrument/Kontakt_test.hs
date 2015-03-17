@@ -4,9 +4,7 @@
 
 module Local.Instrument.Kontakt_test where
 import qualified Util.Log as Log
-import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
@@ -97,28 +95,6 @@ wayang_title inst_suffix =
     " | scale = wayang | n >kontakt/wayang" <> inst_suffix
     <> " | scale = wayang | inst-polos = >kontakt/wayang-umbang\
     \ | inst-sangsih = >kontakt/wayang-isep"
-
-test_mridangam = do
-    let run pitch notes tracks = derive "" $
-            [ ("*", [(0, 0, pitch)])
-            , (">kontakt/mridangam",
-                [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) notes])
-            ] ++ tracks
-        perf = perform ["kontakt/mridangam"] . Derive.r_events
-    let (_events, midi, logs) =
-            perf $ run "3b" ["k", "t", "n", "d", "i"] []
-    equal logs []
-    equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $
-            map snd (DeriveTest.extract_midi midi))
-        [ Midi.NoteOn Key.d3 127, Midi.NoteOn Key.d4 127
-        , Midi.NoteOn Key.d5 127, Midi.NoteOn Key.d6 127
-        , Midi.NoteOn Key.d8 127
-        ]
-    -- Ensure multiple calls works.  This is already tested in
-    -- "Derive.Call_test", but here's another test.
-    equal (DeriveTest.extract DeriveTest.e_attributes $
-            run "3b" ["do"] [("dyn", [(0, 0, ".5")])])
-        (["+din", "+thom"], [])
 
 derive :: String -> [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_with with_synth
