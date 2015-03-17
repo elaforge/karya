@@ -14,7 +14,7 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
-import qualified Local.Instrument.KontaktUtil as KontaktUtil
+import qualified Local.Instrument.Kontakt.Util as Util
 
 
 patches :: [MidiInst.Patch]
@@ -48,9 +48,8 @@ both_calls = Mridangam.make_both
     ]
 
 write_ksp :: IO ()
-write_ksp = mapM_ (uncurry KontaktUtil.write)
-    [ ("pakhawaj.ksp.txt", KontaktUtil.drum_mute_ksp "pakhawaj"
-        pitched_notes stops)
+write_ksp = mapM_ (uncurry Util.write)
+    [ ("pakhawaj.ksp.txt", Util.drum_mute_ksp "pakhawaj" pitched_notes stops)
     ]
 
 -- | The symbols follow the same scheme as mridangam.

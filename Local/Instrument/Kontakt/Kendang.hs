@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Kendang patches for "Local.Instrument.Kontakt".
-module Local.Instrument.KontaktKendang where
+module Local.Instrument.Kontakt.Kendang where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -29,7 +29,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
-import qualified Local.Instrument.KontaktUtil as KontaktUtil
+import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
 
@@ -133,9 +133,8 @@ old_tunggal_notes = map (first make_note)
     attrs_of (_, _, a, _) = a
 
 write_ksp :: IO ()
-write_ksp = mapM_ (uncurry KontaktUtil.write)
-    [ ("kendang.ksp", KontaktUtil.drum_mute_ksp "kendang"
-        tunggal_notes kendang_stops)
+write_ksp = mapM_ (uncurry Util.write)
+    [ ("kendang.ksp", Util.drum_mute_ksp "kendang" tunggal_notes kendang_stops)
     ]
 
 -- * config

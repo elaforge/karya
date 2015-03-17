@@ -51,10 +51,10 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
+import qualified Local.Instrument.Kontakt.Kendang as Kendang
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Pakhawaj as Pakhawaj
-import qualified Local.Instrument.KontaktKendang as KontaktKendang
-import qualified Local.Instrument.KontaktUtil as KontaktUtil
+import qualified Local.Instrument.Kontakt.Util as Util
 import qualified Local.Instrument.Reaktor as Reaktor
 
 import Global
@@ -74,8 +74,8 @@ synth = "kontakt"
 patches :: [MidiInst.Patch]
 patches = concat
     [ misc_patches
-    , hang_patches, wayang_patches, KontaktKendang.patches
-    , Mridangam.patches, Pakhawaj.patches
+    , hang_patches, wayang_patches
+    , Kendang.patches, Mridangam.patches, Pakhawaj.patches
     ]
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
@@ -522,13 +522,13 @@ retuned_patch scale_id tuning patch_scale =
 
 -- | Write KSP to retune a 12TET patch.
 write_wayang_ksp :: IO ()
-write_wayang_ksp = mapM_ (uncurry KontaktUtil.write)
+write_wayang_ksp = mapM_ (uncurry Util.write)
     [ ("wayang-umbang.ksp",
-        KontaktUtil.tuning_ksp $ extended_wayang_scale "umbang" Wayang.umbang)
+        Util.tuning_ksp $ extended_wayang_scale "umbang" Wayang.umbang)
     , ("wayang-isep.ksp",
-        KontaktUtil.tuning_ksp $ extended_wayang_scale "isep" Wayang.isep)
+        Util.tuning_ksp $ extended_wayang_scale "isep" Wayang.isep)
     , ("legong-umbang.ksp",
-        KontaktUtil.tuning_ksp $ extended_legong_scale "umbang" Legong.umbang)
+        Util.tuning_ksp $ extended_legong_scale "umbang" Legong.umbang)
     , ("legong-isep.ksp",
-        KontaktUtil.tuning_ksp $ extended_legong_scale "isep" Legong.isep)
+        Util.tuning_ksp $ extended_legong_scale "isep" Legong.isep)
     ]

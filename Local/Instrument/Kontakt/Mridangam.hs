@@ -20,7 +20,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
-import qualified Local.Instrument.KontaktUtil as KontaktUtil
+import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
 
@@ -143,10 +143,9 @@ Right pitched_notes = CUtil.drum_pitched_notes all_notes $
     ]
 
 write_ksp :: IO ()
-write_ksp = mapM_ (uncurry KontaktUtil.write)
-    [ ("mridangam.ksp.txt", KontaktUtil.drum_mute_ksp "mridangam"
-        pitched_notes stops)
-    , ("mridangam-old.ksp.txt", KontaktUtil.drum_mute_ksp "mridangam"
+write_ksp = mapM_ (uncurry Util.write)
+    [ ("mridangam.ksp.txt", Util.drum_mute_ksp "mridangam" pitched_notes stops)
+    , ("mridangam-old.ksp.txt", Util.drum_mute_ksp "mridangam"
         pitched_notes_old stops)
     ]
 

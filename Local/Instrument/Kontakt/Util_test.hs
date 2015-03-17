@@ -2,13 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Local.Instrument.KontaktUtil_test where
+module Local.Instrument.Kontakt.Util_test where
 import Util.Test
-import qualified Local.Instrument.KontaktUtil as KontaktUtil
+import qualified Local.Instrument.Kontakt.Util as Util
 
 
 test_make_stop_groups = do
-    let f stops = KontaktUtil.make_stop_groups stops ["g1", "g2"]
+    let f stops = Util.make_stop_groups stops ["g1", "g2"]
     equal (f []) (Right [-1, -1, -1, -1])
     equal (f [("g1", ["g2"])]) (Right [1, -1, -1, -1])
     equal (f [("g1", ["g2"])]) (Right [1, -1, -1, -1])

@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - val calls for twelve NNs?  e.g. (hz c4)
   * factor out replicated mridangam / pakhawaj code
-  - move Local.Instrument.Kontakt* modules into subdir
+  * move Local.Instrument.Kontakt* modules into subdir
   format bugs:
     - first line is indented
       . ShortForm subs have less indent than above
