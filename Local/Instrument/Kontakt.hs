@@ -54,6 +54,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 
+import qualified Local.Instrument.Kontakt.Pakhawaj as Pakhawaj
 import qualified Local.Instrument.KontaktKendang as KontaktKendang
 import qualified Local.Instrument.KontaktUtil as KontaktUtil
 import qualified Local.Instrument.Reaktor as Reaktor
@@ -77,6 +78,7 @@ patches = concat
     [ misc_patches
     , hang_patches, wayang_patches, KontaktKendang.patches
     , mridangam_patches
+    , Pakhawaj.patches
     ]
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
@@ -538,7 +540,7 @@ write_wayang_ksp = mapM_ (uncurry KontaktUtil.write)
 
 mridangam_patches :: [MidiInst.Patch]
 mridangam_patches =
-    [ (patch "mridangam2" mridangam_notes, code)
+    [ (patch "mridangam2" mridangam_pitched_notes, code)
     , (patch "mridangam" old_mridangam_notes, code)
     ]
     where
@@ -547,12 +549,12 @@ mridangam_patches =
     code = MidiInst.note_generators call_code
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
     call_code = concat
-        [ CUtil.drum_calls Nothing mridangam_keymap
+        [ CUtil.drum_calls Nothing mridangam_notes
         , DUtil.multiple_calls
             [(call, subcalls) | (call, subcalls, _) <- mridangam_both]
         ]
     char_to_call = Map.fromList $ concat
-        [ [(Drums.note_char n, Drums.note_name n) | n <- mridangam_keymap]
+        [ [(Drums.note_char n, Drums.note_name n) | n <- mridangam_notes]
         , [(char, call) | (call, _, Just char) <- mridangam_both]
         ]
 
@@ -621,8 +623,8 @@ mridangam_stops :: [(Drums.Group, [Drums.Group])]
     group name = map $ \n -> n { Drums.note_group = name }
     n = Drums.note_dyn
 
-mridangam_keymap :: [Drums.Note]
-mridangam_keymap = mridangam_left ++ mridangam_right
+mridangam_notes :: [Drums.Note]
+mridangam_notes = mridangam_left ++ mridangam_right
 
 
 {- | Layout:
@@ -632,8 +634,8 @@ mridangam_keymap = mridangam_left ++ mridangam_right
     > c-2         c-1         c0          c1          c2          c3          c4          c5          c6          c7          c8     g8
     >         XXXXtha -------|thom ------|ta --------|ki --------|nam -------|din -------|arai ------|dheem -----|meetu -----|
 -}
-mridangam_notes :: CUtil.PitchedNotes
-mridangam_notes = make_mridangam_notes $
+mridangam_pitched_notes :: CUtil.PitchedNotes
+mridangam_pitched_notes = make_mridangam_notes $
     CUtil.make_keymap Key2.g_2 Key2.c_1 12 NN.c4
     [ [tha]
     , [thom, thom <> Attrs.low, thom <> Attrs.open]
@@ -646,7 +648,7 @@ mridangam_notes = make_mridangam_notes $
 write_mridangam_ksp :: IO ()
 write_mridangam_ksp = mapM_ (uncurry KontaktUtil.write)
     [ ("mridangam.ksp", KontaktUtil.drum_mute_ksp "mridangam"
-        mridangam_notes mridangam_stops)
+        mridangam_pitched_notes mridangam_stops)
     , ("mridangam-old.ksp", KontaktUtil.drum_mute_ksp "mridangam"
         old_mridangam_notes mridangam_stops)
     ]
@@ -672,7 +674,7 @@ old_mridangam_notes = make_mridangam_notes $ map make
 make_mridangam_notes :: [(Score.Attributes, CUtil.KeyswitchRange)]
     -> CUtil.PitchedNotes
 make_mridangam_notes keymap = do
-    note <- mridangam_keymap
+    note <- mridangam_notes
     let Just ks_range = lookup (Drums.note_attrs note) keymap
     return (note, ks_range)
 
