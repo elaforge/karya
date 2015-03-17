@@ -1,9 +1,4 @@
--- Copyright 2013 Evan Laforge
--- This program is distributed under the terms of the GNU General Public
--- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
-
-module Local.Instrument.Kontakt_test where
-import qualified Util.Log as Log
+module Local.Instrument.Kontakt.Wayang_test where
 import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
@@ -14,14 +9,13 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Perform as Perform
-import qualified Local.Instrument.Kontakt as Kontakt
+import qualified Local.Instrument.Kontakt.KontaktTest as KontaktTest
 import Global
 
 
 test_wayang = do
-    let run notes = extract $ perform ["kontakt/wayang-umbang"] $
-            Derive.r_events $ derive "" $
+    let run notes = extract $ KontaktTest.perform ["kontakt/wayang-umbang"] $
+            Derive.r_events $ KontaktTest.derive "" $
                 UiTest.note_spec ("kontakt/wayang-umbang", notes, [])
         extract (_, midi, logs) = (DeriveTest.note_on midi, logs)
     equal (run [(0, 1, "4i")]) ([Key2.e4], [])
@@ -30,7 +24,7 @@ test_wayang = do
 
 test_wayang_zero_dur = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_blocks_with with_synth
+            . DeriveTest.derive_blocks_with KontaktTest.with_synth
         top = "top -- inst = >kontakt/wayang-umbang | infer-duration"
         extract e = (Score.event_duration e,
             not $ null $ DeriveTest.e_control "mute" e)
@@ -45,7 +39,7 @@ test_wayang_zero_dur = do
         ([(1, False), (1, False), (1, False)], [])
 
 test_wayang_pasang = do
-    let run notes = derive "import bali.gangsa" $
+    let run notes = KontaktTest.derive "import bali.gangsa" $
             UiTest.note_spec (title, notes, [])
         title = wayang_title "" <> " | unison"
     equal (DeriveTest.extract DeriveTest.e_inst $ run [(0, 1, "")])
@@ -56,7 +50,7 @@ test_wayang_pasang = do
     equal (fst $ DeriveTest.extract Score.initial_nn result)
         [Just 62.95, Just 62.5]
 
-    let (_events, midi, logs) = perform
+    let (_events, midi, logs) = KontaktTest.perform
             ["kontakt/wayang-umbang", "kontakt/wayang-isep"]
             (Derive.r_events result)
     equal logs []
@@ -70,7 +64,7 @@ test_wayang_pasang = do
 
 test_wayang_kempyung = do
     let run suffix append notes = DeriveTest.extract extract $
-            derive "import bali.gangsa" $ UiTest.note_spec
+            KontaktTest.derive "import bali.gangsa" $ UiTest.note_spec
                 (wayang_title suffix <> append <> " | kempyung", notes, [])
         extract e = (DeriveTest.e_inst e, DeriveTest.e_note e)
         umbang = "kontakt/wayang-umbang"
@@ -95,14 +89,3 @@ wayang_title inst_suffix =
     " | scale = wayang | n >kontakt/wayang" <> inst_suffix
     <> " | scale = wayang | inst-polos = >kontakt/wayang-umbang\
     \ | inst-sangsih = >kontakt/wayang-isep"
-
-derive :: String -> [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_with with_synth
-
-with_synth :: Derive.Deriver a -> Derive.Deriver a
-with_synth = DeriveTest.with_inst_db Kontakt.synth_descs
-
-perform :: [Text] -> Derive.Events
-    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
-perform insts = DeriveTest.perform_inst Kontakt.synth_descs
-    [(inst, [n]) | (n, inst) <- zip [0..] insts]

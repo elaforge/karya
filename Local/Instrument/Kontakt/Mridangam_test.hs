@@ -5,17 +5,17 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Local.Instrument.Kontakt_test as Kontakt_test
+import qualified Local.Instrument.Kontakt.KontaktTest as KontaktTest
 import Global
 
 
 test_mridangam = do
-    let run pitch notes tracks = Kontakt_test.derive "" $
+    let run pitch notes tracks = KontaktTest.derive "" $
             [ ("*", [(0, 0, pitch)])
             , (">kontakt/mridangam",
                 [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) notes])
             ] ++ tracks
-        perf = Kontakt_test.perform ["kontakt/mridangam"] . Derive.r_events
+        perf = KontaktTest.perform ["kontakt/mridangam"] . Derive.r_events
     let (_events, midi, logs) =
             perf $ run "3b" ["k", "t", "n", "d", "i"] []
     equal logs []
