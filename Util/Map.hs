@@ -20,7 +20,7 @@ get def k fm = Maybe.fromMaybe def (Map.lookup k fm)
 
 -- | This is like 'Map.insert', but do nothing if the key is already present.
 soft_insert :: Ord k => k -> v -> Map.Map k v -> Map.Map k v
-soft_insert k v fm = Map.union fm (Map.singleton k v)
+soft_insert = Map.insertWith (flip const)
 
 filter_key :: Ord k => (k -> Bool) -> Map.Map k a -> Map.Map k a
 filter_key f = Map.filterWithKey (\k _ -> f k)
