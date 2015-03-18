@@ -365,10 +365,13 @@ targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
 data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
 ghcWarnings :: [String]
-ghcWarnings = "-W" : map ("-fwarn-"++) (words warns)
+ghcWarnings =
+    "-W" : map ("-fwarn-"++) (words warns)
+        ++ map ("-fno-warn-"++) (words noWarns)
     where
     warns = "identities tabs incomplete-record-updates missing-fields\
         \ unused-matches  wrong-do-bind"
+    noWarns = "amp"
 
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
@@ -406,13 +409,14 @@ configure midi = do
             -- This is necessary for ghci loading to work in 7.8.
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
-            ++ ["-dynamic" | mode /= Profile]
-            ++ ghcWarnings ++ ["-fno-warn-amp"]
+            ++ ["-dynamic" | mode /= Profile] ++ ghcWarnings
             ++ ["-F", "-pgmF", hspp]
             ++ case mode of
                 Debug -> []
                 Opt -> ["-O"]
-                Test -> ["-fhpc"]
+                -- TEST ifdefs can cause duplicate exports if they add X(..)
+                -- to the X export.
+                Test -> ["-fhpc", "-fno-warn-duplicate-exports"]
                 -- TODO I don't want SCCs for criterion tests, but
                 -- not sure for plain profiling, maybe I always want manual
                 -- SCCs anyway?
