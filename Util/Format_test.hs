@@ -100,6 +100,65 @@ test_flatten_shortForm = do
         , S 0 "d" Hard []
         ]
 
+    let doc = Format.shortForm "short-form"
+            ("before " <> withIndent "after") </> "tail"
+    equal (f doc)
+        [ S 0 "short-form" NoSpace [S 0 "before after" NoSpace []]
+        , S 0 "tail" Hard []
+        ]
+
+    let doc = Format.shortForm "Record [abc, def] tail"
+            ("Record " <> withIndent
+                (Format.shortForm "[abc, def]" "[ abc, def ]"))
+            </> "tail"
+    equal (f doc)
+        [ S 0 "Record [abc, def] tail" NoSpace
+            [ S 0 "Record [abc, def]" NoSpace
+                [ S 0 "Record [ abc, def ]" NoSpace [] ]
+            ]
+        , S 0 "tail" Hard []
+        ]
+
+    -- The indent doesn't take effect until after a break.
+    let doc = Format.shortForm "short" $ Format.withIndent ("a" </> "b")
+    equal (f doc)
+        [ S 0 "short" Hard
+            [ S 0 "a" NoSpace []
+            , S 1 "b" Hard []
+            ]
+        ]
+
+    -- Even when nested, "inner" has a indent of 0.
+    let doc = Format.shortForm "outer" $
+            Format.withIndent $ Format.shortForm "inner" ("a" </> "b")
+    equal (f doc)
+        [ S 0 "outer" Hard
+            [ S 0 "inner" Hard
+                [ S 0 "a" NoSpace []
+                , S 1 "b" Hard []
+                ]
+            ]
+        ]
+
+    let doc = ShortForm "short form is too long" $
+            Indented 1
+                (ShortForm "short form"
+                    (Text "[ " :+ Indented 1 "abc"
+                        :+ Break NoSpace :+ ", " :+ Indented 1 "def"
+                        :+ Break Hard))
+            :+ Break Space :+ ", " :+ Indented 1 "tail" :+ Break Hard
+    equal (f doc)
+        [ S 0 "short form is too long" Hard
+            [ S 0 "short form" Space
+                [ S 0 "[ abc" NoSpace []
+                -- first indent takes effect, second indent doesn't
+                , S 1 ", def" Hard []
+                ]
+            , S 0 ", tail" Hard []
+            ]
+        ]
+
+
 test_spanLine = do
     let f = extract . Format.spanLine 2 10 . map section
         extract (b, pre, post) = (b, map sectionText pre, map sectionText post)

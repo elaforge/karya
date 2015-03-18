@@ -173,15 +173,15 @@ type Indent = Int
 data State = State {
     -- | Collect text for each Section, for 'sectionB'.
     stateCollect :: !B
-    -- | Collect long form Sections for 'sectionSubs'.  Like stateSections, is
-    -- also in reverse order.
+    -- | Collect long form Sections for 'sectionSubs'.  Like stateSections,
+    -- this is in reverse order.
     , stateSubs :: ![Section]
     -- | Collect sections in reverse order.
     , stateSections :: ![Section]
     , stateIndent :: !Indent
     -- | Indent for the next break.  This is different from 'stateIndent',
     -- which is the current indent value because the new indent only applies
-    -- *after* the next break, and after a dedent, I still need the indented
+    -- *after* the next break.  Also, after a dedent I still need the indented
     -- value to apply to the section.
     , stateBreakIndent :: !Indent
     } deriving (Show)
@@ -202,8 +202,7 @@ sectionBuilder :: Section -> Builder.Builder
 sectionBuilder = bBuilder . sectionB
 
 flatten :: Doc -> [Section]
-flatten = collapse . reverse . stateSections . flush . flip go initialState
-    -- TODO use dlist so I don't have to reverse, but benchmark first
+flatten = postprocSections . stateSections . flush . flip go initialState
     where
     initialState = State
         { stateCollect = mempty
@@ -218,19 +217,24 @@ flatten = collapse . reverse . stateSections . flush . flip go initialState
         ShortForm short long -> state
             { stateCollect =
                 stateCollect state <> renderSectionsB (flatten short)
+            -- TODO old subs are lost?  What happens with
+            -- shortForm <> shortForm?
             , stateSubs = stateSections sub
-            , stateBreakIndent = stateBreakIndent sub
             }
             where
-            -- The newline will be replaced by the actual break when I come
-            -- across it.
-            sub = go newline $ go long $ initialState
-                -- This causes @a <> ShortForm b c@ to distribute the @a@
-                -- over @b@ and @c@, as documented by 'shortForm'.
-                { stateCollect = stateCollect state
-                , stateIndent = stateIndent state
-                , stateBreakIndent = stateBreakIndent state
-                }
+            -- I need a break to collect the last part of the long form
+            -- sub-doc.  But I can only know the break once I see it, after
+            -- this ShortForm.  So this break is temporary and will be replaced
+            -- by 'replaceBreaks' below.
+            sub = goBreak Hard $ go long initial
+                where
+                initial = initialState
+                    -- This causes @a <> ShortForm b c@ to distribute the @a@
+                    -- over @b@ and @c@, as documented by 'shortForm'.
+                    { stateCollect = stateCollect state
+                    , stateIndent = stateIndent state
+                    , stateBreakIndent = stateBreakIndent state
+                    }
         Indented n doc -> dedent $ go doc $ indent state
             where
             indent state = state
@@ -243,14 +247,22 @@ flatten = collapse . reverse . stateSections . flush . flip go initialState
         , stateSections = (: stateSections state) $ Section
             { sectionIndent = stateBreakIndent state
             , sectionB = stateCollect state
-            , sectionSubs = collapse $ reverse $ replaceBreak $ stateSubs state
+            -- If there are subs, then they have been collected by the long
+            -- part of a ShortForm.
+            , sectionSubs = replaceBreaks $ stateSubs state
             , sectionBreak = break
             }
         , stateBreakIndent = stateIndent state
         }
         where
-        replaceBreak [] = []
-        replaceBreak (x:xs) = x { sectionBreak = break } : xs
+        -- Recursively replace all the first breaks in the subs.  Since subs
+        -- are collected in reverse, this replaces the final break, which was
+        -- just a placeholder.
+        replaceBreaks [] = []
+        replaceBreaks (sub:subs) = sub
+            { sectionBreak = break
+            , sectionSubs = replaceBreaks $ sectionSubs sub
+            } : subs
 
     -- If there is trailing text, break it with a Hard newline.  Otherwise,
     -- convert the last break to Hard.
@@ -260,22 +272,33 @@ flatten = collapse . reverse . stateSections . flush . flip go initialState
             { stateSections = final { sectionBreak = Hard } : sections }
         | otherwise = state
 
-    -- Empty sections can happen after dedents.  I don't want them, but I do
-    -- want to get the break if it's stronger.
-    collapse [] = []
-    collapse (section : sections) = case span empty sections of
-        ([], _) -> section : collapse sections
-        (nulls, rest) -> section { sectionBreak = break } : collapse rest
-            where
-            break = sectionBreak section <> mconcat (map sectionBreak nulls)
-    empty section = bNull (sectionB section)
+-- | Clean up 'stateSections' after 'flatten'.
+postprocSections :: [Section] -> [Section]
+postprocSections = map subs . mergeBreaks . reverse
+    -- TODO use dlist so I don't have to reverse, but benchmark first
+    where
+    -- sectionSubs are also reversed, and need their breaks merged.
+    subs section
+        | null (sectionSubs section) = section
+        | otherwise = section
+            { sectionSubs = postprocSections $ sectionSubs section }
+
+-- | Collapse consecutive breaks into the strongest one.  Empty sections can
+-- happen after dedents.  I don't want them, but I do want to get the break if
+-- it's stronger.
+mergeBreaks :: [Section] -> [Section]
+mergeBreaks [] = []
+mergeBreaks (section : sections) = case span empty sections of
+    ([], _) -> section : mergeBreaks sections
+    (nulls, rest) -> section { sectionBreak = break } : mergeBreaks rest
+        where break = sectionBreak section <> mconcat (map sectionBreak nulls)
+    where empty section = bNull (sectionB section)
 
 render :: Text -> Width -> Doc -> Lazy.Text
 render indent width = renderText indent width . flatten
 
 renderFlat :: Doc -> Lazy.Text
 renderFlat = renderTextFlat . flatten
-
 
 -- | Take sections until they go over the width, or I see a hard newline, or
 -- run out.  If they went over, then find a break in the collected, emit before
