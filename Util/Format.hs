@@ -27,9 +27,11 @@ import Data.Text (Text)
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Text.Lazy.Builder as Builder
 
+import qualified Util.Seq as Seq
+
 
 data Doc =
-    Text !Text -- use 'text' instead of this
+    Text !Text -- Use 'text' instead of this constructor to get newlines right.
     | Doc :+ Doc -- intentionally lazy
     -- | The first Doc is the short form, which will be used if it doesn't have
     -- to wrap.
@@ -39,7 +41,8 @@ data Doc =
     | Indented !Indent Doc
     -- | Line break.
     | Break !BreakType
-    deriving (Show)
+    deriving (Eq, Show)
+infixr :+
 
 {-
     I tried to define (:+) as @Union Doc Break Doc@ to enforce that exactly
@@ -74,18 +77,27 @@ shortForm = ShortForm
 text :: Text -> Doc
 text t = case make t of
     [] -> mempty
-    ts -> foldr1 (:+) ts
+    ts -> foldr1 (:+) (merge ts)
     where
-    make = filter (not . isEmpty) . List.intersperse newline . map Text
+    merge [] = []
+    merge breaks = case Seq.span_while is_hard breaks of
+        ([], []) -> []
+        ([], x : xs) -> x : merge xs
+        (hs, rest) -> Break (Hard (sum hs)) : merge rest
+    is_hard (Break (Hard n)) = Just n
+    is_hard _ = Nothing
+    make = filter (not . isEmpty) . List.intersperse (newline 1) . map Text
         . Text.split (=='\n')
 
 isEmpty :: Doc -> Bool
 isEmpty (Text t) = Text.null t
 isEmpty _ = False
 
--- | Space becomes a space when it doesn't break, NoSpace doesn't.
-data BreakType = NoSpace | Space | Hard deriving (Eq, Ord, Show)
+-- | Space becomes a space when it doesn't break, NoSpace doesn't.  Hard
+-- breaks can insert >=1 newlines.
+data BreakType = NoSpace | Space | Hard !Int deriving (Eq, Ord, Show)
 
+-- | Hard breaks with more newlines win over those with fewer.
 instance Monoid.Monoid BreakType where
     mempty = NoSpace
     mappend = max
@@ -100,9 +112,9 @@ infixr 5 </> -- looser than <>
 d1 <+/> d2 = d1 <> Break Space <> d2
 infixr 5 <+/> -- looser than <>
 
--- | Hard break, see 'newline'.
+-- | Hard break with a single 'newline'.
 (<//>) :: Doc -> Doc -> Doc
-d1 <//> d2 = d1 <> newline <> d2
+d1 <//> d2 = d1 <> newline 1 <> d2
 infixr 4 <//> -- looser than </>
 
 -- | Increase the indent level for the given Doc.  The indent change only
@@ -132,27 +144,28 @@ indent_ = indentBreak Space
 -- | Change the indent level and add a hard break so it takes effect
 -- immediately.
 indentLine :: Doc -> Doc
-indentLine = indentBreak Hard
+indentLine = indentBreak (Hard 1)
 
 -- | Join two docs with a space.
 (<+>) :: Doc -> Doc -> Doc
 d1 <+> d2 = d1 <> Text " " <> d2
 infixr 6 <+> -- same as <>
 
--- | A hard break will definitely cause a line break.
+-- | Insert a number of newlines.
 --
 -- Consecutive breaks are merged together, and a hard break always wins.
--- Also, multiple hard breaks are merged into one.  The rationale is that
--- if you are formatting a list of sub-Docs, and you want to put each on its
--- own line, you need a hard break after each one, but if one of them does
--- the same thing, you wind up with two breaks in a row.
-newline :: Doc
-newline = Break Hard
+-- Also, multiple hard breaks are merged into one, and ones with greater
+-- newlines win other those with fewer.  The rationale is that if you are
+-- formatting a list of sub-Docs, and you want to put each on its own line, you
+-- need a hard break after each one, but if one of them does the same thing,
+-- you wind up with two breaks in a row.
+newline :: Int -> Doc
+newline n = Break (Hard n)
 
 -- | Analogous to 'Prelude.unlines', terminate each Doc with a newline.
 unlines :: [Doc] -> Doc
 unlines [] = mempty
-unlines docs = mconcat (List.intersperse newline docs) <> newline
+unlines docs = mconcat (List.intersperse (newline 1) docs) <> newline 1
 
 wrapWords :: [Doc] -> Doc
 wrapWords (d:ds) = List.foldl' (<+/>) d ds
@@ -225,8 +238,9 @@ flatten = postprocSections . stateSections . flush . flip go initialState
             -- I need a break to collect the last part of the long form
             -- sub-doc.  But I can only know the break once I see it, after
             -- this ShortForm.  So this break is temporary and will be replaced
-            -- by 'replaceBreaks' below.
-            sub = goBreak Hard $ go long initial
+            -- by 'replaceBreaks' below.  If you see a Hard 0 in the Sections
+            -- you know this failed.
+            sub = goBreak (Hard 0) $ go long initial
                 where
                 initial = initialState
                     -- This causes @a <> ShortForm b c@ to distribute the @a@
@@ -267,9 +281,9 @@ flatten = postprocSections . stateSections . flush . flip go initialState
     -- If there is trailing text, break it with a Hard newline.  Otherwise,
     -- convert the last break to Hard.
     flush state
-        | not (bNull (stateCollect state)) = goBreak Hard state
+        | not (bNull (stateCollect state)) = goBreak (Hard 1) state
         | final : sections <- stateSections state = state
-            { stateSections = final { sectionBreak = Hard } : sections }
+            { stateSections = final { sectionBreak = Hard 1 } : sections }
         | otherwise = state
 
 -- | Clean up 'stateSections' after 'flatten'.
@@ -362,13 +376,21 @@ spanLine indentWidth maxWidth sections@(Section indent _ _ _ : _) =
         -- Break as soon as the indent goes below the initial indent.
         | sectionIndent section < indent = (False, [], section : sections)
         | col + width > maxWidth = (True, [section], sections)
-        | sectionBreak section == Hard = (False, [section], sections)
+        | Hard n <- sectionBreak section, n > 0 =
+            (False, [section], if n > 1
+                then strip (Hard (n-1)) section : sections else sections)
         | otherwise =
             let (break, pre, post) = go (col + space + width) sections
             in (break, section : pre, post)
         where
         space = if sectionBreak section == Space then 1 else 0
         width = bWidth (sectionB section)
+    strip break section = Section
+        { sectionIndent = sectionIndent section
+        , sectionB = mempty
+        , sectionSubs = []
+        , sectionBreak = break
+        }
 
 -- | Given a list of Sections that I know need to be broken, find the best
 -- place to break.  Split before the last lowest indent.

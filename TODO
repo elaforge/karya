@@ -11,7 +11,7 @@ UNSORTED
       . ShortForm subs have less indent than above
     * ", tail" should be on its own line
     - what happens with ShortForm <> ShortForm?
-    - give Format.Hard an Int value for the number of newlines.
+    * give Format.Hard an Int value for the number of newlines.
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it
     applies Flags.can_cancel at TrackTime 0, which is only appropriate for
