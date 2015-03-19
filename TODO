@@ -6,13 +6,12 @@ UNSORTED
   * val calls for twelve NNs?  e.g. (hz c4)
   * factor out replicated mridangam / pakhawaj code
   * move Local.Instrument.Kontakt* modules into subdir
-  format bugs:
+  format:
     * first line is indented
       . ShortForm subs have less indent than above
-    - ", tail" should be on its own line
-    - ShortForm is "[ Record [abc, def]", presumably the formatter needs to
-      use a break, not a (<>).
-  - give Format.Hard an Int value for the number of newlines.
+    * ", tail" should be on its own line
+    - what happens with ShortForm <> ShortForm?
+    - give Format.Hard an Int value for the number of newlines.
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it
     applies Flags.can_cancel at TrackTime 0, which is only appropriate for

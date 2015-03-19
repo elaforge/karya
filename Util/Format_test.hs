@@ -33,6 +33,13 @@ test_render = do
     -- Newlines collapsed (TODO fix this)
     equal (f $ "hi\n\nthere\n") "hi\nthere\n"
 
+    -- A dedent triggers a line break.
+    equal (render 8 $ withIndent ("12345" </> "1234") </> "12")
+        [ "12345"
+        , "  1234"
+        , "12"
+        ]
+
 test_shortForm = do
     let f = Format.render "  "
         sf = Format.shortForm
@@ -44,7 +51,7 @@ test_shortForm = do
     equal (f 6 $ "xyz" <> indent_ abc) "xyz\n  a,b,\n  c\n"
 
 test_flatten = do
-    let f = map unsection . Format.flatten
+    let f = flatten
     -- Interaction with indent.
     equal (f $ "a" <> indent_ "b" </> "c")
         [S 0 "a" Space [], S 1 "b" NoSpace [], S 0 "c" Hard []]
@@ -66,7 +73,7 @@ test_flatten = do
         [S 0 "a" Space [], S 2 "b" NoSpace [], S 0 "c" Hard []]
 
 test_flatten_shortForm = do
-    let f = map unsection . Format.flatten
+    let f = flatten
     equal (f $ Format.shortForm "short" ("long" </> "form"))
         [ S 0 "short" Hard
             [S 0 "long" NoSpace [], S 0 "form" Hard []]
@@ -158,7 +165,6 @@ test_flatten_shortForm = do
             ]
         ]
 
-
 test_spanLine = do
     let f = extract . Format.spanLine 2 10 . map section
         extract (b, pre, post) = (b, map sectionText pre, map sectionText post)
@@ -208,3 +214,6 @@ bText = Lazy.toStrict . Builder.toLazyText . Format.bBuilder
 render :: Int -> Doc -> [String]
 render width = map untxt . Text.lines . Lazy.toStrict
     . Format.render "  " width
+
+flatten :: Doc -> [S]
+flatten = map unsection . Format.flatten

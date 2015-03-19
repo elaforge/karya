@@ -62,6 +62,16 @@ test_record = do
         , "  }"
         ]
 
+    let record = Pretty.record ("Record " <> Pretty.format t)
+            [("field1", "val1")]
+        t = ["abc", "def"] :: [String]
+    equal (render 30 [record, "tail"])
+        [ "[ Record [\"abc\", \"def\"]"
+        , "    { field1 = val1 }"
+        , ", tail"
+        , "]"
+        ]
+
 test_map = do
     let f width = render width val
         val = Map.fromList [(k, "1234" :: String) | k <- ['a'..'b']]

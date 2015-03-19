@@ -345,16 +345,22 @@ renderSectionsB sections =
 renderSections :: [Section] -> Builder.Builder
 renderSections = bBuilder . renderSectionsB
 
--- | Collect a line's worth of Sections.  If break is True, it has one Section
--- past the break point.  This is so 'findBreak' can know what the indent
--- past the wrap break is, so it can know if it's ok to break there.
+-- | Collect a line's worth of Sections.
+-- TODO 'findBreak' should probably be integrated into this.
 spanLine :: Width -> Width -> [Section] -> (Bool, [Section], [Section])
+    -- ^ (break, pre_break, post_break).  If break is False, then pre_break
+    -- can be emitted as-is.  If break is True, then the line went over the
+    -- maxWidth and must be broken.  pre_break will then have one Section past
+    -- the break point.  This is so 'findBreak' can know what the next indent
+    -- break is, so it can know if it's ok to break there.
 spanLine _ _ [] = (False, [], [])
 spanLine indentWidth maxWidth sections@(Section indent _ _ _ : _) =
     go (indentWidth * indent) sections
     where
     go _ [] = (False, [], [])
     go col (section : sections)
+        -- Break as soon as the indent goes below the initial indent.
+        | sectionIndent section < indent = (False, [], section : sections)
         | col + width > maxWidth = (True, [section], sections)
         | sectionBreak section == Hard = (False, [section], sections)
         | otherwise =
@@ -364,7 +370,8 @@ spanLine indentWidth maxWidth sections@(Section indent _ _ _ : _) =
         space = if sectionBreak section == Space then 1 else 0
         width = bWidth (sectionB section)
 
--- | Split before the last lowest indent.
+-- | Given a list of Sections that I know need to be broken, find the best
+-- place to break.  Split before the last lowest indent.
 findBreak :: [Section] -> ([Section], [Section])
 findBreak sections = case lowest of
     Nothing -> ([], [])
