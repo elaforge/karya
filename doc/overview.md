@@ -23,9 +23,12 @@ via MTC and MMC.
 As far as I know, there are no other sequencers with similar goals and
 features, but if there are, I'd be interested in hearing about them.
 
-## Music
+## Music, screenshots, examples
 
-TODO link to music page, link to scores
+- [Music examples with screenshots.](music.md.html)
+
+- [Some stuff I've written over the years.](link-to-my-music.html)  All of
+varying quality and completeness.  The older stuff uses other software.
 
 ## Features:
 
@@ -78,7 +81,7 @@ change how they are realized, or pitches become less precise, as the tempo
 increases.
 
 - Integration.  The derived output of a bit of score can be integrated back
-into another score to produce derived parts.  The generated score can then be
+into another score to produce new parts.  The generated score can then be
 further edited, and changes to the original source will be merged into the
 modifications, to a limited degree.  For instance, a part that mirrors another
 with added idiomatic ornaments plus hand tweaks, a series of repeats which all
@@ -93,10 +96,12 @@ particular transformation you can compile it into the program.
 
 - Instruments.  Instruments can map MIDI CC numbers to symbolic names, support
 keyswitches as named attributes, and automatically multiplex MIDI channels to
-give note-level control over pitch or control signals.  They are collected
-into a searchable database.  The database is created by either entering patch
-information by hand, or for external synthesizers that use them you can parse
-sysex messages to add to the database.
+give note-level control over pitch or control signals.  Instruments can also
+bring their own notation and input methods with them, so for instance drums
+can come with their own specialized notation and input commands.  Instruments
+are collected into a searchable database.  Instruments are mostly defined via
+code, but there's also a framework to parse sysex messages for external
+synthesizers, or simple patch lists.
 
 - Multiple backends.  The main backend is MIDI, and this is the most well
 developed one, but there is also some ability to export to lilypond.
@@ -156,34 +161,38 @@ deeply embedded MIDI's limitations.  To solve this we'd need to drag software
 synths out of the '80s, create a new high-resolution protocol, and modify the
 major samplers and synthesizers to support it.  This has been tried but failed,
 perhaps because there were no sequencers or input devices to generate the high
-resolution output.  VST's "automation parameters" are basically higher
-resolution MIDI controls, so some of this could probably be ameliorated by
-extending a VST host to turn high resolution OSC into VST automation.  Ardour
-is the only open source DAW so it's the only option here.  Someday I would like
-to write my own synthesizer that responds to OSC.
+resolution output.  As far as I can tell, VST's "automation parameters" are
+basically higher resolution MIDI controls, so some of this could probably be
+ameliorated by extending a VST host to turn high resolution OSC into VST
+automation.  As far as I know there is no program that does this.
 
-- The score format is not as efficient at displaying vertical structure (chords
-and harmony) as 5-line staff notation.  This is the price of generality, since
-the score format is also more flexible than staff notation.
+- The score format tries to be simple and general, but the price is that it's
+not as efficient as more specialized notation.  For example, staff notation
+can display vertical structure (chords and harmony) and binary rhythms very
+compactly, but falls apart with different scales or additive rhythms.
+Similarly, since time is explicit and spatial, it's less efficient than
+notation which can make assumptions about the rhythmic conventions, such as
+written konnakol or Javanese kepatihan.
 
-- At the moment it's still very early in development, and has many
-underdocumented and buggy parts.  It's also changing rapidly, and code written
-against internal interfaces is likely to be broken by changes down the line.
-And there's no defined external interface yet, so everything is an internal
+- At the moment it's still early in development, and has many underdocumented
+and buggy parts.  It's also changing rapidly, and code written against internal
+interfaces is likely to be broken by changes down the line.  And there's no
+defined external interface yet, so effectively everything is an internal
 interface.
 
 ## Documentation
 
-Don't hesitate to look at [haddock documentation](../haddock/index.html) or
-the [source](../hscolour/).  Since using karya probably involves writing code
-that interacts with the internal APIs, you'll need to be familiar with the
-code.  Sometimes the documentation isn't exported as haddock, so if the haddock
-seems sparse try the "source" link.  Whenever possible, I try to keep
-documentation in the haddock, since it's generally easier to keep up to date.
+Don't hesitate to look at [haddock documentation](../haddock/index.html) or the
+[source](../hscolour/).  Since using karya probably involves writing code that
+interacts with the internal APIs, you'll need to be familiar with the code.
+Sometimes the documentation isn't exported as haddock, so if the haddock seems
+sparse try the "source" link.  Whenever possible, I try to keep documentation
+in the haddock, since it's easier to keep up to date if it's next to the code
+that implements it.
 
 [My blog](http://elaforge.blogspot.com/) has notes I have taken during
-development.  It's mostly just notes to myself, but it may give some
-historical context for why certain features are the way they are.
+development.  It's mostly just notes to myself, but it may give some context
+for why certain features are the way they are.
 
 Karya is divided into several layers, corresponding to the top level
 directories in the source tree:

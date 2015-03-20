@@ -1,6 +1,6 @@
 ## HOW TO GET SOUND TO COME OUT
 
-- Intall and compile, as documented in INSTALL.
+- Intall and compile, as documented in [INSTALL.md.html](INSTALL.md.html).
 
 - Set up some internal MIDI devices.  On OS X this means going to "Audio MIDI
 Setup" and adding some IAC ports.
@@ -45,5 +45,5 @@ appear in the score.
 - Press enter to play, or cmd-enter to play from the start of the block, and
 space to stop.
 
-- Read `build/doc/keymap.html` to see the keybindings, and
-`build/doc/calls.html` to see what built-in notation is available.
+- Read [keymap.html](keymap.html) to see the keybindings, and
+[calls.html](calls.html) to see what built-in notation is available.
