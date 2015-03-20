@@ -277,6 +277,7 @@ globalPackages = concat $
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
 
     , w "aeson" -- serialize and unserialize log msgs
+    , w "wcwidth" -- used by Util.Format
     ]
     where w = map (\p -> (p, "")) . words
 

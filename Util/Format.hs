@@ -4,6 +4,15 @@
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
+{- | This is a library to lay out text with line wrapping and indenting.
+
+    The basic theory is that you concatenate text with 'BreakType's.  In
+    addition, you can increment the indent level with 'withIndent'.  When
+    'render' wraps the text, it will break on the lowest indent level, or as
+    soon as the indent level decreases.
+
+    A further wrinkle is that you can mark alternate layouts with 'shortForm'.
+-}
 module Util.Format (
     Doc, shortForm, text
     , (</>), (<+/>), (<//>), (<+>)
@@ -20,6 +29,7 @@ module Util.Format (
 import Prelude hiding (unlines)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
+import qualified Data.Char.WCWidth as WCWidth
 import Data.Monoid ((<>), mempty, mconcat)
 import qualified Data.String as String
 import qualified Data.Text as Text
@@ -31,10 +41,10 @@ import qualified Util.Seq as Seq
 
 
 data Doc =
-    Text !Text -- Use 'text' instead of this constructor to get newlines right.
+    -- | Use 'text' instead of this constructor to get newlines right.
+    Text !Text
     | Doc :+ Doc -- intentionally lazy
-    -- | The first Doc is the short form, which will be used if it doesn't have
-    -- to wrap.
+    -- | Use 'shortForm'.
     | ShortForm Doc Doc
     -- | The contained Doc will be indented by a number of steps.  The new
     -- indent level only takes effect after the first Break.
@@ -66,7 +76,10 @@ instance String.IsString Doc where
     fromString = text . String.fromString
 
 -- | The first Doc is the short form, which will be used if it doesn't have
--- to wrap.
+-- to wrap.  So you can give a compact form which will render if it can fit
+-- without breaking, and then a form with more fancy layout that will be
+-- used if it does have to break.  For example, @[1, 2, 3]@ for short lists,
+-- and @[ 1\\n, 2\\n, 3\\n]@ for long ones.
 --
 -- Prepending text to a shortForm will distribute over both short and long
 -- forms.  Otherwise, if you write @"prefix " <> x@, and @x@ happens to be
@@ -80,12 +93,12 @@ text t = case make t of
     ts -> foldr1 (:+) (merge ts)
     where
     merge [] = []
-    merge breaks = case Seq.span_while is_hard breaks of
+    merge breaks = case Seq.span_while isHard breaks of
         ([], []) -> []
         ([], x : xs) -> x : merge xs
         (hs, rest) -> Break (Hard (sum hs)) : merge rest
-    is_hard (Break (Hard n)) = Just n
-    is_hard _ = Nothing
+    isHard (Break (Hard n)) = Just n
+    isHard _ = Nothing
     make = filter (not . isEmpty) . List.intersperse (newline 1) . map Text
         . Text.split (=='\n')
 
@@ -422,9 +435,9 @@ instance Monoid.Monoid B where
 bFromText :: Text -> B
 bFromText text = B (Builder.fromText text) (textWidth text)
 
--- | TODO take double-width characters into account
+-- | Number of columns this text should need in a monospace font.
 textWidth :: Text -> Width
-textWidth = Text.length
+textWidth = Text.foldl' (\n c -> n + WCWidth.wcwidth c) 0
 
 bNull :: B -> Bool
 bNull = (==0) . bWidth

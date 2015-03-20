@@ -46,6 +46,10 @@ test_render = do
         , "12"
         ]
 
+test_render_full_width = do
+    equal (render 8 $ "1234" </> "1234") ["12341234"]
+    equal (render 8 $ "1234" </> "一二三四") ["1234", "一二三四"]
+
 test_text = do
     let f = Format.text
     equal (f "hi\nthere") ("hi" <> Format.newline 1 <> "there")
