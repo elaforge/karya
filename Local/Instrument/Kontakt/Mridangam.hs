@@ -54,13 +54,14 @@ pb_range :: Instrument.PbRange
 pb_range = (-24, 24)
 
 both_calls :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
-both_calls = make_both [("k+", 'd'), ("do", 'c'), ("ko", 'v'), ("to", 'b')]
+both_calls = make_both left_notes right_notes
+    [("k+", 'd'), ("do", 'c'), ("ko", 'v'), ("to", 'b')]
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
-make_both :: [(TrackLang.CallId, Char)]
+make_both :: [Drums.Note] -> [Drums.Note] -> [(TrackLang.CallId, Char)]
     -> [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
-make_both keys =
+make_both left right keys =
     [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
     where
     pairs =
@@ -75,11 +76,11 @@ make_both keys =
 -- | The convention is symbols for thoppi, and letters for valantalai.  Also,
 -- vowels for open sounds, consonants for closed ones.  Soft strokes look like
 -- simpler version of their equivalent loud strokes.
-left, right :: [Drums.Note]
+left_notes, right_notes :: [Drums.Note]
 stops :: [(Drums.Group, [Drums.Group])]
-(left, right, stops) = (left, right, stops)
+(left_notes, right_notes, stops) = (left_notes, right_notes, stops)
     where
-    left = concat $
+    left_notes = concat $
         [ group t_closed
             [ n 'a' "-" tha 0.5
             , n 'z' "+" tha 1
@@ -89,7 +90,7 @@ stops :: [(Drums.Group, [Drums.Group])]
             , n 's' "." thom 0.5
             ]
         ]
-    right = concat $
+    right_notes = concat $
         [ group v_closed
             [ n '1' "l" ki 0.5 -- TODO ki<>soft once I have the separate sample
             , n 'q' "k" ki 1
@@ -122,7 +123,7 @@ stops :: [(Drums.Group, [Drums.Group])]
     n = Drums.note_dyn
 
 all_notes :: [Drums.Note]
-all_notes = left ++ right
+all_notes = left_notes ++ right_notes
 
 {- | Layout:
 

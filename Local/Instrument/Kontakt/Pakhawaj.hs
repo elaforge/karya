@@ -41,7 +41,7 @@ Right pitched_notes = CUtil.drum_pitched_notes all_notes $
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
 both_calls :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
-both_calls = Mridangam.make_both
+both_calls = Mridangam.make_both left_notes right_notes
     [ ("k+", 'd')
     , ("uo", 'c') -- dha
     , ("ko", 'v') -- dhet
@@ -53,11 +53,11 @@ write_ksp = mapM_ (uncurry Util.write)
     ]
 
 -- | The symbols follow the same scheme as mridangam.
-left, right :: [Drums.Note]
+left_notes, right_notes :: [Drums.Note]
 stops :: [(Drums.Group, [Drums.Group])]
-(left, right, stops) = (left, right, stops)
+(left_notes, right_notes, stops) = (left_notes, right_notes, stops)
     where
-    left = concat $
+    left_notes = concat $
         [ group t_closed
             [ n 'a' "-" ki 0.5
             , n 'z' "+" ki 1
@@ -67,7 +67,7 @@ stops :: [(Drums.Group, [Drums.Group])]
             , n 's' "." ge 0.5
             ]
         ]
-    right = concat $
+    right_notes = concat $
         [ group v_closed
             [ n '1' "l" tet 0.5
             , n 'q' "k" tet 1
@@ -101,7 +101,7 @@ stops :: [(Drums.Group, [Drums.Group])]
     n = Drums.note_dyn
 
 all_notes :: [Drums.Note]
-all_notes = left ++ right
+all_notes = left_notes ++ right_notes
 
 -- right
 di = attr "di"
