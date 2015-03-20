@@ -15,6 +15,8 @@ import qualified Data.Time as Time
 
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
+import qualified System.IO as IO
+
 import qualified Text.Printf as Printf
 
 import qualified App.SendCmd as SendCmd
@@ -41,14 +43,22 @@ main = SendCmd.initialize $ do
     forM_ msgs $ \msg -> do
         putStrLn $ "---> " ++ msg
         if Timing `elem` flags then do
-            (response, time) <- timed $ SendCmd.send (Text.pack msg)
+            ((response, logs), time) <- timed $ SendCmd.send (Text.pack msg)
+            printLogs logs
             Printf.printf "%s - %.3f\n" (Text.unpack response) time
         else do
-            response <- SendCmd.send (Text.pack msg <> "\n")
+            (response, logs) <- SendCmd.send (Text.pack msg <> "\n")
+            printLogs logs
             unless (Text.null response) $
                 Text.IO.putStrLn response
 
-timed :: IO Text -> IO (Text, Double)
+printLogs :: [Text] -> IO ()
+printLogs [] = return ()
+printLogs logs = do
+    Text.IO.hPutStrLn IO.stderr "\nLogs:"
+    mapM_ (Text.IO.hPutStrLn IO.stderr) logs
+
+timed :: DeepSeq.NFData a => IO a -> IO (a, Double)
 timed action = do
     start <- now
     result <- action

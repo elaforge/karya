@@ -627,10 +627,7 @@ dispatch modeConfig targets = do
     handled <- mapM hardcoded targets
     Shake.want [target | (False, target) <- zip handled targets]
     where
-    allBinaries =
-        [ "browser", "dump", "extract_doc", "logview", "make_db"
-        , "repl", "seq", "test_midi", "update", "verify_performance"
-        ]
+    allBinaries = map hsName hsBinaries ++ map ccName ccBinaries
     hardcoded target = case target of
         -- I should probably run this in staunch mode, -k.
         "checkin" -> do
