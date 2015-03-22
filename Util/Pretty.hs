@@ -45,8 +45,8 @@ import qualified Text.Read as Read
 
 import qualified Util.Format as Format
 import Util.Format
-       (Doc, (</>), (<//>), (<+/>), (<+>), text, render, withIndent, indent_,
-        indent, indentLine)
+       (Doc, (</>), (<//>), (<+/>), (<+>), text, string, render, withIndent,
+        indent_, indent, indentLine)
 import qualified Util.Seq as Seq
 
 

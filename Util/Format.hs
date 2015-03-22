@@ -14,7 +14,7 @@
     A further wrinkle is that you can mark alternate layouts with 'shortForm'.
 -}
 module Util.Format (
-    Doc, shortForm, text
+    Doc, shortForm, text, string
     , (</>), (<+/>), (<//>), (<+>)
     , newline, unlines, wrap, wrapWords
     , withIndent, indent, indent_, indentLine
@@ -101,6 +101,9 @@ text t = case make t of
     isHard _ = Nothing
     make = filter (not . isEmpty) . List.intersperse (newline 1) . map Text
         . Text.split (=='\n')
+
+string :: String -> Doc
+string = text . Text.pack
 
 isEmpty :: Doc -> Bool
 isEmpty (Text t) = Text.null t

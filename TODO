@@ -622,7 +622,7 @@ cleanup:
       Args.prev_val in Deriver and dynamically typed.
     . There's no Val for Score.Event, so I can't use it for note tracks.
       Of course I could just add one, maybe not a big deal.
-  - derive Generic and use GHC.Generics to make a generic pretty for records?
+  * derive Generic and use GHC.Generics to make a generic pretty for records?
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.
   - Maybe I should use Score.PControl instead of Score.Control for pitch
