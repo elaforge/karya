@@ -108,57 +108,58 @@ test_gender_norot = do
 test_kotekan_irregular = do
     let run kotekan = e_pattern 0 . derive_kotekan (ngotek kotekan)
     equal (run True [(0, 8, "k_\\ -- 4c")])
-        ([(polos, "1-11-1-21"), (sangsih, "4-44-43-4")], [])
+        ([(polos, "--11-1-21"), (sangsih, "--44-43-4")], [])
     equal (run False [(0, 8, "k_\\ -- 4c")])
-        ([(pasang, "1-11-1321")], [])
+        ([(pasang, "--11-1321")], [])
 
 test_kotekan_cancel = do
     -- The end of the previous kotekan will cancel the first note of the
     -- next one.
     let run = e_pattern 0 . derive_kotekan (" | infer-duration" <> ngotek True)
-
-    equal (run [(0, 8, "k k-12-1-21 -- 4c"), (8, 8, "k k-12-1-21 -- 4c")])
+    equal (run [(0, 8, "initial=t | k k-12-1-21 -- 4c"),
+            (8, 8, "k k-12-1-21 -- 4c")])
         ( [ (polos,     "1-12-1-21-12-1-21")
           , (sangsih,   "-3-23-32-3-23-32")
           ]
         , []
         )
-
-    equal (run [(0, 8, "k k-12-1-21 -- 4c"), (8, 8, "k k-12-1-21 -- 4d")])
+    equal (run [(0, 8, "initial=t | k k-12-1-21 -- 4c"),
+            (8, 8, "k k-12-1-21 -- 4d")])
         ( [ (polos,     "1-12-1-21-23-2-32")
           , (sangsih,   "-3-23-32-4-34-43")
           ]
         , []
         )
-
     -- The extra note is the final one.  So I can't actually have a pattern
     -- that doesn't start on the beat, but does end on it.
-    equal (run
-            [(0, 8, "k k2-12-12- pat -- 4e"), (8, 8, "k k21-21-21 pat -- 4c")])
-        ( [ (polos,   "12-12-12-21-21-21")
-          , (sangsih, "4-34-34-3-43-43-4")
+    equal (run [(0, 8, "initial=t | k k2-12-12- pat -- 4e"),
+            (8, 8, "k k21-21-21 pat -- 4c")])
+        ( [ (polos,   "-2-12-12-21-21-21")
+          , (sangsih, "3-34-34-3-43-43-4")
           ]
         , []
         )
 
 test_kotekan_generic = do
     let run kotekan = e_pattern 2 . derive_kotekan (ngotek kotekan)
-    equal (run True [(2, 8, "k k-12-1-21 -- 4c")])
+    equal (run True [(2, 8, "initial=t | k k-12-1-21 -- 4c")])
         ([(polos, "1-12-1-21"), (sangsih, "-3-23-32")], [])
+    equal (run True [(2, 8, "k k-12-1-21 -- 4c")])
+        ([(polos, "--12-1-21"), (sangsih, "-3-23-32")], [])
     equal (run False [(2, 8, "k k-12-1-21 -- 4c")])
-        ([(pasang, "131231321")], [])
+        ([(pasang, "-31231321")], [])
     equal (run True [(2, 8, "k k-12-1-21 pat -- 4c")])
-        ([(polos, "1-12-1-21"), (sangsih, "434-343-4")], [])
+        ([(polos, "--12-1-21"), (sangsih, "-34-343-4")], [])
     equal (run False [(2, 8, "k k-12-1-21 pat -- 4c")])
-        ([(polos, "131231321"), (sangsih, "434234324")], [])
+        ([(polos, "-31231321"), (sangsih, "-34234324")], [])
     equal (run True [(2, 8, "k k-12-1-21 _ d -- 4e")])
-        ([(polos, "3-34-3-43"), (sangsih, "323-232-3")], [])
+        ([(polos, "--34-3-43"), (sangsih, "-23-232-3")], [])
     equal (run False [(2, 8, "k k-12-1-21 _ d -- 4e")])
-        ([(pasang, "323423243")], [])
+        ([(pasang, "-23423243")], [])
     equal (run True [(2, 8, "k k-12-1-21 pat d -- 4e")])
-        ([(polos, "3-34-3-43"), (sangsih, "-2-12-21")], [])
+        ([(polos, "--34-3-43"), (sangsih, "-2-12-21")], [])
     equal (run False [(2, 8, "k k-12-1-21 pat d -- 4e")])
-        ([(polos, "323423243"), (sangsih, "323123213")], [])
+        ([(polos, "-23423243"), (sangsih, "-23123213")], [])
 
 test_unison = do
     let run = DeriveTest.extract extract

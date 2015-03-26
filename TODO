@@ -866,7 +866,9 @@ test:
       below the note tracks, results should be the same
     - stack: generate nested events, check that stack is as expected
   - count number of tests in addition to checks within each test
-  - use generics or Foldable or something to write a generic StructEqual
+  / use generics or Foldable or something to write a generic StructEqual
+    Doesn't seem that appealing, since I'd have to deriving Generic on
+    everything, and the diff oriented one seems to be ok.
 
 midi record:
   - implement
@@ -1071,17 +1073,24 @@ Derive:
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan
-        - There are still uncancelled notes where patterns touch, e.g.
+        * There are still uncancelled notes where patterns touch, e.g.
           (k k2-12-12, '4o'), then (k k21-21-21, '3a')
         - things are confusing if the kernel is not 8 chars long, maybe throw
           an error in that case?  Is there a use for different length kernels?
-        ? The '-12-1-21' calls are almost obsolete, because I can just write
+          . If there is a use, then I could apply the check for 'k...' style
+            literals.
+        * The '-12-1-21' calls are almost obsolete, because I can just write
           'k k-12-1-21'.  But they automatically choose whether sangsih should
           go above or below based on inversion.  Is it useful enough to keep?
           Wait until I have more experience.
-        / Maybe no patterns should emit the first note?  Then I don't have to
+        * Maybe all patterns should omit the first note?  Then I don't have to
           cancel it.  But then I have to put "start" notes every place kotekan
           is followed by normal notes.
+          . But it seems I need it, otherwise I can't have a pattern that ends
+            on the note but doesn't start on one, e.g. 21-21-21
+          . Putting initial notes works if I use negative durations, and those
+            also let me put the pitch in the proper place, but they still seem
+            confusing.
         / k//\\ should have a version with space at the beginning and end
           . I can already do that by clipping off the start of the event.
         . k// needs 1 2-12-12- 21-21-21, I can do it by writing sangsih d pat,

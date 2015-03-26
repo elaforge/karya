@@ -300,13 +300,13 @@ c_kotekan_irregular default_style pattern =
     Derive.make_call module_ "kotekan" Tags.inst
     ("Render a kotekan pattern where both polos and sangsih are explicitly\
     \ specified. This is for irregular patterns.\n" <> kotekan_doc)
-    $ Sig.call ((,,,)
+    $ Sig.call ((,,,,)
     <$> Sig.defaulted "style" default_style "Kotekan style."
-    <*> dur_env <*> kotekan_env <*> pasang_env
-    ) $ \(style, dur, kotekan, pasang) -> Sub.inverting $ \args -> do
+    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
+    ) $ \(style, dur, kotekan, pasang, initial) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern False (Args.range args) dur pitch
+        realize_kotekan_pattern (not initial) (Args.range args) dur pitch
             under_threshold Repeat (kotekan_pattern pattern style pasang)
 
 -- | Take a Cycle, which is an abstract description of a pattern via
@@ -368,7 +368,7 @@ c_kotekan_kernel =
     Derive.make_call module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel. The sangsih part is inferred.\n"
         <> kotekan_doc)
-    $ Sig.call ((,,,,,,,)
+    $ Sig.call ((,,,,,,,,)
     <$> Sig.defaulted "rotation" 0 "Rotate kernel to make a different pattern."
     <*> Sig.defaulted "style" Telu "Kotekan style."
     <*> Sig.defaulted "sangsih" TrackLang.Up
@@ -376,14 +376,14 @@ c_kotekan_kernel =
     <*> Sig.environ "invert" Sig.Prefixed False
         "Flip the pattern upside down."
     <*> Sig.required_environ "kernel" Sig.Prefixed kernel_doc
-    <*> dur_env <*> kotekan_env <*> pasang_env
+    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
     ) $ \(rotation, style, sangsih_above, inverted, kernel_s, dur, kotekan,
-        pasang) ->
+        pasang, initial) ->
     Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern False (Args.range args) dur pitch
+        realize_kotekan_pattern (not initial) (Args.range args) dur pitch
             under_threshold Repeat $
                 realize_kernel inverted sangsih_above style pasang
                     (rotate rotation kernel)
@@ -393,20 +393,20 @@ c_kotekan_generic maybe_kernel =
     Derive.make_call module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred.\n" <> kotekan_doc)
-    $ Sig.call ((,,,,,)
+    $ Sig.call ((,,,,,,)
     <$> maybe (Sig.required "kernel" kernel_doc) pure maybe_kernel
     <*> Sig.defaulted "style" Telu "Kotekan style."
     <*> Sig.defaulted "sangsih" Nothing
         "Whether sangsih is above or below polos. If not given, sangsih will\
         \ be above if the polos ends on a low note or rest, below otherwise."
-    <*> dur_env <*> kotekan_env <*> pasang_env
-    ) $ \(kernel_s, style, maybe_sangsih_above, dur, kotekan, pasang) ->
-    Sub.inverting $ \args -> do
+    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
+    ) $ \(kernel_s, style, maybe_sangsih_above, dur, kotekan, pasang, initial
+    ) -> Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         let sangsih_above = fromMaybe (infer_sangsih kernel) maybe_sangsih_above
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern False (Args.range args) dur pitch
+        realize_kotekan_pattern (not initial) (Args.range args) dur pitch
             under_threshold Repeat $
                 realize_kernel False sangsih_above style pasang kernel
     where
@@ -808,6 +808,11 @@ kotekan_env =
     Sig.environ "kotekan" Sig.Unprefixed (TrackLang.constant_control 0.15)
         "If note durations are below this, divide the parts between polos and\
         \ sangsih."
+
+initial_env :: Sig.Parser Bool
+initial_env = Sig.environ "initial" Sig.Unprefixed False
+    "If true, include an initial note, which is the same as the final note.\
+    \ This is suitable for the start of a sequence of kotekan calls."
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
 instrument_top_env =
