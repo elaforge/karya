@@ -115,46 +115,49 @@ test_kotekan_irregular = do
 test_kotekan_cancel = do
     -- The end of the previous kotekan will cancel the first note of the
     -- next one.
-    let run extract title kotekan =
-            e_by_inst extract . derive_kotekan (title <> ngotek kotekan)
-    let notes = [(0, 8, "-12-1-21 -- 4c"), (8, 8, "-12-1-21 -- 4c")]
-    equal (first head $
-            run DeriveTest.e_start_note " | infer-duration" True notes)
-        ( (polos,
-            [ (0, "4c"), (2, "4c"), (3, "4d"), (5, "4c"), (7, "4d")
-            , (8, "4c"), (10, "4c"), (11, "4d"), (13, "4c"), (15, "4d")
-            , (16, "4c")
-            ])
-        , []
-        )
-    let notes = [(0, 8, "-12-1-21 -- 4c"), (8, 8, "-12-1-21 -- 4d")]
-    equal (first head $
-            run DeriveTest.e_start_note " | infer-duration" True notes)
-        ( (polos,
-            [ (0, "4c"), (2, "4c"), (3, "4d"), (5, "4c"), (7, "4d")
-            , (8, "4c"), (10, "4d"), (11, "4e"), (13, "4d"), (15, "4e")
-            , (16, "4d")
-            ])
+    let run = e_pattern 0 . derive_kotekan (" | infer-duration" <> ngotek True)
+
+    equal (run [(0, 8, "k k-12-1-21 -- 4c"), (8, 8, "k k-12-1-21 -- 4c")])
+        ( [ (polos,     "1-12-1-21-12-1-21")
+          , (sangsih,   "-3-23-32-3-23-32")
+          ]
         , []
         )
 
-test_kotekan_regular = do
+    equal (run [(0, 8, "k k-12-1-21 -- 4c"), (8, 8, "k k-12-1-21 -- 4d")])
+        ( [ (polos,     "1-12-1-21-23-2-32")
+          , (sangsih,   "-3-23-32-4-34-43")
+          ]
+        , []
+        )
+
+    -- The extra note is the final one.  So I can't actually have a pattern
+    -- that doesn't start on the beat, but does end on it.
+    equal (run
+            [(0, 8, "k k2-12-12- pat -- 4e"), (8, 8, "k k21-21-21 pat -- 4c")])
+        ( [ (polos,   "12-12-12-21-21-21")
+          , (sangsih, "4-34-34-3-43-43-4")
+          ]
+        , []
+        )
+
+test_kotekan_generic = do
     let run kotekan = e_pattern 2 . derive_kotekan (ngotek kotekan)
-    equal (run True [(2, 8, "-12-1-21 -- 4c")])
+    equal (run True [(2, 8, "k k-12-1-21 -- 4c")])
         ([(polos, "1-12-1-21"), (sangsih, "-3-23-32")], [])
-    equal (run False [(2, 8, "-12-1-21 -- 4c")])
+    equal (run False [(2, 8, "k k-12-1-21 -- 4c")])
         ([(pasang, "131231321")], [])
-    equal (run True [(2, 8, "-12-1-21 pat -- 4c")])
+    equal (run True [(2, 8, "k k-12-1-21 pat -- 4c")])
         ([(polos, "1-12-1-21"), (sangsih, "434-343-4")], [])
-    equal (run False [(2, 8, "-12-1-21 pat -- 4c")])
+    equal (run False [(2, 8, "k k-12-1-21 pat -- 4c")])
         ([(polos, "131231321"), (sangsih, "434234324")], [])
-    equal (run True [(2, 8, "-12-1-21 _ d -- 4e")])
+    equal (run True [(2, 8, "k k-12-1-21 _ d -- 4e")])
         ([(polos, "3-34-3-43"), (sangsih, "323-232-3")], [])
-    equal (run False [(2, 8, "-12-1-21 _ d -- 4e")])
+    equal (run False [(2, 8, "k k-12-1-21 _ d -- 4e")])
         ([(pasang, "323423243")], [])
-    equal (run True [(2, 8, "-12-1-21 pat d -- 4e")])
+    equal (run True [(2, 8, "k k-12-1-21 pat d -- 4e")])
         ([(polos, "3-34-3-43"), (sangsih, "-2-12-21")], [])
-    equal (run False [(2, 8, "-12-1-21 pat d -- 4e")])
+    equal (run False [(2, 8, "k k-12-1-21 pat d -- 4e")])
         ([(polos, "323423243"), (sangsih, "323123213")], [])
 
 test_unison = do
@@ -240,20 +243,23 @@ e_by_inst extract =
 e_pattern :: RealTime -> Derive.Result
     -> ([(Score.Instrument, String)], [String])
 e_pattern start =
-    first (map (second (as_pattern start)))
-        . e_by_inst DeriveTest.e_start_note
+    first (map (second (as_pattern start))) . e_by_inst DeriveTest.e_start_note
+
+as_pattern :: RealTime -> [(RealTime, String)] -> String
+as_pattern start = concat . map format . collect start
     where
-    as_pattern _ [] = ""
-    as_pattern at ns@((t, pitch) : rest) = case compare at t of
-        GT -> as_pattern at rest
-        EQ -> to_digit pitch : as_pattern (at+1) rest
-        LT -> '-' : as_pattern (at+1) ns
+    -- for each number, collect everything below
+    collect _ [] = []
+    collect at xs = map snd pre : collect (at+1) post
+        where (pre, post) = span ((<=at) . fst) xs
+    format [] = "-"
+    format ns = Seq.join "+" (map to_digit ns)
     to_digit p = case p of
-        "4c" -> '1'
-        "4d" -> '2'
-        "4e" -> '3'
-        "4f" -> '4'
-        _ -> error $ "unknown pitch: " <> show p
+        "4c" -> "1"
+        "4d" -> "2"
+        "4e" -> "3"
+        "4f" -> "4"
+        _ -> "unknown pitch: " <> show p
 
 e_pasang :: (Score.Event -> a) -> Derive.Result -> (([a], [a]), [String])
 e_pasang extract = first group_inst
