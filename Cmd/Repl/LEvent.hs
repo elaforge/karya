@@ -171,3 +171,11 @@ insert events = do
     (_, _, track_id, pos) <- Selection.get_insert
     State.insert_events track_id
         [Event.event (start + pos) dur text | (start, dur, text) <- events]
+
+-- * negative events
+
+invert :: Monad m => ModifyEvents.Track m
+invert = ModifyEvents.event $ \event -> event
+    { Event.start = Event.end event
+    , Event.duration = - Event.duration event
+    }
