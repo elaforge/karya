@@ -71,11 +71,11 @@ note_calls = Derive.call_maps
     , ("k//\\\\", c_kotekan_irregular Pat $
         irregular_pattern "3123123213213123"
             "-12-12-2 1-21-12-" "3-23-232 -32-3-23" "44-34-3- 43-434-3")
-    , ("k\\\\", c_kotekan_generic (Just "-1-21-21"))
-    , ("k//",   c_kotekan_generic (Just "-2-12-12"))
+    , ("k\\\\", c_kotekan_regular (Just "-1-21-21"))
+    , ("k//",   c_kotekan_regular (Just "-2-12-12"))
 
     , ("kotekan", c_kotekan_kernel)
-    , ("k", c_kotekan_generic Nothing)
+    , ("k", c_kotekan_regular Nothing)
 
     , ("'", c_ngoret $ pure Nothing)
     , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
@@ -185,12 +185,12 @@ c_norot = Derive.make_call module_ "norot" Tags.inst
         -- Nothing for start?
         let arrival_range = (Args.start args - 24, Args.start args)
         let suppress = Derive.with_val Environ.suppress_until start
-        let arrive = realize_kotekan_pattern False arrival_range dur pitch
+        let arrive = realize_kotekan_pattern True arrival_range dur pitch
                 under_threshold Once (gangsa_norot_arrival style pasang nsteps)
         (suppress $ if arrival then arrive else mempty)
             -- If there's an arrival, omit the first note of the pattern to
             -- save infer-duration the work.
-            <> realize_kotekan_pattern arrival (Args.range args) dur pitch
+            <> realize_kotekan_pattern (not arrival) (Args.range args) dur pitch
                 under_threshold Repeat (gangsa_norot style pasang nsteps)
 
 gangsa_norot :: NorotStyle -> Pasang
@@ -221,7 +221,7 @@ c_norot_arrival = Derive.make_call module_ "norot" Tags.inst
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
         pitch <- Util.get_pitch start
-        realize_kotekan_pattern False (Args.range args) dur pitch
+        realize_kotekan_pattern True (Args.range args) dur pitch
             under_threshold Once (gangsa_norot_arrival style pasang nsteps)
 
 gangsa_norot_arrival :: NorotStyle -> Pasang
@@ -269,7 +269,7 @@ c_gender_norot = Derive.make_call module_ "gender-norot" Tags.inst
     $ \(dur, kotekan, pasang) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern False (Args.range args) dur pitch
+        realize_kotekan_pattern True (Args.range args) dur pitch
             under_threshold Repeat (gender_norot pasang)
 
 gender_norot :: Pasang -> Cycle
@@ -306,19 +306,19 @@ c_kotekan_irregular default_style pattern =
     ) $ \(style, dur, kotekan, pasang, initial) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern (not initial) (Args.range args) dur pitch
+        realize_kotekan_pattern initial (Args.range args) dur pitch
             under_threshold Repeat (kotekan_pattern pattern style pasang)
 
 -- | Take a Cycle, which is an abstract description of a pattern via
 -- 'KotekanNote's, to real notes in a NoteDeriver.
-realize_kotekan_pattern :: Bool -- ^ if True, only emit notes after the start
+realize_kotekan_pattern :: Bool -- ^ if False, only emit notes after the start
     -> (ScoreTime, ScoreTime) -> ScoreTime
     -> PitchSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
     -> Derive.NoteDeriver
-realize_kotekan_pattern drop_start (start, end) dur pitch under_threshold
+realize_kotekan_pattern include_start (start, end) dur pitch under_threshold
         repeat cycle =
     realize_notes start realize $
-        (if drop_start then dropWhile ((<=start) . note_start) else id) $
+        (if include_start then id else dropWhile ((<=start) . note_start)) $
         realize_pattern repeat start end dur get_cycle
     where
     get_cycle t
@@ -373,8 +373,7 @@ c_kotekan_kernel =
     <*> Sig.defaulted "style" Telu "Kotekan style."
     <*> Sig.defaulted "sangsih" TrackLang.Up
         "Whether sangsih is above or below polos."
-    <*> Sig.environ "invert" Sig.Prefixed False
-        "Flip the pattern upside down."
+    <*> Sig.environ "invert" Sig.Prefixed False "Flip the pattern upside down."
     <*> Sig.required_environ "kernel" Sig.Prefixed kernel_doc
     <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
     ) $ \(rotation, style, sangsih_above, inverted, kernel_s, dur, kotekan,
@@ -383,13 +382,13 @@ c_kotekan_kernel =
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern (not initial) (Args.range args) dur pitch
+        realize_kotekan_pattern initial (Args.range args) dur pitch
             under_threshold Repeat $
                 realize_kernel inverted sangsih_above style pasang
                     (rotate rotation kernel)
 
-c_kotekan_generic :: Maybe Text -> Derive.Generator Derive.Note
-c_kotekan_generic maybe_kernel =
+c_kotekan_regular :: Maybe Text -> Derive.Generator Derive.Note
+c_kotekan_regular maybe_kernel =
     Derive.make_call module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred.\n" <> kotekan_doc)
@@ -406,7 +405,7 @@ c_kotekan_generic maybe_kernel =
         let sangsih_above = fromMaybe (infer_sangsih kernel) maybe_sangsih_above
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern (not initial) (Args.range args) dur pitch
+        realize_kotekan_pattern initial (Args.range args) dur pitch
             under_threshold Repeat $
                 realize_kernel False sangsih_above style pasang kernel
     where
@@ -429,7 +428,6 @@ realize_kernel inverted sangsih_above style pasang kernel =
         ((if inverted then invert else id) kernel) sangsih_above style pasang
 
 type Kernel = [Atom]
--- Rest, up, down.
 data Atom = Rest | Low | High deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Atom where
@@ -466,13 +464,6 @@ end_on_zero (interlocking, non_interlocking) =
     steps = fromMaybe 0 $ do
         final : _ <- Seq.last non_interlocking
         return $ note_steps final
-
-t0 =
-    map (filter ((== Just s) . note_instrument)) $ fst $
-        kernel_to_pattern kernel_12_1_21 TrackLang.Up Pat (p, s)
-    where
-    p = Score.Instrument "p"
-    s = Score.Instrument "s"
 
 kernel_to_pattern :: Kernel -> TrackLang.UpDown -> KotekanStyle -> Pasang
     -> Cycle
@@ -545,16 +536,9 @@ invert = map $ \x -> case x of
     High -> Low
     Low -> High
 
-kernel_12_1_21, kernel_1_21_21, kernel_2_21_21 :: Kernel
-Right kernel_12_1_21 = make_kernel "-12-1-21"
-Right kernel_1_21_21 = make_kernel "-1-21-21"
-Right kernel_2_21_21 = make_kernel "-2-21-21"
-
 -- *** all kernels
 
-all_kernels :: [Kernel]
-all_kernels = [kernel_12_1_21, kernel_1_21_21, kernel_2_21_21]
-
+-- | Find a kernel as a rotation or inversion of one of the standard ones.
 find_kernel :: Kernel -> Maybe (Kernel, Bool, Int)
 find_kernel kernel = lookup kernel variants
     where
@@ -563,29 +547,10 @@ find_kernel kernel = lookup kernel variants
         | kernel <- all_kernels
         , (variant, (inverted, rotation)) <- variations kernel
         ]
-
--- Whether sangsih is above or below, the polos is still the same.
--- all_kotekan :: Kernel -> [(String, [(Char, TrackLang.UpDown, Int)])]
-all_kotekan kernels = mapM_ print $ Seq.group_fst
-    [ (fmt $ realize_kernel inverted TrackLang.Up style pasang
-            (rotate rotation kernel),
-        (if inverted then 'v' else '^', rotation))
-    | kernel <- kernels
-    , inverted <- [False, True]
-    , rotation <- [0..7]
-    ]
-    where
-    style = Telu
-    pasang = (Score.Instrument "polos", Score.Instrument "sangsih")
-    fmt = concatMap pretty . normalize . map (map note_steps . filter is_polos)
-        . fst
-    is_polos = (== Just (fst pasang)) . note_instrument
-    normalize :: [[Int]] -> [[Int]]
-    normalize steps = map (map (subtract m)) steps
-        where
-        m = minimum $ concat $ filter (not . null) steps
-    pretty [] = "-"
-    pretty (steps : _) = show (steps + 1)
+    all_kernels = [kernel_12_1_21, kernel_1_21_21, kernel_2_21_21]
+    Right kernel_12_1_21 = make_kernel "-12-1-21"
+    Right kernel_1_21_21 = make_kernel "-1-21-21"
+    Right kernel_2_21_21 = make_kernel "-2-21-21"
 
 -- ** implementation
 
