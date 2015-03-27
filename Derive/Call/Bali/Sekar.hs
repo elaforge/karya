@@ -140,11 +140,11 @@ div_extract events = snd . List.mapAccumL go events
         events@(event : _) -> (,) events $ case Sub.event_note event of
             Nothing -> DivRest
             Just d
-                | ScoreTime.eq t (Sub.event_start event) -> DivNote d
-                | t `ScoreTime.gt` Sub.event_end event -> DivRest
+                | t ScoreTime.== Sub.event_start event -> DivNote d
+                | t ScoreTime.> Sub.event_end event -> DivRest
                 | otherwise -> DivContinue
         [] -> ([], DivRest)
-    past t = (`ScoreTime.gt` t) . Sub.event_start
+    past t = (ScoreTime.> t) . Sub.event_start
 
 -- | Drop until the predicate is true for the next event.  This is like
 -- @dropWhile (not . f)@, but you get the element before the predicate becomes

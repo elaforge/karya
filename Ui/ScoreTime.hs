@@ -5,10 +5,10 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Ui.ScoreTime (
     ScoreTime, TrackTime, round, to_double, to_cdouble, double, suffix
-    , eta, eq, gt, le
+    , eta, (==), (>), (<=)
 ) where
 import qualified Prelude
-import Prelude hiding (round)
+import Prelude hiding ((==), (>), (<=), round)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
@@ -106,12 +106,12 @@ eta :: ScoreTime
 eta = 0.00000000000004
 
 -- | ScoreTimes are imprecise, so compare them with this instead of (==).
-eq :: ScoreTime -> ScoreTime -> Bool
-eq = ApproxEq.eq (to_double eta)
+(==) :: ScoreTime -> ScoreTime -> Bool
+(==) = ApproxEq.eq (to_double eta)
 
 -- | True if the second is greater than the first - eta.  This can be used to
 -- determine if the start of an event has passed, while giving a little bit of
 -- extra allowance if its close enough.
-gt, le :: ScoreTime -> ScoreTime -> Bool
-gt a b = a - eta > b
-le a = not . gt a
+(>), (<=) :: ScoreTime -> ScoreTime -> Bool
+a > b = a - eta Prelude.> b
+a <= b = not (a > b)

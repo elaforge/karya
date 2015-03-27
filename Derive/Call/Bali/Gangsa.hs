@@ -320,7 +320,7 @@ realize_kotekan_pattern include_start (start, end) dur pitch under_threshold
         repeat cycle =
     realize_notes start realize $
         (if include_start then id
-            else dropWhile ((`ScoreTime.le` start) . note_start)) $
+            else dropWhile ((ScoreTime.<= start) . note_start)) $
         realize_pattern repeat start end dur get_cycle
     where
     get_cycle t

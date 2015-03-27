@@ -48,9 +48,10 @@ module Perform.RealTime (
     -- * convert to
     , to_seconds, to_milliseconds, to_microseconds, to_score
     -- * misc
-    , eta, eq
+    , eta, (==), (>), (<=)
 ) where
-import Prelude hiding (div)
+import Prelude hiding ((==), (>), (<=), div)
+import qualified Prelude
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
@@ -120,7 +121,7 @@ show_units :: RealTime -> Text
 show_units t = units <> pretty (seconds (fromIntegral secs + frac))
     where
     units = mconcatMap (\(a, b) -> showt a <> b) $
-        filter ((>0) . fst) [(hours, "h"), (mins, "m")]
+        filter ((Prelude.>0) . fst) [(hours, "h"), (mins, "m")]
     (t1, frac) = properFraction (to_seconds t)
     (hours, t2) = t1 `divMod` (60 * 60)
     (mins, secs) = t2 `divMod` 60
@@ -159,5 +160,9 @@ eta :: RealTime
 eta = 0.0000000000004
 
 -- | RealTimes are imprecise, so compare them with this instead of (==).
-eq :: RealTime -> RealTime -> Bool
-eq = ApproxEq.eq (to_seconds eta)
+(==) :: RealTime -> RealTime -> Bool
+(==) = ApproxEq.eq (to_seconds eta)
+
+(>), (<=) :: RealTime -> RealTime -> Bool
+a > b = a - eta Prelude.> b
+a <= b = not (a > b)

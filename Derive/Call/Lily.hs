@@ -141,7 +141,7 @@ first_last start end xs =
         (Seq.first_last (map start) (map end) (List.groupBy cmp events)))
     where
     (events, logs) = LEvent.partition xs
-    cmp x y = RealTime.eq (Score.event_start x) (Score.event_start y)
+    cmp x y = Score.event_start x RealTime.== Score.event_start y
 
 -- ** code
 

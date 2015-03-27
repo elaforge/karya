@@ -98,7 +98,7 @@ bracket start end = set_end . set_start . PitchSignal.within start end
         _ -> sig
     set_end sig = case PitchSignal.last sig of
         Just (x, y)
-            | RealTime.eq x end -> sig
+            | x RealTime.== end -> sig
             | otherwise -> sig <> PitchSignal.signal [(end, y)]
         Nothing -> sig
 
