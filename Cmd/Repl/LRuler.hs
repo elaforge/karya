@@ -222,6 +222,15 @@ get_marks block_id =
     Ruler.ascending 0 . snd . Ruler.get_marklist Ruler.meter <$>
         (State.get_ruler =<< State.ruler_of block_id)
 
+-- | Ruler under the selection having at least the given rank.
+selected_marks :: Cmd.M m => Ruler.Rank -> m [Ruler.PosMark]
+selected_marks rank = do
+    ruler <- State.get_ruler =<< selected
+    (start, end) <- Selection.range
+    return $ filter ((<=rank) . Ruler.mark_rank . snd) $
+        takeWhile ((<=end) . fst) $ Ruler.ascending start $ snd $
+        Ruler.get_marklist Ruler.meter ruler
+
 -- | Ruler of the track under the selection.
 selected :: Cmd.M m => m RulerId
 selected = do
