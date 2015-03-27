@@ -419,7 +419,8 @@ kernel_doc :: Text
 kernel_doc = "Polos part in transposition steps.\
     \ This will be normalized to end on the destination pitch.\
     \ It should consist of `-`, `1`, and `2`. You can start with `k` to\
-    \ avoid needing quotes."
+    \ avoid needing quotes. Starting with `k` will also require the length to\
+    \ be a multiple of 4."
 
 realize_kernel :: Bool -> TrackLang.UpDown -> KotekanStyle
     -> Pasang -> Kernel -> Cycle
@@ -436,10 +437,11 @@ instance Pretty.Pretty Atom where
         "make_kernel \"" <> Pretty.text (txt (map to_char cs)) <> "\""
 
 make_kernel :: [Char] -> Either Text Kernel
-make_kernel = mapM from_char . drop_k
-    where
-    drop_k ('k':xs) = xs
-    drop_k xs = xs
+make_kernel ('k':cs)
+    | length cs `mod` 4 /= 0 =
+        Left $ "kernel's length not a multiple of 4: " <> showt cs
+    | otherwise = mapM from_char cs
+make_kernel cs = mapM from_char cs
 
 from_char :: Char -> Either Text Atom
 from_char '-' = Right Rest

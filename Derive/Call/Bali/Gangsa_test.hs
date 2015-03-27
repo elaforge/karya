@@ -161,6 +161,15 @@ test_kotekan_generic = do
     equal (run False [(2, 8, "k k-12-1-21 pat d -- 4e")])
         ([(polos, "-23423243"), (sangsih, "-23123213")], [])
 
+test_kotekan_strange_length = do
+    let run start kotekan = e_pattern start . derive_kotekan (ngotek kotekan)
+    equal (run 0 True [(0, 8, "k k-121 -- 4c")])
+        ([(polos, "--121-121"), (sangsih, "-3-2-3-2")], [])
+    strings_like (snd $ run 0 True [(0, 12, "k k-12-21 -- 4c")])
+        ["not a multiple of 4"]
+    equal (run 0 True [(0, 12, "k '-12-21' -- 4c")])
+        ([(polos, "--12-21-12-21"), (sangsih, "-3-232-3-232")], [])
+
 test_unison = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_with_ui id config_inst title

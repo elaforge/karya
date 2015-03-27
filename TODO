@@ -1075,7 +1075,7 @@ Derive:
       kotekan
         * There are still uncancelled notes where patterns touch, e.g.
           (k k2-12-12, '4o'), then (k k21-21-21, '3a')
-        - things are confusing if the kernel is not 8 chars long, maybe throw
+        * things are confusing if the kernel is not 8 chars long, maybe throw
           an error in that case?  Is there a use for different length kernels?
           . If there is a use, then I could apply the check for 'k...' style
             literals.
