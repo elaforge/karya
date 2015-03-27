@@ -5,7 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Ui.ScoreTime (
     ScoreTime, TrackTime, round, to_double, to_cdouble, double, suffix
-    , eta, eq, gt
+    , eta, eq, gt, le
 ) where
 import qualified Prelude
 import Prelude hiding (round)
@@ -112,5 +112,6 @@ eq = ApproxEq.eq (to_double eta)
 -- | True if the second is greater than the first - eta.  This can be used to
 -- determine if the start of an event has passed, while giving a little bit of
 -- extra allowance if its close enough.
-gt :: ScoreTime -> ScoreTime -> Bool
+gt, le :: ScoreTime -> ScoreTime -> Bool
 gt a b = a - eta > b
+le a = not . gt a

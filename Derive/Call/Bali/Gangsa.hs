@@ -32,6 +32,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Gender as Gender
@@ -318,7 +319,8 @@ realize_kotekan_pattern :: Bool -- ^ if False, only emit notes after the start
 realize_kotekan_pattern include_start (start, end) dur pitch under_threshold
         repeat cycle =
     realize_notes start realize $
-        (if include_start then id else dropWhile ((<=start) . note_start)) $
+        (if include_start then id
+            else dropWhile ((`ScoreTime.le` start) . note_start)) $
         realize_pattern repeat start end dur get_cycle
     where
     get_cycle t
