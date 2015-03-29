@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - it's annoying having to do LEvent.events_of in LPerf, maybe they should do
+    that automatically, with a _logs version for the rare cases when I do want
+    to see logs?
   - It's confusing how sometimes the environ is applied to the pitch during
     derivation (e.g. Post.set_instrument), and sometimes it waits for Convert
     to do it.  Do I really need both?
@@ -14,8 +17,8 @@ UNSORTED
   * factor out replicated mridangam / pakhawaj code
   * move Local.Instrument.Kontakt* modules into subdir
   format:
-    - pp LPerf.sel_events is probably too indented due to being LEvents, test
-      with that.
+    - pp LPerf.sel_events has an extra level of indent after the [.  Not due
+      to LEvents.
     - pretty print on a single event gives '[Event ...' and no closing ']'.
     * first line is indented
       . ShortForm subs have less indent than above

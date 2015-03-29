@@ -441,7 +441,8 @@ instance Pretty.Pretty Atom where
 make_kernel :: [Char] -> Either Text Kernel
 make_kernel ('k':cs)
     | length cs `mod` 4 /= 0 =
-        Left $ "kernel's length not a multiple of 4: " <> showt cs
+        Left $ "kernel's length " <> showt (length cs)
+            <> " is not a multiple of 4: " <> showt cs
     | otherwise = mapM from_char cs
 make_kernel cs = mapM from_char cs
 
@@ -514,13 +515,6 @@ kernel_to_pattern kernel sangsih_above kotekan_style pasang =
     sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
     both steps = KotekanNote Nothing steps mempty
 
-variations :: Kernel -> [(Kernel, (Bool, Int))]
-variations kernel_ = Seq.unique_on fst
-    [ (variant, (inverted, rotate))
-    | (inverted, kernel) <- [(False, kernel_), (True, invert kernel_)]
-    , (rotate, variant) <- zip [0..] (rotations kernel)
-    ]
-
 rotate :: Int -> [a] -> [a]
 rotate n xs = cycle (rotations xs) !! n
 
@@ -555,6 +549,13 @@ find_kernel kernel = lookup kernel variants
     Right kernel_12_1_21 = make_kernel "-12-1-21"
     Right kernel_1_21_21 = make_kernel "-1-21-21"
     Right kernel_2_21_21 = make_kernel "-2-21-21"
+
+    variations :: Kernel -> [(Kernel, (Bool, Int))]
+    variations kernel_ = Seq.unique_on fst
+        [ (variant, (inverted, rotate))
+        | (inverted, kernel) <- [(False, kernel_), (True, invert kernel_)]
+        , (rotate, variant) <- zip [0..] (rotations kernel)
+        ]
 
 -- ** implementation
 

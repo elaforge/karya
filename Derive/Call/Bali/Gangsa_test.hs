@@ -119,14 +119,14 @@ test_kotekan_cancel = do
     equal (run [(0, 8, "initial=t | k k-12-1-21 -- 4c"),
             (8, 8, "k k-12-1-21 -- 4c")])
         ( [ (polos,     "1-12-1-21-12-1-21")
-          , (sangsih,   "-3-23-32-3-23-32")
+          , (sangsih,   "-3-23-32-3-23-32-")
           ]
         , []
         )
     equal (run [(0, 8, "initial=t | k k-12-1-21 -- 4c"),
             (8, 8, "k k-12-1-21 -- 4d")])
         ( [ (polos,     "1-12-1-21-23-2-32")
-          , (sangsih,   "-3-23-32-4-34-43")
+          , (sangsih,   "-3-23-32-4-34-43-")
           ]
         , []
         )
@@ -140,12 +140,13 @@ test_kotekan_cancel = do
         , []
         )
 
-test_kotekan_generic = do
+test_kotekan_regular = do
     let run kotekan = e_pattern 2 . derive_kotekan (ngotek kotekan)
+    -- Start at 2 to avoid accidentally working from 0.
     equal (run True [(2, 8, "initial=t | k k-12-1-21 -- 4c")])
-        ([(polos, "1-12-1-21"), (sangsih, "-3-23-32")], [])
+        ([(polos, "1-12-1-21"), (sangsih, "-3-23-32-")], [])
     equal (run True [(2, 8, "k k-12-1-21 -- 4c")])
-        ([(polos, "--12-1-21"), (sangsih, "-3-23-32")], [])
+        ([(polos, "--12-1-21"), (sangsih, "-3-23-32-")], [])
     equal (run False [(2, 8, "k k-12-1-21 -- 4c")])
         ([(pasang, "-31231321")], [])
     equal (run True [(2, 8, "k k-12-1-21 pat -- 4c")])
@@ -157,18 +158,18 @@ test_kotekan_generic = do
     equal (run False [(2, 8, "k k-12-1-21 _ d -- 4e")])
         ([(pasang, "-23423243")], [])
     equal (run True [(2, 8, "k k-12-1-21 pat d -- 4e")])
-        ([(polos, "--34-3-43"), (sangsih, "-2-12-21")], [])
+        ([(polos, "--34-3-43"), (sangsih, "-2-12-21-")], [])
     equal (run False [(2, 8, "k k-12-1-21 pat d -- 4e")])
         ([(polos, "-23423243"), (sangsih, "-23123213")], [])
 
 test_kotekan_strange_length = do
     let run start kotekan = e_pattern start . derive_kotekan (ngotek kotekan)
     equal (run 0 True [(0, 8, "k k-121 -- 4c")])
-        ([(polos, "--121-121"), (sangsih, "-3-2-3-2")], [])
+        ([(polos, "--121-121"), (sangsih, "-3-2-3-2-")], [])
     strings_like (snd $ run 0 True [(0, 12, "k k-12-21 -- 4c")])
         ["not a multiple of 4"]
     equal (run 0 True [(0, 12, "k '-12-21' -- 4c")])
-        ([(polos, "--12-21-12-21"), (sangsih, "-3-232-3-232")], [])
+        ([(polos, "--12-21-12-21"), (sangsih, "-3-232-3-232-")], [])
 
 test_unison = do
     let run = DeriveTest.extract extract
@@ -246,20 +247,24 @@ derive_kotekan title notes = derive_tracks $
 
 e_by_inst :: (Score.Event -> a) -> Derive.Result
     -> ([(Score.Instrument, [a])], [String])
-e_by_inst extract =
-    first Seq.group_fst
-        . DeriveTest.extract (\e -> (Score.event_instrument e, extract e))
+e_by_inst extract = first Seq.group_fst
+    . DeriveTest.extract (\e -> (Score.event_instrument e, extract e))
 
 e_pattern :: RealTime -> Derive.Result
     -> ([(Score.Instrument, String)], [String])
-e_pattern start =
-    first (map (second (as_pattern start))) . e_by_inst DeriveTest.e_start_note
-
-as_pattern :: RealTime -> [(RealTime, String)] -> String
-as_pattern start = concat . map format . collect start
+e_pattern start = first extract . e_by_inst DeriveTest.e_start_note
     where
+    extract :: [(Score.Instrument, [(RealTime, String)])]
+        -> [(Score.Instrument, String)]
+    extract inst_notes = map (second (as_pattern start end)) inst_notes
+        where
+        end = fromMaybe 0 $ Seq.maximum $ map fst $ concatMap snd inst_notes
+
+as_pattern :: RealTime -> RealTime -> [(RealTime, String)] -> String
+as_pattern start end = concat . map format . collect start
+    where
+    collect at [] = replicate (round (end - at) + 1) []
     -- for each number, collect everything below
-    collect _ [] = []
     collect at xs = map snd pre : collect (at+1) post
         where (pre, post) = span ((<=at) . fst) xs
     format [] = "-"
