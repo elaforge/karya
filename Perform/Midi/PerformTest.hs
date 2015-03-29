@@ -39,7 +39,7 @@ type Event = (Text, RealTime, RealTime, [(Text, [(RealTime, Signal.Y)])],
     [(RealTime, Signal.Y)], Stack.Stack)
 
 show_perf_event :: Perform.Event -> Event
-show_perf_event (Perform.Event inst start dur controls pitch stack) =
+show_perf_event (Perform.Event start dur inst controls pitch stack) =
     ( Score.inst_name (Instrument.inst_score inst), start, dur
     , [(Score.control_name k, Signal.unsignal v)
         | (k, v) <- Map.toList controls]

@@ -815,7 +815,7 @@ mkevents = map mkevent
 
 mkevent :: EventSpec -> Perform.Event
 mkevent (inst, pitch, start, dur, controls) =
-    Perform.Event inst start dur (Map.fromList controls)
+    Perform.Event start dur inst (Map.fromList controls)
         (psig start pitch) DeriveTest.fake_stack
     where
     psig pos p = Signal.signal [(pos, to_pitch p)]
@@ -829,7 +829,7 @@ type PEvent = (RealTime, RealTime, [(Signal.X, Signal.Y)],
 -- | Similar to mkevent, but allow a pitch curve.
 mkpevent :: PEvent -> Perform.Event
 mkpevent (start, dur, psig, conts) =
-    Perform.Event inst1 start dur (mkcontrols conts)
+    Perform.Event start dur inst1 (mkcontrols conts)
         (Signal.map_y Convert.round_pitch (Signal.signal psig))
         Stack.empty
 

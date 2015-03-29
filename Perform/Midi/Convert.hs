@@ -79,9 +79,9 @@ convert_event lookup event_ = do
         Log.warn $ "non-null control overridden by "
             <> pretty Controls.dynamic <> ": " <> pretty sig
     let converted = Perform.Event
-            { Perform.event_instrument = midi_inst
-            , Perform.event_start = Score.event_start event
+            { Perform.event_start = Score.event_start event
             , Perform.event_duration = Score.event_duration event
+            , Perform.event_instrument = midi_inst
             , Perform.event_controls = controls
             , Perform.event_pitch = pitch
             , Perform.event_stack = Score.event_stack event

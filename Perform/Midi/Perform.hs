@@ -756,28 +756,28 @@ resort = go mempty
 -- * event
 
 data Event = Event {
-    event_instrument :: !Instrument.Instrument
-    , event_start :: !RealTime
+    event_start :: !RealTime
     , event_duration :: !RealTime
+    , event_instrument :: !Instrument.Instrument
     , event_controls :: !ControlMap
     , event_pitch :: !Signal.NoteNumber
     , event_stack :: !Stack.Stack
     } deriving (Eq, Show)
 
 instance DeepSeq.NFData Event where
-    rnf (Event inst start dur controls pitch stack) =
-        rnf inst `seq` rnf start `seq` rnf dur `seq` rnf controls
+    rnf (Event start dur inst controls pitch stack) =
+        rnf start `seq` rnf dur `seq` rnf inst `seq` rnf controls
         `seq` rnf pitch `seq` rnf stack
         where
         rnf :: DeepSeq.NFData a => a -> ()
         rnf = DeepSeq.rnf
 
 instance Pretty.Pretty Event where
-    format (Event inst start dur controls pitch stack) = Pretty.record "Event"
-        [ ("instrument", Pretty.format (Instrument.inst_score inst))
-        , ("keyswitch", Pretty.format (Instrument.inst_keyswitch inst))
-        , ("start", Pretty.format start)
+    format (Event start dur inst controls pitch stack) = Pretty.record "Event"
+        [ ("start", Pretty.format start)
         , ("duration", Pretty.format dur)
+        , ("instrument", Pretty.format (Instrument.inst_score inst))
+        , ("keyswitch", Pretty.format (Instrument.inst_keyswitch inst))
         , ("controls", Pretty.format controls)
         , ("pitch", Pretty.format pitch)
         , ("stack", Pretty.format stack)
