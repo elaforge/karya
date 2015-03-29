@@ -141,7 +141,8 @@ perform_stream :: Convert.Lookup -> Instrument.Configs -> Derive.Events
 perform_stream lookup midi_config events = (perf_events, midi)
     where
     perf_events = Convert.convert lookup (LEvent.events_of events)
-    (midi, _) = Perform.perform Perform.initial_state midi_config perf_events
+    (midi, _) = Perform.perform Perform.initial_state
+        (Instrument.config_addrs <$> midi_config) perf_events
 
 -- | Perform events with the given instrument config.
 perform_inst :: [Cmd.SynthDesc] -> [(Text, [Midi.Channel])] -> Derive.Events

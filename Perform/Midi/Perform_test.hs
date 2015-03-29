@@ -48,7 +48,7 @@ min_cc_lead = Perform.min_control_lead_time
 
 test_perform = do
     let f events = do
-            let (msgs, warns) = perform midi_config2 $
+            let (msgs, warns) = perform inst_addrs2 $
                     Seq.sort_on Perform.event_start (map mkevent events)
             equal warns []
             return $ extract msgs
@@ -131,11 +131,12 @@ test_perform = do
         ]
 
 test_perform_voices = do
-    let f config = first e_note_ons . perform (mkconfig config)
+    let f config = first e_note_ons . perform (mk_inst_addrs config)
             . map (mkevent . mke)
         mke (p, start) = (inst1, p, start, 1, [])
-        mkconfig chans = Instrument.voice_configs
-            [(Instrument.inst_score inst1, [((dev1, c), v) | (c, v) <- chans])]
+        mk_inst_addrs chans =
+            Map.fromList [(i, [((dev1, c), v) | (c, v) <- chans])]
+            where i = Instrument.inst_score inst1
     let config12 = [(0, Just 1), (1, Just 2)]
     equal (f config12 [("a", 0)]) ([(0, (0, Key.c4))], [])
     -- b gets bumped to the next channel.
@@ -153,7 +154,7 @@ test_perform_voices = do
         ([(0, (0, Key.c4)), (0, (0, Key.cs4)), (0, (0, Key.d4))], [])
 
 test_aftertouch = do
-    let f = e_ts_chan_msg . fst . perform midi_config1
+    let f = e_ts_chan_msg . fst . perform inst_addrs1
                 . Seq.sort_on Perform.event_start . map event
         event (pitch, start, dur, aftertouch) = mkevent
             (inst1, pitch, start, dur,
@@ -171,7 +172,7 @@ test_aftertouch = do
 test_controls_after_note_off = do
     -- Test that controls happen during note off, but don't interfere with
     -- other notes.  This corresponds to the comment in 'Perform.perform_note'.
-    let f = fst . perform midi_config2 . map mkevent
+    let f = fst . perform inst_addrs2 . map mkevent
         e_ts_cmsg = PerformTest.extract_msg_ts PerformTest.e_cmsg
         sig xs = [(Controls.vol, Signal.signal xs)]
 
@@ -226,8 +227,8 @@ test_controls_after_note_off = do
 test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own
     -- channels, and not if they aren't
-    let run = extract . perform midi_config2 . mkevents
-        run_inst1 = extract . perform midi_config2 . mkevents_inst
+    let run = extract . perform inst_addrs2 . mkevents
+        run_inst1 = extract . perform inst_addrs2 . mkevents_inst
         extract = first e_ts_chan_msg
     let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
         mkvol sig = (Controls.vol, Signal.signal sig)
@@ -302,7 +303,7 @@ test_control_lead_time = do
          ], [])
 
 test_pedal = do
-    let run = extract . perform midi_config1 . mkevents
+    let run = extract . perform inst_addrs1 . mkevents
         extract = first $ PerformTest.extract_msg $ PerformTest.e_cc 64
     let pedal sig = (Controls.pedal, Signal.signal sig)
     -- The pedal extends note duration, so I get the pedal-off even though it's
@@ -315,7 +316,7 @@ test_pedal = do
 
 test_msgs_sorted = do
     -- Ensure that msgs are in order, even after control lead time.
-    let f = extract . perform midi_config1 . map mkevent
+    let f = extract . perform inst_addrs1 . map mkevent
         mkevent (s, dur, pitch) = mkpevent (s, dur, [(s, pitch)], [])
         extract = first e_ts_chan_msg
     let (msgs, logs) = f [(0, 1, 40.5), (1, 1, 40.5), (1, 1, 42.75)]
@@ -330,7 +331,7 @@ badsig cont = (cont, linear_interp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
 test_clip_warns = do
     let events = [mkevent (inst1, "a", 0, 4, [badsig Controls.vol])]
-        (msgs, warns) = perform midi_config1 events
+        (msgs, warns) = perform inst_addrs1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
     equal warns
@@ -342,13 +343,13 @@ test_clip_warns = do
     check (all_msgs_valid msgs)
 
 test_vel_clip_warns = do
-    let (msgs, warns) = perform midi_config1 $ mkevents_inst
+    let (msgs, warns) = perform inst_addrs1 $ mkevents_inst
             [("a", 0, 4, [badsig Controls.velocity])]
     equal warns ["Perform: %vel clipped: (0s, 4s)"]
     check (all_msgs_valid msgs)
 
 test_keyswitch_share_chan = do
-    let f evts = first extract $ perform midi_config1 (map make evts)
+    let f evts = first extract $ perform inst_addrs1 (map make evts)
         extract = map snd . e_note_ons
         make (ks, pitch, start) = mkevent (ks_inst ks, pitch, start, 1, [])
         ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
@@ -378,7 +379,7 @@ test_perform_lazy = do
 test_no_pitch = do
     let event = (mkevent (inst1, "a", 0, 2, []))
             { Perform.event_pitch = Signal.constant Signal.invalid_pitch }
-    let (midi, logs) = perform midi_config1 [event]
+    let (midi, logs) = perform inst_addrs1 [event]
     equal (map Midi.wmsg_msg midi) []
     equal logs ["Perform: no pitch signal"]
 
@@ -536,10 +537,10 @@ note_key (Midi.ChannelMessage _ (Midi.NoteOn key _)) = Just (True, key)
 note_key (Midi.ChannelMessage _ (Midi.NoteOff key _)) = Just (False, key)
 note_key _ = Nothing
 
-perform :: Instrument.Configs -> [Perform.Event]
+perform :: Perform.InstAddrs -> [Perform.Event]
     -> ([Midi.WriteMessage], [String])
-perform midi_config = first consistent_order . split_logs . fst
-    . Perform.perform Perform.initial_state midi_config . map LEvent.Event
+perform inst_addrs = first consistent_order . split_logs . fst
+    . Perform.perform Perform.initial_state inst_addrs . map LEvent.Event
 
 sort_groups :: (Eq k, Ord a) => (a -> k) -> [a] -> [a]
 sort_groups key = concatMap List.sort . List.groupBy (\a b -> key a == key b)
@@ -614,7 +615,7 @@ test_control_overlap = do
             , mkevent (inst2, "b", 1, 1, [])
             ]
         extract = PerformTest.extract_msg_ts PerformTest.e_cmsg
-    let (midi, logs) = perform midi_config2 events
+    let (midi, logs) = perform inst_addrs2 events
     equal logs []
     equal (extract midi)
         [ (-min_cc_lead, PitchBend 0)
@@ -627,7 +628,7 @@ test_control_overlap = do
 -- test the overlap map and channel allocation
 test_channelize = do
     let pevent (start, dur, psig) = mkpevent (start, dur, psig, [])
-        f = map snd . channelize (mk_inst_addrs midi_config2) . map pevent
+        f = map snd . channelize inst_addrs2 . map pevent
 
     -- Re-use channels when the pitch is different, but don't when it's the
     -- same.
@@ -665,7 +666,7 @@ test_channelize = do
         [0, 0]
 
     -- don't bother channelizing if the inst only has one addr
-    equal (map snd $ channelize (mk_inst_addrs midi_config2) $ mkevents
+    equal (map snd $ channelize inst_addrs2 $ mkevents
         [ (inst2, "a", 0, 2, [])
         , (inst2, "a2", 1, 2, [])
         ])
@@ -756,7 +757,7 @@ channelize inst_addrs events = LEvent.events_of $ fst $
 test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
         mk1 = mk inst1
-        f = map (snd . snd) . LEvent.events_of . allot midi_config1 . in_time
+        f = map (snd . snd) . LEvent.events_of . allot inst_addrs1 . in_time
         in_time mks = zipWith ($) mks (Seq.range_ 0 1)
 
     -- They should alternate channels, according to LRU.
@@ -769,7 +770,7 @@ test_allot = do
     equal (f [mk1 1, mk inst2 1, mk1 2]) [0, 1]
 
 test_allot_steal = do
-    let f = extract . allot midi_config1 . map mk . zip (Seq.range_ 0 1)
+    let f = extract . allot inst_addrs1 . map mk . zip (Seq.range_ 0 1)
         extract = first (map (snd . snd)) . LEvent.partition
         mk (start, chan) = (mkevent (inst1, "a", start, 1, []), chan)
     -- 0->0, 1->1, 2->steal 0, 0 -> should go to 1, becasue 0 was stolen
@@ -781,7 +782,7 @@ test_allot_warn = do
             (Instrument.inst_name (Perform.event_instrument e),
                 pretty dev, chan)
         extract (LEvent.Log msg) = Right $ DeriveTest.show_log msg
-    let f = map extract . allot midi_config1
+    let f = map extract . allot inst_addrs1
             . map (\(evt, chan) -> (mkevent evt, chan))
     let no_inst = mkinst "no_inst"
     equal (f [((inst1, "a", 0, 1, []), 0)])
@@ -789,16 +790,12 @@ test_allot_warn = do
     equal (f [((no_inst, "a", 0, 1, []), 0), ((no_inst, "b", 1, 2, []), 0)])
         (replicate 2 $ Right "Perform: no allocation for >synth1/no_inst")
 
-allot :: Instrument.Configs -> [(Perform.Event, Perform.Channel)]
+allot :: Perform.InstAddrs -> [(Perform.Event, Perform.Channel)]
     -> [LEvent.LEvent (Perform.Event, Instrument.Addr)]
-allot configs events = fst $
-    Perform.allot Perform.empty_allot_state (mk_inst_addrs configs)
-        (map LEvent.Event events)
+allot inst_addrs events = fst $
+    Perform.allot Perform.empty_allot_state inst_addrs (map LEvent.Event events)
 
 -- * setup
-
-mk_inst_addrs :: Instrument.Configs -> Perform.InstAddrs
-mk_inst_addrs = Map.map Instrument.config_addrs
 
 secs :: Double -> RealTime
 secs = RealTime.seconds
@@ -865,13 +862,16 @@ dev1, dev2 :: Midi.WriteDevice
 dev1 = Midi.write_device "dev1"
 dev2 = Midi.write_device "dev2"
 
-midi_config1 :: Instrument.Configs
-midi_config1 = Instrument.configs
-    [(Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])]
+inst_addrs1 :: Perform.InstAddrs
+inst_addrs1 = Map.fromList
+    [ (Instrument.inst_score inst1,
+        [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
+    ]
 
 -- Also includes inst2.
-midi_config2 :: Instrument.Configs
-midi_config2 = Instrument.configs
-    [ (Instrument.inst_score inst1, [(dev1, 0), (dev1, 1)])
-    , (Instrument.inst_score inst2, [(dev2, 2)])
+inst_addrs2 :: Perform.InstAddrs
+inst_addrs2 = Map.fromList
+    [ (Instrument.inst_score inst1,
+        [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
+    , (Instrument.inst_score inst2, [((dev2, 2), Nothing)])
     ]

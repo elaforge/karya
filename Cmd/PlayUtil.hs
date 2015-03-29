@@ -275,7 +275,8 @@ perform_events events = do
     lookup <- get_convert_lookup
     blocks <- State.gets (Map.toList . State.state_blocks)
     tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
-    return $ fst $ Perform.perform Perform.initial_state configs $
+    let inst_addrs = Instrument.config_addrs <$> configs
+    return $ fst $ Perform.perform Perform.initial_state inst_addrs $
         Convert.convert lookup $ filter_track_muted tree blocks $
         filter_instrument_muted configs $
         -- Performance should be lazy, so converting to a list here means I can

@@ -3,10 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - kotekan calls leave keys down in kontakt
   * val calls for twelve NNs?  e.g. (hz c4)
   * factor out replicated mridangam / pakhawaj code
   * move Local.Instrument.Kontakt* modules into subdir
   format:
+    - pp LPerf.sel_events is probably too indented due to being LEvents, test
+      with that.
+    - pretty print on a single event gives '[Event ...' and no closing ']'.
     * first line is indented
       . ShortForm subs have less indent than above
     * ", tail" should be on its own line
@@ -1073,6 +1077,11 @@ Derive:
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan
+        - cmd-s above a (-0) note makes it 0 dur
+        - negative events are convenient for the pitch, but sometimes I still
+          want to control the final note.  Maybe I could still use positive
+          durations, but take pitch from the end?
+        - k\\ realizes as 31321321 instead of 21321321
         * There are still uncancelled notes where patterns touch, e.g.
           (k k2-12-12, '4o'), then (k k21-21-21, '3a')
         * things are confusing if the kernel is not 8 chars long, maybe throw
@@ -1128,12 +1137,10 @@ Derive:
         - gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,
           e.g. 112-2-2-
-
-          - verify realization with integration
-          - Some patterns do play on the beat, they should be able to do that
-            and suppress the previous note.  I could do this by emitting the
-            note with a Flags.can_cancel.
-          - phase: this can make the last note no longer align to the pitch
+        / Some patterns do play on the beat, they should be able to do that
+          and suppress the previous note.  I could do this by emitting the
+          note with a Flags.can_cancel.
+          . initial note is controlled manually now
       wayang in octaves
         . pemade: >p=>p-umbang | >s=>p-isep
           kantilan: >p=>k-umbang | >s=>k-isep | %t-diatonic=5

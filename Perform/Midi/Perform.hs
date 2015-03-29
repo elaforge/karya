@@ -102,12 +102,11 @@ initial_state = State [] empty_allot_state empty_perform_state
 -- | Render instrument tracks down to midi messages, sorted in timestamp order.
 -- This should be non-strict on the event list, so that it can start producing
 -- MIDI output as soon as it starts processing Events.
-perform :: State -> Instrument.Configs -> Events -> (MidiEvents, State)
+perform :: State -> InstAddrs -> Events -> (MidiEvents, State)
 perform state _ [] = ([], state)
-perform state configs events = (final_msgs, final_state)
+perform state inst_addrs events = (final_msgs, final_state)
     where
     final_state = State channelize_state allot_state perform_state
-    inst_addrs = Map.map Instrument.config_addrs configs
     (event_channels, channelize_state) =
         channelize (state_channelize state) inst_addrs events
     (event_allotted, allot_state) =
