@@ -144,7 +144,7 @@ convert_midi_pitch inst patch_scale attr_map constant_pitch
             Score.event_controls_at (Score.event_start event) event
         psig = maybe mempty PitchSignal.constant $
             Score.pitch_at (Score.event_start event) event
-        convert = convert_pitch patch_scale
+        convert = convert_pitch patch_scale (Score.event_environ event)
         -- Trim controls to avoid applying out of range transpositions.
         trimmed = fmap (fmap (Signal.drop_at_after note_end)) controls
         note_end = Score.event_end event + Instrument.inst_decay inst
@@ -210,11 +210,12 @@ convert_dynamic pressure controls dyn_function =
             -> Just dest
         _ -> Nothing
 
-convert_pitch :: Maybe Instrument.PatchScale -> Score.ControlMap
-    -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
-convert_pitch scale controls psig = do
+convert_pitch :: Maybe Instrument.PatchScale -> TrackLang.Environ
+    -> Score.ControlMap -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
+convert_pitch scale env controls psig = do
     let (sig, nn_errs) = PitchSignal.to_nn $
-            PitchSignal.apply_controls controls psig
+            PitchSignal.apply_controls controls $
+            PitchSignal.apply_environ env psig
     unless (null nn_errs) $ Log.warn $
         "convert pitch: " <> Text.intercalate ", " (map pretty nn_errs)
     let (nn_sig, scale_errs) = convert_scale scale sig

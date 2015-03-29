@@ -405,15 +405,16 @@ perform_notes state events =
         (zip events (drop 1 (List.tails events)))
     go state (LEvent.Log log, _) = (state, [LEvent.Log log])
     go state (LEvent.Event event@(_, addr), future) =
-        _perform_note state (find_addr addr future) event
+        perform_note_in_channel state (find_addr addr future) event
     find_addr addr =
         fmap (event_start . fst) . LEvent.find_event ((==addr) . snd)
 
-_perform_note :: PerformState
+-- | Emit msgs to set the channel state, and msgs for a single note.
+perform_note_in_channel :: PerformState
     -> Maybe RealTime -- ^ next note with the same addr
     -> (Event, Instrument.Addr)
     -> (PerformState, MidiEvents)
-_perform_note (addr_inst, note_off_map) next_note_on (event, addr) =
+perform_note_in_channel (addr_inst, note_off_map) next_note_on (event, addr) =
     ((addr_inst2, Map.insert addr note_off note_off_map), msgs)
     where
     (note_msgs, note_off) = perform_note
@@ -421,17 +422,19 @@ _perform_note (addr_inst, note_off_map) next_note_on (event, addr) =
     (chan_state_msgs, addr_inst2) = adjust_chan_state addr_inst addr event
     msgs = merge_events chan_state_msgs note_msgs
 
--- | Figure out of any msgs need to be emitted to convert the channel state to
--- the given event on the given addr.
---
--- If there's no chan state always emit msgs, since in general there's no way
--- to know what state the synth is in.  If I do know (e.g. playback will
--- pass the current addr_inst) I can filter out expensive messages like
--- program change.
--- TODO implement playback with addr_inst when I implement pchange
---
--- Another strategy would be to always emit msgs and rely on playback filter,
--- but that would triple the number of msgs, which seems excessive.
+{- | Figure out of any msgs need to be emitted to convert the channel state to
+    the given event on the given addr.  This means keyswitches and program
+    changes.
+
+    If there's no chan state always emit msgs, since in general there's no way
+    to know what state the synth is in.  If I do know (e.g. playback will
+    pass the current addr_inst) I can filter out expensive messages like
+    program change.
+    TODO implement playback with addr_inst when I implement pchange
+
+    Another strategy would be to always emit msgs and rely on playback filter,
+    but that would triple the number of msgs, which seems excessive.
+-}
 adjust_chan_state :: AddrInst -> Instrument.Addr -> Event
     -> (MidiEvents, AddrInst)
 adjust_chan_state addr_inst addr event =
@@ -469,7 +472,7 @@ chan_state_msgs addr@(wdev, chan) start maybe_old_inst new_inst
     same_ks = maybe [] Instrument.inst_keyswitch maybe_old_inst
         == Instrument.inst_keyswitch new_inst
 
--- TODO if the last note was a hold keyswitch, this will leave the keyswitch
+-- | TODO if the last note was a hold keyswitch, this will leave the keyswitch
 -- down.  Technically I should clean that up, but it's a hassle because
 -- I'd need to keep the keyswitch down state in the PerformState so
 -- 'perform_notes' can clean them all up, or let 'adjust_chan_state' look into

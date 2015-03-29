@@ -6,7 +6,7 @@
 
     This is to scales as Derive.Call.All is to calls.
 -}
-module Derive.Scale.All (lookup_scale, docs, shadowed) where
+module Derive.Scale.All (lookup_scale, docs, scales, shadowed) where
 import qualified Data.Map as Map
 
 import qualified Util.Map as Map
