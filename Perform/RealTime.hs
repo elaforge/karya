@@ -76,7 +76,7 @@ import Global
 -- a note wants to get the real time before it, it must look up a negative
 -- RealTime.
 newtype RealTime = RealTime Double deriving
-    ( DeepSeq.NFData, Num, Fractional, Real, Eq, Ord
+    ( DeepSeq.NFData, Num, Fractional, Real, RealFrac, Eq, Ord
     , Serialize.Serialize, CRC32.CRC32, ApproxEq.ApproxEq
     )
 

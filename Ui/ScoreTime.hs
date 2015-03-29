@@ -28,9 +28,8 @@ import Global
 -- is dependent on the score context.  ScoreTime units can be negative, but
 -- blocks only display events at >=0 ScoreTime.
 newtype ScoreTime = ScoreTime Double deriving
-    ( DeepSeq.NFData, Num, Fractional, Real
-    , RealFrac, Eq, Ord, Serialize.Serialize, CRC32.CRC32
-    , ApproxEq.ApproxEq
+    ( DeepSeq.NFData, Num, Fractional, Real, RealFrac, Eq, Ord
+    , Serialize.Serialize, CRC32.CRC32, ApproxEq.ApproxEq
     )
 
 {- | This is also ScoreTime, but it's relative to the beginning of the track.
