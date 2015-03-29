@@ -177,13 +177,22 @@ inverse_tempo_func time = do
 
 -- | Get this block's performance from the cache.
 block_events :: BlockId -> Cmd.CmdL Derive.Events
-block_events block_id = normalize_events . Derive.r_events
-    =<< PlayUtil.cached_derive block_id
+block_events block_id = normalize_events =<< block_events_unnormalized block_id
+
+-- | 'normalize_events' is important for display, but I can't do it if I'm
+-- going to pass to 'convert', because convert should do the normalization
+-- itself.
+block_events_unnormalized :: BlockId -> Cmd.CmdL Derive.Events
+block_events_unnormalized block_id =
+    Derive.r_events <$> PlayUtil.cached_derive block_id
 
 block_uncached_events :: BlockId -> Cmd.CmdL Derive.Events
 block_uncached_events block_id = normalize_events . Derive.r_events
     =<< uncached_derive block_id
 
+-- | Apply 'Score.normalize' to the events, so that they have their final
+-- control positions and pitches.  Normally 'convert' does this, but if you
+-- display it before convert it's nice to see the \"cooked\" versions.
 normalize_events :: Cmd.M m => Derive.Events -> m Derive.Events
 normalize_events events = do
     lookup_info <- Cmd.get_lookup_instrument
@@ -192,8 +201,8 @@ normalize_events events = do
     return $ map (fmap (Score.normalize lookup_env)) events
 
 block_perform_events :: BlockId -> Cmd.CmdL [Perform.Event]
-block_perform_events block_id =
-    LEvent.events_of <$> (convert . LEvent.events_of =<< block_events block_id)
+block_perform_events block_id = (LEvent.events_of <$>) $
+    convert . LEvent.events_of =<< block_events_unnormalized block_id
 
 -- | Derive all the way to MIDI.
 block_midi :: BlockId -> Cmd.CmdL Perform.MidiEvents
@@ -209,14 +218,16 @@ sel_events :: Cmd.CmdL Derive.Events
 sel_events = get_sel_events False block_events
 
 sel_pevents :: Cmd.CmdL (Events Perform.Event)
-sel_pevents = convert . LEvent.events_of =<< sel_events
+sel_pevents = convert . LEvent.events_of
+    =<< get_sel_events False block_events_unnormalized
 
 -- | Like 'sel_events' but take the root derivation.
 root_sel_events :: Cmd.CmdL Derive.Events
 root_sel_events = get_sel_events True block_events
 
 root_sel_pevents :: Cmd.CmdL (Events Perform.Event)
-root_sel_pevents = convert . LEvent.events_of =<< root_sel_events
+root_sel_pevents = convert . LEvent.events_of
+    =<< get_sel_events True block_events_unnormalized
 
 -- ** extract
 
@@ -313,7 +324,8 @@ perform_events = PlayUtil.perform_events
 
 -- | This is the local block's performance, and the events are filtered to the
 -- selection range, and the filtering is done post-derivation, so they reflect
--- what would actually be played.
+-- what would actually be played.  I can't filter by selected track because
+-- MIDI events don't retain the stack.
 sel_midi :: Cmd.CmdL Perform.MidiEvents
 sel_midi = get_sel_midi False
 
@@ -356,8 +368,9 @@ play_midi msgs = do
 
 -- ** extract
 
-with_chan :: Midi.Channel -> [Midi.WriteMessage] -> [Midi.WriteMessage]
-with_chan chan = filter $ (== Just chan) . Midi.message_channel . Midi.wmsg_msg
+with_chans :: [Midi.Channel] -> [Midi.WriteMessage] -> [Midi.WriteMessage]
+with_chans chans = filter $ (`elem` map Just chans) . Midi.message_channel
+    . Midi.wmsg_msg
 
 -- | Reduce MIDI to an easier to read form.
 simple_midi :: [Midi.WriteMessage] -> [(RealTime, Midi.Message)]
