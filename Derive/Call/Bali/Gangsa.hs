@@ -72,8 +72,16 @@ note_calls = Derive.call_maps
     , ("k//\\\\", c_kotekan_irregular Pat $
         irregular_pattern "3123123213213123"
             "-12-12-2 1-21-12-" "3-23-232 -32-3-23" "44-34-3- 43-434-3")
-    , ("k\\\\", c_kotekan_regular (Just "-1-21-21"))
-    , ("k//",   c_kotekan_regular (Just "-2-12-12"))
+
+    -- There are two ways to play k\\, either 21321321 or 31321321.  The first
+    -- one is irregular since sangsih starts on 2 but there's no unison polos.
+    -- The first way also seems to be more common.
+    , ("k\\\\",   c_kotekan_irregular Telu $
+        irregular_pattern "21321321" "-1-21-21" "2-32-32-" "-43-43-4")
+    , ("k//",   c_kotekan_irregular Telu $
+        irregular_pattern "23123123" "-3-23-23" "2-12-12-" "-01-01-0")
+    , ("k\\\\2", c_kotekan_regular (Just "-1-21-21"))
+    , ("k//2",   c_kotekan_regular (Just "-2-12-12"))
 
     , ("kotekan", c_kotekan_kernel)
     , ("k", c_kotekan_regular Nothing)

@@ -162,6 +162,13 @@ test_kotekan_regular = do
     equal (run False [(2, 8, "k k-12-1-21 pat d -- 4e")])
         ([(polos, "-23423243"), (sangsih, "-23123213")], [])
 
+test_kotekan_regular_jalan = do
+    let run kotekan = e_pattern 0 . derive_kotekan (ngotek kotekan)
+    equal (run True [(0, 8, "k// -- 4e")])
+        ([(polos, "--3-23-23"), (sangsih, "-2-12-12-")], [])
+    equal (run True [(0, 8, "k\\\\ -- 4c")])
+        ([(polos, "--1-21-21"), (sangsih, "-2-32-32-")], [])
+
 test_kotekan_strange_length = do
     let run start kotekan = e_pattern start . derive_kotekan (ngotek kotekan)
     equal (run 0 True [(0, 8, "k k-121 -- 4c")])

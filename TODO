@@ -1089,7 +1089,7 @@ Derive:
         - negative events are convenient for the pitch, but sometimes I still
           want to control the final note.  Maybe I could still use positive
           durations, but take pitch from the end?
-        - k\\ realizes as 31321321 instead of 21321321
+        * k\\ realizes as 31321321 instead of 21321321
         * There are still uncancelled notes where patterns touch, e.g.
           (k k2-12-12, '4o'), then (k k21-21-21, '3a')
         * things are confusing if the kernel is not 8 chars long, maybe throw
