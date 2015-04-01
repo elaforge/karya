@@ -172,8 +172,9 @@ place pos dur event = modified $ event { start = pos, duration = dur }
 
 set_duration :: ScoreTime -> Event -> Event
 set_duration dur event
-    | dur /= duration event = modified $ event { duration = dur }
+    | dur `notEq` duration event = modified $ event { duration = dur }
     | otherwise = event
+    where notEq a b = a /= b || is_negative a /= is_negative b
 
 modify_duration :: (ScoreTime -> ScoreTime) -> Event -> Event
 modify_duration f evt = set_duration (f (duration evt)) evt
@@ -184,10 +185,10 @@ modify_end f evt =
 
 positive, negative :: Event -> Bool
 positive = not . negative
-negative = negative_duration . duration
+negative = is_negative . duration
 
-negative_duration :: ScoreTime -> Bool
-negative_duration d = d < 0 || isNegativeZero (ScoreTime.to_double d)
+is_negative :: ScoreTime -> Bool
+is_negative d = d < 0 || isNegativeZero (ScoreTime.to_double d)
 
 -- * stack
 
