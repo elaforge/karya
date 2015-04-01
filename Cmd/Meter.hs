@@ -143,25 +143,25 @@ type MarkWidth = Int
 -- between its neighbors before it appears.
 meter_ranks :: [(Color.Color, MarkWidth, Int)]
 meter_ranks =
-    [ (a8 0.0 0.0 0.0, 3, 8)    -- section
-    , (a8 0.2 0.1 0.0, 2, 8)    -- measure / whole
+    [ (a3 0.0 0.0 0.0, 3, 8)    -- section
+    , (a3 0.2 0.1 0.0, 2, 8)    -- measure / whole
 
-    , (a8 1.0 0.4 0.2, 2, 8)    -- half
-    , (a5 1.0 0.4 0.2, 2, 8)    -- quarter
+    , (a3 1.0 0.4 0.2, 2, 8)    -- half
+    , (a2 1.0 0.4 0.2, 2, 8)    -- quarter
 
-    , (a8 1.0 0.4 0.9, 1, 8)    -- 8th
-    , (a5 1.0 0.4 0.9, 1, 8)    -- 16th
+    , (a3 1.0 0.4 0.9, 1, 8)    -- 8th
+    , (a2 1.0 0.4 0.9, 1, 8)    -- 16th
 
-    , (a5 0.1 0.5 0.1, 1, 8)    -- 32nd
-    , (a2 0.1 0.5 0.1, 1, 8)    -- 64th
+    , (a2 0.1 0.5 0.1, 1, 8)    -- 32nd
+    , (a1 0.1 0.5 0.1, 1, 8)    -- 64th
 
-    , (a5 0.0 0.0 0.0, 1, 8)    -- 128th
-    , (a2 0.0 0.0 0.0, 1, 8)    -- 256th
+    , (a2 0.0 0.0 0.0, 1, 8)    -- 128th
+    , (a1 0.0 0.0 0.0, 1, 8)    -- 256th
     ]
     where
-    a2 = alpha 0.2
-    a5 = alpha 0.5
-    a8 = alpha 0.8
+    a1 = alpha 0.2
+    a2 = alpha 0.4
+    a3 = alpha 0.55
     alpha a r g b = Color.rgba r g b a
 
 -- | These are the conventional meanings for the ranks.
