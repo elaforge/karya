@@ -354,6 +354,12 @@ EventTrackView::draw_area()
     draw_event_boxes(events, ranks, count, offsets);
     this->draw_signal(clip.y, clip.b(), start);
 
+    // The overlay ruler overlaps me entirely, so I'm sure it's damaged.
+    if (damage() & FL_DAMAGE_ALL)
+        this->draw_child(this->overlay_ruler);
+    else
+        this->update_child(this->overlay_ruler);
+
     std::pair<IRect, IRect> prev_rects(IRect(0, 0, 0, 0), IRect(0, 0, 0, 0));
     // Draw the upper layer (event start line, text).
     for (int i = 0; i < count; i++) {
@@ -380,12 +386,6 @@ EventTrackView::draw_area()
         free(events);
         free(ranks);
     }
-
-    // The overlay ruler overlaps me entirely, so I'm sure it's damaged.
-    if (damage() & FL_DAMAGE_ALL)
-        this->draw_child(this->overlay_ruler);
-    else
-        this->update_child(this->overlay_ruler);
 }
 
 
@@ -608,6 +608,7 @@ EventTrackView::draw_signal(int min_y, int max_y, ScoreTime start)
 }
 
 
+// Draw the stuff that goes on top of the event boxes: trigger line and text.
 std::pair<IRect, IRect>
 EventTrackView::draw_upper_layer(int offset, const Event &event, int rank,
         int prev_offset, int next_offset,

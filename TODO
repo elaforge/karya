@@ -762,7 +762,7 @@ performance:
       can I make this more efficient?
 
 fltk:
-  - It's still really hard to see trigger lines, because they mix with ruler
+  * It's still really hard to see trigger lines, because they mix with ruler
     lines.  They should bypass the transparency, and just draw on top of ruler
     lines.
   ? There's an extra axis of information in the width of the event body.  How
