@@ -404,8 +404,11 @@ is_whitespace c = c == ' ' || c == '\t'
 
 -- * definition file
 
+-- | Load a ky file and all other files it imports.  'parse_ky' describes the
+-- format of the ky file.
 load_ky :: [FilePath] -> FilePath
     -> IO (Either Text (Definitions, [FilePath]))
+    -- ^ (all_definitions, imported_files)
 load_ky paths fname = fmap annotate . Error.runErrorT $ load Set.empty [fname]
     where
     load _ [] = return []
@@ -438,9 +441,6 @@ find_mtime paths fname =
         firstJusts (map (\dir -> get (dir </> fname)) paths)
     where get = File.ignoreEnoent . Directory.getModificationTime
 
-    -- TODO how to handle shadowing in imported files?  Should I allow
-    -- them to shadow?
-
 -- | This is a mirror of 'Derive.Library', but with expressions instead of
 -- calls.  (generators, transformers)
 data Definitions = Definitions {
@@ -463,12 +463,12 @@ type LineNumber = Int
     in the tracklang language, which is less powerful but more concise than
     haskell.
 
-    The syntax is a sequence of @include path/to/file@ lines followed by
+    The syntax is a sequence of @import path/to/file@ lines followed by
     a sequence of sections.  A section is a @header:@ line followed by
     definitions.  The header determines the type of the calls defined after it,
     e.g.:
 
-    > include 'somelib.karya'
+    > import 'somelib.karya'
     >
     > note generator:
     > x = y

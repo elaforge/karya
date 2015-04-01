@@ -262,17 +262,18 @@ derive_pitch cache track transform = do
         track signal
     return (signal, logs)
 
--- | The controls under a note track are intended to apply only to the note
--- above them.  However, since signal calls frequently emit samples before,
--- "Derive.Slice" includes one event past the end of the slice range.  To avoid
--- a sample for the next note getting into this one, I trim off samples at and
--- after the end of the slice.  Otherwise, the decay of each note would want to
--- change pitch to that of the next note.
---
--- Slices with a zero duration have a special exception that causes them to
--- include a sample at the end time, since otherwise they wouldn't have
--- any controls.  This also applies to non-zero slices which are nonetheless
--- made zero by stretching to 0.
+{- | The controls under a note track are intended to apply only to the note
+    above them.  However, since signal calls frequently emit samples before,
+    "Derive.Slice" includes one event past the end of the slice range.  To
+    avoid a sample for the next note getting into this one, I trim off samples
+    at and after the end of the slice.  Otherwise, the decay of each note would
+    want to change pitch to that of the next note.
+
+    Slices with a zero duration have a special exception that causes them to
+    include a sample at the end time, since otherwise they wouldn't have any
+    controls.  This also applies to non-zero slices which are nonetheless made
+    zero by stretching to 0.
+-}
 trim_signal :: (RealTime -> sig -> sig) -> (RealTime -> sig -> sig)
     -> TrackTree.Track -> sig -> Derive.Deriver sig
 trim_signal drop_after drop_at_after track signal

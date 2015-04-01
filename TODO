@@ -762,6 +762,12 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - It's still really hard to see trigger lines, because they mix with ruler
+    lines.  They should bypass the transparency, and just draw on top of ruler
+    lines.
+  ? There's an extra axis of information in the width of the event body.  How
+    could I use that?
+  - Text in negative events doesn't wrap.
   - if I add a track and then undo, I get
     assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
     tracknum && tracknum < tracks()'>
@@ -1089,6 +1095,25 @@ Derive:
         - negative events are convenient for the pitch, but sometimes I still
           want to control the final note.  Maybe I could still use positive
           durations, but take pitch from the end?
+          . That doesn't work because slicing uses a negative event to include
+            the end.
+          . Maybe I could include control calls if they are -0?
+          . Actually I don't understand why the negative event gets the next
+            control.
+            . It's because slice goes from start--next_start, which happens
+              to be correct for negative events.
+          . I would need Control.trim_signal to include the sample at the end,
+            buts its whole job is to trim that one off.  So I think I need the
+            negative duration on the event as a way to signal that I want the
+            controls after the event, not during it.
+          . If I did the thing where negative events are edited at their end,
+            I could have a positive note at the end of a negative one.
+            Negative becomes more of a flag on a note to tell it to draw and
+            slice differently.  The tradeoff is that I can no longer put a
+            positive note at the start of a negative one.  Even if I did, it
+            would have to be zero duration and have its duration inferred.
+          . The other option is to just use the "next pitch" feature to make
+            kotekan calls depend on the next pitch instead of the current one.
         * k\\ realizes as 31321321 instead of 21321321
         * There are still uncancelled notes where patterns touch, e.g.
           (k k2-12-12, '4o'), then (k k21-21-21, '3a')
