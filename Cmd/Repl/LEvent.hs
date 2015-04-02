@@ -21,6 +21,7 @@ import qualified Ui.Track as Track
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Edit as Edit
 import qualified Cmd.ModifyEvents as ModifyEvents
+import qualified Cmd.ModifyNotes as ModifyNotes
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
@@ -179,3 +180,24 @@ invert = ModifyEvents.event $ \event -> event
     { Event.start = Event.end event
     , Event.duration = - Event.duration event
     }
+
+invert_note :: Monad m => ModifyNotes.ModifyNotes m
+invert_note = ModifyNotes.modify_note $ \note -> note
+    { ModifyNotes.note_start = ModifyNotes.note_end note
+    , ModifyNotes.note_duration = - ModifyNotes.note_duration note
+    , ModifyNotes.note_controls = (if ModifyNotes.note_duration note < 0
+        then to_positive (ModifyNotes.note_end note)
+        else to_negative (ModifyNotes.note_start note)) <$>
+            ModifyNotes.note_controls note
+    }
+    where
+    to_positive start events = case Events.last events of
+        Just final | Event.duration final == 0 ->
+            Events.singleton $ Event.move (const start) $
+                Event.set_duration 0 final
+        _ -> events
+    to_negative end events = case Events.head events of
+        Just first | Event.duration first == 0 ->
+            Events.singleton $ Event.move (const end) $
+                Event.set_duration (-0) first
+        _ -> events
