@@ -11,10 +11,15 @@
 -- TODO Value could also be used for a generic diff.
 module Util.PrettyGeneric (
     Value(..), Constructor(..), Field(..)
-    , Extract(..), makePretty
+    -- * functions on Value
+    , makePretty, valuePairs
+    , Extract(..)
 ) where
+import Control.Arrow (first)
+import qualified Data.ByteString as ByteString
+import qualified Data.Map as Map
 import qualified Data.Text as Text
-import Data.Text (Text)
+
 import qualified GHC.Generics as G
 import GHC.Generics ((:+:), (:*:)((:*:)), S1, D1, C1, Rec0)
 
@@ -32,7 +37,11 @@ data Field = Field {
     , fieldValue :: !Value
     } deriving (Show)
 
-makePretty :: (Text -> Text) -- ^ applied to field labels, to strip prefixes
+-- * functions on Value
+
+-- | Make a Pretty instance for a record type.
+makePretty :: (Text.Text -> Text.Text)
+    -- ^ applied to field labels, to strip prefixes
     -> Value -> Pretty.Doc
 makePretty _ (Prim t) = Pretty.text (Text.pack t)
 makePretty stripField (Data (Constructor name fields))
@@ -43,6 +52,22 @@ makePretty stripField (Data (Constructor name fields))
             ]
     | otherwise = Pretty.constructor (Text.pack name)
         (map (makePretty stripField . fieldValue) fields)
+
+valuePairs :: Value -> [([String], String)]
+valuePairs = goValue
+    where
+    goValue (Prim val) = [([], val)]
+    goValue (Data (Constructor name fields)) =
+        [(name : addr, val) | (addr, val) <- concatMap goField fields]
+    goField (Field name val) =
+        [(name : addr, val) | (addr, val) <- goValue val]
+
+-- to do inline diff I would need the pretty-printed versions.
+-- Actually at that point I may as well do textual diff.  But textual diff
+-- doesn't understand if the formatting changes.  StructEqual also isn't a
+-- diff, so it doesn't understand an added element.
+-- I can reduce to [(Name, Field)] and then use Algorithm.Diff
+-- diff :: Value -> Value -> 
 
 -- * extract
 
@@ -97,3 +122,20 @@ instance Extract Bool where extract = Prim . show
 instance Extract Int where extract = Prim . show
 instance Extract String where extract = Prim . show
 instance Extract Char where extract = Prim . show
+
+instance Extract Text.Text where extract = Prim . show
+instance Extract ByteString.ByteString where extract = Prim . show
+
+-- instance (Extract a, Extract b) => Extract (a, b) where
+--     extract (a, b) = mapping "(,)" [(
+
+instance (Extract k, Extract v) => Extract (Map.Map k v) where
+    extract m = mapping "Map" (Map.toAscList m)
+
+mapping :: (Extract k, Extract v) => String -> [(k, v)] -> Value
+mapping constructor kvs = Data $ Constructor constructor $
+    if not (null kvs) && null fields then unknownFields else fields
+    where
+    fields =
+        [Field name (extract val) | (Prim name, val) <- map (first extract) kvs]
+    unknownFields = [Field "?" (extract val) | (_, val) <- kvs]
