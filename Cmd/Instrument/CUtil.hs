@@ -237,12 +237,14 @@ make_attribute_map attr_map = Instrument.make_attribute_map $ Seq.unique
 
 -- | Make PitchedNotes by pairing each 'Drums.Note' with its 'KeyswitchRange'.
 drum_pitched_notes :: [Drums.Note] -> [(Score.Attributes, KeyswitchRange)]
-    -> Either String PitchedNotes
-drum_pitched_notes notes keymap
-    | null not_found = Right found
-    | otherwise = Left $ "KeyswitchRange not found for notes: "
-        ++ show not_found
+    -> (PitchedNotes, ([Drums.Note], [Score.Attributes]))
+    -- ^ Also return the notes with no mapping (so they can't be played), and
+    -- keymap ranges with no corresponding notes (so there is no call to
+    -- play them).
+drum_pitched_notes notes keymap = (found, (not_found, unused))
     where
+    unused = filter (`notElem` note_attrs) (map fst keymap)
+    note_attrs = map Drums.note_attrs notes
     (not_found, found) = Seq.partition_either $ map find notes
     find n = maybe (Left n) (Right . (,) n) (lookup (Drums.note_attrs n) keymap)
 

@@ -55,7 +55,10 @@ pb_range = (-24, 24)
 
 both_calls :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
 both_calls = make_both left_notes right_notes
-    [("k+", 'd'), ("do", 'c'), ("ko", 'v'), ("to", 'b')]
+    [ ("ko", 'f'), ("do", 'v')
+    , ("k+", 'g')
+    , ("to", 'b')
+    ]
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
@@ -75,7 +78,7 @@ make_both left right keys =
 
 -- | The convention is symbols for thoppi, and letters for valantalai.  Also,
 -- vowels for open sounds, consonants for closed ones.  Soft strokes look like
--- simpler version of their equivalent loud strokes.
+-- a simpler version of their equivalent loud strokes.
 left_notes, right_notes :: [Drums.Note]
 stops :: [(Drums.Group, [Drums.Group])]
 (left_notes, right_notes, stops) = (left_notes, right_notes, stops)
@@ -86,19 +89,25 @@ stops :: [(Drums.Group, [Drums.Group])]
             , n 'z' "+" tha 1
             ]
         , group t_open
-            [ n 'x' "o" thom 1
-            , n 's' "." thom 0.5
+            [ n 's' "." thom 0.5
+            , n 'x' "o" thom 1
+            , n 'd' "o." gumki 1
+            , n 'c' "o^" (gumki <> Attrs.up) 1
+            -- later I can have o_ and o- for low and high
+            -- or maybe 'o 0' 'o .5' 'o 1'
             ]
         ]
     right_notes = concat $
         [ group v_closed
-            [ n '1' "l" ki 0.5 -- TODO ki<>soft once I have the separate sample
+            [ n '1' "l" ki 0.5
             , n 'q' "k" ki 1
             , n 'w' "t" ta 1
             ]
         , group v_sadam
             [ n 'e' "n" nam 1
             , n 'r' "d" din 1
+            , n '7' "nk" (meetu <> ki) 1
+            , n 'u' "nt" (meetu <> ta) 1
             ]
         , group v_chapu
             [ n '5' "v" muru 1
@@ -130,17 +139,20 @@ all_notes = left_notes ++ right_notes
     > 0         10        20        30        40        50        60        70        80        90        100       110       120    127
     > 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567
     > c-2         c-1         c0          c1          c2          c3          c4          c5          c6          c7          c8     g8
-    >         XXXXtha -------|thom ------|ta --------|ki --------|nam -------|din -------|arai ------|dheem -----|meetu -----|
+    >         XXXXtha -------|thom ------|ki --------|ta --------|nam -------|din -------|arai ------|dheem -----|meetu -----|
 -}
 pitched_notes :: CUtil.PitchedNotes
-Right pitched_notes = CUtil.drum_pitched_notes all_notes $
+(pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
     CUtil.make_keymap Key2.g_2 Key2.c_1 12 NN.c4
     [ [tha]
-    , [thom, thom <> Attrs.low, thom <> Attrs.open]
-    , [ta], [ki], [nam], [din]
+    , [thom, gumki]
+    , [ki, gumki <> Attrs.up]
+    , [ta]
+    , [nam]
+    , [din]
     , [arai, muru]
-    , [dheem, dheem <> Attrs.staccato]
-    , [meetu]
+    , [meetu <> ki, dheem, dheem <> Attrs.staccato]
+    , [meetu <> ta]
     ]
 
 write_ksp :: IO ()
@@ -151,7 +163,8 @@ write_ksp = mapM_ (uncurry Util.write)
     ]
 
 pitched_notes_old :: CUtil.PitchedNotes
-Right pitched_notes_old = CUtil.drum_pitched_notes all_notes $ map make
+(pitched_notes_old, _pitched_notes_old) =
+    CUtil.drum_pitched_notes all_notes $ map make
     -- left
     [ (tha, (Key.g_1, Key.e0))
     , (thom, (Key.g0, Key.e1))
@@ -180,3 +193,5 @@ dheem = attr "dheem"
 arai = attr "arai"
 muru = attr "muru"
 meetu = attr "meetu"
+
+gumki = attr "gumki"

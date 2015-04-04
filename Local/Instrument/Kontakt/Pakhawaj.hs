@@ -25,7 +25,7 @@ patches = [(patch "pakhawaj" pitched_notes, code)]
     code = Mridangam.make_code all_notes both_calls
 
 pitched_notes :: CUtil.PitchedNotes
-Right pitched_notes = CUtil.drum_pitched_notes all_notes $
+(pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
     CUtil.make_keymap Key2.c_2 Key2.c_1 12 NN.fs3
         [ [ki]
         , [ge]
@@ -63,8 +63,8 @@ stops :: [(Drums.Group, [Drums.Group])]
             , n 'z' "+" ki 1
             ]
         , group t_open
-            [ n 'x' "o" ge 1
-            , n 's' "." ge 0.5
+            [ n 's' "." ge 0.5
+            , n 'x' "o" ge 1
             ]
         ]
     right_notes = concat $
