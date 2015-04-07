@@ -4,6 +4,7 @@
 
 -- | Mridangam patch.
 module Local.Instrument.Kontakt.Mridangam where
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -54,18 +55,26 @@ pb_range :: Instrument.PbRange
 pb_range = (-24, 24)
 
 both_calls :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
-both_calls = make_both left_notes right_notes
-    [ ("ko", 'f'), ("do", 'v')
-    , ("k+", 'g')
-    , ("to", 'b')
+both_calls = make_both left_notes right_notes special_names
+    [ ("N", 'f'), ("D", 'v')
+    , ("K", 'g'), ("T", 'b')
+    , ("P", 'h'), ("X", 'n')
     ]
+    where
+    special_names = [("P", ["+", "k"]), ("X", ["+", "t"])]
+        ++ [(sym c, ["o", sym (Char.toLower c)]) | c <- "KTNDAUVI"]
+    sym = TrackLang.Symbol . Text.singleton
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
-make_both :: [Drums.Note] -> [Drums.Note] -> [(TrackLang.CallId, Char)]
+make_both :: [Drums.Note] -> [Drums.Note]
+    -> [(TrackLang.CallId, [TrackLang.CallId])] -- ^ special names for pairs
+    -> [(TrackLang.CallId, Char)]
     -> [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
-make_both left right keys =
-    [(call, subcalls, lookup call keys) | (call, subcalls) <- pairs]
+make_both left right special_names keys =
+    [ (call, subcalls, lookup call keys)
+    | (call, subcalls) <- special_names ++ pairs
+    ]
     where
     pairs =
         [ (TrackLang.Symbol $ u rcall <> u lcall, [rcall, lcall])
@@ -106,8 +115,8 @@ stops :: [(Drums.Group, [Drums.Group])]
         , group v_sadam
             [ n 'e' "n" nam 1
             , n 'r' "d" din 1
-            , n '7' "nk" (meetu <> ki) 1
-            , n 'u' "nt" (meetu <> ta) 1
+            , n '7' "," (meetu <> ki) 1
+            , n 'u' "^" (meetu <> ta) 1
             ]
         , group v_chapu
             [ n '5' "v" muru 1

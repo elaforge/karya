@@ -3,6 +3,21 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  renaming:
+    - Flags.can_cancel -> weak
+    - "initial" arg of kotekan calls to "init"?
+    - ModifyNote.modify_note -> note and similar
+    - NoteTransformer is an bad name for note generators that transform
+      sub-events.  I should find a better name for it so NoteTransformer can be
+      Derive.Transformer Derive.Note.
+      . Perhaps SubGenerator?  ParentGenerator?
+    - Rename Derive.Post.Post to PostUtil.  Or get rid of util modules:
+      Call.Util -> Call.  This is consistent with Derive.Scale.  Unfortunately
+      still no good for CUtil and DUtil.
+    - Post.Move module and infer-duration call need better names now that it's
+      a general purpose call.
+    - Rename Derive.Call.Echo to Delay.
+    - Move all prelude calls into Derive.Call.Prelude?
   - it's annoying having to do LEvent.events_of in LPerf, maybe they should do
     that automatically, with a _logs version for the rare cases when I do want
     to see logs?
@@ -11,7 +26,7 @@ UNSORTED
     to do it.  Do I really need both?
     . Post.set_instrument needs to set because I need the environ from the new
       inst.  Could I instead overlay the environ into the event environ?
-  - cmd-s above a (-0) note makes it 0 dur
+  * cmd-s above a (-0) note makes it 0 dur
   - kotekan calls leave keys down in kontakt
   * val calls for twelve NNs?  e.g. (hz c4)
   * factor out replicated mridangam / pakhawaj code
@@ -762,6 +777,8 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - Some indication which window has focus.  When I switch to the REPL I can't
+k   see which block is focused.  Make the block text red?
   * It's still really hard to see trigger lines, because they mix with ruler
     lines.  They should bypass the transparency, and just draw on top of ruler
     lines.
@@ -1048,6 +1065,22 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     mridangam
+      * general pattern call
+        . e.g. 'm ktkno' is kitakinathom, 'm kt-kno'
+        . Then I need a single letter for each stroke, including doubles
+              ktnda uvi
+          o - KTNDA UVI
+          + - PX
+        . eg: n+u+kt+k  noK_u_+k    N_kt.kT_k_
+        . soft variants: .o -+ lk jd
+        . if '-' is rest, then I can't use it for -+, but maybe '_' or
+          ' ' could be rest: m 'kt kno'  m kt_kno
+        . or perhaps =+ for tha?
+        . meetu can't be nk nt, gb?  ,. or ',
+          ngnd ngbgn_d_
+          n,nd n,.,n_d_
+          n,nd n,',n_d_
+          n,nd n,^,n_d_
       kanakku:
         . I could come up with a notation for various transformations, but it
           would have to be its own little language, due to the time aspect.  Or
@@ -1114,6 +1147,30 @@ Derive:
             would have to be zero duration and have its duration inferred.
           . The other option is to just use the "next pitch" feature to make
             kotekan calls depend on the next pitch instead of the current one.
+            . This doesn't work because next pitch only works in a pitch
+              track.  To make it work in a note track I'd have to evaluate the
+              whole next note, or have an entirely separate way to get the
+              next pitch.
+        - final note is not being cancelled by the next one
+          . It has {infer-duration}, but it needs {can-cancel}.  It wants to
+            replace the next note, but that only works if the next note is the
+            beginning of the block.
+          . Now norot tests fail since the last of the previous is cancelled
+            instead of the first note of the next.  Perhaps I should make all
+            the calls omit initial, it would be more consistent.
+          . Still it seems like the right thing to cancel the next note,
+            instead of the last one.  If I go to another block I would expect
+            it to get the final note of the previous kotekan.
+          . It's not so much that I want a kotekan to suddenly end somewhere
+            unexpected, but that I want to control e..g unison vs. kempyung
+            vs. just polos for the expected note.  I also want to control
+            its duration, but that works if I cancel too.
+          . If you put a note explicitly, then you get that.  If you don't,
+            then the prev note gets inferred duration.  If you want a weak
+            note, you explicitly mark it so.
+          . But I definitely want the default behaviour to be cancel the next
+            note, so kotekan at the end of a block etc. works as expected.
+        - order of postproc: infer-duration followed by noltol.
         * k\\ realizes as 31321321 instead of 21321321
         * There are still uncancelled notes where patterns touch, e.g.
           (k k2-12-12, '4o'), then (k k21-21-21, '3a')

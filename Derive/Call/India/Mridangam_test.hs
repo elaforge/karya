@@ -12,24 +12,21 @@ import qualified Derive.Score as Score
 import qualified Local.Instrument.Kontakt as Kontakt
 
 
-test_farans = do
+test_pattern = do
     let run = DeriveTest.extract extract
-            . derive_tracks "import india.mridangam.faran"
+            . derive_tracks "import india.mridangam"
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
-    equal (run [(2, 4, "ktkn 1")])
-        ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+nam")], [])
-    -- ki ta ki nam | tha ki ta ki |
-    equal (run [(2, 2, "ktkn 2 4/32")])
-        ([(2, "+tha"), (2.5, "+ki"), (3, "+ta"), (3.5, "+ki")], [])
-    equal (run [(2, 4, "ou-k 1")])
-        ([(2, "+thom"), (3, "+arai"), (5, "+ki")], [])
-
-test_kandam = do
-    let run = DeriveTest.extract extract
-            . derive_tracks "import india.mridangam.kandam"
-        extract e = (Score.event_start e, DeriveTest.e_attributes e)
-    equal (run [(2, 5, "ktkn5")])
+    equal (run [(2, 5, "p1 ktkno")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+nam"), (6, "+thom")], [])
+    equal (run [(2, 3, "p1 k_D")])
+        ([(2, "+ki"), (4, "+thom"), (4, "+din")], [])
+
+    equal (run [(2, 4, "pn kt")])
+        ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ta")], [])
+    equal (run [(2, 3, "pn kt")])
+        ([(2, "+ki"), (3, "+ta"), (4, "+ki")], [])
+    equal (run [(2, 2, "Pn kt")])
+        ([(2, "+ta"), (3, "+ki"), (4, "+ta")], [])
 
 derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
 derive_tracks title notes = DeriveTest.derive_tracks_with with_synth title

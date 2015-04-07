@@ -41,11 +41,15 @@ pitched_notes :: CUtil.PitchedNotes
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
 both_calls :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
-both_calls = Mridangam.make_both left_notes right_notes
-    [ ("k+", 'd')
-    , ("uo", 'c') -- dha
-    , ("ko", 'v') -- dhet
+both_calls = Mridangam.make_both left_notes right_notes special_names
+    [ ("D", 'c')
+    , ("E", 'v')
     ]
+    where
+    special_names =
+        [ ("D", ["o", "u"]) -- dha
+        , ("E", ["o", "k"]) -- dhet
+        ]
 
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
