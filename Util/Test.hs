@@ -51,7 +51,9 @@ import qualified Control.Exception as Exception
 
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
+import qualified Data.Map as Map
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -68,8 +70,10 @@ import Text.Printf
 
 import qualified Util.ApproxEq as ApproxEq
 import Util.Debug as Debug
+import qualified Util.Map
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
+import qualified Util.Ranges as Ranges
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
@@ -101,62 +105,105 @@ equal_srcpos srcpos a b
     where pretty = pretty_compare "==" "/=" a b
 
 -- | Show the values nicely, whether they are equal or not.
-pretty_compare :: Show a => String -> String -> a -> a -> Bool -> String
+pretty_compare :: Show a =>
+    String -- ^ equal operator
+    -> String -- ^ inequal operator
+    -> a -> a -> Bool -> String
 pretty_compare equal inequal a b is_equal
     | is_equal = equal <> " " <> ellipse (show a)
-    | Seq.count '\n' pa >= 5 = diff_values pa pb
-    | '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60 =
-        "\n" <> pa <> "\n\t" <> inequal <> "\n" <> pb
+    | big_values = '\n' : diff_values inequal pa pb
     | otherwise = pa <> " " <> inequal <> " " <> pb
     where
-    maxlen = 200
+    -- If the values are a bit long, run the diff highlighter on them.
+    big_values = '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60
+    -- Equal values are usually not interesting, so abbreviate if they're too
+    -- long.
     ellipse s
         | len > maxlen = take maxlen s ++ "... {" ++ show len ++ "}"
         | otherwise = s
         where len = length s
+    maxlen = 200
     pa = Seq.strip $ PPrint.pshow a
     pb = Seq.strip $ PPrint.pshow b
 
-diff_values :: String -> String -> String
-diff_values pa pb =
-    '\n' : highlight_lines first_lines pa ++ "\n\t/=\n"
-    ++ highlight_lines second_lines pb ++ "\ndiff:\n"
-    ++ highlight_red diff_text
-    where
-    (first_lines, second_lines, diff_text) = diff pa pb
+-- | Diff two strings and highlight the different parts.
+diff_values :: String -> String -> String -> String
+diff_values inequal first second = concat
+    [ Seq.strip $ highlight_lines firsts first
+    , "\n\t" ++ inequal ++ "\n"
+    , Seq.strip $ highlight_lines seconds second
+    ]
+    where (firsts, seconds) = diff first second
 
-highlight_lines :: [Int] -> String -> String
+highlight_lines :: IntMap.IntMap [CharRange] -> String -> String
 highlight_lines nums = unlines . map hi . zip [0..] . lines
     where
-    hi (i, line)
-        | i `elem` nums = highlight_red line
-        | otherwise = line
+    hi (i, line) = case IntMap.lookup i nums of
+        Just ranges -> highlight_red_ranges ranges line
+        Nothing -> line
 
-diff :: String -> String -> ([Int], [Int], String)
-diff xs ys = (concatMap fnums diffs, concatMap snums diffs,
-        unlines $ filter (not.null) $ map to_lines diffs)
+highlight_red_ranges :: [CharRange] -> String -> String
+highlight_red_ranges ranges text = concatMap hi (split_ranges ranges text)
+    where hi (outside, inside) = outside ++ highlight_red inside
+
+split_ranges :: [(Int, Int)] -> [a] -> [([a], [a])] -- ^ (out, in) pairs
+split_ranges ranges = go 0 ranges
     where
-    fnums (Diff.First nlines) = map num_of nlines
-    fnums _ = []
-    snums (Diff.Second nlines) = map num_of nlines
-    snums _ = []
-    to_lines (Diff.Both {}) = ""
-    to_lines (Diff.First nlines) =
-        "\t---- " ++ show (num_of (head nlines)) ++ "\n"
-            ++ unlines (map (('<':) . text_of) nlines)
-    to_lines (Diff.Second nlines) =
-        "\t---- " ++ show (num_of (head nlines)) ++ "\n"
-            ++ unlines (map (('>':) . text_of) nlines)
-    num_of (NumberedLine i _) = i
-    text_of (NumberedLine _ s) = s
-    diffs = Diff.getGroupedDiff (numbered (lines xs)) (numbered (lines ys))
-    numbered = map (uncurry NumberedLine) . zip [0..]
+    go _ _ [] = []
+    go _ [] xs = [(xs, [])]
+    go prev ((s, e) : ranges) xs = (pre, within) : go e ranges post
+        where
+        (pre, rest) = splitAt (s-prev) xs
+        (within, post) = splitAt (e - s) rest
 
--- | Numbered lines don't compare their numbers so the diff won't count
--- everytihng as different just because the line number changed.
-data NumberedLine = NumberedLine Int String
-instance Eq NumberedLine where
-    NumberedLine _ s1 == NumberedLine _ s2 = s1 == s2
+type CharRange = (Int, Int)
+
+diff :: String -> String
+    -> (IntMap.IntMap [CharRange], IntMap.IntMap [CharRange])
+diff first second =
+    to_map $ Seq.partition_paired $ map diff_line $
+        Util.Map.pairs first_by_line second_by_line
+    where
+    to_map (as, bs) = (IntMap.fromList as, IntMap.fromList bs)
+    diff_line (num, d) = case d of
+        Seq.Both line1 line2 -> Seq.Both (num, d1) (num, d2)
+            where (d1, d2) = char_diff line1 line2
+        Seq.First line1 -> Seq.First (num, [(0, length line1)])
+        Seq.Second line2 -> Seq.Second (num, [(0, length line2)])
+    first_by_line = Map.fromList
+        [(n, text) | Diff.First (Numbered n text) <- diffs]
+    second_by_line = Map.fromList
+        [(n, text) | Diff.Second (Numbered n text) <- diffs]
+    diffs = numbered_diff (lines first) (lines second)
+
+char_diff :: String -> String -> ([CharRange], [CharRange])
+char_diff first second
+    | too_different first_cs || too_different second_cs =
+        ([(0, length first)], [(0, length second)])
+    | otherwise = (first_cs, second_cs)
+    where
+    first_cs = to_ranges [n | Diff.First (Numbered n _) <- diffs]
+    second_cs = to_ranges [n | Diff.Second (Numbered n _) <- diffs]
+    diffs = numbered_diff first second
+    -- If there are too many diff ranges let's just mark the whole thing
+    -- different.  Perhaps I should ignore spaces that are the same, but let's
+    -- see how this work first.
+    too_different ranges = length ranges > 2
+
+to_ranges :: [Int] -> [(Int, Int)]
+to_ranges xs = Ranges.merge_sorted [(n, n+1) | n <- xs]
+
+numbered_diff :: Eq a => [a] -> [a] -> [Diff.Diff (Numbered a)]
+numbered_diff a b =
+    Diff.getDiffBy (\a b -> numbered_val a == numbered_val b)
+        (number a) (number b)
+    where
+    number = map (uncurry Numbered) . zip [0..]
+
+data Numbered a = Numbered {
+    _numbered :: !Int
+    , numbered_val :: !a
+    } deriving (Show)
 
 -- * approximately equal
 
@@ -413,7 +460,9 @@ highlight isatty code text
     | otherwise = Seq.replace code "" $ Seq.replace vt100_normal "" text
 
 highlight_red :: String -> String
-highlight_red = (vt100_red++) . (++vt100_normal)
+highlight_red text
+    | null text = ""
+    | otherwise = vt100_red ++ text ++ vt100_normal
 
 -- | These codes should probably come from termcap, but I can't be bothered.
 vt100_red :: String

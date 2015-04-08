@@ -340,6 +340,14 @@ paired_first (First a) = Just a
 paired_first (Second _) = Nothing
 paired_first (Both a _) = Just a
 
+partition_paired :: [Paired a b] -> ([a], [b])
+partition_paired (pair : pairs) = case pair of
+    Both a b -> (a : as, b : bs)
+    First a -> (a : as, bs)
+    Second b -> (as, b : bs)
+    where (as, bs) = partition_paired pairs
+partition_paired [] = ([], [])
+
 -- | Like 'zip', but emit 'First's or 'Second's if the list lengths are
 -- unequal.
 zip_padded :: [a] -> [b] -> [Paired a b]
