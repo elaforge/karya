@@ -10,8 +10,6 @@ module Derive.Call.Pitch (
     pitch_calls
     , approach
 ) where
-import qualified Util.Seq as Seq
-import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -20,8 +18,6 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
-import qualified Derive.Eval as Eval
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Sig as Sig
@@ -108,20 +104,11 @@ c_approach = generator1 "approach" Tags.next
 approach :: Derive.PitchArgs -> ControlUtil.Curve -> RealTime -> RealTime
     -> Derive.Deriver PitchSignal.Signal
 approach args curve start end = do
-    maybe_next <- next_pitch args
+    maybe_next <- Args.next_pitch args
     case (Args.prev_pitch args, maybe_next) of
         (Just (_, prev), Just next) ->
             PitchUtil.make_segment curve start prev end next
         _ -> return mempty
-
-next_pitch :: Derive.PassedArgs d -> Derive.Deriver (Maybe PitchSignal.Pitch)
-next_pitch = maybe (return Nothing) eval_pitch . Seq.head . Args.next_events
-
-eval_pitch :: Event.Event -> Derive.Deriver (Maybe PitchSignal.Pitch)
-eval_pitch event =
-    justm (either (const Nothing) Just <$> Eval.eval_event event) $ \strm -> do
-    start <- Derive.real (Event.start event)
-    return $ PitchSignal.at start $ mconcat $ LEvent.events_of strm
 
 c_up :: Derive.Generator Derive.Pitch
 c_up = generator1 "up" Tags.prev

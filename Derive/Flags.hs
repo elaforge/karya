@@ -38,7 +38,7 @@ infer_duration = flag "infer-duration"
 
 -- | This is set on notes that occur at TrackTime 0.  This is a hack to support
 -- 'infer_duration': a note with inferred duration will replace any following
--- note with +track-time-0.
+-- note with can_cancel.
 can_cancel :: Flags
 can_cancel = flag "can-cancel"
 

@@ -468,7 +468,7 @@ type LineNumber = Int
     definitions.  The header determines the type of the calls defined after it,
     e.g.:
 
-    > import 'somelib.karya'
+    > import 'somelib.ky'
     >
     > note generator:
     > x = y

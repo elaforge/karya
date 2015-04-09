@@ -10,6 +10,7 @@ import qualified Ui.Event as Event
 import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, CallInfo)
 import qualified Derive.Eval as Eval
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
@@ -62,6 +63,24 @@ eval cinfo event prev = case Parse.parse_expr (Event.event_text event) of
                 Derive.info_event cinfo : Derive.info_next_events cinfo
             , Derive.info_event_end = Event.start $ Derive.info_event cinfo
             }
+
+-- | Get the pitch at the time of the next event.  Since the pitch hasn't
+-- been evaluated yet, it has to be evaluated here.  So if it depends on the
+-- previous pitch, you won't get a pitch back.
+--
+-- Actually, the pitch likely *has* been evaluated, I just don't can't get at
+-- it here.  If it's uninverted then I have the whole pitch track, and if it's
+-- inverted then the event at or after the end of the event will be included.
+-- But 'Derive.Control.trim_signal' will clip that sample off to avoid
+-- a spurious pitch change at the end of the note.
+next_pitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PitchSignal.Pitch)
+next_pitch = maybe (return Nothing) eval_pitch . Seq.head . next_events
+
+eval_pitch :: Event.Event -> Derive.Deriver (Maybe PitchSignal.Pitch)
+eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \events -> do
+    start <- Derive.real (Event.start event)
+    return $ PitchSignal.at start $ mconcat $ LEvent.events_of events
+    where to_maybe = either (const Nothing) Just
 
 -- * event timing
 

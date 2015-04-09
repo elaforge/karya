@@ -1161,16 +1161,25 @@ Derive:
           . Still it seems like the right thing to cancel the next note,
             instead of the last one.  If I go to another block I would expect
             it to get the final note of the previous kotekan.
-          . It's not so much that I want a kotekan to suddenly end somewhere
-            unexpected, but that I want to control e..g unison vs. kempyung
-            vs. just polos for the expected note.  I also want to control
-            its duration, but that works if I cancel too.
-          . If you put a note explicitly, then you get that.  If you don't,
-            then the prev note gets inferred duration.  If you want a weak
-            note, you explicitly mark it so.
-          . But I definitely want the default behaviour to be cancel the next
-            note, so kotekan at the end of a block etc. works as expected.
-        - order of postproc: infer-duration followed by noltol.
+          . The ideal situation is:
+            . No note means the last kotekan note gets an inferred duration.
+            . A plain note sets the duration of the last kotekan note, but the
+              pitch comes from the kotekan.
+            . Unison or kempyung means I get both sangsih and polos, and polos
+              note is taken from the end of the kotekan.
+            . If I want a different pitch from the kotekan, I have to tell the
+              kotekan to omit the last note, and then I can put anything
+              I want there.  Or I could have a 'strong' flag on the note,
+              which would cause it to cancel rather than be cancelled.
+          . Unfortunately it seems really complicated to get that.  noltol,
+            kempyung and unison have to apply a flag, which is then
+            interpreted by a postproc.  Also infer-duration needs to know that
+            >polos can replace a >pasang note.
+          - For the short term I can just add a env arg to kotekan calls to
+            omit the last note, then I have to use that when I want to replace
+            it.  This means cross block replacement doesn't work.  Try it to
+            see if I'll want the complicated version.
+
         * k\\ realizes as 31321321 instead of 21321321
         * There are still uncancelled notes where patterns touch, e.g.
           (k k2-12-12, '4o'), then (k k21-21-21, '3a')
