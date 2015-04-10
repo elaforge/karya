@@ -182,7 +182,7 @@ invert = ModifyEvents.event $ \event -> event
     }
 
 invert_note :: Monad m => ModifyNotes.ModifyNotes m
-invert_note = ModifyNotes.modify_note $ \note -> note
+invert_note = ModifyNotes.note $ \note -> note
     { ModifyNotes.note_start = ModifyNotes.note_end note
     , ModifyNotes.note_duration = - ModifyNotes.note_duration note
     , ModifyNotes.note_controls = (if ModifyNotes.note_duration note < 0

@@ -36,7 +36,7 @@ note_controls = do
 
 -- | Merge the selected note tracks into one.
 merge :: Cmd.CmdL ()
-merge = ModifyNotes.selection $ ModifyNotes.modify_note $ set_index 0
+merge = ModifyNotes.selection $ ModifyNotes.note $ set_index 0
 
 -- | Distribute the notes among the given number of tracks, round-robin.  Since
 -- only each note only carries over the controls in its extent, if there are

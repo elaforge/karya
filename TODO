@@ -6,7 +6,7 @@ UNSORTED
   renaming:
     * Flags.can_cancel -> weak
     - "initial" arg of kotekan calls to "init"?
-    - ModifyNote.modify_note -> note and similar
+    * ModifyNote.modify_note -> note and similar
     - NoteTransformer is an bad name for note generators that transform
       sub-events.  I should find a better name for it so NoteTransformer can be
       Derive.Transformer Derive.Note.
