@@ -623,7 +623,7 @@ realize_pattern repeat pattern_start pattern_end dur get_cycle =
     realize (notes, start) = map (Note start dur) notes
 
 -- | Turn Notes into a NoteDeriver.  A note at the end time gets
--- 'Flags.can_cancel'.
+-- 'Flags.weak'.
 realize_notes :: (a -> Derive.NoteDeriver) -> [Note a] -> Derive.NoteDeriver
 realize_notes realize = mconcat . map note . Seq.zip_next
     where
@@ -632,12 +632,12 @@ realize_notes realize = mconcat . map note . Seq.zip_next
     add_flag next = fmap $ Post.emap1_ (modify next . remove)
     -- Strip existing flags.  This is because the notes come from
     -- 'Util.pitched_note', which calls "", which in turn sets
-    -- Flags.can_cancel on TrackTime 0.  So if the kotekan starts at 0 all
-    -- notes get can_cancel.  TODO don't reuse "" for these kinds of things,
+    -- Flags.weak on TrackTime 0.  So if the kotekan starts at 0 all
+    -- notes get weak.  TODO don't reuse "" for these kinds of things,
     -- so I don't get flags I don't want.
     remove = Score.remove_flags $
-        Flags.cancel_next <> Flags.can_cancel <> Flags.infer_duration
-    modify Nothing = Score.add_flags $ Flags.cancel_next <> Flags.infer_duration
+        Flags.strong <> Flags.weak <> Flags.infer_duration
+    modify Nothing = Score.add_flags $ Flags.strong <> Flags.infer_duration
     modify (Just _) = id
 
 -- | Style for non-interlocking norot.  Interlocking norot is always the upper

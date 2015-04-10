@@ -47,7 +47,7 @@ note_calls = Derive.transformer_call_map
 c_infer_duration :: Derive.Transformer Derive.Note
 c_infer_duration = Derive.transformer Module.prelude "infer-duration"
     Tags.postproc "Infer durations for 'Derive.Flags.infer-duration' events,\
-    \ and possibly cancel notes with 'Derive.Flags.can_cancel'.\
+    \ and possibly cancel notes with 'Derive.Flags.weak'.\
     \\nThis is intended to support Indonesian-style \"arrival beats\".\
     \ If there is a zero-duration note at the end of a block, the default note\
     \ deriver sets `+infer-duration` on it. This note will then replace any\
@@ -77,8 +77,8 @@ infer_duration final_dur = cancel_notes . suppress_note
     -- {}               weak    -> id           Nothing
     -- weak             {}      -> Nothing      id
     --
-    -- cancel_next+infer {}     -> replace      Nothing
-    -- cancel_next      {}      -> id           Nothing
+    -- strong+infer     {}     -> replace      Nothing
+    -- strong           {}     -> id           Nothing
     process (maybe_prev, event, maybe_next) =
         fmap strip_flags . check_prev maybe_prev =<< check_next maybe_next event
 
@@ -91,10 +91,10 @@ infer_duration final_dur = cancel_notes . suppress_note
                 if has Flags.infer_duration event
                     then set_end (Score.event_start next) event
                     else event
-            | can_cancel next || has Flags.cancel_next event -> Just $
+            | is_weak next || has Flags.strong event -> Just $
                 if has Flags.infer_duration event
                     then replace_note next event else event
-            | can_cancel event && not (can_cancel next) -> Nothing
+            | is_weak event && not (is_weak next) -> Nothing
             | otherwise -> Just event
         Nothing
             | has Flags.infer_duration event -> Just $
@@ -105,13 +105,13 @@ infer_duration final_dur = cancel_notes . suppress_note
     check_prev maybe_prev event = case maybe_prev of
         Just prev
             | not (same_start prev event) -> Just event
-            | can_cancel event || has Flags.cancel_next prev -> Nothing
+            | is_weak event || has Flags.strong prev -> Nothing
         _ -> Just event
-    can_cancel = has Flags.can_cancel
+    is_weak = has Flags.weak
     -- Remove flags I've processed.  This way if there's another infer-duration
     -- in the call stack the processing won't happen twice.
     strip_flags = Score.remove_flags $
-        Flags.infer_duration <> Flags.cancel_next <> Flags.can_cancel
+        Flags.infer_duration <> Flags.strong <> Flags.weak
 
     has = Score.has_flags
     same_start e1 e2 = Score.event_start e1 RealTime.== Score.event_start e2

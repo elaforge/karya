@@ -190,7 +190,7 @@ sekar_direct_arrive range patterns events_ = do
 
 add_last_note_flags :: Derive.NoteDeriver -> Derive.NoteDeriver
 add_last_note_flags = fmap $ Post.emap1_ $ Score.add_flags $
-    Flags.infer_duration <> Flags.cancel_next
+    Flags.infer_duration <> Flags.strong
 
 sum_duration :: [Sub.GenericEvent a] -> ScoreTime
 sum_duration = sum . map Sub.event_duration

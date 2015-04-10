@@ -31,18 +31,18 @@ has :: Flags -> Flags -> Bool
 has = flip Set.isSubsetOf
 
 -- | This note needs to wait until postproc to figure out its duration.  This
--- is used to implement arrival notes, see "Derive.Call.Post.ArrivalNote" for
--- details.
+-- is used to implement final notes, where a zero duration note at the end
+-- of a block can replace the first note of the next block.
 infer_duration :: Flags
 infer_duration = flag "infer-duration"
 
--- | This is set on notes that occur at TrackTime 0.  This is a hack to support
--- 'infer_duration': a note with inferred duration will replace any following
--- note with can_cancel.
-can_cancel :: Flags
-can_cancel = flag "can-cancel"
+-- | This indicates that a note can be cancelled by a coincident note.  Among
+-- other things, it supports 'infer_duration': a note with inferred duration
+-- will replace any following note with 'weak'.
+weak :: Flags
+weak = flag "weak"
 
--- | Cancel coincident notes on the same track.  This is like forcing the next
--- event to have 'can_cancel'.
-cancel_next :: Flags
-cancel_next = flag "cancel-next"
+-- | Cancel coincident notes on the same track.  This is like forcing
+-- concurrent events to have 'weak'.
+strong :: Flags
+strong = flag "strong"

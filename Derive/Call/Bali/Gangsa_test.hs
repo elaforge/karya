@@ -55,13 +55,13 @@ test_norot = do
     equal (derive DeriveTest.e_note title [(4, -2, "norot -- 3a")])
         ([(2, 1, "3a"), (3, 1, "3b"), (4, 1, "3a")], [])
     equal (derive Score.event_flags title [(4, -2, "norot -- 3a")])
-        ([mempty, mempty, Flags.infer_duration <> Flags.cancel_next], [])
+        ([mempty, mempty, Flags.infer_duration <> Flags.strong], [])
 
     -- Flags aren't messed up from starting at 0.  Also, non-negative duration
     -- is the same as negative.
     equal (derive Score.event_flags title [(0, 4, "norot -- 3a")])
         ([mempty, mempty, mempty, mempty,
-            Flags.infer_duration <> Flags.cancel_next], [])
+            Flags.infer_duration <> Flags.strong], [])
 
 test_norot_arrival = do
     let run = e_pattern 0 . derive_kotekan title

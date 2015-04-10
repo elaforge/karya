@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   renaming:
-    - Flags.can_cancel -> weak
+    * Flags.can_cancel -> weak
     - "initial" arg of kotekan calls to "init"?
     - ModifyNote.modify_note -> note and similar
     - NoteTransformer is an bad name for note generators that transform

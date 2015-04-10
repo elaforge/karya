@@ -52,15 +52,15 @@ test_cancel = do
     -- No flags, no cancel.
     equal (run [(0, 2, "d 2 | -- 4c"), (2, 3, "4d")])
         ([(2, 2, "4c"), (2, 3, "4d")], [])
-    equal (run [(0, 2, "d 2 | -- 4c"), (2, 3, "add-flag can-cancel | -- 4d")])
+    equal (run [(0, 2, "d 2 | -- 4c"), (2, 3, "add-flag weak | -- 4d")])
         ([(2, 2, "4c")], [])
-    equal (run [(0, 2, "add-flag cancel-next | d 2 | -- 4c"), (2, 3, "4d")])
+    equal (run [(0, 2, "add-flag strong | d 2 | -- 4c"), (2, 3, "4d")])
         ([(2, 2, "4c")], [])
-    equal (run [(0, 2, "add-flag can-cancel | d 2 | -- 4c"), (2, 3, "4d")])
+    equal (run [(0, 2, "add-flag weak | d 2 | -- 4c"), (2, 3, "4d")])
         ([(2, 3, "4d")], [])
     -- If they both wish to yield, the first one wins.
-    equal (run [(0, 2, "add-flag can-cancel | d 2 | -- 4c"),
-            (2, 3, "add-flag can-cancel | -- 4d")])
+    equal (run [(0, 2, "add-flag weak | d 2 | -- 4c"),
+            (2, 3, "add-flag weak | -- 4d")])
         ([(2, 2, "4c")], [])
 
 test_infer_duration_controls = do
