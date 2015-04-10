@@ -85,7 +85,7 @@ profile_multiplex = do
 
 perform :: [Perform.Event] -> ([Midi.WriteMessage], [String])
 perform = split_logs . fst
-    . Perform.perform Perform.initial_state midi_config . map LEvent.Event
+    . Perform.perform Perform.initial_state inst_addrs . map LEvent.Event
 
 split_logs :: [LEvent.LEvent d] -> ([d], [String])
 split_logs = second (map DeriveTest.show_log) . LEvent.partition
@@ -99,8 +99,8 @@ run_multiple arg action = forM_ [1..6] $ \n -> do
 mkevent :: Double -> Double -> [(Score.Control, Signal.Control)]
     -> Signal.NoteNumber -> Perform.Event
 mkevent start dur controls pitch_sig =
-    Perform.Event inst1 (RealTime.seconds start)
-        (RealTime.seconds dur) (Map.fromList controls) pitch_sig Stack.empty
+    Perform.Event (RealTime.seconds start) (RealTime.seconds dur)
+        inst1 (Map.fromList controls) pitch_sig Stack.empty
 
 inst1 = mkinst "inst1"
 mkinst name = (Instrument.instrument name [] (-2, 2))
@@ -108,7 +108,7 @@ mkinst name = (Instrument.instrument name [] (-2, 2))
     , Instrument.inst_maybe_decay = Just 1
     }
 
-midi_config :: Instrument.Configs
-midi_config =
-    Instrument.configs [(Score.Instrument "inst1", [(dev, n) | n <- [0..8]])]
+inst_addrs :: Perform.InstAddrs
+inst_addrs = Map.fromList
+    [(Score.Instrument "inst1", [((dev, n), Nothing) | n <- [0..8]])]
     where dev = Midi.write_device "dev1"
