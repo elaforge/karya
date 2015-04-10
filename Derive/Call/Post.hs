@@ -25,7 +25,7 @@ import qualified Data.Monoid as Monoid
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Call as Call
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ

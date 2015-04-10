@@ -39,8 +39,8 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
-import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
@@ -113,7 +113,7 @@ derive_block sort cache damage block_id = do
         unless (damage == mempty) $
             Log.debug $ "score damage for " <> showt block_id <> ": "
                 <> pretty damage
-        Call.Block.eval_root_block global_transform block_id
+        Prelude.Block.eval_root_block global_transform block_id
 
 is_score_damage_log :: Log.Msg -> Bool
 is_score_damage_log = ("score damage for " `Text.isPrefixOf`) . Log.msg_text

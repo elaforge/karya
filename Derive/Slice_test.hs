@@ -17,8 +17,8 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal

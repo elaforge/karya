@@ -27,9 +27,9 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
 
-import qualified Derive.Call.Articulation as Articulation
-import qualified Derive.Call.Block as Call.Block
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Prelude.Articulation as Articulation
+import qualified Derive.Call.Prelude.Block as Call.Block
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent

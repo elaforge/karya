@@ -7,7 +7,7 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Args as Args
 import qualified Derive.Call.CallTest as CallTest
-import qualified Derive.Call.Lily as Lily
+import qualified Derive.Call.Prelude.Lily as Lily
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 

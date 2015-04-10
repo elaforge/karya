@@ -12,8 +12,8 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
-import qualified Derive.Call.Block as Call.Block
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
@@ -237,7 +237,7 @@ derive_blocks_with_ui with transform_ui blocks =
     derive_lilypond state $ with $ Derive.with_imported True Module.europe $
         Derive.with_imported True Module.ly deriver
     where
-    deriver = Call.Block.eval_root_block global_transform bid
+    deriver = Prelude.Block.eval_root_block global_transform bid
     global_transform = State.config#State.global_transform #$ state
     state = transform_ui state_
     (bid:_, state_) = DeriveTest.mkblocks blocks

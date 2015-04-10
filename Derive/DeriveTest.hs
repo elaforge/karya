@@ -31,7 +31,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Simple as Simple
 
 import qualified Derive.Call.All as Call.All
-import qualified Derive.Call.Block as Call.Block
+import qualified Derive.Call.Prelude.Block as Prelude.Block
 import Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -221,7 +221,7 @@ derive_block_standard cmd_state cache damage with ui_state block_id =
         Left err -> error $ "derive_block_with: Cmd error: " ++ show err
     where
     global_transform = State.config#State.global_transform #$ ui_state
-    deriver = with $ Call.Block.eval_root_block global_transform block_id
+    deriver = with $ Prelude.Block.eval_root_block global_transform block_id
     (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state $
         Derive.extract_result True <$> PlayUtil.run cache damage deriver
 

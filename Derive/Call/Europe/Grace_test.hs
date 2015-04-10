@@ -7,9 +7,9 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Ui.UiTest as UiTest
-import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Europe.Grace as Grace
+import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score

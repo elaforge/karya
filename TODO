@@ -3,7 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  renaming:
+  rename:
+    - calls modules should not be imported, except by Derive.Call.All
+      split Derive.Call.Prelude.Lily into a calls module, and a util module
     * Flags.can_cancel -> weak
     - "initial" arg of kotekan calls to "init"?
     * ModifyNote.modify_note -> note and similar
@@ -17,7 +19,7 @@ UNSORTED
     - Post.Move module and infer-duration call need better names now that it's
       a general purpose call.
     * Rename Derive.Call.Echo to Delay.
-    - Move all prelude calls into Derive.Call.Prelude?
+    * Move all prelude calls into Derive.Call.Prelude?
   - it's annoying having to do LEvent.events_of in LPerf, maybe they should do
     that automatically, with a _logs version for the rare cases when I do want
     to see logs?

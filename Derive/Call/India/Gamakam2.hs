@@ -18,10 +18,10 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
-import qualified Derive.Call.SignalTransform as SignalTransform
+import qualified Derive.Call.Prelude.SignalTransform as SignalTransform
+import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Trill as Trill
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal

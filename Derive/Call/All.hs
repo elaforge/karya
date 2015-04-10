@@ -4,42 +4,42 @@
 
 -- | Collect the various calls into one place.
 module Derive.Call.All (library) where
-import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Bali.Reyong as Reyong
 import qualified Derive.Call.Bali.Sekar as Sekar
-import qualified Derive.Call.Block as Block
 import qualified Derive.Call.China.Zheng as Zheng
-import qualified Derive.Call.Conditional as Conditional
-import qualified Derive.Call.Control as Control
-import qualified Derive.Call.ControlFunction as ControlFunction
-import qualified Derive.Call.Delay as Delay
-import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Europe.Chord as Chord
 import qualified Derive.Call.Europe.Grace as Grace
-import qualified Derive.Call.Highlight as Highlight
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Idiom.Wind as Wind
-import qualified Derive.Call.Import as Import
 import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.India.Gamakam2 as Gamakam2
 import qualified Derive.Call.India.Mridangam as Mridangam
-import qualified Derive.Call.InferTrackVoice as InferTrackVoice
-import qualified Derive.Call.Integrate as Integrate
-import qualified Derive.Call.Lily as Lily
-import qualified Derive.Call.Note as Note
-import qualified Derive.Call.NoteTransformer as NoteTransformer
-import qualified Derive.Call.Pitch as Pitch
-import qualified Derive.Call.PitchHigh as PitchHigh
 import qualified Derive.Call.Post.Idiom as Idiom
 import qualified Derive.Call.Post.Move as Move
 import qualified Derive.Call.Post.Rearticulate as Rearticulate
 import qualified Derive.Call.Post.Reverse as Post.Reverse
-import qualified Derive.Call.Random as Random
-import qualified Derive.Call.SignalTransform as SignalTransform
-import qualified Derive.Call.Trill as Trill
-import qualified Derive.Call.Val as Val
+import qualified Derive.Call.Prelude.Articulation as Articulation
+import qualified Derive.Call.Prelude.Block as Block
+import qualified Derive.Call.Prelude.Conditional as Conditional
+import qualified Derive.Call.Prelude.Control as Control
+import qualified Derive.Call.Prelude.ControlFunction as ControlFunction
+import qualified Derive.Call.Prelude.Delay as Delay
+import qualified Derive.Call.Prelude.Equal as Equal
+import qualified Derive.Call.Prelude.Highlight as Highlight
+import qualified Derive.Call.Prelude.Import as Import
+import qualified Derive.Call.Prelude.InferTrackVoice as InferTrackVoice
+import qualified Derive.Call.Prelude.Integrate as Integrate
+import qualified Derive.Call.Prelude.Lily as Lily
+import qualified Derive.Call.Prelude.Note as Note
+import qualified Derive.Call.Prelude.NoteTransformer as NoteTransformer
+import qualified Derive.Call.Prelude.Pitch as Pitch
+import qualified Derive.Call.Prelude.PitchHigh as PitchHigh
+import qualified Derive.Call.Prelude.Random as Random
+import qualified Derive.Call.Prelude.SignalTransform as SignalTransform
+import qualified Derive.Call.Prelude.Trill as Trill
+import qualified Derive.Call.Prelude.Val as Val
 import qualified Derive.Derive as Derive
 
 import Global

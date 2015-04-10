@@ -14,11 +14,11 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Environ as Environ
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.Call.Note as Note
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Scale.Wayang as Wayang

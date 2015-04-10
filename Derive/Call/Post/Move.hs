@@ -13,8 +13,8 @@ import qualified Util.Map
 import qualified Util.Seq as Seq
 
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive

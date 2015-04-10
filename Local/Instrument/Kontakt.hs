@@ -24,12 +24,12 @@ import qualified Cmd.Repl.Util as Repl.Util
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Bali.Gangsa as Gangsa
-import qualified Derive.Call.Highlight as Highlight
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Prelude.Articulation as Articulation
+import qualified Derive.Call.Prelude.Highlight as Highlight
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ

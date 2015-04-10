@@ -27,7 +27,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
-import qualified Derive.Call.Note as Note
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
