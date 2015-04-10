@@ -8,9 +8,9 @@ import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -50,7 +50,7 @@ c_chord dir = Derive.make_call Module.europe "chord" mempty
     <$> Sig.defaulted "name" "" "Chord name."
     <*> time_env
     ) $ \(name, time) -> Sub.inverting $ \args -> do
-        base <- Util.get_pitch =<< Args.real_start args
+        base <- Call.get_pitch =<< Args.real_start args
         intervals <- Derive.require_right id $ parse_chord base name
         from_intervals dir base intervals time args
 
@@ -77,7 +77,7 @@ c_stack dir = Derive.make_call Module.europe "stack" mempty
         \ major third, and perfect fourth respectively."
     <*> time_env
     ) $ \(intervals, time) -> Sub.inverting $ \args -> do
-        base <- Util.get_pitch =<< Args.real_start args
+        base <- Call.get_pitch =<< Args.real_start args
         intervals <- resolve_intervals base intervals
         from_intervals dir base intervals time args
 
@@ -86,13 +86,13 @@ from_intervals :: Direction -> PitchSignal.Pitch -> [PitchSignal.Pitch]
 from_intervals dir base intervals time args = do
     let start = Args.start args
     dur <- min (Args.duration args / fromIntegral (length intervals + 1)) <$>
-        Util.score_duration start time
+        Call.score_duration start time
     let ts = case dir of
             Unison -> repeat start
             Up -> Seq.range_ start dur
             Down -> Seq.range_
                 (start + dur * fromIntegral (length intervals)) (-dur)
-    mconcat [Derive.place t (Args.end args - t) (Util.pitched_note pitch)
+    mconcat [Derive.place t (Args.end args - t) (Call.pitched_note pitch)
         | (t, pitch) <- zip ts (base : intervals)]
 
 type Interval = Either PitchSignal.Pitch (Either Pitch.Step Text)

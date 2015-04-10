@@ -14,6 +14,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
@@ -21,7 +22,6 @@ import qualified Derive.Call.SignalTransform as SignalTransform
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Trill as Trill
-import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -166,7 +166,7 @@ fade_in_call = "-<"
 c_sequence :: Derive.Generator Derive.Note
 c_sequence = Derive.make_call module_ "sequence" mempty sequence_doc
     $ Sig.parsed_manually "Expressions separated by `;`."
-    $ Sub.inverting $ \args -> with_sequence args (Util.note_here args)
+    $ Sub.inverting $ \args -> with_sequence args (Call.note_here args)
 
 c_sequence_transform :: Derive.Transformer Derive.Note
 c_sequence_transform = Derive.transformer module_ "sequence" mempty
@@ -398,7 +398,7 @@ c_flat_start = generator1 "flat-start" mempty
     ) $ \(maybe_pitch, TrackLang.DefaultReal time) args -> do
         start <- Args.real_start args
         end <- get_end start time args
-        pitch <- optional_pitch maybe_pitch <$> Util.get_pitch start
+        pitch <- optional_pitch maybe_pitch <$> Call.get_pitch start
         return $ PitchSignal.signal [(start, pitch), (end, pitch)]
 
 c_set_pitch :: Derive.Generator Derive.Pitch
@@ -408,7 +408,7 @@ c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
     \ previous pitch."
     $ Sig.call0 $ \args -> do
         start <- Args.real_start args
-        pitch <- Util.get_pitch start
+        pitch <- Call.get_pitch start
         return $ PitchSignal.signal [(start, pitch)]
 
 data PitchFrom = PitchFromPrev | PitchFromCurrent deriving (Eq, Show)
@@ -431,7 +431,7 @@ c_from pitch_from fade = generator1 "from" mempty
             args -> do
         start <- Args.real_start args
         end <- get_end start time args
-        to_pitch <- optional_pitch maybe_to_pitch <$> Util.get_pitch start
+        to_pitch <- optional_pitch maybe_to_pitch <$> Call.get_pitch start
         let from = resolve_pitch args to_pitch from_pitch
         case fade of
             Fade -> ControlUtil.multiply_dyn end
@@ -445,7 +445,7 @@ c_from pitch_from fade = generator1 "from" mempty
 get_end :: RealTime -> TrackLang.Duration -> Derive.PassedArgs a
     -> Derive.Deriver RealTime
 get_end start dur args = do
-    time_end <- (start +) <$> Util.real_duration start dur
+    time_end <- (start +) <$> Call.real_duration start dur
     max_end <- if Args.duration args == 0
         then Derive.real $ Args.next args
         else Args.real_end args
@@ -503,8 +503,8 @@ c_jaru append_zero = generator1 "jaru" mempty
         end <- get_end start
             (TrackLang.multiply_duration time_ len) args
         let time = (end - start) / fromIntegral len
-        pitch <- Util.get_pitch start
-        srate <- Util.get_srate
+        pitch <- Call.get_pitch start
+        srate <- Call.get_srate
         (intervals, control) <- parse intervals
         let transition = fromMaybe time maybe_transition
         let sig = jaru curve srate start time transition $
@@ -538,7 +538,7 @@ c_flat = generator1 "flat" mempty "Emit a flat pitch."
         pitch <- case maybe_pitch of
             Nothing -> prev_pitch start args
             Just transpose -> do
-                pitch <- Util.get_pitch start
+                pitch <- Call.get_pitch start
                 return $ PitchUtil.resolve_pitch_transpose pitch transpose
         return $ PitchSignal.signal [(start, pitch)]
             <> PitchSignal.signal [(end, pitch)]
@@ -601,10 +601,10 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
 -- ** implementation
 
 resolve_pitches :: KampitaArgs -> (TrackLang.ValControl, TrackLang.ValControl)
-    -> Derive.Deriver ((Util.Function, Util.Function), Score.Control)
+    -> Derive.Deriver ((Call.Function, Call.Function), Score.Control)
 resolve_pitches kam_args (pitch1, pitch2) = do
-    (pitch1, control1) <- Util.to_transpose_function Util.Nn pitch1
-    (pitch2, control2) <- Util.to_transpose_function Util.Nn pitch2
+    (pitch1, control1) <- Call.to_transpose_function Call.Nn pitch1
+    (pitch2, control2) <- Call.to_transpose_function Call.Nn pitch2
     let two_pitches = case kam_args of
             Kampita2 -> False
             _ -> True
@@ -655,24 +655,24 @@ kampita start args control transpose = do
 
 -- | You don't think there are too many arguments, do you?
 kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
-    -> (Util.Function, Util.Function) -> TrackLang.ValControl -> RealTime
+    -> (Call.Function, Call.Function) -> TrackLang.ValControl -> RealTime
     -> TrackLang.Duration -> Double -> (ScoreTime, ScoreTime)
     -> Derive.Deriver Signal.Control
 kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
         (start, end) = do
-    hold <- Util.score_duration start hold
+    hold <- Call.score_duration start hold
     smooth_trill curve (-transition) pitch1 pitch2
         =<< trill_transitions even adjust lilt hold speed (start, end)
 
-smooth_trill :: ControlUtil.Curve -> RealTime -> Util.Function -> Util.Function
+smooth_trill :: ControlUtil.Curve -> RealTime -> Call.Function -> Call.Function
     -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill curve time val1 val2 transitions = do
-    srate <- Util.get_srate
+    srate <- Call.get_srate
     return $ SignalTransform.smooth curve srate time $
         trill_from_transitions val1 val2 transitions
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Util.Function -> Util.Function
+trill_from_transitions :: Call.Function -> Call.Function
     -> [RealTime] -> Signal.Control
 trill_from_transitions val1 val2 transitions = Signal.signal
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
@@ -687,7 +687,7 @@ trill_transitions = Trill.adjusted_transitions include_end
     -- and thus will still have a segment leading to the cut-off transition.
     include_end = True
 
-end_wants_even_transitions :: RealTime -> (Util.Function, Util.Function)
+end_wants_even_transitions :: RealTime -> (Call.Function, Call.Function)
     -> Maybe Trill.Direction -> Maybe Bool
 end_wants_even_transitions start (pitch1, pitch2) dir = case dir of
     Nothing -> Nothing
@@ -748,7 +748,7 @@ c_fade fade_in = generator1 "fade" mempty
 align_to_end :: RealTime -> RealTime -> TrackLang.Duration
     -> Derive.Deriver RealTime
 align_to_end start end dur = do
-    dur <- min (end - start) <$> Util.real_duration start dur
+    dur <- min (end - start) <$> Call.real_duration start dur
     return $ end - dur
 
 -- * util
@@ -758,7 +758,7 @@ align_to_end start end dur = do
 -- long it is.
 prev_pitch :: RealTime -> Derive.PitchArgs -> Derive.Deriver PitchSignal.Pitch
 prev_pitch start args = case Args.prev_pitch args of
-    Nothing -> Util.get_pitch start
+    Nothing -> Call.get_pitch start
     Just (_, pitch) -> return pitch
 
 resolve_pitch :: Derive.PitchArgs -> PitchSignal.Pitch

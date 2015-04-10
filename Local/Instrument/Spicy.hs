@@ -11,8 +11,8 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
@@ -67,8 +67,8 @@ note_call = Note.transformed_note
     where
     attrs_doc = Text.intercalate ", " ["`" <> a <> "`" | a <- strings]
     transform deriver = do
-        attrs <- Util.get_attrs
-        inst <- Util.lookup_instrument
+        attrs <- Call.get_attrs
+        inst <- Call.lookup_instrument
         let string = Seq.head
                 [string | attr <- Score.attrs_list attrs, string <- strings,
                     attr == string]

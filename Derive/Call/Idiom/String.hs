@@ -8,12 +8,12 @@ import qualified Data.Map as Map
 
 import qualified Util.Log as Log
 import qualified Util.Map as Map
+import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
@@ -60,7 +60,7 @@ c_bent_string = Derive.transformer module_ "bent-string"
     <*> open_strings_env
     ) $ \(attack, release, delay, open_strings) _args deriver ->
     Lily.when_lilypond deriver $ do
-        srate <- Util.get_srate
+        srate <- Call.get_srate
         let linear = PitchUtil.interpolate_segment srate id
         string_idiom linear linear open_strings attack delay release =<< deriver
 
@@ -74,7 +74,7 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
         "String release delay time."
     <*> open_strings_env
     ) $ \(delay, open_strings) _args deriver -> do
-        srate <- Util.get_srate
+        srate <- Call.get_srate
         let attack = TrackLang.constant_control 0
             release = TrackLang.constant_control 0
         let linear = PitchUtil.interpolate_segment srate id
@@ -138,7 +138,7 @@ string_idiom attack_interpolate release_interpolate open_strings attack delay
     where
     one_event strings state ((attack, delay, release), event) = do
         start <- Derive.score (Score.event_start event)
-        let dur = Util.typed_real_duration Util.Real start
+        let dur = Call.typed_real_duration Call.Real start
         attack <- dur attack
         delay <- dur delay
         release <- dur release

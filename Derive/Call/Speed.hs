@@ -5,7 +5,7 @@
 -- | Utilities dealing with speeds.
 module Derive.Call.Speed where
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Derive.Call.Util as Util
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -29,13 +29,13 @@ starts :: (Derive.Time t) => TrackLang.ValControl -> (t, t)
     -> Bool -- ^ If True, include a sample at the end time.
     -> Derive.Deriver [RealTime]
 starts speed (start, end) include_end = do
-    (speed_sig, time_type) <- Util.to_time_function Util.Real speed
+    (speed_sig, time_type) <- Call.to_time_function Call.Real speed
     let take_until end = if include_end then id else takeWhile (<end)
     case time_type of
-        Util.Real -> do
+        Call.Real -> do
             (start, end) <- (,)  <$> Derive.real start <*> Derive.real end
             take_until end <$> real_starts speed_sig start end
-        Util.Score -> do
+        Call.Score -> do
             (start, end) <- (,)  <$> Derive.score start <*> Derive.score end
             starts <- score_starts speed_sig start end
             mapM Derive.real $ take_until end starts

@@ -9,12 +9,12 @@ import qualified Data.List as List
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
@@ -59,7 +59,7 @@ only_lilypond deriver = ifM Derive.is_lilypond_derive deriver mempty
 note_code :: Code -> Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 note_code code args = when_lilypond $
-    add_code code $ Util.place args Util.note
+    add_code code $ Call.place args Call.note
 
 -- ** transformer
 
@@ -185,12 +185,12 @@ add_code (pos, code) = Derive.modify_val (position_env pos) $
 -- a 'Types.Event'.
 code :: (ScoreTime, ScoreTime) -> Ly -> Derive.NoteDeriver
 code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
-    Derive.with_no_pitch $ Derive.place start dur Util.note
+    Derive.with_no_pitch $ Derive.place start dur Call.note
 
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
 code0 :: ScoreTime -> Code -> Derive.NoteDeriver
-code0 start (pos, code) = with (Derive.place start 0 Util.note)
+code0 start (pos, code) = with (Derive.place start 0 Call.note)
     where with = Derive.with_val (position_env (code0_pos pos)) code
 
 -- | Make a code0 event directly.  Inherit instrument and environ from an
@@ -584,7 +584,7 @@ code_call name doc sig make_code = (gen, trans)
         Sig.call sig $ \val args -> do
             code <- make_code val
             -- Code calls mostly apply code to a single note.  It would be
-            -- convenient to derive Util.note, but then I'd have to invert, and
+            -- convenient to derive Call.note, but then I'd have to invert, and
             -- since inversion and sub-events are incompatible I would then
             -- have to ignore sub-events.  That in turn would mean I couldn't
             -- split the code calls into a separate track, which is
@@ -658,7 +658,7 @@ global_code0_call :: Text -> Text -> Sig.Parser a
     -> Make.Calls Derive.Note
 global_code0_call name doc sig call =
     make_code_call name doc sig $ \_ val args ->
-        global (call val (Derive.place (Args.start args) 0 Util.note))
+        global (call val (Derive.place (Args.start args) 0 Call.note))
 
 -- | Emit a free-standing fragment of lilypond code.
 make_code_call :: Text -> Text -> Sig.Parser a

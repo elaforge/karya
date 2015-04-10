@@ -9,12 +9,12 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
@@ -132,7 +132,7 @@ c_timestep = val_call "timestep" mempty
     <$> Sig.required "rank" "Emit a duration of this rank."
     <*> Sig.defaulted "multiply" 1 "Multiply duration."
     ) $ \(rank, steps) args -> TrackLang.score_time <$>
-        Util.meter_duration (Args.start args) rank steps
+        Call.meter_duration (Args.start args) rank steps
 
 c_timestep_reciprocal :: Derive.ValCall
 c_timestep_reciprocal = Make.modify_vcall c_timestep Module.prelude
@@ -221,7 +221,7 @@ make_pitch (Right name_pitch) pc accs
         "pc and accs args must be 0 when a pitch is given: " <> showt (pc, accs)
     | otherwise = do
         (note, scale) <- case name_pitch of
-            Left name -> (,) <$> return (Pitch.Note name) <*> Util.get_scale
+            Left name -> (,) <$> return (Pitch.Note name) <*> Call.get_scale
             Right pitch -> (,)
                 <$> Pitches.pitch_note (PitchSignal.coerce pitch)
                 <*> Derive.get_scale (PitchSignal.pitch_scale_id pitch)
@@ -282,7 +282,7 @@ c_breakpoints :: Int -> (Double -> Double) -> NonEmpty TrackLang.Val
     -> Derive.PassedArgs a -> Derive.Deriver TrackLang.Val
 c_breakpoints argnum f vals args = do
     (start, end) <- Args.real_range_or_next args
-    srate <- Util.get_srate
+    srate <- Call.get_srate
     vals <- num_or_pitch argnum vals
     return $ case vals of
         Left nums -> TrackLang.VControl $ TrackLang.ControlSignal $

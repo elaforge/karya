@@ -16,10 +16,10 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
-import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -169,7 +169,7 @@ test_call_errors = do
     trans = Derive.transformer module_ "trans" mempty "doc" $ Sig.callt
         (Sig.defaulted "arg1" (Sig.required_control "test") "doc") $
         \c _args deriver -> do
-            Util.control_at c 0
+            Call.control_at c 0
             deriver
 
 test_val_call = do

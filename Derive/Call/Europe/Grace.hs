@@ -14,11 +14,11 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.PitchSignal as PitchSignal
@@ -95,14 +95,14 @@ c_mordent default_neighbor = Derive.make_call Module.europe "mordent"
     ) $ \(TrackLang.DefaultDiatonic neighbor, (grace_dur, dyn, place)) ->
     Sub.inverting $ \args ->
         Lily.when_lilypond (lily_mordent args neighbor) $ do
-            pitch <- Util.get_pitch =<< Args.real_start args
+            pitch <- Call.get_pitch =<< Args.real_start args
             grace_call args dyn [pitch, Pitches.transpose neighbor pitch]
                 grace_dur place
 
 lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.NoteDeriver
 lily_mordent args neighbor = do
     start <- Args.real_start args
-    pitch <- Util.get_pitch start
+    pitch <- Call.get_pitch start
     lily_grace args start [pitch, Pitches.transpose neighbor pitch]
 
 -- | Grace is in the prelude since it's so commonly used.  Mordent and the
@@ -115,7 +115,7 @@ c_grace = Derive.make_call Module.prelude "grace" (Tags.ornament <> Tags.ly)
     <$> grace_pitches_arg <*> grace_envs
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
-        base <- Util.get_pitch start
+        base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args start pitches) $
             grace_call args dyn pitches grace_dur place
@@ -135,7 +135,7 @@ c_basic_grace = Derive.make_call Module.prelude "basic-grace"
     ) $ \(pitches, grace_dur, place, maybe_transform) ->
     Sub.inverting $ \args -> do
         start <- Args.real_start args
-        base <- Util.get_pitch start
+        base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
         let apply = Eval.eval_quoted_transformers (Args.info args)
         Lily.when_lilypond (lily_grace args start pitches) $
@@ -154,13 +154,13 @@ lily_grace args start pitches = do
         code = "\\acciaccatura { " <> Text.unwords beamed <> " } "
     -- Prepending to the note instead of emitting a separate Lily.code ensures
     -- it stays with the note's voice.
-    Lily.prepend_code code $ Util.place args Util.note
+    Lily.prepend_code code $ Call.place args Call.note
 
 grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
     -> TrackLang.Duration -> TrackLang.ValControl -> Derive.NoteDeriver
 grace_call args dyn_scale pitches grace_dur place = do
-    dyn <- (*dyn_scale) <$> (Util.dynamic =<< Args.real_start args)
-    events <- basic_grace args pitches (Util.with_dynamic dyn) grace_dur place
+    dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
+    events <- basic_grace args pitches (Call.with_dynamic dyn) grace_dur place
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
     Derive.with_val "legato-dyn" (1 :: Double) $
@@ -171,7 +171,7 @@ basic_grace :: Derive.PassedArgs a -> [PitchSignal.Pitch]
     -> TrackLang.Duration -> TrackLang.ValControl -> Derive.Deriver [Sub.Event]
 basic_grace args pitches transform =
     make_grace_notes (Args.prev_start args) (Args.extent args) notes
-    where notes = map (transform . Util.pitched_note) pitches ++ [Util.note]
+    where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
 
 c_roll :: Derive.Generator Derive.Note
 c_roll = Derive.make_call Module.europe "roll" Tags.ornament
@@ -187,15 +187,15 @@ roll :: Int -> TrackLang.Duration -> Signal.Y -> Derive.PassedArgs a
     -> Derive.NoteDeriver
 roll times time dyn_scale args = do
     start <- Args.real_start args
-    pitch <- Util.get_pitch start
-    repeat_notes (Util.with_pitch pitch Util.note) times time dyn_scale args
+    pitch <- Call.get_pitch start
+    repeat_notes (Call.with_pitch pitch Call.note) times time dyn_scale args
 
 repeat_notes :: Derive.NoteDeriver -> Int -> TrackLang.Duration -> Signal.Y
     -> Derive.PassedArgs a -> Derive.NoteDeriver
 repeat_notes note times time dyn_scale args = do
     start <- Args.real_start args
-    dyn <- (*dyn_scale) <$> Util.dynamic start
-    let notes = replicate times (Util.with_dynamic dyn note) ++ [note]
+    dyn <- (*dyn_scale) <$> Call.dynamic start
+    let notes = replicate times (Call.with_dynamic dyn note) ++ [note]
     Sub.derive =<< make_grace_notes (Args.prev_start args)
         (Args.extent args) notes time (TrackLang.constant_control 0)
 
@@ -204,7 +204,7 @@ make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [Sub.Event]
 make_grace_notes prev (start, dur) notes grace_dur place = do
     real_start <- Derive.real start
-    place <- Num.clamp 0 1 <$> Util.control_at place real_start
+    place <- Num.clamp 0 1 <$> Call.control_at place real_start
     case grace_dur of
         TrackLang.Score grace_dur -> do
             let extents = fit_grace_durs (ScoreTime.double place)
@@ -236,7 +236,7 @@ c_grace_attr supported =
     <$> grace_pitches_arg <*> grace_envs
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
-        base <- Util.get_pitch start
+        base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
         Lily.when_lilypond (lily_grace args start pitches) $ do
             maybe_attrs <- grace_attrs start supported pitches base
@@ -248,13 +248,13 @@ c_grace_attr supported =
     where
     attr_grace real_start args grace_dur notes attrs = do
         let (start, dur) = Args.extent args
-        grace_dur <- Util.score_duration start grace_dur
-        dyn <- Util.dynamic real_start
+        grace_dur <- Call.score_duration start grace_dur
+        dyn <- Call.dynamic real_start
         let before = fromIntegral notes * grace_dur
-        pitch <- Util.get_pitch real_start
+        pitch <- Call.get_pitch real_start
         Derive.place (start - before) (dur + before) $
-            Util.add_attrs attrs $ Util.with_dynamic dyn $
-            Util.pitched_note pitch
+            Call.add_attrs attrs $ Call.with_dynamic dyn $
+            Call.pitched_note pitch
 
 grace_attrs :: RealTime -> Map.Map Int Score.Attributes -> [PitchSignal.Pitch]
     -> PitchSignal.Pitch -> Derive.Deriver (Maybe Score.Attributes)
@@ -296,7 +296,7 @@ c_grace_p = Derive.generator1 Module.europe "grace" Tags.ornament
 grace_p :: TrackLang.Duration -> [PitchSignal.Pitch]
     -> (ScoreTime, ScoreTime) -> Derive.Deriver PitchSignal.Signal
 grace_p grace_dur pitches (start, end) = do
-    real_dur <- Util.real_duration start grace_dur
+    real_dur <- Call.real_duration start grace_dur
     real_start <- Derive.real start
     real_end <- Derive.real end
     let starts = fit_after real_start real_end (length pitches) real_dur

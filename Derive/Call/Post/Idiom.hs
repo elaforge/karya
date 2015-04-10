@@ -9,11 +9,11 @@ import qualified Data.Maybe as Maybe
 
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -49,7 +49,7 @@ pizz_arp :: TrackLang.ValControl -> Derive.Events -> Derive.NoteDeriver
 pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
     \(event :| chord) -> do
         let start = Score.event_start event
-        time <- RealTime.seconds <$> Util.control_at time start
+        time <- RealTime.seconds <$> Call.control_at time start
         return [Score.move (+t) event
             | (t, event) <- zip (Seq.range_ 0 time) (event : chord)]
 

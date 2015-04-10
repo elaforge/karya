@@ -11,7 +11,7 @@ UNSORTED
       sub-events.  I should find a better name for it so NoteTransformer can be
       Derive.Transformer Derive.Note.
       . Perhaps SubGenerator?  ParentGenerator?
-    - Rename Derive.Post.Post to PostUtil.  Or get rid of util modules:
+    * Rename Derive.Post.Post to PostUtil.  Or get rid of util modules:
       Call.Util -> Call.  This is consistent with Derive.Scale.  Unfortunately
       still no good for CUtil and DUtil.
     - Post.Move module and infer-duration call need better names now that it's

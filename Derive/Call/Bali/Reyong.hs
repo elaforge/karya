@@ -13,12 +13,12 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
@@ -97,8 +97,8 @@ realize_pattern :: Gangsa.Repeat -> Pattern -> Derive.Generator Derive.Note
 realize_pattern repeat pattern =
     Derive.make_call module_ "reyong" Tags.inst "Emit reyong kilitan."
     $ Sig.call (Gangsa.dur_env) $ \dur -> Sub.inverting $ \args -> do
-        (parse_pitch, show_pitch, _) <- Util.get_pitch_functions
-        pitch <- Util.get_parsed_pitch parse_pitch =<< Args.real_start args
+        (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
+        pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
         mconcatMap (realize show_pitch (Args.range args) dur)
@@ -115,11 +115,11 @@ make_articulation :: [Position] -> Text -> (Position -> [Pitch.Pitch])
 make_articulation positions name get_notes attrs =
     Derive.make_call module_ name Tags.inst "Reyong articulation."
     $ Sig.call0 $ Sub.inverting $ \args -> do
-        (_, show_pitch, _) <- Util.get_pitch_functions
+        (_, show_pitch, _) <- Call.get_pitch_functions
         mconcatMap (realize show_pitch args) (zip [1..] positions)
     where
     realize show_pitch args (voice, position) = mconcatMap
-        (Util.place args . realize_note show_pitch voice (Args.start args))
+        (Call.place args . realize_note show_pitch voice (Args.start args))
         (map (\p -> (p, attrs)) (get_notes position))
 
 type Voice = Int
@@ -127,11 +127,11 @@ type Voice = Int
 realize_note :: (Pitch.Pitch -> Maybe Pitch.Note) -> Voice -> ScoreTime
     -> Note -> Derive.NoteDeriver
 realize_note show_pitch voice start (pitch, attrs) =
-    Util.add_attrs attrs $
+    Call.add_attrs attrs $
     Derive.with_val Environ.voice voice $ do
         note <- Derive.require ("unshowable pitch: " <> pretty pitch)
             (show_pitch pitch)
-        Util.pitched_note =<< Util.eval_note start note
+        Call.pitched_note =<< Call.eval_note start note
 
 
 -- * kotekan
@@ -364,8 +364,8 @@ damped_note attr dyn event =
         Nothing -> Derive.throw $ "no pitch on " <> pretty event
         Just pitch -> do
             end <- Derive.score (Score.event_end event)
-            Util.add_attrs attr $ Util.multiply_dynamic dyn $
-                Derive.place end 0 $ Util.pitched_note pitch
+            Call.add_attrs attr $ Call.multiply_dynamic dyn $
+                Derive.place end 0 $ Call.pitched_note pitch
 
 can_damp :: RealTime -> [Score.Event] -> [Bool]
 can_damp dur = snd . List.mapAccumL damp (0, 0) . zip_next . assign_hands

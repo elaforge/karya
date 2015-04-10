@@ -7,6 +7,7 @@ module Derive.Call.China.Zheng where
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.India.Gamakam as Gamakam
@@ -15,7 +16,6 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Call.Trill as Trill
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -78,16 +78,16 @@ make_gliss name is_absolute = Derive.make_call module_ name mempty
     ) $ \(gliss_start, time, maybe_start_dyn, open_strings) -> Sub.inverting $
     \args -> do
         end <- Args.real_start args
-        time <- Util.real_duration end time
-        dest_pitch <- Util.get_transposed end
-        dest_dyn <- Util.dynamic end
+        time <- Call.real_duration end time
+        dest_pitch <- Call.get_transposed end
+        dest_dyn <- Call.dynamic end
         let start_dyn = fromMaybe dest_dyn maybe_start_dyn
         pitches <- gliss_pitches open_strings dest_pitch gliss_start
         let total_time = if is_absolute then time
                 else time * fromIntegral (length pitches)
         Lily.when_lilypond (Grace.lily_grace args (end - time) pitches) $
             gliss pitches total_time start_dyn dest_dyn end
-                <> Util.placed_note args
+                <> Call.placed_note args
 
 gliss_pitches :: [PitchSignal.Pitch] -> PitchSignal.Transposed -> Int
     -> Derive.Deriver [PitchSignal.Pitch]
@@ -114,9 +114,9 @@ gliss pitches time start_dyn end_dyn end = do
         dyns = map (Num.scale start_dyn end_dyn . RealTime.to_seconds
             . Num.normalize start end) ts
     score_ts <- mapM Derive.score ts
-    score_dur <- Util.score_duration end dur
-    let note (t, p, dyn) = Derive.place t score_dur $ Util.with_dynamic dyn $
-            Util.pitched_note p
+    score_dur <- Call.score_duration end dur
+    let note (t, p, dyn) = Derive.place t score_dur $ Call.with_dynamic dyn $
+            Call.pitched_note p
     mconcat $ map note $ zip3 score_ts pitches dyns
 
 -- * trill
@@ -127,9 +127,9 @@ c_note_trill start_dir = Derive.make_call module_ "tr" Tags.ly
     $ Sig.call ((,,) <$> neighbor_arg <*> speed_arg <*> Trill.hold_env
     ) $ \(neighbor, speed, hold) -> Sub.inverting $ \args ->
     Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
-        pitch <- Util.get_pitch =<< Args.real_start args
+        pitch <- Call.get_pitch =<< Args.real_start args
         sig <- trill_signal start_dir pitch neighbor speed hold args
-        Derive.with_pitch Nothing sig $ Util.placed_note args
+        Derive.with_pitch Nothing sig $ Call.placed_note args
 
 c_pitch_trill :: Maybe Trill.Direction -> Derive.Generator Derive.Pitch
 c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
@@ -144,7 +144,7 @@ trill_signal :: Maybe Trill.Direction -> PitchSignal.Pitch
     -> TrackLang.ValControl -> TrackLang.ValControl -> TrackLang.Duration
     -> Derive.PassedArgs a -> Derive.Deriver PitchSignal.Signal
 trill_signal start_dir pitch neighbor speed hold args = do
-    (neighbor, control) <- Util.to_transpose_function Util.Nn neighbor
+    (neighbor, control) <- Call.to_transpose_function Call.Nn neighbor
     transpose <- Gamakam.kampita start_dir Nothing Trill.Shorten neighbor
         speed transition hold lilt args
     start <- Args.real_start args

@@ -11,8 +11,8 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Parse as Parse
@@ -115,7 +115,7 @@ run_val transform call = extract $ DeriveTest.derive_tracks_with
     c_capture :: Derive.Generator Derive.Note
     c_capture = Derive.make_call module_ "capture" mempty "Capture env." $
         Sig.call (Sig.required "val" "Val.") $ \val _args ->
-            Derive.with_val "capture" (val :: TrackLang.Val) Util.note
+            Derive.with_val "capture" (val :: TrackLang.Val) Call.note
 
 c_show_args :: Derive.Callable d => Derive.Generator d
 c_show_args = Derive.generator module_ "show-args" mempty "doc" $

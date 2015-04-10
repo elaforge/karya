@@ -9,10 +9,10 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
@@ -47,8 +47,8 @@ c_omit = Derive.transformer Module.prelude "omit" Tags.random
     (Sig.defaulted "chance" (Sig.control "omit" 0.5)
         "Chance, from 0 to 1, that the transformed note will be omitted."
     ) $ \omit args deriver -> do
-        omit <- Util.control_at omit =<< Args.real_start args
-        ifM (Util.chance omit) (return mempty) deriver
+        omit <- Call.control_at omit =<< Args.real_start args
+        ifM (Call.chance omit) (return mempty) deriver
 
 c_alternate :: Derive.Callable d => Derive.Generator d
 c_alternate = Derive.make_call Module.prelude "alternate" Tags.random
@@ -56,13 +56,13 @@ c_alternate = Derive.make_call Module.prelude "alternate" Tags.random
     $ Sig.call (Sig.many1 "expr" "Expression to evaluate.") $
     \exprs args -> do
         let pairs = fmap (flip (,) 1) exprs
-        val <- pick_weighted pairs <$> Util.random
-        Util.eval (Args.info args) val
+        val <- pick_weighted pairs <$> Call.random
+        Call.eval (Args.info args) val
 
 eval :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Val
     -> Derive.Deriver [LEvent.LEvent d]
 eval info val = do
-    quoted <- Derive.require_right id $ Util.val_to_quoted val
+    quoted <- Derive.require_right id $ Call.val_to_quoted val
     Eval.eval_quoted info quoted
 
 -- | Calls themselves are not first class, so this has to either take a string
@@ -79,11 +79,11 @@ c_alternate_weighted =
             =<< Sig.paired_args (NonEmpty.toList pairs)
         case NonEmpty.nonEmpty pairs of
             Nothing -> Derive.throw "empty list"
-            Just pairs -> pick_weighted pairs =<< Util.random
+            Just pairs -> pick_weighted pairs =<< Call.random
     where
     typecheck args (weight, expr) = Derive.require_right id $ do
         weight <- Sig.typecheck weight
-        quoted <- Util.val_to_quoted expr
+        quoted <- Call.val_to_quoted expr
         return (Eval.eval_quoted (Args.info args) quoted, weight)
 
 c_alternate_tracks :: Derive.Generator Derive.Note
@@ -101,7 +101,7 @@ c_alternate_tracks = Derive.make_call Module.prelude "alternate-tracks"
         case NonEmpty.nonEmpty sub_weights of
             Nothing -> return mempty
             Just sub_weights ->
-                Sub.derive . pick_weighted sub_weights =<< Util.random
+                Sub.derive . pick_weighted sub_weights =<< Call.random
     where
     pair _ (Seq.Both sub weight) = return (sub, weight)
     pair _ (Seq.First sub) = return (sub, 1)
@@ -132,7 +132,7 @@ c_val_alternate = Derive.val_call Module.prelude "alternate" Tags.random
     "Pick one of the arguments randomly."
     $ Sig.call (Sig.many1 "val" "Value of any type.") $ \vals _ -> do
         let pairs = fmap (flip (,) 1) (vals :: NonEmpty TrackLang.Val)
-        pick_weighted pairs <$> Util.random
+        pick_weighted pairs <$> Call.random
 
 c_val_alternate_weighted :: Derive.ValCall
 c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
@@ -143,7 +143,7 @@ c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
         pairs <- mapM typecheck =<< Sig.paired_args (NonEmpty.toList pairs)
         case NonEmpty.nonEmpty pairs of
             Nothing -> Derive.throw "not reached"
-            Just pairs -> pick_weighted pairs <$> Util.random
+            Just pairs -> pick_weighted pairs <$> Call.random
     where
     typecheck (weight, val) = Derive.require_right id $ do
         weight <- Sig.typecheck weight
@@ -154,4 +154,4 @@ c_range = Derive.val_call Module.prelude "range" Tags.random
     "Pick a random number within a range." $ Sig.call ((,)
     <$> Sig.defaulted "low" 0 "Bottom of range, inclusive."
     <*> Sig.defaulted "high" 1 "Top of range, inclusive."
-    ) $ \(low, high) _args -> Util.random_in low high :: Derive.Deriver Double
+    ) $ \(low, high) _args -> Call.random_in low high :: Derive.Deriver Double

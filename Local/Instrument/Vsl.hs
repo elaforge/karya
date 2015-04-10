@@ -20,11 +20,11 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.Articulation as Articulation
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Trill as Trill
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
@@ -162,7 +162,7 @@ grace_intervals = Map.fromList $
 -- reapplying the default note call.
 natural_harmonic :: Note.Config -> HarmonicMap -> Note.GenerateNote
 natural_harmonic config (strings, hmap) args = do
-    attrs <- Util.get_attrs
+    attrs <- Call.get_attrs
     with_pitch <- if Score.attrs_contain attrs (Attrs.harm <> VslInst.nat)
         then harmonic_pitch $ List.find (Score.attrs_contain attrs) strings
         else return id
@@ -176,7 +176,7 @@ natural_harmonic config (strings, hmap) args = do
             Nothing -> Derive.throw $ pretty pitch <> " unplayable on "
                 <> maybe (pretty strings) pretty maybe_string
             Just key -> return $
-                Util.with_pitch (Pitches.nn_pitch (Midi.from_key key))
+                Call.with_pitch (Pitches.nn_pitch (Midi.from_key key))
 
 -- * keyswitches
 

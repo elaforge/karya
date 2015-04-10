@@ -13,10 +13,10 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -136,7 +136,7 @@ parse_equal Nothing (TrackLang.Symbol lhs) rhs
 parse_equal maybe_merge lhs rhs
     | Just control <- is_control =<< parse_val lhs = case rhs of
         TrackLang.VControl rhs -> Right $ \deriver ->
-            Util.to_signal_or_function rhs >>= \x -> case x of
+            Call.to_signal_or_function rhs >>= \x -> case x of
                 Left sig -> do
                     merge <- get_merge control maybe_merge
                     Derive.with_merged_control merge control sig deriver
@@ -161,7 +161,7 @@ parse_equal Nothing lhs rhs
         TrackLang.VPitch rhs ->
             Right $ Derive.with_pitch control (PitchSignal.constant rhs)
         TrackLang.VPitchControl rhs -> Right $ \deriver -> do
-            sig <- Util.to_pitch_signal rhs
+            sig <- Call.to_pitch_signal rhs
             Derive.with_pitch control sig deriver
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
             <> " control, but got " <> pretty (TrackLang.type_of rhs)

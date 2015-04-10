@@ -11,11 +11,11 @@ import qualified Data.Text as Text
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -180,14 +180,14 @@ arpeggio arp time random tracks = do
     delay_tracks <- jitter . zip (Seq.range_ 0 time) =<< sort tracks
     events <- fmap concat $ forM delay_tracks $ \(delay, track) ->
         forM track $ \(Sub.Event start dur d) -> do
-            delay <- Util.score_duration start delay
+            delay <- Call.score_duration start delay
             return $ Sub.Event (start+delay) (dur-delay) d
     Sub.derive events
     where
     jitter tracks
         | random == 0 = return tracks
         | otherwise = do
-            rs <- Util.randoms_in (-random) random
+            rs <- Call.randoms_in (-random) random
             return $ zipWith nudge rs tracks
     nudge r (delay, notes)
         | delay == 0 = (delay, notes)
@@ -195,7 +195,7 @@ arpeggio arp time random tracks = do
     sort = case arp of
         ToRight -> return
         ToLeft -> return . reverse
-        Random -> Util.shuffle
+        Random -> Call.shuffle
 
 -- | This is the old version that shifts each note as a postproc.  This means
 -- it can arpeggiate by pitch since it knows the pitches at that point, but
@@ -210,7 +210,7 @@ arpeggio_by_note arp time deriver = do
     let sort = case arp of
             ToRight -> return . Seq.reverse_sort_on Score.initial_nn
             ToLeft -> return . Seq.sort_on Score.initial_nn
-            Random -> Util.shuffle
+            Random -> Call.shuffle
     arpeggiated <- zipWith (Score.move_start 0) (Seq.range_ 0 time)
         <$> sort events
     return $ map LEvent.Log logs ++ map LEvent.Event arpeggiated

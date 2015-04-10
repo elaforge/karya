@@ -22,10 +22,10 @@ import qualified Ui.ScoreTime as ScoreTime
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -122,7 +122,7 @@ note_track cinfo inst attrs deriver = do
     let transform = maybe id (call_transformer cinfo) maybe_call
         with_inst = if inst == Score.empty_inst then id
             else Derive.with_instrument inst
-    with_inst $ Util.add_attrs (mconcat attrs) $ transform deriver
+    with_inst $ Call.add_attrs (mconcat attrs) $ transform deriver
 
 call_transformer :: Derive.CallInfo d -> Derive.Transformer d
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
@@ -197,7 +197,7 @@ note_flags zero_dur stack environ
     | otherwise = mempty
     where
     -- Note that I can't use Args.duration or Args.range_on_track, because
-    -- this may be invoked via e.g. Util.note, which fakes up an event with
+    -- this may be invoked via e.g. Call.note, which fakes up an event with
     -- range (0, 1), and sets the duration via the warp.
     infer_dur = track_end && zero_dur
     track_start = start == Just 0
@@ -300,7 +300,7 @@ with_start_controls :: Derive.NoteArgs -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 with_start_controls args deriver = do
     offset_s <- get_start_offset =<< Args.real_start args
-    offset_t <- Util.score_duration (Args.start args) offset_s
+    offset_t <- Call.score_duration (Args.start args) offset_s
     let dur = Args.duration args
         min_dur = RealTime.to_score min_duration
         offset
@@ -321,7 +321,7 @@ get_start_offset start = do
         Derive.untyped_control_at Controls.start_s start
     start_t <- maybe 0 ScoreTime.double <$>
         Derive.untyped_control_at Controls.start_t start
-    start_t <- Util.real_duration start start_t
+    start_t <- Call.real_duration start start_t
     return $ start_s + start_t
 
 normalize :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
@@ -349,7 +349,7 @@ trim_pitch = PitchSignal.drop_before
 transform_note :: [Either Score.Instrument Score.Attributes]
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 transform_note vals deriver =
-    with_inst (Util.add_attrs (mconcat attrs) deriver)
+    with_inst (Call.add_attrs (mconcat attrs) deriver)
     where
     (insts, attrs) = Seq.partition_either vals
     with_inst = maybe id Derive.with_instrument $

@@ -11,12 +11,12 @@ module Derive.Call.Pitch (
     , approach
 ) where
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -88,7 +88,7 @@ c_neighbor = generator1 "neighbor" mempty
     <*> defaulted "time" (TrackLang.real 0.1) "Time to get to destination."
     <*> ControlUtil.curve_env
     ) $ \(pitch, neighbor, TrackLang.DefaultReal time, curve) args -> do
-        (start, end) <- Util.duration_from_start args time
+        (start, end) <- Call.duration_from_start args time
         let pitch1 = Pitches.transpose neighbor pitch
         PitchUtil.make_segment curve start pitch1 end pitch
 
@@ -98,7 +98,7 @@ c_approach = generator1 "approach" Tags.next
     <$> defaulted "time" (TrackLang.real 0.2) "Time to get to destination."
     <*> ControlUtil.curve_env
     ) $ \(TrackLang.DefaultReal time, curve) args -> do
-        (start, end) <- Util.duration_from_start args time
+        (start, end) <- Call.duration_from_start args time
         approach args curve start end
 
 approach :: Derive.PitchArgs -> ControlUtil.Curve -> RealTime -> RealTime

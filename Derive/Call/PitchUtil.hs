@@ -6,13 +6,12 @@
 module Derive.Call.PitchUtil where
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import Derive.Call.ControlUtil (Curve, SRate)
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
@@ -21,8 +20,8 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
-import Types
 import Global
+import Types
 
 
 type PitchOrTranspose = Either PitchSignal.Pitch Pitch.Transpose
@@ -85,7 +84,7 @@ interpolate_from_start :: Curve -> Derive.PitchArgs
     -> Maybe PitchSignal.Pitch -> TrackLang.Duration -> PitchOrTranspose
     -> Derive.Deriver PitchSignal.Signal
 interpolate_from_start f args from time to = do
-    (start, end) <- Util.duration_from_start args time
+    (start, end) <- Call.duration_from_start args time
     case from of
         Nothing -> return $ case to of
             Left pitch -> PitchSignal.signal [(start, pitch)]
@@ -103,7 +102,7 @@ make_segment = make_segment_ True True
 make_segment_ :: Bool -> Bool -> Curve -> RealTime -> PitchSignal.Pitch
     -> RealTime -> PitchSignal.Pitch -> Derive.Deriver PitchSignal.Signal
 make_segment_ include_initial include_end f x1 y1 x2 y2 = do
-    srate <- Util.get_srate
+    srate <- Call.get_srate
     return $ segment srate include_initial include_end f x1 y1 x2 y2
 
 type Interpolate = Bool -- ^ include the initial sample or not

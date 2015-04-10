@@ -26,9 +26,8 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note
-import qualified Derive.Call.Util as Util
-import qualified Derive.Call.Util as Call.Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -260,7 +259,7 @@ drum_calls maybe_tuning_control = map make
         note_call (Drums.note_dynamic note) (Drums.note_attrs note))
     note_call dyn attrs = Note.note_call
         ("drum attrs: " <> ShowVal.show_val attrs) doc mempty $ \args ->
-        with_dyn dyn $ Call.Util.add_attrs attrs $ with_tuning args $
+        with_dyn dyn $ Call.add_attrs attrs $ with_tuning args $
             Note.default_note Note.no_duration_attributes args
     with_dyn = Derive.multiply_control Score.c_dynamic
     with_tuning args = maybe id (tuning_control args) maybe_tuning_control
@@ -276,4 +275,4 @@ tuning_control args control deriver = do
     tuning <- fromMaybe 0 <$>
         (Derive.untyped_control_at control =<< Args.real_start args)
     let nn = NN.middle_c + Pitch.nn tuning
-    Util.with_pitch (Pitches.nn_pitch nn) $ deriver
+    Call.with_pitch (Pitches.nn_pitch nn) $ deriver

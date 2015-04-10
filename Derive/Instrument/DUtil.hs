@@ -13,11 +13,11 @@ import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Sub as Sub
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
@@ -46,7 +46,7 @@ attrs_note :: Score.Attributes -> Derive.Generator Derive.Note
 attrs_note attrs =
     make_call ("attrs_note " <> ShowVal.show_val attrs)
         "Invoke the default note call with the given attrs." $
-    Sig.call0 $ \args -> Util.add_attrs attrs (Util.note_here args)
+    Sig.call0 $ \args -> Call.add_attrs attrs (Call.note_here args)
 
 zero_duration_transform :: Text
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)

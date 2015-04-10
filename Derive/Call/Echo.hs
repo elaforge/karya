@@ -11,7 +11,7 @@ import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -41,8 +41,8 @@ c_delay = Derive.transformer Module.prelude "delay" Tags.ly
     ( defaulted "time" (typed_control "delay-time" 0.1 Score.Real) "Delay time."
     ) $ \time args deriver -> Lily.when_lilypond deriver $ do
         start <- Args.real_start args
-        delay <- Util.score_duration start
-            =<< Util.time_control_at Util.Real time start
+        delay <- Call.score_duration start
+            =<< Call.time_control_at Call.Real time start
         Derive.at delay deriver
 
 -- TODO typed delay time
@@ -62,9 +62,9 @@ c_echo = Derive.transformer Module.prelude "echo" mempty
         "Number of echoes, not counting the original."
     ) $ \(delay, feedback, times) args deriver -> do
         now <- Args.real_start args
-        delay <- Signal.y_to_score <$> Util.control_at delay now
-        feedback <- Util.control_at feedback now
-        times <- floor <$> Util.control_at times now
+        delay <- Signal.y_to_score <$> Call.control_at delay now
+        feedback <- Call.control_at feedback now
+        times <- floor <$> Call.control_at times now
         echo delay feedback times deriver
 
 echo :: ScoreTime -> Double -> Int -> Derive.NoteDeriver -> Derive.NoteDeriver

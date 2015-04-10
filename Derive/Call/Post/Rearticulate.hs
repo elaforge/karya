@@ -6,11 +6,11 @@
 module Derive.Call.Post.Rearticulate where
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -37,7 +37,7 @@ c_slur_n = Derive.transformer Module.prelude "slur-n" Tags.postproc
     <$> Sig.required "group" "How many notes in a group."
     <*> ControlUtil.curve_time_env
     ) $ \(group, curve) _args deriver -> do
-        srate <- Util.get_srate
+        srate <- Call.get_srate
         slur_n srate group curve <$> deriver
 
 type Curve = (ControlUtil.Curve, RealTime)
@@ -123,9 +123,9 @@ c_slur_dur = Derive.transformer Module.prelude "slur-dur" Tags.postproc
     <*> ControlUtil.curve_time_env
     ) $ \(dur, offset, curve) args deriver -> do
         start <- Args.real_start args
-        dur <- Util.real_duration start dur
-        offset <- Util.real_duration start offset
-        srate <- Util.get_srate
+        dur <- Call.real_duration start dur
+        offset <- Call.real_duration start offset
+        srate <- Call.get_srate
         slur_dur srate dur offset curve <$> deriver
 
 slur_dur :: RealTime -> RealTime -> RealTime -> Curve -> Derive.Events

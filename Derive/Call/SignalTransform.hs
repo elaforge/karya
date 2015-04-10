@@ -10,12 +10,12 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
@@ -109,7 +109,7 @@ c_slew = Derive.transformer Module.prelude "slew" mempty
     \ slope."
     $ Sig.callt (required "slope" "Maximum allowed slope, per second.")
     $ \slope _args deriver -> do
-        srate <- Util.get_srate
+        srate <- Call.get_srate
         Post.signal (slew_limiter srate slope) deriver
 
 -- | Smooth the signal by not allowing the signal to change faster than the
@@ -151,8 +151,8 @@ c_smooth = Derive.transformer Module.prelude "smooth" mempty
         \ source."
     <*> defaulted "curve" "i" "Curve."
     ) $ \(TrackLang.DefaultReal time, curve) args deriver -> do
-        srate <- Util.get_srate
-        time <- Util.real_duration (Args.start args) time
+        srate <- Call.get_srate
+        time <- Call.real_duration (Args.start args) time
         f <- Derive.require "curve" (curve_function curve)
         Post.signal (smooth f srate time) deriver
 
@@ -217,5 +217,5 @@ c_cf_sample = Derive.transformer Module.prelude "cf-sample"
         start <- Args.real_start args
         let cs = map Score.control (NonEmpty.toList controls)
         vals <- mapM (flip Derive.control_at start) cs
-        foldr (uncurry Util.with_constant) deriver
+        foldr (uncurry Call.with_constant) deriver
             [(c, Score.typed_val v) | (c, Just v) <- zip cs vals]

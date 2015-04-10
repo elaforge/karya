@@ -13,11 +13,11 @@ import qualified Util.Seq as Seq
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Meter as Meter
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
@@ -127,7 +127,7 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
         where
         maybe_marks = snd <$> Map.lookup Ruler.meter (TrackLang.dyn_ruler dyn)
 
-cf_swing :: (ScoreTime -> RealTime) -> Ruler.Rank -> Util.Function
+cf_swing :: (ScoreTime -> RealTime) -> Ruler.Rank -> Call.Function
     -> Ruler.Marklist -> ScoreTime -> RealTime
 cf_swing to_real rank amount marks pos = case marks_around rank marks pos of
     Nothing -> 0
@@ -213,12 +213,12 @@ score dyn = Score.unwarp_pos (TrackLang.dyn_warp dyn)
 -- ** ValControl
 
 to_function :: TrackLang.Dynamic -> Signal.Y -> TrackLang.ValControl
-    -> Util.Function
+    -> Call.Function
 to_function dyn deflt =
     (Score.typed_val .) . to_typed_function dyn (Score.untyped deflt)
 
 to_typed_function :: TrackLang.Dynamic -> Score.TypedVal -> TrackLang.ValControl
-    -> Util.TypedFunction
+    -> Call.TypedFunction
 to_typed_function dyn deflt control =
     case to_signal_or_function dyn control of
         Nothing -> const deflt

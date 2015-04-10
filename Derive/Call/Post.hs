@@ -24,8 +24,8 @@ import qualified Data.Monoid as Monoid
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Derive.Call as Call
 import qualified Derive.Call.Note as Note
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
@@ -144,7 +144,7 @@ zip3_on f g xs =
 control :: (Score.TypedVal -> a) -> TrackLang.ValControl -> Derive.Events
     -> Derive.Deriver [a]
 control f c events = do
-    sig <- Util.to_typed_function c
+    sig <- Call.to_typed_function c
     return $ map (f . sig . Score.event_start) (LEvent.events_of events)
 
 time_control :: TrackLang.ValControl -> Derive.Events

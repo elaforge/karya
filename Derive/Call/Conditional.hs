@@ -7,8 +7,8 @@ module Derive.Call.Conditional where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
@@ -58,8 +58,8 @@ c_if_e = Derive.make_call Module.prelude "if-e" mempty
     <*> Sig.required "false" "Eval if false."
     ) $ \(name, maybe_value, true, false) args ->
         ifM (has_environ name maybe_value)
-            (Util.eval (Args.info args) true)
-            (Util.eval (Args.info args) false)
+            (Call.eval (Args.info args) true)
+            (Call.eval (Args.info args) false)
 
 -- * transformer
 
@@ -103,7 +103,7 @@ c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
 
 has_control :: TrackLang.ValControl -> Int -> RealTime -> Derive.Deriver Bool
 has_control control val pos = do
-    cval <- Util.control_at control pos
+    cval <- Call.control_at control pos
     return $ round cval == val
 
 c_when_e :: Derive.Taggable d => Bool -> Derive.Transformer d

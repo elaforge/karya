@@ -11,12 +11,12 @@ module Derive.Call.Bali.Gender (
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Note as Note
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
@@ -92,14 +92,14 @@ ngoret module_ late_damping damp_arg interval_arg =
     ) $ \(maybe_interval, time, damp, dyn_scale, damp_threshold) args ->
     Note.with_start_controls args $ Sub.inverting_args args $ \args -> do
         start <- Args.real_start args
-        time <- Derive.real =<< Util.time_control_at Util.Real time start
-        damp <- Derive.real =<< Util.time_control_at Util.Real damp start
+        time <- Derive.real =<< Call.time_control_at Call.Real time start
+        damp <- Derive.real =<< Call.time_control_at Call.Real damp start
         maybe_pitch <- case maybe_interval of
             Nothing -> return Nothing
             Just transpose ->
-                Just . Pitches.transpose transpose <$> Util.get_pitch start
-        dyn_scale <- Util.control_at dyn_scale start
-        dyn <- (*dyn_scale) <$> Util.dynamic start
+                Just . Pitches.transpose transpose <$> Call.get_pitch start
+        dyn_scale <- Call.control_at dyn_scale start
+        dyn <- (*dyn_scale) <$> Call.dynamic start
 
         grace_start <- Derive.score (start - time)
         -- If there isn't room for the grace note, use the midpoint between the
@@ -109,19 +109,19 @@ ngoret module_ late_damping damp_arg interval_arg =
             Just prev -> max grace_start $ (prev + Args.start args) / 2
         real_grace_start <- Derive.real grace_start
         let with_flags
-                | late_damping && prev_touches = Util.add_flags $
+                | late_damping && prev_touches = Call.add_flags $
                     if start - real_grace_start < damp_threshold
                         then extend_previous else shorten_previous
                 | otherwise = id
             prev_touches = maybe False (>= Args.start args) (Args.prev_end args)
-        overlap <- Util.score_duration (Args.start args) damp
+        overlap <- Call.score_duration (Args.start args) damp
         let grace_end = Args.start args + overlap
             grace_note = case maybe_pitch of
-                Nothing -> Util.add_flags infer_pitch_flag Util.note
-                Just pitch -> Util.pitched_note pitch
+                Nothing -> Call.add_flags infer_pitch_flag Call.note
+                Just pitch -> Call.pitched_note pitch
         Derive.place grace_start (grace_end - grace_start)
-                (with_flags $ Util.with_dynamic dyn grace_note)
-            <> Derive.place (Args.start args) (Args.duration args) Util.note
+                (with_flags $ Call.with_dynamic dyn grace_note)
+            <> Derive.place (Args.start args) (Args.duration args) Call.note
 
 -- ** realize
 
@@ -218,11 +218,11 @@ c_weak = Derive.make_call module_ "weak" Tags.inst
 
 weak :: TrackLang.ValControl -> Derive.PassedArgs a -> Derive.NoteDeriver
 weak strength args = do
-    strength <- Util.control_at strength =<< Args.real_start args
+    strength <- Call.control_at strength =<< Args.real_start args
     -- This biases %mute values to be lower, and 0 before it unmutes.
     let mute = max 0 $ 1 - (strength + (1 - unmute_threshold))
     if strength <= omit_threshold then mempty
-        else Util.with_constant Controls.mute mute $ Util.placed_note args
+        else Call.with_constant Controls.mute mute $ Call.placed_note args
     where
     omit_threshold = 0.25
     unmute_threshold = 0.75

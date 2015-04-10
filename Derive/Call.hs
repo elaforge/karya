@@ -11,7 +11,7 @@
     The idea is that PassedArgs is a large dependency and it should be reduced
     immediately to what is needed.
 -}
-module Derive.Call.Util where
+module Derive.Call where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified System.Random.Mersenne.Pure64 as Pure64

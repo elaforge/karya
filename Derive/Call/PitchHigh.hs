@@ -11,13 +11,13 @@
 -- TODO this module has a dumb name.  What would be better?
 module Derive.Call.PitchHigh where
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Pitch as Call.Pitch
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.PitchSignal as PitchSignal
@@ -157,7 +157,7 @@ c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
     <*> defaulted "dyn" 0.25 "Drop `dyn` by this factor."
     <*> ControlUtil.curve_env
     ) $ \(TrackLang.DefaultReal time, dyn, curve) args -> do
-        (start, end) <- Util.duration_from_start args time
+        (start, end) <- Call.duration_from_start args time
         ControlUtil.multiply_dyn end
             =<< ControlUtil.make_segment id start 1 end dyn
         Call.Pitch.approach args curve start end
@@ -202,8 +202,8 @@ pitch_fade_ranges align align_fade fade_time pitch_time start end = do
     let dur_from = case align of
             AlignStart -> start
             AlignEnd -> end
-    fade_time <- Util.real_duration dur_from fade_time
-    pitch_time <- Util.real_duration dur_from pitch_time
+    fade_time <- Call.real_duration dur_from fade_time
+    pitch_time <- Call.real_duration dur_from pitch_time
     (fade_start, fade_end) <- case align of
         AlignStart -> (\p -> (p, p + fade_time)) <$> Derive.real start
         AlignEnd -> (\p -> (p - fade_time, p)) <$> Derive.real end

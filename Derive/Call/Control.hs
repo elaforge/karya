@@ -9,11 +9,11 @@ import qualified Data.Map as Map
 
 import qualified Util.Num as Num
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Parse as Parse
@@ -177,7 +177,7 @@ c_breakpoint_next = generator1 "breakpoint" mempty
         \ this event and the next event.")
     $ \vals args -> do
         (start, end) <- Args.real_range_or_next args
-        srate <- Util.get_srate
+        srate <- Call.get_srate
         return $ ControlUtil.breakpoints srate id $
             ControlUtil.distribute start end (NonEmpty.toList vals)
 
@@ -190,7 +190,7 @@ c_neighbor = generator1 "neighbor" mempty
     <*> defaulted "time" (TrackLang.real 0.1) "Time taken to get to 0."
     <*> ControlUtil.curve_env
     ) $ \(neighbor, TrackLang.DefaultReal time, curve) args -> do
-        (start, end) <- Util.duration_from_start args time
+        (start, end) <- Call.duration_from_start args time
         ControlUtil.make_segment curve start neighbor end 0
 
 c_down :: Derive.Generator Derive.Control
@@ -264,7 +264,7 @@ c_swell = generator1 "swell" mempty
         (start, end) <- Args.real_range args
         let middle = Num.clamp start end $
                 Num.scale start end (RealTime.seconds bias)
-        srate <- Util.get_srate
+        srate <- Call.get_srate
         return $ ControlUtil.breakpoints srate id
             [(start, val), (middle, peak), (end, val)]
 

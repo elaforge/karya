@@ -44,7 +44,7 @@ import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Cache as Cache
-import qualified Derive.Call.Util as Util
+import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -211,7 +211,7 @@ pitch_call track maybe_name scale_id transform deriver =
 
 get_scale :: Pitch.ScaleId -> Derive.Deriver Scale.Scale
 get_scale scale_id
-    | scale_id == Pitch.empty_scale = Util.get_scale
+    | scale_id == Pitch.empty_scale = Call.get_scale
     | otherwise = Derive.get_scale scale_id
 
 with_control_damage :: Maybe (BlockId, TrackId) -> (TrackTime, TrackTime)

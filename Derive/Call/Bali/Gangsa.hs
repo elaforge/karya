@@ -33,12 +33,12 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
@@ -184,11 +184,11 @@ c_norot = Derive.make_call module_ "norot" Tags.inst
     ) $ \(arrival, style, dur, kotekan, inst_top, pasang, initial) ->
     Sub.inverting $ \args -> do
         start <- Args.real_start args
-        pitch <- Util.get_transposed start
-        scale <- Util.get_scale
+        pitch <- Call.get_transposed start
+        scale <- Call.get_scale
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
-        pitch <- Util.get_pitch start
+        pitch <- Call.get_pitch start
         -- TODO only thing start does is cut off notes before it, can I pass
         -- Nothing for start?
         let arrival_range = (Args.start args - 24, Args.start args)
@@ -225,11 +225,11 @@ c_norot_arrival = Derive.make_call module_ "norot" Tags.inst
     <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
     ) $ \(style, dur, kotekan, inst_top, pasang) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
-        pitch <- Util.get_transposed start
-        scale <- Util.get_scale
+        pitch <- Call.get_transposed start
+        scale <- Call.get_scale
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
-        pitch <- Util.get_pitch start
+        pitch <- Call.get_pitch start
         realize_kotekan_pattern True (Args.range args) dur pitch
             under_threshold Once (gangsa_norot_arrival style pasang nsteps)
 
@@ -277,7 +277,7 @@ c_gender_norot = Derive.make_call module_ "gender-norot" Tags.inst
     $ Sig.call ((,,,)
     <$> dur_env <*> kotekan_env <*> pasang_env <*> initial_env)
     $ \(dur, kotekan, pasang, initial) -> Sub.inverting $ \args -> do
-        pitch <- Util.get_pitch =<< Args.real_start args
+        pitch <- Call.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern initial (Args.range args) dur pitch
             under_threshold Repeat (gender_norot pasang)
@@ -342,8 +342,8 @@ realize_kotekan_pattern include_start (start, end) dur pitch under_threshold
     cycle_dur = dur * fromIntegral (length (fst cycle))
     realize (KotekanNote inst steps attrs) =
         maybe id Derive.with_instrument inst $
-        Util.add_attrs attrs $
-        Util.pitched_note (Pitches.transpose_d steps pitch)
+        Call.add_attrs attrs $
+        Call.pitched_note (Pitches.transpose_d steps pitch)
 
 kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang -> Cycle
 kotekan_pattern pattern style pasang =
@@ -600,7 +600,7 @@ under_threshold_function :: TrackLang.ValControl -> ScoreTime
     -- with the given duration would be under the kotekan threshold
 under_threshold_function kotekan dur = do
     to_real <- Derive.real_function
-    kotekan <- Util.to_function kotekan
+    kotekan <- Call.to_function kotekan
     return $ \t ->
         let real = to_real t
         in to_real (t+dur) - real < RealTime.seconds (kotekan real)
@@ -631,7 +631,7 @@ realize_notes realize = mconcat . map note . Seq.zip_next
         add_flag next $ Derive.place start dur (realize note)
     add_flag next = fmap $ Post.emap1_ (modify next . remove)
     -- Strip existing flags.  This is because the notes come from
-    -- 'Util.pitched_note', which calls "", which in turn sets
+    -- 'Call.pitched_note', which calls "", which in turn sets
     -- Flags.weak on TrackTime 0.  So if the kotekan starts at 0 all
     -- notes get weak.  TODO don't reuse "" for these kinds of things,
     -- so I don't get flags I don't want.
@@ -666,7 +666,7 @@ c_unison :: Derive.Transformer Derive.Note
 c_unison = Derive.transformer module_ "unison" Tags.postproc
     "Split part into unison polos and sangsih."
     $ Sig.callt pasang_env $ \(polos, sangsih) _args deriver -> do
-        inst <- Util.get_instrument
+        inst <- Call.get_instrument
         polos <- Derive.get_instrument polos
         sangsih <- Derive.get_instrument sangsih
         Post.emap_ (unison inst polos sangsih) <$> deriver
@@ -693,8 +693,8 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
     $ Sig.callt ((,)
     <$> instrument_top_env <*> pasang_env
     ) $ \(maybe_top, (polos, sangsih)) _args deriver -> do
-        inst <- Util.get_instrument
-        scale <- Util.get_scale
+        inst <- Call.get_instrument
+        scale <- Call.get_scale
         let too_high = pitch_too_high scale maybe_top
         Post.emap_ (kempyung too_high inst polos sangsih) <$> deriver
     where
@@ -785,7 +785,7 @@ c_pasangan = Derive.val_call module_ "pasangan" mempty
 -- TODO unfortunately I still can't get the next pitch, so it's actually just
 -- the pitch at the start for now.
 get_pitch :: Derive.PassedArgs a -> Derive.Deriver PitchSignal.Pitch
-get_pitch args = Util.get_pitch =<< Args.real_start args
+get_pitch args = Call.get_pitch =<< Args.real_start args
 
 dur_env :: Sig.Parser ScoreTime
 dur_env = Sig.environ_quoted "dur" Sig.Prefixed

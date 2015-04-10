@@ -20,12 +20,12 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Parse as Parse
@@ -66,13 +66,13 @@ lookup_attr_generator :: Derive.LookupCall (Derive.Generator Derive.Note)
 lookup_attr_generator = make_lookup_attr $ \attrs ->
     fst $ Make.transform_notes Module.prelude
         ("add attrs: " <> ShowVal.show_val attrs) Tags.attr "Doc unused."
-        Sig.no_args (\() -> Util.add_attrs attrs)
+        Sig.no_args (\() -> Call.add_attrs attrs)
 
 lookup_attr_transformer :: Derive.LookupCall (Derive.Transformer Derive.Note)
 lookup_attr_transformer = make_lookup_attr $ \attrs ->
     snd $ Make.transform_notes Module.prelude
         ("add attrs: " <> ShowVal.show_val attrs) Tags.attr "Doc unused."
-        Sig.no_args (\() -> Util.add_attrs attrs)
+        Sig.no_args (\() -> Call.add_attrs attrs)
 
 make_lookup_attr :: (Score.Attributes -> call) -> Derive.LookupCall call
 make_lookup_attr call =
@@ -111,7 +111,7 @@ c_legato = Derive.make_call Module.prelude "legato"
     <*> defaulted "dyn" 1 "Scale dyn for notes after the first one by this\
         \ amount."
     ) $ \(overlap, maybe_detach, dyn) args -> do
-        overlap <- Util.real_time_at overlap =<< Args.real_start args
+        overlap <- Call.real_time_at overlap =<< Args.real_start args
         note_legato overlap maybe_detach dyn =<< Sub.sub_events args
 
 note_legato :: RealTime -> Maybe RealTime -> Signal.Y -> [[Sub.Event]]
@@ -163,17 +163,17 @@ c_attr_legato = Derive.make_call Module.instrument "legato"
     <*> defaulted "dyn" 1 "Scale dyn for notes after the first one by\
         \ this amount. Otherwise, transition samples can be too loud."
     ) $ \(detach, dyn) ->
-        Util.add_attrs Attrs.legato . note_legato 0.02 detach dyn
+        Call.add_attrs Attrs.legato . note_legato 0.02 detach dyn
             <=< Sub.sub_events
 
 apply_detach :: RealTime -> [Sub.Event] -> [Sub.Event]
 apply_detach detach = Seq.map_last (fmap (set_sustain (-detach)))
 
 apply_dyn :: Signal.Y -> [Sub.Event] -> [Sub.Event]
-apply_dyn dyn = Seq.map_tail (fmap (Util.multiply_dynamic dyn))
+apply_dyn dyn = Seq.map_tail (fmap (Call.multiply_dynamic dyn))
 
 set_sustain :: RealTime -> Derive.Deriver a -> Derive.Deriver a
-set_sustain = Util.with_constant Controls.sustain_abs . RealTime.to_seconds
+set_sustain = Call.with_constant Controls.sustain_abs . RealTime.to_seconds
 
 -- * misc
 
@@ -185,7 +185,7 @@ c_sustain_abs = Derive.transformer Module.prelude "sus-a" mempty
     ) $ (Sig.callt (Sig.defaulted "time" (TrackLang.real 0.25)
         "Add this duration to the note.")
     ) $ \(TrackLang.DefaultReal time) args deriver -> do
-        time <- Util.real_duration (Args.end args) time
+        time <- Call.real_duration (Args.end args) time
         set_sustain time deriver
 
 c_sustain :: Derive.Transformer Derive.Note
@@ -195,11 +195,11 @@ c_sustain = Derive.transformer Module.prelude "sus" mempty
     <> "."
     ) $ (Sig.callt (Sig.defaulted "amount" 1.5
         "Multiply the note's duration by this.")
-    ) $ \amount _args -> Util.with_constant Controls.sustain amount
+    ) $ \amount _args -> Call.with_constant Controls.sustain amount
 
 c_detach :: Make.Calls Derive.Note
 c_detach = Make.transform_notes Module.prelude "detach" mempty
     ("Detach the notes slightly, by setting "
         <> ShowVal.doc_val Controls.sustain_abs <> ".")
     (defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
-        Util.with_constant Controls.sustain_abs (-time)
+        Call.with_constant Controls.sustain_abs (-time)

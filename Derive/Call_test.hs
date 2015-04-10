@@ -3,10 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ScopedTypeVariables #-}
-module Derive.Call.Util_test where
+module Derive.Call_test where
 import Util.Test
 import qualified Ui.State as State
-import qualified Derive.Call.Util as Util
+import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
@@ -34,7 +34,7 @@ test_randoms_in = do
     let run seed = expect_right "run" . DeriveTest.eval State.empty
             . Derive.with_val Environ.seed (seed :: Int)
         randoms seed low high = take 4 $
-            run seed (Util.randoms_in low high)
+            run seed (Call.randoms_in low high)
     let double :: Int -> Double -> Double -> [Double]
         double = randoms
         int :: Int -> Int -> Int -> [Int]

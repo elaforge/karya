@@ -48,6 +48,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
@@ -55,7 +56,6 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
@@ -105,7 +105,7 @@ c_note_trill hardcoded_start hardcoded_end =
         let notes = do
                 (x, maybe_next) <- Seq.zip_next xs
                 let next = fromMaybe end maybe_next
-                return $ Sub.Event x (next-x) Util.note
+                return $ Sub.Event x (next-x) Call.note
         Derive.with_added_control control (Score.untyped transpose) $
             Sub.derive notes
 
@@ -117,15 +117,15 @@ c_attr_trill = Derive.make_call Module.prelude "attr-tr" Tags.attr
     (defaulted "neighbor" (typed_control "tr-neighbor" 1 Score.Chromatic)
         "Alternate with a pitch at this interval.  Only 1c and 2c are allowed."
     ) $ \neighbor args -> do
-        (width, typ) <- Util.transpose_control_at Util.Chromatic neighbor
+        (width, typ) <- Call.transpose_control_at Call.Chromatic neighbor
             =<< Args.real_start args
         width_attr <- case (width, typ) of
-            (1, Util.Chromatic) -> return Attrs.half
-            (2, Util.Chromatic) -> return Attrs.whole
+            (1, Call.Chromatic) -> return Attrs.half
+            (2, Call.Chromatic) -> return Attrs.whole
             _ -> Derive.throw $
                 "attribute trill only supports 1c and 2c trills: "
                 <> ShowVal.show_val neighbor
-        Util.add_attrs (Attrs.trill <> width_attr) (Util.placed_note args)
+        Call.add_attrs (Attrs.trill <> width_attr) (Call.placed_note args)
 
 c_tremolo_generator :: Derive.Generator Derive.Note
 c_tremolo_generator = Derive.make_call Module.prelude "trem" Tags.ly
@@ -136,7 +136,7 @@ c_tremolo_generator = Derive.make_call Module.prelude "trem" Tags.ly
         notes <- Sub.sub_events args
         case filter (not . null) notes of
             [] -> Sub.inverting_args args $ \args -> Lily.note_code code args $
-                simple_tremolo starts [Util.note]
+                simple_tremolo starts [Call.note]
             notes -> Lily.notes_code code args $
                 Sub.derive $ chord_tremolo starts notes
     where code = (Lily.SuffixAll, ":32")
@@ -152,14 +152,14 @@ c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs
 tremolo_starts :: TrackLang.ValControl -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [ScoreTime]
 tremolo_starts speed range = do
-    (speed_sig, time_type) <- Util.to_time_function Util.Real speed
+    (speed_sig, time_type) <- Call.to_time_function Call.Real speed
     case time_type of
-        Util.Real -> do
+        Call.Real -> do
             start <- Derive.real (fst range)
             end <- Derive.real (snd range)
             mapM Derive.score . full_notes end
                 =<< Speed.real_starts speed_sig start end
-        Util.Score -> do
+        Call.Score -> do
             let (start, end) = range
             starts <- Speed.score_starts speed_sig start end
             return $ full_notes end starts
@@ -261,8 +261,8 @@ c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
     <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
-        val1 <- Util.to_pitch_signal val1
-        val2 <- Util.to_pitch_signal val2
+        val1 <- Call.to_pitch_signal val1
+        val2 <- Call.to_pitch_signal val2
         return $ xcut_pitch hold val1 val2 transitions
 
 xcut_pitch :: Bool -> PitchSignal.Signal -> PitchSignal.Signal -> [RealTime]
@@ -321,7 +321,7 @@ c_saw = Derive.generator1 Module.prelude "saw" mempty
     <*> defaulted "to" 0 "End at this value."
     ) $ \(speed, from, to) args -> do
         starts <- Speed.starts speed (Args.range_or_next args) True
-        srate <- Util.get_srate
+        srate <- Call.get_srate
         return $ saw srate starts from to
 
 saw :: RealTime -> [RealTime] -> Double -> Double -> Signal.Control
@@ -344,11 +344,11 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
     <*> defaulted "amp" 1 "Amplitude, measured center to peak."
     <*> defaulted "offset" 0 "Center point."
     ) $ \(speed, amp, offset) args -> do
-        (speed_sig, time_type) <- Util.to_time_function Util.Real speed
+        (speed_sig, time_type) <- Call.to_time_function Call.Real speed
         case time_type of
-            Util.Score -> Derive.throw "RealTime signal required"
+            Call.Score -> Derive.throw "RealTime signal required"
             _ -> return ()
-        srate <- Util.get_srate
+        srate <- Call.get_srate
         let sign = case mode of
                 Bipolar -> 0
                 Negative -> -amp
@@ -358,7 +358,7 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
         return $ Signal.map_y ((+(offset+sign)) . (*amp)) $
             sine srate start end speed_sig
 
-sine :: RealTime -> RealTime -> RealTime -> Util.Function -> Signal.Control
+sine :: RealTime -> RealTime -> RealTime -> Call.Function -> Signal.Control
 sine srate start end freq_sig = Signal.unfoldr go (start, 0)
     where
     go (pos, phase)
@@ -380,8 +380,8 @@ c_xcut_control hold = Derive.generator1 Module.prelude "xcut" mempty
     <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
-        val1 <- Util.to_signal val1
-        val2 <- Util.to_signal val2
+        val1 <- Call.to_signal val1
+        val2 <- Call.to_signal val2
         return $ xcut_control hold val1 val2 transitions
 
 xcut_control :: Bool -> Signal.Control -> Signal.Control -> [RealTime]
@@ -470,9 +470,9 @@ direction_doc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
     \ No suffix causes it to obey the settings in scope."
 
 -- | Resolve start and end Directions to the first and second trill notes.
-convert_direction :: RealTime -> Util.Function
+convert_direction :: RealTime -> Call.Function
     -> Maybe Direction -> Maybe Direction
-    -> ((Util.Function, Util.Function), Maybe Bool)
+    -> ((Call.Function, Call.Function), Maybe Bool)
     -- ^ Signals for the first and second trill notes.  The boolean indicates
     -- whether the transitions should be even to end on the expected end
     -- Direction, and Nothing if it doesn't matter.
@@ -521,11 +521,11 @@ trill_from_controls :: (ScoreTime, ScoreTime) -> Maybe Direction
     -> Derive.Deriver (Signal.Control, Score.Control)
 trill_from_controls (start, end) start_dir end_dir adjust hold neighbor speed
         = do
-    (neighbor_sig, control) <- Util.to_transpose_function Util.Diatonic neighbor
+    (neighbor_sig, control) <- Call.to_transpose_function Call.Diatonic neighbor
     real_start <- Derive.real start
     let ((val1, val2), even_transitions) = convert_direction real_start
             neighbor_sig start_dir end_dir
-    hold <- Util.score_duration start hold
+    hold <- Call.score_duration start hold
     transitions <- adjusted_transitions False even_transitions adjust 0 hold
         speed (start, end)
     return (trill_from_transitions val1 val2 transitions, control)
@@ -579,7 +579,7 @@ add_bias bias (t:ts)
     negative _ xs = xs
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Util.Function -> Util.Function
+trill_from_transitions :: Call.Function -> Call.Function
     -> [RealTime] -> Signal.Control
 trill_from_transitions val1 val2 transitions = Signal.signal
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
@@ -588,12 +588,12 @@ trill_from_transitions val1 val2 transitions = Signal.signal
 trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> TrackLang.ValControl
     -> Derive.Deriver [RealTime]
 trill_transitions range include_end speed = do
-    (speed_sig, time_type) <- Util.to_time_function Util.Real speed
+    (speed_sig, time_type) <- Call.to_time_function Call.Real speed
     case time_type of
-        Util.Real -> real_transitions range include_end speed_sig
-        Util.Score -> score_transitions range include_end speed_sig
+        Call.Real -> real_transitions range include_end speed_sig
+        Call.Score -> score_transitions range include_end speed_sig
 
-real_transitions :: (ScoreTime, ScoreTime) -> Bool -> Util.Function
+real_transitions :: (ScoreTime, ScoreTime) -> Bool -> Call.Function
     -> Derive.Deriver [RealTime]
 real_transitions (start, end) include_end speed = do
     start <- Derive.real start
@@ -601,7 +601,7 @@ real_transitions (start, end) include_end speed = do
     full_cycles RealTime.eta end include_end <$>
         Speed.real_starts speed start end
 
-score_transitions :: (ScoreTime, ScoreTime) -> Bool -> Util.Function
+score_transitions :: (ScoreTime, ScoreTime) -> Bool -> Call.Function
     -> Derive.Deriver [RealTime]
 score_transitions (start, end) include_end speed = do
     all_transitions <- Speed.score_starts speed start end
