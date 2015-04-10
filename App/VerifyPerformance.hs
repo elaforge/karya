@@ -15,6 +15,7 @@ import qualified Data.Vector as Vector
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment
 import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 import qualified System.IO as IO
 
 import qualified Util.Log as Log
@@ -32,19 +33,32 @@ import Global
 import Types
 
 
-data Flag = Help | Save | Perform | DumpMidi
+data Flag = Help | Mode Mode | FailureDir !FilePath
     deriving (Eq, Show)
+
+data Mode = Verify | Save | Perform | DumpMidi
+    deriving (Eq, Show, Bounded, Enum)
 
 options :: [GetOpt.OptDescr Flag]
 options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
-    , GetOpt.Option [] ["save"] (GetOpt.NoArg Save)
-        "Write saved performances to disk as binary."
-    , GetOpt.Option [] ["perform"] (GetOpt.NoArg Perform)
-        "Perform to MIDI and write to $input.midi."
-    , GetOpt.Option [] ["dump-midi"] (GetOpt.NoArg DumpMidi)
-        "pretty print binary saved MIDI to stdout"
+    , GetOpt.Option [] ["mode"]
+        (GetOpt.ReqArg read_mode (show [minBound :: Mode .. maxBound]))
+        "Run in this mode, defaults to Verify.  Modes:\n\
+        \  Verify - Check saved performances against current performances.\n\
+        \  Save - Write saved performances to disk as binary.\n\
+        \  Perform - Perform to MIDI and write to $input.midi.\n\
+        \  DumpMidi - Pretty print binary saved MIDI to stdout."
+    , GetOpt.Option [] ["out"] (GetOpt.ReqArg FailureDir "dir")
+        "write output to this directory"
     ]
+
+read_mode :: String -> Flag
+read_mode s =
+    Mode $ fromMaybe (error ("unknown mode: " <> show s)) $ Map.lookup s modes
+    where
+    modes = Map.fromList
+        [(show m, m) | m <- [minBound .. maxBound]]
 
 main :: IO ()
 main = do
@@ -55,28 +69,33 @@ main = do
         (flags, args, []) -> return (flags, args)
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
     when (null args) $ usage "no inputs"
-    failures <- case flags of
-        _ : _ : _ -> usage $ "only one flag allowed"
-        [Help] -> usage ""
-        [] -> do
+    unless (null [Help | Help <- flags]) $ usage ""
+    let out_dir = Seq.last [d | FailureDir d <- flags]
+    failures <- case fromMaybe Verify $ Seq.last [m | Mode m <- flags] of
+        Verify -> do
             cmd_config <- DeriveSaved.load_cmd_config
             fmap sum $ forM args $ \fname -> do
                 putStrLn $ "------------------------- verify " <> fname
-                fails <- run $ verify_performance cmd_config fname
+                fails <- run $ verify_performance out_dir cmd_config fname
                 putStrLn $ if fails == 0
                     then "+++++++++++++++++++++++++ OK!"
                     else "_________________________ FAILED!"
                 return fails
-        [Save] -> run $ sum <$> mapM save args
-        [Perform] -> do
-            cmd_config <- DeriveSaved.load_cmd_config
-            run $ sum <$> mapM (perform cmd_config) args
-        [DumpMidi] -> run $ sum <$> mapM dump_midi args
+        Save -> case out_dir of
+            Nothing -> usage "Save requires --out"
+            Just dir -> run $ sum <$> mapM (save dir) args
+        Perform -> case out_dir of
+            Nothing -> usage "Perform requires --out"
+            Just dir -> do
+                cmd_config <- DeriveSaved.load_cmd_config
+                run $ sum <$> mapM (perform dir cmd_config) args
+        DumpMidi -> run $ sum <$> mapM dump_midi args
     Process.exit failures
     where
     usage msg = do
+        putStrLn $ "error: " ++ msg
         putStrLn "usage: verify_performance [ flags ]"
-        putStr (GetOpt.usageInfo msg options)
+        putStr (GetOpt.usageInfo "" options)
         Process.exit 1
 
 type Error a = Error.ErrorT Text IO a
@@ -91,22 +110,22 @@ require_right io = either Error.throwError return =<< liftIO io
 -- * implementation
 
 -- | Extract saved performances and write them to disk.
-save :: FilePath -> Error Int
-save fname = do
+save :: FilePath -> FilePath -> Error Int
+save out_dir fname = do
     (state, _defs_lib, block_id) <- load fname
     let meta = State.config#State.meta #$ state
         look = Map.lookup block_id
     midi <- case look (State.meta_midi_performances meta) of
         Nothing -> return False
         Just perf -> do
-            let out = basename fname <> ".midi"
+            let out = out_dir </> basename fname <> ".midi"
             liftIO $ putStrLn $ "write " <> out
             liftIO $ DiffPerformance.save_midi out (State.perf_performance perf)
             return True
     ly <- case look (State.meta_lilypond_performances meta) of
         Nothing -> return False
         Just perf -> do
-            let out = basename fname <> ".ly"
+            let out = out_dir </> basename fname <> ".ly"
             liftIO $ putStrLn $ "write " <> out
             liftIO $ Text.IO.writeFile out (State.perf_performance perf)
             return True
@@ -114,12 +133,12 @@ save fname = do
         else Error.throwError $ txt fname <> ": no midi or ly performance"
 
 -- | Perform to MIDI and write to disk.
-perform :: Cmd.Config -> FilePath -> Error Int
-perform cmd_config fname = do
+perform :: FilePath -> Cmd.Config -> FilePath -> Error Int
+perform out_dir cmd_config fname = do
     (state, library, block_id) <- load fname
     msgs <- perform_block fname (make_cmd_state library cmd_config) state
         block_id
-    let out = basename fname <> ".midi"
+    let out = out_dir </> basename fname <> ".midi"
     liftIO $ putStrLn $ "write " <> out
     liftIO $ DiffPerformance.save_midi out (Vector.fromList msgs)
     return 0
@@ -130,14 +149,14 @@ dump_midi fname = do
     liftIO $ mapM_ Pretty.pprint (Vector.toList msgs)
     return 0
 
-verify_performance :: Cmd.Config -> FilePath -> Error Int
-verify_performance cmd_config fname = do
+verify_performance :: Maybe FilePath -> Cmd.Config -> FilePath -> Error Int
+verify_performance failure_dir cmd_config fname = do
     (state, library, block_id) <- load fname
     let meta = State.config#State.meta #$ state
     let cmd_state = make_cmd_state library cmd_config
-    n <- apply (verify_midi fname cmd_state state block_id) $
+    n <- apply (verify_midi failure_dir fname cmd_state state block_id) $
         Map.lookup block_id (State.meta_midi_performances meta)
-    m <- apply (verify_lilypond fname cmd_state state block_id) $
+    m <- apply (verify_lilypond failure_dir fname cmd_state state block_id) $
         Map.lookup block_id (State.meta_lilypond_performances meta)
     case (n, m) of
         (Nothing, Nothing) -> Error.throwError "no saved performances!"
@@ -147,17 +166,22 @@ verify_performance cmd_config fname = do
     apply = Traversable.mapM
 
 -- | Perform from the given state and compare it to the old MidiPerformance.
-verify_midi :: FilePath -> Cmd.State -> State.State -> BlockId
+verify_midi :: Maybe FilePath -> FilePath -> Cmd.State -> State.State -> BlockId
     -> State.MidiPerformance -> Error Int
-verify_midi fname cmd_state state block_id performance = do
+verify_midi failure_dir fname cmd_state state block_id performance = do
     msgs <- perform_block fname cmd_state state block_id
     case DiffPerformance.diff_midi_performance performance msgs of
         (Nothing, _, _) -> return 0
         (Just err, expected, got) -> do
-            liftIO $ do
-                Text.IO.writeFile (base ++ ".expected") $ Text.unlines expected
-                Text.IO.writeFile (base ++ ".got") $ Text.unlines got
-            Error.throwError $ err <> "wrote " <> txt base <> ".{expected,got}"
+            whenJust failure_dir $ \dir -> do
+                liftIO $ do
+                    Text.IO.writeFile (dir </> base ++ ".expected") $
+                        Text.unlines expected
+                    Text.IO.writeFile (dir </> base ++ ".got") $
+                        Text.unlines got
+                Error.throwError $ err <> "wrote " <> txt (dir </> base)
+                    <> ".{expected,got}"
+            return 1
     where base = basename fname
 
 perform_block :: FilePath -> Cmd.State -> State.State -> BlockId
@@ -171,9 +195,9 @@ perform_block fname cmd_state state block_id = do
     liftIO $ mapM_ Log.write logs
     return msgs
 
-verify_lilypond :: FilePath -> Cmd.State -> State.State -> BlockId
-    -> State.LilypondPerformance -> Error Int
-verify_lilypond fname cmd_state state block_id expected = do
+verify_lilypond :: Maybe FilePath -> FilePath -> Cmd.State -> State.State
+    -> BlockId -> State.LilypondPerformance -> Error Int
+verify_lilypond failure_dir fname cmd_state state block_id expected = do
     (result, logs) <- liftIO $
         DeriveSaved.timed_lilypond fname state cmd_state block_id
     liftIO $ mapM_ Log.write logs
@@ -184,13 +208,16 @@ verify_lilypond fname cmd_state state block_id expected = do
                 liftIO $ putStrLn "ok!"
                 return 0
             Just err -> do
-                let base = basename fname
-                liftIO $ do
-                    Text.IO.writeFile (base ++ ".expected.ly") $
-                        State.perf_performance expected
-                    Text.IO.writeFile (base ++ ".got.ly") got
-                    Text.IO.putStrLn err
-                Error.throwError $ "wrote " <> txt base <> ".{expected,got}.ly"
+                whenJust failure_dir $ \dir -> do
+                    let base = dir </> basename fname
+                    liftIO $ do
+                        Text.IO.writeFile (base ++ ".expected.ly") $
+                            State.perf_performance expected
+                        Text.IO.writeFile (base ++ ".got.ly") got
+                        Text.IO.putStrLn err
+                    Error.throwError $ "wrote " <> txt (dir </> base)
+                        <> ".{expected,got}.ly"
+                return 1
 
 -- * util
 

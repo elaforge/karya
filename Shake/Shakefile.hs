@@ -645,7 +645,9 @@ dispatch modeConfig targets = do
                 -- opt, which most of the opt tree to build.  I could build
                 -- a debug one, but debug deriving is really slow.
                 need [opt "verify_performance"]
-                Util.shell $ opt "verify_performance" <> " save/complete/*"
+                system "mkdir" ["-p", build </> "verify"]
+                Util.shell $ opt "verify_performance --out=build/verify"
+                    <> " save/complete/*"
             return True
         -- Compile everything, like checkin but when I don't want to test.
         "typecheck" -> do
