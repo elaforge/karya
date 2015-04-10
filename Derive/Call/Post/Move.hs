@@ -4,6 +4,7 @@
 
 -- | Postprocs that change note start and duration.
 module Derive.Call.Post.Move where
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -35,6 +36,9 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map
     [ ("infer-duration", c_infer_duration)
     , ("apply-start-offset", c_apply_start_offset)
+    -- TODO this should probably go in a NoteTransformer module, which
+    -- is really Derive.Transformer Derive.Note
+    , ("add-flag", c_add_flag)
     ]
 
 
@@ -42,8 +46,8 @@ note_calls = Derive.transformer_call_map
 
 c_infer_duration :: Derive.Transformer Derive.Note
 c_infer_duration = Derive.transformer Module.prelude "infer-duration"
-    Tags.postproc "Infer durations for `+infer-duration` events, and possibly\
-    \ cancel notes with `+track-time-0`.\
+    Tags.postproc "Infer durations for 'Derive.Flags.infer-duration' events,\
+    \ and possibly cancel notes with 'Derive.Flags.can_cancel'.\
     \\nThis is intended to support Indonesian-style \"arrival beats\".\
     \ If there is a zero-duration note at the end of a block, the default note\
     \ deriver sets `+infer-duration` on it. This note will then replace any\
@@ -58,24 +62,60 @@ c_infer_duration = Derive.transformer Module.prelude "infer-duration"
     ) $ \final_dur _args deriver -> infer_duration final_dur <$> deriver
 
 infer_duration :: RealTime -> Derive.Events -> Derive.Events
-infer_duration final_dur = cancel_notes . infer_notes . suppress_note
+infer_duration final_dur = cancel_notes . suppress_note
     where
-    infer_notes = Post.emap1_ infer . Post.neighbors_same_hand id
-    cancel_notes =
-        Post.cat_maybes . Post.emap1_ cancel . Post.neighbors_same_hand id
+    cancel_notes = Post.cat_maybes . Post.emap1_ process
+        . Post.neighbors_same_hand id
 
-    cancel (maybe_prev, event, _)
-        | has Flags.can_cancel event, Just prev <- maybe_prev,
-                has Flags.infer_duration prev =
-            Nothing
-        | Just prev <- maybe_prev, has Flags.cancel_next prev = Nothing
-        | otherwise = Just event
-    infer (_, event, maybe_next)
-        | not (has Flags.infer_duration event) = event
-        | Just next <- maybe_next = replace_note next event
-        | otherwise = set_dur final_dur event
-    set_dur dur = Score.set_duration dur
+    -- Cancel means the note just goes away.  But if an infer-duration cancels
+    -- a note, it replaces it, which means it takes over its duration and
+    -- controls.
+
+    -- weak+infer       weak    -> replace      Nothing
+    -- infer            weak    -> replace      Nothing
+    -- weak             weak    -> id           Nothing
+    -- {}               weak    -> id           Nothing
+    -- weak             {}      -> Nothing      id
+    --
+    -- cancel_next+infer {}     -> replace      Nothing
+    -- cancel_next      {}      -> id           Nothing
+    process (maybe_prev, event, maybe_next) =
+        fmap strip_flags . check_prev maybe_prev =<< check_next maybe_next event
+
+    check_next :: Maybe Score.Event -> Score.Event -> Maybe Score.Event
+    check_next maybe_next event = case maybe_next of
+        Just next
+            | not (same_start event next) -> Just $
+                -- If the note isn't coincident, I won't replace it, but
+                -- instead extend to the start of the next note.
+                if has Flags.infer_duration event
+                    then set_end (Score.event_start next) event
+                    else event
+            | can_cancel next || has Flags.cancel_next event -> Just $
+                if has Flags.infer_duration event
+                    then replace_note next event else event
+            | can_cancel event && not (can_cancel next) -> Nothing
+            | otherwise -> Just event
+        Nothing
+            | has Flags.infer_duration event -> Just $
+                Score.set_duration final_dur event
+            | otherwise -> Just event
+
+    check_prev :: Maybe Score.Event -> Score.Event -> Maybe Score.Event
+    check_prev maybe_prev event = case maybe_prev of
+        Just prev
+            | not (same_start prev event) -> Just event
+            | can_cancel event || has Flags.cancel_next prev -> Nothing
+        _ -> Just event
+    can_cancel = has Flags.can_cancel
+    -- Remove flags I've processed.  This way if there's another infer-duration
+    -- in the call stack the processing won't happen twice.
+    strip_flags = Score.remove_flags $
+        Flags.infer_duration <> Flags.cancel_next <> Flags.can_cancel
+
     has = Score.has_flags
+    same_start e1 e2 = Score.event_start e1 RealTime.== Score.event_start e2
+    set_end end event = Score.set_duration (end - Score.event_start event) event
 
 -- | Filter out events that fall at and before the 'Environ.suppress_until'
 -- range of an event with the same (instrument, hand).  Only events that don't
@@ -111,29 +151,23 @@ suppress_note =
 -- | A note with inferred duration gets its start from the end of the previous
 -- block, but its duration and the rest of its controls come from the
 -- corresponding note at the beginning of the next block.
---
--- If there is no note to replace, it extends to the start of the next note.
 replace_note :: Score.Event -> Score.Event -> Score.Event
-replace_note next event
-    | has Flags.can_cancel next || has Flags.cancel_next event =
-        set_end (Score.event_end next) event
-            { Score.event_untransformed_pitch = pitch event
-                <> PitchSignal.drop_before_at start (pitch next)
-            , Score.event_untransformed_pitches = Util.Map.mappend
-                (pitches event)
-                (PitchSignal.drop_before_at start <$> pitches next)
-            , Score.event_untransformed_controls = Util.Map.mappend
-                (controls event)
-                (fmap (Signal.drop_before_at start) <$> controls next)
-            }
-    | otherwise = set_end (Score.event_start next) event
+replace_note next event = event
+    { Score.event_duration = Score.event_end next - start
+    , Score.event_untransformed_pitch = pitch event
+        <> PitchSignal.drop_before_at start (pitch next)
+    , Score.event_untransformed_pitches = Util.Map.mappend
+        (pitches event)
+        (PitchSignal.drop_before_at start <$> pitches next)
+    , Score.event_untransformed_controls = Util.Map.mappend
+        (controls event)
+        (fmap (Signal.drop_before_at start) <$> controls next)
+    }
     where
-    has = Score.has_flags
     pitch = Score.event_transformed_pitch
     pitches = Score.event_transformed_pitches
     controls = Score.event_transformed_controls
     start = Score.event_start event
-    set_end end = Score.set_duration (end - Score.event_start event)
 
 -- * apply start offset
 
@@ -249,3 +283,14 @@ adjust_duration next new_next event =
 offset_of :: Score.Event -> RealTime
 offset_of = fromMaybe 0 . TrackLang.maybe_val Environ.start_offset_val
     . Score.event_environ
+
+
+-- * misc
+
+c_add_flag :: Derive.Transformer Derive.Note
+c_add_flag = Derive.transformer Module.prelude "add-flag" Tags.postproc
+    "Add the given flags to transformed events.\
+    \ Mostly for debugging and testing."
+    $ Sig.callt (Sig.many1 "flag" "Add these flags.") $ \flags _args ->
+        fmap $ Post.emap1_ $ Score.add_flags $ mconcatMap Flags.flag $
+            NonEmpty.toList flags

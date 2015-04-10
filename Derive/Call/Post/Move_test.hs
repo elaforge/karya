@@ -13,7 +13,9 @@ import qualified Derive.Score as Score
 import Global
 
 
-test_infer_duration = do
+test_infer_duration_block = do
+    -- The note deriver automatically adds flags so that a note at the end of
+    -- a block can cancel the next event and get an inferred duration.
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
         top = ("top -- infer-duration 2",
             [(">", [(0, 2, "sub")]), (">", [(2, 2, "sub")])])
@@ -31,6 +33,35 @@ test_infer_duration = do
     -- A zero duration block doesn't have its duration changed, since otherwise
     -- I can't write single note calls for e.g. percussion.
     equal (run [top, sub [(0, 0, "4c")]]) ([(0, 0, "4c"), (2, 0, "4c")], [])
+
+test_infer_duration = do
+    let run extract = DeriveTest.extract extract
+            . DeriveTest.derive_tracks "infer-duration" . UiTest.note_track
+    -- Infer duration to fill the gap.
+    equal (run DeriveTest.e_note
+            [(0, 1, "add-flag infer-duration | -- 4c"), (4, 1, "4d")])
+        ([(0, 4, "4c"), (4, 1, "4d")], [])
+    -- Also the flag is removed to avoid inferring twice.
+    equal (run Score.event_flags
+            [(0, 0, "add-flag infer-duration | -- 4c"), (4, 1, "4d")])
+        ([mempty, mempty], [])
+
+test_cancel = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks "infer-duration" . UiTest.note_track
+    -- No flags, no cancel.
+    equal (run [(0, 2, "d 2 | -- 4c"), (2, 3, "4d")])
+        ([(2, 2, "4c"), (2, 3, "4d")], [])
+    equal (run [(0, 2, "d 2 | -- 4c"), (2, 3, "add-flag can-cancel | -- 4d")])
+        ([(2, 2, "4c")], [])
+    equal (run [(0, 2, "add-flag cancel-next | d 2 | -- 4c"), (2, 3, "4d")])
+        ([(2, 2, "4c")], [])
+    equal (run [(0, 2, "add-flag can-cancel | d 2 | -- 4c"), (2, 3, "4d")])
+        ([(2, 3, "4d")], [])
+    -- If they both wish to yield, the first one wins.
+    equal (run [(0, 2, "add-flag can-cancel | d 2 | -- 4c"),
+            (2, 3, "add-flag can-cancel | -- 4d")])
+        ([(2, 2, "4c")], [])
 
 test_infer_duration_controls = do
     -- A zero duration note at the end of a block gets controls from right

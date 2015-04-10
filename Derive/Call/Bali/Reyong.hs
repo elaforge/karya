@@ -105,7 +105,7 @@ realize_pattern repeat pattern =
             (zip [1..] positions)
     where
     realize show_pitch (start, end) dur (voice, position) =
-        Gangsa.realize_notes start (realize_note show_pitch voice start) $
+        Gangsa.realize_notes (realize_note show_pitch voice start) $
             Gangsa.realize_pattern repeat start end dur (const position)
 
 -- * articulation

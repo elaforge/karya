@@ -26,8 +26,6 @@
     - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
-import qualified Data.Maybe as Maybe
-
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -178,11 +176,12 @@ c_norot :: Derive.Generator Derive.Note
 c_norot = Derive.make_call module_ "norot" Tags.inst
     "Emit the basic norot pattern. The last note will line up with the end of\
     \ the event."
-    $ Sig.call ((,,,,,)
+    $ Sig.call ((,,,,,,)
     <$> Sig.defaulted "arrival" True "If true, emit the norot arrival pattern."
     <*> Sig.defaulted "style" Default "Norot style."
     <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    ) $ \(arrival, style, dur, kotekan, inst_top, pasang) ->
+    <*> initial_env
+    ) $ \(arrival, style, dur, kotekan, inst_top, pasang, initial) ->
     Sub.inverting $ \args -> do
         start <- Args.real_start args
         pitch <- Util.get_transposed start
@@ -197,10 +196,11 @@ c_norot = Derive.make_call module_ "norot" Tags.inst
         let arrive = realize_kotekan_pattern True arrival_range dur pitch
                 under_threshold Once (gangsa_norot_arrival style pasang nsteps)
         (suppress $ if arrival then arrive else mempty)
-            -- If there's an arrival, omit the first note of the pattern to
-            -- save infer-duration the work.
-            <> realize_kotekan_pattern (not arrival) (Args.range args) dur pitch
-                under_threshold Repeat (gangsa_norot style pasang nsteps)
+            -- If there's an arrival I can omit the first note of the pattern
+            -- regardless of 'initial'.
+            <> realize_kotekan_pattern (not arrival && initial)
+                (Args.range args) dur pitch under_threshold Repeat
+                (gangsa_norot style pasang nsteps)
 
 gangsa_norot :: NorotStyle -> Pasang
     -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step)) -> Cycle
@@ -274,11 +274,12 @@ norot_steps scale inst_top pitch style
 c_gender_norot :: Derive.Generator Derive.Note
 c_gender_norot = Derive.make_call module_ "gender-norot" Tags.inst
     "Gender-style norot."
-    $ Sig.call ((,,) <$> dur_env <*> kotekan_env <*> pasang_env)
-    $ \(dur, kotekan, pasang) -> Sub.inverting $ \args -> do
+    $ Sig.call ((,,,)
+    <$> dur_env <*> kotekan_env <*> pasang_env <*> initial_env)
+    $ \(dur, kotekan, pasang, initial) -> Sub.inverting $ \args -> do
         pitch <- Util.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern True (Args.range args) dur pitch
+        realize_kotekan_pattern initial (Args.range args) dur pitch
             under_threshold Repeat (gender_norot pasang)
 
 gender_norot :: Pasang -> Cycle
@@ -313,7 +314,7 @@ c_kotekan_irregular default_style pattern =
     <$> Sig.defaulted "style" default_style "Kotekan style."
     <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
     ) $ \(style, dur, kotekan, pasang, initial) -> Sub.inverting $ \args -> do
-        pitch <- Util.get_pitch =<< Args.real_start args
+        pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern initial (Args.range args) dur pitch
             under_threshold Repeat (kotekan_pattern pattern style pasang)
@@ -326,7 +327,7 @@ realize_kotekan_pattern :: Bool -- ^ if False, only emit notes after the start
     -> Derive.NoteDeriver
 realize_kotekan_pattern include_start (start, end) dur pitch under_threshold
         repeat cycle =
-    realize_notes start realize $
+    realize_notes realize $
         (if include_start then id
             else dropWhile ((ScoreTime.<= start) . note_start)) $
         realize_pattern repeat start end dur get_cycle
@@ -390,7 +391,7 @@ c_kotekan_kernel =
         pasang, initial) ->
     Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
-        pitch <- Util.get_pitch =<< Args.real_start args
+        pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern initial (Args.range args) dur pitch
             under_threshold Repeat $
@@ -413,7 +414,7 @@ c_kotekan_regular maybe_kernel =
     ) -> Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         let sangsih_above = fromMaybe (infer_sangsih kernel) maybe_sangsih_above
-        pitch <- Util.get_pitch =<< Args.real_start args
+        pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
         realize_kotekan_pattern initial (Args.range args) dur pitch
             under_threshold Repeat $
@@ -621,24 +622,23 @@ realize_pattern repeat pattern_start pattern_end dur get_cycle =
         where (pairs, rest_ts) = Seq.zip_remainder (reverse (get_cycle t)) ts
     realize (notes, start) = map (Note start dur) notes
 
--- | Turn Notes into a NoteDeriver.  A note at the start time gets
--- 'Flags.can_cancel', and one at the end time gets 'Flags.infer_duration'.
-realize_notes :: ScoreTime -> (a -> Derive.NoteDeriver) -> [Note a]
-    -> Derive.NoteDeriver
-realize_notes call_start realize = mconcat . map note . Seq.zip_next
+-- | Turn Notes into a NoteDeriver.  A note at the end time gets
+-- 'Flags.can_cancel'.
+realize_notes :: (a -> Derive.NoteDeriver) -> [Note a] -> Derive.NoteDeriver
+realize_notes realize = mconcat . map note . Seq.zip_next
     where
     note (Note start dur note, next) =
-        add_flag (start == call_start) next $
-            Derive.place start dur (realize note)
-    add_flag at_start next = fmap $ Post.emap1_ (modify at_start next . remove)
+        add_flag next $ Derive.place start dur (realize note)
+    add_flag next = fmap $ Post.emap1_ (modify next . remove)
     -- Strip existing flags.  This is because the notes come from
-    -- 'Util.pitched_note', which calls \"\", which in turn sets
+    -- 'Util.pitched_note', which calls "", which in turn sets
     -- Flags.can_cancel on TrackTime 0.  So if the kotekan starts at 0 all
-    -- notes get can_cancel.
-    remove = Score.remove_flags $ Flags.can_cancel <> Flags.infer_duration
-    modify at_start next = Score.add_flags $
-        (if at_start then Flags.can_cancel else mempty)
-        <> (if Maybe.isNothing next then Flags.infer_duration else mempty)
+    -- notes get can_cancel.  TODO don't reuse "" for these kinds of things,
+    -- so I don't get flags I don't want.
+    remove = Score.remove_flags $
+        Flags.cancel_next <> Flags.can_cancel <> Flags.infer_duration
+    modify Nothing = Score.add_flags $ Flags.cancel_next <> Flags.infer_duration
+    modify (Just _) = id
 
 -- | Style for non-interlocking norot.  Interlocking norot is always the upper
 -- neighbor (or lower on the top key).
@@ -776,6 +776,16 @@ c_pasangan = Derive.val_call module_ "pasangan" mempty
         Sangsih -> return (sangsih :: TrackLang.Val)
 
 -- * implementation
+
+-- | Get pitch for a kotekan call.  Since they arrive at a pitch, they get
+-- their pitch from the end.  This happens naturally if the event is negative,
+-- since slicing goes from event start to next event, but I have to evaluate
+-- the next pitch for a positive event.
+--
+-- TODO unfortunately I still can't get the next pitch, so it's actually just
+-- the pitch at the start for now.
+get_pitch :: Derive.PassedArgs a -> Derive.Deriver PitchSignal.Pitch
+get_pitch args = Util.get_pitch =<< Args.real_start args
 
 dur_env :: Sig.Parser ScoreTime
 dur_env = Sig.environ_quoted "dur" Sig.Prefixed

@@ -1151,7 +1151,7 @@ Derive:
               track.  To make it work in a note track I'd have to evaluate the
               whole next note, or have an entirely separate way to get the
               next pitch.
-        - final note is not being cancelled by the next one
+        - kotekan followed by non-kotekan results in doubled notes
           . It has {infer-duration}, but it needs {can-cancel}.  It wants to
             replace the next note, but that only works if the next note is the
             beginning of the block.
@@ -1179,6 +1179,7 @@ Derive:
             omit the last note, then I have to use that when I want to replace
             it.  This means cross block replacement doesn't work.  Try it to
             see if I'll want the complicated version.
+          - noltol should ignore notes with infer-duration
 
         * k\\ realizes as 31321321 instead of 21321321
         * There are still uncancelled notes where patterns touch, e.g.

@@ -193,8 +193,7 @@ note_flags zero_dur stack environ
     -- An event at TrackTime 0 never gets an inferred duration.
     -- Otherwise, I couldn't write single note calls for percussion.
     | infer_dur && track_start = mempty
-    | infer_dur = Flags.infer_duration
-    | track_start = Flags.can_cancel
+    | infer_dur = Flags.infer_duration <> Flags.cancel_next
     | otherwise = mempty
     where
     -- Note that I can't use Args.duration or Args.range_on_track, because
