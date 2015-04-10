@@ -5,7 +5,7 @@
 -- | Echo and delay oriented calls.
 --
 -- TODO event delay
-module Derive.Call.Echo where
+module Derive.Call.Delay where
 import qualified Derive.Args as Args
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module

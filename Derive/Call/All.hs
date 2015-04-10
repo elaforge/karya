@@ -14,7 +14,7 @@ import qualified Derive.Call.China.Zheng as Zheng
 import qualified Derive.Call.Conditional as Conditional
 import qualified Derive.Call.Control as Control
 import qualified Derive.Call.ControlFunction as ControlFunction
-import qualified Derive.Call.Echo as Echo
+import qualified Derive.Call.Delay as Delay
 import qualified Derive.Call.Equal as Equal
 import qualified Derive.Call.Europe.Chord as Chord
 import qualified Derive.Call.Europe.Grace as Grace
@@ -58,7 +58,7 @@ note_maps = mconcat
     [ Articulation.note_calls
     , Block.note_calls
     , Chord.note_calls
-    , Echo.note_calls
+    , Delay.note_calls
     , Equal.note_calls
     , Gamakam2.note_calls
     , Gangsa.note_calls

@@ -7,7 +7,7 @@ UNSORTED
     * Flags.can_cancel -> weak
     - "initial" arg of kotekan calls to "init"?
     * ModifyNote.modify_note -> note and similar
-    - NoteTransformer is an bad name for note generators that transform
+    - NoteTransformer is a bad name for note generators that transform
       sub-events.  I should find a better name for it so NoteTransformer can be
       Derive.Transformer Derive.Note.
       . Perhaps SubGenerator?  ParentGenerator?
@@ -16,7 +16,7 @@ UNSORTED
       still no good for CUtil and DUtil.
     - Post.Move module and infer-duration call need better names now that it's
       a general purpose call.
-    - Rename Derive.Call.Echo to Delay.
+    * Rename Derive.Call.Echo to Delay.
     - Move all prelude calls into Derive.Call.Prelude?
   - it's annoying having to do LEvent.events_of in LPerf, maybe they should do
     that automatically, with a _logs version for the rare cases when I do want
