@@ -50,9 +50,9 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Prelude.Lily as Lily
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags

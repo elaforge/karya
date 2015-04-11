@@ -4,8 +4,9 @@ LEGEND
 
 UNSORTED
   rename:
-    - calls modules should not be imported, except by Derive.Call.All
-      split Derive.Call.Prelude.Lily into a calls module, and a util module
+    calls modules should not be imported, except by Derive.Call.All
+      * split Derive.Call.Prelude.Lily into a calls module, and a util module
+      . Derive.Call.Prelude.Note?
     * Flags.can_cancel -> weak
     - "initial" arg of kotekan calls to "init"?
     * ModifyNote.modify_note -> note and similar

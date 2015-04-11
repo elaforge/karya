@@ -11,8 +11,8 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.India.Gamakam as Gamakam
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Prelude.Lily as Lily
 import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
