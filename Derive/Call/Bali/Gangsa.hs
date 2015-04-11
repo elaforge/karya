@@ -701,14 +701,16 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
     <$> instrument_top_env <*> pasang_env
     ) $ \(maybe_top, (polos, sangsih)) _args deriver -> do
         inst <- Call.get_instrument
+        polos <- Derive.get_instrument polos
+        sangsih <- Derive.get_instrument sangsih
         scale <- Call.get_scale
         let too_high = pitch_too_high scale maybe_top
         Post.emap_ (kempyung too_high inst polos sangsih) <$> deriver
     where
     kempyung too_high inst polos sangsih event
         | Score.event_instrument event == inst =
-            [ event { Score.event_instrument = polos }
-            , transpose too_high $ event { Score.event_instrument = sangsih }
+            [ Post.set_instrument polos event
+            , transpose too_high $ Post.set_instrument sangsih event
             ]
         | otherwise = [event]
     transpose too_high event

@@ -29,6 +29,9 @@ UNSORTED
     to do it.  Do I really need both?
     . Post.set_instrument needs to set because I need the environ from the new
       inst.  Could I instead overlay the environ into the event environ?
+    . It's error prone because there's nothing that enforces that you set
+      instrument with Post.set_instrument, and if you don't, it will work until
+      you use a scale with e.g. tuning, and then it will be slightly off.
   * cmd-s above a (-0) note makes it 0 dur
   - kotekan calls leave keys down in kontakt
   * val calls for twelve NNs?  e.g. (hz c4)
@@ -1182,7 +1185,7 @@ Derive:
             omit the last note, then I have to use that when I want to replace
             it.  This means cross block replacement doesn't work.  Try it to
             see if I'll want the complicated version.
-        - top note of kempyung has a slightly off pitch, sounds like it
+        * top note of kempyung has a slightly off pitch, sounds like it
           isn't applying tuning correctly
         - noltol should ignore notes with infer-duration
         - noltol shouldn't apply to notes that are too long
