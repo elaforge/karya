@@ -134,6 +134,28 @@ test_kotekan_cancel = do
     pprint
         (e_pasang DeriveTest.e_note $ run [(0, 8, "k// -- 4e"), (8, 8, "4f")])
 
+test_kotekan_continuation = do
+    -- Kotekan followed by normal notes works "as expected".
+    let run postproc = derive_kotekan
+            (" | infer-duration" <> ngotek True <> " | " <> postproc)
+    equal (e_pattern 0 $ run "unison"
+            [(0, 8, "final=f | k// -- 4e"), (8, 2, "4f")])
+        ([(polos, "--3-23-24"), (sangsih, "-2-12-124")], [])
+    let extract e =
+            (Score.event_start e, Score.event_duration e, e_digit e <> m)
+            where m = if DeriveTest.e_attributes e == "+mute" then "+" else ""
+    equal (e_by_inst extract $ run "noltol"
+            [(0, 8, "final=f | k// -- 4e"), (8, 2, "kempyung | -- 4f")])
+        ([ (polos,
+            [ (2, 1, "3"), (3, 1, "3+"), (4, 1, "2"), (5, 1, "3")
+            , (6, 1, "3+"), (7, 1, "2"), (8, 2, "4")
+            ])
+         , (sangsih,
+            [ (1, 1, "2"), (2, 1, "2+"), (3, 1, "1"), (4, 1, "2"), (5, 1, "2+")
+            , (6, 1, "1"), (7, 1, "2"), (8, 2, "7")
+            ])
+         ], [])
+
 test_kotekan_infer_duration = do
     let run = derive_polos DeriveTest.e_note
             (" | infer-duration 2 | unison" <> ngotek True)
@@ -281,11 +303,16 @@ as_pattern start end = concat . map format . collect start
     collect at xs = map snd pre : collect (at+1) post
         where (pre, post) = span ((<=at) . fst) xs
     format [] = "-"
-    format ns = Seq.join "+" (map to_digit ns)
-    to_digit p = case p of
-        "4c" -> "1"; "4d" -> "2"; "4e" -> "3"; "4f" -> "4"
-        "4g" -> "5"; "4a" -> "6"; "4b" -> "7"
-        _ -> "unknown pitch: " <> show p
+    format ns = Seq.join "+" (map pitch_digit ns)
+
+e_digit :: Score.Event -> String
+e_digit = pitch_digit . DeriveTest.e_pitch
+
+pitch_digit :: String -> String
+pitch_digit p = case p of
+    "4c" -> "1"; "4d" -> "2"; "4e" -> "3"; "4f" -> "4"
+    "4g" -> "5"; "4a" -> "6"; "4b" -> "7"
+    _ -> "unknown pitch: " <> show p
 
 e_pasang :: (Score.Event -> a) -> Derive.Result -> (([a], [a]), [String])
 e_pasang extract = first group_inst

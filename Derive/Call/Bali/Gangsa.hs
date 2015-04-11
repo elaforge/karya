@@ -181,7 +181,7 @@ c_norot = Derive.make_call module_ "norot" Tags.inst
     <*> Sig.defaulted "style" Default "Norot style."
     <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
     <*> initial_env
-    ) $ \(arrival, style, dur, kotekan, inst_top, pasang, initial) ->
+    ) $ \(arrival, style, dur, kotekan, inst_top, pasang, (initial, final)) ->
     Sub.inverting $ \args -> do
         start <- Args.real_start args
         pitch <- Call.get_transposed start
@@ -193,12 +193,13 @@ c_norot = Derive.make_call module_ "norot" Tags.inst
         -- Nothing for start?
         let arrival_range = (Args.start args - 24, Args.start args)
         let suppress = Derive.with_val Environ.suppress_until start
-        let arrive = realize_kotekan_pattern True arrival_range dur pitch
-                under_threshold Once (gangsa_norot_arrival style pasang nsteps)
+        let arrive = realize_kotekan_pattern (True, True) arrival_range dur
+                pitch under_threshold Once
+                (gangsa_norot_arrival style pasang nsteps)
         (suppress $ if arrival then arrive else mempty)
             -- If there's an arrival I can omit the first note of the pattern
             -- regardless of 'initial'.
-            <> realize_kotekan_pattern (not arrival && initial)
+            <> realize_kotekan_pattern (not arrival && initial, final)
                 (Args.range args) dur pitch under_threshold Repeat
                 (gangsa_norot style pasang nsteps)
 
@@ -230,7 +231,7 @@ c_norot_arrival = Derive.make_call module_ "norot" Tags.inst
         let nsteps = norot_steps scale inst_top pitch style
         under_threshold <- under_threshold_function kotekan dur
         pitch <- Call.get_pitch start
-        realize_kotekan_pattern True (Args.range args) dur pitch
+        realize_kotekan_pattern (True, True) (Args.range args) dur pitch
             under_threshold Once (gangsa_norot_arrival style pasang nsteps)
 
 gangsa_norot_arrival :: NorotStyle -> Pasang
@@ -276,10 +277,10 @@ c_gender_norot = Derive.make_call module_ "gender-norot" Tags.inst
     "Gender-style norot."
     $ Sig.call ((,,,)
     <$> dur_env <*> kotekan_env <*> pasang_env <*> initial_env)
-    $ \(dur, kotekan, pasang, initial) -> Sub.inverting $ \args -> do
+    $ \(dur, kotekan, pasang, include) -> Sub.inverting $ \args -> do
         pitch <- Call.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern initial (Args.range args) dur pitch
+        realize_kotekan_pattern include (Args.range args) dur pitch
             under_threshold Repeat (gender_norot pasang)
 
 gender_norot :: Pasang -> Cycle
@@ -313,37 +314,11 @@ c_kotekan_irregular default_style pattern =
     $ Sig.call ((,,,,)
     <$> Sig.defaulted "style" default_style "Kotekan style."
     <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
-    ) $ \(style, dur, kotekan, pasang, initial) -> Sub.inverting $ \args -> do
+    ) $ \(style, dur, kotekan, pasang, include) -> Sub.inverting $ \args -> do
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern initial (Args.range args) dur pitch
+        realize_kotekan_pattern include (Args.range args) dur pitch
             under_threshold Repeat (kotekan_pattern pattern style pasang)
-
--- | Take a Cycle, which is an abstract description of a pattern via
--- 'KotekanNote's, to real notes in a NoteDeriver.
-realize_kotekan_pattern :: Bool -- ^ if False, only emit notes after the start
-    -> (ScoreTime, ScoreTime) -> ScoreTime
-    -> PitchSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
-    -> Derive.NoteDeriver
-realize_kotekan_pattern include_start (start, end) dur pitch under_threshold
-        repeat cycle =
-    realize_notes realize $
-        (if include_start then id
-            else dropWhile ((ScoreTime.<= start) . note_start)) $
-        realize_pattern repeat start end dur get_cycle
-    where
-    get_cycle t
-        -- Since realize_pattern passes the of the last note of the cycle, so
-        -- subtract to find the time at the beginning.  Otherwise it's
-        -- confusing if the threshold is checked at the end of the cycle,
-        -- rather than the beginning.
-        | under_threshold (t - cycle_dur) = fst cycle
-        | otherwise = snd cycle
-    cycle_dur = dur * fromIntegral (length (fst cycle))
-    realize (KotekanNote inst steps attrs) =
-        maybe id Derive.with_instrument inst $
-        Call.add_attrs attrs $
-        Call.pitched_note (Pitches.transpose_d steps pitch)
 
 kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang -> Cycle
 kotekan_pattern pattern style pasang =
@@ -388,12 +363,12 @@ c_kotekan_kernel =
     <*> Sig.required_environ "kernel" Sig.Prefixed kernel_doc
     <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
     ) $ \(rotation, style, sangsih_above, inverted, kernel_s, dur, kotekan,
-        pasang, initial) ->
+        pasang, include) ->
     Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern initial (Args.range args) dur pitch
+        realize_kotekan_pattern include (Args.range args) dur pitch
             under_threshold Repeat $
                 realize_kernel inverted sangsih_above style pasang
                     (rotate rotation kernel)
@@ -410,13 +385,13 @@ c_kotekan_regular maybe_kernel =
         "Whether sangsih is above or below polos. If not given, sangsih will\
         \ be above if the polos ends on a low note or rest, below otherwise."
     <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
-    ) $ \(kernel_s, style, maybe_sangsih_above, dur, kotekan, pasang, initial
+    ) $ \(kernel_s, style, maybe_sangsih_above, dur, kotekan, pasang, include
     ) -> Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         let sangsih_above = fromMaybe (infer_sangsih kernel) maybe_sangsih_above
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern initial (Args.range args) dur pitch
+        realize_kotekan_pattern include (Args.range args) dur pitch
             under_threshold Repeat $
                 realize_kernel False sangsih_above style pasang kernel
     where
@@ -438,6 +413,35 @@ realize_kernel :: Bool -> TrackLang.UpDown -> KotekanStyle
 realize_kernel inverted sangsih_above style pasang kernel =
     end_on_zero $ kernel_to_pattern
         ((if inverted then invert else id) kernel) sangsih_above style pasang
+
+-- *** implementation
+
+-- | Take a Cycle, which is an abstract description of a pattern via
+-- 'KotekanNote's, to real notes in a NoteDeriver.
+realize_kotekan_pattern :: (Bool, Bool) -- ^ include (initial, final)
+    -> (ScoreTime, ScoreTime) -> ScoreTime
+    -> PitchSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
+    -> Derive.NoteDeriver
+realize_kotekan_pattern (initial, final) (start, end) dur pitch under_threshold
+        repeat cycle =
+    realize_notes realize $ strip $
+        realize_pattern repeat final start end dur get_cycle
+    where
+    strip
+        | initial = id
+        | otherwise = dropWhile ((ScoreTime.<= start) . note_start)
+    get_cycle t
+        -- Since realize_pattern passes the of the last note of the cycle, so
+        -- subtract to find the time at the beginning.  Otherwise it's
+        -- confusing if the threshold is checked at the end of the cycle,
+        -- rather than the beginning.
+        | under_threshold (t - cycle_dur) = fst cycle
+        | otherwise = snd cycle
+    cycle_dur = dur * fromIntegral (length (fst cycle))
+    realize (KotekanNote inst steps attrs) =
+        maybe id Derive.with_instrument inst $
+        Call.add_attrs attrs $
+        Call.pitched_note (Pitches.transpose_d steps pitch)
 
 type Kernel = [Atom]
 data Atom = Rest | Low | High deriving (Eq, Ord, Show)
@@ -605,14 +609,17 @@ under_threshold_function kotekan dur = do
         let real = to_real t
         in to_real (t+dur) - real < RealTime.seconds (kotekan real)
 
-realize_pattern :: Repeat -> ScoreTime -> ScoreTime -> ScoreTime
+realize_pattern :: Repeat -> Bool -> ScoreTime -> ScoreTime -> ScoreTime
     -> (ScoreTime -> [[a]])
     -- ^ Get one cycle of notes, ending at the given time.
     -> [Note a]
-realize_pattern repeat pattern_start pattern_end dur get_cycle =
-    concat $ reverse $ concat $ take_cycles $
+realize_pattern repeat include_final pattern_start pattern_end dur get_cycle =
+    concat $ reverse $ strip $ concat $ take_cycles $
         realize_cycle $ Seq.range pattern_end pattern_start (-dur)
     where
+    strip
+        | include_final = id
+        | otherwise = drop 1
     take_cycles = case repeat of
         Repeat -> id
         Once -> take 1
@@ -797,10 +804,13 @@ kotekan_env =
         "If note durations are below this, divide the parts between polos and\
         \ sangsih."
 
-initial_env :: Sig.Parser Bool
-initial_env = Sig.environ "initial" Sig.Unprefixed False
-    "If true, include an initial note, which is the same as the final note.\
-    \ This is suitable for the start of a sequence of kotekan calls."
+initial_env :: Sig.Parser (Bool, Bool)
+initial_env = (,)
+    <$> Sig.environ "initial" Sig.Unprefixed False
+        "If true, include an initial note, which is the same as the final note.\
+        \ This is suitable for the start of a sequence of kotekan calls."
+    <*> Sig.environ "final" Sig.Unprefixed True
+        "If true, include the final note, at the event end."
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
 instrument_top_env =
