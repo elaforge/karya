@@ -241,27 +241,32 @@ test_nyogcag = do
     equal (run notes) ([(0, "i1"), (1, "i2"), (2, "i1")], [])
 
 test_noltol = do
-    let run arg = derive extract (" | noltol " <> arg)
-        extract e = (Score.event_start e, DeriveTest.e_inst e,
-            DeriveTest.e_pitch e, DeriveTest.e_attributes e == "+mute")
+    let run title = derive extract (inst_title <> " | " <> title)
+            -- (inst_title <> " | noltol " <> arg <> postproc)
+        extract e =
+            (Score.event_start e, DeriveTest.e_inst e,
+                DeriveTest.e_pitch e <> m)
+            where m = if DeriveTest.e_attributes e == "+mute" then "+" else ""
     let notes = [(0, 1, "n >i1 -- 4c"), (1, 1, "n >i2 -- 4d"),
             (2, 1, "n >i1 -- 4e")]
     -- 1s of free time between i1
-    equal (run "1.1" notes)
-        ([(0, "i1", "4c", False), (1, "i2", "4d", False),
-            (2, "i1", "4e", False)], [])
-    equal (run "1" notes)
-        ([ (0, "i1", "4c", False), (1, "i1", "4c", True)
-         , (1, "i2", "4d", False), (2, "i1", "4e", False)
+    equal (run "noltol 1.1" notes)
+        ([(0, "i1", "4c"), (1, "i2", "4d"), (2, "i1", "4e")], [])
+    equal (run "noltol 1" notes)
+        ([ (0, "i1", "4c"), (1, "i1", "4c+")
+         , (1, "i2", "4d"), (2, "i1", "4e")
          ], [])
 
-    let run2 postproc = derive extract (inst_title <> " | noltol 1" <> postproc)
-    equal (run2 " | nyog"
+    equal (run "kotekan-dur=2 | noltol 1" [(0, 8, "4c"), (10, 4, "4d")])
+        ([(0, "i3", "4c"), (10, "i3", "4d")], [])
+    equal (run "kotekan-dur=2 | noltol 1" [(0, 2, "4c"), (4, 4, "4d")])
+        ([(0, "i3", "4c"), (2, "i3", "4c+"), (4, "i3", "4d")], [])
+    equal (run "noltol 1 | nyog"
             [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e"), (3, 1, "4f")])
-        ([ (0, "i1", "4c", False), (1, "i1", "4c", True)
-         , (1, "i2", "4d", False), (2, "i2", "4d", True)
-         , (2, "i1", "4e", False)
-         , (3, "i2", "4f", False)
+        ([ (0, "i1", "4c"), (1, "i1", "4c+")
+         , (1, "i2", "4d"), (2, "i2", "4d+")
+         , (2, "i1", "4e")
+         , (3, "i2", "4f")
          ], [])
 
 ngotek :: Bool -> String

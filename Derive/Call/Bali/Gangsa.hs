@@ -740,14 +740,17 @@ c_noltol :: Derive.Transformer Derive.Note
 c_noltol = Derive.transformer module_ "noltol" Tags.postproc
     "Play the transformed notes in noltol style. If the space between \
     \ notes of the same (instrument, hand) is above a threshold,\
-    \ end the note with a `+mute`d copy of itself."
-    $ Sig.callt
-    (Sig.defaulted "time" (Sig.control "noltol" 0.1)
-        "Play noltol if the time available exceeds this threshold.")
-    $ \time _args deriver -> do
+    \ end the note with a `+mute`d copy of itself. This only happens if\
+    \ the duration of the note is at or below the `kotekan-dur`."
+    $ Sig.callt ((,)
+    <$> Sig.defaulted "time" (Sig.control "noltol" 0.1)
+        "Play noltol if the time available exceeds this threshold."
+    <*> dur_env
+    ) $ \(time, dur) args deriver -> do
         events <- deriver
         times <- Post.time_control time events
-        return $ Post.emap_ (uncurry noltol) $
+        dur <- Call.real_duration (Args.start args) dur
+        return $ Post.emap_ (uncurry (noltol dur)) $
             LEvent.zip times $ Post.neighbors_same_hand id events
 
 -- Postproc is seems like the wrong time to be doing this, I can't even change
@@ -758,10 +761,11 @@ c_noltol = Derive.transformer module_ "noltol" Tags.postproc
 
 -- | If the next note of the same instrument is below a threshold, the note's
 -- off time is replaced with a +mute.
-noltol :: RealTime -> (Maybe Score.Event, Score.Event, Maybe Score.Event)
-    -> [Score.Event]
-noltol threshold (_, event, maybe_next)
-    | Just next <- maybe_next, space next >= threshold = [event, muted]
+noltol :: RealTime -> RealTime
+    -> (Maybe Score.Event, Score.Event, Maybe Score.Event) -> [Score.Event]
+noltol dur threshold (_, event, maybe_next)
+    | Score.event_duration event RealTime.<= dur, Just next <- maybe_next,
+        space next >= threshold = [event, muted]
     | otherwise = [event]
     where
     muted = Score.add_attributes Attrs.mute $
@@ -797,7 +801,7 @@ get_pitch :: Derive.PassedArgs a -> Derive.Deriver PitchSignal.Pitch
 get_pitch args = Call.get_pitch =<< Args.real_start args
 
 dur_env :: Sig.Parser ScoreTime
-dur_env = Sig.environ_quoted "dur" Sig.Prefixed
+dur_env = Sig.environ_quoted "kotekan-dur" Sig.Unprefixed
     (TrackLang.quoted "ts" [TrackLang.str "e"]) "Duration of derived notes."
 
 kotekan_env :: Sig.Parser TrackLang.ValControl
