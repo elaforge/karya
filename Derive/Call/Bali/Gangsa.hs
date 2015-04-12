@@ -764,15 +764,21 @@ c_noltol = Derive.transformer module_ "noltol" Tags.postproc
 noltol :: RealTime -> RealTime
     -> (Maybe Score.Event, Score.Event, Maybe Score.Event) -> [Score.Event]
 noltol dur threshold (_, event, maybe_next)
-    | Score.event_duration event RealTime.<= dur, Just next <- maybe_next,
-        space next >= threshold = [event, muted]
+    | Just next <- maybe_next, should_noltol next = [event, muted]
     | otherwise = [event]
     where
     muted = Score.add_attributes Attrs.mute $
         -- TODO this should probably be configurable
-        Score.modify_dynamic (*0.65) $
+        Score.modify_dynamic (*0.65) $ Score.duration (const 0) $
         Score.move (+ Score.event_duration event) $ Score.copy event
     space next = Score.event_start next - Score.event_end event
+    should_noltol next =
+        Score.event_duration event RealTime.<= dur
+        -- I don't know how long infer_duration is going to be, so don't
+        -- bother.  TODO to do it correctly, I'd need to do noltol after
+        -- infer-duration, which means a +noltol attribute and then postproc.
+        && not (Score.has_flags Flags.infer_duration event)
+        && space next >= threshold
 
 -- * util
 

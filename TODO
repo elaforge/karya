@@ -1187,7 +1187,7 @@ Derive:
             see if I'll want the complicated version.
         * top note of kempyung has a slightly off pitch, sounds like it
           isn't applying tuning correctly
-        - noltol should ignore notes with infer-duration
+        * noltol should ignore notes with infer-duration
         * noltol shouldn't apply to notes that are too long
 
         * k\\ realizes as 31321321 instead of 21321321
