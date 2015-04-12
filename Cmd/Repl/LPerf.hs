@@ -214,20 +214,18 @@ block_midi block_id = do
 
 -- | Derive the current block from the cache and return events that fall within
 -- the current selection.
-sel_events :: Cmd.CmdL Derive.Events
+sel_events :: Cmd.CmdL [Score.Event]
 sel_events = get_sel_events False block_events
 
 sel_pevents :: Cmd.CmdL (Events Perform.Event)
-sel_pevents = convert . LEvent.events_of
-    =<< get_sel_events False block_events_unnormalized
+sel_pevents = convert =<< get_sel_events False block_events_unnormalized
 
 -- | Like 'sel_events' but take the root derivation.
-root_sel_events :: Cmd.CmdL Derive.Events
+root_sel_events :: Cmd.CmdL [Score.Event]
 root_sel_events = get_sel_events True block_events
 
 root_sel_pevents :: Cmd.CmdL (Events Perform.Event)
-root_sel_pevents = convert . LEvent.events_of
-    =<< get_sel_events True block_events_unnormalized
+root_sel_pevents = convert =<< get_sel_events True block_events_unnormalized
 
 -- ** extract
 
@@ -273,8 +271,14 @@ type Events d = [LEvent.LEvent d]
 
 get_sel_events :: Bool -- ^ from root
     -> (BlockId -> Cmd.CmdL (Events Score.Event))
+    -> Cmd.CmdL [Score.Event]
+get_sel_events from_root = (LEvent.events_of <$>)
+    . get_sel Score.event_start Score.event_stack from_root
+
+get_sel_events_logs :: Bool -- ^ from root
+    -> (BlockId -> Cmd.CmdL (Events Score.Event))
     -> Cmd.CmdL (Events Score.Event)
-get_sel_events = get_sel Score.event_start Score.event_stack
+get_sel_events_logs = get_sel Score.event_start Score.event_stack
 
 get_sel :: (d -> RealTime) -> (d -> Stack.Stack) -> Bool -- ^ from root
     -> (BlockId -> Cmd.CmdL (Events d)) -> Cmd.CmdL (Events d)

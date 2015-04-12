@@ -21,7 +21,7 @@ UNSORTED
       a general purpose call.
     * Rename Derive.Call.Echo to Delay.
     * Move all prelude calls into Derive.Call.Prelude?
-  - it's annoying having to do LEvent.events_of in LPerf, maybe they should do
+  * it's annoying having to do LEvent.events_of in LPerf, maybe they should do
     that automatically, with a _logs version for the rare cases when I do want
     to see logs?
   - It's confusing how sometimes the environ is applied to the pitch during
