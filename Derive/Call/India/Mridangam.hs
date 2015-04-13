@@ -4,6 +4,7 @@
 
 -- | Library of standard mridangam patterns.
 module Derive.Call.India.Mridangam where
+import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
@@ -23,20 +24,18 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
     [ ("p1", c_pattern_once)
-    , ("pn", c_pattern_repeat False)
-    , ("Pn", c_pattern_repeat True)
+    , ("pn", c_pattern_times)
+    , ("pr", c_pattern_repeat False)
+    , ("Pr", c_pattern_repeat True)
     ]
 
 module_ :: Module.Module
 module_ = "india" <> "mridangam"
 
-
 c_pattern_once :: Derive.Generator Derive.Note
 c_pattern_once = Derive.make_call module_ "pattern" Tags.inst
     "Emit a pattern, fitted into the note duration."
-    $ Sig.call (Sig.required_env "pattern" Sig.Unprefixed
-        "Single letter stroke names.  `_` or space is a rest.")
-    $ \pattern args -> do
+    $ Sig.call pattern_arg $ \pattern args -> do
         let notes = stretch_to_range (Args.range args) $
                 realize_pattern (Args.info args) pattern
         mconcat [Derive.place start 0 note | (start, Just note) <- notes]
@@ -45,14 +44,25 @@ stretch_to_range :: (ScoreTime, ScoreTime) -> [a] -> [(ScoreTime, a)]
 stretch_to_range (start, end) xs = zip (Seq.range_ start dur) xs
     where dur = (end - start) / fromIntegral (length xs)
 
+c_pattern_times :: Derive.Generator Derive.Note
+c_pattern_times = Derive.make_call module_ "pattern" Tags.inst
+    "Repeat a pattern a certain number of times, fitted into the note duration."
+    $ Sig.call ((,)
+    <$> pattern_arg
+    <*> Sig.defaulted "times" 3 "Repeat the pattern this many times."
+    ) $ \(pattern, times) args -> do
+        let notes = stretch_to_range (Args.range args) $
+                concat $ List.replicate times $
+                realize_pattern (Args.info args) pattern
+        mconcat [Derive.place start 0 note | (start, Just note) <- notes]
+
 c_pattern_repeat :: Bool -> Derive.Generator Derive.Note
 c_pattern_repeat clip_start = Derive.make_call module_ "pattern" Tags.inst
     "Repeat a pattern, where each note has the given duration. The first\
     \ variant clips before the end of the note, and the second variant\
     \ lines the end of the pattern up to the end of the note."
     $ Sig.call ((,)
-    <$> Sig.required_env "pattern" Sig.Unprefixed
-        "Single letter stroke names.  `_` or space is a rest."
+    <$> pattern_arg
     <*> Sig.defaulted_env_quoted "dur" Sig.Prefixed
         (TrackLang.quoted "ts" [TrackLang.str "e"])
         "Duration for each letter in the pattern."
@@ -69,6 +79,10 @@ pattern_repeat clip_start (start, end) dur pattern
     | otherwise = strip $ takeWhile ((<end) . fst) $
         zip (Seq.range_ start dur) (cycle pattern)
     where strip xs = [(a, b) | (a, Just b) <- xs]
+
+pattern_arg :: Sig.Parser Text
+pattern_arg = Sig.required_env "pattern" Sig.Unprefixed
+    "Single letter stroke names.  `_` or space is a rest."
 
 realize_pattern :: Derive.CallInfo Score.Event -> Text
     -> [Maybe Derive.NoteDeriver]

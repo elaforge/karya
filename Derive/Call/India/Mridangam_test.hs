@@ -21,12 +21,16 @@ test_pattern = do
     equal (run [(2, 3, "p1 k_D")])
         ([(2, "+ki"), (4, "+thom"), (4, "+din")], [])
 
-    equal (run [(2, 4, "pn kt")])
+    equal (run [(2, 4, "pr kt")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ta")], [])
-    equal (run [(2, 3, "pn kt")])
+    equal (run [(2, 3, "pr kt")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki")], [])
-    equal (run [(2, 2, "Pn kt")])
+    equal (run [(2, 2, "Pr kt")])
         ([(2, "+ta"), (3, "+ki"), (4, "+ta")], [])
+
+    equal (run [(2, 6, "pn kt 3")])
+        ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ta"), (6, "+ki"),
+            (7, "+ta")], [])
 
 derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
 derive_tracks title notes = DeriveTest.derive_tracks_with with_synth title
