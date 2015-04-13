@@ -4,26 +4,13 @@ LEGEND
 
 UNSORTED
   rename:
-    calls modules should not be imported, except by Derive.Call.All
-      * split Derive.Call.Prelude.Lily into a calls module, and a util module
-      . Derive.Call.Prelude.Note?
-    * Flags.can_cancel -> weak
     - "initial" arg of kotekan calls to "init"?
-    * ModifyNote.modify_note -> note and similar
     - NoteTransformer is a bad name for note generators that transform
       sub-events.  I should find a better name for it so NoteTransformer can be
       Derive.Transformer Derive.Note.
       . Perhaps SubGenerator?  ParentGenerator?
-    * Rename Derive.Post.Post to PostUtil.  Or get rid of util modules:
-      Call.Util -> Call.  This is consistent with Derive.Scale.  Unfortunately
-      still no good for CUtil and DUtil.
     - Post.Move module and infer-duration call need better names now that it's
       a general purpose call.
-    * Rename Derive.Call.Echo to Delay.
-    * Move all prelude calls into Derive.Call.Prelude?
-  * it's annoying having to do LEvent.events_of in LPerf, maybe they should do
-    that automatically, with a _logs version for the rare cases when I do want
-    to see logs?
   - It's confusing how sometimes the environ is applied to the pitch during
     derivation (e.g. Post.set_instrument), and sometimes it waits for Convert
     to do it.  Do I really need both?
@@ -32,20 +19,12 @@ UNSORTED
     . It's error prone because there's nothing that enforces that you set
       instrument with Post.set_instrument, and if you don't, it will work until
       you use a scale with e.g. tuning, and then it will be slightly off.
-  * cmd-s above a (-0) note makes it 0 dur
   - kotekan calls leave keys down in kontakt
-  * val calls for twelve NNs?  e.g. (hz c4)
-  * factor out replicated mridangam / pakhawaj code
-  * move Local.Instrument.Kontakt* modules into subdir
   format:
     - pp LPerf.sel_events has an extra level of indent after the [.  Not due
       to LEvents.
     - pretty print on a single event gives '[Event ...' and no closing ']'.
-    * first line is indented
-      . ShortForm subs have less indent than above
-    * ", tail" should be on its own line
     - what happens with ShortForm <> ShortForm?
-    * give Format.Hard an Int value for the number of newlines.
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it
     applies Flags.can_cancel at TrackTime 0, which is only appropriate for
@@ -78,37 +57,6 @@ UNSORTED
       that.
     . Actually, ScoreTime is what blocks use and I can't RealTime unless I
       put it in Collect so I can set it after the tempo track.
-  * Derive.get_instrument only understands derive level aliases.  So if the
-    instrument is not found it gives a confusing error giving the alias.
-    . Derive aliases have to be [(from, to)] because... why?  If one alias
-      maps to another, I just need to look up the destination when I bind
-      a new alias.
-    . Actually, merging StateConfig and Derive aliases breaks things.  It's
-      because I actually want derive aliases to map to the StateConfig level
-      name, because that's the one that has allocation.
-  * Util.Pretty doesn't correctly display ("a", ["b", "c"]) where the list
-    wraps
-    . The problem is that the leading ", " only applies to the short form.
-      (text <> shortForm a b) should make the text distribute over both 'a'
-      and 'b'.
-  * Util.Pretty also formats lists wrong:
-    , stack =
-        [ block (bid "test/b1"), (bid "test/b1"), import
-        ...
-        ], highlight = NoHighlight
-    There should be a line break after ].
-  * import only one symbol, e.g. 'import india.mridangam.faran.ktkn'
-    Or better, 'import module sym sym'
-  * new notes don't play after adding to the end of a track
-    . It's a cache thing, a rederive clears it up.
-    . b5 b5.t1 *: rederived generator because of track damage
-      b5 b5.t3 *: using cache, 16 vals
-      b5 b5.t2 *: using cache, 128 vals
-      b5 * *: rederived generator because of track block damage
-
-      Should have rederived b5.t3.  Maybe it's because damage on t1 lost the
-      pending t3 damage?
-    * Cache logs should log ScoreDamage.
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
     . It was because the kendang tracks were below >pno, not "tempo".  So, two
@@ -116,16 +64,6 @@ UNSORTED
       . It's too hard to see that the skeleton is wrong.
       . Note track children should have dynamics too.
     . bug/no-env
-  * First note entry in >k uses pasang, but the second sees the first note.
-    It's because 'inst' comes from the inversion.  But I take env from the
-    inversion so I can get the scale.
-    . So, I could take the scale from under but the inst from over?  Or, if
-      there's an inst in the title, just take that.
-    . Just the title doesn't work for thru, because Perf.derive_at still gets
-      the other Dynamic.  Best to get it right in Dynamic, but how?
-    . The key thing is that the note track sets an instrument.  Only scale has
-      to wait for the invert, instrument shouldn't.  I could hard-code environ
-      keys.
   sekaran
     How to apply sekaran?
       . >hang -> sekar abab -> notes
@@ -133,32 +71,6 @@ UNSORTED
         var for a range on one track?
       . I can add a 'sekar-pattern = abc', but I need to repeat it whenever
         there is a gap.
-      * Maybe a call that uses conditions to set an env var, e.g.
-        . sekar-pattern = "(if inst == >sangsih then p[0] else p[1])
-        . sekar-pattern = "(pasangan abcAbc aBCaBC)
-    * Mode to bend pitches instead of setting new notes?
-      But I'd want transition speed and curve, and now it's getting a lot of
-      extraneous arguments.
-      . Maybe a transform could take every N notes and combine with pitch
-        transitions?  I would have to configure it to match the sekaran
-        length, but it could also not match for a different effect.
-    . With different durations, there's no way to know how to split up rests.
-      So the number of gaps and notes has to be consistent.  But it seems more
-      convenient to set the number of subdivisions, and chop up the input
-      evenly.
-    direct substitution
-      . Difference with arrival is that the last note gets the duration of the
-        initial gap.
-      * I could have different patterns for different numbers of notes in range.
-        Otherwise, I can only take the first n notes, and the rest become
-        rests.
-    even subdivision
-      * Given a pattern_length of n, divide the input into n parts.  If it has
-        a note start, assign that note.  If it's the continuation of a note,
-        then mark as a continuation.  If it's a rest, it cuts off any sounding
-        note.  So arrange 'Note Index | Rest | Continue' into a sequence, then
-        convert to Sub.Events, then Sub.derive.
-      - test non-arrival mode
   - Local.Instrument modules include configuration functions, how to call them?
     . Kontakt.configure_wayang, configure_legong, Spicy.configure
     . import into a Local.Repl module
@@ -196,12 +108,8 @@ UNSORTED
       I could make it apply to a parallel kempyung or octave.
       . I'd need a fancier ngoret that understands 'inst-top' so it can go
         down if necessary.
-  * it seems like "floating_input" would be a better name than "edit_input"
   - thru on *legong notes is wrong the first time
     can see this editing rehearsal/kendang-legong
-  * move Types.Selection to its own module.  That leaves just aliases
-    TrackNum, Width, SelNum, MouseButton
-    . But then it has the same name as Cmd.Selection.  Call it Sel?
   - can I make Edit.cmd_set_duration use alter_duration?  Also, why do I need
     modify_event_near_point, doesn't ModifyEvent.selection already do that?
   + in rehearsal/telek, one ugal sometimes gets stuck on +mute, why doesn't
@@ -241,7 +149,6 @@ UNSORTED
     beginning.
   india: gamakam:
     sequence calls:
-      * pitch calls should take ControlUtil.curve_env arg
       - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
         "pitch generator not found: 'k'".  Should mention that it's an end
         call.
@@ -260,10 +167,6 @@ UNSORTED
             themselves decide how much to stretch?
         - janta
       middle
-        * calls for "from above" or "from below", use lilt
-          . o_ - from below, like 'k2^ -1 0'
-          . o^ - from above, like 'k2_ 1 0'
-          . o* - around, like 'k2 -1 1'
         - kam: accelerate near end
         - test hold and lilt for kam and nkam, adjust for nkam
         - maybe 'flat' should transition to the pitch instead of snapping
@@ -358,9 +261,6 @@ UNSORTED
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
-  * Pretty on a lot of events causes a stack overflow
-    Need a reproduction.
-    I should extend Util.Format so I can use it for Util.Pretty.
   - if I added the cmd name before running the cmd, I could put it in the
     error msg when an exception is caught.
 
@@ -656,7 +556,6 @@ cleanup:
       Args.prev_val in Deriver and dynamically typed.
     . There's no Val for Score.Event, so I can't use it for note tracks.
       Of course I could just add one, maybe not a big deal.
-  * derive Generic and use GHC.Generics to make a generic pretty for records?
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.
   - Maybe I should use Score.PControl instead of Score.Control for pitch
@@ -669,23 +568,8 @@ cleanup:
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
     else like Derive.Call.Val.num_or_pitch it would be worth trying out.
   Format4
-    * I need a way to do an alternate render if the contents would wrap.
-      . Lists are either [a, b, c] or [ a, b\n, c\n]
-        Unwrapped is no spaces on brackets, and the closing bracket wraps.
-      . Records are the same, but the unwrapped braces also have spaces.
-      . So if I have a special Bracket Doc, I still need to switch between
-        space and no space.
-      . But alternate renders seem a lot more elegant and powerful.
-        W-L works with a 'group' function that adds a possible layout where
-        each newline is replaced by space.
-      . What I can do is give two layouts, the first one will be used if the
-        group fits on one line, otherwise the second.
     - don't use 'reverse' in 'flatten'
     - lazy implementation?
-  convert to Text:
-    * Pretty.pretty
-      For this I need to extend Util.Format to be a simplified prettyprinter.
-    * Derive.throw
   - I could make the fltk interface clearer by putting c_interface.cc into
     fltk, and then putting all the types it depends on in one header.
     . I could make that a .c file too, and get rid of the sketchy hsc2hs on
@@ -784,10 +668,7 @@ performance:
 
 fltk:
   - Some indication which window has focus.  When I switch to the REPL I can't
-k   see which block is focused.  Make the block text red?
-  * It's still really hard to see trigger lines, because they mix with ruler
-    lines.  They should bypass the transparency, and just draw on top of ruler
-    lines.
+    see which block is focused.  Make the block text red?
   ? There's an extra axis of information in the width of the event body.  How
     could I use that?
   - Text in negative events doesn't wrap.
@@ -1071,22 +952,6 @@ Derive:
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
     mridangam
-      * general pattern call
-        . e.g. 'm ktkno' is kitakinathom, 'm kt-kno'
-        . Then I need a single letter for each stroke, including doubles
-              ktnda uvi
-          o - KTNDA UVI
-          + - PX
-        . eg: n+u+kt+k  noK_u_+k    N_kt.kT_k_
-        . soft variants: .o -+ lk jd
-        . if '-' is rest, then I can't use it for -+, but maybe '_' or
-          ' ' could be rest: m 'kt kno'  m kt_kno
-        . or perhaps =+ for tha?
-        . meetu can't be nk nt, gb?  ,. or ',
-          ngnd ngbgn_d_
-          n,nd n,.,n_d_
-          n,nd n,',n_d_
-          n,nd n,^,n_d_
       kanakku:
         . I could come up with a notation for various transformations, but it
           would have to be its own little language, due to the time aspect.  Or
@@ -1117,11 +982,6 @@ Derive:
         . This seems too vague to be useful.  Just duration is not enough to
           capture much interesting about the pattern, but solkattu doesn't have
           a predictable mapping.
-      faran
-        * fix irregular farans
-        * transform Faran into a call that emits those mridangam calls
-        - dynamics
-      * tadinginatoms
     bali:
       - add isep to *legong
       If I put pemero notes in legong, then I can play them when needed.
@@ -1185,44 +1045,7 @@ Derive:
             omit the last note, then I have to use that when I want to replace
             it.  This means cross block replacement doesn't work.  Try it to
             see if I'll want the complicated version.
-        * top note of kempyung has a slightly off pitch, sounds like it
-          isn't applying tuning correctly
-        * noltol should ignore notes with infer-duration
-        * noltol shouldn't apply to notes that are too long
-
-        * k\\ realizes as 31321321 instead of 21321321
-        * There are still uncancelled notes where patterns touch, e.g.
-          (k k2-12-12, '4o'), then (k k21-21-21, '3a')
-        * things are confusing if the kernel is not 8 chars long, maybe throw
-          an error in that case?  Is there a use for different length kernels?
-          . If there is a use, then I could apply the check for 'k...' style
-            literals.
-        * The '-12-1-21' calls are almost obsolete, because I can just write
-          'k k-12-1-21'.  But they automatically choose whether sangsih should
-          go above or below based on inversion.  Is it useful enough to keep?
-          Wait until I have more experience.
-        * Maybe all patterns should omit the first note?  Then I don't have to
-          cancel it.  But then I have to put "start" notes every place kotekan
-          is followed by normal notes.
-          . But it seems I need it, otherwise I can't have a pattern that ends
-            on the note but doesn't start on one, e.g. 21-21-21
-          . Putting initial notes works if I use negative durations, and those
-            also let me put the pitch in the proper place, but they still seem
-            confusing.
-        / k//\\ should have a version with space at the beginning and end
-          . I can already do that by clipping off the start of the event.
-        . k// needs 1 2-12-12- 21-21-21, I can do it by writing sangsih d pat,
-          but then sangsih and polos are reversed
-          . I can do it with k '21-121-12', and it's only a couple more
-            characters, so why not do everything that way?
-          * If I prefix a letter I can get rid of the quotes: k k-12-1-21
-        * k// and k\\ should not have UpDown as the first arg
         kotekan kernel:
-          . generate from patterns from (kernel, inverted, rotation) so
-            I have a way to describe all common patterns
-          * generate polos and sangsih from (kernel, inverted, rotation)
-          * call that generates kotekan
-          * perhaps come up with a more intuitive way to address patterns
           - generate all possible kernels following some playability rules,
             e.g. no more than 2 notes in a row, only one rest
             . I could then use that to automatically select a pattern for
@@ -1235,13 +1058,6 @@ Derive:
           in between depending on %mute.
           . Then I don't need a configurable mute for
             Gangsa.gangsa_norot_arrival.
-        / All norot notes get track-time-0.  Could I add more reliably with
-          a block postproc?  Then I don't know if it's 0t.
-          . It uses the stack region, so all notes produced by an event at 0
-            get {cancel}.  I only want the notes at the track's 0t.  So look
-            up TrackTime 0 in RealTime, and add to those notes.
-          . RealTime is problematic because they notes may be nudged by
-            controls or whatever.  I really do want ScoreTime 0.
         - control for noltol +mute dyn
         - gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,
@@ -1298,18 +1114,6 @@ Derive:
           two neighboring notes at a time.
 
   control calls:
-    * it's still annoying to write 'from=1 | d', maybe if I do it a lot
-      make an alias 'f 1 | d'?  Or '1 | d' if the lookup call also set 'from'.
-      For pitch it looks like 'set (4c) | d' or '4c | d' if I make scales also
-      export transformers.
-      . Try using it for a while to see if it matters.
-    * add bezier curve, you give a y val and weight:
-      [(y1, w1), (y2, w2), ... (yn, wn)] ->
-        sigmoid 0 w1 0 y1 <> sigmoid w1 w2 y1 y2 <> sigmoid w(n-1) wn y(n-1) yn
-      . I can get the previous y with the mechanism that already exists, but
-        how do I get the prev weight?
-      . One nice aspect of beziers is that they can overshoot the destination
-        value.  But that only happens if the control points are at an angle.
     - signal transformations: +, *, max, min
     - saturation limit, e.g. flatten sine wave but without clipping
     - continuous tempo warping for signals
