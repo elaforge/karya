@@ -249,7 +249,7 @@ event_style has_note_children title event =
     syntax (Left _) = Config.Error
     syntax (Right _)
         | ParseTitle.is_note_track title = if has_note_children
-            then Config.NoteTransformer else Config.Default
+            then Config.Parent else Config.Default
         | ParseTitle.is_pitch_track title = Config.Pitch
         | otherwise = Config.Control
 

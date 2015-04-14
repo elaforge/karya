@@ -418,7 +418,7 @@ event_style :: Style -> Style.StyleId -> Style.StyleId
 event_style style (Style.StyleId code) =
     Style.StyleId $ fromIntegral (fromEnum style) * 4 + code `mod` 4
 
-data Style = Default | Control | Pitch | NoteTransformer | Error
+data Style = Default | Control | Pitch | Parent | Error
     deriving (Enum, Show)
 
 default_style :: Style.StyleId
@@ -427,7 +427,7 @@ default_style = Style.StyleId 0
 plain_styles :: [Style.Style]
 plain_styles =
     [ plain note_color, plain control_color, plain pitch_color
-    , plain note_transformer_color, plain parse_error_color
+    , plain parent_color, plain parse_error_color
     ]
     where plain = Style.Style Style.Helvetica [] 12 Color.black
 
@@ -443,10 +443,9 @@ control_color = Color.rgb 0.7 0.8 0.7
 pitch_color :: Color.Color
 pitch_color = Color.rgb 0.7 0.8 0.9
 
--- | NoteTransformer style, events on note tracks which are parents of other
--- note tracks.
-note_transformer_color :: Color.Color
-note_transformer_color = Color.rgb 1.0 1.0 0.65
+-- | A note track with tracks below it.
+parent_color :: Color.Color
+parent_color = Color.rgb 1.0 1.0 0.65
 
 -- | Parse errors.
 parse_error_color :: Color.Color

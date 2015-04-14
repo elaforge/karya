@@ -4,7 +4,7 @@
 
 -- | Note calls that transform other note calls.  They rely on track slicing
 -- via 'Sub.sub_events'.
-module Derive.Call.Prelude.NoteTransformer where
+module Derive.Call.Prelude.Parent where
 import qualified Control.Monad.Error as Error
 import qualified Data.Text as Text
 

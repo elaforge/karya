@@ -24,7 +24,7 @@
 
     This is a nasty tricky bit of work, but is depended on by all the high
     level notation, e.g. calls that can manipulate the results of other
-    calls, aka NoteTransformers.  I'd still love to figure out a better way
+    calls, aka parent calls.  I'd still love to figure out a better way
     to do it though!
 -}
 module Derive.Slice (

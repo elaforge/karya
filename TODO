@@ -5,10 +5,11 @@ LEGEND
 UNSORTED
   rename:
     - "initial" arg of kotekan calls to "init"?
-    - NoteTransformer is a bad name for note generators that transform
+    * NoteTransformer is a bad name for note generators that transform
       sub-events.  I should find a better name for it so NoteTransformer can be
       Derive.Transformer Derive.Note.
       . Perhaps SubGenerator?  ParentGenerator?
+    - 'ap' call to 'sub'
     - Post.Move module and infer-duration call need better names now that it's
       a general purpose call.
   - It's confusing how sometimes the environ is applied to the pitch during
@@ -976,12 +977,15 @@ Derive:
       . I can write them down in a specialized language in the source, and then
         they become a module with call names.  If I want to edit them, I can run
         a cmd to materialize as a block.
-      . Higher level notation that uses durations.
+      Higher level notation that uses durations.
         . Then a layer maps them to patterns in a specific instrument.  This way
           I can also map to different instruments.
         . This seems too vague to be useful.  Just duration is not enough to
           capture much interesting about the pattern, but solkattu doesn't have
           a predictable mapping.
+        . On the other hand, I could give duration, and then the actual
+          pattern is random.  But I'd still want a way to restrict to the same
+          pattern, e.g. use a variable, so all 'a's get the same pattern.
     bali:
       - add isep to *legong
       If I put pemero notes in legong, then I can play them when needed.
@@ -1062,10 +1066,6 @@ Derive:
         - gender norot: control for polos 234- vs. 434-
         - an optional special pattern which switching between kotekan and back,
           e.g. 112-2-2-
-        / Some patterns do play on the beat, they should be able to do that
-          and suppress the previous note.  I could do this by emitting the
-          note with a Flags.can_cancel.
-          . initial note is controlled manually now
       wayang in octaves
         . pemade: >p=>p-umbang | >s=>p-isep
           kantilan: >p=>k-umbang | >s=>k-isep | %t-diatonic=5

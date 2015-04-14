@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.Call.Prelude.NoteTransformer_test where
+module Derive.Call.Prelude.Parent_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest

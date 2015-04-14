@@ -33,7 +33,7 @@ import qualified Derive.Call.Prelude.InferTrackVoice as InferTrackVoice
 import qualified Derive.Call.Prelude.Integrate as Integrate
 import qualified Derive.Call.Prelude.Lily as Lily
 import qualified Derive.Call.Prelude.Note as Note
-import qualified Derive.Call.Prelude.NoteTransformer as NoteTransformer
+import qualified Derive.Call.Prelude.Parent as Parent
 import qualified Derive.Call.Prelude.Pitch as Pitch
 import qualified Derive.Call.Prelude.PitchHigh as PitchHigh
 import qualified Derive.Call.Prelude.Random as Random
@@ -72,7 +72,7 @@ note_maps = mconcat
     , Lily.note_calls
     , Conditional.note_calls
     , Note.note_calls
-    , NoteTransformer.note_calls
+    , Parent.note_calls
     , Mridangam.note_calls
     , PitchHigh.note_calls
     , Post.Reverse.note_calls
