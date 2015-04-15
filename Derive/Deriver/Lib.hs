@@ -641,10 +641,10 @@ pitch_at :: RealTime -> Deriver (Maybe PitchSignal.Pitch)
 pitch_at pos = PitchSignal.at pos <$> Internal.get_dynamic state_pitch
 
 -- | Like 'pitch_at', this is a raw pitch.
-named_pitch_at :: Score.Control -> RealTime
+named_pitch_at :: Score.PControl -> RealTime
     -> Deriver (Maybe PitchSignal.Pitch)
 named_pitch_at name pos = do
-    psig <- get_named_pitch name
+    psig <- get_pitch name
     return $ maybe Nothing (PitchSignal.at pos) psig
 
 -- | Resolve the raw pitch returned from 'pitch_at' to the final transposed
@@ -660,10 +660,15 @@ nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
 nn_at pos = justm (pitch_at pos) $ \pitch ->
     logged_pitch_nn ("nn " <> pretty pos) =<< resolve_pitch pos pitch
 
-get_named_pitch :: Score.Control -> Deriver (Maybe PitchSignal.Signal)
-get_named_pitch name = Map.lookup name <$> Internal.get_dynamic state_pitches
+get_pitch :: Score.PControl -> Deriver (Maybe PitchSignal.Signal)
+get_pitch name
+    | name == Score.default_pitch = Just <$> Internal.get_dynamic state_pitch
+    | otherwise = Map.lookup cname <$> Internal.get_dynamic state_pitches
+    where
+    cname = case name of
+        Score.PControl n -> Score.control n
 
-named_nn_at :: Score.Control -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
+named_nn_at :: Score.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do
     controls <- controls_at pos
     justm (named_pitch_at name pos) $ \pitch -> do

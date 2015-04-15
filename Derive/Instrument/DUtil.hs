@@ -150,9 +150,9 @@ instance Pretty.Pretty Composite where
         where
         ppitch = case pitch of
             NoPitch -> "(no pitch)"
-            Pitch control -> ShowVal.show_val (Score.PControl control)
+            Pitch control -> ShowVal.show_val control
 
-data Pitch = NoPitch | Pitch (Maybe Score.Control) deriving (Show)
+data Pitch = NoPitch | Pitch Score.PControl deriving (Show)
 -- | If Nothing, then this Composite gets all the controls that are not given
 -- to other instruments.  Otherwise, it only gets the named ones.
 type Controls = Maybe (Set.Set Score.Control)
@@ -173,11 +173,11 @@ redirect_pitch name pitched_call pitched_controls unpitched_call
     <*> Sig.required_environ "unpitched" Sig.Prefixed
         ("This instrument gets controls: " <> show_controls unpitched_controls)
     ) $ \(pitched, unpitched) -> Sub.inverting $ \args -> composite_call args
-        [ Composite pitched_call pitched (Pitch Nothing) pitched_controls
+        [ Composite pitched_call pitched (Pitch Score.default_pitch) pitched_controls
         , Composite unpitched_call unpitched NoPitch unpitched_controls
         ]
 
-double_pitch :: Text -> Controls -> Score.Control -> Controls
+double_pitch :: Text -> Controls -> Score.PControl -> Controls
     -> Derive.Generator Derive.Note
 double_pitch name base_controls pcontrol secondary_controls =
     make_call name ("A composite instrument that has two pitch signals.\n"
@@ -187,12 +187,11 @@ double_pitch name base_controls pcontrol secondary_controls =
         ("Instrument that gets `#`, and controls: "
             <> show_controls base_controls)
     <*> Sig.required_environ "second-inst" Sig.Prefixed
-        ("Instrument that gets "
-            <> ShowVal.doc_val (Score.PControl (Just pcontrol))
+        ("Instrument that gets " <> ShowVal.doc_val pcontrol
             <> ", and controls: " <> show_controls secondary_controls)
     ) $ \(inst1, inst2) -> Sub.inverting $ \args -> composite_call args
-        [ Composite "" inst1 (Pitch Nothing) base_controls
-        , Composite "" inst2 (Pitch (Just pcontrol)) secondary_controls
+        [ Composite "" inst1 (Pitch Score.default_pitch) base_controls
+        , Composite "" inst2 (Pitch pcontrol) secondary_controls
         ]
 
 composite_call :: Derive.NoteArgs -> [Composite] -> Derive.NoteDeriver
@@ -204,10 +203,11 @@ composite_call args composites = mconcatMap (split args) composites
         with_controls controls $ Eval.reapply_generator args call
     with_pitch p deriver = case p of
         NoPitch -> Derive.with_pitch Nothing mempty deriver
-        Pitch Nothing -> deriver
-        Pitch (Just control) -> do
-            sig <- Derive.get_named_pitch control
-            Derive.with_pitch Nothing (fromMaybe mempty sig) deriver
+        Pitch control
+            | control == Score.default_pitch -> deriver
+            | otherwise -> do
+                sig <- Derive.get_pitch control
+                Derive.with_pitch Nothing (fromMaybe mempty sig) deriver
     with_controls controls deriver = do
         cmap <- Derive.get_controls
         cfuncs <- Derive.get_control_functions

@@ -9,8 +9,9 @@
     backend.
 -}
 module Derive.Score (
+    module Derive.BaseTypes
     -- * Event
-    Event(..)
+    , Event(..)
     , empty_event, event_end, event_min, event_max, event_scale_id
     , event_transformed_controls, event_transformed_pitch
     , event_transformed_pitches
@@ -30,7 +31,7 @@ module Derive.Score (
     , modify_control
     , set_control, event_controls_at
     -- *** pitch
-    , set_pitch, event_named_pitch
+    , default_pitch, set_pitch, set_named_pitch, event_named_pitch, event_pitch
     , transposed_at, pitch_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
 
@@ -45,8 +46,7 @@ module Derive.Score (
 
     -- * util
     , control, control_name, c_dynamic
-
-    , module Derive.BaseTypes
+    , parse_generic_control
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
@@ -58,12 +58,13 @@ import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control, PControl(..), Warp(..), id_warp,
-        id_warp_signal, Type(..), Typed(..), ControlValMap, TypedControlValMap,
-        ControlMap, ControlFunction(..), ControlFunctionMap, PitchMap, untyped,
-        merge_typed, type_to_code, code_to_type, TypedControl, TypedVal,
-        Attributes, Attribute, attr, attrs, set_to_attrs, attrs_diff,
-        attrs_contain, attrs_remove, attrs_set, attrs_list, no_attrs)
+       (Instrument(..), Control, PControl(..), is_valid_control_char, Warp(..),
+        id_warp, id_warp_signal, Type(..), Typed(..), ControlValMap,
+        TypedControlValMap, ControlMap, ControlFunction(..), ControlFunctionMap,
+        PitchMap, untyped, merge_typed, type_to_code, code_to_type,
+        TypedControl, TypedVal, Attributes, Attribute, attr, attrs,
+        set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
+        attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.PitchSignal as PitchSignal
@@ -340,14 +341,32 @@ event_controls_at t event = Map.map (typed_val . control_val_at event t)
 
 -- *** pitch
 
-set_pitch :: PitchSignal.Signal -> Event -> Event
-set_pitch pitch event = event
-    { event_untransformed_pitch =
-        PitchSignal.shift (- event_control_offset event) pitch
-    }
+default_pitch :: PControl
+default_pitch = ""
 
+set_pitch :: PitchSignal.Signal -> Event -> Event
+set_pitch = set_named_pitch default_pitch
+
+set_named_pitch :: PControl -> PitchSignal.Signal -> Event -> Event
+set_named_pitch pcontrol@(PControl name) signal event
+    | pcontrol == default_pitch = event
+        { event_untransformed_pitch =
+            PitchSignal.shift (- event_control_offset event) signal
+        }
+    | otherwise = event
+        { event_untransformed_pitches = Map.insert (control name)
+            (PitchSignal.shift (- event_control_offset event) signal)
+            (event_untransformed_pitches event)
+        }
+
+-- | TODO remove in favor of event_pitch
 event_named_pitch :: Control -> Event -> Maybe PitchSignal.Signal
 event_named_pitch name = Map.lookup name . event_transformed_pitches
+
+event_pitch :: PControl -> Event -> Maybe PitchSignal.Signal
+event_pitch pcontrol@(PControl name)
+    | pcontrol == default_pitch = Just . event_transformed_pitch
+    | otherwise = Map.lookup (control name) . event_transformed_pitches
 
 -- | Unlike 'Derive.Derive.pitch_at', the transposition has already been
 -- applied.  This is because callers expect to get the actual pitch, not the
@@ -485,3 +504,16 @@ to_real = RealTime.score
 
 to_score :: RealTime -> ScoreTime
 to_score = RealTime.to_score
+
+-- | Parse either a Control or PControl.
+parse_generic_control :: Text -> Either Text (Either Control PControl)
+parse_generic_control text = case Text.uncons text of
+    Just ('#', rest)
+        | Text.all is_valid_control_char rest ->
+            Right $ Right $ PControl rest
+        | otherwise ->
+            Left $ "invalid characters in pitch control: " <> showt rest
+    _
+        | Text.null text -> Left "empty control name"
+        | Text.all is_valid_control_char text -> Right $ Left $ control text
+        | otherwise -> Left $ "invalid characters in control: " <> showt text

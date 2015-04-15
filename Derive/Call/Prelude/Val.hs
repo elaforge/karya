@@ -250,11 +250,9 @@ c_get_pitch = val_call "pitch" mempty
     "Get the current pitch." $ Sig.call (Sig.defaulted "control" ""
         "The default pitch if empty, otherwise, get the named pitch.") $
     \control args ->
-        Derive.require "pitch" =<< get control =<< Args.real_start args
-    where
-    get control
-        | control == "" = Derive.pitch_at
-        | otherwise = Derive.named_pitch_at (Score.control control)
+        Derive.require "pitch"
+            =<< Derive.named_pitch_at (Score.PControl control)
+            =<< Args.real_start args
 
 -- * generate signals
 

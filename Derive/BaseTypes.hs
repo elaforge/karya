@@ -72,12 +72,28 @@ newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)
 
--- | A pitch control, or Nothing for the default unnamed pitch.  Normally a
--- @Maybe Control@ is used for pitch control names, but that leaves them
--- without a ShowVal.  So for the moment this type is just for ShowVal.
+instance Pretty.Pretty Control where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Control where
+    show_val (Control c) = Text.cons '%' c
+
+-- | The pitch control version of 'Control'.  Unlike Control, this is allowed
+-- to be null, which is the name of the default pitch signal.
+--
 -- It should probably be called PitchControl, but that's already taken by the
 -- pitch version of 'ValControl', which also probably needs a clearer name.
-newtype PControl = PControl (Maybe Control)
+newtype PControl = PControl Text
+    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
+        String.IsString)
+
+instance Pretty.Pretty PControl where pretty = ShowVal.show_val
+instance ShowVal.ShowVal PControl where
+    show_val (PControl c) = Text.cons '#' c
+
+-- | Names for 'Control's and 'PControl's are restricted.  There's no
+-- particular reason for this, but also no particular reason to allow them to
+-- have any old name either.
+is_valid_control_char :: Char -> Bool
+is_valid_control_char c = 'a' <= c && c <= 'z' || c == '-'
 
 -- ** Warp
 
@@ -153,13 +169,6 @@ instance Monoid.Monoid Type where
     mempty = Untyped
     mappend Untyped typed = typed
     mappend typed _ = typed
-
-instance Pretty.Pretty Control where pretty = ShowVal.show_val
-instance ShowVal.ShowVal Control where
-    show_val (Control c) = Text.cons '%' c
-instance ShowVal.ShowVal PControl where
-    show_val (PControl Nothing) = "#"
-    show_val (PControl (Just (Control c))) = Text.cons '#' c
 
 data Typed a = Typed {
     type_of :: !Type

@@ -215,10 +215,10 @@ pitch_at :: RealTime -> TrackLang.PitchControl
 pitch_at pos control = case control of
     TrackLang.ControlSignal sig -> require sig
     TrackLang.DefaultedControl cont deflt -> do
-        maybe_pitch <- Derive.named_pitch_at cont pos
+        maybe_pitch <- Derive.named_pitch_at (pcontrol cont) pos
         maybe (require deflt) return maybe_pitch
     TrackLang.LiteralControl cont -> do
-        maybe_pitch <- Derive.named_pitch_at cont pos
+        maybe_pitch <- Derive.named_pitch_at (pcontrol cont) pos
         Derive.require ("pitch not found and no default given: " <> showt cont)
             maybe_pitch
     where
@@ -229,10 +229,13 @@ to_pitch_signal :: TrackLang.PitchControl -> Derive.Deriver PitchSignal.Signal
 to_pitch_signal control = case control of
     TrackLang.ControlSignal sig -> return sig
     TrackLang.DefaultedControl cont deflt ->
-        maybe (return deflt) return =<< Derive.get_named_pitch cont
+        maybe (return deflt) return =<< Derive.get_pitch (pcontrol cont)
     TrackLang.LiteralControl cont ->
         Derive.require ("not found: " <> showt cont)
-            =<< Derive.get_named_pitch cont
+            =<< Derive.get_pitch (pcontrol cont)
+
+pcontrol :: Score.Control -> Score.PControl
+pcontrol = Score.PControl . Score.control_name
 
 nn_at :: RealTime -> TrackLang.PitchControl
     -> Derive.Deriver (Maybe Pitch.NoteNumber)

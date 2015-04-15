@@ -73,7 +73,7 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
         env <- Internal.get_environ
         nn <- Derive.require
             ("ratio scale requires " <> ShowVal.show_val pitch_control)
-            =<< Derive.named_nn_at control start
+            =<< Derive.named_nn_at pcontrol start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
         return $ PitchSignal.pitch
             pscale (const $ return out_nn) (const $ return note)
@@ -81,6 +81,7 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
     where
     pitch_control = TrackLang.LiteralControl control :: TrackLang.PitchControl
     control = "ratio-source"
+    pcontrol = "ratio-source" -- TODO remove
     pscale = Pitches.scale scale
 
 -- | Ratios look like @2/5@, @-4/3@.  A negative ratio divides, a positive one

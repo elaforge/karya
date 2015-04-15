@@ -52,7 +52,8 @@ track_type title
 data ControlType =
     -- | Control track with an optional combining operator.
     Control (Maybe TrackLang.CallId) (Score.Typed Score.Control)
-    -- | Control is Nothing for default scale.
+    -- | Pitch track that sets a ScaleId (unless it's 'Pitch.empty_scale'),
+    -- and sets the given pitch.
     | Pitch Pitch.ScaleId (Maybe Score.Control)
     -- | Tempo track with an optional modifying symbol.
     | Tempo (Maybe TrackLang.Symbol)

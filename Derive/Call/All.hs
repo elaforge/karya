@@ -17,9 +17,10 @@ import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.India.Gamakam2 as Gamakam2
 import qualified Derive.Call.India.Mridangam as Mridangam
 import qualified Derive.Call.Post.Idiom as Idiom
+import qualified Derive.Call.Post.Map as Map
 import qualified Derive.Call.Post.Move as Move
 import qualified Derive.Call.Post.Rearticulate as Rearticulate
-import qualified Derive.Call.Post.Reverse as Post.Reverse
+import qualified Derive.Call.Post.Reverse as Reverse
 import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Call.Prelude.Block as Block
 import qualified Derive.Call.Prelude.Conditional as Conditional
