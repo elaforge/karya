@@ -9,7 +9,10 @@ UNSORTED
     - Typecheck instance for Control and PControl means I can put
       Score.parse_generic_control into the call signature.
       Also Val.c_get_pitch can directly take a PControl.
-  - use Score.is_valid_control_char in ParseTitle
+  * use Score.is_valid_control_char in ParseTitle
+    . Also in Derive.Parse.p_pitch_control and p_control
+    . Actually, it already does, except it uses Id.  Perhaps I should just
+      reuse Id.valid?
   - 'smooth' pitch transformer
   * I could smooth pitch changes in each note with "mapc '#' smooth .1"
     Zheng or vocal-style instruments could use this.

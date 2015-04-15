@@ -77,7 +77,7 @@ parse_control_vals vals = case vals of
     [scale -> Just scale_id] -> Right $ Pitch scale_id Nothing
     --  *twelve # -> default pitch track in twelve
     --  *twelve #name -> named pitch track
-    [scale -> Just scale_id, pitch_control -> Just cont] ->
+    [scale -> Just scale_id, pitch_control_of -> Just cont] ->
         Right $ Pitch scale_id cont
     -- "tempo"
     [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right $ Tempo Nothing
@@ -87,10 +87,11 @@ parse_control_vals vals = case vals of
     --
     -- It would be more regular to require \"%control\" and \"add %control\"
     -- for control tracks, but it looks nicer without the extra noise.
-    [TrackLang.VSymbol control] -> Control Nothing <$> control_of control
+    [TrackLang.VSymbol control] ->
+        Control Nothing <$> parse_control_type control
     -- add control -> relative control
     [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
-        Control (Just call) <$> control_of control
+        Control (Just call) <$> parse_control_type control
     -- % -> default control
     -- It might be more regular to allow anything after %, but I'm a fan of
     -- only one way to do it, so only allow it for "".
@@ -115,23 +116,22 @@ parse_control_vals vals = case vals of
             Just ('*', scale_id) -> Just (Pitch.ScaleId scale_id)
             _ -> Nothing
     scale _ = Nothing
-    control_of sym = maybe
-        (Left $ "control should look like 'name:[cdsr]': "
-            <> TrackLang.show_val sym)
-        Right (parse_control_type sym)
 
-    pitch_control :: TrackLang.Val -> Maybe (Maybe Score.Control)
-    pitch_control (TrackLang.VPitchControl (TrackLang.LiteralControl cont))
+    pitch_control_of :: TrackLang.Val -> Maybe (Maybe Score.Control)
+    pitch_control_of (TrackLang.VPitchControl (TrackLang.LiteralControl cont))
         | cont == Controls.null = Just Nothing
         | otherwise = Just (Just cont)
-    pitch_control _ = Nothing
+    pitch_control_of _ = Nothing
 
-parse_control_type :: TrackLang.Symbol -> Maybe (Score.Typed Score.Control)
+parse_control_type :: TrackLang.Symbol
+    -> Either Text (Score.Typed Score.Control)
 parse_control_type (TrackLang.Symbol name) = case Text.uncons post of
-        Just (':', c) -> Score.Typed <$>
-            Score.code_to_type (untxt c) <*> return (Score.control pre)
-        Nothing -> Just $ Score.untyped $ Score.control name
-        _ -> Nothing
+    Just (':', t) -> do
+        control <- Score.checked_control pre
+        typ <- maybe (Left $ "unknown type: " <> showt t) Right $
+            Score.code_to_type (untxt t)
+        return $ Score.Typed typ control
+    _ -> Score.untyped <$> Score.checked_control name
     where (pre, post) = Text.break (==':') name
 
 unparse_typed :: Score.Typed Score.Control -> Text

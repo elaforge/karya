@@ -336,8 +336,8 @@ p_identifier until = do
     -- =.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which I don't
     -- want to support.
     unless (valid_identifier ident) $
-        fail $ "invalid chars in identifier; only [a-z0-9-] are accepted: "
-            ++ show ident
+        fail $ "invalid chars in identifier, expected "
+            <> untxt Id.valid_description <> ": " <> show ident
     return ident
 
 -- | Text version of 'Id.valid'.

@@ -45,7 +45,7 @@ module Derive.Score (
     , inst_name, empty_inst, instrument, split_inst
 
     -- * util
-    , control, control_name, c_dynamic
+    , control, checked_control, control_name, pcontrol, pcontrol_name, c_dynamic
     , parse_generic_control
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -56,15 +56,15 @@ import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
+import qualified Ui.Id as Id
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control, PControl(..), is_valid_control_char, Warp(..),
-        id_warp, id_warp_signal, Type(..), Typed(..), ControlValMap,
-        TypedControlValMap, ControlMap, ControlFunction(..), ControlFunctionMap,
-        PitchMap, untyped, merge_typed, type_to_code, code_to_type,
-        TypedControl, TypedVal, Attributes, Attribute, attr, attrs,
-        set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
-        attrs_list, no_attrs)
+       (Instrument(..), Control, PControl(..), Warp(..), id_warp,
+        id_warp_signal, Type(..), Typed(..), ControlValMap, TypedControlValMap,
+        ControlMap, ControlFunction(..), ControlFunctionMap, PitchMap, untyped,
+        merge_typed, type_to_code, code_to_type, TypedControl, TypedVal,
+        Attributes, Attribute, attr, attrs, set_to_attrs, attrs_diff,
+        attrs_contain, attrs_remove, attrs_set, attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.PitchSignal as PitchSignal
@@ -348,13 +348,13 @@ set_pitch :: PitchSignal.Signal -> Event -> Event
 set_pitch = set_named_pitch default_pitch
 
 set_named_pitch :: PControl -> PitchSignal.Signal -> Event -> Event
-set_named_pitch pcontrol@(PControl name) signal event
+set_named_pitch pcontrol@(BaseTypes.PControl name) signal event
     | pcontrol == default_pitch = event
         { event_untransformed_pitch =
             PitchSignal.shift (- event_control_offset event) signal
         }
     | otherwise = event
-        { event_untransformed_pitches = Map.insert (control name)
+        { event_untransformed_pitches = Map.insert (BaseTypes.Control name)
             (PitchSignal.shift (- event_control_offset event) signal)
             (event_untransformed_pitches event)
         }
@@ -364,9 +364,10 @@ event_named_pitch :: Control -> Event -> Maybe PitchSignal.Signal
 event_named_pitch name = Map.lookup name . event_transformed_pitches
 
 event_pitch :: PControl -> Event -> Maybe PitchSignal.Signal
-event_pitch pcontrol@(PControl name)
+event_pitch pcontrol@(BaseTypes.PControl name)
     | pcontrol == default_pitch = Just . event_transformed_pitch
-    | otherwise = Map.lookup (control name) . event_transformed_pitches
+    | otherwise = Map.lookup (BaseTypes.Control name)
+        . event_transformed_pitches
 
 -- | Unlike 'Derive.Derive.pitch_at', the transposition has already been
 -- applied.  This is because callers expect to get the actual pitch, not the
@@ -487,13 +488,29 @@ split_inst (Instrument inst) = (synth, Text.drop 1 inst_name)
 
 -- * util
 
--- | Use this control constructor instead of directly calling "Control", though
--- that's not enforced yet.
+-- | Use this constructor when making a Control from user input.  Literals
+-- can use the IsString instance.
 control :: Text -> Control
 control = BaseTypes.Control
 
+checked_control :: Text -> Either Text Control
+checked_control name
+    | Text.null name = Left "empty control name"
+    | Id.valid name = Right $ BaseTypes.Control name
+    | otherwise = Left $ "invalid characters in control: " <> showt name
+
 control_name :: Control -> Text
-control_name (BaseTypes.Control text) = text
+control_name (BaseTypes.Control name) = name
+
+-- | Use this constructor when making a PControl from user input.  Literals
+-- can use the IsString instance.
+pcontrol :: Text -> Either Text PControl
+pcontrol name
+    | Id.valid name = Right $ BaseTypes.PControl name
+    | otherwise = Left $ "invalid characters in pitch control: " <> showt name
+
+pcontrol_name :: PControl -> Text
+pcontrol_name (BaseTypes.PControl name) = name
 
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control
@@ -507,13 +524,6 @@ to_score = RealTime.to_score
 
 -- | Parse either a Control or PControl.
 parse_generic_control :: Text -> Either Text (Either Control PControl)
-parse_generic_control text = case Text.uncons text of
-    Just ('#', rest)
-        | Text.all is_valid_control_char rest ->
-            Right $ Right $ PControl rest
-        | otherwise ->
-            Left $ "invalid characters in pitch control: " <> showt rest
-    _
-        | Text.null text -> Left "empty control name"
-        | Text.all is_valid_control_char text -> Right $ Left $ control text
-        | otherwise -> Left $ "invalid characters in control: " <> showt text
+parse_generic_control name = case Text.uncons name of
+    Just ('#', rest) -> Right <$> pcontrol rest
+    _ -> Left <$> checked_control name

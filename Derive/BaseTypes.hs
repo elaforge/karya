@@ -68,6 +68,8 @@ instance ShowVal.ShowVal Instrument where
 -- them affect performance and will be rendered as MIDI controls or note
 -- parameters or whatever, while others may affect derivation (e.g. tempo) and
 -- won't be seen by the backend at all.
+--
+-- A Control should be a valid identifier as defined by 'Ui.Id.valid'.
 newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)
@@ -79,6 +81,10 @@ instance ShowVal.ShowVal Control where
 -- | The pitch control version of 'Control'.  Unlike Control, this is allowed
 -- to be null, which is the name of the default pitch signal.
 --
+-- A PControl should be a valid identifier as defined by 'Ui.Id.valid', except
+-- that its literal tracklang form starts with a @#@, to differentiate from
+-- a Control.
+--
 -- It should probably be called PitchControl, but that's already taken by the
 -- pitch version of 'ValControl', which also probably needs a clearer name.
 newtype PControl = PControl Text
@@ -88,12 +94,6 @@ newtype PControl = PControl Text
 instance Pretty.Pretty PControl where pretty = ShowVal.show_val
 instance ShowVal.ShowVal PControl where
     show_val (PControl c) = Text.cons '#' c
-
--- | Names for 'Control's and 'PControl's are restricted.  There's no
--- particular reason for this, but also no particular reason to allow them to
--- have any old name either.
-is_valid_control_char :: Char -> Bool
-is_valid_control_char c = 'a' <= c && c <= 'z' || c == '-'
 
 -- ** Warp
 

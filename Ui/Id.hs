@@ -14,7 +14,7 @@ module Ui.Id (
     , read_id, show_id, read_short, read_short_validate, show_short
 
     -- * validate
-    , valid, is_id_char, is_lower_alpha, is_digit
+    , valid, valid_description, is_id_char, is_lower_alpha, is_digit
 
     -- * Ident
     , Ident(..)
@@ -139,6 +139,10 @@ show_short default_ns ident@(Id ns name)
 valid :: Text -> Bool
 valid s =
     not (Text.null s) && is_lower_alpha (Text.head s) && Text.all is_id_char s
+
+-- | Describe a valid identifier for docs and error messages.
+valid_description :: Text
+valid_description = "[a-z][a-z0-9.-]*"
 
 is_id_char :: Char -> Bool
 is_id_char c = is_lower_alpha c || is_digit c || c == '-' || c == '.'
