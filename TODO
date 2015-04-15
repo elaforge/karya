@@ -11,7 +11,7 @@ UNSORTED
       Also Val.c_get_pitch can directly take a PControl.
   - use Score.is_valid_control_char in ParseTitle
   - 'smooth' pitch transformer
-  - I could smooth pitch changes in each note with "mapc '#' smooth .1"
+  * I could smooth pitch changes in each note with "mapc '#' smooth .1"
     Zheng or vocal-style instruments could use this.
   rename:
     - "initial" arg of kotekan calls to "init"?

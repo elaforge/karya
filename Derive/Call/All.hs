@@ -76,7 +76,8 @@ note_maps = mconcat
     , Parent.note_calls
     , Mridangam.note_calls
     , PitchHigh.note_calls
-    , Post.Reverse.note_calls
+    , Reverse.note_calls
+    , Map.note_calls
     , Random.note_calls
     , Rearticulate.note_calls
     , Move.note_calls
