@@ -450,10 +450,12 @@ hold_env = TrackLang.default_real <$>
 
 trill_variations :: [(TrackLang.Symbol, Maybe Direction, Maybe Direction)]
 trill_variations =
-    [ (TrackLang.Symbol $ "tr" <> direction_affix start <> direction_affix end,
+    [ (TrackLang.Symbol $ "tr"
+            <> (if start == Nothing && end /= Nothing
+                then "-" else direction_affix start)
+            <> direction_affix end,
         start, end)
     | start <- dirs, end <- dirs
-    , not (start == Nothing && end /= Nothing)
     ]
     where dirs = [Nothing, Just High, Just Low]
 
@@ -467,6 +469,7 @@ direction_doc Nothing Nothing = ""
 direction_doc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
     \ while `_` makes it start on the lower value. A second suffix causes it\
     \ to end on the higher or lower value, e.g. `^_` starts high and ends low.\
+    \ `-_` has start unspecified, and ends low.\
     \ No suffix causes it to obey the settings in scope."
 
 -- | Resolve start and end Directions to the first and second trill notes.

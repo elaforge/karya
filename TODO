@@ -964,8 +964,6 @@ Derive:
     track types and block types.
 
   note calls:
-    - hold support for trill and tremolo
-      . also, would it be useful to add an acceleration?
     + chord calls, with automatic dyns for the notes.
       Originally I intended each note to go in its own track, with the idea
       that it takes about the same space but is more powerful and flexible.
