@@ -419,7 +419,7 @@ required_control :: Score.Control -> TrackLang.ValControl
 required_control = TrackLang.LiteralControl
 
 -- | Pitch signal.  There's no default because that would depend on the scale.
-pitch :: Score.Control -> TrackLang.PitchControl
+pitch :: Score.PControl -> TrackLang.PitchControl
 pitch = TrackLang.LiteralControl
 
 -- ** util

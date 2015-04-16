@@ -165,8 +165,7 @@ parse_equal Nothing lhs rhs
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
             <> " control, but got " <> pretty (TrackLang.type_of rhs)
     where
-    is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c)) =
-        Just $ Score.PControl $ Score.control_name c
+    is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c)) = Just c
     is_pitch _ = Nothing
 parse_equal (Just merge) _ _ = Left $ merge_error merge
 parse_equal Nothing lhs val = Right $ Derive.with_val lhs val

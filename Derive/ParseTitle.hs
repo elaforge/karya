@@ -119,7 +119,7 @@ parse_control_vals vals = case vals of
 
     pitch_control_of :: TrackLang.Val -> Maybe Score.PControl
     pitch_control_of (TrackLang.VPitchControl (TrackLang.LiteralControl c)) =
-        Just $ Score.PControl (Score.control_name c)
+        Just c
     pitch_control_of _ = Nothing
 
 parse_control_type :: TrackLang.Symbol
@@ -151,11 +151,10 @@ unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
     Control call control -> maybe [] ((:[]) . TrackLang.VSymbol) call
         ++ [control_val control]
-    Pitch (Pitch.ScaleId scale_id) pcontrol@(Score.PControl name) ->
+    Pitch (Pitch.ScaleId scale_id) pcontrol ->
         TrackLang.VSymbol (TrackLang.Symbol (Text.cons '*' scale_id))
         : if pcontrol == Score.default_pitch then [] else
-            [TrackLang.VPitchControl $ TrackLang.LiteralControl $
-                Score.control name]
+            [TrackLang.VPitchControl $ TrackLang.LiteralControl pcontrol]
     Tempo maybe_sym -> TrackLang.VSymbol "tempo"
         : maybe [] ((:[]) . TrackLang.VSymbol)  maybe_sym
     where

@@ -686,21 +686,20 @@ show_call_val val = ShowVal.show_val val
 instance ShowVal.ShowVal Text where
     show_val = ShowVal.show_val . Symbol
 
-data ControlRef val =
+data ControlRef control val =
     -- | A signal literal.
     ControlSignal val
     -- | If the control isn't present, use the given default.
-    | DefaultedControl Control val
+    | DefaultedControl control val
     -- | Throw an exception if the control isn't present.
-    | LiteralControl Control
+    | LiteralControl control
     deriving (Eq, Read, Show)
 
-type PitchControl = ControlRef Signal
-type ValControl = ControlRef TypedControl
+type ValControl = ControlRef Control TypedControl
+type PitchControl = ControlRef PControl Signal
 
-instance Pretty.Pretty PitchControl where pretty = ShowVal.show_val
-
-instance Serialize.Serialize val => Serialize.Serialize (ControlRef val) where
+instance (Serialize.Serialize val, Serialize.Serialize control) =>
+        Serialize.Serialize (ControlRef control val) where
     put val = case val of
         ControlSignal a -> Serialize.put_tag 0 >> Serialize.put a
         DefaultedControl a b -> Serialize.put_tag 1 >> Serialize.put a
@@ -712,6 +711,16 @@ instance Serialize.Serialize val => Serialize.Serialize (ControlRef val) where
         2 -> LiteralControl <$> Serialize.get
         n -> Serialize.bad_tag "BaseTypes.ControlRef" n
 
+-- | This can only represent constant signals, since there's no literal for an
+-- arbitrary signal.  Non-constant signals will turn into a constant of
+-- whatever was at 0.
+instance ShowVal.ShowVal ValControl where
+    show_val = show_control '%' name_of $ \(Typed typ sig) ->
+        ShowVal.show_val (Signal.at 0 sig) <> type_to_code typ
+        where name_of (Control name) = name
+
+instance Pretty.Pretty ValControl where pretty = ShowVal.show_val
+
 -- | There's no way to convert a pitch back into the expression that produced
 -- it, so this is the best I can do.
 --
@@ -720,25 +729,19 @@ instance Serialize.Serialize val => Serialize.Serialize (ControlRef val) where
 -- accurately since it doesn't take things like pitch interpolation into
 -- account.
 instance ShowVal.ShowVal PitchControl where
-    show_val = show_control '#' $ \sig -> case TimeVector.at 0 (sig_vec sig) of
-        Nothing -> "<none>"
-        Just p -> ShowVal.show_val p
+    show_val = show_control '#' name_of
+        (maybe "<none>" ShowVal.show_val . TimeVector.at 0 . sig_vec)
+        where name_of (PControl name) = name
 
-instance Pretty.Pretty ValControl where pretty = ShowVal.show_val
+instance Pretty.Pretty PitchControl where pretty = ShowVal.show_val
 
--- | This can only represent constant signals, since there's no literal for an
--- arbitrary signal.  Non-constant signals will turn into a constant of
--- whatever was at 0.
-instance ShowVal.ShowVal ValControl where
-    show_val = show_control '%' $ \(Typed typ sig) ->
-        ShowVal.show_val (Signal.at 0 sig) <> type_to_code typ
-
-show_control :: Char -> (sig -> Text) -> ControlRef sig -> Text
-show_control prefix sig_text control = case control of
+show_control :: Char -> (control -> Text) -> (sig -> Text)
+    -> ControlRef control sig -> Text
+show_control prefix control_name sig_text control = case control of
     ControlSignal sig -> sig_text sig
-    DefaultedControl (Control cont) deflt -> mconcat
-        [Text.singleton prefix, cont, ",", sig_text deflt]
-    LiteralControl (Control cont) -> Text.cons prefix cont
+    DefaultedControl cont deflt -> mconcat
+        [Text.singleton prefix, control_name cont, ",", sig_text deflt]
+    LiteralControl cont -> Text.cons prefix (control_name cont)
 
 -- ** Call
 

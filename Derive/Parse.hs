@@ -287,8 +287,7 @@ p_control = do
 p_pitch_control :: A.Parser TrackLang.PitchControl
 p_pitch_control = do
     A.char '#'
-    TrackLang.LiteralControl . Score.control <$>
-        A.option "" (p_identifier "")
+    TrackLang.LiteralControl . Score.PControl <$> A.option "" (p_identifier "")
     <?> "pitch control"
 
 p_quoted :: A.Parser TrackLang.Quoted
