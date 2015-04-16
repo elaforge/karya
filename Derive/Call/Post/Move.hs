@@ -4,7 +4,6 @@
 
 -- | Postprocs that change note start and duration.
 module Derive.Call.Post.Move where
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -36,9 +35,6 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map
     [ ("infer-duration", c_infer_duration)
     , ("apply-start-offset", c_apply_start_offset)
-    -- TODO this should probably go in a NoteTransformer module, which
-    -- is really Derive.Transformer Derive.Note
-    , ("add-flag", c_add_flag)
     ]
 
 
@@ -283,14 +279,3 @@ adjust_duration next new_next event =
 offset_of :: Score.Event -> RealTime
 offset_of = fromMaybe 0 . TrackLang.maybe_val Environ.start_offset_val
     . Score.event_environ
-
-
--- * misc
-
-c_add_flag :: Derive.Transformer Derive.Note
-c_add_flag = Derive.transformer Module.prelude "add-flag" Tags.postproc
-    "Add the given flags to transformed events.\
-    \ Mostly for debugging and testing."
-    $ Sig.callt (Sig.many1 "flag" "Add these flags.") $ \flags _args ->
-        fmap $ Post.emap1_ $ Score.add_flags $ mconcatMap Flags.flag $
-            NonEmpty.toList flags

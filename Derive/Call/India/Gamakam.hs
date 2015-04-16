@@ -43,7 +43,6 @@ import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
-import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.SignalTransform as SignalTransform
 import qualified Derive.Call.Prelude.Trill as Trill
@@ -63,32 +62,25 @@ import Types
 
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.call_maps
-    ([("dip", c_dip)
+pitch_calls = Derive.generator_call_map $
+    [("dip", c_dip)
     , ("jaru", c_jaru)
     , ("sgr", c_jaru_intervals Call.Diatonic [-1, 1])
-    ] ++ kampita_variations "kam" c_kampita)
-    [ ("h", c_hold)
-    ]
+    ] ++ kampita_variations "kam" c_kampita
 
 module_ :: Module.Module
 module_ = "india" <> "gamakam"
 
 control_calls :: Derive.CallMaps Derive.Control
-control_calls = Derive.call_maps generators transformers
-    where
-    generators =
-        [ ("dip", c_dip_c)
-        , ("j)", jaru_transition_c "j)" Nothing
-            "Time for each slide, defaults to `time`.")
-        , ("j]", jaru_transition_c "j]" (Just (jaru_time_default / 2))
-            "Time for each slide.")
-        , ("sgr", c_jaru_intervals_c [-1, 1])
-        ] ++ kampita_variations "kam" c_kampita_c
-        ++ kampita_variations "nkam" c_nkampita_c
-    transformers =
-        [ ("h", c_hold)
-        ]
+control_calls = Derive.generator_call_map $
+    [ ("dip", c_dip_c)
+    , ("j)", jaru_transition_c "j)" Nothing
+        "Time for each slide, defaults to `time`.")
+    , ("j]", jaru_transition_c "j]" (Just (jaru_time_default / 2))
+        "Time for each slide.")
+    , ("sgr", c_jaru_intervals_c [-1, 1])
+    ] ++ kampita_variations "kam" c_kampita_c
+    ++ kampita_variations "nkam" c_nkampita_c
 
 kampita_variations :: Text
     -> (Maybe Trill.Direction -> Maybe Trill.Direction -> call)
@@ -100,11 +92,6 @@ kampita_variations name call =
     where
     affix = Trill.direction_affix
     dirs = [Nothing, Just Trill.Low, Just Trill.High]
-
-c_hold :: Derive.Taggable d => Derive.Transformer d
-c_hold = Make.with_environ module_ "hold"
-    (defaulted "time" (TrackLang.real 1) "Hold first value for this long.")
-    TrackLang.default_real
 
 -- * standard parameters
 

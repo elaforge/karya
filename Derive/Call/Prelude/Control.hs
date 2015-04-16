@@ -49,7 +49,7 @@ control_calls = Derive.generator_call_map
 
     -- not sure which one I'll like better
     , ("`ped`", c_pedal)
-    , ("h", c_pedal)
+    , ("ped", c_pedal)
     , ("swell", c_swell)
     ]
     <> ControlUtil.standard_interpolators ControlUtil.interpolator_variations

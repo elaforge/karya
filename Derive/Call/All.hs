@@ -24,6 +24,7 @@ import qualified Derive.Call.Post.Reverse as Reverse
 import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Call.Prelude.Block as Block
 import qualified Derive.Call.Prelude.Conditional as Conditional
+import qualified Derive.Call.Prelude.Config as Config
 import qualified Derive.Call.Prelude.Control as Control
 import qualified Derive.Call.Prelude.ControlFunction as ControlFunction
 import qualified Derive.Call.Prelude.Delay as Delay
@@ -59,6 +60,7 @@ note_maps = mconcat
     [ Articulation.note_calls
     , Block.note_calls
     , Chord.note_calls
+    , Config.note_calls
     , Delay.note_calls
     , Equal.note_calls
     , Gamakam2.note_calls
@@ -93,6 +95,7 @@ note_maps = mconcat
 control_maps :: Derive.CallMaps Derive.Control
 control_maps = mconcat
     [ Block.control_calls
+    , Config.control_calls
     , Control.control_calls
     , Equal.control_calls
     , Gamakam.control_calls
@@ -105,7 +108,8 @@ control_maps = mconcat
 
 pitch_maps :: Derive.CallMaps Derive.Pitch
 pitch_maps = mconcat
-    [ Equal.pitch_calls
+    [ Config.pitch_calls
+    , Equal.pitch_calls
     , Gamakam.pitch_calls
     , Gamakam2.pitch_calls
     , Grace.pitch_calls
