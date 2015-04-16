@@ -45,7 +45,7 @@ UNSORTED
   format:
     - pp LPerf.sel_events has an extra level of indent after the [.  Not due
       to LEvents.
-    - pretty print on a single event gives '[Event ...' and no closing ']'.
+    * pretty print on a single event gives '[Event ...' and no closing ']'.
     - what happens with ShortForm <> ShortForm?
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it

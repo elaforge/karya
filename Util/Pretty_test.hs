@@ -19,6 +19,7 @@ render width = map untxt . Text.lines . Lazy.toStrict
 formats :: String -> Pretty.Doc
 formats = Pretty.format
 
+
 test_list = do
     let f width = render width (Pretty.format ns)
         ns = [0 .. 4 :: Int]
@@ -31,7 +32,7 @@ test_list = do
 
 test_record = do
     let f = render 32 . make
-        make = Pretty.record (Pretty.text "Rec")
+        make = Pretty.record "Rec"
 
     -- fit on one line
     equal (f [("hi", formats "there")])
@@ -132,5 +133,14 @@ test_delimitedList = do
         , "  , wrap"
         , "  ]"
         , ", x"
+        , "]"
+        ]
+
+    equal (render 15 $ Pretty.delimitedList False '[' ']'
+            [Pretty.record "Record" [("field1", "val1")]])
+        [ "[ Record"
+        , "    { field1 ="
+        , "      val1"
+        , "    }"
         , "]"
         ]

@@ -207,7 +207,6 @@ delimitedList :: Bool -- ^ Always spaces around the delimiters.  Otherwise,
     -> Char -> Char -> [Doc] -> Doc
 delimitedList spacedDelimiter leftc rightc xs = case xs of
     [] -> left <-> right
-    [x] -> left <-> x <-> right
     x : xs -> Format.shortForm
         (left <-> x <> mconcat (map (","<+>) xs) <-> right) $
         (left <+> withIndent x) </> Format.wrap (map element xs)
