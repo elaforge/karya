@@ -25,6 +25,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
+import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as BaseTypes
@@ -188,7 +189,7 @@ data Type =
     TNum NumType NumValue
     | TAttributes | TControl | TPitchControl | TPitch | TNotePitch | TInstrument
     -- | Text string, with enum values if it's an enum.
-    | TSymbol (Maybe [Text])
+    | TSymbol (Maybe [Text]) | TControlName | TPitchControlName
     | TNotGiven | TSeparator | TMaybe Type | TEither Type Type | TVal
     -- | A 'VQuoted'.  This has no Typecheck instance so it should never show
     -- up as a call argument.
@@ -261,6 +262,11 @@ instance Pretty.Pretty Type where
         TextUtil.joinWith ", " (pretty typ) (pretty val)
     pretty (TSymbol enums) =
         append_parens "Symbol" $ maybe "" Text.unwords enums
+    -- There is no corresponding Val type for these, so I might as well be
+    -- clear about what they mean.
+    pretty TControlName = append_parens "ControlName" Id.valid_description
+    pretty TPitchControlName =
+        append_parens "PitchControlName" ("#" <> Id.valid_description)
     pretty (TList typ) = "list of " <> pretty typ
     pretty typ = Text.drop 1 (showt typ)
 
@@ -540,6 +546,22 @@ instance Typecheck Text where
     from_val _ = Nothing
     to_val = VSymbol . Symbol
     to_type _ = TSymbol Nothing
+
+-- These should use Score.control and Score.pcontrol, but that would be a
+-- circular import.
+instance Typecheck Score.Control where
+    from_val (VSymbol (Symbol s)) | Id.valid s = Just $ Score.Control s
+    from_val _ = Nothing
+    to_val c = VSymbol (Symbol (Score.control_name c))
+    to_type _ = TControlName
+
+instance Typecheck Score.PControl where
+    from_val (VSymbol (Symbol s))
+        | Just name <- Text.stripPrefix "#" s, Id.valid name =
+            Just $ Score.PControl name
+    from_val _ = Nothing
+    to_val c = VSymbol (Symbol (Score.pcontrol_name c))
+    to_type _ = TPitchControlName
 
 -- *** enum
 

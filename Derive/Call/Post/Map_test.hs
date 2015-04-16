@@ -8,7 +8,7 @@ test_mapc = do
     strings_like
         (snd $ run (DeriveTest.e_control "c")
             [("> | mapc in_valid \"(smooth 2)", [(0, 8, "")])])
-        ["invalid characters"]
+        ["expected ControlName"]
     equal (run (DeriveTest.e_control "c")
         [ ("> | mapc c \"(smooth 2)", [(0, 8, "")])
         , ("c", [(0, 0, "0"), (4, 0, "1")])

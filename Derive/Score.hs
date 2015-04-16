@@ -46,7 +46,7 @@ module Derive.Score (
 
     -- * util
     , control, unchecked_control, control_name
-    , pcontrol, pcontrol_name
+    , pcontrol, unchecked_pcontrol, pcontrol_name
     , c_dynamic
     , parse_generic_control
 ) where
@@ -61,12 +61,13 @@ import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control, PControl(..), Warp(..), id_warp,
-        id_warp_signal, Type(..), Typed(..), ControlValMap, TypedControlValMap,
-        ControlMap, ControlFunction(..), ControlFunctionMap, PitchMap, untyped,
-        merge_typed, type_to_code, code_to_type, TypedControl, TypedVal,
-        Attributes, Attribute, attr, attrs, set_to_attrs, attrs_diff,
-        attrs_contain, attrs_remove, attrs_set, attrs_list, no_attrs)
+       (Instrument(..), Control, control_name, PControl, pcontrol_name,
+        Warp(..), id_warp, id_warp_signal, Type(..), Typed(..), ControlValMap,
+        TypedControlValMap, ControlMap, ControlFunction(..), ControlFunctionMap,
+        PitchMap, untyped, merge_typed, type_to_code, code_to_type,
+        TypedControl, TypedVal, Attributes, Attribute, attr, attrs,
+        set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
+        attrs_list, no_attrs)
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.PitchSignal as PitchSignal
@@ -496,9 +497,6 @@ control name
 unchecked_control :: Text -> Control
 unchecked_control = BaseTypes.Control
 
-control_name :: Control -> Text
-control_name (BaseTypes.Control name) = name
-
 -- | Use this constructor when making a PControl from user input.  Literals
 -- can use the IsString instance.
 pcontrol :: Text -> Either Text PControl
@@ -506,8 +504,8 @@ pcontrol name
     | Id.valid name = Right $ BaseTypes.PControl name
     | otherwise = Left $ "invalid characters in pitch control: " <> showt name
 
-pcontrol_name :: PControl -> Text
-pcontrol_name (BaseTypes.PControl name) = name
+unchecked_pcontrol :: Text -> PControl
+unchecked_pcontrol = BaseTypes.PControl
 
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control

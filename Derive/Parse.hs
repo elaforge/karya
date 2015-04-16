@@ -284,10 +284,14 @@ p_control = do
         Just val -> TrackLang.DefaultedControl control (Signal.constant <$> val)
     <?> "control"
 
+-- | Unlike 'p_control', this doesn't parse a comma and a default value,
+-- because pitches don't have literals.  Instead, use the @pitch-control@ val
+-- call.
 p_pitch_control :: A.Parser TrackLang.PitchControl
 p_pitch_control = do
     A.char '#'
-    TrackLang.LiteralControl . Score.PControl <$> A.option "" (p_identifier "")
+    TrackLang.LiteralControl . Score.unchecked_pcontrol <$>
+        A.option "" (p_identifier "")
     <?> "pitch control"
 
 p_quoted :: A.Parser TrackLang.Quoted

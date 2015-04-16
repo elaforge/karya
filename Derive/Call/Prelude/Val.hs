@@ -238,22 +238,20 @@ c_pitch_control = val_call "pitch-control" mempty
     <$> Sig.required "name" "Name of pitch signal."
     <*> Sig.defaulted "default" Nothing
         "Default pitch, if the signal is not set."
-    ) $ \(name, maybe_default) _ -> do
-        control <- Derive.require_right id $ Score.pcontrol name
+    ) $ \(pcontrol, maybe_default) _ -> do
         return $ case maybe_default of
-            Nothing -> TrackLang.LiteralControl control
-            Just pitch -> TrackLang.DefaultedControl control
+            Nothing -> TrackLang.LiteralControl (pcontrol :: Score.PControl)
+            Just pitch -> TrackLang.DefaultedControl pcontrol
                 (PitchSignal.constant pitch)
 
 -- * lookup
 
 c_get_pitch :: Derive.ValCall
-c_get_pitch = val_call "pitch" mempty
-    "Get the current pitch." $ Sig.call (Sig.defaulted "control" ""
+c_get_pitch = val_call "pitch" mempty "Get the current pitch." $
+    Sig.call (Sig.defaulted "control" ""
         "The default pitch if empty, otherwise, get the named pitch.") $
     \control args -> Derive.require "pitch"
-        =<< Derive.named_pitch_at (Score.PControl control)
-        =<< Args.real_start args
+        =<< Derive.named_pitch_at control =<< Args.real_start args
 
 -- * generate signals
 

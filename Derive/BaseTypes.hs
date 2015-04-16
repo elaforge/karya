@@ -74,6 +74,9 @@ newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)
 
+control_name :: Control -> Text
+control_name (Control name) = name
+
 instance Pretty.Pretty Control where pretty = Text.cons '%' . ShowVal.show_val
 instance ShowVal.ShowVal Control where show_val (Control c) = c
 
@@ -89,6 +92,9 @@ instance ShowVal.ShowVal Control where show_val (Control c) = c
 newtype PControl = PControl Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)
+
+pcontrol_name :: PControl -> Text
+pcontrol_name (PControl name) = name
 
 instance Pretty.Pretty PControl where pretty = ShowVal.show_val
 instance ShowVal.ShowVal PControl where

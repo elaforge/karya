@@ -28,8 +28,6 @@ c_mapc = Derive.transformer Module.prelude "mapc" Tags.postproc
         \ with `#`."
     <*> Sig.required "transformer" "Transformer to apply."
     ) $ \(control, transformer) args deriver -> do
-        control <- Derive.require_right ("parsing control: "<>) $
-            Score.parse_generic_control control
         let mapper = case control of
                 Left control -> map_control
                     (Derive.coerce_call_info (Args.info args)) control

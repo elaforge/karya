@@ -7,9 +7,16 @@ UNSORTED
     * BaseTypes.PitchControl
     * BaseTypes.PitchMap
     * Derive.get_named_pitch_control
-    - Typecheck instance for Control and PControl means I can put
+    * Typecheck instance for Control and PControl means I can put
       Score.parse_generic_control into the call signature.
-      Also Val.c_get_pitch can directly take a PControl.
+      . On the other hand, I'd have to make a new Type and everything.
+        Not a super big deal, but probably not worth it until I have more
+        calls that take a Control or PControl.
+      . c_default_merge, c_redirect, c_get_pitch, c_cf_sample
+        Map.c_mapc, Val.c_get_pitch
+      . But actually for ones that take only a pitch control, maybe I don't
+        want the leading #, since it's unnecessary and forces quoting.  But
+        at least it's consistent, does that make it worth it?
   * use Score.is_valid_control_char in ParseTitle
     . Also in Derive.Parse.p_pitch_control and p_control
     . Actually, it already does, except it uses Id.  Perhaps I should just
