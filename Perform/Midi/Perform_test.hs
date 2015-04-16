@@ -826,7 +826,7 @@ type PEvent = (RealTime, RealTime, [(Signal.X, Signal.Y)],
 -- | Similar to mkevent, but allow a pitch curve.
 mkpevent :: PEvent -> Perform.Event
 mkpevent (start, dur, psig, conts) =
-    Perform.Event start dur inst1 (mkcontrols conts)
+    Perform.Event start dur inst1 (PerformTest.make_controls conts)
         (Signal.map_y Convert.round_pitch (Signal.signal psig))
         Stack.empty
 
@@ -835,10 +835,6 @@ mkevents_inst = map (\(a, b, c, d) -> mkevent (inst1, a, b, c, d))
 
 set_inst :: Instrument.Instrument -> Perform.Event -> Perform.Event
 set_inst inst event = event { Perform.event_instrument = inst }
-
-mkcontrols :: [(Text, [(Signal.X, Signal.Y)])] -> Perform.ControlMap
-mkcontrols csigs = Map.fromList
-    [(Score.control c, Signal.signal sig) | (c, sig) <- csigs]
 
 -- | Make a signal with linear interpolation between the points.
 linear_interp :: [(Signal.X, Signal.Y)] -> Signal.Control

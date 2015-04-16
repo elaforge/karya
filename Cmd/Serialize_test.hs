@@ -15,7 +15,6 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import Global
@@ -50,8 +49,8 @@ test_serialize = do
     equal sel (recode sel)
 
     let rstyle =
-            [ Track.Filled (Just (Track.Control (Score.control "hi")))
-            , Track.Line (Just (Track.Pitch (Score.PControl "there")))
+            [ Track.Filled (Just (Track.Control "hi"))
+            , Track.Line (Just (Track.Pitch "there"))
             ]
     equal rstyle (recode rstyle)
     let config = Instrument.config []

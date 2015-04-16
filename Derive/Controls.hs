@@ -148,7 +148,7 @@ vib = "vib"
 vib_speed = "vib-speed"
 
 mc :: Int -> Control
-mc = Score.control . ("mc"<>) . showt
+mc = Score.unchecked_control . ("mc"<>) . showt
 
 -- | Macro controls.  Many synths have general-purpose "change the timbre"
 -- knobs.

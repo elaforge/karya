@@ -65,7 +65,7 @@ make_perf_event lookup_inst (inst, start, dur, controls, pitch, stack) = do
 
 make_controls :: [(Text, [(RealTime, Signal.Y)])] -> Perform.ControlMap
 make_controls kvs =
-    Map.fromList [(Score.control k, Signal.signal v) | (k, v) <- kvs]
+    Map.fromList [(Score.unchecked_control k, Signal.signal v) | (k, v) <- kvs]
 
 
 -- * extract

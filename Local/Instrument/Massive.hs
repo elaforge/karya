@@ -20,7 +20,7 @@ load _dir = return $ MidiInst.make $
 controls :: [(Midi.Control, Score.Control)]
 controls =
     [ (1, "macro1")
-    ] ++ [(18 + n, Score.control $ "macro" <> showt n) | n <- [2..8]]
+    ] ++ [(18 + n, Score.unchecked_control $ "macro" <> showt n) | n <- [2..8]]
 
 patches :: [Instrument.Patch]
 patches = []

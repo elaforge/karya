@@ -45,7 +45,9 @@ module Derive.Score (
     , inst_name, empty_inst, instrument, split_inst
 
     -- * util
-    , control, checked_control, control_name, pcontrol, pcontrol_name, c_dynamic
+    , control, unchecked_control, control_name
+    , pcontrol, pcontrol_name
+    , c_dynamic
     , parse_generic_control
 ) where
 import qualified Control.DeepSeq as DeepSeq
@@ -485,14 +487,14 @@ split_inst (Instrument inst) = (synth, Text.drop 1 inst_name)
 
 -- | Use this constructor when making a Control from user input.  Literals
 -- can use the IsString instance.
-control :: Text -> Control
-control = BaseTypes.Control
-
-checked_control :: Text -> Either Text Control
-checked_control name
+control :: Text -> Either Text Control
+control name
     | Text.null name = Left "empty control name"
     | Id.valid name = Right $ BaseTypes.Control name
     | otherwise = Left $ "invalid characters in control: " <> showt name
+
+unchecked_control :: Text -> Control
+unchecked_control = BaseTypes.Control
 
 control_name :: Control -> Text
 control_name (BaseTypes.Control name) = name
@@ -521,4 +523,4 @@ to_score = RealTime.to_score
 parse_generic_control :: Text -> Either Text (Either Control PControl)
 parse_generic_control name = case Text.uncons name of
     Just ('#', rest) -> Right <$> pcontrol rest
-    _ -> Left <$> checked_control name
+    _ -> Left <$> control name

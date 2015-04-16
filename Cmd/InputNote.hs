@@ -224,7 +224,7 @@ input_to_nn (Pitch.Input _ pitch frac) = nn + Pitch.nn frac
     where nn = fromIntegral (pitch_to_nn pitch)
 
 cc_to_control :: Midi.Control -> Score.Control
-cc_to_control cc = fromMaybe (Score.control ("cc" <> showt cc))
+cc_to_control cc = fromMaybe (Score.unchecked_control ("cc" <> showt cc))
     (Map.lookup cc cc_control)
 
 control_to_cc :: Score.Control -> Maybe Midi.Control

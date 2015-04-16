@@ -198,9 +198,9 @@ c_redirect maybe_merge op_name =
     ("Redirect a signal to another control, using the control modifier hack.\
     \ The control is combined with " <> op_name <> ".")
     $ Sig.callt (required "control" "Redirect to this control.")
-    $ \control_ _args deriver -> do
+    $ \control _args deriver -> do
         (sig, logs) <- Post.derive_signal deriver
-        let control = Score.control control_
+        control <- Derive.require_right id $ Score.control control
         merge <- maybe (Derive.get_default_merge control) return maybe_merge
         Derive.modify_control merge control sig
         return $ map LEvent.Log logs
@@ -215,7 +215,8 @@ c_cf_sample = Derive.transformer Module.prelude "cf-sample"
     $ Sig.callt (Sig.many1 "control" "Sample these control functions.")
     $ \controls args deriver -> do
         start <- Args.real_start args
-        let cs = map Score.control (NonEmpty.toList controls)
-        vals <- mapM (flip Derive.control_at start) cs
+        controls <- mapM (Derive.require_right id . Score.control)
+            (NonEmpty.toList controls)
+        vals <- mapM (flip Derive.control_at start) controls
         foldr (uncurry Call.with_constant) deriver
-            [(c, Score.typed_val v) | (c, Just v) <- zip cs vals]
+            [(c, Score.typed_val v) | (c, Just v) <- zip controls vals]

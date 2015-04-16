@@ -74,9 +74,8 @@ newtype Control = Control Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)
 
-instance Pretty.Pretty Control where pretty = ShowVal.show_val
-instance ShowVal.ShowVal Control where
-    show_val (Control c) = Text.cons '%' c
+instance Pretty.Pretty Control where pretty = Text.cons '%' . ShowVal.show_val
+instance ShowVal.ShowVal Control where show_val (Control c) = c
 
 -- | The pitch control version of 'Control'.  Unlike Control, this is allowed
 -- to be null, which is the name of the default pitch signal.

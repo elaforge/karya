@@ -277,7 +277,7 @@ p_attributes = A.char '+'
 p_control :: A.Parser TrackLang.ValControl
 p_control = do
     A.char '%'
-    control <- Score.control <$> A.option "" (p_identifier ",")
+    control <- Score.unchecked_control <$> A.option "" (p_identifier ",")
     deflt <- ParseText.optional (A.char ',' >> p_num)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control

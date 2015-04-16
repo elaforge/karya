@@ -126,11 +126,11 @@ parse_control_type :: TrackLang.Symbol
     -> Either Text (Score.Typed Score.Control)
 parse_control_type (TrackLang.Symbol name) = case Text.uncons post of
     Just (':', t) -> do
-        control <- Score.checked_control pre
+        control <- Score.control pre
         typ <- maybe (Left $ "unknown type on control track: " <> showt t)
             Right $ Score.code_to_type (untxt t)
         return $ Score.Typed typ control
-    _ -> Score.untyped <$> Score.checked_control name
+    _ -> Score.untyped <$> Score.control name
     where (pre, post) = Text.break (==':') name
 
 unparse_typed :: Score.Typed Score.Control -> Text

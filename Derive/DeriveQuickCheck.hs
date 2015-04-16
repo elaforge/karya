@@ -175,9 +175,11 @@ update_state samples pos state = (List.foldl' go state pre, post)
     (pre, post) = break ((>pos) . sample_pos) samples
     go state (Sample name _ val)
         | name == "*" = state { state_pitch = parse_pitch val }
-        | otherwise = state { state_controls =
-            Map.insert (Score.control (txt name)) (parse_control (txt val))
-                (state_controls state) }
+        | otherwise = state
+            { state_controls = Map.insert (Score.unchecked_control (txt name))
+                (parse_control (txt val))
+                (state_controls state)
+            }
 
 parse_pitch :: String -> Pitch.NoteNumber
 parse_pitch text =

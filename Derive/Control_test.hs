@@ -136,12 +136,13 @@ test_relative_control = do
     equal (run2 "cont" ".5" "set cont" ".5") ([[(0, 0.5)]], [])
 
 test_default_merge = do
-    let run control = DeriveTest.extract (DeriveTest.e_control
-            (Score.control (txt control))) $ DeriveTest.derive_tracks ""
+    let run control = DeriveTest.extract (DeriveTest.e_control control) $
+            DeriveTest.derive_tracks ""
                 [ (">", [(0, 4, "")])
-                , (control, [(0, 0, ".5")])
-                , (control, [(0, 0, ".5")])
+                , (c, [(0, 0, ".5")])
+                , (c, [(0, 0, ".5")])
                 ]
+                where c = untxt $ Score.control_name control
     equal (run "dyn") ([[(0, 0.25)]], [])
     equal (run "t-dia") ([[(0, 1)]], [])
 
