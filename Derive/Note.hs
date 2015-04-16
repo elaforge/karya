@@ -63,10 +63,8 @@ extract_track_signal source events = mconcat $ case source of
     Track.Pitch control -> mapMaybe (extract_pitch control) events
     where
     extract_control control = fmap Score.typed_val . Score.event_control control
-    extract_pitch Nothing event = Just $ convert event $
-        Score.event_transformed_pitch event
-    extract_pitch (Just control) event =
-        convert event <$> Score.event_named_pitch control event
+    extract_pitch pcontrol event =
+        convert event <$> Score.event_pitch pcontrol event
     convert event psig = Signal.coerce $ fst $ PitchSignal.to_nn $
         -- Since these signals will be mconcatted into one signal, I don't
         -- want one event's control at 0 to wipe out the previous events.

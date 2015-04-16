@@ -18,7 +18,7 @@ test_parse_unparse_control = do
     equal (f "tempo") (Right "tempo")
     equal (f "c") (Right "c")
     equal (f "c:d") (Right "c:d")
-    left_like (f "c:q") "control should look like"
+    left_like (f "c:q") "unknown type"
     equal (f "%") (Right "%")
     equal (f "add %") (Right "add %")
     left_like (f "$ bad") "parse error"

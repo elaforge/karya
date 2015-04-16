@@ -139,16 +139,13 @@ note_render :: Cmd.M m => (Maybe Track.RenderSource -> Track.RenderStyle)
     -> Text -- ^ Either a control name, or a #-prefixed pitch name.
     -> m ()
 note_render mode control_name = do
+    control <- Cmd.require_right id $ Score.parse_generic_control control_name
     (block_id, _, track_ids, _, _) <- Selection.tracks
     PlayUtil.clear_cache block_id
     track_ids <- filterM is_note track_ids
-    mapM_ (State.set_render_style (mode (Just control))) track_ids
+    mapM_ (State.set_render_style
+        (mode (Just (either Track.Control Track.Pitch control)))) track_ids
     where
-    control = case Text.stripPrefix "#" control_name of
-        Nothing -> Track.Control $ Score.control control_name
-        Just s
-            | Text.null s -> Track.Pitch Nothing
-            | otherwise -> Track.Pitch $ Just (Score.control s)
     is_note = fmap ParseTitle.is_note_track . State.get_track_title
 
 no_render :: Cmd.CmdL ()

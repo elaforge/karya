@@ -51,7 +51,7 @@ test_serialize = do
 
     let rstyle =
             [ Track.Filled (Just (Track.Control (Score.control "hi")))
-            , Track.Line (Just (Track.Pitch (Just (Score.control "there"))))
+            , Track.Line (Just (Track.Pitch (Score.PControl "there")))
             ]
     equal rstyle (recode rstyle)
     let config = Instrument.config []

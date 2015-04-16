@@ -29,7 +29,7 @@ import Types
 
 transform :: (Derive.NoteDeriver -> Derive.NoteDeriver) -> Derive.Result
 transform trans = DeriveTest.derive State.empty $
-    Derive.with_constant_pitch Nothing
+    Derive.with_constant_pitch
         (DeriveTest.mkpitch12 "4c") (trans (DeriveTest.c_note 0 1))
 
 run_pitch_ :: String -> [(ScoreTime, String)] -> Derive.Result

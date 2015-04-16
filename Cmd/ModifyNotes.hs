@@ -118,13 +118,14 @@ instance Pretty.Pretty Control where
 control_to_title :: Control -> Text
 control_to_title control = ParseTitle.unparse_control $ case control of
     Control c -> ParseTitle.Control Nothing (Score.untyped c)
-    Pitch scale_id -> ParseTitle.Pitch scale_id Nothing
+    Pitch scale_id -> ParseTitle.Pitch scale_id Score.default_pitch
 
 title_to_control :: Text -> Either Text Control
 title_to_control title = ParseTitle.parse_control title >>= \x -> case x of
     ParseTitle.Control Nothing (Score.Typed Score.Untyped c) ->
         return $ Control c
-    ParseTitle.Pitch scale_id Nothing -> return $ Pitch scale_id
+    ParseTitle.Pitch scale_id pcontrol | pcontrol == Score.default_pitch ->
+        return $ Pitch scale_id
     _ -> Left $ "complicated controls unsupported: " <> title
 
 -- | Put the pitch tracks next to the note, the rest go in alphabetical order.

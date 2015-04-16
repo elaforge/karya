@@ -31,7 +31,7 @@ module Derive.Score (
     , modify_control
     , set_control, event_controls_at
     -- *** pitch
-    , default_pitch, set_pitch, set_named_pitch, event_named_pitch, event_pitch
+    , default_pitch, set_pitch, set_named_pitch, event_pitch
     , transposed_at, pitch_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
 
@@ -348,26 +348,21 @@ set_pitch :: PitchSignal.Signal -> Event -> Event
 set_pitch = set_named_pitch default_pitch
 
 set_named_pitch :: PControl -> PitchSignal.Signal -> Event -> Event
-set_named_pitch pcontrol@(BaseTypes.PControl name) signal event
+set_named_pitch pcontrol signal event
     | pcontrol == default_pitch = event
         { event_untransformed_pitch =
             PitchSignal.shift (- event_control_offset event) signal
         }
     | otherwise = event
-        { event_untransformed_pitches = Map.insert (BaseTypes.Control name)
+        { event_untransformed_pitches = Map.insert pcontrol
             (PitchSignal.shift (- event_control_offset event) signal)
             (event_untransformed_pitches event)
         }
 
--- | TODO remove in favor of event_pitch
-event_named_pitch :: Control -> Event -> Maybe PitchSignal.Signal
-event_named_pitch name = Map.lookup name . event_transformed_pitches
-
 event_pitch :: PControl -> Event -> Maybe PitchSignal.Signal
-event_pitch pcontrol@(BaseTypes.PControl name)
+event_pitch pcontrol
     | pcontrol == default_pitch = Just . event_transformed_pitch
-    | otherwise = Map.lookup (BaseTypes.Control name)
-        . event_transformed_pitches
+    | otherwise = Map.lookup pcontrol . event_transformed_pitches
 
 -- | Unlike 'Derive.Derive.pitch_at', the transposition has already been
 -- applied.  This is because callers expect to get the actual pitch, not the

@@ -451,14 +451,19 @@ instance Serialize Track.RenderStyle where
 
 instance Serialize Track.RenderSource where
     put (Track.Control a) = put_tag 0 >> put a
-    put (Track.Pitch a) = put_tag 1 >> put a
+    put (Track.Pitch a) = do
+        put_tag 1
+        -- It used to be @Maybe Score.Control@ but changed to Score.PControl.
+        -- RenderSource isn't versioned so adjust here.
+        let c = if a == Score.default_pitch then Nothing else Just a
+        put c
     get = get_tag >>= \tag -> case tag of
         0 -> do
             control :: Score.Control <- get
             return $ Track.Control control
         1 -> do
-            control :: Maybe Score.Control <- get
-            return $ Track.Pitch control
+            control :: Maybe Score.PControl <- get
+            return $ Track.Pitch (fromMaybe Score.default_pitch control)
         _ -> bad_tag "Track.RenderSource" tag
 
 -- ** Midi.Instrument

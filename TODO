@@ -4,8 +4,9 @@ LEGEND
 
 UNSORTED
   use Score.PControl for pitch controls
-    - BaseTypes.ControlMap
-    - Derive.get_named_pitch_control
+    - BaseTypes.PitchControl
+    * BaseTypes.PitchMap
+    * Derive.get_named_pitch_control
     - Typecheck instance for Control and PControl means I can put
       Score.parse_generic_control into the call signature.
       Also Val.c_get_pitch can directly take a PControl.

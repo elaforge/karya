@@ -197,8 +197,7 @@ with_sequence args deriver = do
     (pitch, mods) <- sequence_calls (pitch_call_info (Args.info args))
         (Args.range args) begin middle end
     end_time <- Derive.real $ Args.next args
-    Derive.with_pitch Nothing pitch $
-        Derive.with_control_mods mods end_time deriver
+    Derive.with_pitch pitch $ Derive.with_control_mods mods end_time deriver
 
 pitch_call_info :: Derive.CallInfo Score.Event -> Derive.CallInfo Derive.Pitch
 pitch_call_info cinfo = cinfo

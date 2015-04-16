@@ -17,7 +17,6 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
@@ -159,16 +158,15 @@ parse_equal maybe_merge lhs rhs
 parse_equal Nothing lhs rhs
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
         TrackLang.VPitch rhs ->
-            Right $ Derive.with_pitch control (PitchSignal.constant rhs)
+            Right $ Derive.with_named_pitch control (PitchSignal.constant rhs)
         TrackLang.VPitchControl rhs -> Right $ \deriver -> do
             sig <- Call.to_pitch_signal rhs
-            Derive.with_pitch control sig deriver
+            Derive.with_named_pitch control sig deriver
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
             <> " control, but got " <> pretty (TrackLang.type_of rhs)
     where
-    is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c))
-        | c == Controls.null = Just Nothing
-        | otherwise = Just (Just c)
+    is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c)) =
+        Just $ Score.PControl $ Score.control_name c
     is_pitch _ = Nothing
 parse_equal (Just merge) _ _ = Left $ merge_error merge
 parse_equal Nothing lhs val = Right $ Derive.with_val lhs val

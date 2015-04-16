@@ -94,8 +94,8 @@ eval_track track expr ctype deriver = case ctype of
         let sig_deriver = with_control_env control_name (merge_name merge) $
                 derive_control False track transform
         control_call track control merge sig_deriver deriver
-    ParseTitle.Pitch scale_id maybe_name ->
-        pitch_call track maybe_name scale_id transform deriver
+    ParseTitle.Pitch scale_id pcontrol ->
+        pitch_call track pcontrol scale_id transform deriver
     where
     transform :: Derive.Callable d => Derive.LogsDeriver d
         -> Derive.LogsDeriver d
@@ -189,10 +189,10 @@ merge_logs logs deriver = do
     events <- deriver
     return $ Derive.merge_events (map LEvent.Log logs) events
 
-pitch_call :: TrackTree.Track -> Maybe Score.Control -> Pitch.ScaleId
+pitch_call :: TrackTree.Track -> Score.PControl -> Pitch.ScaleId
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-pitch_call track maybe_name scale_id transform deriver =
+pitch_call track pcontrol scale_id transform deriver =
     Internal.track_setup track $ do
         scale <- get_scale scale_id
         Derive.with_scale scale $ do
@@ -204,7 +204,7 @@ pitch_call track maybe_name scale_id transform deriver =
             -- derive.
             end <- Derive.real $ TrackTree.track_end track
             Derive.eval_control_mods end $ merge_logs logs $ with_damage $
-                Derive.with_pitch maybe_name signal deriver
+                Derive.with_named_pitch pcontrol signal deriver
     where
     with_damage = with_control_damage (TrackTree.block_track_id track)
         (TrackTree.track_range track)

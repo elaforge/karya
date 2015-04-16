@@ -53,8 +53,8 @@ data ControlType =
     -- | Control track with an optional combining operator.
     Control (Maybe TrackLang.CallId) (Score.Typed Score.Control)
     -- | Pitch track that sets a ScaleId (unless it's 'Pitch.empty_scale'),
-    -- and sets the given pitch.
-    | Pitch Pitch.ScaleId (Maybe Score.Control)
+    -- and sets the given pitch signal.
+    | Pitch Pitch.ScaleId Score.PControl
     -- | Tempo track with an optional modifying symbol.
     | Tempo (Maybe TrackLang.Symbol)
     deriving (Show)
@@ -74,7 +74,7 @@ parse_control_expr title = do
 parse_control_vals :: [TrackLang.Val] -> Either Text ControlType
 parse_control_vals vals = case vals of
     --  *twelve -> default pitch track in twelve
-    [scale -> Just scale_id] -> Right $ Pitch scale_id Nothing
+    [scale -> Just scale_id] -> Right $ Pitch scale_id Score.default_pitch
     --  *twelve # -> default pitch track in twelve
     --  *twelve #name -> named pitch track
     [scale -> Just scale_id, pitch_control_of -> Just cont] ->
@@ -117,10 +117,9 @@ parse_control_vals vals = case vals of
             _ -> Nothing
     scale _ = Nothing
 
-    pitch_control_of :: TrackLang.Val -> Maybe (Maybe Score.Control)
-    pitch_control_of (TrackLang.VPitchControl (TrackLang.LiteralControl cont))
-        | cont == Controls.null = Just Nothing
-        | otherwise = Just (Just cont)
+    pitch_control_of :: TrackLang.Val -> Maybe Score.PControl
+    pitch_control_of (TrackLang.VPitchControl (TrackLang.LiteralControl c)) =
+        Just $ Score.PControl (Score.control_name c)
     pitch_control_of _ = Nothing
 
 parse_control_type :: TrackLang.Symbol
@@ -128,8 +127,8 @@ parse_control_type :: TrackLang.Symbol
 parse_control_type (TrackLang.Symbol name) = case Text.uncons post of
     Just (':', t) -> do
         control <- Score.checked_control pre
-        typ <- maybe (Left $ "unknown type: " <> showt t) Right $
-            Score.code_to_type (untxt t)
+        typ <- maybe (Left $ "unknown type on control track: " <> showt t)
+            Right $ Score.code_to_type (untxt t)
         return $ Score.Typed typ control
     _ -> Score.untyped <$> Score.checked_control name
     where (pre, post) = Text.break (==':') name
@@ -152,13 +151,14 @@ unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
     Control call control -> maybe [] ((:[]) . TrackLang.VSymbol) call
         ++ [control_val control]
-    Pitch (Pitch.ScaleId scale_id) name ->
+    Pitch (Pitch.ScaleId scale_id) pcontrol@(Score.PControl name) ->
         TrackLang.VSymbol (TrackLang.Symbol (Text.cons '*' scale_id))
-            : maybe [] ((:[]) . pitch_control) name
+        : if pcontrol == Score.default_pitch then [] else
+            [TrackLang.VPitchControl $ TrackLang.LiteralControl $
+                Score.control name]
     Tempo maybe_sym -> TrackLang.VSymbol "tempo"
         : maybe [] ((:[]) . TrackLang.VSymbol)  maybe_sym
     where
-    pitch_control = TrackLang.VPitchControl . TrackLang.LiteralControl
     control_val c
         | c == Score.untyped Controls.null = empty_control
         | otherwise = TrackLang.VSymbol $ TrackLang.Symbol (unparse_typed c)
@@ -232,7 +232,7 @@ title_to_scale title = case parse_control title of
     _ -> Nothing
 
 scale_to_title :: Pitch.ScaleId -> Text
-scale_to_title scale_id = unparse_control (Pitch scale_id Nothing)
+scale_to_title scale_id = unparse_control (Pitch scale_id Score.default_pitch)
 
 is_pitch_track :: Text -> Bool
 is_pitch_track = ("*" `Text.isPrefixOf`)

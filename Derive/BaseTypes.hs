@@ -643,7 +643,7 @@ empty_dynamic = Dynamic
 
 type ControlMap = Map.Map Control TypedControl
 type ControlFunctionMap = Map.Map Control ControlFunction
-type PitchMap = Map.Map Control Signal
+type PitchMap = Map.Map PControl Signal
 
 instance Show ControlFunction where show = untxt . ShowVal.show_val
 instance Pretty.Pretty ControlFunction where pretty = showt

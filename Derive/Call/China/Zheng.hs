@@ -129,7 +129,7 @@ c_note_trill start_dir = Derive.make_call module_ "tr" Tags.ly
     Lily.note_code (Lily.SuffixFirst, "\\trill") args $ do
         pitch <- Call.get_pitch =<< Args.real_start args
         sig <- trill_signal start_dir pitch neighbor speed hold args
-        Derive.with_pitch Nothing sig $ Call.placed_note args
+        Derive.with_pitch sig $ Call.placed_note args
 
 c_pitch_trill :: Maybe Trill.Direction -> Derive.Generator Derive.Pitch
 c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty

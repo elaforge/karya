@@ -202,12 +202,12 @@ composite_call args composites = mconcatMap (split args) composites
         Derive.with_instrument inst $ with_pitch pitch $
         with_controls controls $ Eval.reapply_generator args call
     with_pitch p deriver = case p of
-        NoPitch -> Derive.with_pitch Nothing mempty deriver
+        NoPitch -> Derive.with_pitch mempty deriver
         Pitch control
             | control == Score.default_pitch -> deriver
             | otherwise -> do
                 sig <- Derive.get_pitch control
-                Derive.with_pitch Nothing (fromMaybe mempty sig) deriver
+                Derive.with_pitch (fromMaybe mempty sig) deriver
     with_controls controls deriver = do
         cmap <- Derive.get_controls
         cfuncs <- Derive.get_control_functions

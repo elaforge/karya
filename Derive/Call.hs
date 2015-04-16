@@ -274,7 +274,7 @@ dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
     Derive.control_at Controls.dynamic pos
 
 with_pitch :: PitchSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
-with_pitch = Derive.with_constant_pitch Nothing
+with_pitch = Derive.with_constant_pitch
 
 with_symbolic_pitch :: TrackLang.PitchCall -> ScoreTime -> Derive.Deriver a
     -> Derive.Deriver a

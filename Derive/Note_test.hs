@@ -62,7 +62,7 @@ test_derive_track_signals = do
         extract = Map.toList
             . Map.map (Signal.unsignal . Track.ts_signal)
             . Derive.r_track_signals
-        pitch = Just (Track.Pitch Nothing)
+        pitch = Just (Track.Pitch Score.default_pitch)
     equal (run 1 pitch $ UiTest.regular_notes 4)
         [((UiTest.default_block_id, UiTest.mk_tid 1),
             [(0, 48), (1, 50), (2, 52), (3, 53)])]
@@ -91,7 +91,7 @@ test_stash_signal = do
         want control state = UiTest.exec state $
             State.set_render_style (Track.Line (Just control)) (UiTest.mk_tid 2)
         dyn = Track.Control Score.c_dynamic
-        pitch = Track.Pitch Nothing
+        pitch = Track.Pitch Score.default_pitch
     equal (run dyn [(0, 0, "1")] [("dyn", [(0, 0, ".5"), (1, 0, "1")])])
         (Just [(0, 0.5), (1, 1)])
     equal (run pitch [(0, 0, "1")] [("*", [(0, 0, "4c"), (1, 0, "4d")])])

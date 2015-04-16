@@ -514,7 +514,7 @@ test_tempo_roundtrip = do
 test_named_pitch = do
     let run op = DeriveTest.eval State.empty (op $ Derive.named_nn_at "psig" 2)
         pitch = DeriveTest.mkpitch12 "4c"
-        with_const pname = Derive.with_constant_pitch (Just pname) pitch
+        with_const pname = Derive.with_constant_named_pitch pname pitch
     equal (run (with_const "psig")) (Right (Just 60))
     equal (run (with_const "bad")) (Right Nothing)
 

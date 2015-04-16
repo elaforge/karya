@@ -104,8 +104,7 @@ data RenderStyle = NoRender | Line !(Maybe RenderSource)
     | Filled !(Maybe RenderSource)
     deriving (Eq, Read, Show)
 
--- | Pitch Nothing is the defaulted unnamed pitch signal.
-data RenderSource = Control Score.Control | Pitch (Maybe Score.Control)
+data RenderSource = Control Score.Control | Pitch Score.PControl
     deriving (Eq, Read, Show)
 
 instance Pretty.Pretty RenderStyle where pretty = showt

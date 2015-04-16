@@ -663,10 +663,7 @@ nn_at pos = justm (pitch_at pos) $ \pitch ->
 get_pitch :: Score.PControl -> Deriver (Maybe PitchSignal.Signal)
 get_pitch name
     | name == Score.default_pitch = Just <$> Internal.get_dynamic state_pitch
-    | otherwise = Map.lookup cname <$> Internal.get_dynamic state_pitches
-    where
-    cname = case name of
-        Score.PControl n -> Score.control n
+    | otherwise = Map.lookup name <$> Internal.get_dynamic state_pitches
 
 named_nn_at :: Score.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do
@@ -684,31 +681,37 @@ logged_pitch_nn msg pitch = case PitchSignal.pitch_nn pitch of
         return Nothing
     Right nn -> return $ Just nn
 
--- | Run the deriver in a context with the given pitch signal.  If a Control
--- is given, the pitch has that name, otherwise it's the unnamed default
--- pitch.
-with_pitch :: Maybe Score.Control -> PitchSignal.Signal
-    -> Deriver a -> Deriver a
-with_pitch cont = modify_pitch cont . const
+-- | Run the deriver in a context with the given pitch signal.
+with_named_pitch :: Score.PControl -> PitchSignal.Signal -> Deriver a
+    -> Deriver a
+with_named_pitch control = modify_pitch control . const
 
-with_constant_pitch :: Maybe Score.Control -> PitchSignal.Pitch
+with_pitch :: PitchSignal.Signal -> Deriver a -> Deriver a
+with_pitch = with_named_pitch Score.default_pitch
+
+with_constant_named_pitch :: Score.PControl -> PitchSignal.Pitch
     -> Deriver a -> Deriver a
-with_constant_pitch maybe_name = with_pitch maybe_name . PitchSignal.constant
+with_constant_named_pitch control =
+    with_named_pitch control . PitchSignal.constant
+
+with_constant_pitch :: PitchSignal.Pitch -> Deriver a -> Deriver a
+with_constant_pitch = with_pitch . PitchSignal.constant
 
 with_no_pitch :: Deriver a -> Deriver a
-with_no_pitch = modify_pitch Nothing (const mempty)
+with_no_pitch = modify_pitch Score.default_pitch (const mempty)
 
 pitch_signal_scale :: Scale -> PitchSignal.Scale
 pitch_signal_scale scale =
     PitchSignal.Scale (scale_id scale) (scale_transposers scale)
 
-modify_pitch :: Maybe Score.Control
+modify_pitch :: Score.PControl
     -> (Maybe PitchSignal.Signal -> PitchSignal.Signal)
     -> Deriver a -> Deriver a
-modify_pitch Nothing f = Internal.local $ \st ->
-    st { state_pitch = f (Just (state_pitch st)) }
-modify_pitch (Just name) f = Internal.local $ \st ->
-    st { state_pitches = Map.alter (Just . f) name (state_pitches st) }
+modify_pitch pcontrol f
+    | pcontrol == Score.default_pitch = Internal.local $ \st ->
+        st { state_pitch = f (Just (state_pitch st)) }
+    | otherwise = Internal.local $ \st ->
+        st { state_pitches = Map.alter (Just . f) pcontrol (state_pitches st) }
 
 -- | Run the derivation with a modified scope.
 with_scopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a
