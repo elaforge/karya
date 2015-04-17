@@ -689,8 +689,12 @@ performance:
       can I make this more efficient?
 
 fltk:
-  - Some indication which window has focus.  When I switch to the REPL I can't
+  * Some indication which window has focus.  When I switch to the REPL I can't
     see which block is focused.  Make the block text red?
+    . Make skeleton bg pink, that's more visible.
+    . It should not be saved in the score, so shouldn't be in View.
+      In fact, fltk knows where focus is, can't it handle it entirely
+      internally?
   ? There's an extra axis of information in the width of the event body.  How
     could I use that?
   - Text in negative events doesn't wrap.

@@ -11,6 +11,7 @@ const Color abbreviation_color = Color::from_rgba_word(
 const Color event_trigger_color = Color(255, 0, 0);
 
 const Color skeleton_display_bg = Color(0xb0, 0xb0, 0xb0);
+const Color focus_skeleton_display_bg = Color(0xe0, 0xb0, 0xb0);
 const Color block_bg = Color(0xcc, 0xcc, 0xcc);
 
 FreeHaskellFunPtr _free_haskell_fun_ptr = 0;

@@ -165,8 +165,10 @@ data Config = Config {
 
 default_config :: Config
 default_config = Config
-    (box Config.bconfig_box) (box Config.bconfig_box) (box Config.bconfig_box)
-    where box = uncurry Box
+    { config_skel_box = box Config.bconfig_box
+    , config_track_box = box Config.bconfig_box
+    , config_sb_box = box Config.bconfig_box
+    } where box = uncurry Box
 
 instance Pretty.Pretty Config where
     format (Config skel track sb) = Pretty.record "Config"

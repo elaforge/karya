@@ -99,6 +99,7 @@ public:
     void set_model_config(
         const BlockModelConfig &config, bool update_all=false);
     void set_skeleton(const SkeletonConfig &skel);
+    void set_skeleton_display_bg(const Color &color);
 
     // Set the zoom, which is the view rectangle in the timewise direction.
     const ZoomInfo &get_zoom() const { return zoom; }

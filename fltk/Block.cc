@@ -300,6 +300,16 @@ BlockView::set_skeleton(const SkeletonConfig &skel)
 
 
 void
+BlockView::set_skeleton_display_bg(const Color &color)
+{
+    if (color.fl() != skel_display.color()) {
+        skel_display.color(color.fl());
+        skel_display.redraw();
+    }
+}
+
+
+void
 BlockView::set_zoom(const ZoomInfo &zoom)
 {
     // This function, and hence set_zoom_attr below, is called from the outside
@@ -776,6 +786,21 @@ BlockViewWindow::initialize(Config::FreeHaskellFunPtr free_haskell_fun_ptr)
 }
 
 
+static void
+highlight_focused(BlockViewWindow *focus)
+{
+    for (Fl_Window *w = Fl::first_window(); w; w = Fl::next_window(w)) {
+        BlockViewWindow *block = dynamic_cast<BlockViewWindow *>(w);
+        if (block) {
+            block->block.set_skeleton_display_bg(
+                block == focus ? Config::focus_skeleton_display_bg
+                    : Config::skeleton_display_bg
+            );
+        }
+    }
+}
+
+
 int
 BlockViewWindow::handle(int evt)
 {
@@ -809,6 +834,7 @@ BlockViewWindow::handle(int evt)
             MsgCollector::get()->event(evt, block.event_in_track_area());
             break;
         case FL_FOCUS:
+            highlight_focused(this);
             // This is sent *before* the widget becomes Fl::focus().
             MsgCollector::get()->focus(this);
             break;

@@ -64,7 +64,6 @@ create(int x, int y, int w, int h, const char *label,
     return win;
 }
 
-
 void
 destroy(BlockViewWindow *view)
 {
@@ -101,7 +100,6 @@ set_track_scroll(BlockViewWindow *view, int pixels)
     view->block.set_track_scroll(pixels);
 }
 
-
 void
 set_selection(BlockViewWindow *view, int selnum, int tracknum,
     Selection *sels, int nsels)
@@ -122,8 +120,8 @@ set_selection(BlockViewWindow *view, int selnum, int tracknum,
     view->block.set_selection(selnum, tracknum, sels_vector);
 }
 
-
-void bring_to_front(BlockViewWindow *view)
+void
+bring_to_front(BlockViewWindow *view)
 {
     view->show();
 }
@@ -157,7 +155,7 @@ set_status(BlockViewWindow *view, const char *status, Color *color)
 
 void
 set_display_track(BlockViewWindow *view, int tracknum,
-        DisplayTrack *dtrack)
+    DisplayTrack *dtrack)
 {
     view->block.set_display_track(tracknum, *dtrack);
 }
