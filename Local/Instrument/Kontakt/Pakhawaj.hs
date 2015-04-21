@@ -43,12 +43,14 @@ pitched_notes :: CUtil.PitchedNotes
 both_calls :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
 both_calls = Mridangam.make_both left_notes right_notes special_names
     [ ("D", 'c')
+    , ("T", 'f')
     , ("E", 'v')
     ]
     where
     special_names =
         [ ("D", ["o", "u"]) -- dha
         , ("E", ["o", "k"]) -- dhet
+        , ("T", ["+", "k"]) -- thet
         ]
 
 write_ksp :: IO ()

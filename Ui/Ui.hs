@@ -70,12 +70,12 @@ send_action ui_chan act = do
 
 -- | The FLTK event loop.
 fltk_event_loop :: Channel -> STM.TChan UiMsg.UiMsg -> IO ()
-fltk_event_loop acts_mvar msg_chan = do
+fltk_event_loop ui_chan msg_chan = do
     wait
     -- I think that fltk will wake up once for every call to awake, so I
     -- shouldn't have to worry about another awake call coming in right
     -- here.
-    handle_actions acts_mvar
+    handle_actions ui_chan
     ui_msgs <- UiMsgC.get_ui_msgs
     STM.atomically $ mapM_ (STM.writeTChan msg_chan) ui_msgs
 
@@ -84,7 +84,7 @@ fltk_event_loop acts_mvar msg_chan = do
 -- will also wedge up.  That's not exactly good, but it lets me know something
 -- has gone wrong quickly.
 handle_actions :: Channel -> IO ()
-handle_actions acts_mvar = MVar.modifyMVar_ acts_mvar $ \acts -> do
+handle_actions ui_chan = MVar.modifyMVar_ ui_chan $ \acts -> do
     -- Since acts are added to the front, reverse them before executing.
     sequence_ [act | Fltk act <- reverse acts]
         `Exception.catch` \(exc :: Exception.SomeException) ->
