@@ -11,6 +11,8 @@ import qualified Derive.Score as Score
 
 import qualified Local.Instrument.Kontakt as Kontakt
 
+import Global
+
 
 test_pattern = do
     let run = DeriveTest.extract extract
@@ -31,6 +33,18 @@ test_pattern = do
     equal (run [(2, 6, "pn kt 3")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+ta"), (6, "+ki"),
             (7, "+ta")], [])
+
+test_infer_pattern = do
+    let run title = DeriveTest.extract extract
+            . derive_tracks ("import india.mridangam" <> title)
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+        attrs = map ('+':) ["ki", "ta", "ki", "nam", "thom"]
+    equal (run " | pattern = \"(pi 0 1)" [(1, 5, "p1")])
+        (zip [1, 2, 3, 4, 5] attrs, [])
+    equal (run " | pattern = \"(pi 0 1)" [(1, 6, "p1")])
+        (zip [1, 2, 4, 5, 6] attrs, [])
+    equal (run " | pattern = \"(pi 0 1)" [(1, 7, "p1")])
+        (zip [1, 3, 5, 6, 7] attrs, [])
 
 derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
 derive_tracks title notes = DeriveTest.derive_tracks_with with_synth title

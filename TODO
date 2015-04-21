@@ -30,7 +30,7 @@ UNSORTED
       sub-events.  I should find a better name for it so NoteTransformer can be
       Derive.Transformer Derive.Note.
       . Perhaps SubGenerator?  ParentGenerator?
-    - shouldn't Derive/Call/Post go into Derive/Call/Prelude?
+    / shouldn't Derive/Call/Post go into Derive/Call/Prelude?
     - Post.Move module and infer-duration call need better names now that it's
       a general purpose call.
   - It's confusing how sometimes the environ is applied to the pitch during
@@ -99,7 +99,6 @@ UNSORTED
       - hmm, looks like I'm not importing Local.Repl any more
     . make the repl support :m
     . bundle them into the instrument db
-  - meter type and the construction functions should be integrated more tightly
   - even though I sort events after derivation now, I still rely on them being
     sorted, because of things like Post.same_hand.  It used to be out-of-order
     would be reported by convert, but now it will just silently mess up
@@ -897,6 +896,8 @@ Cmd:
     happens when the module is reloaded?
 
   ruler:
+    - meter type and the construction functions should be integrated more
+      tightly
     - LRuler.inject, opposite of extract, replaces sub-block rulers
   Cmd.Edit
     - alternate finale-like note entry: hold down step key to set step and

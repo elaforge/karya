@@ -4,6 +4,7 @@
 
 -- | Library of standard mridangam patterns.
 module Derive.Call.India.Mridangam where
+import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.Text as Text
 
@@ -27,6 +28,11 @@ note_calls = Derive.generator_call_map
     , ("pn", c_pattern_times)
     , ("pr", c_pattern_repeat False)
     , ("Pr", c_pattern_repeat True)
+    ]
+
+val_calls :: [Derive.LookupCall Derive.ValCall]
+val_calls = Derive.call_map
+    [ ("pi", c_infer_pattern)
     ]
 
 module_ :: Module.Module
@@ -96,11 +102,29 @@ realize_pattern cinfo = map realize . Text.unpack
 
 -- * patterns
 
--- These are not exposed in any way, and I'm not even sure how they should be
--- exposed.
+c_infer_pattern :: Derive.ValCall
+c_infer_pattern = Derive.val_call module_ "infer-pattern" mempty
+    "Pick a pattern based on the event duration."
+    $ Sig.call ((,)
+    <$> Sig.defaulted "var" 0 "Variation."
+    <*> Sig.defaulted "dur" 0.25 "Duration for each note."
+    ) $ \(var, dur) args -> do
+        let notes = round $ Args.duration args / dur
+        Derive.require
+            ("invalid variation: " <> showt (Args.duration args, var)) $
+            infer_pattern notes var
 
-p5 :: [Text]
-p5 =
+infer_pattern :: Int -> Int -> Maybe Text
+infer_pattern dur var = IntMap.lookup dur =<< Seq.at patterns var
+
+patterns :: [IntMap.IntMap Text]
+patterns =
+    [ IntMap.fromList [(5, p5), (6, p6), (7, p7)]
+    | (p5, p6, p7) <- zip3 pattern5 pattern6 pattern7
+    ]
+
+pattern5 :: [Text]
+pattern5 =
     [ "ktkno"
     , "k t k kto "
     , "k t k kno "
@@ -112,8 +136,8 @@ p5 =
     , "k+kD ktkno"
     ]
 
-p6 :: [Text]
-p6 =
+pattern6 :: [Text]
+pattern6 =
     [ "kt kno"
     , "k t   k kto "
     , "k t   k kno "
@@ -125,8 +149,8 @@ p6 =
     , "k+ kD kt kno"
     ]
 
-p7 :: [Text]
-p7 =
+pattern7 :: [Text]
+pattern7 =
     [ "k t kno"
     , "k   t   k kto "
     , "k   t   k kno "
@@ -137,6 +161,9 @@ p7 =
     , "k+n+k t kt kno"
     , "k+  kD k t kno"
     ]
+
+-- These are not exposed in any way, and I'm not even sure how they should be
+-- exposed.
 
 faran_base :: Text
 faran_base = "n+u+kt+k" -- naka tiku tari kita
