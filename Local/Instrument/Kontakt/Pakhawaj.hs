@@ -26,7 +26,7 @@ patches = [(patch "pakhawaj" pitched_notes, code)]
 
 pitched_notes :: CUtil.PitchedNotes
 (pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
-    CUtil.make_keymap Key2.c_2 Key2.c_1 12 NN.fs3
+    CUtil.make_cc_keymap Key2.c_1 12 NN.fs3
         [ [ki]
         , [ge]
         , [tet]

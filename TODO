@@ -8,8 +8,6 @@ UNSORTED
       off.  Velocity should be logical, so if you play all at the same
       velocity it's like the same dynamic for all strokes.
       . Or I could make + be 0.5, and * be full volume.
-    - should be a quiet version of o., maybe it should o_, then we have o- and
-      o= for low and high.  Or o., o_, o-
     - perhaps only pitched notes should change with the tuning?
 
   Keyswitch means notes can't be played together.
@@ -34,7 +32,7 @@ UNSORTED
       allocated.
       . Currently they definitely won't, because the performer assumes that
         all controls affect the sound, and so you can't share with any control.
-  - >kontakt/pakhawaj should also use the ControlSwitch approach.
+  * >kontakt/pakhawaj should also use the ControlSwitch approach.
   - undo is not undoing a change to the inst config
   use Score.PControl for pitch controls
     * BaseTypes.PitchControl
