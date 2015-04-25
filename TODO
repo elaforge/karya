@@ -3,6 +3,39 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  mridangam:
+    - tha is too loud... I can compensate by using -, but maybe the scale is
+      off.  Velocity should be logical, so if you play all at the same
+      velocity it's like the same dynamic for all strokes.
+      . Or I could make + be 0.5, and * be full volume.
+    - should be a quiet version of o., maybe it should o_, then we have o- and
+      o= for low and high.  Or o., o_, o-
+    - perhaps only pitched notes should change with the tuning?
+
+  Keyswitch means notes can't be played together.
+    . Do keyswitch with poly AT.
+      . Using poly AT requires that I use KSP instead of the built-in thing.
+      . use allow_group(i) and disallow_group(i)
+        find_group("name") to do it by name
+      . KSP makes this complicated, I can't use allow_group() since it's
+        global.  I need to recreate groups by routing the event myself, but
+        KSP may not let me do that.
+    * A simpler approach but only allows two dimensions, is for all other
+      groups to work on any keyswitch.  But to extend to multiple dimensions,
+      I need to use other controls, e.g.  CCs.  But I need to make sure that
+      the performer knows that it can ignore control for notes that don't have
+      that keyswitch.
+    / Stop group KSP only understands keyswitches.  It needs to be extended to
+      understand CCs.
+      . Maybe I can avoid this by saying that all variations in the same range
+        belong to the same stop group.
+    - Simultaneous notes with different ControlSwitch cc numbers should share
+      a channel.  Of course it'll work anyway if only one channel is
+      allocated.
+      . Currently they definitely won't, because the performer assumes that
+        all controls affect the sound, and so you can't share with any control.
+  - >kontakt/pakhawaj should also use the ControlSwitch approach.
+  - undo is not undoing a change to the inst config
   use Score.PControl for pitch controls
     * BaseTypes.PitchControl
     * BaseTypes.PitchMap
@@ -21,7 +54,6 @@ UNSORTED
     . Also in Derive.Parse.p_pitch_control and p_control
     . Actually, it already does, except it uses Id.  Perhaps I should just
       reuse Id.valid?
-  - 'smooth' pitch transformer
   * I could smooth pitch changes in each note with "mapc '#' smooth .1"
     Zheng or vocal-style instruments could use this.
   rename:
@@ -77,7 +109,7 @@ UNSORTED
     . This could also be useful to set the "normal" duration for an arbitrary
       call, not just a block call.  But I'd need a ScoreTime duration for
       that.
-    . Actually, ScoreTime is what blocks use and I can't RealTime unless I
+    . Actually, ScoreTime is what blocks use and I can't use RealTime unless I
       put it in Collect so I can set it after the tempo track.
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
@@ -111,10 +143,6 @@ UNSORTED
       norot I can place notes based on the passed-in dur.  If it were
       normalized, I'd have to unwarp back to TrackTime... can I even do that?
 
-  - I should be able to move samples only when converting to MIDI, this way
-    I don't need to move parts of the signal that wind up being trimmed.
-    Either try to trim the signal earlier again, or delay transformation to
-    Perform.
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
   - fix control scope in parent events that cover up an orphan, as
@@ -282,8 +310,6 @@ UNSORTED
     Maybe I should extend Midi.Interface.note_tracker to keep track of
     used CCs to issue resets for them.  Some reset to 1, e.g. cc2 and cc7,
     the rest reset to 0.
-  - if I added the cmd name before running the cmd, I could put it in the
-    error msg when an exception is caught.
 
 MILESTONES
   0.1
@@ -608,6 +634,10 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
+  - I should be able to move samples only when converting to MIDI, this way
+    I don't need to move parts of the signal that wind up being trimmed.
+    Either try to trim the signal earlier again, or delay transformation to
+    Perform.
   - chained transformers should work lazily, right?  Make sure with trace.
     Probably not, actually, because the state is threaded through.  I'd have
     to disconnect the state.
@@ -1136,6 +1166,9 @@ Derive:
           damped.  Damp at the first opportunity, where opportunity is defined
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
+
+  pitch calls:
+    - 'smooth' pitch transformer
 
   control calls:
     - signal transformations: +, *, max, min

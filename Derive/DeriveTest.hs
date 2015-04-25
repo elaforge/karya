@@ -544,6 +544,9 @@ extract_midi midi =
     | Midi.WriteMessage _ ts msg <- interesting_midi midi
     ]
 
+extract_midi_msg :: [Midi.WriteMessage] -> [Midi.Message]
+extract_midi_msg = map snd . extract_midi
+
 -- | Filter out boring msgs that I don't want tests to rely on.
 interesting_midi :: [Midi.WriteMessage] -> [Midi.WriteMessage]
 interesting_midi = filter $ \wmsg -> case Midi.wmsg_msg wmsg of

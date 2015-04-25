@@ -10,23 +10,32 @@ import Global
 
 
 test_mridangam = do
-    let run pitch notes tracks = KontaktTest.derive "" $
-            [ ("*", [(0, 0, pitch)])
-            , (">kontakt/mridangam",
-                [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) notes])
-            ] ++ tracks
-        perf = KontaktTest.perform ["kontakt/mridangam"] . Derive.r_events
-    let (_events, midi, logs) =
-            perf $ run "3b" ["k", "t", "n", "d", "i"] []
+    let run pitch = KontaktTest.derive ("# = (" <> pitch <> ")")
+            . map (((,) ">kontakt/mridangam2") . notes)
+        notes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
+        perf = KontaktTest.perform ["kontakt/mridangam2"] . Derive.r_events
+
+    let (_events, midi, logs) = perf $ run "3g#" [["k", "t", "n", "d", "i"]]
     equal logs []
     equal (mapMaybe Midi.channel_message $ filter Midi.is_note_on $
-            map snd (DeriveTest.extract_midi midi))
-        [ Midi.NoteOn Key.d3 127, Midi.NoteOn Key.d4 127
-        , Midi.NoteOn Key.d5 127, Midi.NoteOn Key.d6 127
-        , Midi.NoteOn Key.d8 127
+            DeriveTest.extract_midi_msg midi)
+        [ Midi.NoteOn Key.c2 127, Midi.NoteOn Key.c3 127
+        , Midi.NoteOn Key.c4 127, Midi.NoteOn Key.c5 127
+        , Midi.NoteOn Key.c7 127
         ]
+
     -- Ensure multiple calls works.  This is already tested in
     -- "Derive.Call_test", but here's another test.
-    equal (DeriveTest.extract DeriveTest.e_attributes $
-            run "3b" ["do"] [("dyn", [(0, 0, ".5")])])
+    equal (DeriveTest.extract DeriveTest.e_attributes $ run "3b" [["do"]])
         (["+din", "+thom"], [])
+
+    -- I get ControlChange.
+    let (_events, midi, logs) = perf $ run "3g#" [["n", "d"], ["o/"]]
+    equal logs []
+    let extract = mapMaybe Midi.channel_message . DeriveTest.extract_midi_msg
+    equal (extract midi)
+        [ Midi.ControlChange 102 2, Midi.NoteOn Key.c1 127
+        , Midi.NoteOn Key.c4 127
+        , Midi.NoteOff Key.c1 127, Midi.NoteOff Key.c4 127
+        , Midi.NoteOn Key.c5 127, Midi.NoteOff Key.c5 127
+        ]

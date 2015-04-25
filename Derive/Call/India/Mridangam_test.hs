@@ -15,8 +15,7 @@ import Global
 
 
 test_pattern = do
-    let run = DeriveTest.extract extract
-            . derive_tracks "import india.mridangam"
+    let run = DeriveTest.extract extract . derive_tracks ""
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
     equal (run [(2, 5, "p1 ktkno")])
         ([(2, "+ki"), (3, "+ta"), (4, "+ki"), (5, "+nam"), (6, "+thom")], [])
@@ -35,11 +34,10 @@ test_pattern = do
             (7, "+ta")], [])
 
 test_infer_pattern = do
-    let run title = DeriveTest.extract extract
-            . derive_tracks ("import india.mridangam" <> title)
+    let run title = DeriveTest.extract extract . derive_tracks title
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
         attrs = map ('+':) ["ki", "ta", "ki", "nam", "thom"]
-    equal (run " | pattern = \"(pi 0 1)" [(1, 5, "p1")])
+    equal (run " | pattern = \"(pi 0 1)" [(1, 5, "p1 (pi 0 1)")])
         (zip [1, 2, 3, 4, 5] attrs, [])
     equal (run " | pattern = \"(pi 0 1)" [(1, 6, "p1")])
         (zip [1, 2, 4, 5, 6] attrs, [])
@@ -47,7 +45,8 @@ test_infer_pattern = do
         (zip [1, 3, 5, 6, 7] attrs, [])
 
 derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
-derive_tracks title notes = DeriveTest.derive_tracks_with with_synth title
+derive_tracks title notes = DeriveTest.derive_tracks_with with_synth
+    ("import india.mridangam" <> title)
     [(">kontakt/mridangam", notes)]
 
 with_synth :: Derive.Deriver a -> Derive.Deriver a

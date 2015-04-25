@@ -202,9 +202,12 @@ drum_patch note_keys = Instrument.triggered
         [(Drums.note_attrs note, key) | (note, key) <- note_keys])
 
 -- | (keyswitch, low, high, root_pitch)
-type KeyswitchRange = (Maybe Midi.Key, Midi.Key, Midi.Key, Pitch.NoteNumber)
+type KeyswitchRange =
+    ([Instrument.Keyswitch], Midi.Key, Midi.Key, Pitch.NoteNumber)
 type PitchedNotes = [(Drums.Note, KeyswitchRange)]
 
+-- | Make a KeyswitchRange for each grouped Attributes set.  Attributes in the
+-- same group get the same range and are differentiated by keyswitch.
 make_keymap :: Midi.Key -- ^ keyswitches start here
     -> Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
@@ -213,25 +216,48 @@ make_keymap :: Midi.Key -- ^ keyswitches start here
 make_keymap base_keyswitch base_key range root_pitch groups = do
     (group, low) <- zip groups [base_key, base_key+range ..]
     (attrs, ks) <- zip group [base_keyswitch ..]
-    return (attrs, (Just ks, low, low + (range-1), root_pitch))
+    return (attrs, ([Instrument.Keyswitch ks], low, low + (range-1), root_pitch))
+
+-- | This is like 'make_keymap', except that attributes are differentiated by
+-- a 'Instrument.ControlSwitch'.  CCs start at 102, and only groups of size >1
+-- get a CC.  Since each groups is controlled by its own CC number, you can then
+-- select each variation independently.  This means any set of variations can
+-- be played simultaneously, which is not true for keyswitches.
+make_cc_keymap :: Midi.Key -- ^ notes start here
+    -> Midi.Key -- ^ each sound is mapped over this range
+    -> Pitch.NoteNumber -- ^ the pitch of the bottom note of each range
+    -> [[Score.Attributes]] -> [(Score.Attributes, KeyswitchRange)]
+make_cc_keymap base_key range root_pitch =
+    go base_cc . zip [base_key, base_key + range ..]
+    where
+    go _ [] = []
+    go cc ((low, group) : groups) = case group of
+        [] -> go cc groups
+        [attrs] -> (attrs, ([], low, low + (range-1), root_pitch)) : go cc groups
+        _ ->
+            [ (attrs, ([Instrument.ControlSwitch cc cc_val],
+                low, low + (range-1), root_pitch))
+            | (attrs, cc_val) <- zip group [0 ..]
+            ] ++ go (cc+1) groups
+    -- There is an unallocated block [102 .. 119], which should be enough.
+    base_cc = 102
 
 pitched_drum_patch :: PitchedNotes -> Instrument.Patch -> Instrument.Patch
-pitched_drum_patch attr_map = Instrument.triggered
-    . (Instrument.call_map #= make_call_map (map fst attr_map))
-    . (Instrument.attribute_map #= make_attribute_map attr_map)
+pitched_drum_patch notes = Instrument.triggered
+    . (Instrument.call_map #= make_call_map (map fst notes))
+    . (Instrument.attribute_map #= make_attribute_map notes)
 
 make_call_map :: [Drums.Note] -> Instrument.CallMap
 make_call_map =
     Map.fromList . map (\n -> (Drums.note_attrs n, Drums.note_name n))
 
 make_attribute_map :: PitchedNotes -> Instrument.AttributeMap
-make_attribute_map attr_map = Instrument.make_attribute_map $ Seq.unique
+make_attribute_map notes = Instrument.make_attribute_map $ Seq.unique
     -- It's ok to have Notes with the same (attr, keyswitch), for instance if
     -- there are loud and soft versions, but make_attribute_map will see them
     -- as overlapping attrs, so filter out duplicates.
-    [ (Drums.note_attrs note, maybe [] ((:[]) . Instrument.Keyswitch) ks,
-        Just (Instrument.PitchedKeymap low high root))
-    | (note, (ks, low, high, root)) <- attr_map
+    [ (Drums.note_attrs note, ks, Just (Instrument.PitchedKeymap low high root))
+    | (note, (ks, low, high, root)) <- notes
     ]
 
 -- | Make PitchedNotes by pairing each 'Drums.Note' with its 'KeyswitchRange'.

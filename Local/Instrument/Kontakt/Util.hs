@@ -6,7 +6,6 @@
 module Local.Instrument.Kontakt.Util where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector.Unboxed as Vector
@@ -14,6 +13,7 @@ import qualified Data.Vector.Unboxed as Vector
 import qualified Util.Map
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
+
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
@@ -96,12 +96,19 @@ drum_mute_values notes =
         | (group, (s, e)) <- ks_notes
         ]
     pitch_to_keyswitch = Vector.toList $ Vector.replicate 128 none
-        Vector.// zip (map Midi.from_key (Maybe.catMaybes keyswitches)) [0..]
+        Vector.// zip (map Midi.from_key keyswitches) [0..]
     (keyswitches, keyswitch_notes) = unzip $ Map.toAscList keyswitch_to_notes
+    -- If this instrument doesn't use keyswitches (it could use
+    -- 'Instrument.ControlSwitch'es), then they all wind up with 0.  I need
+    -- at least one keyswitch so pitch_to_group isn't empty, and pretending
+    -- there's one at 0 is fine since it never changes.  This is fine, assuming
+    -- that overlapping groups all belong to the same stop gorup.
     keyswitch_to_notes = Util.Map.multimap
-        [ (ks, (Drums.note_group note, (low, high)))
-        | (note, (ks, low, high, _)) <- notes
+        [ (ks_of keyswitch, (Drums.note_group note, (low, high)))
+        | (note, (keyswitch, low, high, _)) <- notes
         ]
+    ks_of (Instrument.Keyswitch ks : _) = ks
+    ks_of _ = 0
     groups = Seq.drop_dups id (List.sort (map (Drums.note_group . fst) notes))
     group_to_id = Map.fromList $ zip groups [0..]
     group_id g = Map.findWithDefault none g group_to_id
@@ -134,7 +141,7 @@ drum_mute_template =
     "on init\n\
     \    set_script_title(\"drum-mute for *INSTRUMENT*\")\n\
     \\n\
-    \    {- constant, CamelCase -}\n\
+    \    {- immutable, CamelCase -}\n\
     \    declare const $None := -1\n\
     \    declare const $FadeTimeUs := 100 * 1000\n\
     \    {- map pitch note number to group, or $None to apply no processing -}\n\
@@ -143,6 +150,7 @@ drum_mute_template =
     \    {- remember this many sounding notes -}\n\
     \    declare const $MaxVoices := 4\n\
     \    declare %PitchToGroup[128 * $MaxKeyswitches] := *PITCH_TO_GROUP*\n\
+    \    {- keyswitch numbers for keyswitch notes, -1 for the rest -}\n\
     \    declare %PitchToKeyswitch[128] := *PITCH_TO_KEYSWITCH*\n\
     \    {- map a group to the other groups it should stop -}\n\
     \    declare %StopGroups[$MaxGroups * $MaxGroups] := *STOP_GROUPS*\n\

@@ -17,10 +17,13 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Msg as Msg
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.NN as NN
 import Global
 import Types
 
@@ -76,6 +79,18 @@ test_drum_instrument = do
     equal (e_midi midi)
         [ (0, NoteOn Key.c2 127), (10, NoteOff Key.c2 127)
         , (1000, NoteOn Key.d2 127), (1010, NoteOff Key.d2 127)
+        ]
+
+test_make_cc_keymap = do
+    let f = CUtil.make_cc_keymap
+        cw = Instrument.ControlSwitch
+    equal (f 0 12 NN.c4
+            [[Attrs.left, Attrs.right], [Attrs.open], [Attrs.low, Attrs.high]])
+        [ (Attrs.left, ([cw 102 0], Key.c_1, Key.b_1, NN.c4))
+        , (Attrs.right, ([cw 102 1], Key.c_1, Key.b_1, NN.c4))
+        , (Attrs.open, ([], Key.c0, Key.b0, NN.c4))
+        , (Attrs.low, ([cw 103 0], Key.c1, Key.b1, NN.c4))
+        , (Attrs.high, ([cw 103 1], Key.c1, Key.b1, NN.c4))
         ]
 
 synth :: MidiInst.Softsynth

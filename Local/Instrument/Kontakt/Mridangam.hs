@@ -56,9 +56,9 @@ pb_range = (-24, 24)
 
 both_calls :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
 both_calls = make_both left_notes right_notes special_names
-    [ ("N", 'f'), ("D", 'v')
-    , ("K", 'g'), ("T", 'b')
-    , ("P", 'h'), ("X", 'n')
+    [ ("N", 'g'), ("D", 'b')
+    , ("K", 'h'), ("T", 'n')
+    , ("P", 'j'), ("X", 'm')
     ]
     where
     special_names = [("P", ["+", "k"]), ("X", ["+", "t"])]
@@ -80,8 +80,7 @@ make_both left right special_names keys =
         [ (TrackLang.Symbol $ u rcall <> u lcall, [rcall, lcall])
         | lcall <- map Drums.note_name left
         , rcall <- map Drums.note_name right
-        , Text.length (u lcall) == 1
-        , Text.length (u rcall) == 1
+        , Text.length (u lcall) == 1 && Text.length (u rcall) == 1
         ]
     u = TrackLang.unsym
 
@@ -100,10 +99,15 @@ stops :: [(Drums.Group, [Drums.Group])]
         , group t_open
             [ n 's' "." thom 0.5
             , n 'x' "o" thom 1
-            , n 'd' "o." gumki 1
-            , n 'c' "o^" (gumki <> Attrs.up) 1
-            -- later I can have o_ and o- for low and high
-            -- or maybe 'o 0' 'o .5' 'o 1'
+            , n 'd' "._" gumki 0.5
+            , n 'c' "o_" gumki 1
+            , n 'f' "o-" (gumki <> Attrs.medium) 1
+            , n 'g' "o^" (gumki <> Attrs.high) 1
+            , n 'v' "o/" (gumki <> Attrs.up) 1
+            -- TODO when I can play it, have 'o 0' to 'o 1' for pitch.  Then
+            -- o- is the same as 'o 0'.  Maybe it should be called o0 then?
+            -- But it might also be more useful to have generic low, medium,
+            -- high.  Or o_ o- o^
             ]
         ]
     right_notes = concat $
@@ -143,24 +147,17 @@ stops :: [(Drums.Group, [Drums.Group])]
 all_notes :: [Drums.Note]
 all_notes = left_notes ++ right_notes
 
-{- | Layout:
-
-    > 0         10        20        30        40        50        60        70        80        90        100       110       120    127
-    > 01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567
-    > c-2         c-1         c0          c1          c2          c3          c4          c5          c6          c7          c8     g8
-    >         XXXXtha -------|thom ------|ki --------|ta --------|nam -------|din -------|arai ------|dheem -----|meetu -----|
--}
 pitched_notes :: CUtil.PitchedNotes
 (pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
-    CUtil.make_keymap Key2.g_2 Key2.c_1 12 NN.c4
+    CUtil.make_cc_keymap Key2.c_1 12 NN.gs3
     [ [tha]
-    , [thom, gumki]
-    , [ki, gumki <> Attrs.up]
+    , [thom, gumki, gumki <> Attrs.up]
+    , [ki]
     , [ta]
     , [nam]
     , [din]
     , [arai, muru]
-    , [meetu <> ki, dheem, dheem <> Attrs.staccato]
+    , [meetu <> ki, dheem]
     , [meetu <> ta]
     ]
 
@@ -188,7 +185,7 @@ pitched_notes_old :: CUtil.PitchedNotes
     , (arai, (Key.g8, Key.e9))
     , (muru, (Key.g9, Key.g9))
     ]
-    where make (attrs, (low, high)) = (attrs, (Nothing, low, high, NN.e3))
+    where make (attrs, (low, high)) = (attrs, ([], low, high, NN.e3))
 
 -- * attrs
 
