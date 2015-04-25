@@ -167,11 +167,15 @@ field (title, raw_text)
 
 show_attribute_map :: Instrument.AttributeMap -> Text
 show_attribute_map (Instrument.AttributeMap table) =
-    Text.unlines (map fmt table)
+    Text.unlines (map fmt (Seq.sort_on low_key table))
     where
     attrs = map (\(a, _, _) -> prettys a) table
     longest = fromMaybe 0 $ Seq.maximum (map length attrs)
-
+    -- If this instrument uses a keymap, it's easier to read the attribute map
+    -- if I put it in keymap order.
+    low_key (_, _, Just (Instrument.UnpitchedKeymap k)) = Just k
+    low_key (_, _, Just (Instrument.PitchedKeymap k _ _)) = Just k
+    low_key (_, _, Nothing) = Nothing
     fmt (attrs, keyswitches, maybe_keymap) =
         -- Still not quite right for lining up columns.
         txt (printf "%-*s\t" longest (prettys attrs))
