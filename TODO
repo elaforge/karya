@@ -27,13 +27,9 @@ UNSORTED
       understand CCs.
       . Maybe I can avoid this by saying that all variations in the same range
         belong to the same stop group.
-    - Simultaneous notes with different ControlSwitch cc numbers should share
-      a channel.  Of course it'll work anyway if only one channel is
-      allocated.
-      . Currently they definitely won't, because the performer assumes that
-        all controls affect the sound, and so you can't share with any control.
   * >kontakt/pakhawaj should also use the ControlSwitch approach.
-  - undo is not undoing a change to the inst config
+  * undo is not undoing a change to the inst config
+    . This is by design, Undo.merge_undo_states.  But why?
   use Score.PControl for pitch controls
     * BaseTypes.PitchControl
     * BaseTypes.PitchMap
@@ -55,7 +51,7 @@ UNSORTED
   * I could smooth pitch changes in each note with "mapc '#' smooth .1"
     Zheng or vocal-style instruments could use this.
   rename:
-    - "initial" arg of kotekan calls to "init"?
+    / "initial" arg of kotekan calls to "init"?
     * NoteTransformer is a bad name for note generators that transform
       sub-events.  I should find a better name for it so NoteTransformer can be
       Derive.Transformer Derive.Note.
@@ -71,6 +67,19 @@ UNSORTED
     . It's error prone because there's nothing that enforces that you set
       instrument with Post.set_instrument, and if you don't, it will work until
       you use a scale with e.g. tuning, and then it will be slightly off.
+    . Originally added in the patch 'add interpolate scale':
+      The bigger problem was that since pitches got the Environ at conversion
+      time, the interpolate scale couldn't substitute `key-from` and `key-to`
+      because any environ values it set before evaluating the pitch wouldn't
+      "stick".
+
+      So I switched to applying the environ when the pitch is created, but this
+      broke the case that made me switch to applying environ at the end in the
+      first place, which is when switching instruments in a postproc I want the
+      new instrument's environ, specifically Environ.tuning, to apply to the new
+      event's pitches.  So now when I switch instruments I have to explicitly
+      apply the environ from the new instrument, via Post.set_instrument.
+
   - kotekan calls leave keys down in kontakt
   format:
     - pp LPerf.sel_events has an extra level of indent after the [.  Not due
@@ -101,14 +110,38 @@ UNSORTED
       I can do:
         (events, end) <- deriver1
         (rest, _) <- Derive.at end deriver1
-    . Most note calls can figure out end by taking the end of the last event.
-    . Another approach would be to emit a special "empty" sentinel event to
-      signal the end.
-    . This could also be useful to set the "normal" duration for an arbitrary
-      call, not just a block call.  But I'd need a ScoreTime duration for
-      that.
-    . Actually, ScoreTime is what blocks use and I can't use RealTime unless I
-      put it in Collect so I can set it after the tempo track.
+      . That doesn't work for Clip, because I need the end to even start
+        deriving.  But thanks to laziness, if I just take the end and not the
+        events, I should do only enough work to figure out where the end is.
+    . I could look for the last event, or a sentinel, but in that case
+      I really do have to derive twice.  Still, it may not be a big deal for
+      short derivers.
+    . Or I could put Max end in Collect.  Actually even with a separate return
+      value it winds up being equivalent to Collect, just stored in
+      a different spot.  The main thing is to be able to get the 'end' field
+      without doing unnecessary work, so I may have to take !s off the Collect
+      fields, especially Cache.
+    . Should the end be ScoreTime or RealTime?  Block calls use ScoreTime, but
+      RealTime seems more fundamental.  Calls that don't have score don't
+      necessarily have ScoreTime.  I should be safe to go back to ScoreTime
+      for those that need it.
+    . Also Cmd could use the duration to set the default duration for an
+      arbitrary call.  This uses ScoreTime too.
+    . Or maybe ScoreTime is more convenient.  In a block I need to wait until
+      after the tempo track to get the RealTime, so that implies a certain
+      amount of derivation must be done.
+    . If it's ScoreTime then it's actually duration, not end, because it's
+      relative to 0 at the beginning of the call.
+    . Some calls will go for as long as you give them, so their effective end
+      is Infinite.
+    - Add 'collect_duration :: ScoreTime' and make block calls use it.
+      It defaults to the event duration.
+    - Figure out a convenient way for other calls to use it too, or at least
+      for it to default to the end of the last event.
+    - Test to see how much derivation is needed to find the end of various
+      expressions.
+    - Extend ^z to work with any call.
+
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
     . It was because the kendang tracks were below >pno, not "tempo".  So, two
@@ -632,6 +665,8 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
+  - GC stats for a normal app run shows 32% productivity during derivation.
+    Threadscope also shows GC frequently stopping all computation.
   - I should be able to move samples only when converting to MIDI, this way
     I don't need to move parts of the signal that wind up being trimmed.
     Either try to trim the signal earlier again, or delay transformation to
@@ -1252,6 +1287,11 @@ signal: PitchSignal:
       few of those.  So maybe I don't actually care that much.
 
 Perform:
+  - Simultaneous notes with different ControlSwitch cc numbers should share
+    a channel.  Of course it'll work anyway if only one channel is
+    allocated.
+    . Currently they definitely won't, because the performer assumes that
+      all controls affect the sound, and so you can't share with any control.
   - Pick the best channel instead of the first one.
     . An event can share a channel if it has different controls but the events
       don't overlap.  This is required so that a sequence of notes that each

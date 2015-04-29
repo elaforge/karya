@@ -161,7 +161,9 @@ merge_undo_states new old =
         (merge_view (State.state_views old)) (State.state_views new)
     , State.state_blocks = Map.mapWithKey
         (merge_block (State.state_blocks old)) (State.state_blocks new)
-    , State.state_config = State.state_config old
+    -- Previously I would keep the old State.state_config.  I don't remember
+    -- exactly why, but it turned out to be confusing when I couldn't undo
+    -- config changes.
     }
 
 merge_view :: Map.Map ViewId Block.View -> ViewId -> Block.View -> Block.View
