@@ -314,16 +314,16 @@ with_val name val deriver
 -- | Like 'with_val', but don't set scopes for instrument and scale.
 with_val_raw :: TrackLang.Typecheck val => TrackLang.ValName -> val
     -> Deriver a -> Deriver a
-with_val_raw name val = Internal.localm $ \st -> do
-    environ <- Internal.insert_environ name val (state_environ st)
-    environ `seq` return $! st { state_environ = environ }
+with_val_raw name val = Internal.localm $ \state -> do
+    environ <- Internal.insert_environ name val (state_environ state)
+    environ `seq` return $! state { state_environ = environ }
 
 modify_val :: TrackLang.Typecheck val => TrackLang.ValName
     -> (Maybe val -> val) -> Deriver a -> Deriver a
-modify_val name modify = Internal.localm $ \st -> do
-    let env = state_environ st
+modify_val name modify = Internal.localm $ \state -> do
+    let env = state_environ state
     val <- modify <$> either throw return (TrackLang.checked_val name env)
-    return $! st { state_environ =
+    return $! state { state_environ =
         TrackLang.insert_val name (TrackLang.to_val val) env }
 
 with_scale :: Scale -> Deriver d -> Deriver d
@@ -391,8 +391,8 @@ with_instrument_alias alias inst deriver = do
     _ <- get_instrument inst -- ensure it exists
     Internal.local with deriver
     where
-    with st = st
-        { state_instrument_aliases = insert (state_instrument_aliases st) }
+    with state = state
+        { state_instrument_aliases = insert (state_instrument_aliases state) }
     insert aliases =
         Map.insert alias (Map.findWithDefault inst inst aliases) aliases
 
@@ -413,8 +413,8 @@ get_instrument inst = do
 with_environ :: TrackLang.Environ -> Deriver a -> Deriver a
 with_environ environ
     | TrackLang.null_environ environ = id
-    | otherwise = Internal.local $ \st -> st
-        { state_environ = environ <> state_environ st }
+    | otherwise = Internal.local $ \state -> state
+        { state_environ = environ <> state_environ state }
 
 
 -- ** control
@@ -541,31 +541,31 @@ with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
 with_control control signal = with_controls [(control, signal)]
 
 with_controls :: [(Score.Control, Score.TypedControl)] -> Deriver a -> Deriver a
-with_controls controls = Internal.local $ \st ->
-    st { state_controls = Util.Map.insert_list controls (state_controls st) }
+with_controls controls = Internal.local $ \state -> state
+    { state_controls = Util.Map.insert_list controls (state_controls state) }
 
 -- | Remove both controls and control functions.  Use this when a control has
 -- already been applied, and you don't want it to affect further derivation.
 remove_controls :: [Score.Control] -> Deriver a -> Deriver a
 remove_controls controls
     | null controls = id
-    | otherwise = Internal.local $ \st -> st
-        { state_controls = Util.Map.delete_keys controls (state_controls st)
+    | otherwise = Internal.local $ \state-> state
+        { state_controls = Util.Map.delete_keys controls (state_controls state)
         , state_control_functions =
-            Util.Map.delete_keys controls (state_control_functions st)
+            Util.Map.delete_keys controls (state_control_functions state)
         }
 
 with_control_function :: Score.Control -> TrackLang.ControlFunction
     -> Deriver a -> Deriver a
-with_control_function control f = Internal.local $ \st -> st
+with_control_function control f = Internal.local $ \state -> state
     { state_control_functions =
-        Map.insert control f (state_control_functions st)
+        Map.insert control f (state_control_functions state)
     }
 
 -- | Replace the controls entirely.
 with_control_maps :: Score.ControlMap -> Score.ControlFunctionMap
     -> Deriver a -> Deriver a
-with_control_maps cmap cfuncs = Internal.local $ \st -> st
+with_control_maps cmap cfuncs = Internal.local $ \state -> state
     { state_controls = cmap
     , state_control_functions = cfuncs
     }
@@ -708,15 +708,19 @@ modify_pitch :: Score.PControl
     -> (Maybe PitchSignal.Signal -> PitchSignal.Signal)
     -> Deriver a -> Deriver a
 modify_pitch pcontrol f
-    | pcontrol == Score.default_pitch = Internal.local $ \st ->
-        st { state_pitch = f (Just (state_pitch st)) }
-    | otherwise = Internal.local $ \st ->
-        st { state_pitches = Map.alter (Just . f) pcontrol (state_pitches st) }
+    | pcontrol == Score.default_pitch = Internal.local $ \state ->
+        state { state_pitch = f (Just (state_pitch state)) }
+    | otherwise = Internal.local $ \state -> state
+        { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
+
+-- ** misc
 
 -- | Run the derivation with a modified scope.
 with_scopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a
-with_scopes modify = Internal.local $ \st ->
-    st { state_scopes = modify (state_scopes st) }
+with_scopes modify = Internal.local $ \state ->
+    state { state_scopes = modify (state_scopes state) }
+
+-- * postproc
 
 -- | If the deriver throws, log the error and return Nothing.
 catch :: Bool -- ^ If True, incorporate the evaluated 'state_collect'.
@@ -724,10 +728,10 @@ catch :: Bool -- ^ If True, incorporate the evaluated 'state_collect'.
     -- shouldn't be accumulating things like 'ControlMod's.
     -> Deriver a -> Deriver (Maybe a)
 catch collect deriver = do
-    st <- get
+    state <- get
     -- It's critical to clear the collect, because if I merge it again later
     -- I can't go duplicating the whole thing.
-    let (result, st2, logs) = run (st { state_collect = mempty }) deriver
+    let (result, st2, logs) = run (state { state_collect = mempty }) deriver
     mapM_ Log.write logs
     case result of
         Left err -> do
@@ -752,8 +756,6 @@ with_event_stack event =
 with_event :: Score.Event -> Deriver a -> Deriver (Maybe a)
 with_event event = catch False . with_event_stack event
 
--- * postproc
-
 -- | Shift the controls of a deriver.  You're supposed to apply the warp
 -- before deriving the controls, but I don't have a good solution for how to
 -- do this yet, so I can leave these here for the moment.
@@ -761,9 +763,9 @@ shift_control :: ScoreTime -> Deriver a -> Deriver a
 shift_control shift deriver = do
     real <- Internal.real shift
     Internal.local
-        (\st -> st
-            { state_controls = nudge real (state_controls st)
-            , state_pitch = nudge_pitch real (state_pitch st)
+        (\state -> state
+            { state_controls = nudge real (state_controls state)
+            , state_pitch = nudge_pitch real (state_pitch state)
             })
         deriver
     where

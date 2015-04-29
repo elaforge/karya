@@ -111,7 +111,8 @@ c_infer_pattern = Derive.val_call module_ "infer-pattern" mempty
     ) $ \(var, dur) args -> do
         let notes = round $ Args.duration args / dur
         Derive.require
-            ("invalid variation: " <> showt (Args.duration args, var)) $
+            ("invalid variation: dur " <> showt (Args.duration args)
+                    <> " for var " <> showt var) $
             infer_pattern notes var
 
 infer_pattern :: Int -> Int -> Maybe Text
