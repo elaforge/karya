@@ -54,10 +54,22 @@ import Shake.Util (system)
 useEkg :: Bool
 useEkg = True
 
+-- | Link with the -eventlog RTS, for threadscope.  Presumably it hurts
+-- performance, so it's off by default.
+useEventLog :: Bool
+useEventLog = False
+
 -- Static constants.
+build :: FilePath
 build = "build"
+
+fltkConfig :: FilePath
 fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
+
+ghcBinary :: FilePath
 ghcBinary = "ghc"
+
+hspp :: FilePath
 hspp = modeToDir Opt </> "hspp"
 
 defaultOptions :: Shake.ShakeOptions
@@ -423,6 +435,7 @@ configure midi = do
                 -- SCCs anyway?
                 Profile -> ["-O", "-prof"] -- , "-fprof-auto-top"]
         , hLinkFlags = libs ++ ["-rtsopts", "-threaded"]
+            ++ ["-eventlog" | useEventLog && mode == Opt]
             ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
             ++ ["-with-rtsopts=-T" | useEkg]
