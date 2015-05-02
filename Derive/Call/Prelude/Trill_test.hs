@@ -48,6 +48,13 @@ test_tremolo = do
     equal (run "1" [(0, 2, "trem 1t")]) ([(0, 1, "4c"), (1, 1, "4c")], [])
     equal (run "1" [(2, 2, "trem 1t")]) ([(2, 1, "4c"), (3, 1, "4c")], [])
     equal (run "2" [(0, 2, "trem 1t")]) ([(0, 0.5, "4c"), (0.5, 0.5, "4c")], [])
+    -- hold
+    equal (run "1" [(0, 4, "hold=2 | trem 1s")])
+        ([(0, 2, "4c"), (2, 1, "4c"), (3, 1, "4c")], [])
+    equal (run "1" [(0, 4, "hold=3 | trem 1s")])
+        ([(0, 3, "4c"), (3, 1, "4c")], [])
+    equal (run "1" [(0, 4, "hold=4 | trem 1s")])
+        ([(0, 4, "4c")], [])
 
 test_full_notes = do
     let f = Trill.full_notes

@@ -131,8 +131,8 @@ c_tremolo_generator :: Derive.Generator Derive.Note
 c_tremolo_generator = Derive.make_call Module.prelude "trem" Tags.ly
     "Repeat a single note. Or, if there are sub-notes, alternate with each of\
     \ the sub-notes in turn."
-    $ Sig.call Speed.arg $ \speed args -> do
-        starts <- tremolo_starts speed (Args.range_or_next args)
+    $ Sig.call ((,) <$> Speed.arg <*> hold_env) $ \(speed, hold) args -> do
+        starts <- tremolo_starts hold speed (Args.range_or_next args)
         notes <- Sub.sub_events args
         case filter (not . null) notes of
             [] -> Sub.inverting_args args $ \args -> Lily.note_code code args $
@@ -145,24 +145,30 @@ c_tremolo_transformer :: Derive.Transformer Derive.Note
 c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs
     "Repeat the transformed note. The generator is creating the notes so it\
     \ can set them to the appropriate duration, but this one has to stretch\
-    \ them to fit." $ Sig.callt Speed.arg $ \speed args deriver -> do
-        starts <- tremolo_starts speed (Args.range_or_next args)
+    \ them to fit." $ Sig.callt ((,) <$> Speed.arg <*> hold_env) $
+    \(speed, hold) args deriver -> do
+        starts <- tremolo_starts hold speed (Args.range_or_next args)
         simple_tremolo starts [Args.normalized args deriver]
 
-tremolo_starts :: TrackLang.ValControl -> (ScoreTime, ScoreTime)
-    -> Derive.Deriver [ScoreTime]
-tremolo_starts speed range = do
+tremolo_starts :: TrackLang.Duration -> TrackLang.ValControl
+    -> (ScoreTime, ScoreTime) -> Derive.Deriver [ScoreTime]
+tremolo_starts hold speed (start, end) = do
+    hold <- Call.score_duration start hold
     (speed_sig, time_type) <- Call.to_time_function Call.Real speed
-    case time_type of
+    add_hold hold <$> case time_type of
         Call.Real -> do
-            start <- Derive.real (fst range)
-            end <- Derive.real (snd range)
+            start <- Derive.real (start + hold)
+            end <- Derive.real end
             mapM Derive.score . full_notes end
                 =<< Speed.real_starts speed_sig start end
         Call.Score -> do
-            let (start, end) = range
-            starts <- Speed.score_starts speed_sig start end
+            starts <- Speed.score_starts speed_sig (start + hold) end
             return $ full_notes end starts
+    where
+    add_hold hold starts
+        | hold >= end - start = [start, end]
+        | hold > 0 = start : starts
+        | otherwise = starts
 
 -- | Alternate each note with the other notes within its range, in order from
 -- the lowest track to the highest.
