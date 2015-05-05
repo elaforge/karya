@@ -185,7 +185,7 @@ pitched_notes_old :: CUtil.PitchedNotes
     , (arai, (Key.g8, Key.e9))
     , (muru, (Key.g9, Key.g9))
     ]
-    where make (attrs, (low, high)) = (attrs, ([], low, high, NN.e3))
+    where make (attrs, (low, high)) = (attrs, ([], low, high, NN.e4))
 
 -- * attrs
 
