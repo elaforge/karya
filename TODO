@@ -10,6 +10,8 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  * escape on floating entry should cancel it
+  - 'p1 ktkno' in bug/mridangam2 gets wrong dyn when dyn is inverted
   Keyswitch means notes can't be played together.
     . Do keyswitch with poly AT.
       . Using poly AT requires that I use KSP instead of the built-in thing.
@@ -140,6 +142,49 @@ UNSORTED
       for it to default to the end of the last event.
     - Test to see how much derivation is needed to find the end of various
       expressions.
+      . For this to work, I have to look at the data dependencies for Collect
+        to ensure that evaluating it won't demand everything.  Or rather,
+        evaluating collect_call_duration won't, because the block call
+        replaces it.
+      . The reason it can't work is that Duration takes a max, which needs
+        both values.  Since duration is defined per-event then it's actually
+        taking the maximum of all events in the block.  Since I know that no
+        event should be longer than the block duration, I need to just set
+        the duration, not merge it.
+      . In any case merging is incorrect, because it's now duration, not end.
+      . Is Collect is merged backwards?  What's up with that?  Or not?  It's
+        confusing how collects are merged.
+
+      . Maybe Collect isn't the right thing after all.  Really I just want
+        a way to query the deriver without having to evaluate it, or at least
+        evaluate the minimum necessary.  Another approach would be to make
+        Deriver a record.  I could put it in Monad so existing things continue
+        to work, but I can also get fields out of it without deriving events.
+        . In fact, could I put Collect into that?  Probably not usefully since
+          the others definitely have a data dependency on the evaluation.
+        . Actually I think this can't work.  To set the call duration within
+          a deriver, I need to evaluate the second deriver to see if it's
+          going to set it.  So this would work with Applicative, but not with
+          Monad, because it could take a branch that changes the duration.
+        . Really this means that anything using (>>=) will not get durations
+          from inside.  However, (<>) and (<*>) will propagate.  This might be
+          ok since really I only care about NoteDeriver.  How does this work
+          in practice though?
+
+        . But now I have to track down where the durations are lost.  Any time
+          there is 'a >>= b', the result from 'b' will be lost.
+        . d_block checks the title and can throw.  Maybe I can set the
+          duration earlier.  Except that getting block duration is also
+          monadic.
+
+      . It would be a Deriver object with fields for the environment etc.  To
+        know duration I still have to evaluate it, so I know which sub-deriver
+        it uses.  But many derivers don't make choices.  Actually, since
+        throwing an exception is a choice, they actually do.  I guess I'd have
+        to have each deriver statically declare which other derivers it's
+        going to invoke.
+
+    - Extend Clip to work with any note call.
     - Extend ^z to work with any call.
 
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able

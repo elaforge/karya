@@ -27,6 +27,12 @@ public:
     // Use this to set newline-free unwrapped text.
     void set_text(const char *text);
     const char *get_text() const;
+    // True if the text has changed since the last time this widget got focus.
+    // This is used to detect if the edit's changes were reverted by the escape
+    // key.
+    bool text_changed() const {
+        return last_text != value();
+    }
     int text_height() const;
     int handle(int evt) override;
 protected:
@@ -35,7 +41,8 @@ private:
     bool wrap_text();
     // Strip spaces from the text on unfocus.
     const bool strip;
+    // Keep the previous text, to revert on escape.
+    std::string last_text;
 };
 
 #endif
-

@@ -148,11 +148,16 @@ WrappedInput::handle(int evt)
         }
     }
     if (evt == FL_UNFOCUS) {
-        if (this->strip && input_util::strip_value(this))
-            this->wrap_text();
-        this->position(0);
+        if (Fl::event_key() == FL_Escape) {
+            this->value(last_text.c_str());
+        } else {
+            if (this->strip && input_util::strip_value(this))
+                this->wrap_text();
+        }
         this->do_callback();
+        this->position(0);
     } else if (evt == FL_FOCUS) {
+        this->last_text = this->value();
         this->do_callback();
     }
     return handled;

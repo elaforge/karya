@@ -141,7 +141,8 @@ TrackTile::floating_close()
 {
     if (!this->floating_input)
         return;
-    MsgCollector::get()->floating_input(this, floating_input->get_text());
+    if (floating_input->text_changed())
+        MsgCollector::get()->floating_input(this, floating_input->get_text());
     this->remove(floating_input);
     // This function can be called from the callback, and you can't delete
     // yourself from inside a callback without crashing.  So I have to delay

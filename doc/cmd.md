@@ -230,6 +230,8 @@ TimeStep, but if you select a range of time and then create an event, the event
 will be exactly that duration.  Additionally, if the text has a leading space,
 the space will be stripped and the event created with a zero duration.
 
+If you hit escape in any text entry field, it will revert your changes.
+
 ### note entry
 
 Note entry mode ('Cmd.NoteEntry') is actually orthogonal to EditMode, in that
