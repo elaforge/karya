@@ -121,8 +121,9 @@ read_line (Handle filename hdl size) = go (hdl, size)
 
 -- | If the filename exists, open it and close the old file.
 reopen :: IO.Handle -> Integer -> FilePath -> IO TailState
-reopen old size filename =
-    ignoreEnoent "reopen" (IO.openFile filename IO.ReadMode) >>= \x -> case x of
+reopen old size filename = do
+    fp <- ignoreException "reopen" (IO.openFile filename IO.ReadMode)
+    case fp of
         Nothing -> return (old, size)
         Just new -> do
             IO.hClose old
@@ -130,13 +131,14 @@ reopen old size filename =
             size <- IO.hFileSize new
             return (new, size)
 
-ignoreEnoent :: String -> IO a -> IO (Maybe a)
-ignoreEnoent name action = Exception.try action >>= \result -> case result of
+ignoreException :: String -> IO a -> IO (Maybe a)
+ignoreException name action = Exception.try action >>= \result -> case result of
     Left exc
         | Just e <- Exception.fromException exc, Error.isDoesNotExistError e ->
             return Nothing
         | otherwise -> do
-            putStrLn $ name ++ " exception: " ++ show exc
+            putStrLn $ name ++ ": ignoring hopefully transient exception: "
+                ++ show exc
             return Nothing
     Right val -> return $ Just val
 
@@ -146,5 +148,5 @@ file_renamed filename size = do
     -- I should really use inode, but ghc's crummy IO libs make that a pain,
     -- since handleToFd closes the handle.
     file_size <- maybe 0 Posix.fileSize <$>
-        ignoreEnoent "file_renamed" (Posix.getFileStatus filename)
+        ignoreException "file_renamed" (Posix.getFileStatus filename)
     return $ fromIntegral file_size /= size && file_size /= 0
