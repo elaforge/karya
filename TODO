@@ -11,7 +11,9 @@ UNSORTED
     - perhaps only pitched notes should change with the tuning?
 
   * escape on floating entry should cancel it
-  - 'p1 ktkno' in bug/mridangam2 gets wrong dyn when dyn is inverted
+  * 'p1 ktkno' in bug/mridangam2 gets wrong dyn when dyn is inverted
+  - I forgot to add Sub.inverting to p1 and pn calls.  Can I have a warning
+    for when a non-inverting call has a note track below it?
   Keyswitch means notes can't be played together.
     . Do keyswitch with poly AT.
       . Using poly AT requires that I use KSP instead of the built-in thing.

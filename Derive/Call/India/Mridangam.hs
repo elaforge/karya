@@ -11,6 +11,7 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
@@ -41,7 +42,7 @@ module_ = "india" <> "mridangam"
 c_pattern_once :: Derive.Generator Derive.Note
 c_pattern_once = Derive.make_call module_ "pattern" Tags.inst
     "Emit a pattern, fitted into the note duration."
-    $ Sig.call pattern_arg $ \pattern args -> do
+    $ Sig.call pattern_arg $ \pattern -> Sub.inverting $ \args -> do
         let notes = stretch_to_range (Args.range args) $
                 realize_pattern (Args.info args) pattern
         mconcat [Derive.place start 0 note | (start, Just note) <- notes]
@@ -56,7 +57,7 @@ c_pattern_times = Derive.make_call module_ "pattern" Tags.inst
     $ Sig.call ((,)
     <$> pattern_arg
     <*> Sig.defaulted "times" 3 "Repeat the pattern this many times."
-    ) $ \(pattern, times) args -> do
+    ) $ \(pattern, times) -> Sub.inverting $ \args -> do
         let notes = stretch_to_range (Args.range args) $
                 concat $ List.replicate times $
                 realize_pattern (Args.info args) pattern
@@ -72,7 +73,7 @@ c_pattern_repeat clip_start = Derive.make_call module_ "pattern" Tags.inst
     <*> Sig.defaulted_env_quoted "dur" Sig.Prefixed
         (TrackLang.quoted "ts" [TrackLang.str "e"])
         "Duration for each letter in the pattern."
-    ) $ \(pattern, dur) args -> do
+    ) $ \(pattern, dur) -> Sub.inverting $ \args -> do
         let notes = pattern_repeat clip_start (Args.range args) dur $
                 realize_pattern (Args.info args) pattern
         mconcat [Derive.place start 0 note | (start, note) <- notes]
