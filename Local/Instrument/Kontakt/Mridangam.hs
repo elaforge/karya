@@ -16,18 +16,22 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.Score as Score
 import Derive.Score (attr)
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
+import qualified Perform.Pitch as Pitch
+
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
 
 patches :: [MidiInst.Patch]
 patches =
-    [ (patch "mridangam2" pitched_notes, code)
+    [ (patch "mridangam-d" notes_d, code)
+    , (patch "mridangam-g" notes_g, code)
     , (patch "mridangam" pitched_notes_old, code)
     ]
     where
@@ -108,6 +112,7 @@ stops :: [(Drums.Group, [Drums.Group])]
             -- o- is the same as 'o 0'.  Maybe it should be called o0 then?
             -- But it might also be more useful to have generic low, medium,
             -- high.  Or o_ o- o^
+            , n '/' "*" (thom <> dry) 1
             ]
         ]
     right_notes = concat $
@@ -147,11 +152,18 @@ stops :: [(Drums.Group, [Drums.Group])]
 all_notes :: [Drums.Note]
 all_notes = left_notes ++ right_notes
 
-pitched_notes :: CUtil.PitchedNotes
-(pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
-    CUtil.make_cc_keymap Key2.c_1 12 NN.gs3
+notes_d, notes_g :: CUtil.PitchedNotes
+(notes_d, _unmapped_notes_d) = make_notes NN.gs3
+(notes_g, _unmapped_notes_g) = make_notes NN.d4
+    -- The given pitch is the natural pitch of the instrument.  The root note is
+    -- the bottom of the pitch range.
+
+make_notes :: Pitch.NoteNumber
+    -> (CUtil.PitchedNotes, ([Drums.Note], [Score.Attributes]))
+make_notes root_nn = CUtil.drum_pitched_notes all_notes $
+    CUtil.make_cc_keymap Key2.c_1 12 root_nn
     [ [tha]
-    , [thom, gumki, gumki <> Attrs.up]
+    , [thom, gumki, gumki <> Attrs.up, thom <> dry]
     , [ki]
     , [ta]
     , [nam]
@@ -163,7 +175,9 @@ pitched_notes :: CUtil.PitchedNotes
 
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
-    [ ("mridangam.ksp.txt", Util.drum_mute_ksp "mridangam" pitched_notes stops)
+    -- Util.drum_mute_ksp ignores the root pitch so I don't need to worry about
+    -- 'notes_g'.
+    [ ("mridangam.ksp.txt", Util.drum_mute_ksp "mridangam" notes_d stops)
     , ("mridangam-old.ksp.txt", Util.drum_mute_ksp "mridangam"
         pitched_notes_old stops)
     ]
@@ -201,3 +215,5 @@ muru = attr "muru"
 meetu = attr "meetu"
 
 gumki = attr "gumki"
+-- Without ravai.
+dry = attr "dry"

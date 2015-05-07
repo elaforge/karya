@@ -201,7 +201,8 @@ drum_patch note_keys = Instrument.triggered
     . (Instrument.attribute_map #= Instrument.simple_keymap
         [(Drums.note_attrs note, key) | (note, key) <- note_keys])
 
--- | (keyswitch, low, high, root_pitch)
+-- | (keyswitch, low, high, root_pitch).  The root pitch is the pitch at the
+-- bottom of the key range, and winds up in 'Instrument.PitchedKeymap'.
 type KeyswitchRange =
     ([Instrument.Keyswitch], Midi.Key, Midi.Key, Pitch.NoteNumber)
 type PitchedNotes = [(Drums.Note, KeyswitchRange)]

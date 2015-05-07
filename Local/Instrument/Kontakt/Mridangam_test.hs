@@ -11,9 +11,9 @@ import Global
 
 test_mridangam = do
     let run pitch = KontaktTest.derive ("# = (" <> pitch <> ")")
-            . map (((,) ">kontakt/mridangam2") . notes)
+            . map (((,) ">kontakt/mridangam-d") . notes)
         notes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
-        perf = KontaktTest.perform ["kontakt/mridangam2"] . Derive.r_events
+        perf = KontaktTest.perform ["kontakt/mridangam-d"] . Derive.r_events
 
     let (_events, midi, logs) = perf $ run "3g#" [["k", "t", "n", "d", "i"]]
     equal logs []
