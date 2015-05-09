@@ -70,7 +70,7 @@ ngoret :: Module.Module -> Bool
     -> Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
 ngoret module_ late_damping damp_arg interval_arg =
-    Derive.make_call module_ "ngoret"
+    Derive.generator module_ "ngoret"
     (Tags.inst <> Tags.ornament <> Tags.requires_postproc)
     ("Insert an intermediate grace note in the \"ngoret\" style.\
     \ The grace note moves up for `'^`, down for `'`, or is based\
@@ -208,7 +208,7 @@ shorten_previous = Flags.flag "shorten-previous-duration"
 -- * weak
 
 c_weak :: Derive.Generator Derive.Note
-c_weak = Derive.make_call module_ "weak" Tags.inst
+c_weak = Derive.generator module_ "weak" Tags.inst
     "Weak notes are filler notes."
     $ Sig.call (
     Sig.defaulted "strength" (control "strength" 0.5)

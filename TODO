@@ -138,11 +138,11 @@ UNSORTED
       relative to 0 at the beginning of the call.
     . Some calls will go for as long as you give them, so their effective end
       is Infinite.
-    - Add 'collect_duration :: ScoreTime' and make block calls use it.
+    * Add 'collect_duration :: ScoreTime' and make block calls use it.
       It defaults to the event duration.
-    - Figure out a convenient way for other calls to use it too, or at least
+    / Figure out a convenient way for other calls to use it too, or at least
       for it to default to the end of the last event.
-    - Test to see how much derivation is needed to find the end of various
+    / Test to see how much derivation is needed to find the end of various
       expressions.
       . For this to work, I have to look at the data dependencies for Collect
         to ensure that evaluating it won't demand everything.  Or rather,
@@ -157,27 +157,28 @@ UNSORTED
       . Is Collect is merged backwards?  What's up with that?  Or not?  It's
         confusing how collects are merged.
 
-      . Maybe Collect isn't the right thing after all.  Really I just want
-        a way to query the deriver without having to evaluate it, or at least
-        evaluate the minimum necessary.  Another approach would be to make
-        Deriver a record.  I could put it in Monad so existing things continue
-        to work, but I can also get fields out of it without deriving events.
-        . In fact, could I put Collect into that?  Probably not usefully since
-          the others definitely have a data dependency on the evaluation.
-        . Actually I think this can't work.  To set the call duration within
-          a deriver, I need to evaluate the second deriver to see if it's
-          going to set it.  So this would work with Applicative, but not with
-          Monad, because it could take a branch that changes the duration.
-        . Really this means that anything using (>>=) will not get durations
-          from inside.  However, (<>) and (<*>) will propagate.  This might be
-          ok since really I only care about NoteDeriver.  How does this work
-          in practice though?
+    . Maybe Collect isn't the right thing after all.  Applicative?
+      . Really I just want a way to query the deriver without having to
+        evaluate it, or at least evaluate the minimum necessary.  Another
+        approach would be to make Deriver a record.  I could put it in Monad
+        so existing things continue to work, but I can also get fields out of
+        it without deriving events.
+      . In fact, could I put Collect into that?  Probably not usefully since
+        the others definitely have a data dependency on the evaluation.
+      . Actually I think this can't work.  To set the call duration within
+        a deriver, I need to evaluate the second deriver to see if it's
+        going to set it.  So this would work with Applicative, but not with
+        Monad, because it could take a branch that changes the duration.
+      . Really this means that anything using (>>=) will not get durations
+        from inside.  However, (<>) and (<*>) will propagate.  This might be
+        ok since really I only care about NoteDeriver.  How does this work
+        in practice though?
 
-        . But now I have to track down where the durations are lost.  Any time
-          there is 'a >>= b', the result from 'b' will be lost.
-        . d_block checks the title and can throw.  Maybe I can set the
-          duration earlier.  Except that getting block duration is also
-          monadic.
+      . But now I have to track down where the durations are lost.  Any time
+        there is 'a >>= b', the result from 'b' will be lost.
+      . d_block checks the title and can throw.  Maybe I can set the
+        duration earlier.  Except that getting block duration is also
+        monadic.
 
       . It would be a Deriver object with fields for the environment etc.  To
         know duration I still have to evaluate it, so I know which sub-deriver
@@ -185,9 +186,37 @@ UNSORTED
         throwing an exception is a choice, they actually do.  I guess I'd have
         to have each deriver statically declare which other derivers it's
         going to invoke.
+    . Ok, so what about an entirely separate deriver?  Or derive in
+      a different mode.  In that way it would be similar to lilypond.  But I
+      would want normal calls to return the event duration.  But, if I put
+      that in TrackEval then c_block can't override it.
+    . Examples:
+      . Block calls, block duration is independent of event duration.
+      . Pattern calls could be similarly locked to a certain tempo.
+      . I could manually set block end to be shorter than the ruler end so
+        there a "decay".
+      . But most calls, e.g. 'tr' have the same duration as their event.  You
+        still need this to sequence derivers.
+    . Maybe this can be a field in a Call that takes Args -> ScoreTime.  But
+      not every Deriver winds up at a Call.  Eval.apply_generator turns a Call
+      into a Deriver, so it would be the one to get that information.  I'm
+      definitely required to evaluate the deriver up to that point because
+      I need to look up the Call.  But putting the field in the Call ensures
+      that evaluation won't go past apply_generator.
+    . However, c_block at least is going to need to look at the contents of
+      the block, so it needs the BlockId and UI State.
+
+    * Add field to Call.
+    * Make block call set it specially.
+    * Make Eval.apply_generator query 'state_mode' and for DurationQuery.
+    * Add call that derives with DurationQuery and extracts the result.
 
     - Extend Clip to work with any note call.
     - Extend ^z to work with any call.
+
+  - Block calls could have an early end, with a special ruler mark.  Anything
+    after the end goes after the calling event's end.  Similarly, events
+    before 0t can go before the event start.
 
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.

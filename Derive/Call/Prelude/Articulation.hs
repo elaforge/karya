@@ -93,7 +93,7 @@ make_lookup_attr call =
 -- calls should get a nice result automatically.  On the other hand, they're
 -- not very composable if they override things like %sus-abs.
 c_legato :: Derive.Generator Derive.Note
-c_legato = Derive.make_call Module.prelude "legato"
+c_legato = Derive.generator Module.prelude "legato"
     (Tags.attr <> Tags.subs <> Tags.ly)
     "Play the transformed notes legato.  This just makes all but the last\
     \ overlap slightly.\
@@ -135,24 +135,24 @@ note_legato overlap maybe_detach dyn = Sub.derive . concatMap apply
 -}
 
 c_ly_slur :: Derive.Generator Derive.Note
-c_ly_slur = Derive.make_call Module.ly "ly-slur" Tags.subs
+c_ly_slur = Derive.generator Module.ly "ly-slur" Tags.subs
     "Add a lilypond slur." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "(") (Lily.SuffixLast, ")")
 
 c_ly_slur_up :: Derive.Generator Derive.Note
-c_ly_slur_up = Derive.make_call Module.ly "ly-slur-up" Tags.subs
+c_ly_slur_up = Derive.generator Module.ly "ly-slur-up" Tags.subs
     "Add a lilypond slur, forced to be above." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "^(") (Lily.SuffixLast, ")")
 
 c_ly_slur_down :: Derive.Generator Derive.Note
-c_ly_slur_down = Derive.make_call Module.ly "ly-slur-down" Tags.subs
+c_ly_slur_down = Derive.generator Module.ly "ly-slur-down" Tags.subs
     "Add a lilypond slur, forced to be below." $ Sig.call0 $
         Lily.notes_around_ly (Lily.SuffixFirst, "_(") (Lily.SuffixLast, ")")
 
 -- | This is not in 'note_calls', instruments that support this are expected to
 -- override @(@ with it.
 c_attr_legato :: Derive.Generator Derive.Note
-c_attr_legato = Derive.make_call Module.instrument "legato"
+c_attr_legato = Derive.generator Module.instrument "legato"
     (Tags.attr <> Tags.subs)
     "Make a phrase legato by applying the `+legato` attribute. This is for\
     \ instruments that understand it, for instance with a keyswitch for\

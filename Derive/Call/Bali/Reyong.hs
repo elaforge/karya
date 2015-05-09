@@ -95,7 +95,7 @@ c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 1))
 -- and without a polos \/ sangsih division.
 realize_pattern :: Gangsa.Repeat -> Pattern -> Derive.Generator Derive.Note
 realize_pattern repeat pattern =
-    Derive.make_call module_ "reyong" Tags.inst "Emit reyong kilitan."
+    Derive.generator module_ "reyong" Tags.inst "Emit reyong kilitan."
     $ Sig.call (Gangsa.dur_env) $ \dur -> Sub.inverting $ \args -> do
         (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
         pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
@@ -113,7 +113,7 @@ realize_pattern repeat pattern =
 make_articulation :: [Position] -> Text -> (Position -> [Pitch.Pitch])
     -> Score.Attributes -> Derive.Generator Derive.Note
 make_articulation positions name get_notes attrs =
-    Derive.make_call module_ name Tags.inst "Reyong articulation."
+    Derive.generator module_ name Tags.inst "Reyong articulation."
     $ Sig.call0 $ Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Call.get_pitch_functions
         mconcatMap (realize show_pitch args) (zip [1..] positions)

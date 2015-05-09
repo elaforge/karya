@@ -48,7 +48,7 @@ poly_calls = Derive.transformer_call_map
 -- * generator
 
 c_if_e :: Derive.Callable d => Derive.Generator d
-c_if_e = Derive.make_call Module.prelude "if-e" mempty
+c_if_e = Derive.generator Module.prelude "if-e" mempty
     "Derive based on the value of an environment variable."
     $ Sig.call ((,,,)
     <$> Sig.required "name" "Environ key."

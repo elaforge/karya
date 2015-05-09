@@ -37,7 +37,7 @@ module_ :: Module.Module
 module_ = "bali" <> "sekar"
 
 c_sekar_direct :: Derive.Generator Derive.Note
-c_sekar_direct = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
+c_sekar_direct = Derive.generator module_ "sekar" (Tags.inst <> Tags.subs)
     "Arrange sub-notes according to a pattern.\
     \\nIn the direct substitution style, each note retains its relative\
     \ duration as it is rearranged by the pattern. A rest is considered a\
@@ -58,7 +58,7 @@ c_sekar_direct = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
         mconcatMap derive =<< Sub.sub_rest_events arrive True args
 
 c_sekar_even :: Derive.Generator Derive.Note
-c_sekar_even = Derive.make_call module_ "sekar" (Tags.inst <> Tags.subs)
+c_sekar_even = Derive.generator module_ "sekar" (Tags.inst <> Tags.subs)
     "Arrange sub-notes according to a pattern.\
     \\nIn the even subdivision style, the range is divided evenly based\
     \ on the highest index of the pattern (so `abcac` would divide into 3\

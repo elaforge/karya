@@ -60,7 +60,7 @@ trill_variations make =
 -- would be useful simultaneously, and why not have a reasonable default
 -- vocabulary if I can manage it?
 make_gliss :: Text -> Bool -> Derive.Generator Derive.Note
-make_gliss name is_absolute = Derive.make_call module_ name mempty
+make_gliss name is_absolute = Derive.generator module_ name mempty
     "Glissando along the open strings. The standard version divides the `time`\
     \ among the number of notes, while the -a (absolute) version gives `time`\
     \ to each note."
@@ -122,7 +122,7 @@ gliss pitches time start_dyn end_dyn end = do
 -- * trill
 
 c_note_trill :: Maybe Trill.Direction -> Derive.Generator Derive.Note
-c_note_trill start_dir = Derive.make_call module_ "tr" Tags.ly
+c_note_trill start_dir = Derive.generator module_ "tr" Tags.ly
     "A trill with smooth transitions."
     $ Sig.call ((,,) <$> neighbor_arg <*> speed_arg <*> Trill.hold_env
     ) $ \(neighbor, speed, hold) -> Sub.inverting $ \args ->

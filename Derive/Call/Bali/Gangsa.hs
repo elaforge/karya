@@ -173,7 +173,7 @@ parse_pattern unison polos_pat sangsih_pat polos_telu sangsih_telu =
 -- it would be more convenient as a generator.  In any case, as a postproc it
 -- gets really complicated.
 c_norot :: Derive.Generator Derive.Note
-c_norot = Derive.make_call module_ "norot" Tags.inst
+c_norot = Derive.generator module_ "norot" Tags.inst
     "Emit the basic norot pattern. The last note will line up with the end of\
     \ the event."
     $ Sig.call ((,,,,,,)
@@ -219,7 +219,7 @@ gangsa_norot style pasang (pstep, sstep) = (interlock, normal)
     sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
 
 c_norot_arrival :: Derive.Generator Derive.Note
-c_norot_arrival = Derive.make_call module_ "norot" Tags.inst
+c_norot_arrival = Derive.generator module_ "norot" Tags.inst
     "Emit norot arrival."
     $ Sig.call ((,,,,)
     <$> Sig.defaulted "style" Default "Norot style."
@@ -273,7 +273,7 @@ norot_steps scale inst_top pitch style
         Pitches.transpose_d steps pitch
 
 c_gender_norot :: Derive.Generator Derive.Note
-c_gender_norot = Derive.make_call module_ "gender-norot" Tags.inst
+c_gender_norot = Derive.generator module_ "gender-norot" Tags.inst
     "Gender-style norot."
     $ Sig.call ((,,,)
     <$> dur_env <*> kotekan_env <*> pasang_env <*> initial_env)
@@ -308,7 +308,7 @@ kotekan_doc =
 c_kotekan_irregular :: KotekanStyle -> KotekanPattern
     -> Derive.Generator Derive.Note
 c_kotekan_irregular default_style pattern =
-    Derive.make_call module_ "kotekan" Tags.inst
+    Derive.generator module_ "kotekan" Tags.inst
     ("Render a kotekan pattern where both polos and sangsih are explicitly\
     \ specified. This is for irregular patterns.\n" <> kotekan_doc)
     $ Sig.call ((,,,,)
@@ -351,7 +351,7 @@ pattern_steps style (polos, sangsih) (KotekanPattern unison p4 s4 p3 s3) =
 
 c_kotekan_kernel :: Derive.Generator Derive.Note
 c_kotekan_kernel =
-    Derive.make_call module_ "kotekan" Tags.inst
+    Derive.generator module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel. The sangsih part is inferred.\n"
         <> kotekan_doc)
     $ Sig.call ((,,,,,,,,)
@@ -375,7 +375,7 @@ c_kotekan_kernel =
 
 c_kotekan_regular :: Maybe Text -> Derive.Generator Derive.Note
 c_kotekan_regular maybe_kernel =
-    Derive.make_call module_ "kotekan" Tags.inst
+    Derive.generator module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel representing the polos.\
     \ The sangsih is inferred.\n" <> kotekan_doc)
     $ Sig.call ((,,,,,,)

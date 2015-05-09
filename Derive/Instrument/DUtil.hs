@@ -30,23 +30,26 @@ import qualified Derive.TrackLang as TrackLang
 import Global
 
 
-make_call :: Text -> Text -> Derive.WithArgDoc d -> Derive.Call d
-make_call name doc = Derive.make_call Module.instrument name mempty doc
+generator :: Text -> Text
+    -> Derive.WithArgDoc (Derive.GeneratorF d)
+    -> Derive.Generator d
+generator name = Derive.generator Module.instrument name mempty
 
-make_call0 :: Derive.Taggable d => Text -> Text
-    -> Derive.GeneratorFunc d -> Derive.Generator d
-make_call0 name doc call = make_call name doc (Sig.call0 call)
+generator0 :: Derive.Taggable d => Text -> Text
+    -> (Derive.PassedArgs d -> Derive.LogsDeriver d) -> Derive.Generator d
+generator0 name doc call = generator name doc (Sig.call0 call)
 
-make_call0t :: Derive.Taggable d => Text -> Text -> Derive.TransformerFunc d
+transformer0 :: Derive.Taggable d => Text -> Text -> Derive.TransformerF d
     -> Derive.Transformer d
-make_call0t name doc call = make_call name doc (Sig.call0t call)
+transformer0 name doc call =
+    Derive.transformer Module.instrument name mempty doc (Sig.call0t call)
 
 -- | Make a call that simply calls the default note call with the given attrs.
 attrs_note :: Score.Attributes -> Derive.Generator Derive.Note
 attrs_note attrs =
-    make_call ("attrs_note " <> ShowVal.show_val attrs)
-        "Invoke the default note call with the given attrs." $
-    Sig.call0 $ \args -> Call.add_attrs attrs (Call.note_here args)
+    generator0 ("attrs_note " <> ShowVal.show_val attrs)
+        "Invoke the default note call with the given attrs." $ \args ->
+    Call.add_attrs attrs (Call.note_here args)
 
 zero_duration_transform :: Text
     -> (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
@@ -58,7 +61,7 @@ zero_duration_transform doc transform = Note.transformed_note
 
 zero_duration :: Text -> Text -> (Derive.NoteArgs -> Derive.NoteDeriver)
     -> (Derive.NoteArgs -> Derive.NoteDeriver) -> Derive.Generator Derive.Note
-zero_duration name doc zero non_zero = make_call name doc $ Sig.call0 $ \args ->
+zero_duration name doc zero non_zero = generator0 name doc $ \args ->
     ifM (is_zero_duration args) (zero args) (non_zero args)
 
 is_zero_duration :: Derive.PassedArgs a -> Derive.Deriver Bool
@@ -82,10 +85,13 @@ postproc_note name doc f = postproc_generator name doc Note.c_note apply
 -- | Transform an existing call by applying a function to it.  It gets a new
 -- name and the documentation is prepended to the documentation of the original
 -- call.
-postproc_generator :: Text -> Text -> Derive.Call (a -> b) -> (b -> c)
-    -> Derive.Call (a -> c)
-postproc_generator name new_doc (Derive.Call _ old_doc func) f =
-    Derive.Call name (append_doc new_doc old_doc) (f . func)
+postproc_generator :: Text -> Text -> Derive.Generator d
+    -> (Derive.LogsDeriver d -> Derive.LogsDeriver d) -> Derive.Generator d
+postproc_generator name new_doc (Derive.Call _ old_doc func) f = Derive.Call
+    { call_name = name
+    , call_doc = append_doc new_doc old_doc
+    , call_func = func { Derive.gfunc_f = f . Derive.gfunc_f func }
+    }
     where
     append_doc text (Derive.CallDoc tags module_ doc args) =
         Derive.CallDoc tags module_ (doc <> "\n" <> text) args
@@ -98,11 +104,11 @@ multiple_calls calls =
 
 -- | Create a call that just dispatches to other calls.
 multiple_call :: Text -> [TrackLang.CallId] -> Derive.Generator Derive.Note
-multiple_call name calls = make_call name
+multiple_call name calls = generator0 name
     -- I intentionally omit the calls from the doc string, so they will
     -- combine in the call doc.  Presumably the calls are apparent from the
     -- name.
-    "Dispatch to multiple calls." $ Sig.call0 $ \args ->
+    "Dispatch to multiple calls." $ \args ->
         mconcatMap (Eval.reapply_generator args) calls
 
 double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
@@ -111,7 +117,7 @@ double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
 double_calls = map (second double_call)
 
 double_call :: TrackLang.CallId -> Derive.Generator Derive.Note
-double_call repeated = make_call "double"
+double_call repeated = generator "double"
     "Doubled call. This is a specialization of `roll`."
     $ Sig.call ((,)
     <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
@@ -164,7 +170,7 @@ redirect_pitch :: Text -> TrackLang.CallId -> Controls -> TrackLang.CallId
     -> Controls -> Derive.Generator Derive.Note
 redirect_pitch name pitched_call pitched_controls unpitched_call
         unpitched_controls =
-    make_call name ("A composite instrument splits pitch and controls to\
+    generator name ("A composite instrument splits pitch and controls to\
         \ separate instruments.\n" <> composite_doc)
     $ Sig.call ((,)
     <$> Sig.required_environ "pitched" Sig.Prefixed
@@ -180,7 +186,7 @@ redirect_pitch name pitched_call pitched_controls unpitched_call
 double_pitch :: Text -> Controls -> Score.PControl -> Controls
     -> Derive.Generator Derive.Note
 double_pitch name base_controls pcontrol secondary_controls =
-    make_call name ("A composite instrument that has two pitch signals.\n"
+    generator name ("A composite instrument that has two pitch signals.\n"
         <> composite_doc)
     $ Sig.call ((,)
     <$> Sig.required_environ "base-inst" Sig.Prefixed

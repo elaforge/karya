@@ -112,7 +112,7 @@ c_not_ly_track = transformer "not-ly-track" mempty
         Lily.derive_notes args
 
 c_if_ly :: Derive.Generator Derive.Note
-c_if_ly = make_call "if-ly" mempty
+c_if_ly = generator "if-ly" mempty
     "Conditional for lilypond." $ Sig.call ((,)
     <$> required "is-ly" "Evaluated in lilypond mode."
     <*> required "not-ly" "Evaluated when not in lilypond mode."
@@ -316,7 +316,7 @@ code_call :: Text -> Text -> Sig.Parser a -> (a -> Derive.Deriver Lily.Code)
     -> Make.Calls Derive.Note
 code_call name doc sig make_code = (gen, trans)
     where
-    gen = make_call name mempty doc $
+    gen = generator name mempty doc $
         Sig.call sig $ \val args -> do
             code <- make_code val
             -- Code calls mostly apply code to a single note.  It would be
@@ -358,7 +358,7 @@ code0_around_call name doc sig make_code = (gen, trans)
         <> " The transformer will wrap each event in (start, end) pairs.\
         \ This way you can wrap all notes on a certain track with\
         \ complementary bits of lilypond code."
-    gen = make_call name mempty (doc <> around_doc) $
+    gen = generator name mempty (doc <> around_doc) $
         Sig.call sig $ \val args -> Lily.only_lilypond $ do
             (code1, _) <- make_code val
             Lily.code0 (Args.start args) code1 <> Lily.derive_notes args
@@ -408,18 +408,17 @@ make_code_call :: Text -> Text -> Sig.Parser a
     -> Make.Calls Derive.Note
 make_code_call name doc sig call = (gen, trans)
     where
-    gen = make_call name mempty doc $
+    gen = generator name mempty doc $
         Sig.call sig $ \val args -> Lily.only_lilypond $
             call False val args <> Lily.derive_notes args
     trans = transformer name mempty doc $
         Sig.callt sig $ \val args deriver ->
             Lily.when_lilypond (call True val args <> deriver) deriver
 
-make_call :: Text -> Tags.Tags -> Text -> Derive.WithArgDoc func
-    -> Derive.Call func
-make_call = Derive.make_call Module.ly
+generator :: Text -> Tags.Tags -> Text
+    -> Derive.WithArgDoc (Derive.GeneratorF d) -> Derive.Generator d
+generator = Derive.generator Module.ly
 
 transformer :: Text -> Tags.Tags -> Text
-    -> Derive.WithArgDoc (Derive.TransformerFunc d)
-    -> Derive.Call (Derive.TransformerFunc d)
+    -> Derive.WithArgDoc (Derive.TransformerF d) -> Derive.Transformer d
 transformer = Derive.transformer Module.ly

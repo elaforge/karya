@@ -113,7 +113,7 @@ run_val transform call = extract $ DeriveTest.derive_tracks_with
     extract = first (Monad.join . Seq.head) . DeriveTest.extract
         (TrackLang.lookup_val "capture" . Score.event_environ)
     c_capture :: Derive.Generator Derive.Note
-    c_capture = Derive.make_call module_ "capture" mempty "Capture env." $
+    c_capture = Derive.generator module_ "capture" mempty "Capture env." $
         Sig.call (Sig.required "val" "Val.") $ \val _args ->
             Derive.with_val "capture" (val :: TrackLang.Val) Call.note
 
@@ -124,9 +124,10 @@ c_show_args = Derive.generator module_ "show-args" mempty "doc" $
             map ShowVal.show_val (Derive.passed_vals args)
         return []
 
-generator :: Derive.Taggable y =>
-    Sig.Generator y d -> Derive.Call (Sig.Generator y d)
-generator = Derive.make_call module_ "test" mempty "test doc" . Sig.call0
+generator :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.LogsDeriver d)
+    -> Derive.Generator d
+generator = Derive.generator module_ "test" mempty "test doc" . Sig.call0
+
 
 -- * PassedArgs
 

@@ -41,7 +41,7 @@ note_calls = Derive.call_maps
 
 
 c_ap :: Derive.Generator Derive.Note
-c_ap = Derive.make_call Module.prelude "ap" Tags.subs
+c_ap = Derive.generator Module.prelude "ap" Tags.subs
     "Derive sub events with no changes.  This is used to apply a transformer\
     \ to sub events."
     $ Sig.call0 $ Sub.derive . concat <=< Sub.sub_events
@@ -49,7 +49,7 @@ c_ap = Derive.make_call Module.prelude "ap" Tags.subs
 -- * tuplet
 
 c_tuplet :: Derive.Generator Derive.Note
-c_tuplet = Derive.make_call Module.prelude "tuplet" Tags.subs
+c_tuplet = Derive.generator Module.prelude "tuplet" Tags.subs
     "A generalized tuplet. The notes within its scope are stretched so that\
     \ their collective duration is the same as the tuplet's duration.\
     \\nThis doesn't work so well for zero duration notes. The last note\
@@ -151,7 +151,7 @@ tuplet_code tuplet_dur note_dur note_count notes =
 data Arpeggio = ToRight | ToLeft | Random deriving (Show)
 
 c_real_arpeggio :: Arpeggio -> Derive.Generator Derive.Note
-c_real_arpeggio arp = Derive.make_call Module.prelude "arpeggio" Tags.subs
+c_real_arpeggio arp = Derive.generator Module.prelude "arpeggio" Tags.subs
     ("Arpeggiate the transformed notes. This shifts each note's start time\
     \ by a different amount, increasing to the right for `arp-up`,\
     \ to the left for `arp-down`, and randomly for `arp-rnd`.\

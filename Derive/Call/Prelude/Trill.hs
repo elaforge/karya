@@ -84,7 +84,7 @@ note_calls = Derive.call_maps
 c_note_trill :: Maybe Direction -> Maybe Direction
     -> Derive.Generator Derive.Note
 c_note_trill hardcoded_start hardcoded_end =
-    Derive.make_call Module.prelude "tr" Tags.ly
+    Derive.generator Module.prelude "tr" Tags.ly
     ("Generate a note with a trill.\
     \\nUnlike a trill on a pitch track, this generates events for each\
     \ note of the trill. This is more appropriate for fingered trills,\
@@ -110,7 +110,7 @@ c_note_trill hardcoded_start hardcoded_end =
             Sub.derive notes
 
 c_attr_trill :: Derive.Generator Derive.Note
-c_attr_trill = Derive.make_call Module.prelude "attr-tr" Tags.attr
+c_attr_trill = Derive.generator Module.prelude "attr-tr" Tags.attr
     "Generate a trill by adding a `+trill` attribute. Presumably this is a\
     \ sampled instrument that has a trill keyswitch."
     $ Sig.call
@@ -128,7 +128,7 @@ c_attr_trill = Derive.make_call Module.prelude "attr-tr" Tags.attr
         Call.add_attrs (Attrs.trill <> width_attr) (Call.placed_note args)
 
 c_tremolo_generator :: Derive.Generator Derive.Note
-c_tremolo_generator = Derive.make_call Module.prelude "trem" Tags.ly
+c_tremolo_generator = Derive.generator Module.prelude "trem" Tags.ly
     "Repeat a single note. Or, if there are sub-notes, alternate with each of\
     \ the sub-notes in turn."
     $ Sig.call ((,) <$> Speed.arg <*> hold_env) $ \(speed, hold) args -> do

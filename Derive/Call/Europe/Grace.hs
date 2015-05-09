@@ -85,7 +85,7 @@ grace_placement_doc =
 -- * note calls
 
 c_mordent :: Pitch.Transpose -> Derive.Generator Derive.Note
-c_mordent default_neighbor = Derive.make_call Module.europe "mordent"
+c_mordent default_neighbor = Derive.generator Module.europe "mordent"
     Tags.ornament
     "Like `g`, but hardcoded to play pitch, neighbor, pitch."
     $ Sig.call ((,)
@@ -108,7 +108,7 @@ lily_mordent args neighbor = do
 -- | Grace is in the prelude since it's so commonly used.  Mordent and the
 -- other variations are still in 'Module.europe'.
 c_grace :: Derive.Generator Derive.Note
-c_grace = Derive.make_call Module.prelude "grace" (Tags.ornament <> Tags.ly)
+c_grace = Derive.generator Module.prelude "grace" (Tags.ornament <> Tags.ly)
     "Emit grace notes. The grace notes go through the `(` call, so they will\
     \ overlap or apply a keyswitch, or do whatever `(` does."
     $ Sig.call ((,)
@@ -121,7 +121,7 @@ c_grace = Derive.make_call Module.prelude "grace" (Tags.ornament <> Tags.ly)
             grace_call args dyn pitches grace_dur place
 
 c_basic_grace :: Derive.Generator Derive.Note
-c_basic_grace = Derive.make_call Module.prelude "basic-grace"
+c_basic_grace = Derive.generator Module.prelude "basic-grace"
     (Tags.ornament <> Tags.ly)
     "This a grace call where all arguments are required. The idea is that this\
     \ will be used as the implementation of more specific ornaments, perhaps\
@@ -174,7 +174,7 @@ basic_grace args pitches transform =
     where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
 
 c_roll :: Derive.Generator Derive.Note
-c_roll = Derive.make_call Module.europe "roll" Tags.ornament
+c_roll = Derive.generator Module.europe "roll" Tags.ornament
     "These are like grace notes, but they all have the same pitch."
     $ Sig.call ((,,)
     <$> Sig.defaulted "times" 1 "Number of grace notes."
@@ -227,7 +227,7 @@ c_grace_attr :: Map.Map Int Score.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
     -> Derive.Generator Derive.Note
 c_grace_attr supported =
-    Derive.make_call Module.europe "grace" (Tags.ornament <> Tags.ly)
+    Derive.generator Module.europe "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "

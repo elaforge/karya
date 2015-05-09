@@ -51,7 +51,7 @@ c_omit = Derive.transformer Module.prelude "omit" Tags.random
         ifM (Call.chance omit) (return mempty) deriver
 
 c_alternate :: Derive.Callable d => Derive.Generator d
-c_alternate = Derive.make_call Module.prelude "alternate" Tags.random
+c_alternate = Derive.generator Module.prelude "alternate" Tags.random
     "Pick one of several expressions and evaluate it."
     $ Sig.call (Sig.many1 "expr" "Expression to evaluate.") $
     \exprs args -> do
@@ -70,7 +70,7 @@ eval info val = do
 -- for most types, but not for Pitch.
 c_alternate_weighted :: Derive.Callable d => Derive.Generator d
 c_alternate_weighted =
-    Derive.make_call Module.prelude "alternate-weighted" Tags.random
+    Derive.generator Module.prelude "alternate-weighted" Tags.random
     "Pick one of several expressions and evaluate it."
     $ Sig.call (Sig.many1 "weight,expr"
         "An even number of args in (Num, Val) pairs.") $
@@ -87,7 +87,7 @@ c_alternate_weighted =
         return (Eval.eval_quoted (Args.info args) quoted, weight)
 
 c_alternate_tracks :: Derive.Generator Derive.Note
-c_alternate_tracks = Derive.make_call Module.prelude "alternate-tracks"
+c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
     (Tags.random <> Tags.subs) "Evaluate notes from one of the sub-tracks."
     $ Sig.call
     (Sig.many "weight" "Likelihood to choose each child track. Each number is\

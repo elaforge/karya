@@ -391,7 +391,7 @@ compile_library (Parse.Definitions note control pitch val) = Derive.Library
 make_generator :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Expr
     -> Derive.Generator d
 make_generator (TrackLang.Symbol name) expr =
-    Derive.make_call Module.local name mempty ("Local definition: " <> name) $
+    Derive.generator Module.local name mempty ("Local definition: " <> name) $
     case assign_symbol expr of
         Nothing -> Sig.call0 generator
         Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $
@@ -401,7 +401,7 @@ make_generator (TrackLang.Symbol name) expr =
 make_transformer :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Expr
     -> Derive.Transformer d
 make_transformer (TrackLang.Symbol name) expr =
-    Derive.make_call Module.local name mempty ("Local definition: " <> name) $
+    Derive.transformer Module.local name mempty ("Local definition: " <> name) $
     case assign_symbol expr of
         Nothing -> Sig.call0t transformer
         Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $

@@ -238,6 +238,7 @@ derive_event_stream derive_empty tinfo
     ((state, next_val, save_val), levents)
     where
     track = tinfo_track tinfo
+    -- Derive the empty space after the previous event and before this one.
     (levents, state) = maybe ([], prev_state) (run_derive prev_state) $
         case cur_events of
             event : _ -> derive_empty tinfo (Seq.head prev_events)

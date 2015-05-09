@@ -15,9 +15,8 @@
 
     Since State only really requires data types, the majority of this module
     is data declarations, with the exception of a few constructors which
-    are intimately concerned with the type they are constructing.  The vast
-    library of functions to manipulate these types are split into
-    "Derive.Deriver.Lib".
+    are intimately concerned with the type they are constructing.  The library
+    of functions to manipulate these types are split into "Derive.Deriver.Lib".
 
     This module is way too big.  Unfortunately it's hard to split up because
     of circular imports.  Anyone who directly or indirectly needs Deriver
@@ -25,10 +24,11 @@
     indirectly used by State must be imported by Derive.  Since State is the
     central type that must hold anything that persists beyond the evaluation
     of a single note, that winds up being a lot.  At one point I tried to
-    reign in the madness with hs-boot files, but that's an iatrogenic cure
-    since the hs-boot madness is worse.
+    reign in the madness with hs-boot files, but I decided that hs-boot was
+    worse.
 -}
 module Derive.Deriver.Monad (
+    -- * Deriver
     Deriver, RunResult
     , modify, get, gets, put, run
 
@@ -64,6 +64,7 @@ module Derive.Deriver.Monad (
 
     -- ** constant
     , Constant(..), initial_constant
+    , Mode(..)
     , op_add, op_sub, op_mul, op_scale
 
     -- ** instrument
@@ -75,7 +76,7 @@ module Derive.Deriver.Monad (
     -- ** collect
     , Collect(..), SignalFragments
     , ControlMod(..), Integrated(..)
-    , TrackDynamic
+    , TrackDynamic, CallDuration(..)
 
     -- * calls
     , CallMaps(..), call_map
@@ -88,11 +89,11 @@ module Derive.Deriver.Monad (
     , PassedArgs(..)
 
     -- ** generator
-    , Generator, GeneratorFunc
-    , generator, generator1
+    , Generator, GeneratorFunc(..), GeneratorF, generator_func
+    , generator_with_duration, generator, generator_events, generator1
 
     -- ** transformer
-    , Transformer, TransformerFunc
+    , Transformer, TransformerF
     , transformer
 
     -- ** val
@@ -314,8 +315,8 @@ instance Taggable Score.Event where
 -- but I can't think of how to make it better.
 --
 -- Each call generates a chunk [Event], and the chunks are then joined with
--- 'd_merge_asc'.  This means every cons is copied once, but I think this is
--- hard to avoid if I want to merge streams.
+-- 'd_merge'.  This means every cons is copied once, but I think this is hard
+-- to avoid if I want to merge streams.
 type Events = [LEvent.LEvent Score.Event]
 
 instance Callable Score.Event where
@@ -362,18 +363,16 @@ instance Callable PitchSignal.Signal where
 
 -- * state
 
--- | All the state available during derivation.  It has three parts: Dynamic is
--- scoped to sub-computations like Reader, Collect is written to with
--- 'mappend', and Constant is constant.  This means that in principle
--- derivation of siblings could be parallelized.  However, events on a track
--- (except a note track) still must be serialized, thanks to 'info_prev_val'.
+-- | All the state available during derivation.
 data State = State {
+    -- | Threaded state means deriving one event depends on the results of the
+    -- previous event.  This corresponds to StateT.
     state_threaded :: !Threaded
     -- | This data is modified in a dynamically scoped way, for
-    -- sub-derivations.  This is used like a Reader.
+    -- sub-derivations.  This corresponds to ReaderT.
     , state_dynamic :: !Dynamic
     -- | This data is mappended.  It functions like an implicit return value.
-    -- This is used like a Writer.
+    -- This corresponds to WriterT.
     , state_collect :: !Collect
     -- | This data is constant throughout the derivation.
     , state_constant :: !Constant
@@ -390,8 +389,9 @@ initial_state constant dynamic = State
 -- * Threaded
 
 -- | State which is threaded linearly.  This destroys the ability to
--- parallelize derivation, so it's not so great, but since it only tracks
--- previous value, it can be broken at block boundaries.
+-- parallelize derivation, so it's not so great.  However, the only threaded
+-- state is state_prev_val, which is only needed within a track, so sibling
+-- tracks can still be parallelized.
 newtype Threaded = Threaded {
     -- | Keep track of the previous value for each track currently being
     -- evaluated.  See NOTE [prev-val].
@@ -698,26 +698,38 @@ data Constant = Constant {
     -- | Cache from the last derivation.
     , state_cache :: !Cache
     , state_score_damage :: !ScoreDamage
-    -- | Config for lilypond derivation.  Set only when deriving for the
-    -- lilypond backend.  Various calls can check for its presence and derive
-    -- differently (e.g. trill should emit trill ly code instead of notes).
-    , state_lilypond :: !(Maybe Lilypond.Types.Config)
+    , state_mode :: !Mode
     }
 
 initial_constant :: State.State -> Library -> LookupScale
     -> (Score.Instrument -> Maybe Instrument) -> Cache -> ScoreDamage
     -> Constant
-initial_constant ui_state library lookup_scale lookup_inst cache
-        score_damage = Constant
-    { state_ui = ui_state
-    , state_library = library
-    , state_control_op_map = default_control_op_map
-    , state_lookup_scale = lookup_scale
-    , state_lookup_instrument = lookup_inst
-    , state_cache = invalidate_damaged score_damage cache
-    , state_score_damage = score_damage
-    , state_lilypond = Nothing
-    }
+initial_constant ui_state library lookup_scale lookup_inst cache score_damage =
+    Constant
+        { state_ui = ui_state
+        , state_library = library
+        , state_control_op_map = default_control_op_map
+        , state_lookup_scale = lookup_scale
+        , state_lookup_instrument = lookup_inst
+        , state_cache = invalidate_damaged score_damage cache
+        , state_score_damage = score_damage
+        , state_mode = Normal
+        }
+
+-- | Derivation can run in a few distinct modes.
+data Mode =
+    -- | Standard derivation.
+    Normal
+    -- | This indicates that I'm running the deriver just to find out its
+    -- duration.  There's a hack in "Derive.Eval" that will fill in
+    -- 'collect_call_duration' when it sees this mode.  More detail in
+    -- 'CallDuration'.
+    | DurationQuery
+    -- | Emit events intended for the lilypond backend.  Calls that have
+    -- corresponding staff notation (e.g. trills) emit special events with
+    -- attached lilypond code in this mode.
+    | Lilypond !Lilypond.Types.Config
+    deriving (Show)
 
 -- ** instrument
 
@@ -829,6 +841,7 @@ data Collect = Collect {
     , collect_cache :: !Cache
     , collect_integrated :: ![Integrated]
     , collect_control_mods :: ![ControlMod]
+    , collect_call_duration :: !CallDuration
     }
 
 -- | These are fragments of a signal, which will be later collected into
@@ -847,7 +860,7 @@ type SignalFragments =
 
 instance Pretty.Pretty Collect where
     format (Collect warp_map tsigs frags trackdyn trackdyn_inv deps cache
-            integrated cmods) =
+            integrated cmods call_dur) =
         Pretty.record "Collect"
             [ ("warp_map", Pretty.format warp_map)
             , ("track_signals", Pretty.format tsigs)
@@ -858,24 +871,25 @@ instance Pretty.Pretty Collect where
             , ("cache", Pretty.format cache)
             , ("integrated", Pretty.format integrated)
             , ("control_mods", Pretty.format cmods)
+            , ("call duration", Pretty.format call_dur)
             ]
 
 instance Monoid.Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty mempty mempty mempty
-        mempty
+        mempty mempty
     mappend (Collect warps1 tsigs1 frags1 trackdyn1 trackdyn_inv1 deps1 cache1
-                integrated1 cmods1)
+                integrated1 cmods1 cdur1)
             (Collect warps2 tsigs2 frags2 trackdyn2 trackdyn_inv2 deps2 cache2
-                integrated2 cmods2) =
+                integrated2 cmods2 cdur2) =
         Collect (warps1 <> warps2)
             (tsigs1 <> tsigs2) (Map.unionWith (<>) frags1 frags2)
             (trackdyn1 <> trackdyn2) (trackdyn_inv1 <> trackdyn_inv2)
             (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
-            (cmods1 <> cmods2)
+            (cmods1 <> cmods2) (cdur1 <> cdur2)
 
 instance DeepSeq.NFData Collect where
     rnf (Collect warp_map frags tsigs track_dyn track_dyn_inv local_dep cache
-            integrated _cmods) =
+            integrated _cmods _cdur) =
         rnf warp_map `seq` rnf frags `seq` rnf tsigs `seq` rnf track_dyn
         `seq` rnf track_dyn_inv `seq` rnf local_dep `seq` rnf cache
         `seq` rnf integrated
@@ -908,28 +922,61 @@ instance Pretty.Pretty Integrated where
 instance DeepSeq.NFData Integrated where
     rnf (Integrated source events) = rnf source `seq` rnf events
 
--- | Snapshots of the environ at each track.  This is used by the Cmd layer to
--- figure out what the scale and instrument are for a given track.
---
--- Originally this was a map from Stacks to Environ (and only the changed
--- parts).  The idea was that I could walk up the stack to find the Environ
--- value in scope at a given point, and given Stack.Region, could even get
--- e.g. per event instruments.  Unfortunately, while it's easy to do that
--- on the Derive side, it seems really complicated and somewhat expensive to
--- try to retrace a complete stack on every cmd.  Since this implementation
--- doesn't store the entire stack, a track with a different instrument at
--- different times will wind up with the last one.
---
--- This is a much simpler solution which will hopefully work well enough in
--- practice.
---
--- NOTE [record-track-dynamics] One complication is that when I get controls
--- from sliced tracks, the controls are also sliced.  But I need the environ
--- from the inverted version of the track so the common case of [>i, *scale]
--- gets the correct scale.  So I record TrackDynamic for both inverted and non
--- inverted tracks and prefer the inverted tracks, but take controls from
--- the non-inverted versions.
+{- | Snapshots of the environ at each track.  This is used by the Cmd layer to
+    figure out what the scale and instrument are for a given track.
+
+    Originally this was a map from Stacks to Environ (and only the changed
+    parts).  The idea was that I could walk up the stack to find the Environ
+    value in scope at a given point, and given Stack.Region, could even get
+    e.g. per event instruments.  Unfortunately, while it's easy to do that on
+    the Derive side, it seems really complicated and somewhat expensive to try
+    to retrace a complete stack on every cmd.  Since this implementation
+    doesn't store the entire stack, a track with a different instrument at
+    different times will wind up with the last one.
+
+    This is a much simpler solution which will hopefully work well enough in
+    practice.
+
+    NOTE [record-track-dynamics] One complication is that when I get controls
+    from sliced tracks, the controls are also sliced.  But I need the environ
+    from the inverted version of the track so the common case of [>i, *scale]
+    gets the correct scale.  So I record TrackDynamic for both inverted and non
+    inverted tracks and prefer the inverted tracks, but take controls from the
+    non-inverted versions.
+-}
 type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
+
+{- | This is the logical duration of a call.  This may be different from its
+    actual duration (which is to say, the end time of the last event it emits).
+    Also, while most calls adjust their duration to the duration of the event
+    they are called from, some of them have their own intrinsic duration.  For
+    example, a block call may stretch to its calling event's duration, but it
+    also has its own duration that is used to align the block's end, or to
+    sequence blocks.
+
+    Since the call duration is sometimes used to place the call in the first
+    place (e.g. to align its end), I want to evaluate the minimum amount
+    necessary to find the duration.  The implementation is that each generator
+    call has a 'gfunc_duration' field.  When "Derive.Eval" is evaluating
+    a generator call, if it sees that 'state_mode' is 'DurationQuery', instead
+    of calling 'gfunc_f', it will call gfunc_duration and return the result
+    via 'collect_call_duration'.  You shouldn't stick your fingers into this
+    machinery, but instead use @Derive.get_call_duration@ to do the
+    gefingerpoken for you.
+
+    I'm not very happy with this implementation, but I tried several approaches
+    and this is the only one that worked.  Historical details are in
+    NOTE [call-duration].
+-}
+data CallDuration = Unknown | Duration !ScoreTime
+    deriving (Eq, Show)
+
+instance Pretty.Pretty CallDuration where pretty = showt
+instance Monoid.Monoid CallDuration where
+    mempty = Unknown
+    mappend d1 Unknown = d1
+    mappend Unknown d2 = d2
+    mappend (Duration d1) (Duration d2) = Duration (max d1 d2)
 
 
 -- ** calls
@@ -947,12 +994,13 @@ instance Pretty.Pretty (LookupCall call) where
         LookupMap calls -> "Map: " <> Pretty.format (Map.keys calls)
         LookupPattern name _ _ -> "Pattern: " <> Pretty.text name
 
--- | Previously, a single Call contained both generator and transformer.
--- This turned out to not be flexible enough, because an instrument that
--- wanted to override a generator meant you couldn't use a transformer that
--- happened to have the same name.  However, there are a number of calls that
--- want both generator and transformer versions, and it's convenient to be
--- able to deal with those together.
+{- | Previously, a single Call contained both generator and transformer.
+    This turned out to not be flexible enough, because an instrument that
+    wanted to override a generator meant you couldn't use a transformer that
+    happened to have the same name.  However, there are a number of calls that
+    want both generator and transformer versions, and it's convenient to be
+    able to deal with those together.
+-}
 data CallMaps d = CallMaps ![LookupCall (Generator d)]
     ![LookupCall (Transformer d)]
 
@@ -1114,10 +1162,10 @@ data Call func = Call {
     -- so that error msgs are unambiguous.
     call_name :: !Text
     , call_doc :: !CallDoc
-    , call_func :: func
+    , call_func :: !func
     }
 type Generator d = Call (GeneratorFunc d)
-type Transformer d = Call (TransformerFunc d)
+type Transformer d = Call (TransformerF d)
 
 instance Show (Call derived) where
     show (Call name _ _) = "((Call " <> show name <> "))"
@@ -1173,9 +1221,27 @@ type WithArgDoc f = (f, ArgDocs)
 
 -- ** make calls
 
-type GeneratorFunc d = PassedArgs d -> LogsDeriver d
+data GeneratorFunc d = GeneratorFunc {
+    gfunc_f :: !(GeneratorF d)
+    -- | This gets the logical duration of this call.  'CallDuration' has
+    -- details.
+    , gfunc_duration :: !(PassedArgs d -> Deriver CallDuration)
+    }
+
+type GeneratorF d = PassedArgs d -> LogsDeriver d
+
+generator_func :: (PassedArgs d -> LogsDeriver d) -> GeneratorFunc d
+generator_func f = GeneratorFunc {
+    gfunc_f = f
+    , gfunc_duration = event_duration
+    }
+
+-- | Most calls have the same logical duration as their event.
+event_duration :: PassedArgs d -> Deriver CallDuration
+event_duration = return . Duration . Event.duration . info_event . passed_info
+
 -- | args -> deriver -> deriver
-type TransformerFunc d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
+type TransformerF d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
 
 make_call :: Module.Module -> Text -> Tags.Tags -> Text -> WithArgDoc func
     -> Call func
@@ -1190,13 +1256,24 @@ make_call module_ name tags doc (func, arg_docs) = Call
     , call_func = func
     }
 
+generator_with_duration :: (PassedArgs d -> Deriver CallDuration)
+    -> Module.Module -> Text -> Tags.Tags
+    -> Text -> WithArgDoc (PassedArgs d -> LogsDeriver d) -> Generator d
+generator_with_duration get_duration module_ name tags doc (func, arg_docs) =
+    make_call module_ name tags doc (gfunc, arg_docs)
+    where gfunc = GeneratorFunc func get_duration
+
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
 generator :: Module.Module -> Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs d -> Deriver [d]) -> Call (GeneratorFunc d)
-generator module_ name tags doc (func, arg_docs) =
-    make_call module_ name tags doc ((map LEvent.Event <$>) . func, arg_docs)
+    -> WithArgDoc (GeneratorF d) -> Generator d
+generator = generator_with_duration event_duration
+
+generator_events :: Module.Module -> Text -> Tags.Tags -> Text
+    -> WithArgDoc (PassedArgs d -> Deriver [d]) -> Generator d
+generator_events module_ name tags doc (func, arg_docs) =
+    generator module_ name tags doc ((map LEvent.Event <$>) . func, arg_docs)
 
 -- | Since Signals themselves are collections, there's little reason for a
 -- signal generator to return a Stream of events.  So wrap the generator result
@@ -1204,15 +1281,15 @@ generator module_ name tags doc (func, arg_docs) =
 --
 -- TODO call this signal_generator?
 generator1 :: Module.Module -> Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs d -> Deriver d) -> Call (GeneratorFunc d)
+    -> WithArgDoc (PassedArgs d -> Deriver d) -> Generator d
 generator1 module_ name tags doc (func, arg_docs) =
-    generator module_ name tags doc (((:[]) <$>) . func, arg_docs)
+    generator module_ name tags doc (((:[]) . LEvent.Event <$>) . func, arg_docs)
 
 -- ** transformer
 
 -- | Just 'make_call' with a more specific signature.
 transformer :: Module.Module -> Text -> Tags.Tags -> Text
-    -> WithArgDoc (TransformerFunc d) -> Call (TransformerFunc d)
+    -> WithArgDoc (TransformerF d) -> Transformer d
 transformer = make_call
 
 -- ** val
@@ -1564,4 +1641,27 @@ levent_key (LEvent.Event event) = Score.event_start event
       transpose signal.  However, transpose signals are additive, not
       multiplicative.  So I need some way to indicate the combining operator
       after all.
+-}
+
+{- NOTE [call-duration]
+    This is containued from 'CallDuration'.
+
+    Initially I used just Collect, and each deriver could put a CallDuration
+    into Collect.  Unfortunately this means I have to run the whole deriver and
+    evaluate all the notes.  I tried to exploit laziness a bit, but it's
+    probably impossible.  In addition, merging durations is not correct, because
+    the duration set by the block call should override the durations set by
+    the events inside.
+
+    Then I tried splitting Deriver into (DeriveM, CallDuration) and merging
+    CallDurations in the Applicative instance.  This prevents evaluation, but
+    stops propagating the CallDurations as soon as it hits a (>>=).  This turns
+    out to be pretty much immediately, since an event call needs to parse text
+    and look up a call, which can throw.  The underlying reason is that
+    I actually do need to evaluate a certain amount of the deriver to figure out
+    what kind of deriver it is.
+
+    Since the things that have CallDuration are not so much any old deriver,
+    but specifically calls, I tried putting a special field in 'Generator'
+    calls, which turned out to work.
 -}

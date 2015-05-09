@@ -74,8 +74,9 @@ lookup_note_block = Derive.LookupPattern "block name"
     fake_call = c_block (Id.BlockId (Id.read_id "example/block"))
 
 c_block :: BlockId -> Derive.Generator Derive.Note
-c_block block_id = Derive.make_call Module.prelude ("block " <> showt block_id)
-    mempty "Substitute the named block into the score."
+c_block block_id = Derive.generator_with_duration get_duration Module.prelude
+    ("block " <> showt block_id) mempty
+    "Substitute the named block into the score."
     $ Sig.call0 $ Sub.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.block' relies on on the block id already being
@@ -88,6 +89,9 @@ c_block block_id = Derive.make_call Module.prelude ("block " <> showt block_id)
         end <- Derive.real (1 :: ScoreTime)
         if Event.positive (Args.event args) then trim_controls end deriver
             else constant_controls_at end deriver
+
+    get_duration :: a -> Derive.Deriver Derive.CallDuration
+    get_duration _ = Derive.Duration <$> Derive.get_block_dur block_id
 
 -- | Remove samples at the given RealTime.  This is to support final block
 -- notes and 'Derive.Flags.infer_duration'.  Otherwise, an event at the end of
@@ -160,15 +164,14 @@ d_block block_id = do
             Right expr ->
                 return $ Eval.eval_transformers info (NonEmpty.toList expr)
                 where info = Derive.dummy_call_info 0 1 "block title"
-    transform $ do
-        -- Record a dependency on this block.
-        Internal.add_block_dep block_id
-        BlockUtil.note_deriver block_id
+    -- Record a dependency on this block.
+    transform $ Internal.add_block_dep block_id
+        *> BlockUtil.note_deriver block_id
 
 -- | Given a block id, produce a call expression that will call that block.
 call_from_block_id :: BlockId -> TrackLang.Call
-call_from_block_id block_id = TrackLang.call
-    (TrackLang.Symbol $ Id.show_id $ Id.unpack_id block_id) []
+call_from_block_id block_id =
+    TrackLang.call (TrackLang.Symbol $ Id.show_id $ Id.unpack_id block_id) []
 
 -- | Like 'Eval.call_to_block_id' but make sure the block exists.
 call_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)
@@ -251,7 +254,7 @@ c_tile = make_block_call "tile"
 make_block_call :: Text -> Text
     -> (BlockId -> ScoreTime -> Derive.NoteArgs -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
-make_block_call name doc call = Derive.make_call Module.prelude name mempty doc
+make_block_call name doc call = Derive.generator Module.prelude name mempty doc
     $ Sig.call ((,)
     <$> required "block-id" block_call_doc
     <*> Sig.defaulted "dur" Nothing "If given, the callee will be stretched to\
@@ -284,7 +287,7 @@ lookup_control_block = Derive.LookupPattern "block id"
     fake_call = c_control_block (Id.BlockId (Id.read_id "fake/block"))
 
 c_control_block :: BlockId -> Derive.Generator Derive.Control
-c_control_block block_id = Derive.make_call Module.prelude "control-block"
+c_control_block block_id = Derive.generator Module.prelude "control-block"
     mempty ("Substitute the control signal from the named control block.\
     \ A control block should consist of a single branch ending in\
     \ a track named `%`.  The signal from that track will be\

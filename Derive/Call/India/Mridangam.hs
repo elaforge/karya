@@ -40,7 +40,7 @@ module_ :: Module.Module
 module_ = "india" <> "mridangam"
 
 c_pattern_once :: Derive.Generator Derive.Note
-c_pattern_once = Derive.make_call module_ "pattern" Tags.inst
+c_pattern_once = Derive.generator module_ "pattern" Tags.inst
     "Emit a pattern, fitted into the note duration."
     $ Sig.call pattern_arg $ \pattern -> Sub.inverting $ \args -> do
         let notes = stretch_to_range (Args.range args) $
@@ -52,7 +52,7 @@ stretch_to_range (start, end) xs = zip (Seq.range_ start dur) xs
     where dur = (end - start) / fromIntegral (length xs)
 
 c_pattern_times :: Derive.Generator Derive.Note
-c_pattern_times = Derive.make_call module_ "pattern" Tags.inst
+c_pattern_times = Derive.generator module_ "pattern" Tags.inst
     "Repeat a pattern a certain number of times, fitted into the note duration."
     $ Sig.call ((,)
     <$> pattern_arg
@@ -64,7 +64,7 @@ c_pattern_times = Derive.make_call module_ "pattern" Tags.inst
         mconcat [Derive.place start 0 note | (start, Just note) <- notes]
 
 c_pattern_repeat :: Bool -> Derive.Generator Derive.Note
-c_pattern_repeat clip_start = Derive.make_call module_ "pattern" Tags.inst
+c_pattern_repeat clip_start = Derive.generator module_ "pattern" Tags.inst
     "Repeat a pattern, where each note has the given duration. The first\
     \ variant clips before the end of the note, and the second variant\
     \ lines the end of the pattern up to the end of the note."

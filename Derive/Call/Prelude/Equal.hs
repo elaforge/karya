@@ -56,7 +56,7 @@ c_equal = Derive.transformer Module.prelude "equal" Tags.subs
     equal_doc (Sig.parsed_manually equal_arg_doc equal_transformer)
 
 c_equal_generator :: Derive.Generator Derive.Note
-c_equal_generator = Derive.make_call Module.prelude "equal" Tags.subs
+c_equal_generator = Derive.generator Module.prelude "equal" Tags.subs
     "Similar to the transformer, this will evaluate the notes below in\
     \ a transformed environ."
     (Sig.parsed_manually equal_arg_doc generate)
@@ -204,8 +204,7 @@ override_call lhs rhs name_ generator transformer deriver
         =<< resolve_source (name_ <> " generator") generator
             quoted_generator rhs
     where
-    override_scope lhs lens deriver call =
-        Derive.with_scopes modify deriver
+    override_scope lhs lens deriver call = Derive.with_scopes modify deriver
         where modify = lens#Derive.s_override %= (single_lookup lhs call :)
 
 -- | A VQuoted becomes a call, a Symbol is expected to name a call, and
@@ -250,14 +249,14 @@ single_val_lookup name =
 -- calls maybe it's not so bad.
 quoted_generator :: Derive.Callable d => TrackLang.Quoted -> Derive.Generator d
 quoted_generator quoted@(TrackLang.Quoted expr) =
-    Derive.make_call quoted_module "quoted-call" mempty
+    Derive.generator quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0 $ \args -> Eval.eval_expr False (Args.info args) expr
 
 quoted_transformer :: Derive.Callable d => TrackLang.Quoted
     -> Derive.Transformer d
 quoted_transformer quoted@(TrackLang.Quoted expr) =
-    Derive.make_call quoted_module "quoted-call" mempty
+    Derive.transformer quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0t $ \args deriver ->
         Eval.eval_transformers (Args.info args) (NonEmpty.toList expr) deriver

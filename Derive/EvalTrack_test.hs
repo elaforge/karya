@@ -208,7 +208,7 @@ test_events_around = do
         extract = DeriveTest.r_log_strings
     equal logs ["prev: [0.0]", "next: [2.0]"]
     where
-    c_around = Derive.make_call module_ "around" mempty "doc" $ Sig.call0 $
+    c_around = Derive.generator module_ "around" mempty "doc" $ Sig.call0 $
         Sub.inverting $ \args -> do
             Log.warn $ "prev: "
                 <> showt (map Event.start (Args.prev_events args))
@@ -358,7 +358,7 @@ test_orphans = do
         [0, 1, 2]
     where
     show_subs :: Derive.Generator Derive.Note
-    show_subs = Derive.make_call "test" "show" mempty "doc" $
+    show_subs = Derive.generator "test" "show" mempty "doc" $
         Sig.call0 $ \args -> do
             let subs = Derive.info_sub_tracks (Derive.passed_info args)
             Log.warn $ pretty subs

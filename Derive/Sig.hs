@@ -481,7 +481,7 @@ environ_keys call_name arg_name env_default = case env_default of
 
 -- * call
 
--- | Similar to 'Derive.GeneratorFunc', but leaves the PassedArgs prev val
+-- | Similar to 'Derive.GeneratorF', but leaves the PassedArgs prev val
 -- type free.  This is important for val calls, which used Tagged.
 type Generator y d = Derive.PassedArgs y -> Derive.Deriver d
 type Transformer y d =

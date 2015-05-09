@@ -16,6 +16,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -104,7 +105,7 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
         Nothing -> return []
         Just (x, y) -> do
             start <- Args.real_start args
-            return [Signal.signal [(start, y)] | start > x]
+            return [LEvent.Event $ Signal.signal [(start, y)] | start > x]
 
 c_porta :: Derive.Generator Derive.Control
 c_porta = generator1 "porta" mempty

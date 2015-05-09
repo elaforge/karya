@@ -82,8 +82,18 @@ apply_generator cinfo call_id args = do
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo
             }
-    Internal.with_stack_call (Derive.call_name call) $
-        Derive.call_func call passed
+    mode <- Derive.gets (Derive.state_mode . Derive.state_constant)
+    Internal.with_stack_call (Derive.call_name call) $ case mode of
+        Derive.DurationQuery -> do
+            dur <- Derive.gfunc_duration (Derive.call_func call) passed
+            set_call_duration dur
+            return []
+        _ -> Derive.gfunc_f (Derive.call_func call) passed
+
+-- | See 'Derive.CallDuration' for details.
+set_call_duration :: Derive.CallDuration -> Derive.Deriver ()
+set_call_duration dur = Internal.modify_collect $ \collect ->
+    collect { Derive.collect_call_duration = dur }
 
 -- ** transformer
 

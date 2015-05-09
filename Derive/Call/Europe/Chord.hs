@@ -42,7 +42,7 @@ time_env = TrackLang.default_real <$>
 -- * chord
 
 c_chord :: Direction -> Derive.Generator Derive.Note
-c_chord dir = Derive.make_call Module.europe "chord" mempty
+c_chord dir = Derive.generator Module.europe "chord" mempty
     "Make a chord based on a specialized chord notation. It's different from\
     \ the usual kind of chord notation because the base pitch is given\
     \ separately, and it has to be non-ambiguous, but the idea is the same."
@@ -67,7 +67,7 @@ parse_chord _base _name = Left "not implemented" -- TODO
 
 -- TODO terrible name, can't I come up with something better?
 c_stack :: Direction -> Derive.Generator Derive.Note
-c_stack dir = Derive.make_call Module.europe "stack" mempty
+c_stack dir = Derive.generator Module.europe "stack" mempty
     "Make a chord by stacking intervals on a base pitch. There are variants\
     \ that arpeggiate upwards or downwards, in addition to playing in unison."
     $ Sig.call ((,)

@@ -25,7 +25,7 @@ test_recursive_call = do
     equal result ([], ["Error: call stack too deep: recursive"])
     where
     recursive :: Derive.Generator Derive.Note
-    recursive = Derive.make_call "test-module" "recursive" mempty "doc" $
+    recursive = Derive.generator "test-module" "recursive" mempty "doc" $
         Sig.call0 $ \args ->
             Eval.reapply_call (Derive.passed_info args) "recur" []
 

@@ -288,7 +288,10 @@ is_lilypond_derive :: Deriver Bool
 is_lilypond_derive = Maybe.isJust <$> lookup_lilypond_config
 
 lookup_lilypond_config :: Deriver (Maybe Lilypond.Types.Config)
-lookup_lilypond_config = gets (state_lilypond . state_constant)
+lookup_lilypond_config =
+    gets (state_mode . state_constant) >>= \mode -> return $ case mode of
+        Lilypond config -> Just config
+        _ -> Nothing
 
 -- | Set the given val dynamically within the given computation.  This is
 -- analogous to a dynamic let.
@@ -348,7 +351,7 @@ val_to_pitch :: ValCall -> Generator Pitch
 val_to_pitch (ValCall name doc vcall) = Call
     { call_name = name
     , call_doc = doc
-    , call_func = pitch_call . convert_args
+    , call_func = generator_func $ pitch_call . convert_args
     }
     where
     convert_args args = args
@@ -713,6 +716,17 @@ modify_pitch pcontrol f
     | otherwise = Internal.local $ \state -> state
         { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
 
+get_call_duration :: Deriver a -> Deriver CallDuration
+get_call_duration deriver = do
+    state <- get
+    let (_, out, _) = run (set_mode state) deriver
+    return $ collect_call_duration $ state_collect out
+    where
+    set_mode state = state
+        { state_collect = mempty
+        , state_constant = (state_constant state) { state_mode = DurationQuery }
+        }
+
 -- ** misc
 
 -- | Run the derivation with a modified scope.
@@ -731,15 +745,15 @@ catch collect deriver = do
     state <- get
     -- It's critical to clear the collect, because if I merge it again later
     -- I can't go duplicating the whole thing.
-    let (result, st2, logs) = run (state { state_collect = mempty }) deriver
+    let (result, state2, logs) = run (state { state_collect = mempty }) deriver
     mapM_ Log.write logs
     case result of
         Left err -> do
             Log.write $ error_to_warn err
             return Nothing
         Right val -> do
-            when collect $ Internal.merge_collect (state_collect st2)
-            Internal.set_threaded (state_threaded st2)
+            when collect $ Internal.merge_collect (state_collect state2)
+            Internal.set_threaded (state_threaded state2)
             return $ Just val
 
 -- | Replace the 'state_stack' with the one from the event.  This is useful

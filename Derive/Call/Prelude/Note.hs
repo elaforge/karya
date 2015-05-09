@@ -81,7 +81,7 @@ note_call :: Text
     -- a big deal for the note call, though.
     -> Text -> Tags.Tags -> GenerateNote -> Derive.Generator Derive.Note
 note_call name prepend_doc tags generate =
-    Derive.make_call Module.prelude name tags prepended $
+    Derive.generator Module.prelude name tags prepended $
         Sig.call parser (note_generate generate)
     where
     parser = Sig.many "attribute" "Change the instrument or attributes."

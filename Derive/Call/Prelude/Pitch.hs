@@ -18,6 +18,7 @@ import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Sig as Sig
@@ -75,7 +76,8 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
         start <- Args.real_start args
         return $ case Args.prev_pitch args of
             Nothing -> []
-            Just (x, y) -> [PitchSignal.signal [(start, y)] | start > x]
+            Just (x, y) ->
+                [LEvent.Event $ PitchSignal.signal [(start, y)] | start > x]
 
 -- * misc
 
