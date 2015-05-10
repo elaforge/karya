@@ -187,7 +187,7 @@ test_clip_block = do
             ])
         ([(0, q, "c"), (q, q, "d"), (q*2, q, "e"), (q*3, q, "f")], [])
     equal (run
-            [ ("b1", [(">", [(0, 2.5, "clip sub")])])
+            [ ("b1", [(">", [(0, 2.5, "clip | sub")])])
             , ("sub=ruler", UiTest.regular_notes 4)
             ])
         ([(0, q, "c"), (q, q, "d"), (q*2, Types.dur_to_time Types.D8, "e")], [])

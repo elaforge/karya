@@ -716,6 +716,7 @@ modify_pitch pcontrol f
     | otherwise = Internal.local $ \state -> state
         { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
 
+-- | Get the 'CallDuration' of the given deriver.
 get_call_duration :: Deriver a -> Deriver CallDuration
 get_call_duration deriver = do
     state <- get

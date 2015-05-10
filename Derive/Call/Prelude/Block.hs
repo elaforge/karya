@@ -12,7 +12,6 @@ import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
-import qualified Util.Seq as Seq
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Id as Id
@@ -27,15 +26,12 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
-import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PitchSignal as PitchSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import Derive.Sig (required)
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import Global
 import Types
@@ -56,13 +52,9 @@ eval_root_block global_transform block_id =
 -- * note calls
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.generator_call_map
-    [ ("clip", c_clip)
-    , ("Clip", c_clip_start)
-    , ("loop", c_loop)
-    , ("tile", c_tile)
-    , (BlockUtil.capture_null_control, c_capture_null_control)
-    ]
+note_calls =
+    Derive.generator_call_map
+        [(BlockUtil.capture_null_control, c_capture_null_control)]
     <> Derive.CallMaps [lookup_note_block] []
 
 lookup_note_block :: Derive.LookupCall (Derive.Generator Derive.Note)
@@ -76,7 +68,10 @@ lookup_note_block = Derive.LookupPattern "block name"
 c_block :: BlockId -> Derive.Generator Derive.Note
 c_block block_id = Derive.generator_with_duration get_duration Module.prelude
     ("block " <> showt block_id) mempty
-    "Substitute the named block into the score."
+    "Substitute the named block into the score. If the symbol doesn't contain\
+    \ a `/`, the default namespace is applied. If it starts with a `-`, this\
+    \ is a relative call and the calling block's namespace and name are\
+    \ prepended."
     $ Sig.call0 $ Sub.inverting $ \args ->
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.block' relies on on the block id already being
@@ -123,12 +118,6 @@ trim_controls end = Internal.local $ \dyn -> dyn
         | Maybe.isNothing (PitchSignal.sample_at end sig) = sig
         | otherwise = PitchSignal.drop_at_after end sig
             <> PitchSignal.drop_before_at end sig
-
-block_call_doc :: Text
-block_call_doc =
-    "Derive this block. If the symbol doesn't contain a `/`, the default\
-    \ namespace is applied. If it starts with a `.`, the calling block's\
-    \ namespace and name are prepended."
 
 -- | Replace all controls and pitches with constants from ScoreTime 1.
 -- This is to support arrival notes.  If a block call has negative duration,
@@ -184,94 +173,6 @@ call_to_block_id sym = do
             blocks <- Derive.get_ui_state State.state_blocks
             return $ if Map.member block_id blocks then Just block_id
                 else Nothing
-
-require_block_id :: TrackLang.Symbol -> Derive.Deriver BlockId
-require_block_id sym =
-    Derive.require ("block not found: " <> TrackLang.show_val sym)
-        =<< call_to_block_id sym
-
--- ** clip
-
-c_clip :: Derive.Generator Derive.Note
-c_clip = make_block_call "clip"
-    "Like the normal block call, this will substitute the named block into\
-    \ the score. But instead of stretching the block to fit the event\
-    \ length, the block will be substituted with no stretching. Any\
-    \ events that lie beyond the end of the event will be clipped off.\
-    \ This can be used to cut a sequence short, for example to substitute\
-    \ a different ending. Notes that overlap the end of the call will be cut\
-    \ short."
-    $ \block_id dur args -> do
-        end <- Derive.real $ snd (Args.range args)
-        map (fmap (clip end)) . takeWhile (event_before end) <$>
-            Derive.place (Args.start args) dur (d_block block_id)
-        where
-        clip end event =
-            Score.duration (min (end - Score.event_start event)) event
-
-c_clip_start :: Derive.Generator Derive.Note
-c_clip_start = make_block_call "Clip"
-    "Like `clip`, but align the named block to the end of the event instead\
-    \ of the beginning. Events that then lie before the start are clipped."
-    $ \block_id dur args -> do
-        start <- Args.real_start args
-        dropWhile (event_before start) <$>
-            Derive.place (Args.end args - dur) dur (d_block block_id)
-
--- ** loop
-
-c_loop :: Derive.Generator Derive.Note
-c_loop = make_block_call "loop"
-    "This is similar to `clip`, but when the called note runs out, it is\
-    \ repeated."
-    $ \block_id dur args -> do
-        let (start, end) = Args.range args
-        let repeats = ceiling $ (end - start) / dur
-            starts = take repeats $ Seq.range_ start dur
-        real_end <- Derive.real end
-        takeWhile (event_before real_end) <$> mconcat
-            [Derive.place s dur (d_block block_id) | s <- starts]
-
-c_tile :: Derive.Generator Derive.Note
-c_tile = make_block_call "tile"
-    "This is like `loop`, but it can start the looped sub-block in its middle\
-    \ instead of starting from 0. The effect is as if the loop is tiled from\
-    \ the beginning of the called block, and is only \"let through\" during\
-    \ the `tile` call. This is useful for patterns that are tied to the meter,\
-    \ but may be interrupted at arbitrary times, e.g. sarvalaghu patterns."
-    $ \block_id dur args -> do
-        let (start, end) = Args.range args
-        let sub_start = fromIntegral (floor (start / dur)) * dur
-        let repeats = ceiling $ (end - sub_start) / dur
-            starts = take repeats $ Seq.range_ sub_start dur
-        real_end <- Derive.real end
-        real_start <- Derive.real start
-        dropWhile (event_before real_start) . takeWhile (event_before real_end)
-            <$> mconcat [Derive.place s dur (d_block block_id) | s <- starts]
-
--- ** util
-
-make_block_call :: Text -> Text
-    -> (BlockId -> ScoreTime -> Derive.NoteArgs -> Derive.NoteDeriver)
-    -> Derive.Generator Derive.Note
-make_block_call name doc call = Derive.generator Module.prelude name mempty doc
-    $ Sig.call ((,)
-    <$> required "block-id" block_call_doc
-    <*> Sig.defaulted "dur" Nothing "If given, the callee will be stretched to\
-        \ this duration. Otherwise, it retains its own duration."
-    ) $ \(sym, maybe_dur) -> Sub.inverting $ \args -> do
-        block_id <- require_block_id sym
-        dur <- case maybe_dur of
-            Nothing -> Derive.get_block_dur block_id
-            Just (TrackLang.Positive dur) -> return dur
-        Internal.with_stack_block block_id $
-            Cache.block (call block_id dur) args
-
--- | Consistent with half-open ranges, block calls try to include events lining
--- up with the start, and exclude ones lining up with the end.
-event_before :: RealTime -> LEvent.LEvent Score.Event -> Bool
-event_before t =
-    LEvent.either ((< t - RealTime.eta) . Score.event_start) (const True)
 
 -- * control calls
 

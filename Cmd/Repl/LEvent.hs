@@ -82,7 +82,7 @@ find_f matches = fmap concat . concatMapM search =<< State.all_block_track_ids
             event <- events, matches (Event.event_text event)]
 
 -- | Replace text on events.  Call with 'ModifyEvents.all_blocks' to replace it
--- everywhere, or 'ModifyEvents.all_note_tracks' for just note tracks.
+-- everywhere, or 'ModifyEvents.note_tracks' for just note tracks.
 replace :: Monad m => Text -> Text -> ModifyEvents.Track m
 replace from to = ModifyEvents.text (Text.replace from to)
 

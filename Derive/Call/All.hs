@@ -35,6 +35,7 @@ import qualified Derive.Call.Prelude.InferTrackVoice as InferTrackVoice
 import qualified Derive.Call.Prelude.Integrate as Integrate
 import qualified Derive.Call.Prelude.Lily as Lily
 import qualified Derive.Call.Prelude.Note as Note
+import qualified Derive.Call.Prelude.NoteTransformer as NoteTransformer
 import qualified Derive.Call.Prelude.Parent as Parent
 import qualified Derive.Call.Prelude.Pitch as Pitch
 import qualified Derive.Call.Prelude.PitchHigh as PitchHigh
@@ -77,6 +78,7 @@ note_maps = mconcat
     , Note.note_calls
     , Parent.note_calls
     , Mridangam.note_calls
+    , NoteTransformer.note_calls
     , PitchHigh.note_calls
     , Reverse.note_calls
     , Map.note_calls

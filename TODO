@@ -211,7 +211,7 @@ UNSORTED
     * Make Eval.apply_generator query 'state_mode' and for DurationQuery.
     * Add call that derives with DurationQuery and extracts the result.
 
-    - Extend Clip to work with any note call.
+    * Extend Clip to work with any note call.
     - Extend ^z to work with any call.
 
   - Block calls could have an early end, with a special ruler mark.  Anything

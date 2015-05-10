@@ -308,7 +308,8 @@ stretch factor =
     warp $ Score.id_warp { Score.warp_stretch = RealTime.score factor }
 
 -- | 'at' and 'stretch' in one.  It's a little faster than using them
--- separately.
+-- separately.  The order is stretch, then shift, as documented by
+-- 'Score.Warp'.
 place :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
 place shift stretch = warp $ Score.id_warp
     { Score.warp_stretch = RealTime.score stretch

@@ -41,49 +41,6 @@ test_relative_block = do
     equal (run "test/top-sub") ([(0, 1, "3c")], [])
     strings_like (snd (run "-bub")) ["note generator not found"]
 
-test_clip = do
-    let run top = run_sub DeriveTest.e_start_dur [(">", top)]
-            [(">", [(0, 1, ""), (1, 1, "")])]
-    equal (run [(0, 1, "clip blub")])
-        ([], ["Error: block not found: blub"])
-    -- make sure out of range notes are clipped
-    equal (run [(0, 1, "clip sub")]) ([(0, 1)], [])
-    -- notes that overlap the end are shortened
-    equal (run [(1, 1.5, "clip sub")]) ([(1, 1), (2, 0.5)], [])
-    -- the tempo of the block is not affected by the duration of the event
-    equal (run [(1, 2, "clip sub")]) ([(1, 1), (2, 1)], [])
-
-    equal (run [(1, 2, "clip sub 1")]) ([(1, 0.5), (1.5, 0.5)], [])
-    equal (run [(1, 2, "clip sub .5")]) ([(1, 0.25), (1.25, 0.25)], [])
-
-test_clip_start = do
-    let run = run_sub DeriveTest.e_note
-    -- Aligned to the end.
-    equal (run [(">", [(0, 2, "Clip sub")])] (UiTest.regular_notes 1))
-        ([(1, 1, "3c")], [])
-    -- Get the last two notes.
-    equal (run [(">", [(0, 2, "Clip sub")])] (UiTest.regular_notes 3))
-        ([(0, 1, "3d"), (1, 1, "3e")], [])
-
-test_loop = do
-    let run = run_sub DeriveTest.e_start_dur
-    equal (run [(">", [(0, 4, "loop sub")])] [(">", [(0, 1, "")])])
-        ([(0, 1), (1, 1), (2, 1), (3, 1)], [])
-    -- Cuts off the last event.
-    let sub = [(">", [(0, 1, ""), (1, 3, "")])]
-    equal (run [(">", [(0, 5, "loop sub")])] sub)
-        ([(0, 1), (1, 3), (4, 1)], [])
-    equal (run [(">", [(0, 4, "loop sub 2")])] sub)
-        ([(0, 0.5), (0.5, 1.5), (2, 0.5), (2.5, 1.5)], [])
-
-test_tile = do
-    let run top = run_sub Score.event_start [(">", top)]
-            [(">", [(0, 1, ""), (1, 3, "")])]
-    -- Just like 'loop'.
-    equal (run [(0, 5, "tile sub")]) ([0, 1, 4], [])
-    equal (run [(1, 5, "tile sub")]) ([1, 4, 5], [])
-    equal (run [(9, 5, "tile sub")]) ([9, 12, 13], [])
-
 test_control_scope = do
     let (result, logs) = run_sub extract
             [ ("pedal", [(1, 0, "1"), (3, 0, "0")])
