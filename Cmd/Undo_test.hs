@@ -121,17 +121,9 @@ test_undo_merge = do
         insert_event 0 "z"
     res2 <- ResponderTest.respond_cmd (ResponderTest.result_states res1)
         Undo.undo
-
-    -- pprint (e_hist_updates res1)
-
     -- some things aren't affected by undo
-    -- namespace doesn't change
-    let ns = State.config_namespace . State.state_config . e_ui
-    equal (ns res1) (Id.namespace "oogabooga")
     equal (UiTest.eval (e_ui res1) (Block.view_rect <$> State.get_view vid))
         (Rect.xywh 40 40 100 100)
-
-    equal (ns res2) (Id.namespace "oogabooga")
     equal (UiTest.eval (e_ui res2) (Block.view_rect <$> State.get_view vid))
         (Rect.xywh 40 40 100 100)
 
