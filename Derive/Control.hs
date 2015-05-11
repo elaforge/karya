@@ -135,8 +135,8 @@ tempo_call sym track sig_deriver deriver = do
         stash_if_wanted track signal
         return (signal, logs)
 
-    -- 'with_damage' must be applied *inside* 'd_tempo'.  If it were outside,
-    -- it would get the wrong RealTimes when it tried to create the
+    -- 'with_damage' must be applied *inside* 'Tempo.with_tempo'.  If it were
+    -- outside, it would get the wrong RealTimes when it tried to create the
     -- ControlDamage.
     merge_logs logs $ dispatch_tempo sym (TrackTree.track_end track)
         maybe_track_id (Signal.coerce signal) (with_damage deriver)

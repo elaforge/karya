@@ -138,8 +138,8 @@ get_tree block_id = do
 derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.NoteDeriver
 derive_tree block_end tree = with_default_tempo (derive_tracks tree)
     where
-    -- d_tempo sets up some stuff that every block needs, so add one if a block
-    -- doesn't have at least one top level tempo.
+    -- Tempo.with_tempo sets up some stuff that every block needs, so add one
+    -- if a block doesn't have at least one top level tempo.
     with_default_tempo deriver
         -- To ensure that every track is associated with a TrackWarp, I can't
         -- have tracks that don't have a tempo track above them.  Those tracks

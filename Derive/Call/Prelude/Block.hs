@@ -42,7 +42,7 @@ import Types
 -- | Evaluate the root block in a performance.  Making this an ordinary call
 -- means it participates in the derive cache just like all other calls.
 eval_root_block :: Text -> BlockId -> Derive.NoteDeriver
-    -- Derive.d_tempo does a bit of magic to stretch all blocks to length 1,
+    -- Tempo.with_tempo does a bit of magic to stretch all blocks to length 1,
     -- except the root one.  The root block should operate in real time, so
     -- no stretching here.  Otherwise, a tempo of '2' is the same as '1'.
 eval_root_block global_transform block_id =

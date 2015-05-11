@@ -349,7 +349,7 @@ unwarp warp control = case is_linear_warp warp of
         unwarped = Signal.unwarp_fused warp_sig shift stretch control
 
 -- | Return (shift, stretch) if the tempo is linear.  This relies on an
--- optimization in 'Derive.d_tempo' to notice when the tempo is constant and
+-- optimization in 'Tempo.with_tempo' to notice when the tempo is constant and
 -- give it 'Score.id_warp_signal'.
 is_linear_warp :: Score.Warp -> Maybe (RealTime, RealTime)
 is_linear_warp warp
