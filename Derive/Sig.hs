@@ -85,7 +85,7 @@
 -}
 module Derive.Sig (
     Parser, Generator, Transformer
-    , check
+    , check, run
     -- * pseudo-parsers
     , paired_args, typecheck
     -- * parsers
@@ -138,8 +138,8 @@ data State = State {
     , state_call_info :: !(Derive.CallInfo Derive.Tagged)
     }
 
-run :: Parser a -> State -> Either Error a
-run parser state = case parser_parser parser state of
+run_parser :: Parser a -> State -> Either Error a
+run_parser parser state = case parser_parser parser state of
     Right (state, a) -> case state_vals state of
         [] -> Right a
         vals -> Left $ Derive.ArgError $ "too many arguments: "
@@ -158,12 +158,27 @@ instance Applicative.Applicative Parser where
             (vals, a) <- parse2 vals
             Right (vals, f a)
 
-check :: (a -> Maybe Text) -> Parser a -> Parser a
+-- | Annotate a parser with a check on its value.
+check :: (a -> Maybe Text) -- ^ return Just error if there's a problem
+    -> Parser a -> Parser a
 check validate (Parser docs parse) = Parser docs $ \state -> case parse state of
     Left err -> Left err
     Right (state2, val) -> case validate val of
         Just err -> Left $ Derive.ArgError err
         Nothing -> Right (state2, val)
+
+-- | Run a parser against the current derive state.
+run :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
+    -> Derive.Deriver (Either Error a)
+run parser args = run_parser parser . make_state args <$> Derive.get
+    where
+    make_state args state = State
+        { state_vals = Derive.passed_vals args
+        , state_argnum = 0
+        , state_call_name = Derive.passed_call_name args
+        , state_derive = state
+        , state_call_info = Derive.tag_call_info (Derive.passed_info args)
+        }
 
 -- * pseudo-parsers
 
@@ -510,19 +525,8 @@ call0t f = (go, Derive.ArgDocs [])
 
 run_call :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
     -> Derive.Deriver a
-run_call parser args = do
-    state <- Derive.get
-    case run parser (make_state args state) of
-        Left err -> Derive.throw_error (Derive.CallError err)
-        Right a -> return a
-    where
-    make_state args state = State
-        { state_vals = Derive.passed_vals args
-        , state_argnum = 0
-        , state_call_name = Derive.passed_call_name args
-        , state_derive = state
-        , state_call_info = Derive.tag_call_info (Derive.passed_info args)
-        }
+run_call parser args = either (Derive.throw_error . Derive.CallError) return
+    =<< run parser args
 
 state_environ :: State -> TrackLang.Environ
 state_environ = Derive.state_environ . Derive.state_dynamic . state_derive
