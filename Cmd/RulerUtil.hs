@@ -51,7 +51,7 @@ get_meter = fmap Meter.ruler_meter . State.get_ruler
 data Scope =
     -- | Modify all rulers on the block.
     Block
-    -- | Modify the 'section_ruler_id'.
+    -- | Modify the 'section_ruler_id'.  Section 0 is the 'State.block_ruler'.
     | Section !TrackNum
     -- | Modify the given tracks.
     | Tracks ![TrackNum]
@@ -117,7 +117,7 @@ rulers_in_scope scope block_id ruler_id = do
             section <- map fst <$> get_section block_id tracknum
             let (in_section, out_section) = List.partition
                     (`elem` section) in_block
-            return (in_section , out_block || not (null out_section))
+            return (in_section, out_block || not (null out_section))
         Tracks tracknums ->
             return (in_track, out_block || not (null out_track))
             where
@@ -146,6 +146,7 @@ modify scope block_id modify = case scope of
     Section tracknum -> modify_section block_id tracknum modify
     Tracks tracknums -> modify_tracks block_id tracknums modify
 
+-- | Modify all rulers in the block.
 modify_block :: State.M m => BlockId -> Meter.ModifyRuler -> m ()
 modify_block block_id modify = do
     tracks <- State.track_count block_id
@@ -180,7 +181,9 @@ modify_ruler block_id tracknums ruler_id modify
 
 -- ** util
 
--- | The section RulerId is the first ruler of the section.
+-- | The section RulerId is the first ruler of the section.  A section is
+-- defined by 'get_section', but in a normal block with one ruler track at
+-- tracknum 0, it will be tracknum 0.
 section_ruler_id :: State.M m => BlockId -> TrackNum -> m RulerId
 section_ruler_id block_id tracknum =
     State.require ("no rulers in " <> pretty (block_id, tracknum))

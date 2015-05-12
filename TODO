@@ -10,6 +10,29 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - When multiple marks from different marklists are in the same place, their
+    text collides.  The one from the first marklist should take precedence,
+    as should its line.
+  - Logical block duration: Block calls could have an early end, with
+    a special ruler mark.  Anything after the end goes after the calling
+    event's end.  Similarly, events before 0t can go before the event start.
+    . Why do I do stretch to 1 in Tempo.with_tempo, instead of in c_block?
+      Because it does: Derive.stretch (1 / RealTime.to_score real_dur)
+      I don't know how much to stretch to fit until I see the tempo because
+      real duration depends on the tempo.
+    . In any case, I don't need to support sliced tempo tracks, so I can use
+      the logical block duration instead of TrackTree.track_end in
+      Derive.Control.tempo_call.
+    . Maybe I should do something to make it clearer that stretch_to_1 is only
+      for the first toplevel tempo track?
+
+    . Why do I have to set block duration in two places? Control.tempo_call,
+      and BlockUtil.get_tree.
+    - I think I want LRuler modify cmds for the main block ruler, since block
+      bounds should only go on ruler 0.  Effectively that's the same as
+      Section 0.
+  - Support start mark for logical block duration.
+
   * escape on floating entry should cancel it
   * 'p1 ktkno' in bug/mridangam2 gets wrong dyn when dyn is inverted
   - I forgot to add Sub.inverting to p1 and pn calls.  Can I have a warning
@@ -100,7 +123,7 @@ UNSORTED
     . Actually, it can't really know whether the call should be zero dur,
       unless calls could somehow be introspected.  So rely on using a leading
       space.
-  - make derivers expose their ScoreTime duration
+  * make derivers expose their ScoreTime duration
     . symptom is that 'clip' etc. calls require a block argument, which
       doesn't work as soon as it's assigned e.g. '^b = xyz'.  The problem is
       that it really does need the underlying block so it can know how long it
@@ -212,11 +235,8 @@ UNSORTED
     * Add call that derives with DurationQuery and extracts the result.
 
     * Extend Clip to work with any note call.
-    - Extend ^z to work with any call.
-
-  - Block calls could have an early end, with a special ruler mark.  Anything
-    after the end goes after the calling event's end.  Similarly, events
-    before 0t can go before the event start.
+  / mridangam p1 and pn have CallDuration.
+    . no need, pr and Pr should work well enough
 
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
@@ -994,6 +1014,8 @@ REPL: repl:
     without having to quote it
 
 Cmd:
+  - Extend ^z to work with any call via Derive.get_call_duration.
+    . not a big deal so long as block call is the only one
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
   - Create tempo by "stretching", i.e. select start and end, and create tempo

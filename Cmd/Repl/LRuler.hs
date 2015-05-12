@@ -387,15 +387,14 @@ extract_calls block_id track_id =
 
 -- * modify
 
--- | Modify only the selected tracks, or the entire block.  'Section' is the
--- default.
+-- | Change a Modify so it modifies only the selected tracks.
 tracks :: Cmd.M m => m Modify -> m Modify
 tracks modify = do
     modify <- modify
     (_, tracknums, _, _, _) <- Selection.tracks
     return $ modify { m_scope = RulerUtil.Tracks tracknums }
 
--- | Modify the entire block.
+-- | Change a Modify so it modifies all rulers on the block.
 block :: Cmd.M m => m Modify -> m Modify
 block modify = do
     modify <- modify
@@ -452,20 +451,21 @@ cue :: Ruler.Name
 cue = "cue"
 
 -- | Drop a mark at the selected point in the \"cue\" ruler.
-add_cue :: Text -> Cmd.CmdL ()
+add_cue :: Text -> Cmd.CmdL RulerId
 add_cue text = do
-    (block_id, _, _, pos) <- Selection.get_insert
-    add_cue_at block_id pos text
+    (block_id, tracknum, _, pos) <- Selection.get_insert
+    add_cue_at block_id tracknum pos text
 
 remove_cues :: Cmd.CmdL ()
 remove_cues = do
     block_id <- Cmd.get_focused_block
     RulerUtil.modify_block block_id $ Right . Ruler.remove_marklist cue
 
-add_cue_at :: BlockId -> ScoreTime -> Text -> Cmd.CmdL ()
-add_cue_at block_id pos text = RulerUtil.modify_block block_id $
-    Right . Ruler.modify_marklist cue
-        (const (Ruler.insert_mark pos (cue_mark text)))
+add_cue_at :: BlockId -> TrackNum -> ScoreTime -> Text -> Cmd.CmdL RulerId
+add_cue_at block_id tracknum pos text =
+    RulerUtil.local_section block_id tracknum $
+        Right . Ruler.modify_marklist cue
+            (const (Ruler.insert_mark pos (cue_mark text)))
 
 cue_mark :: Text -> Ruler.Mark
 cue_mark text = Ruler.Mark 0 2 Color.black text 0 0
