@@ -190,11 +190,9 @@ mkblock (spec, tracks) = do
 mkblock_marklist :: State.M m => Ruler.Marklist -> BlockId -> String
     -> [TrackSpec] -> m (BlockId, [TrackId])
 mkblock_marklist marklist block_id title tracks = do
-    ruler_id <- mkruler marklist
+    ruler_id <- Create.ruler "r" $
+        Ruler.meter_ruler (Just Meter.mtype_meter)  marklist
     mkblock_ruler ruler_id block_id title tracks
-
-mkruler :: State.M m => Ruler.Marklist -> m RulerId
-mkruler = Create.ruler "r" . Ruler.meter_ruler (Just Meter.mtype_meter)
 
 mkblocks_skel :: State.M m => [(BlockSpec, [Skeleton.Edge])] -> m ()
 mkblocks_skel blocks = forM_ blocks $ \(block, skel) -> do

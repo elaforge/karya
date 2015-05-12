@@ -131,9 +131,10 @@ get_tree :: State.M m => BlockId -> m (TrackTree.EventsTree, ScoreTime)
 get_tree block_id = do
     info_tree <- TrackTree.strip_disabled_tracks block_id
         =<< TrackTree.track_tree_of block_id
-    ruler_end <- State.block_ruler_end block_id
-    tree <- TrackTree.events_tree block_id ruler_end info_tree
-    return (tree, ruler_end)
+    -- TODO handle start
+    (_start, end) <- State.block_logical_range block_id
+    tree <- TrackTree.events_tree block_id end info_tree
+    return (tree, end)
 
 derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.NoteDeriver
 derive_tree block_end tree = with_default_tempo (derive_tracks tree)
@@ -149,7 +150,8 @@ derive_tree block_end tree = with_default_tempo (derive_tracks tree)
                 Nothing -> Derive.get_ui_config
                     (State.default_tempo . State.config_default)
                 Just tempo -> return tempo
-            Tempo.with_tempo block_end Nothing (Signal.constant tempo) deriver
+            Tempo.with_tempo (Just block_end) Nothing (Signal.constant tempo)
+                deriver
         | otherwise = deriver
 
 -- | Derive an EventsTree.

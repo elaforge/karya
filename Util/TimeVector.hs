@@ -48,7 +48,8 @@ import Prelude hiding (head, last, take)
 import qualified Data.DList as DList
 import qualified Data.Vector as Vector
 import qualified Data.Vector.Generic as V
-import Data.Vector.Generic (take, drop, length, null, all, foldl', unsafeIndex)
+import Data.Vector.Generic
+    (all, drop, foldl', length, null, take, toList, unsafeIndex)
 import qualified Data.Vector.Storable as Storable
 import qualified Foreign
 import qualified Control.Monad.State.Strict as State

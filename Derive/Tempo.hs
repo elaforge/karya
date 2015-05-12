@@ -40,22 +40,7 @@ extend_signal track_end sig = sig <> case Signal.last sig of
 -- Tempo is the tempo signal, which is the standard musical definition of
 -- tempo: trackpos over time.  Warp is the time warping that the tempo
 -- implies, which is integral (1/tempo).
---
--- TODO what to do about blocks with multiple tempo tracks?  I think it would
--- be best to stretch the block to the first one.  I could break out
--- stretch_to_1 and have compile apply it to only the first tempo track.
-with_tempo :: ScoreTime
-    -- ^ Used to stretch the block to a length of 1, regardless of the tempo.
-    -- This means that when the calling block stretches it to the duration of
-    -- the event it winds up being the right length.  This is skipped for the
-    -- top level block or all pieces would last exactly 1 second.  This is
-    -- another reason every block must have a 'with_tempo' at the top.
-    --
-    -- TODO relying on the stack seems a little implicit, would it be better
-    -- to pass Maybe BlockId or Maybe ScoreTime?
-    --
-    -- 'Derive.Call.Block.d_block' might seem like a better place to do this,
-    -- but it doesn't have the local warp yet.
+with_tempo :: Maybe ScoreTime -- ^ block duration, passed to 'get_stretch_to_1'
     -> Maybe TrackId
     -- ^ Needed to record this track in TrackWarps.  It's optional because if
     -- there's no explicit tempo track there's an implicit tempo around the
@@ -63,9 +48,9 @@ with_tempo :: ScoreTime
     -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
 with_tempo block_dur maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
-    stretch_to_1 <- ifM Internal.is_root_block (return id) $ do
-        let real_dur = Score.warp_pos warp block_dur
-        require_dur block_dur real_dur $
+    stretch_to_1 <- get_stretch_to_1 block_dur $ \dur -> do
+        let real_dur = Score.warp_pos warp dur
+        require_dur dur real_dur $
             Derive.stretch (1 / RealTime.to_score real_dur)
     stretch_to_1 $ Internal.warp warp $ do
         Internal.add_new_track_warp maybe_track_id
@@ -92,6 +77,29 @@ require_dur block_dur real_dur ok
         "real time of block with dur " <> showt block_dur <> " was zero"
     | otherwise = return ok
 
+{- | If a tempo track is the block's topmost, it needs to do some special
+    stretching to normalize to a length of 1, regardless of the tempo.  This is
+    so that when the calling block stretches it to the duration of the event it
+    winds up being the right length.  This is skipped for the top level block
+    or all pieces would last exactly 1 second.  This is another reason every
+    block must have a 'with_tempo' at the top.
+
+    TODO relying on the stack seems a little implicit, would it be better to
+    pass Maybe BlockId or Maybe ScoreTime?
+
+    'Derive.Call.Block.d_block' might seem like a better place to do this, but
+    it doesn't have the local warp yet.
+
+    TODO what to do about blocks with multiple tempo tracks?  I think it would
+    be best to stretch the block to the first one.  I could break out
+    stretch_to_1 and have compile apply it to only the first tempo track.
+-}
+get_stretch_to_1 :: Maybe ScoreTime
+    -> (ScoreTime -> Derive.Deriver (a -> a)) -> Derive.Deriver (a -> a)
+get_stretch_to_1 Nothing _ = return id
+get_stretch_to_1 (Just dur) compute = ifM Internal.is_root_block (return id)
+    (compute dur)
+
 
 -- * absolute
 
@@ -100,15 +108,15 @@ require_dur block_dur real_dur ok
 --
 -- This can be used to isolate the tempo from any tempo effects that may be
 -- going on.
-with_absolute :: ScoreTime -> Maybe TrackId -> Signal.Tempo
+with_absolute :: Maybe ScoreTime -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
 with_absolute block_dur maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
-    place <- ifM Internal.is_root_block (return id) $ do
+    place <- get_stretch_to_1 block_dur $ \dur -> do
         start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
         end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
-        let real_dur = Score.warp_pos warp block_dur
-        require_dur block_dur real_dur $
+        let real_dur = Score.warp_pos warp dur
+        require_dur dur real_dur $
             Internal.place start ((end - start) / RealTime.to_score real_dur)
     Internal.in_real_time $ place $ Internal.warp warp $ do
         Internal.add_new_track_warp maybe_track_id
@@ -120,11 +128,11 @@ with_absolute block_dur maybe_track_id signal deriver = do
 -- time.  That is, they won't stretch along with the non-zero segments.  This
 -- means the output will always be at least as long as the absolute sections,
 -- so a block call may extend past the end of its event.
-with_hybrid :: ScoreTime -> Maybe TrackId -> Signal.Tempo
+with_hybrid :: Maybe ScoreTime -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
 with_hybrid block_dur maybe_track_id signal deriver = do
     let warp = tempo_to_score_warp signal
-    place <- ifM Internal.is_root_block (return id) $ do
+    place <- get_stretch_to_1 block_dur $ \dur -> do
         -- The special treatment of flat segments only works once: after that
         -- it's a normal warp and stretches like any other warp.  So I can't
         -- normalize to 0--1 expecting the caller to have stretched to the
@@ -134,16 +142,14 @@ with_hybrid block_dur maybe_track_id signal deriver = do
         start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
         end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
         let absolute = flat_duration (Score.warp_signal warp)
-            real_dur = max (RealTime.score absolute)
-                (Score.warp_pos warp block_dur)
+            real_dur = max (RealTime.score absolute) (Score.warp_pos warp dur)
             -- If the block's absolute time is greater than the time allotted,
             -- the non-absolute bits become infinitely fast.  Infinitely fast
             -- is not very musically interesting, so I limit to very fast.
             -- TODO This should be configurable.
-            stretch = if block_dur == absolute then 1
-                else max 0.001 $ (end - start - absolute)
-                    / (block_dur - absolute)
-        require_dur block_dur real_dur $
+            stretch = if dur == absolute then 1
+                else max 0.001 $ (end - start - absolute) / (dur - absolute)
+        require_dur dur real_dur $
             Internal.in_real_time . Internal.place start stretch
     place $ hybrid_warp warp $ do
         Internal.add_new_track_warp maybe_track_id

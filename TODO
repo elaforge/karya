@@ -13,7 +13,7 @@ UNSORTED
   - When multiple marks from different marklists are in the same place, their
     text collides.  The one from the first marklist should take precedence,
     as should its line.
-  - Logical block duration: Block calls could have an early end, with
+  * Logical block duration: Block calls could have an early end, with
     a special ruler mark.  Anything after the end goes after the calling
     event's end.  Similarly, events before 0t can go before the event start.
     . Why do I do stretch to 1 in Tempo.with_tempo, instead of in c_block?
@@ -28,9 +28,6 @@ UNSORTED
 
     . Why do I have to set block duration in two places? Control.tempo_call,
       and BlockUtil.get_tree.
-    - I think I want LRuler modify cmds for the main block ruler, since block
-      bounds should only go on ruler 0.  Effectively that's the same as
-      Section 0.
   - Support start mark for logical block duration.
 
   * escape on floating entry should cancel it

@@ -4,6 +4,7 @@
 
 module Derive.Call.Prelude.Block_test where
 import Util.Test
+import qualified Ui.Ruler as Ruler
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -19,7 +20,6 @@ test_block = do
     let (evts, logs) = run [(0, 1, "nosuch")]
     equal evts []
     strings_like logs ["note generator not found: nosuch"]
-
     strings_like (snd (run [(0, 1, "sub >arg")])) ["too many arguments"]
 
     -- subderived stuff is stretched and placed, inherits instrument
@@ -29,6 +29,17 @@ test_block = do
         [ (0, 1, "", "", [])
         , (1, 2, "", "i", ["a"])
         ]
+
+test_block_logical_range = do
+    let run ruler = DeriveTest.extract DeriveTest.e_start_dur $
+            DeriveTest.derive_blocks_with_ui id
+                (DeriveTest.with_ruler (UiTest.bid "sub") ruler)
+                [ ("top", [(">", [(1, 1, "sub")])])
+                , ("sub=ruler", [(">", [(0, 1, ""), (1, 1, "")])])
+                ]
+        mkruler s e = Ruler.set_bounds s e $ UiTest.mkruler_44 2 1
+    equal (run (mkruler Nothing Nothing)) ([(1, 0.5), (1.5, 0.5)], [])
+    equal (run (mkruler Nothing (Just 1))) ([(1, 1), (2, 1)], [])
 
 test_relative_block = do
     let run call = DeriveTest.extract DeriveTest.e_note $

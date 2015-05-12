@@ -363,29 +363,24 @@ add_new_track_warp track_id = do
     stack <- get_stack
     block_id <- get_current_block_id
     start <- score_to_real 0
-    -- Use get_total_block_dur instead get_block_dur.  Otherwise, the play
+    -- Use block_event_end instead of block_logical_range.  Otherwise, the play
     -- monitor can't go past the end of the ruler, while the player is
     -- perfectly happy to do so.
-    end <- real =<< get_total_block_dur block_id
+    end <- real =<< block_event_end block_id
     warp <- get_dynamic state_warp
     let tw = Left $ TrackWarp.TrackWarp (start, end, warp, block_id, track_id)
     merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }
 
 -- | Sub-derived blocks are stretched according to their length, and this
--- function defines the length of a block.  Using 'State.block_ruler_end' which
--- makes the ruler the decider of block length, as it does at the Cmd layer.
-get_block_dur :: BlockId -> Deriver ScoreTime
-get_block_dur block_id = do
-    ui_state <- gets (state_ui . state_constant)
-    either (throw . ("get_block_dur: "<>) . showt) return
-        (State.eval ui_state (State.block_ruler_end block_id))
+-- function defines the length of a block.  This is therefore the logical
+-- duration of the block, which may be shorter or lorger than the end of the
+-- last event, or the ruler.
+block_logical_range :: BlockId -> Deriver (TrackTime, TrackTime)
+block_logical_range = eval_ui "block_logical_range" . State.block_logical_range
 
 -- | Get the duration of the block according to the last event.
-get_total_block_dur :: BlockId -> Deriver ScoreTime
-get_total_block_dur block_id = do
-    ui_state <- gets (state_ui . state_constant)
-    either (throw . ("get_total_block_dur: "<>) . showt) return
-        (State.eval ui_state (State.block_event_end block_id))
+block_event_end :: BlockId -> Deriver ScoreTime
+block_event_end = eval_ui "block_event_end" . State.block_event_end
 
 
 -- * track

@@ -9,11 +9,13 @@ module Ui.Ruler (
     , lookup_marklist, get_marklist, set_marklist, remove_marklist
     , modify_marklist, modify_marklists
     , time_end
+    -- ** bounds
+    , bounds, set_bounds, get_bounds, bounds_of
     -- * Marklist
     , Marklist, MarklistVector, PosMark
     , marklist, marklist_from_vector, marklist_vec
     , marklist_fptr -- This should only be used from Ui.RulerC.
-    , ascending, descending
+    , to_list, ascending, descending
     , marklist_end, marklist_start
     -- ** modification
     , insert_mark
@@ -61,6 +63,7 @@ data Ruler = Ruler {
 -- their Names.
 type Marklists = Map.Map Name (Maybe MeterType, Marklist)
 type Name = Text
+
 -- | The type of meter that this marklist represents.  This is looked up in
 -- a table of meter types to figure out how to do transformations on the meter,
 -- since different meters follow different rules.
@@ -129,6 +132,46 @@ time_end :: Ruler -> ScoreTime
 time_end = maximum . (0 :) . map (marklist_end . snd) . Map.elems
     . ruler_marklists
 
+-- ** bounds
+
+-- | Marks on this marklist given the logical block bounds.  If there is one
+-- mark, it denotes the logical block end.  Two morks mean the first one is the
+-- logical block start.  The mark text doesn't matter, but @s@ and @e@ are
+-- customary.
+bounds :: Name
+bounds = "bounds"
+
+set_bounds :: Maybe ScoreTime -> Maybe ScoreTime -> Ruler -> Ruler
+set_bounds start end =
+    set_marklist bounds Nothing $ marklist $
+        [(s, start_mark) | Just s <- [min start end]]
+        ++ [(e, end_mark) | Just e <- [max start end]]
+        -- Ensure that start <= end.
+
+start_mark, end_mark :: Mark
+start_mark = Mark 0 2 (Color.rgb 0 0.75 0) "s" 0 0
+end_mark = Mark 0 2 (Color.rgb 0 0.75 0) "e" 0 0
+
+get_bounds :: Ruler -> (Maybe ScoreTime, Maybe ScoreTime)
+get_bounds ruler = case lookup_marklist bounds ruler of
+    Nothing -> (Nothing, Nothing)
+    Just (_, mlist) -> case to_list mlist of
+        [] -> (Nothing, Nothing)
+        [(p, m)]
+            | mark_name m == mark_name end_mark -> (Nothing, Just p)
+            | otherwise -> (Just p, Nothing)
+        _ -> (Just (marklist_start mlist), Just (marklist_end mlist))
+
+-- | Get block bounds as defined by the ruler.  This uses explicit 'bounds' if
+-- there are any, otherwise it uses the 'meter'.  Otherwise, the start time can
+-- default to 0, but the end time defaults to Nothing so the caller can use the
+-- end of the last event.
+bounds_of :: Ruler -> (ScoreTime, Maybe ScoreTime)
+bounds_of ruler = case get_bounds ruler of
+    (Nothing, Nothing) -> (0, meter_end)
+    (start, end) -> (fromMaybe 0 start, end `mplus` meter_end)
+    where meter_end = marklist_end . snd <$> lookup_marklist meter ruler
+
 -- * marklist
 
 data Marklist = Marklist
@@ -183,6 +226,9 @@ marklist_from_vector vec = Marklist vec $ MarklistPtr $ Unsafe.unsafePerformIO $
 
 empty_marklist :: Marklist
 empty_marklist = marklist mempty
+
+to_list :: Marklist -> [PosMark]
+to_list = map unsample . TimeVector.toList . marklist_vec
 
 -- | Marks starting at the first mark >= the given pos, to the end.
 ascending :: ScoreTime -> Marklist -> [PosMark]

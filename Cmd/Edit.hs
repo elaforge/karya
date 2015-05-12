@@ -521,10 +521,8 @@ set_block_call_duration event = do
     case call of
         Nothing -> return Nothing
         Just block_id -> do
-            -- The same as Derive.get_block_dur, TODO should I have
-            -- a State.block_derive_end?
-            dur <- State.block_ruler_end block_id
-            return $ Just $ Event.set_duration dur event
+            (start, end) <- State.block_logical_range block_id
+            return $ Just $ Event.set_duration (end - start) event
 
 -- * modify text
 

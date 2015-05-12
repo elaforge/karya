@@ -19,6 +19,7 @@ import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
+import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
@@ -26,6 +27,7 @@ import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Create as Create
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Simple as Simple
@@ -275,8 +277,14 @@ with_skel_block :: BlockId -> [Skeleton.Edge] -> State.State -> State.State
 with_skel_block block_id skel state = UiTest.exec state $
     State.set_skeleton block_id (Skeleton.make skel)
 
-set_ruler :: Ruler.Ruler -> State.State -> State.State
-set_ruler ruler = State.rulers %= Map.insert UiTest.default_ruler_id ruler
+with_default_ruler :: Ruler.Ruler -> State.State -> State.State
+with_default_ruler ruler =
+    State.rulers %= Map.insert UiTest.default_ruler_id ruler
+
+-- | Set the ruler on the given block.
+with_ruler :: BlockId -> Ruler.Ruler -> State.State -> State.State
+with_ruler block_id ruler state = UiTest.exec state make
+    where make = Create.new_ruler block_id (Id.ident_name block_id) ruler
 
 with_tsigs :: [TrackId] -> State.State -> State.State
 with_tsigs = with_tsig_sources . map (flip (,) Nothing)

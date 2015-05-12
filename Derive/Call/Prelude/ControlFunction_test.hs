@@ -30,7 +30,7 @@ test_cf_swing = do
                     "apply-start-offset" $
                 tracks ++ [("> | %start-s = (cf-swing q " <> amount <> ")",
                     [(n, 0, "") | n <- events])]
-        with_ruler = DeriveTest.set_ruler . UiTest.ruler
+        with_ruler = DeriveTest.with_default_ruler . UiTest.ruler
             . map (second Meter.name_to_rank)
 
     let marks = take 8 $ zip (Seq.range_ 0 2)

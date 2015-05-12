@@ -71,7 +71,7 @@ module Ui.State (
     , set_integrated_block, modify_integrated_tracks
     , set_block_config
     , set_edit_box, set_play_box
-    , block_ruler_end, block_event_end, block_end
+    , block_ruler_end, block_event_end, block_end, block_logical_range
     -- ** skeleton
     , get_skeleton, set_skeleton, modify_skeleton
     , toggle_skeleton_edge, add_edges, remove_edges
@@ -690,6 +690,18 @@ block_event_end block_id = do
 block_end :: M m => BlockId -> m TrackTime
 block_end block_id =
     max <$> block_ruler_end block_id <*> block_event_end block_id
+
+-- | The logical range is defined by 'Ruler.bounds_of' and is intended to
+-- correspond to the \"note\" that this block defines.
+block_logical_range :: M m => BlockId -> m (TrackTime, TrackTime)
+block_logical_range block_id = do
+    block <- get_block block_id
+    case Block.block_ruler_ids block of
+        [] -> (,) 0 <$> block_event_end block_id
+        ruler_id : _ -> do
+            (start, end) <- Ruler.bounds_of <$> get_ruler ruler_id
+            end <- maybe (block_event_end block_id) return end
+            return (start, end)
 
 -- ** skeleton
 

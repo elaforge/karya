@@ -444,6 +444,29 @@ modify_m (Modify block_id scope modify) = do
     PlayUtil.clear_caches
     RulerUtil.modify scope block_id modify
 
+-- | Modify a local copy of the main block ruler.
+local_ruler :: State.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
+local_ruler block_id modify = RulerUtil.local_section block_id 0 $ Right . modify
+
+-- * bounds
+
+-- | Set the block's logical start time to the selection.  Notes before this
+-- will play before the start of the calling event.
+set_start :: Cmd.M m => m RulerId
+set_start = do
+    (block_id, _, _, pos) <- Selection.get_insert
+    local_ruler block_id $ \ruler ->
+        let (_, e) = Ruler.get_bounds ruler
+        in Ruler.set_bounds (Just pos) e ruler
+
+-- | Set the block's logical end time to the selection.  Notes after this will
+-- play after the end of the calling event.
+set_end :: Cmd.M m => m RulerId
+set_end = do
+    (block_id, _, _, pos) <- Selection.get_insert
+    local_ruler block_id $ \ruler ->
+        let (s, _) = Ruler.get_bounds ruler
+        in Ruler.set_bounds s (Just pos) ruler
 
 -- * cue
 

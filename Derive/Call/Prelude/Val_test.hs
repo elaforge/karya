@@ -71,7 +71,8 @@ test_linear_next = do
 
 test_timestep = do
     let run start vcall = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_with_ui id (DeriveTest.set_ruler ruler)
+            DeriveTest.derive_tracks_with_ui id
+                (DeriveTest.with_default_ruler ruler)
                 "" [(">", [(start, 0, ("d (ts " <> vcall <> ") |"))])]
         extract = Score.event_start
         ruler = UiTest.ruler $ zip [0, 1, 2, 3, 4, 6, 8, 10, 12]
