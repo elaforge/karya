@@ -143,10 +143,12 @@ bounds = "bounds"
 
 set_bounds :: Maybe ScoreTime -> Maybe ScoreTime -> Ruler -> Ruler
 set_bounds start end =
-    set_marklist bounds Nothing $ marklist $
-        [(s, start_mark) | Just s <- [min start end]]
-        ++ [(e, end_mark) | Just e <- [max start end]]
+    set_marklist bounds Nothing $ marklist $ case (start, end) of
         -- Ensure that start <= end.
+        (Just s, Just e) -> [(min s e, start_mark), (max s e, end_mark)]
+        (Just s, Nothing) -> [(s, start_mark)]
+        (Nothing, Just e) -> [(e, end_mark)]
+        (Nothing, Nothing) -> []
 
 start_mark, end_mark :: Mark
 start_mark = Mark 0 2 (Color.rgb 0 0.75 0) "s" 0 0
