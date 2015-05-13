@@ -123,6 +123,10 @@ selection = selection_ False
 selection_relative :: Cmd.M m => Id.Id -> m BlockId
 selection_relative = selection_ True
 
+-- | Same as 'selection_relative' because I always type the wrong one.
+relative_selection :: Cmd.M m => Id.Id -> m BlockId
+relative_selection = selection_relative
+
 -- | Create a number of alternate versions of the selection, and insert
 -- an @alt@ call.
 selection_alts :: Cmd.M m => Bool -> Int -> Id.Id -> m [BlockId]
