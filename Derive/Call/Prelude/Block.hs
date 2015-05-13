@@ -76,20 +76,17 @@ c_block block_id = Derive.generator_with_duration get_duration Module.prelude
         -- I have to put the block on the stack before calling 'd_block'
         -- because 'Cache.block' relies on on the block id already being
         -- on the stack.
-        Internal.with_stack_block block_id (Cache.block run args)
+        Internal.with_stack_block block_id $ Cache.block run args
     where
-    run args = Derive.place start (end-start) $ trim args (d_block block_id)
+    run args = Derive.place start (end - start) $ trim args (d_block block_id)
         where (start, end) = Args.range args
     trim args deriver = do
         end <- Derive.real (1 :: ScoreTime)
         if Event.positive (Args.event args) then trim_controls end deriver
             else constant_controls_at end deriver
-
     get_duration :: a -> Derive.Deriver Derive.CallDuration
-    get_duration _ = do
-        range <- Derive.block_logical_range block_id
-        Derive.Duration . snd <$> Derive.block_logical_range block_id
-        -- TODO use the logical start
+    get_duration _ = Derive.Duration . (\(s, e) -> e-s) <$>
+        Derive.block_logical_range block_id
 
 -- | Remove samples at the given RealTime.  This is to support final block
 -- notes and 'Derive.Flags.infer_duration'.  Otherwise, an event at the end of

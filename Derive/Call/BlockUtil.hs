@@ -55,9 +55,10 @@ import Types
 
 note_deriver :: BlockId -> Derive.NoteDeriver
 note_deriver block_id = do
-    (tree, block_end) <- Derive.eval_ui ("note_deriver " <> showt block_id) $
-        get_tree block_id
-    Derive.with_val Environ.block_end block_end $ derive_tree block_end tree
+    (tree, block_range) <- Derive.eval_ui ("note_deriver " <> showt block_id) $
+        (,) <$> get_tree block_id <*> State.block_logical_range block_id
+    Derive.with_val Environ.block_end (snd block_range) $
+        derive_tree block_range tree
 
 -- * control deriver
 
@@ -69,11 +70,13 @@ note_deriver block_id = do
 -- control.
 control_deriver :: BlockId -> State.StateId Derive.ControlDeriver
 control_deriver block_id = do
-    (tree, block_end) <- get_tree block_id
-    case check_control_tree block_end tree of
+    tree <- get_tree block_id
+    block_range <- State.block_logical_range block_id
+    case check_control_tree (snd block_range) tree of
         Left err -> State.throw $ "control block skeleton malformed: " <> err
-        Right tree -> return $ Derive.with_val Environ.block_end block_end $
-            derive_control_tree block_end tree
+        Right tree -> return $
+            Derive.with_val Environ.block_end (snd block_range) $
+                derive_control_tree block_range tree
 
 -- | Name of the call for the control deriver hack.
 capture_null_control :: TrackLang.CallId
@@ -101,12 +104,12 @@ check_control_tree block_end forest = case forest of
         Event.event 0 block_end (TrackLang.unsym capture_null_control)
     capture_track = TrackTree.make_track ">" events block_end
 
-derive_control_tree :: ScoreTime -> TrackTree.EventsTree
+derive_control_tree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree
     -> Derive.ControlDeriver
-derive_control_tree block_end tree = do
+derive_control_tree block_range tree = do
     -- There are an awful lot of things that can go wrong.  I guess that's why
     -- this is a hack.
-    events <- derive_tree block_end tree
+    events <- derive_tree block_range tree
     case LEvent.partition events of
         ([event], logs) -> case Score.event_control Controls.null event of
             Nothing -> Derive.throw "control call didn't emit Controls.null"
@@ -127,17 +130,21 @@ derive_control_tree block_end tree = do
 
 -- ** implementation
 
-get_tree :: State.M m => BlockId -> m (TrackTree.EventsTree, ScoreTime)
+get_tree :: State.M m => BlockId -> m TrackTree.EventsTree
 get_tree block_id = do
     info_tree <- TrackTree.strip_disabled_tracks block_id
         =<< TrackTree.track_tree_of block_id
-    -- TODO handle start
-    (_start, end) <- State.block_logical_range block_id
-    tree <- TrackTree.events_tree block_id end info_tree
-    return (tree, end)
+    -- This is the end of the last event or ruler, not
+    -- State.block_logical_range.  The reason is that functions that look at
+    -- TrackTree.track_end are expecting the physical end, e.g.
+    -- Control.derive_control uses it to put the last sample on the tempo
+    -- track.
+    end <- State.block_end block_id
+    TrackTree.events_tree block_id end info_tree
 
-derive_tree :: ScoreTime -> TrackTree.EventsTree -> Derive.NoteDeriver
-derive_tree block_end tree = with_default_tempo (derive_tracks tree)
+derive_tree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree
+    -> Derive.NoteDeriver
+derive_tree block_range tree = with_default_tempo (derive_tracks tree)
     where
     -- Tempo.with_tempo sets up some stuff that every block needs, so add one
     -- if a block doesn't have at least one top level tempo.
@@ -150,7 +157,7 @@ derive_tree block_end tree = with_default_tempo (derive_tracks tree)
                 Nothing -> Derive.get_ui_config
                     (State.default_tempo . State.config_default)
                 Just tempo -> return tempo
-            Tempo.with_tempo (Just block_end) Nothing (Signal.constant tempo)
+            Tempo.with_tempo (Just block_range) Nothing (Signal.constant tempo)
                 deriver
         | otherwise = deriver
 

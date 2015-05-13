@@ -138,12 +138,9 @@ tempo_call sym track sig_deriver deriver = do
     -- 'with_damage' must be applied *inside* 'Tempo.with_tempo'.  If it were
     -- outside, it would get the wrong RealTimes when it tried to create the
     -- ControlDamage.
-    dur <- case TrackTree.track_block_id track of
-        Nothing -> return Nothing
-        Just block_id -> do
-            (_start, end) <- Internal.block_logical_range block_id
-            return $ Just end -- TODO support start
-    merge_logs logs $ dispatch_tempo sym dur
+    range <- maybe (return Nothing) (fmap Just . Internal.block_logical_range) $
+        TrackTree.track_block_id track
+    merge_logs logs $ dispatch_tempo sym range
         maybe_track_id (Signal.coerce signal) (with_damage deriver)
     where
     maybe_block_track_id = TrackTree.block_track_id track
@@ -155,15 +152,15 @@ tempo_call sym track sig_deriver deriver = do
             (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
 
-dispatch_tempo :: Maybe TrackLang.Symbol -> Maybe ScoreTime -> Maybe TrackId
-    -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
-dispatch_tempo sym block_dur maybe_track_id signal deriver = case sym of
-    Nothing -> Tempo.with_tempo block_dur maybe_track_id signal deriver
+dispatch_tempo :: Maybe TrackLang.Symbol -> Maybe (ScoreTime, ScoreTime)
+    -> Maybe TrackId -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
+dispatch_tempo sym block_range maybe_track_id signal deriver = case sym of
+    Nothing -> Tempo.with_tempo block_range maybe_track_id signal deriver
     Just sym
         | sym == "hybrid" ->
-            Tempo.with_hybrid block_dur maybe_track_id signal deriver
+            Tempo.with_hybrid block_range maybe_track_id signal deriver
         | sym == "abs" ->
-            Tempo.with_absolute block_dur maybe_track_id signal deriver
+            Tempo.with_absolute block_range maybe_track_id signal deriver
         | otherwise -> Derive.throw $
             "unknown tempo modifier: " <> ShowVal.show_val sym
 

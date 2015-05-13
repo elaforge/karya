@@ -28,7 +28,11 @@ UNSORTED
 
     . Why do I have to set block duration in two places? Control.tempo_call,
       and BlockUtil.get_tree.
-  - Support start mark for logical block duration.
+  * Support start mark for logical block duration.
+    . Effectively this reduces the block duration, except on derivation, where
+      it shifts it back.
+  - A block with logical range called at time 0 gets messed up:
+    bug/logical-block-range
 
   * escape on floating entry should cancel it
   * 'p1 ktkno' in bug/mridangam2 gets wrong dyn when dyn is inverted

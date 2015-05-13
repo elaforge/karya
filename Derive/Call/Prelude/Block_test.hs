@@ -31,15 +31,27 @@ test_block = do
         ]
 
 test_block_logical_range = do
-    let run ruler = DeriveTest.extract DeriveTest.e_start_dur $
+    let run s e tempo sub = DeriveTest.extract DeriveTest.e_start_dur $
             DeriveTest.derive_blocks_with_ui id
-                (DeriveTest.with_ruler (UiTest.bid "sub") ruler)
+                (DeriveTest.with_ruler (UiTest.bid "sub") (mkruler s e))
                 [ ("top", [(">", [(1, 1, "sub")])])
-                , ("sub=ruler", [(">", [(0, 1, ""), (1, 1, "")])])
+                , ("sub=ruler", [("tempo", tempo), (">", sub)])
                 ]
         mkruler s e = Ruler.set_bounds s e $ UiTest.mkruler_44 2 1
-    equal (run (mkruler Nothing Nothing)) ([(1, 0.5), (1.5, 0.5)], [])
-    equal (run (mkruler Nothing (Just 1))) ([(1, 1), (2, 1)], [])
+    let sub01 = [(0, 1, ""), (1, 1, "")]
+        sub012 = [(0, 1, ""), (1, 1, ""), (2, 1, "")]
+        tempo1 = [(0, 0, "1")]
+
+    equal (run Nothing Nothing tempo1 sub01) ([(1, 0.5), (1.5, 0.5)], [])
+    equal (run Nothing (Just 1) tempo1 sub01) ([(1, 1), (2, 1)], [])
+    equal (run (Just 1) Nothing tempo1 sub01) ([(0, 1), (1, 1)], [])
+    equal (run (Just 1) (Just 2) tempo1 sub012)
+        ([(0, 1), (1, 1), (2, 1)], [])
+
+    -- The start point should line up to the event start, end point to the
+    -- event end.  To do that, I stretch inner to 1, then translate back.
+    equal (run (Just 1) (Just 2) [(0, 0, "2"), (1, 0, "1"), (2, 0, "2")] sub012)
+        ([(0.5, 0.5), (1, 1), (2, 0.5)], [])
 
 test_relative_block = do
     let run call = DeriveTest.extract DeriveTest.e_note $
