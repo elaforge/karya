@@ -13,80 +13,13 @@ UNSORTED
   - When multiple marks from different marklists are in the same place, their
     text collides.  The one from the first marklist should take precedence,
     as should its line.
-  * Logical block duration: Block calls could have an early end, with
-    a special ruler mark.  Anything after the end goes after the calling
-    event's end.  Similarly, events before 0t can go before the event start.
-    . Why do I do stretch to 1 in Tempo.with_tempo, instead of in c_block?
-      Because it does: Derive.stretch (1 / RealTime.to_score real_dur)
-      I don't know how much to stretch to fit until I see the tempo because
-      real duration depends on the tempo.
-    . In any case, I don't need to support sliced tempo tracks, so I can use
-      the logical block duration instead of TrackTree.track_end in
-      Derive.Control.tempo_call.
-    . Maybe I should do something to make it clearer that stretch_to_1 is only
-      for the first toplevel tempo track?
-
-    . Why do I have to set block duration in two places? Control.tempo_call,
-      and BlockUtil.get_tree.
-  * Support start mark for logical block duration.
-    . Effectively this reduces the block duration, except on derivation, where
-      it shifts it back.
   - A block with logical range called at time 0 gets messed up:
     bug/logical-block-range
 
-  * escape on floating entry should cancel it
-  * 'p1 ktkno' in bug/mridangam2 gets wrong dyn when dyn is inverted
   - I forgot to add Sub.inverting to p1 and pn calls.  Can I have a warning
     for when a non-inverting call has a note track below it?
-  Keyswitch means notes can't be played together.
-    . Do keyswitch with poly AT.
-      . Using poly AT requires that I use KSP instead of the built-in thing.
-      . use allow_group(i) and disallow_group(i)
-        find_group("name") to do it by name
-      . KSP makes this complicated, I can't use allow_group() since it's
-        global.  I need to recreate groups by routing the event myself, but
-        KSP may not let me do that.
-    * A simpler approach but only allows two dimensions, is for all other
-      groups to work on any keyswitch.  But to extend to multiple dimensions,
-      I need to use other controls, e.g.  CCs.  But I need to make sure that
-      the performer knows that it can ignore control for notes that don't have
-      that keyswitch.
-    / Stop group KSP only understands keyswitches.  It needs to be extended to
-      understand CCs.
-      . Maybe I can avoid this by saying that all variations in the same range
-        belong to the same stop group.
-  * >kontakt/pakhawaj should also use the ControlSwitch approach.
-  * undo is not undoing a change to the inst config
-    . This is by design, Undo.merge_undo_states.  But why?
-  use Score.PControl for pitch controls
-    * BaseTypes.PitchControl
-    * BaseTypes.PitchMap
-    * Derive.get_named_pitch_control
-    * Typecheck instance for Control and PControl means I can put
-      Score.parse_generic_control into the call signature.
-      . On the other hand, I'd have to make a new Type and everything.
-        Not a super big deal, but probably not worth it until I have more
-        calls that take a Control or PControl.
-      . c_default_merge, c_redirect, c_get_pitch, c_cf_sample
-        Map.c_mapc, Val.c_get_pitch
-      . But actually for ones that take only a pitch control, maybe I don't
-        want the leading #, since it's unnecessary and forces quoting.  But
-        at least it's consistent, does that make it worth it?
-  * use Score.is_valid_control_char in ParseTitle
-    . Also in Derive.Parse.p_pitch_control and p_control
-    . Actually, it already does, except it uses Id.  Perhaps I should just
-      reuse Id.valid?
-  * I could smooth pitch changes in each note with "mapc '#' smooth .1"
-    Zheng or vocal-style instruments could use this.
-  rename:
-    / "initial" arg of kotekan calls to "init"?
-    * NoteTransformer is a bad name for note generators that transform
-      sub-events.  I should find a better name for it so NoteTransformer can be
-      Derive.Transformer Derive.Note.
-      . Perhaps SubGenerator?  ParentGenerator?
-    / shouldn't Derive/Call/Post go into Derive/Call/Prelude?
-    - Post.Move module and infer-duration call need better names now that it's
-      a general purpose call.
+  - Post.Move module and infer-duration call need better names now that it's
+    a general purpose call.
   - It's confusing how sometimes the environ is applied to the pitch during
     derivation (e.g. Post.set_instrument), and sometimes it waits for Convert
     to do it.  Do I really need both?
@@ -112,132 +45,18 @@ UNSORTED
   format:
     - pp LPerf.sel_events has an extra level of indent after the [.  Not due
       to LEvents.
-    * pretty print on a single event gives '[Event ...' and no closing ']'.
     - what happens with ShortForm <> ShortForm?
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it
     applies Flags.can_cancel at TrackTime 0, which is only appropriate for
     a direct call from the track.  This is the reason for
     Gangsa.realize_notes.remove.
+    . Flags.can_cancel is now obsolete, but maybe the issue still stands?
   / 'a' to enter an event in a mridangam track should make a zero duration
     event
     . Actually, it can't really know whether the call should be zero dur,
       unless calls could somehow be introspected.  So rely on using a leading
       space.
-  * make derivers expose their ScoreTime duration
-    . symptom is that 'clip' etc. calls require a block argument, which
-      doesn't work as soon as it's assigned e.g. '^b = xyz'.  The problem is
-      that it really does need the underlying block so it can know how long it
-      is.
-    . Maybe Derivers give their length.
-    . Can't I just derive in 1:1?  It would work for 'clip', but not for
-      'Clip' or 'loop', since I don't know where the end is.
-    . I can modify Derive.LogsDeriver to be
-        type LogsDeriver d = Deriver ([LEvent.LEvent d], RealTime)
-      but then if I want to sequence derivers, I have to evaluate twice?  No,
-      I can do:
-        (events, end) <- deriver1
-        (rest, _) <- Derive.at end deriver1
-      . That doesn't work for Clip, because I need the end to even start
-        deriving.  But thanks to laziness, if I just take the end and not the
-        events, I should do only enough work to figure out where the end is.
-    . I could look for the last event, or a sentinel, but in that case
-      I really do have to derive twice.  Still, it may not be a big deal for
-      short derivers.
-    . Or I could put Max end in Collect.  Actually even with a separate return
-      value it winds up being equivalent to Collect, just stored in
-      a different spot.  The main thing is to be able to get the 'end' field
-      without doing unnecessary work, so I may have to take !s off the Collect
-      fields, especially Cache.
-    . Should the end be ScoreTime or RealTime?  Block calls use ScoreTime, but
-      RealTime seems more fundamental.  Calls that don't have score don't
-      necessarily have ScoreTime.  I should be safe to go back to ScoreTime
-      for those that need it.
-    . Also Cmd could use the duration to set the default duration for an
-      arbitrary call.  This uses ScoreTime too.
-    . Or maybe ScoreTime is more convenient.  In a block I need to wait until
-      after the tempo track to get the RealTime, so that implies a certain
-      amount of derivation must be done.
-    . If it's ScoreTime then it's actually duration, not end, because it's
-      relative to 0 at the beginning of the call.
-    . Some calls will go for as long as you give them, so their effective end
-      is Infinite.
-    * Add 'collect_duration :: ScoreTime' and make block calls use it.
-      It defaults to the event duration.
-    / Figure out a convenient way for other calls to use it too, or at least
-      for it to default to the end of the last event.
-    / Test to see how much derivation is needed to find the end of various
-      expressions.
-      . For this to work, I have to look at the data dependencies for Collect
-        to ensure that evaluating it won't demand everything.  Or rather,
-        evaluating collect_call_duration won't, because the block call
-        replaces it.
-      . The reason it can't work is that Duration takes a max, which needs
-        both values.  Since duration is defined per-event then it's actually
-        taking the maximum of all events in the block.  Since I know that no
-        event should be longer than the block duration, I need to just set
-        the duration, not merge it.
-      . In any case merging is incorrect, because it's now duration, not end.
-      . Is Collect is merged backwards?  What's up with that?  Or not?  It's
-        confusing how collects are merged.
-
-    . Maybe Collect isn't the right thing after all.  Applicative?
-      . Really I just want a way to query the deriver without having to
-        evaluate it, or at least evaluate the minimum necessary.  Another
-        approach would be to make Deriver a record.  I could put it in Monad
-        so existing things continue to work, but I can also get fields out of
-        it without deriving events.
-      . In fact, could I put Collect into that?  Probably not usefully since
-        the others definitely have a data dependency on the evaluation.
-      . Actually I think this can't work.  To set the call duration within
-        a deriver, I need to evaluate the second deriver to see if it's
-        going to set it.  So this would work with Applicative, but not with
-        Monad, because it could take a branch that changes the duration.
-      . Really this means that anything using (>>=) will not get durations
-        from inside.  However, (<>) and (<*>) will propagate.  This might be
-        ok since really I only care about NoteDeriver.  How does this work
-        in practice though?
-
-      . But now I have to track down where the durations are lost.  Any time
-        there is 'a >>= b', the result from 'b' will be lost.
-      . d_block checks the title and can throw.  Maybe I can set the
-        duration earlier.  Except that getting block duration is also
-        monadic.
-
-      . It would be a Deriver object with fields for the environment etc.  To
-        know duration I still have to evaluate it, so I know which sub-deriver
-        it uses.  But many derivers don't make choices.  Actually, since
-        throwing an exception is a choice, they actually do.  I guess I'd have
-        to have each deriver statically declare which other derivers it's
-        going to invoke.
-    . Ok, so what about an entirely separate deriver?  Or derive in
-      a different mode.  In that way it would be similar to lilypond.  But I
-      would want normal calls to return the event duration.  But, if I put
-      that in TrackEval then c_block can't override it.
-    . Examples:
-      . Block calls, block duration is independent of event duration.
-      . Pattern calls could be similarly locked to a certain tempo.
-      . I could manually set block end to be shorter than the ruler end so
-        there a "decay".
-      . But most calls, e.g. 'tr' have the same duration as their event.  You
-        still need this to sequence derivers.
-    . Maybe this can be a field in a Call that takes Args -> ScoreTime.  But
-      not every Deriver winds up at a Call.  Eval.apply_generator turns a Call
-      into a Deriver, so it would be the one to get that information.  I'm
-      definitely required to evaluate the deriver up to that point because
-      I need to look up the Call.  But putting the field in the Call ensures
-      that evaluation won't go past apply_generator.
-    . However, c_block at least is going to need to look at the contents of
-      the block, so it needs the BlockId and UI State.
-
-    * Add field to Call.
-    * Make block call set it specially.
-    * Make Eval.apply_generator query 'state_mode' and for DurationQuery.
-    * Add call that derives with DurationQuery and extracts the result.
-
-    * Extend Clip to work with any note call.
-  / mridangam p1 and pn have CallDuration.
-    . no need, pr and Pr should work well enough
 
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
@@ -848,12 +667,6 @@ performance:
       can I make this more efficient?
 
 fltk:
-  * Some indication which window has focus.  When I switch to the REPL I can't
-    see which block is focused.  Make the block text red?
-    . Make skeleton bg pink, that's more visible.
-    . It should not be saved in the score, so shouldn't be in View.
-      In fact, fltk knows where focus is, can't it handle it entirely
-      internally?
   ? There's an extra axis of information in the width of the event body.  How
     could I use that?
   - Text in negative events doesn't wrap.
