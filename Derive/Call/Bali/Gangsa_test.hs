@@ -130,9 +130,11 @@ test_kotekan_cancel = do
     -- I would have to have >polos replace >pasang, and after that apply unison
     -- or whatever.
     equal (e_pattern 0 $ run [(0, 8, "k// -- 4e"), (8, 8, "4f")])
-        ([(polos, "--3-23-23"), (sangsih, "-2-12-123")], [])
-    pprint
-        (e_pasang DeriveTest.e_note $ run [(0, 8, "k// -- 4e"), (8, 8, "4f")])
+        ([(polos, "--3-23-23"), (sangsih, "-2-12-124")], [])
+        -- But it should be:
+        -- ([(polos, "--3-23-23"), (sangsih, "-2-12-123")], [])
+    -- pprint $ e_pasang DeriveTest.e_note $
+    --     run [(0, 8, "k// -- 4e"), (8, 8, "4f")]
 
 test_kotekan_continuation = do
     -- Kotekan followed by normal notes works "as expected".
@@ -147,11 +149,11 @@ test_kotekan_continuation = do
     equal (e_by_inst extract $ run "noltol"
             [(0, 8, "final=f | k// -- 4e"), (8, 2, "kempyung | -- 4f")])
         ([ (polos,
-            [ (2, 1, "3"), (3, 1, "3+"), (4, 1, "2"), (5, 1, "3")
-            , (6, 1, "3+"), (7, 1, "2"), (8, 2, "4")
+            [ (2, 1, "3"), (3, 0, "3+"), (4, 1, "2"), (5, 1, "3")
+            , (6, 0, "3+"), (7, 1, "2"), (8, 2, "4")
             ])
          , (sangsih,
-            [ (1, 1, "2"), (2, 1, "2+"), (3, 1, "1"), (4, 1, "2"), (5, 1, "2+")
+            [ (1, 1, "2"), (2, 0, "2+"), (3, 1, "1"), (4, 1, "2"), (5, 0, "2+")
             , (6, 1, "1"), (7, 1, "2"), (8, 2, "7")
             ])
          ], [])

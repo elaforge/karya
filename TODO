@@ -10,6 +10,11 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - Util.TimeVector has a hack where a sample at <=0 is considered to extend
+    to -inf.  It's because I want a control track call at 0 to extend back.
+    But I could do that directly with a postproc ala the tempo hack.  It seems
+    like a hack at a higher level is better than one deep in the signal
+    implementation.
   - When multiple marks from different marklists are in the same place, their
     text collides.  The one from the first marklist should take precedence,
     as should its line.
@@ -1044,6 +1049,7 @@ Derive:
             kempyung and unison have to apply a flag, which is then
             interpreted by a postproc.  Also infer-duration needs to know that
             >polos can replace a >pasang note.
+          . Gangsa_test.test_kotekan_cancel demonstrates the problem.
           * For the short term I can just add a env arg to kotekan calls to
             omit the last note, then I have to use that when I want to replace
             it.  This means cross block replacement doesn't work.  Try it to
