@@ -50,7 +50,8 @@ UNSORTED
   format:
     - pp LPerf.sel_events has an extra level of indent after the [.  Not due
       to LEvents.
-    - what happens with ShortForm <> ShortForm?
+    * what happens with ShortForm <> ShortForm?
+      punted on it for now
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it
     applies Flags.can_cancel at TrackTime 0, which is only appropriate for

@@ -65,6 +65,12 @@ test_shortForm = do
     equal (f 8 $ "xyz" <> indent_ abc) "xyz\n  [abc]\n"
     equal (f 6 $ "xyz" <> indent_ abc) "xyz\n  a,b,\n  c\n"
 
+    equal (flatten $ sf "abc" "123" <> sf "def" "456")
+        [S 0 "abcdef" (Hard 1) [S 0 "abc456" (Hard 1) []]]
+        -- I would like this to be:
+        -- [S 0 "abcdef" (Hard 1) [S 0 "123456" (Hard 1) []]]
+        -- Unfortunately I can't figure out how to get it to work that way.
+
 test_flatten = do
     let f = flatten
     -- Interaction with indent.

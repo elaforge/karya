@@ -75,15 +75,20 @@ instance Monoid.Monoid Doc where
 instance String.IsString Doc where
     fromString = text . String.fromString
 
--- | The first Doc is the short form, which will be used if it doesn't have
--- to wrap.  So you can give a compact form which will render if it can fit
--- without breaking, and then a form with more fancy layout that will be
--- used if it does have to break.  For example, @[1, 2, 3]@ for short lists,
--- and @[ 1\\n, 2\\n, 3\\n]@ for long ones.
---
--- Prepending text to a shortForm will distribute over both short and long
--- forms.  Otherwise, if you write @"prefix " <> x@, and @x@ happens to be
--- a shortForm, the long form loses the prefix.
+{- | The first Doc is the short form, which will be used if it doesn't have
+    to wrap.  So you can give a compact form which will render if it can fit
+    without breaking, and then a form with more fancy layout that will be used
+    if it does have to break.  For example, @[1, 2, 3]@ for short lists, and
+    @[1\\n, 2\\n, 3\\n]@ for long ones.
+
+    Prepending text to a shortForm will distribute over both short and long
+    forms.  Otherwise, if you write @"prefix " <> x@, and @x@ happens to be
+    a shortForm, the long form loses the prefix.
+
+    Appending two shortForms will make you lose the long form of the second
+    one.  So don't do that.  TODO I'd rather both short and long forms be
+    appended, but haven't figured out how to do that yet.
+-}
 shortForm :: Doc -> Doc -> Doc
 shortForm = ShortForm
 
@@ -246,8 +251,10 @@ flatten = postprocSections . stateSections . flush . flip go initialState
         ShortForm short long -> state
             { stateCollect =
                 stateCollect state <> renderSectionsB (flatten short)
-            -- TODO old subs are lost?  What happens with
-            -- shortForm <> shortForm?
+            -- Whatever is in stateSubs state will be lost.  But if I collect
+            -- it into stateSubs I get even more confusing results.  I can't
+            -- figure out how to get ShortForm <> ShortForm to yield something
+            -- sensible, so I'm giving up for now.
             , stateSubs = stateSections sub
             }
             where
