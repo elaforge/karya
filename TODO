@@ -10,6 +10,8 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - move Conditional.c_multiple to NoteTransformer
+  - implement NoteTransformer.c_parallel
   - Util.TimeVector has a hack where a sample at <=0 is considered to extend
     to -inf.  It's because I want a control track call at 0 to extend back.
     But I could do that directly with a postproc ala the tempo hack.  It seems
@@ -90,11 +92,14 @@ UNSORTED
     a postproc... is that really better?
   - Rethink if I really want track event calls in TrackTime, rather than
     normalized time.
-    . It's inconvenient that DUtil.zero_duration has to modify the event to
-      set the note duration.
+    . Implementing c_sequence I was confused how stretch was applied twice,
+      since Eval.eval_quoted doesn't normalize the event duration.  Same
+      problem is in Gamakam2.  It's error prone that you can place the note
+      via both Derive.place and via the Derive.info_event.
     . On the other hand, working in TrackTime is convenient, e.g. in gangsa
       norot I can place notes based on the passed-in dur.  If it were
       normalized, I'd have to unwarp back to TrackTime... can I even do that?
+    . Details are also in "Derive.EvalTrack".
 
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
@@ -118,7 +123,7 @@ UNSORTED
     a new play send the keyswitch?
     . can repro with bug/stuck-mute.  But MIDI looks normal.  Record in reaper
       and play back to see if it's a kontakt bug.
-  - Implement 'sequence'.  It sequences its notes, paying attention only to
+  * Implement 'sequence'.  It sequences its notes, paying attention only to
     their order, not time and duration.  The tricky part is getting the tempo
     right so playback looks right, and controls line up right.
     . Figure out tempo from sum of durations of called blocks.  Then set the
@@ -146,6 +151,11 @@ UNSORTED
         duration, find all such callers and resize them to the new callee
         block duration.  Anything below them is moved up or down, and the
         rulers re-extracted.
+    . Another way is in a single call: "sequence a b c d" and then it's the
+      duration of the event, or maybe it ignores event duration.
+    . Callee duration is incorrect.  It's that the event duration remains in
+      the CallInfo, so it gets applied twice.  This seems error-prone.
+      Perhaps eval_quoted should reset to (0, 1)?
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.

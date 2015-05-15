@@ -4,13 +4,18 @@
 
 -- | Transformers on @Derive.Generator Derive.Note@.
 module Derive.Call.Prelude.NoteTransformer where
+import qualified Data.List.NonEmpty as NonEmpty
+
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import Global
@@ -18,12 +23,63 @@ import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.transformer_call_map
+note_calls = Derive.call_maps
+    [ ("sequence", c_sequence)
+    ]
     [ ("clip", c_clip)
     , ("Clip", c_clip_start)
     , ("loop", c_loop)
     , ("tile", c_tile)
     ]
+
+
+-- * generators
+
+-- This isn't a NoteTransformer, but it seems like it belongs here.  What is
+-- a better name for the module?
+c_sequence :: Derive.Generator Derive.Note
+c_sequence = Derive.generator_with_duration get_call_duration
+    Module.prelude "sequence" mempty
+    "Run all the calls in sequence. If they each have have an intrinsic\
+    \ CallDuration (usually this means block calls), they will get that amount\
+    \ of time, at least proportial to the duration of the event. Otherwise,\
+    \ if none of them do, they are given equal duration. If some do and some\
+    \ don't, you probably get confusing results."
+    $ Sig.call calls_arg $ \calls args -> do
+        let derivers = calls_to_derivers args calls
+        durs <- get_durations derivers
+        sequence_derivers (Args.start args) (Args.duration args)
+            (map snd derivers) durs
+    where
+    calls_arg = Sig.many1 "call" "Generator calls."
+    calls_to_derivers args calls = zip (NonEmpty.toList calls)
+        (map (Eval.eval_quoted_normalized (Args.info args))
+            (NonEmpty.toList calls))
+    get_call_duration args = do
+        calls <- Sig.run_or_throw calls_arg args
+        durs <- get_durations (calls_to_derivers args calls)
+        return $ Derive.Duration (sum durs)
+
+sequence_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
+    -> [ScoreTime] -> Derive.NoteDeriver
+sequence_derivers start event_dur derivers durs =
+    Derive.stretch stretch $ mconcat
+        [ Derive.place start dur d
+        | (start, dur, d) <- zip3 (scanl (+) start durs) durs derivers
+        ]
+    where
+    stretch = if call_dur == 0 then 1 else event_dur / call_dur
+    call_dur = sum durs
+
+get_durations :: [(TrackLang.Quoted, Derive.Deriver a)]
+    -> Derive.Deriver [ScoreTime]
+get_durations = mapM $ \(sym, d) ->
+    Derive.get_call_duration d >>= \dur -> case dur of
+        Derive.Unknown ->
+            Derive.throw $ "unknown CallDuration for " <> ShowVal.show_val sym
+        Derive.Duration dur -> return dur
+
+-- * transformers
 
 -- ** clip
 

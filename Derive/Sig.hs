@@ -85,7 +85,7 @@
 -}
 module Derive.Sig (
     Parser, Generator, Transformer
-    , check, run
+    , check, run_or_throw, run
     -- * pseudo-parsers
     , paired_args, typecheck
     -- * parsers
@@ -166,6 +166,11 @@ check validate (Parser docs parse) = Parser docs $ \state -> case parse state of
     Right (state2, val) -> case validate val of
         Just err -> Left $ Derive.ArgError err
         Nothing -> Right (state2, val)
+
+run_or_throw :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
+    -> Derive.Deriver a
+run_or_throw parser args = either (Derive.throw_error . Derive.CallError) return
+    =<< run parser args
 
 -- | Run a parser against the current derive state.
 run :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
@@ -505,28 +510,24 @@ type Transformer y d =
 call :: Derive.Taggable y => Parser a -> (a -> Generator y d)
     -> Derive.WithArgDoc (Generator y d)
 call parser f = (go, Derive.ArgDocs (parser_docs parser))
-    where go args = run_call parser args >>= \a -> f a args
+    where go args = run_or_throw parser args >>= \a -> f a args
 
 -- | Specialization of 'call' for 0 arguments.
 call0 :: Derive.Taggable y => Generator y d -> Derive.WithArgDoc (Generator y d)
 call0 f = (go, Derive.ArgDocs [])
-    where go args = run_call no_args args >>= \() -> f args
+    where go args = run_or_throw no_args args >>= \() -> f args
 
 callt :: Derive.Taggable y => Parser a -> (a -> Transformer y d)
     -> Derive.WithArgDoc (Transformer y d)
 callt parser f = (go, Derive.ArgDocs (parser_docs parser))
-    where go args deriver = run_call parser args >>= \a -> f a args deriver
+    where go args deriver = run_or_throw parser args >>= \a -> f a args deriver
 
 -- | Specialization of 'callt' for 0 arguments.
 call0t :: Derive.Taggable y => Transformer y d
     -> Derive.WithArgDoc (Transformer y d)
 call0t f = (go, Derive.ArgDocs [])
-    where go args deriver = run_call (pure ()) args >>= \() -> f args deriver
-
-run_call :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
-    -> Derive.Deriver a
-run_call parser args = either (Derive.throw_error . Derive.CallError) return
-    =<< run parser args
+    where
+    go args deriver = run_or_throw (pure ()) args >>= \() -> f args deriver
 
 state_environ :: State -> TrackLang.Environ
 state_environ = Derive.state_environ . Derive.state_dynamic . state_derive

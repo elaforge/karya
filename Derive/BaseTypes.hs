@@ -585,6 +585,7 @@ newtype Quoted = Quoted Expr deriving (Show)
 -- so it shouldn't have anything unshowable, like pitches.
 instance ShowVal.ShowVal Quoted where
     show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
+instance Pretty.Pretty Quoted where pretty = ShowVal.show_val
 
 {- | Another representation of a signal, complementary to 'Signal.Control'.
     It's more powerful because it has access to a subset of the Dynamic state,

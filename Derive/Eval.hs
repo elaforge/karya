@@ -6,7 +6,7 @@
 -- | Evaluate tracklang expressions.
 module Derive.Eval (
     -- * eval / apply
-    eval_toplevel, eval_quoted
+    eval_toplevel, eval_quoted, eval_quoted_normalized
     -- ** generator
     , apply_generator
     -- ** transformer
@@ -62,6 +62,24 @@ eval_toplevel cinfo expr = eval_transformers cinfo transform_calls $
 eval_quoted :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Quoted
     -> Derive.LogsDeriver d
 eval_quoted cinfo (TrackLang.Quoted expr) = eval_toplevel cinfo expr
+
+-- | This is like 'eval_quoted', except that the 'Derive.info_event' is set to
+-- (0, 1) normalized time.  This is important if you want to place the
+-- resulting deriver.  Otherwise, you can use eval_quoted and the event's
+-- position will fall through to the callee.
+--
+-- TODO this awkwardness is because events evaluate in track time, not in
+-- normalized time.  Details in "Derive.EvalTrack".
+eval_quoted_normalized :: Derive.Callable d => Derive.CallInfo d
+    -> TrackLang.Quoted -> Derive.LogsDeriver d
+eval_quoted_normalized = eval_quoted . normalize_event
+
+normalize_event :: Derive.CallInfo val -> Derive.CallInfo val
+normalize_event cinfo = cinfo
+    { Derive.info_event = Event.place 0 1 (Derive.info_event cinfo)
+    , Derive.info_prev_events = []
+    , Derive.info_next_events = []
+    }
 
 -- ** generator
 
