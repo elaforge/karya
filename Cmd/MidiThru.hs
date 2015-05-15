@@ -142,7 +142,7 @@ map_scale patch_scale scale environ input = case input of
             Derive.remove_controls transposers $
             Scale.scale_input_to_nn scale pos input
         case result of
-            Left err -> throw $ "derive_at: " <> txt err
+            Left err -> throw $ "derive_at: " <> err
             -- This just means the key isn't in the scale, it happens a lot so
             -- no need to shout about it.
             Right (Left Scale.InvalidInput) -> Cmd.abort

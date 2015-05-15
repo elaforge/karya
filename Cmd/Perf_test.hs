@@ -32,6 +32,6 @@ test_derive_expr = do
     io_equal (run control_call [("c", []), (">", [])] (f 1 0 ".5"))
         (Right (Just (Right [[(0, 0.5)]], []), []))
 
-extract_events :: (d -> e) -> (Either String [d], [Log.Msg])
-    -> (Either String [e], [String])
+extract_events :: (d -> e) -> (Either Text [d], [Log.Msg])
+    -> (Either Text [e], [String])
 extract_events f (val, logs) = (map f <$> val, map DeriveTest.show_log logs)

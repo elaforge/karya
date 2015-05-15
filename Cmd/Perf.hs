@@ -42,13 +42,13 @@ import Types
 
 -- | Specialized version of 'derive_expr' for note calls with no arguments.
 derive_note_call :: Cmd.M m => BlockId -> TrackId -> TrackTime
-    -> TrackLang.CallId -> m (Either String [Score.Event], [Log.Msg])
+    -> TrackLang.CallId -> m (Either Text [Score.Event], [Log.Msg])
 derive_note_call block_id track_id pos call =
     derive_expr block_id track_id pos (TrackLang.Call call [] :| [])
 
 -- | Derive an expression.
 derive_expr :: (Cmd.M m, Derive.Callable d) => BlockId -> TrackId -> TrackTime
-    -> TrackLang.Expr -> m (Either String [d], [Log.Msg])
+    -> TrackLang.Expr -> m (Either Text [d], [Log.Msg])
 derive_expr block_id track_id pos expr = do
     (result, logs) <- derive_at block_id track_id
         (Eval.eval_one_at False pos 1 expr)
@@ -59,12 +59,12 @@ derive_expr block_id track_id pos expr = do
 
 -- | Run an ad-hoc derivation in the context of the given track.
 derive_at :: Cmd.M m => BlockId -> TrackId
-    -> Derive.Deriver a -> m (Either String a, [Log.Msg])
+    -> Derive.Deriver a -> m (Either Text a, [Log.Msg])
 derive_at block_id track_id deriver = do
     dynamic <- fromMaybe PlayUtil.initial_dynamic <$>
         find_dynamic (block_id, Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
-    return (first prettys val, logs)
+    return (first pretty val, logs)
 
 -- | Get the environment established by 'State.config_global_transform'.
 global_environ :: Cmd.M m => m TrackLang.Environ
