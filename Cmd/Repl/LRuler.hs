@@ -446,7 +446,8 @@ modify_m (Modify block_id scope modify) = do
 
 -- | Modify a local copy of the main block ruler.
 local_ruler :: State.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId
-local_ruler block_id modify = RulerUtil.local_section block_id 0 $ Right . modify
+local_ruler block_id modify =
+    RulerUtil.local_section block_id 0 $ Right . modify
 
 -- * bounds
 

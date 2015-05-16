@@ -516,10 +516,9 @@ get_call_duration block_id track_id event = do
     deriver <- Perf.get_note_deriver block_id track_id event
     dur <- Perf.get_derive_at block_id track_id $
         Derive.get_call_duration deriver
-    case dur of
-        Derive.Unknown -> Cmd.throw $ "unknown call duration for "
-            <> pretty (block_id, track_id, Event.event_text event)
-        Derive.Duration dur -> return dur
+    return $ case dur of
+        Derive.Unknown -> Event.duration event
+        Derive.Duration dur -> dur
 
 -- * modify text
 
@@ -614,9 +613,11 @@ open_floating selection = do
         (selection text)
 
 event_text_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Text)
-event_text_at track_id pos = do
-    events <- Track.track_events <$> State.get_track track_id
-    return $ Event.event_text <$> Events.at pos events
+event_text_at track_id = fmap (fmap Event.event_text) . event_at track_id
+
+event_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Event.Event)
+event_at track_id pos =
+    Events.at pos . Track.track_events <$> State.get_track track_id
 
 -- ** handle floating input msg
 
@@ -637,6 +638,7 @@ handle_floating_input zero_dur msg = do
     -- 0 dur means a point selection, which means to use the time step.
     insert_recorded_action '.' $ make_action old_text (Text.strip text)
         (if space then Just 0 else if dur == 0 then Nothing else Just dur)
+    try_set_call_duration block_id track_id start
     return Cmd.Done
     where
     event_range start dur = do
@@ -644,6 +646,18 @@ handle_floating_input zero_dur msg = do
         return $ case dir of
             TimeStep.Advance -> (start, dur)
             TimeStep.Rewind -> (start + dur, -dur)
+
+-- | Set the event's duration to its CallDuration, if it has one.
+--
+-- Calling this from 'handle_floating_input' unconditionally means that every
+-- edit to an event will potentially resize it.  Perhaps I'll want to scale it
+-- back so that only adding a new event has this behaviour.
+try_set_call_duration :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m ()
+try_set_call_duration block_id track_id pos =
+    whenJustM (event_at track_id pos) $ \event -> do
+        dur <- get_call_duration block_id track_id event
+        when (dur /= Event.duration event) $
+            State.insert_event track_id (Event.set_duration dur event)
 
 floating_input_msg :: Msg.Msg -> Maybe Text
 floating_input_msg (Msg.Ui (UiMsg.UiMsg ctx

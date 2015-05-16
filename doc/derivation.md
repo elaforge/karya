@@ -541,16 +541,42 @@ for control tracks.  The sub-block is expected to have a control track titled
 You can use this to create an ad-hoc signal type, for instance to emit dynamic
 spikes in a certain rhythm, to impose that rhythmic feel on a melody.
 
+### CallDuration
+
+Usually calls don't have a distinct duration.  They just emit events as they
+please, and just about all of them will place the events so they basically fit
+inside the logical bounds of the event that contains the call expression.  I
+say logically because they may have a slight pickup (e.g. a grace note that
+ends on the beat), or a decay section.
+
+But some calls do have a duration.  For example, a block's duration is defined
+by the length of its ruler.  Normally a block call will stretch its contents to
+fit its event, but you can also ask for the CallDuration to stretch the event
+to the block.  This operation is bound to 'Cmd.Edit.cmd_set_call_duration', and
+it's useful when callee blocks are in the same time scale as the caller.
+If you are doing that kind of thing, 'Cmd.Repl.LRuler.extract' is useful to
+synchronize the ruler of the caller block with those of its callees.
+
+On the subject of block calls, you can also explicitly set a block's
+CallDuration via the bounds ruler: 'Ui.Ruler.set_bounds'.
+'Cmd.Repl.LRuler.set_start' and 'Cmd.Repl.LRuler.set_end' will set start and
+end bounds, respectively.  Notes before a start bound will fall before the
+block call, and notes after the end bound will fall after the block call.
+'Ui.State.block_logical_bounds' takes this into account, so you should use that
+if you want the logical bounds.
+
+The implementation is documented in 'Derive.Deriver.Monad.CallDuration'.
+
 ## Instruments
 
-A 'Derive.Score.Instrument' at the derive level is just an arbitrary string.
+A 'Derive.BaseTypes.Instrument' at the derive level is just an arbitrary string.
 Well, not totally arbitrary, since it should conform to the lowercase letters
 and hyphens naming scheme.  But the deriver doesn't do much special with
 instruments.  Instruments bring their calls into scope, and the default note
 deriver will inherit 'Derive.Environ.instrument', but that's about it.
 
 All the interesting stuff about instruments is [documented
-separately](instruments.html).
+separately](instrument.md.html).
 
 ## Scales
 

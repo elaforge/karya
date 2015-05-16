@@ -10,7 +10,8 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
-  - I do a lot of setting the call duration after creating a block call, can
+  - sequence is buggy when the event starts at >0
+  * I do a lot of setting the call duration after creating a block call, can
     I get that to happen automatically?
   - move Conditional.c_multiple to NoteTransformer
   - implement NoteTransformer.c_parallel
@@ -316,7 +317,8 @@ MILESTONES
 
 ----------------------------------------------------------------------
 
-documentation
+documentation:
+  - write doc/instrument.md
   - update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
