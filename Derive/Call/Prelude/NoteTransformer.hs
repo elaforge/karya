@@ -25,6 +25,7 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("sequence", c_sequence)
+    , ("parallel", c_parallel)
     ]
     [ ("clip", c_clip)
     , ("Clip", c_clip_start)
@@ -38,9 +39,9 @@ note_calls = Derive.call_maps
 -- This isn't a NoteTransformer, but it seems like it belongs here.  What is
 -- a better name for the module?
 c_sequence :: Derive.Generator Derive.Note
-c_sequence = Derive.generator_with_duration get_call_duration
-    Module.prelude "sequence" mempty
-    "Run all the calls in sequence. If they each have have an intrinsic\
+c_sequence = Derive.generator_with_duration get_call_duration Module.prelude
+    "sequence" mempty
+    "Run the given calls in sequence. If they each have have an intrinsic\
     \ CallDuration (usually this means block calls), they will get that amount\
     \ of time, at least proportial to the duration of the event. Otherwise,\
     \ if none of them do, they are given equal duration. If some do and some\
@@ -52,9 +53,6 @@ c_sequence = Derive.generator_with_duration get_call_duration
             (map snd derivers) durs
     where
     calls_arg = Sig.many1 "call" "Generator calls."
-    calls_to_derivers args calls = zip (NonEmpty.toList calls)
-        (map (Eval.eval_quoted_normalized (Args.info args))
-            (NonEmpty.toList calls))
     get_call_duration args = do
         calls <- Sig.run_or_throw calls_arg args
         durs <- get_durations (calls_to_derivers args calls)
@@ -71,6 +69,39 @@ sequence_derivers start event_dur derivers durs =
     stretch = if call_dur == 0 then 1 else event_dur / call_dur
     call_dur = sum durs
 
+c_parallel :: Derive.Generator Derive.Note
+c_parallel = Derive.generator_with_duration get_call_duration Module.prelude
+    "parallel" mempty
+    "Run the given calls in parallel."
+    $ Sig.call calls_arg $ \calls args -> do
+        let derivers = calls_to_derivers args calls
+        durs <- get_durations derivers
+        parallel_derivers (Args.start args) (Args.duration args)
+            (map snd derivers) durs
+    where
+    calls_arg = Sig.many1 "call" "Generator calls."
+    get_call_duration args = do
+        calls <- Sig.run_or_throw calls_arg args
+        durs <- get_durations (calls_to_derivers args calls)
+        return $ Derive.Duration $ fromMaybe 0 (Seq.maximum durs)
+
+parallel_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
+    -> [ScoreTime] -> Derive.NoteDeriver
+parallel_derivers start event_dur derivers durs =
+    Derive.stretch stretch $ mconcat
+        [ Derive.place start dur d
+        | (dur, d) <- zip durs derivers
+        ]
+    where
+    stretch = if call_dur == 0 then 1 else event_dur / call_dur
+    call_dur = fromMaybe 0 (Seq.maximum durs)
+
+calls_to_derivers :: Derive.Callable d => Derive.PassedArgs d
+    -> NonEmpty TrackLang.Quoted -> [(TrackLang.Quoted, Derive.LogsDeriver d)]
+calls_to_derivers args calls = zip (NonEmpty.toList calls)
+    (map (Eval.eval_quoted_normalized (Args.info args))
+        (NonEmpty.toList calls))
+
 get_durations :: [(TrackLang.Quoted, Derive.Deriver a)]
     -> Derive.Deriver [ScoreTime]
 get_durations = mapM $ \(sym, d) ->
@@ -78,6 +109,7 @@ get_durations = mapM $ \(sym, d) ->
         Derive.Unknown ->
             Derive.throw $ "unknown CallDuration for " <> ShowVal.show_val sym
         Derive.Duration dur -> return dur
+
 
 -- * transformers
 

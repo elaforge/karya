@@ -4,15 +4,11 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import Types
+
 
 test_sequence = do
-    let run dur call = DeriveTest.extract DeriveTest.e_note $
-            DeriveTest.derive_blocks
-                [ ("top", [(">", [(0, dur, call)])])
-                , ("sub-cd=ruler",
-                    UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
-                , ("sub-e=ruler", UiTest.note_track [(0, 1, "4e")])
-                ]
+    let run = run_subs
     equal (run 2 "sequence sub-cd") ([(0, 1, "4c"), (1, 1, "4d")], [])
     equal (run 1 "sequence sub-cd") ([(0, 0.5, "4c"), (0.5, 0.5, "4d")], [])
     equal (run 3 "sequence sub-cd sub-e")
@@ -23,6 +19,21 @@ test_sequence = do
     equal (run 4 "sequence \"(sequence sub-e sub-e) sub-cd")
         ([(0, 1, "4e"), (1, 1, "4e"), (2, 1, "4c"), (3, 1, "4d")], [])
 
+test_parallel = do
+    let run = run_subs
+    equal (run 2 "parallel sub-cd") ([(0, 1, "4c"), (1, 1, "4d")], [])
+    equal (run 2 "parallel sub-cd sub-e")
+        ([(0, 1, "4c"), (0, 1, "4e"), (1, 1, "4d")], [])
+    equal (run 4 "parallel sub-cd sub-e")
+        ([(0, 2, "4c"), (0, 2, "4e"), (2, 2, "4d")], [])
+
+run_subs :: ScoreTime -> String -> ([(RealTime, RealTime, String)], [String])
+run_subs dur call = DeriveTest.extract DeriveTest.e_note $
+    DeriveTest.derive_blocks
+        [ ("top", [(">", [(0, dur, call)])])
+        , ("sub-cd=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+        , ("sub-e=ruler", UiTest.note_track [(0, 1, "4e")])
+        ]
 
 test_clip = do
     let run top = run_sub DeriveTest.e_start_dur [(">", top)]
