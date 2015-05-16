@@ -83,6 +83,7 @@ module Derive.EvalTrack (
     , GetLastVal
     , derive_control_track, derive_note_track
     , defragment_track_signals, unwarp
+    , derive_event
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map

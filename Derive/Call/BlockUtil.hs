@@ -56,7 +56,8 @@ import Types
 note_deriver :: BlockId -> Derive.NoteDeriver
 note_deriver block_id = do
     (tree, block_range) <- Derive.eval_ui ("note_deriver " <> showt block_id) $
-        (,) <$> get_tree block_id <*> State.block_logical_range block_id
+        (,) <$> TrackTree.block_events_tree block_id
+            <*> State.block_logical_range block_id
     Derive.with_val Environ.block_end (snd block_range) $
         derive_tree block_range tree
 
@@ -70,7 +71,7 @@ note_deriver block_id = do
 -- control.
 control_deriver :: BlockId -> State.StateId Derive.ControlDeriver
 control_deriver block_id = do
-    tree <- get_tree block_id
+    tree <- TrackTree.block_events_tree block_id
     block_range <- State.block_logical_range block_id
     case check_control_tree (snd block_range) tree of
         Left err -> State.throw $ "control block skeleton malformed: " <> err
@@ -130,18 +131,6 @@ derive_control_tree block_range tree = do
 
 -- ** implementation
 
-get_tree :: State.M m => BlockId -> m TrackTree.EventsTree
-get_tree block_id = do
-    info_tree <- TrackTree.strip_disabled_tracks block_id
-        =<< TrackTree.track_tree_of block_id
-    -- This is the end of the last event or ruler, not
-    -- State.block_logical_range.  The reason is that functions that look at
-    -- TrackTree.track_end are expecting the physical end, e.g.
-    -- Control.derive_control uses it to put the last sample on the tempo
-    -- track.
-    end <- State.block_end block_id
-    TrackTree.events_tree block_id end info_tree
-
 derive_tree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree
     -> Derive.NoteDeriver
 derive_tree block_range tree = with_default_tempo (derive_tracks tree)
@@ -170,8 +159,7 @@ derive_track :: TrackTree.EventsNode -> Derive.NoteDeriver
 derive_track node@(Tree.Node track subs)
     | ParseTitle.is_note_track (TrackTree.track_title track) =
         with_stack $ Cache.track track (TrackTree.track_children node) $ do
-            events <- Internal.track_setup track $
-                with_voice track $
+            events <- Internal.track_setup track $ with_voice track $
                 Note.d_note_track derive_tracks node
             unless (TrackTree.track_sliced track) defragment
             mapM_ (Note.stash_signal_if_wanted events)

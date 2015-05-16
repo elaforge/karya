@@ -10,6 +10,8 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - I do a lot of setting the call duration after creating a block call, can
+    I get that to happen automatically?
   - move Conditional.c_multiple to NoteTransformer
   - implement NoteTransformer.c_parallel
   - Util.TimeVector has a hack where a sample at <=0 is considered to extend
@@ -844,7 +846,7 @@ REPL: repl:
     without having to quote it
 
 Cmd:
-  - Extend ^z to work with any call via Derive.get_call_duration.
+  * Extend ^z to work with any call via Derive.get_call_duration.
     . not a big deal so long as block call is the only one
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.

@@ -10,12 +10,16 @@
 module Cmd.Perf where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Util.Tree
+
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
+import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
@@ -25,7 +29,9 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
+import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Note
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -65,6 +71,38 @@ derive_at block_id track_id deriver = do
         find_dynamic (block_id, Just track_id)
     (val, _, logs) <- PlayUtil.run_with_dynamic dynamic deriver
     return (first pretty val, logs)
+
+-- | Like 'derive_at', but write logs and throw on a Left.
+get_derive_at :: Cmd.M m => BlockId -> TrackId -> Derive.Deriver a -> m a
+get_derive_at block_id track_id deriver = do
+    (result, logs) <- derive_at block_id track_id deriver
+    mapM_ Log.write logs
+    Cmd.require_right (("derive_at " <> pretty (block_id, track_id)) <>) result
+
+get_note_deriver :: Cmd.M m => BlockId -> TrackId -> Event.Event
+    -> m Derive.NoteDeriver
+get_note_deriver block_id track_id event = do
+    Tree.Node track subs <- find_track block_id track_id
+    case ParseTitle.track_type (TrackTree.track_title track) of
+        ParseTitle.NoteTrack -> return $
+            derive_event (Derive.Note.track_info track subs) event
+        typ -> Cmd.throw $ "expected a NoteTrack for "
+            <> pretty (block_id, track_id) <> ", but got " <> pretty typ
+
+derive_event :: Derive.Callable d => EvalTrack.TrackInfo d -> Event.Event
+    -> Derive.LogsDeriver d
+derive_event tinfo event = EvalTrack.derive_event tinfo Nothing [] event []
+    -- TODO get prev and next events
+    -- Also, BlockUtil does 'Derive.with_val Environ.block_end' and possibly
+    -- does Tempo.with_tempo.  If those things turn out to be important,
+    -- I should be able to factor that out of BlockUtil.
+
+find_track :: Cmd.M m => BlockId -> TrackId -> m TrackTree.EventsNode
+find_track block_id track_id = do
+    tree <- TrackTree.block_events_tree block_id
+    Cmd.require ("find_track: "
+            <> pretty track_id <> " not in " <> pretty block_id) $
+        Util.Tree.find ((== Just track_id) . TrackTree.track_id) tree
 
 -- | Get the environment established by 'State.config_global_transform'.
 global_environ :: Cmd.M m => m TrackLang.Environ

@@ -210,6 +210,18 @@ events_tree block_id end = mapM resolve . track_voices
             , track_voice = voice
             }
 
+-- | Get the EventsTree of a block.  Strip disabled tracks.
+block_events_tree :: State.M m => BlockId -> m EventsTree
+block_events_tree block_id = do
+    info_tree <- strip_disabled_tracks block_id =<< track_tree_of block_id
+    -- This is the end of the last event or ruler, not
+    -- State.block_logical_range.  The reason is that functions that look at
+    -- track_end are expecting the physical end, e.g.
+    -- Control.derive_control uses it to put the last sample on the tempo
+    -- track.
+    end <- State.block_end block_id
+    events_tree block_id end info_tree
+
 -- | All the children of this EventsNode with TrackIds.
 track_children :: EventsNode -> Set.Set TrackId
 track_children = List.foldl' (flip Set.insert) Set.empty

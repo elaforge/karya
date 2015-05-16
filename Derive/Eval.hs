@@ -346,8 +346,8 @@ apply_pitch pos call = apply cinfo call []
     where cinfo = Derive.dummy_call_info pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.
-eval_expr :: Derive.Callable d => Bool -> Derive.CallInfo d -> TrackLang.Expr
-    -> Derive.LogsDeriver d
+eval_expr :: Derive.Callable d => Bool -- ^ see 'Derive.catch'
+    -> Derive.CallInfo d -> TrackLang.Expr -> Derive.LogsDeriver d
 eval_expr collect cinfo expr =
     fromMaybe [] <$> Derive.catch collect (eval_toplevel cinfo expr)
 

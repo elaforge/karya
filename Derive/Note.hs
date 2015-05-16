@@ -5,7 +5,7 @@
 {- | Derive events on a note track.  This is the Derive equivalent of
     "Cmd.NoteTrack", but has a different name to avoid clashes.
 -}
-module Derive.Note (d_note_track, stash_signal_if_wanted) where
+module Derive.Note (d_note_track, stash_signal_if_wanted, track_info) where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text

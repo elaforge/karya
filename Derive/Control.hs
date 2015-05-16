@@ -23,6 +23,7 @@
 -}
 module Derive.Control (
     d_control_track
+    , track_info
     -- * TrackSignal
     , stash_signal, render_of
 #ifdef TESTING
@@ -238,8 +239,8 @@ derive_control is_tempo track transform = do
     let track_type
             | is_tempo = ParseTitle.TempoTrack
             | otherwise = ParseTitle.ControlTrack
-    (signal, logs) <- derive_track track track_type
-        last_signal_val (Cache.track track mempty . transform)
+    (signal, logs) <- derive_track (track_info track track_type)
+        (Cache.track track mempty . transform)
     signal <- extend
         =<< trim_signal Signal.drop_after Signal.drop_at_after track signal
     return (signal, logs)
@@ -258,7 +259,7 @@ derive_pitch :: Bool -> TrackTree.Track
     -> Derive.Deriver (TrackResults PitchSignal.Signal)
 derive_pitch cache track transform = do
     let cache_track = if cache then Cache.track track mempty else id
-    (signal, logs) <- derive_track track ParseTitle.PitchTrack last_signal_val
+    (signal, logs) <- derive_track (track_info track ParseTitle.PitchTrack)
         (cache_track . transform)
     signal <- trim_signal PitchSignal.drop_after PitchSignal.drop_at_after
         track signal
@@ -286,11 +287,10 @@ trim_signal drop_after drop_at_after track signal
         return $ (if start == end then drop_after else drop_at_after) end signal
     | otherwise = return signal
 
-derive_track :: (Monoid.Monoid d, Derive.Callable d) => TrackTree.Track
-    -> ParseTitle.Type -> EvalTrack.GetLastVal d
+derive_track :: (Monoid.Monoid d, Derive.Callable d) => EvalTrack.TrackInfo d
     -> (Derive.LogsDeriver d -> Derive.LogsDeriver d)
     -> Derive.Deriver (TrackResults d)
-derive_track track track_type get_last_val transform = do
+derive_track tinfo transform = do
     stream <- transform $ do
         state <- Derive.get
         let (stream, threaded, collect) =
@@ -303,17 +303,21 @@ derive_track track track_type get_last_val transform = do
     -- to x.
     return (mconcat signal_chunks, logs)
     where
-    tinfo = EvalTrack.TrackInfo
-        { EvalTrack.tinfo_track = track
-        , EvalTrack.tinfo_sub_tracks = []
-        , EvalTrack.tinfo_type = track_type
-        , EvalTrack.tinfo_get_last_val = get_last_val
-        }
     -- Merge the signal here so it goes in the cache as one signal event.
     -- I can use concat instead of merge_asc_events because the signals
     -- will be merged with Signal.merge and the logs extracted.
     compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
         where (sigs, logs) = LEvent.partition events
+
+-- | Make a TrackInfo for control tracks.
+track_info :: Monoid.Monoid d => TrackTree.Track -> ParseTitle.Type
+    -> EvalTrack.TrackInfo d
+track_info track track_type = EvalTrack.TrackInfo
+    { tinfo_track = track
+    , tinfo_sub_tracks = []
+    , tinfo_type = track_type
+    , tinfo_get_last_val = last_signal_val
+    }
 
 last_signal_val :: Monoid.Monoid d => EvalTrack.GetLastVal d
 last_signal_val xs

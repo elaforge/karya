@@ -22,10 +22,11 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Msg as Msg
-import qualified Cmd.NoteTrack as NoteTrack
+import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.Derive as Derive
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Perform.Pitch as Pitch
 import Global
@@ -497,32 +498,28 @@ toggle_note_duration = do
 
 -- * fancier edits
 
--- | This is a hybrid of 'cmd_toggle_zero_duration' and
--- 'set_block_call_duration': if it looks like a block call, then set its
--- duration accordingly.  Otherwise, toggle zero duration.
-cmd_toggle_zero_or_block_call_duration :: Cmd.M m => m ()
-cmd_toggle_zero_or_block_call_duration = alter_duration $
-    \block_id track_id event ->
-        set_block_call_duration event >>= \x -> case x of
-            Just event -> return event
-            Nothing -> toggle_zero_timestep block_id track_id event
+cmd_set_call_duration :: Cmd.M m => m ()
+cmd_set_call_duration = ModifyEvents.selection $ \block_id track_id events ->
+    Just <$> mapM (set_call_duration block_id track_id) events
 
-cmd_set_block_call_duration :: Cmd.M m => m ()
-cmd_set_block_call_duration =
-    ModifyEvents.selection $ ModifyEvents.events $ mapM $ \event ->
-        fromMaybe event <$> set_block_call_duration event
+-- | Set the event duration to the CallDuration of its call.  For block calls,
+-- this is the natural block duration.
+set_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event
+    -> m Event.Event
+set_call_duration block_id track_id event = do
+    dur <- get_call_duration block_id track_id event
+    return $ Event.set_duration dur event
 
--- | If the event is a block call, set its duration to the duration of the
--- called block.
-set_block_call_duration :: Cmd.M m => Event.Event -> m (Maybe Event.Event)
-set_block_call_duration event = do
-    block_id <- Cmd.get_focused_block
-    call <- NoteTrack.block_call (Just block_id) (Event.event_text event)
-    case call of
-        Nothing -> return Nothing
-        Just block_id -> do
-            (start, end) <- State.block_logical_range block_id
-            return $ Just $ Event.set_duration (end - start) event
+-- | Evaluate the given event to find its 'Derive.get_call_duration'.
+get_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event -> m TrackTime
+get_call_duration block_id track_id event = do
+    deriver <- Perf.get_note_deriver block_id track_id event
+    dur <- Perf.get_derive_at block_id track_id $
+        Derive.get_call_duration deriver
+    case dur of
+        Derive.Unknown -> Cmd.throw $ "unknown call duration for "
+            <> pretty (block_id, track_id, Event.event_text event)
+        Derive.Duration dur -> return dur
 
 -- * modify text
 
