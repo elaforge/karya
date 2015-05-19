@@ -3,7 +3,6 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-
 import Types
 
 
@@ -34,6 +33,15 @@ run_subs dur call = DeriveTest.extract DeriveTest.e_note $
         , ("sub-cd=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
         , ("sub-e=ruler", UiTest.note_track [(0, 1, "4e")])
         ]
+
+test_multiple = do
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks ""
+        extract e = (Score.event_start e, DeriveTest.e_inst e)
+    equal (run
+            [("> | multiple \"(inst = >s/1) \"(inst = >s/2)", [(0, 1, "")])])
+        ([(0, "s/1"), (0, "s/2")], [])
+    equal (run [("> | multiple >s/1 >s/2", [(0, 1, "")])])
+        ([(0, "s/1"), (0, "s/2")], [])
 
 test_clip = do
     let run top = run_sub DeriveTest.e_start_dur [(">", top)]

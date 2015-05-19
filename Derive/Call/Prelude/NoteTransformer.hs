@@ -12,6 +12,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -30,6 +31,7 @@ note_calls = Derive.call_maps
     [ ("clip", c_clip)
     , ("Clip", c_clip_start)
     , ("loop", c_loop)
+    , ("multiple", c_multiple)
     , ("tile", c_tile)
     ]
 
@@ -112,6 +114,23 @@ get_durations = mapM $ \(sym, d) ->
 
 
 -- * transformers
+
+c_multiple :: Derive.Transformer Derive.Note
+c_multiple = Derive.transformer Module.prelude "multiple" mempty
+    "Derive the transformed score under different transformers."
+    $ Sig.callt (Sig.many1 "transformer" "Derive under each transformer.")
+    $ \transformers args deriver ->
+        mconcat $ map (apply (Args.info args) deriver)
+            (NonEmpty.toList transformers)
+    where
+    apply cinfo deriver trans =
+        Eval.eval_transformers cinfo (to_transformer trans) deriver
+
+to_transformer :: Either TrackLang.Quoted Score.Instrument -> [TrackLang.Call]
+to_transformer val = case val of
+    Left (TrackLang.Quoted expr) -> NonEmpty.toList expr
+    Right inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
+        [TrackLang.to_val inst]]
 
 -- ** clip
 

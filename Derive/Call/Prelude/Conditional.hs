@@ -4,16 +4,11 @@
 
 -- | Transformers that evaluate their deriver conditionally.
 module Derive.Call.Prelude.Conditional where
-import qualified Data.List.NonEmpty as NonEmpty
-
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
-import qualified Derive.Eval as Eval
-import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
@@ -26,8 +21,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("if-e", c_if_e)
     ]
-    [ ("multiple", c_multiple)
-    , ("solo", c_solo)
+    [ ("solo", c_solo)
     ]
     <> poly_calls
 
@@ -62,23 +56,6 @@ c_if_e = Derive.generator Module.prelude "if-e" mempty
             (Call.eval (Args.info args) false)
 
 -- * transformer
-
-c_multiple :: Derive.Transformer Derive.Note
-c_multiple = Derive.transformer Module.prelude "multiple" mempty
-    "Derive the transformed score under different transformers."
-    $ Sig.callt (Sig.many1 "transformer" "Derive under each transformer.")
-    $ \transformers args deriver ->
-        mconcat $ map (apply (Args.info args) deriver)
-            (NonEmpty.toList transformers)
-    where
-    apply cinfo deriver trans =
-        Eval.eval_transformers cinfo (to_transformer trans) deriver
-
-to_transformer :: Either TrackLang.Quoted Score.Instrument -> [TrackLang.Call]
-to_transformer val = case val of
-    Left (TrackLang.Quoted expr) -> NonEmpty.toList expr
-    Right inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
-        [TrackLang.to_val inst]]
 
 c_solo :: Derive.Transformer Derive.Note
 c_solo = Derive.transformer Module.prelude "solo" mempty
