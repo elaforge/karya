@@ -133,9 +133,24 @@ show_short default_ns ident@(Id ns name)
 
 -- * validate
 
--- | True if this Namespace or Id name is parseable as a tracklang literal.
--- You probably want to insist on this when creating new Ids to ensure they
--- can be easily called from the track.
+{- | True if this Namespace or Id name is parseable as a tracklang literal.
+    You probably want to insist on this when creating new Ids to ensure they
+    can be easily called from the track.
+
+    A valid identifier is @[a-z][a-z0-9.-]*@, as in 'valid_description'.
+    Hyphens are intended to separate words, and dots intended to separate
+    syntactic elements, whatever those may be.  The rules are intentionally
+    restrictive, to force standardization on names, and also to keep some
+    syntactic flexibility in case I want to add special syntax.
+
+    TODO I originally used dots for relative calls, but they turn out to be
+    annoying because you can't start a tracklang symbol with one, so now they
+    use a hyphen.  I'm not sure what else remains using dots.
+
+    Several kinds of tracklang names use this definition of validity, not just
+    Ids (e.g. instrument or control names).  It's easier to remember a single
+    rule for a valid name rather than each syntactic form have its own rules.
+-}
 valid :: Text -> Bool
 valid s =
     not (Text.null s) && is_lower_alpha (Text.head s) && Text.all is_id_char s
@@ -144,6 +159,7 @@ valid s =
 valid_description :: Text
 valid_description = "[a-z][a-z0-9.-]*"
 
+-- | This defines the set of valid characters allowed in an ID.
 is_id_char :: Char -> Bool
 is_id_char c = is_lower_alpha c || is_digit c || c == '-' || c == '.'
 

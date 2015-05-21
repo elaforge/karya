@@ -106,7 +106,13 @@ rename from_ to_ =
     from = Util.instrument from_
     to = Util.instrument to_
 
--- | Allocate a new instrument and create an alias for it.
+-- | Allocate a new instrument and create an alias for it.  For instance:
+--
+-- > LInst.add \"m\" \"kontakt/mridangam-g\" \"loop1\" [0]
+--
+-- This will create an instance of the @kontakt/mridangam@ instrument aliased
+-- to @>m@, and assign it to the MIDI WriteDevice @loop1@, with a single MIDI
+-- channel 0 allocated.
 add :: Instrument -> Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 add alias inst wdev chans = do
     alloc alias wdev chans

@@ -54,13 +54,15 @@ import Types
 -- * instrument
 
 -- | The Instrument contains all the data necessary to render
--- a Midi.Perform.Event to a midi message.  Each Event has an attached
--- Instrument.
+-- a 'Perform.Midi.Perform.Event' to a midi message.  Each Event has an
+-- attached Instrument.
 --
 -- Don't put data unnecessary to derivation in here because they are compared
 -- to each other a lot when trying to merge channels.  All that stuff should go
--- into the Patch.  TODO if it helps performance, have a separate
--- Perform.Instrument that includes a fingerprint for fast comparison.
+-- into the 'Patch'.
+--
+-- TODO if it helps performance, have a separate Perform.Instrument that
+-- includes a fingerprint for fast comparison.
 data Instrument = Instrument {
     -- | This is the name of the instrument on the synthesizer, and likely has
     -- all sorts of wacky characters in it, and may not be unique, even on
@@ -279,7 +281,7 @@ type Voices = Int
 -- 'Instrument' and MIDI config are derived from it, via its 'Synth'.
 data Patch = Patch {
     -- | The Instrument is a subset of the data available in the Patch.
-    -- The patch_instrument is not necessarily the same as the one eventually
+    -- The 'Instrument' is not necessarily the same as the one eventually
     -- used in performance, because e.g. synth controls can get added in.
     patch_instrument :: !Instrument
     , patch_scale :: !(Maybe PatchScale)
@@ -439,16 +441,17 @@ instance Pretty.Pretty Flag where pretty = showt
 
 -- ** attribute map
 
--- | This determines what Attributes the instrument can respond to.  Each
--- set of Attributes is mapped to optional Keyswitches and maybe a Keymap.
--- The attributes are matched by subset in order, so their order gives a
--- priority.
---
--- For example, if @+pizz@ is before @+cresc@, then @+pizz+cresc@ will map to
--- @+pizz@, unless, of course, @+pizz+cresc@ comes before either (provided such
--- an articulation was possible).  So if a previous attr set is a subset of
--- a later one, the later one will never be selected.  'overlapping_attributes'
--- will check for that.
+{- | This determines what Attributes the instrument can respond to.  Each
+    set of Attributes is mapped to optional Keyswitches and maybe a Keymap.
+    The attributes are matched by subset in order, so their order gives
+    a priority.
+
+    For example, if @+pizz@ is before @+cresc@, then @+pizz+cresc@ will map to
+    @+pizz@, unless @+pizz+cresc@ comes before either (of course that
+    particular combination is unlikely to exist).  So if a previous attr set is
+    a subset of a later one, the later one will never be selected.
+    'overlapping_attributes' will check for that.
+-}
 newtype AttributeMap =
     AttributeMap [(Score.Attributes, [Keyswitch], Maybe Keymap)]
     deriving (Eq, Show, Pretty.Pretty, DeepSeq.NFData)

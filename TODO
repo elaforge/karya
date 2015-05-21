@@ -323,7 +323,7 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation:
-  - write doc/instrument.md
+  * write doc/instrument.md
   - update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:

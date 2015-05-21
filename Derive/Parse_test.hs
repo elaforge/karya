@@ -73,7 +73,9 @@ test_parse_val = do
         sym = Just . VSymbol
     let invertible =
             [ (">", Just $ VInstrument (Score.Instrument ""))
-            , (">fu/nny^*", Just $ VInstrument (Score.Instrument "fu/nny^*"))
+            , (">name-b", Just $ VInstrument (Score.Instrument "name-b"))
+            , (">ok/name-b", Just $ VInstrument (Score.Instrument "ok/name-b"))
+            , (">fu/nny^*", Nothing)
 
             , ("0", Just (VNum (Score.untyped 0)))
             , ("0.", Nothing)

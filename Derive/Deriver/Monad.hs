@@ -739,6 +739,8 @@ data Mode =
 -- systems.
 data Instrument = Instrument {
     inst_calls :: InstrumentCalls
+    -- | Merge this with the 'state_environ' when the instrument comes into
+    -- scope.
     , inst_environ :: TrackLang.Environ
     } deriving (Show)
 

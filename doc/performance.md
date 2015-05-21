@@ -4,18 +4,9 @@ Performance is the stage after derivation, that turns 'Derive.Score.Event's
 into the final output format.  There are two major backends so far, MIDI and
 lilypond.
 
-## instrument db
+## instruments
 
-The format of a 'Derive.Score.Instrument' is `>synth/inst`.  The leading `>` is
-simply the marker for an instrument name literal and is not part of the actual
-name.  Each `synth` is implemented by its own source file in Local/Instrument,
-and `inst` of course names the specific instrument within that synth.
-
-The instrument db maps Score.Instruments to their underlying instrument, which
-is just MIDI instruments for now.  Which instruments you have of course is
-[local configuration](local.md#instrument-db).
-
-The 'Instrument.Browser' is the main tool for examining the instrument db.
+Documented in [instrument.md](instrument.md.html).
 
 ## MIDI
 
@@ -23,26 +14,24 @@ At the derive level, a 'Derive.Score.Instrument' is simply a text string, but
 the first step in performance is to look up all those instruments in the
 [instrument db](#instrument-db), and in the per-score configuration, which is
 'Ui.StateConfig.config_midi', which maps instruments to
-'Perform.Midi.Instrument.Config's.  The main feature of the Config is the
-allocation, which says which Addrs, (MIDI device, channel) pairs, the
-instrument is allocated to.  If there are multiple Addrs, the instrument will
-be [multiplexed](#multiplexing) across them.
+'Perform.Midi.Instrument.Config's.
+
+The main feature of the Config is the allocation, which says which Addrs, (MIDI
+device, channel) pairs, the instrument is allocated to.  If there are multiple
+Addrs, the instrument will be [multiplexed](#multiplexing) across them.
 
 The other important bit of config is 'Ui.StateConfig.config_aliases', which
 simply maps one Score.Instrument to another.  The idea is that you will alias a
 generic instrument to its specific instance in your score.  For example, you
-might alias `>reak/trumpet` to `>tpt1` and another `>reak/trumpet` to `>tpt2`.
-Now you can refer to the instrument by its logical name in your score instead
-of by what synthesizer it happens to be in, but more importantly, since the
-MIDI config is for the aliased-to instrument, you now have two independent
+might alias `>reaktor/trumpet` to `>tpt1` and another `>reaktor/trumpet` to
+`>tpt2`.  Now you can refer to the instrument by its logical name in your score
+instead of by what synthesizer it happens to be in, but more importantly, since
+the MIDI config is for the aliased-to instrument, you now have two independent
 trumpets implemented by the same instrument.
 
-### Instrument
-
-The general form of a MIDI instrument is 'Perform.Midi.Instrument.Patch', and
-all of the features available are documented there.  Basically, it's a bunch of
-opt-in features.  The more things you set in there, the more fancy things the
-instrument can do.
+Instrument specific configuration is in 'Perform.Midi.Instrument.Instrument'
+and 'Perform.Midi.Instrument.Patch', with per-synth configuration in
+'Perform.Midi.Instrument.Synth'.
 
 ### controls
 
@@ -57,6 +46,10 @@ A more specific example is that you could write breath control as `cc2` or
 `breath`, and you could write velocity as `vel`.  But if you use `dyn`, it will
 be mapped to whatever control is appropriate for the instrument: `breath` if it
 has the 'Perform.Midi.Instrument.Pressure' flag set, and `vel` otherwise.
+
+'Perform.Midi.Instrument.synth_control_map' is merged into the per-instrument
+control maps, since often a synthesizer will define a common set of controls
+that all patches respond to.
 
 ### multiplexing
 
@@ -75,8 +68,24 @@ give notes independent tunings, controls, or keyswitches.  This is especially
 important for scales which are not 12TET, since every note will be retuned
 (unless 'Perform.Midi.Instrument.patch_scale' is set to the same scale).  But
 if you have more overlapping notes than channels, they will start to share and
-you'll hear artifacts.  This can happen very easily if you have an instrument
-with a long decay.
+you'll hear artifacts.  This can happen easily if you have an instrument with a
+long decay.
+
+### attributes
+
+Another basic configuration is 'Perform.Midi.Instrument.AttributeMap'.  The
+deriver keeps an attribute set in 'Derive.Environ.attributes'.  These are used
+to select a particular articulation or playing style for the instrument, which
+will then map to a keyswitch or a key range, or what have you.  Attributes are
+additive, so while you may add `+pont` to a whole section to switch all
+instruments that understand to sul pont, a specific note may add `+cresc` to
+swell.  It will wind up with `+pont+cresc`, which, if you have a sufficiently
+expensive sample library, will select a specific sample.
+
+There is a standard vocabulary of attributes in 'Derive.Attrs', but generally
+they're instrument-specific adjectives.
+
+There are lots of other kinds of configuration, see the haddock for details.
 
 ## lilypond
 
@@ -117,7 +126,7 @@ larger duration and puts tuplet brackets around them.  To deal with this,
 lilypond derivation replaces a number of standard calls with ones that instead
 either attach an attribute that the lilypond performer understands (e.g.
 `+staccato`), or attaches a bit of lilypond code to insert into the lilypond
-score (e.g.  tuplets).
+score (e.g. tuplets).
 
 In addition, some concepts exist only in staff notation, such as "mf" or
 hairpin dynamics, or special markings like cross-staff notes or cautionary

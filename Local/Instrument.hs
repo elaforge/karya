@@ -2,12 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Load the instrument db.  This collects together all the local instrument
--- definitions.
---
--- TODO the 'load' and 'make_dbs' calls should be automatically generated from
--- the contents of the Local\/Instrument\/ dir.
-module Local.Instrument (load, make_dbs, make_named_dbs) where
+{- | Load the instrument db.  This collects together all the local instrument
+    definitions.
+
+    The convention is that each synthesizer has a module in Local\/Instrument\/,
+    and each one exports a @load :: 'Load'@, and possibly @make_db :: 'MakeDb'@.
+
+    "Instrument.MakeDb" is used to run the @make_db@s.
+-}
+module Local.Instrument (Load, MakeDb, load, make_dbs, make_named_dbs) where
 import qualified Data.List as List
 import System.FilePath ((</>))
 
@@ -35,9 +38,24 @@ import qualified App.Config as Config
 import Global
 
 
+-- | By convention, instrument definition modules export a function called
+-- @load@, with this signature.  The FilePath is the 'Config.instrument_dir',
+-- could hold cached instruments, as created by 'MakeDb'.
+type Load = FilePath -> IO [Cmd.SynthDesc]
+
+-- | Some synths may require a more expensive load, e.g. they could parse
+-- a directory full of sysex dumps.  These expose a @make_db@ function with
+-- this type.  As with 'Load', the FilePath is 'Config.instrument_dir'.  The
+-- function is expected to do its work and save the results in the instrument
+-- dir
+--
+-- You should use 'Cmd.Instrument.MidiInst.save_db', which will put the file
+-- into 'Config.instrument_cache_dir' with the same name as the synth.
+type MakeDb = FilePath -> IO ()
+
 -- | Load functions for each synthesizer.
-synths :: [FilePath -> IO [Cmd.SynthDesc]]
-synths =
+all_loads :: [Load]
+all_loads =
     [ Drumaxx.load, Fm8.load, Kontakt.load, Massive.load, Morpheus.load
     , Morphine.load, Pianoteq.load, Reaktor.load, Spicy.load, Tassman.load
     , Vl1.load, Vsl.load, Z1.load
@@ -45,8 +63,8 @@ synths =
 
 -- | make_db functions for each synthesizer that needs more elaborate setup,
 -- i.e. loading patches from sysexes.
-dbs :: [(String, FilePath -> IO ())]
-dbs =
+all_make_dbs :: [(String, MakeDb)]
+all_make_dbs =
     [ (Morpheus.synth_name, Morpheus.make_db)
     , (Vl1.synth_name, Vl1.make_db)
     , (Z1.synth_name, Z1.make_db)
@@ -56,7 +74,7 @@ dbs =
 load :: FilePath -> IO Cmd.InstrumentDb
 load app_dir = do
     synth_descs <- concatMapM
-        ($ Config.make_path app_dir Config.instrument_dir) synths
+        ($ Config.make_path app_dir Config.instrument_dir) all_loads
     let annot_fn = Config.make_path app_dir Config.local_dir
             </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \x -> case x of
@@ -70,15 +88,17 @@ load app_dir = do
         Log.warn $ "annotated instruments not found: " <> pretty not_found
     return $ Db.db midi_db
 
+-- | Call all 'MakeDb' functions.
 make_dbs :: FilePath -> IO ()
 make_dbs app_dir = mapM_ ($ Config.make_path app_dir Config.instrument_dir)
     [Morpheus.make_db, Vl1.make_db, Z1.make_db]
 
+-- | Call 'MakeDb' functions only for the given synths.
 make_named_dbs :: [String] -> FilePath -> IO ()
 make_named_dbs names app_dir
     | null unmatched =
         mapM_ ($ Config.make_path app_dir Config.instrument_dir)
-            [make | (name, make) <- dbs, name `elem` names]
+            [make | (name, make) <- all_make_dbs, name `elem` names]
     | otherwise = errorIO $ "unmatched dbs: " ++ show unmatched
-        ++ ", understood dbs: " ++ show (map fst dbs)
-    where unmatched = names List.\\ map fst dbs
+        ++ ", understood dbs: " ++ show (map fst all_make_dbs)
+    where unmatched = names List.\\ map fst all_make_dbs

@@ -78,11 +78,11 @@ previous value.
 
 ### note track
 
-Note tracks look like `>` or `>inst` or `>inst arg1 arg2 ...`.  They are passed
-as arguments to a `note-track` transformer whose default behaviour is to set
-the current instrument and possibly attributes, the same as the [default null
-note call](#call-docs).  Similar to scales, setting the instrument will bring
-the instrument's calls into scope, as documented under
+Note tracks look like `>` or `>inst` or `>inst arg1 arg2 | blah blah`.  They
+are passed as arguments to a `note-track` transformer whose default behaviour
+is to set the current instrument and possibly attributes, the same as the
+[default null note call](#call-docs).  Similar to scales, setting the
+instrument will bring the instrument's calls into scope, as documented under
 [instruments](#instruments).  The `note-track` call will apply a transformer
 with the same name as the instrument, if it exists.  You can use this to make
 an instrument automatically apply a certain variable or postproc.  You can
@@ -298,7 +298,7 @@ ScoreTimes through the warp signal, or adjust the times itself.  For instance,
 a call implementing grace notes may override the warp to give them a constant
 duration regardless of the tempo.
 
-## TrackLang syntax
+## tracklang syntax
 
 The text that appears in the block title, track titles, and events is a
 simple expression oriented language.  It has the usual literals such as
@@ -337,7 +337,8 @@ control track hack below.
 - Comments start with `--`.  As a special hack, an event starting with `--` is
 completely ignored rather than considered a null call.  This can be useful to
 mark an event boundary but not actually produce a value.  For instance, some
-calls may extend to the next event, and this can make them end earlier.  Or you could use it as a comment.
+calls may extend to the next event, and this can make them end earlier.  Or you
+could use it as a comment.
 
 - An expression with an infix `=` such as `x = 42` will be parsed the same as
 the prefix application `= x 42`.  The default behaviour of this call is a
@@ -570,10 +571,10 @@ The implementation is documented in 'Derive.Deriver.Monad.CallDuration'.
 ## Instruments
 
 A 'Derive.BaseTypes.Instrument' at the derive level is just an arbitrary string.
-Well, not totally arbitrary, since it should conform to the lowercase letters
-and hyphens naming scheme.  But the deriver doesn't do much special with
-instruments.  Instruments bring their calls into scope, and the default note
-deriver will inherit 'Derive.Environ.instrument', but that's about it.
+Well, not totally arbitrary, since it should conform to 'Ui.Id.valid'.  But the
+deriver doesn't do much special with instruments.  Instruments bring their
+calls into scope, and the default note deriver will inherit
+'Derive.Environ.instrument', but that's about it.
 
 All the interesting stuff about instruments is [documented
 separately](instrument.md.html).

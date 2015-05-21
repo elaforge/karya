@@ -366,6 +366,10 @@ val_to_pitch (ValCall name doc vcall) = Call
         _ -> throw $ "scale call " <> name
             <> " returned non-pitch: " <> ShowVal.show_val val
 
+-- | Run the a deriver with the given instrument in scope.  Mostly this just
+-- assigns the instrument to the 'Environ.instrument' field where note calls
+-- can inherit it, but it also brings the 'Instrument' fields into scope, which
+-- is the per-instrument calls and per-instrument environ.
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
 with_instrument inst deriver = do
     -- Previously, I would just substitute an empty instrument instead of

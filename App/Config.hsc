@@ -74,13 +74,14 @@ ky_paths = [local_dir </> "ky"]
 instrument_dir :: RelativePath
 instrument_dir = "inst_db"
 
+-- | Directory for instruments with slow patch loading to save their caches.
+-- This should be below 'instrument_dir'.
+instrument_cache_dir :: RelativePath
+instrument_cache_dir = "db"
+
 -- | Local CmdL code goes here.
 repl_dir :: RelativePath
 repl_dir = local_dir </> "Repl"
-
--- | Directory for instruments with slow patch loading to save their caches.
-instrument_cache_dir :: RelativePath
-instrument_cache_dir = "db"
 
 log_dir :: RelativePath
 log_dir = "log"

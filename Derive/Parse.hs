@@ -475,7 +475,7 @@ type LineNumber = Int
     > note generator:
     > x = y
 
-    Valid headers are @val:@ or @note|control|pitch generator|transformer:@.
+    Valid headers are @val:@ or @(note|control|pitch) (generator|transformer):@.
     A line is continued if it is indented.
 
     This is similar to the "Derive.Call.Equal" call, but not quite the same.
