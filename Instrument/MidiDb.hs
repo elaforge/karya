@@ -277,7 +277,7 @@ clean_inst_name =
     strip_dups = Text.intercalate "-" . filter (not . Text.null)
         . Text.split (=='-')
     replace c
-        | c `elem` " _/" = '-'
+        | c `elem` (" _/" :: [Char]) = '-'
         | otherwise = c
 
 score_inst :: Instrument.Synth -> Instrument.Patch -> Score.Instrument

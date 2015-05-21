@@ -10,7 +10,11 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
-  - enforce that instrument names obey Id.valid
+  ghc 7.10 upgrade
+    - don't need Applicative and Functor imports
+      Maybe I can use CPP in Global to eliminate warnings
+    - use Control.Monad.Except instead of Error
+  * enforce that instrument names obey Id.valid
   - If I enforce no / in instrument names, I can enforce that you can only use
     a local alias.  This will get rid of confusion where >synth/inst works in
     addition to the aliased name.  Or does it?  In any case, it will probably

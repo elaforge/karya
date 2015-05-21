@@ -93,5 +93,5 @@ substituteGroups = PCRE.gsub
 escape :: String -> String
 escape "" = ""
 escape (c : cs)
-    | c `elem` "\\^$.[|()?*+{" = '\\' : c : escape cs
+    | c `elem` ("\\^$.[|()?*+{" :: [Char]) = '\\' : c : escape cs
     | otherwise = c : escape cs

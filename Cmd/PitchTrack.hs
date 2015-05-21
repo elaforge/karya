@@ -162,7 +162,7 @@ modify_note :: (Pitch.Note -> Either Text Pitch.Note) -> Text
     -> Either Text Text
 modify_note f = modify_expr $ \note_str -> case Text.uncons note_str of
     Just ('(', rest) ->
-        let (note, post) = Text.break (`elem` " )") rest
+        let (note, post) = Text.break (`elem` (" )" :: [Char])) rest
         in Text.cons '(' . (<>post) . Pitch.note_text <$> f (Pitch.Note note)
     _ -> Pitch.note_text <$> f (Pitch.Note note_str)
 

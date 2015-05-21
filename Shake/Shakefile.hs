@@ -8,6 +8,7 @@
 {- | Shakefile for seq and associated binaries.
 -}
 module Shake.Shakefile where
+import Prelude hiding ((*>))
 import Control.Applicative ((<$>))
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -389,7 +390,7 @@ ghcWarnings =
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
     ghcLib <- run ghcBinary ["--print-libdir"]
-    let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) "ID"
+    let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
     fltkCs <- filter wantedFltk . words <$> run fltkConfig ["--cflags"]
@@ -1065,7 +1066,18 @@ ghcFlags config = concat $
 
 ghcLanguageFlags :: [String]
 ghcLanguageFlags = map ("-X"++)
-    ["OverloadedStrings", "DisambiguateRecordFields"]
+    -- Without this, it becomes really annoying to use Text everywhere.
+    [ "OverloadedStrings"
+    -- This enables slightly more concise record initialization and doesn't
+    -- seem to hurt anything.
+    , "DisambiguateRecordFields"
+    -- ghc-7.10 adds a new rule where you can't infer a signature you can't
+    -- type.  OverloadedStrings combined with local definitions results in
+    -- a lot of types like "IsString [a] => [a] -> ...", which for some reason
+    -- yields "Non type-variable argument in the constraint: IsString [a]".
+    -- I don't really know what that means, but FlexibleContexts fixes it.
+    , "FlexibleContexts"
+    ]
 
 -- * cc
 

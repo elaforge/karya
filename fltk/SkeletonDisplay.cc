@@ -136,7 +136,7 @@ draw_arrow(IPoint from, IPoint to, int width, Color color, int bottom, int top)
     const static int offset = 5;
     // The bigger the difference between px and cx, the higher top should
     // be.  This is a kinda half-assed heuristic but it seems to look ok.
-    double distance = util::normalize(20.0, 110.0, fabs(to.x - from.x));
+    double distance = util::normalize(20.0, 110.0, fabs(double(to.x - from.x)));
     double ratio = util::clamp(.30, 1.0, util::scale(.30, 1.0, distance));
     // DEBUG(from << " -> " << to << ": dist " << distance << " rat " << ratio);
     top = bottom - ((bottom - top) * ratio);

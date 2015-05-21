@@ -50,7 +50,7 @@ p_val :: A.Parser Val
 p_val = Val <$> p_word
 
 p_word :: A.Parser String
-p_word = Text.unpack <$> (p_str <|> A.takeWhile1 (`notElem` " ()"))
+p_word = Text.unpack <$> (p_str <|> A.takeWhile1 (`notElem` (" ()" :: [Char])))
 
 p_str :: A.Parser Text
 p_str = ParseText.between (A.char '"') (A.char '"')

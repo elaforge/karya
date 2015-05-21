@@ -15,6 +15,10 @@ not iphone-ly.
 
 ## HASKELL DEPENDENCIES
 
+For whatever reason cabal won't install happy automaticaly, so first run
+
+    cabal install happy
+
 To install the needed haskell dependencies, type:
 
     cabal install --only-dependencies
@@ -22,12 +26,17 @@ To install the needed haskell dependencies, type:
 The actual build is with shake, but there's a dummy cabal file with just
 dependencies to make install easier.
 
+You might get an error about 'pcre.h' file not found, in that case see libpcre
+below.
+
 If you want to build the documentation:
 
     cabal install hscolour pandoc
 
 These are separate because pandoc has a ridiculous number of dependencies and
-all it does is turn the `doc/*.md` files into html.
+all it does is turn the `doc/*.md` files into html.  pandoc has so many
+dependencies it might break your install by downgrading things, so maybe do
+that in a sandbox.
 
 I link to the `ghc` package, which means that the versions of the GHC boot
 packages are all fixed to the versions included with GHC.  So you can't upgrade
@@ -46,8 +55,9 @@ the uninstalled library via `/usr/local/src/fltk-1.3/fltk-config`.
 
 libpcre library from <http://www.pcre.org>.
 
-If your package manager puts the headers in a non-standard place, then
-the cabal build for the haskell bindings won't find it.  So you need flags:
+If your package manager puts the headers in a non-standard place, e.g.
+~/homebrew, then the cabal build for the haskell bindings won't find it.  So
+you need flags:
 
     % cabal configure --extra-include-dirs=$HOME/homebrew/include \
         --extra-lib-dirs=$HOME/homebrew/lib

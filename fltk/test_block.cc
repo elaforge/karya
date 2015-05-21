@@ -374,7 +374,7 @@ main(int argc, char **argv)
     }
     view.block.set_title("hi there");
 
-    Fl::add_timeout(1, timeout_func, (void*) &view);
+    // Fl::add_timeout(1, timeout_func, (void*) &view);
 
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 

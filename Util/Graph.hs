@@ -149,10 +149,9 @@ move from to graph = fmap move $ Array.check to =<< Array.check from graph
     -- Swap array elements.  Then swap all referents
     move graph
         | from == to = graph
-        | otherwise =
-            amap relink $ graph // [(from, graph!to), (to, graph!from)]
+        | otherwise = IArray.amap (map relink) $
+            graph // [(from, graph!to), (to, graph!from)]
     relink v
         | v == from = to
         | v == to = from
         | otherwise = v
-    amap f = IArray.amap (map f)

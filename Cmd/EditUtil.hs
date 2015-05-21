@@ -122,20 +122,21 @@ method_key = extract_key (not . Char.isSpace)
 
 -- | Extract a key for control value input.  [0-9._-]
 num_key :: Msg.Msg -> Maybe Key
-num_key = extract_key $ \c -> Char.isDigit c || c `elem` "_.-"
+num_key = extract_key $ \c -> Char.isDigit c || c `elem` ("_.-" :: [Char])
 
 -- | Is the key appropriate for editing decimal numbers?
 is_num_key :: Key -> Bool
 is_num_key Backspace = True
-is_num_key (Key c) = Char.isDigit c || c `elem` "_.-"
+is_num_key (Key c) = Char.isDigit c || c `elem` ("_.-" :: [Char])
 
 -- | Is the key appropriate for editing control track hex numbers?
 -- Also includes @-@ for negation.
 hex_key :: Msg.Msg -> Maybe Key
-hex_key = extract_key $ \c -> Char.isDigit c || c `elem` "-abcdefg"
+hex_key = extract_key $ \c -> Char.isDigit c || c `elem` ("-abcdefg" :: [Char])
 
 alphanum_key :: Msg.Msg -> Maybe Key
-alphanum_key = extract_key $ \c -> Char.isAlphaNum c || c `elem` "_.-"
+alphanum_key = extract_key $ \c ->
+    Char.isAlphaNum c || c `elem` ("_.-" :: [Char])
 
 -- | Extract a key for raw input.
 raw_key :: Msg.Msg -> Maybe ([Key.Modifier], Key)
