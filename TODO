@@ -10,6 +10,11 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - enforce that instrument names obey Id.valid
+  - If I enforce no / in instrument names, I can enforce that you can only use
+    a local alias.  This will get rid of confusion where >synth/inst works in
+    addition to the aliased name.  Or does it?  In any case, it will probably
+    break tests.
   - sequence is buggy when the event starts at >0
   * I do a lot of setting the call duration after creating a block call, can
     I get that to happen automatically?

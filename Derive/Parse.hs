@@ -272,12 +272,12 @@ p_single_quote_string = do
 -- force some standardization on the names.
 p_attributes :: A.Parser Score.Attributes
 p_attributes = A.char '+'
-    *> (Score.attrs <$> A.sepBy (p_identifier "+") (A.char '+'))
+    *> (Score.attrs <$> A.sepBy (p_identifier False "+") (A.char '+'))
 
 p_control :: A.Parser TrackLang.ValControl
 p_control = do
     A.char '%'
-    control <- Score.unchecked_control <$> A.option "" (p_identifier ",")
+    control <- Score.unchecked_control <$> A.option "" (p_identifier False ",")
     deflt <- ParseText.optional (A.char ',' >> p_num)
     return $ case deflt of
         Nothing -> TrackLang.LiteralControl control
@@ -291,7 +291,7 @@ p_pitch_control :: A.Parser TrackLang.PitchControl
 p_pitch_control = do
     A.char '#'
     TrackLang.LiteralControl . Score.unchecked_pcontrol <$>
-        A.option "" (p_identifier "")
+        A.option "" (p_identifier False "")
     <?> "pitch control"
 
 p_quoted :: A.Parser TrackLang.Quoted
@@ -302,12 +302,12 @@ p_quoted =
 p_scale_id :: A.Parser TrackLang.Symbol
 p_scale_id = do
     A.char '*'
-    TrackLang.Symbol . Text.cons '*' <$> A.option "" (p_identifier "")
+    TrackLang.Symbol . Text.cons '*' <$> A.option "" (p_identifier False "")
     <?> "scale id"
 
 p_instrument :: A.Parser Score.Instrument
-p_instrument = A.char '>' >> Score.Instrument <$> p_null_word
-    <?> "instrument"
+p_instrument =
+    A.char '>' >> Score.Instrument <$> p_identifier True "" <?> "instrument"
 
 -- | Symbols can have anything in them but they have to start with a letter.
 -- This means special literals can start with wacky characters and not be
@@ -330,23 +330,22 @@ p_symbol = do
 --
 -- @until@ gives additional chars that stop parsing, for idents that are
 -- embedded in another lexeme.
-p_identifier :: String -> A.Parser Text
-p_identifier until = do
+p_identifier :: Bool -> String -> A.Parser Text
+p_identifier null_ok until = do
     -- TODO attoparsec docs say it's faster to do the check manually, profile
     -- and see if it makes a difference.
-    ident <- A.takeWhile1 (A.notInClass (until ++ " \n\t|=)"))
+    ident <- (if null_ok then A.takeWhile else A.takeWhile1)
+        (A.notInClass (until ++ " \n\t|=)"))
+    -- TODO as a hack, null_ok also allows slashes, since p_instrument wants to
+    -- allow a single slash.  Remove the slash and I can get rid of this hack.
+    let stripped = if null_ok then Text.filter (/='/') ident else ident
     -- This forces identifiers to be separated with spaces, except with | and
     -- =.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which I don't
     -- want to support.
-    unless (valid_identifier ident) $
+    unless ((null_ok && Text.null ident) || Id.valid stripped) $
         fail $ "invalid chars in identifier, expected "
             <> untxt Id.valid_description <> ": " <> show ident
     return ident
-
--- | Text version of 'Id.valid'.
-valid_identifier :: Text -> Bool
-valid_identifier s = not (Text.null s) && Id.is_lower_alpha (Text.head s)
-    && Text.all Id.is_id_char s
 
 p_word :: Bool -> A.Parser Text
 p_word toplevel =
