@@ -45,8 +45,8 @@ module Derive.Score (
     , inst_name, empty_inst, instrument, split_inst
 
     -- * util
-    , control, unchecked_control, control_name
-    , pcontrol, unchecked_pcontrol, pcontrol_name
+    , control, unchecked_control
+    , pcontrol, unchecked_pcontrol
     , c_dynamic
     , parse_generic_control
 ) where
