@@ -1,5 +1,8 @@
 ## INSTALLATION
 
+- If you pulled from darcs and didn't use --set-scripts-executable, run
+`chmod 755 fix-perms && ./fix-perms`.
+
 - Install dependencies, documented below.
 
 - Build shakefile: `bin/mkmk`
@@ -46,6 +49,12 @@ old version, and you can't link to two versions at the same time.  If you do
 other haskell development you may want to use a cabal sandbox.  It might need
 special support to work with the GHC API though.  I've never used it so I don't
 know.
+
+I also use the `cabal` command to create a dist/setup-config which is then read
+by the Cabal library.  So the `Cabal` and `cabal-install` packages should be
+about the same version, or the library won't want to read the output of the
+command.  I could probably fix that by using the library to configure instead
+of the cabal command, but it looks non-trivial.
 
 ## INSTALLED SEPARATELY
 
