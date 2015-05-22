@@ -42,6 +42,8 @@ import qualified System.Process as Process
 
 import qualified Util.FLock as FLock
 import qualified Util.PPrint as PPrint
+import qualified Util.Seq as Seq
+
 import qualified Shake.CcDeps as CcDeps
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Progress as Progress
@@ -378,18 +380,18 @@ targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
 
 data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
-ghcWarnings :: [String]
-ghcWarnings =
+ghcWarnings :: String -> [String]
+ghcWarnings ghcVersion =
     "-W" : map ("-fwarn-"++) (words warns)
         ++ map ("-fno-warn-"++) (words noWarns)
     where
     warns = "identities tabs incomplete-record-updates missing-fields\
         \ unused-matches  wrong-do-bind"
-    noWarns = "amp"
+    noWarns = if ghcVersion < "071000" then "amp" else ""
 
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
-    ghcLib <- run ghcBinary ["--print-libdir"]
+    ghcLib <- strip <$> run ghcBinary ["--print-libdir"]
     let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
@@ -403,18 +405,20 @@ configure midi = do
     return $ \mode -> Config
         { buildDir = modeToDir mode
         , hscDir = build </> "hsc"
-        , ghcLib = strip ghcLib
+        , ghcLib = ghcLib
         , fltkVersion = fltkVersion
         , midiConfig = midi
         , configFlags = setCcFlags $
             setConfigFlags fltkCs fltkLds mode osFlags bindingsInclude
+            ghcLib
         , getPackageIds_ = GetPackageIds (return [])
         }
     where
-    setConfigFlags fltkCs fltkLds mode flags bindingsInclude = flags
+    setConfigFlags fltkCs fltkLds mode flags bindingsInclude ghcLib = flags
         { define = define osFlags
             ++ ["-DTESTING" | mode `elem` [Test, Profile]]
             ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
+            ++ ["-DGHC_VERSION=" ++ parseGhcVersion ghcLib]
         , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk",
             "-I" ++ bindingsInclude]
         , fltkCc = fltkCs
@@ -423,7 +427,8 @@ configure midi = do
             -- This is necessary for ghci loading to work in 7.8.
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
-            ++ ["-dynamic" | mode /= Profile] ++ ghcWarnings
+            ++ ["-dynamic" | mode /= Profile]
+            ++ ghcWarnings (parseGhcVersion ghcLib)
             ++ ["-F", "-pgmF", hspp]
             ++ case mode of
                 Debug -> []
@@ -480,6 +485,18 @@ configure midi = do
             }
         _ -> mempty -- Use the stub driver.
     run cmd args = Process.readProcess cmd args ""
+
+parseGhcVersion :: FilePath -> String
+parseGhcVersion path =
+    check $ concat $ map pad0 $ Seq.split "." $ drop 1 $ dropWhile (/='-') $
+        FilePath.takeFileName path
+    where
+    pad0 [c] = '0' : c : []
+    pad0 cs = cs
+    check cs
+        | null cs || any (not . Char.isDigit) cs =
+            error $ "parseGhcVersion: can't parse " <> show path
+        | otherwise = cs
 
 type InferConfig = FilePath -> Config
 

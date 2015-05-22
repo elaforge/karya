@@ -10,10 +10,23 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - Integrate_test.test_block_integrate is flaky, sometimes I get:
+    __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
+    ((bid "test/b2"),
+     [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, "")]),
+      ("*", [(0.0, 0.0, "4d"), (1.0, 0.0, "4c")])])
+      /=
+    ((bid "test/b2"),
+     [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, ""), (2.0, 1.0, "")]),
+      ("*", [(0.0, 0.0, "4e"), (1.0, 0.0, "4d"), (2.0, 0.0, "4c")])])
   ghc 7.10 upgrade
-    - don't need Applicative and Functor imports
+    * don't need Applicative and Functor imports
       Maybe I can use CPP in Global to eliminate warnings
+      . Now it means Global imports are redundant, but maybe I can suppress
+        those?
     - use Control.Monad.Except instead of Error
+      . not worth it until I don't need to support 7.8, can I suppress the
+        warnings?
   * enforce that instrument names obey Id.valid
   - If I enforce no / in instrument names, I can enforce that you can only use
     a local alias.  This will get rid of confusion where >synth/inst works in

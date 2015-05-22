@@ -10,6 +10,7 @@
     are lower level and either read the file and return the state, or write the
     given state, without messing with the SaveFile.
 -}
+{-# LANGUAGE CPP #-}
 module Cmd.Save (
     -- * universal
     save, load, read, load_template
@@ -35,7 +36,6 @@ import qualified Data.Time as Time
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
-import qualified System.Locale as Locale
 
 import qualified Util.Git as Git
 import qualified Util.Log as Log
@@ -54,6 +54,10 @@ import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified App.Config as Config
 import Global
+
+#if GHC_VERSION < 071000
+import qualified System.Locale as Locale
+#endif
 
 
 -- * universal
@@ -146,7 +150,12 @@ date :: IO Text
 date = do
     tz <- Time.getCurrentTimeZone
     today <- Time.utcToLocalTime tz <$> Time.getCurrentTime
-    return $ txt $ Time.formatTime Locale.defaultTimeLocale "%y-%m-%d" today
+#if GHC_VERSION < 071000
+    let locale = Locale.defaultTimeLocale
+#else
+    let locale = Time.defaultTimeLocale
+#endif
+    return $ txt $ Time.formatTime locale "%y-%m-%d" today
 
 -- * plain serialize
 

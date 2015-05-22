@@ -2,12 +2,17 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 -- | A local Prelude, meant to be imported unqualified.
 module Global (
     Proxy(..)
-    , pure, (<$>), (<*>), (<*), (*>), (<|>)
+#if GHC_VERSION < 071000
+    , pure, (<$>), (<*>), (<*), (*>)
+#endif
+    , (<|>)
     , first, second, (***)
-    , (<>), mempty, mconcat
+    , (<>)
+    , mempty, mconcat
     , while, while_
     , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM
     , mconcatMap, concatMapM, mapMaybeM
@@ -33,7 +38,11 @@ module Global (
     , Text.Text
     , txt, untxt, showt
 ) where
-import Control.Applicative (pure, (<$>), (<*>), (<*), (*>), (<|>))
+#if GHC_VERSION < 071000
+import Control.Applicative (pure, (<$>), (<*>), (<*), (*>))
+import Data.Monoid (mempty, mconcat, (<>))
+#endif
+import Control.Applicative ((<|>))
 import Control.Monad
        ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard,
         liftM, mplus, msum, mzero, replicateM, replicateM_, when, unless, void,
@@ -43,7 +52,7 @@ import Control.Monad.Trans (lift, liftIO)
 
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (mapMaybe, fromMaybe)
-import Data.Monoid (mempty, mconcat, (<>))
+import Data.Monoid ((<>))
 import qualified Data.Text as Text
 
 import Util.Lens
