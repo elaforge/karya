@@ -102,8 +102,6 @@ empty = MidiDb Map.empty
 
 -- ** lookup
 
-type LookupMidiInstrument = Score.Instrument -> Maybe Instrument.Instrument
-
 -- | This type is nominally the backend-independent part of the instrument.
 -- Of course at the moment it's MIDI only.  Once I have other backends this
 -- should move back into Db.
@@ -123,7 +121,7 @@ instance Pretty.Pretty code => Pretty.Pretty (Info code) where
         , ("code", Pretty.format code)
         ]
 
-lookup_midi :: MidiDb code -> LookupMidiInstrument
+lookup_midi :: MidiDb code -> Score.Instrument -> Maybe Instrument.Instrument
 lookup_midi midi_db inst = case lookup_instrument midi_db inst of
     Nothing -> Nothing
     Just (Info synth patch _) -> Just $ make_inst synth patch inst

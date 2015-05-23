@@ -16,7 +16,6 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Db
-import qualified Instrument.MidiDb as MidiDb
 import qualified Local.Instrument
 import qualified App.Config as Config
 import Global
@@ -47,11 +46,13 @@ show_perf_event (Perform.Event start dur inst controls pitch stack) =
     , stack
     )
 
-read_perf_event :: MidiDb.LookupMidiInstrument -> String -> Maybe Perform.Event
+read_perf_event :: (Score.Instrument -> Maybe Instrument.Instrument)
+    -> String -> Maybe Perform.Event
 read_perf_event lookup_inst =
     make_perf_event lookup_inst <=< ParseText.maybe_read
 
-make_perf_event :: MidiDb.LookupMidiInstrument -> Event -> Maybe Perform.Event
+make_perf_event :: (Score.Instrument -> Maybe Instrument.Instrument)
+    -> Event -> Maybe Perform.Event
 make_perf_event lookup_inst (inst, start, dur, controls, pitch, stack) = do
     inst <- lookup_inst (Score.Instrument inst)
     return $ Perform.Event

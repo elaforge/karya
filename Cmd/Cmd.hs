@@ -1048,7 +1048,8 @@ get_midi_instrument inst = do
     lookup <- get_lookup_midi_instrument
     require ("get_midi_instrument " <> pretty inst) $ lookup inst
 
-get_lookup_midi_instrument :: M m => m MidiDb.LookupMidiInstrument
+get_lookup_midi_instrument :: M m =>
+    m (Score.Instrument -> Maybe Instrument.Instrument)
 get_lookup_midi_instrument = do
     aliases <- State.config#State.aliases <#> State.get
     gets $ Instrument.Db.db_lookup_midi

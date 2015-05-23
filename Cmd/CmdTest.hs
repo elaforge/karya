@@ -349,7 +349,7 @@ make_inst_db :: [Text] -> Instrument.Db.Db code
 make_inst_db inst_names = Instrument.Db.empty
     { Instrument.Db.db_lookup_midi = make_lookup inst_names }
 
-make_lookup :: [Text] -> MidiDb.LookupMidiInstrument
+make_lookup :: [Text] -> Score.Instrument -> Maybe Instrument.Instrument
 make_lookup inst_names (Score.Instrument inst) = Map.lookup inst inst_map
     where inst_map = Map.fromList $ zip inst_names (map make_inst inst_names)
 

@@ -26,7 +26,7 @@ import Global
 -- | Static config type for the instrument db.
 data Db code = Db {
     -- | Specialized version of db_lookup that returns a Midi instrument.
-    db_lookup_midi :: MidiDb.LookupMidiInstrument
+    db_lookup_midi :: Score.Instrument -> Maybe Instrument.Instrument
     -- | Lookup a score instrument.
     , db_lookup :: Score.Instrument -> Maybe (MidiDb.Info code)
 
