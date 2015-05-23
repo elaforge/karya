@@ -15,6 +15,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
+import Cmd.Serialize () -- for instances
 import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import Global

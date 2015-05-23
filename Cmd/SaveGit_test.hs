@@ -104,7 +104,7 @@ check_sequence actions = do
             io_equal (load_from repo commit1 (Just commit2) state1)
                 (Right (state2, []))
 
-load_from :: Git.Repo -> Git.Commit -> Maybe Git.Commit -> State.State
+load_from :: Git.Repo -> SaveGit.Commit -> Maybe SaveGit.Commit -> State.State
     -> IO (Either Text (State.State, [Update.CmdUpdate]))
 load_from repo commit_from maybe_commit_to state =
     fmap (first strip_views) <$>
@@ -114,18 +114,18 @@ load_from repo commit_from maybe_commit_to state =
 strip_views :: State.State -> State.State
 strip_views state = state { State.state_views = mempty }
 
-check_load :: FilePath -> (State.State, Git.Commit, [Text]) -> IO Bool
+check_load :: FilePath -> (State.State, SaveGit.Commit, [Text]) -> IO Bool
 check_load repo (state, commit, names) =
     io_equal (SaveGit.load repo (Just commit)) (Right (state, commit, names))
 
-check_load_from :: FilePath -> (State.State, Git.Commit)
-    -> (State.State, Git.Commit) -> IO Bool
+check_load_from :: FilePath -> (State.State, SaveGit.Commit)
+    -> (State.State, SaveGit.Commit) -> IO Bool
 check_load_from repo (state1, commit1) (state2, commit2) =
     io_equal (load_from repo commit1 (Just commit2) state1)
         (Right (state2, []))
 
 checkpoint_sequence :: Git.Repo -> [(Text, State.StateId ())]
-    -> IO [(State.State, Git.Commit)]
+    -> IO [(State.State, SaveGit.Commit)]
 checkpoint_sequence repo actions = apply (State.empty, Nothing) actions
     where
     apply _ [] = return []

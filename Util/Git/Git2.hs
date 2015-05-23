@@ -8,7 +8,7 @@
 -- TODO
 -- - Is git_tree_diff recursive?
 module Util.Git.Git2 (
-    Blob, Tree, Commit
+    Blob, Tree
     , Repo, FileName, Ref
     -- * repo
     , init
@@ -54,6 +54,7 @@ import qualified System.Exit as Exit
 import System.FilePath ((</>))
 
 import qualified Util.Git.LibGit2 as G
+import Util.Git.Types (Commit(..), Repo)
 import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
 import qualified Util.Seq as Seq
@@ -63,16 +64,12 @@ import Global
 
 newtype Blob = Blob G.OID deriving (Eq, Ord, Show)
 newtype Tree = Tree G.OID deriving (Eq, Ord, Show)
-newtype Commit = Commit G.OID deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Blob where
     pretty (Blob (G.OID oid)) = txt $ Char8.unpack oid
 instance Pretty.Pretty Tree where
     pretty (Tree (G.OID oid)) = txt $ Char8.unpack oid
-instance Pretty.Pretty Commit where
-    pretty (Commit (G.OID oid)) = txt $ Char8.unpack oid
 
-type Repo = FilePath
 -- | Repo-internal path.
 type FileName = FilePath
 -- | This has the initial refs/ stripped off.
@@ -80,6 +77,12 @@ type Ref = FilePath
 
 -- | Pointer to git_repository C type.
 type RepoP = G.Repo
+
+to_commit :: G.OID -> Commit
+to_commit (G.OID bs) = Commit bs
+
+from_commit :: Commit -> G.OID
+from_commit (Commit bs) = G.OID bs
 
 -- | True if it already existed.
 init :: Repo -> IO Bool
@@ -240,7 +243,7 @@ with_tree repop (Tree oid) io = with oid $ \oidp -> alloca $ \treepp -> do
 
 parse_commit :: String -> Maybe Commit
 parse_commit str
-    | length str == 40 = Just $ Commit $ G.OID $ Char8.pack str
+    | length str == 40 = Just $ Commit $ Char8.pack str
     | otherwise = Nothing
 
 write_commit :: Repo -> String -> String -> [Commit] -> Tree -> String
@@ -252,7 +255,7 @@ write_commit repo user email parents tree description =
     withCString "HEAD" $ \headp -> alloca $ \commitp -> do
         G.check "write_commit" $ G.c'git_commit_create commitp repop headp
             sigp sigp nullPtr descp treep (fromIntegral parents_len) parentsp
-        Commit <$> peek commitp
+        to_commit <$> peek commitp
     where
     with_sig io = withCString user $ \userp -> withCString email $ \emailp ->
         alloca $ \sigpp -> do
@@ -284,7 +287,7 @@ read_commit_repo repop commit = with_commit repop commit $ \commitp -> do
         =<< mapM (G.c'git_commit_parent_id commitp)
             (if parents_len == 0 then [] else [0..parents_len-1])
     desc <- peekCString =<< G.c'git_commit_message commitp
-    return $ CommitData (Tree tree) (map Commit parents) author desc
+    return $ CommitData (Tree tree) (map to_commit parents) author desc
     where
     peek_user sig = do
         name <- peekCString (G.c'git_signature'name sig)
@@ -292,11 +295,12 @@ read_commit_repo repop commit = with_commit repop commit $ \commitp -> do
         return $ name ++ " <" ++ email ++ ">"
 
 with_commit :: G.Repo -> Commit -> (Ptr G.C'git_commit -> IO a) -> IO a
-with_commit repop (Commit oid) io = with oid $ \oidp -> alloca $ \commitpp -> do
-    G.check ("tree_lookup: " ++ show oid) $
-        G.c'git_commit_lookup commitpp repop oidp
-    commitp <- peek commitpp
-    io commitp `Exception.finally` G.c'git_commit_free commitp
+with_commit repop commit io = with (from_commit commit) $
+    \oidp -> alloca $ \commitpp -> do
+        G.check ("tree_lookup: " ++ show commit) $
+            G.c'git_commit_lookup commitpp repop oidp
+        commitp <- peek commitpp
+        io commitp `Exception.finally` G.c'git_commit_free commitp
 
 diff_commits :: Repo -> Commit -> Commit -> IO [Modification]
 diff_commits repo old new = with_repo repo $ \repop -> do
@@ -342,8 +346,8 @@ diff_tree_repo repop old new =
 -- ** refs
 
 write_ref :: Repo -> Commit -> Ref -> IO ()
-write_ref repo (Commit commit) ref = with_repo repo $ \repop ->
-    with commit $ \commitp -> with_ref_name ref $ \namep ->
+write_ref repo commit ref = with_repo repo $ \repop ->
+    with (from_commit commit) $ \commitp -> with_ref_name ref $ \namep ->
     alloca $ \refpp -> do
         G.check ("write_ref " ++ show ref) $
             G.c'git_reference_create refpp repop namep commitp 1
@@ -360,7 +364,7 @@ read_ref_repo repop ref = with_ref_name ref $ \namep ->
         code <- G.c'git_reference_name_to_id oidp repop namep
         if code /= G.c'GIT_OK then return Nothing else do
         oid <- peek oidp
-        return (Just (Commit oid))
+        return (Just (to_commit oid))
 
 with_ref :: G.Repo -> Ref -> (Ptr G.C'git_reference -> IO a) -> IO a
 with_ref repop ref io =
@@ -458,8 +462,8 @@ read_log repo ref = with_repo repo $ \repop -> with_ref_name ref $ \refnamep ->
 
 -- | Read commits starting from the given commit.
 read_log_from :: Repo -> Commit -> IO [Commit]
-read_log_from repo (Commit commit) = with_repo repo $ \repop ->
-    with commit $ \oidp -> with_revwalk repop $ \walkp -> do
+read_log_from repo commit = with_repo repo $ \repop ->
+    with (from_commit commit) $ \oidp -> with_revwalk repop $ \walkp -> do
         G.check ("revwalk_push: " ++ show commit) $
             G.c'git_revwalk_push walkp oidp
         walk walkp [SortTime]
@@ -481,7 +485,7 @@ walk walkp flags = do
         if errno == G.c'GIT_ITEROVER then return Nothing else do
         G.check "revwalk_next" (return errno)
         oid <- peek oidp
-        return (Just (Commit oid))
+        return (Just (to_commit oid))
     while_just io = do
         maybe_val <- io
         case maybe_val of

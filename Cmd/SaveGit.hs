@@ -2,8 +2,26 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Cmd.SaveGit (module Cmd.SaveGit, Git.Commit, Git.Repo) where
+module Cmd.SaveGit (
+    SaveHistory(..), LoadHistory(..), Repo, Commit
+    -- * save point
+    , is_git
+    , SavePoint, set_save_tag, write_save_ref, read_save_ref
+    , read_last_save, ref_to_save
+    -- * save
+    , checkpoint, save, should_record
+    -- * load
+    , load, load_previous_history, load_next_history
+    -- * views
+    , save_views, load_views, dump_views
+    -- * util
+    , infer_commit, try
+#ifdef TESTING
+    , parse_names, load_from
+#endif
+) where
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.Char as Char
@@ -31,6 +49,8 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Update as Update
 
+import Cmd.SaveGitTypes (SaveHistory(..))
+import Util.Git.Types (Commit, Repo)
 import qualified Cmd.Serialize
 import qualified App.Config as Config
 import Global
@@ -39,29 +59,8 @@ import Types
 
 -- | History loaded from disk.  It only has CmdUpdates so you can feed them to
 -- diff.
-data LoadHistory =
-    LoadHistory !State.State !Git.Commit ![Update.CmdUpdate] ![Text]
+data LoadHistory = LoadHistory !State.State !Commit ![Update.CmdUpdate] ![Text]
     deriving (Show)
-
--- | History to be saved to disk.  The updates are post-diff to know which bits
--- of state to write, and the commit is what commit the updates are relative
--- to, if any.  If they're Nothing, then save everything.
---
--- It's very important to bundle the commit and updates together, because
--- without the commit to know what they are relative to, the updates don't
--- mean anything, and if they're applied on top of the wrong commit the result
--- will be a corrupted state.
-data SaveHistory =
-    SaveHistory !State.State !(Maybe Git.Commit) [Update.UiUpdate] ![Text]
-    deriving (Show)
-
-instance Pretty.Pretty SaveHistory where
-    format (SaveHistory _state commit updates cmds) =
-        Pretty.record "SaveHistory"
-            [ ("commit", Pretty.format commit)
-            , ("updates", Pretty.format updates)
-            , ("cmds", Pretty.format cmds)
-            ]
 
 is_git :: FilePath -> Bool
 is_git = (".git" `List.isSuffixOf`)
@@ -69,7 +68,7 @@ is_git = (".git" `List.isSuffixOf`)
 -- * save point
 
 -- | Add a new save point tag to the given commit, unless it already has one.
-set_save_tag :: Git.Repo -> Git.Commit -> IO (Either Text SavePoint)
+set_save_tag :: Git.Repo -> Commit -> IO (Either Text SavePoint)
 set_save_tag repo commit = try "set_save_tag" $ do
     Git.gc repo -- Might as well clean things up at this point.
     read_last_save repo (Just commit) >>= \x -> case x of
@@ -86,15 +85,15 @@ set_save_tag repo commit = try "set_save_tag" $ do
 newtype SavePoint = SavePoint [Int] deriving (Eq, Show, Pretty.Pretty)
 
 -- | Create a tag for the given commit.
-write_save_ref :: Git.Repo -> SavePoint -> Git.Commit -> IO ()
+write_save_ref :: Git.Repo -> SavePoint -> Commit -> IO ()
 write_save_ref repo save commit = Git.write_ref repo commit (save_to_ref save)
 
-read_save_ref :: Git.Repo -> SavePoint -> IO (Maybe Git.Commit)
+read_save_ref :: Git.Repo -> SavePoint -> IO (Maybe Commit)
 read_save_ref repo save = Git.read_ref repo (save_to_ref save)
 
-read_last_save :: Git.Repo -> Maybe Git.Commit
+read_last_save :: Git.Repo -> Maybe Commit
     -- ^ Find the last save from this commit, or HEAD if not given.
-    -> IO (Maybe (SavePoint, Git.Commit))
+    -> IO (Maybe (SavePoint, Commit))
 read_last_save repo maybe_commit = do
     -- This may be called on incomplete repos without a HEAD.
     maybe_commits <- catch $
@@ -134,11 +133,11 @@ save_to_ref (SavePoint versions) =
     "tags" </> Seq.join "." (map show (reverse versions))
 
 
--- * checkpoint
+-- * save
 
 -- | Checkpoint the given SaveHistory.  If it has no previous commit, create
 -- a new repo.
-checkpoint :: Git.Repo -> SaveHistory -> IO (Either Text Git.Commit)
+checkpoint :: Git.Repo -> SaveHistory -> IO (Either Text Commit)
 checkpoint repo (SaveHistory state Nothing _ names) =
     try "save" $ save repo state names
 checkpoint repo (SaveHistory state (Just commit) updates names) =
@@ -151,17 +150,17 @@ checkpoint repo (SaveHistory state (Just commit) updates names) =
     if null mods then return commit else do
     last_tree <- Git.commit_tree <$> Git.read_commit repo commit
     tree <- Git.modify_tree repo last_tree mods
-    commit_tree repo tree (Just commit) $ unparse_names "checkpoint" names
+    commit_tree repo tree (Just commit) (unparse_names "checkpoint" names)
 
 -- | Create a new repo, or throw if it already exists.
-save :: Git.Repo -> State.State -> [Text] -> IO Git.Commit
+save :: Git.Repo -> State.State -> [Text] -> IO Commit
 save repo state cmd_names = do
     whenM (Git.init repo) $
         Git.throw "refusing to overwrite a repo that already exists"
     dir <- either (Git.throw . ("make_dir: "<>)) return $
         Git.make_dir (dump state)
     tree <- Git.write_dir repo dir
-    commit_tree repo tree Nothing $ unparse_names "save" cmd_names
+    commit_tree repo tree Nothing (unparse_names "save" cmd_names)
 
 -- | True if this update is interesting enough to record a checkpoint for.
 should_record :: Update.UiUpdate -> Bool
@@ -170,8 +169,7 @@ should_record update = case update of
     Update.Block _ (Update.BlockConfig {}) -> False
     _ -> not $ Update.is_view_update update
 
-commit_tree :: Git.Repo -> Git.Tree -> Maybe Git.Commit -> String
-    -> IO Git.Commit
+commit_tree :: Git.Repo -> Git.Tree -> Maybe Commit -> String -> IO Commit
 commit_tree repo tree maybe_parent desc = do
     commit <- Git.write_commit repo Config.name Config.email
         (maybe [] (:[]) maybe_parent) tree desc
@@ -216,8 +214,8 @@ score_to_hex = pad . flip Numeric.showHex "" . Serialize.encode_double
 
 -- * load
 
-load :: Git.Repo -> Maybe Git.Commit
-    -> IO (Either Text (State.State, Git.Commit, [Text]))
+load :: Git.Repo -> Maybe Commit
+    -> IO (Either Text (State.State, Commit, [Text]))
     -- ^ (state, commit, name of the cmd this is a checkpoint of)
 load repo maybe_commit = try_e "load" $ do
     -- TODO have to handle both compact and expanded tracks
@@ -232,7 +230,7 @@ load repo maybe_commit = try_e "load" $ do
         return (state { State.state_views = views }, commit, names)
 
 -- | Try to go get the previous history entry.
-load_previous_history :: Git.Repo -> State.State -> Git.Commit
+load_previous_history :: Git.Repo -> State.State -> Commit
     -> IO (Either Text (Maybe LoadHistory))
 load_previous_history repo state commit = try_e "load_previous_history" $ do
     commit_data <- Git.read_commit repo commit
@@ -241,7 +239,7 @@ load_previous_history repo state commit = try_e "load_previous_history" $ do
         Just parent -> load_history repo state commit parent
 
 -- | Try to a commits that has this one as a parent.
-load_next_history :: Git.Repo -> State.State -> Git.Commit
+load_next_history :: Git.Repo -> State.State -> Commit
     -> IO (Either Text (Maybe LoadHistory))
 load_next_history repo state commit = try_e "load_next_history" $ do
     -- This won't work if I loaded something off-head.  In that case, I need
@@ -264,7 +262,7 @@ load_next_history repo state commit = try_e "load_next_history" $ do
 -- you save there, the tag will probably keep it alive.  Then the next
 -- history commit will set the HEAD to this branch, and the old HEAD will only
 -- be preserved if it had a ref.
-load_history :: Git.Repo -> State.State -> Git.Commit -> Git.Commit
+load_history :: Git.Repo -> State.State -> Commit -> Commit
     -> IO (Either Text (Maybe LoadHistory))
 load_history repo state from_commit to_commit = do
     names <- parse_names . Git.commit_text
@@ -275,14 +273,14 @@ load_history repo state from_commit to_commit = do
         Right (new_state, cmd_updates) -> return $ Right $ Just
             (LoadHistory new_state to_commit cmd_updates names)
 
-load_from :: Git.Repo -> Git.Commit -> Maybe Git.Commit -> State.State
+load_from :: Git.Repo -> Commit -> Maybe Commit -> State.State
     -> IO (Either Text (State.State, [Update.CmdUpdate]))
 load_from repo commit_from maybe_commit_to state = do
     commit_to <- default_head repo maybe_commit_to
     mods <- Git.diff_commits repo commit_from commit_to
     return $ undump_diff state mods
 
-default_head :: Git.Repo -> Maybe Git.Commit -> IO Git.Commit
+default_head :: Git.Repo -> Maybe Commit -> IO Commit
 default_head _ (Just commit) = return commit
 default_head repo Nothing =
     maybe (Git.throw $ "repo with no HEAD commit: " ++ show repo)
@@ -469,7 +467,7 @@ path_to_id mkid ns name = mkid (Id.id save_ns (txt name))
 
 -- | If a string looks like a commit hash, return the commit, otherwise look
 -- for a ref in tags\/.
-infer_commit :: Git.Repo -> String -> IO (Maybe Git.Commit)
+infer_commit :: Git.Repo -> String -> IO (Maybe Commit)
 infer_commit repo ref_or_commit = case Git.parse_commit ref_or_commit of
     Just commit -> return $ Just commit
     Nothing -> Git.read_ref repo ("tags" </> ref_or_commit)

@@ -69,6 +69,7 @@ import qualified Data.Time as Time
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Util.Git.Types as Git.Types
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -95,7 +96,7 @@ import qualified Ui.Update as Update
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import Cmd.Msg (Performance(..), Events) -- avoid a circular import
-import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.Derive as Derive
@@ -395,7 +396,7 @@ data State = State {
     , state_repl_status :: !Status
     } deriving (Show)
 
-data SaveFile = SaveState !FilePath | SaveRepo !SaveGit.Repo
+data SaveFile = SaveState !FilePath | SaveRepo !Git.Types.Repo
     deriving (Show, Eq)
 
 -- | Directory of the save file.
@@ -832,7 +833,7 @@ data LastCmd =
     UndoRedo
     -- | This cmd set the state because of a load.  This should reset all the
     -- history so I can start loading from the new state's history.
-    | Load (Maybe SaveGit.Commit) [Text]
+    | Load (Maybe Git.Types.Commit) [Text]
     deriving (Show)
 
 data HistoryConfig = HistoryConfig {
@@ -841,7 +842,7 @@ data HistoryConfig = HistoryConfig {
     -- | Checkpoints are saved relative to the state at the next checkpoint.
     -- So it's important to keep the commit of that checkpoint up to date,
     -- otherwise the state and the checkpoints will get out of sync.
-    , hist_last_commit :: !(Maybe SaveGit.Commit)
+    , hist_last_commit :: !(Maybe Git.Types.Commit)
     } deriving (Show)
 
 empty_history_config :: HistoryConfig
@@ -859,7 +860,7 @@ data HistoryCollect = HistoryCollect {
     -- recorded separately.
     , state_suppress_edit :: !(Maybe EditMode)
     -- | The Git.Commit in the SaveHistory should definitely be Nothing.
-    , state_suppressed :: !(Maybe SaveGit.SaveHistory)
+    , state_suppressed :: !(Maybe SaveGitTypes.SaveHistory)
     } deriving (Show)
 
 empty_history_collect :: HistoryCollect
@@ -885,7 +886,7 @@ data HistoryEntry = HistoryEntry {
     , hist_names :: ![Text]
     -- | The Commit where this entry was saved.  Nothing if the entry is
     -- unsaved.
-    , hist_commit :: !(Maybe SaveGit.Commit)
+    , hist_commit :: !(Maybe Git.Types.Commit)
     } deriving (Show)
 
 empty_history_entry :: State.State -> HistoryEntry

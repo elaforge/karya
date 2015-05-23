@@ -31,7 +31,6 @@ import qualified Ui.Types as Types
 
 import qualified Cmd.Create as Create
 import qualified Cmd.Meter as Meter
-import qualified Cmd.Save as Save
 import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
@@ -86,10 +85,6 @@ test_ns = Id.namespace "test"
 
 default_zoom :: Types.Zoom
 default_zoom = Config.zoom
-
--- | Save the state to disk, so I can load it into the app and see it.
-save :: FilePath -> State.State -> IO ()
-save = Save.write_state
 
 -- * monadic mk- functions
 

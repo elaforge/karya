@@ -10,6 +10,8 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  * remove Util.Git dependency from tests
+  - use hgitlib2 or gitlib and remove Util.Git
   - Integrate_test.test_block_integrate is flaky, sometimes I get:
     __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
     ((bid "test/b2"),

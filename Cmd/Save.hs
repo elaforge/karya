@@ -49,6 +49,7 @@ import qualified Ui.Transform as Transform
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.Serialize as Serialize
 import qualified Cmd.ViewConfig as ViewConfig
 
@@ -246,7 +247,7 @@ save_git_as repo = do
         Nothing -> do
             state <- State.get
             rethrow =<< liftIO (SaveGit.checkpoint repo
-                (SaveGit.SaveHistory state Nothing [] ["save"]))
+                (SaveGitTypes.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
     Log.notice $ "wrote save " <> showt save <> " to " <> showt repo
     set_save_file (SaveRepo repo commit Nothing) False
