@@ -10,6 +10,9 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - move DeriveTest.set_defaults to UiTest so I don't need a separate
+    DeriveTest.mkblocks.
+  - Convert_test.test_convert is not lazy if the instrument is not found
   * remove Util.Git dependency from tests
   - use hgitlib2 or gitlib and remove Util.Git
   - Integrate_test.test_block_integrate is flaky, sometimes I get:

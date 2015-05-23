@@ -53,7 +53,7 @@ test_alternate_weighted = do
 
 test_alternate_tracks = do
     let run tracks = DeriveTest.extract DeriveTest.e_attributes $
-            DeriveTest.derive_tracks_with_ui id (DeriveTest.with_skel skel) ""
+            DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""
                 (map ((,) ">") tracks)
             where skel = map ((,) 1) [2 .. length tracks]
     equal (run [[(0, 1, "+a")]]) (["+a"], [])

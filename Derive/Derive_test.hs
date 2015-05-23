@@ -93,7 +93,7 @@ test_round_pitch = do
 
 test_attributes = do
     -- Test that attributes work, through derivation and performance.
-    let convert_lookup = DeriveTest.make_convert_lookup $
+    let convert_lookup = DeriveTest.make_convert_lookup mempty $
             DeriveTest.make_db [("s", [patch])]
         patch = Instrument.attribute_map #= attr_map $ Instrument.patch $
             Instrument.instrument "ks" [] (-1, 1)
@@ -155,7 +155,7 @@ test_stack = do
 
 test_call_duration = do
     let run = snd . DeriveTest.extract Score.event_start
-            . DeriveTest.derive_blocks_with
+            . DeriveTest.derive_blocks_setup
                 (CallTest.with_note_transformer "t" trans)
         trans = Derive.transformer "module" "trans" mempty "doc" $
             Sig.call0t $ \_ deriver -> do
@@ -613,7 +613,8 @@ test_regress_event_end2 = do
 derive_blocks :: [(UiTest.BlockSpec, [Skeleton.Edge])] -> Derive.Result
 derive_blocks blocks = DeriveTest.derive_block state (UiTest.bid block_name)
     where
-    state = UiTest.exec State.empty (UiTest.mkblocks_skel blocks)
+    state = UiTest.exec State.empty
+        (UiTest.mkblocks_skel blocks <* DeriveTest.set_defaults)
     ((block_name, _), _) : _ = blocks
 
 -- * util

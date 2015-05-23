@@ -26,7 +26,7 @@ test_cf_rnd = do
 
 test_cf_swing = do
     let run marks amount tracks events = DeriveTest.extract Score.event_start $
-            DeriveTest.derive_tracks_with_ui id (with_ruler marks)
+            DeriveTest.derive_tracks_setup (with_ruler marks)
                     "apply-start-offset" $
                 tracks ++ [("> | %start-s = (cf-swing q " <> amount <> ")",
                     [(n, 0, "") | n <- events])]

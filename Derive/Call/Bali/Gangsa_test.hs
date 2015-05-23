@@ -206,7 +206,8 @@ test_kotekan_strange_length = do
 
 test_unison = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_with_ui id config_inst title
+            . DeriveTest.derive_tracks_setup (DeriveTest.with_ui config_inst)
+                title
             . UiTest.note_track
         title = "import bali.gangsa | inst = >" <> inst_title
             <> " | scale=wayang | unison"

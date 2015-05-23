@@ -20,17 +20,16 @@ test_kendang = do
             [(">" <> inst <> inst_title, mknotes notes)]
         e_inst e = (DeriveTest.e_inst e, DeriveTest.e_attributes e)
         mknotes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
-        k = "kontakt/kendang"
-    equal (run e_inst "kontakt/kendang" ["PL", "P", "o"])
-        ([(k, "+plak"), (k, "+pak"), (k, "+tut")], [])
-    equal (run e_inst "kontakt/kendang-pasang"
+    equal (run e_inst "k" ["PL", "P", "o"])
+        ([("k", "+plak"), ("k", "+pak"), ("k", "+tut")], [])
+    equal (run e_inst "pasang"
             ["PL", "k", "P", "t", "T", "u", "U"])
         ([("w", "+plak"), ("w", "+pak"), ("l", "+pak"),
             ("w", "+pang"), ("l", "+pang"), ("w", "+tut"), ("l", "+tut")], [])
 
     -- Soft attributes.
     let e_dyn e = (DeriveTest.e_attributes e, Score.initial_dynamic e)
-    equal (run e_dyn "kontakt/kendang" [".", "..", "-", "+"])
+    equal (run e_dyn "k" [".", "..", "-", "+"])
         ([("+ka+soft", 0.3), ("+ka", 1), ("+de+soft", 0.3), ("+de", 1)], [])
 
 test_pasang_calls = do
@@ -41,9 +40,13 @@ test_pasang_calls = do
         [[call] | (_, _, _, call) <- Kendang.pasang_calls]
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_with
-    (DeriveTest.with_inst_db_aliases aliases Kontakt.synth_descs) ""
-    where aliases = [("w", "kontakt/kendang"), ("l", "kontakt/kendang")]
+derive = DeriveTest.derive_tracks_setup
+    (DeriveTest.with_synth_descs aliases Kontakt.synth_descs) ""
+    where
+    aliases =
+        [ ("k", "kontakt/kendang"), ("pasang", "kontakt/kendang-pasang")
+        , ("w", "kontakt/kendang"), ("l", "kontakt/kendang")
+        ]
 
 inst_title :: String
 inst_title = " | wadon = >w | lanang = >l"

@@ -19,7 +19,7 @@ import Global
 
 test_recursive_call = do
     let extract = DeriveTest.extract DeriveTest.e_event
-    let result = extract $ DeriveTest.derive_tracks_with with_recur ""
+    let result = extract $ DeriveTest.derive_tracks_setup with_recur ""
             [(">", [(0, 1, "recur")])]
         with_recur = CallTest.with_note_generator "recur" recursive
     equal result ([], ["Error: call stack too deep: recursive"])
@@ -31,7 +31,7 @@ test_recursive_call = do
 
 test_reapply_generator = do
     let run = DeriveTest.extract DeriveTest.e_attributes .
-            DeriveTest.derive_tracks_with with ""
+            DeriveTest.derive_tracks_setup with ""
         dyn = ("dyn", [(0, 0, "1")])
     equal (run [(">", [(0, 0, "a")]), dyn]) (["+a"], [])
     -- If Eval.reapply_generator isn't replacing the info_expr, the inversion

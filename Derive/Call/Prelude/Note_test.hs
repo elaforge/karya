@@ -14,7 +14,7 @@ import Global
 
 test_note_track_call = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_with
+            . DeriveTest.derive_tracks_setup
                 (CallTest.with_note_transformer ">s/1" trans) ""
         extract e = DeriveTest.e_environ_val "x" e :: Maybe Int
         trans = Derive.transformer "module" "trans" mempty "doc" $ Sig.call0t

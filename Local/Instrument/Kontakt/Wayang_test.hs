@@ -24,7 +24,7 @@ test_wayang = do
 
 test_wayang_zero_dur = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_blocks_with KontaktTest.with_synth
+            . DeriveTest.derive_blocks_setup KontaktTest.with_synth
         top = "top -- inst = >kontakt/wayang-umbang | infer-duration"
         extract e = (Score.event_duration e,
             not $ null $ DeriveTest.e_control "mute" e)

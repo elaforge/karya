@@ -5,6 +5,7 @@
 module Derive.DeriveTest where
 import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -147,30 +148,25 @@ perform_stream lookup midi_config events = (perf_events, midi)
         (Instrument.config_addrs <$> midi_config) perf_events
 
 -- | Perform events with the given instrument config.
-perform_inst :: [Cmd.SynthDesc] -> [(Text, [Midi.Channel])] -> Derive.Events
-    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
-perform_inst synths config =
-    perform (synth_to_convert_lookup mempty synths) (UiTest.midi_config config)
+perform_inst :: Simple.Aliases -> [Cmd.SynthDesc] -> [(Text, [Midi.Channel])]
+    -> Derive.Events -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
+perform_inst aliases synths config =
+    perform (synth_to_convert_lookup aliases synths) (UiTest.midi_config config)
 
 -- * derive
 
-type Transform a = Derive.Deriver a -> Derive.Deriver a
-
 derive_tracks :: String -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = derive_tracks_with id
+derive_tracks = derive_tracks_setup mempty
 
-derive_tracks_with :: Transform Derive.Events -> String -> [UiTest.TrackSpec]
-    -> Derive.Result
-derive_tracks_with with = derive_tracks_with_ui with id
+-- | Derive tracks but with a linear skeleton.  Good for testing note
+-- transformers since the default skeleton parsing won't create those.
+derive_tracks_linear :: String -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_linear = derive_tracks_setup with_linear
 
--- | Variant that lets you modify both the Deriver state and the UI state.
--- Technically I could modify Derive.State's state_ui, but that's not supposed
--- to be modified, and it's too late for e.g. the initial environ anyway.
-derive_tracks_with_ui :: Transform Derive.Events -> (State.State -> State.State)
-    -> String -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_with_ui with transform_ui title tracks =
-    derive_blocks_with_ui with transform_ui
-        [(UiTest.default_block_name <> " -- " <> title, tracks)]
+-- | Variant that lets you run setup on various states.
+derive_tracks_setup :: Setup -> String -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_setup setup title tracks = derive_blocks_setup setup
+    [(UiTest.default_block_name <> " -- " <> title, tracks)]
 
 -- ** derive block variations
 
@@ -179,60 +175,44 @@ derive_tracks_with_ui with transform_ui title tracks =
 
 -- | Create multiple blocks, and derive the first one.
 derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
-derive_blocks = derive_blocks_with_ui id id
-
-derive_blocks_with :: Transform Derive.Events -> [UiTest.BlockSpec]
-    -> Derive.Result
-derive_blocks_with with = derive_blocks_with_ui with id
-
-derive_blocks_with_ui :: Transform Derive.Events -> (State.State -> State.State)
-    -> [UiTest.BlockSpec] -> Derive.Result
-derive_blocks_with_ui with transform_ui block_tracks =
-    derive_block_with with (transform_ui ui_state) bid
-    where (bid : _, ui_state) = mkblocks block_tracks
+derive_blocks = derive_blocks_setup mempty
 
 derive_block :: State.State -> BlockId -> Derive.Result
-derive_block = derive_block_with id
+derive_block = derive_block_setup mempty
+
+derive_blocks_setup :: Setup -> [UiTest.BlockSpec] -> Derive.Result
+derive_blocks_setup setup block_tracks = derive_block_setup setup ui_state bid
+    where (bid : _, ui_state) = mkblocks block_tracks
 
 -- | Derive a block with the testing environ.
-derive_block_with :: Transform Derive.Events -> State.State -> BlockId
-    -> Derive.Result
-derive_block_with with =
-    derive_block_standard default_cmd_state mempty mempty
-        (with_environ default_environ . with)
+derive_block_setup :: Setup -> State.State -> BlockId -> Derive.Result
+derive_block_setup setup =
+    derive_block_standard (with_environ default_environ <> setup)
+        default_cmd_state mempty mempty
 
--- | Like 'derive_block_with', but exec the StateId.
-derive_block_with_m :: Transform Derive.Events -> State.StateId a -> BlockId
-    -> Derive.Result
-derive_block_with_m with create =
-    derive_block_standard default_cmd_state mempty mempty
-        (with_environ default_environ . with) (UiTest.exec State.empty create)
-
--- | Derive tracks but with a linear skeleton.  Good for testing note
--- transformers since the default skeleton parsing won't create those.
-derive_tracks_linear :: String -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_linear = derive_tracks_with_ui id with_linear
-
--- | Derive a block in the same way that the app does.
-derive_block_standard :: Cmd.State -> Derive.Cache -> Derive.ScoreDamage
-    -> Transform Derive.Events -> State.State -> BlockId -> Derive.Result
-derive_block_standard cmd_state cache damage with ui_state block_id =
-    case result of
-        Right (Just result, _, _) -> result
-        Right (Nothing, _, _) -> error "derive_block_with: Cmd aborted"
-        Left err -> error $ "derive_block_with: Cmd error: " ++ show err
-    where
-    global_transform = State.config#State.global_transform #$ ui_state
-    deriver = with $ Prelude.Block.eval_root_block global_transform block_id
-    (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state $
-        Derive.extract_result True <$> PlayUtil.run cache damage deriver
+-- | Like 'derive_block_setup', but exec the StateId.
+derive_block_setup_m :: Setup -> State.StateId a -> BlockId -> Derive.Result
+derive_block_setup_m setup create =
+    derive_block_standard (with_environ default_environ <> setup)
+        default_cmd_state mempty mempty (UiTest.exec State.empty create)
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
 derive_dump :: [MidiInst.SynthDesc] -> Simple.State -> BlockId -> Derive.Result
 derive_dump synths dump@(_, _, aliases, _) =
-    derive_block_with (with_inst_db_aliases aliases synths) state
+    derive_block_setup (with_synth_descs aliases synths) state
+    where state = UiTest.eval State.empty (Simple.convert_state dump)
+
+-- | Derive a block in the same way that the app does.
+derive_block_standard :: Setup -> Cmd.State -> Derive.Cache
+    -> Derive.ScoreDamage -> State.State -> BlockId -> Derive.Result
+derive_block_standard setup cmd_state cache damage ui_state_ block_id =
+    run_cmd ui_state (setup_cmd setup cmd_state) cmd
     where
-    state = UiTest.eval State.empty (Simple.convert_state dump)
+    cmd = Derive.extract_result True <$> PlayUtil.run cache damage deriver
+    ui_state = setup_ui setup ui_state_
+    global_transform = State.config#State.global_transform #$ ui_state
+    deriver = setup_deriver setup $
+        Prelude.Block.eval_root_block global_transform block_id
 
 perform_dump :: [MidiInst.SynthDesc] -> Simple.State -> Derive.Result
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
@@ -241,8 +221,6 @@ perform_dump synths (_, midi, aliases, _) =
     where
     lookup = synth_to_convert_lookup aliases synths
     config = Simple.midi_config midi
-
--- * misc
 
 derive :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result True $
@@ -254,70 +232,149 @@ mkblocks :: [UiTest.BlockSpec] -> ([BlockId], State.State)
 mkblocks block_tracks = UiTest.run State.empty $
     set_defaults >> UiTest.mkblocks block_tracks
 
--- * transform ui
+-- | Set UI state defaults that every derivation should have.
+set_defaults :: State.M m => m ()
+set_defaults = State.modify set_default_midi_config
+
+set_default_midi_config :: State.State -> State.State
+set_default_midi_config =
+    (State.config#State.midi #= default_midi_config)
+    . (State.config#State.aliases #= make_aliases default_aliases)
+
+-- * cmd
+
+-- | CmdTest also has this, but I can't import it because it imports
+-- DeriveTest.
+run_cmd :: State.State -> Cmd.State -> Cmd.CmdId a -> a
+run_cmd ui_state cmd_state cmd = case result of
+    Right (Just result, _, _) -> result
+    Right (Nothing, _, _) -> error "DeriveTest.run_cmd: Cmd aborted"
+    Left err -> error $ "DeriveTest.run_cmd: Cmd error: " ++ show err
+    where
+    (_cstate, _midi_msgs, _logs, result) = Cmd.run_id ui_state cmd_state cmd
+
+-- * setup
+
+type Setup = SetupA Derive.Events
+
+-- | This file only ever uses 'Setup', but it loses polymorphism.  To reuse
+-- @with_*@ functions in a polymorphic way, I can use SetupA and pull them back
+-- out with setup_deriver.
+data SetupA a = Setup {
+    setup_ui :: State.State -> State.State
+    , setup_cmd :: Cmd.State -> Cmd.State
+    , setup_deriver :: Derive.Deriver a -> Derive.Deriver a
+    }
+
+instance Monoid.Monoid (SetupA a) where
+    mempty = Setup id id id
+    mappend (Setup ui1 cmd1 deriver1) (Setup ui2 cmd2 deriver2) =
+        Setup (ui1 . ui2) (cmd1 . cmd2) (deriver1 . deriver2)
+
+with_ui :: (State.State -> State.State) -> Setup
+with_ui ui = mempty { setup_ui = ui }
+
+with_cmd :: (Cmd.State -> Cmd.State) -> Setup
+with_cmd cmd = mempty { setup_cmd = cmd }
+
+with_deriver :: (Derive.Deriver a -> Derive.Deriver a) -> SetupA a
+with_deriver deriver = mempty { setup_deriver = deriver }
 
 -- | Set the skeleton of the tracks to be linear, i.e. each track is the child
 -- of the one to the left.  This overrides the default behaviour of figuring
 -- out a skeleton by making note tracks start their own branches.
-with_linear :: State.State -> State.State
+with_linear :: Setup
 with_linear = with_linear_block UiTest.default_block_id
 
-with_linear_block :: BlockId -> State.State -> State.State
-with_linear_block block_id state = with_skel_block block_id skel state
+with_linear_block :: BlockId -> Setup
+with_linear_block block_id =
+    with_ui $ \state -> setup_ui (with_skel_block block_id (skel state)) state
     where
     -- Start at 1 to exclude the ruler.
-    skel = [(x, y) | (x, Just y) <- Seq.zip_next [1..ntracks-1]]
-    ntracks = length $ maybe [] Block.block_tracks $
+    skel state =
+        [(x, y) | (x, Just y) <- Seq.zip_next [1 .. ntracks state  - 1]]
+    ntracks state = length $ maybe [] Block.block_tracks $
         Map.lookup block_id (State.state_blocks state)
 
-with_skel :: [Skeleton.Edge] -> State.State -> State.State
+with_skel :: [Skeleton.Edge] -> Setup
 with_skel = with_skel_block UiTest.default_block_id
 
-with_skel_block :: BlockId -> [Skeleton.Edge] -> State.State -> State.State
-with_skel_block block_id skel state = UiTest.exec state $
+with_skel_block :: BlockId -> [Skeleton.Edge] -> Setup
+with_skel_block block_id skel = with_ui $ \state -> UiTest.exec state $
     State.set_skeleton block_id (Skeleton.make skel)
 
-with_default_ruler :: Ruler.Ruler -> State.State -> State.State
-with_default_ruler ruler =
+with_default_ruler :: Ruler.Ruler -> Setup
+with_default_ruler ruler = with_ui $
     State.rulers %= Map.insert UiTest.default_ruler_id ruler
 
 -- | Set the ruler on the given block.
-with_ruler :: BlockId -> Ruler.Ruler -> State.State -> State.State
-with_ruler block_id ruler state = UiTest.exec state make
+with_ruler :: BlockId -> Ruler.Ruler -> Setup
+with_ruler block_id ruler = with_ui $ \state -> UiTest.exec state make
     where make = Create.new_ruler block_id (Id.ident_name block_id) ruler
 
-with_tsigs :: [TrackId] -> State.State -> State.State
+with_tsigs :: [TrackId] -> Setup
 with_tsigs = with_tsig_sources . map (flip (,) Nothing)
 
-with_tsig_tracknums :: [TrackNum] -> State.State -> State.State
+with_tsig_tracknums :: [TrackNum] -> Setup
 with_tsig_tracknums = with_tsigs . map UiTest.mk_tid
 
-with_tsig_sources :: [(TrackId, Maybe Track.RenderSource)] -> State.State
-    -> State.State
-with_tsig_sources track_ids = State.tracks %= Map.mapWithKey enable
+with_tsig_sources :: [(TrackId, Maybe Track.RenderSource)] -> Setup
+with_tsig_sources track_ids = with_ui $ State.tracks %= Map.mapWithKey enable
     where
     enable track_id track = case lookup track_id track_ids of
         Just source -> track { Track.track_render =
             Track.RenderConfig (Track.Line source) Color.blue }
         Nothing -> track
 
-with_transform :: Text -> State.State -> State.State
-with_transform = (State.config#State.global_transform #=)
+with_transform :: Text -> Setup
+with_transform = with_ui . (State.config#State.global_transform #=)
 
--- * transform derive
+-- * setup_deriver
 
-with_key :: Text -> Derive.Deriver a -> Derive.Deriver a
-with_key key = Derive.with_val Environ.key key
+with_key :: Text -> SetupA a
+with_key key = with_deriver $ Derive.with_val Environ.key key
 
-with_environ :: TrackLang.Environ -> Derive.Deriver a -> Derive.Deriver a
-with_environ env = Internal.local $ \st -> st { Derive.state_environ = env }
+with_environ :: TrackLang.Environ -> SetupA a
+with_environ env =
+    with_deriver $ Internal.local $ \st -> st { Derive.state_environ = env }
 
--- | Set UI state defaults that every derivation should have.
-set_defaults :: State.M m => m ()
-set_defaults = State.modify set_default_midi_config
+-- | I'm not really supposed to do this, but should be *mostly* ok for tests.
+-- It's not entirely ok because some values are baked in to e.g. lookup
+-- functions.
+modify_constant :: (Derive.Constant -> Derive.Constant) -> SetupA a
+modify_constant f = with_deriver $ \deriver -> do
+    Derive.modify $ \st ->
+        st { Derive.state_constant = f (Derive.state_constant st) }
+    deriver
+    -- TODO replace with safe specific ones, e.g. with_damage
 
-set_default_midi_config :: State.State -> State.State
-set_default_midi_config = State.config#State.midi #= default_midi_config
+-- * setup multiple
+
+with_scale :: Scale.Scale -> Setup
+with_scale scale = with_cmd $ set_cmd_config $ \state -> state
+    { Cmd.state_lookup_scale = lookup (Cmd.state_lookup_scale state) }
+    where
+    -- Fall back on the old lookup.  This is important because *twelve is the
+    -- default scale so I want it to keep working.
+    lookup (Derive.LookupScale old) = Derive.LookupScale $ \env look scale_id ->
+        if scale_id == Scale.scale_id scale then Just (Right scale)
+            else old env look scale_id
+
+-- | Derive with a bit of the real instrument db.  Useful for testing
+-- instrument calls.
+with_synth_descs :: Simple.Aliases -> [Cmd.SynthDesc] -> Setup
+with_synth_descs aliases synth_descs =
+    with_inst_db aliases (synth_to_db synth_descs)
+
+with_inst_db :: Simple.Aliases -> Cmd.InstrumentDb -> Setup
+with_inst_db aliases db = with_aliases <> with_db
+    where
+    with_db = with_cmd $ set_cmd_config $ \state -> state
+        { Cmd.state_instrument_db = db }
+    with_aliases = with_ui $ State.config#State.aliases #= make_aliases aliases
+
+set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
+set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }
 
 -- ** defaults
 
@@ -361,15 +418,49 @@ default_environ = TrackLang.make_environ
     , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
     ]
 
--- *** defaults for instruments
+-- *** instrument defaults
 
 default_db :: Cmd.InstrumentDb
-default_db = Instrument.Db.with_aliases aliases $
-    make_db [("s", map make_patch ["1", "2", "3"])]
+default_db = make_db [("s", map make_patch ["1", "2", "3"])]
+
+make_patch :: Text -> Instrument.Patch
+make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
+
+default_aliases :: Simple.Aliases
+default_aliases = [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
+
+default_midi_config :: Instrument.Configs
+default_midi_config = UiTest.midi_config [("i1", [0..2]), ("i2", [3])]
+
+default_inst_title :: String
+default_inst_title = ">i1"
+
+i1, i2, i3 :: Score.Instrument
+i1 = Score.Instrument "i1"
+i2 = Score.Instrument "i2"
+i3 = Score.Instrument "i3"
+
+default_convert_lookup :: Convert.Lookup
+default_convert_lookup = make_convert_lookup default_aliases default_db
+
+synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.SynthDesc]
+    -> Convert.Lookup
+synth_to_convert_lookup aliases = make_convert_lookup aliases . synth_to_db
+
+synth_to_db :: [Cmd.SynthDesc] -> Cmd.InstrumentDb
+synth_to_db synth_descs =
+    trace_logs (map (Log.msg Log.Warn Nothing) warns) $ Instrument.Db.db midi_db
+    where (midi_db, warns) = MidiDb.midi_db synth_descs
+
+make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup
+make_convert_lookup aliases midi_db =
+    run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state)
+        PlayUtil.get_convert_lookup
     where
-    -- Tests use >i or >i1 rather than the underlying >s/1 and >s/2.
-    aliases = Map.fromList $ map (Score.Instrument *** Score.Instrument)
-        [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
+    setup = with_inst_db aliases midi_db
+
+make_aliases :: Simple.Aliases -> Map.Map Score.Instrument Score.Instrument
+make_aliases = Map.fromList . map (Score.Instrument *** Score.Instrument)
 
 -- ** extract
 
@@ -595,30 +686,7 @@ c_note s_start dur = do
         , Score.event_environ = environ
         }]
 
--- | Not supposed to do this in general, but it's ok for tests.
-modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
-modify_dynamic f = Derive.modify $ \st ->
-    st { Derive.state_dynamic = f (Derive.state_dynamic st) }
-
--- | Really not supposed to do this, but should be *mostly* ok for tests.
--- It's only mostly ok because some values are baked in to e.g. lookup
--- functions.
-modify_constant :: (Derive.Constant -> Derive.Constant)
-    -> Derive.Deriver a -> Derive.Deriver a
-modify_constant f deriver = do
-    Derive.modify $ \st ->
-        st { Derive.state_constant = f (Derive.state_constant st) }
-    deriver
-
 -- * scale
-
-with_scale :: Scale.Scale -> Derive.Deriver a -> Derive.Deriver a
-with_scale scale = modify_constant $ \st ->
-    st { Derive.state_lookup_scale = lookup }
-    where
-    lookup = Derive.LookupScale $ \_ _ scale_id ->
-        if scale_id == Scale.scale_id scale then Just (Right scale)
-            else Nothing
 
 mkscale :: Pitch.ScaleId -> [(Text, Pitch.NoteNumber)] -> Scale.Scale
 mkscale scale_id notes =
@@ -627,55 +695,13 @@ mkscale scale_id notes =
     dmap = Scales.degree_map 8 0 0 (map (Pitch.Note . fst) notes)
         (map snd notes)
 
--- * inst
+-- * older patch creating functions
+-- TODO these have few callers, remove them
 
--- Derive and perform with instrument db.
-
--- | Derive with a bit of the real instrument db.  Useful for testing
--- instrument calls.
-with_inst_db_aliases :: Simple.Aliases -> [Cmd.SynthDesc] -> Derive.Deriver a
-    -> Derive.Deriver a
-with_inst_db_aliases aliases synth_descs = modify_constant $ \const -> const
-    { Derive.state_lookup_instrument =
-        synth_to_derive_instrument aliases synth_descs
-    }
-
-with_inst_db :: [Cmd.SynthDesc] -> Derive.Deriver a -> Derive.Deriver a
-with_inst_db = with_inst_db_aliases mempty
-
-synth_to_derive_instrument :: Simple.Aliases -> [Cmd.SynthDesc]
-    -> Score.Instrument -> Maybe Derive.Instrument
-synth_to_derive_instrument aliases synth_descs inst =
-    fmap Cmd.derive_instrument $ Instrument.Db.db_lookup db inst
-    where db = synth_to_db aliases synth_descs
-
-synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.SynthDesc]
-    -> Convert.Lookup
-synth_to_convert_lookup aliases = make_convert_lookup . synth_to_db aliases
-
-synth_to_db :: Simple.Aliases -> [Cmd.SynthDesc] -> Cmd.InstrumentDb
-synth_to_db aliases synth_descs =
-    with_aliases $ trace_logs (map (Log.msg Log.Warn Nothing) warns) $
-        Instrument.Db.db midi_db
-    where
-    (midi_db, warns) = MidiDb.midi_db synth_descs
-    with_aliases = Instrument.Db.with_aliases
-        (Map.fromList $ map (Score.Instrument *** Score.Instrument) aliases)
-
--- ** older patch creating functions
-
-make_convert_lookup :: Cmd.InstrumentDb -> Convert.Lookup
-make_convert_lookup midi_db = Convert.Lookup
-    { Convert.lookup_scale = default_lookup_scale
-    , Convert.lookup_inst = lookup_inst
-    , Convert.lookup_patch = lookup_patch
-    , Convert.lookup_default_controls = const mempty
-    }
-    where
-    lookup_inst = Instrument.Db.db_lookup_midi midi_db
-    lookup_patch = fmap extract . Instrument.Db.db_lookup midi_db
-    extract info = (MidiDb.info_patch info,
-        Cmd.inst_postproc $ MidiDb.info_code info)
+-- | Not supposed to do this in general, but it's ok for tests.
+modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
+modify_dynamic f = Derive.modify $ \st ->
+    st { Derive.state_dynamic = f (Derive.state_dynamic st) }
 
 make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
 make_db synth_patches = Instrument.Db.db midi_db
@@ -688,7 +714,7 @@ make_db synth_patches = Instrument.Db.db midi_db
         }
 
 lookup_from_insts :: [Score.Instrument] -> Convert.Lookup
-lookup_from_insts = make_convert_lookup . make_db . convert
+lookup_from_insts = make_convert_lookup mempty . make_db . convert
     where
     convert = map (second (map make_patch)) . Seq.keyed_group_on (fst . split)
         . map Score.inst_name
@@ -698,23 +724,6 @@ lookup_from_insts = make_convert_lookup . make_db . convert
 lookup_from_state :: State.State -> Convert.Lookup
 lookup_from_state state = lookup_from_insts $
     Seq.drop_dups id $ Map.keys $ State.config#State.midi #$ state
-
-default_convert_lookup :: Convert.Lookup
-default_convert_lookup = make_convert_lookup default_db
-
-make_patch :: Text -> Instrument.Patch
-make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
-
-default_midi_config :: Instrument.Configs
-default_midi_config = UiTest.midi_config [("i1", [0..2]), ("i2", [3])]
-
-default_inst_title :: String
-default_inst_title = ">i1"
-
-i1, i2, i3 :: Score.Instrument
-i1 = Score.Instrument "i1"
-i2 = Score.Instrument "i2"
-i3 = Score.Instrument "i3"
 
 -- * mkevents
 

@@ -62,37 +62,37 @@ run_control_dur events = extract $
 -- * call map
 
 with_note_generator :: TrackLang.CallId -> Derive.Generator Derive.Note
-    -> Derive.Deriver a -> Derive.Deriver a
-with_note_generator name call = Derive.with_scopes $
+    -> DeriveTest.SetupA a
+with_note_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_generator#Derive.s_note#Derive.s_override
         %= (single_lookup name call :)
 
 with_pitch_generator :: TrackLang.CallId -> Derive.Generator Derive.Pitch
-    -> Derive.Deriver a -> Derive.Deriver a
-with_pitch_generator name call = Derive.with_scopes $
+    -> DeriveTest.SetupA a
+with_pitch_generator name call = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_generator#Derive.s_pitch#Derive.s_override
         %= (single_lookup name call :)
 
 with_control_generator :: TrackLang.CallId -> Derive.Generator Derive.Control
-    -> Derive.Deriver a -> Derive.Deriver a
-with_control_generator name call = Derive.with_scopes $
-    Derive.s_generator#Derive.s_control#Derive.s_override
-        %= (single_lookup name call :)
+    -> DeriveTest.SetupA a
+with_control_generator name call =
+    DeriveTest.with_deriver $ Derive.with_scopes $
+        Derive.s_generator#Derive.s_control#Derive.s_override
+            %= (single_lookup name call :)
 
 with_note_generators :: [(TrackLang.CallId, Derive.Generator Derive.Note)]
-    -> Derive.Deriver a -> Derive.Deriver a
-with_note_generators calls = Derive.with_scopes $
+    -> DeriveTest.SetupA a
+with_note_generators calls = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_generator#Derive.s_note#Derive.s_override %= (lookup_map calls :)
 
 with_note_transformer :: TrackLang.CallId -> Derive.Transformer Derive.Note
-    -> Derive.Deriver a -> Derive.Deriver a
-with_note_transformer name call = Derive.with_scopes $
+    -> DeriveTest.SetupA a
+with_note_transformer name call = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_transformer#Derive.s_note#Derive.s_override
         %= (single_lookup name call :)
 
-with_val_call :: TrackLang.CallId -> Derive.ValCall
-    -> Derive.Deriver a -> Derive.Deriver a
-with_val_call name call = Derive.with_scopes $
+with_val_call :: TrackLang.CallId -> Derive.ValCall -> DeriveTest.SetupA a
+with_val_call name call = DeriveTest.with_deriver $ Derive.with_scopes $
     Derive.s_val#Derive.s_override %= (single_lookup name call :)
 
 single_lookup :: TrackLang.CallId -> call -> Derive.LookupCall call
@@ -105,7 +105,7 @@ lookup_map = Derive.LookupMap . Map.fromList
 
 -- | Run a val call, and return what it returned.
 run_val :: Maybe String -> String -> (Maybe TrackLang.Val, [String])
-run_val transform call = extract $ DeriveTest.derive_tracks_with
+run_val transform call = extract $ DeriveTest.derive_tracks_setup
         (with_note_generator "capture" c_capture) ""
         [(">", [(0, 1, maybe "" (<> " | ") transform
             <> "capture (" <> call <> ")")])]

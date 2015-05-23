@@ -41,6 +41,7 @@ test_convert = do
     let noinst n = mkevent n "4c" "noinst"
         nopitch n = Score.set_pitch mempty $ mkevent n "4c" "s/1"
         good n = mkevent n "4c" "s/1"
+
     equal (convert [noinst 0, nopitch 1, good 2])
         [ Right $ "event requires patch in instrument db: "
             ++ ">noinst (further warnings suppressed)"
@@ -132,7 +133,7 @@ test_patch_scale = do
             , ("*", [(0, 0, "4c"), (1, 0, "4c#"), (2, 0, "4d")])
             ]
     let (evts, _midi, _logs) =
-            DeriveTest.perform (DeriveTest.make_convert_lookup db) config
+            DeriveTest.perform (DeriveTest.make_convert_lookup mempty db) config
                 (Derive.r_events res)
     equal (map (Signal.unsignal . Perform.event_pitch) evts)
         [[(0, 1)], [(1, 1.5)], [(2, 2)]]
@@ -174,11 +175,12 @@ perform :: (Instrument.Patch -> Instrument.Patch, MidiInst.Code)
     -> [(Text, [Midi.Channel])] -> [UiTest.TrackSpec]
     -> (Derive.Result, ([Perform.Event], [Midi.WriteMessage], [Log.Msg]))
 perform (set_patch, code) alloc tracks =
-    (result, DeriveTest.perform_inst synth alloc (Derive.r_events result))
+    (result, DeriveTest.perform_inst mempty synth alloc
+        (Derive.r_events result))
     where
     synth = mksynth code set_patch
-    result = DeriveTest.derive_tracks_with (DeriveTest.with_inst_db synth) ""
-        tracks
+    result = DeriveTest.derive_tracks_setup
+        (DeriveTest.with_synth_descs mempty synth) "" tracks
 
 mksynth :: MidiInst.Code -> (Instrument.Patch -> Instrument.Patch)
     -> [MidiInst.SynthDesc]

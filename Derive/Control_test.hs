@@ -151,7 +151,7 @@ test_stash_signal = do
     let itrack = (">i", [])
         ctrack = ("cont", [(0, 0, "1"), (1, 0, "0")])
         csig = [(0, 1), (1, 0)]
-    let run tracks = e_tsigs $ DeriveTest.derive_tracks_with_ui id
+    let run tracks = e_tsigs $ DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsig_tracknums [1 .. length tracks]) "" tracks
     let tsig samples p x = (samples, p, x)
 
@@ -184,7 +184,7 @@ test_stash_signal = do
         [(csig, 0, 1)]
 
 test_signal_fragments = do
-    let run tsig_tracks = e_tsigs . DeriveTest.derive_tracks_with_ui id
+    let run tsig_tracks = e_tsigs . DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsigs tsig_tracks) ""
     equal (run [UiTest.mk_tid 2]
             [ (">", [(0, 1, ""), (1, 1, "")])
@@ -199,10 +199,11 @@ test_signal_fragments = do
 
 test_stash_signal_default_tempo = do
     -- Signal is stretched by the default tempo.
-    let r = e_tsigs $ DeriveTest.derive_tracks_with_ui id
-            (DeriveTest.with_tsig_tracknums [1] . set_tempo) ""
+    let r = e_tsigs $ DeriveTest.derive_tracks_setup
+            (DeriveTest.with_tsig_tracknums [1] <> set_tempo) ""
             [("*", [(0, 0, "4c"), (10, 0, "4d"), (20, 0, "4c")])]
-        set_tempo = State.config#State.default_#State.tempo #= 2
+        set_tempo = DeriveTest.with_ui $
+            State.config#State.default_#State.tempo #= 2
     equal r [([(0, 60), (5, 62), (10, 60)], 0, 0.5)]
 
 e_tsigs :: Derive.Result -> [([(RealTime, Signal.Y)], ScoreTime, ScoreTime)]

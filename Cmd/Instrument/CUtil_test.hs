@@ -65,14 +65,15 @@ set_edit_mode val_edit state = state
     }
 
 test_drum_instrument = do
-    let run = DeriveTest.derive_tracks_with (DeriveTest.with_inst_db drum_synth)
-            ""
-        extract = DeriveTest.extract $ \e -> DeriveTest.e_attributes e
-    let result = run [(">synth/x", [(0, 0, "bd"), (1, 0, "sn")])]
+    let run = DeriveTest.derive_tracks_setup
+            (DeriveTest.with_synth_descs aliases drum_synth) ""
+        aliases = [("x", "synth/x")]
+        extract = DeriveTest.extract DeriveTest.e_attributes
+    let result = run [(">x", [(0, 0, "bd"), (1, 0, "sn")])]
     equal (extract result) (["+bd", "+snare"], [])
 
-    let (_, midi, logs) = DeriveTest.perform_inst drum_synth [("synth/x", [0])]
-            (Derive.r_events result)
+    let (_, midi, logs) = DeriveTest.perform_inst aliases drum_synth
+            [("x", [0])] (Derive.r_events result)
     equal logs []
     let e_midi = Seq.map_maybe_snd Midi.channel_message
             . filter (Midi.is_note . snd) . DeriveTest.extract_midi

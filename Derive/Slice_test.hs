@@ -232,7 +232,7 @@ extract_notes f = map $ map $ \(s, e, t) -> (s, e, map (fmap f) t)
 
 test_slur = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_with_ui with DeriveTest.with_linear ""
+            . DeriveTest.derive_tracks_setup (with <> DeriveTest.with_linear) ""
         extract e =
             ( DeriveTest.e_note e
             , DeriveTest.e_environ_like ("ly-" `List.isPrefixOf`) e

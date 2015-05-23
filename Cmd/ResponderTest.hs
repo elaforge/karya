@@ -49,6 +49,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Repl as Repl
 import qualified Cmd.Responder as Responder
 
+import qualified Derive.DeriveTest as DeriveTest
 import qualified App.Config as Config
 import qualified App.StaticConfig as StaticConfig
 import Global
@@ -66,6 +67,7 @@ mkstates tracks = (ui_state, mk_cmd_state ui_state UiTest.default_view_id)
     where
     ui_state = UiTest.exec State.empty $ do
         UiTest.mkblock_view (UiTest.default_block_name, tracks)
+        DeriveTest.set_defaults
         State.set_selection UiTest.default_view_id Config.insert_selnum $
             Just $ Sel.selection 1 0 1 0
 

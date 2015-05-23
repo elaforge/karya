@@ -217,29 +217,27 @@ partition_logs result = (events, extract_logs (dlogs ++ logs))
     extract_logs = map DeriveTest.show_log . DeriveTest.quiet_filter_logs
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = derive_tracks_with_ui id id
+derive_tracks = derive_tracks_setup mempty
 
 derive_tracks_linear :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_linear = derive_tracks_with_ui id DeriveTest.with_linear
+derive_tracks_linear = derive_tracks_setup DeriveTest.with_linear
 
-derive_tracks_with_ui :: (Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> (State.State -> State.State) -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks_with_ui with transform_ui tracks =
-    derive_blocks_with_ui with transform_ui
-        [(UiTest.default_block_name, tracks)]
+derive_tracks_setup :: DeriveTest.Setup -> [UiTest.TrackSpec] -> Derive.Result
+derive_tracks_setup setup tracks =
+    derive_blocks_setup setup [(UiTest.default_block_name, tracks)]
 
 derive_blocks :: [UiTest.BlockSpec] -> Derive.Result
-derive_blocks = derive_blocks_with_ui id id
+derive_blocks = derive_blocks_setup mempty
 
-derive_blocks_with_ui :: (Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> (State.State -> State.State) -> [UiTest.BlockSpec] -> Derive.Result
-derive_blocks_with_ui with transform_ui blocks =
-    derive_lilypond state $ with $ Derive.with_imported True Module.europe $
+derive_blocks_setup :: DeriveTest.Setup -> [UiTest.BlockSpec] -> Derive.Result
+derive_blocks_setup setup blocks =
+    derive_lilypond state $ DeriveTest.setup_deriver setup $
+        Derive.with_imported True Module.europe $
         Derive.with_imported True Module.ly deriver
     where
     deriver = Prelude.Block.eval_root_block global_transform bid
     global_transform = State.config#State.global_transform #$ state
-    state = transform_ui state_
+    state = DeriveTest.setup_ui setup state_
     (bid:_, state_) = DeriveTest.mkblocks blocks
 
 derive_lilypond :: State.State -> Derive.NoteDeriver -> Derive.Result

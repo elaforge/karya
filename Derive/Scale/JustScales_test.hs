@@ -153,7 +153,8 @@ make_scale_map relative per_oct =
 
 test_input_to_nn = do
     let scale = ScaleTest.get_scale Just.scales "just"
-    let f = DeriveTest.with_key "c-maj" . Scale.scale_input_to_nn scale 0
+    let f = DeriveTest.setup_deriver (DeriveTest.with_key "c-maj")
+            . Scale.scale_input_to_nn scale 0
         input = CmdTest.ascii_kbd . CmdTest.oct_pc Pitch.middle_octave
         run = second (first prettys) . DeriveTest.eval State.empty . f . input
     equalf 0.01 (run 0) $ Right (Right NN.middle_c)

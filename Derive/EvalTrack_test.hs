@@ -39,7 +39,7 @@ import Types
 
 test_threaded_last_val = do
     let run notes = DeriveTest.extract (DeriveTest.e_control "c") $
-            DeriveTest.derive_tracks_with with_calls ""
+            DeriveTest.derive_tracks_setup with_calls ""
                 [ (">", [(t, 1, "") | (t, _) <- events])
                 , ("c", [(t, 0, s) | (t, s) <- events])
                 ]
@@ -66,8 +66,8 @@ test_threaded_last_val = do
                     else []
 
 test_threaded_last_event = do
-    let run = snd . DeriveTest.extract id . DeriveTest.derive_tracks_with_ui
-            with_calls DeriveTest.with_linear ""
+    let run = snd . DeriveTest.extract id . DeriveTest.derive_tracks_setup
+            (with_calls <> DeriveTest.with_linear) ""
         with_calls = CallTest.with_note_generator "prev" n_prev
     equal (run [(">", [(0, 1, ""), (1, 1, "prev")])]) ["0.0"]
     -- Get last event when both are inverted.
@@ -143,7 +143,7 @@ test_environ_across_tracks = do
         ([interpolated], [])
 
 test_call_errors = do
-    let derive = extract . DeriveTest.derive_tracks_with with_trans ""
+    let derive = extract . DeriveTest.derive_tracks_setup with_trans ""
         with_trans = CallTest.with_note_transformer "test-t" trans
         extract r = case DeriveTest.extract DeriveTest.e_event r of
             (val, []) -> Right val
@@ -174,7 +174,7 @@ test_call_errors = do
 
 test_val_call = do
     let extract = DeriveTest.extract (DeriveTest.e_control "cont")
-    let run evt = extract $ DeriveTest.derive_tracks_with with_add1 ""
+    let run evt = extract $ DeriveTest.derive_tracks_setup with_add1 ""
             [(">", [(0, 1, "")]), ("cont", [(0, 0, evt)])]
         with_add1 = CallTest.with_val_call "add1" add_one
     strings_like (snd (run "foobar")) ["control generator not found: foobar"]
@@ -190,7 +190,7 @@ test_val_call = do
 
 test_inst_call = do
     let extract = DeriveTest.extract (Score.attrs_list . Score.event_attributes)
-    let run inst = extract $ DeriveTest.derive_tracks_with
+    let run inst = extract $ DeriveTest.derive_tracks_setup
             (set_lookup_inst lookup_inst) ""
             [(inst, [(0, 1, "sn")])]
     equal (run ">s/1") ([], ["Error: note generator not found: sn"])
@@ -200,7 +200,7 @@ test_inst_call = do
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events
     -- via the track_around hackery.
-    let logs = extract $ DeriveTest.derive_tracks_with with_call ""
+    let logs = extract $ DeriveTest.derive_tracks_setup with_call ""
             [ (">", [(0, 1, ""), (1, 1, "around"), (2, 1, "")])
             , ("*twelve", [(0, 0, "4c"), (2, 0, "4d")])
             ]
@@ -327,8 +327,8 @@ test_track_dynamic_invert = do
 
 test_orphans = do
     let extract = DeriveTest.extract_events Score.event_start
-    let run = extract . DeriveTest.derive_tracks_with_ui with_calls
-            DeriveTest.with_linear ""
+    let run = extract . DeriveTest.derive_tracks_setup
+            (with_calls <> DeriveTest.with_linear) ""
         with_calls = CallTest.with_note_generator "show" show_subs
     -- uncovered events are still played
     equal (run
@@ -439,8 +439,8 @@ lookup_inst :: Score.Instrument -> Maybe Derive.Instrument
 lookup_inst = fmap Cmd.derive_instrument . MidiDb.lookup_instrument midi_db
 
 set_lookup_inst :: (Score.Instrument -> Maybe Derive.Instrument)
-    -> Derive.Deriver d -> Derive.Deriver d
-set_lookup_inst lookup_inst deriver = do
+    -> DeriveTest.Setup
+set_lookup_inst lookup_inst = DeriveTest.with_deriver $ \deriver -> do
     Derive.modify $ \st -> st
         { Derive.state_constant = (Derive.state_constant st)
             { Derive.state_lookup_instrument = lookup_inst }

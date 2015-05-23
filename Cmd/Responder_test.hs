@@ -18,6 +18,7 @@ import qualified Cmd.Meters as Meters
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Cmd.RulerUtil as RulerUtil
 
+import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 
@@ -29,6 +30,7 @@ test_modify_tempo = do
                 [ ("tempo", [(0, 0, "1")])
                 , (">i", [(0, 1, ""), (1, 1, "")])
                 ])
+            DeriveTest.set_defaults
             CmdTest.set_point_sel 1 0
             rid <- Create.ruler "meter44" $
                 RulerUtil.meter_ruler Meter.default_config 16

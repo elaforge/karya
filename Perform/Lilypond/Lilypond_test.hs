@@ -143,8 +143,7 @@ test_ly_prepend_append = do
 
 test_ly_code = do
     -- Test stand-alone zero-dur code fragments.
-    let f = LilypondTest.measures []
-            . LilypondTest.derive_tracks_with_ui calls id
+    let f = LilypondTest.measures [] . LilypondTest.derive_tracks_setup calls
     -- prepend
     equal (f $
             UiTest.note_track [(0, 1, "4a"), (1, 1, "4b")]
@@ -166,7 +165,7 @@ test_ly_code = do
         (Right "<a' c'>4 pre r4 post <b' d'>4 r4", [])
     where
     calls = CallTest.with_note_generator "pre" c_pre
-        . CallTest.with_note_generator "post" c_post
+        <> CallTest.with_note_generator "post" c_post
     c_pre = CallTest.generator $ \args ->
         Lily.code0 (Args.start args) (Lily.Prefix, "pre")
     c_post = CallTest.generator $ \args ->

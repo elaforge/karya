@@ -32,7 +32,7 @@ test_block = do
 
 test_block_logical_range = do
     let run s e tempo sub = DeriveTest.extract DeriveTest.e_start_dur $
-            DeriveTest.derive_blocks_with_ui id
+            DeriveTest.derive_blocks_setup
                 (DeriveTest.with_ruler (UiTest.bid "sub") (mkruler s e))
                 [ ("top", [(">", [(1, 1, "sub")])])
                 , ("sub=ruler", [("tempo", tempo), (">", sub)])

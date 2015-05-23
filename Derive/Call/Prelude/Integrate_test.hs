@@ -15,7 +15,7 @@ import Types
 
 
 test_integrate_track = do
-    let res = DeriveTest.derive_tracks_with (with_damage [2]) ""
+    let res = DeriveTest.derive_tracks_setup (with_damage [2]) ""
             [ ("> | <", [(0, 1, "")])
             , ("*", [(0, 0, "4c")])
             , ("dyn", [(0, 0, "1")])
@@ -28,10 +28,11 @@ test_integrate_track = do
         ([(0, 1, "4c")], [])
     equal (DeriveTest.extract DeriveTest.e_note res) ([(0, 2, "?")], [])
 
-with_damage :: [TrackNum] -> Derive.Deriver a -> Derive.Deriver a
+with_damage :: [TrackNum] -> DeriveTest.Setup
 with_damage tracknums = DeriveTest.modify_constant $ \st ->
     st { Derive.state_score_damage = mkdamage tracknums }
 
+mkdamage :: [TrackNum] -> Derive.ScoreDamage
 mkdamage tracknums = mempty
     { Derive.sdamage_tracks =
         Map.fromList [(UiTest.mk_tid n, Ranges.range 0 1) | n <- tracknums]

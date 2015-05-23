@@ -24,12 +24,12 @@ test_strip_attrs = do
 
 test_natural_harmonic = do
     let run inst attrs pitch = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_with with "" $
+            DeriveTest.derive_tracks_setup with "" $
                 [ (inst, [(0, 1, attrs)])
                 , ("*", [(0, 0, pitch)])
                 ]
         extract = Midi.to_key . maybe 0 round . Score.initial_nn
-        with = DeriveTest.with_inst_db Vsl.synth_descs
+        with = DeriveTest.with_synth_descs mempty Vsl.synth_descs
     equal (run ">vsl/violin" "+harm+nat" "4c")
         ([], ["Error: c4 unplayable on [+g, +d, +a, +e]"])
     equal (run ">vsl/violin" "+harm+nat" "3g") ([Key.c3], [])

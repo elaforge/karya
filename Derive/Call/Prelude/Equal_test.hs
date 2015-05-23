@@ -48,17 +48,19 @@ test_equal_modify = do
 
 test_equal_inst = do
     let run with_ui title track = DeriveTest.extract DeriveTest.e_inst $
-            DeriveTest.derive_tracks_with_ui id with_ui title
+            DeriveTest.derive_tracks_setup with_ui title
                 [(track, [(0, 1, "")])]
-    strings_like (snd $ run id ">new = hi" ">new") ["expected an instrument"]
-    strings_like (snd $ run id ">new = >nonexistent" ">new")
+    strings_like (snd $ run mempty ">new = hi" ">new")
+        ["expected an instrument"]
+    strings_like (snd $ run mempty ">new = >nonexistent" ">new")
         ["no instrument found for >nonexistent"]
-    equal (run id ">new = >s/1" ">new") (["s/1"], [])
-    equal (run id ">new = >s/1 | >newer = >new" ">newer") (["s/1"], [])
+    equal (run mempty ">new = >s/1" ">new") (["s/1"], [])
+    equal (run mempty ">new = >s/1 | >newer = >new" ">newer") (["s/1"], [])
 
     -- Alias to an instrument that doesn't exist.
-    let with_alias to = State.config#State.aliases %= Map.insert
-            (Score.Instrument "alias") (Score.Instrument to)
+    let with_alias to = DeriveTest.with_ui $
+            State.config#State.aliases
+                %= Map.insert (Score.Instrument "alias") (Score.Instrument to)
     equal (run (with_alias "s/1") "" ">alias") (["alias"], [])
     equal (run (with_alias "s/1") ">new = >alias" ">new") (["alias"], [])
 

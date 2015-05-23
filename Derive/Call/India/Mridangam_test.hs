@@ -45,13 +45,13 @@ test_infer_pattern = do
         (zip [1, 3, 5, 6, 7] attrs, [])
 
 derive_tracks2 :: String -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks2 title notes = DeriveTest.derive_tracks_with with_synth
+derive_tracks2 title notes = DeriveTest.derive_tracks_setup with_synth
     ("import india.mridangam" <> title) notes
 
 derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
-derive_tracks title notes = DeriveTest.derive_tracks_with with_synth
+derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
     ("import india.mridangam" <> title)
     [(">kontakt/mridangam", notes)]
 
-with_synth :: Derive.Deriver a -> Derive.Deriver a
-with_synth = DeriveTest.with_inst_db Kontakt.synth_descs
+with_synth :: DeriveTest.Setup
+with_synth = DeriveTest.with_synth_descs mempty Kontakt.synth_descs

@@ -57,7 +57,7 @@ test_tuplet = do
 
 test_tuplet_multiple_tracks = do
     let run = DeriveTest.extract_events extract
-            . DeriveTest.derive_tracks_with_ui id
+            . DeriveTest.derive_tracks_setup
                 (DeriveTest.with_skel [(1, 2), (1, 3)]) ""
         extract e = (Score.event_instrument e, Score.event_start e,
             Score.event_duration e)
@@ -126,7 +126,7 @@ test_tuplet_ly = do
 
 test_arpeggio = do
     let run = DeriveTest.extract_events DeriveTest.e_note
-            . DeriveTest.derive_tracks_with_ui id
+            . DeriveTest.derive_tracks_setup
                 (DeriveTest.with_skel [(1, 2), (2, 3), (1, 4), (4, 5)]) ""
     let tracks arp =
             [ (">", [(10, 0, arp)])

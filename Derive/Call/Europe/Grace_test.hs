@@ -81,8 +81,8 @@ test_grace = do
 
     -- Ensure grace works with attr legato.
     let run_a = DeriveTest.extract DeriveTest.e_attributes
-            . DeriveTest.derive_tracks_with with "import europe"
-        with = CallTest.with_note_generator "(" Articulation.c_attr_legato
+            . DeriveTest.derive_tracks_setup setup "import europe"
+        setup = CallTest.with_note_generator "(" Articulation.c_attr_legato
     equal (run_a $ tracks [(0, 1, "g (4a) (4b)")])
         (["+legato", "+legato", "+legato"], [])
 
@@ -121,13 +121,14 @@ test_grace_ly = do
 
 test_grace_attr = do
     let run note = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_with with_call "import europe"
+            DeriveTest.derive_tracks_setup setup_call "import europe"
                 [ ("> | %legato-overlap = .5 | grace-dur = 1", [note])
                 , ("*", [(0, 0, "4c")])
                 ]
         extract e = (DeriveTest.e_start_dur e, DeriveTest.e_pitch e,
             DeriveTest.e_attributes e)
-        with_call = CallTest.with_note_generator "g" (Grace.c_grace_attr graces)
+        setup_call =
+            CallTest.with_note_generator "g" (Grace.c_grace_attr graces)
     -- Attrs when it can.
     equal (run (0, 1, "g (3bb)"))
         ([((-1, 2), "4c", "+up+whole")], [])

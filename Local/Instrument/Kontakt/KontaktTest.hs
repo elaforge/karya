@@ -14,12 +14,12 @@ import Global
 
 
 derive :: String -> [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_with with_synth
+derive = DeriveTest.derive_tracks_setup with_synth
 
-with_synth :: Derive.Deriver a -> Derive.Deriver a
-with_synth = DeriveTest.with_inst_db Kontakt.synth_descs
+with_synth :: DeriveTest.Setup
+with_synth = DeriveTest.with_synth_descs mempty Kontakt.synth_descs
 
 perform :: [Text] -> Derive.Events
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
-perform insts = DeriveTest.perform_inst Kontakt.synth_descs
+perform insts = DeriveTest.perform_inst mempty Kontakt.synth_descs
     [(inst, [n]) | (n, inst) <- zip [0..] insts]

@@ -65,7 +65,7 @@ test_control_call = do
 
 test_track_voice = do
     let run skel = DeriveTest.extract extract
-            . DeriveTest.derive_tracks_with_ui id (DeriveTest.with_skel skel) ""
+            . DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""
         extract :: Score.Event -> Maybe Int
         extract = DeriveTest.e_environ_val Environ.track_voice
         track inst = (inst, [(0, 1, "")])

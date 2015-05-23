@@ -361,6 +361,7 @@ test_sliced_score_damage = do
     -- ScoreDamage to invalidate it.
     let create = do
             UiTest.mkblocks_skel blocks
+            DeriveTest.set_defaults
             return $ UiTest.bid "b9"
     let (_prev, cached, uncached) = compare_cached create $
             insert_event "b9.t3" 4 0 "7c"
@@ -380,7 +381,10 @@ test_sliced_score_damage = do
 test_sliced_control_damage = do
     -- Ensure that control damage properly invalidates a call that has been
     -- sliced and shifted.
-    let create = UiTest.mkblocks_skel blocks >> return (UiTest.bid "top")
+    let create = do
+            UiTest.mkblocks_skel blocks
+            DeriveTest.set_defaults
+            return (UiTest.bid "top")
     let (_prev, cached, uncached) = compare_cached create $
             insert_event "top.t1" 6 0 "0"
     equal (diff_events cached uncached) []
@@ -669,9 +673,6 @@ test_track_cache2 = do
 
 -- ** support
 
-mkblock :: State.M m => [UiTest.TrackSpec] -> m BlockId
-mkblock tracks = fst <$> UiTest.mkblock ("top", tracks)
-
 mk_tid :: TrackNum -> TrackId
 mk_tid = UiTest.mk_tid_name "top"
 
@@ -724,7 +725,11 @@ uncache (Derive.Cache cache) = cache
 mkblocks :: State.M m => [UiTest.BlockSpec] -> m BlockId
 mkblocks blocks = do
     bid : _ <- UiTest.mkblocks blocks
+    DeriveTest.set_defaults
     return bid
+
+mkblock :: State.M m => [UiTest.TrackSpec] -> m BlockId
+mkblock tracks = mkblocks [("top", tracks)]
 
 -- | Derive with and without the cache, and make sure the cache fired and the
 -- results are the same.  Returns (result before modification, cached,
@@ -759,9 +764,8 @@ run_cached root_id result state1 modify =
 
 derive_block_cache :: Derive.Cache -> Derive.ScoreDamage -> State.State
     -> BlockId -> Derive.Result
-derive_block_cache cache damage =
-    DeriveTest.derive_block_standard DeriveTest.default_cmd_state cache damage
-        id
+derive_block_cache =
+    DeriveTest.derive_block_standard mempty DeriveTest.default_cmd_state
 
 insert_event :: State.M m => String -> ScoreTime -> ScoreTime -> Text -> m ()
 insert_event tid pos dur text =

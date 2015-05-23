@@ -16,6 +16,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.NN as NN
 import qualified Perform.Signal as Signal
+import Global
 
 
 test_sub_tracks = do
@@ -55,9 +56,9 @@ test_sub_tracks = do
         ]
 
 test_derive_track_signals = do
-    let run tracknum source = extract . DeriveTest.derive_tracks_with_ui id
+    let run tracknum source = extract . DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsig_sources [(UiTest.mk_tid tracknum, source)]
-                . DeriveTest.with_linear)
+                <> DeriveTest.with_linear)
             ""
         extract = Map.toList
             . Map.map (Signal.unsignal . Track.ts_signal)
@@ -86,9 +87,9 @@ test_stash_signal = do
     let run wanted tempo tracks =
             lookup (UiTest.default_block_id, UiTest.mk_tid 2) $
             DeriveTest.e_tsigs $
-            DeriveTest.derive_tracks_with_ui id (want wanted) "" $
+            DeriveTest.derive_tracks_setup (want wanted) "" $
                 ("tempo", tempo) : (">", [(0, 1, ""), (1, 1, "")]) : tracks
-        want control state = UiTest.exec state $
+        want control = DeriveTest.with_ui $ \state -> UiTest.exec state $
             State.set_render_style (Track.Line (Just control)) (UiTest.mk_tid 2)
         dyn = Track.Control Score.c_dynamic
         pitch = Track.Pitch Score.default_pitch

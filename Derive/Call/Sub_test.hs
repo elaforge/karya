@@ -52,10 +52,10 @@ test_inverting_block = do
 
 test_under_invert = do
     let run under_invert = DeriveTest.extract (DeriveTest.e_control "out")
-            . DeriveTest.derive_tracks_with (call under_invert) ""
+            . DeriveTest.derive_tracks_setup (call under_invert) ""
         call under_invert =
             CallTest.with_note_transformer "t" (trans under_invert)
-            . CallTest.with_note_generator "g" gen
+            <> CallTest.with_note_generator "g" gen
 
     -- A normal call sees the outer "c".
     equal (run False

@@ -89,7 +89,7 @@ test_tremolo_transformer = do
 
 test_chord_tremolo = do
     let run dur notes1 notes2 = DeriveTest.extract DeriveTest.e_pitch $
-            DeriveTest.derive_tracks_with_ui id skel "" $
+            DeriveTest.derive_tracks_setup skel "" $
                 (">", [(0, dur, "trem 1s")])
                 : concatMap UiTest.note_track [notes1, notes2]
         skel = DeriveTest.with_skel [(1, 2), (1, 4), (2, 3), (4, 5)]
