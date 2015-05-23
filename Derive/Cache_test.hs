@@ -254,9 +254,13 @@ test_failed_sub_track = do
             ]
     let (_, cached, uncached) = compare_cached create $
             State.set_track_title (UiTest.tid "sub.t1") "*broken"
-    -- TODO shouldn't I be checking this?
-    pprint (r_all_logs cached)
-    equal (diff_events cached uncached) []
+    equal (diff_events cached uncached) expect_no_events
+    strings_like (r_all_logs cached)
+        [ "sub.t1 * get_scale: unknown"
+        , "sub.t1 5-6: * get_scale: unknown"
+        , "top.t1 * sub-block damage"
+        , "top * sub-block damage"
+        ]
 
 test_has_score_damage = do
     let create = mkblocks
@@ -359,7 +363,7 @@ test_sliced_score_damage = do
             UiTest.mkblocks_skel blocks
             return $ UiTest.bid "b9"
     let (_prev, cached, uncached) = compare_cached create $
-            insert_event "b9.t2" 4 0 "7c"
+            insert_event "b9.t3" 4 0 "7c"
     equal (diff_events cached uncached) []
     where
     blocks =
@@ -773,10 +777,23 @@ score_damage create modify = Diff.derive_diff state1 state2 updates
     (_, state2, cmd_updates) = run state1 modify
     (updates, _) = Diff.diff cmd_updates state1 state2
 
-diff_events :: Derive.Result -> Derive.Result
-    -> [Either DiffEvent DiffEvent]
-diff_events r1 r2 = Seq.diff (==) (extract r1) (extract r2)
-    where extract = fst . DeriveTest.extract simple_event
+-- | 'diff_events' returns this when there were no events to diff.
+expect_no_events :: [Either DiffEvent DiffEvent]
+expect_no_events = [Left (0, 0, "NO EVENTS TO DIFF", 0)]
+
+diff_events :: Derive.Result -> Derive.Result -> [Either DiffEvent DiffEvent]
+diff_events r1 r2
+    -- Without this check it's easy for a test to pass if the derive just
+    -- crashes and produces no events.
+    -- This is a hack, but otherwise I have to remember to stick a "check not
+    -- null" line on every test.  In practice, I don't expect any test to
+    -- produce zero events.
+    | null x1 && null x2 = expect_no_events
+    | otherwise = Seq.diff (==) x1 x2
+    where
+    x1 = extract r1
+    x2 = extract r2
+    extract = fst . DeriveTest.extract simple_event
 
 -- | (start, dur, pitch, initial_dyn)
 type DiffEvent = (RealTime, RealTime, String, Double)
