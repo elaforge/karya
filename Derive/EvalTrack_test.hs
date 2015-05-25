@@ -12,7 +12,6 @@ import Util.Test
 
 import qualified Ui.Event as Event
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -32,10 +31,12 @@ import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Signal as Signal
-import qualified Instrument.MidiDb as MidiDb
 import Global
 import Types
 
+
+module_ :: Module.Module
+module_ = "test-module"
 
 test_threaded_last_val = do
     let run notes = DeriveTest.extract (DeriveTest.e_control "c") $
@@ -189,13 +190,20 @@ test_val_call = do
         \val _ -> return (val + 1 :: Double)
 
 test_inst_call = do
-    let extract = DeriveTest.extract (Score.attrs_list . Score.event_attributes)
-    let run inst = extract $ DeriveTest.derive_tracks_setup
-            (set_lookup_inst lookup_inst) ""
+    let run inst = DeriveTest.extract DeriveTest.e_attributes $
+            DeriveTest.derive_tracks_setup with_inst ""
             [(inst, [(0, 1, "sn")])]
-    equal (run ">s/1") ([], ["Error: note generator not found: sn"])
-    equal (run ">s/with-call")
-        ([["snare"]], [])
+        with_inst = DeriveTest.with_synth_descs
+            [("i1", "s/1"), ("with-call", "s/with-call")] sdescs
+    equal (run ">i1") ([], ["Error: note generator not found: sn"])
+    equal (run ">with-call") (["+snare"], [])
+    where
+    sdescs = MidiInst.make $ (MidiInst.softsynth "s" "test synth" (-2, 2) [])
+        { MidiInst.extra_patches = [(patch, code)] }
+    code = MidiInst.note_generators [("sn", DUtil.attrs_note Attrs.snare)]
+    patch = Instrument.attribute_map
+            #= Instrument.simple_keymap [(Attrs.snare, 42)] $
+        DeriveTest.make_patch "with-call"
 
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events
@@ -420,32 +428,3 @@ test_orphan_ranges = do
         , (">", [(0, 1, "")])
         ])
         ([[(0, 60), (10, 62)]], [])
-
--- * implementation
-
-patch :: Instrument.Patch
-patch =
-    Instrument.attribute_map #= Instrument.simple_keymap [(Attrs.snare, 42)] $
-    Instrument.patch (Instrument.instrument "with-call" [] (-1, 1))
-
-midi_db :: MidiDb.MidiDb Cmd.InstrumentCode
-(midi_db, _) = MidiDb.midi_db sdescs
-    where
-    sdescs = MidiInst.make $ (MidiInst.softsynth "s" "test synth" (-2, 2) [])
-        { MidiInst.extra_patches = [(patch, code)] }
-    code = MidiInst.note_generators [("sn", DUtil.attrs_note Attrs.snare)]
-
-lookup_inst :: Score.Instrument -> Maybe Derive.Instrument
-lookup_inst = fmap Cmd.derive_instrument . MidiDb.lookup_instrument midi_db
-
-set_lookup_inst :: (Score.Instrument -> Maybe Derive.Instrument)
-    -> DeriveTest.Setup
-set_lookup_inst lookup_inst = DeriveTest.with_deriver $ \deriver -> do
-    Derive.modify $ \st -> st
-        { Derive.state_constant = (Derive.state_constant st)
-            { Derive.state_lookup_instrument = lookup_inst }
-        }
-    deriver
-
-module_ :: Module.Module
-module_ = "test-module"

@@ -46,7 +46,7 @@ extract_rights = unwords . map (expect_right "expected only ly")
 
 process :: [Types.Event] -> Either String [Output]
 process events = first untxt $
-    Process.process Types.default_config 0 (map mkmeter meters) events
+    Process.process default_config 0 (map mkmeter meters) events
     where
     end = fromMaybe 0 $ Seq.maximum $ map Types.event_end events
     bars = ceiling (time_to_wholes end)
@@ -54,7 +54,7 @@ process events = first untxt $
 
 process_meters :: [String] -> [Types.Event] -> Either String [Output]
 process_meters meters = first untxt
-    . Process.process Types.default_config 0 (map mkmeter meters)
+    . Process.process default_config 0 (map mkmeter meters)
 
 -- * extract
 
@@ -102,7 +102,7 @@ unwords_right = go
 -- * make data
 
 mkstate :: [String] -> Process.State
-mkstate meters = Process.make_state Types.default_config 0 (map mkmeter meters)
+mkstate meters = Process.make_state default_config 0 (map mkmeter meters)
     Process.default_key
 
 mkmeter :: String -> Meter.Meter
@@ -172,7 +172,7 @@ convert_staves wanted events = first untxt $
     map extract_staves <$> Lilypond.convert_staff_groups default_config 0 events
     where
     extract_staves (Lilypond.StaffGroup inst staves) =
-        (untxt $ Types.inst_name inst, map show_staff staves)
+        (untxt $ Score.inst_name inst, map show_staff staves)
     show_staff = unwords . mapMaybe (either show_voices show_ly)
     show_ly ly
         | is_wanted code = Just code
@@ -212,7 +212,7 @@ partition_logs result = (events, extract_logs (dlogs ++ logs))
     where
     (events, logs) = LEvent.partition $ Convert.convert config $
         LEvent.events_of $ Derive.r_events result
-    config = Types.default_config { Types.config_quarter_duration = 1 }
+    config = default_config { Types.config_quarter_duration = 1 }
     dlogs = LEvent.logs_of (Derive.r_events result)
     extract_logs = map DeriveTest.show_log . DeriveTest.quiet_filter_logs
 

@@ -120,7 +120,8 @@ empty_staff_config = StaffConfig
     }
 
 default_staff_config :: Score.Instrument -> StaffConfig
-default_staff_config inst = empty_staff_config { staff_long = inst_name inst }
+default_staff_config inst =
+    empty_staff_config { staff_long = Score.inst_name inst }
 
 -- | This is emitted for every staff, regardless of its 'staff_code'.
 global_staff_code :: [Text]
@@ -133,9 +134,6 @@ global_staff_code =
     -- all of them.
     , "\\override Score.BarNumber.break-visibility = ##(#f #t #t)"
     ]
-
-inst_name :: Score.Instrument -> Instrument
-inst_name = Text.dropWhile (=='/') . Text.dropWhile (/='/') . Score.inst_name
 
 -- * Duration
 

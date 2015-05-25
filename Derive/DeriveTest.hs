@@ -239,7 +239,7 @@ set_defaults = State.modify set_default_midi_config
 set_default_midi_config :: State.State -> State.State
 set_default_midi_config =
     (State.config#State.midi #= default_midi_config)
-    . (State.config#State.aliases #= make_aliases default_aliases)
+    . (State.config#State.aliases #= UiTest.make_aliases default_aliases)
 
 -- * cmd
 
@@ -371,7 +371,8 @@ with_inst_db aliases db = with_aliases <> with_db
     where
     with_db = with_cmd $ set_cmd_config $ \state -> state
         { Cmd.state_instrument_db = db }
-    with_aliases = with_ui $ State.config#State.aliases #= make_aliases aliases
+    with_aliases = with_ui $
+        State.config#State.aliases #= UiTest.make_aliases aliases
 
 set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
 set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }
@@ -458,9 +459,6 @@ make_convert_lookup aliases midi_db =
         PlayUtil.get_convert_lookup
     where
     setup = with_inst_db aliases midi_db
-
-make_aliases :: Simple.Aliases -> Map.Map Score.Instrument Score.Instrument
-make_aliases = Map.fromList . map (Score.Instrument *** Score.Instrument)
 
 -- ** extract
 

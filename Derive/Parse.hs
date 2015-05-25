@@ -336,13 +336,10 @@ p_identifier null_ok until = do
     -- and see if it makes a difference.
     ident <- (if null_ok then A.takeWhile else A.takeWhile1)
         (A.notInClass (until ++ " \n\t|=)"))
-    -- TODO as a hack, null_ok also allows slashes, since p_instrument wants to
-    -- allow a single slash.  Remove the slash and I can get rid of this hack.
-    let stripped = if null_ok then Text.filter (/='/') ident else ident
     -- This forces identifiers to be separated with spaces, except with | and
     -- =.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which I don't
     -- want to support.
-    unless ((null_ok && Text.null ident) || Id.valid stripped) $
+    unless ((null_ok && Text.null ident) || Id.valid ident) $
         fail $ "invalid chars in identifier, expected "
             <> untxt Id.valid_description <> ": " <> show ident
     return ident

@@ -10,6 +10,22 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - format is messed up with
+      (Score.Instrument, Map.Map Score.Instrument Score.Instrument)
+      ( >u
+      , { >i
+              : >kontakt/wayang-isep
+          , >u: >kontakt/wayang-umbang, >w: >kontakt/wayang-pemade
+          }
+      )
+    should be:
+      ( >u
+      , { >i: >kontakt/wayang-isep, >u: >kontakt/wayang-umbang
+        , >w: >kontakt/wayang-pemade
+        }
+      )
+  - test_inst_call uses make_db, generalize make_db
+    . Merge CmdTest.set_insts, and Convert_test.perform_patch
   - move DeriveTest.set_defaults to UiTest so I don't need a separate
     DeriveTest.mkblocks.
   - Convert_test.test_convert is not lazy if the instrument is not found
@@ -33,7 +49,7 @@ UNSORTED
       . not worth it until I don't need to support 7.8, can I suppress the
         warnings?
   * enforce that instrument names obey Id.valid
-  - If I enforce no / in instrument names, I can enforce that you can only use
+  * If I enforce no / in instrument names, I can enforce that you can only use
     a local alias.  This will get rid of confusion where >synth/inst works in
     addition to the aliased name.  Or does it?  In any case, it will probably
     break tests.

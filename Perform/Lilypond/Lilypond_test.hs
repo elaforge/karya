@@ -22,9 +22,9 @@ test_convert_sections = do
     let run = LilypondTest.derive_staves []
     let (events, logs) = run $ concatMap UiTest.note_spec
             -- complicated rhythm
-            [ ("s/i1", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
+            [ ("i1", [(0, 1, "4c"), (1.5, 2, "4d#")], [])
             -- rhythm starts after 0, long multi measure note
-            , ("s/i2", [(1, 1, "4g"), (2, 12, "3a")], [])
+            , ("i2", [(1, 1, "4g"), (2, 12, "3a")], [])
             ]
     equal logs []
     -- Shorter staff is padded out to the length of the longer one, and then to
@@ -91,28 +91,28 @@ test_add_bass_staff = do
 test_hands = do
     let run = LilypondTest.derive_staves
     let (events, logs) = run [] $ concatMap UiTest.note_spec
-            [ ("s/1 | hand = r", [(0, 4, "4c")], [])
-            , ("s/1 | hand = l", [(0, 4, "4d")], [])
-            , ("s/2", [(0, 4, "4e")], [])
+            [ ("i1 | hand = r", [(0, 4, "4c")], [])
+            , ("i1 | hand = l", [(0, 4, "4d")], [])
+            , ("i2", [(0, 4, "4e")], [])
             ]
     equal logs []
     -- Right hand goes in first.
     equal events $ Right
-        [ ("1", ["c'1", "d'1"])
-        , ("2", ["e'1"])
+        [ ("i1", ["c'1", "d'1"])
+        , ("i2", ["e'1"])
         ]
     -- If there are code events for the hand, they get emitted.
     equal (run ["clef"]
-            [ (">s/1 | hand = r", [(0, 4, "")])
+            [ (">i1 | hand = r", [(0, 4, "")])
             , ("*", [(0, 0, "3c")])
-            , (">s/1 | hand = l", [(0, 0, "clef bass")])
+            , (">i1 | hand = l", [(0, 0, "clef bass")])
             ])
-        (Right [("1", ["c1", "\\clef bass R4*4"])], [])
+        (Right [("i1", ["c1", "\\clef bass R4*4"])], [])
 
 test_clefs = do
     let f = LilypondTest.derive_measures ["clef"]
     equal (f
-            [ (">s/1 | clef bass", [(0, 2, ""), (2, 6, "clef alto |")])
+            [ (">i1 | clef bass", [(0, 2, ""), (2, 6, "clef alto |")])
             , ("*", [(0, 0, "4c")])
             ])
         (Right "\\clef bass c'2 \\clef alto c'2~ | c'1", [])
@@ -120,7 +120,7 @@ test_clefs = do
 test_key = do
     let f = LilypondTest.derive_measures ["key"]
     equal (f
-            [ (">s/1 | key = a-mixolydian",
+            [ (">i1 | key = a-mixolydian",
                 [(0, 2, ""), (2, 2, "key = c-maj |")])
             , ("*", [(0, 0, "4c")])
             ])
@@ -213,7 +213,7 @@ test_tempo = do
     let (events, logs) = LilypondTest.extract extract $
             LilypondTest.derive_tracks
                 [ ("tempo", [(0, 0, "3")])
-                , (">s/1", [(0, 4, ""), (4, 4, "")])
+                , (">i1", [(0, 4, ""), (4, 4, "")])
                 , ("*", [(0, 0, "4c")])
                 ]
         extract e = (Types.event_start e, Types.event_duration e)

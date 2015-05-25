@@ -62,22 +62,3 @@ size db = MidiDb.size (db_midi_db db)
 -- | All the synths in the db.
 synths :: Db code -> [Instrument.SynthName]
 synths = Map.keys . MidiDb.midi_db_map . db_midi_db
-
--- | Add alias instrument names to the db.  This is used to create
--- score-specific names for instruments, and to instantiate a single instrument
--- multiple times.
-with_aliases :: Map.Map Score.Instrument Score.Instrument -> Db code -> Db code
-with_aliases aliases db
-    | Map.null aliases = db
-    | otherwise = db
-        { db_lookup_midi = \inst ->
-            (Instrument.score #= inst) <$> db_lookup_midi db (resolve inst)
-        , db_lookup = \inst -> set_info inst <$> db_lookup db (resolve inst)
-        }
-    where
-    -- Update Instrument.inst_score with the alias name.
-    set_info alias info = info
-        { MidiDb.info_patch = Instrument.instrument_#Instrument.score #= alias $
-            MidiDb.info_patch info
-        }
-    resolve inst = Map.findWithDefault inst inst aliases

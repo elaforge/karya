@@ -6,6 +6,7 @@ module Local.Instrument.Kontakt.KontaktTest where
 import qualified Util.Log as Log
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
+import qualified Cmd.Simple as Simple
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Midi.Perform as Perform
@@ -13,13 +14,13 @@ import qualified Local.Instrument.Kontakt as Kontakt
 import Global
 
 
-derive :: String -> [UiTest.TrackSpec] -> Derive.Result
-derive = DeriveTest.derive_tracks_setup with_synth
+derive :: Simple.Aliases -> String -> [UiTest.TrackSpec] -> Derive.Result
+derive = DeriveTest.derive_tracks_setup . with_synth
 
-with_synth :: DeriveTest.Setup
-with_synth = DeriveTest.with_synth_descs mempty Kontakt.synth_descs
+with_synth :: Simple.Aliases -> DeriveTest.Setup
+with_synth aliases = DeriveTest.with_synth_descs aliases Kontakt.synth_descs
 
-perform :: [Text] -> Derive.Events
+perform :: Simple.Aliases -> Derive.Events
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
-perform insts = DeriveTest.perform_inst mempty Kontakt.synth_descs
-    [(inst, [n]) | (n, inst) <- zip [0..] insts]
+perform aliases = DeriveTest.perform_inst aliases Kontakt.synth_descs
+    [(inst, [n]) | (n, inst) <- zip [0..] (map fst aliases)]

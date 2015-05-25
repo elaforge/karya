@@ -143,14 +143,13 @@ get_constant :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
 get_constant cache damage = do
     ui_state <- State.get
     lookup_scale <- Cmd.gets $ Cmd.state_lookup_scale . Cmd.state_config
-    lookup_inst <- get_lookup
+    lookup_inst <- Cmd.get_lookup_instrument
     library <- Cmd.gets $ Cmd.state_library . Cmd.state_config
     defs_library <- get_library
     return $ Derive.initial_constant ui_state (defs_library <> library)
-        lookup_scale lookup_inst cache damage
+        lookup_scale (adapt lookup_inst) cache damage
     where
-    get_lookup :: Cmd.M m => m (Score.Instrument -> Maybe Derive.Instrument)
-    get_lookup = (fmap Cmd.derive_instrument .) <$> Cmd.get_lookup_instrument
+    adapt lookup = \inst -> Cmd.derive_instrument <$> lookup inst
 
 initial_dynamic :: Derive.Dynamic
 initial_dynamic = Derive.initial_dynamic initial_environ

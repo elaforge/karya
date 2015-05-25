@@ -35,6 +35,7 @@ import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
+import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
 import qualified App.Config as Config
@@ -447,5 +448,11 @@ midi_config :: [(Text, [Midi.Channel])] -> Instrument.Configs
 midi_config config = Simple.midi_config
     [(inst, map ((,) "test") chans) | (inst, chans) <- config]
 
-set_midi_config :: Instrument.Configs -> State.State -> State.State
-set_midi_config config = flip exec $ State.modify_config $ State.midi #= config
+set_midi_config :: Simple.Aliases -> Instrument.Configs -> State.State
+    -> State.State
+set_midi_config aliases config =
+    (State.config#State.midi #= config)
+    . (State.config#State.aliases #= make_aliases aliases)
+
+make_aliases :: Simple.Aliases -> Map.Map Score.Instrument Score.Instrument
+make_aliases = Map.fromList . map (Score.Instrument *** Score.Instrument)

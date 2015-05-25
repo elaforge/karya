@@ -69,9 +69,9 @@ test_track_voice = do
         extract :: Score.Event -> Maybe Int
         extract = DeriveTest.e_environ_val Environ.track_voice
         track inst = (inst, [(0, 1, "")])
-    equal (run [] [track ">s/1", track ">s/2", track ">s/1", track ">"])
+    equal (run [] [track ">i1", track ">i2", track ">i1", track ">"])
         ([Just 0, Just 0, Just 1, Nothing], [])
-    equal (run [(1, 2), (1, 3)] [(">s/1", []), track ">s/1", track ">s/1"])
+    equal (run [(1, 2), (1, 3)] [(">i1", []), track ">i1", track ">i1"])
         ([Just 1, Just 2], [])
-    equal (run [(1, 2), (1, 3)] [("dyn", []), track ">s/1", track ">s/1"])
+    equal (run [(1, 2), (1, 3)] [("dyn", []), track ">i1", track ">i1"])
         ([Just 0, Just 1], [])

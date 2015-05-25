@@ -30,8 +30,8 @@ test_equal = do
     equal evts [(1, "")]
     strings_like logs ["expected Instrument"]
 
-    equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >s/1 |")])
-        ([(0, "i"), (1, "i2"), (2, "s/1")], [])
+    equal (run ">i" [(0, 1, ""), (1, 1, "inst = >i2 |"), (2, 1, "n >i1 |")])
+        ([(0, "i"), (1, "i2"), (2, "i1")], [])
     equal (run ">" [(0, 1, "inst = >nonexistent |")])
         ([], ["Error: no instrument found for >nonexistent"])
 
@@ -54,8 +54,8 @@ test_equal_inst = do
         ["expected an instrument"]
     strings_like (snd $ run mempty ">new = >nonexistent" ">new")
         ["no instrument found for >nonexistent"]
-    equal (run mempty ">new = >s/1" ">new") (["s/1"], [])
-    equal (run mempty ">new = >s/1 | >newer = >new" ">newer") (["s/1"], [])
+    equal (run mempty ">new = >i1" ">new") (["i1"], [])
+    equal (run mempty ">new = >i1 | >newer = >new" ">newer") (["i1"], [])
 
     -- Alias to an instrument that doesn't exist.
     let with_alias to = DeriveTest.with_ui $

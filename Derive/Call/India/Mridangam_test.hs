@@ -50,8 +50,8 @@ derive_tracks2 title notes = DeriveTest.derive_tracks_setup with_synth
 
 derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
 derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
-    ("import india.mridangam" <> title)
-    [(">kontakt/mridangam", notes)]
+    ("import india.mridangam" <> title) [(">m", notes)]
 
 with_synth :: DeriveTest.Setup
-with_synth = DeriveTest.with_synth_descs mempty Kontakt.synth_descs
+with_synth = DeriveTest.with_synth_descs [("m", "kontakt/mridangam")]
+    Kontakt.synth_descs

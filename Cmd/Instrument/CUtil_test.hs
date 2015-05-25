@@ -31,14 +31,14 @@ import Types
 test_insert_call = do
     let note_on key = Midi.ChannelMessage 0 (Midi.NoteOn key 127)
         note_off key = Midi.ChannelMessage 0 (Midi.NoteOff key 127)
-        empty_tracks = [(">synth/1", [])]
+        empty_tracks = [(">i1", [])]
     -- NoEdit means midi but no note.
     io_equal (insert_call empty_tracks 1 False (CmdTest.key_down 'a'))
         (Right empty_tracks, [note_on Key.c2])
     io_equal (insert_call empty_tracks 1 True (CmdTest.key_down 'a'))
-        (Right [(">synth/1", [(0, 0, "anote")])], [note_on Key.c2])
+        (Right [(">i1", [(0, 0, "anote")])], [note_on Key.c2])
     io_equal (insert_call empty_tracks 1 True (CmdTest.key_up 'a'))
-        (Right [(">synth/1", [])], [note_off Key.c2])
+        (Right [(">i1", [])], [note_off Key.c2])
 
 insert_call :: [UiTest.TrackSpec] -> TrackNum -> Bool -> Msg.Msg
     -> IO (Either String [UiTest.TrackSpec], [Midi.Message])
@@ -49,7 +49,7 @@ insert_call tracks tracknum val_edit msg =
         CUtil.insert_call char_to_call msg
     where
     (ustate, cstate) = CmdTest.set_synths (make_synth note_keys)
-        ["synth/1"] (CmdTest.make_tracks tracks)
+        [("i1", "synth/1")] (CmdTest.make_tracks tracks)
         CmdTest.default_cmd_state
     char_to_call = CUtil.notes_to_calls (map fst note_keys)
     note_keys =

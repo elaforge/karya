@@ -1049,16 +1049,20 @@ get_midi_instrument inst = do
     lookup <- get_lookup_midi_instrument
     require ("get_midi_instrument " <> pretty inst) $ lookup inst
 
+lookup_instrument :: M m => Score.Instrument -> m (Maybe MidiInfo)
+lookup_instrument inst = ($ inst) <$> get_lookup_instrument
+
 get_lookup_midi_instrument :: M m =>
     m (Score.Instrument -> Maybe Instrument.Instrument)
 get_lookup_midi_instrument = do
     aliases <- State.config#State.aliases <#> State.get
-    gets $ Instrument.Db.db_lookup_midi
-        . Instrument.Db.with_aliases aliases . state_instrument_db
-        . state_config
-
-lookup_instrument :: M m => Score.Instrument -> m (Maybe MidiInfo)
-lookup_instrument inst = ($ inst) <$> get_lookup_instrument
+    gets $ lookup_alias aliases . state_instrument_db . state_config
+    where
+    lookup_alias aliases db score_inst = do
+        -- Update Instrument.inst_score with the alias name.
+        inst <- Instrument.Db.db_lookup_midi db
+            =<< Map.lookup score_inst aliases
+        return $! (Instrument.score #= score_inst) inst
 
 -- | Get a function to look up a 'Score.Instrument'.  This is where
 -- 'Ui.StateConfig' is applied to the instrument db, applying aliases
@@ -1068,16 +1072,20 @@ get_lookup_instrument :: M m => m (Score.Instrument -> Maybe MidiInfo)
 get_lookup_instrument = do
     aliases <- State.config#State.aliases <#> State.get
     configs <- State.get_midi_config
-    lookup <- gets $ Instrument.Db.db_lookup
-        . Instrument.Db.with_aliases aliases . state_instrument_db
-        . state_config
-    return $ \inst -> merge_environ configs inst <$> lookup inst
+    lookup <- gets $
+        Instrument.Db.db_lookup . state_instrument_db . state_config
+    return $ \inst -> do
+        info <- lookup =<< Map.lookup inst aliases
+        return $ info
+            { MidiDb.info_patch = merge_environ configs inst $
+                Instrument.instrument_#Instrument.score #= inst $
+                MidiDb.info_patch info
+            }
     where
-    merge_environ configs inst info =
-        info { MidiDb.info_patch = merge $ MidiDb.info_patch info }
-        where
-        merge = (Instrument.environ %= (environ <>))
+    merge_environ configs inst =
+        (Instrument.environ %= (environ <>))
             . (Instrument.scale %= (scale `mplus`))
+        where
         scale = Instrument.config_scale =<< config
         environ = maybe mempty Instrument.config_restricted_environ config
         config = Map.lookup inst configs

@@ -13,7 +13,7 @@ import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Simple as Simple
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -39,8 +39,8 @@ import Types
 
 test_convert = do
     let noinst n = mkevent n "4c" "noinst"
-        nopitch n = Score.set_pitch mempty $ mkevent n "4c" "s/1"
-        good n = mkevent n "4c" "s/1"
+        nopitch n = Score.set_pitch mempty $ mkevent n "4c" "i1"
+        good n = mkevent n "4c" "i1"
 
     equal (convert [noinst 0, nopitch 1, good 2])
         [ Right $ "event requires patch in instrument db: "
@@ -87,7 +87,7 @@ test_rnd_vel = do
 
 test_convert_pitch = do
     let event tsig = DeriveTest.mkevent
-            (0, 1, "4c", [(Controls.diatonic, tsig)], Score.Instrument "s/1")
+            (0, 1, "4c", [(Controls.diatonic, tsig)], DeriveTest.i1)
     equal (convert [event []]) [Left (0, [(0, 60)])]
     equal (convert [event [(0, 1)]]) [Left (0, [(0, 62)])]
     equal (convert [event [(0, 100)]])
@@ -98,7 +98,7 @@ test_convert_pitch = do
     equal (convert [event [(0, 0), (100, 100)]]) [Left (0, [(0, 60)])]
 
     -- Convert applies the environ to pitches.
-    let event = (DeriveTest.mkevent (0, 1, "4i", [], Score.Instrument "s/1"))
+    let event = (DeriveTest.mkevent (0, 1, "4i", [], DeriveTest.i1))
             { Score.event_untransformed_pitch =
                 PitchSignal.signal [(0, DeriveTest.mkpitch legong "4i")]
             }
@@ -128,36 +128,32 @@ show_logs extract =
 -- * patch scale
 
 test_patch_scale = do
-    let res = DeriveTest.derive_tracks ""
-            [ (">s/inst", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+    let (_, (evts, _midi, logs)) = perform patch [("i1", "s/1")]
+            [ (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4c#"), (2, 0, "4d")])
             ]
-    let (evts, _midi, _logs) =
-            DeriveTest.perform (DeriveTest.make_convert_lookup mempty db) config
-                (Derive.r_events res)
+    equal logs []
     equal (map (Signal.unsignal . Perform.event_pitch) evts)
         [[(0, 1)], [(1, 1.5)], [(2, 2)]]
     where
-    db = DeriveTest.make_db [("s", [patch])]
+    patch = Instrument.scale #= Just pscale $ DeriveTest.make_patch "1"
     pscale = Instrument.make_patch_scale "test" [(1, 60), (2, 62), (3, 63)]
-    patch = Instrument.scale #= Just pscale $
-        Instrument.patch $ Instrument.instrument "inst" [] (-12, 12)
-    config = UiTest.midi_config [("s/inst", [0])]
 
 -- * keymap
 
 test_pitched_keymap = do
-    let patch = (set_keymap [bd], mempty)
+    let patch = set_keymap [bd] $ DeriveTest.make_patch "1"
         bd = ("bd", Instrument.PitchedKeymap Key.c2 Key.c3 NN.c4)
         set_keymap kmap = Instrument.attribute_map
             #= Instrument.keymap (map (first Score.attr) kmap)
         mktracks ps =
-            [ (">s/i", [(n, 1, "+bd") | (n, _) <- vals])
+            [ (">i1", [(n, 1, "+bd") | (n, _) <- vals])
             , ("*", [(n, 0, p) | (n, p) <- vals])
             ]
             where vals = zip (Seq.range_ 0 1) ps
-    let (_, (events, _, logs)) = perform patch [("s/i", [0])]
+    let (res, (events, _, logs)) = perform patch [("i1", "s/1")]
             (mktracks ["3c", "4c", "5c", "6c"])
+    equal (DeriveTest.r_logs res) []
     equal logs []
     equal (map (nn_signal . Perform.event_pitch) events)
         [ [(0, NN.c2)]
@@ -171,20 +167,15 @@ test_pitched_keymap = do
 nn_signal :: Signal.NoteNumber -> [(Signal.X, Pitch.NoteNumber)]
 nn_signal = map (second Pitch.nn) . Signal.unsignal
 
-perform :: (Instrument.Patch -> Instrument.Patch, MidiInst.Code)
-    -> [(Text, [Midi.Channel])] -> [UiTest.TrackSpec]
+perform :: Instrument.Patch -> Simple.Aliases -> [UiTest.TrackSpec]
     -> (Derive.Result, ([Perform.Event], [Midi.WriteMessage], [Log.Msg]))
-perform (set_patch, code) alloc tracks =
-    (result, DeriveTest.perform_inst mempty synth alloc
-        (Derive.r_events result))
+perform patch aliases tracks = (result, performance)
     where
-    synth = mksynth code set_patch
+    performance = DeriveTest.perform
+        (DeriveTest.make_convert_lookup aliases db) config
+        (Derive.r_events result)
+    config = UiTest.midi_config
+        [(inst, [n]) | (n, inst) <- zip [0..] (map fst aliases)]
+    db = DeriveTest.make_db [("s", [patch])]
     result = DeriveTest.derive_tracks_setup
-        (DeriveTest.with_synth_descs mempty synth) "" tracks
-
-mksynth :: MidiInst.Code -> (Instrument.Patch -> Instrument.Patch)
-    -> [MidiInst.SynthDesc]
-mksynth code set_patch = MidiInst.make $
-    (MidiInst.softsynth "s" "Synth" (-2, 2) [])
-    { MidiInst.extra_patches = [(set_patch (DeriveTest.make_patch "i"), code)]
-    }
+        (DeriveTest.with_inst_db aliases db) "" tracks

@@ -74,7 +74,7 @@ test_parse_val = do
     let invertible =
             [ (">", Just $ VInstrument (Score.Instrument ""))
             , (">name-b", Just $ VInstrument (Score.Instrument "name-b"))
-            , (">ok/name-b", Just $ VInstrument (Score.Instrument "ok/name-b"))
+            , (">no/slash", Nothing)
             , (">fu/nny^*", Nothing)
 
             , ("0", Just (VNum (Score.untyped 0)))

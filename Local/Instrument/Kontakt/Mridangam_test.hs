@@ -10,10 +10,11 @@ import Global
 
 
 test_mridangam = do
-    let run pitch = KontaktTest.derive ("# = (" <> pitch <> ")")
-            . map (((,) ">kontakt/mridangam-d") . notes)
+    let run pitch = KontaktTest.derive aliases ("# = (" <> pitch <> ")")
+            . map (((,) ">m") . notes)
         notes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
-        perf = KontaktTest.perform ["kontakt/mridangam-d"] . Derive.r_events
+        perf = KontaktTest.perform aliases . Derive.r_events
+        aliases = [("m", "kontakt/mridangam-d")]
 
     let (_events, midi, logs) = perf $ run "3g#" [["k", "t", "n", "d", "i"]]
     equal logs []

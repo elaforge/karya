@@ -32,6 +32,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
+import qualified Cmd.Simple as Simple
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -322,20 +323,22 @@ extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 -- * inst db
 
 -- | Configure ustate and cstate with the given instruments.
-set_insts :: [Text] -> State.State -> Cmd.State -> (State.State, Cmd.State)
-set_insts insts ustate cstate =
-    (UiTest.set_midi_config config ustate,
+set_insts :: Simple.Aliases -> State.State -> Cmd.State
+    -> (State.State, Cmd.State)
+set_insts aliases ustate cstate =
+    (UiTest.set_midi_config aliases config ustate,
         cstate { Cmd.state_config = set_db (Cmd.state_config cstate) })
     where
-    set_db config = config { Cmd.state_instrument_db = make_inst_db insts }
+    set_db config = config
+        { Cmd.state_instrument_db = make_inst_db (map fst aliases) }
     config = UiTest.midi_config
-        [(inst, [chan]) | (inst, chan) <- zip insts [0..]]
+        [(inst, [chan]) | (inst, chan) <- zip (map fst aliases) [0..]]
 
 -- | Like 'set_insts', but with the provided synths.
-set_synths :: [MidiInst.SynthDesc] -> [Text] -> State.State -> Cmd.State
-    -> (State.State, Cmd.State)
-set_synths synths insts ustate cstate =
-    (UiTest.set_midi_config config ustate,
+set_synths :: [MidiInst.SynthDesc] -> Simple.Aliases -> State.State
+    -> Cmd.State -> (State.State, Cmd.State)
+set_synths synths aliases ustate cstate =
+    (UiTest.set_midi_config aliases config ustate,
         cstate { Cmd.state_config = set_db (Cmd.state_config cstate) })
     where
     set_db config = config
@@ -343,7 +346,7 @@ set_synths synths insts ustate cstate =
             fst $ MidiDb.midi_db synths
         }
     config = UiTest.midi_config
-        [(inst, [chan]) | (inst, chan) <- zip insts [0..]]
+        [(inst, [chan]) | (inst, chan) <- zip (map fst aliases) [0..]]
 
 make_inst_db :: [Text] -> Instrument.Db.Db code
 make_inst_db inst_names = Instrument.Db.empty

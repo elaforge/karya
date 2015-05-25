@@ -24,7 +24,7 @@ test_track_status = do
     let f tracks num = CmdTest.eval ustate CmdTest.default_cmd_state
             (Info.get_track_status UiTest.default_block_id num)
             where
-            ustate = UiTest.set_midi_config
+            ustate = UiTest.set_midi_config [("i", "s/i")]
                 (UiTest.midi_config [("i", [0..3])]) $
                 snd $ UiTest.run_mkview [(t, []) | t <- tracks]
     equal (f [">", "*"] 0) Nothing
