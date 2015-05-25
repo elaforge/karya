@@ -154,8 +154,8 @@ run_mkblock tracks = (tids, state)
 run_mkview :: [TrackSpec] -> ([TrackId], State.State)
 run_mkview tracks = run State.empty $ mkblock_view (default_block_name, tracks)
 
-run_mkblocks :: [BlockSpec] -> State.State
-run_mkblocks = snd . run State.empty . mkblocks
+run_mkblocks :: [BlockSpec] -> ([BlockId], State.State)
+run_mkblocks = run State.empty . mkblocks
 
 mkblocks :: State.M m => [BlockSpec] -> m [BlockId]
 mkblocks blocks = mapM (fmap fst . mkblock) blocks
@@ -212,6 +212,10 @@ mkblock_ruler ruler_id block_id title tracks = do
     unless (null title) $
         State.set_block_title block_id (txt title)
     State.set_skeleton block_id =<< parse_skeleton block_id
+    -- This ensures that any state created via these functions will have the
+    -- default midi config.  This saves some hassle since all tests can assume
+    -- there are some instruments defined.
+    State.modify set_default_midi_config
     return (block_id, tids)
 
 create_block :: State.M m => Id.Id -> String -> [Block.TracklikeId] -> m BlockId
@@ -442,7 +446,15 @@ r_1, r_4 :: Ruler.Rank
 r_1 = Meter.r_1
 r_4 = Meter.r_4
 
--- * config
+-- * midi config
+
+set_default_midi_config :: State.State -> State.State
+set_default_midi_config =
+    (State.config#State.midi #= default_midi_config)
+    . (State.config#State.aliases #= make_aliases default_aliases)
+
+default_midi_config :: Instrument.Configs
+default_midi_config = midi_config [("i1", [0..2]), ("i2", [3])]
 
 midi_config :: [(Text, [Midi.Channel])] -> Instrument.Configs
 midi_config config = Simple.midi_config
@@ -456,3 +468,11 @@ set_midi_config aliases config =
 
 make_aliases :: Simple.Aliases -> Map.Map Score.Instrument Score.Instrument
 make_aliases = Map.fromList . map (Score.Instrument *** Score.Instrument)
+
+default_aliases :: Simple.Aliases
+default_aliases = [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
+
+i1, i2, i3 :: Score.Instrument
+i1 = Score.Instrument "i1"
+i2 = Score.Instrument "i2"
+i3 = Score.Instrument "i3"

@@ -20,7 +20,6 @@ import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
 
-import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.RealTime as RealTime
 import Global
 import Types
@@ -125,12 +124,9 @@ prepare_blocks :: String -> [UiTest.BlockSpec] -> IO (CmdTest.Result ())
 prepare_blocks focus blocks =
     CmdTest.update_perf ustate $ CmdTest.run ustate cstate (return ())
     where
-    ustate = DeriveTest.set_default_midi_config $
-        UiTest.exec State.empty (UiTest.mkviews blocks)
+    ustate = UiTest.exec State.empty (UiTest.mkviews blocks)
     cstate = CmdTest.default_cmd_state
         { Cmd.state_focused_view = Just (UiTest.mk_vid_name focus) }
-
-step_state = Cmd.state_step . Cmd.state_play . CmdTest.result_cmd_state
 
 get_sel :: State.M m => m (Maybe ScoreTime)
 get_sel = fmap Sel.cur_pos <$>

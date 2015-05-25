@@ -238,7 +238,7 @@ derive_blocks_setup setup blocks =
     deriver = Prelude.Block.eval_root_block global_transform bid
     global_transform = State.config#State.global_transform #$ state
     state = DeriveTest.setup_ui setup state_
-    (bid:_, state_) = DeriveTest.mkblocks blocks
+    (bid:_, state_) = UiTest.run_mkblocks blocks
 
 derive_lilypond :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive_lilypond state deriver =

@@ -86,7 +86,7 @@ test_basic = do
 test_round_pitch = do
     -- A note sufficiently close to 4c becomes 4c.
     let res = DeriveTest.derive_tracks ""
-            [(inst_title, [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
+            [(">i1", [(0, 1, "")]), ("*", [(0, 0, "3b 99.99")])]
     let (_, mmsgs, _) =
             DeriveTest.perform_defaults (Derive.r_events res)
     equal (DeriveTest.note_on_vel mmsgs) [(0, Key.c4, 127)]
@@ -250,7 +250,7 @@ test_subderive_multiple = do
             [ ("b0",
                 [ ("tempo", [(0, 0, "2")])
                 , ("dyn", [(0, 0, "1"), (8, 0, "i 0")])
-                , (inst_title, [(0, 8, "sub")])
+                , (">i1", [(0, 8, "sub")])
                 ])
             , ("sub=ruler",
                 [ (">", [(0, 1, ""), (1, 1, "")])
@@ -418,7 +418,6 @@ track_specs =
 test_tempo_funcs1 = do
     let ((bid, [t_tid, tid1]), ui_state) = UiTest.run State.empty $ do
             UiTest.mkblock ("b0", track_specs)
-                <* DeriveTest.set_defaults
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
 
@@ -438,7 +437,6 @@ test_tempo_funcs2 = do
                     ++ [ ("tempo", [(0, 0, "1")])
                     , (">i2", [(0, 16, "--2b1")])
                     ])
-                    <* DeriveTest.set_defaults
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
     equal (map (r_tempo res bid t_tid1) (Seq.range 0 10 2))
@@ -475,7 +473,7 @@ test_fractional_pitch = do
     -- also tests that the pitch signal is trimmed properly by
     -- Note.trim_pitches.
     let res = DeriveTest.derive_tracks ""
-            [ (inst_title, [(0, 16, ""), (16, 16, "")])
+            [ (">i1", [(0, 16, ""), (16, 16, "")])
             , ("*just", [(0, 16, "4c"), (16, 16, "4d")])
             ]
     let (_perf_events, mmsgs, logs) =
@@ -488,7 +486,7 @@ test_fractional_pitch = do
 
 test_control = do
     let res = DeriveTest.derive_tracks ""
-            [ (inst_title, [(0, 1, ""), (1, 1, "")])
+            [ (">i1", [(0, 1, ""), (1, 1, "")])
             , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
             , ("cc1", [(0, 0, "1"), (1, 0, "i .75"), (2, 0, "i 0")])
             ]
@@ -617,8 +615,7 @@ test_regress_event_end2 = do
 derive_blocks :: [(UiTest.BlockSpec, [Skeleton.Edge])] -> Derive.Result
 derive_blocks blocks = DeriveTest.derive_block state (UiTest.bid block_name)
     where
-    state = UiTest.exec State.empty
-        (UiTest.mkblocks_skel blocks <* DeriveTest.set_defaults)
+    state = UiTest.exec State.empty (UiTest.mkblocks_skel blocks)
     ((block_name, _), _) : _ = blocks
 
 -- * util
@@ -628,7 +625,5 @@ r_tempo = TrackWarp.tempo_func . Derive.r_track_warps
 
 r_inv_tempo :: Derive.Result -> Transport.InverseTempoFunction
 r_inv_tempo = TrackWarp.inverse_tempo_func . Derive.r_track_warps
-
-inst_title = DeriveTest.default_inst_title
 
 extract_events = DeriveTest.extract DeriveTest.e_event

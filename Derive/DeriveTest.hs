@@ -123,7 +123,7 @@ perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
 perform_blocks :: [UiTest.BlockSpec] -> ([Midi.WriteMessage], [String])
 perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     where
-    (_, mmsgs, logs) = perform default_convert_lookup default_midi_config
+    (_, mmsgs, logs) = perform default_convert_lookup UiTest.default_midi_config
         (Derive.r_events result)
     result = derive_blocks blocks
 
@@ -137,7 +137,7 @@ perform lookup midi_config events =
 
 perform_defaults :: Derive.Events
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
-perform_defaults = perform default_convert_lookup default_midi_config
+perform_defaults = perform default_convert_lookup UiTest.default_midi_config
 
 perform_stream :: Convert.Lookup -> Instrument.Configs -> Derive.Events
     -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi.WriteMessage])
@@ -182,7 +182,7 @@ derive_block = derive_block_setup mempty
 
 derive_blocks_setup :: Setup -> [UiTest.BlockSpec] -> Derive.Result
 derive_blocks_setup setup block_tracks = derive_block_setup setup ui_state bid
-    where (bid : _, ui_state) = mkblocks block_tracks
+    where (bid : _, ui_state) = UiTest.run_mkblocks block_tracks
 
 -- | Derive a block with the testing environ.
 derive_block_setup :: Setup -> State.State -> BlockId -> Derive.Result
@@ -226,20 +226,6 @@ derive :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result True $
     Derive.derive (default_constant ui_state mempty mempty)
         default_dynamic deriver
-
--- | Turn BlockSpecs into a state.
-mkblocks :: [UiTest.BlockSpec] -> ([BlockId], State.State)
-mkblocks block_tracks = UiTest.run State.empty $
-    set_defaults >> UiTest.mkblocks block_tracks
-
--- | Set UI state defaults that every derivation should have.
-set_defaults :: State.M m => m ()
-set_defaults = State.modify set_default_midi_config
-
-set_default_midi_config :: State.State -> State.State
-set_default_midi_config =
-    (State.config#State.midi #= default_midi_config)
-    . (State.config#State.aliases #= UiTest.make_aliases default_aliases)
 
 -- * cmd
 
@@ -348,6 +334,11 @@ modify_constant f = with_deriver $ \deriver -> do
     deriver
     -- TODO replace with safe specific ones, e.g. with_damage
 
+-- | Not supposed to do this in general, but it's ok for tests.
+modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
+modify_dynamic f = Derive.modify $ \st ->
+    st { Derive.state_dynamic = f (Derive.state_dynamic st) }
+
 -- * setup multiple
 
 with_scale :: Scale.Scale -> Setup
@@ -427,22 +418,8 @@ default_db = make_db [("s", map make_patch ["1", "2", "3"])]
 make_patch :: Text -> Instrument.Patch
 make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
 
-default_aliases :: Simple.Aliases
-default_aliases = [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
-
-default_midi_config :: Instrument.Configs
-default_midi_config = UiTest.midi_config [("i1", [0..2]), ("i2", [3])]
-
-default_inst_title :: String
-default_inst_title = ">i1"
-
-i1, i2, i3 :: Score.Instrument
-i1 = Score.Instrument "i1"
-i2 = Score.Instrument "i2"
-i3 = Score.Instrument "i3"
-
 default_convert_lookup :: Convert.Lookup
-default_convert_lookup = make_convert_lookup default_aliases default_db
+default_convert_lookup = make_convert_lookup UiTest.default_aliases default_db
 
 synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.SynthDesc]
     -> Convert.Lookup
@@ -457,8 +434,29 @@ make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup
 make_convert_lookup aliases midi_db =
     run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state)
         PlayUtil.get_convert_lookup
+    where setup = with_inst_db aliases midi_db
+
+make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
+make_db synth_patches = Instrument.Db.db midi_db
     where
-    setup = with_inst_db aliases midi_db
+    midi_db = fst $ MidiDb.midi_db $ concatMap make synth_patches
+    make (synth, patches) = MidiInst.make
+        (MidiInst.softsynth synth "Test Synth" (-2, 2) [])
+        { MidiInst.extra_patches =
+            map (\p -> (p, MidiInst.empty_code)) patches
+        }
+
+lookup_from_insts :: [Score.Instrument] -> Convert.Lookup
+lookup_from_insts = make_convert_lookup mempty . make_db . convert
+    where
+    convert = map (second (map make_patch)) . Seq.keyed_group_on (fst . split)
+        . map Score.inst_name
+    split name = (pre, Text.drop 1 post)
+        where (pre, post) = Text.break (=='/') name
+
+lookup_from_state :: State.State -> Convert.Lookup
+lookup_from_state state = lookup_from_insts $
+    Seq.drop_dups id $ Map.keys $ State.config#State.midi #$ state
 
 -- ** extract
 
@@ -692,36 +690,6 @@ mkscale scale_id notes =
     where
     dmap = Scales.degree_map 8 0 0 (map (Pitch.Note . fst) notes)
         (map snd notes)
-
--- * older patch creating functions
--- TODO these have few callers, remove them
-
--- | Not supposed to do this in general, but it's ok for tests.
-modify_dynamic :: (Derive.Dynamic -> Derive.Dynamic) -> Derive.Deriver ()
-modify_dynamic f = Derive.modify $ \st ->
-    st { Derive.state_dynamic = f (Derive.state_dynamic st) }
-
-make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
-make_db synth_patches = Instrument.Db.db midi_db
-    where
-    midi_db = fst $ MidiDb.midi_db $ concatMap make synth_patches
-    make (synth, patches) = MidiInst.make
-        (MidiInst.softsynth synth "Test Synth" (-2, 2) [])
-        { MidiInst.extra_patches =
-            map (\p -> (p, MidiInst.empty_code)) patches
-        }
-
-lookup_from_insts :: [Score.Instrument] -> Convert.Lookup
-lookup_from_insts = make_convert_lookup mempty . make_db . convert
-    where
-    convert = map (second (map make_patch)) . Seq.keyed_group_on (fst . split)
-        . map Score.inst_name
-    split name = (pre, Text.drop 1 post)
-        where (pre, post) = Text.break (=='/') name
-
-lookup_from_state :: State.State -> Convert.Lookup
-lookup_from_state state = lookup_from_insts $
-    Seq.drop_dups id $ Map.keys $ State.config#State.midi #$ state
 
 -- * mkevents
 

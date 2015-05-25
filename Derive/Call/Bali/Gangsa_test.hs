@@ -212,8 +212,7 @@ test_unison = do
         title = "import bali.gangsa | inst = >" <> inst_title
             <> " | scale=wayang | unison"
         extract e = (pretty $ Score.event_instrument e, Score.initial_nn e)
-        config_inst = set DeriveTest.i1 Environ.umbang
-            . set DeriveTest.i2 Environ.isep
+        config_inst = set UiTest.i1 Environ.umbang . set UiTest.i2 Environ.isep
         set inst tuning = modify_instrument inst $
             Instrument.cenviron #= RestrictedEnviron.make
                 [(Environ.tuning, RestrictedEnviron.to_val tuning)]

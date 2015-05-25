@@ -5,6 +5,7 @@
 module Cmd.Refactor_test where
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Refactor as Refactor
@@ -31,7 +32,8 @@ test_selection_alts = do
 
 test_selection_at = do
     let run tracks subs start end = UiTest.extract_all_tracks $
-            UiTest.exec (UiTest.run_mkblocks (("b", [(">", tracks)]) : subs)) $
+            UiTest.exec State.empty $ do
+                UiTest.mkblocks (("b", [(">", tracks)]) : subs)
                 Refactor.selection_at False (UiTest.mkid "sub") parent
                     [1] [UiTest.mk_tid_block parent 1] start end
         parent = UiTest.bid "b"

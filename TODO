@@ -26,7 +26,7 @@ UNSORTED
       )
   - test_inst_call uses make_db, generalize make_db
     . Merge CmdTest.set_insts, and Convert_test.perform_patch
-  - move DeriveTest.set_defaults to UiTest so I don't need a separate
+  * move DeriveTest.set_defaults to UiTest so I don't need a separate
     DeriveTest.mkblocks.
   - Convert_test.test_convert is not lazy if the instrument is not found
   * remove Util.Git dependency from tests

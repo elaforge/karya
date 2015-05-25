@@ -89,10 +89,10 @@ run_perf ustate cstate cmd = do
     return $ run ustate cstate cmd
 
 make_tracks :: [UiTest.TrackSpec] -> State.State
-make_tracks = DeriveTest.set_default_midi_config . snd . UiTest.run_mkview
+make_tracks = snd . UiTest.run_mkview
 
 make_tracks_ruler :: [UiTest.TrackSpec] -> State.State
-make_tracks_ruler = DeriveTest.set_default_midi_config . snd . make
+make_tracks_ruler = snd . make
     where
     make tracks = UiTest.run State.empty $
         UiTest.mkblock_view (UiTest.default_block_name <> "=ruler", tracks)

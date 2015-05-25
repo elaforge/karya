@@ -68,4 +68,4 @@ test_event_echo = do
 perform :: (String, [UiTest.EventSpec]) -> [UiTest.TrackSpec]
      -> ([Midi.WriteMessage], [String])
 perform (title, events) tracks = DeriveTest.perform_block $
-    tracks ++ [(DeriveTest.default_inst_title ++ " | " ++ title, events)]
+    tracks ++ [(">i1 | " ++ title, events)]

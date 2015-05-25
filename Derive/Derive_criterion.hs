@@ -31,7 +31,7 @@ states :: [(String, State.State)]
 states = [("simple", simple), ("no_invert", no_invert), ("invert", invert)]
 
 make_score :: [UiTest.TrackSpec] -> State.State
-make_score sub = snd $ DeriveTest.mkblocks
+make_score sub = snd $ UiTest.run_mkblocks
     [ ("top", [(">s/1", score), (">s/2", score)])
     , ("sub=ruler", sub)
     ]

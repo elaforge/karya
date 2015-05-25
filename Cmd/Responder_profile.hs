@@ -29,7 +29,7 @@ profile_edits_middle = do
     Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
     let edit_block_id = UiTest.bid "b1.5.0"
     let (view_id, ui_state) = UiTest.run State.empty $ do
-            State.modify_config $ State.midi #= DeriveTest.default_midi_config
+            State.modify_config $ State.midi #= UiTest.default_midi_config
             Derive_profile.make_nested_controls 15 3 60
             view_id <- Create.unfitted_view edit_block_id
             UiTest.select_point view_id 1 0.0

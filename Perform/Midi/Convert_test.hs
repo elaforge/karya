@@ -87,7 +87,7 @@ test_rnd_vel = do
 
 test_convert_pitch = do
     let event tsig = DeriveTest.mkevent
-            (0, 1, "4c", [(Controls.diatonic, tsig)], DeriveTest.i1)
+            (0, 1, "4c", [(Controls.diatonic, tsig)], UiTest.i1)
     equal (convert [event []]) [Left (0, [(0, 60)])]
     equal (convert [event [(0, 1)]]) [Left (0, [(0, 62)])]
     equal (convert [event [(0, 100)]])
@@ -98,7 +98,7 @@ test_convert_pitch = do
     equal (convert [event [(0, 0), (100, 100)]]) [Left (0, [(0, 60)])]
 
     -- Convert applies the environ to pitches.
-    let event = (DeriveTest.mkevent (0, 1, "4i", [], DeriveTest.i1))
+    let event = (DeriveTest.mkevent (0, 1, "4i", [], UiTest.i1))
             { Score.event_untransformed_pitch =
                 PitchSignal.signal [(0, DeriveTest.mkpitch legong "4i")]
             }

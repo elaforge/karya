@@ -361,7 +361,6 @@ test_sliced_score_damage = do
     -- ScoreDamage to invalidate it.
     let create = do
             UiTest.mkblocks_skel blocks
-            DeriveTest.set_defaults
             return $ UiTest.bid "b9"
     let (_prev, cached, uncached) = compare_cached create $
             insert_event "b9.t3" 4 0 "7c"
@@ -383,7 +382,6 @@ test_sliced_control_damage = do
     -- sliced and shifted.
     let create = do
             UiTest.mkblocks_skel blocks
-            DeriveTest.set_defaults
             return (UiTest.bid "top")
     let (_prev, cached, uncached) = compare_cached create $
             insert_event "top.t1" 6 0 "0"
@@ -725,7 +723,6 @@ uncache (Derive.Cache cache) = cache
 mkblocks :: State.M m => [UiTest.BlockSpec] -> m BlockId
 mkblocks blocks = do
     bid : _ <- UiTest.mkblocks blocks
-    DeriveTest.set_defaults
     return bid
 
 mkblock :: State.M m => [UiTest.TrackSpec] -> m BlockId
