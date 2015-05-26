@@ -430,12 +430,6 @@ synth_to_db synth_descs =
     trace_logs (map (Log.msg Log.Warn Nothing) warns) $ Instrument.Db.db midi_db
     where (midi_db, warns) = MidiDb.midi_db synth_descs
 
-make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup
-make_convert_lookup aliases midi_db =
-    run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state)
-        PlayUtil.get_convert_lookup
-    where setup = with_inst_db aliases midi_db
-
 make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
 make_db synth_patches = Instrument.Db.db midi_db
     where
@@ -446,6 +440,14 @@ make_db synth_patches = Instrument.Db.db midi_db
             map (\p -> (p, MidiInst.empty_code)) patches
         }
 
+-- | Infer a set of instruments from a midi config.  This infers standard
+-- boring patches as produced by 'make_patch'.  This can be used to play a
+-- score without loading the instrument db, provided the instruments have no
+-- special features.  TODO remove callers, use the instrument db instead.
+lookup_from_state :: State.State -> Convert.Lookup
+lookup_from_state state = lookup_from_insts $
+    Seq.drop_dups id $ Map.keys $ State.config#State.midi #$ state
+
 lookup_from_insts :: [Score.Instrument] -> Convert.Lookup
 lookup_from_insts = make_convert_lookup mempty . make_db . convert
     where
@@ -454,9 +456,11 @@ lookup_from_insts = make_convert_lookup mempty . make_db . convert
     split name = (pre, Text.drop 1 post)
         where (pre, post) = Text.break (=='/') name
 
-lookup_from_state :: State.State -> Convert.Lookup
-lookup_from_state state = lookup_from_insts $
-    Seq.drop_dups id $ Map.keys $ State.config#State.midi #$ state
+make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup
+make_convert_lookup aliases midi_db =
+    run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state)
+        PlayUtil.get_convert_lookup
+    where setup = with_inst_db aliases midi_db
 
 -- ** extract
 

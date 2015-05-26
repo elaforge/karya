@@ -27,7 +27,7 @@ test_modify_tempo = do
     let ustate = UiTest.exec State.empty $ do
             UiTest.mkblock_view (UiTest.default_block_name,
                 [ ("tempo", [(0, 0, "1")])
-                , (">i", [(0, 1, ""), (1, 1, "")])
+                , (">i1", [(0, 1, ""), (1, 1, "")])
                 ])
             CmdTest.set_point_sel 1 0
             rid <- Create.ruler "meter44" $
@@ -51,7 +51,7 @@ test_modify_tempo = do
 
 test_modify_middle_tempo = do
     let states = ResponderTest.mkstates
-            [("tempo", [(0, 0, "1")]), (">i", [(0, 1, ""), (1, 1, "")])]
+            [("tempo", [(0, 0, "1")]), (">i1", [(0, 1, ""), (1, 1, "")])]
     res <- ResponderTest.respond_cmd states $ UiTest.insert_event 1 (1, 0, "2")
     (_, perf) <- ResponderTest.result_perf res
     equal (map Score.event_duration $ Vector.toList $ Cmd.perf_events perf)

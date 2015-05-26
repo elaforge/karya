@@ -41,12 +41,8 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
-
-import qualified Instrument.Db
-import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
 import Global
 import Types
@@ -323,45 +319,18 @@ extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 -- * inst db
 
 -- | Configure ustate and cstate with the given instruments.
-set_insts :: Simple.Aliases -> State.State -> Cmd.State
-    -> (State.State, Cmd.State)
-set_insts aliases ustate cstate =
-    (UiTest.set_midi_config aliases config ustate,
-        cstate { Cmd.state_config = set_db (Cmd.state_config cstate) })
-    where
-    set_db config = config
-        { Cmd.state_instrument_db = make_inst_db (map fst aliases) }
-    config = UiTest.midi_config
-        [(inst, [chan]) | (inst, chan) <- zip (map fst aliases) [0..]]
-
--- | Like 'set_insts', but with the provided synths.
 set_synths :: [MidiInst.SynthDesc] -> Simple.Aliases -> State.State
     -> Cmd.State -> (State.State, Cmd.State)
-set_synths synths aliases ustate cstate =
-    (UiTest.set_midi_config aliases config ustate,
-        cstate { Cmd.state_config = set_db (Cmd.state_config cstate) })
-    where
-    set_db config = config
-        { Cmd.state_instrument_db = Instrument.Db.db $
-            fst $ MidiDb.midi_db synths
+set_synths synths aliases ui_state cmd_state =
+    ( UiTest.set_midi_config aliases config ui_state
+    , cmd_state
+        { Cmd.state_config = (Cmd.state_config cmd_state)
+            { Cmd.state_instrument_db = DeriveTest.synth_to_db synths }
         }
+    )
+    where
     config = UiTest.midi_config
         [(inst, [chan]) | (inst, chan) <- zip (map fst aliases) [0..]]
-
-make_inst_db :: [Text] -> Instrument.Db.Db code
-make_inst_db inst_names = Instrument.Db.empty
-    { Instrument.Db.db_lookup_midi = make_lookup inst_names }
-
-make_lookup :: [Text] -> Score.Instrument -> Maybe Instrument.Instrument
-make_lookup inst_names (Score.Instrument inst) = Map.lookup inst inst_map
-    where inst_map = Map.fromList $ zip inst_names (map make_inst inst_names)
-
-make_inst :: Instrument.InstrumentName -> Instrument.Instrument
-make_inst name = default_perf_inst { Instrument.inst_name = name }
-
-default_perf_inst :: Instrument.Instrument
-default_perf_inst = Instrument.instrument "i0" [] (-2, 2)
-
 
 -- * msg
 
