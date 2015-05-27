@@ -84,8 +84,7 @@ update_performance send_status ui_state cmd_state damage =
 run_update :: SendStatus -> State.State -> StateM
 run_update send_status ui_state = do
     kill_threads
-    let visible = map Block.view_block $ Map.elems $ State.state_views $
-            ui_state
+    let visible = map Block.view_block $ Map.elems $ State.state_views ui_state
         root_id = State.config_root (State.state_config ui_state)
         block_ids = Seq.unique $ maybe id (:) root_id visible
     mapM_ (try_generate_performance send_status ui_state) block_ids
@@ -140,7 +139,7 @@ kill_threads = do
             , Cmd.perf_damage perf /= mempty
             ]
         kill = filter ((`elem` with_damage) . fst) $ Map.toList threads
-    liftIO $ mapM_ Concurrent.killThread (map snd kill)
+    liftIO $ mapM_ (Concurrent.killThread . snd) kill
     Monad.State.modify $ modify_play_state $ const $ play_state
         { Cmd.state_performance_threads = Map.delete_keys (map fst kill)
             (Cmd.state_performance_threads play_state)

@@ -45,10 +45,10 @@ midi_db synth_pmaps = (MidiDb db_map, validate synth_pmaps)
         ]
 
 validate :: [SynthDesc a] -> [Text]
-validate synth_pmaps = concatMap check_synth synth_pmaps
+validate = concatMap check_synth
     where
     check_synth (synth, PatchMap patches) =
-        concatMap (check_patch synth) (map fst (Map.elems patches))
+        concatMap (check_patch synth . fst) (Map.elems patches)
     check_patch synth patch = map (\s -> prefix <> ": " <> s) $
         Instrument.overlapping_attributes (Instrument.patch_attribute_map patch)
         where

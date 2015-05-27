@@ -125,7 +125,7 @@ get_perf chan = do
 -- or a timeout.  The Msg is responded to and all Results returned.
 respond_until :: (Msg.Msg -> Bool) -> States -> Cmd.CmdT IO a -> IO [Result]
 respond_until is_complete states cmd = do
-    putStrLn $ "---------- new cmd"
+    putStrLn "---------- new cmd"
     result <- respond_cmd states cmd
     continue_until is_complete result
 

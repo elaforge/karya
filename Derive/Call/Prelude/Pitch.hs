@@ -83,8 +83,8 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
 
 c_neighbor :: Derive.Generator Derive.Pitch
 c_neighbor = generator1 "neighbor" mempty
-    ("Emit a slide from a neighboring pitch to the given one."
-    ) $ Sig.call ((,,,)
+    "Emit a slide from a neighboring pitch to the given one."
+    $ Sig.call ((,,,)
     <$> required "pitch" "Destination pitch."
     <*> defaulted "neighbor" (Pitch.Chromatic 1) "Neighobr interval."
     <*> defaulted "time" (TrackLang.real 0.1) "Time to get to destination."

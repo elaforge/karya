@@ -132,7 +132,7 @@ environ_event (start, dur, pitch, env) =
 voice_event :: (RealTime, RealTime, String, Maybe Int) -> Types.Event
 voice_event (start, dur, pitch, maybe_voice) =
     mkevent start dur pitch default_inst $
-        maybe [] ((:[]) . ((,) Environ.voice) . TrackLang.to_val) maybe_voice
+        maybe [] ((:[]) . (,) Environ.voice . TrackLang.to_val) maybe_voice
 
 mkevent :: RealTime -> RealTime -> String -> Score.Instrument
     -> [(TrackLang.ValName, TrackLang.Val)] -> Types.Event

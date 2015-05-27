@@ -95,7 +95,7 @@ left_notes, right_notes :: [Drums.Note]
 stops :: [(Drums.Group, [Drums.Group])]
 (left_notes, right_notes, stops) = (left_notes, right_notes, stops)
     where
-    left_notes = concat $
+    left_notes = concat
         [ group t_closed
             [ n 'a' "-" tha 0.5
             , n 'z' "+" tha 1
@@ -115,7 +115,7 @@ stops :: [(Drums.Group, [Drums.Group])]
             , n '/' "*" (thom <> dry) 1
             ]
         ]
-    right_notes = concat $
+    right_notes = concat
         [ group v_closed
             [ n '1' "l" ki 0.5
             , n 'q' "k" ki 1

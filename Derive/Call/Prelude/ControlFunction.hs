@@ -175,7 +175,7 @@ c_cf_jump = val_call "cf-jump" Tags.curve
 c_cf_linear :: Derive.ValCall
 c_cf_linear = val_call "cf-linear" Tags.curve
     "Linear interpolation function. It's just `id`."
-    $ Sig.call0 $ \_args -> return $ ControlUtil.cf_linear
+    $ Sig.call0 $ \_args -> return ControlUtil.cf_linear
 
 c_cf_expon :: Derive.ValCall
 c_cf_expon = val_call "cf-expon" Tags.curve

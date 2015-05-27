@@ -245,7 +245,7 @@ gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = (interlock, normal)
         , [polos p2 mempty]
         ]
     normal = case style of
-        Default -> map ((:[]) . (uncurry (KotekanNote Nothing)))
+        Default -> map ((:[]) . uncurry (KotekanNote Nothing))
             [(p2, mute), (p2, mempty), (p1, mempty), (p2, mempty)]
         Diamond ->
             [ [polos p2 mute, sangsih s2 mute]

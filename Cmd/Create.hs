@@ -74,9 +74,7 @@ rename_ruler ruler_id new_name = Transform.map_ruler_ids $ \id ->
 -- colliding.
 rename_rulers :: State.M m => [(RulerId, Id.Id)] -> m ()
 rename_rulers pairs = Transform.map_ruler_ids $ \id ->
-    case lookup (Id.RulerId id) pairs of
-        Nothing -> id
-        Just new -> new
+    fromMaybe id $ lookup (Id.RulerId id) pairs
 
 rename_block :: State.M m => BlockId -> Id.Id -> m ()
 rename_block block_id new_name = Transform.map_block_ids $ \id ->

@@ -69,7 +69,7 @@ tunggal_keymap = CUtil.make_keymap Key2.e_2 Key2.c_1 12 NN.fs3
 
 tunggal_calls :: [(Char, TrackLang.CallId, Score.Attributes, Drums.Group)]
 kendang_stops :: [(Drums.Group, [Drums.Group])]
-(kendang_stops, tunggal_calls) = (,) stops $
+(kendang_stops, tunggal_calls) = (,) stops
     [ ('b', "PL", plak,                 both)
     -- left
     , ('q', "P", pak,                   left_closed)

@@ -38,7 +38,7 @@ tuning_ksp (Instrument.PatchScale name scale) =
         [ ("TITLE", showt name)
         , ("PITCHES", ksp_array pitches)
         ]
-    pitches = map (uncurry from_nn) (zip [0..] (Vector.toList scale))
+    pitches = zipWith from_nn [0..] (Vector.toList scale)
     from_nn key nn
         | nn == 0 = 0
         | otherwise = round ((nn - fromIntegral key) * millicent)

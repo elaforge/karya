@@ -278,9 +278,7 @@ chromatic_to_absolute key degrees (Pitch.Pitch octave (Pitch.Degree pc acc)) =
         -- If it's chromatic then I can't adjust for the mode, but I still
         -- want to map degree 1 to C# if I'm in C#.
         Nothing -> Pitch.degree_accidentals tonic
-        Just sig -> case sig Unboxed.!? pc of
-            Nothing -> 0 -- That shouldn't have happened.
-            Just acc -> acc
+        Just sig -> fromMaybe 0 (sig Unboxed.!? pc) -- Should never get Nothing.
     tonic = Theory.key_tonic key
 
 show_degree_diatonic :: ShowDegree Tonic
@@ -342,7 +340,7 @@ symbol_accidentals :: AccidentalFormat
 symbol_accidentals = AccidentalFormat "`#`" "`##`" "`b`" "`bb`"
 
 p_accidentals :: AccidentalFormat -> A.Parser Pitch.Accidentals
-p_accidentals (AccidentalFormat sharp1 sharp2 flat1 flat2) = do
+p_accidentals (AccidentalFormat sharp1 sharp2 flat1 flat2) =
     sum <$> ParseText.many (A.choice [p_flat2, p_sharp2, p_flat1, p_sharp1])
     where
     p_sharp1 = A.string sharp1 >> return 1

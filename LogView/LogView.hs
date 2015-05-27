@@ -131,8 +131,8 @@ main = do
 
 logview :: [Flag] -> IO ()
 logview flags = do
-    let seek = maybe (Just 0) id $ Seq.last [s | Seek s <- flags]
-        history = maybe default_history id $ Seq.last [n | History n <- flags]
+    let seek = fromMaybe (Just 0) $ Seq.last [s | Seek s <- flags]
+        history = fromMaybe default_history $ Seq.last [n | History n <- flags]
     filename <- maybe Tail.log_filename return $ Seq.last [n | File n <- flags]
     hdl <- Tail.open filename seek
     log_chan <- STM.newTChanIO

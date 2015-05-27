@@ -550,7 +550,7 @@ type CallName = Text
 type SymbolName = Text
 
 lookup_calls :: CallType -> [LookupCall] -> [CallBindings]
-lookup_calls ctype = group . map extract . map go . concatMap flatten
+lookup_calls ctype = group . map (extract . go) . concatMap flatten
     where
     flatten (Derive.LookupPattern pattern doc _) = [(Left pattern, doc)]
     flatten (Derive.LookupMap cmap) =

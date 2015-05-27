@@ -371,7 +371,7 @@ sine srate start end freq_sig = Signal.unfoldr go (start, 0)
         | pos >= end = Nothing
         | otherwise = Just ((pos, sin phase), (pos + srate, next_phase))
         where
-        next_phase = phase + RealTime.to_seconds srate * 2*pi * (freq_sig pos)
+        next_phase = phase + RealTime.to_seconds srate * 2*pi * freq_sig pos
 
 
 -- ** xcut

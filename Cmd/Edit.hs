@@ -37,10 +37,9 @@ import Types
 -- always turns other modes off.  So you can't switch directly from some other
 -- kind of edit to val edit.
 cmd_toggle_val_edit :: Cmd.M m => m ()
-cmd_toggle_val_edit = do
-    modify_edit_mode $ \m -> case m of
-        Cmd.NoEdit -> Cmd.ValEdit
-        _ -> Cmd.NoEdit
+cmd_toggle_val_edit = modify_edit_mode $ \m -> case m of
+    Cmd.NoEdit -> Cmd.ValEdit
+    _ -> Cmd.NoEdit
 
 cmd_toggle_method_edit :: Cmd.M m => m ()
 cmd_toggle_method_edit = modify_edit_mode $ \m -> case m of

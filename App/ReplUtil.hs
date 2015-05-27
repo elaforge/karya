@@ -66,8 +66,8 @@ format_response (response, logs_) = Text.strip $ Text.unlines $
 abbreviate_logs :: [Text] -> [Text]
 abbreviate_logs logs = loaded ++ filter (not . package_log) logs
     where
-    loaded = if packages > 0
-        then ["Loaded " <> Text.pack (show packages) <> " packages"] else []
+    loaded =
+        ["Loaded " <> Text.pack (show packages) <> " packages" | packages > 0]
     packages = length $ filter ("Loading package" `Text.isPrefixOf`) logs
     package_log log =
         any (`Text.isPrefixOf` log) ["Loading package", "linking ...", "done."]

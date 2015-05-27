@@ -216,7 +216,7 @@ run_val ui_state cmd_state cmd = do
 
 -- | Run a set of Cmds as a single Cmd.  The first one to return non-Continue
 -- will return.  Cmds can use this to dispatch to other Cmds.
-sequence_cmds :: M m => [a -> m Status] -> (a -> m Status)
+sequence_cmds :: M m => [a -> m Status] -> a -> m Status
 sequence_cmds [] _ = return Continue
 sequence_cmds (cmd:cmds) msg = do
     status <- catch_abort (cmd msg)

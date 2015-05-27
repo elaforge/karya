@@ -162,7 +162,7 @@ drop_until_next f xs = case xs of
 -- including the end, and align the last note to the end of the call.
 sekar_direct_arrive :: (ScoreTime, ScoreTime) -> NonEmpty Pattern
     -> [Sub.RestEvent] -> Derive.NoteDeriver
-sekar_direct_arrive range patterns events_ = do
+sekar_direct_arrive range patterns events_ =
     Sub.derive $ add_flags $ align $ map (Sub.stretch factor) $
         Sub.strip_rests realized
     where

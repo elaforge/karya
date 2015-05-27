@@ -53,10 +53,10 @@ test_midi :: Either String Interface -> IO ()
 test_midi (Left err) = error $ "initializing midi: " ++ err
 test_midi (Right interface) = do
     rdevs <- Interface.read_devices interface
-    putStrLn $ "read devs:"
+    putStrLn "read devs:"
     mapM_ (putStrLn . ("    " <>) . prettys) rdevs
     wdevs <- Interface.write_devices interface
-    putStrLn $ "write devs:"
+    putStrLn "write devs:"
     mapM_ (putStrLn . ("    " <>) . prettys) wdevs
     rdevs <- return $ map fst rdevs
 
@@ -118,7 +118,7 @@ test_midi (Right interface) = do
             putStrLn usage
     where
     open_devs :: Interface -> Bool -> [Midi.ReadDevice]
-        -> (Maybe String) -> IO (WriteMsg, ReadMsg)
+        -> Maybe String -> IO (WriteMsg, ReadMsg)
     open_devs interface blocking rdevs maybe_wdev = do
         oks <- mapM (Interface.connect_read_device interface) rdevs
         forM_ [rdev | (rdev, False) <- zip rdevs oks] $ \missing ->
@@ -130,7 +130,7 @@ test_midi (Right interface) = do
                 (const (error "write device not opened"), read_msg)
             Just wdev -> do
                 ok <- Interface.connect_write_device interface wdev
-                when (not ok) $
+                unless ok $
                     error $ "required wdev " ++ show wdev ++ " not found"
                 return (make_write_msg interface wdev, read_msg)
     make_write_msg interface wdev (ts, msg) = void $
@@ -270,7 +270,7 @@ pitch_bend_range :: WriteMsg -> Double -> IO ()
 pitch_bend_range write_msg semis = do
     let msgs = map (Midi.ChannelMessage 0) (Midi.pitch_bend_sensitivity semis)
     pprint msgs
-    mapM_ (write_msg . ((,) 0)) msgs
+    mapM_ (write_msg . (,) 0) msgs
 
 -- * tests
 

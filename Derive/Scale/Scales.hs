@@ -69,7 +69,7 @@ empty_scale scale_id pattern doc = Scale.Scale
     , Scale.scale_enharmonics = no_enharmonics
     , Scale.scale_note_to_call = const Nothing
     , Scale.scale_input_to_note = \_ _ -> Left Scale.OutOfRange
-    , Scale.scale_input_to_nn = \ _ _ -> return $ Left $ Scale.OutOfRange
+    , Scale.scale_input_to_nn = \ _ _ -> return $ Left Scale.OutOfRange
     , Scale.scale_call_doc = doc
     }
 

@@ -103,7 +103,7 @@ handle_msgs chan win db = do
 show_info :: Fltk.Channel -> BrowserC.Window -> Db -> Score.Instrument -> IO ()
 show_info chan win db inst = Fltk.send_action chan $ BrowserC.set_info win info
     where
-    info = maybe ("not found: " <> ShowVal.show_val inst) id $ do
+    info = fromMaybe ("not found: " <> ShowVal.show_val inst) $ do
         info <- Db.db_lookup (db_db db) inst
         return $ info_of db inst info
 

@@ -386,7 +386,7 @@ merge_midi = merge_until (LEvent.either Midi.wmsg_ts (const 0))
 
 -- | Merge until the leftmost list runs out.
 merge_until :: Ord k => (a -> k) -> [a] -> [a] -> [a]
-merge_until key xs ys = go xs ys
+merge_until key = go
     where
     go xs [] = xs
     go [] _ = []

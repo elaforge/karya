@@ -92,7 +92,7 @@ timed_lilypond name ui_state cmd_state block_id = case result of
     result = run_cmd ui_state cmd_state $
         Derive.r_events <$> Cmd.Lilypond.derive_block block_id
     config = State.config#State.lilypond #$ ui_state
-    boring msg = Cache.is_cache_log msg
+    boring = Cache.is_cache_log
 
 timer_msg :: (a -> Int) -> Double -> a -> String
 timer_msg len secs events = Printf.printf "events: %d (%d / sec)"

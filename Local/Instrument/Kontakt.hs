@@ -194,7 +194,7 @@ guzheng = MidiInst.with_code code $ MidiInst.range range $
         , (mempty, Key2.c6) -- right hand, picked
         ]
     strings = take (4*5 + 1) $ -- 4 octaves + 1, so D to D
-        concat $ zipWith (\nns oct -> map (oct+) nns) (repeat notes) octaves
+        concatMap ((\nns oct -> map (oct+) nns) notes) octaves
         where
         notes = [NN.d2, NN.e2, NN.fs2, NN.a2, NN.b2]
         octaves = map fromIntegral [0, 12 ..]
@@ -312,8 +312,8 @@ config_kebyar dev_ = make_config $ concat
         ]
     sc_patch name = "kontakt/sc-" <> name
     polos_sangsih name =
-        [ (Gangsa.inst_polos, (to_val $ inst $ name <> "-p"))
-        , (Gangsa.inst_sangsih, (to_val $ inst $ name <> "-s"))
+        [ (Gangsa.inst_polos, to_val $ inst $ name <> "-p")
+        , (Gangsa.inst_sangsih, to_val $ inst $ name <> "-s")
         ]
     tuning val = [(Environ.tuning, to_val val)]
     to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val

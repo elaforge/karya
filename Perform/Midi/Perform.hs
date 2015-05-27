@@ -173,7 +173,7 @@ shareable_chan overlapping event =
     where
     unshareable_reasons = [(chan, reasons evts) | (evts, chan) <- by_chan]
     by_chan = Seq.group_snd overlapping
-    reasons es = mapMaybe (flip can_share_chan event) es
+    reasons = mapMaybe (flip can_share_chan event)
 
 -- | Can the two events coexist in the same channel without interfering?
 -- The reason this is not commutative is so I can assume the start of @old@

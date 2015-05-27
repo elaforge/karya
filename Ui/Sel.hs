@@ -79,8 +79,8 @@ duration sel = abs (start_pos sel - cur_pos sel)
 
 set_duration :: TrackTime -> Selection -> Selection
 set_duration dur sel
-    | cur > start = sel { cur_pos = start + (max 0 dur) }
-    | otherwise = sel { start_pos = cur + (max 0 dur) }
+    | cur > start = sel { cur_pos = start + max 0 dur }
+    | otherwise = sel { start_pos = cur + max 0 dur }
     where
     start = start_pos sel
     cur = cur_pos sel

@@ -675,7 +675,7 @@ get_pitch name
 named_nn_at :: Score.PControl -> RealTime -> Deriver (Maybe Pitch.NoteNumber)
 named_nn_at name pos = do
     controls <- controls_at pos
-    justm (named_pitch_at name pos) $ \pitch -> do
+    justm (named_pitch_at name pos) $ \pitch ->
         logged_pitch_nn ("named_nn " <> pretty (name, pos)) $
             PitchSignal.apply controls pitch
 

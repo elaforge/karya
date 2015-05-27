@@ -140,7 +140,7 @@ convert_midi_pitch inst patch_scale attr_map constant_pitch
         | constant_pitch = convert cvals psig
         | otherwise = convert trimmed (Score.event_transformed_pitch event)
         where
-        cvals = fmap (Score.untyped . Signal.constant) $
+        cvals = Score.untyped . Signal.constant <$>
             Score.event_controls_at (Score.event_start event) event
         psig = maybe mempty PitchSignal.constant $
             Score.pitch_at (Score.event_start event) event

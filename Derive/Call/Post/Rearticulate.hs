@@ -69,7 +69,7 @@ slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
     merge (p:ps) (i:is) = p <> i `PitchSignal.prepend` merge ps is
     merge ps [] = mconcat ps
     merge [] is = mconcat is -- Shouldn't happen.
-    transitions = map (uncurry transition) (zip (sig : sigs) sigs)
+    transitions = zipWith transition (sig : sigs) sigs
     transition _ _ | time == 0 = mempty
     transition prev next = fromMaybe mempty $ do
         (x0, _) <- PitchSignal.head prev

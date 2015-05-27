@@ -174,7 +174,7 @@ startup_initialization = do
     -- Report keymap and call overlaps.
     mapM_ Log.warn GlobalKeymap.cmd_map_errors
     forM_ (Library.shadowed Call.All.library) $
-        \((name, (Module.Module module_)), calls) ->
+        \((name, Module.Module module_), calls) ->
             Log.warn $ "shadowed " <> name <> " calls in module "
                 <> module_ <> ": " <> pretty calls
     unless (null Scale.All.shadowed) $

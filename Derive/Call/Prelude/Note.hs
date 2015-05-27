@@ -310,7 +310,7 @@ with_start_controls args deriver = do
         stretch = case () of
             _ | dur > 0 -> max min_dur (dur - offset)
             _ | dur == 0 -> 1
-            _ | otherwise -> max min_dur $ abs (dur - offset)
+            _ -> max min_dur $ abs (dur - offset)
     if offset_t == 0 then deriver
         else Derive.place (Args.start args + offset) stretch $ normalize args $
             Derive.remove_controls [Controls.start_s, Controls.start_t] deriver

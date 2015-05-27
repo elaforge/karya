@@ -238,11 +238,10 @@ c_pitch_control = val_call "pitch-control" mempty
     <$> Sig.required "name" "Name of pitch signal."
     <*> Sig.defaulted "default" Nothing
         "Default pitch, if the signal is not set."
-    ) $ \(pcontrol, maybe_default) _ -> do
-        return $ case maybe_default of
-            Nothing -> TrackLang.LiteralControl (pcontrol :: Score.PControl)
-            Just pitch -> TrackLang.DefaultedControl pcontrol
-                (PitchSignal.constant pitch)
+    ) $ \(pcontrol, maybe_default) _ -> return $ case maybe_default of
+        Nothing -> TrackLang.LiteralControl (pcontrol :: Score.PControl)
+        Just pitch -> TrackLang.DefaultedControl pcontrol
+            (PitchSignal.constant pitch)
 
 -- * lookup
 

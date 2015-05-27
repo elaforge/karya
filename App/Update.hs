@@ -42,9 +42,7 @@ unserialize = fmap fix . Save.read_state_
     fix (Right (Just v)) = Right v
 
 load_git :: SaveGit.Repo -> IO (Either Text State.State)
-load_git repo = do
-    result <- SaveGit.load repo Nothing
-    return $ either Left (Right . extract) result
+load_git repo = fmap extract <$> SaveGit.load repo Nothing
     where extract (state, _, _) = state
 
 err_msg :: Text -> IO ()
