@@ -6,7 +6,7 @@
 -- | A local Prelude, meant to be imported unqualified.
 module Global (
     Proxy(..)
-#if GHC_VERSION < 071000
+#if GHC_VERSION < 71000
     , pure, (<$>), (<*>), (<*), (*>)
 #endif
     , (<|>)
@@ -38,7 +38,7 @@ module Global (
     , Text.Text
     , txt, untxt, showt
 ) where
-#if GHC_VERSION < 071000
+#if GHC_VERSION < 71000
 import Control.Applicative (pure, (<$>), (<*>), (<*), (*>))
 import Data.Monoid (mempty, mconcat, (<>))
 #endif

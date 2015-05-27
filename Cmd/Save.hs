@@ -56,7 +56,7 @@ import qualified Cmd.ViewConfig as ViewConfig
 import qualified App.Config as Config
 import Global
 
-#if GHC_VERSION < 071000
+#if GHC_VERSION < 71000
 import qualified System.Locale as Locale
 #endif
 
@@ -151,7 +151,7 @@ date :: IO Text
 date = do
     tz <- Time.getCurrentTimeZone
     today <- Time.utcToLocalTime tz <$> Time.getCurrentTime
-#if GHC_VERSION < 071000
+#if GHC_VERSION < 71000
     let locale = Locale.defaultTimeLocale
 #else
     let locale = Time.defaultTimeLocale
