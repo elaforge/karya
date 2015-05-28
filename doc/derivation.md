@@ -461,30 +461,29 @@ often related calls bound to the same name.  E.g., the generator version emits
 a note with some attribute, and the transformer version adds that attribute to
 its transformed events.
 
-### note transformers
+### note parent tracks
 
-A note transformer is a note call that effectively takes other notes as
-arguments.  This happens when a note track is the child of another note track.
-Thanks to [slicing and inversion](slicing-inverting.md.html), a call on the
-parent track can then extract the events below it, and do with them what it
-will.  What many do, courtesy of 'Derive.Call.Sub.sub_events', is evaluate them
-as little derivers and then manipulate them as the call sees fit.  The result
-is much like a transformer in that the call has opaque derivers to manipulate,
-but is more flexible since each sub-note becomes a separate deriver, and their
+A note parent is a note call that effectively takes other notes as arguments.
+This happens when a note track is the child of another note track.  Thanks to
+[slicing and inversion](slicing-inverting.md.html), a call on the parent track
+can then extract the events below it, and may do with them what it will.  What
+many do, courtesy of 'Derive.Call.Sub.sub_events', is evaluate them as little
+derivers and then manipulate them as the call sees fit.  The result is much
+like a transformer in that the call has opaque derivers to manipulate, but is
+more flexible since each sub-note becomes a separate deriver, and their
 original start and duration are available.  This additional power is useful to
 implement ornaments that involve multiple notes, such as tuplets or arpeggios.
 It's also useful purely syntactically to apply a transformation to bunch of
 notes at once without having to bundle them into a block call.
 
-Note transformers are actually analogous to macros, since they receive their
+Note parents are somewhat analogous to macros, since they receive their
 arguments in unevaluated form.  So one could evaluate sub-events in its own
 idiosyncratic way, thus implementing a kind of sub-notation.
 
-It's worth noting that a note transformer is a generator, even if it seems
-somewhat transformer-like.  Unlike generators and transformers, a note
-transformer is just a plain generator that happens to call sub_events.  In
+A note parent is just a generator that happens to call
+'Derive.Call.Sub.sub_events', even if it seems somewhat transformer-like.  In
 fact, some generators may check for the existence of sub events and either
-generate or transform notes accordingly.
+generate or transform children accordingly.
 
 ### expression pipeline
 
@@ -507,7 +506,7 @@ Many calls are built-in, and are brought into scope depending on the track
 type.  But scales and instruments can also bring calls into scope.  Also you
 can dynamically rebind calls to configure how called blocks derive, e.g. pick
 one of several signature-compatible calls to bind to `tr`.  So getting the
-documentation for the calls in scope under the selection can be very useful.
+documentation for the calls in scope under the selection can be useful.
 
 'Cmd.CallDoc' has functions for introspecting the calls in scope on a certain
 track and printing out documentation, most conveniently used through the
@@ -607,7 +606,7 @@ must be dealt with symbolically, since their relation to a concrete frequency
 might depend on a lot of context.
 
 At performance time, a pitch signal is flattened into a
-'Perform.Control.NoteNumber' signal, and any transposition signals in scope are
+'Perform.Pitch.NoteNumber' signal, and any transposition signals in scope are
 applied.  The transposition signals, along with all the other signals, are
 attached to the note when the note itself is generated, probably by the null
 note call, so if you write `%t-chromatic = 1 | 4c` in a pitch track, you won't

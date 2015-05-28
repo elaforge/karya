@@ -4,14 +4,12 @@ Performance is the stage after derivation, that turns 'Derive.Score.Event's
 into the final output format.  There are two major backends so far, MIDI and
 lilypond.
 
-## instruments
-
-Documented in [instrument.md](instrument.md.html).
+General instrument details are in [instrument.md](instrument.md.html).
 
 ## MIDI
 
-At the derive level, a 'Derive.Score.Instrument' is simply a text string, but
-the first step in performance is to look up all those instruments in the
+At the derive level, a 'Derive.BaseTypes.Instrument' is simply a text string,
+but the first step in performance is to look up all those instruments in the
 [instrument db](#instrument-db), and in the per-score configuration, which is
 'Ui.StateConfig.config_midi', which maps instruments to
 'Perform.Midi.Instrument.Config's.
@@ -119,8 +117,8 @@ structure, though of course you may want to lay them out similarly.
 One  problem is that the events emitted by derive are sometimes too low level.
 For example, the `+staccato` attribute may shorten a note's duration, or apply
 a keyswitch, depending on the instrument.  But `+staccato` in staff notation
-does neither, and applies a staccato marking to the notehead.  A tuplet [note
-transformer](derivation.md.html#note-transformers) might normally emit a
+does neither, and applies a staccato marking to the notehead.  A tuplet
+[note parent](derivation.md.html#note-parent-tracks) might normally emit a
 triplet by setting start times and durations, but in staff notation emits a
 larger duration and puts tuplet brackets around them.  To deal with this,
 lilypond derivation replaces a number of standard calls with ones that instead
@@ -149,7 +147,7 @@ combination of keyswitches to get the details of the phrasing right.  Or a
 four-note violin chord should be written as one chord, but played broken into
 two dyads.  In this case, you can substitute an expression with the `if-ly`
 call, or substitute an entire track with the `ly-track` and `not-ly-track`
-calls.  In the example to the right, there are a total of four note transformer
+calls.  In the example to the right, there are a total of four note parent
 tracks applying to two note tracks.  Two of the tracks apply to both lilypond
 and normal derivation, one applies to only when in lilypond mode, and the other
 applies only in normal mode.  (TODO: screenshot should use up to date names,

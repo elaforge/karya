@@ -14,6 +14,7 @@ can get away with is a synth name and a pitchbend range.  E.g. a minimal load
 function is
 
 ```
+    load :: FilePath -> IO [MidiInst.SynthDesc]
     load _dir = return $ MidiInst.make $ MidiInst.softsynth "synth-name"
         "Synth description." (-12, 12) []
 ```
@@ -24,7 +25,7 @@ rest of the configuration is opt-in, so the more things you set in there, the
 more fancy things the instrument can do.
 
 As documented in 'Local.Instrument', some instruments may require expensive
-things like parsing sysex dumps.  'Instrumnet.MakeDb', which is built as
+things like parsing sysex dumps.  'Instrument.MakeDb', which is built as
 `build/opt/make_db`, will run them and write caches.  'Instrument.Sysex' has
 support for parsing (and generating) sysexes.
 
@@ -64,11 +65,12 @@ set or clear various fields in the Config.
 ## Derive
 
 At the derive level, an instrument is mostly just a string
-'Derive.Instrument'.  However, a few other bits of instrument config apply, as
-defined by 'Derive.Deriver.Monad.Instrument'.  Specifically, a note track with
-a title `>xyz` will wind up calling 'Derive.Deriver.Lib.with_instrument' on
-`>xyz`.  A note track with an empty instrument name, like `>`, marks the track
-as a note track but won't alter anything.
+'Derive.BaseTypes.Instrument'.  However, a few other bits of instrument config
+apply, as defined by 'Derive.Deriver.Monad.Instrument'.  Specifically, a note
+track with a title `>xyz` will wind up calling
+'Derive.Deriver.Lib.with_instrument' on `>xyz`.  A note track with an empty
+instrument name, like `>`, marks the track as a note track but won't alter
+anything.
 
 Analogous to CUtil, 'Derive.Instrument.DUtil' has utilities for defining
 instrument-specific calls.

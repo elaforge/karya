@@ -142,8 +142,8 @@ and that's no lightweight operation either.
 - Non-realtime.  While you should be able to play back a score soon after
 making changes, it's still very much oriented around non-realtime
 score-writing.  You cannot change a playback in progress.  Support for
-recording MIDI is present but not a focus, since it's hard to integrate a
-low-level recorded performance with a high-level handwritten score.
+recording MIDI is not a focus, since it's hard to integrate a low-level
+recorded performance with a high-level handwritten score.
 
 - Complicated MIDI routing.  Since it doesn't host plugins itself you have to
 route MIDI to a plugin host, which likely requires a bunch of virtual MIDI
@@ -154,8 +154,8 @@ yourself.  I can do some limited integration with MMC and MTC sync, but closer
 integration is harder given that JACK is only supported by Ardour and Rewire is
 aggressively proprietary.
 
-- MIDI limitations. Due to MIDI's weakness, you'll need a lot of MIDI ports and
-channels, and will be limited to low resolution controls, on both value and
+- MIDI limitations. Due to MIDI being crummy, you'll need a lot of MIDI ports
+and channels, and will be limited to low resolution controls, on both value and
 time axes.  The underlying problem is the software synths, which have all
 deeply embedded MIDI's limitations.  To solve this we'd need to drag software
 synths out of the '80s, create a new high-resolution protocol, and modify the
@@ -191,8 +191,7 @@ in the haddock, since it's easier to keep up to date if it's next to the code
 that implements it.
 
 [My blog](http://elaforge.blogspot.com/) has notes I have taken during
-development.  It's mostly just notes to myself, but it may give some context
-for why certain features are the way they are.
+development.  It's mostly just notes to myself.
 
 Karya is divided into several layers, corresponding to the top level
 directories in the source tree:
@@ -226,7 +225,7 @@ The main program is called `seq`, but there are a few auxiliary programs:
 
 - logview - 'LogView.LogView' is a separate program that formats log output.
 The karya GUI doesn't have a place for global information, so logview serves
-this purpose too.  When log messages display stack traces, you can click on
+this purpose too.  When log messages display stack traces, you can double click
 them to highlight their positions in the score.
 
 - browser - 'Instrument.Browser' is a simple browser for
