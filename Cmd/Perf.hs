@@ -79,15 +79,16 @@ get_derive_at block_id track_id deriver = do
     mapM_ Log.write logs
     Cmd.require_right (("derive_at " <> pretty (block_id, track_id)) <>) result
 
-get_note_deriver :: Cmd.M m => BlockId -> TrackId -> Event.Event
-    -> m Derive.NoteDeriver
-get_note_deriver block_id track_id event = do
+-- | Return the NoteDeriver of a particular event on a particular track,
+-- or Nothing if the track isn't a NoteTrack.
+lookup_note_deriver :: Cmd.M m => BlockId -> TrackId -> Event.Event
+    -> m (Maybe Derive.NoteDeriver)
+lookup_note_deriver block_id track_id event = do
     Tree.Node track subs <- find_track block_id track_id
-    case ParseTitle.track_type (TrackTree.track_title track) of
-        ParseTitle.NoteTrack -> return $
-            derive_event (Derive.Note.track_info track subs) event
-        typ -> Cmd.throw $ "expected a NoteTrack for "
-            <> pretty (block_id, track_id) <> ", but got " <> pretty typ
+    return $ case ParseTitle.track_type (TrackTree.track_title track) of
+        ParseTitle.NoteTrack ->
+            Just $ derive_event (Derive.Note.track_info track subs) event
+        _ -> Nothing
 
 derive_event :: Derive.Callable d => EvalTrack.TrackInfo d -> Event.Event
     -> Derive.LogsDeriver d

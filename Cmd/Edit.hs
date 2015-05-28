@@ -505,19 +505,22 @@ cmd_set_call_duration = ModifyEvents.selection $ \block_id track_id events ->
 -- this is the natural block duration.
 set_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event
     -> m Event.Event
-set_call_duration block_id track_id event = do
-    dur <- get_call_duration block_id track_id event
-    return $ Event.set_duration dur event
+set_call_duration block_id track_id event =
+    maybe event (flip Event.set_duration event) <$>
+        lookup_call_duration block_id track_id event
 
 -- | Evaluate the given event to find its 'Derive.get_call_duration'.
-get_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event -> m TrackTime
-get_call_duration block_id track_id event = do
-    deriver <- Perf.get_note_deriver block_id track_id event
-    dur <- Perf.get_derive_at block_id track_id $
-        Derive.get_call_duration deriver
-    return $ case dur of
-        Derive.Unknown -> Event.duration event
-        Derive.Duration dur -> dur
+lookup_call_duration :: Cmd.M m => BlockId -> TrackId -> Event.Event
+    -> m (Maybe TrackTime)
+lookup_call_duration block_id track_id event =
+    Perf.lookup_note_deriver block_id track_id event >>= \x -> case x of
+        Nothing -> return Nothing
+        Just deriver -> do
+            dur <- Perf.get_derive_at block_id track_id $
+                Derive.get_call_duration deriver
+            return $ Just $ case dur of
+                Derive.Unknown -> Event.duration event
+                Derive.Duration dur -> dur
 
 -- * modify text
 
@@ -653,10 +656,10 @@ handle_floating_input zero_dur msg = do
 -- back so that only adding a new event has this behaviour.
 try_set_call_duration :: Cmd.M m => BlockId -> TrackId -> TrackTime -> m ()
 try_set_call_duration block_id track_id pos =
-    whenJustM (event_at track_id pos) $ \event -> do
-        dur <- get_call_duration block_id track_id event
-        when (dur /= Event.duration event) $
-            State.insert_event track_id (Event.set_duration dur event)
+    whenJustM (event_at track_id pos) $ \event ->
+        whenJustM (lookup_call_duration block_id track_id event) $ \dur ->
+            when (dur /= Event.duration event) $
+                State.insert_event track_id (Event.set_duration dur event)
 
 floating_input_msg :: Msg.Msg -> Maybe Text
 floating_input_msg (Msg.Ui (UiMsg.UiMsg ctx

@@ -10,6 +10,13 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  * Edit.try_set_call_duration is buggy, I get
+    . Cmd/Perf.hs:89 [get_note_deriver] expected a NoteTrack for ((bid
+      "untitled/b1"), (tid "untitled/b1.t3")), but got PitchTrack
+  - on stdout: seq: Prelude.chr: bad argument: 4315582632
+    ****    Cmd/Responder.hs:255 [respond_loop] exception caught in
+    respond_loop: Prelude.chr: bad argument: 4365357696
+
   - format is messed up with
       (Score.Instrument, Map.Map Score.Instrument Score.Instrument)
       ( >u
@@ -30,7 +37,8 @@ UNSORTED
     DeriveTest.mkblocks.
   - Convert_test.test_convert is not lazy if the instrument is not found
   * remove Util.Git dependency from tests
-  - use hgitlib2 or gitlib and remove Util.Git
+  * use hgitlib2 or gitlib and remove Util.Git
+  - load on a .git segfaults
   - Integrate_test.test_block_integrate is flaky, sometimes I get:
     __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
     ((bid "test/b2"),
