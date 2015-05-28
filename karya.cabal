@@ -51,6 +51,7 @@ library
         hashable,
         haskeline,
         haskell-src,
+        hlibgit2,
         mersenne-random-pure64,
         mtl,
         network,

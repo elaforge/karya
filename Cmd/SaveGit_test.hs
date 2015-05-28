@@ -19,7 +19,7 @@ import qualified Cmd.SaveGit as SaveGit
 import Global
 
 
-test_do_save = do
+test_do_save = Git.initialize $ do
     repo <- new_repo
     let state = snd $ UiTest.run_mkview
             [ ("1", [(0, 1, "1a"), (1, 1, "1b")])
@@ -29,7 +29,7 @@ test_do_save = do
     (state2, _, _) <- expect_right "load" <$> SaveGit.load repo Nothing
     equal (strip_views state) (strip_views state2)
 
-test_checkpoint = do
+test_checkpoint = Git.initialize $ do
     repo <- new_repo
     [(state1, commit1), (state2, commit2), (state3, commit3),
             (state4, commit4)] <- checkpoint_sequence repo
@@ -73,7 +73,7 @@ test_checkpoint = do
     io_equal (load_from repo commit1 (Just commit4) state1)
         (Right (state4, [update 1 2 4]))
 
-test_ruler_checkpoint = do
+test_ruler_checkpoint = Git.initialize $ do
     repo <- new_repo
     states <- checkpoint_sequence repo
         [ ("create", mkview [("1", [])])
@@ -87,7 +87,7 @@ test_ruler_checkpoint = do
     -- here.  Of course I can't test for the log :/
     equal (length states) 2
 
-test_more_checkpoints = check_sequence
+test_more_checkpoints = Git.initialize $ check_sequence
     [ mkview [("1", [])]
     , void $ Create.block_from_template False UiTest.default_block_id
     , void $ Create.empty_track UiTest.default_block_id 2

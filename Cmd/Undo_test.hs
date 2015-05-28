@@ -33,7 +33,7 @@ import Global
 import Types
 
 
-test_undo = do
+test_undo = Git.initialize $ do
     let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
 
     res <- ResponderTest.respond_cmd states $ Cmd.name "+z" $ insert_event 0 "z"
@@ -73,7 +73,7 @@ test_undo = do
     equal (extract_ui res) "zq"
     equal (e_updates res) []
 
-test_suppress_history = do
+test_suppress_history = Git.initialize $ do
     let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
     let suppress = Cmd.suppress_history Cmd.ValEdit
 
@@ -88,7 +88,7 @@ test_suppress_history = do
     res <- next res $ Cmd.name "toggle" Edit.cmd_toggle_val_edit
     equal (e_hist_names res) (["setup: 12"], "+z: zq", [])
 
-test_undo_while_suppressed = do
+test_undo_while_suppressed = Git.initialize $ do
     let states = ResponderTest.mkstates [(">", [(0, 1, "1"), (1, 1, "2")])]
     let suppress = Cmd.suppress_history Cmd.ValEdit
 
@@ -112,7 +112,7 @@ test_undo_while_suppressed = do
     equal (e_hist_names res) (["+a: a2", "setup: 12"], "+b: b2", [])
     equal (extract_ui res) "b2"
 
-test_undo_merge = do
+test_undo_merge = Git.initialize $ do
     let states = ResponderTest.mkstates [(">", [])]
         vid = UiTest.default_view_id
     res1 <- ResponderTest.respond_cmd states $ do
@@ -131,7 +131,7 @@ track_update :: TrackNum -> ScoreTime -> ScoreTime -> Update.DisplayUpdate
 track_update tracknum from to = Update.Track (UiTest.mk_tid tracknum)
     (Update.TrackEvents from to)
 
-test_load_previous_history = do
+test_load_previous_history = Git.initialize $ do
     repo <- get_repo
     -- Load a git repo and make sure its history comes with it.
     res <- save_git repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
@@ -169,7 +169,7 @@ test_load_previous_history = do
     equal (extract_ui res) "xy"
     equal (e_updates res) [track_update 1 1 2]
 
-test_load_next_history = do
+test_load_next_history = Git.initialize $ do
     repo <- get_repo
     res <- save_git repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"
@@ -203,7 +203,7 @@ test_load_next_history = do
     equal (extract_ui res) "1"
     equal (e_updates res) [track_update 1 0 1]
 
-test_branching_history = do
+test_branching_history = Git.initialize $ do
     repo <- get_repo
     res <- save_git repo $ ResponderTest.mkstates [(">", [(0, 1, "1")])]
     res <- next res $ Cmd.name "+x" $ insert_event 0 "x"

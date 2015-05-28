@@ -278,6 +278,7 @@ globalPackages = concat $
     , w "mersenne-random-pure64 digest random-shuffle"
     , w "dlist" -- Util.TimeVector
     , w "bindings-DSL" -- Util.Git.LibGit2
+    , w "hlibgit2"
     , [("fclabels", ">=2")]
     , [("ghc", ">=7.6.1")] -- REPL
     , w "ghc-paths haskeline terminfo" -- REPL
@@ -450,8 +451,8 @@ configure midi = do
             ++ ["-dynamic" | mode /= Profile]
             ++ ["-prof" | mode == Profile]
             ++ ["-with-rtsopts=-T" | useEkg]
-        -- Hackery, make sure ghci gets link flags, otherwise it wants to
-        -- load everything as bytecode and fails on missing symbols.  Actually,
+        -- Make sure ghci gets link flags, otherwise it wants to load
+        -- everything as bytecode and fails on missing symbols.  Actually,
         -- these only apply to loading the modules for the main app.  But
         -- that's where I care most about load time.
         , ghciFlags = libs ++ ["Util/Git/libgit_wrappers.cc"]

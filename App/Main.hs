@@ -21,6 +21,7 @@ import qualified System.IO as IO
 import qualified System.Remote.Monitoring
 #endif
 
+import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Thread as Thread
@@ -82,7 +83,7 @@ initialize app = do
             Config.initialize_repl_port
             socket <- Network.listenOn Config.repl_port
             midi_interface <- Interface.track_interface midi_interface
-            app socket midi_interface
+            Git.initialize $ app socket midi_interface
     where
     want_message (Midi.RealtimeMessage Midi.ActiveSense) = False
     want_message _ = True
