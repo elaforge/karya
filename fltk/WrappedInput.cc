@@ -51,6 +51,7 @@ void
 WrappedInput::set_text(const char *text)
 {
     this->value(text);
+    this->last_text = text;
     wrap_text();
     do_callback();
 }

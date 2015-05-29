@@ -70,7 +70,7 @@ TrackTile::set_zoom(const ZoomInfo &zoom)
 }
 
 
-// edit input //////////////////////////
+// floating input //////////////////////
 
 void
 TrackTile::floating_input_cb(Fl_Widget *_w, void *vp)
