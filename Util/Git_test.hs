@@ -2,11 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Util.Git.Git_hlibgit2_test where
+module Util.Git_test where
 import qualified Data.Map as Map
 
-import qualified Util.Git.Git_hlibgit2 as Git
-import Util.Git.Git_hlibgit2 (Modification(..))
+import qualified Util.Git as Git
+import Util.Git (Modification(..))
 import Util.Test
 
 import Global

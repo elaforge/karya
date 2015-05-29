@@ -39,7 +39,8 @@ UNSORTED
   - Convert_test.test_convert is not lazy if the instrument is not found
   * remove Util.Git dependency from tests
   * use hgitlib2 or gitlib and remove Util.Git
-  - load on a .git segfaults
+  * load on a .git segfaults
+    . But only for the optimized build.
   - Integrate_test.test_block_integrate is flaky, sometimes I get:
     __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
     ((bid "test/b2"),

@@ -9,6 +9,7 @@ import qualified Data.Text.Lazy as Lazy
 
 import qualified Util.Pretty as Pretty
 import Util.Test
+import qualified Derive.Score as Score
 import Global
 
 

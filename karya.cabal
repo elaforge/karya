@@ -33,7 +33,6 @@ library
         attoparsec,
         base >=4.6,
         binary,
-        bindings-DSL,
         bytestring,
         cereal,
         containers >=0.5,

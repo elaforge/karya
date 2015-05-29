@@ -69,7 +69,7 @@ import qualified Data.Time as Time
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
-import qualified Util.Git.Types as Git.Types
+import qualified Util.GitTypes as GitTypes
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
@@ -396,7 +396,7 @@ data State = State {
     , state_repl_status :: !Status
     } deriving (Show)
 
-data SaveFile = SaveState !FilePath | SaveRepo !Git.Types.Repo
+data SaveFile = SaveState !FilePath | SaveRepo !GitTypes.Repo
     deriving (Show, Eq)
 
 -- | Directory of the save file.
@@ -833,7 +833,7 @@ data LastCmd =
     UndoRedo
     -- | This cmd set the state because of a load.  This should reset all the
     -- history so I can start loading from the new state's history.
-    | Load (Maybe Git.Types.Commit) [Text]
+    | Load (Maybe GitTypes.Commit) [Text]
     deriving (Show)
 
 data HistoryConfig = HistoryConfig {
@@ -842,7 +842,7 @@ data HistoryConfig = HistoryConfig {
     -- | Checkpoints are saved relative to the state at the next checkpoint.
     -- So it's important to keep the commit of that checkpoint up to date,
     -- otherwise the state and the checkpoints will get out of sync.
-    , hist_last_commit :: !(Maybe Git.Types.Commit)
+    , hist_last_commit :: !(Maybe GitTypes.Commit)
     } deriving (Show)
 
 empty_history_config :: HistoryConfig
@@ -886,7 +886,7 @@ data HistoryEntry = HistoryEntry {
     , hist_names :: ![Text]
     -- | The Commit where this entry was saved.  Nothing if the entry is
     -- unsaved.
-    , hist_commit :: !(Maybe Git.Types.Commit)
+    , hist_commit :: !(Maybe GitTypes.Commit)
     } deriving (Show)
 
 empty_history_entry :: State.State -> HistoryEntry

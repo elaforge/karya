@@ -35,6 +35,7 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
 import qualified Util.Git as Git
+import Util.GitTypes (Commit, Repo)
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -50,7 +51,6 @@ import qualified Ui.Track as Track
 import qualified Ui.Update as Update
 
 import Cmd.SaveGitTypes (SaveHistory(..))
-import Util.Git.Types (Commit, Repo)
 import qualified Cmd.Serialize
 import qualified App.Config as Config
 import Global

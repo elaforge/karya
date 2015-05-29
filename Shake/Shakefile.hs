@@ -246,18 +246,9 @@ hsToCc = Map.fromList $
     , ("LogView/LogViewC.hsc", ["LogView/interface.cc"])
     , ("Instrument/BrowserC.hsc", ["Instrument/interface.cc"])
     , ("Util/Fltk.hs", ["Util/fltk_interface.cc"])
-    , ("Util/Git/LibGit2.hsc", ["Util/Git/libgit_wrappers.cc"])
     ] ++ [(hsc, ["Ui/c_interface.cc"])
         | hsc <- ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc",
             "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]]
-
--- | Another hack.  hsc2hs isn't really meant to work with C++, but it
--- basically does, and that way I don't have to strictly separate all the FFI
--- headers from the C++.
---
--- Unfortunately, g++ breaks the macros used by bindings-dsl:
-hsc2hsNeedsC :: [FilePath]
-hsc2hsNeedsC = ["Util/Git/LibGit2.hsc"]
 
 -- | This is used to create karya.cabal, which is then used with cabal
 -- configure to figure out exact version numbers.
@@ -277,7 +268,6 @@ globalPackages = concat $
     -- Derive: score randomization
     , w "mersenne-random-pure64 digest random-shuffle"
     , w "dlist" -- Util.TimeVector
-    , w "bindings-DSL" -- Util.Git.LibGit2
     , w "hlibgit2"
     , [("fclabels", ">=2")]
     , [("ghc", ">=7.6.1")] -- REPL
@@ -455,7 +445,7 @@ configure midi = do
         -- everything as bytecode and fails on missing symbols.  Actually,
         -- these only apply to loading the modules for the main app.  But
         -- that's where I care most about load time.
-        , ghciFlags = libs ++ ["Util/Git/libgit_wrappers.cc"]
+        , ghciFlags = libs
         }
     setCcFlags flags = flags
         { ccFlags =
@@ -469,7 +459,7 @@ configure midi = do
                 -- false positives.
                 -- ++ ["-Weffc++"]
         }
-    libs = ["-lgit2"]
+    libs = []
     osFlags = case System.Info.os of
         -- In C and C++ programs the OS specific defines like __APPLE__ and
         -- __linux__ are already defined, but ghc doesn't define them.
@@ -1130,15 +1120,13 @@ hsRule config = hscDir config ++ "//*.hs" *> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
     includes <- includesOf "hsRule" config hsc
     logDeps config "hsc" hs (hsc : includes)
-    Util.cmdline $ hsc2hs config (hsc `notElem` hsc2hsNeedsC) hs hsc
+    Util.cmdline $ hsc2hs config hs hsc
 
-hsc2hs :: Config -> Bool -> FilePath -> FilePath -> Util.Cmdline
-hsc2hs config useCpp hs hsc = ("hsc2hs", hs,
+hsc2hs :: Config -> FilePath -> FilePath -> Util.Cmdline
+hsc2hs config hs hsc = ("hsc2hs", hs,
     ["hsc2hs", "-I" ++ ghcLib config </> "include"]
-    ++ (if useCpp
-        -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
-        then words "-c g++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
-        else [])
+    -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
+    ++ words "-c g++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
     ++ cInclude flags ++ fltkCc flags ++ define flags
     ++ [hsc, "-o", hs])
     where flags = configFlags config
