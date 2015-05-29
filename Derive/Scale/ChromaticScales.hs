@@ -180,7 +180,7 @@ call_doc transposers smap doc =
     where
     call = ScaleDegree.scale_degree PitchSignal.no_scale err err
         where err _ = Left $ PitchSignal.PitchError "it was just an example!"
-    extra_doc = doc <> twelve_doc
+    extra_doc = doc <> "\n" <> twelve_doc
     -- Not efficient, but shouldn't matter for docs.
     default_key = fst <$> List.find ((== smap_default_key smap) . snd)
         (Map.toList (smap_keys smap))

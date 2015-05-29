@@ -34,8 +34,8 @@ doc =
     \ differentiate between gamakam, or order, and I don't bother omitting\
     \ notes if there are less than seven, so many janya ragas can be aliased to\
     \ their janaka raga.\
-    \\nSince there's no standard latin orthography, they\
-    \ might be spelled slightly differently from how you expect."
+    \\nSince latin orthography is inconsistent, they might be spelled slightly\
+    \ differently from how you expect."
 
 doc_fields :: [(Text, Text)]
 doc_fields = JustScales.group_relative_keys melakarta_keys
@@ -119,6 +119,7 @@ aliases = Map.fromList
     -- janya
     , ("harikambhoji", ["mohanam", "kambhoji"])
     , ("natabhaivari", ["bhairavi"])
+    , ("kharaharapriya", ["abheri"])
     ]
 
 melakarta_names :: [Text]
