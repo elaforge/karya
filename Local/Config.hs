@@ -59,12 +59,14 @@ global_cmds =
     ]
 
 get_midi_config :: Cmd.InstrumentDb -> IO StaticConfig.Midi
-get_midi_config db = Network.BSD.getHostName >>= \x -> case x of
-    "tammananny" -> return $ Tammananny.midi_config db
-    "archy" -> return $ Archy.midi_config db
-    host -> do
-      Log.warn $ "no midi configuration for host: " <> showt host
-      return StaticConfig.empty_midi
+get_midi_config db = do
+    full_host <- Network.BSD.getHostName
+    case takeWhile (/='.') full_host of
+        "tammananny" -> return $ Tammananny.midi_config db
+        "archy" -> return $ Archy.midi_config db
+        host -> do
+          Log.warn $ "no midi configuration for host: " <> showt host
+          return StaticConfig.empty_midi
 
 parse_args :: [String] -> Cmd.CmdIO
 parse_args argv = case argv of
