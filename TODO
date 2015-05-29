@@ -10,6 +10,7 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - can't delete text with floating edit?
   * Edit.try_set_call_duration is buggy, I get
     . Cmd/Perf.hs:89 [get_note_deriver] expected a NoteTrack for ((bid
       "untitled/b1"), (tid "untitled/b1.t3")), but got PitchTrack
@@ -373,6 +374,7 @@ documentation:
   - update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
+    - put anchors on calls and make single quotes link to calls
     - For call doc, can I group calls with the same doc but different args,
       especially different defaults?
       . Would look like:

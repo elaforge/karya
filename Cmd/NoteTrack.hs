@@ -13,7 +13,7 @@
     Note event are usually given a duration of the current time step.  If a
     "trigger only" instrument (e.g. percussion) is in scope, they are created
     with zero duration.  Also, starting a raw edit with space will create a
-    zero duration event.  This is useful because some note transformers only
+    zero duration event.  This is useful because some note parents only
     transform other notes and don't need a duration of their own.
 -}
 module Cmd.NoteTrack where

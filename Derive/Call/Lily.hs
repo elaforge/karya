@@ -61,9 +61,9 @@ add_first :: Code -> Derive.NoteDeriver -> Derive.NoteDeriver
 add_first code deriver =
     Post.map_first (return . add_event_code code) =<< deriver
 
--- ** note transformer
+-- ** note parent
 
--- | Replace a note transformer with one that derives its sub-events as-is
+-- | Replace a note parent with one that derives its sub-events as-is
 -- and adds lilypond code to them.
 notes_code :: Code -> Derive.PassedArgs d
     -> Derive.NoteDeriver -> Derive.NoteDeriver

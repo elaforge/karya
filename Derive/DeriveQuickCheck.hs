@@ -19,7 +19,7 @@
       a channel split
     - basic controls: Given randomly placed control events, notes have the
       correct control curves.  Don't worry about times or midi.
-    - slicing: Given some simple note transformers (tuple, place, ...),
+    - slicing: Given some simple note parents (tuple, place, ...),
       pitches and controls are still associated with the right notes as above.
       Don't worry about times, just that the right notes and the right
       controls.

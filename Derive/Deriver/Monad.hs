@@ -1098,7 +1098,7 @@ data CallInfo val = CallInfo {
     , info_sub_tracks :: !TrackTree.EventsTree
     -- | If present, 'Derive.Sub.sub_events' will directly return these sub
     -- events instead of slicing sub-tracks.  Track evaluation will never set
-    -- this, but calls can set this to reapply a note transformer.  It should
+    -- this, but calls can set this to reapply a note parent.  It should
     -- be 'Derive.Sub.Event's, but isn't to avoid circular imports.
     , info_sub_events :: !(Maybe [[(ScoreTime, ScoreTime, NoteDeriver)]])
     -- | This is needed by val calls that want to evaluate events around them.

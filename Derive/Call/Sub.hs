@@ -319,10 +319,10 @@ strip_rests events = [Event s d n | Event s d (Just n) <- events]
 
 -- * reapply
 
--- | Call a note transformer with sub-events.  While you can easily call other
--- kinds of calls with 'Eval.reapply', note transformers are more tricky
+-- | Call a note parent with sub-events.  While you can easily call other
+-- kinds of calls with 'Eval.reapply', note parents are more tricky
 -- because they expect a track structure in 'Derive.info_sub_tracks'.  This
--- bypasses that and directly passes 'Event's to the note transformer, courtesy
+-- bypasses that and directly passes 'Event's to the note parent, courtesy
 -- of 'Derive.info_sub_events'.
 reapply :: Derive.CallInfo Score.Event -> TrackLang.Expr -> [[Event]]
     -> Derive.NoteDeriver
@@ -339,7 +339,7 @@ reapply_call cinfo call_id call_args =
     reapply cinfo (TrackLang.call call_id call_args :| [])
 
 {- NOTE [under-invert]
-    . To make lift to an absolute pitch work outside of inversion, I'd need
+    . To make 'lift' to an absolute pitch work outside of inversion, I'd need
       an abstract way (e.g. like a transpose signal) to say "pitch midway to
       (4c)"
     . It's better to have the lift under the pitch.  The only reason it isn't

@@ -341,7 +341,7 @@ check_overlapping include_end start tracks
     > a (c 1 2) (b ...?)
 
     It's ok for a sub-event to be larger than its caller, because there are
-    zero-duration note transformers that take non-zero-duration sub-events.
+    zero-duration note parents that take non-zero-duration sub-events.
 
     This check also requires me to delay stripping out empty tracks until after
     the check has been done, because otherwise @b@ wouldn't notice that @c@

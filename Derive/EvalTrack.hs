@@ -159,7 +159,7 @@ derive_control_track = derive_track derive_empty
 
     Orphans are uncovered events in note tracks in the sub-tracks.  They are
     extracted with 'Slice.checked_slice_notes' and evaluated as-is.  The effect
-    is that note transformers can be stacked horizontally, and tracks left empty
+    is that note parents can be stacked horizontally, and tracks left empty
     have no effect, except whatever transformers they may have in their titles.
 
     This is all very complicated and unsatisfactory, but it's still less
