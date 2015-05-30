@@ -11,7 +11,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Midi.Perform as Perform
 import qualified Local.Instrument.Kontakt as Kontakt
-import Global
 
 
 derive :: Simple.Aliases -> String -> [UiTest.TrackSpec] -> Derive.Result

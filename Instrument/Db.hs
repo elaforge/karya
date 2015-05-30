@@ -20,7 +20,6 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
-import Global
 
 
 -- | Static config type for the instrument db.

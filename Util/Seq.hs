@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Util.Seq where
-import Prelude hiding (head, join, last, tail)
+import Prelude hiding (head, last, tail)
 import qualified Control.Arrow as Arrow
 import qualified Data.Char as Char
 import Data.Function
