@@ -38,6 +38,7 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.Info
+import qualified System.Posix as Posix
 import qualified System.Process as Process
 
 import qualified Util.FLock as FLock
@@ -514,6 +515,7 @@ main = withLockedDatabase $ do
     env <- Environment.getEnvironment
     modeConfig_ <- configure (midiFromEnv env)
     writeGhciFlags modeConfig_
+    makeDataLink
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         getPackageIds_ <- packageConfigurationRules
         let modeConfig = (\c -> c { getPackageIds_ = getPackageIds_ })
@@ -1040,8 +1042,8 @@ compileHs packageIds packages mode config hs =
             ["-main-is", pathToModule hs]
         | otherwise = []
 
-linkHs :: Config -> FilePath -> [PackageId] -> [Package]
-    -> [FilePath] -> Util.Cmdline
+linkHs :: Config -> FilePath -> [PackageId] -> [Package] -> [FilePath]
+    -> Util.Cmdline
 linkHs config output packageIds packages objs = ("LD-HS", output,
     ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
         ++ ["-lstdc++"]
@@ -1067,6 +1069,11 @@ writeGhciFlags modeConfig =
     resolveSrc config arg
         | FilePath.takeExtension arg == ".cc" = srcToObj config arg
         | otherwise = arg
+
+-- | This has large binary files I don't want to put into source control.
+makeDataLink :: IO ()
+makeDataLink = Util.whenM (not <$> Posix.fileExist (build </> "data")) $
+    Posix.createSymbolicLink "../../data" (build </> "data")
 
 -- | Get the file-independent flags for a haskell compile.
 ghcFlags :: Config -> [Flag]

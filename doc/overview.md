@@ -25,14 +25,16 @@ features, but if there are, I'd be interested in hearing about them.
 
 ## Music, screenshots, examples
 
-- [Music examples with screenshots.](music.md.html)
+- [Music examples with screenshots.](examples.md.html)
 
 - [Some stuff I've written over the years.](link-to-my-music.html)  All of
 varying quality and completeness.  The older stuff uses other software.
 
 ## Features:
 
-<img align=right width=180 src="../../doc/img/ly-example.png">
+<a href="../../doc/img/screen/seq-viola-sonata-vla1.png">
+<img align=right width=200 src="../../doc/img/seq-viola-sonata-vla1.png">
+</a>
 
 - Ornaments.  There is a library of musical ornaments, such as grace notes,
 tuplets, trills of various flavor, arpeggio, echo, delay, etc.  These are
@@ -107,14 +109,16 @@ synthesizers, or simple patch lists.
 developed one, but there is also some ability to export to lilypond.
 Lilypond export is necessarily limited because it's hard to translate between
 different kinds of scores, but with a bit of work you can get
-TODO (reasonable looking output)[viola-sonata.pdf].
+[reasonable looking output.](../data/score/viola-sonata.pdf)
 
 - Incremental saving.  The score is continually saved as changes are made.  You
 can undo and make different changes, resulting in a branching history.  If
 you set checkpoints along the branches you can jump between different versions
 at will, and hopefully no edits need ever be lost.  The underlying storage is
-git, so you can use the usual git tools to inspect and manipulate it, though
-many source control concepts don't really apply.
+git, so you can use the usual git tools to inspect and manipulate it.  Only in
+a limited way, though, since the files are binary and it's a "bare" repo with
+no checked out files.  Theoretically I could invent a text format and then
+diffs would work.
 
 ## Weaknesses:
 

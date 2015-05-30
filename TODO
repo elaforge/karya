@@ -10,6 +10,7 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - save/sketch/14-04-30 has "sample time didn't increase"
   * can't delete text with floating edit?
   * Edit.try_set_call_duration is buggy, I get
     . Cmd/Perf.hs:89 [get_note_deriver] expected a NoteTrack for ((bid
@@ -17,21 +18,8 @@ UNSORTED
   - on stdout: seq: Prelude.chr: bad argument: 4315582632
     ****    Cmd/Responder.hs:255 [respond_loop] exception caught in
     respond_loop: Prelude.chr: bad argument: 4365357696
+    . See if downgrading to ghc 7.8.4 fixes it.
 
-  - format is messed up with
-      (Score.Instrument, Map.Map Score.Instrument Score.Instrument)
-      ( >u
-      , { >i
-              : >kontakt/wayang-isep
-          , >u: >kontakt/wayang-umbang, >w: >kontakt/wayang-pemade
-          }
-      )
-    should be:
-      ( >u
-      , { >i: >kontakt/wayang-isep, >u: >kontakt/wayang-umbang
-        , >w: >kontakt/wayang-pemade
-        }
-      )
   * test_inst_call uses make_db, generalize make_db
     . Merge CmdTest.set_insts, and Convert_test.perform_patch
   * move DeriveTest.set_defaults to UiTest so I don't need a separate
@@ -106,6 +94,20 @@ UNSORTED
 
   - kotekan calls leave keys down in kontakt
   format:
+    - format is messed up with
+        (Score.Instrument, Map.Map Score.Instrument Score.Instrument)
+        ( >u
+        , { >i
+                : >kontakt/wayang-isep
+            , >u: >kontakt/wayang-umbang, >w: >kontakt/wayang-pemade
+            }
+        )
+      should be:
+        ( >u
+        , { >i: >kontakt/wayang-isep, >u: >kontakt/wayang-umbang
+          , >w: >kontakt/wayang-pemade
+          }
+        )
     - pp LPerf.sel_events has an extra level of indent after the [.  Not due
       to LEvents.
     * what happens with ShortForm <> ShortForm?
@@ -372,7 +374,7 @@ MILESTONES
 
 documentation:
   * write doc/instrument.md
-  - update screenshots: doc/img/ly-example.png
+  * update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
     - put anchors on calls and make single quotes link to calls
