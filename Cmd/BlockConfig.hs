@@ -59,11 +59,18 @@ clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
 toggle_merge_all :: State.M m => BlockId -> m ()
 toggle_merge_all block_id = do
     tracks <- Info.block_tracks block_id
-    let tracknums = [State.track_tracknum note |
-            Info.Track note (Info.Note {}) <- tracks]
+    let tracknums = no_parents
+            [ State.track_tracknum note
+            | Info.Track note (Info.Note {}) <- tracks
+            ]
     ifM (andM (map (track_merged block_id) tracknums))
         (mapM_ (State.unmerge_track block_id) tracknums)
         (mapM_ (merge_track block_id) tracknums)
+    where
+    -- A note track parent can't merge, so don't count it.
+    no_parents (t1:t2:ts) | t1 + 1 == t2 = no_parents (t2:ts)
+    no_parents (t:ts) = t : no_parents ts
+    no_parents [] = []
 
 merge_track :: State.M m => BlockId -> TrackNum -> m ()
 merge_track block_id tracknum =
