@@ -19,6 +19,7 @@ UNSORTED
     ****    Cmd/Responder.hs:255 [respond_loop] exception caught in
     respond_loop: Prelude.chr: bad argument: 4365357696
     . See if downgrading to ghc 7.8.4 fixes it.
+    . Apparently not, got it again in save/sketch/piano1
 
   * test_inst_call uses make_db, generalize make_db
     . Merge CmdTest.set_insts, and Convert_test.perform_patch

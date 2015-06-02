@@ -56,6 +56,9 @@ about the same version, or the library won't want to read the output of the
 command.  I could probably fix that by using the library to configure instead
 of the cabal command, but it looks non-trivial.
 
+TODO this is pretty annoying.  Maybe I should skip it all and add support for a
+cabal sandbox.
+
 ## INSTALLED SEPARATELY
 
 fltk-1.3, from <http://fltk.org/>.  Install the latest version from SVN for
@@ -70,16 +73,6 @@ you need flags:
 
     % cabal configure --extra-include-dirs=$HOME/homebrew/include \
         --extra-lib-dirs=$HOME/homebrew/lib
-
-libgit2 - It has no official release, but as of 2014-03-12 my binding is to
-v0.20.0.  You can get it with:
-
-    % git clone https://github.com/libgit2/libgit2
-    % cd libgit2
-    % git checkout tags/v0.20.0
-    % git checkout -b v0.20.0
-
-Then build and install according to their instructions.
 
 lilypond, for some fonts, and for the lilypond backend, of course.
 Lilypond sometimes changes the position of characters in their fonts, which
