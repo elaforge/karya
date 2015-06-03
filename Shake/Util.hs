@@ -17,10 +17,10 @@ import Control.Monad.Trans (liftIO)
 import qualified Data.Char as Char
 import qualified Development.Shake as Shake
 import qualified Development.Shake.FilePath as FilePath
-import qualified System.Process as Process
 import qualified System.Exit as Exit
 import qualified System.FilePath
 import System.FilePath ((</>))
+import qualified System.Process as Process
 
 
 -- * shake specific

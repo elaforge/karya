@@ -37,11 +37,13 @@ import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
+import qualified System.IO.Error as IO.Error
 import qualified System.Info
 import qualified System.Posix as Posix
 import qualified System.Process as Process
 
 import qualified Util.FLock as FLock
+import qualified Util.File as File
 import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 
@@ -1072,7 +1074,7 @@ writeGhciFlags modeConfig =
 
 -- | This has large binary files I don't want to put into source control.
 makeDataLink :: IO ()
-makeDataLink = Util.whenM (not <$> Posix.fileExist (build </> "data")) $
+makeDataLink = void $ File.ignoreError IO.Error.isAlreadyExistsError $
     Posix.createSymbolicLink "../../data" (build </> "data")
 
 -- | Get the file-independent flags for a haskell compile.
