@@ -56,8 +56,7 @@ tuning_template =
     \\n\
     \on note\n\
     \    change_tune($EVENT_ID, %Pitches[$EVENT_NOTE], 0)\n\
-    \end on\n\
-    \|]\n"
+    \end on\n"
 
 -- * drum_mute_ksp
 
