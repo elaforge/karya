@@ -10,6 +10,15 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  - I think the ngoret into b01 in save/complete/wayang/delima-manis isn't
+    being cancelled properly.
+  - shakefile: remove cabal usage in favor of a sandbox
+    . If there is a .cabal-sandbox, pass -no-user-package-db
+      -package-db .cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d/
+    - How to get the path to the packages dir?
+      cabal -v hc-pkg check
+    - Figure out how to get GHC API to read from sandbox.  Probably have to
+      put the same flags into build/*/ghci-flags
   - save/sketch/14-04-30 has "sample time didn't increase"
   * can't delete text with floating edit?
   * Edit.try_set_call_duration is buggy, I get
@@ -20,6 +29,129 @@ UNSORTED
     respond_loop: Prelude.chr: bad argument: 4365357696
     . See if downgrading to ghc 7.8.4 fixes it.
     . Apparently not, got it again in save/sketch/piano1
+    *** Exception (reporting due to +RTS -xc): (THUNK_1_0), stack trace:
+      Derive.Parse.p_identifier,
+      called from Derive.Parse.p_instrument,
+      called from Derive.Parse.p_val,
+      called from Derive.Parse.p_term,
+      called from Derive.Parse.lexeme,
+      called from Derive.Parse.p_word,
+      called from Derive.Parse.p_call_symbol,
+      called from Derive.Parse.p_call,
+      called from Derive.Parse.p_expr,
+      called from Derive.Parse.p_pipeline,
+      called from Derive.Parse.parse_expr,
+      called from Derive.ParseTitle.parse_note,
+      called from Derive.Note.with_title,
+      called from Derive.Note.d_note_track,
+      called from Derive.Call.BlockUtil.derive_track,
+      called from Util.Control.mconcatMap,
+      called from Derive.Call.BlockUtil.derive_tracks,
+      called from Derive.Call.BlockUtil.derive_tree,
+      called from Derive.Deriver.Internal.eval_ui,
+      called from Derive.Call.BlockUtil.note_deriver,
+      called from Derive.Call.Prelude.Block.d_block,
+      called from Derive.Call.Prelude.Block.c_block,
+      called from Derive.Deriver.Internal.localm,
+      called from Derive.Deriver.Internal.with_stack,
+      called from Derive.Deriver.Internal.with_stack_call,
+      called from Derive.Eval.require_call,
+      called from Derive.Deriver.Internal.get_dynamic,
+      called from Derive.Deriver.Internal.get_stack,
+      called from Derive.Deriver.Internal.lookup_current_block_id,
+      called from Derive.Deriver.Internal.get_ui_state,
+      called from Derive.Call.Prelude.Block.call_to_block_id,
+      called from Derive.Call.Prelude.Articulation.make_lookup_attr,
+      called from Derive.Deriver.Monad.lookup_call,
+      called from Derive.Deriver.Monad.lookup_scopes,
+      called from Derive.Deriver.Monad.get_scopes,
+      called from Derive.Deriver.Monad.lookup_with,
+      called from Derive.Deriver.Monad.lookup_generator,
+      called from Derive.Eval.get_generator,
+      called from Derive.Eval.apply_generator,
+      called from Derive.Eval.eval_generator,
+      called from Derive.Eval.eval_toplevel,
+      called from Derive.Eval.eval_expr,
+      called from Derive.Eval.eval_one_at,
+      called from Derive.Eval.eval_one,
+      called from Derive.Eval.eval_one_call,
+      called from Derive.Call.Prelude.Block.eval_root_block,
+      called from Cmd.PlayUtil.derive_block,
+      called from Ui.State.fmap,
+      called from Cmd.Cmd.fmap,
+      called from Util.Logger.run,
+      called from Util.Logger.>>=,
+      called from Util.Log.>>=,
+      called from Cmd.Cmd.run,
+      called from Cmd.Cmd.run_id,
+      called from Cmd.Performance.derive,
+      called from Cmd.Performance.generate_performance,
+      called from Cmd.Performance.try_generate_performance,
+      called from Cmd.Performance.run_update,
+      called from Cmd.Performance.update_performance,
+      called from Cmd.Responder.post_cmd,
+      called from Cmd.Responder.run_responder,
+      called from Cmd.Responder.respond,
+      called from Cmd.Responder.respond_loop,
+      called from Cmd.Responder.responder,
+      called from Util.Thread.start_logged,
+      called from Util.Git.initialize,
+      called from Midi.CoreMidi.initialize,
+      called from App.Main.initialize,
+      called from App.Main.main
+    *** Exception (reporting due to +RTS -xc): (base:GHC.Exception.SomeException), stack trace:
+      Cmd.Performance.performance,
+      called from Cmd.Performance.derive,
+      called from Cmd.Performance.generate_performance,
+      called from Cmd.Performance.try_generate_performance,
+      called from Cmd.Performance.run_update,
+      called from Cmd.Performance.update_performance,
+      called from Cmd.Responder.post_cmd,
+      called from Cmd.Responder.run_responder,
+      called from Cmd.Responder.respond,
+      called from Cmd.Responder.respond_loop,
+      called from Cmd.Responder.responder,
+      called from Util.Thread.start_logged,
+      called from Util.Git.initialize,
+      called from Midi.CoreMidi.initialize,
+      called from App.Main.initialize,
+      called from App.Main.main
+    **** Cmd/Responder.hs:234 [respond_loop] - exception caught in respond_loop: Prelude.chr: bad argument: 4651120416
+    *** Exception (reporting due to +RTS -xc): (base:GHC.Exception.SomeException), stack trace:
+      Cmd.Play.write_logs,
+      called from Cmd.Play.get_performance,
+      called from Cmd.Play.get_realtime,
+      called from Cmd.Play.from_score,
+      called from Ui.State.fmap,
+      called from Cmd.Cmd.fmap,
+      called from Cmd.GlobalKeymap.player_bindings,
+      called from Ui.State.<*,
+      called from Cmd.Cmd.<*,
+      called from Cmd.Cmd.name,
+      called from Ui.State.>>,
+      called from Cmd.Cmd.>>,
+      called from Cmd.Cmd.>>=,
+      called from Cmd.Keymap.make_cmd,
+      called from Util.Logger.run,
+      called from Util.Logger.>>=,
+      called from Util.Log.>>=,
+      called from Cmd.Cmd.run,
+      called from Cmd.Cmd.run_id_io,
+      called from Cmd.Responder.run_cmd,
+      called from Cmd.Responder.run_throw,
+      called from Cmd.Responder.run_core_cmds,
+      called from Cmd.Responder.run_responder,
+      called from Cmd.Responder.respond,
+      called from Cmd.Responder.respond_loop,
+      called from Cmd.Responder.responder,
+      called from Util.Thread.start_logged,
+      called from Util.Git.initialize,
+      called from Midi.CoreMidi.initialize,
+      called from App.Main.initialize,
+      called from App.Main.main
+    **** Cmd/Responder.hs:234 [respond_loop] - exception caught in respond_loop: Prelude.chr: bad argument: 4651120416
+
+    seq: Prelude.chr: bad argument: 4656186624
 
   * test_inst_call uses make_db, generalize make_db
     . Merge CmdTest.set_insts, and Convert_test.perform_patch

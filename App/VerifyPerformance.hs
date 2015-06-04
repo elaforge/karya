@@ -4,7 +4,7 @@
 
 -- | Cmdline program to verify that a saved score still derives the same MIDI
 -- msgs or lilypond code as the last saved performance.
-module App.VerifyPerformance where
+module App.VerifyPerformance (main) where
 import qualified Control.Monad.Error as Error
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -18,6 +18,7 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
 
+import qualified Util.File as File
 import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -44,9 +45,12 @@ options :: [GetOpt.OptDescr Flag]
 options =
     [ GetOpt.Option [] ["help"] (GetOpt.NoArg Help) "display usage"
     , GetOpt.Option [] ["mode"]
-        (GetOpt.ReqArg read_mode (show [minBound :: Mode .. maxBound]))
+        (GetOpt.ReqArg read_mode (show [minBound :: Mode .. maxBound])) $
         "Run in this mode, defaults to Verify.  Modes:\n\
         \  Verify - Check saved performances against current performances.\n\
+        \    If you give a directory and it has a file inside called\n\
+        \    " ++ verify_me_txt ++ ", use the contents of the file as further\n\
+        \   files to verify.\n\
         \  Save - Write saved performances to disk as binary.\n\
         \  Perform - Perform to MIDI and write to $input.midi.\n\
         \  DumpMidi - Pretty print binary saved MIDI to stdout."
@@ -75,7 +79,8 @@ main = Git.initialize $ do
     failures <- case fromMaybe Verify $ Seq.last [m | Mode m <- flags] of
         Verify -> do
             cmd_config <- DeriveSaved.load_cmd_config
-            fmap sum $ forM args $ \fname -> do
+            fnames <- concatMapM expand_verify_me args
+            fmap sum $ forM fnames $ \fname -> do
                 putStrLn $ "------------------------- verify " <> fname
                 fails <- run $ verify_performance out_dir cmd_config fname
                 putStrLn $ if fails == 0
@@ -95,9 +100,21 @@ main = Git.initialize $ do
     where
     usage msg = do
         putStrLn $ "error: " ++ msg
-        putStrLn "usage: verify_performance [ flags ]"
+        putStrLn "usage: verify_performance [ flags ] dirs or filenames"
         putStr (GetOpt.usageInfo "" options)
         Process.exit 1
+
+verify_me_txt :: FilePath
+verify_me_txt = "verify-me.txt"
+
+-- | If this is a directory with a 'verify_me_txt', expand to include its
+-- contents.
+expand_verify_me :: FilePath -> IO [FilePath]
+expand_verify_me fname = do
+    m_contents <- File.ignoreEnoent $ Text.IO.readFile (fname </> verify_me_txt)
+    return $ case m_contents of
+        Nothing -> [fname]
+        Just contents -> map ((fname</>) . untxt) $ Text.lines contents
 
 type Error a = Error.ErrorT Text IO a
 
