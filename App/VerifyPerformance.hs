@@ -18,6 +18,7 @@ import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 import qualified System.IO as IO
 
+import qualified Util.Git as Git
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Process as Process
@@ -61,7 +62,7 @@ read_mode s =
         [(show m, m) | m <- [minBound .. maxBound]]
 
 main :: IO ()
-main = do
+main = Git.initialize $ do
     args <- System.Environment.getArgs
     Log.configure $ \state -> state
         { Log.state_write_msg = Log.write_formatted IO.stderr }
