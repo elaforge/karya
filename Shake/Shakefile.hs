@@ -397,10 +397,6 @@ configure midi = do
     fltkCs <- filter wantedFltk . words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
     fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
-    bindingsInclude <- run "ghc-pkg" ["field", "bindings-DSL", "include-dirs"]
-    bindingsInclude <- case words bindingsInclude of
-        [_, path] -> return path
-        words -> error $ "unexpected output from ghc-pkg: " ++ show words
     return $ \mode -> Config
         { buildDir = modeToDir mode
         , hscDir = build </> "hsc"
@@ -408,18 +404,16 @@ configure midi = do
         , fltkVersion = fltkVersion
         , midiConfig = midi
         , configFlags = setCcFlags $
-            setConfigFlags fltkCs fltkLds mode osFlags bindingsInclude
-            ghcLib
+            setConfigFlags fltkCs fltkLds mode osFlags ghcLib
         , getPackageIds_ = GetPackageIds (return [])
         }
     where
-    setConfigFlags fltkCs fltkLds mode flags bindingsInclude ghcLib = flags
+    setConfigFlags fltkCs fltkLds mode flags ghcLib = flags
         { define = define osFlags
             ++ ["-DTESTING" | mode `elem` [Test, Profile]]
             ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
             ++ ["-DGHC_VERSION=" ++ parseGhcVersion ghcLib]
-        , cInclude =
-            ["-I.", "-I" ++ modeToDir mode, "-Ifltk", "-I" ++ bindingsInclude]
+        , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"]
         , fltkCc = fltkCs
         , fltkLd = fltkLds
         , hcFlags =
