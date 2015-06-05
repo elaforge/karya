@@ -148,8 +148,8 @@ patches =
 --
 -- - recorder (pan pipes): none
 --
--- - brass (trumpet, cornet, flugelhorn, french horn, trombone, euphonium, tuba):
--- embouch (-45--45)
+-- - brass (trumpet, cornet, flugelhorn, french horn, trombone, euphonium,
+-- tuba): embouch (-45--45)
 --
 -- Nothing for organ model yet, I don't really care much about organs.
 silverwood_patches :: [Instrument.Patch]

@@ -15,8 +15,8 @@ UNSORTED
   - shakefile: remove cabal usage in favor of a sandbox
     . If there is a .cabal-sandbox, pass -no-user-package-db
       -package-db .cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d/
-    - How to get the path to the packages dir?
-      cabal -v hc-pkg check
+    * How to get the path to the packages dir?
+      Util.sandboxPackageDb
     - Figure out how to get GHC API to read from sandbox.  Probably have to
       put the same flags into build/*/ghci-flags
       . This is the same thing that 'cabal repl' does.

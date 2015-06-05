@@ -7,6 +7,8 @@ module Shake.Util (
     Cmdline, cmdline, system, staunchSystem, shell, putQuietNormal
     , findFiles, findHs, runIO
 
+    -- * ghc
+    , sandboxPackageDb
     -- * general
     , ifM, whenM
 ) where
@@ -15,6 +17,7 @@ import Control.Monad
 import Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
+import qualified Data.List as List
 import qualified Development.Shake as Shake
 import qualified Development.Shake.FilePath as FilePath
 import qualified System.Exit as Exit
@@ -86,10 +89,30 @@ findHs :: Shake.FilePattern -> FilePath -> Shake.Action [FilePath]
 findHs = findFiles $ all Char.isUpper . take 1
 
 -- | Run an Action, useful for interactive testing.
-runIO :: (Show a) => Shake.Action a -> IO ()
+runIO :: Show a => Shake.Action a -> IO ()
 runIO action = Shake.shake Shake.shakeOptions $ Shake.action $ do
     result <- action
     liftIO $ print result
+
+-- * ghc
+
+-- | If there is a cabal sandbox in the current directory, return the path to
+-- its package db.
+sandboxPackageDb :: IO (Maybe FilePath)
+sandboxPackageDb = do
+    -- I don't care about ghc-pkg's output, but cabal -v will print the cmdline
+    -- when it runs it.  As far as I know, this is the only way to get that
+    -- info.
+    (code, stdout, _stderr) <- Process.readProcessWithExitCode
+        "cabal" ["-v", "sandbox", "hc-pkg", "list", "base"] ""
+    return $ case code of
+        Exit.ExitFailure {} -> Nothing
+        Exit.ExitSuccess -> msum $ map extract (lines stdout)
+    where
+    extract = msum . map packageDb . words
+    packageDb w | flag `List.isPrefixOf` w = Just $ drop (length flag) w
+    packageDb _ = Nothing
+    flag = "--package-db="
 
 -- * general
 

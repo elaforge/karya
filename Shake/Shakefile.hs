@@ -761,8 +761,9 @@ makeHaddock config = do
         , "--source-module=../hscolour/%{MODULE/.//}.html"
         , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
         , "--prologue=doc/prologue"
-        -- don't report every single function without a doc
-        , "--no-print-missing-docs"
+        -- Don't report every single function without a doc.
+        -- TODO this is only for the haddock with ghc-7.10.
+        -- , "--no-print-missing-docs"
         -- Source references qualified names as written in the doc.
         , "-q", "aliased"
         , "-o", build </> "haddock"
