@@ -8,28 +8,34 @@ import Types
 
 test_sequence = do
     let run = run_subs
-    equal (run 2 "sequence sub-cd") ([(0, 1, "4c"), (1, 1, "4d")], [])
-    equal (run 1 "sequence sub-cd") ([(0, 0.5, "4c"), (0.5, 0.5, "4d")], [])
-    equal (run 3 "sequence sub-cd sub-e")
+    equal (run 0 2 "sequence sub-cd") ([(0, 1, "4c"), (1, 1, "4d")], [])
+    equal (run 0 1 "sequence sub-cd") ([(0, 0.5, "4c"), (0.5, 0.5, "4d")], [])
+    equal (run 0 3 "sequence sub-cd sub-e")
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")], [])
-    equal (run 3 "sequence \"(%t-dia=1 | sub-e) sub-cd")
+    equal (run 0 3 "sequence \"(%t-dia=1 | sub-e) sub-cd")
         ([(0, 1, "4f"), (1, 1, "4c"), (2, 1, "4d")], [])
     -- CallDuration is the sum of callees, so I can sequence sequences.
-    equal (run 4 "sequence \"(sequence sub-e sub-e) sub-cd")
+    equal (run 0 4 "sequence \"(sequence sub-e sub-e) sub-cd")
         ([(0, 1, "4e"), (1, 1, "4e"), (2, 1, "4c"), (3, 1, "4d")], [])
 
+    -- Notes stretch with event duration.
+    equal (run 2 1 "sequence sub-cd") ([(2, 0.5, "4c"), (2.5, 0.5, "4d")], [])
+    equal (run 2 6 "sequence sub-cd sub-e")
+        ([(2, 2, "4c"), (4, 2, "4d"), (6, 2, "4e")], [])
+
 test_parallel = do
-    let run = run_subs
+    let run = run_subs 0
     equal (run 2 "parallel sub-cd") ([(0, 1, "4c"), (1, 1, "4d")], [])
     equal (run 2 "parallel sub-cd sub-e")
         ([(0, 1, "4c"), (0, 1, "4e"), (1, 1, "4d")], [])
     equal (run 4 "parallel sub-cd sub-e")
         ([(0, 2, "4c"), (0, 2, "4e"), (2, 2, "4d")], [])
 
-run_subs :: ScoreTime -> String -> ([(RealTime, RealTime, String)], [String])
-run_subs dur call = DeriveTest.extract DeriveTest.e_note $
+run_subs :: ScoreTime -> ScoreTime -> String
+    -> ([(RealTime, RealTime, String)], [String])
+run_subs start dur call = DeriveTest.extract DeriveTest.e_note $
     DeriveTest.derive_blocks
-        [ ("top", [(">", [(0, dur, call)])])
+        [ ("top", [(">", [(start, dur, call)])])
         , ("sub-cd=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
         , ("sub-e=ruler", UiTest.note_track [(0, 1, "4e")])
         ]

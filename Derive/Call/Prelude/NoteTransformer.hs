@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Transformers on @Derive.Generator Derive.Note@.
-module Derive.Call.Prelude.NoteTransformer where
+module Derive.Call.Prelude.NoteTransformer (note_calls) where
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Seq as Seq
@@ -62,14 +62,14 @@ c_sequence = Derive.generator_with_duration get_call_duration Module.prelude
 
 sequence_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
     -> [ScoreTime] -> Derive.NoteDeriver
-sequence_derivers start event_dur derivers durs =
-    Derive.stretch stretch $ mconcat
-        [ Derive.place start dur d
-        | (start, dur, d) <- zip3 (scanl (+) start durs) durs derivers
-        ]
+sequence_derivers start event_dur derivers unstretched_durs = mconcat
+    [ Derive.place start dur d
+    | (start, dur, d) <- zip3 (scanl (+) start durs) durs derivers
+    ]
     where
+    durs = map (*stretch) unstretched_durs
     stretch = if call_dur == 0 then 1 else event_dur / call_dur
-    call_dur = sum durs
+        where call_dur = sum unstretched_durs
 
 c_parallel :: Derive.Generator Derive.Note
 c_parallel = Derive.generator_with_duration get_call_duration Module.prelude
