@@ -108,7 +108,7 @@ intervals_arg named_intervals = Sig.many "interval" $
 parse_relative_interval :: NamedIntervals -> Pitch.Note -> Maybe Pitch.Hz
 parse_relative_interval named_intervals note =
     unsign <$> (resolve_interval named_intervals (Pitch.note_text note)
-        `mplus` parse_num)
+        <|> parse_num)
     where
     parse_num = case Parse.parse_val (Pitch.note_text note) of
         Right (TrackLang.VNum (Score.Typed Score.Untyped num)) -> Just num

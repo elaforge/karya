@@ -429,6 +429,7 @@ diff_tree_repo repop old new =
         IORef.modifyIORef ref ((status, path, oid):)
         return 0
 
+    -- Used for libgit2 0.20
     -- diff_cb ref deltap _hunkp _linep _payloadp = do
     --     G.C'git_diff_delta status _flags _similarity _nfiles
     --         _old_file new_file <- peek deltap

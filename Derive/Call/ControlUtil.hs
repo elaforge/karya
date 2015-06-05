@@ -71,7 +71,7 @@ from_env = Sig.environ "from" Sig.Both Nothing
     "Start from this value. If unset, use the previous value."
 
 prev_val :: Maybe Signal.Y -> Derive.ControlArgs -> Maybe Signal.Y
-prev_val from args = from `mplus` (snd <$> Args.prev_control args)
+prev_val from args = from <|> (snd <$> Args.prev_control args)
 
 -- | For calls whose curve can be configured.
 curve_env :: Sig.Parser Curve

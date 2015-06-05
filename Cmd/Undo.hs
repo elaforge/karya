@@ -228,7 +228,7 @@ save_history cmd_state hist collect uncommitted = do
         , Cmd.state_history_collect = collect
         , Cmd.state_history_config = (Cmd.state_history_config cmd_state)
             { Cmd.hist_last_commit =
-                Cmd.hist_commit present `mplus` maybe_prev_commit
+                Cmd.hist_commit present <|> maybe_prev_commit
             }
         }
     where

@@ -188,7 +188,7 @@ chord_tremolo starts note_tracks =
         where
         chosen =
             Seq.minimum_on fst (filter ((>last_tracknum) . fst) overlapping)
-            `mplus` Seq.minimum_on fst overlapping
+                <|> Seq.minimum_on fst overlapping
         overlapping = filter (Sub.event_overlaps pos . snd) notes
         notes = dropWhile ((<=pos) . Sub.event_end . snd) notes_
     by_track :: [(TrackNum, Sub.GenericEvent a)]

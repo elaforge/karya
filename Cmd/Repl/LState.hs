@@ -118,7 +118,7 @@ save_midi = do
 
 get_midi_performance :: BlockId -> Cmd.CmdL State.MidiPerformance
 get_midi_performance block_id =
-    Cmd.require ("saved performance for " <> showt block_id)
+    Cmd.require ("no saved performance for " <> showt block_id)
         =<< State.get_config
             (State.meta#State.midi_performances # Lens.map block_id #$)
 

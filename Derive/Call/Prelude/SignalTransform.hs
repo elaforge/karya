@@ -125,7 +125,7 @@ slew_limiter srate slope =
     -- of the need to emit multiple samples.
     go state ((x, y), next) = case state of
         Nothing -> (Just y, Signal.signal [(x, y)])
-        Just prev_y -> ((snd <$> Signal.last segment) `mplus` Just y, segment)
+        Just prev_y -> ((snd <$> Signal.last segment) <|> Just y, segment)
             where
             segment = slope_segment srate srate_slope prev_y (x, y)
                 (fst <$> next)
@@ -181,7 +181,7 @@ smooth f srate time =
     where
     go state ((x, y), next) = case state of
         Nothing -> (Just (x, y), Signal.signal [(x, y)])
-        Just (x0, y0) -> (Signal.last segment `mplus` Just (x, y), segment)
+        Just (x0, y0) -> (Signal.last segment <|> Just (x, y), segment)
             where
             segment = drop1 $ ControlUtil.segment srate True True f
                 (max x0 (min x (x+time))) y0

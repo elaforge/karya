@@ -147,7 +147,7 @@ c_porta = generator1 "porta" mempty
         "Time to reach destination."
     <*> PitchUtil.from_env <*> ControlUtil.curve_env
     ) $ \(to, TrackLang.DefaultReal time, from_, curve) args -> do
-        let from = from_ `mplus` (snd <$> Args.prev_pitch args)
+        let from = from_ <|> (snd <$> Args.prev_pitch args)
         time <- if Args.duration args == 0
             then return time
             else TrackLang.Real <$> Args.real_duration args

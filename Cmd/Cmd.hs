@@ -1083,8 +1083,7 @@ get_lookup_instrument = do
             }
     where
     merge_environ configs inst =
-        (Instrument.environ %= (environ <>))
-            . (Instrument.scale %= (scale `mplus`))
+        (Instrument.environ %= (environ <>)) . (Instrument.scale %= (scale <|>))
         where
         scale = Instrument.config_scale =<< config
         environ = maybe mempty Instrument.config_restricted_environ config

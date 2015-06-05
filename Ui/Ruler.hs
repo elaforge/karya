@@ -171,7 +171,7 @@ get_bounds ruler = case lookup_marklist bounds ruler of
 bounds_of :: Ruler -> (ScoreTime, Maybe ScoreTime)
 bounds_of ruler = case get_bounds ruler of
     (Nothing, Nothing) -> (0, meter_end)
-    (start, end) -> (fromMaybe 0 start, end `mplus` meter_end)
+    (start, end) -> (fromMaybe 0 start, end <|> meter_end)
     where meter_end = marklist_end . snd <$> lookup_marklist meter ruler
 
 -- * marklist

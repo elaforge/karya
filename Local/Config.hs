@@ -31,15 +31,14 @@ load_static_config = do
     app_dir <- Config.get_app_dir
     instrument_db <- Local.Instrument.load app_dir
     midi <- get_midi_config instrument_db
-    return $ StaticConfig.StaticConfig {
-        StaticConfig.instrument_db = instrument_db
-        , StaticConfig.local_repl_dirs =
-            [Config.make_path app_dir Config.repl_dir]
-        , StaticConfig.global_cmds = global_cmds
-        , StaticConfig.library = Call.All.library
-        , StaticConfig.setup_cmd = parse_args
-        , StaticConfig.midi = midi
-        , StaticConfig.highlight_colors = Config.highlight_colors
+    return $ StaticConfig.StaticConfig
+        { instrument_db = instrument_db
+        , local_repl_dirs = [Config.make_path app_dir Config.repl_dir]
+        , global_cmds = global_cmds
+        , library = Call.All.library
+        , setup_cmd = parse_args
+        , midi = midi
+        , highlight_colors = Config.highlight_colors
         }
 
 oxygen8_v2 :: Controller.TransportConfig

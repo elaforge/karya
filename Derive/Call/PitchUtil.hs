@@ -68,7 +68,7 @@ from_env = Sig.environ "from" Sig.Both Nothing
 
 prev_val :: Maybe PitchSignal.Pitch -> Derive.PitchArgs
     -> Maybe PitchSignal.Pitch
-prev_val from args = from `mplus` (snd <$> Args.prev_pitch args)
+prev_val from args = from <|> (snd <$> Args.prev_pitch args)
 
 -- | Pitch version of 'ControlUtil.interpolator_variations'.
 interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Curve)

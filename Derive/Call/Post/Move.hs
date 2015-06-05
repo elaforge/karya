@@ -50,8 +50,8 @@ c_infer_duration = Derive.transformer Module.prelude "infer-duration"
     \ notes at the beginning of the next block. If it replaces a note, it\
     \ takes on that note's duration and controls. Otherwise, it extends to the\
     \ start of the next note.\
-    \\nThis also applies the 'Environ.suppress_until' env val, so a call can\
-    \ cancel out other events."
+    \\nThis also applies the 'Derive.Environ.suppress_until' env val, so a\
+    \ call can cancel out other events."
     $ Sig.callt
     ( Sig.defaulted "final-duration" 1
         "If there is no following note, infer this duration."

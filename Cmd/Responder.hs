@@ -171,7 +171,7 @@ run_setup_cmd cmd state = fmap snd $ run_responder False state $ do
             { Cmd.state_history = (Cmd.state_history st)
                 -- If the cmd set hist_last_cmd, don't override it.
                 { Cmd.hist_last_cmd = Cmd.hist_last_cmd (Cmd.state_history st)
-                    `mplus` Just (Cmd.Load Nothing ["setup"])
+                    <|> Just (Cmd.Load Nothing ["setup"])
                 }
             }
         return Cmd.Continue

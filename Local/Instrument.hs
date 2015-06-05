@@ -70,7 +70,6 @@ all_make_dbs =
     , (Z1.synth_name, Z1.make_db)
     ]
 
-
 load :: FilePath -> IO Cmd.InstrumentDb
 load app_dir = do
     synth_descs <- concatMapM

@@ -783,7 +783,7 @@ edge_in_range block tracknum =
 
 edges_in_range :: Block.Block -> Skeleton.Edge -> Maybe Text
 edges_in_range block (from, to) =
-    mplus (edge_in_range block from) (edge_in_range block to)
+    edge_in_range block from <|> edge_in_range block to
 
 -- ** tracks
 

@@ -126,7 +126,7 @@ data TrackInfo d = TrackInfo {
 
 tinfo_prev_val :: TrackInfo d -> Maybe d -> [LEvent.LEvent d] -> Maybe d
 tinfo_prev_val tinfo prev_val levents =
-    tinfo_get_last_val tinfo (LEvent.events_of levents) `mplus` prev_val
+    tinfo_get_last_val tinfo (LEvent.events_of levents) <|> prev_val
 
 instance Pretty.Pretty (TrackInfo d) where
     format (TrackInfo track subs ttype _) = Pretty.record "TrackInfo"
