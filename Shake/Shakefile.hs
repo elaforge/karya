@@ -28,10 +28,6 @@ import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake
 import Development.Shake ((?==), (?>), (?>>), (*>), need)
-import qualified Distribution.Package as Package
-import qualified Distribution.Simple.Configure as Simple.Configure
-import qualified Distribution.Simple.LocalBuildInfo as LocalBuildInfo
-
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -86,9 +82,6 @@ defaultOptions = Shake.shakeOptions
     , Shake.shakeProgress = Progress.report
     }
 
-newtype GetPackageIds = GetPackageIds (Shake.Action [PackageId])
-instance Show GetPackageIds where show _ = "((GetPackageIds))"
-
 data Config = Config {
     buildDir :: FilePath
     , hscDir :: FilePath
@@ -96,16 +89,10 @@ data Config = Config {
     , fltkVersion :: String
     , midiConfig :: MidiConfig
     , configFlags :: Flags
-    , getPackageIds_ :: GetPackageIds
     } deriving (Show)
 
-getPackageIds :: Config -> Shake.Action [PackageId]
-getPackageIds (Config { getPackageIds_ = GetPackageIds get }) = get
-
-packageFlags :: [PackageId] -> [Package] -> [Flag]
-packageFlags packageIds packages =
-    "-hide-all-packages" : map ("-package-id="++) packageIds
-    ++ map ("-package="++) packages
+packageFlags :: [Package] -> [Flag]
+packageFlags packages = "-hide-all-packages" : map ("-package="++) packages
 
 -- | Root of .o and .hi hierarchy.
 oDir :: Config -> FilePath
@@ -253,8 +240,11 @@ hsToCc = Map.fromList $
         | hsc <- ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc",
             "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]]
 
--- | This is used to create karya.cabal, which is then used with cabal
--- configure to figure out exact version numbers.
+-- | This is the big list of packages that should make everyone happy.
+allPackages :: [Package]
+allPackages = map fst globalPackages
+
+-- | This is used to create karya.cabal and supply -package arguments to ghc.
 globalPackages :: [(Package, String)]
 globalPackages = concat $
     -- really basic deps
@@ -292,9 +282,6 @@ globalPackages = concat $
 
 -- | This is a hack so I can add packages that aren't in 'globalPackages'.
 -- This is for packages with tons of dependencies that I usually don't need.
---
--- I should use PackageIds for everything. But for the moment I don't really
--- know how to integrate optional packages into the cabalConfigurationRule.
 extraPackagesFor :: FilePath -> [Package]
 extraPackagesFor obj
     | (criterionHsSuffix <> ".o") `List.isSuffixOf` obj = ["criterion"]
@@ -405,7 +392,6 @@ configure midi = do
         , midiConfig = midi
         , configFlags = setCcFlags $
             setConfigFlags fltkCs fltkLds mode osFlags ghcLib
-        , getPackageIds_ = GetPackageIds (return [])
         }
     where
     setConfigFlags fltkCs fltkLds mode flags ghcLib = flags
@@ -509,13 +495,11 @@ main :: IO ()
 main = withLockedDatabase $ do
     IO.hSetBuffering IO.stdout IO.LineBuffering
     env <- Environment.getEnvironment
-    modeConfig_ <- configure (midiFromEnv env)
-    writeGhciFlags modeConfig_
+    modeConfig <- configure (midiFromEnv env)
+    writeGhciFlags modeConfig
     makeDataLink
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
-        getPackageIds_ <- packageConfigurationRules
-        let modeConfig = (\c -> c { getPackageIds_ = getPackageIds_ })
-                . modeConfig_
+        "karya.cabal" *> makeKaryaCabal
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
         -- hspp is depended on by all .hs files.  To avoid recursion, I
@@ -523,9 +507,7 @@ main = withLockedDatabase $ do
         hspp *> \fn -> do
             -- But I need to mark hspp's deps so it will rebuild.
             need =<< HsDeps.transitiveImportsOf (const Nothing) "Util/Hspp.hs"
-            packageIds <- getPackageIds (modeConfig Opt)
-            Util.cmdline $
-                makeHs packageIds (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
+            Util.cmdline $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
         matchObj "fltk/fltk.a" ?> \fn -> do
             let config = infer fn
             need (fltkDeps config)
@@ -768,11 +750,11 @@ getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" ["*.md"]
 
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
+    let packages = map fst globalPackages
     (hs, hscs) <- getAllHaddock config
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
-    packages <- getPackageIds config
     let flags = configFlags config
-    interfaces <- liftIO $ getHaddockInterfaces (map stripPackageId packages)
+    interfaces <- liftIO $ getHaddockInterfaces packages
     system "haddock" $
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
@@ -786,7 +768,7 @@ makeHaddock config = do
         , "-o", build </> "haddock"
         ] ++ map ("-i"++) interfaces
         ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags
-            ++ ghcLanguageFlags ++ packageFlags packages extraPackages]
+            ++ ghcLanguageFlags ++ packageFlags (packages ++ extraPackages)]
         ++ hs ++ map (hscToHs (hscDir config)) hscs
 
 -- | Get paths to haddock interface files for all the packages.
@@ -819,32 +801,8 @@ wantsHaddock midi hs = not $ or
 
 -- ** cabal
 
--- | Complete package-version-hex, e.g.
--- containers-0.5.5.1-23e2a2b94d6e452c773209f31d8672c5
-type PackageId = String
--- | Package-version, e.g. containers-0.5.5.1
+-- | Package, with or without version e.g. containers-0.5.5.1
 type Package = String
-
-stripPackageId :: PackageId -> Package
-stripPackageId = reverse . drop hexLen . reverse
-    where hexLen = 32 + 1 -- hex hash plus hyphen
-
--- | Add the various cabal rules, and return an action that reads a cached list
--- of packages with their versions.
-packageConfigurationRules :: Shake.Rules GetPackageIds
-packageConfigurationRules = do
-    "karya.cabal" *> makeKaryaCabal
-    "dist/setup-config" *> \_ -> do
-        need ["karya.cabal"]
-        system "cabal" ["configure"]
-    build </> "package-versions" *> \fn -> do
-        need ["dist/setup-config"]
-        -- dist/setup-config is huge and it uses a String parser, so cache
-        -- the bits in need in another file.
-        packages <- liftIO $ readCabalConfiguration
-        Shake.writeFileChanged fn $ unlines packages
-    cached <- Shake.newCache $ fmap lines . Shake.readFile'
-    return $ GetPackageIds $ cached (build </> "package-versions")
 
 makeKaryaCabal :: FilePath -> Shake.Action ()
 makeKaryaCabal fn = do
@@ -860,29 +818,12 @@ makeKaryaCabal fn = do
     mkline (package, constraint) =
         package ++ if null constraint then "" else " " ++ constraint
 
--- | Rather than trying to figure out which binary needs which packages, I
--- just union all the packages.
-readCabalConfiguration :: IO [PackageId]
-readCabalConfiguration =
-    strip . extractPackages <$> Simple.Configure.getPersistBuildConfig "dist"
-    where
-    strip = if useEkg then id else filter (not . ("ekg-" `List.isPrefixOf`))
-
-extractPackages :: LocalBuildInfo.LocalBuildInfo -> [PackageId]
-extractPackages info = do
-    (LocalBuildInfo.CLibName,
-            build@(LocalBuildInfo.LibComponentLocalBuildInfo {}), _)
-        <- LocalBuildInfo.componentsConfigs info
-    (Package.InstalledPackageId pkg, _)
-        <- LocalBuildInfo.componentPackageDeps build
-    return pkg
-
 -- ** hs
 
-makeHs :: [PackageId] -> FilePath -> FilePath -> FilePath -> Util.Cmdline
-makeHs packageIds dir out main = ("GHC-MAKE", out, cmdline)
+makeHs :: FilePath -> FilePath -> FilePath -> Util.Cmdline
+makeHs dir out main = ("GHC-MAKE", out, cmdline)
     where
-    cmdline = ghcBinary : packageFlags packageIds []
+    cmdline = ghcBinary : packageFlags allPackages
         ++ [ "--make", "-outputdir", dir, "-O2", "-o", out
         , "-main-is", pathToModule main, main
         ]
@@ -891,7 +832,6 @@ makeHs packageIds dir out main = ("GHC-MAKE", out, cmdline)
 buildHs :: Config -> [FilePath] -> [Package] -> FilePath -> FilePath
     -> Shake.Action ()
 buildHs config libs extraPackages hs fn = do
-    packages <- getPackageIds config
     when (isHsconfigBinary fn) $
         need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs
@@ -899,7 +839,7 @@ buildHs config libs extraPackages hs fn = do
             concat [Map.findWithDefault [] src hsToCc | src <- srcs]
         objs = List.nub (map (srcToObj config) (ccs ++ srcs)) ++ libs
     logDeps config "build" fn objs
-    Util.cmdline $ linkHs config fn packages extraPackages objs
+    Util.cmdline $ linkHs config fn (extraPackages ++ allPackages) objs
 
 makeBundle :: FilePath -> Bool -> Bool -> Shake.Action ()
 makeBundle binary isHaskell hasIcon
@@ -995,14 +935,13 @@ hsORule infer = matchHsObj ?>> \fns -> do
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsORule" config hs else return []
     need includes
-    packages <- getPackageIds config
     let his = map (objToHi . srcToObj config) imports
     -- I depend on the .hi files instead of the .hs.o files.  GHC avoids
     -- updaing the timestamp on the .hi file if its .o didn't need to be
     -- recompiled, so hopefully this will avoid some work.
     logDeps config "hs" obj (hs:his)
-    Util.cmdline $ compileHs packages (extraPackagesFor obj) (targetToMode obj)
-        config hs
+    Util.cmdline $ compileHs (extraPackagesFor obj ++ allPackages)
+        (targetToMode obj) config hs
 
 -- | Generate both .hs.o and .hi from a .hs file.
 matchHsObj :: FilePath -> Maybe [FilePath]
@@ -1022,14 +961,12 @@ matchHsObj fn
         || runProfile `List.isPrefixOf` hs || runTests `List.isPrefixOf` hs
         || criterionHsSuffix `List.isSuffixOf` hs
 
-compileHs :: [PackageId] -> [Package] -> Maybe Mode -> Config -> FilePath
-    -> Util.Cmdline
-compileHs packageIds packages mode config hs =
+compileHs :: [Package] -> Maybe Mode -> Config -> FilePath -> Util.Cmdline
+compileHs packages mode config hs =
     ( "GHC" ++ maybe "" (('-':) . show) mode
     , hs
     , [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
-        ++ packageFlags packageIds packages ++ mainIs
-        ++ [hs, "-o", srcToObj config hs]
+        ++ packageFlags packages ++ mainIs ++ [hs, "-o", srcToObj config hs]
     )
     where
     mainIs
@@ -1038,14 +975,12 @@ compileHs packageIds packages mode config hs =
             ["-main-is", pathToModule hs]
         | otherwise = []
 
-linkHs :: Config -> FilePath -> [PackageId] -> [Package] -> [FilePath]
-    -> Util.Cmdline
-linkHs config output packageIds packages objs = ("LD-HS", output,
+linkHs :: Config -> FilePath -> [Package] -> [FilePath] -> Util.Cmdline
+linkHs config output packages objs = ("LD-HS", output,
     ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
-        ++ ["-lstdc++"]
-        ++ packageFlags packageIds packages
-        ++ objs ++ ["-o", output])
-    where flags = configFlags config
+        ++ ["-lstdc++"] ++ packageFlags packages ++ objs ++ ["-o", output])
+    where
+    flags = configFlags config
 
 -- | ghci has to be called with the same flags that the .o files were compiled
 -- with or it won't load them.

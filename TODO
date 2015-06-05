@@ -538,8 +538,8 @@ shakefile: build:
     - Derive.Call.All looks for (note|pitch|control)_calls from Derive/Call/,
       but could also take from Local/Call/*
     - Local.Instrument looks for 'load' from Local/Instrument/
-  - After reading cabal dist/setup-config, the empty build time doubles from
-    .2s to .45s.  Seems to be unrelated to the cabal change.
+  - once upon a time, the shakefile took .2s to discover the build is up to
+    date.  Now it's up to .7s.  Where is the time going?
 
 incremental save / git:
   + try saving individual events for incremental save
