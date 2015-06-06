@@ -445,16 +445,23 @@ modify_doc modify (Derive.DocumentedCall name doc) =
 no_enharmonics :: Derive.Enharmonics
 no_enharmonics _ _ = Right []
 
-read_environ :: TrackLang.Typecheck a => (a -> Maybe val) -> val
+-- | Read and parse an environ value, or throw a ScaleError.
+read_environ :: TrackLang.Typecheck a => (a -> Maybe val) -- ^ parse or Nothing
+    -> Maybe val
+    -- ^ if Just, a missing value gets this, otherwise it's an error
     -> TrackLang.ValName -> TrackLang.Environ -> Either Scale.ScaleError val
-read_environ read_val deflt name env = case TrackLang.get_val name env of
+read_environ read_val maybe_deflt name env = case TrackLang.get_val name env of
     Left (TrackLang.WrongType expected) ->
-        unparseable ("expected type " <> pretty expected)
-    Left TrackLang.NotFound -> Right deflt
+        environ_error ("expected type " <> pretty expected)
+    Left TrackLang.NotFound -> case maybe_deflt of
+        Nothing -> Left $ Scale.EnvironError name "not set"
+        Just deflt -> Right deflt
     Right val -> parse val
     where
-    parse val = maybe (unparseable (ShowVal.show_val val)) Right (read_val val)
-    unparseable = Left . Scale.UnparseableEnviron name
+    parse val = maybe
+        (environ_error ("unexpected value: " <> ShowVal.show_val val))
+        Right (read_val val)
+    environ_error = Left . Scale.EnvironError name
 
 
 -- ** keys
@@ -474,4 +481,5 @@ lookup_key deflt _ Nothing = Just deflt
 lookup_key _ keys (Just key) = Map.lookup key keys
 
 key_error :: Pitch.Key -> Scale.ScaleError
-key_error (Pitch.Key key) = Scale.UnparseableEnviron Environ.key key
+key_error (Pitch.Key key) =
+    Scale.EnvironError Environ.key ("unknown key: " <> key)

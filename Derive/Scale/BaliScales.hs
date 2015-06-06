@@ -178,7 +178,7 @@ c_ombak = "ombak"
 semis_to_nn :: Pitch.Semi -> NoteNumbers -> ChromaticScales.SemisToNoteNumber
 semis_to_nn offset nns = \(PitchSignal.PitchConfig env controls) fsemis_ -> do
     let fsemis = fsemis_ - fromIntegral offset
-    tuning <- Scales.read_environ read_tuning Umbang Environ.tuning env
+    tuning <- Scales.read_environ read_tuning (Just Umbang) Environ.tuning env
     let to_either = maybe (Left Scale.InvalidTransposition) Right
     to_either $ case Map.lookup c_ombak controls of
         Nothing -> case tuning of

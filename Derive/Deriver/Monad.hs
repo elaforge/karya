@@ -1546,11 +1546,8 @@ data ScaleError =
     | OutOfRange
     -- | Input note doesn't map to a scale note.
     | InvalidInput
-    -- | A required environ value was missing.
-    | EnvironMissing !TrackLang.ValName
-    -- | An environ value was unparseable.  Has the environ key and a text
-    -- description of the error.
-    | UnparseableEnviron !TrackLang.ValName !Text
+    -- | A required environ value was missing or had the wrong type or value.
+    | EnvironError !TrackLang.ValName !Text
         -- The Text should be TrackLang.Val except that makes Eq not work.
     -- | Other kind of error.
     | ScaleError !Text
@@ -1562,9 +1559,8 @@ instance Pretty.Pretty ScaleError where
         UnparseableNote -> "unparseable note"
         OutOfRange -> "out of range"
         InvalidInput -> "invalid input"
-        EnvironMissing key -> "missing environ value: " <> pretty key
-        UnparseableEnviron key val -> "unparseable environ: "
-            <> pretty key <> "=" <> val
+        EnvironError key err ->
+            "environ value for " <> pretty key <> ": " <> err
         ScaleError msg -> msg
 
 -- * merge

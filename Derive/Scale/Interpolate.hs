@@ -80,8 +80,10 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
     ("Emit a pitch between two scales. The scales are in the "
     <> doc scale_from <> " and " <> doc scale_to
     <> " environ values, and keys are from " <> doc key_from <> " and "
-    <> doc key_to <> ". The " <> doc scale_at <> " control ranges from 0 to 1\
-    \ and controls the intpolation between the scales. For this to work, the\
+    <> doc key_to <> ". If " <> doc scale_to <> " isn't set, it defaults to "
+    <> doc scale_from <> ". The " <> doc scale_at
+    <> " control ranges from 0 to 1\
+    \ and controls the interpolation between the scales. For this to work, the\
     \ scales must have the same degree names, since there's no way to manually\
     \ specify a correspondence between scale degrees."
     ) $ Sig.parsed_manually "passed to `from` and `to` scales" $ \args -> do
@@ -112,11 +114,11 @@ rename_environ from to deriver = do
 environ_from_to :: TrackLang.Environ
     -> Either Scale.ScaleError (Pitch.ScaleId, Pitch.ScaleId)
 environ_from_to env = do
-    let get key = maybe (Left $ Scale.EnvironMissing key) Right $
-            TrackLang.maybe_val key env
-    from <- get scale_from
-    to <- get scale_to
-    return (TrackLang.sym_to_scale_id from, TrackLang.sym_to_scale_id to)
+    from <- Scales.read_environ (Just . TrackLang.sym_to_scale_id) Nothing
+        scale_from env
+    to <- Scales.read_environ (Just . TrackLang.sym_to_scale_id) (Just from)
+        scale_to env
+    return (from, to)
 
 key_from, key_to :: TrackLang.ValName
 key_from = "key-from"

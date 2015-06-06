@@ -56,6 +56,11 @@ patches =
     -- Commercial patches.
 
     , MidiInst.patch pb_range "spark"
+        -- Modifications:
+        -- Bind cc14 to red "filter cutoff" knob, smoothing from 50 to 10.
+        -- Bind cc15 to red "filter reso" knob.
+        -- Bind cc7 to "output" knob.
+        -- Hardcode pitchbend range to 96 by replacing control with a constant.
         [ (4, Controls.mc1), (11, Controls.mc2), (1, Controls.mc3)
         , (CC.cc14, Controls.lpf)
         , (CC.cc15, Controls.q)

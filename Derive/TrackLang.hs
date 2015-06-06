@@ -698,7 +698,7 @@ hardcoded_types = Map.fromList
     , (Environ.voice, TNum TUntyped TAny)
     ]
 
-data LookupError = NotFound | WrongType Type deriving (Show)
+data LookupError = NotFound | WrongType !Type deriving (Show)
 
 get_val :: Typecheck a => ValName -> Environ -> Either LookupError a
 get_val name environ = case lookup_val name environ of
