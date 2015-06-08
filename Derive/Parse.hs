@@ -335,7 +335,11 @@ p_identifier null_ok until = do
     -- TODO attoparsec docs say it's faster to do the check manually, profile
     -- and see if it makes a difference.
     ident <- (if null_ok then A.takeWhile else A.takeWhile1)
-        (A.notInClass (until ++ " \n\t|=)"))
+        -- (A.notInClass (until ++ " \n\t|=)")) -- buggy?
+        (\c -> not $ c `elem` until || c == ' ' || c == '\n' || c == '\t'
+            || c == '|' || c == '=' || c == ')')
+        -- Newlines and tabs are forbidden from track and block titles and
+        -- events, but can occur in ky files.
     -- This forces identifiers to be separated with spaces, except with | and
     -- =.  Otherwise @sym>inst@ is parsed as a call @sym >inst@, which I don't
     -- want to support.
@@ -365,7 +369,6 @@ p_null_word = A.takeWhile is_word_char
 -- even at the toplevel, but I have @ly-(@ and @ly-)@ calls and I kind of like
 -- how those look.  I guess it's a crummy justification, but not need to change
 -- it unless toplevel gives more more trouble.
-
 is_toplevel_word_char :: Char -> Bool
 is_toplevel_word_char c = c /= ' ' && c /= '\t' && c /= '\n' && c /= '='
     && c /= ';' -- This is so the ; separator can appear anywhere.
