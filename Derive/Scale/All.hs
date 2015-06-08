@@ -23,6 +23,7 @@ import qualified Derive.Scale.Raga as Raga
 import qualified Derive.Scale.Ratio as Ratio
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Scale.Wayang as Wayang
+import qualified Derive.Scale.WendyCarlos as WendyCarlos
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -57,6 +58,7 @@ shadowed :: [Pitch.ScaleId]
     , Ratio.scales
     , Twelve.scales
     , Wayang.scales
+    , WendyCarlos.scales
     ]
     where
     mk = second (map fst) . Map.unique . Seq.key_on Scale.scale_id_of

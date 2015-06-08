@@ -20,6 +20,7 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
@@ -115,8 +116,9 @@ show_ratios = Text.intercalate ", " . map pretty . Vector.toList
 
 just_doc :: Text
 just_doc =
-    "\nJust scales are tuned by ratios from a base frequency, taken from the\
-    \ `%just-base` control, as hz. Typically the \"key\" will select the set\
+    "\nJust scales are tuned by ratios from a base frequency, taken from the "
+    <> ShowVal.doc_val just_base_control
+    <> " control, as hz. Typically the \"key\" will select the set\
     \ of ratios used, dependent on the scale.\
     \\nJust scales recognize accidentals as an offset by a fixed ratio,\
     \ but are inherently diatonic, so chromatic transposition is the same\

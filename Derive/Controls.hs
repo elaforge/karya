@@ -19,7 +19,7 @@ import Global
 -- | These controls should be combined with addition by default instead of
 -- multiplication.
 additive_controls :: [Control]
-additive_controls = [diatonic, chromatic, nn, hz]
+additive_controls = [octave, diatonic, chromatic, nn, hz]
 
 -- | Used as the default control by control block calls.  This is because
 -- a ControlCall produces a Signal, but for it to be derived in a block it
@@ -99,6 +99,10 @@ transpose_type t = case t of
     Score.Chromatic -> Just chromatic
     Score.Nn -> Just nn
     _ -> Nothing
+
+-- | Transpose by this many octaves.
+octave :: Control
+octave = "t-oct"
 
 -- | Pitches respond to this with diatonic transposition, which generally
 -- requires a key.  This is stepwise transposition for scales with no
