@@ -21,6 +21,7 @@ module Util.Pretty (
 ) where
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
+import qualified Data.IntMap as IntMap
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import Data.Monoid (mconcat, (<>))
@@ -137,6 +138,10 @@ instance Pretty a => Pretty (Set.Set a) where
 
 instance (Pretty k, Pretty v) => Pretty (Map.Map k v) where
     format = formattedList '{' '}' . map pair . Map.toList
+        where pair (k, v) = format k </> (":" <+> format v)
+
+instance Pretty v => Pretty (IntMap.IntMap v) where
+    format = formattedList '{' '}' . map pair . IntMap.toList
         where pair (k, v) = format k </> (":" <+> format v)
 
 instance Pretty a => Pretty (Tree.Tree a) where
