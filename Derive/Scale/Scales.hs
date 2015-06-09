@@ -4,8 +4,8 @@
 
 -- | Utilities for simple scales, which simply map pitch names to frequencies.
 -- Ok, so they also have octave structure, used by the input mechanism and to
--- parse to 'Pitch.Pitch'es, but it can be ignored (or set to the number of
--- degrees in the scale) if you really don't want octaves.
+-- parse to 'Pitch.Pitch'es, but it can be set to the number of degrees in the
+-- scale if you don't have octaves.
 module Derive.Scale.Scales where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -170,8 +170,8 @@ note_to_call scale semis_to_nn semis_to_note =
     pitch_nn config = scale_to_pitch_error diatonic chromatic $
         to_nn transpose_steps frac config
         where
-        (transpose_steps, frac) = properFraction (chromatic + diatonic)
-        (chromatic, diatonic) = transposition config
+        (transpose_steps, frac) = properFraction (diatonic + chromatic)
+        (diatonic, chromatic) = transposition config
     to_nn semis frac config
         | frac == 0 = semis_to_nn config semis
         | otherwise = Num.scale
@@ -183,8 +183,8 @@ note_to_call scale semis_to_nn semis_to_note =
         where
         err = invalid_transposition diatonic chromatic
         transposed = floor (chromatic + diatonic)
-        (chromatic, diatonic) = transposition config
-    transposition config = (get Controls.chromatic, get Controls.diatonic)
+        (diatonic, chromatic) = transposition config
+    transposition config = (get Controls.diatonic, get Controls.chromatic)
         where
         get c = Map.findWithDefault 0 c (PitchSignal.pitch_controls config)
 

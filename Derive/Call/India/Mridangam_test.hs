@@ -44,10 +44,6 @@ test_infer_pattern = do
     equal (run " | pattern = \"(pi 0 1)" [(1, 7, "p1")])
         (zip [1, 3, 5, 6, 7] attrs, [])
 
-derive_tracks2 :: String -> [UiTest.TrackSpec] -> Derive.Result
-derive_tracks2 title notes = DeriveTest.derive_tracks_setup with_synth
-    ("import india.mridangam" <> title) notes
-
 derive_tracks :: String -> [UiTest.EventSpec] -> Derive.Result
 derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
     ("import india.mridangam" <> title) [(">m", notes)]

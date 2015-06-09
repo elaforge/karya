@@ -10,7 +10,6 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
-  - Put Controls.octave in Scales.standard_transposers.
   - I think the ngoret into b01 in save/complete/wayang/delima-manis isn't
     being cancelled properly.
   - shakefile: remove cabal usage in favor of a sandbox
@@ -782,7 +781,6 @@ cleanup:
     ref       TrackLang.ControlRef      TrackLang.PControlRef   Ref
 
     . Generic signals are Signal, then we have Control and PControl
-    . SignalRef
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
     else like Derive.Call.Val.num_or_pitch it would be worth trying out.
@@ -1372,6 +1370,10 @@ Derive:
 
 pitch: scales: scale:
   scales / Derive.Scale:
+    - Put Controls.octave in Scales.standard_transposers.
+      . I would have to make Scales.note_to_call handle it, but then I'd need
+        a version that doesn't for WendyCarlos.
+      . Not sure if the complexity is worth it, wait until I need it.
     * wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose signal, that multiplies hz

@@ -2,7 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Scales invented by Wendy Carlos.
+-- | Scales invented by Wendy Carlos.  Derived from
+-- <http://www.wendycarlos.com/resources/pitch.html>
 module Derive.Scale.WendyCarlos (scales) where
 import qualified Data.Attoparsec.Text as Attoparsec.Text
 import qualified Data.Char as Char
@@ -35,8 +36,8 @@ scales = map Scale.Simple
     ]
     where
     make scale_id per_octave cents =
-        make_scale scale_id (Vector.fromList $ take per_octave $
-            Seq.range_ 0 (cents/100))
+        make_scale scale_id $ Vector.fromList $ take per_octave $
+            Seq.range_ 0 (cents/100)
 
 type Degrees = Vector.Vector Pitch.NoteNumber
 
