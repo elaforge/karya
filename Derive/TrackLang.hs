@@ -32,7 +32,7 @@ import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, delete_val, lookup_val, val_set,
         null_environ, ValName, Val(..), vals_equal, Quoted(..),
         ControlFunction(..), Dynamic(..), empty_dynamic, Symbol(..),
-        ControlRef(..), PitchControl, ValControl, show_call_val, CallId, Expr,
+        Ref(..), PControlRef, ControlRef, show_call_val, CallId, Expr,
         Call(..), PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
@@ -91,11 +91,11 @@ scale_id_to_sym :: Pitch.ScaleId -> Symbol
 scale_id_to_sym (Pitch.ScaleId s) = Symbol s
 
 -- | Defaulted control from a RealTime.
-real_control :: Score.Control -> RealTime -> ValControl
+real_control :: Score.Control -> RealTime -> ControlRef
 real_control c deflt = DefaultedControl c $
     Score.untyped $ Signal.constant (RealTime.to_seconds deflt)
 
-constant_control :: Signal.Y -> ValControl
+constant_control :: Signal.Y -> ControlRef
 constant_control = ControlSignal . Score.untyped . Signal.constant
 
 quoted :: Symbol -> [Val] -> Quoted
@@ -187,9 +187,10 @@ instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
 
 data Type =
     TNum NumType NumValue
-    | TAttributes | TControl | TPitchControl | TPitch | TNotePitch | TInstrument
+    | TAttributes | TControlRef | TPControlRef | TPitch | TNotePitch
+    | TInstrument
     -- | Text string, with enum values if it's an enum.
-    | TSymbol (Maybe [Text]) | TControlName | TPitchControlName
+    | TSymbol (Maybe [Text]) | TControl | TPControl
     | TNotGiven | TSeparator | TMaybe Type | TEither Type Type | TVal
     -- | A 'VQuoted'.  This has no Typecheck instance so it should never show
     -- up as a call argument.
@@ -264,9 +265,8 @@ instance Pretty.Pretty Type where
         append_parens "Symbol" $ maybe "" Text.unwords enums
     -- There is no corresponding Val type for these, so I might as well be
     -- clear about what they mean.
-    pretty TControlName = append_parens "ControlName" Id.valid_description
-    pretty TPitchControlName =
-        append_parens "PitchControlName" ("#" <> Id.valid_description)
+    pretty TControl = append_parens "Control" Id.valid_description
+    pretty TPControl = append_parens "PControl" ("#" <> Id.valid_description)
     pretty (TList typ) = "list of " <> pretty typ
     pretty typ = Text.drop 1 (showt typ)
 
@@ -308,8 +308,8 @@ infer_type_of specific val = case val of
             else if val >= 0 then TNatural else TAny)
         else TAny
     VAttributes {} -> TAttributes
-    VControl {} -> TControl
-    VPitchControl {} -> TPitchControl
+    VControlRef {} -> TControlRef
+    VPControlRef {} -> TPControlRef
     VPitch {} -> TPitch
     VNotePitch {} -> TNotePitch
     VInstrument {} -> TInstrument
@@ -553,7 +553,7 @@ instance Typecheck Score.Control where
     from_val (VSymbol (Symbol s)) | Id.valid s = Just $ Score.Control s
     from_val _ = Nothing
     to_val c = VSymbol (Symbol (Score.control_name c))
-    to_type _ = TControlName
+    to_type _ = TControl
 
 instance Typecheck Score.PControl where
     from_val (VSymbol (Symbol s))
@@ -561,7 +561,7 @@ instance Typecheck Score.PControl where
             Just $ Score.PControl name
     from_val _ = Nothing
     to_val c = VSymbol (Symbol (Score.pcontrol_name c))
-    to_type _ = TPitchControlName
+    to_type _ = TPControl
 
 -- *** enum
 
@@ -603,19 +603,19 @@ instance Typecheck Score.Attributes where
     to_val = VAttributes
     to_type _ = TAttributes
 
-instance Typecheck ValControl where
-    from_val (VControl a) = Just a
+instance Typecheck ControlRef where
+    from_val (VControlRef a) = Just a
     from_val (VNum a) = Just $ ControlSignal $ Signal.constant <$> a
     from_val _ = Nothing
-    to_val = VControl
-    to_type _ = TControl
+    to_val = VControlRef
+    to_type _ = TControlRef
 
-instance Typecheck PitchControl where
-    from_val (VPitchControl a) = Just a
+instance Typecheck PControlRef where
+    from_val (VPControlRef a) = Just a
     from_val (VPitch a) = Just $ ControlSignal $ PitchSignal.constant a
     from_val _ = Nothing
-    to_val = VPitchControl
-    to_type _ = TPitchControl
+    to_val = VPControlRef
+    to_type _ = TPControlRef
 
 instance Typecheck PitchSignal.Pitch where
     from_val (VPitch a) = Just a

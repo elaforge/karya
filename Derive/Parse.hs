@@ -211,8 +211,8 @@ p_val =
     <|> TrackLang.VNum . Score.untyped <$> p_hex
     <|> TrackLang.VNum <$> p_num
     <|> TrackLang.VSymbol <$> p_string
-    <|> TrackLang.VControl <$> p_control
-    <|> TrackLang.VPitchControl <$> p_pitch_control
+    <|> TrackLang.VControlRef <$> p_control_ref
+    <|> TrackLang.VPControlRef <$> p_pcontrol_ref
     <|> TrackLang.VQuoted <$> p_quoted
     <|> (A.char '_' >> return TrackLang.VNotGiven)
     <|> (A.char ';' >> return TrackLang.VSeparator)
@@ -275,8 +275,8 @@ p_attributes :: A.Parser Score.Attributes
 p_attributes = A.char '+'
     *> (Score.attrs <$> A.sepBy (p_identifier False "+") (A.char '+'))
 
-p_control :: A.Parser TrackLang.ValControl
-p_control = do
+p_control_ref :: A.Parser TrackLang.ControlRef
+p_control_ref = do
     A.char '%'
     control <- Score.unchecked_control <$> A.option "" (p_identifier False ",")
     deflt <- ParseText.optional (A.char ',' >> p_num)
@@ -285,11 +285,11 @@ p_control = do
         Just val -> TrackLang.DefaultedControl control (Signal.constant <$> val)
     <?> "control"
 
--- | Unlike 'p_control', this doesn't parse a comma and a default value,
+-- | Unlike 'p_control_ref', this doesn't parse a comma and a default value,
 -- because pitches don't have literals.  Instead, use the @pitch-control@ val
 -- call.
-p_pitch_control :: A.Parser TrackLang.PitchControl
-p_pitch_control = do
+p_pcontrol_ref :: A.Parser TrackLang.PControlRef
+p_pcontrol_ref = do
     A.char '#'
     TrackLang.LiteralControl . Score.unchecked_pcontrol <$>
         A.option "" (p_identifier False "")

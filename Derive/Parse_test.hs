@@ -14,8 +14,7 @@ import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang
-       (ControlRef(..), Symbol(..), Val(..), Call(..), Term(..))
+import Derive.TrackLang (Ref(..), Symbol(..), Val(..), Call(..), Term(..))
 
 import qualified Perform.Signal as Signal
 import Global
@@ -45,7 +44,7 @@ test_parse_expr = do
         , Call (Symbol "=") (map Literal [VSymbol "b", vnum 4])
         , Call (Symbol ".") (map Literal
             [VInstrument (Score.Instrument "inst"),
-                VControl (LiteralControl "sig")])
+                VControlRef (LiteralControl "sig")])
         ]
 
     -- A toplevel symbol can have anything except =.
@@ -99,18 +98,18 @@ test_parse_val = do
             , ("s!$_", sym "s!$_")
             , ("'bad string", Nothing)
 
-            , ("%", Just $ VControl $ LiteralControl "")
-            , ("%sig", Just $ VControl $ LiteralControl "sig")
-            , ("%sig,0", Just $ VControl $
+            , ("%", Just $ VControlRef $ LiteralControl "")
+            , ("%sig", Just $ VControlRef $ LiteralControl "sig")
+            , ("%sig,0", Just $ VControlRef $
                 DefaultedControl "sig" (Score.untyped (Signal.constant 0)))
-            , ("%sig,4s", Just $ VControl $
+            , ("%sig,4s", Just $ VControlRef $
                 DefaultedControl "sig"
                 (Score.Typed Score.Real (Signal.constant 4)))
             , ("%sig,4q", Nothing)
             , ("%sig,", Nothing)
 
-            , ("#", Just $ VPitchControl $ LiteralControl "")
-            , ("#sig", Just $ VPitchControl $ LiteralControl "sig")
+            , ("#", Just $ VPControlRef $ LiteralControl "")
+            , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
 
             , ("\"(a b)", Just $ VQuoted $ TrackLang.Quoted $
                 Call (Symbol "a") [Literal (VSymbol (Symbol "b"))] :| [])

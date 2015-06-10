@@ -64,7 +64,7 @@ note_to_call note = note_call note <$>
 note_call :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
 note_call note ratio = Derive.val_call Module.scale "ratio" mempty
     ( "Generate a frequency that is the ratio of the frequency of the "
-    <> ShowVal.doc_val pitch_control
+    <> ShowVal.doc_val pcontrol_ref
     <> " signal. A negative ratio divides, a positive one multiplies."
     ) $ Sig.call
     (defaulted "hz" 0 "Add an absolute hz value to the output.") $
@@ -72,14 +72,14 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
         start <- Args.real_start args
         env <- Internal.get_environ
         nn <- Derive.require
-            ("ratio scale requires " <> ShowVal.show_val pitch_control)
+            ("ratio scale requires " <> ShowVal.show_val pcontrol_ref)
             =<< Derive.named_nn_at pcontrol start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
         return $ PitchSignal.pitch
             pscale (const $ return out_nn) (const $ return note)
             (PitchSignal.PitchConfig env mempty)
     where
-    pitch_control = TrackLang.LiteralControl control :: TrackLang.PitchControl
+    pcontrol_ref = TrackLang.LiteralControl control :: TrackLang.PControlRef
     control = "ratio-source"
     pcontrol = "ratio-source" -- TODO remove
     pscale = Pitches.scale scale

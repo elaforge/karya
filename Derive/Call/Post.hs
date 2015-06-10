@@ -141,13 +141,13 @@ zip3_on :: ([a] -> [b]) -> ([a] -> [c]) -> [LEvent.LEvent a]
 zip3_on f g xs =
     LEvent.zip3 (f (LEvent.events_of xs)) (g (LEvent.events_of xs)) xs
 
-control :: (Score.TypedVal -> a) -> TrackLang.ValControl -> Derive.Events
+control :: (Score.TypedVal -> a) -> TrackLang.ControlRef -> Derive.Events
     -> Derive.Deriver [a]
 control f c events = do
     sig <- Call.to_typed_function c
     return $ map (f . sig . Score.event_start) (LEvent.events_of events)
 
-time_control :: TrackLang.ValControl -> Derive.Events
+time_control :: TrackLang.ControlRef -> Derive.Events
     -> Derive.Deriver [RealTime]
 time_control = control (RealTime.seconds . Score.typed_val)
 

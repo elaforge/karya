@@ -101,11 +101,11 @@ transition_default = 0.08
 jaru_time_default :: RealTime
 jaru_time_default = 0.15
 
-speed_arg :: Sig.Parser TrackLang.ValControl
+speed_arg :: Sig.Parser TrackLang.ControlRef
 speed_arg = defaulted "speed" (Sig.typed_control "tr-speed" 6 Score.Real)
     "Alternate pitches at this speed."
 
-neighbor_arg :: Sig.Parser TrackLang.ValControl
+neighbor_arg :: Sig.Parser TrackLang.ControlRef
 neighbor_arg = defaulted "neighbor"
     (Sig.typed_control "tr-neighbor" 1 Score.Untyped)
     "Alternate between 0 and this value."
@@ -141,7 +141,7 @@ c_kampita start_dir end_dir = generator1 "kam" mempty
             (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
-    -> TrackLang.ValControl -> (ScoreTime, ScoreTime)
+    -> TrackLang.ControlRef -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [RealTime]
 trill_transitions = Trill.adjusted_transitions include_end
     where
@@ -246,7 +246,7 @@ c_kampita_c start_dir end_dir = generator1 "kam" mempty
 
 -- | You don't think there are too many arguments, do you?
 kampita :: Maybe Trill.Direction -> Maybe Trill.Direction -> Trill.Adjust
-    -> Call.Function -> TrackLang.ValControl -> RealTime
+    -> Call.Function -> TrackLang.ControlRef -> RealTime
     -> TrackLang.Duration -> Double -> Derive.PassedArgs a
     -> Derive.Deriver Signal.Control
 kampita start_dir end_dir adjust neighbor speed transition hold lilt args = do
@@ -332,7 +332,7 @@ c_dip_c = generator1 "dip" mempty
     ) $ \(high, low, speed, dyn_scale, transition) args ->
         dip high low speed dyn_scale transition (Args.range_or_next args)
 
-dip :: Double -> Double -> TrackLang.ValControl -> Double
+dip :: Double -> Double -> TrackLang.ControlRef -> Double
     -> RealTime -> (ScoreTime, ScoreTime) -> Derive.Deriver Signal.Control
 dip high low speed dyn_scale transition (start, end) = do
     srate <- Call.get_srate

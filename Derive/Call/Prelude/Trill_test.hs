@@ -232,7 +232,7 @@ test_score_trill = do
     equal (run $ Derive.stretch 2 $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (1, 1)]
 
-mkcontrol :: Score.Type -> Signal.Control -> TrackLang.ValControl
+mkcontrol :: Score.Type -> Signal.Control -> TrackLang.ControlRef
 mkcontrol typ = TrackLang.ControlSignal . Score.Typed typ
 
 test_pitch_trill = do

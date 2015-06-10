@@ -58,9 +58,6 @@ instance ShowVal.ShowVal Control where show_val (Control c) = c
 -- A PControl should be a valid identifier as defined by 'Ui.Id.valid', except
 -- that its literal tracklang form starts with a @#@, to differentiate from
 -- a Control.
---
--- It should probably be called PitchControl, but that's already taken by the
--- pitch version of 'ValControl', which also probably needs a clearer name.
 newtype PControl = PControl Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
         String.IsString)

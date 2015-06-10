@@ -210,14 +210,14 @@ real dyn = Score.warp_pos (TrackLang.dyn_warp dyn)
 score :: TrackLang.Dynamic -> RealTime -> ScoreTime
 score dyn = Score.unwarp_pos (TrackLang.dyn_warp dyn)
 
--- ** ValControl
+-- ** ControlRef
 
-to_function :: TrackLang.Dynamic -> Signal.Y -> TrackLang.ValControl
+to_function :: TrackLang.Dynamic -> Signal.Y -> TrackLang.ControlRef
     -> Call.Function
 to_function dyn deflt =
     (Score.typed_val .) . to_typed_function dyn (Score.untyped deflt)
 
-to_typed_function :: TrackLang.Dynamic -> Score.TypedVal -> TrackLang.ValControl
+to_typed_function :: TrackLang.Dynamic -> Score.TypedVal -> TrackLang.ControlRef
     -> Call.TypedFunction
 to_typed_function dyn deflt control =
     case to_signal_or_function dyn control of
@@ -230,7 +230,7 @@ to_typed_function dyn deflt control =
         TrackLang.DefaultedControl cont _ -> cont
         TrackLang.LiteralControl cont -> cont
 
-to_signal_or_function :: TrackLang.Dynamic -> TrackLang.ValControl
+to_signal_or_function :: TrackLang.Dynamic -> TrackLang.ControlRef
     -> Maybe (Either Score.TypedControl TrackLang.ControlFunction)
 to_signal_or_function dyn control = case control of
     TrackLang.ControlSignal sig -> return $ Left sig

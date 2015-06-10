@@ -115,9 +115,9 @@ string_idiom ::
     PitchUtil.Interpolate -- ^ interpolator to draw the attack curve
     -> PitchUtil.Interpolate -- ^ draw the release curve
     -> [PitchSignal.Pitch] -- ^ Pitches of open strings.
-    -> TrackLang.ValControl -- ^ Attack time.
-    -> TrackLang.ValControl -- ^ Release delay.
-    -> TrackLang.ValControl -- ^ Time for string to return to its open pitch.
+    -> TrackLang.ControlRef -- ^ Attack time.
+    -> TrackLang.ControlRef -- ^ Release delay.
+    -> TrackLang.ControlRef -- ^ Time for string to return to its open pitch.
     -> Derive.Events -> Derive.NoteDeriver
 string_idiom attack_interpolate release_interpolate open_strings attack delay
         release all_events = Post.event_head all_events $ \event events -> do

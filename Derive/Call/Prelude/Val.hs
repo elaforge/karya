@@ -51,7 +51,7 @@ val_calls = Derive.call_map
     , ("st", c_scoretime)
     , ("rt", c_realtime)
     , ("pitch", c_pitch)
-    , ("#", c_pitch_control)
+    , ("#", c_pcontrol_ref)
     -- lookup
     , ("<-#", c_get_pitch)
     -- generate signals
@@ -229,9 +229,9 @@ make_pitch (Right name_pitch) pc accs
         either (Derive.throw . pretty) return $
             Scale.scale_read scale env note
 
-c_pitch_control :: Derive.ValCall
-c_pitch_control = val_call "pitch-control" mempty
-    "Create a 'Derive.TrackLang.PitchControl'. For control literals, the\
+c_pcontrol_ref :: Derive.ValCall
+c_pcontrol_ref = val_call "pcontrol-ref" mempty
+    "Create a 'Derive.TrackLang.PControlRef'. For control literals, the\
     \ `#name` syntax suffices, but if you want to give a default pitch,\
     \ you need this call."
     $ Sig.call ((,)
@@ -281,10 +281,10 @@ c_breakpoints argnum f vals args = do
     srate <- Call.get_srate
     vals <- num_or_pitch argnum vals
     return $ case vals of
-        Left nums -> TrackLang.VControl $ TrackLang.ControlSignal $
+        Left nums -> TrackLang.VControlRef $ TrackLang.ControlSignal $
             Score.untyped $ ControlUtil.breakpoints srate f $
             ControlUtil.distribute start end nums
-        Right pitches -> TrackLang.VPitchControl $ TrackLang.ControlSignal $
+        Right pitches -> TrackLang.VPControlRef $ TrackLang.ControlSignal $
             PitchUtil.breakpoints srate f $
             ControlUtil.distribute start end pitches
 

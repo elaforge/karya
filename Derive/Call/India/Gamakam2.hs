@@ -599,7 +599,7 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
 
 -- ** implementation
 
-resolve_pitches :: KampitaArgs -> (TrackLang.ValControl, TrackLang.ValControl)
+resolve_pitches :: KampitaArgs -> (TrackLang.ControlRef, TrackLang.ControlRef)
     -> Derive.Deriver ((Call.Function, Call.Function), Score.Control)
 resolve_pitches kam_args (pitch1, pitch2) = do
     (pitch1, control1) <- Call.to_transpose_function Call.Nn pitch1
@@ -613,7 +613,7 @@ resolve_pitches kam_args (pitch1, pitch2) = do
     return ((pitch1, pitch2), control1)
 
 kampita_pitch_args :: KampitaArgs
-    -> Sig.Parser (TrackLang.ValControl, TrackLang.ValControl)
+    -> Sig.Parser (TrackLang.ControlRef, TrackLang.ControlRef)
 kampita_pitch_args kam_args = case kam_args of
     Kampita0 p1 p2 -> (,) <$> pure (control p1) <*> pure (control p2)
     Kampita1 p1 -> (,) <$> pure (control p1)
@@ -654,7 +654,7 @@ kampita start args control transpose = do
 
 -- | You don't think there are too many arguments, do you?
 kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
-    -> (Call.Function, Call.Function) -> TrackLang.ValControl -> RealTime
+    -> (Call.Function, Call.Function) -> TrackLang.ControlRef -> RealTime
     -> TrackLang.Duration -> Double -> (ScoreTime, ScoreTime)
     -> Derive.Deriver Signal.Control
 kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
@@ -677,7 +677,7 @@ trill_from_transitions val1 val2 transitions = Signal.signal
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
-    -> TrackLang.ValControl -> (ScoreTime, ScoreTime)
+    -> TrackLang.ControlRef -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [RealTime]
 trill_transitions = Trill.adjusted_transitions include_end
     where

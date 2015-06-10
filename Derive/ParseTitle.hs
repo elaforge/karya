@@ -100,11 +100,11 @@ parse_control_vals vals = case vals of
     -- real meaning to an empty scale id.  However, Controls.null is a valid
     -- control like any other and is simply used as a special name by the
     -- control block call hack in "Derive.Call.Block".
-    [TrackLang.VControl (TrackLang.LiteralControl control)]
+    [TrackLang.VControlRef (TrackLang.LiteralControl control)]
         | control == Controls.null ->
             Right $ Control Nothing (Score.untyped Controls.null)
     -- add % -> relative default control
-    [TrackLang.VSymbol call, TrackLang.VControl
+    [TrackLang.VSymbol call, TrackLang.VControlRef
             (TrackLang.LiteralControl control)] | control == Controls.null ->
         Right $ Control (Just call) (Score.untyped Controls.null)
     _ -> Left $ "control track must be one of [\"tempo\", control,\
@@ -118,7 +118,7 @@ parse_control_vals vals = case vals of
     scale _ = Nothing
 
     pitch_control_of :: TrackLang.Val -> Maybe Score.PControl
-    pitch_control_of (TrackLang.VPitchControl (TrackLang.LiteralControl c)) =
+    pitch_control_of (TrackLang.VPControlRef (TrackLang.LiteralControl c)) =
         Just c
     pitch_control_of _ = Nothing
 
@@ -154,14 +154,15 @@ unparse_control_vals ctype = case ctype of
     Pitch (Pitch.ScaleId scale_id) pcontrol ->
         TrackLang.VSymbol (TrackLang.Symbol (Text.cons '*' scale_id))
         : if pcontrol == Score.default_pitch then [] else
-            [TrackLang.VPitchControl $ TrackLang.LiteralControl pcontrol]
+            [TrackLang.VPControlRef $ TrackLang.LiteralControl pcontrol]
     Tempo maybe_sym -> TrackLang.VSymbol "tempo"
         : maybe [] ((:[]) . TrackLang.VSymbol)  maybe_sym
     where
     control_val c
         | c == Score.untyped Controls.null = empty_control
         | otherwise = TrackLang.VSymbol $ TrackLang.Symbol (unparse_typed c)
-    empty_control = TrackLang.VControl $ TrackLang.LiteralControl Controls.null
+    empty_control = TrackLang.VControlRef $
+        TrackLang.LiteralControl Controls.null
 
 -- | Convert a track title to its control.
 title_to_control :: Text -> Maybe Score.Control

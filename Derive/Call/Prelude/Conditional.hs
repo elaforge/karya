@@ -78,7 +78,7 @@ c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
             deriver (return mempty)
     where invert = if inverted then (not <$>) else id
 
-has_control :: TrackLang.ValControl -> Int -> RealTime -> Derive.Deriver Bool
+has_control :: TrackLang.ControlRef -> Int -> RealTime -> Derive.Deriver Bool
 has_control control val pos = do
     cval <- Call.control_at control pos
     return $ round cval == val

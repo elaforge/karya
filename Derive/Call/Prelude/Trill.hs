@@ -150,7 +150,7 @@ c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs
         starts <- tremolo_starts hold speed (Args.range_or_next args)
         simple_tremolo starts [Args.normalized args deriver]
 
-tremolo_starts :: TrackLang.Duration -> TrackLang.ValControl
+tremolo_starts :: TrackLang.Duration -> TrackLang.ControlRef
     -> (ScoreTime, ScoreTime) -> Derive.Deriver [ScoreTime]
 tremolo_starts hold speed (start, end) = do
     hold <- Call.score_duration start hold
@@ -406,7 +406,7 @@ xcut_control hold val1 val2 =
 
 -- * util
 
-trill_speed_arg :: Sig.Parser TrackLang.ValControl
+trill_speed_arg :: Sig.Parser TrackLang.ControlRef
 trill_speed_arg = defaulted "speed" (typed_control "tr-speed" 14 Score.Real)
     "Trill at this speed. If it's a RealTime, the value is the number of\
     \ cycles per second, which will be unaffected by the tempo. If it's\
@@ -526,7 +526,7 @@ adjust_env = Sig.environ "adjust" Sig.Both Shorten
 
 trill_from_controls :: (ScoreTime, ScoreTime) -> Maybe Direction
     -> Maybe Direction -> Adjust -> TrackLang.Duration
-    -> TrackLang.ValControl -> TrackLang.ValControl
+    -> TrackLang.ControlRef -> TrackLang.ControlRef
     -> Derive.Deriver (Signal.Control, Score.Control)
 trill_from_controls (start, end) start_dir end_dir adjust hold neighbor speed
         = do
@@ -547,7 +547,7 @@ adjusted_transitions :: Bool -- ^ include a transition at the end time
     -> Adjust -- ^ how to fit the transitions into the time range
     -> Double -- ^ offset every other transition by this amount, from -1--1
     -> ScoreTime -- ^ extend the first transition by this amount
-    -> TrackLang.ValControl -- ^ transition speed
+    -> TrackLang.ControlRef -- ^ transition speed
     -> (ScoreTime, ScoreTime) -> Derive.Deriver [RealTime]
 adjusted_transitions include_end even adjust bias hold speed (start, end) = do
     real_end <- Derive.real end
@@ -594,7 +594,7 @@ trill_from_transitions val1 val2 transitions = Signal.signal
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 -- | Create trill transition points from a speed.
-trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> TrackLang.ValControl
+trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> TrackLang.ControlRef
     -> Derive.Deriver [RealTime]
 trill_transitions range include_end speed = do
     (speed_sig, time_type) <- Call.to_time_function Call.Real speed

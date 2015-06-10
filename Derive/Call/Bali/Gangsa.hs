@@ -599,7 +599,7 @@ data KotekanNote = KotekanNote {
 instance Pretty.Pretty KotekanNote where
     format (KotekanNote inst steps attrs) = Pretty.format (inst, steps, attrs)
 
-under_threshold_function :: TrackLang.ValControl -> ScoreTime
+under_threshold_function :: TrackLang.ControlRef -> ScoreTime
     -> Derive.Deriver (ScoreTime -> Bool) -- ^ say if a note at this time
     -- with the given duration would be under the kotekan threshold
 under_threshold_function kotekan dur = do
@@ -810,7 +810,7 @@ dur_env :: Sig.Parser ScoreTime
 dur_env = Sig.environ_quoted "kotekan-dur" Sig.Unprefixed
     (TrackLang.quoted "ts" [TrackLang.str "e"]) "Duration of derived notes."
 
-kotekan_env :: Sig.Parser TrackLang.ValControl
+kotekan_env :: Sig.Parser TrackLang.ControlRef
 kotekan_env =
     Sig.environ "kotekan" Sig.Unprefixed (TrackLang.constant_control 0.15)
         "If note durations are below this, divide the parts between polos and\

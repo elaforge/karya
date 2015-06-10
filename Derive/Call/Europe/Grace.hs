@@ -60,7 +60,7 @@ default_grace_dur = TrackLang.real (1/12)
 
 -- * standard args
 
-grace_envs :: Sig.Parser (TrackLang.Duration, Double, TrackLang.ValControl)
+grace_envs :: Sig.Parser (TrackLang.Duration, Double, TrackLang.ControlRef)
 grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_placement_env
 
 grace_dur_env :: Sig.Parser TrackLang.Duration
@@ -72,7 +72,7 @@ grace_dyn_env :: Sig.Parser Double
 grace_dyn_env = TrackLang.positive <$> Sig.environ "grace-dyn" Sig.Unprefixed
     0.5 "Scale the dyn of the grace notes."
 
-grace_placement_env :: Sig.Parser TrackLang.ValControl
+grace_placement_env :: Sig.Parser TrackLang.ControlRef
 grace_placement_env = Sig.environ "grace-place" Sig.Unprefixed
     (Sig.control "grace-place" 0) grace_placement_doc
 
@@ -157,7 +157,7 @@ lily_grace args start pitches = do
     Lily.prepend_code code $ Call.place args Call.note
 
 grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
-    -> TrackLang.Duration -> TrackLang.ValControl -> Derive.NoteDeriver
+    -> TrackLang.Duration -> TrackLang.ControlRef -> Derive.NoteDeriver
 grace_call args dyn_scale pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
     events <- basic_grace args pitches (Call.with_dynamic dyn) grace_dur place
@@ -168,7 +168,7 @@ grace_call args dyn_scale pitches grace_dur place = do
 
 basic_grace :: Derive.PassedArgs a -> [PitchSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> TrackLang.Duration -> TrackLang.ValControl -> Derive.Deriver [Sub.Event]
+    -> TrackLang.Duration -> TrackLang.ControlRef -> Derive.Deriver [Sub.Event]
 basic_grace args pitches transform =
     make_grace_notes (Args.prev_start args) (Args.extent args) notes
     where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
@@ -200,7 +200,7 @@ repeat_notes note times time dyn_scale args = do
         (Args.extent args) notes time (TrackLang.constant_control 0)
 
 make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime)
-    -> [Derive.NoteDeriver] -> TrackLang.Duration -> TrackLang.ValControl
+    -> [Derive.NoteDeriver] -> TrackLang.Duration -> TrackLang.ControlRef
     -> Derive.Deriver [Sub.Event]
 make_grace_notes prev (start, dur) notes grace_dur place = do
     real_start <- Derive.real start

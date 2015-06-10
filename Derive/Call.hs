@@ -71,10 +71,10 @@ transpose_control Nn = Controls.nn
 
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
-control_at :: TrackLang.ValControl -> RealTime -> Derive.Deriver Signal.Y
+control_at :: TrackLang.ControlRef -> RealTime -> Derive.Deriver Signal.Y
 control_at control pos = Score.typed_val <$> typed_control_at control pos
 
-typed_control_at :: TrackLang.ValControl -> RealTime
+typed_control_at :: TrackLang.ControlRef -> RealTime
     -> Derive.Deriver Score.TypedVal
 typed_control_at control pos = case control of
     TrackLang.ControlSignal sig -> return $ Signal.at pos <$> sig
@@ -84,7 +84,7 @@ typed_control_at control pos = case control of
         Derive.require ("not found and no default: " <> TrackLang.show_val cont)
             =<< Derive.control_at cont pos
 
-time_control_at :: TimeType -> TrackLang.ValControl -> RealTime
+time_control_at :: TimeType -> TrackLang.ControlRef -> RealTime
     -> Derive.Deriver TrackLang.Duration
 time_control_at default_type control pos = do
     Score.Typed typ val <- typed_control_at control pos
@@ -98,7 +98,7 @@ time_control_at default_type control pos = do
         Real -> TrackLang.Real (RealTime.seconds val)
         Score -> TrackLang.Score (ScoreTime.double val)
 
-real_time_at :: TrackLang.ValControl -> RealTime -> Derive.Deriver RealTime
+real_time_at :: TrackLang.ControlRef -> RealTime -> Derive.Deriver RealTime
 real_time_at control pos = do
     val <- time_control_at Real control pos
     case val of
@@ -106,7 +106,7 @@ real_time_at control pos = do
         TrackLang.Score t -> Derive.throw $ "expected RealTime for "
             <> TrackLang.show_val control <> " but got " <> TrackLang.show_val t
 
-transpose_control_at :: TransposeType -> TrackLang.ValControl -> RealTime
+transpose_control_at :: TransposeType -> TrackLang.ControlRef -> RealTime
     -> Derive.Deriver (Signal.Y, TransposeType)
 transpose_control_at default_type control pos = do
     Score.Typed typ val <- typed_control_at control pos
@@ -124,12 +124,12 @@ transpose_control_at default_type control pos = do
 type TypedFunction = RealTime -> Score.TypedVal
 type Function = RealTime -> Signal.Y
 
--- | Convert a 'TrackLang.ValControl' to a function.
+-- | Convert a 'TrackLang.ControlRef' to a function.
 --
 -- If a signal exists but doesn't have a type, the type will be inherited from
 -- the default.  This way a call can cause a signal parameter to default to
 -- a certain type.
-to_typed_function :: TrackLang.ValControl -> Derive.Deriver TypedFunction
+to_typed_function :: TrackLang.ControlRef -> Derive.Deriver TypedFunction
 to_typed_function control =
     either (return . Derive.signal_function) from_function
         =<< to_signal_or_function control
@@ -141,18 +141,18 @@ to_typed_function control =
         TrackLang.DefaultedControl cont _ -> cont
         TrackLang.LiteralControl cont -> cont
 
-to_function :: TrackLang.ValControl -> Derive.Deriver Function
+to_function :: TrackLang.ControlRef -> Derive.Deriver Function
 to_function = fmap (Score.typed_val .) . to_typed_function
 
-to_typed_signal :: TrackLang.ValControl -> Derive.Deriver Score.TypedControl
+to_typed_signal :: TrackLang.ControlRef -> Derive.Deriver Score.TypedControl
 to_typed_signal control =
     either return (const $ Derive.throw $ "not found: " <> pretty control)
         =<< to_signal_or_function control
 
-to_signal :: TrackLang.ValControl -> Derive.Deriver Signal.Control
+to_signal :: TrackLang.ControlRef -> Derive.Deriver Signal.Control
 to_signal = fmap Score.typed_val . to_typed_signal
 
-to_signal_or_function :: TrackLang.ValControl
+to_signal_or_function :: TrackLang.ControlRef
     -> Derive.Deriver (Either Score.TypedControl TrackLang.ControlFunction)
 to_signal_or_function control = case control of
     TrackLang.ControlSignal sig -> return $ Left sig
@@ -177,7 +177,7 @@ to_signal_or_function control = case control of
 
 -- | Version of 'to_function' specialized for transpose signals.  Throws if
 -- the signal had a non-transpose type.
-to_transpose_function :: TransposeType -> TrackLang.ValControl
+to_transpose_function :: TransposeType -> TrackLang.ControlRef
     -> Derive.Deriver (Function, Score.Control)
     -- ^ (signal, appropriate transpose control)
 to_transpose_function default_type control = do
@@ -196,7 +196,7 @@ to_transpose_function default_type control = do
 
 -- | Version of 'to_function' that will complain if the control isn't a time
 -- type.
-to_time_function :: TimeType -> TrackLang.ValControl
+to_time_function :: TimeType -> TrackLang.ControlRef
     -> Derive.Deriver (Function, TimeType)
 to_time_function default_type control = do
     sig <- to_typed_function control
@@ -210,7 +210,7 @@ to_time_function default_type control = do
             <> TrackLang.show_val control <> " but got " <> pretty typ
 
 -- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
-pitch_at :: RealTime -> TrackLang.PitchControl
+pitch_at :: RealTime -> TrackLang.PControlRef
     -> Derive.Deriver PitchSignal.Pitch
 pitch_at pos control = case control of
     TrackLang.ControlSignal sig -> require sig
@@ -225,7 +225,7 @@ pitch_at pos control = case control of
     require = Derive.require ("ControlSignal pitch at " <> pretty pos)
         . PitchSignal.at pos
 
-to_pitch_signal :: TrackLang.PitchControl -> Derive.Deriver PitchSignal.Signal
+to_pitch_signal :: TrackLang.PControlRef -> Derive.Deriver PitchSignal.Signal
 to_pitch_signal control = case control of
     TrackLang.ControlSignal sig -> return sig
     TrackLang.DefaultedControl cont deflt ->
@@ -233,7 +233,7 @@ to_pitch_signal control = case control of
     TrackLang.LiteralControl cont ->
         Derive.require ("not found: " <> showt cont) =<< Derive.get_pitch cont
 
-nn_at :: RealTime -> TrackLang.PitchControl
+nn_at :: RealTime -> TrackLang.PControlRef
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
 nn_at pos control = -- TODO throw exception?
     Derive.logged_pitch_nn ("Util.nn_at " <> pretty (pos, control))

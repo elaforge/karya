@@ -40,7 +40,7 @@ convert (Environ env) = BaseTypes.Environ $ Map.map convert_val env
 data Val =
     VNum !Score.TypedVal
     | VAttributes !Score.Attributes
-    | VControl !TrackLang.ValControl
+    | VControlRef !TrackLang.ControlRef
     | VNotePitch !Pitch.Pitch
     | VInstrument !Score.Instrument
     | VSymbol !TrackLang.Symbol
@@ -52,7 +52,7 @@ convert_val :: Val -> TrackLang.Val
 convert_val val = case val of
     VNum v -> TrackLang.VNum v
     VAttributes v -> TrackLang.VAttributes v
-    VControl v -> TrackLang.VControl v
+    VControlRef v -> TrackLang.VControlRef v
     VNotePitch v -> TrackLang.VNotePitch v
     VInstrument v -> TrackLang.VInstrument v
     VSymbol v -> TrackLang.VSymbol v
@@ -86,7 +86,7 @@ instance ToVal RealTime where
 -- ** rest
 
 instance ToVal Score.Attributes where to_val = VAttributes
-instance ToVal TrackLang.ValControl where to_val = VControl
+instance ToVal TrackLang.ControlRef where to_val = VControlRef
 instance ToVal Pitch.Pitch where to_val = VNotePitch
 instance ToVal Score.Instrument where to_val = VInstrument
 instance ToVal TrackLang.Symbol where to_val = VSymbol
@@ -114,7 +114,7 @@ instance Serialize.Serialize Val where
     put val = case val of
         VNum v -> Serialize.put_tag 0 >> put v
         VAttributes v -> Serialize.put_tag 1 >> put v
-        VControl v -> Serialize.put_tag 2 >> put v
+        VControlRef v -> Serialize.put_tag 2 >> put v
         VNotePitch v -> Serialize.put_tag 3 >> put v
         VInstrument v -> Serialize.put_tag 4 >> put v
         VSymbol v -> Serialize.put_tag 5 >> put v
@@ -125,7 +125,7 @@ instance Serialize.Serialize Val where
         case tag of
             0 -> VNum <$> get
             1 -> VAttributes <$> get
-            2 -> VControl <$> get
+            2 -> VControlRef <$> get
             3 -> VNotePitch <$> get
             4 -> VInstrument <$> get
             5 -> VSymbol <$> get

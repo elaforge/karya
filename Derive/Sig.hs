@@ -26,8 +26,8 @@
     3. If it's omitted, and not in the dynamic environ, the default will be
     used, provided there is one.
 
-    In addition, an arg may be a 'TrackLang.PitchControl' or
-    'TrackLang.ValControl', which introduces yet another way to provide the
+    In addition, an arg may be a 'TrackLang.VPControlRef' or
+    'TrackLang.ControlRef', which introduces yet another way to provide the
     value.  An argument @required_control \"c\"@ will pass
     a 'TrackLang.LiteralControl'.  Technically it's then up to the call to
     decide what to do with it, but it will likely look it up at its chosen
@@ -427,19 +427,19 @@ environ_error state name =
 
 -- | The argument's value is taken from the given signal, with the given
 -- default.  If the value isn't given, the default is Untyped.
-control :: Score.Control -> Signal.Y -> TrackLang.ValControl
+control :: Score.Control -> Signal.Y -> TrackLang.ControlRef
 control name deflt = typed_control name deflt Score.Untyped
 
 -- | Like 'control', but the default can have a type.
-typed_control :: Score.Control -> Signal.Y -> Score.Type -> TrackLang.ValControl
+typed_control :: Score.Control -> Signal.Y -> Score.Type -> TrackLang.ControlRef
 typed_control name deflt typ =
     TrackLang.DefaultedControl name (Score.Typed typ (Signal.constant deflt))
 
-required_control :: Score.Control -> TrackLang.ValControl
+required_control :: Score.Control -> TrackLang.ControlRef
 required_control = TrackLang.LiteralControl
 
 -- | Pitch signal.  There's no default because that would depend on the scale.
-pitch :: Score.PControl -> TrackLang.PitchControl
+pitch :: Score.PControl -> TrackLang.PControlRef
 pitch = TrackLang.LiteralControl
 
 -- ** util

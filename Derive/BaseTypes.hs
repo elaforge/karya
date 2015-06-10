@@ -255,13 +255,13 @@ data Val =
     -- isn't present.
     --
     -- Literal: @%control@, @%control,.4@
-    | VControl !ValControl
+    | VControlRef !ControlRef
     -- | If a control name starts with a *, it denotes a pitch signal and the
     -- scale is taken from the environ.  Unlike a control signal, the empty
     -- string is a valid signal name and means the default pitch signal.
     --
     -- Literal: @\#pitch@, @(# pitch (4c))@
-    | VPitchControl !PitchControl
+    | VPControlRef !PControlRef
 
     -- | No literal, but is returned from val calls, notably scale calls.
     | VPitch !Pitch
@@ -321,10 +321,10 @@ vals_equal :: Val -> Val -> Maybe Bool
 vals_equal x y = case (x, y) of
     (VNum a, VNum b) -> Just $ a == b
     (VAttributes a, VAttributes b) -> Just $ a == b
-    (VControl a, VControl b) -> Just $ a == b
+    (VControlRef a, VControlRef b) -> Just $ a == b
     -- This could use pitches_equal, but don't bother until I have a need for
     -- it.
-    (VPitchControl _, VPitchControl _) -> Nothing
+    (VPControlRef _, VPControlRef _) -> Nothing
     (VPitch a, VPitch b) -> Just $ pitches_equal a b
     (VNotePitch a, VNotePitch b) -> Just $ a == b
     (VInstrument a, VInstrument b) -> Just $ a == b
@@ -345,16 +345,16 @@ lists_equal eq = go
     go _ _ = Just False
 
 -- | This instance is actually invalid due to showing VPitch, which has no
--- literal, and for 'Val', showing 'PitchControl', which amounts to the same
+-- literal, and for 'Val', showing 'PControlRef', which amounts to the same
 -- thing.  I use this to treat any Val as a Symbol to re-evaluate it.  Being
--- invalid means that a VPitch or VPitchControl with a default will cause
+-- invalid means that a VPitch or VPControlRef with a default will cause
 -- a parse failure, but I'll have to see if this becomes a problem in practice.
 instance ShowVal.ShowVal Val where
     show_val val = case val of
         VNum d -> ShowVal.show_val d
         VAttributes attrs -> ShowVal.show_val attrs
-        VControl control -> ShowVal.show_val control
-        VPitchControl control -> ShowVal.show_val control
+        VControlRef control -> ShowVal.show_val control
+        VPControlRef control -> ShowVal.show_val control
         VPitch pitch -> ShowVal.show_val pitch
         VNotePitch pitch -> ShowVal.show_val pitch
         VInstrument inst -> ShowVal.show_val inst
@@ -408,9 +408,9 @@ show_call_val val = ShowVal.show_val val
 instance ShowVal.ShowVal Text where
     show_val = ShowVal.show_val . Symbol
 
--- ** ControlRef
+-- ** Ref
 
-data ControlRef control val =
+data Ref control val =
     -- | A signal literal.
     ControlSignal val
     -- | If the control isn't present, use the given default.
@@ -419,11 +419,11 @@ data ControlRef control val =
     | LiteralControl control
     deriving (Eq, Read, Show)
 
-type ValControl = ControlRef ScoreTypes.Control ScoreTypes.TypedControl
-type PitchControl = ControlRef ScoreTypes.PControl Signal
+type ControlRef = Ref ScoreTypes.Control ScoreTypes.TypedControl
+type PControlRef = Ref ScoreTypes.PControl Signal
 
 instance (Serialize.Serialize val, Serialize.Serialize control) =>
-        Serialize.Serialize (ControlRef control val) where
+        Serialize.Serialize (Ref control val) where
     put val = case val of
         ControlSignal a -> Serialize.put_tag 0 >> Serialize.put a
         DefaultedControl a b -> Serialize.put_tag 1 >> Serialize.put a
@@ -433,34 +433,34 @@ instance (Serialize.Serialize val, Serialize.Serialize control) =>
         0 -> ControlSignal <$> Serialize.get
         1 -> DefaultedControl <$> Serialize.get <*> Serialize.get
         2 -> LiteralControl <$> Serialize.get
-        n -> Serialize.bad_tag "BaseTypes.ControlRef" n
+        n -> Serialize.bad_tag "BaseTypes.Ref" n
 
 -- | This can only represent constant signals, since there's no literal for an
 -- arbitrary signal.  Non-constant signals will turn into a constant of
 -- whatever was at 0.
-instance ShowVal.ShowVal ValControl where
+instance ShowVal.ShowVal ControlRef where
     show_val = show_control '%' name_of $ \(ScoreTypes.Typed typ sig) ->
         ShowVal.show_val (Signal.at 0 sig) <> ScoreTypes.type_to_code typ
         where name_of (ScoreTypes.Control name) = name
 
-instance Pretty.Pretty ValControl where pretty = ShowVal.show_val
+instance Pretty.Pretty ControlRef where pretty = ShowVal.show_val
 
 -- | There's no way to convert a pitch back into the expression that produced
 -- it, so this is the best I can do.
 --
--- Similar to ShowVal 'ValControl', there's no signal literal so I use the
+-- Similar to ShowVal 'ControlRef', there's no signal literal so I use the
 -- value at 0.  A pitch can be turned into an expression, but not necessarily
 -- accurately since it doesn't take things like pitch interpolation into
 -- account.
-instance ShowVal.ShowVal PitchControl where
+instance ShowVal.ShowVal PControlRef where
     show_val = show_control '#' name_of
         (maybe "<none>" ShowVal.show_val . TimeVector.at 0 . sig_vec)
         where name_of (ScoreTypes.PControl name) = name
 
-instance Pretty.Pretty PitchControl where pretty = ShowVal.show_val
+instance Pretty.Pretty PControlRef where pretty = ShowVal.show_val
 
 show_control :: Char -> (control -> Text) -> (sig -> Text)
-    -> ControlRef control sig -> Text
+    -> Ref control sig -> Text
 show_control prefix control_name sig_text control = case control of
     ControlSignal sig -> sig_text sig
     DefaultedControl cont deflt -> mconcat

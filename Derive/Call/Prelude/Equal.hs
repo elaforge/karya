@@ -134,7 +134,7 @@ parse_equal Nothing (TrackLang.Symbol lhs) rhs
             <> pretty (TrackLang.type_of rhs)
 parse_equal maybe_merge lhs rhs
     | Just control <- is_control =<< parse_val lhs = case rhs of
-        TrackLang.VControl rhs -> Right $ \deriver ->
+        TrackLang.VControlRef rhs -> Right $ \deriver ->
             Call.to_signal_or_function rhs >>= \x -> case x of
                 Left sig -> do
                     merge <- get_merge control maybe_merge
@@ -153,19 +153,19 @@ parse_equal maybe_merge lhs rhs
         _ -> Left $ "binding a control expected a control, num, control\
             \ function, or _, but got " <> pretty (TrackLang.type_of rhs)
     where
-    is_control (TrackLang.VControl (TrackLang.LiteralControl c)) = Just c
+    is_control (TrackLang.VControlRef (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing
 parse_equal Nothing lhs rhs
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
         TrackLang.VPitch rhs ->
             Right $ Derive.with_named_pitch control (PitchSignal.constant rhs)
-        TrackLang.VPitchControl rhs -> Right $ \deriver -> do
+        TrackLang.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_pitch_signal rhs
             Derive.with_named_pitch control sig deriver
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
             <> " control, but got " <> pretty (TrackLang.type_of rhs)
     where
-    is_pitch (TrackLang.VPitchControl (TrackLang.LiteralControl c)) = Just c
+    is_pitch (TrackLang.VPControlRef (TrackLang.LiteralControl c)) = Just c
     is_pitch _ = Nothing
 parse_equal (Just merge) _ _ = Left $ merge_error merge
 parse_equal Nothing lhs val = Right $ Derive.with_val lhs val

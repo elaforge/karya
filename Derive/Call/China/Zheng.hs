@@ -141,7 +141,7 @@ c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
         trill_signal start_dir pitch neighbor speed hold args
 
 trill_signal :: Maybe Trill.Direction -> PitchSignal.Pitch
-    -> TrackLang.ValControl -> TrackLang.ValControl -> TrackLang.Duration
+    -> TrackLang.ControlRef -> TrackLang.ControlRef -> TrackLang.Duration
     -> Derive.PassedArgs a -> Derive.Deriver PitchSignal.Signal
 trill_signal start_dir pitch neighbor speed hold args = do
     (neighbor, control) <- Call.to_transpose_function Call.Nn neighbor
@@ -155,11 +155,11 @@ trill_signal start_dir pitch neighbor speed hold args = do
     transition = 0.08
     lilt = 0
 
-neighbor_arg :: Sig.Parser TrackLang.ValControl
+neighbor_arg :: Sig.Parser TrackLang.ControlRef
 neighbor_arg = Sig.defaulted "neighbor"
     (Sig.typed_control "tr-neighbor" 1 Score.Nn)
     "Alternate with a pitch at this interval."
 
-speed_arg :: Sig.Parser TrackLang.ValControl
+speed_arg :: Sig.Parser TrackLang.ControlRef
 speed_arg = Sig.defaulted "speed" (Sig.typed_control "tr-speed" 20 Score.Real)
     "Alternate pitches at this speed."

@@ -45,7 +45,7 @@ c_pizz_arp = Derive.transformer Module.prelude "pizz-arp"
     \time _args deriver -> Lily.when_lilypond deriver $
         pizz_arp time =<< deriver
 
-pizz_arp :: TrackLang.ValControl -> Derive.Events -> Derive.NoteDeriver
+pizz_arp :: TrackLang.ControlRef -> Derive.Events -> Derive.NoteDeriver
 pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
     \(event :| chord) -> do
         let start = Score.event_start event

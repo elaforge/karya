@@ -66,7 +66,7 @@ interval_arg = TrackLang.default_diatonic <$> Sig.required "interval"
 -- behaviour.
 ngoret :: Module.Module -> Bool
     -- ^ Extend the previous note's duration to the end of the grace note.
-    -> Sig.Parser TrackLang.ValControl
+    -> Sig.Parser TrackLang.ControlRef
     -> Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
 ngoret module_ late_damping damp_arg interval_arg =
@@ -216,7 +216,7 @@ c_weak = Derive.generator module_ "weak" Tags.inst
         \ then play it open but softly."
     ) $ \strength -> Sub.inverting (weak strength)
 
-weak :: TrackLang.ValControl -> Derive.PassedArgs a -> Derive.NoteDeriver
+weak :: TrackLang.ControlRef -> Derive.PassedArgs a -> Derive.NoteDeriver
 weak strength args = do
     strength <- Call.control_at strength =<< Args.real_start args
     -- This biases %mute values to be lower, and 0 before it unmutes.
