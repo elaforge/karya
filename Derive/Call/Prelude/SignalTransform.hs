@@ -18,7 +18,7 @@ import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
@@ -49,16 +49,16 @@ c_sh_pitch = Derive.transformer Module.prelude "sh" mempty
         return $ LEvent.Event (sample_hold_pitch starts sig)
             : map LEvent.Log logs
 
-sample_hold_pitch :: [RealTime] -> PitchSignal.Signal -> PitchSignal.Signal
-sample_hold_pitch points sig = PitchSignal.unfoldr go (Nothing, points, sig)
+sample_hold_pitch :: [RealTime] -> PSignal.Signal -> PSignal.Signal
+sample_hold_pitch points sig = PSignal.unfoldr go (Nothing, points, sig)
     where
     go (_, [], _) = Nothing
-    go (prev, x : xs, sig_) = case PitchSignal.head sig of
+    go (prev, x : xs, sig_) = case PSignal.head sig of
             Just (_, y) -> Just ((x, y), (Just y, xs, sig))
             Nothing -> case prev of
                 Nothing -> go (prev, xs, sig)
                 Just p -> Just ((x, p), (prev, xs, sig))
-        where sig = PitchSignal.drop_before x sig_
+        where sig = PSignal.drop_before x sig_
 
 
 -- * control

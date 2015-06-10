@@ -153,7 +153,7 @@ import qualified Derive.Deriver.DeriveM as DeriveM
 import Derive.Deriver.DeriveM (get, gets, modify, put, run)
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -284,7 +284,7 @@ type LogsDeriver d = Deriver [LEvent.LEvent d]
 -- in all its untagged glory based on the type of the call, but ValCalls can
 -- occur with all the different types, so they need a tagged 'info_prev_val'.
 data Tagged = TagEvent Score.Event | TagControl Signal.Control
-    | TagPitch PitchSignal.Signal
+    | TagPitch PSignal.Signal
     deriving (Show)
 
 instance Pretty.Pretty Tagged where
@@ -347,8 +347,8 @@ instance Callable Signal.Control where
 
 -- ** pitch
 
-type Pitch = PitchSignal.Signal
-type PitchDeriver = LogsDeriver PitchSignal.Signal
+type Pitch = PSignal.Signal
+type PitchDeriver = LogsDeriver PSignal.Signal
 type PitchArgs = PassedArgs Pitch
 
 instance Taggable Pitch where
@@ -356,7 +356,7 @@ instance Taggable Pitch where
     from_tagged (TagPitch a) = Just a
     from_tagged _ = Nothing
 
-instance Callable PitchSignal.Signal where
+instance Callable PSignal.Signal where
     lookup_generator = lookup_with (scope_pitch . scopes_generator)
     lookup_transformer = lookup_with (scope_pitch . scopes_transformer)
     callable_name _ = "pitch"
@@ -420,7 +420,7 @@ data Dynamic = Dynamic {
     -- that's applied to notes by default.  It's split off from 'state_pitches'
     -- because it's convenient to guarentee that the main pitch signal is
     -- always present.
-    , state_pitch :: !PitchSignal.Signal
+    , state_pitch :: !PSignal.Signal
     , state_environ :: !TrackLang.Environ
     , state_warp :: !Score.Warp
     -- | Calls currently in scope.
@@ -1353,7 +1353,7 @@ instance DeepSeq.NFData Cached where
 data CacheEntry =
     CachedEvents !(CallType Score.Event)
     | CachedControl !(CallType Signal.Control)
-    | CachedPitch !(CallType PitchSignal.Signal)
+    | CachedPitch !(CallType PSignal.Signal)
 
 instance Pretty.Pretty CacheEntry where
     format (CachedEvents (CallType _ events)) = Pretty.format events
@@ -1459,7 +1459,7 @@ data Scale = Scale {
     , scale_symbols :: ![Symbol.Symbol]
 
     -- | The controls that will casue a pitch from this scale to change.
-    -- This is used by 'PitchSignal.apply_controls' to know when to reevaluate
+    -- This is used by 'PSignal.apply_controls' to know when to reevaluate
     -- a given pitch.  Other controls can affect the pitch, but if they aren't
     -- in this set, the pitch won't be reevaluated when they change.
     , scale_transposers :: !(Set.Set Score.Control)
@@ -1625,7 +1625,7 @@ levent_key (LEvent.Event event) = Score.event_start event
       Besides, this doesn't compose nicely, what if I want multiple high-level
       control tracks at once?
     / Generalize control tracks to return
-      'Either (Name, PitchSignal) (Name, ControlSignal, ControlOp).
+      'Either (Name, PSignal) (Name, ControlSignal, ControlOp).
       The track call splits them apart, and merges into the environ.  This
       would make pitch tracks and control tracks the same, just a different
       default.  But that's no good because they already have separate

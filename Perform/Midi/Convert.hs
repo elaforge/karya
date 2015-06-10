@@ -21,7 +21,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -114,10 +114,10 @@ convert_midi_pitch :: Instrument.Instrument -> Maybe Instrument.PatchScale
 convert_midi_pitch inst patch_scale attr_map constant_pitch
         controls event =
     case Instrument.lookup_attribute (Score.event_attributes event) attr_map of
-        Nothing -> (,) inst <$> pitch_signal
+        Nothing -> (,) inst <$> psignal
         Just (keyswitches, maybe_keymap) ->
             (,) (set_keyswitches keyswitches inst)
-                <$> maybe pitch_signal set_keymap maybe_keymap
+                <$> maybe psignal set_keymap maybe_keymap
     where
     set_keyswitches [] inst = inst
     set_keyswitches keyswitches inst = inst
@@ -126,7 +126,7 @@ convert_midi_pitch inst patch_scale attr_map constant_pitch
         return $ Signal.constant (Midi.from_key key)
     set_keymap (Instrument.PitchedKeymap low high low_nn) =
         convert_keymap (Midi.from_key low) (Midi.from_key high) low_nn
-            =<< pitch_signal
+            =<< psignal
     convert_keymap :: Signal.Y -> Signal.Y -> Pitch.NoteNumber
         -> Signal.NoteNumber -> ConvertT Signal.NoteNumber
     convert_keymap low high low_pitch sig = return clipped
@@ -136,13 +136,13 @@ convert_midi_pitch inst patch_scale attr_map constant_pitch
             Signal.scalar_add (low - un_nn low_pitch) sig
     un_nn (Pitch.NoteNumber nn) = nn
 
-    pitch_signal
+    psignal
         | constant_pitch = convert cvals psig
         | otherwise = convert trimmed (Score.event_transformed_pitch event)
         where
         cvals = Score.untyped . Signal.constant <$>
             Score.event_controls_at (Score.event_start event) event
-        psig = maybe mempty PitchSignal.constant $
+        psig = maybe mempty PSignal.constant $
             Score.pitch_at (Score.event_start event) event
         convert = convert_pitch patch_scale (Score.event_environ event)
         -- Trim controls to avoid applying out of range transpositions.
@@ -211,11 +211,10 @@ convert_dynamic pressure controls dyn_function =
         _ -> Nothing
 
 convert_pitch :: Maybe Instrument.PatchScale -> TrackLang.Environ
-    -> Score.ControlMap -> PitchSignal.Signal -> ConvertT Signal.NoteNumber
+    -> Score.ControlMap -> PSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale env controls psig = do
-    let (sig, nn_errs) = PitchSignal.to_nn $
-            PitchSignal.apply_controls controls $
-            PitchSignal.apply_environ env psig
+    let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $
+            PSignal.apply_environ env psig
     unless (null nn_errs) $ Log.warn $
         "convert pitch: " <> Text.intercalate ", " (map pretty nn_errs)
     let (nn_sig, scale_errs) = convert_scale scale sig

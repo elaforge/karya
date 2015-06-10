@@ -10,7 +10,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -52,7 +52,7 @@ wind_idiom :: Fundamentals -> Derive.Events -> Derive.NoteDeriver
 wind_idiom fundamentals = return . map (fmap (process fundamentals))
     . Post.zip_on (map Seq.head . Post.nexts)
 
-fundamentals_env :: Sig.Parser [Either Pitch.NoteNumber PitchSignal.Pitch]
+fundamentals_env :: Sig.Parser [Either Pitch.NoteNumber PSignal.Pitch]
 fundamentals_env = Sig.check non_empty $
     Sig.environ "fundamentals" Sig.Unprefixed []
         "Fundamentals for this instrument."
@@ -103,5 +103,4 @@ fundamental *# harmonic = fundamental * fromIntegral harmonic
 tweak_pitch :: RealTime -> Pitch.Hz -> Score.Event -> Score.Event
 tweak_pitch pos hz event =
     Score.set_pitch (Score.event_transformed_pitch event <> tweak) event
-    where
-    tweak = PitchSignal.signal [(pos, Pitches.nn_pitch (Pitch.hz_to_nn hz))]
+    where tweak = PSignal.signal [(pos, Pitches.nn_pitch (Pitch.hz_to_nn hz))]

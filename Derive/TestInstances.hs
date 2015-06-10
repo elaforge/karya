@@ -13,7 +13,7 @@ module Derive.TestInstances where
 #ifdef TESTING
 
 import qualified Derive.TrackLang as TrackLang
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Cmd.Cmd as Cmd
 
 -- Normally Vals aren't comparable for equality because of the pesky VPitch,
@@ -23,11 +23,11 @@ deriving instance Eq TrackLang.Call
 deriving instance Eq TrackLang.Term
 deriving instance Eq TrackLang.Quoted
 
-instance Eq PitchSignal.Signal where
-    sig1 == sig2 = PitchSignal.unsignal sig1 == PitchSignal.unsignal sig2
-instance Eq (PitchSignal.RawPitch a) where
-    p1 == p2 = PitchSignal.pitch_nn (PitchSignal.coerce p1)
-        == PitchSignal.pitch_nn (PitchSignal.coerce p2)
+instance Eq PSignal.Signal where
+    sig1 == sig2 = PSignal.unsignal sig1 == PSignal.unsignal sig2
+instance Eq (PSignal.RawPitch a) where
+    p1 == p2 = PSignal.pitch_nn (PSignal.coerce p1)
+        == PSignal.pitch_nn (PSignal.coerce p2)
 
 instance Eq Cmd.Status where
     Cmd.Done == Cmd.Done = True

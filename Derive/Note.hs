@@ -21,7 +21,7 @@ import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -65,11 +65,11 @@ extract_track_signal source events = mconcat $ case source of
     extract_control control = fmap Score.typed_val . Score.event_control control
     extract_pitch pcontrol event =
         convert event <$> Score.event_pitch pcontrol event
-    convert event psig = Signal.coerce $ fst $ PitchSignal.to_nn $
+    convert event psig = Signal.coerce $ fst $ PSignal.to_nn $
         -- Since these signals will be mconcatted into one signal, I don't
         -- want one event's control at 0 to wipe out the previous events.
-        PitchSignal.drop_before_strict (Score.event_min event) $
-        PitchSignal.apply_controls (Score.event_transformed_controls event) psig
+        PSignal.drop_before_strict (Score.event_min event) $
+        PSignal.apply_controls (Score.event_transformed_controls event) psig
 
 with_title :: TrackTree.EventsTree -> ScoreTime -> Text -> Derive.NoteDeriver
     -> Derive.NoteDeriver

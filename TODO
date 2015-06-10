@@ -773,7 +773,7 @@ cleanup:
     least it's more complicated than it should be.
   * Maybe I should use Score.PControl instead of Score.Control for pitch
     control names.
-  + PitchControl and ValControl have confusing names, since Val is not related
+  * PitchControl and ValControl have confusing names, since Val is not related
     to val calls or Val.  In fact it would be nice to make all the names more
     consistent:
               numbers                   pitches                 both
@@ -788,8 +788,10 @@ cleanup:
     signal    Signal.Control            PSignal.Signal
     ref       TrackLang.ControlRef      TrackLang.PControlRef   Ref
     * rename Ref, ValControl, PitchControl
-    - rename PitchSignal to PSignal
-    - rename PSignal.Pitch to Y
+    * rename PitchSignal to PSignal
+    / rename PSignal.Pitch to Y
+      I'm not sure this is so great.  The implication would be to rename pitch
+      variables to 'y', which is not an improvement.
 
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something

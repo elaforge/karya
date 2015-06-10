@@ -17,7 +17,7 @@ import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -89,12 +89,12 @@ make_gliss name is_absolute = Derive.generator module_ name mempty
             gliss pitches total_time start_dyn dest_dyn end
                 <> Call.placed_note args
 
-gliss_pitches :: [PitchSignal.Pitch] -> PitchSignal.Transposed -> Int
-    -> Derive.Deriver [PitchSignal.Pitch]
+gliss_pitches :: [PSignal.Pitch] -> PSignal.Transposed -> Int
+    -> Derive.Deriver [PSignal.Pitch]
 gliss_pitches open_strings dest_pitch gliss_start = do
     dest_nn <- Pitches.pitch_nn dest_pitch
     -- TODO shouldn't need to eval them all
-    open_nns <- mapM (Pitches.pitch_nn . PitchSignal.coerce) open_strings
+    open_nns <- mapM (Pitches.pitch_nn . PSignal.coerce) open_strings
     let strings = Seq.sort_on snd $ zip open_strings open_nns
     -- 0 2 4 6 8 10
     return $ if gliss_start >= 0
@@ -105,7 +105,7 @@ gliss_pitches open_strings dest_pitch gliss_start = do
         else Seq.rtake (-gliss_start) $ map fst $
             takeWhile ((<dest_nn) . snd) strings
 
-gliss :: [PitchSignal.Pitch] -> RealTime -> Signal.Y -> Signal.Y -> RealTime
+gliss :: [PSignal.Pitch] -> RealTime -> Signal.Y -> Signal.Y -> RealTime
     -> Derive.NoteDeriver
 gliss pitches time start_dyn end_dyn end = do
     let dur = time / fromIntegral (length pitches)
@@ -140,16 +140,16 @@ c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
     ) $ \(pitch, neighbor, speed, hold) args ->
         trill_signal start_dir pitch neighbor speed hold args
 
-trill_signal :: Maybe Trill.Direction -> PitchSignal.Pitch
+trill_signal :: Maybe Trill.Direction -> PSignal.Pitch
     -> TrackLang.ControlRef -> TrackLang.ControlRef -> TrackLang.Duration
-    -> Derive.PassedArgs a -> Derive.Deriver PitchSignal.Signal
+    -> Derive.PassedArgs a -> Derive.Deriver PSignal.Signal
 trill_signal start_dir pitch neighbor speed hold args = do
     (neighbor, control) <- Call.to_transpose_function Call.Nn neighbor
     transpose <- Gamakam.kampita start_dir Nothing Trill.Shorten neighbor
         speed transition hold lilt args
     start <- Args.real_start args
-    return $ PitchSignal.apply_control control
-        (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
+    return $ PSignal.apply_control control
+        (Score.untyped transpose) $ PSignal.signal [(start, pitch)]
     where
     transition :: RealTime
     transition = 0.08

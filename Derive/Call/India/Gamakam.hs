@@ -49,7 +49,7 @@ import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, defaulted_env, required)
@@ -137,8 +137,8 @@ c_kampita start_dir end_dir = generator1 "kam" mempty
         transpose <- kampita start_dir end_dir adjust neighbor speed
             transition hold lilt args
         start <- Args.real_start args
-        return $ PitchSignal.apply_control control
-            (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
+        return $ PSignal.apply_control control
+            (Score.untyped transpose) $ PSignal.signal [(start, pitch)]
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
     -> TrackLang.ControlRef -> (ScoreTime, ScoreTime)
@@ -176,8 +176,8 @@ c_dip = generator1 "dip" mempty
         transpose <- dip high low speed dyn_scale transition
             (Args.range_or_next args)
         start <- Args.real_start args
-        return $ PitchSignal.apply_control control
-            (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
+        return $ PSignal.apply_control control
+            (Score.untyped transpose) $ PSignal.signal [(start, pitch)]
 
 c_jaru :: Derive.Generator Derive.Pitch
 c_jaru = generator1 "jaru" mempty
@@ -195,8 +195,8 @@ c_jaru = generator1 "jaru" mempty
         (intervals, control) <- parse intervals
         let transition = fromMaybe time maybe_transition
         let sig = jaru srate start time transition (NonEmpty.toList intervals)
-        return $ PitchSignal.apply_control control
-            (Score.untyped sig) $ PitchSignal.signal [(start, pitch)]
+        return $ PSignal.apply_control control
+            (Score.untyped sig) $ PSignal.signal [(start, pitch)]
     where
     parse intervals
         | all (==control) controls = return (xs, control)
@@ -220,8 +220,8 @@ c_jaru_intervals transpose intervals = generator1 "jaru" mempty
         srate <- Call.get_srate
         let sig = jaru srate start time (fromMaybe time maybe_transition)
                 intervals
-        return $ PitchSignal.apply_control (Call.transpose_control transpose)
-            (Score.untyped sig) $ PitchSignal.signal [(start, pitch)]
+        return $ PSignal.apply_control (Call.transpose_control transpose)
+            (Score.untyped sig) $ PSignal.signal [(start, pitch)]
 
 
 -- * control calls

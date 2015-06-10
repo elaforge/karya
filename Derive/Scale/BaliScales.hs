@@ -19,7 +19,7 @@ import Data.Vector ((!?))
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Derive.Environ as Environ
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
@@ -176,7 +176,7 @@ c_ombak = "ombak"
 
 -- | Convert 'Pitch.FSemi' to 'Pitch.NoteNumber'.
 semis_to_nn :: Pitch.Semi -> NoteNumbers -> ChromaticScales.SemisToNoteNumber
-semis_to_nn offset nns = \(PitchSignal.PitchConfig env controls) fsemis_ -> do
+semis_to_nn offset nns = \(PSignal.PitchConfig env controls) fsemis_ -> do
     let fsemis = fsemis_ - fromIntegral offset
     tuning <- Scales.read_environ read_tuning (Just Umbang) Environ.tuning env
     let to_either = maybe (Left Scale.InvalidTransposition) Right

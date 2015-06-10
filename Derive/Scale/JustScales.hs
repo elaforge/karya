@@ -14,7 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
@@ -97,7 +97,7 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
             doc_fields dummy_call
     }
     where
-    scale = PitchSignal.Scale scale_id Scales.standard_transposers
+    scale = PSignal.Scale scale_id Scales.standard_transposers
     dummy_call = Scales.scale_degree_doc $ \scale ->
         ScaleDegree.scale_degree_just scale (smap_named_intervals smap) 0
     fmt = smap_fmt smap
@@ -154,8 +154,7 @@ transpose fmt _transposition _key steps pitch =
 -- | To modulate to another scale: @just-base = (hz (4g)) | key = g-maj@
 -- The order is important, so the @(hz (4g))@ happens in the context of the old
 -- key.
-note_to_call :: PitchSignal.Scale -> ScaleMap -> Pitch.Note
-    -> Maybe Derive.ValCall
+note_to_call :: PSignal.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call scale smap note =
     case TheoryFormat.read_unadjusted_pitch fmt note of
         Left _ -> ScaleDegree.scale_degree_interval
@@ -173,7 +172,7 @@ note_to_call scale smap note =
     where fmt = smap_fmt smap
 
 pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
-pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
+pitch_nn smap pitch (PSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error chromatic diatonic $ do
         let maybe_key = Scales.environ_key env
         key <- read_key smap maybe_key
@@ -191,7 +190,7 @@ pitch_nn smap pitch (PitchSignal.PitchConfig env controls) =
         just_base_control controls
 
 pitch_note :: TheoryFormat.Format -> Pitch.Pitch -> Scale.PitchNote
-pitch_note fmt pitch (PitchSignal.PitchConfig env controls) =
+pitch_note fmt pitch (PSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error chromatic diatonic $ do
         let maybe_key = Scales.environ_key env
         pitch <- TheoryFormat.fmt_to_absolute fmt maybe_key pitch

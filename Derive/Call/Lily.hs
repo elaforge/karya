@@ -15,7 +15,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -247,7 +247,7 @@ note_pitch deriver = do
     require = Derive.require . (prefix <>)
     prefix = "Lily.note_pitch: "
 
-pitch_to_lily :: PitchSignal.Transposed -> Derive.Deriver Note
+pitch_to_lily :: PSignal.Transposed -> Derive.Deriver Note
 pitch_to_lily =
     Derive.require_right ("Lily.pitch_to_lily: "<>) . Convert.pitch_to_lily
 

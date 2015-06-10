@@ -7,7 +7,7 @@
 {-# OPTIONS_HADDOCK not-home #-}
 {- | This is a bit of song and dance to avoid circular imports.
 
-    "Derive.Score", "Derive.PitchSignal", and "Derive.TrackLang" all define
+    "Derive.Score", "Derive.PSignal", and "Derive.TrackLang" all define
     basic types.  They also refer to each others types, which means they must
     all be defined in the same module.  But each set of types also comes with
     its own set of functions, and it would make for a giant messy module to
@@ -51,12 +51,12 @@ import Types
 
 -- This file is pretty much unreducable, as far as dependencies go:
 -- For TrackLang: ControlFunction -> Environ -> Val <- ControlFunction
--- For PitchSignal: PitchConfig -> Environ -> Val <- Pitch <- PitchConfig
+-- For PSignal: PitchConfig -> Environ -> Val <- Pitch <- PitchConfig
 --
 -- So 'ControlFunction', 'Pitch', and 'Val' must all be together.  'Signal'
 -- also gets dragged in, and winds up being everything in this file.
 
--- * Derive.PitchSignal
+-- * Derive.PSignal
 
 -- | A pitch signal is similar to a 'Signal.Control', except that its values
 -- are 'Pitch'es instead of plain floating point values.
@@ -150,7 +150,7 @@ instance Monoid.Monoid PitchConfig where
 
 -- | Signal can't take a Scale because that would be a circular import.
 -- Fortunately it only needs a few fields.  However, because of the
--- circularity, the Scale.Scale -> PitchSignal.Scale constructor is in
+-- circularity, the Scale.Scale -> PSignal.Scale constructor is in
 -- "Derive.Derive".
 data Scale = Scale {
     -- | It can be useful to see the scale of a pitch, e.g. to create more

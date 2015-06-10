@@ -13,7 +13,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -75,13 +75,13 @@ open_strings pos highlight deriver = do
     maybe id (\pitches -> fmap (Post.emap1_ (apply pitches))) maybe_pitches
         deriver
     where
-    apply :: [PitchSignal.Transposed] -> Score.Event -> Score.Event
+    apply :: [PSignal.Transposed] -> Score.Event -> Score.Event
     apply pitches event = case Score.initial_nn event of
         Just nn -> case highlight (any (same_pitch nn) pitches) of
             Nothing -> event
             Just highlight -> add_highlight highlight event
         _ -> event
-    same_pitch nn pitch = case PitchSignal.pitch_nn pitch of
+    same_pitch nn pitch = case PSignal.pitch_nn pitch of
         Right string_nn -> ApproxEq.eq 0.05 nn string_nn
         _ -> False
 

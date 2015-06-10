@@ -20,7 +20,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
@@ -75,9 +75,9 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
             ("ratio scale requires " <> ShowVal.show_val pcontrol_ref)
             =<< Derive.named_nn_at pcontrol start
         let out_nn = Pitch.hz_to_nn $ ratio (Pitch.nn_to_hz nn) + hz
-        return $ PitchSignal.pitch
+        return $ PSignal.pitch
             pscale (const $ return out_nn) (const $ return note)
-            (PitchSignal.PitchConfig env mempty)
+            (PSignal.PitchConfig env mempty)
     where
     pcontrol_ref = TrackLang.LiteralControl control :: TrackLang.PControlRef
     control = "ratio-source"

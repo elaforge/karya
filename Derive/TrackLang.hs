@@ -35,7 +35,7 @@ import Derive.BaseTypes
         Ref(..), PControlRef, ControlRef, show_call_val, CallId, Expr,
         Call(..), PitchCall, Term(..))
 import qualified Derive.Environ as Environ
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreTypes as Score
 import Derive.ShowVal (ShowVal(..))
 
@@ -612,12 +612,12 @@ instance Typecheck ControlRef where
 
 instance Typecheck PControlRef where
     from_val (VPControlRef a) = Just a
-    from_val (VPitch a) = Just $ ControlSignal $ PitchSignal.constant a
+    from_val (VPitch a) = Just $ ControlSignal $ PSignal.constant a
     from_val _ = Nothing
     to_val = VPControlRef
     to_type _ = TPControlRef
 
-instance Typecheck PitchSignal.Pitch where
+instance Typecheck PSignal.Pitch where
     from_val (VPitch a) = Just a
     from_val _ = Nothing
     to_val = VPitch

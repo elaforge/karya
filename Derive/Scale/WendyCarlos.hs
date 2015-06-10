@@ -16,7 +16,7 @@ import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Score as Score
@@ -68,7 +68,7 @@ make_scale scale_id degrees = Scale.Scale
         <> Set.singleton Controls.octave
     per_octave = Vector.length degrees
     note_to_call_ = note_to_call scale degrees
-    scale = PitchSignal.Scale scale_id transposers
+    scale = PSignal.Scale scale_id transposers
     doc = "This is a family of scales invented by Wendy Carlos. They don't\
         \ repeat at the octave, so they support diatonic transposition only\
         \ within a single octave.\
@@ -104,7 +104,7 @@ transpose per_octave _transposition _key steps pitch
         Left Scale.InvalidTransposition
     | otherwise = Right $ Pitch.add_pc per_octave steps pitch
 
-note_to_call :: PitchSignal.Scale -> Degrees -> Pitch.Note
+note_to_call :: PSignal.Scale -> Degrees -> Pitch.Note
     -> Maybe Derive.ValCall
 note_to_call scale degrees note = do
     pitch <- either (const Nothing) Just $ read_pitch per_octave note
@@ -118,7 +118,7 @@ note_to_call scale degrees note = do
             Just $ a0 + nn
                 + Pitch.nn ((Pitch.pitch_octave pitch + octaves) * 12)
         where
-        get c = Map.findWithDefault 0 c (PitchSignal.pitch_controls config)
+        get c = Map.findWithDefault 0 c (PSignal.pitch_controls config)
     semis_to_note pitch steps
         | Pitch.pitch_pc pitch + steps >= per_octave = Nothing
         | otherwise = Just $ show_pitch $ Pitch.add_pc per_octave steps pitch

@@ -31,7 +31,7 @@ import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -210,8 +210,7 @@ to_time_function default_type control = do
             <> TrackLang.show_val control <> " but got " <> pretty typ
 
 -- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
-pitch_at :: RealTime -> TrackLang.PControlRef
-    -> Derive.Deriver PitchSignal.Pitch
+pitch_at :: RealTime -> TrackLang.PControlRef -> Derive.Deriver PSignal.Pitch
 pitch_at pos control = case control of
     TrackLang.ControlSignal sig -> require sig
     TrackLang.DefaultedControl cont deflt -> do
@@ -223,10 +222,10 @@ pitch_at pos control = case control of
             maybe_pitch
     where
     require = Derive.require ("ControlSignal pitch at " <> pretty pos)
-        . PitchSignal.at pos
+        . PSignal.at pos
 
-to_pitch_signal :: TrackLang.PControlRef -> Derive.Deriver PitchSignal.Signal
-to_pitch_signal control = case control of
+to_psignal :: TrackLang.PControlRef -> Derive.Deriver PSignal.Signal
+to_psignal control = case control of
     TrackLang.ControlSignal sig -> return sig
     TrackLang.DefaultedControl cont deflt ->
         maybe (return deflt) return =<< Derive.get_pitch cont
@@ -243,18 +242,18 @@ nn_at pos control = -- TODO throw exception?
 -- * dynamic
 
 -- | Unlike 'Derive.pitch_at', the transposition has already been applied.
-transposed :: RealTime -> Derive.Deriver (Maybe PitchSignal.Transposed)
+transposed :: RealTime -> Derive.Deriver (Maybe PSignal.Transposed)
 transposed pos =
     justm (Derive.pitch_at pos) $ fmap Just . Derive.resolve_pitch pos
 
-get_transposed :: RealTime -> Derive.Deriver PitchSignal.Transposed
+get_transposed :: RealTime -> Derive.Deriver PSignal.Transposed
 get_transposed pos = Derive.require ("no pitch at " <> pretty pos)
     =<< transposed pos
 
 -- | Pitch without the transposition applied.  You have to use this if you
 -- create an event with a pitch based on this pitch, otherwise the
 -- transposition will be applied twice.
-get_pitch :: RealTime -> Derive.Deriver PitchSignal.Pitch
+get_pitch :: RealTime -> Derive.Deriver PSignal.Pitch
 get_pitch pos = Derive.require ("no pitch at " <> pretty pos)
     =<< Derive.pitch_at pos
 
@@ -269,7 +268,7 @@ dynamic :: RealTime -> Derive.Deriver Signal.Y
 dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
     Derive.control_at Controls.dynamic pos
 
-with_pitch :: PitchSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
+with_pitch :: PSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
 with_pitch = Derive.with_constant_pitch
 
 with_symbolic_pitch :: TrackLang.PitchCall -> ScoreTime -> Derive.Deriver a
@@ -342,7 +341,7 @@ get_pitch_functions = do
 
 -- * note
 
-eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PitchSignal.Pitch
+eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Pitch
 eval_note pos note = Eval.eval_pitch pos $
     TrackLang.call (TrackLang.Symbol (Pitch.note_text note)) []
 
@@ -357,7 +356,7 @@ note_here :: Derive.NoteArgs -> Derive.NoteDeriver
 note_here args = Eval.reapply_call (Args.info args) "" []
 
 -- | Override the pitch signal and generate a single note.
-pitched_note :: PitchSignal.Pitch -> Derive.NoteDeriver
+pitched_note :: PSignal.Pitch -> Derive.NoteDeriver
 pitched_note pitch = with_pitch pitch note
 
 -- | Add an attribute and generate a single note.

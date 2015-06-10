@@ -19,7 +19,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
@@ -55,7 +55,7 @@ c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
     Sig.call (required "pitch" "Set this pitch.") $ \pitch_ args -> do
         let pitch = either Pitches.nn_pitch id pitch_
         pos <- Args.real_start args
-        return $ PitchSignal.signal [(pos, pitch)]
+        return $ PSignal.signal [(pos, pitch)]
 
 c_set_transformer :: Derive.Transformer Derive.Pitch
 c_set_transformer = Derive.transformer Module.prelude "set" mempty
@@ -65,8 +65,8 @@ c_set_transformer = Derive.transformer Module.prelude "set" mempty
     $ \pitch_ args deriver -> do
         let pitch = either Pitches.nn_pitch id pitch_
         pos <- Args.real_start args
-        let sig = PitchSignal.signal [(pos, pitch)]
-        Post.signal (PitchSignal.interleave sig) deriver
+        let sig = PSignal.signal [(pos, pitch)]
+        Post.signal (PSignal.interleave sig) deriver
 
 -- | Re-set the previous val.  This can be used to extend a breakpoint.
 c_set_prev :: Derive.Generator Derive.Pitch
@@ -77,7 +77,7 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
         return $ case Args.prev_pitch args of
             Nothing -> []
             Just (x, y) ->
-                [LEvent.Event $ PitchSignal.signal [(start, y)] | start > x]
+                [LEvent.Event $ PSignal.signal [(start, y)] | start > x]
 
 -- * misc
 
@@ -104,7 +104,7 @@ c_approach = generator1 "approach" Tags.next
         approach args curve start end
 
 approach :: Derive.PitchArgs -> ControlUtil.Curve -> RealTime -> RealTime
-    -> Derive.Deriver PitchSignal.Signal
+    -> Derive.Deriver PSignal.Signal
 approach args curve start end = do
     maybe_next <- Args.next_pitch args
     case (Args.prev_pitch args, maybe_next) of
@@ -121,7 +121,7 @@ c_down = generator1 "down" Tags.prev
     "Descend at the given speed until the next event." $ slope "Descend" (-1)
 
 slope :: Text -> Double -> Derive.WithArgDoc
-    (Derive.PitchArgs -> Derive.Deriver PitchSignal.Signal)
+    (Derive.PitchArgs -> Derive.Deriver PSignal.Signal)
 slope word sign = Sig.call ((,,)
     <$> defaulted "slope" (Pitch.Chromatic 1)
         (word <> " this many steps per second.")

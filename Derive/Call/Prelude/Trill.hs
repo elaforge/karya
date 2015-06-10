@@ -58,7 +58,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -254,8 +254,8 @@ c_pitch_trill hardcoded_start hardcoded_end =
         (transpose, control) <- trill_from_controls (Args.range_or_next args)
             start_dir end_dir adjust hold neighbor speed
         start <- Args.real_start args
-        return $ PitchSignal.apply_control control (Score.untyped transpose) $
-            PitchSignal.signal [(start, note)]
+        return $ PSignal.apply_control control (Score.untyped transpose) $
+            PSignal.signal [(start, note)]
 
 c_xcut_pitch :: Bool -> Derive.Generator Derive.Pitch
 c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
@@ -267,12 +267,12 @@ c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
     <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
-        val1 <- Call.to_pitch_signal val1
-        val2 <- Call.to_pitch_signal val2
+        val1 <- Call.to_psignal val1
+        val2 <- Call.to_psignal val2
         return $ xcut_pitch hold val1 val2 transitions
 
-xcut_pitch :: Bool -> PitchSignal.Signal -> PitchSignal.Signal -> [RealTime]
-    -> PitchSignal.Signal
+xcut_pitch :: Bool -> PSignal.Signal -> PSignal.Signal -> [RealTime]
+    -> PSignal.Signal
 xcut_pitch hold val1 val2 =
     mconcat . snd . List.mapAccumL slice (val1, val2) . Seq.zip_next
     where
@@ -280,12 +280,12 @@ xcut_pitch hold val1 val2 =
         | hold = (next, initial)
         | otherwise = (next, initial <> chunk)
         where
-        chopped = PitchSignal.drop_before_strict t val1
-        chunk = maybe chopped (\n -> PitchSignal.drop_at_after n chopped) next_t
-        next = (val2, PitchSignal.drop_before t val1)
-        initial = case PitchSignal.at t val1 of
+        chopped = PSignal.drop_before_strict t val1
+        chunk = maybe chopped (\n -> PSignal.drop_at_after n chopped) next_t
+        next = (val2, PSignal.drop_before t val1)
+        initial = case PSignal.at t val1 of
             Nothing -> mempty
-            Just p -> PitchSignal.signal [(t, p)]
+            Just p -> PSignal.signal [(t, p)]
 
 
 -- * control calls

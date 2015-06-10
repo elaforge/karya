@@ -44,7 +44,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -257,8 +257,7 @@ gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = (interlock, normal)
     polos = KotekanNote (Just (fst pasang))
     sangsih = KotekanNote (Just (snd pasang))
 
-norot_steps :: Scale.Scale -> Maybe Pitch.Pitch
-    -> PitchSignal.Transposed
+norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> PSignal.Transposed
     -- ^ this is to figure out if the sangsih part will be in range
     -> NorotStyle -> ((Pitch.Step, Pitch.Step), (Pitch.Step, Pitch.Step))
 norot_steps scale inst_top pitch style
@@ -420,7 +419,7 @@ realize_kernel inverted sangsih_above style pasang kernel =
 -- 'KotekanNote's, to real notes in a NoteDeriver.
 realize_kotekan_pattern :: (Bool, Bool) -- ^ include (initial, final)
     -> (ScoreTime, ScoreTime) -> ScoreTime
-    -> PitchSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
+    -> PSignal.Pitch -> (ScoreTime -> Bool) -> Repeat -> Cycle
     -> Derive.NoteDeriver
 realize_kotekan_pattern (initial, final) (start, end) dur pitch under_threshold
         repeat cycle =
@@ -719,7 +718,7 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
         where
         transposed = event
             { Score.event_untransformed_pitch =
-                PitchSignal.map_y (Pitches.transpose (Pitch.Diatonic 3))
+                PSignal.map_y (Pitches.transpose (Pitch.Diatonic 3))
                     (Score.event_untransformed_pitch event)
             }
 
@@ -803,7 +802,7 @@ c_pasangan = Derive.val_call module_ "pasangan" mempty
 --
 -- TODO unfortunately I still can't get the next pitch, so it's actually just
 -- the pitch at the start for now.
-get_pitch :: Derive.PassedArgs a -> Derive.Deriver PitchSignal.Pitch
+get_pitch :: Derive.PassedArgs a -> Derive.Deriver PSignal.Pitch
 get_pitch args = Call.get_pitch =<< Args.real_start args
 
 dur_env :: Sig.Parser ScoreTime
@@ -830,11 +829,11 @@ instrument_top_env =
         "Top pitch this instrument can play. Normally the instrument sets\
         \ it via the instrument environ."
 
-note_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> PitchSignal.Transposed
+note_too_high :: Scale.Scale -> Maybe Pitch.Pitch -> PSignal.Transposed
     -> Bool
 note_too_high scale maybe_top pitchv = fromMaybe False $ do
     top <- maybe_top
-    note <- either (const Nothing) Just $ PitchSignal.pitch_note pitchv
+    note <- either (const Nothing) Just $ PSignal.pitch_note pitchv
     pitch <- either (const Nothing) Just $ Scale.scale_read scale mempty note
     return $ pitch > top
 

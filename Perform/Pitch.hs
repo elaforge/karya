@@ -214,7 +214,7 @@ instance Pretty.Pretty Input where
 -- MIDI note 0 is NoteNumber 0, at 8.176 Hz, and is -1c.  Middle C (4c) is
 -- NoteNumber 60.
 --
--- 'Derive.PitchSignal.Signal's are converted into this before performance
+-- 'Derive.PSignal.Signal's are converted into this before performance
 -- since performance doesn't understand scales.
 newtype NoteNumber = NoteNumber Double
     deriving (ApproxEq.ApproxEq, Eq, Ord, Fractional, Real, RealFrac, Num,

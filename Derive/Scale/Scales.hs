@@ -22,7 +22,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
@@ -53,7 +53,7 @@ make_scale scale_id dmap pattern doc = Scale.Scale
     , Scale.scale_input_to_nn = mapped_input_to_nn dmap
     , Scale.scale_call_doc = call_doc standard_transposers dmap doc
     }
-    where scale = PitchSignal.Scale scale_id standard_transposers
+    where scale = PSignal.Scale scale_id standard_transposers
 
 -- | An empty scale that doesn't do anything.
 empty_scale :: Pitch.ScaleId -> Text -> Derive.DocumentedCall -> Scale.Scale
@@ -111,7 +111,7 @@ degree_map per_octave start_octave start_pc notes_ nns_ = DegreeMap
     -- Guard against infinite notes or nns.
     (notes, nns) = unzip $ zip notes_ nns_
 
-type SemisToNoteNumber = PitchSignal.PitchConfig -> Pitch.Semi
+type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.Semi
     -> Either Scale.ScaleError Pitch.NoteNumber
 
 -- * scale functions
@@ -146,7 +146,7 @@ standard_transposers = Set.fromList
 -- | A specialization of 'note_to_call' that operates on scales with
 -- a 'DegreeMap', i.e. a static map from notes to degrees, and from degrees to
 -- NNs.
-mapped_note_to_call :: DegreeMap -> PitchSignal.Scale
+mapped_note_to_call :: DegreeMap -> PSignal.Scale
     -> Pitch.Note -> Maybe Derive.ValCall
 mapped_note_to_call dmap scale note = do
     semis <- Map.lookup note (dm_to_semis dmap)
@@ -160,7 +160,7 @@ mapped_note_to_call dmap scale note = do
 -- | Create a note call that respects chromatic and diatonic transposition.
 -- However, diatonic transposition is mapped to chromatic transposition,
 -- so this is for scales that don't distinguish.
-note_to_call :: PitchSignal.Scale -> SemisToNoteNumber
+note_to_call :: PSignal.Scale -> SemisToNoteNumber
     -> (Pitch.Semi -> Maybe Pitch.Note)
     -> Derive.ValCall
 note_to_call scale semis_to_nn semis_to_note =
@@ -186,22 +186,22 @@ note_to_call scale semis_to_nn semis_to_note =
         (diatonic, chromatic) = transposition config
     transposition config = (get Controls.diatonic, get Controls.chromatic)
         where
-        get c = Map.findWithDefault 0 c (PitchSignal.pitch_controls config)
+        get c = Map.findWithDefault 0 c (PSignal.pitch_controls config)
 
 add_pc :: DegreeMap -> Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch
 add_pc dmap = Pitch.add_pc (dm_per_octave dmap)
 
 scale_to_pitch_error :: Signal.Y -> Signal.Y
-    -> Either Scale.ScaleError a -> Either PitchSignal.PitchError a
+    -> Either Scale.ScaleError a -> Either PSignal.PitchError a
 scale_to_pitch_error diatonic chromatic = first msg
     where
     msg err = case err of
         Scale.InvalidTransposition -> invalid_transposition diatonic chromatic
-        _ -> PitchSignal.PitchError $ pretty err
+        _ -> PSignal.PitchError $ pretty err
 
-invalid_transposition :: Signal.Y -> Signal.Y -> PitchSignal.PitchError
+invalid_transposition :: Signal.Y -> Signal.Y -> PSignal.PitchError
 invalid_transposition diatonic chromatic =
-    PitchSignal.PitchError $ "note can't be transposed: "
+    PSignal.PitchError $ "note can't be transposed: "
         <> Text.unwords (filter (not . Text.null)
             [fmt "d" diatonic, fmt "c" chromatic])
     where
@@ -268,8 +268,8 @@ computed_input_to_nn input_to_note note_to_call pos input = do
             TrackLang.VPitch pitch -> do
                 controls <- Derive.controls_at =<< Derive.real pos
                 nn <- Derive.require_right (("evaluating pich: "<>) . pretty) $
-                    PitchSignal.pitch_nn $ PitchSignal.coerce $
-                    PitchSignal.config (PitchSignal.PitchConfig env controls)
+                    PSignal.pitch_nn $ PSignal.coerce $
+                    PSignal.config (PSignal.PitchConfig env controls)
                         pitch
                 return $ Right nn
             _ -> Derive.throw $ "non-pitch from pitch call: " <> pretty val
@@ -403,11 +403,11 @@ default_scale_degree_doc :: Derive.DocumentedCall
 default_scale_degree_doc = scale_degree_doc ScaleDegree.scale_degree
 
 scale_degree_doc ::
-    (PitchSignal.Scale -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall)
+    (PSignal.Scale -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall)
     -> Derive.DocumentedCall
 scale_degree_doc scale_degree =
-    Derive.extract_val_doc $ scale_degree PitchSignal.no_scale err err
-    where err _ = Left $ PitchSignal.PitchError "it was just an example!"
+    Derive.extract_val_doc $ scale_degree PSignal.no_scale err err
+    where err _ = Left $ PSignal.PitchError "it was just an example!"
 
 annotate_call_doc :: Set.Set Score.Control -> Text -> [(Text, Text)]
     -> Derive.DocumentedCall -> Derive.DocumentedCall

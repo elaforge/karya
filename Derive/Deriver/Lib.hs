@@ -28,7 +28,7 @@ import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -362,7 +362,7 @@ val_to_pitch (ValCall name doc vcall) = Call
             -- 'Derive.Call.Pitch.c_set'.  That would be more flexible since
             -- you can then override '', but is also less efficient.
             pos <- Internal.real $ Event.start $ info_event $ passed_info args
-            return [LEvent.Event $ PitchSignal.signal [(pos, pitch)]]
+            return [LEvent.Event $ PSignal.signal [(pos, pitch)]]
         _ -> throw $ "scale call " <> name
             <> " returned non-pitch: " <> ShowVal.show_val val
 
@@ -644,22 +644,21 @@ with_control_mods mods end deriver = foldr ($) deriver (map apply mods)
 -- If 'pitch_at' applied the transposition, the new note would have to remove
 -- the transposition signals so they don't get applied again at performance
 -- conversion.
-pitch_at :: RealTime -> Deriver (Maybe PitchSignal.Pitch)
-pitch_at pos = PitchSignal.at pos <$> Internal.get_dynamic state_pitch
+pitch_at :: RealTime -> Deriver (Maybe PSignal.Pitch)
+pitch_at pos = PSignal.at pos <$> Internal.get_dynamic state_pitch
 
 -- | Like 'pitch_at', this is a raw pitch.
-named_pitch_at :: Score.PControl -> RealTime
-    -> Deriver (Maybe PitchSignal.Pitch)
+named_pitch_at :: Score.PControl -> RealTime -> Deriver (Maybe PSignal.Pitch)
 named_pitch_at name pos = do
     psig <- get_pitch name
-    return $ maybe Nothing (PitchSignal.at pos) psig
+    return $ maybe Nothing (PSignal.at pos) psig
 
 -- | Resolve the raw pitch returned from 'pitch_at' to the final transposed
 -- pitch.
-resolve_pitch :: RealTime -> PitchSignal.Pitch -> Deriver PitchSignal.Transposed
+resolve_pitch :: RealTime -> PSignal.Pitch -> Deriver PSignal.Transposed
 resolve_pitch pos pitch = do
     controls <- controls_at pos
-    return $ PitchSignal.apply controls pitch
+    return $ PSignal.apply controls pitch
 
 -- | Unlike 'pitch_at', the transposition has already been applied, because you
 -- can't transpose any further once you have a NoteNumber.
@@ -667,7 +666,7 @@ nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
 nn_at pos = justm (pitch_at pos) $ \pitch ->
     logged_pitch_nn ("nn " <> pretty pos) =<< resolve_pitch pos pitch
 
-get_pitch :: Score.PControl -> Deriver (Maybe PitchSignal.Signal)
+get_pitch :: Score.PControl -> Deriver (Maybe PSignal.Signal)
 get_pitch name
     | name == Score.default_pitch = Just <$> Internal.get_dynamic state_pitch
     | otherwise = Map.lookup name <$> Internal.get_dynamic state_pitches
@@ -677,42 +676,37 @@ named_nn_at name pos = do
     controls <- controls_at pos
     justm (named_pitch_at name pos) $ \pitch ->
         logged_pitch_nn ("named_nn " <> pretty (name, pos)) $
-            PitchSignal.apply controls pitch
+            PSignal.apply controls pitch
 
--- | Version of 'PitchSignal.pitch_nn' that logs errors.
-logged_pitch_nn :: Text -> PitchSignal.Transposed
+-- | Version of 'PSignal.pitch_nn' that logs errors.
+logged_pitch_nn :: Text -> PSignal.Transposed
     -> Deriver (Maybe Pitch.NoteNumber)
-logged_pitch_nn msg pitch = case PitchSignal.pitch_nn pitch of
-    Left (PitchSignal.PitchError err) -> do
+logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
+    Left (PSignal.PitchError err) -> do
         Log.warn $ "pitch_nn " <> msg <> ": " <> err
         return Nothing
     Right nn -> return $ Just nn
 
 -- | Run the deriver in a context with the given pitch signal.
-with_named_pitch :: Score.PControl -> PitchSignal.Signal -> Deriver a
+with_named_pitch :: Score.PControl -> PSignal.Signal -> Deriver a
     -> Deriver a
 with_named_pitch control = modify_pitch control . const
 
-with_pitch :: PitchSignal.Signal -> Deriver a -> Deriver a
+with_pitch :: PSignal.Signal -> Deriver a -> Deriver a
 with_pitch = with_named_pitch Score.default_pitch
 
-with_constant_named_pitch :: Score.PControl -> PitchSignal.Pitch
+with_constant_named_pitch :: Score.PControl -> PSignal.Pitch
     -> Deriver a -> Deriver a
 with_constant_named_pitch control =
-    with_named_pitch control . PitchSignal.constant
+    with_named_pitch control . PSignal.constant
 
-with_constant_pitch :: PitchSignal.Pitch -> Deriver a -> Deriver a
-with_constant_pitch = with_pitch . PitchSignal.constant
+with_constant_pitch :: PSignal.Pitch -> Deriver a -> Deriver a
+with_constant_pitch = with_pitch . PSignal.constant
 
 with_no_pitch :: Deriver a -> Deriver a
 with_no_pitch = modify_pitch Score.default_pitch (const mempty)
 
-pitch_signal_scale :: Scale -> PitchSignal.Scale
-pitch_signal_scale scale =
-    PitchSignal.Scale (scale_id scale) (scale_transposers scale)
-
-modify_pitch :: Score.PControl
-    -> (Maybe PitchSignal.Signal -> PitchSignal.Signal)
+modify_pitch :: Score.PControl -> (Maybe PSignal.Signal -> PSignal.Signal)
     -> Deriver a -> Deriver a
 modify_pitch pcontrol f
     | pcontrol == Score.default_pitch = Internal.local $ \state ->
@@ -789,7 +783,7 @@ shift_control shift deriver = do
         deriver
     where
     nudge delay = Map.map (fmap (Signal.shift delay))
-    nudge_pitch = PitchSignal.shift
+    nudge_pitch = PSignal.shift
 
 -- * call
 

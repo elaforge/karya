@@ -19,7 +19,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -151,10 +151,10 @@ replace_note :: Score.Event -> Score.Event -> Score.Event
 replace_note next event = event
     { Score.event_duration = Score.event_end next - start
     , Score.event_untransformed_pitch = pitch event
-        <> PitchSignal.drop_before_at start (pitch next)
+        <> PSignal.drop_before_at start (pitch next)
     , Score.event_untransformed_pitches = Util.Map.mappend
         (pitches event)
-        (PitchSignal.drop_before_at start <$> pitches next)
+        (PSignal.drop_before_at start <$> pitches next)
     , Score.event_untransformed_controls = Util.Map.mappend
         (controls event)
         (fmap (Signal.drop_before_at start) <$> controls next)

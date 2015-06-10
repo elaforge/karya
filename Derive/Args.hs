@@ -12,7 +12,7 @@ import Derive.Derive (PassedArgs, CallInfo)
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -29,8 +29,8 @@ event = Derive.info_event . info
 prev_control :: Derive.ControlArgs -> Maybe (RealTime, Signal.Y)
 prev_control = Signal.last <=< prev_val
 
-prev_pitch :: Derive.PitchArgs -> Maybe (RealTime, PitchSignal.Pitch)
-prev_pitch = PitchSignal.last <=< prev_val
+prev_pitch :: Derive.PitchArgs -> Maybe (RealTime, PSignal.Pitch)
+prev_pitch = PSignal.last <=< prev_val
 
 prev_score_event :: Derive.NoteArgs -> Maybe Score.Event
 prev_score_event = prev_val
@@ -42,7 +42,7 @@ prev_val_end = extract <=< prev_val
     extract val = case Derive.to_tagged val of
         Derive.TagEvent event -> Just $ Score.event_end event
         Derive.TagControl sig -> fst <$> Signal.last sig
-        Derive.TagPitch sig -> fst <$> PitchSignal.last sig
+        Derive.TagPitch sig -> fst <$> PSignal.last sig
 
 -- | Get the previous val.  See NOTE [prev-val].
 prev_val :: PassedArgs a -> Maybe a
@@ -73,13 +73,13 @@ eval cinfo event prev = case Parse.parse_expr (Event.event_text event) of
 -- inverted then the event at or after the end of the event will be included.
 -- But 'Derive.Control.trim_signal' will clip that sample off to avoid
 -- a spurious pitch change at the end of the note.
-next_pitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PitchSignal.Pitch)
+next_pitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PSignal.Pitch)
 next_pitch = maybe (return Nothing) eval_pitch . Seq.head . next_events
 
-eval_pitch :: Event.Event -> Derive.Deriver (Maybe PitchSignal.Pitch)
+eval_pitch :: Event.Event -> Derive.Deriver (Maybe PSignal.Pitch)
 eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \events -> do
     start <- Derive.real (Event.start event)
-    return $ PitchSignal.at start $ mconcat $ LEvent.events_of events
+    return $ PSignal.at start $ mconcat $ LEvent.events_of events
     where to_maybe = either (const Nothing) Just
 
 -- * event timing
@@ -225,7 +225,7 @@ normalized args = Derive.place (- (start / dur)) (1 / dur)
     1. Extend the 'Derive.info_prev_val' mechanism to work even across sliced
     tracks.  Since they are no longer evaluated in sequence, I have to save
     them in a `Map (BlockId, TrackId) (RealTime, Either Signal.Y
-    PitchSignal.Pitch))`.  However, this is problematic in its own way because
+    PSignal.Pitch))`.  However, this is problematic in its own way because
     it's actually threaded state, which is new.  This isn't actually so bad,
     because I would add it in a new Threaded state, and it's only making
     explicit the already threaded nature of track derivation, due to prev_val.

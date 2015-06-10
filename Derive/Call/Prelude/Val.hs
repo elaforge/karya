@@ -20,7 +20,7 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
@@ -76,7 +76,7 @@ next_val event start ttype = case ttype of
     Just ParseTitle.TempoTrack -> eval_control start event
     Just ParseTitle.PitchTrack -> do
         signal <- eval event
-        case PitchSignal.at start signal of
+        case PSignal.at start signal of
             Nothing -> Derive.throw "next pitch event didn't emit a pitch"
             Just pitch -> return $ TrackLang.VPitch pitch
     Just ParseTitle.NoteTrack ->
@@ -100,7 +100,7 @@ c_prev_val = val_call "prev-val" Tags.prev
                 return $ TrackLang.num $ Signal.at start sig
             Just (Derive.TagPitch sig) ->
                 maybe (Derive.throw "no previous pitch")
-                    (return . TrackLang.VPitch) (PitchSignal.at start sig)
+                    (return . TrackLang.VPitch) (PSignal.at start sig)
             _ -> Derive.throw "no previous value"
 
 c_env :: Derive.ValCall
@@ -157,7 +157,7 @@ c_nn = val_call "nn" mempty
     \ A pitch name looks like `[a-g]s?[-1-9]`."
     $ Sig.call (Sig.required "val" "") $ \val _ -> case val of
         Left pitch -> realToFrac <$> Pitches.pitch_nn
-            (PitchSignal.coerce (pitch :: PitchSignal.Pitch))
+            (PSignal.coerce (pitch :: PSignal.Pitch))
         Right (Left hz) -> return (realToFrac (Pitch.hz_to_nn hz) :: Double)
         Right (Right (TrackLang.Symbol name)) ->
             maybe (Derive.throw $ "unknown pitch: " <> showt name)
@@ -180,7 +180,7 @@ c_hz :: Derive.ValCall
 c_hz = val_call "hz" mempty "Convert a pitch or NoteNumber to hz." $
     Sig.call (Sig.required "val" "") $ \val _ -> case val of
         Left pitch -> Pitch.nn_to_hz <$>
-            Pitches.pitch_nn (PitchSignal.coerce (pitch :: PitchSignal.Pitch))
+            Pitches.pitch_nn (PSignal.coerce (pitch :: PSignal.Pitch))
             -- Not transposed because they asked for a specific pitch.
         Right nn -> return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
 
@@ -213,7 +213,7 @@ c_pitch = val_call "pitch" mempty "Create a 'Perform.Pitch.Pitch'."
     <*> Sig.defaulted_env "accs" Sig.None 0 "Accidentals."
     ) $ \(oct, pc, accs) _ -> make_pitch oct pc accs
 
-make_pitch :: Either Pitch.Octave (Either Text PitchSignal.Pitch)
+make_pitch :: Either Pitch.Octave (Either Text PSignal.Pitch)
     -> Pitch.PitchClass -> Pitch.Accidentals -> Derive.Deriver Pitch.Pitch
 make_pitch (Left oct) pc accs = return $ Pitch.Pitch oct (Pitch.Degree pc accs)
 make_pitch (Right name_pitch) pc accs
@@ -223,8 +223,8 @@ make_pitch (Right name_pitch) pc accs
         (note, scale) <- case name_pitch of
             Left name -> (,) <$> return (Pitch.Note name) <*> Call.get_scale
             Right pitch -> (,)
-                <$> Pitches.pitch_note (PitchSignal.coerce pitch)
-                <*> Derive.get_scale (PitchSignal.pitch_scale_id pitch)
+                <$> Pitches.pitch_note (PSignal.coerce pitch)
+                <*> Derive.get_scale (PSignal.pitch_scale_id pitch)
         env <- Internal.get_environ
         either (Derive.throw . pretty) return $
             Scale.scale_read scale env note
@@ -241,7 +241,7 @@ c_pcontrol_ref = val_call "pcontrol-ref" mempty
     ) $ \(pcontrol, maybe_default) _ -> return $ case maybe_default of
         Nothing -> TrackLang.LiteralControl (pcontrol :: Score.PControl)
         Just pitch -> TrackLang.DefaultedControl pcontrol
-            (PitchSignal.constant pitch)
+            (PSignal.constant pitch)
 
 -- * lookup
 
@@ -293,7 +293,7 @@ c_breakpoints argnum f vals args = do
 -- TODO If 'Sig.Parser' supported Alternative, maybe I could build this as
 -- a parser and get both shorter code and documentation.
 num_or_pitch :: Int -> NonEmpty TrackLang.Val
-    -> Derive.Deriver (Either [Signal.Y] [PitchSignal.Pitch])
+    -> Derive.Deriver (Either [Signal.Y] [PSignal.Pitch])
 num_or_pitch argnum (val :| vals) = case val of
     TrackLang.VNum num -> do
         vals <- mapM (expect tnum) (zip [argnum + 1 ..] vals)

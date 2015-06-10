@@ -30,7 +30,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
@@ -249,10 +249,10 @@ control_range deriver = do
     return (sig, range, logs)
 
 pitch_range :: Derive.PitchDeriver
-    -> Derive.Deriver (PitchSignal.Signal, (RealTime, RealTime), [Log.Msg])
+    -> Derive.Deriver (PSignal.Signal, (RealTime, RealTime), [Log.Msg])
 pitch_range deriver = do
     (sig, logs) <- first mconcat . LEvent.partition <$> deriver
-    let range = case (PitchSignal.head sig, PitchSignal.last sig) of
+    let range = case (PSignal.head sig, PSignal.last sig) of
             (Just (s, _), Just (e, _)) -> (s, e)
             _ -> (0, 0)
     return (sig, range, logs)
@@ -329,9 +329,9 @@ set_instrument :: (Score.Instrument, Derive.Instrument)
     -> Score.Event -> Score.Event
 set_instrument (score_inst, inst) event = event
     { Score.event_instrument = score_inst
-    , Score.event_untransformed_pitch = PitchSignal.apply_environ env $
+    , Score.event_untransformed_pitch = PSignal.apply_environ env $
         Score.event_untransformed_pitch event
-    , Score.event_untransformed_pitches = PitchSignal.apply_environ env <$>
+    , Score.event_untransformed_pitches = PSignal.apply_environ env <$>
         Score.event_untransformed_pitches event
     }
     where env = Derive.inst_environ inst

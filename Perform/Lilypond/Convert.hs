@@ -9,7 +9,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -108,13 +108,13 @@ convert_pitch event = case Score.initial_pitch event of
 
 -- | If it's @*twelve@ then use pitch_note, else use pitch_nn and pick the
 -- closest pitch.
-pitch_to_lily :: PitchSignal.Transposed -> Either Text Pitch
+pitch_to_lily :: PSignal.Transposed -> Either Text Pitch
 pitch_to_lily pitch
-    | PitchSignal.pitch_scale_id pitch == Twelve.scale_id = do
-        note <- first showt $ PitchSignal.pitch_note pitch
+    | PSignal.pitch_scale_id pitch == Twelve.scale_id = do
+        note <- first showt $ PSignal.pitch_note pitch
         show_note note
     | otherwise = do
-        nn <- first showt $ PitchSignal.pitch_nn pitch
+        nn <- first showt $ PSignal.pitch_nn pitch
         note <- require ("nn out of range: " <> pretty nn) $
             Twelve.nn_to_note nn
         show_note note

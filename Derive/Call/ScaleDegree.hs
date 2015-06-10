@@ -22,7 +22,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Parse as Parse
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -37,7 +37,7 @@ import Global
 -- | Create a pitch val call for the given scale degree.  This is intended to
 -- be used by scales to generate their calls, but of course each scale may
 -- define calls in its own way.
-scale_degree :: PitchSignal.Scale -> Scale.PitchNn -> Scale.PitchNote
+scale_degree :: PSignal.Scale -> Scale.PitchNn -> Scale.PitchNote
     -> Derive.ValCall
 scale_degree scale pitch_nn pitch_note = Derive.val_call Module.scale
     "pitch" mempty "Emit the pitch of a scale degree." $
@@ -45,19 +45,19 @@ scale_degree scale pitch_nn pitch_note = Derive.val_call Module.scale
         "Add this many hundredths of a scale degree to the output.")
     $ \frac _args -> do
         env <- Internal.get_environ
-        let config = PitchSignal.PitchConfig env controls
+        let config = PSignal.PitchConfig env controls
             controls = if frac == 0 then mempty
                 else Map.singleton Controls.chromatic (frac / 100)
-        return $! PitchSignal.pitch scale
+        return $! PSignal.pitch scale
             (\config -> add_absolute_transposers config <$> pitch_nn config)
             pitch_note config
 
-add_absolute_transposers :: PitchSignal.PitchConfig -> Pitch.NoteNumber
+add_absolute_transposers :: PSignal.PitchConfig -> Pitch.NoteNumber
     -> Pitch.NoteNumber
 add_absolute_transposers config nn =
     Pitch.add_hz (Map.findWithDefault 0 Controls.hz controls)
         (nn + Pitch.nn (Map.findWithDefault 0 Controls.nn controls))
-    where controls = PitchSignal.pitch_controls config
+    where controls = PSignal.pitch_controls config
 
 -- | Convert a note and @frac@ arg into a tracklang expression representing
 -- that note.
@@ -73,7 +73,7 @@ pitch_expr frac note
 type NamedIntervals = Map.Map Text Ratio.Rational
 
 -- | A fancier version of 'scale_degree' that takes interval arguments.
-scale_degree_just :: PitchSignal.Scale -> NamedIntervals
+scale_degree_just :: PSignal.Scale -> NamedIntervals
     -> Pitch.Hz -- ^ add an arbitrary extra interval to the output
     -> Scale.PitchNn -> Scale.PitchNote -> Derive.ValCall
 scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
@@ -82,15 +82,15 @@ scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
     $ Sig.call (intervals_arg named_intervals) $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
         env <- Internal.get_environ
-        return $! PitchSignal.pitch scale
+        return $! PSignal.pitch scale
             (\config -> modify (extra_interval*interval) config <$>
                 pitch_nn config)
-            pitch_note (PitchSignal.PitchConfig env mempty)
+            pitch_note (PSignal.PitchConfig env mempty)
     where
     modify interval config = add_absolute_transposers config
         . Pitch.modify_hz (*interval)
 
-scale_degree_interval :: PitchSignal.Scale -> NamedIntervals -> Pitch.Note
+scale_degree_interval :: PSignal.Scale -> NamedIntervals -> Pitch.Note
     -> Maybe Derive.ValCall
 scale_degree_interval scale named_intervals note =
     case parse_relative_interval named_intervals note of
@@ -115,7 +115,7 @@ parse_relative_interval named_intervals note =
         _ -> Nothing
     unsign val = if val < 0 then recip (abs val) else val
 
-relative_scale_degree :: PitchSignal.Scale -> NamedIntervals -> Pitch.Hz
+relative_scale_degree :: PSignal.Scale -> NamedIntervals -> Pitch.Hz
     -> Derive.ValCall
 relative_scale_degree scale named_intervals initial_interval =
     Derive.val_call Module.scale "pitch" mempty
@@ -126,13 +126,12 @@ relative_scale_degree scale named_intervals initial_interval =
         start <- Args.real_start args
         Derive.require "relative interval requires a previous pitch" $ do
             Derive.TagPitch prev <- Args.prev_val args
-            modify interval <$> PitchSignal.at start prev
+            modify interval <$> PSignal.at start prev
     where
-    modify interval pitch = PitchSignal.pitch scale (pitch_nn interval pitch)
-        (PitchSignal.pitch_eval_note pitch) (PitchSignal.pitch_config pitch)
+    modify interval pitch = PSignal.pitch scale (pitch_nn interval pitch)
+        (PSignal.pitch_eval_note pitch) (PSignal.pitch_config pitch)
     pitch_nn interval pitch = \config -> do
-        nn <- PitchSignal.pitch_nn $ PitchSignal.coerce $
-            PitchSignal.config config pitch
+        nn <- PSignal.pitch_nn $ PSignal.coerce $ PSignal.config config pitch
         return $ Pitch.modify_hz (*interval) nn
 
 resolve_intervals :: NamedIntervals -> [Either Pitch.Hz Text]

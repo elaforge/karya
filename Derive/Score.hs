@@ -64,7 +64,7 @@ import Derive.BaseTypes
        (ControlMap, ControlFunction(..), ControlFunctionMap, PitchMap)
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreTypes as ScoreTypes
 import Derive.ScoreTypes
        (Instrument(..), Control, control_name, PControl, pcontrol_name,
@@ -91,7 +91,7 @@ data Event = Event {
     , event_duration :: !RealTime
     , event_text :: !Text
     , event_untransformed_controls :: !ControlMap
-    , event_untransformed_pitch :: !PitchSignal.Signal
+    , event_untransformed_pitch :: !PSignal.Signal
     -- | Named pitch signals.
     , event_untransformed_pitches :: !PitchMap
     -- | This is added to the untransformed controls on acces, so you can move
@@ -151,21 +151,21 @@ event_min event = min (event_start event) (event_end event)
 event_max event = max (event_start event) (event_end event)
 
 event_scale_id :: Event -> Pitch.ScaleId
-event_scale_id = PitchSignal.sig_scale_id . event_untransformed_pitch
+event_scale_id = PSignal.sig_scale_id . event_untransformed_pitch
 
 event_transformed_controls :: Event -> ControlMap
 event_transformed_controls event =
     Map.map (fmap (Signal.shift (event_control_offset event)))
         (event_untransformed_controls event)
 
-event_transformed_pitch :: Event -> PitchSignal.Signal
+event_transformed_pitch :: Event -> PSignal.Signal
 event_transformed_pitch event =
-    PitchSignal.shift (event_control_offset event)
+    PSignal.shift (event_control_offset event)
         (event_untransformed_pitch event)
 
 event_transformed_pitches :: Event -> PitchMap
 event_transformed_pitches event =
-    Map.map (PitchSignal.shift (event_control_offset event))
+    Map.map (PSignal.shift (event_control_offset event))
         (event_untransformed_pitches event)
 
 -- | If you use an event to create another event, call this to clear out
@@ -187,7 +187,7 @@ normalize lookup_environ event = event
     , event_control_offset = 0
     }
     where
-    apply = PitchSignal.apply_controls controls . PitchSignal.apply_environ env
+    apply = PSignal.apply_controls controls . PSignal.apply_environ env
     env = lookup_environ (event_instrument event) <> event_environ event
     controls = event_transformed_controls event
 
@@ -349,22 +349,22 @@ event_controls_at t event = Map.map (typed_val . control_val_at event t)
 default_pitch :: PControl
 default_pitch = ""
 
-set_pitch :: PitchSignal.Signal -> Event -> Event
+set_pitch :: PSignal.Signal -> Event -> Event
 set_pitch = set_named_pitch default_pitch
 
-set_named_pitch :: PControl -> PitchSignal.Signal -> Event -> Event
+set_named_pitch :: PControl -> PSignal.Signal -> Event -> Event
 set_named_pitch pcontrol signal event
     | pcontrol == default_pitch = event
         { event_untransformed_pitch =
-            PitchSignal.shift (- event_control_offset event) signal
+            PSignal.shift (- event_control_offset event) signal
         }
     | otherwise = event
         { event_untransformed_pitches = Map.insert pcontrol
-            (PitchSignal.shift (- event_control_offset event) signal)
+            (PSignal.shift (- event_control_offset event) signal)
             (event_untransformed_pitches event)
         }
 
-event_pitch :: PControl -> Event -> Maybe PitchSignal.Signal
+event_pitch :: PControl -> Event -> Maybe PSignal.Signal
 event_pitch pcontrol
     | pcontrol == default_pitch = Just . event_transformed_pitch
     | otherwise = Map.lookup pcontrol . event_transformed_pitches
@@ -374,29 +374,28 @@ event_pitch pcontrol
 -- pitch plus some homework to do on the pitch.  If you use this pitch to emit
 -- another pitch you proabbly need the raw pitch, but so far everyone doing
 -- that is at the Derive level, not postproc, so they use Derive.pitch_at.
-transposed_at :: RealTime -> Event -> Maybe PitchSignal.Transposed
+transposed_at :: RealTime -> Event -> Maybe PSignal.Transposed
 transposed_at pos event = apply_controls event pos <$> pitch_at pos event
 
-pitch_at :: RealTime -> Event -> Maybe PitchSignal.Pitch
-pitch_at pos event = PitchSignal.at (pos - event_control_offset event)
+pitch_at :: RealTime -> Event -> Maybe PSignal.Pitch
+pitch_at pos event = PSignal.at (pos - event_control_offset event)
     (event_untransformed_pitch event)
 
-apply_controls :: Event -> RealTime -> PitchSignal.Pitch
-    -> PitchSignal.Transposed
-apply_controls event pos = PitchSignal.apply (event_controls_at pos event)
+apply_controls :: Event -> RealTime -> PSignal.Pitch -> PSignal.Transposed
+apply_controls event pos = PSignal.apply (event_controls_at pos event)
 
-initial_pitch :: Event -> Maybe PitchSignal.Transposed
+initial_pitch :: Event -> Maybe PSignal.Transposed
 initial_pitch event = transposed_at (event_start event) event
 
 nn_at :: RealTime -> Event -> Maybe Pitch.NoteNumber
-nn_at pos event = either (const Nothing) Just . PitchSignal.pitch_nn
+nn_at pos event = either (const Nothing) Just . PSignal.pitch_nn
     =<< transposed_at pos event
 
 initial_nn :: Event -> Maybe Pitch.NoteNumber
 initial_nn event = nn_at (event_start event) event
 
 note_at :: RealTime -> Event -> Maybe Pitch.Note
-note_at pos event = either (const Nothing) Just . PitchSignal.pitch_note
+note_at pos event = either (const Nothing) Just . PSignal.pitch_note
     =<< transposed_at pos event
 
 initial_note :: Event -> Maybe Pitch.Note

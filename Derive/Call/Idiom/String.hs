@@ -17,7 +17,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -80,7 +80,7 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
         let linear = PitchUtil.interpolate_segment srate id
         string_idiom linear linear open_strings attack delay release =<< deriver
 
-open_strings_env :: Sig.Parser [PitchSignal.Pitch]
+open_strings_env :: Sig.Parser [PSignal.Pitch]
 open_strings_env = Sig.check non_empty $
     Sig.environ (TrackLang.unsym Environ.open_strings) Sig.Unprefixed []
         "Pitches of the open strings."
@@ -114,7 +114,7 @@ open_strings_env = Sig.check non_empty $
 string_idiom ::
     PitchUtil.Interpolate -- ^ interpolator to draw the attack curve
     -> PitchUtil.Interpolate -- ^ draw the release curve
-    -> [PitchSignal.Pitch] -- ^ Pitches of open strings.
+    -> [PSignal.Pitch] -- ^ Pitches of open strings.
     -> TrackLang.ControlRef -- ^ Attack time.
     -> TrackLang.ControlRef -- ^ Release delay.
     -> TrackLang.ControlRef -- ^ Time for string to return to its open pitch.
@@ -123,7 +123,7 @@ string_idiom attack_interpolate release_interpolate open_strings attack delay
         release all_events = Post.event_head all_events $ \event events -> do
     -- Coerce is ok because I don't want open strings in the environ to
     -- transpose.
-    open_nns <- mapM (Pitches.pitch_nn . PitchSignal.coerce) open_strings
+    open_nns <- mapM (Pitches.pitch_nn . PSignal.coerce) open_strings
     let strings = Map.fromList (zip open_nns open_strings)
     case initial_state strings event of
         Nothing -> Derive.throw $ "initial pitch below lowest string: "
@@ -153,7 +153,7 @@ string_idiom attack_interpolate release_interpolate open_strings attack delay
     - If the note falls on the string in use, bend that string up to the note
     to be played and emit it.
 -}
-process :: Map.Map Pitch.NoteNumber PitchSignal.Pitch
+process :: Map.Map Pitch.NoteNumber PSignal.Pitch
     -- ^ The strings are tuned to Pitches, but to compare Pitches I have to
     -- evaluate them to NoteNumbers first.
     -> PitchUtil.Interpolate -> PitchUtil.Interpolate
@@ -164,7 +164,7 @@ process strings attack_interpolate release_interpolate
         state@(State sounding_string prev) event = do
     pitch <- Derive.require "no pitch" $ Score.pitch_at start event
     nn <- Derive.require_right pretty $
-        PitchSignal.pitch_nn $ Score.apply_controls event start pitch
+        PSignal.pitch_nn $ Score.apply_controls event start pitch
     case find_string nn strings of
         Nothing -> do
             Log.warn $ pretty nn <> " below lowest string: " <> pretty strings
@@ -183,7 +183,7 @@ process strings attack_interpolate release_interpolate
             (snd sounding_string) start prev
 
 -- | Bend the event up to the next note.
-attack :: PitchUtil.Interpolate -> RealTime -> PitchSignal.Pitch -> RealTime
+attack :: PitchUtil.Interpolate -> RealTime -> PSignal.Pitch -> RealTime
     -> Score.Event -> Maybe Score.Event
 attack interpolate time pitch next_event event = do
     -- If there isn't enough time, do the bend faster.  I think I'd like to
@@ -198,7 +198,7 @@ attack interpolate time pitch next_event event = do
 -- | After releasing a note, you release your hand, which means the pitch
 -- should bend down to the open string.
 release :: PitchUtil.Interpolate -> RealTime -> RealTime
-    -> PitchSignal.Pitch -> RealTime -> Score.Event
+    -> PSignal.Pitch -> RealTime -> Score.Event
     -> Maybe Score.Event
 release interpolate delay time pitch next_event event = do
     let start_x = next_event + delay
@@ -206,29 +206,29 @@ release interpolate delay time pitch next_event event = do
     return $ merge_curve interpolate start_x start_pitch
         (start_x + time) pitch event
 
-merge_curve :: PitchUtil.Interpolate -> RealTime -> PitchSignal.Pitch
-    -> RealTime -> PitchSignal.Pitch -> Score.Event -> Score.Event
+merge_curve :: PitchUtil.Interpolate -> RealTime -> PSignal.Pitch
+    -> RealTime -> PSignal.Pitch -> Score.Event -> Score.Event
 merge_curve interpolate x0 y0 x1 y1 event =
     Score.set_pitch new_pitch event
     where
     curve = interpolate False x0 y0 x1 y1
     new_pitch = Score.event_transformed_pitch event <> curve
 
-find_string :: Pitch.NoteNumber -> Map.Map Pitch.NoteNumber PitchSignal.Pitch
-    -> Maybe (Pitch.NoteNumber, PitchSignal.Pitch)
+find_string :: Pitch.NoteNumber -> Map.Map Pitch.NoteNumber PSignal.Pitch
+    -> Maybe (Pitch.NoteNumber, PSignal.Pitch)
 find_string = Map.lookup_below
 
 -- | Keep track of the current string state.
 data State = State {
     -- | The string that is currently sounding.  This is the /open/ pitch.
-    state_sounding :: !(Pitch.NoteNumber, PitchSignal.Pitch)
+    state_sounding :: !(Pitch.NoteNumber, PSignal.Pitch)
     -- | The previous event.  Since each event is modified based on the next
     -- pitch, each 'process' call is one event ahead of the actual event
     -- emitted.
     , state_event :: !Score.Event
     } deriving (Show)
 
-initial_state :: Map.Map Pitch.NoteNumber PitchSignal.Pitch -> Score.Event
+initial_state :: Map.Map Pitch.NoteNumber PSignal.Pitch -> Score.Event
     -> Maybe State
 initial_state strings event = do
     nn <- Score.initial_nn event

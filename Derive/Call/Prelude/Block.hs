@@ -27,7 +27,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
@@ -115,9 +115,9 @@ trim_controls end = Internal.local $ \dyn -> dyn
         | otherwise = Signal.drop_at_after end sig
             <> Signal.drop_before_at end sig
     trim_p sig
-        | Maybe.isNothing (PitchSignal.sample_at end sig) = sig
-        | otherwise = PitchSignal.drop_at_after end sig
-            <> PitchSignal.drop_before_at end sig
+        | Maybe.isNothing (PSignal.sample_at end sig) = sig
+        | otherwise = PSignal.drop_at_after end sig
+            <> PSignal.drop_before_at end sig
 
 -- | Replace all controls and pitches with constants from ScoreTime 1.
 -- This is to support arrival notes.  If a block call has negative duration,
@@ -136,7 +136,7 @@ constant_controls_at start = Internal.local $ \dyn -> dyn
         Map.map (pitch_at start) (Derive.state_pitches dyn)
     }
     where
-    pitch_at p = maybe mempty PitchSignal.constant . PitchSignal.at p
+    pitch_at p = maybe mempty PSignal.constant . PSignal.at p
 
 d_block :: BlockId -> Derive.NoteDeriver
 d_block block_id = do

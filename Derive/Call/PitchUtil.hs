@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities that emit 'PitchSignal.Signal's.
+-- | Utilities that emit 'PSignal.Signal's.
 module Derive.Call.PitchUtil where
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -13,7 +13,7 @@ import Derive.Call.ControlUtil (Curve, SRate)
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
@@ -24,10 +24,9 @@ import Global
 import Types
 
 
-type PitchOrTranspose = Either PitchSignal.Pitch Pitch.Transpose
+type PitchOrTranspose = Either PSignal.Pitch Pitch.Transpose
 
-resolve_pitch_transpose :: PitchSignal.Pitch -> PitchOrTranspose
-    -> PitchSignal.Pitch
+resolve_pitch_transpose :: PSignal.Pitch -> PitchOrTranspose -> PSignal.Pitch
 resolve_pitch_transpose pitch = either id (flip Pitches.transpose pitch)
 
 -- * interpolator call
@@ -62,12 +61,11 @@ pitch_arg = Sig.required "pitch"
 
 -- | Use this for calls that start from the previous value, to give a way
 -- to override that behaviour.
-from_env :: Sig.Parser (Maybe PitchSignal.Pitch)
+from_env :: Sig.Parser (Maybe PSignal.Pitch)
 from_env = Sig.environ "from" Sig.Both Nothing
     "Start from this pitch. If unset, use the previous pitch."
 
-prev_val :: Maybe PitchSignal.Pitch -> Derive.PitchArgs
-    -> Maybe PitchSignal.Pitch
+prev_val :: Maybe PSignal.Pitch -> Derive.PitchArgs -> Maybe PSignal.Pitch
 prev_val from args = from <|> (snd <$> Args.prev_pitch args)
 
 -- | Pitch version of 'ControlUtil.interpolator_variations'.
@@ -81,34 +79,34 @@ interpolator_variations = ControlUtil.interpolator_variations_ interpolator_call
 -- | Create an interpolating call, from a certain duration (positive or
 -- negative) from the event start to the event start.
 interpolate_from_start :: Curve -> Derive.PitchArgs
-    -> Maybe PitchSignal.Pitch -> TrackLang.Duration -> PitchOrTranspose
-    -> Derive.Deriver PitchSignal.Signal
+    -> Maybe PSignal.Pitch -> TrackLang.Duration -> PitchOrTranspose
+    -> Derive.Deriver PSignal.Signal
 interpolate_from_start f args from time to = do
     (start, end) <- Call.duration_from_start args time
     case from of
         Nothing -> return $ case to of
-            Left pitch -> PitchSignal.signal [(start, pitch)]
-            Right _ -> PitchSignal.signal []
+            Left pitch -> PSignal.signal [(start, pitch)]
+            Right _ -> PSignal.signal []
         Just from ->
             -- I always set include_initial.  It might be redundant, but if the
             -- previous call was sliced off, it won't be.
             make_segment f (min start end) from (max start end) $
                 resolve_pitch_transpose from to
 
-make_segment :: Curve -> RealTime -> PitchSignal.Pitch -> RealTime
-    -> PitchSignal.Pitch -> Derive.Deriver PitchSignal.Signal
+make_segment :: Curve -> RealTime -> PSignal.Pitch -> RealTime
+    -> PSignal.Pitch -> Derive.Deriver PSignal.Signal
 make_segment = make_segment_ True True
 
-make_segment_ :: Bool -> Bool -> Curve -> RealTime -> PitchSignal.Pitch
-    -> RealTime -> PitchSignal.Pitch -> Derive.Deriver PitchSignal.Signal
+make_segment_ :: Bool -> Bool -> Curve -> RealTime -> PSignal.Pitch
+    -> RealTime -> PSignal.Pitch -> Derive.Deriver PSignal.Signal
 make_segment_ include_initial include_end f x1 y1 x2 y2 = do
     srate <- Call.get_srate
     return $ segment srate include_initial include_end f x1 y1 x2 y2
 
 type Interpolate = Bool -- ^ include the initial sample or not
-    -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
+    -> RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
     -- ^ start -> starty -> end -> endy
-    -> PitchSignal.Signal
+    -> PSignal.Signal
 
 -- | This defaults some arguments to 'segment' so its more convenient to pass
 -- around as a standalone creator of segments.
@@ -119,10 +117,10 @@ interpolate_segment srate f include_initial =
 -- | Interpolate between the given points.
 segment :: SRate -> Bool -- ^ include the initial sample
     -> Bool -- ^ add a sample at end time if one doesn't naturally land there
-    -> Curve -> RealTime -> PitchSignal.Pitch -> RealTime -> PitchSignal.Pitch
-    -> PitchSignal.Signal
+    -> Curve -> RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
+    -> PSignal.Signal
 segment srate include_initial include_end f x1 y1 x2 y2 =
-    PitchSignal.unfoldr go $
+    PSignal.unfoldr go $
         (if include_initial then id else drop 1) (Seq.range_ x1 srate)
     where
     go [] = Nothing
@@ -136,8 +134,6 @@ segment srate include_initial include_end f x1 y1 x2 y2 =
 -- * breakpoints
 
 -- | Create line segments between the given breakpoints.
-breakpoints :: SRate -> Curve -> [(RealTime, PitchSignal.Pitch)]
-    -> PitchSignal.Signal
+breakpoints :: SRate -> Curve -> [(RealTime, PSignal.Pitch)] -> PSignal.Signal
 breakpoints srate f =
-    ControlUtil.signal_breakpoints PitchSignal.signal
-        (segment srate True False f)
+    ControlUtil.signal_breakpoints PSignal.signal (segment srate True False f)

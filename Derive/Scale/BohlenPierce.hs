@@ -12,7 +12,7 @@ import qualified Data.Vector as Vector
 import qualified Util.Num as Num
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Derive as Derive
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
@@ -48,7 +48,7 @@ scale_map :: ChromaticScales.ScaleMap
 scale_map = (ChromaticScales.scale_map layout absolute_fmt all_keys default_key)
     { ChromaticScales.smap_semis_to_nn = semis_to_nn }
 
-pscale :: PitchSignal.Scale
+pscale :: PSignal.Scale
 pscale = Pitches.scale absolute_scale
 
 absolute_fmt :: TheoryFormat.Format
@@ -69,7 +69,7 @@ note_to_call smap note =
 
 -- TODO frac should always be 0, right?
 semis_to_nn :: ChromaticScales.SemisToNoteNumber
-semis_to_nn (PitchSignal.PitchConfig env controls) fsemi =
+semis_to_nn (PSignal.PitchConfig env controls) fsemi =
     return $ Pitch.hz_to_nn $ Num.scale hz1 hz2 frac
     where
     hz1 = degree_to_hz base_hz tonic degree

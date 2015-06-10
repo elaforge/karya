@@ -188,7 +188,7 @@ default_scale :: Pitch.ScaleId -> Instrument.Patch -> Instrument.Patch
 default_scale = environ Environ.scale . TrackLang.scale_id_to_sym
 
 -- | Set instrument range.  The type is polymorphic because some instruments
--- want Pitch.Pitch and some want PitchSignal.Pitch.
+-- want Pitch.Pitch and some want PSignal.Y.
 range :: RestrictedEnviron.ToVal a => (a, a) -> Instrument.Patch
     -> Instrument.Patch
 range (bottom, top) = environ Environ.instrument_bottom bottom

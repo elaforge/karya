@@ -64,7 +64,7 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
@@ -183,10 +183,10 @@ type Annotated a m = [(Note, a)] -> m [Note]
 annotate_nns :: Cmd.M m => Annotated (Maybe Pitch.NoteNumber) m
     -> ModifyNotes m
 annotate_nns modify = annotate_controls (modify . map (second (eval <=< fst)))
-    where eval = either (const Nothing) Just . PitchSignal.pitch_nn
+    where eval = either (const Nothing) Just . PSignal.pitch_nn
 
 annotate_controls :: Cmd.M m =>
-    Annotated (Maybe PitchSignal.Transposed, Score.ControlValMap) m
+    Annotated (Maybe PSignal.Transposed, Score.ControlValMap) m
     -> ModifyNotes m
 annotate_controls modify block_id note_track_ids = do
     events <- Cmd.perf_events <$> Cmd.get_performance block_id
@@ -197,7 +197,7 @@ annotate_controls modify block_id note_track_ids = do
 -- inaccurate, and inefficient too.  Shouldn't I look up the signal directly
 -- from the performance?
 find_controls :: [(Note, TrackId)] -> Cmd.Events
-    -> [(Note, (Maybe PitchSignal.Transposed, Score.ControlValMap))]
+    -> [(Note, (Maybe PSignal.Transposed, Score.ControlValMap))]
 find_controls note_track_ids events =
     zip (map fst note_track_ids) $
         map (extract . convert events) note_track_ids

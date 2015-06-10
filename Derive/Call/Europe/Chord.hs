@@ -12,7 +12,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -59,7 +59,7 @@ c_chord dir = Derive.generator Module.europe "chord" mempty
 -- Ninths:
 -- Arguments for modification: inversion, transpose 3 5 7 9 up an octave,
 -- drop 3 5 7 9.
-parse_chord :: PitchSignal.Pitch -> Text -> Either Text [PitchSignal.Pitch]
+parse_chord :: PSignal.Pitch -> Text -> Either Text [PSignal.Pitch]
 parse_chord _base _name = Left "not implemented" -- TODO
 
 
@@ -81,7 +81,7 @@ c_stack dir = Derive.generator Module.europe "stack" mempty
         intervals <- resolve_intervals base intervals
         from_intervals dir base intervals time args
 
-from_intervals :: Direction -> PitchSignal.Pitch -> [PitchSignal.Pitch]
+from_intervals :: Direction -> PSignal.Pitch -> [PSignal.Pitch]
     -> TrackLang.Duration -> Derive.PassedArgs a -> Derive.NoteDeriver
 from_intervals dir base intervals time args = do
     let start = Args.start args
@@ -95,10 +95,10 @@ from_intervals dir base intervals time args = do
     mconcat [Derive.place t (Args.end args - t) (Call.pitched_note pitch)
         | (t, pitch) <- zip ts (base : intervals)]
 
-type Interval = Either PitchSignal.Pitch (Either Pitch.Step Text)
+type Interval = Either PSignal.Pitch (Either Pitch.Step Text)
 
-resolve_intervals :: PitchSignal.Pitch -> [Interval]
-    -> Derive.Deriver [PitchSignal.Pitch]
+resolve_intervals :: PSignal.Pitch -> [Interval]
+    -> Derive.Deriver [PSignal.Pitch]
 resolve_intervals b = fmap snd . Seq.mapAccumLM resolve b
     where
     resolve _ (Left pitch) = return (pitch, pitch)

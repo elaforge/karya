@@ -19,7 +19,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
@@ -100,7 +100,7 @@ test_convert_pitch = do
     -- Convert applies the environ to pitches.
     let event = (DeriveTest.mkevent (0, 1, "4i", [], UiTest.i1))
             { Score.event_untransformed_pitch =
-                PitchSignal.signal [(0, DeriveTest.mkpitch legong "4i")]
+                PSignal.signal [(0, DeriveTest.mkpitch legong "4i")]
             }
         Just (Scale.Simple legong) = Map.lookup "legong" Scale.All.scales
     equal (convert [event]) [Left (0, [(0, 72.46)])]

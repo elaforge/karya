@@ -27,7 +27,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -205,7 +205,7 @@ pitch_call_info cinfo = cinfo
         Derive.info_prev_val cinfo
     }
 
-type Signals = (PitchSignal.Signal, [Derive.ControlMod])
+type Signals = (PSignal.Signal, [Derive.ControlMod])
 
 {- Awkward things:
 
@@ -298,12 +298,11 @@ sequence_middles start end (expr:exprs) = do
     (pitch_rest, mods_rest) <- sequence_middles sig_end end exprs
     return (pitch <> pitch_rest, mods <> mods_rest)
 
-signal_start :: ScoreTime -> PitchSignal.Signal -> Derive.Deriver ScoreTime
-signal_start deflt =
-    maybe (return deflt) (Derive.score . fst) .  PitchSignal.head
+signal_start :: ScoreTime -> PSignal.Signal -> Derive.Deriver ScoreTime
+signal_start deflt = maybe (return deflt) (Derive.score . fst) .  PSignal.head
 
-signal_end :: ScoreTime -> PitchSignal.Signal -> Derive.Deriver ScoreTime
-signal_end deflt = maybe (return deflt) (Derive.score . fst) .  PitchSignal.last
+signal_end :: ScoreTime -> PSignal.Signal -> Derive.Deriver ScoreTime
+signal_end deflt = maybe (return deflt) (Derive.score . fst) .  PSignal.last
 
 eval :: Module.Module -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
 eval module_ start end expr = do
@@ -314,7 +313,7 @@ eval module_ start end expr = do
     let (chunks, logs) = LEvent.partition result
     mapM_ Log.write logs
     let signal = mconcat chunks
-    unless (PitchSignal.null signal) $
+    unless (PSignal.null signal) $
         Monad.State.put $ cinfo { Derive.info_prev_val = Just signal }
     return (signal, cmods)
 
@@ -398,7 +397,7 @@ c_flat_start = generator1 "flat-start" mempty
         start <- Args.real_start args
         end <- get_end start time args
         pitch <- optional_pitch maybe_pitch <$> Call.get_pitch start
-        return $ PitchSignal.signal [(start, pitch), (end, pitch)]
+        return $ PSignal.signal [(start, pitch), (end, pitch)]
 
 c_set_pitch :: Derive.Generator Derive.Pitch
 c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
@@ -408,7 +407,7 @@ c_set_pitch = generator1 "set-pitch" mempty "Emit the current pitch.\
     $ Sig.call0 $ \args -> do
         start <- Args.real_start args
         pitch <- Call.get_pitch start
-        return $ PitchSignal.signal [(start, pitch)]
+        return $ PSignal.signal [(start, pitch)]
 
 data PitchFrom = PitchFromPrev | PitchFromCurrent deriving (Eq, Show)
 data Fade = Fade | NoFade deriving (Eq, Show)
@@ -508,8 +507,8 @@ c_jaru append_zero = generator1 "jaru" mempty
         let transition = fromMaybe time maybe_transition
         let sig = jaru curve srate start time transition $
                 NonEmpty.toList intervals ++ if append_zero then [0] else []
-        return $ PitchSignal.apply_control control (Score.untyped sig) $
-            PitchSignal.signal [(start, pitch)]
+        return $ PSignal.apply_control control (Score.untyped sig) $
+            PSignal.signal [(start, pitch)]
     where
     parse intervals
         | all (==control) controls = return (xs, control)
@@ -539,8 +538,8 @@ c_flat = generator1 "flat" mempty "Emit a flat pitch."
             Just transpose -> do
                 pitch <- Call.get_pitch start
                 return $ PitchUtil.resolve_pitch_transpose pitch transpose
-        return $ PitchSignal.signal [(start, pitch)]
-            <> PitchSignal.signal [(end, pitch)]
+        return $ PSignal.signal [(start, pitch)]
+            <> PSignal.signal [(end, pitch)]
 
 -- ** kampita
 
@@ -646,11 +645,11 @@ default_transition_ :: RealTime
 default_transition_ = 0.12
 
 kampita :: RealTime -> Derive.PitchArgs -> Score.Control -> Signal.Control
-    -> Derive.Deriver PitchSignal.Signal
+    -> Derive.Deriver PSignal.Signal
 kampita start args control transpose = do
     pitch <- prev_pitch start args
-    return $ PitchSignal.apply_control control
-        (Score.untyped transpose) $ PitchSignal.signal [(start, pitch)]
+    return $ PSignal.apply_control control
+        (Score.untyped transpose) $ PSignal.signal [(start, pitch)]
 
 -- | You don't think there are too many arguments, do you?
 kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
@@ -708,7 +707,7 @@ c_flat_end = generator1 "flat-end" mempty
         (start, end) <- Args.real_range args
         start <- align_to_end start end time
         pitch <- optional_pitch maybe_pitch <$> prev_pitch start args
-        return $ PitchSignal.signal [(start, pitch), (end, pitch)]
+        return $ PSignal.signal [(start, pitch), (end, pitch)]
 
 c_to :: Fade -> Derive.Generator Derive.Pitch
 c_to fade = generator1 "to" mempty "Go to a pitch, and possibly fade out."
@@ -755,13 +754,13 @@ align_to_end start end dur = do
 -- | This defaults to the note's base pitch, in case this call is the first
 -- one.  Also, the end call is called before the middle calls to find out how
 -- long it is.
-prev_pitch :: RealTime -> Derive.PitchArgs -> Derive.Deriver PitchSignal.Pitch
+prev_pitch :: RealTime -> Derive.PitchArgs -> Derive.Deriver PSignal.Pitch
 prev_pitch start args = case Args.prev_pitch args of
     Nothing -> Call.get_pitch start
     Just (_, pitch) -> return pitch
 
-resolve_pitch :: Derive.PitchArgs -> PitchSignal.Pitch
-    -> Maybe PitchUtil.PitchOrTranspose -> PitchSignal.Pitch
+resolve_pitch :: Derive.PitchArgs -> PSignal.Pitch
+    -> Maybe PitchUtil.PitchOrTranspose -> PSignal.Pitch
 resolve_pitch args this_pitch maybe_pitch = case maybe_pitch of
     Nothing -> case Args.prev_pitch args of
         Nothing -> this_pitch
@@ -771,8 +770,8 @@ resolve_pitch args this_pitch maybe_pitch = case maybe_pitch of
 
 -- | A number of calls take an optional pitch, and default to either
 -- the current or previous pitch.
-optional_pitch :: Maybe PitchUtil.PitchOrTranspose -> PitchSignal.Pitch
-    -> PitchSignal.Pitch
+optional_pitch :: Maybe PitchUtil.PitchOrTranspose -> PSignal.Pitch
+    -> PSignal.Pitch
 optional_pitch maybe_pitch current_pitch =
     maybe current_pitch (PitchUtil.resolve_pitch_transpose current_pitch)
         maybe_pitch

@@ -21,7 +21,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -167,7 +167,7 @@ realize_infer_pitch maybe_prev event maybe_next
         let dur = min (Score.event_duration event)
                 (Score.event_end next - Score.event_start event)
         return $ Score.remove_flags infer_pitch_flag $ Score.set_duration dur $
-            Score.set_pitch (PitchSignal.constant pitch) event
+            Score.set_pitch (PSignal.constant pitch) event
     | otherwise = return event
     where require err = maybe (Left err) return
 
@@ -184,7 +184,7 @@ realize_damped event maybe_next =
         | otherwise = id
         where start = Score.event_start event
 
-infer_pitch :: Score.Event -> Score.Event -> Maybe PitchSignal.Pitch
+infer_pitch :: Score.Event -> Score.Event -> Maybe PSignal.Pitch
 infer_pitch prev next = do
     prev_nn <- Score.initial_nn prev
     next_nn <- Score.initial_nn next

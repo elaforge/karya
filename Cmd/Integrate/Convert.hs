@@ -18,7 +18,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -86,7 +86,7 @@ allocate_tracks tracknums = concatMap overlap . Seq.keyed_group_on group_key
     group_key :: Score.Event -> TrackKey
     group_key event =
         (tracknum_of =<< track_of event, Score.event_instrument event,
-            PitchSignal.sig_scale_id (Score.event_untransformed_pitch event),
+            PSignal.sig_scale_id (Score.event_untransformed_pitch event),
             event_voice event)
     tracknum_of tid = Map.lookup tid tracknums
 
@@ -159,10 +159,10 @@ pitch_events default_scale_id scale_id events =
     tidy_pitches = clip_to_zero . clip_concat . map drop_dups
 
 no_pitch_signals :: [Score.Event] -> Bool
-no_pitch_signals = all (PitchSignal.null . Score.event_untransformed_pitch)
+no_pitch_signals = all (PSignal.null . Score.event_untransformed_pitch)
 
 -- | Convert an event's pitch signal to symbolic note names.  This uses
--- 'PitchSignal.pitch_note', which handles a constant transposition, but not
+-- 'PSignal.pitch_note', which handles a constant transposition, but not
 -- continuous pitch changes (it's not even clear how to spell those).  I could
 -- try to convert back from NoteNumbers, but I still have the problem of how
 -- to convert the curve back to high level pitches.
@@ -173,7 +173,7 @@ pitch_signal_events event = (ui_events, pitch_errs)
     (xs, ys) = unzip $ align_pitch_signal start $
         Score.event_transformed_pitch event
     pitches = zip3 xs ys
-        (map (PitchSignal.pitch_note . Score.apply_controls event start) ys)
+        (map (PSignal.pitch_note . Score.apply_controls event start) ys)
     pitch_errs =
         [ pretty x <> ": converting " <> pretty p <> " " <> pretty err
         | (x, p, Left err) <- pitches
@@ -228,10 +228,9 @@ align_signal start sig = case Signal.unsignal (Signal.drop_before start sig) of
     [] -> []
     (_, y) : xs -> (start, y) : xs
 
-align_pitch_signal :: Signal.X -> PitchSignal.Signal
-    -> [(Signal.X, PitchSignal.Pitch)]
+align_pitch_signal :: Signal.X -> PSignal.Signal -> [(Signal.X, PSignal.Pitch)]
 align_pitch_signal start sig =
-    case PitchSignal.unsignal (PitchSignal.drop_before start sig) of
+    case PSignal.unsignal (PSignal.drop_before start sig) of
         [] -> []
         (_, y) : xs -> (start, y) : xs
 

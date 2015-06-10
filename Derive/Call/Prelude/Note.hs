@@ -33,7 +33,7 @@ import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
@@ -341,8 +341,8 @@ normalize args deriver =
 trim_controls :: RealTime -> Score.ControlMap -> Score.ControlMap
 trim_controls start = Map.map (fmap (Signal.drop_before start))
 
-trim_pitch :: RealTime -> PitchSignal.Signal -> PitchSignal.Signal
-trim_pitch = PitchSignal.drop_before
+trim_pitch :: RealTime -> PSignal.Signal -> PSignal.Signal
+trim_pitch = PSignal.drop_before
 
 -- ** transform
 

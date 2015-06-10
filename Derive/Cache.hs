@@ -36,7 +36,7 @@ import qualified Derive.Derive as Derive
 import Derive.Derive (Cache(..), Cached(..), ScoreDamage(..), ControlDamage(..))
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
@@ -59,7 +59,7 @@ instance Cacheable Signal.Control where
     from_cache_entry _ = Nothing
     to_cache_entry = Derive.CachedControl
 
-instance Cacheable PitchSignal.Signal where
+instance Cacheable PSignal.Signal where
     from_cache_entry (Derive.CachedPitch ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = Derive.CachedPitch

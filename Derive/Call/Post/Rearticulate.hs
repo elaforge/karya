@@ -13,7 +13,7 @@ import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
@@ -61,21 +61,21 @@ slur srate curve event events = event
     dur = Score.event_end (fromMaybe event (Seq.last events))
         - Score.event_start event
 
-slur_pitch :: RealTime -> Curve -> PitchSignal.Signal -> [PitchSignal.Signal]
-    -> PitchSignal.Signal
+slur_pitch :: RealTime -> Curve -> PSignal.Signal -> [PSignal.Signal]
+    -> PSignal.Signal
 slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
     where
     -- The transition should override the neighboring signals.
-    merge (p:ps) (i:is) = p <> i `PitchSignal.prepend` merge ps is
+    merge (p:ps) (i:is) = p <> i `PSignal.prepend` merge ps is
     merge ps [] = mconcat ps
     merge [] is = mconcat is -- Shouldn't happen.
     transitions = zipWith transition (sig : sigs) sigs
     transition _ _ | time == 0 = mempty
     transition prev next = fromMaybe mempty $ do
-        (x0, _) <- PitchSignal.head prev
-        (x1, y1) <- PitchSignal.last prev
-        (x2, y2) <- PitchSignal.head next
-        (x3, _) <- PitchSignal.last next
+        (x0, _) <- PSignal.head prev
+        (x1, y1) <- PSignal.last prev
+        (x2, y2) <- PSignal.head next
+        (x3, _) <- PSignal.last next
         let mid a b = (a + b) / 2
         -- Don't allow the curve past the midpoint of the note.  This way the
         -- transition will become quicker to accomodate shorter notes.
@@ -83,23 +83,23 @@ slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
             end = min (mid x2 x3) (mid x1 x2 + time / 2)
         return $ PitchUtil.interpolate_segment srate curve False start y1 end y2
 
-bracket_pitch :: Score.Event -> PitchSignal.Signal
+bracket_pitch :: Score.Event -> PSignal.Signal
 bracket_pitch event =
     bracket (Score.event_start event) (Score.event_end event) $
         Score.event_transformed_pitch event
 
 -- | Ensure there are samples at the start and end times.
 -- TODO move to Util.TimeVector?
-bracket :: RealTime -> RealTime -> PitchSignal.Signal -> PitchSignal.Signal
-bracket start end = set_end . set_start . PitchSignal.within start end
+bracket :: RealTime -> RealTime -> PSignal.Signal -> PSignal.Signal
+bracket start end = set_end . set_start . PSignal.within start end
     where
-    set_start sig = case PitchSignal.head sig of
-        Just (x, y) | x < start -> PitchSignal.signal [(start, y)] <> sig
+    set_start sig = case PSignal.head sig of
+        Just (x, y) | x < start -> PSignal.signal [(start, y)] <> sig
         _ -> sig
-    set_end sig = case PitchSignal.last sig of
+    set_end sig = case PSignal.last sig of
         Just (x, y)
             | x RealTime.== end -> sig
-            | otherwise -> sig <> PitchSignal.signal [(end, y)]
+            | otherwise -> sig <> PSignal.signal [(end, y)]
         Nothing -> sig
 
 -- | 'splitAt' for LEvents.

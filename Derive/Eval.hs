@@ -42,7 +42,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
@@ -330,8 +330,7 @@ reapply_call cinfo call_id call_args =
     reapply cinfo (TrackLang.call call_id call_args :| [])
 
 -- | A version of 'eval' specialized to evaluate pitch calls.
-eval_pitch :: ScoreTime -> TrackLang.PitchCall
-    -> Derive.Deriver PitchSignal.Pitch
+eval_pitch :: ScoreTime -> TrackLang.PitchCall -> Derive.Deriver PSignal.Pitch
 eval_pitch pos call =
     cast ("eval pitch " <> ShowVal.show_val call)
         =<< eval cinfo (TrackLang.ValCall call)

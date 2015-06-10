@@ -14,7 +14,7 @@ import qualified Derive.Derive as Derive
 import Derive.Derive
        (Scale(..), LookupScale(..), lookup_scale, Transposition(..),
         ScaleError(..), Layout)
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -38,10 +38,8 @@ scale_id_of (Simple scale) = scale_id scale
 -- with a "get_key" function, but it also needs Environ.key.  I think it's
 -- doable by parameterizing pitch_nn and hence note_to_call and moving
 -- smap_semis_to_nn into note_to_call, but it seems complicated.
-type PitchNn = PitchSignal.PitchConfig
-    -> Either PitchSignal.PitchError Pitch.NoteNumber
-type PitchNote = PitchSignal.PitchConfig
-    -> Either PitchSignal.PitchError Pitch.Note
+type PitchNn = PSignal.PitchConfig -> Either PSignal.PitchError Pitch.NoteNumber
+type PitchNote = PSignal.PitchConfig -> Either PSignal.PitchError Pitch.Note
 
 layout :: [Pitch.Semi] -> Layout
 layout = Vector.fromList

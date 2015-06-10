@@ -41,7 +41,7 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Scales as Scales
@@ -553,16 +553,16 @@ e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn = e_control Score.c_dynamic
 
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns e = signal_to_nn $ PitchSignal.apply_controls
+e_nns e = signal_to_nn $ PSignal.apply_controls
     (Score.event_transformed_controls e) (Score.event_transformed_pitch e)
 
-signal_to_nn :: PitchSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
+signal_to_nn :: PSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
 signal_to_nn psig
     | not (null errs) =
         error $ "DeriveTest.signal_to_nn: errors flattening signal: "
             ++ show errs
     | otherwise = map (second Pitch.NoteNumber) (Signal.unsignal sig)
-    where (sig, errs) = PitchSignal.to_nn psig
+    where (sig, errs) = PSignal.to_nn psig
 
 e_pitch :: Score.Event -> String
 e_pitch e = maybe "?" (untxt . Pitch.note_text) (Score.initial_note e)
@@ -715,13 +715,13 @@ mkevent_scale scale (start, dur, pitch, controls, inst) = Score.empty_event
     , Score.event_text = txt pitch
     , Score.event_untransformed_controls = mkcontrols controls
     , Score.event_untransformed_pitch =
-        PitchSignal.signal [(start, mkpitch scale pitch)]
+        PSignal.signal [(start, mkpitch scale pitch)]
     , Score.event_stack = fake_stack
     , Score.event_instrument = inst
     }
 
-pitch_signal :: [(RealTime, String)] -> PitchSignal.Signal
-pitch_signal = PitchSignal.signal . map (second mkpitch12)
+psignal :: [(RealTime, String)] -> PSignal.Signal
+psignal = PSignal.signal . map (second mkpitch12)
 
 mkcontrols :: Controls -> Score.ControlMap
 mkcontrols cs = Map.fromList
@@ -730,10 +730,10 @@ mkcontrols cs = Map.fromList
 mkcontrols_const :: ControlVals -> Score.ControlMap
 mkcontrols_const cs = mkcontrols [(c, [(0, val)]) | (c, val) <- cs]
 
-mkpitch12 :: String -> PitchSignal.Pitch
+mkpitch12 :: String -> PSignal.Pitch
 mkpitch12 = mkpitch Twelve.scale
 
-mkpitch :: Scale.Scale -> String -> PitchSignal.Pitch
+mkpitch :: Scale.Scale -> String -> PSignal.Pitch
 mkpitch scale p = case eval State.empty deriver of
     Left err -> error $ "mkpitch " ++ show p ++ ": " ++ err
     Right pitch -> pitch

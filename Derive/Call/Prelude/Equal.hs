@@ -21,7 +21,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Parse as Parse
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -158,9 +158,9 @@ parse_equal maybe_merge lhs rhs
 parse_equal Nothing lhs rhs
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
         TrackLang.VPitch rhs ->
-            Right $ Derive.with_named_pitch control (PitchSignal.constant rhs)
+            Right $ Derive.with_named_pitch control (PSignal.constant rhs)
         TrackLang.VPControlRef rhs -> Right $ \deriver -> do
-            sig <- Call.to_pitch_signal rhs
+            sig <- Call.to_psignal rhs
             Derive.with_named_pitch control sig deriver
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
             <> " control, but got " <> pretty (TrackLang.type_of rhs)

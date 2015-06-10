@@ -44,7 +44,7 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -138,7 +138,7 @@ derive_note_track state blocks (notes, samples) =
         { Score.event_start = start
         , Score.event_duration = dur
         , Score.event_untransformed_controls = state_control_map state
-        , Score.event_untransformed_pitch = state_pitch_signal state
+        , Score.event_untransformed_pitch = state_psignal state
         }
 
 data Sample = Sample {
@@ -161,12 +161,12 @@ initial_state = State 0 mempty
 state_control_map :: State -> Score.ControlMap
 state_control_map = Map.map (Score.untyped . Signal.constant) . state_controls
 
-state_pitch_signal :: State -> PitchSignal.Signal
-state_pitch_signal = PitchSignal.constant . mknote . state_pitch
+state_psignal :: State -> PSignal.Signal
+state_psignal = PSignal.constant . mknote . state_pitch
     where
-    scale = PitchSignal.Scale Twelve.scale_id
+    scale = PSignal.Scale Twelve.scale_id
         (Scale.scale_transposers Twelve.scale)
-    mknote nn = PitchSignal.pitch scale (const (return nn))
+    mknote nn = PSignal.pitch scale (const (return nn))
         (const $ return $ Pitch.Note $ showt nn) mempty
 
 update_state :: [Sample] -> RealTime -> State -> (State, [Sample])

@@ -20,7 +20,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -99,14 +99,14 @@ make_note_fade name doc pitch_dir align align_fade =
                 let merged = case align of
                         -- Since the initial slide has to override the base
                         -- pitch, I can't just merge normally.
-                        AlignStart -> PitchSignal.prepend slide pitch_sig
+                        AlignStart -> PSignal.prepend slide pitch_sig
                         AlignEnd -> pitch_sig <> slide
                 multiply_dyn dyn $ Derive.with_pitch merged deriver
 
 multiply_dyn :: Signal.Control -> Derive.Deriver a -> Derive.Deriver a
 multiply_dyn = Derive.with_multiplied_control Score.c_dynamic . Score.untyped
 
-fade_args :: Sig.Parser (Either Pitch.Transpose PitchSignal.Pitch,
+fade_args :: Sig.Parser (Either Pitch.Transpose PSignal.Pitch,
     TrackLang.DefaultReal, Maybe TrackLang.DefaultReal, ControlUtil.Curve)
 fade_args = (,,,)
     <$> defaulted "interval" (Left (Pitch.Chromatic 7))
@@ -167,10 +167,10 @@ c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
 data Align = AlignStart | AlignEnd deriving (Show)
 data PitchDirection = PitchDrop | PitchLift deriving (Show)
 
-pitch_fade :: Align -> ControlUtil.Curve -> PitchSignal.Pitch -> PitchDirection
-    -> Either Pitch.Transpose PitchSignal.Pitch
+pitch_fade :: Align -> ControlUtil.Curve -> PSignal.Pitch -> PitchDirection
+    -> Either Pitch.Transpose PSignal.Pitch
     -> ((RealTime, RealTime), (RealTime, RealTime))
-    -> Derive.Deriver (PitchSignal.Signal, Signal.Control)
+    -> Derive.Deriver (PSignal.Signal, Signal.Control)
 pitch_fade align curve pitch pitch_dir interval
         ((pitch_start, pitch_end), (fade_start, fade_end)) =
     (,) <$> pitch_segment align curve (min pitch_start fade_start) pitch_start
@@ -228,9 +228,9 @@ pitch_segment :: Align -> ControlUtil.Curve
     -> RealTime -- ^ start pitch at this time
     -> RealTime -- ^ start segment
     -> RealTime -- ^ end segment
-    -> PitchSignal.Pitch
-    -> Either Pitch.Transpose PitchSignal.Pitch -> PitchDirection
-    -> Derive.Deriver PitchSignal.Signal
+    -> PSignal.Pitch
+    -> Either Pitch.Transpose PSignal.Pitch -> PitchDirection
+    -> Derive.Deriver PSignal.Signal
 pitch_segment align curve start0 start end pitch interval pitch_dir =
     case align of
         -- If the pitch segment is at the start of the note, then I may need to
@@ -240,7 +240,7 @@ pitch_segment align curve start0 start end pitch interval pitch_dir =
         AlignEnd ->
             PitchUtil.make_segment_ False True curve start pitch end dest
     where
-    initial p = PitchSignal.signal [(start0, p)]
+    initial p = PSignal.signal [(start0, p)]
     dest = case interval of
         Left degrees -> Pitches.transpose (negate_interval degrees) pitch
         Right p -> p

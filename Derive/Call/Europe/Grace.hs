@@ -21,7 +21,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -142,7 +142,7 @@ c_basic_grace = Derive.generator Module.prelude "basic-grace"
             Sub.derive =<< basic_grace args pitches
                 (maybe id apply maybe_transform) grace_dur place
 
-lily_grace :: Derive.PassedArgs d -> RealTime -> [PitchSignal.Pitch]
+lily_grace :: Derive.PassedArgs d -> RealTime -> [PSignal.Pitch]
     -> Derive.NoteDeriver
 lily_grace args start pitches = do
     pitches <- mapM Lily.pitch_to_lily =<< mapM (Derive.resolve_pitch start)
@@ -156,7 +156,7 @@ lily_grace args start pitches = do
     -- it stays with the note's voice.
     Lily.prepend_code code $ Call.place args Call.note
 
-grace_call :: Derive.NoteArgs -> Signal.Y -> [PitchSignal.Pitch]
+grace_call :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
     -> TrackLang.Duration -> TrackLang.ControlRef -> Derive.NoteDeriver
 grace_call args dyn_scale pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
@@ -166,7 +166,7 @@ grace_call args dyn_scale pitches grace_dur place = do
     Derive.with_val "legato-dyn" (1 :: Double) $
         Sub.reapply_call (Args.info args) "(" [] [events]
 
-basic_grace :: Derive.PassedArgs a -> [PitchSignal.Pitch]
+basic_grace :: Derive.PassedArgs a -> [PSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> TrackLang.Duration -> TrackLang.ControlRef -> Derive.Deriver [Sub.Event]
 basic_grace args pitches transform =
@@ -256,8 +256,8 @@ c_grace_attr supported =
             Call.add_attrs attrs $ Call.with_dynamic dyn $
             Call.pitched_note pitch
 
-grace_attrs :: RealTime -> Map.Map Int Score.Attributes -> [PitchSignal.Pitch]
-    -> PitchSignal.Pitch -> Derive.Deriver (Maybe Score.Attributes)
+grace_attrs :: RealTime -> Map.Map Int Score.Attributes -> [PSignal.Pitch]
+    -> PSignal.Pitch -> Derive.Deriver (Maybe Score.Attributes)
 grace_attrs pos supported [grace] base = do
     base <- Derive.resolve_pitch pos base
     grace <- Derive.resolve_pitch pos grace
@@ -293,18 +293,18 @@ c_grace_p = Derive.generator1 Module.europe "grace" Tags.ornament
         ps <- (++[pitch]) <$> resolve_pitches pitch pitches
         grace_p grace_dur ps (Args.range_or_next args)
 
-grace_p :: TrackLang.Duration -> [PitchSignal.Pitch]
-    -> (ScoreTime, ScoreTime) -> Derive.Deriver PitchSignal.Signal
+grace_p :: TrackLang.Duration -> [PSignal.Pitch]
+    -> (ScoreTime, ScoreTime) -> Derive.Deriver PSignal.Signal
 grace_p grace_dur pitches (start, end) = do
     real_dur <- Call.real_duration start grace_dur
     real_start <- Derive.real start
     real_end <- Derive.real end
     let starts = fit_after real_start real_end (length pitches) real_dur
-    return $ PitchSignal.signal $ zip starts pitches
+    return $ PSignal.signal $ zip starts pitches
 
 -- * util
 
-grace_pitches_arg :: Sig.Parser [Either PitchSignal.Pitch Score.TypedVal]
+grace_pitches_arg :: Sig.Parser [Either PSignal.Pitch Score.TypedVal]
 grace_pitches_arg = Sig.many "pitch" grace_pitches_doc
 
 grace_pitches_doc :: Text
@@ -312,14 +312,12 @@ grace_pitches_doc = "Grace note pitches. If they are numbers,\
     \ they are taken as transpositions and must all be the same type,\
     \ defaulting to diatonic."
 
-resolve_pitches :: PitchSignal.Pitch
-    -> [Either PitchSignal.Pitch Score.TypedVal]
-    -> Derive.Deriver [PitchSignal.Pitch]
+resolve_pitches :: PSignal.Pitch -> [Either PSignal.Pitch Score.TypedVal]
+    -> Derive.Deriver [PSignal.Pitch]
 resolve_pitches base = either Derive.throw return . check_pitches base
 
-check_pitches :: PitchSignal.Pitch
-    -> [Either PitchSignal.Pitch Score.TypedVal]
-    -> Either Text [PitchSignal.Pitch]
+check_pitches :: PSignal.Pitch -> [Either PSignal.Pitch Score.TypedVal]
+    -> Either Text [PSignal.Pitch]
 check_pitches base pitches = do
     make <- case types of
         t : ts

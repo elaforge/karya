@@ -54,7 +54,7 @@ import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -201,7 +201,7 @@ pitch_call track pcontrol scale_id transform deriver =
         Derive.with_scale scale $ do
             (signal, logs) <- derive_pitch True track transform
             -- Ignore errors, they should be logged on conversion.
-            (nn_sig, _) <- pitch_signal_to_nn signal
+            (nn_sig, _) <- psignal_to_nn signal
             stash_if_wanted track (Signal.coerce nn_sig)
             -- Apply and strip any control modifications made during the above
             -- derive.
@@ -256,12 +256,12 @@ derive_control is_tempo track transform = do
 
 derive_pitch :: Bool -> TrackTree.Track
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
-    -> Derive.Deriver (TrackResults PitchSignal.Signal)
+    -> Derive.Deriver (TrackResults PSignal.Signal)
 derive_pitch cache track transform = do
     let cache_track = if cache then Cache.track track mempty else id
     (signal, logs) <- derive_track (track_info track ParseTitle.PitchTrack)
         (cache_track . transform)
-    signal <- trim_signal PitchSignal.drop_after PitchSignal.drop_at_after
+    signal <- trim_signal PSignal.drop_after PSignal.drop_at_after
         track signal
     return (signal, logs)
 
@@ -401,13 +401,13 @@ get_block_track block_id track_id = do
 
 -- * util
 
--- | Reduce a 'PitchSignal.Signal' to raw note numbers, taking the current
+-- | Reduce a 'PSignal.Signal' to raw note numbers, taking the current
 -- transposition environment into account.
-pitch_signal_to_nn :: PitchSignal.Signal
-    -> Derive.Deriver (Signal.NoteNumber, [PitchSignal.PitchError])
-pitch_signal_to_nn sig = do
+psignal_to_nn :: PSignal.Signal
+    -> Derive.Deriver (Signal.NoteNumber, [PSignal.PitchError])
+psignal_to_nn sig = do
     controls <- Internal.get_dynamic Derive.state_controls
-    return $ PitchSignal.to_nn $ PitchSignal.apply_controls controls sig
+    return $ PSignal.to_nn $ PSignal.apply_controls controls sig
 
 with_control_env :: Score.Control -> Text -> Derive.Deriver a
     -> Derive.Deriver a

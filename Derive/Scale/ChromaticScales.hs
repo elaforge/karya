@@ -14,7 +14,7 @@ import qualified Util.Seq as Seq
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
@@ -39,7 +39,7 @@ data ScaleMap = ScaleMap {
     , smap_range :: !(Pitch.Semi, Pitch.Semi)
     }
 
-type SemisToNoteNumber = PitchSignal.PitchConfig -> Pitch.FSemi
+type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.FSemi
     -> Either Scale.ScaleError Pitch.NoteNumber
 
 twelve_doc :: Text
@@ -87,7 +87,7 @@ make_scale scale_id smap doc = Scale.Scale
         (input_to_note smap) (note_to_call scale smap)
     , Scale.scale_call_doc = call_doc Scales.standard_transposers smap doc
     }
-    where scale = PitchSignal.Scale scale_id Scales.standard_transposers
+    where scale = PSignal.Scale scale_id Scales.standard_transposers
 
 -- * functions
 
@@ -107,8 +107,7 @@ enharmonics smap env note = do
     return $ Either.rights $ map (show_pitch smap (Scales.environ_key env)) $
         Theory.enharmonics_of (Theory.key_layout key) pitch
 
-note_to_call :: PitchSignal.Scale -> ScaleMap -> Pitch.Note
-    -> Maybe Derive.ValCall
+note_to_call :: PSignal.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call scale smap note =
     case TheoryFormat.read_unadjusted_pitch (smap_fmt smap) note of
         Left _ -> Nothing
@@ -117,7 +116,7 @@ note_to_call scale smap note =
 
 -- | Create a PitchNote for 'ScaleDegree.scale_degree'.
 pitch_note :: ScaleMap -> Pitch.Pitch -> Scale.PitchNote
-pitch_note smap pitch (PitchSignal.PitchConfig env controls) =
+pitch_note smap pitch (PSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error diatonic chromatic $ do
         let maybe_key = Scales.environ_key env
         let d = round diatonic
@@ -134,7 +133,7 @@ pitch_note smap pitch (PitchSignal.PitchConfig env controls) =
 
 -- | Create a PitchNn for 'ScaleDegree.scale_degree'.
 pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
-pitch_nn smap pitch config@(PitchSignal.PitchConfig env controls) =
+pitch_nn smap pitch config@(PSignal.PitchConfig env controls) =
     Scales.scale_to_pitch_error diatonic chromatic $ do
         let maybe_key = Scales.environ_key env
         pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
@@ -178,8 +177,8 @@ call_doc transposers smap doc =
     Scales.annotate_call_doc transposers extra_doc fields $
         Derive.extract_val_doc call
     where
-    call = ScaleDegree.scale_degree PitchSignal.no_scale err err
-        where err _ = Left $ PitchSignal.PitchError "it was just an example!"
+    call = ScaleDegree.scale_degree PSignal.no_scale err err
+        where err _ = Left $ PSignal.PitchError "it was just an example!"
     extra_doc = doc <> "\n" <> twelve_doc
     -- Not efficient, but shouldn't matter for docs.
     default_key = fst <$> List.find ((== smap_default_key smap) . snd)
