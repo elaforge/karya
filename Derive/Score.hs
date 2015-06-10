@@ -9,7 +9,7 @@
     backend.
 -}
 module Derive.Score (
-    module Derive.BaseTypes
+    module Derive.ScoreTypes, module Derive.BaseTypes
     -- * Event
     , Event(..)
     , empty_event, event_end, event_min, event_max, event_scale_id
@@ -61,16 +61,18 @@ import qualified Ui.Color as Color
 import qualified Ui.Id as Id
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
-       (Instrument(..), Control, control_name, PControl, pcontrol_name,
-        Warp(..), id_warp, id_warp_signal, Type(..), Typed(..), ControlValMap,
-        TypedControlValMap, ControlMap, ControlFunction(..), ControlFunctionMap,
-        PitchMap, untyped, merge_typed, type_to_code, code_to_type,
-        TypedControl, TypedVal, Attributes, Attribute, attr, attrs,
-        set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
-        attrs_list, no_attrs)
+       (ControlMap, ControlFunction(..), ControlFunctionMap, PitchMap)
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.ScoreTypes as ScoreTypes
+import Derive.ScoreTypes
+       (Instrument(..), Control, control_name, PControl, pcontrol_name,
+        Warp(..), id_warp, id_warp_signal, Type(..), Typed(..), ControlValMap,
+        TypedControlValMap, untyped, merge_typed, type_to_code, code_to_type,
+        TypedControl, TypedVal, Attributes, Attribute, attr, attrs,
+        set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
+        attrs_list, no_attrs)
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
@@ -491,21 +493,21 @@ split_inst (Instrument inst) = (synth, Text.drop 1 inst_name)
 control :: Text -> Either Text Control
 control name
     | Text.null name = Left "empty control name"
-    | Id.valid name = Right $ BaseTypes.Control name
+    | Id.valid name = Right $ ScoreTypes.Control name
     | otherwise = Left $ "invalid characters in control: " <> showt name
 
 unchecked_control :: Text -> Control
-unchecked_control = BaseTypes.Control
+unchecked_control = ScoreTypes.Control
 
 -- | Use this constructor when making a PControl from user input.  Literals
 -- can use the IsString instance.
 pcontrol :: Text -> Either Text PControl
 pcontrol name
-    | Id.valid name = Right $ BaseTypes.PControl name
+    | Id.valid name = Right $ ScoreTypes.PControl name
     | otherwise = Left $ "invalid characters in pitch control: " <> showt name
 
 unchecked_pcontrol :: Text -> PControl
-unchecked_pcontrol = BaseTypes.PControl
+unchecked_pcontrol = ScoreTypes.PControl
 
 -- | Converted into velocity or breath depending on the instrument.
 c_dynamic :: Control

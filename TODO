@@ -756,6 +756,14 @@ local: plugins:
     map.
 
 cleanup:
+  * Split up Derive.BaseTypes.
+    . I can split most of Derive.Score's types, except
+      ControlFunction -> Environ -> Val <- ControlFunction
+      . So ControlFunction and Val must go together.
+
+    . Similarly, I can split out Derive.PitchSignal, except
+      PitchConfig -> Environ -> Val <- Pitch <- PitchConfig
+      . So Pitch and Val must go together.
   - Move Derive.info_prev_val to the environ, maintained by EvalTrack.
     . This gets rid of all the Taggable stuff, at the cost of making
       Args.prev_val in Deriver and dynamically typed.

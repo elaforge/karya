@@ -42,8 +42,8 @@ import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
 
@@ -225,7 +225,8 @@ p_num = do
     typ <- A.choice $ map suffix codes
     return $ Score.Typed typ num
     where
-    codes = zip BaseTypes.all_types $ map Score.type_to_code BaseTypes.all_types
+    codes = zip ScoreTypes.all_types $
+        map Score.type_to_code ScoreTypes.all_types
 
 p_untyped_num :: A.Parser Signal.Y
 p_untyped_num = p_ratio <|> ParseText.p_float

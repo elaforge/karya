@@ -34,11 +34,11 @@ import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 import Util.TimeVector (Sample(..))
 
-import qualified Derive.BaseTypes as Score
+import qualified Derive.ScoreTypes as Score
 import qualified Derive.BaseTypes as TrackLang
 import Derive.BaseTypes
        (Signal(..), Transposed, Pitch, pitch, coerce, pitch_nn, pitch_note,
-        RawPitch(..), Scale(..), PitchConfig(..), ControlValMap, PitchError(..))
+        RawPitch(..), Scale(..), PitchConfig(..), PitchError(..))
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -121,7 +121,7 @@ apply_controls controls sig
 
 -- | Sample the ControlMap on the sample points of the given set of controls.
 sample_controls :: ControlMap -> Set.Set Score.Control
-    -> TimeVector.Boxed ControlValMap
+    -> TimeVector.Boxed Score.ControlValMap
 sample_controls controls transposers =
     TimeVector.signal $ zip xs (map (flip controls_at controls) xs)
     where
@@ -144,7 +144,7 @@ apply_environ :: TrackLang.Environ -> Signal -> Signal
 apply_environ env = modify $ TimeVector.map_y $ config (PitchConfig env mempty)
 
 -- | Not exported, use the one in Derive.Score instead.
-controls_at :: RealTime -> ControlMap -> ControlValMap
+controls_at :: RealTime -> ControlMap -> Score.ControlValMap
 controls_at t = Map.map (Signal.at t . Score.typed_val)
 
 -- * signal functions
@@ -215,7 +215,7 @@ pitch_scale_id = pscale_scale_id . pitch_scale
 pitch_transposers :: Pitch -> Set.Set Score.Control
 pitch_transposers = pscale_transposers . pitch_scale
 
-pitch_controls :: PitchConfig -> ControlValMap
+pitch_controls :: PitchConfig -> Score.ControlValMap
 pitch_controls (PitchConfig _ controls) = controls
 
 -- | Apply a config to a pitch.
@@ -223,7 +223,7 @@ config :: PitchConfig -> RawPitch a -> RawPitch a
 config c pitch = pitch { pitch_config = c <> pitch_config pitch }
 
 -- | Apply just the controls part of a config to a pitch.
-apply :: ControlValMap -> Pitch -> Transposed
+apply :: Score.ControlValMap -> Pitch -> Transposed
 apply controls pitch = pitch { pitch_config = config <> pitch_config pitch }
     where config = PitchConfig mempty controls
 

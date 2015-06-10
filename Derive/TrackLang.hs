@@ -27,7 +27,6 @@ import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
-import qualified Derive.BaseTypes as Score
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, delete_val, lookup_val, val_set,
@@ -37,6 +36,7 @@ import Derive.BaseTypes
         Call(..), PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PitchSignal as PitchSignal
+import qualified Derive.ScoreTypes as Score
 import Derive.ShowVal (ShowVal(..))
 
 import qualified Perform.Pitch as Pitch

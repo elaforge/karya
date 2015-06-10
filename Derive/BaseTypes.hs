@@ -41,220 +41,20 @@ import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.Ruler as Ruler
-import qualified Ui.ScoreTime as ScoreTime
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
-
 import Global
 import Types
 
 
--- * Derive.Score
-
--- | An Instrument is identified by a plain string.  This will be looked up in
--- the instrument db to get the backend specific Instrument type as well as
--- the backend itself, but things at the Derive layer and above don't care
--- about all that.
-newtype Instrument = Instrument Text
-    deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Serialize.Serialize)
-
-instance Pretty.Pretty Instrument where pretty = ShowVal.show_val
-instance ShowVal.ShowVal Instrument where
-    show_val (Instrument inst) = Text.cons '>' inst
-
--- | A control is an abstract parameter that influences derivation.  Some of
--- them affect performance and will be rendered as MIDI controls or note
--- parameters or whatever, while others may affect derivation (e.g. tempo) and
--- won't be seen by the backend at all.
+-- This file is pretty much unreducable, as far as dependencies go:
+-- For TrackLang: ControlFunction -> Environ -> Val <- ControlFunction
+-- For PitchSignal: PitchConfig -> Environ -> Val <- Pitch <- PitchConfig
 --
--- A Control should be a valid identifier as defined by 'Ui.Id.valid'.
-newtype Control = Control Text
-    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
-        String.IsString)
-
-control_name :: Control -> Text
-control_name (Control name) = name
-
-instance Pretty.Pretty Control where pretty = Text.cons '%' . ShowVal.show_val
-instance ShowVal.ShowVal Control where show_val (Control c) = c
-
--- | The pitch control version of 'Control'.  Unlike Control, this is allowed
--- to be null, which is the name of the default pitch signal.
---
--- A PControl should be a valid identifier as defined by 'Ui.Id.valid', except
--- that its literal tracklang form starts with a @#@, to differentiate from
--- a Control.
---
--- It should probably be called PitchControl, but that's already taken by the
--- pitch version of 'ValControl', which also probably needs a clearer name.
-newtype PControl = PControl Text
-    deriving (Eq, Ord, Read, Show, DeepSeq.NFData, Serialize.Serialize,
-        String.IsString)
-
-pcontrol_name :: PControl -> Text
-pcontrol_name (PControl name) = name
-
-instance Pretty.Pretty PControl where pretty = ShowVal.show_val
-instance ShowVal.ShowVal PControl where
-    show_val (PControl c) = Text.cons '#' c
-
--- ** Warp
-
--- | A tempo warp signal.  The shift and stretch are an optimization hack
--- stolen from nyquist.  The idea is to make composed shifts and stretches more
--- efficient if only the shift and stretch are changed.  The necessary magic
--- is in 'compose_warps'.
---
--- The order of operation is: stretch -> shift -> signal.  That is, if the
--- signal is \"f\": f(t*stretch + shift).
-data Warp = Warp {
-    warp_signal :: !Signal.Warp
-    , warp_shift :: !RealTime
-    , warp_stretch :: !RealTime
-    } deriving (Eq, Show)
-
-id_warp :: Warp
-id_warp = Warp id_warp_signal 0 1
-
-id_warp_signal :: Signal.Warp
-id_warp_signal = Signal.signal
-    [(0, 0), (RealTime.large, RealTime.to_seconds RealTime.large)]
-    -- This could be Signal.empty and 'warp_pos' would still treat it as 1:1,
-    -- but then I'd need complicated special cases for 'warp_to_signal' and
-    -- 'compose_warps', so don't bother.
-
-instance Pretty.Pretty Warp where
-    format (Warp sig shift stretch) =
-        Pretty.record (Pretty.text "Warp"
-                Pretty.<+> Pretty.format (shift, stretch))
-            [("signal", Pretty.format sig)]
-
-instance DeepSeq.NFData Warp where
-    rnf (Warp sig shift stretch) =
-        DeepSeq.rnf sig `seq` DeepSeq.rnf shift `seq` DeepSeq.rnf stretch
-
--- ** Type
-
--- | Tag for the type of the values in a control signal.
-data Type = Untyped | Chromatic | Diatonic | Nn | Score | Real
-    deriving (Eq, Enum, Ord, Read, Show)
-
-instance Pretty.Pretty Type where pretty = showt
-
-instance Serialize.Serialize Type where
-    put = Serialize.put . fromEnum
-    get = toEnum <$> Serialize.get
-
-all_types :: [Type]
-all_types = [Chromatic, Diatonic, Nn, Score, Real, Untyped]
-    -- Untyped goes last because the parser tries them in order.
-
-type_to_code :: Type -> Text
-type_to_code typ = case typ of
-    Untyped -> ""
-    Chromatic -> "c"
-    Diatonic -> "d"
-    Nn -> "nn"
-    Score -> Text.singleton ScoreTime.suffix -- t for time
-    Real -> Text.singleton RealTime.suffix -- s for seconds
-
-code_to_type :: String -> Maybe Type
-code_to_type s = case s of
-    "c" -> Just Chromatic
-    "d" -> Just Diatonic
-    "nn" -> Just Nn
-    "t" -> Just Score
-    "s" -> Just Real
-    "" -> Just Untyped
-    _ -> Nothing
-
-instance Monoid.Monoid Type where
-    mempty = Untyped
-    mappend Untyped typed = typed
-    mappend typed _ = typed
-
-data Typed a = Typed {
-    type_of :: !Type
-    , typed_val :: !a
-    } deriving (Eq, Ord, Read, Show)
-
-instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where
-    rnf (Typed typ val) = typ `seq` DeepSeq.rnf val
-
-instance Functor Typed where
-    fmap f (Typed typ val) = Typed typ (f val)
-
-instance Monoid.Monoid a => Monoid.Monoid (Typed a) where
-    mempty = Typed mempty mempty
-    mappend (Typed t1 v1) (Typed t2 v2) = Typed (t1<>t2) (v1<>v2)
-
-instance Pretty.Pretty a => Pretty.Pretty (Typed a) where
-    format (Typed typ val) =
-        Pretty.text (if Text.null c then "" else c <> ":") <> Pretty.format val
-        where c = type_to_code typ
-
-instance Serialize.Serialize a => Serialize.Serialize (Typed a) where
-    put (Typed a b) = Serialize.put a >> Serialize.put b
-    get = Typed <$> Serialize.get <*> Serialize.get
-
-merge_typed :: (a -> a -> a) -> Typed a -> Typed a -> Typed a
-merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
-
-untyped :: a -> Typed a
-untyped = Typed Untyped
-
-type TypedControl = Typed Signal.Control
-type TypedVal = Typed Signal.Y
-
-instance ShowVal.ShowVal TypedVal where
-    show_val (Typed typ val) = ShowVal.show_val val <> type_to_code typ
-
--- ** Attributes
-
--- | Instruments can have a set of attributes along with them.  These are
--- propagated dynamically down the derivation stack.  They function like
--- arguments to an instrument, and will typically select an articulation, or
--- a drum from a drumset, or something like that.
-type Attribute = Text
-newtype Attributes = Attributes (Set.Set Attribute)
-    deriving (Monoid.Monoid, Eq, Ord, Read, Show, Serialize.Serialize,
-        DeepSeq.NFData)
-
-instance Pretty.Pretty Attributes where pretty = ShowVal.show_val
-instance ShowVal.ShowVal Attributes where
-    show_val = ("+"<>) . Text.intercalate "+" . attrs_list
-
-attr :: Text -> Attributes
-attr = Attributes . Set.singleton
-
-attrs :: [Text] -> Attributes
-attrs = Attributes . Set.fromList
-
-set_to_attrs :: Set.Set Attribute -> Attributes
-set_to_attrs = Attributes
-
-attrs_diff :: Attributes -> Attributes -> Attributes
-attrs_diff (Attributes x) (Attributes y) = Attributes (Set.difference x y)
-
--- | True if the first argument contains the attributes in the second.
-attrs_contain :: Attributes -> Attributes -> Bool
-attrs_contain (Attributes super) (Attributes sub) = sub `Set.isSubsetOf` super
-
-attrs_set :: Attributes -> Set.Set Attribute
-attrs_set (Attributes attrs) = attrs
-
-attrs_remove :: Attributes -> Attributes -> Attributes
-attrs_remove (Attributes remove) (Attributes attrs) =
-    Attributes $ attrs `Set.difference` remove
-
-attrs_list :: Attributes -> [Attribute]
-attrs_list = Set.toList . attrs_set
-
-no_attrs :: Attributes
-no_attrs = Attributes Set.empty
-
+-- So 'ControlFunction', 'Pitch', and 'Val' must all be together.  'Signal'
+-- also gets dragged in, and winds up being everything in this file.
 
 -- * Derive.PitchSignal
 
@@ -340,14 +140,8 @@ pitch_note p = pitch_eval_note p (pitch_config p)
     is created.  Otherwise, you can't evaluate a pitch with a different key by
     setting the environ.
 -}
-data PitchConfig = PitchConfig !Environ !ControlValMap
+data PitchConfig = PitchConfig !Environ !ScoreTypes.ControlValMap
     deriving (Show)
-
--- | This is a snapshot of the control signals at a certain point in time.
--- It's meant for 'PitchConfig', so the values are expected to be
--- transpositions, and hence untyped.
-type ControlValMap = Map.Map Control Signal.Y
-type TypedControlValMap = Map.Map Control (Typed Signal.Y)
 
 instance Monoid.Monoid PitchConfig where
     mempty = PitchConfig mempty mempty
@@ -370,7 +164,7 @@ data Scale = Scale {
     -- event_pitch, but the scale at event creation time is not guaranteed to
     -- be the same as the one when the pitch was created, so the safest thing
     -- to do is keep it with the pitch itself.
-    , pscale_transposers :: !(Set.Set Control)
+    , pscale_transposers :: !(Set.Set ScoreTypes.Control)
     } deriving (Show)
 
 instance Pretty.Pretty Scale where
@@ -408,6 +202,7 @@ instance Pretty.Pretty PitchConfig where
 pitches_equal :: RawPitch a -> RawPitch a -> Bool
 pitches_equal p1 p2 = either (const False) id $
     Pitch.nns_equal <$> pitch_nn (coerce p1) <*> pitch_nn (coerce p2)
+
 
 -- * Derive.TrackLang
 
@@ -450,11 +245,11 @@ data Val =
     -- ratio.
     --
     -- Literal: @42.23@, @-.4@, @1c@, @-2.4d@, @3/2@, @-3/2@, @0x7f@.
-    VNum !TypedVal
+    VNum !ScoreTypes.TypedVal
     -- | A set of Attributes for an instrument.
     --
     -- Literal: @+attr@, @+attr1+attr2@.
-    | VAttributes !Attributes
+    | VAttributes !ScoreTypes.Attributes
 
     -- | A control name.  An optional value gives a default if the control
     -- isn't present.
@@ -481,7 +276,7 @@ data Val =
     -- set the instrument, but can be used to mark a track as a note track.
     --
     -- Literal: @>@, @>inst@
-    | VInstrument !Instrument
+    | VInstrument !ScoreTypes.Instrument
 
     -- | A string, which is interpreted as a call if it's at the front of an
     -- expression.  Parsing a symbol is somewhat complicated.  If it occurs
@@ -580,85 +375,6 @@ instance DeepSeq.NFData Val where
 
 newtype Quoted = Quoted Expr deriving (Show)
 
--- | Unlike Exprs in general, a Quoted Expr should be representable with
--- show_val.  This is because a Quoted has only been parsed, not evaluated,
--- so it shouldn't have anything unshowable, like pitches.
-instance ShowVal.ShowVal Quoted where
-    show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
-instance Pretty.Pretty Quoted where pretty = ShowVal.show_val
-
-{- | Another representation of a signal, complementary to 'Signal.Control'.
-    It's more powerful because it has access to a subset of the Dynamic state,
-    as well as the 'Control' is was originally bound to.  However, it's also
-    less powerful because you can't inspect it to see if it's constant, or emit
-    exactly the samples present without resorting to sampling, or draw it on
-    the UI.  This is the ubiquitous code vs. data tradeoff.
-
-    In addition, the main motivation to add control functions was to randomize
-    values, which means that, unlike signals, they're not actually functions at
-    all, and thus couldn't be rendered as a continuous signal.  This means that
-    functions are only suitable for sampling at points, not for slicing over
-    time ranges.
-
-    Having both signals and functions is awkward because then some calls may
-    ignore a control function if they require a signal, which is inconsistent
-    and confusing.  This is the case for all control generators since the
-    signal usually is on a control track and will wind up being rendered on the
-    UI.  So the convention is that control functions are generally just
-    modifications of an underlying signal, rather than synthesizing a signal.
-
-    Another awkward thing about ControlFunction is that it really wants to
-    be in Deriver, but can't, due to circular imports.  The alternative is
-    a giant hs-boot file, or lumping thousands of lines into
-    "Derive.Deriver.Monad".  Currently it's a plain function but if I want
-    logging and exceptions I could use "Derive.Deriver.DeriveM".  It still
-    wouldn't solve the main problem, which is that I can't reuse the Deriver
-    functions, and instead have to rewrite them.
-
-    See NOTE [control-function].
--}
-data ControlFunction =
-    -- | Control is the control name this function was bound to, if it was
-    -- bound to one.  Dynamic is a stripped down Derive State.  For
-    -- ControlFunctions that represent a control signal, the RealTime is the
-    -- desired X value, otherwise it's just some number.
-    ControlFunction !Text !(Control -> Dynamic -> RealTime -> TypedVal)
-
--- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
--- to use.  The duplication is unfortunate, see 'ControlFunction'.
-data Dynamic = Dynamic {
-    dyn_controls :: !ControlMap
-    , dyn_control_functions :: !ControlFunctionMap
-    , dyn_pitches :: !PitchMap
-    , dyn_pitch :: !Signal
-    , dyn_environ :: !Environ
-    , dyn_warp :: !Warp
-    , dyn_ruler :: Ruler.Marklists -- intentionally lazy
-    } deriving (Show)
-
-empty_dynamic :: Dynamic
-empty_dynamic = Dynamic
-    { dyn_controls = mempty
-    , dyn_control_functions = mempty
-    , dyn_pitches = mempty
-    , dyn_pitch = mempty
-    , dyn_environ = mempty
-    , dyn_warp = id_warp
-    , dyn_ruler = mempty
-    }
-
-type ControlMap = Map.Map Control TypedControl
-type ControlFunctionMap = Map.Map Control ControlFunction
-type PitchMap = Map.Map PControl Signal
-
-instance Show ControlFunction where show = untxt . ShowVal.show_val
-instance Pretty.Pretty ControlFunction where pretty = showt
--- | Not parseable.
-instance ShowVal.ShowVal ControlFunction where
-    show_val (ControlFunction name _) = "((ControlFunction " <> name <> "))"
-instance DeepSeq.NFData ControlFunction where
-    rnf (ControlFunction a b) = a `seq` b `seq` ()
-
 newtype Symbol = Symbol Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
         Serialize.Serialize)
@@ -692,6 +408,8 @@ show_call_val val = ShowVal.show_val val
 instance ShowVal.ShowVal Text where
     show_val = ShowVal.show_val . Symbol
 
+-- ** ControlRef
+
 data ControlRef control val =
     -- | A signal literal.
     ControlSignal val
@@ -701,8 +419,8 @@ data ControlRef control val =
     | LiteralControl control
     deriving (Eq, Read, Show)
 
-type ValControl = ControlRef Control TypedControl
-type PitchControl = ControlRef PControl Signal
+type ValControl = ControlRef ScoreTypes.Control ScoreTypes.TypedControl
+type PitchControl = ControlRef ScoreTypes.PControl Signal
 
 instance (Serialize.Serialize val, Serialize.Serialize control) =>
         Serialize.Serialize (ControlRef control val) where
@@ -721,9 +439,9 @@ instance (Serialize.Serialize val, Serialize.Serialize control) =>
 -- arbitrary signal.  Non-constant signals will turn into a constant of
 -- whatever was at 0.
 instance ShowVal.ShowVal ValControl where
-    show_val = show_control '%' name_of $ \(Typed typ sig) ->
-        ShowVal.show_val (Signal.at 0 sig) <> type_to_code typ
-        where name_of (Control name) = name
+    show_val = show_control '%' name_of $ \(ScoreTypes.Typed typ sig) ->
+        ShowVal.show_val (Signal.at 0 sig) <> ScoreTypes.type_to_code typ
+        where name_of (ScoreTypes.Control name) = name
 
 instance Pretty.Pretty ValControl where pretty = ShowVal.show_val
 
@@ -737,7 +455,7 @@ instance Pretty.Pretty ValControl where pretty = ShowVal.show_val
 instance ShowVal.ShowVal PitchControl where
     show_val = show_control '#' name_of
         (maybe "<none>" ShowVal.show_val . TimeVector.at 0 . sig_vec)
-        where name_of (PControl name) = name
+        where name_of (ScoreTypes.PControl name) = name
 
 instance Pretty.Pretty PitchControl where pretty = ShowVal.show_val
 
@@ -791,6 +509,93 @@ instance DeepSeq.NFData Call where
 instance DeepSeq.NFData Term where
     rnf (ValCall call) = DeepSeq.rnf call
     rnf (Literal val) = DeepSeq.rnf val
+
+
+-- * Derive.Score
+
+-- ** ControlMap
+
+type ControlMap = Map.Map ScoreTypes.Control ScoreTypes.TypedControl
+type ControlFunctionMap = Map.Map ScoreTypes.Control ControlFunction
+type PitchMap = Map.Map ScoreTypes.PControl Signal
+
+-- ** ControlFunction
+
+{- | Another representation of a signal, complementary to 'Signal.Control'.
+    It's more powerful because it has access to a subset of the Dynamic state,
+    as well as the 'Control' is was originally bound to.  However, it's also
+    less powerful because you can't inspect it to see if it's constant, or emit
+    exactly the samples present without resorting to sampling, or draw it on
+    the UI.  This is the ubiquitous code vs. data tradeoff.
+
+    In addition, the main motivation to add control functions was to randomize
+    values, which means that, unlike signals, they're not actually functions at
+    all, and thus couldn't be rendered as a continuous signal.  This means that
+    functions are only suitable for sampling at points, not for slicing over
+    time ranges.
+
+    Having both signals and functions is awkward because then some calls may
+    ignore a control function if they require a signal, which is inconsistent
+    and confusing.  This is the case for all control generators since the
+    signal usually is on a control track and will wind up being rendered on the
+    UI.  So the convention is that control functions are generally just
+    modifications of an underlying signal, rather than synthesizing a signal.
+
+    Another awkward thing about ControlFunction is that it really wants to
+    be in Deriver, but can't, due to circular imports.  The alternative is
+    a giant hs-boot file, or lumping thousands of lines into
+    "Derive.Deriver.Monad".  Currently it's a plain function but if I want
+    logging and exceptions I could use "Derive.Deriver.DeriveM".  It still
+    wouldn't solve the main problem, which is that I can't reuse the Deriver
+    functions, and instead have to rewrite them.
+
+    See NOTE [control-function].
+-}
+data ControlFunction =
+    -- | Control is the control name this function was bound to, if it was
+    -- bound to one.  Dynamic is a stripped down Derive State.  For
+    -- ControlFunctions that represent a control signal, the RealTime is the
+    -- desired X value, otherwise it's just some number.
+    ControlFunction !Text
+        !(ScoreTypes.Control -> Dynamic -> RealTime -> ScoreTypes.TypedVal)
+
+instance Show ControlFunction where show = untxt . ShowVal.show_val
+instance Pretty.Pretty ControlFunction where pretty = showt
+-- | Not parseable.
+instance ShowVal.ShowVal ControlFunction where
+    show_val (ControlFunction name _) = "((ControlFunction " <> name <> "))"
+instance DeepSeq.NFData ControlFunction where
+    rnf (ControlFunction a b) = a `seq` b `seq` ()
+
+-- | Unlike Exprs in general, a Quoted Expr should be representable with
+-- show_val.  This is because a Quoted has only been parsed, not evaluated,
+-- so it shouldn't have anything unshowable, like pitches.
+instance ShowVal.ShowVal Quoted where
+    show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
+instance Pretty.Pretty Quoted where pretty = ShowVal.show_val
+
+-- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
+-- to use.  The duplication is unfortunate, see 'ControlFunction'.
+data Dynamic = Dynamic {
+    dyn_controls :: !ControlMap
+    , dyn_control_functions :: !ControlFunctionMap
+    , dyn_pitches :: !PitchMap
+    , dyn_pitch :: !Signal
+    , dyn_environ :: !Environ
+    , dyn_warp :: !ScoreTypes.Warp
+    , dyn_ruler :: Ruler.Marklists -- intentionally lazy
+    } deriving (Show)
+
+empty_dynamic :: Dynamic
+empty_dynamic = Dynamic
+    { dyn_controls = mempty
+    , dyn_control_functions = mempty
+    , dyn_pitches = mempty
+    , dyn_pitch = mempty
+    , dyn_environ = mempty
+    , dyn_warp = ScoreTypes.id_warp
+    , dyn_ruler = mempty
+    }
 
 {- NOTE [control-function]
 
