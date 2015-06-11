@@ -57,7 +57,7 @@ convert source_block levents = do
     let (events, logs) = LEvent.partition levents
         (tracks, errs) = integrate (lookup_call, default_scale_id)
             tracknums events
-    mapM_ Log.write (Log.add_prefix "integrate" logs)
+    mapM_ Log.write $ Log.add_prefix "integrate" logs
     -- If something failed to derive I shouldn't integrate that into the block.
     when (any ((>=Log.Warn) . Log.msg_priority) logs) $
         Cmd.throw "aborting integrate due to warnings"

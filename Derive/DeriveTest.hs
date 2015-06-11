@@ -107,13 +107,10 @@ extract_run f (Right (val, _, msgs)) = Right $ trace_logs msgs (f val)
 run_events :: (a -> b)
     -> Either String ([LEvent.LEvent a], Derive.State, [Log.Msg])
     -> Either String ([b], [String])
-run_events f = extract_run $
-    first (map f) . second (map show_log . filter interesting_log)
-        . LEvent.partition
+run_events f = extract_run $ extract_levents f
 
 eval :: State.State -> Derive.Deriver a -> Either String a
 eval ui_state m = extract_run id (run ui_state m)
-
 
 -- * perform
 
@@ -130,10 +127,10 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
 perform :: Convert.Lookup -> Instrument.Configs -> Derive.Events
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform lookup midi_config events =
-    (fst (LEvent.partition perf_events), mmsgs, filter interesting_log logs)
+    (fst (LEvent.partition perf_events), mmsgs, logs)
     where
     (perf_events, perf) = perform_stream lookup midi_config events
-    (mmsgs, logs) = LEvent.partition perf
+    (mmsgs, logs) = extract_logs perf
 
 perform_defaults :: Derive.Events
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
@@ -499,20 +496,19 @@ extract_events :: (Score.Event -> a) -> Derive.Result -> [a]
 extract_events e_event result = Log.trace_logs logs (map e_event events)
     where (events, logs) = r_split result
 
-extract_levents :: (Score.Event -> a) -> Derive.Events -> ([a], [String])
-extract_levents e_event levents =
-    (map e_event events, map show_log (filter interesting_log logs))
-    where (events, logs) = LEvent.partition levents
+extract_levents :: (a -> b) -> [LEvent.LEvent a] -> ([b], [String])
+extract_levents e_event = (map e_event *** map show_log) . extract_logs
+
+extract_logs :: [LEvent.LEvent a] -> ([a], [Log.Msg])
+extract_logs = second (filter interesting_log) . LEvent.partition
 
 extract_stream :: (Score.Event -> a) -> Derive.Result -> [Either a String]
-extract_stream e_event =
-    map ((e_event *** show_log) . to_either)
-        . filter interesting . Derive.r_events
+extract_stream e_event = mapMaybe extract . Derive.r_events
     where
-    interesting (LEvent.Log log) = interesting_log log
-    interesting _ = True
-    to_either (LEvent.Event e) = Left e
-    to_either (LEvent.Log m) = Right m
+    extract (LEvent.Log log)
+        | interesting_log log = Just $ Right $ show_log log
+        | otherwise = Nothing
+    extract (LEvent.Event e) = Just $ Left $ e_event e
 
 r_split :: Derive.Result -> ([Score.Event], [Log.Msg])
 r_split = second (filter interesting_log) . LEvent.partition . Derive.r_events

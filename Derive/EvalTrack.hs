@@ -283,9 +283,9 @@ run_derive :: Derive.State -> Derive.LogsDeriver d
     -> ([LEvent.LEvent d], Derive.State)
 run_derive state deriver = (levents, out_state)
     where
-    levents = map LEvent.Log logs ++ case result of
+    levents = map LEvent.log logs ++ case result of
         Right stream -> stream
-        Left err -> [LEvent.Log (Derive.error_to_warn err)]
+        Left err -> [LEvent.log $ Derive.error_to_warn err]
     (result, out_state, logs) = Derive.run state deriver
 
 derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)

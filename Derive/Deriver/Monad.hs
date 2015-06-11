@@ -170,7 +170,7 @@ import Types
 
 
 type Deriver = DeriveM.Deriver State Error
-type RunResult a = (Either Error a, State, [Log.Msg])
+type RunResult a = DeriveM.RunResult State Error a
 
 instance Log.LogMonad Deriver where
     write = DeriveM.write
@@ -1582,8 +1582,8 @@ merge_logs result logs = case result of
     Right events -> events ++ map LEvent.Log logs
 
 error_to_warn :: Error -> Log.Msg
-error_to_warn (Error srcpos stack val) = Log.msg_srcpos srcpos Log.Warn
-    (Just stack) ("Error: " <> pretty val)
+error_to_warn (Error srcpos stack val) =
+    Log.msg_srcpos srcpos Log.Warn (Just stack) ("Error: " <> pretty val)
 
 merge_events :: Events -> Events -> Events
 merge_events = Seq.merge_on levent_key

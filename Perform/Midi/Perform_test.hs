@@ -539,8 +539,8 @@ note_key _ = Nothing
 
 perform :: Perform.InstAddrs -> [Perform.Event]
     -> ([Midi.WriteMessage], [String])
-perform inst_addrs = first consistent_order . split_logs . fst
-    . Perform.perform Perform.initial_state inst_addrs . map LEvent.Event
+perform inst_addrs = first consistent_order . DeriveTest.extract_levents id
+    . fst . Perform.perform Perform.initial_state inst_addrs . map LEvent.Event
 
 sort_groups :: (Eq k, Ord a) => (a -> k) -> [a] -> [a]
 sort_groups key = concatMap List.sort . List.groupBy (\a b -> key a == key b)
@@ -554,11 +554,8 @@ consistent_order = sort_groups Midi.wmsg_ts
 
 perform_notes :: [(Perform.Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [String])
-perform_notes = split_logs . fst
+perform_notes = DeriveTest.extract_levents id . fst
     . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
-
-split_logs :: [LEvent.LEvent d] -> ([d], [String])
-split_logs = second (map DeriveTest.show_log) . LEvent.partition
 
 expect_no_logs :: (a, [String]) -> a
 expect_no_logs (val, []) = val
@@ -778,11 +775,11 @@ test_allot_steal = do
     equal chans [0, 1, 0, 1]
 
 test_allot_warn = do
-    let extract (LEvent.Event (e, (dev, chan))) = Left
+    let extract (LEvent.Event (e, (dev, chan))) = Just $ Left
             (Instrument.inst_name (Perform.event_instrument e),
                 pretty dev, chan)
-        extract (LEvent.Log msg) = Right $ DeriveTest.show_log msg
-    let f = map extract . allot inst_addrs1
+        extract (LEvent.Log msg) = Just $ Right $ DeriveTest.show_log msg
+    let f = mapMaybe extract . allot inst_addrs1
             . map (\(evt, chan) -> (mkevent evt, chan))
     let no_inst = mkinst "no_inst"
     equal (f [((inst1, "a", 0, 1, []), 0)])

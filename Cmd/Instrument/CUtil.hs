@@ -9,7 +9,6 @@
 module Cmd.Instrument.CUtil where
 import qualified Data.Map as Map
 
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.UiMsg as UiMsg
@@ -29,6 +28,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -128,12 +128,10 @@ call_keyup expr = do
 expr_to_midi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> TrackLang.Expr
     -> m [Midi.WriteMessage]
 expr_to_midi block_id track_id pos expr = do
-    (result, logs) <- Perf.derive_expr block_id track_id pos expr
-    mapM_ Log.write $ Log.add_prefix "CUtil.expr_to_midi" logs
+    result <- LEvent.write_snd_prefix "CUtil.expr_to_midi"
+        =<< Perf.derive_expr block_id track_id pos expr
     events <- Cmd.require_right ("CUtil.expr_to_midi: "<>) result
-    (msgs, logs) <- Perf.perform events
-    mapM_ Log.write logs
-    return msgs
+    LEvent.write_snd =<< Perf.perform events
 
 -- * keyswitch
 

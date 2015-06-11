@@ -1,5 +1,4 @@
 module Derive.Call.Post.Map where
-import qualified Util.Log as Log
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
@@ -42,18 +41,16 @@ map_control :: Derive.CallInfo Derive.Control -> Score.Control
 map_control cinfo control transformer event = do
     let Score.Typed typ sig = fromMaybe mempty $
             Score.event_control control event
-    (sig, logs) <- Post.derive_signal $
+    sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
         Eval.eval_quoted_transformers cinfo transformer $
             return [LEvent.Event sig]
-    mapM_ Log.write logs
     return [Score.set_control control (Score.Typed typ sig) event]
 
 map_pcontrol :: Derive.CallInfo Derive.Pitch -> Score.PControl
     -> TrackLang.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
 map_pcontrol cinfo control transformer event = do
     let sig = fromMaybe mempty $ Score.event_pitch control event
-    (sig, logs) <- Post.derive_signal $
+    sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
         Eval.eval_quoted_transformers cinfo transformer $
             return [LEvent.Event sig]
-    mapM_ Log.write logs
     return [Score.set_named_pitch control sig event]

@@ -19,7 +19,6 @@ import qualified System.Process as Process
 
 import qualified Util.File as File
 import qualified Util.Lens as Lens
-import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
@@ -177,12 +176,11 @@ save_lilypond = do
 
 lilypond_performance :: Cmd.M m => BlockId -> m Text
 lilypond_performance block_id = do
-    (events, logs) <- LEvent.partition . Derive.r_events <$>
-        Cmd.Lilypond.derive_block block_id
-    mapM_ Log.write logs
+    events <- LEvent.write_logs . Derive.r_events
+        =<< Cmd.Lilypond.derive_block block_id
     config <- State.config#State.lilypond <#> State.get
-    let (result, logs) = Cmd.Lilypond.extract_movements config "title" events
-    mapM_ Log.write logs
+    result <- LEvent.write_snd $
+        Cmd.Lilypond.extract_movements config "title" events
     Text.Lazy.toStrict <$> Cmd.require_right id result
 
 

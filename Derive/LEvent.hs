@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.LEvent where
-import Prelude hiding (length, either, zip, zip3)
+import Prelude hiding (length, either, log, zip, zip3)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Text as Text
@@ -21,21 +21,17 @@ import Global
 -- * LEvent
 
 data LEvent a = Event !a | Log !Log.Msg
-    deriving (Read, Show)
+    deriving (Eq, Show)
+
+log :: Log.Msg -> LEvent a
+log = Log
 
 instance Functor LEvent where
     fmap f (Event a) = Event (f a)
     fmap _ (Log a) = Log a
 
 instance Pretty.Pretty d => Pretty.Pretty (LEvent d) where
-    format (Log msg) = format_log msg
-    format (Event event) = Pretty.format event
-
-instance Eq d => Eq (LEvent d) where
-    Log e1 == Log e2 = e1 == e2
-    Event e1 == Event e2 = e1 == e2
-    Log _ == Event _ = False
-    Event _ == Log _ = False
+    format = either Pretty.format format_log
 
 -- | A variation on 'Log.format_msg', except this can format the stack nicely.
 format_log :: Log.Msg -> Pretty.Doc
@@ -80,12 +76,19 @@ events_of (Log _ : rest) = events_of rest
 
 logs_of :: [LEvent d] -> [Log.Msg]
 logs_of [] = []
-logs_of (Event _ : rest) = logs_of rest
 logs_of (Log log : rest) = log : logs_of rest
+logs_of (_ : rest) = logs_of rest
 
 write_logs :: Log.LogMonad m => [LEvent d] -> m [d]
 write_logs events = mapM_ Log.write logs >> return vals
     where (vals, logs) = partition events
+
+write_snd :: Log.LogMonad m => (a, [Log.Msg]) -> m a
+write_snd (result, logs) = mapM_ Log.write logs >> return result
+
+write_snd_prefix :: Log.LogMonad m => Text -> (a, [Log.Msg]) -> m a
+write_snd_prefix prefix (result, logs) =
+    mapM_ Log.write (Log.add_prefix prefix logs) >> return result
 
 partition :: [LEvent d] -> ([d], [Log.Msg])
 partition = Seq.partition_either . map to_either
@@ -94,8 +97,7 @@ partition = Seq.partition_either . map to_either
     to_either (Log msg) = Right msg
 
 instance DeepSeq.NFData a => DeepSeq.NFData (LEvent a) where
-    rnf (Event event) = DeepSeq.rnf event
-    rnf (Log msg) = DeepSeq.rnf msg
+    rnf = either DeepSeq.rnf DeepSeq.rnf
 
 -- | This is similar to 'List.mapAccumL', but lifted into LEvents.  It also
 -- passes future events to the function.

@@ -134,8 +134,8 @@ explicit_movements :: Lilypond.Title -> [Cmd.Lilypond.Movement]
     -> Cmd.CmdL Text
 explicit_movements title movements = do
     config <- get_config
-    let (result, logs) = Cmd.Lilypond.explicit_movements config title movements
-    mapM_ Log.write logs
+    result <- LEvent.write_snd $
+        Cmd.Lilypond.explicit_movements config title movements
     case result of
         Left err -> do
             Log.warn $ "explicit_movements: " <> err
@@ -148,8 +148,8 @@ explicit_movements title movements = do
 extract_movements :: Lilypond.Title -> [Score.Event] -> Cmd.CmdL Text
 extract_movements title events = do
     config <- get_config
-    let (result, logs) = Cmd.Lilypond.extract_movements config title events
-    mapM_ Log.write logs
+    result <- LEvent.write_snd $
+        Cmd.Lilypond.extract_movements config title events
     case result of
         Left err -> do
             Log.warn $ "extract_movements: " <> err

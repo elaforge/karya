@@ -8,10 +8,8 @@ import qualified Control.Monad.State.Strict as Monad.State
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
-import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
@@ -310,9 +308,7 @@ eval module_ start end expr = do
     (result, cmods) <- lift $ with_empty_collect $
         Derive.with_imported True module_ $
         eval_expr (place_event start (end - start) cinfo) expr
-    let (chunks, logs) = LEvent.partition result
-    mapM_ Log.write logs
-    let signal = mconcat chunks
+    signal <- mconcat <$> LEvent.write_logs result
     unless (PSignal.null signal) $
         Monad.State.put $ cinfo { Derive.info_prev_val = Just signal }
     return (signal, cmods)

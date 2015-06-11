@@ -120,7 +120,7 @@ derive_control_tree block_range tree = do
                 LEvent.Event (Score.typed_val signal) : map LEvent.Log logs
         (events, logs) -> do
             msg <- complain events
-            return $ LEvent.Log msg : map LEvent.Log logs
+            return $ LEvent.log msg : map LEvent.Log logs
     where
     -- Or I could throw, but this way any other logs the block emitted will
     -- also be visible, and they might have something interesting.

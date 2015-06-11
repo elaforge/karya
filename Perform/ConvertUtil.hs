@@ -29,7 +29,7 @@ convert state convert_event = go state
     where
     go _ [] = []
     go state (event : rest) =
-        converted ++ map LEvent.Log logs ++ go next_state rest
+        converted ++ map LEvent.log logs ++ go next_state rest
         where
         (result, logs, next_state) = run_convert state
             (Score.event_stack event) (convert_event event)

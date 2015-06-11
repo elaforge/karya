@@ -67,6 +67,7 @@ infer_duration final_dur = cancel_notes . suppress_note
     -- a note, it replaces it, which means it takes over its duration and
     -- controls.
 
+    -- prev             cur     |  prev         cur
     -- weak+infer       weak    -> replace      Nothing
     -- infer            weak    -> replace      Nothing
     -- weak             weak    -> id           Nothing
