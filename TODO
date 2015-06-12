@@ -10,7 +10,6 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
-
   * Add a 'debug' call that records the events at its spot.
     . Put them in logs, but Log.Msg only stores text, so I'd have to extract
       the interesting parts first, instead of at the repl.  So I'd have
@@ -35,20 +34,17 @@ UNSORTED
     . save/complete/wayang/bug-no-cancel
     . pemade: (39.9s, .6s) 4o,  (40, .75) 4e,   (40, 4)   4e
       kantil: (39.9s, .1s) 5o,  (40, 0)   5e,   (40, .75) 5e
-
     . in the score: (49.5, .5, 4i), (40, .75, 4e)
-
     . For pemade, where does that extra (40, 4) come from?  4 is
       infer-duration, so probably from there.
       . Without infer-duration:
     . pemade: (39.9s, .6s) 4o,  (39.99, 0) 4e,  (40, .75)   4e
-
-    . Should go like:
-      . ngoret adds note with infer-pitch and extend-previous
-      . infer-duration cancels out the extra notes
-      . realize-ngoret 
-
-    . Looks like the second 4e isn't being cancelled.
+      Looks like the second 4e isn't being cancelled.
+    . The problem is that the (39.99, 0) doesn't merge with (40, .75)
+      It's 39.99476147183341, which is greater than RealTime.eta.
+      I get warp_shift = 39.894761471833405, warp_stretch = 0.6000000000000014
+    . The random variation is due to %start-s, isn't that supposed to be
+      applied later by apply-start-offset?
     . And kantilan's 5e isn't getting infer-duration, while pemade does.
   - shakefile: remove cabal usage in favor of a sandbox
     . If there is a .cabal-sandbox, pass -no-user-package-db
