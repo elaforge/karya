@@ -8,6 +8,7 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import Global
 
 
 transform :: String
@@ -76,11 +77,13 @@ test_ngoret = do
 
 test_ngoret_start_control = do
     let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks ngoret_transform . UiTest.note_track
+            . DeriveTest.derive_tracks
+                ("apply-start-offset | " <> ngoret_transform)
+            . UiTest.note_track
     -- Ensure that it obeys start offset controls, and doesn't mess up the
     -- pitch.
     equal (run [(0, 4, "4c"), (4, 4, "%start-s=-.5 | ' .5 -- 4e")])
-        ([(0, 4, "4c"), (3, 1, "4d"), (3.5, 4.5, "4e")], [])
+        ([(0, 4.5, "4c"), (3, 1.5, "4d"), (3.5, 4.5, "4e")], [])
 
 test_past_end = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks

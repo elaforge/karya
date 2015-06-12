@@ -9,7 +9,6 @@ module Derive.Call.Prelude.Note (
     , Config(..), use_attributes, no_duration_attributes
     , GenerateNote, default_note, note_flags, make_event
     , adjust_duration
-    , with_start_controls
     , min_duration
 ) where
 import qualified Data.Map as Map
@@ -32,8 +31,8 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PSignal as PSignal
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
@@ -295,26 +294,6 @@ duration_attributes config controls attrs start end
     lookup_time deflt control = maybe deflt RealTime.seconds
         (Map.lookup control controls)
 
--- | Adjust the start time based on controls.
-with_start_controls :: Derive.NoteArgs -> Derive.NoteDeriver
-    -> Derive.NoteDeriver
-with_start_controls args deriver = do
-    offset_s <- get_start_offset =<< Args.real_start args
-    offset_t <- Call.score_duration (Args.start args) offset_s
-    let dur = Args.duration args
-        min_dur = RealTime.to_score min_duration
-        offset
-            | dur > 0 = min offset_t (dur - min_dur)
-            | dur == 0 = offset_t
-            | otherwise = max offset_t (dur + min_dur)
-        stretch = case () of
-            _ | dur > 0 -> max min_dur (dur - offset)
-            _ | dur == 0 -> 1
-            _ -> max min_dur $ abs (dur - offset)
-    if offset_t == 0 then deriver
-        else Derive.place (Args.start args + offset) stretch $ normalize args $
-            Derive.remove_controls [Controls.start_s, Controls.start_t] deriver
-
 get_start_offset :: RealTime -> Derive.Deriver RealTime
 get_start_offset start = do
     start_s <- maybe 0 RealTime.seconds <$>
@@ -323,12 +302,6 @@ get_start_offset start = do
         Derive.untyped_control_at Controls.start_t start
     start_t <- Call.real_duration start start_t
     return $ start_s + start_t
-
-normalize :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
-normalize args deriver =
-    Derive.stretch (if dur == 0 then 1 else 1 / abs dur) $
-        Derive.at (- Args.start args) deriver
-    where dur = Args.duration args
 
 -- ** controls
 

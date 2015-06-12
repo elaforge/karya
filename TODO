@@ -29,7 +29,7 @@ UNSORTED
       really, because I want them to be serialized, since logviewer looks at
       them.
 
-  - I think the ngoret into b01 in save/complete/wayang/delima-manis isn't
+  * I think the ngoret into b01 in save/complete/wayang/delima-manis isn't
     being cancelled properly.
     . save/complete/wayang/bug-no-cancel
     . pemade: (39.9s, .6s) 4o,  (40, .75) 4e,   (40, 4)   4e
@@ -46,6 +46,9 @@ UNSORTED
     . The random variation is due to %start-s, isn't that supposed to be
       applied later by apply-start-offset?
     . And kantilan's 5e isn't getting infer-duration, while pemade does.
+    . Turns out Gender.ngoret was applying Note.with_start_controls, which
+      as far as I can tell was left over from when I applied Controls.start_s
+      directly, instead of via apply-start-offset.
   - shakefile: remove cabal usage in favor of a sandbox
     . If there is a .cabal-sandbox, pass -no-user-package-db
       -package-db .cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d/

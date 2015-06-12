@@ -243,6 +243,10 @@ extract_debug_tag block_id tag =
     Cmd.require ("tag not found: " <> tag) . lookup tag
         =<< extract_debug block_id
 
+extract_insts :: BlockId -> Text -> [Text] -> Cmd.CmdL [Score.Event]
+extract_insts block_id tag insts =
+    with_insts insts . strip_stack <$> extract_debug_tag block_id tag
+
 control :: Score.Control -> Score.Event -> Maybe Score.TypedVal
 control c e = Score.control_at (Score.event_start e) c e
 
@@ -264,6 +268,7 @@ with_insts instruments = filter ((`elem` is) . Score.event_instrument)
 
 strip_stack :: [Score.Event] -> [Score.Event]
 strip_stack = map $ \event -> event { Score.event_stack = Stack.empty }
+
 
 
 -- * play from

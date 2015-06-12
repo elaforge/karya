@@ -14,7 +14,6 @@ import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
-import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -90,7 +89,7 @@ ngoret module_ late_damping damp_arg interval_arg =
         \ shortened to not overlap. Under the threshold, and the damping of\
         \ the previous note will be delayed until the end of the grace note."
     ) $ \(maybe_interval, time, damp, dyn_scale, damp_threshold) args ->
-    Note.with_start_controls args $ Sub.inverting_args args $ \args -> do
+    Sub.inverting_args args $ \args -> do
         start <- Args.real_start args
         time <- Derive.real =<< Call.time_control_at Call.Real time start
         damp <- Derive.real =<< Call.time_control_at Call.Real damp start
