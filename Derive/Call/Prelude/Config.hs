@@ -35,11 +35,6 @@ control_calls = Derive.transformer_call_map
     [ ("h", c_hold)
     ]
 
-c_hold :: Derive.Taggable d => Derive.Transformer d
-c_hold = Make.with_environ Module.prelude "hold"
-    (Sig.defaulted "time" (TrackLang.real 0.25) "Hold this long.")
-    TrackLang.default_real
-
 c_add_flag :: Derive.Transformer Derive.Note
 c_add_flag = Derive.transformer Module.prelude "add-flag" Tags.postproc
     "Add the given flags to transformed events.\
@@ -47,3 +42,8 @@ c_add_flag = Derive.transformer Module.prelude "add-flag" Tags.postproc
     $ Sig.callt (Sig.many1 "flag" "Add these flags.") $ \flags _args ->
         fmap $ Post.emap1_ $ Score.add_flags $ mconcatMap Flags.flag $
             NonEmpty.toList flags
+
+c_hold :: Derive.Taggable d => Derive.Transformer d
+c_hold = Make.with_environ Module.prelude "hold"
+    (Sig.defaulted "time" (TrackLang.real 0.25) "Hold this long.")
+    TrackLang.default_real

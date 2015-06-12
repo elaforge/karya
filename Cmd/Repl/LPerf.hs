@@ -229,6 +229,20 @@ root_sel_pevents = convert =<< get_sel_events True block_events_unnormalized
 
 -- ** extract
 
+-- | Extract events logged via the @debug@ call.
+extract_debug :: BlockId -> Cmd.CmdL [(Text, [Score.Event])]
+extract_debug block_id = do
+    logs <- LEvent.logs_of <$> block_events block_id
+    return
+        [ (Log.msg_text log, events)
+        | (log, Just events) <- zip logs (map Log.get_data logs)
+        ]
+
+extract_debug_tag :: BlockId -> Text -> Cmd.CmdL [Score.Event]
+extract_debug_tag block_id tag =
+    Cmd.require ("tag not found: " <> tag) . lookup tag
+        =<< extract_debug block_id
+
 control :: Score.Control -> Score.Event -> Maybe Score.TypedVal
 control c e = Score.control_at (Score.event_start e) c e
 
@@ -247,6 +261,9 @@ only_controls controls = map strip . LEvent.events_of
 with_insts :: [Text] -> [Score.Event] -> [Score.Event]
 with_insts instruments = filter ((`elem` is) . Score.event_instrument)
     where is = map Util.instrument instruments
+
+strip_stack :: [Score.Event] -> [Score.Event]
+strip_stack = map $ \event -> event { Score.event_stack = Stack.empty }
 
 
 -- * play from
@@ -269,14 +286,17 @@ perform_from = do
 
 type Events d = [LEvent.LEvent d]
 
+-- | Like 'get_sel_events_logs', but filter out the LEvent.Logs.
 get_sel_events :: Bool -- ^ from root
     -> (BlockId -> Cmd.CmdL (Events Score.Event))
     -> Cmd.CmdL [Score.Event]
 get_sel_events from_root = (LEvent.events_of <$>)
     . get_sel Score.event_start Score.event_stack from_root
 
+-- | Get events derived in the selected range.
 get_sel_events_logs :: Bool -- ^ from root
-    -> (BlockId -> Cmd.CmdL (Events Score.Event))
+    -> (BlockId -> Cmd.CmdL (Events Score.Event)) -- ^ derive events in the
+    -- given block, e.g. via 'block_events' or 'block_events_unnormalized'
     -> Cmd.CmdL (Events Score.Event)
 get_sel_events_logs = get_sel Score.event_start Score.event_stack
 

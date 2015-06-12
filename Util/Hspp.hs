@@ -60,6 +60,7 @@ global_macros = map (Macro (Qualified ["Log"]))
     [ "msg", "initialized_msg"
     , "debug", "notice", "warn", "error", "timer"
     , "debug_stack", "notice_stack", "warn_stack", "error_stack"
+    , "debug_data"
     ]
     ++ map (Macro derive_qual)
     [ "throw", "throw_error", "throw_arg_error"

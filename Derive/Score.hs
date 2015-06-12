@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveDataTypeable #-}
 {- | This has the basic data structures for the deriver level.
 
     The events here are generated from UI Events, and will eventually be
@@ -55,6 +56,7 @@ import Control.DeepSeq (rnf)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
+import qualified Data.Typeable as Typeable
 
 import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
@@ -108,7 +110,7 @@ data Event = Event {
     -- emphasizes that they're meant to be used by calls and not from the
     -- score.
     , event_flags :: !Flags.Flags
-    } deriving (Show)
+    } deriving (Show, Typeable.Typeable)
 
 -- NOTE [event_control_offset]
 -- event_control_offset is a hack to make moving Events cheap.  Unfortunately

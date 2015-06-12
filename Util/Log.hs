@@ -13,7 +13,9 @@
 module Util.Log (
     configure
     -- * msgs
-    , Msg(..), msg_string, Prio(..), State(..)
+    , Msg(..), msg_string
+    , Data(..), empty_data, has_data, get_data
+    , Prio(..), State(..)
     , write_json, write_formatted
     , msg, msg_srcpos, initialized_msg, initialized_msg_srcpos
     , timer, debug, notice, warn, error
@@ -21,6 +23,7 @@ module Util.Log (
     , debug_stack, notice_stack, warn_stack, error_stack
     , debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos
         , error_stack_srcpos
+    , debug_data_srcpos, debug_data
     , add_prefix
     , trace_logs
     -- * LogT monad
@@ -48,6 +51,7 @@ import qualified Data.Aeson as Aeson
 import Data.Aeson (parseJSON, toJSON)
 import qualified Data.Aeson.Types as Aeson.Types
 import qualified Data.ByteString.Lazy as ByteString.Lazy
+import qualified Data.Dynamic as Dynamic
 import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -59,7 +63,9 @@ import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 
+import qualified Text.ParserCombinators.ReadP as ReadP
 import Text.Printf (printf)
+import qualified Text.Read as Read
 
 import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
@@ -79,6 +85,7 @@ data Msg = Msg {
     , msg_stack :: !(Maybe Stack.Stack)
     -- | Free form text for humans.
     , msg_text :: !Text
+    , msg_data :: !Data
     } deriving (Eq, Show, Read)
 
 instance DeepSeq.NFData Msg where
@@ -89,6 +96,51 @@ msg_string = Text.unpack . msg_text
 
 instance Pretty.Pretty Msg where
     pretty = format_msg
+
+-- | Attach an arbitrary payload to a log msg.
+--
+-- Since Dynamic can't preserve its value across (read . show), the Show just
+-- has the type, not the value.  To avoid being confused by putting that back
+-- into Data as a String, it then becomes StrippedData to make it clear what
+-- happened.  Overkill?  Probably.
+data Data = NoData | Data !Dynamic.Dynamic | StrippedData !String
+
+empty_data :: Data
+empty_data = Data (Dynamic.toDyn ())
+
+has_data :: Msg -> Bool
+has_data msg = case msg_data msg of
+    NoData -> False
+    _ -> True
+
+get_data :: Dynamic.Typeable a => Msg -> Maybe a
+get_data msg = case msg_data msg of
+    Data d -> Dynamic.fromDynamic d
+    _ -> Nothing
+
+instance Eq Data where
+    NoData == NoData = True
+    StrippedData t1 == StrippedData t2 = t1 == t2
+    _ == _ = False
+
+instance Read.Read Data where readPrec = Read.lift read_data
+instance Show Data where
+    show NoData = "NoData"
+    show (Data d) =
+        "Data " ++ show (filter (/='"') (show (Dynamic.dynTypeRep d)))
+    show (StrippedData typ) = "StrippedData " ++ show typ
+
+read_data :: ReadP.ReadP Data
+read_data = ReadP.choice
+    [ ReadP.string "NoData" *> pure NoData
+    , StrippedData <$> (ReadP.string "Data" *> p_string)
+    , StrippedData <$> (ReadP.string "StrippedData" *> p_string)
+    ]
+    where
+    -- I stripped out "s in Show, so this should be good enough.
+    p_string = ReadP.skipSpaces *>
+        ReadP.between (ReadP.string "\"") (ReadP.string "\"")
+            (ReadP.munch (/='"'))
 
 -- | Pure code can't give a date, but making msg_date Maybe makes it awkward
 -- for everyone who processes Msgs, so cheat with this.
@@ -151,7 +203,8 @@ msg = msg_srcpos Nothing
 
 -- | Create a msg without initializing it.
 msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> Text -> Msg
-msg_srcpos = Msg no_date_yet
+msg_srcpos srcpos prio stack text =
+    Msg no_date_yet srcpos prio stack text NoData
 
 -- | Create a msg with the give prio and text.
 initialized_msg_srcpos :: LogMonad m => SrcPos.SrcPos -> Prio -> Text -> m Msg
@@ -205,6 +258,17 @@ notice_stack = notice_stack_srcpos Nothing
 warn_stack = warn_stack_srcpos Nothing
 error_stack = error_stack_srcpos Nothing
 
+-- | Write a Debug msg with arbitrary data attached to 'msg_data'.
+debug_data :: (LogMonad m, Dynamic.Typeable a) => Text -> a -> m ()
+debug_data = debug_data_srcpos Nothing
+
+debug_data_srcpos :: (LogMonad m, Dynamic.Typeable a) => SrcPos.SrcPos
+    -> Text -> a -> m ()
+debug_data_srcpos srcpos text data_ =
+    write . add_data =<< make_msg srcpos Debug Nothing text
+    where
+    add_data msg = msg { msg_data = Data (Dynamic.toDyn data_) }
+
 -- | Prefix msgs with the given string.
 add_prefix :: Text -> [Msg] -> [Msg]
 add_prefix pref = map $ \m -> m { msg_text = pref <> ": " <> msg_text m }
@@ -228,7 +292,9 @@ class Monad m => LogMonad m where
     initialize_msg = return
 
 instance LogMonad IO where
-    write log_msg = do
+    -- Never write msgs with data, because the data won't survive the
+    -- serialization anyway.
+    write log_msg = unless (has_data log_msg) $ do
         -- This is also done by 'initialize_msg', but if the msg was created
         -- outside of IO, it won't have had IO's 'initialize_msg' run on it.
         MVar.withMVar global_state $ \(State write_msg prio) ->
@@ -242,7 +308,7 @@ instance LogMonad IO where
 
 -- | Format a msg in a nice user readable way.
 format_msg :: Msg -> Text
-format_msg (Msg _date caller prio stack text) =
+format_msg (Msg _date caller prio stack text _data) =
     log_msg <> maybe "" ((" "<>) . pretty) stack
     where
     prio_stars Timer = "-"
@@ -294,7 +360,7 @@ instance (Monoid.Monoid w, LogMonad m) => LogMonad (Writer.WriterT w m) where
 -- which is bulky and slow.  JSON is hopefully faster, and retains the benefits
 -- of Show.
 serialize :: Msg -> ByteString.Lazy.ByteString
-serialize (Msg date caller prio stack text) =
+serialize (Msg date caller prio stack text _data) =
     Aeson.encode $ Aeson.Array $ Vector.fromList
         [toJSON date, toJSON caller, toJSON prio, toJSON stack, toJSON text]
 
@@ -305,6 +371,7 @@ deserialize bytes = case Aeson.decode bytes of
             flip Aeson.Types.parseEither () $ \() ->
                 Msg <$> parseJSON date <*> parseJSON caller
                     <*> parseJSON prio <*> parseJSON stack <*> parseJSON text
+                    <*> return NoData
         _ -> Left "expected a 5 element array"
     _ -> Left "can't decode json"
 

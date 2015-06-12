@@ -6,6 +6,7 @@
 module Derive.Call.Prelude.NoteTransformer (note_calls) where
 import qualified Data.List.NonEmpty as NonEmpty
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
@@ -30,6 +31,7 @@ note_calls = Derive.call_maps
     ]
     [ ("clip", c_clip)
     , ("Clip", c_clip_start)
+    , ("debug", c_debug)
     , ("loop", c_loop)
     , ("multiple", c_multiple)
     , ("tile", c_tile)
@@ -131,6 +133,17 @@ to_transformer val = case val of
     Left (TrackLang.Quoted expr) -> NonEmpty.toList expr
     Right inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
         [TrackLang.to_val inst]]
+
+c_debug :: Derive.Transformer Derive.Note
+c_debug = Derive.transformer Module.prelude "debug" mempty
+    "Save the events at this point in a special log msg. This is useful to\
+    \ inspect events at a certain point in a pipeline. You can extract them\
+    \ later by looking at the `Log.msg_data` of a log msg with the given tag."
+    $ Sig.callt (Sig.required "tag" "Log msg has this text.")
+    $ \tag _ deriver -> do
+        events <- deriver
+        Log.debug_data tag (LEvent.events_of events :: [Score.Event])
+        return events
 
 -- ** clip
 
