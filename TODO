@@ -57,7 +57,7 @@ UNSORTED
     - Figure out how to get GHC API to read from sandbox.  Probably have to
       put the same flags into build/*/ghci-flags
       . This is the same thing that 'cabal repl' does.
-  - save/sketch/14-04-30 has "sample time didn't increase"
+  * save/sketch/14-04-30 has "sample time didn't increase"
   * can't delete text with floating edit?
   * Edit.try_set_call_duration is buggy, I get
     . Cmd/Perf.hs:89 [get_note_deriver] expected a NoteTrack for ((bid

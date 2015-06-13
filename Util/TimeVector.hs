@@ -160,19 +160,47 @@ check = reverse . fst . V.foldl' check ([], (0, 0))
             <> show prev_x
         next = (warns, (i + 1, x))
 
--- | Merge a list of vectors.  Samples are not interspersed, and if the vectors
--- overlap the one with a later first sample wins.
 {-# SPECIALIZE merge :: [Unboxed] -> Unboxed #-}
 {-# INLINEABLE merge #-}
 merge :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
-merge = V.concat . trim
+merge = merge_right
+
+-- | This is a merge where the vectors to the right will win in the case of
+-- overlap.
+{-# SPECIALIZE merge_right :: [Unboxed] -> Unboxed #-}
+{-# INLINEABLE merge_right #-}
+merge_right :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
+merge_right vs = case next_start (reverse vs) of
+    Nothing -> V.empty
+    Just (v, vs, x) -> V.concat $ reverse $ v : trim x vs
     where
-    trim [] = []
-    trim (v : vs) = case first_x vs of
-        Nothing -> [v]
-        Just x -> V.takeWhile ((<x) . sx) v : trim vs
-    first_x [] = Nothing
-    first_x (v:vs) = maybe (first_x vs) (Just . sx) (head v)
+    -- I don't really like the double reverse, but it's easiest this way.
+    trim prev_start (v : vs) =
+        clipped : trim (maybe prev_start sx (head clipped)) vs
+        where clipped = V.take (lowest_index prev_start v) v
+    trim _ [] = []
+    next_start [] = Nothing
+    next_start (v:vs) = maybe (next_start vs) (\s -> (Just (v, vs, sx s)))
+        (head v)
+
+-- | This is a merge where the vectors to the left will win in the case of
+-- overlap.
+{-# SPECIALIZE merge_left :: [Unboxed] -> Unboxed #-}
+{-# INLINEABLE merge_left #-}
+merge_left :: V.Vector v (Sample y) => [v (Sample y)] -> v (Sample y)
+merge_left vs = case next_end vs of
+    Nothing -> V.empty
+    Just (v, vs, x) -> V.concat $ v : trim x vs
+    where
+    trim prev_end (v : vs) =
+        clipped : trim (maybe prev_end sx (last clipped)) vs
+        where clipped = V.dropWhile ((<=prev_end) . sx) v
+    trim _ [] = []
+    next_end [] = Nothing
+    next_end (v:vs) = maybe (next_end vs) (\s -> (Just (v, vs, sx s))) (last v)
+    -- |--->        => |--->
+    --   |--->             |->
+    --     |--->             |->
 
 -- | Merge two vectors, interleaving their samples.  Analogous to
 -- 'Data.Map.union', if two samples coincide, the one from the first vector
@@ -230,6 +258,7 @@ sample_at x vec
         _ -> Nothing
     where i = highest_index x vec
 
+-- | Find the sample before the given X.
 {-# SPECIALIZE before :: X -> Unboxed -> Maybe (Sample UnboxedY) #-}
 {-# INLINEABLE before #-}
 before :: V.Vector v (Sample y) => X -> v (Sample y) -> Maybe (Sample y)

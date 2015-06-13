@@ -183,6 +183,15 @@ test_stash_signal = do
     equal (run [(">", [(0, 1, ""), (1, 1, ""), (2, 1, "")]), ctrack])
         [(csig, 0, 1)]
 
+test_stash_signal_duplicate_samples = do
+    let run tracks = e_tsigs $ DeriveTest.derive_tracks_setup
+            (DeriveTest.with_tsig_tracknums [1 .. length tracks]) "" tracks
+    equal (run
+        [ (">", [(0, 1, ""), (1, 1, "d .5 |"), (2, 1, "")])
+        , ("dyn", [(0, 0, ".5")])
+        ])
+        [([(0, 0.5)], 0, 1)]
+
 test_signal_fragments = do
     let run tsig_tracks = e_tsigs . DeriveTest.derive_tracks_setup
             (DeriveTest.with_tsigs tsig_tracks) ""
@@ -207,6 +216,7 @@ test_stash_signal_default_tempo = do
     equal r [([(0, 60), (5, 62), (10, 60)], 0, 0.5)]
 
 e_tsigs :: Derive.Result -> [([(RealTime, Signal.Y)], ScoreTime, ScoreTime)]
+    -- ^ for each track, (signal, shift, stretch)
 e_tsigs = map snd . e_tsig_tracks
 
 e_tsig_tracks :: Derive.Result
