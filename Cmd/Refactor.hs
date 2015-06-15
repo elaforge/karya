@@ -116,12 +116,18 @@ split_track_at from_block_id split_at block_name = do
 -- | Copy the selection into a new block, and replace it with a call to that
 -- block.
 selection :: Cmd.M m => Id.Id -> m BlockId
-selection = selection_ False
+selection name = do
+    block_id <- selection_ False name
+    Create.view block_id
+    return block_id
 
 -- | Copy the selection to a relative block, and replace it with a relative
 -- block call.
 selection_relative :: Cmd.M m => Id.Id -> m BlockId
-selection_relative = selection_ True
+selection_relative name = do
+    block_id <- selection_ True name
+    Create.view block_id
+    return block_id
 
 -- | Same as 'selection_relative' because I always type the wrong one.
 relative_selection :: Cmd.M m => Id.Id -> m BlockId
@@ -157,10 +163,7 @@ selection_ relative name = do
     (block_id, tracknums, track_ids, start, end) <- Selection.tracks
     name <- return $ if relative
         then make_relative block_id name else name
-    to_block_id <- selection_at relative name block_id tracknums track_ids
-        start end
-    Create.view to_block_id
-    return to_block_id
+    selection_at relative name block_id tracknums track_ids start end
 
 make_relative :: BlockId -> Id.Id -> Id.Id
 make_relative caller name =
