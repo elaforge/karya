@@ -499,6 +499,7 @@ main = withLockedDatabase $ do
     makeDataLink
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
         "karya.cabal" %> makeKaryaCabal
+        matchBuildDir hsconfigH ?> configHeaderRule
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
         -- hspp is depended on by all .hs files.  To avoid recursion, I
@@ -532,7 +533,6 @@ main = withLockedDatabase $ do
             system "iconutil" ["-c", "icns", "-o", fn, src]
         forM_ extractableDocs $ \fn ->
             fn %> extractDoc (modeConfig Debug)
-        configHeaderRule
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
         criterionRules (modeConfig Profile)
@@ -596,8 +596,9 @@ hsconfigPath config = buildDir config </> hsconfigH
 --
 -- It's in a separate file so that the relevant haskell files can include it.
 -- This way only those files will recompile when the config changes.
-configHeaderRule :: Shake.Rules ()
-configHeaderRule = matchBuildDir hsconfigH ?> \fn -> do
+configHeaderRule :: FilePath -> Shake.Action ()
+configHeaderRule fn = do
+    Shake.alwaysRerun
     useRepl <- Shake.askOracle (Question () :: Question ReplQ)
     useRepl <- return $ useRepl && targetToMode fn /= Just Test
     midiDriver <- Shake.askOracle (Question () :: Question MidiQ)
@@ -832,6 +833,7 @@ makeHs dir out main = ("GHC-MAKE", out, cmdline)
 buildHs :: Config -> [FilePath] -> [Package] -> FilePath -> FilePath
     -> Shake.Action ()
 buildHs config libs extraPackages hs fn = do
+    need ["karya.cabal"]
     when (isHsconfigBinary fn) $
         need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs

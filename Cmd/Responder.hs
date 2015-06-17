@@ -195,10 +195,10 @@ create_msg_reader remap_rmsg midi_chan repl_socket ui_chan loopback_chan = do
     Thread.start_logged "accept repl socket" $
         accept_loop repl_socket repl_chan
     return $ STM.atomically $
-        fmap Msg.Ui (TChan.readTChan ui_chan)
-        `STM.orElse` fmap (Msg.Midi . remap_rmsg) (TChan.readTChan midi_chan)
-        `STM.orElse` fmap (uncurry Msg.Socket) (TChan.readTChan repl_chan)
-        `STM.orElse` TChan.readTChan loopback_chan
+        (Msg.Ui <$> TChan.readTChan ui_chan)
+        `STM.orElse` (Msg.Midi . remap_rmsg <$> TChan.readTChan midi_chan)
+        `STM.orElse` (uncurry Msg.Socket <$> TChan.readTChan repl_chan)
+        `STM.orElse` (TChan.readTChan loopback_chan)
 
 -- | Accept a connection on the socket, read everything that comes over, then
 -- place the socket and the read data on @output_chan@.  It's the caller's
