@@ -8,7 +8,6 @@
 {- | Shakefile for seq and associated binaries.
 -}
 module Shake.Shakefile where
-import Prelude hiding ((*>))
 import Control.Applicative ((<$>))
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -27,7 +26,7 @@ import Data.Monoid (mempty, (<>))
 import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake
-import Development.Shake ((?==), (?>), (?>>), (*>), need)
+import Development.Shake ((?==), (?>), (?>>), (%>), need)
 import qualified System.Directory as Directory
 import qualified System.Environment as Environment
 import qualified System.FilePath as FilePath
@@ -499,12 +498,12 @@ main = withLockedDatabase $ do
     writeGhciFlags modeConfig
     makeDataLink
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
-        "karya.cabal" *> makeKaryaCabal
+        "karya.cabal" %> makeKaryaCabal
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
         -- hspp is depended on by all .hs files.  To avoid recursion, I
         -- build hspp itself with --make.
-        hspp *> \fn -> do
+        hspp %> \fn -> do
             -- But I need to mark hspp's deps so it will rebuild.
             need =<< HsDeps.transitiveImportsOf (const Nothing) "Util/Hspp.hs"
             Util.cmdline $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
@@ -526,13 +525,13 @@ main = withLockedDatabase $ do
             case hsGui binary of
                 Just has_icon -> makeBundle fn True has_icon
                 _ -> return ()
-        (build </> "*.icns") *> \fn -> do
+        (build </> "*.icns") %> \fn -> do
             -- Build OS X .icns file from .iconset dir.
             let src = "doc/icon" </> replaceExt fn "iconset"
             need [src]
             system "iconutil" ["-c", "icns", "-o", fn, src]
         forM_ extractableDocs $ \fn ->
-            fn *> extractDoc (modeConfig Debug)
+            fn %> extractDoc (modeConfig Debug)
         configHeaderRule
         testRules (modeConfig Test)
         profileRules (modeConfig Profile)
@@ -859,7 +858,7 @@ makeBundle binary isHaskell hasIcon
 -- | Generate RunTests.hs and compile it.
 testRules :: Config -> Shake.Rules ()
 testRules config = do
-    runTests ++ "*.hs" *> generateTestHs "_test"
+    runTests ++ "*.hs" %> generateTestHs "_test"
     binaryWithPrefix runTests ?> \fn -> do
         -- The UI tests use fltk.a.  It would be nicer to have it
         -- automatically added when any .o that uses it is linked in.
@@ -871,7 +870,7 @@ testRules config = do
 
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
-    runProfile ++ "*.hs" *> generateTestHs "_profile"
+    runProfile ++ "*.hs" %> generateTestHs "_profile"
     binaryWithPrefix runProfile ?> \fn ->
         buildHs config [oDir config </> "fltk/fltk.a"] [] (fn ++ ".hs") fn
 
@@ -888,7 +887,7 @@ generateTestHs hsSuffix fn = do
     system "test/generate_run_tests.py" (fn : tests)
 
 criterionRules :: Config -> Shake.Rules ()
-criterionRules config = buildDir config </> "RunCriterion-*" *> \fn -> do
+criterionRules config = buildDir config </> "RunCriterion-*" %> \fn -> do
     let hs = runCriterionToSrc config fn
     need [hs]
     buildHs config [] ["criterion"] hs fn
@@ -909,7 +908,7 @@ binaryWithPrefix prefix fn = prefix `List.isPrefixOf` fn
 -- * markdown
 
 markdownRule :: FilePath -> Shake.Rules ()
-markdownRule linkifyBin = docDir </> "*.md.html" *> \html -> do
+markdownRule linkifyBin = docDir </> "*.md.html" %> \html -> do
     let doc = htmlToDoc html
     need [linkifyBin, doc]
     system "tools/convert_doc" [doc, html] -- wrapper around pandoc
@@ -1055,7 +1054,7 @@ linkCc config binary objs = ("LD-CC", binary,
 -- * hsc
 
 hsRule :: Config -> Shake.Rules ()
-hsRule config = hscDir config ++ "//*.hs" *> \hs -> do
+hsRule config = hscDir config ++ "//*.hs" %> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
     includes <- includesOf "hsRule" config hsc
     logDeps config "hsc" hs (hsc : includes)
