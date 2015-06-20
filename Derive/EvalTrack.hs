@@ -367,7 +367,9 @@ derive_event tinfo prev_val prev event next
     | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return []
     | otherwise = case Parse.parse_expr text of
         Left err -> Log.warn err >> return []
-        Right expr ->
+        Right expr -> do
+            end <- Derive.real $ Event.end event
+            Derive.set_call_end end
             with_event_region tinfo event $ Eval.eval_toplevel cinfo expr
     where
     cinfo = call_info tinfo prev_val prev event next

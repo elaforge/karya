@@ -10,6 +10,60 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
+  * sequence gives each block in its ScoreTime duration, which means that if
+    they have their own tempo tracks the tempo will be irregular.  Can I have
+    a sequence that sequences by RealTime duration?
+    . I need the RealTime end, which for block calls is the ScoreTime call
+      duration under the tempo track.  So it's produced as a side-effect of
+      making the events, which means it could be either a magic event, or
+      it could be in Collect.
+    . Collect is probably better, it means I would do
+      > events <- deriver; end <- Derive.get_logical_end
+      So I would set logical end at the *end* of the event deriver, and at
+      the end of the tempo track derivation.  That way it overrides whatever
+      was previously there.
+    . Actually to override the default has to go at the beginning.  But then
+      I have to look up the end time and put it in Collect for every call, when
+      it's rarely needed, and could be computed from the event in CallInfo
+      anyway.  So in that case, why not put it in CallInfo?  That doesn't work
+      because this is communication from the generator to a transformer.
+    . How about emit a magic event, but put it an the beginning?  That seems
+      brittle because all I need is one event before the magic one and I lost
+      the duration.  But perhaps this is actually intended: that could mean
+      that the duration was overridden, say it belongs to a subcall of the
+      callee.  In fact this will definitely happen when blocks call other
+      blocks.  But it's still brittle because a transformer could put events
+      on the front.
+    . If I switch to a more complicated type for LEvents than a list, then
+      maybe I can more easily embed things like this.  Say
+        data Stream a = Chunk Metadata (Stream a) | Events [LEvent a]
+    . What is the scope of a real duration?  Since it's end time in RealTime,
+      they can be combined.  I want the maximum of all of them.  This implies
+      that starting at 0 and combining with max is actually correct.
+    . No wait, not correct, because a block call can set the end to before
+      the last event, and hence before the end of its calling event.  I need
+      to make sure that the CallEnd of the last event in the block doesn't
+      override the CallEnd of the block itself, which might be before that.
+
+    . I also need to unstretch the block so I get its natural duration.  It
+      turns out this is not the same as what calls like 'clip' do, because
+      they unstretch to its ScoreTime duration, which means that the callee's
+      tempo is relative, so const 2 is the same as const 1.
+    . I think the information about the realtime duration of the block is
+      only available in Tempo.with_tempo.  So I have to suppress stretch_to_1.
+      I can go the other way, and only stretch to 1 if there is a special
+      environ val, and then delete it.  This will get the same effect as
+      Internal.is_root_block if a normal block calls sets the environ.
+    . That won't work because sequence-rt calls normal block calls, so it
+      would have to tell them.  So I think I have to do block-in-natural-time
+      to suppress stretch_to_1.
+
+    . I can't get the stretch right without deriving twice.  I would have to
+      do the CallDuration thing, except derive all the way until the first
+      tempo track
+  - I think I need to extend DurationQuery to query for RealTime duration to
+    get sequence-rt to work as expected.
+
   - save/complete/wayang/p2 last note of alt-w at the end doesn't get its
     duration inferred
   * Add a 'debug' call that records the events at its spot.
@@ -859,6 +913,8 @@ cleanup:
 performance:
   - GC stats for a normal app run shows 32% productivity during derivation.
     Threadscope also shows GC frequently stopping all computation.
+    . Internal.merge_collect is constantly merging in mempty, try reducing its
+      use.  Can I continue to enforce monoid-nature?
   - I should be able to move samples only when converting to MIDI, this way
     I don't need to move parts of the signal that wind up being trimmed.
     Either try to trim the signal earlier again, or delay transformation to

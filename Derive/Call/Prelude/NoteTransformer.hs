@@ -17,6 +17,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -27,6 +28,7 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("sequence", c_sequence)
+    , ("sequence-rt", c_sequence_realtime)
     , ("parallel", c_parallel)
     ]
     [ ("clip", c_clip)
@@ -52,14 +54,14 @@ c_sequence = Derive.generator_with_duration get_call_duration Module.prelude
     \ don't, you probably get confusing results."
     $ Sig.call calls_arg $ \calls args -> do
         let derivers = calls_to_derivers args calls
-        durs <- get_durations derivers
+        durs <- mapM get_duration derivers
         sequence_derivers (Args.start args) (Args.duration args)
             (map snd derivers) durs
     where
     calls_arg = Sig.many1 "call" "Generator calls."
     get_call_duration args = do
         calls <- Sig.run_or_throw calls_arg args
-        durs <- get_durations (calls_to_derivers args calls)
+        durs <- mapM get_duration (calls_to_derivers args calls)
         return $ Derive.Duration (sum durs)
 
 sequence_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
@@ -73,20 +75,55 @@ sequence_derivers start event_dur derivers unstretched_durs = mconcat
     stretch = if call_dur == 0 then 1 else event_dur / call_dur
         where call_dur = sum unstretched_durs
 
+c_sequence_realtime :: Derive.Generator Derive.Note
+c_sequence_realtime = Derive.generator_with_duration get_call_duration
+    Module.prelude "sequence" mempty
+    "Run the given block calls in sequence. Each call gets its natural\
+    \ real time duration. Unlike `sequence`, each block gets its natural\
+    \ RealTime duration, rather than being normalized to 1 and then expanded\
+    \ to its ScoreTime duration. TODO I can't get the RealTime duration without\
+    \ deriving, at which point it's too late to stretch, so the event duration\
+    \ has no effect."
+    $ Sig.call calls_arg $ \calls args ->
+        sequence_derivers_realtime (Args.start args) (Args.duration args)
+            (map snd (calls_to_derivers args calls))
+    where
+    calls_arg = Sig.many1 "call" "Generator calls."
+    -- TODO use the realtime duration... but then I need to derive
+    get_call_duration args = do
+        calls <- Sig.run_or_throw calls_arg args
+        durs <- mapM get_duration (calls_to_derivers args calls)
+        return $ Derive.Duration (sum durs)
+
+sequence_derivers_realtime :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
+    -> Derive.NoteDeriver
+sequence_derivers_realtime start _event_dur =
+    -- TODO I need to be able to figure out the RealTime duration without
+    -- deriving to use event_dur, otherwise I'd have to derive twice.
+    fmap Derive.merge_event_lists . go start
+    where
+    go _ [] = return []
+    go at (d : ds) = do
+        (events, end_s) <- Derive.get_call_end $ Derive.at at $
+            Tempo.do_not_normalize d
+        end <- Derive.score end_s
+        rest <- go end ds
+        return $ events : rest
+
 c_parallel :: Derive.Generator Derive.Note
 c_parallel = Derive.generator_with_duration get_call_duration Module.prelude
     "parallel" mempty
     "Run the given calls in parallel."
     $ Sig.call calls_arg $ \calls args -> do
         let derivers = calls_to_derivers args calls
-        durs <- get_durations derivers
+        durs <- mapM get_duration derivers
         parallel_derivers (Args.start args) (Args.duration args)
             (map snd derivers) durs
     where
     calls_arg = Sig.many1 "call" "Generator calls."
     get_call_duration args = do
         calls <- Sig.run_or_throw calls_arg args
-        durs <- get_durations (calls_to_derivers args calls)
+        durs <- mapM get_duration (calls_to_derivers args calls)
         return $ Derive.Duration $ fromMaybe 0 (Seq.maximum durs)
 
 parallel_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
@@ -106,13 +143,11 @@ calls_to_derivers args calls = zip (NonEmpty.toList calls)
     (map (Eval.eval_quoted_normalized (Args.info args))
         (NonEmpty.toList calls))
 
-get_durations :: [(TrackLang.Quoted, Derive.Deriver a)]
-    -> Derive.Deriver [ScoreTime]
-get_durations = mapM $ \(sym, d) ->
-    Derive.get_call_duration d >>= \dur -> case dur of
-        Derive.Unknown ->
-            Derive.throw $ "unknown CallDuration for " <> ShowVal.show_val sym
-        Derive.Duration dur -> return dur
+get_duration :: (TrackLang.Quoted, Derive.Deriver a) -> Derive.Deriver ScoreTime
+get_duration (quoted, d) = Derive.get_call_duration d >>= \dur -> case dur of
+    Derive.UnknownDuration ->
+        Derive.throw $ "unknown CallDuration for " <> ShowVal.show_val quoted
+    Derive.Duration dur -> return dur
 
 
 -- * transformers
@@ -154,7 +189,7 @@ c_clip = Derive.transformer Module.prelude "clip" mempty
     \ be cut short.\
     \\nThis is only useful with calls that have a natural duration apart from\
     \ whatever their calling event's duration, e.g. block calls."
-    $ Sig.call0t $ \args -> unstretch args $ \_dur deriver -> do
+    $ Sig.call0t $ \args -> unstretch_args args $ \_dur deriver -> do
         end <- Derive.real $ snd (Args.range args)
         map (fmap (clip end)) . takeWhile (event_before end) <$>
             Derive.at (Args.start args) deriver
@@ -165,7 +200,7 @@ c_clip_start :: Derive.Transformer Derive.Note
 c_clip_start = Derive.transformer Module.prelude "Clip" mempty
     "Like `clip`, but align the named block to the end of the event instead\
     \ of the beginning. Events that then lie before the start are clipped."
-    $ Sig.call0t $ \args -> unstretch args $ \dur deriver -> do
+    $ Sig.call0t $ \args -> unstretch_args args $ \dur deriver -> do
         start <- Derive.real $ fst (Args.range args)
         dropWhile (event_before start) <$>
             Derive.at (Args.end args - dur) deriver
@@ -176,7 +211,7 @@ c_loop :: Derive.Transformer Derive.Note
 c_loop = Derive.transformer Module.prelude "loop" mempty
     "This is similar to `clip`, but when the called note runs out, it is\
     \ repeated."
-    $ Sig.call0t $ \args -> unstretch args $ \dur deriver -> do
+    $ Sig.call0t $ \args -> unstretch_args args $ \dur deriver -> do
         let (start, end) = Args.range args
         let repeats = ceiling $ (end - start) / dur
             starts = take repeats $ Seq.range_ start dur
@@ -191,7 +226,7 @@ c_tile = Derive.transformer Module.prelude "tile" mempty
     \ the beginning of the called block, and is only \"let through\" during\
     \ the `tile` call. This is useful for patterns that are tied to the meter,\
     \ but may be interrupted at arbitrary times, e.g. sarvalaghu patterns."
-    $ Sig.call0t $ \args -> unstretch args $ \dur deriver -> do
+    $ Sig.call0t $ \args -> unstretch_args args $ \dur deriver -> do
         let (start, end) = Args.range args
         let sub_start = fromIntegral (floor (start / dur)) * dur
         let repeats = ceiling $ (end - sub_start) / dur
@@ -202,16 +237,21 @@ c_tile = Derive.transformer Module.prelude "tile" mempty
 
 -- * util
 
+unstretch_args :: Derive.PassedArgs x
+    -> (ScoreTime -> Derive.Deriver a -> Derive.Deriver a)
+    -> Derive.Deriver a -> Derive.Deriver a
+unstretch_args args = unstretch (Args.start args) (Args.duration args)
+
 -- | Put the deriver at 0t and in its \"natural\" time.  This is only different
 -- from its event's time if the deriver has its own duration as per
 -- 'Derive.get_call_duration'.
 --
 -- The generator will do @Derive.place start (event_dur/dur)@, so I have to
 -- undo that.
-unstretch :: Derive.PassedArgs x
+unstretch :: ScoreTime -> ScoreTime
     -> (ScoreTime -> Derive.Deriver a -> Derive.Deriver a)
     -> Derive.Deriver a -> Derive.Deriver a
-unstretch args process deriver = do
+unstretch start event_dur process deriver = do
     dur <- Derive.get_call_duration deriver
     case dur of
         Derive.Duration dur | dur /= event_dur ->
@@ -219,8 +259,6 @@ unstretch args process deriver = do
         _ -> deriver
     where
     flatten dur = Derive.stretch (1 / (event_dur/dur)) . Derive.at (-start)
-    start = Args.start args
-    event_dur = Args.duration args
 
 -- | Consistent with half-open ranges, block calls try to include events lining
 -- up with the start, and exclude ones lining up with the end.

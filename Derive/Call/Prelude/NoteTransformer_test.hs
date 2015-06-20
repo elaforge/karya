@@ -7,7 +7,7 @@ import Types
 
 
 test_sequence = do
-    let run = run_subs
+    let run start dur call = run_blocks $ make_subs start dur call
     equal (run 0 2 "sequence sub-cd") ([(0, 1, "4c"), (1, 1, "4d")], [])
     equal (run 0 1 "sequence sub-cd") ([(0, 0.5, "4c"), (0.5, 0.5, "4d")], [])
     equal (run 0 3 "sequence sub-cd sub-e")
@@ -23,22 +23,43 @@ test_sequence = do
     equal (run 2 6 "sequence sub-cd sub-e")
         ([(2, 2, "4c"), (4, 2, "4d"), (6, 2, "4e")], [])
 
+test_sequence_realtime = do
+    -- let run start dur call = run_blocks $ make_subs start dur call
+    let run = run_blocks
+    equal (run $ make_subs 0 2 "sequence-rt sub-cd")
+        ([(0, 1, "4c"), (1, 1, "4d")], [])
+    equal (run $ make_subs 0 3 "sequence-rt sub-cd sub-e")
+        ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")], [])
+    let tempo_subs start dur call =
+            [ ("top", [(">", [(start, dur, call)])])
+            , ("sub-cd=ruler", ("tempo", [(0, 0, ".5")])
+                : UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+            , ("sub-e=ruler", UiTest.note_track [(0, 1, "4e")])
+            ]
+    equal (run $ tempo_subs 0 5 "sequence-rt sub-cd sub-e")
+        ([(0, 2, "4c"), (2, 2, "4d"), (4, 1, "4e")], [])
+    equal (run $ tempo_subs 2 5 "sequence-rt sub-cd sub-e")
+        ([(2, 2, "4c"), (4, 2, "4d"), (6, 1, "4e")], [])
+    -- equal (run $ tempo_subs 2 10 "sequence-rt sub-cd sub-e")
+    --     ([(2, 4, "4c"), (6, 4, "4d"), (10, 2, "4e")], [])
+
 test_parallel = do
-    let run = run_subs 0
-    equal (run 2 "parallel sub-cd") ([(0, 1, "4c"), (1, 1, "4d")], [])
-    equal (run 2 "parallel sub-cd sub-e")
+    let run start dur call = run_blocks $ make_subs start dur call
+    equal (run 0 2 "parallel sub-cd") ([(0, 1, "4c"), (1, 1, "4d")], [])
+    equal (run 0 2 "parallel sub-cd sub-e")
         ([(0, 1, "4c"), (0, 1, "4e"), (1, 1, "4d")], [])
-    equal (run 4 "parallel sub-cd sub-e")
+    equal (run 0 4 "parallel sub-cd sub-e")
         ([(0, 2, "4c"), (0, 2, "4e"), (2, 2, "4d")], [])
 
-run_subs :: ScoreTime -> ScoreTime -> String
-    -> ([(RealTime, RealTime, String)], [String])
-run_subs start dur call = DeriveTest.extract DeriveTest.e_note $
-    DeriveTest.derive_blocks
-        [ ("top", [(">", [(start, dur, call)])])
-        , ("sub-cd=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
-        , ("sub-e=ruler", UiTest.note_track [(0, 1, "4e")])
-        ]
+run_blocks :: [UiTest.BlockSpec] -> ([(RealTime, RealTime, String)], [String])
+run_blocks = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
+
+make_subs :: ScoreTime -> ScoreTime -> String -> [UiTest.BlockSpec]
+make_subs start dur call =
+    [ ("top", [(">", [(start, dur, call)])])
+    , ("sub-cd=ruler", UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+    , ("sub-e=ruler", UiTest.note_track [(0, 1, "4e")])
+    ]
 
 test_multiple = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks ""

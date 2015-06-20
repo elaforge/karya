@@ -76,7 +76,7 @@ module Derive.Deriver.Monad (
     -- ** collect
     , Collect(..), SignalFragments
     , ControlMod(..), Integrated(..)
-    , TrackDynamic, CallDuration(..)
+    , TrackDynamic, CallDuration(..), CallEnd(..)
 
     -- * calls
     , CallMaps(..), call_map
@@ -152,8 +152,8 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.DeriveM as DeriveM
 import Derive.Deriver.DeriveM (get, gets, modify, put, run)
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PSignal as PSignal
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
@@ -844,6 +844,7 @@ data Collect = Collect {
     , collect_integrated :: ![Integrated]
     , collect_control_mods :: ![ControlMod]
     , collect_call_duration :: !CallDuration
+    , collect_call_end :: !CallEnd
     }
 
 -- | These are fragments of a signal, which will be later collected into
@@ -862,7 +863,7 @@ type SignalFragments =
 
 instance Pretty.Pretty Collect where
     format (Collect warp_map tsigs frags trackdyn trackdyn_inv deps cache
-            integrated cmods call_dur) =
+            integrated cmods call_dur call_end) =
         Pretty.record "Collect"
             [ ("warp_map", Pretty.format warp_map)
             , ("track_signals", Pretty.format tsigs)
@@ -874,24 +875,25 @@ instance Pretty.Pretty Collect where
             , ("integrated", Pretty.format integrated)
             , ("control_mods", Pretty.format cmods)
             , ("call duration", Pretty.format call_dur)
+            , ("call end", Pretty.format call_end)
             ]
 
 instance Monoid.Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty mempty mempty mempty
-        mempty mempty
+        mempty mempty mempty
     mappend (Collect warps1 tsigs1 frags1 trackdyn1 trackdyn_inv1 deps1 cache1
-                integrated1 cmods1 cdur1)
+                integrated1 cmods1 cdur1 cend1)
             (Collect warps2 tsigs2 frags2 trackdyn2 trackdyn_inv2 deps2 cache2
-                integrated2 cmods2 cdur2) =
+                integrated2 cmods2 cdur2 cend2) =
         Collect (warps1 <> warps2)
             (tsigs1 <> tsigs2) (Map.unionWith (<>) frags1 frags2)
             (trackdyn1 <> trackdyn2) (trackdyn_inv1 <> trackdyn_inv2)
             (deps1 <> deps2) (cache1 <> cache2) (integrated1 <> integrated2)
-            (cmods1 <> cmods2) (cdur1 <> cdur2)
+            (cmods1 <> cmods2) (cdur1 <> cdur2) (cend1 <> cend2)
 
 instance DeepSeq.NFData Collect where
     rnf (Collect warp_map frags tsigs track_dyn track_dyn_inv local_dep cache
-            integrated _cmods _cdur) =
+            integrated _cmods _cdur _cend) =
         rnf warp_map `seq` rnf frags `seq` rnf tsigs `seq` rnf track_dyn
         `seq` rnf track_dyn_inv `seq` rnf local_dep `seq` rnf cache
         `seq` rnf integrated
@@ -970,15 +972,29 @@ type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
     and this is the only one that worked.  Historical details are in
     NOTE [call-duration].
 -}
-data CallDuration = Unknown | Duration !ScoreTime
+data CallDuration = UnknownDuration | Duration !ScoreTime
     deriving (Eq, Show)
 
 instance Pretty.Pretty CallDuration where pretty = showt
 instance Monoid.Monoid CallDuration where
-    mempty = Unknown
-    mappend d1 Unknown = d1
-    mappend Unknown d2 = d2
-    mappend (Duration d1) (Duration d2) = Duration (max d1 d2)
+    mempty = UnknownDuration
+    mappend UnknownDuration a = a
+    mappend a UnknownDuration = a
+    mappend _ a = a
+
+data CallEnd = UnknownEnd | CallEnd RealTime
+    deriving (Eq, Show)
+
+instance Pretty.Pretty CallEnd where pretty = showt
+
+-- I think it would be more correct to take the stack depth, and pick the one
+-- with the shallower stack, and then the max.  But it's more expensive and
+-- picking the second one seems to work.
+instance Monoid.Monoid CallEnd where
+    mempty = UnknownEnd
+    mappend UnknownEnd a = a
+    mappend a UnknownEnd = a
+    mappend _ a = a
 
 
 -- ** calls
@@ -1565,8 +1581,7 @@ instance Pretty.Pretty ScaleError where
 
 -- * merge
 
--- | The EventDerivers run as sub-derivers and the results are mappended, which
--- lets them to interleave their work or run in parallel.
+-- | Merge the events of the given derivers by their starting times.
 d_merge :: [NoteDeriver] -> NoteDeriver
 d_merge [] = mempty
 d_merge [d] = d

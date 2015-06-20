@@ -321,6 +321,10 @@ with_val_raw name val = Internal.localm $ \state -> do
     environ <- Internal.insert_environ name val (state_environ state)
     environ `seq` return $! state { state_environ = environ }
 
+delete_val :: TrackLang.ValName -> Deriver a -> Deriver a
+delete_val name = Internal.local $ \state ->
+    state { state_environ = TrackLang.delete_val name $ state_environ state }
+
 modify_val :: TrackLang.Typecheck val => TrackLang.ValName
     -> (Maybe val -> val) -> Deriver a -> Deriver a
 modify_val name modify = Internal.localm $ \state -> do
@@ -725,6 +729,17 @@ get_call_duration deriver = do
         { state_collect = mempty
         , state_constant = (state_constant state) { state_mode = DurationQuery }
         }
+
+set_call_end :: RealTime -> Deriver ()
+set_call_end end = Internal.modify_collect $ \collect -> collect
+    { collect_call_end = CallEnd end }
+
+get_call_end :: Deriver a -> Deriver (a, RealTime)
+get_call_end deriver = do
+    events <- deriver
+    CallEnd end <- gets (collect_call_end . state_collect)
+    return (events, end)
+
 
 -- ** misc
 

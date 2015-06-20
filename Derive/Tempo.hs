@@ -7,6 +7,7 @@
 module Derive.Tempo (
     extend_signal
     , with_tempo, with_absolute, with_hybrid
+    , do_not_normalize
 #ifdef TESTING
     , tempo_to_warp
 #endif
@@ -17,6 +18,7 @@ import qualified Util.TimeVector as TimeVector
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
+import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -51,10 +53,12 @@ with_tempo range maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     stretch_to_1 <- get_stretch_to_1 range $ \(start, end) -> do
         let real_start = Score.warp_pos warp start
-            real_dur = Score.warp_pos warp end - real_start
-        require_nonzero (end - start) real_dur $
+            real_end = Score.warp_pos warp end
+            real_dur = real_end - real_start
+        place <- require_nonzero (end - start) real_dur $
             Derive.stretch (1 / RealTime.to_score real_dur)
             . Derive.at (- RealTime.to_score real_start)
+        return (place, real_dur)
     stretch_to_1 $ Internal.warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver
@@ -97,11 +101,32 @@ require_nonzero block_dur real_dur ok
     be best to stretch the block to the first one.  I could break out
     stretch_to_1 and have compile apply it to only the first tempo track.
 -}
-get_stretch_to_1 :: Maybe range
-    -> (range -> Derive.Deriver (a -> a)) -> Derive.Deriver (a -> a)
+get_stretch_to_1 :: Maybe (ScoreTime, ScoreTime)
+    -> ((ScoreTime, ScoreTime)
+        -> Derive.Deriver (Derive.Deriver a -> Derive.Deriver a, RealTime))
+    -- ^ Take the block range, and return a transformer to properly place the
+    -- block, and the RealTime duration of the block.
+    -> Derive.Deriver (Derive.Deriver a -> Derive.Deriver a)
 get_stretch_to_1 Nothing _ = return id
-get_stretch_to_1 (Just range) compute = ifM Internal.is_root_block (return id)
-    (compute range)
+get_stretch_to_1 (Just range) compute =
+    ifM Internal.is_root_block root_block $ do
+        (transform, dur) <- compute range
+        start <- Derive.real (0 :: ScoreTime)
+        let set_end = (<* Derive.set_call_end (start + dur))
+        ifM (Derive.is_val_set do_not_normalize_env)
+            (return $ Derive.delete_val do_not_normalize_env . set_end)
+            (return $ transform . set_end)
+    where
+    root_block = do
+        end <- Derive.real (snd range)
+        return $ (<* Derive.set_call_end end)
+
+-- | Tell the next block derive to not normalize its duration to 1.
+do_not_normalize :: Derive.Deriver a -> Derive.Deriver a
+do_not_normalize = Derive.with_val do_not_normalize_env (1 :: Int)
+
+do_not_normalize_env :: TrackLang.ValName
+do_not_normalize_env = "do-not-normalize"
 
 
 -- * absolute
@@ -118,10 +143,11 @@ with_absolute range maybe_track_id signal deriver = do
     place <- get_stretch_to_1 range $ \(block_start, block_end) -> do
         start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
         end <- RealTime.to_score <$> Derive.real (1 :: ScoreTime)
-        let real_dur =
-                Score.warp_pos warp block_end - Score.warp_pos warp block_start
-        require_nonzero (block_end - block_start) real_dur $
+        let real_end = Score.warp_pos warp block_end
+        let real_dur = real_end - Score.warp_pos warp block_start
+        place <- require_nonzero (block_end - block_start) real_dur $
             Internal.place start ((end - start) / RealTime.to_score real_dur)
+        return (place, real_dur)
     Internal.in_real_time $ place $ Internal.warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver
@@ -158,9 +184,10 @@ with_hybrid range maybe_track_id signal deriver = do
                     / (block_dur - absolute)
         -- TODO this is probably wrong for block_start > 0, but I don't care
         -- at the moment.
-        require_nonzero block_dur real_dur $
+        place <- require_nonzero block_dur real_dur $
             Internal.in_real_time . Derive.place start stretch
             . Derive.at (-block_start)
+        return (place, real_dur)
     place $ hybrid_warp warp $ do
         Internal.add_new_track_warp maybe_track_id
         deriver

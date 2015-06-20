@@ -519,7 +519,7 @@ lookup_call_duration block_id track_id event =
             dur <- Perf.get_derive_at block_id track_id $
                 Derive.get_call_duration deriver
             return $ Just $ case dur of
-                Derive.Unknown -> Event.duration event
+                Derive.UnknownDuration -> Event.duration event
                 Derive.Duration dur -> dur
 
 -- * modify text

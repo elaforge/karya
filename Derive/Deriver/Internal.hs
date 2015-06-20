@@ -309,7 +309,7 @@ stretch factor =
 
 -- | 'at' and 'stretch' in one.  It's a little faster than using them
 -- separately.  The order is stretch, then shift, as documented by
--- 'Score.Warp'.
+-- 'Score.Warp'.  TODO shouldn't the arguments go in the other order then?
 place :: ScoreTime -> ScoreTime -> Deriver a -> Deriver a
 place shift stretch = warp $ Score.id_warp
     { Score.warp_stretch = RealTime.score stretch

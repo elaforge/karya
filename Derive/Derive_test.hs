@@ -169,6 +169,36 @@ test_call_duration = do
             ])
         ["Duration 4"]
 
+test_call_end = do
+    let run = DeriveTest.r_log_strings
+            . DeriveTest.derive_blocks_setup
+                (CallTest.with_note_transformer "t" trans)
+        trans = Derive.transformer "module" "trans" mempty "doc" $
+            Sig.call0t $ \_ deriver -> do
+                (events, end) <- Derive.get_call_end deriver
+                Log.warn $ showt end
+                return events
+    equal (run [("top", [(">", [(0, 1, "t |")])])]) ["1.0"]
+    equal (run [("top", [(">", [(0, 2, "t |")])])]) ["2.0"]
+    equal (run [("top", [("tempo", [(0, 0, "2")]), (">", [(0, 2, "t |")])])])
+        ["1.0"]
+    equal (run
+            [ ("top", [(">", [(0, 1, "t | sub")])])
+            , ("sub=ruler", [(">", [(0, 2, "")])])
+            ])
+        ["2.0"]
+    equal (run
+            [ ("top", [(">", [(0, 1, "t | sub")])])
+            , ("sub=ruler", [("tempo", [(0, 0, ".5")]), (">", [(0, 2, "")])])
+            ])
+        ["4.0"]
+
+    equal (run
+            [ ("top", [(">", [(1, 1, "t | sub")])])
+            , ("sub=ruler", [("tempo", [(0, 0, ".5")]), (">", [(0, 2, "")])])
+            ])
+        ["5.0"]
+
 test_simple_subderive = do
     let (events, msgs) = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_blocks
