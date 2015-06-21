@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Edit box fltk updates are super slow, shouldn't they all happen at once?
+    . It might be a fltk thing, because the calls all happen within 562us, or
+      .0005s, which should not be perceptible.  What's more, they happen in
+      block order, and visually the updates are in the reverse direction.
+      Test in test_block.
+  - When starting a play, the play cursor lags at the beginning.
   mridangam:
     - tha is too loud... I can compensate by using -, but maybe the scale is
       off.  Velocity should be logical, so if you play all at the same

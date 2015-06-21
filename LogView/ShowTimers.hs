@@ -9,6 +9,7 @@ import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.Environment as Environment
 import qualified Text.Printf as Printf
+import qualified Text.Read as Read
 
 import qualified Util.Log as Log
 import qualified Util.SrcPos as SrcPos
@@ -21,21 +22,37 @@ minimumDiff = 0.0
 main :: IO ()
 main = do
     args <- Environment.getArgs
-    hdl <- case args of
-        [fn] -> Tail.open fn Nothing
-        _ -> error "usage: show_timers filename"
-    loop hdl Nothing
+    case args of
+        [threshold, fn] | Just threshold <- Read.readMaybe threshold -> do
+            hdl <- Tail.open fn Nothing
+            loop threshold hdl Nothing
+        _ -> error "usage: show_timers threshold filename"
+
+loop :: Double -> Tail.Handle -> Maybe Time.UTCTime -> IO ()
+loop threshold = go
     where
-    loop hdl last_date = do
+    go hdl last_date = do
         (msg, hdl) <- Tail.tail hdl
         case Log.msg_priority msg of
             Log.Timer -> do
                 let date = Log.msg_date msg
                 let diff = realToFrac $
                         maybe 0 (Time.diffUTCTime date) last_date
-                when (diff >= minimumDiff) $
-                    Printf.printf "%.03f %s %s\n" diff
+                when (diff >= minimumDiff) $ do
+                    when (diff >= threshold) $
+                        putStr vt100_red
+                    Printf.printf "%.03f %s %s" diff
                         (SrcPos.show_srcpos (Log.msg_caller msg))
                         (Text.unpack (Log.msg_text msg))
-                loop hdl (Just date)
-            _ -> loop hdl last_date
+                    when (diff >= threshold) $
+                        putStr vt100_normal
+                    putChar '\n'
+                go hdl (Just date)
+            _ -> go hdl last_date
+
+-- | These codes should probably come from termcap, but I can't be bothered.
+vt100_red :: String
+vt100_red = "\ESC[31m"
+
+vt100_normal :: String
+vt100_normal = "\ESC[m\ESC[m"
