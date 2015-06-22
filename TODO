@@ -8,6 +8,7 @@ UNSORTED
       .0005s, which should not be perceptible.  What's more, they happen in
       block order, and visually the updates are in the reverse direction.
       Test in test_block.
+    . Indeed, it's fltk level.  Maybe even OS X.  Try on linux.
   - When starting a play, the play cursor lags at the beginning.
   mridangam:
     - tha is too loud... I can compensate by using -, but maybe the scale is
@@ -69,6 +70,14 @@ UNSORTED
       tempo track
   - I think I need to extend DurationQuery to query for RealTime duration to
     get sequence-rt to work as expected.
+    . If I wind up in Tempo with RealDurationQuery, then I can immediately set
+      the collect and return [].  But if it's not a block call, I need to
+      return early, so I still need some way to tell a block call from other
+      calls.
+    . Or I could have a field just like CallDuration which defaults to the
+      realtime of the end.  Block calls then invoke an abbreviated version
+      of BlockUtil.derive_tracks which just goes down to the first tempo
+      track.
 
   - save/complete/wayang/p2 last note of alt-w at the end doesn't get its
     duration inferred

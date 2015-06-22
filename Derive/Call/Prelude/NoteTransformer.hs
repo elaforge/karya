@@ -45,8 +45,8 @@ note_calls = Derive.call_maps
 -- This isn't a NoteTransformer, but it seems like it belongs here.  What is
 -- a better name for the module?
 c_sequence :: Derive.Generator Derive.Note
-c_sequence = Derive.generator_with_duration get_call_duration Module.prelude
-    "sequence" mempty
+c_sequence = Derive.with_score_duration get_call_duration $
+    Derive.generator Module.prelude "sequence" mempty
     "Run the given calls in sequence. If they each have have an intrinsic\
     \ CallDuration (usually this means block calls), they will get that amount\
     \ of time, at least proportial to the duration of the event. Otherwise,\
@@ -76,8 +76,8 @@ sequence_derivers start event_dur derivers unstretched_durs = mconcat
         where call_dur = sum unstretched_durs
 
 c_sequence_realtime :: Derive.Generator Derive.Note
-c_sequence_realtime = Derive.generator_with_duration get_call_duration
-    Module.prelude "sequence" mempty
+c_sequence_realtime = Derive.with_score_duration get_call_duration $
+    Derive.generator Module.prelude "sequence" mempty
     "Run the given block calls in sequence. Each call gets its natural\
     \ real time duration. Unlike `sequence`, each block gets its natural\
     \ RealTime duration, rather than being normalized to 1 and then expanded\
@@ -111,9 +111,8 @@ sequence_derivers_realtime start _event_dur =
         return $ events : rest
 
 c_parallel :: Derive.Generator Derive.Note
-c_parallel = Derive.generator_with_duration get_call_duration Module.prelude
-    "parallel" mempty
-    "Run the given calls in parallel."
+c_parallel = Derive.with_score_duration get_call_duration $ Derive.generator
+    Module.prelude "parallel" mempty "Run the given calls in parallel."
     $ Sig.call calls_arg $ \calls args -> do
         let derivers = calls_to_derivers args calls
         durs <- mapM get_duration derivers

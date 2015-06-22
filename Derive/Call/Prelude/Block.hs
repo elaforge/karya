@@ -66,8 +66,8 @@ lookup_note_block = Derive.LookupPattern "block name"
     fake_call = c_block (Id.BlockId (Id.read_id "example/block"))
 
 c_block :: BlockId -> Derive.Generator Derive.Note
-c_block block_id = Derive.generator_with_duration get_duration Module.prelude
-    ("block " <> showt block_id) mempty
+c_block block_id = Derive.with_score_duration get_duration $ Derive.generator
+    Module.prelude ("block " <> showt block_id) mempty
     "Substitute the named block into the score. If the symbol doesn't contain\
     \ a `/`, the default namespace is applied. If it starts with a `-`, this\
     \ is a relative call and the calling block's namespace and name are\

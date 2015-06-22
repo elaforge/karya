@@ -90,7 +90,7 @@ module Derive.Deriver.Monad (
 
     -- ** generator
     , Generator, GeneratorFunc(..), GeneratorF, generator_func
-    , generator_with_duration, generator, generator_events, generator1
+    , generator, with_score_duration, generator_events, generator1
 
     -- ** transformer
     , Transformer, TransformerF
@@ -1274,19 +1274,19 @@ make_call module_ name tags doc (func, arg_docs) = Call
     , call_func = func
     }
 
-generator_with_duration :: (PassedArgs d -> Deriver CallDuration)
-    -> Module.Module -> Text -> Tags.Tags
-    -> Text -> WithArgDoc (PassedArgs d -> LogsDeriver d) -> Generator d
-generator_with_duration get_duration module_ name tags doc (func, arg_docs) =
-    make_call module_ name tags doc (gfunc, arg_docs)
-    where gfunc = GeneratorFunc func get_duration
-
 -- | Create a generator that expects a list of derived values (e.g. Score.Event
 -- or Signal.Control), with no logs mixed in.  The result is wrapped in
 -- LEvent.Event.
 generator :: Module.Module -> Text -> Tags.Tags -> Text
     -> WithArgDoc (GeneratorF d) -> Generator d
-generator = generator_with_duration event_duration
+generator module_ name tags doc (func, arg_docs) =
+    make_call module_ name tags doc (generator_func func, arg_docs)
+
+-- | Set the 'gfunc_duration' field to get ScoreTime CallDuration.
+with_score_duration :: (PassedArgs d -> Deriver CallDuration)
+    -> Generator d -> Generator d
+with_score_duration get call = call
+    { call_func = (call_func call) { gfunc_duration = get } }
 
 generator_events :: Module.Module -> Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> Deriver [d]) -> Generator d
@@ -1301,7 +1301,8 @@ generator_events module_ name tags doc (func, arg_docs) =
 generator1 :: Module.Module -> Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> Deriver d) -> Generator d
 generator1 module_ name tags doc (func, arg_docs) =
-    generator module_ name tags doc (((:[]) . LEvent.Event <$>) . func, arg_docs)
+    generator module_ name tags doc
+        (((:[]) . LEvent.Event <$>) . func, arg_docs)
 
 -- ** transformer
 
