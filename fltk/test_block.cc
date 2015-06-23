@@ -18,7 +18,10 @@
 
 static const bool arrival_beats = false;
 // Turn this off just draw a single event.
-static const bool draw_lots_of_stuff = true;
+static const bool draw_lots_of_stuff = false;
+
+// Visible windows.
+static std::vector<BlockViewWindow *> windows;
 
 
 Color selection_colors[] = {
@@ -184,11 +187,10 @@ static const Color track_bg = Color(255, 255, 255);
 static const Color render_color = Color(166, 166, 205, 127);
 
 static void
-timeout_func(void *vp)
+timeout_func(void *unused)
 {
-    BlockViewWindow &view = *((BlockViewWindow *) vp);
     static int n;
-
+    /*
     static int i = t1_events.size() - 1;
     static ScoreTime t1_time_end =
         t1_events[i].event.start + t1_events[i].event.duration;
@@ -199,17 +201,23 @@ timeout_func(void *vp)
             RenderConfig(RenderConfig::render_line, render_color));
     static RulerConfig ruler(
             ruler_bg, false, true, true, arrival_beats, m44_last_pos);
+    */
+    BlockModelConfig config = block_model_config();
 
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        view.block.floating_open(1, ScoreTime(16), "hi there", 10, 10);
-        // view.block.insert_track(2, Tracklike(&empty_track, &ruler), 30);
+        config.skel_box = BlockBox(Color(0xff, 0x99, 0x99), 'b');
+        for (BlockViewWindow *w : windows) {
+            w->block.set_model_config(config);
+        }
+        // view.block.floating_open(1, ScoreTime(16), "hi there", 10, 10);
         break;
     case 1:
-        view.block.floating_insert("haha");
-        return;
-        // view.block.insert_track(2, Tracklike(&track1, &truler), 30);
+        for (BlockViewWindow *w : windows) {
+            w->block.set_model_config(config);
+        }
+        // view.block.floating_insert("haha");
         break;
     case 2:
         break;
@@ -217,7 +225,7 @@ timeout_func(void *vp)
         return;
     }
     n++;
-    Fl::repeat_timeout(1, timeout_func, vp);
+    Fl::repeat_timeout(1, timeout_func, nullptr);
 }
 
 static void
@@ -322,12 +330,23 @@ main(int argc, char **argv)
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
             RenderConfig(RenderConfig::render_filled, render_color));
 
-    BlockViewWindow view(1100, 40, 300, 500, "view1", config);
+    for (int i = 0; i < 15; i++) {
+        BlockViewWindow *w =
+            new BlockViewWindow(500 + 50*i, 40, 50, 500, "view", config);
+        w->testing = true;
+        w->block.insert_track(0, Tracklike(&ruler), 20);
+        w->show();
+        windows.push_back(w);
+    }
+    Fl::add_timeout(1, timeout_func, nullptr);
+
+    /*
+    BlockViewWindow *w =
+        new BlockViewWindow(1100, 40, 300, 500, "view1", config);
+    windows.push_back(w);
+    BlockViewWindow &view = *w;
     view.testing = true;
     // view.border(0);
-    // BlockViewWindow view2(300, 100, 200, 500, "view2", config);
-    // view2.testing = true;
-    // view2.show();
 
     if (draw_lots_of_stuff) {
         view.block.insert_track(0, Tracklike(&ruler), 20);
@@ -374,7 +393,7 @@ main(int argc, char **argv)
     }
     view.block.set_title("hi there");
 
-    // Fl::add_timeout(1, timeout_func, (void*) &view);
+    // Fl::add_timeout(1, timeout_func, nullptr);
 
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 
@@ -384,6 +403,8 @@ main(int argc, char **argv)
     sels.push_back(
         Selection(selection_colors[0], ScoreTime(90), ScoreTime(100), true));
     view.block.set_selection(0, 1, sels);
+    */
+
     /*
     view.block.set_selection(0, Selection(selection_colors[0],
         1, ScoreTime(60), 4, ScoreTime(46)));
@@ -455,10 +476,10 @@ main(int argc, char **argv)
     // t->load("dang", "*", "Bali-Simbar-B", 16, IPoint(12, 2), IPoint(8, 0));
     // t->load("pepet", ")", "Bali-Simbar-B", 16);
 
-    view.show();
-
-    std::cout << view.block.dump() << '\n';
-    f_util::print_children(&view, 3);
+    // view.show();
+    //
+    // std::cout << view.block.dump() << '\n';
+    // f_util::print_children(&view, 3);
 
     Fl::run();
 }
