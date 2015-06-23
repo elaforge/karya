@@ -3,11 +3,17 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Prelude.Block_test where
+import qualified Util.Log as Log
 import Util.Test
 import qualified Ui.Ruler as Ruler
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Call.CallTest as CallTest
+import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
+
+import Global
 
 
 test_block = do
@@ -98,6 +104,52 @@ run_sub :: (Score.Event -> a) -> [UiTest.TrackSpec] -> [UiTest.TrackSpec]
     -> ([a], [String])
 run_sub extract top sub = DeriveTest.extract extract $ DeriveTest.derive_blocks
     [("top", top), ("sub=ruler", sub)]
+
+test_score_duration = do
+    let run = snd . DeriveTest.extract Score.event_start
+            . DeriveTest.derive_blocks_setup
+                (CallTest.with_note_transformer "t" trans)
+        trans = Derive.transformer "module" "trans" mempty "doc" $
+            Sig.call0t $ \_ deriver -> do
+                Log.warn . showt =<< Derive.get_score_duration deriver
+                return []
+    equal (run [("top", [(">", [(0, 1, "t |")])])])
+        ["Duration 1.0"]
+    equal (run
+            [ ("top", [(">", [(0, 1, "t | sub")])])
+            , ("sub=ruler", [(">", [(0, 3, ""), (3, 1, "")])])
+            ])
+        ["Duration 4.0"]
+
+test_real_duration = do
+    let run = DeriveTest.r_log_strings
+            . DeriveTest.derive_blocks_setup
+                (CallTest.with_note_transformer "t" trans)
+        trans = Derive.transformer "module" "trans" mempty "doc" $
+            Sig.call0t $ \_ deriver -> do
+                Log.warn . showt =<< Derive.get_real_duration deriver
+                return []
+    equal (run [("top", [(">", [(0, 1, "t |")])])]) ["Duration 1.0"]
+    equal (run [("top", [(">", [(0, 2, "t |")])])]) ["Duration 2.0"]
+    equal (run [("top", [("tempo", [(0, 0, "2")]), (">", [(0, 2, "t |")])])])
+        ["Duration 1.0"]
+    equal (run
+            [ ("top", [(">", [(0, 1, "t | sub")])])
+            , ("sub=ruler", [(">", [(0, 2, "")])])
+            ])
+        ["Duration 2.0"]
+    equal (run
+            [ ("top", [(">", [(0, 1, "t | sub")])])
+            , ("sub=ruler", [("tempo", [(0, 0, ".5")]), (">", [(0, 2, "")])])
+            ])
+        ["Duration 4.0"]
+
+    -- It's duration, so it remains the same regardless of where you are.
+    equal (run
+            [ ("top", [(">", [(1, 1, "t | sub")])])
+            , ("sub=ruler", [("tempo", [(0, 0, ".5")]), (">", [(0, 2, "")])])
+            ])
+        ["Duration 4.0"]
 
 test_control_block = do
     let extract = DeriveTest.e_control "cont"

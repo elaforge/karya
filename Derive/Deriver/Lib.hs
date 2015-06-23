@@ -284,15 +284,6 @@ get_val name = do
     val <- lookup_val name
     maybe (throw $ "environ val not found: " <> pretty name) return val
 
-is_lilypond_derive :: Deriver Bool
-is_lilypond_derive = Maybe.isJust <$> lookup_lilypond_config
-
-lookup_lilypond_config :: Deriver (Maybe Lilypond.Types.Config)
-lookup_lilypond_config =
-    gets (state_mode . state_constant) >>= \mode -> return $ case mode of
-        Lilypond config -> Just config
-        _ -> Nothing
-
 -- | Set the given val dynamically within the given computation.  This is
 -- analogous to a dynamic let.
 --
@@ -718,30 +709,46 @@ modify_pitch pcontrol f
     | otherwise = Internal.local $ \state -> state
         { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
 
--- | Get the 'CallDuration' of the given deriver.
-get_call_duration :: Deriver a -> Deriver CallDuration
-get_call_duration deriver = do
+
+-- ** mode
+
+get_mode :: Deriver Mode
+get_mode = gets (state_mode . state_dynamic)
+
+is_lilypond_mode :: Deriver Bool
+is_lilypond_mode = Maybe.isJust <$> lookup_lilypond_config
+
+lookup_lilypond_config :: Deriver (Maybe Lilypond.Types.Config)
+lookup_lilypond_config = get_mode >>= \mode -> return $ case mode of
+    Lilypond config -> Just config
+    _ -> Nothing
+
+-- ** call duration
+
+-- | Get the 'Duration' of the given deriver.
+get_score_duration :: Deriver a -> Deriver (Duration ScoreTime)
+get_score_duration deriver = do
     state <- get
     let (_, out, _) = run (set_mode state) deriver
-    return $ collect_call_duration $ state_collect out
+    return $ collect_score_duration $ state_collect out
     where
     set_mode state = state
         { state_collect = mempty
-        , state_constant = (state_constant state) { state_mode = DurationQuery }
+        , state_dynamic = (state_dynamic state)
+            { state_mode = ScoreDurationQuery }
         }
 
-set_call_end :: RealTime -> Deriver ()
-set_call_end end = Internal.modify_collect $ \collect -> collect
-    { collect_call_end = CallEnd end }
-
-get_call_end :: Deriver a -> Deriver (a, RealTime)
-get_call_end deriver = do
-    events <- deriver
-    CallEnd end <- gets (collect_call_end . state_collect)
-    return (events, end)
-
-
--- ** misc
+get_real_duration :: Deriver a -> Deriver (Duration RealTime)
+get_real_duration deriver = do
+    state <- get
+    let (_, out, _) = run (set_mode state) deriver
+    return $ collect_real_duration $ state_collect out
+    where
+    set_mode state = state
+        { state_collect = mempty
+        , state_dynamic = (state_dynamic state)
+            { state_mode = RealDurationQuery }
+        }
 
 -- | Run the derivation with a modified scope.
 with_scopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a

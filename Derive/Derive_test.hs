@@ -22,12 +22,10 @@ import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
-import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
-import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackWarp as TrackWarp
@@ -152,52 +150,6 @@ test_stack = do
         , b0 1 2 ++ sub 0 1
         , b0 1 2 ++ sub 1 2
         ]
-
-test_call_duration = do
-    let run = snd . DeriveTest.extract Score.event_start
-            . DeriveTest.derive_blocks_setup
-                (CallTest.with_note_transformer "t" trans)
-        trans = Derive.transformer "module" "trans" mempty "doc" $
-            Sig.call0t $ \_ deriver -> do
-                Log.warn . showt =<< Derive.get_call_duration deriver
-                return []
-    strings_like (run [("top", [(">", [(0, 1, "t |")])])])
-        ["Duration 1"]
-    strings_like (run
-            [ ("top", [(">", [(0, 1, "t | sub")])])
-            , ("sub=ruler", [(">", [(0, 3, ""), (3, 1, "")])])
-            ])
-        ["Duration 4"]
-
-test_call_end = do
-    let run = DeriveTest.r_log_strings
-            . DeriveTest.derive_blocks_setup
-                (CallTest.with_note_transformer "t" trans)
-        trans = Derive.transformer "module" "trans" mempty "doc" $
-            Sig.call0t $ \_ deriver -> do
-                (events, end) <- Derive.get_call_end deriver
-                Log.warn $ showt end
-                return events
-    equal (run [("top", [(">", [(0, 1, "t |")])])]) ["1.0"]
-    equal (run [("top", [(">", [(0, 2, "t |")])])]) ["2.0"]
-    equal (run [("top", [("tempo", [(0, 0, "2")]), (">", [(0, 2, "t |")])])])
-        ["1.0"]
-    equal (run
-            [ ("top", [(">", [(0, 1, "t | sub")])])
-            , ("sub=ruler", [(">", [(0, 2, "")])])
-            ])
-        ["2.0"]
-    equal (run
-            [ ("top", [(">", [(0, 1, "t | sub")])])
-            , ("sub=ruler", [("tempo", [(0, 0, ".5")]), (">", [(0, 2, "")])])
-            ])
-        ["4.0"]
-
-    equal (run
-            [ ("top", [(">", [(1, 1, "t | sub")])])
-            , ("sub=ruler", [("tempo", [(0, 0, ".5")]), (">", [(0, 2, "")])])
-            ])
-        ["5.0"]
 
 test_simple_subderive = do
     let (events, msgs) = DeriveTest.extract DeriveTest.e_note $

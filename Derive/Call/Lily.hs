@@ -46,7 +46,7 @@ when_lilypond_config lily not_lily =
 
 -- | Only emit the deriver if I'm in lilypond mode.
 only_lilypond :: Derive.NoteDeriver -> Derive.NoteDeriver
-only_lilypond deriver = ifM Derive.is_lilypond_derive deriver mempty
+only_lilypond deriver = ifM Derive.is_lilypond_mode deriver mempty
 
 -- | When in lilypond mode, generate a note with the given Code.
 note_code :: Code -> Derive.PassedArgs d -> Derive.NoteDeriver

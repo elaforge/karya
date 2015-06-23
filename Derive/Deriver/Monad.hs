@@ -76,7 +76,7 @@ module Derive.Deriver.Monad (
     -- ** collect
     , Collect(..), SignalFragments
     , ControlMod(..), Integrated(..)
-    , TrackDynamic, CallDuration(..), CallEnd(..)
+    , TrackDynamic, Duration(..)
 
     -- * calls
     , CallMaps(..), call_map
@@ -90,7 +90,8 @@ module Derive.Deriver.Monad (
 
     -- ** generator
     , Generator, GeneratorFunc(..), GeneratorF, generator_func
-    , generator, with_score_duration, generator_events, generator1
+    , generator, generator_events, generator1
+    , with_score_duration, with_real_duration
 
     -- ** transformer
     , Transformer, TransformerF
@@ -443,6 +444,7 @@ data Dynamic = Dynamic {
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
     , state_stack :: !Stack.Stack
+    , state_mode :: !Mode
     }
 
 data Inversion =
@@ -471,6 +473,7 @@ initial_dynamic environ = Dynamic
     , state_under_invert = id
     , state_inversion = NotInverted
     , state_stack = Stack.empty
+    , state_mode = Normal
     }
 
 -- | Initial control environment.
@@ -491,7 +494,7 @@ default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
     format (Dynamic controls cfuncs cmerge pitches pitch environ warp scopes
-            aliases damage _under_invert inversion stack) =
+            aliases damage _under_invert inversion stack mode) =
         Pretty.record "Dynamic"
             [ ("controls", Pretty.format controls)
             , ("control functions", Pretty.format cfuncs)
@@ -505,11 +508,12 @@ instance Pretty.Pretty Dynamic where
             , ("damage", Pretty.format damage)
             , ("inversion", Pretty.format inversion)
             , ("stack", Pretty.format stack)
+            , ("mode", Pretty.format mode)
             ]
 
 instance DeepSeq.NFData Dynamic where
     rnf (Dynamic controls cfuncs cmerge pitches pitch environ warp _scopes
-            aliases damage _under_invert _inverted_gen stack) =
+            aliases damage _under_invert _inverted_gen stack _mode) =
         rnf controls `seq` rnf cfuncs `seq` rnf cmerge `seq` rnf pitches
         `seq` rnf pitch `seq` rnf environ `seq` rnf warp `seq` rnf aliases
         `seq` rnf damage `seq` rnf stack
@@ -685,7 +689,28 @@ lookup_call :: LookupCall call -> TrackLang.CallId -> Deriver (Maybe call)
 lookup_call (LookupMap calls) call_id = return $ Map.lookup call_id calls
 lookup_call (LookupPattern _ _ lookup) call_id = lookup call_id
 
--- ** constant
+-- ** mode
+
+-- | Derivation can run in a few distinct modes.
+data Mode =
+    -- | Standard derivation.
+    Normal
+    -- | This indicates that I'm running the deriver just to find out its
+    -- duration.  There's a hack in "Derive.Eval" that will fill in
+    -- 'collect_score_duration' when it sees this mode.  More detail in
+    -- 'Duration'.
+    | ScoreDurationQuery | RealDurationQuery
+    -- | Emit events intended for the lilypond backend.  Calls that have
+    -- corresponding staff notation (e.g. trills) emit special events with
+    -- attached lilypond code in this mode.
+    | Lilypond !Lilypond.Types.Config
+    deriving (Show)
+
+instance Pretty.Pretty Mode where
+    format (Lilypond config) = "Lilypond" Pretty.<+> Pretty.format config
+    format mode = Pretty.text (showt mode)
+
+-- * Constant
 
 data Constant = Constant {
     state_ui :: !State.State
@@ -698,7 +723,6 @@ data Constant = Constant {
     -- | Cache from the last derivation.
     , state_cache :: !Cache
     , state_score_damage :: !ScoreDamage
-    , state_mode :: !Mode
     }
 
 initial_constant :: State.State -> Library -> LookupScale
@@ -713,23 +737,7 @@ initial_constant ui_state library lookup_scale lookup_inst cache score_damage =
         , state_lookup_instrument = lookup_inst
         , state_cache = invalidate_damaged score_damage cache
         , state_score_damage = score_damage
-        , state_mode = Normal
         }
-
--- | Derivation can run in a few distinct modes.
-data Mode =
-    -- | Standard derivation.
-    Normal
-    -- | This indicates that I'm running the deriver just to find out its
-    -- duration.  There's a hack in "Derive.Eval" that will fill in
-    -- 'collect_call_duration' when it sees this mode.  More detail in
-    -- 'CallDuration'.
-    | DurationQuery
-    -- | Emit events intended for the lilypond backend.  Calls that have
-    -- corresponding staff notation (e.g. trills) emit special events with
-    -- attached lilypond code in this mode.
-    | Lilypond !Lilypond.Types.Config
-    deriving (Show)
 
 -- ** instrument
 
@@ -817,7 +825,7 @@ op_max = ControlOp "max" Signal.sig_max
 op_min = ControlOp "min" Signal.sig_min
 
 
--- ** collect
+-- * Collect
 
 -- | These are things that collect throughout derivation, and are cached in
 -- addition to the derived values.  Effectively they are extra return values,
@@ -843,8 +851,8 @@ data Collect = Collect {
     , collect_cache :: !Cache
     , collect_integrated :: ![Integrated]
     , collect_control_mods :: ![ControlMod]
-    , collect_call_duration :: !CallDuration
-    , collect_call_end :: !CallEnd
+    , collect_score_duration :: !(Duration ScoreTime)
+    , collect_real_duration :: !(Duration RealTime)
     }
 
 -- | These are fragments of a signal, which will be later collected into
@@ -961,41 +969,30 @@ type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
     Since the call duration is sometimes used to place the call in the first
     place (e.g. to align its end), I want to evaluate the minimum amount
     necessary to find the duration.  The implementation is that each generator
-    call has a 'gfunc_duration' field.  When "Derive.Eval" is evaluating
-    a generator call, if it sees that 'state_mode' is 'DurationQuery', instead
-    of calling 'gfunc_f', it will call gfunc_duration and return the result
-    via 'collect_call_duration'.  You shouldn't stick your fingers into this
-    machinery, but instead use @Derive.get_call_duration@ to do the
+    call has a 'gfunc_score_duration' field.  When "Derive.Eval" is evaluating
+    a generator call, if it sees that 'state_mode' is 'ScoreDurationQuery',
+    instead of calling 'gfunc_f', it will call gfunc_score_duration and return
+    the result via 'collect_score_duration'.  You shouldn't stick your fingers
+    into this machinery, but instead use @Derive.get_call_duration@ to do the
     gefingerpoken for you.
 
     I'm not very happy with this implementation, but I tried several approaches
     and this is the only one that worked.  Historical details are in
     NOTE [call-duration].
 -}
-data CallDuration = UnknownDuration | Duration !ScoreTime
+data Duration a = Unknown | Duration !a
     deriving (Eq, Show)
 
-instance Pretty.Pretty CallDuration where pretty = showt
-instance Monoid.Monoid CallDuration where
-    mempty = UnknownDuration
-    mappend UnknownDuration a = a
-    mappend a UnknownDuration = a
-    mappend _ a = a
-
-data CallEnd = UnknownEnd | CallEnd RealTime
-    deriving (Eq, Show)
-
-instance Pretty.Pretty CallEnd where pretty = showt
+instance Show a => Pretty.Pretty (Duration a) where pretty = showt
 
 -- I think it would be more correct to take the stack depth, and pick the one
 -- with the shallower stack, and then the max.  But it's more expensive and
 -- picking the second one seems to work.
-instance Monoid.Monoid CallEnd where
-    mempty = UnknownEnd
-    mappend UnknownEnd a = a
-    mappend a UnknownEnd = a
+instance Monoid.Monoid (Duration a) where
+    mempty = Unknown
+    mappend Unknown a = a
+    mappend a Unknown = a
     mappend _ a = a
-
 
 -- ** calls
 
@@ -1241,9 +1238,10 @@ type WithArgDoc f = (f, ArgDocs)
 
 data GeneratorFunc d = GeneratorFunc {
     gfunc_f :: !(GeneratorF d)
-    -- | This gets the logical duration of this call.  'CallDuration' has
+    -- | This gets the logical duration of this call.  'Duration' has
     -- details.
-    , gfunc_duration :: !(PassedArgs d -> Deriver CallDuration)
+    , gfunc_score_duration :: !(PassedArgs d -> Deriver (Duration ScoreTime))
+    , gfunc_real_duration :: !(PassedArgs d -> Deriver (Duration RealTime))
     }
 
 type GeneratorF d = PassedArgs d -> LogsDeriver d
@@ -1251,12 +1249,22 @@ type GeneratorF d = PassedArgs d -> LogsDeriver d
 generator_func :: (PassedArgs d -> LogsDeriver d) -> GeneratorFunc d
 generator_func f = GeneratorFunc {
     gfunc_f = f
-    , gfunc_duration = event_duration
+    , gfunc_score_duration = default_score_duration
+    , gfunc_real_duration = default_real_duration
     }
 
 -- | Most calls have the same logical duration as their event.
-event_duration :: PassedArgs d -> Deriver CallDuration
-event_duration = return . Duration . Event.duration . info_event . passed_info
+default_score_duration :: PassedArgs d -> Deriver (Duration ScoreTime)
+default_score_duration =
+    return . Duration . Event.duration . info_event . passed_info
+
+default_real_duration :: PassedArgs d -> Deriver (Duration RealTime)
+default_real_duration args = do
+    let t = Event.duration $ info_event $ passed_info args
+    -- This is Internal.score_to_real.  I don't quite want to move all that
+    -- stuff over here.
+    warp <- gets (state_warp . state_dynamic)
+    return $ Duration $ Score.warp_pos warp t
 
 -- | args -> deriver -> deriver
 type TransformerF d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
@@ -1282,12 +1290,6 @@ generator :: Module.Module -> Text -> Tags.Tags -> Text
 generator module_ name tags doc (func, arg_docs) =
     make_call module_ name tags doc (generator_func func, arg_docs)
 
--- | Set the 'gfunc_duration' field to get ScoreTime CallDuration.
-with_score_duration :: (PassedArgs d -> Deriver CallDuration)
-    -> Generator d -> Generator d
-with_score_duration get call = call
-    { call_func = (call_func call) { gfunc_duration = get } }
-
 generator_events :: Module.Module -> Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> Deriver [d]) -> Generator d
 generator_events module_ name tags doc (func, arg_docs) =
@@ -1303,6 +1305,17 @@ generator1 :: Module.Module -> Text -> Tags.Tags -> Text
 generator1 module_ name tags doc (func, arg_docs) =
     generator module_ name tags doc
         (((:[]) . LEvent.Event <$>) . func, arg_docs)
+
+-- | Set the 'gfunc_score_duration' field to get ScoreTime Duration.
+with_score_duration :: (PassedArgs d -> Deriver (Duration ScoreTime))
+    -> Generator d -> Generator d
+with_score_duration get call = call
+    { call_func = (call_func call) { gfunc_score_duration = get } }
+
+with_real_duration :: (PassedArgs d -> Deriver (Duration RealTime))
+    -> Generator d -> Generator d
+with_real_duration get call = call
+    { call_func = (call_func call) { gfunc_real_duration = get } }
 
 -- ** transformer
 
@@ -1658,16 +1671,16 @@ levent_key (LEvent.Event event) = Score.event_start event
 -}
 
 {- NOTE [call-duration]
-    This is containued from 'CallDuration'.
+    This is containued from 'Duration'.
 
-    Initially I used just Collect, and each deriver could put a CallDuration
+    Initially I used just Collect, and each deriver could put a Duration
     into Collect.  Unfortunately this means I have to run the whole deriver and
     evaluate all the notes.  I tried to exploit laziness a bit, but it's
     probably impossible.  In addition, merging durations is not correct, because
     the duration set by the block call should override the durations set by
     the events inside.
 
-    Then I tried splitting Deriver into (DeriveM, CallDuration) and merging
+    Then I tried splitting Deriver into (DeriveM, Duration) and merging
     CallDurations in the Applicative instance.  This prevents evaluation, but
     stops propagating the CallDurations as soon as it hits a (>>=).  This turns
     out to be pretty much immediately, since an event call needs to parse text
@@ -1675,7 +1688,7 @@ levent_key (LEvent.Event event) = Score.event_start event
     I actually do need to evaluate a certain amount of the deriver to figure out
     what kind of deriver it is.
 
-    Since the things that have CallDuration are not so much any old deriver,
+    Since the things that have Duration are not so much any old deriver,
     but specifically calls, I tried putting a special field in 'Generator'
     calls, which turned out to work.
 -}

@@ -14,7 +14,7 @@ test_sequence = do
         ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")], [])
     equal (run 0 3 "sequence \"(%t-dia=1 | sub-e) sub-cd")
         ([(0, 1, "4f"), (1, 1, "4c"), (2, 1, "4d")], [])
-    -- CallDuration is the sum of callees, so I can sequence sequences.
+    -- Duration is the sum of callees, so I can sequence sequences.
     equal (run 0 4 "sequence \"(sequence sub-e sub-e) sub-cd")
         ([(0, 1, "4e"), (1, 1, "4e"), (2, 1, "4c"), (3, 1, "4d")], [])
 
@@ -24,7 +24,6 @@ test_sequence = do
         ([(2, 2, "4c"), (4, 2, "4d"), (6, 2, "4e")], [])
 
 test_sequence_realtime = do
-    -- let run start dur call = run_blocks $ make_subs start dur call
     let run = run_blocks
     equal (run $ make_subs 0 2 "sequence-rt sub-cd")
         ([(0, 1, "4c"), (1, 1, "4d")], [])
@@ -38,10 +37,16 @@ test_sequence_realtime = do
             ]
     equal (run $ tempo_subs 0 5 "sequence-rt sub-cd sub-e")
         ([(0, 2, "4c"), (2, 2, "4d"), (4, 1, "4e")], [])
+    -- Translate and stretch.
     equal (run $ tempo_subs 2 5 "sequence-rt sub-cd sub-e")
         ([(2, 2, "4c"), (4, 2, "4d"), (6, 1, "4e")], [])
-    -- equal (run $ tempo_subs 2 10 "sequence-rt sub-cd sub-e")
-    --     ([(2, 4, "4c"), (6, 4, "4d"), (10, 2, "4e")], [])
+    equal (run $ tempo_subs 2 10 "sequence-rt sub-cd sub-e")
+        ([(2, 4, "4c"), (6, 4, "4d"), (10, 2, "4e")], [])
+    equal (run $ tempo_subs 2 2.5 "sequence-rt sub-cd sub-e")
+        ([(2, 1, "4c"), (3, 1, "4d"), (4, 0.5, "4e")], [])
+
+    equal (run $ tempo_subs 2 6 "sequence \"(sequence-rt sub-cd sub-e) sub-e")
+        ([(2, 2, "4c"), (4, 2, "4d"), (6, 1, "4e"), (7, 1, "4e")], [])
 
 test_parallel = do
     let run start dur call = run_blocks $ make_subs start dur call

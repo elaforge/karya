@@ -9,6 +9,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
@@ -17,7 +18,6 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -45,7 +45,7 @@ note_calls = Derive.call_maps
 -- This isn't a NoteTransformer, but it seems like it belongs here.  What is
 -- a better name for the module?
 c_sequence :: Derive.Generator Derive.Note
-c_sequence = Derive.with_score_duration get_call_duration $
+c_sequence = Derive.with_score_duration score_duration $
     Derive.generator Module.prelude "sequence" mempty
     "Run the given calls in sequence. If they each have have an intrinsic\
     \ CallDuration (usually this means block calls), they will get that amount\
@@ -54,14 +54,14 @@ c_sequence = Derive.with_score_duration get_call_duration $
     \ don't, you probably get confusing results."
     $ Sig.call calls_arg $ \calls args -> do
         let derivers = calls_to_derivers args calls
-        durs <- mapM get_duration derivers
+        durs <- mapM get_score_duration derivers
         sequence_derivers (Args.start args) (Args.duration args)
             (map snd derivers) durs
     where
     calls_arg = Sig.many1 "call" "Generator calls."
-    get_call_duration args = do
+    score_duration args = do
         calls <- Sig.run_or_throw calls_arg args
-        durs <- mapM get_duration (calls_to_derivers args calls)
+        durs <- mapM get_score_duration (calls_to_derivers args calls)
         return $ Derive.Duration (sum durs)
 
 sequence_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
@@ -72,11 +72,11 @@ sequence_derivers start event_dur derivers unstretched_durs = mconcat
     ]
     where
     durs = map (*stretch) unstretched_durs
-    stretch = if call_dur == 0 then 1 else event_dur / call_dur
-        where call_dur = sum unstretched_durs
+    stretch = if total_dur == 0 then 1 else event_dur / total_dur
+        where total_dur = sum unstretched_durs
 
 c_sequence_realtime :: Derive.Generator Derive.Note
-c_sequence_realtime = Derive.with_score_duration get_call_duration $
+c_sequence_realtime = Derive.with_score_duration score_duration $
     Derive.generator Module.prelude "sequence" mempty
     "Run the given block calls in sequence. Each call gets its natural\
     \ real time duration. Unlike `sequence`, each block gets its natural\
@@ -84,45 +84,46 @@ c_sequence_realtime = Derive.with_score_duration get_call_duration $
     \ to its ScoreTime duration. TODO I can't get the RealTime duration without\
     \ deriving, at which point it's too late to stretch, so the event duration\
     \ has no effect."
-    $ Sig.call calls_arg $ \calls args ->
+    $ Sig.call calls_arg $ \calls args -> do
+        let derivers = calls_to_derivers args calls
+        durs <- mapM get_real_duration derivers
         sequence_derivers_realtime (Args.start args) (Args.duration args)
-            (map snd (calls_to_derivers args calls))
+            (map snd derivers) durs
     where
     calls_arg = Sig.many1 "call" "Generator calls."
-    -- TODO use the realtime duration... but then I need to derive
-    get_call_duration args = do
+    score_duration args = do
         calls <- Sig.run_or_throw calls_arg args
-        durs <- mapM get_duration (calls_to_derivers args calls)
-        return $ Derive.Duration (sum durs)
+        durs <- mapM get_real_duration (calls_to_derivers args calls)
+        end <- Call.score_duration (Args.start args) (sum durs)
+        return $ Derive.Duration $ end - Args.start args
 
 sequence_derivers_realtime :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
-    -> Derive.NoteDeriver
-sequence_derivers_realtime start _event_dur =
-    -- TODO I need to be able to figure out the RealTime duration without
-    -- deriving to use event_dur, otherwise I'd have to derive twice.
-    fmap Derive.merge_event_lists . go start
-    where
-    go _ [] = return []
-    go at (d : ds) = do
-        (events, end_s) <- Derive.get_call_end $ Derive.at at $
-            Tempo.do_not_normalize d
-        end <- Derive.score end_s
-        rest <- go end ds
-        return $ events : rest
+    -> [RealTime] -> Derive.NoteDeriver
+sequence_derivers_realtime start event_dur derivers r_durs = do
+    r_start <- Derive.real start
+    starts <- mapM Derive.score $ scanl (+) r_start r_durs
+    let unstretched_durs = zipWith (-) (drop 1 starts) starts
+    let total_dur = sum unstretched_durs
+        stretch = if total_dur == 0 then 1 else event_dur / total_dur
+    let durs = map (*stretch) unstretched_durs
+    mconcat
+        [ Derive.place start dur d
+        | (start, dur, d) <- zip3 (scanl (+) start durs) durs derivers
+        ]
 
 c_parallel :: Derive.Generator Derive.Note
-c_parallel = Derive.with_score_duration get_call_duration $ Derive.generator
+c_parallel = Derive.with_score_duration score_duration $ Derive.generator
     Module.prelude "parallel" mempty "Run the given calls in parallel."
     $ Sig.call calls_arg $ \calls args -> do
         let derivers = calls_to_derivers args calls
-        durs <- mapM get_duration derivers
+        durs <- mapM get_score_duration derivers
         parallel_derivers (Args.start args) (Args.duration args)
             (map snd derivers) durs
     where
     calls_arg = Sig.many1 "call" "Generator calls."
-    get_call_duration args = do
+    score_duration args = do
         calls <- Sig.run_or_throw calls_arg args
-        durs <- mapM get_duration (calls_to_derivers args calls)
+        durs <- mapM get_score_duration (calls_to_derivers args calls)
         return $ Derive.Duration $ fromMaybe 0 (Seq.maximum durs)
 
 parallel_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
@@ -142,11 +143,21 @@ calls_to_derivers args calls = zip (NonEmpty.toList calls)
     (map (Eval.eval_quoted_normalized (Args.info args))
         (NonEmpty.toList calls))
 
-get_duration :: (TrackLang.Quoted, Derive.Deriver a) -> Derive.Deriver ScoreTime
-get_duration (quoted, d) = Derive.get_call_duration d >>= \dur -> case dur of
-    Derive.UnknownDuration ->
-        Derive.throw $ "unknown CallDuration for " <> ShowVal.show_val quoted
-    Derive.Duration dur -> return dur
+get_score_duration :: (TrackLang.Quoted, Derive.Deriver a)
+    -> Derive.Deriver ScoreTime
+get_score_duration (quoted, d) =
+    Derive.get_score_duration d >>= \dur -> case dur of
+        Derive.Unknown -> Derive.throw $ "unknown score duration for "
+            <> ShowVal.show_val quoted
+        Derive.Duration dur -> return dur
+
+get_real_duration :: (TrackLang.Quoted, Derive.Deriver a)
+    -> Derive.Deriver RealTime
+get_real_duration (quoted, d) =
+    Derive.get_real_duration d >>= \dur -> case dur of
+        Derive.Unknown -> Derive.throw $ "unknown real duration for "
+            <> ShowVal.show_val quoted
+        Derive.Duration dur -> return dur
 
 
 -- * transformers
@@ -243,7 +254,7 @@ unstretch_args args = unstretch (Args.start args) (Args.duration args)
 
 -- | Put the deriver at 0t and in its \"natural\" time.  This is only different
 -- from its event's time if the deriver has its own duration as per
--- 'Derive.get_call_duration'.
+-- 'Derive.get_score_duration'.
 --
 -- The generator will do @Derive.place start (event_dur/dur)@, so I have to
 -- undo that.
@@ -251,7 +262,7 @@ unstretch :: ScoreTime -> ScoreTime
     -> (ScoreTime -> Derive.Deriver a -> Derive.Deriver a)
     -> Derive.Deriver a -> Derive.Deriver a
 unstretch start event_dur process deriver = do
-    dur <- Derive.get_call_duration deriver
+    dur <- Derive.get_score_duration deriver
     case dur of
         Derive.Duration dur | dur /= event_dur ->
             process dur $ flatten dur deriver

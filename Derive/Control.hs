@@ -53,8 +53,8 @@ import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PSignal as PSignal
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -83,11 +83,11 @@ eval_track :: TrackTree.Track -> [TrackLang.Call]
     -> ParseTitle.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
 eval_track track expr ctype deriver = case ctype of
     ParseTitle.Tempo maybe_sym -> do
-        is_ly <- Derive.is_lilypond_derive
+        is_ly <- Derive.is_lilypond_mode
         let sig_deriver
                 | is_ly = return (Signal.constant 1, [])
                 | otherwise = with_control_env Controls.tempo "compose" $
-                    derive_control True track transform
+                    in_normal_mode $ derive_control True track transform
         tempo_call maybe_sym track sig_deriver deriver
     ParseTitle.Control maybe_op control -> do
         let control_name = Score.typed_val control
@@ -105,6 +105,16 @@ eval_track track expr ctype deriver = case ctype of
         ParseTitle.Tempo {} -> "tempo track"
         ParseTitle.Control {} -> "control track"
         ParseTitle.Pitch {} -> "pitch track"
+
+-- | Switch 'Derive.RealDurationQuery' to 'Derive.Normal'.  A RealDurationQuery
+-- needs to evaluate until the tempo track of the callee block.  But if I leave
+-- it in RealDurationQuery mode, the calls on the tempo signal think I am
+-- asking about their durations.
+in_normal_mode :: Derive.Deriver a -> Derive.Deriver a
+in_normal_mode deriver = Derive.get_mode >>= \mode -> case mode of
+    Derive.RealDurationQuery -> Internal.local
+        (\st -> st { Derive.state_mode = Derive.Normal }) deriver
+    _ -> deriver
 
 merge_name :: Derive.Merge -> Text
 merge_name Derive.Set = "set"
@@ -153,8 +163,9 @@ tempo_call sym track sig_deriver deriver = do
             (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
 
-dispatch_tempo :: Maybe TrackLang.Symbol -> Maybe (ScoreTime, ScoreTime)
-    -> Maybe TrackId -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
+dispatch_tempo :: Monoid.Monoid a => Maybe TrackLang.Symbol
+    -> Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
+    -> Derive.Deriver a -> Derive.Deriver a
 dispatch_tempo sym block_range maybe_track_id signal deriver = case sym of
     Nothing -> Tempo.with_tempo block_range maybe_track_id signal deriver
     Just sym
@@ -329,7 +340,7 @@ last_signal_val xs
 -- | If this track is to be rendered by the UI, stash the given signal in
 -- either 'Derive.collect_track_signals' or 'Derive.collect_signal_fragments'.
 stash_if_wanted :: TrackTree.Track -> Signal.Control -> Derive.Deriver ()
-stash_if_wanted track sig =
+stash_if_wanted track sig = whenM is_normal_mode $
     whenJustM (render_of track) $ \(block_id, track_id, _) ->
         if TrackTree.track_sliced track
             then stash_signal_fragment block_id track_id
@@ -338,6 +349,11 @@ stash_if_wanted track sig =
                 -- the end should be unique.
                 (snd $ TrackTree.track_range track) sig
             else stash_signal block_id track_id sig
+
+is_normal_mode :: Derive.Deriver Bool
+is_normal_mode = Derive.get_mode >>= \mode -> return $ case mode of
+    Derive.Normal -> True
+    _ -> False
 
 stash_signal_fragment :: BlockId -> TrackId -> TrackTime -> Signal.Control
     -> Derive.Deriver ()

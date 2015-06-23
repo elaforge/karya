@@ -66,8 +66,9 @@ lookup_note_block = Derive.LookupPattern "block name"
     fake_call = c_block (Id.BlockId (Id.read_id "example/block"))
 
 c_block :: BlockId -> Derive.Generator Derive.Note
-c_block block_id = Derive.with_score_duration get_duration $ Derive.generator
-    Module.prelude ("block " <> showt block_id) mempty
+c_block block_id = Derive.with_score_duration get_score_duration $
+    Derive.with_real_duration (const $ get_real_duration block_id) $
+    Derive.generator Module.prelude ("block " <> showt block_id) mempty
     "Substitute the named block into the score. If the symbol doesn't contain\
     \ a `/`, the default namespace is applied. If it starts with a `-`, this\
     \ is a relative call and the calling block's namespace and name are\
@@ -84,9 +85,13 @@ c_block block_id = Derive.with_score_duration get_duration $ Derive.generator
         end <- Derive.real (1 :: ScoreTime)
         if Event.positive (Args.event args) then trim_controls end deriver
             else constant_controls_at end deriver
-    get_duration :: a -> Derive.Deriver Derive.CallDuration
-    get_duration _ = Derive.Duration . (\(s, e) -> e-s) <$>
+    get_score_duration :: a -> Derive.Deriver (Derive.Duration ScoreTime)
+    get_score_duration _ = Derive.Duration . (\(s, e) -> e-s) <$>
         Derive.block_logical_range block_id
+    get_real_duration :: BlockId -> Derive.Deriver (Derive.Duration RealTime)
+    get_real_duration block_id =
+        Derive.get_real_duration $ Internal.with_stack_block block_id $
+            d_block block_id
 
 -- | Remove samples at the given RealTime.  This is to support final block
 -- notes and 'Derive.Flags.infer_duration'.  Otherwise, an event at the end of

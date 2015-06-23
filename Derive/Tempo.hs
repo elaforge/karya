@@ -12,6 +12,7 @@ module Derive.Tempo (
     , tempo_to_warp
 #endif
 ) where
+import qualified Data.Monoid as Monoid
 import qualified Data.Vector.Storable as Vector
 
 import qualified Util.TimeVector as TimeVector
@@ -42,7 +43,7 @@ extend_signal track_end sig = sig <> case Signal.last sig of
 -- Tempo is the tempo signal, which is the standard musical definition of
 -- tempo: trackpos over time.  Warp is the time warping that the tempo
 -- implies, which is the integral of (1/tempo).
-with_tempo :: Maybe (ScoreTime, ScoreTime)
+with_tempo :: Monoid.Monoid a => Maybe (ScoreTime, ScoreTime)
     -- ^ block start and end, passed to 'get_stretch_to_1'
     -> Maybe TrackId
     -- ^ Needed to record this track in TrackWarps.  It's optional because if
@@ -101,7 +102,7 @@ require_nonzero block_dur real_dur ok
     be best to stretch the block to the first one.  I could break out
     stretch_to_1 and have compile apply it to only the first tempo track.
 -}
-get_stretch_to_1 :: Maybe (ScoreTime, ScoreTime)
+get_stretch_to_1 :: Monoid.Monoid a => Maybe (ScoreTime, ScoreTime)
     -> ((ScoreTime, ScoreTime)
         -> Derive.Deriver (Derive.Deriver a -> Derive.Deriver a, RealTime))
     -- ^ Take the block range, and return a transformer to properly place the
@@ -109,17 +110,19 @@ get_stretch_to_1 :: Maybe (ScoreTime, ScoreTime)
     -> Derive.Deriver (Derive.Deriver a -> Derive.Deriver a)
 get_stretch_to_1 Nothing _ = return id
 get_stretch_to_1 (Just range) compute =
-    ifM Internal.is_root_block root_block $ do
+    ifM Internal.is_root_block (return id) $ do
         (transform, dur) <- compute range
-        start <- Derive.real (0 :: ScoreTime)
-        let set_end = (<* Derive.set_call_end (start + dur))
-        ifM (Derive.is_val_set do_not_normalize_env)
-            (return $ Derive.delete_val do_not_normalize_env . set_end)
-            (return $ transform . set_end)
-    where
-    root_block = do
-        end <- Derive.real (snd range)
-        return $ (<* Derive.set_call_end end)
+        Derive.get_mode >>= \mode -> case mode of
+            Derive.RealDurationQuery -> do
+                set_real_duration dur
+                return $ const $ return mempty
+            _ -> ifM (Derive.is_val_set do_not_normalize_env)
+                (return $ Derive.delete_val do_not_normalize_env)
+                (return transform)
+
+set_real_duration :: RealTime -> Derive.Deriver ()
+set_real_duration dur = Internal.modify_collect $ \collect ->
+    collect { Derive.collect_real_duration = Derive.Duration dur }
 
 -- | Tell the next block derive to not normalize its duration to 1.
 do_not_normalize :: Derive.Deriver a -> Derive.Deriver a
@@ -136,8 +139,8 @@ do_not_normalize_env = "do-not-normalize"
 --
 -- This can be used to isolate the tempo from any tempo effects that may be
 -- going on.
-with_absolute :: Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
-    -> Derive.Deriver a -> Derive.Deriver a
+with_absolute :: Monoid.Monoid a => Maybe (ScoreTime, ScoreTime)
+    -> Maybe TrackId -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
 with_absolute range maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     place <- get_stretch_to_1 range $ \(block_start, block_end) -> do
@@ -158,8 +161,8 @@ with_absolute range maybe_track_id signal deriver = do
 -- time.  That is, they won't stretch along with the non-zero segments.  This
 -- means the output will always be at least as long as the absolute sections,
 -- so a block call may extend past the end of its event.
-with_hybrid :: Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
-    -> Derive.Deriver a -> Derive.Deriver a
+with_hybrid :: Monoid.Monoid a => Maybe (ScoreTime, ScoreTime) -> Maybe TrackId
+    -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
 with_hybrid range maybe_track_id signal deriver = do
     let warp = tempo_to_score_warp signal
     place <- get_stretch_to_1 range $ \(block_start, block_end) -> do

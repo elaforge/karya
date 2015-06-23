@@ -100,18 +100,26 @@ apply_generator cinfo call_id args = do
             , Derive.passed_call_name = Derive.call_name call
             , Derive.passed_info = cinfo
             }
-    mode <- Derive.gets (Derive.state_mode . Derive.state_constant)
+    mode <- Derive.get_mode
     Internal.with_stack_call (Derive.call_name call) $ case mode of
-        Derive.DurationQuery -> do
-            dur <- Derive.gfunc_duration (Derive.call_func call) passed
-            set_call_duration dur
-            return []
+        Derive.ScoreDurationQuery -> do
+            dur <- Derive.gfunc_score_duration (Derive.call_func call) passed
+            set_score_duration dur
+            return mempty
+        Derive.RealDurationQuery -> do
+            dur <- Derive.gfunc_real_duration (Derive.call_func call) passed
+            set_real_duration dur
+            return mempty
         _ -> Derive.gfunc_f (Derive.call_func call) passed
 
--- | See 'Derive.CallDuration' for details.
-set_call_duration :: Derive.CallDuration -> Derive.Deriver ()
-set_call_duration dur = Internal.modify_collect $ \collect ->
-    collect { Derive.collect_call_duration = dur }
+-- | See 'Derive.Duration' for details.
+set_score_duration :: Derive.Duration ScoreTime -> Derive.Deriver ()
+set_score_duration dur = Internal.modify_collect $ \collect ->
+    collect { Derive.collect_score_duration = dur }
+
+set_real_duration :: Derive.Duration RealTime -> Derive.Deriver ()
+set_real_duration dur = Internal.modify_collect $ \collect ->
+    collect { Derive.collect_real_duration = dur }
 
 -- ** transformer
 
