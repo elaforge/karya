@@ -24,6 +24,14 @@
 
     TODO some haddock flags to make sure the docs are collected in the high
     level modules?
+
+    Here are the names for various aspects of signals:
+
+    >           numbers                   pitches                 both
+    > scalar    Signal.Y                  PSignal.Y
+    > name      Score.Control             Score.PControl
+    > signal    Signal.Control            PSignal.Signal
+    > ref       TrackLang.ControlRef      TrackLang.PControlRef   Ref
 -}
 module Derive.BaseTypes where
 import qualified Control.DeepSeq as DeepSeq

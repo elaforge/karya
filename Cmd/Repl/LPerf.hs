@@ -270,7 +270,6 @@ strip_stack :: [Score.Event] -> [Score.Event]
 strip_stack = map $ \event -> event { Score.event_stack = Stack.empty }
 
 
-
 -- * play from
 
 events_from :: Cmd.CmdL Cmd.Events

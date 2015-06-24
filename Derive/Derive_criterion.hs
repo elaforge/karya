@@ -2,7 +2,6 @@ module Derive.Derive_criterion where
 import qualified Criterion.Main as Criterion
 
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive

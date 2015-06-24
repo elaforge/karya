@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Edit box fltk updates are super slow, shouldn't they all happen at once?
+  + Edit box fltk updates are super slow, shouldn't they all happen at once?
     . It might be a fltk thing, because the calls all happen within 562us, or
       .0005s, which should not be perceptible.  What's more, they happen in
       block order, and visually the updates are in the reverse direction.
@@ -18,267 +18,18 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
-  * sequence gives each block in its ScoreTime duration, which means that if
-    they have their own tempo tracks the tempo will be irregular.  Can I have
-    a sequence that sequences by RealTime duration?
-    . I need the RealTime end, which for block calls is the ScoreTime call
-      duration under the tempo track.  So it's produced as a side-effect of
-      making the events, which means it could be either a magic event, or
-      it could be in Collect.
-    . Collect is probably better, it means I would do
-      > events <- deriver; end <- Derive.get_logical_end
-      So I would set logical end at the *end* of the event deriver, and at
-      the end of the tempo track derivation.  That way it overrides whatever
-      was previously there.
-    . Actually to override the default has to go at the beginning.  But then
-      I have to look up the end time and put it in Collect for every call, when
-      it's rarely needed, and could be computed from the event in CallInfo
-      anyway.  So in that case, why not put it in CallInfo?  That doesn't work
-      because this is communication from the generator to a transformer.
-    . How about emit a magic event, but put it an the beginning?  That seems
-      brittle because all I need is one event before the magic one and I lost
-      the duration.  But perhaps this is actually intended: that could mean
-      that the duration was overridden, say it belongs to a subcall of the
-      callee.  In fact this will definitely happen when blocks call other
-      blocks.  But it's still brittle because a transformer could put events
-      on the front.
-    . If I switch to a more complicated type for LEvents than a list, then
-      maybe I can more easily embed things like this.  Say
-        data Stream a = Chunk Metadata (Stream a) | Events [LEvent a]
-    . What is the scope of a real duration?  Since it's end time in RealTime,
-      they can be combined.  I want the maximum of all of them.  This implies
-      that starting at 0 and combining with max is actually correct.
-    . No wait, not correct, because a block call can set the end to before
-      the last event, and hence before the end of its calling event.  I need
-      to make sure that the CallEnd of the last event in the block doesn't
-      override the CallEnd of the block itself, which might be before that.
-
-    . I also need to unstretch the block so I get its natural duration.  It
-      turns out this is not the same as what calls like 'clip' do, because
-      they unstretch to its ScoreTime duration, which means that the callee's
-      tempo is relative, so const 2 is the same as const 1.
-    . I think the information about the realtime duration of the block is
-      only available in Tempo.with_tempo.  So I have to suppress stretch_to_1.
-      I can go the other way, and only stretch to 1 if there is a special
-      environ val, and then delete it.  This will get the same effect as
-      Internal.is_root_block if a normal block calls sets the environ.
-    . That won't work because sequence-rt calls normal block calls, so it
-      would have to tell them.  So I think I have to do block-in-natural-time
-      to suppress stretch_to_1.
-
-    . I can't get the stretch right without deriving twice.  I would have to
-      do the CallDuration thing, except derive all the way until the first
-      tempo track
-  * I think I need to extend DurationQuery to query for RealTime duration to
-    get sequence-rt to work as expected.
-    . If I wind up in Tempo with RealDurationQuery, then I can immediately set
-      the collect and return [].  But if it's not a block call, I need to
-      return early, so I still need some way to tell a block call from other
-      calls.
-    . Or I could have a field just like CallDuration which defaults to the
-      realtime of the end.  Block calls then invoke an abbreviated version
-      of BlockUtil.derive_tracks which just goes down to the first tempo
-      track.
-    . This is tricky because when I evaluate the tempo signal I still have
-      RealDurationQuery set, which makes it look like I want the duration of
-      the first call of the tempo signal.
   - If I get a RealDuration, it evaluates the tempo track.  That should be
     cached so I don't wind up doing it twice, right?
 
   - save/complete/wayang/p2 last note of alt-w at the end doesn't get its
     duration inferred
-  * Add a 'debug' call that records the events at its spot.
-    . Put them in logs, but Log.Msg only stores text, so I'd have to extract
-      the interesting parts first, instead of at the repl.  So I'd have
-      a small set of hardcoded extractions.
-    . Put a Dynamic data field in Log.Msg, but then I have to hand-write
-      instances.  Not a big deal, actually.  I'd also get bogus "empty" msgs,
-      since I wouldn't serialize the Dynamic.
-    . Add a LEvent.Debug constructor.  That then gets in the way of things
-      like LEvent.partition.  So make 'Log be Either Log.Msg (Debug Dynamic)'.
-      I don't get extra gunk in the seq.log because I can filter those out
-      before writing.
-      This is kind of annoying though, because it adds another layer of
-      indirection and hence breaks everyone who directly constructs
-      a LEvent.Log.  It's not that many, but adding a record field to Log.Msg
-      doesn't have this problem.
-    . If I add a field to Log.Msg, can I reuse that for cache logs?  Not
-      really, because I want them to be serialized, since logviewer looks at
-      them.
-
-  * I think the ngoret into b01 in save/complete/wayang/delima-manis isn't
-    being cancelled properly.
-    . save/complete/wayang/bug-no-cancel
-    . pemade: (39.9s, .6s) 4o,  (40, .75) 4e,   (40, 4)   4e
-      kantil: (39.9s, .1s) 5o,  (40, 0)   5e,   (40, .75) 5e
-    . in the score: (49.5, .5, 4i), (40, .75, 4e)
-    . For pemade, where does that extra (40, 4) come from?  4 is
-      infer-duration, so probably from there.
-      . Without infer-duration:
-    . pemade: (39.9s, .6s) 4o,  (39.99, 0) 4e,  (40, .75)   4e
-      Looks like the second 4e isn't being cancelled.
-    . The problem is that the (39.99, 0) doesn't merge with (40, .75)
-      It's 39.99476147183341, which is greater than RealTime.eta.
-      I get warp_shift = 39.894761471833405, warp_stretch = 0.6000000000000014
-    . The random variation is due to %start-s, isn't that supposed to be
-      applied later by apply-start-offset?
-    . And kantilan's 5e isn't getting infer-duration, while pemade does.
-    . Turns out Gender.ngoret was applying Note.with_start_controls, which
-      as far as I can tell was left over from when I applied Controls.start_s
-      directly, instead of via apply-start-offset.
   - shakefile: remove cabal usage in favor of a sandbox
     . If there is a .cabal-sandbox, pass -no-user-package-db
       -package-db .cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d/
-    * How to get the path to the packages dir?
-      Util.sandboxPackageDb
     - Figure out how to get GHC API to read from sandbox.  Probably have to
       put the same flags into build/*/ghci-flags
       . This is the same thing that 'cabal repl' does.
-  * save/sketch/14-04-30 has "sample time didn't increase"
-  * can't delete text with floating edit?
-  * Edit.try_set_call_duration is buggy, I get
-    . Cmd/Perf.hs:89 [get_note_deriver] expected a NoteTrack for ((bid
-      "untitled/b1"), (tid "untitled/b1.t3")), but got PitchTrack
-  * on stdout: seq: Prelude.chr: bad argument: 4315582632
-    . I think Attoparsec.inClass is buggy, when I removed the call this goes
-      away.  Bug filed: https://github.com/bos/attoparsec/issues/103
-    ****    Cmd/Responder.hs:255 [respond_loop] exception caught in
-    respond_loop: Prelude.chr: bad argument: 4365357696
-    . See if downgrading to ghc 7.8.4 fixes it.
-    . Apparently not, got it again in save/sketch/piano1
-    *** Exception (reporting due to +RTS -xc): (THUNK_1_0), stack trace:
-      Derive.Parse.p_identifier,
-      called from Derive.Parse.p_instrument,
-      called from Derive.Parse.p_val,
-      called from Derive.Parse.p_term,
-      called from Derive.Parse.lexeme,
-      called from Derive.Parse.p_word,
-      called from Derive.Parse.p_call_symbol,
-      called from Derive.Parse.p_call,
-      called from Derive.Parse.p_expr,
-      called from Derive.Parse.p_pipeline,
-      called from Derive.Parse.parse_expr,
-      called from Derive.ParseTitle.parse_note,
-      called from Derive.Note.with_title,
-      called from Derive.Note.d_note_track,
-      called from Derive.Call.BlockUtil.derive_track,
-      called from Util.Control.mconcatMap,
-      called from Derive.Call.BlockUtil.derive_tracks,
-      called from Derive.Call.BlockUtil.derive_tree,
-      called from Derive.Deriver.Internal.eval_ui,
-      called from Derive.Call.BlockUtil.note_deriver,
-      called from Derive.Call.Prelude.Block.d_block,
-      called from Derive.Call.Prelude.Block.c_block,
-      called from Derive.Deriver.Internal.localm,
-      called from Derive.Deriver.Internal.with_stack,
-      called from Derive.Deriver.Internal.with_stack_call,
-      called from Derive.Eval.require_call,
-      called from Derive.Deriver.Internal.get_dynamic,
-      called from Derive.Deriver.Internal.get_stack,
-      called from Derive.Deriver.Internal.lookup_current_block_id,
-      called from Derive.Deriver.Internal.get_ui_state,
-      called from Derive.Call.Prelude.Block.call_to_block_id,
-      called from Derive.Call.Prelude.Articulation.make_lookup_attr,
-      called from Derive.Deriver.Monad.lookup_call,
-      called from Derive.Deriver.Monad.lookup_scopes,
-      called from Derive.Deriver.Monad.get_scopes,
-      called from Derive.Deriver.Monad.lookup_with,
-      called from Derive.Deriver.Monad.lookup_generator,
-      called from Derive.Eval.get_generator,
-      called from Derive.Eval.apply_generator,
-      called from Derive.Eval.eval_generator,
-      called from Derive.Eval.eval_toplevel,
-      called from Derive.Eval.eval_expr,
-      called from Derive.Eval.eval_one_at,
-      called from Derive.Eval.eval_one,
-      called from Derive.Eval.eval_one_call,
-      called from Derive.Call.Prelude.Block.eval_root_block,
-      called from Cmd.PlayUtil.derive_block,
-      called from Ui.State.fmap,
-      called from Cmd.Cmd.fmap,
-      called from Util.Logger.run,
-      called from Util.Logger.>>=,
-      called from Util.Log.>>=,
-      called from Cmd.Cmd.run,
-      called from Cmd.Cmd.run_id,
-      called from Cmd.Performance.derive,
-      called from Cmd.Performance.generate_performance,
-      called from Cmd.Performance.try_generate_performance,
-      called from Cmd.Performance.run_update,
-      called from Cmd.Performance.update_performance,
-      called from Cmd.Responder.post_cmd,
-      called from Cmd.Responder.run_responder,
-      called from Cmd.Responder.respond,
-      called from Cmd.Responder.respond_loop,
-      called from Cmd.Responder.responder,
-      called from Util.Thread.start_logged,
-      called from Util.Git.initialize,
-      called from Midi.CoreMidi.initialize,
-      called from App.Main.initialize,
-      called from App.Main.main
-    *** Exception (reporting due to +RTS -xc): (base:GHC.Exception.SomeException), stack trace:
-      Cmd.Performance.performance,
-      called from Cmd.Performance.derive,
-      called from Cmd.Performance.generate_performance,
-      called from Cmd.Performance.try_generate_performance,
-      called from Cmd.Performance.run_update,
-      called from Cmd.Performance.update_performance,
-      called from Cmd.Responder.post_cmd,
-      called from Cmd.Responder.run_responder,
-      called from Cmd.Responder.respond,
-      called from Cmd.Responder.respond_loop,
-      called from Cmd.Responder.responder,
-      called from Util.Thread.start_logged,
-      called from Util.Git.initialize,
-      called from Midi.CoreMidi.initialize,
-      called from App.Main.initialize,
-      called from App.Main.main
-    **** Cmd/Responder.hs:234 [respond_loop] - exception caught in respond_loop: Prelude.chr: bad argument: 4651120416
-    *** Exception (reporting due to +RTS -xc): (base:GHC.Exception.SomeException), stack trace:
-      Cmd.Play.write_logs,
-      called from Cmd.Play.get_performance,
-      called from Cmd.Play.get_realtime,
-      called from Cmd.Play.from_score,
-      called from Ui.State.fmap,
-      called from Cmd.Cmd.fmap,
-      called from Cmd.GlobalKeymap.player_bindings,
-      called from Ui.State.<*,
-      called from Cmd.Cmd.<*,
-      called from Cmd.Cmd.name,
-      called from Ui.State.>>,
-      called from Cmd.Cmd.>>,
-      called from Cmd.Cmd.>>=,
-      called from Cmd.Keymap.make_cmd,
-      called from Util.Logger.run,
-      called from Util.Logger.>>=,
-      called from Util.Log.>>=,
-      called from Cmd.Cmd.run,
-      called from Cmd.Cmd.run_id_io,
-      called from Cmd.Responder.run_cmd,
-      called from Cmd.Responder.run_throw,
-      called from Cmd.Responder.run_core_cmds,
-      called from Cmd.Responder.run_responder,
-      called from Cmd.Responder.respond,
-      called from Cmd.Responder.respond_loop,
-      called from Cmd.Responder.responder,
-      called from Util.Thread.start_logged,
-      called from Util.Git.initialize,
-      called from Midi.CoreMidi.initialize,
-      called from App.Main.initialize,
-      called from App.Main.main
-    **** Cmd/Responder.hs:234 [respond_loop] - exception caught in respond_loop: Prelude.chr: bad argument: 4651120416
-
-    seq: Prelude.chr: bad argument: 4656186624
-
-  * test_inst_call uses make_db, generalize make_db
-    . Merge CmdTest.set_insts, and Convert_test.perform_patch
-  * move DeriveTest.set_defaults to UiTest so I don't need a separate
-    DeriveTest.mkblocks.
   - Convert_test.test_convert is not lazy if the instrument is not found
-  * remove Util.Git dependency from tests
-  * use hgitlib2 or gitlib and remove Util.Git
-  * load on a .git segfaults
-    . But only for the optimized build.
   - Integrate_test.test_block_integrate is flaky, sometimes I get:
     __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
     ((bid "test/b2"),
@@ -288,24 +39,6 @@ UNSORTED
     ((bid "test/b2"),
      [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, ""), (2.0, 1.0, "")]),
       ("*", [(0.0, 0.0, "4e"), (1.0, 0.0, "4d"), (2.0, 0.0, "4c")])])
-  ghc 7.10 upgrade
-    * don't need Applicative and Functor imports
-      Maybe I can use CPP in Global to eliminate warnings
-      . Now it means Global imports are redundant, but maybe I can suppress
-        those?
-    - use Control.Monad.Except instead of Error
-      . not worth it until I don't need to support 7.8, can I suppress the
-        warnings?
-  * enforce that instrument names obey Id.valid
-  * If I enforce no / in instrument names, I can enforce that you can only use
-    a local alias.  This will get rid of confusion where >synth/inst works in
-    addition to the aliased name.  Or does it?  In any case, it will probably
-    break tests.
-  * sequence is buggy when the event starts at >0: save/bug/sequence
-  * I do a lot of setting the call duration after creating a block call, can
-    I get that to happen automatically?
-  * move Conditional.c_multiple to NoteTransformer
-  * implement NoteTransformer.c_parallel
   - Util.TimeVector has a hack where a sample at <=0 is considered to extend
     to -inf.  It's because I want a control track call at 0 to extend back.
     But I could do that directly with a postproc ala the tempo hack.  It seems
@@ -360,8 +93,6 @@ UNSORTED
         )
     - pp LPerf.sel_events has an extra level of indent after the [.  Not due
       to LEvents.
-    * what happens with ShortForm <> ShortForm?
-      punted on it for now
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it
     applies Flags.can_cancel at TrackTime 0, which is only appropriate for
@@ -431,39 +162,6 @@ UNSORTED
     a new play send the keyswitch?
     . can repro with bug/stuck-mute.  But MIDI looks normal.  Record in reaper
       and play back to see if it's a kontakt bug.
-  * Implement 'sequence'.  It sequences its notes, paying attention only to
-    their order, not time and duration.  The tricky part is getting the tempo
-    right so playback looks right, and controls line up right.
-    . Figure out tempo from sum of durations of called blocks.  Then set the
-      tempo accordingly.  Then evaluate the block normally.  So actually this
-      is a kind of tempo track.
-    . A note transformer doesn't have to call Sub.sub_events, it can evaluate
-      the subs itself.
-    . A transformer can also ignore its deriver and interpret the subs on its
-      own.  That seems like it doesn't fit well, e.g. transforms under it
-      would be ignored.
-
-    . The general problem I need to solve is notation where time is
-      abstract.  If I don't mix it with concrete time (e.g. wanting
-      a playback cursor, and to be able to mix with "normal" notation)
-      then all is fine, but if I do want to mix then I need to get a tempo
-      out of it.
-    . In general, I often want a situation where durations are additive, so if
-      I add a bit of time to a block, it gets slightly longer in the caller,
-      and so on up the chain.  An un-timed 'sequence' call would solve that
-      problem but at the cost of not being able to line up controls or tempo.
-      If I still want to do that, I need an automatic way to fix up callers
-      when a block duration changes, essentially an automatic version of what
-      I do by hand anyway.  To wit:
-      . Certain calls are marked as "1:1 time".  When a block changes
-        duration, find all such callers and resize them to the new callee
-        block duration.  Anything below them is moved up or down, and the
-        rulers re-extracted.
-    . Another way is in a single call: "sequence a b c d" and then it's the
-      duration of the event, or maybe it ignores event duration.
-    . Callee duration is incorrect.  It's that the event duration remains in
-      the CallInfo, so it gets applied twice.  This seems error-prone.
-      Perhaps eval_quoted should reset to (0, 1)?
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
@@ -623,8 +321,6 @@ MILESTONES
 ----------------------------------------------------------------------
 
 documentation:
-  * write doc/instrument.md
-  * update screenshots: doc/img/ly-example.png
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
     - put anchors on calls and make single quotes link to calls
@@ -872,14 +568,9 @@ local: plugins:
     map.
 
 cleanup:
-  * Split up Derive.BaseTypes.
-    . I can split most of Derive.Score's types, except
-      ControlFunction -> Environ -> Val <- ControlFunction
-      . So ControlFunction and Val must go together.
-
-    . Similarly, I can split out Derive.PitchSignal, except
-      PitchConfig -> Environ -> Val <- Pitch <- PitchConfig
-      . So Pitch and Val must go together.
+  - use Control.Monad.Except instead of Error
+    . not worth it until I don't need to support 7.8, can I suppress the
+      warnings?
   - Move Derive.info_prev_val to the environ, maintained by EvalTrack.
     . This gets rid of all the Taggable stuff, at the cost of making
       Args.prev_val in Deriver and dynamically typed.
@@ -887,28 +578,6 @@ cleanup:
       Of course I could just add one, maybe not a big deal.
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.
-  * Maybe I should use Score.PControl instead of Score.Control for pitch
-    control names.
-  * PitchControl and ValControl have confusing names, since Val is not related
-    to val calls or Val.  In fact it would be nice to make all the names more
-    consistent:
-              numbers                   pitches                 both
-    scalar    Signal.Y                  PitchSignal.Pitch
-    name      Score.Control             Score.PControl
-    signal    Signal.Control            PitchSignal.Signal
-    ref       TrackLang.ValControl      TrackLang.PitchControl  ControlRef
-
-              numbers                   pitches                 both
-    scalar    Signal.Y                  PSignal.Y
-    name      Score.Control             Score.PControl
-    signal    Signal.Control            PSignal.Signal
-    ref       TrackLang.ControlRef      TrackLang.PControlRef   Ref
-    * rename Ref, ValControl, PitchControl
-    * rename PitchSignal to PSignal
-    / rename PSignal.Pitch to Y
-      I'm not sure this is so great.  The implication would be to rename pitch
-      variables to 'y', which is not an improvement.
-
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
     else like Derive.Call.Val.num_or_pitch it would be worth trying out.
@@ -1181,8 +850,6 @@ REPL: repl:
     without having to quote it
 
 Cmd:
-  * Extend ^z to work with any call via Derive.get_call_duration.
-    . not a big deal so long as block call is the only one
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
   - Create tempo by "stretching", i.e. select start and end, and create tempo
@@ -1504,7 +1171,6 @@ pitch: scales: scale:
       . I would have to make Scales.note_to_call handle it, but then I'd need
         a version that doesn't for WendyCarlos.
       . Not sure if the complexity is worth it, wait until I need it.
-    * wendy carlos' alpha, beta, gamma
     - overtone series
     - add ratio transpose signal, that multiplies hz
     - meantone

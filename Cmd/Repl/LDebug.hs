@@ -31,6 +31,8 @@ import Global
 import Types
 
 
+-- Also see 'LPerf.extract_debug' and similar functions.
+
 -- * block
 
 -- | Save state in a format that can be copy-pasted into a test, and loaded
