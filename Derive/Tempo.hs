@@ -7,7 +7,6 @@
 module Derive.Tempo (
     extend_signal
     , with_tempo, with_absolute, with_hybrid
-    , do_not_normalize
 #ifdef TESTING
     , tempo_to_warp
 #endif
@@ -19,7 +18,6 @@ import qualified Util.TimeVector as TimeVector
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -116,20 +114,11 @@ get_stretch_to_1 (Just range) compute =
             Derive.RealDurationQuery -> do
                 set_real_duration dur
                 return $ const $ return mempty
-            _ -> ifM (Derive.is_val_set do_not_normalize_env)
-                (return $ Derive.delete_val do_not_normalize_env)
-                (return transform)
+            _ -> return transform
 
 set_real_duration :: RealTime -> Derive.Deriver ()
 set_real_duration dur = Internal.modify_collect $ \collect ->
     collect { Derive.collect_real_duration = Derive.Duration dur }
-
--- | Tell the next block derive to not normalize its duration to 1.
-do_not_normalize :: Derive.Deriver a -> Derive.Deriver a
-do_not_normalize = Derive.with_val do_not_normalize_env (1 :: Int)
-
-do_not_normalize_env :: TrackLang.ValName
-do_not_normalize_env = "do-not-normalize"
 
 
 -- * absolute
