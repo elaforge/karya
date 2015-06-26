@@ -9,15 +9,17 @@ import qualified System.Mem as Mem
 
 import qualified Text.Printf as Printf
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import Util.Test
+
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.UiTest as UiTest
 
+import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
-import qualified Cmd.Save as Save
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.DeriveTest as DeriveTest
@@ -157,20 +159,27 @@ mkblock tracks = do
 
 derive_saved :: Bool -> FilePath -> IO ()
 derive_saved with_perform fname = do
-    result <- print_timer ("unserialize " ++ show fname) (\_ _ -> "") $
-        Save.read_state_ fname
-    state <- case result of
-        Left err -> error $ "loading " ++ show fname ++ ": " ++ untxt err
-        Right Nothing -> error $ "loading " ++ show fname ++ ": doesn't exist"
-        Right (Just state) -> return state
-    let lookup = if with_perform
-            then Just $ DeriveTest.lookup_from_state state else Nothing
-    replicateM_ 1 $ run_profile fname lookup state
+    cmd_config <- DeriveSaved.load_cmd_config
+    (ui_state, library) <- either (errorIO . untxt) return
+        =<< DeriveSaved.load_score fname
+    block_id <- maybe (errorIO $ fname <> ": no root block") return $
+        State.config#State.root #$ ui_state
+    let cmd_state = DeriveSaved.add_library library
+            (Cmd.initial_state cmd_config)
+    (events, logs) <- either (\err -> errorIO $ fname <> ": " <> untxt err)
+        return =<< DeriveSaved.timed_derive fname ui_state cmd_state block_id
+    mapM_ Log.write logs
+    when with_perform $ do
+        (_msgs, logs) <- DeriveSaved.timed_perform cmd_state
+            ("perform " ++ fname) ui_state events
+        mapM_ Log.write logs
 
 derive_size :: State.StateId a -> IO ()
 derive_size create = do
     print_timer "force mmsgs" (\_ _ -> "done") (force mmsgs)
     print_timer "gc" (\_ _ -> "") Mem.performGC
+    -- This puts a gap in the heap graph so I can tell which each phase begins.
+    -- Surely there is a less ridiculous way to do this.
     print_timer "busy" (const id) $ return $ show (busy_wait 100000000)
     print_timer "length" (const id) $ return $ show (length mmsgs)
     return ()

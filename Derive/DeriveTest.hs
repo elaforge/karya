@@ -7,7 +7,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 
 import qualified System.IO.Unsafe as Unsafe
 
@@ -436,22 +435,6 @@ make_db synth_patches = Instrument.Db.db midi_db
         { MidiInst.extra_patches =
             map (\p -> (p, MidiInst.empty_code)) patches
         }
-
--- | Infer a set of instruments from a midi config.  This infers standard
--- boring patches as produced by 'make_patch'.  This can be used to play a
--- score without loading the instrument db, provided the instruments have no
--- special features.  TODO remove callers, use the instrument db instead.
-lookup_from_state :: State.State -> Convert.Lookup
-lookup_from_state state = lookup_from_insts $
-    Seq.drop_dups id $ Map.keys $ State.config#State.midi #$ state
-
-lookup_from_insts :: [Score.Instrument] -> Convert.Lookup
-lookup_from_insts = make_convert_lookup mempty . make_db . convert
-    where
-    convert = map (second (map make_patch)) . Seq.keyed_group_on (fst . split)
-        . map Score.inst_name
-    split name = (pre, Text.drop 1 post)
-        where (pre, post) = Text.break (=='/') name
 
 make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup
 make_convert_lookup aliases midi_db =

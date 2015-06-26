@@ -38,14 +38,15 @@ import Types
 
 perform_file :: Cmd.Config -> FilePath -> IO [Midi.WriteMessage]
 perform_file cmd_config fname = do
-    (state, library) <- either (errorIO . untxt) return =<< load_score fname
+    (ui_state, library) <- either (errorIO . untxt) return =<< load_score fname
     block_id <- maybe (errorIO $ fname <> ": no root block") return $
-        State.config#State.root #$ state
+        State.config#State.root #$ ui_state
     let cmd_state = add_library library (Cmd.initial_state cmd_config)
     (events, logs) <- either (\err -> errorIO $ fname <> ": " <> untxt err)
-        return =<< timed_derive fname state cmd_state block_id
+        return =<< timed_derive fname ui_state cmd_state block_id
     mapM_ Log.write logs
-    (msgs, logs) <- timed_perform cmd_state ("perform " ++ fname) state events
+    (msgs, logs) <- timed_perform cmd_state ("perform " ++ fname) ui_state
+        events
     mapM_ Log.write logs
     return msgs
 
