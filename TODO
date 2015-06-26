@@ -10,7 +10,9 @@ UNSORTED
       Test in test_block.
     . Indeed, it's fltk level.  Maybe even OS X.  Try on linux.
     . Linux is fast.  Make a minimum reproduction for OS X.
+    . Change made in fltk 1.3.2
   - When starting a play, the play cursor lags at the beginning.
+    Not just play, all cmds lag during rederive.
   mridangam:
     - tha is too loud... I can compensate by using -, but maybe the scale is
       off.  Velocity should be logical, so if you play all at the same
@@ -18,8 +20,9 @@ UNSORTED
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
 
-  - If I get a RealDuration, it evaluates the tempo track.  That should be
+  ? If I get a RealDuration, it evaluates the tempo track.  That should be
     cached so I don't wind up doing it twice, right?
+    . Actually probably not, since the new Cache accumulates in Collect.
 
   - save/complete/wayang/p2 last note of alt-w at the end doesn't get its
     duration inferred
@@ -46,7 +49,7 @@ UNSORTED
     implementation.
   - When multiple marks from different marklists are in the same place, their
     text collides.  The one from the first marklist should take precedence,
-    as should its line.
+    as should its line.  This is visible when I add logical range markers.
   - A block with logical range called at time 0 gets messed up:
     bug/logical-block-range
 
@@ -335,15 +338,6 @@ documentation:
 
 shakefile: build:
   - use new system calls and logging levels
-  / clean up the PackageId vs. Package mess
-    . The problem is that I want some packages to be optional.  Specifically,
-      ekg and criterion are only for occasional debugging, but have huge
-      dependency lists.  cabal allows each binary to have its own dependency
-      list, and for that to change based on flags, so to really do it properly
-      I'd need a different list of deps for each binary and to generate
-      a cabal file with multiple targets.
-    . It's probably not worth the effort.
-    . cabal sandbox seems like a simpler way to solve all of these problems.
   automatic "All.hs" modules
     . I'm reluctant because it's simpler to have normal files, and it's not
       that hard to update them.
@@ -506,7 +500,7 @@ external
     - Need to add <||> to attoparsec.
   chorded keys are not getting the proper pitch bend
     It's a pianoteq problem.
-    + Reported to pianoteq, said they'd fix it in the next release.
+    * Reported to pianoteq, said they'd fix it in the next release.
   - problem with pianoteq: if the same note occurs on two channels, one
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.
@@ -514,10 +508,7 @@ external
   / patch for hsc2hs for #alignment
     Just doing alignment manually now.
   srcloc_annotate pragma
-    I think a ghc pragma is needed.
-    - read up on how jhc does it
-    - ask ghc-users if it's a good idea
-    - figure out how to implement pragmas in ghc
+    * available in ghc-7.12 as ImplicitParameters.
 
 local: plugins:
   I also want local code in haskell.
@@ -581,7 +572,7 @@ cleanup:
   - if I add an Alternative instance to Sig.Parser I can write arg parsers
     like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
     else like Derive.Call.Val.num_or_pitch it would be worth trying out.
-  Format4
+  Util.Format:
     - don't use 'reverse' in 'flatten'
     - lazy implementation?
   - I could make the fltk interface clearer by putting c_interface.cc into
@@ -826,11 +817,12 @@ REPL: repl:
     show 'Exception: Cannot add module Cmd.Repl.Environ to context: not a home'
     Presumably it gets confused because I don't put the -package-id and
     -package flags into ghci-flags
-  - Even though the shakefile tries to support multiple versions of packages
+  / Even though the shakefile tries to support multiple versions of packages
     via 'cabal configure', I think they can still cause problems with ghci
     loading.  This manifests as a long hang starting up while the repl
     bytecode compiles a bunch of modules.  Perhaps build/*/ghci-flags needs
     the full -package-id treatment.
+    . Obsolete if I use a sandbox, I think.
   - only write history when the cmd succeeded
   - command to open the haddock for a module
   - haskeline sucks for long lines, add multiple line editing?
@@ -904,7 +896,7 @@ Cmd:
       It could use it to make sure the paste is compatible, but that might
       be more of an annoyance than a convenience.
 
-  Undo / UNDO
+  Undo:
     - shift [ and ] undo and redo zooms.  or one key to toggle last zoom?
       . record view changes, at least zoom / scroll so it can be undone
         and redone separately
@@ -1223,7 +1215,7 @@ signal: PSignal:
       few of those.  So maybe I don't actually care that much.
 
 Perform:
-  - Simultaneous notes with different ControlSwitch cc numbers should share
+  - Overlapping notes with different ControlSwitch cc numbers should share
     a channel.  Of course it'll work anyway if only one channel is
     allocated.
     . Currently they definitely won't, because the performer assumes that

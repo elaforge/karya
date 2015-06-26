@@ -888,17 +888,18 @@ generateTestHs hsSuffix fn = do
     need $ "test/generate_run_tests.py" : tests
     system "test/generate_run_tests.py" (fn : tests)
 
+-- | Build build/(mode)/RunCriterion-A.B.C from A/B/C_criterion.hs
 criterionRules :: Config -> Shake.Rules ()
 criterionRules config = buildDir config </> "RunCriterion-*" %> \fn -> do
     let hs = runCriterionToSrc config fn
     need [hs]
     buildHs config [] ["criterion"] hs fn
 
--- | build/profile/RunCriterion-Derive.Derive -> Derive/Derive_criterion.hs
+-- | build/(mode)/RunCriterion-Derive.Derive -> Derive/Derive_criterion.hs
 runCriterionToSrc :: Config -> FilePath -> FilePath
 runCriterionToSrc config bin = moduleToPath name ++ criterionHsSuffix
     where
-    -- build/opt/RunCriterion-Derive.Derive -> Derive.Derive
+    -- build/(mode)/RunCriterion-Derive.Derive -> Derive.Derive
     name = drop 1 $ dropWhile (/='-') $ dropDir (buildDir config) bin
 
 -- | Match any filename that starts with the given prefix but doesn't have

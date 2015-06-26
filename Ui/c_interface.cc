@@ -19,7 +19,6 @@ extern "C" {
 void
 initialize(Config::FreeHaskellFunPtr finalize)
 {
-    // DEBUG("lock");
     Fl::lock();
     BlockViewWindow::initialize(finalize);
 }
@@ -27,6 +26,7 @@ initialize(Config::FreeHaskellFunPtr finalize)
 void
 ui_wait()
 {
+    // Wait for 100 seconcds or until interrupted by an event or ui_awake().
     // TODO remind myself why this is 100 and comment
     Fl::wait(100);
 }
