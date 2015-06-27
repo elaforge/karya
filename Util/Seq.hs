@@ -289,8 +289,8 @@ group_snd :: Ord b => [(a, b)] -> [(NonNull a, b)]
 group_snd xs = [(map fst group, key) | (key, group) <- keyed_group_sort snd xs]
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
--- function instead of equality.  The list is returned in sorted order, and
--- the groups appear in their original order in the input list.
+-- function instead of equality.  The list is sorted by the key, and the groups
+-- appear in their original order in the input list.
 group_sort :: Ord key => (a -> key) -> [a] -> [NonNull a]
 group_sort key = map snd . keyed_group_sort key
 
@@ -386,9 +386,8 @@ zipper prev [] = [(prev, [])]
 zipper prev lst@(x:xs) = (prev, lst) : zipper (x:prev) xs
 
 -- | Pair @a@ elements up with @b@ elements.  If they are equal according to
--- @eq@, they'll both be Just in the result.  If an @a@ is deleted going from
--- @a@ to @b@, it will be Nothing, and vice versa for @b@.  You should never
--- get @(Nothing, Nothing)@.
+-- the function, they'll both be Both in the result.  If an @a@ is deleted
+-- going from @a@ to @b@, it will be First, and Second for @b@.
 --
 -- Kind of like an edit distance, or a diff.
 equal_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [Paired a b]
@@ -400,8 +399,8 @@ equal_pairs eq (x:xs) (y:ys)
     | otherwise = First x : equal_pairs eq xs (y:ys)
 
 -- | This is like 'equal_pairs', except that the index of each pair in the
--- /right/ list is included.  In other words, given @(i, Nothing, Just y)@,
--- @i@ is the position of @y@ in the @b@ list.  Given @(i, Just x, Nothing)@,
+-- /right/ list is included.  In other words, given @(i, Second y)@,
+-- @i@ is the position of @y@ in the @b@ list.  Given @(i, First x)@,
 -- @i@ is where @x@ was deleted from the @b@ list.
 indexed_pairs :: (a -> b -> Bool) -> [a] -> [b] -> [(Int, Paired a b)]
 indexed_pairs eq xs ys = zip (indexed pairs) pairs
@@ -678,13 +677,6 @@ split_null :: Eq a => NonNull a -> [a] -> [[a]]
 split_null _ [] = []
 split_null sep xs = split sep xs
 
--- | 'split' never returns null, so sometimes it's more convenient to express
--- that in the type.
-split_t :: Eq a => NonNull a -> [a] -> ([a], [[a]])
-split_t sep xs = case split sep xs of
-    (g:gs) -> (g, gs)
-    _ -> error "split_t: unreached"
-
 -- | Like 'split', but only split once.
 split1 :: Eq a => NonNull a -> [a] -> ([a], [a])
 split1 [] _ = error "Util.Seq.split1: empty seperator"
@@ -701,7 +693,6 @@ join2 sep x y
     | y == Monoid.mempty = x
     | x == Monoid.mempty = y
     | otherwise = x <> sep <> y
-
 
 -- | Split the list on the points where the given function returns true.
 --
