@@ -33,13 +33,10 @@ main
         | (group, bs) <- benches
         ]
     where
-    benches = group_on (joined [bench_state, bench_code]) benchmarks
+    benches = Seq.keyed_group_stable (joined [bench_state, bench_code])
+        benchmarks
     action (Bench action code state size) =
         action (Seq.join "-" [code, state, size])
-
-group_on :: Eq key => (a -> key) -> [a] -> [(key, [a])]
-group_on key = map (\g -> (key (NonEmpty.head g), NonEmpty.toList g))
-    . Seq.group_eq_on key
 
 joined :: [a -> String] -> a -> String
 joined fs x = Seq.join "-" $ map ($x) fs

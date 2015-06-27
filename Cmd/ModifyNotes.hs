@@ -296,7 +296,7 @@ instance Monoid.Monoid NoteTrack where
         NoteTrack (events1 <> events2) (Map.mappend controls1 controls2)
 
 merge_notes :: [Note] -> [NoteTrack]
-merge_notes = map make_track . Seq.group_on note_index
+merge_notes = map make_track . Seq.group_sort note_index
     where
     make_track :: [Note] -> NoteTrack
     make_track = List.foldl' (<>) mempty . map note_track

@@ -136,7 +136,7 @@ c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
     ) $ Sig.call0t $ \_ deriver -> realize_ngoret =<< deriver
 
 realize_ngoret :: Derive.Events -> Derive.Deriver Derive.Events
-realize_ngoret = Post.apply $ fmap merge . mapM realize . Seq.group_on key
+realize_ngoret = Post.apply $ fmap merge . mapM realize . Seq.group_sort key
     where
     -- TODO do I want to ignore streams with irrelevant instruments?
     key e = (Score.event_instrument e, event_hand e)

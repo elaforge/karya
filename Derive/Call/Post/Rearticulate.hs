@@ -138,7 +138,7 @@ slur_dur srate dur offset curve levents =
     (events, logs) = LEvent.partition levents
 
 group_dur :: RealTime -> RealTime -> [Score.Event] -> [NonEmpty Score.Event]
-group_dur dur offset = Seq.group_eq_on group_of
+group_dur dur offset = Seq.group_stable group_of
     where
     group_of = floor . RealTime.to_seconds . (/dur) . subtract offset
         . Score.event_start

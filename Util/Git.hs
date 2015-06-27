@@ -200,7 +200,7 @@ modifications_to_dir mods = go (strip mods)
             Just (_, bytes) -> [(dir, ModifyFile bytes)]
         (file_ents, dir_ents) = List.partition (null . fst) entries
     by_dir entries = [(dir, map (first drop_dir) subs)
-        | (dir, subs) <- Seq.keyed_group_on (takeWhile (/='/') . fst) entries]
+        | (dir, subs) <- Seq.keyed_group_sort (takeWhile (/='/') . fst) entries]
     drop_dir = dropWhile (=='/') . dropWhile (/='/')
     -- Strip out redundent modifications.
     strip = Map.toList . Map.fromList . map extract

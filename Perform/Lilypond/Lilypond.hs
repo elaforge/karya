@@ -265,10 +265,10 @@ convert_staff_groups config start events = do
 -- into right and left hand.
 split_events :: [Types.Event] -> [(Score.Instrument, [[Types.Event]])]
 split_events events =
-    [(inst, Seq.group_on (lookup_hand . Types.event_environ) events)
+    [(inst, Seq.group_sort (lookup_hand . Types.event_environ) events)
         | (inst, events) <- by_inst]
     where
-    by_inst = Seq.keyed_group_on Types.event_instrument events
+    by_inst = Seq.keyed_group_sort Types.event_instrument events
     lookup_hand environ = case TrackLang.get_val Environ.hand environ of
         Right (val :: Text)
             | val == "r" || val == "right" -> 0

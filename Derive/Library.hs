@@ -38,7 +38,7 @@ get_shadows get_doc = filter (not . null . snd) . map (second duplicates)
     . Seq.group_fst . concatMap (call_module get_doc)
 
 duplicates :: Ord a => [a] -> [a]
-duplicates = mapMaybe extract . Seq.group_on id
+duplicates = mapMaybe extract . Seq.group_sort id
     where
     extract (x : _ : _) = Just x
     extract _ = Nothing

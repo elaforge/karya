@@ -105,7 +105,7 @@ make_scale scale_id smap doc doc_fields = Scale.Scale
 -- | Group keys and format them into fields suitable to pass to 'make_scale'.
 -- The 'Key's are expected to be relative, so their 'key_tonic's are ignored.
 group_relative_keys :: [(Pitch.Key, Key)] -> [(Text, Text)]
-group_relative_keys = mapMaybe fmt . Seq.group_eq_on snd
+group_relative_keys = mapMaybe fmt . Seq.group_stable snd
     where
     fmt ((name, key) :| rest) =
         Just (fmt_names (name : map fst rest), show_ratios (key_ratios key))

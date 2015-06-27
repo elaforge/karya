@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * reorganize Seq.group functions to make it clearer which ones preserve the
+    original order, and which ones sort the input.
+  - Make sure the stretch to 1 stuff in Derive.Tempo only applies to the top
+    level tempo track of a block.
+  - Criterion testing: why is cmd_derive faster than derive?  It should be
+    doing more work!
+  - I'd like to see if directly modifying Collect or an AppendList for LEvents
+    could reduce garbage, so I need to get some profiling up first.
   + Edit box fltk updates are super slow, shouldn't they all happen at once?
     . It might be a fltk thing, because the calls all happen within 562us, or
       .0005s, which should not be perceptible.  What's more, they happen in
@@ -13,17 +21,21 @@ UNSORTED
     . Change made in fltk 1.3.2
   - When starting a play, the play cursor lags at the beginning.
     Not just play, all cmds lag during rederive.
+    . Figure out exactly when it's hanging.
   mridangam:
     - tha is too loud... I can compensate by using -, but maybe the scale is
       off.  Velocity should be logical, so if you play all at the same
       velocity it's like the same dynamic for all strokes.
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
-
   ? If I get a RealDuration, it evaluates the tempo track.  That should be
     cached so I don't wind up doing it twice, right?
     . Actually probably not, since the new Cache accumulates in Collect.
-
+    . I could probably make the cache apply by looking for it in Collect,
+      since in practice Collect is threaded much of the time.  But it would
+      only be useful for get_real_duration, which is only used by sequence-rt,
+      which I haven't started using yet, and evaluating just the tempo track
+      is probably not that expensive.  So hold off for now.
   - save/complete/wayang/p2 last note of alt-w at the end doesn't get its
     duration inferred
   - shakefile: remove cabal usage in favor of a sandbox

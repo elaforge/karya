@@ -46,7 +46,7 @@ reverse_tracks start events = Seq.merge_lists Score.event_start
 
 -- | Partition up events by the track they're in.
 partition_tracks :: [Score.Event] -> [(TrackId, [Score.Event])]
-partition_tracks = strip . Seq.keyed_group_on track_of
+partition_tracks = strip . Seq.keyed_group_sort track_of
     where strip xs = [(track_id, events) | (Just track_id, events) <- xs]
 
 track_of :: Score.Event -> Maybe TrackId

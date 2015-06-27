@@ -270,7 +270,7 @@ type CmdMap m = Map.Map KeySpec (CmdSpec m)
 
 overlaps :: [Binding m] -> [[Text]]
 overlaps bindings =
-    [map cmd_name grp | grp <- Seq.group_on fst bindings, length grp > 1]
+    [map cmd_name grp | grp <- Seq.group_sort fst bindings, length grp > 1]
     where
     cmd_name (kspec, CmdSpec name _) = pretty kspec <> ": " <> name
 

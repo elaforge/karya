@@ -190,7 +190,7 @@ patch_map :: [PatchCode code] -> (PatchMap code, [Text])
     -- ^ (PatchMap, log msgs)
 patch_map patches = run $ concatMapM split =<< mapM strip_init by_name
     where
-    by_name = Seq.keyed_group_on (score_instrument_name . patch_inst) patches
+    by_name = Seq.keyed_group_sort (score_instrument_name . patch_inst) patches
     patch_inst = Instrument.patch_instrument . fst
     run = first (PatchMap . Map.fromList) . Identity.runIdentity . Logger.run
 

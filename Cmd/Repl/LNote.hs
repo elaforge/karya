@@ -103,7 +103,7 @@ split_on_pitch high_index break_nn =
 -- | Order overlapping notes by pitch, left to right.
 sort_on_pitch :: Cmd.CmdL ()
 sort_on_pitch = ModifyNotes.selection $ ModifyNotes.annotate_nns $
-    return . concatMap (sort . NonEmpty.toList) . Seq.group_eq overlap
+    return . concatMap (sort . NonEmpty.toList) . Seq.group_stable_with overlap
     where
     overlap n1 n2 = ModifyNotes.notes_overlap (fst n1) (fst n2)
     sort = realloc . map fst . Seq.sort_on snd

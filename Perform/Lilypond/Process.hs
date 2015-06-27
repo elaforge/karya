@@ -365,7 +365,7 @@ collect_voices events = do
     let (spanned, rest) = span_voices events
         (code, with_voice) = Seq.partition_either spanned
     with_voice <- mapM check_type with_voice
-    return $ case map (second (map snd)) $ Seq.keyed_group_on fst with_voice of
+    return $ case Seq.group_fst with_voice of
         [] -> ([], [], events)
         voices -> (voices, code, rest)
     where

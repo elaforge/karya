@@ -314,7 +314,7 @@ extract_cache_stats :: (Log.Msg -> Maybe k) -> [Log.Msg]
 extract_cache_stats key logs = (rederived, cached)
     where
     -- [("because xyz", [bid, bid, bid, ...])]
-    rederived = map (second (map fst)) $ Seq.keyed_group_on snd
+    rederived = map (second (map fst)) $ Seq.keyed_group_sort snd
         [(block_id, because) | (block_id, Left because) <- stats]
     -- [(bid1, 42), (bid2, 32), ...]
     cached = [(block_id, vals) | (block_id, Right vals) <- stats]

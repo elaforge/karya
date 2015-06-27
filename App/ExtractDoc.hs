@@ -67,7 +67,7 @@ sort = Seq.sort_on (map key . snd)
         zip Keymap.qwerty_lower [0,2..] ++ zip Keymap.qwerty_upper [1,3..]
 
 group :: [(Keymap.KeySpec, Keymap.CmdSpec m)] -> [(Text, [Keymap.KeySpec])]
-group = map (second (map fst)) . Seq.keyed_group_on (name_of . snd)
+group = map (second (map fst)) . Seq.keyed_group_sort (name_of . snd)
     where name_of (Keymap.CmdSpec name _) = name
 
 strip :: Binds -> Binds

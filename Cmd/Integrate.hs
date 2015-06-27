@@ -78,7 +78,7 @@ cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
     -- I don't know which ones to give to the destinations, and wind up
     -- creating a new track every time.
     let (dups, integrates) = Seq.partition_either $ map is_dup $
-            Seq.group_eq_on Derive.integrated_source (Cmd.perf_integrated perf)
+            Seq.group_stable Derive.integrated_source (Cmd.perf_integrated perf)
         is_dup (x :| xs) = if null xs then Right x else Left x
     unless (null dups) $
         Log.warn $ "these blocks or tracks want to integrate twice: "

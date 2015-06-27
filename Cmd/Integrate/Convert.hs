@@ -78,7 +78,7 @@ integrate config tracknums =
 -- | Allocate the events to separate tracks.
 allocate_tracks :: Map.Map TrackId TrackNum -> [Score.Event]
     -> [(TrackKey, [Score.Event])]
-allocate_tracks tracknums = concatMap overlap . Seq.keyed_group_on group_key
+allocate_tracks tracknums = concatMap overlap . Seq.keyed_group_sort group_key
     where
     overlap (key, events) = map ((,) key) (split_overlapping events)
     -- Sort by tracknum so an integrated block's tracks come out in the same

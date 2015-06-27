@@ -179,7 +179,7 @@ show_addrs :: [Instrument.Addr] -> Text
 show_addrs addrs = semicolon_list
     [ pretty wdev <> " "
         <> "[" <> Text.intercalate "," (show_runs (map snd addrs)) <> "]"
-    | (wdev, addrs) <- Seq.keyed_group_on fst addrs
+    | (wdev, addrs) <- Seq.keyed_group_sort fst addrs
     ]
 
 show_attribute_map :: Instrument.AttributeMap -> Text

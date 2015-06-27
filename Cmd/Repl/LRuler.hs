@@ -114,7 +114,7 @@ gc = do
 -- duplicates.
 unify :: State.M m => m [[RulerId]]
 unify = do
-    groups <- Seq.group_eq_on snd <$>
+    groups <- Seq.group_stable snd <$>
         State.gets (Map.toAscList . State.state_rulers)
     mapM_ merge groups
     gc

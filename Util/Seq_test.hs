@@ -17,8 +17,8 @@ test_range_end = do
     equal (f 1 0 0.5) [0]
     equal (f 0 1 (-0.5)) [1]
 
-test_keyed_group_on = do
-    let f = Seq.keyed_group_on fst
+test_keyed_group_sort = do
+    let f = Seq.keyed_group_sort fst
     equal (f ([] :: [(Int, Char)])) []
     equal (f [(5, 'a'), (0, 'b'), (5, 'c')])
         [(0, [(0, 'b')]), (5, [(5, 'a'), (5, 'c')])]

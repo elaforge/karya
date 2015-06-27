@@ -108,7 +108,7 @@ diff_midi expected got =
 -- precision and ensure notes happening at the same time are in a consistent
 -- order.
 normalize :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-normalize = concatMap List.sort . Seq.group Midi.wmsg_ts . map strip
+normalize = concatMap List.sort . Seq.group_adjacent Midi.wmsg_ts . map strip
     where
     strip wmsg = wmsg
         { Midi.wmsg_ts = strip_time (Midi.wmsg_ts wmsg)

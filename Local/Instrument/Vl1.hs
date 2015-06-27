@@ -271,7 +271,7 @@ extract_element n rmap = do
     process_controls :: [(Text, Midi.Control, [Word8])]
         -> [(Midi.Control, [Score.Control])]
     process_controls controls =
-        [(cc, map snd grp) | (cc, grp) <- Seq.keyed_group_on fst by_cc]
+        [(cc, map snd grp) | (cc, grp) <- Seq.keyed_group_sort fst by_cc]
         where
         by_cc =
             [ (cc, Score.unchecked_control name)

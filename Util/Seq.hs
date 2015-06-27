@@ -261,44 +261,61 @@ merge_asc_lists key = foldr go []
 
 -- * grouping
 
+-- ** adjacent
+
+-- Adjacent groups only group adjacent elements, just like 'List.group'.
+
+-- | This is just 'List.groupBy' except with a key function.
+group_adjacent :: Eq key => (a -> key) -> [a] -> [NonNull a]
+group_adjacent key = List.groupBy ((==) `on` key)
+
+-- ** sort
+
+-- Sort groups sort the input by the group key as a side-effect of grouping.
+
 -- | Group the unsorted list into @(key x, xs)@ where all @xs@ compare equal
 -- after @key@ is applied to them.  List is returned in sorted order.
-keyed_group_on :: Ord key => (a -> key) -> [a] -> [(key, NonNull a)]
-keyed_group_on key = Map.toAscList . foldr go Map.empty
+keyed_group_sort :: Ord key => (a -> key) -> [a] -> [(key, NonNull a)]
+keyed_group_sort key = Map.toAscList . foldr go Map.empty
     where go x = Map.alter (Just . maybe [x] (x:)) (key x)
 
--- | Similar to 'keyed_group_on', but key on the fst element, and strip the key
--- out of the groups.
+-- | Similar to 'keyed_group_sort', but key on the fst element, and strip the
+-- key out of the groups.
 group_fst :: Ord a => [(a, b)] -> [(a, NonNull b)]
-group_fst xs = [(key, map snd group) | (key, group) <- keyed_group_on fst xs]
+group_fst xs = [(key, map snd group) | (key, group) <- keyed_group_sort fst xs]
 
 -- | Like 'group_fst', but group on the snd element.
 group_snd :: Ord b => [(a, b)] -> [(NonNull a, b)]
-group_snd xs = [(map fst group, key) | (key, group) <- keyed_group_on snd xs]
+group_snd xs = [(map fst group, key) | (key, group) <- keyed_group_sort snd xs]
 
 -- | Like 'groupBy', but the list doesn't need to be sorted, and use a key
 -- function instead of equality.  The list is returned in sorted order, and
 -- the groups appear in their original order in the input list.
-group_on :: Ord key => (a -> key) -> [a] -> [NonNull a]
-group_on key = map snd . keyed_group_on key
+group_sort :: Ord key => (a -> key) -> [a] -> [NonNull a]
+group_sort key = map snd . keyed_group_sort key
+
+-- ** stable
+
+-- Stable groups preserve the original input order, in both the heads of the
+-- groups, and within the groups themselves.
 
 -- | Group each element with all the other elements that compare equal to it.
 -- The heads of the groups appear in their original order.
-group_eq :: (a -> a -> Bool) -> [a] -> [NonEmpty a]
-group_eq is_equal = go
+group_stable_with :: (a -> a -> Bool) -> [a] -> [NonEmpty a]
+group_stable_with is_equal = go
     where
     go [] = []
     go (x:xs) = (x :| equal) : go inequal
         where (equal, inequal) = List.partition (is_equal x) xs
 
--- | 'group_eq' but with a key function.
-group_eq_on :: Eq key => (a -> key) -> [a] -> [NonEmpty a]
-group_eq_on key = group_eq (\x y -> key x == key y)
+-- | 'group_stable_with' but with a key function.
+group_stable :: Eq key => (a -> key) -> [a] -> [NonEmpty a]
+group_stable key = group_stable_with (\x y -> key x == key y)
 
--- | This is just 'List.groupBy' except with a key function.  It only groups
--- adjacent elements.
-group :: Eq key => (a -> key) -> [a] -> [NonNull a]
-group key = List.groupBy ((==) `on` key)
+keyed_group_stable :: Eq key => (a -> key) -> [a] -> [(key, [a])]
+keyed_group_stable key = map (\(g :| gs) -> (key g, g:gs)) . group_stable key
+
+-- * zipping
 
 -- | Pair each element with the following element.  The last element is paired
 -- with Nothing.  Like @zip xs (drop 1 xs ++ f (last xs))@ but only traverses
@@ -513,7 +530,7 @@ drop_with f (x:y:xs)
 -- | Like 'drop_dups', but return the dropped values.
 partition_dups :: Ord k => (a -> k) -> [a] -> ([a], [(a, [a])])
     -- ^ ([unique], [(used_for_unique, [dups])])
-partition_dups key xs = partition_either $ concatMap extract (group_on key xs)
+partition_dups key xs = partition_either $ concatMap extract (group_sort key xs)
     where
     extract [] = []
     extract [x] = [Left x]

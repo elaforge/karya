@@ -336,7 +336,7 @@ auto_config block_id = do
         inst_devs = [(inst, dev) | (inst, Just dev) <- zip insts devs]
         addrs =
             [ (inst, [(dev, fromIntegral i)])
-            | (dev, by_dev) <- Seq.keyed_group_on snd inst_devs
+            | (dev, by_dev) <- Seq.keyed_group_sort snd inst_devs
             , (i, (inst, _dev)) <- Seq.enumerate by_dev
             ]
     unless (null no_dev) $

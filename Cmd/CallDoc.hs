@@ -132,7 +132,7 @@ doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
         where
         doc = "<dl class=main-dl>\n"
             <> mconcatMap (show_module_group call_kind)
-                (Seq.keyed_group_on module_of calls)
+                (Seq.keyed_group_sort module_of calls)
             <> "</dl>\n"
     module_of (_, _, call_doc) = Derive.cdoc_module call_doc
     show_module_group call_kind (module_, calls) =
@@ -563,7 +563,7 @@ lookup_calls ctype = group . map (extract . go) . concatMap flatten
     extract (sym, Derive.DocumentedCall name doc) = ((sym, name), doc)
     -- Group calls with the same CallDoc.
     group docs = [(map fst group, ctype, doc)
-        | (doc, group) <- Seq.keyed_group_on snd docs]
+        | (doc, group) <- Seq.keyed_group_sort snd docs]
 
 data CallType = ValCall | GeneratorCall | TransformerCall
     deriving (Eq, Ord, Show)

@@ -205,7 +205,7 @@ note_to_track (start, end, key, vel, controls) =
 convert_controls :: [MidiControl] -> Map.Map Score.Control Track
 convert_controls cs =
     Map.fromList [(cc_to_control cc, convert msgs)
-        | (cc, msgs) <- Seq.keyed_group_on (fst . snd) cs]
+        | (cc, msgs) <- Seq.keyed_group_sort (fst . snd) cs]
     where
     convert midi_controls =
         Map.fromList [(RealTime.to_score start, (0, show_val val))

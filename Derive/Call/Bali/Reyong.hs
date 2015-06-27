@@ -348,7 +348,7 @@ reyong_damp_voices :: RealTime -> Score.Attributes -> Signal.Y -> Derive.Events
     -> Derive.NoteDeriver
 reyong_damp_voices dur damp_attr dyn =
     mconcatMap (reyong_damp damp_attr dyn dur)
-        . Seq.group_on event_voice . LEvent.events_of
+        . Seq.group_sort event_voice . LEvent.events_of
 
 -- | To damp, if either hand has enough time before and after then damp,
 -- otherwise let it ring.

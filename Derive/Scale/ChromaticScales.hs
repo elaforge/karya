@@ -202,7 +202,7 @@ format_keys keys
 -- | Assuming keys are formatted @tonic-mode@, group keys by mode and replace
 -- the tonics with a pattern.
 group_tonic_mode :: [(Pitch.Key, a)] -> [(Text, a)]
-group_tonic_mode = map extract . Seq.keyed_group_on key . map (first split)
+group_tonic_mode = map extract . Seq.keyed_group_sort key . map (first split)
     where
     extract (mode, group) = (fmt mode (map (fst . fst) group), snd (head group))
     key ((_, mode), _) = mode
