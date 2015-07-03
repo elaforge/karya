@@ -197,7 +197,7 @@ match_definition (c:cs)
     | otherwise = Nothing
     where
     is_ident c = or $ map ($c)
-        [within 'a' 'z', within 'A' 'Z', (=='_'), (=='\'')]
+        [within 'a' 'z', within 'A' 'Z', within '0' '9', (=='_'), (=='\'')]
     within low high v = low <= v && v <= high
 
 
