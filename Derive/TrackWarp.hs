@@ -29,10 +29,17 @@ import Global
 import Types
 
 
-newtype TrackWarp =
-    -- | (start, end, warp, block_id, track of tempo track if there is one)
-    TrackWarp (RealTime, RealTime, Score.Warp, BlockId, Maybe TrackId)
-    deriving (Eq, Show, Pretty.Pretty, DeepSeq.NFData)
+data TrackWarp =
+    -- | start end warp block_id (track of tempo track if there is one)
+    TrackWarp !RealTime !RealTime !Score.Warp !BlockId !(Maybe TrackId)
+    deriving (Eq, Show)
+
+instance Pretty.Pretty TrackWarp where
+    format (TrackWarp start end warp block_id track_id) =
+        Pretty.format (start, end, warp, block_id, track_id)
+
+instance DeepSeq.NFData TrackWarp where
+    rnf (TrackWarp _ _ _ _ track_id) = DeepSeq.rnf track_id
 
 -- | Each TrackWarp is collected at the Stack of the track it represents.
 -- A Left is a new TrackWarp and a Right is a track that uses the warp in
@@ -74,7 +81,7 @@ collections = filter (not . Set.null . tw_tracks) . map convert . collect_warps
     -- tempo tracks at the top level.
 
 convert :: (TrackWarp, [TrackId]) -> Collection
-convert (TrackWarp (start, end, warp, block_id, maybe_track_id), tracks) =
+convert (TrackWarp start end warp block_id maybe_track_id, tracks) =
     Collection
         { tw_start = start
         , tw_end = end
@@ -91,7 +98,7 @@ collect_warps wmap = drop 1 $ map drop_stack $ collect [] dummy_tw assocs
     where
     assocs = Seq.sort_on fst $ map (first Stack.outermost) $ Map.assocs wmap
     drop_stack (_, tw, tracks) = (tw, tracks)
-    dummy_tw = TrackWarp (0, 0, Score.id_warp, no_block, Nothing)
+    dummy_tw = TrackWarp 0 0 Score.id_warp no_block Nothing
     no_block = Id.BlockId (Id.global "-dummy-trackwarp-")
 
 type Frames = [Stack.Frame]

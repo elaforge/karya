@@ -337,7 +337,7 @@ test_collect = do
             . Map.toAscList . Derive.collect_warp_map
 
     let tw start end bid = Left $ TrackWarp.TrackWarp
-            (start, end, Score.id_warp, UiTest.bid bid, Nothing)
+            start end Score.id_warp (UiTest.bid bid) Nothing
         track tid = Right (UiTest.tid tid)
     equal (e_warp_maps collect)
         [ ("top * *", tw 0 2 "top")

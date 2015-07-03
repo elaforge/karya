@@ -371,8 +371,7 @@ add_new_track_warp maybe_track_id = do
     -- perfectly happy to do so.
     end <- real =<< block_event_end block_id
     warp <- get_warp
-    let tw = Left $
-            TrackWarp.TrackWarp (start, end, warp, block_id, maybe_track_id)
+    let tw = Left $ TrackWarp.TrackWarp start end warp block_id maybe_track_id
     merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }
 
 -- | Sub-derived blocks are stretched according to their length, and this
