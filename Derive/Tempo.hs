@@ -41,22 +41,36 @@ extend_signal track_end sig = sig <> case Signal.last sig of
 -- Tempo is the tempo signal, which is the standard musical definition of
 -- tempo: trackpos over time.  Warp is the time warping that the tempo
 -- implies, which is the integral of (1/tempo).
-with_tempo :: Monoid.Monoid a => Maybe (ScoreTime, ScoreTime)
-    -- ^ block start and end, passed to 'get_stretch_to_1'
+with_tempo :: Monoid.Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
+    -- ^ block start and end, used to normalize block duration to 0--1.  If
+    -- Nothing, don't normalize.
     -> Maybe TrackId
     -- ^ Needed to record this track in TrackWarps.  It's optional because if
     -- there's no explicit tempo track there's an implicit tempo around the
     -- whole block, but the implicit one doesn't have a track of course.
     -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
-with_tempo range maybe_track_id signal deriver = do
+with_tempo toplevel range maybe_track_id signal deriver = do
     let warp = tempo_to_warp signal
     stretch_to_1 <- get_stretch_to_1 range $ \(start, end) -> do
         let real_start = Score.warp_pos warp start
             real_end = Score.warp_pos warp end
             real_dur = real_end - real_start
+        -- This is tricky.  I want nested tempo tracks to be equivalent to
+        -- nested blocks, so it would be as if the score starting at the tempo
+        -- track below were in its own block.  However, in that case there
+        -- would have to be an intervening block call event, and its duration
+        -- would be the duration of the current block, which would insert an
+        -- extra stretch by block duration.  So I simulate that by inserting
+        -- the stretch here if this isn't the toplevel tempo track.
+        --
+        -- Otherwise, I would have to get the really real_dur by looking it up
+        -- in the warp of the parent tempo track, which is not the same as the
+        -- global warp, so I'd have to store that somewhere, and it seems a lot
+        -- more complicated.
+        let stretch = 1 / RealTime.to_score real_dur
+                * if toplevel then 1 else end - start
         place <- require_nonzero (end - start) real_dur $
-            Derive.stretch (1 / RealTime.to_score real_dur)
-            . Derive.at (- RealTime.to_score real_start)
+            Derive.stretch stretch . Derive.at (- RealTime.to_score real_start)
         return (place, real_dur)
     stretch_to_1 $ Internal.warp warp $ do
         Internal.add_new_track_warp maybe_track_id
@@ -90,15 +104,21 @@ require_nonzero block_dur real_dur ok
     or all pieces would last exactly 1 second.  This is another reason every
     block must have a 'with_tempo' at the top.
 
+    The normalization feature relies on every block having a tempo track as its
+    top-level track.  'Derive.Call.BlockUtil.note_deriver' establishes this
+    invariant.
+
+    This only needs to apply to the top tempo track, but actually applies to
+    all of them.  The subsequent applications should have no effect because
+    the duration is already normalized to 1.  This is just because it seems a
+    little complicated to get a flag in here about whether the track is the
+    top one.
+
+    'Derive.Call.Block.d_block' might seem like a better place to normalize the
+    duration, but it doesn't have the local warp yet.
+
     TODO relying on the stack seems a little implicit, would it be better to
-    pass Maybe BlockId or Maybe ScoreTime?
-
-    'Derive.Call.Block.d_block' might seem like a better place to do this, but
-    it doesn't have the local warp yet.
-
-    TODO what to do about blocks with multiple tempo tracks?  I think it would
-    be best to stretch the block to the first one.  I could break out
-    stretch_to_1 and have compile apply it to only the first tempo track.
+    have an explicit flag?
 -}
 get_stretch_to_1 :: Monoid.Monoid a => Maybe (ScoreTime, ScoreTime)
     -> ((ScoreTime, ScoreTime)
@@ -128,9 +148,11 @@ set_real_duration dur = Internal.modify_collect $ \collect ->
 --
 -- This can be used to isolate the tempo from any tempo effects that may be
 -- going on.
-with_absolute :: Monoid.Monoid a => Maybe (ScoreTime, ScoreTime)
+with_absolute :: Monoid.Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
     -> Maybe TrackId -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
-with_absolute range maybe_track_id signal deriver = do
+with_absolute toplevel range maybe_track_id signal deriver = do
+    unless toplevel $ Derive.throw
+        "nested absolute tracks not supported yet, use 'with_tempo' as a model"
     let warp = tempo_to_warp signal
     place <- get_stretch_to_1 range $ \(block_start, block_end) -> do
         start <- RealTime.to_score <$> Derive.real (0 :: ScoreTime)
@@ -150,9 +172,11 @@ with_absolute range maybe_track_id signal deriver = do
 -- time.  That is, they won't stretch along with the non-zero segments.  This
 -- means the output will always be at least as long as the absolute sections,
 -- so a block call may extend past the end of its event.
-with_hybrid :: Monoid.Monoid a => Maybe (ScoreTime, ScoreTime) -> Maybe TrackId
-    -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
-with_hybrid range maybe_track_id signal deriver = do
+with_hybrid :: Monoid.Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
+    -> Maybe TrackId -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
+with_hybrid toplevel range maybe_track_id signal deriver = do
+    unless toplevel $ Derive.throw
+        "nested hybrid tracks not supported yet, use 'with_tempo' as a model"
     let warp = tempo_to_score_warp signal
     place <- get_stretch_to_1 range $ \(block_start, block_end) -> do
         -- The special treatment of flat segments only works once: after that

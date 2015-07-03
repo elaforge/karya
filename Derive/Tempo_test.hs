@@ -5,6 +5,7 @@
 module Derive.Tempo_test where
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Ui.UiTest as UiTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
@@ -15,7 +16,7 @@ test_tempo = do
         e_floor (start, dur, text) =
             (floor (secs start), floor (secs dur), text)
         secs = RealTime.to_seconds
-    let f tempo_track =
+    let run tempo_track =
             DeriveTest.extract extract $ DeriveTest.derive_tracks ""
                 [ ("tempo", tempo_track)
                 , ("*", [(0, 10, "5a"), (10, 10, "5b"), (20, 10, "5c")])
@@ -23,23 +24,57 @@ test_tempo = do
                     (20, 10, "n --3")])
                 ]
 
-    equal (f [(0, 0, "2")]) $
+    equal (run [(0, 0, "2")]) $
         ([(0, 5, "n --1"), (5, 5, "n --2"), (10, 5, "n --3")], [])
 
     -- Slow down.
-    equal (f [(0, 0, "2"), (20, 0, "i 1")]) $
+    equal (run [(0, 0, "2"), (20, 0, "i 1")]) $
         ([(0, 5, "n --1"), (5, 7, "n --2"), (13, 10, "n --3")], [])
-    equal (f [(0, 0, "2"), (20, 0, "i 0")]) $
+    equal (run [(0, 0, "2"), (20, 0, "i 0")]) $
         ([(0, 6, "n --1"), (6, 29, "n --2"), (35, 10000, "n --3")], [])
     -- Speed up.
-    equal (f [(0, 0, "1"), (20, 0, "i 2")]) $
+    equal (run [(0, 0, "1"), (20, 0, "i 2")]) $
         ([(0, 8, "n --1"), (8, 5, "n --2"), (14, 5, "n --3")], [])
-    equal (f [(0, 0, "0"), (20, 0, "i 2")]) $
+    equal (run [(0, 0, "0"), (20, 0, "i 2")]) $
         ([(0, 1028, "n --1"), (1028, 7, "n --2"), (1035, 5, "n --3")], [])
 
     -- Change tempo.
-    equal (f [(0, 0, "1"), (10, 0, "2")]) $
+    equal (run [(0, 0, "1"), (10, 0, "2")]) $
         ([(0, 10, "n --1"), (10, 5, "n --2"), (15, 5, "n --3")], [])
+
+test_multiple_tempo_tracks = do
+    let run = DeriveTest.extract DeriveTest.e_start_dur
+            . DeriveTest.derive_blocks_setup
+                (DeriveTest.with_linear_block (UiTest.bid "sub"))
+    let mktempos tempos =
+            [ ("top", [(">", [(0, 8, "sub")])])
+            , ("sub=ruler",
+                ("tempo", [(0, 0, "2"), (2, 0, "1")])
+                : tempos
+                ++ [(">", [(0, 2, ""), (2, 1, "")])])
+            ]
+    let mkblocks tempo =
+            [ ("top", [(">", [(0, 8, "sub")])])
+            , ("sub=ruler",
+                [ ("tempo", [(0, 0, "2"), (2, 0, "1")])
+                , (">", [(0, 3, "sub2")])
+                ])
+            , ("sub2=ruler",
+                [ ("tempo", tempo)
+                , (">", [(0, 2, ""), (2, 1, "")])
+                ])
+            ]
+    equal (run $ mktempos []) ([(0, 4), (4, 4)], [])
+    -- Adding a constant tempo should have no effect.
+    equal (run $ mktempos [("tempo", [(0, 0, "1")])]) ([(0, 4), (4, 4)], [])
+    equal (run $ mktempos [("tempo", [(0, 0, "2")])]) ([(0, 4), (4, 4)], [])
+    -- Complicated nesting.
+    equalf 0.01 (run $ mktempos [("tempo", [(0, 0, "1"), (2, 0, "2")])])
+        ([(0, 5.6), (5.6, 2.4)], [])
+    -- Nested tempo tracks should be equivalent to nested blocks.
+    equalf 0.01 (run $ mkblocks [(0, 0, "1"), (2, 0, "2")])
+        ([(0, 5.6), (5.6, 2.4)], [])
+    -- TODO with a logical start time
 
 test_with_absolute = do
     let run start dur tempo events = DeriveTest.extract Score.event_start $

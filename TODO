@@ -5,8 +5,12 @@ LEGEND
 UNSORTED
   * reorganize Seq.group functions to make it clearer which ones preserve the
     original order, and which ones sort the input.
-  - Make sure the stretch to 1 stuff in Derive.Tempo only applies to the top
+  * Make sure the stretch to 1 stuff in Derive.Tempo only applies to the top
     level tempo track of a block.
+    . It does apply to all of them, but I should figure out what I want.
+    . A constant tempo of any value should do nothing.  Non-constant should
+      apply that warping on the existing warp.  So it is like calling
+      a sub-block, which implies that indeed every track should stretch to 1.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
   - I'd like to see if directly modifying Collect or an AppendList for LEvents
@@ -91,7 +95,7 @@ UNSORTED
       apply the environ from the new instrument, via Post.set_instrument.
 
   - kotekan calls leave keys down in kontakt
-  format:
+  format: Pretty:
     - format is messed up with
         (Score.Instrument, Map.Map Score.Instrument Score.Instrument)
         ( >u
@@ -106,6 +110,21 @@ UNSORTED
           , >w: >kontakt/wayang-pemade
           }
         )
+    - also pprint Maps are messed up:
+      . Derive.Derive_test test_tempo_funcs2:
+          prettyp (Derive.collect_warp_map $ Derive.state_collect
+            $ Derive.r_state res
+      { [block (bid "test/b0"), (bid "test/b0"), (tid "test/b0.t1")]
+          : Left ( 0s, 8.5s
+          , Warp (0s, .5s) { signal = <0s:0, 4294967296s:4294967296> }
+          , (bid "test/b0"), (tid "test/b0.t1")
+          )
+      , [ block (bid "test/b0")
+          , (bid "test/b0"), (tid "test/b0.t1"), (tid "test/b0.t2")
+          , (tid "test/b0.t2")
+          ]
+          : Right (tid "test/b0.t2")
+      ...
     - pp LPerf.sel_events has an extra level of indent after the [.  Not due
       to LEvents.
   - Perhaps I should have a separation between "" as called by Util.note by
@@ -338,8 +357,12 @@ MILESTONES
 documentation:
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   call doc:
-    - put anchors on calls and make single quotes link to calls
-    - For call doc, can I group calls with the same doc but different args,
+    / put anchors on calls and make single quotes link to calls
+      . It's not quite so simple because there is module, and then namespace.
+        So the linkifier would have to understand that structure and search
+        for one, or have some javascript, and then it would have to choose
+        if there is >1 match.  Too complicated.
+    / For call doc, can I group calls with the same doc but different args,
       especially different defaults?
       . Would look like:
         doc doc doc generator
@@ -967,6 +990,11 @@ Derive:
     I could use this to implement is-ly and no-ly, and also totally custom
     track types and block types.
 
+  tempo track:
+    - Nested tempo tracks at the toplevel block should normalize like they do
+      when called.
+    - Nested tempo tracks are probably broken for hybrid and absolute tempo.
+    - Nested tempo tracks are probably also broken with a logical start.
   note calls:
     + chord calls, with automatic dyns for the notes.
       Originally I intended each note to go in its own track, with the idea

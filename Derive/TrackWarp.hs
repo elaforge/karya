@@ -69,7 +69,9 @@ instance DeepSeq.NFData Collection where
     rnf tw = DeepSeq.rnf (tw_tracks tw) `seq` DeepSeq.rnf (tw_warp tw)
 
 collections :: WarpMap -> [Collection]
-collections = map convert . collect_warps
+collections = filter (not . Set.null . tw_tracks) . map convert . collect_warps
+    -- There will be a Collection with a null 'tw_tracks' if there are multiple
+    -- tempo tracks at the top level.
 
 convert :: (TrackWarp, [TrackId]) -> Collection
 convert (TrackWarp (start, end, warp, block_id, maybe_track_id), tracks) =

@@ -17,7 +17,6 @@ import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
-import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
@@ -50,7 +49,7 @@ test_basic = do
             ]
     let (perf_events, mmsgs, logs) =
             DeriveTest.perform_defaults (Derive.r_events res)
-    equal (extract_events res) ([(0, 16, ""), (16, 16, "")], [])
+    equal (e_events res) ([(0, 16, ""), (16, 16, "")], [])
 
     -- 2: conversion to midi perf events
     let evt = (,,,) "1"
@@ -194,17 +193,17 @@ test_subderive = do
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos),
             (UiTest.mk_tid_name "b0" 2, pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
-    equal (map (inv_tempo res) [0, 2 .. 10])
+    equal (map (inv_tempo res) (Seq.range 0 10 2))
         [[b0 0], [b0 4], [b0 8, sub 0], [b0 12, sub 1], [b0 16, sub 2], []]
 
     -- For eyeball verification.
     -- pprint (r_events res)
-    -- pprint $ zip [0,2..] $ map (inv_tempo res) [0, 2 .. 10]
+    -- pprint $ zip [0,2..] $ map (inv_tempo res) (Seq.range 0 10 2)
     -- pprint $ Derive.state_track_warps state
 
 test_subderive_timing = do
     -- Just make sure that sub-blocks stretch to the correct times.
-    let (events, logs) = extract_events $ DeriveTest.derive_blocks
+    let (events, logs) = e_events $ DeriveTest.derive_blocks
             [ ("p",
                 [ ("tempo", [(0, 0, ".5")])
                 , (">i1", [(0, 2, "sub"), (5, 1, "sub")])
@@ -218,7 +217,7 @@ test_subderive_timing = do
     equal logs []
 
 test_subderive_error = do
-    let run evts = extract_events $ DeriveTest.derive_blocks
+    let run evts = e_events $ DeriveTest.derive_blocks
             [ ("b0", [ (">i1", evts) ])
             , ("sub", [("blah *error syntax", [(1, 1, "--sub1")]), (">", [])])
             ]
@@ -254,14 +253,14 @@ test_multiple_subderive = do
             [ ("b0", [(">i1", [(0, 2, "sub"), (2, 2, "sub"), (4, 2, "sub")])])
             , ("sub=ruler", [(">", [(0, 1, "n --sub1")])])
             ]
-    equal (extract_events res)
+    equal (e_events res)
         ([(0, 2, "n --sub1"), (2, 2, "n --sub1"), (4, 2, "n --sub1")], [])
 
     -- Empty inst inherits calling inst.
     equal (fst (DeriveTest.extract Score.event_instrument res))
         (replicate 3 (Score.Instrument "i1"))
 
-    let pos = map (inv_tempo res) [0..6]
+    let pos = map (inv_tempo res) (Seq.range 0 6 1)
     let b0 pos = (UiTest.bid "b0", [(UiTest.mk_tid_name "b0" 1, pos)])
         sub pos = (UiTest.bid "sub", [(UiTest.mk_tid_name "sub" 1, pos)])
     equal (map List.sort pos)
@@ -271,7 +270,7 @@ test_multiple_subderive = do
         ]
 
 test_tempo_compose = do
-    let run tempo events sub_tempo = extract_events $ DeriveTest.derive_blocks
+    let run tempo events sub_tempo = e_events $ DeriveTest.derive_blocks
             [ ("b0", [("tempo", tempo), (">i1", events)])
             , ("sub=ruler",
                 [ ("tempo", sub_tempo)
@@ -391,34 +390,32 @@ test_shift_control = do
     equal (run $ Derive.shift_control 2) $ Right
         ([(2, 1), (4, 2), (6, 0)], [(2, 60)])
 
-track_specs :: [UiTest.TrackSpec]
-track_specs =
-    [ ("tempo", [(0, 0, "2")])
-    , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
-    ]
-
 test_tempo_funcs1 = do
-    let ((bid, [t_tid, tid1]), ui_state) = UiTest.run State.empty $ do
-            UiTest.mkblock ("b0", track_specs)
+    let ((bid, [t_tid, tid1]), ui_state) = UiTest.run State.empty $
+            UiTest.mkblock ("b0", tracks)
+        tracks =
+            [ ("tempo", [(0, 0, "2")])
+            , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
+            ]
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
 
     -- [(BlockId, [(TrackId, ScoreTime)])]
     let b0 pos = (bid, [(t_tid, pos), (tid1, pos)])
     equal (map (inv_tempo res) [0, 2, 4, 6]) [[b0 0], [b0 4], [b0 8], [b0 12]]
-    equal (inv_tempo res (ScoreTime.to_double UiTest.default_block_end)) []
+    equal (inv_tempo res (RealTime.score UiTest.default_block_end)) []
 
     equal (map (r_tempo res bid t_tid) (Seq.range 0 10 2))
         (map ((:[]) . RealTime.seconds) (Seq.range 0 5 1))
 
 test_tempo_funcs2 = do
     let ((bid, [t_tid1, tid1, t_tid2, tid2]), ui_state) =
-            UiTest.run State.empty $ do
-                UiTest.mkblock
-                    ("b0", track_specs
-                    ++ [ ("tempo", [(0, 0, "1")])
-                    , (">i2", [(0, 16, "--2b1")])
-                    ])
+            UiTest.run State.empty $ UiTest.mkblock $ (,) "b0" $
+                [ ("tempo", [(0, 0, "2")])
+                , (">i1", [(0, 8, "--b1"), (8, 8, "--b2"), (16, 1, "--b3")])
+                , ("tempo", [(0, 0, "1")])
+                , (">i2", [(0, 16, "--2b1")])
+                ]
     let res = DeriveTest.derive_block ui_state bid
     equal (DeriveTest.r_log_strings res) []
     equal (map (r_tempo res bid t_tid1) (Seq.range 0 10 2))
@@ -427,7 +424,6 @@ test_tempo_funcs2 = do
         (map ((:[]) . RealTime.seconds) (Seq.range 0 10 2))
     let b0 pos = (bid, [(t_tid1, pos), (tid1, pos)])
         b1 pos = (bid, [(t_tid2, pos), (tid2, pos)])
-
     equal (map (inv_tempo res) [0, 2, 4, 6])
         [[b0 0, b1 0], [b0 4, b1 2], [b0 8, b1 4], [b0 12, b1 6]]
 
@@ -436,9 +432,8 @@ test_tempo_funcs2 = do
 
 -- | Map through inv tempo and sort the results since their order isn't
 -- relevant.
-inv_tempo :: Derive.Result -> Double -> [(BlockId, [(TrackId, ScoreTime)])]
+inv_tempo :: Derive.Result -> RealTime -> [(BlockId, [(TrackId, ScoreTime)])]
 inv_tempo res = map (second List.sort) . List.sort . r_inv_tempo res
-    . RealTime.seconds
 
 test_tempo_funcs_multiple_subblocks = do
     -- A single score time can imply multiple real times.
@@ -478,7 +473,7 @@ test_control = do
     -- Cursory checks, more detailed checks are in more Note_test and
     -- Control_test.
     equal (map DeriveTest.show_log logs) []
-    equal (fst $ extract_events res) [(0, 1, ""), (1, 1, "")]
+    equal (fst $ e_events res) [(0, 1, ""), (1, 1, "")]
     equal (length perf_events) 2
 
     -- Just make sure it did in fact emit ccs.
@@ -608,4 +603,5 @@ r_tempo = TrackWarp.tempo_func . Derive.r_track_warps
 r_inv_tempo :: Derive.Result -> Transport.InverseTempoFunction
 r_inv_tempo = TrackWarp.inverse_tempo_func . Derive.r_track_warps
 
-extract_events = DeriveTest.extract DeriveTest.e_event
+e_events :: Derive.Result -> ([(RealTime, RealTime, String)], [String])
+e_events = DeriveTest.extract DeriveTest.e_event

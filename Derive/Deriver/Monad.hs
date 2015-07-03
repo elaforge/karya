@@ -1261,8 +1261,8 @@ default_score_duration =
 default_real_duration :: PassedArgs d -> Deriver (Duration RealTime)
 default_real_duration args = do
     let t = Event.duration $ info_event $ passed_info args
-    -- This is Internal.score_to_real.  I don't quite want to move all that
-    -- stuff over here.
+    -- This is the same as Internal.score_to_real.  A bit of copy and paste
+    -- seems better than moving all the real to score stuff over here.
     warp <- gets (state_warp . state_dynamic)
     return $ Duration $ Score.warp_pos warp t
 

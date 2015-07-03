@@ -68,27 +68,27 @@ import Types
 
 
 -- | Top level deriver for control tracks.
-d_control_track :: TrackTree.EventsNode
+d_control_track :: Bool -> TrackTree.EventsNode
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-d_control_track (Tree.Node track _) deriver = do
+d_control_track toplevel (Tree.Node track _) deriver = do
     let title = TrackTree.track_title track
     if Text.all Char.isSpace title then deriver else do
         (ctype, expr) <- either (\err -> Derive.throw $ "track title: " <> err)
             return (ParseTitle.parse_control_expr title)
-        eval_track track expr ctype deriver
+        eval_track toplevel track expr ctype deriver
 
 -- * eval_track
 
-eval_track :: TrackTree.Track -> [TrackLang.Call]
+eval_track :: Bool -> TrackTree.Track -> [TrackLang.Call]
     -> ParseTitle.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
-eval_track track expr ctype deriver = case ctype of
+eval_track toplevel track expr ctype deriver = case ctype of
     ParseTitle.Tempo maybe_sym -> do
         is_ly <- Derive.is_lilypond_mode
         let sig_deriver
                 | is_ly = return (Signal.constant 1, [])
                 | otherwise = with_control_env Controls.tempo "compose" $
                     in_normal_mode $ derive_control True track transform
-        tempo_call maybe_sym track sig_deriver deriver
+        tempo_call toplevel maybe_sym track sig_deriver deriver
     ParseTitle.Control maybe_op control -> do
         let control_name = Score.typed_val control
         merge <- lookup_merge control_name maybe_op
@@ -135,10 +135,10 @@ lookup_merge control op = case op of
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
-tempo_call :: Maybe TrackLang.Symbol -> TrackTree.Track
+tempo_call :: Bool -> Maybe TrackLang.Symbol -> TrackTree.Track
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-tempo_call sym track sig_deriver deriver = do
+tempo_call toplevel sym track sig_deriver deriver = do
     (signal, logs) <- Internal.in_real_time $ do
         (signal, logs) <- sig_deriver
         -- Do this in real time, so 'stash_if_wanted' knows it can directly
@@ -146,12 +146,16 @@ tempo_call sym track sig_deriver deriver = do
         stash_if_wanted track signal
         return (signal, logs)
 
+    -- The range is used by the tempo calls to normalize the block to 0--1.
+    -- This should only happen for the tempo track at the top of the block.
+    range <- if True || toplevel
+        then maybe (return Nothing) (fmap Just . Internal.block_logical_range) $
+            TrackTree.track_block_id track
+        else return (Just (0, 1))
     -- 'with_damage' must be applied *inside* 'Tempo.with_tempo'.  If it were
     -- outside, it would get the wrong RealTimes when it tried to create the
     -- ControlDamage.
-    range <- maybe (return Nothing) (fmap Just . Internal.block_logical_range) $
-        TrackTree.track_block_id track
-    merge_logs logs $ dispatch_tempo sym range
+    merge_logs logs $ dispatch_tempo toplevel sym range
         maybe_track_id (Signal.coerce signal) (with_damage deriver)
     where
     maybe_block_track_id = TrackTree.block_track_id track
@@ -163,18 +167,20 @@ tempo_call sym track sig_deriver deriver = do
             (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
 
-dispatch_tempo :: Monoid.Monoid a => Maybe TrackLang.Symbol
+dispatch_tempo :: Monoid.Monoid a => Bool -> Maybe TrackLang.Symbol
     -> Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
-dispatch_tempo sym block_range maybe_track_id signal deriver = case sym of
-    Nothing -> Tempo.with_tempo block_range maybe_track_id signal deriver
-    Just sym
-        | sym == "hybrid" ->
-            Tempo.with_hybrid block_range maybe_track_id signal deriver
-        | sym == "abs" ->
-            Tempo.with_absolute block_range maybe_track_id signal deriver
-        | otherwise -> Derive.throw $
-            "unknown tempo modifier: " <> ShowVal.show_val sym
+dispatch_tempo toplevel sym block_range maybe_track_id signal deriver =
+    case sym of
+        Nothing -> Tempo.with_tempo toplevel block_range maybe_track_id signal
+            deriver
+        Just sym
+            | sym == "hybrid" -> Tempo.with_hybrid toplevel block_range
+                maybe_track_id signal deriver
+            | sym == "abs" -> Tempo.with_absolute toplevel block_range
+                maybe_track_id signal deriver
+            | otherwise -> Derive.throw $
+                "unknown tempo modifier: " <> ShowVal.show_val sym
 
 control_call :: TrackTree.Track -> Score.Typed Score.Control
     -> Derive.Merge -> (Derive.Deriver (TrackResults Signal.Control))
@@ -377,7 +383,7 @@ stash_signal_fragment block_id track_id pos sig =
 
 stash_signal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
 stash_signal block_id track_id sig = do
-    warp <- Internal.get_dynamic Derive.state_warp
+    warp <- Internal.get_warp
     put_track_signal block_id track_id $ EvalTrack.unwarp warp sig
 
 put_track_signal :: BlockId -> TrackId -> Track.TrackSignal -> Derive.Deriver ()

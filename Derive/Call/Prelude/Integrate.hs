@@ -5,6 +5,8 @@
 module Derive.Call.Prelude.Integrate (
     note_calls, unwarp
 ) where
+import qualified Data.Maybe as Maybe
+
 import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Call.BlockUtil as BlockUtil
@@ -66,7 +68,8 @@ unwarp block_id events = ifM (uses_default_tempo block_id)
 
 uses_default_tempo :: State.M m => BlockId -> m Bool
 uses_default_tempo block_id =
-    BlockUtil.has_nontempo_track <$> TrackTree.events_tree_of block_id
+    Maybe.isJust . BlockUtil.has_top_tempo_track <$>
+        TrackTree.events_tree_of block_id
 
 
 -- * track integrate

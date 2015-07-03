@@ -284,12 +284,12 @@ instance Time TrackLang.DefaultScore where
 
 score_to_real :: ScoreTime -> Deriver RealTime
 score_to_real pos = do
-    warp <- get_dynamic state_warp
+    warp <- get_warp
     return (Score.warp_pos warp pos)
 
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
-    warp <- get_dynamic state_warp
+    warp <- get_warp
     return $ Score.unwarp_pos warp pos
 
 in_real_time :: Deriver a -> Deriver a
@@ -297,6 +297,9 @@ in_real_time = with_warp (const Score.id_warp)
 
 with_warp :: (Score.Warp -> Score.Warp) -> Deriver a -> Deriver a
 with_warp f = local $ \st -> st { state_warp = f (state_warp st) }
+
+get_warp :: Deriver Score.Warp
+get_warp = get_dynamic state_warp
 
 -- ** warp
 
@@ -359,7 +362,7 @@ add_track_warp track_id = do
 -- This must be called for each block, and it must be called after the tempo is
 -- warped for that block so it can install the new warp.
 add_new_track_warp :: Maybe TrackId -> Deriver ()
-add_new_track_warp track_id = do
+add_new_track_warp maybe_track_id = do
     stack <- get_stack
     block_id <- get_current_block_id
     start <- score_to_real 0
@@ -367,8 +370,9 @@ add_new_track_warp track_id = do
     -- monitor can't go past the end of the ruler, while the player is
     -- perfectly happy to do so.
     end <- real =<< block_event_end block_id
-    warp <- get_dynamic state_warp
-    let tw = Left $ TrackWarp.TrackWarp (start, end, warp, block_id, track_id)
+    warp <- get_warp
+    let tw = Left $
+            TrackWarp.TrackWarp (start, end, warp, block_id, maybe_track_id)
     merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }
 
 -- | Sub-derived blocks are stretched according to their length, and this

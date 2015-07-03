@@ -169,7 +169,6 @@ default_note config args = do
     start <- Args.real_start args
     end <- Args.real_end args
     dyn <- Internal.get_dynamic id
-
     -- Add flags to get the arrival-note postproc to figure out the duration.
     -- Details in "Derive.Call.Post.ArrivalNote".
     let flags = note_flags (start == end) (Derive.state_stack dyn)

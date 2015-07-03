@@ -19,7 +19,7 @@ module Derive.Call.BlockUtil (
     note_deriver, control_deriver
     , capture_null_control
     , derive_tracks
-    , has_nontempo_track
+    , has_top_tempo_track
 
 #ifdef TESTING
     , derive_tree
@@ -133,30 +133,28 @@ derive_control_tree block_range tree = do
 
 derive_tree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree
     -> Derive.NoteDeriver
-derive_tree block_range tree = with_default_tempo (derive_tracks tree)
+derive_tree block_range tree
+    | Just node <- has_top_tempo_track tree = derive_track True node
+    | otherwise = do
+        -- Every block must have a tempo track as the topmost track.  This is
+        -- because Tempo.with_tempo sets up some stuff that every block needs,
+        -- and because I need a TrackWarp for the tracks below.
+        tempo <- get_tempo
+        Tempo.with_tempo True (Just block_range) Nothing (Signal.constant tempo)
+            (derive_tracks tree)
     where
-    -- Tempo.with_tempo sets up some stuff that every block needs, so add one
-    -- if a block doesn't have at least one top level tempo.
-    with_default_tempo deriver
-        -- To ensure that every track is associated with a TrackWarp, I can't
-        -- have tracks that don't have a tempo track above them.  Those tracks
-        -- implicitly have an id warp, so this just makes that explicit.
-        | has_nontempo_track tree = do
-            tempo <- Derive.lookup_val Environ.tempo >>= \x -> case x of
-                Nothing -> Derive.get_ui_config
-                    (State.default_tempo . State.config_default)
-                Just tempo -> return tempo
-            Tempo.with_tempo (Just block_range) Nothing (Signal.constant tempo)
-                deriver
-        | otherwise = deriver
+    get_tempo = Derive.lookup_val Environ.tempo >>= \x -> case x of
+        Nothing -> Derive.get_ui_config
+            (State.default_tempo . State.config_default)
+        Just tempo -> return tempo
 
 -- | Derive an EventsTree.
 derive_tracks :: TrackTree.EventsTree -> Derive.NoteDeriver
-derive_tracks = mconcatMap derive_track
+derive_tracks = mconcatMap (derive_track False)
 
 -- | Derive a single track node and any tracks below it.
-derive_track :: TrackTree.EventsNode -> Derive.NoteDeriver
-derive_track node@(Tree.Node track subs)
+derive_track :: Bool -> TrackTree.EventsNode -> Derive.NoteDeriver
+derive_track toplevel node@(Tree.Node track subs)
     | ParseTitle.is_note_track (TrackTree.track_title track) =
         with_stack $ Cache.track track (TrackTree.track_children node) $ do
             events <- Internal.track_setup track $ with_voice track $
@@ -167,12 +165,13 @@ derive_track node@(Tree.Node track subs)
             return events
     -- I'd like to call track_setup up here, but tempo tracks are treated
     -- differently, so it goes inside d_control_track.
-    | otherwise = with_stack $ Control.d_control_track node (derive_tracks subs)
+    | otherwise = with_stack $
+        Control.d_control_track toplevel node (derive_tracks subs)
     where
     with_voice = maybe id (Derive.with_val Environ.track_voice)
         . TrackTree.track_voice
     defragment = do
-        warp <- Internal.get_dynamic Derive.state_warp
+        warp <- Internal.get_warp
         Internal.modify_collect $ EvalTrack.defragment_track_signals warp
     with_stack = maybe id Internal.with_stack_track
         (TrackTree.track_id track)
@@ -192,7 +191,11 @@ note_signal_tracks track subs
     | otherwise = track : filter is_note (concatMap Tree.flatten subs)
     where is_note = ParseTitle.is_note_track . TrackTree.track_title
 
--- | Does this tree have any non-tempo tracks at the top level?
-has_nontempo_track :: TrackTree.EventsTree -> Bool
-has_nontempo_track = any $ \(Tree.Node track _) ->
-    not $ ParseTitle.is_tempo_track (TrackTree.track_title track)
+-- | The tempo track, if the top level track is a tempo track.
+has_top_tempo_track :: [Tree.Tree TrackTree.Track]
+    -> Maybe (Tree.Tree TrackTree.Track)
+has_top_tempo_track tree = case tree of
+    [node@(Tree.Node track _)] | is_tempo track -> Just node
+    _ -> Nothing
+    where
+    is_tempo = ParseTitle.is_tempo_track . TrackTree.track_title
