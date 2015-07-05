@@ -35,6 +35,7 @@ ruler = Ruler.meter_ruler (Just Meter.mtype_tala) . Meter.labeled_marklist
 
 -- * standard talams
 
+-- | Create a ruler from just one Tala.
 simple :: Tala -> Nadai -> Sections -> Ruler.Ruler
 simple tala nadai sections = ruler $ simple_meter tala nadai sections
 
@@ -84,6 +85,7 @@ adi_tala = Tala triputa 4 -- chatusra jati triputa tala
 
 misra_chapu :: Tala
 misra_chapu = Tala [Wave 1, Wave 2, Clap 2, Clap 2] 0
+    -- These have no laghu, so jati doesn't matter.
 
 khanda_chapu :: Tala
 khanda_chapu = Tala [Clap 2, Clap 1, Clap 2] 0

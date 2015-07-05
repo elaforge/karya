@@ -129,34 +129,35 @@ patches =
             ]
     ] ++ silverwood_patches
 
--- | Downloaded from NI, SilverwoodV3.2.ens.
--- Modifications: add AR envelope to kbd gate multiplied with breath, so key
--- off also causes the note to stop.  Vibrato all snap isolated, and all the
--- "Mod" controls turned off.  Rate, Level1, and Level2 directly mapped to
--- controls, defaults all 0.  Growl all snap isolated, destination pressure,
--- level 0 and mapped.
---
--- Replace Pitch Wheel in MIDI Mod Sources with constant 0, and replace
--- transpose with PitchBend in Pitch.
---
--- Each model has different controls, and the controls that aren't mapped to
--- air pressure or note number are simplified to be directly controllable from
--- MIDI.  That is, I delete everything except the \"Amount\" knob, and tune its
--- range to be what sounds useful for that model.
---
--- - sax (oboe, english horn, bassoon, harmonica, accordion, uillean pipes,
--- scots pipes): exc. pt (0--?), effic. (-1--?)
---
--- - clarinet: register (0--0.5)
---
--- - flute (piccolo, irish whistle, shakuhachi): embouch (-45--45)
---
--- - recorder (pan pipes): none
---
--- - brass (trumpet, cornet, flugelhorn, french horn, trombone, euphonium,
--- tuba): embouch (-45--45)
---
--- Nothing for organ model yet, I don't really care much about organs.
+{- | Downloaded from NI, SilverwoodV3.2.ens.
+    Modifications: add AR envelope to kbd gate multiplied with breath, so key
+    off also causes the note to stop.  Vibrato all snap isolated, and all the
+    "Mod" controls turned off.  Rate, Level1, and Level2 directly mapped to
+    controls, defaults all 0.  Growl all snap isolated, destination pressure,
+    level 0 and mapped.
+
+    Replace Pitch Wheel in MIDI Mod Sources with constant 0, and replace
+    transpose with PitchBend in Pitch.
+
+    Each model has different controls, and the controls that aren't mapped to
+    air pressure or note number are simplified to be directly controllable from
+    MIDI.  That is, I delete everything except the \"Amount\" knob, and tune its
+    range to be what sounds useful for that model.
+
+    - sax (oboe, english horn, bassoon, harmonica, accordion, uillean pipes,
+    scots pipes): exc. pt (0--?), effic. (-1--?)
+
+    - clarinet: register (0--0.5)
+
+    - flute (piccolo, irish whistle, shakuhachi): embouch (-45--45)
+
+    - recorder (pan pipes): none
+
+    - brass (trumpet, cornet, flugelhorn, french horn, trombone, euphonium,
+    tuba): embouch (-45--45)
+
+    Nothing for organ model yet, I don't really care much about organs.
+-}
 silverwood_patches :: [Instrument.Patch]
 silverwood_patches =
     [ mk "clarinet" [(CC.cc16, "register")]

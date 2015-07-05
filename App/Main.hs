@@ -23,7 +23,6 @@ import qualified System.Remote.Monitoring
 
 import qualified Util.Git as Git
 import qualified Util.Log as Log
-import qualified Util.Map as Map
 import qualified Util.Thread as Thread
 
 import qualified Ui.Ui as Ui
@@ -195,7 +194,7 @@ process_thru rmsg = [(Midi.WriteDevice "fm8", Midi.rmsg_msg rmsg)]
 remap_read_message :: Map.Map Midi.ReadDevice Midi.ReadDevice
     -> Midi.ReadMessage -> Midi.ReadMessage
 remap_read_message dev_map rmsg@(Midi.ReadMessage { Midi.rmsg_dev = dev }) =
-    rmsg { Midi.rmsg_dev = Map.get dev dev dev_map }
+    rmsg { Midi.rmsg_dev = Map.findWithDefault dev dev dev_map }
 
 print_devs :: Set.Set Midi.ReadDevice -> [(Midi.ReadDevice, [Midi.ReadDevice])]
     -> [(Midi.WriteDevice, [Midi.WriteDevice])] -> IO ()

@@ -10,7 +10,9 @@ import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -242,6 +244,10 @@ data Key = Key {
     key_tonic :: TheoryFormat.Tonic
     , key_ratios :: Ratios
     } deriving (Eq, Show)
+
+instance Pretty.Pretty Key where
+    pretty (Key tonic ratios) =
+        "(Key " <> showt tonic <> " [" <> show_ratios ratios <> "])"
 
 read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Key
 read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
