@@ -8,6 +8,7 @@
 module Perform.NN where
 import qualified Perform.Pitch as Pitch
 
+
 c_1 : cs_1 : d_1 : ds_1 : e_1 : f_1 : fs_1 : g_1 : gs_1 : a_1 : as_1 : b_1
     : c0 : cs0 : d0 : ds0 : e0 : f0 : fs0 : g0 : gs0 : a0 : as0 : b0
     : c1 : cs1 : d1 : ds1 : e1 : f1 : fs1 : g1 : gs1 : a1 : as1 : b1
@@ -23,3 +24,17 @@ c_1 : cs_1 : d_1 : ds_1 : e_1 : f_1 : fs_1 : g_1 : gs_1 : a_1 : as_1 : b_1
 
 middle_c :: Pitch.NoteNumber
 middle_c = c4
+
+name :: Pitch.NoteNumber -> String
+name nn = note ++ show (oct - 1)
+    where
+    (oct, k) = (round nn :: Int) `divMod` 12
+    note = case k of
+        0 -> "c"; 1 -> "cs"
+        2 -> "d"; 3 -> "ds"
+        4 -> "e"
+        5 -> "f"; 6 -> "fs"
+        7 -> "g"; 8 -> "gs"
+        9 -> "a"; 10 -> "as"
+        11 -> "b"
+        _ -> ""

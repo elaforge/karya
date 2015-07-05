@@ -156,12 +156,25 @@ c_nn = val_call "nn" mempty
     "Convert a pitch, hz, or twelve-tone pitch name to a NoteNumber.\
     \ A pitch name looks like `[a-g]s?[-1-9]`."
     $ Sig.call (Sig.required "val" "") $ \val _ -> case val of
-        Left pitch -> realToFrac <$> Pitches.pitch_nn
-            (PSignal.coerce (pitch :: PSignal.Pitch))
-        Right (Left hz) -> return (realToFrac (Pitch.hz_to_nn hz) :: Double)
-        Right (Right (TrackLang.Symbol name)) ->
-            maybe (Derive.throw $ "unknown pitch: " <> showt name)
-                (return . realToFrac) (name_to_nn (untxt name))
+        Left pitch -> Pitches.pitch_nn (PSignal.coerce (pitch :: PSignal.Pitch))
+        Right (Left hz) -> return $ Pitch.hz_to_nn hz
+        Right (Right name) -> get_name_nn name
+
+c_hz :: Derive.ValCall
+c_hz = val_call "hz" mempty
+    "Convert a pitch, twelve-tone pitch name, or NoteNumber to hz.\
+    \ A pitch name looks like `[a-g]s?[-1-9]`."
+    $ Sig.call (Sig.required "val" "") $ \val _ -> case val of
+        Left pitch -> Pitch.nn_to_hz <$>
+            Pitches.pitch_nn (PSignal.coerce (pitch :: PSignal.Pitch))
+            -- Not transposed because they asked for a specific pitch.
+        Right (Left name) -> Pitch.nn_to_hz <$> get_name_nn name
+        Right (Right nn) ->
+            return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
+
+get_name_nn :: TrackLang.Symbol -> Derive.Deriver Pitch.NoteNumber
+get_name_nn (TrackLang.Symbol name) =
+    Derive.require ("unknown pitch: " <> showt name) $ name_to_nn (untxt name)
 
 -- | c-1 is 0, g9 is 127
 name_to_nn :: String -> Maybe Pitch.NoteNumber
@@ -175,14 +188,6 @@ name_to_nn (pc : name) =
     octaves = Map.fromList $ zip (map show [-1 .. 9]) [0..]
     pcs = Map.fromList $ zip "cdefgab" (scanl (+) 0 Theory.piano_intervals)
 name_to_nn _ = Nothing
-
-c_hz :: Derive.ValCall
-c_hz = val_call "hz" mempty "Convert a pitch or NoteNumber to hz." $
-    Sig.call (Sig.required "val" "") $ \val _ -> case val of
-        Left pitch -> Pitch.nn_to_hz <$>
-            Pitches.pitch_nn (PSignal.coerce (pitch :: PSignal.Pitch))
-            -- Not transposed because they asked for a specific pitch.
-        Right nn -> return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
 
 c_list :: Derive.ValCall
 c_list = val_call "list" mempty "Create a list." $

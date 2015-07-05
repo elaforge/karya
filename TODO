@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - I was confused because I wrote '%just-base = (nn (c3))' instead of
+    '%just-base = (hz (nn c3))'.  Can I use type tags to catch that sort of
+    thing?
+    . Control names can inherit types, right?
+  - If I want to have an interpolating rhythm, e.g. chatusram to misram, I can
+    have a parent call that moves its children slightly.
+    . In fact, could I have done the interpolating scale as a similar
+      postproc?  Can't actually think of a way.
   * reorganize Seq.group functions to make it clearer which ones preserve the
     original order, and which ones sort the input.
   * Make sure the stretch to 1 stuff in Derive.Tempo only applies to the top
