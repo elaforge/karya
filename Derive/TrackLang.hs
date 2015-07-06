@@ -226,8 +226,8 @@ data NumValue = TAny
 -- and 'to_num_type', and a mistake or inconsistency with 'to_type' or 'to_val'
 -- will cause typechecking to fail in some subtle case.  Fortunately there are
 -- relatively few types and hopefully won't be many more, and it only affects
--- 'put_val'.  It could all do with a cleanup, but obviously I don't know
--- anything aobut how this sort of thing is supposed to be done.
+-- 'put_val'.  It could all do with a cleanup.  I'm sure there's a right way
+-- to do this sort of thing.
 types_match :: Type -> Type -> Bool
 types_match t1 t2 = case (t1, t2) of
     (TNum n1 v1, TNum n2 v2) -> num_types_match n1 n2 && num_vals_match v1 v2
@@ -279,15 +279,15 @@ instance Pretty.Pretty NumType where
     pretty t = case t of
         TUntyped -> ""
         TInt -> "integral"
-        TTranspose -> "transposition"
-        TDefaultDiatonic -> "transposition, default diatonic"
-        TDefaultChromatic -> "transposition, default chromatic"
-        TTime -> "time"
-        TDefaultReal -> "time, default real"
-        TDefaultScore -> "time, default score"
-        TRealTime -> "realtime"
-        TScoreTime -> "scoretime"
-        TNoteNumber -> "nn"
+        TTranspose -> "Transposition"
+        TDefaultDiatonic -> "Transposition, default diatonic"
+        TDefaultChromatic -> "Transposition, default chromatic"
+        TTime -> "Time"
+        TDefaultReal -> "Time, default real"
+        TDefaultScore -> "Time, default score"
+        TRealTime -> "RealTime"
+        TScoreTime -> "ScoreTime"
+        TNoteNumber -> "NN"
 
 instance Pretty.Pretty NumValue where
     pretty t = case t of
@@ -647,6 +647,21 @@ instance Typecheck Quoted where
     from_val _ = Nothing
     to_val = VQuoted
     to_type _ = TQuoted
+
+-- * typecheck utils
+
+-- | Typecheck a Typed number.
+typecheck_num :: forall a. Typecheck a => Score.Typed Signal.Y -> Either Text a
+typecheck_num v = case from_val (VNum v) of
+    Just a -> Right a
+    Nothing -> Left $ "expected " <> expected_desc <> " but got "
+        <> pretty (Score.type_of v)
+    where
+    expected :: Proxy a
+    expected = Proxy
+    expected_desc = case to_type expected of
+        TNum typ val -> TextUtil.joinWith ", " (pretty typ) (pretty val)
+        t -> pretty t
 
 -- * environ
 

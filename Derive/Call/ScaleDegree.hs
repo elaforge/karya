@@ -52,6 +52,7 @@ scale_degree scale pitch_nn pitch_note = Derive.val_call Module.scale
             (\config -> add_absolute_transposers config <$> pitch_nn config)
             pitch_note config
 
+-- | Apply transpose signals that don't require any scale knowledge.
 add_absolute_transposers :: PSignal.PitchConfig -> Pitch.NoteNumber
     -> Pitch.NoteNumber
 add_absolute_transposers config nn =

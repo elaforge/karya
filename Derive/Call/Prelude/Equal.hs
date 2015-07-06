@@ -113,6 +113,7 @@ equal_transformer args deriver =
 parse_equal :: Maybe Merge -> TrackLang.Symbol -> TrackLang.Val
     -> Either Text (Derive.Deriver a -> Derive.Deriver a)
 parse_equal Nothing (TrackLang.Symbol lhs) rhs
+    -- Assign to call.
     | Just new <- Text.stripPrefix "^" lhs = Right $
         override_call new rhs "note"
             (Derive.s_generator#Derive.s_note)
@@ -127,12 +128,14 @@ parse_equal Nothing (TrackLang.Symbol lhs) rhs
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" lhs = Right $ override_val_call new rhs
 parse_equal Nothing (TrackLang.Symbol lhs) rhs
+    -- Create instrument alias.
     | Just new <- Text.stripPrefix ">" lhs = case rhs of
         TrackLang.VInstrument inst -> Right $
             Derive.with_instrument_alias (Score.Instrument new) inst
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
             <> pretty (TrackLang.type_of rhs)
 parse_equal maybe_merge lhs rhs
+    -- Assign to control.
     | Just control <- is_control =<< parse_val lhs = case rhs of
         TrackLang.VControlRef rhs -> Right $ \deriver ->
             Call.to_signal_or_function rhs >>= \x -> case x of
@@ -156,6 +159,7 @@ parse_equal maybe_merge lhs rhs
     is_control (TrackLang.VControlRef (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing
 parse_equal Nothing lhs rhs
+    -- Assign to pitch control.
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
         TrackLang.VPitch rhs ->
             Right $ Derive.with_named_pitch control (PSignal.constant rhs)

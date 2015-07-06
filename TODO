@@ -6,7 +6,10 @@ UNSORTED
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
     '%just-base = (hz (nn c3))'.  Can I use type tags to catch that sort of
     thing?
-    . Control names can inherit types, right?
+    . Hz doesn't have its own type, so it winds up being Untyped.  But any
+      type can coerce to Untyped, so it can't complain if you passed NN.
+      I could make Typecheck Double require Untyped, but that would break all
+      the stuff that doesn't care about types.
   - If I want to have an interpolating rhythm, e.g. chatusram to misram, I can
     have a parent call that moves its children slightly.
     . In fact, could I have done the interpolating scale as a similar
