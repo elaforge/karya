@@ -49,7 +49,11 @@ middle_module = module_ <> "middle"
 end_module = module_ <> "end"
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps [("!", c_sequence)] [("!", c_sequence_transform)]
+note_calls = Derive.call_maps
+    [("!", c_sequence)]
+    [ ("!", c_sequence_transform)
+    , ("sahitya", c_sahitya)
+    ]
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.generator_call_map $ concat
@@ -744,6 +748,14 @@ align_to_end :: RealTime -> RealTime -> TrackLang.Duration
 align_to_end start end dur = do
     dur <- min (end - start) <$> Call.real_duration start dur
     return $ end - dur
+
+-- * misc
+
+c_sahitya :: Derive.Taggable a => Derive.Transformer a
+c_sahitya = Derive.transformer module_ "sahitya" mempty
+    "Ignore the transformed deriver. Put this on a track to ignore its\
+    \ contents, and put in sahitya."
+    $ Sig.call0t $ \_args _deriver -> return mempty
 
 -- * util
 
