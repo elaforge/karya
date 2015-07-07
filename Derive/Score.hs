@@ -504,7 +504,7 @@ unchecked_control = ScoreTypes.Control
 -- can use the IsString instance.
 pcontrol :: Text -> Either Text PControl
 pcontrol name
-    | Id.valid name = Right $ ScoreTypes.PControl name
+    | Text.null name || Id.valid name = Right $ ScoreTypes.PControl name
     | otherwise = Left $ "invalid characters in pitch control: " <> showt name
 
 unchecked_pcontrol :: Text -> PControl
