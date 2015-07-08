@@ -42,12 +42,12 @@ while cond op = do
 while_ :: Monad m => m Bool -> m a -> m ()
 while_ cond op = do
     b <- cond
-    if b then op >> while_ cond op else return ()
+    when b $ op >> while_ cond op
 
 whenM :: Monad m => m Bool -> m a -> m ()
 whenM cond op = do
     b <- cond
-    if b then op >> return () else return ()
+    when b $ op >> return ()
 
 unlessM :: Monad m => m Bool -> m a -> m ()
 unlessM cond op = do

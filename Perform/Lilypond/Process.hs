@@ -81,7 +81,7 @@ convert_to_rests = hush . filter wanted . concatMap flatten
     has_duration _ = Nothing
     hush lys = -- TODO simplify durs
         map (LyRest . make_rest HiddenRest) durs ++ case non_notes of
-            ly : rest -> [ly] ++ hush rest
+            ly : rest -> ly : hush rest
             [] -> []
         where (durs, non_notes) = Seq.span_while has_duration lys
 

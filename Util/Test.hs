@@ -136,9 +136,9 @@ diff_values inequal first second = concat
     where (firsts, seconds) = diff first second
 
 highlight_lines :: IntMap.IntMap [CharRange] -> String -> String
-highlight_lines nums = unlines . map hi . zip [0..] . lines
+highlight_lines nums = unlines . zipWith hi [0..] . lines
     where
-    hi (i, line) = case IntMap.lookup i nums of
+    hi i line = case IntMap.lookup i nums of
         Just ranges -> highlight_red_ranges ranges line
         Nothing -> line
 
@@ -197,8 +197,7 @@ numbered_diff :: Eq a => [a] -> [a] -> [Diff.Diff (Numbered a)]
 numbered_diff a b =
     Diff.getDiffBy (\a b -> numbered_val a == numbered_val b)
         (number a) (number b)
-    where
-    number = map (uncurry Numbered) . zip [0..]
+    where number = zipWith Numbered [0..]
 
 data Numbered a = Numbered {
     _numbered :: !Int
@@ -226,7 +225,7 @@ strings_like = strings_like_srcpos Nothing
 strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO Bool
 strings_like_srcpos srcpos gotten expected
     | null gotten && null expected = success_srcpos srcpos "[] =~ []"
-    | otherwise = foldl (&&) True <$>
+    | otherwise = and <$>
         mapM string_like (zip [0..] (Seq.zip_padded gotten expected))
     where
     string_like (n, Seq.Second reg) = failure_srcpos srcpos $

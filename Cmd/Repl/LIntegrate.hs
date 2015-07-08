@@ -50,7 +50,7 @@ score_block = do
 track :: Cmd.M m => m ()
 track = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    State.modify_integrated_tracks block_id $
+    State.modify_integrated_tracks block_id
         ((track_id, Block.DeriveDestinations []) :)
     Cmd.derive_immediately [block_id]
     Cmd.inflict_track_damage block_id track_id
@@ -58,7 +58,7 @@ track = do
 score_track :: Cmd.M m => m ()
 score_track = do
     (block_id, _, track_id, _) <- Selection.get_insert
-    State.modify_integrated_tracks block_id $
+    State.modify_integrated_tracks block_id
         ((track_id, Block.ScoreDestinations []) :)
     Cmd.inflict_track_damage block_id track_id
 

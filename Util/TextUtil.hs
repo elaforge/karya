@@ -42,8 +42,8 @@ joinWith sep t1 t2 = Text.intercalate sep $ filter (not . Text.null) [t1, t2]
 formatColumns :: Int -> [[Text]] -> [Text]
 formatColumns padding rows = map format_row rows
     where
-    format_row = Text.concat . map pad . zip widths
-    pad (w, cell) = cell
+    format_row = Text.concat . zipWith pad widths
+    pad w cell = cell
         <> Text.replicate (w - Text.length cell + padding) (Text.pack " ")
     by_col = map (map (Maybe.fromMaybe Text.empty)) (Seq.rotate2 rows)
     widths = replace $ map (List.maximum . (0:) . map Text.length) by_col

@@ -75,7 +75,7 @@ timed_derive name ui_state cmd_state block_id =
             events <- print_timer msg (timer_msg Vector.length)
                 (return $! events)
             return (events, cmd_logs ++ filter (not . boring) derive_logs)
-    where boring msg = Cache.is_cache_log msg
+    where boring = Cache.is_cache_log
 
 timed_lilypond :: FilePath -> State.State -> Cmd.State -> BlockId
     -> IO (Either Text Text, [Log.Msg])

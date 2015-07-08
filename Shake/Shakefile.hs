@@ -466,7 +466,7 @@ configure midi = do
 
 parseGhcVersion :: FilePath -> String
 parseGhcVersion path =
-    check $ dropWhile (=='0') $ concat $ map pad0 $ Seq.split "." $ drop 1 $
+    check $ dropWhile (=='0') $ concatMap pad0 $ Seq.split "." $ drop 1 $
         dropWhile (/='-') $ FilePath.takeFileName path
     where
     pad0 [c] = '0' : c : []
@@ -702,7 +702,8 @@ hlint :: Config -> Shake.Action ()
 hlint config = do
     (hs, hscs) <- getAllHaddock config
     need $ map (hscToHs (hscDir config)) hscs
-    Util.staunchSystem "hlint" $ mkIgnore hlintIgnore ++ hs
+    Util.staunchSystem "hlint" $
+        "--report=hlint.html" : mkIgnore hlintIgnore ++ hs
     Util.staunchSystem "hlint" $ mkIgnore
         -- hsc2hs triggers these, not my fault.
         (hlintIgnore ++ ["Redundant bracket", "Avoid lambda"])

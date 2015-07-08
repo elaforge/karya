@@ -43,7 +43,7 @@ type InterpolatorTime a =
 type GetTime a = Derive.PassedArgs a -> Derive.Deriver TrackLang.Duration
 
 interpolator_call :: Text
-    -> (Sig.Parser arg, (arg -> Curve))
+    -> (Sig.Parser arg, arg -> Curve)
     -- ^ get args for the function and the interpolating function
     -> InterpolatorTime Derive.Control -> Derive.Generator Derive.Control
 interpolator_call name (get_arg, curve) interpolator_time =
@@ -303,7 +303,7 @@ multiply_signal :: Score.Control -> RealTime
     -- ^ End time, after which the signal becomes 1.  This should be set to the
     -- next event, otherwise, all subsequent events will be zeroed.
     -> Signal.Control -> Derive.Deriver ()
-multiply_signal control end sig = do
+multiply_signal control end sig =
     -- Since signals are implicitly 0 before the first sample, the modification
     -- will zero out the control before 'x1'.  That's usually not what I want,
     -- so assume it's 'y1' before that.

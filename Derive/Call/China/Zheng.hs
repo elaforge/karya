@@ -37,7 +37,7 @@ note_calls = Derive.call_maps
     ([ ("gliss-a", make_gliss "gliss-a" True)
     , ("gliss", make_gliss "gliss" False)
     ] ++ trill_variations c_note_trill)
-    [ ("bent-string", Derive.set_module module_ $ String.c_bent_string)
+    [ ("bent-string", Derive.set_module module_ String.c_bent_string)
     ]
 
 pitch_calls :: Derive.CallMaps Derive.Pitch

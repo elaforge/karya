@@ -148,10 +148,8 @@ tempo_call toplevel sym track sig_deriver deriver = do
 
     -- The range is used by the tempo calls to normalize the block to 0--1.
     -- This should only happen for the tempo track at the top of the block.
-    range <- if True || toplevel
-        then maybe (return Nothing) (fmap Just . Internal.block_logical_range) $
-            TrackTree.track_block_id track
-        else return (Just (0, 1))
+    range <- maybe (return Nothing) (fmap Just . Internal.block_logical_range) $
+        TrackTree.track_block_id track
     -- 'with_damage' must be applied *inside* 'Tempo.with_tempo'.  If it were
     -- outside, it would get the wrong RealTimes when it tried to create the
     -- ControlDamage.

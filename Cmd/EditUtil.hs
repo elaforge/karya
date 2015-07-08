@@ -9,6 +9,7 @@ import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
+import qualified Util.Pretty as Pretty
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.Key as Key
@@ -32,6 +33,8 @@ import Types
 -- | block tracknum start duration
 data Pos = Pos !BlockId !TrackNum !TrackTime !TrackTime
     deriving (Eq, Show)
+
+instance Pretty.Pretty Pos where pretty = showt
 
 get_pos :: Cmd.M m => m Pos
 get_pos = do

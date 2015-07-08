@@ -245,11 +245,11 @@ bump_updates old_cur (new_cur : news) =
     -- All I want to do is bump the updates from new_cur to old_cur, but
     -- suppressed records means there can be multiple histories recorded at
     -- once, which makes this a bit more of a hassle.
-    (present, map bump (zip (new_cur:entries) entries))
+    (present, zipWith bump (new_cur : entries) entries)
     where
     entries = news ++ [old_cur]
     present = new_cur { Cmd.hist_updates = [] }
-    bump (p, c) = c { Cmd.hist_updates = Cmd.hist_updates p }
+    bump p c = c { Cmd.hist_updates = Cmd.hist_updates p }
 
 -- | Convert 'SaveGit.SaveHistory's to 'Cmd.HistoryEntry's by writing the
 -- commits to disk.

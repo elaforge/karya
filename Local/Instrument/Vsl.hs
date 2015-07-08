@@ -52,7 +52,7 @@ find_attrs inst with_attrs =
 -- | Write matrices to a file for visual reference.
 write_matrices :: IO ()
 write_matrices = Text.IO.writeFile "matrices.txt" $ Text.unlines $
-    map show_matrix (map (fst . fst) instruments)
+    map (show_matrix . fst . fst) instruments
 
 show_matrix :: VslInst.Instrument -> Text
 show_matrix (name, _, attrs) =

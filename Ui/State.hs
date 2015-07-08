@@ -1007,14 +1007,14 @@ set_merged_tracks block_id tracknum merged =
 set_ruler_ids :: M m => BlockId -> [Maybe RulerId] -> m ()
 set_ruler_ids block_id ruler_ids = modify_block block_id $ \block -> block
     { Block.block_tracks =
-        map set (zip (Block.block_tracks block) (ruler_ids ++ repeat Nothing))
+        zipWith set (Block.block_tracks block) (ruler_ids ++ repeat Nothing)
     }
     where
-    set (track, Just ruler_id) = track
+    set track (Just ruler_id) = track
         { Block.tracklike_id =
             Block.set_ruler_id ruler_id (Block.tracklike_id track)
         }
-    set (track, Nothing) = track
+    set track Nothing = track
 
 -- | Replace one RulerId with another on the given block.
 --

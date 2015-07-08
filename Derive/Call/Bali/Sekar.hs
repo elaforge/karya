@@ -186,7 +186,7 @@ sekar_direct_arrive range patterns events_ =
     align es = case Seq.last es of
         Nothing -> []
         Just e -> map (Sub.at (snd range - Sub.event_start e)) es
-    add_flags = Seq.map_last $ fmap $ add_last_note_flags
+    add_flags = Seq.map_last $ fmap add_last_note_flags
 
 add_last_note_flags :: Derive.NoteDeriver -> Derive.NoteDeriver
 add_last_note_flags = fmap $ Post.emap1_ $ Score.add_flags $

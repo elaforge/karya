@@ -53,7 +53,5 @@ rdev_map =
     where tapco = tapco_in
 
 read_devices :: [Text]
-read_devices =
-    [ alsa_input "USB-Oxygen-8-v2-MIDI-1" 2 0
-    ] ++ map tapco [1..4]
+read_devices = alsa_input "USB-Oxygen-8-v2-MIDI-1" 2 0 : map tapco [1..4]
     where tapco = tapco_in

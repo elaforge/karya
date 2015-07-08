@@ -223,6 +223,6 @@ move_tracks block_id sources dest =
     where
     moves -- Start at the last source, then insert at the dest counting down.
         | any (<dest) sources =
-            zip (reverse (List.sort sources)) [dest, dest-1 ..]
+            zip (List.sortBy (flip compare) sources) [dest, dest-1 ..]
         -- Start at the first source, then insert at the dest counting up.
         | otherwise = zip (List.sort sources) [dest ..]

@@ -196,7 +196,7 @@ match_definition (c:cs)
         Just $ c : takeWhile is_ident cs
     | otherwise = Nothing
     where
-    is_ident c = or $ map ($c)
+    is_ident c = any ($c)
         [within 'a' 'z', within 'A' 'Z', within '0' '9', (=='_'), (=='\'')]
     within low high v = low <= v && v <= high
 

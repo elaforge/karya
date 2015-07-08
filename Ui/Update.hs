@@ -276,7 +276,7 @@ is_view_update update = case update of
 collapse_updates :: [Update t u] -> [Update t u]
 collapse_updates updates = collapse tracks ++ rest
     where
-    collapse = concatMap to_track . map (second mconcat) . Seq.group_fst
+    collapse = concatMap (to_track . second mconcat) . Seq.group_fst
     to_track (track_id, range) = case Ranges.extract range of
         Nothing -> [Track track_id TrackAllEvents]
         Just rs -> map (Track track_id . uncurry TrackEvents) rs

@@ -234,7 +234,7 @@ sub_events_end_bias = sub_events_ True
 sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[Event]]
 sub_events_ include_end args =
     case Derive.info_sub_events (Derive.passed_info args) of
-        Nothing -> either Derive.throw (return . (map (map mkevent))) $
+        Nothing -> either Derive.throw (return . map (map mkevent)) $
             Slice.checked_slice_notes include_end start end subs
         Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
     where

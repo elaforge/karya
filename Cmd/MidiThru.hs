@@ -100,21 +100,21 @@ cmd_midi_thru msg = do
 midi_thru_instrument :: Cmd.M m => Score.Instrument -> InputNote.Input -> m ()
 midi_thru_instrument score_inst input = do
     addrs <- Instrument.get_addrs score_inst <$> State.get_midi_config
-    if null addrs then return () else do
-    scale <- Perf.get_scale =<< Selection.track
-    patch <- Cmd.get_midi_patch score_inst
-    input <- Cmd.require
-        (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
-        =<< map_scale (Instrument.patch_scale patch) scale
-            (Instrument.patch_environ patch) input
+    unless (null addrs) $ do
+        scale <- Perf.get_scale =<< Selection.track
+        patch <- Cmd.get_midi_patch score_inst
+        input <- Cmd.require
+            (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
+            =<< map_scale (Instrument.patch_scale patch) scale
+                (Instrument.patch_environ patch) input
 
-    wdev_state <- Cmd.get_wdev_state
-    let (thru_msgs, maybe_wdev_state) =
-            input_to_midi pb_range wdev_state addrs input
-        pb_range = Instrument.inst_pitch_bend_range
-            (Instrument.patch_instrument patch)
-    whenJust maybe_wdev_state $ Cmd.modify_wdev_state . const
-    mapM_ (uncurry Cmd.midi) thru_msgs
+        wdev_state <- Cmd.get_wdev_state
+        let (thru_msgs, maybe_wdev_state) =
+                input_to_midi pb_range wdev_state addrs input
+            pb_range = Instrument.inst_pitch_bend_range
+                (Instrument.patch_instrument patch)
+        whenJust maybe_wdev_state $ Cmd.modify_wdev_state . const
+        mapM_ (uncurry Cmd.midi) thru_msgs
 
 -- | Realize the Input as a pitch in the given scale.
 map_scale :: Cmd.M m => Maybe Instrument.PatchScale -> Scale.Scale
