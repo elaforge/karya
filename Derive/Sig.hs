@@ -85,7 +85,7 @@
 -}
 module Derive.Sig (
     Parser, Generator, Transformer
-    , check, run_or_throw, run
+    , check, parse_or_throw, require_right, parse, parse_vals
     -- * pseudo-parsers
     , paired_args, typecheck
     -- * parsers
@@ -167,22 +167,32 @@ check validate (Parser docs parse) = Parser docs $ \state -> case parse state of
         Just err -> Left $ Derive.ArgError err
         Nothing -> Right (state2, val)
 
-run_or_throw :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
+parse_or_throw :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
     -> Derive.Deriver a
-run_or_throw parser args = either (Derive.throw_error . Derive.CallError) return
-    =<< run parser args
+parse_or_throw parser args = require_right =<< parse parser args
+
+require_right :: Either Error a -> Derive.Deriver a
+require_right = either (Derive.throw_error . Derive.CallError) return
 
 -- | Run a parser against the current derive state.
-run :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
+parse :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
     -> Derive.Deriver (Either Error a)
-run parser args = run_parser parser . make_state args <$> Derive.get
+parse parser args = parse_vals parser
+    (Derive.tag_call_info (Derive.passed_info args))
+    (Derive.passed_call_name args)
+    (Derive.passed_vals args)
+
+parse_vals :: Parser a -> Derive.CallInfo Derive.Tagged -> Text
+    -> [TrackLang.Val] -> Derive.Deriver (Either Error a)
+parse_vals parser cinfo name vals =
+    run_parser parser . make_state <$> Derive.get
     where
-    make_state args state = State
-        { state_vals = Derive.passed_vals args
+    make_state state = State
+        { state_vals = vals
         , state_argnum = 0
-        , state_call_name = Derive.passed_call_name args
+        , state_call_name = name
         , state_derive = state
-        , state_call_info = Derive.tag_call_info (Derive.passed_info args)
+        , state_call_info = cinfo
         }
 
 -- * pseudo-parsers
@@ -510,24 +520,27 @@ type Transformer y d =
 call :: Derive.Taggable y => Parser a -> (a -> Generator y d)
     -> Derive.WithArgDoc (Generator y d)
 call parser f = (go, Derive.ArgDocs (parser_docs parser))
-    where go args = run_or_throw parser args >>= \a -> f a args
+    where go args = parse parser args >>= require_right >>= \a -> f a args
 
 -- | Specialization of 'call' for 0 arguments.
 call0 :: Derive.Taggable y => Generator y d -> Derive.WithArgDoc (Generator y d)
 call0 f = (go, Derive.ArgDocs [])
-    where go args = run_or_throw no_args args >>= \() -> f args
+    where go args = parse no_args args >>= require_right >>= \() -> f args
 
 callt :: Derive.Taggable y => Parser a -> (a -> Transformer y d)
     -> Derive.WithArgDoc (Transformer y d)
 callt parser f = (go, Derive.ArgDocs (parser_docs parser))
-    where go args deriver = run_or_throw parser args >>= \a -> f a args deriver
+    where
+    go args deriver = parse parser args >>= require_right
+        >>= \a -> f a args deriver
 
 -- | Specialization of 'callt' for 0 arguments.
 call0t :: Derive.Taggable y => Transformer y d
     -> Derive.WithArgDoc (Transformer y d)
 call0t f = (go, Derive.ArgDocs [])
     where
-    go args deriver = run_or_throw (pure ()) args >>= \() -> f args deriver
+    go args deriver = parse (pure ()) args >>= require_right
+        >>= \() -> f args deriver
 
 state_environ :: State -> TrackLang.Environ
 state_environ = Derive.state_environ . Derive.state_dynamic . state_derive

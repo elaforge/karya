@@ -60,7 +60,7 @@ c_sequence = Derive.with_score_duration score_duration $
     where
     calls_arg = Sig.many1 "call" "Generator calls."
     score_duration args = do
-        calls <- Sig.run_or_throw calls_arg args
+        calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_score_duration (calls_to_derivers args calls)
         return $ Derive.Duration (sum durs)
 
@@ -92,7 +92,7 @@ c_sequence_realtime = Derive.with_score_duration score_duration $
     where
     calls_arg = Sig.many1 "call" "Generator calls."
     score_duration args = do
-        calls <- Sig.run_or_throw calls_arg args
+        calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_real_duration (calls_to_derivers args calls)
         end <- Call.score_duration (Args.start args) (sum durs)
         return $ Derive.Duration $ end - Args.start args
@@ -122,7 +122,7 @@ c_parallel = Derive.with_score_duration score_duration $ Derive.generator
     where
     calls_arg = Sig.many1 "call" "Generator calls."
     score_duration args = do
-        calls <- Sig.run_or_throw calls_arg args
+        calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_score_duration (calls_to_derivers args calls)
         return $ Derive.Duration $ fromMaybe 0 (Seq.maximum durs)
 
