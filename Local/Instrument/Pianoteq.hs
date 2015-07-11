@@ -25,18 +25,27 @@ pb_range = (-24, 24)
 
 controls :: [(Midi.Control, Score.Control)]
 controls =
-    [ (64, Controls.pedal)
-    , (67, "soft-pedal")
-    , (66, "sost-pedal")
+    [ (67, "soft-pedal")
     , (69, "harmonic-pedal")
+    , (66, "sost-pedal")
+    , (64, Controls.pedal)
     -- whole bunch more
     ]
 
 patches :: [MidiInst.Patch]
 patches =
-    [ (patch "pasang", Bali.pasang_code)
-    , (MidiInst.range (NN.g2, NN.a6) $ patch "yangqin", mempty)
+    [ (patch "pasang" [], Bali.pasang_code)
+    , (MidiInst.range (NN.g2, NN.a6) $ patch "yangqin" [], mempty)
+    , (patch "harp" harp_controls, mempty)
     ]
+    where
+    harp_controls =
+        [ (67, "gliss")
+        , (69, "harmonic")
+        , (66, "lute")
+        ]
 
-patch :: Instrument.InstrumentName -> Instrument.Patch
-patch name = Instrument.patch $ Instrument.instrument name [] pb_range
+patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
+    -> Instrument.Patch
+patch name controls =
+    Instrument.patch $ Instrument.instrument name controls pb_range
