@@ -15,6 +15,7 @@ import qualified Derive.Call.Idiom.String as String
 import qualified Derive.Call.Idiom.Wind as Wind
 import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.India.Gamakam2 as Gamakam2
+import qualified Derive.Call.India.Gamakam3 as Gamakam3
 import qualified Derive.Call.India.Mridangam as Mridangam
 import qualified Derive.Call.Post.Idiom as Idiom
 import qualified Derive.Call.Post.Map as Map
@@ -114,6 +115,7 @@ pitch_maps = mconcat
     , Equal.pitch_calls
     , Gamakam.pitch_calls
     , Gamakam2.pitch_calls
+    , Gamakam3.pitch_calls
     , Grace.pitch_calls
     , Import.calls
     , Conditional.pitch_calls

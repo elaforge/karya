@@ -164,6 +164,10 @@ newtype Positive a = Positive { positive :: a }
 newtype Natural a = Natural { natural :: a }
     deriving (Show, Eq, ShowVal, Num, Fractional)
 
+-- | 0 <= x <= 1
+newtype Normalized = Normalized { normalized :: Double }
+    deriving (Show, Eq, ShowVal, Pretty.Pretty)
+
 -- | Normally Transpose will default to Chromatic if the val is untyped,
 -- but some calls would prefer to default to Diatonic.
 newtype DefaultDiatonic =
@@ -215,6 +219,8 @@ data NumValue = TAny
     | TNatural
     -- | >0
     | TPositive
+    -- | 0 <= a <= 1
+    | TNormalized
     deriving (Eq, Ord, Show)
 
 -- | This typechecking already exists in the Typecheck instances, but all it
@@ -294,6 +300,7 @@ instance Pretty.Pretty NumValue where
         TAny -> ""
         TNatural -> ">=0"
         TPositive -> ">0"
+        TNormalized -> "0 <= x <= 1"
 
 type_of :: Val -> Type
 type_of = infer_type_of True
@@ -396,6 +403,12 @@ instance Typecheck Double where
     from_val _ = Nothing
     to_val = VNum . Score.untyped
     to_type = num_to_type
+
+instance Typecheck Normalized where
+    from_val (VNum (Score.Typed _ a)) | 0 <= a && a <= 1 = Just (Normalized a)
+    from_val _ = Nothing
+    to_val = VNum . Score.untyped . normalized
+    to_type _ = TNum TUntyped TNormalized
 
 instance Typecheck Int where
     from_val (VNum (Score.Typed _ a))

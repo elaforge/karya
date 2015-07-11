@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - A 'place' arg for portamento calls which can center the curve, or place it
+    before the call.
+  - Maybe 'w' and 'b' in a control track should jump the boundaries of the
+    above note track?
+  - Rename PSignal.Signal to PSignal.PSignal?
   - Sometimes kbd note entry doesn't work.
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
     '%just-base = (hz (nn c3))'.  Can I use type tags to catch that sort of
@@ -212,6 +217,204 @@ UNSORTED
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
   india: gamakam:
+    Gamakam3:
+      . Try a new approach: just a sequence of ornaments, each of which takes
+        up an integral number of time units.  Time units are evenly divided
+        across the available duration.
+      - If I make it a pitch call, I can put it below the base pitch track.
+        The problem with this is that then the gamakam pitch track will
+        override the default pitch, and the base pitches will disappear for
+        notes without gamakam.  Also it seems like I won't have access to the
+        previous pitch due to slicing... actually I think I will, unless the
+        gamakam event does't line up with the note.
+        . This is kind of a reverse orphan problem.  I want to promote the
+          pitch track downwards when there is no overlapping event below it.
+          Or I want to merge the signals together.  So it seems like I could
+          do this with a merge operator, but it needs to know when the gamakam
+          pitch signal starts and ends.  To do that, I need to pass to the
+          merge operator before mconcating the psignal chunks together.
+          Or I could use plain sample interleave, and expect that gamakam will
+          always have a sample at the same time as the parent and thus cancel
+          it out.
+        - That leads to another problem, namely pitch tracks don't have
+          ControlOps.  It's straightforward to add them though.
+        - And here's yet another problem, slicing is too restrictive, and
+          I don't have access to prev and next pitch.  One solution is to
+          put the pitch track above, but I feel like that ultimately won't
+          be very palatable for all the reasons that made me invent inversion
+          in the first place, namely that all note moving will break.
+          . The most obvious way is to expand the slice range for the upper
+            pitch track to include the starts of the previous and next notes.
+          . But a problem with that is that I then get the pitch bleed that
+            slicing tries to eliminate so I don't get pitch bends in the
+            decay.  Then again, gamakam is basically for a monophonic
+            instrument... but there still may be an open string that rings.
+          . Or I could put the pitch in a separate signal... does that
+            actually help?  Maybe not?
+          . Associate each note with one pitch from a pitch track.  Then when
+            evaluating a note, go evaluate prev and next pitches, and put them
+            someplace where the # call can get it.
+            . For the first, a sliced pitch track below is the obvious choice.
+            . For the second, I think this needs to be in the note call.
+              Maybe when configured with a certain setting, the note call will
+              evaluate prev and next events with a special flag that causes it
+              to only get the pitch... but how would that even work?  I think
+              it needs to directly look at its children tracks and do its own
+              slicing below its neighbors, and then pick out and evaluate the
+              pitch track.  And any tracks above, in case they are
+              transposers.  This would have to be a new flag on Sub.inverting.
+            . Actually maybe not?  The slice preserves before and after, so in
+              the note call I should be able to get the next event sliced.  Or
+              I could give access to prev and next slices.  Then I can put an
+              eval in someplace as a lazy thunk.  Would environ be ok?
+
+          . Or another way is somehow do staged evaluation.  First evaluate
+            all the notes and their basic pitches.  Then go through and finish
+            the evaluation, where prevs and nexts are not just [Ui.Event] but
+            [Score.Event].
+
+          . This two level pitch track thing will break with normal pitch calls,
+            won't it?  Maybe not if I do the interleave merge.
+
+          . Really I'm right back to the same old next pitch problem.
+          . Another way is to do the eval thing, but 
+
+
+        p = previous pitch, - is previous ornament, -- for twice, etc.
+        > is fade out, overlapping previous ornament
+
+        Saraswatya Bahagatya:
+          Sa ra           swa   tya
+          s  r            m     g
+          0  -1 - 0 -1 0  p - 0 0 - - 1 0 1
+
+          Bha ga va tya     sam
+          m   g  s  n       s
+                    0 - 1 0
+
+          ra        kshi to
+          d         p  m p   d        s
+          2 1 2 1 0 0    0 > 0 -1 0 >
+
+          Chaa      ya gou ra  ta ra ya    va ra    ya shri
+          r         m  p   d   p  m  g     s  g     m  r
+          -1 0 -1 0        p 0       0 1 0    p 1 0    0 0 -1 0 -1 0
+
+          alternate for rakshito:
+            ra
+            d
+            < n 1 ^ -- prev, -1, 1, cur
+            < u ^ -- prev, 0d0 dip, cur
+            <u^0
+
+        Shri Gananatham:
+          ) Shri    ga na na  tham bha ja re  chi  ta pa ra   shak ti yu tham
+            s       g  g  g   g    g   m  p   p dn d  p  m    g    g  r  s
+                    0n 0n --n 0d0n                       --d0      0n 20 0-d0d
+
+          ) chi   ta pa ra   shak ti yu      tham
+            p dn  d  p  m    g    g  r       s
+               10 10    0d0       0n 0 .5n 0 1210d 0d0d
+
+          . I think the initial 1210d in "tham" should be more defined, i.e.
+            shorter transition times.
+
+          ) Shri    ga na na  tham bha ja re
+                                   g   m  p
+                                       -2 < d -- quick transition to -1, hold
+
+          ) Na ga ya dnya su tra dha ram
+            m  g  m  p    p  s   s   s
+                                 0 y      -- y = -1nn
+
+          ) na   da la   ya
+            p    d  s n  p
+            --12      -j  -- j = janta, quick from -2 to 0
+
+          . For "na", I actually need a single transition to 2 with a
+            double time slice.
+
+          ) nan da ka ram
+            m   g  r  s
+                   10 1210d0
+
+          ) a       ga ma di   san nu  tam      a      khi la de va  pu ji tam
+            g       g  m  m    g   s   s   r    s      n   d  p  g   r  s  s
+            f-3 a1a       0 -3     <0c     1a1a 0 -3 0           <0c    0y
+
+          ) yo ga sha li bha vi tam bho gi sa      yi se  vi tam
+            s  g  r   m  g   p  m   p   p  m       m  g   m  p
+                                        0b a002aa1 0b 0a1
+
+          . For janta I need a way to have a quick transition even within
+            a possible longer time slice.
+
+        . For a pure relative system, I can't write 1010, but must write 1a1a.
+          Is this overly confusing?  I think I still want relative movement
+          though, so I can do ornaments from the prev pitch.
+        . Ornaments I likely want:
+          emit signal:
+            . hold flat pitch: 0 or -
+            . relative motion from pitch, single char variants from
+              -2d to 2d: ba12, -2 -1 1 2
+            . relative motion for NNs, single char variants for -1 and 1:
+              yz, -2nn -1nn 1nn 2nn etc.
+            . absolute motion: move to cur pitch: c, to next pitch: d
+            . single cycle, up and down: ///, \\\
+            . single turn: u = 0a0, n = 010
+            . quick dip: v[n] = 0[-n]0, but fast
+            . from a pitch to cur: f-3 = P-3 c
+            . janta: j = -3d 0, but jump to low pitch, quick transition to 0
+              Perhaps some attack effect, e.g. bow-force
+            . repeat previous ornament?
+          change configuration:
+            . set from pitch: prev <, ^ cur, > next, P -3d for number of steps
+              relative to current pitch.
+            . set transition time: F for fast, M for medium, S for slow
+            . set time slices of next call: Tb Ta T1 T2 for -2 to 2
+
+        . Some ornaments will emit signal and therefore take a time slice, and
+          some will have meta effects, e.g. set prev pitch, set transition
+          time, set to NNs instead of Diatonic.  They should be either symbols
+          or capitalized to make them visually distinct.
+
+        . I may also need a control for transition time and curve, where
+          0 just snaps to the pitch, and 1 spends the whole time in
+          transition.
+        . This approach means I can't do variable stretchiness, where I set
+          the oscillation speed to a constant and fit as many as I can, or do
+          a set number but stretch the beginning, middle, or end enough to
+          make up the time.  And it would be a real pain to get a consistent
+          speed.
+        . Also since each ornament happens at the same speed it seems like
+          it would sound mechanical.  Of course this is also true if I use
+          a constant kam speed, but at least with that I could have a global
+          speed with a bit of randomization.
+        . So maybe I can have a hybrid where a kam is variable length, but
+          other ornaments are ... hmmm.
+
+        . Or I could write kam plus n cycles, where each cycle time can vary
+          a bit, or accelerate slightly, but the ornament as a whole takes up
+          n*2 units.  In another variant I give it a number of units, and it
+          tries to fit in however many cycles.
+
+        . It would be nicer to be able to put these on the pitch track, so
+          I can write the dynamics as usual on its own track.
+
+        . For the violin, I want to experiment with other controls, e.g. pitch
+          slides also do less bow-force, or dyn can reduce bow-force and
+          bow-speed.
+
+        . If it's a pitch call, then it needs to be below the pitch track.
+
+      . To support this kind of thing, I could have a special call, e.g. ! or
+        #, which bypasses normal parsing, and passes its arguments as a string
+        to the call.  If I can have a way to do -1 as one letter, I can write
+        the sequence without spaces.
+        . But I might also need to write 1d vs 1nn or even .5nn.
+    . If it would be useful, I could have a note invert put its end time in
+      the environ.  The control calls could use that as an alternate end or
+      next.
     sequence calls:
       - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
         "pitch generator not found: 'k'".  Should mention that it's an end

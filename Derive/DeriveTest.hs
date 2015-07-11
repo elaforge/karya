@@ -535,6 +535,11 @@ e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e = signal_to_nn $ PSignal.apply_controls
     (Score.event_transformed_controls e) (Score.event_transformed_pitch e)
 
+-- | Like 'e_nns', but round to cents to make comparison easier.
+e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
+e_nns_rounded = map (second round_nn) . e_nns
+    where round_nn = (/100) . Pitch.nn . round . (*100)
+
 signal_to_nn :: PSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
 signal_to_nn psig
     | not (null errs) =
