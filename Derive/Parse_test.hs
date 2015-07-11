@@ -67,6 +67,17 @@ test_parse_expr = do
     equal (f "a;b") $ Right
         [Call "a" [Literal VSeparator, Literal (VSymbol "b")]]
 
+test_unparsed_call = do
+    let f = fmap NonEmpty.toList . Parse.parse_expr
+        call = TrackLang.Call
+        vsym = Literal . TrackLang.VSymbol
+        null_call = TrackLang.Call "" []
+    equal (f "#<>\"('|") $ Right
+        [call Parse.unparsed_call [vsym "<>\"('"], null_call]
+    equal (f "hi \"(# blah )") $ Right
+        [call "hi" [TrackLang.Literal $ TrackLang.VQuoted $
+            TrackLang.Quoted (call "#" [vsym "blah"] :| [])]]
+
 test_parse_val = do
     let attrs = Just . VAttributes . Score.attrs
         sym = Just . VSymbol

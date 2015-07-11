@@ -8,6 +8,7 @@ module Derive.Parse (
     parse_expr, parse_control_title
     , parse_val, parse_attrs, parse_num, parse_call
     , lex1, lex, split_pipeline, join_pipeline
+    , unparsed_call
 
     -- * expand macros
     , expand_macros
@@ -168,7 +169,19 @@ p_pipeline toplevel = do
     return $ c :| cs
 
 p_expr :: Bool -> A.Parser TrackLang.Call
-p_expr toplevel = A.try p_equal <|> A.try (p_call toplevel) <|> p_null_call
+p_expr toplevel = A.try p_equal <|> A.try p_unparsed_expr
+    <|> A.try (p_call toplevel) <|> p_null_call
+
+p_unparsed_expr :: A.Parser TrackLang.Call
+p_unparsed_expr = do
+    A.string $ TrackLang.unsym unparsed_call
+    text <- A.takeWhile $ \c -> c /= '|' && c /= ')'
+    let arg = TrackLang.Symbol $ Text.strip text
+    return $ TrackLang.Call unparsed_call
+        [TrackLang.Literal $ TrackLang.VSymbol arg]
+
+unparsed_call :: TrackLang.Symbol
+unparsed_call = "#"
 
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
@@ -376,6 +389,7 @@ is_toplevel_word_char c = c /= ' ' && c /= '\t' && c /= '\n' && c /= '='
 
 is_word_char :: Char -> Bool
 is_word_char c = is_toplevel_word_char c && c /= ')' && c /= ']'
+    -- TODO why do I have to omit ]?  try removing and see what happens
 
 lexeme :: A.Parser a -> A.Parser a
 lexeme p = p <* spaces
