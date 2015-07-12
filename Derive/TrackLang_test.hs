@@ -15,6 +15,17 @@ import Global
 import Types
 
 
+test_typecheck = do
+    let f :: TrackLang.Typecheck a => Text -> Either Text (Maybe a)
+        f = fmap TrackLang.from_val . Parse.parse_val
+    equal (f "1nn") (Right (Just (Pitch.NoteNumber 1)))
+    equal (f "1nn") (Right (Just (Pitch.Nn 1)))
+    equal (f "1") (Right (Just (TrackLang.DefaultDiatonic (Pitch.Diatonic 1))))
+    equal (f "1") (Right (Just (Pitch.Chromatic 1)))
+    equal (f "1c")
+        (Right (Just (TrackLang.DefaultDiatonic (Pitch.Chromatic 1))))
+    equal (f "1nn") (Right (Just (TrackLang.DefaultDiatonic (Pitch.Nn 1))))
+
 test_map_symbol = do
     let f modify = ShowVal.show_val . TrackLang.map_symbol modify
             . expect_right "parse" . Parse.parse_expr

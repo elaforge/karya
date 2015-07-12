@@ -54,6 +54,8 @@ test_sequence = do
 
     -- +1 to current.
     equal (run "# P1c #-c-") (output [(4, 63), (6, 63), (7, 62.5), (8, 62)])
+    -- Current to -1nn.
+    equal (run "##-y-") (output [(4, 62), (6, 62), (7, 61.5), (8, 61)])
 
 test_sequence_interleave = do
     let run gamakam = DeriveTest.extract extract $ DeriveTest.derive_tracks

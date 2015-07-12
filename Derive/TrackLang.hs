@@ -172,7 +172,7 @@ newtype Normalized = Normalized { normalized :: Double }
 -- but some calls would prefer to default to Diatonic.
 newtype DefaultDiatonic =
     DefaultDiatonic { default_diatonic :: Pitch.Transpose }
-    deriving (Show, ShowVal)
+    deriving (Show, Eq, ShowVal)
 
 diatonic :: Double -> DefaultDiatonic
 diatonic = DefaultDiatonic . Pitch.Diatonic
@@ -445,11 +445,9 @@ instance Typecheck Pitch.Transpose where
 
 -- | But some calls want to default to diatonic, not chromatic.
 instance Typecheck DefaultDiatonic where
-    from_val (VNum (Score.Typed typ val)) = case typ of
+    from_val vnum@(VNum (Score.Typed typ val)) = case typ of
         Score.Untyped -> Just (DefaultDiatonic (Pitch.Diatonic val))
-        Score.Chromatic -> Just (DefaultDiatonic (Pitch.Chromatic val))
-        Score.Diatonic -> Just (DefaultDiatonic (Pitch.Diatonic val))
-        _ -> Nothing
+        _ -> DefaultDiatonic <$> from_val vnum
     from_val _ = Nothing
     to_val (DefaultDiatonic a) = to_val a
     to_type = num_to_type
