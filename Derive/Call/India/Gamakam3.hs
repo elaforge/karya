@@ -205,9 +205,9 @@ gamakam_map :: Map.Map Char (Either Gamakam Text)
     , config '<' "Set from pitch to previous." (g_set_pitch Previous)
     , config '^' "Set from pitch to current." (g_set_pitch Current)
     , config 'P' "Set from pitch to relative steps." g_set_pitch_relative
-    , config 'F' "Fast transition time." (g_set_transition_time (Just Fast))
-    , config 'M' "Medium transition time." (g_set_transition_time (Just Medium))
-    , config 'S' "Slow transition time." (g_set_transition_time (Just Slow))
+    , config 'F' "Fast transition time." (g_set_transition_time Fast)
+    , config 'M' "Medium transition time." (g_set_transition_time Medium)
+    , config 'S' "Slow transition time." (g_set_transition_time Slow)
     , config 'T' "Set slice time of the next call." g_set_next_time_slice
     ]
     where
@@ -312,9 +312,16 @@ g_set_pitch_relative = Call (Sig.required "to" "To pitch.") $
 
 data TransitionTime = Slow | Medium | Fast deriving (Show, Eq)
 
-g_set_transition_time :: Maybe TransitionTime -> Call
-g_set_transition_time _time = Call Sig.no_args $ \() _args ->
-    lift $ Derive.throw "set transition time"
+g_set_transition_time :: TransitionTime -> Call
+g_set_transition_time time = Call Sig.no_args $ \() _args -> do
+    State.modify $ \state -> state { state_transition = ttime }
+    return mempty
+    where
+    -- TODO these could come from an environ value
+    ttime = TrackLang.Normalized $ case time of
+        Fast -> 0.1
+        Medium -> 0.5
+        Slow -> 0.9
 
 g_set_next_time_slice :: Call
 g_set_next_time_slice = Call Sig.no_args $ \() _args ->
