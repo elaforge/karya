@@ -152,6 +152,9 @@ set_absolute val pos = do
         maybe (return val) (Derive.require_right id . invert_merge merge val)
             =<< Derive.untyped_control_at (Score.unchecked_control control) pos
 
+-- | Figure out what value to emit which, once merged with the signal in scope,
+-- will become the given absolute value.  TODO this is kind of a crazy hack and
+-- I'm not sure if I'm in love with it.
 invert_merge :: Text -> Signal.Y -> Signal.Y -> Either Text Signal.Y
 invert_merge merge val current_val = case Map.lookup merge inverters of
     Nothing -> Left $ "no way to invert merge type: " <> merge

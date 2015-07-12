@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - The various Derive.Deriver.Lib.with_{merged,relative}... calls are
+    inconsistent and probably overcomplicated.  Simplify and make them
+    consistent with pitch controls.  Maybe merge ControlOp into Merge?
   - A 'place' arg for portamento calls which can center the curve, or place it
     before the call.
   - Maybe 'w' and 'b' in a control track should jump the boundaries of the
@@ -221,7 +224,10 @@ UNSORTED
       . Try a new approach: just a sequence of ornaments, each of which takes
         up an integral number of time units.  Time units are evenly divided
         across the available duration.
-      - If I make it a pitch call, I can put it below the base pitch track.
+      - Currently 0 and - have the same meaning.  Decide which one I want and
+        remove the other.
+      - Write docs.
+      . If I make it a pitch call, I can put it below the base pitch track.
         The problem with this is that then the gamakam pitch track will
         override the default pitch, and the base pitches will disappear for
         notes without gamakam.  Also it seems like I won't have access to the
@@ -236,8 +242,14 @@ UNSORTED
           Or I could use plain sample interleave, and expect that gamakam will
           always have a sample at the same time as the parent and thus cancel
           it out.
-        - That leads to another problem, namely pitch tracks don't have
+        * That leads to another problem, namely pitch tracks don't have
           ControlOps.  It's straightforward to add them though.
+          - Except this results in notes getting neighbor pitches.
+            Can I do another approach, say put them both in one track?  That
+            would fix this problem, but then I'm back to the next pitch
+            problem.  I think interleave is just a hack.  If I evaluate
+            per-note pitch separately, I can then set the pitch as a constant
+            in the note call.
         - And here's yet another problem, slicing is too restrictive, and
           I don't have access to prev and next pitch.  One solution is to
           put the pitch track above, but I feel like that ultimately won't
@@ -275,10 +287,6 @@ UNSORTED
 
           . This two level pitch track thing will break with normal pitch calls,
             won't it?  Maybe not if I do the interleave merge.
-
-          . Really I'm right back to the same old next pitch problem.
-          . Another way is to do the eval thing, but 
-
 
         p = previous pitch, - is previous ornament, -- for twice, etc.
         > is fade out, overlapping previous ornament

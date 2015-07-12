@@ -517,27 +517,29 @@ get_ruler = Internal.lookup_current_tracknum >>= \x -> case x of
                 State.ruler_track_at block_id tracknum
             Ruler.ruler_marklists <$> State.get_ruler ruler_id
 
--- | Modify the given control according to the Merge.
-with_merged_control :: Merge -> Score.Control -> Score.TypedControl
-    -> Deriver a -> Deriver a
-with_merged_control Set = with_control
-with_merged_control (Merge op) = with_relative_control op
-
-get_default_merge :: Score.Control -> Deriver Merge
+get_default_merge :: Score.Control -> Deriver (Merge Signal.Control)
 get_default_merge control = do
     defaults <- Internal.get_dynamic state_control_merge_defaults
     return $ Map.findWithDefault default_merge control defaults
 
-default_merge :: Merge
+default_merge :: Merge Signal.Control
 default_merge = Merge op_mul
 
-get_merge :: TrackLang.CallId -> Deriver Merge
+get_merge :: TrackLang.CallId -> Deriver (Merge Signal.Control)
 get_merge name
     | name == "set" = return Set
     | otherwise = do
-        op_map <- gets (state_control_op_map . state_constant)
+        ops <- gets (state_control_ops . state_constant)
         Merge <$> require ("unknown control op: " <> showt name)
-            (Map.lookup name op_map)
+            (Map.lookup name ops)
+
+get_psignal_merge :: TrackLang.CallId -> Deriver (Merge PSignal.Signal)
+get_psignal_merge name
+    | name == "set" = return Set
+    | otherwise = do
+        ops <- gets (state_psignal_control_ops . state_constant)
+        Merge <$> require ("unknown psignal control op: " <> showt name)
+            (Map.lookup name ops)
 
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
 with_control control signal = with_controls [(control, signal)]
@@ -572,24 +574,35 @@ with_control_maps cmap cfuncs = Internal.local $ \state -> state
     , state_control_functions = cfuncs
     }
 
+-- | Modify the given control according to the Merge.
+with_merged_control :: Merge Signal.Control -> Score.Control
+    -> Score.TypedControl -> Deriver a -> Deriver a
+with_merged_control Set = with_control
+with_merged_control (Merge op) = with_relative_control op
+
 -- | Modify an existing control.
 --
 -- If both signals are typed, the existing type wins over the relative
 -- signal's type.  If one is untyped, the typed one wins.
-with_relative_control :: ControlOp -> Score.Control -> Score.TypedControl
-    -> Deriver a -> Deriver a
+with_relative_control :: ControlOp Signal.Control -> Score.Control
+    -> Score.TypedControl -> Deriver a -> Deriver a
 with_relative_control op cont signal deriver = do
     controls <- get_controls
     let new = apply_control_op op (Map.lookup cont controls) signal
     with_control cont new deriver
 
 -- | Combine two signals with a ControlOp.
-apply_control_op :: ControlOp -> Maybe Score.TypedControl
+apply_control_op :: ControlOp Signal.Control -> Maybe Score.TypedControl
     -> Score.TypedControl -> Score.TypedControl
 apply_control_op _ Nothing new = new
 apply_control_op (ControlOp _ op) (Just old) new =
     Score.Typed (Score.type_of old <> Score.type_of new)
         (op (Score.typed_val old) (Score.typed_val new))
+
+apply_pcontrol_op :: ControlOp PSignal.Signal -> Maybe PSignal.Signal
+    -> PSignal.Signal -> PSignal.Signal
+apply_pcontrol_op _ Nothing new = new
+apply_pcontrol_op (ControlOp _ op) (Just old) new = op old new
 
 with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
@@ -606,7 +619,8 @@ multiply_control cont val
         (Score.untyped (Signal.constant val))
 
 -- | Emit a 'ControlMod'.
-modify_control :: Merge -> Score.Control -> Signal.Control -> Deriver ()
+modify_control :: Merge Signal.Control -> Score.Control -> Signal.Control
+    -> Deriver ()
 modify_control merge control signal = Internal.modify_collect $ \collect ->
     collect { collect_control_mods =
         ControlMod control signal merge : collect_control_mods collect }
@@ -683,17 +697,22 @@ logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
     Right nn -> return $ Just nn
 
 -- | Run the deriver in a context with the given pitch signal.
-with_named_pitch :: Score.PControl -> PSignal.Signal -> Deriver a
-    -> Deriver a
-with_named_pitch control = modify_pitch control . const
+-- TODO the naming is inconsistent with controls, I should simplify both and
+-- make them consistent.
+with_named_pitch :: Merge PSignal.Signal -> Score.PControl -> PSignal.Signal
+    -> Deriver a -> Deriver a
+with_named_pitch Set name signal deriver =
+    modify_pitch name (const signal) deriver
+with_named_pitch (Merge op) name signal deriver =
+    modify_pitch name (\old -> apply_pcontrol_op op old signal) deriver
 
 with_pitch :: PSignal.Signal -> Deriver a -> Deriver a
-with_pitch = with_named_pitch Score.default_pitch
+with_pitch = with_named_pitch Set Score.default_pitch
 
 with_constant_named_pitch :: Score.PControl -> PSignal.Pitch
     -> Deriver a -> Deriver a
 with_constant_named_pitch control =
-    with_named_pitch control . PSignal.constant
+    with_named_pitch Set control . PSignal.constant
 
 with_constant_pitch :: PSignal.Pitch -> Deriver a -> Deriver a
 with_constant_pitch = with_pitch . PSignal.constant

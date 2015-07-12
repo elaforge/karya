@@ -43,15 +43,25 @@ test_sequence = do
 
     -- 4 5 6 7 8 9 10
     -- ----++++----
-    equal (run "##010")
-        (output [(4, 62), (6, 62), (7, 63), (8, 64)])
-    equal (run "##0a0")
-        (output [(4, 62), (6, 62), (7, 61), (8, 60)])
+    equal (run "##010") (output [(4, 62), (6, 62), (7, 63), (8, 64)])
+    equal (run "##0a0") (output [(4, 62), (6, 62), (7, 61), (8, 60)])
 
     -- move_absolute
     -- Move to next pitch.
-    equal (run "##-d-")
-        (output [(4, 62), (6, 62), (7, 63), (8, 64)])
+    equal (run "##-d-") (output [(4, 62), (6, 62), (7, 63), (8, 64)])
     -- Prev to current.
-    equal (run "##<-c-")
-        (output [(4, 60), (6, 60), (7, 61), (8, 62)])
+    equal (run "##<-c-") (output [(4, 60), (6, 60), (7, 61), (8, 62)])
+
+    -- +1 to current.
+    equal (run "# P1c #-c-") (output [(4, 63), (6, 63), (7, 62.5), (8, 62)])
+
+test_sequence_interleave = do
+    let run gamakam = DeriveTest.extract extract $ DeriveTest.derive_tracks
+            "import india.gamakam3"
+            [ (">", [(0, 4, ""), (4, 6, ""), (10, 2, "")])
+            , ("*", [(0, 0, "4c"), (4, 0, "4d"), (10, 0, "4e")])
+            , ("* interleave | transition=1", [(4, 6, gamakam)])
+            ]
+        extract = DeriveTest.e_nns_rounded
+    equal (run "##-") ([[(0, 60)], [(4, 62)], [(10, 64)]], [])
+    pprint (run "# P1c #-c-")

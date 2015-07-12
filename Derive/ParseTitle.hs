@@ -54,7 +54,7 @@ data ControlType =
     Control (Maybe TrackLang.CallId) (Score.Typed Score.Control)
     -- | Pitch track that sets a ScaleId (unless it's 'Pitch.empty_scale'),
     -- and sets the given pitch signal.
-    | Pitch Pitch.ScaleId Score.PControl
+    | Pitch (Maybe TrackLang.CallId) Pitch.ScaleId Score.PControl
     -- | Tempo track with an optional modifying symbol.
     | Tempo (Maybe TrackLang.Symbol)
     deriving (Show)
@@ -71,14 +71,24 @@ parse_control_expr title = do
     ctrack <- parse_control_vals vals
     return (ctrack, expr)
 
+-- TODO this parsing is all very ad-hoc, and there's no guarantee that it won't
+-- overlap, or that 'unparse_control_vals' is really an overlap.
 parse_control_vals :: [TrackLang.Val] -> Either Text ControlType
 parse_control_vals vals = case vals of
     --  *twelve -> default pitch track in twelve
-    [scale -> Just scale_id] -> Right $ Pitch scale_id Score.default_pitch
+    [scale -> Just scale_id] ->
+        Right $ Pitch Nothing scale_id Score.default_pitch
+    --  *twelve merge
+    [scale -> Just scale_id, TrackLang.VSymbol merge] ->
+        Right $ Pitch (Just merge) scale_id Score.default_pitch
     --  *twelve # -> default pitch track in twelve
     --  *twelve #name -> named pitch track
     [scale -> Just scale_id, pitch_control_of -> Just cont] ->
-        Right $ Pitch scale_id cont
+        Right $ Pitch Nothing scale_id cont
+    --  *twelve #name merge
+    [scale -> Just scale_id, pitch_control_of -> Just cont,
+            TrackLang.VSymbol merge] ->
+        Right $ Pitch (Just merge) scale_id cont
     -- "tempo"
     [TrackLang.VSymbol (TrackLang.Symbol "tempo")] -> Right $ Tempo Nothing
     [TrackLang.VSymbol (TrackLang.Symbol "tempo"), TrackLang.VSymbol sym] ->
@@ -90,8 +100,8 @@ parse_control_vals vals = case vals of
     [TrackLang.VSymbol control] ->
         Control Nothing <$> parse_control_type control
     -- add control -> relative control
-    [TrackLang.VSymbol call, TrackLang.VSymbol control] ->
-        Control (Just call) <$> parse_control_type control
+    [TrackLang.VSymbol merge, TrackLang.VSymbol control] ->
+        Control (Just merge) <$> parse_control_type control
     -- % -> default control
     -- It might be more regular to allow anything after %, but I'm a fan of
     -- only one way to do it, so only allow it for "".
@@ -104,9 +114,9 @@ parse_control_vals vals = case vals of
         | control == Controls.null ->
             Right $ Control Nothing (Score.untyped Controls.null)
     -- add % -> relative default control
-    [TrackLang.VSymbol call, TrackLang.VControlRef
+    [TrackLang.VSymbol merge, TrackLang.VControlRef
             (TrackLang.LiteralControl control)] | control == Controls.null ->
-        Right $ Control (Just call) (Score.untyped Controls.null)
+        Right $ Control (Just merge) (Score.untyped Controls.null)
     _ -> Left $ "control track must be one of [\"tempo\", control,\
         \ op control, %, op %, *scale, *scale #name, op #, op #name],\
         \ got: " <> Text.unwords (map TrackLang.show_val vals)
@@ -149,15 +159,16 @@ unparse_control = Text.unwords . map TrackLang.show_val . unparse_control_vals
 
 unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
-    Control call control -> maybe [] ((:[]) . TrackLang.VSymbol) call
-        ++ [control_val control]
-    Pitch (Pitch.ScaleId scale_id) pcontrol ->
-        TrackLang.VSymbol (TrackLang.Symbol (Text.cons '*' scale_id))
-        : if pcontrol == Score.default_pitch then [] else
-            [TrackLang.VPControlRef $ TrackLang.LiteralControl pcontrol]
-    Tempo maybe_sym -> TrackLang.VSymbol "tempo"
-        : maybe [] ((:[]) . TrackLang.VSymbol)  maybe_sym
+    Control merge control -> maybe_sym merge ++ [control_val control]
+    Pitch merge (Pitch.ScaleId scale_id) pcontrol -> concat
+        [ [TrackLang.VSymbol (TrackLang.Symbol (Text.cons '*' scale_id))]
+        , if pcontrol == Score.default_pitch then []
+            else [TrackLang.VPControlRef $ TrackLang.LiteralControl pcontrol]
+        , maybe_sym merge
+        ]
+    Tempo sym -> TrackLang.VSymbol "tempo" : maybe_sym sym
     where
+    maybe_sym = maybe [] ((:[]) . TrackLang.VSymbol)
     control_val c
         | c == Score.untyped Controls.null = empty_control
         | otherwise = TrackLang.VSymbol $ TrackLang.Symbol (unparse_typed c)
@@ -228,11 +239,12 @@ strip_expr = Text.stripEnd . Text.takeWhile (/='|')
 
 title_to_scale :: Text -> Maybe Pitch.ScaleId
 title_to_scale title = case parse_control title of
-    Right (Pitch scale_id _) -> Just scale_id
+    Right (Pitch _ scale_id _) -> Just scale_id
     _ -> Nothing
 
 scale_to_title :: Pitch.ScaleId -> Text
-scale_to_title scale_id = unparse_control (Pitch scale_id Score.default_pitch)
+scale_to_title scale_id =
+    unparse_control (Pitch Nothing scale_id Score.default_pitch)
 
 is_pitch_track :: Text -> Bool
 is_pitch_track = ("*" `Text.isPrefixOf`)

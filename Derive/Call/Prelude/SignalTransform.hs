@@ -192,7 +192,8 @@ smooth f srate time =
         | Signal.length sig > 1 = Signal.drop 1 sig
         | otherwise = sig
 
-c_redirect :: Maybe Derive.Merge -> Text -> Derive.Transformer Derive.Control
+c_redirect :: Maybe (Derive.Merge Signal.Control) -> Text
+    -> Derive.Transformer Derive.Control
 c_redirect maybe_merge op_name =
     Derive.transformer Module.prelude "redirect" Tags.cmod
     ("Redirect a signal to another control, using the control modifier hack.\

@@ -11,16 +11,19 @@ import Global
 test_parse_unparse_control = do
     let f = first untxt . fmap ParseTitle.unparse_control
             . ParseTitle.parse_control
-    equal (f "*") (Right "*")
-    equal (f "*scale") (Right "*scale")
+        round_trip text = (f text, Right text)
+    uncurry equal (round_trip "*")
+    uncurry equal (round_trip "*scale")
     equal (f "*scale #") (Right "*scale")
-    equal (f "*scale #name") (Right "*scale #name")
-    equal (f "tempo") (Right "tempo")
-    equal (f "c") (Right "c")
-    equal (f "c:d") (Right "c:d")
+    uncurry equal (round_trip "*scale #name")
+    uncurry equal (round_trip "*a merge")
+    uncurry equal (round_trip "*a #name merge")
+    uncurry equal (round_trip "tempo")
+    uncurry equal (round_trip "c")
+    uncurry equal (round_trip "c:d")
     left_like (f "c:q") "unknown type"
-    equal (f "%") (Right "%")
-    equal (f "add %") (Right "add %")
+    uncurry equal (round_trip "%")
+    uncurry equal (round_trip "add %")
     left_like (f "$ bad") "parse error"
     left_like (f "a b c") "control track must be one of"
 

@@ -414,7 +414,8 @@ data Dynamic = Dynamic {
     -- 'Signal.Control', but could be synthesized as well.  See
     -- 'TrackLang.ControlFunction' for details.
     , state_control_functions :: !Score.ControlFunctionMap
-    , state_control_merge_defaults :: Map.Map Score.Control Merge
+    , state_control_merge_defaults ::
+        Map.Map Score.Control (Merge Signal.Control)
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
@@ -482,7 +483,7 @@ initial_controls = Map.fromList
     [ (Controls.dynamic, Score.untyped (Signal.constant default_dynamic))
     ]
 
-initial_control_merge_defaults :: Map.Map Score.Control Merge
+initial_control_merge_defaults :: Map.Map Score.Control (Merge Signal.Control)
 initial_control_merge_defaults =
     Map.fromList [(c, Merge op_add) | c <- Controls.additive_controls]
 
@@ -715,7 +716,10 @@ instance Pretty.Pretty Mode where
 data Constant = Constant {
     state_ui :: !State.State
     , state_library :: !Library
-    , state_control_op_map :: !(Map.Map TrackLang.CallId ControlOp)
+    , state_control_ops ::
+        !(Map.Map TrackLang.CallId (ControlOp Signal.Control))
+    , state_psignal_control_ops ::
+        !(Map.Map TrackLang.CallId (ControlOp PSignal.Signal))
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
@@ -732,7 +736,8 @@ initial_constant ui_state library lookup_scale lookup_inst cache score_damage =
     Constant
         { state_ui = ui_state
         , state_library = library
-        , state_control_op_map = default_control_op_map
+        , state_control_ops = control_ops
+        , state_psignal_control_ops = psignal_control_ops
         , state_lookup_scale = lookup_scale
         , state_lookup_instrument = lookup_inst
         , state_cache = invalidate_damaged score_damage cache
@@ -781,48 +786,44 @@ instance Monoid.Monoid InstrumentCalls where
 -- ** control
 
 -- | How to merge a control into 'Dynamic'.
-data Merge = Set -- ^ Replace the existing signal.
-    | Merge !ControlOp -- ^ Merge with a specific operator.
+data Merge sig = Set -- ^ Replace the existing signal.
+    | Merge !(ControlOp sig) -- ^ Merge with a specific operator.
     deriving (Show)
 
-instance Pretty.Pretty Merge where pretty = showt
-instance DeepSeq.NFData Merge where rnf _ = ()
+instance Pretty.Pretty (Merge a) where pretty = showt
+instance DeepSeq.NFData (Merge a) where rnf _ = ()
 
--- | This is a monoid used for combining two signals.  The identity value
--- is only used when a relative signal is applied when no signal is in scope.
--- This is useful for e.g. a transposition signal which shouldn't care if
--- there is or isn't a transposition signal already in scope.
-data ControlOp = ControlOp
-    !Text !(Signal.Control -> Signal.Control -> Signal.Control)
+-- | This is a semigroup used for combining two signals.
+data ControlOp sig = ControlOp !Text !(sig -> sig -> sig)
 
-instance Show ControlOp where
+instance Show (ControlOp a) where
     show (ControlOp name _) = "((ControlOp " ++ untxt name ++ "))"
 
 -- *** control ops
 
 -- | Default set of control operators.  Merged at runtime with the static
 -- config.  TODO but not yet
-default_control_op_map :: Map.Map TrackLang.CallId ControlOp
-default_control_op_map = Map.fromList $ map (first TrackLang.Symbol)
+control_ops :: Map.Map TrackLang.CallId (ControlOp Signal.Control)
+control_ops = Map.fromList
     [ ("add", op_add)
     , ("sub", op_sub)
     , ("mul", op_mul)
     , ("scale", op_scale)
-    , ("max", op_max)
-    , ("min", op_min)
+    , ("max", ControlOp "max" Signal.sig_max)
+    , ("min", ControlOp "min" Signal.sig_min)
+    , ("interleave", ControlOp "interleave" Signal.interleave)
     ]
 
-op_add, op_sub, op_mul, op_scale :: ControlOp
+op_add, op_sub, op_mul, op_scale :: ControlOp Signal.Control
 op_add = ControlOp "add" Signal.sig_add
 op_sub = ControlOp "subtract" Signal.sig_subtract
 op_mul = ControlOp "multiply" Signal.sig_multiply
 op_scale = ControlOp "scale" Signal.sig_scale
 
--- These values should never be seen since any reasonable combining signal
--- will be within this range.
-op_max, op_min :: ControlOp
-op_max = ControlOp "max" Signal.sig_max
-op_min = ControlOp "min" Signal.sig_min
+psignal_control_ops :: Map.Map TrackLang.CallId (ControlOp PSignal.Signal)
+psignal_control_ops = Map.fromList
+    [ ("interleave", ControlOp "interleave" PSignal.interleave)
+    ]
 
 
 -- * Collect
@@ -911,7 +912,8 @@ instance DeepSeq.NFData Collect where
 -- dynamics.  The modifications are a secondary return value from control
 -- and pitch calls.  The track deriver will extract them and merge them into
 -- the dynamic environment.  [NOTE control-modification]
-data ControlMod = ControlMod !Score.Control !Signal.Control !Merge
+data ControlMod =
+    ControlMod !Score.Control !Signal.Control !(Merge Signal.Control)
     deriving (Show)
 
 instance Pretty.Pretty ControlMod where
@@ -1145,7 +1147,7 @@ coerce_call_info :: CallInfo a -> CallInfo b
 coerce_call_info cinfo = cinfo { info_prev_val = Nothing }
 
 -- | Transformer calls don't necessarily apply to any particular event, and
--- neither to generators for that matter.
+-- neither do generators for that matter.
 dummy_call_info :: ScoreTime -> ScoreTime -> Text -> CallInfo a
 dummy_call_info start dur text = CallInfo
     { info_prev_val = Nothing

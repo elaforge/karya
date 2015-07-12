@@ -158,14 +158,16 @@ parse_equal maybe_merge lhs rhs
     where
     is_control (TrackLang.VControlRef (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing
-parse_equal Nothing lhs rhs
+parse_equal maybe_merge lhs rhs
     -- Assign to pitch control.
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
-        TrackLang.VPitch rhs ->
-            Right $ Derive.with_named_pitch control (PSignal.constant rhs)
+        TrackLang.VPitch rhs -> Right $ \deriver -> do
+            merge <- get_psignal_merge maybe_merge
+            Derive.with_named_pitch merge control (PSignal.constant rhs) deriver
         TrackLang.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_psignal rhs
-            Derive.with_named_pitch control sig deriver
+            merge <- get_psignal_merge maybe_merge
+            Derive.with_named_pitch merge control sig deriver
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
             <> " control, but got " <> pretty (TrackLang.type_of rhs)
     where
@@ -182,11 +184,18 @@ merge_error merge = "operator is only supported when assigning to a control: "
 
 data Merge = Default | Merge TrackLang.CallId deriving (Show)
 
-get_merge :: Score.Control -> Maybe Merge -> Derive.Deriver Derive.Merge
+get_merge :: Score.Control -> Maybe Merge
+    -> Derive.Deriver (Derive.Merge Signal.Control)
 get_merge control maybe_merge = case maybe_merge of
     Nothing -> return Derive.Set
     Just Default -> Derive.get_default_merge control
     Just (Merge op) -> Derive.get_merge op
+
+get_psignal_merge :: Maybe Merge -> Derive.Deriver (Derive.Merge PSignal.Signal)
+get_psignal_merge m = case m of
+    Nothing -> return Derive.Set
+    Just Default -> return Derive.Set
+    Just (Merge name) -> Derive.get_psignal_merge name
 
 parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
 parse_val = either (const Nothing) Just . Parse.parse_val . TrackLang.unsym

@@ -145,8 +145,7 @@ exponential_curve :: (Sig.Parser Double, Double -> Curve)
 exponential_curve = (args, expon)
     where args = Sig.defaulted "exp" 2 exp_doc
 
-sigmoid_curve :: (Sig.Parser (Double, Double),
-        (Double, Double) -> Curve)
+sigmoid_curve :: (Sig.Parser (Double, Double), (Double, Double) -> Curve)
 sigmoid_curve = (args, f)
     where
     f (w1, w2) = guess_x $ sigmoid w1 w2
