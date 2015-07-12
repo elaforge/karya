@@ -811,7 +811,8 @@ control_ops = Map.fromList
     , ("scale", op_scale)
     , ("max", ControlOp "max" Signal.sig_max)
     , ("min", ControlOp "min" Signal.sig_min)
-    , ("interleave", ControlOp "interleave" Signal.interleave)
+    -- flip ensures that when samples collide, the later track wins.
+    , ("interleave", ControlOp "interleave" $ flip Signal.interleave)
     ]
 
 op_add, op_sub, op_mul, op_scale :: ControlOp Signal.Control
@@ -822,7 +823,7 @@ op_scale = ControlOp "scale" Signal.sig_scale
 
 psignal_control_ops :: Map.Map TrackLang.CallId (ControlOp PSignal.Signal)
 psignal_control_ops = Map.fromList
-    [ ("interleave", ControlOp "interleave" PSignal.interleave)
+    [ ("interleave", ControlOp "interleave" $ flip PSignal.interleave)
     ]
 
 

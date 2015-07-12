@@ -18,8 +18,10 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import qualified Perform.NN as NN
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -101,6 +103,14 @@ test_pitch_track = do
         ([[(0, 60), (1, 62)]], [])
     equal (derive ("*twelve", [(0, 0, "4c"), (2, 0, "i (4d)")]))
         ([[(0, 60), (1, 61), (2, 62)]], [])
+
+test_merge_interleave = do
+    let run = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_tracks ""
+            [ (">", [(0, 8, "")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])
+            , ("* interleave", [(0, 0, "4e")])
+            ]
+    -- The second track wins.
+    equal run ([[(0, NN.e4), (1, NN.d4)]], [])
 
 test_relative_control = do
     let run suf add_suf = extract $ DeriveTest.derive_tracks ""
