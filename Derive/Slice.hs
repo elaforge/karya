@@ -103,6 +103,7 @@ slice exclude_start start end insert_event = map do_slice
         , TrackTree.track_events = Events.singleton (Event.event start dur "")
         , TrackTree.track_id = track_id
         , TrackTree.track_block_id = block_id
+        , TrackTree.track_start = start
         , TrackTree.track_end = end
         , TrackTree.track_sliced = True
         , TrackTree.track_inverted = True
@@ -114,6 +115,7 @@ slice exclude_start start end insert_event = map do_slice
         }
     slice_t track = track
         { TrackTree.track_events = within
+        , TrackTree.track_start = start
         , TrackTree.track_end = end
         , TrackTree.track_sliced = True
         , TrackTree.track_around = (before, after)
@@ -202,6 +204,7 @@ slice_notes include_end start end tracks
     shift_tree shift next track = track
         { TrackTree.track_events =
             Events.map_events move (TrackTree.track_events track)
+        , TrackTree.track_start = TrackTree.track_start track - shift
         , TrackTree.track_end = next - shift
         , TrackTree.track_around =
             let (prev, next) = TrackTree.track_around track

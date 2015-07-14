@@ -127,8 +127,9 @@ data Track = Track {
     -- blocks, but can only appear once in each block.
     , track_block_id :: !(Maybe BlockId)
 
-    -- | The relative end of this slice of track.  Like 'track_events', this is
-    -- in ScoreTime, not TrackTime.
+    -- | The relative start and end of this slice of track.  Like
+    -- 'track_events', this is in ScoreTime, not TrackTime.
+    , track_start :: !ScoreTime
     , track_end :: !ScoreTime
 
     -- | True if this is a sliced track.  That means it's a fragment of
@@ -155,13 +156,14 @@ track_range :: Track -> (TrackTime, TrackTime)
 track_range track = (track_shifted track, track_shifted track + track_end track)
 
 instance Pretty.Pretty Track where
-    format (Track title events track_id block_id end sliced inverted around
-            shifted voice) =
+    format (Track title events track_id block_id start end sliced inverted
+            around shifted voice) =
         Pretty.record "Track"
             [ ("title", Pretty.format title)
             , ("events", Pretty.format events)
             , ("track_id", Pretty.format track_id)
             , ("block_id", Pretty.format block_id)
+            , ("start", Pretty.format start)
             , ("end", Pretty.format end)
             , ("sliced", Pretty.format sliced)
             , ("inverted", Pretty.format inverted)
@@ -176,6 +178,7 @@ make_track title events end = Track
     , track_events = events
     , track_id = Nothing
     , track_block_id = Nothing
+    , track_start = 0
     , track_end = end
     , track_sliced = False
     , track_inverted = False

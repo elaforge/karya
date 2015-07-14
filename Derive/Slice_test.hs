@@ -136,23 +136,24 @@ test_slice_notes_zero_dur = do
         [[(0, 0, [Node (">", [(0, 0, "a")]) [Node (">", [(0, 1, "b")]) []]])]]
 
 test_slice_notes_shift = do
-    -- Verify that shifting and slicing modify track_end and track_shifted
-    -- properly.
+    -- Verify that shifting and slicing modify track_start, track_end and
+    -- track_shifted properly.
     let f s e = extract_notes extract . Slice.slice_notes False s e
-        extract t = (TrackTree.track_end t, TrackTree.track_shifted t)
+        extract t = ((TrackTree.track_start t, TrackTree.track_end t),
+            TrackTree.track_shifted t)
     let tree start track_end = Node (track start track_end) []
         track start track_end = (make_track ">" [(start, 1, "a")] 32)
             { TrackTree.track_end = track_end
             , TrackTree.track_shifted = 1
             }
     -- No shift, so the values remain the same.
-    equal (f 0 1 [tree 0 1]) [[(0, 1, [Node (1, 1) []])]]
+    equal (f 0 1 [tree 0 1]) [[(0, 1, [Node ((0, 1), 1) []])]]
     -- Shifted by 1.  track_range goes up by one but I'm not sure why.
     -- track_end moves back so it's still at Event.end event + 1.
-    equal (f 1 2 [tree 1 2]) [[(1, 1, [Node (1, 2) []])]]
-    equal (f 0 32 [tree 0 32]) [[(0, 1, [Node (32, 1) []])]]
+    equal (f 1 2 [tree 1 2]) [[(1, 1, [Node ((0, 1), 2) []])]]
+    equal (f 0 32 [tree 0 32]) [[(0, 1, [Node ((0, 32), 1) []])]]
     -- The end is shorter by 1 because of the shift.
-    equal (f 0 32 [tree 1 32]) [[(1, 1, [Node (31, 2) []])]]
+    equal (f 0 32 [tree 1 32]) [[(1, 1, [Node ((0, 31), 2) []])]]
 
 test_slice_include_end = do
     let f = slice_notes

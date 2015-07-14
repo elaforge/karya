@@ -105,12 +105,21 @@ test_pitch_track = do
         ([[(0, 60), (1, 61), (2, 62)]], [])
 
 test_merge_interleave = do
-    let run = DeriveTest.extract DeriveTest.e_nns $ DeriveTest.derive_tracks ""
-            [ (">", [(0, 8, "")]), ("*", [(0, 0, "4c"), (1, 0, "4d")])
-            , ("* interleave", [(0, 0, "4e")])
-            ]
+    let run ns ps1 ps2 = DeriveTest.extract DeriveTest.e_nns $
+            DeriveTest.derive_tracks ""
+                [(">", ns), ("*", ps1), ("* interleave", ps2)]
     -- The second track wins.
-    equal run ([[(0, NN.e4), (1, NN.d4)]], [])
+    equal (run [(0, 8, "")] [(0, 0, "4c"), (1, 0, "4d")] [(0, 0, "4e")])
+        ([[(0, NN.e4), (1, NN.d4)]], [])
+    -- No leaking from neighbor pitches.
+    equal (run [(0, 1, ""), (1, 1, "")]
+            [(0, 0, "4c"), (1, 0, "4d")]
+            [(1, 0, "4f")])
+        ([[(0, NN.c4)], [(1, NN.f4)]], [])
+    equal (run [(0, 1, ""), (1, 1, ""), (2, 1, "")]
+            [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")]
+            [(1, 0, "4f")])
+        ([[(0, NN.c4)], [(1, NN.f4)], [(2, NN.e4)]], [])
 
 test_relative_control = do
     let run suf add_suf = extract $ DeriveTest.derive_tracks ""

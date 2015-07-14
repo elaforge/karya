@@ -40,7 +40,6 @@ import qualified Data.Tree as Tree
 import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Ui.Block as Block
-import qualified Ui.Events as Events
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
@@ -300,8 +299,7 @@ trim_signal :: (RealTime -> sig -> sig) -> (RealTime -> sig -> sig)
     -> TrackTree.Track -> sig -> Derive.Deriver sig
 trim_signal drop_after drop_at_after track signal
     | TrackTree.track_sliced track = do
-        start <- Derive.real $
-            Events.time_begin (TrackTree.track_events track)
+        start <- Derive.real $ TrackTree.track_start track
         end <- Derive.real $ TrackTree.track_end track
         return $ (if start == end then drop_after else drop_at_after) end signal
     | otherwise = return signal

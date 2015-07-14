@@ -312,7 +312,7 @@ UNSORTED
           it out.
         * That leads to another problem, namely pitch tracks don't have
           ControlOps.  It's straightforward to add them though.
-          - Except this results in notes getting neighbor pitches.
+          * Except this results in notes getting neighbor pitches.
             Can I do another approach, say put them both in one track?  That
             would fix this problem, but then I'm back to the next pitch
             problem.  I think interleave is just a hack.  If I evaluate
