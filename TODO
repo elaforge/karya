@@ -3,8 +3,17 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - 'n' and 'p' are buggy when there are collapsed tracks
+  * 'n' and 'p' are buggy when there are collapsed tracks
   - mridangam pitch should default to sa... or whatever Pitch 0 0 is.
+    . Actually it seems like it might be a bit inefficient to do that on every
+      single note.  Couldn't I set it when the instrument comes into scope?
+      But I don't think there's a way for an instrument to automatically apply
+      a transformer, but perhaps there should be.  Wait, gender has automatic
+      postproc to handle mutes, doesn't it?
+    . That's actually different, it's not a Transformer but a plain function
+      on Score.Events.  I think I'd have to add the transformer as a separate
+      concept, but it's a generalization of setting environ, so it can replace
+      that.
   . What would a generalized staged evaluation system look like?
     E.g. evaluate note (start, dur) and first pitch track.  Then go through
     again and evaluate the rest of the tracks.  The second time the
@@ -268,7 +277,7 @@ UNSORTED
         - Snapping to the next pitch at the start of a note is unnatural.
           Perhaps I can have some easy way to come quickly from the previous
           real pitch.
-      . Similar notation for dynamics, including other controls like bow-force.
+      - Similar notation for dynamics, including other controls like bow-force.
         . One problem seems like if I want to put in its own track then I have
           to manually line them up to the pitch instructions.  On the other
           hand, if I try to integrate into the pitch, it gets harder to read
@@ -1036,8 +1045,6 @@ fltk:
       when scrolling horizontally
   - Should fltk collapse adjacent dividers?
   - There's a focus bug, but I'm not sure how to reproduce it.
-  - There's a bug where if you zoom-to-fit and then click, the selection snap
-    can undo the zoom.  Can't figure out how to reproduce this.
   - I could set certain Symbols to stretch to the length of their event, this
     would yield a nicer looking score.  But it would mess up the bounds
     detection.
@@ -1176,6 +1183,56 @@ REPL: repl:
     without having to quote it
 
 Cmd:
+  - There's a bug where if you zoom-to-fit and then click, the selection snap
+    can undo the zoom.  Can't figure out how to reproduce this.
+    . zoom jump: definitely happens after a \ zoom out, then click on a track
+      and it returns to the previous zoom.  Perhaps related to resizing a track?
+    . See the code path this would have to take, and insert some kind of
+      logging to track it down.
+    . Actually this bug might happen for all zooming, it's just that \ does
+      a big zoom change, so it's obvious when it happens.
+    . \:
+      ViewConfig.zoom_to_ruler:
+        set_zoom view_id . Types.Zoom 0 =<< zoom_factor view_id block_end
+      Click:
+        . Selection.cmd_snap_selection 1 Config.insert_selnum False
+        . Selection.set_and_scroll
+        . view <- State.get_view view_id
+          State.set_zoom view_id $
+            (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
+      . So presumably something about \ makes the UI update its zoom, but not
+        the Block.view_zoom in the haskell state.
+      . If there's really a sync failure, then I should see
+        "set zoom factor from 10 to 42" and then "set scroll, factor is 10"
+        Then the question becomes, why didn't the original set stay?
+        I would need to find everything in between that could revert the zoom
+        without a sync.  At least looking at the log would give me a record of
+        what excatly happened in between.  If it's indeed related to a track
+        resize or something, then the question is where the old zoom was
+        preserved so it could make a comeback.
+      . Inside fltk is the obvious choice.  Say haskell sets a new zoom, but
+        then I do a fltk action, and it sends back a msg with the old zoom.
+        To catch that I'd have to log UiMsgs that include zoom.
+        Who sends UpdateZoom?
+      . The scrollbar cb and mousewheel event do.  Actually zoom is
+        overspecified, since those only set scroll offset.  But I want to
+        catch the bug in the act, so I'll continue to send zoom too.
+      - It seems like there's an opportunity for a race: fltk queues a UiMsg,
+        then haskell sends a new Zoom, then the UiMsg is applied with the old
+        zoom.  So perhaps if there are any UiMsgs, I should do a respond cycle
+        to apply them, and then apply any sent actions.  I don't think this
+        bug is a race, but it seems like the possibility is theoretically
+        there.  But a race would explain why I haven't been able to reproduce
+        this one.
+        . I could see if simultaneous UiMsgs and haskell actions actually
+          happens, and if so, how frequently.
+        . Actually I don't think the special case respond cycle would work,
+          because I would want to roll back its State changes, apply the
+          UiMsgs, and then reapply the cmd.  I could theoretically do that,
+          but it might be simpler to mark certain actions as outdating certain
+          UiMsgs, and if they are present, just filter out those UiMsgs.
+          Those are the ones that would have been applied and then
+          overwritten.
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
   - Create tempo by "stretching", i.e. select start and end, and create tempo

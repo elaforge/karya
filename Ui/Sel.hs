@@ -4,6 +4,8 @@
 
 -- | The selection type.
 module Ui.Sel where
+import qualified Data.Tuple as Tuple
+
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import Global
@@ -84,3 +86,27 @@ set_duration dur sel
     where
     start = start_pos sel
     cur = cur_pos sel
+
+-- | Extend the current track and pos, but keep the start track and pos the
+-- same.
+merge :: Selection -> Selection -> Selection
+merge (Selection strack spos _ _) (Selection _ _ ctrack cpos) =
+    Selection strack spos ctrack cpos
+
+-- | Make a selection that covers both the given selections.  It tries to set
+-- start and cur values based on the direction of the merge, assuming you are
+-- starting with the first selection and adding the second.
+union :: Selection -> Selection -> Selection
+union sel1 sel2 = Selection strack spos ctrack cpos
+    where
+    (strack, ctrack) =
+        if cur_track sel2 >= cur_track sel1 then se else Tuple.swap se
+        where
+        se = (min s1 s2, max e1 e2)
+        (s1, e1) = track_range sel1
+        (s2, e2) = track_range sel2
+    (spos, cpos) = if cur_pos sel2 >= cur_pos sel1 then se else Tuple.swap se
+        where
+        se = (min s1 s2, max e1 e2)
+        (s1, e1) = range sel1
+        (s2, e2) = range sel2

@@ -476,3 +476,8 @@ i1, i2, i3 :: Score.Instrument
 i1 = Score.Instrument "i1"
 i2 = Score.Instrument "i2"
 i3 = Score.Instrument "i3"
+
+-- * misc
+
+btrack :: TrackId -> Block.Track
+btrack track_id = Block.track (Block.TId track_id default_ruler_id) 30

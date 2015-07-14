@@ -10,6 +10,8 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
+import Global
+import Types
 
 
 -- * parse
@@ -41,5 +43,11 @@ test_parse = do
     skel_equal (Skeleton.Skeleton g1) (Skeleton.Skeleton g2) =
         Graph_test.graph_equal g1 g2
 
-mk_track_info title tracknum =
-    State.TrackInfo title (UiTest.tid "fake") tracknum
+mk_track_info :: Text -> TrackNum -> State.TrackInfo
+mk_track_info title tracknum = State.TrackInfo
+    { track_title = title
+    , track_id = tid
+    , track_tracknum = tracknum
+    , track_block = UiTest.btrack tid
+    }
+    where tid = UiTest.tid "fake"

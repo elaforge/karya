@@ -272,10 +272,11 @@ data TrackInfo = TrackInfo {
     track_title :: !Text
     , track_id :: !TrackId
     , track_tracknum :: !TrackNum
+    , track_block :: !Block.Track
     } deriving (Eq, Show)
 
 instance Pretty.Pretty TrackInfo where
-    pretty (TrackInfo title track_id tracknum) =
+    pretty (TrackInfo title track_id tracknum _) =
         "(" <> Text.unwords
             ["TrackInfo", showt title, showt track_id, showt tracknum]
         <> ")"
@@ -1124,9 +1125,8 @@ skip_unselectable_tracks block tracknum shift
 -- | Get the tracknums from a block that should be selectable.
 selectable_tracks :: Block.Block -> [TrackNum]
 selectable_tracks block = do
-    (i, track@(Block.Track { Block.tracklike_id = Block.TId _ _}))
-        <- zip [0..] (Block.block_tracks block)
-    guard (not (Block.track_collapsed track))
+    (i, track) <- zip [0..] (Block.block_tracks block)
+    guard $ Block.track_selectable track
     return i
 
 -- ** util

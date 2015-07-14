@@ -70,7 +70,6 @@ import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
 import qualified Cmd.ViewConfig as ViewConfig
 
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified App.Config as Config
 import Global
@@ -241,11 +240,17 @@ selection_bindings = concat
         Selection.step TimeStep.Rewind True
     -- Mnemonic: next, previous.
     , repeatable_char 'n' "move selection right to note track" $
-        Selection.shift True False
-            =<< Selection.find_track Selection.R ParseTitle.is_note_track
+        Selection.jump_to_track False =<< Cmd.abort_unless
+            =<< Selection.find_note_track Selection.R False
     , repeatable_char 'p' "move selection left to note track" $
-        Selection.shift True False
-            =<< Selection.find_track Selection.L ParseTitle.is_note_track
+        Selection.jump_to_track False =<< Cmd.abort_unless
+            =<< Selection.find_note_track Selection.L False
+    , plain_char 'N' "expand selection until before the next note track" $
+        Selection.jump_to_track True =<< Cmd.abort_unless
+            =<< Selection.find_note_track Selection.R True
+    , plain_char 'P' "expand selection until the prev note track" $
+        Selection.jump_to_track True =<< Cmd.abort_unless
+            =<< Selection.find_note_track Selection.L True
 
     , repeatable_char 'w' "move selection next event" $
         Selection.step_with 1 False =<< Track.event_and_note_step

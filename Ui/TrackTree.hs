@@ -10,9 +10,7 @@ import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
-import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
-
 import qualified Ui.Block as Block
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
@@ -33,13 +31,18 @@ tracks_of :: State.M m => BlockId -> m [State.TrackInfo]
 tracks_of block_id = do
     block <- State.get_block block_id
     state <- State.get
-    return [State.TrackInfo (Track.track_title track) tid i
-        | (i, tid, track) <- track_info block (State.state_tracks state)]
+    return $ track_info block (State.state_tracks state)
     where
     track_info block tracks = do
-        (i, Block.TId tid _) <- Seq.enumerate (Block.block_tracklike_ids block)
-        track <- maybe mzero (:[]) (Map.lookup tid tracks)
-        return (i, tid, track)
+        (i, btrack@(Block.Track { Block.tracklike_id = Block.TId tid _}))
+            <- zip [0..] (Block.block_tracks block)
+        track <- maybe [] (:[]) (Map.lookup tid tracks)
+        return $ State.TrackInfo
+            { track_title = Track.track_title track
+            , track_id = tid
+            , track_tracknum = i
+            , track_block = btrack
+            }
 
 -- | Return @(parents, self : children)@.
 parents_children_of :: State.M m => BlockId -> TrackId
@@ -203,7 +206,7 @@ events_tree :: State.M m => BlockId -> ScoreTime -> [Tree.Tree State.TrackInfo]
     -> m EventsTree
 events_tree block_id end = mapM resolve . track_voices
     where
-    resolve (Tree.Node (State.TrackInfo title track_id _, voice) subs) =
+    resolve (Tree.Node (State.TrackInfo title track_id _ _, voice) subs) =
         Tree.Node <$> make title track_id voice <*> mapM resolve subs
     make title track_id voice = do
         track <- State.get_track track_id

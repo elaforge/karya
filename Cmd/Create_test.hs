@@ -82,8 +82,8 @@ test_insert_branch = do
 test_make_tracks = do
     let f tracknum = Create.make_tracks tracknum . make_tree
         make_tree :: [Tree.Tree String] -> TrackTree.TrackTree
-        make_tree = map $ fmap $ \title ->
-            State.TrackInfo (txt title) (UiTest.mk_tid 1) 1
+        make_tree = map $ fmap $ \title -> State.TrackInfo (txt title)
+            (UiTest.mk_tid 1) 1 (UiTest.btrack (UiTest.mk_tid 1))
     equal (f 1
             [ Tree.Node "1" [Tree.Node "11" [], Tree.Node "12" []]
             , Tree.Node "2" []

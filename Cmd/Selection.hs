@@ -38,6 +38,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.TimeStep as TimeStep
 
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
@@ -153,35 +154,66 @@ step_with steps extend step = do
 --
 -- If @extend@ is true, extend the current selection instead of setting a new
 -- selection.
-shift :: Cmd.M m => Bool -> Bool -> TrackNum -> m ()
-shift skip_unselectable extend shift = do
+shift :: Cmd.M m => Bool -> Bool -> Int -> m ()
+shift skip_unselectable extend shift = modify $ \block old ->
+    let new = State.shift_selection skip_unselectable block shift old
+    in if extend then Sel.merge old new else new
+
+-- | Unlike 'shift', this uses 'Sel.union', which means that the selection will
+-- always expand, instead of only expanding if the current track is moving away
+-- from the start track.  This is because I use this as a way to expand the
+-- selection rather than move it.
+jump_to_track :: Cmd.M m => Bool -> TrackNum -> m ()
+jump_to_track extend tracknum = modify $ \_ old ->
+    let new = old { Sel.start_track = tracknum, Sel.cur_track = tracknum }
+    in if extend then Sel.union old new else new
+
+modify :: Cmd.M m => (Block.Block -> Sel.Selection -> Sel.Selection) -> m ()
+modify f = do
     view_id <- Cmd.get_focused_view
     block <- State.block_of view_id
     sel <- Cmd.abort_unless =<< State.get_selection view_id Config.insert_selnum
-    let new_sel = State.shift_selection skip_unselectable block shift sel
-    set_and_scroll view_id Config.insert_selnum $
-        if extend then merge_sel sel new_sel else new_sel
+    set_and_scroll view_id Config.insert_selnum $ f block sel
 
--- | Shift a selection right or left.
-data Shift = R | L deriving (Show)
+data Direction = R | L deriving (Eq, Show)
 
--- | Find the first track before or after the current one whose title matches
--- a predicate.
-find_track :: Cmd.M m => Shift -> (Text -> Bool) -> m TrackNum
-find_track shift stop = do
-    (view_id, sel) <- get
-    block_id <- State.block_id_of view_id
-    tracks <- TrackTree.tracks_of block_id
-    let maybe_next = Seq.head $ dropWhile (not . stop . State.track_title)
-            (order sel tracks)
-    return $ case maybe_next of
-        Nothing -> 0
-        Just next -> State.track_tracknum next - Sel.cur_track sel
+find_note_track :: Cmd.M m => Direction -> Bool -> m (Maybe TrackNum)
+find_note_track dir one_before  = do
+    tracks <- get_tracks_from_selection one_before dir
+    return $ State.track_tracknum <$>
+        find (ParseTitle.is_note_track . State.track_title) tracks
     where
-    order sel = case shift of
-        R -> dropWhile ((<= Sel.cur_track sel) . State.track_tracknum)
-        L -> dropWhile ((>= Sel.cur_track sel) . State.track_tracknum)
-            . reverse
+    find f
+        | one_before = if dir == R then find_before f else List.find f
+        | otherwise = List.find f
+
+-- | Find the element before the predicate matches, or the last element if it
+-- never matches.
+find_before :: (a -> Bool) -> [a] -> Maybe a
+find_before p = go
+    where
+    go (x1 : xs@(x2 : _))
+        | p x2 = Just x1
+        | otherwise = go xs
+    go [x] = Just x
+    go [] = Nothing
+
+-- | Get tracks either starting from the right of the selection, or the left.
+-- Unselectable tracks are omitted.
+get_tracks_from_selection :: Cmd.M m => Bool -- ^ If True, start from the R or
+    -- L edge of the selection, rather than 'Sel.cur_track'.
+    -> Direction -> m [State.TrackInfo]
+get_tracks_from_selection from_edge dir = do
+    (view_id, sel) <- get
+    let tracknum = if from_edge
+            then (if dir == R then snd else fst) (Sel.track_range sel)
+            else Sel.cur_track sel
+    block_id <- State.block_id_of view_id
+    tracks <- filter (Block.track_selectable . State.track_block) <$>
+        TrackTree.tracks_of block_id
+    return $ case dir of
+        R -> dropWhile ((<= tracknum) . State.track_tracknum) tracks
+        L -> dropWhile ((>= tracknum) . State.track_tracknum) (reverse tracks)
 
 -- | Progressive selection: select the rest of the track, then the entire
 -- track, then the whole block.
@@ -211,10 +243,6 @@ select_track_all block_end_ tracks sel
     select_all = Sel.selection 1 0 tracks block_end
     -- Otherwise a select-all won't include an event at the end of the block.
     block_end = block_end_ + ScoreTime.eta
-
-merge_sel :: Sel.Selection -> Sel.Selection -> Sel.Selection
-merge_sel (Sel.Selection strack spos _ _) (Sel.Selection _ _ ctrack cpos) =
-    Sel.Selection strack spos ctrack cpos
 
 -- ** set selection from clicks
 

@@ -229,6 +229,11 @@ divider = colored_divider (Color.rgb 0.8 0.8 0.8)
 track_collapsed :: Track -> Bool
 track_collapsed = (Collapse `Set.member`) . track_flags
 
+track_selectable :: Track -> Bool
+track_selectable track@(Track { tracklike_id = TId _ _}) =
+    not (track_collapsed track)
+track_selectable _ = False
+
 -- | Don't send a track signal to a track unless it actually wants to draw it.
 track_wants_signal :: Set.Set TrackFlag -> Track.Track -> Bool
 track_wants_signal flags track =
