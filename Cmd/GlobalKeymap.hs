@@ -66,6 +66,7 @@ import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
 import qualified Cmd.StepPlay as StepPlay
 import qualified Cmd.TimeStep as TimeStep
+import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
 import qualified Cmd.ViewConfig as ViewConfig
 
@@ -222,12 +223,6 @@ selection_bindings = concat
     , bind_repeatable [Shift] Key.Left "extend shift selection left" $
         Selection.shift True True (-1)
 
-    -- It would be more consistent to use shift to extend the selection, but
-    -- the "large step"s seem to be more useful.  I could use 'w' and 'b' for
-    -- that, but then there's no obivous place to put right and left large
-    -- steps.  Also, once I start using caps for extend selection there's a
-    -- temptation to want to use it everywhere.
-
     , repeatable_char 'h' "move selection left" $
         Selection.shift True False (-1)
     , repeatable_char 'H' "move selection left" $
@@ -253,13 +248,13 @@ selection_bindings = concat
             =<< Selection.find_track Selection.L ParseTitle.is_note_track
 
     , repeatable_char 'w' "move selection next event" $
-        Selection.step_with 1 False TimeStep.event_step
+        Selection.step_with 1 False =<< Track.event_and_note_step
     , repeatable_char 'W' "move selection next event" $
-        Selection.step_with 1 True TimeStep.event_step
+        Selection.step_with 1 True =<< Track.event_and_note_step
     , repeatable_char 'b' "move selection previous event" $
-        Selection.step_with (-1) False TimeStep.event_step
+        Selection.step_with (-1) False =<< Track.event_and_note_step
     , repeatable_char 'B' "move selection previous event" $
-        Selection.step_with (-1) True TimeStep.event_step
+        Selection.step_with (-1) True =<< Track.event_and_note_step
 
     , bind_key [PrimaryCommand] (Key.Char 'a') "select track / all"
         (Selection.cmd_track_all Config.insert_selnum)

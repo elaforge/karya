@@ -3,15 +3,46 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - 'n' and 'p' are buggy when there are collapsed tracks
+  - mridangam pitch should default to sa... or whatever Pitch 0 0 is.
+  . What would a generalized staged evaluation system look like?
+    E.g. evaluate note (start, dur) and first pitch track.  Then go through
+    again and evaluate the rest of the tracks.  The second time the
+    neighbors are now incomplete Score.Events with timing and pitch.
+    I would also flatten out the block structure and cancel weak notes so
+    I have access to true next and prev.  This implies some way to stash the
+    unevaluated tracks in the Score.Event.  Then a postproc pass would go
+    through and evaluate again, providing new context to the unevaluated bits.
+    . I already have something vaguely like this in the Inversion dynamic
+      state.  I can provide new context with Dynamic... though it would be an
+      essentially untyped way to do it since there's no type difference
+      between the first and second evaluation.
+    . At the moment I don't need a generalized solution, so I could just
+      hardcode:
+      event_stage2 :: Maybe (([Score.Event], [Score.Event]) -> NoteDeriver)
+      Then at conversion time, any event with an event_stage2 is replaced by
+      its evaluation.
+    . Conversion isn't quite right, because I still want next event on track
+      etc... but actually no, I've been here before.
+    . Then I need some way to specify notation that wants to wait until
+      conversion.  I guess it would go by track, so maybe a magic symbol in
+      the track title.  Then slicing separately returns slices from those
+      tracks.  These still have to be evaluated in their original environment,
+      so I then wrap in a derive_tracks and store as a NoteDeriver.
+    . So I think this could work... but is it really worth it?  It seems like
+      it introduces a whole new level of complexity.  And, if I go the
+      typesafe route, a whole new type of calls, which a new accompanying
+      namespace.
   - The various Derive.Deriver.Lib.with_{merged,relative}... calls are
     inconsistent and probably overcomplicated.  Simplify and make them
     consistent with pitch controls.  Maybe merge ControlOp into Merge?
   - A 'place' arg for portamento calls which can center the curve, or place it
     before the call.
-  - Maybe 'w' and 'b' in a control track should jump the boundaries of the
+  * Maybe 'w' and 'b' in a control track should jump the boundaries of the
     above note track?
   - Rename PSignal.Signal to PSignal.PSignal?
   - Sometimes kbd note entry doesn't work.
+    . Now I can't reproduce this.
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
     '%just-base = (hz (nn c3))'.  Can I use type tags to catch that sort of
     thing?
@@ -220,12 +251,49 @@ UNSORTED
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
   india: gamakam:
+    . It seems like way too much work to try to implement these things in the
+      constraints of the existing system.  Perhaps it would be better to do
+      something very specialized, and see if it works nicely, and if so, only
+      then try to integrate it with the rest of the system.  Then again, the
+      future pitch problem has come up in all sorts of places and I need
+      a better answer for it.
     Gamakam3:
       . Try a new approach: just a sequence of ornaments, each of which takes
         up an integral number of time units.  Time units are evenly divided
         across the available duration.
+      . Problems:
+        - It should be easier come from current + n than '#Pn #...'.
+        - Maybe aliases for '#<-c-' and '#-d-'?
+        - I also want to prev actual pitch, not just prev logical pitch.
+        - Snapping to the next pitch at the start of a note is unnatural.
+          Perhaps I can have some easy way to come quickly from the previous
+          real pitch.
+      . Similar notation for dynamics, including other controls like bow-force.
+        . One problem seems like if I want to put in its own track then I have
+          to manually line them up to the pitch instructions.  On the other
+          hand, if I try to integrate into the pitch, it gets harder to read
+          and write.  Or maybe I should abandon the compact notation, but have
+          a prefix to attach a dynamic instruction:
+            <:P1 0 -1 0:>
+          This also means I can attach dynamics to alias sequences, e.g. ><:u
+          and have it automatically take the same amount of time.
+        . I think I'll also want to dyn equivalents of from prev value, to
+          avoid sudden jumps.  This is what prev val is for, but I can't get
+          it if I'm using a ControlMod on a pitch track.  Like with prev
+          actual pitch, I think I'd need to stash prev val away, indexed by
+          control name.  In fact I think I may already do that, to get prev
+          val right for sliced tracks.
+        . Cons are that I don't get a separate track signal to visualize.
+          Maybe this is motivation to add 2D track signals so I can put both
+          dyn and pitch in the note track.
+
+      - Previous pitch is wrong because I want the pitch at the previous note,
+        not the previous pitch event.
       - Currently 0 and - have the same meaning.  Decide which one I want and
         remove the other.
+        . Currently - is winning... but if I use separate worcds then 0 -1
+          seems a lot easier to read than - -1.
+      - Should I have a set of absolute movement calls?
       - Write docs.
       . If I make it a pitch call, I can put it below the base pitch track.
         The problem with this is that then the gamakam pitch track will
@@ -250,6 +318,7 @@ UNSORTED
             problem.  I think interleave is just a hack.  If I evaluate
             per-note pitch separately, I can then set the pitch as a constant
             in the note call.
+            . But first figure out why this happens.
         - And here's yet another problem, slicing is too restrictive, and
           I don't have access to prev and next pitch.  One solution is to
           put the pitch track above, but I feel like that ultimately won't
@@ -280,13 +349,20 @@ UNSORTED
               I could give access to prev and next slices.  Then I can put an
               eval in someplace as a lazy thunk.  Would environ be ok?
 
-          . Or another way is somehow do staged evaluation.  First evaluate
-            all the notes and their basic pitches.  Then go through and finish
-            the evaluation, where prevs and nexts are not just [Ui.Event] but
-            [Score.Event].
 
-          . This two level pitch track thing will break with normal pitch calls,
-            won't it?  Maybe not if I do the interleave merge.
+            . Or, in EvalTrack, zip each past and future event with an eval
+              that is specialized to just get the pitch.  This then goes into
+              CallInfo with the events.  It's lazy so no evaluation happens
+              unless you want it.  Then I also need to keep the list of past
+              and future notes the same in other tracks... so I guess it has
+              to be in Dynamic after all.
+              . Why not do this in the note call?  That way it's not quite so
+                hardcoded and can be disabled or altered by instruments.
+              . Even if I do this, it doesn't necessarily help with the
+                pitch track merging thing.  I think I still have to figure out
+                why even when under the note track I get neighbor pitches.
+                . Turns out it was just a bug.
+
 
         p = previous pitch, - is previous ornament, -- for twice, etc.
         > is fade out, overlapping previous ornament

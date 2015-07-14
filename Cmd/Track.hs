@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Get track-specific Cmds.
-module Cmd.Track where
+module Cmd.Track (track_cmd, event_and_note_step) where
 import qualified Control.Monad.Error as Error
 
 import qualified Util.Log as Log
@@ -19,6 +19,8 @@ import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
 import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
+import qualified Cmd.Selection as Selection
+import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Instrument.MidiDb as MidiDb
@@ -134,3 +136,29 @@ keymap_cmds track = case Info.track_type track of
         forM_ warns $ \warn -> Log.warn $ "NoteTrackKeymap: " <> warn
         return [Keymap.make_cmd cmd_map]
     _ -> return []
+
+
+-- * misc
+
+-- | Like 'TimeStep.event_step', step to start and end of events.  But also
+-- step to the start and end of the events of a parent note track, if any.
+event_and_note_step :: Cmd.M m => m TimeStep.TimeStep
+event_and_note_step = do
+    (block_id, tracknum, _, _) <- Selection.get_insert
+    maybe_track <- Info.lookup_track_type block_id tracknum
+    note_tracknum <- case Info.track_type <$> maybe_track of
+        Nothing -> return Nothing
+        Just (Info.Note {}) -> return Nothing
+        Just (Info.Pitch Nothing) -> return Nothing
+        Just (Info.Pitch (Just note)) ->
+            return $ Just $ State.track_tracknum note
+        Just (Info.Control tracks) -> firstJusts (map note_tracknum_of tracks)
+    let tracknums = TimeStep.TrackNums $
+            [tracknum] ++ maybe [] (:[]) note_tracknum
+    return $ TimeStep.from_list
+        [TimeStep.EventStart tracknums, TimeStep.EventEnd tracknums]
+    where
+    note_tracknum_of track = ifM (is_note track)
+        (return (Just (State.track_tracknum track))) (return Nothing)
+    is_note = fmap ParseTitle.is_note_track . State.get_track_title
+        . State.track_id

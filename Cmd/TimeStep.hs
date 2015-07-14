@@ -54,8 +54,9 @@ newtype TimeStep = TimeStep [Step]
 time_step :: Step -> TimeStep
 time_step = TimeStep . (:[])
 
+-- | Step to start and end of events.
 event_step :: TimeStep
-event_step = TimeStep [EventStart CurrentTrack, EventEnd CurrentTrack]
+event_step = from_list [EventStart CurrentTrack, EventEnd CurrentTrack]
 
 from_list :: [Step] -> TimeStep
 from_list = TimeStep
@@ -292,9 +293,7 @@ track_events dir event_start block_id tracknum start tracks = case tracks of
     AllTracks -> do
         track_ids <- State.track_ids_of block_id
         merge_points dir <$> mapM get_times track_ids
-    CurrentTrack -> do
-        track_id <- State.get_event_track_at block_id tracknum
-        get_times track_id
+    CurrentTrack -> get_times =<< State.get_event_track_at block_id tracknum
     TrackNums tracknums -> do
         track_ids <- mapM (State.get_event_track_at block_id) tracknums
         merge_points dir <$> mapM get_times track_ids
