@@ -3,7 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - ControlOp effects don't show up in the note track signal render.
+  - rename CallInfo to ExprContext (or just Context), PassedArgs to
+    CallContext.
+  * ControlOp effects don't show up in the note track signal render.
   - generalize Util.Control.mconcatMap to foldMap
     generalize mconcatMapM to foldMapA f = fmap Foldable.fold . traverse f
     . Or not... at least I could put foldMap in the global namespace

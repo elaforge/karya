@@ -313,6 +313,8 @@ get_start_offset start = do
 trim_controls :: RealTime -> Score.ControlMap -> Score.ControlMap
 trim_controls start = Map.map (fmap (Signal.drop_before start))
 
+-- | For inverted tracks, this trimming should already be done by
+-- 'Derive.Control.trim_signal'.
 trim_pitch :: RealTime -> PSignal.Signal -> PSignal.Signal
 trim_pitch = PSignal.drop_before
 

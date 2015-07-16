@@ -20,8 +20,8 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PSignal as PSignal
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -62,7 +62,9 @@ extract_track_signal source events = mconcat $ case source of
     Track.Control control -> mapMaybe (extract_control control) events
     Track.Pitch control -> mapMaybe (extract_pitch control) events
     where
-    extract_control control = fmap Score.typed_val . Score.event_control control
+    extract_control control event =
+        Signal.drop_before_strict (Score.event_min event) . Score.typed_val <$>
+            Score.event_control control event
     extract_pitch pcontrol event =
         convert event <$> Score.event_pitch pcontrol event
     convert event psig = Signal.coerce $ fst $ PSignal.to_nn $

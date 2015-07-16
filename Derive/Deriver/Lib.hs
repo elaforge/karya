@@ -638,8 +638,11 @@ eval_control_mods :: RealTime -- ^ Trim controls to end at this time.
     -> Deriver a -> Deriver a
 eval_control_mods end deriver = do
     mods <- gets (collect_control_mods . state_collect)
-    Internal.modify_collect $ \collect -> collect { collect_control_mods = [] }
-    with_control_mods mods end deriver
+    if null mods then deriver else do
+        -- TODO Wait, is this really legit?
+        Internal.modify_collect $ \collect ->
+            collect { collect_control_mods = [] }
+        with_control_mods mods end deriver
 
 with_control_mods :: [ControlMod] -> RealTime -> Deriver a -> Deriver a
 with_control_mods mods end deriver = foldr ($) deriver (map apply mods)
