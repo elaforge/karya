@@ -47,6 +47,9 @@ read_digit c = case c of
 
 -- * transform
 
+round_digits :: (RealFrac a, Fractional b) => Int -> a -> b
+round_digits digits = (/ (10^digits)) . fromIntegral . round . (* (10^digits))
+
 -- | Clamp a value to be between @low@ and @high@.
 clamp :: Ord a => a -> a -> a -> a
 clamp low high = min high . max low

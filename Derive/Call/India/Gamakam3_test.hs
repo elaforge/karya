@@ -4,20 +4,58 @@
 
 module Derive.Call.India.Gamakam3_test where
 import Util.Test
+import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.India.Gamakam3 as Gamakam
+import Derive.Call.India.Gamakam3 (Expr_(..))
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+
 import Global
 
 
 test_parse_sequence = do
-    let f = fmap (map (first Gamakam.gamakam_name)) . Gamakam.parse_sequence
-    equal (f "#012 -4") $ Right [('0', ""), ('1', ""), ('2', ""), ('-', "4")]
-    equal (f "#56u") $ Right [('5', ""), ('6', ""), ('-', "1"), ('1', "")]
-    equal (f "#!12(") $ Left "not found: '!', not found: '('"
+    let f = first untxt . Gamakam.parse_sequence
+    equal (f " [-]> ") $ Right [DynExpr ">" "" "" [PitchExpr '-' ""]]
+    equal (f "#012 -4") $ Right
+        [ PitchExpr '0' "", PitchExpr '1' "", PitchExpr '2' ""
+        , PitchExpr '-' "4"
+        ]
+    equal (f "a b1  c") $ Right
+        [PitchExpr 'a' "", PitchExpr 'b' "1", PitchExpr 'c' ""]
+    equal (f "#ab c") $ Right
+        [PitchExpr 'a' "", PitchExpr 'b' "", PitchExpr 'c' ""]
+
+    equal (f "[a]x>y") $ Right [DynExpr ">" "x" "y" [PitchExpr 'a' ""]]
+    equal (f "[a]>") $ Right [DynExpr ">" "" "" [PitchExpr 'a' ""]]
+    equal (f "[a]>[b]<") $ Right
+        [ DynExpr ">" "" "" [PitchExpr 'a' ""]
+        , DynExpr "<" "" "" [PitchExpr 'b' ""]
+        ]
+    equal (f "[a[b]>]<") $ Right
+        [DynExpr "<" "" ""
+            [PitchExpr 'a' "", DynExpr ">" "" "" [PitchExpr 'b' ""]]]
+    -- Word notation vs. compact notation.
+    equal (f "[a1]>") $ Right [DynExpr ">" "" "" [PitchExpr 'a' "1"]]
+    equal (f "#[a1]>") $ Right
+        [DynExpr ">" "" "" [PitchExpr 'a' "", PitchExpr '1' ""]]
+    equal (f "#ab[cd]>") $ Right
+        [ PitchExpr 'a' "", PitchExpr 'b' ""
+        , DynExpr ">" "" "" [PitchExpr 'c' "", PitchExpr 'd' ""]
+        ]
+
+    left_like (f "ab [c") "parse error"
+    left_like (f "#ab[c") "parse error"
+    left_like (f "ab c]") "parse error"
+
+-- test_resolve_exprs = do
+--     equal (f "#56u") $ Right
+--         [ PitchExpr '5' "", PitchExpr '6' "", PitchExpr '-' "1"
+--         , PitchExpr '1' ""
+--         ]
+--     equal (f "#!12") $ Left "not found: '!', not found: '('"
 
 test_sequence = do
-    let run gamakam = DeriveTest.extract extract $ DeriveTest.derive_tracks
-            "import india.gamakam3"
+    let run gamakam = derive_tracks extract
             -- TODO use a pitch track above until I get next pitch figured out
             [ ("*", [(0, 0, "4c"), (4, 0, "4d"), (10, 0, "4e")])
             , (">", [(0, 4, ""), (4, 6, ""), (10, 2, "")])
@@ -57,13 +95,49 @@ test_sequence = do
     -- Current to -1nn.
     equal (run "##-y-") (output [(4, 62), (6, 62), (7, 61.5), (8, 61)])
 
+test_dyn = do
+    let run = derive_tracks extract . make_tracks
+        extract = DeriveTest.e_dyn_rounded
+    equal (run "#-") ([[(0, 1)], [(0, 1)], [(0, 1)]], [])
+    equal (run "#-[-]> -")
+        ([[(0, 1)], [(4, 1), (6, 1), (7, 0.5), (8, 0)], [(0, 1)]], [])
+
+    -- 4 5 6 7 8 9 10
+    -- ------++++++
+    -- Dyn is as long as the call it modifies.
+    equal (run "#-[-]<")
+        ([[(0, 1)], [(4, 0), (7, 0), (8, 0.33), (9, 0.67)], [(0, 1)]], [])
+    equal (run "##[--]<")
+        ([ [(0, 1)]
+         , [(4, 0), (5, 0.17), (6, 0.33), (7, 0.5), (8, 0.67), (9, 0.83)]
+         , [(0, 1)]], [])
+    -- Fast and biased to the left.
+    equal (run "##[--]<^")
+        ([ [(0, 1)]
+         , [(4, 0), (5, 0.51), (6, 0.73), (7, 0.87), (8, 0.95), (9, 0.99)]
+         , [(0, 1)]], [])
+    -- Continue from the previous dyn.
+    equal (run "#[-]<.5 [-]>")
+        ([ [(0, 1)]
+         , [(4, 0), (5, 0.17), (6, 0.33), (7, 0.5), (8, 0.33), (9, 0.17)]
+         , [(0, 1)]], [])
+
 test_sequence_interleave = do
-    let run gamakam = DeriveTest.extract extract $ DeriveTest.derive_tracks
-            "import india.gamakam3"
-            [ (">", [(0, 4, ""), (4, 6, ""), (10, 2, "")])
-            , ("*", [(0, 0, "4c"), (4, 0, "4d"), (10, 0, "4e")])
-            , ("* interleave | transition=1", [(4, 6, gamakam)])
-            ]
+    let run = derive_tracks extract . make_tracks
         extract = DeriveTest.e_nns_rounded
-    equal (run "##-") ([[(0, 60)], [(4, 62)], [(10, 64)]], [])
-    pprint (run "# P1c #-c-")
+    equal (run "##0") ([[(0, 60)], [(4, 62)], [(10, 64)]], [])
+
+    -- pprint (run "# P1c #-c-")
+    -- pprint (run "# P2 0 -2")
+
+make_tracks :: String -> [UiTest.TrackSpec]
+make_tracks call =
+    [ (">", [(0, 4, ""), (4, 6, ""), (10, 2, "")])
+    , ("*", [(0, 0, "4c"), (4, 0, "4d"), (10, 0, "4e")])
+    , ("* interleave | dyn-transition=1 | transition=1", [(4, 6, call)])
+    , ("dyn", [(0, 0, "1")])
+    ]
+
+derive_tracks :: (Score.Event -> a) -> [UiTest.TrackSpec] -> ([a], [String])
+derive_tracks extract = DeriveTest.extract extract
+    . DeriveTest.derive_tracks "import india.gamakam3"

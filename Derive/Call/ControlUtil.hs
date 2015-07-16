@@ -305,13 +305,13 @@ multiply_signal :: Score.Control -> RealTime
 multiply_signal control end sig =
     -- Since signals are implicitly 0 before the first sample, the modification
     -- will zero out the control before 'x1'.  That's usually not what I want,
-    -- so assume it's 'y1' before that.
+    -- so set it to 1 before that.
     Derive.modify_control (Derive.Merge Derive.op_mul) control $
-        initial <> sig <> Signal.signal [(end, 1)]
+        mconcat [initial, sig, Signal.signal [(end, 1)]]
     where
     initial = case Signal.head sig of
-        Nothing -> mempty
-        Just (_, y) -> Signal.signal [(0, y)]
+        Just (x, _) | x > 0 -> Signal.signal [(0, 1)]
+        _ -> mempty
 
 add_control :: Score.Control -> (Double -> Double)
     -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()

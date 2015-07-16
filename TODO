@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - ControlOp effects don't show up in the note track signal render.
+  - generalize Util.Control.mconcatMap to foldMap
+    generalize mconcatMapM to foldMapA f = fmap Foldable.fold . traverse f
+    . Or not... at least I could put foldMap in the global namespace
+  - ControlMods can't use the default merge.  Promote Default to Derive.Merge,
+    merge with ControlOp, and make ControlMods use the default.
+    . I'll need the identity element to avoid squashing signal outside of the
+      ControlOp's range, as in ControlUtil.multiply_signal.
   * 'n' and 'p' are buggy when there are collapsed tracks
   - mridangam pitch should default to sa... or whatever Pitch 0 0 is.
     . Actually it seems like it might be a bit inefficient to do that on every
@@ -14,6 +22,8 @@ UNSORTED
       on Score.Events.  I think I'd have to add the transformer as a separate
       concept, but it's a generalization of setting environ, so it can replace
       that.
+    . This is not so easy, because Derive.with_instrument is on Deriver a,
+      not NoteDeriver.
   . What would a generalized staged evaluation system look like?
     E.g. evaluate note (start, dur) and first pitch track.  Then go through
     again and evaluate the rest of the tracks.  The second time the
@@ -295,6 +305,21 @@ UNSORTED
         . Cons are that I don't get a separate track signal to visualize.
           Maybe this is motivation to add 2D track signals so I can put both
           dyn and pitch in the note track.
+        . Either dyn always applies to the whole section, e.g.: #03-:>
+          or I mark the range explicitly: #(#030)> #(0 3 0)>
+          But ##030:> is just the last one... but is it really better than
+          ##03 (3)>?
+          If the dyn calls are few and distinct looking, they can be hardcoded
+          in the parser and I don't need a divider character.  But it seems
+          like the long term is to always add more calls.
+        . > go from prev dyn to 0, >.1 from prev to .1, < go from 0 to 1
+          .4 - jump to .4, .4>.1 from .4 to .1.
+          So a>b is jump to a move to b, a defaults to prev, b defaults to 0.
+          a<b is the same, except a defaults to 0, b defaults to 1.
+        . I might also want some transition in a short time, e.g. half of the
+          time slice.  Or I could use SMF type times, but they can align to
+          front, back, or center.  I guess < aligns to front, > aligns to end,
+          I could use = aligns to center.
 
       - Previous pitch is wrong because I want the pitch at the previous note,
         not the previous pitch event.

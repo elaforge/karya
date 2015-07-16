@@ -531,14 +531,16 @@ e_control cont event = maybe [] (Signal.unsignal . Score.typed_val) $
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn = e_control Score.c_dynamic
 
+e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
+e_dyn_rounded = map (second (Num.round_digits 2)) . e_dyn
+
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns e = signal_to_nn $ PSignal.apply_controls
     (Score.event_transformed_controls e) (Score.event_transformed_pitch e)
 
 -- | Like 'e_nns', but round to cents to make comparison easier.
 e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns_rounded = map (second round_nn) . e_nns
-    where round_nn = (/100) . Pitch.nn . round . (*100)
+e_nns_rounded = map (second (Num.round_digits 2)) . e_nns
 
 signal_to_nn :: PSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
 signal_to_nn psig

@@ -177,6 +177,11 @@ with_imported_symbols module_ syms deriver = do
             <> pretty (Set.toList missing)
     with_scopes (import_library lib) deriver
 
+-- | Run the derivation with a modified scope.
+with_scopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a
+with_scopes modify = Internal.local $ \state ->
+    state { state_scopes = modify (state_scopes state) }
+
 -- | Filter out any calls that aren't in the given modules.
 extract_module :: Module.Module -> Library -> Library
 extract_module module_ (Library note control pitch val) =
@@ -729,7 +734,7 @@ modify_pitch pcontrol f
         { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
 
 
--- ** mode
+-- * 'Mode'
 
 get_mode :: Deriver Mode
 get_mode = gets (state_mode . state_dynamic)
@@ -741,8 +746,6 @@ lookup_lilypond_config :: Deriver (Maybe Lilypond.Types.Config)
 lookup_lilypond_config = get_mode >>= \mode -> return $ case mode of
     Lilypond config -> Just config
     _ -> Nothing
-
--- ** call duration
 
 -- | Get the 'Duration' of the given deriver.
 get_score_duration :: Deriver a -> Deriver (Duration ScoreTime)
@@ -769,10 +772,6 @@ get_real_duration deriver = do
             { state_mode = RealDurationQuery }
         }
 
--- | Run the derivation with a modified scope.
-with_scopes :: (Scopes -> Scopes) -> Deriver a -> Deriver a
-with_scopes modify = Internal.local $ \state ->
-    state { state_scopes = modify (state_scopes state) }
 
 -- * postproc
 

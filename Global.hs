@@ -31,6 +31,7 @@ module Global (
     -- * state
     , (<#>)
     , module Control.Monad
+    , module Data.Traversable
     , lift, liftIO
     -- * nonempty
     , module Data.List.NonEmpty
@@ -54,6 +55,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
+import Data.Traversable (traverse)
 
 import Util.Lens
 import Util.Pretty (pretty, prettys)

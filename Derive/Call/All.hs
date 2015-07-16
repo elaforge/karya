@@ -66,6 +66,7 @@ note_maps = mconcat
     , Delay.note_calls
     , Equal.note_calls
     , Gamakam2.note_calls
+    , Gamakam3.note_calls
     , Gangsa.note_calls
     , Gender.note_calls
     , Grace.note_calls
