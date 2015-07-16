@@ -19,6 +19,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
@@ -347,8 +348,7 @@ mouse_drag btn msg = do
 
 -- | If the selection has scrolled off the edge of the window, automatically
 -- scroll it so that the \"current\" end of the selection is in view.
-auto_scroll :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection
-    -> m ()
+auto_scroll :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection -> m ()
 auto_scroll view_id old new = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
@@ -357,6 +357,7 @@ auto_scroll view_id old new = do
         track_offset = auto_track_scroll block view new
     State.set_zoom view_id $
         (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
+    Log.debug $ "DEBUG ZOOM: " <> showt (view_id, zoom_offset, Block.view_zoom view)
     State.set_track_scroll view_id track_offset
 
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at

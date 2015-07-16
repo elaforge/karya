@@ -169,7 +169,9 @@ cmd_record_ui_updates msg = do
 ui_update :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> Cmd.CmdId ()
 ui_update maybe_tracknum view_id update = case update of
     UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
-    UiMsg.UpdateZoom zoom -> State.set_zoom view_id zoom
+    UiMsg.UpdateZoom zoom -> do
+        Log.debug $ "DEBUG ZOOM: UpdateZoom " <> showt (view_id, zoom)
+        State.set_zoom view_id zoom
     UiMsg.UpdateViewResize rect padding -> do
         view <- State.get_view view_id
         when (rect /= Block.view_rect view) $ State.set_view_rect view_id rect

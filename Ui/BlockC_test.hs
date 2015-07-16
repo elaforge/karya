@@ -44,7 +44,7 @@ global_ui_channel :: Ui.Channel
 global_ui_channel = Unsafe.unsafePerformIO (MVar.newMVar [])
 
 send :: Ui.Fltk () -> IO ()
-send = Ui.send_action global_ui_channel
+send = Ui.send_action global_ui_channel "test"
 
 -- tests
 

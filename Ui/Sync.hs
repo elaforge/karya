@@ -104,14 +104,16 @@ do_updates :: Ui.Channel -> Track.TrackSignals -> Track.SetStyleHigh
 do_updates ui_chan track_signals set_style updates = do
     -- Debug.fullM Debug.putp "sync updates" updates
     actions <- mapM (run_update track_signals set_style) updates
-    liftIO $ Ui.send_action ui_chan (sequence_ actions)
+    unless (null actions) $
+        liftIO $ Ui.send_action ui_chan ("sync: " <> pretty updates)
+            (sequence_ actions)
 
 set_track_signals :: Ui.Channel -> [(ViewId, TrackNum, Track.TrackSignal)]
     -> IO ()
 set_track_signals ui_chan tracks =
     -- Make sure tracks is fully forced, because a hang on the fltk event loop
     -- can be confusing.
-    tracks `DeepSeq.deepseq` Ui.send_action ui_chan $
+    tracks `DeepSeq.deepseq` Ui.send_action ui_chan "set_track_signals" $
         forM_ tracks $ \(view_id, tracknum, tsig) ->
             set_track_signal view_id tracknum tsig
 
@@ -133,7 +135,7 @@ set_track_signal = BlockC.set_track_signal
 -- should be saved anyway.
 set_play_position :: Ui.Channel -> [(ViewId, [(TrackNum, ScoreTime)])] -> IO ()
 set_play_position chan view_sels = unless (null view_sels) $
-    Ui.send_action chan $ sequence_ $ do
+    Ui.send_action chan "set_play_position" $ sequence_ $ do
         (view_id, tracknum_pos) <- Seq.group_fst view_sels
         (tracknums, pos) <- Seq.group_fst $ Seq.group_snd (concat tracknum_pos)
         return $ set_selection_carefully view_id
@@ -148,7 +150,7 @@ type Range = (TrackTime, TrackTime)
 set_highlights :: Ui.Channel -> [((ViewId, TrackNum), (Range, Color.Color))]
     -> IO ()
 set_highlights chan view_sels = unless (null view_sels) $
-    Ui.send_action chan $ sequence_ $ do
+    Ui.send_action chan "set_highlights" $ sequence_ $ do
         (view_id, tracknum_sels) <- group_by_view view_sels
         (tracknum, range_colors) <- tracknum_sels
         return $ set_selection_carefully view_id Config.highlight_selnum
@@ -172,7 +174,7 @@ clear_highlights = clear_selections Config.highlight_selnum
 
 clear_selections :: Sel.Num -> Ui.Channel -> [ViewId] -> IO ()
 clear_selections selnum chan view_ids = unless (null view_ids) $
-    Ui.send_action chan $
+    Ui.send_action chan "clear_selections" $
         mapM_ (\view_id -> set_selection_carefully view_id selnum Nothing [])
             view_ids
 

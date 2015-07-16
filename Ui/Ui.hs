@@ -38,7 +38,7 @@ fltk = Fltk
 -- | Channel to communicate with the FLTK event loop.  Yes it's not a real
 -- channel, but I want to get all actions in one go, and an MVar is suitable
 -- for that.
-type Channel = MVar.MVar [Fltk ()]
+type Channel = MVar.MVar [(Fltk (), Text)]
 
 -- | Putting something into this mvar signals the UI thread to quit.
 type QuitRequest = MVar.MVar ()
@@ -63,9 +63,9 @@ foreign import ccall "wrapper"
         -> IO (Foreign.FunPtr (FunPtrFinalizer a))
 
 -- | Send the UI to the ui thread and run it, returning its result.
-send_action :: Channel -> Fltk () -> IO ()
-send_action ui_chan act = do
-    MVar.modifyMVar_ ui_chan $ return . (act:)
+send_action :: Channel -> Text -> Fltk () -> IO ()
+send_action ui_chan description act = do
+    MVar.modifyMVar_ ui_chan $ return . ((act, description) :)
     awake
 
 -- | The FLTK event loop.
@@ -75,21 +75,24 @@ fltk_event_loop ui_chan msg_chan = do
     -- I think that fltk will wake up once for every call to awake, so I
     -- shouldn't have to worry about another awake call coming in right
     -- here.
-    handle_actions ui_chan
+    handled <- handle_actions ui_chan
     ui_msgs <- UiMsgC.get_ui_msgs
+    when (length handled > 0 && length ui_msgs > 0) $
+        Log.warn $ "DEBUG ZOOM: possibility for a race:\nhaskell actions: "
+            <> showt handled <> "\nui msgs: " <> pretty ui_msgs
     STM.atomically $ mapM_ (STM.writeTChan msg_chan) ui_msgs
 
 -- | Synchronously take actions out of the 'Channel' and run them.  This could
 -- be asynchronous, but this way if the FLTK event loop wedges up then the UI
 -- will also wedge up.  That's not exactly good, but it lets me know something
 -- has gone wrong quickly.
-handle_actions :: Channel -> IO ()
-handle_actions ui_chan = MVar.modifyMVar_ ui_chan $ \acts -> do
+handle_actions :: Channel -> IO [Text]
+handle_actions ui_chan = MVar.modifyMVar ui_chan $ \acts -> do
     -- Since acts are added to the front, reverse them before executing.
-    sequence_ [act | Fltk act <- reverse acts]
+    sequence_ [act | (Fltk act, _) <- reverse acts]
         `Exception.catch` \(exc :: Exception.SomeException) ->
             Log.error $ "exception in event_loop: " <> showt exc
-    return []
+    return ([], map snd acts)
 
 quit_ui_thread :: QuitRequest -> IO ()
 quit_ui_thread quit_request = do

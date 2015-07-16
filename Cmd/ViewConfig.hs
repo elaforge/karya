@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Lens as Lens
+import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -80,7 +81,13 @@ zoom_to_ruler :: Cmd.M m => ViewId -> m ()
 zoom_to_ruler view_id = do
     view <- State.get_view view_id
     block_end <- State.block_end (Block.view_block view)
-    set_zoom view_id . Types.Zoom 0 =<< zoom_factor view_id block_end
+    factor <- zoom_factor view_id block_end
+
+    old <- State.get_zoom view_id
+    Log.debug $ "DEBUG ZOOM: " <> showt (view_id, old, factor)
+
+    set_zoom view_id $ Types.Zoom 0 factor
+    -- set_zoom view_id . Types.Zoom 0 =<< zoom_factor view_id block_end
 
 -- | Figure out the zoom factor to display the given amount of TrackTime.
 zoom_factor :: State.M m => ViewId -> TrackTime -> m Double
