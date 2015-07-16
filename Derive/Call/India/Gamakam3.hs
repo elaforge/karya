@@ -190,10 +190,10 @@ eval (DynExpr (name, DynCall _ sig1 sig2 func) arg1 arg2 exprs) =
             return $ Result mempty (DList.singleton dyn) <> pitch
         _ -> return mempty
     where
-    start = Monoid.getFirst $ Foldable.foldMap
-        (Foldable.foldMap (Monoid.First . Just . fst . fst)) exprs
-    end = Monoid.getLast $ Foldable.foldMap
-        (Foldable.foldMap (Monoid.Last . Just . snd . fst)) exprs
+    start = Monoid.getFirst $
+        foldMap (foldMap (Monoid.First . Just . fst . fst)) exprs
+    end = Monoid.getLast $
+        foldMap (foldMap (Monoid.Last . Just . snd . fst)) exprs
 
 -- | DynExpr Name Arg1 Arg2 | PitchExpr Name Arg
 data Expr_ dyn pitch = DynExpr !dyn !Text !Text ![Expr_ dyn pitch]

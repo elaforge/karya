@@ -405,4 +405,4 @@ track_empty = Events.null . TrackTree.track_events
 
 -- | Get the first Just from the structure.
 find :: Foldable.Foldable t => (a -> Maybe b) -> t a -> Maybe b
-find f = Monoid.getFirst . Foldable.foldMap (Monoid.First . f)
+find f = Monoid.getFirst . foldMap (Monoid.First . f)

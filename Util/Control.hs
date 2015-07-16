@@ -81,9 +81,11 @@ findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
 findM _ [] = return Nothing
 findM f (x:xs) = ifM (f x) (return (Just x)) (findM f xs)
 
+-- | This is 'Foldable.foldMap' specialized to lists.
 mconcatMap :: Monoid.Monoid b => (a -> b) -> [a] -> b
 mconcatMap f = Monoid.mconcat . map f
 
+-- | Or @foldMapA f = fmap Foldable.fold . traverse f@.
 concatMapM :: (Monad m, Monoid.Monoid b) => (a -> m b) -> [a] -> m b
 concatMapM f = liftM Monoid.mconcat . mapM f
 

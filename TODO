@@ -6,7 +6,8 @@ UNSORTED
   - rename CallInfo to ExprContext (or just Context), PassedArgs to
     CallContext.
   * ControlOp effects don't show up in the note track signal render.
-  - generalize Util.Control.mconcatMap to foldMap
+  - Now it gets an out of date value.
+  * generalize Util.Control.mconcatMap to foldMap
     generalize mconcatMapM to foldMapA f = fmap Foldable.fold . traverse f
     . Or not... at least I could put foldMap in the global namespace
   - ControlMods can't use the default merge.  Promote Default to Derive.Merge,
@@ -25,7 +26,9 @@ UNSORTED
       concept, but it's a generalization of setting environ, so it can replace
       that.
     . This is not so easy, because Derive.with_instrument is on Deriver a,
-      not NoteDeriver.
+      not NoteDeriver.  Also I don't necessarily want to replace the environ,
+      because it can be saved in the inst db and printed out, unlike
+      a transformer.
   . What would a generalized staged evaluation system look like?
     E.g. evaluate note (start, dur) and first pitch track.  Then go through
     again and evaluate the rest of the tracks.  The second time the
@@ -289,7 +292,7 @@ UNSORTED
         - Snapping to the next pitch at the start of a note is unnatural.
           Perhaps I can have some easy way to come quickly from the previous
           real pitch.
-      - Similar notation for dynamics, including other controls like bow-force.
+      + Similar notation for dynamics, including other controls like bow-force.
         . One problem seems like if I want to put in its own track then I have
           to manually line them up to the pitch instructions.  On the other
           hand, if I try to integrate into the pitch, it gets harder to read
@@ -322,6 +325,19 @@ UNSORTED
           time slice.  Or I could use SMF type times, but they can align to
           front, back, or center.  I guess < aligns to front, > aligns to end,
           I could use = aligns to center.
+
+        - I'm no longer so sure I want to attach DynCalls to PitchCalls,
+          because I often want a dynamic motion at the start or end of a note,
+          which is independent of the pitch timing.  Maybe I should add
+          a # control call which just knows about dyn calls, and '-' for flat.
+          It seems to me this would be useful all manner of instruments, not
+          just gamakam.
+        - It's annoying how a DynCall will break a compact notation, e.g.
+          '#[-]< #---' would be nicer as ##[-]<--- or even ##-<---
+          Since dynamic calls have a limited character set, maybe I could do
+          this just by making allowed characters non-overlapping.
+          . I could do the same thing with P, for e.g. ##P4---
+        - An ornament for an impulse at the start of a note.
 
       - Previous pitch is wrong because I want the pitch at the previous note,
         not the previous pitch event.

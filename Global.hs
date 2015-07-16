@@ -32,6 +32,7 @@ module Global (
     , (<#>)
     , module Control.Monad
     , module Data.Traversable
+    , module Data.Foldable
     , lift, liftIO
     -- * nonempty
     , module Data.List.NonEmpty
@@ -56,6 +57,7 @@ import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import Data.Traversable (traverse)
+import Data.Foldable (foldMap)
 
 import Util.Lens
 import Util.Pretty (pretty, prettys)
