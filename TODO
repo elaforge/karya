@@ -16,7 +16,7 @@ UNSORTED
     . I'll need the identity element to avoid squashing signal outside of the
       ControlOp's range, as in ControlUtil.multiply_signal.
   * 'n' and 'p' are buggy when there are collapsed tracks
-  - mridangam pitch should default to sa... or whatever Pitch 0 0 is.
+  * mridangam pitch should default to sa... or whatever Pitch 0 0 is.
     . Actually it seems like it might be a bit inefficient to do that on every
       single note.  Couldn't I set it when the instrument comes into scope?
       But I don't think there's a way for an instrument to automatically apply

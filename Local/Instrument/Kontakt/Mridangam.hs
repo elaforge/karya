@@ -42,13 +42,15 @@ patches =
 make_code :: [Drums.Note]
     -> [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)] -> MidiInst.Code
 make_code notes both =
-    MidiInst.note_generators call_code
+    MidiInst.note_generators generators
+        <> MidiInst.note_transformers transformers
         <> MidiInst.cmd (CUtil.insert_call char_to_call)
     where
-    call_code = concat
+    transformers =
+        [ ("set-sa", DUtil.c_set_default_pitch (Pitch.pitch 0 0)) ]
+    generators = concat
         [ CUtil.drum_calls Nothing notes
-        , DUtil.multiple_calls
-            [(call, subcalls) | (call, subcalls, _) <- both]
+        , DUtil.multiple_calls [(call, subcalls) | (call, subcalls, _) <- both]
         ]
     char_to_call = Map.fromList $ concat
         [ [(Drums.note_char n, Drums.note_name n) | n <- notes]

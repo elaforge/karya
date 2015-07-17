@@ -22,12 +22,15 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.Flags as Flags
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import Global
+import Types
 
 
 generator :: Text -> Text
@@ -38,6 +41,11 @@ generator name = Derive.generator Module.instrument name mempty
 generator0 :: Derive.Taggable d => Text -> Text
     -> (Derive.PassedArgs d -> Derive.LogsDeriver d) -> Derive.Generator d
 generator0 name doc call = generator name doc (Sig.call0 call)
+
+transformer :: Text -> Text -> Derive.WithArgDoc (Derive.TransformerF d)
+    -> Derive.Transformer d
+transformer name doc =
+    Derive.transformer Module.instrument name mempty doc
 
 transformer0 :: Derive.Taggable d => Text -> Text -> Derive.TransformerF d
     -> Derive.Transformer d
@@ -220,3 +228,28 @@ composite_call args composites = mconcatMap (split args) composites
         let strip = Map.filterWithKey $ \control _ -> maybe
                 (Set.notMember control allocated) (Set.member control) controls
         Derive.with_control_maps (strip cmap) (strip cfuncs) deriver
+
+-- * default pitch
+
+c_set_default_pitch :: Derive.Taggable d => Pitch.Pitch -> Derive.Transformer d
+c_set_default_pitch pitch = transformer "set-default-pitch"
+    "Set the pitch to a constant if if there is no pitch in scope."
+    $ Sig.callt (Sig.defaulted "pitch" (Left pitch) "Pitch.")
+    $ \pitch args deriver -> with_default_pitch (Args.start args) pitch deriver
+
+-- | If there is no pitch in scope at the given time, set the given pitch.
+with_default_pitch :: ScoreTime -> Either Pitch.Pitch PSignal.Pitch
+    -> Derive.Deriver a -> Derive.Deriver a
+with_default_pitch start default_pitch deriver = do
+    maybe_pitch <- Derive.pitch_at =<< Derive.real start
+    case maybe_pitch of
+        Just _ -> deriver
+        Nothing -> case default_pitch of
+            Left pitch -> do
+                (_, to_note, _) <- Call.get_pitch_functions
+                note <- Derive.require
+                    ("scale has no for default: " <> pretty pitch)
+                    (to_note pitch)
+                pitch <- Call.eval_note start note
+                Derive.with_constant_pitch pitch deriver
+            Right pitch -> Derive.with_constant_pitch pitch deriver
