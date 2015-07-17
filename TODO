@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - The unparsed call # prefix conflicts with #=(4c).  Change to !.
   - rename CallInfo to ExprContext (or just Context), PassedArgs to
     CallContext.
   * ControlOp effects don't show up in the note track signal render.
@@ -29,6 +30,14 @@ UNSORTED
       not NoteDeriver.  Also I don't necessarily want to replace the environ,
       because it can be saved in the inst db and printed out, unlike
       a transformer.
+    . Wait, just do it the same way >transforms do.  In fact, can't I just
+      have the instrument introduce a >transform?  I guess it doesn't know
+      what the instrument name will be.  In fact, where does >transform get
+      applied?  And where is it documented?  I can't find it now!
+      . Prelude.Note.c_note_track
+    . The place for a NoteDeriver transform is Derive.Track.d_note_track.
+    - Done, but you still have to get the octave right.  Perhaps mridangam
+      should automatically transpose octave to be within its range.
   . What would a generalized staged evaluation system look like?
     E.g. evaluate note (start, dur) and first pitch track.  Then go through
     again and evaluate the rest of the tracks.  The second time the
@@ -285,13 +294,20 @@ UNSORTED
       . Try a new approach: just a sequence of ornaments, each of which takes
         up an integral number of time units.  Time units are evenly divided
         across the available duration.
-      . Problems:
+      notation:
         - It should be easier come from current + n than '#Pn #...'.
         - Maybe aliases for '#<-c-' and '#-d-'?
-        - I also want to prev actual pitch, not just prev logical pitch.
+        * I also want to prev actual pitch, not just prev logical pitch.
         - Snapping to the next pitch at the start of a note is unnatural.
           Perhaps I can have some easy way to come quickly from the previous
           real pitch.
+        - It's annoying how a DynCall will break a compact notation, e.g.
+          '#[-]< #---' would be nicer as ##[-]<--- or even ##-<---
+          Since dynamic calls have a limited character set, maybe I could do
+          this just by making allowed characters non-overlapping.
+          . I could do the same thing with P, for e.g. ##P4---
+          . Maybe I should give separate dynamics a try before thinking about
+            this too much.
       + Similar notation for dynamics, including other controls like bow-force.
         . One problem seems like if I want to put in its own track then I have
           to manually line them up to the pitch instructions.  On the other
@@ -325,27 +341,26 @@ UNSORTED
           time slice.  Or I could use SMF type times, but they can align to
           front, back, or center.  I guess < aligns to front, > aligns to end,
           I could use = aligns to center.
-
         - I'm no longer so sure I want to attach DynCalls to PitchCalls,
           because I often want a dynamic motion at the start or end of a note,
           which is independent of the pitch timing.  Maybe I should add
           a # control call which just knows about dyn calls, and '-' for flat.
           It seems to me this would be useful all manner of instruments, not
           just gamakam.
-        - It's annoying how a DynCall will break a compact notation, e.g.
-          '#[-]< #---' would be nicer as ##[-]<--- or even ##-<---
-          Since dynamic calls have a limited character set, maybe I could do
-          this just by making allowed characters non-overlapping.
-          . I could do the same thing with P, for e.g. ##P4---
         - An ornament for an impulse at the start of a note.
 
-      - Previous pitch is wrong because I want the pitch at the previous note,
+      * Previous pitch is wrong because I want the pitch at the previous note,
         not the previous pitch event.
+      - Now I have a working last pitch, but it's different from logical
+        previous pitch.  The question is will I need that?  I think next pitch
+        must be logical, to avoid circular dependency.  But as long as
+        I implement the next logical pitch, it's easy to add previous.
       - Currently 0 and - have the same meaning.  Decide which one I want and
         remove the other.
         . Currently - is winning... but if I use separate worcds then 0 -1
           seems a lot easier to read than - -1.
-      - Should I have a set of absolute movement calls?
+      - Should I have a set of absolute movement calls?  The idea is that it's
+        easier to write and read 1210a0a0a than P1 1aaa1a1a
       - Write docs.
       . If I make it a pitch call, I can put it below the base pitch track.
         The problem with this is that then the gamakam pitch track will
@@ -542,16 +557,19 @@ UNSORTED
           bow-speed.
 
         . If it's a pitch call, then it needs to be below the pitch track.
-
-      . To support this kind of thing, I could have a special call, e.g. ! or
+      * To support this kind of thing, I could have a special call, e.g. ! or
         #, which bypasses normal parsing, and passes its arguments as a string
         to the call.  If I can have a way to do -1 as one letter, I can write
         the sequence without spaces.
         . But I might also need to write 1d vs 1nn or even .5nn.
-    . If it would be useful, I could have a note invert put its end time in
+    - If it would be useful, I could have a note invert put its end time in
       the environ.  The control calls could use that as an alternate end or
-      next.
-    sequence calls:
+      next.  The advantage is that I don't have to put -- in to explicitly
+      terminate the call.  The disadvantage is that I can't manually move the
+      call end to earlier or later... actually I can, by just setting event
+      duration.
+
+    Gamakam2:
       - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
         "pitch generator not found: 'k'".  Should mention that it's an end
         call.
@@ -1276,6 +1294,12 @@ Cmd:
           UiMsgs, and if they are present, just filter out those UiMsgs.
           Those are the ones that would have been applied and then
           overwritten.
+       .  *** Ui/Ui.hs:81 [fltk_event_loop] DEBUG ZOOM: possibility for a race:
+          haskell actions: ["set_play_position"]
+          ui msgs: [Other Event: UiUpdate (vid "untitled/b2.v1") (UpdateZoom
+          (Zoom {zoom_offset = 1.069590361302325, zoom_factor =
+          25.744416884013628})) {focus=(vid "untitled/b2.v1")}]
+
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
   - Create tempo by "stretching", i.e. select start and end, and create tempo

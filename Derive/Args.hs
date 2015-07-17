@@ -5,14 +5,16 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 -- | Extract things from the PassedArgs data structure.
 module Derive.Args where
+import qualified Data.Map as Map
+
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, CallInfo)
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Parse as Parse
 import qualified Derive.PSignal as PSignal
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -48,9 +50,21 @@ prev_val_end = extract <=< prev_val
 prev_val :: PassedArgs a -> Maybe a
 prev_val = Derive.info_prev_val . info
 
+-- | Get the previous note.  Unlike 'prev_val', this always gets the previous
+-- Score.Event, even if you're evaluating a control track under the note track.
+--
+-- TODO it doesn't really belong here since it doesn't use PassedArgs, but
+-- this is where I would look for a function for the previous value.
+lookup_prev_note :: Derive.Deriver (Maybe Score.Event)
+lookup_prev_note = do
+    addr <- Derive.require "no state_note_track"
+        =<< Derive.gets (Derive.state_note_track . Derive.state_dynamic)
+    Derive.gets $ Derive.from_tagged <=< Map.lookup addr . Derive.state_prev_val
+        . Derive.state_threaded
+
 -- | Unused, but might be used again if I need to evaluate the next event.
-eval :: Derive.Callable d => CallInfo x -> Event.Event
-    -> [Event.Event] -> Derive.LogsDeriver d
+eval :: Derive.Callable d => CallInfo x -> Event.Event -> [Event.Event]
+    -> Derive.LogsDeriver d
 eval cinfo event prev = case Parse.parse_expr (Event.event_text event) of
     Left err -> Derive.throw $ "parse error: " <> err
     Right expr -> Eval.eval_expr False prev_cinfo expr

@@ -25,10 +25,12 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
@@ -46,10 +48,11 @@ pitch_calls = Derive.generator_call_map [(Parse.unparsed_call, c_sequence)]
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map [("sahitya", c_sahitya)]
 
+-- * sequence
 
 c_sequence :: Derive.Generator Derive.Pitch
 c_sequence = Derive.generator1 module_ "sequence" mempty sequence_doc
-    $ Sig.call ((,) <$> Sig.required "text" sequence_arg_doc <*> config_env)
+    $ Sig.call ((,) <$> Sig.required "sequence" sequence_arg_doc <*> config_env)
     $ \(text, (transition, dyn_transition)) args -> do
         let (start, end) = Args.range_or_next args
         maybe_state <- get_state transition dyn_transition args
@@ -61,7 +64,8 @@ c_sequence = Derive.generator1 module_ "sequence" mempty sequence_doc
                 real_start <- Derive.real start
                 real_end <- Derive.real end
                 let dyns = dropWhile Signal.null $ DList.toList dyns_d
-                -- Otherwise I wind up with whatever the previous dyn was.
+                -- Extend the first sample to the start time, otherwise I wind
+                -- up with whatever the previous dyn was.
                 let initial = case Signal.head =<< Seq.head dyns of
                         Just (x, y) | x > real_start ->
                             Signal.signal [(real_start, y)]
@@ -85,19 +89,27 @@ get_state transition dyn_transition args =
     -- If there's no pitch then this is likely at the edge of a slice, and can
     -- be ignored.  TODO I think?
     justm (get_pitch (Args.start args)) $ \cur -> do
-        maybe_prev <- maybe (return Nothing) get_pitch $ Args.prev_start args
+        prev_event <- Args.lookup_prev_note
+        let prev_pitch = fmap snd . PSignal.last
+                . Score.event_untransformed_pitch =<< prev_event
         maybe_next <- maybe (return Nothing) get_pitch $ Args.next_start args
         return $ Just $ State
             { state_from_pitch = cur
-            , state_from_dyn = 1 -- TODO get last dyn from prev event
+            , state_from_dyn = fromMaybe 1 $ lookup_last_dyn =<< prev_event
             , state_transition = transition
             , state_dyn_transition = dyn_transition
             , state_current_pitch = cur
-            , state_previous_pitch = fromMaybe cur maybe_prev
+            , state_previous_pitch = fromMaybe cur prev_pitch
             , state_next_pitch = fromMaybe cur maybe_next
             }
     where
     get_pitch = Derive.pitch_at <=< Derive.real
+
+lookup_last_dyn :: Score.Event -> Maybe Signal.Y
+lookup_last_dyn event = do
+    sig <- Map.lookup Controls.dynamic $
+        Score.event_untransformed_controls event
+    snd <$> Signal.last (Score.typed_val sig)
 
 sequence_doc :: Text
 sequence_doc = "doc doc\

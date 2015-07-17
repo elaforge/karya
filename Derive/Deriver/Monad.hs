@@ -441,6 +441,11 @@ data Dynamic = Dynamic {
     , state_under_invert :: !(NoteDeriver -> NoteDeriver)
     , state_inversion :: !Inversion
 
+    -- | This is set to the current note track being evaluated.  It's useful
+    -- to look up 'state_prev_val' when evaluating other tracks in an
+    -- inversion.  It's set when entering a note track, and unset when entering
+    -- a block.
+    , state_note_track :: !(Maybe (BlockId, TrackId))
     -- | This is the call stack for events.  It's used for error reporting,
     -- and attached to events in case they want to emit errors later (say
     -- during performance).
@@ -473,6 +478,7 @@ initial_dynamic environ = Dynamic
     , state_control_damage = mempty
     , state_under_invert = id
     , state_inversion = NotInverted
+    , state_note_track = Nothing
     , state_stack = Stack.empty
     , state_mode = Normal
     }
@@ -495,29 +501,32 @@ default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
     format (Dynamic controls cfuncs cmerge pitches pitch environ warp scopes
-            aliases damage _under_invert inversion stack mode) =
+            aliases damage _under_invert inversion note_track stack
+            mode) =
         Pretty.record "Dynamic"
             [ ("controls", Pretty.format controls)
-            , ("control functions", Pretty.format cfuncs)
-            , ("control merge defaults", Pretty.format cmerge)
+            , ("control_functions", Pretty.format cfuncs)
+            , ("control_merge_defaults", Pretty.format cmerge)
             , ("pitches", Pretty.format pitches)
             , ("pitch", Pretty.format pitch)
             , ("environ", Pretty.format environ)
             , ("warp", Pretty.format warp)
             , ("scopes", Pretty.format scopes)
-            , ("instrument aliases", Pretty.format aliases)
+            , ("instrument_aliases", Pretty.format aliases)
             , ("damage", Pretty.format damage)
             , ("inversion", Pretty.format inversion)
+            , ("note_track", Pretty.format note_track)
             , ("stack", Pretty.format stack)
             , ("mode", Pretty.format mode)
             ]
 
 instance DeepSeq.NFData Dynamic where
     rnf (Dynamic controls cfuncs cmerge pitches pitch environ warp _scopes
-            aliases damage _under_invert _inverted_gen stack _mode) =
+            aliases damage _under_invert _inversion note_track stack
+            _mode) =
         rnf controls `seq` rnf cfuncs `seq` rnf cmerge `seq` rnf pitches
         `seq` rnf pitch `seq` rnf environ `seq` rnf warp `seq` rnf aliases
-        `seq` rnf damage `seq` rnf stack
+        `seq` rnf damage `seq` rnf note_track `seq` rnf stack
 
 -- ** scope
 

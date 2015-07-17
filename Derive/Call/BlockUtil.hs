@@ -45,6 +45,7 @@ import qualified Derive.Note as Note
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Stack as Stack
 import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
@@ -59,6 +60,7 @@ note_deriver block_id = do
         (,) <$> TrackTree.block_events_tree block_id
             <*> State.block_logical_range block_id
     Derive.with_val Environ.block_end (snd block_range) $
+        Internal.local (\state -> state { Derive.state_note_track = Nothing }) $
         derive_tree block_range tree
 
 -- * control deriver
@@ -158,6 +160,7 @@ derive_track toplevel node@(Tree.Node track subs)
     | ParseTitle.is_note_track (TrackTree.track_title track) =
         with_stack $ Cache.track track (TrackTree.track_children node) $ do
             events <- Internal.track_setup track $ with_voice track $
+                maybe id with_note_track (TrackTree.track_id track) $
                 Note.d_note_track derive_tracks node
             unless (TrackTree.track_sliced track) defragment
             mapM_ (Note.stash_signal_if_wanted events)
@@ -173,8 +176,16 @@ derive_track toplevel node@(Tree.Node track subs)
     defragment = do
         warp <- Internal.get_warp
         Internal.modify_collect $ EvalTrack.defragment_track_signals warp
-    with_stack = maybe id Internal.with_stack_track
-        (TrackTree.track_id track)
+    with_stack = maybe id Internal.with_stack_track (TrackTree.track_id track)
+
+with_note_track :: TrackId -> Derive.Deriver a -> Derive.Deriver a
+with_note_track track_id deriver = do
+    maybe_block_id <- msum . map Stack.block_of . Stack.innermost <$>
+        Internal.get_stack
+    maybe id with maybe_block_id deriver
+    where
+    with block_id = Internal.local $ \state -> state
+        { Derive.state_note_track = Just (block_id, track_id) }
 
 -- | Extract tracks that might want to stash a signal.
 --
