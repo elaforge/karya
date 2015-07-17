@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - The unparsed call # prefix conflicts with #=(4c).  Change to !.
+  * The unparsed call # prefix conflicts with #=(4c).  Change to !.
   - rename CallInfo to ExprContext (or just Context), PassedArgs to
     CallContext.
   * ControlOp effects don't show up in the note track signal render.

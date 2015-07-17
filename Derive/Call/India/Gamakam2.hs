@@ -50,8 +50,8 @@ end_module = module_ <> "end"
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [("!", c_sequence)]
-    [ ("!", c_sequence_transform)
+    [("@", c_sequence)]
+    [ ("@", c_sequence_transform)
     , ("sahitya", c_sahitya)
     ]
 

@@ -72,11 +72,13 @@ test_unparsed_call = do
         call = TrackLang.Call
         vsym = Literal . TrackLang.VSymbol
         null_call = TrackLang.Call "" []
-    equal (f "#<>\"('|") $ Right
+    equal (f "!<>\"('|") $ Right
         [call Parse.unparsed_call [vsym "<>\"('"], null_call]
-    equal (f "hi \"(# blah )") $ Right
+    equal (f "hi \"(!blah)") $ Right
         [call "hi" [TrackLang.Literal $ TrackLang.VQuoted $
-            TrackLang.Quoted (call "#" [vsym "blah"] :| [])]]
+            TrackLang.Quoted (call "!" [vsym "blah"] :| [])]]
+    -- ! takes precedence over =
+    equal (f "!a=b") $ Right [call "!" [vsym "a=b"]]
 
 test_parse_val = do
     let attrs = Just . VAttributes . Score.attrs

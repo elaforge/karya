@@ -169,7 +169,7 @@ p_pipeline toplevel = do
     return $ c :| cs
 
 p_expr :: Bool -> A.Parser TrackLang.Call
-p_expr toplevel = A.try p_equal <|> A.try p_unparsed_expr
+p_expr toplevel = A.try p_unparsed_expr <|> A.try p_equal
     <|> A.try (p_call toplevel) <|> p_null_call
 
 p_unparsed_expr :: A.Parser TrackLang.Call
@@ -180,8 +180,12 @@ p_unparsed_expr = do
     return $ TrackLang.Call unparsed_call
         [TrackLang.Literal $ TrackLang.VSymbol arg]
 
+-- | This is a magic call name that surpresses normal parsing.  Instead, the
+-- rest of the event expression is passed as a string.  The only characters
+-- that can't be used are ) and |, so an unparsed call can still be included in
+-- a sub expression.
 unparsed_call :: TrackLang.Symbol
-unparsed_call = "#"
+unparsed_call = "!"
 
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')

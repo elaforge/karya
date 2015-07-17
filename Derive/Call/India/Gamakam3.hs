@@ -518,7 +518,7 @@ p_exprs :: Parser [Expr]
 p_exprs = concat <$> (A.skipSpace *> A.many1 (p_expr <* A.skipSpace))
 
 p_expr :: Parser [Expr]
-p_expr = ((:[]) <$> p_dyn_expr p_exprs) <|> (A.char '#' *> p_compact_exprs)
+p_expr = ((:[]) <$> p_dyn_expr p_exprs) <|> (A.char '!' *> p_compact_exprs)
     <|> ((:[]) <$> p_pitch_expr)
 
 p_dyn_expr :: Parser [Expr] -> Parser Expr
@@ -538,7 +538,7 @@ p_compact_pitch :: Parser Expr
 p_compact_pitch = PitchExpr <$> A.satisfy valid_pcall_char <*> pure ""
 
 p_pitch_expr :: Parser Expr
-p_pitch_expr = PitchExpr <$> A.satisfy (\c -> c /= '#' && valid_pcall_char c)
+p_pitch_expr = PitchExpr <$> A.satisfy (\c -> c /= '!' && valid_pcall_char c)
     <*> A.takeWhile valid_pcall_char
 
 valid_pcall_char :: Char -> Bool
