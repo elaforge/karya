@@ -63,15 +63,28 @@ extract_track_signal source events = mconcat $ case source of
     Track.Pitch control -> mapMaybe (extract_pitch control) events
     where
     extract_control control event =
-        Signal.drop_before_strict (Score.event_min event) . Score.typed_val <$>
+        trim_control (Score.event_min event) . Score.typed_val <$>
             Score.event_control control event
     extract_pitch pcontrol event =
         convert event <$> Score.event_pitch pcontrol event
     convert event psig = Signal.coerce $ fst $ PSignal.to_nn $
         -- Since these signals will be mconcatted into one signal, I don't
         -- want one event's control at 0 to wipe out the previous events.
-        PSignal.drop_before_strict (Score.event_min event) $
+        trim_pitch (Score.event_min event) $
         PSignal.apply_controls (Score.event_transformed_controls event) psig
+
+    trim_control start sig = case Signal.sample_at start sig of
+        Just (x, y)
+            | x >= start -> Signal.drop_before_strict start sig
+            | otherwise -> Signal.signal [(start, y)]
+                <> Signal.drop_before_strict start sig
+        _ -> sig
+    trim_pitch start sig = case PSignal.sample_at start sig of
+        Just (x, y)
+            | x >= start -> PSignal.drop_before_strict start sig
+            | otherwise -> PSignal.signal [(start, y)]
+                <> PSignal.drop_before_strict start sig
+        _ -> sig
 
 with_title :: TrackTree.EventsTree -> ScoreTime -> Text -> Derive.NoteDeriver
     -> Derive.NoteDeriver

@@ -91,14 +91,14 @@ test_stash_signal = do
                 ("tempo", tempo) : (">", [(0, 1, ""), (1, 1, "")]) : tracks
         want control = DeriveTest.with_ui $ \state -> UiTest.exec state $
             State.set_render_style (Track.Line (Just control)) (UiTest.mk_tid 2)
-        dyn = Track.Control Score.c_dynamic
-        pitch = Track.Pitch Score.default_pitch
-    equal (run dyn [(0, 0, "1")] [("dyn", [(0, 0, ".5"), (1, 0, "1")])])
+        draw_dyn = Track.Control Score.c_dynamic
+        draw_pitch = Track.Pitch Score.default_pitch
+    equal (run draw_dyn [(0, 0, "1")] [("dyn", [(0, 0, ".5"), (1, 0, "1")])])
         (Just [(0, 0.5), (1, 1)])
-    equal (run pitch [(0, 0, "1")] [("*", [(0, 0, "4c"), (1, 0, "4d")])])
+    equal (run draw_pitch [(0, 0, "1")] [("*", [(0, 0, "4c"), (1, 0, "4d")])])
         (Just [(0, realToFrac NN.c4), (1, realToFrac NN.d4)])
 
-    equal (run dyn [(0, 0, "1"), (1, 0, "2")]
+    equal (run draw_dyn [(0, 0, "1"), (1, 0, "2")]
             [("dyn", [(0, 0, ".5"), (1, 0, "1"), (2, 0, ".5")])])
         (Just [(0, 0.5), (1, 1), (2, 0.5)])
 
