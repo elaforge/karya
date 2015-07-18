@@ -92,7 +92,7 @@ get_state transition dyn_transition args =
         prev_event <- Args.lookup_prev_note
         let prev_pitch = fmap snd . PSignal.last
                 . Score.event_untransformed_pitch =<< prev_event
-        maybe_next <- maybe (return Nothing) get_pitch $ Args.next_start args
+        maybe_next <- Args.lookup_next_logical_pitch
         return $ Just $ State
             { state_from_pitch = cur
             , state_from_dyn = fromMaybe 1 $ lookup_last_dyn =<< prev_event

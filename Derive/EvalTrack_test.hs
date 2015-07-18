@@ -23,7 +23,9 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Environ as Environ
+import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
@@ -84,12 +86,11 @@ test_threaded_last_event = do
         ["0.0"]
     where
     n_prev :: Derive.Generator Derive.Note
-    n_prev = Derive.generator "test" "prev" mempty "" $
-        Sig.call0 $ \args -> case Args.prev_val args of
-            Nothing -> Derive.throw "no prev val"
-            Just prev -> do
-                Log.warn $ showt (Score.event_start prev)
-                return []
+    n_prev = CallTest.generator $ \args -> case Args.prev_val args of
+        Nothing -> Derive.throw "no prev val"
+        Just prev -> do
+            Log.warn $ showt (Score.event_start prev)
+            return []
 
 test_assign_controls = do
     let run inst_title cont_title val = extract $ DeriveTest.derive_tracks ""
@@ -216,13 +217,10 @@ test_events_around = do
         extract = DeriveTest.r_log_strings
     equal logs ["prev: [0.0]", "next: [2.0]"]
     where
-    c_around = Derive.generator module_ "around" mempty "doc" $ Sig.call0 $
-        Sub.inverting $ \args -> do
-            Log.warn $ "prev: "
-                <> showt (map Event.start (Args.prev_events args))
-            Log.warn $ "next: "
-                <> showt (map Event.start (Args.next_events args))
-            return []
+    c_around = CallTest.generator $ Sub.inverting $ \args -> do
+        Log.warn $ "prev: " <> showt (map Event.start (Args.prev_events args))
+        Log.warn $ "next: " <> showt (map Event.start (Args.next_events args))
+        return []
 
 test_track_dynamic = do
     let e_scale_inst dyn =
@@ -366,11 +364,10 @@ test_orphans = do
         [0, 1, 2]
     where
     show_subs :: Derive.Generator Derive.Note
-    show_subs = Derive.generator "test" "show" mempty "doc" $
-        Sig.call0 $ \args -> do
-            let subs = Derive.info_sub_tracks (Derive.passed_info args)
-            Log.warn $ pretty subs
-            return []
+    show_subs = CallTest.generator $ \args -> do
+        let subs = Derive.info_sub_tracks (Derive.passed_info args)
+        Log.warn $ pretty subs
+        return []
 
 test_record_empty_tracks = do
     -- Ensure that TrackWarps and TrackDynamics are collected for empty tracks.
@@ -428,3 +425,60 @@ test_orphan_ranges = do
         , (">", [(0, 1, "")])
         ])
         ([[(0, 60), (10, 62)]], [])
+
+-- * neighbors
+
+test_derive_neighbor_pitches = do
+    let run notes = DeriveTest.extract DeriveTest.e_note $
+            DeriveTest.derive_tracks_setup
+                (CallTest.with_note_generator "g" gen) "" $
+            UiTest.note_track notes
+            ++ [("dyn", [(0, 0, ".5")])]
+    strings_like (snd $ run [(0, 1, "4c"), (1, 1, "g -- 4d"), (2, 1, "4e")])
+        [ "Just \"4c\"*Just \"4e\""
+        -- It stops evaluating at the first pitch track, so it doesn't see the
+        -- dyn track.
+        , "Just \"1\"*Just \"1\""
+        ]
+    where
+    gen :: Derive.Generator Derive.Note
+    gen = CallTest.generator $ \args -> do
+        state <- Derive.get
+        let neighbors = EvalTrack.derive_neighbor_pitches state
+                (Args.info args)
+            extract f = (map (first (fmap f)) *** map (first (fmap f)))
+        Log.warn $ showt $ extract (pretty . Score.initial_note) neighbors
+        Log.warn $ showt $ extract (pretty . Score.initial_dynamic) neighbors
+        return []
+
+test_prev_next_logical_pitch = do
+    let run prev = DeriveTest.extract DeriveTest.e_note $
+            DeriveTest.derive_tracks_setup
+                (CallTest.with_pitch_generator "g" (gen prev)) "" $
+            UiTest.note_track [(0, 1, "4c"), (1, 1, "g"), (2, 1, "4e")]
+    equal (run True) ([(0, 1, "4c"), (1, 1, "4c"), (2, 1, "4e")], [])
+    equal (run False) ([(0, 1, "4c"), (1, 1, "4e"), (2, 1, "4e")], [])
+    where
+    gen :: Bool -> Derive.Generator Derive.Pitch
+    gen prev = CallTest.generator1 $ \args -> do
+        pitch <- if prev
+            then Args.lookup_prev_logical_pitch
+            else Args.lookup_next_logical_pitch
+        start <- Args.real_start args
+        return $ PSignal.signal $ maybe [] (\p -> [(start, p)]) pitch
+
+-- * misc
+
+test_bi_zipper = do
+    let f = EvalTrack.bi_zipper
+    let (prevs, nexts) = f [2, 1, 0] 3 [4, 5, 6]
+    equal prevs
+        [ ([1, 0], 2, [3, 4, 5, 6])
+        , ([0], 1, [2, 3, 4, 5, 6])
+        , ([], 0, [1, 2, 3, 4, 5, 6])
+        ]
+    equal nexts
+        [ ([3, 2, 1, 0], 4, [5, 6])
+        , ([4, 3, 2, 1, 0], 5, [6])
+        , ([5, 4, 3, 2, 1, 0], 6, [])
+        ]

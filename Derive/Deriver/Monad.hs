@@ -48,7 +48,7 @@ module Derive.Deriver.Monad (
     -- * state
     , State(..), initial_state
     , Threaded(..), initial_threaded
-    , Dynamic(..), Inversion(..), initial_dynamic
+    , Dynamic(..), NotePitchQueryResult, Inversion(..), initial_dynamic
     , initial_controls, default_dynamic
 
     -- ** scope
@@ -440,6 +440,9 @@ data Dynamic = Dynamic {
     -- inversion.
     , state_under_invert :: !(NoteDeriver -> NoteDeriver)
     , state_inversion :: !Inversion
+    -- | Lazily evaluated neighbors.
+    , state_neighbors
+        :: !(Maybe ([NotePitchQueryResult], [NotePitchQueryResult]))
 
     -- | This is set to the current note track being evaluated.  It's useful
     -- to look up 'state_prev_val' when evaluating other tracks in an
@@ -452,6 +455,10 @@ data Dynamic = Dynamic {
     , state_stack :: !Stack.Stack
     , state_mode :: !Mode
     }
+
+-- | This is the result of a NotePitchQuery mode derivation, and stored in
+-- 'state_neighbors'.
+type NotePitchQueryResult = (Maybe Score.Event, [Log.Msg])
 
 data Inversion =
     -- | Pre-inversion.
@@ -478,6 +485,7 @@ initial_dynamic environ = Dynamic
     , state_control_damage = mempty
     , state_under_invert = id
     , state_inversion = NotInverted
+    , state_neighbors = Nothing
     , state_note_track = Nothing
     , state_stack = Stack.empty
     , state_mode = Normal
@@ -501,7 +509,7 @@ default_dynamic = 1
 
 instance Pretty.Pretty Dynamic where
     format (Dynamic controls cfuncs cmerge pitches pitch environ warp scopes
-            aliases damage _under_invert inversion note_track stack
+            aliases damage _under_invert inversion neighbors note_track stack
             mode) =
         Pretty.record "Dynamic"
             [ ("controls", Pretty.format controls)
@@ -515,6 +523,7 @@ instance Pretty.Pretty Dynamic where
             , ("instrument_aliases", Pretty.format aliases)
             , ("damage", Pretty.format damage)
             , ("inversion", Pretty.format inversion)
+            , ("neighbors", Pretty.format neighbors)
             , ("note_track", Pretty.format note_track)
             , ("stack", Pretty.format stack)
             , ("mode", Pretty.format mode)
@@ -522,11 +531,12 @@ instance Pretty.Pretty Dynamic where
 
 instance DeepSeq.NFData Dynamic where
     rnf (Dynamic controls cfuncs cmerge pitches pitch environ warp _scopes
-            aliases damage _under_invert _inversion note_track stack
+            aliases damage _under_invert _inversion neighbors note_track stack
             _mode) =
         rnf controls `seq` rnf cfuncs `seq` rnf cmerge `seq` rnf pitches
         `seq` rnf pitch `seq` rnf environ `seq` rnf warp `seq` rnf aliases
-        `seq` rnf damage `seq` rnf note_track `seq` rnf stack
+        `seq` rnf damage `seq` rnf neighbors `seq` rnf note_track
+        `seq` rnf stack
 
 -- ** scope
 
@@ -710,6 +720,17 @@ data Mode =
     -- 'collect_score_duration' when it sees this mode.  More detail in
     -- 'Duration'.
     | ScoreDurationQuery | RealDurationQuery
+    -- | Run only enough to figure out what the pitch of a note is.  This will
+    -- stop evaluation at the first pitch track, and the results will go in
+    -- 'state_neighbors'.  The idea is to provide access to the logical prev
+    -- and next pitches.  Logical means before the application of any pitch
+    -- modifications such as gamakams.
+    --
+    -- TODO this means the pitch modifications have to go in a second pitch
+    -- track, which is how gamakams currently work, but it's all uncomfortably
+    -- ad-hoc.  It seems like a lot of special hackery just to support one
+    -- call.
+    | NotePitchQuery
     -- | Emit events intended for the lilypond backend.  Calls that have
     -- corresponding staff notation (e.g. trills) emit special events with
     -- attached lilypond code in this mode.

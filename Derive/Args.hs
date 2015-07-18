@@ -7,6 +7,7 @@
 module Derive.Args where
 import qualified Data.Map as Map
 
+import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Derive as Derive
@@ -27,6 +28,10 @@ info = Derive.passed_info
 
 event :: PassedArgs a -> Event.Event
 event = Derive.info_event . info
+
+-- * prev and next
+
+-- ** from 'Derive.info_prev_val'
 
 prev_control :: Derive.ControlArgs -> Maybe (RealTime, Signal.Y)
 prev_control = Signal.last <=< prev_val
@@ -50,6 +55,8 @@ prev_val_end = extract <=< prev_val
 prev_val :: PassedArgs a -> Maybe a
 prev_val = Derive.info_prev_val . info
 
+-- ** from 'Derive.state_prev_val'
+
 -- | Get the previous note.  Unlike 'prev_val', this always gets the previous
 -- Score.Event, even if you're evaluating a control track under the note track.
 --
@@ -61,6 +68,39 @@ lookup_prev_note = do
         =<< Derive.gets (Derive.state_note_track . Derive.state_dynamic)
     Derive.gets $ Derive.from_tagged <=< Map.lookup addr . Derive.state_prev_val
         . Derive.state_threaded
+
+-- ** from 'Derive.state_neighbors'
+
+lookup_prev_logical_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
+lookup_prev_logical_pitch = justm lookup_prev_neighbor $ \event ->
+    return $ Score.pitch_at (Score.event_start event) event
+
+lookup_next_logical_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
+lookup_next_logical_pitch = justm lookup_next_neighbor $ \event ->
+    return $ Score.pitch_at (Score.event_start event) event
+
+lookup_prev_neighbor :: Derive.Deriver (Maybe Score.Event)
+lookup_prev_neighbor = get_neighbor_notes >>= \(prev, _) -> case prev of
+    (event, logs) : _ -> do
+        mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
+        return event
+    [] -> return Nothing
+
+lookup_next_neighbor :: Derive.Deriver (Maybe Score.Event)
+lookup_next_neighbor = get_neighbor_notes >>= \(_, next) -> case next of
+    (event, logs) : _ -> do
+        mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
+        return event
+    [] -> return Nothing
+
+get_neighbor_notes :: Derive.Deriver
+    ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
+get_neighbor_notes = do
+    neighbors <- Derive.require "no neighbors"
+        =<< Derive.gets (Derive.state_neighbors . Derive.state_dynamic)
+    return neighbors
+
+-- ** eval
 
 -- | Unused, but might be used again if I need to evaluate the next event.
 eval :: Derive.Callable d => CallInfo x -> Event.Event -> [Event.Event]

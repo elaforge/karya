@@ -136,8 +136,7 @@ save_prev_val args = case Args.prev_val args of
         \st -> st { Derive.state_threaded = modify (Derive.state_threaded st) }
 
 invert :: TrackTree.EventsTree -> ScoreTime -> ScoreTime -> ScoreTime
-    -> ([Event.Event], [Event.Event])
-    -> Derive.Deriver TrackTree.EventsTree
+    -> ([Event.Event], [Event.Event]) -> Derive.Deriver TrackTree.EventsTree
 invert subs start end next_start events_around = do
     -- Pick the current TrackId out of the stack, and give that to the track
     -- created by inversion.
@@ -150,7 +149,10 @@ invert subs start end next_start events_around = do
     whenJust (non_bottom_note_track sliced) $ \track -> Derive.throw $
         "inverting below a note track will lead to an endless loop: "
         <> pretty (TrackTree.track_id track)
-    return sliced
+    mode <- Derive.get_mode
+    return $ case mode of
+        Derive.NotePitchQuery -> strip_controls sliced
+        _ -> sliced
     where
     slice track_id =
         Slice.slice False start next_start (Just (insert track_id)) subs
@@ -161,6 +163,18 @@ invert subs start end next_start events_around = do
         , Slice.ins_around = events_around
         , Slice.ins_track_id = track_id
         }
+
+-- | Go down to a pitch track, then strip the rest down to the note track.
+strip_controls :: TrackTree.EventsTree -> TrackTree.EventsTree
+strip_controls = map pre_note
+    where
+    pre_note (Tree.Node track subs)
+        | ParseTitle.is_pitch_track (TrackTree.track_title track) =
+            Tree.Node track (concatMap strip subs)
+        | otherwise = Tree.Node track (map pre_note subs)
+    strip (Tree.Node track subs)
+        | null subs = [Tree.Node track []]
+        | otherwise = concatMap strip subs
 
 stack_track_id :: Derive.Deriver (Maybe TrackId)
 stack_track_id = Seq.head . mapMaybe Stack.track_of . Stack.innermost

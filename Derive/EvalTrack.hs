@@ -84,6 +84,9 @@ module Derive.EvalTrack (
     , derive_control_track, derive_note_track
     , defragment_track_signals, unwarp
     , derive_event
+    -- * NotePitchQuery
+    , derive_neighbor_pitches
+    , bi_zipper
 ) where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -363,22 +366,26 @@ derive_event :: Derive.Callable d => TrackInfo d -> Maybe d
     -> Event.Event -- ^ cur event
     -> [Event.Event] -- ^ following events
     -> Derive.LogsDeriver d
-derive_event tinfo prev_val prev event next
+derive_event tinfo prev_val prev event next = derive_event_cinfo cinfo event
+    where cinfo = call_info tinfo prev_val prev event next
+
+derive_event_cinfo :: Derive.Callable d => Derive.CallInfo d
+    -> Event.Event -> Derive.LogsDeriver d
+derive_event_cinfo cinfo event
     | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return []
     | otherwise = case Parse.parse_expr text of
         Left err -> Log.warn err >> return []
         Right expr ->
-            with_event_region tinfo event $ Eval.eval_toplevel cinfo expr
+            with_event_region (Derive.info_track_shifted cinfo) event $
+                Eval.eval_toplevel cinfo expr
     where
-    cinfo = call_info tinfo prev_val prev event next
     text = Event.event_text event
 
-with_event_region :: TrackInfo d -> Event.Event -> Derive.Deriver a
+with_event_region :: ScoreTime -> Event.Event -> Derive.Deriver a
     -> Derive.Deriver a
-with_event_region tinfo event =
-    Internal.with_stack_region (Event.min event + shifted)
-        (Event.max event + shifted)
-    where shifted = TrackTree.track_shifted (tinfo_track tinfo)
+with_event_region track_shifted event =
+    Internal.with_stack_region (Event.min event + track_shifted)
+        (Event.max event + track_shifted)
 
 call_info :: TrackInfo a -> Maybe val -> [Event.Event] -> Event.Event
     -> [Event.Event] -> Derive.CallInfo val
@@ -400,3 +407,41 @@ call_info tinfo prev_val prev event next = Derive.CallInfo
     where
     TrackInfo track subs ttype _ = tinfo
     (tprev, tnext) = TrackTree.track_around track
+
+-- * NotePitchQuery
+
+-- | This takes State as an explicit argument and is thus non-monadic to
+-- emphasize that the results are lazy.  This is important because evaluating
+-- each element is likely to be expensive.
+derive_neighbor_pitches :: Derive.State -> Derive.CallInfo Score.Event
+    -> ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
+derive_neighbor_pitches state cinfo = (map derive1 prevs, map derive1 nexts)
+    where
+    -- TODO I'm uncertain if this will work with slicing.  I think I should
+    -- have prevs and nexts available, but what of track_shifted?  And what of
+    -- the cache?  Should I strip that out?
+    derive1 (ps, e, ns) =
+        derive_for_pitch state (replace_neighbors ps e ns cinfo) e
+    replace_neighbors ps e ns cinfo = cinfo
+        { Derive.info_prev_events = ps
+        , Derive.info_next_events = ns
+        , Derive.info_event = e
+        }
+    (prevs, nexts) = bi_zipper (Derive.info_prev_events cinfo)
+        (Derive.info_event cinfo) (Derive.info_next_events cinfo)
+
+bi_zipper :: [a] -> a -> [a] -> ([([a], a, [a])], [([a], a, [a])])
+bi_zipper prevs cur nexts =
+    ( mapMaybe extract_prev $ drop 1 $ Seq.zipper (cur : nexts) prevs
+    , mapMaybe extract_next $ Seq.zipper (cur : prevs) nexts
+    )
+    where
+    extract_prev (p:ps, ns) = Just (ns, p, ps)
+    extract_prev _ = Nothing
+    extract_next (ps, n:ns) = Just (ps, n, ns)
+    extract_next _ = Nothing
+
+derive_for_pitch :: Derive.State -> Derive.CallInfo Score.Event -> Event.Event
+    -> Derive.NotePitchQueryResult
+derive_for_pitch state cinfo event =
+    Derive.query_note_pitch state $ derive_event_cinfo cinfo event

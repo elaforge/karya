@@ -81,8 +81,7 @@ test_sequence = do
 
     -- move_absolute
     -- Move to next pitch.
-    -- TODO not working yet
-    -- equal (run "!!-d-") (output [(4, 62), (6, 62), (7, 63), (8, 64)])
+    equal (run "!!-d-") (output [(4, 62), (6, 62), (7, 63), (8, 64)])
 
     -- Prev to current.
     equal (run "!!<-c-") (output [(4, 60), (6, 60), (7, 61), (8, 62)])

@@ -128,6 +128,10 @@ generator :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.LogsDeriver d)
     -> Derive.Generator d
 generator = Derive.generator module_ "test" mempty "test doc" . Sig.call0
 
+generator1 :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.Deriver d)
+    -> Derive.Generator d
+generator1 = Derive.generator1 module_ "test" mempty "test doc" . Sig.call0
+
 
 -- * PassedArgs
 

@@ -349,6 +349,35 @@ UNSORTED
           just gamakam.
         - An ornament for an impulse at the start of a note.
 
+      How to get the next pitch?
+        * One approach is a NotePitchQuery derivation mode that stops when it
+          gets to a pitch track.  Then I can evaluate prev and next neighbors
+          and stash them in Dynamic.  They are lazy so evaluation doesn't
+          happen unless you need them.
+          . I can't really *stop* evaluating when I get to a pitch track,
+            because I still need to get to the note track.  What I have to do
+            is skip over all the intervening control tracks.  I think I have
+            to do that at invert time.
+        - Currently I stash the 'Derive.state_neighbors' in the note call.
+          But this means prev/next pitch doesn't work for anything except the
+          default note call.  When evaluating the event I should replace the
+          call with the note call.  In fact, why not just replace the call
+          with something specifically designed to get the pitch?  Then the
+          default note call doesn't have to check the derive mode at all.
+        ? Or I could make gamakam into a postproc.  This means I could get
+          next pitch even across block boundaries.  But ScoreTime is not
+          available.  I would need some way to make a control track modify the
+          environ instead of emitting signal, so the note call can then pick
+          that up.  Presumably it would emit something like
+          [(start, dur, text)] and then those values have to be merged into
+          a special "Val signal" in Dynamic, which the note can pick up.
+          . pros:
+            . Get next logical pitch even across block boundaries.
+          . cons:
+            . Need special machinery to have a control track emit structured
+              values.  In full generality this is approaching the idea about
+              unifying environ with signals.
+            . No track signal, have to rely on the note track signal.
       * Previous pitch is wrong because I want the pitch at the previous note,
         not the previous pitch event.
       - Now I have a working last pitch, but it's different from logical
