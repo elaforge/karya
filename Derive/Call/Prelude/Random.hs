@@ -57,9 +57,9 @@ c_alternate = Derive.generator Module.prelude "alternate" Tags.random
     \exprs args -> do
         let pairs = fmap (flip (,) 1) exprs
         val <- pick_weighted pairs <$> Call.random
-        Call.eval (Args.info args) val
+        Call.eval (Args.context args) val
 
-eval :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Val
+eval :: Derive.Callable d => Derive.Context d -> TrackLang.Val
     -> Derive.Deriver [LEvent.LEvent d]
 eval info val = do
     quoted <- Derive.require_right id $ Call.val_to_quoted val
@@ -84,7 +84,7 @@ c_alternate_weighted =
     typecheck args (weight, expr) = Derive.require_right id $ do
         weight <- Sig.typecheck weight
         quoted <- Call.val_to_quoted expr
-        return (Eval.eval_quoted (Args.info args) quoted, weight)
+        return (Eval.eval_quoted (Args.context args) quoted, weight)
 
 c_alternate_tracks :: Derive.Generator Derive.Note
 c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"

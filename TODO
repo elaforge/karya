@@ -4,8 +4,8 @@ LEGEND
 
 UNSORTED
   * The unparsed call # prefix conflicts with #=(4c).  Change to !.
-  - rename CallInfo to ExprContext (or just Context), PassedArgs to
-    CallContext.
+  * rename CallInfo to ExprContext (or just Context)
+  - PassedArgs to CallContext.
   * ControlOp effects don't show up in the note track signal render.
     * Now it gets an out of date value.
   * generalize Util.Control.mconcatMap to foldMap

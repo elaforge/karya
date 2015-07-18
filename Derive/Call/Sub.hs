@@ -67,7 +67,7 @@ import Types
 under_invert :: (Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.NoteArgs -> Derive.NoteDeriver -> Derive.NoteDeriver
 under_invert transformer args deriver
-    | null $ Derive.info_sub_tracks $ Derive.passed_info args =
+    | null $ Derive.ctx_sub_tracks $ Derive.passed_ctx args =
         transformer args deriver
     | otherwise = with deriver
     where
@@ -81,20 +81,20 @@ run_invert :: Derive.Taggable d => Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 run_invert args call = do
     dyn <- Internal.get_dynamic id
-    case (Derive.state_inversion dyn, Derive.info_sub_tracks cinfo) of
+    case (Derive.state_inversion dyn, Derive.ctx_sub_tracks ctx) of
         (Derive.InversionInProgress {}, _) ->
             Derive.throw "tried to invert while inverting"
         (Derive.NotInverted, subs@(_:_)) -> do
             sliced <- invert subs
                 (Event.start event) (Event.end event) (Args.next args)
-                (Derive.info_prev_events cinfo, Derive.info_next_events cinfo)
+                (Derive.ctx_prev_events ctx, Derive.ctx_next_events ctx)
             with_inversion $ BlockUtil.derive_tracks sliced
         (Derive.NotInverted, []) -> call
     where
     with_inversion = Internal.local $ \dyn -> dyn
         { Derive.state_inversion = Derive.InversionInProgress call }
-    event = Derive.info_event cinfo
-    cinfo = Derive.passed_info args
+    event = Derive.ctx_event ctx
+    ctx = Derive.passed_ctx args
 
 -- | Convert a call into an inverting call.  This is designed to be convenient
 -- to insert after the signature arg in a call definition.  The args passed
@@ -105,9 +105,9 @@ inverting :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.NoteDeriver)
 inverting call args = run_invert args (call stripped)
     where
     stripped = args
-        { Derive.passed_info = (Derive.passed_info args)
-            { Derive.info_sub_tracks = mempty
-            , Derive.info_sub_events = Nothing
+        { Derive.passed_ctx = (Derive.passed_ctx args)
+            { Derive.ctx_sub_tracks = mempty
+            , Derive.ctx_sub_events = Nothing
             }
         }
 
@@ -143,7 +143,7 @@ invert subs start end next_start events_around = do
     -- TODO I'm not 100% comfortable with this, I don't like putting implicit
     -- dependencies on the stack like this.  Too many of these and someday
     -- I change how the stack works and all sorts of things break.  It would be
-    -- more explicit to put TrackId into CallInfo.
+    -- more explicit to put TrackId into Context.
     track_id <- stack_track_id
     let sliced = slice track_id
     whenJust (non_bottom_note_track sliced) $ \track -> Derive.throw $
@@ -247,13 +247,13 @@ sub_events_end_bias = sub_events_ True
 
 sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[Event]]
 sub_events_ include_end args =
-    case Derive.info_sub_events (Derive.passed_info args) of
+    case Derive.ctx_sub_events (Derive.passed_ctx args) of
         Nothing -> either Derive.throw (return . map (map mkevent)) $
             Slice.checked_slice_notes include_end start end subs
         Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
     where
     (start, end) = Args.range args
-    subs = Derive.info_sub_tracks (Derive.passed_info args)
+    subs = Derive.ctx_sub_tracks (Derive.passed_ctx args)
     -- The events have been shifted back to 0 by 'Slice.slice_notes', but
     -- are still their original lengths.  Stretch them back to 1 so Events
     -- are normalized.
@@ -335,22 +335,22 @@ strip_rests events = [Event s d n | Event s d (Just n) <- events]
 
 -- | Call a note parent with sub-events.  While you can easily call other
 -- kinds of calls with 'Eval.reapply', note parents are more tricky
--- because they expect a track structure in 'Derive.info_sub_tracks'.  This
+-- because they expect a track structure in 'Derive.ctx_sub_tracks'.  This
 -- bypasses that and directly passes 'Event's to the note parent, courtesy
--- of 'Derive.info_sub_events'.
-reapply :: Derive.CallInfo Score.Event -> TrackLang.Expr -> [[Event]]
+-- of 'Derive.ctx_sub_events'.
+reapply :: Derive.Context Score.Event -> TrackLang.Expr -> [[Event]]
     -> Derive.NoteDeriver
-reapply cinfo expr notes = Eval.reapply subs expr
+reapply ctx expr notes = Eval.reapply subs expr
     where
-    subs = cinfo
-        { Derive.info_sub_events =
+    subs = ctx
+        { Derive.ctx_sub_events =
             Just $ map (map (\(Event s d n) -> (s, d, n))) notes
         }
 
-reapply_call :: Derive.CallInfo Score.Event -> TrackLang.CallId
+reapply_call :: Derive.Context Score.Event -> TrackLang.CallId
     -> [TrackLang.Term] -> [[Event]] -> Derive.NoteDeriver
-reapply_call cinfo call_id call_args =
-    reapply cinfo (TrackLang.call call_id call_args :| [])
+reapply_call ctx call_id call_args =
+    reapply ctx (TrackLang.call call_id call_args :| [])
 
 {- NOTE [under-invert]
     . To make 'lift' to an absolute pitch work outside of inversion, I'd need

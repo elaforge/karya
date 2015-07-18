@@ -87,7 +87,8 @@ note_call name prepend_doc tags generate =
     parser = Sig.many "attribute" "Change the instrument or attributes."
     note_generate generate_note vals args = do
         state <- Derive.get
-        let neighbors = EvalTrack.derive_neighbor_pitches state (Args.info args)
+        let neighbors = EvalTrack.derive_neighbor_pitches state
+                (Args.context args)
         with_neighbors neighbors $ Sub.inverting generate args
         where generate args = transform_note vals $ generate_note args
     prepended
@@ -120,28 +121,28 @@ c_note_track = Derive.transformer Module.prelude "note-track" mempty
         <> " exists.")
     <*> Sig.many "attribute" "Add attributes."
     ) $ \(inst, attrs) args deriver ->
-        note_track (Derive.passed_info args) inst attrs deriver
+        note_track (Derive.passed_ctx args) inst attrs deriver
 
-note_track :: Derive.CallInfo Derive.Note -> Score.Instrument
+note_track :: Derive.Context Derive.Note -> Score.Instrument
     -> [Score.Attributes] -> Derive.NoteDeriver -> Derive.NoteDeriver
-note_track cinfo inst attrs deriver = do
+note_track ctx inst attrs deriver = do
     let call_id = TrackLang.Symbol $ ">" <> Score.inst_name inst
     maybe_call <- Derive.lookup_transformer call_id
-    let transform = maybe id (call_transformer cinfo) maybe_call
+    let transform = maybe id (call_transformer ctx) maybe_call
         with_inst = if inst == Score.empty_inst then id
             else Derive.with_instrument inst
     with_inst $ Call.add_attrs (mconcat attrs) $ transform deriver
 
-call_transformer :: Derive.CallInfo d -> Derive.Transformer d
+call_transformer :: Derive.Context d -> Derive.Transformer d
     -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-call_transformer cinfo call deriver =
+call_transformer ctx call deriver =
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed deriver
     where
     passed = Derive.PassedArgs
         { Derive.passed_vals = []
         , Derive.passed_call_name = Derive.call_name call
-        , Derive.passed_info = cinfo
+        , Derive.passed_ctx = ctx
         }
 
 c_note_attributes :: Derive.Transformer Derive.Note

@@ -81,8 +81,8 @@ module Derive.Deriver.Monad (
     -- * calls
     , CallMaps(..), call_map
     , call_maps, generator_call_map, transformer_call_map
-    , CallInfo(..), info_track_range, coerce_call_info
-    , dummy_call_info, tag_call_info
+    , Context(..), ctx_track_range, coerce_context
+    , dummy_context, tag_context
     , Call(..), make_call
     , CallDoc(..), ArgDoc(..), ArgParser(..), EnvironDefault(..), ArgDocs(..)
     , WithArgDoc
@@ -281,9 +281,9 @@ class (Show d, Taggable d) => Callable d where
 
 type LogsDeriver d = Deriver [LEvent.LEvent d]
 
--- | This is for 'info_prev_val'.  Normally the previous value is available
+-- | This is for 'ctx_prev_val'.  Normally the previous value is available
 -- in all its untagged glory based on the type of the call, but ValCalls can
--- occur with all the different types, so they need a tagged 'info_prev_val'.
+-- occur with all the different types, so they need a tagged 'ctx_prev_val'.
 data Tagged = TagEvent Score.Event | TagControl Signal.Control
     | TagPitch PSignal.Signal
     deriving (Show)
@@ -1089,7 +1089,7 @@ data PassedArgs val = PassedArgs {
     -- own name, but it turns out to be inconvenient to pass the name to all of
     -- those functions.
     , passed_call_name :: !Text
-    , passed_info :: !(CallInfo val)
+    , passed_ctx :: !(Context val)
     }
 
 instance Pretty.Pretty val => Pretty.Pretty (PassedArgs val) where
@@ -1105,7 +1105,7 @@ instance Pretty.Pretty val => Pretty.Pretty (PassedArgs val) where
 -- The events are not used for transform calls.
 --
 -- TODO make separate types so the irrelevent data need not be passed?
-data CallInfo val = CallInfo {
+data Context val = Context {
     -- The below is not used at all for val calls, and the events are not
     -- used for transform calls.  It might be cleaner to split those out, but
     -- too much bother.
@@ -1115,16 +1115,16 @@ data CallInfo val = CallInfo {
     --
     -- This used to be the only way a call could get the previous value, but
     -- now if the prev val is unset, then "Derive.Args.prev_val" will evaluate
-    -- 'info_prev_events'.  But checking info_prev_val is cheaper, so I'll keep
+    -- 'ctx_prev_events'.  But checking ctx_prev_val is cheaper, so I'll keep
     -- it around.  The evaluation fallback has to exist because track slicing
     -- may snip off the previous event.
     --
     -- See NOTE [prev-val] in "Derive.Args" for details.
-    info_prev_val :: !(Maybe val)
+    ctx_prev_val :: !(Maybe val)
 
-    , info_event :: !Event.Event
-    , info_prev_events :: ![Event.Event]
-    , info_next_events :: ![Event.Event]
+    , ctx_event :: !Event.Event
+    , ctx_prev_events :: ![Event.Event]
+    , ctx_next_events :: ![Event.Event]
 
     -- | The extent of the note past its duration.  Since notes have decay,
     -- its important to capture control for that.  Normally this is the next
@@ -1132,36 +1132,36 @@ data CallInfo val = CallInfo {
     -- the block, this is the block end, otherwise if there's no next event
     -- because it was sliced off, this is where that event would have started.
     --
-    -- This is the same as the first element of 'info_next_events' except of
+    -- This is the same as the first element of 'ctx_next_events' except of
     -- course it has a value even when there is no next event.
-    , info_event_end :: !ScoreTime
+    , ctx_event_end :: !ScoreTime
     -- | From 'TrackTree.track_shifted'.
-    , info_track_shifted :: !TrackTime
+    , ctx_track_shifted :: !TrackTime
 
     -- | The track tree below note tracks.  Not given for control tracks.
-    -- TODO should this be Either with info_sub_events?  I don't think I ever
+    -- TODO should this be Either with ctx_sub_events?  I don't think I ever
     -- need both set.
-    , info_sub_tracks :: !TrackTree.EventsTree
+    , ctx_sub_tracks :: !TrackTree.EventsTree
     -- | If present, 'Derive.Sub.sub_events' will directly return these sub
     -- events instead of slicing sub-tracks.  Track evaluation will never set
     -- this, but calls can set this to reapply a note parent.  It should
     -- be 'Derive.Sub.Event's, but isn't to avoid circular imports.
-    , info_sub_events :: !(Maybe [[(ScoreTime, ScoreTime, NoteDeriver)]])
+    , ctx_sub_events :: !(Maybe [[(ScoreTime, ScoreTime, NoteDeriver)]])
     -- | This is needed by val calls that want to evaluate events around them.
     -- Since val calls are the same on all track types, they need to know
     -- explicitly what the track type is to evaluate events on it.
-    , info_track_type :: !(Maybe ParseTitle.Type)
+    , ctx_track_type :: !(Maybe ParseTitle.Type)
     }
 
 -- | Range of the event in TrackTime.
-info_track_range :: CallInfo a -> (TrackTime, TrackTime)
-info_track_range info = (shifted, shifted + info_event_end info)
-    where shifted = info_track_shifted info
+ctx_track_range :: Context a -> (TrackTime, TrackTime)
+ctx_track_range info = (shifted, shifted + ctx_event_end info)
+    where shifted = ctx_track_shifted info
 
-instance Pretty.Pretty val => Pretty.Pretty (CallInfo val) where
-    format (CallInfo prev_val event prev_events next_events event_end
+instance Pretty.Pretty val => Pretty.Pretty (Context val) where
+    format (Context prev_val event prev_events next_events event_end
             track_range sub_tracks sub_events track_type) =
-        Pretty.record "CallInfo"
+        Pretty.record "Context"
             [ ("prev_val", Pretty.format prev_val)
             , ("event", Pretty.format event)
             , ("prev_events", Pretty.format prev_events)
@@ -1174,30 +1174,29 @@ instance Pretty.Pretty val => Pretty.Pretty (CallInfo val) where
             , ("track_type", Pretty.format track_type)
             ]
 
-coerce_call_info :: CallInfo a -> CallInfo b
-coerce_call_info cinfo = cinfo { info_prev_val = Nothing }
+coerce_context :: Context a -> Context b
+coerce_context ctx = ctx { ctx_prev_val = Nothing }
 
 -- | Transformer calls don't necessarily apply to any particular event, and
 -- neither do generators for that matter.
-dummy_call_info :: ScoreTime -> ScoreTime -> Text -> CallInfo a
-dummy_call_info start dur text = CallInfo
-    { info_prev_val = Nothing
-    , info_event = Event.event start dur s
-    , info_prev_events = []
-    , info_next_events = []
-    , info_event_end = start + dur
-    , info_track_shifted = 0
-    , info_sub_tracks = []
-    , info_sub_events = Nothing
-    , info_track_type = Nothing
+dummy_context :: ScoreTime -> ScoreTime -> Text -> Context a
+dummy_context start dur text = Context
+    { ctx_prev_val = Nothing
+    , ctx_event = Event.event start dur s
+    , ctx_prev_events = []
+    , ctx_next_events = []
+    , ctx_event_end = start + dur
+    , ctx_track_shifted = 0
+    , ctx_sub_tracks = []
+    , ctx_sub_events = Nothing
+    , ctx_track_type = Nothing
     } where s = if Text.null text then "<no-event>" else "<" <> text <> ">"
 
--- | Taggable the polymorphic part of the CallInfo so it can be given to
+-- | Taggable the polymorphic part of the Context so it can be given to
 -- a 'ValCall'.  Otherwise, ValCall would have to be polymorphic too,
 -- which means it would hard to write generic ones.
-tag_call_info :: Taggable a => CallInfo a -> CallInfo Tagged
-tag_call_info cinfo = cinfo
-    { info_prev_val = to_tagged <$> info_prev_val cinfo }
+tag_context :: Taggable a => Context a -> Context Tagged
+tag_context ctx = ctx { ctx_prev_val = to_tagged <$> ctx_prev_val ctx }
 
 -- | A Call will be called as either a generator or a transformer, depending on
 -- its position.  A call at the end of a compose pipeline will be called as
@@ -1289,11 +1288,11 @@ generator_func f = GeneratorFunc {
 -- | Most calls have the same logical duration as their event.
 default_score_duration :: PassedArgs d -> Deriver (Duration ScoreTime)
 default_score_duration =
-    return . Duration . Event.duration . info_event . passed_info
+    return . Duration . Event.duration . ctx_event . passed_ctx
 
 default_real_duration :: PassedArgs d -> Deriver (Duration RealTime)
 default_real_duration args = do
-    let t = Event.duration $ info_event $ passed_info args
+    let t = Event.duration $ ctx_event $ passed_ctx args
     -- This is the same as Internal.score_to_real.  A bit of copy and paste
     -- seems better than moving all the real to score stuff over here.
     warp <- gets (state_warp . state_dynamic)

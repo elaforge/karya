@@ -154,16 +154,16 @@ mkargs :: Text -> [Slice_test.EventsTree] -> Derive.PassedArgs d
 mkargs text subs = Derive.PassedArgs [] "call" info
     where
     event = Event.event 0 1 text
-    info = Derive.CallInfo
-        { Derive.info_prev_val = Nothing
-        , Derive.info_event = event
-        , Derive.info_prev_events = prev
-        , Derive.info_next_events = next
-        , Derive.info_event_end = event_end
-        , Derive.info_track_shifted = 0
-        , Derive.info_sub_tracks = map Slice_test.make_tree subs
-        , Derive.info_sub_events = Nothing
-        , Derive.info_track_type = Nothing
+    info = Derive.Context
+        { Derive.ctx_prev_val = Nothing
+        , Derive.ctx_event = event
+        , Derive.ctx_prev_events = prev
+        , Derive.ctx_next_events = next
+        , Derive.ctx_event_end = event_end
+        , Derive.ctx_track_shifted = 0
+        , Derive.ctx_sub_tracks = map Slice_test.make_tree subs
+        , Derive.ctx_sub_events = Nothing
+        , Derive.ctx_track_type = Nothing
         }
     prev = []
     next = [Event.event (Event.end event) 0 "next"]

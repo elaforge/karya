@@ -366,18 +366,18 @@ derive_event :: Derive.Callable d => TrackInfo d -> Maybe d
     -> Event.Event -- ^ cur event
     -> [Event.Event] -- ^ following events
     -> Derive.LogsDeriver d
-derive_event tinfo prev_val prev event next = derive_event_cinfo cinfo event
-    where cinfo = call_info tinfo prev_val prev event next
+derive_event tinfo prev_val prev event next = derive_event_ctx ctx event
+    where ctx = context tinfo prev_val prev event next
 
-derive_event_cinfo :: Derive.Callable d => Derive.CallInfo d
-    -> Event.Event -> Derive.LogsDeriver d
-derive_event_cinfo cinfo event
+derive_event_ctx :: Derive.Callable d => Derive.Context d -> Event.Event
+    -> Derive.LogsDeriver d
+derive_event_ctx ctx event
     | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return []
     | otherwise = case Parse.parse_expr text of
         Left err -> Log.warn err >> return []
         Right expr ->
-            with_event_region (Derive.info_track_shifted cinfo) event $
-                Eval.eval_toplevel cinfo expr
+            with_event_region (Derive.ctx_track_shifted ctx) event $
+                Eval.eval_toplevel ctx expr
     where
     text = Event.event_text event
 
@@ -387,22 +387,22 @@ with_event_region track_shifted event =
     Internal.with_stack_region (Event.min event + track_shifted)
         (Event.max event + track_shifted)
 
-call_info :: TrackInfo a -> Maybe val -> [Event.Event] -> Event.Event
-    -> [Event.Event] -> Derive.CallInfo val
-call_info tinfo prev_val prev event next = Derive.CallInfo
-    { Derive.info_prev_val = prev_val
-    , Derive.info_event = event
+context :: TrackInfo a -> Maybe val -> [Event.Event] -> Event.Event
+    -> [Event.Event] -> Derive.Context val
+context tinfo prev_val prev event next = Derive.Context
+    { Derive.ctx_prev_val = prev_val
+    , Derive.ctx_event = event
     -- Augment prev and next with the unevaluated "around" notes from
     -- 'State.track_around'.
-    , Derive.info_prev_events = tprev ++ prev
-    , Derive.info_next_events = next ++ tnext
-    , Derive.info_event_end = case next ++ tnext of
+    , Derive.ctx_prev_events = tprev ++ prev
+    , Derive.ctx_next_events = next ++ tnext
+    , Derive.ctx_event_end = case next ++ tnext of
         [] -> TrackTree.track_end track
         event : _ -> Event.start event
-    , Derive.info_track_shifted = TrackTree.track_shifted track
-    , Derive.info_sub_tracks = subs
-    , Derive.info_sub_events = Nothing
-    , Derive.info_track_type = Just ttype
+    , Derive.ctx_track_shifted = TrackTree.track_shifted track
+    , Derive.ctx_sub_tracks = subs
+    , Derive.ctx_sub_events = Nothing
+    , Derive.ctx_track_type = Just ttype
     }
     where
     TrackInfo track subs ttype _ = tinfo
@@ -413,22 +413,22 @@ call_info tinfo prev_val prev event next = Derive.CallInfo
 -- | This takes State as an explicit argument and is thus non-monadic to
 -- emphasize that the results are lazy.  This is important because evaluating
 -- each element is likely to be expensive.
-derive_neighbor_pitches :: Derive.State -> Derive.CallInfo Score.Event
+derive_neighbor_pitches :: Derive.State -> Derive.Context Score.Event
     -> ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
-derive_neighbor_pitches state cinfo = (map derive1 prevs, map derive1 nexts)
+derive_neighbor_pitches state ctx = (map derive1 prevs, map derive1 nexts)
     where
     -- TODO I'm uncertain if this will work with slicing.  I think I should
     -- have prevs and nexts available, but what of track_shifted?  And what of
     -- the cache?  Should I strip that out?
     derive1 (ps, e, ns) =
-        derive_for_pitch state (replace_neighbors ps e ns cinfo) e
-    replace_neighbors ps e ns cinfo = cinfo
-        { Derive.info_prev_events = ps
-        , Derive.info_next_events = ns
-        , Derive.info_event = e
+        derive_for_pitch state (replace_neighbors ps e ns ctx) e
+    replace_neighbors ps e ns ctx = ctx
+        { Derive.ctx_prev_events = ps
+        , Derive.ctx_next_events = ns
+        , Derive.ctx_event = e
         }
-    (prevs, nexts) = bi_zipper (Derive.info_prev_events cinfo)
-        (Derive.info_event cinfo) (Derive.info_next_events cinfo)
+    (prevs, nexts) = bi_zipper (Derive.ctx_prev_events ctx)
+        (Derive.ctx_event ctx) (Derive.ctx_next_events ctx)
 
 bi_zipper :: [a] -> a -> [a] -> ([([a], a, [a])], [([a], a, [a])])
 bi_zipper prevs cur nexts =
@@ -441,7 +441,7 @@ bi_zipper prevs cur nexts =
     extract_next (ps, n:ns) = Just (ps, n, ns)
     extract_next _ = Nothing
 
-derive_for_pitch :: Derive.State -> Derive.CallInfo Score.Event -> Event.Event
+derive_for_pitch :: Derive.State -> Derive.Context Score.Event -> Event.Event
     -> Derive.NotePitchQueryResult
-derive_for_pitch state cinfo event =
-    Derive.query_note_pitch state $ derive_event_cinfo cinfo event
+derive_for_pitch state ctx event =
+    Derive.query_note_pitch state $ derive_event_ctx ctx event

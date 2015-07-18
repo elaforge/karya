@@ -137,7 +137,7 @@ c_basic_grace = Derive.generator Module.prelude "basic-grace"
         start <- Args.real_start args
         base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
-        let apply = Eval.eval_quoted_transformers (Args.info args)
+        let apply = Eval.eval_quoted_transformers (Args.context args)
         Lily.when_lilypond (lily_grace args start pitches) $
             Sub.derive =<< basic_grace args pitches
                 (maybe id apply maybe_transform) grace_dur place
@@ -164,7 +164,7 @@ grace_call args dyn_scale pitches grace_dur place = do
     -- Normally legato notes emphasize the first note, but that's not
     -- appropriate for grace notes.
     Derive.with_val "legato-dyn" (1 :: Double) $
-        Sub.reapply_call (Args.info args) "(" [] [events]
+        Sub.reapply_call (Args.context args) "(" [] [events]
 
 basic_grace :: Derive.PassedArgs a -> [PSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)

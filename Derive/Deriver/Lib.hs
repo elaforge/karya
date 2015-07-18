@@ -354,14 +354,13 @@ val_to_pitch (ValCall name doc vcall) = Call
     , call_func = generator_func $ pitch_call . convert_args
     }
     where
-    convert_args args = args
-        { passed_info = tag_call_info (passed_info args) }
+    convert_args args = args { passed_ctx = tag_context (passed_ctx args) }
     pitch_call args = vcall args >>= \val -> case val of
         TrackLang.VPitch pitch -> do
             -- Previously I dispatched to '', which is normally
             -- 'Derive.Call.Pitch.c_set'.  That would be more flexible since
             -- you can then override '', but is also less efficient.
-            pos <- Internal.real $ Event.start $ info_event $ passed_info args
+            pos <- Internal.real $ Event.start $ ctx_event $ passed_ctx args
             return [LEvent.Event $ PSignal.signal [(pos, pitch)]]
         _ -> throw $ "scale call " <> name
             <> " returned non-pitch: " <> ShowVal.show_val val

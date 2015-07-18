@@ -157,7 +157,7 @@ d_block block_id = do
             Left err -> Derive.throw $ "block title: " <> err
             Right expr ->
                 return $ Eval.eval_transformers info (NonEmpty.toList expr)
-                where info = Derive.dummy_call_info 0 1 "block title"
+                where info = Derive.dummy_context 0 1 "block title"
     -- Record a dependency on this block.
     transform $ Internal.add_block_dep block_id
         *> BlockUtil.note_deriver block_id

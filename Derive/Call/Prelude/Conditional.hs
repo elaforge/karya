@@ -52,8 +52,8 @@ c_if_e = Derive.generator Module.prelude "if-e" mempty
     <*> Sig.required "false" "Eval if false."
     ) $ \(name, maybe_value, true, false) args ->
         ifM (has_environ name maybe_value)
-            (Call.eval (Args.info args) true)
-            (Call.eval (Args.info args) false)
+            (Call.eval (Args.context args) true)
+            (Call.eval (Args.context args) false)
 
 -- * transformer
 

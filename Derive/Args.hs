@@ -11,7 +11,7 @@ import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Derive as Derive
-import Derive.Derive (PassedArgs, CallInfo)
+import Derive.Derive (PassedArgs, Context)
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -23,15 +23,15 @@ import Global
 import Types
 
 
-info :: PassedArgs a -> CallInfo a
-info = Derive.passed_info
+context :: PassedArgs a -> Context a
+context = Derive.passed_ctx
 
 event :: PassedArgs a -> Event.Event
-event = Derive.info_event . info
+event = Derive.ctx_event . context
 
 -- * prev and next
 
--- ** from 'Derive.info_prev_val'
+-- ** from 'Derive.ctx_prev_val'
 
 prev_control :: Derive.ControlArgs -> Maybe (RealTime, Signal.Y)
 prev_control = Signal.last <=< prev_val
@@ -53,7 +53,7 @@ prev_val_end = extract <=< prev_val
 
 -- | Get the previous val.  See NOTE [prev-val].
 prev_val :: PassedArgs a -> Maybe a
-prev_val = Derive.info_prev_val . info
+prev_val = Derive.ctx_prev_val . context
 
 -- ** from 'Derive.state_prev_val'
 
@@ -103,19 +103,19 @@ get_neighbor_notes = do
 -- ** eval
 
 -- | Unused, but might be used again if I need to evaluate the next event.
-eval :: Derive.Callable d => CallInfo x -> Event.Event -> [Event.Event]
+eval :: Derive.Callable d => Context x -> Event.Event -> [Event.Event]
     -> Derive.LogsDeriver d
-eval cinfo event prev = case Parse.parse_expr (Event.event_text event) of
+eval ctx event prev = case Parse.parse_expr (Event.event_text event) of
     Left err -> Derive.throw $ "parse error: " <> err
-    Right expr -> Eval.eval_expr False prev_cinfo expr
+    Right expr -> Eval.eval_expr False prev_ctx expr
         where
-        prev_cinfo = cinfo
-            { Derive.info_prev_val = Nothing
-            , Derive.info_event = event
-            , Derive.info_prev_events = prev
-            , Derive.info_next_events =
-                Derive.info_event cinfo : Derive.info_next_events cinfo
-            , Derive.info_event_end = Event.start $ Derive.info_event cinfo
+        prev_ctx = ctx
+            { Derive.ctx_prev_val = Nothing
+            , Derive.ctx_event = event
+            , Derive.ctx_prev_events = prev
+            , Derive.ctx_next_events =
+                Derive.ctx_event ctx : Derive.ctx_next_events ctx
+            , Derive.ctx_event_end = Event.start $ Derive.ctx_event ctx
             }
 
 -- | Get the pitch at the time of the next event.  Since the pitch hasn't
@@ -162,7 +162,7 @@ real_end = Derive.real . end
 -- Used by calls to determine their extent, especially control calls, which
 -- have no explicit duration.
 next :: PassedArgs a -> ScoreTime
-next = Derive.info_event_end . info
+next = Derive.ctx_event_end . context
 
 -- | End of the next event, or the end of the block if there is no next event.
 next_end :: PassedArgs a -> ScoreTime
@@ -182,19 +182,19 @@ prev_end :: PassedArgs a -> Maybe ScoreTime
 prev_end = fmap Event.end . Seq.head . prev_events
 
 prev_events, next_events :: PassedArgs a -> [Event.Event]
-next_events = Derive.info_next_events . info
-prev_events = Derive.info_prev_events . info
+next_events = Derive.ctx_next_events . context
+prev_events = Derive.ctx_prev_events . context
 
 -- ** modify
 
--- | Modify the duration of the info_event.  This is a hack, because calls run
+-- | Modify the duration of the ctx_event.  This is a hack, because calls run
 -- in TrackTime, instead of using Derive.place.
 set_duration :: ScoreTime -> PassedArgs a -> PassedArgs a
 set_duration dur args = args
-    { Derive.passed_info = info
-        { Derive.info_event = Event.set_duration dur $ Derive.info_event info }
+    { Derive.passed_ctx = ctx
+        { Derive.ctx_event = Event.set_duration dur $ Derive.ctx_event ctx }
     }
-    where info = Derive.passed_info args
+    where ctx = Derive.passed_ctx args
 
 -- ** range
 
@@ -237,7 +237,7 @@ range_on_track :: PassedArgs a -> (TrackTime, TrackTime)
 range_on_track args = (shifted + start, shifted + end)
     where
     (start, end) = range args
-    shifted = Derive.info_track_shifted (info args)
+    shifted = Derive.ctx_track_shifted (context args)
 
 -- | This normalizes a deriver to start at 0 and have a duration of 1, provided
 -- that the deriver is placed at the start and dur of the given args.  This is
@@ -262,7 +262,7 @@ normalized args = Derive.place (- (start / dur)) (1 / dur)
     divides control tracks into lots of little chunks it's not so simple to
     get the previous value.
 
-    Initially I relied entirely on 'Derive.info_prev_val' and a hack where
+    Initially I relied entirely on 'Derive.ctx_prev_val' and a hack where
     certain calls were marked as requiring the previous value, which 'slice'
     would then use.  The problem with that is that slice is working purely
     syntactically, and it doesn't know what's really in scope, nor does it
@@ -276,7 +276,7 @@ normalized args = Derive.place (- (start / dur)) (1 / dur)
 
     So the current solution is #1.
 
-    1. Extend the 'Derive.info_prev_val' mechanism to work even across sliced
+    1. Extend the 'Derive.ctx_prev_val' mechanism to work even across sliced
     tracks.  Since they are no longer evaluated in sequence, I have to save
     them in a `Map (BlockId, TrackId) (RealTime, Either Signal.Y
     PSignal.Pitch))`.  However, this is problematic in its own way because
@@ -300,7 +300,7 @@ normalized args = Derive.place (- (start / dur)) (1 / dur)
     3. If a call doesn't have a prev val already, it can go evaluate the prev
     event itself, which must be able to continue recursively until there really
     isn't a prev event.  This can do more work, but is appealing because it
-    removes the serialization requirement of 'Derive.info_prev_val'.
+    removes the serialization requirement of 'Derive.ctx_prev_val'.
         - This means if multiple calls want the prev val, it'll be evaluated
         multiple times, unless I cache it somehow.
         - I should clear out the next events so it doesn't get in a loop if it

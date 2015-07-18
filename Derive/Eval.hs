@@ -53,52 +53,52 @@ import Types
 -- * eval / apply
 
 -- | Apply a toplevel expression.
-eval_toplevel :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Expr
+eval_toplevel :: Derive.Callable d => Derive.Context d -> TrackLang.Expr
     -> Derive.LogsDeriver d
-eval_toplevel cinfo expr = eval_transformers cinfo transform_calls $
-    eval_generator cinfo generator_call
+eval_toplevel ctx expr = eval_transformers ctx transform_calls $
+    eval_generator ctx generator_call
     where (transform_calls, generator_call) = Seq.ne_viewr expr
 
-eval_quoted :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Quoted
+eval_quoted :: Derive.Callable d => Derive.Context d -> TrackLang.Quoted
     -> Derive.LogsDeriver d
-eval_quoted cinfo (TrackLang.Quoted expr) = eval_toplevel cinfo expr
+eval_quoted ctx (TrackLang.Quoted expr) = eval_toplevel ctx expr
 
--- | This is like 'eval_quoted', except that the 'Derive.info_event' is set to
+-- | This is like 'eval_quoted', except that the 'Derive.ctx_event' is set to
 -- (0, 1) normalized time.  This is important if you want to place the
 -- resulting deriver.  Otherwise, you can use eval_quoted and the event's
 -- position will fall through to the callee.
 --
 -- TODO this awkwardness is because events evaluate in track time, not in
 -- normalized time.  Details in "Derive.EvalTrack".
-eval_quoted_normalized :: Derive.Callable d => Derive.CallInfo d
+eval_quoted_normalized :: Derive.Callable d => Derive.Context d
     -> TrackLang.Quoted -> Derive.LogsDeriver d
 eval_quoted_normalized = eval_quoted . normalize_event
 
-normalize_event :: Derive.CallInfo val -> Derive.CallInfo val
-normalize_event cinfo = cinfo
-    { Derive.info_event = Event.place 0 1 (Derive.info_event cinfo)
-    , Derive.info_prev_events = []
-    , Derive.info_next_events = []
+normalize_event :: Derive.Context val -> Derive.Context val
+normalize_event ctx = ctx
+    { Derive.ctx_event = Event.place 0 1 (Derive.ctx_event ctx)
+    , Derive.ctx_prev_events = []
+    , Derive.ctx_next_events = []
     }
 
 -- ** generator
 
-eval_generator :: forall d. Derive.Callable d => Derive.CallInfo d
+eval_generator :: forall d. Derive.Callable d => Derive.Context d
     -> TrackLang.Call -> Derive.LogsDeriver d
-eval_generator cinfo (TrackLang.Call call_id args) = do
-    vals <- mapM (eval cinfo) args
-    apply_generator cinfo call_id vals
+eval_generator ctx (TrackLang.Call call_id args) = do
+    vals <- mapM (eval ctx) args
+    apply_generator ctx call_id vals
 
 -- | Like 'apply_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
-apply_generator :: Derive.Callable d => Derive.CallInfo d
+apply_generator :: Derive.Callable d => Derive.Context d
     -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
-apply_generator cinfo call_id args = do
+apply_generator ctx call_id args = do
     call <- get_generator call_id
     let passed = Derive.PassedArgs
             { Derive.passed_vals = args
             , Derive.passed_call_name = Derive.call_name call
-            , Derive.passed_info = cinfo
+            , Derive.passed_ctx = ctx
             }
     mode <- Derive.get_mode
     Internal.with_stack_call (Derive.call_name call) $ case mode of
@@ -123,18 +123,18 @@ set_real_duration dur = Internal.modify_collect $ \collect ->
 
 -- ** transformer
 
-eval_transformers :: Derive.Callable d => Derive.CallInfo d
+eval_transformers :: Derive.Callable d => Derive.Context d
     -> [TrackLang.Call] -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-eval_transformers cinfo calls deriver = go calls
+eval_transformers ctx calls deriver = go calls
     where
     go [] = deriver
     go (TrackLang.Call call_id args : calls) = do
-        vals <- mapM (eval cinfo) args
+        vals <- mapM (eval ctx) args
         call <- get_transformer call_id
         let passed = Derive.PassedArgs
                 { Derive.passed_vals = vals
                 , Derive.passed_call_name = Derive.call_name call
-                , Derive.passed_info = cinfo
+                , Derive.passed_ctx = ctx
                 }
         Internal.with_stack_call (Derive.call_name call) $
             Derive.call_func call passed (go calls)
@@ -148,48 +148,48 @@ eval_transform_expr name expr_str deriver
         expr <- case Parse.parse_expr expr_str of
             Left err -> Derive.throw $ name <> ": " <> err
             Right expr -> return expr
-        let cinfo = Derive.dummy_call_info 0 1 name
-        eval_transformers cinfo (NonEmpty.toList expr) deriver
+        let ctx = Derive.dummy_context 0 1 name
+        eval_transformers ctx (NonEmpty.toList expr) deriver
 
 -- | The same as 'eval_transformers', but get them out of a Quoted.
-eval_quoted_transformers :: Derive.Callable d => Derive.CallInfo d
+eval_quoted_transformers :: Derive.Callable d => Derive.Context d
     -> TrackLang.Quoted -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-eval_quoted_transformers cinfo (TrackLang.Quoted expr) =
-    eval_transformers cinfo (NonEmpty.toList expr)
+eval_quoted_transformers ctx (TrackLang.Quoted expr) =
+    eval_transformers ctx (NonEmpty.toList expr)
 
 -- | The transformer version of 'apply_generator'.  Like 'eval_transformers',
 -- but apply only one, and apply to already evaluated 'TrackLang.Val's.  This
 -- is useful when you want to re-apply an already parsed set of vals.
-apply_transformer :: Derive.Callable d => Derive.CallInfo d
+apply_transformer :: Derive.Callable d => Derive.Context d
     -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
-apply_transformer cinfo call_id args deriver = do
+apply_transformer ctx call_id args deriver = do
     call <- get_transformer call_id
     let passed = Derive.PassedArgs
             { Derive.passed_vals = args
             , Derive.passed_call_name = Derive.call_name call
-            , Derive.passed_info = cinfo
+            , Derive.passed_ctx = ctx
             }
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed deriver
 
 -- ** val calls
 
-eval :: Derive.Taggable a => Derive.CallInfo a -> TrackLang.Term
+eval :: Derive.Taggable a => Derive.Context a -> TrackLang.Term
     -> Derive.Deriver TrackLang.Val
 eval _ (TrackLang.Literal val) = return val
-eval cinfo (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
+eval ctx (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
     call <- get_val_call call_id
-    apply (Derive.tag_call_info cinfo) call terms
+    apply (Derive.tag_context ctx) call terms
 
-apply :: Derive.CallInfo Derive.Tagged -> Derive.ValCall
+apply :: Derive.Context Derive.Tagged -> Derive.ValCall
     -> [TrackLang.Term] -> Derive.Deriver TrackLang.Val
-apply cinfo call args = do
-    vals <- mapM (eval cinfo) args
+apply ctx call args = do
+    vals <- mapM (eval ctx) args
     let passed = Derive.PassedArgs
             { Derive.passed_vals = vals
             , Derive.passed_call_name = Derive.vcall_name call
-            , Derive.passed_info = cinfo
+            , Derive.passed_ctx = ctx
             }
     Derive.vcall_call call passed
 
@@ -276,12 +276,11 @@ eval_one_call collect = eval_one collect . (:| [])
 
 eval_one_at :: Derive.Callable d => Bool -> ScoreTime -> ScoreTime
     -> TrackLang.Expr -> Derive.LogsDeriver d
-eval_one_at collect start dur expr = eval_expr collect cinfo expr
+eval_one_at collect start dur expr = eval_expr collect ctx expr
     where
     -- Set the event start and duration instead of using Derive.place since
     -- this way I can have zero duration events.
-    cinfo = Derive.dummy_call_info start dur $
-        "eval_one: " <> ShowVal.show_val expr
+    ctx = Derive.dummy_context start dur $ "eval_one: " <> ShowVal.show_val expr
 
 -- | Like 'derive_event' but evaluate the event outside of its track context.
 -- This is useful if you want to evaluate things out of order, i.e. evaluate
@@ -299,8 +298,8 @@ eval_event event = case Parse.parse_expr (Event.event_text event) of
 reapply_generator :: Derive.Callable d => Derive.PassedArgs d
     -> TrackLang.CallId -> Derive.LogsDeriver d
 reapply_generator args call_id = do
-    let cinfo = Derive.passed_info args
-    apply_generator cinfo call_id (Derive.passed_vals args)
+    let ctx = Derive.passed_ctx args
+    apply_generator ctx call_id (Derive.passed_vals args)
 
 -- | Like 'reapply_generator', but the note is given normalized time, 0--1,
 -- instead of inheriting the start and duration from the args.  This is
@@ -308,55 +307,55 @@ reapply_generator args call_id = do
 reapply_generator_normalized :: Derive.Callable d => Derive.PassedArgs d
     -> TrackLang.CallId -> Derive.LogsDeriver d
 reapply_generator_normalized args = reapply_generator $ args
-    { Derive.passed_info = cinfo
-        { Derive.info_event = (Derive.info_event cinfo)
+    { Derive.passed_ctx = ctx
+        { Derive.ctx_event = (Derive.ctx_event ctx)
             { Event.start = 0
             , Event.duration = 1
             }
-        , Derive.info_event_end = 1
+        , Derive.ctx_event_end = 1
         }
     }
-    where cinfo = Derive.passed_info args
+    where ctx = Derive.passed_ctx args
 
 -- | Apply an expr with the current call info.  This discards the parsed
 -- arguments in the 'Derive.PassedArgs' since it gets args from the
 -- 'TrackLang.Expr'.
-reapply :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Expr
+reapply :: Derive.Callable d => Derive.Context d -> TrackLang.Expr
     -> Derive.LogsDeriver d
-reapply cinfo = eval_expr False cinfo
+reapply = eval_expr False
 
 -- | Like 'reapply', but parse the string first.
-reapply_string :: Derive.Callable d => Derive.CallInfo d -> Text
+reapply_string :: Derive.Callable d => Derive.Context d -> Text
     -> Derive.LogsDeriver d
-reapply_string cinfo s = case Parse.parse_expr s of
+reapply_string ctx s = case Parse.parse_expr s of
     Left err -> Derive.throw $ "parse error: " <> err
-    Right expr -> reapply cinfo expr
+    Right expr -> reapply ctx expr
 
-reapply_call :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Symbol
+reapply_call :: Derive.Callable d => Derive.Context d -> TrackLang.Symbol
     -> [TrackLang.Term] -> Derive.LogsDeriver d
-reapply_call cinfo call_id call_args =
-    reapply cinfo (TrackLang.call call_id call_args :| [])
+reapply_call ctx call_id call_args =
+    reapply ctx (TrackLang.call call_id call_args :| [])
 
 -- | A version of 'eval' specialized to evaluate pitch calls.
 eval_pitch :: ScoreTime -> TrackLang.PitchCall -> Derive.Deriver PSignal.Pitch
 eval_pitch pos call =
     cast ("eval pitch " <> ShowVal.show_val call)
-        =<< eval cinfo (TrackLang.ValCall call)
+        =<< eval ctx (TrackLang.ValCall call)
     where
-    cinfo :: Derive.CallInfo Derive.Pitch
-    cinfo = Derive.dummy_call_info pos 0 "<eval_pitch>"
+    ctx :: Derive.Context Derive.Pitch
+    ctx = Derive.dummy_context pos 0 "<eval_pitch>"
 
 -- | This is like 'eval_pitch' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.
 apply_pitch :: ScoreTime -> Derive.ValCall -> Derive.Deriver TrackLang.Val
-apply_pitch pos call = apply cinfo call []
-    where cinfo = Derive.dummy_call_info pos 0 "<apply_pitch>"
+apply_pitch pos call = apply ctx call []
+    where ctx = Derive.dummy_context pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.
 eval_expr :: Derive.Callable d => Bool -- ^ see 'Derive.catch'
-    -> Derive.CallInfo d -> TrackLang.Expr -> Derive.LogsDeriver d
-eval_expr collect cinfo expr =
-    fromMaybe [] <$> Derive.catch collect (eval_toplevel cinfo expr)
+    -> Derive.Context d -> TrackLang.Expr -> Derive.LogsDeriver d
+eval_expr collect ctx expr =
+    fromMaybe [] <$> Derive.catch collect (eval_toplevel ctx expr)
 
 -- * misc
 

@@ -81,5 +81,5 @@ run (f, _) vals = f args
     args = Derive.PassedArgs
         { Derive.passed_vals = vals
         , Derive.passed_call_name = "test-call"
-        , Derive.passed_info = Derive.dummy_call_info 0 1 "test"
+        , Derive.passed_ctx = Derive.dummy_context 0 1 "test"
         }

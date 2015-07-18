@@ -29,28 +29,28 @@ c_mapc = Derive.transformer Module.prelude "mapc" Tags.postproc
     ) $ \(control, transformer) args deriver -> do
         let mapper = case control of
                 Left control -> map_control
-                    (Derive.coerce_call_info (Args.info args)) control
+                    (Derive.coerce_context (Args.context args)) control
                     transformer
                 Right pcontrol -> map_pcontrol
-                    (Derive.coerce_call_info (Args.info args)) pcontrol
+                    (Derive.coerce_context (Args.context args)) pcontrol
                     transformer
         Post.emap_m_ id mapper =<< deriver
 
-map_control :: Derive.CallInfo Derive.Control -> Score.Control
+map_control :: Derive.Context Derive.Control -> Score.Control
     -> TrackLang.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
-map_control cinfo control transformer event = do
+map_control ctx control transformer event = do
     let Score.Typed typ sig = fromMaybe mempty $
             Score.event_control control event
     sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
-        Eval.eval_quoted_transformers cinfo transformer $
+        Eval.eval_quoted_transformers ctx transformer $
             return [LEvent.Event sig]
     return [Score.set_control control (Score.Typed typ sig) event]
 
-map_pcontrol :: Derive.CallInfo Derive.Pitch -> Score.PControl
+map_pcontrol :: Derive.Context Derive.Pitch -> Score.PControl
     -> TrackLang.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
-map_pcontrol cinfo control transformer event = do
+map_pcontrol ctx control transformer event = do
     let sig = fromMaybe mempty $ Score.event_pitch control event
     sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
-        Eval.eval_quoted_transformers cinfo transformer $
+        Eval.eval_quoted_transformers ctx transformer $
             return [LEvent.Event sig]
     return [Score.set_named_pitch control sig event]

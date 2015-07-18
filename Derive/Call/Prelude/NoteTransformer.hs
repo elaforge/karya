@@ -140,7 +140,7 @@ parallel_derivers start event_dur derivers durs =
 calls_to_derivers :: Derive.Callable d => Derive.PassedArgs d
     -> NonEmpty TrackLang.Quoted -> [(TrackLang.Quoted, Derive.LogsDeriver d)]
 calls_to_derivers args calls = zip (NonEmpty.toList calls)
-    (map (Eval.eval_quoted_normalized (Args.info args))
+    (map (Eval.eval_quoted_normalized (Args.context args))
         (NonEmpty.toList calls))
 
 get_score_duration :: (TrackLang.Quoted, Derive.Deriver a)
@@ -167,11 +167,11 @@ c_multiple = Derive.transformer Module.prelude "multiple" mempty
     "Derive the transformed score under different transformers."
     $ Sig.callt (Sig.many1 "transformer" "Derive under each transformer.")
     $ \transformers args deriver ->
-        mconcat $ map (apply (Args.info args) deriver)
+        mconcat $ map (apply (Args.context args) deriver)
             (NonEmpty.toList transformers)
     where
-    apply cinfo deriver trans =
-        Eval.eval_transformers cinfo (to_transformer trans) deriver
+    apply ctx deriver trans =
+        Eval.eval_transformers ctx (to_transformer trans) deriver
 
 to_transformer :: Either TrackLang.Quoted Score.Instrument -> [TrackLang.Call]
 to_transformer val = case val of

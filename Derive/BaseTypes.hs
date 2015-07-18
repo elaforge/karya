@@ -615,7 +615,7 @@ empty_dynamic = Dynamic
       But what about distribution?
     . If I pass RealTime to a Quoted value, I could write the parameter as
       "(rnd-signal x y).  But it would have to be curried to still accept the
-      "at" parameter, or have access to it through CallInfo.  It could look at
+      "at" parameter, or have access to it through Context.  It could look at
       the stack, which is how the random seed works.  Seems complicated.  But
       replacing a signal with a function seems like a good idea.
     . Can I replace the Signal.Control itself with something possibly wrapped

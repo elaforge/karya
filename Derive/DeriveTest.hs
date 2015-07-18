@@ -649,7 +649,7 @@ passed_args :: Text -> [TrackLang.Val] -> Derive.PassedArgs derived
 passed_args name vals = Derive.PassedArgs
     { Derive.passed_vals = vals
     , Derive.passed_call_name = name
-    , Derive.passed_info = Derive.dummy_call_info 0 1 "DeriveTest"
+    , Derive.passed_ctx = Derive.dummy_context 0 1 "DeriveTest"
     }
 
 c_note :: ScoreTime -> ScoreTime -> Derive.NoteDeriver

@@ -196,15 +196,15 @@ with_sequence :: Derive.PassedArgs Score.Event -> Derive.Deriver a
     -> Derive.Deriver a
 with_sequence args deriver = do
     let (begin, middle, end) = parse_sequence (Derive.passed_vals args)
-    (pitch, mods) <- sequence_calls (pitch_call_info (Args.info args))
+    (pitch, mods) <- sequence_calls (pitch_context (Args.context args))
         (Args.range args) begin middle end
     end_time <- Derive.real $ Args.next args
     Derive.with_pitch pitch $ Derive.with_control_mods mods end_time deriver
 
-pitch_call_info :: Derive.CallInfo Score.Event -> Derive.CallInfo Derive.Pitch
-pitch_call_info cinfo = cinfo
-    { Derive.info_prev_val = Score.event_untransformed_pitch <$>
-        Derive.info_prev_val cinfo
+pitch_context :: Derive.Context Score.Event -> Derive.Context Derive.Pitch
+pitch_context ctx = ctx
+    { Derive.ctx_prev_val = Score.event_untransformed_pitch <$>
+        Derive.ctx_prev_val ctx
     }
 
 type Signals = (PSignal.Signal, [Derive.ControlMod])
@@ -231,7 +231,7 @@ type Signals = (PSignal.Signal, [Derive.ControlMod])
 
     Actually, there's a circular problem in that I don't know how long the
     middle section can be until I know how long the end call is, but the end
-    call likely relies on 'Derive.info_prev_val', so it has to be evaluated
+    call likely relies on 'Derive.ctx_prev_val', so it has to be evaluated
     after the middle.  So I evaluate the end twice, once before the middle to
     find out its length, and again after evaluating the middle to get the pitch
     right.
@@ -247,15 +247,15 @@ type Signals = (PSignal.Signal, [Derive.ControlMod])
     but that wouldn't allow time before the call to stretch, only time after.
     But I could indicate stretchiness with a special tag on the call.
 -}
-sequence_calls :: Derive.CallInfo Derive.Pitch -> (ScoreTime, ScoreTime)
+sequence_calls :: Derive.Context Derive.Pitch -> (ScoreTime, ScoreTime)
     -> Expr -> [Expr] -> Maybe Expr -> Derive.Deriver Signals
-sequence_calls cinfo (start, end) begin middles maybe_end =
-    fmap fst $ flip Monad.State.runStateT cinfo $ do
+sequence_calls ctx (start, end) begin middles maybe_end =
+    fmap fst $ flip Monad.State.runStateT ctx $ do
         (begin_pitch, begin_mods) <- eval begin_module start end begin
         middle_start <- lift $ signal_end start begin_pitch
         -- This is a test eval of 'end', just to see how long it is.  The
         -- middle isn't evaluated yet, so it doesn't have the right
-        -- info_prev_val.
+        -- ctx_prev_val.
         (test_end_pitch, _) <- detached $
             maybe_eval (eval end_module middle_start end) maybe_end
         end_start <- lift $ signal_start end test_end_pitch
@@ -275,9 +275,8 @@ eval_end sequence_start start end expr = case expr of
         eval end_module sequence_start end expr
     _ -> eval end_module start end expr
 
--- | I need to thread Derive.info_prev_val from each call in the sequence.
-type SequenceM =
-    Monad.State.StateT (Derive.CallInfo Derive.Pitch) Derive.Deriver
+-- | I need to thread Derive.ctx_prev_val from each call in the sequence.
+type SequenceM = Monad.State.StateT (Derive.Context Derive.Pitch) Derive.Deriver
 
 detached :: SequenceM a -> SequenceM a
 detached m = do
@@ -308,24 +307,24 @@ signal_end deflt = maybe (return deflt) (Derive.score . fst) .  PSignal.last
 
 eval :: Module.Module -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
 eval module_ start end expr = do
-    cinfo <- Monad.State.get
+    ctx <- Monad.State.get
     (result, cmods) <- lift $ with_empty_collect $
         Derive.with_imported True module_ $
-        eval_expr (place_event start (end - start) cinfo) expr
+        eval_expr (place_event start (end - start) ctx) expr
     signal <- mconcat <$> LEvent.write_logs result
     unless (PSignal.null signal) $
-        Monad.State.put $ cinfo { Derive.info_prev_val = Just signal }
+        Monad.State.put $ ctx { Derive.ctx_prev_val = Just signal }
     return (signal, cmods)
 
-place_event :: ScoreTime -> ScoreTime -> Derive.CallInfo d -> Derive.CallInfo d
-place_event start dur cinfo = cinfo
-    { Derive.info_event = Event.place start dur (Derive.info_event cinfo) }
+place_event :: ScoreTime -> ScoreTime -> Derive.Context d -> Derive.Context d
+place_event start dur ctx = ctx
+    { Derive.ctx_event = Event.place start dur (Derive.ctx_event ctx) }
 
-eval_expr :: Derive.Callable d => Derive.CallInfo d -> Expr
+eval_expr :: Derive.Callable d => Derive.Context d -> Expr
     -> Derive.LogsDeriver d
-eval_expr cinfo (QuotedExpr expr) = Eval.eval_toplevel cinfo expr
-eval_expr cinfo (EvaluatedExpr call_id args) =
-    Eval.apply_generator cinfo call_id args
+eval_expr ctx (QuotedExpr expr) = Eval.eval_toplevel ctx expr
+eval_expr ctx (EvaluatedExpr call_id args) =
+    Eval.apply_generator ctx call_id args
 
 with_empty_collect :: Derive.Deriver a
     -> Derive.Deriver (a, [Derive.ControlMod])

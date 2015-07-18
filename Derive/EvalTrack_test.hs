@@ -365,7 +365,7 @@ test_orphans = do
     where
     show_subs :: Derive.Generator Derive.Note
     show_subs = CallTest.generator $ \args -> do
-        let subs = Derive.info_sub_tracks (Derive.passed_info args)
+        let subs = Derive.ctx_sub_tracks (Derive.passed_ctx args)
         Log.warn $ pretty subs
         return []
 
@@ -445,7 +445,7 @@ test_derive_neighbor_pitches = do
     gen = CallTest.generator $ \args -> do
         state <- Derive.get
         let neighbors = EvalTrack.derive_neighbor_pitches state
-                (Args.info args)
+                (Args.context args)
             extract f = (map (first (fmap f)) *** map (first (fmap f)))
         Log.warn $ showt $ extract (pretty . Score.initial_note) neighbors
         Log.warn $ showt $ extract (pretty . Score.initial_dynamic) neighbors

@@ -140,7 +140,7 @@ data Track = Track {
     , track_sliced :: !Bool
     , track_inverted :: !Bool
     -- | These events are not evaluated, but go in
-    -- 'Derive.Derive.info_prev_events' and info_next_events.  This is so that
+    -- 'Derive.Derive.ctx_prev_events' and ctx_next_events.  This is so that
     -- sliced calls (such as inverting calls) can see previous and following
     -- events.  Shifted along with 'track_events'.
     , track_around :: !([Event.Event], [Event.Event])

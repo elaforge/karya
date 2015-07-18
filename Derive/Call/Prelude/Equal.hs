@@ -264,7 +264,7 @@ quoted_generator :: Derive.Callable d => TrackLang.Quoted -> Derive.Generator d
 quoted_generator quoted@(TrackLang.Quoted expr) =
     Derive.generator quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
-    $ Sig.call0 $ \args -> Eval.eval_expr False (Args.info args) expr
+    $ Sig.call0 $ \args -> Eval.eval_expr False (Args.context args) expr
 
 quoted_transformer :: Derive.Callable d => TrackLang.Quoted
     -> Derive.Transformer d
@@ -272,7 +272,8 @@ quoted_transformer quoted@(TrackLang.Quoted expr) =
     Derive.transformer quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0t $ \args deriver ->
-        Eval.eval_transformers (Args.info args) (NonEmpty.toList expr) deriver
+        Eval.eval_transformers (Args.context args) (NonEmpty.toList expr)
+            deriver
 
 quoted_val_call :: TrackLang.Quoted -> Derive.ValCall
 quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
@@ -283,7 +284,7 @@ quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
             _ -> Derive.throw $
                 "expected a val call, but got a full expression: "
                 <> ShowVal.show_val quoted
-        Eval.eval (Args.info args) call
+        Eval.eval (Args.context args) call
 
 -- | Pseudo-module for val calls generated from a quoted expression.
 quoted_module :: Module.Module

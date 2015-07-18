@@ -135,7 +135,7 @@ data State = State {
     , state_argnum :: !Int
     , state_call_name :: !Text
     , state_derive :: !Derive.State
-    , state_call_info :: !(Derive.CallInfo Derive.Tagged)
+    , state_context :: !(Derive.Context Derive.Tagged)
     }
 
 run_parser :: Parser a -> State -> Either Error a
@@ -178,13 +178,13 @@ require_right = either (Derive.throw_error . Derive.CallError) return
 parse :: Derive.Taggable d => Parser a -> Derive.PassedArgs d
     -> Derive.Deriver (Either Error a)
 parse parser args = parse_vals parser
-    (Derive.tag_call_info (Derive.passed_info args))
+    (Derive.tag_context (Derive.passed_ctx args))
     (Derive.passed_call_name args)
     (Derive.passed_vals args)
 
-parse_vals :: Parser a -> Derive.CallInfo Derive.Tagged -> Text
+parse_vals :: Parser a -> Derive.Context Derive.Tagged -> Text
     -> [TrackLang.Val] -> Derive.Deriver (Either Error a)
-parse_vals parser cinfo name vals =
+parse_vals parser ctx name vals =
     run_parser parser . make_state <$> Derive.get
     where
     make_state state = State
@@ -192,7 +192,7 @@ parse_vals parser cinfo name vals =
         , state_argnum = 0
         , state_call_name = name
         , state_derive = state
-        , state_call_info = cinfo
+        , state_context = ctx
         }
 
 -- * pseudo-parsers
@@ -487,7 +487,7 @@ eval state expr = result
         call <- case expr of
             call :| [] -> return call
             _ -> Derive.throw "expected a val call, but got a full expression"
-        Eval.eval (state_call_info state) (TrackLang.ValCall call)
+        Eval.eval (state_context state) (TrackLang.ValCall call)
 
 lookup_default :: Derive.EnvironDefault -> State -> Text -> Maybe TrackLang.Val
 lookup_default env_default state name =

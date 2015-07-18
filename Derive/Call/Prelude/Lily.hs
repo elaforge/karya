@@ -85,7 +85,7 @@ when_ly inverted args deriver = case Derive.passed_vals args of
     where
     to_sym = TrackLang.Symbol . TrackLang.show_call_val
     when = if inverted then flip Lily.when_lilypond else Lily.when_lilypond
-    apply args = Eval.apply_transformer (Derive.passed_info args)
+    apply args = Eval.apply_transformer (Derive.passed_ctx args)
 
 c_ly_global :: Derive.Transformer Derive.Note
 c_ly_global = transformer "ly-global" mempty
@@ -117,8 +117,10 @@ c_if_ly = generator "if-ly" mempty
     <$> required "is-ly" "Evaluated in lilypond mode."
     <*> required "not-ly" "Evaluated when not in lilypond mode."
     ) $ \(is_ly, not_ly) args -> Lily.when_lilypond
-        (Eval.reapply_string (Args.info args) (TrackLang.show_call_val is_ly))
-        (Eval.reapply_string (Args.info args) (TrackLang.show_call_val not_ly))
+        (Eval.reapply_string (Args.context args)
+            (TrackLang.show_call_val is_ly))
+        (Eval.reapply_string (Args.context args)
+            (TrackLang.show_call_val not_ly))
 
 c_8va :: Make.Calls Derive.Note
 c_8va = code0_pair_call "ottava" "Emit lilypond ottava mark.\

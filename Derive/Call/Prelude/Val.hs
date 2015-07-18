@@ -67,7 +67,7 @@ c_next_val = val_call "next-val" Tags.next
         event <- Derive.require "no next event" $
             Seq.head (Args.next_events args)
         start <- Derive.real (Event.start event)
-        next_val event start (Derive.info_track_type (Derive.passed_info args))
+        next_val event start (Derive.ctx_track_type (Derive.passed_ctx args))
 
 next_val :: Event.Event -> RealTime -> Maybe ParseTitle.Type
     -> Derive.Deriver TrackLang.Val

@@ -416,12 +416,11 @@ parse_args context arg sig = lift $ do
     vals <- Derive.require_right (("parsing " <> showt name <> ": ") <>) $
         if Text.null arg then return [] else (:[]) <$> Parse.parse_val arg
     Sig.require_right
-        =<< Sig.parse_vals sig (Derive.dummy_call_info 0 1 name) name vals
+        =<< Sig.parse_vals sig (Derive.dummy_context 0 1 name) name vals
     where name = ctx_call_name context
 
 -- Here we are reinventing Derive.Call yet again...
--- This is the equivalent of Derive.CallInfo, only with a better name
--- TODO if the name is better, why not change CallInfo too?
+-- This is the equivalent of Derive.Context
 data Context = Context {
     ctx_start :: !ScoreTime
     , ctx_end :: !ScoreTime

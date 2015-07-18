@@ -395,7 +395,7 @@ make_generator (TrackLang.Symbol name) expr =
         Nothing -> Sig.call0 generator
         Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $
             \args -> Eval.reapply_generator args call_id
-    where generator args = Eval.eval_toplevel (Derive.passed_info args) expr
+    where generator args = Eval.eval_toplevel (Derive.passed_ctx args) expr
 
 make_transformer :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Expr
     -> Derive.Transformer d
@@ -407,10 +407,10 @@ make_transformer (TrackLang.Symbol name) expr =
             reapply call_id
     where
     transformer args deriver =
-        Eval.eval_transformers (Derive.passed_info args)
+        Eval.eval_transformers (Derive.passed_ctx args)
             (NonEmpty.toList expr) deriver
     reapply call_id args deriver =
-        Eval.apply_transformer (Derive.passed_info args) call_id
+        Eval.apply_transformer (Derive.passed_ctx args) call_id
             (Derive.passed_vals args) deriver
 
 make_val_call :: TrackLang.CallId -> TrackLang.Expr -> Derive.ValCall
@@ -419,7 +419,7 @@ make_val_call (TrackLang.Symbol name) expr =
     case assign_symbol expr of
         Nothing -> Sig.call0 $ \args -> case expr of
             call :| [] ->
-                Eval.eval (Derive.passed_info args) (TrackLang.ValCall call)
+                Eval.eval (Derive.passed_ctx args) (TrackLang.ValCall call)
             _ -> Derive.throw "val calls don't support pipeline syntax"
         Just call_id -> Sig.parsed_manually "Args parsed by reapplied call."
             (call_args call_id)

@@ -93,10 +93,10 @@ with_title subs end title deriver
     | otherwise = do
         track_expr <- Derive.require_right ("track title: "<>) $
             ParseTitle.parse_note title
-        Eval.eval_transformers cinfo (NonEmpty.toList track_expr) deriver
+        Eval.eval_transformers ctx (NonEmpty.toList track_expr) deriver
     where
-    cinfo = (Derive.dummy_call_info 0 end "note track")
-        { Derive.info_sub_tracks = subs }
+    ctx = (Derive.dummy_context 0 end "note track")
+        { Derive.ctx_sub_tracks = subs }
 
 derive_notes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
     -> EvalTrack.TrackInfo Score.Event -> Derive.NoteDeriver

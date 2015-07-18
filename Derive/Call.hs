@@ -353,7 +353,7 @@ note = Eval.eval_one_call True $ TrackLang.call "" []
 -- args, rather than being normalized from 0 to 1.  This is appropriate when
 -- dispatching to the default note call.
 note_here :: Derive.NoteArgs -> Derive.NoteDeriver
-note_here args = Eval.reapply_call (Args.info args) "" []
+note_here args = Eval.reapply_call (Args.context args) "" []
 
 -- | Override the pitch signal and generate a single note.
 pitched_note :: PSignal.Pitch -> Derive.NoteDeriver
@@ -552,7 +552,7 @@ instance TrackLang.TypecheckSymbol Meter.RankName
 
 -- * evaluation
 
-eval :: Derive.Callable d => Derive.CallInfo d -> TrackLang.Val
+eval :: Derive.Callable d => Derive.Context d -> TrackLang.Val
     -> Derive.Deriver [LEvent.LEvent d]
 eval info val = do
     quoted <- Derive.require_right id $ val_to_quoted val

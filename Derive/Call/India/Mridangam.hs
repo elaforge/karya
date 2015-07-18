@@ -44,7 +44,7 @@ c_pattern_once = Derive.generator module_ "pattern" Tags.inst
     "Emit a pattern, fitted into the note duration."
     $ Sig.call pattern_arg $ \pattern -> Sub.inverting $ \args -> do
         let notes = stretch_to_range (Args.range args) $
-                realize_pattern (Args.info args) pattern
+                realize_pattern (Args.context args) pattern
         mconcat [Derive.place start 0 note | (start, Just note) <- notes]
 
 stretch_to_range :: (ScoreTime, ScoreTime) -> [a] -> [(ScoreTime, a)]
@@ -60,7 +60,7 @@ c_pattern_times = Derive.generator module_ "pattern" Tags.inst
     ) $ \(pattern, times) -> Sub.inverting $ \args -> do
         let notes = stretch_to_range (Args.range args) $
                 concat $ List.replicate times $
-                realize_pattern (Args.info args) pattern
+                realize_pattern (Args.context args) pattern
         mconcat [Derive.place start 0 note | (start, Just note) <- notes]
 
 c_pattern_repeat :: Bool -> Derive.Generator Derive.Note
@@ -75,7 +75,7 @@ c_pattern_repeat clip_start = Derive.generator module_ "pattern" Tags.inst
         "Duration for each letter in the pattern."
     ) $ \(pattern, dur) -> Sub.inverting $ \args -> do
         let notes = pattern_repeat clip_start (Args.range args) dur $
-                realize_pattern (Args.info args) pattern
+                realize_pattern (Args.context args) pattern
         mconcat [Derive.place start 0 note | (start, note) <- notes]
 
 pattern_repeat :: Bool -> (ScoreTime, ScoreTime) -> ScoreTime
@@ -91,13 +91,13 @@ pattern_arg :: Sig.Parser Text
 pattern_arg = Sig.required_env "pattern" Sig.Unprefixed
     "Single letter stroke names.  `_` or space is a rest."
 
-realize_pattern :: Derive.CallInfo Score.Event -> Text
+realize_pattern :: Derive.Context Score.Event -> Text
     -> [Maybe Derive.NoteDeriver]
-realize_pattern cinfo = map realize . Text.unpack
+realize_pattern ctx = map realize . Text.unpack
     where
     realize c
         | c == ' ' || c == '_' = Nothing
-        | otherwise = Just $ Eval.apply_generator cinfo
+        | otherwise = Just $ Eval.apply_generator ctx
             (TrackLang.Symbol (Text.singleton c)) []
 
 
