@@ -8,6 +8,7 @@
 module Derive.Call.India.Gamakam3 where
 import qualified Control.Monad.State as State
 import qualified Data.Attoparsec.Text as A
+import qualified Data.Char as Char
 import qualified Data.DList as DList
 import qualified Data.Foldable as Foldable
 import qualified Data.Map as Map
@@ -44,6 +45,10 @@ module_ = "india" <> "gamakam3"
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.generator_call_map [(Parse.unparsed_call, c_sequence)]
+
+control_calls :: Derive.CallMaps Derive.Control
+control_calls = Derive.generator_call_map
+    [(Parse.unparsed_call, c_dyn_sequence)]
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map [("sahitya", c_sahitya)]
@@ -95,12 +100,14 @@ get_state transition dyn_transition args =
         maybe_next <- Args.lookup_next_logical_pitch
         return $ Just $ State
             { state_from_pitch = cur
-            , state_from_dyn = fromMaybe 1 $ lookup_last_dyn =<< prev_event
             , state_transition = transition
-            , state_dyn_transition = dyn_transition
             , state_current_pitch = cur
             , state_previous_pitch = fromMaybe cur prev_pitch
             , state_next_pitch = fromMaybe cur maybe_next
+            , state_dyn = DynState
+                { state_from_dyn = fromMaybe 1 $ lookup_last_dyn =<< prev_event
+                , state_dyn_transition = dyn_transition
+                }
             }
     where
     get_pitch = Derive.pitch_at <=< Derive.real
@@ -119,36 +126,132 @@ sequence_doc = "doc doc\
 sequence_arg_doc :: Text
 sequence_arg_doc = "Abbreviated string of calls... TODO"
 
--- * EvalM
+-- * dyn-sequence
 
-type EvalM a = State.StateT State Derive.Deriver a
+c_dyn_sequence :: Derive.Generator Derive.Control
+c_dyn_sequence = Derive.generator1 module_ "dyn-sequence" mempty doc
+    $ Sig.call ((,) <$> Sig.required "sequence" arg_doc <*> config_env)
+    $ \(text, dyn_transition) args -> do
+        let (start, end) = Args.range_or_next args
+        let state = DynState
+                { state_from_dyn = maybe 0 snd (Args.prev_control args)
+                , state_dyn_transition = dyn_transition
+                }
+        Derive.at start $ dyn_sequence (end - start) state text
+    where
+    doc = "doc doc"
+    arg_doc = "blah blah"
+    config_env :: Sig.Parser TrackLang.Normalized
+    config_env = Sig.environ "dyn-transition" Sig.Both (TrackLang.Normalized 1)
+        "Time for each dyn movement, in proportion of the total time available."
+
+data DynState = DynState {
+    state_from_dyn :: !Signal.Y
+    , state_dyn_transition :: !TrackLang.Normalized
+    } deriving (Show)
+
+instance Pretty.Pretty DynState where
+    format (DynState from_dyn dyn_transition) = Pretty.recordTitle "DynState"
+        [ ("from_dyn", Pretty.format from_dyn)
+        , ("dyn_transition", Pretty.format dyn_transition)
+        ]
+
+-- parsing:
+-- <-->  <.5-->.2->
+--
+-- Like pitches, it's just a set of breakpoints.
+--
+-- I only allow numbers as args, and numbers always start with '.'.
+-- Will that get in the way of extending with future calls?  They may want
+-- non-numeric args, or at least >=1 args.
+--
+-- E.g. for impulse: [-]<>, or |>
+--
+-- To resolve ambiguity I can use spaces: .1>.5 .1>.5
+-- Why does this not work for pitch?  Because in dyn I'm using an explicit 'go
+-- to' > call, while pitch notation just has a movement.
+--
+-- Also I need to retain similarity to the pitch call notation.  That notation
+-- allows any arg as long as it doesn't have 'valid_dcall_char's in it.
+
+dyn_sequence :: ScoreTime -> DynState -> Text -> Derive.Deriver Signal.Control
+dyn_sequence dur state arg = do
+    exprs <- Derive.require_right (("parsing " <> showt arg <> ": ")<>) $
+        resolve_dyn_exprs =<< parse_dyn_sequence arg
+    let starts = slice_time dur (replicate (length exprs) 1)
+        ranges = zip starts (drop 1 starts)
+    (results, _) <- State.runStateT (mapM eval_dyn (zip ranges exprs)) state
+    return $ mconcat results
+
+type DynSequenceExpr call = (call, Text, Text)
+
+eval_dyn :: ((ScoreTime, ScoreTime), DynSequenceExpr (Text, DynCall))
+    -> M DynState Signal.Control
+eval_dyn ((start, end), ((name, DynCall _ sig1 sig2 func), arg1, arg2)) = do
+    let ctx = Context
+            { ctx_start = start
+            , ctx_end = end
+            , ctx_call_name = name
+            }
+    parsed_arg1 <- parse_args name arg1 sig1
+    parsed_arg2 <- parse_args name arg2 sig2
+    func parsed_arg1 parsed_arg2 ctx
+
+-- ** parse
+
+parse_dyn_sequence :: Text -> Either Text [DynSequenceExpr Text]
+parse_dyn_sequence = ParseText.parse p_dyn_exprs
+
+p_dyn_exprs :: Parser [DynSequenceExpr Text]
+p_dyn_exprs = A.skipSpace *> A.many1 (p_dyn_expr <* A.skipSpace)
+
+p_dyn_expr :: Parser (DynSequenceExpr Text)
+p_dyn_expr = p_flat <|> p_expr
+    where
+    p_flat = do
+        A.char '-'
+        return ("-", "", "")
+    p_expr = do
+        arg1 <- A.takeWhile valid_dcall_arg
+        sym <- A.takeWhile1 valid_dcall_char
+        arg2 <- A.takeWhile valid_dcall_arg
+        return (sym, arg1, arg2)
+
+resolve_dyn_exprs :: [DynSequenceExpr Text]
+    -> Either Text [DynSequenceExpr (Text, DynCall)]
+resolve_dyn_exprs = mapM $ \(name, arg1, arg2) ->
+    case Map.lookup name dyn_calls of
+        Nothing -> Left $ "dyn call not found: " <> showt name
+        Just call -> return ((name, call), arg1, arg2)
+
+-- * State
+
+type M s a = State.StateT s Derive.Deriver a
 
 data State = State {
     state_from_pitch :: !PSignal.Pitch
-    , state_from_dyn :: !Signal.Y
     , state_transition :: !TrackLang.Normalized
-    , state_dyn_transition :: !TrackLang.Normalized
     , state_current_pitch :: !PSignal.Pitch
     , state_previous_pitch :: !PSignal.Pitch
     , state_next_pitch :: !PSignal.Pitch
+    , state_dyn :: !DynState
     }
 
 instance Pretty.Pretty State where
-    format (State from_pitch from_dyn transition dyn_transition cur prev next) =
+    format (State from_pitch transition cur prev next dyn) =
         Pretty.recordTitle "State"
             [ ("from_pitch", Pretty.format from_pitch)
-            , ("from_dyn", Pretty.format from_dyn)
             , ("transition", Pretty.format transition)
-            , ("dyn_transition", Pretty.format dyn_transition)
             , ("current_pitch", Pretty.format cur)
             , ("previous_pitch", Pretty.format prev)
             , ("next_pitch", Pretty.format next)
+            , ("dyn", Pretty.format dyn)
             ]
 
-set_pitch :: PSignal.Pitch -> EvalM ()
+set_pitch :: PSignal.Pitch -> M State ()
 set_pitch p = State.modify $ \state -> state { state_from_pitch = p }
 
-get_from :: EvalM PSignal.Pitch
+get_from :: M State PSignal.Pitch
 get_from = State.gets state_from_pitch
 
 -- * sequence
@@ -175,10 +278,10 @@ slice_time dur slices = scanl (+) 0 $ map ((*one) . ScoreTime.double) slices
     where one = dur / ScoreTime.double (sum slices)
 
 eval :: Expr_ (Text, DynCall) ((ScoreTime, ScoreTime), PitchCall)
-    -> EvalM Result
+    -> M State Result
 eval (PitchExpr ((start, end), pcall) arg_) = case pcall_call pcall of
     PCall signature func -> do
-        parsed_arg <- parse_args ctx arg signature
+        parsed_arg <- parse_args (ctx_call_name ctx) arg signature
         (\p -> Result (DList.singleton p) mempty) <$> func parsed_arg ctx
     where
     arg = pcall_arg pcall arg_
@@ -187,27 +290,23 @@ eval (PitchExpr ((start, end), pcall) arg_) = case pcall_call pcall of
         , ctx_end = end
         , ctx_call_name = Text.cons (pcall_name pcall) arg_
         }
-eval (DynExpr (name, DynCall _ sig1 sig2 func) arg1 arg2 exprs) =
-    case (start, end) of
-        (Just start, Just end) -> do
-            let ctx = Context
-                    { ctx_start = start
-                    , ctx_end = end
-                    , ctx_call_name = name
-                    }
-            parsed_arg1 <- parse_args ctx arg1 sig1
-            parsed_arg2 <- parse_args ctx arg2 sig2
-            dyn <- func parsed_arg1 parsed_arg2 ctx
-            pitch <- concatMapM eval exprs
-            return $ Result mempty (DList.singleton dyn) <> pitch
-        _ -> return mempty
+eval (DynExpr (name, call) arg1 arg2 exprs) = case (start, end) of
+    (Just start, Just end) -> do
+        state <- State.get
+        (dyn, dyn_state) <- lift $ State.runStateT
+            (eval_dyn ((start, end), ((name, call), arg1, arg2)))
+            (state_dyn state)
+        State.put $ state { state_dyn = dyn_state }
+        pitch <- concatMapM eval exprs
+        return $ Result mempty (DList.singleton dyn) <> pitch
+    _ -> return mempty
     where
     start = Monoid.getFirst $
         foldMap (foldMap (Monoid.First . Just . fst . fst)) exprs
     end = Monoid.getLast $
         foldMap (foldMap (Monoid.Last . Just . snd . fst)) exprs
 
--- | DynExpr Name Arg1 Arg2 | PitchExpr Name Arg
+-- | DynExpr Name Arg1 Arg2 exprs | PitchExpr Name Arg
 data Expr_ dyn pitch = DynExpr !dyn !Text !Text ![Expr_ dyn pitch]
     | PitchExpr !pitch !Text
     deriving (Eq, Show, Functor, Foldable.Foldable, Traversable.Traversable)
@@ -232,7 +331,7 @@ parse_sequence = ParseText.parse p_exprs
 resolve_exprs :: [Expr] -> Either Text [ResolvedExpr]
 resolve_exprs = concatMapM resolve
     where
-    resolve (DynExpr c a1 a2 exprs) = case Map.lookup c dynamic_calls of
+    resolve (DynExpr c a1 a2 exprs) = case Map.lookup c dyn_calls of
         Nothing -> Left $ "dynamic call not found: " <> showt c
         Just call -> do
             resolved <- resolve_exprs exprs
@@ -249,11 +348,12 @@ data DynCall = forall a b. DynCall {
     dcall_doc :: Text
     , dcall_signature1 :: Sig.Parser a
     , dcall_signature2 :: Sig.Parser b
-    , dcall_func :: a -> b -> Context -> EvalM Signal.Control
+    , dcall_func :: a -> b -> Context -> M DynState Signal.Control
     }
 
-dynamic_calls :: Map.Map Text DynCall
-dynamic_calls = Map.fromList $ validate_names $ speed_permutations $
+dyn_calls :: Map.Map Text DynCall
+dyn_calls = Map.fromList $ (("-", dc_flat) :) $
+    validate_names $ speed_permutations
     [ ("<", dc_move LT)
     , (">", dc_move GT)
     , ("=", dc_move EQ)
@@ -266,8 +366,14 @@ dynamic_calls = Map.fromList $ validate_names $ speed_permutations $
         [ (name <> suffix, call speed)
         | (name, call) <- calls, (speed, suffix) <- speeds
         ]
-    speeds = [(Nothing, ""), (Just Fast, "^"), (Just Medium, "-"),
+    speeds = [(Nothing, ""), (Just Fast, "^"), (Just Medium, "="),
         (Just Slow, "_")]
+
+dc_flat :: DynCall
+dc_flat = DynCall "No movement." Sig.no_args Sig.no_args $ \() () ctx -> do
+    prev <- State.gets state_from_dyn
+    start <- lift $ Derive.real (ctx_start ctx)
+    return $ Signal.signal [(start, prev)]
 
 dc_move :: Ordering -> Maybe TransitionTime -> DynCall
 dc_move ord speed = DynCall doc sig1 sig2 $ \from to args -> do
@@ -304,7 +410,7 @@ dc_move ord speed = DynCall doc sig1 sig2 $ \from to args -> do
 -- alignment can happen by weighting start and end of the curve
 
 move_dyn :: TrackLang.Normalized -> Ordering -> RealTime -> Signal.Y -> RealTime
-    -> Signal.Y -> EvalM Signal.Control
+    -> Signal.Y -> M DynState Signal.Control
 move_dyn (TrackLang.Normalized transition) align start from end to = do
     let curve = snd ControlUtil.sigmoid_curve $ case align of
             LT -> (0, weight)
@@ -345,7 +451,7 @@ pcall_arg pcall arg
 
 data PCall = forall a. PCall {
     pcall_signature :: Sig.Parser a
-    , pcall_func :: a -> Context -> EvalM PSignal.Signal
+    , pcall_func :: a -> Context -> M State PSignal.Signal
     }
 
 pcall_map :: Map.Map Char [PitchCall]
@@ -395,7 +501,8 @@ apply_arg :: PitchCall -> Text -> PitchCall
 apply_arg call arg = call
     { pcall_call = case pcall_call call of
         PCall signature func -> PCall ignore $ \_ ctx -> do
-            parsed <- parse_args ctx (pcall_arg call arg) signature
+            parsed <- parse_args (ctx_call_name ctx) (pcall_arg call arg)
+                signature
             func parsed ctx
     }
     where
@@ -411,13 +518,13 @@ apply_arg call arg = call
 -- and quoted evaluation.  Then I can configure FMS.
 -- Calls also get arg docs.
 
-parse_args :: Context -> Text -> Sig.Parser a -> EvalM a
-parse_args context arg sig = lift $ do
+parse_args :: State.MonadTrans m => Text -> Text -> Sig.Parser a
+    -> m Derive.Deriver a
+parse_args name arg sig = lift $ do
     vals <- Derive.require_right (("parsing " <> showt name <> ": ") <>) $
         if Text.null arg then return [] else (:[]) <$> Parse.parse_val arg
     Sig.require_right
         =<< Sig.parse_vals sig (Derive.dummy_context 0 1 name) name vals
-    where name = ctx_call_name context
 
 -- Here we are reinventing Derive.Call yet again...
 -- This is the equivalent of Derive.Context
@@ -430,7 +537,7 @@ data Context = Context {
 
 -- TODO if everyone winds up wanting RealTime I can put this in Context
 -- ... but why bother, I wind up typing ctx_range either way.
-ctx_range :: Context -> EvalM (RealTime, RealTime)
+ctx_range :: Context -> M s (RealTime, RealTime)
 ctx_range context = lift $
     (,) <$> Derive.real (ctx_start context) <*> Derive.real (ctx_end context)
 
@@ -455,7 +562,7 @@ pc_move = PCall (Sig.required "to" "To pitch.") $ \arg context -> do
                 (Pitches.transpose transpose from_pitch)
 
 move :: RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
-    -> EvalM PSignal.Signal
+    -> M State PSignal.Signal
 move start from_pitch end to_pitch = do
     TrackLang.Normalized transition <- State.gets state_transition
     let curve = snd ControlUtil.sigmoid_curve (1-transition, 1-transition)
@@ -465,7 +572,7 @@ move start from_pitch end to_pitch = do
 data PitchDirection = Previous | Current | Next deriving (Show, Eq)
 instance Pretty.Pretty PitchDirection where pretty = showt
 
-get_direction_pitch :: PitchDirection -> EvalM PSignal.Pitch
+get_direction_pitch :: PitchDirection -> M State PSignal.Pitch
 get_direction_pitch dir = case dir of
     Previous -> State.gets state_previous_pitch
     Current -> State.gets state_current_pitch
@@ -517,21 +624,21 @@ p_exprs :: Parser [Expr]
 p_exprs = concat <$> (A.skipSpace *> A.many1 (p_expr <* A.skipSpace))
 
 p_expr :: Parser [Expr]
-p_expr = ((:[]) <$> p_dyn_expr p_exprs) <|> (A.char '!' *> p_compact_exprs)
+p_expr = ((:[]) <$> p_dyn_sub_expr p_exprs) <|> (A.char '!' *> p_compact_exprs)
     <|> ((:[]) <$> p_pitch_expr)
 
-p_dyn_expr :: Parser [Expr] -> Parser Expr
-p_dyn_expr sub_expr = do
+p_dyn_sub_expr :: Parser [Expr] -> Parser Expr
+p_dyn_sub_expr sub_expr = do
     A.char '['
     exprs <- sub_expr
     A.char ']'
-    arg1 <- A.takeWhile (not . valid_dcall_char)
-    sym <- A.takeWhile valid_dcall_char
-    arg2 <- A.takeWhile valid_pcall_char
+    arg1 <- A.takeWhile valid_dcall_arg
+    sym <- A.takeWhile1 valid_dcall_char
+    arg2 <- A.takeWhile valid_dcall_arg
     return $ DynExpr sym arg1 arg2 exprs
 
 p_compact_exprs :: Parser [Expr]
-p_compact_exprs = A.many1 (p_dyn_expr p_compact_exprs <|> p_compact_pitch)
+p_compact_exprs = A.many1 (p_dyn_sub_expr p_compact_exprs <|> p_compact_pitch)
 
 p_compact_pitch :: Parser Expr
 p_compact_pitch = PitchExpr <$> A.satisfy valid_pcall_char <*> pure ""
@@ -544,7 +651,10 @@ valid_pcall_char :: Char -> Bool
 valid_pcall_char c = c /= '[' && c /= ']' && c /= ' '
 
 valid_dcall_char :: Char -> Bool
-valid_dcall_char c = valid_pcall_char c && c `elem` "=<>^-_"
+valid_dcall_char c = valid_pcall_char c && c `elem` "=<>^_"
+
+valid_dcall_arg :: Char -> Bool
+valid_dcall_arg c = Char.isDigit c || c == '.'
 
 
 -- * misc

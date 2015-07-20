@@ -74,7 +74,7 @@ UNSORTED
   * Maybe 'w' and 'b' in a control track should jump the boundaries of the
     above note track?
   - Rename PSignal.Signal to PSignal.PSignal?
-  - Sometimes kbd note entry doesn't work.
+  / Sometimes kbd note entry doesn't work.
     . Now I can't reproduce this.
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
     '%just-base = (hz (nn c3))'.  Can I use type tags to catch that sort of
@@ -308,7 +308,7 @@ UNSORTED
           . I could do the same thing with P, for e.g. ##P4---
           . Maybe I should give separate dynamics a try before thinking about
             this too much.
-      + Similar notation for dynamics, including other controls like bow-force.
+      * Similar notation for dynamics, including other controls like bow-force.
         . One problem seems like if I want to put in its own track then I have
           to manually line them up to the pitch instructions.  On the other
           hand, if I try to integrate into the pitch, it gets harder to read
@@ -341,7 +341,7 @@ UNSORTED
           time slice.  Or I could use SMF type times, but they can align to
           front, back, or center.  I guess < aligns to front, > aligns to end,
           I could use = aligns to center.
-        - I'm no longer so sure I want to attach DynCalls to PitchCalls,
+        * I'm no longer so sure I want to attach DynCalls to PitchCalls,
           because I often want a dynamic motion at the start or end of a note,
           which is independent of the pitch timing.  Maybe I should add
           a # control call which just knows about dyn calls, and '-' for flat.

@@ -103,6 +103,7 @@ control_maps = mconcat
     , Control.control_calls
     , Equal.control_calls
     , Gamakam.control_calls
+    , Gamakam3.control_calls
     , Import.calls
     , Conditional.control_calls
     , Random.control_calls

@@ -14,6 +14,8 @@ import Global
 import Types
 
 
+-- * pitch
+
 test_parse_sequence = do
     let f = first untxt . Gamakam.parse_sequence
     equal (f " [-]> ") $ Right [DynExpr ">" "" "" [PitchExpr '-' ""]]
@@ -26,7 +28,7 @@ test_parse_sequence = do
     equal (f "!ab c") $ Right
         [PitchExpr 'a' "", PitchExpr 'b' "", PitchExpr 'c' ""]
 
-    equal (f "[a]x>y") $ Right [DynExpr ">" "x" "y" [PitchExpr 'a' ""]]
+    equal (f "[a]1>.5") $ Right [DynExpr ">" "1" ".5" [PitchExpr 'a' ""]]
     equal (f "[a]>") $ Right [DynExpr ">" "" "" [PitchExpr 'a' ""]]
     equal (f "[a]>[b]<") $ Right
         [ DynExpr ">" "" "" [PitchExpr 'a' ""]
@@ -139,6 +141,33 @@ make_tracks (dur1, call1) (dur2, call2) =
         [(0, dur1, call1), (dur1, dur2, call2)])
     , ("dyn", [(0, 0, "1")])
     ]
+
+-- * dyn
+
+test_dyn_sequence = do
+    let run call1 call2 = derive_tracks DeriveTest.e_dyn_rounded $
+            make_dyn_tracks (4, call1) (4, call2)
+    equal (run ".5" "!-") ([[(0, 0.5)], [(4, 0.5)], [(4, 0.5)]], [])
+    equal (run ".5" "!->")
+        ([ [(0, 0.5)]
+         , [(4, 0.5), (6, 0.5), (7, 0.25)]
+         , [(8, 0)]
+         ], [])
+    equal (run ".5" "!<.5-")
+        ([ [(0, 0.5)]
+         , [(4, 0), (5, 0.25), (6, 0.5)]
+         , [(6, 0.5)]
+         ], [])
+
+make_dyn_tracks :: (ScoreTime, String) -> (ScoreTime, String)
+    -> [UiTest.TrackSpec]
+make_dyn_tracks (dur1, call1) (dur2, call2) =
+    [ (">", [(0, dur1, ""), (dur1, dur2, ""), (dur1 + dur2, 2, "")])
+    , ("*", [(0, 0, "4c"), (dur1, 0, "4d"), (dur1 + dur2, 0, "4e")])
+    , ("dyn | dyn-transition=1", [(0, dur1, call1), (dur1, dur2, call2)])
+    ]
+
+-- * util
 
 derive_tracks :: (Score.Event -> a) -> [UiTest.TrackSpec] -> ([a], [String])
 derive_tracks extract = DeriveTest.extract extract
