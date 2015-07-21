@@ -310,6 +310,21 @@ with_val name val deriver
     | otherwise = with_val_raw name val deriver
     where v = TrackLang.to_val val
 
+-- | Like 'with_val', but should be slightly more efficient for setting
+-- multiple values at once.
+with_vals :: TrackLang.Typecheck val => [(TrackLang.ValName, val)]
+    -> Deriver a -> Deriver a
+with_vals vals deriver
+    | any (`elem` [Environ.scale, Environ.instrument]) (map fst vals) =
+        foldr (uncurry with_val) deriver vals
+    | otherwise = Internal.localm with deriver
+    where
+    with state = do
+        environ <- either throw return $
+            foldr (\(k, v) env -> TrackLang.put_val_error k v =<< env)
+                (return $ state_environ state) vals
+        environ `seq` return $! state { state_environ = environ }
+
 -- | Like 'with_val', but don't set scopes for instrument and scale.
 with_val_raw :: TrackLang.Typecheck val => TrackLang.ValName -> val
     -> Deriver a -> Deriver a

@@ -378,15 +378,15 @@ derive_event_ctx ctx event
         Left err -> Log.warn err >> return []
         Right expr ->
             with_event_region (Derive.ctx_track_shifted ctx) event $
-                with_note_end $ Eval.eval_toplevel ctx expr
+                with_note_start_end $ Eval.eval_toplevel ctx expr
     where
     text = Event.event_text event
-    with_note_end = case Derive.ctx_track_type ctx of
-        Just ParseTitle.NoteTrack ->
-            Derive.with_val Environ.note_start
-                (Event.start (Derive.ctx_event ctx))
-            . Derive.with_val Environ.note_end
-                (Event.end (Derive.ctx_event ctx))
+    with_note_start_end = case Derive.ctx_track_type ctx of
+        Just ParseTitle.NoteTrack -> Derive.with_vals
+                [ (Environ.note_start, Event.start event)
+                , (Environ.note_end, Event.end event)
+                ]
+            where event = Derive.ctx_event ctx
         _ -> id
 
 with_event_region :: ScoreTime -> Event.Event -> Derive.Deriver a
