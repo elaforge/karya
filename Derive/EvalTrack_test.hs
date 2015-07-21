@@ -329,6 +329,20 @@ test_track_dynamic_invert = do
         , ((UiTest.default_block_id, 2), (">i", "legong"))
         ]
 
+test_note_end = do
+    let run = DeriveTest.derive_tracks_setup with_call ""
+        with_call = CallTest.with_control_generator "g" gen
+    let result = run [(">", [(0, 4, "")]), ("dyn", [(0, 0, "g")])]
+    equal (DeriveTest.extract DeriveTest.e_dyn result)
+        ([[(0, 0), (4, 1)]], [])
+    where
+    gen :: Derive.Generator Derive.Control
+    gen = CallTest.generator1 $ \args -> do
+        (start, end) <- Args.range_or_note_end args
+        start <- Derive.real start
+        end <- Derive.real end
+        return $ Signal.signal [(start, 0), (end, 1)]
+
 -- * test orphans
 
 test_orphans = do

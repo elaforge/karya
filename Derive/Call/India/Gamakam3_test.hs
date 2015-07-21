@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.India.Gamakam3_test where
+import qualified Util.Num as Num
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.India.Gamakam3 as Gamakam
@@ -92,6 +93,24 @@ test_sequence = do
     equal (run "! P1c !-c-") (output [(4, 63), (6, 63), (7, 62.5), (8, 62)])
     -- Current to -1nn.
     equal (run "!!-y-") (output [(4, 62), (6, 62), (7, 61.5), (8, 61)])
+
+test_note_end = do
+    let run = DeriveTest.derive_tracks_setup with_tsig "import india.gamakam3"
+        with_tsig = DeriveTest.with_tsig_tracknums [4]
+    let result = run
+            [ (">", [(0, 4, ""), (4, 4, "")])
+            , ("*", [(0, 0, "4c")])
+            , ("* interleave | transition=1", [(0, 0, "!1"), (8, 0, "--")])
+            , ("dyn", [(0, 0, "!0<1")])
+            ]
+    -- Transition is up to 4, not 8.
+    equal (DeriveTest.extract DeriveTest.e_nns_rounded result)
+        ([[(0, 60), (1, 60.5), (2, 61), (3, 61.5)], [(4, 62)]], [])
+    -- Track signals come out right.
+    let round_vals = map $ second $ map $ second $ Num.round_digits 2
+    equal (round_vals (DeriveTest.e_tsigs result))
+        [((UiTest.default_block_id, UiTest.mk_tid 4),
+            [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)])]
 
 test_dyn = do
     let run c = derive_tracks DeriveTest.e_dyn_rounded $

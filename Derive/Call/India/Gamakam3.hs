@@ -59,7 +59,7 @@ c_sequence :: Derive.Generator Derive.Pitch
 c_sequence = Derive.generator1 module_ "sequence" mempty sequence_doc
     $ Sig.call ((,) <$> Sig.required "sequence" sequence_arg_doc <*> config_env)
     $ \(text, (transition, dyn_transition)) args -> do
-        let (start, end) = Args.range_or_next args
+        (start, end) <- Args.range_or_note_end args
         maybe_state <- get_state transition dyn_transition args
         case maybe_state of
             Nothing -> return mempty
@@ -132,7 +132,7 @@ c_dyn_sequence :: Derive.Generator Derive.Control
 c_dyn_sequence = Derive.generator1 module_ "dyn-sequence" mempty doc
     $ Sig.call ((,) <$> Sig.required "sequence" arg_doc <*> config_env)
     $ \(text, dyn_transition) args -> do
-        let (start, end) = Args.range_or_next args
+        (start, end) <- Args.range_or_note_end args
         let state = DynState
                 { state_from_dyn = maybe 0 snd (Args.prev_control args)
                 , state_dyn_transition = dyn_transition

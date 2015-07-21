@@ -3,9 +3,37 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  * it looks like track signal extract doesn't set note-end?
+    The problem is that start stays at 0, but note-end gets later with each
+    slice.  The problem is that slicing should really get the last value in
+    this case, but instead rederives the event.  In fact it seems like this
+    problem would also be present for control calls that use 'next'...
+    actually not, because 'next' is always the same.  The problem with
+    note-end is that it varies per-slice.  So two ways to deal with this:
+    1. Get rid of the behaviour where it re-evaluates the previous call, and
+      instead replace it with a set of the prev val on that track.
+    2. Figure out how to make note-end constant.  For this to work, I think
+      I'd have to store a map of note ranges, and note-end becomes the next
+      note and after the call's start.
+    . #1 would be more efficient, but I think it will break for long calls
+      that overlap multiple notes.  I really do have to re-evaluate for those.
+      So #2 it is then.  This means it can't be in the environ, I think I need
+      a special case Dynamic field for it.  Is it really worth it?
+    . What if I also put in a note-start, then if the call starts before note
+      start, it ends at note start.  I.e. min start end.  But this will mess
+      up a call that intends to overlap the start of the note.  Of course,
+      I can use an explicit duration for those.  Really this is about not
+      having to put explicit durations or explicit -- ends for the common case
+      where it does end with the note.
+    . Also I would still get a different signal on each slice, but they should
+      all be equivalent because they all end before the note starts, so it's
+      just the final value.  In fact, they could notice that
+      event start < note-start and just emit the final value.
+      |--> |-->
+      |
   * The unparsed call # prefix conflicts with #=(4c).  Change to !.
   * rename CallInfo to ExprContext (or just Context)
-  - PassedArgs to CallContext.
+  - rename PassedArgs to CallContext.  Or not?
   * ControlOp effects don't show up in the note track signal render.
     * Now it gets an out of date value.
   * generalize Util.Control.mconcatMap to foldMap
@@ -295,17 +323,17 @@ UNSORTED
         up an integral number of time units.  Time units are evenly divided
         across the available duration.
       notation:
-        - It should be easier come from current + n than '#Pn #...'.
-        - Maybe aliases for '#<-c-' and '#-d-'?
+        - It should be easier come from current + n than '!Pn !...'.
+        - Maybe aliases for '!<-c-' and '!-d-'?
         * I also want to prev actual pitch, not just prev logical pitch.
         - Snapping to the next pitch at the start of a note is unnatural.
           Perhaps I can have some easy way to come quickly from the previous
           real pitch.
         - It's annoying how a DynCall will break a compact notation, e.g.
-          '#[-]< #---' would be nicer as ##[-]<--- or even ##-<---
+          '![-]< !---' would be nicer as !![-]<--- or even !!-<---
           Since dynamic calls have a limited character set, maybe I could do
           this just by making allowed characters non-overlapping.
-          . I could do the same thing with P, for e.g. ##P4---
+          . I could do the same thing with P, for e.g. !!P4---
           . Maybe I should give separate dynamics a try before thinking about
             this too much.
       * Similar notation for dynamics, including other controls like bow-force.
@@ -326,10 +354,10 @@ UNSORTED
         . Cons are that I don't get a separate track signal to visualize.
           Maybe this is motivation to add 2D track signals so I can put both
           dyn and pitch in the note track.
-        . Either dyn always applies to the whole section, e.g.: #03-:>
-          or I mark the range explicitly: #(#030)> #(0 3 0)>
-          But ##030:> is just the last one... but is it really better than
-          ##03 (3)>?
+        . Either dyn always applies to the whole section, e.g.: !03-:>
+          or I mark the range explicitly: !(!030)> !(0 3 0)>
+          But !!030:> is just the last one... but is it really better than
+          !!03 (3)>?
           If the dyn calls are few and distinct looking, they can be hardcoded
           in the parser and I don't need a divider character.  But it seems
           like the long term is to always add more calls.
@@ -344,7 +372,7 @@ UNSORTED
         * I'm no longer so sure I want to attach DynCalls to PitchCalls,
           because I often want a dynamic motion at the start or end of a note,
           which is independent of the pitch timing.  Maybe I should add
-          a # control call which just knows about dyn calls, and '-' for flat.
+          a ! control call which just knows about dyn calls, and '-' for flat.
           It seems to me this would be useful all manner of instruments, not
           just gamakam.
         - An ornament for an impulse at the start of a note.
@@ -380,7 +408,7 @@ UNSORTED
             . No track signal, have to rely on the note track signal.
       * Previous pitch is wrong because I want the pitch at the previous note,
         not the previous pitch event.
-      - Now I have a working last pitch, but it's different from logical
+      . Now I have a working last pitch, but it's different from logical
         previous pitch.  The question is will I need that?  I think next pitch
         must be logical, to avoid circular dependency.  But as long as
         I implement the next logical pitch, it's easy to add previous.
@@ -415,7 +443,7 @@ UNSORTED
             per-note pitch separately, I can then set the pitch as a constant
             in the note call.
             . But first figure out why this happens.
-        - And here's yet another problem, slicing is too restrictive, and
+        . And here's yet another problem, slicing is too restrictive, and
           I don't have access to prev and next pitch.  One solution is to
           put the pitch track above, but I feel like that ultimately won't
           be very palatable for all the reasons that made me invent inversion
@@ -444,8 +472,6 @@ UNSORTED
               the note call I should be able to get the next event sliced.  Or
               I could give access to prev and next slices.  Then I can put an
               eval in someplace as a lazy thunk.  Would environ be ok?
-
-
             . Or, in EvalTrack, zip each past and future event with an eval
               that is specialized to just get the pitch.  This then goes into
               CallInfo with the events.  It's lazy so no evaluation happens
@@ -458,7 +484,6 @@ UNSORTED
                 pitch track merging thing.  I think I still have to figure out
                 why even when under the note track I get neighbor pitches.
                 . Turns out it was just a bug.
-
 
         p = previous pitch, - is previous ornament, -- for twice, etc.
         > is fade out, overlapping previous ornament

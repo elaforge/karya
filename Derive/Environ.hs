@@ -41,6 +41,16 @@ instrument = "inst"
 key :: ValName
 key = "key"
 
+-- | VNum (ScoreTime): End time of the note event.  This is set when evaluating
+-- note events so that inverted control tracks know when their parent event
+-- ends.
+note_end :: ValName
+note_end = "note-end"
+
+-- | This is just like 'note_end', except, you know, the other end.
+note_start :: ValName
+note_start = "note-start"
+
 -- | VSymbol: Set along with 'control' to the 'Derive.Derive.Merge' function
 -- which will be used for this control track.  Calls can use this to subvert
 -- the merge function and emit an absolute value.
