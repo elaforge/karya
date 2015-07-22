@@ -3,9 +3,18 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.ControlUtil_test where
+import qualified Data.Map as Map
+
 import Util.Test
+import qualified Derive.Args as Args
+import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.ControlUtil as ControlUtil
+import qualified Derive.Controls as Controls
+import qualified Derive.Derive as Derive
+import qualified Derive.DeriveTest as DeriveTest
+
 import qualified Perform.Signal as Signal
+import Global
 
 
 test_breakpoints = do
@@ -15,3 +24,25 @@ test_breakpoints = do
     equal (f 4 8  []) []
     equal (f 4 8  [1]) [(4, 1)]
     equal (f 4 8  [0, 1, 0]) [(4, 0), (5, 0.5), (6, 1), (7, 0.5), (8, 0)]
+
+test_modify = do
+    let run merge = DeriveTest.extract DeriveTest.e_dyn_rounded
+            . DeriveTest.derive_tracks_setup (with_call merge) ""
+        with_call merge = CallTest.with_control_generator "g" (c_gen merge)
+    let tracks dyn =
+            [ (">", [(0, 8, "")])
+            , ("dyn", [(0, 0, dyn)])
+            , ("c", [(4, 2, "g")])
+            ]
+    equal (run Derive.DefaultMerge (tracks ".5"))
+        ([[(0, 0.5), (4, 0.25), (6, 0.5)]], [])
+    let Just op_max = Map.lookup "max" Derive.control_ops
+    equal (run (Derive.Merge op_max) (tracks ".25"))
+        ([[(0, 0.25), (4, 0.5), (6, 0.25)]], [])
+    where
+    c_gen :: Derive.Merge Signal.Control -> Derive.Generator Derive.Control
+    c_gen merge = CallTest.generator1 $ \args -> do
+        (start, end) <- Args.real_range args
+        let signal = Signal.signal [(start, 0.5)]
+        ControlUtil.modify_with merge Controls.dynamic end signal
+        return mempty

@@ -294,27 +294,22 @@ distribute start end vals = case vals of
 
 -- * control mod
 
-multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()
-multiply_dyn = multiply_signal Controls.dynamic
+modify :: Score.Control -> RealTime -> Signal.Control -> Derive.Deriver ()
+modify = modify_with Derive.DefaultMerge
 
--- | Emit a multiplying modify control.
-multiply_signal :: Score.Control -> RealTime
-    -- ^ End time, after which the signal becomes 1.  This should be set to the
-    -- next event, otherwise, all subsequent events will be zeroed.
+modify_with :: Derive.Merge Signal.Control -> Score.Control -> RealTime
     -> Signal.Control -> Derive.Deriver ()
-multiply_signal control end sig =
-    -- Since signals are implicitly 0 before the first sample, the modification
-    -- will zero out the control before 'x1'.  That's usually not what I want,
-    -- so set it to 1 before that.
-    Derive.modify_control (Derive.Merge Derive.op_mul) control $
-        mconcat [initial, sig, Signal.signal [(end, 1)]]
+modify_with merge control end sig = do
+    op@(Derive.ControlOp _ _ identity) <- Derive.merge_to_op merge control
+    Derive.modify_control op control $
+        mconcat [initial identity, sig, id_signal identity end]
     where
-    initial = case Signal.head sig of
-        Just (x, _) | x > 0 -> Signal.signal [(0, 1)]
+    id_signal identity x = case Signal.head identity of
+        Just (_, y) | y /= 0 -> Signal.signal [(x, y)]
+        _ -> mempty
+    initial identity = case Signal.head sig of
+        Just (x, _) | x > 0 -> id_signal identity 0
         _ -> mempty
 
-add_control :: Score.Control -> (Double -> Double)
-    -> RealTime -> Signal.Y -> RealTime -> Signal.Y -> Derive.Deriver ()
-add_control control f x1 y1 x2 y2 = do
-    sig <- make_segment f x1 y1 x2 y2
-    Derive.modify_control (Derive.Merge Derive.op_add) control sig
+multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()
+multiply_dyn = modify_with (Derive.Merge Derive.op_mul) Controls.dynamic

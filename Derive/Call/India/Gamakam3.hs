@@ -76,7 +76,8 @@ c_sequence = Derive.generator1 module_ "sequence" mempty sequence_doc
                             Signal.signal [(real_start, y)]
                         _ -> mempty
                 unless (null dyns) $
-                    ControlUtil.multiply_dyn real_end $ mconcat (initial : dyns)
+                    ControlUtil.modify Controls.dynamic real_end
+                        (mconcat (initial : dyns))
                 return $ mconcat $ DList.toList pitches
     where
     config_env :: Sig.Parser (TrackLang.Normalized, TrackLang.Normalized)

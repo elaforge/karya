@@ -202,7 +202,8 @@ c_redirect merge op_name =
     $ Sig.callt (required "control" "Redirect to this control.")
     $ \control _args deriver -> do
         (sig, logs) <- Post.derive_signal deriver
-        Derive.modify_control merge control sig
+        op <- Derive.merge_to_op merge control
+        Derive.modify_control op control sig
         return $ map LEvent.Log logs
 
 c_cf_sample :: Derive.Transformer Derive.Note

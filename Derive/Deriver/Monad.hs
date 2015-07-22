@@ -65,7 +65,7 @@ module Derive.Deriver.Monad (
     -- ** constant
     , Constant(..), initial_constant
     , Mode(..)
-    , op_add, op_sub, op_mul, op_scale
+    , control_ops, op_add, op_sub, op_mul, op_scale
 
     -- ** instrument
     , Instrument(..), InstrumentCalls(..)
@@ -824,15 +824,17 @@ data Merge sig = DefaultMerge -- ^ Apply the default merge for this control.
 instance Pretty.Pretty (Merge a) where pretty = showt
 instance DeepSeq.NFData (Merge a) where rnf _ = ()
 
--- | This is a semigroup used for combining two signals.
-data ControlOp sig = ControlOp !Text !(sig -> sig -> sig)
+-- | This is a monoid used for combining two signals.  The element should be an
+-- identity, like mempty.  ControlMod uses it to avoid affecting signal outside
+-- of the modified range.
+data ControlOp sig = ControlOp !Text !(sig -> sig -> sig) !sig
     | Set -- ^ Replace the existing signal.
 
 -- It's not really a 'TrackLang.Val', so this is a bit wrong for ShowVal.  But
 -- I want to express that this is meant to be valid syntax for the track title.
 instance ShowVal.ShowVal (ControlOp a) where
     show_val Set = "set"
-    show_val (ControlOp name _) = name
+    show_val (ControlOp name _ _) = name
 instance Pretty.Pretty (ControlOp a) where pretty = ShowVal.show_val
 instance Show (ControlOp a) where
     show op = "((ControlOp " ++ untxt (ShowVal.show_val op) ++ "))"
@@ -846,22 +848,22 @@ instance DeepSeq.NFData (ControlOp a) where
 control_ops :: Map.Map TrackLang.CallId (ControlOp Signal.Control)
 control_ops = Map.fromList $ map to_pair
     [ Set, op_add, op_sub, op_mul, op_scale
-    , ControlOp "max" Signal.sig_max
-    , ControlOp "min" Signal.sig_min
+    , ControlOp "max" Signal.sig_max (Signal.constant (-2^32))
+    , ControlOp "min" Signal.sig_min (Signal.constant (2^32))
     -- flip ensures that when samples collide, the later track wins.
-    , ControlOp "interleave" $ flip Signal.interleave
+    , ControlOp "interleave" (flip Signal.interleave) mempty
     ]
     where to_pair op = (TrackLang.Symbol (ShowVal.show_val op), op)
 
 op_add, op_sub, op_mul, op_scale :: ControlOp Signal.Control
-op_add = ControlOp "add" Signal.sig_add
-op_sub = ControlOp "sub" Signal.sig_subtract
-op_mul = ControlOp "mul" Signal.sig_multiply
-op_scale = ControlOp "scale" Signal.sig_scale
+op_add = ControlOp "add" Signal.sig_add (Signal.constant 0)
+op_sub = ControlOp "sub" Signal.sig_subtract (Signal.constant 0)
+op_mul = ControlOp "mul" Signal.sig_multiply (Signal.constant 1)
+op_scale = ControlOp "scale" Signal.sig_scale (Signal.constant 0)
 
 psignal_control_ops :: Map.Map TrackLang.CallId (ControlOp PSignal.Signal)
 psignal_control_ops = Map.fromList $ map to_pair
-    [ Set, ControlOp "interleave" $ flip PSignal.interleave
+    [ Set, ControlOp "interleave" (flip PSignal.interleave) mempty
     ]
     where to_pair op = (TrackLang.Symbol (ShowVal.show_val op), op)
 
@@ -953,7 +955,7 @@ instance DeepSeq.NFData Collect where
 -- and pitch calls.  The track deriver will extract them and merge them into
 -- the dynamic environment.  [NOTE control-modification]
 data ControlMod =
-    ControlMod !Score.Control !Signal.Control !(Merge Signal.Control)
+    ControlMod !Score.Control !Signal.Control !(ControlOp Signal.Control)
     deriving (Show)
 
 instance Pretty.Pretty ControlMod where

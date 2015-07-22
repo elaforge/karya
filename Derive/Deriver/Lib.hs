@@ -604,7 +604,7 @@ apply_control_op :: ControlOp Signal.Control -> Maybe Score.TypedControl
     -> Score.TypedControl -> Score.TypedControl
 apply_control_op _ Nothing new = new
 apply_control_op Set (Just _) new = new
-apply_control_op (ControlOp _ op) (Just old) new =
+apply_control_op (ControlOp _ op _) (Just old) new =
     Score.Typed (Score.type_of old <> Score.type_of new)
         (op (Score.typed_val old) (Score.typed_val new))
 
@@ -625,7 +625,7 @@ multiply_control cont val
 -- *** ControlMod
 
 -- | Emit a 'ControlMod'.
-modify_control :: Merge Signal.Control -> Score.Control -> Signal.Control
+modify_control :: ControlOp Signal.Control -> Score.Control -> Signal.Control
     -> Deriver ()
 modify_control merge control signal = Internal.modify_collect $ \collect ->
     collect { collect_control_mods =
@@ -647,11 +647,9 @@ eval_control_mods end deriver = do
 
 with_control_mods :: [ControlMod] -> RealTime -> Deriver a -> Deriver a
 with_control_mods mods end deriver = do
-    ops <- mapM (\(ControlMod control _ merge) -> merge_to_op merge control)
-        mods
-    foldr ($) deriver (zipWith apply mods ops)
+    foldr ($) deriver (map apply mods)
     where
-    apply (ControlMod control signal _) op =
+    apply (ControlMod control signal op) =
         with_merged_control op control $ Score.untyped $
             Signal.drop_at_after end signal
 
@@ -746,7 +744,7 @@ apply_pcontrol_op :: ControlOp PSignal.Signal -> Maybe PSignal.Signal
     -> PSignal.Signal -> PSignal.Signal
 apply_pcontrol_op _ Nothing new = new
 apply_pcontrol_op Set (Just _) new = new
-apply_pcontrol_op (ControlOp _ op) (Just old) new = op old new
+apply_pcontrol_op (ControlOp _ op _) (Just old) new = op old new
 
 
 -- * 'Mode'

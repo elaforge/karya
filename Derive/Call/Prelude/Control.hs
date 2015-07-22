@@ -167,7 +167,7 @@ invert_merge merge val current_val = case Map.lookup merge inverters of
         , (n Derive.op_mul, \old new -> if old == 0 then 0 else new / old)
         , (n Derive.op_scale, Signal.scale_invert)
         ]
-    n (Derive.ControlOp name _) = name
+    n (Derive.ControlOp name _ _) = name
     n Derive.Set = "set"
 
 

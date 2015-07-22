@@ -57,16 +57,15 @@ test_threaded_last_val = do
           ], [])
     where
     c_prev :: Derive.Generator Derive.Control
-    c_prev = Derive.generator1 "test" "prev" mempty "" $
-        Sig.call0 $ \args -> case Args.prev_control args of
-            Nothing -> Derive.throw "no prev val"
-            Just (x, y) -> do
-                start <- Args.real_start args
-                -- Log.warn $ show (start, (x, y))
-                return $ Signal.signal $ if start > x
-                    then [(start - 0.25, y - 0.25), (start, y),
-                        (start + 0.25, y + 0.25)]
-                    else []
+    c_prev = CallTest.generator1 $ \args -> case Args.prev_control args of
+        Nothing -> Derive.throw "no prev val"
+        Just (x, y) -> do
+            start <- Args.real_start args
+            -- Log.warn $ show (start, (x, y))
+            return $ Signal.signal $ if start > x
+                then [(start - 0.25, y - 0.25), (start, y),
+                    (start + 0.25, y + 0.25)]
+                else []
 
 test_threaded_last_event = do
     let run = snd . DeriveTest.extract id . DeriveTest.derive_tracks_setup
