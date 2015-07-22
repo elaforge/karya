@@ -126,7 +126,7 @@ record_track_dynamic_for block_id track_id = do
 
 -- * misc Dynamic state
 
-with_default_merge :: Map.Map Score.Control (Merge Signal.Control)
+with_default_merge :: Map.Map Score.Control (ControlOp Signal.Control)
     -> Deriver a -> Deriver a
 with_default_merge defaults = local $ \st -> st
     { state_control_merge_defaults =

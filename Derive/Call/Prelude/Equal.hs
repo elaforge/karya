@@ -162,12 +162,13 @@ parse_equal maybe_merge lhs rhs
     -- Assign to pitch control.
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
         TrackLang.VPitch rhs -> Right $ \deriver -> do
-            merge <- get_psignal_merge maybe_merge
-            Derive.with_named_pitch merge control (PSignal.constant rhs) deriver
+            merge <- get_pcontrol_merge maybe_merge
+            Derive.with_merged_pitch merge control (PSignal.constant rhs)
+                deriver
         TrackLang.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_psignal rhs
-            merge <- get_psignal_merge maybe_merge
-            Derive.with_named_pitch merge control sig deriver
+            merge <- get_pcontrol_merge maybe_merge
+            Derive.with_merged_pitch merge control sig deriver
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
             <> " control, but got " <> pretty (TrackLang.type_of rhs)
     where
@@ -184,18 +185,20 @@ merge_error merge = "operator is only supported when assigning to a control: "
 
 data Merge = Default | Merge TrackLang.CallId deriving (Show)
 
+-- | Unlike 'Derive.MergeDefault', the default is Derive.Set.
 get_merge :: Score.Control -> Maybe Merge
-    -> Derive.Deriver (Derive.Merge Signal.Control)
+    -> Derive.Deriver (Derive.ControlOp Signal.Control)
 get_merge control maybe_merge = case maybe_merge of
     Nothing -> return Derive.Set
     Just Default -> Derive.get_default_merge control
-    Just (Merge op) -> Derive.get_merge op
+    Just (Merge op) -> Derive.get_control_merge op
 
-get_psignal_merge :: Maybe Merge -> Derive.Deriver (Derive.Merge PSignal.Signal)
-get_psignal_merge m = case m of
+get_pcontrol_merge :: Maybe Merge
+    -> Derive.Deriver (Derive.ControlOp PSignal.Signal)
+get_pcontrol_merge m = case m of
     Nothing -> return Derive.Set
     Just Default -> return Derive.Set
-    Just (Merge name) -> Derive.get_psignal_merge name
+    Just (Merge name) -> Derive.get_pcontrol_merge name
 
 parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
 parse_val = either (const Nothing) Just . Parse.parse_val . TrackLang.unsym
@@ -302,7 +305,7 @@ c_default_merge = Derive.transformer Module.prelude "default-merge" mempty
         \ 'Derive.Deriver.Monad.default_control_op_map'."
     <*> Sig.many1 "control" "Control names."
     ) $ \(op_name, controls) _args deriver -> do
-        merge <- Derive.get_merge op_name
+        op <- Derive.get_control_merge op_name
         let defaults = Map.fromList $
-                map (flip (,) merge) (NonEmpty.toList controls)
+                map (flip (,) op) (NonEmpty.toList controls)
         Internal.with_default_merge defaults deriver

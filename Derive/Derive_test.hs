@@ -24,6 +24,7 @@ import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.Tempo as Tempo
@@ -511,7 +512,8 @@ test_tempo_roundtrip = do
 test_named_pitch = do
     let run op = DeriveTest.eval State.empty (op $ Derive.named_nn_at "psig" 2)
         pitch = DeriveTest.mkpitch12 "4c"
-        with_const pname = Derive.with_constant_named_pitch pname pitch
+        with_const pname = Derive.with_merged_pitch Derive.Set pname
+            (PSignal.constant pitch)
     equal (run (with_const "psig")) (Right (Just 60))
     equal (run (with_const "bad")) (Right Nothing)
 

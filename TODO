@@ -39,10 +39,20 @@ UNSORTED
   * generalize Util.Control.mconcatMap to foldMap
     generalize mconcatMapM to foldMapA f = fmap Foldable.fold . traverse f
     . Or not... at least I could put foldMap in the global namespace
-  - ControlMods can't use the default merge.  Promote Default to Derive.Merge,
+  * ControlMods can't use the default merge.  Promote Default to Derive.Merge,
     merge with ControlOp, and make ControlMods use the default.
     . I'll need the identity element to avoid squashing signal outside of the
       ControlOp's range, as in ControlUtil.multiply_signal.
+    . ControlOp is just the function.
+      Merge says how to merge two signals.
+      The track just calls the merge Derive function with Merge.
+    . But I can't allow Default in state_control_merge_defaults because then
+      I could get a loop of Defaults.  Or Default in the map could just mean
+      an error or multiply.  Or merge Set into ControlOp.
+  - I don't like the name ControlOp.  How about...
+    . MergeF -- state_control_ops becomes state_control_mergefs... yuck.
+    . Merger -- state_control_mergers... a bit better.  But is it confusing or
+      helpful to have merger sound so much like merge?
   * 'n' and 'p' are buggy when there are collapsed tracks
   * mridangam pitch should default to sa... or whatever Pitch 0 0 is.
     . Actually it seems like it might be a bit inefficient to do that on every

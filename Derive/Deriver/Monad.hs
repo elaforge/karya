@@ -415,7 +415,7 @@ data Dynamic = Dynamic {
     -- 'TrackLang.ControlFunction' for details.
     , state_control_functions :: !Score.ControlFunctionMap
     , state_control_merge_defaults ::
-        Map.Map Score.Control (Merge Signal.Control)
+        Map.Map Score.Control (ControlOp Signal.Control)
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
@@ -497,9 +497,10 @@ initial_controls = Map.fromList
     [ (Controls.dynamic, Score.untyped (Signal.constant default_dynamic))
     ]
 
-initial_control_merge_defaults :: Map.Map Score.Control (Merge Signal.Control)
+initial_control_merge_defaults ::
+    Map.Map Score.Control (ControlOp Signal.Control)
 initial_control_merge_defaults =
-    Map.fromList [(c, Merge op_add) | c <- Controls.additive_controls]
+    Map.fromList [(c, op_add) | c <- Controls.additive_controls]
 
 -- | A default dynamic that's not 0 is useful because otherwise you have to add
 -- dyn to everything.  Since control tracks multiply by default, 1 is the most
@@ -816,7 +817,7 @@ instance Monoid.Monoid InstrumentCalls where
 -- ** control
 
 -- | How to merge a control into 'Dynamic'.
-data Merge sig = Set -- ^ Replace the existing signal.
+data Merge sig = DefaultMerge -- ^ Apply the default merge for this control.
     | Merge !(ControlOp sig) -- ^ Merge with a specific operator.
     deriving (Show)
 
@@ -825,36 +826,44 @@ instance DeepSeq.NFData (Merge a) where rnf _ = ()
 
 -- | This is a semigroup used for combining two signals.
 data ControlOp sig = ControlOp !Text !(sig -> sig -> sig)
+    | Set -- ^ Replace the existing signal.
 
+-- It's not really a 'TrackLang.Val', so this is a bit wrong for ShowVal.  But
+-- I want to express that this is meant to be valid syntax for the track title.
+instance ShowVal.ShowVal (ControlOp a) where
+    show_val Set = "set"
+    show_val (ControlOp name _) = name
+instance Pretty.Pretty (ControlOp a) where pretty = ShowVal.show_val
 instance Show (ControlOp a) where
-    show (ControlOp name _) = "((ControlOp " ++ untxt name ++ "))"
+    show op = "((ControlOp " ++ untxt (ShowVal.show_val op) ++ "))"
+instance DeepSeq.NFData (ControlOp a) where
+    rnf _ = ()
 
 -- *** control ops
 
 -- | Default set of control operators.  Merged at runtime with the static
 -- config.  TODO but not yet
 control_ops :: Map.Map TrackLang.CallId (ControlOp Signal.Control)
-control_ops = Map.fromList
-    [ ("add", op_add)
-    , ("sub", op_sub)
-    , ("mul", op_mul)
-    , ("scale", op_scale)
-    , ("max", ControlOp "max" Signal.sig_max)
-    , ("min", ControlOp "min" Signal.sig_min)
+control_ops = Map.fromList $ map to_pair
+    [ Set, op_add, op_sub, op_mul, op_scale
+    , ControlOp "max" Signal.sig_max
+    , ControlOp "min" Signal.sig_min
     -- flip ensures that when samples collide, the later track wins.
-    , ("interleave", ControlOp "interleave" $ flip Signal.interleave)
+    , ControlOp "interleave" $ flip Signal.interleave
     ]
+    where to_pair op = (TrackLang.Symbol (ShowVal.show_val op), op)
 
 op_add, op_sub, op_mul, op_scale :: ControlOp Signal.Control
 op_add = ControlOp "add" Signal.sig_add
-op_sub = ControlOp "subtract" Signal.sig_subtract
-op_mul = ControlOp "multiply" Signal.sig_multiply
+op_sub = ControlOp "sub" Signal.sig_subtract
+op_mul = ControlOp "mul" Signal.sig_multiply
 op_scale = ControlOp "scale" Signal.sig_scale
 
 psignal_control_ops :: Map.Map TrackLang.CallId (ControlOp PSignal.Signal)
-psignal_control_ops = Map.fromList
-    [ ("interleave", ControlOp "interleave" $ flip PSignal.interleave)
+psignal_control_ops = Map.fromList $ map to_pair
+    [ Set, ControlOp "interleave" $ flip PSignal.interleave
     ]
+    where to_pair op = (TrackLang.Symbol (ShowVal.show_val op), op)
 
 
 -- * Collect

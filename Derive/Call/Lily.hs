@@ -178,7 +178,7 @@ add_code (pos, code) = Derive.modify_val (position_env pos) $
 -- a 'Types.Event'.
 code :: (ScoreTime, ScoreTime) -> Ly -> Derive.NoteDeriver
 code (start, dur) code = Derive.with_val Constants.v_ly_prepend code $
-    Derive.with_no_pitch $ Derive.place start dur Call.note
+    Derive.remove_pitch $ Derive.place start dur Call.note
 
 -- | Like 'code', but for 0 duration code fragments, and can either put them
 -- before or after notes that occur at the same time.
