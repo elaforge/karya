@@ -49,7 +49,7 @@ UNSORTED
     . But I can't allow Default in state_control_merge_defaults because then
       I could get a loop of Defaults.  Or Default in the map could just mean
       an error or multiply.  Or merge Set into ControlOp.
-  - I don't like the name ControlOp.  How about...
+  * I don't like the name ControlOp.  How about...
     . MergeF -- state_control_ops becomes state_control_mergefs... yuck.
     . Merger -- state_control_mergers... a bit better.  But is it confusing or
       helpful to have merger sound so much like merge?

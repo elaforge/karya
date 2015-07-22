@@ -89,15 +89,15 @@ eval_track toplevel track expr ctype deriver = case ctype of
                     (Score.control_name Controls.tempo) "compose"
                     (in_normal_mode $ derive_control True track transform)
         tempo_call toplevel maybe_sym track sig_deriver deriver
-    ParseTitle.Control maybe_op typed_control -> do
+    ParseTitle.Control maybe_merge typed_control -> do
         let control = Score.typed_val typed_control
-        op <- get_merge control maybe_op
+        merger <- get_merger control maybe_merge
         let sig_deriver = with_control_env (Score.control_name control)
-                (ShowVal.show_val op) (derive_control False track transform)
-        control_call track typed_control op sig_deriver deriver
-    ParseTitle.Pitch maybe_op scale_id pcontrol -> do
-        op <- get_pcontrol_merge maybe_op
-        pitch_call track pcontrol op scale_id transform deriver
+                (ShowVal.show_val merger) (derive_control False track transform)
+        control_call track typed_control merger sig_deriver deriver
+    ParseTitle.Pitch maybe_merge scale_id pcontrol -> do
+        merger <- get_pitch_merger maybe_merge
+        pitch_call track pcontrol merger scale_id transform deriver
     where
     transform :: Derive.Callable d => Derive.LogsDeriver d
         -> Derive.LogsDeriver d
@@ -122,17 +122,17 @@ in_normal_mode deriver = Derive.get_mode >>= \mode -> case mode of
 -- 'Controls.null' is used by control calls, and uses 'Derive.Set' by default.
 -- Since the control call emits signal which then goes in a control track,
 -- a merge operator would wind up being applied twice.
-get_merge :: Score.Control -> Maybe TrackLang.CallId
-    -> Derive.Deriver (Derive.ControlOp Signal.Control)
-get_merge control op = case op of
+get_merger :: Score.Control -> Maybe TrackLang.CallId
+    -> Derive.Deriver (Derive.Merger Signal.Control)
+get_merger control merge = case merge of
     Nothing
         | control == Controls.null -> return Derive.Set
-        | otherwise -> Derive.get_default_merge control
+        | otherwise -> Derive.get_default_merger control
     Just sym -> Derive.get_control_merge sym
 
-get_pcontrol_merge :: Maybe TrackLang.CallId
-    -> Derive.Deriver (Derive.ControlOp PSignal.Signal)
-get_pcontrol_merge = maybe (return Derive.Set) Derive.get_pcontrol_merge
+get_pitch_merger :: Maybe TrackLang.CallId
+    -> Derive.Deriver (Derive.Merger PSignal.Signal)
+get_pitch_merger = maybe (return Derive.Set) Derive.get_pitch_merger
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
@@ -182,16 +182,16 @@ dispatch_tempo toplevel sym block_range maybe_track_id signal deriver =
                 "unknown tempo modifier: " <> ShowVal.show_val sym
 
 control_call :: TrackTree.Track -> Score.Typed Score.Control
-    -> Derive.ControlOp Signal.Control
+    -> Derive.Merger Signal.Control
     -> (Derive.Deriver (TrackResults Signal.Control))
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-control_call track control op control_deriver deriver = do
+control_call track control merger control_deriver deriver = do
     (signal, logs) <- Internal.track_setup track control_deriver
     stash_if_wanted track signal
     -- Apply and strip any control modifications made during the above derive.
     end <- Derive.real $ TrackTree.track_end track
     Derive.eval_control_mods end $ merge_logs logs $ with_damage $
-        with_control_op control op signal deriver
+        with_merger control merger signal deriver
     -- I think this forces sequentialness because 'deriver' runs in the state
     -- from the end of 'control_deriver'.  To make these parallelize, I need to
     -- run control_deriver as a sub-derive, then mappend the Collect.
@@ -199,10 +199,10 @@ control_call track control op control_deriver deriver = do
     with_damage = with_control_damage
         (TrackTree.block_track_id track) (TrackTree.track_range track)
 
-with_control_op :: Score.Typed Score.Control -> Derive.ControlOp Signal.Control
+with_merger :: Score.Typed Score.Control -> Derive.Merger Signal.Control
     -> Signal.Control -> Derive.Deriver a -> Derive.Deriver a
-with_control_op (Score.Typed typ control) op signal =
-    Derive.with_merged_control op control (Score.Typed typ signal)
+with_merger (Score.Typed typ control) merger signal =
+    Derive.with_merged_control merger control (Score.Typed typ signal)
 
 merge_logs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
 merge_logs logs deriver = do
@@ -210,15 +210,15 @@ merge_logs logs deriver = do
     return $ Derive.merge_events (map LEvent.Log logs) events
 
 pitch_call :: TrackTree.Track -> Score.PControl
-    -> Derive.ControlOp PSignal.Signal -> Pitch.ScaleId
+    -> Derive.Merger PSignal.Signal -> Pitch.ScaleId
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-pitch_call track pcontrol op scale_id transform deriver =
+pitch_call track pcontrol merger scale_id transform deriver =
     Internal.track_setup track $ do
         scale <- get_scale scale_id
         Derive.with_scale scale $ do
             (signal, logs) <- with_control_env (Score.pcontrol_name pcontrol)
-                (ShowVal.show_val op) (derive_pitch True track transform)
+                (ShowVal.show_val merger) (derive_pitch True track transform)
             -- Ignore errors, they should be logged on conversion.
             (nn_sig, _) <- psignal_to_nn signal
             stash_if_wanted track (Signal.coerce nn_sig)
@@ -226,7 +226,7 @@ pitch_call track pcontrol op scale_id transform deriver =
             -- derive.
             end <- Derive.real $ TrackTree.track_end track
             Derive.eval_control_mods end $ merge_logs logs $ with_damage $
-                Derive.with_merged_pitch op pcontrol signal deriver
+                Derive.with_merged_pitch merger pcontrol signal deriver
     where
     with_damage = with_control_damage (TrackTree.block_track_id track)
         (TrackTree.track_range track)

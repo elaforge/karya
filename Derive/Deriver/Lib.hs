@@ -571,50 +571,50 @@ with_control_maps cmap cfuncs = Internal.local $ \state -> state
     , state_control_functions = cfuncs
     }
 
--- | Modify the given control according to the Merge.
+-- | Modify the given control according to the Merger.
 --
 -- If both signals are typed, the existing type wins over the relative
 -- signal's type.  If one is untyped, the typed one wins.
-with_merged_control :: ControlOp Signal.Control -> Score.Control
+with_merged_control :: Merger Signal.Control -> Score.Control
     -> Score.TypedControl -> Deriver a -> Deriver a
-with_merged_control op control signal deriver = do
+with_merged_control merger control signal deriver = do
     controls <- get_controls
-    let new = apply_control_op op (Map.lookup control controls) signal
+    let new = apply_merger merger (Map.lookup control controls) signal
     with_control control new deriver
 
-merge_to_op :: Merge Signal.Control -> Score.Control
-    -> Deriver (ControlOp Signal.Control)
-merge_to_op DefaultMerge control = get_default_merge control
-merge_to_op (Merge op) _ = return op
+resolve_merge :: Merge Signal.Control -> Score.Control
+    -> Deriver (Merger Signal.Control)
+resolve_merge DefaultMerge control = get_default_merger control
+resolve_merge (Merge merger) _ = return merger
 
-get_control_merge :: TrackLang.CallId -> Deriver (ControlOp Signal.Control)
+get_control_merge :: TrackLang.CallId -> Deriver (Merger Signal.Control)
 get_control_merge name = do
-    ops <- gets (state_control_ops . state_constant)
-    require ("unknown control op: " <> showt name) (Map.lookup name ops)
+    mergers <- gets (state_mergers . state_constant)
+    require ("unknown control merger: " <> showt name) (Map.lookup name mergers)
 
-get_default_merge :: Score.Control -> Deriver (ControlOp Signal.Control)
-get_default_merge control = do
+get_default_merger :: Score.Control -> Deriver (Merger Signal.Control)
+get_default_merger control = do
     defaults <- Internal.get_dynamic state_control_merge_defaults
     return $ Map.findWithDefault default_merge control defaults
     where
-    default_merge = op_mul
+    default_merge = merge_mul
 
--- | Combine two signals with a ControlOp.
-apply_control_op :: ControlOp Signal.Control -> Maybe Score.TypedControl
+-- | Combine two signals with a Merger.
+apply_merger :: Merger Signal.Control -> Maybe Score.TypedControl
     -> Score.TypedControl -> Score.TypedControl
-apply_control_op _ Nothing new = new
-apply_control_op Set (Just _) new = new
-apply_control_op (ControlOp _ op _) (Just old) new =
+apply_merger _ Nothing new = new
+apply_merger Set (Just _) new = new
+apply_merger (Merger _ merger _) (Just old) new =
     Score.Typed (Score.type_of old <> Score.type_of new)
-        (op (Score.typed_val old) (Score.typed_val new))
+        (merger (Score.typed_val old) (Score.typed_val new))
 
 with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
-with_added_control = with_merged_control op_add
+with_added_control = with_merged_control merge_add
 
 with_multiplied_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
-with_multiplied_control = with_merged_control op_mul
+with_multiplied_control = with_merged_control merge_mul
 
 multiply_control :: Score.Control -> Signal.Y -> Deriver a -> Deriver a
 multiply_control cont val
@@ -625,11 +625,11 @@ multiply_control cont val
 -- *** ControlMod
 
 -- | Emit a 'ControlMod'.
-modify_control :: ControlOp Signal.Control -> Score.Control -> Signal.Control
+modify_control :: Merger Signal.Control -> Score.Control -> Signal.Control
     -> Deriver ()
-modify_control merge control signal = Internal.modify_collect $ \collect ->
+modify_control merger control signal = Internal.modify_collect $ \collect ->
     collect { collect_control_mods =
-        ControlMod control signal merge : collect_control_mods collect }
+        ControlMod control signal merger : collect_control_mods collect }
 
 -- | Apply the collected control mods to the given deriver and clear them out.
 eval_control_mods :: RealTime -- ^ Trim controls to end at this time.
@@ -649,8 +649,8 @@ with_control_mods :: [ControlMod] -> RealTime -> Deriver a -> Deriver a
 with_control_mods mods end deriver = do
     foldr ($) deriver (map apply mods)
     where
-    apply (ControlMod control signal op) =
-        with_merged_control op control $ Score.untyped $
+    apply (ControlMod control signal merger) =
+        with_merged_control merger control $ Score.untyped $
             Signal.drop_at_after end signal
 
 -- ** pitch
@@ -709,19 +709,19 @@ logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
 -- *** with signal
 
 -- | Run the deriver in a context with the given pitch signal.
-with_merged_pitch :: ControlOp PSignal.Signal -> Score.PControl
+with_merged_pitch :: Merger PSignal.Signal -> Score.PControl
     -> PSignal.Signal -> Deriver a -> Deriver a
-with_merged_pitch op name signal deriver = do
-    modify_pitch name (\old -> apply_pcontrol_op op old signal) deriver
+with_merged_pitch merger name signal deriver = do
+    modify_pitch name (\old -> apply_pitch_merger merger old signal) deriver
 
-pitch_merge_to_op :: Merge PSignal.Signal -> ControlOp PSignal.Signal
-pitch_merge_to_op DefaultMerge = Set
-pitch_merge_to_op (Merge op) = op
+resolve_pitch_merge :: Merge PSignal.Signal -> Merger PSignal.Signal
+resolve_pitch_merge DefaultMerge = Set
+resolve_pitch_merge (Merge merger) = merger
 
-get_pcontrol_merge :: TrackLang.CallId -> Deriver (ControlOp PSignal.Signal)
-get_pcontrol_merge name = do
-    ops <- gets (state_psignal_control_ops . state_constant)
-    require ("unknown psignal control op: " <> showt name) (Map.lookup name ops)
+get_pitch_merger :: TrackLang.CallId -> Deriver (Merger PSignal.Signal)
+get_pitch_merger name = do
+    mergers <- gets (state_pitch_mergers . state_constant)
+    require ("unknown pitch merger: " <> showt name) (Map.lookup name mergers)
 
 with_pitch :: PSignal.Signal -> Deriver a -> Deriver a
 with_pitch = with_merged_pitch Set Score.default_pitch
@@ -740,11 +740,11 @@ modify_pitch pcontrol f
     | otherwise = Internal.local $ \state -> state
         { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
 
-apply_pcontrol_op :: ControlOp PSignal.Signal -> Maybe PSignal.Signal
+apply_pitch_merger :: Merger PSignal.Signal -> Maybe PSignal.Signal
     -> PSignal.Signal -> PSignal.Signal
-apply_pcontrol_op _ Nothing new = new
-apply_pcontrol_op Set (Just _) new = new
-apply_pcontrol_op (ControlOp _ op _) (Just old) new = op old new
+apply_pitch_merger _ Nothing new = new
+apply_pitch_merger Set (Just _) new = new
+apply_pitch_merger (Merger _ merger _) (Just old) new = merger old new
 
 
 -- * 'Mode'

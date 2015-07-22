@@ -140,14 +140,14 @@ parse_equal maybe_merge lhs rhs
         TrackLang.VControlRef rhs -> Right $ \deriver ->
             Call.to_signal_or_function rhs >>= \x -> case x of
                 Left sig -> do
-                    merge <- get_merge control maybe_merge
-                    Derive.with_merged_control merge control sig deriver
+                    merger <- get_merger control maybe_merge
+                    Derive.with_merged_control merger control sig deriver
                 Right f -> case maybe_merge of
                     Just merge -> Derive.throw_arg_error $ merge_error merge
                     Nothing -> Derive.with_control_function control f deriver
         TrackLang.VNum rhs -> Right $ \deriver -> do
-            merge <- get_merge control maybe_merge
-            Derive.with_merged_control merge control (fmap Signal.constant rhs)
+            merger <- get_merger control maybe_merge
+            Derive.with_merged_control merger control (fmap Signal.constant rhs)
                 deriver
         TrackLang.VControlFunction f -> case maybe_merge of
             Just merge -> Left $ merge_error merge
@@ -162,13 +162,13 @@ parse_equal maybe_merge lhs rhs
     -- Assign to pitch control.
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
         TrackLang.VPitch rhs -> Right $ \deriver -> do
-            merge <- get_pcontrol_merge maybe_merge
-            Derive.with_merged_pitch merge control (PSignal.constant rhs)
+            merger <- get_pitch_merger maybe_merge
+            Derive.with_merged_pitch merger control (PSignal.constant rhs)
                 deriver
         TrackLang.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_psignal rhs
-            merge <- get_pcontrol_merge maybe_merge
-            Derive.with_merged_pitch merge control sig deriver
+            merger <- get_pitch_merger maybe_merge
+            Derive.with_merged_pitch merger control sig deriver
         _ -> Left $ "binding a pitch signal expected a pitch or pitch"
             <> " control, but got " <> pretty (TrackLang.type_of rhs)
     where
@@ -186,19 +186,19 @@ merge_error merge = "operator is only supported when assigning to a control: "
 data Merge = Default | Merge TrackLang.CallId deriving (Show)
 
 -- | Unlike 'Derive.MergeDefault', the default is Derive.Set.
-get_merge :: Score.Control -> Maybe Merge
-    -> Derive.Deriver (Derive.ControlOp Signal.Control)
-get_merge control maybe_merge = case maybe_merge of
+get_merger :: Score.Control -> Maybe Merge
+    -> Derive.Deriver (Derive.Merger Signal.Control)
+get_merger control maybe_merge = case maybe_merge of
     Nothing -> return Derive.Set
-    Just Default -> Derive.get_default_merge control
-    Just (Merge op) -> Derive.get_control_merge op
+    Just Default -> Derive.get_default_merger control
+    Just (Merge merge) -> Derive.get_control_merge merge
 
-get_pcontrol_merge :: Maybe Merge
-    -> Derive.Deriver (Derive.ControlOp PSignal.Signal)
-get_pcontrol_merge m = case m of
+get_pitch_merger :: Maybe Merge
+    -> Derive.Deriver (Derive.Merger PSignal.Signal)
+get_pitch_merger maybe_merge = case maybe_merge of
     Nothing -> return Derive.Set
     Just Default -> return Derive.Set
-    Just (Merge name) -> Derive.get_pcontrol_merge name
+    Just (Merge name) -> Derive.get_pitch_merger name
 
 parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
 parse_val = either (const Nothing) Just . Parse.parse_val . TrackLang.unsym
@@ -301,11 +301,11 @@ c_default_merge = Derive.transformer Module.prelude "default-merge" mempty
     "Set the default merge operators for controls. These apply when the\
     \ control track doesn't have an explicit operator."
     $ Sig.callt ((,)
-    <$> Sig.required "op" "Merge operator, from\
+    <$> Sig.required "merge" "Merge operator, from\
         \ 'Derive.Deriver.Monad.default_control_op_map'."
     <*> Sig.many1 "control" "Control names."
     ) $ \(op_name, controls) _args deriver -> do
-        op <- Derive.get_control_merge op_name
+        merge <- Derive.get_control_merge op_name
         let defaults = Map.fromList $
-                map (flip (,) op) (NonEmpty.toList controls)
+                map (flip (,) merge) (NonEmpty.toList controls)
         Internal.with_default_merge defaults deriver

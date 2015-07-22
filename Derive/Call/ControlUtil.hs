@@ -300,8 +300,8 @@ modify = modify_with Derive.DefaultMerge
 modify_with :: Derive.Merge Signal.Control -> Score.Control -> RealTime
     -> Signal.Control -> Derive.Deriver ()
 modify_with merge control end sig = do
-    op@(Derive.ControlOp _ _ identity) <- Derive.merge_to_op merge control
-    Derive.modify_control op control $
+    merger@(Derive.Merger _ _ identity) <- Derive.resolve_merge merge control
+    Derive.modify_control merger control $
         mconcat [initial identity, sig, id_signal identity end]
     where
     id_signal identity x = case Signal.head identity of
@@ -312,4 +312,4 @@ modify_with merge control end sig = do
         _ -> mempty
 
 multiply_dyn :: RealTime -> Signal.Control -> Derive.Deriver ()
-multiply_dyn = modify_with (Derive.Merge Derive.op_mul) Controls.dynamic
+multiply_dyn = modify_with (Derive.Merge Derive.merge_mul) Controls.dynamic

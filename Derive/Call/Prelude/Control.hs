@@ -162,12 +162,12 @@ invert_merge merge val current_val = case Map.lookup merge inverters of
     where
     inverters = Map.fromList
         [ ("set", \_ new -> new)
-        , (n Derive.op_add, \old new -> new - old)
-        , (n Derive.op_sub, \old new -> old - new)
-        , (n Derive.op_mul, \old new -> if old == 0 then 0 else new / old)
-        , (n Derive.op_scale, Signal.scale_invert)
+        , (n Derive.merge_add, \old new -> new - old)
+        , (n Derive.merge_sub, \old new -> old - new)
+        , (n Derive.merge_mul, \old new -> if old == 0 then 0 else new / old)
+        , (n Derive.merge_scale, Signal.scale_invert)
         ]
-    n (Derive.ControlOp name _ _) = name
+    n (Derive.Merger name _ _) = name
     n Derive.Set = "set"
 
 

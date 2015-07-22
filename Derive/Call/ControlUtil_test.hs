@@ -36,8 +36,8 @@ test_modify = do
             ]
     equal (run Derive.DefaultMerge (tracks ".5"))
         ([[(0, 0.5), (4, 0.25), (6, 0.5)]], [])
-    let Just op_max = Map.lookup "max" Derive.control_ops
-    equal (run (Derive.Merge op_max) (tracks ".25"))
+    let Just merge_max = Map.lookup "max" Derive.mergers
+    equal (run (Derive.Merge merge_max) (tracks ".25"))
         ([[(0, 0.25), (4, 0.5), (6, 0.25)]], [])
     where
     c_gen :: Derive.Merge Signal.Control -> Derive.Generator Derive.Control

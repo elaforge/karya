@@ -20,6 +20,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.TrackLang as TrackLang
@@ -69,10 +70,9 @@ control_calls = Derive.transformer_call_map
     , ("sh", c_sh_control)
     , ("slew", c_slew)
     , ("smooth", c_smooth)
-    , ("->", c_redirect Derive.DefaultMerge
-        "the default operator for the control")
+    , ("->", c_redirect Derive.DefaultMerge)
     -- TODO should I set to 1 at start and end, like Control.multiply_signal?
-    , ("->+", c_redirect (Derive.Merge Derive.op_add) "addition")
+    , ("->+", c_redirect (Derive.Merge Derive.merge_add))
     ]
 
 c_sh_control :: Derive.Transformer Derive.Control
@@ -193,18 +193,20 @@ smooth f srate time =
         | Signal.length sig > 1 = Signal.drop 1 sig
         | otherwise = sig
 
-c_redirect :: Derive.Merge Signal.Control -> Text
-    -> Derive.Transformer Derive.Control
-c_redirect merge op_name =
+c_redirect :: Derive.Merge Signal.Control -> Derive.Transformer Derive.Control
+c_redirect merger =
     Derive.transformer Module.prelude "redirect" Tags.cmod
     ("Redirect a signal to another control, using the control modifier hack.\
-    \ The control is combined with " <> op_name <> ".")
+    \ The control is combined with " <> merge_name merger <> ".")
     $ Sig.callt (required "control" "Redirect to this control.")
     $ \control _args deriver -> do
         (sig, logs) <- Post.derive_signal deriver
-        op <- Derive.merge_to_op merge control
-        Derive.modify_control op control sig
+        merger <- Derive.resolve_merge merger control
+        Derive.modify_control merger control sig
         return $ map LEvent.Log logs
+    where
+    merge_name Derive.DefaultMerge = "the default merger for the control"
+    merge_name (Derive.Merge merger) = ShowVal.doc_val merger
 
 c_cf_sample :: Derive.Transformer Derive.Note
 c_cf_sample = Derive.transformer Module.prelude "cf-sample"

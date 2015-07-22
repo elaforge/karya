@@ -65,13 +65,13 @@ module Derive.Deriver.Monad (
     -- ** constant
     , Constant(..), initial_constant
     , Mode(..)
-    , control_ops, op_add, op_sub, op_mul, op_scale
+    , mergers, merge_add, merge_sub, merge_mul, merge_scale
 
     -- ** instrument
     , Instrument(..), InstrumentCalls(..)
 
     -- ** control
-    , Merge(..), ControlOp(..)
+    , Merge(..), Merger(..)
 
     -- ** collect
     , Collect(..), SignalFragments
@@ -415,7 +415,7 @@ data Dynamic = Dynamic {
     -- 'TrackLang.ControlFunction' for details.
     , state_control_functions :: !Score.ControlFunctionMap
     , state_control_merge_defaults ::
-        Map.Map Score.Control (ControlOp Signal.Control)
+        Map.Map Score.Control (Merger Signal.Control)
     -- | Named pitch signals.
     , state_pitches :: !Score.PitchMap
     -- | The unnamed pitch signal currently in scope.  This is the pitch signal
@@ -498,9 +498,9 @@ initial_controls = Map.fromList
     ]
 
 initial_control_merge_defaults ::
-    Map.Map Score.Control (ControlOp Signal.Control)
+    Map.Map Score.Control (Merger Signal.Control)
 initial_control_merge_defaults =
-    Map.fromList [(c, op_add) | c <- Controls.additive_controls]
+    Map.fromList [(c, merge_add) | c <- Controls.additive_controls]
 
 -- | A default dynamic that's not 0 is useful because otherwise you have to add
 -- dyn to everything.  Since control tracks multiply by default, 1 is the most
@@ -747,10 +747,8 @@ instance Pretty.Pretty Mode where
 data Constant = Constant {
     state_ui :: !State.State
     , state_library :: !Library
-    , state_control_ops ::
-        !(Map.Map TrackLang.CallId (ControlOp Signal.Control))
-    , state_psignal_control_ops ::
-        !(Map.Map TrackLang.CallId (ControlOp PSignal.Signal))
+    , state_mergers :: !(Map.Map TrackLang.CallId (Merger Signal.Control))
+    , state_pitch_mergers :: !(Map.Map TrackLang.CallId (Merger PSignal.Signal))
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
@@ -767,8 +765,8 @@ initial_constant ui_state library lookup_scale lookup_inst cache score_damage =
     Constant
         { state_ui = ui_state
         , state_library = library
-        , state_control_ops = control_ops
-        , state_psignal_control_ops = psignal_control_ops
+        , state_mergers = mergers
+        , state_pitch_mergers = pitch_mergers
         , state_lookup_scale = lookup_scale
         , state_lookup_instrument = lookup_inst
         , state_cache = invalidate_damaged score_damage cache
@@ -818,7 +816,7 @@ instance Monoid.Monoid InstrumentCalls where
 
 -- | How to merge a control into 'Dynamic'.
 data Merge sig = DefaultMerge -- ^ Apply the default merge for this control.
-    | Merge !(ControlOp sig) -- ^ Merge with a specific operator.
+    | Merge !(Merger sig) -- ^ Merge with a specific operator.
     deriving (Show)
 
 instance Pretty.Pretty (Merge a) where pretty = showt
@@ -827,45 +825,46 @@ instance DeepSeq.NFData (Merge a) where rnf _ = ()
 -- | This is a monoid used for combining two signals.  The element should be an
 -- identity, like mempty.  ControlMod uses it to avoid affecting signal outside
 -- of the modified range.
-data ControlOp sig = ControlOp !Text !(sig -> sig -> sig) !sig
+data Merger sig =
+    Merger !Text !(sig -> sig -> sig) !sig -- ^ name mappend mempty
     | Set -- ^ Replace the existing signal.
 
 -- It's not really a 'TrackLang.Val', so this is a bit wrong for ShowVal.  But
 -- I want to express that this is meant to be valid syntax for the track title.
-instance ShowVal.ShowVal (ControlOp a) where
+instance ShowVal.ShowVal (Merger a) where
     show_val Set = "set"
-    show_val (ControlOp name _ _) = name
-instance Pretty.Pretty (ControlOp a) where pretty = ShowVal.show_val
-instance Show (ControlOp a) where
-    show op = "((ControlOp " ++ untxt (ShowVal.show_val op) ++ "))"
-instance DeepSeq.NFData (ControlOp a) where
+    show_val (Merger name _ _) = name
+instance Pretty.Pretty (Merger a) where pretty = ShowVal.show_val
+instance Show (Merger a) where
+    show merger = "((Merger " ++ untxt (ShowVal.show_val merger) ++ "))"
+instance DeepSeq.NFData (Merger a) where
     rnf _ = ()
 
 -- *** control ops
 
 -- | Default set of control operators.  Merged at runtime with the static
 -- config.  TODO but not yet
-control_ops :: Map.Map TrackLang.CallId (ControlOp Signal.Control)
-control_ops = Map.fromList $ map to_pair
-    [ Set, op_add, op_sub, op_mul, op_scale
-    , ControlOp "max" Signal.sig_max (Signal.constant (-2^32))
-    , ControlOp "min" Signal.sig_min (Signal.constant (2^32))
+mergers :: Map.Map TrackLang.CallId (Merger Signal.Control)
+mergers = Map.fromList $ map to_pair
+    [ Set, merge_add, merge_sub, merge_mul, merge_scale
+    , Merger "max" Signal.sig_max (Signal.constant (-2^32))
+    , Merger "min" Signal.sig_min (Signal.constant (2^32))
     -- flip ensures that when samples collide, the later track wins.
-    , ControlOp "interleave" (flip Signal.interleave) mempty
+    , Merger "interleave" (flip Signal.interleave) mempty
     ]
-    where to_pair op = (TrackLang.Symbol (ShowVal.show_val op), op)
+    where to_pair merger = (TrackLang.Symbol (ShowVal.show_val merger), merger)
 
-op_add, op_sub, op_mul, op_scale :: ControlOp Signal.Control
-op_add = ControlOp "add" Signal.sig_add (Signal.constant 0)
-op_sub = ControlOp "sub" Signal.sig_subtract (Signal.constant 0)
-op_mul = ControlOp "mul" Signal.sig_multiply (Signal.constant 1)
-op_scale = ControlOp "scale" Signal.sig_scale (Signal.constant 0)
+merge_add, merge_sub, merge_mul, merge_scale :: Merger Signal.Control
+merge_add = Merger "add" Signal.sig_add (Signal.constant 0)
+merge_sub = Merger "sub" Signal.sig_subtract (Signal.constant 0)
+merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
+merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
 
-psignal_control_ops :: Map.Map TrackLang.CallId (ControlOp PSignal.Signal)
-psignal_control_ops = Map.fromList $ map to_pair
-    [ Set, ControlOp "interleave" (flip PSignal.interleave) mempty
+pitch_mergers :: Map.Map TrackLang.CallId (Merger PSignal.Signal)
+pitch_mergers = Map.fromList $ map to_pair
+    [ Set, Merger "interleave" (flip PSignal.interleave) mempty
     ]
-    where to_pair op = (TrackLang.Symbol (ShowVal.show_val op), op)
+    where to_pair merger = (TrackLang.Symbol (ShowVal.show_val merger), merger)
 
 
 -- * Collect
@@ -955,7 +954,7 @@ instance DeepSeq.NFData Collect where
 -- and pitch calls.  The track deriver will extract them and merge them into
 -- the dynamic environment.  [NOTE control-modification]
 data ControlMod =
-    ControlMod !Score.Control !Signal.Control !(ControlOp Signal.Control)
+    ControlMod !Score.Control !Signal.Control !(Merger Signal.Control)
     deriving (Show)
 
 instance Pretty.Pretty ControlMod where
@@ -1697,7 +1696,7 @@ levent_key (LEvent.Event event) = Score.event_start event
       Besides, this doesn't compose nicely, what if I want multiple high-level
       control tracks at once?
     / Generalize control tracks to return
-      'Either (Name, PSignal) (Name, ControlSignal, ControlOp).
+      'Either (Name, PSignal) (Name, ControlSignal, Merger).
       The track call splits them apart, and merges into the environ.  This
       would make pitch tracks and control tracks the same, just a different
       default.  But that's no good because they already have separate
