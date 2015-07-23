@@ -141,17 +141,20 @@ c_porta = generator1 "porta" mempty
     "Interpolate between two pitches. This is similar to `i>>`,  but intended\
     \ to be higher level, in that instruments or scores can override it to\
     \ represent an idiomatic portamento."
-    $ Sig.call ((,,,)
+    $ Sig.call ((,,,,)
     <$> PitchUtil.pitch_arg
     <*> defaulted "time" ControlUtil.default_interpolation_time
         "Time to reach destination."
+    <*> defaulted "place" (TrackLang.Normalized 0.5)
+        "Placement, from before to after the call."
     <*> PitchUtil.from_env <*> ControlUtil.curve_env
-    ) $ \(to, TrackLang.DefaultReal time, from_, curve) args -> do
-        let from = from_ <|> (snd <$> Args.prev_pitch args)
+    ) $ \(to, TrackLang.DefaultReal time, place, from, curve) args -> do
+        let maybe_from = from <|> (snd <$> Args.prev_pitch args)
         time <- if Args.duration args == 0
             then return time
             else TrackLang.Real <$> Args.real_duration args
-        PitchUtil.interpolate_from_start curve args from time to
+        (start, end) <- ControlUtil.place_range place (Args.start args) time
+        PitchUtil.make_segment_from curve start maybe_from end to
 
 -- * util
 

@@ -58,8 +58,9 @@ interpolator_call name (get_arg, curve) interpolator_time =
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
             else TrackLang.Real <$> Args.real_duration args
-        interpolate_from_start (curve curve_arg) args
-            (prev_val from args) time to
+        (start, end) <- Call.duration_from_start args time
+        make_segment_from (curve curve_arg)
+            (min start end) (prev_val from args) (max start end) to
     where
     doc = "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
@@ -146,9 +147,9 @@ exponential_curve = (args, expon)
     where args = Sig.defaulted "exp" 2 exp_doc
 
 sigmoid_curve :: (Sig.Parser (Double, Double), (Double, Double) -> Curve)
-sigmoid_curve = (args, f)
+sigmoid_curve = (args, curve)
     where
-    f (w1, w2) = guess_x $ sigmoid w1 w2
+    curve (w1, w2) = guess_x $ sigmoid w1 w2
     args = (,)
         <$> Sig.defaulted "w1" 0.5 "Start weight."
         <*> Sig.defaulted "w2" 0.5 "End weight."
@@ -157,8 +158,8 @@ sigmoid_curve = (args, f)
 
 -- | Stuff a curve function into a ControlFunction.
 cf_interpolater :: Text -> Curve -> TrackLang.ControlFunction
-cf_interpolater name f = TrackLang.ControlFunction name $
-    \_ _ -> Score.untyped . f . RealTime.to_seconds
+cf_interpolater name curve = TrackLang.ControlFunction name $
+    \_ _ -> Score.untyped . curve . RealTime.to_seconds
 
 -- | Convert a ControlFunction back into a curve function.
 cf_to_curve :: TrackLang.ControlFunction -> Curve
@@ -172,37 +173,40 @@ cf_linear = cf_interpolater "cf-linear" id
 
 -- * interpolate
 
--- | Create an interpolating call, from a certain duration (positive or
--- negative) from the event start to the event start.
-interpolate_from_start :: Curve -> Derive.ControlArgs
-    -> Maybe Signal.Y -> TrackLang.Duration -> Signal.Y
-    -> Derive.Deriver Signal.Control
-interpolate_from_start f args from dur to = do
-    (start, end) <- Call.duration_from_start args dur
-    srate <- Call.get_srate
-    return $ case from of
-        Nothing -> Signal.signal [(start, to)]
-        -- I always set include_initial.  It might be redundant, but if the
-        -- previous call was sliced off, it won't be.
-        Just from -> segment srate True True f
-            (min start end) from (max start end) to
+-- | Given a placement, start, and duration, return the range thus implied.
+place_range :: TrackLang.Normalized -> ScoreTime -> TrackLang.Duration
+    -> Derive.Deriver (RealTime, RealTime)
+place_range (TrackLang.Normalized place) start dur = do
+    start <- Derive.real start
+    dur <- Call.real_duration start dur
+    -- 0 is before, 1 is after.
+    let offset = dur * RealTime.seconds (1 - place)
+    return (start - offset, start + dur - offset)
+
+make_segment_from :: Curve -> RealTime -> Maybe Signal.Y -> RealTime
+    -> Signal.Y -> Derive.Deriver Signal.Control
+make_segment_from curve start maybe_from end to = case maybe_from of
+    Nothing -> return $ Signal.signal [(start, to)]
+    Just from -> make_segment curve start from end to
 
 make_segment :: Curve -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> Derive.Deriver Signal.Control
 make_segment = make_segment_ True True
+    -- I always set include_initial.  It might be redundant, but if the
+    -- previous call was sliced off, it won't be.
 
 make_segment_ :: Bool -> Bool -> Curve -> RealTime -> Signal.Y
     -> RealTime -> Signal.Y -> Derive.Deriver Signal.Control
-make_segment_ include_initial include_end f x1 y1 x2 y2 = do
+make_segment_ include_initial include_end curve x1 y1 x2 y2 = do
     srate <- Call.get_srate
-    return $ segment srate include_initial include_end f x1 y1 x2 y2
+    return $ segment srate include_initial include_end curve x1 y1 x2 y2
 
 -- | Interpolate between the given points.
 segment :: SRate -> Bool -- ^ include the initial sample
     -> Bool -- ^ add a sample at end time if one doesn't naturally land there
     -> Curve -> RealTime -> Signal.Y -> RealTime -> Signal.Y
     -> Signal.Control
-segment srate include_initial include_end f x1 y1 x2 y2 =
+segment srate include_initial include_end curve x1 y1 x2 y2 =
     Signal.unfoldr go $
         (if include_initial then id else drop 1) (Seq.range_ x1 srate)
     where
@@ -210,7 +214,7 @@ segment srate include_initial include_end f x1 y1 x2 y2 =
     go (x:xs)
         | x >= x2 = if include_end then Just ((x2, y2), []) else Nothing
         | otherwise = Just ((x, y_of x), xs)
-    y_of = Num.scale y1 y2 . f . Num.normalize (secs x1) (secs x2) . secs
+    y_of = Num.scale y1 y2 . curve . Num.normalize (secs x1) (secs x2) . secs
     secs = RealTime.to_seconds
 
 -- * exponential
@@ -273,8 +277,8 @@ bezier3 (x1, y1) (x2, y2) (x3, y3) (x4, y4) t =
 
 -- | Create line segments between the given breakpoints.
 breakpoints :: SRate -> Curve -> [(RealTime, Signal.Y)] -> Signal.Control
-breakpoints srate f =
-    signal_breakpoints Signal.signal (segment srate True False f)
+breakpoints srate curve =
+    signal_breakpoints Signal.signal (segment srate True False curve)
 
 signal_breakpoints :: Monoid.Monoid sig => ([(RealTime, y)] -> sig)
     -> (RealTime -> y -> RealTime -> y -> sig) -> [(RealTime, y)] -> sig

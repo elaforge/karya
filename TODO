@@ -107,7 +107,7 @@ UNSORTED
   - The various Derive.Deriver.Lib.with_{merged,relative}... calls are
     inconsistent and probably overcomplicated.  Simplify and make them
     consistent with pitch controls.  Maybe merge ControlOp into Merge?
-  - A 'place' arg for portamento calls which can center the curve, or place it
+  * A 'place' arg for portamento calls which can center the curve, or place it
     before the call.
   * Maybe 'w' and 'b' in a control track should jump the boundaries of the
     above note track?
@@ -137,7 +137,7 @@ UNSORTED
     doing more work!
   - I'd like to see if directly modifying Collect or an AppendList for LEvents
     could reduce garbage, so I need to get some profiling up first.
-  + Edit box fltk updates are super slow, shouldn't they all happen at once?
+  * Edit box fltk updates are super slow, shouldn't they all happen at once?
     . It might be a fltk thing, because the calls all happen within 562us, or
       .0005s, which should not be perceptible.  What's more, they happen in
       block order, and visually the updates are in the reverse direction.
@@ -145,16 +145,18 @@ UNSORTED
     . Indeed, it's fltk level.  Maybe even OS X.  Try on linux.
     . Linux is fast.  Make a minimum reproduction for OS X.
     . Change made in fltk 1.3.2
-  - When starting a play, the play cursor lags at the beginning.
+    . Fixed in fltk SVN r10777.
+  / When starting a play, the play cursor lags at the beginning.
     Not just play, all cmds lag during rederive.
     . Figure out exactly when it's hanging.
+    . Gone now, maybe it was due to the slow fltk thing above.
   mridangam:
     - tha is too loud... I can compensate by using -, but maybe the scale is
       off.  Velocity should be logical, so if you play all at the same
       velocity it's like the same dynamic for all strokes.
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
-  ? If I get a RealDuration, it evaluates the tempo track.  That should be
+  / If I get a RealDuration, it evaluates the tempo track.  That should be
     cached so I don't wind up doing it twice, right?
     . Actually probably not, since the new Cache accumulates in Collect.
     . I could probably make the cache apply by looking for it in Collect,
@@ -164,7 +166,7 @@ UNSORTED
       is probably not that expensive.  So hold off for now.
   - save/complete/wayang/p2 last note of alt-w at the end doesn't get its
     duration inferred
-  - shakefile: remove cabal usage in favor of a sandbox
+  - shakefile: use cabal sandbox, if one is present
     . If there is a .cabal-sandbox, pass -no-user-package-db
       -package-db .cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d/
     - Figure out how to get GHC API to read from sandbox.  Probably have to
@@ -347,6 +349,8 @@ UNSORTED
           . Maybe I should give separate dynamics a try before thinking about
             this too much.
       * Similar notation for dynamics, including other controls like bow-force.
+        - Is it weird to have dyn as a postfix operator?  Should I put it in
+          front, e.g. <[-]?
         . One problem seems like if I want to put in its own track then I have
           to manually line them up to the pitch instructions.  On the other
           hand, if I try to integrate into the pitch, it gets harder to read

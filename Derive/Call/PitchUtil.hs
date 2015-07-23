@@ -47,8 +47,9 @@ interpolator_call name (get_arg, curve) interpolator_time =
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
             else TrackLang.Real <$> Args.real_duration args
-        interpolate_from_start (curve curve_arg) args (prev_val from args)
-            time to
+        (start, end) <- Call.duration_from_start args time
+        make_segment_from (curve curve_arg)
+            (min start end) (prev_val from args) (max start end) to
     where
     doc = "Interpolate from the previous value to the given one."
         <> either (const "") ((" "<>) . snd) interpolator_time
@@ -76,26 +77,20 @@ interpolator_variations = ControlUtil.interpolator_variations_ interpolator_call
 
 -- * interpolate
 
--- | Create an interpolating call, from a certain duration (positive or
--- negative) from the event start to the event start.
-interpolate_from_start :: Curve -> Derive.PitchArgs
-    -> Maybe PSignal.Pitch -> TrackLang.Duration -> PitchOrTranspose
-    -> Derive.Deriver PSignal.Signal
-interpolate_from_start f args from time to = do
-    (start, end) <- Call.duration_from_start args time
-    case from of
-        Nothing -> return $ case to of
-            Left pitch -> PSignal.signal [(start, pitch)]
-            Right _ -> PSignal.signal []
-        Just from ->
-            -- I always set include_initial.  It might be redundant, but if the
-            -- previous call was sliced off, it won't be.
-            make_segment f (min start end) from (max start end) $
-                resolve_pitch_transpose from to
+make_segment_from :: Curve -> RealTime -> Maybe PSignal.Pitch -> RealTime
+    -> PitchOrTranspose -> Derive.Deriver PSignal.Signal
+make_segment_from curve start maybe_from end to = case maybe_from of
+    Nothing -> return $ case to of
+        Left to -> PSignal.signal [(start, to)]
+        Right _ -> mempty
+    Just from -> make_segment curve start from end
+        (resolve_pitch_transpose from to)
 
 make_segment :: Curve -> RealTime -> PSignal.Pitch -> RealTime
     -> PSignal.Pitch -> Derive.Deriver PSignal.Signal
 make_segment = make_segment_ True True
+    -- I always set include_initial.  It might be redundant, but if the
+    -- previous call was sliced off, it won't be.
 
 make_segment_ :: Bool -> Bool -> Curve -> RealTime -> PSignal.Pitch
     -> RealTime -> PSignal.Pitch -> Derive.Deriver PSignal.Signal
