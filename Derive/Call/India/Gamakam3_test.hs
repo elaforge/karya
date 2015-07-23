@@ -190,6 +190,8 @@ test_dyn_sequence = do
          , [(4, 0.5), (5, 0.75), (6, 1)]
          , [(6, 1)]
          ], [])
+    equal (run ".5" "!=>-")
+        ([[(0, 0.5)], [(4, 1), (5, 0.75), (6, 0.5)], [(6, 0.5)]], [])
 
 make_dyn_tracks :: (ScoreTime, String) -> (ScoreTime, String)
     -> [UiTest.TrackSpec]

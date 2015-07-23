@@ -356,12 +356,15 @@ data DynCall = forall a b. DynCall {
 
 dyn_calls :: Map.Map Text DynCall
 dyn_calls = Map.fromList $ (("-", dc_flat) :) $
-    validate_names $ speed_permutations
-    [ ("<", dc_move LT)
-    , (">", dc_move GT)
-    , ("=", dc_move EQ)
-    ]
+    validate_names $ moves ++
+        [ ("=>", dc_attack)
+        ]
     where
+    moves = speed_permutations
+        [ ("<", dc_move LT)
+        , (">", dc_move GT)
+        , ("=", dc_move EQ)
+        ]
     validate_names = map $ first $ \name ->
         if Text.all valid_dcall_char name then name
             else error $ "invalid name: " <> show name
@@ -402,12 +405,17 @@ dc_move ord speed = DynCall doc sig1 sig2 $ \from to args -> do
         _ -> Sig.defaulted "to" Nothing "To value."
 
     doc = "Hi, doc\
-        \ < -> from 0, to 1, align to start\
+        \ < -> from prev, to 1, align to start\
         \ > -> from prev, to 0, align to end\
         \ = -> from prev, to arg, align to middle"
 
--- Say I want to come from 0, dyn quickly at start: <^, dyn quickly at end: 0>^
--- alignment can happen by weighting start and end of the curve
+-- | This is like 'dc_move', but with default defaults for the args.
+dc_attack :: DynCall
+dc_attack = DynCall "Impulse for note attack."
+    (Sig.defaulted "from" 1 "From value.")
+    (Sig.defaulted "to" 0.5 "To value.") $ \from to ctx -> do
+        (start, end) <- ctx_range ctx
+        move_dyn (TrackLang.Normalized 0.5) EQ start from end to
 
 move_dyn :: TrackLang.Normalized -> Ordering -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> M DynState Signal.Control
@@ -419,17 +427,6 @@ move_dyn (TrackLang.Normalized transition) align start from end to = do
         weight = 1 - transition
     State.modify $ \state -> state { state_from_dyn = to }
     lift $ ControlUtil.make_segment curve start from end to
-
--- . > go from prev dyn to 0, >.1 from prev to .1, < go from 0 to 1
---   .4 - jump to .4, .4>.1 from .4 to .1.
---   So a>b is jump to a move to b, a defaults to prev, b defaults to 0.
---   a<b is the same, except a defaults to 0, b defaults to 1.
--- . I might also want some transition in a short time, e.g. half of the
---   time slice.  Or I could use SMF type times, but they can align to
---   front, back, or center.  I guess < aligns to front, > aligns to end,
---   I could use = aligns to center.
---
--- 1<^0 1<_0
 
 -- * PitchCall
 
