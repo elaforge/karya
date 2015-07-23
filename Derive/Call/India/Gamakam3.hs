@@ -89,21 +89,23 @@ c_sequence = Derive.generator1 module_ "sequence" mempty sequence_doc
             "Time for each dyn movement, in proportion of the total time\
             \ available."
 
-get_state :: TrackLang.Normalized -> TrackLang.Normalized -> Derive.PassedArgs a
-    -> Derive.Deriver (Maybe State)
+get_state :: TrackLang.Normalized -> TrackLang.Normalized
+    -> Derive.PassedArgs Derive.Pitch -> Derive.Deriver (Maybe State)
 get_state transition dyn_transition args =
     -- If there's no pitch then this is likely at the edge of a slice, and can
     -- be ignored.  TODO I think?
     justm (get_pitch (Args.start args)) $ \cur -> do
         prev_event <- Args.lookup_prev_note
-        let prev_pitch = fmap snd . PSignal.last
+        let prev_event_pitch = fmap snd . PSignal.last
                 . Score.event_untransformed_pitch =<< prev_event
+            prev_pitch = snd <$> Args.prev_pitch args
         maybe_next <- Args.lookup_next_logical_pitch
         return $ Just $ State
             { state_from_pitch = cur
             , state_transition = transition
             , state_current_pitch = cur
-            , state_previous_pitch = fromMaybe cur prev_pitch
+            , state_previous_pitch =
+                fromMaybe cur (prev_pitch <|> prev_event_pitch)
             , state_next_pitch = fromMaybe cur maybe_next
             , state_dyn = DynState
                 { state_from_dyn = fromMaybe 1 $ lookup_last_dyn =<< prev_event

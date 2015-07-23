@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Comments in control tracks mess things up, presumably because the slice
+    stops at the comment.  Perhaps slice should skip comment-only events.
+    Of course in the case where the comment is '--' just to stop the previous
+    event, I do in fact want slice to stop there to save some work.
   * it looks like track signal extract doesn't set note-end?
     The problem is that start stays at 0, but note-end gets later with each
     slice.  The problem is that slicing should really get the last value in

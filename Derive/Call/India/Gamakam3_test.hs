@@ -94,6 +94,19 @@ test_sequence = do
     -- Current to -1nn.
     equal (run "!!-y-") (output [(4, 62), (6, 62), (7, 61.5), (8, 61)])
 
+test_sequence_multiple = do
+    -- Test multiple sequence calls under one note.
+    let run = derive_tracks
+    let note = [(">", [(0, 4, "")]), ("*", [(0, 0, "4c")])]
+    -- Prev pitch is from the previous sequence call.
+    equal (run DeriveTest.e_nns_rounded $
+            note ++ [("* interleave", [(0, 2, "!a"), (2, 2, "!!<c")])])
+        ([[(0, 60), (1, 59.5), (2, 59), (3, 59.5), (4, 60)]], [])
+    -- Same for dyn.
+    equal (run DeriveTest.e_dyn_rounded $
+            note ++ [("dyn", [(0, 2, "!<.5"), (2, 0, "!>")])])
+        ([[(0, 0), (1, 0.25), (2, 0.5), (3, 0.25), (4, 0)]], [])
+
 test_note_end = do
     let run = DeriveTest.derive_tracks_setup with_tsig "import india.gamakam3"
         with_tsig = DeriveTest.with_tsig_tracknums [4]
