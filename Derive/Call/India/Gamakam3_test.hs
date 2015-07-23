@@ -122,19 +122,19 @@ test_dyn = do
     -- 4 5 6 7 8 9 10
     -- ------++++++
     -- Dyn is as long as the call it modifies.
-    equal (run "!-[-]<")
+    equal (run "!-[-]0<")
         ([[(0, 1)], [(4, 0), (7, 0), (8, 0.33), (9, 0.67)], [(0, 1)]], [])
-    equal (run "!![--]<")
+    equal (run "!![--]0<")
         ([ [(0, 1)]
          , [(4, 0), (5, 0.17), (6, 0.33), (7, 0.5), (8, 0.67), (9, 0.83)]
          , [(0, 1)]], [])
     -- Fast and biased to the left.
-    equal (run "!![--]<^")
+    equal (run "!![--]0<^")
         ([ [(0, 1)]
          , [(4, 0), (5, 0.51), (6, 0.73), (7, 0.87), (8, 0.95), (9, 0.99)]
          , [(0, 1)]], [])
     -- Continue from the previous dyn.
-    equal (run "![-]<.5 [-]>")
+    equal (run "![-]0<.5 [-]>")
         ([ [(0, 1)]
          , [(4, 0), (5, 0.17), (6, 0.33), (7, 0.5), (8, 0.33), (9, 0.17)]
          , [(0, 1)]], [])
@@ -156,7 +156,7 @@ make_tracks :: (ScoreTime, String) -> (ScoreTime, String) -> [UiTest.TrackSpec]
 make_tracks (dur1, call1) (dur2, call2) =
     [ (">", [(0, dur1, ""), (dur1, dur2, ""), (dur1 + dur2, 2, "")])
     , ("*", [(0, 0, "4c"), (dur1, 0, "4d"), (dur1 + dur2, 0, "4e")])
-    , ("* interleave | dyn-transition=1 | transition=1",
+    , ("* interleave",
         [(0, dur1, call1), (dur1, dur2, call2)])
     , ("dyn", [(0, 0, "1")])
     ]
@@ -172,10 +172,10 @@ test_dyn_sequence = do
          , [(4, 0.5), (6, 0.5), (7, 0.25)]
          , [(8, 0)]
          ], [])
-    equal (run ".5" "!<.5-")
+    equal (run ".5" "!<-")
         ([ [(0, 0.5)]
-         , [(4, 0), (5, 0.25), (6, 0.5)]
-         , [(6, 0.5)]
+         , [(4, 0.5), (5, 0.75), (6, 1)]
+         , [(6, 1)]
          ], [])
 
 make_dyn_tracks :: (ScoreTime, String) -> (ScoreTime, String)
@@ -183,11 +183,12 @@ make_dyn_tracks :: (ScoreTime, String) -> (ScoreTime, String)
 make_dyn_tracks (dur1, call1) (dur2, call2) =
     [ (">", [(0, dur1, ""), (dur1, dur2, ""), (dur1 + dur2, 2, "")])
     , ("*", [(0, 0, "4c"), (dur1, 0, "4d"), (dur1 + dur2, 0, "4e")])
-    , ("dyn | dyn-transition=1", [(0, dur1, call1), (dur1, dur2, call2)])
+    , ("dyn", [(0, dur1, call1), (dur1, dur2, call2)])
     ]
 
 -- * util
 
 derive_tracks :: (Score.Event -> a) -> [UiTest.TrackSpec] -> ([a], [String])
 derive_tracks extract = DeriveTest.extract extract
-    . DeriveTest.derive_tracks "import india.gamakam3"
+    . DeriveTest.derive_tracks
+        "import india.gamakam3 | transition=1 | dyn-transition=1"

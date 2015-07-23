@@ -385,10 +385,7 @@ dc_move ord speed = DynCall doc sig1 sig2 $ \from to args -> do
         Just Medium -> return $ TrackLang.Normalized 0.5
         Just Slow -> return $ TrackLang.Normalized 1
         Nothing -> State.gets state_dyn_transition
-    from <- ($from) $ case ord of
-        LT -> return . fromMaybe 0
-        GT -> maybe get_from return
-        EQ -> maybe get_from return
+    from <- maybe get_from return from
     to <- ($to) $ case ord of
         LT -> return . fromMaybe 1
         GT -> return . fromMaybe 0
