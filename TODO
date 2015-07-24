@@ -339,7 +339,7 @@ UNSORTED
         up an integral number of time units.  Time units are evenly divided
         across the available duration.
       notation:
-        - I need a way to make a transition take more time, e.g. sr_p
+        * I need a way to make a transition take more time, e.g. sr_p
         - Is it weird to have dyn as a postfix operator?  Should I put it in
           front, e.g. <[-]?
         - It should be easier come from current + n than '!Pn !...'.
@@ -446,6 +446,8 @@ UNSORTED
           seems a lot easier to read than - -1.
       - Should I have a set of absolute movement calls?  The idea is that it's
         easier to write and read 1210a0a0a than P1 1aaa1a1a
+        I could use srg, e.g. rgrsnsnsn, but this winds up being really
+        absolute, not just absolute relative to the base pitch.
       - Write docs.
       . If I make it a pitch call, I can put it below the base pitch track.
         The problem with this is that then the gamakam pitch track will

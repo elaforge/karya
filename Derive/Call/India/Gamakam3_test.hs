@@ -107,6 +107,13 @@ test_sequence_multiple = do
             note ++ [("dyn", [(0, 2, "!<.5"), (2, 0, "!>")])])
         ([[(0, 0), (1, 0.25), (2, 0.5), (3, 0.25), (4, 0)]], [])
 
+test_extension = do
+    let run = derive_tracks DeriveTest.e_nns_rounded . make_tracks (4, "--")
+    strings_like (snd $ run (4, "!!_--1_"))
+        ["extension with no preceding call", "no preceding call"]
+    equal (run (4, "!!--1_"))
+        ([[(0, 60)], [(4, 62), (5, 62), (6, 62), (7, 63)], [(8, 64)]], [])
+
 test_note_end = do
     let run = DeriveTest.derive_tracks_setup with_tsig "import india.gamakam3"
         with_tsig = DeriveTest.with_tsig_tracknums [4]

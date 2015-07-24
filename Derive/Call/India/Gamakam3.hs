@@ -223,7 +223,7 @@ p_dyn_expr = p_flat <|> p_expr
 resolve_dyn_exprs :: [DynSequenceExpr Text]
     -> Either Text [DynSequenceExpr (Text, DynCall)]
 resolve_dyn_exprs = mapM $ \(name, arg1, arg2) ->
-    case Map.lookup name dyn_calls of
+    case Map.lookup name dyn_call_map of
         Nothing -> Left $ "dyn call not found: " <> showt name
         Just call -> return ((name, call), arg1, arg2)
 
@@ -270,7 +270,7 @@ instance Monoid.Monoid Result where
 pitch_sequence :: ScoreTime -> State -> Text -> Derive.Deriver Result
 pitch_sequence dur state arg = do
     exprs <- Derive.require_right (("parsing " <> showt arg <> ": ")<>) $
-        resolve_exprs =<< parse_sequence arg
+        resolve_extensions =<< resolve_exprs =<< parse_sequence arg
     let starts = slice_time dur (expr_durations exprs)
         ranges = zip starts (drop 1 starts)
     (results, _) <- State.runStateT (mapM eval (zip_exprs ranges exprs)) state
@@ -334,16 +334,44 @@ parse_sequence = ParseText.parse p_exprs
 resolve_exprs :: [Expr] -> Either Text [ResolvedExpr]
 resolve_exprs = concatMapM resolve
     where
-    resolve (DynExpr c a1 a2 exprs) = case Map.lookup c dyn_calls of
+    resolve (DynExpr c a1 a2 exprs) = case Map.lookup c dyn_call_map of
         Nothing -> Left $ "dynamic call not found: " <> showt c
         Just call -> do
             resolved <- resolve_exprs exprs
             return [DynExpr (c, call) a1 a2 resolved]
-    resolve (PitchExpr c arg) = case Map.lookup c pcall_map of
+    resolve (PitchExpr c arg) = case Map.lookup c pitch_call_map of
         Nothing -> Left $ "pitch call not found: " <> showt c
         -- Apply the same argument to all of them.  But I should only get
         -- multiple PitchExprs for aliases, which expect no argument.
         Just calls -> Right [PitchExpr c arg | c <- calls]
+
+resolve_extensions :: [ResolvedExpr] -> Either Text [ResolvedExpr]
+resolve_extensions = resolve <=< check_no_args
+    where
+    resolve [] = Right []
+    resolve (expr : exprs)
+        | is_extension expr = Left "extension with no preceding call"
+        | otherwise = (modify_duration (+ fromIntegral (length pre)) expr :)
+            <$> resolve post
+        where (pre, post) = span is_extension exprs
+    check_no_args exprs
+        | null errs = Right exprs
+        | otherwise =
+            -- The parser won't parse 1_2 anyway, but let's check anyway.
+            Left $ "_ calls can't have args: " <> Text.intercalate ", " errs
+        where errs = mapMaybe has_arg exprs
+    has_arg expr@(PitchExpr _ arg)
+        | is_extension expr && arg /= mempty = Just arg
+        | otherwise = Nothing
+    has_arg _ = Nothing
+    is_extension (PitchExpr call _) = pcall_name call == extend_name
+    is_extension _ = False
+
+modify_duration :: (Double -> Double) -> ResolvedExpr -> ResolvedExpr
+modify_duration modify = fmap $ \call ->
+    if pcall_duration call > 0
+        then call { pcall_duration = modify (pcall_duration call) }
+        else call
 
 -- * DynCall
 
@@ -354,8 +382,8 @@ data DynCall = forall a b. DynCall {
     , dcall_func :: a -> b -> Context -> M DynState Signal.Control
     }
 
-dyn_calls :: Map.Map Text DynCall
-dyn_calls = Map.fromList $ (("-", dc_flat) :) $
+dyn_call_map :: Map.Map Text DynCall
+dyn_call_map = Map.fromList $ (("-", dc_flat) :) $
     validate_names $ moves ++
         [ ("=>", dc_attack)
         ]
@@ -451,8 +479,8 @@ data PCall = forall a. PCall {
     , pcall_func :: a -> Context -> M State PSignal.Signal
     }
 
-pcall_map :: Map.Map Char [PitchCall]
-pcall_map = resolve $ Map.unique $
+pitch_call_map :: Map.Map Char [PitchCall]
+pitch_call_map = resolve $ Map.unique $
     [ emit '0' "Hold flat pitch." pc_flat
     , parse_name $ emit '-' "Negative relative motion." pc_move
     ] ++ [parse_name $ emit c "Relative motion." pc_move | c <- "123456789"] ++
@@ -464,6 +492,7 @@ pcall_map = resolve $ Map.unique $
     -- , alias 'v' "a1 but fast, and with separate default for bottom"
     , emit 'j' "Janta." pc_janta
 
+    , config extend_name "Extend the duration of the previous call." pc_extend
     , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
     , config '^' "Set from pitch to current." (pc_set_pitch Current)
     , config 'P' "Set from pitch to relative steps." pc_set_pitch_relative
@@ -535,18 +564,25 @@ data Context = Context {
 -- TODO if everyone winds up wanting RealTime I can put this in Context
 -- ... but why bother, I wind up typing ctx_range either way.
 ctx_range :: Context -> M s (RealTime, RealTime)
-ctx_range context = lift $
-    (,) <$> Derive.real (ctx_start context) <*> Derive.real (ctx_end context)
+ctx_range ctx = lift $
+    (,) <$> Derive.real (ctx_start ctx) <*> Derive.real (ctx_end ctx)
+
+-- | This is just a place holder, its effect is applied in 'resolve_extensions'.
+pc_extend :: PCall
+pc_extend = PCall Sig.no_args $ \() _ctx -> return mempty
+
+extend_name :: Char
+extend_name = '_'
 
 pc_flat :: PCall
-pc_flat = PCall Sig.no_args $ \() context -> do
+pc_flat = PCall Sig.no_args $ \() ctx -> do
     pitch <- get_from
-    (start, end) <- ctx_range context
+    (start, end) <- ctx_range ctx
     return $ PSignal.signal [(start, pitch), (end, pitch)]
 
 pc_move :: PCall
-pc_move = PCall (Sig.required "to" "To pitch.") $ \arg context -> do
-    (start, end) <- ctx_range context
+pc_move = PCall (Sig.required "to" "To pitch.") $ \arg ctx -> do
+    (start, end) <- ctx_range ctx
     case arg of
         Left (TrackLang.Symbol sym)
             | sym == "-" -> do
@@ -576,8 +612,8 @@ get_direction_pitch dir = case dir of
     Next -> State.gets state_next_pitch
 
 pc_move_absolute :: PitchDirection -> PCall
-pc_move_absolute dir = PCall Sig.no_args $ \() context -> do
-    (start, end) <- ctx_range context
+pc_move_absolute dir = PCall Sig.no_args $ \() ctx -> do
+    (start, end) <- ctx_range ctx
     from_pitch <- get_from
     to_pitch <- get_direction_pitch dir
     move start from_pitch end to_pitch
