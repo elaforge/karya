@@ -29,6 +29,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Track as Track
+import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
@@ -169,9 +170,8 @@ cmd_record_ui_updates msg = do
 ui_update :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> Cmd.CmdId ()
 ui_update maybe_tracknum view_id update = case update of
     UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
-    UiMsg.UpdateZoom zoom -> do
-        Log.debug $ "DEBUG ZOOM: UpdateZoom " <> showt (view_id, zoom)
-        State.set_zoom view_id zoom
+    UiMsg.UpdateTimeScroll offset -> State.modify_zoom view_id $ \zoom ->
+        zoom { Types.zoom_offset = offset }
     UiMsg.UpdateViewResize rect padding -> do
         view <- State.get_view view_id
         when (rect /= Block.view_rect view) $ State.set_view_rect view_id rect
@@ -213,7 +213,7 @@ ui_update_state maybe_tracknum view_id update = case update of
     UiMsg.UpdateInput text -> do
         view <- State.get_view view_id
         update_input (Block.view_block view) text
-    UiMsg.UpdateZoom {} -> sync_zoom_status view_id
+    UiMsg.UpdateTimeScroll {} -> sync_zoom_status view_id
     UiMsg.UpdateClose -> State.destroy_view view_id
     _ -> return ()
     where

@@ -18,7 +18,7 @@
 
 static const bool arrival_beats = false;
 // Turn this off just draw a single event.
-static const bool draw_lots_of_stuff = false;
+static const bool draw_lots_of_stuff = true;
 
 // Visible windows.
 static std::vector<BlockViewWindow *> windows;
@@ -203,20 +203,14 @@ timeout_func(void *unused)
             ruler_bg, false, true, true, arrival_beats, m44_last_pos);
     */
     BlockModelConfig config = block_model_config();
+    return;
 
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        config.skel_box = BlockBox(Color(0xff, 0x99, 0x99), 'b');
-        for (BlockViewWindow *w : windows) {
-            w->block.set_model_config(config);
-        }
         // view.block.floating_open(1, ScoreTime(16), "hi there", 10, 10);
         break;
     case 1:
-        for (BlockViewWindow *w : windows) {
-            w->block.set_model_config(config);
-        }
         // view.block.floating_insert("haha");
         break;
     case 2:
@@ -330,19 +324,9 @@ main(int argc, char **argv)
     EventTrackConfig track2(track_bg, t1_find_events, t1_time_end,
             RenderConfig(RenderConfig::render_filled, render_color));
 
-    for (int i = 0; i < 15; i++) {
-        BlockViewWindow *w =
-            new BlockViewWindow(500 + 50*i, 40, 50, 500, "view", config);
-        w->testing = true;
-        w->block.insert_track(0, Tracklike(&ruler), 20);
-        w->show();
-        windows.push_back(w);
-    }
-    Fl::add_timeout(1, timeout_func, nullptr);
-
-    /*
     BlockViewWindow *w =
         new BlockViewWindow(1100, 40, 300, 500, "view1", config);
+    w->show();
     windows.push_back(w);
     BlockViewWindow &view = *w;
     view.testing = true;
@@ -403,7 +387,6 @@ main(int argc, char **argv)
     sels.push_back(
         Selection(selection_colors[0], ScoreTime(90), ScoreTime(100), true));
     view.block.set_selection(0, 1, sels);
-    */
 
     /*
     view.block.set_selection(0, Selection(selection_colors[0],

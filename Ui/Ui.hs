@@ -75,11 +75,20 @@ fltk_event_loop ui_chan msg_chan = do
     -- I think that fltk will wake up once for every call to awake, so I
     -- shouldn't have to worry about another awake call coming in right
     -- here.
-    handled <- handle_actions ui_chan
+    _handled <- handle_actions ui_chan
     ui_msgs <- UiMsgC.get_ui_msgs
-    when (length handled > 0 && length ui_msgs > 0) $
-        Log.warn $ "DEBUG ZOOM: possibility for a race:\nhaskell actions: "
-            <> showt handled <> "\nui msgs: " <> pretty ui_msgs
+    -- TODO
+    -- when (length handled > 0 && length ui_msgs > 0)
+    -- This means there is a possibility for a race.  If a haskell action says
+    -- to e.g. set scroll to X and fltk says the scroll was set to Y, then
+    -- haskell will record the scroll as Y while fltk has it as X.  I could
+    -- mitigate this by cancelling out UiMsgs that are outdated by an incoming
+    -- haskell action, but at the moment it doesn't seem worth the effort.
+    --
+    -- This is possible for UpdateTrackScroll and UpdateTimeScroll, but the
+    -- effects should be fairly benign, and fixed as soon as there is any
+    -- scrolling or zooming.  It would look like e.g. play from the top of
+    -- the view playing from the wrong point.
     STM.atomically $ mapM_ (STM.writeTChan msg_chan) ui_msgs
 
 -- | Synchronously take actions out of the 'Channel' and run them.  This could

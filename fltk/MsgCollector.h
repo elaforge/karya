@@ -29,20 +29,19 @@
     highlighted.  Keystrokes go to that input until you click outside or hit
     return or tab.
 
-    When focus leaves an input, it emits (InputChanged, BlockView, Maybe
-    TrackNum)
+    When focus leaves an input, it emits msg_input.
 
-    Otherwise, keystrokes are emitted as UiMsgs.  The mouse position shouldn't
-    matter for these.
+    Otherwise, keystrokes are emitted as msg_event.  The mouse position
+    shouldn't matter for these.
 
     Mouse:
-    Clicks, drags, and releases on tracks are reported as UiMsgs.  The app can
-    use this to set selections or whatever.  Scrolling or zooming via the GUI
-    widgets is reported as SetZoom or SetTrackScroll.
+    Clicks, drags, and releases on tracks are reported as msg_event.  The app
+    can use this to set selections or whatever.  Scrolling via the GUI
+    widgets or mousewheel is reported as msg_track_scroll or msg_time_scroll.
 
     Dragging a track boundary or the ruler edge is not reported.
 
-    Trying to close the window is reported as CloseBlock.
+    Trying to close the window is reported as msg_close.
 
     This is much simpler than fltk's model since the only widgets that get
     events are inputs, and there is no keyboard navigation.
@@ -65,7 +64,7 @@ struct UiMsg {
         // Block changed msgs all have 'view' set.  All these except
         // 'msg_close' are update notifications and may also have args in the
         // "update msg args" section.
-        msg_track_scroll, msg_zoom, msg_resize,
+        msg_track_scroll, msg_time_scroll, msg_resize,
         msg_track_width, msg_close,
         // One will be emitted for each screen on on startup and when screens
         // have been added or removed.
@@ -74,7 +73,7 @@ struct UiMsg {
     static const char **msg_type_names() {
         static const char *names[] =
             { "event", "input"
-            , "track_scroll", "zoom", "view_resize"
+            , "track_scroll", "time_scroll", "view_resize"
             , "track_width", "close"
             , "screen_size"
             };
@@ -136,27 +135,27 @@ struct UiMsg {
         char is_repeat;
     };
 
-    struct Resize {
-        IRect *rect;
-        int track_padding, time_padding;
-    };
-
-    struct Zoom {
-        ZoomInfo *zoom;
-    };
-
-    struct TrackWidth {
-        int width;
+    // If context.has_track, this is a track title update, otherwise it's
+    // the block title.
+    struct Input {
+        char *text;
     };
 
     struct TrackScroll {
         int scroll;
     };
 
-    // If context.has_track, this is a track title update, otherwise it's
-    // the block title.
-    struct Input {
-        char *text;
+    struct TimeScroll {
+        ScoreTime scroll;
+    };
+
+    struct Resize {
+        IRect *rect;
+        int track_padding, time_padding;
+    };
+
+    struct TrackWidth {
+        int width;
     };
 
     struct ScreenSize {
@@ -168,7 +167,7 @@ struct UiMsg {
         Event event;
         Input input;
         TrackScroll track_scroll;
-        Zoom zoom;
+        TimeScroll time_scroll;
         Resize resize;
         TrackWidth track_width;
         ScreenSize screen;

@@ -122,7 +122,7 @@ BlockView::handle(int evt)
             ScoreTime old = this->zoom.offset;
             set_zoom(ZoomInfo(this->zoom.offset + scroll, this->zoom.factor));
             if (this->zoom.offset != old)
-                MsgCollector::get()->block(UiMsg::msg_zoom, this);
+                MsgCollector::get()->block(UiMsg::msg_time_scroll, this);
         }
         if (Fl::event_dx()) {
             int scroll_y = Fl::event_dx() * mousewheel_track_scale;
@@ -630,8 +630,8 @@ BlockView::scrollbar_cb(Fl_Widget *_unused_w, void *vp)
     // update_scrollbars and collects the msg.
     ZoomInfo new_zoom(
         ScoreTime(end.scale(time_offset)), self->get_zoom().factor);
-    if (new_zoom != self->get_zoom()) {
-        MsgCollector::get()->block(UiMsg::msg_zoom, self);
+    if (new_zoom.offset != self->get_zoom().offset) {
+        MsgCollector::get()->block(UiMsg::msg_time_scroll, self);
         self->set_zoom_attr(new_zoom);
     }
 

@@ -19,7 +19,6 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified Util.Log as Log
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
@@ -352,12 +351,11 @@ auto_scroll :: Cmd.M m => ViewId -> Maybe Sel.Selection -> Sel.Selection -> m ()
 auto_scroll view_id old new = do
     view <- State.get_view view_id
     block <- State.get_block (Block.view_block view)
-    let zoom_offset = auto_time_scroll view
+    let time_offset = auto_time_scroll view
             (Sel.cur_pos <$> old) (Sel.cur_pos new)
         track_offset = auto_track_scroll block view new
-    State.set_zoom view_id $
-        (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
-    Log.debug $ "DEBUG ZOOM: " <> showt (view_id, zoom_offset, Block.view_zoom view)
+    State.modify_zoom view_id $ \zoom ->
+        zoom { Types.zoom_offset = time_offset }
     State.set_track_scroll view_id track_offset
 
 -- TODO this scrolls too fast when dragging.  Detect a drag and scroll at

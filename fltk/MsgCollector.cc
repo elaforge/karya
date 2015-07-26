@@ -17,8 +17,6 @@ UiMsg::free()
 {
     if (msg_input == type && input.text)
         ::free(input.text);
-    else if (msg_zoom == type && zoom.zoom)
-        delete zoom.zoom;
     else if (msg_resize == type && resize.rect)
         delete resize.rect;
     else if (msg_screen_size == type && screen.rect)
@@ -40,8 +38,8 @@ operator<<(std::ostream &os, const UiMsg &m)
     case UiMsg::msg_track_scroll:
         os << m.track_scroll.scroll;
         break;
-    case UiMsg::msg_zoom:
-        os << *m.zoom.zoom;
+    case UiMsg::msg_time_scroll:
+        os << m.time_scroll.scroll;
         break;
     case UiMsg::msg_resize:
         os << *m.resize.rect << " track=(" << m.resize.track_padding
@@ -260,8 +258,8 @@ set_update(UiMsg &m, UiMsg::MsgType type, const char *text)
     case UiMsg::msg_track_scroll:
         m.track_scroll.scroll = block->get_track_scroll();
         break;
-    case UiMsg::msg_zoom:
-        m.zoom.zoom = new ZoomInfo(block->get_zoom());
+    case UiMsg::msg_time_scroll:
+        m.time_scroll.scroll = block->get_zoom().offset;
         break;
     case UiMsg::msg_resize:
         {

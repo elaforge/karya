@@ -62,7 +62,7 @@ data Msg =
 data UiUpdate =
     UpdateInput !Text.Text
     | UpdateTrackScroll !Types.Width
-    | UpdateZoom !Types.Zoom
+    | UpdateTimeScroll !ScoreTime
     -- | Size of entire block window, and (track_padding, time_padding).
     | UpdateViewResize !Rect.Rect !(Int, Int)
     | UpdateTrackWidth !Types.Width

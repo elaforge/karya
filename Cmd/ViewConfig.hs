@@ -9,7 +9,6 @@ import qualified Data.Map as Map
 import qualified Data.Tuple as Tuple
 
 import qualified Util.Lens as Lens
-import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
@@ -55,7 +54,7 @@ zoom_pos offset pos oldf newf = (offset - pos) * (oldf/newf) + pos
 
 set_zoom :: Cmd.M m => ViewId -> Types.Zoom -> m ()
 set_zoom view_id zoom = do
-    State.set_zoom view_id zoom
+    State.modify_zoom view_id (const zoom)
     Internal.sync_zoom_status view_id
 
 modify_factor :: Cmd.M m => ViewId -> (Double -> Double) -> m ()
@@ -82,12 +81,7 @@ zoom_to_ruler view_id = do
     view <- State.get_view view_id
     block_end <- State.block_end (Block.view_block view)
     factor <- zoom_factor view_id block_end
-
-    old <- State.get_zoom view_id
-    Log.debug $ "DEBUG ZOOM: " <> showt (view_id, old, factor)
-
     set_zoom view_id $ Types.Zoom 0 factor
-    -- set_zoom view_id . Types.Zoom 0 =<< zoom_factor view_id block_end
 
 -- | Figure out the zoom factor to display the given amount of TrackTime.
 zoom_factor :: State.M m => ViewId -> TrackTime -> m Double
@@ -107,7 +101,7 @@ scroll_pages pages = do
     let visible = Block.visible_time view
         offset = Types.zoom_offset $ Block.view_zoom view
     end <- State.block_end $ Block.view_block view
-    State.set_zoom view_id $ (Block.view_zoom view)
+    State.modify_zoom view_id $ \zoom -> zoom
         { Types.zoom_offset =
             Num.clamp 0 (end - visible) $ offset + pages * visible
         }

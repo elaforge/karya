@@ -7,7 +7,6 @@ import Util.ForeignC
 
 import qualified Ui.PtrMap as PtrMap
 import qualified Ui.Key as Key
-import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Util as Util
 import Types
@@ -129,9 +128,9 @@ peek_ui_update type_num msgp = case type_num of
     (#const UiMsg::msg_track_scroll) -> do
         scroll <- int <$> (#peek UiMsg, track_scroll.scroll) msgp :: IO Int
         return $ UiMsg.UpdateTrackScroll scroll
-    (#const UiMsg::msg_zoom) -> do
-        zoom <- peek =<< (#peek UiMsg, zoom.zoom) msgp :: IO Types.Zoom
-        return $ UiMsg.UpdateZoom zoom
+    (#const UiMsg::msg_time_scroll) -> do
+        scroll <- (#peek UiMsg, time_scroll.scroll) msgp :: IO ScoreTime
+        return $ UiMsg.UpdateTimeScroll scroll
     (#const UiMsg::msg_resize) -> do
         rect <- peek =<< (#peek UiMsg, resize.rect) msgp
         track <- int <$> (#peek UiMsg, resize.track_padding) msgp :: IO Int

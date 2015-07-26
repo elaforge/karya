@@ -56,7 +56,7 @@ module Ui.State (
     , create_view, destroy_view, put_views
     , set_view_status
     -- ** zoom and track scroll
-    , get_zoom, set_zoom, set_track_scroll, set_view_rect
+    , get_zoom, modify_zoom, set_track_scroll, set_view_rect
     , set_view_padding
     -- ** selections
     , get_selection, set_selection
@@ -512,12 +512,13 @@ _update_view_status view = do
 -- ** zoom and track scroll
 
 get_zoom :: M m => ViewId -> m Types.Zoom
-get_zoom view_id = fmap Block.view_zoom (get_view view_id)
+get_zoom = fmap Block.view_zoom . get_view
 
-set_zoom :: M m => ViewId -> Types.Zoom -> m ()
-set_zoom view_id zoom =
-    modify_view view_id (\view -> view { Block.view_zoom = clamped })
-    where clamped = zoom { Types.zoom_offset = max 0 (Types.zoom_offset zoom) }
+modify_zoom :: M m => ViewId -> (Types.Zoom -> Types.Zoom) -> m ()
+modify_zoom view_id modify = modify_view view_id $ \view ->
+    view { Block.view_zoom = clamp $ modify $ Block.view_zoom view }
+    where
+    clamp zoom = zoom { Types.zoom_offset = max 0 (Types.zoom_offset zoom) }
 
 set_track_scroll :: M m => ViewId -> Types.Width -> m ()
 set_track_scroll view_id offset =

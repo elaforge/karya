@@ -3,6 +3,15 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - Sending pitchbend reset after play is distracting, maybe I should stop
+    doing that.
+  - MIDI thru reuses channels as soon as possible, but this detunes ringing
+    notes because it doesn't know they are still ringing.  Maybe it should do
+    plain round-robin on allocated channels.
+  - Fix the possible race thing, log msgs are annoying.
+  - some trill speed is 20, some is 14, make it consistent
+  - I want smooth trill, not just for zheng.  Maybe a transition time arg that
+    defaults to 0.
   - Comments in control tracks mess things up, presumably because the slice
     stops at the comment.  Perhaps slice should skip comment-only events.
     Of course in the case where the comment is '--' just to stop the previous
@@ -116,8 +125,9 @@ UNSORTED
   * Maybe 'w' and 'b' in a control track should jump the boundaries of the
     above note track?
   - Rename PSignal.Signal to PSignal.PSignal?
-  / Sometimes kbd note entry doesn't work.
+  - Sometimes kbd note entry doesn't work.
     . Now I can't reproduce this.
+    . Wait, it's happening again...  happens even with MIDI kbd.
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
     '%just-base = (hz (nn c3))'.  Can I use type tags to catch that sort of
     thing?
@@ -342,6 +352,9 @@ UNSORTED
         * I need a way to make a transition take more time, e.g. sr_p
         - Is it weird to have dyn as a postfix operator?  Should I put it in
           front, e.g. <[-]?
+          . Well, one thing is that it's easier to parse as postfix because
+            I see a '[' character.  Given '<[-]', the '<' will look like the
+            pitch call '<'.
         - It should be easier come from current + n than '!Pn !...'.
         - Maybe aliases for '!<-c-' and '!-d-'?
         * I also want to prev actual pitch, not just prev logical pitch.
@@ -1328,7 +1341,7 @@ REPL: repl:
     without having to quote it
 
 Cmd:
-  - There's a bug where if you zoom-to-fit and then click, the selection snap
+  + There's a bug where if you zoom-to-fit and then click, the selection snap
     can undo the zoom.  Can't figure out how to reproduce this.
     . zoom jump: definitely happens after a \ zoom out, then click on a track
       and it returns to the previous zoom.  Perhaps related to resizing a track?
@@ -1362,7 +1375,7 @@ Cmd:
       . The scrollbar cb and mousewheel event do.  Actually zoom is
         overspecified, since those only set scroll offset.  But I want to
         catch the bug in the act, so I'll continue to send zoom too.
-      - It seems like there's an opportunity for a race: fltk queues a UiMsg,
+      * It seems like there's an opportunity for a race: fltk queues a UiMsg,
         then haskell sends a new Zoom, then the UiMsg is applied with the old
         zoom.  So perhaps if there are any UiMsgs, I should do a respond cycle
         to apply them, and then apply any sent actions.  I don't think this

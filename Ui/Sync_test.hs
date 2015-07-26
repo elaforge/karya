@@ -152,15 +152,15 @@ test_zoom_scroll = do
             , Event.event 100 64 "last"
             ]
     state <- io_human "scrolls to bottom" $ run state $ do
-        State.set_zoom t_view_id (Types.Zoom 128 1)
+        State.modify_zoom t_view_id $ const (Types.Zoom 128 1)
     state <- io_human "scrolls back up" $ run state $ do
-        State.set_zoom t_view_id (Types.Zoom 0 1)
+        State.modify_zoom t_view_id $ const (Types.Zoom 0 1)
     state <- io_human "zoom in to 2" $ run state $ do
-        State.set_zoom t_view_id (Types.Zoom 0 2)
+        State.modify_zoom t_view_id $ const (Types.Zoom 0 2)
     state <- io_human "zoom out to .5" $ run state $ do
-        State.set_zoom t_view_id (Types.Zoom 0 0.5)
+        State.modify_zoom t_view_id $ const (Types.Zoom 0 0.5)
     _ <- io_human "zoom out to 0, should clamp at a low number" $
-        run state $ State.set_zoom t_view_id (Types.Zoom 0 0)
+        run state $ State.modify_zoom t_view_id $ const (Types.Zoom 0 0)
     return ()
 
 test_set_status = do
