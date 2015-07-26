@@ -62,15 +62,10 @@ keys = JustScales.make_keys (take pc_per_octave TheoryFormat.letter_degrees)
 
 key_ratios :: [(Text, JustScales.Ratios)]
 key_ratios = concatMap make_hexany
-    [ [1, 3, 5, 7]
-    , [1, 3, 5, 9]
-    , [1, 3, 7, 9]
-    , [1, 3, 5, 11]
-    , [1, 3, 7, 11]
-    , [1, 3, 9, 11]
-    , [1, 5, 7, 9]
-    , [1, 5, 9, 11]
+    [ [a, b, c, d] | a <- primes, b <- primes, b > a
+    , c <- primes, c > b, d <- primes, d > c
     ]
+    where primes = [1, 3, 5, 7, 9, 11, 13]
 
 hexany_ratios :: [[Int]] -> [[Ratio]]
 hexany_ratios = map (snd . head . make_ratios)
