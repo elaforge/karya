@@ -131,8 +131,13 @@ type Function = RealTime -> Signal.Y
 -- a certain type.
 to_typed_function :: TrackLang.ControlRef -> Derive.Deriver TypedFunction
 to_typed_function control =
+    convert_to_function control =<< to_signal_or_function control
+
+convert_to_function :: TrackLang.ControlRef
+    -> Either Score.TypedControl TrackLang.ControlFunction
+    -> Derive.Deriver TypedFunction
+convert_to_function control =
     either (return . Derive.signal_function) from_function
-        =<< to_signal_or_function control
     where
     from_function f = TrackLang.call_control_function f score_control <$>
         Derive.get_control_function_dynamic
@@ -144,6 +149,8 @@ to_typed_function control =
 to_function :: TrackLang.ControlRef -> Derive.Deriver Function
 to_function = fmap (Score.typed_val .) . to_typed_function
 
+-- | Convert a ControlRef to a control signal.  If there is
+-- a 'TrackLang.ControlFunction' it will be ignored.
 to_typed_signal :: TrackLang.ControlRef -> Derive.Deriver Score.TypedControl
 to_typed_signal control =
     either return (const $ Derive.throw $ "not found: " <> pretty control)

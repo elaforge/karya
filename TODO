@@ -8,9 +8,9 @@ UNSORTED
   - MIDI thru reuses channels as soon as possible, but this detunes ringing
     notes because it doesn't know they are still ringing.  Maybe it should do
     plain round-robin on allocated channels.
-  - Fix the possible race thing, log msgs are annoying.
-  - some trill speed is 20, some is 14, make it consistent
-  - I want smooth trill, not just for zheng.  Maybe a transition time arg that
+  / some trill speed is 20, some is 14, make it consistent
+    . Zheng trill is faster, but that seems reasonable.
+  * I want smooth trill, not just for zheng.  Maybe a transition time arg that
     defaults to 0.
   - Comments in control tracks mess things up, presumably because the slice
     stops at the comment.  Perhaps slice should skip comment-only events.
@@ -127,7 +127,9 @@ UNSORTED
   - Rename PSignal.Signal to PSignal.PSignal?
   - Sometimes kbd note entry doesn't work.
     . Now I can't reproduce this.
-    . Wait, it's happening again...  happens even with MIDI kbd.
+    . Wait, it's happening again...  happens even with MIDI kbd.  Maybe due to
+      failing to figure out the pitch based on the perf, because I think
+      a manual entry fixes it.
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
     '%just-base = (hz (nn c3))'.  Can I use type tags to catch that sort of
     thing?

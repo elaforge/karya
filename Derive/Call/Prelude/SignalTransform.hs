@@ -171,12 +171,12 @@ curve_function curve = case untxt curve of
     digit = Num.read_digit
 
 -- | Use the function to create a segment between each point in the signal.
-smooth :: (Double -> Double) -> RealTime -> RealTime
+smooth :: ControlUtil.Curve -> RealTime -> RealTime
     -- ^ If negative, each segment is from this much before the original sample
     -- until the sample.  If positive, it starts on the sample.  If samples are
     -- too close, the segments are shortened correspondingly.
     -> Signal.Control -> Signal.Control
-smooth f srate time =
+smooth curve srate time =
     Signal.concat . snd . List.mapAccumL go Nothing . Seq.zip_next
         . Signal.unsignal
     where
@@ -184,7 +184,7 @@ smooth f srate time =
         Nothing -> (Just (x, y), Signal.signal [(x, y)])
         Just (x0, y0) -> (Signal.last segment <|> Just (x, y), segment)
             where
-            segment = drop1 $ ControlUtil.segment srate True True f
+            segment = drop1 $ ControlUtil.segment srate True True curve
                 (max x0 (min x (x+time))) y0
                 (maybe id (min . fst) next (max x (x+time))) y
     -- If the segment length is non-zero, then the first sample is a duplicate
@@ -192,6 +192,21 @@ smooth f srate time =
     drop1 sig
         | Signal.length sig > 1 = Signal.drop 1 sig
         | otherwise = sig
+
+-- | Like 'smooth', but the transition time is a 0--1 proportion of the
+-- available time, rather than an absolute time.
+smooth_relative :: ControlUtil.Curve -> RealTime -> Call.Function
+    -> Signal.Control -> Signal.Control
+smooth_relative curve srate time_at signal =
+    mconcatMap segment $ Seq.zip_next $ Signal.unsignal signal
+    where
+    segment ((x, y), Nothing) = Signal.signal [(x, y)]
+    segment ((x1, y1), Just (x2, y2)) =
+        Signal.signal [(x1, y1) | offset > 0]
+        <> ControlUtil.segment srate True False curve (x1 + offset) y1 x2 y2
+        where
+        offset = (x2 - x1) * (1 - RealTime.seconds (min 1 time))
+        time = Num.clamp 0 1 (time_at x1)
 
 c_redirect :: Derive.Merge Signal.Control -> Derive.Transformer Derive.Control
 c_redirect merger =

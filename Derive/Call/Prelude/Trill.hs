@@ -53,6 +53,7 @@ import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Prelude.SignalTransform as SignalTransform
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
@@ -245,14 +246,17 @@ c_pitch_trill hardcoded_start hardcoded_end =
     Derive.generator1 Module.prelude "tr" mempty
     ("Generate a pitch signal of alternating pitches."
     <> direction_doc hardcoded_start hardcoded_end
-    ) $ Sig.call ((,,,)
+    ) $ Sig.call ((,,,,)
     <$> required "note" "Base pitch."
     <*> defaulted "neighbor" (typed_control "tr-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
-    <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
-    ) $ \(note, neighbor, speed, (start_dir, end_dir, hold, adjust)) args -> do
+    <*> trill_speed_arg <*> transition_env
+    <*> trill_env hardcoded_start hardcoded_end
+    ) $ \(note, neighbor, speed, transition, (start_dir, end_dir, hold, adjust))
+            args -> do
         (transpose, control) <- trill_from_controls (Args.range_or_next args)
             start_dir end_dir adjust hold neighbor speed
+        transpose <- smooth_trill transition transpose
         start <- Args.real_start args
         return $ PSignal.apply_control control (Score.untyped transpose) $
             PSignal.signal [(start, note)]
@@ -309,13 +313,16 @@ c_control_trill hardcoded_start hardcoded_end =
     ("The control version of the pitch trill. It generates a signal of values\
     \ alternating with 0, which can be used as a transposition signal."
     <> direction_doc hardcoded_start hardcoded_end
-    ) $ Sig.call ((,,)
+    ) $ Sig.call ((,,,)
     <$> defaulted "neighbor" (control "tr-neighbor" 1)
         "Alternate with this value."
-    <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
-    ) $ \(neighbor, speed, (start_dir, end_dir, hold, adjust)) args ->
-        fst <$> trill_from_controls (Args.range_or_next args)
-            start_dir end_dir adjust hold neighbor speed
+    <*> trill_speed_arg <*> transition_env
+    <*> trill_env hardcoded_start hardcoded_end
+    ) $ \(neighbor, speed, transition, (start_dir, end_dir, hold, adjust))
+            args -> do
+        (sig, _) <- trill_from_controls (Args.range_or_next args) start_dir
+            end_dir adjust hold neighbor speed
+        smooth_trill transition sig
 
 c_saw :: Derive.Generator Derive.Control
 c_saw = Derive.generator1 Module.prelude "saw" mempty
@@ -430,6 +437,11 @@ instance TrackLang.TypecheckSymbol Direction
 -- pitches, instead of high and low.
 data AbsoluteMode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
 
+transition_env :: Sig.Parser TrackLang.ControlRef
+transition_env =
+    Sig.environ "tr-transition" Sig.Unprefixed (Sig.control "tr-transition" 0)
+    "Alternate with a pitch at this interval."
+
 -- | A bundle of standard configuration for trills.
 trill_env :: Maybe Direction -> Maybe Direction
     -> Sig.Parser (Maybe Direction, Maybe Direction, TrackLang.Duration, Adjust)
@@ -538,6 +550,19 @@ trill_from_controls (start, end) start_dir end_dir adjust hold neighbor speed
     transitions <- adjusted_transitions False even_transitions adjust 0 hold
         speed (start, end)
     return (trill_from_transitions val1 val2 transitions, control)
+
+smooth_trill :: TrackLang.ControlRef -> Signal.Control
+    -> Derive.Deriver Signal.Control
+smooth_trill time transitions = do
+    srate <- Call.get_srate
+    sig_function <- Call.to_signal_or_function time
+    case sig_function of
+        Left sig | Signal.constant_val (Score.typed_val sig) == Just 0 ->
+            return transitions
+        _ -> do
+            f <- Call.convert_to_function time sig_function
+            return $ SignalTransform.smooth_relative id srate
+                (Score.typed_val . f) transitions
 
 -- | Get trill transition times, adjusted for all the various fancy parameters
 -- that trills have.

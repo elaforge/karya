@@ -66,3 +66,13 @@ test_smooth = do
         [(0, 0), (1, 1), (2, 2), (3, 1), (4, 0)]
     -- Zero duration.
     equal (f 0 [(0, 0), (1, 1), (2, 0)]) [(0, 0), (1, 1), (2, 0)]
+
+test_smooth_relative = do
+    let f time = Signal.unsignal
+            . SignalTransform.smooth_relative id 1 (const time)
+            . Signal.signal
+    equal (f 0 [(0, 0), (4, 4), (8, 0)]) [(0, 0), (4, 4), (8, 0)]
+    equal (f 0.5 [(0, 0), (4, 4), (8, 0)])
+        [(0, 0), (2, 0), (3, 2), (4, 4), (6, 4), (7, 2), (8, 0)]
+    equal (f 1 [(0, 0), (4, 4), (8, 0)])
+        [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 3), (6, 2), (7, 1), (8, 0)]
