@@ -78,6 +78,7 @@ import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
+import qualified Midi.Interface as Interface
 import qualified Midi.Interface
 import qualified Midi.Midi as Midi
 import qualified Midi.Mmc as Mmc
@@ -1180,7 +1181,9 @@ log_event block_id track_id event = "{s" <> showt frame <> "}"
     frame = Stack.unparse_ui_frame
         (Just block_id, Just track_id, Just (Event.range event))
 
--- | Turn off all sounding notes.
+-- | Turn off all sounding notes, reset controls.
 -- TODO clear out WriteDeviceState?
 all_notes_off :: M m => m ()
-all_notes_off = write_midi $ Midi.Interface.AllNotesOff 0
+all_notes_off = do
+    write_midi $ Midi.Interface.AllNotesOff 0
+    write_midi $ Interface.reset_controls 0

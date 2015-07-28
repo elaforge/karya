@@ -134,9 +134,8 @@ play_msgs state msgs = do
                 - now
             else write_ahead
     stop <- Transport.poll_stop_player (RealTime.to_seconds timeout)
-            (state_play_control state)
-    let reset_midi = mapM_ (state_write state)
-            [Interface.AllNotesOff now, Interface.reset_controls now]
+        (state_play_control state)
+    let reset_midi = state_write state (Interface.AllNotesOff now)
     case (stop, rest) of
         (True, _) -> do
             Transport.info_midi_abort (state_info state)

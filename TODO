@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  - Sending pitchbend reset after play is distracting, maybe I should stop
+  * Sending pitchbend reset after play is distracting, maybe I should stop
     doing that.
   * MIDI thru reuses channels as soon as possible, but this detunes ringing
     notes because it doesn't know they are still ringing.  Maybe it should do
