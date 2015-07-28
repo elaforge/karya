@@ -5,14 +5,14 @@ LEGEND
 UNSORTED
   - Sending pitchbend reset after play is distracting, maybe I should stop
     doing that.
-  - MIDI thru reuses channels as soon as possible, but this detunes ringing
+  * MIDI thru reuses channels as soon as possible, but this detunes ringing
     notes because it doesn't know they are still ringing.  Maybe it should do
     plain round-robin on allocated channels.
   / some trill speed is 20, some is 14, make it consistent
     . Zheng trill is faster, but that seems reasonable.
   * I want smooth trill, not just for zheng.  Maybe a transition time arg that
     defaults to 0.
-  - Comments in control tracks mess things up, presumably because the slice
+  / Comments in control tracks mess things up, presumably because the slice
     stops at the comment.  Perhaps slice should skip comment-only events.
     Of course in the case where the comment is '--' just to stop the previous
     event, I do in fact want slice to stop there to save some work.
@@ -117,7 +117,7 @@ UNSORTED
       it introduces a whole new level of complexity.  And, if I go the
       typesafe route, a whole new type of calls, which a new accompanying
       namespace.
-  - The various Derive.Deriver.Lib.with_{merged,relative}... calls are
+  * The various Derive.Deriver.Lib.with_{merged,relative}... calls are
     inconsistent and probably overcomplicated.  Simplify and make them
     consistent with pitch controls.  Maybe merge ControlOp into Merge?
   * A 'place' arg for portamento calls which can center the curve, or place it
@@ -140,7 +140,13 @@ UNSORTED
   - If I want to have an interpolating rhythm, e.g. chatusram to misram, I can
     have a parent call that moves its children slightly.
     . In fact, could I have done the interpolating scale as a similar
-      postproc?  Can't actually think of a way.
+      postproc?  Match in notes to out notes.  Then merge pitch signals by
+      mapping each with a Pitches.interpolated of both.
+    . Give it two block calls.  It requires that each block has one note track
+      with the same number of notes.  This would actually be easier with note
+      track children, but I could make a note slice function that works with
+      blocks.  It should be easy to have a call that uses either sub-blocks or
+      sub-tracks.
   * reorganize Seq.group functions to make it clearer which ones preserve the
     original order, and which ones sort the input.
   * Make sure the stretch to 1 stuff in Derive.Tempo only applies to the top

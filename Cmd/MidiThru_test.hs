@@ -23,14 +23,15 @@ test_input_to_midi = do
         thread = thread_inputs Cmd.empty_wdev_state
     let pitch = CmdTest.pitch_change_nn
         note_on = CmdTest.note_on_nn
+    let on key = Midi.NoteOn key 127
+        off key = Midi.NoteOff key 127
 
     -- orphan controls are ignored
     equal (f [control 1 "cc1" 127, pitch 1 64]) []
 
     -- redundant and unrelated pitch_changes filtered
-    equal (f [note_on 64, pitch 1 65, pitch 64 63,
-            pitch 64 1, pitch 64 1])
-        [ (0, Midi.NoteOn 64 127)
+    equal (f [note_on 64, pitch 1 65, pitch 64 63, pitch 64 1, pitch 64 1])
+        [ (0, on 64)
         , (0, Midi.PitchBend (-0.5))
         , (0, Midi.PitchBend (-1))
         ]
@@ -39,16 +40,13 @@ test_input_to_midi = do
     equal (thread [([], note_on 1)])
         ([], Cmd.empty_wdev_state)
 
-    -- round-robin works
+    -- Too many notes get addrs in round-robin.
     equal (f (map note_on (Seq.range 1 6 1)))
-        [(chan, Midi.NoteOn n 127) | (chan, n) <- zip (cycle [0..2]) [1..6]]
+        [(chan, on n) | (chan, n) <- zip (cycle [0..2]) [1..6]]
 
-    -- note off lets channel 2 be reused
-    equal (f [note_on 1, note_on 2, note_on 3, note_off 3, note_on 4])
-        [ (0, Midi.NoteOn 1 127), (1, Midi.NoteOn 2 127)
-        , (2, Midi.NoteOn 3 127), (2, Midi.NoteOff 3 127)
-        , (2, Midi.NoteOn 4 127)
-        ]
+    -- It's round-robin even after a note-off.
+    equal (f [note_on 1, note_off 1, note_on 2])
+        [(0, on 1), (0, off 1), (1, on 2)]
 
     -- once assigned a note_id, controls get mapped to that channel
     equal (f [note_on 64, note_on 66, control 64 "mod" 1,

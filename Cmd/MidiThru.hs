@@ -190,7 +190,8 @@ merge_state new_state addr pb old = case new_state of
 -- there is no free one, pick the oldest one.  Update the wdev state and assign
 -- the note id to the addr.
 alloc_addr :: Map.Map NoteId Addr -> Map.Map Addr Cmd.Serial -> Cmd.Serial
-    -> [Addr] -> InputNote.InputNn
+    -> [Addr] -- ^ Addrs allocated to this instrument.
+    -> InputNote.InputNn
     -> (Maybe Addr, Maybe (Map.Map NoteId Addr, Map.Map Addr Cmd.Serial))
 alloc_addr note_addr addr_serial serial addrs input
     | Just addr <- Map.lookup note_id note_addr, addr `elem` addrs =
@@ -198,8 +199,7 @@ alloc_addr note_addr addr_serial serial addrs input
             InputNote.NoteOff _ _ -> (Just addr, unassign addr)
             _ -> (Just addr, Nothing)
     | not (new_note input) = (Nothing, Nothing)
-    | addr : _ <- free = (Just addr, assign addr)
-    | Just addr <- old_addr = (Just addr, assign addr)
+    | Just addr <- oldest = (Just addr, assign addr)
     | otherwise = (Nothing, Nothing) -- addrs must be null
     where
     note_id = InputNote.input_id input
@@ -210,8 +210,10 @@ alloc_addr note_addr addr_serial serial addrs input
         (Map.insert note_id addr note_addr, Map.insert addr serial addr_serial)
     unassign addr = Just
         (Map.delete note_id note_addr, Map.insert addr serial addr_serial)
-    (allocated, free) = List.partition (`elem` Map.elems note_addr) addrs
-    old_addr = Seq.minimum_on (flip Map.lookup addr_serial) allocated
+    -- Always pick the channel with the oldest note, whether or not it's
+    -- allocated.  Previously I would try to pick a free one, but reusing
+    -- a free channel led to audible artifacts with long-ringing instruments.
+    oldest = Seq.minimum_on (flip Map.lookup addr_serial) addrs
 
 pb_of :: Midi.PitchBendValue -> [Midi.ChannelMessage] -> Midi.PitchBendValue
 pb_of = List.foldl' f
