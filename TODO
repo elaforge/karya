@@ -3,92 +3,9 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
-  * Sending pitchbend reset after play is distracting, maybe I should stop
-    doing that.
-  * MIDI thru reuses channels as soon as possible, but this detunes ringing
-    notes because it doesn't know they are still ringing.  Maybe it should do
-    plain round-robin on allocated channels.
-  / some trill speed is 20, some is 14, make it consistent
-    . Zheng trill is faster, but that seems reasonable.
-  * I want smooth trill, not just for zheng.  Maybe a transition time arg that
-    defaults to 0.
-  / Comments in control tracks mess things up, presumably because the slice
-    stops at the comment.  Perhaps slice should skip comment-only events.
-    Of course in the case where the comment is '--' just to stop the previous
-    event, I do in fact want slice to stop there to save some work.
-  * it looks like track signal extract doesn't set note-end?
-    The problem is that start stays at 0, but note-end gets later with each
-    slice.  The problem is that slicing should really get the last value in
-    this case, but instead rederives the event.  In fact it seems like this
-    problem would also be present for control calls that use 'next'...
-    actually not, because 'next' is always the same.  The problem with
-    note-end is that it varies per-slice.  So two ways to deal with this:
-    1. Get rid of the behaviour where it re-evaluates the previous call, and
-      instead replace it with a set of the prev val on that track.
-    2. Figure out how to make note-end constant.  For this to work, I think
-      I'd have to store a map of note ranges, and note-end becomes the next
-      note and after the call's start.
-    . #1 would be more efficient, but I think it will break for long calls
-      that overlap multiple notes.  I really do have to re-evaluate for those.
-      So #2 it is then.  This means it can't be in the environ, I think I need
-      a special case Dynamic field for it.  Is it really worth it?
-    . What if I also put in a note-start, then if the call starts before note
-      start, it ends at note start.  I.e. min start end.  But this will mess
-      up a call that intends to overlap the start of the note.  Of course,
-      I can use an explicit duration for those.  Really this is about not
-      having to put explicit durations or explicit -- ends for the common case
-      where it does end with the note.
-    . Also I would still get a different signal on each slice, but they should
-      all be equivalent because they all end before the note starts, so it's
-      just the final value.  In fact, they could notice that
-      event start < note-start and just emit the final value.
-      |--> |-->
-      |
-  * The unparsed call # prefix conflicts with #=(4c).  Change to !.
-  * rename CallInfo to ExprContext (or just Context)
   - rename PassedArgs to CallContext.  Or not?
-  * ControlOp effects don't show up in the note track signal render.
-    * Now it gets an out of date value.
-  * generalize Util.Control.mconcatMap to foldMap
-    generalize mconcatMapM to foldMapA f = fmap Foldable.fold . traverse f
-    . Or not... at least I could put foldMap in the global namespace
-  * ControlMods can't use the default merge.  Promote Default to Derive.Merge,
-    merge with ControlOp, and make ControlMods use the default.
-    . I'll need the identity element to avoid squashing signal outside of the
-      ControlOp's range, as in ControlUtil.multiply_signal.
-    . ControlOp is just the function.
-      Merge says how to merge two signals.
-      The track just calls the merge Derive function with Merge.
-    . But I can't allow Default in state_control_merge_defaults because then
-      I could get a loop of Defaults.  Or Default in the map could just mean
-      an error or multiply.  Or merge Set into ControlOp.
-  * I don't like the name ControlOp.  How about...
-    . MergeF -- state_control_ops becomes state_control_mergefs... yuck.
-    . Merger -- state_control_mergers... a bit better.  But is it confusing or
-      helpful to have merger sound so much like merge?
-  * 'n' and 'p' are buggy when there are collapsed tracks
-  * mridangam pitch should default to sa... or whatever Pitch 0 0 is.
-    . Actually it seems like it might be a bit inefficient to do that on every
-      single note.  Couldn't I set it when the instrument comes into scope?
-      But I don't think there's a way for an instrument to automatically apply
-      a transformer, but perhaps there should be.  Wait, gender has automatic
-      postproc to handle mutes, doesn't it?
-    . That's actually different, it's not a Transformer but a plain function
-      on Score.Events.  I think I'd have to add the transformer as a separate
-      concept, but it's a generalization of setting environ, so it can replace
-      that.
-    . This is not so easy, because Derive.with_instrument is on Deriver a,
-      not NoteDeriver.  Also I don't necessarily want to replace the environ,
-      because it can be saved in the inst db and printed out, unlike
-      a transformer.
-    . Wait, just do it the same way >transforms do.  In fact, can't I just
-      have the instrument introduce a >transform?  I guess it doesn't know
-      what the instrument name will be.  In fact, where does >transform get
-      applied?  And where is it documented?  I can't find it now!
-      . Prelude.Note.c_note_track
-    . The place for a NoteDeriver transform is Derive.Track.d_note_track.
-    - Done, but you still have to get the octave right.  Perhaps mridangam
-      should automatically transpose octave to be within its range.
+  - Done, but you still have to get the octave right.  Perhaps mridangam
+    should automatically transpose the octave to be within its range.
   . What would a generalized staged evaluation system look like?
     E.g. evaluate note (start, dur) and first pitch track.  Then go through
     again and evaluate the rest of the tracks.  The second time the
@@ -117,13 +34,6 @@ UNSORTED
       it introduces a whole new level of complexity.  And, if I go the
       typesafe route, a whole new type of calls, which a new accompanying
       namespace.
-  * The various Derive.Deriver.Lib.with_{merged,relative}... calls are
-    inconsistent and probably overcomplicated.  Simplify and make them
-    consistent with pitch controls.  Maybe merge ControlOp into Merge?
-  * A 'place' arg for portamento calls which can center the curve, or place it
-    before the call.
-  * Maybe 'w' and 'b' in a control track should jump the boundaries of the
-    above note track?
   - Rename PSignal.Signal to PSignal.PSignal?
   - Sometimes kbd note entry doesn't work.
     . Now I can't reproduce this.
@@ -147,45 +57,16 @@ UNSORTED
       track children, but I could make a note slice function that works with
       blocks.  It should be easy to have a call that uses either sub-blocks or
       sub-tracks.
-  * reorganize Seq.group functions to make it clearer which ones preserve the
-    original order, and which ones sort the input.
-  * Make sure the stretch to 1 stuff in Derive.Tempo only applies to the top
-    level tempo track of a block.
-    . It does apply to all of them, but I should figure out what I want.
-    . A constant tempo of any value should do nothing.  Non-constant should
-      apply that warping on the existing warp.  So it is like calling
-      a sub-block, which implies that indeed every track should stretch to 1.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
   - I'd like to see if directly modifying Collect or an AppendList for LEvents
     could reduce garbage, so I need to get some profiling up first.
-  * Edit box fltk updates are super slow, shouldn't they all happen at once?
-    . It might be a fltk thing, because the calls all happen within 562us, or
-      .0005s, which should not be perceptible.  What's more, they happen in
-      block order, and visually the updates are in the reverse direction.
-      Test in test_block.
-    . Indeed, it's fltk level.  Maybe even OS X.  Try on linux.
-    . Linux is fast.  Make a minimum reproduction for OS X.
-    . Change made in fltk 1.3.2
-    . Fixed in fltk SVN r10777.
-  / When starting a play, the play cursor lags at the beginning.
-    Not just play, all cmds lag during rederive.
-    . Figure out exactly when it's hanging.
-    . Gone now, maybe it was due to the slow fltk thing above.
   mridangam:
     - tha is too loud... I can compensate by using -, but maybe the scale is
       off.  Velocity should be logical, so if you play all at the same
       velocity it's like the same dynamic for all strokes.
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
-  / If I get a RealDuration, it evaluates the tempo track.  That should be
-    cached so I don't wind up doing it twice, right?
-    . Actually probably not, since the new Cache accumulates in Collect.
-    . I could probably make the cache apply by looking for it in Collect,
-      since in practice Collect is threaded much of the time.  But it would
-      only be useful for get_real_duration, which is only used by sequence-rt,
-      which I haven't started using yet, and evaluating just the tempo track
-      is probably not that expensive.  So hold off for now.
   - save/complete/wayang/p2 last note of alt-w at the end doesn't get its
     duration inferred
   - shakefile: use cabal sandbox, if one is present
@@ -279,11 +160,6 @@ UNSORTED
     a direct call from the track.  This is the reason for
     Gangsa.realize_notes.remove.
     . Flags.can_cancel is now obsolete, but maybe the issue still stands?
-  / 'a' to enter an event in a mridangam track should make a zero duration
-    event
-    . Actually, it can't really know whether the call should be zero dur,
-      unless calls could somehow be introspected.  So rely on using a leading
-      space.
 
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
@@ -357,7 +233,6 @@ UNSORTED
         up an integral number of time units.  Time units are evenly divided
         across the available duration.
       notation:
-        * I need a way to make a transition take more time, e.g. sr_p
         - Is it weird to have dyn as a postfix operator?  Should I put it in
           front, e.g. <[-]?
           . Well, one thing is that it's easier to parse as postfix because
@@ -365,7 +240,6 @@ UNSORTED
             pitch call '<'.
         - It should be easier come from current + n than '!Pn !...'.
         - Maybe aliases for '!<-c-' and '!-d-'?
-        * I also want to prev actual pitch, not just prev logical pitch.
         - Snapping to the next pitch at the start of a note is unnatural.
           Perhaps I can have some easy way to come quickly from the previous
           real pitch.
@@ -381,86 +255,25 @@ UNSORTED
         Since they don't have names I'd have to either give them names, or
         enable a syntax for >-time = .5.  Actually I think quoting should
         work: '>-time' = .5
-      * Similar notation for dynamics, including other controls like bow-force.
-        . One problem seems like if I want to put in its own track then I have
-          to manually line them up to the pitch instructions.  On the other
-          hand, if I try to integrate into the pitch, it gets harder to read
-          and write.  Or maybe I should abandon the compact notation, but have
-          a prefix to attach a dynamic instruction:
-            <:P1 0 -1 0:>
-          This also means I can attach dynamics to alias sequences, e.g. ><:u
-          and have it automatically take the same amount of time.
-        . I think I'll also want to dyn equivalents of from prev value, to
-          avoid sudden jumps.  This is what prev val is for, but I can't get
-          it if I'm using a ControlMod on a pitch track.  Like with prev
-          actual pitch, I think I'd need to stash prev val away, indexed by
-          control name.  In fact I think I may already do that, to get prev
-          val right for sliced tracks.
-        . Cons are that I don't get a separate track signal to visualize.
-          Maybe this is motivation to add 2D track signals so I can put both
-          dyn and pitch in the note track.
-        . Either dyn always applies to the whole section, e.g.: !03-:>
-          or I mark the range explicitly: !(!030)> !(0 3 0)>
-          But !!030:> is just the last one... but is it really better than
-          !!03 (3)>?
-          If the dyn calls are few and distinct looking, they can be hardcoded
-          in the parser and I don't need a divider character.  But it seems
-          like the long term is to always add more calls.
-        . > go from prev dyn to 0, >.1 from prev to .1, < go from 0 to 1
-          .4 - jump to .4, .4>.1 from .4 to .1.
-          So a>b is jump to a move to b, a defaults to prev, b defaults to 0.
-          a<b is the same, except a defaults to 0, b defaults to 1.
-        . I might also want some transition in a short time, e.g. half of the
-          time slice.  Or I could use SMF type times, but they can align to
-          front, back, or center.  I guess < aligns to front, > aligns to end,
-          I could use = aligns to center.
-        * I'm no longer so sure I want to attach DynCalls to PitchCalls,
-          because I often want a dynamic motion at the start or end of a note,
-          which is independent of the pitch timing.  Maybe I should add
-          a ! control call which just knows about dyn calls, and '-' for flat.
-          It seems to me this would be useful all manner of instruments, not
-          just gamakam.
-        * An ornament for an impulse at the start of a note.
       . I'm not yet sure how to handle dynamics.  If I do a scale merge, then
         I can have the dyn calls have defaults around 0, e.g. > is 0 to -1,
         and => is 1 to 0, or .5 to 0.  Experiment more before I decide if this
         is a good approach.
 
-      How to get the next pitch?
-        * One approach is a NotePitchQuery derivation mode that stops when it
-          gets to a pitch track.  Then I can evaluate prev and next neighbors
-          and stash them in Dynamic.  They are lazy so evaluation doesn't
-          happen unless you need them.
-          . I can't really *stop* evaluating when I get to a pitch track,
-            because I still need to get to the note track.  What I have to do
-            is skip over all the intervening control tracks.  I think I have
-            to do that at invert time.
-        - Currently I stash the 'Derive.state_neighbors' in the note call.
-          But this means prev/next pitch doesn't work for anything except the
-          default note call.  When evaluating the event I should replace the
-          call with the note call.  In fact, why not just replace the call
-          with something specifically designed to get the pitch?  Then the
-          default note call doesn't have to check the derive mode at all.
-        ? Or I could make gamakam into a postproc.  This means I could get
-          next pitch even across block boundaries.  But ScoreTime is not
-          available.  I would need some way to make a control track modify the
-          environ instead of emitting signal, so the note call can then pick
-          that up.  Presumably it would emit something like
-          [(start, dur, text)] and then those values have to be merged into
-          a special "Val signal" in Dynamic, which the note can pick up.
-          . pros:
-            . Get next logical pitch even across block boundaries.
-          . cons:
-            . Need special machinery to have a control track emit structured
-              values.  In full generality this is approaching the idea about
-              unifying environ with signals.
-            . No track signal, have to rely on the note track signal.
-      * Previous pitch is wrong because I want the pitch at the previous note,
-        not the previous pitch event.
-      . Now I have a working last pitch, but it's different from logical
-        previous pitch.  The question is will I need that?  I think next pitch
-        must be logical, to avoid circular dependency.  But as long as
-        I implement the next logical pitch, it's easy to add previous.
+      ? I could make gamakam into a postproc.  This means I could get next
+        pitch even across block boundaries.  But ScoreTime is not available.
+        I would need some way to make a control track modify the environ
+        instead of emitting signal, so the note call can then pick that up.
+        Presumably it would emit something like [(start, dur, text)] and then
+        those values have to be merged into a special "Val signal" in Dynamic,
+        which the note can pick up.
+        . pros:
+          . Get next logical pitch even across block boundaries.
+        . cons:
+          . Need special machinery to have a control track emit structured
+            values.  In full generality this is approaching the idea about
+            unifying environ with signals.
+          . No track signal, have to rely on the note track signal.
       - Currently 0 and - have the same meaning.  Decide which one I want and
         remove the other.
         . Currently - is winning... but if I use separate worcds then 0 -1
@@ -470,74 +283,15 @@ UNSORTED
         I could use srg, e.g. rgrsnsnsn, but this winds up being really
         absolute, not just absolute relative to the base pitch.
       - Write docs.
-      . If I make it a pitch call, I can put it below the base pitch track.
-        The problem with this is that then the gamakam pitch track will
-        override the default pitch, and the base pitches will disappear for
-        notes without gamakam.  Also it seems like I won't have access to the
-        previous pitch due to slicing... actually I think I will, unless the
-        gamakam event does't line up with the note.
-        . This is kind of a reverse orphan problem.  I want to promote the
-          pitch track downwards when there is no overlapping event below it.
-          Or I want to merge the signals together.  So it seems like I could
-          do this with a merge operator, but it needs to know when the gamakam
-          pitch signal starts and ends.  To do that, I need to pass to the
-          merge operator before mconcating the psignal chunks together.
-          Or I could use plain sample interleave, and expect that gamakam will
-          always have a sample at the same time as the parent and thus cancel
-          it out.
-        * That leads to another problem, namely pitch tracks don't have
-          ControlOps.  It's straightforward to add them though.
-          * Except this results in notes getting neighbor pitches.
-            Can I do another approach, say put them both in one track?  That
-            would fix this problem, but then I'm back to the next pitch
-            problem.  I think interleave is just a hack.  If I evaluate
-            per-note pitch separately, I can then set the pitch as a constant
-            in the note call.
-            . But first figure out why this happens.
-        . And here's yet another problem, slicing is too restrictive, and
-          I don't have access to prev and next pitch.  One solution is to
-          put the pitch track above, but I feel like that ultimately won't
-          be very palatable for all the reasons that made me invent inversion
-          in the first place, namely that all note moving will break.
-          . The most obvious way is to expand the slice range for the upper
-            pitch track to include the starts of the previous and next notes.
-          . But a problem with that is that I then get the pitch bleed that
-            slicing tries to eliminate so I don't get pitch bends in the
-            decay.  Then again, gamakam is basically for a monophonic
-            instrument... but there still may be an open string that rings.
-          . Or I could put the pitch in a separate signal... does that
-            actually help?  Maybe not?
-          . Associate each note with one pitch from a pitch track.  Then when
-            evaluating a note, go evaluate prev and next pitches, and put them
-            someplace where the # call can get it.
-            . For the first, a sliced pitch track below is the obvious choice.
-            . For the second, I think this needs to be in the note call.
-              Maybe when configured with a certain setting, the note call will
-              evaluate prev and next events with a special flag that causes it
-              to only get the pitch... but how would that even work?  I think
-              it needs to directly look at its children tracks and do its own
-              slicing below its neighbors, and then pick out and evaluate the
-              pitch track.  And any tracks above, in case they are
-              transposers.  This would have to be a new flag on Sub.inverting.
-            . Actually maybe not?  The slice preserves before and after, so in
-              the note call I should be able to get the next event sliced.  Or
-              I could give access to prev and next slices.  Then I can put an
-              eval in someplace as a lazy thunk.  Would environ be ok?
-            . Or, in EvalTrack, zip each past and future event with an eval
-              that is specialized to just get the pitch.  This then goes into
-              CallInfo with the events.  It's lazy so no evaluation happens
-              unless you want it.  Then I also need to keep the list of past
-              and future notes the same in other tracks... so I guess it has
-              to be in Dynamic after all.
-              . Why not do this in the note call?  That way it's not quite so
-                hardcoded and can be disabled or altered by instruments.
-              . Even if I do this, it doesn't necessarily help with the
-                pitch track merging thing.  I think I still have to figure out
-                why even when under the note track I get neighbor pitches.
-                . Turns out it was just a bug.
-
-        p = previous pitch, - is previous ornament, -- for twice, etc.
-        > is fade out, overlapping previous ornament
+      . Two pitch tracks.  This is kind of a reverse orphan problem.  I want
+        to promote the top pitch track downwards when there is no overlapping
+        event below it.  Or I want to merge the signals together.  So it seems
+        like I could do this with a merge operator, but it needs to know when
+        the gamakam pitch signal starts and ends.  To do that, I need to pass
+        to the merge operator before mconcating the psignal chunks together.
+        Or I could use plain sample interleave, and expect that gamakam will
+        always have a sample at the same time as the parent and thus cancel
+        it out.
 
         Saraswatya Bahagatya:
           Sa ra           swa   tya
@@ -662,17 +416,6 @@ UNSORTED
           bow-speed.
 
         . If it's a pitch call, then it needs to be below the pitch track.
-      * To support this kind of thing, I could have a special call, e.g. ! or
-        #, which bypasses normal parsing, and passes its arguments as a string
-        to the call.  If I can have a way to do -1 as one letter, I can write
-        the sequence without spaces.
-        . But I might also need to write 1d vs 1nn or even .5nn.
-    - If it would be useful, I could have a note invert put its end time in
-      the environ.  The control calls could use that as an alternate end or
-      next.  The advantage is that I don't have to put -- in to explicitly
-      terminate the call.  The disadvantage is that I can't manually move the
-      call end to earlier or later... actually I can, by just setting event
-      duration.
 
     Gamakam2:
       - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
@@ -1007,17 +750,14 @@ external
     Can't get attoparsec to consistently report an error.  Kind of hard when
     it always backtracks.
     - Need to add <||> to attoparsec.
-  chorded keys are not getting the proper pitch bend
-    It's a pianoteq problem.
-    * Reported to pianoteq, said they'd fix it in the next release.
   - problem with pianoteq: if the same note occurs on two channels, one
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.
   + send a patch to improve Random.Shuffle?
   / patch for hsc2hs for #alignment
     Just doing alignment manually now.
-  srcloc_annotate pragma
-    * available in ghc-7.12 as ImplicitParameters.
+  - srcloc_annotate pragma
+    . available in ghc-7.12 as ImplicitParameters.
 
 local: plugins:
   I also want local code in haskell.
@@ -1349,62 +1089,9 @@ REPL: repl:
     without having to quote it
 
 Cmd:
-  + There's a bug where if you zoom-to-fit and then click, the selection snap
-    can undo the zoom.  Can't figure out how to reproduce this.
-    . zoom jump: definitely happens after a \ zoom out, then click on a track
-      and it returns to the previous zoom.  Perhaps related to resizing a track?
-    . See the code path this would have to take, and insert some kind of
-      logging to track it down.
-    . Actually this bug might happen for all zooming, it's just that \ does
-      a big zoom change, so it's obvious when it happens.
-    . \:
-      ViewConfig.zoom_to_ruler:
-        set_zoom view_id . Types.Zoom 0 =<< zoom_factor view_id block_end
-      Click:
-        . Selection.cmd_snap_selection 1 Config.insert_selnum False
-        . Selection.set_and_scroll
-        . view <- State.get_view view_id
-          State.set_zoom view_id $
-            (Block.view_zoom view) { Types.zoom_offset = zoom_offset }
-      . So presumably something about \ makes the UI update its zoom, but not
-        the Block.view_zoom in the haskell state.
-      . If there's really a sync failure, then I should see
-        "set zoom factor from 10 to 42" and then "set scroll, factor is 10"
-        Then the question becomes, why didn't the original set stay?
-        I would need to find everything in between that could revert the zoom
-        without a sync.  At least looking at the log would give me a record of
-        what excatly happened in between.  If it's indeed related to a track
-        resize or something, then the question is where the old zoom was
-        preserved so it could make a comeback.
-      . Inside fltk is the obvious choice.  Say haskell sets a new zoom, but
-        then I do a fltk action, and it sends back a msg with the old zoom.
-        To catch that I'd have to log UiMsgs that include zoom.
-        Who sends UpdateZoom?
-      . The scrollbar cb and mousewheel event do.  Actually zoom is
-        overspecified, since those only set scroll offset.  But I want to
-        catch the bug in the act, so I'll continue to send zoom too.
-      * It seems like there's an opportunity for a race: fltk queues a UiMsg,
-        then haskell sends a new Zoom, then the UiMsg is applied with the old
-        zoom.  So perhaps if there are any UiMsgs, I should do a respond cycle
-        to apply them, and then apply any sent actions.  I don't think this
-        bug is a race, but it seems like the possibility is theoretically
-        there.  But a race would explain why I haven't been able to reproduce
-        this one.
-        . I could see if simultaneous UiMsgs and haskell actions actually
-          happens, and if so, how frequently.
-        . Actually I don't think the special case respond cycle would work,
-          because I would want to roll back its State changes, apply the
-          UiMsgs, and then reapply the cmd.  I could theoretically do that,
-          but it might be simpler to mark certain actions as outdating certain
-          UiMsgs, and if they are present, just filter out those UiMsgs.
-          Those are the ones that would have been applied and then
-          overwritten.
-       .  *** Ui/Ui.hs:81 [fltk_event_loop] DEBUG ZOOM: possibility for a race:
-          haskell actions: ["set_play_position"]
-          ui msgs: [Other Event: UiUpdate (vid "untitled/b2.v1") (UpdateZoom
-          (Zoom {zoom_offset = 1.069590361302325, zoom_factor =
-          25.744416884013628})) {focus=(vid "untitled/b2.v1")}]
-
+  - Figure out exactly what bad things could happen because of the
+    Ui.fltk_event_loop race.  Also figure out what kind of cancelling I'd need
+    to fix them.
   + Write a fancy tile like ViewConfig.horizontal_tile but guesses if you mean
     to tile vertically.
   - Create tempo by "stretching", i.e. select start and end, and create tempo
