@@ -540,10 +540,6 @@ apply_arg call arg = call
 
 -- ** PitchCall implementation
 
--- I want pcall args to get the full arg treatment, such as defaults
--- and quoted evaluation.  Then I can configure FMS.
--- Calls also get arg docs.
-
 parse_args :: State.MonadTrans m => Text -> Text -> Sig.Parser a
     -> m Derive.Deriver a
 parse_args name arg sig = lift $ do
@@ -552,8 +548,8 @@ parse_args name arg sig = lift $ do
     Sig.require_right
         =<< Sig.parse_vals sig (Derive.dummy_context 0 1 name) name vals
 
--- Here we are reinventing Derive.Call yet again...
--- This is the equivalent of Derive.Context
+-- | Here I am reinventing Derive.Call yet again.  This is the equivalent of
+-- 'Derive.Context' and 'Derive.PassedArgs'.
 data Context = Context {
     ctx_start :: !ScoreTime
     , ctx_end :: !ScoreTime
@@ -561,8 +557,6 @@ data Context = Context {
     , ctx_call_name :: !Text
     } deriving (Show)
 
--- TODO if everyone winds up wanting RealTime I can put this in Context
--- ... but why bother, I wind up typing ctx_range either way.
 ctx_range :: Context -> M s (RealTime, RealTime)
 ctx_range ctx = lift $
     (,) <$> Derive.real (ctx_start ctx) <*> Derive.real (ctx_end ctx)
@@ -660,6 +654,7 @@ p_expr :: Parser [Expr]
 p_expr = ((:[]) <$> p_dyn_sub_expr p_exprs) <|> (A.char '!' *> p_compact_exprs)
     <|> ((:[]) <$> p_pitch_expr)
 
+-- | Parse dyn call with a bracketed sub-expression.
 p_dyn_sub_expr :: Parser [Expr] -> Parser Expr
 p_dyn_sub_expr sub_expr = do
     A.char '['

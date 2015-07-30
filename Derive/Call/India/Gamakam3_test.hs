@@ -94,6 +94,14 @@ test_sequence = do
     -- Current to -1nn.
     equal (run "!!-y-") (output [(4, 62), (6, 62), (7, 61.5), (8, 61)])
 
+test_default_args = do
+    let run c = derive_tracks DeriveTest.e_dyn_rounded $
+            make_dyn_tracks (4, "1") (4, c)
+    equal (run "!=>-")
+        ([[(0, 1)], [(4, 1), (5, 0.75), (6, 0.5)], [(6, 0.5)]], [])
+    equal (run "'=>-from' = .5 | '=>-to' = 0 | !=>-")
+        ([[(0, 1)], [(4, 0.5), (5, 0.25), (6, 0)], [(6, 0)]], [])
+
 test_sequence_multiple = do
     -- Test multiple sequence calls under one note.
     let run = derive_tracks
