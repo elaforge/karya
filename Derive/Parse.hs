@@ -192,7 +192,7 @@ p_pipe = void $ lexeme (A.char '|')
 
 p_equal :: A.Parser TrackLang.Call
 p_equal = do
-    assignee <- p_call_symbol True
+    assignee <- p_string <|> p_call_symbol True
     spaces
     A.char '='
     spaces
