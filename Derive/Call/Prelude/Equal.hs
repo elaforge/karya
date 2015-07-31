@@ -20,13 +20,14 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
-import qualified Derive.Parse as Parse
 import qualified Derive.PSignal as PSignal
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Global
 
@@ -169,8 +170,12 @@ parse_equal maybe_merge lhs rhs
             sig <- Call.to_psignal rhs
             merger <- get_pitch_merger maybe_merge
             Derive.with_merged_pitch merger control sig deriver
-        _ -> Left $ "binding a pitch signal expected a pitch or pitch"
-            <> " control, but got " <> pretty (TrackLang.type_of rhs)
+        TrackLang.VNum (Score.Typed Score.Nn nn) -> Right $ \deriver -> do
+            merger <- get_pitch_merger maybe_merge
+            Derive.with_merged_pitch merger control
+                (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn))) deriver
+        _ -> Left $ "binding a pitch signal expected a pitch, pitch"
+            <> " control, or nn, but got " <> pretty (TrackLang.type_of rhs)
     where
     is_pitch (TrackLang.VPControlRef (TrackLang.LiteralControl c)) = Just c
     is_pitch _ = Nothing
