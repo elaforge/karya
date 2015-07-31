@@ -56,6 +56,7 @@ def write_dated_summary(dir, summary):
     write(fn, 'w', alist_to_str(summary) + '\n')
 
 def write(path, mode, content):
+    assert subprocess.call(['mkdir', '-p', os.path.dirname(path)]) == 0
     if write_files:
         fp = open(path, mode)
         fp.write(content)
