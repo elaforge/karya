@@ -29,7 +29,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Pitches as Pitches
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
@@ -300,4 +300,4 @@ tuning_control args control deriver = do
     tuning <- fromMaybe 0 <$>
         (Derive.untyped_control_at control =<< Args.real_start args)
     let nn = NN.middle_c + Pitch.nn tuning
-    Call.with_pitch (Pitches.nn_pitch nn) $ deriver
+    Call.with_pitch (PSignal.nn_pitch nn) deriver

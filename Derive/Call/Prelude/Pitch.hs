@@ -53,7 +53,7 @@ c_set = generator1 "set" mempty "Emit a pitch with no interpolation." $
     -- 'require_previous', it gets shadowed for "" because of scales that use
     -- numbers, and it's not clearly useful.
     Sig.call (required "pitch" "Set this pitch.") $ \pitch_ args -> do
-        let pitch = either Pitches.nn_pitch id pitch_
+        let pitch = either PSignal.nn_pitch id pitch_
         pos <- Args.real_start args
         return $ PSignal.signal [(pos, pitch)]
 
@@ -63,7 +63,7 @@ c_set_transformer = Derive.transformer Module.prelude "set" mempty
     \ e.g. interpolate to a pitch and then jump to another one."
     $ Sig.callt (required "pitch" "Set this pitch.")
     $ \pitch_ args deriver -> do
-        let pitch = either Pitches.nn_pitch id pitch_
+        let pitch = either PSignal.nn_pitch id pitch_
         pos <- Args.real_start args
         let sig = PSignal.signal [(pos, pitch)]
         Post.signal (PSignal.interleave sig) deriver

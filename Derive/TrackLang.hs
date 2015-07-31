@@ -31,9 +31,9 @@ import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (Environ, make_environ, environ_to_list, delete_val, lookup_val, val_set,
         null_environ, ValName, Val(..), vals_equal, Quoted(..),
-        ControlFunction(..), Dynamic(..), empty_dynamic, Symbol(..),
-        Ref(..), PControlRef, ControlRef, show_call_val, CallId, Expr,
-        Call(..), PitchCall, Term(..))
+        ControlFunction(..), Dynamic(..), empty_dynamic, Symbol(..), Ref(..),
+        PControlRef, ControlRef, show_call_val, CallId, Expr, Call(..),
+        PitchCall, Term(..))
 import qualified Derive.Environ as Environ
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreTypes as Score
@@ -630,6 +630,8 @@ instance Typecheck PControlRef where
 
 instance Typecheck PSignal.Pitch where
     from_val (VPitch a) = Just a
+    from_val (VNum (Score.Typed Score.Nn nn)) =
+        Just $ PSignal.nn_pitch (Pitch.nn nn)
     from_val _ = Nothing
     to_val = VPitch
     to_type _ = TPitch

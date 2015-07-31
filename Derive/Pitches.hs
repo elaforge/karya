@@ -57,10 +57,3 @@ pitch_nn = either (Derive.throw . ("evaluating pitch: " <>) . pretty)
 pitch_note :: PSignal.Transposed -> Derive.Deriver Pitch.Note
 pitch_note = either (Derive.throw . ("evaluating pitch: " <>) . pretty)
     return . PSignal.pitch_note
-
--- | Create a Pitch that only emits the given NoteNumber, and doesn't respond
--- to transposition.
-nn_pitch :: Pitch.NoteNumber -> PSignal.Pitch
-nn_pitch nn = PSignal.pitch PSignal.no_scale
-    (const (Right nn)) (const $ Right $ Pitch.Note $ pretty nn)
-    mempty

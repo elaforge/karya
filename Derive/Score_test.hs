@@ -8,9 +8,7 @@ import qualified Data.Map as Map
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Derive.PSignal as PSignal
-import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
-
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -21,7 +19,7 @@ test_move = do
             , Score.event_untransformed_controls =
                 Map.fromList [("c", Score.untyped $ Signal.signal [(2, 2)])]
             , Score.event_untransformed_pitch =
-                PSignal.signal [(2, Pitches.nn_pitch 42)]
+                PSignal.signal [(2, PSignal.nn_pitch 42)]
             }
         signal = Score.untyped . Signal.signal
     let moved = Score.move (+2) event

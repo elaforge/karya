@@ -24,6 +24,8 @@ module Derive.PSignal (
     , PitchError(..)
     , pitch, coerce
     , config, apply, add_control, pitch_nn, pitch_note
+    -- ** create
+    , nn_pitch
 ) where
 import Prelude hiding (head, take, drop, last, null)
 import qualified Data.Map.Strict as Map
@@ -230,3 +232,12 @@ add_control :: Score.Control -> Double -> RawPitch a -> RawPitch a
 add_control control val pitch =
     pitch { pitch_config = config <> pitch_config pitch }
     where config = PitchConfig mempty (Map.singleton control val)
+
+-- ** create
+
+-- | Create a Pitch that only emits the given NoteNumber, and doesn't respond
+-- to transposition.
+nn_pitch :: Pitch.NoteNumber -> Pitch
+nn_pitch nn = pitch no_scale
+    (const (Right nn)) (const $ Right $ Pitch.Note $ pretty nn)
+    mempty

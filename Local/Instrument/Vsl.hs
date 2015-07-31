@@ -26,8 +26,8 @@ import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Derive as Derive
+import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
-import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
@@ -176,7 +176,7 @@ natural_harmonic config (strings, hmap) args = do
             Nothing -> Derive.throw $ pretty pitch <> " unplayable on "
                 <> maybe (pretty strings) pretty maybe_string
             Just key -> return $
-                Call.with_pitch (Pitches.nn_pitch (Midi.from_key key))
+                Call.with_pitch (PSignal.nn_pitch (Midi.from_key key))
 
 -- * keyswitches
 

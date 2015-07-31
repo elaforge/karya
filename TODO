@@ -3,43 +3,19 @@ LEGEND
   ? open question; . note or observation
 
 UNSORTED
+  - run profiling and upgrade to ghc-7.10.2
   - rename PassedArgs to CallContext.  Or not?
-  - Done, but you still have to get the octave right.  Perhaps mridangam
-    should automatically transpose the octave to be within its range.
-  . What would a generalized staged evaluation system look like?
-    E.g. evaluate note (start, dur) and first pitch track.  Then go through
-    again and evaluate the rest of the tracks.  The second time the
-    neighbors are now incomplete Score.Events with timing and pitch.
-    I would also flatten out the block structure and cancel weak notes so
-    I have access to true next and prev.  This implies some way to stash the
-    unevaluated tracks in the Score.Event.  Then a postproc pass would go
-    through and evaluate again, providing new context to the unevaluated bits.
-    . I already have something vaguely like this in the Inversion dynamic
-      state.  I can provide new context with Dynamic... though it would be an
-      essentially untyped way to do it since there's no type difference
-      between the first and second evaluation.
-    . At the moment I don't need a generalized solution, so I could just
-      hardcode:
-      event_stage2 :: Maybe (([Score.Event], [Score.Event]) -> NoteDeriver)
-      Then at conversion time, any event with an event_stage2 is replaced by
-      its evaluation.
-    . Conversion isn't quite right, because I still want next event on track
-      etc... but actually no, I've been here before.
-    . Then I need some way to specify notation that wants to wait until
-      conversion.  I guess it would go by track, so maybe a magic symbol in
-      the track title.  Then slicing separately returns slices from those
-      tracks.  These still have to be evaluated in their original environment,
-      so I then wrap in a derive_tracks and store as a NoteDeriver.
-    . So I think this could work... but is it really worth it?  It seems like
-      it introduces a whole new level of complexity.  And, if I go the
-      typesafe route, a whole new type of calls, which a new accompanying
-      namespace.
+  - Perhaps mridangam should automatically transpose the octave to be within
+    its range.
   - Rename PSignal.Signal to PSignal.PSignal?
   - Sometimes kbd note entry doesn't work.
-    . Now I can't reproduce this.
-    . Wait, it's happening again...  happens even with MIDI kbd.  Maybe due to
-      failing to figure out the pitch based on the perf, because I think
-      a manual entry fixes it.
+    . It happens even with MIDI kbd.  Maybe due to failing to figure out the
+      pitch based on the perf, because I think a manual entry fixes it.
+    . The note name shows up in the status bar, so it must be converting it
+      properly.  It just doesn't get on to the track.
+      . How does it get to the status bar?  It's a separate call to
+        EditUtil.input_to_note.
+    . See if LPerf.rederive fixes it.
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
     '%just-base = (hz (nn c3))'.  Can I use type tags to catch that sort of
     thing?
@@ -251,7 +227,7 @@ UNSORTED
           . Maybe I should give separate dynamics a try before thinking about
             this too much.
       - I need high ma, high ri etc.
-      - Do I want to enable argument defaulting for dyn and pitch calls?
+      * Do I want to enable argument defaulting for dyn and pitch calls?
         Since they don't have names I'd have to either give them names, or
         enable a syntax for >-time = .5.  Actually I think quoting should
         work: '>-time' = .5
@@ -1562,10 +1538,38 @@ jack: JACK: linux midi:
     them.
 
 misc ideas:
+  . What would a generalized staged evaluation system look like?
+    E.g. evaluate note (start, dur) and first pitch track.  Then go through
+    again and evaluate the rest of the tracks.  The second time the
+    neighbors are now incomplete Score.Events with timing and pitch.
+    I would also flatten out the block structure and cancel weak notes so
+    I have access to true next and prev.  This implies some way to stash the
+    unevaluated tracks in the Score.Event.  Then a postproc pass would go
+    through and evaluate again, providing new context to the unevaluated bits.
+    . I already have something vaguely like this in the Inversion dynamic
+      state.  I can provide new context with Dynamic... though it would be an
+      essentially untyped way to do it since there's no type difference
+      between the first and second evaluation.
+    . At the moment I don't need a generalized solution, so I could just
+      hardcode:
+      event_stage2 :: Maybe (([Score.Event], [Score.Event]) -> NoteDeriver)
+      Then at conversion time, any event with an event_stage2 is replaced by
+      its evaluation.
+    . Conversion isn't quite right, because I still want next event on track
+      etc... but actually no, I've been here before.
+    . Then I need some way to specify notation that wants to wait until
+      conversion.  I guess it would go by track, so maybe a magic symbol in
+      the track title.  Then slicing separately returns slices from those
+      tracks.  These still have to be evaluated in their original environment,
+      so I then wrap in a derive_tracks and store as a NoteDeriver.
+    . So I think this could work... but is it really worth it?  It seems like
+      it introduces a whole new level of complexity.  And, if I go the
+      typesafe route, a whole new type of calls, which a new accompanying
+      namespace.
   . Import or trace curve from a pitch tracker into the pitch track.
-  - Staff notation represents chords well, but tracks don't.  Think of a more
+  . Staff notation represents chords well, but tracks don't.  Think of a more
     compact notation.
-  - Why can't I write a 'tr' that generates pitch signal in some cases, and
+  . Why can't I write a 'tr' that generates pitch signal in some cases, and
     adds an attribute in others?  It would be redesigning control tracks so
     they are just note tracks that slice their children and apply
     a transformer to them.  I'm not sure that will coexist with the curve
