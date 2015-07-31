@@ -1,6 +1,5 @@
 module Derive.Derive_criterion where
 import qualified Criterion.Main as Criterion
-import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 
 import qualified Util.Pretty as Pretty

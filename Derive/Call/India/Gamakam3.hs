@@ -613,7 +613,7 @@ pc_move_absolute dir = PCall Sig.no_args $ \() ctx -> do
     move start from_pitch end to_pitch
 
 pc_janta :: PCall
-pc_janta = PCall Sig.no_args $ \() _args -> lift $ Derive.throw "janta"
+pc_janta = PCall Sig.no_args $ \() _args -> lift $ Derive.throw "TODO janta"
 
 pc_set_pitch :: PitchDirection -> PCall
 pc_set_pitch dir = PCall Sig.no_args $ \() _args -> do
@@ -641,7 +641,7 @@ pc_set_transition_time time = PCall Sig.no_args $ \() _args -> do
 
 pc_set_next_time_slice :: PCall
 pc_set_next_time_slice = PCall Sig.no_args $ \() _args ->
-    lift $ Derive.throw "set next time slice"
+    lift $ Derive.throw "TODO set next time slice"
 
 -- * parser
 
@@ -679,7 +679,7 @@ valid_pcall_char :: Char -> Bool
 valid_pcall_char c = c /= '[' && c /= ']' && c /= ' '
 
 valid_dcall_char :: Char -> Bool
-valid_dcall_char c = valid_pcall_char c && c `elem` "=<>^_"
+valid_dcall_char c = valid_pcall_char c && c `elem` ("=<>^_" :: [Char])
 
 valid_dcall_arg :: Char -> Bool
 valid_dcall_arg c = Char.isDigit c || c == '.'
