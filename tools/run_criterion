@@ -1,0 +1,11 @@
+#!/bin/zsh
+# Copyright 2015 Evan Laforge
+# This program is distributed under the terms of the GNU General Public
+# License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+
+dir=prof/$(date +%y-%m-%d)/criterion
+mkdir -p $dir
+for bin in build/profile/RunCriterion-*; do
+    echo $bin -o $dir/${bin/*-/}.html
+    $bin -o $dir/${bin/*-/}.html
+done
