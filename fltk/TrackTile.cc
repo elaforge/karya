@@ -141,8 +141,9 @@ TrackTile::floating_close()
 {
     if (!this->floating_input)
         return;
-    if (floating_input->text_changed())
-        MsgCollector::get()->floating_input(this, floating_input->get_text());
+    MsgCollector::get()->floating_input(
+        this,
+        floating_input->text_changed() ? floating_input->get_text() : nullptr);
     this->remove(floating_input);
     // This function can be called from the callback, and you can't delete
     // yourself from inside a callback without crashing.  So I have to delay
@@ -156,9 +157,10 @@ TrackTile::floating_close()
 void
 TrackTile::floating_insert(const char *text)
 {
-    if (!this->floating_input)
-        return;
-    floating_input->insert(text);
+    if (this->floating_input)
+        floating_input->insert(text);
+    else
+        DEBUG("TrackTile::floating_insert called but no open input: " << text);
 }
 
 ////////////////////////////////////////

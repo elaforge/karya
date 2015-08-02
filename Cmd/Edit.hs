@@ -663,6 +663,6 @@ try_set_call_duration block_id track_id pos =
 
 floating_input_msg :: Msg.Msg -> Maybe Text
 floating_input_msg (Msg.Ui (UiMsg.UiMsg ctx
-        (UiMsg.UiUpdate _ (UiMsg.UpdateInput text))))
+        (UiMsg.UiUpdate _ (UiMsg.UpdateInput (Just text)))))
     | UiMsg.ctx_floating_input ctx = Just text
 floating_input_msg _ = Nothing

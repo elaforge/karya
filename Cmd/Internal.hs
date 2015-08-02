@@ -210,7 +210,7 @@ update_ui_state msg = do
 
 ui_update_state :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> Cmd.CmdId ()
 ui_update_state maybe_tracknum view_id update = case update of
-    UiMsg.UpdateInput text -> do
+    UiMsg.UpdateInput (Just text) -> do
         view <- State.get_view view_id
         update_input (Block.view_block view) text
     UiMsg.UpdateTimeScroll {} -> sync_zoom_status view_id
@@ -222,7 +222,7 @@ ui_update_state maybe_tracknum view_id update = case update of
             track_id <- State.event_track_at block_id tracknum
             case track_id of
                 Just track_id -> State.set_track_title track_id text
-                Nothing -> State.throw $ showt (UiMsg.UpdateInput text)
+                Nothing -> State.throw $ showt (UiMsg.UpdateInput (Just text))
                     <> " on non-event track " <> showt tracknum
         Nothing -> State.set_block_title block_id text
 

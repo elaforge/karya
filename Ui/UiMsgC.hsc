@@ -123,7 +123,8 @@ peek_ui_update :: CInt -> Ptr UiMsg.UiMsg -> IO UiMsg.UiUpdate
 peek_ui_update type_num msgp = case type_num of
     (#const UiMsg::msg_input) -> do
         ctext <- (#peek UiMsg, input.text) msgp :: IO CString
-        text <- Util.peekCString ctext
+        text <- if ctext == nullPtr then return Nothing
+            else Just <$> Util.peekCString ctext
         return $ UiMsg.UpdateInput text
     (#const UiMsg::msg_track_scroll) -> do
         scroll <- int <$> (#peek UiMsg, track_scroll.scroll) msgp :: IO Int

@@ -189,6 +189,7 @@ static const Color render_color = Color(166, 166, 205, 127);
 static void
 timeout_func(void *unused)
 {
+    BlockView &block = windows[0]->block;
     static int n;
     /*
     static int i = t1_events.size() - 1;
@@ -202,16 +203,14 @@ timeout_func(void *unused)
     static RulerConfig ruler(
             ruler_bg, false, true, true, arrival_beats, m44_last_pos);
     */
-    BlockModelConfig config = block_model_config();
-    return;
 
     std::cout << n << "------------\n";
     switch (n) {
     case 0:
-        // view.block.floating_open(1, ScoreTime(16), "hi there", 10, 10);
+        // block.floating_open(1, ScoreTime(16), "hi there", 10, 10);
+        return;
         break;
     case 1:
-        // view.block.floating_insert("haha");
         break;
     case 2:
         break;
@@ -377,7 +376,7 @@ main(int argc, char **argv)
     }
     view.block.set_title("hi there");
 
-    // Fl::add_timeout(1, timeout_func, nullptr);
+    Fl::add_timeout(1, timeout_func, nullptr);
 
     view.block.set_zoom(ZoomInfo(ScoreTime(0), 1.6));
 

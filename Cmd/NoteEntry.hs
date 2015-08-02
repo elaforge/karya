@@ -168,10 +168,10 @@ midi_input (Msg.Midi (Midi.ReadMessage rdev _ midi_msg)) = do
         Nothing -> return (Just [])
 midi_input _ = return Nothing
 
--- * edit_insert
+-- * floating_input_insert
 
-edit_insert :: Cmd.M m => Msg.Msg -> m Cmd.Status
-edit_insert msg = do
+floating_input_insert :: Cmd.M m => Msg.Msg -> m Cmd.Status
+floating_input_insert msg = do
     floating_input <- Cmd.gets $ Cmd.state_floating_input . Cmd.state_edit
     case msg of
         Msg.InputNote (InputNote.NoteOn _ input _) | floating_input -> do

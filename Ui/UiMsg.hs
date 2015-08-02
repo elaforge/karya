@@ -60,7 +60,9 @@ data Msg =
 -- to its own state.  They are like Ui.Update except in the opposide
 -- direction: fltk telling haskell what changes occurred.
 data UiUpdate =
-    UpdateInput !Text.Text
+    -- | Nothing means the text didn't change, but a msg is being sent anyway
+    -- since that's the only way I know the floating edit input has closed.
+    UpdateInput !(Maybe Text.Text)
     | UpdateTrackScroll !Types.Width
     | UpdateTimeScroll !ScoreTime
     -- | Size of entire block window, and (track_padding, time_padding).

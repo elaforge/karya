@@ -15,12 +15,22 @@
 void
 UiMsg::free()
 {
-    if (msg_input == type && input.text)
-        ::free(input.text);
-    else if (msg_resize == type && resize.rect)
-        delete resize.rect;
-    else if (msg_screen_size == type && screen.rect)
-        delete screen.rect;
+    switch (type) {
+    case msg_input:
+        if (input.text)
+            ::free(input.text);
+        break;
+    case msg_resize:
+        if (resize.rect)
+            delete resize.rect;
+        break;
+    case msg_screen_size:
+        if (screen.rect)
+            delete screen.rect;
+        break;
+    default:
+        break;
+    }
 }
 
 
@@ -33,7 +43,10 @@ operator<<(std::ostream &os, const UiMsg &m)
         os << m.event;
         break;
     case UiMsg::msg_input:
-        os << "text=\"" << m.input.text << '"';
+        if (m.input.text)
+            os << "text=\"" << m.input.text << '"';
+        else
+            os << "text=null";
         break;
     case UiMsg::msg_track_scroll:
         os << m.track_scroll.scroll;
@@ -244,15 +257,17 @@ set_update(UiMsg &m, UiMsg::MsgType type, const char *text)
     switch (type) {
     case UiMsg::msg_input:
         {
-            // If 'text' was given, it's either a track title or edit input.
-            // Otherwise, it must have been the block title.
+            // If 'text' was given, it's either a track title, block title, or
+            // floating input.  The floating input sets the text to null if
+            // the input is closing with no change.
             const char *s;
             if (text)
                 s = text;
+            else if (m.context.track_type == UiMsg::track_floating_input)
+                s = nullptr;
             else
                 s = block->get_title();
-            if (s)
-                m.input.text = strdup(s);
+            m.input.text = s ? strdup(s) : nullptr;
         }
         break;
     case UiMsg::msg_track_scroll:

@@ -8,14 +8,22 @@ UNSORTED
   - Perhaps mridangam should automatically transpose the octave to be within
     its range.
   - Rename PSignal.Signal to PSignal.PSignal?
-  - Sometimes kbd note entry doesn't work.
-    . It happens even with MIDI kbd.  Maybe due to failing to figure out the
-      pitch based on the perf, because I think a manual entry fixes it.
-    . The note name shows up in the status bar, so it must be converting it
-      properly.  It just doesn't get on to the track.
-      . How does it get to the status bar?  It's a separate call to
-        EditUtil.input_to_note.
-    . See if LPerf.rederive fixes it.
+  * Sometimes kbd note entry doesn't work.
+    . There's no MidiThru on the pitch track because EditUtil.lookup_instrument
+      gets Nothing and aborts.  But note track has the instrument, presumably
+      because of looking directly at the title.
+    . Somehow Cmd.state_floating_input is True!
+      This means NoteEntry.floating_input_insert catches it and returns a
+      Cmd.FloatingInput $ Cmd.FloatingInsert, which stops further processing.
+      Then Sync.floating_input -> BlockC.floating_insert.  It ignores, but
+      it means state_floating_input stays True.
+    . Why didn't it get unset?  Only if UiMsg.ctx_floating_input was set,
+      which is when a UiMsg text is from the floating input.  It happens if
+      I do escape, since there is then no UiMsg that says that the floating
+      input closed.
+    . So I need escape to also send a msg, but with Nothing as the text.
+  - No thru on pitch track of >pemade in save/rehearsal/bali/legong/semara-dana.
+  - Perf.lookup_instrument on a pitch track could look at its note track.
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
     '%just-base = (hz (nn c3))'.  Can I use type tags to catch that sort of
     thing?
