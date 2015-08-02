@@ -424,7 +424,7 @@ selection_status ns sel maybe_track_id = Text.unwords $ filter (not . Text.null)
     , if start == end then "" else "(" <> pretty_rational (end - start) <> ")"
     , showt tstart
         <> (if tstart == tend then "" else Text.cons '-' (showt tend))
-    <> maybe "" (Id.show_short ns . Id.unpack_id) maybe_track_id
+    , maybe "" (Id.show_short ns . Id.unpack_id) maybe_track_id
     ]
     where
     (start, end) = Sel.range sel
