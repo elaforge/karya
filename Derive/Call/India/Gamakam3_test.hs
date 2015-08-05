@@ -11,6 +11,7 @@ import Derive.Call.India.Gamakam3 (Expr_(..))
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
+import qualified Perform.NN as NN
 import Global
 import Types
 
@@ -84,7 +85,7 @@ test_sequence = do
 
     -- move_absolute
     -- Move to next pitch.
-    equal (run "!!-d-") (output [(4, 62), (6, 62), (7, 63), (8, 64)])
+    equal (run "!!-v-") (output [(4, 62), (6, 62), (7, 63), (8, 64)])
 
     -- Prev to current.
     equal (run "!!<-c-") (output [(4, 60), (6, 60), (7, 61), (8, 62)])
@@ -93,6 +94,17 @@ test_sequence = do
     equal (run "! P1c !-c-") (output [(4, 63), (6, 63), (7, 62.5), (8, 62)])
     -- Current to -1nn.
     equal (run "!!-y-") (output [(4, 62), (6, 62), (7, 61.5), (8, 61)])
+
+test_move_absolute = do
+    let run c dur = derive_tracks DeriveTest.e_nns_rounded $
+            [ (">", [(0, dur, "")])
+            , ("*", [(0, 0, "4c")])
+            , ("* interleave", [(0, 0, c)])
+            ]
+    equal (run "!!sr" 2) ([[(0, NN.c4), (1, NN.c4), (2, NN.d4)]], [])
+    equal (run "!!sn" 2) ([[(0, NN.c4), (1, NN.c4), (2, NN.b3)]], [])
+    equal (run "!!smnr" 4)
+        ([[(0, NN.c4), (1, NN.c4), (2, NN.f4), (3, NN.b4), (4, NN.d5)]], [])
 
 test_default_args = do
     let run c = derive_tracks DeriveTest.e_dyn_rounded $

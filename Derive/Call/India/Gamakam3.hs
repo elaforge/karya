@@ -23,6 +23,7 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
+import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
@@ -31,10 +32,12 @@ import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Global
 import Types
@@ -480,26 +483,40 @@ data PCall = forall a. PCall {
     }
 
 pitch_call_map :: Map.Map Char [PitchCall]
-pitch_call_map = resolve $ Map.unique $
-    [ emit '0' "Hold flat pitch." pc_flat
-    , parse_name $ emit '-' "Negative relative motion." pc_move
-    ] ++ [parse_name $ emit c "Relative motion." pc_move | c <- "123456789"] ++
-    [ alias 'b' ["-2"], alias 'a' ["-1"]
-    , alias 'y' ["-1nn"], alias 'z' ["1nn"] -- relative motion by NN
-    , emit 'c' "Absolute motion to current pitch." (pc_move_absolute Current)
-    , emit 'd' "Absolute motion to next pitch." (pc_move_absolute Next)
-    , alias 'u' ["-1", "1"], alias 'n' ["1", "-1"] -- single turn
-    -- , alias 'v' "a1 but fast, and with separate default for bottom"
-    , emit 'j' "Janta." pc_janta
+pitch_call_map = resolve $ Map.unique $ concat
+    -- relative motion
+    [ [ pcall '0' "Hold flat pitch." pc_flat
+      , parse_name $ pcall '-' "Negative relative motion." pc_move
+      ]
+    , [parse_name $ pcall c "Relative motion." pc_move | c <- "123456789"]
+    , [ alias 'b' ["-2"], alias 'a' ["-1"]
+      , alias 'y' ["-1nn"], alias 'z' ["1nn"] -- relative motion by NN
+      ]
+    -- absolute motion
+    -- I actually wanted to implemented motion relative to the base pitch, but
+    -- couldn't think of a nice mnemonic for the names.  In any case, maybe
+    -- swaram-absolute is actually more intuitive.
+    , [ pcall c "Absolute motion to swaram." (pc_move_absolute pc)
+      | (pc, c) <- zip [0..] ("srgmpdn" :: [Char])
+      ]
+    , [ pcall 'c' "Absolute motion to current pitch."
+        (pc_move_direction Current)
+      , pcall 'v' "Absolute motion to next pitch." (pc_move_direction Next)
+      -- compound motion
+      , alias 'u' ["-1", "1"]
+      , alias 'h' ["1", "-1"] -- single turn
+      , pcall 'j' "Janta." pc_janta
 
-    , config extend_name "Extend the duration of the previous call." pc_extend
-    , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
-    , config '^' "Set from pitch to current." (pc_set_pitch Current)
-    , config 'P' "Set from pitch to relative steps." pc_set_pitch_relative
-    , config 'F' "Fast transition time." (pc_set_transition_time Fast)
-    , config 'M' "Medium transition time." (pc_set_transition_time Medium)
-    , config 'S' "Slow transition time." (pc_set_transition_time Slow)
-    , config 'T' "Set slice time of the next call." pc_set_next_time_slice
+      -- set config
+      , config extend_name "Extend the duration of the previous call." pc_extend
+      , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
+      , config '^' "Set from pitch to current." (pc_set_pitch Current)
+      , config 'P' "Set from pitch to relative steps." pc_set_pitch_relative
+      , config 'F' "Fast transition time." (pc_set_transition_time Fast)
+      , config 'M' "Medium transition time." (pc_set_transition_time Medium)
+      , config 'S' "Slow transition time." (pc_set_transition_time Slow)
+      , config 'T' "Set slice time of the next call." pc_set_next_time_slice
+      ]
     ]
     where
     resolve (calls, duplicates)
@@ -507,7 +524,7 @@ pitch_call_map = resolve $ Map.unique $
         | otherwise = error $ "duplicate calls: " <> show (map fst duplicates)
     parse_name = second $ second $ \g -> g { pcall_parse_call_name = True }
     alias name to = (name, Left to)
-    emit name doc c = (name, Right $ PitchCall name doc 1 False c)
+    pcall name doc c = (name, Right $ PitchCall name doc 1 False c)
     config name doc c = (name, Right $ PitchCall name doc 0 False c)
 
 resolve_aliases :: Map.Map Char (Either [Text] PitchCall)
@@ -576,25 +593,16 @@ pc_flat = PCall Sig.no_args $ \() ctx -> do
 
 pc_move :: PCall
 pc_move = PCall (Sig.required "to" "To pitch.") $ \arg ctx -> do
-    (start, end) <- ctx_range ctx
     case arg of
         Left (TrackLang.Symbol sym)
             | sym == "-" -> do
+                (start, end) <- ctx_range ctx
                 pitch <- get_from
                 return $ PSignal.signal [(start, pitch), (end, pitch)]
             | otherwise -> lift $ Derive.throw $ "unknown move: " <> showt sym
         Right (TrackLang.DefaultDiatonic transpose) -> do
             from_pitch <- get_from
-            move start from_pitch end
-                (Pitches.transpose transpose from_pitch)
-
-move :: RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
-    -> M State PSignal.Signal
-move start from_pitch end to_pitch = do
-    TrackLang.Normalized transition <- State.gets state_transition
-    let curve = snd ControlUtil.sigmoid_curve (1-transition, 1-transition)
-    set_pitch to_pitch
-    lift $ PitchUtil.make_segment curve start from_pitch end to_pitch
+            move_to ctx (Pitches.transpose transpose from_pitch)
 
 data PitchDirection = Previous | Current | Next deriving (Show, Eq)
 instance Pretty.Pretty PitchDirection where pretty = showt
@@ -605,12 +613,34 @@ get_direction_pitch dir = case dir of
     Current -> State.gets state_current_pitch
     Next -> State.gets state_next_pitch
 
-pc_move_absolute :: PitchDirection -> PCall
-pc_move_absolute dir = PCall Sig.no_args $ \() ctx -> do
-    (start, end) <- ctx_range ctx
+pc_move_direction :: PitchDirection -> PCall
+pc_move_direction dir = PCall Sig.no_args $ \() ctx ->
+    move_to ctx =<< get_direction_pitch dir
+
+pc_move_absolute :: Pitch.PitchClass -> PCall
+pc_move_absolute pc = PCall Sig.no_args $ \() ctx -> do
     from_pitch <- get_from
-    to_pitch <- get_direction_pitch dir
-    move start from_pitch end to_pitch
+    to_pitch <- lift $ find_closest_pc (ctx_start ctx) pc from_pitch
+    move_to ctx to_pitch
+
+-- | Given a PitchClass and a previous pitch, infer the octave for the
+-- PitchClass which is closest to the previous pitch.
+find_closest_pc :: ScoreTime -> Pitch.PitchClass -> PSignal.Pitch
+    -> Derive.Deriver PSignal.Pitch
+find_closest_pc start pc pitch = do
+    (from_note, to_note, _) <- Call.get_pitch_functions
+    scale <- Call.get_scale
+    pitch <- Call.parse_pitch from_note (PSignal.apply mempty pitch)
+    let unwrapped = Pitch.pitch oct pc
+        wrapped = Pitch.pitch
+            (if pc >= Pitch.pitch_pc pitch then oct - 1 else oct + 1) pc
+        oct = Pitch.pitch_octave pitch
+    per_octave <- Derive.require "scale must have octaves" $
+        Scale.pc_per_octave (Scale.scale_layout scale)
+    let to_pitch = if distance unwrapped <= distance wrapped
+            then unwrapped else wrapped
+        distance p = abs (Pitch.subtract_pitch per_octave pitch p)
+    Call.eval_note start =<< Derive.require "to_note" (to_note to_pitch)
 
 pc_janta :: PCall
 pc_janta = PCall Sig.no_args $ \() _args -> lift $ Derive.throw "TODO janta"
@@ -642,6 +672,22 @@ pc_set_transition_time time = PCall Sig.no_args $ \() _args -> do
 pc_set_next_time_slice :: PCall
 pc_set_next_time_slice = PCall Sig.no_args $ \() _args ->
     lift $ Derive.throw "TODO set next time slice"
+
+-- ** util
+
+move_to :: Context -> PSignal.Pitch -> M State PSignal.Signal
+move_to ctx pitch = do
+    (start, end) <- ctx_range ctx
+    from_pitch <- get_from
+    move_pitch start from_pitch end pitch
+
+move_pitch :: RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
+    -> M State PSignal.Signal
+move_pitch start from_pitch end to_pitch = do
+    TrackLang.Normalized transition <- State.gets state_transition
+    let curve = snd ControlUtil.sigmoid_curve (1-transition, 1-transition)
+    set_pitch to_pitch
+    lift $ PitchUtil.make_segment curve start from_pitch end to_pitch
 
 -- * parser
 

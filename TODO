@@ -266,7 +266,7 @@ UNSORTED
         remove the other.
         . Currently - is winning... but if I use separate worcds then 0 -1
           seems a lot easier to read than - -1.
-      - Should I have a set of absolute movement calls?  The idea is that it's
+      * Should I have a set of absolute movement calls?  The idea is that it's
         easier to write and read 1210a0a0a than P1 1aaa1a1a
         I could use srg, e.g. rgrsnsnsn, but this winds up being really
         absolute, not just absolute relative to the base pitch.

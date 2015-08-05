@@ -266,10 +266,7 @@ get_pitch pos = Derive.require ("no pitch at " <> pretty pos)
 
 get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch) -> RealTime
     -> Derive.Deriver Pitch.Pitch
-get_parsed_pitch parse pos = do
-    pitch <- get_transposed pos
-    note <- Pitches.pitch_note pitch
-    Derive.require "unparseable pitch" $ parse note
+get_parsed_pitch parse = parse_pitch parse <=< get_transposed
 
 dynamic :: RealTime -> Derive.Deriver Signal.Y
 dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
@@ -345,6 +342,12 @@ get_pitch_functions = do
         , transpose
         )
     where to_maybe = either (const Nothing) Just
+
+parse_pitch :: (Pitch.Note -> Maybe a) -> PSignal.Transposed
+    -> Derive.Deriver a
+parse_pitch parse pitch = do
+    note <- Pitches.pitch_note pitch
+    Derive.require "unparseable pitch" $ parse note
 
 -- * note
 
