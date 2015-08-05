@@ -155,6 +155,8 @@ d_block block_id = do
         then return id
         else case ParseTitle.parse_block title of
             Left err -> Derive.throw $ "block title: " <> err
+            -- A title with just a comment will come out like this.
+            Right (TrackLang.Call call [] :| []) | call == "" -> return id
             Right expr ->
                 return $ Eval.eval_transformers info (NonEmpty.toList expr)
                 where info = Derive.dummy_context 0 1 "block title"
