@@ -24,47 +24,47 @@ import Types
 
 
 test_norot = do
-    let run = derive extract title
-        title = inst_title <> " | inst-top = (pitch (4f)) | norot-dur=1"
+    let run e = derive_extract e title
+        title = " | inst-top = (pitch (4f)) | norot-dur=1"
             <> " | norot-arrival=f | initial=t"
-        extract e = (DeriveTest.e_note e, Score.event_instrument e)
-    equal (run [(2, -2, "norot -- 3a")])
+        note_inst e = (DeriveTest.e_note e, Score.event_instrument e)
+    equal (run note_inst [(2, -2, "norot -- 3a")])
         ([((0, 1, "3a"), pasang), ((1, 1, "3b"), pasang),
             ((2, 1, "3a"), pasang)], [])
-    equal (run [(2, -2, "norot -- 4f")])
+    equal (run note_inst [(2, -2, "norot -- 4f")])
         ([((0, 1, "4f"), pasang), ((1, 1, "4e"), pasang),
             ((2, 1, "4f"), pasang)], [])
-    equal (run [(2, -2, "norot _ diamond -- 4c")])
+    equal (run note_inst [(2, -2, "norot _ diamond -- 4c")])
         ([ ((0, 1, "4c"), polos), ((0, 1, "4c"), sangsih)
          , ((1, 1, "4d"), polos), ((1, 1, "3b"), sangsih)
          , ((2, 1, "4c"), polos), ((2, 1, "4c"), sangsih)
          ], [])
     -- Under threshold, split sangsih and polos.
-    equal (run [(2, -2, "kotekan = 2 | norot -- 3a")])
+    equal (run note_inst [(2, -2, "kotekan = 2 | norot -- 3a")])
         ([((0, 1, "3a"), polos), ((1, 1, "3b"), sangsih),
             ((2, 1, "3a"), polos)], [])
 
     -- >norot is a Once pattern.
-    equal (run [(8, -8, "kotekan = 2 | >norot -- 3a")])
+    equal (run note_inst [(8, -8, "kotekan = 2 | >norot -- 3a")])
         ([ ((5, 1, "3a"), polos), ((5, 1, "3a"), sangsih)
          , ((6, 1, "3a"), polos), ((6, 1, "3a"), sangsih)
          , ((7, 1, "3b"), sangsih)
          , ((8, 1, "3a"), polos)
          ], [])
 
-    equal (derive DeriveTest.e_note title [(4, -2, "norot -- 3a")])
+    equal (run DeriveTest.e_note [(4, -2, "norot -- 3a")])
         ([(2, 1, "3a"), (3, 1, "3b"), (4, 1, "3a")], [])
-    equal (derive Score.event_flags title [(4, -2, "norot -- 3a")])
+    equal (run Score.event_flags [(4, -2, "norot -- 3a")])
         ([mempty, mempty, Flags.infer_duration <> Flags.strong], [])
 
     -- Flags aren't messed up from starting at 0.  Also, non-negative duration
     -- is the same as negative.
-    equal (derive Score.event_flags title [(0, 4, "norot -- 3a")])
+    equal (run Score.event_flags [(0, 4, "norot -- 3a")])
         ([mempty, mempty, mempty, mempty,
             Flags.infer_duration <> Flags.strong], [])
 
 test_norot_arrival = do
-    let run = e_pattern 0 . derive_kotekan title
+    let run = e_pattern 0 . derive title
         title = " | norot-dur=1 | infer-duration 2"
     equal (run [(4, 4, "norot t -- 4c")]) ([(pasang, "-11212121")], [])
     -- The second half of the first call is cancelled out.
@@ -84,12 +84,12 @@ test_norot_arrival = do
         ([(pasang, "12132")], [])
 
 test_gender_norot = do
-    let run = e_pattern 0 . derive_kotekan ""
+    let run = e_pattern 0 . derive ""
     equal (run [(0, 4, "initial=t | gnorot -- 4e")])
         ([(polos, "32123"), (sangsih, "34343")], [])
 
 test_kotekan_irregular = do
-    let run kotekan = e_pattern 0 . derive_kotekan (ngotek kotekan)
+    let run kotekan = e_pattern 0 . derive (ngotek kotekan)
     equal (run True [(0, 8, "k_\\ -- 4c")])
         ([(polos, "--11-1-21"), (sangsih, "--44-43-4")], [])
     equal (run False [(0, 8, "k_\\ -- 4c")])
@@ -99,7 +99,7 @@ test_kotekan_consecutive = do
     -- Consecutive kotekan calls don't result in doubled notes.  Originally
     -- this involved cancelling notes, but since kotekan now omits the first
     -- note it happens naturally.
-    let run = e_pattern 0 . derive_kotekan (" | infer-duration" <> ngotek True)
+    let run = e_pattern 0 . derive (" | infer-duration" <> ngotek True)
     equal (run [(0, 8, "initial=t | k k-12-1-21 -- 4c"),
             (8, 8, "k k-12-1-21 -- 4c")])
         ( [ (polos,     "1-12-1-21-12-1-21")
@@ -125,7 +125,7 @@ test_kotekan_consecutive = do
 
 test_kotekan_cancel = do
     -- The final note of the kotekan is cancelled.
-    let run = derive_kotekan (" | infer-duration | unison" <> ngotek True)
+    let run = derive (" | infer-duration | unison" <> ngotek True)
     -- Because there's no sangsih at that point, only the polos is replaced.
     -- I would have to have >polos replace >pasang, and after that apply unison
     -- or whatever.
@@ -133,12 +133,12 @@ test_kotekan_cancel = do
         ([(polos, "--3-23-23"), (sangsih, "-2-12-124")], [])
         -- But it should be:
         -- ([(polos, "--3-23-23"), (sangsih, "-2-12-123")], [])
-    -- pprint $ e_pasang DeriveTest.e_note $
+    -- pprint $ e_by_inst DeriveTest.e_note $
     --     run [(0, 8, "k// -- 4e"), (8, 8, "4f")]
 
 test_kotekan_continuation = do
     -- Kotekan followed by normal notes works "as expected".
-    let run postproc = derive_kotekan
+    let run postproc = derive
             (" | infer-duration" <> ngotek True <> " | " <> postproc)
     equal (e_pattern 0 $ run "unison"
             [(0, 8, "final=f | k// -- 4e"), (8, 2, "4f")])
@@ -166,7 +166,7 @@ test_kotekan_infer_duration = do
         ([(1, 1, "4d"), (3, 1, "4d"), (4, 4, "4c"), (8, 2, "4d")], [])
 
 test_kotekan_regular = do
-    let run kotekan = e_pattern 2 . derive_kotekan (ngotek kotekan)
+    let run kotekan = e_pattern 2 . derive (ngotek kotekan)
     -- Start at 2 to avoid accidentally working from 0.
     equal (run True [(2, 8, "initial=t | k k-12-1-21 -- 4c")])
         ([(polos, "1-12-1-21"), (sangsih, "-3-23-32-")], [])
@@ -189,14 +189,14 @@ test_kotekan_regular = do
 
 test_kotekan_regular_jalan = do
     -- k// and k\\ work as expected.
-    let run kotekan = e_pattern 0 . derive_kotekan (ngotek kotekan)
+    let run kotekan = e_pattern 0 . derive (ngotek kotekan)
     equal (run True [(0, 8, "k// -- 4e")])
         ([(polos, "--3-23-23"), (sangsih, "-2-12-12-")], [])
     equal (run True [(0, 8, "k\\\\ -- 4c")])
         ([(polos, "--1-21-21"), (sangsih, "-2-32-32-")], [])
 
 test_kotekan_strange_length = do
-    let run start kotekan = e_pattern start . derive_kotekan (ngotek kotekan)
+    let run start kotekan = e_pattern start . derive (ngotek kotekan)
     equal (run 0 True [(0, 8, "k k-121 -- 4c")])
         ([(polos, "--121-121"), (sangsih, "-3-2-3-2-")], [])
     strings_like (snd $ run 0 True [(0, 12, "k k-12-21 -- 4c")])
@@ -204,7 +204,9 @@ test_kotekan_strange_length = do
     equal (run 0 True [(0, 12, "k '-12-21' -- 4c")])
         ([(polos, "--12-21-12-21"), (sangsih, "-3-232-3-232-")], [])
 
-test_unison = do
+test_unison_tuning = do
+    -- This is not so much testing the 'unison' call as making sure the
+    -- instrument and tuning are properly set.
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup (DeriveTest.with_ui config_inst)
                 title
@@ -228,7 +230,7 @@ modify_instrument inst modify state =
             state
 
 test_kempyung = do
-    let run title = derive extract (inst_title <> title <> " | kempyung")
+    let run title = derive_extract extract (title <> " | kempyung")
         extract e = (Score.event_start e, Score.initial_note e)
         notes = [(0, 1, "4c"), (1, 1, "4d")]
     equal (run "" notes)
@@ -237,13 +239,13 @@ test_kempyung = do
         ([(0, Just "4c"), (0, Just "4f"), (1, Just "4d"), (1, Just "4d")], [])
 
 test_nyogcag = do
-    let run = derive extract (inst_title <> " | nyog")
+    let run = derive_extract extract " | nyog"
         extract e = (Score.event_start e, DeriveTest.e_inst e)
     let notes = [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
     equal (run notes) ([(0, "i1"), (1, "i2"), (2, "i1")], [])
 
 test_noltol = do
-    let run title = derive extract (inst_title <> " | " <> title)
+    let run title = derive_extract extract (" | " <> title)
             -- (inst_title <> " | noltol " <> arg <> postproc)
         extract e =
             (Score.event_start e, DeriveTest.e_inst e,
@@ -274,25 +276,33 @@ test_noltol = do
 ngotek :: Bool -> String
 ngotek b = " | kotekan=" <> if b then "2" else "1"
 
-derive_pasang :: (Score.Event -> a) -> String -> [UiTest.EventSpec]
-    -> (([a], [a]), [String])
-derive_pasang extract title notes =
-    e_pasang extract $ derive_kotekan title notes
+-- * derive
 
 derive_polos :: (Score.Event -> a) -> String -> [UiTest.EventSpec]
     -> ([a], [String])
-derive_polos extract title = first fst . derive_pasang extract title
+derive_polos extract title = first (fromMaybe [] . lookup polos)
+    . e_by_inst extract . derive title
 
-derive_kotekan :: String -> [UiTest.EventSpec] -> Derive.Result
-derive_kotekan title notes = derive_tracks $
+derive :: String -> [UiTest.EventSpec] -> Derive.Result
+derive title notes = derive_tracks $
     UiTest.note_spec (inst_title <> title, notes, [])
+
+derive_extract :: (Score.Event -> a) -> String -> [UiTest.EventSpec]
+    -> ([a], [String])
+derive_extract extract title = DeriveTest.extract extract . derive title
+
+derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
+derive_tracks = DeriveTest.derive_tracks "import bali.gangsa"
+
+-- * extract
 
 e_by_inst :: (Score.Event -> a) -> Derive.Result
     -> ([(Score.Instrument, [a])], [String])
 e_by_inst extract = first Seq.group_fst
     . DeriveTest.extract (\e -> (Score.event_instrument e, extract e))
 
-e_pattern :: RealTime -> Derive.Result
+e_pattern :: RealTime -- ^ expect the first note at this time
+    -> Derive.Result
     -> ([(Score.Instrument, String)], [String])
 e_pattern start = first extract . e_by_inst DeriveTest.e_start_note
     where
@@ -321,17 +331,6 @@ pitch_digit p = case p of
     "4g" -> "5"; "4a" -> "6"; "4b" -> "7"
     _ -> "unknown pitch: " <> show p
 
-e_pasang :: (Score.Event -> a) -> Derive.Result -> (([a], [a]), [String])
-e_pasang extract = first group_inst
-    . DeriveTest.extract (\e -> (Score.event_instrument e, extract e))
-    where
-    group_inst ns = ([n | (inst, n) <- ns, inst == polos],
-        [n | (inst, n) <- ns, inst == sangsih])
-
-derive :: (Score.Event -> a) -> String -> [UiTest.EventSpec] -> ([a], [String])
-derive extract title notes = DeriveTest.extract extract $ derive_tracks $
-    UiTest.note_spec (title, notes, [])
-
 inst_title :: String
 inst_title = "i3 | inst-polos = >i1 | inst-sangsih = >i2"
 
@@ -343,6 +342,3 @@ sangsih = Score.Instrument "i2"
 
 pasang :: Score.Instrument
 pasang = Score.Instrument "i3"
-
-derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
-derive_tracks = DeriveTest.derive_tracks "import bali.gangsa"
