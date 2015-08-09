@@ -4,6 +4,7 @@
 
 -- | Postprocs that change note start and duration.
 module Derive.Call.Post.Move where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 
@@ -19,6 +20,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
+import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -35,6 +37,8 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map
     [ ("infer-duration", c_infer_duration)
     , ("apply-start-offset", c_apply_start_offset)
+    , ("cancel", c_cancel)
+    , ("cancel-pasang", c_cancel_pasang)
     ]
 
 
@@ -165,6 +169,90 @@ replace_note next event = event
     pitches = Score.event_transformed_pitches
     controls = Score.event_transformed_controls
     start = Score.event_start event
+
+-- * cancel
+
+c_cancel :: Derive.Transformer Derive.Note
+c_cancel = Derive.transformer Module.prelude "cancel" Tags.postproc
+    ("Process the " <> ShowVal.doc_pretty Flags.strong <> " and "
+    <> ShowVal.doc_pretty Flags.weak <> " flags.  This will cause notes to be\
+    \ dropped.") $ Sig.call0t $ \_args -> cancel normal_merge Post.hand_key
+
+cancel :: Ord key => ([Score.Event] -> Either Text [Score.Event])
+    -> (Score.Event -> key) -> Derive.NoteDeriver -> Derive.NoteDeriver
+cancel merge key deriver = Derive.require_right id . merge_groups merge
+    . group_coincident key =<< deriver
+
+-- | Merge notes with 'Flags.strong' and 'Flags.weak'.  The rules are that
+-- exactly one strong note wins, but >1 is ambiguous.  Otherwise, multiple
+-- normal notes can win over weak notes, and exactly one weak note is ok, but
+-- multiple weak notes with no normal ones is once again ambiguous.
+normal_merge :: [Score.Event] -> Either Text [Score.Event]
+normal_merge events = case (strongs, normals, weaks) of
+    (strong : extras, _, _)
+        | null extras -> Right [strong]
+        | otherwise -> Left $ "multiple " <> pretty Flags.strong <> " events: "
+            <> Score.log_events (strong : extras)
+    ([], [], weak : extras)
+        | null extras -> Right [weak]
+        | otherwise -> Left $ "multiple " <> pretty Flags.weak <> " events: "
+            <> Score.log_events (weak : extras)
+    ([], normals, _) -> Right normals
+    -- Multiple weak notes are ok if there are non-weak notes.
+    where
+    (strongs, not_strongs) = List.partition (Score.has_flags Flags.strong)
+        events
+    (weaks, normals) = List.partition (Score.has_flags Flags.weak) not_strongs
+
+merge_groups :: ([a] -> Either Text [a]) -> [Either [LEvent.LEvent a] [a]]
+    -> Either Text [LEvent.LEvent a]
+merge_groups merge = concatMapM go
+    where
+    go (Left ungrouped) = Right ungrouped
+    go (Right []) = Right []
+    go (Right [e]) = Right [LEvent.Event e]
+    go (Right es) = map LEvent.Event <$> merge es
+
+-- ** pasang TODO move to Gangsa
+
+c_cancel_pasang :: Derive.Transformer Derive.Note
+c_cancel_pasang = Derive.transformer Module.prelude "cancel" Tags.postproc
+    "blah blah"
+    $ Sig.call0t $ \_args -> cancel pasang_merge pasang_key
+
+-- | Like 'normal_merge', but merge instruments too.
+pasang_merge :: [Score.Event] -> Either Text [Score.Event]
+pasang_merge = normal_merge -- TODO
+
+pasang_key :: Score.Event -> (Maybe Score.Instrument, Maybe Text, Maybe Text)
+pasang_key e = (get Environ.hand, get inst_polos, get inst_sangsih)
+    where get k = TrackLang.maybe_val k (Score.event_environ e)
+
+inst_polos :: TrackLang.ValName
+inst_polos = "inst-polos"
+
+inst_sangsih :: TrackLang.ValName
+inst_sangsih = "inst-sangsih"
+
+--
+
+type Events = [LEvent.LEvent Score.Event]
+
+group_coincident :: Ord key => (Score.Event -> key) -> Events
+    -> [Either Events [Score.Event]]
+group_coincident key = go
+    where
+    go [] = []
+    go (log@(LEvent.Log {}) : es) = Left [log] : go es
+    go (LEvent.Event e : es) =
+        (if null logs then id else (Left (map LEvent.Log logs) :)) $
+            groups ++ go after
+        where
+        ((during, logs), after) = first LEvent.partition $
+            span (LEvent.log_or $ same_start e) es
+        -- [e] is going to be a common case, since most notes don't group.
+        groups = map Right (Seq.group_sort key (e : during))
+    same_start e1 e2 = Score.event_start e1 RealTime.== Score.event_start e2
 
 -- * apply start offset
 

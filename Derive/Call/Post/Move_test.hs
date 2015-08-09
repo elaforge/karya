@@ -48,20 +48,23 @@ test_infer_duration = do
 
 test_cancel = do
     let run = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks "infer-duration" . UiTest.note_track
+            . DeriveTest.derive_tracks "cancel" . UiTest.note_track
+        notes n1 n2 = [(0, 2, n1 <> "d 2 | -- 4c"), (2, 3, n2 <> "-- 4d")]
     -- No flags, no cancel.
-    equal (run [(0, 2, "d 2 | -- 4c"), (2, 3, "4d")])
+    equal (run (notes "" ""))
         ([(2, 2, "4c"), (2, 3, "4d")], [])
-    equal (run [(0, 2, "d 2 | -- 4c"), (2, 3, "add-flag weak | -- 4d")])
+    equal (run (notes "" "add-flag weak | "))
         ([(2, 2, "4c")], [])
-    equal (run [(0, 2, "add-flag strong | d 2 | -- 4c"), (2, 3, "4d")])
-        ([(2, 2, "4c")], [])
-    equal (run [(0, 2, "add-flag weak | d 2 | -- 4c"), (2, 3, "4d")])
+    equal (run (notes "add-flag weak | " ""))
         ([(2, 3, "4d")], [])
-    -- If they both wish to yield, the first one wins.
-    equal (run [(0, 2, "add-flag weak | d 2 | -- 4c"),
-            (2, 3, "add-flag weak | -- 4d")])
+    equal (run (notes "add-flag strong | " ""))
         ([(2, 2, "4c")], [])
+
+    -- Too many weaks or strongs is an error.
+    strings_like (snd $ run (notes "add-flag weak | " "add-flag weak | "))
+        ["multiple {weak}"]
+    strings_like (snd $ run (notes "add-flag strong | " "add-flag strong | "))
+        ["multiple {strong}"]
 
 test_infer_duration_controls = do
     -- A zero duration note at the end of a block gets controls from right

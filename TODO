@@ -3,6 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  simplify infer-duration
+    . Split it into 'infer-duration,' which only processes {infer-duration},
+      'cancel', which processes {weak} and {strong}, and 'suppress', which
+      processes Environ.suppress_until.  This way I can specialize 'cancel'
+      for gangsa, so it understands pasang instruments.
+    * add 'cancel' call
+    - add 'suppress' call
+    - remove extra features from 'infer-duration'
   - bug: repl: SaveFileChanged
     repl: thread blocked indefinitely in an MVar operation
   * comment in block title disables the whole block
@@ -1313,22 +1321,61 @@ Derive:
             . The realization gets what args?  Neighbors?  Same hand
               neighbors?  What if it wants arguments from the realize call
               point?  I think it should be just prev and next.
-
+            . This is not so simple, because I can't put a Deriver in
+              a Score.Event due to circular imports.  I'd have to move Event
+              to Deriver.Monad, or come up with some Deriver-and-above way to
+              attach data to a LEvent.Event.  So basically I have
+              ControlFunction all over again.
+            . The problem with using ControlFunction style BaseTypes.Dynamic
+              is that I now can't derive an expression, e.g Call.note or
+              even a pitch.  That seems really limiting for a postproc.
+            . Really all I want is a hole where I can plug in
+              a DelayedContext.  Surely there is some way to stash that in an
+              Event?
+            . Well... I could use Dynamic.  Cast a NoteDeriver to Dynamic.
+              You stash and evaluate via a function in Derive.Call which does
+              the casting.
+            . The other option is to store it above Event.  That means
+              LEvent.LEvent (DelayedMap, Score.Event).  But it seems like this
+              would break tons of code that uses Score.Event.
+            . But, as long as I'm using Dynamic I could also store the args.
+              I guess it's basically the same.
           . Kotekan calls make >p and >s notes.  They all get +noltol.
             . No note at a gap: final note gets {infer-duration}.  Kotekan
               call can also remove +noltol.  infer-duration extends the note.
-              Then realize-technique applies noltol.
-            . Note at the gap: final note is merged with open note by
-              infer-duration.  It gets +unison from the whole track, but
-              if there is a +kempyung, realize-technique will do kempyung
-              instead.
-          - Also infer-duration needs to know that a >pasang note can replace
-            >polong or >sangsih.
+            . >pasang in the gap: final kotekan >p replaces >pasang, and gets
+              its duration.  Or maybe >pasang replaces >p, but must get its
+              instrument.
+            . >pasang +kempyung in the gap: final kotekan >p replaces >pasang,
+              but the instrument must remain >pasang, so realize-technique can
+              realize it.
+            . So it seems like the note replacement needs to know about
+              +kempyung and +unison in addition to pasang instruments.
           . Gangsa_test.test_kotekan_cancel demonstrates the problem.
+          . This is getting to be too much hassle. Really all I want is to not
+            have to add initial=t and final=f all the time.
+          - How about infer a final=f if there is a next note at the end time?
+            And infer initial=t if there is no previous event ending here.
           * For the short term I can just add a env arg to kotekan calls to
             omit the last note, then I have to use that when I want to replace
             it.  This means cross block replacement doesn't work.  Try it to
             see if I'll want the complicated version.
+
+        . I want an initial note if there isn't already a note playing there.
+          So prev event but not a prev kotekan event, or other event with
+          a final note.  I can't use {weak} because I need >p to cancel >s and
+          vice versa.  But I could use Args.prev_score_event
+        . Or maybe it's that note cancellation needs to understand about
+          pasangan.  If it does, then >p can cancel concurrent >s, and
+          >pasang can cancel >p and >s.
+        . So: teach note cancel about pasangan, make initial note {weak}, make
+          final note {infer-duration}.  Or, make final note extend to the next
+          event start, unless it's touching this event, in which case use the
+          normal duration.
+
+        - Can I make cancelling simpler while I'm at it?  Make infer-duration
+          and cancel different, normally infer-duration comes first.
+
         kotekan kernel:
           - generate all possible kernels following some playability rules,
             e.g. no more than 2 notes in a row, only one rest
