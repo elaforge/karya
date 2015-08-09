@@ -260,10 +260,8 @@ data Range = Range !(Maybe BlockId) !TrackId !TrackTime !TrackTime
     deriving (Eq, Show)
 
 instance Pretty.Pretty Range where
-    pretty (Range maybe_block_id track_id start end) = "{s \"" <> addr <> "\"}"
-        where
-        addr = Stack.unparse_ui_frame
-            (maybe_block_id, Just track_id, Just (start, end))
+    pretty (Range maybe_block_id track_id start end) =
+        Stack.log_ui_frame (maybe_block_id, Just track_id, Just (start, end))
 
 -- * other types
 

@@ -93,7 +93,7 @@ cache_logs block_id = do
         ]
     where
     wanted log = Cache.is_cache_log log || PlayUtil.is_score_damage_log log
-    format_stack = maybe "" (txt . Stack.show_ui_) . Log.msg_stack
+    format_stack = maybe "" Stack.pretty_ui_ . Log.msg_stack
 
 -- | Stats for both block and track caches from the given block.
 cache_stats :: BlockId -> Cmd.CmdL String

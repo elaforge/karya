@@ -10,7 +10,8 @@ module Derive.Stack (
     , block_track_of, block_track_region_of
     , match
     , Frame(..)
-    , format_ui, show_ui, show_ui_
+    , format_ui, pretty_ui, pretty_ui_, pretty_ui_inner
+    , log_ui_frame
 
     -- * more specialized utils
     , track_regions
@@ -231,11 +232,20 @@ instance Aeson.FromJSON Frame where
 format_ui :: Stack -> Pretty.Doc
 format_ui = Pretty.textList . map unparse_ui_frame . to_ui
 
-show_ui :: Stack -> Text
-show_ui = Text.intercalate ": " . map unparse_ui_frame . to_ui
+pretty_ui :: Stack -> Text
+pretty_ui = Text.intercalate ": " . map unparse_ui_frame . to_ui
 
-show_ui_ :: Stack -> String
-show_ui_ = Seq.join ": " . map unparse_ui_frame_ . to_ui
+pretty_ui_ :: Stack -> Text
+pretty_ui_ = Text.intercalate ": " . map unparse_ui_frame_ . to_ui
+
+pretty_ui_inner :: Stack -> Maybe Text
+pretty_ui_inner = fmap log_ui_frame . Seq.head . to_ui_innermost
+
+-- | Format a UiFrame for logging.  This means it wraps it in @{s "..."}@,
+-- which causes logview to make it clickable, which will highlight the stack
+-- location.
+log_ui_frame :: UiFrame -> Text
+log_ui_frame frame = "{s " <> showt (unparse_ui_frame frame) <> "}"
 
 -- * more specialized utils
 
@@ -307,9 +317,9 @@ unparse_ui_frame (maybe_bid, maybe_tid, maybe_range) =
 
 -- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
 -- cluttered but potentially ambiguous output.
-unparse_ui_frame_ :: UiFrame -> String
+unparse_ui_frame_ :: UiFrame -> Text
 unparse_ui_frame_ (maybe_bid, maybe_tid, maybe_range) =
-    untxt $ Text.unwords [bid_s, tid_s, range_s]
+    Text.unwords [bid_s, tid_s, range_s]
     where
     bid_s = maybe "*" Id.ident_name maybe_bid
     tid_s = maybe "*" Id.ident_name maybe_tid

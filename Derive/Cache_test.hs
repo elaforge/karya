@@ -333,7 +333,7 @@ test_collect = do
         Just collect = maybe_collect
     equal root_key "top * *"
 
-    let e_warp_maps = Seq.sort_on fst . map (first Stack.show_ui_)
+    let e_warp_maps = Seq.sort_on fst . map (first Stack.pretty_ui_)
             . Map.toAscList . Derive.collect_warp_map
 
     let tw start end bid = Left $ TrackWarp.TrackWarp
@@ -710,8 +710,8 @@ r_cache_deps result =
 mk_block_deps :: [String] -> Derive.BlockDeps
 mk_block_deps = Derive.BlockDeps . Set.fromList . map UiTest.bid
 
-r_cache_stacks :: Derive.Result -> [String]
-r_cache_stacks = map Stack.show_ui_ . Map.keys . Map.filter valid . uncache
+r_cache_stacks :: Derive.Result -> [Text]
+r_cache_stacks = map Stack.pretty_ui_ . Map.keys . Map.filter valid . uncache
     . Derive.r_cache
     where
     valid Derive.Invalid = False

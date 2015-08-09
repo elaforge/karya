@@ -13,6 +13,7 @@ module Derive.Score (
     module Derive.ScoreTypes, module Derive.BaseTypes
     -- * Event
     , Event(..)
+    , log_event, log_events
     , empty_event, event_end, event_min, event_max, event_scale_id
     , event_transformed_controls, event_transformed_pitch
     , event_transformed_pitches
@@ -111,6 +112,21 @@ data Event = Event {
     -- score.
     , event_flags :: !Flags.Flags
     } deriving (Show, Typeable.Typeable)
+
+-- | Format an event in a way suitable for including inline in log messages.
+-- It's short, but hopefully enough information to identify the event in
+-- question.
+log_event :: Event -> Text
+log_event e = pretty $ foldr1 (Pretty.<+>) $ concat $ filter (not . null)
+    [ [Pretty.format (event_start e, event_duration e)]
+    , [Pretty.format (event_text e) | not (Text.null (event_text e))]
+    , [Pretty.text stack
+        | Just stack <- [Stack.pretty_ui_inner (event_stack e)]]
+    ]
+
+log_events :: [Event] -> Text
+log_events =
+    pretty . Pretty.formattedList '[' ']' . map (Pretty.text . log_event)
 
 -- NOTE [event_control_offset]
 -- event_control_offset is a hack to make moving Events cheap.  Unfortunately

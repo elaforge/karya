@@ -424,19 +424,19 @@ get_cache_events block_id = do
         Nothing -> Nothing
         Just (Derive.CallType _ events) -> Just events
 
-show_cache :: Cmd.M m => BlockId -> m String
+show_cache :: Cmd.M m => BlockId -> m Text
 show_cache block_id = do
     perf <- Cmd.get_performance block_id
-    return $ unlines (pretty_cache (Cmd.perf_derive_cache perf))
+    return $ Text.unlines (pretty_cache (Cmd.perf_derive_cache perf))
 
-pretty_cache :: Derive.Cache -> [String]
+pretty_cache :: Derive.Cache -> [Text]
 pretty_cache (Derive.Cache cache) =
-    [Stack.show_ui_ stack ++ ": " ++ pretty_cached cached
+    [Stack.pretty_ui_ stack <> ": " <> pretty_cached cached
         | (stack, cached) <- Map.toAscList cache]
     where
     pretty_cached Derive.Invalid = "Invalid"
     pretty_cached (Derive.Cached entry) =
-        show (entry_events entry) ++ " events"
+        showt (entry_events entry) <> " events"
 
 entry_events :: Derive.CacheEntry -> Int
 entry_events entry = case entry of
