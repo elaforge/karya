@@ -37,8 +37,13 @@ is_hex_val :: Text -> Bool
 is_hex_val = (hex_prefix `Text.isPrefixOf`)
 
 -- | Show a val for inclusion into CallDoc.
-doc_val :: (ShowVal a) => a -> Text
+doc_val :: ShowVal a => a -> Text
 doc_val a = "`" <> show_val a <> "`"
+
+-- | This probably doesn't belong here, but it's useful in the same contexts as
+-- 'doc_val'.
+doc_pretty :: Pretty.Pretty a => a -> Text
+doc_pretty a = "`" <> pretty a <> "`"
 
 -- Really these instances should go in Derive.ParseBs, but it imports
 -- Derive.TrackLang, which needs them.

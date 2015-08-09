@@ -2,13 +2,13 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | 'Flags' constants, analogous to "Derive.Attrs".
 module Derive.Flags where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 
-import qualified Derive.ShowVal as ShowVal
+import qualified Util.Pretty as Pretty
 import Global
 
 
@@ -18,13 +18,13 @@ import Global
 -- performer with various internal attributes that have nothing to do with
 -- instrument.
 type Flags = Set.Set Flag
-type Flag = Text.Text
+newtype Flag = Flag Text
+    deriving (Eq, Ord, Show, DeepSeq.NFData)
 
-instance ShowVal.ShowVal Flags where
-    show_val flags = "{" <> Text.intercalate ", " (Set.toList flags) <> "}"
+instance Pretty.Pretty Flag where pretty (Flag t) = t
 
-flag :: Text.Text -> Flags
-flag = Set.singleton
+flag :: Text -> Flags
+flag = Set.singleton . Flag
 
 -- | Does the first argument contain the second argument?
 has :: Flags -> Flags -> Bool
