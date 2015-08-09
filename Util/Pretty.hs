@@ -21,6 +21,7 @@ module Util.Pretty (
 ) where
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
+import qualified Data.Dynamic as Dynamic
 import qualified Data.IntMap as IntMap
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -130,6 +131,7 @@ instance (Pretty a, Pretty b, Pretty c, Pretty d, Pretty e, Pretty f) =>
         [format a, format b, format c, format d, format e, format f]
 
 instance Pretty Time.UTCTime where pretty = showt
+instance Pretty Dynamic.Dynamic where pretty = showt
 
 -- ** containers
 
