@@ -9,8 +9,8 @@ UNSORTED
       processes Environ.suppress_until.  This way I can specialize 'cancel'
       for gangsa, so it understands pasang instruments.
     * add 'cancel' call
-    - add 'suppress' call
-    - remove extra features from 'infer-duration'
+    . Actually, I think cancel and infer-duration have to be together, because
+      infer needs to use the duration of the cancelled event.
   - bug: repl: SaveFileChanged
     repl: thread blocked indefinitely in an MVar operation
   * comment in block title disables the whole block

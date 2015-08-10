@@ -38,7 +38,6 @@ note_calls = Derive.transformer_call_map
     [ ("infer-duration", c_infer_duration)
     , ("apply-start-offset", c_apply_start_offset)
     , ("cancel", c_cancel)
-    , ("cancel-pasang", c_cancel_pasang)
     ]
 
 
@@ -59,10 +58,10 @@ c_infer_duration = Derive.transformer Module.prelude "infer-duration"
     $ Sig.callt
     ( Sig.defaulted "final-duration" 1
         "If there is no following note, infer this duration."
-    ) $ \final_dur _args deriver -> infer_duration final_dur <$> deriver
+    ) $ \final_dur _args deriver -> infer_duration2 final_dur <$> deriver
 
-infer_duration :: RealTime -> Derive.Events -> Derive.Events
-infer_duration final_dur = cancel_notes . suppress_note
+infer_duration2 :: RealTime -> Derive.Events -> Derive.Events
+infer_duration2 final_dur = cancel_notes . suppress_notes
     where
     cancel_notes = Post.cat_maybes . Post.emap1_ process
         . Post.neighbors_same_hand id
@@ -125,8 +124,8 @@ infer_duration final_dur = cancel_notes . suppress_note
 -- This is complicated by the fact that an event should suppress coincident
 -- events even if the supressor follows the suppressee in the list, so I have
 -- to look into the future for the greatest suppress_until.
-suppress_note :: Derive.Events -> Derive.Events
-suppress_note =
+suppress_notes :: Derive.Events -> Derive.Events
+suppress_notes =
     snd . Post.emap go Map.empty . Post.zip_on Post.nexts
         . Post.zip3_on (map Post.hand_key) (map get_suppress)
     where
@@ -174,35 +173,75 @@ replace_note next event = event
 
 c_cancel :: Derive.Transformer Derive.Note
 c_cancel = Derive.transformer Module.prelude "cancel" Tags.postproc
-    ("Process the " <> ShowVal.doc_pretty Flags.strong <> " and "
-    <> ShowVal.doc_pretty Flags.weak <> " flags.  This will cause notes to be\
-    \ dropped.") $ Sig.call0t $ \_args -> cancel normal_merge Post.hand_key
+    "Process the 'Derive.Flags.strong' and 'Derive.Flags.weak' flags.\
+    \ This will cause notes to be dropped."
+    $ make_cancel merge_infer Post.hand_key
 
-cancel :: Ord key => ([Score.Event] -> Either Text [Score.Event])
-    -> (Score.Event -> key) -> Derive.NoteDeriver -> Derive.NoteDeriver
-cancel merge key deriver = Derive.require_right id . merge_groups merge
-    . group_coincident key =<< deriver
+make_cancel :: Ord key => Merge -> (Score.Event -> key)
+    -> Derive.WithArgDoc (Derive.TransformerF Derive.Note)
+make_cancel merge key =
+    Sig.callt (Sig.defaulted_env "final-duration" Sig.Unprefixed 1
+        "If there is no following note, infer this duration."
+    ) $ \final_dur _args deriver ->
+        Derive.require_right id . cancel merge key final_dur =<< deriver
+
+type Merge = Score.Event -> [Score.Event] -> Score.Event
+
+cancel :: Ord key => Merge -> (Score.Event -> key) -> RealTime
+    -> Events -> Either Text Events
+cancel merge key final_dur =
+    fmap (infer_duration final_dur . suppress_notes)
+    . merge_groups (merge_flags merge) . group_coincident key
 
 -- | Merge notes with 'Flags.strong' and 'Flags.weak'.  The rules are that
 -- exactly one strong note wins, but >1 is ambiguous.  Otherwise, multiple
 -- normal notes can win over weak notes, and exactly one weak note is ok, but
 -- multiple weak notes with no normal ones is once again ambiguous.
-normal_merge :: [Score.Event] -> Either Text [Score.Event]
-normal_merge events = case (strongs, normals, weaks) of
-    (strong : extras, _, _)
-        | null extras -> Right [strong]
+merge_flags :: (Score.Event -> [Score.Event] -> Score.Event) -> [Score.Event]
+    -> Either Text [Score.Event]
+merge_flags merge events = case partition events of
+    (strong : extras, normals, weaks)
+        | null extras -> Right [merge strong (normals ++ weaks)]
         | otherwise -> Left $ "multiple " <> pretty Flags.strong <> " events: "
             <> Score.log_events (strong : extras)
     ([], [], weak : extras)
         | null extras -> Right [weak]
         | otherwise -> Left $ "multiple " <> pretty Flags.weak <> " events: "
             <> Score.log_events (weak : extras)
-    ([], normals, _) -> Right normals
+    ([], [normal], weaks) -> Right [merge normal weaks]
+    ([], normals, []) -> Right normals
+    ([], normals, weaks@(_:_)) -> Left $ "multiple normal events: "
+        <> Score.log_events normals <> " and multiple " <> pretty Flags.weak
+        <> " events: " <> Score.log_events weaks
     -- Multiple weak notes are ok if there are non-weak notes.
     where
-    (strongs, not_strongs) = List.partition (Score.has_flags Flags.strong)
-        events
-    (weaks, normals) = List.partition (Score.has_flags Flags.weak) not_strongs
+    partition events = (strongs, normals, weaks)
+        where
+        (strongs, not_strongs) = List.partition (Score.has_flags Flags.strong)
+            events
+        (weaks, normals) = List.partition (Score.has_flags Flags.weak)
+            not_strongs
+
+-- | Handle 'Flags.infer_duration'.
+merge_infer :: Merge
+merge_infer strong weaks
+    | Score.has_flags Flags.infer_duration strong =
+        set_end end $ Score.remove_flags Flags.infer_duration strong
+    | otherwise = strong
+    where
+    set_end end event = Score.set_duration (end - Score.event_start event) event
+    end = fromMaybe (Score.event_end strong) $
+        Seq.maximum (map Score.event_end weaks)
+
+infer_duration :: RealTime -> Derive.Events -> Derive.Events
+infer_duration final_dur = Post.emap1_ infer . Post.nexts_same_hand id
+    where
+    infer (event, next)
+        | Score.has_flags Flags.infer_duration event = maybe
+            (Score.set_duration final_dur) (set_end . Score.event_start) next $
+            Score.remove_flags Flags.infer_duration event
+        | otherwise = event
+    set_end end event = Score.set_duration (end - Score.event_start event) event
 
 merge_groups :: ([a] -> Either Text [a]) -> [Either [LEvent.LEvent a] [a]]
     -> Either Text [LEvent.LEvent a]
@@ -212,29 +251,6 @@ merge_groups merge = concatMapM go
     go (Right []) = Right []
     go (Right [e]) = Right [LEvent.Event e]
     go (Right es) = map LEvent.Event <$> merge es
-
--- ** pasang TODO move to Gangsa
-
-c_cancel_pasang :: Derive.Transformer Derive.Note
-c_cancel_pasang = Derive.transformer Module.prelude "cancel" Tags.postproc
-    "blah blah"
-    $ Sig.call0t $ \_args -> cancel pasang_merge pasang_key
-
--- | Like 'normal_merge', but merge instruments too.
-pasang_merge :: [Score.Event] -> Either Text [Score.Event]
-pasang_merge = normal_merge -- TODO
-
-pasang_key :: Score.Event -> (Maybe Score.Instrument, Maybe Text, Maybe Text)
-pasang_key e = (get Environ.hand, get inst_polos, get inst_sangsih)
-    where get k = TrackLang.maybe_val k (Score.event_environ e)
-
-inst_polos :: TrackLang.ValName
-inst_polos = "inst-polos"
-
-inst_sangsih :: TrackLang.ValName
-inst_sangsih = "inst-sangsih"
-
---
 
 type Events = [LEvent.LEvent Score.Event]
 

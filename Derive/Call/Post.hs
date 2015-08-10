@@ -156,13 +156,19 @@ neighbors :: [LEvent.LEvent a] -> [LEvent.LEvent ([a], a, [a])]
 neighbors events = emap1_ (\(ps, ns, e) -> (ps, e, ns)) $
     zip3_on prevs nexts events
 
--- | Zip each event with its nearest same-hand neighbor.
+-- | Zip each event with its nearest same-instrument same-hand neighbor.
 neighbors_same_hand :: (a -> Score.Event) -> [LEvent.LEvent a]
     -> [LEvent.LEvent (Maybe a, a, Maybe a)]
 neighbors_same_hand event_of = emap1_ extract . neighbors
     where
     extract (ps, e, ns) = (same ps, e, same ns)
         where same = Seq.head . same_hand (event_of e) event_of
+
+-- | Like 'neighbors_same_hand', but only the next neighbor.
+nexts_same_hand :: (a -> Score.Event) -> [LEvent.LEvent a]
+    -> [LEvent.LEvent (a, Maybe a)]
+nexts_same_hand event_of = map (fmap extract) . neighbors_same_hand event_of
+    where extract (_, e, n) = (e, n)
 
 -- | Extract subsequent events.
 nexts :: [a] -> [[a]]

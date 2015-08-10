@@ -13,38 +13,7 @@ import qualified Derive.Score as Score
 import Global
 
 
-test_infer_duration_block = do
-    -- The note deriver automatically adds flags so that a note at the end of
-    -- a block can cancel the next event and get an inferred duration.
-    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
-        top = ("top -- infer-duration 2",
-            [(">", [(0, 2, "sub")]), (">", [(2, 2, "sub")])])
-        sub notes = ("sub=ruler", UiTest.note_track notes)
-    equal (run [top, sub [(1, 1, "4c"), (2, 0, "4d")]])
-        ([(1, 1, "4c"), (2, 1, "4d"), (3, 1, "4c"), (4, 2, "4d")], [])
-    -- First note is cancelled out.
-    equal (run [top, sub [(0, 1, "4c"), (1, 1, "4d"), (2, 0, "4e")]])
-        ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e"), (3, 1, "4d"), (4, 2, "4e")],
-            [])
-    -- The inferred note takes the duration of the replaced one.
-    equal (run [top, sub [(0, 1.5, "4c"), (2, 0, "4d")]])
-        ([(0, 1.5, "4c"), (2, 1.5, "4d"), (4, 2, "4d")], [])
-
-    -- A zero duration block doesn't have its duration changed, since otherwise
-    -- I can't write single note calls for e.g. percussion.
-    equal (run [top, sub [(0, 0, "4c")]]) ([(0, 0, "4c"), (2, 0, "4c")], [])
-
-test_infer_duration = do
-    let run extract = DeriveTest.extract extract
-            . DeriveTest.derive_tracks "infer-duration" . UiTest.note_track
-    -- Infer duration to fill the gap.
-    equal (run DeriveTest.e_note
-            [(0, 1, "add-flag infer-duration | -- 4c"), (4, 1, "4d")])
-        ([(0, 4, "4c"), (4, 1, "4d")], [])
-    -- Also the flag is removed to avoid inferring twice.
-    equal (run Score.event_flags
-            [(0, 0, "add-flag infer-duration | -- 4c"), (4, 1, "4d")])
-        ([mempty, mempty], [])
+-- * cancel
 
 test_cancel = do
     let run = DeriveTest.extract DeriveTest.e_note
@@ -65,6 +34,55 @@ test_cancel = do
         ["multiple {weak}"]
     strings_like (snd $ run (notes "add-flag strong | " "add-flag strong | "))
         ["multiple {strong}"]
+
+test_infer_duration_block = do
+    -- The note deriver automatically adds flags so that a note at the end of
+    -- a block can cancel the next event and get an inferred duration.
+    let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
+        top = ("top -- cancel 2",
+            [(">", [(0, 2, "sub")]), (">", [(2, 2, "sub")])])
+        sub notes = ("sub=ruler", UiTest.note_track notes)
+    equal (run [top, sub [(1, 1, "4c"), (2, 0, "4d")]])
+        ([(1, 1, "4c"), (2, 1, "4d"), (3, 1, "4c"), (4, 2, "4d")], [])
+
+    -- First note is cancelled out.
+    equal (run [top, sub [(0, 1, "4c"), (1, 1, "4d"), (2, 0, "4e")]])
+        ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e"), (3, 1, "4d"), (4, 2, "4e")],
+            [])
+    -- The inferred note takes the duration of the replaced one.
+    equal (run [top, sub [(0, 1.5, "4c"), (2, 0, "4d")]])
+        ([(0, 1.5, "4c"), (2, 1.5, "4d"), (4, 2, "4d")], [])
+
+    -- A zero duration block doesn't have its duration changed, since otherwise
+    -- I can't write single note calls for e.g. percussion.
+    equal (run [top, sub [(0, 0, "4c")]]) ([(0, 0, "4c"), (2, 0, "4c")], [])
+
+test_infer_duration = do
+    let run extract = DeriveTest.extract extract
+            . DeriveTest.derive_tracks "cancel" . UiTest.note_track
+    -- Infer duration to fill the gap.
+    equal (run DeriveTest.e_note
+            [(0, 1, "add-flag infer-duration | -- 4c"), (4, 1, "4d")])
+        ([(0, 4, "4c"), (4, 1, "4d")], [])
+    -- Also the flag is removed to avoid inferring twice.
+    equal (run Score.event_flags
+            [(0, 0, "add-flag infer-duration | -- 4c"), (4, 1, "4d")])
+        ([mempty, mempty], [])
+
+test_suppress_until = do
+    let run = DeriveTest.extract Score.event_start
+            . DeriveTest.derive_tracks "cancel 1"
+            . map (second (map (\(d, t) -> (d, 1, t))))
+        suppress t = "suppress-until = " <> t <> " | --"
+    equal (run [(">", [(0, ""), (1, "")])]) ([0, 1], [])
+    equal (run [(">", [(0, ""), (1, suppress "2s"), (2, ""), (3, "")])])
+        ([0, 1, 3], [])
+    -- Suppression works even with a coincident note coming later.
+    equal (run
+            [ (">", [(0, ""), (1, ""), (2, ""), (3, "")])
+            , (">", [(1, suppress "2s")])
+            ])
+        ([0, 1, 3], [])
 
 test_infer_duration_controls = do
     -- A zero duration note at the end of a block gets controls from right
@@ -96,20 +114,7 @@ test_infer_duration_controls = do
             ])
         ([[(0, 1), (1, 2), (2, 3)], [(2, 3), (3, 2), (4, 3)], [(4, 3)]], [])
 
-test_infer_duration_suppress = do
-    let run = DeriveTest.extract Score.event_start
-            . DeriveTest.derive_tracks "infer-duration 1"
-            . map (second (map (\(d, t) -> (d, 1, t))))
-        suppress t = "suppress-until = " <> t <> " | --"
-    equal (run [(">", [(0, ""), (1, "")])]) ([0, 1], [])
-    equal (run [(">", [(0, ""), (1, suppress "2s"), (2, ""), (3, "")])])
-        ([0, 1, 3], [])
-    -- Suppression works even with a coincident note coming later.
-    equal (run
-            [ (">", [(0, ""), (1, ""), (2, ""), (3, "")])
-            , (">", [(1, suppress "2s")])
-            ])
-        ([0, 1, 3], [])
+-- * other
 
 test_apply_start_offset = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
