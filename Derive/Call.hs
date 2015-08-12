@@ -398,7 +398,9 @@ add_attrs attrs
     | otherwise = with_attrs (<> attrs)
 
 add_flags :: Flags.Flags -> Derive.NoteDeriver -> Derive.NoteDeriver
-add_flags flags = fmap (fmap (fmap (Score.add_flags flags)))
+add_flags flags
+    | flags == mempty = id
+    | otherwise = fmap (fmap (fmap (Score.add_flags flags)))
 
 -- * random
 

@@ -448,6 +448,13 @@ diff eq xs ys = Maybe.mapMaybe f (equal_pairs eq xs ys)
 
 -- * partition
 
+-- | Like 'List.partition', but partition by two functions consecutively.
+partition2 :: (a -> Bool) -> (a -> Bool) -> [a] -> ([a], [a], [a])
+partition2 f1 f2 xs = (as, bs, xs3)
+    where
+    (as, xs2) = List.partition f1 xs
+    (bs, xs3) = List.partition f2 xs2
+
 -- | Partition a list of Eithers into a pair.  Lazy enough to handle an
 -- infinite input list.
 partition_either :: [Either a b] -> ([a], [b])

@@ -18,7 +18,7 @@ import Types
 
 
 title :: String
-title = "import bali.reyong | scale=legong | infer-duration"
+title = "import bali.reyong | scale=legong | cancel-pasang"
 
 test_kilitan = do
     let run = e_voice 1 . DeriveTest.derive_tracks title . UiTest.note_track

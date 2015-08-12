@@ -11,6 +11,7 @@ UNSORTED
     * add 'cancel' call
     . Actually, I think cancel and infer-duration have to be together, because
       infer needs to use the duration of the cancelled event.
+
   - bug: repl: SaveFileChanged
     repl: thread blocked indefinitely in an MVar operation
   * comment in block title disables the whole block
@@ -1284,7 +1285,7 @@ Derive:
               whole next note, or have an entirely separate way to get the
               next pitch.
             . Actually I now have this, via NotePitchQuery.
-        - kotekan followed by non-kotekan results in doubled notes
+        kotekan followed by non-kotekan results in doubled notes
           . It has {infer-duration}, but it needs {can-cancel}.  It wants to
             replace the next note, but that only works if the next note is the
             beginning of the block.
@@ -1304,7 +1305,7 @@ Derive:
               kotekan to omit the last note, and then I can put anything
               I want there.  Or I could have a 'strong' flag on the note,
               which would cause it to cancel rather than be cancelled.
-          - Unfortunately it seems really complicated to get that.  noltol,
+          * Unfortunately it seems really complicated to get that.  noltol,
             kempyung and unison have to apply a flag, which is then
             interpreted by a postproc.  Then I can put the realize call after
             infer-duration.
@@ -1351,11 +1352,39 @@ Derive:
               realize it.
             . So it seems like the note replacement needs to know about
               +kempyung and +unison in addition to pasang instruments.
-          . Gangsa_test.test_kotekan_cancel demonstrates the problem.
-          . This is getting to be too much hassle. Really all I want is to not
-            have to add initial=t and final=f all the time.
-          - How about infer a final=f if there is a next note at the end time?
+          . The plan is to have kotekan calls emit the start note, but weak,
+            and the final note, but weak, and infer-duration.  Then if there is
+            no next note, it will infer to fill the gap.  If there is a next
+            note, it will replace the last note even if it's >pasang.
+            Actually, if the realize-techique came first, then it will be
+            >polos >sangsih, which should both be able to replace.
+          . If there are two consecutive kotekan, I need the end of the
+            previous one to replace the start of the next one, even if it's
+            >sangsih replacing >polos.  This means they can't both be weak,
+            the end has to be strong.  But that in turn means that it will
+            want to override the next note.  That in turn would make kempyung
+            not work.  So I need something that is replaced by a normal note,
+            but will replace a weak.  Since I'm defining my own cancel merge,
+            I can use dedicated flags, e.g. Flags.initial, Flags.final.
+          . This breaks for noltol, because the generated +mute note is
+            unflagged, so it cancels the final kotekan note.
+            1-121     => 1-121-232
+            -3-2-         3-2-4-3-
+                2-232
+                -4-3-
+            1+121     => 1+12 +232  >p 1 {final}, >s 2+ {}
+            -3+2+         3+2+4+3+  >p 2 {initial}
+                2+232
+                -4+3+
+            So the last note doesn't get noltol, and noltol moved to the end
+            time gets {final}
+          - I can't figure out a way around this, so I think I still need to
+            apply noltol afterwards.  That means a noltol call and then
+            a realize-noltol or realize-technique postproc.
+
+          / How about infer a final=f if there is a next note at the end time?
             And infer initial=t if there is no previous event ending here.
+            . Doesn't work.
           * For the short term I can just add a env arg to kotekan calls to
             omit the last note, then I have to use that when I want to replace
             it.  This means cross block replacement doesn't work.  Try it to

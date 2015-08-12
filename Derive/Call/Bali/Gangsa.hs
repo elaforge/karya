@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveFunctor #-}
 {- | Calls for gangsa techniques.  Gangsa come in polos and sangsih pairs,
     and play either kotekan patterns or play unison or parallel parts.
 
@@ -37,6 +38,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Post.Move as Move
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -94,6 +96,7 @@ note_calls = Derive.call_maps
     , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
+    , ("cancel-pasang", c_cancel_pasang)
     ]
 
 val_calls :: [Derive.LookupCall Derive.ValCall]
@@ -180,7 +183,7 @@ c_norot = Derive.generator module_ "norot" Tags.inst
     <$> Sig.defaulted "arrival" True "If true, emit the norot arrival pattern."
     <*> Sig.defaulted "style" Default "Norot style."
     <*> dur_env <*> kotekan_env <*> instrument_top_env <*> pasang_env
-    <*> initial_env
+    <*> initial_final_env
     ) $ \(arrival, style, dur, kotekan, inst_top, pasang, (initial, final)) ->
     Sub.inverting $ \args -> do
         start <- Args.real_start args
@@ -209,14 +212,14 @@ gangsa_norot style pasang (pstep, sstep) = (interlock, normal)
     where
     interlock = map (:[]) [sangsih (fst pstep), polos (snd pstep)]
     normal = case style of
-        Default ->
-            [[KotekanNote Nothing step mempty] | step <- [fst pstep, snd pstep]]
+        Default -> map ((:[]) . both) [fst pstep, snd pstep]
         Diamond ->
             [ [polos (fst pstep), sangsih (fst sstep)]
             , [polos (snd pstep), sangsih (snd sstep)]
             ]
-    polos steps = KotekanNote (Just (fst pasang)) steps mempty
-    sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
+    both = kotekan_note Nothing
+    polos = kotekan_note (Just (fst pasang))
+    sangsih = kotekan_note (Just (snd pasang))
 
 c_norot_arrival :: Derive.Generator Derive.Note
 c_norot_arrival = Derive.generator module_ "norot" Tags.inst
@@ -239,23 +242,22 @@ gangsa_norot_arrival :: NorotStyle -> Pasang
 gangsa_norot_arrival style pasang ((p1, p2), (s1, s2)) = (interlock, normal)
     where
     interlock =
-        [ [polos p2 mempty, sangsih p2 mempty]
-        , [polos p2 mempty, sangsih p2 mempty]
-        , [sangsih p1 mempty]
-        , [polos p2 mempty]
+        [ [polos p2, sangsih p2]
+        , [polos p2, sangsih p2]
+        , [sangsih p1]
+        , [polos p2]
         ]
     normal = case style of
-        Default -> map ((:[]) . uncurry (KotekanNote Nothing))
-            [(p2, mute), (p2, mempty), (p1, mempty), (p2, mempty)]
+        Default -> map (:[]) [muted_note (both p2), both p2, both p1, both p2]
         Diamond ->
-            [ [polos p2 mute, sangsih s2 mute]
-            , [polos p2 mempty, sangsih s2 mempty]
-            , [polos p1 mempty, sangsih s1 mempty]
-            , [polos p2 mempty, sangsih s2 mempty]
+            [ map muted_note [polos p2, sangsih s2]
+            , [polos p2, sangsih s2]
+            , [polos p1, sangsih s1]
+            , [polos p2, sangsih s2]
             ]
-    mute = Attrs.mute -- TODO configurable
-    polos = KotekanNote (Just (fst pasang))
-    sangsih = KotekanNote (Just (snd pasang))
+    both = kotekan_note Nothing
+    polos = kotekan_note (Just (fst pasang))
+    sangsih = kotekan_note (Just (snd pasang))
 
 norot_steps :: Scale.Scale -> Maybe Pitch.Pitch -> PSignal.Transposed
     -- ^ this is to figure out if the sangsih part will be in range
@@ -275,11 +277,11 @@ c_gender_norot :: Derive.Generator Derive.Note
 c_gender_norot = Derive.generator module_ "gender-norot" Tags.inst
     "Gender-style norot."
     $ Sig.call ((,,,)
-    <$> dur_env <*> kotekan_env <*> pasang_env <*> initial_env)
-    $ \(dur, kotekan, pasang, include) -> Sub.inverting $ \args -> do
+    <$> dur_env <*> kotekan_env <*> pasang_env <*> initial_final_env)
+    $ \(dur, kotekan, pasang, initial_final) -> Sub.inverting $ \args -> do
         pitch <- Call.get_pitch =<< Args.real_start args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern include (Args.range args) dur pitch
+        realize_kotekan_pattern initial_final (Args.range args) dur pitch
             under_threshold Repeat (gender_norot pasang)
 
 gender_norot :: Pasang -> Cycle
@@ -293,8 +295,8 @@ gender_norot pasang = (interlocking, normal)
         , if include_unison then [polos 0, sangsih 0] else [sangsih 0]
         ]
     include_unison = True -- TODO chance based on signal
-    polos steps = KotekanNote (Just (fst pasang)) steps mempty
-    sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
+    polos = kotekan_note (Just (fst pasang))
+    sangsih = kotekan_note (Just (snd pasang))
 
 -- * kotekan
 
@@ -312,19 +314,18 @@ c_kotekan_irregular default_style pattern =
     \ specified. This is for irregular patterns.\n" <> kotekan_doc)
     $ Sig.call ((,,,,)
     <$> Sig.defaulted "style" default_style "Kotekan style."
-    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
-    ) $ \(style, dur, kotekan, pasang, include) -> Sub.inverting $ \args -> do
+    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_final_env
+    ) $ \(style, dur, kotekan, pasang, initial_final) ->
+    Sub.inverting $ \args -> do
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern include (Args.range args) dur pitch
+        realize_kotekan_pattern initial_final (Args.range args) dur pitch
             under_threshold Repeat (kotekan_pattern pattern style pasang)
 
 kotekan_pattern :: KotekanPattern -> KotekanStyle -> Pasang -> Cycle
 kotekan_pattern pattern style pasang =
     (realize *** realize) $ pattern_steps style pasang pattern
-    where
-    realize = map (map realize1)
-    realize1 (inst, steps) = KotekanNote inst steps mempty
+    where realize = map (map (uncurry kotekan_note))
 
 pattern_steps :: KotekanStyle -> Pasang -> KotekanPattern
     -> ([[(Maybe Score.Instrument, Pitch.Step)]],
@@ -360,17 +361,17 @@ c_kotekan_kernel =
         "Whether sangsih is above or below polos."
     <*> Sig.environ "invert" Sig.Prefixed False "Flip the pattern upside down."
     <*> Sig.required_environ "kernel" Sig.Prefixed kernel_doc
-    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
+    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_final_env
     ) $ \(rotation, style, sangsih_above, inverted, kernel_s, dur, kotekan,
-        pasang, include) ->
+        pasang, initial_final) ->
     Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern include (Args.range args) dur pitch
-            under_threshold Repeat $
-                realize_kernel inverted sangsih_above style pasang
-                    (rotate rotation kernel)
+        let cycle = realize_kernel inverted sangsih_above style pasang
+                (rotate rotation kernel)
+        realize_kotekan_pattern initial_final (Args.range args) dur pitch
+            under_threshold Repeat cycle
 
 c_kotekan_regular :: Maybe Text -> Derive.Generator Derive.Note
 c_kotekan_regular maybe_kernel =
@@ -383,16 +384,17 @@ c_kotekan_regular maybe_kernel =
     <*> Sig.defaulted "sangsih" Nothing
         "Whether sangsih is above or below polos. If not given, sangsih will\
         \ be above if the polos ends on a low note or rest, below otherwise."
-    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_env
-    ) $ \(kernel_s, style, maybe_sangsih_above, dur, kotekan, pasang, include
+    <*> dur_env <*> kotekan_env <*> pasang_env <*> initial_final_env
+    ) $ \(kernel_s, style, maybe_sangsih_above, dur, kotekan, pasang,
+        initial_final
     ) -> Sub.inverting $ \args -> do
         kernel <- Derive.require_right id $ make_kernel (untxt kernel_s)
         let sangsih_above = fromMaybe (infer_sangsih kernel) maybe_sangsih_above
         pitch <- get_pitch args
         under_threshold <- under_threshold_function kotekan dur
-        realize_kotekan_pattern include (Args.range args) dur pitch
-            under_threshold Repeat $
-                realize_kernel False sangsih_above style pasang kernel
+        let cycle = realize_kernel False sangsih_above style pasang kernel
+        realize_kotekan_pattern initial_final (Args.range args) dur pitch
+            under_threshold Repeat cycle
     where
     infer_sangsih kernel = case Seq.last kernel of
         Nothing -> TrackLang.Up
@@ -423,12 +425,13 @@ realize_kotekan_pattern :: (Bool, Bool) -- ^ include (initial, final)
     -> Derive.NoteDeriver
 realize_kotekan_pattern (initial, final) (start, end) dur pitch under_threshold
         repeat cycle =
-    realize_notes realize $ strip $
+    realize_notes realize $ modify_initial $
         realize_pattern repeat final start end dur get_cycle
     where
-    strip
-        | initial = id
-        | otherwise = dropWhile ((ScoreTime.<= start) . note_start)
+    modify_initial ns
+        | initial = map (add_flag initial_flag) pre ++ post
+        | otherwise = post
+        where (pre, post) = span ((ScoreTime.<= start) . note_start) ns
     get_cycle t
         -- Since realize_pattern passes the of the last note of the cycle, so
         -- subtract to find the time at the beginning.  Otherwise it's
@@ -437,10 +440,19 @@ realize_kotekan_pattern (initial, final) (start, end) dur pitch under_threshold
         | under_threshold (t - cycle_dur) = fst cycle
         | otherwise = snd cycle
     cycle_dur = dur * fromIntegral (length (fst cycle))
-    realize (KotekanNote inst steps attrs) =
+    realize (KotekanNote inst steps muted) =
         maybe id Derive.with_instrument inst $
-        Call.add_attrs attrs $
+        -- TODO the kind of muting should be configurable.  Or, rather I should
+        -- dispatch to a zero dur note call, which will pick up whatever form
+        -- of mute is configured.
+        (if muted then Call.add_attrs Attrs.mute else id) $
         Call.pitched_note (Pitches.transpose_d steps pitch)
+    -- TODO It should no longer be necessary to strip flags from
+    -- 'Call.pitched_note', because "" only puts flags on if the event is
+    -- at the end of the track, and that shouldn't happen for these.  Still,
+    -- Call.pitched_note should use a lower level note call that doesn't do
+    -- things like that.
+
 
 type Kernel = [Atom]
 data Atom = Rest | Low | High deriving (Eq, Ord, Show)
@@ -523,9 +535,9 @@ kernel_to_pattern kernel sangsih_above kotekan_style pasang =
             Rest -> [polos (-1), sangsih (-1)]
             Low -> [polos 0, sangsih 0]
             High -> [polos 1, sangsih (-2)]
-    polos steps = KotekanNote (Just (fst pasang)) steps mempty
-    sangsih steps = KotekanNote (Just (snd pasang)) steps mempty
-    both steps = KotekanNote Nothing steps mempty
+    polos = kotekan_note (Just (fst pasang))
+    sangsih = kotekan_note (Just (snd pasang))
+    both = kotekan_note Nothing
 
 rotate :: Int -> [a] -> [a]
 rotate n xs = cycle (rotations xs) !! n
@@ -581,19 +593,36 @@ type Cycle = ([[KotekanNote]], [[KotekanNote]])
 data Note a = Note {
     note_start :: !ScoreTime
     , note_duration :: !ScoreTime
+    -- | Used for initial_flag or final_flag.
+    , note_flags :: !Flags.Flags
     , note_data :: !a
-    } deriving (Show)
+    } deriving (Functor, Show)
 
 instance Pretty.Pretty a => Pretty.Pretty (Note a) where
-    format (Note start dur d) = Pretty.format (start, dur, d)
+    format (Note start dur flags d) = Pretty.format (start, dur, flags, d)
 
+add_flag :: Flags.Flags -> Note a -> Note a
+add_flag flag n = n { note_flags = flag <> note_flags n }
+
+-- | High level description of a note.  This goes into Note before it becomes
+-- a Derive.NoteDeriver.
 data KotekanNote = KotekanNote {
     -- | If Nothing, retain the instrument in scope.  Presumably it will be
     -- later split into polos and sangsih by a @unison@ or @kempyung@ call.
     note_instrument :: !(Maybe Score.Instrument)
     , note_steps :: !Pitch.Step
-    , note_attributes :: !Score.Attributes
+    , note_muted :: !Bool
     } deriving (Show)
+
+kotekan_note :: Maybe Score.Instrument -> Pitch.Step -> KotekanNote
+kotekan_note inst steps = KotekanNote
+    { note_instrument = inst
+    , note_steps = steps
+    , note_muted = False
+    }
+
+muted_note :: KotekanNote -> KotekanNote
+muted_note note = note { note_muted = True }
 
 instance Pretty.Pretty KotekanNote where
     format (KotekanNote inst steps attrs) = Pretty.format (inst, steps, attrs)
@@ -608,17 +637,23 @@ under_threshold_function kotekan dur = do
         let real = to_real t
         in to_real (t+dur) - real < RealTime.seconds (kotekan real)
 
+-- | Use a function that generates individual abstract cycles into Notes.  This
+-- handles placement and end-alignment but has no dependence on what the notes
+-- actually are.  The result will presumably be passed to 'realize_notes' to
+-- convert the notes into NoteDerivers.
 realize_pattern :: Repeat -> Bool -> ScoreTime -> ScoreTime -> ScoreTime
     -> (ScoreTime -> [[a]])
     -- ^ Get one cycle of notes, ending at the given time.
     -> [Note a]
 realize_pattern repeat include_final pattern_start pattern_end dur get_cycle =
-    concat $ reverse $ strip $ concat $ take_cycles $
+    concat $ reverse $ modify_final $ concat $ take_cycles $
         realize_cycle $ Seq.range pattern_end pattern_start (-dur)
     where
-    strip
-        | include_final = id
-        | otherwise = drop 1
+    modify_final [] = []
+    modify_final (n:ns)
+        | include_final =
+            map (add_flag (Flags.infer_duration <> final_flag)) n : ns
+        | otherwise = ns
     take_cycles = case repeat of
         Repeat -> id
         Once -> take 1
@@ -626,25 +661,12 @@ realize_pattern repeat include_final pattern_start pattern_end dur get_cycle =
     realize_cycle [] = []
     realize_cycle ts@(t:_) = map realize pairs : realize_cycle rest_ts
         where (pairs, rest_ts) = Seq.zip_remainder (reverse (get_cycle t)) ts
-    realize (notes, start) = map (Note start dur) notes
+    realize (notes, start) = map (Note start dur mempty) notes
 
--- | Turn Notes into a NoteDeriver.  A note at the end time gets
--- 'Flags.weak'.
+-- | Turn Notes into a NoteDeriver.
 realize_notes :: (a -> Derive.NoteDeriver) -> [Note a] -> Derive.NoteDeriver
-realize_notes realize = mconcat . map note . Seq.zip_next
-    where
-    note (Note start dur note, next) =
-        add_flag next $ Derive.place start dur (realize note)
-    add_flag next = fmap $ Post.emap1_ (modify next . remove)
-    -- Strip existing flags.  This is because the notes come from
-    -- 'Call.pitched_note', which calls "", which in turn sets
-    -- Flags.weak on TrackTime 0.  So if the kotekan starts at 0 all
-    -- notes get weak.  TODO don't reuse "" for these kinds of things,
-    -- so I don't get flags I don't want.
-    remove = Score.remove_flags $
-        Flags.strong <> Flags.weak <> Flags.infer_duration
-    modify Nothing = Score.add_flags $ Flags.strong <> Flags.infer_duration
-    modify (Just _) = id
+realize_notes realize = mconcatMap $ \(Note start dur flags note) ->
+    Derive.place start dur $ Call.add_flags flags $ realize note
 
 -- | Style for non-interlocking norot.  Interlocking norot is always the upper
 -- neighbor (or lower on the top key).
@@ -750,7 +772,7 @@ c_noltol = Derive.transformer module_ "noltol" Tags.postproc
         times <- Post.time_control time events
         dur <- Call.real_duration (Args.start args) dur
         return $ Post.emap_ (uncurry (noltol dur)) $
-            LEvent.zip times $ Post.neighbors_same_hand id events
+            LEvent.zip times $ Post.nexts_same_hand id events
 
 -- Postproc is seems like the wrong time to be doing this, I can't even change
 -- the dyn conveniently.  However, postproc is the only time I reliably know
@@ -760,24 +782,55 @@ c_noltol = Derive.transformer module_ "noltol" Tags.postproc
 
 -- | If the next note of the same instrument is below a threshold, the note's
 -- off time is replaced with a +mute.
-noltol :: RealTime -> RealTime
-    -> (Maybe Score.Event, Score.Event, Maybe Score.Event) -> [Score.Event]
-noltol dur threshold (_, event, maybe_next)
-    | Just next <- maybe_next, should_noltol next = [event, muted]
+noltol :: RealTime -> RealTime -> (Score.Event, Maybe Score.Event)
+    -> [Score.Event]
+noltol dur threshold (event, maybe_next)
+    | should_noltol maybe_next = [event, muted]
     | otherwise = [event]
     where
     muted = Score.add_attributes Attrs.mute $
         -- TODO this should probably be configurable
         Score.modify_dynamic (*0.65) $ Score.duration (const 0) $
         Score.move (+ Score.event_duration event) $ Score.copy event
-    space next = Score.event_start next - Score.event_end event
-    should_noltol next =
+    should_noltol maybe_next =
         Score.event_duration event RealTime.<= dur
         -- I don't know how long infer_duration is going to be, so don't
-        -- bother.  TODO to do it correctly, I'd need to do noltol after
+        -- bother.  Also if it's 'final_flag', then it will likely be cancelled
+        -- out anyway.  TODO to do it correctly, I'd need to do noltol after
         -- infer-duration, which means a +noltol attribute and then postproc.
-        && not (Score.has_flags Flags.infer_duration event)
-        && space next >= threshold
+        -- No noltol for the last note.  If this is followed by another
+        -- kotekan, it will be cancelled out anyway.
+        -- && not (Score.has_flags final_flag event)
+        && maybe True ((>= threshold) . space) maybe_next
+    space next = Score.event_start next - Score.event_end event
+
+-- ** cancel-pasang
+
+c_cancel_pasang :: Derive.Transformer Derive.Note
+c_cancel_pasang = Derive.transformer module_ "cancel-pasang"
+    Tags.postproc
+    "This is like the `cancel` call, except it also knows how to cancel out\
+    \ pasang instruments such that adjacent kotekan calls can have initial and\
+    \ final notes, but won't get doubled notes."
+    $ Move.make_cancel cancel_pasang pasang_key
+
+-- | The order of precedence is normals, then finals, then initials.
+-- The final note also gets Flags.infer_duration, but since it will lose to
+-- normal notes, the infer will only happen if there is no next note.  So it
+-- won't ever merge with the duration of a cancelled note.
+cancel_pasang :: [Score.Event] -> Either Text [Score.Event]
+cancel_pasang events = Move.cancel_strong_weak Move.merge_infer $
+    case Seq.partition2 (has final_flag) (has initial_flag) events of
+        (_, _, normals@(_:_)) -> normals
+        (finals@(_:_), _, []) -> finals
+        ([], initials, []) -> initials
+    where
+    has = Score.has_flags
+
+pasang_key :: Score.Event
+    -> (Maybe Text, Maybe Score.Instrument, Maybe Score.Instrument)
+pasang_key e = (get Environ.hand, get inst_polos, get inst_sangsih)
+    where get k = TrackLang.maybe_val k (Score.event_environ e)
 
 -- * util
 
@@ -815,9 +868,9 @@ kotekan_env =
         "If note durations are below this, divide the parts between polos and\
         \ sangsih."
 
-initial_env :: Sig.Parser (Bool, Bool)
-initial_env = (,)
-    <$> Sig.environ "initial" Sig.Unprefixed False
+initial_final_env :: Sig.Parser (Bool, Bool)
+initial_final_env = (,)
+    <$> Sig.environ "initial" Sig.Unprefixed True
         "If true, include an initial note, which is the same as the final note.\
         \ This is suitable for the start of a sequence of kotekan calls."
     <*> Sig.environ "final" Sig.Unprefixed True
@@ -865,3 +918,10 @@ instance TrackLang.TypecheckSymbol Role
 role_env :: Sig.Parser Role
 role_env = Sig.required_environ (TrackLang.unsym Environ.role) Sig.Unprefixed
     "Instrument role."
+
+initial_flag, final_flag :: Flags.Flags
+initial_flag = Flags.flag "initial"
+final_flag = Flags.flag "final"
+
+noltol_flag :: Flags.Flags
+noltol_flag = Flags.flag "noltol"

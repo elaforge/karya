@@ -69,6 +69,7 @@ note_calls = Derive.call_maps
     , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
     [ ("reyong-damp", c_reyong_damp)
+    , ("cancel-pasang", Derive.set_module module_ Gangsa.c_cancel_pasang)
     ]
     where articulation = make_articulation reyong_positions
 

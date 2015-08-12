@@ -175,55 +175,54 @@ c_cancel :: Derive.Transformer Derive.Note
 c_cancel = Derive.transformer Module.prelude "cancel" Tags.postproc
     "Process the 'Derive.Flags.strong' and 'Derive.Flags.weak' flags.\
     \ This will cause notes to be dropped."
-    $ make_cancel merge_infer Post.hand_key
+    $ make_cancel (cancel_strong_weak merge_infer) Post.hand_key
 
-make_cancel :: Ord key => Merge -> (Score.Event -> key)
+-- | Given a set of coincident notes, return either an error, or merge them
+-- into a set of output notes.
+type Cancel = [Score.Event] -> Either Text [Score.Event]
+
+make_cancel :: Ord key => Cancel -> (Score.Event -> key)
     -> Derive.WithArgDoc (Derive.TransformerF Derive.Note)
-make_cancel merge key =
+make_cancel cancel key =
     Sig.callt (Sig.defaulted_env "final-duration" Sig.Unprefixed 1
         "If there is no following note, infer this duration."
     ) $ \final_dur _args deriver ->
-        Derive.require_right id . cancel merge key final_dur =<< deriver
+        Derive.require_right id . group_and_cancel cancel key final_dur
+            =<< deriver
 
-type Merge = Score.Event -> [Score.Event] -> Score.Event
-
-cancel :: Ord key => Merge -> (Score.Event -> key) -> RealTime
+group_and_cancel :: Ord key => Cancel -> (Score.Event -> key) -> RealTime
     -> Events -> Either Text Events
-cancel merge key final_dur =
+group_and_cancel cancel key final_dur =
     fmap (infer_duration final_dur . suppress_notes)
-    . merge_groups (merge_flags merge) . group_coincident key
+    . merge_groups cancel . group_coincident key
 
 -- | Merge notes with 'Flags.strong' and 'Flags.weak'.  The rules are that
 -- exactly one strong note wins, but >1 is ambiguous.  Otherwise, multiple
 -- normal notes can win over weak notes, and exactly one weak note is ok, but
 -- multiple weak notes with no normal ones is once again ambiguous.
-merge_flags :: (Score.Event -> [Score.Event] -> Score.Event) -> [Score.Event]
-    -> Either Text [Score.Event]
-merge_flags merge events = case partition events of
-    (strong : extras, normals, weaks)
+cancel_strong_weak :: (Score.Event -> [Score.Event] -> Score.Event)
+    -> [Score.Event] -> Either Text [Score.Event]
+cancel_strong_weak merge events = case partition events of
+    (strong : extras, weaks, normals)
         | null extras -> Right [merge strong (normals ++ weaks)]
         | otherwise -> Left $ "multiple " <> pretty Flags.strong <> " events: "
             <> Score.log_events (strong : extras)
-    ([], [], weak : extras)
+    ([], weak : extras, [])
         | null extras -> Right [weak]
         | otherwise -> Left $ "multiple " <> pretty Flags.weak <> " events: "
             <> Score.log_events (weak : extras)
-    ([], [normal], weaks) -> Right [merge normal weaks]
-    ([], normals, []) -> Right normals
-    ([], normals, weaks@(_:_)) -> Left $ "multiple normal events: "
+    ([], weaks, [normal]) -> Right [merge normal weaks]
+    ([], [], normals) -> Right normals
+    ([], weaks@(_:_), normals) -> Left $ "multiple normal events: "
         <> Score.log_events normals <> " and multiple " <> pretty Flags.weak
         <> " events: " <> Score.log_events weaks
     -- Multiple weak notes are ok if there are non-weak notes.
     where
-    partition events = (strongs, normals, weaks)
-        where
-        (strongs, not_strongs) = List.partition (Score.has_flags Flags.strong)
-            events
-        (weaks, normals) = List.partition (Score.has_flags Flags.weak)
-            not_strongs
+    partition = Seq.partition2 (Score.has_flags Flags.strong)
+        (Score.has_flags Flags.weak)
 
 -- | Handle 'Flags.infer_duration'.
-merge_infer :: Merge
+merge_infer :: Score.Event -> [Score.Event] -> Score.Event
 merge_infer strong weaks
     | Score.has_flags Flags.infer_duration strong =
         set_end end $ Score.remove_flags Flags.infer_duration strong
