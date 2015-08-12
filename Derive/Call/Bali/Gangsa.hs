@@ -841,9 +841,14 @@ cancel_pasang events = Postproc.cancel_strong_weak Postproc.merge_infer $
     has = Score.has_flags
 
 pasang_key :: Score.Event
-    -> (Maybe Text, Maybe Score.Instrument, Maybe Score.Instrument)
-pasang_key e = (get Environ.hand, get inst_polos, get inst_sangsih)
-    where get k = TrackLang.maybe_val k (Score.event_environ e)
+    -> (Either Score.Instrument (Score.Instrument, Score.Instrument),
+        Maybe Text)
+pasang_key e = (inst, get Environ.hand)
+    where
+    inst = case (get inst_polos, get inst_sangsih) of
+        (Just p, Just s) -> Right (p, s)
+        _ -> Left (Score.event_instrument e)
+    get k = TrackLang.maybe_val k (Score.event_environ e)
 
 -- * util
 
@@ -938,3 +943,9 @@ final_flag = Flags.flag "final"
 
 noltol_flag :: Flags.Flags
 noltol_flag = Flags.flag "noltol"
+
+put_attr_for_inst :: Typeable.Typeable a => Score.Instrument -> Score.Attributes
+    -> a -> Score.Event -> Score.Event
+put_attr_for_inst inst attr arg event
+    | Score.event_instrument event == inst = Score.put_attr_arg attr arg event
+    | otherwise = event
