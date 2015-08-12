@@ -222,7 +222,7 @@ test_nyogcag = do
     equal (run notes) ([(0, "i1"), (1, "i2"), (2, "i1")], [])
 
 test_noltol = do
-    let run title = e_by_inst extract . derive (" | " <> title)
+    let run title = e_by_inst extract . derive (" | realize-noltol | " <> title)
         extract e = (Score.event_start e, e_digit e <> m)
             where m = if DeriveTest.e_attributes e == "+mute" then "+" else ""
     let notes = [(0, 1, "n >i1 -- 4c"), (1, 1, "n >i2 -- 4d"),
@@ -271,15 +271,14 @@ test_kotekan_cancel_noltol = do
                 ])
              ], [])
     let notes = [(0, 4, "k k-121 -- 4c"), (4, 4, "k k-121 -- 4d")]
-    equal (run " | noltol | cancel-pasang" notes) expected
+    equal (run " | realize-noltol | noltol | cancel-pasang" notes) expected
     -- 1-121     => 1-121-232
     -- -3-2-        -3-2-4-3
     --     2-232
     --     -4-3-
-    -- TODO this won't work until I can delay noltol until after cancel-pasang.
-    -- equal (run " | cancel-pasang | noltol" notes) expected
+    equal (run " | realize-noltol | cancel-pasang | noltol" notes) expected
 
-    equal (run " | noltol | cancel-pasang"
+    equal (run " | realize-noltol | noltol | cancel-pasang"
             [(0, 8, "k// -- 4e"), (8, 2, "kempyung | -- 4f")])
         ([ (polos,
             [ (0, "3"), (1, "3+")

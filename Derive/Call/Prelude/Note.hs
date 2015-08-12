@@ -236,6 +236,7 @@ make_event args dyn start dur flags = Score.Event
     , Score.event_instrument = inst
     , Score.event_environ = environ
     , Score.event_flags = flags
+    , Score.event_delayed_args = mempty
     }
     where
     controls = trim_controls start (Derive.state_controls dyn)

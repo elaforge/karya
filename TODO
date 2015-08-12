@@ -1378,7 +1378,7 @@ Derive:
                 -4+3+
             So the last note doesn't get noltol, and noltol moved to the end
             time gets {final}
-          - I can't figure out a way around this, so I think I still need to
+          * I can't figure out a way around this, so I think I still need to
             apply noltol afterwards.  That means a noltol call and then
             a realize-noltol or realize-technique postproc.
 
@@ -1389,21 +1389,11 @@ Derive:
             omit the last note, then I have to use that when I want to replace
             it.  This means cross block replacement doesn't work.  Try it to
             see if I'll want the complicated version.
+        - Bundle all gangsa 'realize' functions into a 'realize-everything'
+          call: realize-noltol | cancel-pasang | realize-ngoret
 
-        . I want an initial note if there isn't already a note playing there.
-          So prev event but not a prev kotekan event, or other event with
-          a final note.  I can't use {weak} because I need >p to cancel >s and
-          vice versa.  But I could use Args.prev_score_event
-        . Or maybe it's that note cancellation needs to understand about
-          pasangan.  If it does, then >p can cancel concurrent >s, and
-          >pasang can cancel >p and >s.
-        . So: teach note cancel about pasangan, make initial note {weak}, make
-          final note {infer-duration}.  Or, make final note extend to the next
-          event start, unless it's touching this event, in which case use the
-          normal duration.
-
-        - Can I make cancelling simpler while I'm at it?  Make infer-duration
-          and cancel different, normally infer-duration comes first.
+        - Remove 'infer-duration'.  But first I have to find out why it breaks
+          tons of stuff in save/complete/wayang/*.
 
         kotekan kernel:
           - generate all possible kernels following some playability rules,

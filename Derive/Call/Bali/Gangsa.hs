@@ -27,6 +27,8 @@
     - Line up at the start of the event instead of the end.
 -}
 module Derive.Call.Bali.Gangsa where
+import qualified Data.Typeable as Typeable
+
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -95,6 +97,7 @@ note_calls = Derive.call_maps
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
+    , ("realize-noltol", c_realize_noltol)
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     , ("cancel-pasang", c_cancel_pasang)
     ]
@@ -757,8 +760,14 @@ nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
     with_inst = event
         { Score.event_instrument = if is_polos then polos else sangsih }
 
+-- | (noltol-time, kotekan-dur)
+type NoltolArg = (RealTime, RealTime)
+
+noltol_attr :: Score.Attributes
+noltol_attr = Score.attr "noltol"
+
 c_noltol :: Derive.Transformer Derive.Note
-c_noltol = Derive.transformer module_ "noltol" Tags.postproc
+c_noltol = Derive.transformer module_ "noltol" Tags.delayed
     "Play the transformed notes in noltol style. If the space between \
     \ notes of the same (instrument, hand) is above a threshold,\
     \ end the note with a `+mute`d copy of itself. This only happens if\
@@ -767,40 +776,44 @@ c_noltol = Derive.transformer module_ "noltol" Tags.postproc
     <$> Sig.defaulted "time" (Sig.control "noltol" 0.1)
         "Play noltol if the time available exceeds this threshold."
     <*> dur_env
-    ) $ \(time, dur) args deriver -> do
+    ) $ \(threshold, max_dur) args deriver -> do
+        max_dur <- Call.real_duration (Args.start args) max_dur
         events <- deriver
-        times <- Post.time_control time events
-        dur <- Call.real_duration (Args.start args) dur
-        return $ Post.emap_ (uncurry (noltol dur)) $
-            LEvent.zip times $ Post.nexts_same_hand id events
+        times <- Post.time_control threshold events
+        return $ Post.emap1_ (put max_dur) $ LEvent.zip times events
+        where
+        put max_dur (threshold, event) =
+            Score.put_attr_arg noltol_attr ((threshold, max_dur) :: NoltolArg)
+                event
 
--- Postproc is seems like the wrong time to be doing this, I can't even change
--- the dyn conveniently.  However, postproc is the only time I reliably know
--- when the next note is.  Could I create the note with a reapply instead?
--- Then I can configure the noltol mute attributes and dynamic change in one
--- place.
+c_realize_noltol :: Derive.Transformer Score.Event
+c_realize_noltol = Derive.transformer module_ "realize-noltol"
+    Tags.realize_delayed "blah blah"
+    $ Sig.call0t $ \_args deriver -> do
+        Post.emap_m_ fst realize . Post.nexts_same_hand id =<< deriver
+    where
+    realize (event, next)
+        | Score.has_attribute noltol_attr event = Derive.require_right id $
+            map (Score.remove_attributes noltol_attr) <$>
+            realize_noltol event next
+        | otherwise = return [event]
 
 -- | If the next note of the same instrument is below a threshold, the note's
 -- off time is replaced with a +mute.
-noltol :: RealTime -> RealTime -> (Score.Event, Maybe Score.Event)
-    -> [Score.Event]
-noltol dur threshold (event, maybe_next)
-    | should_noltol maybe_next = [event, muted]
-    | otherwise = [event]
+realize_noltol :: Score.Event -> Maybe Score.Event -> Either Text [Score.Event]
+realize_noltol event next = realize <$> Score.get_arg noltol_attr event
     where
+    realize :: NoltolArg -> [Score.Event]
+    realize (threshold, max_dur)
+        | should_noltol threshold max_dur next = [event, muted]
+        | otherwise = [event]
+    -- TODO reapply a note with dur 0 to create the mute
     muted = Score.add_attributes Attrs.mute $
-        -- TODO this should probably be configurable
+        -- TODO dynamic should probably be configurable
         Score.modify_dynamic (*0.65) $ Score.duration (const 0) $
         Score.move (+ Score.event_duration event) $ Score.copy event
-    should_noltol maybe_next =
-        Score.event_duration event RealTime.<= dur
-        -- I don't know how long infer_duration is going to be, so don't
-        -- bother.  Also if it's 'final_flag', then it will likely be cancelled
-        -- out anyway.  TODO to do it correctly, I'd need to do noltol after
-        -- infer-duration, which means a +noltol attribute and then postproc.
-        -- No noltol for the last note.  If this is followed by another
-        -- kotekan, it will be cancelled out anyway.
-        -- && not (Score.has_flags final_flag event)
+    should_noltol threshold max_dur maybe_next =
+        Score.event_duration event RealTime.<= max_dur
         && maybe True ((>= threshold) . space) maybe_next
     space next = Score.event_start next - Score.event_end event
 

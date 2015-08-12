@@ -90,6 +90,17 @@ subs = tag "subs"
 under_invert :: Tags
 under_invert = tag "under-invert"
 
+-- | Saves an argument in 'Derive.Score.event_delayed_args', which means it
+-- applies an Attribute, and relies on a postproc to complete the
+-- transformation.
+delayed :: Tags
+delayed = tag "delayed"
+
+-- | This is the other half of a 'delayed' call.  It expects an entry in
+-- 'Derive.Score.event_delayed_args'.
+realize_delayed :: Tags
+realize_delayed = tag "realize-delayed"
+
 -- * automatically applied
 
 generator, transformer :: Tags

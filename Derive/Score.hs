@@ -23,8 +23,11 @@ module Derive.Score (
     -- ** environ
     , modify_environ, modify_environ_key
     -- ** attributes
-    , event_attributes, has_attribute, environ_attributes
+    , event_attributes, has_attribute, intersecting_attributes
+    , environ_attributes
     , modify_attributes, add_attributes, remove_attributes
+    -- ** delayed args
+    , put_attr_arg, put_arg, get_just_arg, get_arg, lookup_arg
 
     -- ** modify events
     , move, place, move_start, duration, set_duration
@@ -54,6 +57,7 @@ module Derive.Score (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
+import qualified Data.Dynamic as Dynamic
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -111,6 +115,18 @@ data Event = Event {
     -- emphasizes that they're meant to be used by calls and not from the
     -- score.
     , event_flags :: !Flags.Flags
+    -- | This has arguments passed from a call that applies an attribute to one
+    -- which is meant to later realize the attribute.  This happens when a call
+    -- needs to be configured at the track level, but also needs some
+    -- information only available later, such as the real start time or pitch
+    -- of the next note.  They are indexed by attribute because there may be
+    -- multiple delayed calls on a single note, and the realize postproc may
+    -- want to ignore some, e.g. if they are overidden by another attribute.
+    --
+    -- I couldn't think of a type safe way to do this, but Dynamic should be
+    -- safe enough if you use a shared type declaration in both writer and
+    -- reader.
+    , event_delayed_args :: !(Map.Map Attributes Dynamic.Dynamic)
     } deriving (Show, Typeable.Typeable)
 
 -- | Format an event in a way suitable for including inline in log messages.
@@ -157,6 +173,7 @@ empty_event = Event
     , event_instrument = empty_inst
     , event_environ = mempty
     , event_flags = mempty
+    , event_delayed_args = mempty
     }
 
 event_end :: Event -> RealTime
@@ -239,6 +256,10 @@ event_attributes = environ_attributes . event_environ
 has_attribute :: Attributes -> Event -> Bool
 has_attribute attr = (`attrs_contain` attr) . event_attributes
 
+intersecting_attributes :: Attributes -> Event -> Bool
+intersecting_attributes attrs = not . Set.null
+    . Set.intersection (attrs_set attrs) . attrs_set . event_attributes
+
 environ_attributes :: BaseTypes.Environ -> Attributes
 environ_attributes environ =
     case BaseTypes.lookup_val Environ.attributes environ of
@@ -261,13 +282,15 @@ remove_attributes attrs event
     | otherwise = modify_attributes (attrs_remove attrs) event
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur text controls pitch pitches _ _ _ _ _ flags) =
+    rnf (Event start dur text controls pitch pitches _ _ _ _ _ flags
+            _delayed_args) =
         rnf start `seq` rnf dur `seq` rnf text `seq` rnf controls
             `seq` rnf pitch `seq` rnf pitches `seq` rnf flags
+            -- I can't force Dynamic, so leave off _delayed_args.
 
 instance Pretty.Pretty Event where
     format (Event start dur text controls pitch pitches coffset stack highlight
-            inst env flags) =
+            inst env flags delayed_args) =
         Pretty.record ("Event"
                 Pretty.<+> Pretty.format (start, dur)
                 Pretty.<+> Pretty.format text)
@@ -275,12 +298,41 @@ instance Pretty.Pretty Event where
             , ("pitch", Pretty.format pitch)
             , ("pitches", Pretty.format pitches)
             , ("controls", Pretty.format controls)
-            , ("control offset", Pretty.format coffset)
+            , ("control_offset", Pretty.format coffset)
             , ("stack", Pretty.format stack)
             , ("highlight", Pretty.text $ showt highlight)
             , ("environ", Pretty.format env)
             , ("flags", Pretty.format flags)
+            , ("delayed_args", Pretty.format delayed_args)
             ]
+
+-- ** delayed args
+
+put_attr_arg :: Typeable.Typeable a => Attributes -> a -> Event -> Event
+put_attr_arg attr arg = add_attributes attr . put_arg attr arg
+
+put_arg :: Typeable.Typeable a => Attributes -> a -> Event -> Event
+put_arg attr arg event = event
+    { event_delayed_args = Map.insert attr (Dynamic.toDyn arg)
+        (event_delayed_args event)
+    }
+
+get_just_arg :: Typeable.Typeable a => Attributes -> Event -> Maybe a
+get_just_arg attrs =
+    Dynamic.fromDynamic <=< Map.lookup attrs . event_delayed_args
+
+get_arg :: Typeable.Typeable a => Attributes -> Event -> Either Text a
+get_arg attrs = fromMaybe (Left $ "no delayed args for " <> pretty attrs)
+    . lookup_arg attrs
+
+lookup_arg :: Typeable.Typeable a => Attributes -> Event
+    -> Maybe (Either Text a)
+lookup_arg attrs event = case Map.lookup attrs (event_delayed_args event) of
+    Nothing -> Nothing
+    Just arg -> Just $ case Dynamic.fromDynamic arg of
+        Nothing -> Left $ "incorrect delayed arg type for " <> pretty attrs
+            <> ": " <> pretty arg
+        Just a -> Right a
 
 -- ** modify events
 
