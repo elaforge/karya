@@ -2,11 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Derive.Call.Post.Move_test where
+module Derive.Call.Post.Postproc_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
-import qualified Derive.Call.Post.Move as Move
+import qualified Derive.Call.Post.Postproc as Postproc
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
@@ -159,8 +159,8 @@ test_apply_start_offset = do
 
 test_adjust_offset = do
     let f (s1, o1) (s2, o2) =
-            ( s1 + Move.adjust_offset d Nothing (Just (o2, s2)) o1 s1
-            , s2 + Move.adjust_offset d (Just (o1, s1)) Nothing o2 s2
+            ( s1 + Postproc.adjust_offset d Nothing (Just (o2, s2)) o1 s1
+            , s2 + Postproc.adjust_offset d (Just (o1, s1)) Nothing o2 s2
             )
         d = 0.25
         range s e = Seq.range s e (if e >= s then 1 else -1)

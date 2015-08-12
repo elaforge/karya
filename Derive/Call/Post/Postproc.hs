@@ -3,8 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Postprocs that change note start and duration.
-module Derive.Call.Post.Move where
-import qualified Data.List as List
+module Derive.Call.Post.Postproc where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 

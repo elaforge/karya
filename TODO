@@ -96,7 +96,7 @@ UNSORTED
 
   - I forgot to add Sub.inverting to p1 and pn calls.  Can I have a warning
     for when a non-inverting call has a note track below it?
-  - Post.Move module and infer-duration call need better names now that it's
+  * Post.Move module and infer-duration call need better names now that it's
     a general purpose call.
   - It's confusing how sometimes the environ is applied to the pitch during
     derivation (e.g. Post.set_instrument), and sometimes it waits for Convert

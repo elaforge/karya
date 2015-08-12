@@ -19,7 +19,7 @@ import qualified Derive.Call.India.Gamakam3 as Gamakam3
 import qualified Derive.Call.India.Mridangam as Mridangam
 import qualified Derive.Call.Post.Idiom as Idiom
 import qualified Derive.Call.Post.Map as Map
-import qualified Derive.Call.Post.Move as Move
+import qualified Derive.Call.Post.Postproc as Postproc
 import qualified Derive.Call.Post.Rearticulate as Rearticulate
 import qualified Derive.Call.Post.Reverse as Reverse
 import qualified Derive.Call.Prelude.Articulation as Articulation
@@ -62,6 +62,7 @@ note_maps = mconcat
     [ Articulation.note_calls
     , Block.note_calls
     , Chord.note_calls
+    , Conditional.note_calls
     , Config.note_calls
     , Delay.note_calls
     , Equal.note_calls
@@ -76,17 +77,16 @@ note_maps = mconcat
     , InferTrackVoice.note_calls
     , Integrate.note_calls
     , Lily.note_calls
-    , Conditional.note_calls
-    , Note.note_calls
-    , Parent.note_calls
-    , Mridangam.note_calls
-    , NoteTransformer.note_calls
-    , PitchHigh.note_calls
-    , Reverse.note_calls
     , Map.note_calls
+    , Mridangam.note_calls
+    , Note.note_calls
+    , NoteTransformer.note_calls
+    , Parent.note_calls
+    , PitchHigh.note_calls
+    , Postproc.note_calls
     , Random.note_calls
     , Rearticulate.note_calls
-    , Move.note_calls
+    , Reverse.note_calls
     , Reyong.note_calls
     , Sekar.note_calls
     , SignalTransform.note_calls

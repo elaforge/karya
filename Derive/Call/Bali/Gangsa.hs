@@ -38,7 +38,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
-import qualified Derive.Call.Post.Move as Move
+import qualified Derive.Call.Post.Postproc as Postproc
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -812,14 +812,14 @@ c_cancel_pasang = Derive.transformer module_ "cancel-pasang"
     "This is like the `cancel` call, except it also knows how to cancel out\
     \ pasang instruments such that adjacent kotekan calls can have initial and\
     \ final notes, but won't get doubled notes."
-    $ Move.make_cancel cancel_pasang pasang_key
+    $ Postproc.make_cancel cancel_pasang pasang_key
 
 -- | The order of precedence is normals, then finals, then initials.
 -- The final note also gets Flags.infer_duration, but since it will lose to
 -- normal notes, the infer will only happen if there is no next note.  So it
 -- won't ever merge with the duration of a cancelled note.
 cancel_pasang :: [Score.Event] -> Either Text [Score.Event]
-cancel_pasang events = Move.cancel_strong_weak Move.merge_infer $
+cancel_pasang events = Postproc.cancel_strong_weak Postproc.merge_infer $
     case Seq.partition2 (has final_flag) (has initial_flag) events of
         (_, _, normals@(_:_)) -> normals
         (finals@(_:_), _, []) -> finals
