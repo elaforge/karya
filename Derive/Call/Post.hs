@@ -170,6 +170,11 @@ nexts_same_hand :: (a -> Score.Event) -> [LEvent.LEvent a]
 nexts_same_hand event_of = map (fmap extract) . neighbors_same_hand event_of
     where extract (_, e, n) = (e, n)
 
+prevs_same_hand :: (a -> Score.Event) -> [LEvent.LEvent a]
+    -> [LEvent.LEvent (Maybe a, a)]
+prevs_same_hand event_of = map (fmap extract) . neighbors_same_hand event_of
+    where extract (p, e, _) = (p, e)
+
 -- | Extract subsequent events.
 nexts :: [a] -> [[a]]
 nexts = drop 1 . List.tails

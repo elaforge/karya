@@ -1503,7 +1503,7 @@ pitch: scales: scale:
     - overtone series
     - add ratio transpose signal, that multiplies hz
     - meantone
-    - retune a note depending on the previous interval (e.g. sloppy pitches
+    * retune a note depending on the previous interval (e.g. sloppy pitches
       when playing quickly)
       I think this has to be postproc.
     support scales that are different ascending vs. descending

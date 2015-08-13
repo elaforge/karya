@@ -33,11 +33,11 @@ module Derive.Score (
     , move, place, move_start, duration, set_duration
     -- *** control
     , control_at, event_control, initial_dynamic, modify_dynamic
-    , modify_control
+    , modify_control, merge_control
     , set_control, event_controls_at
     -- *** pitch
     , default_pitch, set_pitch, set_named_pitch, event_pitch
-    , transposed_at, pitch_at, apply_controls
+    , transposed_at, pitch_at, pitch_sample_at, apply_controls
     , initial_pitch, nn_at, initial_nn, note_at, initial_note
 
     -- ** warp
@@ -135,6 +135,7 @@ data Event = Event {
 log_event :: Event -> Text
 log_event e = pretty $ foldr1 (Pretty.<+>) $ concat $ filter (not . null)
     [ [Pretty.format (event_start e, event_duration e)]
+    , [Pretty.format (event_instrument e)]
     , [Pretty.format (event_text e) | not (Text.null (event_text e))]
     , [Pretty.text stack
         | Just stack <- [Stack.pretty_ui_inner (event_stack e)]]
@@ -403,6 +404,16 @@ modify_control control modify event = event
             (event_untransformed_controls event)
     }
 
+-- | Merge a signal with an existing one.  If there is no existing control,
+-- the merge function gets an empty signal.
+merge_control :: Control -> (Signal.Control -> new -> Signal.Control)
+    -> new -> Event -> Event
+merge_control control merge new_signal event = event
+    { event_untransformed_controls =
+        Map.alter (Just . alter) control (event_untransformed_controls event)
+    }
+    where alter old = (`merge` new_signal) <$> fromMaybe mempty old
+
 set_control :: Control -> Typed Signal.Control -> Event -> Event
 set_control control signal event = event
     { event_untransformed_controls = Map.insert control
@@ -448,7 +459,10 @@ transposed_at :: RealTime -> Event -> Maybe PSignal.Transposed
 transposed_at pos event = apply_controls event pos <$> pitch_at pos event
 
 pitch_at :: RealTime -> Event -> Maybe PSignal.Pitch
-pitch_at pos event = PSignal.at (pos - event_control_offset event)
+pitch_at pos event = snd <$> pitch_sample_at pos event
+
+pitch_sample_at :: RealTime -> Event -> Maybe (RealTime, PSignal.Pitch)
+pitch_sample_at pos event = PSignal.sample_at (pos - event_control_offset event)
     (event_untransformed_pitch event)
 
 apply_controls :: Event -> RealTime -> PSignal.Pitch -> PSignal.Transposed

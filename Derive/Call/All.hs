@@ -21,6 +21,7 @@ import qualified Derive.Call.Post.Idiom as Idiom
 import qualified Derive.Call.Post.Map as Map
 import qualified Derive.Call.Post.Postproc as Postproc
 import qualified Derive.Call.Post.Rearticulate as Rearticulate
+import qualified Derive.Call.Post.Retune as Retune
 import qualified Derive.Call.Post.Reverse as Reverse
 import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Call.Prelude.Block as Block
@@ -86,6 +87,7 @@ note_maps = mconcat
     , Postproc.note_calls
     , Random.note_calls
     , Rearticulate.note_calls
+    , Retune.note_calls
     , Reverse.note_calls
     , Reyong.note_calls
     , Sekar.note_calls
