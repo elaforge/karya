@@ -26,7 +26,7 @@ test_wayang = do
 test_wayang_zero_dur = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_blocks_setup (KontaktTest.with_synth aliases)
-        top = "top -- inst = >u | infer-duration"
+        top = "top -- inst = >u | cancel"
         extract e = (Score.event_duration e,
             not $ null $ DeriveTest.e_control "mute" e)
     -- should be muted, since it's 0 dur and not the end

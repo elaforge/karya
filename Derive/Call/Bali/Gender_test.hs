@@ -101,9 +101,9 @@ test_past_end = do
 
 test_ngoret_infer_duration = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_blocks
-        top = "top -- " ++ ngoret_transform ++ " | infer-duration"
+        top = "top -- " ++ ngoret_transform ++ " | cancel"
     -- This also tests the interaction between the default note deriver and
-    -- infer-duration, when invoked via Util.note.
+    -- cancel-pasang, when invoked via Util.note.
     --    sub1     |sub2
     --    4c    '4e|4c         |
     -- 4c ------------

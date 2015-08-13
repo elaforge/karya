@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - It can be alarming how I accidentally make changes to .git files.  Even
+    though I can undo them, what if I don't notice until too late?  Maybe
+    there should be a lock bit that makes edits into errors?  Or at least
+    suspends the automatic saving?
   simplify infer-duration
     . Split it into 'infer-duration,' which only processes {infer-duration},
       'cancel', which processes {weak} and {strong}, and 'suppress', which
@@ -1391,8 +1395,7 @@ Derive:
             see if I'll want the complicated version.
         * Bundle all gangsa 'realize' functions into a 'realize-gangsa'
           call: realize-noltol | cancel-pasang | realize-ngoret
-
-        - Remove 'infer-duration'.  But first I have to find out why it breaks
+        * Remove 'infer-duration'.  But first I have to find out why it breaks
           tons of stuff in save/complete/wayang/*.
 
         kotekan kernel:

@@ -34,139 +34,9 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map
-    [ ("infer-duration", c_infer_duration)
-    , ("apply-start-offset", c_apply_start_offset)
+    [ ("apply-start-offset", c_apply_start_offset)
     , ("cancel", c_cancel)
     ]
-
-
--- * infer duration
-
-c_infer_duration :: Derive.Transformer Derive.Note
-c_infer_duration = Derive.transformer Module.prelude "infer-duration"
-    Tags.postproc "Infer durations for 'Derive.Flags.infer-duration' events,\
-    \ and possibly cancel notes with 'Derive.Flags.weak'.\
-    \\nThis is intended to support Indonesian-style \"arrival beats\".\
-    \ If there is a zero-duration note at the end of a block, the default note\
-    \ deriver sets `+infer-duration` on it. This note will then replace any\
-    \ notes at the beginning of the next block. If it replaces a note, it\
-    \ takes on that note's duration and controls. Otherwise, it extends to the\
-    \ start of the next note.\
-    \\nThis also applies the 'Derive.Environ.suppress_until' env val, so a\
-    \ call can cancel out other events."
-    $ Sig.callt
-    ( Sig.defaulted "final-duration" 1
-        "If there is no following note, infer this duration."
-    ) $ \final_dur _args deriver -> infer_duration2 final_dur <$> deriver
-
-infer_duration2 :: RealTime -> Derive.Events -> Derive.Events
-infer_duration2 final_dur = cancel_notes . suppress_notes
-    where
-    cancel_notes = Post.cat_maybes . Post.emap1_ process
-        . Post.neighbors_same_hand id
-
-    -- Cancel means the note just goes away.  But if an infer-duration cancels
-    -- a note, it replaces it, which means it takes over its duration and
-    -- controls.
-
-    -- prev             cur     |  prev         cur
-    -- weak+infer       weak    -> replace      Nothing
-    -- infer            weak    -> replace      Nothing
-    -- weak             weak    -> id           Nothing
-    -- {}               weak    -> id           Nothing
-    -- weak             {}      -> Nothing      id
-    --
-    -- strong+infer     {}     -> replace      Nothing
-    -- strong           {}     -> id           Nothing
-    process (maybe_prev, event, maybe_next) =
-        fmap strip_flags . check_prev maybe_prev =<< check_next maybe_next event
-
-    check_next :: Maybe Score.Event -> Score.Event -> Maybe Score.Event
-    check_next maybe_next event = case maybe_next of
-        Just next
-            | not (same_start event next) -> Just $
-                -- If the note isn't coincident, I won't replace it, but
-                -- instead extend to the start of the next note.
-                if has Flags.infer_duration event
-                    then set_end (Score.event_start next) event
-                    else event
-            | is_weak next || has Flags.strong event -> Just $
-                if has Flags.infer_duration event
-                    then replace_note next event else event
-            | is_weak event && not (is_weak next) -> Nothing
-            | otherwise -> Just event
-        Nothing
-            | has Flags.infer_duration event -> Just $
-                Score.set_duration final_dur event
-            | otherwise -> Just event
-
-    check_prev :: Maybe Score.Event -> Score.Event -> Maybe Score.Event
-    check_prev maybe_prev event = case maybe_prev of
-        Just prev
-            | not (same_start prev event) -> Just event
-            | is_weak event || has Flags.strong prev -> Nothing
-        _ -> Just event
-    is_weak = has Flags.weak
-    -- Remove flags I've processed.  This way if there's another infer-duration
-    -- in the call stack the processing won't happen twice.
-    strip_flags = Score.remove_flags $
-        Flags.infer_duration <> Flags.strong <> Flags.weak
-
-    has = Score.has_flags
-    same_start e1 e2 = Score.event_start e1 RealTime.== Score.event_start e2
-    set_end end event = Score.set_duration (end - Score.event_start event) event
-
--- | Filter out events that fall at and before the 'Environ.suppress_until'
--- range of an event with the same (instrument, hand).  Only events that don't
--- have a suppress_until are suppressed.
---
--- This is complicated by the fact that an event should suppress coincident
--- events even if the supressor follows the suppressee in the list, so I have
--- to look into the future for the greatest suppress_until.
-suppress_notes :: Derive.Events -> Derive.Events
-suppress_notes =
-    snd . Post.emap go Map.empty . Post.zip_on Post.nexts
-        . Post.zip3_on (map Post.hand_key) (map get_suppress)
-    where
-    go suppressed (nexts, (key, suppress, event)) = case suppress of
-        Nothing -> (,) suppressed $ case suppress_until of
-            Just until | until >= Score.event_start event - RealTime.eta -> []
-            _ -> [event]
-        Just until -> (Map.insert key until suppressed, [event])
-        where
-        suppress_until = Seq.maximum $ Maybe.catMaybes $
-            (Map.lookup key suppressed :) $ map suppress_of $
-            takeWhile (coincident . event_of) $
-            filter ((==key) . key_of) nexts
-        coincident e = Score.event_start e
-            <= Score.event_start event + RealTime.eta
-    get_suppress :: Score.Event -> Maybe RealTime
-    get_suppress =
-        TrackLang.maybe_val Environ.suppress_until . Score.event_environ
-    key_of (k, _, _) = k
-    suppress_of (_, s, _) = s
-    event_of (_, _, e) = e
-
--- | A note with inferred duration gets its start from the end of the previous
--- block, but its duration and the rest of its controls come from the
--- corresponding note at the beginning of the next block.
-replace_note :: Score.Event -> Score.Event -> Score.Event
-replace_note next event = event
-    { Score.event_duration = Score.event_end next - start
-    , Score.event_untransformed_pitch = pitch event
-        <> PSignal.drop_before_at start (pitch next)
-    , Score.event_untransformed_pitches = Util.Map.mappend
-        (pitches event)
-        (PSignal.drop_before_at start <$> pitches next)
-    , Score.event_untransformed_controls = Util.Map.mappend
-        (controls event)
-        (fmap (Signal.drop_before_at start) <$> controls next)
-    }
-    where
-    pitch = Score.event_transformed_pitch
-    pitches = Score.event_transformed_pitches
-    controls = Score.event_transformed_controls
-    start = Score.event_start event
 
 -- * cancel
 
@@ -269,6 +139,66 @@ group_coincident key = go
         -- [e] is going to be a common case, since most notes don't group.
         groups = map Right (Seq.group_sort key (e : during))
     same_start e1 e2 = Score.event_start e1 RealTime.== Score.event_start e2
+
+-- | Filter out events that fall at and before the 'Environ.suppress_until'
+-- range of an event with the same (instrument, hand).  Only events that don't
+-- have a suppress_until are suppressed.
+--
+-- This is complicated by the fact that an event should suppress coincident
+-- events even if the supressor follows the suppressee in the list, so I have
+-- to look into the future for the greatest suppress_until.
+suppress_notes :: Derive.Events -> Derive.Events
+suppress_notes =
+    snd . Post.emap go Map.empty . Post.zip_on Post.nexts
+        . Post.zip3_on (map Post.hand_key) (map get_suppress)
+    where
+    go suppressed (nexts, (key, suppress, event)) = case suppress of
+        Nothing -> (,) suppressed $ case suppress_until of
+            Just until | until >= Score.event_start event - RealTime.eta -> []
+            _ -> [event]
+        Just until -> (Map.insert key until suppressed, [event])
+        where
+        suppress_until = Seq.maximum $ Maybe.catMaybes $
+            (Map.lookup key suppressed :) $ map suppress_of $
+            takeWhile (coincident . event_of) $
+            filter ((==key) . key_of) nexts
+        coincident e = Score.event_start e
+            <= Score.event_start event + RealTime.eta
+    get_suppress :: Score.Event -> Maybe RealTime
+    get_suppress =
+        TrackLang.maybe_val Environ.suppress_until . Score.event_environ
+    key_of (k, _, _) = k
+    suppress_of (_, s, _) = s
+    event_of (_, _, e) = e
+
+-- | A note with inferred duration gets its start from the end of the previous
+-- block, but its duration and the rest of its controls come from the
+-- corresponding note at the beginning of the next block.
+--
+-- TODO currently this is unused.  Formerly it was used when an infer-duration
+-- note replaced a note.  The intent was that the strong note at the end of the
+-- block would determine the initial pitch and dynamic of the note, but control
+-- curves would still be picked up from the replaced note, since there is no
+-- room to put them on the final note.  It seems a little ad-hoc and grody, but
+-- it still makes a kind of sense and I may still want it, so I'll leave this
+-- function here for now.
+replace_note :: Score.Event -> Score.Event -> Score.Event
+replace_note next event = event
+    { Score.event_duration = Score.event_end next - start
+    , Score.event_untransformed_pitch = pitch event
+        <> PSignal.drop_before_at start (pitch next)
+    , Score.event_untransformed_pitches = Util.Map.mappend
+        (pitches event)
+        (PSignal.drop_before_at start <$> pitches next)
+    , Score.event_untransformed_controls = Util.Map.mappend
+        (controls event)
+        (fmap (Signal.drop_before_at start) <$> controls next)
+    }
+    where
+    pitch = Score.event_transformed_pitch
+    pitches = Score.event_transformed_pitches
+    controls = Score.event_transformed_controls
+    start = Score.event_start event
 
 -- * apply start offset
 

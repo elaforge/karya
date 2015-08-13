@@ -81,7 +81,7 @@ test_sekar_multiple = do
 test_sekar_arrive = do
     let run e = DeriveTest.extract DeriveTest.e_note . run_ e
         run_ sekar_event notes = DeriveTest.derive_tracks_linear
-            "import bali.sekar | sekar-arrive=t | infer-duration 4" $
+            "import bali.sekar | sekar-arrive=t | cancel 4" $
             (">", [sekar_event]) : UiTest.note_track notes
 
     equal (run (2, 4, "sekar ab") (make_notes [2, 2, 2]))
@@ -129,7 +129,7 @@ test_sekar_regular_arrive = do
         run2 sekar_event notes =
             DeriveTest.extract DeriveTest.e_start_note $ run_ sekar_event notes
         run_ sekar_event notes = DeriveTest.derive_tracks_linear
-            "import bali.sekar | sekar-arrive=t | infer-duration 4" $
+            "import bali.sekar | sekar-arrive=t | cancel 4" $
             (">", [sekar_event]) : UiTest.note_track notes
     -- 0   2   4   6   8   10
     --     |------>

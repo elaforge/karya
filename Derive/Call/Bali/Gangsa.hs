@@ -308,7 +308,7 @@ kotekan_doc :: Text
 kotekan_doc =
     "Kotekan calls perform a pattern with `inst-polos` and `inst-sangsih`.\
     \ They line up at the end of the event but may also emit a note at the\
-    \ start of the event, so use `infer-duration` to cancel the extra notes."
+    \ start of the event, so use `cancel-pasang` to cancel the extra notes."
 
 c_kotekan_irregular :: KotekanStyle -> KotekanPattern
     -> Derive.Generator Derive.Note
