@@ -97,6 +97,7 @@ note_calls = Derive.call_maps
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
     , ("noltol", c_noltol)
+    , ("realize-gangsa", c_realize_gangsa)
     , ("realize-noltol", c_realize_noltol)
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     , ("cancel-pasang", c_cancel_pasang)
@@ -760,6 +761,22 @@ nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
     with_inst = event
         { Score.event_instrument = if is_polos then polos else sangsih }
 
+-- * realize calls
+
+c_realize_gangsa :: Derive.Transformer Derive.Note
+c_realize_gangsa = Derive.transformer module_ "realize-all" Tags.postproc
+    "Combine all of the gangsa realize calls in the right order.  Equivalent\
+    \ to `realize-noltol | cancel-pasang | realize-ngoret`."
+    $ Sig.callt Postproc.final_duration_arg
+    $ \final_dur _args deriver ->
+        -- TODO Since I can't deforest between (=<<), this might not be any
+        -- more efficient than the tracklang version.
+        realize_noltol_call =<< cancel final_dur =<< Gender.realize_ngoret
+            =<< deriver
+    where
+    cancel final_dur = Derive.require_right id
+        . Postproc.group_and_cancel cancel_pasang pasang_key final_dur
+
 -- | (noltol-time, kotekan-dur)
 type NoltolArg = (RealTime, RealTime)
 
@@ -788,9 +805,11 @@ c_noltol = Derive.transformer module_ "noltol" Tags.delayed
 
 c_realize_noltol :: Derive.Transformer Score.Event
 c_realize_noltol = Derive.transformer module_ "realize-noltol"
-    Tags.realize_delayed "blah blah"
-    $ Sig.call0t $ \_args deriver -> do
-        Post.emap_m_ fst realize . Post.nexts_same_hand id =<< deriver
+    Tags.realize_delayed "Perform the annotations added by `noltol`."
+    $ Sig.call0t $ \_args deriver -> realize_noltol_call =<< deriver
+
+realize_noltol_call :: Derive.Events -> Derive.NoteDeriver
+realize_noltol_call = Post.emap_m_ fst realize . Post.nexts_same_hand id
     where
     realize (event, next)
         | Score.has_attribute noltol_attr event = Derive.require_right id $
@@ -820,8 +839,7 @@ realize_noltol event next = realize <$> Score.get_arg noltol_attr event
 -- ** cancel-pasang
 
 c_cancel_pasang :: Derive.Transformer Derive.Note
-c_cancel_pasang = Derive.transformer module_ "cancel-pasang"
-    Tags.postproc
+c_cancel_pasang = Derive.transformer module_ "cancel-pasang" Tags.postproc
     "This is like the `cancel` call, except it also knows how to cancel out\
     \ pasang instruments such that adjacent kotekan calls can have initial and\
     \ final notes, but won't get doubled notes."
@@ -837,8 +855,7 @@ cancel_pasang events = Postproc.cancel_strong_weak Postproc.merge_infer $
         (_, _, normals@(_:_)) -> normals
         (finals@(_:_), _, []) -> finals
         ([], initials, []) -> initials
-    where
-    has = Score.has_flags
+    where has = Score.has_flags
 
 pasang_key :: Score.Event
     -> (Either Score.Instrument (Score.Instrument, Score.Instrument),

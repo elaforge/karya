@@ -5,7 +5,7 @@
 -- | Ornaments for gender.  The unique thing about gender technique is the
 -- delayed damping, so these calls deal with delayed damping.
 module Derive.Call.Bali.Gender (
-    note_calls, interval_arg, ngoret, c_realize_ngoret
+    note_calls, interval_arg, ngoret, c_realize_ngoret, realize_ngoret
     , weak
 ) where
 import qualified Util.Log as Log
@@ -136,10 +136,10 @@ c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
     ) $ Sig.call0t $ \_ deriver -> realize_ngoret =<< deriver
 
 realize_ngoret :: Derive.Events -> Derive.Deriver Derive.Events
-realize_ngoret = Post.apply $ fmap merge . mapM realize . Seq.group_sort key
+realize_ngoret =
+    Post.apply $ fmap merge . mapM realize . Seq.group_sort Post.hand_key
     where
     -- TODO do I want to ignore streams with irrelevant instruments?
-    key e = (Score.event_instrument e, event_hand e)
     realize = fmap (map (uncurry realize_damped) . Seq.zip_next)
         . apply realize_infer_pitch
     apply f = mapMaybeM (apply1 f) . Seq.zip_neighbors
@@ -150,9 +150,6 @@ realize_ngoret = Post.apply $ fmap merge . mapM realize . Seq.group_sort key
                 Derive.with_event_stack event $ Log.warn err
                 return Nothing
     merge = Seq.merge_lists Score.event_start
-
-event_hand :: Score.Event -> Maybe Text
-event_hand = TrackLang.maybe_val Environ.hand . Score.event_environ
 
 realize_infer_pitch :: Maybe Score.Event -> Score.Event
     -> Maybe Score.Event -> Either Text Score.Event

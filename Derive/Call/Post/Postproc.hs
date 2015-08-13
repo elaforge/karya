@@ -183,11 +183,13 @@ type Cancel = [Score.Event] -> Either Text [Score.Event]
 make_cancel :: Ord key => Cancel -> (Score.Event -> key)
     -> Derive.WithArgDoc (Derive.TransformerF Derive.Note)
 make_cancel cancel key =
-    Sig.callt (Sig.defaulted_env "final-duration" Sig.Unprefixed 1
-        "If there is no following note, infer this duration."
-    ) $ \final_dur _args deriver ->
+    Sig.callt final_duration_arg $ \final_dur _args deriver ->
         Derive.require_right id . group_and_cancel cancel key final_dur
             =<< deriver
+
+final_duration_arg :: Sig.Parser RealTime
+final_duration_arg = Sig.defaulted_env "final-duration" Sig.Unprefixed 1
+    "If there is no following note, infer this duration."
 
 group_and_cancel :: Ord key => Cancel -> (Score.Event -> key) -> RealTime
     -> Events -> Either Text Events

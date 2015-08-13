@@ -1389,7 +1389,7 @@ Derive:
             omit the last note, then I have to use that when I want to replace
             it.  This means cross block replacement doesn't work.  Try it to
             see if I'll want the complicated version.
-        - Bundle all gangsa 'realize' functions into a 'realize-everything'
+        * Bundle all gangsa 'realize' functions into a 'realize-gangsa'
           call: realize-noltol | cancel-pasang | realize-ngoret
 
         - Remove 'infer-duration'.  But first I have to find out why it breaks
