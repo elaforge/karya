@@ -3,6 +3,52 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - I should be able to pass a ControlFunction as a ControlRef.  Can I coerce
+    one to the other?
+    . Does the whole control situation need some refactoring?  Basically,
+      calls just care about a scalar value, or a signal.  The most general
+      representation is Call.TypedFunction.  I think all a call is going to do
+      with a ControlRef argument is get values at times.
+    . What's more, any scalar can be coerced to a constant signal, and any
+      signal can be coerced to a scalar by sampling at the call start time.
+      I have the former, but not the latter.
+    . The complication is that looking up a control name is a deriver action,
+      so Derive.Sig would have to do that.  Typecheck returns Maybe, so
+      there's no opportunity to run a Deriver in there.
+    . I already do evaluation for Quoteds, so I could try to generalize that.
+      It has special case support in Sig.check_arg, because anything can be
+      a Quoted, and is then typechecked again.  That's not the case for
+      Typechecks that require Deriver access, so I think I it's orthogonal.
+    . So instead of Maybe, I could return 'Maybe (Deriver a)'.  That makes
+      it a pain to use from_val in any other context.
+      . WrongType | Val a | Eval (Deriver a)
+    . Naturally that leads to a circular import with Deriver.Monad.  It uses
+      various types from Derive.BaseTypes, but also
+        (Type, type_of, Typecheck, to_val)
+      Type I can move over.  type_of is for TypeError formatting.
+      (Typecheck, to_val) is for Derive.val_call convenience, and I don't need
+      it.
+
+    . Scalar: I have a 'Typecheck TypedVal', which is the basic scalar type.
+      I can coerce a VControlRef or VControlFunction to that, and the various
+      specialized types like RealTime are further coerced.
+    . Signal: 'Typecheck Call.TypedFunction', or rather a newtype wrapper.
+      Then maybe I can get rid of ControlRef just to reduce possibilities.
+    . Typecheck requires a to_val, and I can't do that for TypedFunction.
+      But I don't need to_val for typechecking, so maybe I can put that in
+      a separate typeclass.
+  - Perhaps I should get rid of TrackLang entirely.  Typecheck goes into
+    a separate Typecheck module.  Environ goes into an Environ module,
+    which means Derive.Environ becomes Environs or something, to avoid the
+    heavy dependency.
+
+  - Cmds don't indicate when they could abort or throw.  I rely on ad-hoc
+    conventions like get_ vs. lookup_, but what about it actually being in the
+    type signature?  I could try the "lightweight checked exceptions" in:
+      http://www.well-typed.com/blog/2015/07/checked-exceptions/
+      https://www.reddit.com/r/haskell/comments/3g41au/follow_up_safe_lightweight_checked_exceptions/
+  - retune: differences based on speed should be more obvious, so that should
+    also be on a curve.
   - It can be alarming how I accidentally make changes to .git files.  Even
     though I can undo them, what if I don't notice until too late?  Maybe
     there should be a lock bit that makes edits into errors?  Or at least
@@ -64,6 +110,8 @@ UNSORTED
     doing more work!
   - I'd like to see if directly modifying Collect or an AppendList for LEvents
     could reduce garbage, so I need to get some profiling up first.
+    . monad-par-extras Control.Monad.Par.AList is deprecated due to poor
+      performance, what's up with that?
   mridangam:
     - tha is too loud... I can compensate by using -, but maybe the scale is
       off.  Velocity should be logical, so if you play all at the same
@@ -98,8 +146,8 @@ UNSORTED
     as should its line.  This is visible when I add logical range markers.
   - A block with logical range called at time 0 gets messed up.
 
-  - I forgot to add Sub.inverting to p1 and pn calls.  Can I have a warning
-    for when a non-inverting call has a note track below it?
+  - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
+    I have a warning for when a non-inverting call has a note track below it?
   * Post.Move module and infer-duration call need better names now that it's
     a general purpose call.
   - It's confusing how sometimes the environ is applied to the pitch during

@@ -26,6 +26,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.ValType as ValType
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -109,7 +110,7 @@ equal_transformer args deriver =
         [TrackLang.VSymbol lhs, TrackLang.VNotGiven, val] ->
             parse_equal (Just Default) lhs val
         args -> Left $ "unexpected arg types: "
-            <> Text.intercalate ", " (map (pretty . TrackLang.type_of) args)
+            <> Text.intercalate ", " (map (pretty . ValType.type_of) args)
 
 parse_equal :: Maybe Merge -> TrackLang.Symbol -> TrackLang.Val
     -> Either Text (Derive.Deriver a -> Derive.Deriver a)
@@ -134,7 +135,7 @@ parse_equal Nothing (TrackLang.Symbol lhs) rhs
         TrackLang.VInstrument inst -> Right $
             Derive.with_instrument_alias (Score.Instrument new) inst
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
-            <> pretty (TrackLang.type_of rhs)
+            <> pretty (ValType.type_of rhs)
 parse_equal maybe_merge lhs rhs
     -- Assign to control.
     | Just control <- is_control =<< parse_val lhs = case rhs of
@@ -155,7 +156,7 @@ parse_equal maybe_merge lhs rhs
             Nothing -> Right $ Derive.with_control_function control f
         TrackLang.VNotGiven -> Right $ Derive.remove_controls [control]
         _ -> Left $ "binding a control expected a control, num, control\
-            \ function, or _, but got " <> pretty (TrackLang.type_of rhs)
+            \ function, or _, but got " <> pretty (ValType.type_of rhs)
     where
     is_control (TrackLang.VControlRef (TrackLang.LiteralControl c)) = Just c
     is_control _ = Nothing
@@ -175,7 +176,7 @@ parse_equal maybe_merge lhs rhs
             Derive.with_merged_pitch merger control
                 (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn))) deriver
         _ -> Left $ "binding a pitch signal expected a pitch, pitch"
-            <> " control, or nn, but got " <> pretty (TrackLang.type_of rhs)
+            <> " control, or nn, but got " <> pretty (ValType.type_of rhs)
     where
     is_pitch (TrackLang.VPControlRef (TrackLang.LiteralControl c)) = Just c
     is_pitch _ = Nothing

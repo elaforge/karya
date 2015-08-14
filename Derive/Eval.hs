@@ -41,10 +41,11 @@ import qualified Ui.State as State
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
-import qualified Derive.Parse as Parse
 import qualified Derive.PSignal as PSignal
+import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.ValType as ValType
 
 import Global
 import Types
@@ -364,7 +365,7 @@ cast :: forall a. TrackLang.Typecheck a => Text -> TrackLang.Val
     -> Derive.Deriver a
 cast name val = case TrackLang.from_val val of
     Nothing -> Derive.throw $ name <> ": expected " <> pretty return_type
-        <> " but val was " <> pretty (TrackLang.type_of val)
+        <> " but val was " <> pretty (ValType.type_of val)
         <> " " <> TrackLang.show_val val
     Just a -> return a
     where return_type = TrackLang.to_type (Proxy :: Proxy a)

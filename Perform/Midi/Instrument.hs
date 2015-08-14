@@ -43,7 +43,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
@@ -223,7 +223,7 @@ data Config = Config {
     , config_solo :: !Bool
     } deriving (Eq, Read, Show)
 
-config_environ :: Config -> TrackLang.Environ
+config_environ :: Config -> BaseTypes.Environ
 config_environ = RestrictedEnviron.convert . config_restricted_environ
 
 addrs = Lens.lens config_addrs
@@ -321,7 +321,7 @@ tags = Lens.lens patch_tags (\f r -> r { patch_tags = f (patch_tags r) })
 text = Lens.lens patch_text (\f r -> r { patch_text = f (patch_text r) })
 file = Lens.lens patch_file (\f r -> r { patch_file = f (patch_file r) })
 
-patch_environ :: Patch -> TrackLang.Environ
+patch_environ :: Patch -> BaseTypes.Environ
 patch_environ = RestrictedEnviron.convert . patch_restricted_environ
 
 -- | Create a Patch with empty vals, to set them as needed.
@@ -565,7 +565,7 @@ sort_attributes (AttributeMap table) = AttributeMap (sort table)
 
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
-type CallMap = Map.Map Score.Attributes TrackLang.CallId
+type CallMap = Map.Map Score.Attributes BaseTypes.CallId
 
 type Tag = (TagKey, TagVal)
 type TagKey = Text

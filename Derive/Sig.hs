@@ -109,6 +109,7 @@ import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.ValType as ValType
 
 import qualified Perform.Signal as Signal
 import Global
@@ -212,7 +213,7 @@ typecheck :: forall a. TrackLang.Typecheck a => TrackLang.Val -> Either Text a
 typecheck val = case TrackLang.from_val val of
     Nothing -> Left $ "expected "
         <> pretty (TrackLang.to_type (Proxy :: Proxy a)) <> " but got "
-        <> pretty (TrackLang.type_of val)
+        <> pretty (ValType.type_of val)
     Just a -> Right a
 
 -- * parsers

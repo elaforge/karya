@@ -46,7 +46,7 @@ import qualified Ui.Id as Id
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as TrackLang
 
 import qualified Perform.Signal as Signal
 import Global

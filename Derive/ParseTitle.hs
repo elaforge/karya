@@ -21,7 +21,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -119,7 +119,7 @@ parse_control_vals vals = case vals of
         Right $ Control (Just merge) (Score.untyped Controls.null)
     _ -> Left $ "control track must be one of [\"tempo\", control,\
         \ op control, %, op %, *scale, *scale #name, op #, op #name],\
-        \ got: " <> Text.unwords (map TrackLang.show_val vals)
+        \ got: " <> Text.unwords (map ShowVal.show_val vals)
     where
     scale (TrackLang.VSymbol (TrackLang.Symbol sym)) =
         case Text.uncons sym of
@@ -155,7 +155,7 @@ unparse_control_expr ctype calls
     where call_expr = maybe "" ShowVal.show_val $ NonEmpty.nonEmpty calls
 
 unparse_control :: ControlType -> Text
-unparse_control = Text.unwords . map TrackLang.show_val . unparse_control_vals
+unparse_control = Text.unwords . map ShowVal.show_val . unparse_control_vals
 
 unparse_control_vals :: ControlType -> [TrackLang.Val]
 unparse_control_vals ctype = case ctype of
@@ -227,7 +227,7 @@ title_to_instrument title = case Text.uncons title of
 
 -- | Convert from an instrument to the title of its instrument track.
 instrument_to_title :: Score.Instrument -> Text
-instrument_to_title = TrackLang.show_val
+instrument_to_title = ShowVal.show_val
 
 is_note_track :: Text -> Bool
 is_note_track = Maybe.isJust . title_to_instrument

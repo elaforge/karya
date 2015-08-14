@@ -98,7 +98,7 @@ module Derive.Deriver.Monad (
     , transformer
 
     -- ** val
-    , ValCall(..), val_call
+    , ValCall(..), make_val_call
 
     -- ** cache types
     -- $cache_doc
@@ -147,6 +147,7 @@ import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
+import qualified Derive.BaseTypes as TrackLang
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -158,8 +159,8 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
+import qualified Derive.ValType as ValType
 
 import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
@@ -201,7 +202,7 @@ instance Pretty.Pretty ErrorVal where
 
 data CallError =
     -- | ErrorPlace, EvalSource, arg name, expected type, received val
-    TypeError !ErrorPlace !EvalSource !Text !TrackLang.Type
+    TypeError !ErrorPlace !EvalSource !Text !ValType.Type
         !(Maybe TrackLang.Val)
     -- | Error evaluating a 'TrackLang.VQuoted' while processing a particular
     -- argument.
@@ -228,7 +229,7 @@ instance Pretty.Pretty CallError where
         TypeError place source name expected received ->
             "TypeError: arg " <> pretty place <> "/" <> name
             <> source_desc <> ": expected " <> pretty expected
-            <> " but got " <> pretty (TrackLang.type_of <$> received)
+            <> " but got " <> pretty (ValType.type_of <$> received)
             <> ": " <> pretty received
             where
             source_desc = case source of
@@ -1246,11 +1247,11 @@ data ArgDocs = ArgDocs [ArgDoc]
     deriving (Eq, Ord, Show)
 
 data ArgDoc = ArgDoc {
-    arg_name :: Text
-    , arg_type :: TrackLang.Type
-    , arg_parser :: ArgParser
+    arg_name :: !Text
+    , arg_type :: !ValType.Type
+    , arg_parser :: !ArgParser
     , arg_environ_default :: !EnvironDefault
-    , arg_doc :: Text
+    , arg_doc :: !Text
     } deriving (Eq, Ord, Show)
 
 -- | These enumerate the different ways an argumnt can be parsed, and
@@ -1377,9 +1378,9 @@ data ValCall = ValCall {
 instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
-val_call :: TrackLang.Typecheck a => Module.Module -> Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
-val_call module_ name tags doc (call, arg_docs) = ValCall
+make_val_call :: Module.Module -> Text -> Tags.Tags -> Text
+    -> WithArgDoc (PassedArgs Tagged -> Deriver TrackLang.Val) -> ValCall
+make_val_call module_ name tags doc (call, arg_docs) = ValCall
     { vcall_name = name
     , vcall_doc = CallDoc
         { cdoc_module = module_
@@ -1387,7 +1388,7 @@ val_call module_ name tags doc (call, arg_docs) = ValCall
         , cdoc_doc = doc
         , cdoc_args = arg_docs
         }
-    , vcall_call = fmap TrackLang.to_val . call
+    , vcall_call = call
     }
 
 

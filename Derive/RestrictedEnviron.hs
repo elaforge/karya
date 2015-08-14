@@ -4,7 +4,7 @@
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
--- | This is a serializable subset of 'TrackLang.Val' and 'TrackLang.Environ'.
+-- | This is a serializable subset of 'BaseTypes.Val' and 'BaseTypes.Environ'.
 -- It omits pitches, which are code and can't be serialized.
 module Derive.RestrictedEnviron where
 import qualified Data.List.NonEmpty as NonEmpty
@@ -18,21 +18,19 @@ import Util.Serialize (get, put)
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
-
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Global
 import Types
 
 
-newtype Environ = Environ (Map.Map TrackLang.ValName Val)
+newtype Environ = Environ (Map.Map BaseTypes.ValName Val)
     deriving (Read, Show, Eq, Monoid.Monoid, Pretty.Pretty, Serialize.Serialize)
 
-make :: [(TrackLang.ValName, Val)] -> Environ
+make :: [(BaseTypes.ValName, Val)] -> Environ
 make = Environ . Map.fromList
 
-convert :: Environ -> TrackLang.Environ
+convert :: Environ -> BaseTypes.Environ
 convert (Environ env) = BaseTypes.Environ $ Map.map convert_val env
 
 -- * val
@@ -40,24 +38,24 @@ convert (Environ env) = BaseTypes.Environ $ Map.map convert_val env
 data Val =
     VNum !Score.TypedVal
     | VAttributes !Score.Attributes
-    | VControlRef !TrackLang.ControlRef
+    | VControlRef !BaseTypes.ControlRef
     | VNotePitch !Pitch.Pitch
     | VInstrument !Score.Instrument
-    | VSymbol !TrackLang.Symbol
+    | VSymbol !BaseTypes.Symbol
     | VQuoted !Expr
     | VList ![Val]
     deriving (Eq, Read, Show)
 
-convert_val :: Val -> TrackLang.Val
+convert_val :: Val -> BaseTypes.Val
 convert_val val = case val of
-    VNum v -> TrackLang.VNum v
-    VAttributes v -> TrackLang.VAttributes v
-    VControlRef v -> TrackLang.VControlRef v
-    VNotePitch v -> TrackLang.VNotePitch v
-    VInstrument v -> TrackLang.VInstrument v
-    VSymbol v -> TrackLang.VSymbol v
-    VQuoted v -> TrackLang.VQuoted $ TrackLang.Quoted $ convert_expr v
-    VList v -> TrackLang.VList $ map convert_val v
+    VNum v -> BaseTypes.VNum v
+    VAttributes v -> BaseTypes.VAttributes v
+    VControlRef v -> BaseTypes.VControlRef v
+    VNotePitch v -> BaseTypes.VNotePitch v
+    VInstrument v -> BaseTypes.VInstrument v
+    VSymbol v -> BaseTypes.VSymbol v
+    VQuoted v -> BaseTypes.VQuoted $ BaseTypes.Quoted $ convert_expr v
+    VList v -> BaseTypes.VList $ map convert_val v
 
 instance Pretty.Pretty Val where
     format v = Pretty.format (convert_val v)
@@ -86,29 +84,29 @@ instance ToVal RealTime where
 -- ** rest
 
 instance ToVal Score.Attributes where to_val = VAttributes
-instance ToVal TrackLang.ControlRef where to_val = VControlRef
+instance ToVal BaseTypes.ControlRef where to_val = VControlRef
 instance ToVal Pitch.Pitch where to_val = VNotePitch
 instance ToVal Score.Instrument where to_val = VInstrument
-instance ToVal TrackLang.Symbol where to_val = VSymbol
-instance ToVal Text where to_val = VSymbol . TrackLang.Symbol
+instance ToVal BaseTypes.Symbol where to_val = VSymbol
+instance ToVal Text where to_val = VSymbol . BaseTypes.Symbol
 instance ToVal Expr where to_val = VQuoted
 
 -- * call
 
 type Expr = NonEmpty Call
-data Call = Call TrackLang.CallId [Term] deriving (Eq, Read, Show)
+data Call = Call BaseTypes.CallId [Term] deriving (Eq, Read, Show)
 data Term = ValCall Call | Literal Val deriving (Eq, Read, Show)
 
-convert_expr :: Expr -> TrackLang.Expr
+convert_expr :: Expr -> BaseTypes.Expr
 convert_expr = NonEmpty.map convert_call
 
-convert_call :: Call -> TrackLang.Call
+convert_call :: Call -> BaseTypes.Call
 convert_call (Call call_id terms) =
-    TrackLang.Call call_id (map convert_term terms)
+    BaseTypes.Call call_id (map convert_term terms)
 
-convert_term :: Term -> TrackLang.Term
-convert_term (ValCall call) = TrackLang.ValCall (convert_call call)
-convert_term (Literal val) = TrackLang.Literal (convert_val val)
+convert_term :: Term -> BaseTypes.Term
+convert_term (ValCall call) = BaseTypes.ValCall (convert_call call)
+convert_term (Literal val) = BaseTypes.Literal (convert_val val)
 
 instance Serialize.Serialize Val where
     put val = case val of

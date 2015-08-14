@@ -242,6 +242,10 @@ null_environ (Environ env) = Map.null env
 -- | Symbols to look up a val in the 'ValMap'.
 type ValName = Symbol
 
+-- | Call used by the infix @=@ syntax.
+c_equal :: CallId
+c_equal = "="
+
 -- ** Val
 
 -- | This is the type of first class values in the tracklang.  It's main
@@ -387,6 +391,9 @@ newtype Symbol = Symbol Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
         Serialize.Serialize)
 instance Pretty.Pretty Symbol where pretty = ShowVal.show_val
+
+unsym :: Symbol -> Text
+unsym (Symbol sym) = sym
 
 instance ShowVal.ShowVal Symbol where
     -- TODO This is actually kind of error prone.  The problem is that symbols

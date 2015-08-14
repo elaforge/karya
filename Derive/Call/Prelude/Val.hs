@@ -19,14 +19,15 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PSignal as PSignal
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.ValType as ValType
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -118,11 +119,11 @@ c_env = val_call "env" mempty
     where
     check _ deflt Nothing = return deflt
     check name deflt (Just val) =
-        case TrackLang.val_types_match deflt val of
+        case ValType.val_types_match deflt val of
             Nothing -> return val
             Just expected -> Derive.throw $ "env " <> pretty name
                 <> " expected " <> pretty expected
-                <> " but got " <> pretty (TrackLang.infer_type_of False val)
+                <> " but got " <> pretty (ValType.infer_type_of False val)
 
 c_timestep :: Derive.ValCall
 c_timestep = val_call "timestep" mempty
@@ -304,15 +305,15 @@ num_or_pitch argnum (val :| vals) = case val of
         vals <- mapM (expect tnum) (zip [argnum + 1 ..] vals)
         return $ Left (Score.typed_val num : vals)
     TrackLang.VPitch pitch -> do
-        vals <- mapM (expect TrackLang.TPitch) (zip [argnum + 1 ..] vals)
+        vals <- mapM (expect ValType.TPitch) (zip [argnum + 1 ..] vals)
         return $ Right (pitch : vals)
-    _ -> type_error argnum "bp" (TrackLang.TEither tnum TrackLang.TPitch) val
+    _ -> type_error argnum "bp" (ValType.TEither tnum ValType.TPitch) val
     where
-    tnum = TrackLang.TNum TrackLang.TUntyped TrackLang.TAny
+    tnum = ValType.TNum ValType.TUntyped ValType.TAny
     expect typ (argnum, val) = maybe (type_error argnum "bp" typ val) return $
         TrackLang.from_val val
 
-type_error :: Int -> Text -> TrackLang.Type -> TrackLang.Val -> Derive.Deriver a
+type_error :: Int -> Text -> ValType.Type -> TrackLang.Val -> Derive.Deriver a
 type_error argnum name expected received =
     Derive.throw_error $ Derive.CallError $
         Derive.TypeError (Derive.TypeErrorArg argnum) Derive.Literal name

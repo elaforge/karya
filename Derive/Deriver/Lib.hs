@@ -24,6 +24,7 @@ import qualified Ui.Track as Track
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
 import qualified Derive.Environ as Environ
@@ -849,6 +850,14 @@ shift_control shift deriver = do
     nudge_pitch = PSignal.shift
 
 -- * call
+
+-- | Wrap 'make_val_call' with a 'TrackLang.to_val' to automatically convert
+-- to a 'TrackLang.Val'.  This is not in "Derive.Deriver.Monad" to avoid
+-- a circular import with "Derive.TrackLang".
+val_call :: TrackLang.Typecheck a => Module.Module -> Text -> Tags.Tags -> Text
+    -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
+val_call module_ name tags doc (call, arg_docs) =
+    make_val_call module_ name tags doc (fmap TrackLang.to_val . call, arg_docs)
 
 set_module :: Module.Module -> Call f -> Call f
 set_module module_ call = call

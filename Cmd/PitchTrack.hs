@@ -23,6 +23,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
@@ -173,12 +174,12 @@ modify_expr f text = case Parse.parse_expr text of
     Left _ -> Right text
     Right expr -> case expr of
         TrackLang.Call sym (TrackLang.ValCall _ : _) :| []
-            | sym /= TrackLang.c_equal ->
+            | sym /= BaseTypes.c_equal ->
                 let (pre, within) = Text.break (=='(') text
                     (note, post) = break1 (==')') within
                 in (\n -> pre <> n <> post) <$> f note
         TrackLang.Call sym _ :| []
-            | sym /= TrackLang.c_equal ->
+            | sym /= BaseTypes.c_equal ->
                 let (pre, post) = Text.break (==' ') text
                 in (<>post) <$> f pre
         _ -> Right text
