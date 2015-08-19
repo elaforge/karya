@@ -65,3 +65,5 @@ instance ShowVal ScoreTime.ScoreTime where
 instance ShowVal RealTime.RealTime where
     show_val = (`Text.snoc` RealTime.suffix) . Pretty.showFloat 3
         . RealTime.to_seconds
+
+instance ShowVal Bool where show_val b = if b then "t" else "f"

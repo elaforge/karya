@@ -284,11 +284,6 @@ instance Time TrackLang.DefaultScore where
     score = score . TrackLang.default_score
     to_duration = TrackLang.default_score
 
-score_to_real :: ScoreTime -> Deriver RealTime
-score_to_real pos = do
-    warp <- get_warp
-    return (Score.warp_pos warp pos)
-
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
     warp <- get_warp

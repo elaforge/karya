@@ -13,7 +13,7 @@ module Derive.Derive (
 import Derive.Deriver.Monad
 import Derive.Deriver.Lib
 import Derive.Deriver.Internal
-    ( Time(..), score_to_real, real_to_score
+    ( Time(..), real_to_score
     , at, stretch, place, in_real_time
     , block_logical_range
     , get_ui_state, get_ui_config, get_track, get_block, eval_ui

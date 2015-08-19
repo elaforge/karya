@@ -110,6 +110,9 @@ module Derive.Deriver.Monad (
     , ScoreDamage(..)
     , ControlDamage(..)
 
+    -- * util
+    , score_to_real
+
     -- * scale
     -- $scale_doc
     , Scale(..)
@@ -1302,12 +1305,8 @@ default_score_duration =
     return . Duration . Event.duration . ctx_event . passed_ctx
 
 default_real_duration :: PassedArgs d -> Deriver (Duration RealTime)
-default_real_duration args = do
-    let t = Event.duration $ ctx_event $ passed_ctx args
-    -- This is the same as Internal.score_to_real.  A bit of copy and paste
-    -- seems better than moving all the real to score stuff over here.
-    warp <- gets (state_warp . state_dynamic)
-    return $ Duration $ Score.warp_pos warp t
+default_real_duration args =
+    Duration <$> score_to_real (Event.duration $ ctx_event $ passed_ctx args)
 
 -- | args -> deriver -> deriver
 type TransformerF d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
@@ -1511,6 +1510,13 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
 -- itself, so that events that depend on it can be rederived.
 newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
     deriving (Pretty.Pretty, Monoid.Monoid, Eq, Show, DeepSeq.NFData)
+
+-- * util
+
+score_to_real :: ScoreTime -> Deriver RealTime
+score_to_real pos = do
+    warp <- gets (state_warp . state_dynamic)
+    return (Score.warp_pos warp pos)
 
 
 -- * scale

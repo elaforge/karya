@@ -58,11 +58,28 @@ import Types
 -- transpose types.  Surely there's a better way?  Maybe put the two kinds into
 -- a typeclass?
 
-data TransposeType = Diatonic | Chromatic | Nn deriving (Eq, Show)
 data TimeType = Real | Score deriving (Eq, Show)
 
-instance Pretty.Pretty TransposeType where pretty = showt
 instance Pretty.Pretty TimeType where pretty = showt
+
+time_type :: TimeType -> Score.Type -> Maybe TimeType
+time_type deflt typ = case typ of
+    Score.Untyped -> Just deflt
+    Score.Real -> Just Real
+    Score.Score -> Just Score
+    _ -> Nothing
+
+data TransposeType = Diatonic | Chromatic | Nn deriving (Eq, Show)
+
+instance Pretty.Pretty TransposeType where pretty = showt
+
+transpose_type :: TransposeType -> Score.Type -> Maybe TransposeType
+transpose_type deflt typ = case typ of
+    Score.Untyped -> Just deflt
+    Score.Diatonic -> Just Diatonic
+    Score.Chromatic -> Just Chromatic
+    Score.Nn -> Just Nn
+    _ -> Nothing
 
 transpose_control :: TransposeType -> Score.Control
 transpose_control Diatonic = Controls.diatonic
@@ -84,6 +101,7 @@ typed_control_at control pos = case control of
         Derive.require ("not found and no default: " <> TrackLang.show_val cont)
             =<< Derive.control_at cont pos
 
+-- TODO callers should use Typecheck.DefaultRealTimeFunction
 time_control_at :: TimeType -> TrackLang.ControlRef -> RealTime
     -> Derive.Deriver TrackLang.Duration
 time_control_at default_type control pos = do

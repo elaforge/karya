@@ -3,8 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - I should be able to pass a ControlFunction as a ControlRef.  Can I coerce
-    one to the other?
+  - New typechecking.
+    . I should be able to pass a ControlFunction as a ControlRef.  Can I coerce
+      one to the other?
     . Does the whole control situation need some refactoring?  Basically,
       calls just care about a scalar value, or a signal.  The most general
       representation is Call.TypedFunction.  I think all a call is going to do
@@ -37,6 +38,13 @@ UNSORTED
     . Typecheck requires a to_val, and I can't do that for TypedFunction.
       But I don't need to_val for typechecking, so maybe I can put that in
       a separate typeclass.
+
+    - Change Derive.Sig to use Typecheck.
+    - Add a ValType.Type with just a Text description, for the new Eval
+      Typecheck instances.
+    - Remove code from Derive.TrackLang and fix breakage.
+    - Change callers of Call.to_transpose_function, to_time_function etc.
+      to use Typecheck instances.
   - Perhaps I should get rid of TrackLang entirely.  Typecheck goes into
     a separate Typecheck module.  Environ goes into an Environ module,
     which means Derive.Environ becomes Environs or something, to avoid the
