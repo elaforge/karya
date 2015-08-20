@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- instances for RealTime
+{-# LANGUAGE GeneralizedNewtypeDeriving, DeriveDataTypeable #-}
 {- | RealTime represents seconds, as opposed to ScoreTime, which are abstract
     units.  Everything eventually is transformed into RealTime to be
     performed.
@@ -50,11 +50,13 @@ module Perform.RealTime (
     -- * misc
     , eta, (==), (>), (<=)
 ) where
-import Prelude hiding ((==), (>), (<=), div)
 import qualified Prelude
+import Prelude hiding ((==), (>), (<=), div)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Digest.CRC32 as CRC32
 import qualified Data.Text as Text
+import qualified Data.Typeable as Typeable
+
 import qualified Foreign
 import qualified Text.Read as Read
 
@@ -78,6 +80,7 @@ import Global
 newtype RealTime = RealTime Double deriving
     ( DeepSeq.NFData, Num, Fractional, Real, RealFrac, Eq, Ord
     , Serialize.Serialize, CRC32.CRC32, ApproxEq.ApproxEq
+    , Typeable.Typeable
     )
 
 -- I could derive Storable, but technically speaking Double is not necessarily
