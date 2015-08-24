@@ -5,11 +5,12 @@
 -- | Utilities dealing with speeds.
 module Derive.Call.Speed where
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -17,7 +18,7 @@ import Global
 import Types
 
 
-arg :: Sig.Parser TrackLang.ControlRef
+arg :: Sig.Parser BaseTypes.ControlRef
 arg = Sig.defaulted "speed" (Sig.typed_control "speed" 10 Score.Real)
     "Repeat at this speed.  If it's a RealTime, the value is the number of\
     \ repeats per second, which will be unaffected by the tempo. If it's\
@@ -25,17 +26,17 @@ arg = Sig.defaulted "speed" (Sig.typed_control "speed" 10 Score.Real)
     \ unit, and will stretch along with tempo changes."
 
 -- | Get start times until the end of the range, at the given speed.
-starts :: (Derive.Time t) => TrackLang.ControlRef -> (t, t)
+starts :: (Derive.Time t) => BaseTypes.ControlRef -> (t, t)
     -> Bool -- ^ If True, include a sample at the end time.
     -> Derive.Deriver [RealTime]
 starts speed (start, end) include_end = do
-    (speed_sig, time_type) <- Call.to_time_function Call.Real speed
+    (speed_sig, time_type) <- Call.to_time_function Typecheck.Real speed
     let take_until end = if include_end then id else takeWhile (<end)
     case time_type of
-        Call.Real -> do
+        Typecheck.Real -> do
             (start, end) <- (,)  <$> Derive.real start <*> Derive.real end
             take_until end <$> real_starts speed_sig start end
-        Call.Score -> do
+        Typecheck.Score -> do
             (start, end) <- (,)  <$> Derive.score start <*> Derive.score end
             starts <- score_starts speed_sig start end
             mapM Derive.real $ take_until end starts

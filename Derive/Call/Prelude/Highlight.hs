@@ -18,7 +18,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -39,9 +39,9 @@ c_highlight = Derive.transformer Module.prelude "highlight" mempty
     $ \highlight _ deriver -> Post.emap1_ (add_highlight highlight) <$> deriver
 
 instance ShowVal.ShowVal Color.Highlight where
-    show_val = TrackLang.default_show_val
-instance TrackLang.Typecheck Color.Highlight
-instance TrackLang.TypecheckSymbol Color.Highlight
+    show_val = Typecheck.enum_show_val
+instance Typecheck.Typecheck Color.Highlight
+instance Typecheck.TypecheckSymbol Color.Highlight
 
 
 -- * open strings

@@ -15,6 +15,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Env as Env
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -111,7 +112,7 @@ run_val transform call = extract $ DeriveTest.derive_tracks_setup
             <> "capture (" <> call <> ")")])]
     where
     extract = first (Monad.join . Seq.head) . DeriveTest.extract
-        (TrackLang.lookup_val "capture" . Score.event_environ)
+        (Env.lookup "capture" . Score.event_environ)
     c_capture :: Derive.Generator Derive.Note
     c_capture = Derive.generator module_ "capture" mempty "Capture env." $
         Sig.call (Sig.required "val" "Val.") $ \val _args ->

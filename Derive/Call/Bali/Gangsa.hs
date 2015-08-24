@@ -45,6 +45,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
@@ -55,6 +56,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -361,7 +363,7 @@ c_kotekan_kernel =
     $ Sig.call ((,,,,,,,,)
     <$> Sig.defaulted "rotation" 0 "Rotate kernel to make a different pattern."
     <*> Sig.defaulted "style" Telu "Kotekan style."
-    <*> Sig.defaulted "sangsih" TrackLang.Up
+    <*> Sig.defaulted "sangsih" Call.Up
         "Whether sangsih is above or below polos."
     <*> Sig.environ "invert" Sig.Prefixed False "Flip the pattern upside down."
     <*> Sig.required_environ "kernel" Sig.Prefixed kernel_doc
@@ -401,10 +403,10 @@ c_kotekan_regular maybe_kernel =
             under_threshold Repeat cycle
     where
     infer_sangsih kernel = case Seq.last kernel of
-        Nothing -> TrackLang.Up
-        Just Rest -> TrackLang.Up
-        Just Low -> TrackLang.Up
-        Just High -> TrackLang.Down
+        Nothing -> Call.Up
+        Just Rest -> Call.Up
+        Just Low -> Call.Up
+        Just High -> Call.Down
 
 kernel_doc :: Text
 kernel_doc = "Polos part in transposition steps.\
@@ -413,7 +415,7 @@ kernel_doc = "Polos part in transposition steps.\
     \ avoid needing quotes. Starting with `k` will also require the length to\
     \ be a multiple of 4."
 
-realize_kernel :: Bool -> TrackLang.UpDown -> KotekanStyle
+realize_kernel :: Bool -> Call.UpDown -> KotekanStyle
     -> Pasang -> Kernel -> Cycle
 realize_kernel inverted sangsih_above style pasang kernel =
     end_on_zero $ kernel_to_pattern
@@ -498,7 +500,7 @@ end_on_zero (interlocking, non_interlocking) =
         final : _ <- Seq.last non_interlocking
         return $ note_steps final
 
-kernel_to_pattern :: Kernel -> TrackLang.UpDown -> KotekanStyle -> Pasang
+kernel_to_pattern :: Kernel -> Call.UpDown -> KotekanStyle -> Pasang
     -> Cycle
 kernel_to_pattern kernel sangsih_above kotekan_style pasang =
     (interlocking, non_interlocking)
@@ -506,36 +508,36 @@ kernel_to_pattern kernel sangsih_above kotekan_style pasang =
     interlocking = map interlock kernel
     non_interlocking = map non_interlock kernel
     interlock atom = case (sangsih_above, kotekan_style) of
-        (TrackLang.Up, Telu) -> case atom of
+        (Call.Up, Telu) -> case atom of
             Rest -> [sangsih 2]
             Low -> [polos 0]
             High -> [polos 1, sangsih 1]
-        (TrackLang.Up, Pat) -> case atom of
+        (Call.Up, Pat) -> case atom of
             Rest -> [sangsih 2]
             Low -> [polos 0, sangsih 3]
             High -> [polos 1]
-        (TrackLang.Down, Telu) -> case atom of
+        (Call.Down, Telu) -> case atom of
             Rest -> [sangsih (-1)]
             Low -> [polos 0, sangsih 0]
             High -> [polos 1]
-        (TrackLang.Down, Pat) -> case atom of
+        (Call.Down, Pat) -> case atom of
             Rest -> [sangsih (-1)]
             Low -> [polos 0]
             High -> [polos 1, sangsih (-2)]
     non_interlock atom = case (sangsih_above, kotekan_style) of
-        (TrackLang.Up, Telu) -> case atom of
+        (Call.Up, Telu) -> case atom of
             Rest -> [both 2]
             Low -> [both 0]
             High -> [both 1]
-        (TrackLang.Up, Pat) -> case atom of
+        (Call.Up, Pat) -> case atom of
             Rest -> [polos 2, sangsih 2]
             Low -> [polos 0, sangsih 3]
             High -> [polos 1, sangsih 1]
-        (TrackLang.Down, Telu) -> case atom of
+        (Call.Down, Telu) -> case atom of
             Rest -> [both (-1)]
             Low -> [both 0]
             High -> [both 1]
-        (TrackLang.Down, Pat) -> case atom of
+        (Call.Down, Pat) -> case atom of
             Rest -> [polos (-1), sangsih (-1)]
             Low -> [polos 0, sangsih 0]
             High -> [polos 1, sangsih (-2)]
@@ -682,15 +684,15 @@ data NorotStyle =
     | Diamond
     deriving (Bounded, Eq, Enum, Show)
 
-instance ShowVal.ShowVal NorotStyle where show_val = TrackLang.default_show_val
-instance TrackLang.Typecheck NorotStyle
-instance TrackLang.TypecheckSymbol NorotStyle
+instance ShowVal.ShowVal NorotStyle where show_val = Typecheck.enum_show_val
+instance Typecheck.Typecheck NorotStyle
+instance Typecheck.TypecheckSymbol NorotStyle
 
 data KotekanStyle = Telu | Pat deriving (Bounded, Eq, Enum, Show)
 instance ShowVal.ShowVal KotekanStyle where
-    show_val = TrackLang.default_show_val
-instance TrackLang.Typecheck KotekanStyle
-instance TrackLang.TypecheckSymbol KotekanStyle
+    show_val = Typecheck.enum_show_val
+instance Typecheck.Typecheck KotekanStyle
+instance Typecheck.TypecheckSymbol KotekanStyle
 
 -- * postproc
 
@@ -865,7 +867,7 @@ pasang_key e = (inst, get Environ.hand)
     inst = case (get inst_polos, get inst_sangsih) of
         (Just p, Just s) -> Right (p, s)
         _ -> Left (Score.event_instrument e)
-    get k = TrackLang.maybe_val k (Score.event_environ e)
+    get k = Env.maybe_val k (Score.event_environ e)
 
 -- * util
 
@@ -939,16 +941,16 @@ pasang_env = (,)
     <*> Sig.required_environ (TrackLang.unsym inst_sangsih) Sig.Unprefixed
         "Sangsih instrument."
 
-inst_polos :: TrackLang.ValName
+inst_polos :: Env.Key
 inst_polos = "inst-polos"
 
-inst_sangsih :: TrackLang.ValName
+inst_sangsih :: Env.Key
 inst_sangsih = "inst-sangsih"
 
 data Role = Polos | Sangsih deriving (Bounded, Eq, Enum, Show)
-instance ShowVal.ShowVal Role where show_val = TrackLang.default_show_val
-instance TrackLang.Typecheck Role
-instance TrackLang.TypecheckSymbol Role
+instance ShowVal.ShowVal Role where show_val = Typecheck.enum_show_val
+instance Typecheck.Typecheck Role
+instance Typecheck.TypecheckSymbol Role
 
 role_env :: Sig.Parser Role
 role_env = Sig.required_environ (TrackLang.unsym Environ.role) Sig.Unprefixed

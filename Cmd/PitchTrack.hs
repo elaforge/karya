@@ -24,10 +24,10 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Env as Env
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified App.Config as Config
@@ -173,12 +173,12 @@ modify_expr :: (Text -> Either Text Text) -> Text -> Either Text Text
 modify_expr f text = case Parse.parse_expr text of
     Left _ -> Right text
     Right expr -> case expr of
-        TrackLang.Call sym (TrackLang.ValCall _ : _) :| []
+        BaseTypes.Call sym (BaseTypes.ValCall _ : _) :| []
             | sym /= BaseTypes.c_equal ->
                 let (pre, within) = Text.break (=='(') text
                     (note, post) = break1 (==')') within
                 in (\n -> pre <> n <> post) <$> f note
-        TrackLang.Call sym _ :| []
+        BaseTypes.Call sym _ :| []
             | sym /= BaseTypes.c_equal ->
                 let (pre, post) = Text.break (==' ') text
                 in (<>post) <$> f pre
@@ -195,7 +195,7 @@ modify_expr f text = case Parse.parse_expr text of
 -- | Function that modifies the pitch of an event on a pitch track, or a Left
 -- if the operation failed.
 type ModifyPitch =
-    Scale.Scale -> TrackLang.Environ -> Pitch.Note -> Either Text Pitch.Note
+    Scale.Scale -> Env.Environ -> Pitch.Note -> Either Text Pitch.Note
 
 transpose_selection :: Cmd.M m => Scale.Transposition -> Pitch.Octave
     -> Pitch.Step -> m ()

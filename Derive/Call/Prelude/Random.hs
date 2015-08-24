@@ -18,6 +18,7 @@ import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import Global
 
@@ -81,9 +82,9 @@ c_alternate_weighted =
             Nothing -> Derive.throw "empty list"
             Just pairs -> pick_weighted pairs =<< Call.random
     where
-    typecheck args (weight, expr) = Derive.require_right id $ do
-        weight <- Sig.typecheck weight
-        quoted <- Call.val_to_quoted expr
+    typecheck args (weight, expr) = do
+        weight <- Typecheck.typecheck "" (Args.start args) weight
+        quoted <- Derive.require_right id $ Call.val_to_quoted expr
         return (Eval.eval_quoted (Args.context args) quoted, weight)
 
 c_alternate_tracks :: Derive.Generator Derive.Note
@@ -139,14 +140,15 @@ c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
     Tags.random "Pick one of the arguments randomly."
     $ Sig.call (Sig.many1
         "weight,val" "An even number of args in (Num, Val) pairs.") $
-    \pairs _ -> do
-        pairs <- mapM typecheck =<< Sig.paired_args (NonEmpty.toList pairs)
+    \pairs args -> do
+        pairs <- mapM (typecheck args)
+            =<< Sig.paired_args (NonEmpty.toList pairs)
         case NonEmpty.nonEmpty pairs of
             Nothing -> Derive.throw "not reached"
             Just pairs -> pick_weighted pairs <$> Call.random
     where
-    typecheck (weight, val) = Derive.require_right id $ do
-        weight <- Sig.typecheck weight
+    typecheck args (weight, val) = do
+        weight <- Typecheck.typecheck "" (Args.start args) weight
         return (val, weight)
 
 c_range :: Derive.ValCall

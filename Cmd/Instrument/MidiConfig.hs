@@ -7,9 +7,9 @@ module Cmd.Instrument.MidiConfig where
 import qualified Data.Map as Map
 
 import qualified Ui.State as State
+import qualified Derive.Env as Env
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import Global
@@ -40,7 +40,7 @@ config configs = Config
 configs :: [(Text, Instrument.Config)] -> Instrument.Configs
 configs = Map.fromList . map (first Score.Instrument)
 
-environ :: RestrictedEnviron.ToVal a => TrackLang.ValName -> a
+environ :: RestrictedEnviron.ToVal a => Env.Key -> a
     -> Instrument.Config -> Instrument.Config
 environ name val =
     Instrument.cenviron %= (RestrictedEnviron.make [(name, v)] <>)

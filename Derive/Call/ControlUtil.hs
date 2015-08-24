@@ -12,6 +12,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -19,7 +20,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -39,8 +40,8 @@ type Curve = Double -> Double
 -- | Left for an explicit time arg.  Right is for an implicit time, inferred
 -- from the args, along with an extra bit of documentation to describe it.
 type InterpolatorTime a =
-    Either (Sig.Parser TrackLang.Duration) (GetTime a, Text)
-type GetTime a = Derive.PassedArgs a -> Derive.Deriver TrackLang.Duration
+    Either (Sig.Parser BaseTypes.Duration) (GetTime a, Text)
+type GetTime a = Derive.PassedArgs a -> Derive.Deriver BaseTypes.Duration
 
 interpolator_call :: Text
     -> (Sig.Parser arg, arg -> Curve)
@@ -50,14 +51,14 @@ interpolator_call name (get_arg, curve) interpolator_time =
     Derive.generator1 Module.prelude name Tags.prev doc
     $ Sig.call ((,,,)
     <$> Sig.required "to" "Destination value."
-    <*> either id (const $ pure $ TrackLang.Real 0) interpolator_time
+    <*> either id (const $ pure $ BaseTypes.RealDuration 0) interpolator_time
     <*> get_arg <*> from_env
     ) $ \(to, time, curve_arg, from) args -> do
         time <- if Args.duration args == 0
             then case interpolator_time of
                 Left _ -> return time
                 Right (get_time, _) -> get_time args
-            else TrackLang.Real <$> Args.real_duration args
+            else BaseTypes.RealDuration <$> Args.real_duration args
         (start, end) <- Call.duration_from_start args time
         make_segment_from (curve curve_arg)
             (min start end) (prev_val from args) (max start end) to
@@ -87,7 +88,7 @@ curve_time_env = (,) <$> curve_env <*> time
 -- be used by PitchUtil as well.
 interpolator_variations_ :: Derive.Taggable a =>
     (Text -> get_arg -> InterpolatorTime a -> call)
-    -> Text -> Text -> get_arg -> [(TrackLang.CallId, call)]
+    -> Text -> Text -> get_arg -> [(BaseTypes.CallId, call)]
 interpolator_variations_ make c name get_arg =
     [ (sym c, make name get_arg prev)
     , (sym $ c <> "<<", make (name <> "-prev-const") get_arg
@@ -97,44 +98,45 @@ interpolator_variations_ make c name get_arg =
         (Left next_time_arg))
     ]
     where
-    sym = TrackLang.Symbol
-    next_time_arg = TrackLang.default_real <$>
+    sym = BaseTypes.Symbol
+    next_time_arg = Typecheck.default_real <$>
         Sig.defaulted "time" default_interpolation_time
             "Time to reach destination."
-    prev_time_arg = invert . TrackLang.default_real <$>
+    prev_time_arg = invert . Typecheck.default_real <$>
         Sig.defaulted "time" default_interpolation_time
             "Time to reach destination, starting before the event."
-    invert (TrackLang.Real t) = TrackLang.Real (-t)
-    invert (TrackLang.Score t) = TrackLang.Score (-t)
+    invert (BaseTypes.RealDuration t) = BaseTypes.RealDuration (-t)
+    invert (BaseTypes.ScoreDuration t) = BaseTypes.ScoreDuration (-t)
 
     next = Right (next, "If the event's duration is 0, interpolate from this\
             \ event to the next.")
         where
-        next args = return $ TrackLang.Score $ Args.next args - Args.start args
+        next args = return $ BaseTypes.ScoreDuration $
+            Args.next args - Args.start args
     prev = Right (get_prev_val,
         "If the event's duration is 0, interpolate from the\
         \ previous event to this one.")
 
-default_interpolation_time :: TrackLang.DefaultReal
-default_interpolation_time = TrackLang.real 0.1
+default_interpolation_time :: Typecheck.DefaultReal
+default_interpolation_time = Typecheck.real 0.1
 
 get_prev_val :: Derive.Taggable a => Derive.PassedArgs a
-    -> Derive.Deriver TrackLang.Duration
+    -> Derive.Deriver BaseTypes.Duration
 get_prev_val args = do
     start <- Args.real_start args
-    return $ TrackLang.Real $ case Args.prev_val_end args of
+    return $ BaseTypes.RealDuration $ case Args.prev_val_end args of
         -- It's likely the callee won't use the duration if there's no
         -- prev val.
         Nothing -> 0
         Just prev -> prev - start
 
 interpolator_variations :: Text -> Text -> (Sig.Parser arg, arg -> Curve)
-    -> [(TrackLang.CallId, Derive.Generator Derive.Control)]
+    -> [(BaseTypes.CallId, Derive.Generator Derive.Control)]
 interpolator_variations = interpolator_variations_ interpolator_call
 
 standard_interpolators ::
     (forall arg. Text -> Text -> (Sig.Parser arg, arg -> Curve)
-        -> [(TrackLang.CallId, Derive.Generator result)])
+        -> [(BaseTypes.CallId, Derive.Generator result)])
     -> Derive.CallMaps result
 standard_interpolators make = Derive.generator_call_map $ concat
     [ make "i" "linear" (pure (), const id)
@@ -157,26 +159,26 @@ sigmoid_curve = (args, curve)
 -- * control functions
 
 -- | Stuff a curve function into a ControlFunction.
-cf_interpolater :: Text -> Curve -> TrackLang.ControlFunction
-cf_interpolater name curve = TrackLang.ControlFunction name $
+cf_interpolater :: Text -> Curve -> BaseTypes.ControlFunction
+cf_interpolater name curve = BaseTypes.ControlFunction name $
     \_ _ -> Score.untyped . curve . RealTime.to_seconds
 
 -- | Convert a ControlFunction back into a curve function.
-cf_to_curve :: TrackLang.ControlFunction -> Curve
+cf_to_curve :: BaseTypes.ControlFunction -> Curve
 cf_to_curve cf =
     Score.typed_val
-    . TrackLang.call_control_function cf Controls.null TrackLang.empty_dynamic
+    . BaseTypes.call_control_function cf Controls.null BaseTypes.empty_dynamic
     . RealTime.seconds
 
-cf_linear :: TrackLang.ControlFunction
+cf_linear :: BaseTypes.ControlFunction
 cf_linear = cf_interpolater "cf-linear" id
 
 -- * interpolate
 
 -- | Given a placement, start, and duration, return the range thus implied.
-place_range :: TrackLang.Normalized -> ScoreTime -> TrackLang.Duration
+place_range :: Typecheck.Normalized -> ScoreTime -> BaseTypes.Duration
     -> Derive.Deriver (RealTime, RealTime)
-place_range (TrackLang.Normalized place) start dur = do
+place_range (Typecheck.Normalized place) start dur = do
     start <- Derive.real start
     dur <- Call.real_duration start dur
     -- 0 is before, 1 is after.

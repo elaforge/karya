@@ -6,15 +6,17 @@
 -- | This is like "Derive.Call", but higher level.  It has templates for
 -- creating calls.
 module Derive.Call.Make where
+import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
-import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import Global
 
@@ -23,9 +25,9 @@ import Global
 -- together.  The rationale is described in 'Derive.CallMaps'.
 type Calls d = (Derive.Generator d, Derive.Transformer d)
 
-call_maps :: [(TrackLang.CallId, Calls d)]
-    -> [(TrackLang.CallId, Derive.Generator d)]
-    -> [(TrackLang.CallId, Derive.Transformer d)] -> Derive.CallMaps d
+call_maps :: [(BaseTypes.CallId, Calls d)]
+    -> [(BaseTypes.CallId, Derive.Generator d)]
+    -> [(BaseTypes.CallId, Derive.Transformer d)] -> Derive.CallMaps d
 call_maps calls generators transformers =
     Derive.call_maps (gs ++ generators) (ts ++ transformers)
     where
@@ -37,8 +39,9 @@ attributed_note module_ attrs = transform_notes module_
     ("note with " <> ShowVal.show_val attrs) Tags.attr
     "Add attributes to the notes." Sig.no_args (\() -> Call.add_attrs attrs)
 
-environ_note :: (TrackLang.Typecheck a) => Module.Module -> Text -> Tags.Tags
-    -> Text -> TrackLang.ValName -> a -> Calls Derive.Note
+environ_note :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>
+    Module.Module -> Text -> Tags.Tags -> Text -> Env.Key -> a
+    -> Calls Derive.Note
 environ_note module_ name tags doc key val =
     transform_notes module_ name tags doc Sig.no_args $
         \() -> Derive.with_val key val
@@ -78,19 +81,20 @@ transform_notes_subevents module_ name tags sig transform =
 
 -- | Create a transformer that just sets an environ value.  This is higher
 -- level and more concise than using the @=@ transformer.
-with_environ :: (TrackLang.Typecheck val, Derive.Taggable d) =>
+with_environ ::
+    (Typecheck.Typecheck val, Typecheck.ToVal val, Derive.Taggable d) =>
     Module.Module -> Text -> Sig.Parser a -> (a -> val) -> Derive.Transformer d
 with_environ module_ name sig extract = Derive.transformer module_ name mempty
         ("Set `" <> name <> "` environ variable.")
     $ Sig.callt sig $ \val _args ->
-        Derive.with_val (TrackLang.Symbol name) (extract val)
+        Derive.with_val (BaseTypes.Symbol name) (extract val)
 
 
 -- * val calls
 
 -- | Make a new ValCall from an existing one, by mapping over its output.
 modify_vcall :: Derive.ValCall -> Module.Module -> Text -> Text
-    -> (TrackLang.Val -> TrackLang.Val) -> Derive.ValCall
+    -> (BaseTypes.Val -> BaseTypes.Val) -> Derive.ValCall
 modify_vcall vcall module_ name doc f = vcall
     { Derive.vcall_name = name
     , Derive.vcall_doc = Derive.CallDoc

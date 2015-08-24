@@ -4,7 +4,7 @@
 
 module Derive.ValType_test where
 import Util.Test
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 import Derive.ValType (Type(..), NumType(..), NumValue(..))
 
@@ -31,5 +31,5 @@ test_types_match = do
     equal (f (TNum TTranspose TAny) (Pitch.nn 1)) True
     equal (f (TNum TTranspose TAny) (Pitch.Nn 1)) True
 
-to_type :: TrackLang.Typecheck a => a -> Type
-to_type = ValType.type_of . TrackLang.to_val
+to_type :: Typecheck.ToVal a => a -> Type
+to_type = ValType.type_of . Typecheck.to_val

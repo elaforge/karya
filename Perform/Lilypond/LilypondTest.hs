@@ -12,14 +12,16 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Lilypond
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Convert as Convert
 import qualified Perform.Lilypond.Lilypond as Lilypond
@@ -123,8 +125,7 @@ simple_event :: SimpleEvent -> Types.Event
 simple_event (start, dur, pitch) =
     mkevent start dur pitch default_inst []
 
-environ_event ::
-    (RealTime, RealTime, String, [(TrackLang.ValName, TrackLang.Val)])
+environ_event :: (RealTime, RealTime, String, [(Env.Key, BaseTypes.Val)])
     -> Types.Event
 environ_event (start, dur, pitch, env) =
     mkevent start dur pitch default_inst env
@@ -132,16 +133,16 @@ environ_event (start, dur, pitch, env) =
 voice_event :: (RealTime, RealTime, String, Maybe Int) -> Types.Event
 voice_event (start, dur, pitch, maybe_voice) =
     mkevent start dur pitch default_inst $
-        maybe [] ((:[]) . (,) Environ.voice . TrackLang.to_val) maybe_voice
+        maybe [] ((:[]) . (,) Environ.voice . Typecheck.to_val) maybe_voice
 
 mkevent :: RealTime -> RealTime -> String -> Score.Instrument
-    -> [(TrackLang.ValName, TrackLang.Val)] -> Types.Event
+    -> [(Env.Key, BaseTypes.Val)] -> Types.Event
 mkevent start dur pitch inst env = Types.Event
     { Types.event_start = Types.real_to_time 1 start
     , Types.event_duration = Types.real_to_time 1 dur
     , Types.event_pitch = txt pitch
     , Types.event_instrument = inst
-    , Types.event_environ = TrackLang.make_environ env
+    , Types.event_environ = Env.from_list env
     , Types.event_stack = UiTest.mkstack (1, 0, 1)
     , Types.event_clipped = False
     }
@@ -260,5 +261,5 @@ make_ly config events = Text.Lazy.unpack $
 e_note :: Types.Event -> (Types.Time, Types.Time, Text)
 e_note e = (Types.event_start e, Types.event_duration e, Types.event_pitch e)
 
-e_ly_env :: Score.Event -> [(TrackLang.ValName, String)]
+e_ly_env :: Score.Event -> [(Env.Key, String)]
 e_ly_env = DeriveTest.e_environ_like ("ly-" `List.isPrefixOf`)

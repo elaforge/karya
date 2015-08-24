@@ -11,6 +11,7 @@ module Derive.Call.Prelude.Pitch (
     , approach
 ) where
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -23,7 +24,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -87,9 +88,9 @@ c_neighbor = generator1 "neighbor" mempty
     $ Sig.call ((,,,)
     <$> required "pitch" "Destination pitch."
     <*> defaulted "neighbor" (Pitch.Chromatic 1) "Neighobr interval."
-    <*> defaulted "time" (TrackLang.real 0.1) "Time to get to destination."
+    <*> defaulted "time" (Typecheck.real 0.1) "Time to get to destination."
     <*> ControlUtil.curve_env
-    ) $ \(pitch, neighbor, TrackLang.DefaultReal time, curve) args -> do
+    ) $ \(pitch, neighbor, Typecheck.DefaultReal time, curve) args -> do
         (start, end) <- Call.duration_from_start args time
         let pitch1 = Pitches.transpose neighbor pitch
         PitchUtil.make_segment curve start pitch1 end pitch
@@ -97,9 +98,9 @@ c_neighbor = generator1 "neighbor" mempty
 c_approach :: Derive.Generator Derive.Pitch
 c_approach = generator1 "approach" Tags.next
     "Slide to the next pitch." $ Sig.call ((,)
-    <$> defaulted "time" (TrackLang.real 0.2) "Time to get to destination."
+    <$> defaulted "time" (Typecheck.real 0.2) "Time to get to destination."
     <*> ControlUtil.curve_env
-    ) $ \(TrackLang.DefaultReal time, curve) args -> do
+    ) $ \(Typecheck.DefaultReal time, curve) args -> do
         (start, end) <- Call.duration_from_start args time
         approach args curve start end
 
@@ -145,14 +146,14 @@ c_porta = generator1 "porta" mempty
     <$> PitchUtil.pitch_arg
     <*> defaulted "time" ControlUtil.default_interpolation_time
         "Time to reach destination."
-    <*> Sig.defaulted_env "place" Sig.Both (TrackLang.Normalized 0.5)
+    <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 0.5)
         "Placement, from before to after the call."
     <*> PitchUtil.from_env <*> ControlUtil.curve_env
-    ) $ \(to, TrackLang.DefaultReal time, place, from, curve) args -> do
+    ) $ \(to, Typecheck.DefaultReal time, place, from, curve) args -> do
         let maybe_from = from <|> (snd <$> Args.prev_pitch args)
         time <- if Args.duration args == 0
             then return time
-            else TrackLang.Real <$> Args.real_duration args
+            else BaseTypes.RealDuration <$> Args.real_duration args
         (start, end) <- ControlUtil.place_range place (Args.start args) time
         PitchUtil.make_segment_from curve start maybe_from end to
 

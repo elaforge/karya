@@ -24,16 +24,17 @@ import qualified Data.Monoid as Monoid
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import qualified Derive.Call as Call
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -141,13 +142,13 @@ zip3_on :: ([a] -> [b]) -> ([a] -> [c]) -> [LEvent.LEvent a]
 zip3_on f g xs =
     LEvent.zip3 (f (LEvent.events_of xs)) (g (LEvent.events_of xs)) xs
 
-control :: (Score.TypedVal -> a) -> TrackLang.ControlRef -> Derive.Events
+control :: (Score.TypedVal -> a) -> BaseTypes.ControlRef -> Derive.Events
     -> Derive.Deriver [a]
 control f c events = do
-    sig <- Call.to_typed_function c
+    sig <- Typecheck.to_typed_function c
     return $ map (f . sig . Score.event_start) (LEvent.events_of events)
 
-time_control :: TrackLang.ControlRef -> Derive.Events
+time_control :: BaseTypes.ControlRef -> Derive.Events
     -> Derive.Deriver [RealTime]
 time_control = control (RealTime.seconds . Score.typed_val)
 
@@ -226,11 +227,11 @@ same_hand event event_of =
     where
     inst_of = Score.event_instrument
     hand_of :: Score.Event -> Maybe Text
-    hand_of = TrackLang.maybe_val Environ.hand . Score.event_environ
+    hand_of = Env.maybe_val Environ.hand . Score.event_environ
 
 hand_key :: Score.Event -> (Score.Instrument, Maybe Text)
 hand_key e = (Score.event_instrument e,
-    TrackLang.maybe_val Environ.hand $ Score.event_environ e)
+    Env.maybe_val Environ.hand $ Score.event_environ e)
 
 -- ** misc maps
 
@@ -299,7 +300,7 @@ derive_signal deriver = do
     TODO this stuff is now unused, but maybe I'll find a use for it again some
     day.
 -}
-make_delayed :: Derive.PassedArgs a -> RealTime -> [TrackLang.Val]
+make_delayed :: Derive.PassedArgs a -> RealTime -> [BaseTypes.Val]
     -> Derive.NoteDeriver
 make_delayed args start event_args = do
     dyn <- Internal.get_dynamic id
@@ -307,31 +308,31 @@ make_delayed args start event_args = do
             Note.make_event args dyn start 0 mempty
     return [LEvent.Event event]
 
-delayed_event :: [TrackLang.Val] -> Score.Event -> Score.Event
+delayed_event :: [BaseTypes.Val] -> Score.Event -> Score.Event
 delayed_event args = Score.modify_environ $
-    TrackLang.insert_val Environ.args (TrackLang.VList args)
+    Env.insert_val Environ.args (BaseTypes.VList args)
 
 -- | Return the args if this is a delayed event created by the given call.
-delayed_args :: TrackLang.CallId -> Score.Event -> Maybe [TrackLang.Val]
-delayed_args (TrackLang.Symbol call) event
+delayed_args :: BaseTypes.CallId -> Score.Event -> Maybe [BaseTypes.Val]
+delayed_args (BaseTypes.Symbol call) event
     | Seq.head (Stack.innermost (Score.event_stack event))
             == Just (Stack.Call call) =
-        TrackLang.maybe_val Environ.args (Score.event_environ event)
+        Env.maybe_val Environ.args (Score.event_environ event)
     | otherwise = Nothing
 
 -- * modify events
 
 -- | Like 'add_environ', but check the type.
-put_environ :: TrackLang.Typecheck a => TrackLang.ValName -> a
+put_environ :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Env.Key -> a
     -> Score.Event -> Either Text Score.Event
 put_environ name val event =
-    case TrackLang.put_val_error name val (Score.event_environ event) of
+    case Env.put_val_error name val (Score.event_environ event) of
         Left err -> Left err
         Right env -> Right $ event { Score.event_environ = env }
 
-add_environ :: TrackLang.Typecheck a => TrackLang.ValName -> a
+add_environ :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Env.Key -> a
     -> Score.Event -> Score.Event
-add_environ name val = Score.modify_environ $ TrackLang.insert_val name val
+add_environ name val = Score.modify_environ $ Env.insert_val name val
 
 -- | Set the instrument on an event, and also update its pitches based on
 -- the instrument's environ.

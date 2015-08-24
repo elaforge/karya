@@ -244,7 +244,7 @@ remove_flags flags event =
 modify_environ :: (BaseTypes.Environ -> BaseTypes.Environ) -> Event -> Event
 modify_environ f event = event { event_environ = f (event_environ event) }
 
-modify_environ_key :: BaseTypes.ValName
+modify_environ_key :: BaseTypes.Key
     -> (Maybe BaseTypes.Val -> BaseTypes.Val) -> Event -> Event
 modify_environ_key name modify = modify_environ $ \(BaseTypes.Environ env) ->
     BaseTypes.Environ $ Map.alter (Just . modify) name env
@@ -263,13 +263,13 @@ intersecting_attributes attrs = not . Set.null
 
 environ_attributes :: BaseTypes.Environ -> Attributes
 environ_attributes environ =
-    case BaseTypes.lookup_val Environ.attributes environ of
+    case BaseTypes.lookup Environ.attributes environ of
         Just (BaseTypes.VAttributes attrs) -> attrs
         _ -> mempty
 
 modify_attributes :: (Attributes -> Attributes) -> Event -> Event
 modify_attributes modify = modify_environ $ \env ->
-    BaseTypes.insert_val Environ.attributes
+    BaseTypes.insert Environ.attributes
         (BaseTypes.VAttributes (modify (environ_attributes env))) env
 
 add_attributes :: Attributes -> Event -> Event

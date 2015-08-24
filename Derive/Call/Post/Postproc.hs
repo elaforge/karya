@@ -17,6 +17,7 @@ import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
@@ -24,7 +25,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -165,8 +165,7 @@ suppress_notes =
         coincident e = Score.event_start e
             <= Score.event_start event + RealTime.eta
     get_suppress :: Score.Event -> Maybe RealTime
-    get_suppress =
-        TrackLang.maybe_val Environ.suppress_until . Score.event_environ
+    get_suppress = Env.maybe_val Environ.suppress_until . Score.event_environ
     key_of (k, _, _) = k
     suppress_of (_, s, _) = s
     event_of (_, _, e) = e
@@ -312,5 +311,5 @@ adjust_duration next new_next event =
     where end = Score.event_end event
 
 offset_of :: Score.Event -> RealTime
-offset_of = fromMaybe 0 . TrackLang.maybe_val Environ.start_offset_val
+offset_of = fromMaybe 0 . Env.maybe_val Environ.start_offset_val
     . Score.event_environ

@@ -24,11 +24,11 @@ import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Save as Save
 
+import qualified Derive.Env as Env
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
@@ -162,7 +162,7 @@ toggle_solo inst = modify_config inst $ \config ->
 
 -- | Add an environ val to the instrument config.
 add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Instrument
-    -> TrackLang.ValName -> a -> m ()
+    -> Env.Key -> a -> m ()
 add_environ inst name val = modify_config_ inst $
     Instrument.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
     where v = RestrictedEnviron.to_val val

@@ -33,6 +33,7 @@ import qualified Cmd.Cmd as Cmd
 import Cmd.Cmd (SynthDesc)
 import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
@@ -178,8 +179,8 @@ pressure = Instrument.set_decay 0 . Instrument.set_flag Instrument.Pressure
 -- ** environ
 
 -- | The instrument will also set the given environ when it comes into scope.
-environ :: RestrictedEnviron.ToVal a => TrackLang.ValName -> a
-    -> Instrument.Patch -> Instrument.Patch
+environ :: RestrictedEnviron.ToVal a => Env.Key -> a -> Instrument.Patch
+    -> Instrument.Patch
 environ name val = Instrument.environ
     %= (RestrictedEnviron.make [(name, RestrictedEnviron.to_val val)] <>)
 

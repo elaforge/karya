@@ -22,13 +22,13 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -307,8 +307,8 @@ test_prev_val = do
             ])
         ([0, 0.25, 0.5, 0.75], [])
 
-env_lookup :: TrackLang.ValName -> TrackLang.Environ -> String
-env_lookup key = prettys . TrackLang.lookup_val key
+env_lookup :: Env.Key -> Env.Environ -> String
+env_lookup key = prettys . Env.lookup key
 
 e_track_dynamic :: (Derive.Dynamic -> a) -> Derive.Result
     -> [((BlockId, TrackNum), a)]
@@ -321,7 +321,7 @@ test_track_dynamic_invert = do
     let run = e_track_dynamic (e_env . Derive.state_environ)
             . DeriveTest.derive_tracks ""
         e_env e = (lookup Environ.instrument e, lookup Environ.scale e)
-        lookup val = prettys . TrackLang.lookup_val val
+        lookup val = prettys . Env.lookup val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">i", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])
         [ ((UiTest.default_block_id, 1), (">i", "legong"))

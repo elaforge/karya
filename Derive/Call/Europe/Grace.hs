@@ -14,6 +14,7 @@ import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
@@ -27,6 +28,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
@@ -55,21 +57,21 @@ pitch_calls = Derive.generator_call_map
 
 
 -- | It's pretty much arbitrary, but this seems ok.
-default_grace_dur :: TrackLang.DefaultReal
-default_grace_dur = TrackLang.real (1/12)
+default_grace_dur :: Typecheck.DefaultReal
+default_grace_dur = Typecheck.real (1/12)
 
 -- * standard args
 
-grace_envs :: Sig.Parser (TrackLang.Duration, Double, TrackLang.ControlRef)
+grace_envs :: Sig.Parser (BaseTypes.Duration, Double, TrackLang.ControlRef)
 grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_placement_env
 
-grace_dur_env :: Sig.Parser TrackLang.Duration
-grace_dur_env = TrackLang.default_real <$>
+grace_dur_env :: Sig.Parser BaseTypes.Duration
+grace_dur_env = Typecheck.default_real <$>
     Sig.environ "grace-dur" Sig.Unprefixed default_grace_dur
         "Duration of grace notes."
 
 grace_dyn_env :: Sig.Parser Double
-grace_dyn_env = TrackLang.positive <$> Sig.environ "grace-dyn" Sig.Unprefixed
+grace_dyn_env = Typecheck.positive <$> Sig.environ "grace-dyn" Sig.Unprefixed
     0.5 "Scale the dyn of the grace notes."
 
 grace_placement_env :: Sig.Parser TrackLang.ControlRef
@@ -89,10 +91,10 @@ c_mordent default_neighbor = Derive.generator Module.europe "mordent"
     Tags.ornament
     "Like `g`, but hardcoded to play pitch, neighbor, pitch."
     $ Sig.call ((,)
-    <$> Sig.defaulted "neighbor" (TrackLang.DefaultDiatonic default_neighbor)
+    <$> Sig.defaulted "neighbor" (Typecheck.DefaultDiatonic default_neighbor)
         "Neighbor pitch."
     <*> grace_envs
-    ) $ \(TrackLang.DefaultDiatonic neighbor, (grace_dur, dyn, place)) ->
+    ) $ \(Typecheck.DefaultDiatonic neighbor, (grace_dur, dyn, place)) ->
     Sub.inverting $ \args ->
         Lily.when_lilypond (lily_mordent args neighbor) $ do
             pitch <- Call.get_pitch =<< Args.real_start args
@@ -157,7 +159,7 @@ lily_grace args start pitches = do
     Lily.prepend_code code $ Call.place args Call.note
 
 grace_call :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
-    -> TrackLang.Duration -> TrackLang.ControlRef -> Derive.NoteDeriver
+    -> BaseTypes.Duration -> TrackLang.ControlRef -> Derive.NoteDeriver
 grace_call args dyn_scale pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
     events <- basic_grace args pitches (Call.with_dynamic dyn) grace_dur place
@@ -168,7 +170,7 @@ grace_call args dyn_scale pitches grace_dur place = do
 
 basic_grace :: Derive.PassedArgs a -> [PSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> TrackLang.Duration -> TrackLang.ControlRef -> Derive.Deriver [Sub.Event]
+    -> BaseTypes.Duration -> TrackLang.ControlRef -> Derive.Deriver [Sub.Event]
 basic_grace args pitches transform =
     make_grace_notes (Args.prev_start args) (Args.extent args) notes
     where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
@@ -180,17 +182,17 @@ c_roll = Derive.generator Module.europe "roll" Tags.ornament
     <$> Sig.defaulted "times" 1 "Number of grace notes."
     <*> Sig.defaulted "time" default_grace_dur "Time between the strokes."
     <*> Sig.defaulted "dyn" 0.5 "Dyn scale for the grace notes."
-    ) $ \(times, TrackLang.DefaultReal time, dyn_scale) ->
+    ) $ \(times, Typecheck.DefaultReal time, dyn_scale) ->
     Sub.inverting $ roll times time dyn_scale
 
-roll :: Int -> TrackLang.Duration -> Signal.Y -> Derive.PassedArgs a
+roll :: Int -> BaseTypes.Duration -> Signal.Y -> Derive.PassedArgs a
     -> Derive.NoteDeriver
 roll times time dyn_scale args = do
     start <- Args.real_start args
     pitch <- Call.get_pitch start
     repeat_notes (Call.with_pitch pitch Call.note) times time dyn_scale args
 
-repeat_notes :: Derive.NoteDeriver -> Int -> TrackLang.Duration -> Signal.Y
+repeat_notes :: Derive.NoteDeriver -> Int -> BaseTypes.Duration -> Signal.Y
     -> Derive.PassedArgs a -> Derive.NoteDeriver
 repeat_notes note times time dyn_scale args = do
     start <- Args.real_start args
@@ -200,18 +202,18 @@ repeat_notes note times time dyn_scale args = do
         (Args.extent args) notes time (TrackLang.constant_control 0)
 
 make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime)
-    -> [Derive.NoteDeriver] -> TrackLang.Duration -> TrackLang.ControlRef
+    -> [Derive.NoteDeriver] -> BaseTypes.Duration -> TrackLang.ControlRef
     -> Derive.Deriver [Sub.Event]
 make_grace_notes prev (start, dur) notes grace_dur place = do
     real_start <- Derive.real start
     place <- Num.clamp 0 1 <$> Call.control_at place real_start
     case grace_dur of
-        TrackLang.Score grace_dur -> do
+        BaseTypes.ScoreDuration grace_dur -> do
             let extents = fit_grace_durs (ScoreTime.double place)
                     prev start (start + dur) (length notes) grace_dur
             return [Sub.Event start dur note
                 | ((start, dur), note) <- zip extents notes]
-        TrackLang.Real grace_dur -> do
+        BaseTypes.RealDuration grace_dur -> do
             real_end <- Derive.real (start + dur)
             real_prev <- maybe (return Nothing) ((Just <$>) . Derive.real) prev
             let extents = fit_grace_durs (RealTime.seconds place)
@@ -273,10 +275,10 @@ c_mordent_p default_neighbor = Derive.generator1 Module.europe "mordent"
     Tags.ornament "Like `g`, but hardcoded to play pitch, neighbor, pitch."
     $ Sig.call ((,,)
     <$> Sig.required "pitch" "Base pitch."
-    <*> Sig.defaulted "neighbor" (TrackLang.DefaultDiatonic default_neighbor)
+    <*> Sig.defaulted "neighbor" (Typecheck.DefaultDiatonic default_neighbor)
         "Neighbor pitch."
     <*> grace_dur_env
-    ) $ \(pitch, TrackLang.DefaultDiatonic neighbor, grace_dur) args ->
+    ) $ \(pitch, Typecheck.DefaultDiatonic neighbor, grace_dur) args ->
         grace_p grace_dur [pitch, Pitches.transpose neighbor pitch, pitch]
             (Args.range_or_next args)
 
@@ -293,7 +295,7 @@ c_grace_p = Derive.generator1 Module.europe "grace" Tags.ornament
         ps <- (++[pitch]) <$> resolve_pitches pitch pitches
         grace_p grace_dur ps (Args.range_or_next args)
 
-grace_p :: TrackLang.Duration -> [PSignal.Pitch]
+grace_p :: BaseTypes.Duration -> [PSignal.Pitch]
     -> (ScoreTime, ScoreTime) -> Derive.Deriver PSignal.Signal
 grace_p grace_dur pitches (start, end) = do
     real_dur <- Call.real_duration start grace_dur

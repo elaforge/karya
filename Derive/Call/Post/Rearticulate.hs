@@ -16,7 +16,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import Global
@@ -116,9 +116,9 @@ c_slur_dur = Derive.transformer Module.prelude "slur-dur" Tags.postproc
     "Merge groups of notes into one note, where the pitch is taken from each\
     \ merged note. The groups are by duration."
     $ Sig.callt ((,,)
-    <$> (TrackLang.default_score <$> Sig.required "dur"
+    <$> (Typecheck.default_score <$> Sig.required "dur"
         "How long each group is.")
-    <*> (TrackLang.default_score <$> Sig.defaulted "offset" (TrackLang.score 0)
+    <*> (Typecheck.default_score <$> Sig.defaulted "offset" (Typecheck.score 0)
         "Groups start at this time.")
     <*> ControlUtil.curve_time_env
     ) $ \(dur, offset, curve) args deriver -> do

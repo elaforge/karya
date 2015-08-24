@@ -20,6 +20,7 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
@@ -33,7 +34,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -77,11 +78,11 @@ lookup_attr_transformer = make_lookup_attr $ \attrs ->
 make_lookup_attr :: (Score.Attributes -> call) -> Derive.LookupCall call
 make_lookup_attr call =
     Derive.LookupPattern "attribute starting with `+` or `=`" doc $
-        \(TrackLang.Symbol sym) -> parse_symbol sym
+        \(BaseTypes.Symbol sym) -> parse_symbol sym
     where
     parse_symbol sym = case Text.uncons sym of
         Just (c, _) | c == '+' || c == '=' -> case Parse.parse_val sym of
-            Right (TrackLang.VAttributes attrs) -> return $ Just (call attrs)
+            Right (BaseTypes.VAttributes attrs) -> return $ Just (call attrs)
             _ -> return Nothing
         _ -> return Nothing
     doc = Derive.extract_doc $ fst $
@@ -182,9 +183,9 @@ c_sustain_abs = Derive.transformer Module.prelude "sus-a" mempty
     ("Simple legato, extend the duration of the transformed notes by the given\
     \ amount. This works by setting " <> ShowVal.doc_val Controls.sustain_abs
     <> "."
-    ) $ Sig.callt (Sig.defaulted "time" (TrackLang.real 0.25)
+    ) $ Sig.callt (Sig.defaulted "time" (Typecheck.real 0.25)
         "Add this duration to the note.")
-    $ \(TrackLang.DefaultReal time) args deriver -> do
+    $ \(Typecheck.DefaultReal time) args deriver -> do
         time <- Call.real_duration (Args.end args) time
         set_sustain time deriver
 

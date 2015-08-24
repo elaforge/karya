@@ -11,11 +11,12 @@
 -- TODO this module has a dumb name.  What would be better?
 module Derive.Call.Prelude.PitchHigh where
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
-import qualified Derive.Call.Prelude.Pitch as Call.Pitch
 import qualified Derive.Call.PitchUtil as PitchUtil
+import qualified Derive.Call.Prelude.Pitch as Call.Pitch
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -25,7 +26,7 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -83,11 +84,11 @@ make_note_fade :: Text -> Text -> PitchDirection -> Align -> Align
 make_note_fade name doc pitch_dir align align_fade =
     Derive.transformer Module.prelude name Tags.under_invert doc
     $ Sig.callt fade_args
-    $ \(interval, TrackLang.DefaultReal time, maybe_fade, curve) ->
+    $ \(interval, Typecheck.DefaultReal time, maybe_fade, curve) ->
     Sub.under_invert $ \args deriver -> do
         let fade = case maybe_fade of
                 Nothing -> time
-                Just (TrackLang.DefaultReal t) -> t
+                Just (Typecheck.DefaultReal t) -> t
         ranges@((pitch_start, _), _) <- pitch_fade_ranges align align_fade
             fade time (Args.start args) (Args.end args)
         Derive.pitch_at pitch_start >>= \x -> case x of
@@ -107,11 +108,11 @@ multiply_dyn :: Signal.Control -> Derive.Deriver a -> Derive.Deriver a
 multiply_dyn = Derive.with_multiplied_control Score.c_dynamic . Score.untyped
 
 fade_args :: Sig.Parser (Either Pitch.Transpose PSignal.Pitch,
-    TrackLang.DefaultReal, Maybe TrackLang.DefaultReal, ControlUtil.Curve)
+    Typecheck.DefaultReal, Maybe Typecheck.DefaultReal, ControlUtil.Curve)
 fade_args = (,,,)
     <$> defaulted "interval" (Left (Pitch.Chromatic 7))
         "Interval or destination pitch."
-    <*> defaulted "time" (TrackLang.real 0.25) "Time to the destination pitch."
+    <*> defaulted "time" (Typecheck.real 0.25) "Time to the destination pitch."
     <*> defaulted "fade" Nothing
         "Time to fade from or to nothing. If the fade is longer than the pitch\
         \ time, the pitch will finish moving before the dyn has faded out."
@@ -133,10 +134,10 @@ make_pitch_fade :: Text -> Text -> PitchDirection
 make_pitch_fade name doc pitch_dir =
     Derive.generator1 Module.prelude name Tags.cmod doc
     $ Sig.call fade_args
-    $ \(interval, TrackLang.DefaultReal time, maybe_fade, curve) args -> do
+    $ \(interval, Typecheck.DefaultReal time, maybe_fade, curve) args -> do
         let fade = case maybe_fade of
                 Nothing -> time
-                Just (TrackLang.DefaultReal t) -> t
+                Just (Typecheck.DefaultReal t) -> t
         case Args.prev_pitch args of
             Nothing -> return mempty
             Just (_, prev_pitch) -> do
@@ -152,11 +153,11 @@ c_approach_dyn = Derive.generator1 Module.prelude "approach-dyn"
     (Tags.cmod <> Tags.next)
     "Like `approach`, slide to the next pitch, but also drop the `dyn`."
     $ Sig.call ((,,)
-    <$> defaulted "time" (TrackLang.real 0.2)
+    <$> defaulted "time" (Typecheck.real 0.2)
         "Time to get to destination pitch and dyn."
     <*> defaulted "dyn" 0.25 "Drop `dyn` by this factor."
     <*> ControlUtil.curve_env
-    ) $ \(TrackLang.DefaultReal time, dyn, curve) args -> do
+    ) $ \(Typecheck.DefaultReal time, dyn, curve) args -> do
         (start, end) <- Call.duration_from_start args time
         ControlUtil.multiply_dyn end
             =<< ControlUtil.make_segment id start 1 end dyn
@@ -195,7 +196,7 @@ pitch_fade align curve pitch pitch_dir interval
 --        <--pp
 -- @
 pitch_fade_ranges :: Align -> Align
-    -> TrackLang.Duration -> TrackLang.Duration
+    -> BaseTypes.Duration -> BaseTypes.Duration
     -> ScoreTime -> ScoreTime
     -> Derive.Deriver ((RealTime, RealTime), (RealTime, RealTime))
 pitch_fade_ranges align align_fade fade_time pitch_time start end = do

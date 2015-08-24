@@ -21,12 +21,12 @@ import qualified Data.Text as Text
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Meter as Meter
@@ -210,8 +210,8 @@ partition_code events = (map Code prepend, map Code append)
         map (get Constants.v_ly_prepend) events
     append = filter (not . Text.null) $
         map (get Constants.v_ly_append_all) events
-    get :: TrackLang.ValName -> Event -> Text
-    get v = fromMaybe "" . TrackLang.maybe_val v . event_environ
+    get :: Env.Key -> Event -> Text
+    get v = fromMaybe "" . Env.maybe_val v . event_environ
 
 zero_dur_in_rest :: [Event] -> ([Event], [Event])
 zero_dur_in_rest events = span (\e -> zero_dur e && in_rest e) events
@@ -307,7 +307,7 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
     get_pitch event = event_pitch event
         <> if is_first event then append_pitch event else ""
     append_pitch = fromMaybe ""
-        . TrackLang.maybe_val Constants.v_ly_append_pitch . event_environ
+        . Env.maybe_val Constants.v_ly_append_pitch . event_environ
 
     prepend event =
         if is_first event then get Constants.v_ly_prepend event else ""
@@ -316,7 +316,7 @@ make_note measure_start prev_attrs meter events next = (ly, end, clipped)
         , if is_last then get Constants.v_ly_append_last event else ""
         , get Constants.v_ly_append_all event
         ]
-    get val = fromMaybe "" . TrackLang.maybe_val val . event_environ
+    get val = fromMaybe "" . Env.maybe_val val . event_environ
 
     note_tie event
         | event_end event <= end = NoTie
@@ -391,7 +391,7 @@ span_voices events
         | otherwise = case get event of
             Nothing -> Nothing
             Just voice -> Just $ Right (voice, event)
-        where get = TrackLang.checked_val2 Environ.voice . event_environ
+        where get = Env.checked_val2 Environ.voice . event_environ
     -- Previously I tried to only split voices where necessary by only spanning
     -- overlapping notes, or notes with differing voices.  But even when it
     -- worked as intended, joining voices this aggressively led to oddities
@@ -600,10 +600,9 @@ throw msg = do
     now <- State.gets state_time
     Error.throwError $ pretty now <> ": " <> msg
 
-lookup_val :: TrackLang.ValName -> (Text -> Either Text a) -> a -> Event
-    -> ConvertM a
+lookup_val :: Env.Key -> (Text -> Either Text a) -> a -> Event -> ConvertM a
 lookup_val key parse deflt event = prefix $ do
-    maybe_val <- TrackLang.checked_val key (event_environ event)
+    maybe_val <- Env.checked_val key (event_environ event)
     maybe (Right deflt) parse maybe_val
     where
     prefix = either (throw . ((pretty key <> ": ") <>)) return

@@ -26,6 +26,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
 import qualified Perform.Pitch as Pitch
@@ -140,7 +141,7 @@ parse_equal maybe_merge lhs rhs
     -- Assign to control.
     | Just control <- is_control =<< parse_val lhs = case rhs of
         TrackLang.VControlRef rhs -> Right $ \deriver ->
-            Call.to_signal_or_function rhs >>= \x -> case x of
+            Typecheck.to_signal_or_function rhs >>= \x -> case x of
                 Left sig -> do
                     merger <- get_merger control maybe_merge
                     Derive.with_merged_control merger control sig deriver

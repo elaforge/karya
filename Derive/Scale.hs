@@ -14,8 +14,8 @@ import qualified Derive.Derive as Derive
 import Derive.Derive
        (Scale(..), LookupScale(..), lookup_scale, Transposition(..),
         ScaleError(..), Layout)
+import qualified Derive.Env as Env
 import qualified Derive.PSignal as PSignal
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -25,7 +25,7 @@ data Make =
     -- | Fancy scales can configure themselves.  Since you can't just look at
     -- the Scale directly, it has the ScaleId (pattern, doc) extracted.
     Make !Pitch.ScaleId !(Text, Derive.DocumentedCall)
-        !(TrackLang.Environ -> LookupScale -> Either ScaleError Scale)
+        !(Env.Environ -> LookupScale -> Either ScaleError Scale)
     | Simple !Scale
 
 scale_id_of :: Make -> Pitch.ScaleId
@@ -82,7 +82,7 @@ chromatic_difference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 acc1))
     oct_diff + (semis_at_pc layout pc1 - semis_at_pc layout pc2) + (acc1 - acc2)
     where oct_diff = semis_per_octave layout * (oct1 - oct2)
 
-transpose :: Transposition -> Scale -> TrackLang.Environ -> Pitch.Octave
+transpose :: Transposition -> Scale -> Env.Environ -> Pitch.Octave
     -> Pitch.Step -> Pitch.Note -> Either ScaleError Pitch.Note
 transpose transposition scale environ octaves steps =
     scale_show scale environ

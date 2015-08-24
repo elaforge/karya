@@ -66,4 +66,12 @@ instance ShowVal RealTime.RealTime where
     show_val = (`Text.snoc` RealTime.suffix) . Pretty.showFloat 3
         . RealTime.to_seconds
 
-instance ShowVal Bool where show_val b = if b then "t" else "f"
+instance ShowVal a => ShowVal (Maybe a) where
+    show_val Nothing = "Nothing"
+    show_val (Just a) = show_val a
+
+instance (ShowVal a, ShowVal b) => ShowVal (Either a b) where
+    show_val = either show_val show_val
+
+instance ShowVal Bool where
+    show_val b = if b then "t" else "f"

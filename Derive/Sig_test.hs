@@ -10,6 +10,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import Global
 
@@ -34,7 +35,7 @@ test_eval_quoted = do
     let run val = call_with $ DeriveTest.setup_deriver $
             CallTest.with_val_call "v" (val_call val)
         val_call val = Derive.val_call "test" "v" mempty "" $ Sig.call0 $ \_ ->
-            return $ TrackLang.to_val val
+            return $ Typecheck.to_val val
     -- A Quoted can be coerced into an int by evaluating it.
     left_like (run (0 :: Int) int [quoted "not-found"])
         "arg 1/int from \"(not-found): *val call not found"
@@ -44,7 +45,7 @@ test_eval_quoted = do
 
     let quot :: Sig.Parser TrackLang.Quoted
         quot = Sig.required "quot" "doc"
-    left_like (run (0 :: Int) quot [TrackLang.to_val (1 :: Int)])
+    left_like (run (0 :: Int) quot [Typecheck.to_val (1 :: Int)])
         "expected Quoted but got Num"
     equal (run (0 :: Int) quot [TrackLang.VSymbol "x"])
         (Right (TrackLang.Quoted (TrackLang.call0 "x" :| [])))

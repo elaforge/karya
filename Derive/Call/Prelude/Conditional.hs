@@ -5,13 +5,14 @@
 -- | Transformers that evaluate their deriver conditionally.
 module Derive.Call.Prelude.Conditional where
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 
 import Global
 import Types
@@ -63,7 +64,7 @@ c_solo = Derive.transformer Module.prelude "solo" mempty
     \ version of `when-e`."
     $ Sig.callt (Sig.required "inst" "Instrument.")
     $ \inst _args deriver ->
-        ifM (has_environ Environ.instrument (Just (TrackLang.VInstrument inst)))
+        ifM (has_environ Environ.instrument (Just (BaseTypes.VInstrument inst)))
             deriver mempty
 
 c_when_c :: Derive.Taggable d => Bool -> Derive.Transformer d
@@ -78,7 +79,7 @@ c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
             deriver (return mempty)
     where invert = if inverted then (not <$>) else id
 
-has_control :: TrackLang.ControlRef -> Int -> RealTime -> Derive.Deriver Bool
+has_control :: BaseTypes.ControlRef -> Int -> RealTime -> Derive.Deriver Bool
 has_control control val pos = do
     cval <- Call.control_at control pos
     return $ round cval == val
@@ -96,12 +97,12 @@ c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty
         ifM (invert $ has_environ name maybe_value) deriver (return mempty)
     where invert = if inverted then (not <$>) else id
 
-has_environ :: TrackLang.ValName -> Maybe TrackLang.Val -> Derive.Deriver Bool
+has_environ :: Env.Key -> Maybe BaseTypes.Val -> Derive.Deriver Bool
 has_environ name maybe_val = Derive.lookup_val name >>= \x -> case x of
     Nothing -> return False
     Just env_val -> case maybe_val of
         Nothing -> return True
-        Just val -> case TrackLang.vals_equal val env_val of
+        Just val -> case BaseTypes.vals_equal val env_val of
             Nothing -> Derive.throw $ "vals can't be compared: "
                 <> ShowVal.show_val val <> " " <> ShowVal.show_val env_val
             Just t -> return t

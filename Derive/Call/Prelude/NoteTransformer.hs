@@ -19,6 +19,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import Global
@@ -62,7 +63,7 @@ c_sequence = Derive.with_score_duration score_duration $
     score_duration args = do
         calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_score_duration (calls_to_derivers args calls)
-        return $ Derive.Duration (sum durs)
+        return $ Derive.CallDuration (sum durs)
 
 sequence_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
     -> [ScoreTime] -> Derive.NoteDeriver
@@ -95,7 +96,7 @@ c_sequence_realtime = Derive.with_score_duration score_duration $
         calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_real_duration (calls_to_derivers args calls)
         end <- Call.score_duration (Args.start args) (sum durs)
-        return $ Derive.Duration $ end - Args.start args
+        return $ Derive.CallDuration $ end - Args.start args
 
 sequence_derivers_realtime :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
     -> [RealTime] -> Derive.NoteDeriver
@@ -124,7 +125,7 @@ c_parallel = Derive.with_score_duration score_duration $ Derive.generator
     score_duration args = do
         calls <- Sig.parse_or_throw calls_arg args
         durs <- mapM get_score_duration (calls_to_derivers args calls)
-        return $ Derive.Duration $ fromMaybe 0 (Seq.maximum durs)
+        return $ Derive.CallDuration $ fromMaybe 0 (Seq.maximum durs)
 
 parallel_derivers :: ScoreTime -> ScoreTime -> [Derive.NoteDeriver]
     -> [ScoreTime] -> Derive.NoteDeriver
@@ -149,7 +150,7 @@ get_score_duration (quoted, d) =
     Derive.get_score_duration d >>= \dur -> case dur of
         Derive.Unknown -> Derive.throw $ "unknown score duration for "
             <> ShowVal.show_val quoted
-        Derive.Duration dur -> return dur
+        Derive.CallDuration dur -> return dur
 
 get_real_duration :: (TrackLang.Quoted, Derive.Deriver a)
     -> Derive.Deriver RealTime
@@ -157,7 +158,7 @@ get_real_duration (quoted, d) =
     Derive.get_real_duration d >>= \dur -> case dur of
         Derive.Unknown -> Derive.throw $ "unknown real duration for "
             <> ShowVal.show_val quoted
-        Derive.Duration dur -> return dur
+        Derive.CallDuration dur -> return dur
 
 
 -- * transformers
@@ -177,7 +178,7 @@ to_transformer :: Either TrackLang.Quoted Score.Instrument -> [TrackLang.Call]
 to_transformer val = case val of
     Left (TrackLang.Quoted expr) -> NonEmpty.toList expr
     Right inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
-        [TrackLang.to_val inst]]
+        [Typecheck.to_val inst]]
 
 c_debug :: Derive.Transformer Derive.Note
 c_debug = Derive.transformer Module.prelude "debug" mempty
@@ -264,7 +265,7 @@ unstretch :: ScoreTime -> ScoreTime
 unstretch start event_dur process deriver = do
     dur <- Derive.get_score_duration deriver
     case dur of
-        Derive.Duration dur | dur /= event_dur ->
+        Derive.CallDuration dur | dur /= event_dur ->
             process dur $ flatten dur deriver
         _ -> deriver
     where

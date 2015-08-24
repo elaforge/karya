@@ -25,9 +25,6 @@ module Derive.Eval (
     , eval_event, reapply_generator, reapply_generator_normalized
     , reapply, reapply_string, reapply_call, eval_pitch, apply_pitch
     , eval_expr
-
-    -- * misc
-    , cast
 ) where
 import qualified Data.Char as Char
 import qualified Data.List.NonEmpty as NonEmpty
@@ -38,6 +35,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.LEvent as LEvent
@@ -45,7 +43,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
-import qualified Derive.ValType as ValType
+import qualified Derive.Typecheck as Typecheck
 
 import Global
 import Types
@@ -54,15 +52,15 @@ import Types
 -- * eval / apply
 
 -- | Apply a toplevel expression.
-eval_toplevel :: Derive.Callable d => Derive.Context d -> TrackLang.Expr
+eval_toplevel :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
     -> Derive.LogsDeriver d
 eval_toplevel ctx expr = eval_transformers ctx transform_calls $
     eval_generator ctx generator_call
     where (transform_calls, generator_call) = Seq.ne_viewr expr
 
-eval_quoted :: Derive.Callable d => Derive.Context d -> TrackLang.Quoted
+eval_quoted :: Derive.Callable d => Derive.Context d -> BaseTypes.Quoted
     -> Derive.LogsDeriver d
-eval_quoted ctx (TrackLang.Quoted expr) = eval_toplevel ctx expr
+eval_quoted ctx (BaseTypes.Quoted expr) = eval_toplevel ctx expr
 
 -- | This is like 'eval_quoted', except that the 'Derive.ctx_event' is set to
 -- (0, 1) normalized time.  This is important if you want to place the
@@ -72,7 +70,7 @@ eval_quoted ctx (TrackLang.Quoted expr) = eval_toplevel ctx expr
 -- TODO this awkwardness is because events evaluate in track time, not in
 -- normalized time.  Details in "Derive.EvalTrack".
 eval_quoted_normalized :: Derive.Callable d => Derive.Context d
-    -> TrackLang.Quoted -> Derive.LogsDeriver d
+    -> BaseTypes.Quoted -> Derive.LogsDeriver d
 eval_quoted_normalized = eval_quoted . normalize_event
 
 normalize_event :: Derive.Context val -> Derive.Context val
@@ -85,15 +83,15 @@ normalize_event ctx = ctx
 -- ** generator
 
 eval_generator :: forall d. Derive.Callable d => Derive.Context d
-    -> TrackLang.Call -> Derive.LogsDeriver d
-eval_generator ctx (TrackLang.Call call_id args) = do
+    -> BaseTypes.Call -> Derive.LogsDeriver d
+eval_generator ctx (BaseTypes.Call call_id args) = do
     vals <- mapM (eval ctx) args
     apply_generator ctx call_id vals
 
 -- | Like 'apply_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
 apply_generator :: Derive.Callable d => Derive.Context d
-    -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
+    -> BaseTypes.CallId -> [BaseTypes.Val] -> Derive.LogsDeriver d
 apply_generator ctx call_id args = do
     call <- get_generator call_id
     let passed = Derive.PassedArgs
@@ -113,23 +111,23 @@ apply_generator ctx call_id args = do
             return mempty
         _ -> Derive.gfunc_f (Derive.call_func call) passed
 
--- | See 'Derive.Duration' for details.
-set_score_duration :: Derive.Duration ScoreTime -> Derive.Deriver ()
+-- | See 'Derive.CallDuration' for details.
+set_score_duration :: Derive.CallDuration ScoreTime -> Derive.Deriver ()
 set_score_duration dur = Internal.modify_collect $ \collect ->
     collect { Derive.collect_score_duration = dur }
 
-set_real_duration :: Derive.Duration RealTime -> Derive.Deriver ()
+set_real_duration :: Derive.CallDuration RealTime -> Derive.Deriver ()
 set_real_duration dur = Internal.modify_collect $ \collect ->
     collect { Derive.collect_real_duration = dur }
 
 -- ** transformer
 
 eval_transformers :: Derive.Callable d => Derive.Context d
-    -> [TrackLang.Call] -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+    -> [BaseTypes.Call] -> Derive.LogsDeriver d -> Derive.LogsDeriver d
 eval_transformers ctx calls deriver = go calls
     where
     go [] = deriver
-    go (TrackLang.Call call_id args : calls) = do
+    go (BaseTypes.Call call_id args : calls) = do
         vals <- mapM (eval ctx) args
         call <- get_transformer call_id
         let passed = Derive.PassedArgs
@@ -154,15 +152,15 @@ eval_transform_expr name expr_str deriver
 
 -- | The same as 'eval_transformers', but get them out of a Quoted.
 eval_quoted_transformers :: Derive.Callable d => Derive.Context d
-    -> TrackLang.Quoted -> Derive.LogsDeriver d -> Derive.LogsDeriver d
-eval_quoted_transformers ctx (TrackLang.Quoted expr) =
+    -> BaseTypes.Quoted -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+eval_quoted_transformers ctx (BaseTypes.Quoted expr) =
     eval_transformers ctx (NonEmpty.toList expr)
 
 -- | The transformer version of 'apply_generator'.  Like 'eval_transformers',
--- but apply only one, and apply to already evaluated 'TrackLang.Val's.  This
+-- but apply only one, and apply to already evaluated 'BaseTypes.Val's.  This
 -- is useful when you want to re-apply an already parsed set of vals.
 apply_transformer :: Derive.Callable d => Derive.Context d
-    -> TrackLang.CallId -> [TrackLang.Val] -> Derive.LogsDeriver d
+    -> BaseTypes.CallId -> [BaseTypes.Val] -> Derive.LogsDeriver d
     -> Derive.LogsDeriver d
 apply_transformer ctx call_id args deriver = do
     call <- get_transformer call_id
@@ -176,15 +174,15 @@ apply_transformer ctx call_id args deriver = do
 
 -- ** val calls
 
-eval :: Derive.Taggable a => Derive.Context a -> TrackLang.Term
-    -> Derive.Deriver TrackLang.Val
-eval _ (TrackLang.Literal val) = return val
-eval ctx (TrackLang.ValCall (TrackLang.Call call_id terms)) = do
+eval :: Derive.Taggable a => Derive.Context a -> BaseTypes.Term
+    -> Derive.Deriver BaseTypes.Val
+eval _ (BaseTypes.Literal val) = return val
+eval ctx (BaseTypes.ValCall (BaseTypes.Call call_id terms)) = do
     call <- get_val_call call_id
     apply (Derive.tag_context ctx) call terms
 
 apply :: Derive.Context Derive.Tagged -> Derive.ValCall
-    -> [TrackLang.Term] -> Derive.Deriver TrackLang.Val
+    -> [BaseTypes.Term] -> Derive.Deriver BaseTypes.Val
 apply ctx call args = do
     vals <- mapM (eval ctx) args
     let passed = Derive.PassedArgs
@@ -196,25 +194,25 @@ apply ctx call args = do
 
 -- * lookup call
 
-get_val_call :: TrackLang.CallId -> Derive.Deriver Derive.ValCall
+get_val_call :: BaseTypes.CallId -> Derive.Deriver Derive.ValCall
 get_val_call call_id =
     require_call False call_id "val call" =<< Derive.lookup_val_call call_id
 
 get_generator :: forall d. Derive.Callable d =>
-    TrackLang.CallId -> Derive.Deriver (Derive.Generator d)
+    BaseTypes.CallId -> Derive.Deriver (Derive.Generator d)
 get_generator call_id =
     require_call True call_id (name <> " generator")
         =<< Derive.lookup_generator call_id
     where name = Derive.callable_name (Proxy :: Proxy d)
 
 get_transformer :: forall d. Derive.Callable d =>
-    TrackLang.CallId -> Derive.Deriver (Derive.Transformer d)
+    BaseTypes.CallId -> Derive.Deriver (Derive.Transformer d)
 get_transformer call_id =
     require_call False call_id (name <> " transformer")
         =<< Derive.lookup_transformer call_id
     where name = Derive.callable_name (Proxy :: Proxy d)
 
-require_call :: Bool -> TrackLang.CallId -> Text -> Maybe a -> Derive.Deriver a
+require_call :: Bool -> BaseTypes.CallId -> Text -> Maybe a -> Derive.Deriver a
 require_call _ _ _ (Just a) = return a
 require_call is_generator call_id name Nothing = do
     -- If the call wasn't found, it can be seen as a block call whose block
@@ -227,22 +225,22 @@ require_call is_generator call_id name Nothing = do
         whenJust (call_to_block_id ns caller call_id) Internal.add_block_dep
     Derive.throw $ unknown_call_id name call_id
 
-unknown_call_id :: Text -> TrackLang.CallId -> Text
-unknown_call_id name (TrackLang.Symbol sym) = name <> " not found: " <> sym
+unknown_call_id :: Text -> BaseTypes.CallId -> Text
+unknown_call_id name (BaseTypes.Symbol sym) = name <> " not found: " <> sym
 
 -- | Given a CallId, try to come up with the BlockId of the block it could be
 -- a call for.
 call_to_block_id :: Id.Namespace -> Maybe BlockId
     -- ^ If the symbol starts with -, this block is prepended to it.
-    -> TrackLang.CallId -> Maybe BlockId
+    -> BaseTypes.CallId -> Maybe BlockId
 call_to_block_id ns maybe_caller sym
     | sym == "" = Nothing
     | otherwise = Just $ Id.BlockId $ Id.read_short ns relative
     where
     relative
         | Just caller <- maybe_caller, is_relative sym =
-            Id.ident_text caller <> TrackLang.unsym sym
-        | otherwise = TrackLang.unsym sym
+            Id.ident_text caller <> BaseTypes.unsym sym
+        | otherwise = BaseTypes.unsym sym
 
 -- | Create the symbol to call a given block.
 block_id_to_call :: Bool -> BlockId -> BlockId -> Text
@@ -257,8 +255,8 @@ block_id_to_call relative parent child
     parent_name = Id.ident_name parent
 
 -- | True if this is a relative block call.
-is_relative :: TrackLang.CallId -> Bool
-is_relative (TrackLang.Symbol sym) = "-" `Text.isPrefixOf` sym
+is_relative :: BaseTypes.CallId -> Bool
+is_relative (BaseTypes.Symbol sym) = "-" `Text.isPrefixOf` sym
 
 -- | Make a block name relative to a parent block.
 make_relative :: BlockId -> Text -> Text
@@ -268,15 +266,15 @@ make_relative block_id name = Id.ident_name block_id <> "-" <> name
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: Derive.Callable d => Bool -> TrackLang.Expr -> Derive.LogsDeriver d
+eval_one :: Derive.Callable d => Bool -> BaseTypes.Expr -> Derive.LogsDeriver d
 eval_one collect = eval_one_at collect 0 1
 
-eval_one_call :: Derive.Callable d => Bool -> TrackLang.Call
+eval_one_call :: Derive.Callable d => Bool -> BaseTypes.Call
     -> Derive.LogsDeriver d
 eval_one_call collect = eval_one collect . (:| [])
 
 eval_one_at :: Derive.Callable d => Bool -> ScoreTime -> ScoreTime
-    -> TrackLang.Expr -> Derive.LogsDeriver d
+    -> BaseTypes.Expr -> Derive.LogsDeriver d
 eval_one_at collect start dur expr = eval_expr collect ctx expr
     where
     -- Set the event start and duration instead of using Derive.place since
@@ -297,7 +295,7 @@ eval_event event = case Parse.parse_expr (Event.event_text event) of
 -- | Evaluate a generator, reusing the passed args but replacing the CallId.
 -- Generators can use this to delegate to other generators.
 reapply_generator :: Derive.Callable d => Derive.PassedArgs d
-    -> TrackLang.CallId -> Derive.LogsDeriver d
+    -> BaseTypes.CallId -> Derive.LogsDeriver d
 reapply_generator args call_id = do
     let ctx = Derive.passed_ctx args
     apply_generator ctx call_id (Derive.passed_vals args)
@@ -306,7 +304,7 @@ reapply_generator args call_id = do
 -- instead of inheriting the start and duration from the args.  This is
 -- essential if you want to shift or stretch the note.
 reapply_generator_normalized :: Derive.Callable d => Derive.PassedArgs d
-    -> TrackLang.CallId -> Derive.LogsDeriver d
+    -> BaseTypes.CallId -> Derive.LogsDeriver d
 reapply_generator_normalized args = reapply_generator $ args
     { Derive.passed_ctx = ctx
         { Derive.ctx_event = (Derive.ctx_event ctx)
@@ -320,8 +318,8 @@ reapply_generator_normalized args = reapply_generator $ args
 
 -- | Apply an expr with the current call info.  This discards the parsed
 -- arguments in the 'Derive.PassedArgs' since it gets args from the
--- 'TrackLang.Expr'.
-reapply :: Derive.Callable d => Derive.Context d -> TrackLang.Expr
+-- 'BaseTypes.Expr'.
+reapply :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
     -> Derive.LogsDeriver d
 reapply = eval_expr False
 
@@ -332,40 +330,28 @@ reapply_string ctx s = case Parse.parse_expr s of
     Left err -> Derive.throw $ "parse error: " <> err
     Right expr -> reapply ctx expr
 
-reapply_call :: Derive.Callable d => Derive.Context d -> TrackLang.Symbol
-    -> [TrackLang.Term] -> Derive.LogsDeriver d
+reapply_call :: Derive.Callable d => Derive.Context d -> BaseTypes.Symbol
+    -> [BaseTypes.Term] -> Derive.LogsDeriver d
 reapply_call ctx call_id call_args =
     reapply ctx (TrackLang.call call_id call_args :| [])
 
 -- | A version of 'eval' specialized to evaluate pitch calls.
-eval_pitch :: ScoreTime -> TrackLang.PitchCall -> Derive.Deriver PSignal.Pitch
+eval_pitch :: ScoreTime -> BaseTypes.PitchCall -> Derive.Deriver PSignal.Pitch
 eval_pitch pos call =
-    cast ("eval pitch " <> ShowVal.show_val call)
-        =<< eval ctx (TrackLang.ValCall call)
+    Typecheck.typecheck ("eval pitch " <> ShowVal.show_val call) pos
+        =<< eval ctx (BaseTypes.ValCall call)
     where
     ctx :: Derive.Context Derive.Pitch
     ctx = Derive.dummy_context pos 0 "<eval_pitch>"
 
 -- | This is like 'eval_pitch' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.
-apply_pitch :: ScoreTime -> Derive.ValCall -> Derive.Deriver TrackLang.Val
+apply_pitch :: ScoreTime -> Derive.ValCall -> Derive.Deriver BaseTypes.Val
 apply_pitch pos call = apply ctx call []
     where ctx = Derive.dummy_context pos 0 "<apply_pitch>"
 
 -- | Evaluate a single expression, catching an exception if it throws.
 eval_expr :: Derive.Callable d => Bool -- ^ see 'Derive.catch'
-    -> Derive.Context d -> TrackLang.Expr -> Derive.LogsDeriver d
+    -> Derive.Context d -> BaseTypes.Expr -> Derive.LogsDeriver d
 eval_expr collect ctx expr =
     fromMaybe [] <$> Derive.catch collect (eval_toplevel ctx expr)
-
--- * misc
-
--- | Cast a Val to a haskell val, or throw if it's the wrong type.
-cast :: forall a. TrackLang.Typecheck a => Text -> TrackLang.Val
-    -> Derive.Deriver a
-cast name val = case TrackLang.from_val val of
-    Nothing -> Derive.throw $ name <> ": expected " <> pretty return_type
-        <> " but val was " <> pretty (ValType.type_of val)
-        <> " " <> TrackLang.show_val val
-    Just a -> return a
-    where return_type = TrackLang.to_type (Proxy :: Proxy a)

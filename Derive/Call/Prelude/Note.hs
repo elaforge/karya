@@ -21,6 +21,7 @@ import qualified Ui.ScoreTime as ScoreTime
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -28,6 +29,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.Flags as Flags
@@ -37,7 +39,6 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -126,7 +127,7 @@ c_note_track = Derive.transformer Module.prelude "note-track" mempty
 note_track :: Derive.Context Derive.Note -> Score.Instrument
     -> [Score.Attributes] -> Derive.NoteDeriver -> Derive.NoteDeriver
 note_track ctx inst attrs deriver = do
-    let call_id = TrackLang.Symbol $ ">" <> Score.inst_name inst
+    let call_id = BaseTypes.Symbol $ ">" <> Score.inst_name inst
     maybe_call <- Derive.lookup_transformer call_id
     let transform = maybe id (call_transformer ctx) maybe_call
         with_inst = if inst == Score.empty_inst then id
@@ -186,7 +187,7 @@ default_note config args = do
     control_vals <- Derive.controls_at start
     offset <- get_start_offset start
     let attrs = either (const Score.no_attrs) id $
-            TrackLang.get_val Environ.attributes (Derive.state_environ dyn)
+            Env.get_val Environ.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
     let event = Score.add_flags flags $
             make_event args dyn2 start (adjusted_end - start) flags
@@ -196,7 +197,7 @@ default_note config args = do
             }
     return [LEvent.Event event]
 
-note_flags :: Bool -> Stack.Stack -> TrackLang.Environ -> Flags.Flags
+note_flags :: Bool -> Stack.Stack -> Env.Environ -> Flags.Flags
 note_flags zero_dur stack environ
     -- An event at TrackTime 0 never gets an inferred duration.
     -- Otherwise, I couldn't write single note calls for percussion.
@@ -209,7 +210,7 @@ note_flags zero_dur stack environ
     -- range (0, 1), and sets the duration via the warp.
     infer_dur = track_end && zero_dur
     track_start = start == Just 0
-    track_end = start == TrackLang.maybe_val Environ.block_end environ
+    track_end = start == Env.maybe_val Environ.block_end environ
     start = fst <$> Seq.head (mapMaybe Stack.region_of (Stack.innermost stack))
 
     -- zero dur event at end of track
@@ -243,17 +244,17 @@ make_event args dyn start dur flags = Score.Event
     pitch = trim_pitch start (Derive.state_pitch dyn)
     environ = Derive.state_environ dyn
     inst = fromMaybe Score.empty_inst $
-        TrackLang.maybe_val Environ.instrument environ
+        Env.maybe_val Environ.instrument environ
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in
 -- 'Perform.Midi.Convert.convert_dynamic'.
-stash_convert_values :: Score.ControlValMap -> RealTime -> TrackLang.Environ
-    -> TrackLang.Environ
+stash_convert_values :: Score.ControlValMap -> RealTime -> Env.Environ
+    -> Env.Environ
 stash_convert_values vals offset = start_offset . dyn
     where
-    start_offset = TrackLang.insert_val Environ.start_offset_val offset
-    dyn = maybe id (TrackLang.insert_val Environ.dynamic_val)
+    start_offset = Env.insert_val Environ.start_offset_val offset
+    dyn = maybe id (Env.insert_val Environ.dynamic_val)
         (Map.lookup Controls.dynamic vals)
 
 -- ** adjust start and duration

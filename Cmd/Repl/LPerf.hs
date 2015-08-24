@@ -31,10 +31,10 @@ import qualified Cmd.Simple as Simple
 
 import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
@@ -67,7 +67,7 @@ track_signals = do
 
 -- * info
 
-environ :: Cmd.CmdL (Maybe TrackLang.Environ)
+environ :: Cmd.CmdL (Maybe Env.Environ)
 environ = Perf.lookup_environ =<< Selection.track
 
 -- | Controls in scope at the insert point.

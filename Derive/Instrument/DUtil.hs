@@ -27,6 +27,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -130,7 +131,7 @@ double_call repeated = generator "double"
     $ Sig.call ((,)
     <$> Sig.defaulted "time" Grace.default_grace_dur "Time between the strokes."
     <*> Sig.defaulted "dyn" 0.5 "Dyn scale for grace notes."
-    ) $ \(TrackLang.DefaultReal time, dyn) args ->
+    ) $ \(Typecheck.DefaultReal time, dyn) args ->
         Grace.repeat_notes (Eval.reapply_generator_normalized args repeated)
             1 time dyn args
 

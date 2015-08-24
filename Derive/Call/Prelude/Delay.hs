@@ -8,15 +8,16 @@
 module Derive.Call.Prelude.Delay where
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
+import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
-import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, typed_control, control)
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -42,7 +43,7 @@ c_delay = Derive.transformer Module.prelude "delay" Tags.ly
     ) $ \time args deriver -> Lily.when_lilypond deriver $ do
         start <- Args.real_start args
         delay <- Call.score_duration start
-            =<< Call.time_control_at Call.Real time start
+            =<< Call.time_control_at Typecheck.Real time start
         Derive.at delay deriver
 
 -- TODO typed delay time

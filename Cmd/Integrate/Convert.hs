@@ -14,15 +14,16 @@ import qualified Ui.Event as Event
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PSignal as PSignal
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
@@ -105,8 +106,7 @@ split_overlapping events = track : split_overlapping rest
             break ((>= Score.event_end event) . Score.event_start) events
 
 event_voice :: Score.Event -> Voice
-event_voice =
-    fromMaybe 0 . TrackLang.maybe_val Environ.voice . Score.event_environ
+event_voice = fromMaybe 0 . Env.maybe_val Environ.voice . Score.event_environ
 
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost
@@ -140,7 +140,7 @@ note_event :: Instrument.CallMap -> Score.Event -> Event.Event
 note_event call_map event = ui_event (Score.event_stack event)
     (RealTime.to_score (Score.event_start event))
     (RealTime.to_score (Score.event_duration event))
-    (TrackLang.unsym $
+    (BaseTypes.unsym $
         Map.findWithDefault "" (Score.event_attributes event) call_map)
 
 -- ** pitch

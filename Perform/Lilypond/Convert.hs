@@ -8,12 +8,12 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (throw)
@@ -92,8 +92,7 @@ convert_event quarter event = do
     is_ly_global = Score.event_instrument event == Constants.ly_global
     has_prepend = has Constants.v_ly_prepend
     has_append = has Constants.v_ly_append_all
-    has v = Maybe.isJust $
-        TrackLang.lookup_val v (Score.event_environ event)
+    has v = Maybe.isJust $ Env.lookup v (Score.event_environ event)
     code_attrs = [Constants.v_ly_prepend, Constants.v_ly_append_all]
 
 type Pitch = Text

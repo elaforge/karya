@@ -24,10 +24,10 @@ import Global
 import Types
 
 
-newtype Environ = Environ (Map.Map BaseTypes.ValName Val)
+newtype Environ = Environ (Map.Map BaseTypes.Key Val)
     deriving (Read, Show, Eq, Monoid.Monoid, Pretty.Pretty, Serialize.Serialize)
 
-make :: [(BaseTypes.ValName, Val)] -> Environ
+make :: [(BaseTypes.Key, Val)] -> Environ
 make = Environ . Map.fromList
 
 convert :: Environ -> BaseTypes.Environ

@@ -36,6 +36,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -83,16 +84,16 @@ c_sequence = Derive.generator1 module_ "sequence" mempty sequence_doc
                         (mconcat (initial : dyns))
                 return $ mconcat $ DList.toList pitches
     where
-    config_env :: Sig.Parser (TrackLang.Normalized, TrackLang.Normalized)
+    config_env :: Sig.Parser (Typecheck.Normalized, Typecheck.Normalized)
     config_env = (,)
-        <$> Sig.environ "transition" Sig.Both (TrackLang.Normalized 0.5)
+        <$> Sig.environ "transition" Sig.Both (Typecheck.Normalized 0.5)
             "Time for each pitch movement, in proportion of the total time\
             \ available."
-        <*> Sig.environ "dyn-transition" Sig.Both (TrackLang.Normalized 1)
+        <*> Sig.environ "dyn-transition" Sig.Both (Typecheck.Normalized 1)
             "Time for each dyn movement, in proportion of the total time\
             \ available."
 
-get_state :: TrackLang.Normalized -> TrackLang.Normalized
+get_state :: Typecheck.Normalized -> Typecheck.Normalized
     -> Derive.PassedArgs Derive.Pitch -> Derive.Deriver (Maybe State)
 get_state transition dyn_transition args =
     -- If there's no pitch then this is likely at the edge of a slice, and can
@@ -147,13 +148,13 @@ c_dyn_sequence = Derive.generator1 module_ "dyn-sequence" mempty doc
     where
     doc = "doc doc"
     arg_doc = "blah blah"
-    config_env :: Sig.Parser TrackLang.Normalized
-    config_env = Sig.environ "dyn-transition" Sig.Both (TrackLang.Normalized 1)
+    config_env :: Sig.Parser Typecheck.Normalized
+    config_env = Sig.environ "dyn-transition" Sig.Both (Typecheck.Normalized 1)
         "Time for each dyn movement, in proportion of the total time available."
 
 data DynState = DynState {
     state_from_dyn :: !Signal.Y
-    , state_dyn_transition :: !TrackLang.Normalized
+    , state_dyn_transition :: !Typecheck.Normalized
     } deriving (Show)
 
 instance Pretty.Pretty DynState where
@@ -236,7 +237,7 @@ type M s a = State.StateT s Derive.Deriver a
 
 data State = State {
     state_from_pitch :: !PSignal.Pitch
-    , state_transition :: !TrackLang.Normalized
+    , state_transition :: !Typecheck.Normalized
     , state_current_pitch :: !PSignal.Pitch
     , state_previous_pitch :: !PSignal.Pitch
     , state_next_pitch :: !PSignal.Pitch
@@ -417,9 +418,9 @@ dc_move ord speed = DynCall doc sig1 sig2 $ \from to args -> do
     (start, end) <- ctx_range args
     -- TODO these could come from an environ value
     transition <- case speed of
-        Just Fast -> return $ TrackLang.Normalized 0.1
-        Just Medium -> return $ TrackLang.Normalized 0.5
-        Just Slow -> return $ TrackLang.Normalized 1
+        Just Fast -> return $ Typecheck.Normalized 0.1
+        Just Medium -> return $ Typecheck.Normalized 0.5
+        Just Slow -> return $ Typecheck.Normalized 1
         Nothing -> State.gets state_dyn_transition
     from <- maybe get_from return from
     to <- ($to) $ case ord of
@@ -446,11 +447,11 @@ dc_attack = DynCall "Impulse for note attack."
     (Sig.defaulted "from" 1 "From value.")
     (Sig.defaulted "to" 0.5 "To value.") $ \from to ctx -> do
         (start, end) <- ctx_range ctx
-        move_dyn (TrackLang.Normalized 0.5) EQ start from end to
+        move_dyn (Typecheck.Normalized 0.5) EQ start from end to
 
-move_dyn :: TrackLang.Normalized -> Ordering -> RealTime -> Signal.Y -> RealTime
+move_dyn :: Typecheck.Normalized -> Ordering -> RealTime -> Signal.Y -> RealTime
     -> Signal.Y -> M DynState Signal.Control
-move_dyn (TrackLang.Normalized transition) align start from end to = do
+move_dyn (Typecheck.Normalized transition) align start from end to = do
     let curve = snd ControlUtil.sigmoid_curve $ case align of
             LT -> (0, weight)
             GT -> (weight, 0)
@@ -600,7 +601,7 @@ pc_move = PCall (Sig.required "to" "To pitch.") $ \arg ctx -> do
                 pitch <- get_from
                 return $ PSignal.signal [(start, pitch), (end, pitch)]
             | otherwise -> lift $ Derive.throw $ "unknown move: " <> showt sym
-        Right (TrackLang.DefaultDiatonic transpose) -> do
+        Right (Typecheck.DefaultDiatonic transpose) -> do
             from_pitch <- get_from
             move_to ctx (Pitches.transpose transpose from_pitch)
 
@@ -652,7 +653,7 @@ pc_set_pitch dir = PCall Sig.no_args $ \() _args -> do
 
 pc_set_pitch_relative :: PCall
 pc_set_pitch_relative = PCall (Sig.required "to" "To pitch.") $
-    \(TrackLang.DefaultDiatonic transpose) _args -> do
+    \(Typecheck.DefaultDiatonic transpose) _args -> do
         set_pitch . Pitches.transpose transpose =<< get_from
         return mempty
 
@@ -664,7 +665,7 @@ pc_set_transition_time time = PCall Sig.no_args $ \() _args -> do
     return mempty
     where
     -- TODO these could come from an environ value
-    ttime = TrackLang.Normalized $ case time of
+    ttime = Typecheck.Normalized $ case time of
         Fast -> 0.1
         Medium -> 0.5
         Slow -> 0.9
@@ -684,7 +685,7 @@ move_to ctx pitch = do
 move_pitch :: RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
     -> M State PSignal.Signal
 move_pitch start from_pitch end to_pitch = do
-    TrackLang.Normalized transition <- State.gets state_transition
+    Typecheck.Normalized transition <- State.gets state_transition
     let curve = snd ControlUtil.sigmoid_curve (1-transition, 1-transition)
     set_pitch to_pitch
     lift $ PitchUtil.make_segment curve start from_pitch end to_pitch

@@ -14,7 +14,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import Global
 
@@ -45,5 +45,5 @@ c_add_flag = Derive.transformer Module.prelude "add-flag" Tags.postproc
 
 c_hold :: Derive.Taggable d => Derive.Transformer d
 c_hold = Make.with_environ Module.prelude "hold"
-    (Sig.defaulted "time" (TrackLang.real 0.25) "Hold this long.")
-    TrackLang.default_real
+    (Sig.defaulted "time" (Typecheck.real 0.25) "Hold this long.")
+    Typecheck.default_real

@@ -36,6 +36,7 @@ import qualified Cmd.Simple as Simple
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -438,7 +439,7 @@ set_scale root_id block_id track_id scale_id = set_env root_id block_id track_id
 
 -- | Fake up just enough Performance to have environ in it.
 set_env :: Cmd.M m => BlockId -> BlockId -> TrackId
-    -> [(TrackLang.ValName, TrackLang.Val)] -> m ()
+    -> [(Env.Key, TrackLang.Val)] -> m ()
 set_env root_id block_id track_id environ =
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert root_id
@@ -449,7 +450,7 @@ set_env root_id block_id track_id environ =
         }
     where
     track_dyn = Map.singleton (block_id, track_id)
-        (Derive.initial_dynamic (TrackLang.make_environ environ))
+        (Derive.initial_dynamic (Env.from_list environ))
     perf = empty_performance { Cmd.perf_track_dynamic = track_dyn }
 
 empty_performance :: Msg.Performance

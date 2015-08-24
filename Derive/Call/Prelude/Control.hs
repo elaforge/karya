@@ -9,6 +9,7 @@ import qualified Data.Map as Map
 
 import qualified Util.Num as Num
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -21,7 +22,7 @@ import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (required, defaulted)
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -86,7 +87,7 @@ lookup_transformer = lookup_call $ \val ->
 
 lookup_call :: (Signal.Y -> Derive.Call d) -> Derive.LookupCall (Derive.Call d)
 lookup_call call = Derive.LookupPattern "numbers and hex" doc $
-    \(TrackLang.Symbol sym) -> return $! case Parse.parse_num sym of
+    \(BaseTypes.Symbol sym) -> return $! case Parse.parse_num sym of
         Left _ -> Nothing
         Right val -> Just $ call val
     where doc = Derive.extract_doc (call 0)
@@ -114,16 +115,16 @@ c_porta = generator1 "porta" mempty
     \ represent an idiomatic portamento."
     $ Sig.call ((,,,,)
     <$> required "to" "Destination value."
-    <*> (TrackLang.default_real <$> defaulted "time"
+    <*> (Typecheck.default_real <$> defaulted "time"
         ControlUtil.default_interpolation_time "Time to reach destination.")
-    <*> Sig.defaulted_env "place" Sig.Both (TrackLang.Normalized 0.5)
+    <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 0.5)
         "Placement, from before to after the call."
     <*> ControlUtil.from_env <*> ControlUtil.curve_env
     ) $ \(to, time, place, from, curve) args -> do
         let maybe_from = from <|> (snd <$> Args.prev_control args)
         time <- if Args.duration args == 0
             then return time
-            else TrackLang.Real <$> Args.real_duration args
+            else BaseTypes.RealDuration <$> Args.real_duration args
         (start, end) <- ControlUtil.place_range place (Args.start args) time
         ControlUtil.make_segment_from curve start maybe_from end to
 
@@ -195,9 +196,9 @@ c_neighbor = generator1 "neighbor" mempty
     \ equivalent of the neighbor pitch call."
     ) $ Sig.call ((,,)
     <$> defaulted "neighbor" 1 "Start at this value."
-    <*> defaulted "time" (TrackLang.real 0.1) "Time taken to get to 0."
+    <*> defaulted "time" (Typecheck.real 0.1) "Time taken to get to 0."
     <*> ControlUtil.curve_env
-    ) $ \(neighbor, TrackLang.DefaultReal time, curve) args -> do
+    ) $ \(neighbor, Typecheck.DefaultReal time, curve) args -> do
         (start, end) <- Call.duration_from_start args time
         ControlUtil.make_segment curve start neighbor end 0
 

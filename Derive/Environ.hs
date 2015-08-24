@@ -7,48 +7,48 @@
 module Derive.Environ where
 import Data.Text (Text)
 
-import Derive.BaseTypes (ValName)
+import Derive.BaseTypes (Key)
 
 
 -- * directly supported by core derivers
 
 -- | VList: arguments for a 'Derive.Call.Tags.requires_postproc' call.
 -- Also see 'Derive.Call.Post.make_delayed'.
-args :: ValName
+args :: Key
 args = "args"
 
 -- | VAttributes: Default set of attrs.
-attributes :: ValName
+attributes :: Key
 attributes = "attr"
 
 -- | ScoreTime: the block deriver sets it to the ScoreTime end of the block.
 -- Blocks always start at zero, but this is the only way for a call to know if
 -- an event is at the end of the block.
-block_end :: ValName
+block_end :: Key
 block_end = "block-end"
 
 -- | VSymbol: Set to the control that is being derived, inside of a control
 -- track.
-control :: ValName
+control :: Key
 control = "control"
 
 -- | VInstrument: Default instrument.
-instrument :: ValName
+instrument :: Key
 instrument = "inst"
 
 -- | VSymbol: Diatonic transposition often requires a key.  The interpretation
 -- of the value depends on the scale.
-key :: ValName
+key :: Key
 key = "key"
 
 -- | VNum (ScoreTime): End time of the note event.  This is set when evaluating
 -- note events so that inverted control tracks know when their parent event
 -- ends.
-note_end :: ValName
+note_end :: Key
 note_end = "note-end"
 
 -- | This is just like 'note_end', except, you know, the other end.
-note_start :: ValName
+note_start :: Key
 note_start = "note-start"
 
 -- | VSymbol: Set along with 'control' to the 'Derive.Derive.Merge' function
@@ -57,22 +57,22 @@ note_start = "note-start"
 --
 -- Values are @compose@ for tempo tracks, @set@, or any of the names from
 -- 'Derive.Derive.ControlOp'.
-merge :: ValName
+merge :: Key
 merge = "merge"
 
 -- | VSymbol: Default scale, used by pitch tracks with a @*@ title.
-scale :: ValName
+scale :: Key
 scale = "scale"
 
 -- | VNum: Random seed used by randomization functions.  Can be explicitly
 -- initialized to capture a certain \"random\" variation.
 --
 -- This is rounded to an integer, so only integral values make sense.
-seed :: ValName
+seed :: Key
 seed = "seed"
 
 -- | VNum: Sampling rate used by signal interpolators.
-srate :: ValName
+srate :: Key
 srate = "srate"
 
 -- | VNum: Set the default tempo, overriding 'Ui.State.default_tempo'.  This
@@ -83,13 +83,13 @@ srate = "srate"
 -- Previously I would directly set the tempo warp in the equal call, but tempo
 -- setting has to be at the toplevel tempo track for it to interact properly
 -- with block call stretching.
-tempo :: ValName
+tempo :: Key
 tempo = "tempo"
 
 -- | VNum: this is the count of the tracks with the same instrument, starting
 -- from 0 on the left.  So three tracks named @>pno@ would be 0, 1, and 2,
 -- respectively.  Used with "Derive.Call.InferTrackVoice".
-track_voice :: ValName
+track_voice :: Key
 track_voice = "track-voice"
 
 -- * internal
@@ -97,7 +97,7 @@ track_voice = "track-voice"
 -- | RealTime: suppress other notes until this time, inclusive.  Only events
 -- without a suppress-until will be retained.  Applied by @infer-duration@, see
 -- "Derive.Call.Post.Move".
-suppress_until :: ValName
+suppress_until :: Key
 suppress_until = "suppress-until"
 
 -- | VNum: This is a bit of a hack for the dynamic to velocity conversion in
@@ -106,13 +106,13 @@ suppress_until = "suppress-until"
 -- it can use this value.
 --
 -- Details in 'Perform.Midi.Convert.convert_dynamic'.
-dynamic_val :: ValName
+dynamic_val :: Key
 dynamic_val = "dyn-val"
 
 -- | RealTime: This stores the RealTime sum of 'Derive.Controls.start_s' and
 -- 'Derive.Controls.start_t', and is later applied by the @apply-start-offset@
 -- postproc.
-start_offset_val :: ValName
+start_offset_val :: Key
 start_offset_val = "start-offset-val"
 
 -- * supported by not so core derivers
@@ -127,10 +127,10 @@ start_offset_val = "start-offset-val"
 --
 -- For instruments with less complicated scale requirements, NoteNumber is
 -- simpler.
-instrument_top :: ValName
+instrument_top :: Key
 instrument_top = "inst-top"
 
-instrument_bottom :: ValName
+instrument_bottom :: Key
 instrument_bottom = "inst-bottom"
 
 -- | List VPitch: tuning of open strings for this instrument.  The pitches
@@ -138,32 +138,32 @@ instrument_bottom = "inst-bottom"
 -- of which scale you happen to be in.
 --
 -- TODO maybe it should be VNotePitch as with 'instrument_top'?
-open_strings :: ValName
+open_strings :: Key
 open_strings = "open-strings"
 
 -- | VSymbol: Instrument role, e.g. 'polos' or 'sangsih'.
-role :: ValName
+role :: Key
 role = "role"
 
 -- | VSymbol: Kind of tuning for the scale in scope.  The meaning is dependent
 -- on the scale, e.g. ngumbang ngisep for Balinese scales.
-tuning :: ValName
+tuning :: Key
 tuning = "tuning"
 
 -- | VNum: Separate notes into different voices.  This is used by integrate to
 -- put them on their own tracks, and by the lilypond backend to split them into
 -- their own voices.  Should be an integer from 1 to 4.
-voice :: ValName
+voice :: Key
 voice = "v"
 
 -- | VSymbol: @right@, @r@,  @left@, or @l@.  Used by the lilypond backend, and
 -- also by any call that relies on an instrument's parts being divided by hand.
-hand :: ValName
+hand :: Key
 hand = "hand"
 
 -- | VNum: hold the start of a call for a certain amount of ScoreTime or
 -- RealTime.
-hold :: ValName
+hold :: Key
 hold = "hold"
 
 

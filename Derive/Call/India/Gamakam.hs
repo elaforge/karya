@@ -41,6 +41,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -54,6 +55,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, defaulted_env, required)
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -65,7 +67,7 @@ pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.generator_call_map $
     [("dip", c_dip)
     , ("jaru", c_jaru)
-    , ("sgr", c_jaru_intervals Call.Diatonic [-1, 1])
+    , ("sgr", c_jaru_intervals Typecheck.Diatonic [-1, 1])
     ] ++ kampita_variations "kam" c_kampita
 
 module_ :: Module.Module
@@ -133,7 +135,7 @@ c_kampita start_dir end_dir = generator1 "kam" mempty
         "Time for each slide."
     <*> Trill.hold_env <*> lilt_env <*> Trill.adjust_env
     ) $ \(pitch, neighbor, speed, transition, hold, lilt, adjust) args -> do
-        (neighbor, control) <- Call.to_transpose_function Call.Nn neighbor
+        (neighbor, control) <- Call.to_transpose_function Typecheck.Nn neighbor
         transpose <- kampita start_dir end_dir adjust neighbor speed
             transition hold lilt args
         start <- Args.real_start args
@@ -151,7 +153,7 @@ trill_transitions = Trill.adjusted_transitions include_end
     include_end = True
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Call.Function -> Call.Function
+trill_from_transitions :: Typecheck.Function -> Typecheck.Function
     -> [RealTime] -> Signal.Control
 trill_from_transitions val1 val2 transitions = Signal.signal
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
@@ -164,13 +166,13 @@ c_dip = generator1 "dip" mempty
     \ pitch."
     $ Sig.call ((,,,,,)
     <$> required "pitch" "Base pitch."
-    <*> defaulted "high" (TrackLang.diatonic 1) "High interval."
+    <*> defaulted "high" (Typecheck.diatonic 1) "High interval."
     <*> defaulted "low" (-1) "Low interval."
     <*> speed_arg
     <*> defaulted "dyn" 0.5 "Multiply dyn by this amount."
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."
-    ) $ \(pitch, TrackLang.DefaultDiatonic high_, low, speed, dyn_scale,
+    ) $ \(pitch, Typecheck.DefaultDiatonic high_, low, speed, dyn_scale,
             transition) args -> do
         let (high, control) = Controls.transpose_control high_
         transpose <- dip high low speed dyn_scale transition
@@ -203,10 +205,10 @@ c_jaru = generator1 "jaru" mempty
         | otherwise = Derive.throw "all intervals must have the same type"
         where
         (xs, control :| controls) = NonEmpty.unzip $ NonEmpty.map
-            (Controls.transpose_control . TrackLang.default_diatonic)
+            (Controls.transpose_control . Typecheck.default_diatonic)
             intervals
 
-c_jaru_intervals :: Call.TransposeType -> [Signal.Y]
+c_jaru_intervals :: Typecheck.TransposeType -> [Signal.Y]
     -> Derive.Generator Derive.Pitch
 c_jaru_intervals transpose intervals = generator1 "jaru" mempty
     ("This is `jaru` hardcoded to " <> pretty intervals <> ".")
@@ -220,7 +222,7 @@ c_jaru_intervals transpose intervals = generator1 "jaru" mempty
         srate <- Call.get_srate
         let sig = jaru srate start time (fromMaybe time maybe_transition)
                 intervals
-        return $ PSignal.apply_control (Call.transpose_control transpose)
+        return $ PSignal.apply_control (Typecheck.transpose_control transpose)
             (Score.untyped sig) $ PSignal.signal [(start, pitch)]
 
 
@@ -246,8 +248,8 @@ c_kampita_c start_dir end_dir = generator1 "kam" mempty
 
 -- | You don't think there are too many arguments, do you?
 kampita :: Maybe Trill.Direction -> Maybe Trill.Direction -> Trill.Adjust
-    -> Call.Function -> TrackLang.ControlRef -> RealTime
-    -> TrackLang.Duration -> Double -> Derive.PassedArgs a
+    -> Typecheck.Function -> TrackLang.ControlRef -> RealTime
+    -> BaseTypes.Duration -> Double -> Derive.PassedArgs a
     -> Derive.Deriver Signal.Control
 kampita start_dir end_dir adjust neighbor speed transition hold lilt args = do
     start <- Args.real_start args
@@ -258,15 +260,16 @@ kampita start_dir end_dir adjust neighbor speed transition hold lilt args = do
         =<< trill_transitions even_transitions adjust lilt hold speed
             (Args.range_or_next args)
 
-smooth_trill :: RealTime -> Call.Function -> Call.Function
+smooth_trill :: RealTime -> Typecheck.Function -> Typecheck.Function
     -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill time val1 val2 transitions = do
     srate <- Call.get_srate
     return $ SignalTransform.smooth id srate time $
         trill_from_transitions val1 val2 transitions
 
-convert_directions :: RealTime -> Call.Function -> Maybe Trill.Direction
-    -> Maybe Trill.Direction -> ((Call.Function, Call.Function), Maybe Bool)
+convert_directions :: RealTime -> Typecheck.Function -> Maybe Trill.Direction
+    -> Maybe Trill.Direction
+    -> ((Typecheck.Function, Typecheck.Function), Maybe Bool)
 convert_directions start_t neighbor start end = (vals, even_transitions)
     where
     first = case start of
@@ -295,7 +298,7 @@ c_nkampita_c start_dir end_dir = generator1 "nkam" mempty
     \ before the next event."
     $ Sig.call ((,,,,)
     <$> neighbor_arg
-    <*> (TrackLang.positive <$> defaulted "cycles" 1 "Number of cycles.")
+    <*> (Typecheck.positive <$> defaulted "cycles" 1 "Number of cycles.")
     <*> lilt_env <*> Trill.hold_env
     <*> Sig.environ "transition" Sig.Both transition_default
         "Time for each slide."

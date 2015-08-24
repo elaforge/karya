@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Prelude.Random: reverse (val, weight) order
   - New typechecking.
     . I should be able to pass a ControlFunction as a ControlRef.  Can I coerce
       one to the other?
@@ -39,12 +40,28 @@ UNSORTED
       But I don't need to_val for typechecking, so maybe I can put that in
       a separate typeclass.
 
-    - Change Derive.Sig to use Typecheck.
+    * Change Derive.Sig to use Typecheck.
+      . ShowVal is used to show the default val in Derive.ArgParser.  So
+        I need to include an explicit name for the default val if it happens
+        to be a Function.  This means I can have defaults which are not
+        tracklang.  Quoted is tracklang, so it gets around that.  So I could
+        return Eval Quoted, but it means I then need expressions for all those
+        things, like DefaultRealTimeFunction.
+      . Or somehow add a text description along with the default val, e.g.
+        (a, Text) | ShowVal a => a.  It seems an ad-hoc typeclass could
+        probably do it.
+      . Or allow the default to be a different type from the value.  But for
+        that to be safe, I'd need a guaranteed conversion, not just Maybe.
+        I'd have to make another typeclass with total conversions.
+      . Can I just add dummy ShowVals for even the Eval Typechecks?
+      . Yay imports: Deriver.Internal needs Typecheck because it has
+        insert_environ.  But can't I move that elsewhere?
+    * Remove code from Derive.TrackLang and fix breakage.
+    * Change callers of Call.to_transpose_function, to_time_function etc.
+      to use Typecheck instances.
+    * Rename BaseTypes.Real and Score to RealDuration and ScoreDuration
     - Add a ValType.Type with just a Text description, for the new Eval
       Typecheck instances.
-    - Remove code from Derive.TrackLang and fix breakage.
-    - Change callers of Call.to_transpose_function, to_time_function etc.
-      to use Typecheck instances.
   - Perhaps I should get rid of TrackLang entirely.  Typecheck goes into
     a separate Typecheck module.  Environ goes into an Environ module,
     which means Derive.Environ becomes Environs or something, to avoid the

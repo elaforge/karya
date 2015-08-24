@@ -17,13 +17,13 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
@@ -105,7 +105,7 @@ test_convert_pitch = do
         Just (Scale.Simple legong) = Map.lookup "legong" Scale.All.scales
     equal (convert [event]) [Left (0, [(0, 72.46)])]
     let insert = Score.modify_environ $
-            TrackLang.insert_val Environ.tuning Environ.isep
+            Env.insert_val Environ.tuning Environ.isep
     equal (convert [insert event]) [Left (0, [(0, 72.588)])]
 
 mkevent :: RealTime -> String -> Text -> Score.Event

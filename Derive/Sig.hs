@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {- | Functions to help define call signatures.
 
-    This module, along with the 'TrackLang.Typecheck' class, define a little
+    This module, along with the 'Typecheck.Typecheck' class, define a little
     DSL to express function signatures.  Check existing calls for examples.
 
     Argument passing, in an effort to be flexible, got a bit complicated.  Each
@@ -26,10 +26,10 @@
     3. If it's omitted, and not in the dynamic environ, the default will be
     used, provided there is one.
 
-    In addition, an arg may be a 'TrackLang.VPControlRef' or
-    'TrackLang.ControlRef', which introduces yet another way to provide the
+    In addition, an arg may be a 'BaseTypes.VPControlRef' or
+    'BaseTypes.ControlRef', which introduces yet another way to provide the
     value.  An argument @required_control \"c\"@ will pass
-    a 'TrackLang.LiteralControl'.  Technically it's then up to the call to
+    a 'BaseTypes.LiteralControl'.  Technically it's then up to the call to
     decide what to do with it, but it will likely look it up at its chosen
     point in time, which means you can provide the value by providing a @c@
     control track or binding it explicitly e.g. @%c = .5 | call@.
@@ -78,16 +78,12 @@
     whether an argument was provided or not.  This is for arguments which are
     defaulted but need a more complicated defaulting strategy than simply
     a constant.
-
-    This module is split off from "Derive.TrackLang" because it needs
-    'Derive.PassedArgs' and Derive already imports TrackLang.  It could be in
-    "Derive.Call" but Call is already big so let's leave it separate for now.
 -}
 module Derive.Sig (
     Parser, Generator, Transformer
     , check, parse_or_throw, require_right, parse, parse_vals
     -- * pseudo-parsers
-    , paired_args, typecheck
+    , paired_args
     -- * parsers
     , parsed_manually, no_args
     , required, required_env, defaulted, defaulted_env, defaulted_env_quoted
@@ -103,13 +99,15 @@ module Derive.Sig (
 import qualified Control.Applicative as Applicative
 import qualified Data.Text as Text
 
+import qualified Ui.Event as Event
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import Derive.Derive (EnvironDefault(..))
+import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
-import qualified Derive.Score as Score
+import qualified Derive.ScoreTypes as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
-import qualified Derive.ValType as ValType
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Signal as Signal
 import Global
@@ -129,7 +127,7 @@ parser arg_doc = Parser [arg_doc]
 -- | Keep track of state when parsing arguments.
 data State = State {
     -- | Pairs of the arg number, starting at 0, and the argument.
-    state_vals :: ![TrackLang.Val]
+    state_vals :: ![BaseTypes.Val]
     -- | This has to be incremented every time a Val is taken.  Pairing argnums
     -- in state_vals doesn't work because when I run out I don't know where
     -- I am.
@@ -184,7 +182,7 @@ parse parser args = parse_vals parser
     (Derive.passed_vals args)
 
 parse_vals :: Parser a -> Derive.Context Derive.Tagged -> Text
-    -> [TrackLang.Val] -> Derive.Deriver (Either Error a)
+    -> [BaseTypes.Val] -> Derive.Deriver (Either Error a)
 parse_vals parser ctx name vals =
     run_parser parser . make_state <$> Derive.get
     where
@@ -208,14 +206,6 @@ paired_args args = case args of
     (_ : _) -> Derive.throw "expected an even number of arguments"
     [] -> return []
 
--- | Typecheck a single Val.
-typecheck :: forall a. TrackLang.Typecheck a => TrackLang.Val -> Either Text a
-typecheck val = case TrackLang.from_val val of
-    Nothing -> Left $ "expected "
-        <> pretty (TrackLang.to_type (Proxy :: Proxy a)) <> " but got "
-        <> pretty (ValType.type_of val)
-    Just a -> Right a
-
 -- * parsers
 
 -- | Just pass the arguments through, and let the call process them.
@@ -230,10 +220,10 @@ no_args :: Parser ()
 no_args = pure ()
 
 -- | The argument is required to be present, and have the right type.
-required :: forall a. TrackLang.Typecheck a => Text -> Text -> Parser a
+required :: forall a. Typecheck.Typecheck a => Text -> Text -> Parser a
 required name = required_env name Derive.Prefixed
 
-required_env :: forall a. TrackLang.Typecheck a => Text
+required_env :: forall a. Typecheck.Typecheck a => Text
     -> Derive.EnvironDefault -> Text -> Parser a
 required_env name env_default doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
@@ -242,7 +232,7 @@ required_env name env_default doc = parser arg_doc $ \state1 ->
         Just (state, val) -> (,) state <$>
             check_arg state arg_doc (argnum_error state1) name val
     where
-    expected = TrackLang.to_type (Proxy :: Proxy a)
+    expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
@@ -254,33 +244,34 @@ required_env name env_default doc = parser arg_doc $ \state1 ->
 
 -- | The argument is not required to be present, but if it is, it has to have
 -- either the right type or be VNotGiven.
-defaulted :: forall a. TrackLang.Typecheck a => Text -> a -> Text -> Parser a
+defaulted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text -> a
+    -> Text -> Parser a
 defaulted name = defaulted_env name Derive.Prefixed
 
-defaulted_env :: forall a. TrackLang.Typecheck a => Text
+defaulted_env :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
     -> Derive.EnvironDefault -> a -> Text -> Parser a
 defaulted_env name env_default deflt =
     defaulted_env_ name env_default (Left deflt)
 
--- | The defaulted value can be a 'TrackLang.Quoted', which will be evaluated
+-- | The defaulted value can be a 'BaseTypes.Quoted', which will be evaluated
 -- if needed.
-defaulted_env_quoted :: forall a. TrackLang.Typecheck a => Text
-    -> Derive.EnvironDefault -> TrackLang.Quoted -> Text -> Parser a
+defaulted_env_quoted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+    Text -> Derive.EnvironDefault -> BaseTypes.Quoted -> Text -> Parser a
 defaulted_env_quoted name env_default quoted =
     defaulted_env_ name env_default (Right quoted)
 
-defaulted_env_ :: forall a. TrackLang.Typecheck a => Text
-    -> Derive.EnvironDefault -> Either a TrackLang.Quoted -> Text -> Parser a
+defaulted_env_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
+    -> Derive.EnvironDefault -> Either a BaseTypes.Quoted -> Text -> Parser a
 defaulted_env_ name env_default quoted doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> deflt state1
-        Just (state, TrackLang.VNotGiven) -> deflt state
+        Just (state, BaseTypes.VNotGiven) -> deflt state
         Just (state, val) -> (,) state <$>
             check_arg state arg_doc (argnum_error state1) name val
     where
     deflt state = eval_default arg_doc (argnum_error state) name state quoted
     show_deflt = either ShowVal.show_val ShowVal.show_val quoted
-    expected = TrackLang.to_type (Proxy :: Proxy a)
+    expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
@@ -290,13 +281,18 @@ defaulted_env_ name env_default quoted doc = parser arg_doc $ \state1 ->
         }
 
 -- | Eval a Quoted default value.
-eval_default :: TrackLang.Typecheck a => Derive.ArgDoc -> Derive.ErrorPlace
-    -> Text -> State -> Either a TrackLang.Quoted -> Either Error (State, a)
+eval_default :: forall a. Typecheck.Typecheck a => Derive.ArgDoc
+    -> Derive.ErrorPlace -> Text -> State -> Either a BaseTypes.Quoted
+    -> Either Error (State, a)
 eval_default _ _ _ state (Left a) = return (state, a)
-eval_default arg_doc place name state (Right q@(TrackLang.Quoted call)) =
-    case eval state call of
-        Left err -> Left $ Derive.EvalError place q name err
+eval_default arg_doc place name state (Right quoted) =
+    case eval_quoted state quoted of
+        -- Left err -> Left $ Derive.EvalError place quoted name err
+        Left err -> Left $ Derive.TypeError place (Derive.Quoted quoted) name
+            expected_type Nothing (Just err)
         Right val -> (,) state <$> check_arg state arg_doc place name val
+    where
+    expected_type = Typecheck.to_type (Proxy :: Proxy a)
 
 -- | This is an argument which is not actually parsed from the argument list.
 -- Instead it's looked up it the environ according to the normal defaulting
@@ -304,21 +300,23 @@ eval_default arg_doc place name state (Right q@(TrackLang.Quoted call)) =
 --
 -- Of course, the call could just look in the environ itself, but this way it's
 -- uniform and automatically documented.
-environ :: forall a. TrackLang.Typecheck a => Text -> Derive.EnvironDefault
+environ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
+    -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
     -> a -> Text -> Parser a
 environ name env_default = environ_ name env_default . Left
 
--- | This is like 'environ', but the default is a 'TrackLang.Quoted', which
+-- | This is like 'environ', but the default is a 'BaseTypes.Quoted', which
 -- will be evaluated if needed.
-environ_quoted :: forall a. TrackLang.Typecheck a => Text
-    -> Derive.EnvironDefault -> TrackLang.Quoted -> Text -> Parser a
+environ_quoted :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
+    -> Derive.EnvironDefault -> BaseTypes.Quoted -> Text -> Parser a
 environ_quoted name env_default = environ_ name env_default . Right
 
 -- Internal function that handles both quoted and unquoted default.
-environ_ :: forall a. TrackLang.Typecheck a => Text -> Derive.EnvironDefault
+environ_ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
+    -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
-    -> Either a TrackLang.Quoted -> Text -> Parser a
+    -> Either a BaseTypes.Quoted -> Text -> Parser a
 environ_ name env_default quoted doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
         Nothing -> deflt state
@@ -327,7 +325,7 @@ environ_ name env_default quoted doc = parser arg_doc $ \state ->
     where
     deflt state = eval_default arg_doc (argnum_error state) name state quoted
     show_deflt = either ShowVal.show_val ShowVal.show_val quoted
-    expected = TrackLang.to_type (Proxy :: Proxy a)
+    expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
@@ -337,16 +335,16 @@ environ_ name env_default quoted doc = parser arg_doc $ \state ->
         }
 
 -- | This is like 'environ', but without a default.
-required_environ :: forall a. TrackLang.Typecheck a =>
+required_environ :: forall a. Typecheck.Typecheck a =>
     Text -> Derive.EnvironDefault -> Text -> Parser a
 required_environ name env_default doc = parser arg_doc $ \state ->
     case lookup_default env_default state name of
         Nothing -> Left $ Derive.TypeError (environ_error state name)
-            Derive.Literal name expected Nothing
+            Derive.Literal name expected Nothing Nothing
         Just val -> (,) state <$>
             check_arg state arg_doc (environ_error state name) name val
     where
-    expected = TrackLang.to_type (Proxy :: Proxy a)
+    expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , Derive.arg_type = expected
@@ -358,15 +356,16 @@ required_environ name env_default doc = parser arg_doc $ \state ->
 -- | This is like 'defaulted', but if the argument is the wrong type return
 -- the default instead of failing.  It's mostly useful with 'many' or 'many1',
 -- where you can distinguish the arguments by type.
-optional :: forall a. TrackLang.Typecheck a => Text -> a -> Text -> Parser a
+optional :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text -> a
+    -> Text -> Parser a
 optional name = optional_env name Derive.Prefixed
 
-optional_env :: forall a. TrackLang.Typecheck a =>
+optional_env :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     Text -> Derive.EnvironDefault -> a -> Text -> Parser a
 optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
     case get_val env_default state1 name of
         Nothing -> Right (state1, deflt)
-        Just (state, TrackLang.VNotGiven) -> Right (state, deflt)
+        Just (state, BaseTypes.VNotGiven) -> Right (state, deflt)
         Just (state, val) ->
             case check_arg state arg_doc (argnum_error state1) name val of
                 Right a -> Right (state, a)
@@ -378,7 +377,7 @@ optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
                                 name val
                 Left err -> Left err
     where
-    expected = TrackLang.to_type (Proxy :: Proxy a)
+    expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
@@ -388,7 +387,7 @@ optional_env name env_default deflt doc = parser arg_doc $ \state1 ->
         }
 
 -- | Collect the rest of the arguments.
-many :: forall a. TrackLang.Typecheck a => Text -> Text -> Parser [a]
+many :: forall a. Typecheck.Typecheck a => Text -> Text -> Parser [a]
 many name doc = parser arg_doc $ \state -> do
     vals <- mapM (typecheck state)
         (zip [state_argnum state ..] (state_vals state))
@@ -396,7 +395,7 @@ many name doc = parser arg_doc $ \state -> do
     where
     typecheck state (argnum, val) =
         check_arg state arg_doc (Derive.TypeErrorArg argnum) name val
-    expected = TrackLang.to_type (Proxy :: Proxy a)
+    expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
@@ -406,7 +405,7 @@ many name doc = parser arg_doc $ \state -> do
         }
 
 -- | Collect the rest of the arguments, but there must be at least one.
-many1 :: forall a. TrackLang.Typecheck a => Text -> Text -> Parser (NonEmpty a)
+many1 :: forall a. Typecheck.Typecheck a => Text -> Text -> Parser (NonEmpty a)
 many1 name doc = parser arg_doc $ \state ->
     case zip [state_argnum state ..] (state_vals state) of
         [] -> Left $
@@ -418,7 +417,7 @@ many1 name doc = parser arg_doc $ \state ->
     where
     typecheck state (argnum, val) =
         check_arg state arg_doc (Derive.TypeErrorArg argnum) name val
-    expected = TrackLang.to_type (Proxy :: Proxy a)
+    expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
@@ -438,68 +437,84 @@ environ_error state name =
 
 -- | The argument's value is taken from the given signal, with the given
 -- default.  If the value isn't given, the default is Untyped.
-control :: Score.Control -> Signal.Y -> TrackLang.ControlRef
+control :: Score.Control -> Signal.Y -> BaseTypes.ControlRef
 control name deflt = typed_control name deflt Score.Untyped
 
 -- | Like 'control', but the default can have a type.
-typed_control :: Score.Control -> Signal.Y -> Score.Type -> TrackLang.ControlRef
+typed_control :: Score.Control -> Signal.Y -> Score.Type -> BaseTypes.ControlRef
 typed_control name deflt typ =
-    TrackLang.DefaultedControl name (Score.Typed typ (Signal.constant deflt))
+    BaseTypes.DefaultedControl name (Score.Typed typ (Signal.constant deflt))
 
-required_control :: Score.Control -> TrackLang.ControlRef
-required_control = TrackLang.LiteralControl
+required_control :: Score.Control -> BaseTypes.ControlRef
+required_control = BaseTypes.LiteralControl
 
 -- | Pitch signal.  There's no default because that would depend on the scale.
-pitch :: Score.PControl -> TrackLang.PControlRef
-pitch = TrackLang.LiteralControl
+pitch :: Score.PControl -> BaseTypes.PControlRef
+pitch = BaseTypes.LiteralControl
 
 -- ** util
 
 get_val :: Derive.EnvironDefault -> State -> Text
-    -> Maybe (State, TrackLang.Val)
+    -> Maybe (State, BaseTypes.Val)
 get_val env_default state name = case state_vals state of
     [] -> (,) next <$> lookup_default env_default state name
     v : vs -> Just (next { state_vals = vs }, case v of
-        TrackLang.VNotGiven -> fromMaybe TrackLang.VNotGiven $
+        BaseTypes.VNotGiven -> fromMaybe BaseTypes.VNotGiven $
             lookup_default env_default state name
         _ -> v)
     where next = state { state_argnum = state_argnum state + 1 }
 
-check_arg :: forall a. TrackLang.Typecheck a => State -> Derive.ArgDoc
-    -> Derive.ErrorPlace -> Text -> TrackLang.Val -> Either Error a
-check_arg state arg_doc place name val = case TrackLang.from_val val of
-    Just a -> Right a
-    Nothing -> case val of
-        -- Try to coerce a Quoted to a val and typecheck it.
-        TrackLang.VQuoted q@(TrackLang.Quoted call) -> case eval state call of
-            Left err -> Left $ Derive.EvalError place q name err
-            Right val -> case TrackLang.from_val val of
-                Just a -> Right a
-                Nothing -> type_error (Derive.Quoted q) val
-        _ -> type_error Derive.Literal val
+check_arg :: forall a. Typecheck.Typecheck a => State -> Derive.ArgDoc
+    -> Derive.ErrorPlace -> Text -> BaseTypes.Val -> Either Error a
+check_arg state arg_doc place name val =
+    maybe from_quoted Right =<<
+        promote_error Derive.Literal val (from_val state val)
     where
-    type_error source val = Left $ Derive.TypeError place source name
+    -- 'val' failed to typecheck, so try to coerce a Quoted to a new qval and
+    -- typecheck that.
+    from_quoted = case val of
+        BaseTypes.VQuoted quoted -> do
+            let source = Derive.Quoted quoted
+            qval <- promote_error source val $ eval_quoted state quoted
+            maybe_a <- promote_error source qval $ from_val state qval
+            case maybe_a of
+                Nothing -> Left $ type_error source qval Nothing
+                Just a -> Right a
+        _ -> Left $ type_error Derive.Literal val Nothing
+    promote_error source val = first (type_error source val . Just)
+    type_error source val = Derive.TypeError place source name
         (Derive.arg_type arg_doc) (Just val)
 
-eval :: State -> TrackLang.Expr -> Either Derive.Error TrackLang.Val
-eval state expr = result
+-- | Typecheck a Val, evaluating if necessary.
+from_val :: Typecheck.Typecheck a => State -> BaseTypes.Val
+    -> Either Derive.Error (Maybe a)
+from_val state val = run state $ Typecheck.from_val_eval start val
+    where start = Event.start $ Derive.ctx_event $ state_context state
+
+run :: State -> Derive.Deriver a -> Either Derive.Error a
+run state deriver = result
+    where
+    (result, _state, _logs) = Derive.run (state_derive state) deriver
+
+eval_quoted :: State -> BaseTypes.Quoted -> Either Derive.Error BaseTypes.Val
+eval_quoted state (BaseTypes.Quoted expr) = result
     where
     (result, _state, _logs) = Derive.run (state_derive state) $ do
         call <- case expr of
             call :| [] -> return call
             _ -> Derive.throw "expected a val call, but got a full expression"
-        Eval.eval (state_context state) (TrackLang.ValCall call)
+        Eval.eval (state_context state) (BaseTypes.ValCall call)
 
-lookup_default :: Derive.EnvironDefault -> State -> Text -> Maybe TrackLang.Val
+lookup_default :: Derive.EnvironDefault -> State -> Text -> Maybe BaseTypes.Val
 lookup_default env_default state name =
     msum $ map lookup $ environ_keys (state_call_name state) name env_default
-    where lookup key = TrackLang.lookup_val key (state_environ state)
+    where lookup key = Env.lookup key (state_environ state)
 
-prefixed_environ :: Text -> Text -> TrackLang.ValName
+prefixed_environ :: Text -> Text -> Env.Key
 prefixed_environ call_name arg_name =
-    TrackLang.Symbol $ call_name <> "-" <> arg_name
+    BaseTypes.Symbol $ call_name <> "-" <> arg_name
 
-environ_keys :: Text -> Text -> Derive.EnvironDefault -> [TrackLang.ValName]
+environ_keys :: Text -> Text -> Derive.EnvironDefault -> [Env.Key]
 environ_keys call_name arg_name env_default = case env_default of
     Derive.None -> []
     Derive.Prefixed -> [prefixed]
@@ -507,7 +522,7 @@ environ_keys call_name arg_name env_default = case env_default of
     Derive.Both -> [prefixed, unprefixed]
     where
     prefixed = prefixed_environ call_name arg_name
-    unprefixed = TrackLang.Symbol arg_name
+    unprefixed = BaseTypes.Symbol arg_name
 
 
 -- * call
@@ -543,5 +558,5 @@ call0t f = (go, Derive.ArgDocs [])
     go args deriver = parse (pure ()) args >>= require_right
         >>= \() -> f args deriver
 
-state_environ :: State -> TrackLang.Environ
+state_environ :: State -> BaseTypes.Environ
 state_environ = Derive.state_environ . Derive.state_dynamic . state_derive

@@ -13,11 +13,12 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Convert as Convert
@@ -118,8 +119,8 @@ add_event_code :: Code -> Score.Event -> Score.Event
 add_event_code (pos, code) =
     Score.modify_environ $ add (position_env pos) (<>code)
     where
-    add name f env = TrackLang.insert_val name (TrackLang.to_val (f old)) env
-        where old = fromMaybe "" $ TrackLang.maybe_val name env
+    add name f env = Env.insert_val name (Typecheck.to_val (f old)) env
+        where old = fromMaybe "" $ Env.maybe_val name env
 
 -- | Like 'Seq.first_last', but applied to LEvents.  If the events start or end
 -- with a group of events with the same start time, the start or end function
@@ -158,7 +159,7 @@ type Ly = Text
 -- | A lilypond \"note\", which is just a chunk of text.
 type Note = Ly
 
-position_env :: CodePosition -> TrackLang.ValName
+position_env :: CodePosition -> Env.Key
 position_env c = case c of
     Prefix -> Constants.v_ly_prepend
     SuffixFirst -> Constants.v_ly_append_first
@@ -195,8 +196,8 @@ code0_event event start (pos, code) = Score.empty_event
     , Score.event_text = code
     , Score.event_stack = Score.event_stack event
     , Score.event_instrument = Score.event_instrument event
-    , Score.event_environ = TrackLang.insert_val
-        (position_env (code0_pos pos)) (TrackLang.to_val code)
+    , Score.event_environ = Env.insert_val
+        (position_env (code0_pos pos)) (Typecheck.to_val code)
         (Score.event_environ event)
     }
 
@@ -219,7 +220,7 @@ is_code0 :: Score.Event -> Bool
 is_code0 event = Score.event_duration event == 0 && any has vals
     where
     vals = map position_env [minBound .. maxBound]
-    has = (`TrackLang.val_set` Score.event_environ event)
+    has = (`Env.is_set` Score.event_environ event)
 
 -- ** convert
 

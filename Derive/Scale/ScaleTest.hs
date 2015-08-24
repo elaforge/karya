@@ -6,16 +6,16 @@
 module Derive.Scale.ScaleTest where
 import qualified Data.List as List
 
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Scale as Scale
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import Global
 
 
-key_environ :: Text -> TrackLang.Environ
-key_environ key = TrackLang.insert_val Environ.key key mempty
+key_environ :: Text -> Env.Environ
+key_environ key = Env.insert_val Environ.key key mempty
 
 get_scale :: [Scale.Make] -> Text -> Scale.Scale
 get_scale scales scale_id = fromMaybe (error $ "no scale: " ++ show scale_id) $

@@ -23,7 +23,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -151,7 +151,7 @@ c_smooth = Derive.transformer Module.prelude "smooth" mempty
         \ close, so unlike `slew`, this will always reach the samples in the\
         \ source."
     <*> defaulted "curve" "i" "Curve."
-    ) $ \(TrackLang.DefaultReal time, curve) args deriver -> do
+    ) $ \(Typecheck.DefaultReal time, curve) args deriver -> do
         srate <- Call.get_srate
         time <- Call.real_duration (Args.start args) time
         f <- Derive.require "curve" (curve_function curve)
@@ -195,7 +195,7 @@ smooth curve srate time =
 
 -- | Like 'smooth', but the transition time is a 0--1 proportion of the
 -- available time, rather than an absolute time.
-smooth_relative :: ControlUtil.Curve -> RealTime -> Call.Function
+smooth_relative :: ControlUtil.Curve -> RealTime -> Typecheck.Function
     -> Signal.Control -> Signal.Control
 smooth_relative curve srate time_at signal =
     mconcatMap segment $ Seq.zip_next $ Signal.unsignal signal

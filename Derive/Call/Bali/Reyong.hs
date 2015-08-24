@@ -20,6 +20,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
@@ -421,5 +422,4 @@ assign_hands =
             | otherwise = L
 
 event_voice :: Score.Event -> Int
-event_voice =
-    fromMaybe 0 . TrackLang.maybe_val Environ.voice . Score.event_environ
+event_voice = fromMaybe 0 . Env.maybe_val Environ.voice . Score.event_environ

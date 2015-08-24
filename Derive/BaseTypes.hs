@@ -211,36 +211,39 @@ pitches_equal :: RawPitch a -> RawPitch a -> Bool
 pitches_equal p1 p2 = either (const False) id $
     Pitch.nns_equal <$> pitch_nn (coerce p1) <*> pitch_nn (coerce p2)
 
+-- * Duration
+
+-- | Some calls can operate in either RealTime or ScoreTime.
+data Duration = RealDuration RealTime
+    | ScoreDuration ScoreTime
+    deriving (Eq, Show)
+
+instance ShowVal.ShowVal Duration where
+    show_val (RealDuration x) = ShowVal.show_val x
+    show_val (ScoreDuration x) = ShowVal.show_val x
+
+instance Pretty.Pretty Duration where
+    pretty (RealDuration t) = pretty t
+    pretty (ScoreDuration t) = pretty t
+
+multiply_duration :: Duration -> Int -> Duration
+multiply_duration (RealDuration t) n = RealDuration (t * fromIntegral n)
+multiply_duration (ScoreDuration t) n = ScoreDuration (t * fromIntegral n)
 
 -- * Derive.TrackLang
 
-newtype Environ = Environ (Map.Map ValName Val)
+newtype Environ = Environ (Map.Map Key Val)
     deriving (Show, Monoid.Monoid, Pretty.Pretty, DeepSeq.NFData)
 
-make_environ :: [(ValName, Val)] -> Environ
-make_environ = Environ . Map.fromList
-
-environ_to_list :: Environ -> [(ValName, Val)]
-environ_to_list (Environ env) = Map.toList env
-
 -- | Insert a val directly, with no typechecking.
-insert_val :: ValName -> Val -> Environ -> Environ
-insert_val name val (Environ env) = Environ $ Map.insert name val env
+insert :: Key -> Val -> Environ -> Environ
+insert name val (Environ env) = Environ $ Map.insert name val env
 
-delete_val :: ValName -> Environ -> Environ
-delete_val name (Environ env) = Environ $ Map.delete name env
-
-lookup_val :: ValName -> Environ -> Maybe Val
-lookup_val name (Environ env) = Map.lookup name env
-
-val_set :: ValName -> Environ -> Bool
-val_set name (Environ env) = Map.member name env
-
-null_environ :: Environ -> Bool
-null_environ (Environ env) = Map.null env
+lookup :: Key -> Environ -> Maybe Val
+lookup name (Environ env) = Map.lookup name env
 
 -- | Symbols to look up a val in the 'ValMap'.
-type ValName = Symbol
+type Key = Symbol
 
 -- | Call used by the infix @=@ syntax.
 c_equal :: CallId
@@ -581,6 +584,18 @@ instance ShowVal.ShowVal ControlFunction where
     show_val (ControlFunction name _) = "((ControlFunction " <> name <> "))"
 instance DeepSeq.NFData ControlFunction where
     rnf (ControlFunction a b) = a `seq` b `seq` ()
+
+call_control_function :: ControlFunction -> ScoreTypes.Control -> Dynamic
+    -> RealTime -> ScoreTypes.TypedVal
+call_control_function (ControlFunction _ f) = f
+
+-- | Modify the underlying function, presumably to compose something onto the
+-- input or output.
+modify_control_function ::
+    ((RealTime -> ScoreTypes.TypedVal) -> (RealTime -> ScoreTypes.TypedVal))
+    -> ControlFunction -> ControlFunction
+modify_control_function modify (ControlFunction name f) =
+    ControlFunction name (\dyn control -> modify (f dyn control))
 
 -- | Unlike Exprs in general, a Quoted Expr should be representable with
 -- show_val.  This is because a Quoted has only been parsed, not evaluated,

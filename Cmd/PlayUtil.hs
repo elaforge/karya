@@ -42,6 +42,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
@@ -65,8 +66,8 @@ import Types
 
 
 -- | There are a few environ values that almost everything relies on.
-initial_environ :: TrackLang.Environ
-initial_environ = TrackLang.make_environ
+initial_environ :: Env.Environ
+initial_environ = Env.from_list
     -- Control interpolators rely on this.
     [ (Environ.srate, TrackLang.num 0.015)
     -- Looking up any val call relies on having a scale in scope.

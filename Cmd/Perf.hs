@@ -27,6 +27,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
@@ -36,6 +37,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Transport as Transport
@@ -106,7 +108,7 @@ find_track block_id track_id = do
         Util.Tree.find ((== Just track_id) . TrackTree.track_id) tree
 
 -- | Get the environment established by 'State.config_global_transform'.
-global_environ :: Cmd.M m => m TrackLang.Environ
+global_environ :: Cmd.M m => m Env.Environ
 global_environ = do
     global_transform <- State.config#State.global_transform <#> State.get
     (result, _, logs) <- PlayUtil.run mempty mempty $
@@ -229,20 +231,20 @@ lookup_instrument track = lookup_val track Environ.instrument
 -- block's performance if not present in the root performance.  This is so
 -- that blocks which are not called from the root at all will still have
 -- environ values.
-lookup_val :: (Cmd.M m, TrackLang.Typecheck a) => Track -> TrackLang.ValName
+lookup_val :: (Cmd.M m, Typecheck.Typecheck a) => Track -> Env.Key
     -> m (Maybe a)
 lookup_val track name = justm (lookup_environ track) $ lookup_environ_val name
 
-lookup_environ_val :: (State.M m, TrackLang.Typecheck a) =>
-    TrackLang.ValName -> TrackLang.Environ -> m (Maybe a)
+lookup_environ_val :: (State.M m, Typecheck.Typecheck a) =>
+    Env.Key -> Env.Environ -> m (Maybe a)
 lookup_environ_val name env =
     either (State.throw . ("Perf.lookup_environ_val: "<>)) return
-        (TrackLang.checked_val name env)
+        (Env.checked_val name env)
 
-lookup_environ :: Cmd.M m => Track -> m (Maybe TrackLang.Environ)
+lookup_environ :: Cmd.M m => Track -> m (Maybe Env.Environ)
 lookup_environ track = fmap Derive.state_environ <$> find_dynamic track
 
-get_environ :: Cmd.M m => Track -> m TrackLang.Environ
+get_environ :: Cmd.M m => Track -> m Env.Environ
 get_environ = fmap (fromMaybe mempty) . lookup_environ
 
 -- | Try to find the Dynamic for the given block and track, first looking in
@@ -273,8 +275,8 @@ lookup_dynamic perf_block_id (block_id, maybe_track_id) =
 -- * default
 
 -- | Get defaults set by 'State.config_global_transform'.
-lookup_default_environ :: (TrackLang.Typecheck a, Cmd.M m) =>
-    TrackLang.ValName -> m (Maybe a)
+lookup_default_environ :: (Typecheck.Typecheck a, Cmd.M m) =>
+    Env.Key -> m (Maybe a)
 lookup_default_environ name = do
     global <- State.config#State.global_transform <#> State.get
     let apply = Eval.eval_transform_expr caller global
@@ -293,12 +295,11 @@ lookup_default_environ name = do
         Right val -> case LEvent.events_of val of
             [] -> Cmd.throw $ caller <> " didn't get the fake event it wanted"
             event : _ -> return $ Score.event_environ event
-    Cmd.require_right id $ TrackLang.checked_val name environ
+    Cmd.require_right id $ Env.checked_val name environ
     where
     caller = "Perf.lookup_default_environ"
 
-get_default_environ :: (TrackLang.Typecheck a, Cmd.M m) =>
-    TrackLang.ValName -> m a
+get_default_environ :: (Typecheck.Typecheck a, Cmd.M m) => Env.Key -> m a
 get_default_environ name =
     Cmd.require ("no default val for " <> pretty name)
         =<< lookup_default_environ name

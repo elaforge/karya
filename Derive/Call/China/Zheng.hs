@@ -7,6 +7,7 @@ module Derive.Call.China.Zheng where
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Idiom.String as String
@@ -22,6 +23,7 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -68,9 +70,9 @@ make_gliss name is_absolute = Derive.generator module_ name mempty
     <$> Sig.required "start"
         "Start this many strings above or below the destination pitch."
     <*> (if is_absolute
-        then Sig.defaulted "time" (TrackLang.real 0.25)
+        then Sig.defaulted "time" (Typecheck.real 0.25)
             "Time in which to play the glissando."
-        else Sig.defaulted "time" (TrackLang.real 0.075)
+        else Sig.defaulted "time" (Typecheck.real 0.075)
             "Time between each note.")
     <*> Sig.defaulted "dyn" Nothing "Start at this dyn, and interpolate\
         \ to the destination dyn. If not given, the dyn is constant."
@@ -141,10 +143,10 @@ c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
         trill_signal start_dir pitch neighbor speed hold args
 
 trill_signal :: Maybe Trill.Direction -> PSignal.Pitch
-    -> TrackLang.ControlRef -> TrackLang.ControlRef -> TrackLang.Duration
+    -> TrackLang.ControlRef -> TrackLang.ControlRef -> BaseTypes.Duration
     -> Derive.PassedArgs a -> Derive.Deriver PSignal.Signal
 trill_signal start_dir pitch neighbor speed hold args = do
-    (neighbor, control) <- Call.to_transpose_function Call.Nn neighbor
+    (neighbor, control) <- Call.to_transpose_function Typecheck.Nn neighbor
     transpose <- Gamakam.kampita start_dir Nothing Trill.Shorten neighbor
         speed transition hold lilt args
     start <- Args.real_start args

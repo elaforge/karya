@@ -5,6 +5,7 @@
 -- | Calls that create code events for the lilypond backend.
 module Derive.Call.Prelude.Lily (note_calls) where
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Make as Make
@@ -18,7 +19,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (required)
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Process as Process
@@ -83,7 +84,7 @@ when_ly inverted args deriver = case Derive.passed_vals args of
     [] -> when deriver mempty
     call : vals -> when (apply args (to_sym call) vals deriver) deriver
     where
-    to_sym = TrackLang.Symbol . TrackLang.show_call_val
+    to_sym = BaseTypes.Symbol . BaseTypes.show_call_val
     when = if inverted then flip Lily.when_lilypond else Lily.when_lilypond
     apply args = Eval.apply_transformer (Derive.passed_ctx args)
 
@@ -118,9 +119,9 @@ c_if_ly = generator "if-ly" mempty
     <*> required "not-ly" "Evaluated when not in lilypond mode."
     ) $ \(is_ly, not_ly) args -> Lily.when_lilypond
         (Eval.reapply_string (Args.context args)
-            (TrackLang.show_call_val is_ly))
+            (BaseTypes.show_call_val is_ly))
         (Eval.reapply_string (Args.context args)
-            (TrackLang.show_call_val not_ly))
+            (BaseTypes.show_call_val not_ly))
 
 c_8va :: Make.Calls Derive.Note
 c_8va = code0_pair_call "ottava" "Emit lilypond ottava mark.\
@@ -153,9 +154,9 @@ c_xstaff_around = code0_around_call "xstaff-around"
     other Down = Up
 
 data Direction = Up | Down deriving (Bounded, Eq, Enum, Show)
-instance ShowVal.ShowVal Direction where show_val = TrackLang.default_show_val
-instance TrackLang.Typecheck Direction
-instance TrackLang.TypecheckSymbol Direction
+instance ShowVal.ShowVal Direction where show_val = Typecheck.enum_show_val
+instance Typecheck.Typecheck Direction
+instance Typecheck.TypecheckSymbol Direction
 
 c_dyn :: Make.Calls Derive.Note
 c_dyn = code0_call "dyn"
@@ -291,8 +292,8 @@ instance ShowVal.ShowVal SustainMode where
         Off -> "f"
         On -> "t"
         OffOn -> "ft"
-instance TrackLang.Typecheck SustainMode
-instance TrackLang.TypecheckSymbol SustainMode
+instance Typecheck.Typecheck SustainMode
+instance Typecheck.TypecheckSymbol SustainMode
 
 c_ly_span :: Make.Calls Derive.Note
 c_ly_span = make_code_call "ly-span"

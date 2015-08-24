@@ -23,6 +23,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (control)
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -138,7 +139,7 @@ string_idiom attack_interpolate release_interpolate open_strings attack delay
     where
     one_event strings state ((attack, delay, release), event) = do
         start <- Derive.score (Score.event_start event)
-        let dur = Call.typed_real_duration Call.Real start
+        let dur = Call.typed_real_duration Typecheck.Real start
         attack <- dur attack
         delay <- dur delay
         release <- dur release

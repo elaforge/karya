@@ -16,10 +16,12 @@ import Data.Vector ((!?))
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.PSignal as PSignal
@@ -27,7 +29,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -210,7 +212,7 @@ invalid_transposition diatonic chromatic =
 
 -- ** input
 
-type InputToNote = TrackLang.Environ -> Pitch.Input
+type InputToNote = Env.Environ -> Pitch.Input
     -> Either Scale.ScaleError Pitch.Note
 
 -- | Input to note for simple scales without keys.
@@ -265,7 +267,7 @@ computed_input_to_nn input_to_note note_to_call pos input = do
     case get_call env of
         Left err -> return $ Left err
         Right call -> Eval.apply_pitch pos call >>= \val -> case val of
-            TrackLang.VPitch pitch -> do
+            BaseTypes.VPitch pitch -> do
                 controls <- Derive.controls_at =<< Derive.real pos
                 nn <- Derive.require_right (("evaluating pich: "<>) . pretty) $
                     PSignal.pitch_nn $ PSignal.coerce $
@@ -442,14 +444,15 @@ no_enharmonics :: Derive.Enharmonics
 no_enharmonics _ _ = Right []
 
 -- | Read and parse an environ value, or throw a ScaleError.
-read_environ :: TrackLang.Typecheck a => (a -> Maybe val) -- ^ parse or Nothing
+read_environ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+    (a -> Maybe val) -- ^ parse or Nothing
     -> Maybe val
     -- ^ if Just, a missing value gets this, otherwise it's an error
-    -> TrackLang.ValName -> TrackLang.Environ -> Either Scale.ScaleError val
-read_environ read_val maybe_deflt name env = case TrackLang.get_val name env of
-    Left (TrackLang.WrongType expected) ->
+    -> Env.Key -> Env.Environ -> Either Scale.ScaleError val
+read_environ read_val maybe_deflt name env = case Env.get_val name env of
+    Left (Env.WrongType expected) ->
         environ_error ("expected type " <> pretty expected)
-    Left TrackLang.NotFound -> case maybe_deflt of
+    Left Env.NotFound -> case maybe_deflt of
         Nothing -> Left $ Scale.EnvironError name "not set"
         Just deflt -> Right deflt
     Right val -> parse val
@@ -462,8 +465,8 @@ read_environ read_val maybe_deflt name env = case TrackLang.get_val name env of
 
 -- ** keys
 
-environ_key :: TrackLang.Environ -> Maybe Pitch.Key
-environ_key = fmap Pitch.Key . TrackLang.maybe_val Environ.key
+environ_key :: Env.Environ -> Maybe Pitch.Key
+environ_key = fmap Pitch.Key . Env.maybe_val Environ.key
 
 -- | Find a key in a map, or throw a ScaleError.
 get_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key

@@ -48,6 +48,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Lily as Lily
@@ -65,6 +66,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required, typed_control, control, pitch)
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -118,11 +120,11 @@ c_attr_trill = Derive.generator Module.prelude "attr-tr" Tags.attr
     (defaulted "neighbor" (typed_control "tr-neighbor" 1 Score.Chromatic)
         "Alternate with a pitch at this interval.  Only 1c and 2c are allowed."
     ) $ \neighbor args -> do
-        (width, typ) <- Call.transpose_control_at Call.Chromatic neighbor
+        (width, typ) <- Call.transpose_control_at Typecheck.Chromatic neighbor
             =<< Args.real_start args
         width_attr <- case (width, typ) of
-            (1, Call.Chromatic) -> return Attrs.half
-            (2, Call.Chromatic) -> return Attrs.whole
+            (1, Typecheck.Chromatic) -> return Attrs.half
+            (2, Typecheck.Chromatic) -> return Attrs.whole
             _ -> Derive.throw $
                 "attribute trill only supports 1c and 2c trills: "
                 <> ShowVal.show_val neighbor
@@ -151,18 +153,18 @@ c_tremolo_transformer = Derive.transformer Module.prelude "trem" Tags.subs
         starts <- tremolo_starts hold speed (Args.range_or_next args)
         simple_tremolo starts [Args.normalized args deriver]
 
-tremolo_starts :: TrackLang.Duration -> TrackLang.ControlRef
+tremolo_starts :: BaseTypes.Duration -> BaseTypes.ControlRef
     -> (ScoreTime, ScoreTime) -> Derive.Deriver [ScoreTime]
 tremolo_starts hold speed (start, end) = do
     hold <- Call.score_duration start hold
-    (speed_sig, time_type) <- Call.to_time_function Call.Real speed
+    (speed_sig, time_type) <- Call.to_time_function Typecheck.Real speed
     add_hold hold <$> case time_type of
-        Call.Real -> do
+        Typecheck.Real -> do
             start <- Derive.real (start + hold)
             end <- Derive.real end
             mapM Derive.score . full_notes end
                 =<< Speed.real_starts speed_sig start end
-        Call.Score -> do
+        Typecheck.Score -> do
             starts <- Speed.score_starts speed_sig (start + hold) end
             return $ full_notes end starts
     where
@@ -357,9 +359,9 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
     <*> defaulted "amp" 1 "Amplitude, measured center to peak."
     <*> defaulted "offset" 0 "Center point."
     ) $ \(speed, amp, offset) args -> do
-        (speed_sig, time_type) <- Call.to_time_function Call.Real speed
+        (speed_sig, time_type) <- Call.to_time_function Typecheck.Real speed
         case time_type of
-            Call.Score -> Derive.throw "RealTime signal required"
+            Typecheck.Score -> Derive.throw "RealTime signal required"
             _ -> return ()
         srate <- Call.get_srate
         let sign = case mode of
@@ -371,7 +373,7 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
         return $ Signal.map_y ((+(offset+sign)) . (*amp)) $
             sine srate start end speed_sig
 
-sine :: RealTime -> RealTime -> RealTime -> Call.Function -> Signal.Control
+sine :: RealTime -> RealTime -> RealTime -> Typecheck.Function -> Signal.Control
 sine srate start end freq_sig = Signal.unfoldr go (start, 0)
     where
     go (pos, phase)
@@ -413,7 +415,7 @@ xcut_control hold val1 val2 =
 
 -- * util
 
-trill_speed_arg :: Sig.Parser TrackLang.ControlRef
+trill_speed_arg :: Sig.Parser BaseTypes.ControlRef
 trill_speed_arg = defaulted "speed" (typed_control "tr-speed" 14 Score.Real)
     "Trill at this speed. If it's a RealTime, the value is the number of\
     \ cycles per second, which will be unaffected by the tempo. If it's\
@@ -429,22 +431,22 @@ trill_speed_arg = defaulted "speed" (typed_control "tr-speed" 14 Score.Real)
 -- Neighbor.  Unison-Neighbor is more convenient for the implementation but
 -- High-Low I think is more musically intuitive.
 data Direction = High | Low deriving (Bounded, Eq, Enum, Show)
-instance ShowVal.ShowVal Direction where show_val = TrackLang.default_show_val
-instance TrackLang.Typecheck Direction
-instance TrackLang.TypecheckSymbol Direction
+instance ShowVal.ShowVal Direction where show_val = Typecheck.enum_show_val
+instance Typecheck.Typecheck Direction
+instance Typecheck.TypecheckSymbol Direction
 
 -- | This is the like 'Direction', but in terms of the unison and neighbor
 -- pitches, instead of high and low.
 data AbsoluteMode = Unison | Neighbor deriving (Bounded, Eq, Enum, Show)
 
-transition_env :: Sig.Parser TrackLang.ControlRef
+transition_env :: Sig.Parser BaseTypes.ControlRef
 transition_env =
     Sig.environ "tr-transition" Sig.Unprefixed (Sig.control "tr-transition" 0)
     "Alternate with a pitch at this interval."
 
 -- | A bundle of standard configuration for trills.
 trill_env :: Maybe Direction -> Maybe Direction
-    -> Sig.Parser (Maybe Direction, Maybe Direction, TrackLang.Duration, Adjust)
+    -> Sig.Parser (Maybe Direction, Maybe Direction, BaseTypes.Duration, Adjust)
 trill_env start_dir end_dir =
     (,,,) <$> start <*> end <*> hold_env <*> adjust_env
     where
@@ -461,10 +463,10 @@ trill_env start_dir end_dir =
 
 -- Its default is both prefixed and unprefixed so you can put in a tr-hold
 -- globally, and so you can have a short @hold=n |@ for a single call.
-hold_env :: Sig.Parser TrackLang.Duration
-hold_env = TrackLang.default_real <$>
+hold_env :: Sig.Parser BaseTypes.Duration
+hold_env = Typecheck.default_real <$>
     Sig.environ (TrackLang.unsym Environ.hold) Sig.Both
-        (TrackLang.real 0) "Time to hold the first pitch."
+        (Typecheck.real 0) "Time to hold the first pitch."
 
 trill_variations :: [(TrackLang.Symbol, Maybe Direction, Maybe Direction)]
 trill_variations =
@@ -491,9 +493,9 @@ direction_doc _ _ = "\nA `^` suffix makes the trill starts on the higher value,\
     \ No suffix causes it to obey the settings in scope."
 
 -- | Resolve start and end Directions to the first and second trill notes.
-convert_direction :: RealTime -> Call.Function
+convert_direction :: RealTime -> Typecheck.Function
     -> Maybe Direction -> Maybe Direction
-    -> ((Call.Function, Call.Function), Maybe Bool)
+    -> ((Typecheck.Function, Typecheck.Function), Maybe Bool)
     -- ^ Signals for the first and second trill notes.  The boolean indicates
     -- whether the transitions should be even to end on the expected end
     -- Direction, and Nothing if it doesn't matter.
@@ -526,9 +528,9 @@ data Adjust =
     | Stretch
     deriving (Bounded, Eq, Enum, Show)
 
-instance ShowVal.ShowVal Adjust where show_val = TrackLang.default_show_val
-instance TrackLang.Typecheck Adjust
-instance TrackLang.TypecheckSymbol Adjust
+instance ShowVal.ShowVal Adjust where show_val = Typecheck.enum_show_val
+instance Typecheck.Typecheck Adjust
+instance Typecheck.TypecheckSymbol Adjust
 
 adjust_env :: Sig.Parser Adjust
 adjust_env = Sig.environ "adjust" Sig.Both Shorten
@@ -537,12 +539,13 @@ adjust_env = Sig.environ "adjust" Sig.Both Shorten
 -- ** transitions
 
 trill_from_controls :: (ScoreTime, ScoreTime) -> Maybe Direction
-    -> Maybe Direction -> Adjust -> TrackLang.Duration
-    -> TrackLang.ControlRef -> TrackLang.ControlRef
+    -> Maybe Direction -> Adjust -> BaseTypes.Duration
+    -> BaseTypes.ControlRef -> BaseTypes.ControlRef
     -> Derive.Deriver (Signal.Control, Score.Control)
 trill_from_controls (start, end) start_dir end_dir adjust hold neighbor speed
         = do
-    (neighbor_sig, control) <- Call.to_transpose_function Call.Diatonic neighbor
+    (neighbor_sig, control) <-
+        Call.to_transpose_function Typecheck.Diatonic neighbor
     real_start <- Derive.real start
     let ((val1, val2), even_transitions) = convert_direction real_start
             neighbor_sig start_dir end_dir
@@ -551,16 +554,16 @@ trill_from_controls (start, end) start_dir end_dir adjust hold neighbor speed
         speed (start, end)
     return (trill_from_transitions val1 val2 transitions, control)
 
-smooth_trill :: TrackLang.ControlRef -> Signal.Control
+smooth_trill :: BaseTypes.ControlRef -> Signal.Control
     -> Derive.Deriver Signal.Control
 smooth_trill time transitions = do
     srate <- Call.get_srate
-    sig_function <- Call.to_signal_or_function time
+    sig_function <- Typecheck.to_signal_or_function time
     case sig_function of
         Left sig | Signal.constant_val (Score.typed_val sig) == Just 0 ->
             return transitions
         _ -> do
-            f <- Call.convert_to_function time sig_function
+            f <- Typecheck.convert_to_function time sig_function
             return $ SignalTransform.smooth_relative id srate
                 (Score.typed_val . f) transitions
 
@@ -572,7 +575,7 @@ adjusted_transitions :: Bool -- ^ include a transition at the end time
     -> Adjust -- ^ how to fit the transitions into the time range
     -> Double -- ^ offset every other transition by this amount, from -1--1
     -> ScoreTime -- ^ extend the first transition by this amount
-    -> TrackLang.ControlRef -- ^ transition speed
+    -> BaseTypes.ControlRef -- ^ transition speed
     -> (ScoreTime, ScoreTime) -> Derive.Deriver [RealTime]
 adjusted_transitions include_end even adjust bias hold speed (start, end) = do
     real_end <- Derive.real end
@@ -613,21 +616,21 @@ add_bias bias (t:ts)
     negative _ xs = xs
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Call.Function -> Call.Function
+trill_from_transitions :: Typecheck.Function -> Typecheck.Function
     -> [RealTime] -> Signal.Control
 trill_from_transitions val1 val2 transitions = Signal.signal
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 -- | Create trill transition points from a speed.
-trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> TrackLang.ControlRef
+trill_transitions :: (ScoreTime, ScoreTime) -> Bool -> BaseTypes.ControlRef
     -> Derive.Deriver [RealTime]
 trill_transitions range include_end speed = do
-    (speed_sig, time_type) <- Call.to_time_function Call.Real speed
+    (speed_sig, time_type) <- Call.to_time_function Typecheck.Real speed
     case time_type of
-        Call.Real -> real_transitions range include_end speed_sig
-        Call.Score -> score_transitions range include_end speed_sig
+        Typecheck.Real -> real_transitions range include_end speed_sig
+        Typecheck.Score -> score_transitions range include_end speed_sig
 
-real_transitions :: (ScoreTime, ScoreTime) -> Bool -> Call.Function
+real_transitions :: (ScoreTime, ScoreTime) -> Bool -> Typecheck.Function
     -> Derive.Deriver [RealTime]
 real_transitions (start, end) include_end speed = do
     start <- Derive.real start
@@ -635,7 +638,7 @@ real_transitions (start, end) include_end speed = do
     full_cycles RealTime.eta end include_end <$>
         Speed.real_starts speed start end
 
-score_transitions :: (ScoreTime, ScoreTime) -> Bool -> Call.Function
+score_transitions :: (ScoreTime, ScoreTime) -> Bool -> Typecheck.Function
     -> Derive.Deriver [RealTime]
 score_transitions (start, end) include_end speed = do
     all_transitions <- Speed.score_starts speed start end

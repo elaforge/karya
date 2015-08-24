@@ -27,6 +27,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
 import qualified Perform.Pitch as Pitch
@@ -285,7 +286,7 @@ c_breakpoints :: Int -> (Double -> Double) -> NonEmpty TrackLang.Val
 c_breakpoints argnum f vals args = do
     (start, end) <- Args.real_range_or_next args
     srate <- Call.get_srate
-    vals <- num_or_pitch argnum vals
+    vals <- num_or_pitch (Args.start args) argnum vals
     return $ case vals of
         Left nums -> TrackLang.VControlRef $ TrackLang.ControlSignal $
             Score.untyped $ ControlUtil.breakpoints srate f $
@@ -298,9 +299,9 @@ c_breakpoints argnum f vals args = do
 --
 -- TODO If 'Sig.Parser' supported Alternative, maybe I could build this as
 -- a parser and get both shorter code and documentation.
-num_or_pitch :: Int -> NonEmpty TrackLang.Val
+num_or_pitch :: ScoreTime -> Int -> NonEmpty TrackLang.Val
     -> Derive.Deriver (Either [Signal.Y] [PSignal.Pitch])
-num_or_pitch argnum (val :| vals) = case val of
+num_or_pitch start argnum (val :| vals) = case val of
     TrackLang.VNum num -> do
         vals <- mapM (expect tnum) (zip [argnum + 1 ..] vals)
         return $ Left (Score.typed_val num : vals)
@@ -310,19 +311,21 @@ num_or_pitch argnum (val :| vals) = case val of
     _ -> type_error argnum "bp" (ValType.TEither tnum ValType.TPitch) val
     where
     tnum = ValType.TNum ValType.TUntyped ValType.TAny
-    expect typ (argnum, val) = maybe (type_error argnum "bp" typ val) return $
-        TrackLang.from_val val
+    expect typ (argnum, val) =
+        maybe (type_error argnum "bp" typ val) return
+            =<< Typecheck.from_val_eval start val
 
 type_error :: Int -> Text -> ValType.Type -> TrackLang.Val -> Derive.Deriver a
 type_error argnum name expected received =
     Derive.throw_error $ Derive.CallError $
         Derive.TypeError (Derive.TypeErrorArg argnum) Derive.Literal name
-            expected (Just received)
+            expected (Just received) Nothing
 
 -- * control function
 
 
-val_call :: TrackLang.Typecheck a => Text -> Tags.Tags -> Text
+val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Text -> Tags.Tags
+    -> Text
     -> Derive.WithArgDoc (Derive.PassedArgs Derive.Tagged -> Derive.Deriver a)
     -> Derive.ValCall
 val_call = Derive.val_call Module.prelude

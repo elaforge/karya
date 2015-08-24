@@ -75,9 +75,9 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -118,7 +118,7 @@ midi_thru_instrument score_inst input = do
 
 -- | Realize the Input as a pitch in the given scale.
 map_scale :: Cmd.M m => Maybe Instrument.PatchScale -> Scale.Scale
-    -> TrackLang.Environ -- ^ Evaluate the pitch in this environ.  This is
+    -> Env.Environ -- ^ Evaluate the pitch in this environ.  This is
     -- important because some scales change pitch based on environ.
     -> InputNote.Input -> m (Maybe InputNote.InputNn)
 map_scale patch_scale scale environ input = case input of

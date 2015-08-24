@@ -19,7 +19,6 @@ import qualified Util.SrcPos as SrcPos
 
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
-import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Derive.BaseTypes as BaseTypes
@@ -27,6 +26,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -35,6 +35,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
@@ -102,17 +103,17 @@ extract_track_dynamic collect =
         { state_environ = keep (state_environ inverted) <> state_environ normal
         }
     keep env = maybe mempty
-        (TrackLang.make_environ . (:[]) . (,) Environ.scale) $
-            TrackLang.lookup_val Environ.scale env
+        (Env.from_list . (:[]) . (,) Environ.scale) $
+            Env.lookup Environ.scale env
 
 -- | Given an environ, bring instrument and scale calls into scope.
-with_initial_scope :: TrackLang.Environ -> Deriver d -> Deriver d
+with_initial_scope :: Env.Environ -> Deriver d -> Deriver d
 with_initial_scope env deriver = set_inst (set_scale deriver)
     where
-    set_inst = case TrackLang.get_val Environ.instrument env of
+    set_inst = case Env.get_val Environ.instrument env of
         Right inst -> with_instrument inst
         _ -> id
-    set_scale = case TrackLang.get_val Environ.scale env of
+    set_scale = case Env.get_val Environ.scale env of
         Right sym -> \deriver -> do
             scale <- get_scale (TrackLang.sym_to_scale_id sym)
             with_scale scale deriver
@@ -167,7 +168,7 @@ with_imported empty_ok module_ deriver = do
     with_scopes (import_library lib) deriver
 
 -- | Import only the given symbols from the module.
-with_imported_symbols :: Module.Module -> Set.Set TrackLang.CallId -> Deriver a
+with_imported_symbols :: Module.Module -> Set.Set BaseTypes.CallId -> Deriver a
     -> Deriver a
 with_imported_symbols module_ syms deriver = do
     lib <- extract_symbols (`Set.member` syms) . extract_module module_ <$>
@@ -204,7 +205,7 @@ extract_module module_ (Library note control pitch val) =
 -- | Filter out calls that don't match the predicate.  LookupCalls are also
 -- filtered out.  This might be confusing since you might not even know a
 -- call comes from a LookupPattern, but then you can't import it by name.
-extract_symbols :: (TrackLang.CallId -> Bool) -> Library -> Library
+extract_symbols :: (BaseTypes.CallId -> Bool) -> Library -> Library
 extract_symbols wanted (Library note control pitch val) =
     Library (extract2 note) (extract2 control) (extract2 pitch) (extract val)
     where
@@ -216,7 +217,7 @@ extract_symbols wanted (Library note control pitch val) =
         where include = Util.Map.filter_key wanted calls
     has_name (LookupPattern {}) = Nothing
 
-library_symbols :: Library -> [TrackLang.CallId]
+library_symbols :: Library -> [BaseTypes.CallId]
 library_symbols (Library note control pitch val) =
     extract2 note <> extract2 control <> extract2 pitch <> extract val
     where
@@ -275,17 +276,16 @@ lookup_scale scale_id = do
 
 -- ** environment
 
-lookup_val :: TrackLang.Typecheck a => TrackLang.ValName -> Deriver (Maybe a)
+lookup_val :: Typecheck.Typecheck a => Env.Key -> Deriver (Maybe a)
 lookup_val name = do
     environ <- Internal.get_environ
-    either throw return (TrackLang.checked_val name environ)
+    either throw return (Env.checked_val name environ)
 
-is_val_set :: TrackLang.ValName -> Deriver Bool
-is_val_set name =
-    Maybe.isJust . TrackLang.lookup_val name <$> Internal.get_environ
+is_val_set :: Env.Key -> Deriver Bool
+is_val_set name = Maybe.isJust . Env.lookup name <$> Internal.get_environ
 
 -- | Like 'lookup_val', but throw if the value isn't present.
-get_val :: TrackLang.Typecheck a => TrackLang.ValName -> Deriver a
+get_val :: Typecheck.Typecheck a => Env.Key -> Deriver a
 get_val name = do
     val <- lookup_val name
     maybe (throw $ "environ val not found: " <> pretty name) return val
@@ -300,21 +300,21 @@ get_val name = do
 -- This dispatches to 'with_scale' or 'with_instrument' if it's setting the
 -- scale or instrument, so scale or instrument scopes are always set when scale
 -- and instrument are.
-with_val :: TrackLang.Typecheck val => TrackLang.ValName -> val
+with_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key -> val
     -> Deriver a -> Deriver a
 with_val name val deriver
     | name == Environ.scale, Just scale_id <- TrackLang.to_scale_id v = do
         scale <- get_scale scale_id
         with_scale scale deriver
-    | name == Environ.instrument, Just inst <- TrackLang.from_val v =
+    | name == Environ.instrument, Just inst <- Typecheck.from_val_simple v =
         with_instrument inst deriver
     | otherwise = with_val_raw name val deriver
-    where v = TrackLang.to_val val
+    where v = Typecheck.to_val val
 
 -- | Like 'with_val', but should be slightly more efficient for setting
 -- multiple values at once.
-with_vals :: TrackLang.Typecheck val => [(TrackLang.ValName, val)]
-    -> Deriver a -> Deriver a
+with_vals :: (Typecheck.Typecheck val, Typecheck.ToVal val) =>
+    [(Env.Key, val)] -> Deriver a -> Deriver a
 with_vals vals deriver
     | any (`elem` [Environ.scale, Environ.instrument]) (map fst vals) =
         foldr (uncurry with_val) deriver vals
@@ -322,28 +322,31 @@ with_vals vals deriver
     where
     with state = do
         environ <- either throw return $
-            foldr (\(k, v) env -> TrackLang.put_val_error k v =<< env)
+            foldr (\(k, v) env -> Env.put_val_error k v =<< env)
                 (return $ state_environ state) vals
         environ `seq` return $! state { state_environ = environ }
 
 -- | Like 'with_val', but don't set scopes for instrument and scale.
-with_val_raw :: TrackLang.Typecheck val => TrackLang.ValName -> val
-    -> Deriver a -> Deriver a
+with_val_raw :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
+    -> val -> Deriver a -> Deriver a
 with_val_raw name val = Internal.localm $ \state -> do
-    environ <- Internal.insert_environ name val (state_environ state)
+    environ <- insert_environ name val (state_environ state)
     environ `seq` return $! state { state_environ = environ }
+    where
+    insert_environ name val =
+        either throw return . Env.put_val_error name val
 
-delete_val :: TrackLang.ValName -> Deriver a -> Deriver a
+delete_val :: Env.Key -> Deriver a -> Deriver a
 delete_val name = Internal.local $ \state ->
-    state { state_environ = TrackLang.delete_val name $ state_environ state }
+    state { state_environ = Env.delete name $ state_environ state }
 
-modify_val :: TrackLang.Typecheck val => TrackLang.ValName
+modify_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key
     -> (Maybe val -> val) -> Deriver a -> Deriver a
 modify_val name modify = Internal.localm $ \state -> do
     let env = state_environ state
-    val <- modify <$> either throw return (TrackLang.checked_val name env)
+    val <- modify <$> either throw return (Env.checked_val name env)
     return $! state { state_environ =
-        TrackLang.insert_val name (TrackLang.to_val val) env }
+        Env.insert_val name (Typecheck.to_val val) env }
 
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale =
@@ -359,7 +362,7 @@ scale_to_lookup scale convert =
         return $ convert <$> scale_note_to_call scale (to_note call_id)
     where
     name = pretty (scale_id scale) <> ": " <> scale_pattern scale
-    to_note (TrackLang.Symbol sym) = Pitch.Note sym
+    to_note (BaseTypes.Symbol sym) = Pitch.Note sym
 
 -- | Convert a val call to a pitch call.  This is used so scales can export
 -- their ValCalls to pitch generators.
@@ -372,7 +375,7 @@ val_to_pitch (ValCall name doc vcall) = Call
     where
     convert_args args = args { passed_ctx = tag_context (passed_ctx args) }
     pitch_call args = vcall args >>= \val -> case val of
-        TrackLang.VPitch pitch -> do
+        BaseTypes.VPitch pitch -> do
             -- Previously I dispatched to '', which is normally
             -- 'Derive.Call.Pitch.c_set'.  That would be more flexible since
             -- you can then override '', but is also less efficient.
@@ -432,9 +435,9 @@ get_instrument inst = do
     return (real_inst, val)
 
 -- | Merge the given environ into the environ in effect.
-with_environ :: TrackLang.Environ -> Deriver a -> Deriver a
+with_environ :: Env.Environ -> Deriver a -> Deriver a
 with_environ environ
-    | TrackLang.null_environ environ = id
+    | Env.null environ = id
     | otherwise = Internal.local $ \state -> state
         { state_environ = environ <> state_environ state }
 
@@ -475,8 +478,8 @@ get_control_function control = do
     case Map.lookup control functions of
         Nothing -> return Nothing
         Just f -> do
-            dyn <- get_control_function_dynamic
-            return $ Just $ TrackLang.call_control_function f control dyn
+            dyn <- Internal.get_control_function_dynamic
+            return $ Just $ BaseTypes.call_control_function f control dyn
 
 untyped_control_at :: Score.Control -> RealTime -> Deriver (Maybe Signal.Y)
 untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
@@ -486,7 +489,7 @@ untyped_control_at cont = fmap (fmap Score.typed_val) . control_at cont
 controls_at :: RealTime -> Deriver Score.ControlValMap
 controls_at pos = do
     dyn <- Internal.get_dynamic id
-    ruler <- get_ruler
+    ruler <- Internal.get_ruler
     return $ state_controls_at pos ruler dyn
 
 state_controls_at :: RealTime -> Ruler.Marklists
@@ -494,7 +497,7 @@ state_controls_at :: RealTime -> Ruler.Marklists
     -- control functions, via 'TrackLang.dyn_ruler'.
     -> Dynamic -> Score.ControlValMap
 state_controls_at pos ruler dyn =
-    Map.fromList $ map (resolve (convert_dynamic ruler dyn) pos) $
+    Map.fromList $ map (resolve (Internal.convert_dynamic ruler dyn) pos) $
         Seq.equal_pairs (\a b -> fst a == fst b)
             (Map.toAscList fs) (Map.toAscList controls)
     where
@@ -506,36 +509,7 @@ state_controls_at pos ruler dyn =
         Seq.Second (k, sig) -> (k, Signal.at pos (Score.typed_val sig))
         where
         call control f = Score.typed_val $
-            TrackLang.call_control_function f control cf_dyn pos
-
-get_control_function_dynamic :: Deriver BaseTypes.Dynamic
-get_control_function_dynamic = do
-    ruler <- get_ruler
-    Internal.get_dynamic (convert_dynamic ruler)
-
-convert_dynamic :: Ruler.Marklists -> Dynamic -> TrackLang.Dynamic
-convert_dynamic ruler dyn = TrackLang.Dynamic
-    { TrackLang.dyn_controls = state_controls dyn
-    , TrackLang.dyn_control_functions = state_control_functions dyn
-    , TrackLang.dyn_pitches = state_pitches dyn
-    , TrackLang.dyn_pitch = state_pitch dyn
-    , TrackLang.dyn_environ = state_environ dyn
-    , TrackLang.dyn_warp = state_warp dyn
-    , TrackLang.dyn_ruler = ruler
-    }
-
--- | Get the 'Ruler.meter' marklists, if there is a ruler track here.  This
--- is called in all contexts, due to 'control_at', so it has to be careful
--- to not require a ruler.
-get_ruler :: Deriver Ruler.Marklists
-get_ruler = Internal.lookup_current_tracknum >>= \x -> case x of
-    Nothing -> return mempty
-    Just (block_id, tracknum) -> do
-        state <- Internal.get_ui_state id
-        return $ either (const mempty) id $ State.eval state $ do
-            ruler_id <- fromMaybe State.no_ruler <$>
-                State.ruler_track_at block_id tracknum
-            Ruler.ruler_marklists <$> State.get_ruler ruler_id
+            BaseTypes.call_control_function f control cf_dyn pos
 
 -- *** control signal
 
@@ -557,7 +531,7 @@ remove_controls controls
             Util.Map.delete_keys controls (state_control_functions state)
         }
 
-with_control_function :: Score.Control -> TrackLang.ControlFunction
+with_control_function :: Score.Control -> BaseTypes.ControlFunction
     -> Deriver a -> Deriver a
 with_control_function control f = Internal.local $ \state -> state
     { state_control_functions =
@@ -588,7 +562,7 @@ resolve_merge :: Merge Signal.Control -> Score.Control
 resolve_merge DefaultMerge control = get_default_merger control
 resolve_merge (Merge merger) _ = return merger
 
-get_control_merge :: TrackLang.CallId -> Deriver (Merger Signal.Control)
+get_control_merge :: BaseTypes.CallId -> Deriver (Merger Signal.Control)
 get_control_merge name = do
     mergers <- gets (state_mergers . state_constant)
     require ("unknown control merger: " <> showt name) (Map.lookup name mergers)
@@ -719,7 +693,7 @@ resolve_pitch_merge :: Merge PSignal.Signal -> Merger PSignal.Signal
 resolve_pitch_merge DefaultMerge = Set
 resolve_pitch_merge (Merge merger) = merger
 
-get_pitch_merger :: TrackLang.CallId -> Deriver (Merger PSignal.Signal)
+get_pitch_merger :: BaseTypes.CallId -> Deriver (Merger PSignal.Signal)
 get_pitch_merger name = do
     mergers <- gets (state_pitch_mergers . state_constant)
     require ("unknown pitch merger: " <> showt name) (Map.lookup name mergers)
@@ -761,8 +735,8 @@ lookup_lilypond_config = get_mode >>= \mode -> return $ case mode of
     Lilypond config -> Just config
     _ -> Nothing
 
--- | Get the 'Duration' of the given deriver.
-get_score_duration :: Deriver a -> Deriver (Duration ScoreTime)
+-- | Get the 'CallDuration' of the given deriver.
+get_score_duration :: Deriver a -> Deriver (CallDuration ScoreTime)
 get_score_duration deriver = do
     state <- get
     let (_, out, _) = run (set_mode state) deriver
@@ -774,7 +748,7 @@ get_score_duration deriver = do
             { state_mode = ScoreDurationQuery }
         }
 
-get_real_duration :: Deriver a -> Deriver (Duration RealTime)
+get_real_duration :: Deriver a -> Deriver (CallDuration RealTime)
 get_real_duration deriver = do
     state <- get
     let (_, out, _) = run (set_mode state) deriver
@@ -851,13 +825,14 @@ shift_control shift deriver = do
 
 -- * call
 
--- | Wrap 'make_val_call' with a 'TrackLang.to_val' to automatically convert
--- to a 'TrackLang.Val'.  This is not in "Derive.Deriver.Monad" to avoid
+-- | Wrap 'make_val_call' with a 'Typecheck.to_val' to automatically convert
+-- to a 'BaseTypes.Val'.  This is not in "Derive.Deriver.Monad" to avoid
 -- a circular import with "Derive.TrackLang".
-val_call :: TrackLang.Typecheck a => Module.Module -> Text -> Tags.Tags -> Text
+val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Module.Module
+    -> Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall
 val_call module_ name tags doc (call, arg_docs) =
-    make_val_call module_ name tags doc (fmap TrackLang.to_val . call, arg_docs)
+    make_val_call module_ name tags doc (fmap Typecheck.to_val . call, arg_docs)
 
 set_module :: Module.Module -> Call f -> Call f
 set_module module_ call = call

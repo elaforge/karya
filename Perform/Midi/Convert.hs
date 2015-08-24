@@ -19,11 +19,11 @@ import qualified Util.TimeVector as TimeVector
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (require)
@@ -73,8 +73,7 @@ convert_event lookup event_ = do
             convert_dynamic (Instrument.has_flag Instrument.Pressure patch)
                 (event_controls
                     `Map.union` lookup_default_controls lookup score_inst)
-                (TrackLang.maybe_val Environ.dynamic_val
-                    (Score.event_environ event))
+                (Env.maybe_val Environ.dynamic_val (Score.event_environ event))
     whenJust overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
             <> pretty Controls.dynamic <> ": " <> pretty sig
@@ -210,7 +209,7 @@ convert_dynamic pressure controls dyn_function =
             -> Just dest
         _ -> Nothing
 
-convert_pitch :: Maybe Instrument.PatchScale -> TrackLang.Environ
+convert_pitch :: Maybe Instrument.PatchScale -> Env.Environ
     -> Score.ControlMap -> PSignal.Signal -> ConvertT Signal.NoteNumber
 convert_pitch scale env controls psig = do
     let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $

@@ -76,7 +76,7 @@ module Derive.Deriver.Monad (
     -- ** collect
     , Collect(..), SignalFragments
     , ControlMod(..), Integrated(..)
-    , TrackDynamic, Duration(..)
+    , TrackDynamic, CallDuration(..)
 
     -- * calls
     , CallMaps(..), call_map
@@ -150,7 +150,7 @@ import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
-import qualified Derive.BaseTypes as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -204,48 +204,51 @@ instance Pretty.Pretty ErrorVal where
     pretty (CallError err) = pretty err
 
 data CallError =
-    -- | ErrorPlace, EvalSource, arg name, expected type, received val
-    TypeError !ErrorPlace !EvalSource !Text !ValType.Type
-        !(Maybe TrackLang.Val)
-    -- | Error evaluating a 'TrackLang.VQuoted' while processing a particular
-    -- argument.
-    | EvalError !ErrorPlace !TrackLang.Quoted !Text !Error
+    -- | ErrorPlace, EvalSource, arg name, expected type, received val, derive
+    -- error.  If the derive error is present, the type check required running
+    -- a Deriver and the Deriver crashed.
+    TypeError !ErrorPlace !EvalSource
+        !Text -- arg name
+        !ValType.Type -- expected type
+        !(Maybe BaseTypes.Val) -- received val
+        !(Maybe Error) -- derive error
     -- | Couldn't even call the thing because the name was not found.
-    | CallNotFound !TrackLang.CallId
+    | CallNotFound !BaseTypes.CallId
     -- | Calling error that doesn't fit into the above categories.
     | ArgError !Text
     deriving (Show)
 
 -- | Where a type error came from.  The arg number starts at 0.
-data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !TrackLang.Symbol
+data ErrorPlace = TypeErrorArg !Int | TypeErrorEnviron !BaseTypes.Symbol
     deriving (Eq, Show)
 
 data EvalSource =
     -- | The value in error came from a literal expression.
     Literal
-    -- | The value in error came from a 'TrackLang.VQuoted' bit of code.
-    | Quoted !TrackLang.Quoted
+    -- | The value in error came from a 'BaseTypes.VQuoted' bit of code.
+    | Quoted !BaseTypes.Quoted
     deriving (Show)
 
 instance Pretty.Pretty CallError where
     pretty err = case err of
-        TypeError place source name expected received ->
-            "TypeError: arg " <> pretty place <> "/" <> name
+        TypeError place source arg_name expected received derive_error ->
+            "TypeError: arg " <> pretty place <> "/" <> arg_name
             <> source_desc <> ": expected " <> pretty expected
             <> " but got " <> pretty (ValType.type_of <$> received)
             <> ": " <> pretty received
+            <> maybe "" show_derive_error derive_error
             where
             source_desc = case source of
                 Literal -> ""
                 Quoted call -> " from " <> ShowVal.show_val call
-        EvalError place call name (Error _ _ error_val) ->
-            -- The srcpos and stack of the derive error is probably not
-            -- interesting, so I strip those out.
-            "EvalError: arg " <> pretty place <> "/" <> name
-            <> " from " <> ShowVal.show_val call
-            <> ": " <> pretty error_val
         ArgError err -> "ArgError: " <> err
         CallNotFound call_id -> "CallNotFound: " <> pretty call_id
+        where
+        -- The srcpos and stack of the derive error is probably not
+        -- interesting, so I strip those out.
+        show_derive_error (Error _ _ error_val) =
+            " (the type conversion required derivation, which crashed: "
+            <> pretty error_val <> ")"
 
 instance Pretty.Pretty ErrorPlace where
     pretty (TypeErrorArg num) = showt (num + 1)
@@ -279,8 +282,8 @@ throw_error_srcpos srcpos err = do
 -- this a class method, I can figure out which scope to look in just from
 -- the type.
 class (Show d, Taggable d) => Callable d where
-    lookup_generator :: TrackLang.CallId -> Deriver (Maybe (Generator d))
-    lookup_transformer :: TrackLang.CallId -> Deriver (Maybe (Transformer d))
+    lookup_generator :: BaseTypes.CallId -> Deriver (Maybe (Generator d))
+    lookup_transformer :: BaseTypes.CallId -> Deriver (Maybe (Transformer d))
     callable_name :: Proxy d -> Text
 
 type LogsDeriver d = Deriver [LEvent.LEvent d]
@@ -416,7 +419,7 @@ data Dynamic = Dynamic {
     state_controls :: !Score.ControlMap
     -- | Function variant of controls.  Normally they modify a backing
     -- 'Signal.Control', but could be synthesized as well.  See
-    -- 'TrackLang.ControlFunction' for details.
+    -- 'BaseTypes.ControlFunction' for details.
     , state_control_functions :: !Score.ControlFunctionMap
     , state_control_merge_defaults ::
         Map.Map Score.Control (Merger Signal.Control)
@@ -427,7 +430,7 @@ data Dynamic = Dynamic {
     -- because it's convenient to guarentee that the main pitch signal is
     -- always present.
     , state_pitch :: !PSignal.Signal
-    , state_environ :: !TrackLang.Environ
+    , state_environ :: !BaseTypes.Environ
     , state_warp :: !Score.Warp
     -- | Calls currently in scope.
     , state_scopes :: !Scopes
@@ -475,7 +478,7 @@ instance Pretty.Pretty Inversion where
     pretty NotInverted = "NotInverted"
     pretty (InversionInProgress {}) = "InversionInProgress"
 
-initial_dynamic :: TrackLang.Environ -> Dynamic
+initial_dynamic :: BaseTypes.Environ -> Dynamic
 initial_dynamic environ = Dynamic
     { state_controls = initial_controls
     , state_control_functions = mempty
@@ -687,11 +690,11 @@ extract_val_doc vcall = DocumentedCall (vcall_name vcall) (vcall_doc vcall)
 
 -- ** lookup
 
-lookup_val_call :: TrackLang.CallId -> Deriver (Maybe ValCall)
+lookup_val_call :: BaseTypes.CallId -> Deriver (Maybe ValCall)
 lookup_val_call = lookup_with scopes_val
 
 lookup_with :: (Scopes -> ScopeType call)
-    -> (TrackLang.CallId -> Deriver (Maybe call))
+    -> (BaseTypes.CallId -> Deriver (Maybe call))
 lookup_with get call_id = do
     lookups <- get_scopes get
     lookup_scopes lookups call_id
@@ -704,13 +707,13 @@ get_scopes get = do
 
 -- | Convert a list of lookups into a single lookup by returning the first
 -- one to yield a Just.
-lookup_scopes :: [LookupCall call] -> (TrackLang.CallId -> Deriver (Maybe call))
+lookup_scopes :: [LookupCall call] -> (BaseTypes.CallId -> Deriver (Maybe call))
 lookup_scopes [] _ = return Nothing
 lookup_scopes (lookup:rest) call_id =
     maybe (lookup_scopes rest call_id) (return . Just)
         =<< lookup_call lookup call_id
 
-lookup_call :: LookupCall call -> TrackLang.CallId -> Deriver (Maybe call)
+lookup_call :: LookupCall call -> BaseTypes.CallId -> Deriver (Maybe call)
 lookup_call (LookupMap calls) call_id = return $ Map.lookup call_id calls
 lookup_call (LookupPattern _ _ lookup) call_id = lookup call_id
 
@@ -723,7 +726,7 @@ data Mode =
     -- | This indicates that I'm running the deriver just to find out its
     -- duration.  There's a hack in "Derive.Eval" that will fill in
     -- 'collect_score_duration' when it sees this mode.  More detail in
-    -- 'Duration'.
+    -- 'CallDuration'.
     | ScoreDurationQuery | RealDurationQuery
     -- | Run only enough to figure out what the pitch of a note is.  This will
     -- stop evaluation at the first pitch track, and the results will go in
@@ -751,8 +754,8 @@ instance Pretty.Pretty Mode where
 data Constant = Constant {
     state_ui :: !State.State
     , state_library :: !Library
-    , state_mergers :: !(Map.Map TrackLang.CallId (Merger Signal.Control))
-    , state_pitch_mergers :: !(Map.Map TrackLang.CallId (Merger PSignal.Signal))
+    , state_mergers :: !(Map.Map BaseTypes.CallId (Merger Signal.Control))
+    , state_pitch_mergers :: !(Map.Map BaseTypes.CallId (Merger PSignal.Signal))
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
@@ -787,7 +790,7 @@ data Instrument = Instrument {
     inst_calls :: InstrumentCalls
     -- | Merge this with the 'state_environ' when the instrument comes into
     -- scope.
-    , inst_environ :: TrackLang.Environ
+    , inst_environ :: BaseTypes.Environ
     } deriving (Show)
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
@@ -833,7 +836,7 @@ data Merger sig =
     Merger !Text !(sig -> sig -> sig) !sig -- ^ name mappend mempty
     | Set -- ^ Replace the existing signal.
 
--- It's not really a 'TrackLang.Val', so this is a bit wrong for ShowVal.  But
+-- It's not really a 'BaseTypes.Val', so this is a bit wrong for ShowVal.  But
 -- I want to express that this is meant to be valid syntax for the track title.
 instance ShowVal.ShowVal (Merger a) where
     show_val Set = "set"
@@ -848,7 +851,7 @@ instance DeepSeq.NFData (Merger a) where
 
 -- | Default set of control operators.  Merged at runtime with the static
 -- config.  TODO but not yet
-mergers :: Map.Map TrackLang.CallId (Merger Signal.Control)
+mergers :: Map.Map BaseTypes.CallId (Merger Signal.Control)
 mergers = Map.fromList $ map to_pair
     [ Set, merge_add, merge_sub, merge_mul, merge_scale
     , Merger "max" Signal.sig_max (Signal.constant (-2^32))
@@ -856,7 +859,7 @@ mergers = Map.fromList $ map to_pair
     -- flip ensures that when samples collide, the later track wins.
     , Merger "interleave" (flip Signal.interleave) mempty
     ]
-    where to_pair merger = (TrackLang.Symbol (ShowVal.show_val merger), merger)
+    where to_pair merger = (BaseTypes.Symbol (ShowVal.show_val merger), merger)
 
 merge_add, merge_sub, merge_mul, merge_scale :: Merger Signal.Control
 merge_add = Merger "add" Signal.sig_add (Signal.constant 0)
@@ -864,11 +867,11 @@ merge_sub = Merger "sub" Signal.sig_subtract (Signal.constant 0)
 merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
 merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
 
-pitch_mergers :: Map.Map TrackLang.CallId (Merger PSignal.Signal)
+pitch_mergers :: Map.Map BaseTypes.CallId (Merger PSignal.Signal)
 pitch_mergers = Map.fromList $ map to_pair
     [ Set, Merger "interleave" (flip PSignal.interleave) mempty
     ]
-    where to_pair merger = (TrackLang.Symbol (ShowVal.show_val merger), merger)
+    where to_pair merger = (BaseTypes.Symbol (ShowVal.show_val merger), merger)
 
 
 -- * Collect
@@ -897,8 +900,8 @@ data Collect = Collect {
     , collect_cache :: !Cache
     , collect_integrated :: ![Integrated]
     , collect_control_mods :: ![ControlMod]
-    , collect_score_duration :: !(Duration ScoreTime)
-    , collect_real_duration :: !(Duration RealTime)
+    , collect_score_duration :: !(CallDuration ScoreTime)
+    , collect_real_duration :: !(CallDuration RealTime)
     }
 
 -- | These are fragments of a signal, which will be later collected into
@@ -1027,15 +1030,15 @@ type TrackDynamic = Map.Map (BlockId, TrackId) Dynamic
     and this is the only one that worked.  Historical details are in
     NOTE [call-duration].
 -}
-data Duration a = Unknown | Duration !a
+data CallDuration a = Unknown | CallDuration !a
     deriving (Eq, Show)
 
-instance Show a => Pretty.Pretty (Duration a) where pretty = showt
+instance Show a => Pretty.Pretty (CallDuration a) where pretty = showt
 
 -- I think it would be more correct to take the stack depth, and pick the one
 -- with the shallower stack, and then the max.  But it's more expensive and
 -- picking the second one seems to work.
-instance Monoid.Monoid (Duration a) where
+instance Monoid.Monoid (CallDuration a) where
     mempty = Unknown
     mappend Unknown a = a
     mappend a Unknown = a
@@ -1044,12 +1047,12 @@ instance Monoid.Monoid (Duration a) where
 -- ** calls
 
 data LookupCall call =
-    LookupMap !(Map.Map TrackLang.CallId call)
+    LookupMap !(Map.Map BaseTypes.CallId call)
     -- | Text description of the CallIds accepted.  The function is in Deriver
     -- because some calls want to look at the state to know if the CallId is
     -- valid, e.g. block calls.
     | LookupPattern !Text !DocumentedCall
-        !(TrackLang.CallId -> Deriver (Maybe call))
+        !(BaseTypes.CallId -> Deriver (Maybe call))
 
 instance Pretty.Pretty (LookupCall call) where
     format c = case c of
@@ -1080,24 +1083,24 @@ instance Pretty.Pretty (CallMaps d) where
 -- | Make LookupCalls whose the calls are all 'LookupMap's.  The LookupMaps
 -- are all singletons since names are allowed to overlap when declaring calls.
 -- It is only when they are imported into a scope that the maps are combined.
-call_map :: [(TrackLang.CallId, call)] -> [LookupCall call]
+call_map :: [(BaseTypes.CallId, call)] -> [LookupCall call]
 call_map = map (LookupMap . uncurry Map.singleton)
 
 -- | Bundle generators and transformers up together for convenience.
-call_maps :: [(TrackLang.CallId, Generator d)]
-    -> [(TrackLang.CallId, Transformer d)] -> CallMaps d
+call_maps :: [(BaseTypes.CallId, Generator d)]
+    -> [(BaseTypes.CallId, Transformer d)] -> CallMaps d
 call_maps generators transformers =
     CallMaps (call_map generators) (call_map transformers)
 
-generator_call_map :: [(TrackLang.CallId, Generator d)] -> CallMaps d
+generator_call_map :: [(BaseTypes.CallId, Generator d)] -> CallMaps d
 generator_call_map generators = call_maps generators []
 
-transformer_call_map :: [(TrackLang.CallId, Transformer d)] -> CallMaps d
+transformer_call_map :: [(BaseTypes.CallId, Transformer d)] -> CallMaps d
 transformer_call_map = call_maps []
 
 -- | Data passed to a 'Call'.
 data PassedArgs val = PassedArgs {
-    passed_vals :: ![TrackLang.Val]
+    passed_vals :: ![BaseTypes.Val]
     -- | Used by "Derive.Sig" to look for default arg values in the
     -- environment.  This is technically redundant since a call should know its
     -- own name, but it turns out to be inconvenient to pass the name to all of
@@ -1284,10 +1287,11 @@ type WithArgDoc f = (f, ArgDocs)
 
 data GeneratorFunc d = GeneratorFunc {
     gfunc_f :: !(GeneratorF d)
-    -- | This gets the logical duration of this call.  'Duration' has
+    -- | This gets the logical duration of this call.  'CallDuration' has
     -- details.
-    , gfunc_score_duration :: !(PassedArgs d -> Deriver (Duration ScoreTime))
-    , gfunc_real_duration :: !(PassedArgs d -> Deriver (Duration RealTime))
+    , gfunc_score_duration
+        :: !(PassedArgs d -> Deriver (CallDuration ScoreTime))
+    , gfunc_real_duration :: !(PassedArgs d -> Deriver (CallDuration RealTime))
     }
 
 type GeneratorF d = PassedArgs d -> LogsDeriver d
@@ -1300,13 +1304,13 @@ generator_func f = GeneratorFunc {
     }
 
 -- | Most calls have the same logical duration as their event.
-default_score_duration :: PassedArgs d -> Deriver (Duration ScoreTime)
+default_score_duration :: PassedArgs d -> Deriver (CallDuration ScoreTime)
 default_score_duration =
-    return . Duration . Event.duration . ctx_event . passed_ctx
+    return . CallDuration . Event.duration . ctx_event . passed_ctx
 
-default_real_duration :: PassedArgs d -> Deriver (Duration RealTime)
-default_real_duration args =
-    Duration <$> score_to_real (Event.duration $ ctx_event $ passed_ctx args)
+default_real_duration :: PassedArgs d -> Deriver (CallDuration RealTime)
+default_real_duration args = CallDuration <$>
+    score_to_real (Event.duration $ ctx_event $ passed_ctx args)
 
 -- | args -> deriver -> deriver
 type TransformerF d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
@@ -1348,13 +1352,13 @@ generator1 module_ name tags doc (func, arg_docs) =
     generator module_ name tags doc
         (((:[]) . LEvent.Event <$>) . func, arg_docs)
 
--- | Set the 'gfunc_score_duration' field to get ScoreTime Duration.
-with_score_duration :: (PassedArgs d -> Deriver (Duration ScoreTime))
+-- | Set the 'gfunc_score_duration' field to get ScoreTime CallDuration.
+with_score_duration :: (PassedArgs d -> Deriver (CallDuration ScoreTime))
     -> Generator d -> Generator d
 with_score_duration get call = call
     { call_func = (call_func call) { gfunc_score_duration = get } }
 
-with_real_duration :: (PassedArgs d -> Deriver (Duration RealTime))
+with_real_duration :: (PassedArgs d -> Deriver (CallDuration RealTime))
     -> Generator d -> Generator d
 with_real_duration get call = call
     { call_func = (call_func call) { gfunc_real_duration = get } }
@@ -1371,14 +1375,14 @@ transformer = make_call
 data ValCall = ValCall {
     vcall_name :: !Text
     , vcall_doc :: !CallDoc
-    , vcall_call :: PassedArgs Tagged -> Deriver TrackLang.Val
+    , vcall_call :: PassedArgs Tagged -> Deriver BaseTypes.Val
     }
 
 instance Show ValCall where
     show (ValCall name _ _) = "((ValCall " ++ show name ++ "))"
 
 make_val_call :: Module.Module -> Text -> Tags.Tags -> Text
-    -> WithArgDoc (PassedArgs Tagged -> Deriver TrackLang.Val) -> ValCall
+    -> WithArgDoc (PassedArgs Tagged -> Deriver BaseTypes.Val) -> ValCall
 make_val_call module_ name tags doc (call, arg_docs) = ValCall
     { vcall_name = name
     , vcall_doc = CallDoc
@@ -1543,9 +1547,9 @@ data Scale = Scale {
     -- in this set, the pitch won't be reevaluated when they change.
     , scale_transposers :: !(Set.Set Score.Control)
     -- | Parse a Note into a Pitch.Pitch with scale degree and accidentals.
-    , scale_read :: TrackLang.Environ -> Pitch.Note
+    , scale_read :: BaseTypes.Environ -> Pitch.Note
         -> Either ScaleError Pitch.Pitch
-    , scale_show :: TrackLang.Environ -> Pitch.Pitch
+    , scale_show :: BaseTypes.Environ -> Pitch.Pitch
         -> Either ScaleError Pitch.Note
     , scale_layout :: !Layout
     , scale_transpose :: !Transpose
@@ -1555,7 +1559,7 @@ data Scale = Scale {
     , scale_note_to_call :: !(Pitch.Note -> Maybe ValCall)
 
     -- | Used by note input.
-    , scale_input_to_note :: !(TrackLang.Environ -> Pitch.Input
+    , scale_input_to_note :: !(BaseTypes.Environ -> Pitch.Input
         -> Either ScaleError Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
     -- @eval . note_to_call . input_to_note@ but can often be implemented more
@@ -1581,7 +1585,7 @@ instance Pretty.Pretty Scale where
 
 -- | A scale can configure itself by looking in the environment and by looking
 -- up other scales.
-newtype LookupScale = LookupScale (TrackLang.Environ -> LookupScale
+newtype LookupScale = LookupScale (BaseTypes.Environ -> LookupScale
     -> Pitch.ScaleId -> Maybe (Either ScaleError Scale))
 instance Show LookupScale where show _ = "((LookupScale))"
 
@@ -1594,7 +1598,7 @@ instance Show LookupScale where show _ = "((LookupScale))"
 -- want to make the Key type concrete, since each scale has a different one.
 --
 -- TODO could make the key an existential type and export scale_parse_key?
-type Transpose = Transposition -> TrackLang.Environ -> Pitch.Step -> Pitch.Pitch
+type Transpose = Transposition -> BaseTypes.Environ -> Pitch.Step -> Pitch.Pitch
     -> Either ScaleError Pitch.Pitch
 
 data Transposition = Chromatic | Diatonic deriving (Show)
@@ -1602,7 +1606,7 @@ data Transposition = Chromatic | Diatonic deriving (Show)
 -- | Get the enharmonics of the note.  The given note is omitted, and the
 -- enharmonics are in ascending order until they wrap around, so if you always
 -- take the head of the list you will cycle through all of the enharmonics.
-type Enharmonics = TrackLang.Environ -> Pitch.Note
+type Enharmonics = BaseTypes.Environ -> Pitch.Note
     -> Either ScaleError [Pitch.Note]
 
 -- | The number of chromatic intervals between each 'Pitch.PitchClass',
@@ -1626,8 +1630,8 @@ data ScaleError =
     -- | Input note doesn't map to a scale note.
     | InvalidInput
     -- | A required environ value was missing or had the wrong type or value.
-    | EnvironError !TrackLang.ValName !Text
-        -- The Text should be TrackLang.Val except that makes Eq not work.
+    | EnvironError !BaseTypes.Key !Text
+        -- The Text should be BaseTypes.Val except that makes Eq not work.
     -- | Other kind of error.
     | ScaleError !Text
     deriving (Eq, Show)
@@ -1720,16 +1724,16 @@ levent_key (LEvent.Event event) = Score.event_start event
 -}
 
 {- NOTE [call-duration]
-    This is containued from 'Duration'.
+    This is containued from 'CallDuration'.
 
-    Initially I used just Collect, and each deriver could put a Duration
+    Initially I used just Collect, and each deriver could put a CallDuration
     into Collect.  Unfortunately this means I have to run the whole deriver and
     evaluate all the notes.  I tried to exploit laziness a bit, but it's
     probably impossible.  In addition, merging durations is not correct, because
     the duration set by the block call should override the durations set by
     the events inside.
 
-    Then I tried splitting Deriver into (DeriveM, Duration) and merging
+    Then I tried splitting Deriver into (DeriveM, CallDuration) and merging
     CallDurations in the Applicative instance.  This prevents evaluation, but
     stops propagating the CallDurations as soon as it hits a (>>=).  This turns
     out to be pretty much immediately, since an event call needs to parse text
@@ -1737,7 +1741,7 @@ levent_key (LEvent.Event event) = Score.event_start event
     I actually do need to evaluate a certain amount of the deriver to figure out
     what kind of deriver it is.
 
-    Since the things that have Duration are not so much any old deriver,
+    Since the things that have CallDuration are not so much any old deriver,
     but specifically calls, I tried putting a special field in 'Generator'
     calls, which turned out to work.
 -}

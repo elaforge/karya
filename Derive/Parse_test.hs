@@ -10,11 +10,12 @@ import System.FilePath ((</>))
 
 import qualified Util.ParseText as ParseText
 import Util.Test
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import Derive.TestInstances ()
-import qualified Derive.TrackLang as TrackLang
-import Derive.TrackLang (Ref(..), Symbol(..), Val(..), Call(..), Term(..))
+import Derive.BaseTypes (Ref(..), Symbol(..), Val(..), Call(..), Term(..))
 
 import qualified Perform.Signal as Signal
 import Global
@@ -69,14 +70,14 @@ test_parse_expr = do
 
 test_unparsed_call = do
     let f = fmap NonEmpty.toList . Parse.parse_expr
-        call = TrackLang.Call
-        vsym = Literal . TrackLang.VSymbol
-        null_call = TrackLang.Call "" []
+        call = BaseTypes.Call
+        vsym = Literal . BaseTypes.VSymbol
+        null_call = BaseTypes.Call "" []
     equal (f "!<>\"('|") $ Right
         [call Parse.unparsed_call [vsym "<>\"('"], null_call]
     equal (f "hi \"(!blah)") $ Right
-        [call "hi" [TrackLang.Literal $ TrackLang.VQuoted $
-            TrackLang.Quoted (call "!" [vsym "blah"] :| [])]]
+        [call "hi" [BaseTypes.Literal $ BaseTypes.VQuoted $
+            BaseTypes.Quoted (call "!" [vsym "blah"] :| [])]]
     -- ! takes precedence over =
     equal (f "!a=b") $ Right [call "!" [vsym "a=b"]]
 
@@ -124,11 +125,11 @@ test_parse_val = do
             , ("#", Just $ VPControlRef $ LiteralControl "")
             , ("#sig", Just $ VPControlRef $ LiteralControl "sig")
 
-            , ("\"(a b)", Just $ VQuoted $ TrackLang.Quoted $
+            , ("\"(a b)", Just $ VQuoted $ BaseTypes.Quoted $
                 Call (Symbol "a") [Literal (VSymbol (Symbol "b"))] :| [])
-            , ("\"()", Just $ VQuoted $ TrackLang.Quoted $
+            , ("\"()", Just $ VQuoted $ BaseTypes.Quoted $
                 Call (Symbol "") [] :| [])
-            , ("\"(a |)", Just $ VQuoted $ TrackLang.Quoted $
+            , ("\"(a |)", Just $ VQuoted $ BaseTypes.Quoted $
                 Call (Symbol "a") [] :| [Call (Symbol "") []])
 
             , ("$bad", Nothing)
@@ -155,7 +156,7 @@ test_parse_val = do
             (Right val, Just expect) -> do
                 equal val expect
                 when invertible $
-                    void $ equal (TrackLang.show_val val) expr
+                    void $ equal (ShowVal.show_val val) expr
             _ -> void $ success $ show res ++ " == " ++ show expected
 
 test_parse_control_title = do

@@ -85,10 +85,11 @@ c_block block_id = Derive.with_score_duration get_score_duration $
         end <- Derive.real (1 :: ScoreTime)
         if Event.positive (Args.event args) then trim_controls end deriver
             else constant_controls_at end deriver
-    get_score_duration :: a -> Derive.Deriver (Derive.Duration ScoreTime)
-    get_score_duration _ = Derive.Duration . (\(s, e) -> e-s) <$>
+    get_score_duration :: a -> Derive.Deriver (Derive.CallDuration ScoreTime)
+    get_score_duration _ = Derive.CallDuration . (\(s, e) -> e-s) <$>
         Derive.block_logical_range block_id
-    get_real_duration :: BlockId -> Derive.Deriver (Derive.Duration RealTime)
+    get_real_duration :: BlockId
+        -> Derive.Deriver (Derive.CallDuration RealTime)
     get_real_duration block_id =
         Derive.get_real_duration $ Internal.with_stack_block block_id $
             d_block block_id

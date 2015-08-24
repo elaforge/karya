@@ -14,13 +14,13 @@ import qualified Util.Seq as Seq
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -241,7 +241,7 @@ read_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
     -> Either Scale.ScaleError Pitch.Pitch
 read_pitch smap = TheoryFormat.read_pitch (smap_fmt smap)
 
-read_environ_key :: ScaleMap -> TrackLang.Environ
+read_environ_key :: ScaleMap -> Env.Environ
     -> Either Scale.ScaleError Theory.Key
 read_environ_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
     . Scales.environ_key

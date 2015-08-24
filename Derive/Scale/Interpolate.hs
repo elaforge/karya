@@ -6,8 +6,10 @@
 -- | Interpolate between two different scales.
 module Derive.Scale.Interpolate where
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.Pitches as Pitches
@@ -17,6 +19,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -29,8 +32,7 @@ scales = scale_make $ \env (Scale.LookupScale lookup) -> do
             lookup env2 (Scale.LookupScale lookup) scale_id
         -- This should avoid an infinite loop if from_id is itself
         -- interpolate.
-        env2 = TrackLang.delete_val scale_from $
-            TrackLang.delete_val scale_to env
+        env2 = Env.delete scale_from $ Env.delete scale_to env
     from <- find ("from scale " <> pretty from_id) from_id
     to <- find ("to scale " <> pretty to_id) to_id
     return $ make from to
@@ -91,27 +93,27 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
         n <- fromMaybe 0 <$> Derive.untyped_control_at scale_at start
         let apply key = rename_environ key Environ.key
                 . Eval.apply_pitch (Args.start args)
+        let typecheck = Typecheck.typecheck "interpolated_degree"
+                (Args.start args)
         if n <= 0 then apply key_from from
             else if n >= 1 then apply key_to to
             else do
-                p1 <- require . Sig.typecheck =<< apply key_from from
-                p2 <- require . Sig.typecheck =<< apply key_to to
-                return $ TrackLang.to_val $ Pitches.interpolated p1 p2 n
+                p1 <- typecheck =<< apply key_from from
+                p2 <- typecheck =<< apply key_to to
+                return $ Typecheck.to_val $ Pitches.interpolated p1 p2 n
     where
-    require = Derive.require_right ("interpolated_degree: "<>)
     doc :: ShowVal.ShowVal a => a -> Text
     doc = ShowVal.doc_val
 
-rename_environ :: TrackLang.ValName -> TrackLang.ValName -> Derive.Deriver a
-    -> Derive.Deriver a
+rename_environ :: Env.Key -> Env.Key -> Derive.Deriver a -> Derive.Deriver a
 rename_environ from to deriver = do
-    maybe_val :: Maybe TrackLang.Val <- Derive.lookup_val from
+    maybe_val :: Maybe BaseTypes.Val <- Derive.lookup_val from
     maybe id (Derive.with_val to) maybe_val deriver
 
 
 -- * util
 
-environ_from_to :: TrackLang.Environ
+environ_from_to :: Env.Environ
     -> Either Scale.ScaleError (Pitch.ScaleId, Pitch.ScaleId)
 environ_from_to env = do
     from <- Scales.read_environ (Just . TrackLang.sym_to_scale_id) Nothing
@@ -120,11 +122,11 @@ environ_from_to env = do
         scale_to env
     return (from, to)
 
-key_from, key_to :: TrackLang.ValName
+key_from, key_to :: Env.Key
 key_from = "key-from"
 key_to = "key-to"
 
-scale_from, scale_to :: TrackLang.ValName
+scale_from, scale_to :: Env.Key
 scale_from = "scale-from"
 scale_to = "scale-to"
 

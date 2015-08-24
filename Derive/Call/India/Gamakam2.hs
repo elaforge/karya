@@ -12,6 +12,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -31,6 +32,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -390,9 +392,9 @@ c_flat_start = generator1 "flat-start" mempty
     $ Sig.call ((,)
     <$> Sig.defaulted "pitch" Nothing
         "Emit this pitch, or continue the previous pitch if not given."
-    <*> Sig.defaulted "time" (TrackLang.real 0.15)
+    <*> Sig.defaulted "time" (Typecheck.real 0.15)
         "Pitch lasts for this duration."
-    ) $ \(maybe_pitch, TrackLang.DefaultReal time) args -> do
+    ) $ \(maybe_pitch, Typecheck.DefaultReal time) args -> do
         start <- Args.real_start args
         end <- get_end start time args
         pitch <- optional_pitch maybe_pitch <$> Call.get_pitch start
@@ -424,7 +426,7 @@ c_from pitch_from fade = generator1 "from" mempty
     <*> Sig.defaulted "transition" default_transition "Time to destination."
     <*> Sig.defaulted "to" Nothing "Go to this pitch, or the current one."
     <*> ControlUtil.curve_env
-    ) $ \(from_pitch, TrackLang.DefaultReal time, maybe_to_pitch, curve)
+    ) $ \(from_pitch, Typecheck.DefaultReal time, maybe_to_pitch, curve)
             args -> do
         start <- Args.real_start args
         end <- get_end start time args
@@ -439,7 +441,7 @@ c_from pitch_from fade = generator1 "from" mempty
 -- | Get the end time, given a start and a duration.  Don't go beyond the
 -- maximum, which is the event's duration, if given explicitly, or the next
 -- event if it's 0.
-get_end :: RealTime -> TrackLang.Duration -> Derive.PassedArgs a
+get_end :: RealTime -> BaseTypes.Duration -> Derive.PassedArgs a
     -> Derive.Deriver RealTime
 get_end start dur args = do
     time_end <- (start +) <$> Call.real_duration start dur
@@ -490,7 +492,7 @@ c_jaru append_zero = generator1 "jaru" mempty
     <*> Sig.environ "transition" Sig.Both Nothing
         "Time for each slide, defaults to `time`."
     <*> ControlUtil.curve_env
-    ) $ \(intervals, TrackLang.DefaultReal time_, maybe_transition, curve)
+    ) $ \(intervals, Typecheck.DefaultReal time_, maybe_transition, curve)
             args -> do
         start <- Args.real_start args
         -- Adjust time per note based on the available duration.
@@ -498,7 +500,7 @@ c_jaru append_zero = generator1 "jaru" mempty
         -- the duration into intervals-1 parts.
         let len = NonEmpty.length intervals - 1
         end <- get_end start
-            (TrackLang.multiply_duration time_ len) args
+            (BaseTypes.multiply_duration time_ len) args
         let time = (end - start) / fromIntegral len
         pitch <- Call.get_pitch start
         srate <- Call.get_srate
@@ -514,7 +516,7 @@ c_jaru append_zero = generator1 "jaru" mempty
         | otherwise = Derive.throw "all intervals must have the same type"
         where
         (xs, control :| controls) = NonEmpty.unzip $ NonEmpty.map
-            (Controls.transpose_control . TrackLang.default_diatonic)
+            (Controls.transpose_control . Typecheck.default_diatonic)
             intervals
 
 jaru :: ControlUtil.Curve -> RealTime -> RealTime -> RealTime -> RealTime
@@ -578,7 +580,7 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
     \ before the next event."
     <> if doc == "" then "" else "\n" <> doc)
     $ Sig.call ((,,,)
-    <$> (TrackLang.positive <$> Sig.defaulted "cycles" 1 "Number of cycles.")
+    <$> (Typecheck.positive <$> Sig.defaulted "cycles" 1 "Number of cycles.")
     <*> kampita_pitch_args kam_args
     <*> kampita_env <*> ControlUtil.curve_env
     ) $ \(cycles, pitches, (transition, hold, lilt, adjust), curve) args -> do
@@ -598,10 +600,10 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
 -- ** implementation
 
 resolve_pitches :: KampitaArgs -> (TrackLang.ControlRef, TrackLang.ControlRef)
-    -> Derive.Deriver ((Call.Function, Call.Function), Score.Control)
+    -> Derive.Deriver ((Typecheck.Function, Typecheck.Function), Score.Control)
 resolve_pitches kam_args (pitch1, pitch2) = do
-    (pitch1, control1) <- Call.to_transpose_function Call.Nn pitch1
-    (pitch2, control2) <- Call.to_transpose_function Call.Nn pitch2
+    (pitch1, control1) <- Call.to_transpose_function Typecheck.Nn pitch1
+    (pitch2, control2) <- Call.to_transpose_function Typecheck.Nn pitch2
     let two_pitches = case kam_args of
             Kampita2 -> False
             _ -> True
@@ -625,7 +627,7 @@ kampita_pitch_args kam_args = case kam_args of
         TrackLang.ControlSignal $ Score.untyped (Signal.constant val)
     sig name deflt = Sig.typed_control name deflt Score.Nn
 
-kampita_env :: Sig.Parser (RealTime, TrackLang.Duration, Double, Trill.Adjust)
+kampita_env :: Sig.Parser (RealTime, BaseTypes.Duration, Double, Trill.Adjust)
 kampita_env = (,,,)
     <$> Sig.defaulted_env "transition" Sig.Both default_transition_
         "Time for each slide."
@@ -637,8 +639,8 @@ kampita_env = (,,,)
         \ each neighbor on top of the following unison, while -1 would place\
         \ it on the previous one. So it should range from -1 < lilt < 1."
 
-default_transition :: TrackLang.DefaultReal
-default_transition = TrackLang.real default_transition_
+default_transition :: Typecheck.DefaultReal
+default_transition = Typecheck.real default_transition_
 
 default_transition_ :: RealTime
 default_transition_ = 0.12
@@ -652,8 +654,8 @@ kampita start args control transpose = do
 
 -- | You don't think there are too many arguments, do you?
 kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
-    -> (Call.Function, Call.Function) -> TrackLang.ControlRef -> RealTime
-    -> TrackLang.Duration -> Double -> (ScoreTime, ScoreTime)
+    -> (Typecheck.Function, Typecheck.Function) -> TrackLang.ControlRef
+    -> RealTime -> BaseTypes.Duration -> Double -> (ScoreTime, ScoreTime)
     -> Derive.Deriver Signal.Control
 kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
         (start, end) = do
@@ -661,15 +663,15 @@ kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
     smooth_trill curve (-transition) pitch1 pitch2
         =<< trill_transitions even adjust lilt hold speed (start, end)
 
-smooth_trill :: ControlUtil.Curve -> RealTime -> Call.Function -> Call.Function
-    -> [RealTime] -> Derive.Deriver Signal.Control
+smooth_trill :: ControlUtil.Curve -> RealTime -> Typecheck.Function
+    -> Typecheck.Function -> [RealTime] -> Derive.Deriver Signal.Control
 smooth_trill curve time val1 val2 transitions = do
     srate <- Call.get_srate
     return $ SignalTransform.smooth curve srate time $
         trill_from_transitions val1 val2 transitions
 
 -- | Make a trill signal from a list of transition times.
-trill_from_transitions :: Call.Function -> Call.Function
+trill_from_transitions :: Typecheck.Function -> Typecheck.Function
     -> [RealTime] -> Signal.Control
 trill_from_transitions val1 val2 transitions = Signal.signal
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
@@ -684,7 +686,8 @@ trill_transitions = Trill.adjusted_transitions include_end
     -- and thus will still have a segment leading to the cut-off transition.
     include_end = True
 
-end_wants_even_transitions :: RealTime -> (Call.Function, Call.Function)
+end_wants_even_transitions :: RealTime
+    -> (Typecheck.Function, Typecheck.Function)
     -> Maybe Trill.Direction -> Maybe Bool
 end_wants_even_transitions start (pitch1, pitch2) dir = case dir of
     Nothing -> Nothing
@@ -700,9 +703,9 @@ c_flat_end = generator1 "flat-end" mempty
     $ Sig.call ((,)
     <$> Sig.defaulted "pitch" Nothing
         "Emit this pitch, or continue the previous pitch if not given."
-    <*> Sig.defaulted "time" (TrackLang.real 0.15)
+    <*> Sig.defaulted "time" (Typecheck.real 0.15)
         "Pitch lasts for this duration."
-    ) $ \(maybe_pitch, TrackLang.DefaultReal time) args -> do
+    ) $ \(maybe_pitch, Typecheck.DefaultReal time) args -> do
         (start, end) <- Args.real_range args
         start <- align_to_end start end time
         pitch <- optional_pitch maybe_pitch <$> prev_pitch start args
@@ -714,7 +717,7 @@ c_to fade = generator1 "to" mempty "Go to a pitch, and possibly fade out."
     <$> Sig.required "pitch" "Go to this pitch or interval."
     <*> Sig.defaulted "transition" default_transition
         "Time to destination pitch."
-    ) $ \(to_pitch, TrackLang.DefaultReal time) args -> do
+    ) $ \(to_pitch, Typecheck.DefaultReal time) args -> do
         (start, end) <- Args.real_range args
         start <- align_to_end start end time
         pitch <- prev_pitch start args
@@ -730,8 +733,8 @@ c_fade fade_in = generator1 "fade" mempty
     ((if fade_in then "Fade in." else "Fade out.")
     <> " This will overlap with the pitch part of the "
     <> (if fade_in then "next" else "previous") <> " call."
-    ) $ Sig.call (Sig.defaulted "time" (TrackLang.real 0.15) "Time to fade.")
-    $ \(TrackLang.DefaultReal time) args -> do
+    ) $ Sig.call (Sig.defaulted "time" (Typecheck.real 0.15) "Time to fade.")
+    $ \(Typecheck.DefaultReal time) args -> do
         (start, end) <- Args.real_range args
         (start, end) <- if fade_in
             then (,) <$> return start <*> get_end start time args
@@ -742,7 +745,7 @@ c_fade fade_in = generator1 "fade" mempty
 
 -- | Subtract the duration from the given end time, but don't go past the
 -- start.
-align_to_end :: RealTime -> RealTime -> TrackLang.Duration
+align_to_end :: RealTime -> RealTime -> BaseTypes.Duration
     -> Derive.Deriver RealTime
 align_to_end start end dur = do
     dur <- min (end - start) <$> Call.real_duration start dur

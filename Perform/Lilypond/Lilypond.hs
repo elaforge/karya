@@ -13,10 +13,10 @@ import qualified Data.Text.Lazy.Builder as Builder
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Meter as Meter
@@ -269,7 +269,7 @@ split_events events =
         | (inst, events) <- by_inst]
     where
     by_inst = Seq.keyed_group_sort Types.event_instrument events
-    lookup_hand environ = case TrackLang.get_val Environ.hand environ of
+    lookup_hand environ = case Env.get_val Environ.hand environ of
         Right (val :: Text)
             | val == "r" || val == "right" -> 0
             | val == "l" || val == "left" -> 1
@@ -305,7 +305,7 @@ split_movements movements =
 
 get_movements :: [Types.Event] -> Either Text [(Types.Time, Title)]
 get_movements = mapMaybeM $ \event -> do
-    title <- TrackLang.checked_val Constants.v_movement
+    title <- Env.checked_val Constants.v_movement
         (Types.event_environ event)
     return $ (,) (Types.event_start event) <$> title
 
@@ -332,7 +332,7 @@ get_meters start staff_end events = do
         fromIntegral dur / fromIntegral (Meter.measure_time meter)
 
     get_meter event = error_context context $ do
-        maybe_val <- TrackLang.checked_val Constants.v_meter
+        maybe_val <- Env.checked_val Constants.v_meter
             (Types.event_environ event)
         case maybe_val of
             Nothing -> return Nothing

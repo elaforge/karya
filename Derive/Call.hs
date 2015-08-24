@@ -13,7 +13,6 @@
 -}
 module Derive.Call where
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified System.Random.Mersenne.Pure64 as Pure64
 
 import qualified Util.Num as Num
@@ -24,6 +23,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -37,6 +37,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -48,200 +49,115 @@ import Types
 
 -- * signals
 
--- TODO There are four types that divide into two kinds.  Then I have
--- every possible combination:
--- any type: Score.Real
--- time type without value: Real
--- time type with value: TrackLang.Real
---
--- This means I wind up with a lot of duplication here to handle time types and
--- transpose types.  Surely there's a better way?  Maybe put the two kinds into
--- a typeclass?
-
-data TimeType = Real | Score deriving (Eq, Show)
-
-instance Pretty.Pretty TimeType where pretty = showt
-
-time_type :: TimeType -> Score.Type -> Maybe TimeType
-time_type deflt typ = case typ of
-    Score.Untyped -> Just deflt
-    Score.Real -> Just Real
-    Score.Score -> Just Score
-    _ -> Nothing
-
-data TransposeType = Diatonic | Chromatic | Nn deriving (Eq, Show)
-
-instance Pretty.Pretty TransposeType where pretty = showt
-
-transpose_type :: TransposeType -> Score.Type -> Maybe TransposeType
-transpose_type deflt typ = case typ of
-    Score.Untyped -> Just deflt
-    Score.Diatonic -> Just Diatonic
-    Score.Chromatic -> Just Chromatic
-    Score.Nn -> Just Nn
-    _ -> Nothing
-
-transpose_control :: TransposeType -> Score.Control
-transpose_control Diatonic = Controls.diatonic
-transpose_control Chromatic = Controls.chromatic
-transpose_control Nn = Controls.nn
-
 -- | To accomodate both normal calls, which are in score time, and post
 -- processing calls, which are in real time, these functions take RealTimes.
-control_at :: TrackLang.ControlRef -> RealTime -> Derive.Deriver Signal.Y
+control_at :: BaseTypes.ControlRef -> RealTime -> Derive.Deriver Signal.Y
 control_at control pos = Score.typed_val <$> typed_control_at control pos
 
-typed_control_at :: TrackLang.ControlRef -> RealTime
+typed_control_at :: BaseTypes.ControlRef -> RealTime
     -> Derive.Deriver Score.TypedVal
 typed_control_at control pos = case control of
-    TrackLang.ControlSignal sig -> return $ Signal.at pos <$> sig
-    TrackLang.DefaultedControl cont deflt ->
+    BaseTypes.ControlSignal sig -> return $ Signal.at pos <$> sig
+    BaseTypes.DefaultedControl cont deflt ->
         fromMaybe (Signal.at pos <$> deflt) <$> Derive.control_at cont pos
-    TrackLang.LiteralControl cont ->
-        Derive.require ("not found and no default: " <> TrackLang.show_val cont)
+    BaseTypes.LiteralControl cont ->
+        Derive.require ("not found and no default: " <> ShowVal.show_val cont)
             =<< Derive.control_at cont pos
 
 -- TODO callers should use Typecheck.DefaultRealTimeFunction
-time_control_at :: TimeType -> TrackLang.ControlRef -> RealTime
-    -> Derive.Deriver TrackLang.Duration
+time_control_at :: Typecheck.TimeType -> BaseTypes.ControlRef -> RealTime
+    -> Derive.Deriver BaseTypes.Duration
 time_control_at default_type control pos = do
     Score.Typed typ val <- typed_control_at control pos
     time_type <- case typ of
         Score.Untyped -> return default_type
-        Score.Score -> return Score
-        Score.Real -> return Real
+        Score.Score -> return Typecheck.Score
+        Score.Real -> return Typecheck.Real
         _ -> Derive.throw $ "expected time type for "
-            <> TrackLang.show_val control <> " but got " <> pretty typ
+            <> ShowVal.show_val control <> " but got " <> pretty typ
     return $ case time_type of
-        Real -> TrackLang.Real (RealTime.seconds val)
-        Score -> TrackLang.Score (ScoreTime.double val)
+        Typecheck.Real -> BaseTypes.RealDuration (RealTime.seconds val)
+        Typecheck.Score -> BaseTypes.ScoreDuration (ScoreTime.double val)
 
-real_time_at :: TrackLang.ControlRef -> RealTime -> Derive.Deriver RealTime
+real_time_at :: BaseTypes.ControlRef -> RealTime -> Derive.Deriver RealTime
 real_time_at control pos = do
-    val <- time_control_at Real control pos
+    val <- time_control_at Typecheck.Real control pos
     case val of
-        TrackLang.Real t -> return t
-        TrackLang.Score t -> Derive.throw $ "expected RealTime for "
-            <> TrackLang.show_val control <> " but got " <> TrackLang.show_val t
+        BaseTypes.RealDuration t -> return t
+        BaseTypes.ScoreDuration t -> Derive.throw $ "expected RealTime for "
+            <> ShowVal.show_val control <> " but got " <> ShowVal.show_val t
 
-transpose_control_at :: TransposeType -> TrackLang.ControlRef -> RealTime
-    -> Derive.Deriver (Signal.Y, TransposeType)
+transpose_control_at :: Typecheck.TransposeType -> BaseTypes.ControlRef
+    -> RealTime -> Derive.Deriver (Signal.Y, Typecheck.TransposeType)
 transpose_control_at default_type control pos = do
     Score.Typed typ val <- typed_control_at control pos
     transpose_type <- case typ of
         Score.Untyped -> return default_type
-        Score.Chromatic -> return Chromatic
-        Score.Diatonic -> return Diatonic
+        Score.Chromatic -> return Typecheck.Chromatic
+        Score.Diatonic -> return Typecheck.Diatonic
         _ -> Derive.throw $ "expected transpose type for "
-            <> TrackLang.show_val control <> " but got " <> pretty typ
+            <> ShowVal.show_val control <> " but got " <> pretty typ
     return (val, transpose_type)
 
 
 -- * function and signal
 
-type TypedFunction = RealTime -> Score.TypedVal
-type Function = RealTime -> Signal.Y
-
--- | Convert a 'TrackLang.ControlRef' to a function.
---
--- If a signal exists but doesn't have a type, the type will be inherited from
--- the default.  This way a call can cause a signal parameter to default to
--- a certain type.
-to_typed_function :: TrackLang.ControlRef -> Derive.Deriver TypedFunction
-to_typed_function control =
-    convert_to_function control =<< to_signal_or_function control
-
-convert_to_function :: TrackLang.ControlRef
-    -> Either Score.TypedControl TrackLang.ControlFunction
-    -> Derive.Deriver TypedFunction
-convert_to_function control =
-    either (return . Derive.signal_function) from_function
-    where
-    from_function f = TrackLang.call_control_function f score_control <$>
-        Derive.get_control_function_dynamic
-    score_control = case control of
-        TrackLang.ControlSignal {} -> Controls.null
-        TrackLang.DefaultedControl cont _ -> cont
-        TrackLang.LiteralControl cont -> cont
-
-to_function :: TrackLang.ControlRef -> Derive.Deriver Function
-to_function = fmap (Score.typed_val .) . to_typed_function
+to_function :: BaseTypes.ControlRef -> Derive.Deriver Typecheck.Function
+to_function = fmap (Score.typed_val .) . Typecheck.to_typed_function
 
 -- | Convert a ControlRef to a control signal.  If there is
--- a 'TrackLang.ControlFunction' it will be ignored.
-to_typed_signal :: TrackLang.ControlRef -> Derive.Deriver Score.TypedControl
+-- a 'BaseTypes.ControlFunction' it will be ignored.
+to_typed_signal :: BaseTypes.ControlRef -> Derive.Deriver Score.TypedControl
 to_typed_signal control =
     either return (const $ Derive.throw $ "not found: " <> pretty control)
-        =<< to_signal_or_function control
+        =<< Typecheck.to_signal_or_function control
 
-to_signal :: TrackLang.ControlRef -> Derive.Deriver Signal.Control
+to_signal :: BaseTypes.ControlRef -> Derive.Deriver Signal.Control
 to_signal = fmap Score.typed_val . to_typed_signal
-
-to_signal_or_function :: TrackLang.ControlRef
-    -> Derive.Deriver (Either Score.TypedControl TrackLang.ControlFunction)
-to_signal_or_function control = case control of
-    TrackLang.ControlSignal sig -> return $ Left sig
-    TrackLang.DefaultedControl cont deflt ->
-        get_control (Score.type_of deflt) (return (Left deflt)) cont
-    TrackLang.LiteralControl cont ->
-        get_control Score.Untyped (Derive.throw $ "not found: " <> showt cont)
-            cont
-    where
-    get_control default_type deflt cont = get_function cont >>= \x -> case x of
-        Just f -> return $ Right $
-            TrackLang.modify_control_function (inherit_type default_type .) f
-        Nothing -> Derive.get_control_signal cont >>= \x -> case x of
-            Just sig -> return $ Left sig
-            Nothing -> deflt
-    get_function cont = Internal.get_dynamic $
-        Map.lookup cont . Derive.state_control_functions
-    -- If the signal was untyped, it gets the type of the default, since
-    -- presumably the caller expects that type.
-    inherit_type default_type val =
-        val { Score.type_of = Score.type_of val <> default_type }
 
 -- | Version of 'to_function' specialized for transpose signals.  Throws if
 -- the signal had a non-transpose type.
-to_transpose_function :: TransposeType -> TrackLang.ControlRef
-    -> Derive.Deriver (Function, Score.Control)
+to_transpose_function :: Typecheck.TransposeType -> BaseTypes.ControlRef
+    -> Derive.Deriver (Typecheck.Function, Score.Control)
     -- ^ (signal, appropriate transpose control)
 to_transpose_function default_type control = do
-    sig <- to_typed_function control
+    sig <- Typecheck.to_typed_function control
     -- Previously, I directly returned 'Score.TypedControl's so I could look at
     -- their types.  A function is more powerful but I have to actually call
     -- it to find the type.
     let typ = Score.type_of (sig 0)
         untyped = Score.typed_val . sig
     case typ of
-        Score.Untyped -> return (untyped, transpose_control default_type)
+        Score.Untyped ->
+            return (untyped, Typecheck.transpose_control default_type)
         _ -> case Controls.transpose_type typ of
             Just control -> return (untyped, control)
             _ -> Derive.throw $ "expected transpose type for "
-                <> TrackLang.show_val control <> " but got " <> pretty typ
+                <> ShowVal.show_val control <> " but got " <> pretty typ
 
 -- | Version of 'to_function' that will complain if the control isn't a time
 -- type.
-to_time_function :: TimeType -> TrackLang.ControlRef
-    -> Derive.Deriver (Function, TimeType)
+to_time_function :: Typecheck.TimeType -> BaseTypes.ControlRef
+    -> Derive.Deriver (Typecheck.Function, Typecheck.TimeType)
 to_time_function default_type control = do
-    sig <- to_typed_function control
+    sig <- Typecheck.to_typed_function control
     let typ = Score.type_of (sig 0)
         untyped = Score.typed_val . sig
     case typ of
         Score.Untyped -> return (untyped, default_type)
-        Score.Score -> return (untyped, Score)
-        Score.Real -> return (untyped, Real)
+        Score.Score -> return (untyped, Typecheck.Score)
+        Score.Real -> return (untyped, Typecheck.Real)
         _ -> Derive.throw $ "expected time type for "
-            <> TrackLang.show_val control <> " but got " <> pretty typ
+            <> ShowVal.show_val control <> " but got " <> pretty typ
 
 -- TODO maybe pos should be be ScoreTime so I can pass it to eval_pitch?
-pitch_at :: RealTime -> TrackLang.PControlRef -> Derive.Deriver PSignal.Pitch
+pitch_at :: RealTime -> BaseTypes.PControlRef -> Derive.Deriver PSignal.Pitch
 pitch_at pos control = case control of
-    TrackLang.ControlSignal sig -> require sig
-    TrackLang.DefaultedControl cont deflt -> do
+    BaseTypes.ControlSignal sig -> require sig
+    BaseTypes.DefaultedControl cont deflt -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
         maybe (require deflt) return maybe_pitch
-    TrackLang.LiteralControl cont -> do
+    BaseTypes.LiteralControl cont -> do
         maybe_pitch <- Derive.named_pitch_at cont pos
         Derive.require ("pitch not found and no default given: " <> showt cont)
             maybe_pitch
@@ -249,15 +165,15 @@ pitch_at pos control = case control of
     require = Derive.require ("ControlSignal pitch at " <> pretty pos)
         . PSignal.at pos
 
-to_psignal :: TrackLang.PControlRef -> Derive.Deriver PSignal.Signal
+to_psignal :: BaseTypes.PControlRef -> Derive.Deriver PSignal.Signal
 to_psignal control = case control of
-    TrackLang.ControlSignal sig -> return sig
-    TrackLang.DefaultedControl cont deflt ->
+    BaseTypes.ControlSignal sig -> return sig
+    BaseTypes.DefaultedControl cont deflt ->
         maybe (return deflt) return =<< Derive.get_pitch cont
-    TrackLang.LiteralControl cont ->
+    BaseTypes.LiteralControl cont ->
         Derive.require ("not found: " <> showt cont) =<< Derive.get_pitch cont
 
-nn_at :: RealTime -> TrackLang.PControlRef
+nn_at :: RealTime -> BaseTypes.PControlRef
     -> Derive.Deriver (Maybe Pitch.NoteNumber)
 nn_at pos control = -- TODO throw exception?
     Derive.logged_pitch_nn ("Util.nn_at " <> pretty (pos, control))
@@ -293,7 +209,7 @@ dynamic pos = maybe Derive.default_dynamic Score.typed_val <$>
 with_pitch :: PSignal.Pitch -> Derive.Deriver a -> Derive.Deriver a
 with_pitch = Derive.with_constant_pitch
 
-with_symbolic_pitch :: TrackLang.PitchCall -> ScoreTime -> Derive.Deriver a
+with_symbolic_pitch :: BaseTypes.PitchCall -> ScoreTime -> Derive.Deriver a
     -> Derive.Deriver a
 with_symbolic_pitch call pos deriver = do
     pitch <- Eval.eval_pitch pos call
@@ -371,7 +287,7 @@ parse_pitch parse pitch = do
 
 eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Pitch
 eval_note pos note = Eval.eval_pitch pos $
-    TrackLang.call (TrackLang.Symbol (Pitch.note_text note)) []
+    TrackLang.call (BaseTypes.Symbol (Pitch.note_text note)) []
 
 -- | Generate a single note, from 0 to 1.
 note :: Derive.NoteDeriver
@@ -486,8 +402,8 @@ _random_generator = do
 real_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
     -> Derive.Deriver RealTime
 real_duration start dur = case Derive.to_duration dur of
-    TrackLang.Real t -> return t
-    TrackLang.Score t
+    BaseTypes.RealDuration t -> return t
+    BaseTypes.ScoreDuration t
         | t == 0 -> return 0
         | otherwise -> do
             -- I'm adding score to real, so I want the amount of real time in
@@ -504,8 +420,8 @@ real_duration start dur = case Derive.to_duration dur of
 score_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
     -> Derive.Deriver ScoreTime
 score_duration start dur = case Derive.to_duration dur of
-    TrackLang.Score t -> return t
-    TrackLang.Real t
+    BaseTypes.ScoreDuration t -> return t
+    BaseTypes.RealDuration t
         | t == 0 -> return 0
         | otherwise -> do
             -- I'm adding real to score, so I want the amount of amount of
@@ -533,15 +449,17 @@ duration_from_end args t = do
     return (end - dur, end)
 
 -- | This is 'real_duration', but takes a TypedVal.
-typed_real_duration :: TimeType -> ScoreTime -> Score.TypedVal
+typed_real_duration :: Typecheck.TimeType -> ScoreTime -> Score.TypedVal
     -> Derive.Deriver RealTime
 typed_real_duration default_type from (Score.Typed typ val)
-    | typ == Score.Real || typ == Score.Untyped && default_type == Real =
-        return (RealTime.seconds val)
-    | typ == Score.Score || typ == Score.Untyped && default_type == Score =
-        real_duration from (ScoreTime.double val)
+    | typ == Score.Real || typ == Score.Untyped
+        && default_type == Typecheck.Real =
+            return (RealTime.seconds val)
+    | typ == Score.Score || typ == Score.Untyped
+        && default_type == Typecheck.Score =
+            real_duration from (ScoreTime.double val)
     | otherwise = Derive.throw $
-        "expected time type for " <> TrackLang.show_val (Score.Typed typ val)
+        "expected time type for " <> ShowVal.show_val (Score.Typed typ val)
 
 -- ** timestep
 
@@ -574,15 +492,10 @@ default_timestep :: Derive.PassedArgs a -> Meter.RankName -> Maybe ScoreTime
 default_timestep args step =
     maybe (meter_duration (Args.start args) step 1) return
 
-instance ShowVal.ShowVal Meter.RankName where
-    show_val = TrackLang.default_show_val
-instance TrackLang.Typecheck Meter.RankName
-instance TrackLang.TypecheckSymbol Meter.RankName
-
 
 -- * evaluation
 
-eval :: Derive.Callable d => Derive.Context d -> TrackLang.Val
+eval :: Derive.Callable d => Derive.Context d -> BaseTypes.Val
     -> Derive.Deriver [LEvent.LEvent d]
 eval info val = do
     quoted <- Derive.require_right id $ val_to_quoted val
@@ -591,9 +504,21 @@ eval info val = do
 -- | Coerce an argument to a Quoted.  Used when you want to take another
 -- call to possibly evaluate.  This way you can directly pass a symbol or
 -- @+attr@ without having to quote it.
-val_to_quoted :: TrackLang.Val -> Either Text TrackLang.Quoted
+val_to_quoted :: BaseTypes.Val -> Either Text BaseTypes.Quoted
 val_to_quoted val = case val of
-    TrackLang.VPitch {} -> Left "pitches must be quoted"
-    TrackLang.VQuoted quoted -> Right quoted
-    _ -> Right $ TrackLang.Quoted $
-        TrackLang.call0 (TrackLang.Symbol (TrackLang.show_call_val val)) :| []
+    BaseTypes.VPitch {} -> Left "pitches must be quoted"
+    BaseTypes.VQuoted quoted -> Right quoted
+    _ -> Right $ BaseTypes.Quoted $
+        TrackLang.call0 (BaseTypes.Symbol (TrackLang.show_call_val val)) :| []
+
+-- * general purpose types
+
+-- | This is for arguments which can be high or low.
+data UpDown = Up | Down deriving (Show, Enum, Bounded, Eq, Ord)
+
+instance Pretty.Pretty UpDown where pretty = showt
+instance Typecheck.Typecheck UpDown
+instance Typecheck.TypecheckSymbol UpDown
+instance ShowVal.ShowVal UpDown where
+    show_val Up = "u"
+    show_val Down = "d"

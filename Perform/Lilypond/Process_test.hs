@@ -8,6 +8,8 @@ import qualified Data.Text as Text
 import Util.Test
 import qualified Derive.Environ as Environ
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
+
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 import qualified Perform.Lilypond.Process as Process
@@ -104,8 +106,8 @@ test_chords = do
 test_code_events = do
     let f = LilypondTest.process_simple ["a", "b"]
             . map LilypondTest.environ_event
-        prepend = [(Constants.v_ly_prepend, TrackLang.to_val ("a" :: Text))]
-        append = [(Constants.v_ly_append_all, TrackLang.to_val ("b" :: Text))]
+        prepend = [(Constants.v_ly_prepend, Typecheck.to_val ("a" :: Text))]
+        append = [(Constants.v_ly_append_all, Typecheck.to_val ("b" :: Text))]
     -- Code that falls in the middle of rests.
     equal (f [(0, 0, "?", append), (0, 0, "?", prepend)])
         (Right "a b")

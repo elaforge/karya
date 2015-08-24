@@ -27,6 +27,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (control, typed_control)
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -58,7 +59,7 @@ gender_ngoret = ngoret module_ True damp_arg
         \ end of the current note."
 
 interval_arg :: Sig.Parser Pitch.Transpose
-interval_arg = TrackLang.default_diatonic <$> Sig.required "interval"
+interval_arg = Typecheck.default_diatonic <$> Sig.required "interval"
     "The grace note is this interval from the destination pitch."
 
 -- | Other instruments also have ngoret, but without gender's special damping
@@ -91,8 +92,8 @@ ngoret module_ late_damping damp_arg interval_arg =
     ) $ \(maybe_interval, time, damp, dyn_scale, damp_threshold) args ->
     Sub.inverting_args args $ \args -> do
         start <- Args.real_start args
-        time <- Derive.real =<< Call.time_control_at Call.Real time start
-        damp <- Derive.real =<< Call.time_control_at Call.Real damp start
+        time <- Derive.real =<< Call.time_control_at Typecheck.Real time start
+        damp <- Derive.real =<< Call.time_control_at Typecheck.Real damp start
         maybe_pitch <- case maybe_interval of
             Nothing -> return Nothing
             Just transpose ->

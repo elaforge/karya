@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | This module is sister to "Derive.Deriver.Lib", except that it contains
     functions which are normally only used by the built-in track derivation
     scheme, and are not used when writing most normal calls.
@@ -14,15 +15,16 @@ import qualified Data.Word as Word
 
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
+import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
+import qualified Derive.BaseTypes as BaseTypes
 import Derive.Deriver.Monad
 import qualified Derive.Environ as Environ
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.RealTime as RealTime
@@ -99,12 +101,8 @@ set_threaded threaded = modify $ \st -> st { state_threaded = threaded }
 
 -- * environ
 
-get_environ :: Deriver TrackLang.Environ
+get_environ :: Deriver BaseTypes.Environ
 get_environ = get_dynamic state_environ
-
-insert_environ :: TrackLang.Typecheck val => TrackLang.ValName
-    -> val -> TrackLang.Environ -> Deriver TrackLang.Environ
-insert_environ name val = either throw return . TrackLang.put_val_error name val
 
 -- | Figure out the current block and track, and record the current environ
 -- in the Collect.  It only needs to be recorded once per track.
@@ -235,9 +233,12 @@ add_stack_frame frame st = st
     , state_environ = update_seed (state_environ st)
     }
     where
-    update_seed env = TrackLang.insert_val
-        Environ.seed (TrackLang.num (seed old)) env
-        where old = fromMaybe 0 (TrackLang.maybe_val Environ.seed env)
+    update_seed env = BaseTypes.insert
+        Environ.seed (BaseTypes.VNum (Score.untyped (seed old))) env
+        where
+        old = case BaseTypes.lookup Environ.seed env of
+            Just (BaseTypes.VNum n) -> Score.typed_val n
+            _ -> 0
     seed :: Double -> Double
     seed n = i2d (CRC32.crc32Update (floor n) frame)
     -- A Double should be able to hold up to 2^52, but that's still an
@@ -249,40 +250,6 @@ get_stack :: Deriver Stack.Stack
 get_stack = get_dynamic state_stack
 
 -- * warp
-
--- | Times are types that can be converted to RealTime and ScoreTime.
-class Time t where
-    real :: t -> Deriver RealTime
-    score :: t -> Deriver ScoreTime
-    to_duration :: t -> TrackLang.Duration
-
-instance Time ScoreTime where
-    real = score_to_real
-    score = return
-    to_duration = TrackLang.Score
-
-instance Time RealTime where
-    real = return
-    score = real_to_score
-    to_duration = TrackLang.Real
-
--- | This should go in TrackLang, but can't due to circular imports.
-instance Time TrackLang.Duration where
-    real (TrackLang.Real t) = real t
-    real (TrackLang.Score t) = real t
-    score (TrackLang.Real t) = score t
-    score (TrackLang.Score t) = score t
-    to_duration = id
-
-instance Time TrackLang.DefaultReal where
-    real = real . TrackLang.default_real
-    score = score . TrackLang.default_real
-    to_duration = TrackLang.default_real
-
-instance Time TrackLang.DefaultScore where
-    real = real . TrackLang.default_score
-    score = score . TrackLang.default_score
-    to_duration = TrackLang.default_score
 
 real_to_score :: RealTime -> Deriver ScoreTime
 real_to_score pos = do
@@ -297,6 +264,31 @@ with_warp f = local $ \st -> st { state_warp = f (state_warp st) }
 
 get_warp :: Deriver Score.Warp
 get_warp = get_dynamic state_warp
+
+-- ** time and duration
+
+-- | Times are types that can be converted to RealTime and ScoreTime.
+class Time t where
+    real :: t -> Deriver RealTime
+    score :: t -> Deriver ScoreTime
+    to_duration :: t -> BaseTypes.Duration
+
+instance Time ScoreTime where
+    real = score_to_real
+    score = return
+    to_duration = BaseTypes.ScoreDuration
+
+instance Time RealTime where
+    real = return
+    score = real_to_score
+    to_duration = BaseTypes.RealDuration
+
+instance Time BaseTypes.Duration where
+    real (BaseTypes.RealDuration t) = real t
+    real (BaseTypes.ScoreDuration t) = real t
+    score (BaseTypes.RealDuration t) = score t
+    score (BaseTypes.ScoreDuration t) = score t
+    to_duration = id
 
 -- ** warp
 
@@ -407,3 +399,34 @@ record_empty_track :: BlockId -> TrackId -> Deriver ()
 record_empty_track block_id track_id = do
     add_track_warp track_id
     record_track_dynamic_for block_id track_id
+
+-- * ControlFunction
+
+get_control_function_dynamic :: Deriver BaseTypes.Dynamic
+get_control_function_dynamic = do
+    ruler <- get_ruler
+    get_dynamic (convert_dynamic ruler)
+
+convert_dynamic :: Ruler.Marklists -> Dynamic -> BaseTypes.Dynamic
+convert_dynamic ruler dyn = BaseTypes.Dynamic
+    { BaseTypes.dyn_controls = state_controls dyn
+    , BaseTypes.dyn_control_functions = state_control_functions dyn
+    , BaseTypes.dyn_pitches = state_pitches dyn
+    , BaseTypes.dyn_pitch = state_pitch dyn
+    , BaseTypes.dyn_environ = state_environ dyn
+    , BaseTypes.dyn_warp = state_warp dyn
+    , BaseTypes.dyn_ruler = ruler
+    }
+
+-- | Get the 'Ruler.meter' marklists, if there is a ruler track here.  This
+-- is called in all contexts, due to 'control_at', so it has to be careful
+-- to not require a ruler.
+get_ruler :: Deriver Ruler.Marklists
+get_ruler = lookup_current_tracknum >>= \x -> case x of
+    Nothing -> return mempty
+    Just (block_id, tracknum) -> do
+        state <- get_ui_state id
+        return $ either (const mempty) id $ State.eval state $ do
+            ruler_id <- fromMaybe State.no_ruler <$>
+                State.ruler_track_at block_id tracknum
+            Ruler.ruler_marklists <$> State.get_ruler ruler_id

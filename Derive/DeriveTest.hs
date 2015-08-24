@@ -37,6 +37,7 @@ import qualified Derive.Call.Prelude.Block as Prelude.Block
 import Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
@@ -50,6 +51,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
@@ -316,7 +318,7 @@ with_transform = with_ui . (State.config#State.global_transform #=)
 with_key :: Text -> SetupA a
 with_key key = with_deriver $ Derive.with_val Environ.key key
 
-with_environ :: TrackLang.Environ -> SetupA a
+with_environ :: Env.Environ -> SetupA a
 with_environ env =
     with_deriver $ Internal.local $ \st -> st { Derive.state_environ = env }
 
@@ -397,8 +399,8 @@ default_constant ui_state cache damage = Derive.initial_constant ui_state
 default_dynamic :: Derive.Dynamic
 default_dynamic = Derive.initial_dynamic default_environ
 
-default_environ :: TrackLang.Environ
-default_environ = TrackLang.make_environ
+default_environ :: Env.Environ
+default_environ = Env.from_list
     -- tests are easier to write and read with integral interpolation
     [ (Environ.srate, TrackLang.num 1)
     , (Environ.scale,
@@ -563,22 +565,19 @@ e_start_note e = (Score.event_start e, e_pitch e)
 e_attributes :: Score.Event -> String
 e_attributes = untxt . ShowVal.show_val . Score.event_attributes
 
-e_environ :: TrackLang.ValName -> Score.Event -> Maybe Text
-e_environ name =
-    fmap ShowVal.show_val . TrackLang.lookup_val name . Score.event_environ
+e_environ :: Env.Key -> Score.Event -> Maybe Text
+e_environ name = fmap ShowVal.show_val . Env.lookup name . Score.event_environ
 
-e_environ_like :: (String -> Bool) -> Score.Event
-    -> [(TrackLang.ValName, String)]
+e_environ_like :: (String -> Bool) -> Score.Event -> [(Env.Key, String)]
 e_environ_like f event =
     [ (TrackLang.Symbol k, untxt $ ShowVal.show_val v)
-    | (TrackLang.Symbol k, v)
-        <- TrackLang.environ_to_list (Score.event_environ event)
+    | (TrackLang.Symbol k, v) <- Env.to_list (Score.event_environ event)
     , f (untxt k)
     ]
 
-e_environ_val :: TrackLang.Typecheck a => TrackLang.ValName -> Score.Event
+e_environ_val :: Typecheck.Typecheck a => Env.Key -> Score.Event
     -> Maybe a
-e_environ_val name = TrackLang.maybe_val name . Score.event_environ
+e_environ_val name = Env.maybe_val name . Score.event_environ
 
 e_tsigs :: Derive.Result -> [((BlockId, TrackId), [(Signal.X, Signal.Y)])]
 e_tsigs =

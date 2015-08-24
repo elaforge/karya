@@ -138,7 +138,7 @@ get_stretch_to_1 (Just range) compute =
 
 set_real_duration :: RealTime -> Derive.Deriver ()
 set_real_duration dur = Internal.modify_collect $ \collect ->
-    collect { Derive.collect_real_duration = Derive.Duration dur }
+    collect { Derive.collect_real_duration = Derive.CallDuration dur }
 
 
 -- * absolute

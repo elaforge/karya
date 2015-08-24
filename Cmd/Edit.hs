@@ -520,7 +520,7 @@ lookup_call_duration block_id track_id event =
                 Derive.get_score_duration deriver
             return $ Just $ case dur of
                 Derive.Unknown -> Event.duration event
-                Derive.Duration dur -> dur
+                Derive.CallDuration dur -> dur
 
 -- * modify text
 

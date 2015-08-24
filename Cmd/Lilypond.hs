@@ -31,11 +31,11 @@ import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Call.Prelude.Block as Call.Block
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
+import qualified Derive.Env as Env
 import qualified Derive.Environ as Environ
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Lilypond.Convert as Convert
@@ -91,7 +91,7 @@ lookup_key perf =
     fromMaybe Twelve.default_key $ msum $ map (lookup . Derive.state_environ) $
         Map.elems (Msg.perf_track_dynamic perf)
     where
-    lookup environ = case TrackLang.get_val Environ.key environ of
+    lookup environ = case Env.get_val Environ.key environ of
         Right key -> Just (Pitch.Key key)
         Left _ -> Nothing
 
