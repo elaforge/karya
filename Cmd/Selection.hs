@@ -230,19 +230,17 @@ cmd_track_all selnum = do
     set_selnum view_id selnum (Just (select_track_all block_end tracks sel))
 
 select_track_all :: TrackTime -> TrackNum -> Sel.Selection -> Sel.Selection
-select_track_all block_end_ tracks sel
+select_track_all block_end tracks sel
     | sel == select_tracks = select_all
     | sel == select_rest = select_tracks
     | otherwise = select_rest
     where
-    -- Keep sel_cur_pos at the current position, or set it to the top.
-    -- This is so 'auto_scroll' won't jump to the bottom of the block.
-    select_rest = sel { Sel.cur_pos = start, Sel.start_pos = block_end }
+    select_rest = until_end $ sel { Sel.cur_pos = start }
         where start = fst $ Sel.range sel
-    select_tracks = sel { Sel.cur_pos = 0, Sel.start_pos = block_end }
-    select_all = Sel.selection 1 0 tracks block_end
-    -- Otherwise a select-all won't include an event at the end of the block.
-    block_end = block_end_ + ScoreTime.eta
+    select_tracks = until_end $ sel { Sel.cur_pos = 0 }
+    select_all = until_end $ track_selection 1 tracks
+    until_end = select_until_end block_end
+    track_selection from to = Sel.selection from 0 to 0
 
 -- ** set selection from clicks
 
@@ -256,8 +254,18 @@ cmd_select_track btn selnum msg = do
 
 select_tracks :: Cmd.M m => Sel.Num -> ViewId -> TrackNum -> TrackNum -> m ()
 select_tracks selnum view_id from to = do
-    dur <- State.block_event_end =<< State.block_id_of view_id
-    set_selnum view_id selnum $ Just (Sel.selection from dur to 0)
+    block_end <- State.block_end =<< State.block_id_of view_id
+    set_selnum view_id selnum $ Just $ select_until_end block_end $
+        Sel.selection from 0 to 0
+
+-- | Extend the selection to the end of then block.  This sets 'Sel.start_pos',
+-- with the assumption that 'Sel.cur_pos' is onscreen.  This is so
+-- 'auto_scroll' won't jump to the bottom of the block.
+select_until_end :: TrackTime -> Sel.Selection -> Sel.Selection
+select_until_end block_end sel = sel
+    { Sel.start_pos = block_end + ScoreTime.eta}
+    -- Without ScoreTime.eta, a select-all won't include an event at the end of
+    -- the block.
 
 -- | Set the selection based on a click or drag.
 cmd_mouse_selection :: Cmd.M m =>
