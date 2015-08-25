@@ -5,6 +5,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 -- | Cmds for track level operations.
 module Cmd.Repl.LTrack where
+import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
@@ -101,11 +102,46 @@ duplicate source_block source_tracknum dest_block dest_tracknum = do
 
 -- * events
 
-events :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Event.Event]
-events track_id start end = do
+events :: State.M m => TrackId -> m [Event.Event]
+events track_id = do
     track <- State.get_track track_id
-    return $ (Events.ascending
-        . Events.in_range start end . Track.track_events) track
+    return $ Events.ascending $ Track.track_events track
+
+selected :: Cmd.M m => m [Event.Event]
+selected = do
+    (_, _, track_ids, start, end) <- Selection.tracks
+    track_id <- Cmd.require "selected track" (Seq.head track_ids)
+    Events.ascending . Events.in_range start end . Track.track_events <$>
+        State.get_track track_id
+
+events_range :: TrackId -> ScoreTime -> ScoreTime -> Cmd.CmdL [Event.Event]
+events_range track_id start end = do
+    track <- State.get_track track_id
+    return $ Events.ascending $ Events.in_range start end $
+        Track.track_events track
+
+selected_notation :: Cmd.M m => TrackTime -> m Text
+selected_notation step = do
+    events <- selected
+    (_, _, _, start, end) <- Selection.tracks
+    return $ to_notation start step end events
+
+-- | Reduce event text to notation at a fixed time increment.  It only works
+-- out if each event only has a single letter.
+to_notation :: TrackTime -> TrackTime -> TrackTime -> [Event.Event] -> Text
+to_notation start step end = mconcat . go (Seq.range' start end step)
+    where
+    go _ [] = []
+    go [] ts = replicate (length ts) " "
+    go (t:ts) (e:es)
+        | Event.start e > t = " " : go ts (e:es)
+        | Event.start e == t = Event.event_text e : go ts es
+        | otherwise = " " : go (t:ts) es
+
+-- | 4 measures per line, 16 time steps per measure.
+format_measures :: String -> [String]
+format_measures = map (List.intercalate "|") . Seq.chunked 4 . Seq.chunked 16
+
 
 -- * strip controls
 
