@@ -222,7 +222,9 @@ instance (Typecheck a, ToVal a) => Typecheck [a] where
 instance ToVal a => ToVal [a] where to_val = VList . map to_val
 
 instance (Typecheck a, Typecheck b) => Typecheck (Either a b) where
-    from_val a = either Left Right <$> from_val a
+    from_val a = case from_val a of
+        Val Nothing -> Right <$> from_val a
+        a -> Left <$> a
     to_type _ = ValType.TEither (to_type (Proxy :: Proxy a))
         (to_type (Proxy :: Proxy b))
 instance (ToVal a, ToVal b) => ToVal (Either a b) where

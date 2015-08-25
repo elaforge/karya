@@ -21,8 +21,8 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Parse as Parse
 import qualified Derive.PSignal as PSignal
+import qualified Derive.Parse as Parse
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig

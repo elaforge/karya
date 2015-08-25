@@ -114,12 +114,12 @@ test_score_duration = do
                 Log.warn . showt =<< Derive.get_score_duration deriver
                 return []
     equal (run [("top", [(">", [(0, 1, "t |")])])])
-        ["Duration 1.0"]
+        ["CallDuration 1.0"]
     equal (run
             [ ("top", [(">", [(0, 1, "t | sub")])])
             , ("sub=ruler", [(">", [(0, 3, ""), (3, 1, "")])])
             ])
-        ["Duration 4.0"]
+        ["CallDuration 4.0"]
 
 test_real_duration = do
     let run = DeriveTest.r_log_strings
@@ -129,27 +129,27 @@ test_real_duration = do
             Sig.call0t $ \_ deriver -> do
                 Log.warn . showt =<< Derive.get_real_duration deriver
                 return []
-    equal (run [("top", [(">", [(0, 1, "t |")])])]) ["Duration 1.0"]
-    equal (run [("top", [(">", [(0, 2, "t |")])])]) ["Duration 2.0"]
+    equal (run [("top", [(">", [(0, 1, "t |")])])]) ["CallDuration 1.0"]
+    equal (run [("top", [(">", [(0, 2, "t |")])])]) ["CallDuration 2.0"]
     equal (run [("top", [("tempo", [(0, 0, "2")]), (">", [(0, 2, "t |")])])])
-        ["Duration 1.0"]
+        ["CallDuration 1.0"]
     equal (run
             [ ("top", [(">", [(0, 1, "t | sub")])])
             , ("sub=ruler", [(">", [(0, 2, "")])])
             ])
-        ["Duration 2.0"]
+        ["CallDuration 2.0"]
     equal (run
             [ ("top", [(">", [(0, 1, "t | sub")])])
             , ("sub=ruler", [("tempo", [(0, 0, ".5")]), (">", [(0, 2, "")])])
             ])
-        ["Duration 4.0"]
+        ["CallDuration 4.0"]
 
     -- It's duration, so it remains the same regardless of where you are.
     equal (run
             [ ("top", [(">", [(1, 1, "t | sub")])])
             , ("sub=ruler", [("tempo", [(0, 0, ".5")]), (">", [(0, 2, "")])])
             ])
-        ["Duration 4.0"]
+        ["CallDuration 4.0"]
 
 test_control_block = do
     let extract = DeriveTest.e_control "cont"
