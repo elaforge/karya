@@ -56,7 +56,7 @@ c_alternate = Derive.generator Module.prelude "alternate" Tags.random
     "Pick one of several expressions and evaluate it."
     $ Sig.call (Sig.many1 "expr" "Expression to evaluate.") $
     \exprs args -> do
-        let pairs = fmap (flip (,) 1) exprs
+        let pairs = fmap ((,) 1) exprs
         val <- pick_weighted pairs <$> Call.random
         Call.eval (Args.context args) val
 
@@ -85,7 +85,7 @@ c_alternate_weighted =
     typecheck args (weight, expr) = do
         weight <- Typecheck.typecheck "" (Args.start args) weight
         quoted <- Derive.require_right id $ Call.val_to_quoted expr
-        return (Eval.eval_quoted (Args.context args) quoted, weight)
+        return (weight, Eval.eval_quoted (Args.context args) quoted)
 
 c_alternate_tracks :: Derive.Generator Derive.Note
 c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
@@ -98,21 +98,21 @@ c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
         subs <- Sub.sub_events args
         let err =  "more weights than tracks: " <> showt (length weights)
                 <> " > " <> showt (length subs) <> " tracks"
-        sub_weights <- mapM (pair err) $ Seq.zip_padded subs weights
+        sub_weights <- mapM (pair err) $ Seq.zip_padded weights subs
         case NonEmpty.nonEmpty sub_weights of
             Nothing -> return mempty
             Just sub_weights ->
                 Sub.derive . pick_weighted sub_weights =<< Call.random
     where
-    pair _ (Seq.Both sub weight) = return (sub, weight)
-    pair _ (Seq.First sub) = return (sub, 1)
-    pair err (Seq.Second _) = Derive.throw err
+    pair _ (Seq.Both weight sub) = return (weight, sub)
+    pair err (Seq.First _) = Derive.throw err
+    pair _ (Seq.Second sub) = return (1, sub)
 
-pick_weighted :: NonEmpty (a, Double) -> Double -> a
+pick_weighted :: NonEmpty (Double, a) -> Double -> a
 pick_weighted weights rnd_ = go 0 weights
     where
-    rnd = rnd_ * Foldable.sum (fmap snd weights)
-    go collect ((a, weight) :| weights) = case weights of
+    rnd = rnd_ * Foldable.sum (fmap fst weights)
+    go collect ((weight, a) :| weights) = case weights of
         [] -> a
         w : ws
             | collect + weight > rnd -> a
@@ -132,7 +132,7 @@ c_val_alternate :: Derive.ValCall
 c_val_alternate = Derive.val_call Module.prelude "alternate" Tags.random
     "Pick one of the arguments randomly."
     $ Sig.call (Sig.many1 "val" "Value of any type.") $ \vals _ -> do
-        let pairs = fmap (flip (,) 1) (vals :: NonEmpty TrackLang.Val)
+        let pairs = fmap ((,) 1) (vals :: NonEmpty TrackLang.Val)
         pick_weighted pairs <$> Call.random
 
 c_val_alternate_weighted :: Derive.ValCall
@@ -141,15 +141,11 @@ c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
     $ Sig.call (Sig.many1
         "weight,val" "An even number of args in (Num, Val) pairs.") $
     \pairs args -> do
-        pairs <- mapM (typecheck args)
-            =<< Sig.paired_args (NonEmpty.toList pairs)
-        case NonEmpty.nonEmpty pairs of
+        (weights, vals) <- unzip <$> Sig.paired_args (NonEmpty.toList pairs)
+        weights <- mapM (Typecheck.typecheck "" (Args.start args)) weights
+        case NonEmpty.nonEmpty (zip weights vals) of
             Nothing -> Derive.throw "not reached"
             Just pairs -> pick_weighted pairs <$> Call.random
-    where
-    typecheck args (weight, val) = do
-        weight <- Typecheck.typecheck "" (Args.start args) weight
-        return (val, weight)
 
 c_range :: Derive.ValCall
 c_range = Derive.val_call Module.prelude "range" Tags.random

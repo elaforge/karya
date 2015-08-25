@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Prelude.Random: reverse (val, weight) order
+  * Prelude.Random: reverse (val, weight) order
   - New typechecking.
     . I should be able to pass a ControlFunction as a ControlRef.  Can I coerce
       one to the other?

@@ -64,6 +64,6 @@ test_alternate_tracks = do
 
 test_pick_weighted = do
     let f weights = Random.pick_weighted
-            (NonEmpty.fromList (zip ("abcdef" :: [Char]) weights))
+            (NonEmpty.fromList (zip weights ("abcdef" :: [Char])))
     equal (map (f [1, 3]) [0, 0.25, 0.5, 0.75]) "abbb"
     equal (map (f [3, 1]) [0, 0.25, 0.5, 0.75]) "aaab"
