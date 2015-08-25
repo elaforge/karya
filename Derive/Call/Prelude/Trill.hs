@@ -59,12 +59,12 @@ import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import Derive.Sig (defaulted, required, typed_control, control, pitch)
+import Derive.Sig (defaulted, required)
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -94,7 +94,7 @@ c_note_trill hardcoded_start hardcoded_end =
     \ or monophonic instruments that use legato to play slurred notes."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,)
-    <$> defaulted "neighbor" (typed_control "tr-neighbor" 1 Score.Diatonic)
+    <$> defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg <*> trill_env hardcoded_start hardcoded_end
     ) $ \(neighbor, speed, (start_dir, end_dir, hold, adjust)) ->
@@ -117,7 +117,7 @@ c_attr_trill = Derive.generator Module.prelude "attr-tr" Tags.attr
     "Generate a trill by adding a `+trill` attribute. Presumably this is a\
     \ sampled instrument that has a trill keyswitch."
     $ Sig.call
-    (defaulted "neighbor" (typed_control "tr-neighbor" 1 Score.Chromatic)
+    (defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Chromatic)
         "Alternate with a pitch at this interval.  Only 1c and 2c are allowed."
     ) $ \neighbor args -> do
         (width, typ) <- Call.transpose_control_at Typecheck.Chromatic neighbor
@@ -250,7 +250,7 @@ c_pitch_trill hardcoded_start hardcoded_end =
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,,,)
     <$> required "note" "Base pitch."
-    <*> defaulted "neighbor" (typed_control "tr-neighbor" 1 Score.Diatonic)
+    <*> defaulted "neighbor" (Sig.typed_control "tr-neighbor" 1 Score.Diatonic)
         "Alternate with a pitch at this interval."
     <*> trill_speed_arg <*> transition_env
     <*> trill_env hardcoded_start hardcoded_end
@@ -268,9 +268,10 @@ c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
     "Cross-cut between two pitches.  The `-h` variant holds the value at the\
     \ beginning of each transition."
     $ Sig.call ((,,)
-    <$> defaulted "val1" (pitch "xcut1") "First pitch."
-    <*> defaulted "val2" (pitch "xcut2") "Second pitch."
-    <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
+    <$> defaulted "val1" (Sig.pitch "xcut1") "First pitch."
+    <*> defaulted "val2" (Sig.pitch "xcut2") "Second pitch."
+    <*> defaulted "speed" (Sig.typed_control "xcut-speed" 14 Score.Real)
+        "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
         val1 <- Call.to_psignal val1
@@ -316,7 +317,7 @@ c_control_trill hardcoded_start hardcoded_end =
     \ alternating with 0, which can be used as a transposition signal."
     <> direction_doc hardcoded_start hardcoded_end
     ) $ Sig.call ((,,,)
-    <$> defaulted "neighbor" (control "tr-neighbor" 1)
+    <$> defaulted "neighbor" (Sig.control "tr-neighbor" 1)
         "Alternate with this value."
     <*> trill_speed_arg <*> transition_env
     <*> trill_env hardcoded_start hardcoded_end
@@ -355,7 +356,8 @@ c_sine mode = Derive.generator1 Module.prelude "sine" mempty
     "Emit a sine wave. The default version is centered on the `offset`,\
     \ and the `+` and `-` variants are above and below it, respectively."
     $ Sig.call ((,,)
-    <$> defaulted "speed" (typed_control "sine-speed" 1 Score.Real) "Frequency."
+    <$> defaulted "speed" (Sig.typed_control "sine-speed" 1 Score.Real)
+        "Frequency."
     <*> defaulted "amp" 1 "Amplitude, measured center to peak."
     <*> defaulted "offset" 0 "Center point."
     ) $ \(speed, amp, offset) args -> do
@@ -390,9 +392,10 @@ c_xcut_control hold = Derive.generator1 Module.prelude "xcut" mempty
     "Cross-cut between two signals.  The `-h` variant holds the value at the\
     \ beginning of each transition."
     $ Sig.call ((,,)
-    <$> defaulted "val1" (control "xcut1" 1) "First value."
-    <*> defaulted "val2" (control "xcut2" 0) "Second value."
-    <*> defaulted "speed" (typed_control "xcut-speed" 14 Score.Real) "Speed."
+    <$> defaulted "val1" (Sig.control "xcut1" 1) "First value."
+    <*> defaulted "val2" (Sig.control "xcut2" 0) "Second value."
+    <*> defaulted "speed" (Sig.typed_control "xcut-speed" 14 Score.Real)
+        "Speed."
     ) $ \(val1, val2, speed) args -> do
         transitions <- Speed.starts speed (Args.range_or_next args) False
         val1 <- Call.to_signal val1
@@ -416,7 +419,7 @@ xcut_control hold val1 val2 =
 -- * util
 
 trill_speed_arg :: Sig.Parser BaseTypes.ControlRef
-trill_speed_arg = defaulted "speed" (typed_control "tr-speed" 14 Score.Real)
+trill_speed_arg = defaulted "speed" (Sig.typed_control "tr-speed" 14 Score.Real)
     "Trill at this speed. If it's a RealTime, the value is the number of\
     \ cycles per second, which will be unaffected by the tempo. If it's\
     \ a ScoreTime, the value is the number of cycles per ScoreTime\
@@ -465,7 +468,7 @@ trill_env start_dir end_dir =
 -- globally, and so you can have a short @hold=n |@ for a single call.
 hold_env :: Sig.Parser BaseTypes.Duration
 hold_env = Typecheck.default_real <$>
-    Sig.environ (TrackLang.unsym Environ.hold) Sig.Both
+    Sig.environ (TrackLang.unsym EnvKey.hold) Sig.Both
         (Typecheck.real 0) "Time to hold the first pitch."
 
 trill_variations :: [(TrackLang.Symbol, Maybe Direction, Maybe Direction)]

@@ -46,7 +46,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -201,7 +201,7 @@ c_norot = Derive.generator module_ "norot" Tags.inst
         -- TODO only thing start does is cut off notes before it, can I pass
         -- Nothing for start?
         let arrival_range = (Args.start args - 24, Args.start args)
-        let suppress = Derive.with_val Environ.suppress_until start
+        let suppress = Derive.with_val EnvKey.suppress_until start
         let arrive = realize_kotekan_pattern (True, True) arrival_range dur
                 pitch under_threshold Once
                 (gangsa_norot_arrival style pasang nsteps)
@@ -862,7 +862,7 @@ cancel_pasang events = Postproc.cancel_strong_weak Postproc.merge_infer $
 pasang_key :: Score.Event
     -> (Either Score.Instrument (Score.Instrument, Score.Instrument),
         Maybe Text)
-pasang_key e = (inst, get Environ.hand)
+pasang_key e = (inst, get EnvKey.hand)
     where
     inst = case (get inst_polos, get inst_sangsih) of
         (Just p, Just s) -> Right (p, s)
@@ -874,7 +874,7 @@ pasang_key e = (inst, get Environ.hand)
 c_pasangan :: Derive.ValCall
 c_pasangan = Derive.val_call module_ "pasangan" mempty
     ("Choose a value depending on the value of the "
-    <> ShowVal.doc_val Environ.role <> " variable."
+    <> ShowVal.doc_val EnvKey.role <> " variable."
     ) $ Sig.call ((,,)
     <$> Sig.required "polos" "Value for polos."
     <*> Sig.required "sangsih" "Value for sangsih."
@@ -915,7 +915,7 @@ initial_final_env = (,)
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
 instrument_top_env =
-    Sig.environ (TrackLang.unsym Environ.instrument_top) Sig.Unprefixed Nothing
+    Sig.environ (TrackLang.unsym EnvKey.instrument_top) Sig.Unprefixed Nothing
         "Top pitch this instrument can play. Normally the instrument sets\
         \ it via the instrument environ."
 
@@ -953,7 +953,7 @@ instance Typecheck.Typecheck Role
 instance Typecheck.TypecheckSymbol Role
 
 role_env :: Sig.Parser Role
-role_env = Sig.required_environ (TrackLang.unsym Environ.role) Sig.Unprefixed
+role_env = Sig.required_environ (TrackLang.unsym EnvKey.role) Sig.Unprefixed
     "Instrument role."
 
 initial_flag, final_flag :: Flags.Flags

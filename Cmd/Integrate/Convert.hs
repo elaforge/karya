@@ -17,7 +17,7 @@ import qualified Cmd.Perf as Perf
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
@@ -106,7 +106,7 @@ split_overlapping events = track : split_overlapping rest
             break ((>= Score.event_end event) . Score.event_start) events
 
 event_voice :: Score.Event -> Voice
-event_voice = fromMaybe 0 . Env.maybe_val Environ.voice . Score.event_environ
+event_voice = fromMaybe 0 . Env.maybe_val EnvKey.voice . Score.event_environ
 
 track_of :: Score.Event -> Maybe TrackId
 track_of = Seq.head . mapMaybe Stack.track_of . Stack.innermost

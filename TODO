@@ -62,6 +62,12 @@ UNSORTED
     * Rename BaseTypes.Real and Score to RealDuration and ScoreDuration
     - Add a ValType.Type with just a Text description, for the new Eval
       Typecheck instances.
+    - It turns out this is not so useful because a default TypedFunction
+      doesn't have a default control name like a Sig.typed_control does.
+      The documentation is also worse.  The way to fix this would be to
+      let the default be any coercible type.  But to do that and be type safe
+      I'd want a separate class for pairs of types that can definitely be
+      converted.
   - Perhaps I should get rid of TrackLang entirely.  Typecheck goes into
     a separate Typecheck module.  Environ goes into an Environ module,
     which means Derive.Environ becomes Environs or something, to avoid the

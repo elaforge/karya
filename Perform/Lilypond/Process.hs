@@ -22,7 +22,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -391,7 +391,7 @@ span_voices events
         | otherwise = case get event of
             Nothing -> Nothing
             Just voice -> Just $ Right (voice, event)
-        where get = Env.checked_val2 Environ.voice . event_environ
+        where get = Env.checked_val2 EnvKey.voice . event_environ
     -- Previously I tried to only split voices where necessary by only spanning
     -- overlapping notes, or notes with differing voices.  But even when it
     -- worked as intended, joining voices this aggressively led to oddities
@@ -747,7 +747,7 @@ parse_key key_name = do
         ]
 
 lookup_key :: Event -> ConvertM Key
-lookup_key = lookup_val Environ.key parse_key default_key
+lookup_key = lookup_val EnvKey.key parse_key default_key
 
 default_key :: Key
 default_key = Key "c" "major"

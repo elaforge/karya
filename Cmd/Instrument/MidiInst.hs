@@ -34,7 +34,7 @@ import Cmd.Cmd (SynthDesc)
 import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -186,14 +186,14 @@ environ name val = Instrument.environ
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Instrument.Patch -> Instrument.Patch
-default_scale = environ Environ.scale . TrackLang.scale_id_to_sym
+default_scale = environ EnvKey.scale . TrackLang.scale_id_to_sym
 
 -- | Set instrument range.  The type is polymorphic because some instruments
 -- want Pitch.Pitch and some want PSignal.Y.
 range :: RestrictedEnviron.ToVal a => (a, a) -> Instrument.Patch
     -> Instrument.Patch
-range (bottom, top) = environ Environ.instrument_bottom bottom
-    . environ Environ.instrument_top top
+range (bottom, top) = environ EnvKey.instrument_bottom bottom
+    . environ EnvKey.instrument_top top
 
 
 -- * db

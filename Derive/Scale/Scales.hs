@@ -22,7 +22,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
@@ -466,7 +466,7 @@ read_environ read_val maybe_deflt name env = case Env.get_val name env of
 -- ** keys
 
 environ_key :: Env.Environ -> Maybe Pitch.Key
-environ_key = fmap Pitch.Key . Env.maybe_val Environ.key
+environ_key = fmap Pitch.Key . Env.maybe_val EnvKey.key
 
 -- | Find a key in a map, or throw a ScaleError.
 get_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key
@@ -481,4 +481,4 @@ lookup_key _ keys (Just key) = Map.lookup key keys
 
 key_error :: Pitch.Key -> Scale.ScaleError
 key_error (Pitch.Key key) =
-    Scale.EnvironError Environ.key ("unknown key: " <> key)
+    Scale.EnvironError EnvKey.key ("unknown key: " <> key)

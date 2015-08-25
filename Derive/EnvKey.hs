@@ -4,7 +4,7 @@
 
 -- | Define a few inhabitants of Environ which are used by the built-in set of
 -- calls.  Expected types are in 'Derive.TrackLang.hardcoded_types'.
-module Derive.Environ where
+module Derive.EnvKey where
 import Data.Text (Text)
 
 import Derive.BaseTypes (Key)

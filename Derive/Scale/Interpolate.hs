@@ -10,7 +10,7 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
@@ -91,7 +91,7 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
     ) $ Sig.parsed_manually "passed to `from` and `to` scales" $ \args -> do
         start <- Args.real_start args
         n <- fromMaybe 0 <$> Derive.untyped_control_at scale_at start
-        let apply key = rename_environ key Environ.key
+        let apply key = rename_environ key EnvKey.key
                 . Eval.apply_pitch (Args.start args)
         let typecheck = Typecheck.typecheck "interpolated_degree"
                 (Args.start args)

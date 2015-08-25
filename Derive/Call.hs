@@ -27,7 +27,7 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
@@ -235,7 +235,7 @@ multiply_constant control = Derive.with_multiplied_control control
 -- * environ
 
 get_srate :: Derive.Deriver RealTime
-get_srate = RealTime.seconds <$> Derive.get_val Environ.srate
+get_srate = RealTime.seconds <$> Derive.get_val EnvKey.srate
 
 get_scale :: Derive.Deriver Scale.Scale
 get_scale = Derive.get_scale =<< get_scale_id
@@ -244,19 +244,19 @@ lookup_scale :: Derive.Deriver (Maybe Scale.Scale)
 lookup_scale = Derive.lookup_scale =<< get_scale_id
 
 get_scale_id :: Derive.Deriver Pitch.ScaleId
-get_scale_id = TrackLang.sym_to_scale_id <$> Derive.get_val Environ.scale
+get_scale_id = TrackLang.sym_to_scale_id <$> Derive.get_val EnvKey.scale
 
 lookup_key :: Derive.Deriver (Maybe Pitch.Key)
-lookup_key = fmap Pitch.Key <$> Derive.lookup_val Environ.key
+lookup_key = fmap Pitch.Key <$> Derive.lookup_val EnvKey.key
 
 get_instrument :: Derive.Deriver Score.Instrument
-get_instrument = Derive.get_val Environ.instrument
+get_instrument = Derive.get_val EnvKey.instrument
 
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
-lookup_instrument = Derive.lookup_val Environ.instrument
+lookup_instrument = Derive.lookup_val EnvKey.instrument
 
 get_attrs :: Derive.Deriver Score.Attributes
-get_attrs = fromMaybe mempty <$> Derive.lookup_val Environ.attributes
+get_attrs = fromMaybe mempty <$> Derive.lookup_val EnvKey.attributes
 
 -- | Get symbolic pitch manipulating functions for the current scale.  This
 -- is for calls that want to work with symbolic pitches.
@@ -324,7 +324,7 @@ with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
     -> Derive.Deriver d
 with_attrs f deriver = do
     attrs <- get_attrs
-    Derive.with_val Environ.attributes (f attrs) deriver
+    Derive.with_val EnvKey.attributes (f attrs) deriver
 
 add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
 add_attrs attrs
@@ -391,7 +391,7 @@ _make_randoms f = List.unfoldr (Just . f) <$> _random_generator
 
 _random_generator :: Derive.Deriver Pure64.PureMT
 _random_generator = do
-    seed <- fromMaybe 0 <$> Derive.lookup_val Environ.seed
+    seed <- fromMaybe 0 <$> Derive.lookup_val EnvKey.seed
     return $ Pure64.pureMT (floor (seed :: Double))
 
 -- * time

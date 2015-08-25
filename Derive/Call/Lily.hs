@@ -14,7 +14,7 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -213,7 +213,7 @@ global_code0 :: ScoreTime -> Code -> Derive.NoteDeriver
 global_code0 start = global . code0 start
 
 global :: Derive.Deriver a -> Derive.Deriver a
-global = Derive.with_val_raw Environ.instrument Constants.ly_global
+global = Derive.with_val_raw EnvKey.instrument Constants.ly_global
 
 -- | Test if an event is a 0 duration lilypond code event.
 is_code0 :: Score.Event -> Bool

@@ -18,7 +18,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -140,7 +140,7 @@ group_coincident key = go
         groups = map Right (Seq.group_sort key (e : during))
     same_start e1 e2 = Score.event_start e1 RealTime.== Score.event_start e2
 
--- | Filter out events that fall at and before the 'Environ.suppress_until'
+-- | Filter out events that fall at and before the 'EnvKey.suppress_until'
 -- range of an event with the same (instrument, hand).  Only events that don't
 -- have a suppress_until are suppressed.
 --
@@ -165,7 +165,7 @@ suppress_notes =
         coincident e = Score.event_start e
             <= Score.event_start event + RealTime.eta
     get_suppress :: Score.Event -> Maybe RealTime
-    get_suppress = Env.maybe_val Environ.suppress_until . Score.event_environ
+    get_suppress = Env.maybe_val EnvKey.suppress_until . Score.event_environ
     key_of (k, _, _) = k
     suppress_of (_, s, _) = s
     event_of (_, _, e) = e
@@ -209,7 +209,7 @@ replace_note next event = event
 c_apply_start_offset :: Derive.Transformer Derive.Note
 c_apply_start_offset =
     Derive.transformer Module.prelude "apply-start-offset" Tags.postproc
-    ("Apply the " <> ShowVal.doc_val Environ.start_offset_val <> " env var.\
+    ("Apply the " <> ShowVal.doc_val EnvKey.start_offset_val <> " env var.\
      \ This is set by note deriver from the "
      <> ShowVal.doc_val Controls.start_s <> " and "
      <> ShowVal.doc_val Controls.start_t <> " controls, so if you want those\
@@ -311,5 +311,5 @@ adjust_duration next new_next event =
     where end = Score.event_end event
 
 offset_of :: Score.Event -> RealTime
-offset_of = fromMaybe 0 . Env.maybe_val Environ.start_offset_val
+offset_of = fromMaybe 0 . Env.maybe_val EnvKey.start_offset_val
     . Score.event_environ

@@ -18,7 +18,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
@@ -105,7 +105,7 @@ test_convert_pitch = do
         Just (Scale.Simple legong) = Map.lookup "legong" Scale.All.scales
     equal (convert [event]) [Left (0, [(0, 72.46)])]
     let insert = Score.modify_environ $
-            Env.insert_val Environ.tuning Environ.isep
+            Env.insert_val EnvKey.tuning EnvKey.isep
     equal (convert [insert event]) [Left (0, [(0, 72.588)])]
 
 mkevent :: RealTime -> String -> Text -> Score.Event

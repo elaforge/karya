@@ -12,7 +12,7 @@ import qualified Data.Map as Map
 
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes (Key, Environ(..), lookup, insert)
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
@@ -78,18 +78,18 @@ insert_val name = insert name . Typecheck.to_val
 -- errors later on.
 hardcoded_types :: Map.Map Key ValType.Type
 hardcoded_types = Map.fromList
-    [ (Environ.attributes,  ValType.TAttributes)
-    , (Environ.block_end,   ValType.TNum ValType.TScoreTime ValType.TAny)
-    , (Environ.control,     ValType.TSymbol Nothing)
-    , (Environ.instrument,  ValType.TInstrument)
-    , (Environ.key,         ValType.TSymbol Nothing)
-    , (Environ.merge,       ValType.TSymbol Nothing)
-    , (Environ.scale,       ValType.TSymbol Nothing)
-    , (Environ.seed,        ValType.TNum ValType.TUntyped ValType.TAny)
-    , (Environ.srate,       ValType.TNum ValType.TUntyped ValType.TAny)
-    , (Environ.suppress_until, ValType.TNum ValType.TRealTime ValType.TAny)
-    , (Environ.tuning,      ValType.TSymbol Nothing)
-    , (Environ.voice,       ValType.TNum ValType.TUntyped ValType.TAny)
+    [ (EnvKey.attributes,  ValType.TAttributes)
+    , (EnvKey.block_end,   ValType.TNum ValType.TScoreTime ValType.TAny)
+    , (EnvKey.control,     ValType.TSymbol Nothing)
+    , (EnvKey.instrument,  ValType.TInstrument)
+    , (EnvKey.key,         ValType.TSymbol Nothing)
+    , (EnvKey.merge,       ValType.TSymbol Nothing)
+    , (EnvKey.scale,       ValType.TSymbol Nothing)
+    , (EnvKey.seed,        ValType.TNum ValType.TUntyped ValType.TAny)
+    , (EnvKey.srate,       ValType.TNum ValType.TUntyped ValType.TAny)
+    , (EnvKey.suppress_until, ValType.TNum ValType.TRealTime ValType.TAny)
+    , (EnvKey.tuning,      ValType.TSymbol Nothing)
+    , (EnvKey.voice,       ValType.TNum ValType.TUntyped ValType.TAny)
     ]
 
 data LookupError = NotFound | WrongType !ValType.Type deriving (Show)

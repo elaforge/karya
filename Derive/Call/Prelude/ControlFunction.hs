@@ -21,7 +21,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -198,8 +198,7 @@ c_cf_sigmoid = val_call "cf-sigmoid" Tags.curve
 -- * BaseTypes.Dynamic
 
 dyn_seed :: BaseTypes.Dynamic -> Double
-dyn_seed = fromMaybe 0
-    . Env.maybe_val Environ.seed . BaseTypes.dyn_environ
+dyn_seed = fromMaybe 0 . Env.maybe_val EnvKey.seed . BaseTypes.dyn_environ
 
 dyn_control :: BaseTypes.Dynamic -> Score.Control -> RealTime -> Double
 dyn_control dyn control pos = maybe 0 (Signal.at pos . Score.typed_val) $

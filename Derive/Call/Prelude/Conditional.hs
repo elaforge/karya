@@ -10,7 +10,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
@@ -64,7 +64,7 @@ c_solo = Derive.transformer Module.prelude "solo" mempty
     \ version of `when-e`."
     $ Sig.callt (Sig.required "inst" "Instrument.")
     $ \inst _args deriver ->
-        ifM (has_environ Environ.instrument (Just (BaseTypes.VInstrument inst)))
+        ifM (has_environ EnvKey.instrument (Just (BaseTypes.VInstrument inst)))
             deriver mempty
 
 c_when_c :: Derive.Taggable d => Bool -> Derive.Transformer d

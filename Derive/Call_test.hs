@@ -9,7 +9,7 @@ import qualified Ui.State as State
 import qualified Derive.Call as Call
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 
 
 test_random = do
@@ -32,7 +32,7 @@ test_random = do
 
 test_randoms_in = do
     let run seed = expect_right "run" . DeriveTest.eval State.empty
-            . Derive.with_val Environ.seed (seed :: Int)
+            . Derive.with_val EnvKey.seed (seed :: Int)
         randoms seed low high = take 4 $
             run seed (Call.randoms_in low high)
     let double :: Int -> Double -> Double -> [Double]

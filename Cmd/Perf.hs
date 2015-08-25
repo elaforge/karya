@@ -28,7 +28,7 @@ import qualified Cmd.PlayUtil as PlayUtil
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
@@ -96,7 +96,7 @@ derive_event :: Derive.Callable d => EvalTrack.TrackInfo d -> Event.Event
     -> Derive.LogsDeriver d
 derive_event tinfo event = EvalTrack.derive_event tinfo Nothing [] event []
     -- TODO get prev and next events
-    -- Also, BlockUtil does 'Derive.with_val Environ.block_end' and possibly
+    -- Also, BlockUtil does 'Derive.with_val EnvKey.block_end' and possibly
     -- does Tempo.with_tempo.  If those things turn out to be important,
     -- I should be able to factor that out of BlockUtil.
 
@@ -179,11 +179,11 @@ find_scale_id (block_id, maybe_track_id) = (to_scale_id <$>) $
     firstJust (lookup maybe_track_id) $
     firstJust lookup_parents $
     firstJust (lookup Nothing) $
-    firstJust (lookup_environ_val Environ.scale =<< global_environ) $
+    firstJust (lookup_environ_val EnvKey.scale =<< global_environ) $
     return Nothing
     where
     to_scale_id = fmap TrackLang.sym_to_scale_id
-    lookup maybe_track_id = lookup_val (block_id, maybe_track_id) Environ.scale
+    lookup maybe_track_id = lookup_val (block_id, maybe_track_id) EnvKey.scale
     lookup_parents = case maybe_track_id of
         Nothing -> return Nothing
         Just track_id -> do
@@ -222,9 +222,9 @@ scale_from_titles block_id track_id = do
 
 -- | Find the instrument in scope.
 lookup_instrument :: Cmd.M m => Track -> m (Maybe Score.Instrument)
-lookup_instrument track = lookup_val track Environ.instrument
+lookup_instrument track = lookup_val track EnvKey.instrument
 
--- | Lookup value from the deriver's Environ at the given block and (possibly)
+-- | Lookup value from the deriver's EnvKey at the given block and (possibly)
 -- track.  See 'Derive.TrackDynamic' for details on the limitations here.
 --
 -- The value is taken first from the root performance, and then the given
@@ -309,7 +309,7 @@ get_default_environ name =
 default_scale_id :: Cmd.M m => m Pitch.ScaleId
 default_scale_id =
     maybe (Pitch.ScaleId Config.default_scale_id) TrackLang.sym_to_scale_id <$>
-        lookup_default_environ Environ.scale
+        lookup_default_environ EnvKey.scale
 
 
 -- * play

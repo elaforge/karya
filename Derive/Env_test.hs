@@ -5,7 +5,7 @@
 module Derive.Env_test where
 import Util.Test
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 import Types
@@ -13,8 +13,8 @@ import Types
 
 test_put_val = do
     let f key val = either Just (const Nothing) . Env.put_val key val
-    equal (f Environ.block_end (0 :: ScoreTime) mempty) Nothing
-    equal (f Environ.block_end (0 :: RealTime) mempty)
+    equal (f EnvKey.block_end (0 :: ScoreTime) mempty) Nothing
+    equal (f EnvKey.block_end (0 :: RealTime) mempty)
         (Just (ValType.TNum ValType.TScoreTime ValType.TAny))
     -- Don't infer that just because someone put in a positive value that
     -- the type must be positive.

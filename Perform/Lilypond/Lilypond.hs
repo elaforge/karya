@@ -14,7 +14,7 @@ import qualified Data.Text.Lazy.Builder as Builder
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
@@ -261,7 +261,7 @@ convert_staff_groups config start events = do
     forM staff_groups $ \(inst, staves) ->
         staff_group config start meters inst staves
 
--- | Split events by instrument, and if they have 'Environ.hand', further split
+-- | Split events by instrument, and if they have 'EnvKey.hand', further split
 -- into right and left hand.
 split_events :: [Types.Event] -> [(Score.Instrument, [[Types.Event]])]
 split_events events =
@@ -269,7 +269,7 @@ split_events events =
         | (inst, events) <- by_inst]
     where
     by_inst = Seq.keyed_group_sort Types.event_instrument events
-    lookup_hand environ = case Env.get_val Environ.hand environ of
+    lookup_hand environ = case Env.get_val EnvKey.hand environ of
         Right (val :: Text)
             | val == "r" || val == "right" -> 0
             | val == "l" || val == "left" -> 1

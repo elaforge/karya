@@ -104,7 +104,7 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
@@ -383,8 +383,8 @@ derive_event_ctx ctx event
     text = Event.event_text event
     with_note_start_end = case Derive.ctx_track_type ctx of
         Just ParseTitle.NoteTrack -> Derive.with_vals
-                [ (Environ.note_start, Event.start event)
-                , (Environ.note_end, Event.end event)
+                [ (EnvKey.note_start, Event.start event)
+                , (EnvKey.note_end, Event.end event)
                 ]
             where event = Derive.ctx_event ctx
         _ -> id

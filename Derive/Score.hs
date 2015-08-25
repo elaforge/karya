@@ -69,7 +69,7 @@ import qualified Ui.Id as Id
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (ControlMap, ControlFunction(..), ControlFunctionMap, PitchMap)
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ScoreTypes as ScoreTypes
@@ -263,13 +263,13 @@ intersecting_attributes attrs = not . Set.null
 
 environ_attributes :: BaseTypes.Environ -> Attributes
 environ_attributes environ =
-    case BaseTypes.lookup Environ.attributes environ of
+    case BaseTypes.lookup EnvKey.attributes environ of
         Just (BaseTypes.VAttributes attrs) -> attrs
         _ -> mempty
 
 modify_attributes :: (Attributes -> Attributes) -> Event -> Event
 modify_attributes modify = modify_environ $ \env ->
-    BaseTypes.insert Environ.attributes
+    BaseTypes.insert EnvKey.attributes
         (BaseTypes.VAttributes (modify (environ_attributes env))) env
 
 add_attributes :: Attributes -> Event -> Event
@@ -390,7 +390,7 @@ initial_dynamic event = maybe 0 typed_val $
 
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
-    modify_environ_key Environ.dynamic_val
+    modify_environ_key EnvKey.dynamic_val
             (BaseTypes.VNum . untyped . modify . num_of)
         . modify_control c_dynamic modify
     where

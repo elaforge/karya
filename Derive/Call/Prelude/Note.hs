@@ -30,7 +30,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.Flags as Flags
 import qualified Derive.LEvent as LEvent
@@ -187,7 +187,7 @@ default_note config args = do
     control_vals <- Derive.controls_at start
     offset <- get_start_offset start
     let attrs = either (const Score.no_attrs) id $
-            Env.get_val Environ.attributes (Derive.state_environ dyn)
+            Env.get_val EnvKey.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
     let event = Score.add_flags flags $
             make_event args dyn2 start (adjusted_end - start) flags
@@ -210,7 +210,7 @@ note_flags zero_dur stack environ
     -- range (0, 1), and sets the duration via the warp.
     infer_dur = track_end && zero_dur
     track_start = start == Just 0
-    track_end = start == Env.maybe_val Environ.block_end environ
+    track_end = start == Env.maybe_val EnvKey.block_end environ
     start = fst <$> Seq.head (mapMaybe Stack.region_of (Stack.innermost stack))
 
     -- zero dur event at end of track
@@ -244,7 +244,7 @@ make_event args dyn start dur flags = Score.Event
     pitch = trim_pitch start (Derive.state_pitch dyn)
     environ = Derive.state_environ dyn
     inst = fromMaybe Score.empty_inst $
-        Env.maybe_val Environ.instrument environ
+        Env.maybe_val EnvKey.instrument environ
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in
@@ -253,8 +253,8 @@ stash_convert_values :: Score.ControlValMap -> RealTime -> Env.Environ
     -> Env.Environ
 stash_convert_values vals offset = start_offset . dyn
     where
-    start_offset = Env.insert_val Environ.start_offset_val offset
-    dyn = maybe id (Env.insert_val Environ.dynamic_val)
+    start_offset = Env.insert_val EnvKey.start_offset_val offset
+    dyn = maybe id (Env.insert_val EnvKey.dynamic_val)
         (Map.lookup Controls.dynamic vals)
 
 -- ** adjust start and duration

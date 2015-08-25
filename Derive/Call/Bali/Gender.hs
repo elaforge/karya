@@ -18,7 +18,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
@@ -132,7 +132,7 @@ c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
     \ This is necessary because it needs to know the positions and pitches\
     \ of the previous and next notes, and those aren't necessarily available\
     \ when evaluating the track. This call needs a "
-    <> ShowVal.doc_val Environ.hand <> " envron to figure out which which note\
+    <> ShowVal.doc_val EnvKey.hand <> " envron to figure out which which note\
     \ follows which."
     ) $ Sig.call0t $ \_ deriver -> realize_ngoret =<< deriver
 

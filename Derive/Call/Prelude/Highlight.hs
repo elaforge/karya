@@ -12,7 +12,7 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Derive as Derive
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
@@ -49,7 +49,7 @@ instance Typecheck.TypecheckSymbol Color.Highlight
 c_highlight_strings :: Derive.Transformer Derive.Note
 c_highlight_strings = Derive.transformer Module.prelude "highlight-strings"
     mempty ("Highlight any notes whose initial pitch either is or isn't in "
-        <> ShowVal.doc_val Environ.open_strings <> ".")
+        <> ShowVal.doc_val EnvKey.open_strings <> ".")
     $ Sig.callt
     ( Sig.environ "open" Sig.Prefixed False
         "If true, put Info on open strings, else put Warning on non-open ones."
@@ -68,7 +68,7 @@ open_strings :: RealTime -> (Bool -> Maybe Color.Highlight)
     -- ^ True if this note is on an open string.
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 open_strings pos highlight deriver = do
-    maybe_pitches <- Derive.lookup_val Environ.open_strings
+    maybe_pitches <- Derive.lookup_val EnvKey.open_strings
     maybe_pitches <- case maybe_pitches of
         Just pitches -> Just <$> mapM (Derive.resolve_pitch pos) pitches
         Nothing -> return Nothing
@@ -92,19 +92,19 @@ c_highlight_out_of_range :: Derive.Transformer Derive.Note
 c_highlight_out_of_range = Derive.transformer Module.prelude
     "highlight-out-of-range" mempty
     ("Error on notes whose initial pitch is below "
-        <> ShowVal.doc_val Environ.instrument_bottom <> " or above "
-        <> ShowVal.doc_val Environ.instrument_top <> ". The range must be \
+        <> ShowVal.doc_val EnvKey.instrument_bottom <> " or above "
+        <> ShowVal.doc_val EnvKey.instrument_top <> ". The range must be \
         \ in NNs.")
     -- TODO support Pitch.Pitch
     $ Sig.call0t $ const out_of_range
 
--- | Highlight with 'Color.Warning' if there is 'Environ.instrument_top' or
--- 'Environ.instrument_bottom' and the pitch is above or below it,
+-- | Highlight with 'Color.Warning' if there is 'EnvKey.instrument_top' or
+-- 'EnvKey.instrument_bottom' and the pitch is above or below it,
 -- respectively.
 out_of_range :: Derive.NoteDeriver -> Derive.NoteDeriver
 out_of_range deriver = do
-    maybe_top <- Derive.lookup_val Environ.instrument_top
-    maybe_bottom <- Derive.lookup_val Environ.instrument_bottom
+    maybe_top <- Derive.lookup_val EnvKey.instrument_top
+    maybe_bottom <- Derive.lookup_val EnvKey.instrument_bottom
     if all Maybe.isNothing [maybe_top, maybe_bottom] then deriver
         else Post.emap1_ (apply maybe_top maybe_bottom) <$> deriver
     where

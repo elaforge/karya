@@ -20,7 +20,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -73,7 +73,7 @@ convert_event lookup event_ = do
             convert_dynamic (Instrument.has_flag Instrument.Pressure patch)
                 (event_controls
                     `Map.union` lookup_default_controls lookup score_inst)
-                (Env.maybe_val Environ.dynamic_val (Score.event_environ event))
+                (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))
     whenJust overridden $ \sig ->
         Log.warn $ "non-null control overridden by "
             <> pretty Controls.dynamic <> ": " <> pretty sig

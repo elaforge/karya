@@ -9,7 +9,7 @@ import qualified Derive.Call.Bali.Reyong as Reyong
 import Derive.Call.Bali.Reyong (Hand(..))
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
@@ -46,7 +46,7 @@ test_kotekan = do
 e_voice :: Int -> Derive.Result -> (Maybe [(RealTime, String)], [String])
 e_voice voice = group_voices . DeriveTest.extract extract
     where
-    extract e = (DeriveTest.e_environ_val Environ.voice e :: Maybe Int,
+    extract e = (DeriveTest.e_environ_val EnvKey.voice e :: Maybe Int,
         (Score.event_start e, DeriveTest.e_pitch e))
     group_voices = first (lookup (Just voice) . Seq.group_fst)
 

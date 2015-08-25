@@ -38,7 +38,7 @@ import qualified Derive.Control as Control
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Note as Note
@@ -59,7 +59,7 @@ note_deriver block_id = do
     (tree, block_range) <- Derive.eval_ui ("note_deriver " <> showt block_id) $
         (,) <$> TrackTree.block_events_tree block_id
             <*> State.block_logical_range block_id
-    Derive.with_val Environ.block_end (snd block_range) $
+    Derive.with_val EnvKey.block_end (snd block_range) $
         Internal.local (\state -> state { Derive.state_note_track = Nothing }) $
         derive_tree block_range tree
 
@@ -78,7 +78,7 @@ control_deriver block_id = do
     case check_control_tree (snd block_range) tree of
         Left err -> State.throw $ "control block skeleton malformed: " <> err
         Right tree -> return $
-            Derive.with_val Environ.block_end (snd block_range) $
+            Derive.with_val EnvKey.block_end (snd block_range) $
                 derive_control_tree block_range tree
 
 -- | Name of the call for the control deriver hack.
@@ -145,7 +145,7 @@ derive_tree block_range tree
         Tempo.with_tempo True (Just block_range) Nothing (Signal.constant tempo)
             (derive_tracks tree)
     where
-    get_tempo = Derive.lookup_val Environ.tempo >>= \x -> case x of
+    get_tempo = Derive.lookup_val EnvKey.tempo >>= \x -> case x of
         Nothing -> Derive.get_ui_config
             (State.default_tempo . State.config_default)
         Just tempo -> return tempo
@@ -171,7 +171,7 @@ derive_track toplevel node@(Tree.Node track subs)
     | otherwise = with_stack $
         Control.d_control_track toplevel node (derive_tracks subs)
     where
-    with_voice = maybe id (Derive.with_val Environ.track_voice)
+    with_voice = maybe id (Derive.with_val EnvKey.track_voice)
         . TrackTree.track_voice
     defragment = do
         warp <- Internal.get_warp

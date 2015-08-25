@@ -32,7 +32,7 @@ import qualified Derive.Call.Prelude.Highlight as Highlight
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
@@ -184,9 +184,9 @@ guzheng = MidiInst.with_code code $ MidiInst.range range $
         <> MidiInst.note_transformers [("standard-strings", standard_strings)]
         <> MidiInst.note_calls (MidiInst.null_call c_highlight_strings)
     standard_strings = DUtil.transformer0 "standard-strings"
-        ("Set " <> ShowVal.doc_val Environ.open_strings
+        ("Set " <> ShowVal.doc_val EnvKey.open_strings
             <> " to standard pitches: " <> ShowVal.show_val strings)
-        $ \_ deriver -> Derive.with_val Environ.open_strings
+        $ \_ deriver -> Derive.with_val EnvKey.open_strings
             (map PSignal.nn_pitch strings) deriver
     ks =
         [ (Attrs.harm, Key2.as5)
@@ -204,7 +204,7 @@ guzheng = MidiInst.with_code code $ MidiInst.range range $
 c_highlight_strings :: Derive.Generator Derive.Note
 c_highlight_strings = Note.transformed_note
     ("Highlight any notes whose initial pitch either is or isn't in "
-    <> ShowVal.doc_val Environ.open_strings <> ".") mempty $ \args deriver -> do
+    <> ShowVal.doc_val EnvKey.open_strings <> ".") mempty $ \args deriver -> do
         start <- Args.real_start args
         Highlight.out_of_range $
             Highlight.open_strings start Highlight.warn_non_open deriver
@@ -315,14 +315,14 @@ config_kebyar dev_ = make_config $ concat
         [ (Gangsa.inst_polos, to_val $ inst $ name <> "-p")
         , (Gangsa.inst_sangsih, to_val $ inst $ name <> "-s")
         ]
-    tuning val = [(Environ.tuning, to_val val)]
+    tuning val = [(EnvKey.tuning, to_val val)]
     to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
     to_val = RestrictedEnviron.to_val
     inst = Repl.Util.instrument
     umbang_patch name patch =
-        (name, sc_patch patch, True, tuning Environ.umbang, Just umbang)
+        (name, sc_patch patch, True, tuning EnvKey.umbang, Just umbang)
     isep_patch name patch =
-        (name, sc_patch patch, True, tuning Environ.isep, Just isep)
+        (name, sc_patch patch, True, tuning EnvKey.isep, Just isep)
     patch name = (name, sc_patch name, True, [], Nothing)
     umbang = Wayang.extended_legong_scale "umbang" Legong.umbang
     isep = Wayang.extended_legong_scale "isep" Legong.isep

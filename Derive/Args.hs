@@ -12,7 +12,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.Event as Event
 import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, Context)
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -221,8 +221,8 @@ real_range_or_next args = (,) <$> Derive.real start <*> Derive.real end
     where (start, end) = range_or_next args
 
 -- | If the event has a duration, then return that.  Otherwise, if there is
--- a 'Environ.note_end', return that.  Otherwise, return 'next'.  However,
--- if there's an 'Environ.note_start' and it's past the event start, then this
+-- a 'EnvKey.note_end', return that.  Otherwise, return 'next'.  However,
+-- if there's an 'EnvKey.note_start' and it's past the event start, then this
 -- event isn't contained within the range of its parent note, which means that
 -- its expected note end has also passed.  In that case, it returns
 -- (note_start, note_start), which should cause the call to just emit its final
@@ -231,8 +231,8 @@ real_range_or_next args = (,) <$> Derive.real start <*> Derive.real end
 range_or_note_end :: PassedArgs a -> Derive.Deriver (ScoreTime, ScoreTime)
 range_or_note_end args
     | start == end = do
-        note_start <- Derive.lookup_val Environ.note_start
-        note_end <- Derive.lookup_val Environ.note_end
+        note_start <- Derive.lookup_val EnvKey.note_start
+        note_end <- Derive.lookup_val EnvKey.note_end
         case (note_start, note_end) of
             (Just note_start, Just note_end)
                 | start < note_start -> return (note_start, note_start)

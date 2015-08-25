@@ -16,7 +16,7 @@ import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.BaliScales as BaliScales
@@ -52,9 +52,9 @@ import Global
 -}
 patches :: [MidiInst.Patch]
 patches = map (MidiInst.with_code (code <> with_weak))
-    [ set_tuning Environ.umbang $ scale "umbang" Wayang.umbang $
+    [ set_tuning EnvKey.umbang $ scale "umbang" Wayang.umbang $
         wayang "wayang-umbang"
-    , set_tuning Environ.isep $ scale "isep" Wayang.isep $ wayang "wayang-isep"
+    , set_tuning EnvKey.isep $ scale "isep" Wayang.isep $ wayang "wayang-isep"
     , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
     ] ++ map (MidiInst.with_code (Bali.pasang_code <> with_weak))
     [ wayang "wayang"
@@ -84,7 +84,7 @@ patches = map (MidiInst.with_code (code <> with_weak))
         doc = "These set the scale and tuning automatically, and expect the\
             \ patch to be tuned to the instrument's natural scale."
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id
-        . MidiInst.environ Environ.tuning tuning
+        . MidiInst.environ EnvKey.tuning tuning
 
 pb_range :: Instrument.PbRange
 pb_range = (-24, 24)
@@ -176,7 +176,7 @@ wayang_keymap = Instrument.AttributeMap
 retuned_patch :: Pitch.ScaleId -> Text -> Instrument.PatchScale
     -> Instrument.Patch -> Instrument.Patch
 retuned_patch scale_id tuning patch_scale =
-    MidiInst.default_scale scale_id . MidiInst.environ Environ.tuning tuning
+    MidiInst.default_scale scale_id . MidiInst.environ EnvKey.tuning tuning
     . (Instrument.text #= doc) . (Instrument.scale #= Just patch_scale)
     where
     doc = "The instrument is expected to tune to the scale using the\

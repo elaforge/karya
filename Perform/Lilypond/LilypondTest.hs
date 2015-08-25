@@ -18,7 +18,7 @@ import qualified Derive.Call.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Typecheck as Typecheck
@@ -133,7 +133,7 @@ environ_event (start, dur, pitch, env) =
 voice_event :: (RealTime, RealTime, String, Maybe Int) -> Types.Event
 voice_event (start, dur, pitch, maybe_voice) =
     mkevent start dur pitch default_inst $
-        maybe [] ((:[]) . (,) Environ.voice . Typecheck.to_val) maybe_voice
+        maybe [] ((:[]) . (,) EnvKey.voice . Typecheck.to_val) maybe_voice
 
 mkevent :: RealTime -> RealTime -> String -> Score.Instrument
     -> [(Env.Key, BaseTypes.Val)] -> Types.Event

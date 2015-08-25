@@ -9,7 +9,7 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 
 import qualified Perform.Signal as Signal
@@ -67,7 +67,7 @@ test_track_voice = do
     let run skel = DeriveTest.extract extract
             . DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""
         extract :: Score.Event -> Maybe Int
-        extract = DeriveTest.e_environ_val Environ.track_voice
+        extract = DeriveTest.e_environ_val EnvKey.track_voice
         track inst = (inst, [(0, 1, "")])
     equal (run [] [track ">i1", track ">i2", track ">i1", track ">"])
         ([Just 0, Just 0, Just 1, Nothing], [])

@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Calls that use 'Environ.track_voice' to infer things about the track.
+-- | Calls that use 'EnvKey.track_voice' to infer things about the track.
 -- For example, you can automatically have the first and second tracks get
 -- @hand=l@ and @hand=r@, respectively.  If you use the local definitions
 -- file to bind @>pno = infer-hands@, then every @>pno@ track will both set the
@@ -15,7 +15,7 @@
 module Derive.Call.Prelude.InferTrackVoice where
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Sig as Sig
 
 import Global
@@ -32,11 +32,11 @@ c_infer_hands = Derive.transformer Module.prelude "infer-hands" mempty
     \ same instrument. >2 tracks is an error. This only sets `hand` if it\
     \ isn't already set."
     $ Sig.call0t $ \_ deriver ->
-        ifM (Derive.is_val_set Environ.hand) deriver $ do
-            voice <- Derive.lookup_val Environ.track_voice
+        ifM (Derive.is_val_set EnvKey.hand) deriver $ do
+            voice <- Derive.lookup_val EnvKey.track_voice
             case voice :: Maybe Int of
-                Just 0 -> Derive.with_val Environ.hand ("l" :: Text) deriver
-                Just 1 -> Derive.with_val Environ.hand ("r" :: Text) deriver
+                Just 0 -> Derive.with_val EnvKey.hand ("l" :: Text) deriver
+                Just 1 -> Derive.with_val EnvKey.hand ("r" :: Text) deriver
                 Just n -> Derive.throw $
                     "expected <=2 track-voices, got " <> showt n
                 Nothing -> deriver

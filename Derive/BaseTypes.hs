@@ -537,7 +537,7 @@ type ControlMap = Map.Map ScoreTypes.Control ScoreTypes.TypedControl
 type ControlFunctionMap = Map.Map ScoreTypes.Control ControlFunction
 type PitchMap = Map.Map ScoreTypes.PControl Signal
 
--- ** ControlFunction
+-- * ControlFunction
 
 {- | Another representation of a signal, complementary to 'Signal.Control'.
     It's more powerful because it has access to a subset of the Dynamic state,

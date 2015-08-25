@@ -48,7 +48,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.LEvent as LEvent
@@ -435,4 +435,4 @@ psignal_to_nn sig = do
 with_control_env :: Text -> Text -> Derive.Deriver a
     -> Derive.Deriver a
 with_control_env control merge =
-    Derive.with_vals [(Environ.control, control), (Environ.merge, merge)]
+    Derive.with_vals [(EnvKey.control, control), (EnvKey.merge, merge)]

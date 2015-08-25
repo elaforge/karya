@@ -27,7 +27,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -84,7 +84,7 @@ extract_result sort_events (result, state, logs) = Result
 
 -- | Extract the merged TrackDynamic from the Collect.
 --
--- 'Environ.scale' comes from the inverted Collect because the scale track is
+-- 'EnvKey.scale' comes from the inverted Collect because the scale track is
 -- often inverted below the note track.  However, the others come from the
 -- non-inverted Collect because if the note track sets an instrument, I want to
 -- use its instrument, instead of any instrument on individual events.  E.g.
@@ -103,17 +103,17 @@ extract_track_dynamic collect =
         { state_environ = keep (state_environ inverted) <> state_environ normal
         }
     keep env = maybe mempty
-        (Env.from_list . (:[]) . (,) Environ.scale) $
-            Env.lookup Environ.scale env
+        (Env.from_list . (:[]) . (,) EnvKey.scale) $
+            Env.lookup EnvKey.scale env
 
 -- | Given an environ, bring instrument and scale calls into scope.
 with_initial_scope :: Env.Environ -> Deriver d -> Deriver d
 with_initial_scope env deriver = set_inst (set_scale deriver)
     where
-    set_inst = case Env.get_val Environ.instrument env of
+    set_inst = case Env.get_val EnvKey.instrument env of
         Right inst -> with_instrument inst
         _ -> id
-    set_scale = case Env.get_val Environ.scale env of
+    set_scale = case Env.get_val EnvKey.scale env of
         Right sym -> \deriver -> do
             scale <- get_scale (TrackLang.sym_to_scale_id sym)
             with_scale scale deriver
@@ -303,10 +303,10 @@ get_val name = do
 with_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key -> val
     -> Deriver a -> Deriver a
 with_val name val deriver
-    | name == Environ.scale, Just scale_id <- TrackLang.to_scale_id v = do
+    | name == EnvKey.scale, Just scale_id <- TrackLang.to_scale_id v = do
         scale <- get_scale scale_id
         with_scale scale deriver
-    | name == Environ.instrument, Just inst <- Typecheck.from_val_simple v =
+    | name == EnvKey.instrument, Just inst <- Typecheck.from_val_simple v =
         with_instrument inst deriver
     | otherwise = with_val_raw name val deriver
     where v = Typecheck.to_val val
@@ -316,7 +316,7 @@ with_val name val deriver
 with_vals :: (Typecheck.Typecheck val, Typecheck.ToVal val) =>
     [(Env.Key, val)] -> Deriver a -> Deriver a
 with_vals vals deriver
-    | any (`elem` [Environ.scale, Environ.instrument]) (map fst vals) =
+    | any (`elem` [EnvKey.scale, EnvKey.instrument]) (map fst vals) =
         foldr (uncurry with_val) deriver vals
     | otherwise = Internal.localm with deriver
     where
@@ -350,7 +350,7 @@ modify_val name modify = Internal.localm $ \state -> do
 
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale =
-    with_val_raw Environ.scale (TrackLang.scale_id_to_sym (scale_id scale))
+    with_val_raw EnvKey.scale (TrackLang.scale_id_to_sym (scale_id scale))
     . with_scopes (val . pitch)
     where
     pitch = s_generator#s_pitch#s_scale #= [scale_to_lookup scale val_to_pitch]
@@ -385,7 +385,7 @@ val_to_pitch (ValCall name doc vcall) = Call
             <> " returned non-pitch: " <> ShowVal.show_val val
 
 -- | Run the a deriver with the given instrument in scope.  Mostly this just
--- assigns the instrument to the 'Environ.instrument' field where note calls
+-- assigns the instrument to the 'EnvKey.instrument' field where note calls
 -- can inherit it, but it also brings the 'Instrument' fields into scope, which
 -- is the per-instrument calls and per-instrument environ.
 with_instrument :: Score.Instrument -> Deriver d -> Deriver d
@@ -395,7 +395,7 @@ with_instrument inst deriver = do
     -- instrument would derive anyway, only without the right calls and
     -- environ.
     (inst, Instrument calls environ) <- get_instrument inst
-    let with_inst = with_val_raw Environ.instrument inst
+    let with_inst = with_val_raw EnvKey.instrument inst
     with_inst $ with_scopes (set_scopes calls) $ with_environ environ deriver
     where
     -- Replace the calls in the instrument scope type.

@@ -22,7 +22,7 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.Deriver.Monad
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
@@ -234,9 +234,9 @@ add_stack_frame frame st = st
     }
     where
     update_seed env = BaseTypes.insert
-        Environ.seed (BaseTypes.VNum (Score.untyped (seed old))) env
+        EnvKey.seed (BaseTypes.VNum (Score.untyped (seed old))) env
         where
-        old = case BaseTypes.lookup Environ.seed env of
+        old = case BaseTypes.lookup EnvKey.seed env of
             Just (BaseTypes.VNum n) -> Score.typed_val n
             _ -> 0
     seed :: Double -> Double

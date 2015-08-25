@@ -16,7 +16,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
@@ -144,8 +144,8 @@ c_dynamic name val = Derive.generator1 Module.prelude name mempty
 
 set_absolute :: Signal.Y -> RealTime -> Derive.Deriver Signal.Control
 set_absolute val pos = do
-    control <- Derive.lookup_val Environ.control
-    merge <- Derive.lookup_val Environ.merge
+    control <- Derive.lookup_val EnvKey.control
+    merge <- Derive.lookup_val EnvKey.merge
     out <- set control merge
     return $ Signal.signal [(pos, out)]
     where

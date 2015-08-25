@@ -23,7 +23,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
@@ -223,7 +223,7 @@ test_events_around = do
 
 test_track_dynamic = do
     let e_scale_inst dyn =
-            (env_lookup Environ.scale env, env_lookup Environ.instrument env)
+            (env_lookup EnvKey.scale env, env_lookup EnvKey.instrument env)
             where env = Derive.state_environ dyn
         block_id = UiTest.default_block_id
     let res = DeriveTest.derive_blocks
@@ -257,7 +257,7 @@ test_track_dynamic = do
             ]
     let e_dyn dyn = Signal.unsignal . Score.typed_val <$>
             Map.lookup Controls.dynamic (Derive.state_controls dyn)
-        e_scale = env_lookup Environ.scale . Derive.state_environ
+        e_scale = env_lookup EnvKey.scale . Derive.state_environ
         all_tracks = [(block_id, n) | n <- [1..5]]
     equal (e_track_dynamic e_scale res)
         (zip all_tracks ("twelve" : repeat "legong"))
@@ -320,7 +320,7 @@ test_track_dynamic_invert = do
     -- inversion.
     let run = e_track_dynamic (e_env . Derive.state_environ)
             . DeriveTest.derive_tracks ""
-        e_env e = (lookup Environ.instrument e, lookup Environ.scale e)
+        e_env e = (lookup EnvKey.instrument e, lookup EnvKey.scale e)
         lookup val = prettys . Env.lookup val
     -- Both tracks get *legong, even though >inst has to be inverted to see it.
     equal (run [(">i", [(0, 0, "")]), ("*legong", [(0, 0, "1")])])

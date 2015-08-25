@@ -29,7 +29,7 @@ import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
@@ -227,11 +227,11 @@ same_hand event event_of =
     where
     inst_of = Score.event_instrument
     hand_of :: Score.Event -> Maybe Text
-    hand_of = Env.maybe_val Environ.hand . Score.event_environ
+    hand_of = Env.maybe_val EnvKey.hand . Score.event_environ
 
 hand_key :: Score.Event -> (Score.Instrument, Maybe Text)
 hand_key e = (Score.event_instrument e,
-    Env.maybe_val Environ.hand $ Score.event_environ e)
+    Env.maybe_val EnvKey.hand $ Score.event_environ e)
 
 -- ** misc maps
 
@@ -287,7 +287,7 @@ derive_signal deriver = do
 {- | Make a delayed event.
 
     A delayed event should be realized by an accompanying postproc call. It has
-    an 'Environ.args', which are the arguments to the postproc call, and so
+    an 'EnvKey.args', which are the arguments to the postproc call, and so
     it's a little bit like a closure or a delayed thunk.
 
     It's awkward because you have to manually call the postproc, which then has
@@ -310,14 +310,14 @@ make_delayed args start event_args = do
 
 delayed_event :: [BaseTypes.Val] -> Score.Event -> Score.Event
 delayed_event args = Score.modify_environ $
-    Env.insert_val Environ.args (BaseTypes.VList args)
+    Env.insert_val EnvKey.args (BaseTypes.VList args)
 
 -- | Return the args if this is a delayed event created by the given call.
 delayed_args :: BaseTypes.CallId -> Score.Event -> Maybe [BaseTypes.Val]
 delayed_args (BaseTypes.Symbol call) event
     | Seq.head (Stack.innermost (Score.event_stack event))
             == Just (Stack.Call call) =
-        Env.maybe_val Environ.args (Score.event_environ event)
+        Env.maybe_val EnvKey.args (Score.event_environ event)
     | otherwise = Nothing
 
 -- * modify events

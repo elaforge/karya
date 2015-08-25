@@ -18,7 +18,7 @@ import Data.Vector ((!?))
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
@@ -165,8 +165,8 @@ data Tuning = Umbang | Isep deriving (Show)
 
 read_tuning :: Text -> Maybe Tuning
 read_tuning t
-    | t == Environ.umbang = Just Umbang
-    | t == Environ.isep = Just Isep
+    | t == EnvKey.umbang = Just Umbang
+    | t == EnvKey.isep = Just Isep
     | otherwise = Nothing
 
 -- | If ombak is unset, use the hardcoded tunings.  Otherwise, create new
@@ -178,7 +178,7 @@ c_ombak = "ombak"
 semis_to_nn :: Pitch.Semi -> NoteNumbers -> ChromaticScales.SemisToNoteNumber
 semis_to_nn offset nns = \(PSignal.PitchConfig env controls) fsemis_ -> do
     let fsemis = fsemis_ - fromIntegral offset
-    tuning <- Scales.read_environ read_tuning (Just Umbang) Environ.tuning env
+    tuning <- Scales.read_environ read_tuning (Just Umbang) EnvKey.tuning env
     let to_either = maybe (Left Scale.InvalidTransposition) Right
     to_either $ case Map.lookup c_ombak controls of
         Nothing -> case tuning of

@@ -43,7 +43,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
@@ -69,12 +69,12 @@ import Types
 initial_environ :: Env.Environ
 initial_environ = Env.from_list
     -- Control interpolators rely on this.
-    [ (Environ.srate, TrackLang.num 0.015)
+    [ (EnvKey.srate, TrackLang.num 0.015)
     -- Looking up any val call relies on having a scale in scope.
-    , (Environ.scale, TrackLang.VSymbol
+    , (EnvKey.scale, TrackLang.VSymbol
         (TrackLang.Symbol Config.default_scale_id))
-    , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
-    , (Environ.seed, TrackLang.num 0)
+    , (EnvKey.attributes, TrackLang.VAttributes Score.no_attrs)
+    , (EnvKey.seed, TrackLang.num 0)
     ]
 
 -- | Derive with the cache.

@@ -38,7 +38,7 @@ import Derive.DDebug () -- just make sure it compiles
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -316,7 +316,7 @@ with_transform = with_ui . (State.config#State.global_transform #=)
 -- * setup_deriver
 
 with_key :: Text -> SetupA a
-with_key key = with_deriver $ Derive.with_val Environ.key key
+with_key key = with_deriver $ Derive.with_val EnvKey.key key
 
 with_environ :: Env.Environ -> SetupA a
 with_environ env =
@@ -402,10 +402,10 @@ default_dynamic = Derive.initial_dynamic default_environ
 default_environ :: Env.Environ
 default_environ = Env.from_list
     -- tests are easier to write and read with integral interpolation
-    [ (Environ.srate, TrackLang.num 1)
-    , (Environ.scale,
+    [ (EnvKey.srate, TrackLang.num 1)
+    , (EnvKey.scale,
         TrackLang.VSymbol (TrackLang.scale_id_to_sym Twelve.scale_id))
-    , (Environ.attributes, TrackLang.VAttributes Score.no_attrs)
+    , (EnvKey.attributes, TrackLang.VAttributes Score.no_attrs)
     ]
 
 -- *** instrument defaults
@@ -655,7 +655,7 @@ c_note :: ScoreTime -> ScoreTime -> Derive.NoteDeriver
 c_note s_start dur = do
     start <- Derive.real s_start
     end <- Derive.real (s_start + dur)
-    inst <- Derive.get_val Environ.instrument
+    inst <- Derive.get_val EnvKey.instrument
     environ <- Internal.get_environ
     st <- Derive.gets Derive.state_dynamic
     let controls = Derive.state_controls st

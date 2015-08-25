@@ -37,7 +37,7 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
@@ -435,7 +435,7 @@ oct_pc oct pc = pitch oct pc 0
 
 set_scale :: Cmd.M m => BlockId -> BlockId -> TrackId -> Pitch.ScaleId -> m ()
 set_scale root_id block_id track_id scale_id = set_env root_id block_id track_id
-    [(Environ.scale, TrackLang.VSymbol (TrackLang.scale_id_to_sym scale_id))]
+    [(EnvKey.scale, TrackLang.VSymbol (TrackLang.scale_id_to_sym scale_id))]
 
 -- | Fake up just enough Performance to have environ in it.
 set_env :: Cmd.M m => BlockId -> BlockId -> TrackId

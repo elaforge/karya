@@ -21,7 +21,7 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
-import qualified Derive.Environ as Environ
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -130,7 +130,7 @@ realize_note :: (Pitch.Pitch -> Maybe Pitch.Note) -> Voice -> ScoreTime
     -> Note -> Derive.NoteDeriver
 realize_note show_pitch voice start (pitch, attrs) =
     Call.add_attrs attrs $
-    Derive.with_val Environ.voice voice $ do
+    Derive.with_val EnvKey.voice voice $ do
         note <- Derive.require ("unshowable pitch: " <> pretty pitch)
             (show_pitch pitch)
         Call.pitched_note =<< Call.eval_note start note
@@ -422,4 +422,4 @@ assign_hands =
             | otherwise = L
 
 event_voice :: Score.Event -> Int
-event_voice = fromMaybe 0 . Env.maybe_val Environ.voice . Score.event_environ
+event_voice = fromMaybe 0 . Env.maybe_val EnvKey.voice . Score.event_environ
