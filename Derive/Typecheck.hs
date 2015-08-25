@@ -268,9 +268,7 @@ control_function cf = BaseTypes.call_control_function cf Controls.null <$>
 
 instance Typecheck TypedFunction where
     from_val = num_to_function Just
-    -- TODO rather than have to add a ValType for every single instance,
-    -- I should have a Text description
-    to_type _ = ValType.TControlFunction
+    to_type _ = ValType.TOther "typed number or signal"
 
 -- TODO use a special character to indicate that these are not parseable, and
 -- thus invalid ShowVal instances.
@@ -279,20 +277,19 @@ instance ShowVal.ShowVal TypedFunction where
 
 instance Typecheck Function where
     from_val = num_to_function (Just . fmap Score.typed_val)
-    to_type _ = ValType.TControlFunction -- TODO
+    to_type _ = ValType.TOther "untyped number or signal"
 
 instance ShowVal.ShowVal Function where
     show_val _ = "((Function))"
 
-data DefaultRealTimeFunction =
-    DefaultRealTimeFunction !Function !TimeType
+data DefaultRealTimeFunction = DefaultRealTimeFunction !Function !TimeType
 
 instance ShowVal.ShowVal DefaultRealTimeFunction where
     show_val _ = "((DefaultRealTimeFunction))"
 
 instance Typecheck DefaultRealTimeFunction where
     from_val = num_to_checked_function DefaultRealTimeFunction (time_type Real)
-    to_type _ = ValType.TControlFunction -- TODO
+    to_type _ = ValType.TOther "time number or signal"
 
 -- Originally I used DataKinds e.g.
 -- TransposeFunction (deflt :: TransposeType), but it seemed less
@@ -305,7 +302,7 @@ instance ShowVal.ShowVal TransposeFunctionDiatonic where
 instance Typecheck TransposeFunctionDiatonic where
     from_val = num_to_checked_function TransposeFunctionDiatonic
         (type_to_control Diatonic)
-    to_type _ = ValType.TControlFunction -- TODO
+    to_type _ = ValType.TOther "transpose number or signal, default diatonic"
 
 data TransposeFunctionChromatic =
     TransposeFunctionChromatic !Function !Score.Control
@@ -314,7 +311,7 @@ instance ShowVal.ShowVal TransposeFunctionChromatic where
 instance Typecheck TransposeFunctionChromatic where
     from_val = num_to_checked_function TransposeFunctionChromatic
         (type_to_control Chromatic)
-    to_type _ = ValType.TControlFunction -- TODO
+    to_type _ = ValType.TOther "transpose number or signal, default chromatic"
 
 data TransposeFunctionNn = TransposeFunctionNn !Function !Score.Control
 instance ShowVal.ShowVal TransposeFunctionNn where
@@ -322,7 +319,7 @@ instance ShowVal.ShowVal TransposeFunctionNn where
 instance Typecheck TransposeFunctionNn where
     from_val = num_to_checked_function TransposeFunctionNn
         (type_to_control Nn)
-    to_type _ = ValType.TControlFunction -- TODO
+    to_type _ = ValType.TOther "transpose number or signal, default nn"
 
 type_to_control :: TransposeType -> Score.Type -> Maybe Score.Control
 type_to_control deflt = fmap transpose_control . transpose_type deflt

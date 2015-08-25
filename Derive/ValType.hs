@@ -3,6 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Type descriptions of the 'Val'.
+--
+-- This is in its own module so "Derive.Deriver.Monad" can import it without
+-- importing "Derive.Typecheck".
 module Derive.ValType where
 import qualified Data.Text as Text
 
@@ -26,6 +29,9 @@ data Type =
     | TQuoted
     | TControlFunction
     | TList !Type
+    -- | Typecheck instances that don't correspond directly to a Val type
+    -- get this, as a plain description.
+    | TOther !Text
     deriving (Eq, Ord, Show)
 
 -- | These are kind of muddled.  This is because they were originally just
@@ -99,6 +105,7 @@ instance Pretty.Pretty Type where
     pretty TControl = append_parens "Control" Id.valid_description
     pretty TPControl = append_parens "PControl" ("#" <> Id.valid_description)
     pretty (TList typ) = "list of " <> pretty typ
+    pretty (TOther text) = text
     pretty typ = Text.drop 1 (showt typ)
 
 append_parens :: Text -> Text -> Text

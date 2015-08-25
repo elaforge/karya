@@ -60,7 +60,7 @@ UNSORTED
     * Change callers of Call.to_transpose_function, to_time_function etc.
       to use Typecheck instances.
     * Rename BaseTypes.Real and Score to RealDuration and ScoreDuration
-    - Add a ValType.Type with just a Text description, for the new Eval
+    * Add a ValType.Type with just a Text description, for the new Eval
       Typecheck instances.
     - It turns out this is not so useful because a default TypedFunction
       doesn't have a default control name like a Sig.typed_control does.
