@@ -5,16 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DefaultSignatures #-}
-{- | This module exports the basic types for \"tracklang\", which is the
-    language parsed by "Derive.ParseBs" and interpreted by "Derive.Call".
-
-    It also defines 'Typecheck', which is used along with "Derive.Sig" to
-    infer type signatures for calls.
-
-    To avoid circular imports, many of the types are actually defined in
-    "Derive.BasicTypes", but they should be imported as if they were defined
-    here.
--}
+-- | This module has Val utilities.
 module Derive.TrackLang (
     module Derive.TrackLang, module Derive.BaseTypes
 ) where
@@ -66,11 +57,6 @@ type_to_transpose (Score.Typed typ val) = case typ of
 to_scale_id :: Val -> Maybe Pitch.ScaleId
 to_scale_id (VSymbol (Symbol a)) = Just (Pitch.ScaleId a)
 to_scale_id _ = Nothing
-
--- to_scale_id :: Typecheck.Typecheck a => a -> Maybe Pitch.ScaleId
--- to_scale_id val
---     | VSymbol (Symbol s) <- Typecheck.to_val val = Just (Pitch.ScaleId s)
---     | otherwise = Nothing
 
 sym_to_scale_id :: Symbol -> Pitch.ScaleId
 sym_to_scale_id (Symbol s) = Pitch.ScaleId s

@@ -68,26 +68,18 @@ group_and_cancel cancel key final_dur =
     . merge_groups cancel . group_coincident key
 
 -- | Merge notes with 'Flags.strong' and 'Flags.weak'.  The rules are that
--- exactly one strong note wins, but >1 is ambiguous.  Otherwise, multiple
--- normal notes can win over weak notes, and exactly one weak note is ok, but
--- multiple weak notes with no normal ones is once again ambiguous.
+-- strong notes merge with weaker ones, in the order strong, normal, weak.
+--
+-- Previously I considered multiple weaks or strongs ambiguous, but it turns
+-- out I get multiple strongs with two hand strokes at the end of a block,
+-- and I might as well allow the rest too, for simplicity.
 cancel_strong_weak :: (Score.Event -> [Score.Event] -> Score.Event)
     -> [Score.Event] -> Either Text [Score.Event]
 cancel_strong_weak merge events = case partition events of
-    (strong : extras, weaks, normals)
-        | null extras -> Right [merge strong (normals ++ weaks)]
-        | otherwise -> Left $ "multiple " <> pretty Flags.strong <> " events: "
-            <> Score.log_events (strong : extras)
-    ([], weak : extras, [])
-        | null extras -> Right [weak]
-        | otherwise -> Left $ "multiple " <> pretty Flags.weak <> " events: "
-            <> Score.log_events (weak : extras)
-    ([], weaks, [normal]) -> Right [merge normal weaks]
-    ([], [], normals) -> Right normals
-    ([], weaks@(_:_), normals) -> Left $ "multiple normal events: "
-        <> Score.log_events normals <> " and multiple " <> pretty Flags.weak
-        <> " events: " <> Score.log_events weaks
-    -- Multiple weak notes are ok if there are non-weak notes.
+    (strongs@(_:_), weaks, normals) ->
+        Right [merge strong (normals ++ weaks) | strong <- strongs]
+    ([], weaks, normals@(_:_)) -> Right [merge normal weaks | normal <- normals]
+    ([], weaks, []) -> Right weaks
     where
     partition = Seq.partition2 (Score.has_flags Flags.strong)
         (Score.has_flags Flags.weak)

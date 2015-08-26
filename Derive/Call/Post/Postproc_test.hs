@@ -29,11 +29,11 @@ test_cancel = do
     equal (run (notes "add-flag strong | " ""))
         ([(2, 2, "4c")], [])
 
-    -- Too many weaks or strongs is an error.
-    strings_like (snd $ run (notes "add-flag weak | " "add-flag weak | "))
-        ["multiple {weak}"]
-    strings_like (snd $ run (notes "add-flag strong | " "add-flag strong | "))
-        ["multiple {strong}"]
+    -- Multiple weaks and strongs together are ok.
+    equal (run (notes "add-flag weak | " "add-flag weak | "))
+        ([(2, 2, "4c"), (2, 3, "4d")], [])
+    equal (run (notes "add-flag strong | " "add-flag strong | "))
+        ([(2, 2, "4c"), (2, 3, "4d")], [])
 
 test_infer_duration_block = do
     -- The note deriver automatically adds flags so that a note at the end of
