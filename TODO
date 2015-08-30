@@ -3,71 +3,16 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  * Prelude.Random: reverse (val, weight) order
   New typechecking.
-    . I should be able to pass a ControlFunction as a ControlRef.  Can I coerce
-      one to the other?
-    . Does the whole control situation need some refactoring?  Basically,
-      calls just care about a scalar value, or a signal.  The most general
-      representation is Call.TypedFunction.  I think all a call is going to do
-      with a ControlRef argument is get values at times.
-    . What's more, any scalar can be coerced to a constant signal, and any
-      signal can be coerced to a scalar by sampling at the call start time.
-      I have the former, but not the latter.
-    . The complication is that looking up a control name is a deriver action,
-      so Derive.Sig would have to do that.  Typecheck returns Maybe, so
-      there's no opportunity to run a Deriver in there.
-    . I already do evaluation for Quoteds, so I could try to generalize that.
-      It has special case support in Sig.check_arg, because anything can be
-      a Quoted, and is then typechecked again.  That's not the case for
-      Typechecks that require Deriver access, so I think I it's orthogonal.
-    . So instead of Maybe, I could return 'Maybe (Deriver a)'.  That makes
-      it a pain to use from_val in any other context.
-      . WrongType | Val a | Eval (Deriver a)
-    . Naturally that leads to a circular import with Deriver.Monad.  It uses
-      various types from Derive.BaseTypes, but also
-        (Type, type_of, Typecheck, to_val)
-      Type I can move over.  type_of is for TypeError formatting.
-      (Typecheck, to_val) is for Derive.val_call convenience, and I don't need
-      it.
-
-    . Scalar: I have a 'Typecheck TypedVal', which is the basic scalar type.
-      I can coerce a VControlRef or VControlFunction to that, and the various
-      specialized types like RealTime are further coerced.
-    . Signal: 'Typecheck Call.TypedFunction', or rather a newtype wrapper.
-      Then maybe I can get rid of ControlRef just to reduce possibilities.
-    . Typecheck requires a to_val, and I can't do that for TypedFunction.
-      But I don't need to_val for typechecking, so maybe I can put that in
-      a separate typeclass.
-
-    * Change Derive.Sig to use Typecheck.
-      . ShowVal is used to show the default val in Derive.ArgParser.  So
-        I need to include an explicit name for the default val if it happens
-        to be a Function.  This means I can have defaults which are not
-        tracklang.  Quoted is tracklang, so it gets around that.  So I could
-        return Eval Quoted, but it means I then need expressions for all those
-        things, like DefaultRealTimeFunction.
-      . Or somehow add a text description along with the default val, e.g.
-        (a, Text) | ShowVal a => a.  It seems an ad-hoc typeclass could
-        probably do it.
-      . Or allow the default to be a different type from the value.  But for
-        that to be safe, I'd need a guaranteed conversion, not just Maybe.
-        I'd have to make another typeclass with total conversions.
-      . Can I just add dummy ShowVals for even the Eval Typechecks?
-      . Yay imports: Deriver.Internal needs Typecheck because it has
-        insert_environ.  But can't I move that elsewhere?
-    * Remove code from Derive.TrackLang and fix breakage.
-    * Change callers of Call.to_transpose_function, to_time_function etc.
-      to use Typecheck instances.
-    * Rename BaseTypes.Real and Score to RealDuration and ScoreDuration
-    * Add a ValType.Type with just a Text description, for the new Eval
-      Typecheck instances.
     - It turns out this is not so useful because a default TypedFunction
       doesn't have a default control name like a Sig.typed_control does.
       The documentation is also worse.  The way to fix this would be to
       let the default be any coercible type.  But to do that and be type safe
       I'd want a separate class for pairs of types that can definitely be
       converted.
+      . Possibly a way around is to include ControlFunction in ControlRef...
+        but why do I want so much to pass control functions?  Especially since
+        I can already pass a concrete signal as a ControlSignal.
   - Perhaps I should get rid of TrackLang entirely.  Typecheck goes into
     a separate Typecheck module.  Environ goes into an Environ module,
     which means Derive.Environ becomes Environs or something, to avoid the
@@ -89,13 +34,9 @@ UNSORTED
       'cancel', which processes {weak} and {strong}, and 'suppress', which
       processes Environ.suppress_until.  This way I can specialize 'cancel'
       for gangsa, so it understands pasang instruments.
-    * add 'cancel' call
-    . Actually, I think cancel and infer-duration have to be together, because
-      infer needs to use the duration of the cancelled event.
 
   - bug: repl: SaveFileChanged
     repl: thread blocked indefinitely in an MVar operation
-  * comment in block title disables the whole block
   - Expr is NonEmpty since there is always at least a "" call, but this is a
     special feature of events.  Would it make more sense to parse "" as [],
     and then special case [] in EvalTrack.derive_event?
@@ -104,20 +45,6 @@ UNSORTED
   - Perhaps mridangam should automatically transpose the octave to be within
     its range.
   - Rename PSignal.Signal to PSignal.PSignal?
-  * Sometimes kbd note entry doesn't work.
-    . There's no MidiThru on the pitch track because EditUtil.lookup_instrument
-      gets Nothing and aborts.  But note track has the instrument, presumably
-      because of looking directly at the title.
-    . Somehow Cmd.state_floating_input is True!
-      This means NoteEntry.floating_input_insert catches it and returns a
-      Cmd.FloatingInput $ Cmd.FloatingInsert, which stops further processing.
-      Then Sync.floating_input -> BlockC.floating_insert.  It ignores, but
-      it means state_floating_input stays True.
-    . Why didn't it get unset?  Only if UiMsg.ctx_floating_input was set,
-      which is when a UiMsg text is from the floating input.  It happens if
-      I do escape, since there is then no UiMsg that says that the floating
-      input closed.
-    . So I need escape to also send a msg, but with Nothing as the text.
   - No thru on pitch track of >pemade in save/rehearsal/bali/legong/semara-dana.
   - Perf.lookup_instrument on a pitch track could look at its note track.
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
@@ -179,8 +106,6 @@ UNSORTED
 
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
     I have a warning for when a non-inverting call has a note track below it?
-  * Post.Move module and infer-duration call need better names now that it's
-    a general purpose call.
   - It's confusing how sometimes the environ is applied to the pitch during
     derivation (e.g. Post.set_instrument), and sometimes it waits for Convert
     to do it.  Do I really need both?
@@ -330,11 +255,10 @@ UNSORTED
           . I could do the same thing with P, for e.g. !!P4---
           . Maybe I should give separate dynamics a try before thinking about
             this too much.
+        - !!<c should work for move from previous pitch.
+        - In a janya raga certain notes may be missing, and I should be able
+          to skip them.
       - I need high ma, high ri etc.
-      * Do I want to enable argument defaulting for dyn and pitch calls?
-        Since they don't have names I'd have to either give them names, or
-        enable a syntax for >-time = .5.  Actually I think quoting should
-        work: '>-time' = .5
       . I'm not yet sure how to handle dynamics.  If I do a scale merge, then
         I can have the dyn calls have defaults around 0, e.g. > is 0 to -1,
         and => is 1 to 0, or .5 to 0.  Experiment more before I decide if this
@@ -358,10 +282,6 @@ UNSORTED
         remove the other.
         . Currently - is winning... but if I use separate worcds then 0 -1
           seems a lot easier to read than - -1.
-      * Should I have a set of absolute movement calls?  The idea is that it's
-        easier to write and read 1210a0a0a than P1 1aaa1a1a
-        I could use srg, e.g. rgrsnsnsn, but this winds up being really
-        absolute, not just absolute relative to the base pitch.
       - Write docs.
       . Two pitch tracks.  This is kind of a reverse orphan problem.  I want
         to promote the top pitch track downwards when there is no overlapping
@@ -372,76 +292,6 @@ UNSORTED
         Or I could use plain sample interleave, and expect that gamakam will
         always have a sample at the same time as the parent and thus cancel
         it out.
-
-        Saraswatya Bahagatya:
-          Sa ra           swa   tya
-          s  r            m     g
-          0  -1 - 0 -1 0  p - 0 0 - - 1 0 1
-
-          Bha ga va tya     sam
-          m   g  s  n       s
-                    0 - 1 0
-
-          ra        kshi to
-          d         p  m p   d        s
-          2 1 2 1 0 0    0 > 0 -1 0 >
-
-          Chaa      ya gou ra  ta ra ya    va ra    ya shri
-          r         m  p   d   p  m  g     s  g     m  r
-          -1 0 -1 0        p 0       0 1 0    p 1 0    0 0 -1 0 -1 0
-
-          alternate for rakshito:
-            ra
-            d
-            < n 1 ^ -- prev, -1, 1, cur
-            < u ^ -- prev, 0d0 dip, cur
-            <u^0
-
-        Shri Gananatham:
-          ) Shri    ga na na  tham bha ja re  chi  ta pa ra   shak ti yu tham
-            s       g  g  g   g    g   m  p   p dn d  p  m    g    g  r  s
-                    0n 0n --n 0d0n                       --d0      0n 20 0-d0d
-
-          ) chi   ta pa ra   shak ti yu      tham
-            p dn  d  p  m    g    g  r       s
-               10 10    0d0       0n 0 .5n 0 1210d 0d0d
-
-          . I think the initial 1210d in "tham" should be more defined, i.e.
-            shorter transition times.
-
-          ) Shri    ga na na  tham bha ja re
-                                   g   m  p
-                                       -2 < d -- quick transition to -1, hold
-
-          ) Na ga ya dnya su tra dha ram
-            m  g  m  p    p  s   s   s
-                                 0 y      -- y = -1nn
-
-          ) na   da la   ya
-            p    d  s n  p
-            --12      -j  -- j = janta, quick from -2 to 0
-
-          . For "na", I actually need a single transition to 2 with a
-            double time slice.
-
-          ) nan da ka ram
-            m   g  r  s
-                   10 1210d0
-
-          ) a       ga ma di   san nu  tam      a      khi la de va  pu ji tam
-            g       g  m  m    g   s   s   r    s      n   d  p  g   r  s  s
-            f-3 a1a       0 -3     <0c     1a1a 0 -3 0           <0c    0y
-
-          ) yo ga sha li bha vi tam bho gi sa      yi se  vi tam
-            s  g  r   m  g   p  m   p   p  m       m  g   m  p
-                                        0b a002aa1 0b 0a1
-
-          . For janta I need a way to have a quick transition even within
-            a possible longer time slice.
-
-        . For a pure relative system, I can't write 1010, but must write 1a1a.
-          Is this overly confusing?  I think I still want relative movement
-          though, so I can do ornaments from the prev pitch.
         . Ornaments I likely want:
           emit signal:
             . hold flat pitch: 0 or -
@@ -1368,115 +1218,6 @@ Derive:
               whole next note, or have an entirely separate way to get the
               next pitch.
             . Actually I now have this, via NotePitchQuery.
-        kotekan followed by non-kotekan results in doubled notes
-          . It has {infer-duration}, but it needs {can-cancel}.  It wants to
-            replace the next note, but that only works if the next note is the
-            beginning of the block.
-          . Now norot tests fail since the last of the previous is cancelled
-            instead of the first note of the next.  Perhaps I should make all
-            the calls omit initial, it would be more consistent.
-          . Still it seems like the right thing to cancel the next note,
-            instead of the last one.  If I go to another block I would expect
-            it to get the final note of the previous kotekan.
-          . The ideal situation is:
-            . No note means the last kotekan note gets an inferred duration.
-            . A plain note sets the duration of the last kotekan note, but the
-              pitch comes from the kotekan.
-            . Unison or kempyung means I get both sangsih and polos, and polos
-              note is taken from the end of the kotekan.
-            . If I want a different pitch from the kotekan, I have to tell the
-              kotekan to omit the last note, and then I can put anything
-              I want there.  Or I could have a 'strong' flag on the note,
-              which would cause it to cancel rather than be cancelled.
-          * Unfortunately it seems really complicated to get that.  noltol,
-            kempyung and unison have to apply a flag, which is then
-            interpreted by a postproc.  Then I can put the realize call after
-            infer-duration.
-            . I need threshold from the even eval time.  I could stash it in
-              the environ, but a delayed evaluation feature where I stash
-              a closure in the event would let me do it in a typesafe way.
-            . Actually, then I could also pass the too_high function, based on
-              the correct scale and inst-top.  So I think I do want this.
-            . However, I still want the feature where some attrs can override
-              others.  So I need to store multiple closures.  If I make it
-              a Val, I could put it in the environ, but why stuff everything
-              in the environ?  I could just as well have a Map of Attr to
-              delayed realizations.
-            . The realization gets what args?  Neighbors?  Same hand
-              neighbors?  What if it wants arguments from the realize call
-              point?  I think it should be just prev and next.
-            . This is not so simple, because I can't put a Deriver in
-              a Score.Event due to circular imports.  I'd have to move Event
-              to Deriver.Monad, or come up with some Deriver-and-above way to
-              attach data to a LEvent.Event.  So basically I have
-              ControlFunction all over again.
-            . The problem with using ControlFunction style BaseTypes.Dynamic
-              is that I now can't derive an expression, e.g Call.note or
-              even a pitch.  That seems really limiting for a postproc.
-            . Really all I want is a hole where I can plug in
-              a DelayedContext.  Surely there is some way to stash that in an
-              Event?
-            . Well... I could use Dynamic.  Cast a NoteDeriver to Dynamic.
-              You stash and evaluate via a function in Derive.Call which does
-              the casting.
-            . The other option is to store it above Event.  That means
-              LEvent.LEvent (DelayedMap, Score.Event).  But it seems like this
-              would break tons of code that uses Score.Event.
-            . But, as long as I'm using Dynamic I could also store the args.
-              I guess it's basically the same.
-          . Kotekan calls make >p and >s notes.  They all get +noltol.
-            . No note at a gap: final note gets {infer-duration}.  Kotekan
-              call can also remove +noltol.  infer-duration extends the note.
-            . >pasang in the gap: final kotekan >p replaces >pasang, and gets
-              its duration.  Or maybe >pasang replaces >p, but must get its
-              instrument.
-            . >pasang +kempyung in the gap: final kotekan >p replaces >pasang,
-              but the instrument must remain >pasang, so realize-technique can
-              realize it.
-            . So it seems like the note replacement needs to know about
-              +kempyung and +unison in addition to pasang instruments.
-          . The plan is to have kotekan calls emit the start note, but weak,
-            and the final note, but weak, and infer-duration.  Then if there is
-            no next note, it will infer to fill the gap.  If there is a next
-            note, it will replace the last note even if it's >pasang.
-            Actually, if the realize-techique came first, then it will be
-            >polos >sangsih, which should both be able to replace.
-          . If there are two consecutive kotekan, I need the end of the
-            previous one to replace the start of the next one, even if it's
-            >sangsih replacing >polos.  This means they can't both be weak,
-            the end has to be strong.  But that in turn means that it will
-            want to override the next note.  That in turn would make kempyung
-            not work.  So I need something that is replaced by a normal note,
-            but will replace a weak.  Since I'm defining my own cancel merge,
-            I can use dedicated flags, e.g. Flags.initial, Flags.final.
-          . This breaks for noltol, because the generated +mute note is
-            unflagged, so it cancels the final kotekan note.
-            1-121     => 1-121-232
-            -3-2-         3-2-4-3-
-                2-232
-                -4-3-
-            1+121     => 1+12 +232  >p 1 {final}, >s 2+ {}
-            -3+2+         3+2+4+3+  >p 2 {initial}
-                2+232
-                -4+3+
-            So the last note doesn't get noltol, and noltol moved to the end
-            time gets {final}
-          * I can't figure out a way around this, so I think I still need to
-            apply noltol afterwards.  That means a noltol call and then
-            a realize-noltol or realize-technique postproc.
-
-          / How about infer a final=f if there is a next note at the end time?
-            And infer initial=t if there is no previous event ending here.
-            . Doesn't work.
-          * For the short term I can just add a env arg to kotekan calls to
-            omit the last note, then I have to use that when I want to replace
-            it.  This means cross block replacement doesn't work.  Try it to
-            see if I'll want the complicated version.
-        * Bundle all gangsa 'realize' functions into a 'realize-gangsa'
-          call: realize-noltol | cancel-pasang | realize-ngoret
-        * Remove 'infer-duration'.  But first I have to find out why it breaks
-          tons of stuff in save/complete/wayang/*.
-
         kotekan kernel:
           - generate all possible kernels following some playability rules,
             e.g. no more than 2 notes in a row, only one rest
@@ -1582,9 +1323,6 @@ pitch: scales: scale:
     - overtone series
     - add ratio transpose signal, that multiplies hz
     - meantone
-    * retune a note depending on the previous interval (e.g. sloppy pitches
-      when playing quickly)
-      I think this has to be postproc.
     support scales that are different ascending vs. descending
       . Scales have two versions of each degree.
       . scale_input_to_note takes a previous Note arg, which it can use to
