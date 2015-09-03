@@ -22,9 +22,13 @@ import Global
 (.) = (<>)
 
 data Keys = Keys {
-    key_xaxis :: Midi.Key
-    , key_yaxis :: Midi.Key
+    -- | Base keyswitch for matrix x axis.
+    key_x_axis :: Midi.Key
+    -- | Base keyswitch for matrix y axis.
+    , key_y_axis :: Midi.Key
+    -- | First of the AB keyswitches.
     , key_ab :: Midi.Key
+    -- | Base keyswitches for the presets.
     , key_matrix :: Midi.Key
     } deriving (Show)
 
@@ -33,11 +37,21 @@ type Instrument = (Text, Keys, [[Attributes]])
 
 -- | Instruments that start above a1 use this.
 low_keys :: Keys
-low_keys = Keys Key.d_1 Key.d0 Key.d1 Key.e1
+low_keys = Keys
+    { key_x_axis = Key.d_1
+    , key_y_axis = Key.d0
+    , key_ab = Key.d1
+    , key_matrix = Key.e1
+    }
 
 -- | Instruments that go below a1 but don't go above d7 use this.
 high_keys :: Keys
-high_keys = Keys Key.d7 Key.d8 Key.d9 Key.e9
+high_keys = Keys
+    { key_x_axis = Key.d7
+    , key_y_axis = Key.d8
+    , key_ab = Key.d9
+    , key_matrix = Key.e9
+    }
 
 -- * strings
 
@@ -57,7 +71,7 @@ solo_cello = ("cello", low_keys, cello)
 solo_bass = ("bass", high_keys, bass)
 
 violin =
-    [ violin_short_long, violin_dynamics
+    [ violin_short_long_notes, violin_dynamics
     , violin_tremolo_trills, violin_pizz_legno
     , violin_harmonics, violin_ponticello
     , violin_tasto, violin_perf_interval
@@ -65,7 +79,7 @@ violin =
     , violin_perf_repetition, violin_fast_repetition
     , violin_grace_notes, violin_glissandi, violin_scale_runs
     ]
-violin_short_long =
+violin_short_long_notes =
     [ staccato, detache.short, detache.long.vib, detache.long.nv
     , sus.vib, sus.vib.fa, sus.vib.fa.auto
     , sus.vib.marcato, sus.vib.espr, sus.progr
@@ -231,7 +245,7 @@ cello_glissandi = map (gliss.)
 -- *** solo bass
 
 bass =
-    [ bass_short_long, bass_dynamics
+    [ bass_short_long_notes, bass_dynamics
     , bass_tremolo_trills, bass_pizz_legno
     , bass_harmonics, violin_ponticello
     , violin_tasto, bass_perf_interval
@@ -239,7 +253,7 @@ bass =
     , bass_perf_repetition, bass_glissandi
     ]
 
-bass_short_long =
+bass_short_long_notes =
     [ staccato, detache.short, detache.long
     , sus.vib, sus.vib.fa, sus.vib.fa.auto
     , sus.vib.marcato, sus.progr, sus.vib_down, sus.nv
@@ -268,7 +282,13 @@ bass_glissandi = [gliss, oct.gliss.updown.med, oct.gliss.updown.fast]
 
 strings :: [Instrument]
 strings =
-    [ ("strings", Keys Key.d_1 Key.d8 Key.d9 Key.e9, [strings_orchestra])
+    [ ("strings", Keys
+            { key_x_axis = Key.d_1
+            , key_y_axis = Key.d8
+            , key_ab = Key.d9
+            , key_matrix = Key.e9
+            },
+        [strings_orchestra])
     , ("violins", low_keys, violins)
     , ("violas", low_keys, violas)
     , ("cellos", low_keys, cellos)
@@ -774,13 +794,13 @@ piccolo_mordent = map (mord.) [v1, v2, v3, v4, v5, v6]
 -- *** flute2
 
 flute2 =
-    [ flute2_short_long, flute2_dynamics
+    [ flute2_short_long_notes, flute2_dynamics
     , flute2_flutter_trills, flute2_perf_interval
     , flute2_perf_interval_fast, flute2_perf_trill
     , flute2_perf_repetition, flute2_fast_repetition
     , flute2_grace_notes, flute2_scale_runs, flute2_arpeggios
     ]
-flute2_short_long =
+flute2_short_long_notes =
     [ staccato, portato.short, portato.med, portato.long.vib, portato.long.nv
     , sus.progr, sus.nv
     ]

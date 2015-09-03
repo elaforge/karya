@@ -219,13 +219,13 @@ matrix keys = add . Seq.chunked 12 . concatMap (Seq.chunked 12)
     where
     add matrices = do
         (matrix_ks, rows) <- zip select_matrix matrices
-        (row_ks, row) <- zip yaxis rows
-        (col_ks, cell) <- zip xaxis row
+        (row_ks, row) <- zip y_axis rows
+        (col_ks, cell) <- zip x_axis row
         (ab_ks, attrs) <- maybe [([], cell)] (zip (map (:[]) ab)) $
             expand_ab cell
         return (attrs, matrix_ks : row_ks : col_ks : ab_ks)
-    xaxis = keys_from (VslInst.key_xaxis keys)
-    yaxis = keys_from (VslInst.key_yaxis keys)
+    x_axis = keys_from (VslInst.key_x_axis keys)
+    y_axis = keys_from (VslInst.key_y_axis keys)
     ab = keys_from (VslInst.key_ab keys)
     select_matrix = keys_from (VslInst.key_matrix keys)
 
