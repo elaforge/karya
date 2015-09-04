@@ -60,7 +60,7 @@ derive :: Cmd.M m => Derive.NoteDeriver -> m Derive.Result
 derive deriver = do
     config <- State.config#State.lilypond <#> State.get
     constant <- PlayUtil.get_constant mempty mempty
-    return $ Derive.extract_result True $
+    return $ Derive.extract_result $
         Derive.derive (set_tempo constant)
             (set_mode config PlayUtil.initial_dynamic)
             (Derive.with_scopes lilypond_scope deriver)

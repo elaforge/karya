@@ -18,6 +18,22 @@ UNSORTED
     which means Derive.Environ becomes Environs or something, to avoid the
     heavy dependency.
 
+  make composed transforms more efficient
+    . Composed transforms have to keep the whole event stream in memory since
+      they can't interleave.
+    . Would it then be possible to deforest the intermediate lists?  Bulit-in
+      deforestation won't work because of the intervening call machinery, but
+      maybe I can recreate it manually.
+    - First, figure out how to measure the amount of memory used by
+      intermediate lists.  It might be completely trivial.
+    - First, I have to detach threaded state for the actual map.  This is
+      possible because I don't care about Threaded or Collect.  So modify
+      Post.emap_m to map a Derive.run over every element.  Then I need to
+      collect the output and turn Left into a Log... or leave it in the stream
+      somehow so I can throw at the end.
+    - I think the stream will then remain lazy, and I should be able to GC
+      as it goes, but verify with Debug.trace.
+
   - Cmds don't indicate when they could abort or throw.  I rely on ad-hoc
     conventions like get_ vs. lookup_, but what about it actually being in the
     type signature?  I could try the "lightweight checked exceptions" in:
@@ -190,6 +206,37 @@ UNSORTED
     sorted, because of things like Post.same_hand.  It used to be out-of-order
     would be reported by convert, but now it will just silently mess up
     a postproc... is that really better?
+    . I think keeping sortedness is necessary since I want to efficiently find
+      notes which are near in time.  Since it's a call postcondition, maybe I
+      could put a check after each call.
+    . I remember why I wanted to get rid of it is that it's a pain to keep
+      sortedness for some calls.  I don't remember exactly what though.  But
+      if they are postprocs, I can't just say run a sort after the postproc,
+      because then I wind up doing multiple sorts when just one would do.
+    . So one way is to just always keep the output sorted, and check after
+      every call.  The check would be expensive though, since it would be
+      repeated work after block calls, and every postproc.
+    . The problem is that any postproc that moves events has to work to
+      maintain sortedness.  It's a big hassle to worry about the neighbors
+      when you are just moving.
+    . A fancy type-based approach would be to put a Sorted phantom parameter
+      on the Events.  Calls can declare that they preserve sortedness or not,
+      and Unsorted <> Sorted = Unsorted.  Calls that require sortedness will
+      then have to sort if it's Unsorted.
+    * Put the sorted check back in Convert, remove sort in Cmd.Performance.
+    - Change [LEvent.LEvent Score.Event] to a newtype, so I can attach
+      a sorted bit.
+    - Actually put Sorted in Stream.
+      . This would also have automated the merge_events in Parent.c_tuplet,
+        right?
+    . Also, there's a distinction between merge_lists and merge_asc_lists.
+    - Rework Derive.Call.Post so the function to map varies instead of the map
+      function.  This way I can implement it as a series of adaptors.
+      . One reason to not do this is that I can have more efficient maps, e.g.
+        no monad or no intermediate lists.  But presumably if those
+        possibilities are in an ADT then the map function can choose the
+        implementation.  This doesn't work for monadic vs. non-monadic though,
+        because the return type is different.
   - Rethink if I really want track event calls in TrackTime, rather than
     normalized time.
     . Implementing c_sequence I was confused how stretch was applied twice,
@@ -258,6 +305,7 @@ UNSORTED
         - !!<c should work for move from previous pitch.
         - In a janya raga certain notes may be missing, and I should be able
           to skip them.
+        - Also ragams with narrow intervals, e.g. mayamalavagoula sr
       - I need high ma, high ri etc.
       . I'm not yet sure how to handle dynamics.  If I do a scale merge, then
         I can have the dyn calls have defaults around 0, e.g. > is 0 to -1,
@@ -283,69 +331,31 @@ UNSORTED
         . Currently - is winning... but if I use separate worcds then 0 -1
           seems a lot easier to read than - -1.
       - Write docs.
-      . Two pitch tracks.  This is kind of a reverse orphan problem.  I want
-        to promote the top pitch track downwards when there is no overlapping
-        event below it.  Or I want to merge the signals together.  So it seems
-        like I could do this with a merge operator, but it needs to know when
-        the gamakam pitch signal starts and ends.  To do that, I need to pass
-        to the merge operator before mconcating the psignal chunks together.
-        Or I could use plain sample interleave, and expect that gamakam will
-        always have a sample at the same time as the parent and thus cancel
-        it out.
-        . Ornaments I likely want:
-          emit signal:
-            . hold flat pitch: 0 or -
-            . relative motion from pitch, single char variants from
-              -2d to 2d: ba12, -2 -1 1 2
-            . relative motion for NNs, single char variants for -1 and 1:
-              yz, -2nn -1nn 1nn 2nn etc.
-            . absolute motion: move to cur pitch: c, to next pitch: d
-            . single cycle, up and down: ///, \\\
-            . single turn: u = 0a0, n = 010
-            . quick dip: v[n] = 0[-n]0, but fast
-            . from a pitch to cur: f-3 = P-3 c
-            . janta: j = -3d 0, but jump to low pitch, quick transition to 0
-              Perhaps some attack effect, e.g. bow-force
-            . repeat previous ornament?
-          change configuration:
-            . set from pitch: prev <, ^ cur, > next, P -3d for number of steps
-              relative to current pitch.
-            . set transition time: F for fast, M for medium, S for slow
-            . set time slices of next call: Tb Ta T1 T2 for -2 to 2
+      - The only reason '* interleave' works is that I trust gamakam calls to
+        always produce a sample at the same time as the parent track's sample,
+        and thus replace it.  This seems like a sketchy thing to rely on.  Can
+        I come up with something more robust?
 
-        . Some ornaments will emit signal and therefore take a time slice, and
-          some will have meta effects, e.g. set prev pitch, set transition
-          time, set to NNs instead of Diatonic.  They should be either symbols
-          or capitalized to make them visually distinct.
+      . This approach means I can't do variable stretchiness, where I set
+        the oscillation speed to a constant and fit as many as I can, or do
+        a set number but stretch the beginning, middle, or end enough to
+        make up the time.  And it would be a real pain to get a consistent
+        speed.
+      . So it seems like I still want I way to do set duration, and variable
+        duration.  Effectively the even duration division is just a kind of
+        stretchy where everyone wants to stretch equally.  I could incorporate
+        infinite stretchy and nonstretchy with special duration values.  Then
+        duration becomes a weight.  If everyone is 1 then everyone divides
+        evenly as before.
+      . Also since each ornament happens at the same speed it seems like
+        it would sound mechanical.  Of course this is also true if I use
+        a constant kam speed, but at least with that I could have a global
+        speed with a bit of randomization.  I could warp the division times
+        randomly, but really it's not random.
 
-        . I may also need a control for transition time and curve, where
-          0 just snaps to the pitch, and 1 spends the whole time in
-          transition.
-        . This approach means I can't do variable stretchiness, where I set
-          the oscillation speed to a constant and fit as many as I can, or do
-          a set number but stretch the beginning, middle, or end enough to
-          make up the time.  And it would be a real pain to get a consistent
-          speed.
-        . Also since each ornament happens at the same speed it seems like
-          it would sound mechanical.  Of course this is also true if I use
-          a constant kam speed, but at least with that I could have a global
-          speed with a bit of randomization.
-        . So maybe I can have a hybrid where a kam is variable length, but
-          other ornaments are ... hmmm.
-
-        . Or I could write kam plus n cycles, where each cycle time can vary
-          a bit, or accelerate slightly, but the ornament as a whole takes up
-          n*2 units.  In another variant I give it a number of units, and it
-          tries to fit in however many cycles.
-
-        . It would be nicer to be able to put these on the pitch track, so
-          I can write the dynamics as usual on its own track.
-
-        . For the violin, I want to experiment with other controls, e.g. pitch
-          slides also do less bow-force, or dyn can reduce bow-force and
-          bow-speed.
-
-        . If it's a pitch call, then it needs to be below the pitch track.
+      . For the violin, I want to experiment with other controls, e.g. pitch
+        slides also do less bow-force, or dyn can reduce bow-force and
+        bow-speed.
 
     Gamakam2:
       - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
@@ -422,12 +432,7 @@ UNSORTED
     . Medium level ornaments are for generic pitch, and go on a generic
       transpose track, they use arg types for diatonic vs. nn.  They can also
       emit dyn control.  They are specific motions, e.g. (-1 1)
-    - higher level ornaments that change based on how much time they have,
-      also depend on the previous pitch.
-    - nkam doesn't seem to interact correctly with 'h'
-    - semi-tone dip.  This is like 1 cycle kam.
     - overshoot "curve" for 'smooth': over2 over3, depending how far over
-    - ornaments can use more controls than just 'dyn', e.g. bow pressure
     . instead of hardcoding specific times, I should say short, medium, long,
       which can vary and have some randomization:
       . short, medium, long: -s = "(rnd low high) | -m = .. | -l = ..

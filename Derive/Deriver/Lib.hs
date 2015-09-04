@@ -69,10 +69,9 @@ derive :: Constant -> Dynamic -> Deriver a -> RunResult a
 derive constant dynamic = run (initial_state constant dynamic)
     . with_initial_scope (state_environ dynamic) . with_default_imported
 
-extract_result :: Bool -> RunResult Events -> Result
-extract_result sort_events (result, state, logs) = Result
-    { r_events = (if sort_events then Seq.sort_on levent_key else id)
-        (merge_logs result logs)
+extract_result :: RunResult Events -> Result
+extract_result (result, state, logs) = Result
+    { r_events = merge_logs result logs
     , r_cache = collect_cache collect <> state_cache (state_constant state)
     , r_track_warps = TrackWarp.collections (collect_warp_map collect)
     , r_track_signals = collect_track_signals collect

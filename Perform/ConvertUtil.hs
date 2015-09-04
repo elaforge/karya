@@ -25,17 +25,24 @@ instance Error.Error Error where strMsg = Error . Just . txt
 
 convert :: state -> (Score.Event -> ConvertT state a)
     -> [Score.Event] -> [LEvent.LEvent a]
-convert state convert_event = go state
+convert state convert_event = go state Nothing
     where
-    go _ [] = []
-    go state (event : rest) =
-        converted ++ map LEvent.log logs ++ go next_state rest
+    go _ _ [] = []
+    go state prev (event : rest) =
+        converted ++ map LEvent.log logs
+            ++ go next_state (Just (Score.event_start event)) rest
         where
         (result, logs, next_state) = run_convert state
-            (Score.event_stack event) (convert_event event)
+            (Score.event_stack event) (convert1 prev event)
         converted = case result of
             Nothing -> []
             Just event -> [LEvent.Event event]
+    convert1 maybe_prev event = do
+        -- Sorted is a postcondition of the deriver.
+        whenJust maybe_prev $ \prev -> when (Score.event_start event < prev) $
+            Log.warn $ "start time " <> pretty (Score.event_start event)
+                <> " less than previous of " <> pretty prev
+        convert_event event
 
 run_convert :: state -> Stack.Stack -> ConvertT state a
     -> (Maybe a, [Log.Msg], state)

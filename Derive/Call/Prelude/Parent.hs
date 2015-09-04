@@ -59,7 +59,9 @@ c_tuplet = Derive.generator Module.prelude "tuplet" Tags.subs
     \ between them is considered their implicit duration.\
     \\nIf there are multiple note tracks, they are stretched independently."
     $ Sig.call0 $ \args -> lily_tuplet args $
-        concatMapM (tuplet (Args.range args)) =<< Sub.sub_events args
+        -- TODO this is error-prone because I have to remember to sort it.
+        Derive.merge_event_lists <$>
+            (mapM (tuplet (Args.range args)) =<< Sub.sub_events args)
 
 tuplet :: (ScoreTime, ScoreTime) -> [Sub.Event] -> Derive.NoteDeriver
 tuplet range events = case infer_duration of

@@ -51,6 +51,7 @@ import Types
 -- ** non-monadic
 
 -- | 1:1 non-monadic map without state.
+-- TODO but it's only valid if the event doesn't move.
 emap1_ :: (a -> b) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
 emap1_ = map . fmap
 
@@ -71,19 +72,32 @@ cat_maybes (x : xs) = case x of
     LEvent.Event Nothing -> cat_maybes xs
 
 -- | 1:n non-monadic map with state.
-emap :: (state -> a -> (state, [b])) -> state
-    -> [LEvent.LEvent a] -> (state, [LEvent.LEvent b])
-emap f state = second concat . List.mapAccumL go state
+emap :: (state -> a -> (state, [Score.Event])) -> state
+    -> [LEvent.LEvent a] -> (state, [LEvent.LEvent Score.Event])
+emap f state = second Derive.merge_asc_events . emap_groups f state
+
+emap_groups :: (state -> a -> (state, [b])) -> state
+    -> [LEvent.LEvent a] -> (state, [[LEvent.LEvent b]])
+emap_groups f state = List.mapAccumL go state
     where
     go state (LEvent.Log log) = (state, [LEvent.Log log])
     go state (LEvent.Event event) = map LEvent.Event <$> f state event
 
+emap_asc :: (state -> a -> (state, [Score.Event])) -> state
+    -> [LEvent.LEvent a] -> (state, [LEvent.LEvent Score.Event])
+emap_asc = emap
+
 -- | 'emap' without state.
-emap_ :: (a -> [b]) -> [LEvent.LEvent a] -> [LEvent.LEvent b]
-emap_ f = concatMap flatten . emap1_ f
+emap_ :: (a -> [Score.Event]) -> [LEvent.LEvent a]
+    -> [LEvent.LEvent Score.Event]
+emap_ f = Derive.merge_asc_events . map flatten . emap1_ f
     where
     flatten (LEvent.Log log) = [LEvent.Log log]
     flatten (LEvent.Event events) = map LEvent.Event events
+
+emap_asc_ :: (a -> [Score.Event]) -> [LEvent.LEvent a]
+    -> [LEvent.LEvent Score.Event]
+emap_asc_ = emap_
 
 -- ** monadic
 
@@ -127,10 +141,20 @@ emap_m event_of f state = fmap (second DList.toList) . go state
     -- annots approach I had earlier, and forces you to have a () annotation
     -- if you don't want one.
 
+emap_asc_m :: (a -> Score.Event)
+    -> (state -> a -> Derive.Deriver (state, [b]))
+    -- ^ Process an event. Exceptions are caught and logged.
+    -> state -> [LEvent.LEvent a] -> Derive.Deriver (state, [LEvent.LEvent b])
+emap_asc_m = emap_m
+
 -- | 'emap_m' without the state.
 emap_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [b]) -> [LEvent.LEvent a]
     -> Derive.Deriver [LEvent.LEvent b]
 emap_m_ event_of f = fmap snd . emap_m event_of (\() e -> (,) () <$> f e) ()
+
+emap_asc_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [b])
+    -> [LEvent.LEvent a] -> Derive.Deriver [LEvent.LEvent b]
+emap_asc_m_ = emap_m_
 
 -- ** unthreaded state
 

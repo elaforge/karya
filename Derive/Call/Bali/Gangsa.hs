@@ -703,7 +703,7 @@ c_unison = Derive.transformer module_ "unison" Tags.postproc
         inst <- Call.get_instrument
         polos <- Derive.get_instrument polos
         sangsih <- Derive.get_instrument sangsih
-        Post.emap_ (unison inst polos sangsih) <$> deriver
+        Post.emap_asc_ (unison inst polos sangsih) <$> deriver
     where
     unison inst polos sangsih event
         | Score.event_instrument event == inst =
@@ -732,7 +732,7 @@ c_kempyung = Derive.transformer module_ "kempyung" Tags.postproc
         sangsih <- Derive.get_instrument sangsih
         scale <- Call.get_scale
         let too_high = pitch_too_high scale maybe_top
-        Post.emap_ (kempyung too_high inst polos sangsih) <$> deriver
+        Post.emap_asc_ (kempyung too_high inst polos sangsih) <$> deriver
     where
     kempyung too_high inst polos sangsih event
         | Score.event_instrument event == inst =
@@ -755,7 +755,7 @@ c_nyogcag = Derive.transformer module_ "nyog" Tags.postproc
     "Split a single part into polos and sangsih parts by assigning\
     \ polos and sangsih to alternating notes."
     $ Sig.callt pasang_env $ \pasang _args deriver ->
-        snd . Post.emap (nyogcag pasang) True <$> deriver
+        snd . Post.emap_asc (nyogcag pasang) True <$> deriver
 
 nyogcag :: Pasang -> Bool -> Score.Event -> (Bool, [Score.Event])
 nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
@@ -811,7 +811,7 @@ c_realize_noltol = Derive.transformer module_ "realize-noltol"
     $ Sig.call0t $ \_args deriver -> realize_noltol_call =<< deriver
 
 realize_noltol_call :: Derive.Events -> Derive.NoteDeriver
-realize_noltol_call = Post.emap_m_ fst realize . Post.nexts_same_hand id
+realize_noltol_call = Post.emap_asc_m_ fst realize . Post.nexts_same_hand id
     where
     realize (event, next)
         | Score.has_attribute noltol_attr event = Derive.require_right id $

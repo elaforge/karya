@@ -370,7 +370,7 @@ code0_around_call name doc sig make_code = (gen, trans)
             Lily.when_lilypond (transform val deriver) deriver
     transform val deriver = do
         (code1, code2) <- make_code val
-        Post.emap_ (apply code1 code2) <$> deriver
+        Post.emap_asc_ (apply code1 code2) <$> deriver
     apply code1 code2 event =
         [ Lily.code0_event event start code1
         , event

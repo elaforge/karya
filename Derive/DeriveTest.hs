@@ -206,7 +206,7 @@ derive_block_standard :: Setup -> Cmd.State -> Derive.Cache
 derive_block_standard setup cmd_state cache damage ui_state_ block_id =
     run_cmd ui_state (setup_cmd setup cmd_state) cmd
     where
-    cmd = Derive.extract_result True <$> PlayUtil.run cache damage deriver
+    cmd = Derive.extract_result <$> PlayUtil.run cache damage deriver
     ui_state = setup_ui setup ui_state_
     global_transform = State.config#State.global_transform #$ ui_state
     deriver = setup_deriver setup $
@@ -221,7 +221,7 @@ perform_dump synths (_, midi, aliases, _) =
     config = Simple.midi_config midi
 
 derive :: State.State -> Derive.NoteDeriver -> Derive.Result
-derive ui_state deriver = Derive.extract_result True $
+derive ui_state deriver = Derive.extract_result $
     Derive.derive (default_constant ui_state mempty mempty)
         default_dynamic deriver
 
