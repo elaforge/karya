@@ -18,7 +18,6 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Pitches as Pitches
@@ -26,6 +25,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
@@ -89,7 +89,7 @@ next_val event start ttype = case ttype of
         signal <- eval event
         return $ TrackLang.VNum $ Score.untyped $
             Signal.at start (signal :: Signal.Control)
-    eval event = mconcat . LEvent.events_of <$>
+    eval event = mconcat . Stream.events_of <$>
         (either Derive.throw return =<< Eval.eval_event event)
 
 c_prev_val :: Derive.ValCall

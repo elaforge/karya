@@ -39,6 +39,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
 import Global
@@ -118,7 +119,7 @@ caching_deriver typ range call = do
         sdamage cdamage (Derive.state_cache (Derive.state_constant st))
     where
     generate _ (Right (collect, cached)) = do
-        Log.debug $ cached_msg (length cached)
+        Log.debug $ cached_msg (Stream.length cached)
         -- The cached deriver must return the same collect as it would if it
         -- had been actually derived.
         Internal.merge_collect collect
@@ -170,7 +171,7 @@ with_empty_collect inflict_control_damage deriver = do
 
 find_generator_cache :: Cacheable d => Type -> Stack.Stack -> Ranges
     -> ScoreDamage -> ControlDamage -> Cache
-    -> Either (Bool, Text) (Derive.Collect, [LEvent.LEvent d])
+    -> Either (Bool, Text) (Derive.Collect, Stream.Stream d)
 find_generator_cache typ stack (Ranges event_range is_negative) score
         (ControlDamage control) (Cache cache) = do
     cached <- maybe (Left (False, "not in cache")) Right $
@@ -209,8 +210,8 @@ find_generator_cache typ stack (Ranges event_range is_negative) score
         Left (True, "control damage")
     return (collect, stream)
 
-make_cache :: Cacheable d => Stack.Stack -> Derive.Collect
-    -> [LEvent.LEvent d] -> Cache
+make_cache :: Cacheable d => Stack.Stack -> Derive.Collect -> Stream.Stream d
+    -> Cache
 make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
     where
     stripped = collect
@@ -219,8 +220,9 @@ make_cache stack collect stream = Cache $ Map.singleton stack (Cached entry)
         -- means nothing changed.  So this reduces unnecessary reintegration.
         , Derive.collect_integrated = []
         }
-    entry = to_cache_entry $
-        Derive.CallType stripped $ filter (not . cache_log) stream
+    entry = to_cache_entry $ Derive.CallType stripped $
+        Stream.from_sorted_list $ filter (not . cache_log) $
+        Stream.to_list stream
     -- I do want a cached chunk to retain its log msgs, since those include
     -- errors deriving.  However, it's confusing if it also includes cache
     -- msgs because then it looks like it wasn't cached after all.

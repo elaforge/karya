@@ -16,12 +16,12 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (control)
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -119,7 +119,7 @@ string_idiom ::
     -> TrackLang.ControlRef -- ^ Attack time.
     -> TrackLang.ControlRef -- ^ Release delay.
     -> TrackLang.ControlRef -- ^ Time for string to return to its open pitch.
-    -> Derive.Events -> Derive.NoteDeriver
+    -> Stream.Stream Score.Event -> Derive.NoteDeriver
 string_idiom attack_interpolate release_interpolate open_strings attack delay
         release all_events = Post.event_head all_events $ \event events -> do
     -- Coerce is ok because I don't want open strings in the environ to
@@ -134,8 +134,8 @@ string_idiom attack_interpolate release_interpolate open_strings attack delay
             delay <- Post.control id delay events
             release <- Post.control id release events
             (final, result) <- Post.emap_asc_m snd (one_event strings) state
-                (LEvent.zip (zip3 attack delay release) events)
-            return $! result ++ [LEvent.Event $ state_event final]
+                (Stream.zip (zip3 attack delay release) events)
+            return $! result <> Stream.from_event (state_event final)
     where
     one_event strings state ((attack, delay, release), event) = do
         start <- Derive.score (Score.event_start event)

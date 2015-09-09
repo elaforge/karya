@@ -35,6 +35,7 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -738,4 +739,4 @@ c_sahitya :: Derive.Taggable a => Derive.Transformer a
 c_sahitya = Derive.transformer module_ "sahitya" mempty
     "Ignore the transformed deriver. Put this on a track to ignore its\
     \ contents, and put in sahitya."
-    $ Sig.call0t $ \_args _deriver -> return mempty
+    $ Sig.call0t $ \_args _deriver -> return Stream.empty

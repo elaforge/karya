@@ -106,12 +106,12 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -128,9 +128,9 @@ data TrackInfo d = TrackInfo {
     , tinfo_get_last_val :: GetLastVal d
     }
 
-tinfo_prev_val :: TrackInfo d -> Maybe d -> [LEvent.LEvent d] -> Maybe d
+tinfo_prev_val :: TrackInfo d -> Maybe d -> Stream.Stream d -> Maybe d
 tinfo_prev_val tinfo prev_val levents =
-    tinfo_get_last_val tinfo (LEvent.events_of levents) <|> prev_val
+    tinfo_get_last_val tinfo (Stream.events_of levents) <|> prev_val
 
 instance Pretty.Pretty (TrackInfo d) where
     format (TrackInfo track subs ttype _) = Pretty.record "TrackInfo"
@@ -141,7 +141,7 @@ instance Pretty.Pretty (TrackInfo d) where
 
 type GetLastVal d = [d] -> Maybe d
 
-type DeriveResult d = ([[LEvent.LEvent d]], Derive.Threaded, Derive.Collect)
+type DeriveResult d = ([Stream.Stream d], Derive.Threaded, Derive.Collect)
 
 -- | This function derives the orphans in an empty section of track.  It's
 -- split out because only note tracks derive orphans, but I wanted to use the
@@ -237,24 +237,25 @@ derive_track derive_empty initial_state tinfo = track_end $
 -- details of deriving orphan events and carrying previous values forward.
 derive_event_stream :: Derive.Callable d => DeriveEmpty d -> TrackInfo d
     -> (Derive.State, Maybe d, Maybe d) -> ([Event.Event], [Event.Event])
-    -> ((Derive.State, Maybe d, Maybe d), [LEvent.LEvent d])
+    -> ((Derive.State, Maybe d, Maybe d), Stream.Stream d)
 derive_event_stream derive_empty tinfo
         (prev_state, prev_val, prev_save_val) (prev_events, cur_events) =
-    ((state, next_val, save_val), levents)
+    ((state, next_val, save_val), stream)
     where
     track = tinfo_track tinfo
     -- Derive the empty space after the previous event and before this one.
-    (levents, state) = maybe ([], prev_state) (run_derive prev_state) $
-        case cur_events of
-            event : _ -> derive_empty tinfo (Seq.head prev_events)
-                (Just event) d_event
-            [] -> derive_empty tinfo (Seq.head prev_events) Nothing d_event
+    (stream, state) =
+        maybe (Stream.empty, prev_state) (run_derive prev_state) $
+            case cur_events of
+                event : _ -> derive_empty tinfo (Seq.head prev_events)
+                    (Just event) d_event
+                [] -> derive_empty tinfo (Seq.head prev_events) Nothing d_event
     d_event = case cur_events of
         event : next_events ->
             Just $ derive_event tinfo prev_val prev_events event next_events
         [] -> Nothing
     save_val = if should_save_val then next_val else prev_save_val
-    next_val = tinfo_prev_val tinfo prev_val levents
+    next_val = tinfo_prev_val tinfo prev_val stream
     -- Only save a prev val if the event won't be derived again, e.g.
     -- there's a future event <= the start of the next slice.  But this
     -- only applies to control tracks!
@@ -284,12 +285,12 @@ stash_prev_val track prev_val threaded = fromMaybe threaded $ do
         }
 
 run_derive :: Derive.State -> Derive.LogsDeriver d
-    -> ([LEvent.LEvent d], Derive.State)
-run_derive state deriver = (levents, out_state)
+    -> (Stream.Stream d, Derive.State)
+run_derive state deriver = (stream, out_state)
     where
-    levents = map LEvent.log logs ++ case result of
-        Right stream -> stream
-        Left err -> [LEvent.log $ Derive.error_to_warn err]
+    stream = Stream.merge_logs logs $ case result of
+        Right s -> s
+        Left err -> Stream.from_logs [Derive.error_to_warn err]
     (result, out_state, logs) = Derive.run state deriver
 
 derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
@@ -302,7 +303,7 @@ derive_orphans :: (TrackTree.EventsTree -> Derive.NoteDeriver)
 derive_orphans derive_tracks prev end subs
     | start >= end = Nothing
     | otherwise = case checked of
-        Left err -> Just $ Log.warn err >> return []
+        Left err -> Just $ Log.warn err >> return Stream.empty
         Right [] -> Nothing
         Right slices -> Just $ derive_tracks slices
     where
@@ -373,9 +374,9 @@ derive_event tinfo prev_val prev event next = derive_event_ctx ctx event
 derive_event_ctx :: Derive.Callable d => Derive.Context d -> Event.Event
     -> Derive.LogsDeriver d
 derive_event_ctx ctx event
-    | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return []
+    | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return Stream.empty
     | otherwise = case Parse.parse_expr text of
-        Left err -> Log.warn err >> return []
+        Left err -> Log.warn err >> return Stream.empty
         Right expr ->
             with_event_region (Derive.ctx_track_shifted ctx) event $
                 with_note_start_end $ Eval.eval_toplevel ctx expr

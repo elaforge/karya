@@ -13,6 +13,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 
 import Global
 import Types
@@ -76,7 +77,7 @@ c_when_c inverted = Derive.transformer Module.prelude "when-c" mempty
     <*> Sig.defaulted "control" (Sig.control "var" 0) "Control."
     ) $ \(val, control) args deriver ->
         ifM (invert . has_control control val =<< Args.real_start args)
-            deriver (return mempty)
+            deriver (return Stream.empty)
     where invert = if inverted then (not <$>) else id
 
 has_control :: BaseTypes.ControlRef -> Int -> RealTime -> Derive.Deriver Bool
@@ -94,7 +95,8 @@ c_when_e inverted = Derive.transformer Module.prelude "when-e" mempty
     <*> Sig.defaulted "value" Nothing "Environ value. If not given, require\
         \ only that the environ key is set."
     ) $ \(name, maybe_value) _args deriver ->
-        ifM (invert $ has_environ name maybe_value) deriver (return mempty)
+        ifM (invert $ has_environ name maybe_value) deriver
+            (return Stream.empty)
     where invert = if inverted then (not <$>) else id
 
 has_environ :: Env.Key -> Maybe BaseTypes.Val -> Derive.Deriver Bool

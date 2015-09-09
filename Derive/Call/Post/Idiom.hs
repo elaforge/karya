@@ -19,6 +19,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, control)
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.RealTime as RealTime
@@ -45,7 +46,8 @@ c_pizz_arp = Derive.transformer Module.prelude "pizz-arp"
     \time _args deriver -> Lily.when_lilypond deriver $
         pizz_arp time =<< deriver
 
-pizz_arp :: TrackLang.ControlRef -> Derive.Events -> Derive.NoteDeriver
+pizz_arp :: TrackLang.ControlRef -> Stream.Stream Score.Event
+    -> Derive.NoteDeriver
 pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
     \(event :| chord) -> do
         let start = Score.event_start event
@@ -59,8 +61,9 @@ map_simultaneous :: RealTime
     -- ^ only process events that pass this predicate
     -> (NonEmpty Score.Event -> Derive.Deriver [Score.Event])
     -- ^ process simultaneous events
-    -> Derive.Events -> Derive.NoteDeriver
-map_simultaneous eta accept f = go
+    -> Stream.Stream Score.Event -> Derive.NoteDeriver
+map_simultaneous eta accept f =
+    fmap Stream.from_sorted_list . go . Stream.to_list
     where
     go [] = return []
     go (LEvent.Log log : events) = (LEvent.Log log :) <$> go events
@@ -94,8 +97,8 @@ c_avoid_overlap = Derive.transformer Module.prelude "avoid-overlap"
     $ \time _args deriver -> Lily.when_lilypond deriver $
         avoid_overlap time =<< deriver
 
-avoid_overlap :: RealTime -> Derive.Events -> Derive.NoteDeriver
-avoid_overlap time = return . Post.emap_asc_ go . Post.zip_on Post.nexts
+avoid_overlap :: RealTime -> Stream.Stream Score.Event -> Derive.NoteDeriver
+avoid_overlap time = return . Post.emap_asc_ go . Stream.zip_on Post.nexts
     where
     go (nexts, event) =
         (:[]) $ case List.find same (takeWhile overlaps nexts) of

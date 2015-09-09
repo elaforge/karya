@@ -19,10 +19,10 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
 import qualified Derive.EvalTrack as EvalTrack
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
 import Global
@@ -44,18 +44,18 @@ d_note_track derive_tracks (Tree.Node track subs) =
 
 -- | Note tracks can also have track signals, extracted from the events they
 -- produce.
-stash_signal_if_wanted :: Derive.Events -> TrackTree.Track
+stash_signal_if_wanted :: Stream.Stream Score.Event -> TrackTree.Track
     -> Derive.Deriver ()
 stash_signal_if_wanted events track =
     whenJustM (Control.render_of track) $ \(block_id, track_id, maybe_source) ->
         whenJust maybe_source $ \source ->
             stash_signal block_id track_id source events
 
-stash_signal :: BlockId -> TrackId -> Track.RenderSource -> Derive.Events
-    -> Derive.Deriver ()
+stash_signal :: BlockId -> TrackId -> Track.RenderSource
+    -> Stream.Stream Score.Event -> Derive.Deriver ()
 stash_signal block_id track_id source events =
     Control.stash_signal block_id track_id signal
-    where signal = extract_track_signal source (LEvent.events_of events)
+    where signal = extract_track_signal source (Stream.events_of events)
 
 extract_track_signal :: Track.RenderSource -> [Score.Event] -> Signal.Control
 extract_track_signal source events = mconcat $ case source of
@@ -102,11 +102,11 @@ derive_notes :: ([TrackTree.EventsNode] -> Derive.NoteDeriver)
     -> EvalTrack.TrackInfo Score.Event -> Derive.NoteDeriver
 derive_notes derive_tracks tinfo = do
     state <- Derive.get
-    let (event_groups, threaded, collect) =
+    let (streams, threaded, collect) =
             EvalTrack.derive_note_track derive_tracks state tinfo
     Internal.merge_collect collect
     Internal.set_threaded threaded
-    return $ Derive.merge_asc_events event_groups
+    return $ Stream.merge_asc_lists streams
 
 track_info :: TrackTree.Track -> [TrackTree.EventsNode]
     -> EvalTrack.TrackInfo Score.Event

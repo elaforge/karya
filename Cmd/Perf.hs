@@ -36,6 +36,7 @@ import qualified Derive.Note
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -62,8 +63,8 @@ derive_expr block_id track_id pos expr = do
         (Eval.eval_one_at False pos 1 expr)
     return $ case result of
         Left err -> (Left err, logs)
-        Right levents -> (Right events, derive_logs ++ logs)
-            where (events, derive_logs) = LEvent.partition levents
+        Right stream -> (Right events, derive_logs ++ logs)
+            where (events, derive_logs) = Stream.partition stream
 
 -- | Run an ad-hoc derivation in the context of the given track.
 derive_at :: Cmd.M m => BlockId -> TrackId
@@ -112,18 +113,21 @@ global_environ :: Cmd.M m => m Env.Environ
 global_environ = do
     global_transform <- State.config#State.global_transform <#> State.get
     (result, _, logs) <- PlayUtil.run mempty mempty $
-        Eval.eval_transform_expr "global transform" global_transform $ do
-            env <- Internal.get_dynamic Derive.state_environ
-            -- Smuggle the environ out in an event.  It's annoying to require
-            -- such shennanigans, rationale in
-            -- NOTE [transform-withoutderive-callable]
-            return [LEvent.Event $
-                Score.empty_event { Score.event_environ = env } ]
+        Eval.eval_transform_expr "global transform" global_transform
+            smuggle_environ
     mapM_ Log.write logs
-    events <- LEvent.write_logs =<< Cmd.require_right pretty result
+    events <- Stream.write_logs =<< Cmd.require_right pretty result
     event <- Cmd.require "Perf.global_transform: expected a single Event" $
         Seq.head events
     return $ Score.event_environ event
+
+-- | Smuggle the environ out in an event.  It's annoying to require such
+-- shennanigans, rationale in NOTE [transform-without-derive-callable].
+smuggle_environ :: Derive.NoteDeriver
+smuggle_environ = do
+    env <- Internal.get_dynamic Derive.state_environ
+    return $! Stream.from_event $!
+        Score.empty_event { Score.event_environ = env }
 
 {- NOTE [transform-without-derive-callable]
 
@@ -286,13 +290,10 @@ lookup_default_environ name = do
     -- function, and I want to use Score.Event transformers.  It might be
     -- a better design to figure out the lookup function separately, but
     -- meanwhile this hack should be safe.
-    result <- derive $ apply $ do
-        environ <- Internal.get_environ
-        return [LEvent.Event $
-            Score.empty_event { Score.event_environ = environ }]
+    result <- derive $ apply smuggle_environ
     environ <- case result of
         Left err -> Cmd.throw $ caller <> ": " <> txt err
-        Right val -> case LEvent.events_of val of
+        Right val -> case Stream.events_of val of
             [] -> Cmd.throw $ caller <> " didn't get the fake event it wanted"
             event : _ -> return $ Score.event_environ event
     Cmd.require_right id $ Env.checked_val name environ

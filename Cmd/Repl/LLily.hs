@@ -34,6 +34,7 @@ import qualified Cmd.Repl.Util as Util
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Lilypond as Lilypond
 import Global
@@ -165,8 +166,9 @@ block_id_title = Id.ident_name
 -- * debugging
 
 -- | Run a lilypond derive and return score events.
-derive :: BlockId -> Cmd.CmdL Derive.Events
-derive block_id = Derive.r_events <$> Cmd.Lilypond.derive_block block_id
+derive :: BlockId -> Cmd.CmdL [LEvent.LEvent Score.Event]
+derive block_id =
+    Stream.to_list . Derive.r_events <$> Cmd.Lilypond.derive_block block_id
 
 -- | Convert current block to lilypond score.
 make_ly :: Cmd.CmdL (Either Text Lazy.Text, [Log.Msg])

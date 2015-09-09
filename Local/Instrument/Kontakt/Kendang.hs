@@ -25,6 +25,7 @@ import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import Derive.Score (attr)
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -252,7 +253,8 @@ pasang_env = (,)
     > TP+.TP+.
     > .TP+.TP+
 -}
-realize_kendang :: Pasang -> Derive.Events -> Derive.Events
+realize_kendang :: Pasang -> Stream.Stream Score.Event
+    -> Stream.Stream Score.Event
 realize_kendang _pasang events = events -- TODO
 
 

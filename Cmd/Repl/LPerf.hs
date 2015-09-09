@@ -35,6 +35,7 @@ import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
@@ -156,8 +157,8 @@ compare_cached_events :: BlockId
 compare_cached_events block_id = do
     uncached <- PlayUtil.uncached_derive block_id
     cached <- PlayUtil.cached_derive block_id
-    return $ diff (LEvent.events_of (Derive.r_events cached))
-        (LEvent.events_of (Derive.r_events uncached))
+    return $ diff (Stream.events_of (Derive.r_events cached))
+        (Stream.events_of (Derive.r_events uncached))
     where
     diff e1 e2 = Seq.diff (==)
         (map Simple.score_event e1) (map Simple.score_event e2)
@@ -176,24 +177,25 @@ inverse_tempo_func time = do
 -- * block
 
 -- | Get this block's performance from the cache.
-block_events :: BlockId -> Cmd.CmdL Derive.Events
+block_events :: BlockId -> Cmd.CmdL [LEvent.LEvent Score.Event]
 block_events block_id = normalize_events =<< block_events_unnormalized block_id
 
 -- | 'normalize_events' is important for display, but I can't do it if I'm
 -- going to pass to 'convert', because convert should do the normalization
 -- itself.
-block_events_unnormalized :: BlockId -> Cmd.CmdL Derive.Events
+block_events_unnormalized :: BlockId -> Cmd.CmdL [LEvent.LEvent Score.Event]
 block_events_unnormalized block_id =
-    Derive.r_events <$> PlayUtil.cached_derive block_id
+    Stream.to_list . Derive.r_events <$> PlayUtil.cached_derive block_id
 
-block_uncached_events :: BlockId -> Cmd.CmdL Derive.Events
-block_uncached_events block_id = normalize_events . Derive.r_events
-    =<< uncached_derive block_id
+block_uncached_events :: BlockId -> Cmd.CmdL [LEvent.LEvent Score.Event]
+block_uncached_events block_id = normalize_events . Stream.to_list
+    . Derive.r_events =<< uncached_derive block_id
 
 -- | Apply 'Score.normalize' to the events, so that they have their final
 -- control positions and pitches.  Normally 'convert' does this, but if you
 -- display it before convert it's nice to see the \"cooked\" versions.
-normalize_events :: Cmd.M m => Derive.Events -> m Derive.Events
+normalize_events :: Cmd.M m => [LEvent.LEvent Score.Event]
+    -> m [LEvent.LEvent Score.Event]
 normalize_events events = do
     lookup_info <- Cmd.get_lookup_instrument
     let lookup_env = maybe mempty (Instrument.patch_environ . MidiDb.info_patch)
@@ -253,7 +255,7 @@ control c e = Score.control_at (Score.event_start e) c e
 event_controls :: Score.Event -> Score.ControlValMap
 event_controls e = Score.event_controls_at (Score.event_start e) e
 
-only_controls :: [Score.Control] -> Derive.Events -> [Score.Event]
+only_controls :: [Score.Control] -> [LEvent.LEvent Score.Event] -> [Score.Event]
 only_controls controls = map strip . LEvent.events_of
     where
     strip e = e
@@ -315,7 +317,7 @@ get_sel event_start event_stack from_root derive_events = do
         in_range event_start start end events
 
 score_in_selection :: [TrackId] -> RealTime -> RealTime
-    -> Derive.Events -> Derive.Events
+    -> [LEvent.LEvent Score.Event] -> [LEvent.LEvent Score.Event]
 score_in_selection track_ids start end =
     in_tracks Score.event_stack track_ids
     . in_range Score.event_start start end
@@ -417,7 +419,7 @@ get_cache_events :: (Cache.Cacheable d, Cmd.M m) => BlockId
     -> m (Map.Map Stack.Stack [LEvent.LEvent d])
 get_cache_events block_id = do
     cache <- get_cache block_id
-    return $ Map.mapMaybe get cache
+    return $ fmap Stream.to_list $ Map.mapMaybe get cache
     where
     get Derive.Invalid = Nothing
     get (Derive.Cached c) = case Cache.from_cache_entry c of
@@ -440,9 +442,9 @@ pretty_cache (Derive.Cache cache) =
 
 entry_events :: Derive.CacheEntry -> Int
 entry_events entry = case entry of
-    Derive.CachedEvents (Derive.CallType _ events) -> length events
-    Derive.CachedControl (Derive.CallType _ events) -> length events
-    Derive.CachedPitch (Derive.CallType _ events) -> length events
+    Derive.CachedEvents (Derive.CallType _ events) -> Stream.length events
+    Derive.CachedControl (Derive.CallType _ events) -> Stream.length events
+    Derive.CachedPitch (Derive.CallType _ events) -> Stream.length events
 
 
 -- * pitches

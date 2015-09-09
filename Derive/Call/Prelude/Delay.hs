@@ -13,10 +13,10 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, typed_control, control)
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -99,7 +99,7 @@ c_event_echo = Derive.transformer Module.prelude "event echo" Tags.postproc
         feedback <- Post.control Score.typed_val feedback events
         times <- Post.control (floor . Score.typed_val) times events
         return $ Post.emap_asc_ (Post.uncurry4 echo_event)
-            (LEvent.zip4 delay feedback times events)
+            (Stream.zip4 delay feedback times events)
 
 -- TODO this modifies the signals to shift by the given amount of time, which
 -- is inefficient if there is a lot of signal data.  I could store a shift

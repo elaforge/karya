@@ -38,10 +38,10 @@ import qualified Ui.State as State
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -104,11 +104,11 @@ apply_generator ctx call_id args = do
         Derive.ScoreDurationQuery -> do
             dur <- Derive.gfunc_score_duration (Derive.call_func call) passed
             set_score_duration dur
-            return mempty
+            return Stream.empty
         Derive.RealDurationQuery -> do
             dur <- Derive.gfunc_real_duration (Derive.call_func call) passed
             set_real_duration dur
-            return mempty
+            return Stream.empty
         _ -> Derive.gfunc_f (Derive.call_func call) passed
 
 -- | See 'Derive.CallDuration' for details.
@@ -285,7 +285,7 @@ eval_one_at collect start dur expr = eval_expr collect ctx expr
 -- This is useful if you want to evaluate things out of order, i.e. evaluate
 -- the /next/ pitch.
 eval_event :: Derive.Callable d => Event.Event
-    -> Derive.Deriver (Either Text [LEvent.LEvent d])
+    -> Derive.Deriver (Either Text (Stream.Stream d))
 eval_event event = case Parse.parse_expr (Event.event_text event) of
     Left err -> return $ Left err
     Right expr -> Right <$>
@@ -354,4 +354,4 @@ apply_pitch pos call = apply ctx call []
 eval_expr :: Derive.Callable d => Bool -- ^ see 'Derive.catch'
     -> Derive.Context d -> BaseTypes.Expr -> Derive.LogsDeriver d
 eval_expr collect ctx expr =
-    fromMaybe [] <$> Derive.catch collect (eval_toplevel ctx expr)
+    fromMaybe Stream.empty <$> Derive.catch collect (eval_toplevel ctx expr)

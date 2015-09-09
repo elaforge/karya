@@ -39,6 +39,8 @@ import qualified Cmd.Save as Save
 
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
+import qualified Derive.Stream as Stream
+
 import qualified Perform.Signal as Signal
 import qualified App.Config as Config
 import Global
@@ -176,7 +178,7 @@ save_lilypond = do
 
 lilypond_performance :: Cmd.M m => BlockId -> m Text
 lilypond_performance block_id = do
-    events <- LEvent.write_logs . Derive.r_events
+    events <- Stream.write_logs . Derive.r_events
         =<< Cmd.Lilypond.derive_block block_id
     config <- State.config#State.lilypond <#> State.get
     result <- LEvent.write_snd $

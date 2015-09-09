@@ -17,12 +17,12 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -47,8 +47,7 @@ c_sh_pitch = Derive.transformer Module.prelude "sh" mempty
     $ Sig.callt Speed.arg $ \speed _args deriver -> do
         (sig, (start, end), logs) <- Post.pitch_range deriver
         starts <- Speed.starts speed (start, end) True
-        return $ LEvent.Event (sample_hold_pitch starts sig)
-            : map LEvent.Log logs
+        return $ Stream.from_event_logs (sample_hold_pitch starts sig) logs
 
 sample_hold_pitch :: [RealTime] -> PSignal.Signal -> PSignal.Signal
 sample_hold_pitch points sig = PSignal.unfoldr go (Nothing, points, sig)
@@ -81,8 +80,7 @@ c_sh_control = Derive.transformer Module.prelude "sh" mempty
     $ Sig.callt Speed.arg $ \speed _args deriver -> do
         (sig, (start, end), logs) <- Post.control_range deriver
         starts <- Speed.starts speed (start, end) True
-        return $ LEvent.Event (sample_hold_control starts sig)
-            : map LEvent.Log logs
+        return $ Stream.from_event_logs (sample_hold_control starts sig) logs
 
 sample_hold_control :: [RealTime] -> Signal.Control -> Signal.Control
 sample_hold_control points sig = Signal.unfoldr go (0, points, sig)
@@ -218,7 +216,7 @@ c_redirect merger =
         (sig, logs) <- Post.derive_signal deriver
         merger <- Derive.resolve_merge merger control
         Derive.modify_control merger control sig
-        return $ map LEvent.Log logs
+        return $ Stream.from_logs logs
     where
     merge_name Derive.DefaultMerge = "the default merger for the control"
     merge_name (Derive.Merge merger) = ShowVal.doc_val merger

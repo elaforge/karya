@@ -38,8 +38,8 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -159,9 +159,9 @@ extract_derive_result res =
     mkres = do
         Cmd.Performance cache events logs _logs_written track_dyn integrated
             _damage warps tsigs <- Perf.get_root
-        let devents = map LEvent.Log logs
-                ++ map LEvent.Event (Vector.toList events)
-        return $ Derive.Result devents cache warps tsigs track_dyn integrated
+        let stream = Stream.merge_logs logs $
+                Stream.from_sorted_events (Vector.toList events)
+        return $ Derive.Result stream cache warps tsigs track_dyn integrated
             (error "can't fake a Derive.State for an extracted Result")
 
 -- | Update the performances based on the UI state change and updates.  This

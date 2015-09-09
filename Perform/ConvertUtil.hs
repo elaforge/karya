@@ -29,7 +29,7 @@ convert state convert_event = go state Nothing
     where
     go _ _ [] = []
     go state prev (event : rest) =
-        converted ++ map LEvent.log logs
+        converted ++ map LEvent.Log logs
             ++ go next_state (Just (Score.event_start event)) rest
         where
         (result, logs, next_state) = run_convert state

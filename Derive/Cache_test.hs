@@ -24,9 +24,9 @@ import qualified Ui.Update as Update
 import qualified Derive.Cache as Cache
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
 import Global
@@ -39,7 +39,7 @@ test_invalidate_damaged = do
     let mkdamage tracks blocks = Derive.ScoreDamage
             (Map.fromList tracks) Set.empty
             (Set.fromList (map UiTest.bid blocks))
-        empty = Derive.CachedEvents (Derive.CallType mempty [])
+        empty = Derive.CachedEvents (Derive.CallType mempty Stream.empty)
         mkcache stack = Derive.Cache $
             Map.singleton stack (Derive.Cached empty)
     let extract (stack, Derive.Invalid) = (stack, False)
@@ -101,9 +101,9 @@ test_cached_track = do
             insert_event "top.t2" 4 1 ""
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top top.t1 \\*: using cache"
+        [ "top \\* \\*: rederived"
+        , "top top.t1 \\*: using cache"
         , "top top.t2 \\*: rederived"
-        , "top \\* \\*: rederived"
         ]
 
 test_add_remove = do
@@ -168,21 +168,21 @@ test_logs = do
             insert_event "sub2.t1" 1 1 ""
     -- Make sure errors are still present in the cached output.
     strings_like (r_all_logs uncached)
-        [ "top top.t1 0-1: sub1 sub1.t1 \\*: rederived"
-        , "top top.t1 0-1: sub1 \\* \\*: rederived"
-        , "top top.t1 0-1: sub1 sub1.t1 0-1: * note * not found"
-        , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
-        , "top top.t1 2-3: sub2 \\* \\*: rederived"
+        [ "top \\* \\*: rederived"
         , "top top.t1 \\*: rederived"
-        , "top \\* \\*: rederived"
+        , "top top.t1 0-1: sub1 \\* \\*: rederived"
+        , "top top.t1 0-1: sub1 sub1.t1 \\*: rederived"
+        , "top top.t1 0-1: sub1 sub1.t1 0-1: * note * not found"
+        , "top top.t1 2-3: sub2 \\* \\*: rederived"
+        , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
         ]
     strings_like (r_all_logs cached)
-        [ "top top.t1 0-1: sub1 \\* \\*: using cache"
-        , "top top.t1 0-1: sub1 sub1.t1 0-1: * note * not found"
-        , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
-        , "top top.t1 2-3: sub2 \\* \\*: rederived"
+        [ "top \\* \\*: rederived"
         , "top top.t1 \\*: rederived"
-        , "top \\* \\*: rederived"
+        , "top top.t1 0-1: sub1 \\* \\*: using cache"
+        , "top top.t1 0-1: sub1 sub1.t1 0-1: * note * not found"
+        , "top top.t1 2-3: sub2 \\* \\*: rederived"
+        , "top top.t1 2-3: sub2 sub2.t1 \\*: rederived"
         ]
 
 test_extend_control_damage = do
@@ -241,8 +241,10 @@ r_block_logs =
 r_all_logs :: Derive.Result -> [String]
 r_all_logs = map DeriveTest.show_log_stack . r_logs
 
+-- | The logs are sorted for tests, since log order isn't really defined.
 r_logs :: Derive.Result -> [Log.Msg]
-r_logs = LEvent.logs_of . Derive.r_events
+r_logs = Seq.sort_on DeriveTest.show_log_stack . Stream.logs_of
+    . Derive.r_events
 
 -- TODO test fail track parse, should damage track
 -- TODO test localdeps... how do they get reset anyway?
@@ -256,10 +258,10 @@ test_failed_sub_track = do
             State.set_track_title (UiTest.tid "sub.t1") "*broken"
     equal (diff_events cached uncached) expect_no_events
     strings_like (r_all_logs cached)
-        [ "sub.t1 * get_scale: unknown"
-        , "sub.t1 5-6: * get_scale: unknown"
+        [ "top * sub-block damage"
         , "top.t1 * sub-block damage"
-        , "top * sub-block damage"
+        , "sub.t1 * get_scale: unknown"
+        , "sub.t1 5-6: * get_scale: unknown"
         ]
 
 test_has_score_damage = do
@@ -275,10 +277,10 @@ test_has_score_damage = do
             insert_event "top.t1" 1 1 "sub2"
     equal (diff_events cached uncached) []
     strings_like (r_block_logs cached)
-        [ "top.t1 0-1: * using cache"
+        [ toplevel_rederived True
+        , "top.t1 0-1: * using cache"
         , "top.t1 1-2: * rederived * not in cache"
         , "top.t1 2-3: * using cache"
-        , toplevel_rederived True
         ]
 
 test_callee_damage = do
@@ -292,9 +294,9 @@ test_callee_damage = do
             insert_event "sub.t1" 0 0.5 ""
     equal (diff_events cached uncached) []
     strings_like (r_block_logs cached)
-        [ "top.t1 1-3: * rederived * because of track block"
+        [ toplevel_rederived False
+        , "top.t1 1-3: * rederived * because of track block"
         , "sub.t1 1-2: * using cache"
-        , toplevel_rederived False
         ]
     -- The cached call to "sub" depends on "sub" and "subsub" transitively.
     equal (r_cache_deps cached) $ map (second (Just . map UiTest.bid))
@@ -313,9 +315,9 @@ test_callee_damage = do
             insert_event "subsub.t1" 0 0.5 ""
     equal (diff_events cached uncached) []
     strings_like (r_block_logs cached)
-        [ "top.t1 1-3: * rederived * sub-block damage"
+        [ toplevel_rederived False
+        , "top.t1 1-3: * rederived * sub-block damage"
         , "sub.t1 1-2: * rederived * block damage"
-        , toplevel_rederived False
         ]
 
 test_collect = do
@@ -387,7 +389,7 @@ test_sliced_control_damage = do
             insert_event "top.t1" 6 0 "0"
     equal (diff_events cached uncached) []
     strings_like (r_block_logs cached)
-        ["sub * control damage", "top * block damage"]
+        ["top * block damage", "sub * control damage"]
     where
     blocks =
         [ (("top", top), [(1, 2), (2, 3)])
@@ -419,11 +421,11 @@ test_control_damage = do
             insert_event "top.t1" 2 0 "0"
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t2 0-1: * using cache"
-        , "top.t2 1-2: * using cache"
+        [ toplevel_rederived True
         , "top.t1 \\*: rederived"
         , "top.t2 \\*: rederived"
-        , toplevel_rederived True
+        , "top.t2 0-1: * using cache"
+        , "top.t2 1-2: * using cache"
         ]
 
     -- only the  affected event is rederived
@@ -431,12 +433,12 @@ test_control_damage = do
             insert_event "top.t1" 1 0 ".5"
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t2 0-1: sub \\* \\*: using cache"
-        , "top.t2 1-2: sub sub.t1 \\*: * control damage"
-        , "top.t2 1-2: sub \\* \\*: * control damage"
+        [ toplevel_rederived True
         , "top.t1 \\*: rederived"
         , "top.t2 \\*: * control damage"
-        , toplevel_rederived True
+        , "top.t2 0-1: sub \\* \\*: using cache"
+        , "top.t2 1-2: sub \\* \\*: * control damage"
+        , "top.t2 1-2: sub sub.t1 \\*: * control damage"
         ]
 
     -- if the change damages a greater control area, it should affect the
@@ -445,13 +447,13 @@ test_control_damage = do
             insert_event "top.t1" 0 0 ".5"
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top.t2 0-1: sub sub.t1 \\*: * control damage"
-        , "top.t2 0-1: sub \\* \\*: * control damage"
-        , "top.t2 1-2: * control damage"
-        , "top.t2 1-2: sub \\* \\*: * control damage"
+        [ toplevel_rederived True
         , "top.t1 \\*: rederived"
         , "top.t2 \\*: * control damage"
-        , toplevel_rederived True
+        , "top.t2 0-1: sub \\* \\*: * control damage"
+        , "top.t2 0-1: sub sub.t1 \\*: * control damage"
+        , "top.t2 1-2: sub \\* \\*: * control damage"
+        , "top.t2 1-2: * control damage"
         ]
 
 test_control_damage2 = do
@@ -518,9 +520,9 @@ test_inverted_control_damage = do
             insert_event "top.t2" 1 0 ".5"
     equal (diff_events cached uncached) []
     strings_like (r_block_logs cached)
-        [ "top.t1 0-1: * using cache"
+        [ toplevel_rederived True
+        , "top.t1 0-1: * using cache"
         , "top top.t1 1-2: sub * control damage"
-        , toplevel_rederived True
         ]
 
 test_control_damage_subblock = do
@@ -540,9 +542,9 @@ test_control_damage_subblock = do
     equal (diff_events cached uncached) []
     -- Everything has control damage.
     strings_like (r_block_logs cached)
-        [ "0-2: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
+        [ "top"
+        , "0-2: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
         , "2-4: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
-        , "top"
         ]
 
     -- Only the second b1 is rederived.
@@ -551,9 +553,9 @@ test_control_damage_subblock = do
     equal (diff_events cached uncached) []
 
     strings_like (r_block_logs cached)
-        [ "0-2: b1 * using cache"
+        [ "top"
+        , "0-2: b1 * using cache"
         , "2-4: b1 * control", "0-2: b2 * control", "2-4: b3 * control"
-        , "top"
         ]
 
 test_tempo_damage = do
@@ -570,10 +572,10 @@ test_tempo_damage = do
     -- Damage extends to the previous event, so the first is cached, second and
     -- third are not.
     strings_like (r_block_logs cached)
-        [ "top.t2 0-1: * using cache"
+        [ toplevel_rederived True
+        , "top.t2 0-1: * using cache"
         , "top.t2 1-2: * control damage"
         , "top.t2 2-3: * control damage"
-        , toplevel_rederived True
         ]
 
     -- Change tempo call in a way that damages to the previous tempo call.
@@ -622,9 +624,9 @@ test_track_cache = do
             State.insert_event (mk_tid 2) $ Event.event 1 1 ""
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top top.t1 \\*: using cache"
+        [ "top \\* \\*: rederived"
+        , "top top.t1 \\*: using cache"
         , "top top.t2 \\*: rederived"
-        , "top \\* \\*: rederived"
         ]
 
     -- And invalidated on damage.
@@ -632,9 +634,9 @@ test_track_cache = do
             State.insert_event (mk_tid 1) $ Event.event 0 0 ".75"
     equal (diff_events cached uncached) []
     strings_like (r_cache_logs cached)
-        [ "top top.t1 \\*: rederived * cache invalidated"
+        [ "top \\* \\*: rederived"
+        , "top top.t1 \\*: rederived * cache invalidated"
         , "top top.t2 \\*: rederived"
-        , "top \\* \\*: rederived"
         ]
 
     let title = State.set_block_title (UiTest.bid "top")
@@ -645,9 +647,9 @@ test_track_cache = do
     equal (DeriveTest.extract (DeriveTest.e_environ "foo") cached)
         ([Just "b"], [])
     strings_like (r_cache_logs cached)
-        [ "top top.t1 \\*: rederived"
+        [ "top \\* \\*: rederived"
+        , "top top.t1 \\*: rederived"
         , "top top.t2 \\*: rederived"
-        , "top \\* \\*: rederived"
         ]
 
     -- Make sure I don't get extra cache entries when the stack changes.

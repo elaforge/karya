@@ -9,6 +9,9 @@ import qualified Ui.UiTest as UiTest
 import qualified Cmd.Simple as Simple
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
+
 import qualified Perform.Midi.Perform as Perform
 import qualified Local.Instrument.Kontakt as Kontakt
 
@@ -19,7 +22,7 @@ derive = DeriveTest.derive_tracks_setup . with_synth
 with_synth :: Simple.Aliases -> DeriveTest.Setup
 with_synth aliases = DeriveTest.with_synth_descs aliases Kontakt.synth_descs
 
-perform :: Simple.Aliases -> Derive.Events
+perform :: Simple.Aliases -> Stream.Stream Score.Event
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform aliases = DeriveTest.perform_inst aliases Kontakt.synth_descs
     [(inst, [n]) | (n, inst) <- zip [0..] (map fst aliases)]

@@ -14,6 +14,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -48,9 +49,9 @@ c_wind_idiom = Derive.transformer module_ "wind-idiom"
 
 type Fundamentals = [Pitch.Hz]
 
-wind_idiom :: Fundamentals -> Derive.Events -> Derive.NoteDeriver
-wind_idiom fundamentals = return . map (fmap (process fundamentals))
-    . Post.zip_on (map Seq.head . Post.nexts)
+wind_idiom :: Fundamentals -> Stream.Stream Score.Event -> Derive.NoteDeriver
+wind_idiom fundamentals = return . Post.emap1_ (process fundamentals)
+    . Stream.zip_on (map Seq.head . Post.nexts)
 
 fundamentals_env :: Sig.Parser [Either Pitch.NoteNumber PSignal.Pitch]
 fundamentals_env = Sig.check non_empty $
@@ -95,8 +96,7 @@ find_harmonic fundamentals hz = closest $ map find fundamentals
     -- harmonic, so I can multiply the eta too.
     eta = 0.25
 
--- 3 * 10.0002 > 30
-
+-- | Hz raised to the nth harmonic.
 (*#) :: Pitch.Hz -> Int -> Pitch.Hz
 fundamental *# harmonic = fundamental * fromIntegral harmonic
 

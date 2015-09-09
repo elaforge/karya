@@ -8,10 +8,10 @@ import qualified Derive.Args as Args
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 
 import Global
 import Types
@@ -29,9 +29,9 @@ c_reverse = Derive.transformer Module.prelude "reverse" Tags.postproc
     "Reverse the events." $
     Sig.call0t $ \args deriver -> do
         start <- Args.real_start args
-        (events, logs) <- LEvent.partition <$> deriver
-        return $ map LEvent.Log logs ++ map LEvent.Event
-            (reverse_tracks start events)
+        (events, logs) <- Stream.partition <$> deriver
+        return $ Stream.merge_logs logs $
+            Stream.from_sorted_events (reverse_tracks start events)
 
 reverse_tracks :: RealTime -> [Score.Event] -> [Score.Event]
 reverse_tracks start events = Seq.merge_lists Score.event_start

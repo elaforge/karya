@@ -2,11 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE DeriveFunctor, DeriveTraversable #-}
 module Derive.LEvent where
 import Prelude hiding (length, either, log, zip, zip3)
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Text as Text
+import qualified Data.Traversable as Traversable
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -21,14 +24,7 @@ import Global
 -- * LEvent
 
 data LEvent a = Event !a | Log !Log.Msg
-    deriving (Eq, Show)
-
-log :: Log.Msg -> LEvent a
-log = Log
-
-instance Functor LEvent where
-    fmap f (Event a) = Event (f a)
-    fmap _ (Log a) = Log a
+    deriving (Eq, Show, Functor, Foldable.Foldable, Traversable.Traversable)
 
 instance Pretty.Pretty d => Pretty.Pretty (LEvent d) where
     format = either Pretty.format format_log

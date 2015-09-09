@@ -48,13 +48,13 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -799,7 +799,7 @@ c_noltol = Derive.transformer module_ "noltol" Tags.delayed
         max_dur <- Call.real_duration (Args.start args) max_dur
         events <- deriver
         times <- Post.time_control threshold events
-        return $ Post.emap1_ (put max_dur) $ LEvent.zip times events
+        return $ Post.emap1_ (put max_dur) $ Stream.zip times events
         where
         put max_dur (threshold, event) =
             Score.put_attr_arg noltol_attr ((threshold, max_dur) :: NoltolArg)
@@ -810,7 +810,7 @@ c_realize_noltol = Derive.transformer module_ "realize-noltol"
     Tags.realize_delayed "Perform the annotations added by `noltol`."
     $ Sig.call0t $ \_args deriver -> realize_noltol_call =<< deriver
 
-realize_noltol_call :: Derive.Events -> Derive.NoteDeriver
+realize_noltol_call :: Stream.Stream Score.Event -> Derive.NoteDeriver
 realize_noltol_call = Post.emap_asc_m_ fst realize . Post.nexts_same_hand id
     where
     realize (event, next)

@@ -14,11 +14,11 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (required)
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -339,9 +339,9 @@ code_call name doc sig make_code = (gen, trans)
                 code <- make_code val
                 Lily.add_first code deriver
 
-require_nonempty :: Derive.Events -> Derive.Deriver Derive.Events
+require_nonempty :: Stream.Stream Score.Event -> Derive.NoteDeriver
 require_nonempty events
-    | null (LEvent.events_of events) =
+    | null (Stream.events_of events) =
         Derive.throw "this call expects sub-events but none were found"
     | otherwise = return events
 

@@ -49,6 +49,7 @@ import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 import Derive.TestInstances ()
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
@@ -125,7 +126,7 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
         (Derive.r_events result)
     result = derive_blocks blocks
 
-perform :: Convert.Lookup -> Instrument.Configs -> Derive.Events
+perform :: Convert.Lookup -> Instrument.Configs -> Stream.Stream Score.Event
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform lookup midi_config events =
     (fst (LEvent.partition perf_events), mmsgs, logs)
@@ -133,21 +134,23 @@ perform lookup midi_config events =
     (perf_events, perf) = perform_stream lookup midi_config events
     (mmsgs, logs) = extract_logs perf
 
-perform_defaults :: Derive.Events
+perform_defaults :: Stream.Stream Score.Event
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform_defaults = perform default_convert_lookup UiTest.default_midi_config
 
-perform_stream :: Convert.Lookup -> Instrument.Configs -> Derive.Events
+perform_stream :: Convert.Lookup -> Instrument.Configs
+    -> Stream.Stream Score.Event
     -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi.WriteMessage])
-perform_stream lookup midi_config events = (perf_events, midi)
+perform_stream lookup midi_config stream = (perf_events, midi)
     where
-    perf_events = Convert.convert lookup (LEvent.events_of events)
+    perf_events = Convert.convert lookup (Stream.events_of stream)
     (midi, _) = Perform.perform Perform.initial_state
         (Instrument.config_addrs <$> midi_config) perf_events
 
 -- | Perform events with the given instrument config.
 perform_inst :: Simple.Aliases -> [Cmd.SynthDesc] -> [(Text, [Midi.Channel])]
-    -> Derive.Events -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
+    -> Stream.Stream Score.Event
+    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform_inst aliases synths config =
     perform (synth_to_convert_lookup aliases synths) (UiTest.midi_config config)
 
@@ -239,7 +242,7 @@ run_cmd ui_state cmd_state cmd = case result of
 
 -- * setup
 
-type Setup = SetupA Derive.Events
+type Setup = SetupA (Stream.Stream Score.Event)
 
 -- | This file only ever uses 'Setup', but it loses polymorphism.  To reuse
 -- @with_*@ functions in a polymorphic way, I can use SetupA and pull them back
@@ -475,7 +478,7 @@ quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_priority)
 -- ** extract
 
 extract :: (Score.Event -> a) -> Derive.Result -> ([a], [String])
-extract e_event = extract_levents e_event . Derive.r_events
+extract e_event = extract_levents e_event . Stream.to_list . Derive.r_events
 
 extract_events :: (Score.Event -> a) -> Derive.Result -> [a]
 extract_events e_event result = Log.trace_logs logs (map e_event events)
@@ -488,7 +491,7 @@ extract_logs :: [LEvent.LEvent a] -> ([a], [Log.Msg])
 extract_logs = second (filter interesting_log) . LEvent.partition
 
 extract_stream :: (Score.Event -> a) -> Derive.Result -> [Either a String]
-extract_stream e_event = mapMaybe extract . Derive.r_events
+extract_stream e_event = mapMaybe extract . Stream.to_list . Derive.r_events
     where
     extract (LEvent.Log log)
         | interesting_log log = Just $ Right $ show_log log
@@ -496,7 +499,7 @@ extract_stream e_event = mapMaybe extract . Derive.r_events
     extract (LEvent.Event e) = Just $ Left $ e_event e
 
 r_split :: Derive.Result -> ([Score.Event], [Log.Msg])
-r_split = second (filter interesting_log) . LEvent.partition . Derive.r_events
+r_split = second (filter interesting_log) . Stream.partition . Derive.r_events
 
 r_logs :: Derive.Result -> [Log.Msg]
 r_logs = snd . r_split
@@ -587,7 +590,7 @@ e_tsigs =
 
 e_tsig_logs :: Derive.Result -> [String]
 e_tsig_logs = filter ("Track signal: " `List.isPrefixOf`) . map show_log
-    . LEvent.logs_of . Derive.r_events
+    . Stream.logs_of . Derive.r_events
 
 -- ** extract log msgs
 
@@ -660,7 +663,7 @@ c_note s_start dur = do
     st <- Derive.gets Derive.state_dynamic
     let controls = Derive.state_controls st
         pitch_sig = Derive.state_pitch st
-    return [LEvent.Event $ Score.empty_event
+    return $! Stream.from_event $! Score.empty_event
         { Score.event_start = start
         , Score.event_duration = end - start
         , Score.event_text = "evt"
@@ -669,7 +672,7 @@ c_note s_start dur = do
         , Score.event_untransformed_pitches = Derive.state_pitches st
         , Score.event_instrument = inst
         , Score.event_environ = environ
-        }]
+        }
 
 -- * scale
 

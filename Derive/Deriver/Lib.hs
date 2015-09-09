@@ -28,11 +28,11 @@ import qualified Derive.Deriver.Internal as Internal
 import Derive.Deriver.Monad
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Typecheck as Typecheck
@@ -52,7 +52,7 @@ import Types
 
 -- | Package up the results of a derivation.
 data Result = Result {
-    r_events :: !Events
+    r_events :: !(Stream.Stream Score.Event)
     , r_cache :: !Cache
     , r_track_warps :: ![TrackWarp.Collection]
     , r_track_signals :: !Track.TrackSignals
@@ -69,7 +69,7 @@ derive :: Constant -> Dynamic -> Deriver a -> RunResult a
 derive constant dynamic = run (initial_state constant dynamic)
     . with_initial_scope (state_environ dynamic) . with_default_imported
 
-extract_result :: RunResult Events -> Result
+extract_result :: RunResult (Stream.Stream Score.Event) -> Result
 extract_result (result, state, logs) = Result
     { r_events = merge_logs result logs
     , r_cache = collect_cache collect <> state_cache (state_constant state)
@@ -379,7 +379,7 @@ val_to_pitch (ValCall name doc vcall) = Call
             -- 'Derive.Call.Pitch.c_set'.  That would be more flexible since
             -- you can then override '', but is also less efficient.
             pos <- Internal.real $ Event.start $ ctx_event $ passed_ctx args
-            return [LEvent.Event $ PSignal.signal [(pos, pitch)]]
+            return $ Stream.from_event $ PSignal.signal [(pos, pitch)]
         _ -> throw $ "scale call " <> name
             <> " returned non-pitch: " <> ShowVal.show_val val
 
@@ -765,7 +765,7 @@ query_note_pitch :: State -> NoteDeriver -> NotePitchQueryResult
 query_note_pitch state deriver = (Seq.head events, all_logs)
     where
     (result, _, logs) = run (set_mode state) deriver
-    (events, all_logs) = LEvent.partition $ merge_logs result logs
+    (events, all_logs) = Stream.partition $ merge_logs result logs
     set_mode state = state
         { state_dynamic = (state_dynamic state) { state_mode = NotePitchQuery }
         }

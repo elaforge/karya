@@ -26,6 +26,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (control, typed_control)
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -136,7 +137,7 @@ c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
     \ follows which."
     ) $ Sig.call0t $ \_ deriver -> realize_ngoret =<< deriver
 
-realize_ngoret :: Derive.Events -> Derive.Deriver Derive.Events
+realize_ngoret :: Stream.Stream Score.Event -> Derive.NoteDeriver
 realize_ngoret =
     Post.apply $ fmap merge . mapM realize . Seq.group_sort Post.hand_key
     where

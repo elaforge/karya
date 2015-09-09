@@ -46,6 +46,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
@@ -113,16 +114,16 @@ derive_control_tree block_range tree = do
     -- There are an awful lot of things that can go wrong.  I guess that's why
     -- this is a hack.
     events <- derive_tree block_range tree
-    case LEvent.partition events of
+    case Stream.partition events of
         ([event], logs) -> case Score.event_control Controls.null event of
             Nothing -> Derive.throw "control call didn't emit Controls.null"
-            Just signal -> return $
+            Just signal -> return $ Stream.from_sorted_list $
                 -- The calling control itself will be providing the type since
                 -- types are at the level of the signal as a whole.
                 LEvent.Event (Score.typed_val signal) : map LEvent.Log logs
         (events, logs) -> do
             msg <- complain events
-            return $ LEvent.log msg : map LEvent.Log logs
+            return $ Stream.from_logs $ msg : logs
     where
     -- Or I could throw, but this way any other logs the block emitted will
     -- also be visible, and they might have something interesting.

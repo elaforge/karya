@@ -24,6 +24,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseSkeleton as ParseSkeleton
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Midi.Convert as Convert
 import Global
@@ -211,14 +212,15 @@ run_profile fname maybe_lookup ui_state = do
     start_cpu <- CPUTime.getCPUTime
     let section = time_section start_cpu
     let result = DeriveTest.derive_block ui_state block_id
-    let events = Derive.r_events result
+    let events = Stream.to_list $ Derive.r_events result
     section "derive" $ do
         force events
         prettyp events
         return events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
-                (State.config_midi (State.state_config ui_state)) events
+                (State.config_midi (State.state_config ui_state))
+                (Stream.from_sorted_list events)
         force mmsgs
         return mmsgs
 

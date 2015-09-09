@@ -18,6 +18,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -122,19 +123,19 @@ add_event_code (pos, code) =
     add name f env = Env.insert_val name (Typecheck.to_val (f old)) env
         where old = fromMaybe "" $ Env.maybe_val name env
 
--- | Like 'Seq.first_last', but applied to LEvents.  If the events start or end
--- with a group of events with the same start time, the start or end function
--- is applied to the entire group.  This is because the lilypond performer will
--- group them into a chord and will only take ly-prepend and ly-append from the
--- first note in the chord.  I could apply to only the first element of the
--- group, but that would rely on every sort being stable.
+-- | Like 'Seq.first_last', but applied to a Stream.  If the events start or
+-- end with a group of events with the same start time, the start or end
+-- function is applied to the entire group.  This is because the lilypond
+-- performer will group them into a chord and will only take ly-prepend and
+-- ly-append from the first note in the chord.  I could apply to only the first
+-- element of the group, but that would rely on every sort being stable.
 first_last :: (Score.Event -> Score.Event) -> (Score.Event -> Score.Event)
-    -> Derive.Events -> Derive.Events
+    -> Stream.Stream Score.Event -> Stream.Stream Score.Event
 first_last start end xs =
-    map LEvent.Log logs ++ map LEvent.Event (concat
-        (Seq.first_last (map start) (map end) (List.groupBy cmp events)))
+    Stream.merge_logs logs $ Stream.from_sorted_events $ concat $
+        Seq.first_last (map start) (map end) (List.groupBy cmp events)
     where
-    (events, logs) = LEvent.partition xs
+    (events, logs) = Stream.partition xs
     cmp x y = Score.event_start x RealTime.== Score.event_start y
 
 -- ** code
@@ -241,7 +242,7 @@ is_duration config t = case is_note_duration config t of
 note_pitch :: Derive.NoteDeriver -> Derive.Deriver Note
 note_pitch deriver = do
     events <- deriver
-    event <- require "had no event" $ Seq.head (LEvent.events_of events)
+    event <- require "had no event" $ Seq.head (Stream.events_of events)
     pitch_to_lily =<< require "note had no pitch" (Score.initial_pitch event)
     -- Wow, there are a lot of ways to fail.
     where
@@ -262,7 +263,7 @@ eval :: Types.Config -> Derive.PassedArgs d -> [Sub.Event]
     -> Derive.Deriver [Note]
 eval config args notes = do
     start <- Args.real_start args
-    events <- LEvent.write_logs =<< Sub.derive notes
+    events <- Stream.write_logs =<< Sub.derive notes
     eval_events config start events
 
 eval_events :: Types.Config -> RealTime -> [Score.Event]

@@ -29,6 +29,7 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -89,7 +90,7 @@ test_threaded_last_event = do
         Nothing -> Derive.throw "no prev val"
         Just prev -> do
             Log.warn $ showt (Score.event_start prev)
-            return []
+            return Stream.empty
 
 test_assign_controls = do
     let run inst_title cont_title val = extract $ DeriveTest.derive_tracks ""
@@ -219,7 +220,7 @@ test_events_around = do
     c_around = CallTest.generator $ Sub.inverting $ \args -> do
         Log.warn $ "prev: " <> showt (map Event.start (Args.prev_events args))
         Log.warn $ "next: " <> showt (map Event.start (Args.next_events args))
-        return []
+        return Stream.empty
 
 test_track_dynamic = do
     let e_scale_inst dyn =
@@ -380,7 +381,7 @@ test_orphans = do
     show_subs = CallTest.generator $ \args -> do
         let subs = Derive.ctx_sub_tracks (Derive.passed_ctx args)
         Log.warn $ pretty subs
-        return []
+        return Stream.empty
 
 test_record_empty_tracks = do
     -- Ensure that TrackWarps and TrackDynamics are collected for empty tracks.
@@ -462,7 +463,7 @@ test_derive_neighbor_pitches = do
             extract f = (map (first (fmap f)) *** map (first (fmap f)))
         Log.warn $ showt $ extract (pretty . Score.initial_note) neighbors
         Log.warn $ showt $ extract (pretty . Score.initial_dynamic) neighbors
-        return []
+        return Stream.empty
 
 test_prev_next_logical_pitch = do
     let run prev = DeriveTest.extract DeriveTest.e_note $

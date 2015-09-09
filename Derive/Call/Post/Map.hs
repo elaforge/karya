@@ -8,6 +8,7 @@ import qualified Derive.Eval as Eval
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 
 import Global
@@ -43,7 +44,7 @@ map_control ctx control transformer event = do
             Score.event_control control event
     sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
         Eval.eval_quoted_transformers ctx transformer $
-            return [LEvent.Event sig]
+            return $ Stream.from_event sig
     return [Score.set_control control (Score.Typed typ sig) event]
 
 map_pcontrol :: Derive.Context Derive.Pitch -> Score.PControl
@@ -52,5 +53,5 @@ map_pcontrol ctx control transformer event = do
     let sig = fromMaybe mempty $ Score.event_pitch control event
     sig <- (LEvent.write_snd =<<) $ Post.derive_signal $
         Eval.eval_quoted_transformers ctx transformer $
-            return [LEvent.Event sig]
+            return $ Stream.from_event sig
     return [Score.set_named_pitch control sig event]

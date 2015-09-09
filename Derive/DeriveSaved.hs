@@ -28,6 +28,7 @@ import qualified Derive.Call.All as Call.All
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Scale.All as Scale.All
+import qualified Derive.Stream as Stream
 
 import qualified Local.Config
 import qualified App.Config as Config
@@ -70,7 +71,7 @@ timed_derive name ui_state cmd_state block_id =
         Left err -> return $ Left err
         Right (result, cmd_logs) -> fmap Right $ do
             let (events, derive_logs) = first Vector.fromList $
-                    LEvent.partition $ Derive.r_events result
+                    Stream.partition $ Derive.r_events result
                 msg = "derive " <> name <> " " <> prettys block_id
             events <- print_timer msg (timer_msg Vector.length)
                 (return $! events)
@@ -82,7 +83,7 @@ timed_lilypond :: FilePath -> State.State -> Cmd.State -> BlockId
 timed_lilypond name ui_state cmd_state block_id = case result of
     Left err -> return (Left err, [])
     Right (levents, cmd_logs) -> do
-        let (events, derive_logs) = LEvent.partition levents
+        let (events, derive_logs) = Stream.partition levents
         events <- print_timer ("lilypond " <> name) (timer_msg length)
             (return $! events)
         let (result, ly_logs) = Cmd.Lilypond.extract_movements

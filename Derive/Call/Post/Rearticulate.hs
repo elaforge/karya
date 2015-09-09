@@ -16,6 +16,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -42,8 +43,9 @@ c_slur_n = Derive.transformer Module.prelude "slur-n" Tags.postproc
 
 type Curve = (ControlUtil.Curve, RealTime)
 
-slur_n :: RealTime -> Int -> Curve -> Derive.Events -> Derive.Events
-slur_n srate group curve = go
+slur_n :: RealTime -> Int -> Curve -> Stream.Stream Score.Event
+    -> Stream.Stream Score.Event
+slur_n srate group curve = Stream.from_sorted_list . go . Stream.to_list
     where
     go events = case first LEvent.partition $ split_events group events of
         (([], logs), _) -> map LEvent.Log logs
@@ -128,14 +130,14 @@ c_slur_dur = Derive.transformer Module.prelude "slur-dur" Tags.postproc
         srate <- Call.get_srate
         slur_dur srate dur offset curve <$> deriver
 
-slur_dur :: RealTime -> RealTime -> RealTime -> Curve -> Derive.Events
-    -> Derive.Events
-slur_dur srate dur offset curve levents =
-    map LEvent.Log logs
-        ++ map (LEvent.Event . apply) (group_dur dur offset events)
+slur_dur :: RealTime -> RealTime -> RealTime -> Curve
+    -> Stream.Stream Score.Event -> Stream.Stream Score.Event
+slur_dur srate dur offset curve stream =
+    Stream.merge_logs logs $ Stream.from_sorted_events $
+        map apply (group_dur dur offset events)
     where
     apply (e :| es) = slur srate curve e es
-    (events, logs) = LEvent.partition levents
+    (events, logs) = Stream.partition stream
 
 group_dur :: RealTime -> RealTime -> [Score.Event] -> [NonEmpty Score.Event]
 group_dur dur offset = Seq.group_stable group_of

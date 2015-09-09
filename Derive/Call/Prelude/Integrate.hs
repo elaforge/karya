@@ -16,6 +16,7 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 
 import qualified Perform.RealTime as RealTime
 import Global
@@ -40,7 +41,7 @@ c_block_integrate = Derive.transformer Module.prelude "block-integrate" mempty
         block_integrate events
         return events
 
-block_integrate :: Derive.Events -> Derive.Deriver ()
+block_integrate :: Stream.Stream Score.Event -> Derive.Deriver ()
 block_integrate events = do
     -- Only collect an integration if this is the top level block.  Otherwise
     -- I can get integrating blocks called from many places and who knows which
@@ -58,13 +59,14 @@ block_integrate events = do
 -- unwarp the events if the default tempo was applied.
 --
 -- TODO Getting rid of the default tempo entirely is also an option.
-unwarp :: State.M m => BlockId -> Derive.Events -> m Derive.Events
+unwarp :: State.M m => BlockId -> Stream.Stream Score.Event
+    -> m (Stream.Stream Score.Event)
 unwarp block_id events = ifM (uses_default_tempo block_id)
     (do tempo <- State.get_default State.default_tempo
         return $ move (RealTime.seconds tempo) events)
     (return events)
     where
-    move tempo = map $ fmap $ Score.move (*tempo) . Score.duration (*tempo)
+    move tempo = fmap $ Score.move (*tempo) . Score.duration (*tempo)
 
 uses_default_tempo :: State.M m => BlockId -> m Bool
 uses_default_tempo block_id =
@@ -105,9 +107,10 @@ c_track_integrate = Derive.transformer Module.prelude "track-integrate" mempty
                 -- it intentionally doesn't retain 'Derive.collect_integrated'.
                 track_integrate block_id track_id events
             _ -> return ()
-        return []
+        return Stream.empty
 
-track_integrate :: BlockId -> TrackId -> Derive.Events -> Derive.Deriver ()
+track_integrate :: BlockId -> TrackId -> Stream.Stream Score.Event
+    -> Derive.Deriver ()
 track_integrate block_id track_id events = do
     events <- Derive.eval_ui "c_track_integrate" $ unwarp block_id events
     let integrated = Derive.Integrated (Right track_id) events

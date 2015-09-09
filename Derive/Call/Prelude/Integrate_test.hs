@@ -10,6 +10,8 @@ import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Stream as Stream
+
 import Global
 import Types
 
@@ -24,7 +26,7 @@ test_integrate_track = do
         extract i = (Derive.integrated_source i, Derive.integrated_events i)
     let [(source, events)] = map extract (Derive.r_integrated res)
     equal source (Right (UiTest.mk_tid 1))
-    equal (DeriveTest.extract_levents DeriveTest.e_note events)
+    equal (DeriveTest.extract_levents DeriveTest.e_note (Stream.to_list events))
         ([(0, 1, "4c")], [])
     equal (DeriveTest.extract DeriveTest.e_note res) ([(0, 2, "?")], [])
 

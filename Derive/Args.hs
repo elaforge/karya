@@ -14,10 +14,10 @@ import qualified Derive.Derive as Derive
 import Derive.Derive (PassedArgs, Context)
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Signal as Signal
 import Global
@@ -132,9 +132,9 @@ next_pitch :: Derive.PitchArgs -> Derive.Deriver (Maybe PSignal.Pitch)
 next_pitch = maybe (return Nothing) eval_pitch . Seq.head . next_events
 
 eval_pitch :: Event.Event -> Derive.Deriver (Maybe PSignal.Pitch)
-eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \events -> do
+eval_pitch event = justm (to_maybe <$> Eval.eval_event event) $ \stream -> do
     start <- Derive.real (Event.start event)
-    return $ PSignal.at start $ mconcat $ LEvent.events_of events
+    return $ PSignal.at start $ mconcat $ Stream.events_of stream
     where to_maybe = either (const Nothing) Just
 
 -- * event timing

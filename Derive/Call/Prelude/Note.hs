@@ -33,12 +33,12 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.EvalTrack as EvalTrack
 import qualified Derive.Flags as Flags
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -195,7 +195,7 @@ default_note config args = do
             { Derive.state_environ = stash_convert_values control_vals offset
                 (Derive.state_environ dyn)
             }
-    return [LEvent.Event event]
+    return $! Stream.from_event event
 
 note_flags :: Bool -> Stack.Stack -> Env.Environ -> Flags.Flags
 note_flags zero_dur stack environ

@@ -17,11 +17,11 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (required, defaulted)
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -103,10 +103,12 @@ c_set_prev :: Derive.Generator Derive.Control
 c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
     "Re-set the previous value. This can be used to extend a breakpoint."
     $ Sig.call0 $ \args -> case Args.prev_control args of
-        Nothing -> return []
+        Nothing -> return Stream.empty
         Just (x, y) -> do
             start <- Args.real_start args
-            return [LEvent.Event $ Signal.signal [(start, y)] | start > x]
+            return $ if start > x
+                then Stream.from_event $ Signal.signal [(start, y)]
+                else Stream.empty
 
 c_porta :: Derive.Generator Derive.Control
 c_porta = generator1 "porta" mempty

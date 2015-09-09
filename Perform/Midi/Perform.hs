@@ -322,7 +322,7 @@ allot_event inst_addrs state (event, ichan) =
                     LEvent.Event (event, addr))
             -- This will return lots of msgs if an inst has no allocation.
             -- A higher level should filter out the duplicates.
-            Nothing -> (state, LEvent.log no_alloc)
+            Nothing -> (state, LEvent.Log no_alloc)
     where
     -- Remove voices that have ended.
     expire_voices allotted = allotted
@@ -439,7 +439,7 @@ adjust_chan_state :: AddrInst -> Instrument.Addr -> Event
     -> (MidiEvents, AddrInst)
 adjust_chan_state addr_inst addr event =
     case chan_state_msgs addr (event_start event) old_inst inst of
-        Left err -> ([LEvent.log $ event_warning event err], new_addr_inst)
+        Left err -> ([LEvent.Log $ event_warning event err], new_addr_inst)
         Right msgs -> (map LEvent.Event msgs, new_addr_inst)
     where
     new_addr_inst = Map.insert addr inst addr_inst
@@ -523,7 +523,7 @@ perform_note :: RealTime -> Maybe RealTime -- ^ next note with the same addr
     -> Event -> Instrument.Addr -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
 perform_note prev_note_off next_note_on event addr =
     case event_pitch_at (event_pb_range event) event (event_start event) of
-        Nothing -> ([LEvent.log $ event_warning event "no pitch signal"],
+        Nothing -> ([LEvent.Log $ event_warning event "no pitch signal"],
             prev_note_off)
         Just (midi_nn, _) ->
             let (note_msgs, note_off) = _note_msgs midi_nn
@@ -545,7 +545,7 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
         [ chan_msg note_on (Midi.NoteOn midi_nn on_vel)
         , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
         ]
-        ++ map LEvent.log warns
+        ++ map LEvent.Log warns
     note_on = event_start event
     -- Subtract the adjacent_note_gap, but leave a little bit of duration for
     -- 0-dur notes.
@@ -561,7 +561,7 @@ perform_control_msgs :: RealTime -> Maybe RealTime -> Event -> Instrument.Addr
     -> RealTime -> Midi.Key -> MidiEvents
 perform_control_msgs prev_note_off next_note_on event (dev, chan) note_off
         midi_nn =
-    map LEvent.Event control_msgs ++ map LEvent.log warns
+    map LEvent.Event control_msgs ++ map LEvent.Log warns
     where
     control_msgs = merge_messages $
         map (map chan_msg) (pitch_pos_msgs : control_pos_msgs)
@@ -844,7 +844,7 @@ overlap_map initial = go initial
         start = note_begin e
         overlapping = takeWhile ((> start) . note_end . fst) prev
         (val, logs) = f overlapping e
-        log_events = if logging then map LEvent.log logs else []
+        log_events = if logging then map LEvent.Log logs else []
         (vals, final_state) = go ((e, val) : overlapping) f events
 
 event_warning :: Event -> Text -> Log.Msg

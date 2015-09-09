@@ -22,10 +22,10 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -346,11 +346,11 @@ other R = L
 -- note needs a free hand to damp.  That can be the same hand if the next note
 -- with that hand is sufficiently far, or the opposite hand if it is not too
 -- busy.
-reyong_damp_voices :: RealTime -> Score.Attributes -> Signal.Y -> Derive.Events
-    -> Derive.NoteDeriver
+reyong_damp_voices :: RealTime -> Score.Attributes -> Signal.Y
+    -> Stream.Stream Score.Event -> Derive.NoteDeriver
 reyong_damp_voices dur damp_attr dyn =
     mconcatMap (reyong_damp damp_attr dyn dur)
-        . Seq.group_sort event_voice . LEvent.events_of
+        . Seq.group_sort event_voice . Stream.events_of
 
 -- | To damp, if either hand has enough time before and after then damp,
 -- otherwise let it ring.

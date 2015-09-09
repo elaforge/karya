@@ -21,6 +21,7 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Convert as Convert
@@ -212,9 +213,9 @@ partition_logs :: Derive.Result -> ([Types.Event], [String])
 partition_logs result = (events, extract_logs (dlogs ++ logs))
     where
     (events, logs) = LEvent.partition $ Convert.convert config $
-        LEvent.events_of $ Derive.r_events result
+        Stream.events_of $ Derive.r_events result
     config = default_config { Types.config_quarter_duration = 1 }
-    dlogs = LEvent.logs_of (Derive.r_events result)
+    dlogs = Stream.logs_of (Derive.r_events result)
     extract_logs = map DeriveTest.show_log . DeriveTest.quiet_filter_logs
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result

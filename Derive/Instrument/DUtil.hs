@@ -89,7 +89,7 @@ is_zero_duration args
 postproc_note :: Text -> Text -> (Score.Event -> Score.Event)
     -> Derive.Generator Derive.Note
 postproc_note name doc f = postproc_generator name doc Note.c_note apply
-    where apply d = map (fmap f) <$> d
+    where apply d = fmap f <$> d
 
 -- | Transform an existing call by applying a function to it.  It gets a new
 -- name and the documentation is prepended to the documentation of the original

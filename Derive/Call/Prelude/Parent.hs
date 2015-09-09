@@ -17,10 +17,10 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.RealTime as RealTime
@@ -58,10 +58,8 @@ c_tuplet = Derive.generator Module.prelude "tuplet" Tags.subs
     \ if there are >1 equidistant zero duration sub events, the distance\
     \ between them is considered their implicit duration.\
     \\nIf there are multiple note tracks, they are stretched independently."
-    $ Sig.call0 $ \args -> lily_tuplet args $
-        -- TODO this is error-prone because I have to remember to sort it.
-        Derive.merge_event_lists <$>
-            (mapM (tuplet (Args.range args)) =<< Sub.sub_events args)
+    $ Sig.call0 $ \args -> lily_tuplet args $ mconcat <$>
+        (traverse (tuplet (Args.range args)) =<< Sub.sub_events args)
 
 tuplet :: (ScoreTime, ScoreTime) -> [Sub.Event] -> Derive.NoteDeriver
 tuplet range events = case infer_duration of
@@ -109,7 +107,7 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
             [[]] -> Error.throwError "no sub events"
             _ : _ : _ -> Error.throwError ">1 non-empty sub track"
             [notes] -> return notes
-        events <- lift $ LEvent.write_logs
+        events <- lift $ Stream.write_logs
             =<< Sub.derive (map (Sub.place (Args.start args) 2) notes)
             -- Double the notes duration, since staff notation tuplets shorten
             -- notes.
@@ -208,11 +206,11 @@ arpeggio arp time random tracks = do
 arpeggio_by_note :: Arpeggio -> RealTime -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 arpeggio_by_note arp time deriver = do
-    (events, logs) <- LEvent.partition <$> deriver
+    (events, logs) <- Stream.partition <$> deriver
     let sort = case arp of
             ToRight -> return . Seq.reverse_sort_on Score.initial_nn
             ToLeft -> return . Seq.sort_on Score.initial_nn
             Random -> Call.shuffle
     arpeggiated <- zipWith (Score.move_start 0) (Seq.range_ 0 time)
         <$> sort events
-    return $ map LEvent.Log logs ++ map LEvent.Event arpeggiated
+    return $ Stream.merge_logs logs $ Stream.from_sorted_events arpeggiated

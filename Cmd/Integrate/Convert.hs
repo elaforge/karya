@@ -18,12 +18,12 @@ import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
@@ -47,15 +47,15 @@ type Tracks = [(Track, [Track])]
 type Config = (LookupCall, Pitch.ScaleId)
 type LookupCall = Score.Instrument -> Instrument.CallMap
 
-convert :: Cmd.M m => BlockId -> Derive.Events -> m Tracks
-convert source_block levents = do
+convert :: Cmd.M m => BlockId -> Stream.Stream Score.Event -> m Tracks
+convert source_block stream = do
     lookup_inst <- Cmd.get_lookup_instrument
     let lookup_call =
             maybe mempty (Instrument.patch_call_map . MidiDb.info_patch)
             . lookup_inst
     default_scale_id <- Perf.default_scale_id
     tracknums <- Map.fromList <$> State.tracknums_of source_block
-    let (events, logs) = LEvent.partition levents
+    let (events, logs) = Stream.partition stream
         (tracks, errs) = integrate (lookup_call, default_scale_id)
             tracknums events
     mapM_ Log.write $ Log.add_prefix "integrate" logs

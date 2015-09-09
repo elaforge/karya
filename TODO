@@ -224,11 +224,8 @@ UNSORTED
       and Unsorted <> Sorted = Unsorted.  Calls that require sortedness will
       then have to sort if it's Unsorted.
     * Put the sorted check back in Convert, remove sort in Cmd.Performance.
-    - Change [LEvent.LEvent Score.Event] to a newtype, so I can attach
+    * Change [LEvent.LEvent Score.Event] to a newtype, so I can attach
       a sorted bit.
-    - Actually put Sorted in Stream.
-      . This would also have automated the merge_events in Parent.c_tuplet,
-        right?
     . Also, there's a distinction between merge_lists and merge_asc_lists.
     - Rework Derive.Call.Post so the function to map varies instead of the map
       function.  This way I can implement it as a series of adaptors.
@@ -237,6 +234,13 @@ UNSORTED
         possibilities are in an ADT then the map function can choose the
         implementation.  This doesn't work for monadic vs. non-monadic though,
         because the return type is different.
+    - Actually put Sorted in Stream.
+      . For this I need to have map functions in Post be able to express
+        whether they can destroy the order, and either verify or sort as
+        appropriate.
+      . And for that I'd like to have profiling to show how much copying is
+        actually done, or rather if it's significant.
+  - Get rid of Derive.LogsDeriver, now it's Derive.Deriver (Stream.Stream a)
   - Rethink if I really want track event calls in TrackTime, rather than
     normalized time.
     . Implementing c_sequence I was confused how stretch was applied twice,

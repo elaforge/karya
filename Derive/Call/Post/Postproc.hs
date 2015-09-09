@@ -25,6 +25,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -95,7 +96,8 @@ merge_infer strong weaks
     end = fromMaybe (Score.event_end strong) $
         Seq.maximum (map Score.event_end weaks)
 
-infer_duration :: RealTime -> Derive.Events -> Derive.Events
+infer_duration :: RealTime -> Stream.Stream Score.Event
+    -> Stream.Stream Score.Event
 infer_duration final_dur = Post.emap1_ infer . Post.nexts_same_hand id
     where
     infer (event, next)
@@ -106,19 +108,20 @@ infer_duration final_dur = Post.emap1_ infer . Post.nexts_same_hand id
     set_end end event = Score.set_duration (end - Score.event_start event) event
 
 merge_groups :: ([a] -> Either Text [a]) -> [Either [LEvent.LEvent a] [a]]
-    -> Either Text [LEvent.LEvent a]
-merge_groups merge = concatMapM go
+    -> Either Text (Stream.Stream a)
+merge_groups merge = fmap Stream.from_sorted_list . concatMapM go
     where
     go (Left ungrouped) = Right ungrouped
     go (Right []) = Right []
     go (Right [e]) = Right [LEvent.Event e]
     go (Right es) = map LEvent.Event <$> merge es
 
-type Events = [LEvent.LEvent Score.Event]
+type Events = Stream.Stream Score.Event
 
+-- | Group events with the same start time.  Events in Left are not grouped.
 group_coincident :: Ord key => (Score.Event -> key) -> Events
-    -> [Either Events [Score.Event]]
-group_coincident key = go
+    -> [Either [LEvent.LEvent Score.Event] [Score.Event]]
+group_coincident key = go . Stream.to_list
     where
     go [] = []
     go (log@(LEvent.Log {}) : es) = Left [log] : go es
@@ -139,10 +142,10 @@ group_coincident key = go
 -- This is complicated by the fact that an event should suppress coincident
 -- events even if the supressor follows the suppressee in the list, so I have
 -- to look into the future for the greatest suppress_until.
-suppress_notes :: Derive.Events -> Derive.Events
+suppress_notes :: Stream.Stream Score.Event -> Stream.Stream Score.Event
 suppress_notes =
-    snd . Post.emap go Map.empty . Post.zip_on Post.nexts
-        . Post.zip3_on (map Post.hand_key) (map get_suppress)
+    snd . Post.emap go Map.empty . Stream.zip_on Post.nexts
+        . Stream.zip3_on (map Post.hand_key) (map get_suppress)
     where
     go suppressed (nexts, (key, suppress, event)) = case suppress of
         Nothing -> (,) suppressed $ case suppress_until of
@@ -212,9 +215,10 @@ c_apply_start_offset =
             \ instrument is ignored."
     ) $ \min_dur _args deriver -> apply_start_offset min_dur <$> deriver
 
-apply_start_offset :: Maybe RealTime -> Derive.Events -> Derive.Events
+apply_start_offset :: Maybe RealTime -> Stream.Stream Score.Event
+    -> Stream.Stream Score.Event
 apply_start_offset maybe_min_dur =
-    apply_offset . tweak_offset . Post.zip_on (map offset_of)
+    apply_offset . tweak_offset . Stream.zip_on (map offset_of)
     where
     tweak_offset = case maybe_min_dur of
         Nothing -> id

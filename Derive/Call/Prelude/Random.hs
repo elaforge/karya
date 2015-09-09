@@ -15,8 +15,8 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -49,7 +49,7 @@ c_omit = Derive.transformer Module.prelude "omit" Tags.random
         "Chance, from 0 to 1, that the transformed note will be omitted."
     ) $ \omit args deriver -> do
         omit <- Call.control_at omit =<< Args.real_start args
-        ifM (Call.chance omit) (return mempty) deriver
+        ifM (Call.chance omit) (return Stream.empty) deriver
 
 c_alternate :: Derive.Callable d => Derive.Generator d
 c_alternate = Derive.generator Module.prelude "alternate" Tags.random
@@ -61,7 +61,7 @@ c_alternate = Derive.generator Module.prelude "alternate" Tags.random
         Call.eval (Args.context args) val
 
 eval :: Derive.Callable d => Derive.Context d -> TrackLang.Val
-    -> Derive.Deriver [LEvent.LEvent d]
+    -> Derive.Deriver (Stream.Stream d)
 eval info val = do
     quoted <- Derive.require_right id $ Call.val_to_quoted val
     Eval.eval_quoted info quoted

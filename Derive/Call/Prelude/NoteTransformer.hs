@@ -13,11 +13,11 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
-import qualified Derive.LEvent as LEvent
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -188,7 +188,7 @@ c_debug = Derive.transformer Module.prelude "debug" mempty
     $ Sig.callt (Sig.required "tag" "Log msg has this text.")
     $ \tag _ deriver -> do
         events <- deriver
-        Log.debug_data tag (LEvent.events_of events :: [Score.Event])
+        Log.debug_data tag (Stream.events_of events :: [Score.Event])
         return events
 
 -- ** clip
@@ -202,7 +202,7 @@ c_clip = Derive.transformer Module.prelude "clip" mempty
     \ whatever their calling event's duration, e.g. block calls."
     $ Sig.call0t $ \args -> unstretch_args args $ \_dur deriver -> do
         end <- Derive.real $ snd (Args.range args)
-        map (fmap (clip end)) . takeWhile (event_before end) <$>
+        fmap (clip end) . Stream.take_while (event_before end) <$>
             Derive.at (Args.start args) deriver
     where
     clip end event = Score.duration (min (end - Score.event_start event)) event
@@ -213,7 +213,7 @@ c_clip_start = Derive.transformer Module.prelude "Clip" mempty
     \ of the beginning. Events that then lie before the start are clipped."
     $ Sig.call0t $ \args -> unstretch_args args $ \dur deriver -> do
         start <- Derive.real $ fst (Args.range args)
-        dropWhile (event_before start) <$>
+        Stream.drop_while (event_before start) <$>
             Derive.at (Args.end args - dur) deriver
 
 -- ** loop
@@ -227,7 +227,7 @@ c_loop = Derive.transformer Module.prelude "loop" mempty
         let repeats = ceiling $ (end - start) / dur
             starts = take repeats $ Seq.range_ start dur
         real_end <- Derive.real end
-        takeWhile (event_before real_end) <$>
+        Stream.take_while (event_before real_end) <$>
             mconcat [Derive.at s deriver | s <- starts]
 
 c_tile :: Derive.Transformer Derive.Note
@@ -243,7 +243,8 @@ c_tile = Derive.transformer Module.prelude "tile" mempty
         let repeats = ceiling $ (end - sub_start) / dur
             starts = take repeats $ Seq.range_ sub_start dur
         (real_start, real_end) <- Args.real_range args
-        dropWhile (event_before real_start) . takeWhile (event_before real_end)
+        Stream.drop_while (event_before real_start)
+            . Stream.take_while (event_before real_end)
             <$> mconcat [Derive.at s deriver | s <- starts]
 
 -- * util
@@ -273,6 +274,5 @@ unstretch start event_dur process deriver = do
 
 -- | Consistent with half-open ranges, block calls try to include events lining
 -- up with the start, and exclude ones lining up with the end.
-event_before :: RealTime -> LEvent.LEvent Score.Event -> Bool
-event_before t =
-    LEvent.either ((< t - RealTime.eta) . Score.event_start) (const True)
+event_before :: RealTime -> Score.Event -> Bool
+event_before t = (< t - RealTime.eta) . Score.event_start

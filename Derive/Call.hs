@@ -30,12 +30,12 @@ import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Eval as Eval
 import qualified Derive.Flags as Flags
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -334,7 +334,7 @@ add_attrs attrs
 add_flags :: Flags.Flags -> Derive.NoteDeriver -> Derive.NoteDeriver
 add_flags flags
     | flags == mempty = id
-    | otherwise = fmap (fmap (fmap (Score.add_flags flags)))
+    | otherwise = fmap (fmap (Score.add_flags flags))
 
 -- * random
 
@@ -496,7 +496,7 @@ default_timestep args step =
 -- * evaluation
 
 eval :: Derive.Callable d => Derive.Context d -> BaseTypes.Val
-    -> Derive.Deriver [LEvent.LEvent d]
+    -> Derive.Deriver (Stream.Stream d)
 eval info val = do
     quoted <- Derive.require_right id $ val_to_quoted val
     Eval.eval_quoted info quoted

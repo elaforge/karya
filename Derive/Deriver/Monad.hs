@@ -41,7 +41,7 @@ module Derive.Deriver.Monad (
     , Callable(..), Tagged(..), Taggable(..)
     , LogsDeriver
 
-    , Note, NoteDeriver, NoteArgs, Events
+    , Note, NoteDeriver, NoteArgs
     , Control, ControlDeriver, ControlArgs
     , Pitch, PitchDeriver, PitchArgs
 
@@ -121,9 +121,7 @@ module Derive.Deriver.Monad (
     , ScaleError(..)
 
     -- * merge
-    , error_to_warn, merge_events, merge_event_lists, merge_asc_events
-    , levent_key
-    , merge_logs
+    , error_to_warn, merge_logs
 
     -- * testing
     , invalidate_damaged
@@ -141,7 +139,6 @@ import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
-import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
 import qualified Ui.Event as Event
@@ -156,18 +153,17 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Deriver.DeriveM as DeriveM
 import Derive.Deriver.DeriveM (get, gets, modify, put, run)
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.ValType as ValType
 
 import qualified Perform.Lilypond.Types as Lilypond.Types
 import qualified Perform.Pitch as Pitch
-import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import Global
@@ -286,7 +282,7 @@ class (Show d, Taggable d) => Callable d where
     lookup_transformer :: BaseTypes.CallId -> Deriver (Maybe (Transformer d))
     callable_name :: Proxy d -> Text
 
-type LogsDeriver d = Deriver [LEvent.LEvent d]
+type LogsDeriver d = Deriver (Stream.Stream d)
 
 -- | This is for 'ctx_prev_val'.  Normally the previous value is available
 -- in all its untagged glory based on the type of the call, but ValCalls can
@@ -319,21 +315,13 @@ instance Taggable Score.Event where
     from_tagged (TagEvent a) = Just a
     from_tagged _ = Nothing
 
--- | This might seem like an inefficient way to represent the Event stream,
--- but I can't think of how to make it better.
---
--- Each call generates a chunk [Event], and the chunks are then joined with
--- 'd_merge'.  This means every cons is copied once, but I think this is hard
--- to avoid if I want to merge streams.
-type Events = [LEvent.LEvent Score.Event]
-
 instance Callable Score.Event where
     lookup_generator = lookup_with (scope_note . scopes_generator)
     lookup_transformer = lookup_with (scope_note . scopes_transformer)
     callable_name _ = "note"
 
 instance Monoid.Monoid NoteDeriver where
-    mempty = return []
+    mempty = return mempty
     mappend d1 d2 = d_merge [d1, d2]
     mconcat = d_merge
 
@@ -972,7 +960,7 @@ instance Pretty.Pretty ControlMod where
 data Integrated = Integrated {
     -- BlockId for a block integration, TrackId for a track integration.
     integrated_source :: !(Either BlockId TrackId)
-    , integrated_events :: !Events
+    , integrated_events :: !(Stream.Stream Score.Event)
     } deriving (Show)
 
 instance Pretty.Pretty Integrated where
@@ -1336,10 +1324,13 @@ generator :: Module.Module -> Text -> Tags.Tags -> Text
 generator module_ name tags doc (func, arg_docs) =
     make_call module_ name tags doc (generator_func func, arg_docs)
 
+-- | Make a generator from a function which returns events in sorted order.
+-- TODO this just trusts that the events will be sorted.  Is there a safer way?
 generator_events :: Module.Module -> Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> Deriver [d]) -> Generator d
 generator_events module_ name tags doc (func, arg_docs) =
-    generator module_ name tags doc ((map LEvent.Event <$>) . func, arg_docs)
+    generator module_ name tags doc
+        ((Stream.from_sorted_events <$>) . func, arg_docs)
 
 -- | Since Signals themselves are collections, there's little reason for a
 -- signal generator to return a Stream of events.  So wrap the generator result
@@ -1350,7 +1341,7 @@ generator1 :: Module.Module -> Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs d -> Deriver d) -> Generator d
 generator1 module_ name tags doc (func, arg_docs) =
     generator module_ name tags doc
-        (((:[]) . LEvent.Event <$>) . func, arg_docs)
+        ((Stream.from_event <$>) . func, arg_docs)
 
 -- | Set the 'gfunc_score_duration' field to get ScoreTime CallDuration.
 with_score_duration :: (PassedArgs d -> Deriver (CallDuration ScoreTime))
@@ -1443,7 +1434,7 @@ instance DeepSeq.NFData CacheEntry where
 
 -- | The type here should match the type of the stack it's associated with,
 -- but I'm not quite up to those type gymnastics yet.
-data CallType d = CallType !Collect ![LEvent.LEvent d]
+data CallType d = CallType !Collect !(Stream.Stream d)
 
 instance (DeepSeq.NFData d) => DeepSeq.NFData (CallType d) where
     rnf (CallType collect events) = rnf collect `seq` rnf events
@@ -1652,40 +1643,20 @@ instance Pretty.Pretty ScaleError where
 d_merge :: [NoteDeriver] -> NoteDeriver
 d_merge [] = mempty
 d_merge [d] = d
-d_merge derivers = merge_event_lists <$> sequence derivers
+d_merge derivers = mconcat <$> sequence derivers
     -- Previously, each deriver was run independently, and their Collects
     -- merged.  The theory was to allow their derivation to be interleaved
     -- on demand as the events themselves are interleaved.  However, profiling
     -- doesn't show a significant difference, and this way is simpler.
 
-merge_logs :: Either Error [LEvent.LEvent d] -> [Log.Msg] -> [LEvent.LEvent d]
+merge_logs :: Either Error (Stream.Stream a) -> [Log.Msg] -> Stream.Stream a
 merge_logs result logs = case result of
-    Left err -> map LEvent.Log (logs ++ [error_to_warn err])
-    Right events -> events ++ map LEvent.Log logs
+    Right stream -> Stream.merge_logs logs stream
+    Left err -> Stream.from_logs $ error_to_warn err : logs
 
 error_to_warn :: Error -> Log.Msg
 error_to_warn (Error srcpos stack val) =
     Log.msg_srcpos srcpos Log.Warn (Just stack) ("Error: " <> pretty val)
-
-merge_events :: Events -> Events -> Events
-merge_events = Seq.merge_on levent_key
-
-merge_event_lists :: [Events] -> Events
-merge_event_lists = Seq.merge_lists levent_key
-
--- | Merge sorted lists of events.  If the lists themselves are also sorted,
--- I can produce output without scanning the entire input list, so this should
--- be more efficient for a large input list than 'merge_events'.
-merge_asc_events :: [Events] -> Events
-merge_asc_events = Seq.merge_asc_lists levent_key
-
--- | This will make logs always merge ahead of score events, but that should
--- be ok.
-levent_key :: LEvent.LEvent Score.Event -> RealTime
-    -- Yeah it's a hack and I could use a pair, but RealTime should never go
-    -- far negative.
-levent_key (LEvent.Log _) = -RealTime.large
-levent_key (LEvent.Event event) = Score.event_start event
 
 {- NOTE [control-modification]
     . Control tracks return a single control, and how that merges into the

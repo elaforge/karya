@@ -9,8 +9,8 @@ module Derive.DDebug where
 import qualified Util.Seq as Seq
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -25,5 +25,5 @@ showr = maybe (return "-") showd
 
 showd :: Derive.NoteDeriver -> Derive.Deriver Text
 showd d = do
-    es <- LEvent.events_of <$> d
+    es <- Stream.events_of <$> d
     return $ maybe "?" Pitch.note_text $ Score.initial_note =<< Seq.head es

@@ -20,6 +20,7 @@ import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
@@ -123,7 +124,7 @@ c_show_args = Derive.generator module_ "show-args" mempty "doc" $
     Sig.parsed_manually "doc" $ \args -> do
         Log.warn $ Text.intercalate ", " $
             map ShowVal.show_val (Derive.passed_vals args)
-        return []
+        return Stream.empty
 
 generator :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.LogsDeriver d)
     -> Derive.Generator d

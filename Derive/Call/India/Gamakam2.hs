@@ -25,12 +25,12 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Eval as Eval
-import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -313,7 +313,7 @@ eval module_ start end expr = do
     (result, cmods) <- lift $ with_empty_collect $
         Derive.with_imported True module_ $
         eval_expr (place_event start (end - start) ctx) expr
-    signal <- mconcat <$> LEvent.write_logs result
+    signal <- mconcat <$> Stream.write_logs result
     unless (PSignal.null signal) $
         Monad.State.put $ ctx { Derive.ctx_prev_val = Just signal }
     return (signal, cmods)
@@ -757,7 +757,7 @@ c_sahitya :: Derive.Taggable a => Derive.Transformer a
 c_sahitya = Derive.transformer module_ "sahitya" mempty
     "Ignore the transformed deriver. Put this on a track to ignore its\
     \ contents, and put in sahitya."
-    $ Sig.call0t $ \_args _deriver -> return mempty
+    $ Sig.call0t $ \_args _deriver -> return Stream.empty
 
 -- * util
 

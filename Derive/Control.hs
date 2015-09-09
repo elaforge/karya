@@ -57,6 +57,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Stream as Stream
 import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackLang as TrackLang
 
@@ -205,9 +206,7 @@ with_merger (Score.Typed typ control) merger signal =
     Derive.with_merged_control merger control (Score.Typed typ signal)
 
 merge_logs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
-merge_logs logs deriver = do
-    events <- deriver
-    return $ Derive.merge_events (map LEvent.Log logs) events
+merge_logs logs = fmap (Stream.merge_logs logs)
 
 pitch_call :: TrackTree.Track -> Score.PControl
     -> Derive.Merger PSignal.Signal -> Pitch.ScaleId
@@ -311,12 +310,12 @@ derive_track :: (Monoid.Monoid d, Derive.Callable d) => EvalTrack.TrackInfo d
 derive_track tinfo transform = do
     stream <- transform $ do
         state <- Derive.get
-        let (stream, threaded, collect) =
+        let (streams, threaded, collect) =
                 EvalTrack.derive_control_track state tinfo
         Internal.merge_collect collect
         Internal.set_threaded threaded
-        return $ compact (concat stream)
-    let (signal_chunks, logs) = LEvent.partition stream
+        return $ compact $ concat $ map Stream.to_list streams
+    let (signal_chunks, logs) = Stream.partition stream
     -- I just merged the signals in 'compact', so this should just convert [x]
     -- to x.
     return (mconcat signal_chunks, logs)
@@ -324,7 +323,7 @@ derive_track tinfo transform = do
     -- Merge the signal here so it goes in the cache as one signal event.
     -- I can use concat instead of merge_asc_events because the signals
     -- will be merged with Signal.merge and the logs extracted.
-    compact events = LEvent.Event (mconcat sigs) : map LEvent.Log logs
+    compact events = Stream.from_event_logs (mconcat sigs) logs
         where (sigs, logs) = LEvent.partition events
 
 -- | Make a TrackInfo for control tracks.

@@ -28,7 +28,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Derive as Derive
-import qualified Derive.LEvent as LEvent
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.RealTime as RealTime
@@ -241,7 +241,7 @@ performance result = Cmd.Performance
         Derive.state_collect $ Derive.r_state result
     , Cmd.perf_track_signals = Derive.r_track_signals result
     }
-    where (events, logs) = LEvent.partition (Derive.r_events result)
+    where (events, logs) = Stream.partition (Derive.r_events result)
 
 modify_play_state :: (Cmd.PlayState -> Cmd.PlayState) -> Cmd.State -> Cmd.State
 modify_play_state modify state =
