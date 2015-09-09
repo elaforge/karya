@@ -35,7 +35,7 @@ import Global
 import Types
 
 
-data Flag = Help | Mode Mode | FailureDir !FilePath
+data Flag = Help | Mode Mode | Output !FilePath
     deriving (Eq, Show)
 
 data Mode = Verify | Save | Perform | DumpMidi
@@ -54,7 +54,7 @@ options =
         \  Save - Write saved performances to disk as binary.\n\
         \  Perform - Perform to MIDI and write to $input.midi.\n\
         \  DumpMidi - Pretty print binary saved MIDI to stdout."
-    , GetOpt.Option [] ["out"] (GetOpt.ReqArg FailureDir "dir")
+    , GetOpt.Option [] ["out"] (GetOpt.ReqArg Output "build/test")
         "write output to this directory"
     ]
 
@@ -75,7 +75,7 @@ main = Git.initialize $ do
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
     when (null args) $ usage "no inputs"
     unless (null [Help | Help <- flags]) $ usage ""
-    let out_dir = Seq.last [d | FailureDir d <- flags]
+    let out_dir = Seq.last [d | Output d <- flags] <|> Just "build/test"
     failures <- case fromMaybe Verify $ Seq.last [m | Mode m <- flags] of
         Verify -> do
             cmd_config <- DeriveSaved.load_cmd_config
@@ -194,15 +194,14 @@ verify_midi failure_dir fname cmd_state state block_id performance = do
         (Nothing, _, _) -> return Nothing
         (Just err, expected, got) -> case failure_dir of
             Just dir -> do
+                let base = dir </> basename fname
                 liftIO $ do
-                    Text.IO.writeFile (dir </> base ++ ".expected") $
+                    Text.IO.writeFile (base ++ ".expected") $
                         Text.unlines expected
-                    Text.IO.writeFile (dir </> base ++ ".got") $
-                        Text.unlines got
-                return $ Just $ err <> "\nwrote " <> txt (dir </> base)
+                    Text.IO.writeFile (base ++ ".got") $ Text.unlines got
+                return $ Just $ err <> "\nwrote " <> txt base
                     <> ".{expected,got}"
             Nothing -> return $ Just err
-    where base = basename fname
 
 perform_block :: FilePath -> Cmd.State -> State.State -> BlockId
     -> Error [Midi.WriteMessage]
@@ -229,11 +228,11 @@ verify_lilypond failure_dir fname cmd_state state block_id expected = do
                 Just dir -> do
                     let base = dir </> basename fname
                     liftIO $ do
-                        Text.IO.writeFile (base ++ ".expected.ly") $
+                        Text.IO.writeFile (base ++ ".ly.expected") $
                             State.perf_performance expected
-                        Text.IO.writeFile (base ++ ".got.ly") got
-                    return $ Just $ err <> "\nwrote " <> txt (dir </> base)
-                        <> ".{expected,got}.ly"
+                        Text.IO.writeFile (base ++ ".ly.got") got
+                    return $ Just $ err <> "\nwrote " <> txt base
+                        <> ".ly.{expected,got}"
                 Nothing -> return $ Just err
 
 -- * util
