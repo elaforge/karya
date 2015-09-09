@@ -53,13 +53,13 @@ import Types
 
 -- | Apply a toplevel expression.
 eval_toplevel :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
-    -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d)
 eval_toplevel ctx expr = eval_transformers ctx transform_calls $
     eval_generator ctx generator_call
     where (transform_calls, generator_call) = Seq.ne_viewr expr
 
 eval_quoted :: Derive.Callable d => Derive.Context d -> BaseTypes.Quoted
-    -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d)
 eval_quoted ctx (BaseTypes.Quoted expr) = eval_toplevel ctx expr
 
 -- | This is like 'eval_quoted', except that the 'Derive.ctx_event' is set to
@@ -70,7 +70,7 @@ eval_quoted ctx (BaseTypes.Quoted expr) = eval_toplevel ctx expr
 -- TODO this awkwardness is because events evaluate in track time, not in
 -- normalized time.  Details in "Derive.EvalTrack".
 eval_quoted_normalized :: Derive.Callable d => Derive.Context d
-    -> BaseTypes.Quoted -> Derive.LogsDeriver d
+    -> BaseTypes.Quoted -> Derive.Deriver (Stream.Stream d)
 eval_quoted_normalized = eval_quoted . normalize_event
 
 normalize_event :: Derive.Context val -> Derive.Context val
@@ -83,7 +83,7 @@ normalize_event ctx = ctx
 -- ** generator
 
 eval_generator :: forall d. Derive.Callable d => Derive.Context d
-    -> BaseTypes.Call -> Derive.LogsDeriver d
+    -> BaseTypes.Call -> Derive.Deriver (Stream.Stream d)
 eval_generator ctx (BaseTypes.Call call_id args) = do
     vals <- mapM (eval ctx) args
     apply_generator ctx call_id vals
@@ -91,7 +91,7 @@ eval_generator ctx (BaseTypes.Call call_id args) = do
 -- | Like 'apply_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
 apply_generator :: Derive.Callable d => Derive.Context d
-    -> BaseTypes.CallId -> [BaseTypes.Val] -> Derive.LogsDeriver d
+    -> BaseTypes.CallId -> [BaseTypes.Val] -> Derive.Deriver (Stream.Stream d)
 apply_generator ctx call_id args = do
     call <- get_generator call_id
     let passed = Derive.PassedArgs
@@ -123,7 +123,8 @@ set_real_duration dur = Internal.modify_collect $ \collect ->
 -- ** transformer
 
 eval_transformers :: Derive.Callable d => Derive.Context d
-    -> [BaseTypes.Call] -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+    -> [BaseTypes.Call] -> Derive.Deriver (Stream.Stream d)
+    -> Derive.Deriver (Stream.Stream d)
 eval_transformers ctx calls deriver = go calls
     where
     go [] = deriver
@@ -140,7 +141,7 @@ eval_transformers ctx calls deriver = go calls
 
 -- | Parse and apply a transformer expression.
 eval_transform_expr :: Derive.Callable d => Text -> Text
-    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 eval_transform_expr name expr_str deriver
     | Text.all Char.isSpace expr_str = deriver
     | otherwise = do
@@ -152,7 +153,8 @@ eval_transform_expr name expr_str deriver
 
 -- | The same as 'eval_transformers', but get them out of a Quoted.
 eval_quoted_transformers :: Derive.Callable d => Derive.Context d
-    -> BaseTypes.Quoted -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+    -> BaseTypes.Quoted -> Derive.Deriver (Stream.Stream d)
+    -> Derive.Deriver (Stream.Stream d)
 eval_quoted_transformers ctx (BaseTypes.Quoted expr) =
     eval_transformers ctx (NonEmpty.toList expr)
 
@@ -160,8 +162,8 @@ eval_quoted_transformers ctx (BaseTypes.Quoted expr) =
 -- but apply only one, and apply to already evaluated 'BaseTypes.Val's.  This
 -- is useful when you want to re-apply an already parsed set of vals.
 apply_transformer :: Derive.Callable d => Derive.Context d
-    -> BaseTypes.CallId -> [BaseTypes.Val] -> Derive.LogsDeriver d
-    -> Derive.LogsDeriver d
+    -> BaseTypes.CallId -> [BaseTypes.Val] -> Derive.Deriver (Stream.Stream d)
+    -> Derive.Deriver (Stream.Stream d)
 apply_transformer ctx call_id args deriver = do
     call <- get_transformer call_id
     let passed = Derive.PassedArgs
@@ -266,15 +268,16 @@ make_relative block_id name = Id.ident_name block_id <> "-" <> name
 
 -- | Evaluate a single note as a generator.  Fake up an event with no prev or
 -- next lists.
-eval_one :: Derive.Callable d => Bool -> BaseTypes.Expr -> Derive.LogsDeriver d
+eval_one :: Derive.Callable d => Bool -> BaseTypes.Expr
+    -> Derive.Deriver (Stream.Stream d)
 eval_one collect = eval_one_at collect 0 1
 
 eval_one_call :: Derive.Callable d => Bool -> BaseTypes.Call
-    -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d)
 eval_one_call collect = eval_one collect . (:| [])
 
 eval_one_at :: Derive.Callable d => Bool -> ScoreTime -> ScoreTime
-    -> BaseTypes.Expr -> Derive.LogsDeriver d
+    -> BaseTypes.Expr -> Derive.Deriver (Stream.Stream d)
 eval_one_at collect start dur expr = eval_expr collect ctx expr
     where
     -- Set the event start and duration instead of using Derive.place since
@@ -295,7 +298,7 @@ eval_event event = case Parse.parse_expr (Event.event_text event) of
 -- | Evaluate a generator, reusing the passed args but replacing the CallId.
 -- Generators can use this to delegate to other generators.
 reapply_generator :: Derive.Callable d => Derive.PassedArgs d
-    -> BaseTypes.CallId -> Derive.LogsDeriver d
+    -> BaseTypes.CallId -> Derive.Deriver (Stream.Stream d)
 reapply_generator args call_id = do
     let ctx = Derive.passed_ctx args
     apply_generator ctx call_id (Derive.passed_vals args)
@@ -304,7 +307,7 @@ reapply_generator args call_id = do
 -- instead of inheriting the start and duration from the args.  This is
 -- essential if you want to shift or stretch the note.
 reapply_generator_normalized :: Derive.Callable d => Derive.PassedArgs d
-    -> BaseTypes.CallId -> Derive.LogsDeriver d
+    -> BaseTypes.CallId -> Derive.Deriver (Stream.Stream d)
 reapply_generator_normalized args = reapply_generator $ args
     { Derive.passed_ctx = ctx
         { Derive.ctx_event = (Derive.ctx_event ctx)
@@ -320,18 +323,18 @@ reapply_generator_normalized args = reapply_generator $ args
 -- arguments in the 'Derive.PassedArgs' since it gets args from the
 -- 'BaseTypes.Expr'.
 reapply :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
-    -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d)
 reapply = eval_expr False
 
 -- | Like 'reapply', but parse the string first.
 reapply_string :: Derive.Callable d => Derive.Context d -> Text
-    -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d)
 reapply_string ctx s = case Parse.parse_expr s of
     Left err -> Derive.throw $ "parse error: " <> err
     Right expr -> reapply ctx expr
 
 reapply_call :: Derive.Callable d => Derive.Context d -> BaseTypes.Symbol
-    -> [BaseTypes.Term] -> Derive.LogsDeriver d
+    -> [BaseTypes.Term] -> Derive.Deriver (Stream.Stream d)
 reapply_call ctx call_id call_args =
     reapply ctx (TrackLang.call call_id call_args :| [])
 
@@ -352,6 +355,6 @@ apply_pitch pos call = apply ctx call []
 
 -- | Evaluate a single expression, catching an exception if it throws.
 eval_expr :: Derive.Callable d => Bool -- ^ see 'Derive.catch'
-    -> Derive.Context d -> BaseTypes.Expr -> Derive.LogsDeriver d
+    -> Derive.Context d -> BaseTypes.Expr -> Derive.Deriver (Stream.Stream d)
 eval_expr collect ctx expr =
     fromMaybe Stream.empty <$> Derive.catch collect (eval_toplevel ctx expr)

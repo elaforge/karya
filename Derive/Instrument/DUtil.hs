@@ -26,6 +26,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -40,7 +41,8 @@ generator :: Text -> Text
 generator name = Derive.generator Module.instrument name mempty
 
 generator0 :: Derive.Taggable d => Text -> Text
-    -> (Derive.PassedArgs d -> Derive.LogsDeriver d) -> Derive.Generator d
+    -> (Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d))
+    -> Derive.Generator d
 generator0 name doc call = generator name doc (Sig.call0 call)
 
 transformer :: Text -> Text -> Derive.WithArgDoc (Derive.TransformerF d)
@@ -95,7 +97,8 @@ postproc_note name doc f = postproc_generator name doc Note.c_note apply
 -- name and the documentation is prepended to the documentation of the original
 -- call.
 postproc_generator :: Text -> Text -> Derive.Generator d
-    -> (Derive.LogsDeriver d -> Derive.LogsDeriver d) -> Derive.Generator d
+    -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
+    -> Derive.Generator d
 postproc_generator name new_doc (Derive.Call _ old_doc func) f = Derive.Call
     { call_name = name
     , call_doc = append_doc new_doc old_doc

@@ -256,7 +256,7 @@ hand_key e = (Score.event_instrument e,
 -- | Apply a function on the first Event of an LEvent stream.
 -- TODO this shouldn't destroy the order, but it isn't checkded.
 map_first :: (a -> Derive.Deriver a) -> Stream a
-    -> Derive.LogsDeriver a
+    -> Derive.Deriver (Stream.Stream a)
 map_first f events = event_head events $ \e es -> do
     e <- f e
     return $ Stream.from_sorted_list $ LEvent.Event e : Stream.to_list es
@@ -265,7 +265,7 @@ map_first f events = event_head events $ \e es -> do
 -- TODO weird function with crummy name.
 event_head :: Stream a
     -> (a -> Stream.Stream a -> Derive.Deriver (Stream.Stream a))
-    -> Derive.LogsDeriver a
+    -> Derive.Deriver (Stream.Stream a)
 event_head stream f = go (Stream.to_list stream)
     where
     go [] = return Stream.empty
@@ -294,13 +294,13 @@ pitch_range deriver = do
 
 -- | Transform a pitch or control signal.
 signal :: Monoid.Monoid sig => (sig -> sig)
-    -> Derive.LogsDeriver sig -> Derive.LogsDeriver sig
+    -> Derive.Deriver (Stream.Stream sig) -> Derive.Deriver (Stream.Stream sig)
 signal f deriver = do
     (sig, logs) <- derive_signal deriver
     return $ Stream.from_sorted_list $
         LEvent.Event (f sig) : map LEvent.Log logs
 
-derive_signal :: Monoid.Monoid sig => Derive.LogsDeriver sig
+derive_signal :: Monoid.Monoid sig => Derive.Deriver (Stream.Stream sig)
     -> Derive.Deriver (sig, [Log.Msg])
 derive_signal deriver = do
     (chunks, logs) <- Stream.partition <$> deriver

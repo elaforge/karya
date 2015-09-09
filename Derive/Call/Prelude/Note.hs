@@ -135,7 +135,7 @@ note_track ctx inst attrs deriver = do
     with_inst $ Call.add_attrs (mconcat attrs) $ transform deriver
 
 call_transformer :: Derive.Context d -> Derive.Transformer d
-    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 call_transformer ctx call deriver =
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed deriver

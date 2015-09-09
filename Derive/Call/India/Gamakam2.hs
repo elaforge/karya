@@ -323,7 +323,7 @@ place_event start dur ctx = ctx
     { Derive.ctx_event = Event.place start dur (Derive.ctx_event ctx) }
 
 eval_expr :: Derive.Callable d => Derive.Context d -> Expr
-    -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d)
 eval_expr ctx (QuotedExpr expr) = Eval.eval_toplevel ctx expr
 eval_expr ctx (EvaluatedExpr call_id args) =
     Eval.apply_generator ctx call_id args

@@ -148,7 +148,8 @@ type DeriveResult d = ([Stream.Stream d], Derive.Threaded, Derive.Collect)
 -- same 'derive_track' for control tracks too.  Details are in
 -- 'derive_note_track'.
 type DeriveEmpty d = TrackInfo d -> Maybe Event.Event -> Maybe Event.Event
-    -> Maybe (Derive.LogsDeriver d) -> Maybe (Derive.LogsDeriver d)
+    -> Maybe (Derive.Deriver (Stream.Stream d))
+    -> Maybe (Derive.Deriver (Stream.Stream d))
 
 -- | This is the toplevel function to derive control tracks.  It's responsible
 -- for actually evaluating each event.
@@ -284,7 +285,7 @@ stash_prev_val track prev_val threaded = fromMaybe threaded $ do
             (Derive.state_prev_val threaded)
         }
 
-run_derive :: Derive.State -> Derive.LogsDeriver d
+run_derive :: Derive.State -> Derive.Deriver (Stream.Stream d)
     -> (Stream.Stream d, Derive.State)
 run_derive state deriver = (stream, out_state)
     where
@@ -367,12 +368,12 @@ derive_event :: Derive.Callable d => TrackInfo d -> Maybe d
     -> [Event.Event] -- ^ previous events, in reverse order
     -> Event.Event -- ^ cur event
     -> [Event.Event] -- ^ following events
-    -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d)
 derive_event tinfo prev_val prev event next = derive_event_ctx ctx event
     where ctx = context tinfo prev_val prev event next
 
 derive_event_ctx :: Derive.Callable d => Derive.Context d -> Event.Event
-    -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d)
 derive_event_ctx ctx event
     | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return Stream.empty
     | otherwise = case Parse.parse_expr text of

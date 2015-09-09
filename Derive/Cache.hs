@@ -98,7 +98,7 @@ data Ranges = Ranges !(Ranges.Ranges ScoreTime) !Bool deriving (Show)
 -- | Cache a track, but only if it's not sliced and has a TrackId.
 track :: Cacheable d => TrackTree.Track -> Set.Set TrackId
     -- ^ Children, as documented in 'Track'.
-    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 track track children
     | should_cache track = caching_deriver (Track children)
         (Ranges Ranges.everything False)
@@ -109,7 +109,7 @@ should_cache track = not (TrackTree.track_sliced track)
     && Maybe.isJust (TrackTree.track_id track)
 
 caching_deriver :: Cacheable d => Type -> Ranges
-    -> Derive.LogsDeriver d -> Derive.LogsDeriver d
+    -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 caching_deriver typ range call = do
     st <- Derive.get
     let cdamage = Derive.state_control_damage (Derive.state_dynamic st)

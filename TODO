@@ -240,7 +240,7 @@ UNSORTED
         appropriate.
       . And for that I'd like to have profiling to show how much copying is
         actually done, or rather if it's significant.
-  - Get rid of Derive.LogsDeriver, now it's Derive.Deriver (Stream.Stream a)
+  * Get rid of Derive.LogsDeriver, now it's Derive.Deriver (Stream.Stream a)
   - Rethink if I really want track event calls in TrackTime, rather than
     normalized time.
     . Implementing c_sequence I was confused how stretch was applied twice,

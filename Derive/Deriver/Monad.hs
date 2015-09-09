@@ -39,7 +39,6 @@ module Derive.Deriver.Monad (
 
     -- * derived types
     , Callable(..), Tagged(..), Taggable(..)
-    , LogsDeriver
 
     , Note, NoteDeriver, NoteArgs
     , Control, ControlDeriver, ControlArgs
@@ -282,8 +281,6 @@ class (Show d, Taggable d) => Callable d where
     lookup_transformer :: BaseTypes.CallId -> Deriver (Maybe (Transformer d))
     callable_name :: Proxy d -> Text
 
-type LogsDeriver d = Deriver (Stream.Stream d)
-
 -- | This is for 'ctx_prev_val'.  Normally the previous value is available
 -- in all its untagged glory based on the type of the call, but ValCalls can
 -- occur with all the different types, so they need a tagged 'ctx_prev_val'.
@@ -307,7 +304,7 @@ instance Taggable Tagged where
 -- ** event
 
 type Note = Score.Event
-type NoteDeriver = LogsDeriver Score.Event
+type NoteDeriver = Deriver (Stream.Stream Score.Event)
 type NoteArgs = PassedArgs Score.Event
 
 instance Taggable Score.Event where
@@ -328,7 +325,7 @@ instance Monoid.Monoid NoteDeriver where
 -- ** control
 
 type Control = Signal.Control
-type ControlDeriver = LogsDeriver Signal.Control
+type ControlDeriver = Deriver (Stream.Stream Signal.Control)
 type ControlArgs = PassedArgs Control
 
 instance Taggable Control where
@@ -344,7 +341,7 @@ instance Callable Signal.Control where
 -- ** pitch
 
 type Pitch = PSignal.Signal
-type PitchDeriver = LogsDeriver PSignal.Signal
+type PitchDeriver = Deriver (Stream.Stream PSignal.Signal)
 type PitchArgs = PassedArgs Pitch
 
 instance Taggable Pitch where
@@ -1282,9 +1279,9 @@ data GeneratorFunc d = GeneratorFunc {
     , gfunc_real_duration :: !(PassedArgs d -> Deriver (CallDuration RealTime))
     }
 
-type GeneratorF d = PassedArgs d -> LogsDeriver d
+type GeneratorF d = PassedArgs d -> Deriver (Stream.Stream d)
 
-generator_func :: (PassedArgs d -> LogsDeriver d) -> GeneratorFunc d
+generator_func :: (PassedArgs d -> Deriver (Stream.Stream d)) -> GeneratorFunc d
 generator_func f = GeneratorFunc {
     gfunc_f = f
     , gfunc_score_duration = default_score_duration
@@ -1301,7 +1298,8 @@ default_real_duration args = CallDuration <$>
     score_to_real (Event.duration $ ctx_event $ passed_ctx args)
 
 -- | args -> deriver -> deriver
-type TransformerF d = PassedArgs d -> LogsDeriver d -> LogsDeriver d
+type TransformerF d = PassedArgs d -> Deriver (Stream.Stream d)
+    -> Deriver (Stream.Stream d)
 
 make_call :: Module.Module -> Text -> Tags.Tags -> Text -> WithArgDoc func
     -> Call func

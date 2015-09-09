@@ -126,7 +126,8 @@ c_show_args = Derive.generator module_ "show-args" mempty "doc" $
             map ShowVal.show_val (Derive.passed_vals args)
         return Stream.empty
 
-generator :: Derive.Taggable d => (Derive.PassedArgs d -> Derive.LogsDeriver d)
+generator :: Derive.Taggable d =>
+    (Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d))
     -> Derive.Generator d
 generator = Derive.generator module_ "test" mempty "test doc" . Sig.call0
 

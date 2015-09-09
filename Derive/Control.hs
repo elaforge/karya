@@ -100,8 +100,8 @@ eval_track toplevel track expr ctype deriver = case ctype of
         merger <- get_pitch_merger maybe_merge
         pitch_call track pcontrol merger scale_id transform deriver
     where
-    transform :: Derive.Callable d => Derive.LogsDeriver d
-        -> Derive.LogsDeriver d
+    transform :: Derive.Callable d => Derive.Deriver (Stream.Stream d)
+        -> Derive.Deriver (Stream.Stream d)
     transform = Eval.eval_transformers ctx expr
     ctx = Derive.dummy_context 0 (TrackTree.track_end track) $ case ctype of
         ParseTitle.Tempo {} -> "tempo track"
@@ -305,7 +305,7 @@ trim_signal drop_after drop_at_after track signal
     | otherwise = return signal
 
 derive_track :: (Monoid.Monoid d, Derive.Callable d) => EvalTrack.TrackInfo d
-    -> (Derive.LogsDeriver d -> Derive.LogsDeriver d)
+    -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
     -> Derive.Deriver (TrackResults d)
 derive_track tinfo transform = do
     stream <- transform $ do

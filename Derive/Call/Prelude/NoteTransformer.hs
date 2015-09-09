@@ -139,7 +139,8 @@ parallel_derivers start event_dur derivers durs =
     call_dur = fromMaybe 0 (Seq.maximum durs)
 
 calls_to_derivers :: Derive.Callable d => Derive.PassedArgs d
-    -> NonEmpty TrackLang.Quoted -> [(TrackLang.Quoted, Derive.LogsDeriver d)]
+    -> NonEmpty TrackLang.Quoted
+    -> [(TrackLang.Quoted, Derive.Deriver (Stream.Stream d))]
 calls_to_derivers args calls = zip (NonEmpty.toList calls)
     (map (Eval.eval_quoted_normalized (Args.context args))
         (NonEmpty.toList calls))
