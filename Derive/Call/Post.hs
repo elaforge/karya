@@ -60,6 +60,10 @@ import Types
 emap1_ :: (a -> b) -> Stream a -> Stream b
 emap1_ = fmap
 
+-- | Map on Score.Events.  The function is allowed to move the events, since it
+-- sorts them afterwards.
+emap1_ord_ :: (a -> Score.Event) -> Stream a -> Stream Score.Event
+emap1_ord_ f = Stream.sort . fmap f
 
 -- | 1:1 non-monadic map with state.
 emap1 :: (state -> a -> (state, b)) -> state -> Stream a -> (state, Stream b)

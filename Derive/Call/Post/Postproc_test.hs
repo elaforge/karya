@@ -7,6 +7,7 @@ import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Post.Postproc as Postproc
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
@@ -157,6 +158,14 @@ test_apply_start_offset = do
     -- Bounded by previous or next notes.
     equal (run [(top, neighbors "-2")])
         ([(0, min_dur, "4c"), (min_dur, 2 - min_dur, "4d"), (2, 1, "4e")], [])
+
+test_apply_start_offset_sorted = do
+    -- The output is still sorted after applying start offset.
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks "apply-start-offset"
+            . UiTest.note_track
+    equal (run [(0, 1, "%start-s = 2 | -- 4c"), (1, 1, "4d")])
+        ([(1, 1, "4d"), (2, Note.min_duration, "4c")], [])
 
 test_adjust_offset = do
     let f (s1, o1) (s2, o2) =

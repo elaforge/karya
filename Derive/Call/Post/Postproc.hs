@@ -230,7 +230,7 @@ apply_start_offset maybe_min_dur =
             offset (Score.event_start event)
         extract (offset, event) = (offset, Score.event_start event)
 
-    apply_offset = Post.emap1_ apply . Post.neighbors_same_hand snd
+    apply_offset = Post.emap1_ord_ apply . Post.neighbors_same_hand snd
     apply (_, (offset, event), maybe_next) =
         set_dur $ Score.move_start (fromMaybe Note.min_duration maybe_min_dur)
             offset event
