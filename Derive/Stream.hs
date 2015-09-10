@@ -24,6 +24,7 @@ module Derive.Stream (
 import Prelude hiding (length, zip, zip3)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
+import qualified Data.Monoid as Monoid
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
@@ -71,7 +72,7 @@ newtype Stream a = Stream [LEvent.LEvent a]
 
 data Sorted = Unsorted | Sorted deriving (Show, Eq)
 
-instance Monoid Sorted where
+instance Monoid.Monoid Sorted where
     mempty = Sorted
     mappend Sorted Sorted = Sorted
     mappend _ _ = Unsorted
@@ -79,7 +80,7 @@ instance Monoid Sorted where
 emap :: ([LEvent.LEvent a] -> [LEvent.LEvent b]) -> Stream a -> Stream b
 emap f = from_sorted_list . f . to_list
 
-instance Monoid (Stream Score.Event) where
+instance Monoid.Monoid (Stream Score.Event) where
     mempty = from_sorted_list mempty
     mappend s1 s2 =
         from_sorted_list $ Seq.merge_on levent_key (to_list s1) (to_list s2)
@@ -98,11 +99,11 @@ instance Monoid (Stream Score.Event) where
 -- such a big deal.
 
 -- | Signal.Control streams don't need sorted order.
-instance Monoid (Stream Signal.Control) where
+instance Monoid.Monoid (Stream Signal.Control) where
     mempty = empty
     mappend s1 s2 = from_sorted_list (to_list s1 <> to_list s2)
 
-instance Monoid (Stream PSignal.Signal) where
+instance Monoid.Monoid (Stream PSignal.Signal) where
     mempty = empty
     mappend s1 s2 = from_sorted_list (to_list s1 <> to_list s2)
 
