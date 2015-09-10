@@ -12,9 +12,12 @@ import Control.Monad (void, guard)
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
 import Data.Functor ((<$>))
+import Data.Text (Text)
+import qualified Data.Text.IO as Text.IO
 
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
+import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
@@ -69,3 +72,7 @@ ignoreIO = ignoreError (\(_ :: IO.Error.IOError) -> True)
 ignoreError :: Exception.Exception e => (e -> Bool) -> IO a -> IO (Maybe a)
 ignoreError ignore action = Exception.handleJust (guard . ignore)
     (const (return Nothing)) (fmap Just action)
+
+writeLines :: FilePath -> [Text] -> IO ()
+writeLines fname lines = IO.withFile fname IO.WriteMode $ \hdl ->
+    mapM_ (Text.IO.hPutStrLn hdl) lines

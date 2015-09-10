@@ -54,9 +54,12 @@ options =
         \  Save - Write saved performances to disk as binary.\n\
         \  Perform - Perform to MIDI and write to $input.midi.\n\
         \  DumpMidi - Pretty print binary saved MIDI to stdout."
-    , GetOpt.Option [] ["out"] (GetOpt.ReqArg Output "build/test")
+    , GetOpt.Option [] ["out"] (GetOpt.ReqArg Output default_out_dir)
         "write output to this directory"
     ]
+
+default_out_dir :: FilePath
+default_out_dir = "build/test"
 
 read_mode :: String -> Flag
 read_mode s =
@@ -75,7 +78,7 @@ main = Git.initialize $ do
         (_, _, errs) -> usage $ "flag errors:\n" ++ Seq.join ", " errs
     when (null args) $ usage "no inputs"
     unless (null [Help | Help <- flags]) $ usage ""
-    let out_dir = Seq.last [d | Output d <- flags] <|> Just "build/test"
+    let out_dir = fromMaybe default_out_dir $ Seq.last [d | Output d <- flags]
     failures <- case fromMaybe Verify $ Seq.last [m | Mode m <- flags] of
         Verify -> do
             cmd_config <- DeriveSaved.load_cmd_config
@@ -87,14 +90,10 @@ main = Git.initialize $ do
                     then "+++++++++++++++++++++++++ OK!"
                     else "_________________________ FAILED!"
                 return fails
-        Save -> case out_dir of
-            Nothing -> usage "Save requires --out"
-            Just dir -> run $ concat <$> mapM (save dir) args
-        Perform -> case out_dir of
-            Nothing -> usage "Perform requires --out"
-            Just dir -> do
-                cmd_config <- DeriveSaved.load_cmd_config
-                run $ concat <$> mapM (perform dir cmd_config) args
+        Save -> run $ concat <$> mapM (save out_dir) args
+        Perform -> do
+            cmd_config <- DeriveSaved.load_cmd_config
+            run $ concat <$> mapM (perform out_dir cmd_config) args
         DumpMidi -> run $ concat <$> mapM dump_midi args
     Process.exit failures
     where
@@ -169,39 +168,31 @@ dump_midi fname = do
     liftIO $ mapM_ Pretty.pprint (Vector.toList msgs)
     return []
 
-verify_performance :: Maybe FilePath -> Cmd.Config -> FilePath -> Error [Text]
-verify_performance failure_dir cmd_config fname = do
+verify_performance :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
+verify_performance out_dir cmd_config fname = do
     (state, library, block_id) <- load fname
     let meta = State.config#State.meta #$ state
     let cmd_state = make_cmd_state library cmd_config
     let midi_perf = Map.lookup block_id (State.meta_midi_performances meta)
         ly_perf = Map.lookup block_id (State.meta_lilypond_performances meta)
     midi_err <- maybe (return Nothing)
-        (verify_midi failure_dir fname cmd_state state block_id) midi_perf
+        (verify_midi out_dir fname cmd_state state block_id) midi_perf
     ly_err <- maybe (return Nothing)
-        (verify_lilypond failure_dir fname cmd_state state block_id) ly_perf
+        (verify_lilypond out_dir fname cmd_state state block_id) ly_perf
     return $ case (midi_perf, ly_perf) of
         (Nothing, Nothing) -> ["no saved performances"]
         _ -> Maybe.catMaybes [midi_err, ly_err]
 
 
 -- | Perform from the given state and compare it to the old MidiPerformance.
-verify_midi :: Maybe FilePath -> FilePath -> Cmd.State -> State.State -> BlockId
+verify_midi :: FilePath -> FilePath -> Cmd.State -> State.State -> BlockId
     -> State.MidiPerformance -> Error (Maybe Text)
-verify_midi failure_dir fname cmd_state state block_id performance = do
+verify_midi out_dir fname cmd_state state block_id performance = do
     msgs <- perform_block fname cmd_state state block_id
-    case DiffPerformance.diff_midi_performance performance msgs of
-        (Nothing, _, _) -> return Nothing
-        (Just err, expected, got) -> case failure_dir of
-            Just dir -> do
-                let base = dir </> basename fname
-                liftIO $ do
-                    Text.IO.writeFile (base ++ ".expected") $
-                        Text.unlines expected
-                    Text.IO.writeFile (base ++ ".got") $ Text.unlines got
-                return $ Just $ err <> "\nwrote " <> txt base
-                    <> ".{expected,got}"
-            Nothing -> return $ Just err
+    (maybe_diff, wrote_files) <- liftIO $
+        DiffPerformance.diff_midi_performance (basename fname) out_dir
+            performance msgs
+    return $ (<> ("\nwrote " <> txt (unwords wrote_files))) <$> maybe_diff
 
 perform_block :: FilePath -> Cmd.State -> State.State -> BlockId
     -> Error [Midi.WriteMessage]
@@ -214,26 +205,20 @@ perform_block fname cmd_state state block_id = do
     liftIO $ mapM_ Log.write logs
     return msgs
 
-verify_lilypond :: Maybe FilePath -> FilePath -> Cmd.State -> State.State
+verify_lilypond :: FilePath -> FilePath -> Cmd.State -> State.State
     -> BlockId -> State.LilypondPerformance -> Error (Maybe Text)
-verify_lilypond failure_dir fname cmd_state state block_id expected = do
+verify_lilypond out_dir fname cmd_state state block_id performance = do
     (result, logs) <- liftIO $
         DeriveSaved.timed_lilypond fname state cmd_state block_id
     liftIO $ mapM_ Log.write logs
     case result of
         Left err -> return $ Just $ "error deriving: " <> err
-        Right got -> case DiffPerformance.diff_lilypond expected got of
-            Nothing -> return Nothing
-            Just err -> case failure_dir of
-                Just dir -> do
-                    let base = dir </> basename fname
-                    liftIO $ do
-                        Text.IO.writeFile (base ++ ".ly.expected") $
-                            State.perf_performance expected
-                        Text.IO.writeFile (base ++ ".ly.got") got
-                    return $ Just $ err <> "\nwrote " <> txt base
-                        <> ".ly.{expected,got}"
-                Nothing -> return $ Just err
+        Right got -> do
+            (maybe_diff, wrote_files) <- liftIO $
+                DiffPerformance.diff_lilypond (basename fname ++ ".ly") out_dir
+                    performance got
+            return $ (<> ("\nwrote " <> txt (unwords wrote_files))) <$>
+                maybe_diff
 
 -- * util
 

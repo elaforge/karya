@@ -10,14 +10,21 @@ module Cmd.DiffPerformance (
     -- * diff lilypond
     , diff_lilypond
     -- * diff midi
-    , diff_midi_performance, compare_midi_performance
-    , diff_midi, limit
+    , diff_midi_performance
+    -- * util
+    , show_midi
+    , diff_lines
 ) where
-import qualified Data.Algorithm.Diff as Diff
+import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
+import System.FilePath ((</>))
+import qualified System.IO.Error as IO.Error
+import qualified System.Process as Process
+
+import qualified Util.File as File
 import qualified Util.Seq as Seq
 import qualified Midi.Encode as Encode
 import qualified Midi.Midi as Midi
@@ -48,61 +55,59 @@ save_midi = Serialize.serialize midi_magic
 
 -- * diff lilypond
 
-diff_lilypond :: State.LilypondPerformance -> Text -> Maybe Text
-diff_lilypond prev ly_code
-    | null diffs = Nothing
-    | otherwise = Just $ show_diffs prev diffs
-    where diffs = diff_lines (State.perf_performance prev) ly_code
-
-diff_lines :: Text -> Text -> [[Text]]
-diff_lines expected got = mapMaybe show_diff $
-    Diff.getGroupedDiffBy (==) (Text.lines expected) (Text.lines got)
+diff_lilypond :: String -> FilePath -> State.LilypondPerformance -> Text
+    -> IO (Maybe Text, [FilePath])
+diff_lilypond name dir performance ly_code =
+    first (fmap (info<>)) <$> diff_lines name dir
+        (Text.lines (State.perf_performance performance)) (Text.lines ly_code)
+    where info = diff_info performance <> "\n"
 
 -- * diff midi
 
-diff_midi_performance :: State.MidiPerformance -> [Midi.WriteMessage]
-    -> (Maybe Text, [Text], [Text])
-    -- ^ (abbreviated diff, expected, got)
-diff_midi_performance performance msgs
-    | null diffs = (Nothing, expected, got)
-    | otherwise = (Just $ show_diffs performance diffs, expected, got)
+diff_midi_performance :: String -> FilePath
+    -> State.MidiPerformance -> [Midi.WriteMessage]
+    -> IO (Maybe Text, [FilePath])
+diff_midi_performance name dir performance msgs =
+    first (fmap (info<>)) <$> diff_lines name dir
+        (show_midi $ Vector.toList $ State.perf_performance performance)
+        (show_midi msgs)
+    where info = diff_info performance <> "\n"
+
+-- | Write files in the given directory and run the @diff@ command on them.
+diff_lines :: String -> FilePath -> [Text] -> [Text]
+    -> IO (Maybe Text, [FilePath])
+    -- ^ (abbreviated_diff, wrote_files)
+diff_lines name dir expected got = do
+    File.writeLines expected_fn expected
+    File.writeLines got_fn got
+    (_code, diff, stderr) <- Process.readProcessWithExitCode
+        "diff" [expected_fn, got_fn] ""
+    unless (null stderr) $
+        Exception.throwIO $ IO.Error.userError $ "diff failed: " ++ stderr
+    let abbreviated
+            | null diff = Nothing
+            | otherwise = Just $ show_diffs (txt diff)
+    return (abbreviated, [expected_fn, got_fn])
     where
-    (diffs, expected, got) = diff_midi
-        (Vector.toList (State.perf_performance performance)) msgs
+    expected_fn = dir </> name ++ ".expected"
+    got_fn = dir </> name ++ ".got"
 
--- | This is like 'diff_midi_performance', but much faster if there are many
--- diffs.
-compare_midi_performance :: State.MidiPerformance -> [Midi.WriteMessage] -> Bool
-compare_midi_performance perf msgs =
-    normalize (Vector.toList (State.perf_performance perf)) == normalize msgs
-
-show_diffs :: State.Performance a -> [[Text]] -> Text
-show_diffs perf diffs =
+diff_info :: State.Performance a -> Text
+diff_info perf =
     "Diffs from " <> pretty (State.perf_creation perf)
     <> "\nPatch: " <> State.perf_patch perf
-    <> "\n" <> Text.unlines (limit 50 (List.intercalate [""] diffs))
+
+show_diffs :: Text -> Text
+show_diffs diff = Text.unlines (limit 50 (Text.lines diff))
 
 limit :: Int -> [Text] -> [Text]
-limit n xs = ok ++ if more then ["... (trimmed)"] else []
-    where (ok, more) = take_more n xs
-
-take_more :: Int -> [a] -> ([a], Bool)
-take_more n xs
-    | n <= 0 = ([], not (null xs))
-    | otherwise = case xs of
-        [] -> ([], False)
-        x : xs -> first (x:) $ take_more (n-1) xs
-
--- | Normalize and diff the pretty-printed output.  This ensures that running
--- @diff@ on the results will give the same diffs as this returns.
-diff_midi :: [Midi.WriteMessage] -> [Midi.WriteMessage]
-    -> ([[Text]], [Text], [Text]) -- ^ (diffs, expected, got)
-diff_midi expected got =
-    (mapMaybe show_diff $ Diff.getGroupedDiffBy (==) expected_s got_s,
-        expected_s, got_s)
+limit n xs = pre ++ if null post then [] else [msg]
     where
-    expected_s = map pretty (normalize expected)
-    got_s = map pretty (normalize got)
+    msg = "... trimmed (" <> showt (length xs) <> " lines)"
+    (pre, post) = splitAt n xs
+
+show_midi :: [Midi.WriteMessage] -> [Text]
+show_midi = map pretty . normalize
 
 -- | To better approximate audible differences, I strip excessive time
 -- precision and ensure notes happening at the same time are in a consistent
@@ -123,8 +128,3 @@ normalize = concatMap List.sort . Seq.group_adjacent Midi.wmsg_ts . map strip
 
 round_to :: RealFrac d => Int -> d -> d
 round_to n = (/ 10^n) . fromIntegral . round . (* 10^n)
-
-show_diff :: Diff.Diff [Text] -> Maybe [Text]
-show_diff (Diff.Both {}) = Nothing
-show_diff (Diff.First msgs) = Just $ map ("- " <>) msgs
-show_diff (Diff.Second msgs) = Just $ map ("+ " <>) msgs

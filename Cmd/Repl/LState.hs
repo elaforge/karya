@@ -139,17 +139,12 @@ verify_performance = do
     block_id <- State.get_root_id
     perf <- get_midi_performance block_id
     midi <- perform_midi block_id
-    let (diffs, _expected, _got) =
-            DiffPerformance.diff_midi_performance perf midi
-    return $ fromMaybe "ok!" diffs
-
--- | Faster than 'verify_performance', but no diffs.
-verify_performance_quick :: Cmd.CmdL Text
-verify_performance_quick = do
-    block_id <- State.get_root_id
-    perf <- get_midi_performance block_id
-    midi <- perform_midi block_id
-    return $ showt $ DiffPerformance.compare_midi_performance perf midi
+    let name = Id.ident_name block_id
+    dir <- Cmd.require "need a save dir to put tmp files"
+        =<< Cmd.gets Cmd.state_save_dir
+    (maybe_diff, _) <- liftIO $
+        DiffPerformance.diff_midi_performance (untxt name) dir perf midi
+    return $ fromMaybe "ok!" maybe_diff
 
 perform_midi :: Cmd.M m => BlockId -> m [Midi.WriteMessage]
 perform_midi block_id = do

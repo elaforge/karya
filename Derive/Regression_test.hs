@@ -5,11 +5,8 @@
 -- | Perform some scores and compare them against a saved version of what they
 -- used to output.
 module Derive.Regression_test where
-import qualified Data.List as List
-import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Vector as Vector
-
 import qualified System.FilePath as FilePath
 
 import Util.Test
@@ -40,18 +37,19 @@ large_test_viola_sonata = check =<< compare_performance
 compare_performance :: FilePath -> FilePath -> IO Bool
 compare_performance saved score = timeout score $ do
     cmd_config <- DeriveSaved.load_cmd_config
-    expected <- either (errorIO . untxt)
-        (return . Vector.toList) =<< DiffPerformance.load_midi saved
+    expected <- either (errorIO . untxt) (return . Vector.toList)
+        =<< DiffPerformance.load_midi saved
     got <- DeriveSaved.perform_file cmd_config score
-    (diffs, expected, got) <- return $ DiffPerformance.diff_midi expected got
+    let name = FilePath.takeFileName score
     dir <- tmp_dir "regression"
-    let base = dir FilePath.</> FilePath.takeFileName score
-    Text.IO.writeFile (base ++ ".expected") $ Text.unlines expected
-    Text.IO.writeFile (base ++ ".got") $ Text.unlines got
-    -- Too many diffs aren't useful.
-    mapM_ Text.IO.putStrLn $ DiffPerformance.limit 40
-        (List.intercalate [""] diffs)
-    return $ null (concat diffs)
+    (maybe_diff, wrote_files) <- DiffPerformance.diff_lines name dir
+        (DiffPerformance.show_midi expected) (DiffPerformance.show_midi got)
+    case maybe_diff of
+        Nothing -> return True
+        Just diff -> do
+            Text.IO.putStrLn diff
+            putStrLn $ "wrote: " <> unwords wrote_files
+            return False
 
 timeout :: String -> IO a -> IO a
 timeout fname = maybe (errorIO msg) return <=< Thread.timeout 60
