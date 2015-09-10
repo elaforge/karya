@@ -638,29 +638,18 @@ dispatch modeConfig targets = do
     allBinaries = map hsName hsBinaries ++ map ccName ccBinaries
     hardcoded target = case target of
         -- I should probably run this in staunch mode, -k.
-        "checkin" -> do
-            Shake.want $ map (modeToDir Debug </>) allBinaries ++ [runProfile]
-                ++ extractableDocs
-            -- I used to dispatch to "tests", but putting it here means I can
-            -- build and test in parallel.
-            action $ do
-                need [runTests]
-                system "test/run_tests" [runTests]
+        "checkin" -> action $ do
+            -- Unfortunately, verify_performance is the only binary in
+            -- opt, which most of the opt tree to build.  I could build
+            -- a debug one, but debug deriving is really slow.
             let opt = (modeToDir Opt </>)
-            action $ do
-                -- Unfortunately, verify_performance is the only binary in
-                -- opt, which most of the opt tree to build.  I could build
-                -- a debug one, but debug deriving is really slow.
-                need [opt "verify_performance"]
-                system "mkdir" ["-p", build </> "verify"]
-                Util.shell $ opt "verify_performance --out=build/verify"
-                    <> " save/complete/*"
-            return True
+            needEverything [opt "verify_performance"]
+            system "test/run_tests" [runTests]
+            system "mkdir" ["-p", build </> "verify"]
+            Util.shell $ opt "verify_performance --out=build/verify"
+                <> " save/complete/*"
         -- Compile everything, like checkin but when I don't want to test.
-        "typecheck" -> do
-            Shake.want $ map (modeToDir Debug </>) allBinaries
-                ++ [runTests, runProfile]
-            return True
+        "typecheck" -> action $ needEverything []
         "binaries" -> do
             Shake.want $ map (modeToDir Opt </>) allBinaries
             return True
@@ -697,6 +686,10 @@ dispatch modeConfig targets = do
         _ -> return False
     action act = Shake.action act >> return True
     runTestsTarget tests = runTests ++ maybe "" ('-':) tests
+    needEverything more = do
+        criterion <- getCriterionTargets (modeConfig Profile)
+        need $ map (modeToDir Debug </>) allBinaries
+            ++ criterion ++ [runTests, runProfile] ++ more
 
 hlint :: Config -> Shake.Action ()
 hlint config = do
@@ -902,6 +895,19 @@ runCriterionToSrc config bin = moduleToPath name ++ criterionHsSuffix
     where
     -- build/(mode)/RunCriterion-Derive.Derive -> Derive.Derive
     name = drop 1 $ dropWhile (/='-') $ dropDir (buildDir config) bin
+
+-- | Derive/Derive_criterion.hs -> build/(mode)/RunCriterion-Derive.Derive
+srcToRunCriterion :: Config -> FilePath -> FilePath
+srcToRunCriterion config src =
+    case dropSuffix (pathToModule src) "_criterion" of
+        Just m -> buildDir config </> "RunCriterion-" <> m
+        Nothing -> error $
+            "srcToRunCriterion: expected _criterion suffix: " ++ show src
+
+-- | Find targets for all criterion benchmarks.
+getCriterionTargets :: Config -> Shake.Action [FilePath]
+getCriterionTargets config =
+    map (srcToRunCriterion config) <$> Util.findHs "*_criterion.hs" "."
 
 -- | Match any filename that starts with the given prefix but doesn't have
 -- an extension, i.e. binaries.
@@ -1169,7 +1175,13 @@ includesOf caller config fn = do
 
 dropPrefix :: String -> String -> Maybe String
 dropPrefix pref str
-    | pref `List.isPrefixOf` str = Just (drop (length pref) str)
+    | pref `List.isPrefixOf` str = Just $ drop (length pref) str
+    | otherwise = Nothing
+
+dropSuffix :: String -> String -> Maybe String
+dropSuffix str suf
+    | suf `List.isSuffixOf` str =
+        Just $ reverse $ drop (length suf) (reverse str)
     | otherwise = Nothing
 
 replaceExt :: FilePath -> String -> FilePath
