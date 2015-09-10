@@ -12,6 +12,9 @@ import qualified Cmd.Performance as Performance
 
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+import qualified Derive.Stream as Stream
+
 import qualified Perform.Midi.Perform as Perform
 import Global
 import Types
@@ -114,14 +117,14 @@ cmd_derive state =
         DeriveTest.derive_block_setup setup state (get_root_id state)
     where setup = DeriveTest.with_tsigs (Map.keys (State.state_tracks state))
 
-derive :: State.State -> Derive.Events
+derive :: State.State -> Stream.Stream Score.Event
 derive state =
     Derive.r_events $ DeriveTest.derive_block state (get_root_id state)
 
 get_root_id :: State.State -> BlockId
 get_root_id = fromMaybe (error "no root block") . (State.config#State.root #$)
 
-perform :: State.State -> Derive.Events -> Perform.MidiEvents
+perform :: State.State -> Stream.Stream Score.Event -> Perform.MidiEvents
 perform state events =
     snd $ DeriveTest.perform_stream DeriveTest.default_convert_lookup
         (State.config_midi (State.state_config state)) events
