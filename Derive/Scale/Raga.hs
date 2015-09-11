@@ -24,10 +24,9 @@ scales = map Scale.Simple
     ]
 
 doc :: Text
-doc =
-    "Carnatic ragas, from the melakarta system.\
+doc = "Carnatic ragas, from the melakarta system.\
     \\nThe \"key\" is actually the raga, e.g.\
-    \ `key = shankarabharanam`. I can't represent arohana and avarohana since I\
+    \ `key=shankarabharanam`. I can't represent arohana and avarohana since I\
     \ can't always know in the notation whether the previous note was higher or\
     \ lower, so these are represented as \"enharmonics\". Also, these scales\
     \ deal only with pitches, and don't\
@@ -108,19 +107,48 @@ ni2 = dha3
 ni3 = 15 % 8
 
 aliases_of :: Text -> [Text]
-aliases_of = flip (Map.findWithDefault []) aliases
+aliases_of = flip (Map.findWithDefault []) $
+    Map.unionWith (++) aliases $
+        Map.fromList [(janaka, map fst janyas) | (janaka, janyas) <- janya]
 
+-- | Common aliases for the melakarta names.
 aliases :: Map.Map Text [Text]
-aliases = Map.fromList
+aliases = Map.fromList $ map assert_valid_name
     [ ("dheerashankarabharanam", ["shankarabharanam"])
     , ("mechakalyani", ["kalyani"])
     , ("hanumatodi", ["todi"])
-
-    -- janya
-    , ("harikambhoji", ["mohanam", "kambhoji"])
-    , ("natabhaivari", ["bhairavi"])
-    , ("kharaharapriya", ["abheri"])
+    , ("harikambhoji", ["kambhoji"])
+    , ("natabhairavi", ["bhairavi"])
     ]
+
+-- | Arohana \/ avarohana structure.  Sa is implicit, so it's omitted.
+data Arohana =
+    -- | The arohana is given, the avarohana is the same but reversed.
+    Same [Swaram]
+    -- | Arohana ascending from low sa, avarohana descending from high sa.
+    | Different [Swaram] [Swaram]
+    deriving (Show)
+
+data Swaram = S | R | G | M | P | D | N
+    deriving (Show)
+
+-- | So far this is unused, but I should be able to put it some place where
+-- calls can get at it.
+janya :: [(Text, [(Text, Arohana)])]
+janya = map assert_valid_name
+    [ ("kharaharapriya",
+        [ ("abheri", Different [G, M, P, N] [N, D, P, M, G, R])
+        , ("abhogi", Same [R, G, M, D])
+        ])
+    , ("harikambhoji",
+        [ ("mohanam", Same [R, G, P, D])
+        ])
+    ]
+
+assert_valid_name :: (Text, a) -> (Text, a)
+assert_valid_name val@(name, _)
+    | name `elem` melakarta_names = val
+    | otherwise = error $ "not in melakarta_names: " ++ show name
 
 melakarta_names :: [Text]
 melakarta_names =
