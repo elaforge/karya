@@ -13,7 +13,7 @@ import qualified System.FilePath as FilePath
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
-import Util.Test
+import qualified Util.Test as Test
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
 import qualified Ui.State as State
@@ -59,9 +59,9 @@ add_library lib state =
 timed_perform :: Cmd.State -> FilePath -> State.State -> Cmd.Events
     -> IO ([Midi.WriteMessage], [Log.Msg])
 timed_perform cmd_state msg state events =
-    print_timer msg (timer_msg (length . fst)) $ do
+    Test.print_timer msg (timer_msg (length . fst)) $ do
         let (msgs, logs) = perform cmd_state state events
-        force (msgs, logs)
+        Test.force (msgs, logs)
         return (msgs, logs)
 
 timed_derive :: FilePath -> State.State -> Cmd.State -> BlockId
@@ -73,7 +73,7 @@ timed_derive name ui_state cmd_state block_id =
             let (events, derive_logs) = first Vector.fromList $
                     Stream.partition $ Derive.r_events result
                 msg = "derive " <> name <> " " <> prettys block_id
-            events <- print_timer msg (timer_msg Vector.length)
+            events <- Test.print_timer msg (timer_msg Vector.length)
                 (return $! events)
             return (events, cmd_logs ++ filter (not . boring) derive_logs)
     where boring = Cache.is_cache_log
@@ -84,7 +84,7 @@ timed_lilypond name ui_state cmd_state block_id = case result of
     Left err -> return (Left err, [])
     Right (levents, cmd_logs) -> do
         let (events, derive_logs) = Stream.partition levents
-        events <- print_timer ("lilypond " <> name) (timer_msg length)
+        events <- Test.print_timer ("lilypond " <> name) (timer_msg length)
             (return $! events)
         let (result, ly_logs) = Cmd.Lilypond.extract_movements
                 config "title" events
@@ -96,10 +96,14 @@ timed_lilypond name ui_state cmd_state block_id = case result of
     config = State.config#State.lilypond #$ ui_state
     boring = Cache.is_cache_log
 
-timer_msg :: (a -> Int) -> Double -> a -> String
-timer_msg len secs events = Printf.printf "events: %d (%d / sec)"
-    events_len (round (fromIntegral events_len / secs) :: Int)
-    where events_len = len events
+timer_msg :: (a -> Int) -> Double -> Double -> a -> String
+timer_msg len cpu_secs secs events =
+    Printf.printf "events: %d (%d / cpu, %d / sec)"
+        events_len (per cpu_secs) (per secs)
+    where
+    events_len = len events
+    per :: Double -> Int
+    per secs = round (fromIntegral events_len / secs)
 
 derive_block :: State.State -> Cmd.State -> BlockId
     -> Either Text (Derive.Result, [Log.Msg])
@@ -127,7 +131,7 @@ perform cmd_state ui_state events =
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: FilePath -> IO (Either Text (State.State, Derive.Library))
 load_score fname =
-    print_timer ("load " ++ fname) (\_ _ -> "") $ Error.runErrorT $ do
+    Test.print_timer ("load " ++ fname) (\_ _ _ -> "") $ Error.runErrorT $ do
         save <- require_right $ Save.infer_save_type fname
         (state, dir) <- case save of
             Cmd.SaveRepo repo -> do

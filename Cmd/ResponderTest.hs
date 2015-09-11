@@ -168,9 +168,9 @@ thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
 thread_delay _ _ [] = return []
 thread_delay print_timing states ((msg, delay) : msgs) = do
     Printf.printf "thread msg: %s\n" (prettys msg)
-    (result, secs) <- timer $ respond_msg states msg
+    (result, cpu_secs, _secs) <- timer $ respond_msg states msg
     when print_timing $
-        Printf.printf "%s -> lag: %.2fs\n" (prettys msg) secs
+        Printf.printf "%s -> lag: %.2fs\n" (prettys msg) cpu_secs
     Thread.delay delay
     (result:) <$> thread_delay print_timing (result_states result) msgs
 

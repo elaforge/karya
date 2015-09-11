@@ -31,7 +31,7 @@ profile_load = do
 load :: FilePath -> IO State.State
 load fname = do
     result <- print_timer ("unserialize " ++ show fname)
-        (\_ _ -> "") (Save.read_state_ fname)
+        (\_ _ _ -> "") (Save.read_state_ fname)
     Just state <- return $ expect_right "load" result
     return state
 

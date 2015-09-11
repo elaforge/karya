@@ -177,12 +177,12 @@ derive_saved with_perform fname = do
 
 derive_size :: State.StateId a -> IO ()
 derive_size create = do
-    print_timer "force mmsgs" (\_ _ -> "done") (force mmsgs)
-    print_timer "gc" (\_ _ -> "") Mem.performGC
+    print_timer "force mmsgs" (\_ _ _ -> "done") (force mmsgs)
+    print_timer "gc" (\_ _ _ -> "") Mem.performGC
     -- This puts a gap in the heap graph so I can tell which each phase begins.
     -- Surely there is a less ridiculous way to do this.
-    print_timer "busy" (const id) $ return $ show (busy_wait 100000000)
-    print_timer "length" (const id) $ return $ show (length mmsgs)
+    print_timer "busy" (\_ _ -> id) $ return $ show (busy_wait 100000000)
+    print_timer "length" (\_ _ -> id) $ return $ show (length mmsgs)
     return ()
     where
     ui_state = UiTest.exec State.empty create
@@ -228,7 +228,7 @@ time_section :: Integer -> String -> IO [a] -> IO ()
 time_section start_cpu title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
-    (vals, cpu_secs) <- timer op
+    (vals, cpu_secs, _secs) <- timer op
     cur_cpu <- CPUTime.getCPUTime
     let len = length vals
     Printf.printf "%d vals -> %.2f (%.2f / sec) (running: %.2f)\n"

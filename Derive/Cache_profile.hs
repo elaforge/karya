@@ -73,7 +73,7 @@ time_section :: String -> IO a -> IO a
 time_section title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
-    (val, cpu_secs) <- timer op
+    (val, cpu_secs, _) <- timer op
     Printf.printf "%.2f\n" cpu_secs
     return val
 

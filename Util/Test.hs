@@ -57,6 +57,7 @@ import qualified Data.Map as Map
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Time as Time
 
 import qualified System.CPUTime as CPUTime
 import qualified System.Directory as Directory
@@ -369,26 +370,28 @@ expect_right _ (Right v) = v
 -- * profiling
 
 -- | Run an action and report the time in CPU seconds.
-timer :: IO a -> IO (a, Double)
+timer :: IO a -> IO (a, Double, Double)
 timer op = do
     start_cpu <- CPUTime.getCPUTime
+    start <- Time.getCurrentTime
     !v <- op
     end_cpu <- CPUTime.getCPUTime
-    return (v, cpu_to_sec (end_cpu - start_cpu))
+    end <- Time.getCurrentTime
+    let elapsed = end `Time.diffUTCTime` start
+    return (v, cpu_to_sec (end_cpu - start_cpu), realToFrac elapsed)
     where
     cpu_to_sec :: Integer -> Double
     cpu_to_sec s = fromIntegral s / 10^12
 
-print_timer :: String -> (Double -> a -> String) -> IO a -> IO a
+print_timer :: String -> (Double -> Double -> a -> String) -> IO a -> IO a
 print_timer msg show_val op = do
     printf "%s - " msg
     IO.hFlush IO.stdout
-    (val, secs) <- timer $ do
+    (val, cpu_secs, secs) <- timer $ do
         !val <- op
-        -- let showed = show_val val
-        -- force showed
         return val
-    printf "time: %.2f - %s\n" secs (show_val secs val)
+    printf "time: %.2f cpu %.2f secs - %s\n" cpu_secs secs
+        (show_val cpu_secs secs val)
     IO.hFlush IO.stdout
     return val
 
