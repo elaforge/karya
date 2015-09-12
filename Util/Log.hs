@@ -380,13 +380,16 @@ instance Aeson.ToJSON Prio
 
 -- * util
 
--- | Run an action and report the time in CPU seconds.
-time_eval :: IO a -> IO (a, Double)
+-- | Run an action and report the time in CPU seconds and wall clock seconds.
+time_eval :: IO a -> IO (a, Double, Double)
 time_eval op = do
     start_cpu <- CPUTime.getCPUTime
+    start <- Time.getCurrentTime
     !val <- op
     end_cpu <- CPUTime.getCPUTime
-    return (val, cpu_to_sec (end_cpu - start_cpu))
-
-cpu_to_sec :: Integer -> Double
-cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
+    end <- Time.getCurrentTime
+    let elapsed = end `Time.diffUTCTime` start
+    return (val, cpu_to_sec (end_cpu - start_cpu), realToFrac elapsed)
+    where
+    cpu_to_sec :: Integer -> Double
+    cpu_to_sec s = fromIntegral s / 10^12

@@ -767,14 +767,33 @@ performance:
       don't trust any of my profiles.  This means I hardly ever run them, at
       which point why bother having them?
     . I don't trust them because I don't understand why they vary so wildly:
-        verify_performance - n seconds
-          derive save/complete/viola-sonata/ (bid "viola-sonata/score")
-          - time: 2.27 - events: 4255 (1878 / sec)
+      cerucuk punyah:
+        app: 48.82s cpu, 11.24s wall
+        verify_performance: 4.94s cpu / 3.95s wall, GC: 70% / 68.2% 3.456e9
+          -N: 12.70s cpu / 4.73s wall, GC: 49.2% cpu / 81.3% wall
+        criterion:
+      viola-sonata:
+        app:
+        verify_performance: 1.92s, GC: 67% 1.927e9
+          -N: 2.24s, GC: 41.2%
         criterion - n seconds
-        app - n seconds
-      Get the GC productivity for each one and figure out why there is
-      a difference.  The 'app' one is the only one that matters, so why is it
-      so much slower than verify_performance?
+      . What's the difference between user and elapsed productivity?
+        User is CPU time, elapsed is wall time.
+      cerucuk punyah: app: 11.24s, verify_performance: 4.73s
+      Differences beteen verify_performance and app:
+        * -threaded RTS
+          Threaded takes more cpu time, but wall is the same.  So it's doing
+          more work for the same result, which is expected since derivation is
+          not parallel.
+        * simultaneous derivation - make app only derive root
+          . No effect.
+        * app demands track signals - turn of all track signals
+          . force only vector length: 11.24 wall -> 8.48 wall
+            events is 8.4 + rest 2.5 = 10.6, which is about right
+            but verify is 4.73 so it's still 2x
+        * app uses PlayUtil.uncached_derive like verify:
+          still 8.73s
+        . Using Performance.derive, verify is still 4.61 wall.
     . threadscope reflects the terrible productivity.  What happens if I run
       threadscope on verify_performance?
     . I want to find out how much list copying happens due to Stream being

@@ -205,10 +205,12 @@ evaluate_performance wait send_status block_id perf = do
     Thread.delay wait
     send_status block_id Msg.Deriving
     -- I just force the logs here, and wait for a play to actually write them.
-    ((), secs) <- Log.time_eval $ return $ Msg.force_performance perf
-    when (secs > 1) $
+    ((), cpu_secs, wall_secs) <- Log.time_eval $
+        return $! Msg.force_performance perf
+    when (wall_secs > 1) $
         Log.notice $ "derived " <> showt block_id <> " in "
-            <> pretty (RealTime.seconds secs)
+            <> pretty (RealTime.seconds cpu_secs) <> " cpu, "
+            <> pretty (RealTime.seconds wall_secs) <> " wall"
     send_status block_id $ Msg.DeriveComplete perf
 
 -- | Make a broken performance with just an error msg.  This ensures that

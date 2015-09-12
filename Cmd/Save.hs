@@ -179,9 +179,9 @@ write_current_state :: FilePath -> Cmd.CmdT IO FilePath
 write_current_state fname = do
     fname <- expand_filename fname
     state <- State.get
-    ((), secs) <- liftIO $ Log.time_eval $ write_state fname state
+    ((), _, wall_secs) <- liftIO $ Log.time_eval $ write_state fname state
     Log.notice $ "wrote state to " <> showt fname
-        <> ", took " <> pretty secs <> "s"
+        <> ", took " <> pretty wall_secs <> "s"
     return fname
 
 write_state :: FilePath -> State.State -> IO ()

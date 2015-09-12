@@ -57,9 +57,7 @@ import qualified Data.Map as Map
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-import qualified Data.Time as Time
 
-import qualified System.CPUTime as CPUTime
 import qualified System.Directory as Directory
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -71,6 +69,7 @@ import Text.Printf
 
 import qualified Util.ApproxEq as ApproxEq
 import Util.Debug as Debug
+import qualified Util.Log as Log
 import qualified Util.Map
 import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
@@ -369,19 +368,9 @@ expect_right _ (Right v) = v
 
 -- * profiling
 
--- | Run an action and report the time in CPU seconds.
+-- | Run an action and report the time in CPU seconds and wall clock seconds.
 timer :: IO a -> IO (a, Double, Double)
-timer op = do
-    start_cpu <- CPUTime.getCPUTime
-    start <- Time.getCurrentTime
-    !v <- op
-    end_cpu <- CPUTime.getCPUTime
-    end <- Time.getCurrentTime
-    let elapsed = end `Time.diffUTCTime` start
-    return (v, cpu_to_sec (end_cpu - start_cpu), realToFrac elapsed)
-    where
-    cpu_to_sec :: Integer -> Double
-    cpu_to_sec s = fromIntegral s / 10^12
+timer = Log.time_eval
 
 print_timer :: String -> (Double -> Double -> a -> String) -> IO a -> IO a
 print_timer msg show_val op = do
@@ -390,7 +379,7 @@ print_timer msg show_val op = do
     (val, cpu_secs, secs) <- timer $ do
         !val <- op
         return val
-    printf "time: %.2f cpu %.2f secs - %s\n" cpu_secs secs
+    printf "time: %.2fs cpu %.2fs wall - %s\n" cpu_secs secs
         (show_val cpu_secs secs val)
     IO.hFlush IO.stdout
     return val
