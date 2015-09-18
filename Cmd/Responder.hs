@@ -64,7 +64,6 @@ import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.Track as Track
 import qualified Cmd.Undo as Undo
 
-import qualified Derive.Scale.All as Scale.All
 import qualified Perform.Transport as Transport
 import qualified App.Config as Config
 import qualified App.ReplUtil as ReplUtil
@@ -117,7 +116,7 @@ responder config ui_chan msg_reader midi_interface setup_cmd repl_session
     monitor_state <- MVar.newMVar ui_state
     app_dir <- Config.get_app_dir
     let cmd_state = setup_state $ Cmd.initial_state $
-            cmd_config app_dir midi_interface config
+            StaticConfig.cmd_config app_dir midi_interface config
     state <- run_setup_cmd setup_cmd $ State
         { state_static_config = config
         , state_ui = ui_state
@@ -143,24 +142,6 @@ setup_state state = state
         { Cmd.hooks_selection = Internal.default_selection_hooks
         }
     }
-
--- | Create a 'Cmd.Config'.  It would be nicer in "Cmd.Cmd", but that would
--- be a circular import with "App.StaticConfig".
-cmd_config :: FilePath -> Interface.Interface -> StaticConfig.StaticConfig
-    -> Cmd.Config
-cmd_config app_dir interface config = Cmd.Config
-    { Cmd.state_app_dir = app_dir
-    , Cmd.state_midi_interface = interface
-    , Cmd.state_ky_paths = map (Config.make_path app_dir) Config.ky_paths
-    , Cmd.state_rdev_map = StaticConfig.rdev_map midi
-    , Cmd.state_wdev_map = StaticConfig.wdev_map midi
-    , Cmd.state_instrument_db = StaticConfig.instrument_db config
-    , Cmd.state_library = StaticConfig.library config
-    -- TODO later this should also be merged with static config
-    , Cmd.state_lookup_scale = Scale.All.lookup_scale
-    , Cmd.state_highlight_colors = StaticConfig.highlight_colors config
-    }
-    where midi = StaticConfig.midi config
 
 -- | A special run-and-sync that runs before the respond loop gets started.
 run_setup_cmd :: Cmd.CmdIO -> State -> IO State

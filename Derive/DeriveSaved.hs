@@ -19,6 +19,8 @@ import qualified Midi.StubMidi as StubMidi
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Lilypond
+import qualified Cmd.Msg as Msg
+import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
@@ -43,8 +45,7 @@ perform_file cmd_config fname = do
     block_id <- maybe (errorIO $ fname <> ": no root block") return $
         State.config#State.root #$ ui_state
     let cmd_state = add_library library (Cmd.initial_state cmd_config)
-    (events, logs) <- either (\err -> errorIO $ fname <> ": " <> untxt err)
-        return =<< timed_derive fname ui_state cmd_state block_id
+    (events, logs) <- timed_derive fname ui_state cmd_state block_id
     mapM_ Log.write logs
     (msgs, logs) <- timed_perform cmd_state ("perform " ++ fname) ui_state
         events
@@ -65,18 +66,14 @@ timed_perform cmd_state msg state events =
         return (msgs, logs)
 
 timed_derive :: FilePath -> State.State -> Cmd.State -> BlockId
-    -> IO (Either Text (Cmd.Events, [Log.Msg]))
-timed_derive name ui_state cmd_state block_id =
-    case derive_block ui_state cmd_state block_id of
-        Left err -> return $ Left err
-        Right (result, cmd_logs) -> fmap Right $ do
-            let (events, derive_logs) = first Vector.fromList $
-                    Stream.partition $ Derive.r_events result
-                msg = "derive " <> name <> " " <> prettys block_id
-            events <- Test.print_timer msg (timer_msg Vector.length)
-                (return $! events)
-            return (events, cmd_logs ++ filter (not . boring) derive_logs)
-    where boring = Cache.is_cache_log
+    -> IO (Cmd.Events, [Log.Msg])
+timed_derive name ui_state cmd_state block_id = do
+    let (perf, logs) = Performance.derive ui_state cmd_state block_id
+    Test.print_timer name (timer_msg Vector.length) $ do
+        () <- return $ Msg.force_performance perf
+        return $! Cmd.perf_events perf
+    let warns = filter ((>=Log.Warn) . Log.msg_priority) (Cmd.perf_logs perf)
+    return (Cmd.perf_events perf, warns ++ logs)
 
 timed_lilypond :: FilePath -> State.State -> Cmd.State -> BlockId
     -> IO (Either Text Text, [Log.Msg])
@@ -104,11 +101,6 @@ timer_msg len cpu_secs secs events =
     events_len = len events
     per :: Double -> Int
     per secs = round (fromIntegral events_len / secs)
-
-derive_block :: State.State -> Cmd.State -> BlockId
-    -> Either Text (Derive.Result, [Log.Msg])
-derive_block ui_state cmd_state block_id =
-    run_cmd ui_state cmd_state $ PlayUtil.uncached_derive block_id
 
 run_cmd :: State.State -> Cmd.State -> Cmd.CmdId a
     -> Either Text (a, [Log.Msg])

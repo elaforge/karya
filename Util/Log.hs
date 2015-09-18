@@ -33,7 +33,7 @@ module Util.Log (
     , serialize, deserialize
 
     -- * util
-    , time_eval
+    , time_eval, format_time
 ) where
 import Prelude hiding (error, log)
 import qualified Control.Applicative as Applicative
@@ -381,15 +381,19 @@ instance Aeson.ToJSON Prio
 -- * util
 
 -- | Run an action and report the time in CPU seconds and wall clock seconds.
-time_eval :: IO a -> IO (a, Double, Double)
+time_eval :: Trans.MonadIO m => m a -> m (a, Double, Double)
 time_eval op = do
-    start_cpu <- CPUTime.getCPUTime
-    start <- Time.getCurrentTime
+    start_cpu <- liftIO CPUTime.getCPUTime
+    start <- liftIO Time.getCurrentTime
     !val <- op
-    end_cpu <- CPUTime.getCPUTime
-    end <- Time.getCurrentTime
+    end_cpu <- liftIO CPUTime.getCPUTime
+    end <- liftIO Time.getCurrentTime
     let elapsed = end `Time.diffUTCTime` start
     return (val, cpu_to_sec (end_cpu - start_cpu), realToFrac elapsed)
     where
     cpu_to_sec :: Integer -> Double
     cpu_to_sec s = fromIntegral s / 10^12
+
+format_time :: (a, Double, Double) -> (a, Text)
+format_time (val, cpu, wall) =
+    (val, pretty cpu <> "cpu / " <> pretty wall <> "s")

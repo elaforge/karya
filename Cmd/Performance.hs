@@ -9,7 +9,9 @@
     of caches.  Since performance is lazy, a separate thread will force it
     asynchronously.
 -}
-module Cmd.Performance (SendStatus, update_performance, performance) where
+module Cmd.Performance (
+    SendStatus, update_performance, performance, derive
+) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Monad.State as Monad.State
 import qualified Data.Map as Map

@@ -6,12 +6,15 @@ module App.StaticConfig where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
 import qualified Ui.Color as Color
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Derive.Derive as Derive
+import qualified Derive.Scale.All as Scale.All
 import qualified Instrument.Db
+import qualified App.Config as Config
 import Global
 
 
@@ -84,3 +87,20 @@ make_wdev_map = Map.fromList . map (Midi.write_device *** Midi.write_device)
 
 make_read_devices :: [Text] -> Set.Set Midi.ReadDevice
 make_read_devices = Set.fromList . map Midi.read_device
+
+-- | Create a 'Cmd.Config' from a StaticConfig.
+cmd_config :: FilePath -> Interface.Interface -> StaticConfig
+    -> Cmd.Config
+cmd_config app_dir interface config = Cmd.Config
+    { Cmd.state_app_dir = app_dir
+    , Cmd.state_midi_interface = interface
+    , Cmd.state_ky_paths = map (Config.make_path app_dir) Config.ky_paths
+    , Cmd.state_rdev_map = rdev_map midi_config
+    , Cmd.state_wdev_map = wdev_map midi_config
+    , Cmd.state_instrument_db = instrument_db config
+    , Cmd.state_library = library config
+    -- TODO later this should also be merged with static config
+    , Cmd.state_lookup_scale = Scale.All.lookup_scale
+    , Cmd.state_highlight_colors = highlight_colors config
+    }
+    where midi_config = midi config

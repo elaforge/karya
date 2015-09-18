@@ -16,13 +16,11 @@ import Global
 -- | Tell the UI layer about the given Symbols.  Warnings are logged for
 -- Symbols that couldn't be loaded.
 symbols :: [Symbol.Symbol] -> IO ()
-symbols syms = do
-    forM_ syms $ \sym -> do
-        missing <- SymbolC.insert_symbol sym
-        unless (null missing) $
-            Log.warn $ "failed to load symbol " <> showt (Symbol.sym_name sym)
-                <> ", fonts not found: " <> showt missing
-    Log.notice $ "loaded " <> showt (length syms) <> " symbols"
+symbols syms = forM_ syms $ \sym -> do
+    missing <- SymbolC.insert_symbol sym
+    unless (null missing) $
+        Log.warn $ "failed to load symbol " <> showt (Symbol.sym_name sym)
+            <> ", fonts not found: " <> showt missing
 
 styles :: [Style.Style] -> IO ()
 styles style_table =

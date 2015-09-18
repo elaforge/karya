@@ -84,7 +84,9 @@ interpreter (Session chan) = do
         -- obj_allowed must be False, otherwise I get
         -- Cannot add module Cmd.Repl.Environ to context: not interpreted
         GHC.setTargets [make_target False toplevel]
-        (result, logs, warns) <- reload
+        ((result, logs, warns), time) <-
+            Log.format_time <$> Log.time_eval reload
+        liftIO $ Log.notice $ "loaded modules for repl: " <> time
         case result of
             Left err -> liftIO $
                 Log.warn $ "error loading REPL modules: " <> txt err

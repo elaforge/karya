@@ -197,7 +197,7 @@ verify_midi out_dir fname cmd_state state block_id performance = do
 perform_block :: FilePath -> Cmd.State -> State.State -> BlockId
     -> Error [Midi.WriteMessage]
 perform_block fname cmd_state state block_id = do
-    (events, logs) <- require_right $
+    (events, logs) <- liftIO $
         DeriveSaved.timed_derive fname state cmd_state block_id
     liftIO $ mapM_ Log.write logs
     (msgs, logs) <- liftIO $ DeriveSaved.timed_perform cmd_state

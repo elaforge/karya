@@ -66,6 +66,7 @@ import Global
 -- errors.
 import Cmd.Repl.Environ ()
 
+
 -- | When a log file reaches this size, in bytes, it will be rotated.
 max_log_size :: Int
 max_log_size = 4 * mb
@@ -96,9 +97,9 @@ main = initialize $ \repl_socket midi_interface -> do
     IO.hSetBuffering IO.stdout IO.LineBuffering
     Log.notice "app starting"
     static_config <- Local.Config.load_static_config
-    let loaded_msg = "instrument db loaded, "
+    let loaded_msg = "loaded "
             <> showt (Db.size (StaticConfig.instrument_db static_config))
-            <> " instruments loaded"
+            <> " instruments"
     Log.notice loaded_msg
     putStrLn $ untxt loaded_msg
 

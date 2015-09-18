@@ -25,6 +25,7 @@ UNSORTED
     type signature?  I could try the "lightweight checked exceptions" in:
       http://www.well-typed.com/blog/2015/07/checked-exceptions/
       https://www.reddit.com/r/haskell/comments/3g41au/follow_up_safe_lightweight_checked_exceptions/
+    . Or an easier way would be to put 'throw' in a subclass.
   - retune: differences based on speed should be more obvious, so that should
     also be on a curve.
   - It can be alarming how I accidentally make changes to .git files.  Even
@@ -794,13 +795,32 @@ performance:
         * app uses PlayUtil.uncached_derive like verify:
           still 8.73s
         . Using Performance.derive, verify is still 4.61 wall.
-    . threadscope reflects the terrible productivity.  What happens if I run
-      threadscope on verify_performance?
+        * strip out all responder cycle stuff, by running the derivation
+          directly from the setup_cmd:
+          verify: in (12.643, 4.65) then (1.797, 1.028)
+          seq: in (34.703, 8.646) then (10.867, 2.624)
+        * run directly from main, exactly like verify
+          seq: in (12.943, 4.601) then (1.825, 1.042)
+          . So it must be related to the responder thread.
+      . It turns out this is because the ghc repl thread is busily loading
+        modules.  If I wait until that's done, time goes down to 5s, which
+        is close enough to verify's time.
+
     . I want to find out how much list copying happens due to Stream being
       a list.  Perhaps I can use SCC annotations?  For transforms, I want to
       see the effect of a transform copying the whole stream so I can tell if
       making it interleave has an effect.
+      . It would be nice to see how many times each cons is copied, but it
+        would have to be for the output stream specifically.  How can I do
+        that?  I think I would have to make my own list type, then count
+        allocated cells?
 
+  research using pipes for generators and transformers
+    . This would handle the composed transforms thing.
+    . What about parallelization?
+    . What about the MergeList idea?
+    . The bigger question is how do I do dynamic state when all the different
+      calls are interleaved?
   make composed transforms more efficient
     . Composed transforms have to keep the whole event stream in memory since
       they can't interleave.
@@ -816,14 +836,12 @@ performance:
       somehow so I can throw at the end.
     - I think the stream will then remain lazy, and I should be able to GC
       as it goes, but verify with Debug.trace.
-  - I'd like to see if directly modifying Collect or an AppendList for LEvents
+  - I'd like to see if directly modifying Collect or a MergeList for LEvents
     could reduce garbage, so I need to get some profiling up first.
     . monad-par-extras Control.Monad.Par.AList is deprecated due to poor
       performance, what's up with that?
-  - GC stats for a normal app run shows 32% productivity during derivation.
-    Threadscope also shows GC frequently stopping all computation.
-    . Internal.merge_collect is constantly merging in mempty, try reducing its
-      use.  Can I continue to enforce monoid-nature?
+  - Internal.merge_collect is constantly merging in mempty, try reducing its
+    use.  Can I continue to enforce monoid-nature?
   - I should be able to move samples only when converting to MIDI, this way
     I don't need to move parts of the signal that wind up being trimmed.
     Either try to trim the signal earlier again, or delay transformation to

@@ -14,6 +14,7 @@ import Util.Test
 
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Simple as Simple
 
@@ -49,16 +50,15 @@ run_cached = do
     (state, _lib) <- expect_right "load" <$> DeriveSaved.load_score "bug/cache"
     let root = UiTest.bid "kendang-telek/telek1"
         tempot = UiTest.tid "kendang-telek/telek1.t1"
-    let (uncached, logs) = expect_right "derive" $
-            DeriveSaved.derive_block state cstate root
+    let (uncached, logs) = Performance.derive state cstate root
     mapM_ Log.write logs
 
-    let cache = Derive.r_cache uncached
+    let cache = Cmd.perf_derive_cache uncached
         damage = Derive.ScoreDamage
             (Map.fromList [(tempot, Ranges.range 200 200)])
             (Set.fromList [root]) mempty
     let (cached, logs) = expect_right "cache derive" $
             DeriveSaved.run_cmd state cstate $
-            PlayUtil.derive_block True cache damage root
+            PlayUtil.derive_block cache damage root
     mapM_ Log.write logs
     prettyp (Cache_test.r_block_logs cached)
