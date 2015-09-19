@@ -38,7 +38,7 @@ import Types
 data Flag = Help | Mode Mode | Output !FilePath
     deriving (Eq, Show)
 
-data Mode = Verify | Save | Perform | DumpMidi
+data Mode = Verify | Save | Perform | Profile | DumpMidi
     deriving (Eq, Show, Bounded, Enum)
 
 options :: [GetOpt.OptDescr Flag]
@@ -53,6 +53,7 @@ options =
         \   files to verify.\n\
         \  Save - Write saved performances to disk as binary.\n\
         \  Perform - Perform to MIDI and write to $input.midi.\n\
+        \  Profile - Like Perform, but don't write any output.\n\
         \  DumpMidi - Pretty print binary saved MIDI to stdout."
     , GetOpt.Option [] ["out"] (GetOpt.ReqArg Output default_out_dir)
         "write output to this directory"
@@ -91,9 +92,12 @@ main = Git.initialize $ do
                     else "_________________________ FAILED!"
                 return fails
         Save -> run $ concat <$> mapM (save out_dir) args
+        Profile -> do
+            cmd_config <- DeriveSaved.load_cmd_config
+            run $ concat <$> mapM (perform Nothing cmd_config) args
         Perform -> do
             cmd_config <- DeriveSaved.load_cmd_config
-            run $ concat <$> mapM (perform out_dir cmd_config) args
+            run $ concat <$> mapM (perform (Just out_dir) cmd_config) args
         DumpMidi -> run $ concat <$> mapM dump_midi args
     Process.exit failures
     where
@@ -152,14 +156,15 @@ save out_dir fname = do
         else [txt fname <> ": no midi or ly performance"]
 
 -- | Perform to MIDI and write to disk.
-perform :: FilePath -> Cmd.Config -> FilePath -> Error [Text]
-perform out_dir cmd_config fname = do
+perform :: Maybe FilePath -> Cmd.Config -> FilePath -> Error [Text]
+perform maybe_out_dir cmd_config fname = do
     (state, library, block_id) <- load fname
     msgs <- perform_block fname (make_cmd_state library cmd_config) state
         block_id
-    let out = out_dir </> basename fname <> ".midi"
-    liftIO $ putStrLn $ "write " <> out
-    liftIO $ DiffPerformance.save_midi out (Vector.fromList msgs)
+    whenJust maybe_out_dir $ \out_dir -> do
+        let out = out_dir </> basename fname <> ".midi"
+        liftIO $ putStrLn $ "write " <> out
+        liftIO $ DiffPerformance.save_midi out (Vector.fromList msgs)
     return []
 
 dump_midi :: FilePath -> Error [Text]

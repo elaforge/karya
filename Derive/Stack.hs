@@ -52,8 +52,8 @@ import Types
 -- I originally used "Data.Sequence" but it generates more garbage and
 -- I couldn't figure out how to stop that from happening.
 newtype Stack = Stack [Frame]
-    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32
-        , Aeson.ToJSON, Aeson.FromJSON)
+    deriving (Eq, Ord, DeepSeq.NFData, Serialize.Serialize, CRC32.CRC32,
+        Aeson.ToJSON, Aeson.FromJSON)
 
 instance Show Stack where
     show stack = "Stack.from_outermost " ++ show (outermost stack)

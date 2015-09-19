@@ -27,6 +27,10 @@ heap_flags=(${=${heap:-hc}})
 if [[ $prefixes[1] = seq ]]; then
     run_profile=(build/profile/seq $prefixes[2,-1])
     profiles=seq
+elif [[ $prefixes[1] = verify_performance ]]; then
+    run_profile=(build/profile/verify_performance --mode=Profile
+        $prefixes[2,-1])
+    profiles=verify_performance-$(basename $prefixes[2])
 elif [[ $prefixes[1] = -* ]]; then
     run_profile=(build/profile/RunProfile$prefixes[1])
     profiles=($($run_profile --list .))
@@ -59,8 +63,11 @@ for prof in $profiles; do
     # Due to shells being insane, this substitution can't happen to heap_flags
     # directly.
     stem=${stem/ /_}
-    if [[ $prof = seq ]]; then
+    if [[ $basename = seq ]]; then
         cores=1 run $run_profile +RTS $flags -${^heap_flags} -RTS
+    elif [[ $basename = verify_performance ]]; then
+        run $run_profile +RTS $flags -${^heap_flags} -RTS \
+            | tee $basename.stdout
     else
         run $run_profile +RTS $flags -${^heap_flags} -RTS "^$prof$" \
             | tee $basename.stdout
