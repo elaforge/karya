@@ -766,7 +766,7 @@ performance:
   profiling:
     . Seq.sort_on winds up calling compare on Stack 13374153 times! 9.1% time
       I have to sort it because the stack is kept in reverse order.
-      - Why is TrackWarp.run_collections run twice?
+      * Why is TrackWarp.run_collections run twice?
       - Why so many comparisons?  How long is the WarpMap?
       . Either reduce the length of the WarpMap, or store the Stack in
         outermost order.  But then I'd want a Sequence so I can append

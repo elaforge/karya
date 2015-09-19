@@ -31,8 +31,6 @@ import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Derive as Derive
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackWarp as TrackWarp
-
 import qualified Perform.RealTime as RealTime
 import qualified App.Config as Config
 import Global
@@ -241,8 +239,7 @@ performance result = Cmd.Performance
     , Cmd.perf_track_dynamic = Derive.r_track_dynamic result
     , Cmd.perf_integrated = Derive.r_integrated result
     , Cmd.perf_damage = mempty
-    , Cmd.perf_warps = TrackWarp.collections $ Derive.collect_warp_map $
-        Derive.state_collect $ Derive.r_state result
+    , Cmd.perf_warps = Derive.r_track_warps result
     , Cmd.perf_track_signals = Derive.r_track_signals result
     }
     where (events, logs) = Stream.partition (Derive.r_events result)
