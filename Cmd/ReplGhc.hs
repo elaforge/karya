@@ -86,13 +86,26 @@ interpreter (Session chan) = do
         GHC.setTargets [make_target False toplevel]
         ((result, logs, warns), time) <-
             Log.format_time <$> Log.time_eval reload
-        liftIO $ Log.notice $ "loaded modules for repl: " <> time
-        case result of
-            Left err -> liftIO $
-                Log.warn $ "error loading REPL modules: " <> txt err
-                    <> Text.intercalate "; " (map txt warns) <> " / "
+        logs <- return $ filter
+            (not . ("Cmd/Repl/Environ.hs, interpreted" `List.isInfixOf`)) logs
+        liftIO $ do
+            unless (null logs) $ do
+                Log.warn $ "unexpected logs from reload: "
                     <> Text.intercalate "; " (map txt logs)
-            _ -> return ()
+                -- This module uses CPP, so I can't use backslash continuation.
+                Log.warn $ mconcat
+                    [ "Sometimes ghc thinks a module should be recompiled"
+                    , " but the shakefile doesn't. I'm not sure what causes"
+                    , " it, but it means all the modules have to be compiled."
+                    , " Delete and rebuild to fix."
+                    ]
+            unless (null warns) $
+                Log.warn $ "warnings from reload: "
+                    <> Text.intercalate "; " (map txt warns)
+            Log.notice $ "loaded modules for repl: " <> time
+            case result of
+                Left err -> Log.warn $ "error loading REPL modules: " <> txt err
+                _ -> return ()
         forever $ do
             (expr, return_mvar) <- liftIO $ Chan.readChan chan
             result <- case untxt expr of
