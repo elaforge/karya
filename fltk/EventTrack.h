@@ -131,7 +131,7 @@ public:
     }
     virtual void set_title(const char *title) override;
     virtual void set_title_focus() override;
-    void set_zoom(const ZoomInfo &new_zoom);
+    void set_zoom(const ZoomInfo &new_zoom) override;
     virtual void set_selection(
         int selnum, int tracknum, const std::vector<Selection> &sels) override {
         overlay_ruler.set_selection(selnum, tracknum, sels);

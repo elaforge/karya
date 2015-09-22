@@ -119,18 +119,19 @@ public:
 class DividerView : public TrackView {
 public:
     explicit DividerView(const DividerConfig &config);
-    bool track_resizable() const { return false; }
+    bool track_resizable() const override { return false; }
     virtual void update(const Tracklike &track, ScoreTime start, ScoreTime end)
+        override
     {
         ASSERT_MSG(!(track.track || track.ruler),
             "updated a divider with a non-divider config");
         // Of course even a divider config won't do anything...
     }
-    virtual void set_track_signal(const TrackSignal &tsig) {
+    virtual void set_track_signal(const TrackSignal &tsig) override {
         DEBUG("WARNING: got a track signal on a divider track!");
     }
-    virtual Fl_Box &title_widget() { return *this->title_box; }
-    virtual std::string dump() const;
+    virtual Fl_Box &title_widget() override { return *this->title_box; }
+    virtual std::string dump() const override;
 protected:
     void draw() override;
 private:

@@ -25,7 +25,7 @@ public:
     SimpleScroll(int X, int Y, int W, int H) :
         Fl_Group(X, Y, W, H), offset(0, 0)
     {}
-    void resize(int X, int Y, int W, int H);
+    void resize(int X, int Y, int W, int H) override;
 
     IPoint get_offset() const { return offset; }
     void set_offset(IPoint offset);
