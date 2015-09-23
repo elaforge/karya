@@ -6,6 +6,7 @@
 module Util.Tree where
 import Prelude hiding (filter)
 import Control.Monad
+import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Tree as Tree
 import Data.Tree (Tree(..))
@@ -51,9 +52,7 @@ first_leaf (Node _ (child : _)) = first_leaf child
 
 -- | Get all leaves.  The list will never be null.
 leaves :: Tree a -> [a]
-leaves (Node val subs)
-    | null subs = [val]
-    | otherwise = concatMap leaves subs
+leaves = Foldable.toList
 
 -- | Return the first subtrees that match the predicate.
 filter :: (a -> Bool) -> [Tree a] -> [Tree a]
