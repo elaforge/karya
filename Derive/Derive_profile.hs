@@ -167,8 +167,7 @@ derive_saved with_perform fname = do
         State.config#State.root #$ ui_state
     let cmd_state = DeriveSaved.add_library library
             (Cmd.initial_state cmd_config)
-    (events, logs) <- either (\err -> errorIO $ fname <> ": " <> untxt err)
-        return =<< DeriveSaved.timed_derive fname ui_state cmd_state block_id
+    (events, logs) <- DeriveSaved.timed_derive fname ui_state cmd_state block_id
     mapM_ Log.write logs
     when with_perform $ do
         (_msgs, logs) <- DeriveSaved.timed_perform cmd_state
