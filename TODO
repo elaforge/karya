@@ -268,6 +268,8 @@ UNSORTED
       future pitch problem has come up in all sorts of places and I need
       a better answer for it.
     Gamakam3:
+      - < is incorrect: in @b5 4.3.4 change to '!!<c' and it comes from
+        m instead of r.
       . Try a new approach: just a sequence of ornaments, each of which takes
         up an integral number of time units.  Time units are evenly divided
         across the available duration.
@@ -763,14 +765,28 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
-  profiling:
-    . Seq.sort_on winds up calling compare on Stack 13374153 times! 9.1% time
-      I have to sort it because the stack is kept in reverse order.
-      * Why is TrackWarp.run_collections run twice?
-      - Why so many comparisons?  How long is the WarpMap?
-      . Either reduce the length of the WarpMap, or store the Stack in
-        outermost order.  But then I'd want a Sequence so I can append
-        quickly.
+  . Seq.sort_on winds up calling compare on Stack 13374153 times! 9.1% time
+    I have to sort it because the stack is kept in reverse order.
+    * Why is TrackWarp.run_collections run twice?
+    * Why so many comparisons?  How long is the WarpMap?
+      27568 entries!  This is because every single inverted note adds its
+      own.  That in turn is because I want to have a playback cursor on
+      child tracks, but I have to wait for a note to get the warp.
+      . Instead I could do a shortcut and just immediately assign the
+        parent's trackwarp to a child note track.
+      . I could do that with something like Internal.record_empty_tracks.
+        Or I could remove Internal.add_track_warp entirely, and instead
+        infer the child tracks as a postproc in TrackWarp collect.
+      . Just with add_new_trackwarp there are 161.  I guess because calls of
+        calls all multiply.
+    - Per-track stuff can wind up happening zillions of times due to
+      inversion, so look for other places where I do work or collect data
+      on every track fragment.
+    - At least at one point, keeping EnvKey.seed up to date was expensive, and
+      it's not even needed when there's no randomization.
+    - I could analyze TrackWarp or TrackDynamic to get stats on how many times
+      each block is called, along with overall stats on how many notes.  Just
+      an interesting thing to know.
   understand deriver performance
     . I never know if changes I am making help or hurt performance, because I
       don't trust any of my profiles.  This means I hardly ever run them, at

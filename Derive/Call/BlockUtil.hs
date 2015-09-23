@@ -160,15 +160,13 @@ derive_track :: Bool -> TrackTree.EventsNode -> Derive.NoteDeriver
 derive_track toplevel node@(Tree.Node track subs)
     | ParseTitle.is_note_track (TrackTree.track_title track) =
         with_stack $ Cache.track track (TrackTree.track_children node) $ do
-            events <- Internal.track_setup track $ with_voice track $
+            events <- with_voice track $
                 maybe id with_note_track (TrackTree.track_id track) $
                 Note.d_note_track derive_tracks node
             unless (TrackTree.track_sliced track) defragment
             mapM_ (Note.stash_signal_if_wanted events)
                 (note_signal_tracks track subs)
             return events
-    -- I'd like to call track_setup up here, but tempo tracks are treated
-    -- differently, so it goes inside d_control_track.
     | otherwise = with_stack $
         Control.d_control_track toplevel node (derive_tracks subs)
     where

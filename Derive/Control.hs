@@ -187,7 +187,7 @@ control_call :: TrackTree.Track -> Score.Typed Score.Control
     -> (Derive.Deriver (TrackResults Signal.Control))
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 control_call track control merger control_deriver deriver = do
-    (signal, logs) <- Internal.track_setup track control_deriver
+    (signal, logs) <- control_deriver
     stash_if_wanted track signal
     -- Apply and strip any control modifications made during the above derive.
     end <- Derive.real $ TrackTree.track_end track
@@ -212,20 +212,19 @@ pitch_call :: TrackTree.Track -> Score.PControl
     -> Derive.Merger PSignal.Signal -> Pitch.ScaleId
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
-pitch_call track pcontrol merger scale_id transform deriver =
-    Internal.track_setup track $ do
-        scale <- get_scale scale_id
-        Derive.with_scale scale $ do
-            (signal, logs) <- with_control_env (Score.pcontrol_name pcontrol)
-                (ShowVal.show_val merger) (derive_pitch True track transform)
-            -- Ignore errors, they should be logged on conversion.
-            (nn_sig, _) <- psignal_to_nn signal
-            stash_if_wanted track (Signal.coerce nn_sig)
-            -- Apply and strip any control modifications made during the above
-            -- derive.
-            end <- Derive.real $ TrackTree.track_end track
-            Derive.eval_control_mods end $ merge_logs logs $ with_damage $
-                Derive.with_merged_pitch merger pcontrol signal deriver
+pitch_call track pcontrol merger scale_id transform deriver = do
+    scale <- get_scale scale_id
+    Derive.with_scale scale $ do
+        (signal, logs) <- with_control_env (Score.pcontrol_name pcontrol)
+            (ShowVal.show_val merger) (derive_pitch True track transform)
+        -- Ignore errors, they should be logged on conversion.
+        (nn_sig, _) <- psignal_to_nn signal
+        stash_if_wanted track (Signal.coerce nn_sig)
+        -- Apply and strip any control modifications made during the above
+        -- derive.
+        end <- Derive.real $ TrackTree.track_end track
+        Derive.eval_control_mods end $ merge_logs logs $ with_damage $
+            Derive.with_merged_pitch merger pcontrol signal deriver
     where
     with_damage = with_control_damage (TrackTree.block_track_id track)
         (TrackTree.track_range track)

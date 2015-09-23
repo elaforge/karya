@@ -338,17 +338,11 @@ test_collect = do
     let e_warp_maps = Seq.sort_on fst . map (first Stack.pretty_ui_)
             . Map.toAscList . Derive.collect_warp_map
 
-    let tw start end bid = Left $ TrackWarp.TrackWarp
+    let tw start end bid = TrackWarp.TrackWarp
             start end Score.id_warp (UiTest.bid bid) Nothing
-        track tid = Right (UiTest.tid tid)
     equal (e_warp_maps collect)
         [ ("top * *", tw 0 2 "top")
-        , ("top top.t1 *", track "top.t1")
         , ("top top.t1 0-1: sub * *", tw 0 1 "sub")
-        -- One for t1, one more for its inverted incarnation.
-        , ("top top.t1 0-1: sub sub.t1 *", track "sub.t1")
-        , ("top top.t1 0-1: sub sub.t1 *", track "sub.t1")
-        , ("top top.t1 0-1: sub sub.t2 *", track "sub.t2")
         ]
 
     -- TrackSignals are only collected for the topmost block.

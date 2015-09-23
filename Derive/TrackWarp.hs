@@ -10,17 +10,19 @@
 module Derive.TrackWarp (
     TrackWarp(..), WarpMap, Collection(..)
     , collections
+    , get_track_trees
     -- * functions on Collection
     , tempo_func, closest_warp, inverse_tempo_func
 ) where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
+import qualified Data.Tree as Tree
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Ui.Id as Id
+import qualified Ui.State as State
+import qualified Ui.TrackTree as TrackTree
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Transport as Transport
@@ -41,15 +43,9 @@ instance DeepSeq.NFData TrackWarp where
     rnf (TrackWarp _ _ _ _ track_id) = DeepSeq.rnf track_id
 
 -- | Each TrackWarp is collected at the Stack of the track it represents.
--- A Left is a new TrackWarp and a Right is a track that uses the warp in
--- the environment provided by its callers.  Later they will all be collected
--- into a Collection.
---
--- The reason I don't simply save the warps at every track is that many tracks
--- share the same warp, and it's more efficient to consolidate them, yet I
--- don't want to directly compare warp signals because they may be large or
--- lazy.
-type WarpMap = Map.Map Stack.Stack (Either TrackWarp TrackId)
+-- A TrackWarp is only saved when the warp changes, which is likely a tempo
+-- track.  'collect_warps' then fills in the rest of the tracks.
+type WarpMap = Map.Map Stack.Stack TrackWarp
 
 -- | Each track warp is a warp indexed by the block and tracks it covers.
 -- These are used by the play monitor to figure out where the play position
@@ -74,11 +70,6 @@ instance Pretty.Pretty Collection where
 instance DeepSeq.NFData Collection where
     rnf tw = DeepSeq.rnf (tw_tracks tw) `seq` DeepSeq.rnf (tw_warp tw)
 
-collections :: WarpMap -> [Collection]
-collections = filter (not . Set.null . tw_tracks) . map convert . collect_warps
-    -- There will be a Collection with a null 'tw_tracks' if there are multiple
-    -- tempo tracks at the top level.
-
 convert :: (TrackWarp, [TrackId]) -> Collection
 convert (TrackWarp start end warp block_id maybe_track_id, tracks) =
     Collection
@@ -90,30 +81,58 @@ convert (TrackWarp start end warp block_id maybe_track_id, tracks) =
         }
     where track_ids = maybe tracks (:tracks) maybe_track_id
 
-collect_warps :: WarpMap -> [(TrackWarp, [TrackId])]
-    -- TODO The first result will be the dummy TrackWarp with parentless
-    -- tracks as children, which shouldn't happen.  Warn about them anyway?
-collect_warps wmap = drop 1 $ map drop_stack $ collect [] dummy_tw assocs
+collections :: [(BlockId, [Tree.Tree TrackId])] -> WarpMap -> [Collection]
+collections blocks =
+    filter (not . Set.null . tw_tracks) . map convert . collect_warps blocks
+    -- There will be a Collection with a null 'tw_tracks' if there are multiple
+    -- tempo tracks at the top level.
+
+get_track_trees :: State.M m => m [(BlockId, [Tree.Tree TrackId])]
+get_track_trees = do
+    block_ids <- State.all_block_ids
+    zip block_ids . fmap (fmap (fmap State.track_id)) <$>
+        mapM TrackTree.track_tree_of block_ids
+
+{- | The WarpMap only has TrackWarps for tempo tracks.  But I want to have
+    playback cursors on all tracks, and be able to start play from any track.
+    So this will extend a TrackWarp of a block or a track to all of its
+    children.  This assumes that no one else is fiddling with the Warp.
+
+    Previously I would collect TrackWarps on every track, which is more
+    technically correct.  However, due to note inversion, that wounds up
+    collecting a TrackWarp for every single note, and just sorting all of the
+    stacks was at the top of the profile output.
+-}
+collect_warps :: [(BlockId, [Tree.Tree TrackId])] -> WarpMap
+    -> [(TrackWarp, [TrackId])]
+collect_warps blocks wmap =
+    [(tw, get_children stack) | (stack, tw) <- Map.toList wmap]
     where
-    assocs = Seq.sort_on fst $ map (first Stack.outermost) $ Map.assocs wmap
-    drop_stack (_, tw, tracks) = (tw, tracks)
-    dummy_tw = TrackWarp 0 0 Score.id_warp no_block Nothing
-    no_block = Id.BlockId (Id.global "-dummy-trackwarp-")
-
-type Frames = [Stack.Frame]
-
--- | Group a list of stacks into a @(stack, parent, children)@ triples.
--- A Left is a parent, and will collect the Rights prefixed by its stack.
-collect :: Frames -> a -> [(Frames, Either a b)] -> [(Frames, a, [b])]
-collect prefix a stacks = (prefix, a, bs)
-    : concat [collect pref sub_a substacks | (sub_a, pref, substacks) <- subs]
-    where
-    (subs, bs) = Seq.partition_either (split stacks)
-    split [] = []
-    split ((stack, Left a) : rest) = Left (a, stack, substacks) : split rest2
-        where (substacks, rest2) = span ((stack `List.isPrefixOf`) . fst) rest
-    split ((_, Right b) : rest) = Right b : split rest
-
+    get_children stack = maybe [] child_tracks $ case get_block_track stack of
+        Just (block_id, Nothing) -> Map.lookup block_id block_children
+        Just (block_id, Just track_id) ->
+            Map.lookup (block_id, track_id) track_children
+        Nothing -> Nothing
+    get_block_track stack = case Stack.to_ui_innermost stack of
+        (Just block_id, track_id, _) : _ -> Just (block_id, track_id)
+        _ -> Nothing
+    -- If a block doesn't have a toplevel tempo track, it gets an implicit
+    -- one, which of course won't have its own TrackId.
+    block_children = Map.fromList
+        [ (block_id, tracks)
+        | (block_id, tracks) <- blocks
+        ]
+    track_children = Map.fromList
+        [ ((block_id, track_id), children)
+        | (block_id, tracks) <- blocks
+        , Tree.Node track_id children <- tracks
+        ]
+    -- Get all child TrackIds, but stop as soon as I hit another tempo track.
+    child_tracks = concatMap $ \(Tree.Node track_id children) ->
+        if track_id `Set.member` tempo_tracks then []
+            else track_id : child_tracks children
+    tempo_tracks = Set.fromList $
+        mapMaybe (maybe Nothing snd . get_block_track) $ Map.keys wmap
 
 -- * functions on Collection
 

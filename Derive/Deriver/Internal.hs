@@ -18,7 +18,6 @@ import qualified Ui.Block as Block
 import qualified Ui.Ruler as Ruler
 import qualified Ui.State as State
 import qualified Ui.Track as Track
-import qualified Ui.TrackTree as TrackTree
 
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.Deriver.Monad
@@ -332,20 +331,6 @@ is_root_block = do
 
 -- ** track warp
 
-add_track_warp :: TrackId -> Deriver ()
-add_track_warp track_id = do
-    stack <- get_stack
-    -- Put the track_id on the stack.  Originally this always happened
-    -- implicitly because 'add_track_warp' was only called from "inside" the
-    -- track (after adding the track's stack frame), but now there is orphan
-    -- extraction that strips out empty tracks.  So the block deriver winds up
-    -- explicitly calling 'add_track_warp' via 'record_empty_tracks' outside of
-    -- the track's stack frame.
-    merge_collect $ mempty
-        { collect_warp_map = Map.singleton
-            (Stack.add (Stack.Track track_id) stack) (Right track_id)
-        }
-
 -- | Start a new track warp for the current block_id.
 --
 -- This must be called for each block, and it must be called after the tempo is
@@ -360,7 +345,7 @@ add_new_track_warp maybe_track_id = do
     -- perfectly happy to do so.
     end <- real =<< block_event_end block_id
     warp <- get_warp
-    let tw = Left $ TrackWarp.TrackWarp start end warp block_id maybe_track_id
+    let tw = TrackWarp.TrackWarp start end warp block_id maybe_track_id
     merge_collect $ mempty { collect_warp_map = Map.singleton stack tw }
 
 -- | Sub-derived blocks are stretched according to their length, and this
@@ -377,14 +362,6 @@ block_event_end = eval_ui "block_event_end" . State.block_event_end
 
 -- * track
 
--- | This does setup common to all track derivation, namely recording the
--- tempo warp, and then calls the specific track deriver.  Every track with
--- a track ID except tempo tracks should call this.
-track_setup :: TrackTree.Track -> Deriver d -> Deriver d
-track_setup track deriver = do
-    whenJust (TrackTree.track_id track) add_track_warp
-    deriver
-
 -- | The deriver strips out tracks that can't be derived because they have no
 -- notes.  But that means the track warps and track dynamics aren't recorded,
 -- which means they don't have tempo or a playback monitor, which makes them
@@ -396,8 +373,7 @@ record_empty_tracks track_ids = do
     mapM_ (record_empty_track block_id) track_ids
 
 record_empty_track :: BlockId -> TrackId -> Deriver ()
-record_empty_track block_id track_id = do
-    add_track_warp track_id
+record_empty_track block_id track_id =
     record_track_dynamic_for block_id track_id
 
 -- * ControlFunction

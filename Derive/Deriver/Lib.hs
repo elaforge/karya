@@ -19,6 +19,7 @@ import qualified Util.SrcPos as SrcPos
 
 import qualified Ui.Event as Event
 import qualified Ui.Ruler as Ruler
+import qualified Ui.State as State
 import qualified Ui.Track as Track
 
 import qualified Derive.BaseTypes as BaseTypes
@@ -71,15 +72,22 @@ derive constant dynamic = run (initial_state constant dynamic)
 
 extract_result :: RunResult (Stream.Stream Score.Event) -> Result
 extract_result (result, state, logs) = Result
-    { r_events = merge_logs result logs
+    { r_events = merge_logs result (more_logs ++ logs)
     , r_cache = collect_cache collect <> state_cache (state_constant state)
-    , r_track_warps = TrackWarp.collections (collect_warp_map collect)
+    , r_track_warps = TrackWarp.collections blocks (collect_warp_map collect)
     , r_track_signals = collect_track_signals collect
     , r_track_dynamic = extract_track_dynamic collect
     , r_integrated = collect_integrated collect
     , r_state = state
     }
-    where collect = state_collect state
+    where
+    (more_logs, blocks) =
+        case State.run_id ui_state TrackWarp.get_track_trees of
+            Left err -> ([Log.msg Log.Warn Nothing msg], [])
+                where msg = "error collecting TrackWarps: " <> pretty err
+            Right (blocks, _, _) -> ([], blocks)
+    ui_state = state_ui $ state_constant state
+    collect = state_collect state
 
 -- | Extract the merged TrackDynamic from the Collect.
 --
