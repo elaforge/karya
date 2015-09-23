@@ -3,9 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Control flow and monadic utilities.
-module Util.Control where
+module Util.Control (module Util.Control, module Control.Monad.Extra) where
 import qualified Control.Exception as Exception
-import Control.Monad
+import qualified Control.Monad as Monad
+import Control.Monad.Extra
+       (whenJust, whenJustM, mapMaybeM, whenM, unlessM, ifM, notM, orM, andM,
+        findM, anyM, allM)
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Monoid as Monoid
@@ -42,58 +45,21 @@ while cond op = do
 while_ :: Monad m => m Bool -> m a -> m ()
 while_ cond op = do
     b <- cond
-    when b $ op >> while_ cond op
-
-whenM :: Monad m => m Bool -> m a -> m ()
-whenM cond op = do
-    b <- cond
-    when b $ op >> return ()
-
-unlessM :: Monad m => m Bool -> m a -> m ()
-unlessM cond op = do
-    b <- cond
-    if b then return () else op >> return ()
-
-whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
-whenJust val f = maybe (return ()) f val
-
-whenJustM :: Monad m => m (Maybe a) -> (a -> m ()) -> m ()
-whenJustM mval f = mval >>= \val -> whenJust val f
-
-ifM :: Monad m => m Bool -> m a -> m a -> m a
-ifM cond consequent alternative = do
-    b <- cond
-    if b then consequent else alternative
-
-andM :: Monad m => [m Bool] -> m Bool
-andM [] = return True
-andM (c:cs) = do
-    b <- c
-    if b then andM cs else return False
-
-orM :: Monad m => [m Bool] -> m Bool
-orM [] = return False
-orM (c:cs) = do
-    b <- c
-    if b then return True else orM cs
-
-findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
-findM _ [] = return Nothing
-findM f (x:xs) = ifM (f x) (return (Just x)) (findM f xs)
+    Monad.when b $ op >> while_ cond op
 
 -- | This is 'Foldable.foldMap' specialized to lists.
 mconcatMap :: Monoid.Monoid b => (a -> b) -> [a] -> b
 mconcatMap f = Monoid.mconcat . map f
 
--- | Or @foldMapA f = fmap Foldable.fold . traverse f@.
+-- | This is actually a mconcatMapM.
+--
+-- A further generalized version would be:
+--
+-- > foldMapA :: (Applicative f, Traversable t, Monoid m) =>
+-- >    (a -> f m) -> t a -> f m
+-- > foldMapA f = fmap Foldable.fold . traverse f
 concatMapM :: (Monad m, Monoid.Monoid b) => (a -> m b) -> [a] -> m b
-concatMapM f = liftM Monoid.mconcat . mapM f
-
-mapMaybeM :: Monad m => (a -> m (Maybe b)) -> [a] -> m [b]
-mapMaybeM f as = go as
-    where
-    go [] = return []
-    go (a:as) = maybe (go as) (\b -> liftM (b:) (go as)) =<< f a
+concatMapM f = Monad.liftM Monoid.mconcat . mapM f
 
 -- | Run the second action only if the first action returns Just.
 --
