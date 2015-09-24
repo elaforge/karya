@@ -252,7 +252,8 @@ globalPackages = concat $
     , w "ghc-prim old-locale"
     --  basic
     , w "transformers mtl deepseq data-ordlist cereal text stm network"
-    , w "vector utf8-string semigroups extra"
+    , w "vector utf8-string semigroups"
+    , [("extra", ">=1.3")]
     , w "attoparsec" -- Derive: tracklang parsing
     -- shakefile
     , w "Cabal"
