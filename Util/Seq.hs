@@ -88,15 +88,6 @@ first_last start end xs = case xs of
     go [x] = [end x]
     go (x:xs) = x : go xs
 
--- | Like mapMaybe, but keep the original value.
-map_filter :: (a -> Maybe b) -> [a] -> [(b, a)]
-map_filter f = go
-    where
-    go [] = []
-    go (a:as) = case f a of
-        Just b -> (b, a) : go as
-        Nothing -> go as
-
 -- | Filter on the snd values returning Just.
 map_maybe_snd :: (b -> Maybe b') -> [(a, b)] -> [(a, b')]
 map_maybe_snd f xs = [(a, b) | (a, Just b) <- map (Arrow.second f) xs]
