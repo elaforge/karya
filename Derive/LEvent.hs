@@ -48,6 +48,10 @@ is_event :: LEvent a -> Bool
 is_event (Event {}) = True
 is_event _ = False
 
+is_log :: LEvent a -> Bool
+is_log (Log {}) = True
+is_log _ = False
+
 -- | Always true for logs.  Useful for take and drop on events.
 log_or :: (d -> Bool) -> LEvent d -> Bool
 log_or f = either f (const True)

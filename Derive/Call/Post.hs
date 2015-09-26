@@ -44,6 +44,32 @@ import Global
 import Types
 
 
+type Sorted a = [a]
+type Unsorted a = [a]
+
+-- Preserves order.
+
+type Filter = Score.Event -> Bool
+
+-- | Score.event_start is unchanged.  I can't verify that statically, but
+-- I can check and throw.
+type NoMove1 = Score.Event -> Score.Event
+
+type SortedStream = Score.Event -> Sorted Score.Event
+
+-- Destroys order.
+
+-- | Score.event_start might have changed.
+type Move1 = Score.Event -> Score.Event
+-- | This is the most general.
+type UnsortedStream = Score.Event -> Unsorted Score.Event
+
+-- If it returns 'Stream a', I can use Stream.sort to make sure it's sorted.
+-- It doesn't help for Move1 though.  But I can't just sort the chunk, because
+-- the chunks are not guaranteed to be ascending.  So it's equivalent to Move1.
+--
+-- If Unsorted|Sorted exists at the value level then things are easier?
+
 -- * map events
 
 -- 'emap' is kind of an ugly name, but at least it's consistent and short.
@@ -146,19 +172,27 @@ emap_m event_of f state =
     -- if you don't want one.
 
 emap_asc_m :: (a -> Score.Event)
-    -> (state -> a -> Derive.Deriver (state, [b]))
+    -> (state -> a -> Derive.Deriver (state, [Score.Event]))
     -- ^ Process an event. Exceptions are caught and logged.
-    -> state -> Stream a -> Derive.Deriver (state, Stream b)
-emap_asc_m = emap_m
+    -> state -> Stream a -> Derive.Deriver (state, Stream Score.Event)
+emap_asc_m event_of f state =
+    fmap (second merge) . Seq.mapAccumLM go state . Stream.to_list
+    where
+    merge = Stream.merge_asc_lists . map Stream.from_sorted_list
+    go state (LEvent.Event event) =
+        maybe (state, []) (second (map LEvent.Event)) <$>
+            Derive.with_event (event_of event) (f state event)
+    go state (LEvent.Log log) = return (state, [LEvent.Log log])
 
 -- | 'emap_m' without the state.
 emap_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [b]) -> Stream a
     -> Derive.Deriver (Stream b)
 emap_m_ event_of f = fmap snd . emap_m event_of (\() e -> (,) () <$> f e) ()
 
-emap_asc_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [b])
-    -> Stream a -> Derive.Deriver (Stream b)
-emap_asc_m_ = emap_m_
+emap_asc_m_ :: (a -> Score.Event) -> (a -> Derive.Deriver [Score.Event])
+    -> Stream a -> Derive.Deriver (Stream Score.Event)
+emap_asc_m_ event_of f =
+    fmap snd <$> emap_asc_m event_of (\() e -> (,) () <$> f e) ()
 
 -- ** unthreaded state
 

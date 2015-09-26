@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Bali.Gangsa_test where
+import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Util.Lens as Lens
@@ -11,6 +12,7 @@ import Util.Test
 
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -223,8 +225,7 @@ test_nyogcag = do
 
 test_noltol = do
     let run title = e_by_inst extract . derive (" | realize-noltol | " <> title)
-        extract e = (Score.event_start e, e_digit e <> m)
-            where m = if DeriveTest.e_attributes e == "+mute" then "+" else ""
+        extract e = (Score.event_start e, e_digit_mute e)
     let notes = [(0, 1, "n >i1 -- 4c"), (1, 1, "n >i2 -- 4d"),
             (2, 1, "n >i1 -- 4e")]
     -- 1s of free time between i1
@@ -248,11 +249,17 @@ test_noltol = do
          , (sangsih, [(1, "2"), (2, "2+"), (3, "4"), (4, "4+")])
          ], [])
 
+    -- Output should always be sorted.  TODO I should have quickcheck to
+    -- test this in general.
+    let run title = DeriveTest.extract Score.event_start
+            . derive (" | realize-noltol | " <> title)
+    let result = run ("noltol .1" <> ngotek True) [(0, 8, "k k-12-1-21 -- 4c")]
+    equal result (first List.sort result)
+
 test_kotekan_cancel_noltol = do
     -- Cancelling works with noltol and kempyung.
     let run postproc = e_by_inst extract . derive (ngotek True <> postproc)
-        extract e = (Score.event_start e, e_digit e <> m)
-            where m = if DeriveTest.e_attributes e == "+mute" then "+" else ""
+        extract e = (Score.event_start e, e_digit_mute e)
 
     -- 1+121     => 1+12 +232  >p 1 {final}, >s 2+ {}
     -- -3+2+         3+2+4+3+  >p 2 {initial}
@@ -345,6 +352,10 @@ e_note e = (Score.event_start e, Score.event_duration e, e_digit e)
 
 e_digit :: Score.Event -> String
 e_digit = pitch_digit . DeriveTest.e_pitch
+
+e_digit_mute :: Score.Event -> String
+e_digit_mute e = pitch_digit (DeriveTest.e_pitch e)
+    <> if Score.has_attribute Attrs.mute e then "+" else ""
 
 pitch_digit :: String -> String
 pitch_digit p = case p of

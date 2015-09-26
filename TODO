@@ -3,7 +3,21 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - I'm back to getting out of order warnings from ConvertUtil.
+  * I'm back to getting out of order warnings from ConvertUtil.
+    . Turns out Post functions didn't do any sorting at all.
+  - Complete sortedness tracking for Post functions.
+    . Track down usage of Stream.from_sorted_list, probably most uses are
+      bogus.  Stream.from_list and Stream.from_events have to take
+      Score.Events so they can sort them.
+    . Sorting vensions of Post functions also have to return Score.Events to
+      be able to sort them.  They could take another event_of, but it seems
+      like there should be a way to compose the mapped functions instead of
+      the maps.
+    . I should also come up with a plan for deforesting the intermediate
+      lists.
+    . Order is easy to check with quickcheck.  I could come up with some ways to
+      do quickchecks on certain score fragments.  Or alternately, apply
+      a standard set of checks: start =0, >0, in callee block, etc.
   - pakhawaj bols
     . I'd like to be able to directly write pakhawaj bols instead of my own
       weirdo notation.  Also, the bols have more information.  However, they
