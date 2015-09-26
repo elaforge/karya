@@ -136,6 +136,7 @@ log_event :: Event -> Text
 log_event e = pretty $ foldr1 (Pretty.<+>) $ concat $ filter (not . null)
     [ [Pretty.format (event_start e, event_duration e)]
     , [Pretty.format (event_instrument e)]
+    , [Pretty.format n | Just n <- [initial_note e]]
     , [Pretty.format (event_text e) | not (Text.null (event_text e))]
     , [Pretty.text stack
         | Just stack <- [Stack.pretty_ui_inner (event_stack e)]]

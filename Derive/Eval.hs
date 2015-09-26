@@ -282,7 +282,7 @@ eval_one_at collect start dur expr = eval_expr collect ctx expr
     where
     -- Set the event start and duration instead of using Derive.place since
     -- this way I can have zero duration events.
-    ctx = Derive.dummy_context start dur $ "eval_one: " <> ShowVal.show_val expr
+    ctx = Derive.dummy_context start dur $ ShowVal.show_val expr
 
 -- | Like 'derive_event' but evaluate the event outside of its track context.
 -- This is useful if you want to evaluate things out of order, i.e. evaluate

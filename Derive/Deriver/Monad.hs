@@ -863,7 +863,7 @@ pitch_mergers = Map.fromList $ map to_pair
 
 -- | These are things that collect throughout derivation, and are cached in
 -- addition to the derived values.  Effectively they are extra return values,
--- which are combined with mappend.
+-- which are combined with mappend.  So this is the WriterT part of 'State'.
 data Collect = Collect {
     -- | Remember the warp signal for each track.  A warp usually applies to
     -- a set of tracks, so remembering them together will make the play monitor
@@ -1184,7 +1184,7 @@ coerce_context ctx = ctx { ctx_prev_val = Nothing }
 dummy_context :: ScoreTime -> ScoreTime -> Text -> Context a
 dummy_context start dur text = Context
     { ctx_prev_val = Nothing
-    , ctx_event = Event.event start dur s
+    , ctx_event = Event.event start dur text
     , ctx_prev_events = []
     , ctx_next_events = []
     , ctx_event_end = start + dur
@@ -1192,7 +1192,7 @@ dummy_context start dur text = Context
     , ctx_sub_tracks = []
     , ctx_sub_events = Nothing
     , ctx_track_type = Nothing
-    } where s = if Text.null text then "<no-event>" else "<" <> text <> ">"
+    }
 
 -- | Taggable the polymorphic part of the Context so it can be given to
 -- a 'ValCall'.  Otherwise, ValCall would have to be polymorphic too,

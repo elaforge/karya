@@ -29,8 +29,7 @@ convert state convert_event = go state Nothing
     where
     go _ _ [] = []
     go state prev (event : rest) =
-        converted ++ map LEvent.Log logs
-            ++ go next_state (Just (Score.event_start event)) rest
+        converted ++ map LEvent.Log logs ++ go next_state (Just event) rest
         where
         (result, logs, next_state) = run_convert state
             (Score.event_stack event) (convert1 prev event)
@@ -39,9 +38,10 @@ convert state convert_event = go state Nothing
             Just event -> [LEvent.Event event]
     convert1 maybe_prev event = do
         -- Sorted is a postcondition of the deriver.
-        whenJust maybe_prev $ \prev -> when (Score.event_start event < prev) $
-            Log.warn $ "start time " <> pretty (Score.event_start event)
-                <> " less than previous of " <> pretty prev
+        whenJust maybe_prev $ \prev ->
+            when (Score.event_start event < Score.event_start prev) $
+                Log.warn $ "start of " <> Score.log_event event
+                    <> " less than previous " <> Score.log_event prev
         convert_event event
 
 run_convert :: state -> Stack.Stack -> ConvertT state a
