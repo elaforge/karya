@@ -3,6 +3,24 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - final notes on a mridangam sub-block aren't being suppressed
+  . Adding the repeat call was unintuitive because deriver placement is
+    unintuitive.
+    . Ideally I could just say (0, 2), (2, 2) and it would work.
+      Instead, I get (0, 8) and (2, 8)
+      This is because the block isn't normalized, so stretch by 2 makes it 4,
+      then the stretch by 2 for the event goes to 8.
+    . This is so that just 'deriver' by itself gets it right.  If I instead
+      made deriver always normalized, then the above would work, but I would
+      have to do 'Derive.place (Args.start args) (Args.duration args)
+      deriver' to avoid it always showing up at 0-1.  And actually, I couldn't
+      do that from a transformer, because what about the next transformer?
+      I should instead have each transformer be in normalized time.  'repeat'
+      becomes [Derive.place start (1/times) | start <- Seq.range_ 0 (1/times)]
+    . For blocks, it's actually almost that, except I have to translate back
+      by the start time first.  This is because blocks are already normalized
+      to the event duration.  I think?
+
   * I'm back to getting out of order warnings from ConvertUtil.
     . Turns out Post functions didn't do any sorting at all.
   - Complete sortedness tracking for Post functions.

@@ -38,6 +38,7 @@ note_calls = Derive.call_maps
     , ("loop", c_loop)
     , ("multiple", c_multiple)
     , ("tile", c_tile)
+    , ("repeat", c_repeat)
     ]
 
 
@@ -78,13 +79,14 @@ sequence_derivers start event_dur derivers unstretched_durs = mconcat
 
 c_sequence_realtime :: Derive.Generator Derive.Note
 c_sequence_realtime = Derive.with_score_duration score_duration $
-    Derive.generator Module.prelude "sequence" mempty
+    Derive.generator Module.prelude "sequence-rt" mempty
     "Run the given block calls in sequence. Each call gets its natural\
     \ real time duration. Unlike `sequence`, each block gets its natural\
     \ RealTime duration, rather than being normalized to 1 and then expanded\
     \ to its ScoreTime duration. TODO I can't get the RealTime duration without\
     \ deriving, at which point it's too late to stretch, so the event duration\
-    \ has no effect."
+    \ has no effect." -- TODO that last sentence is now out of date since
+    -- I have Derive.get_real_duration, right?
     $ Sig.call calls_arg $ \calls args -> do
         let derivers = calls_to_derivers args calls
         durs <- mapM get_real_duration derivers
@@ -247,6 +249,16 @@ c_tile = Derive.transformer Module.prelude "tile" mempty
         Stream.drop_while (event_before real_start)
             . Stream.take_while (event_before real_end)
             <$> mconcat [Derive.at s deriver | s <- starts]
+
+c_repeat :: Derive.Transformer Derive.Note
+c_repeat = Derive.transformer Module.prelude "repeat" mempty
+    "Repeat the score multiple times, fitted within the note duration."
+    $ Sig.callt (Sig.required "times" "Repeat this many times.")
+    $ \(Typecheck.Positive times) args deriver -> do
+        let dur = Args.duration args / fromIntegral times
+        let deriver0 = Derive.at (- Args.start args) deriver
+        mconcat [Derive.place start (1 / fromIntegral times) deriver0
+            | start <- take times (Seq.range_ (Args.start args) dur)]
 
 -- * util
 

@@ -121,6 +121,18 @@ test_tile = do
     equal (run [(1, 5, "tile | sub")]) ([1, 4, 5], [])
     equal (run [(9, 5, "tile | sub")]) ([9, 12, 13], [])
 
+test_repeat = do
+    let run top = run_sub DeriveTest.e_note [(">", top)]
+            (UiTest.note_track [(0, 1, "4c"), (1, 1, "4d")])
+    equal (run [(0, 4, "repeat 2 | sub")])
+        ([(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c"), (3, 1, "4d")], [])
+    equal (run [(0, 6, "repeat 3 | sub")])
+        ([ (0, 1, "4c"), (1, 1, "4d"), (2, 1, "4c"), (3, 1, "4d")
+         , (4, 1, "4c"), (5, 1, "4d")
+         ], [])
+    equal (run [(2, 4, "repeat 2 | sub")])
+        ([(2, 1, "4c"), (3, 1, "4d"), (4, 1, "4c"), (5, 1, "4d")], [])
+
 run_sub :: (Score.Event -> a) -> [UiTest.TrackSpec] -> [UiTest.TrackSpec]
     -> ([a], [String])
 run_sub extract top sub = DeriveTest.extract extract $ DeriveTest.derive_blocks
