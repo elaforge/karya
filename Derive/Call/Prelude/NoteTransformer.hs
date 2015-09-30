@@ -277,11 +277,10 @@ unstretch :: ScoreTime -> ScoreTime
     -> (ScoreTime -> Derive.Deriver a -> Derive.Deriver a)
     -> Derive.Deriver a -> Derive.Deriver a
 unstretch start event_dur process deriver = do
-    dur <- Derive.get_score_duration deriver
-    case dur of
-        Derive.CallDuration dur | dur /= event_dur ->
-            process dur $ flatten dur deriver
-        _ -> deriver
+    dur <- Derive.get_score_duration deriver >>= \d -> case d of
+        Derive.CallDuration dur -> return dur
+        Derive.Unknown -> return event_dur
+    process dur $ flatten dur deriver
     where
     flatten dur = Derive.stretch (1 / (event_dur/dur)) . Derive.at (-start)
 

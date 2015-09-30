@@ -92,6 +92,11 @@ test_clip = do
     -- notes that overlap the end are shortened
     equal (run [(1, 1.5, "clip | sub")]) ([(1, 1), (2, 0.5)], [])
 
+    -- A note at the end is clipped.
+    equal (run_sub DeriveTest.e_start_dur
+            [(">", [(0, 1, "clip | sub")])] [(">", [(0, 0, ""), (1, 0, "")])])
+        ([(0, 0)], [])
+
     -- clip works even when it's not directly a block call.
     equal (run [(1, 1.5, "^b=sub | clip | b")]) ([(1, 1), (2, 0.5)], [])
 
