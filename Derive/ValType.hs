@@ -44,10 +44,10 @@ data NumType = TUntyped | TInt
     | TTime | TDefaultReal | TDefaultScore | TRealTime | TScoreTime
     deriving (Eq, Ord, Show)
 
--- | Numeric subtypes, from most general to most specific.
+-- | Numeric subtypes.
 data NumValue = TAny
     -- | >=0
-    | TNatural
+    | TNonNegative
     -- | >0
     | TPositive
     -- | 0 <= a <= 1
@@ -130,7 +130,7 @@ instance Pretty.Pretty NumType where
 instance Pretty.Pretty NumValue where
     pretty t = case t of
         TAny -> ""
-        TNatural -> ">=0"
+        TNonNegative -> ">=0"
         TPositive -> ">0"
         TNormalized -> "0 <= x <= 1"
 
@@ -144,7 +144,7 @@ infer_type_of :: Bool -- ^ If True, infer the most specific type possible.
 infer_type_of specific val = case val of
     VNum (Score.Typed typ val) -> TNum (to_num_type typ) $ if specific
         then (if val > 0 then TPositive
-            else if val >= 0 then TNatural else TAny)
+            else if val >= 0 then TNonNegative else TAny)
         else TAny
     VAttributes {} -> TAttributes
     VControlRef {} -> TControlRef

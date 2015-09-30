@@ -75,8 +75,8 @@ score = DefaultScore . BaseTypes.ScoreDuration
 newtype Positive a = Positive { positive :: a }
     deriving (Show, Eq, ShowVal.ShowVal, Num, Fractional)
 
--- | Like 'Positive', but >=0.
-newtype Natural a = Natural { natural :: a }
+-- | Like Positive, but also includes 0.
+newtype NonNegative a = NonNegative { non_negative :: a }
     deriving (Show, Eq, ShowVal.ShowVal, Num, Fractional)
 
 -- | 0 <= x <= 1
@@ -349,15 +349,6 @@ instance Typecheck Int where
 instance ToVal Int where to_val = VNum . Score.untyped . fromIntegral
 instance TypecheckNum Int where num_type _ = ValType.TInt
 
-instance Typecheck Normalized where
-    from_val = num_to_scalar (check . Score.typed_val)
-        where
-        check a
-            | a <= a && a <= 1 = Just (Normalized a)
-            | otherwise = Nothing
-    to_type _ = ValType.TNum ValType.TUntyped ValType.TNormalized
-instance ToVal Normalized where to_val = VNum . Score.untyped . normalized
-
 -- | VNums can also be coerced into chromatic transposition, so you can write
 -- a plain number if you don't care about diatonic.
 --
@@ -479,14 +470,23 @@ instance TypecheckNum a => Typecheck (Positive a) where
 instance ToVal a => ToVal (Positive a) where
     to_val (Positive val) = to_val val
 
-instance TypecheckNum a => Typecheck (Natural a) where
+instance TypecheckNum a => Typecheck (NonNegative a) where
     from_val v@(VNum val)
-        | Score.typed_val val >= 0 = Natural <$> from_val v
+        | Score.typed_val val > 0 = NonNegative <$> from_val v
         | otherwise = Val Nothing
     from_val _ = Val Nothing
-    to_type _ = ValType.TNum (num_type (Proxy :: Proxy a)) ValType.TNatural
-instance ToVal a => ToVal (Natural a) where
-    to_val (Natural val) = to_val val
+    to_type _ = ValType.TNum (num_type (Proxy :: Proxy a)) ValType.TNonNegative
+instance ToVal a => ToVal (NonNegative a) where
+    to_val (NonNegative val) = to_val val
+
+instance Typecheck Normalized where
+    from_val = num_to_scalar (check . Score.typed_val)
+        where
+        check a
+            | a <= a && a <= 1 = Just (Normalized a)
+            | otherwise = Nothing
+    to_type _ = ValType.TNum ValType.TUntyped ValType.TNormalized
+instance ToVal Normalized where to_val = VNum . Score.untyped . normalized
 
 -- ** text\/symbol
 

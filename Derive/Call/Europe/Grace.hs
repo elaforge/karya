@@ -71,8 +71,9 @@ grace_dur_env = Typecheck.default_real <$>
         "Duration of grace notes."
 
 grace_dyn_env :: Sig.Parser Double
-grace_dyn_env = Typecheck.positive <$> Sig.environ "grace-dyn" Sig.Unprefixed
-    0.5 "Scale the dyn of the grace notes."
+grace_dyn_env =
+    Typecheck.non_negative <$> Sig.environ "grace-dyn" Sig.Unprefixed
+        0.5 "Scale the dyn of the grace notes."
 
 grace_placement_env :: Sig.Parser TrackLang.ControlRef
 grace_placement_env = Sig.environ "grace-place" Sig.Unprefixed
