@@ -23,7 +23,7 @@ UNSORTED
 
   * I'm back to getting out of order warnings from ConvertUtil.
     . Turns out Post functions didn't do any sorting at all.
-  - Complete sortedness tracking for Post functions.
+  - Sortedness tracking for Stream and Post functions.
     . Track down usage of Stream.from_sorted_list, probably most uses are
       bogus.  Stream.from_list and Stream.from_events have to take
       Score.Events so they can sort them.
@@ -808,6 +808,13 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
+  - find space leaks with nmitchell's stack limit technique:
+      Derive.LEvent.events_of,
+      called from Derive.Stream.zip3_on.\,
+      called from Derive.Stream.emap,
+      called from Derive.Stream.zip3_on,
+    . Also, what's with the compile_library stuff in the middle?  Should
+      I make it stricter?
   . Seq.sort_on winds up calling compare on Stack 13374153 times! 9.1% time
     I have to sort it because the stack is kept in reverse order.
     * Why is TrackWarp.run_collections run twice?
