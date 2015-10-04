@@ -130,7 +130,6 @@ import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
 import qualified Util.Lens as Lens
@@ -693,10 +692,8 @@ get_scopes get = do
 -- | Convert a list of lookups into a single lookup by returning the first
 -- one to yield a Just.
 lookup_scopes :: [LookupCall call] -> (BaseTypes.CallId -> Deriver (Maybe call))
-lookup_scopes [] _ = return Nothing
-lookup_scopes (lookup:rest) call_id =
-    maybe (lookup_scopes rest call_id) (return . Just)
-        =<< lookup_call lookup call_id
+lookup_scopes lookups call_id =
+    firstJusts $ map (flip lookup_call call_id) lookups
 
 lookup_call :: LookupCall call -> BaseTypes.CallId -> Deriver (Maybe call)
 lookup_call (LookupMap calls) call_id = return $ Map.lookup call_id calls

@@ -96,10 +96,9 @@ lookup_next_neighbor = get_neighbor_notes >>= \(_, next) -> case next of
 
 get_neighbor_notes :: Derive.Deriver
     ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
-get_neighbor_notes = do
-    neighbors <- Derive.require "no neighbors"
+get_neighbor_notes =
+    Derive.require "no neighbors"
         =<< Derive.gets (Derive.state_neighbors . Derive.state_dynamic)
-    return neighbors
 
 -- ** eval
 

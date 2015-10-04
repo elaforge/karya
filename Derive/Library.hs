@@ -20,11 +20,11 @@ type Shadowed = ((Text, Module.Module), [TrackLang.CallId])
 shadowed :: Derive.Library -> [Shadowed]
 shadowed (Derive.Library note control pitch val) =
     filter (not . null . snd) $ concat
-    [ call_maps "note" note
-    , call_maps "control" control
-    , call_maps "pitch" pitch
-    , add "val" $ get_shadows Derive.vcall_doc val
-    ]
+        [ call_maps "note" note
+        , call_maps "control" control
+        , call_maps "pitch" pitch
+        , add "val" $ get_shadows Derive.vcall_doc val
+        ]
     where
     call_maps tag (Derive.CallMaps gen trans) = concat
         [ add (tag <> " generator") $ get_shadows Derive.call_doc gen

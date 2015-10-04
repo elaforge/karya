@@ -337,9 +337,8 @@ update_definition_cache ui_state cmd_state = case ky_file of
 -- is up to date.
 --
 -- This only checks the timestamp of the file given.  If that file imports
--- other files they won't get checked.  Otherwise I have to essentially
--- recreate shake by tracking all the dependencies and last timestamps and
--- that's just way too complicated.
+-- other files they won't get checked.  TODO chase imports and reload if any of
+-- the timestamps changed.
 cached_load :: Cmd.State -> FilePath
     -> IO (Maybe (Time.UTCTime, Either Text Derive.Library))
 cached_load state fname = run $ do

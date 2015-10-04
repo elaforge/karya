@@ -4,7 +4,7 @@
 
 -- | Postprocs that change note start and duration.
 module Derive.Call.Post.Postproc where
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
 import qualified Util.ApproxEq as ApproxEq

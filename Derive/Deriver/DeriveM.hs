@@ -15,7 +15,7 @@ import qualified Util.Log as Log
 
 
 newtype Deriver st err a = Deriver
-    { runD :: forall r.  st -> [Log.Msg] -> Failure st err r
+    { runD :: forall r. st -> [Log.Msg] -> Failure st err r
         -> Success st err a r -> RunResult st err r
     }
 
@@ -53,7 +53,7 @@ throw err = Deriver $ \st logs lose _ -> lose st logs err
 
 {-# INLINE modify #-}
 modify :: (st -> st) -> Deriver st err ()
-modify f = Deriver $ \st logs _ win -> let !x = f st in win x logs ()
+modify f = Deriver $ \st1 logs _ win -> let !st2 = f st1 in win st2 logs ()
 
 {-# INLINE get #-}
 get :: Deriver st err st

@@ -44,32 +44,6 @@ import Global
 import Types
 
 
-type Sorted a = [a]
-type Unsorted a = [a]
-
--- Preserves order.
-
-type Filter = Score.Event -> Bool
-
--- | Score.event_start is unchanged.  I can't verify that statically, but
--- I can check and throw.
-type NoMove1 = Score.Event -> Score.Event
-
-type SortedStream = Score.Event -> Sorted Score.Event
-
--- Destroys order.
-
--- | Score.event_start might have changed.
-type Move1 = Score.Event -> Score.Event
--- | This is the most general.
-type UnsortedStream = Score.Event -> Unsorted Score.Event
-
--- If it returns 'Stream a', I can use Stream.sort to make sure it's sorted.
--- It doesn't help for Move1 though.  But I can't just sort the chunk, because
--- the chunks are not guaranteed to be ascending.  So it's equivalent to Move1.
---
--- If Unsorted|Sorted exists at the value level then things are easier?
-
 -- * map events
 
 -- 'emap' is kind of an ugly name, but at least it's consistent and short.
@@ -133,19 +107,6 @@ emap_asc_ = emap_
 apply :: Functor f => ([a] -> f [b]) -> Stream.Stream a -> f (Stream.Stream b)
 apply f stream = Stream.merge_logs logs . Stream.from_sorted_events <$> f events
     where (events, logs) = Stream.partition stream
-
--- | Like 'Derive.with_event_stack', but directly add the event's innermost
--- stack to a log msg.
-add_event_stack :: Score.Event -> Log.Msg -> Log.Msg
-add_event_stack =
-    maybe id with_stack . Stack.block_track_region_of . Score.event_stack
-    where
-    with_stack (block_id, track_id, (s, e)) msg =
-        msg { Log.msg_stack = add_stack msg }
-        where
-        add_stack = Just . add . fromMaybe Stack.empty . Log.msg_stack
-        add = Stack.add (Stack.Region s e) . Stack.add (Stack.Track track_id)
-            . Stack.add (Stack.Block block_id)
 
 -- | Monadic map with state.  The event type is polymorphic, so you can use
 -- 'LEvent.zip' and co. to zip up unthreaded state, constructed with 'control'
@@ -405,3 +366,19 @@ set_instrument (score_inst, inst) event = event
         Score.event_untransformed_pitches event
     }
     where env = Derive.inst_environ inst
+
+-- * misc
+
+-- | Like 'Derive.with_event_stack', but directly add the event's innermost
+-- stack to a log msg.
+-- TODO unused
+add_event_stack :: Score.Event -> Log.Msg -> Log.Msg
+add_event_stack =
+    maybe id with_stack . Stack.block_track_region_of . Score.event_stack
+    where
+    with_stack (block_id, track_id, (s, e)) msg =
+        msg { Log.msg_stack = add_stack msg }
+        where
+        add_stack = Just . add . fromMaybe Stack.empty . Log.msg_stack
+        add = Stack.add (Stack.Region s e) . Stack.add (Stack.Track track_id)
+            . Stack.add (Stack.Block block_id)
