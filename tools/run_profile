@@ -9,6 +9,9 @@
 # Run RunProfile-Rederive with default profiling:
 # tools/run_profile -Rederive profile1 profile2
 #
+# Run specific binaries:
+# tools/run_profile verify_performance ...
+#
 # Flags for 'heap' env var:
 # hc - by producing cost-center stack
 # hm - by module
