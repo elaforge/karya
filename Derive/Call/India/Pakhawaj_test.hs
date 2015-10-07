@@ -9,7 +9,6 @@ import qualified Data.Text as Text
 import Util.Test
 import qualified Derive.Call.India.Pakhawaj as Pakhawaj
 import Derive.Call.India.Pakhawaj (Bol(..), Stroke(..), Sequence(..), Speed(..))
-import Global
 
 
 test_infer_tette = do

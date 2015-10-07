@@ -37,16 +37,11 @@ UNSORTED
     . Order is easy to check with quickcheck.  I could come up with some ways to
       do quickchecks on certain score fragments.  Or alternately, apply
       a standard set of checks: start =0, >0, in callee block, etc.
-  - pakhawaj bols
-    . I'd like to be able to directly write pakhawaj bols instead of my own
-      weirdo notation.  Also, the bols have more information.  However, they
-      are also sometimes context sensitive, so it needs to be a parser.
-      . te re ki ta ta ka = tet te ka tet te ka
-      . te ran = di3 di1
-      Also some strokes need to be inferred, e.g. dhet can be ge+te or ge+tet
-    . So I think I need a first pass that produces the low level strokes, and
-      perhaps a way to disambiguate with the low level names.
-    . Can I use score integration for this?
+  pakhawaj bols
+    - Score deriver to convert bols to low level calls
+    - Or maybe just interpret the bols directly, but due to context
+      sensitivity they need to be all processed together, not as separate
+      calls.
   New typechecking.
     - It turns out this is not so useful because a default TypedFunction
       doesn't have a default control name like a Sig.typed_control does.

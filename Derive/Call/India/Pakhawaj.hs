@@ -6,8 +6,8 @@
 -- | Functions to realize pakhawaj bols.
 module Derive.Call.India.Pakhawaj where
 import qualified Data.Foldable as Foldable
-import qualified Data.List as List
 import qualified Data.Text as Text
+import qualified Data.Traversable as Traversable
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
@@ -31,7 +31,7 @@ data Bol = One Stroke | Together Stroke Stroke | Flam Stroke Stroke
 
 -- | This is polymorphic just so I can get Traversable.
 data Sequence note = Rest | Note note | Speed Speed [Sequence note]
-    deriving (Show, Eq, Functor, Foldable, Traversable)
+    deriving (Show, Eq, Functor, Foldable.Foldable, Traversable.Traversable)
 
 data Speed = S1 | S2 | S3 | S4 | S5 | S6 | S7 | S8
     deriving (Show, Eq)
@@ -155,17 +155,12 @@ infer_tette = map_neighbors infer
     replace stroke Tette = stroke
     replace _ stroke = stroke
 
--- | This is different from @map f . Seq.zip_prev@ in that you can see whatever
--- change @f@ made to the previous value.
--- map_prev :: (Maybe b -> a -> b) -> [a] -> [b]
-
-map_neighbors :: Traversable t => (Maybe b -> a -> Maybe a -> b) -> t a -> t b
+-- | This is different from @map f . Seq.zip_neighbors@ in that you can see
+-- whatever change @f@ made to the previous value.
+map_neighbors :: Traversable.Traversable t => (Maybe b -> a -> Maybe a -> b)
+    -> t a -> t b
 map_neighbors f xs =
-    snd $ List.mapAccumL go (Nothing, drop 1 $ Foldable.toList xs) xs
+    snd $ Traversable.mapAccumL go (Nothing, drop 1 $ Foldable.toList xs) xs
     where
     go (prev, nexts) x = ((Just y, drop 1 nexts), y)
         where y = f prev x (Seq.head nexts)
-
-map_prev :: (Maybe b -> a -> b) -> [a] -> [b]
-map_prev f = snd . List.mapAccumL go Nothing
-    where go prev x = let y = f prev x in (Just y, y)
