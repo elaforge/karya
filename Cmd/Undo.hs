@@ -16,6 +16,7 @@ import qualified Ui.Transform as Transform
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Internal as Internal
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
 
@@ -211,10 +212,8 @@ record_suppressed = do
 save_history :: Cmd.State -> Cmd.History -> Cmd.HistoryCollect
     -> [SaveGit.SaveHistory] -> IO Cmd.State
 save_history cmd_state hist collect uncommitted = do
-    entries <- case (Cmd.state_save_file cmd_state, maybe_prev_commit) of
-        -- I need both a repo and a previous commit to checkpoint.
-        (Just (Cmd.SaveRepo repo), Just prev_commit) ->
-            commit_entries repo prev_commit uncommitted
+    entries <- case Internal.can_checkpoint cmd_state of
+        Just (repo, prev_commit) -> commit_entries repo prev_commit uncommitted
         _ -> return $ map (history_entry Nothing) uncommitted
     let (present, past) = bump_updates (Cmd.hist_present hist) entries
     return $ cmd_state
@@ -227,14 +226,12 @@ save_history cmd_state hist collect uncommitted = do
             }
         , Cmd.state_history_collect = collect
         , Cmd.state_history_config = (Cmd.state_history_config cmd_state)
-            { Cmd.hist_last_commit =
-                Cmd.hist_commit present <|> maybe_prev_commit
+            { Cmd.hist_last_commit = Cmd.hist_commit present
+                <|> Cmd.hist_last_commit (Cmd.state_history_config cmd_state)
             }
         }
     where
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
-    maybe_prev_commit =
-        Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
 
 -- | The present is expected to have no updates, so bump the updates off the
 -- new present onto the old present, as described in [undo-and-updates].

@@ -13,6 +13,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector.Storable as Vector
 
+import qualified Util.GitTypes as GitTypes
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Rect as Rect
@@ -303,7 +304,8 @@ update_saved :: [Update.CmdUpdate] -> State.State -> State.State -> Cmd.State
     -> Cmd.State
 update_saved updates ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
     Nothing -> cmd_state { Cmd.state_saved = Just True }
-    Just True | Diff.score_changed ui_from ui_to updates ->
+    Just True | Maybe.isNothing (can_checkpoint cmd_state)
+            && Diff.score_changed ui_from ui_to updates ->
         cmd_state { Cmd.state_saved = Just False }
     Just _ -> cmd_state
     -- This involves yet another state diff, and I already have a ton of those.
@@ -318,6 +320,19 @@ update_saved updates ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
     -- seems invasive to make this change, especially if I want to enforce it
     -- with types, so unless this extra diff turns out to cause UI lag I won't
     -- bother.
+
+-- | Return Just if there will be a git checkpoint.  'update_saved' has to
+-- predict this because by the time 'Cmd.Undo.save_history' runs, it's too
+-- late to make Ui.State changes.
+--
+-- This is not defined in Cmd.Undo to avoid a circular import.
+can_checkpoint :: Cmd.State -> Maybe (GitTypes.Repo, GitTypes.Commit)
+    -- ^ I need both a repo and a previous commit to checkpoint.
+can_checkpoint cmd_state = case (Cmd.state_save_file cmd_state, prev) of
+    (Just (Cmd.SaveRepo repo), Just commit) -> Just (repo, commit)
+    _ -> Nothing
+    where
+    prev = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
 
 view_updates :: State.State -> State.State -> [Update.UiUpdate]
 view_updates ui_from ui_to = fst $ Diff.run $
