@@ -2,7 +2,7 @@
 
 Karya is a music sequencer.
 
-It's main goal is to let you write a high level score which is then realized to
+Its main goal is to let you write a high level score which is then realized to
 expressive and idiomatic instrumental parts, primarily for electronic music.
 It's not oriented around realtime use, or recording realtime input.
 
@@ -13,12 +13,17 @@ notation, but more complicated notation is defined in haskell.  The idea is to
 have a large standard library, but also be able to define notation specific to
 your score.  The editor is graphical but also uses a haskell REPL for
 configuration, automation, and extension.  If you're familiar with Amiga-style
-trackers, it looks somewhat similar.
+trackers, it looks somewhat similar, but fundamentally it's much closer to a
+programming language.
 
 The primary backend is MIDI, though it can also produce lilypond if you
 restrict yourself to the subset of notation that can be translated to staff
-notation.  It doesn't record audio or host VSTs, but you can sync with a DAW
-via MTC and MMC.
+notation.  It doesn't record audio or host VSTs, but you can use a DAW to
+host VSTs and effect, and record tracks.  You can sync with MTC and MMC to
+record live audio, but I haven't tested that much yet.
+
+Development is on OS X.  It should theoretically work on linux, but I
+haven't done much testing there.
 
 As far as I know, there are no other sequencers with similar goals and
 features, but if there are, I'd be interested in hearing about them.

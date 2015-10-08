@@ -10,6 +10,7 @@
 module Ui.Diff (
     run
     , diff, derive_diff, track_diff
+    , score_changed
     , diff_views
 ) where
 import qualified Control.Monad.Identity as Identity
@@ -381,6 +382,23 @@ derive_diff_track track_id track1 track2 =
     when (unequal_on (Text.strip . Track.track_title) track1 track2) $
         Writer.tell $ mempty { Derive.sdamage_tracks =
             Map.singleton track_id Ranges.everything }
+
+-- * score_changed
+
+-- | This is like 'derive_diff', but it only needs to return a Bool.  It's also
+-- more sensitive in that it's looking for any change that you might want to
+-- save to disk, not just changes that could require rederivation.
+score_changed :: State.State -> State.State -> [Update.CmdUpdate] -> Bool
+score_changed st1 st2 updates = or
+    [ any Update.is_score_update updates
+    , unequal_on (Map.keys . State.state_blocks) st1 st2
+    , unequal_on (Map.keys . State.state_tracks) st1 st2
+    , any (\(_, b1, b2) -> strip b1 /= strip b2) $
+        Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2)
+    , any (\(_, t1, t2) -> t1 /= t2) $
+        Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
+    ]
+    where strip b = b { Block.block_config = Block.default_config }
 
 -- * events diff
 

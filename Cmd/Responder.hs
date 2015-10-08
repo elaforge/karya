@@ -345,7 +345,7 @@ respond state msg = run_responder True state $ do
         return $ Right Cmd.Done
     case result of
         Right _ -> run_sync_status
-        _ -> return ()
+        Left _ -> return ()
     return result
     where unerror = either (\(Done r) -> r) id
 
@@ -395,8 +395,7 @@ run_sync_status :: ResponderM ()
 run_sync_status = do
     rstate <- Monad.State.get
     result <- run_continue "sync_status" $ Left $
-        Internal.sync_status (rstate_ui_from rstate)
-            (rstate_cmd_from rstate)
+        Internal.sync_status (rstate_ui_from rstate) (rstate_cmd_from rstate)
     whenJust result $ \(_, ui_state, cmd_state) -> Monad.State.modify $ \st ->
         st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
 

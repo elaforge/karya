@@ -301,4 +301,10 @@ hist_updates (Cmd.History past present future _undo_redo) =
         map Cmd.hist_updates future)
 
 e_updates :: ResponderTest.Result -> [Update.DisplayUpdate]
-e_updates = ResponderTest.result_updates
+e_updates = filter (not . is_view_update) . ResponderTest.result_updates
+
+-- | Filter out \"side effect\" updates that I don't want to test.
+is_view_update :: Update.DisplayUpdate -> Bool
+is_view_update update = case update of
+    Update.Block _ (Update.BlockConfig _) -> True
+    _ -> False

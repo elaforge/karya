@@ -104,13 +104,12 @@ io_bindings = concat
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
-    [ command_char 'S' "save" $ do
-        -- Always save a state, but only save a git checkpoint if I'm alreading
-        -- gitting.
-        Save.write_current_state =<< Save.get_state_path
-        Cmd.gets Cmd.state_save_file >>= \x -> case x of
-            Just (Cmd.SaveRepo repo) -> Save.save_git_as repo
-            _ -> return ()
+    [ command_char 'S' "save" $ Cmd.gets Cmd.state_save_file >>= \x -> case x of
+        Just (Cmd.SaveRepo repo) -> do
+            -- Even when using git, write a standalone state as a safeguard.
+            Save.write_current_state =<< Save.get_state_path
+            Save.save_git_as repo
+        _ -> Save.save_state
     ]
 
 undo_bindings :: [Keymap.Binding (Cmd.CmdT IO)]

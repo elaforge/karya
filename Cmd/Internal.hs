@@ -266,17 +266,21 @@ track_bg track
 
 -- * sync
 
+-- | This is called after every non-failing cmd.
 sync_status :: State.State -> Cmd.State -> Cmd.CmdId Cmd.Status
 sync_status ui_from cmd_from = do
-    cstate <- Cmd.get
     ui_to <- State.get
+    cmd_updates <- State.get_updates
+    Cmd.modify $ update_saved cmd_updates ui_from ui_to
+    cmd_to <- Cmd.get
     let updates = view_updates ui_from ui_to
         new_views = mapMaybe create_view updates
-        edit_state = Cmd.state_edit cstate
-    when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state) $
-        sync_edit_state edit_state
-    sync_play_state $ Cmd.state_play cstate
-    sync_save_file $ Cmd.state_save_file cstate
+        edit_state = Cmd.state_edit cmd_to
+    when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state
+            || Cmd.state_saved cmd_from /= Cmd.state_saved cmd_to) $
+        sync_edit_state (fromMaybe True $ Cmd.state_saved cmd_to) edit_state
+    sync_play_state $ Cmd.state_play cmd_to
+    sync_save_file $ Cmd.state_save_file cmd_to
     sync_defaults $ State.config#State.default_ #$ ui_to
 
     when (State.state_config ui_from /= State.state_config ui_to) $
@@ -292,6 +296,28 @@ sync_status ui_from cmd_from = do
     selection_update _ = Nothing
     zoom_update (Update.View view_id (Update.Zoom {})) = Just view_id
     zoom_update _ = Nothing
+
+-- | Flip 'Cmd.state_saved' if the score has changed.  "Cmd.Save" will turn it
+-- back on after a save.
+update_saved :: [Update.CmdUpdate] -> State.State -> State.State -> Cmd.State
+    -> Cmd.State
+update_saved updates ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
+    Nothing -> cmd_state { Cmd.state_saved = Just True }
+    Just True | Diff.score_changed ui_from ui_to updates ->
+        cmd_state { Cmd.state_saved = Just False }
+    Just _ -> cmd_state
+    -- This involves yet another state diff, and I already have a ton of those.
+    -- What I don't like is that this takes time linear in the size of the whole
+    -- score, in the common case when there has been no change.  Fortunately I
+    -- don't have to do it after state_saved is already false.
+    --
+    -- Probably the most reasonable way around this would be to split
+    -- State.unsafe_put into separate functions for views and
+    -- Block.block_config, and for the rest of the score state.  The second one
+    -- can then turn off 'Cmd.state_saved' unconditionally.  Unfortunately it
+    -- seems invasive to make this change, especially if I want to enforce it
+    -- with types, so unless this extra diff turns out to cause UI lag I won't
+    -- bother.
 
 view_updates :: State.State -> State.State -> [Update.UiUpdate]
 view_updates ui_from ui_to = fst $ Diff.run $
@@ -324,18 +350,27 @@ run_selection_hooks sels = do
 
 -- ** sync
 
-sync_edit_state :: Cmd.M m => Cmd.EditState -> m ()
-sync_edit_state st = do
-    sync_edit_box st
+sync_edit_state :: Cmd.M m => Bool -> Cmd.EditState -> m ()
+sync_edit_state saved st = do
+    sync_edit_box saved st
     sync_step_status st
     sync_octave_status st
     sync_recorded_actions (Cmd.state_recorded_actions st)
 
-sync_edit_box :: Cmd.M m => Cmd.EditState -> m ()
-sync_edit_box st = do
+-- | The two upper boxes reflect the edit state.  The lower box is red for
+-- 'Cmd.ValEdit' or dark red for 'Cmd.MethodEdit'.  The upper box is green
+-- for 'Cmd.state_advance' mode, and red otherwise.
+--
+-- The lower box has a @K@ if 'Cmd.state_kbd_entry' mode is enabled, and the
+-- upper box has an @o@ if 'Cmd.state_chord' mode is enabled.  The upper box
+-- also has a @\/@ if the score state hasn't been saved to disk.
+sync_edit_box :: Cmd.M m => Bool -> Cmd.EditState -> m ()
+sync_edit_box saved st = do
     let mode = Cmd.state_edit_mode st
-    let skel = Block.Box (skel_color mode (Cmd.state_advance st))
-            (if Cmd.state_chord st then 'c' else ' ')
+    let skel = Block.Box (skel_color mode (Cmd.state_advance st)) $
+            if Cmd.state_chord st
+                then (if saved then 'o' else 'ø')
+                else (if saved then ' ' else '/')
         track = Block.Box (edit_color mode)
             (if Cmd.state_kbd_entry st then 'K' else ' ')
     Cmd.set_status Config.status_record $

@@ -270,6 +270,15 @@ is_view_update update = case update of
         _ -> False
     _ -> False
 
+-- | True if this CmdUpdate implies score damage.
+is_score_update :: CmdUpdate -> Bool
+is_score_update update = case update of
+    CmdTrackEvents {} -> True
+    CmdTrackAllEvents {} -> True
+    CmdRuler {} -> True
+    CmdBringToFront {} -> False
+    CmdTitleFocus {} -> False
+
 -- | TrackUpdates can overlap.  Merge them together here.  Technically I can
 -- also cancel out all TrackUpdates that only apply to newly created views, but
 -- this optimization is probably not worth it.

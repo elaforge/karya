@@ -71,6 +71,49 @@ UNSORTED
     though I can undo them, what if I don't notice until too late?  Maybe
     there should be a lock bit that makes edits into errors?  Or at least
     suspends the automatic saving?
+    . Technically I can always undo the changes, but the problem is when
+      I don't notice them until much later.
+    . That in turn is risky if I don't notice it.  Maybe I could have an
+      unsaved indicator like some text editors.  E.g. a * in the scroll box.
+  * score unsaved indicator
+    . Have a flag in Cmd.State which is flipped by a state modify.  I could
+      attach it to the State.M instance in Cmd.
+      . This is no good because there are lots of view updates which shouldn't
+        count.
+    . Or, put the flag in Ui.State itself, as an update.  But then every
+      single State function has to emit that update, and I need an efficient
+      way to only add the update if it isn't already there.
+    . Can I use the diff updates?  Flip Cmd.state_saved if there are any
+      non-view updates.
+    . In fact this is necessary, because Diff.derive_diff needs to get changes
+      made by the sync.
+    . However, sync_status shouldn't make any changes that affect
+      derive_diff.  So it should be ok to carry forward the dmg.
+    . No, that doesn't work because derive_diff takes the updates from the
+      sync output.
+    . So I think I have to do another diff.  But it's asking a simpler
+      question, just true or false.  Still, in the common case of no
+      difference, it needs to compare everything just the same.
+    . The way to avoid that is to record the change when it is made, and then
+      I'm back to instrumenting Cmd.unsafe_put.  But then I have to
+      distinguish view from non-view edits.  Looking for a change in
+      unsafe_put is no different than doing a full diff, and it would
+      potentially happen multiple times.  To really do it for real, I need
+      a separate update functions:
+        State.put_views - can modify Block.View and Block.block_config.
+        State.put_score - can modify everything
+      Then only put_score will unconditionally flip Cmd.state_saved.  It would
+      be nicest to come up with a type distinction to enforce that 'put_views'
+      can't modify score things.  Or I could make the types the same and rely
+      on the State functions picking the right one.
+    . There are other things that don't have an effect on derivation:
+      track flags except Block.Disable, Block.track_width, Block.track_merged
+      If I also isolate those things, then I can probably do away with the
+      separate derive_diff.  But it's still different from state_saved,
+      because I do want to count things like track flags.  So probably not
+      worth going this far.
+    . For the moment, do a separate derive_diff, but keep it in mind as
+      a possible source of hiccups.
   simplify infer-duration
     . Split it into 'infer-duration,' which only processes {infer-duration},
       'cancel', which processes {weak} and {strong}, and 'suppress', which
@@ -82,7 +125,11 @@ UNSORTED
   - Expr is NonEmpty since there is always at least a "" call, but this is a
     special feature of events.  Would it make more sense to parse "" as [],
     and then special case [] in EvalTrack.derive_event?
-  - run profiling and upgrade to ghc-7.10.2
+    . But I'd need a newtype, otherwise ShowVal [Call] overlaps.  Of course
+      the only reason it doesn't already overlap is that a don't have
+      a ShowVal for NonEmpty.
+    . But Quoted is also Expr... should it be non-empty?
+  * run profiling and upgrade to ghc-7.10.2
   - rename PassedArgs to CallContext.  Or not?
   - Perhaps mridangam should automatically transpose the octave to be within
     its range.

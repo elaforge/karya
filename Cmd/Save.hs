@@ -380,6 +380,9 @@ set_save_file save_file clear_history = do
             , Cmd.state_history_config = (Cmd.state_history_config state)
                 { Cmd.hist_last_commit = maybe_commit }
             }
+    -- This is called both when saving and loading, so it's a good place to
+    -- mark that the state is synced to disk.
+    Cmd.modify $ \st -> st { Cmd.state_saved = Nothing }
     where
     (maybe_commit, file) = case save_file of
         SaveState fname -> (Nothing, Cmd.SaveState fname)

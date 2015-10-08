@@ -349,6 +349,10 @@ data State = State {
     -- | If set, the current 'State.State' was loaded from this file.
     -- This is so save can keep saving to the same file.
     , state_save_file :: !(Maybe SaveFile)
+    -- | Nothing means a state was just loaded, so it counts as saved even if
+    -- it has changed.  Just True means the state hasn't changed since being
+    -- saved, and Just False means it has.
+    , state_saved :: !(Maybe Bool)
     -- | A loaded and parsed ky file, or an error string.  This also has the
     -- timestamp of the last load, to detect when the file changes.
     , state_ky_cache :: !(Maybe (Time.UTCTime, Either Text Derive.Library))
@@ -412,6 +416,7 @@ initial_state :: Config -> State
 initial_state config = State
     { state_config = config
     , state_save_file = Nothing
+    , state_saved = Nothing
     , state_ky_cache = Nothing
     , state_derive_immediately = Set.empty
     -- This is a dummy entry needed to bootstrap a Cmd.State.  Normally

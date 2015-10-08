@@ -41,7 +41,7 @@ The [skeleton display](derivation.md.html#derivation) has arrows from track to
 track.
 
 To the left of a the skeleton is a blank gray box that displays the [edit
-mode](#editmode), and below that is the [ruler](#ruler).
+mode](cmd.md.html#editmode), and below that is the [ruler](#ruler).
 
 To the right of the ruler are vertical [tracks](#tracks), which is the bulk of
 the window.  The tracks have [events](#events), each of which has a red line at
