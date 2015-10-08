@@ -42,4 +42,15 @@ bytes(const char *str, int len, int chars)
     return p - str;
 }
 
+const char *
+encode(rune c)
+{
+    static char buf[7];
+    // I want a 0 rune to become an empty string.  That way if I append zero to
+    // nonzero I don't get a leading null.
+    int len = c == 0 ? 0 : fl_utf8encode(c, buf);
+    buf[len] = '\0';
+    return buf;
+}
+
 }

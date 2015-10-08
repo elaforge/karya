@@ -391,7 +391,7 @@ instance CStorable Block.Box where
     alignment _ = alignment Color.black
     poke boxp (Block.Box color char) = do
         (#poke BlockBox, color) boxp color
-        (#poke BlockBox, c) boxp (Util.c_char char)
+        (#poke BlockBox, c) boxp (Util.c_rune char)
 
 instance CStorable Block.DisplayTrack where
     sizeOf _ = #size DisplayTrack
@@ -404,8 +404,8 @@ poke_display_track dtrackp (Block.DisplayTrack _ width _ status bright) = do
     (#poke DisplayTrack, event_brightness) dtrackp (Util.c_double bright)
     (#poke DisplayTrack, width) dtrackp (Util.c_int width)
     (#poke DisplayTrack, status_color) dtrackp color
-    (#poke DisplayTrack, status1) dtrackp (Util.c_char c1)
-    (#poke DisplayTrack, status2) dtrackp (Util.c_char c2)
+    (#poke DisplayTrack, status1) dtrackp (Util.c_rune c1)
+    (#poke DisplayTrack, status2) dtrackp (Util.c_rune c2)
 
 track_status :: Block.Status -> (String, Color.Color)
 track_status Nothing = (repeat '\0', Color.black)
@@ -465,8 +465,8 @@ instance CStorable SkeletonStatus where
     peek _ = error "SkeletonStatus peek unimplemented"
     poke edgep (SkeletonStatus status) = do
         let (c1 : c2 : _, color) = track_status status
-        (#poke SkeletonStatus, status1) edgep (Util.c_char c1)
-        (#poke SkeletonStatus, status2) edgep (Util.c_char c2)
+        (#poke SkeletonStatus, status1) edgep (Util.c_rune c1)
+        (#poke SkeletonStatus, status2) edgep (Util.c_rune c2)
         (#poke SkeletonStatus, color) edgep color
 
 -- ** selection

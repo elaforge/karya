@@ -60,7 +60,7 @@ struct BlockBox {
     }
     bool operator!=(const BlockBox &that) const { return !(*this == that); }
     Color color;
-    char c;
+    utf8::rune c;
 };
 
 struct BlockModelConfig {
@@ -77,7 +77,7 @@ struct DisplayTrack {
     // These are also in SkeletonStatus.  The duplication is unfortunate, and
     // the reasons for it are documented in Ui.Update.Block.
     Color status_color;
-    char status1, status2;
+    utf8::rune status1, status2;
 };
 
 

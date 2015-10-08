@@ -22,7 +22,7 @@ struct SkeletonEdge {
 };
 
 struct SkeletonStatus {
-    SkeletonStatus(Color color, char status1, char status2) :
+    SkeletonStatus(Color color, utf8::rune status1, utf8::rune status2) :
         color(color), status1(status1), status2(status2)
     {}
     Color color;
@@ -31,7 +31,7 @@ struct SkeletonStatus {
     // probably ways to treat a short string as a value, e.g. by declaring a
     // struct or stuffing it into an int, but they're either not much better
     // than declaring a bunch of chars, or are kind of grody.
-    char status1, status2;
+    utf8::rune status1, status2;
 };
 
 // This is a list of pairs linking parent tracknums to child tracknums.
@@ -66,7 +66,8 @@ public:
     void set_config(
         const SkeletonConfig &config, const std::vector<int> &widths);
     void set_title(const char *title);
-    void set_status(int tracknum, char status1, char status2, Color color);
+    void set_status(int tracknum, utf8::rune status1, utf8::rune status2,
+        Color color);
     void set_width(int tracknum, int width);
 
 protected:
@@ -85,7 +86,7 @@ private:
         int height; // Number of children, as defined by 'track_height'.
         // '\0' means don't draw a status and ignore the color.  ' ' means draw
         // the color, but with no text, of course.
-        char status1, status2;
+        utf8::rune status1, status2;
         Color color;
     };
 

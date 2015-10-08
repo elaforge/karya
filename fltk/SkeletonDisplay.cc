@@ -101,7 +101,7 @@ SkeletonDisplay::set_title(const char *title)
 
 void
 SkeletonDisplay::set_status(
-    int tracknum, char status1, char status2, Color color)
+    int tracknum, utf8::rune status1, utf8::rune status2, Color color)
 {
     ASSERT(0 <= tracknum);
     if (static_cast<size_t>(tracknum) < tracks.size()) {
@@ -238,15 +238,16 @@ SkeletonDisplay::draw()
     // Draw status letters.
     fl_font(Config::font + FL_BOLD, Config::font_size::track_status);
     for (int i = 0; i < ntracks; i++) {
-        char c[] = {tracks[i].status1, tracks[i].status2};
-        if (c[0]) {
+        std::string status(utf8::encode(tracks[i].status1));
+        status.append(utf8::encode(tracks[i].status2));
+        if (status.size()) {
             // DEBUG("draw " << i << " " << tracks[i].color);
-            int cw = fl_width(c, 2);
+            int cw = fl_width(status.c_str(), 2);
             int xpos = this->x() + tracks[i].center - cw/2;
             fl_color(tracks[i].color.fl());
             fl_rectf(xpos-1, bottom - fl_height(), cw + 2, fl_height());
             fl_color(FL_BLACK);
-            fl_draw(c, 2, xpos, bottom - fl_descent());
+            fl_draw(status.c_str(), 2, xpos, bottom - fl_descent());
         }
     }
 }

@@ -266,10 +266,8 @@ set_block_box(Fl_Box &box, const BlockBox &b)
         box.color(b.color.fl());
         if (b.c == ' ')
             box.copy_label(NULL);
-        else {
-            char s[2] = {b.c, '\0'};
-            box.copy_label(s);
-        }
+        else
+            box.copy_label(utf8::encode(b.c));
         box.redraw();
 }
 
@@ -458,8 +456,8 @@ BlockView::set_display_track(int tracknum, const DisplayTrack &dtrack)
 {
     ASSERT(0 <= tracknum && tracknum < this->tracks());
     if (tracknum > 0) {
-        this->skel_display.set_status(tracknum-1, dtrack.status1,
-            dtrack.status2, dtrack.status_color);
+        this->skel_display.set_status(
+            tracknum-1, dtrack.status1, dtrack.status2, dtrack.status_color);
     }
     this->track_at(tracknum)->set_event_brightness(dtrack.event_brightness);
     this->set_track_width(tracknum, dtrack.width);

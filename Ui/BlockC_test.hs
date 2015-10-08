@@ -102,9 +102,9 @@ test_set_model_config = do
     io_human "track box turns red" $
         send $ BlockC.set_model_config view
             (config { Block.config_track_box = Block.Box Color.red ' ' })
-    io_human "sb box red, gets X" $
+    io_human "sb box red, gets 中" $
         send $ BlockC.set_model_config view
-            (config { Block.config_sb_box = Block.Box Color.red 'X' })
+            (config { Block.config_sb_box = Block.Box Color.red '中' })
 
 test_set_title = do
     view <- create_empty_view

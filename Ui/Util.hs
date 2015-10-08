@@ -45,6 +45,10 @@ c_uchar = fromIntegral . Num.clamp 0 255
 c_char :: Char -> CChar
 c_char = fromIntegral . Num.clamp 0 127 . fromEnum
 
+-- | This corresponds to utf8::rune.
+c_rune :: Char -> Word.Word32
+c_rune = fromIntegral . fromEnum
+
 c_double :: Double -> CDouble
 c_double = CDouble
 
