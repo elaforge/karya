@@ -88,6 +88,8 @@ data Config = Config {
     , fltkVersion :: String
     , midiConfig :: MidiConfig
     , configFlags :: Flags
+    -- | GHC version as returned by 'parseGhcVersion'.
+    , ghcVersion :: String
     } deriving (Show)
 
 packageFlags :: [Package] -> [Flag]
@@ -384,6 +386,7 @@ configure midi = do
     fltkCs <- filter wantedFltk . words <$> run fltkConfig ["--cflags"]
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
     fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
+    let ghcVersion = parseGhcVersion ghcLib
     return $ \mode -> Config
         { buildDir = modeToDir mode
         , hscDir = build </> "hsc"
@@ -391,14 +394,15 @@ configure midi = do
         , fltkVersion = fltkVersion
         , midiConfig = midi
         , configFlags = setCcFlags $
-            setConfigFlags fltkCs fltkLds mode osFlags ghcLib
+            setConfigFlags fltkCs fltkLds mode osFlags ghcVersion
+        , ghcVersion = ghcVersion
         }
     where
-    setConfigFlags fltkCs fltkLds mode flags ghcLib = flags
+    setConfigFlags fltkCs fltkLds mode flags ghcVersion = flags
         { define = define osFlags
             ++ ["-DTESTING" | mode `elem` [Test, Profile]]
             ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
-            ++ ["-DGHC_VERSION=" ++ parseGhcVersion ghcLib]
+            ++ ["-DGHC_VERSION=" ++ ghcVersion]
         , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"]
         , fltkCc = fltkCs
         , fltkLd = fltkLds
@@ -407,7 +411,7 @@ configure midi = do
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
             ["-dynamic" | mode /= Profile]
-            ++ ghcWarnings (parseGhcVersion ghcLib)
+            ++ ghcWarnings ghcVersion
             ++ ["-F", "-pgmF", hspp]
             ++ case mode of
                 Debug -> []
@@ -465,6 +469,9 @@ configure midi = do
         _ -> mempty -- Use the stub driver.
     run cmd args = Process.readProcess cmd args ""
 
+-- | Parse the GHC version out of the @ghc --print-libdir@ path.  The format is
+-- \"71002\" for \"7.10.2\".  This way it can be compared as a number by CPP.
+-- It doesn't have a leading 0 because then CPP thinks its octal.
 parseGhcVersion :: FilePath -> String
 parseGhcVersion path =
     check $ dropWhile (=='0') $ concatMap pad0 $ Seq.split "." $ drop 1 $
@@ -750,15 +757,14 @@ makeHaddock config = do
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces packages
-    system "haddock" $
+    system "haddock" $ filter (not . null)
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
         , "--source-module=../hscolour/%{MODULE/.//}.html"
         , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
         , "--prologue=doc/prologue"
         -- Don't report every single function without a doc.
-        -- TODO this is only for the haddock with ghc-7.10.
-        -- , "--no-print-missing-docs"
+        , if ghcVersion config >= "71000" then "--no-print-missing-docs" else ""
         -- Source references qualified names as written in the doc.
         , "-q", "aliased"
         , "-o", build </> "haddock"
