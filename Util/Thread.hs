@@ -16,6 +16,7 @@ import qualified Control.Exception as Exception
 
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
+import qualified GHC.Conc as Conc
 import qualified System.CPUTime as CPUTime
 import qualified System.Timeout as Timeout
 
@@ -27,6 +28,7 @@ import qualified Util.Log as Log
 start_logged :: String -> IO () -> IO Concurrent.ThreadId
 start_logged name thread = do
     thread_id <- Concurrent.myThreadId
+    Conc.labelThread thread_id name
     let thread_name = Text.pack $ show thread_id ++ " " ++ name ++ ": "
     Log.debug $ thread_name <> "started"
     Concurrent.forkFinally thread $ \result -> case result of
