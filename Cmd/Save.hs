@@ -30,6 +30,7 @@ module Cmd.Save (
 ) where
 import Prelude hiding (read)
 import qualified Control.Exception as Exception
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
@@ -239,12 +240,14 @@ default_state = "save.state"
 save_git :: Cmd.CmdT IO ()
 save_git = save_git_as =<< get_git_path
 
-save_git_as ::
-    SaveGit.Repo -- ^ Save to this repo, or create it.
+save_git_as :: SaveGit.Repo -- ^ Save to this repo, or create it.
     -- 'Cmd.Undo.maintain_history' will start checkpointing to it.
+    -- @.git@ is appended if it doesn't already have that suffix.
     -> Cmd.CmdT IO ()
 save_git_as repo = do
     repo <- expand_filename repo
+    repo <- return $ if SaveGit.git_suffix `List.isSuffixOf` repo then repo
+        else repo ++ SaveGit.git_suffix
     cmd_state <- Cmd.get
     let rethrow = Cmd.require_right (("save git " <> txt repo <> ": ") <>)
     commit <- case Cmd.hist_last_commit $ Cmd.state_history_config cmd_state of
@@ -321,11 +324,11 @@ make_git_path :: Id.Namespace -> Cmd.State -> Git.Repo
 make_git_path ns state = case Cmd.state_save_file state of
     Nothing -> Cmd.path state Config.save_dir </> untxt (Id.un_namespace ns)
         </> default_git
-    Just (Cmd.SaveState fn) -> FilePath.replaceExtension fn ".git"
+    Just (Cmd.SaveState fn) -> FilePath.replaceExtension fn SaveGit.git_suffix
     Just (Cmd.SaveRepo repo) -> repo
 
 default_git :: FilePath
-default_git = "save.git"
+default_git = "save" ++ SaveGit.git_suffix
 
 -- * config
 

@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - perhaps save_git_as should complain if the name doesn't end with .git
+  * perhaps save_git_as should complain if the name doesn't end with .git
   - keep track of timestamps of all ky files in PlayUtil.cached_load
   * final notes on a mridangam sub-block aren't being suppressed
   . Adding the repeat call was unintuitive because deriver placement is

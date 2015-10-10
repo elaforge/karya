@@ -7,7 +7,7 @@
 module Cmd.SaveGit (
     SaveHistory(..), LoadHistory(..), Repo, Commit
     -- * save point
-    , is_git
+    , is_git, git_suffix
     , SavePoint, set_save_tag, write_save_ref, read_save_ref
     , read_last_save, ref_to_save
     -- * save
@@ -64,7 +64,10 @@ data LoadHistory = LoadHistory !State.State !Commit ![Update.CmdUpdate] ![Text]
     deriving (Show)
 
 is_git :: FilePath -> Bool
-is_git = (".git" `List.isSuffixOf`)
+is_git = (git_suffix `List.isSuffixOf`)
+
+git_suffix :: FilePath
+git_suffix = ".git"
 
 -- * save point
 
