@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - perhaps save_git_as should complain if the name doesn't end with .git
   - keep track of timestamps of all ky files in PlayUtil.cached_load
   * final notes on a mridangam sub-block aren't being suppressed
   . Adding the repeat call was unintuitive because deriver placement is
@@ -67,7 +68,7 @@ UNSORTED
     . Or an easier way would be to put 'throw' in a subclass.
   - retune: differences based on speed should be more obvious, so that should
     also be on a curve.
-  - It can be alarming how I accidentally make changes to .git files.  Even
+  * It can be alarming how I accidentally make changes to .git files.  Even
     though I can undo them, what if I don't notice until too late?  Maybe
     there should be a lock bit that makes edits into errors?  Or at least
     suspends the automatic saving?
@@ -75,6 +76,28 @@ UNSORTED
       I don't notice them until much later.
     . That in turn is risky if I don't notice it.  Maybe I could have an
       unsaved indicator like some text editors.  E.g. a * in the scroll box.
+    . The problem with this is that if I don't checkpoint, I need to save up
+      all changes for when I start.  Perhaps instead I can just disallow
+      changes?
+    . Why not use file level permissions for this?  Then all I need to do is
+      make sure it doesn't crash when the file is not writable.
+    . For this I want to make git revert any changes if the git write failed.
+      But Undo.maintain_history is called after the ui state change has
+      already been synced.  Can I move it back?  Not really, because it uses
+      the updates.  So I could do a check beforehand.
+    . Check beforehand is awkward since I need the results of
+      Diff.score_changed to know if I should check.
+    . How about a simpler way: when I open a .git, if it's not writable, then
+      don't set SavedFile, just like loading a template.
+    . What about when I forget it's locked, make changes, and then have no way
+      to save those changes?  Disallowing changes seems better because then I
+      can't not notice.  But I make a lot of temporary changes just when
+      playing, e.g.  mute tracks or instruments.
+    . Basically I want the non-incremental save thing.  Using file permissions
+      has a nice guarantee though.  But really if I want to make experimental
+      changes, I can still revert to a tag.
+    . If the .git is read-only, then don't set SaveFile when loading.  Also
+      have a special unsaved indicator if there's no SaveFile.
   * score unsaved indicator
     . Have a flag in Cmd.State which is flipped by a state modify.  I could
       attach it to the State.M instance in Cmd.

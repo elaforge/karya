@@ -3,11 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Undo and redo cmds and support.
-module Cmd.Undo (undo, redo, maintain_history) where
+module Cmd.Undo (undo, redo, maintain_history, check_save_history) where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
+import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -233,6 +234,13 @@ save_history cmd_state hist collect uncommitted = do
     where
     keep = Cmd.hist_keep (Cmd.state_history_config cmd_state)
 
+-- only do this if I would have written something.  For that I need the diffs.
+check_save_history :: Cmd.State -> IO (Maybe Text)
+check_save_history cmd_state = case Internal.can_checkpoint cmd_state of
+    Just (repo, _) -> ifM (File.writable repo) (return Nothing)
+        (return $ Just $ "repo not writable: " <> showt repo)
+    Nothing -> return Nothing
+
 -- | The present is expected to have no updates, so bump the updates off the
 -- new present onto the old present, as described in [undo-and-updates].
 bump_updates :: Cmd.HistoryEntry -> [Cmd.HistoryEntry]
@@ -258,7 +266,8 @@ commit_entries repo prev_commit (hist0:hists) = do
     result <- SaveGit.checkpoint repo hist
     case result of
         Left err -> do
-            Log.error $ "error committing history: " <> err
+            -- This can happen if the repo is read-only.
+            Log.warn $ "error committing history: " <> err
             return []
         Right commit -> do
             entries <- commit_entries repo commit hists

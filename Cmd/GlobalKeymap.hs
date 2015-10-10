@@ -107,7 +107,7 @@ file_bindings = concat
     [ command_char 'S' "save" $ Cmd.gets Cmd.state_save_file >>= \x -> case x of
         Just (Cmd.SaveRepo repo) -> do
             -- Even when using git, write a standalone state as a safeguard.
-            Save.write_current_state =<< Save.get_state_path
+            Save.write_current_state $ Save.state_path_for_repo repo
             Save.save_git_as repo
         _ -> Save.save_state
     ]

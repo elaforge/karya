@@ -118,7 +118,9 @@ unserialize_text fname = do
 -- | Move the file to file.last.  Do this before writing a new one that may
 -- fail.
 backup_file :: FilePath -> IO ()
-backup_file fname =
+backup_file fname = do
+    File.requireWritable fname
+    File.requireWritable (fname ++ ".last")
     void $ File.ignoreEnoent $ Directory.renameFile fname (fname ++ ".last")
 
 make_dir :: FilePath -> IO ()

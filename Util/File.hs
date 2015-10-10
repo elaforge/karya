@@ -9,6 +9,8 @@ module Util.File where
 import qualified Codec.Compression.GZip as GZip
 import qualified Control.Exception as Exception
 import Control.Monad (void, guard)
+import Control.Monad.Extra (whenM, orM)
+
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
 import Data.Functor ((<$>))
@@ -18,6 +20,7 @@ import qualified Data.Text.IO as Text.IO
 import qualified System.Directory as Directory
 import System.FilePath ((</>))
 import qualified System.IO as IO
+import qualified System.IO.Error as Error
 import qualified System.IO.Error as IO.Error
 import qualified System.Process as Process
 
@@ -28,10 +31,26 @@ readGz fn = Lazy.toStrict . GZip.decompress <$> Lazy.readFile fn
 
 -- | Write a gzipped file.  Try to do so atomically by writing to @fn.write@
 -- first and renaming it.
+--
+-- Like @mv@, this will refuse to overwrite a file if it isn't writable.
 writeGz :: FilePath -> ByteString.ByteString -> IO ()
 writeGz fn bytes = do
+    requireWritable fn
     Lazy.writeFile (fn ++ ".write") $ GZip.compress $ Lazy.fromStrict bytes
     Directory.renameFile (fn ++ ".write") fn
+
+-- | Throw if this file exists but isn't writable.
+requireWritable :: FilePath -> IO ()
+requireWritable fn = whenM (not <$> writable fn) $
+    Exception.throwIO $ Error.mkIOError Error.permissionErrorType
+        "refusing to overwrite a read-only file" Nothing (Just fn)
+
+-- | True if the file doesn't exist, or if it does but is writable.
+writable :: FilePath -> IO Bool
+writable fn = orM
+    [ not <$> orM [Directory.doesFileExist fn, Directory.doesDirectoryExist fn]
+    , Directory.writable <$> Directory.getPermissions fn
+    ]
 
 -- | Like 'Directory.getDirectoryContents' except don't return dotfiles and
 -- it prepends the directory.

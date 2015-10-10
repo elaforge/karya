@@ -273,13 +273,16 @@ sync_status ui_from cmd_from = do
     ui_to <- State.get
     cmd_updates <- State.get_updates
     Cmd.modify $ update_saved cmd_updates ui_from ui_to
+
     cmd_to <- Cmd.get
     let updates = view_updates ui_from ui_to
         new_views = mapMaybe create_view updates
         edit_state = Cmd.state_edit cmd_to
     when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state
             || Cmd.state_saved cmd_from /= Cmd.state_saved cmd_to) $
-        sync_edit_state (fromMaybe True $ Cmd.state_saved cmd_to) edit_state
+        let saved = if Maybe.isNothing (Cmd.state_save_file cmd_to)
+                then Nothing else Just (fromMaybe True $ Cmd.state_saved cmd_to)
+        in sync_edit_state saved edit_state
     sync_play_state $ Cmd.state_play cmd_to
     sync_save_file $ Cmd.state_save_file cmd_to
     sync_defaults $ State.config#State.default_ #$ ui_to
@@ -365,7 +368,7 @@ run_selection_hooks sels = do
 
 -- ** sync
 
-sync_edit_state :: Cmd.M m => Bool -> Cmd.EditState -> m ()
+sync_edit_state :: Cmd.M m => Maybe Bool -> Cmd.EditState -> m ()
 sync_edit_state saved st = do
     sync_edit_box saved st
     sync_step_status st
@@ -378,14 +381,16 @@ sync_edit_state saved st = do
 --
 -- The lower box has a @K@ if 'Cmd.state_kbd_entry' mode is enabled, and the
 -- upper box has an @o@ if 'Cmd.state_chord' mode is enabled.  The upper box
--- also has a @\/@ if the score state hasn't been saved to disk.
-sync_edit_box :: Cmd.M m => Bool -> Cmd.EditState -> m ()
+-- also has a @\/@ if the score state hasn't been saved to disk, or @x@ if
+-- it can't save to disk because there is no save file.
+sync_edit_box :: Cmd.M m => Maybe Bool -> Cmd.EditState -> m ()
 sync_edit_box saved st = do
     let mode = Cmd.state_edit_mode st
     let skel = Block.Box (skel_color mode (Cmd.state_advance st)) $
-            if Cmd.state_chord st
-                then (if saved then 'o' else 'ø')
-                else (if saved then ' ' else '/')
+            (if Cmd.state_chord st then snd else fst) $ case saved of
+                Nothing ->      ('x', '⊗')
+                Just False ->   ('/', 'ø')
+                Just True ->    (' ', 'o')
         track = Block.Box (edit_color mode)
             (if Cmd.state_kbd_entry st then 'K' else ' ')
     Cmd.set_status Config.status_record $

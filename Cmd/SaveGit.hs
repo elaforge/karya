@@ -34,6 +34,7 @@ import qualified Numeric
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Util.File as File
 import qualified Util.Git as Git
 import Util.GitTypes (Commit, Repo)
 import qualified Util.Log as Log
@@ -142,15 +143,17 @@ checkpoint repo (SaveHistory state Nothing _ names) =
     try "save" $ save repo state names
 checkpoint repo (SaveHistory state (Just commit) updates names) =
         try "checkpoint" $ do
-    let (warns, mods) = dump_diff False state (filter should_record updates)
-    unless (null warns) $
+    let (not_found, mods) = dump_diff False state (filter should_record updates)
+    unless (null not_found) $
         Log.warn $ "ignored updates for nonexistent "
-            <> Text.intercalate ", " warns
+            <> Text.intercalate ", " not_found
             <> "; this probably means 'Ui.Diff.cancel_updates didn't do its job"
     if null mods then return commit else do
-    last_tree <- Git.commit_tree <$> Git.read_commit repo commit
-    tree <- Git.modify_tree repo last_tree mods
-    commit_tree repo tree (Just commit) (unparse_names "checkpoint" names)
+        unlessM (File.writable repo) $
+            Git.throw $ "git repo is not writable: " <> show repo
+        last_tree <- Git.commit_tree <$> Git.read_commit repo commit
+        tree <- Git.modify_tree repo last_tree mods
+        commit_tree repo tree (Just commit) (unparse_names "checkpoint" names)
 
 -- | Create a new repo, or throw if it already exists.
 save :: Git.Repo -> State.State -> [Text] -> IO Commit

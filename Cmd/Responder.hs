@@ -303,6 +303,10 @@ post_cmd run_derive state ui_from ui_to cmd_to cmd_updates status = do
     cmd_to <- Undo.maintain_history ui_to cmd_to updates
     when (is_quit status) $
         Save.save_views cmd_to ui_to
+            `Exception.catch` \(exc :: Exception.IOException) ->
+                -- Otherwise there's no way to quit!
+                Log.error $ "failed to write views while quitting: "
+                    <> showt exc
     return (is_quit status,
         state { state_ui = ui_to, state_cmd = cmd_to })
     where
