@@ -13,9 +13,7 @@ module Util.Test (
     , equal, equal_srcpos
     , equalf, equalf_srcpos
     , strings_like, strings_like_srcpos
-    , has_string, has_string_srcpos
-    , check_right, check_right_srcpos
-    , map_left, left_like, left_like_srcpos
+    , left_like, left_like_srcpos
     , match, match_srcpos
     -- ** exception checks
     , throws, throws_srcpos
@@ -238,31 +236,6 @@ strings_like_srcpos srcpos gotten expected
         | otherwise = failure_srcpos srcpos $
             show n ++ ": " ++ gotten ++ " !~ " ++ reg
 
--- | The given list of strings contains the given pattern.  Useful to make sure
--- a certain message was logged.
-has_string :: [String] -> String -> IO Bool
-has_string = has_string_srcpos Nothing
-
-has_string_srcpos :: SrcPos.SrcPos -> [String] -> String -> IO Bool
-has_string_srcpos srcpos strings expected =
-    case [str | (str, True) <- zip strings matches] of
-        m : _ -> success_srcpos srcpos $
-            quoted m ++ " =~ " ++ quoted expected
-        [] -> failure_srcpos srcpos $
-            show strings ++ " doesn't contain " ++ quoted expected
-    where matches = map (pattern_matches expected) strings
-
-quoted :: String -> String
-quoted s = "'" ++ s ++ "'"
-
-check_right :: (Show err) => Either err a -> IO Bool
-check_right = check_right_srcpos Nothing
-
-check_right_srcpos :: (Show err) => SrcPos.SrcPos -> Either err a -> IO Bool
-check_right_srcpos srcpos (Left err) = failure_srcpos srcpos $
-    "expected Right: Left " ++ show err
-check_right_srcpos srcpos (Right _) = success_srcpos srcpos "Right"
-
 map_left f (Left a) = Left (f a)
 map_left _ (Right a) = Right a
 
@@ -340,10 +313,10 @@ io_human = io_human_srcpos Nothing
 io_human_srcpos :: SrcPos.SrcPos -> String -> IO a -> IO a
 io_human_srcpos srcpos expected_msg op = do
     putStrLn $ "should see: " ++ expected_msg
-    human_getch
+    get_char_human
     result <- op
     putStr "  ... ok (y/n/q)? "
-    c <- human_getch
+    c <- get_char_human
     putChar '\n'
     case c of
         'y' -> success_srcpos srcpos $ "saw " ++ show expected_msg
@@ -355,7 +328,7 @@ pause :: String -> IO ()
 pause msg = do
     putStr $ "pausing, hit almost any key... "
         ++ if null msg then "" else " -- " ++ msg
-    human_getch
+    get_char_human
     putStr "\n"
 
 
@@ -465,9 +438,9 @@ vt100_green = "\ESC[32m"
 vt100_normal :: String
 vt100_normal = "\ESC[m\ESC[m"
 
--- getChar with no buffering
-human_getch :: IO Char
-human_getch = do
+-- | getChar with no buffering.
+get_char_human :: IO Char
+get_char_human = do
     skip <- IORef.readIORef skip_human
     if skip
         then return 'y'

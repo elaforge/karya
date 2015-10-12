@@ -75,8 +75,8 @@ global_macros = map (Macro (Qualified ["Log"]))
 -- These are only substituted in test modules.
 test_macros :: [Macro]
 test_macros = map (Macro (Unqualified ["Util.Test"]))
-    [ "equal", "equalf", "io_equal", "strings_like", "check_right", "left_like"
-    , "io_human", "throws", "check"
+    [ "equal", "equalf", "io_equal", "strings_like", "left_like"
+    , "io_human", "throws", "check", "match"
     ]
 
 -- | Append this to replaced symbols, along with the extra SrcPos argument.
