@@ -75,6 +75,29 @@ timed_derive name ui_state cmd_state block_id = do
     let warns = filter ((>=Log.Warn) . Log.msg_priority) (Cmd.perf_logs perf)
     return (Cmd.perf_events perf, warns ++ logs)
 
+-- | This is like 'timed_derive', except that it does more work itself
+-- rather than calling Performance.derive.  This can be more convenient to
+-- look at derivation results.
+timed_derive2 :: FilePath -> State.State -> Cmd.State -> BlockId
+    -> IO (Cmd.Events, [Log.Msg])
+timed_derive2 name ui_state cmd_state block_id =
+    case derive_block ui_state cmd_state block_id of
+        Left err -> return (mempty, [Log.msg Log.Warn Nothing err])
+        Right (result, cmd_logs) -> do
+            let (events, derive_logs) = first Vector.fromList $
+                    Stream.partition $ Derive.r_events result
+                msg = "derive " <> name <> " " <> prettys block_id
+            events <- Test.print_timer msg (timer_msg Vector.length)
+                (return $! events)
+            return (events, cmd_logs ++ filter (not . boring) derive_logs)
+    where
+    boring = Cache.is_cache_log
+    derive_block :: State.State -> Cmd.State -> BlockId
+        -> Either Text (Derive.Result, [Log.Msg])
+    derive_block ui_state cmd_state block_id =
+        run_cmd ui_state cmd_state $ PlayUtil.uncached_derive block_id
+
+
 timed_lilypond :: FilePath -> State.State -> Cmd.State -> BlockId
     -> IO (Either Text Text, [Log.Msg])
 timed_lilypond name ui_state cmd_state block_id = case result of
