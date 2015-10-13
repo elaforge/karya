@@ -148,4 +148,4 @@ mkview :: [UiTest.TrackSpec] -> State.StateId ()
 mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 
 new_repo :: IO FilePath
-new_repo = unique_tmp_dir "git"
+new_repo = (++ SaveGit.git_suffix) <$> unique_tmp_dir "git"
