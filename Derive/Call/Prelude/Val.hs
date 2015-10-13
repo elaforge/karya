@@ -165,7 +165,9 @@ c_nn = val_call "nn" mempty
 c_hz :: Derive.ValCall
 c_hz = val_call "hz" mempty
     "Convert a pitch, twelve-tone pitch name, or NoteNumber to hz.\
-    \ A pitch name looks like `[a-g]s?[-1-9]`."
+    \ A pitch name looks like `[a-g]s?[-1-9]`. If the octave isn't given, it\
+    \ defaults to 0.  This is useful for `%just-control`, which ignores the\
+    \ octave."
     $ Sig.call (Sig.required "val" "") $ \val _ -> case val of
         Left pitch -> Pitch.nn_to_hz <$>
             Pitches.pitch_nn (PSignal.coerce (pitch :: PSignal.Pitch))
@@ -178,10 +180,10 @@ get_name_nn :: TrackLang.Symbol -> Derive.Deriver Pitch.NoteNumber
 get_name_nn (TrackLang.Symbol name) =
     Derive.require ("unknown pitch: " <> showt name) $ name_to_nn (untxt name)
 
--- | c-1 is 0, g9 is 127
+-- | c-1 is 0, g9 is 127.
 name_to_nn :: String -> Maybe Pitch.NoteNumber
 name_to_nn (pc : name) =
-    make <$> Map.lookup pc pcs <*> Map.lookup oct_s octaves
+    make <$> Map.lookup pc pcs <*> return (Map.findWithDefault 1 oct_s octaves)
     where
     make pc oct = Pitch.NoteNumber $ fromIntegral $ pc + sharp + oct * 12
     (sharp, oct_s) = case name of
