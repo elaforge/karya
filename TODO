@@ -3,6 +3,25 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * support for non-dvorak keyboard
+  - If I abandon ghc 7.8 compatibility, I can use ImplicitParams for call
+    stack
+    . Get rid of _srcpos variants and hspp for Util.Test and 'throws'
+    . Extracters like 'expect_right' can use failure instead of throwing an
+      exception.
+    . This means I don't have function names, which is kind of useful for
+      tests.  How can I get the name from the test runner to the equal
+      function?
+      . Another implicit parameter, but that would make calling the tests
+        annoying.  I don't think I can make implicit parameters optional.  But
+        perhaps I could put the 'let' in the .ghci?
+      . Making tests 'ReaderT String IO' would also make calling tests
+        annoying.
+      . Mutable global variable?
+      . However, if tests are not in IO, I can also make pure tests, e.g.
+        TestT m ().  Now I can have them return their results instead of
+        printing.  If I ensure it's lazy I can still see where any wedge
+        happens.
   * perhaps save_git_as should complain if the name doesn't end with .git
   - keep track of timestamps of all ky files in PlayUtil.cached_load
   * final notes on a mridangam sub-block aren't being suppressed
@@ -66,6 +85,8 @@ UNSORTED
       http://www.well-typed.com/blog/2015/07/checked-exceptions/
       https://www.reddit.com/r/haskell/comments/3g41au/follow_up_safe_lightweight_checked_exceptions/
     . Or an easier way would be to put 'throw' in a subclass.
+    . I have this implemented in the p-monad branch, but it didn't seem
+      terribly compelling.
   - retune: differences based on speed should be more obvious, so that should
     also be on a curve.
   * It can be alarming how I accidentally make changes to .git files.  Even
@@ -152,6 +173,8 @@ UNSORTED
       the only reason it doesn't already overlap is that a don't have
       a ShowVal for NonEmpty.
     . But Quoted is also Expr... should it be non-empty?
+    . I now don't remember where it was that I had an Expr that made sense as
+      [], so maybe I don't care about this anymore?
   * run profiling and upgrade to ghc-7.10.2
   - rename PassedArgs to CallContext.  Or not?
   - Perhaps mridangam should automatically transpose the octave to be within
@@ -789,8 +812,6 @@ external
   + send a patch to improve Random.Shuffle?
   / patch for hsc2hs for #alignment
     Just doing alignment manually now.
-  - srcloc_annotate pragma
-    . available in ghc-7.12 as ImplicitParameters.
 
 local: plugins:
   I also want local code in haskell.
@@ -1100,7 +1121,7 @@ fltk:
   ? There's an extra axis of information in the width of the event body.  How
     could I use that?
   - Text in negative events doesn't wrap.
-  - if I add a track and then undo, I get
+  / if I add a track and then undo, I get
     assertion: <assertion failed at fltk/TrackTile.cc:257 track_at(): '0 <=
     tracknum && tracknum < tracks()'>
     . can't reproduce this now, but I have a stack trace now
@@ -1232,6 +1253,7 @@ REPL: repl:
     show 'Exception: Cannot add module Cmd.Repl.Environ to context: not a home'
     Presumably it gets confused because I don't put the -package-id and
     -package flags into ghci-flags
+    . Presumably using a sandbox would fix this.
   / Even though the shakefile tries to support multiple versions of packages
     via 'cabal configure', I think they can still cause problems with ghci
     loading.  This manifests as a long hang starting up while the repl

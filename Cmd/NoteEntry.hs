@@ -148,12 +148,9 @@ kbd_map = Map.fromList $ concat
     where
     keys oct letters accs =
         [ (c, Pitch.Pitch oct $ Pitch.Degree pc accs)
-        | (pc, c) <- zip [0..] (physical_key letters)
+        -- The mapping should happen at compile time, even though it doesn't.
+        | (pc, c) <- zip [0..] (map Keymap.physical_key letters)
         ]
-
--- | This should happen at compile time, even though it doesn't.
-physical_key :: [Char] -> [Char]
-physical_key = map Keymap.physical_key
 
 -- ** midi
 

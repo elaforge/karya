@@ -71,6 +71,7 @@ import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
+import qualified Local.KeyLayout
 import qualified App.Config as Config
 import Global
 
@@ -364,7 +365,6 @@ show_bindable show_repeatable b = case b of
     click_times 2 = "triple-"
     click_times n = showt n <> "-"
 
-
 -- * key layout
 
 -- | Map a physical key, written relative to USA qwerty layout, to whatever
@@ -381,36 +381,4 @@ show_bindable show_repeatable b = case b of
 physical_key :: Char -> Char
 physical_key c =
     fromMaybe (error $ "Keymap.physical_key " ++ show c ++ " not found") $
-        Map.lookup c hardcoded_kbd_layout
-
-qwerty, qwerty_lower, qwerty_upper :: [Char]
-qwerty = qwerty_lower ++ qwerty_upper
-qwerty_lower
-    = "1234567890-="
-    ++ "qwertyuiop[]\\"
-    ++ "asdfghjkl;'"
-    ++ "zxcvbnm,./"
-qwerty_upper
-    = "!@#$%^&*()_+"
-    ++ "QWERTYUIOP{}|"
-    ++ "ASDFGHJKL:\""
-    ++ "ZXCVBNM<>?"
-
--- | Not just dvorak, but my slightly modified version.
-dvorak :: [Char]
-dvorak = "1234567890-="
-    ++ "',.pyfgcrl[]\\"
-    ++ "aoeuidhtns/"
-    ++ ";qjkxbmwvz"
-
-    ++ "!@#$%^&*()_+"
-    ++ "\"<>PYFGCRL{}|"
-    ++ "AOEUIDHTNS?"
-    ++ ":QJKXBMWVZ"
-
-qwerty_to_dvorak :: Map.Map Char Char
-qwerty_to_dvorak = Map.fromList (zip qwerty dvorak)
-
--- TODO presumably this should eventually be easier to change
-hardcoded_kbd_layout :: Map.Map Char Char
-hardcoded_kbd_layout = qwerty_to_dvorak
+    Local.KeyLayout.get c
