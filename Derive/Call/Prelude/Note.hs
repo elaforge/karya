@@ -275,19 +275,20 @@ adjust_duration cur_pos cur_dur next_pos next_dur
 min_duration :: RealTime
 min_duration = 1 / 64
 
--- | Interpret attributes and controls that effect the note's duration.
---
--- This is actually somewhat complicated.  Instead of all the
--- duration-affecting controls all applying together, notes fit into distinct
--- categories:
---
--- - Zero-duration notes ignore all this.
---
--- - Staccato notes divide their duration by 2.
---
--- - Normal notes multiply 'Controls.sustain' and add 'Controls.duration_abs',
--- which could be negative.  They clip at a minimum duration to keep from going
--- negative.
+{- | Interpret attributes and controls that effect the note's duration.
+
+    This is actually somewhat complicated.  Instead of all the
+    duration-affecting controls all applying together, notes fit into distinct
+    categories:
+
+    - Zero-duration notes ignore all this.
+
+    - Staccato notes divide their duration by 2.
+
+    - Normal notes multiply 'Controls.sustain' and add 'Controls.duration_abs',
+    which could be negative.  They clip at a minimum duration to keep from
+    going negative.
+-}
 duration_attributes :: Config -> Score.ControlValMap -> Score.Attributes
     -> RealTime -> RealTime -> RealTime -- ^ new end
 duration_attributes config controls attrs start end

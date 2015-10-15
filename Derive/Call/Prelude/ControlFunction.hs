@@ -39,6 +39,9 @@ val_calls = Derive.call_map
     [ ("cf-rnd", c_cf_rnd const)
     , ("cf-rnd+", c_cf_rnd (+))
     , ("cf-rnd*", c_cf_rnd (*))
+    , ("cf-rnd-a", c_cf_rnd_around const)
+    , ("cf-rnd-a+", c_cf_rnd_around (+))
+    , ("cf-rnd-a*", c_cf_rnd_around (*))
     , ("cf-rnd01", c_cf_rnd01)
     , ("cf-swing", c_cf_swing)
     , ("cf-clamp", c_cf_clamp)
@@ -69,12 +72,28 @@ c_cf_rnd combine = val_call "cf-rnd"
     $ Sig.call ((,,)
     <$> Sig.required "low" "Low end of the range."
     <*> Sig.required "high" "High end of the range."
-    <*> Sig.environ "distribution" Sig.Prefixed Normal
-        "Random distribution."
+    <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
     ) $ \(low, high, distribution) _args -> return $!
         BaseTypes.ControlFunction "cf-rnd" $ \control dyn pos ->
             Score.untyped $ combine
                 (cf_rnd distribution low high (random_stream (dyn_seed dyn)))
+                (dyn_control dyn control pos)
+
+c_cf_rnd_around :: (Signal.Y -> Signal.Y -> Signal.Y) -> Derive.ValCall
+c_cf_rnd_around combine = val_call "cf-rnd-a"
+    (Tags.control_function <> Tags.random)
+    "Randomize a control around a center point.\
+    \ Normally it replaces the control of the same name,\
+    \ while the `+` and `*` variants add to and multiply with it."
+    $ Sig.call ((,,)
+    <$> Sig.required "range" "Range this far from the center."
+    <*> Sig.defaulted "center" 0 "Center of the range."
+    <*> Sig.environ "distribution" Sig.Prefixed Normal "Random distribution."
+    ) $ \(range, center, distribution) _args -> return $!
+        BaseTypes.ControlFunction "cf-rnd-a" $ \control dyn pos ->
+            Score.untyped $ combine
+                (cf_rnd distribution (center-range) (center+range)
+                    (random_stream (dyn_seed dyn)))
                 (dyn_control dyn control pos)
 
 c_cf_rnd01 :: Derive.ValCall
