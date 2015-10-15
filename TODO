@@ -87,8 +87,6 @@ UNSORTED
     . Or an easier way would be to put 'throw' in a subclass.
     . I have this implemented in the p-monad branch, but it didn't seem
       terribly compelling.
-  - retune: differences based on speed should be more obvious, so that should
-    also be on a curve.
   * It can be alarming how I accidentally make changes to .git files.  Even
     though I can undo them, what if I don't notice until too late?  Maybe
     there should be a lock bit that makes edits into errors?  Or at least
@@ -158,11 +156,6 @@ UNSORTED
       worth going this far.
     . For the moment, do a separate derive_diff, but keep it in mind as
       a possible source of hiccups.
-  simplify infer-duration
-    . Split it into 'infer-duration,' which only processes {infer-duration},
-      'cancel', which processes {weak} and {strong}, and 'suppress', which
-      processes Environ.suppress_until.  This way I can specialize 'cancel'
-      for gangsa, so it understands pasang instruments.
 
   - bug: repl: SaveFileChanged
     repl: thread blocked indefinitely in an MVar operation
@@ -629,7 +622,10 @@ MILESTONES
 
 documentation:
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
-  call doc:
+  calldoc: CallDoc:
+    - collapse control for modules, optional to collapse / expand all
+      When collapsed, it should have a count of the "visible" entries
+      underneath.
     / put anchors on calls and make single quotes link to calls
       . It's not quite so simple because there is module, and then namespace.
         So the linkifier would have to understand that structure and search
@@ -1361,6 +1357,8 @@ local definitions .ky:
     sd x y = from=$x | drop $y
 
 Derive:
+  - retune call: differences based on speed should be more obvious, so that
+    should also be on a curve.
   fancier randomization
     . How much a note differs depends on its neighbors, so it's not an even
       distribution.  Use brownian noise, or a fractal subdivision scheme.  But

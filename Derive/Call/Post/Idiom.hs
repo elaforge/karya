@@ -13,6 +13,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
@@ -88,10 +89,10 @@ map_simultaneous eta accept f =
 c_avoid_overlap :: Derive.Transformer Derive.Note
 c_avoid_overlap = Derive.transformer Module.prelude "avoid-overlap"
     (Tags.postproc <> Tags.inst)
-    "Notes with the same starting pitch are shortened so they don't overlap\
-    \ with each other.  This simulates keyboard instruments, where you have\
-    \ to release a key before striking the same key again. This also happens\
-    \ to be what MIDI expects, since it's based on keyboards."
+    "Notes with the same instrument and starting pitch are shortened so they\
+    \ don't overlap with each other.  This simulates keyboard instruments, \
+    \ where you have to release a key before striking the same key again.\
+    \ This also happens to be what MIDI expects, since it's based on keyboards."
     $ Sig.callt (defaulted "time" 0.1
         "Ensure at least this much time between two notes of the same pitch.")
     $ \time _args deriver -> Lily.when_lilypond deriver $
@@ -103,8 +104,10 @@ avoid_overlap time = return . Post.emap_asc_ go . Stream.zip_on Post.nexts
     go (nexts, event) =
         (:[]) $ case List.find same (takeWhile overlaps nexts) of
             Nothing -> event
-            Just next -> Score.set_duration
-                (Score.event_start next - time - Score.event_start event) event
+            Just next -> Score.set_duration dur event
+                where
+                dur = max Note.min_duration $
+                    Score.event_start next - time - Score.event_start event
         where
         overlaps next = Score.event_end event + time > Score.event_start next
         nn = Score.initial_nn event

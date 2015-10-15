@@ -165,17 +165,18 @@ suppress_notes =
     suppress_of (_, s, _) = s
     event_of (_, _, e) = e
 
--- | A note with inferred duration gets its start from the end of the previous
--- block, but its duration and the rest of its controls come from the
--- corresponding note at the beginning of the next block.
---
--- TODO currently this is unused.  Formerly it was used when an infer-duration
--- note replaced a note.  The intent was that the strong note at the end of the
--- block would determine the initial pitch and dynamic of the note, but control
--- curves would still be picked up from the replaced note, since there is no
--- room to put them on the final note.  It seems a little ad-hoc and grody, but
--- it still makes a kind of sense and I may still want it, so I'll leave this
--- function here for now.
+{- | A note with inferred duration gets its start from the end of the previous
+    block, but its duration and the rest of its controls come from the
+    corresponding note at the beginning of the next block.
+
+    TODO currently this is unused.  Formerly it was used when an infer-duration
+    note replaced a note.  The intent was that the strong note at the end of
+    the block would determine the initial pitch and dynamic of the note, but
+    control curves would still be picked up from the replaced note, since there
+    is no room to put them on the final note.  It seems a little ad-hoc and
+    grody, but it still makes a kind of sense and I may still want it, so I'll
+    leave this function here for now.
+-}
 replace_note :: Score.Event -> Score.Event -> Score.Event
 replace_note next event = event
     { Score.event_duration = Score.event_end next - start
@@ -196,11 +197,12 @@ replace_note next event = event
 
 -- * apply start offset
 
--- | Previously I applied the @%start-s@ and @%start-t@ controls in the note
--- generator, but I wound up with notes getting out of sync with their
--- controls.  Even if I apply the controls before inversion, it still doesn't
--- work other calls, like say block calls, and I can't apply the controls
--- before the block call
+{- | Previously I applied the @%start-s@ and @%start-t@ controls in the note
+    generator, but I wound up with notes getting out of sync with their
+    controls.  Even if I apply the controls before inversion, it still doesn't
+    work other calls, like say block calls, and I can't apply the controls
+    before the block call
+-}
 c_apply_start_offset :: Derive.Transformer Derive.Note
 c_apply_start_offset =
     Derive.transformer Module.prelude "apply-start-offset" Tags.postproc
@@ -242,19 +244,20 @@ apply_start_offset maybe_min_dur =
                 dur = adjust_duration (Score.event_start next)
                     (Score.event_start next + next_offset) event
 
--- | Conceptually, all notes move together until they bump into each
--- other.  Or, they move without restriction, and then go to midway of
--- the overlap.  But the note's start is a hard lower or upper limit, so one
--- note moving can never cause another note to move, it can just cause it to
--- not move as much as it wanted.
---
--- TODO actually "half of the overlap" is not the same as "all move together".
--- For the latter, the overlap split depends on how far the note moved to get
--- there.  So instead of overlap/2 it's 'max 0 (overlap - n) / 2', where 'n' is
--- the imbalance between their move offsets.
---
--- TODO this is still broken if an offset causes an note to skip over another.
--- But that should be stopped by the next event, right?
+{- | Conceptually, all notes move together until they bump into each
+    other.  Or, they move without restriction, and then go to midway of the
+    overlap.  But the note's start is a hard lower or upper limit, so one note
+    moving can never cause another note to move, it can just cause it to not
+    move as much as it wanted.
+
+    TODO actually "half of the overlap" is not the same as "all move together".
+    For the latter, the overlap split depends on how far the note moved to get
+    there.  So instead of overlap/2 it's 'max 0 (overlap - n) / 2', where 'n'
+    is the imbalance between their move offsets.
+
+    TODO this is still broken if an offset causes an note to skip over another.
+    But that should be stopped by the next event, right?
+-}
 adjust_offset :: RealTime -- ^ don't move notes any closer than this
     -> Maybe (RealTime, RealTime) -> Maybe (RealTime, RealTime)
     -> RealTime -> RealTime -> RealTime

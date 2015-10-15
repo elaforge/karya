@@ -6,6 +6,7 @@ module Derive.Call.Post.Idiom_test where
 import Util.Test
 import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.DeriveTest as DeriveTest
 import Global
 
@@ -28,6 +29,8 @@ test_avoid_overlap = do
         ([(0, 1, "4c"), (1, 1, "4d")], [])
     equal (f [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d"), (3, 1, "4c")])
         ([(0, 1, "4c"), (1, 0.5, "4d"), (2, 1, "4d"), (3, 1, "4c")], [])
+    equal (f [(0, 0.25, "4c"), (0.25, 0.25, "4c")])
+        ([(0, Note.min_duration, "4c"), (0.25, 0.25, "4c")], [])
 
 global :: Text -> DeriveTest.Setup
 global val = DeriveTest.with_ui $ State.config#State.global_transform #= val
