@@ -78,6 +78,12 @@ listRecursive descend dir = do
 rmDirRecursive :: FilePath -> IO ()
 rmDirRecursive dir = void $ Process.rawSystem "rm" ["-rf", dir]
 
+writeLines :: FilePath -> [Text] -> IO ()
+writeLines fname lines = IO.withFile fname IO.WriteMode $ \hdl ->
+    mapM_ (Text.IO.hPutStrLn hdl) lines
+
+-- * IO errors
+
 -- | If @op@ raised ENOENT, return Nothing.
 ignoreEnoent :: IO a -> IO (Maybe a)
 ignoreEnoent = ignoreError IO.Error.isDoesNotExistError
@@ -92,6 +98,6 @@ ignoreError :: Exception.Exception e => (e -> Bool) -> IO a -> IO (Maybe a)
 ignoreError ignore action = Exception.handleJust (guard . ignore)
     (const (return Nothing)) (fmap Just action)
 
-writeLines :: FilePath -> [Text] -> IO ()
-writeLines fname lines = IO.withFile fname IO.WriteMode $ \hdl ->
-    mapM_ (Text.IO.hPutStrLn hdl) lines
+-- | 'Exception.try' specialized to IOError.
+tryIO :: IO a -> IO (Either IO.Error.IOError a)
+tryIO = Exception.try

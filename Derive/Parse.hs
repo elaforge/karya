@@ -14,7 +14,7 @@ module Derive.Parse (
     , expand_macros
     -- * ky file
     , Definitions(..), Definition
-    , load_ky, find_mtime, parse_ky
+    , load_ky, find_ky, parse_ky
 #ifdef TESTING
     , p_equal, p_definition
     , split_sections
@@ -428,39 +428,39 @@ is_whitespace c = c == ' ' || c == '\t'
 -- | Load a ky file and all other files it imports.  'parse_ky' describes the
 -- format of the ky file.
 load_ky :: [FilePath] -> FilePath
-    -> IO (Either Text (Definitions, [FilePath]))
-    -- ^ (all_definitions, imported_files)
-load_ky paths fname = fmap annotate . Error.runErrorT $ load Set.empty [fname]
+    -> IO (Either Text (Definitions, [(FilePath, Time.UTCTime)]))
+    -- ^ (all_definitions, [(import_path, mtime)])
+load_ky paths fname =
+    catch_io (txt fname) $
+        fmap annotate . Error.runErrorT $ load Set.empty [fname]
     where
     load _ [] = return []
     load loaded (lib:libs)
         | lib `Set.member` loaded = return []
         | otherwise = do
-            text <- find lib
-            (imports, defs) <- lift $ parse_ky text
-            ((defs, lib) :) <$>
+            (fname, timestamp) <- expect_right =<< liftIO (find_ky paths lib)
+            content <- liftIO $ Text.IO.readFile fname
+            (imports, defs) <- expect_right $ parse_ky content
+            ((defs, (fname, timestamp)) :) <$>
                 load (Set.insert lib loaded) (libs ++ imports)
-
+    expect_right = either Error.throwError return
     annotate (Left err) = Left $ txt fname <> ": " <> err
-    annotate (Right results) = Right (mconcat defs, imports)
-        where (defs, imports) = unzip results
+    annotate (Right results) = Right (mconcat defs, loaded)
+        where (defs, loaded) = unzip results
 
-    require msg = maybe (Error.throwError msg) return
-    lift = either Error.throwError return
-    read :: FilePath -> Error.ErrorT Text IO (Maybe Text)
-    read = liftIO . File.ignoreEnoent . Text.IO.readFile
-    find fname =
-        require msg =<< firstJusts (map (\dir -> read (dir </> fname)) paths)
-        where
-        msg = "imported file not found: " <> txt fname <> " in "
-            <> Text.intercalate ", " (map txt paths)
-    -- TODO I warn about shadows, but maybe it should be normal in imports?
-
-find_mtime :: [FilePath] -> FilePath -> IO (Either Text Time.UTCTime)
-find_mtime paths fname =
-    maybe (Left $ "file not found: " <> txt fname) Right <$>
+find_ky :: [FilePath] -> FilePath -> IO (Either Text (FilePath, Time.UTCTime))
+find_ky paths fname =
+    catch_io (txt fname) $ maybe (Left msg) Right <$>
         firstJusts (map (\dir -> get (dir </> fname)) paths)
-    where get = File.ignoreEnoent . Directory.getModificationTime
+    where
+    msg = "ky file not found: " <> txt fname <> " (searched "
+        <> Text.intercalate ", " (map txt paths) <> ")"
+    get fn = File.ignoreEnoent $ (,) fn <$> Directory.getModificationTime fn
+
+-- | Catch any IO exceptions and put them in Left.
+catch_io :: Text -> IO (Either Text a) -> IO (Either Text a)
+catch_io prefix io =
+    either (Left . ((prefix <> ": ") <>) . showt) id <$> File.tryIO io
 
 -- | This is a mirror of 'Derive.Library', but with expressions instead of
 -- calls.  (generators, transformers)

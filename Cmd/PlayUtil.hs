@@ -16,7 +16,7 @@ module Cmd.PlayUtil (
     , events_from, overlapping_events
     , perform_events, get_convert_lookup
     -- * definition file
-    , update_definition_cache
+    , update_ky_cache
     , load_ky
     , compile_library
 ) where
@@ -29,6 +29,10 @@ import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
+import qualified System.Directory as Directory
+import qualified System.FilePath as FilePath
+
+import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Util.Tree as Tree
 import qualified Util.Vector as Vector
@@ -311,20 +315,20 @@ get_library = do
     cache <- Cmd.gets Cmd.state_ky_cache
     case cache of
         Nothing -> return mempty
-        Just (_, Left err) -> Cmd.throw $ "get_library: " <> err
-        Just (_, Right library) -> return library
+        Just (Cmd.KyCache (Left err) _) -> Cmd.throw $ "get_library: " <> err
+        Just (Cmd.KyCache (Right library) _) -> return library
 
 -- | Update the definition cache by reading the per-score definition file.
-update_definition_cache :: State.State -> Cmd.State -> IO Cmd.State
-update_definition_cache ui_state cmd_state = case ky_file of
+update_ky_cache :: State.State -> Cmd.State -> IO Cmd.State
+update_ky_cache ui_state cmd_state = case ky_file of
     Nothing
         | Maybe.isNothing $ Cmd.state_ky_cache cmd_state ->
             return cmd_state
         | otherwise -> return $ cmd_state { Cmd.state_ky_cache = Nothing }
     Just fname -> cached_load cmd_state fname >>= \x -> return $ case x of
         Nothing -> cmd_state
-        Just lib -> cmd_state
-            { Cmd.state_ky_cache = Just lib
+        Just (lib, timestamps) -> cmd_state
+            { Cmd.state_ky_cache = Just $ Cmd.KyCache lib timestamps
             , Cmd.state_play = (Cmd.state_play cmd_state)
                 { Cmd.state_performance = mempty
                 , Cmd.state_current_performance = mempty
@@ -335,45 +339,57 @@ update_definition_cache ui_state cmd_state = case ky_file of
 
 -- | Load a definition file if the cache is out of date.  Nothing if the cache
 -- is up to date.
---
--- This only checks the timestamp of the file given.  If that file imports
--- other files they won't get checked.  TODO chase imports and reload if any of
--- the timestamps changed.
 cached_load :: Cmd.State -> FilePath
-    -> IO (Maybe (Time.UTCTime, Either Text Derive.Library))
+    -> IO (Maybe (Either Text Derive.Library, Map.Map FilePath Time.UTCTime))
 cached_load state fname = run $ do
     dir <- require ("need a SaveFile to find " <> showt fname) $
         Cmd.state_save_dir state
     let paths = dir : Cmd.state_ky_paths (Cmd.state_config state)
-    time <- either Error.throwError return
-        =<< liftIO (Parse.find_mtime paths fname)
-    if last_time == Just time then return Nothing else do
-        lib <- liftIO $ load_ky paths fname
-        return $ Just (time, lib)
+    -- If a file can't be read, then I get mempty.  In that case, this returns
+    -- Nothing, which means no change, but it will retry every trip through the
+    -- responder.
+    current_timestamps <- require_right
+        =<< liftIO (get_timestamps (Map.keys cached_timestamps))
+    let fresh = not (Map.null cached_timestamps)
+            && current_timestamps == cached_timestamps
+    if fresh then return Nothing else do
+        (lib, timestamps) <- require_right =<< liftIO (load_ky paths fname)
+        return $ Just (Right lib, timestamps)
     where
-    run = fmap extract . Error.runErrorT
-    extract (Left msg)
+    run = fmap map_error . Error.runErrorT
+    map_error (Left msg)
         -- If I failed to load last time too, then don't clear
         -- 'state_performance_threads' or I'll get an endless loop.
-        | last_time == Just day0 = Nothing
-        | otherwise = Just (day0, Left msg)
-    extract (Right val) = val
+        | cached_timestamps == mempty = Nothing
+        | otherwise = Just (Left msg, mempty)
+    map_error (Right val) = val
     require msg = maybe (Error.throwError msg) return
-    day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0
-    last_time = fst <$> Cmd.state_ky_cache state
+    require_right = either Error.throwError return
+    cached_timestamps = case Cmd.state_ky_cache state of
+        Nothing -> mempty
+        Just (Cmd.KyCache _ timestamps) -> timestamps
 
-load_ky :: [FilePath] -> FilePath -> IO (Either Text Derive.Library)
-load_ky paths fname =
-    Parse.load_ky paths fname >>= \result -> case result of
-        Left err -> return $ Left err
-        Right (defs, imported) -> do
-            Log.notice $ "imported definitions from "
-                <> Text.intercalate ", " (map txt imported)
-            forM_ (Library.shadowed lib) $ \((name, _), calls) ->
-                Log.warn $ "definitions in " <> showt fname
-                    <> " " <> name <> " shadowed: " <> pretty calls
-            return $ Right lib
-            where lib = compile_library defs
+get_timestamps :: [FilePath] -> IO (Either Text (Map.Map FilePath Time.UTCTime))
+get_timestamps fns = fmap map_error . File.tryIO $ do
+    mtimes <- mapM
+        (liftIO . File.ignoreEnoent . Directory.getModificationTime) fns
+    return $ Map.fromList [(fn, mtime) | (fn, Just mtime) <- zip fns mtimes]
+    where
+    map_error = first (("get_timestamps: "<>) . showt)
+
+load_ky :: [FilePath] -> FilePath
+    -> IO (Either Text (Derive.Library, Map.Map FilePath Time.UTCTime))
+load_ky paths fname = Parse.load_ky paths fname >>= \result -> case result of
+    Left err -> return $ Left err
+    Right (defs, imported) -> do
+        Log.notice $ "imported definitions from "
+            <> Text.intercalate ", "
+                (map (txt . FilePath.takeFileName) (map fst imported))
+        let lib = compile_library defs
+        forM_ (Library.shadowed lib) $ \((name, _), calls) ->
+            Log.warn $ "definitions in " <> showt fname
+                <> " " <> name <> " shadowed: " <> pretty calls
+        return $ Right (lib, Map.fromList imported)
 
 compile_library :: Parse.Definitions -> Derive.Library
 compile_library (Parse.Definitions note control pitch val) = Derive.Library

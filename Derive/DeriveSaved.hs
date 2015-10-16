@@ -6,9 +6,7 @@
 module Derive.DeriveSaved where
 import qualified Control.Monad.Error as Error
 import qualified Data.Text.Lazy as Lazy
-import qualified Data.Time as Time
 import qualified Data.Vector as Vector
-
 import qualified System.FilePath as FilePath
 import qualified Text.Printf as Printf
 
@@ -53,9 +51,8 @@ perform_file cmd_config fname = do
     return msgs
 
 add_library :: Derive.Library -> Cmd.State -> Cmd.State
-add_library lib state =
-    state { Cmd.state_ky_cache = Just (day0, Right lib) }
-    where day0 = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+add_library lib state = state
+    { Cmd.state_ky_cache = Just $ Cmd.KyCache (Right lib) mempty }
 
 timed_perform :: Cmd.State -> FilePath -> State.State -> Cmd.Events
     -> IO ([Midi.WriteMessage], [Log.Msg])
@@ -96,7 +93,6 @@ timed_derive2 name ui_state cmd_state block_id =
         -> Either Text (Derive.Result, [Log.Msg])
     derive_block ui_state cmd_state block_id =
         run_cmd ui_state cmd_state $ PlayUtil.uncached_derive block_id
-
 
 timed_lilypond :: FilePath -> State.State -> Cmd.State -> BlockId
     -> IO (Either Text Text, [Log.Msg])
@@ -162,7 +158,7 @@ load_score fname =
             Just ky_fname -> do
                 app_dir <- liftIO Config.get_app_dir
                 let paths = dir : map (Config.make_path app_dir) Config.ky_paths
-                lib <- either Error.throwError return
+                (lib, _) <- either Error.throwError return
                     =<< liftIO (PlayUtil.load_ky paths ky_fname)
                 return (state, lib)
 

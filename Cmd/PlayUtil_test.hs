@@ -4,7 +4,6 @@
 
 module Cmd.PlayUtil_test where
 import qualified Data.Text as Text
-import qualified Data.Time as Time
 
 import Util.Test
 import qualified Ui.UiTest as UiTest
@@ -48,10 +47,9 @@ test_ky_file = do
     equal (run defs [(">", [(0, 1, "d |")])]) (["+a+b"], [])
 
 put_library :: Cmd.M m => Text -> m ()
-put_library text =
-    Cmd.modify $ \st -> st { Cmd.state_ky_cache = Just defs }
-    where
-    defs = case Parse.parse_ky text of
-        Left err -> (time, Left err)
-        Right (_, defs) -> (time, Right $ PlayUtil.compile_library defs)
-    time = Time.UTCTime (Time.ModifiedJulianDay 0) 0
+put_library text = Cmd.modify $ \st -> st
+    { Cmd.state_ky_cache = Just $ case Parse.parse_ky text of
+        Left err -> Cmd.KyCache (Left err) mempty
+        Right (_, defs) ->
+            Cmd.KyCache (Right $ PlayUtil.compile_library defs) mempty
+    }

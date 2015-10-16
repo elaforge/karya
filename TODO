@@ -23,7 +23,7 @@ UNSORTED
         printing.  If I ensure it's lazy I can still see where any wedge
         happens.
   * perhaps save_git_as should complain if the name doesn't end with .git
-  - keep track of timestamps of all ky files in PlayUtil.cached_load
+  * keep track of timestamps of all ky files in PlayUtil.cached_load
   * final notes on a mridangam sub-block aren't being suppressed
   . Adding the repeat call was unintuitive because deriver placement is
     unintuitive.

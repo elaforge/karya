@@ -266,9 +266,9 @@ save_updates updates = Monad.State.modify $ \st ->
 -}
 run_responder :: Bool -- ^ If False, don't start background derivation.  This
     -- is so 'run_setup_cmd' doesn't run a redundant derive, which is
-    -- ultimately because it needs to wait for 'load_definitions'.
-    -- But 'load_definitions' has to run after 'run_setup_cmd' because the
-    -- filename to load is in 'State.State'.
+    -- ultimately because it needs to wait for 'load_ky'.  But 'load_ky' has to
+    -- run after 'run_setup_cmd' because the filename to load is in
+    -- 'State.State'.
     -> State -> ResponderM Result -> IO (Bool, State)
 run_responder run_derive state m = do
     (val, RState _ ui_from ui_to cmd_from cmd_to cmd_updates)
@@ -341,7 +341,7 @@ handle_special_status ui_chan ui_state cmd_state transport_info status =
 respond :: State -> Msg.Msg -> IO (Bool, State)
 respond state msg = run_responder True state $ do
     record_keys msg
-    load_definitions
+    load_ky
     -- Normal cmds abort as son as one returns a non-Continue.
     result <- fmap unerror $ Error.runErrorT $ do
         record_ui_updates msg
@@ -366,10 +366,10 @@ record_keys msg = do
 
 -- | Load external definitions and cache them in Cmd.State, so cmds don't
 -- have a dependency on IO.
-load_definitions :: ResponderM ()
-load_definitions = do
+load_ky :: ResponderM ()
+load_ky = do
     rstate <- Monad.State.get
-    cmd_state <- liftIO $ PlayUtil.update_definition_cache
+    cmd_state <- liftIO $ PlayUtil.update_ky_cache
         (rstate_ui_to rstate) (rstate_cmd_to rstate)
     Monad.State.put $ rstate { rstate_cmd_to = cmd_state }
 

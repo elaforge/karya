@@ -353,9 +353,7 @@ data State = State {
     -- it has changed.  Just True means the state hasn't changed since being
     -- saved, and Just False means it has.
     , state_saved :: !(Maybe Bool)
-    -- | A loaded and parsed ky file, or an error string.  This also has the
-    -- timestamp of the last load, to detect when the file changes.
-    , state_ky_cache :: !(Maybe (Time.UTCTime, Either Text Derive.Library))
+    , state_ky_cache :: !(Maybe KyCache)
     -- | Omit the usual derive delay for these blocks, and trigger a derive.
     -- This is set by integration, which modifies a block in response to
     -- another block being derived.  Blocks set to derive immediately are also
@@ -411,6 +409,12 @@ state_save_dir state = path state . Config.RelativePath <$>
         Nothing -> Nothing
         Just (SaveState fn) -> Just $ FilePath.takeDirectory fn
         Just (SaveRepo repo) -> Just $ FilePath.takeDirectory repo
+
+-- | A loaded and parsed ky file, or an error string.  This also has the files
+-- loaded and their timestamps, to detect when one has changed.
+data KyCache =
+    KyCache !(Either Text Derive.Library) !(Map.Map FilePath Time.UTCTime)
+    deriving (Show)
 
 initial_state :: Config -> State
 initial_state config = State

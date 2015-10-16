@@ -234,13 +234,18 @@ test_load_ky = do
             (untxt *** first extract) <$> Parse.load_ky [dir, lib] "defs"
         extract = map fst . fst . Parse.def_note
     v <- run ["z"] ["d1"]
-    left_like v "imported file not found: z"
+    left_like v "ky file not found: z"
     v <- run ["lib1"] ["d1"]
-    left_like v "imported file not found: lib2"
+    left_like v "ky file not found: lib2"
 
     writeFile (lib </> "lib2") $ make_ky [] ["lib2"]
+    mtime <- Directory.getModificationTime $ lib </> "lib1"
     io_equal (run ["lib1"] ["d1"]) $
-        Right (["d1", "lib1", "lib2"], ["defs", "lib1", "lib2"])
+        Right (["d1", "lib1", "lib2"],
+            [ (dir </> "defs", mtime)
+            , (lib </> "lib1", mtime)
+            , (lib </> "lib2", mtime)
+            ])
 
 test_parse_ky = do
     let f extract = (untxt *** extract) . Parse.parse_ky
