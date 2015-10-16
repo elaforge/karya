@@ -74,8 +74,8 @@ custom lilypond code.
 
 These are traditional pieces I have transcribed.  They are notated in their own
 scale, using Balinese solfege, even though, as far as I know, it's not usually
-applied to the gender wayang scale.  The scale has two intonations, pangumbang
-and pangisep.  Each instrument uses its own intonation, which gives a beating
+applied to the gender wayang scale.  The scale has two intonations, pengumbang
+and pengisep.  Each instrument uses its own intonation, which gives a beating
 effect on unison notes.
 
 The notation has a fair amount of randomization, with alternate realizations of

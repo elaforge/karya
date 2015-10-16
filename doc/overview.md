@@ -49,10 +49,10 @@ apply instrument-specific restrictions or idioms, such as selecting a string
 for a given pitch, or adding pitch sloppiness to especially rapid notes.
 Another may simply put a "pizz" attribute on a note or section of score, or
 slide between two pitches in a certain way.  Calls may vary by instrument or
-scale, so a piano synthesizer might implement a slur as a change in note
-duration, while a sampler might interpret it as a keyswitch or control change.
-There are notation libraries and scales for for European, Balinese, and
-Carnatic music.
+scale, so a piano instrument might implement a slur as a change in note
+duration, while a sampler-based string instrument might emit a keyswitch or
+control change.  There are notation libraries and scales for for European,
+Balinese, and Carnatic music.  [Call documentation.](calls.html)
 
     Scores are composed hierarchically, and there's no strict division between
 call that modifies or emits a single note and one that modifies or produces an
@@ -75,7 +75,7 @@ defined relative to another).  For example, you can write the melody in
 mean-tone, and define the harmony in just intervals relative to the melody.
 Enharmonics and chromatic and diatonic transposition are supported for scales
 that employ those concepts.  You can define your own scales that involve any
-combination of the above concepts.
+combination of the above concepts.  [Scale documentation.](scales.html)
 
 - Tempo control.  You can give separate tempos to separate parts
 simultaneously, so you can express that one part is pushing or lagging the
@@ -170,10 +170,11 @@ deeply embedded MIDI's limitations.  To solve this we'd need to drag software
 synths out of the '80s, create a new high-resolution protocol, and modify the
 major samplers and synthesizers to support it.  This has been tried but failed,
 perhaps because there were no sequencers or input devices to generate the high
-resolution output.  As far as I can tell, VST's "automation parameters" are
-basically higher resolution MIDI controls, so some of this could probably be
-ameliorated by extending a VST host to turn high resolution OSC into VST
-automation.  As far as I know there is no program that does this.
+resolution output, and no tradition of music that relies on it.  As far as I
+can tell, VST's "automation parameters" are basically higher resolution MIDI
+controls, so some of this could probably be ameliorated by extending a VST host
+to turn high resolution OSC into VST automation.  As far as I know there is no
+program that does this.
 
 - The score format tries to be simple and general, but the price is that it's
 not as efficient as more specialized notation.  For example, staff notation

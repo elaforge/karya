@@ -7,7 +7,8 @@ Setup" and adding some IAC ports.
 
 - Add your machine's name to 'Local.Config.get_midi_config', and add make a
 config for it.  This is just optional aliases for MIDI device names, and a list
-of MIDI inputs to pay attention to.
+of MIDI inputs to open for reading.  If you don't care about any of that,
+you can just return `StaticConfig.empty_midi`.
 
 - Configure a synthesizer.  There are lots of fancy features, but if you ignore
 them all the configuration is basically just synth name and pitch bend range.
@@ -17,9 +18,9 @@ module's `load` function to 'Local.Instrument.synths'.  If you use
 
 - Recompile because you edited stuff: `bin/mk binaries`
 
-- Recompile and start `build/opt/logview` and `build/opt/seq` with the
-`bin/opt` shell script.  `bin/run build/opt/repl` to compile and run the REPL
-in another terminal.
+- Run `bin/opt`.  This will recompile and start `build/opt/logview` and
+`build/opt/seq`.  `bin/run build/opt/repl` to compile and run the REPL in
+another terminal.
 
 - The default block has a tempo track, note track, and pitch track.
 
@@ -41,6 +42,11 @@ have a MIDI keyboard you don't have to turn on kbd entry.  Play a few notes,
 either on the MIDI keyboard or the computer keyboard.  If things are configured
 correctly, you should get MIDI thru on loop1, channel 0, and notes should
 appear in the score.
+
+If the MIDI keyboard doesn't make notes show up, make sure it shows up in the
+startup stdout under "read devs" with a `*` next to it.  If it shows up but
+without a `*`, it was detected but not opened for reading, because it's not in
+`get_midi_config`.
 
 - Press enter to play, or cmd-enter to play from the start of the block, and
 space to stop.
