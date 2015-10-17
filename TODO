@@ -3,45 +3,13 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Unsetting for read-only SavedFile breaks ky files.  So I think I need
+    either a separate way to mark read-only, or a separate place for the ky
+    file path.
   * support for non-dvorak keyboard
-  - If I abandon ghc 7.8 compatibility, I can use ImplicitParams for call
-    stack
-    . Get rid of _srcpos variants and hspp for Util.Test and 'throws'
-    . Extracters like 'expect_right' can use failure instead of throwing an
-      exception.
-    . This means I don't have function names, which is kind of useful for
-      tests.  How can I get the name from the test runner to the equal
-      function?
-      . Another implicit parameter, but that would make calling the tests
-        annoying.  I don't think I can make implicit parameters optional.  But
-        perhaps I could put the 'let' in the .ghci?
-      . Making tests 'ReaderT String IO' would also make calling tests
-        annoying.
-      . Mutable global variable?
-      . However, if tests are not in IO, I can also make pure tests, e.g.
-        TestT m ().  Now I can have them return their results instead of
-        printing.  If I ensure it's lazy I can still see where any wedge
-        happens.
   * perhaps save_git_as should complain if the name doesn't end with .git
   * keep track of timestamps of all ky files in PlayUtil.cached_load
   * final notes on a mridangam sub-block aren't being suppressed
-  . Adding the repeat call was unintuitive because deriver placement is
-    unintuitive.
-    . Ideally I could just say (0, 2), (2, 2) and it would work.
-      Instead, I get (0, 8) and (2, 8)
-      This is because the block isn't normalized, so stretch by 2 makes it 4,
-      then the stretch by 2 for the event goes to 8.
-    . This is so that just 'deriver' by itself gets it right.  If I instead
-      made deriver always normalized, then the above would work, but I would
-      have to do 'Derive.place (Args.start args) (Args.duration args)
-      deriver' to avoid it always showing up at 0-1.  And actually, I couldn't
-      do that from a transformer, because what about the next transformer?
-      I should instead have each transformer be in normalized time.  'repeat'
-      becomes [Derive.place start (1/times) | start <- Seq.range_ 0 (1/times)]
-    . For blocks, it's actually almost that, except I have to translate back
-      by the start time first.  This is because blocks are already normalized
-      to the event duration.  I think?
-
   * I'm back to getting out of order warnings from ConvertUtil.
     . Turns out Post functions didn't do any sorting at all.
   - Sortedness tracking for Stream and Post functions.
@@ -72,12 +40,6 @@ UNSORTED
       . Possibly a way around is to include ControlFunction in ControlRef...
         but why do I want so much to pass control functions?  Especially since
         I can already pass a concrete signal as a ControlSignal.
-  - Perhaps I should get rid of TrackLang entirely.  Currently it re-exports
-    from Derive.BaseTypes, and has a few utilities to create BaseTypes.  It
-    seems like a win for clarity if I can get rid of re-export modules, and
-    I already have a lot of places directly using BaseTypes.  But on the other
-    hand, BaseTypes is already too large, and I don't really want to further
-    clutter it up with little constructor utilities.
 
   - Cmds don't indicate when they could abort or throw.  I rely on ad-hoc
     conventions like get_ vs. lookup_, but what about it actually being in the
@@ -157,19 +119,8 @@ UNSORTED
     . For the moment, do a separate derive_diff, but keep it in mind as
       a possible source of hiccups.
 
-  - bug: repl: SaveFileChanged
-    repl: thread blocked indefinitely in an MVar operation
-  - Expr is NonEmpty since there is always at least a "" call, but this is a
-    special feature of events.  Would it make more sense to parse "" as [],
-    and then special case [] in EvalTrack.derive_event?
-    . But I'd need a newtype, otherwise ShowVal [Call] overlaps.  Of course
-      the only reason it doesn't already overlap is that a don't have
-      a ShowVal for NonEmpty.
-    . But Quoted is also Expr... should it be non-empty?
-    . I now don't remember where it was that I had an Expr that made sense as
-      [], so maybe I don't care about this anymore?
   * run profiling and upgrade to ghc-7.10.2
-  - rename PassedArgs to CallContext.  Or not?
+  / rename PassedArgs to CallContext.  Or not?
   - Perhaps mridangam should automatically transpose the octave to be within
     its range.
   - Rename PSignal.Signal to PSignal.PSignal?
@@ -200,7 +151,7 @@ UNSORTED
       velocity it's like the same dynamic for all strokes.
       . Or I could make + be 0.5, and * be full volume.
     - perhaps only pitched notes should change with the tuning?
-  - save/complete/wayang/p2 last note of alt-w at the end doesn't get its
+  / save/complete/wayang/p2 last note of alt-w at the end doesn't get its
     duration inferred
   - shakefile: use cabal sandbox, if one is present
     . If there is a .cabal-sandbox, pass -no-user-package-db
@@ -310,44 +261,6 @@ UNSORTED
       - hmm, looks like I'm not importing Local.Repl any more
     . make the repl support :m
     . bundle them into the instrument db
-  - even though I sort events after derivation now, I still rely on them being
-    sorted, because of things like Post.same_hand.  It used to be out-of-order
-    would be reported by convert, but now it will just silently mess up
-    a postproc... is that really better?
-    . I think keeping sortedness is necessary since I want to efficiently find
-      notes which are near in time.  Since it's a call postcondition, maybe I
-      could put a check after each call.
-    . I remember why I wanted to get rid of it is that it's a pain to keep
-      sortedness for some calls.  I don't remember exactly what though.  But
-      if they are postprocs, I can't just say run a sort after the postproc,
-      because then I wind up doing multiple sorts when just one would do.
-    . So one way is to just always keep the output sorted, and check after
-      every call.  The check would be expensive though, since it would be
-      repeated work after block calls, and every postproc.
-    . The problem is that any postproc that moves events has to work to
-      maintain sortedness.  It's a big hassle to worry about the neighbors
-      when you are just moving.
-    . A fancy type-based approach would be to put a Sorted phantom parameter
-      on the Events.  Calls can declare that they preserve sortedness or not,
-      and Unsorted <> Sorted = Unsorted.  Calls that require sortedness will
-      then have to sort if it's Unsorted.
-    * Put the sorted check back in Convert, remove sort in Cmd.Performance.
-    * Change [LEvent.LEvent Score.Event] to a newtype, so I can attach
-      a sorted bit.
-    . Also, there's a distinction between merge_lists and merge_asc_lists.
-    - Rework Derive.Call.Post so the function to map varies instead of the map
-      function.  This way I can implement it as a series of adaptors.
-      . One reason to not do this is that I can have more efficient maps, e.g.
-        no monad or no intermediate lists.  But presumably if those
-        possibilities are in an ADT then the map function can choose the
-        implementation.  This doesn't work for monadic vs. non-monadic though,
-        because the return type is different.
-    - Actually put Sorted in Stream.
-      . For this I need to have map functions in Post be able to express
-        whether they can destroy the order, and either verify or sort as
-        appropriate.
-      . And for that I'd like to have profiling to show how much copying is
-        actually done, or rather if it's significant.
   * Get rid of Derive.LogsDeriver, now it's Derive.Deriver (Stream.Stream a)
   - Rethink if I really want track event calls in TrackTime, rather than
     normalized time.
@@ -359,6 +272,22 @@ UNSORTED
       norot I can place notes based on the passed-in dur.  If it were
       normalized, I'd have to unwarp back to TrackTime... can I even do that?
     . Details are also in "Derive.EvalTrack".
+  . Adding the repeat call was unintuitive because deriver placement is
+    unintuitive.
+    . Ideally I could just say (0, 2), (2, 2) and it would work.
+      Instead, I get (0, 8) and (2, 8)
+      This is because the block isn't normalized, so stretch by 2 makes it 4,
+      then the stretch by 2 for the event goes to 8.
+    . This is so that just 'deriver' by itself gets it right.  If I instead
+      made deriver always normalized, then the above would work, but I would
+      have to do 'Derive.place (Args.start args) (Args.duration args)
+      deriver' to avoid it always showing up at 0-1.  And actually, I couldn't
+      do that from a transformer, because what about the next transformer?
+      I should instead have each transformer be in normalized time.  'repeat'
+      becomes [Derive.place start (1/times) | start <- Seq.range_ 0 (1/times)]
+    . For blocks, it's actually almost that, except I have to translate back
+      by the start time first.  This is because blocks are already normalized
+      to the event duration.  I think?
 
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
@@ -368,7 +297,8 @@ UNSORTED
     by Block_test.test_trim_controls_problem
   wayang
     - Automatically fill in weak notes?
-      This also applies to reyongan, even more so.
+      . This also applies to reyongan, even more so.
+      . In fact this is similar to noltol.
     - many double strikes or ngoret tones land a bit ahead of the beat
     - I want some optional ngoret to happen the same way in both hands.
       I could make it apply to a parallel kempyung or octave.
@@ -858,6 +788,21 @@ local: plugins:
     map.
 
 cleanup:
+  - Expr is NonEmpty since there is always at least a "" call, but this is a
+    special feature of events.  Would it make more sense to parse "" as [],
+    and then special case [] in EvalTrack.derive_event?
+    . But I'd need a newtype, otherwise ShowVal [Call] overlaps.  Of course
+      the only reason it doesn't already overlap is that a don't have
+      a ShowVal for NonEmpty.
+    . But Quoted is also Expr... should it be non-empty?
+    . I now don't remember where it was that I had an Expr that made sense as
+      [], so maybe I don't care about this anymore?
+  - Perhaps I should get rid of TrackLang entirely.  Currently it re-exports
+    from Derive.BaseTypes, and has a few utilities to create BaseTypes.  It
+    seems like a win for clarity if I can get rid of re-export modules, and
+    I already have a lot of places directly using BaseTypes.  But on the other
+    hand, BaseTypes is already too large, and I don't really want to further
+    clutter it up with little constructor utilities.
   - use Control.Monad.Except instead of Error
     . not worth it until I don't need to support 7.8, can I suppress the
       warnings?
@@ -1114,6 +1059,8 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - If I wrap text, and there is then space available on the right, check if
+    I can squeeze in ranked text.
   ? There's an extra axis of information in the width of the event body.  How
     could I use that?
   - Text in negative events doesn't wrap.
@@ -1203,6 +1150,31 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test:
+  - If I abandon ghc 7.8 compatibility, I can use ImplicitParams for call
+    stack
+    . Get rid of _srcpos variants and hspp for Util.Test and 'throws'
+    . Extracters like 'expect_right' can use failure instead of throwing an
+      exception.
+    . This means I don't have function names, which is kind of useful for
+      tests.  How can I get the name from the test runner to the equal
+      function?
+      . Another implicit parameter, but that would make calling the tests
+        annoying.  I don't think I can make implicit parameters optional.  But
+        perhaps I could put the 'let' in the .ghci?
+      . Making tests 'ReaderT String IO' would also make calling tests
+        annoying.
+      . Mutable global variable?
+      . However, if tests are not in IO, I can also make pure tests, e.g.
+        TestT m ().  Now I can have them return their results instead of
+        printing.  If I ensure it's lazy I can still see where any wedge
+        happens.
+        . What's the benefit of this?  I can parallelize without worrying.
+        . Getting totals of tests and checks run becomes trivial, don't have
+          to grep output.
+        . But I need to separate IO-using tests, e.g. test_io_xyz, and they
+          need liftIOs.
+    . Also all of those functions that have a 'caller' arg can use implicit
+      params.
   criterion
     - it seems unreasonably fast, why is it so much faster than in seq?
       . 5us for 128 events, plus no_invert is slower than invert?
@@ -1244,6 +1216,8 @@ midi record:
       speed.  Add, widen, or narrow vibrato.
 
 REPL: repl:
+  - bug: repl: SaveFileChanged
+    repl: thread blocked indefinitely in an MVar operation
   - If there are ambiguous packages exposed, e.g. both
     regex-pcre-builtin (wrong) and regex-pcre (right), then the repl will
     show 'Exception: Cannot add module Cmd.Repl.Environ to context: not a home'

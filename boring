@@ -3,7 +3,7 @@
 ^bug.*
 ^inst_db/
 ^log/
-^repl\.history$
+^\.repl$
 ^\.cabal-sandbox
 ^cabal\.sandbox\.config$
 
