@@ -30,6 +30,7 @@ import MonadUtils (liftIO)
 import qualified Outputable
 import System.FilePath ((</>))
 
+import qualified Util.File as File
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified App.ReplUtil as ReplUtil
@@ -66,13 +67,9 @@ interpret (Session chan) _local_modules expr = do
 interpreter :: Session -> IO ()
 interpreter (Session chan) = do
     GHC.parseStaticFlags [] -- not sure if this is necessary
-    flags <- Exception.try (readFile ghci_flags)
-    -- Ghc moved .o to dyn flags, but I'll have to wait for 7.8, or make a .a
-    -- and use -l.  Update: even though I'm using 7.8 now, I don't seem to have
-    -- any problems from not loading the .o files.
-    let is_obj fn = build_dir `List.isPrefixOf` fn && ".o" `List.isSuffixOf` fn
-    args <- filter (not . is_obj) <$> case flags of
-        Left (exc :: Exception.SomeException) -> do
+    flags <- File.tryIO (readFile ghci_flags)
+    args <- case flags of
+        Left exc -> do
             Log.error $ "error reading ghci flags from "
                 <> showt ghci_flags <> ": " <> showt exc
                 <> ", the REPL is probably not going to work"
