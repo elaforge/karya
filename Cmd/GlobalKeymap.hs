@@ -105,7 +105,7 @@ io_bindings = concat
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat
     [ command_char 'S' "save" $ Cmd.gets Cmd.state_save_file >>= \x -> case x of
-        Just (Cmd.SaveRepo repo) -> do
+        Just (_, Cmd.SaveRepo repo) -> do
             -- Even when using git, write a standalone state as a safeguard.
             Save.write_current_state $ Save.state_path_for_repo repo
             Save.save_git_as repo

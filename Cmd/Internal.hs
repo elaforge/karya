@@ -280,9 +280,7 @@ sync_status ui_from cmd_from = do
         edit_state = Cmd.state_edit cmd_to
     when (not (null new_views) || Cmd.state_edit cmd_from /= edit_state
             || Cmd.state_saved cmd_from /= Cmd.state_saved cmd_to) $
-        let saved = if Maybe.isNothing (Cmd.state_save_file cmd_to)
-                then Nothing else Just (fromMaybe True $ Cmd.state_saved cmd_to)
-        in sync_edit_state saved edit_state
+        sync_edit_state (save_status cmd_to) edit_state
     sync_play_state $ Cmd.state_play cmd_to
     sync_save_file $ Cmd.state_save_file cmd_to
     sync_defaults $ State.config#State.default_ #$ ui_to
@@ -332,7 +330,8 @@ update_saved updates ui_from ui_to cmd_state = case Cmd.state_saved cmd_state of
 can_checkpoint :: Cmd.State -> Maybe (GitTypes.Repo, GitTypes.Commit)
     -- ^ I need both a repo and a previous commit to checkpoint.
 can_checkpoint cmd_state = case (Cmd.state_save_file cmd_state, prev) of
-    (Just (Cmd.SaveRepo repo), Just commit) -> Just (repo, commit)
+    (Just (Cmd.ReadWrite, Cmd.SaveRepo repo), Just commit) ->
+        Just (repo, commit)
     _ -> Nothing
     where
     prev = Cmd.hist_last_commit $ Cmd.state_history_config cmd_state
@@ -368,9 +367,9 @@ run_selection_hooks sels = do
 
 -- ** sync
 
-sync_edit_state :: Cmd.M m => Maybe Bool -> Cmd.EditState -> m ()
-sync_edit_state saved st = do
-    sync_edit_box saved st
+sync_edit_state :: Cmd.M m => SaveStatus -> Cmd.EditState -> m ()
+sync_edit_state save_status st = do
+    sync_edit_box save_status st
     sync_step_status st
     sync_octave_status st
     sync_recorded_actions (Cmd.state_recorded_actions st)
@@ -383,19 +382,29 @@ sync_edit_state saved st = do
 -- upper box has an @o@ if 'Cmd.state_chord' mode is enabled.  The upper box
 -- also has a @\/@ if the score state hasn't been saved to disk, or @x@ if
 -- it can't save to disk because there is no save file.
-sync_edit_box :: Cmd.M m => Maybe Bool -> Cmd.EditState -> m ()
-sync_edit_box saved st = do
+sync_edit_box :: Cmd.M m => SaveStatus -> Cmd.EditState -> m ()
+sync_edit_box save_status st = do
     let mode = Cmd.state_edit_mode st
     let skel = Block.Box (skel_color mode (Cmd.state_advance st)) $
-            (if Cmd.state_chord st then snd else fst) $ case saved of
-                Nothing ->      ('x', '⊗')
-                Just False ->   ('/', 'ø')
-                Just True ->    (' ', 'o')
+            (if Cmd.state_chord st then snd else fst) $ case save_status of
+                CantSave -> ('x', '⊗')
+                Unsaved ->  ('/', 'ø')
+                Saved ->    (' ', 'o')
         track = Block.Box (edit_color mode)
             (if Cmd.state_kbd_entry st then 'K' else ' ')
     Cmd.set_status Config.status_record $
         if Cmd.state_record_velocity st then Just "vel" else Nothing
     Cmd.set_edit_box skel track
+
+data SaveStatus = CantSave | Unsaved | Saved deriving (Eq, Show)
+
+save_status :: Cmd.State -> SaveStatus
+save_status state = case Cmd.state_save_file state of
+    Nothing -> CantSave
+    Just (Cmd.ReadOnly, _) -> CantSave
+    Just (Cmd.ReadWrite, _) -> case Cmd.state_saved state of
+        Just False -> Unsaved
+        _ -> Saved
 
 skel_color :: Cmd.EditMode -> Bool -> Color.Color
 skel_color Cmd.NoEdit _ = edit_color Cmd.NoEdit
@@ -438,11 +447,16 @@ sync_play_state st = do
     Cmd.set_global_status "play-mult" $
         ShowVal.show_val (Cmd.state_play_multiplier st)
 
-sync_save_file :: Cmd.M m => Maybe Cmd.SaveFile -> m ()
+sync_save_file :: Cmd.M m => Maybe (Cmd.Writable, Cmd.SaveFile) -> m ()
 sync_save_file save = Cmd.set_global_status "save" $ case save of
     Nothing -> ""
-    Just (Cmd.SaveState fn) -> txt fn
-    Just (Cmd.SaveRepo repo) -> txt repo
+    Just (writable, save_file) -> name_of save_file
+        <> case writable of
+            Cmd.ReadWrite -> ""
+            Cmd.ReadOnly -> " (ro)"
+    where
+    name_of (Cmd.SaveState fn) = txt fn
+    name_of (Cmd.SaveRepo repo) = txt repo
 
 sync_defaults :: Cmd.M m => State.Default -> m ()
 sync_defaults (State.Default tempo) =

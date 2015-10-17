@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Unsetting for read-only SavedFile breaks ky files.  So I think I need
+  * Unsetting for read-only SavedFile breaks ky files.  So I think I need
     either a separate way to mark read-only, or a separate place for the ky
     file path.
   * support for non-dvorak keyboard

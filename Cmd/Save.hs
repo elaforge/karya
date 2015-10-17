@@ -32,7 +32,6 @@ import Prelude hiding (read)
 import qualified Control.Exception as Exception
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 
@@ -69,8 +68,10 @@ import Global
 save :: Cmd.CmdT IO ()
 save = Cmd.gets Cmd.state_save_file >>= \x -> case x of
     Nothing -> save_git
-    Just (Cmd.SaveRepo repo) -> save_git_as repo
-    Just (Cmd.SaveState fn) -> save_state_as fn
+    -- Try to override Cmd.Writable on an explicit save.  If it's still
+    -- read only, this should throw an exception.
+    Just (_, Cmd.SaveRepo repo) -> save_git_as repo
+    Just (_, Cmd.SaveState fn) -> save_state_as fn
 
 -- | Like 'read', but replace the current state and set 'Cmd.state_save_file'.
 load :: FilePath -> Cmd.CmdT IO ()
@@ -80,15 +81,13 @@ load path = do
 
 -- | Try to guess whether the given path is a git save or state save.  If it's
 -- a directory, look inside for a .git or .state save.
-read :: FilePath -> Cmd.CmdT IO (State.State, Maybe SaveFile)
+read :: FilePath -> Cmd.CmdT IO (State.State, StateSaveFile)
 read path = do
     path <- expand_filename path
     save <- Cmd.require_right ("read: "<>) =<< liftIO (infer_save_type path)
     case save of
         Cmd.SaveRepo repo -> read_git repo Nothing
-        Cmd.SaveState fn -> do
-            (state, save_file) <- read_state fn
-            return (state, Just save_file)
+        Cmd.SaveState fn -> read_state fn
 
 -- | Like 'load', but don't set SaveFile, so you can't overwrite the loaded
 -- file when you save.
@@ -171,7 +170,7 @@ save_state = save_state_as =<< Cmd.require "can't save, no save file"
 save_state_as :: FilePath -> Cmd.CmdT IO ()
 save_state_as fname = do
     fname <- write_current_state fname
-    set_save_file (Just $ SaveState fname) False
+    set_save_file (Just (Cmd.ReadWrite, SaveState fname)) False
 
 write_current_state :: FilePath -> Cmd.CmdT IO FilePath
 write_current_state fname = do
@@ -193,15 +192,18 @@ write_state fname state = do
 load_state :: FilePath -> Cmd.CmdT IO ()
 load_state fname = do
     (state, save_file) <- read_state fname
-    set_state (Just save_file) True state
+    set_state save_file True state
 
-read_state :: FilePath -> Cmd.CmdT IO (State.State, SaveFile)
+read_state :: FilePath -> Cmd.CmdT IO (State.State, StateSaveFile)
 read_state fname = do
     let mkmsg err = "load " <> txt fname <> ": " <> err
+    writable <- liftIO $ File.writable fname
     Log.notice $ "read state from " <> showt fname
+        <> if writable then "" else " (ro)"
     state <- Cmd.require (mkmsg "doesn't exist")
         =<< Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
-    return (state, SaveState fname)
+    return (state, Just
+        (if writable then Cmd.ReadWrite else Cmd.ReadOnly, SaveState fname))
 
 -- | Lower level 'read_state'.
 read_state_ :: FilePath -> IO (Either Text (Maybe State.State))
@@ -212,7 +214,7 @@ read_state_ = Serialize.unserialize state_magic
 get_state_path :: Cmd.M m => m (Maybe FilePath)
 get_state_path = do
     state <- Cmd.get
-    return $ make_state_path <$> Cmd.state_save_file state
+    return $ make_state_path . snd <$> Cmd.state_save_file state
 
 make_state_path :: Cmd.SaveFile -> FilePath
 make_state_path (Cmd.SaveState fn) = fn
@@ -258,7 +260,7 @@ save_git_as repo = do
                 (SaveGitTypes.SaveHistory state Nothing [] ["save"]))
     save <- rethrow =<< liftIO (SaveGit.set_save_tag repo commit)
     Log.notice $ "wrote save " <> showt save <> " to " <> showt repo
-    set_save_file (Just $ SaveRepo repo commit Nothing) False
+    set_save_file (Just (Cmd.ReadWrite, SaveRepo repo commit Nothing)) False
 
 load_git :: FilePath -> Maybe SaveGit.Commit -> Cmd.CmdT IO ()
 load_git repo maybe_commit = do
@@ -266,19 +268,17 @@ load_git repo maybe_commit = do
     set_state save_file True state
 
 read_git :: FilePath -> Maybe SaveGit.Commit
-    -> Cmd.CmdT IO (State.State, Maybe SaveFile)
+    -> Cmd.CmdT IO (State.State, StateSaveFile)
 read_git repo maybe_commit = do
     (state, commit, names) <- Cmd.require_right
         (("load git " <> txt repo <> ": ") <>)
         =<< liftIO (SaveGit.load repo maybe_commit)
-    save_file <- liftIO $ ifM (File.writable repo)
-        (return $ Just $ SaveRepo repo commit (Just names))
-        (return Nothing)
+    writable <- liftIO $ File.writable repo
     Log.notice $ "read from " <> showt repo <> ", at " <> pretty commit
         <> " names: " <> showt names
-        <> if Maybe.isJust save_file then ""
-            else " (read-only, not setting save file)"
-    return (state, save_file)
+        <> if writable then "" else " (read-only, not setting save file)"
+    return (state, Just (if writable then Cmd.ReadWrite else Cmd.ReadOnly,
+        SaveRepo repo commit (Just names)))
 
 -- | Revert to given save point, or the last one.
 revert :: Maybe String -> Cmd.CmdT IO ()
@@ -286,12 +286,12 @@ revert maybe_ref = do
     save_file <- Cmd.require "can't revert when there is no save file"
         =<< Cmd.gets Cmd.state_save_file
     case save_file of
-        Cmd.SaveState fn -> do
+        (_, Cmd.SaveState fn) -> do
             whenJust maybe_ref $ \ref -> Cmd.throw $
                 "can't revert to a commit when the save file isn't git: "
                 <> txt ref
             load fn
-        Cmd.SaveRepo repo -> revert_git repo
+        (_, Cmd.SaveRepo repo) -> revert_git repo
     Log.notice $ "revert to " <> showt save_file
     where
     revert_git repo = do
@@ -324,8 +324,9 @@ make_git_path :: Id.Namespace -> Cmd.State -> Git.Repo
 make_git_path ns state = case Cmd.state_save_file state of
     Nothing -> Cmd.path state Config.save_dir </> untxt (Id.un_namespace ns)
         </> default_git
-    Just (Cmd.SaveState fn) -> FilePath.replaceExtension fn SaveGit.git_suffix
-    Just (Cmd.SaveRepo repo) -> repo
+    Just (_, Cmd.SaveState fn) ->
+        FilePath.replaceExtension fn SaveGit.git_suffix
+    Just (_, Cmd.SaveRepo repo) -> repo
 
 default_git :: FilePath
 default_git = "save" ++ SaveGit.git_suffix
@@ -363,7 +364,7 @@ load_midi_config fname = do
 -- (scrolling emits tons of them).
 save_views :: Cmd.State -> State.State -> IO ()
 save_views cmd_state ui_state = case Cmd.state_save_file cmd_state of
-    Just (Cmd.SaveRepo repo) ->
+    Just (Cmd.ReadWrite, Cmd.SaveRepo repo) ->
         SaveGit.save_views repo $ State.state_views ui_state
     _ -> return ()
 
@@ -374,6 +375,7 @@ data SaveFile =
     -- load.
     | SaveRepo !SaveGit.Repo !SaveGit.Commit !(Maybe [Text])
     deriving (Show)
+type StateSaveFile = Maybe (Cmd.Writable, SaveFile)
 
 -- | If I switch away from a repo (either to another repo or to a plain state),
 -- I have to clear out all the remains of the old repo, since its Commits are
@@ -381,7 +383,7 @@ data SaveFile =
 --
 -- It's really important to call this whenever you change
 -- 'Cmd.state_save_file'!
-set_save_file :: Maybe SaveFile -> Bool -> Cmd.CmdT IO ()
+set_save_file :: StateSaveFile -> Bool -> Cmd.CmdT IO ()
 set_save_file save_file clear_history = do
     cmd_state <- Cmd.get
     when (file /= Cmd.state_save_file cmd_state) $ do
@@ -404,12 +406,14 @@ set_save_file save_file clear_history = do
     Cmd.modify $ \st -> st { Cmd.state_saved = Nothing }
     where
     (maybe_commit, file) = case save_file of
-        Just (SaveState fname) -> (Nothing, Just $ Cmd.SaveState fname)
-        Just (SaveRepo repo commit _) -> (Just commit, Just $ Cmd.SaveRepo repo)
         Nothing -> (Nothing, Nothing)
+        Just (writable, save) -> case save of
+            SaveState fname -> (Nothing, Just (writable, Cmd.SaveState fname))
+            SaveRepo repo commit _ ->
+                (Just commit, Just (writable, Cmd.SaveRepo repo))
     clear entry = entry { Cmd.hist_commit = Nothing }
 
-set_state :: Maybe SaveFile -> Bool -> State.State -> Cmd.CmdT IO ()
+set_state :: StateSaveFile -> Bool -> State.State -> Cmd.CmdT IO ()
 set_state save_file clear_history state = do
     set_save_file save_file clear_history
     Play.cmd_stop
@@ -417,7 +421,7 @@ set_state save_file clear_history state = do
     -- Names is only set on a git load.  This will cause "Cmd.Undo" to clear
     -- out the history.
     case save_file of
-        Just (SaveRepo _ commit (Just names)) -> Cmd.modify $ \st -> st
+        Just (_, SaveRepo _ commit (Just names)) -> Cmd.modify $ \st -> st
             { Cmd.state_history = (Cmd.state_history st)
                 { Cmd.hist_last_cmd = Just $ Cmd.Load (Just commit) names }
             }

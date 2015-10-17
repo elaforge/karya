@@ -348,7 +348,7 @@ data State = State {
     state_config :: !Config
     -- | If set, the current 'State.State' was loaded from this file.
     -- This is so save can keep saving to the same file.
-    , state_save_file :: !(Maybe SaveFile)
+    , state_save_file :: !(Maybe (Writable, SaveFile))
     -- | Nothing means a state was just loaded, so it counts as saved even if
     -- it has changed.  Just True means the state hasn't changed since being
     -- saved, and Just False means it has.
@@ -401,14 +401,15 @@ data State = State {
 
 data SaveFile = SaveState !FilePath | SaveRepo !GitTypes.Repo
     deriving (Show, Eq)
+data Writable = ReadWrite | ReadOnly deriving (Show, Eq)
 
 -- | Directory of the save file.
 state_save_dir :: State -> Maybe FilePath
 state_save_dir state = path state . Config.RelativePath <$>
     case state_save_file state of
         Nothing -> Nothing
-        Just (SaveState fn) -> Just $ FilePath.takeDirectory fn
-        Just (SaveRepo repo) -> Just $ FilePath.takeDirectory repo
+        Just (_, SaveState fn) -> Just $ FilePath.takeDirectory fn
+        Just (_, SaveRepo repo) -> Just $ FilePath.takeDirectory repo
 
 -- | A loaded and parsed ky file, or an error string.  This also has the files
 -- loaded and their timestamps, to detect when one has changed.

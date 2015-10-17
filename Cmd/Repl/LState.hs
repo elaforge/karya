@@ -193,9 +193,12 @@ rename ns = do
     Create.rename_project ns
     Cmd.gets Cmd.state_save_file >>= \x -> case x of
         Nothing -> return ()
-        Just (Cmd.SaveState fn) -> Cmd.modify $ \st -> st
-            { Cmd.state_save_file = Just $ Cmd.SaveState $ replace_dir ns fn }
-        Just (Cmd.SaveRepo repo) -> do
+        Just (_, Cmd.SaveState fn) -> Cmd.modify $ \st -> st
+            { Cmd.state_save_file =
+                -- Assume the new name is new, and thus defaults to ReadWrite.
+                Just (Cmd.ReadWrite, Cmd.SaveState $ replace_dir ns fn)
+            }
+        Just (_, Cmd.SaveRepo repo) -> do
             -- System.Directory.renameDirectory deletes the destination
             -- diretory for some reason.  I'd rather throw an exception.
             let old_dir = FilePath.takeDirectory repo
@@ -203,8 +206,9 @@ rename ns = do
                     (untxt (Id.un_namespace ns))
             Cmd.rethrow_io $ File.ignoreEnoent $ Posix.rename old_dir new_dir
             Cmd.modify $ \st -> st
-                { Cmd.state_save_file = Just $ Cmd.SaveState $
-                    new_dir </> FilePath.takeFileName repo
+                { Cmd.state_save_file =
+                    Just (Cmd.ReadWrite,
+                        Cmd.SaveState $ new_dir </> FilePath.takeFileName repo)
                 }
     where
     replace_dir ns path = new_dir </> FilePath.takeFileName path
