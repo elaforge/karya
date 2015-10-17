@@ -345,9 +345,6 @@ cached_load state fname = run $ do
     dir <- require ("need a SaveFile to find " <> showt fname) $
         Cmd.state_save_dir state
     let paths = dir : Cmd.state_ky_paths (Cmd.state_config state)
-    -- If a file can't be read, then I get mempty.  In that case, this returns
-    -- Nothing, which means no change, but it will retry every trip through the
-    -- responder.
     current_timestamps <- require_right
         =<< liftIO (get_timestamps (Map.keys cached_timestamps))
     let fresh = not (Map.null cached_timestamps)
@@ -357,11 +354,12 @@ cached_load state fname = run $ do
         return $ Just (Right lib, timestamps)
     where
     run = fmap map_error . Error.runErrorT
-    map_error (Left msg)
-        -- If I failed to load last time too, then don't clear
-        -- 'state_performance_threads' or I'll get an endless loop.
-        | cached_timestamps == mempty = Nothing
-        | otherwise = Just (Left msg, mempty)
+    map_error (Left msg) = case Cmd.state_ky_cache state of
+        -- If it failed last time then don't replace the error.  Otherwise,
+        -- 'update_ky_cache' will clear the performance and I'll get an endless
+        -- loop.
+        Just (Cmd.KyCache (Left _) _) -> Nothing
+        _ -> Just (Left msg, mempty)
     map_error (Right val) = val
     require msg = maybe (Error.throwError msg) return
     require_right = either Error.throwError return
