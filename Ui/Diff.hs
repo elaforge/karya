@@ -397,6 +397,7 @@ score_changed st1 st2 updates = or
         Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2)
     , any (\(_, t1, t2) -> t1 /= t2) $
         Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
+    , State.state_config st1 /= State.state_config st2
     ]
     where strip b = b { Block.block_config = Block.default_config }
 
