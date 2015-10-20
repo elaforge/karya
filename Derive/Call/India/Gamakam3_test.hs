@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.India.Gamakam3_test where
+import qualified Data.Map as Map
+
 import qualified Util.Num as Num
 import Util.Test
 import qualified Ui.UiTest as UiTest
@@ -15,6 +17,35 @@ import qualified Perform.NN as NN
 import Global
 import Types
 
+
+-- gamakam3.a
+
+test_relative = do
+    let run c = derive_tracks2 DeriveTest.e_nns_rounded $
+            make_tracks (4, "--") (2, c)
+        output nns = ([[(0, 60)], nns, [(6, 64)]], [])
+    equal (run "!0") (output [(4, 62), (5, 62)])
+    equal (run "!T10") (output [(4, 63), (5, 62.5)])
+    equal (run "!-1") (output [(4, 62), (5, 61)])
+    equal (run "!Ta0") (output [(4, 60), (5, 61)])
+    equal (run "!Ta=") (output [(4, 60)])
+
+test_parse_sequence2 = do
+    let f = first untxt . Gamakam.parse_sequence2
+    equal (f "P10") $ Right [PitchExpr 'P' "1", PitchExpr '0' ""]
+    equal (f "p1") $ Right [PitchExpr 'p' "", PitchExpr '1' ""]
+
+test_extension2 = do
+    let run = derive_tracks2 DeriveTest.e_nns_rounded . make_tracks (4, "--")
+    strings_like (snd $ run (4, "!_==1_"))
+        (replicate 2 "extension with no preceding call")
+    equal (run (4, "!==1_"))
+        ([[(0, 60)], [(4, 62), (5, 62), (6, 62), (7, 63)], [(8, 64)]], [])
+
+test_call_maps = do
+    equal (Map.keys Gamakam.pitch_call_map) (Map.keys Gamakam.pitch_call_map)
+    equal (Map.keys Gamakam.pitch_call_map2) (Map.keys Gamakam.pitch_call_map2)
+    equal (Map.keys Gamakam.dyn_call_map) (Map.keys Gamakam.dyn_call_map)
 
 -- * pitch
 
@@ -234,3 +265,8 @@ derive_tracks :: (Score.Event -> a) -> [UiTest.TrackSpec] -> ([a], [String])
 derive_tracks extract = DeriveTest.extract extract
     . DeriveTest.derive_tracks
         "import india.gamakam3 | transition=1 | dyn-transition=1"
+
+derive_tracks2 :: (Score.Event -> a) -> [UiTest.TrackSpec] -> ([a], [String])
+derive_tracks2 extract = DeriveTest.extract extract
+    . DeriveTest.derive_tracks
+        "import india.gamakam3.a | transition=1 | dyn-transition=1"

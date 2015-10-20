@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - J call for calung that puts in a jegog note.  It needs {infer-duration}.
   * Unsetting for read-only SavedFile breaks ky files.  So I think I need
     either a separate way to mark read-only, or a separate place for the ky
     file path.
@@ -325,9 +326,23 @@ UNSORTED
     Gamakam3:
       - < is incorrect: in @b5 4.3.4 change to '!!<c' and it comes from
         m instead of r.
-      . Try a new approach: just a sequence of ornaments, each of which takes
-        up an integral number of time units.  Time units are evenly divided
-        across the available duration.
+      * Switch 123 abc from prev pitch relative to swaram relative.
+      * Instead of compact and space-separated notations, have just compact
+        notation, but calls >1 char can use a delimiter, e.g.
+        . What if the delimeter is space?  Then I have to write '! P1 a12'.
+        . Then if I have multiple in a row: '! P1 P2 123'
+          But then I need a trailing space to make the last one long.
+        . Otherwise: '!,P1 P2,123'
+        . This seems like no better than the current scheme.
+        . How about a simpler scheme where capital letters get a single
+          character argument, and the rest have no arguments.
+      * 'T' call should take next digit and set pitch, so I don't have to go
+        out of compact notation.
+      * How about negative?  Can I do '-' with an arg?  Then '=' has to be
+        flat.  Since the arg is just one character, I can't do T-1.  If
+        Ta Tb Tc Td is up to -4.  Do I need an escape hatch?  I could write
+        T-4, where an arg can go up to the next comma.
+        Ta00a
       notation:
         - Is it weird to have dyn as a postfix operator?  Should I put it in
           front, e.g. <[-]?

@@ -5,7 +5,13 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 -- | Calls for Carnatic gamakam.
-module Derive.Call.India.Gamakam3 where
+module Derive.Call.India.Gamakam3 (
+    pitch_calls, control_calls, note_calls
+    -- testing
+    , parse_sequence, Expr_(..)
+    , parse_sequence2
+    , dyn_call_map, pitch_call_map, pitch_call_map2
+) where
 import qualified Control.Monad.State as State
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Char as Char
@@ -49,7 +55,10 @@ module_ :: Module.Module
 module_ = "india" <> "gamakam3"
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
-pitch_calls = Derive.generator_call_map [(Parse.unparsed_call, c_sequence)]
+pitch_calls = Derive.generator_call_map
+    [ (Parse.unparsed_call, c_sequence False)
+    , (Parse.unparsed_call, c_sequence True)
+    ]
 
 control_calls :: Derive.CallMaps Derive.Control
 control_calls = Derive.generator_call_map
@@ -60,8 +69,9 @@ note_calls = Derive.transformer_call_map [("sahitya", c_sahitya)]
 
 -- * sequence
 
-c_sequence :: Derive.Generator Derive.Pitch
-c_sequence = Derive.generator1 module_ "sequence" mempty sequence_doc
+c_sequence :: Bool -> Derive.Generator Derive.Pitch
+c_sequence parse2 = Derive.generator1 (module_ <> if parse2 then "a" else "")
+    "sequence" mempty sequence_doc
     $ Sig.call ((,) <$> Sig.required "sequence" sequence_arg_doc <*> config_env)
     $ \(text, (transition, dyn_transition)) args -> do
         (start, end) <- Args.range_or_note_end args
@@ -70,7 +80,7 @@ c_sequence = Derive.generator1 module_ "sequence" mempty sequence_doc
             Nothing -> return mempty
             Just state -> do
                 Result pitches dyns_d <- Derive.at start $
-                    pitch_sequence (end - start) state text
+                    pitch_sequence parse2 (end - start) state text
                 real_start <- Derive.real start
                 real_end <- Derive.real end
                 let dyns = dropWhile Signal.null $ DList.toList dyns_d
@@ -272,10 +282,11 @@ instance Monoid.Monoid Result where
     mappend (Result pitch1 dyn1) (Result pitch2 dyn2) =
         Result (pitch1<>pitch2) (dyn1<>dyn2)
 
-pitch_sequence :: ScoreTime -> State -> Text -> Derive.Deriver Result
-pitch_sequence dur state arg = do
+pitch_sequence :: Bool -> ScoreTime -> State -> Text -> Derive.Deriver Result
+pitch_sequence parse2 dur state arg = do
     exprs <- Derive.require_right (("parsing " <> showt arg <> ": ")<>) $
-        resolve_extensions =<< resolve_exprs =<< parse_sequence arg
+        resolve_extensions =<< resolve_exprs parse2
+        =<< if parse2 then parse_sequence2 arg else parse_sequence arg
     let starts = slice_time dur (expr_durations exprs)
         ranges = zip starts (drop 1 starts)
     (results, _) <- State.runStateT (mapM eval (zip_exprs ranges exprs)) state
@@ -336,19 +347,23 @@ zip_exprs xs exprs = fst $ State.runState (traverse go exprs) xs
 parse_sequence :: Text -> Either Text [Expr]
 parse_sequence = ParseText.parse p_exprs
 
-resolve_exprs :: [Expr] -> Either Text [ResolvedExpr]
-resolve_exprs = concatMapM resolve
+parse_sequence2 :: Text -> Either Text [Expr]
+parse_sequence2 = ParseText.parse p_exprs2
+
+resolve_exprs :: Bool -> [Expr] -> Either Text [ResolvedExpr]
+resolve_exprs parse2 = concatMapM resolve
     where
     resolve (DynExpr c a1 a2 exprs) = case Map.lookup c dyn_call_map of
         Nothing -> Left $ "dynamic call not found: " <> showt c
         Just call -> do
-            resolved <- resolve_exprs exprs
+            resolved <- resolve_exprs parse2 exprs
             return [DynExpr (c, call) a1 a2 resolved]
-    resolve (PitchExpr c arg) = case Map.lookup c pitch_call_map of
+    resolve (PitchExpr c arg) = case Map.lookup c pcall_map of
         Nothing -> Left $ "pitch call not found: " <> showt c
         -- Apply the same argument to all of them.  But I should only get
         -- multiple PitchExprs for aliases, which expect no argument.
         Just calls -> Right [PitchExpr c arg | c <- calls]
+    pcall_map = if parse2 then pitch_call_map2 else pitch_call_map
 
 resolve_extensions :: [ResolvedExpr] -> Either Text [ResolvedExpr]
 resolve_extensions = resolve <=< check_no_args
@@ -381,10 +396,10 @@ modify_duration modify = fmap $ \call ->
 -- * DynCall
 
 data DynCall = forall a b. DynCall {
-    dcall_doc :: Text
-    , dcall_signature1 :: Sig.Parser a
-    , dcall_signature2 :: Sig.Parser b
-    , dcall_func :: a -> b -> Context -> M DynState Signal.Control
+    _dcall_doc :: Text
+    , _dcall_signature1 :: Sig.Parser a
+    , _dcall_signature2 :: Sig.Parser b
+    , _dcall_func :: a -> b -> Context -> M DynState Signal.Control
     }
 
 dyn_call_map :: Map.Map Text DynCall
@@ -467,7 +482,7 @@ data PitchCall = PitchCall {
     -- TODO take this out, as with DynCall
     -- then I can merge PCall into this, as with DynCall
     pcall_name :: !Char
-    , pcall_doc :: !Text
+    , _pcall_doc :: !Text
     , pcall_duration :: !Double
     -- | If True, cons 'pcall_name' on to the arg before parsing it.
     , pcall_parse_call_name :: !Bool
@@ -480,17 +495,18 @@ pcall_arg pcall arg
     | otherwise = arg
 
 data PCall = forall a. PCall {
-    pcall_signature :: Sig.Parser a
-    , pcall_func :: a -> Context -> M State PSignal.Signal
+    _pcall_signature :: Sig.Parser a
+    , _pcall_func :: a -> Context -> M State PSignal.Signal
     }
 
 pitch_call_map :: Map.Map Char [PitchCall]
 pitch_call_map = resolve $ Map.unique $ concat
     -- relative motion
     [ [ pcall '0' "Hold flat pitch." pc_flat
-      , parse_name $ pcall '-' "Negative relative motion." pc_move
+      , parse_name $ pcall '-' "Negative relative motion." (pc_relative False)
       ]
-    , [parse_name $ pcall c "Relative motion." pc_move | c <- "123456789"]
+    , [parse_name $ pcall c "Relative motion." (pc_relative False)
+        | c <- "123456789"]
     , [ alias 'b' ["-2"], alias 'a' ["-1"]
       , alias 'y' ["-1nn"], alias 'z' ["1nn"] -- relative motion by NN
       ]
@@ -498,7 +514,7 @@ pitch_call_map = resolve $ Map.unique $ concat
     -- I actually wanted to implemented motion relative to the base pitch, but
     -- couldn't think of a nice mnemonic for the names.  In any case, maybe
     -- swaram-absolute is actually more intuitive.
-    , [ pcall c "Absolute motion to swaram." (pc_move_absolute pc)
+    , [ pcall c "Absolute motion to swaram." (pc_absolute pc)
       | (pc, c) <- zip [0..] ("srgmpdn" :: [Char])
       ]
     , [ pcall 'c' "Absolute motion to current pitch."
@@ -513,11 +529,59 @@ pitch_call_map = resolve $ Map.unique $ concat
       , config extend_name "Extend the duration of the previous call." pc_extend
       , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
       , config '^' "Set from pitch to current." (pc_set_pitch Current)
-      , config 'P' "Set from pitch to relative steps." pc_set_pitch_relative
+      , config 'P' "Set from pitch to relative steps."
+        (pc_set_pitch_relative False)
       , config 'F' "Fast transition time." (pc_set_transition_time Fast)
       , config 'M' "Medium transition time." (pc_set_transition_time Medium)
       , config 'S' "Slow transition time." (pc_set_transition_time Slow)
-      , config 'T' "Set slice time of the next call." pc_set_next_time_slice
+      ]
+    ]
+    where
+    resolve (calls, duplicates)
+        | null duplicates = either (error . untxt) id (resolve_aliases calls)
+        | otherwise = error $ "duplicate calls: " <> show (map fst duplicates)
+    parse_name = second $ second $ \g -> g { pcall_parse_call_name = True }
+    alias name to = (name, Left to)
+    pcall name doc c = (name, Right $ PitchCall name doc 1 False c)
+    config name doc c = (name, Right $ PitchCall name doc 0 False c)
+
+pitch_call_map2 :: Map.Map Char [PitchCall]
+pitch_call_map2 = resolve $ Map.unique $ concat
+    [ [pcall '=' "Hold flat pitch." pc_flat]
+    -- relative motion
+    , [parse_name $ pcall c "Relative motion." (pc_relative True)
+        | c <- "0123456789"]
+    , [parse_name $ pcall '-' "Negative relative motion." (pc_relative True)]
+    -- TODO 'd' conflicts with absolute motion
+    , [alias c [showt n] | (c, n) <- zip "abcd" [-1, -2 ..]]
+    -- , [ alias 'a' ["-1"], alias 'b' ["-2"], alias 'c'
+    --     -- TODO does't work if arg is just 1 character
+    --   -- , alias 'y' ["-1nn"], alias 'z' ["1nn"] -- relative motion by NN
+    --   ]
+    -- absolute motion
+
+    -- , [ pcall c "Absolute motion to swaram." (pc_absolute pc)
+    --   | (pc, c) <- zip [0..] ("srgmpdn" :: [Char])
+    --   ]
+    , [ pcall 'h' "Absolute motion to current pitch."
+        (pc_move_direction Current)
+      , pcall 'v' "Absolute motion to next pitch." (pc_move_direction Next)
+      -- compound motion
+      -- , alias 'u' ["-1", "1"]
+      -- , alias 'h' ["1", "-1"] -- single turn
+      , pcall 'j' "Janta." pc_janta
+
+      -- set config
+      , config extend_name "Extend the duration of the previous call." pc_extend
+      , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
+      , config '^' "Set from pitch to current." (pc_set_pitch Current)
+      , config 'P' "Set from pitch to relative steps."
+        (pc_set_pitch_relative False)
+      , config 'T' "Set from pitch relative to swaram."
+        (pc_set_pitch_relative True)
+      , config 'F' "Fast transition time." (pc_set_transition_time Fast)
+      , config 'M' "Medium transition time." (pc_set_transition_time Medium)
+      , config 'S' "Slow transition time." (pc_set_transition_time Slow)
       ]
     ]
     where
@@ -593,9 +657,9 @@ pc_flat = PCall Sig.no_args $ \() ctx -> do
     (start, end) <- ctx_range ctx
     return $ PSignal.signal [(start, pitch), (end, pitch)]
 
-pc_move :: PCall
-pc_move = PCall (Sig.required "to" "To pitch.") $ \arg ctx -> do
-    case arg of
+pc_relative :: Bool -> PCall
+pc_relative swaram_relative = PCall (Sig.required "to" "To pitch.")
+    $ \arg ctx -> case arg of
         Left (TrackLang.Symbol sym)
             | sym == "-" -> do
                 (start, end) <- ctx_range ctx
@@ -603,7 +667,8 @@ pc_move = PCall (Sig.required "to" "To pitch.") $ \arg ctx -> do
                 return $ PSignal.signal [(start, pitch), (end, pitch)]
             | otherwise -> lift $ Derive.throw $ "unknown move: " <> showt sym
         Right (Typecheck.DefaultDiatonic transpose) -> do
-            from_pitch <- get_from
+            from_pitch <- if swaram_relative
+                then State.gets state_current_pitch else get_from
             move_to ctx (Pitches.transpose transpose from_pitch)
 
 data PitchDirection = Previous | Current | Next deriving (Show, Eq)
@@ -619,8 +684,8 @@ pc_move_direction :: PitchDirection -> PCall
 pc_move_direction dir = PCall Sig.no_args $ \() ctx ->
     move_to ctx =<< get_direction_pitch dir
 
-pc_move_absolute :: Pitch.PitchClass -> PCall
-pc_move_absolute pc = PCall Sig.no_args $ \() ctx -> do
+pc_absolute :: Pitch.PitchClass -> PCall
+pc_absolute pc = PCall Sig.no_args $ \() ctx -> do
     from_pitch <- get_from
     to_pitch <- lift $ find_closest_pc (ctx_start ctx) pc from_pitch
     move_to ctx to_pitch
@@ -645,23 +710,34 @@ find_closest_pc start pc pitch = do
     Call.eval_note start =<< Derive.require "to_note" (to_note to_pitch)
 
 pc_janta :: PCall
-pc_janta = PCall Sig.no_args $ \() _args -> lift $ Derive.throw "TODO janta"
+pc_janta = PCall Sig.no_args $ \() _ctx -> lift $ Derive.throw "TODO janta"
 
 pc_set_pitch :: PitchDirection -> PCall
-pc_set_pitch dir = PCall Sig.no_args $ \() _args -> do
+pc_set_pitch dir = PCall Sig.no_args $ \() _ctx -> do
     set_pitch =<< get_direction_pitch dir
     return mempty
 
-pc_set_pitch_relative :: PCall
-pc_set_pitch_relative = PCall (Sig.required "to" "To pitch.") $
-    \(Typecheck.DefaultDiatonic transpose) _args -> do
-        set_pitch . Pitches.transpose transpose =<< get_from
+pc_set_pitch_relative :: Bool -> PCall
+pc_set_pitch_relative from_current = PCall (Sig.required "to" "To pitch.") $
+    \arg _ctx -> do
+        transpose <- lift $ parse_transpose arg
+        set_pitch . Pitches.transpose transpose
+            =<< if from_current then State.gets state_current_pitch
+                else get_from
         return mempty
+
+parse_transpose :: Either Pitch.Transpose TrackLang.Symbol
+    -> Derive.Deriver Pitch.Transpose
+parse_transpose (Left t) = return t
+parse_transpose (Right (TrackLang.Symbol sym)) = case untxt sym of
+    [c] | 'a' <= c && c <= 'z' -> return $ Pitch.Diatonic $ fromIntegral $
+        fromEnum 'a' - fromEnum c - 1
+    _ -> Derive.throw $ "expected a lowercase letter: " <> showt sym
 
 data TransitionTime = Slow | Medium | Fast deriving (Show, Eq)
 
 pc_set_transition_time :: TransitionTime -> PCall
-pc_set_transition_time time = PCall Sig.no_args $ \() _args -> do
+pc_set_transition_time time = PCall Sig.no_args $ \() _ctx -> do
     State.modify $ \state -> state { state_transition = ttime }
     return mempty
     where
@@ -670,10 +746,6 @@ pc_set_transition_time time = PCall Sig.no_args $ \() _args -> do
         Fast -> 0.1
         Medium -> 0.5
         Slow -> 0.9
-
-pc_set_next_time_slice :: PCall
-pc_set_next_time_slice = PCall Sig.no_args $ \() _args ->
-    lift $ Derive.throw "TODO set next time slice"
 
 -- ** util
 
@@ -731,6 +803,21 @@ valid_dcall_char c = valid_pcall_char c && c `elem` ("=<>^_" :: [Char])
 
 valid_dcall_arg :: Char -> Bool
 valid_dcall_arg c = Char.isDigit c || c == '.'
+
+-- * parser2
+
+p_exprs2 :: Parser [Expr]
+p_exprs2 = A.skipSpace *> A.many1 (p_pitch_expr2 <* A.skipSpace)
+
+p_pitch_expr2 :: Parser Expr
+p_pitch_expr2 = do
+    c <- A.satisfy (\c -> c /= '!' && valid_pcall_char c)
+    if is_argument_call c
+        then PitchExpr c . Text.singleton <$> A.satisfy (/='!')
+        else return $ PitchExpr c ""
+
+is_argument_call :: Char -> Bool
+is_argument_call c = Char.isUpper c || c == '-'
 
 
 -- * misc
