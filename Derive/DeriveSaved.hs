@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 -- | Utilities to directly perform a saved score.
 module Derive.DeriveSaved where
 import qualified Control.Monad.Error as Error

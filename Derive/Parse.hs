@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {-# LANGUAGE CPP #-}
 -- | TrackLang parsers using Text and Attoparsec.
 module Derive.Parse (

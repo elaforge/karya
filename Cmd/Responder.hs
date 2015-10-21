@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {-# LANGUAGE CPP #-}
 {- | The responder is the main event loop on the haskell side.

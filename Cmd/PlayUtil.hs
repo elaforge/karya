@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 -- | Functions to do with performance.  This is split off from "Cmd.Play",
 -- which contains play Cmds and their direct support.
 module Cmd.PlayUtil (

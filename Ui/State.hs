@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {-# LANGUAGE GeneralizedNewtypeDeriving, BangPatterns #-}
 {- | The overall UI state is described here.  This is an immutable data
     structure that contains all the tracks, rulers, note data, and so forth.

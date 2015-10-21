@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {- | Core CmdT monad that cmds run in.
 
     A Cmd is what user actions turn into.  The main thing they do is edit

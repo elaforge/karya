@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 -- | Note calls that transform other note calls.  They rely on track slicing
 -- via 'Sub.sub_events'.
 module Derive.Call.Prelude.Parent where
