@@ -201,7 +201,7 @@ derive_block_setup_m setup create =
 derive_dump :: [MidiInst.SynthDesc] -> Simple.State -> BlockId -> Derive.Result
 derive_dump synths dump@(_, _, aliases, _) =
     derive_block_setup (with_synth_descs aliases synths) state
-    where state = UiTest.eval State.empty (Simple.convert_state dump)
+    where state = UiTest.eval State.empty (Simple.load_state dump)
 
 -- | Derive a block in the same way that the app does.
 derive_block_standard :: Setup -> Cmd.State -> Derive.Cache

@@ -36,7 +36,7 @@ import Types
 -- * block
 
 -- | Save state in a format that can be copy-pasted into a test, and loaded
--- with 'UiTest.read_blocks'.
+-- with 'Derive.DeriveTest.derive_dump'.
 dump_blocks :: FilePath -> Cmd.CmdL ()
 dump_blocks fname = do
     state <- Simple.dump_state
@@ -52,10 +52,6 @@ dump_block fname block_id = do
         Simple.dump_state
     liftIO $ write_dump fname state
 
--- | These can be used from 'Cmd.Repl.LDebug.dump_blocks' to dump state in
--- a form that can be pasted into a test, trimmed down by hand, and passed to
--- 'read_dump'.  This way problems that show up in the app can be pasted
--- into a test.
 write_dump :: FilePath -> Simple.State -> IO ()
 write_dump fname = writeFile fname . PPrint.pshow
 

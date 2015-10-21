@@ -326,10 +326,10 @@ regular_notes n = note_track $ take n
 dump_block :: BlockId -> State.State -> (BlockSpec, [Skeleton.Edge])
 dump_block block_id state =
     ((name ++ if Text.null title then "" else " -- " ++ untxt title,
-        map dump_track tracks), skel)
+        map dump_track (Maybe.catMaybes tracks)), skel)
     where
     (id_str, title, tracks, skel) = eval state (Simple.dump_block block_id)
-    name = untxt $ snd $ Id.un_id $ Id.read_id $ txt id_str
+    name = untxt $ snd $ Id.un_id $ Id.read_id id_str
     dump_track (_, title, events) = (untxt title, map convert events)
     convert (start, dur, text) =
         (ScoreTime.double start, ScoreTime.double dur, untxt text)

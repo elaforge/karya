@@ -42,14 +42,11 @@ import Types
 type State = (Text, MidiConfig, Aliases, [Block])
 type Aliases = [(Text, Text)]
 
--- | TODO should it have a ruler?  Otherwise they come in without a ruler...
--- but copy and paste can't copy and paste the ruler.
---
--- (id_name, title, tracks, skeleton)
-type Block = (String, Text, [Track], [Skeleton.Edge])
+-- | (id_name, title, tracks, skeleton)
+type Block = (Text, Text, [Maybe Track], [Skeleton.Edge])
 
 -- | (id_name, title, events)
-type Track = (String, Text, [Event])
+type Track = (Text, Text, [Event])
 
 -- | (start, duration, text)
 type Event = (Double, Double, Text)
@@ -102,10 +99,9 @@ dump_state = do
 dump_block :: State.M m => BlockId -> m Block
 dump_block block_id = do
     block <- State.get_block block_id
-    let track_ids = Block.block_track_ids block
-    tracks <- mapM dump_track track_ids
+    tracks <- mapM dump_tracklike (Block.block_tracklike_ids block)
     tree <- TrackTree.track_tree_of block_id
-    return (Id.ident_string block_id, Block.block_title block, tracks,
+    return (Id.ident_text block_id, Block.block_title block, tracks,
         to_skel tree)
     where
     to_skel = concatMap go
@@ -115,6 +111,10 @@ dump_block block_id = do
             ++ to_skel subs
     num = State.track_tracknum
 
+dump_tracklike :: State.M m => Block.TracklikeId -> m (Maybe Track)
+dump_tracklike =
+    maybe (return Nothing) (fmap Just . dump_track) . Block.track_id_of
+
 dump_track :: State.M m => TrackId -> m Track
 dump_track track_id = do
     track <- State.get_track track_id
@@ -122,7 +122,7 @@ dump_track track_id = do
 
 simplify_track :: TrackId -> Track.Track -> Track
 simplify_track track_id track =
-    (Id.ident_string track_id, Track.track_title track, map event events)
+    (Id.ident_text track_id, Track.track_title track, map event events)
     where events = Events.ascending (Track.track_events track)
 
 dump_selection :: Cmd.CmdL [(TrackId, [Event])]
@@ -142,8 +142,8 @@ dump_midi_config configs =
 
 -- * load
 
-convert_state :: State.M m => State -> m State.State
-convert_state (global_transform, midi, aliases, blocks) =
+load_state :: State.M m => State -> m State.State
+load_state (global_transform, midi, aliases, blocks) =
     State.exec_rethrow "convert state" State.empty $ do
         mapM_ make_block blocks
         State.modify $
@@ -159,27 +159,31 @@ load_block_to_clip fn = read_block fn >>= Clip.state_to_clip
 read_block :: FilePath -> Cmd.CmdT IO State.State
 read_block fn = do
     simple_block <- liftIO (readIO =<< readFile fn :: IO Block)
-    convert_block simple_block
+    load_block simple_block
 
-convert_block :: Cmd.M m => Block -> m State.State
-convert_block block = State.exec_rethrow "convert block" State.empty $
+load_block :: Cmd.M m => Block -> m State.State
+load_block block = State.exec_rethrow "convert block" State.empty $
     make_block block
 
 make_block :: State.M m => Block -> m BlockId
 make_block (id_name, title, tracks, skel) = do
-    tracks <- mapM convert_track tracks
-    block_id <- State.create_block (Id.read_id (txt id_name)) title tracks
+    tracks <- mapM load_tracklike tracks
+    block_id <- State.create_block (Id.read_id id_name) title tracks
     State.set_skeleton block_id (Skeleton.make skel)
     return block_id
 
-convert_track :: State.M m => Track -> m Block.Track
-convert_track (id_name, title, events) = do
-    track_id <- State.create_track (Id.read_id (txt id_name)) $
-        Track.track title (Events.from_list (map convert_event events))
+load_tracklike :: State.M m => Maybe Track -> m Block.Track
+load_tracklike Nothing = return $ Block.track (Block.RId State.no_ruler) 0
+load_tracklike (Just track) = load_track track
+
+load_track :: State.M m => Track -> m Block.Track
+load_track (id_name, title, events) = do
+    track_id <- State.create_track (Id.read_id id_name) $
+        Track.track title (Events.from_list (map load_event events))
     return $ Block.track (Block.TId track_id State.no_ruler) Config.track_width
 
-convert_event :: Event -> Event.Event
-convert_event (start, dur, text) =
+load_event :: Event -> Event.Event
+load_event (start, dur, text) =
     Event.event (ScoreTime.double start) (ScoreTime.double dur) text
 
 midi_config :: MidiConfig -> Instrument.Configs
