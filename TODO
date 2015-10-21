@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - flag for Util.Pretty so that it puts the leading 0 on floats?  This way
+    if you print basic types it can still generate valid haskell.
+    . Or perhaps it would be better to have a whole new typeclass, e.g.
+      PrettyHs.  Or take the Util.PPrint approach of formatting an AST.
   - J call for calung that puts in a jegog note.  It needs {infer-duration}.
   * Unsetting for read-only SavedFile breaks ky files.  So I think I need
     either a separate way to mark read-only, or a separate place for the ky
@@ -343,6 +347,8 @@ UNSORTED
         Ta Tb Tc Td is up to -4.  Do I need an escape hatch?  I could write
         T-4, where an arg can go up to the next comma.
         Ta00a
+      * Perhaps I should always start from the previous pitch, and '<' is the
+        previous swaram.
       notation:
         - Is it weird to have dyn as a postfix operator?  Should I put it in
           front, e.g. <[-]?

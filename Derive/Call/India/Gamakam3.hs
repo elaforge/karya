@@ -75,7 +75,7 @@ c_sequence parse2 = Derive.generator1 (module_ <> if parse2 then "a" else "")
     $ Sig.call ((,) <$> Sig.required "sequence" sequence_arg_doc <*> config_env)
     $ \(text, (transition, dyn_transition)) args -> do
         (start, end) <- Args.range_or_note_end args
-        maybe_state <- get_state transition dyn_transition args
+        maybe_state <- get_state parse2 transition dyn_transition args
         case maybe_state of
             Nothing -> return mempty
             Just state -> do
@@ -104,9 +104,9 @@ c_sequence parse2 = Derive.generator1 (module_ <> if parse2 then "a" else "")
             "Time for each dyn movement, in proportion of the total time\
             \ available."
 
-get_state :: Typecheck.Normalized -> Typecheck.Normalized
+get_state :: Bool -> Typecheck.Normalized -> Typecheck.Normalized
     -> Derive.PassedArgs Derive.Pitch -> Derive.Deriver (Maybe State)
-get_state transition dyn_transition args =
+get_state parse2 transition dyn_transition args =
     -- If there's no pitch then this is likely at the edge of a slice, and can
     -- be ignored.  TODO I think?
     justm (get_pitch (Args.start args)) $ \cur -> do
@@ -114,19 +114,35 @@ get_state transition dyn_transition args =
         let prev_event_pitch = fmap snd . PSignal.last
                 . Score.event_untransformed_pitch =<< prev_event
             prev_pitch = snd <$> Args.prev_pitch args
+        maybe_prev <- Args.lookup_prev_logical_pitch
         maybe_next <- Args.lookup_next_logical_pitch
-        return $ Just $ State
-            { state_from_pitch = cur
-            , state_transition = transition
-            , state_current_pitch = cur
-            , state_previous_pitch =
-                fromMaybe cur (prev_pitch <|> prev_event_pitch)
-            , state_next_pitch = fromMaybe cur maybe_next
-            , state_dyn = DynState
-                { state_from_dyn = fromMaybe 1 $ lookup_last_dyn =<< prev_event
-                , state_dyn_transition = dyn_transition
+        return $ Just $ if parse2
+            then State
+                { state_from_pitch =
+                    fromMaybe cur (prev_pitch <|> prev_event_pitch)
+                , state_transition = transition
+                , state_current_pitch = cur
+                , state_previous_pitch = fromMaybe cur maybe_prev
+                , state_next_pitch = fromMaybe cur maybe_next
+                , state_dyn = DynState
+                    { state_from_dyn =
+                        fromMaybe 1 $ lookup_last_dyn =<< prev_event
+                    , state_dyn_transition = dyn_transition
+                    }
                 }
-            }
+            else State
+                { state_from_pitch = cur
+                , state_transition = transition
+                , state_current_pitch = cur
+                , state_previous_pitch =
+                    fromMaybe cur (prev_pitch <|> prev_event_pitch)
+                , state_next_pitch = fromMaybe cur maybe_next
+                , state_dyn = DynState
+                    { state_from_dyn =
+                        fromMaybe 1 $ lookup_last_dyn =<< prev_event
+                    , state_dyn_transition = dyn_transition
+                    }
+                }
     where
     get_pitch = Derive.pitch_at <=< Derive.real
 

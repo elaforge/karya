@@ -65,7 +65,8 @@ prev_val = Derive.ctx_prev_val . context
 -- this is where I would look for a function for the previous value.
 lookup_prev_note :: Derive.Deriver (Maybe Score.Event)
 lookup_prev_note = do
-    addr <- Derive.require "no state_note_track"
+    -- TODO this happens if you're not inverting, but that should be ok, right?
+    addr <- Derive.require "lookup_prev_note: no state_note_track"
         =<< Derive.gets (Derive.state_note_track . Derive.state_dynamic)
     Derive.gets $ Derive.from_tagged <=< Map.lookup addr . Derive.state_prev_val
         . Derive.state_threaded
