@@ -84,6 +84,7 @@ def get_defs(lines):
 
 def span(f, xs):
     pre = []
+    i = 0
     for i, x in enumerate(xs):
         if f(x):
             pre.append(x)
