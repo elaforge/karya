@@ -17,7 +17,10 @@ import Global
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return $ MidiInst.make
+load _dir = return synth_descs
+
+synth_descs :: [MidiInst.SynthDesc]
+synth_descs = MidiInst.make
     (MidiInst.softsynth "reaktor" "Native Instruments Reaktor" pb_range [])
     { MidiInst.extra_patches = map MidiInst.with_empty_code patches }
 

@@ -198,8 +198,11 @@ get_pitch :: RealTime -> Derive.Deriver PSignal.Pitch
 get_pitch pos = Derive.require ("no pitch at " <> pretty pos)
     =<< Derive.pitch_at pos
 
-get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch) -> RealTime
-    -> Derive.Deriver Pitch.Pitch
+get_parsed_pitch :: (Pitch.Note -> Maybe Pitch.Pitch)
+    -- ^ Parse pitch function, as returned by 'get_pitch_functions'.
+    -- It's passed separately to avoid the overhead of calling
+    -- get_pitch_functions multiple times.
+    -> RealTime -> Derive.Deriver Pitch.Pitch
 get_parsed_pitch parse = parse_pitch parse <=< get_transposed
 
 dynamic :: RealTime -> Derive.Deriver Signal.Y

@@ -35,7 +35,7 @@ controls =
 patches :: [MidiInst.Patch]
 patches =
     [ (patch "pasang" [], Bali.pasang_code)
-    , (MidiInst.range (NN.g2, NN.a6) $ patch "yangqin" [], mempty)
+    , (MidiInst.nn_range (NN.g2, NN.a6) $ patch "yangqin" [], mempty)
     , (patch "harp" harp_controls, mempty)
     ]
     where

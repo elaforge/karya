@@ -11,7 +11,7 @@ UNSORTED
     if you print basic types it can still generate valid haskell.
     . Or perhaps it would be better to have a whole new typeclass, e.g.
       PrettyHs.  Or take the Util.PPrint approach of formatting an AST.
-  - J call for calung that puts in a jegog note.  It needs {infer-duration}.
+  * J call for calung that puts in a jegog note.  It needs {infer-duration}.
   * Unsetting for read-only SavedFile breaks ky files.  So I think I need
     either a separate way to mark read-only, or a separate place for the ky
     file path.

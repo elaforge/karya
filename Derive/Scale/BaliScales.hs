@@ -71,8 +71,8 @@ data NoteNumbers = NoteNumbers {
     , nn_isep :: !(Vector.Vector Pitch.NoteNumber)
     } deriving (Show)
 
-scale_range :: ScaleMap -> (Pitch.Pitch, Pitch.Pitch)
-scale_range smap = (to_pitch bottom, to_pitch top)
+scale_range :: ScaleMap -> Scale.Range
+scale_range smap = Scale.Range (to_pitch bottom) (to_pitch top)
     where
     (bottom, top) = ChromaticScales.smap_range $ smap_chromatic smap
     to_pitch = Theory.semis_to_pitch_sharps

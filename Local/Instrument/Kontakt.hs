@@ -175,7 +175,7 @@ sonic_couture =
     ]
 
 guzheng :: MidiInst.Patch
-guzheng = MidiInst.with_code code $ MidiInst.range range $
+guzheng = MidiInst.with_code code $ MidiInst.nn_range range $
     Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
     Instrument.attribute_map #= Instrument.simple_keyswitches ks $
     patch "guzheng" [(23, Controls.lpf), (24, Controls.q), (27, Controls.hpf)]

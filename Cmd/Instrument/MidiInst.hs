@@ -18,7 +18,7 @@ module Cmd.Instrument.MidiInst (
     -- * making patches
     , patch, pressure
     -- ** environ
-    , environ, default_scale, range
+    , environ, default_scale, range, nn_range
 
     -- * db
     , save_db, save_patches, load_db
@@ -36,6 +36,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
@@ -188,11 +189,14 @@ environ name val = Instrument.environ
 default_scale :: Pitch.ScaleId -> Instrument.Patch -> Instrument.Patch
 default_scale = environ EnvKey.scale . TrackLang.scale_id_to_sym
 
--- | Set instrument range.  The type is polymorphic because some instruments
--- want Pitch.Pitch and some want PSignal.Y.
-range :: RestrictedEnviron.ToVal a => (a, a) -> Instrument.Patch
+-- | Set instrument range.
+range :: Scale.Range -> Instrument.Patch -> Instrument.Patch
+range range = environ EnvKey.instrument_bottom (Scale.range_bottom range)
+    . environ EnvKey.instrument_top (Scale.range_top range)
+
+nn_range :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Instrument.Patch
     -> Instrument.Patch
-range (bottom, top) = environ EnvKey.instrument_bottom bottom
+nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
     . environ EnvKey.instrument_top top
 
 

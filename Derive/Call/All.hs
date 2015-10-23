@@ -6,6 +6,7 @@
 module Derive.Call.All (library) where
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
+import qualified Derive.Call.Bali.Gong as Gong
 import qualified Derive.Call.Bali.Reyong as Reyong
 import qualified Derive.Call.Bali.Sekar as Sekar
 import qualified Derive.Call.China.Zheng as Zheng
@@ -71,6 +72,7 @@ note_maps = mconcat
     , Gamakam3.note_calls
     , Gangsa.note_calls
     , Gender.note_calls
+    , Gong.note_calls
     , Grace.note_calls
     , Highlight.note_calls
     , Idiom.note_calls

@@ -59,12 +59,11 @@ pemade = inst_scale_map 4 (2, 1) (4, 0)
 kantilan :: BaliScales.ScaleMap
 kantilan = inst_scale_map 5 (3, 1) (5, 0)
 
-ugal_range, rambat_range, trompong_range, reyong_range
-    :: (Pitch.Pitch, Pitch.Pitch)
-ugal_range = (Pitch.pitch 2 1, Pitch.pitch 4 0)
-rambat_range = (Pitch.pitch 2 2, Pitch.pitch 5 0)
-trompong_range = (Pitch.pitch 2 5, Pitch.pitch 4 4)
-reyong_range = (Pitch.pitch 3 2, Pitch.pitch 5 4)
+ugal_range, rambat_range, trompong_range, reyong_range :: Scale.Range
+ugal_range = Scale.Range (Pitch.pitch 2 1) (Pitch.pitch 4 0)
+rambat_range = Scale.Range (Pitch.pitch 2 2) (Pitch.pitch 5 0)
+trompong_range = Scale.Range (Pitch.pitch 2 5) (Pitch.pitch 4 4)
+reyong_range = Scale.Range (Pitch.pitch 3 2) (Pitch.pitch 5 4)
 
 inst_scale_map :: Pitch.Octave -> (Pitch.Octave, Pitch.Semi)
     -> (Pitch.Octave, Pitch.Semi) -> BaliScales.ScaleMap

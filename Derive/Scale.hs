@@ -88,3 +88,15 @@ transpose transposition scale environ octaves steps =
     scale_show scale environ
     <=< scale_transpose scale transposition environ steps
     . Pitch.add_octave octaves <=< scale_read scale environ
+
+
+-- * Range
+
+-- | This is an inclusive pitch range, intended for instrument ranges.
+data Range = Range {
+    range_bottom :: !Pitch.Pitch
+    , range_top :: !Pitch.Pitch
+    } deriving (Show)
+
+in_range :: Range -> Pitch.Pitch -> Bool
+in_range (Range bottom top) pitch = bottom <= pitch && pitch <= top
