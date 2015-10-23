@@ -3,13 +3,14 @@
 # This program is distributed under the terms of the GNU General Public
 # License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-setopt extended_glob
 function count { wc -l "$@" | tail -1 }
 function count_files { echo "$@" | wc -w }
-hs_files=($(tools/all_hs.py))
-h_files=(*/*.h)
-cc_files=(*/*.cc)
-py_files=(*/*.py)
+function get { darcs show files | grep '\.'$1'$' }
+
+hs_files=($(get hs))
+h_files=($(get h))
+cc_files=($(get cc))
+py_files=($(get py))
 all_files=($hs_files $h_files $cc_files $py_files)
 
 hs=$(count $hs_files)
