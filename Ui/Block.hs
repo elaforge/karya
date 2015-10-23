@@ -61,11 +61,12 @@ instance Pretty.Pretty Block where
 instance DeepSeq.NFData Block where
     rnf = DeepSeq.rnf . block_title
 
--- | Block metadata is extra data that doesn't affect normal derivation, but
--- may be of interest to cmds.  For instance, it can mark if this block should
--- be rendered to lilypond and provide arguments for it.  TODO But lilypond
--- is always kicked off manually now, so this has no use at the moment.  Maybe
--- you could put notes in there.
+{- | Block metadata is extra data that doesn't affect normal derivation, but
+    may be of interest to cmds.  For instance, it can mark if this block should
+    be rendered to lilypond and provide arguments for it.  TODO But lilypond is
+    always kicked off manually now, so this has no use at the moment.  Maybe
+    you could put notes in there.
+-}
 type Meta = Map.Map Text Text
 
 data TrackDestinations =
@@ -78,15 +79,16 @@ data TrackDestinations =
     | ScoreDestinations !ScoreDestinations
     deriving (Eq, Show, Read)
 
--- | Score derivation creates destination tracks 1:1 with their source tracks,
--- so I can key them with their source TrackIds.
---
--- (source_track_id, (destination_track_id, index))
---
--- For 'block_integrated', the source_track_id should point to a track in the
--- source block, for 'block_integrated_tracks' it should point to a track
--- within its own block.  The destination_track_id should always point to
--- a track in the same block.
+{- | Score derivation creates destination tracks 1:1 with their source tracks,
+    so I can key them with their source TrackIds.
+
+    (source_track_id, (destination_track_id, index))
+
+    For 'block_integrated', the source_track_id should point to a track in the
+    source block, for 'block_integrated_tracks' it should point to a track
+    within its own block.  The destination_track_id should always point to
+    a track in the same block.
+-}
 type ScoreDestinations = [(TrackId, (TrackId, EventIndex))]
 
 instance Pretty.Pretty TrackDestinations where

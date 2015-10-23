@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE NoMonomorphismRestriction #-}
+-- | Functions to deal with derive and score integration.
 module Cmd.Repl.LIntegrate where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -35,6 +35,8 @@ block = do
     Cmd.inflict_block_damage source_block
     Create.view dest_block
 
+-- | Create a block integrate copy of the selected block.  Details at
+-- 'Block.ScoreDestinations'.
 score_block :: Cmd.M m => m ViewId
 score_block = do
     source_block <- Cmd.get_focused_block
@@ -55,6 +57,8 @@ track = do
     Cmd.derive_immediately [block_id]
     Cmd.inflict_track_damage block_id track_id
 
+-- | Create a track integrate copy of the selected track.  Details at
+-- 'Block.ScoreDestinations'.
 score_track :: Cmd.M m => m ()
 score_track = do
     (block_id, _, track_id, _) <- Selection.get_insert

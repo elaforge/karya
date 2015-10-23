@@ -41,8 +41,8 @@ import Types
 doc_text :: Document -> Lazy.Text
 doc_text = Format.render "  " 75 . mconcatMap section
     where
-    section (call_type, scope_docs) =
-        "##" <+> Format.text call_type <+> "calls" <> "\n\n"
+    section (call_kind, scope_docs) =
+        "##" <+> Format.text call_kind <+> "calls" <> "\n\n"
         <> mconcatMap scope_doc scope_docs
     scope_doc (source, calls) = "### from" <+> Format.text source <> "\n\n"
         <> Format.unlines (map call_bindings_text calls)
@@ -137,10 +137,11 @@ doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
     module_of (_, _, call_doc) = Derive.cdoc_module call_doc
     show_module_group call_kind (module_, calls) =
         tag_class "div" "call-module" $
-            show_module module_ <> "<br>\n"
+            show_module module_ (length calls) <> "<br>\n"
             <> mconcatMap (call_bindings_html hstate call_kind) calls
-    show_module (Module.Module m) = tag "center" $
+    show_module (Module.Module m) calls = tag "center" $
         tag "b" "Module: " <> tag "code" (html m)
+            <> " (" <> html (showt calls) <> " calls)"
 
 html_header :: HtmlState -> Html
 html_header hstate = mconcat

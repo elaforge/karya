@@ -57,7 +57,7 @@ automatically creates new tracks if there were none, and
 
 The integrated tracks are linked back to their source with red arrows.
 
-### score integration
+### block and track score integration
 
 This is a different variant of integration, that copies the UI events directly,
 with no intervening derivation.  So it's not really "integration" in that it

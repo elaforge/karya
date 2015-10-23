@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Randomness should have some hysteresis, so I can e.g. reduce omit chance,
+    but not get isolated notes.  At the extreme setting, it means it turns on
+    in a slightly random spot, but stays on after that.
+    . Is there a simpler way to get this effect?
   - flag for Util.Pretty so that it puts the leading 0 on floats?  This way
     if you print basic types it can still generate valid haskell.
     . Or perhaps it would be better to have a whole new typeclass, e.g.
@@ -31,10 +35,32 @@ UNSORTED
       do quickchecks on certain score fragments.  Or alternately, apply
       a standard set of checks: start =0, >0, in callee block, etc.
   pakhawaj bols
-    - Score deriver to convert bols to low level calls
-    - Or maybe just interpret the bols directly, but due to context
+    . Score deriver to convert bols to low level calls
+      . Actually score integrate doesn't work like that, it just copies the
+        input.  It would have to be derive integration.
+    . Or maybe just interpret the bols directly, but due to context
       sensitivity they need to be all processed together, not as separate
       calls.
+      . In general I don't have a way to interpret a track as a whole.  This
+        is the "track call" thing I was thinking about a long time ago.
+    Approaches:
+      . A transformer that ignores the deriver and use Derive.ctx_next_events.
+        It would need a special hack where a track level call gets Nothing
+        in ctx_event and everything in ctx_next_events.  Seems a bit grody.
+      . A separate namespace with functions of the Note.d_note signature.
+      . Use sub events.  If I extend a sub-block call to be compatible with
+        sub events, I could have a section of alternate notation embedded in
+        normal notation, or as a separate block.  If I want a whole track,
+        then maybe I could make sub-events available to track level
+        transformers.
+        . That would work like the 'ctx_next_events' hack above, but put the
+          track into 'ctx_sub_tracks'.
+    - Implement pakhawaj bol realization as a sub event call to make sure it
+      works.
+    - Extend track level transform to have 'ctx_sub_tracks' available.
+      . I think there were calls in Prelude.Lily that would be interested in
+        a more defined distinction between track and note level transformers.
+    - Make a sub-block call that can apply a sub-events call to a whole block.
   New typechecking.
     - It turns out this is not so useful because a default TypedFunction
       doesn't have a default control name like a Sig.typed_control does.
@@ -574,9 +600,11 @@ MILESTONES
 documentation:
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   calldoc: CallDoc:
-    - collapse control for modules, optional to collapse / expand all
-      When collapsed, it should have a count of the "visible" entries
-      underneath.
+    - collapse control for modules, option to collapse / expand all
+      . Haddock:
+        <span id=xyz class="module collapser"
+          onclick="toggleSection('n.1')">Title</span>
+        <ul id='section.n.1' class='show'> ...
     / put anchors on calls and make single quotes link to calls
       . It's not quite so simple because there is module, and then namespace.
         So the linkifier would have to understand that structure and search
