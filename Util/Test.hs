@@ -236,15 +236,12 @@ strings_like_srcpos srcpos gotten expected
         | otherwise = failure_srcpos srcpos $
             show n ++ ": " ++ gotten ++ " !~ " ++ reg
 
-map_left f (Left a) = Left (f a)
-map_left _ (Right a) = Right a
-
-left_like :: (Show a) => Either String a -> String -> IO Bool
+left_like :: Show a => Either String a -> String -> IO Bool
 left_like = left_like_srcpos Nothing
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
-left_like_srcpos :: (Show a) =>
+left_like_srcpos :: Show a =>
     SrcPos.SrcPos -> Either String a -> String -> IO Bool
 left_like_srcpos srcpos gotten expected = case gotten of
     Left msg
@@ -283,10 +280,10 @@ pattern_to_reg =
     mkstar (c : cs) = c : mkstar cs
 
 -- | The given pure value should throw an exception that matches the predicate.
-throws :: (Show a) => a -> String -> IO Bool
+throws :: Show a => a -> String -> IO Bool
 throws = throws_srcpos Nothing
 
-throws_srcpos :: (Show a) => SrcPos.SrcPos -> a -> String -> IO Bool
+throws_srcpos :: Show a => SrcPos.SrcPos -> a -> String -> IO Bool
 throws_srcpos srcpos val exc_like =
     (Exception.evaluate val
         >> failure_srcpos srcpos ("didn't throw: " ++ show val))
@@ -334,7 +331,7 @@ pause msg = do
 
 -- * unpacking
 
-expect_right :: (Show a) => String -> Either a b -> b
+expect_right :: Show a => String -> Either a b -> b
 expect_right msg (Left v) = error $ msg ++ ": " ++ show v
 expect_right _ (Right v) = v
 

@@ -32,7 +32,7 @@ import qualified Text.Regex.PCRE.Light as PCRE
 fromText :: Text -> ByteString.ByteString
 fromText = Encoding.encodeUtf8
 
-data Option = CaseInsensitive | DotAll
+data Option = CaseInsensitive | DotAll | Multiline
     deriving (Ord, Eq, Show)
 
 compile :: String -> Either String Regex
@@ -50,6 +50,7 @@ convertOptions = (options++) . map convert
     convert opt = case opt of
         CaseInsensitive -> PCRE.caseless
         DotAll -> PCRE.dotall
+        Multiline -> PCRE.multiline
     options = [PCRE.utf8, PCRE.no_utf8_check]
 
 -- | Will throw a runtime error if the regex has an error!

@@ -9,6 +9,7 @@ import qualified Control.Monad.Identity as Identity
 
 import qualified Data.Char as Char
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Monoid (mconcat, (<>))
 import qualified Data.Set as Set
@@ -18,6 +19,7 @@ import Data.Text (Text)
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
 
+import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
 
 
@@ -87,6 +89,25 @@ extractDelimited withSpaces delimiter = go
         | otherwise = (pre, post)
         where (pre, post) = Text.breakOn delim text
     delim = Text.singleton delimiter
+
+-- * interpolate
+
+-- | Replace @${variable}@.
+interpolate :: Text -> Map.Map Text Text -> Either Text Text
+interpolate template variables
+    | notInTemplate /= mempty = Left $ "variables not in template: "
+        <> commas (Set.toList notInTemplate)
+    | notInVariables /= mempty = Left $ "template holes not in variables: "
+        <> commas (Set.toList notInVariables)
+    | otherwise = Right $ replaceMany
+        [("${" <> k <> "}", v) | (k, v) <- Map.toList variables] template
+    where
+    inTemplate = Set.fromList $ concatMap snd $ Regex.groups variable template
+    inVariables = Map.keysSet variables
+    notInTemplate = inVariables `Set.difference` inTemplate
+    notInVariables = inTemplate `Set.difference` inVariables
+    commas = Text.intercalate ", "
+    variable = Regex.compileUnsafe "interpolate" "\\$\\{([a-z0-9_]+)\\}"
 
 -- * haddockUrl
 

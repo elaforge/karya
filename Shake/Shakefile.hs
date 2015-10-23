@@ -160,22 +160,23 @@ hsBinaries :: [HsBinary]
 hsBinaries =
     [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"] True
     , plain "dump" "App/Dump.hs"
-    , plain "logcat" "LogView/LogCat.hs"
-    , plain "show_timers" "LogView/ShowTimers.hs"
-    , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] True
-    , plain "linkify" "Util/Linkify.hs"
-    , plain "make_db" "Instrument/MakeDb.hs"
-    , plain "pprint" "App/PPrint.hs"
     -- ExtractDoc wants the global keymap, which winds up importing cmds that
     -- directly call UI level functions.  Even though it doesn't call the
     -- cmds, they're packaged together with the keybindings, so I wind up
     -- having to link in all that stuff anyway.
     , (plain "extract_doc" "App/ExtractDoc.hs")
         { hsLibraries = ["fltk/fltk.a"] }
+    , plain "generate_run_tests" "Util/GenerateRunTests.hs"
+    , plain "linkify" "Util/Linkify.hs"
+    , plain "logcat" "LogView/LogCat.hs"
+    , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] True
+    , plain "make_db" "Instrument/MakeDb.hs"
+    , plain "pprint" "App/PPrint.hs"
     , plain "repl" "App/Repl.hs"
-    , plain "send" "App/Send.hs"
     , gui "seq" "App/Main.hs" ["fltk/fltk.a"] True
+    , plain "send" "App/Send.hs"
     , plain "shakefile" "Shake/Shakefile.hs"
+    , plain "show_timers" "LogView/ShowTimers.hs"
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
     , plain "verify_performance" "App/VerifyPerformance.hs"
@@ -886,8 +887,9 @@ generateTestHs hsSuffix fn = do
     tests <- Util.findHs pattern "."
     when (null tests) $
         errorIO $ "no tests match pattern: " ++ show pattern
-    need $ "test/generate_run_tests.py" : tests
-    system "test/generate_run_tests.py" (fn : tests)
+    let generate = modeToDir Opt </> "generate_run_tests"
+    need $ generate : tests
+    system generate (fn : tests)
 
 -- | Build build/(mode)/RunCriterion-A.B.C from A/B/C_criterion.hs
 criterionRules :: Config -> Shake.Rules ()
