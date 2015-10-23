@@ -10,6 +10,9 @@ import qualified Util.TextUtil as TextUtil
 import Global
 
 
+test_replaceMany = do
+    let f = TextUtil.replaceMany
+    equal (f [("in", "out"), ("out", "in")] "hi in there out") "hi out there in"
 
 test_extractDelimited = do
     let f = TextUtil.extractDelimited False '`'

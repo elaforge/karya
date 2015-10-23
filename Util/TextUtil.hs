@@ -29,9 +29,12 @@ replaceMany replace = mconcat . go
     where
     go text
         | Text.null text = []
-        | otherwise = case List.find ((`Text.isPrefixOf` text) . fst) replace of
-            Nothing -> Text.take 1 text : go (Text.drop 1 text)
-            Just (from, to) -> to : go (Text.drop (Text.length from) text)
+        | otherwise = maybe [text] continue $
+            Seq.minimum_on (Text.length . fst . fst)
+                [(Text.breakOn (fst r) text, r) | r <- replace]
+    continue ((pre, post), (from, to))
+        | Text.null post = [pre]
+        | otherwise = pre : to : go (Text.drop (Text.length from) post)
 
 -- | Join the two pieces with a space, if they are non-empty.
 join2 :: Text -> Text -> Text
