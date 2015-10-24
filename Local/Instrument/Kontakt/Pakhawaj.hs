@@ -15,6 +15,8 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Util as Util
+import qualified Derive.Call.India.Pakhawaj as Pakhawaj
+import Derive.Call.India.Pakhawaj (Stroke(..))
 
 
 patches :: [MidiInst.Patch]
@@ -27,16 +29,17 @@ patches = [(patch "pakhawaj" pitched_notes, code)]
 pitched_notes :: CUtil.PitchedNotes
 (pitched_notes, _pitched_notes) = CUtil.drum_pitched_notes all_notes $
     CUtil.make_cc_keymap Key2.c_1 12 NN.fs3
-        [ [ki]
-        , [ge]
-        , [tet]
-        , [te]
-        , [ne]
-        , [na, nam]
+        [ [attr Ka]
+        , [attr Ge]
+        , [attr Tet]
+        , [attr Te]
+        , [attr Ne]
+        , [attr Na, nam]
         , [din]
-        , [ta]
-        , [di]
+        , [attr Ta]
+        , [attr Di]
         ]
+    where attr = Pakhawaj.stroke_to_attribute
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
@@ -64,61 +67,52 @@ stops :: [(Drums.Group, [Drums.Group])]
 (left_notes, right_notes, stops) = (left_notes, right_notes, stops)
     where
     left_notes = concat
-        [ group t_closed
-            [ n 'a' "-" ki 0.5
-            , n 'z' "+" ki 1
+        [ group l_closed
+            [ n 'a' "-" (attr Ka) 0.5
+            , n 'z' "+" (attr Ka) 1
             ]
-        , group t_open
-            [ n 's' "." ge 0.5
-            , n 'x' "o" ge 1
+        , group l_open
+            [ n 's' "." (attr Ge) 0.5
+            , n 'x' "o" (attr Ge) 1
             ]
         ]
     right_notes = concat
-        [ group v_closed
-            [ n '1' "l" tet 0.5
-            , n 'q' "k" tet 1
-            , n '2' "p" ne 0.75
-            , n 'w' "t" te 1
+        [ group r_closed
+            [ n '1' "l" (attr Tet) 0.5
+            , n 'q' "k" (attr Tet) 1
+            , n '2' "p" (attr Ne)  0.75
+            , n 'w' "t" (attr Te)  1
             ]
-        , group v_sadam
+        , group r_syahi
             [ n '3' "m" nam 1
-            , n 'e' "n" na 1
+            , n 'e' "n" (attr Na) 1
             , n 'r' "d" din 1
             ]
-        , group v_chapu
-            [ n 't' "u" ta 1
+        , group r_syahi_open
+            [ n 't' "u" (attr Ta) 1
             ]
-        , group v_dheem [n 'y' "i" di 1]
+        , group r_dheem [n 'y' "i" (attr Di) 1]
         ]
 
     stops =
-        [ (t_closed, [t_open])
-        , (v_closed, [v_sadam, v_chapu, v_dheem])
-        , (v_sadam, [v_chapu, v_dheem])
-        , (v_chapu, [v_dheem])
+        [ (l_closed, [l_open])
+        , (r_closed, [r_syahi, r_syahi_open, r_dheem])
+        , (r_syahi, [r_syahi_open, r_dheem])
+        , (r_syahi_open, [r_dheem])
         ]
-    v_closed = "v-closed"
-    v_sadam = "v-sadam"
-    v_chapu = "v-chapu"
-    v_dheem = "v-dheem"
-    t_closed = "t-closed"
-    t_open = "t-open"
+    r_closed = "r-closed"
+    r_syahi = "r-syahi"
+    r_syahi_open = "r-syahi_open"
+    r_dheem = "r-dheem"
+    l_closed = "l-closed"
+    l_open = "l-open"
     group name = map $ \n -> n { Drums.note_group = name }
     n = Drums.note_dyn
+    attr = Pakhawaj.stroke_to_attribute
 
 all_notes :: [Drums.Note]
 all_notes = left_notes ++ right_notes
 
--- right
-di = attr "di"
+-- mridangam strokes
 din = attr "din"
-na = attr "na" -- like mridangam nam, but no muting with the finger
 nam = attr "nam"
-ne = attr "ne" -- closed stroke with pinky and ring finger
-ta = attr "ta"
-tet = attr "tet"
-te = attr "te"
-
--- left
-ki = attr "ki"
-ge = attr "ge"

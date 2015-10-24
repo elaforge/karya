@@ -11,8 +11,47 @@ import qualified Data.Traversable as Traversable
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Derive.Score as Score
 import Global
+import Types
 
+
+-- * calls
+
+realize :: ScoreTime -> [(ScoreTime, Bol)] -> [(ScoreTime, Score.Attributes)]
+realize flam notes =
+    concat $ zipWith (bol_to_attribute flam) ts (infer_tette bols)
+    where (ts, bols) = unzip notes
+
+realize_bols :: ScoreTime -- ^ Normally 'Notes' are divided evenly in the
+    -- time given, but that doesn't work for the final note, which gets this
+    -- duration.
+    -> [(ScoreTime, Text)] -> Either Text [(ScoreTime, Bol)]
+realize_bols default_dur = fmap realize_notes . match_syllables
+    where
+    realize_notes = concatMap realize_note . Seq.zip_next
+    realize_note ((t, note), next) = case note of
+        Rest -> []
+        Note bol -> [(t, bol)]
+        Notes notes -> realize_notes $ zip ts notes
+            where ts = Seq.range_ t (dur / fromIntegral (length notes))
+        where dur = maybe default_dur (subtract t . fst) next
+
+bol_to_attribute :: ScoreTime -> ScoreTime -> Bol
+    -> [(ScoreTime, Score.Attributes)]
+bol_to_attribute flam t bol = case bol of
+    One s -> [(t, stroke_to_attribute s)]
+    Together s1 s2 -> [(t, stroke_to_attribute s1), (t, stroke_to_attribute s2)]
+    Flam s1 s2 ->
+        [(t, stroke_to_attribute s1), (t + flam, stroke_to_attribute s2)]
+
+stroke_to_attribute :: Stroke -> Score.Attributes
+stroke_to_attribute s = case s of
+    -- This should have already been eliminated by 'infer_tette'.
+    Tette -> Score.attr "tet"
+    _ -> Score.attr (Text.toLower (showt s))
+
+-- * implementation
 
 data Stroke =
     Tet | Te | Tette -- ^ either tet or te, whichever is more convenient
@@ -29,15 +68,8 @@ instance Pretty.Pretty Stroke where pretty = Text.toLower . showt
 data Bol = One Stroke | Together Stroke Stroke | Flam Stroke Stroke
     deriving (Show, Eq)
 
--- | This is polymorphic just so I can get Traversable.
-data Sequence note = Rest | Note note | Speed Speed [Sequence note]
+data Note a = Rest | Note a | Notes [Note a]
     deriving (Show, Eq, Functor, Foldable.Foldable, Traversable.Traversable)
-
-data Speed = S1 | S2 | S3 | S4 | S5 | S6 | S7 | S8
-    deriving (Show, Eq)
-
-speed :: Speed -> [Bol] -> Sequence Bol
-speed s = Speed s . map Note
 
 map_stroke :: (Stroke -> Stroke) -> Bol -> Bol
 map_stroke f bol = case bol of
@@ -57,18 +89,17 @@ instance Pretty.Pretty Bol where
         Together b1 b2 -> pretty b1 <> "+" <> pretty b2
         Flam b1 b2 -> pretty b1 <> "/" <> pretty b2
 
-instance Pretty.Pretty note => Pretty.Pretty (Sequence note) where
+instance Pretty.Pretty a => Pretty.Pretty (Note a) where
     pretty Rest = "-"
     pretty (Note bol) = pretty bol
-    pretty (Speed speed sequence) =
-        "(" <> showt speed <> " " <> pretty sequence <> ")"
+    pretty (Notes note) = "(" <> pretty note <> ")"
 
 -- | Textual representation of a bol.
 type Syllable = Text
 
-all_bols :: [([Syllable], Sequence Bol)]
+all_bols :: [([Syllable], [Note Bol])]
 all_bols =
-    [([name], speed S1 [bol]) | (names, bol) <- single_bols, name <- names]
+    [([name], [Note bol]) | (names, bol) <- single_bols, name <- names]
     ++ sequences
 
 -- Single strokes.
@@ -89,59 +120,57 @@ single_bols =
     , (["dhet"], Together Ge Tette)
     ]
 
-sequences :: [([Syllable], Sequence Bol)]
+sequences :: [([Syllable], [Note Bol])]
 sequences =
-    [ (["kre"], speed S1 [Flam Ka Tet])
-    , (["gre"], speed S1 [Flam Ge Tet])
-    , (["te", "re", "ki", "ta"], speed1 [Tet, Te, Ka, Tet])
-    , (["tr", "kt"], speed2 [Tet, Te, Ka, Tet])
-    , (["te", "re", "ki", "ta", "ta", "ka"], speed1 [Tet, Te, Ka, Tet, Te, Ka])
-    , (["tr", "kt", "tk"], speed2 [Tet, Te, Ka, Tet, Te, Ka])
-    , (["ki", "ta", "ta", "ka"], speed1 [Tet, Te, Ka, Tet])
-    , (["kt", "tk"], speed2 [Tet, Te, Ka, Tet])
-    , (["ta", "ki"], speed1 [Tet, Ka])
-    , (["te", "ran"], speed1 [Di3, Di1])
-    , (["dhu", "ma"], speed S1 [Together Ge Di, One Te])
+    [ (["kre"], note $ Flam Ka Tet)
+    , (["gre"], note $ Flam Ge Tet)
+    , (["te", "re", "ki", "ta"], notes [Tet, Te, Ka, Tet])
+    , (["tr", "kt"], notes2 [[Tet, Te], [Ka, Tet]])
+    , (["te", "re", "ki", "ta", "ta", "ka"], notes [Tet, Te, Ka, Tet, Te, Ka])
+    , (["tr", "kt", "tk"], notes2 [[Tet, Te], [Ka, Tet], [Te, Ka]])
+    , (["ki", "ta", "ta", "ka"], notes [Tet, Te, Ka, Tet])
+    , (["kt", "tk"], notes2 [[Tet, Te], [Ka, Tet]])
+    , (["ta", "ki"], notes [Tet, Ka])
+    , (["te", "ran"], notes [Di3, Di1])
+    , (["dhu", "ma"], map Note [Together Ge Di, One Te])
     -- Abbreviations.
-    , (["tetekata"], speed1 [Tet, Te, Ka, Ta, Ge, Di, Ge, Ne])
+    , (["tetekata"], notes [Tet, Te, Ka, Ta, Ge, Di, Ge, Ne])
     ]
     where
-    speed1 = speed S1 . map One
-    speed2 = speed S2 . map One
+    note = (:[]) . Note
+    notes = map (Note . One)
+    notes2 = map (Notes . notes)
 
 -- | Parse scores from "Derive.Call.India.PakhawajScore".
-parse :: Text -> Either Text (Sequence Bol)
-parse = fmap infer_tette . match_syllables . Text.words
-    . Text.replace "|" " " . Text.toLower
+parse :: ScoreTime -> Text -> Either Text [(ScoreTime, Bol)]
+parse dur = fmap infer . realize_bols dur . zip (Seq.range_ 0 dur)
+    . Text.words . Text.replace "|" " " . Text.toLower
+    where
+    infer notes = zip ts (infer_tette bols)
+        where (ts, bols) = unzip notes
 
-match_syllables :: [Syllable] -> Either Text (Sequence Bol)
-match_syllables = fmap (simplify . Speed S1) . go
+match_syllables :: [(a, Syllable)] -> Either Text [(a, Note Bol)]
+match_syllables = go
     where
     go [] = Right []
-    go syllables@(w:ws)
-        | w == "-" = (Rest:) <$> go ws
-        | Just (_, (rest, bols)) <- best_match syllables = (bols:) <$> go rest
+    go syllables@((annot, w) : ws)
+        | w == "-" = ((annot, Rest) :) <$> go ws
+        | Just (rest, bols) <- best_match syllables = (bols++) <$> go rest
         | otherwise = Left $ "unknown bol: " <> showt w
-    best_match syllables =
+    best_match syllables = fmap snd $
         Seq.maximum_on fst $ mapMaybe (match_bols syllables) all_bols
+    match_bols :: [(a, Syllable)] -> ([Syllable], [Note Bol])
+        -> Maybe (Int, ([(a, Syllable)], [(a, Note Bol)]))
     match_bols syllables (bol_syllables, bols)
-        | pre == bol_syllables = Just (length bol_syllables, (post, bols))
+        | pre == bol_syllables =
+            Just (length bol_syllables, (post, zip annots bols))
         | otherwise = Nothing
-        where (pre, post) = splitAt (length bol_syllables) syllables
-
--- | Combine sequences with the same speed.  This is because 'all_bols'
--- includes a speed for every sequence.
-simplify :: Sequence bol -> Sequence bol
-simplify = Speed S1 . go S1
-    where
-    go current_speed seq = case seq of
-        Speed speed seqs
-            | speed == current_speed -> concatMap (go current_speed) seqs
-            | otherwise -> [Speed speed (concatMap (go speed) seqs)]
-        _ -> [seq]
+        where
+        ((annots, pre), post) = first unzip $
+            splitAt (length bol_syllables) syllables
 
 -- | Replace 'Tette' with either Tet or Te, based on its neighbors.
-infer_tette :: Sequence Bol -> Sequence Bol
+infer_tette :: [Bol] -> [Bol]
 infer_tette = map_neighbors infer
     where
     infer prev bol next
@@ -160,7 +189,7 @@ infer_tette = map_neighbors infer
 map_neighbors :: Traversable.Traversable t => (Maybe b -> a -> Maybe a -> b)
     -> t a -> t b
 map_neighbors f xs =
-    snd $ Traversable.mapAccumL go (Nothing, drop 1 $ Foldable.toList xs) xs
+    snd $ Traversable.mapAccumL go (Nothing, drop 1 (Foldable.toList xs)) xs
     where
     go (prev, nexts) x = ((Just y, drop 1 nexts), y)
         where y = f prev x (Seq.head nexts)
