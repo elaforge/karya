@@ -45,8 +45,6 @@ test_eval_quoted = do
 
     let quot :: Sig.Parser TrackLang.Quoted
         quot = Sig.required "quot" "doc"
-    left_like (run (0 :: Int) quot [Typecheck.to_val (1 :: Int)])
-        "expected Quoted but got Num"
     equal (run (0 :: Int) quot [TrackLang.VSymbol "x"])
         (Right (TrackLang.Quoted (TrackLang.call0 "x" :| [])))
     equal (run (0 :: Int) quot [quoted "v"])

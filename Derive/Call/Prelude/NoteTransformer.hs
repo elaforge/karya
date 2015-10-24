@@ -177,11 +177,11 @@ c_multiple = Derive.transformer Module.prelude "multiple" mempty
     apply ctx deriver trans =
         Eval.eval_transformers ctx (to_transformer trans) deriver
 
-to_transformer :: Either TrackLang.Quoted Score.Instrument -> [TrackLang.Call]
+to_transformer :: Either Score.Instrument TrackLang.Quoted -> [TrackLang.Call]
 to_transformer val = case val of
-    Left (TrackLang.Quoted expr) -> NonEmpty.toList expr
-    Right inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
+    Left inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
         [Typecheck.to_val inst]]
+    Right (TrackLang.Quoted expr) -> NonEmpty.toList expr
 
 c_debug :: Derive.Transformer Derive.Note
 c_debug = Derive.transformer Module.prelude "debug" mempty

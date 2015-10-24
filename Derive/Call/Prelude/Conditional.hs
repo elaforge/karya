@@ -11,9 +11,11 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Eval as Eval
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
+import qualified Derive.Typecheck as Typecheck
 
 import Global
 import Types
@@ -54,8 +56,8 @@ c_if_e = Derive.generator Module.prelude "if-e" mempty
     <*> Sig.required "false" "Eval if false."
     ) $ \(name, maybe_value, true, false) args ->
         ifM (has_environ name maybe_value)
-            (Call.eval (Args.context args) true)
-            (Call.eval (Args.context args) false)
+            (Eval.eval_quoted (Args.context args) true)
+            (Eval.eval_quoted (Args.context args) false)
 
 -- * transformer
 

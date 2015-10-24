@@ -35,7 +35,6 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
@@ -495,24 +494,6 @@ default_timestep :: Derive.PassedArgs a -> Meter.RankName -> Maybe ScoreTime
 default_timestep args step =
     maybe (meter_duration (Args.start args) step 1) return
 
-
--- * evaluation
-
-eval :: Derive.Callable d => Derive.Context d -> BaseTypes.Val
-    -> Derive.Deriver (Stream.Stream d)
-eval info val = do
-    quoted <- Derive.require_right id $ val_to_quoted val
-    Eval.eval_quoted info quoted
-
--- | Coerce an argument to a Quoted.  Used when you want to take another
--- call to possibly evaluate.  This way you can directly pass a symbol or
--- @+attr@ without having to quote it.
-val_to_quoted :: BaseTypes.Val -> Either Text BaseTypes.Quoted
-val_to_quoted val = case val of
-    BaseTypes.VPitch {} -> Left "pitches must be quoted"
-    BaseTypes.VQuoted quoted -> Right quoted
-    _ -> Right $ BaseTypes.Quoted $
-        TrackLang.call0 (BaseTypes.Symbol (TrackLang.show_call_val val)) :| []
 
 -- * general purpose types
 

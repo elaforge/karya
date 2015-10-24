@@ -57,18 +57,9 @@ c_alternate = Derive.generator Module.prelude "alternate" Tags.random
     $ Sig.call (Sig.many1 "expr" "Expression to evaluate.") $
     \exprs args -> do
         let pairs = fmap ((,) 1) exprs
-        val <- pick_weighted pairs <$> Call.random
-        Call.eval (Args.context args) val
+        quoted <- pick_weighted pairs <$> Call.random
+        Eval.eval_quoted (Args.context args) quoted
 
-eval :: Derive.Callable d => Derive.Context d -> TrackLang.Val
-    -> Derive.Deriver (Stream.Stream d)
-eval info val = do
-    quoted <- Derive.require_right id $ Call.val_to_quoted val
-    Eval.eval_quoted info quoted
-
--- | Calls themselves are not first class, so this has to either take a string
--- and evaluate it, or turn a Val back into a string to evaluate.  That works
--- for most types, but not for Pitch.
 c_alternate_weighted :: Derive.Callable d => Derive.Generator d
 c_alternate_weighted =
     Derive.generator Module.prelude "alternate-weighted" Tags.random
@@ -84,7 +75,7 @@ c_alternate_weighted =
     where
     typecheck args (weight, expr) = do
         weight <- Typecheck.typecheck "" (Args.start args) weight
-        quoted <- Derive.require_right id $ Call.val_to_quoted expr
+        quoted <- Typecheck.typecheck "" (Args.start args) expr
         return (weight, Eval.eval_quoted (Args.context args) quoted)
 
 c_alternate_tracks :: Derive.Generator Derive.Note

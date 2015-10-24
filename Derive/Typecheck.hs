@@ -570,11 +570,19 @@ instance Typecheck BaseTypes.ControlFunction where
     to_type _ = ValType.TControlFunction
 instance ToVal BaseTypes.ControlFunction where to_val = VControlFunction
 
+-- | Anything except a pitch can be coerced to a quoted, using ShowVal.  This
+-- means you can write a lot of things without quotes.
+--
+-- Pitches have to be quoted because they explicitly have an invalid ShowVal.
 instance Typecheck BaseTypes.Quoted where
-    from_val (VQuoted a) = Val $ Just a
-    from_val (VSymbol sym) =
-        Val $ Just (BaseTypes.Quoted (BaseTypes.Call sym [] :| []))
-    from_val _ = Val Nothing
+    from_val val = case val of
+        VQuoted a -> Val $ Just a
+        VPitch {} -> Val Nothing
+        VSymbol sym -> to_quoted sym
+        _ -> to_quoted $ BaseTypes.Symbol (ShowVal.show_val val)
+        where
+        to_quoted sym = Val $ Just $
+            BaseTypes.Quoted (BaseTypes.Call sym [] :| [])
     to_type _ = ValType.TQuoted
 instance ToVal BaseTypes.Quoted where to_val = VQuoted
 

@@ -49,7 +49,7 @@ test_alternate_weighted = do
             DeriveTest.derive_tracks ""
                 [(">", [(0, 1, "")]), ("*", [(0, 0, s)])]
     equal (runp "alt-w 1 '4c'") ([(0, 1, "4c")], [])
-    strings_like (snd (runp "alt-w 1 (4c)")) ["pitches must be quoted"]
+    strings_like (snd (runp "alt-w 1 (4c)")) ["expected Quoted but got Pitch"]
 
 test_alternate_tracks = do
     let run tracks = DeriveTest.extract DeriveTest.e_attributes $

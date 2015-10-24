@@ -35,7 +35,7 @@ UNSORTED
       do quickchecks on certain score fragments.  Or alternately, apply
       a standard set of checks: start =0, >0, in callee block, etc.
   pakhawaj bols
-    . Score deriver to convert bols to low level calls
+    . Score integrate to convert bols to low level calls
       . Actually score integrate doesn't work like that, it just copies the
         input.  It would have to be derive integration.
     . Or maybe just interpret the bols directly, but due to context
@@ -862,9 +862,6 @@ cleanup:
       Of course I could just add one, maybe not a big deal.
   - Overlap detection in Derive.Slice I think is still messed up, or at the
     least it's more complicated than it should be.
-  - if I add an Alternative instance to Sig.Parser I can write arg parsers
-    like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
-    else like Derive.Call.Val.num_or_pitch it would be worth trying out.
   Util.Format:
     - don't use 'reverse' in 'flatten'
     - lazy implementation?
@@ -1380,8 +1377,6 @@ local definitions .ky:
     sd x y = from=$x | drop $y
 
 Derive:
-  - retune call: differences based on speed should be more obvious, so that
-    should also be on a curve.
   fancier randomization
     . How much a note differs depends on its neighbors, so it's not an even
       distribution.  Use brownian noise, or a fractal subdivision scheme.  But
@@ -1391,7 +1386,24 @@ Derive:
     . Divide on instrument and hand, so each part gets its own individuality.
     - randomization should be centered on a value, with variance as a signal,
       so I can turn accuracy up or down.
-  tracklang:
+  tracklang: TrackLang:
+    - if I add an Alternative instance to Sig.Parser I can write arg parsers
+      like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
+      else like Derive.Call.Val.num_or_pitch it would be worth trying out.
+      . E.g. Conditional.c_if_c takes: Symbol (Number, Quoted)* Quoted
+      . Implement empty as pure (), then (<|>) should try left and if it fails,
+        try right.  Doc is (x | y).  'some' and 'many' are like Sig.many1 and
+        Sig.many, except they have to backtrack.
+      . But derivation may evaluate expressions and check the type after that.
+        Do I really want to do that with backtracking?
+    - if I had a boolean type, I could generalize calls in Conditional:
+      . when-e key -> when (env key)
+        when-e key val -> when (= (env key) val)
+      . when-c 1 cont -> when (= %cont 1)
+      . if-c< cont 1 a b -> cond (< %cont 1) a b
+      . However, they get more wordy, so maybe I don't want it.  E.g. for
+        cond I'd actually want a 'switch %cont' and then I need either
+        partially applied functions, or just write 'switch<'.
     - replace VAttributes with a general purpose VSet.
     - maybe use {} for quoted, it's a bit shorter than "()
     - there should be a character that triggers a parse failure, which is used
@@ -1422,6 +1434,8 @@ Derive:
     - Nested tempo tracks are probably broken for hybrid and absolute tempo.
     - Nested tempo tracks are probably also broken with a logical start.
   note calls:
+    - retune call: differences based on speed should be more obvious, so that
+      should also be on a curve.
     + chord calls, with automatic dyns for the notes.
       Originally I intended each note to go in its own track, with the idea
       that it takes about the same space but is more powerful and flexible.
