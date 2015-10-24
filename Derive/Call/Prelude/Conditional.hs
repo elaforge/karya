@@ -4,6 +4,9 @@
 
 -- | Transformers that evaluate their deriver conditionally.
 module Derive.Call.Prelude.Conditional where
+import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
+
 import qualified Derive.Args as Args
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
@@ -17,13 +20,14 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Signal as Signal
 import Global
 import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    [ ("if-e", c_if_e)
+    [
     ]
     [ ("solo", c_solo)
     ]
@@ -35,8 +39,12 @@ control_calls = poly_calls
 pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = poly_calls
 
-poly_calls :: Derive.Taggable d => Derive.CallMaps d
-poly_calls = Derive.transformer_call_map
+poly_calls :: (Derive.Callable d, Derive.Taggable d) => Derive.CallMaps d
+poly_calls = Derive.call_maps
+    [ ("if-e", c_if_e)
+    , ("if-c<", c_if_c (<))
+    , ("if-c>", c_if_c (>))
+    ]
     [ ("when-c", c_when_c False)
     , ("unless-c", c_when_c True)
     , ("when-e", c_when_e False)
@@ -45,7 +53,7 @@ poly_calls = Derive.transformer_call_map
 
 -- * generator
 
-c_if_e :: Derive.Callable d => Derive.Generator d
+c_if_e :: (Derive.Callable d, Derive.Taggable d) => Derive.Generator d
 c_if_e = Derive.generator Module.prelude "if-e" mempty
     "Derive based on the value of an environment variable."
     $ Sig.call ((,,,)
@@ -58,6 +66,36 @@ c_if_e = Derive.generator Module.prelude "if-e" mempty
         ifM (has_environ name maybe_value)
             (Eval.eval_quoted (Args.context args) true)
             (Eval.eval_quoted (Args.context args) false)
+
+c_if_c :: Derive.Callable d => (Signal.Y -> Signal.Y -> Bool)
+    -> Derive.Generator d
+c_if_c cmp = Derive.generator Module.prelude "if-c<" mempty
+    "Derive based on the value of a control."
+    $ Sig.call ((,)
+    <$> Sig.required "control" "Test this control."
+    <*> Sig.many1 "tests" "(value, expr) pairs."
+    ) $ \(control, tests) args -> do
+        val <- fromMaybe 0 <$>
+            (Derive.untyped_control_at control =<< Args.real_start args)
+        (tests, final) <- typecheck_tests (Args.start args)
+            (NonEmpty.toList tests)
+        Eval.eval_quoted (Args.context args) $ maybe final snd $
+            List.find (cmp val . fst) tests
+
+typecheck_tests :: ScoreTime -> [BaseTypes.Val]
+    -> Derive.Deriver ([(Signal.Y, BaseTypes.Quoted)], BaseTypes.Quoted)
+typecheck_tests start = go
+    where
+    go [] = Derive.throw "not enough values"
+    go [x] = do
+        final <- typecheck x
+        return ([], final)
+    go (val : result : rest) = do
+        checked <- (,) <$> typecheck val <*> typecheck result
+        (rest, final) <- go rest
+        return (checked : rest, final)
+    typecheck :: Typecheck.Typecheck a => BaseTypes.Val -> Derive.Deriver a
+    typecheck = Typecheck.typecheck "" start
 
 -- * transformer
 
