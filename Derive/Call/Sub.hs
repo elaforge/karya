@@ -155,7 +155,7 @@ invert subs start end next_start events_around = do
         _ -> sliced
     where
     slice track_id =
-        Slice.slice False start next_start (Just (insert track_id)) subs
+        map (Slice.slice False start next_start (Just (insert track_id))) subs
     -- Use 'next_start' instead of track_end because in the absence of a next
     -- note, the track end becomes next note and clips controls.
     insert track_id = Slice.InsertEvent

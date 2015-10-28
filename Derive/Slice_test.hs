@@ -31,7 +31,7 @@ import Types
 
 test_slice = do
     let f exclusive s e insert = map (fmap extract_tree)
-            . Slice.slice exclusive s e insert . map make_tree
+            . map (Slice.slice exclusive s e insert . make_tree)
     equal (f False 1 2 Nothing [Node (make_notes 2 "ab") []])
         [Node (">", []) []]
     equal (f False 1 2 Nothing [Node (make_notes 1 "ab") []])
@@ -52,15 +52,15 @@ test_slice = do
 
 test_slice_neighbors = do
     let f exclusive s e =
-            extract . Slice.slice exclusive s e Nothing . map make_tree
-        extract = map $ fmap $ \track ->
+            extract . Slice.slice exclusive s e Nothing . make_tree
+        extract = fmap $ \track ->
             extract_around (TrackTree.track_around track)
         extract_around (before, after) = (concatMap Event.event_string before,
             concatMap Event.event_string after)
     let notes offset ns = Node (make_notes offset ns)
         controls cs = Node (make_controls "c" cs)
-    equal (f False 1 2 [controls [0..4] [notes 0 "xyz" []]])
-        [Node ("0", "34") [Node ("x", "z") []]]
+    equal (f False 1 2 (controls [0..4] [notes 0 "xyz" []]))
+        (Node ("0", "34") [Node ("x", "z") []])
 
 test_slice_notes = do
     let f = slice_notes False

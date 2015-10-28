@@ -68,16 +68,9 @@ data InsertEvent = InsertEvent {
     , ins_track_id :: !(Maybe TrackId)
     } deriving (Show)
 
-{- | Slice the tracks below me to lie within start and end, and optionally put
-    a note track with a single event of given string at the bottom.  Sliced
-    control tracks usually get events beyond the slice boundaries for context.
-
-    Tracks thare are empty as a result of slicing are omitted from the output.
-    This is necessary for note tracks because otherwise empty ones will stop
-    evaluation entirely.  It's not necessary for control tracks, but I'm being
-    consistent by stripping them too.  If the track title has some effect the
-    results might be inconsistent, but I'm not sure that will be real problem.
-    The result is [] if there are no events intersecting the given range.
+{- | Slice a track between start and end, and optionally put a note track with
+    a single event of given string at the bottom.  Sliced control tracks
+    usually get events beyond the slice boundaries for context.
 -}
 slice :: Bool -- ^ Omit events than begin at the start.
     -- 'slice_notes' documents why this is necessary.
@@ -85,13 +78,13 @@ slice :: Bool -- ^ Omit events than begin at the start.
     -- ^ If given, insert an event at the bottom with the given text and dur.
     -- The created track will have the given track_range, so it can create
     -- a Stack.Region entry.
-    -> [TrackTree.EventsNode] -> [TrackTree.EventsNode]
-slice exclude_start start end insert_event = map do_slice
-    where
-    do_slice (Tree.Node track subs) = Tree.Node (slice_t track) $ if null subs
+    -> TrackTree.EventsNode -> TrackTree.EventsNode
+slice exclude_start start end insert_event (Tree.Node track subs) =
+    Tree.Node (slice_t track) $ if null subs
         then insert (TrackTree.track_shifted track)
             (TrackTree.track_block_id track)
-        else map do_slice subs
+        else map (slice exclude_start start end insert_event) subs
+    where
     insert shift block_id = case insert_event of
         Nothing -> []
         Just insert_event -> [Tree.Node (make shift block_id insert_event) []]
@@ -193,7 +186,7 @@ slice_notes include_end start end tracks
     slice1 tree (prev, (n_start, n_end, n_next)) =
         (n_start, n_end - n_start,
             map (fmap (shift_tree n_start n_next)) $
-            slice prev_zero n_start n_end Nothing tree)
+            map (slice prev_zero n_start n_end Nothing) tree)
         where
         -- exclude_start if 's' is still the original 'start', or if the
         -- previous slice was zero dur and is the same as 'start', which means
@@ -393,7 +386,7 @@ slice_orphans exclude_start start end subs =
     maybe (Right slices) Left $ check_overlapping exclude_start start [slices]
     where
     slices = concatMap strip_empty_tracks $
-        slice exclude_start start end Nothing subs
+        map (slice exclude_start start end Nothing) subs
 
 -- * util
 
