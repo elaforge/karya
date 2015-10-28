@@ -94,7 +94,7 @@ cmd_open_block :: Cmd.M m => m ()
 cmd_open_block = do
     sel <- Selection.events
     block_id <- Cmd.get_focused_block
-    let block_calls = NoteTrack.block_calls (Just block_id) . Event.event_text
+    let block_calls = NoteTrack.block_calls (Just block_id) . Event.text
     forM_ sel $ \(_, _, events) -> forM_ events $ \event ->
         mapM_ Create.view_or_focus =<< block_calls event
 

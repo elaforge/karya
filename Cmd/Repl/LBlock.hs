@@ -167,7 +167,7 @@ for_event maybe_template = mapM_ make =<< Selection.events
     where
     make (_, _, events) = mapM_ make1 events
     make1 event = do
-        id <- State.read_id (Event.event_text event)
+        id <- State.read_id (Event.text event)
         maybe named named_from maybe_template id
 
 -- | Copy the current block into a new empty block with the given name.

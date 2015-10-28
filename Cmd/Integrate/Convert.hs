@@ -205,7 +205,7 @@ control_track events control =
     -- TODO generalize this to everything in in Derive.initial_controls
     drop_dyn [event]
         | Score.typed_val control == Score.c_dynamic
-            && Event.event_text event == default_dyn = []
+            && Event.text event == default_dyn = []
     drop_dyn events = events
     default_dyn = ShowVal.show_hex_val Derive.default_dynamic
     tidy_controls = clip_to_zero . drop_dups . clip_concat
@@ -252,7 +252,7 @@ clip_concat = Seq.drop_with out_of_order . concat
 -- | Drop subsequent events with the same text, since those are redundant for
 -- controls.
 drop_dups :: [Event.Event] -> [Event.Event]
-drop_dups = Seq.drop_dups Event.event_string
+drop_dups = Seq.drop_dups Event.text
 
 -- | Drop events before 0, keeping at least one at 0.  Controls can wind up
 -- with samples before 0 (e.g. after using 'Derive.Score.move'), but events

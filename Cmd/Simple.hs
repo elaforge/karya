@@ -67,13 +67,19 @@ from_real :: RealTime -> Double
 from_real = RealTime.to_seconds
 
 event :: Event.Event -> Event
-event event = (from_score (Event.start event),
-    from_score (Event.duration event), Event.event_text event)
+event event =
+    ( from_score (Event.start event)
+    , from_score (Event.duration event)
+    , Event.text event
+    )
 
 score_event :: Score.Event -> ScoreEvent
-score_event evt = (from_real (Score.event_start evt),
-    from_real (Score.event_duration evt),
-    untxt $ Score.event_text evt, Score.initial_nn evt)
+score_event evt =
+    ( from_real (Score.event_start evt)
+    , from_real (Score.event_duration evt)
+    , untxt $ Score.event_text evt
+    , Score.initial_nn evt
+    )
 
 perf_event :: Perform.Event -> PerfEvent
 perf_event evt =

@@ -28,10 +28,10 @@
 -}
 module Ui.Event (
     Event, start, duration, style, stack
-    , Text, from_string
+    , Text
     , Stack(..), IndexKey, event
     -- * text
-    , event_string, event_text, set_text
+    , text, set_text
     , modify_text
     , intern_event
     -- * start, duration
@@ -66,7 +66,7 @@ import Global hiding (Text)
 data Event = Event {
     start :: !TrackTime
     , duration :: !TrackTime
-    , event_text :: !Text
+    , text :: !Text
     -- | Each event can have its own style.  However, in practice, because I
     -- want events to use styles consistently I set them automatically via
     -- 'EventStyle'.  This way is less flexible, but it's one less bit of state
@@ -78,9 +78,6 @@ data Event = Event {
     } deriving (Eq, Read, Show)
 
 type Text = Text.Text
-
-from_string :: String -> Text
-from_string = Text.pack
 
 data Stack = Stack {
     -- | The stack is used so the event retains a reference to its generating
@@ -120,30 +117,26 @@ event :: ScoreTime -> ScoreTime -> Text -> Event
 event start dur text = Event
     { start = start
     , duration = dur
-    , event_text = text
+    , text = text
     , style = Config.default_style
     , stack = Nothing
     }
 
 -- * text
 
-event_string :: Event -> String
-event_string = Text.unpack . event_text
-
 set_text :: Text.Text -> Event -> Event
-set_text s event = modified $ event { event_text = s }
+set_text s event = modified $ event { text = s }
 
 modify_text :: (Text -> Text) -> Event -> Event
-modify_text f event = event { event_text = f (event_text event) }
+modify_text f event = event { text = f (text event) }
 
 intern_event :: Map.Map Text (Text, Int) -> Event
     -> (Map.Map Text (Text, Int), Event)
-intern_event table event = case Map.lookup text table of
-    Nothing -> (Map.insert text (text, 1) table, event)
+intern_event table event = case Map.lookup (text event) table of
+    Nothing -> (Map.insert (text event) (text event, 1) table, event)
     Just (interned, count) ->
         (Map.insert interned (interned, count+1) table,
-            event { event_text = interned })
-    where text = event_text event
+            event { text = interned })
 
 -- * start, duration
 

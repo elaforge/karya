@@ -235,5 +235,5 @@ mkevent (start, dur, text, mb_stack) = add_stack (Event.event start dur text)
 
 extract_event :: Event.Event -> Event
 extract_event event =
-    (Event.start event, Event.duration event, Event.event_text event,
+    (Event.start event, Event.duration event, Event.text event,
         Event.stack_key <$> Event.stack event)

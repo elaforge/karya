@@ -108,7 +108,7 @@ modify_event_at pos f = EditUtil.modify_event_at pos True True
 modify :: (Event -> Event) -> Event.Event -> Event.Event
 modify f event = Event.set_text text event
     where
-    text = process (Event.event_text event)
+    text = process (Event.text event)
     process = unparse . f . parse
 
 -- | Like 'ControlTrack.parse', but complicated by the fact that pitch calls

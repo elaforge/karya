@@ -615,7 +615,7 @@ open_floating selection = do
         (selection text)
 
 event_text_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Text)
-event_text_at track_id = fmap (fmap Event.event_text) . event_at track_id
+event_text_at track_id = fmap (fmap Event.text) . event_at track_id
 
 event_at :: State.M m => TrackId -> ScoreTime -> m (Maybe Event.Event)
 event_at track_id pos =

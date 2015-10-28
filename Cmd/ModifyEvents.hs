@@ -39,7 +39,7 @@ event :: Monad m => (Event.Event -> Event.Event) -> Track m
 event f = events (return . map f)
 
 text :: Monad m => (Text -> Text) -> Track m
-text = event . (\f event -> Event.set_text (f (Event.event_text event)) event)
+text = event . (\f event -> Event.set_text (f (Event.text event)) event)
 
 -- | Split up a pipeline and lex the calls.
 pipeline :: ([[Text]] -> [[Text]]) -> Text -> Text
@@ -57,7 +57,7 @@ failable_text f block_id track_id events = do
         "transformation failed: " <> Text.intercalate ", " errs
     return $ Just ok
     where
-    failing_text f event = case f (Event.event_text event) of
+    failing_text f event = case f (Event.text event) of
         Left err -> Left (err, event)
         Right text -> Right $ Event.set_text text event
 

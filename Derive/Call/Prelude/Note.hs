@@ -225,7 +225,7 @@ make_event :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
 make_event args dyn start dur flags = Score.Event
     { Score.event_start = start
     , Score.event_duration = dur
-    , Score.event_text = Event.event_text (Args.event args)
+    , Score.event_text = Event.text (Args.event args)
     , Score.event_untransformed_controls = controls
     , Score.event_untransformed_pitch = pitch
     , Score.event_control_offset = 0

@@ -55,8 +55,8 @@ test_slice_neighbors = do
             extract . Slice.slice exclusive s e Nothing . make_tree
         extract = fmap $ \track ->
             extract_around (TrackTree.track_around track)
-        extract_around (before, after) = (concatMap Event.event_string before,
-            concatMap Event.event_string after)
+        extract_around (before, after) =
+            (mconcatMap Event.text before, mconcatMap Event.text after)
     let notes offset ns = Node (make_notes offset ns)
         controls cs = Node (make_controls "c" cs)
     equal (f False 1 2 (controls [0..4] [notes 0 "xyz" []]))
@@ -398,7 +398,7 @@ extract_tree track =
 
 extract_track :: Events.Events -> [Event]
 extract_track events =
-    [(Event.start e, Event.duration e, Event.event_text e)
+    [(Event.start e, Event.duration e, Event.text e)
         | e <- Events.ascending events]
 
 make_tree :: EventsTree -> TrackTree.EventsNode

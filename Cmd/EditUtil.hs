@@ -79,7 +79,7 @@ modify_event_at (Pos block_id tracknum start dur) zero_dur modify_dur modify =do
     track_id <- State.get_event_track_at block_id tracknum
     (event, created) <- get_event modify_dur track_id start dur
     let (val, advance) = modify $
-            if created then Nothing else Just (Event.event_text event)
+            if created then Nothing else Just (Event.text event)
     case val of
         Nothing -> State.remove_event track_id start
         Just new_text -> State.insert_event track_id

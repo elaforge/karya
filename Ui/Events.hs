@@ -281,9 +281,7 @@ to_desc_list = map snd . Map.toDescList
 
 instance Pretty.Pretty Events where
     format = Pretty.format . map event . ascending
-        where
-        event event = (Event.start event, Event.duration event,
-            Event.event_string event)
+        where event e = (Event.start e, Event.duration e, Event.text e)
 
 instance Monoid.Monoid Events where
     mempty = empty

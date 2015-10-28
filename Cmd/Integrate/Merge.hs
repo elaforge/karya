@@ -416,7 +416,7 @@ diff_event old new = concat
     [ cmp (Event.start old) (Event.start new) (Position (Event.start new))
     , cmp (Event.duration old) (Event.duration new)
         (Duration (Event.duration new))
-    , diff_text (Event.event_text old) (Event.event_text new)
+    , diff_text (Event.text old) (Event.text new)
     ]
     where cmp x y val = if x == y then [] else [val]
 

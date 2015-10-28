@@ -78,8 +78,8 @@ find_f matches = fmap concat . concatMapM search =<< State.all_block_track_ids
             <$> State.get_track track_id
         let range e = State.Range (Just block_id) track_id
                 (Event.start e) (Event.end e)
-        return [(range event, Event.event_text event) |
-            event <- events, matches (Event.event_text event)]
+        return [(range event, Event.text event) |
+            event <- events, matches (Event.text event)]
 
 -- | Replace text on events.  Call with 'ModifyEvents.all_blocks' to replace it
 -- everywhere, or 'ModifyEvents.note_tracks' for just note tracks.

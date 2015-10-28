@@ -395,8 +395,7 @@ make_event :: EventSpec -> Event.Event
 make_event (start, dur, text) = Event.event start dur (txt text)
 
 extract_event :: Event.Event -> EventSpec
-extract_event event =
-    (Event.start event, Event.duration event, Event.event_string event)
+extract_event e = (Event.start e, Event.duration e, untxt $ Event.text e)
 
 -- ** ruler
 

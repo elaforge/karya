@@ -382,7 +382,7 @@ extract_calls block_id track_id =
         State.get_track track_id
     where
     extract event = fmap (range event) <$>
-        NoteTrack.block_call (Just block_id) (Event.event_text event)
+        NoteTrack.block_call (Just block_id) (Event.text event)
     range event block_id = (Event.start event, Event.duration event, block_id)
 
 -- * modify

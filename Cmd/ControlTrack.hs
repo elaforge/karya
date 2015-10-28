@@ -68,8 +68,7 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
 infer_normalized :: State.M m => TrackId -> m Bool
 infer_normalized = fmap (maybe True normal . Seq.head) . State.get_all_events
     where
-    normal event = any (`Text.isInfixOf` Event.event_text event)
-        normalized_prefixes
+    normal event = any (`Text.isInfixOf` Event.text event) normalized_prefixes
 
 normalized_prefixes :: [Text]
 normalized_prefixes = ["`0x`", "0x"]

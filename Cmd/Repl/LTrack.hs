@@ -135,7 +135,7 @@ to_notation start step end = mconcat . go (Seq.range' start end step)
     go [] ts = replicate (length ts) " "
     go (t:ts) (e:es)
         | Event.start e > t = " " : go ts (e:es)
-        | Event.start e == t = Event.event_text e : go ts es
+        | Event.start e == t = Event.text e : go ts es
         | otherwise = " " : go (t:ts) es
 
 -- | 4 measures per line, 16 time steps per measure.
@@ -147,7 +147,7 @@ format_measures = map (List.intercalate "|") . Seq.chunked 4 . Seq.chunked 16
 
 drop_dups :: Cmd.CmdL ()
 drop_dups = ModifyEvents.selection $ ModifyEvents.events $
-    return . Seq.drop_dups Event.event_text
+    return . Seq.drop_dups Event.text
 
 
 -- * signal render

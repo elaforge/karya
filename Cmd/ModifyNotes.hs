@@ -269,7 +269,7 @@ extract_notes tree =
         return $ Note
             { note_start = Event.start event
             , note_duration = Event.duration event
-            , note_text = Event.event_text event
+            , note_text = Event.text event
             , note_controls = Map.fromList controls
             , note_index = index
             }

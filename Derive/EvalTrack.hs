@@ -382,7 +382,7 @@ derive_event_ctx ctx event
             with_event_region (Derive.ctx_track_shifted ctx) event $
                 with_note_start_end $ Eval.eval_toplevel ctx expr
     where
-    text = Event.event_text event
+    text = Event.text event
     with_note_start_end = case Derive.ctx_track_type ctx of
         Just ParseTitle.NoteTrack -> Derive.with_vals
                 [ (EnvKey.note_start, Event.start event)

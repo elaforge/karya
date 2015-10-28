@@ -123,15 +123,14 @@ from_list :: [Event] -> Events.Events
 from_list = Events.from_list . pos_events
 
 to_list :: Events.Events -> [Event]
-to_list = map (\e -> (Event.start e, Event.duration e, Event.event_text e))
+to_list = map (\e -> (Event.start e, Event.duration e, Event.text e))
     . Events.ascending
 
 pos_events :: [Event] -> [Event.Event]
 pos_events = map (\(pos, dur, text) -> Event.event pos dur text)
 
-extract_text (_, event) = Event.event_string event
-extract_event event =
-    (Event.start event, Event.duration event, Event.event_string event)
+extract_text (_, event) = Event.text event
+extract_event e = (Event.start e, Event.duration e, Event.text e)
 extract = map extract_event . Events.ascending
 
 no_overlaps = check . not . events_overlap

@@ -289,7 +289,7 @@ eval_one_at collect start dur expr = eval_expr collect ctx expr
 -- the /next/ pitch.
 eval_event :: Derive.Callable d => Event.Event
     -> Derive.Deriver (Either Text (Stream.Stream d))
-eval_event event = case Parse.parse_expr (Event.event_text event) of
+eval_event event = case Parse.parse_expr (Event.text event) of
     Left err -> return $ Left err
     Right expr -> Right <$>
         -- TODO eval it separately to catch any exception?

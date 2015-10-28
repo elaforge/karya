@@ -228,7 +228,7 @@ get_block_calls :: State.M m => TrackId -> m [TrackLang.CallId]
 get_block_calls track_id = do
     events <- Events.ascending . Track.track_events <$> State.get_track track_id
     return $ map TrackLang.Symbol $
-        concatMap (NoteTrack.possible_block_calls . Event.event_text) events
+        concatMap (NoteTrack.possible_block_calls . Event.text) events
 
 resolve_relative_call :: Id.Namespace -> BlockId -> TrackLang.CallId
     -> Maybe BlockId

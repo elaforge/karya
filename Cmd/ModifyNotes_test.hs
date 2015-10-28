@@ -147,9 +147,9 @@ write_tracks state tracknums tracks = extract $ UiTest.exec state $
     extract state =
         (UiTest.extract_tracks state, UiTest.extract_skeleton state)
 
-extract_events :: Events.Events -> [(ScoreTime, String)]
+extract_events :: Events.Events -> [(ScoreTime, Text)]
 extract_events = map event . Events.ascending
-    where event e = (Event.start e, Event.event_string e)
+    where event e = (Event.start e, Event.text e)
 
 mkevents :: [(ScoreTime, Text)] -> Events.Events
 mkevents = Events.from_list . map mkevent

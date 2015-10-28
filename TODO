@@ -3,10 +3,6 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Randomness should have some hysteresis, so I can e.g. reduce omit chance,
-    but not get isolated notes.  At the extreme setting, it means it turns on
-    in a slightly random spot, but stays on after that.
-    . Is there a simpler way to get this effect?
   - flag for Util.Pretty so that it puts the leading 0 on floats?  This way
     if you print basic types it can still generate valid haskell.
     . Or perhaps it would be better to have a whole new typeclass, e.g.
@@ -61,6 +57,14 @@ UNSORTED
       . I think there were calls in Prelude.Lily that would be interested in
         a more defined distinction between track and note level transformers.
     - Make a sub-block call that can apply a sub-events call to a whole block.
+  - Extend Sub.sub_events to return events with text so I can interpret them
+    differently.
+    . How then should this interact with inversion?
+    . Maybe this means the bol realization actually doesn't work.  In any
+      case, it's not going to work past block boundaries... but then I wouldn't
+      expect it to, except maybe tette inference.
+    . Or maybe it should replace the text on the events, and then evaluate.
+      So it actually can deal with a TrackTree.
   New typechecking.
     - It turns out this is not so useful because a default TypedFunction
       doesn't have a default control name like a Sig.typed_control does.
@@ -1386,6 +1390,10 @@ Derive:
     . Divide on instrument and hand, so each part gets its own individuality.
     - randomization should be centered on a value, with variance as a signal,
       so I can turn accuracy up or down.
+    - Randomness could have some hysteresis, so I can e.g. reduce omit chance,
+      but not get isolated notes.  At the extreme setting, it means it turns
+      on in a slightly random spot, but stays on after that.
+      . Is there a simpler way to get this effect?
   tracklang: TrackLang:
     - if I add an Alternative instance to Sig.Parser I can write arg parsers
       like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something

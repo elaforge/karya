@@ -243,7 +243,7 @@ set_style = (track_bg, event_style)
 event_style :: Bool -> Event.EventStyle
 event_style has_note_children title event =
     integrated $ Config.event_style
-        (syntax (Parse.parse_expr (Event.event_text event)))
+        (syntax (Parse.parse_expr (Event.text event)))
         (Event.style event)
     where
     integrated
