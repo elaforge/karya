@@ -18,6 +18,7 @@ import qualified Derive.Call.India.Gamakam as Gamakam
 import qualified Derive.Call.India.Gamakam2 as Gamakam2
 import qualified Derive.Call.India.Gamakam3 as Gamakam3
 import qualified Derive.Call.India.Mridangam as Mridangam
+import qualified Derive.Call.India.Pakhawaj as Pakhawaj
 import qualified Derive.Call.Post.Idiom as Idiom
 import qualified Derive.Call.Post.Map as Map
 import qualified Derive.Call.Post.Postproc as Postproc
@@ -84,6 +85,7 @@ note_maps = mconcat
     , Mridangam.note_calls
     , Note.note_calls
     , NoteTransformer.note_calls
+    , Pakhawaj.note_calls
     , Parent.note_calls
     , PitchHigh.note_calls
     , Postproc.note_calls

@@ -13,6 +13,7 @@ module Derive.Call.Sub (
     , Event, GenericEvent(..), event_end, event_overlaps
     , place, stretch, at
     , sub_events, sub_events_end_bias
+    , modify_notes
     , derive, fit_to_range, events_range
     -- ** RestEvent
     , RestEvent, sub_rest_events
@@ -249,11 +250,11 @@ sub_events_ :: Bool -> Derive.PassedArgs d -> Derive.Deriver [[Event]]
 sub_events_ include_end args =
     case Derive.ctx_sub_events (Derive.passed_ctx args) of
         Nothing -> either Derive.throw (return . map (map mkevent)) $
-            Slice.checked_slice_notes include_end start end subs
+            Slice.checked_slice_notes include_end start end
+                (Derive.ctx_sub_tracks (Derive.passed_ctx args))
         Just events -> return $ map (map (\(s, d, n) -> Event s d n)) events
     where
     (start, end) = Args.range args
-    subs = Derive.ctx_sub_tracks (Derive.passed_ctx args)
     -- The events have been shifted back to 0 by 'Slice.slice_notes', but
     -- are still their original lengths.  Stretch them back to 1 so Events
     -- are normalized.
@@ -263,6 +264,37 @@ sub_events_ include_end args =
         , event_note = Derive.stretch
             (if stretch == 0 then 1 else recip stretch)
             (BlockUtil.derive_tracks tree)
+        }
+
+-- | Modify the text of sub note tracks before deriving them.  This can be
+-- used to implement an ad-hoc new language.
+modify_notes ::
+    ([GenericEvent Event.Text] -> Either Text [GenericEvent Event.Text])
+    -> Derive.PassedArgs a -> Either Text (Derive.PassedArgs a)
+modify_notes modify =
+    modify_sub_tracks $ modify_sub_notes (fmap to . modify . from)
+    where
+    from = map (\e -> Event (Event.start e) (Event.duration e) (Event.text e))
+        . Events.ascending
+    to = Events.from_list
+        . map (\(Event start dur text) -> Event.event start dur text)
+
+modify_sub_notes :: (Events.Events -> Either Text Events.Events)
+    -> TrackTree.EventsTree -> Either Text TrackTree.EventsTree
+modify_sub_notes modify = traverse $ traverse $ \track ->
+    if ParseTitle.is_note_track (TrackTree.track_title track)
+        then do
+            events <- modify (TrackTree.track_events track)
+            Right $ track { TrackTree.track_events = events }
+        else Right track
+
+modify_sub_tracks :: (TrackTree.EventsTree -> Either Text TrackTree.EventsTree)
+    -> Derive.PassedArgs a -> Either Text (Derive.PassedArgs a)
+modify_sub_tracks modify args = do
+    tracks <- modify $ Derive.ctx_sub_tracks (Derive.passed_ctx args)
+    Right $ args
+        { Derive.passed_ctx = (Derive.passed_ctx args)
+            { Derive.ctx_sub_tracks = tracks }
         }
 
 -- | Derive and merge Events.

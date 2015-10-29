@@ -11,23 +11,58 @@ import qualified Data.Traversable as Traversable
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Derive.Args as Args
+import qualified Derive.Call.Sub as Sub
+import qualified Derive.Call.Tags as Tags
+import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
+
 import Global
 import Types
 
 
 -- * calls
 
-realize :: ScoreTime -> [(ScoreTime, Bol)] -> [(ScoreTime, Score.Attributes)]
-realize flam notes =
+note_calls :: Derive.CallMaps Derive.Note
+note_calls = Derive.generator_call_map [("bols", c_bols)]
+
+c_bols :: Derive.Generator Derive.Note
+c_bols = Derive.generator ("india" <> "pakhawaj") "bols"
+    (Tags.inst <> Tags.subs)
+    ("Interpret pakhawaj bols in sub events.  Bols: "
+        <> Text.intercalate " / " (map (Text.unwords . fst) all_bols))
+    $ Sig.call (
+        Sig.defaulted "flam" 0.15 "Time between flam type bols like `kre`."
+    ) $ \flam_dur  args -> do
+        args <- Derive.require_right id $
+            Sub.modify_notes (realize_events (Args.end args) flam_dur) args
+        events <- Sub.sub_events args
+        mconcatMap Sub.derive events
+
+realize_events :: ScoreTime -> ScoreTime -> [Sub.GenericEvent Text]
+    -> Either Text [Sub.GenericEvent Text]
+realize_events end flam_dur =
+    fmap (map to . bols_to_attribute flam_dur) . realize_bols end . map from
+    where
+    from e = (Sub.event_start e, Sub.event_note e)
+    -- TODO this is a bit sketchy since I'm relying on the +attr lookup call.
+    -- But to directly add the call I would have to be able to return
+    -- a NoteDeriver, not just text.  Of course, if I wind up using a score
+    -- integrate, then of course I'd need text again.
+    to (t, attrs) = Sub.Event t 0 (ShowVal.show_val attrs)
+
+bols_to_attribute :: ScoreTime -> [(ScoreTime, Bol)]
+    -> [(ScoreTime, Score.Attributes)]
+bols_to_attribute flam notes =
     concat $ zipWith (bol_to_attribute flam) ts (infer_tette bols)
     where (ts, bols) = unzip notes
 
-realize_bols :: ScoreTime -- ^ Normally 'Notes' are divided evenly in the
-    -- time given, but that doesn't work for the final note, which gets this
-    -- duration.
+realize_bols :: ScoreTime -- ^ End time, which is used for the duration of the
+    -- final note.  This is needed if the last bol is a sequence.
     -> [(ScoreTime, Text)] -> Either Text [(ScoreTime, Bol)]
-realize_bols default_dur = fmap realize_notes . match_syllables
+realize_bols end = fmap realize_notes . match_syllables
     where
     realize_notes = concatMap realize_note . Seq.zip_next
     realize_note ((t, note), next) = case note of
@@ -35,7 +70,7 @@ realize_bols default_dur = fmap realize_notes . match_syllables
         Note bol -> [(t, bol)]
         Notes notes -> realize_notes $ zip ts notes
             where ts = Seq.range_ t (dur / fromIntegral (length notes))
-        where dur = maybe default_dur (subtract t . fst) next
+        where dur = maybe end fst next - t
 
 bol_to_attribute :: ScoreTime -> ScoreTime -> Bol
     -> [(ScoreTime, Score.Attributes)]
@@ -120,6 +155,8 @@ single_bols =
     , (["dhet"], Together Ge Tette)
     ]
 
+-- TODO the length of the syllables should be the same as the length of the
+-- bols or the extras will be silently dropped.
 sequences :: [([Syllable], [Note Bol])]
 sequences =
     [ (["kre"], note $ Flam Ka Tet)
@@ -134,7 +171,7 @@ sequences =
     , (["te", "ran"], notes [Di3, Di1])
     , (["dhu", "ma"], map Note [Together Ge Di, One Te])
     -- Abbreviations.
-    , (["tetekata"], notes [Tet, Te, Ka, Ta, Ge, Di, Ge, Ne])
+    , (["tetekata"], [Notes $ notes [Tet, Te, Ka, Ta, Ge, Di, Ge, Ne]])
     ]
     where
     note = (:[]) . Note

@@ -8,11 +8,24 @@ import qualified Data.Text as Text
 import Util.Test
 import qualified Derive.Call.India.Pakhawaj as Pakhawaj
 import Derive.Call.India.Pakhawaj (Bol(..), Stroke(..), Note(..))
+import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
+
 import Global
 
 
+test_c_bols = do
+    let run dur bols = DeriveTest.extract extract $
+            DeriveTest.derive_tracks_linear "import india.pakhawaj"
+                [(">", [(0, dur, "bols")]), (">", bols)]
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+    equal (run 8 [(0, 0, "tet"), (1, 0, "te")]) ([(0, "+tet"), (1, "+te")], [])
+    equal (run 8 [(0, 0, "tetekata")])
+        ([(0, "+tet"), (1, "+te"), (2, "+ka"), (3, "+ta"), (4, "+ge"),
+            (5, "+di"), (6, "+ge"), (7, "+ne")], [])
+
 test_realize_bols = do
-    let f = first untxt . Pakhawaj.realize_bols 0.5
+    let f = first untxt . Pakhawaj.realize_bols 1.5
     left_like (f [(0, "dha"), (1, "blah")]) "unknown bol"
     equal (f [(0, "dha"), (1, "ta")]) $
         Right [(0, Together Ge Ta), (1, One Ta)]

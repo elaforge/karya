@@ -51,7 +51,7 @@ UNSORTED
         transformers.
         . That would work like the 'ctx_next_events' hack above, but put the
           track into 'ctx_sub_tracks'.
-    + Implement pakhawaj bol realization as a sub event call to make sure it
+    * Implement pakhawaj bol realization as a sub event call to make sure it
       works.
     - Extend track level transform to have 'ctx_sub_tracks' available.
       . I think there were calls in Prelude.Lily that would be interested in
