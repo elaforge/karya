@@ -104,7 +104,7 @@ data Bol = One Stroke | Together Stroke Stroke | Flam Stroke Stroke
     deriving (Show, Eq)
 
 data Note a = Rest | Note a | Notes [Note a]
-    deriving (Show, Eq, Functor, Foldable.Foldable, Traversable.Traversable)
+    deriving (Show, Eq, Functor, Foldable, Traversable)
 
 map_stroke :: (Stroke -> Stroke) -> Bol -> Bol
 map_stroke f bol = case bol of
@@ -223,7 +223,7 @@ infer_tette = map_neighbors infer
 
 -- | This is different from @map f . Seq.zip_neighbors@ in that you can see
 -- whatever change @f@ made to the previous value.
-map_neighbors :: Traversable.Traversable t => (Maybe b -> a -> Maybe a -> b)
+map_neighbors :: Traversable t => (Maybe b -> a -> Maybe a -> b)
     -> t a -> t b
 map_neighbors f xs =
     snd $ Traversable.mapAccumL go (Nothing, drop 1 (Foldable.toList xs)) xs

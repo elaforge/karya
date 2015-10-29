@@ -344,7 +344,7 @@ eval (DynExpr (name, call) arg1 arg2 exprs) = case (start, end) of
 -- | DynExpr Name Arg1 Arg2 exprs | PitchExpr Name Arg
 data Expr_ dyn pitch = DynExpr !dyn !Text !Text ![Expr_ dyn pitch]
     | PitchExpr !pitch !Text
-    deriving (Eq, Show, Functor, Foldable.Foldable, Traversable.Traversable)
+    deriving (Eq, Show, Functor, Foldable, Traversable)
 type ResolvedExpr = Expr_ (Text, DynCall) PitchCall
 type Expr = Expr_ Text Char
 

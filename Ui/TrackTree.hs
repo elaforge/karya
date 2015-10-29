@@ -248,8 +248,7 @@ track_voices tracks = map (fmap only_inst) $ count_occurrences inst_of tracks
 
 -- | For each element, give its index amount its equals, and the total number
 -- of elements equal to it.
-count_occurrences ::
-    (Traversable.Traversable f, Traversable.Traversable g, Ord k) =>
+count_occurrences :: (Traversable f, Traversable g, Ord k) =>
     (a -> k) -> f (g a) -> f (g (a, Int))
 count_occurrences key =
     snd . (Traversable.mapAccumL . Traversable.mapAccumL) go mempty

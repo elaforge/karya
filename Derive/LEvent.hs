@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE DeriveFunctor, DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Derive.LEvent where
 import Prelude hiding (length, either, log, zip, zip3)
 import qualified Control.DeepSeq as DeepSeq
@@ -22,7 +22,7 @@ import Global
 -- * LEvent
 
 data LEvent a = Event !a | Log !Log.Msg
-    deriving (Eq, Show, Functor)
+    deriving (Eq, Show, Functor, Foldable, Traversable)
 
 instance Pretty.Pretty d => Pretty.Pretty (LEvent d) where
     format = either Pretty.format format_log

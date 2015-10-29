@@ -56,8 +56,8 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Monoid ((<>))
 import qualified Data.Text as Text
-import Data.Traversable (traverse)
-import Data.Foldable (foldMap)
+import Data.Traversable (Traversable, traverse)
+import Data.Foldable (Foldable, foldMap)
 
 import Util.Lens
 import Util.Pretty (pretty, prettys)
