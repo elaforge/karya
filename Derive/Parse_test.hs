@@ -227,24 +227,28 @@ test_load_ky = do
     dir <- unique_tmp_dir "ky"
     let lib = dir </> "lib"
     Directory.createDirectory lib
-    writeFile (lib </> "lib1") $ make_ky ["lib2"] ["lib1"]
+    writeFile (lib </> "lib1") $ make_ky ["lib2"] ["lib1-call"]
 
-    let run imports defs = do
-            writeFile (dir </> "defs") (make_ky imports defs)
-            (untxt *** first extract) <$> Parse.load_ky [dir, lib] "defs"
+    let write imports =
+            writeFile (dir </> "defs") (make_ky imports ["defs-call"])
+    let load = (untxt *** first extract) <$> Parse.load_ky [dir, lib] "defs"
         extract = map fst . fst . Parse.def_note
-    v <- run ["z"] ["d1"]
+    write ["z1"]
+    v <- load
     left_like v "ky file not found: z"
-    v <- run ["lib1"] ["d1"]
+
+    write ["lib1"]
+    v <- load
     left_like v "ky file not found: lib2"
 
-    writeFile (lib </> "lib2") $ make_ky [] ["lib2"]
-    mtime <- Directory.getModificationTime $ lib </> "lib1"
-    io_equal (run ["lib1"] ["d1"]) $
-        Right (["d1", "lib1", "lib2"],
-            [ (dir </> "defs", mtime)
-            , (lib </> "lib1", mtime)
-            , (lib </> "lib2", mtime)
+    writeFile (lib </> "lib2") $ make_ky [] ["lib2-call"]
+    [lib1, lib2, defs] <- mapM Directory.getModificationTime
+        [lib </> "lib1", lib </> "lib2", dir </> "defs"]
+    io_equal load $
+        Right (["defs-call", "lib1-call", "lib2-call"],
+            [ (dir </> "defs", defs)
+            , (lib </> "lib1", lib1)
+            , (lib </> "lib2", lib2)
             ])
 
 test_parse_ky = do
