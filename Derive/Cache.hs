@@ -60,7 +60,7 @@ instance Cacheable Signal.Control where
     from_cache_entry _ = Nothing
     to_cache_entry = Derive.CachedControl
 
-instance Cacheable PSignal.Signal where
+instance Cacheable PSignal.PSignal where
     from_cache_entry (Derive.CachedPitch ctype) = Just ctype
     from_cache_entry _ = Nothing
     to_cache_entry = Derive.CachedPitch

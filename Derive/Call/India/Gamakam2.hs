@@ -209,7 +209,7 @@ pitch_context ctx = ctx
         Derive.ctx_prev_val ctx
     }
 
-type Signals = (PSignal.Signal, [Derive.ControlMod])
+type Signals = (PSignal.PSignal, [Derive.ControlMod])
 
 {- Awkward things:
 
@@ -301,10 +301,10 @@ sequence_middles start end (expr:exprs) = do
     (pitch_rest, mods_rest) <- sequence_middles sig_end end exprs
     return (pitch <> pitch_rest, mods <> mods_rest)
 
-signal_start :: ScoreTime -> PSignal.Signal -> Derive.Deriver ScoreTime
+signal_start :: ScoreTime -> PSignal.PSignal -> Derive.Deriver ScoreTime
 signal_start deflt = maybe (return deflt) (Derive.score . fst) .  PSignal.head
 
-signal_end :: ScoreTime -> PSignal.Signal -> Derive.Deriver ScoreTime
+signal_end :: ScoreTime -> PSignal.PSignal -> Derive.Deriver ScoreTime
 signal_end deflt = maybe (return deflt) (Derive.score . fst) .  PSignal.last
 
 eval :: Module.Module -> ScoreTime -> ScoreTime -> Expr -> SequenceM Signals
@@ -646,7 +646,7 @@ default_transition_ :: RealTime
 default_transition_ = 0.12
 
 kampita :: RealTime -> Derive.PitchArgs -> Score.Control -> Signal.Control
-    -> Derive.Deriver PSignal.Signal
+    -> Derive.Deriver PSignal.PSignal
 kampita start args control transpose = do
     pitch <- prev_pitch start args
     return $ PSignal.apply_control control

@@ -105,7 +105,7 @@ c_approach = generator1 "approach" Tags.next
         approach args curve start end
 
 approach :: Derive.PitchArgs -> ControlUtil.Curve -> RealTime -> RealTime
-    -> Derive.Deriver PSignal.Signal
+    -> Derive.Deriver PSignal.PSignal
 approach args curve start end = do
     maybe_next <- Args.next_pitch args
     case (Args.prev_pitch args, maybe_next) of
@@ -122,7 +122,7 @@ c_down = generator1 "down" Tags.prev
     "Descend at the given speed until the next event." $ slope "Descend" (-1)
 
 slope :: Text -> Double -> Derive.WithArgDoc
-    (Derive.PitchArgs -> Derive.Deriver PSignal.Signal)
+    (Derive.PitchArgs -> Derive.Deriver PSignal.PSignal)
 slope word sign = Sig.call ((,,)
     <$> defaulted "slope" (Pitch.Chromatic 1)
         (word <> " this many steps per second.")

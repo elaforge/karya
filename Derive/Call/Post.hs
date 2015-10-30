@@ -279,7 +279,7 @@ control_range deriver = do
     return (sig, range, logs)
 
 pitch_range :: Derive.PitchDeriver
-    -> Derive.Deriver (PSignal.Signal, (RealTime, RealTime), [Log.Msg])
+    -> Derive.Deriver (PSignal.PSignal, (RealTime, RealTime), [Log.Msg])
 pitch_range deriver = do
     (sig, logs) <- first mconcat . Stream.partition <$> deriver
     let range = case (PSignal.head sig, PSignal.last sig) of

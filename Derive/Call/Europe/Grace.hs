@@ -297,7 +297,7 @@ c_grace_p = Derive.generator1 Module.europe "grace" Tags.ornament
         grace_p grace_dur ps (Args.range_or_next args)
 
 grace_p :: BaseTypes.Duration -> [PSignal.Pitch]
-    -> (ScoreTime, ScoreTime) -> Derive.Deriver PSignal.Signal
+    -> (ScoreTime, ScoreTime) -> Derive.Deriver PSignal.PSignal
 grace_p grace_dur pitches (start, end) = do
     real_dur <- Call.real_duration start grace_dur
     real_start <- Derive.real start

@@ -23,7 +23,7 @@ deriving instance Eq TrackLang.Call
 deriving instance Eq TrackLang.Term
 deriving instance Eq TrackLang.Quoted
 
-instance Eq PSignal.Signal where
+instance Eq PSignal.PSignal where
     sig1 == sig2 = PSignal.unsignal sig1 == PSignal.unsignal sig2
 instance Eq (PSignal.RawPitch a) where
     p1 == p2 = PSignal.pitch_nn (PSignal.coerce p1)

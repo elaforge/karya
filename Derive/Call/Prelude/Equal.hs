@@ -201,7 +201,7 @@ get_merger control maybe_merge = case maybe_merge of
     Just (Merge merge) -> Derive.get_control_merge merge
 
 get_pitch_merger :: Maybe Merge
-    -> Derive.Deriver (Derive.Merger PSignal.Signal)
+    -> Derive.Deriver (Derive.Merger PSignal.PSignal)
 get_pitch_merger maybe_merge = case maybe_merge of
     Nothing -> return Derive.Set
     Just Default -> return Derive.Set

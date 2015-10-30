@@ -547,7 +547,7 @@ e_nns e = signal_to_nn $ PSignal.apply_controls
 e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_rounded = map (second (Num.round_digits 2)) . e_nns
 
-signal_to_nn :: PSignal.Signal -> [(RealTime, Pitch.NoteNumber)]
+signal_to_nn :: PSignal.PSignal -> [(RealTime, Pitch.NoteNumber)]
 signal_to_nn psig
     | not (null errs) =
         error $ "DeriveTest.signal_to_nn: errors flattening signal: "
@@ -708,7 +708,7 @@ mkevent_scale scale (start, dur, pitch, controls, inst) = Score.empty_event
     , Score.event_instrument = inst
     }
 
-psignal :: [(RealTime, String)] -> PSignal.Signal
+psignal :: [(RealTime, String)] -> PSignal.PSignal
 psignal = PSignal.signal . map (second mkpitch12)
 
 mkcontrols :: Controls -> Score.ControlMap

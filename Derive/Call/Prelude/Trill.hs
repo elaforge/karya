@@ -278,8 +278,8 @@ c_xcut_pitch hold = Derive.generator1 Module.prelude "xcut" mempty
         val2 <- Call.to_psignal val2
         return $ xcut_pitch hold val1 val2 transitions
 
-xcut_pitch :: Bool -> PSignal.Signal -> PSignal.Signal -> [RealTime]
-    -> PSignal.Signal
+xcut_pitch :: Bool -> PSignal.PSignal -> PSignal.PSignal -> [RealTime]
+    -> PSignal.PSignal
 xcut_pitch hold val1 val2 =
     mconcat . snd . List.mapAccumL slice (val1, val2) . Seq.zip_next
     where

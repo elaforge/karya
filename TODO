@@ -3,10 +3,6 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - flag for Util.Pretty so that it puts the leading 0 on floats?  This way
-    if you print basic types it can still generate valid haskell.
-    . Or perhaps it would be better to have a whole new typeclass, e.g.
-      PrettyHs.  Or take the Util.PPrint approach of formatting an AST.
   * J call for calung that puts in a jegog note.  It needs {infer-duration}.
   * Unsetting for read-only SavedFile breaks ky files.  So I think I need
     either a separate way to mark read-only, or a separate place for the ky
@@ -30,42 +26,7 @@ UNSORTED
     . Order is easy to check with quickcheck.  I could come up with some ways to
       do quickchecks on certain score fragments.  Or alternately, apply
       a standard set of checks: start =0, >0, in callee block, etc.
-  pakhawaj bols
-    . Score integrate to convert bols to low level calls
-      . Actually score integrate doesn't work like that, it just copies the
-        input.  It would have to be derive integration.
-    . Or maybe just interpret the bols directly, but due to context
-      sensitivity they need to be all processed together, not as separate
-      calls.
-      . In general I don't have a way to interpret a track as a whole.  This
-        is the "track call" thing I was thinking about a long time ago.
-    Approaches:
-      . A transformer that ignores the deriver and use Derive.ctx_next_events.
-        It would need a special hack where a track level call gets Nothing
-        in ctx_event and everything in ctx_next_events.  Seems a bit grody.
-      . A separate namespace with functions of the Note.d_note signature.
-      . Use sub events.  If I extend a sub-block call to be compatible with
-        sub events, I could have a section of alternate notation embedded in
-        normal notation, or as a separate block.  If I want a whole track,
-        then maybe I could make sub-events available to track level
-        transformers.
-        . That would work like the 'ctx_next_events' hack above, but put the
-          track into 'ctx_sub_tracks'.
-    * Implement pakhawaj bol realization as a sub event call to make sure it
-      works.
-    - Extend track level transform to have 'ctx_sub_tracks' available.
-      . I think there were calls in Prelude.Lily that would be interested in
-        a more defined distinction between track and note level transformers.
-    - Make a sub-block call that can apply a sub-events call to a whole block.
-  - Extend Sub.sub_events to return events with text so I can interpret them
-    differently.
-    . How then should this interact with inversion?
-    . Maybe this means the bol realization actually doesn't work.  In any
-      case, it's not going to work past block boundaries... but then I wouldn't
-      expect it to, except maybe tette inference.
-    . Or maybe it should replace the text on the events, and then evaluate.
-      So it actually can deal with a TrackTree.
-  New typechecking.
+  Typecheck coerces to TypedFunction as a common signal type
     - It turns out this is not so useful because a default TypedFunction
       doesn't have a default control name like a Sig.typed_control does.
       The documentation is also worse.  The way to fix this would be to
@@ -156,9 +117,7 @@ UNSORTED
 
   * run profiling and upgrade to ghc-7.10.2
   / rename PassedArgs to CallContext.  Or not?
-  - Perhaps mridangam should automatically transpose the octave to be within
-    its range.
-  - Rename PSignal.Signal to PSignal.PSignal?
+  * Rename PSignal.Signal to PSignal.PSignal?
   - No thru on pitch track of >pemade in save/rehearsal/bali/legong/semara-dana.
   - Perf.lookup_instrument on a pitch track could look at its note track.
   - I was confused because I wrote '%just-base = (nn (c3))' instead of
@@ -168,6 +127,9 @@ UNSORTED
       type can coerce to Untyped, so it can't complain if you passed NN.
       I could make Typecheck Double require Untyped, but that would break all
       the stuff that doesn't care about types.
+    . Ultimately, this is because pitches take a PitchConfig, which takes
+      ControlValMap, which is untyped.  I started a branch making it typed,
+      but eventually lost interest since it seemed overly complicated.
   - If I want to have an interpolating rhythm, e.g. chatusram to misram, I can
     have a parent call that moves its children slightly.
     . In fact, could I have done the interpolating scale as a similar
@@ -180,14 +142,6 @@ UNSORTED
       sub-tracks.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
-  mridangam:
-    - tha is too loud... I can compensate by using -, but maybe the scale is
-      off.  Velocity should be logical, so if you play all at the same
-      velocity it's like the same dynamic for all strokes.
-      . Or I could make + be 0.5, and * be full volume.
-    - perhaps only pitched notes should change with the tuning?
-  / save/complete/wayang/p2 last note of alt-w at the end doesn't get its
-    duration inferred
   - shakefile: use cabal sandbox, if one is present
     . If there is a .cabal-sandbox, pass -no-user-package-db
       -package-db .cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d/
@@ -209,9 +163,6 @@ UNSORTED
     But I could do that directly with a postproc ala the tempo hack.  It seems
     like a hack at a higher level is better than one deep in the signal
     implementation.
-  - When multiple marks from different marklists are in the same place, their
-    text collides.  The one from the first marklist should take precedence,
-    as should its line.  This is visible when I add logical range markers.
   - A block with logical range called at time 0 gets messed up.
 
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
@@ -270,6 +221,7 @@ UNSORTED
       ...
     - pp LPerf.sel_events has an extra level of indent after the [.  Not due
       to LEvents.
+    - Add Util.Format backend for AST as in Util.PPrint
   - Perhaps I should have a separation between "" as called by Util.note by
     other calls, and "" as called from the track.  The problem is that it
     applies Flags.can_cancel at TrackTime 0, which is only appropriate for
@@ -1109,6 +1061,9 @@ performance:
       can I make this more efficient?
 
 fltk:
+  - When multiple marks from different marklists are in the same place, their
+    text collides.  The one from the first marklist should take precedence,
+    as should its line.  This is visible when I add logical range markers.
   - If I wrap text, and there is then space available on the right, check if
     I can squeeze in ranked text.
   ? There's an extra axis of information in the width of the event body.  How
@@ -1451,7 +1406,14 @@ Derive:
       block, though perhaps that's a side-effect of having blocks which are
       too large.  More compellingly, chords can automatically fiddle with dyn
       and start time, and can also interpret chord symbols.
-    mridangam
+    mridangam:
+      - Perhaps mridangam should automatically transpose the octave to be within
+        its range.
+      - tha is too loud... I can compensate by using -, but maybe the scale is
+        off.  Velocity should be logical, so if you play all at the same
+        velocity it's like the same dynamic for all strokes.
+        . Or I could make + be 0.5, and * be full volume.
+      - perhaps only pitched notes should change with the tuning?
       kanakku:
         . I could come up with a notation for various transformations, but it
           would have to be its own little language, due to the time aspect.  Or
@@ -1485,6 +1447,34 @@ Derive:
         . On the other hand, I could give duration, and then the actual
           pattern is random.  But I'd still want a way to restrict to the same
           pattern, e.g. use a variable, so all 'a's get the same pattern.
+    pakhawaj bols
+      . Score integrate to convert bols to low level calls
+        . Actually score integrate doesn't work like that, it just copies the
+          input.  It would have to be derive integration.
+      . Or maybe just interpret the bols directly, but due to context
+        sensitivity they need to be all processed together, not as separate
+        calls.
+        . In general I don't have a way to interpret a track as a whole.  This
+          is the "track call" thing I was thinking about a long time ago.
+      Approaches:
+        . A transformer that ignores the deriver and use Derive.ctx_next_events.
+          It would need a special hack where a track level call gets Nothing
+          in ctx_event and everything in ctx_next_events.  Seems a bit grody.
+        . A separate namespace with functions of the Note.d_note signature.
+        . Use sub events.  If I extend a sub-block call to be compatible with
+          sub events, I could have a section of alternate notation embedded in
+          normal notation, or as a separate block.  If I want a whole track,
+          then maybe I could make sub-events available to track level
+          transformers.
+          . That would work like the 'ctx_next_events' hack above, but put the
+            track into 'ctx_sub_tracks'.
+      * Implement pakhawaj bol realization as a sub event call to make sure it
+        works.
+      - Extend track level transform to have 'ctx_sub_tracks' available.
+        . I think there were calls in Prelude.Lily that would be interested in
+          a more defined distinction between track and note level transformers.
+      - Make a sub-block call that can apply a sub-events call to a whole block.
+      - Add an input mode for bols.
     bali:
       - add isep to *legong
       If I put pemero notes in legong, then I can play them when needed.

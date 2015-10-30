@@ -161,7 +161,7 @@ initial_state = State 0 mempty
 state_control_map :: State -> Score.ControlMap
 state_control_map = Map.map (Score.untyped . Signal.constant) . state_controls
 
-state_psignal :: State -> PSignal.Signal
+state_psignal :: State -> PSignal.PSignal
 state_psignal = PSignal.constant . mknote . state_pitch
     where
     scale = PSignal.Scale Twelve.scale_id

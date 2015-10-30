@@ -144,7 +144,7 @@ c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
 
 trill_signal :: Maybe Trill.Direction -> PSignal.Pitch
     -> TrackLang.ControlRef -> TrackLang.ControlRef -> BaseTypes.Duration
-    -> Derive.PassedArgs a -> Derive.Deriver PSignal.Signal
+    -> Derive.PassedArgs a -> Derive.Deriver PSignal.PSignal
 trill_signal start_dir pitch neighbor speed hold args = do
     (neighbor, control) <- Call.to_transpose_function Typecheck.Nn neighbor
     transpose <- Gamakam.kampita start_dir Nothing Trill.Shorten neighbor

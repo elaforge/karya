@@ -171,7 +171,7 @@ data PitchDirection = PitchDrop | PitchLift deriving (Show)
 pitch_fade :: Align -> ControlUtil.Curve -> PSignal.Pitch -> PitchDirection
     -> Either Pitch.Transpose PSignal.Pitch
     -> ((RealTime, RealTime), (RealTime, RealTime))
-    -> Derive.Deriver (PSignal.Signal, Signal.Control)
+    -> Derive.Deriver (PSignal.PSignal, Signal.Control)
 pitch_fade align curve pitch pitch_dir interval
         ((pitch_start, pitch_end), (fade_start, fade_end)) =
     (,) <$> pitch_segment align curve (min pitch_start fade_start) pitch_start
@@ -231,7 +231,7 @@ pitch_segment :: Align -> ControlUtil.Curve
     -> RealTime -- ^ end segment
     -> PSignal.Pitch
     -> Either Pitch.Transpose PSignal.Pitch -> PitchDirection
-    -> Derive.Deriver PSignal.Signal
+    -> Derive.Deriver PSignal.PSignal
 pitch_segment align curve start0 start end pitch interval pitch_dir =
     case align of
         -- If the pitch segment is at the start of the note, then I may need to

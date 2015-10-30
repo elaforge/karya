@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities for 'PSignal.Signal's and 'PSignal.Pitch's.
+-- | Utilities for 'PSignal.PSignal's and 'PSignal.Pitch's.
 --
 -- Functions here can't go into "Derive.PSignal" itself due to circular
 -- imports---PSignal is a low level module imported by other low level

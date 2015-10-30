@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.PSignal (
-    Signal, sig_scale_id
+    PSignal, sig_scale_id
     , Scale(Scale), no_scale
     -- * construct and convert
     , constant, signal, unsignal, to_nn
@@ -39,7 +39,7 @@ import Util.TimeVector (Sample(..))
 import qualified Derive.ScoreTypes as Score
 import qualified Derive.BaseTypes as TrackLang
 import Derive.BaseTypes
-       (Signal(..), Transposed, Pitch, pitch, coerce, pitch_nn, pitch_note,
+       (PSignal(..), Transposed, Pitch, pitch, coerce, pitch_nn, pitch_note,
         RawPitch(..), Scale(..), PitchConfig(..), PitchError(..))
 
 import qualified Perform.Pitch as Pitch
@@ -55,37 +55,37 @@ import Types
 --
 -- A Signal can contain pitches from multiple scales, though I don't think this
 -- should ever happen.  But if it does, the first pitch wins.
-sig_transposers :: Signal -> Set.Set Score.Control
+sig_transposers :: PSignal -> Set.Set Score.Control
 sig_transposers = pscale_transposers . sig_scale
 
 -- | Get the scale id of the signal.
 --
--- A Signal can contain pitches from multiple scales, though I don't think this
+-- A PSignal can contain pitches from multiple scales, though I don't think this
 -- should ever happen.  But if it does, the first pitch wins.
-sig_scale_id :: Signal -> Pitch.ScaleId
+sig_scale_id :: PSignal -> Pitch.ScaleId
 sig_scale_id = pscale_scale_id . sig_scale
 
-sig_scale :: Signal -> Scale
+sig_scale :: PSignal -> Scale
 sig_scale = maybe no_scale (pitch_scale . sy) . TimeVector.head . sig_vec
 
 modify :: (TimeVector.Boxed Pitch -> TimeVector.Boxed Pitch)
-    -> Signal -> Signal
+    -> PSignal -> PSignal
 modify f sig = sig { sig_vec = f (sig_vec sig) }
 
 no_scale :: Scale
 no_scale = Scale "no-scale" mempty
 
-constant :: Pitch -> Signal
-constant  = Signal . TimeVector.constant
+constant :: Pitch -> PSignal
+constant  = PSignal . TimeVector.constant
 
-signal :: [(RealTime, Pitch)] -> Signal
-signal = Signal . TimeVector.signal
+signal :: [(RealTime, Pitch)] -> PSignal
+signal = PSignal . TimeVector.signal
 
-unsignal :: Signal -> [(RealTime, Pitch)]
+unsignal :: PSignal -> [(RealTime, Pitch)]
 unsignal = TimeVector.unsignal . sig_vec
 
 -- | Flatten a signal to a non-transposeable Signal.NoteNumber.
-to_nn :: Signal -> (Signal.NoteNumber, [PitchError])
+to_nn :: PSignal -> (Signal.NoteNumber, [PitchError])
 to_nn sig = (Signal.signal nns, Set.toList errs)
     where
     (errs, nns) = split (unsignal sig)
@@ -96,8 +96,8 @@ to_nn sig = (Signal.signal nns, Set.toList errs)
             Right (Pitch.NoteNumber nn) -> (errs, (x, nn) : nns)
         where (errs, nns) = split rest
 
-unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> Signal
-unfoldr f st = Signal $ TimeVector.unfoldr f st
+unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> PSignal
+unfoldr f st = PSignal $ TimeVector.unfoldr f st
 
 type ControlMap = Map.Map Score.Control Score.TypedControl
 
@@ -109,7 +109,7 @@ type ControlMap = Map.Map Score.Control Score.TypedControl
 -- additive so it'll be ok as long as you only apply transposing signals
 -- and only apply the complete ControlMap once at the end (i.e.
 -- "Perform.Midi.Convert").
-apply_controls :: ControlMap -> Signal -> Signal
+apply_controls :: ControlMap -> PSignal -> PSignal
 apply_controls controls sig
     | V.null (sig_vec sig) = sig
     | otherwise = sig { sig_vec = resampled }
@@ -136,12 +136,12 @@ sample_controls controls transposers =
     -- cases there will be 0 or 1 transposition values.
 
 -- | 'apply_controls' specialized for a single control.
-apply_control :: Score.Control -> Score.TypedControl -> Signal -> Signal
+apply_control :: Score.Control -> Score.TypedControl -> PSignal -> PSignal
 apply_control cont sig = apply_controls (Map.singleton cont sig)
 
 -- | Apply an environ to all the pitches in the signal.  Unlike
 -- 'apply_controls', this doesn't have to resample the signal.
-apply_environ :: TrackLang.Environ -> Signal -> Signal
+apply_environ :: TrackLang.Environ -> PSignal -> PSignal
 apply_environ env = modify $ TimeVector.map_y $ config (PitchConfig env mempty)
 
 -- | Not exported, use the one in Derive.Score instead.
@@ -150,63 +150,63 @@ controls_at t = Map.map (Signal.at t . Score.typed_val)
 
 -- * signal functions
 
-null :: Signal -> Bool
+null :: PSignal -> Bool
 null = TimeVector.null . sig_vec
 
-at :: RealTime -> Signal -> Maybe Pitch
+at :: RealTime -> PSignal -> Maybe Pitch
 at x = TimeVector.at x . sig_vec
 
-sample_at :: RealTime -> Signal -> Maybe (RealTime, Pitch)
+sample_at :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
 sample_at x = TimeVector.sample_at x . sig_vec
 
 -- | Find the pitch immediately before the point.
-before :: RealTime -> Signal -> Maybe Pitch
+before :: RealTime -> PSignal -> Maybe Pitch
 before x = fmap sy . TimeVector.before x . sig_vec
 
-shift :: RealTime -> Signal -> Signal
+shift :: RealTime -> PSignal -> PSignal
 shift x = modify (TimeVector.shift x)
 
-head :: Signal -> Maybe (RealTime, Pitch)
+head :: PSignal -> Maybe (RealTime, Pitch)
 head = fmap TimeVector.to_pair . TimeVector.head . sig_vec
 
-last :: Signal -> Maybe (RealTime, Pitch)
+last :: PSignal -> Maybe (RealTime, Pitch)
 last = fmap TimeVector.to_pair . TimeVector.last . sig_vec
 
-take :: Int -> Signal -> Signal
+take :: Int -> PSignal -> PSignal
 take = modify . TimeVector.take
 
-drop :: Int -> Signal -> Signal
+drop :: Int -> PSignal -> PSignal
 drop = modify . TimeVector.drop
 
-drop_while :: (Sample Pitch -> Bool) -> Signal -> Signal
+drop_while :: (Sample Pitch -> Bool) -> PSignal -> PSignal
 drop_while f = modify (V.dropWhile f)
 
-drop_after :: RealTime -> Signal -> Signal
+drop_after :: RealTime -> PSignal -> PSignal
 drop_after = modify . TimeVector.drop_after
 
-drop_at_after :: RealTime -> Signal -> Signal
+drop_at_after :: RealTime -> PSignal -> PSignal
 drop_at_after = modify . TimeVector.drop_at_after
 
-drop_before :: RealTime -> Signal -> Signal
+drop_before :: RealTime -> PSignal -> PSignal
 drop_before = modify . TimeVector.drop_before
 
-drop_before_strict :: RealTime -> Signal -> Signal
+drop_before_strict :: RealTime -> PSignal -> PSignal
 drop_before_strict = modify . TimeVector.drop_before_strict
 
-drop_before_at :: RealTime -> Signal -> Signal
+drop_before_at :: RealTime -> PSignal -> PSignal
 drop_before_at = modify . TimeVector.drop_before_at
 
-within :: RealTime -> RealTime -> Signal -> Signal
+within :: RealTime -> RealTime -> PSignal -> PSignal
 within start end = modify $ TimeVector.within start end
 
-map_y :: (Pitch -> Pitch) -> Signal -> Signal
+map_y :: (Pitch -> Pitch) -> PSignal -> PSignal
 map_y = modify . TimeVector.map_y
 
-interleave :: Signal -> Signal -> Signal
-interleave s1 s2 = Signal $ TimeVector.interleave (sig_vec s1) (sig_vec s2)
+interleave :: PSignal -> PSignal -> PSignal
+interleave s1 s2 = PSignal $ TimeVector.interleave (sig_vec s1) (sig_vec s2)
 
-prepend :: Signal -> Signal -> Signal
-prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
+prepend :: PSignal -> PSignal -> PSignal
+prepend s1 s2 = PSignal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
 
 -- * Pitch
 

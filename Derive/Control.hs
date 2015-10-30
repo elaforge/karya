@@ -132,7 +132,7 @@ get_merger control merge = case merge of
     Just sym -> Derive.get_control_merge sym
 
 get_pitch_merger :: Maybe TrackLang.CallId
-    -> Derive.Deriver (Derive.Merger PSignal.Signal)
+    -> Derive.Deriver (Derive.Merger PSignal.PSignal)
 get_pitch_merger = maybe (return Derive.Set) Derive.get_pitch_merger
 
 -- | A tempo track is derived like other signals, but in absolute time.
@@ -209,7 +209,7 @@ merge_logs :: [Log.Msg] -> Derive.NoteDeriver -> Derive.NoteDeriver
 merge_logs logs = fmap (Stream.merge_logs logs)
 
 pitch_call :: TrackTree.Track -> Score.PControl
-    -> Derive.Merger PSignal.Signal -> Pitch.ScaleId
+    -> Derive.Merger PSignal.PSignal -> Pitch.ScaleId
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 pitch_call track pcontrol merger scale_id transform deriver = do
@@ -273,7 +273,7 @@ derive_control is_tempo track transform = do
 
 derive_pitch :: Bool -> TrackTree.Track
     -> (Derive.PitchDeriver -> Derive.PitchDeriver)
-    -> Derive.Deriver (TrackResults PSignal.Signal)
+    -> Derive.Deriver (TrackResults PSignal.PSignal)
 derive_pitch cache track transform = do
     let cache_track = if cache then Cache.track track mempty else id
     (signal, logs) <- derive_track (track_info track ParseTitle.PitchTrack)
@@ -422,9 +422,9 @@ get_block_track block_id track_id = do
 
 -- * util
 
--- | Reduce a 'PSignal.Signal' to raw note numbers, taking the current
+-- | Reduce a 'PSignal.PSignal' to raw note numbers, taking the current
 -- transposition environment into account.
-psignal_to_nn :: PSignal.Signal
+psignal_to_nn :: PSignal.PSignal
     -> Derive.Deriver (Signal.NoteNumber, [PSignal.PitchError])
 psignal_to_nn sig = do
     controls <- Internal.get_dynamic Derive.state_controls

@@ -49,7 +49,7 @@ c_sh_pitch = Derive.transformer Module.prelude "sh" mempty
         starts <- Speed.starts speed (start, end) True
         return $ Stream.from_event_logs (sample_hold_pitch starts sig) logs
 
-sample_hold_pitch :: [RealTime] -> PSignal.Signal -> PSignal.Signal
+sample_hold_pitch :: [RealTime] -> PSignal.PSignal -> PSignal.PSignal
 sample_hold_pitch points sig = PSignal.unfoldr go (Nothing, points, sig)
     where
     go (_, [], _) = Nothing

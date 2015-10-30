@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities that emit 'PSignal.Signal's.
+-- | Utilities that emit 'PSignal.PSignal's.
 module Derive.Call.PitchUtil where
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -78,7 +78,7 @@ interpolator_variations = ControlUtil.interpolator_variations_ interpolator_call
 -- * interpolate
 
 make_segment_from :: Curve -> RealTime -> Maybe PSignal.Pitch -> RealTime
-    -> PitchOrTranspose -> Derive.Deriver PSignal.Signal
+    -> PitchOrTranspose -> Derive.Deriver PSignal.PSignal
 make_segment_from curve start maybe_from end to = case maybe_from of
     Nothing -> return $ case to of
         Left to -> PSignal.signal [(start, to)]
@@ -87,13 +87,13 @@ make_segment_from curve start maybe_from end to = case maybe_from of
         (resolve_pitch_transpose from to)
 
 make_segment :: Curve -> RealTime -> PSignal.Pitch -> RealTime
-    -> PSignal.Pitch -> Derive.Deriver PSignal.Signal
+    -> PSignal.Pitch -> Derive.Deriver PSignal.PSignal
 make_segment = make_segment_ True True
     -- I always set include_initial.  It might be redundant, but if the
     -- previous call was sliced off, it won't be.
 
 make_segment_ :: Bool -> Bool -> Curve -> RealTime -> PSignal.Pitch
-    -> RealTime -> PSignal.Pitch -> Derive.Deriver PSignal.Signal
+    -> RealTime -> PSignal.Pitch -> Derive.Deriver PSignal.PSignal
 make_segment_ include_initial include_end f x1 y1 x2 y2 = do
     srate <- Call.get_srate
     return $ segment srate include_initial include_end f x1 y1 x2 y2
@@ -101,7 +101,7 @@ make_segment_ include_initial include_end f x1 y1 x2 y2 = do
 type Interpolate = Bool -- ^ include the initial sample or not
     -> RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
     -- ^ start -> starty -> end -> endy
-    -> PSignal.Signal
+    -> PSignal.PSignal
 
 -- | This defaults some arguments to 'segment' so its more convenient to pass
 -- around as a standalone creator of segments.
@@ -113,7 +113,7 @@ interpolate_segment srate f include_initial =
 segment :: SRate -> Bool -- ^ include the initial sample
     -> Bool -- ^ add a sample at end time if one doesn't naturally land there
     -> Curve -> RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
-    -> PSignal.Signal
+    -> PSignal.PSignal
 segment srate include_initial include_end f x1 y1 x2 y2 =
     PSignal.unfoldr go $
         (if include_initial then id else drop 1) (Seq.range_ x1 srate)
@@ -129,6 +129,6 @@ segment srate include_initial include_end f x1 y1 x2 y2 =
 -- * breakpoints
 
 -- | Create line segments between the given breakpoints.
-breakpoints :: SRate -> Curve -> [(RealTime, PSignal.Pitch)] -> PSignal.Signal
+breakpoints :: SRate -> Curve -> [(RealTime, PSignal.Pitch)] -> PSignal.PSignal
 breakpoints srate f =
     ControlUtil.signal_breakpoints PSignal.signal (segment srate True False f)

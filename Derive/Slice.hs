@@ -36,7 +36,6 @@ module Derive.Slice (
     , slice_notes
 #endif
 ) where
-import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text

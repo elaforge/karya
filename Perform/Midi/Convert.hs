@@ -210,7 +210,7 @@ convert_dynamic pressure controls dyn_function =
         _ -> Nothing
 
 convert_pitch :: Maybe Instrument.PatchScale -> Env.Environ
-    -> Score.ControlMap -> PSignal.Signal -> ConvertT Signal.NoteNumber
+    -> Score.ControlMap -> PSignal.PSignal -> ConvertT Signal.NoteNumber
 convert_pitch scale env controls psig = do
     let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $
             PSignal.apply_environ env psig

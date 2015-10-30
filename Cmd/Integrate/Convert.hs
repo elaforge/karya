@@ -228,7 +228,7 @@ align_signal start sig = case Signal.unsignal (Signal.drop_before start sig) of
     [] -> []
     (_, y) : xs -> (start, y) : xs
 
-align_pitch_signal :: Signal.X -> PSignal.Signal -> [(Signal.X, PSignal.Pitch)]
+align_pitch_signal :: Signal.X -> PSignal.PSignal -> [(Signal.X, PSignal.Pitch)]
 align_pitch_signal start sig =
     case PSignal.unsignal (PSignal.drop_before start sig) of
         [] -> []

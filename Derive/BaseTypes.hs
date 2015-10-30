@@ -30,7 +30,7 @@
     >           numbers                   pitches                 both
     > scalar    Signal.Y                  PSignal.Y
     > name      Score.Control             Score.PControl
-    > signal    Signal.Control            PSignal.Signal
+    > signal    Signal.Control            PSignal.PSignal
     > ref       TrackLang.ControlRef      TrackLang.PControlRef   Ref
 -}
 module Derive.BaseTypes where
@@ -68,20 +68,20 @@ import Types
 
 -- | A pitch signal is similar to a 'Signal.Control', except that its values
 -- are 'Pitch'es instead of plain floating point values.
-newtype Signal = Signal { sig_vec :: TimeVector.Boxed Pitch }
+newtype PSignal = PSignal { sig_vec :: TimeVector.Boxed Pitch }
     deriving (Show, Pretty.Pretty)
 
-instance Monoid.Monoid Signal where
-    mempty = Signal mempty
+instance Monoid.Monoid PSignal where
+    mempty = PSignal mempty
     mappend s1 s2
         | TimeVector.null (sig_vec s1) = s2
         | TimeVector.null (sig_vec s2) = s1
         | otherwise = Monoid.mconcat [s1, s2]
     mconcat [] = mempty
-    mconcat sigs = Signal (TimeVector.merge (map sig_vec sigs))
+    mconcat sigs = PSignal (TimeVector.merge (map sig_vec sigs))
 
-instance DeepSeq.NFData Signal where
-    rnf (Signal vec) = vec `seq` ()
+instance DeepSeq.NFData PSignal where
+    rnf (PSignal vec) = vec `seq` ()
 
 -- | This is an untransposed pitch.  All pitches have transposition signals
 -- from the dynamic state applied when they are converted to MIDI or whatever
@@ -156,7 +156,7 @@ instance Monoid.Monoid PitchConfig where
     mappend (PitchConfig env1 c1) (PitchConfig env2 c2) =
         PitchConfig (env1 <> env2) (Map.unionWith (+) c1 c2)
 
--- | Signal can't take a Scale because that would be a circular import.
+-- | PSignal can't take a Scale because that would be a circular import.
 -- Fortunately it only needs a few fields.  However, because of the
 -- circularity, the Scale.Scale -> PSignal.Scale constructor is in
 -- "Derive.Derive".
@@ -438,7 +438,7 @@ data Ref control val =
     deriving (Eq, Read, Show)
 
 type ControlRef = Ref ScoreTypes.Control ScoreTypes.TypedControl
-type PControlRef = Ref ScoreTypes.PControl Signal
+type PControlRef = Ref ScoreTypes.PControl PSignal
 
 instance (Serialize.Serialize val, Serialize.Serialize control) =>
         Serialize.Serialize (Ref control val) where
@@ -535,7 +535,7 @@ instance DeepSeq.NFData Term where
 
 type ControlMap = Map.Map ScoreTypes.Control ScoreTypes.TypedControl
 type ControlFunctionMap = Map.Map ScoreTypes.Control ControlFunction
-type PitchMap = Map.Map ScoreTypes.PControl Signal
+type PitchMap = Map.Map ScoreTypes.PControl PSignal
 
 -- * ControlFunction
 
@@ -610,7 +610,7 @@ data Dynamic = Dynamic {
     dyn_controls :: !ControlMap
     , dyn_control_functions :: !ControlFunctionMap
     , dyn_pitches :: !PitchMap
-    , dyn_pitch :: !Signal
+    , dyn_pitch :: !PSignal
     , dyn_environ :: !Environ
     , dyn_warp :: !ScoreTypes.Warp
     , dyn_ruler :: Ruler.Marklists -- intentionally lazy

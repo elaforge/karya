@@ -667,7 +667,7 @@ nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
 nn_at pos = justm (pitch_at pos) $ \pitch ->
     logged_pitch_nn ("nn " <> pretty pos) =<< resolve_pitch pos pitch
 
-get_pitch :: Score.PControl -> Deriver (Maybe PSignal.Signal)
+get_pitch :: Score.PControl -> Deriver (Maybe PSignal.PSignal)
 get_pitch name
     | name == Score.default_pitch = Just <$> Internal.get_dynamic state_pitch
     | otherwise = Map.lookup name <$> Internal.get_dynamic state_pitches
@@ -691,21 +691,21 @@ logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
 -- *** with signal
 
 -- | Run the deriver in a context with the given pitch signal.
-with_merged_pitch :: Merger PSignal.Signal -> Score.PControl
-    -> PSignal.Signal -> Deriver a -> Deriver a
+with_merged_pitch :: Merger PSignal.PSignal -> Score.PControl
+    -> PSignal.PSignal -> Deriver a -> Deriver a
 with_merged_pitch merger name signal deriver = do
     modify_pitch name (\old -> apply_pitch_merger merger old signal) deriver
 
-resolve_pitch_merge :: Merge PSignal.Signal -> Merger PSignal.Signal
+resolve_pitch_merge :: Merge PSignal.PSignal -> Merger PSignal.PSignal
 resolve_pitch_merge DefaultMerge = Set
 resolve_pitch_merge (Merge merger) = merger
 
-get_pitch_merger :: BaseTypes.CallId -> Deriver (Merger PSignal.Signal)
+get_pitch_merger :: BaseTypes.CallId -> Deriver (Merger PSignal.PSignal)
 get_pitch_merger name = do
     mergers <- gets (state_pitch_mergers . state_constant)
     require ("unknown pitch merger: " <> showt name) (Map.lookup name mergers)
 
-with_pitch :: PSignal.Signal -> Deriver a -> Deriver a
+with_pitch :: PSignal.PSignal -> Deriver a -> Deriver a
 with_pitch = with_merged_pitch Set Score.default_pitch
 
 with_constant_pitch :: PSignal.Pitch -> Deriver a -> Deriver a
@@ -714,7 +714,7 @@ with_constant_pitch = with_pitch . PSignal.constant
 remove_pitch :: Deriver a -> Deriver a
 remove_pitch = modify_pitch Score.default_pitch (const mempty)
 
-modify_pitch :: Score.PControl -> (Maybe PSignal.Signal -> PSignal.Signal)
+modify_pitch :: Score.PControl -> (Maybe PSignal.PSignal -> PSignal.PSignal)
     -> Deriver a -> Deriver a
 modify_pitch pcontrol f
     | pcontrol == Score.default_pitch = Internal.local $ \state ->
@@ -722,8 +722,8 @@ modify_pitch pcontrol f
     | otherwise = Internal.local $ \state -> state
         { state_pitches = Map.alter (Just . f) pcontrol (state_pitches state) }
 
-apply_pitch_merger :: Merger PSignal.Signal -> Maybe PSignal.Signal
-    -> PSignal.Signal -> PSignal.Signal
+apply_pitch_merger :: Merger PSignal.PSignal -> Maybe PSignal.PSignal
+    -> PSignal.PSignal -> PSignal.PSignal
 apply_pitch_merger _ Nothing new = new
 apply_pitch_merger Set (Just _) new = new
 apply_pitch_merger (Merger _ merger _) (Just old) new = merger old new

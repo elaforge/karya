@@ -284,7 +284,7 @@ class (Show d, Taggable d) => Callable d where
 -- in all its untagged glory based on the type of the call, but ValCalls can
 -- occur with all the different types, so they need a tagged 'ctx_prev_val'.
 data Tagged = TagEvent Score.Event | TagControl Signal.Control
-    | TagPitch PSignal.Signal
+    | TagPitch PSignal.PSignal
     deriving (Show)
 
 instance Pretty.Pretty Tagged where
@@ -339,8 +339,8 @@ instance Callable Signal.Control where
 
 -- ** pitch
 
-type Pitch = PSignal.Signal
-type PitchDeriver = Deriver (Stream.Stream PSignal.Signal)
+type Pitch = PSignal.PSignal
+type PitchDeriver = Deriver (Stream.Stream PSignal.PSignal)
 type PitchArgs = PassedArgs Pitch
 
 instance Taggable Pitch where
@@ -348,7 +348,7 @@ instance Taggable Pitch where
     from_tagged (TagPitch a) = Just a
     from_tagged _ = Nothing
 
-instance Callable PSignal.Signal where
+instance Callable PSignal.PSignal where
     lookup_generator = lookup_with (scope_pitch . scopes_generator)
     lookup_transformer = lookup_with (scope_pitch . scopes_transformer)
     callable_name _ = "pitch"
@@ -413,7 +413,7 @@ data Dynamic = Dynamic {
     -- that's applied to notes by default.  It's split off from 'state_pitches'
     -- because it's convenient to guarentee that the main pitch signal is
     -- always present.
-    , state_pitch :: !PSignal.Signal
+    , state_pitch :: !PSignal.PSignal
     , state_environ :: !BaseTypes.Environ
     , state_warp :: !Score.Warp
     -- | Calls currently in scope.
@@ -737,7 +737,8 @@ data Constant = Constant {
     state_ui :: !State.State
     , state_library :: !Library
     , state_mergers :: !(Map.Map BaseTypes.CallId (Merger Signal.Control))
-    , state_pitch_mergers :: !(Map.Map BaseTypes.CallId (Merger PSignal.Signal))
+    , state_pitch_mergers ::
+        !(Map.Map BaseTypes.CallId (Merger PSignal.PSignal))
     , state_lookup_scale :: !LookupScale
     -- | Get the calls and environ that should be in scope with a certain
     -- instrument.  The environ is merged with the environ in effect.
@@ -849,7 +850,7 @@ merge_sub = Merger "sub" Signal.sig_subtract (Signal.constant 0)
 merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
 merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
 
-pitch_mergers :: Map.Map BaseTypes.CallId (Merger PSignal.Signal)
+pitch_mergers :: Map.Map BaseTypes.CallId (Merger PSignal.PSignal)
 pitch_mergers = Map.fromList $ map to_pair
     [ Set, Merger "interleave" (flip PSignal.interleave) mempty
     ]
@@ -1415,7 +1416,7 @@ instance DeepSeq.NFData Cached where
 data CacheEntry =
     CachedEvents !(CallType Score.Event)
     | CachedControl !(CallType Signal.Control)
-    | CachedPitch !(CallType PSignal.Signal)
+    | CachedPitch !(CallType PSignal.PSignal)
 
 instance Pretty.Pretty CacheEntry where
     format (CachedEvents (CallType _ events)) = Pretty.format events

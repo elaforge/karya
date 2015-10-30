@@ -164,7 +164,7 @@ pitch_at pos control = case control of
     require = Derive.require ("ControlSignal pitch at " <> pretty pos)
         . PSignal.at pos
 
-to_psignal :: BaseTypes.PControlRef -> Derive.Deriver PSignal.Signal
+to_psignal :: BaseTypes.PControlRef -> Derive.Deriver PSignal.PSignal
 to_psignal control = case control of
     BaseTypes.ControlSignal sig -> return sig
     BaseTypes.DefaultedControl cont deflt ->

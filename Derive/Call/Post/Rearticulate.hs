@@ -63,8 +63,8 @@ slur srate curve event events = event
     dur = Score.event_end (fromMaybe event (Seq.last events))
         - Score.event_start event
 
-slur_pitch :: RealTime -> Curve -> PSignal.Signal -> [PSignal.Signal]
-    -> PSignal.Signal
+slur_pitch :: RealTime -> Curve -> PSignal.PSignal -> [PSignal.PSignal]
+    -> PSignal.PSignal
 slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
     where
     -- The transition should override the neighboring signals.
@@ -85,14 +85,14 @@ slur_pitch srate (curve, time) sig sigs = merge (sig : sigs) transitions
             end = min (mid x2 x3) (mid x1 x2 + time / 2)
         return $ PitchUtil.interpolate_segment srate curve False start y1 end y2
 
-bracket_pitch :: Score.Event -> PSignal.Signal
+bracket_pitch :: Score.Event -> PSignal.PSignal
 bracket_pitch event =
     bracket (Score.event_start event) (Score.event_end event) $
         Score.event_transformed_pitch event
 
 -- | Ensure there are samples at the start and end times.
 -- TODO move to Util.TimeVector?
-bracket :: RealTime -> RealTime -> PSignal.Signal -> PSignal.Signal
+bracket :: RealTime -> RealTime -> PSignal.PSignal -> PSignal.PSignal
 bracket start end = set_end . set_start . PSignal.within start end
     where
     set_start sig = case PSignal.head sig of

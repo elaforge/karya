@@ -32,7 +32,7 @@ test_apply_controls = do
     equal (f [(trans1, [(1, 1), (3, 3)]), (trans2, [(0, 0), (2, 2)])] [(1, 0)])
         [(0, Right 0), (1, Right 1), (2, Right 1), (3, Right 3)]
 
-mksignal :: [(RealTime, Pitch.NoteNumber)] -> PSignal.Signal
+mksignal :: [(RealTime, Pitch.NoteNumber)] -> PSignal.PSignal
 mksignal = PSignal.signal . map (second mkpitch)
 
 default_scale :: PSignal.Scale
@@ -54,7 +54,7 @@ trans1, trans2 :: Score.Control
 trans1 = "trans1"
 trans2 = "trans2"
 
-unsignal :: PSignal.Signal -> [(RealTime, Either String Pitch.NoteNumber)]
+unsignal :: PSignal.PSignal -> [(RealTime, Either String Pitch.NoteNumber)]
 unsignal = map (second (unerror . PSignal.pitch_nn . PSignal.coerce))
         . PSignal.unsignal
     where unerror = either (\(PSignal.PitchError s) -> Left (untxt s)) Right

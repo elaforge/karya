@@ -98,7 +98,7 @@ data Event = Event {
     , event_duration :: !RealTime
     , event_text :: !Text
     , event_untransformed_controls :: !ControlMap
-    , event_untransformed_pitch :: !PSignal.Signal
+    , event_untransformed_pitch :: !PSignal.PSignal
     -- | Named pitch signals.
     , event_untransformed_pitches :: !PitchMap
     -- | This is added to the untransformed controls on acces, so you can move
@@ -195,7 +195,7 @@ event_transformed_controls event =
     Map.map (fmap (Signal.shift (event_control_offset event)))
         (event_untransformed_controls event)
 
-event_transformed_pitch :: Event -> PSignal.Signal
+event_transformed_pitch :: Event -> PSignal.PSignal
 event_transformed_pitch event =
     PSignal.shift (event_control_offset event)
         (event_untransformed_pitch event)
@@ -431,10 +431,10 @@ event_controls_at t event = Map.map (typed_val . control_val_at event t)
 default_pitch :: PControl
 default_pitch = ""
 
-set_pitch :: PSignal.Signal -> Event -> Event
+set_pitch :: PSignal.PSignal -> Event -> Event
 set_pitch = set_named_pitch default_pitch
 
-set_named_pitch :: PControl -> PSignal.Signal -> Event -> Event
+set_named_pitch :: PControl -> PSignal.PSignal -> Event -> Event
 set_named_pitch pcontrol signal event
     | pcontrol == default_pitch = event
         { event_untransformed_pitch =
@@ -446,7 +446,7 @@ set_named_pitch pcontrol signal event
             (event_untransformed_pitches event)
         }
 
-event_pitch :: PControl -> Event -> Maybe PSignal.Signal
+event_pitch :: PControl -> Event -> Maybe PSignal.PSignal
 event_pitch pcontrol
     | pcontrol == default_pitch = Just . event_transformed_pitch
     | otherwise = Map.lookup pcontrol . event_transformed_pitches

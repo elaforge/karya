@@ -20,7 +20,6 @@ import qualified Data.Foldable as Foldable
 import qualified Data.Map as Map
 import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
-import qualified Data.Traversable as Traversable
 
 import qualified Util.Map as Map
 import qualified Util.ParseText as ParseText
@@ -290,7 +289,8 @@ get_from = State.gets state_from_pitch
 
 -- * sequence
 
-data Result = Result !(DList.DList PSignal.Signal) !(DList.DList Signal.Control)
+data Result =
+    Result !(DList.DList PSignal.PSignal) !(DList.DList Signal.Control)
     deriving (Show)
 
 instance Monoid.Monoid Result where
@@ -512,7 +512,7 @@ pcall_arg pcall arg
 
 data PCall = forall a. PCall {
     _pcall_signature :: Sig.Parser a
-    , _pcall_func :: a -> Context -> M State PSignal.Signal
+    , _pcall_func :: a -> Context -> M State PSignal.PSignal
     }
 
 pitch_call_map :: Map.Map Char [PitchCall]
@@ -765,14 +765,14 @@ pc_set_transition_time time = PCall Sig.no_args $ \() _ctx -> do
 
 -- ** util
 
-move_to :: Context -> PSignal.Pitch -> M State PSignal.Signal
+move_to :: Context -> PSignal.Pitch -> M State PSignal.PSignal
 move_to ctx pitch = do
     (start, end) <- ctx_range ctx
     from_pitch <- get_from
     move_pitch start from_pitch end pitch
 
 move_pitch :: RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
-    -> M State PSignal.Signal
+    -> M State PSignal.PSignal
 move_pitch start from_pitch end to_pitch = do
     Typecheck.Normalized transition <- State.gets state_transition
     let curve = snd ControlUtil.sigmoid_curve (1-transition, 1-transition)
