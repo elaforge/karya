@@ -10,7 +10,10 @@ import qualified Control.Monad.Error as Error
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
@@ -25,20 +28,22 @@ import qualified Derive.Stream as Stream
 
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.RealTime as RealTime
+import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
 
 note_calls :: Derive.CallMaps Derive.Note
-note_calls = Derive.call_maps
+note_calls = Derive.generator_call_map
     [ ("ap", c_ap)
     , ("t", c_tuplet)
     , ("tup", c_tuplet) -- longer name in case 't' is shadowed
     , ("`arp-up`", c_real_arpeggio ToRight)
     , ("`arp-down`", c_real_arpeggio ToLeft)
     , ("`arp-rnd`", c_real_arpeggio Random)
+    , ("interpolate", c_interpolate)
     ]
-    []
 
 
 c_ap :: Derive.Generator Derive.Note
@@ -215,3 +220,49 @@ arpeggio_by_note arp time deriver = do
     arpeggiated <- zipWith (Score.move_start 0) (Seq.range_ 0 time)
         <$> sort events
     return $ Stream.merge_logs logs $ Stream.from_sorted_events arpeggiated
+
+-- * interpolate
+
+c_interpolate :: Derive.Generator Derive.Note
+c_interpolate = Derive.generator Module.prelude "interpolate" Tags.subs
+    "Interpolate between multiple sub-tracks, each of which must have the\
+    \ same number of events. This interpolates rhythm only. To interpolate\
+    \ pitch and controls, it would need to work at the score event level,\
+    \ rather than ui events."
+    $ Sig.call (
+        Sig.defaulted "at" (Sig.control "at" 0) "interpolate position"
+    ) $ \at args -> do
+        at <- Call.to_function at
+        tracks <- filter (not . null) <$> Sub.sub_events args
+        unless (all_equal (map length tracks)) $
+            Derive.throw $ "sub tracks should have the same number of events: "
+                <> pretty (map length tracks)
+        to_real <- Derive.real_function
+        Sub.derive $ interpolate_tracks (at . to_real) (Seq.rotate tracks)
+
+interpolate_tracks :: (ScoreTime -> Signal.Y) -> [[Sub.Event]] -> [Sub.Event]
+interpolate_tracks at = mapMaybe interpolate1
+    where
+    interpolate1 events = interpolate_events (at start) events
+        where
+        start = sum (map Sub.event_start events) / fromIntegral (length events)
+
+interpolate_events :: Double -> [Sub.GenericEvent a]
+    -> Maybe (Sub.GenericEvent a)
+interpolate_events at events = case drop i events of
+    [] -> Seq.last events
+    [event] -> Just event
+    e1 : e2 : _ -> Just $ Sub.Event
+        { Sub.event_start =
+            interpolate (Sub.event_start e1) (Sub.event_start e2)
+        , Sub.event_duration =
+            interpolate (Sub.event_duration e1) (Sub.event_duration e2)
+        , Sub.event_note = Sub.event_note e1
+        }
+    where
+    (i, frac) = properFraction (at * fromIntegral (length events - 1))
+    interpolate x y = Num.scale x y (ScoreTime.double frac)
+
+all_equal :: Eq a => [a] -> Bool
+all_equal [] = True
+all_equal (x:xs) = all (==x) xs

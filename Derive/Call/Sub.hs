@@ -14,7 +14,7 @@ module Derive.Call.Sub (
     , place, stretch, at
     , sub_events, sub_events_end_bias
     , modify_notes
-    , derive, fit_to_range, events_range
+    , derive, derive_pitch, fit_to_range, events_range
     -- ** RestEvent
     , RestEvent, sub_rest_events
     , fit_rests, strip_rests
@@ -39,8 +39,10 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
+import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 
+import qualified Perform.Pitch as Pitch
 import Global
 import Types
 
@@ -300,6 +302,13 @@ modify_sub_tracks modify args = do
 -- | Derive and merge Events.
 derive :: [Event] -> Derive.NoteDeriver
 derive = mconcatMap (\(Event s d n) -> Derive.place s d n)
+
+-- | Get the pitch of an Event.  Useful for debugging.
+derive_pitch :: Event -> Derive.Deriver (GenericEvent (Maybe Pitch.Note))
+derive_pitch event = do
+    stream <- event_note event
+    let note = Score.initial_note =<< Seq.head (Stream.events_of stream)
+    return $ event { event_note = note }
 
 -- | Fit the given events into a time range.  Any leading space (time between
 -- the start of the range and the first Event) and trailing space is

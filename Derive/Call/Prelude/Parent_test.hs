@@ -6,8 +6,11 @@ module Derive.Call.Prelude.Parent_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Call.Prelude.Parent as Parent
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+
 import qualified Perform.Lilypond.LilypondTest as LilypondTest
 
 
@@ -143,3 +146,34 @@ test_slur_ly = do
     equal (run $ (">", [(0, 4, "(")]) : UiTest.note_track
         [(0, 1, "4a"), (1, 1, "4b"), (2, 1, "4c")])
         (Right "a'4( b'4 c'4) r4", [])
+
+test_interpolate = do
+    let run at = DeriveTest.extract DeriveTest.e_note $
+            DeriveTest.derive_tracks_setup (DeriveTest.with_skel skel) ""
+                [ ("at", at)
+                , (">", [(4, 4, "interpolate")])
+                , (">", [(4, 2, ""), (6, 1, "")])
+                , ("*", [(4, 0, "4c"), (6, 0, "4d")])
+                , (">", [(4, 1, ""), (7, 1, "")])
+                , ("*", [(4, 0, "4d"), (7, 0, "4e")])
+                ]
+            where skel = [(1, 2), (2, 3), (3, 4), (2, 5), (5, 6)]
+    equal (run [(4, 0, "0")]) ([(4, 2, "4c"), (6, 1, "4d")], [])
+    equal (run [(4, 0, ".5")]) ([(4, 1.5, "4c"), (6.5, 1, "4d")], [])
+    equal (run [(4, 0, "1")]) ([(4, 1, "4d"), (7, 1, "4e")], [])
+    equal (run [(4, 0, "0"), (6, 0, "1")]) ([(4, 2, "4c"), (7, 1, "4e")], [])
+
+test_interpolate_events = do
+    let f at = fmap unevent . Parent.interpolate_events at . map mkevent
+        mkevent (s, d, n) = Sub.Event s d n
+        unevent (Sub.Event s d n) = (s, d, n)
+        events = [(0, 1, 'a'), (1, 2, 'b'), (2, 3, 'c'), (3, 4, 'd')]
+    equal (f 0 (take 1 events)) $ Just (0, 1, 'a')
+    equal (f 1 (take 1 events)) $ Just (0, 1, 'a')
+    -- x-----x
+    equal (f 0.5 (take 2 events)) $ Just (0.5, 1.5, 'a')
+    -- x--x--x
+    equal (f 0.5 (take 3 events)) $ Just (1, 2, 'b')
+    -- x-x-x-x
+    equal (f 0.5 (take 4 events)) $ Just (1.5, 2.5, 'b')
+    equal (f 2 (take 4 events)) $ Just (3, 4, 'd')
