@@ -244,11 +244,17 @@ double :: Cmd.M m => m Modify
 double = modify_selected $ \meter -> Seq.rdrop 1 meter <> meter
     -- The final 0 duration mark should be replaced by the first mark.
 
+ldouble :: Cmd.CmdL [RulerId]
+ldouble = local double
+
 -- | Clip the meter to end at the selection.
 clip :: Cmd.M m => m Modify
 clip = do
     (_, _, _, pos) <- Selection.get_insert
     modify_selected $ Meter.clip 0 (Meter.time_to_duration pos)
+
+lclip :: Cmd.CmdL [RulerId]
+lclip = local clip
 
 -- | Copy the meter under the selection and append it to the end of the ruler.
 append :: Cmd.M m => m Modify

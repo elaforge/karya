@@ -120,10 +120,14 @@ UNSORTED
   - shakefile: use cabal sandbox, if one is present
     . If there is a .cabal-sandbox, pass -no-user-package-db
       -package-db .cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d/
+    . Use Shake.Util.sandboxPackageDb
     - Figure out how to get GHC API to read from sandbox.  Probably have to
       put the same flags into build/*/ghci-flags
       . This is the same thing that 'cabal repl' does.
-  - Convert_test.test_convert is not lazy if the instrument is not found
+  / Perform.Midi.Convert_test.test_convert is not lazy if the instrument is
+    not found.
+    . Actually it is, I think the problem is when all insts are not found,
+      then of course the output is [].
   - Integrate_test.test_block_integrate is flaky, sometimes I get:
     __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
     ((bid "test/b2"),
@@ -599,9 +603,9 @@ lilypond:
     . On the other hand, I think I want to encourage nestedness and it should
       be easy to split.  The only reason viola-sonata has huge blocks is that
       it's a midi import.
-  - Derive.Call.Lily needs a naming refactor since there are too many vaguely
+  / Derive.Call.Lily needs a naming refactor since there are too many vaguely
     named flavours.
-  - I need some way to hide rests.
+  / I need some way to hide rests.
     Add magic bit of code that turns its rest r4 into s4.
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
@@ -782,12 +786,15 @@ cleanup:
 
 performance:
   - find space leaks with nmitchell's stack limit technique:
+    . run build/profile/verify_performance +RTS -K975K -xc -RTS --mode=Profile
+        p/cerucuk-punyah.state
       Derive.LEvent.events_of,
       called from Derive.Stream.zip3_on.\,
       called from Derive.Stream.emap,
       called from Derive.Stream.zip3_on,
     . Also, what's with the compile_library stuff in the middle?  Should
       I make it stricter?
+    . Giving up for the moment since I don't understand the output.
   . Seq.sort_on winds up calling compare on Stack 13374153 times! 9.1% time
     I have to sort it because the stack is kept in reverse order.
     * Why is TrackWarp.run_collections run twice?
