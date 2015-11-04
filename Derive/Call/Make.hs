@@ -53,7 +53,8 @@ environ_note module_ name tags doc key val =
 control_note :: Module.Module -> Text -> Score.Control -> Signal.Y
     -> Calls Derive.Note
 control_note module_ name control val = transform_notes module_ name mempty
-    ("Note with `" <> pretty control <> " = " <> ShowVal.show_val val <> "`.")
+    ("Note with `" <> ShowVal.show_val control <> " = "
+        <> ShowVal.show_val val <> "`.")
     Sig.no_args $ \() ->
         Derive.with_constant_control control (Score.untyped val)
 

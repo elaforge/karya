@@ -49,8 +49,8 @@ newtype Control = Control Text
 control_name :: Control -> Text
 control_name (Control name) = name
 
-instance Pretty.Pretty Control where pretty = Text.cons '%' . ShowVal.show_val
-instance ShowVal.ShowVal Control where show_val (Control c) = c
+instance Pretty.Pretty Control where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Control where show_val (Control c) = Text.cons '%' c
 
 -- | The pitch control version of 'Control'.  Unlike Control, this is allowed
 -- to be null, which is the name of the default pitch signal.
@@ -66,8 +66,7 @@ pcontrol_name :: PControl -> Text
 pcontrol_name (PControl name) = name
 
 instance Pretty.Pretty PControl where pretty = ShowVal.show_val
-instance ShowVal.ShowVal PControl where
-    show_val (PControl c) = Text.cons '#' c
+instance ShowVal.ShowVal PControl where show_val (PControl c) = Text.cons '#' c
 
 -- ** Warp
 

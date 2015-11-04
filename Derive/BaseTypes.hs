@@ -457,9 +457,8 @@ instance (Serialize.Serialize val, Serialize.Serialize control) =>
 -- arbitrary signal.  Non-constant signals will turn into a constant of
 -- whatever was at 0.
 instance ShowVal.ShowVal ControlRef where
-    show_val = show_control '%' name_of $ \(ScoreTypes.Typed typ sig) ->
+    show_val = show_control $ \(ScoreTypes.Typed typ sig) ->
         ShowVal.show_val (Signal.at 0 sig) <> ScoreTypes.type_to_code typ
-        where name_of (ScoreTypes.Control name) = name
 
 instance Pretty.Pretty ControlRef where pretty = ShowVal.show_val
 
@@ -471,19 +470,18 @@ instance Pretty.Pretty ControlRef where pretty = ShowVal.show_val
 -- accurately since it doesn't take things like pitch interpolation into
 -- account.
 instance ShowVal.ShowVal PControlRef where
-    show_val = show_control '#' name_of
+    show_val = show_control
         (maybe "<none>" ShowVal.show_val . TimeVector.at 0 . sig_vec)
-        where name_of (ScoreTypes.PControl name) = name
 
 instance Pretty.Pretty PControlRef where pretty = ShowVal.show_val
 
-show_control :: Char -> (control -> Text) -> (sig -> Text)
-    -> Ref control sig -> Text
-show_control prefix control_name sig_text control = case control of
+show_control :: ShowVal.ShowVal control => (sig -> Text) -> Ref control sig
+    -> Text
+show_control sig_text control = case control of
     ControlSignal sig -> sig_text sig
-    DefaultedControl cont deflt -> mconcat
-        [Text.singleton prefix, control_name cont, ",", sig_text deflt]
-    LiteralControl cont -> Text.cons prefix (control_name cont)
+    DefaultedControl control deflt ->
+        ShowVal.show_val control <> "," <> sig_text deflt
+    LiteralControl control -> ShowVal.show_val control
 
 -- ** Call
 
