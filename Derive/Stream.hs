@@ -103,7 +103,7 @@ instance Monoid.Monoid (Stream Signal.Control) where
     mempty = empty
     mappend s1 s2 = from_sorted_list (to_list s1 <> to_list s2)
 
-instance Monoid.Monoid (Stream PSignal.Signal) where
+instance Monoid.Monoid (Stream PSignal.PSignal) where
     mempty = empty
     mappend s1 s2 = from_sorted_list (to_list s1 <> to_list s2)
 
