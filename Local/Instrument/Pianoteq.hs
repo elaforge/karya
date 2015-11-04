@@ -6,6 +6,8 @@
 module Local.Instrument.Pianoteq where
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Module as Module
 import qualified Derive.Controls as Controls
 import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Score as Score
@@ -36,14 +38,27 @@ patches :: [MidiInst.Patch]
 patches =
     [ (patch "pasang" [], Bali.pasang_code)
     , (MidiInst.nn_range (NN.g2, NN.a6) $ patch "yangqin" [], mempty)
-    , (patch "harp" harp_controls, mempty)
+    , harp_patch
     ]
+
+-- | TODO harp rings by default until explicitly damped.  How can I best
+-- represent that?
+harp_patch :: MidiInst.Patch
+harp_patch = MidiInst.with_code code $ patch "harp" controls
     where
-    harp_controls =
+    controls =
         [ (67, "gliss")
-        , (69, "harmonic")
-        , (66, "lute")
+        , (69, harmonic)
+        , (66, lute)
         ]
+    code :: MidiInst.Code
+    code = MidiInst.note_calls
+        [ MidiInst.both "o" $ Make.control_note Module.instrument "o" harmonic 1
+        , MidiInst.both "m" $ Make.control_note Module.instrument "m" lute 1
+        ]
+    -- TODO add diatonic gliss call, like zheng
+    harmonic = "harmonic"
+    lute = "lute"
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
     -> Instrument.Patch

@@ -523,6 +523,11 @@ state_controls_at pos ruler dyn =
 with_control :: Score.Control -> Score.TypedControl -> Deriver a -> Deriver a
 with_control control signal = with_controls [(control, signal)]
 
+with_constant_control :: Score.Control -> Score.Typed Signal.Y -> Deriver a
+    -> Deriver a
+with_constant_control control val =
+    with_control control (Signal.constant <$> val)
+
 with_controls :: [(Score.Control, Score.TypedControl)] -> Deriver a -> Deriver a
 with_controls controls = Internal.local $ \state -> state
     { state_controls = Util.Map.insert_list controls (state_controls state) }

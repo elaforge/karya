@@ -18,6 +18,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Signal as Signal
 import Global
 
 
@@ -34,17 +35,27 @@ call_maps calls generators transformers =
     gs = zip (map fst calls) (map (fst . snd) calls)
     ts = zip (map fst calls) (map (snd . snd) calls)
 
+-- | This is a specialization of 'transform_notes' that adds Attributes.
 attributed_note :: Module.Module -> Score.Attributes -> Calls Derive.Note
 attributed_note module_ attrs = transform_notes module_
     ("note with " <> ShowVal.show_val attrs) Tags.attr
     "Add attributes to the notes." Sig.no_args (\() -> Call.add_attrs attrs)
 
+-- | This is a specialization of 'transform_notes' that sets an environ value.
 environ_note :: (Typecheck.Typecheck a, Typecheck.ToVal a) =>
     Module.Module -> Text -> Tags.Tags -> Text -> Env.Key -> a
     -> Calls Derive.Note
 environ_note module_ name tags doc key val =
     transform_notes module_ name tags doc Sig.no_args $
         \() -> Derive.with_val key val
+
+-- | This is a specialization of 'transform_notes' that sets a control.
+control_note :: Module.Module -> Text -> Score.Control -> Signal.Y
+    -> Calls Derive.Note
+control_note module_ name control val = transform_notes module_ name mempty
+    ("Note with `" <> pretty control <> " = " <> ShowVal.show_val val <> "`.")
+    Sig.no_args $ \() ->
+        Derive.with_constant_control control (Score.untyped val)
 
 -- | The generator either derives subs or derives a new Call.note if there are
 -- no subs, and then applies the transform.  The transformer call just applies
