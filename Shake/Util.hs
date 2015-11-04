@@ -18,7 +18,6 @@ import Control.Monad
 import Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
-import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO

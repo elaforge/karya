@@ -117,11 +117,11 @@ UNSORTED
       mapping each with a Pitches.interpolated of both.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
-  - shakefile: use cabal sandbox, if one is present
+  * shakefile: use cabal sandbox, if one is present
     . If there is a .cabal-sandbox, pass -no-user-package-db
       -package-db .cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d/
     . Use Shake.Util.sandboxPackageDb
-    - Figure out how to get GHC API to read from sandbox.  Probably have to
+    * Figure out how to get GHC API to read from sandbox.  Probably have to
       put the same flags into build/*/ghci-flags
       . This is the same thing that 'cabal repl' does.
   / Perform.Midi.Convert_test.test_convert is not lazy if the instrument is
@@ -300,7 +300,6 @@ UNSORTED
         - In a janya raga certain notes may be missing, and I should be able
           to skip them.
         - Also ragams with narrow intervals, e.g. mayamalavagoula sr
-      - I need high ma, high ri etc.
       . I'm not yet sure how to handle dynamics.  If I do a scale merge, then
         I can have the dyn calls have defaults around 0, e.g. > is 0 to -1,
         and => is 1 to 0, or .5 to 0.  Experiment more before I decide if this
@@ -1173,7 +1172,7 @@ midi record:
 REPL: repl:
   - bug: repl: SaveFileChanged
     repl: thread blocked indefinitely in an MVar operation
-  - If there are ambiguous packages exposed, e.g. both
+  / If there are ambiguous packages exposed, e.g. both
     regex-pcre-builtin (wrong) and regex-pcre (right), then the repl will
     show 'Exception: Cannot add module Cmd.Repl.Environ to context: not a home'
     Presumably it gets confused because I don't put the -package-id and

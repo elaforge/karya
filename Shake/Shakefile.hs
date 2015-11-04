@@ -60,6 +60,63 @@ useEkg = True
 useEventLog :: Bool
 useEventLog = False
 
+-- ** packages
+
+-- | This is the big list of packages that should make everyone happy.
+allPackages :: [Package]
+allPackages = map fst globalPackages
+
+-- | This is used to create karya.cabal and supply -package arguments to ghc.
+globalPackages :: [(Package, String)]
+globalPackages = concat $
+    -- really basic deps
+    [ [("base", ">=4.6"), ("containers", ">=0.5")]
+    , w "directory filepath process bytestring time unix array pretty"
+    , w "ghc-prim old-locale"
+    --  basic
+    , w "transformers mtl deepseq data-ordlist cereal text stm network"
+    , w "vector utf8-string semigroups"
+    , [("extra", ">=1.3")]
+    , w "attoparsec" -- Derive: tracklang parsing
+    -- shakefile
+    , w "Cabal"
+    , [("shake", ">=0.13"), ("binary", "")]
+    -- Derive: score randomization
+    , w "mersenne-random-pure64 digest random-shuffle"
+    , w "dlist" -- Util.TimeVector
+    , w "hlibgit2"
+    , [("fclabels", ">=2")]
+    , [("ghc", ">=7.6.1")] -- REPL
+    , w "ghc-paths haskeline terminfo" -- REPL
+    -- Instrument.Parse, could use attoparsec, but parsec errors are better
+    , w "parsec"
+    , w "haskell-src" -- Util.PPrint
+    , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")]
+    , [("Diff", ">=0.2")] -- Util.Test
+    , w "QuickCheck" -- Derive.DeriveQuickCheck
+    , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
+    , w "hashable zlib"
+    , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
+
+    , w "aeson" -- serialize and unserialize log msgs
+    , w "wcwidth" -- used by Util.Format
+    ]
+    where w = map (\p -> (p, "")) . words
+
+-- | This is a hack so I can add packages that aren't in 'globalPackages'.
+-- This is for packages with tons of dependencies that I usually don't need.
+extraPackagesFor :: FilePath -> [Package]
+extraPackagesFor obj
+    | (criterionHsSuffix <> ".o") `List.isSuffixOf` obj = ["criterion"]
+    | otherwise = []
+
+-- | Ack.  Haddock needs all packages, but it's not convenient to call
+-- 'extraPackagesFor' with everything.
+extraPackages :: [Package]
+extraPackages = ["criterion"]
+
+-- * config implementation
+
 -- Static constants.
 build :: FilePath
 build = "build"
@@ -92,13 +149,11 @@ data Config = Config {
     , ghcVersion :: String
     } deriving (Show)
 
-packageFlags :: [Package] -> [Flag]
-packageFlags packages = "-hide-all-packages" : map ("-package="++) packages
-
 -- | Root of .o and .hi hierarchy.
 oDir :: Config -> FilePath
 oDir = (</> "obj") . buildDir
 
+-- | Root for generated documentation.
 docDir :: FilePath
 docDir = build </> "doc"
 
@@ -133,14 +188,16 @@ data Flags = Flags {
     , hLinkFlags :: [Flag]
     -- | Flags needed only by ghci.
     , ghciFlags :: [Flag]
+    -- | Package DB flags to use a cabal sandbox, if there is one.
+    , sandboxFlags :: [Flag]
     } deriving (Show)
 
 instance Monoid.Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] [] []
-    mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1)
-            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2) =
+    mempty = Flags [] [] [] [] [] [] [] [] [] []
+    mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1)
+            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
-            (h1<>h2) (i1<>i2)
+            (h1<>h2) (i1<>i2) (j1<>j2)
 
 -- * binaries
 
@@ -242,61 +299,8 @@ hsToCc = Map.fromList $
         | hsc <- ["Ui/BlockC.hsc", "Ui/RulerC.hsc", "Ui/StyleC.hsc",
             "Ui/SymbolC.hsc", "Ui/TrackC.hsc", "Ui/UiMsgC.hsc"]]
 
--- | This is the big list of packages that should make everyone happy.
-allPackages :: [Package]
-allPackages = map fst globalPackages
-
--- | This is used to create karya.cabal and supply -package arguments to ghc.
-globalPackages :: [(Package, String)]
-globalPackages = concat $
-    -- really basic deps
-    [ [("base", ">=4.6"), ("containers", ">=0.5")]
-    , w "directory filepath process bytestring time unix array pretty"
-    , w "ghc-prim old-locale"
-    --  basic
-    , w "transformers mtl deepseq data-ordlist cereal text stm network"
-    , w "vector utf8-string semigroups"
-    , [("extra", ">=1.3")]
-    , w "attoparsec" -- Derive: tracklang parsing
-    -- shakefile
-    , w "Cabal"
-    , [("shake", ">=0.13"), ("binary", "")]
-    -- Derive: score randomization
-    , w "mersenne-random-pure64 digest random-shuffle"
-    , w "dlist" -- Util.TimeVector
-    , w "hlibgit2"
-    , [("fclabels", ">=2")]
-    , [("ghc", ">=7.6.1")] -- REPL
-    , w "ghc-paths haskeline terminfo" -- REPL
-    -- Instrument.Parse, could use attoparsec, but parsec errors are better
-    , w "parsec"
-    , w "haskell-src" -- Util.PPrint
-    , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")]
-    , [("Diff", ">=0.2")] -- Util.Test
-    , w "QuickCheck" -- Derive.DeriveQuickCheck
-    , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
-    , w "hashable zlib"
-    , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
-
-    , w "aeson" -- serialize and unserialize log msgs
-    , w "wcwidth" -- used by Util.Format
-    ]
-    where w = map (\p -> (p, "")) . words
-
--- | This is a hack so I can add packages that aren't in 'globalPackages'.
--- This is for packages with tons of dependencies that I usually don't need.
-extraPackagesFor :: FilePath -> [Package]
-extraPackagesFor obj
-    | (criterionHsSuffix <> ".o") `List.isSuffixOf` obj = ["criterion"]
-    | otherwise = []
-
 criterionHsSuffix :: FilePath
 criterionHsSuffix = "_criterion.hs"
-
--- | Ack.  Haddock needs all packages, but it's not convenient to call
--- 'extraPackagesFor' with everything.
-extraPackages :: [Package]
-extraPackages = ["criterion"]
 
 -- ** cc
 
@@ -388,6 +392,7 @@ configure midi = do
     fltkLds <- words <$> run fltkConfig ["--ldflags"]
     fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
     let ghcVersion = parseGhcVersion ghcLib
+    sandbox <- Util.sandboxPackageDb
     return $ \mode -> Config
         { buildDir = modeToDir mode
         , hscDir = build </> "hsc"
@@ -395,11 +400,11 @@ configure midi = do
         , fltkVersion = fltkVersion
         , midiConfig = midi
         , configFlags = setCcFlags $
-            setConfigFlags fltkCs fltkLds mode osFlags ghcVersion
+            setConfigFlags sandbox fltkCs fltkLds mode ghcVersion osFlags
         , ghcVersion = ghcVersion
         }
     where
-    setConfigFlags fltkCs fltkLds mode flags ghcVersion = flags
+    setConfigFlags sandbox fltkCs fltkLds mode ghcVersion flags = flags
         { define = define osFlags
             ++ ["-DTESTING" | mode `elem` [Test, Profile]]
             ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
@@ -434,7 +439,11 @@ configure midi = do
         -- these only apply to loading the modules for the main app.  But
         -- that's where I care most about load time.
         , ghciFlags = libs
+        , sandboxFlags = case sandbox of
+            Nothing -> []
+            Just path -> ["-no-user-package-db", "-package-db", path]
         }
+        where
     setCcFlags flags = flags
         { ccFlags =
             -- Always compile c++ with optimization because I don't have much
@@ -469,6 +478,10 @@ configure midi = do
             }
         _ -> mempty -- Use the stub driver.
     run cmd args = Process.readProcess cmd args ""
+
+packageFlags :: Flags -> [Package] -> [Flag]
+packageFlags flags packages =
+    sandboxFlags flags ++ "-hide-all-packages" : map ("-package="++) packages
 
 -- | Parse the GHC version out of the @ghc --print-libdir@ path.  The format is
 -- \"71002\" for \"7.10.2\".  This way it can be compared as a number by CPP.
@@ -516,7 +529,8 @@ main = withLockedDatabase $ do
         hspp %> \fn -> do
             -- But I need to mark hspp's deps so it will rebuild.
             need =<< HsDeps.transitiveImportsOf (const Nothing) "Util/Hspp.hs"
-            Util.cmdline $ makeHs (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
+            Util.cmdline $ makeHs (configFlags (modeConfig Opt))
+                (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
         matchObj "fltk/fltk.a" ?> \fn -> do
             let config = infer fn
             need (fltkDeps config)
@@ -771,7 +785,8 @@ makeHaddock config = do
         , "-o", build </> "haddock"
         ] ++ map ("-i"++) interfaces
         ++ ["--optghc=" ++ flag | flag <- define flags ++ cInclude flags
-            ++ ghcLanguageFlags ++ packageFlags (packages ++ extraPackages)]
+            ++ ghcLanguageFlags
+            ++ packageFlags flags (packages ++ extraPackages)]
         ++ hs ++ map (hscToHs (hscDir config)) hscs
 
 -- | Get paths to haddock interface files for all the packages.
@@ -823,10 +838,10 @@ makeKaryaCabal fn = do
 
 -- ** hs
 
-makeHs :: FilePath -> FilePath -> FilePath -> Util.Cmdline
-makeHs dir out main = ("GHC-MAKE", out, cmdline)
+makeHs :: Flags -> FilePath -> FilePath -> FilePath -> Util.Cmdline
+makeHs flags dir out main = ("GHC-MAKE", out, cmdline)
     where
-    cmdline = ghcBinary : packageFlags allPackages
+    cmdline = ghcBinary : packageFlags flags allPackages
         ++ [ "--make", "-outputdir", dir, "-O2", "-o", out
         , "-main-is", pathToModule main, main
         ]
@@ -908,15 +923,16 @@ runCriterionToSrc config bin = moduleToPath name ++ criterionHsSuffix
 -- | Derive/Derive_criterion.hs -> build/(mode)/RunCriterion-Derive.Derive
 srcToRunCriterion :: Config -> FilePath -> FilePath
 srcToRunCriterion config src =
-    case dropSuffix (pathToModule src) "_criterion" of
+    case dropSuffix (pathToModule src) suffix of
         Just m -> buildDir config </> "RunCriterion-" <> m
         Nothing -> error $
-            "srcToRunCriterion: expected _criterion suffix: " ++ show src
+            "srcToRunCriterion: expected " <> suffix <> " suffix: " <> show src
+    where suffix = dropExtension criterionHsSuffix
 
 -- | Find targets for all criterion benchmarks.
 getCriterionTargets :: Config -> Shake.Action [FilePath]
 getCriterionTargets config =
-    map (srcToRunCriterion config) <$> Util.findHs "*_criterion.hs" "."
+    map (srcToRunCriterion config) <$> Util.findHs ('*' : criterionHsSuffix) "."
 
 -- | Match any filename that starts with the given prefix but doesn't have
 -- an extension, i.e. binaries.
@@ -984,8 +1000,11 @@ compileHs :: [Package] -> Maybe Mode -> Config -> FilePath -> Util.Cmdline
 compileHs packages mode config hs =
     ( "GHC" ++ maybe "" (('-':) . show) mode
     , hs
-    , [ghcBinary, "-c"] ++ ghcFlags config ++ hcFlags (configFlags config)
-        ++ packageFlags packages ++ mainIs ++ [hs, "-o", srcToObj config hs]
+    , ghcBinary : "-c" : concat
+        [ ghcFlags config, hcFlags (configFlags config)
+        , packageFlags (configFlags config) packages, mainIs
+        , [hs, "-o", srcToObj config hs]
+        ]
     )
     where
     mainIs
@@ -995,11 +1014,16 @@ compileHs packages mode config hs =
         | otherwise = []
 
 linkHs :: Config -> FilePath -> [Package] -> [FilePath] -> Util.Cmdline
-linkHs config output packages objs = ("LD-HS", output,
-    ghcBinary : fltkLd flags ++ midiLibs flags ++ hLinkFlags flags
-        ++ ["-lstdc++"] ++ packageFlags packages ++ objs ++ ["-o", output])
-    where
-    flags = configFlags config
+linkHs config output packages objs =
+    ( "LD-HS"
+    , output
+    , ghcBinary : concat
+        [ fltkLd flags, midiLibs flags, hLinkFlags flags
+        , ["-lstdc++"], packageFlags flags packages, objs
+        , ["-o", output]
+        ]
+    )
+    where flags = configFlags config
 
 -- | ghci has to be called with the same flags that the .o files were compiled
 -- with or it won't load them.
@@ -1016,6 +1040,7 @@ writeGhciFlags modeConfig =
     -- belong.
     getFlags config = "-dynamic" : ghcFlags config
         ++ map (resolveSrc config) (ghciFlags (configFlags config))
+        ++ sandboxFlags (configFlags config)
     resolveSrc config arg
         | FilePath.takeExtension arg == ".cc" = srcToObj config arg
         | otherwise = arg

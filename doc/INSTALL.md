@@ -28,7 +28,7 @@ To install the needed haskell dependencies, type:
     cabal install --only-dependencies
 
 The actual build is with shake, but there's a dummy cabal file with just
-dependencies to make install easier.  TODO: sandbox not supported yet
+dependencies to make install easier.
 
 You might get an error about `pcre.h` file not found, in that case see libpcre
 below.
