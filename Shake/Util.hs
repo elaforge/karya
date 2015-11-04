@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE OverloadedStrings #-}
 module Shake.Util (
     -- * shake specific
     Cmdline, cmdline, system, staunchSystem, shell, putQuietNormal
@@ -18,12 +19,19 @@ import Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text.IO
+
 import qualified Development.Shake as Shake
 import qualified Development.Shake.FilePath as FilePath
 import qualified System.Exit as Exit
 import qualified System.FilePath
 import System.FilePath ((</>))
 import qualified System.Process as Process
+
+import qualified Util.File as File
+import qualified Util.Seq as Seq
 
 
 -- * shake specific
@@ -100,19 +108,12 @@ runIO action = Shake.shake Shake.shakeOptions $ Shake.action $ do
 -- its package db.
 sandboxPackageDb :: IO (Maybe FilePath)
 sandboxPackageDb = do
-    -- I don't care about ghc-pkg's output, but cabal -v will print the cmdline
-    -- when it runs it.  As far as I know, this is the only way to get that
-    -- info.
-    (code, stdout, _stderr) <- Process.readProcessWithExitCode
-        "cabal" ["-v", "sandbox", "hc-pkg", "list", "base"] ""
-    return $ case code of
-        Exit.ExitFailure {} -> Nothing
-        Exit.ExitSuccess -> msum $ map extract (lines stdout)
+    text <- File.ignoreEnoent $ Text.IO.readFile "cabal.sandbox.config"
+    return $ parse =<< text
     where
-    extract = msum . map packageDb . words
-    packageDb w | flag `List.isPrefixOf` w = Just $ drop (length flag) w
-    packageDb _ = Nothing
-    flag = "--package-db="
+    -- package-db: /Users/elaforge/src/seq/sandbox/.cabal-sandbox/...
+    parse = fmap Text.unpack . Seq.head
+        . Maybe.mapMaybe (Text.stripPrefix "package-db: ") . Text.lines
 
 -- * general
 
