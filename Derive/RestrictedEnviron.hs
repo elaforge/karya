@@ -9,7 +9,6 @@
 module Derive.RestrictedEnviron where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
@@ -25,7 +24,7 @@ import Types
 
 
 newtype Environ = Environ (Map.Map BaseTypes.Key Val)
-    deriving (Read, Show, Eq, Monoid.Monoid, Pretty.Pretty, Serialize.Serialize)
+    deriving (Read, Show, Eq, Monoid, Pretty.Pretty, Serialize.Serialize)
 
 make :: [(BaseTypes.Key, Val)] -> Environ
 make = Environ . Map.fromList

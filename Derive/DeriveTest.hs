@@ -5,7 +5,6 @@
 module Derive.DeriveTest where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 
 import qualified System.IO.Unsafe as Unsafe
@@ -253,7 +252,7 @@ data SetupA a = Setup {
     , setup_deriver :: Derive.Deriver a -> Derive.Deriver a
     }
 
-instance Monoid.Monoid (SetupA a) where
+instance Monoid (SetupA a) where
     mempty = Setup id id id
     mappend (Setup ui1 cmd1 deriver1) (Setup ui2 cmd2 deriver2) =
         Setup (ui1 . ui2) (cmd1 . cmd2) (deriver1 . deriver2)

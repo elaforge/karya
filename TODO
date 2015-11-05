@@ -34,7 +34,9 @@ UNSORTED
       https://www.reddit.com/r/haskell/comments/3g41au/follow_up_safe_lightweight_checked_exceptions/
     . Or an easier way would be to put 'throw' in a subclass.
     . I have this implemented in the p-monad branch, but it didn't seem
-      terribly compelling.
+      terribly compelling.  I think the reason is that it turns out most
+      functions can throw.  It doesn't replace get_ vs. lookup_ because they
+      are likely to call something else which can throw.
   * It can be alarming how I accidentally make changes to .git files.  Even
     though I can undo them, what if I don't notice until too late?  Maybe
     there should be a lock bit that makes edits into errors?  Or at least
@@ -128,20 +130,6 @@ UNSORTED
     not found.
     . Actually it is, I think the problem is when all insts are not found,
       then of course the output is [].
-  - Integrate_test.test_block_integrate is flaky, sometimes I get:
-    __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
-    ((bid "test/b2"),
-     [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, "")]),
-      ("*", [(0.0, 0.0, "4d"), (1.0, 0.0, "4c")])])
-      /=
-    ((bid "test/b2"),
-     [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, ""), (2.0, 1.0, "")]),
-      ("*", [(0.0, 0.0, "4e"), (1.0, 0.0, "4d"), (2.0, 0.0, "4c")])])
-  - Util.TimeVector has a hack where a sample at <=0 is considered to extend
-    to -inf.  It's because I want a control track call at 0 to extend back.
-    But I could do that directly with a postproc ala the tempo hack.  It seems
-    like a hack at a higher level is better than one deep in the signal
-    implementation.
   - A block with logical range called at time 0 gets messed up.
 
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
@@ -208,13 +196,6 @@ UNSORTED
       problems:
       . It's too hard to see that the skeleton is wrong.
       . Note track children should have dynamics too.
-  sekaran
-    How to apply sekaran?
-      . >hang -> sekar abab -> notes
-      . I want to change the pattern, so the problem is how to set an env
-        var for a range on one track?
-      . I can add a 'sekar-pattern = abc', but I need to repeat it whenever
-        there is a gap.
   - Local.Instrument modules include configuration functions, how to call them?
     . Kontakt.configure_wayang, configure_legong, Spicy.configure
     . import into a Local.Repl module
@@ -350,7 +331,7 @@ UNSORTED
         slides also do less bow-force, or dyn can reduce bow-force and
         bow-speed.
 
-    Gamakam2:
+    / Gamakam2:
       - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
         "pitch generator not found: 'k'".  Should mention that it's an end
         call.
@@ -434,12 +415,19 @@ UNSORTED
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
     a certain threshold.
   calls:
-    - 'u' and 'd' have a problem with long notes because pitches can only be
+    / 'u' and 'd' have a problem with long notes because pitches can only be
       transposed so far.
       . If I knew how far a pitch could be transposed, I could clip the end
         time to the bottom pitch.  But I don't.  Maybe pitches should be
         transposable infinitely far, but emit a -1 NN signal when they cross
         the boundary?  Or would this hurt error reporting?
+      . Or I could verify the transpose, and if it fails, transpose half as
+        much, etc.
+      . Or do the transpose in Pitch.Pitch, and then I can ask the scale for
+        the bottom Pitch.
+      . Or I could just call it a feature, after all you shouldn't ask for
+        a pitch to go below its range and you can explicitly mark the stop
+        time if you want.
   vsl
     . Legato attack scale control affects the crossfade level of interval
       samples, experiment with that.
@@ -739,6 +727,11 @@ local: plugins:
     map.
 
 cleanup:
+  - Util.TimeVector has a hack where a sample at <=0 is considered to extend
+    to -inf.  It's because I want a control track call at 0 to extend back.
+    But I could do that directly with a postproc ala the tempo hack.  It seems
+    like a hack at a higher level is better than one deep in the signal
+    implementation.
   - Expr is NonEmpty since there is always at least a "" call, but this is a
     special feature of events.  Would it make more sense to parse "" as [],
     and then special case [] in EvalTrack.derive_event?
@@ -1104,6 +1097,15 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test:
+  - Integrate_test.test_block_integrate is flaky, sometimes I get:
+    __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
+    ((bid "test/b2"),
+     [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, "")]),
+      ("*", [(0.0, 0.0, "4d"), (1.0, 0.0, "4c")])])
+      /=
+    ((bid "test/b2"),
+     [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, ""), (2.0, 1.0, "")]),
+      ("*", [(0.0, 0.0, "4e"), (1.0, 0.0, "4d"), (2.0, 0.0, "4c")])])
   - If I abandon ghc 7.8 compatibility, I can use ImplicitParams for call
     stack
     . Get rid of _srcpos variants and hspp for Util.Test and 'throws'
@@ -1127,6 +1129,9 @@ test:
           to grep output.
         . But I need to separate IO-using tests, e.g. test_io_xyz, and they
           need liftIOs.
+      . If I make tests have type (?stack :: CallStack) => IO (), then I can
+        get the caller name from the next stack frame.  Unfortunately, all
+        tests would then need explicit annotations, which seems error-prone.
     . Also all of those functions that have a 'caller' arg can use implicit
       params.
   criterion
@@ -1285,6 +1290,13 @@ local definitions .ky:
     sd x y = from=$x | drop $y
 
 Derive:
+  sekaran
+    How to apply sekaran?
+      . >hang -> sekar abab -> notes
+      . I want to change the pattern, so the problem is how to set an env
+        var for a range on one track?
+      . I can add a 'sekar-pattern = abc', but I need to repeat it whenever
+        there is a gap.
   fancier randomization
     . How much a note differs depends on its neighbors, so it's not an even
       distribution.  Use brownian noise, or a fractal subdivision scheme.  But

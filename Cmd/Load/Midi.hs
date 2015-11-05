@@ -13,7 +13,6 @@ import qualified Data.IntMap.Strict as IntMap
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
 import qualified Data.Word as Word
 
 import qualified ZMidi.Core as Z
@@ -123,7 +122,7 @@ data NoteTrack = NoteTrack Track Track (Map.Map Score.Control Track)
 -- | Map start (dur, text)
 type Track = Map.Map ScoreTime (ScoreTime, Text)
 
-instance Monoid.Monoid NoteTrack where
+instance Monoid NoteTrack where
     mempty = NoteTrack mempty mempty mempty
     mappend (NoteTrack notes1 pitches1 controls1)
             (NoteTrack notes2 pitches2 controls2) =

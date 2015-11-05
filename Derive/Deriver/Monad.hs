@@ -128,7 +128,6 @@ module Derive.Deriver.Monad (
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Vector.Unboxed
 
@@ -316,7 +315,7 @@ instance Callable Score.Event where
     lookup_transformer = lookup_with (scope_note . scopes_transformer)
     callable_name _ = "note"
 
-instance Monoid.Monoid NoteDeriver where
+instance Monoid NoteDeriver where
     mempty = return mempty
     mappend d1 d2 = d_merge [d1, d2]
     mconcat = d_merge
@@ -541,7 +540,7 @@ data Library = Library {
     , lib_val :: ![LookupCall ValCall]
     }
 
-instance Monoid.Monoid Library where
+instance Monoid Library where
     mempty = Library mempty mempty mempty mempty
     mappend (Library note1 control1 pitch1 val1)
             (Library note2 control2 pitch2 val2) =
@@ -648,7 +647,7 @@ s_scale = Lens.lens stype_scale
 s_imported = Lens.lens stype_imported
     (\f r -> r { stype_imported = f (stype_imported r) })
 
-instance Monoid.Monoid (ScopeType call) where
+instance Monoid (ScopeType call) where
     mempty = ScopeType [] [] [] []
     mappend (ScopeType a1 b1 c1 d1) (ScopeType a2 b2 c2 d2) =
         ScopeType (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2)
@@ -796,7 +795,7 @@ instance Pretty.Pretty InstrumentCalls where
         , ("val", Pretty.format val)
         ]
 
-instance Monoid.Monoid InstrumentCalls where
+instance Monoid InstrumentCalls where
     mempty = InstrumentCalls mempty mempty mempty
     mappend (InstrumentCalls a1 b1 c1) (InstrumentCalls a2 b2 c2) =
         InstrumentCalls (a1<>a2) (b1<>b2) (c1<>c2)
@@ -918,7 +917,7 @@ instance Pretty.Pretty Collect where
             , ("call end", Pretty.format call_end)
             ]
 
-instance Monoid.Monoid Collect where
+instance Monoid Collect where
     mempty = Collect mempty mempty mempty mempty mempty mempty mempty mempty
         mempty mempty mempty
     mappend (Collect warps1 tsigs1 frags1 trackdyn1 trackdyn_inv1 deps1 cache1
@@ -1021,7 +1020,7 @@ instance Show a => Pretty.Pretty (CallDuration a) where pretty = showt
 -- I think it would be more correct to take the stack depth, and pick the one
 -- with the shallower stack, and then the max.  But it's more expensive and
 -- picking the second one seems to work.
-instance Monoid.Monoid (CallDuration a) where
+instance Monoid (CallDuration a) where
     mempty = Unknown
     mappend Unknown a = a
     mappend a Unknown = a
@@ -1052,7 +1051,7 @@ instance Pretty.Pretty (LookupCall call) where
 data CallMaps d = CallMaps ![LookupCall (Generator d)]
     ![LookupCall (Transformer d)]
 
-instance Monoid.Monoid (CallMaps d) where
+instance Monoid (CallMaps d) where
     mempty = CallMaps [] []
     mappend (CallMaps gs1 ts1) (CallMaps gs2 ts2) =
         CallMaps (gs1 <> gs2) (ts1 <> ts2)
@@ -1390,7 +1389,7 @@ make_val_call module_ name tags doc (call, arg_docs) = ValCall
 
 -- instead of a stack, this could be a tree of frames
 newtype Cache = Cache (Map.Map Stack.Stack Cached)
-    deriving (Monoid.Monoid, Pretty.Pretty, DeepSeq.NFData)
+    deriving (Monoid, Pretty.Pretty, DeepSeq.NFData)
     -- The monoid instance winds up being a left-biased union.  This is ok
     -- because merged caches shouldn't overlap anyway.
 
@@ -1438,7 +1437,7 @@ instance (DeepSeq.NFData d) => DeepSeq.NFData (CallType d) where
 -- ** deps
 
 newtype BlockDeps = BlockDeps (Set.Set BlockId)
-    deriving (Pretty.Pretty, Monoid.Monoid, Show, Eq, DeepSeq.NFData)
+    deriving (Pretty.Pretty, Monoid, Show, Eq, DeepSeq.NFData)
 
 -- ** damage
 
@@ -1456,7 +1455,7 @@ data ScoreDamage = ScoreDamage {
     , sdamage_blocks :: !(Set.Set BlockId)
     } deriving (Eq, Show)
 
-instance Monoid.Monoid ScoreDamage where
+instance Monoid ScoreDamage where
     mempty = ScoreDamage Map.empty Set.empty Set.empty
     mappend (ScoreDamage tracks1 tblocks1 blocks1)
             (ScoreDamage tracks2 tblocks2 blocks2) =
@@ -1500,7 +1499,7 @@ invalidate_damaged (ScoreDamage tracks _ blocks) (Cache cache) =
 -- modified.  It's dynamically scoped over the same range as the control
 -- itself, so that events that depend on it can be rederived.
 newtype ControlDamage = ControlDamage (Ranges.Ranges ScoreTime)
-    deriving (Pretty.Pretty, Monoid.Monoid, Eq, Show, DeepSeq.NFData)
+    deriving (Pretty.Pretty, Monoid, Eq, Show, DeepSeq.NFData)
 
 -- * util
 

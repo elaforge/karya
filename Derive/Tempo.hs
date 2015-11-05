@@ -11,7 +11,6 @@ module Derive.Tempo (
     , tempo_to_warp
 #endif
 ) where
-import qualified Data.Monoid as Monoid
 import qualified Data.Vector.Storable as Vector
 
 import qualified Util.TimeVector as TimeVector
@@ -41,7 +40,7 @@ extend_signal track_end sig = sig <> case Signal.last sig of
 -- Tempo is the tempo signal, which is the standard musical definition of
 -- tempo: trackpos over time.  Warp is the time warping that the tempo
 -- implies, which is the integral of (1/tempo).
-with_tempo :: Monoid.Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
+with_tempo :: Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
     -- ^ block start and end, used to normalize block duration to 0--1.  If
     -- Nothing, don't normalize.
     -> Maybe TrackId
@@ -120,7 +119,7 @@ require_nonzero block_dur real_dur ok
     TODO relying on the stack seems a little implicit, would it be better to
     have an explicit flag?
 -}
-get_stretch_to_1 :: Monoid.Monoid a => Maybe (ScoreTime, ScoreTime)
+get_stretch_to_1 :: Monoid a => Maybe (ScoreTime, ScoreTime)
     -> ((ScoreTime, ScoreTime)
         -> Derive.Deriver (Derive.Deriver a -> Derive.Deriver a, RealTime))
     -- ^ Take the block range, and return a transformer to properly place the
@@ -148,7 +147,7 @@ set_real_duration dur = Internal.modify_collect $ \collect ->
 --
 -- This can be used to isolate the tempo from any tempo effects that may be
 -- going on.
-with_absolute :: Monoid.Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
+with_absolute :: Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
     -> Maybe TrackId -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
 with_absolute toplevel range maybe_track_id signal deriver = do
     unless toplevel $ Derive.throw
@@ -172,7 +171,7 @@ with_absolute toplevel range maybe_track_id signal deriver = do
 -- time.  That is, they won't stretch along with the non-zero segments.  This
 -- means the output will always be at least as long as the absolute sections,
 -- so a block call may extend past the end of its event.
-with_hybrid :: Monoid.Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
+with_hybrid :: Monoid a => Bool -> Maybe (ScoreTime, ScoreTime)
     -> Maybe TrackId -> Signal.Tempo -> Derive.Deriver a -> Derive.Deriver a
 with_hybrid toplevel range maybe_track_id signal deriver = do
     unless toplevel $ Derive.throw

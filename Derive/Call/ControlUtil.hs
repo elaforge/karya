@@ -5,8 +5,6 @@
 {-# LANGUAGE Rank2Types #-}
 -- | Utilities that emit 'Signal.Control's and 'Derive.ControlMod's.
 module Derive.Call.ControlUtil where
-import qualified Data.Monoid as Monoid
-
 import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
@@ -282,7 +280,7 @@ breakpoints :: SRate -> Curve -> [(RealTime, Signal.Y)] -> Signal.Control
 breakpoints srate curve =
     signal_breakpoints Signal.signal (segment srate True False curve)
 
-signal_breakpoints :: Monoid.Monoid sig => ([(RealTime, y)] -> sig)
+signal_breakpoints :: Monoid sig => ([(RealTime, y)] -> sig)
     -> (RealTime -> y -> RealTime -> y -> sig) -> [(RealTime, y)] -> sig
 signal_breakpoints make_signal make_segment = mconcatMap line . Seq.zip_next
     where

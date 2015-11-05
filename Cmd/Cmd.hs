@@ -62,7 +62,6 @@ import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
@@ -614,7 +613,7 @@ type TrackSelection = (Sel.Selection, BlockId, Maybe TrackId)
 instance Show Hooks where
     show (Hooks sel) = "((Hooks " ++ show (length sel) ++ "))"
 
-instance Monoid.Monoid Hooks where
+instance Monoid Hooks where
     mempty = Hooks []
     mappend (Hooks sel1) (Hooks sel2) = Hooks (sel1 <> sel2)
 

@@ -45,7 +45,6 @@ module Ui.Events (
 import Prelude hiding (head, last, length, null)
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
@@ -283,7 +282,7 @@ instance Pretty.Pretty Events where
     format = Pretty.format . map event . ascending
         where event e = (Event.start e, Event.duration e, Event.text e)
 
-instance Monoid.Monoid Events where
+instance Monoid Events where
     mempty = empty
     mappend = merge
 

@@ -42,7 +42,6 @@
 module Cmd.ModifyNotes where
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Traversable as Traversable
 import qualified Data.Tree as Tree
@@ -63,8 +62,8 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.Selection as Selection
 
-import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.PSignal as PSignal
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
@@ -290,7 +289,7 @@ extract_notes tree =
 data NoteTrack = NoteTrack Events.Events Controls
     deriving (Eq, Show)
 
-instance Monoid.Monoid NoteTrack where
+instance Monoid NoteTrack where
     mempty = NoteTrack mempty mempty
     mappend (NoteTrack events1 controls1) (NoteTrack events2 controls2) =
         NoteTrack (events1 <> events2) (Map.mappend controls1 controls2)

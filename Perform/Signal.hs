@@ -60,7 +60,6 @@ import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as Monad.State
 
-import qualified Data.Monoid as Monoid
 import qualified Data.Vector.Storable as Vector
 import qualified Foreign
 import qualified Text.Read as Read
@@ -98,12 +97,12 @@ instance Read.Read (Signal y) where
         vec <- Read.readPrec
         return $ Signal (TimeVector.signal vec)
 
-instance Monoid.Monoid (Signal y) where
+instance Monoid (Signal y) where
     mempty = empty
     mappend s1 s2
         | null s1 = s2
         | null s2 = s1
-        | otherwise = Monoid.mconcat [s1, s2]
+        | otherwise = mconcat [s1, s2]
     mconcat = merge
 
 type Y = Double

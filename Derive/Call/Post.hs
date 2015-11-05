@@ -20,7 +20,6 @@
 module Derive.Call.Post where
 import qualified Data.DList as DList
 import qualified Data.List as List
-import qualified Data.Monoid as Monoid
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
@@ -288,14 +287,14 @@ pitch_range deriver = do
     return (sig, range, logs)
 
 -- | Transform a pitch or control signal.
-signal :: Monoid.Monoid sig => (sig -> sig)
+signal :: Monoid sig => (sig -> sig)
     -> Derive.Deriver (Stream.Stream sig) -> Derive.Deriver (Stream.Stream sig)
 signal f deriver = do
     (sig, logs) <- derive_signal deriver
     return $ Stream.from_sorted_list $
         LEvent.Event (f sig) : map LEvent.Log logs
 
-derive_signal :: Monoid.Monoid sig => Derive.Deriver (Stream.Stream sig)
+derive_signal :: Monoid sig => Derive.Deriver (Stream.Stream sig)
     -> Derive.Deriver (sig, [Log.Msg])
 derive_signal deriver = do
     (chunks, logs) <- Stream.partition <$> deriver

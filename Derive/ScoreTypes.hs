@@ -10,7 +10,6 @@
 module Derive.ScoreTypes where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
@@ -138,7 +137,7 @@ code_to_type s = case s of
     "" -> Just Untyped
     _ -> Nothing
 
-instance Monoid.Monoid Type where
+instance Monoid Type where
     mempty = Untyped
     mappend Untyped typed = typed
     mappend typed _ = typed
@@ -154,7 +153,7 @@ instance DeepSeq.NFData a => DeepSeq.NFData (Typed a) where
 instance Functor Typed where
     fmap f (Typed typ val) = Typed typ (f val)
 
-instance Monoid.Monoid a => Monoid.Monoid (Typed a) where
+instance Monoid a => Monoid (Typed a) where
     mempty = Typed mempty mempty
     mappend (Typed t1 v1) (Typed t2 v2) = Typed (t1<>t2) (v1<>v2)
 
@@ -195,8 +194,7 @@ type TypedControlValMap = Map.Map Control (Typed Signal.Y)
 -- a drum from a drumset, or something like that.
 type Attribute = Text
 newtype Attributes = Attributes (Set.Set Attribute)
-    deriving (Monoid.Monoid, Eq, Ord, Read, Show, Serialize.Serialize,
-        DeepSeq.NFData)
+    deriving (Monoid, Eq, Ord, Read, Show, Serialize.Serialize, DeepSeq.NFData)
 
 instance Pretty.Pretty Attributes where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Attributes where

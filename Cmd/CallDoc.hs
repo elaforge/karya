@@ -8,7 +8,6 @@ module Cmd.CallDoc where
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
@@ -357,7 +356,7 @@ tag_attrs name attrs maybe_content =
             [html name <> "=\"" <> html val <> "\"" | (name, val) <- attrs]
 
 newtype Html = Html Text
-    deriving (Monoid.Monoid, String.IsString, Show)
+    deriving (Monoid, String.IsString, Show)
     -- TODO doesn't IsString defeat the purpose of using Html in the first
     -- place?
 

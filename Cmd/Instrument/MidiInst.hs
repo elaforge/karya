@@ -23,7 +23,6 @@ module Cmd.Instrument.MidiInst (
     -- * db
     , save_db, save_patches, load_db
 ) where
-import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import System.FilePath ((</>), (<.>))
 
@@ -98,7 +97,7 @@ data Code = Code {
     , code_cmds :: [Cmd.Cmd]
     }
 
-instance Monoid.Monoid Code where
+instance Monoid Code where
     mempty = Code [] [] mempty id []
     mappend (Code g1 t1 v1 post1 cmds1) (Code g2 t2 v2 post2 cmds2) =
         Code (g1<>g2) (t1<>t2) (v1<>v2) (post1 . post2) (cmds1<>cmds2)

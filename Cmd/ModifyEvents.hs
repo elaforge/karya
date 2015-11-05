@@ -6,7 +6,6 @@
 module Cmd.ModifyEvents where
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
-import qualified Data.Monoid as Monoid
 import qualified Data.String as String
 import qualified Data.Text as Text
 
@@ -203,7 +202,7 @@ parse_tokens parser =
 parse :: Parser -> [Token] -> [[Match]]
 parse (Parser p) = map fst . filter (null . snd) . p
 
-instance Monoid.Monoid Parser where
+instance Monoid Parser where
     mempty = Parser $ \tokens -> [([], tokens)]
     mappend (Parser p1) (Parser p2) = Parser $ \tokens -> do
         (matches1, rest1) <- p1 tokens

@@ -33,7 +33,6 @@ module Derive.Control (
 import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
 
@@ -167,7 +166,7 @@ tempo_call toplevel sym track sig_deriver deriver = do
             (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
 
-dispatch_tempo :: Monoid.Monoid a => Bool -> Maybe TrackLang.Symbol
+dispatch_tempo :: Monoid a => Bool -> Maybe TrackLang.Symbol
     -> Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
 dispatch_tempo toplevel sym block_range maybe_track_id signal deriver =
@@ -303,7 +302,7 @@ trim_signal drop_after drop_at_after track signal
         return $ (if start == end then drop_after else drop_at_after) end signal
     | otherwise = return signal
 
-derive_track :: (Monoid.Monoid d, Derive.Callable d) => EvalTrack.TrackInfo d
+derive_track :: (Monoid d, Derive.Callable d) => EvalTrack.TrackInfo d
     -> (Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d))
     -> Derive.Deriver (TrackResults d)
 derive_track tinfo transform = do
@@ -326,7 +325,7 @@ derive_track tinfo transform = do
         where (sigs, logs) = LEvent.partition events
 
 -- | Make a TrackInfo for control tracks.
-track_info :: Monoid.Monoid d => TrackTree.Track -> ParseTitle.Type
+track_info :: Monoid d => TrackTree.Track -> ParseTitle.Type
     -> EvalTrack.TrackInfo d
 track_info track track_type = EvalTrack.TrackInfo
     { tinfo_track = track
@@ -335,7 +334,7 @@ track_info track track_type = EvalTrack.TrackInfo
     , tinfo_get_last_val = last_signal_val
     }
 
-last_signal_val :: Monoid.Monoid d => EvalTrack.GetLastVal d
+last_signal_val :: Monoid d => EvalTrack.GetLastVal d
 last_signal_val xs
     | null xs = Nothing
     | otherwise = Just (mconcat xs)

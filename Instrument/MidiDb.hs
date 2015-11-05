@@ -10,7 +10,6 @@ import qualified Control.Monad.Identity as Identity
 import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 
 import qualified System.FilePath as FilePath
@@ -159,7 +158,7 @@ lookup_patch inst_name (PatchMap patches) =
 
 newtype PatchMap code =
     PatchMap (Map.Map Instrument.InstrumentName (PatchCode code))
-    deriving (Show, Monoid.Monoid)
+    deriving (Show, Monoid)
 
 -- | Pair a Patch up with its code.
 --

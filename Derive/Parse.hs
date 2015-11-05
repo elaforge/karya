@@ -29,7 +29,6 @@ import Data.Attoparsec.Text ((<?>))
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
@@ -44,10 +43,10 @@ import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
+import qualified Derive.BaseTypes as TrackLang
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.BaseTypes as TrackLang
 
 import qualified Perform.Signal as Signal
 import Global
@@ -472,7 +471,7 @@ data Definitions = Definitions {
     , def_val :: ![Definition]
     } deriving (Show)
 
-instance Monoid.Monoid Definitions where
+instance Monoid Definitions where
     mempty = Definitions ([], []) ([], []) ([], []) []
     mappend (Definitions (a1, b1) (c1, d1) (e1, f1) g1)
             (Definitions (a2, b2) (c2, d2) (e2, f2) g2) =

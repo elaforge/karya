@@ -29,7 +29,6 @@ import qualified Data.Foldable as Foldable
 import qualified Data.Functor.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Sequence as Sequence
 import qualified Data.Word as Word
 
@@ -233,7 +232,7 @@ type Formatter = Writer.Writer Builder ()
 
 data Builder = Builder !Builder.Builder !Builder.Builder
 
-instance Monoid.Monoid Builder where
+instance Monoid Builder where
     mempty = Builder mempty mempty
     mappend (Builder a1 b1) (Builder a2 b2) = Builder (a1 <> a2) (b1 <> b2)
 

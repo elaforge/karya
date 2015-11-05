@@ -4,7 +4,6 @@
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Derive.Call.Module where
-import qualified Data.Monoid as Monoid
 import qualified Data.String as String
 import qualified Data.Text as Text
 
@@ -20,7 +19,7 @@ newtype Module = Module Text.Text
 instance Pretty.Pretty Module where
     pretty (Module m) = m
 
-instance Monoid.Monoid Module where
+instance Monoid Module where
     mempty = ""
     mappend (Module m1) (Module m2)
         | Text.null m1 = Module m2

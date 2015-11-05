@@ -4,14 +4,14 @@
 
 module Ui.Color where
 import Data.Bits
-import Data.Monoid ((<>))
-import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import Util.ForeignC
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Ui.Util as Util
+
+import Global
 
 
 -- | How to highlight an event in the UI.  This can be used to highlight
@@ -31,7 +31,7 @@ data Highlight =
     deriving (Bounded, Eq, Enum, Ord, Show)
 
 -- | This is so more serious highlights can override less serious ones.
-instance Monoid.Monoid Highlight where
+instance Monoid Highlight where
     mempty = NoHighlight
     mappend = max
 

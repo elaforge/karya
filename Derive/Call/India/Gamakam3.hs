@@ -293,7 +293,7 @@ data Result =
     Result !(DList.DList PSignal.PSignal) !(DList.DList Signal.Control)
     deriving (Show)
 
-instance Monoid.Monoid Result where
+instance Monoid Result where
     mempty = Result mempty mempty
     mappend (Result pitch1 dyn1) (Result pitch2 dyn2) =
         Result (pitch1<>pitch2) (dyn1<>dyn2)

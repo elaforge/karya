@@ -39,7 +39,6 @@ import qualified Data.Char as Char
 import qualified Data.Coerce as Coerce
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
-import qualified Data.Monoid as Monoid
 import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
@@ -71,12 +70,12 @@ import Types
 newtype PSignal = PSignal { sig_vec :: TimeVector.Boxed Pitch }
     deriving (Show, Pretty.Pretty)
 
-instance Monoid.Monoid PSignal where
+instance Monoid PSignal where
     mempty = PSignal mempty
     mappend s1 s2
         | TimeVector.null (sig_vec s1) = s2
         | TimeVector.null (sig_vec s2) = s1
-        | otherwise = Monoid.mconcat [s1, s2]
+        | otherwise = mconcat [s1, s2]
     mconcat [] = mempty
     mconcat sigs = PSignal (TimeVector.merge (map sig_vec sigs))
 
@@ -151,7 +150,7 @@ pitch_note p = pitch_eval_note p (pitch_config p)
 data PitchConfig = PitchConfig !Environ !ScoreTypes.ControlValMap
     deriving (Show)
 
-instance Monoid.Monoid PitchConfig where
+instance Monoid PitchConfig where
     mempty = PitchConfig mempty mempty
     mappend (PitchConfig env1 c1) (PitchConfig env2 c2) =
         PitchConfig (env1 <> env2) (Map.unionWith (+) c1 c2)
@@ -233,7 +232,7 @@ multiply_duration (ScoreDuration t) n = ScoreDuration (t * fromIntegral n)
 -- * Derive.TrackLang
 
 newtype Environ = Environ (Map.Map Key Val)
-    deriving (Show, Monoid.Monoid, Pretty.Pretty, DeepSeq.NFData)
+    deriving (Show, Monoid, Pretty.Pretty, DeepSeq.NFData)
 
 -- | Insert a val directly, with no typechecking.
 insert :: Key -> Val -> Environ -> Environ

@@ -11,8 +11,7 @@ module Global (
 #endif
     , (<|>)
     , first, second, (***)
-    , (<>)
-    , mempty, mconcat
+    , Monoid, (<>), mempty, mconcat
     , while, while_
     , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM
     , mconcatMap, concatMapM, mapMaybeM
