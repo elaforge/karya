@@ -139,7 +139,7 @@ defaultOptions = Shake.shakeOptions
     }
 
 data Config = Config {
-    buildDir :: FilePath
+    buildMode :: Mode
     , hscDir :: FilePath
     , ghcLib :: FilePath
     , fltkVersion :: String
@@ -148,6 +148,9 @@ data Config = Config {
     -- | GHC version as returned by 'parseGhcVersion'.
     , ghcVersion :: String
     } deriving (Show)
+
+buildDir :: Config -> FilePath
+buildDir = modeToDir . buildMode
 
 -- | Root of .o and .hi hierarchy.
 oDir :: Config -> FilePath
@@ -394,7 +397,7 @@ configure midi = do
     let ghcVersion = parseGhcVersion ghcLib
     sandbox <- Util.sandboxPackageDb
     return $ \mode -> Config
-        { buildDir = modeToDir mode
+        { buildMode = mode
         , hscDir = build </> "hsc"
         , ghcLib = ghcLib
         , fltkVersion = fltkVersion
@@ -839,12 +842,14 @@ makeKaryaCabal fn = do
 -- ** hs
 
 makeHs :: Flags -> FilePath -> FilePath -> FilePath -> Util.Cmdline
-makeHs flags dir out main = ("GHC-MAKE", out, cmdline)
-    where
-    cmdline = ghcBinary : packageFlags flags allPackages
-        ++ [ "--make", "-outputdir", dir, "-O2", "-o", out
+makeHs flags dir out main =
+    ( "GHC-MAKE"
+    , out
+    , ghcBinary : packageFlags flags allPackages ++
+        [ "--make", "-outputdir", dir, "-O2", "-o", out
         , "-main-is", pathToModule main, main
         ]
+    )
 
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> [Package] -> FilePath -> FilePath
@@ -975,8 +980,7 @@ hsORule infer = matchHsObj ?>> \fns -> do
     -- updaing the timestamp on the .hi file if its .o didn't need to be
     -- recompiled, so hopefully this will avoid some work.
     logDeps config "hs" obj (hs:his)
-    Util.cmdline $ compileHs (extraPackagesFor obj ++ allPackages)
-        (targetToMode obj) config hs
+    Util.cmdline $ compileHs (extraPackagesFor obj ++ allPackages) config hs
 
 -- | Generate both .hs.o and .hi from a .hs file.
 matchHsObj :: FilePath -> Maybe [FilePath]
@@ -996,9 +1000,9 @@ matchHsObj fn
         || runProfile `List.isPrefixOf` hs || runTests `List.isPrefixOf` hs
         || criterionHsSuffix `List.isSuffixOf` hs
 
-compileHs :: [Package] -> Maybe Mode -> Config -> FilePath -> Util.Cmdline
-compileHs packages mode config hs =
-    ( "GHC" ++ maybe "" (('-':) . show) mode
+compileHs :: [Package] -> Config -> FilePath -> Util.Cmdline
+compileHs packages config hs =
+    ( "GHC " <> show (buildMode config)
     , hs
     , ghcBinary : "-c" : concat
         [ ghcFlags config, hcFlags (configFlags config)
@@ -1088,12 +1092,18 @@ ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
     Util.cmdline $ compileCc config cc obj
 
 compileCc :: Config -> FilePath -> FilePath -> Util.Cmdline
-compileCc config cc obj = ("C++", obj,
-    ["g++", "-c"] ++ ccFlags (configFlags config) ++ ["-o", obj, cc])
+compileCc config cc obj =
+    ( "C++ " <> show (buildMode config)
+    , obj
+    , ["g++", "-c"] ++ ccFlags (configFlags config) ++ ["-o", obj, cc]
+    )
 
 linkCc :: Config -> FilePath -> [FilePath] -> Util.Cmdline
-linkCc config binary objs = ("LD-CC", binary,
-    "g++" : objs ++ fltkLd (configFlags config) ++ ["-o", binary])
+linkCc config binary objs =
+    ( "LD-CC"
+    , binary
+    , "g++" : objs ++ fltkLd (configFlags config) ++ ["-o", binary]
+    )
 
 -- * hsc
 
@@ -1105,12 +1115,15 @@ hsRule config = hscDir config ++ "//*.hs" %> \hs -> do
     Util.cmdline $ hsc2hs config hs hsc
 
 hsc2hs :: Config -> FilePath -> FilePath -> Util.Cmdline
-hsc2hs config hs hsc = ("hsc2hs", hs,
-    ["hsc2hs", "-I" ++ ghcLib config </> "include"]
-    -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
-    ++ words "-c g++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
-    ++ cInclude flags ++ fltkCc flags ++ define flags
-    ++ [hsc, "-o", hs])
+hsc2hs config hs hsc =
+    ( "hsc2hs"
+    , hs
+    , ["hsc2hs", "-I" ++ ghcLib config </> "include"]
+        -- Otherwise g++ complains about the offsetof macro hsc2hs uses.
+        ++ words "-c g++ --cflag -Wno-invalid-offsetof --cflag -std=c++11"
+        ++ cInclude flags ++ fltkCc flags ++ define flags
+        ++ [hsc, "-o", hs]
+    )
     where flags = configFlags config
 
 -- * util
