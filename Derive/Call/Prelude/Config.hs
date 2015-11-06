@@ -11,6 +11,7 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -45,7 +46,7 @@ c_add_flag = Derive.transformer Module.prelude "add-flag" Tags.postproc
             NonEmpty.toList flags
 
 c_hold :: Derive.Taggable d => Derive.Transformer d
-c_hold = Make.with_environ Module.prelude "hold"
+c_hold = Make.with_environ Module.prelude EnvKey.hold "'Derive.EnvKey.hold'"
     (Sig.defaulted "time" (Typecheck.real 0.25) "Hold this long.")
     Typecheck.default_real
 
