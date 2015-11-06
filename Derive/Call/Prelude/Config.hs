@@ -23,6 +23,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map
     [ ("add-flag", c_add_flag)
     , ("h", c_hold)
+    , ("infer-dur", c_infer_dur)
     ]
 
 pitch_calls :: Derive.CallMaps Derive.Pitch
@@ -47,3 +48,9 @@ c_hold :: Derive.Taggable d => Derive.Transformer d
 c_hold = Make.with_environ Module.prelude "hold"
     (Sig.defaulted "time" (Typecheck.real 0.25) "Hold this long.")
     Typecheck.default_real
+
+c_infer_dur :: Derive.Transformer Derive.Note
+c_infer_dur = Derive.transformer Module.prelude "infer-dur" Tags.postproc
+    "Add 'Derive.Flags.infer_duration' to the events."
+    $ Sig.call0t $ \_args ->
+        fmap $ Post.emap1_ $ Score.add_flags Flags.infer_duration
