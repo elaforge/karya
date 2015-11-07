@@ -157,9 +157,11 @@ html_header hstate = mconcat
         , "<code>[*-arg arg]</code> &mdash; default from environ values\
             \ <code>name-arg</code> followed by <code>arg</code>"
         ]
-    , "<br> <code>word</code> to include a tag containing the word,\
+    , "<p> <code>word</code> to include a tag containing the word,\
         \ <code>-word</code> to\n\
-        \exclude, prefix <code>m:</code> for modules:\n\
+        \exclude.  Prefix with <code>m:</code> for modules,\
+        \ <code>kind:(note|control|pitch|val)</code> for call kinds, or\
+        \ <code>type:(val|generator|transformer></code> for call types.\n\
         \<input id=input type=text size=60 value=\"" <> default_search
         <> "\" onchange=\"search(this.value)\">\n\
         \<br>You can also search by <code>%control</code>, arg default\n\
@@ -170,7 +172,7 @@ html_header hstate = mconcat
     , html_doc hstate "Common tags are documented at 'Derive.Call.Tags'."
     , " &mdash; <span id=totals> x </span>\n"
     ]
-    where default_search = "-m:internal -m:ly"
+    where default_search = "-m:internal -m:ly "
 
 css :: Html
 css = Seq.join "\n"
@@ -198,7 +200,10 @@ javascript = Seq.join "\n"
     , hide_empty_javascript
     , ""
     , "window.onload = function() {"
-    , "    search(document.getElementById('input').value);"
+    , "    var input = document.getElementById('input');"
+    , "    input.focus();"
+    , "    input.setSelectionRange(999, 999);"
+    , "    search(input.value);"
     , "};"
     ]
 
@@ -271,7 +276,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
         <> show_call_doc call_doc
     <> "</div>\n\n"
     where
-    tags = call_kind : binding_tags bindings
+    tags = "kind:" <> call_kind : binding_tags bindings
     show_bind (first, (sym, name)) =
         "<dt>" <> tag "code" (html sym)
         -- This used to be &mdash;, but that's too hard to use text search on.
@@ -312,7 +317,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
 -- the call kind.
 binding_tags :: CallBindings -> [Text]
 binding_tags (binds, ctype, call_doc) =
-    Seq.unique (show_call_type ctype : extract call_doc)
+    Seq.unique $ "type:" <> show_call_type ctype : extract call_doc
     where
     names = map snd binds
     extract call_doc = module_ (Derive.cdoc_module call_doc)
