@@ -17,10 +17,12 @@ import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
+import qualified Derive.Scale.JustScales as JustScales
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
 import qualified Derive.Stream as Stream
@@ -38,7 +40,9 @@ pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.call_maps
     [ ("set", c_set)
     , ("'", c_set_prev)
+    , ("*", c_multiply)
 
+    -- interpolating
     , ("n", c_neighbor)
     , ("a", c_approach)
     , ("u", c_up)
@@ -80,7 +84,24 @@ c_set_prev = Derive.generator Module.prelude "set-prev" Tags.prev
                 Stream.from_event $ PSignal.signal [(start, y)]
             _ -> Stream.empty
 
--- * misc
+c_multiply :: Derive.Generator Derive.Pitch
+c_multiply = generator1 "multiply" mempty
+    "Emit the given pitch multiplied by a factor."
+    $ Sig.call ((,)
+    <$> required "pitch" "Source pitch."
+    <*> defaulted "interval" (Left 0)
+        (ScaleDegree.interval_arg_doc intervals)
+    ) $ \(pitch, interval) args -> do
+        interval <- ScaleDegree.resolve_intervals intervals [interval]
+        scale <- Call.get_scale
+        let transposed = Pitches.modify_hz (Pitches.scale scale) (*interval)
+                pitch
+        start <- Args.real_start args
+        return $ PSignal.signal [(start, transposed)]
+    where
+    intervals = JustScales.named_intervals
+
+-- * interpolating
 
 c_neighbor :: Derive.Generator Derive.Pitch
 c_neighbor = generator1 "neighbor" mempty

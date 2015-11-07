@@ -10,9 +10,18 @@ import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 
+import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import Types
 
+
+test_multiply = do
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks ""
+            . UiTest.note_track
+        extract e = (DeriveTest.e_nns_rounded e, DeriveTest.e_pitch e)
+    equal (run [(1, 1, "4c")]) ([([(1, NN.c4)], "4c")], [])
+    equal (run [(1, 1, "* (4c) 2")]) ([([(1, NN.c5)], "4c")], [])
+    equal (run [(1, 1, "* (4c) P5")]) ([([(1, NN.g4 + 0.02)], "4c")], [])
 
 test_interpolated_transpose = do
     -- An even interpolation on an un-equal tempered scale should remain even

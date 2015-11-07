@@ -57,3 +57,14 @@ pitch_nn = either (Derive.throw . ("evaluating pitch: " <>) . pretty)
 pitch_note :: PSignal.Transposed -> Derive.Deriver Pitch.Note
 pitch_note = either (Derive.throw . ("evaluating pitch: " <>) . pretty)
     return . PSignal.pitch_note
+
+-- | Modify a pitch by hz.  Its symbolic pitch will remain the same.
+modify_hz :: PSignal.Scale -> (Pitch.Hz -> Pitch.Hz) -> PSignal.Pitch
+    -> PSignal.Pitch
+modify_hz scale modify pitch =
+    PSignal.pitch scale (pitch_nn modify pitch)
+        (PSignal.pitch_eval_note pitch) (PSignal.pitch_config pitch)
+    where
+    pitch_nn modify pitch = \config -> do
+        nn <- PSignal.pitch_nn $ PSignal.coerce $ PSignal.config config pitch
+        return $ Pitch.modify_hz modify nn

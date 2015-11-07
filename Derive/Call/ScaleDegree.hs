@@ -11,6 +11,7 @@ module Derive.Call.ScaleDegree (
     -- * just
     , NamedIntervals
     , scale_degree_just, scale_degree_interval
+    , interval_arg_doc, resolve_intervals
 ) where
 import qualified Data.Map as Map
 import qualified Data.Ratio as Ratio
@@ -23,6 +24,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
@@ -80,7 +82,8 @@ scale_degree_just :: PSignal.Scale -> NamedIntervals
 scale_degree_just scale named_intervals extra_interval pitch_nn pitch_note =
     Derive.val_call Module.scale "pitch" mempty
     "Emit the pitch of a scale degree."
-    $ Sig.call (intervals_arg named_intervals) $ \intervals _ -> do
+    $ Sig.call (Sig.many "interval" (interval_arg_doc named_intervals))
+    $ \intervals _ -> do
         interval <- resolve_intervals named_intervals intervals
         env <- Internal.get_environ
         return $! PSignal.pitch scale
@@ -99,8 +102,8 @@ scale_degree_interval scale named_intervals note =
         Just interval ->
             Just $ relative_scale_degree scale named_intervals interval
 
-intervals_arg :: NamedIntervals -> Sig.Parser [Either Pitch.Hz Text]
-intervals_arg named_intervals = Sig.many "interval" $
+interval_arg_doc :: NamedIntervals -> Text
+interval_arg_doc named_intervals =
     "Multiply this interval with the note's frequency. Negative numbers\
     \ divide, so while `3/2` goes up a fifth, `-3/2` goes down a fifth.\
     \ Can be either a ratio or a symbol drawn from: "
@@ -121,19 +124,14 @@ relative_scale_degree :: PSignal.Scale -> NamedIntervals -> Pitch.Hz
 relative_scale_degree scale named_intervals initial_interval =
     Derive.val_call Module.scale "pitch" mempty
     "Emit a pitch that is a relative interval from the previous pitch." $
-    Sig.call (intervals_arg named_intervals) $ \intervals args -> do
+    Sig.call (Sig.many "interval" (interval_arg_doc named_intervals))
+    $ \intervals args -> do
         interval <- (initial_interval*) <$>
             resolve_intervals named_intervals intervals
         start <- Args.real_start args
         Derive.require "relative interval requires a previous pitch" $ do
             Derive.TagPitch prev <- Args.prev_val args
-            modify interval <$> PSignal.at start prev
-    where
-    modify interval pitch = PSignal.pitch scale (pitch_nn interval pitch)
-        (PSignal.pitch_eval_note pitch) (PSignal.pitch_config pitch)
-    pitch_nn interval pitch = \config -> do
-        nn <- PSignal.pitch_nn $ PSignal.coerce $ PSignal.config config pitch
-        return $ Pitch.modify_hz (*interval) nn
+            Pitches.modify_hz scale (*interval) <$> PSignal.at start prev
 
 resolve_intervals :: NamedIntervals -> [Either Pitch.Hz Text]
     -> Derive.Deriver Pitch.Hz
