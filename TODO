@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - The type synonyms MidiInst.SyncDesc -> Cmd.SynthDesc -> MidiDb.SynthDesc
     is really confusing.  Can I put the patches directly in the Synth?
-  - Sysex always ends with EOX, so I should make Midi.encode do that.  But
+  * Sysex always ends with EOX, so I should make Midi.encode do that.  But
     then I need to strip EOX when loading sysexes.
   Experiment with MIDI single note tuning change.  Who supports it?
     . This is basically just limited to a way to set an Instrument.PatchScale.

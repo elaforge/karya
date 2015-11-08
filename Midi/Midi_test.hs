@@ -56,9 +56,9 @@ e_smpte (Midi.Smpte h m s f) = (h, m, s, f)
 test_realtime_tuning = do
     let f = ByteString.unpack . Encode.encode . Midi.realtime_tuning
     equal (f [(1, 1.5), (2, 2)])
-        [ Midi.sox_byte, 0x7f, 0x7f, 8, 2, 0
+        [ Encode.sox_byte, 0x7f, 0x7f, 8, 2, 0
         , 0x02 -- 2 keys
         , 0x01, 0x01, 0x40, 0x00
         , 0x02, 0x02, 0x00, 0x00
-        , Midi.eox_byte
+        , Encode.eox_byte
         ]

@@ -15,6 +15,7 @@ import Data.Word (Word8)
 
 import System.FilePath ((</>))
 
+import qualified Midi.Encode
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
@@ -155,7 +156,7 @@ encode_sysex :: Either String ByteString -> Either String ByteString
 encode_sysex encode_header encode_body = do
     header <- encode_header
     body <- encode_body
-    return $ header <> enkorg body <> B.singleton Midi.eox_byte
+    return $ header <> enkorg body <> B.singleton Midi.Encode.eox_byte
 
 -- ** record
 

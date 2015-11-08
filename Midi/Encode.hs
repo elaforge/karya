@@ -2,7 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Midi.Encode (decode, encode) where
+module Midi.Encode (decode, encode, sox_byte, eox_byte) where
+import Data.Monoid ((<>))
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Unsafe as Unsafe
 import Data.Word (Word8)
@@ -48,13 +49,16 @@ decode3 status d1 d2 bytes
         0x7b -> AllNotesOff
         _ -> UndefinedChannelMode d1 d2
     common_msg = case chan of
-        -- It's the caller's responsibility to end it with EOX.
-        0x0 -> SystemExclusive d1 (B.drop 2 bytes)
+        0x0 -> SystemExclusive d1 $ B.drop 2 $ drop_eox bytes
         0x2 -> SongPositionPointer (join14 d1 d2)
         0x3 -> SongSelect d1
         0x6 -> TuneRequest
         0x7 -> EOX -- this shouldn't happen by itself
         _ -> UndefinedCommon chan
+    drop_eox bytes
+        | not (B.null bytes) && B.last bytes == eox_byte =
+            B.take (B.length bytes - 1) bytes
+        | otherwise = bytes
     realtime_msg byte = case chan of
         0x1 -> MtcQuarterFrame (decode_mtc byte)
         0x8 -> TimingClock
@@ -100,16 +104,21 @@ encode (RealtimeMessage msg) = B.pack [join4 0xf st]
             error $ "Midi encode: unknown RealtimeMessage " ++ show msg
 
 encode (CommonMessage msg) = case msg of
-    SystemExclusive manuf bytes -> B.append (B.pack [0xf0, manuf]) bytes
+    SystemExclusive manuf bytes ->
+        B.pack [sox_byte, manuf] <> bytes <> B.pack [eox_byte]
     SongPositionPointer d ->
         let (d1, d2) = split14 d in B.pack [0xf2, d1, d2]
     SongSelect d -> B.pack [0xf3, d]
     TuneRequest -> B.pack [0xf6]
-    EOX -> B.pack [0xf7] -- this should have been in SystemExclusive
+    EOX -> B.pack [eox_byte] -- this should have been in SystemExclusive
     _ -> error $ "Midi encode: unknown CommonMessage " ++ show msg
 
 encode (UnknownMessage st d1 d2) =
     error $ "Midi encode: UnknownMessage: " ++ show (st, d1, d2)
+
+sox_byte, eox_byte :: Word8
+sox_byte = 0xf0
+eox_byte = 0xf7
 
 -- * util
 

@@ -151,8 +151,8 @@ file_to_syx fn = map add_extra_zero <$> case FilePath.takeExtension fn of
     -- | Convert .1vc format to .syx format.  Derived by looking at vlone70
     -- conversions with od.
     split_1vc bytes = [bytes_to_syx Nothing (B.drop 0xc00 bytes)]
-    split_syx = map (<> B.singleton Midi.eox_byte) . filter (not . B.null)
-        . B.split Midi.eox_byte
+    split_syx = map (<> B.singleton Midi.Encode.eox_byte)
+        . filter (not . B.null) . B.split Midi.Encode.eox_byte
 
 split_1bk :: Maybe Word8 -> ByteString -> [ByteString]
 split_1bk memory =
@@ -191,7 +191,7 @@ bytes_to_syx memory bytes = append_suffix $
     where size = 0xc1c - 0x20
 
 append_suffix :: ByteString -> ByteString
-append_suffix bytes = bytes <> B.pack [checksum, Midi.eox_byte]
+append_suffix bytes = bytes <> B.pack [checksum, Midi.Encode.eox_byte]
     where
     -- Checksum is the 2s complement of 7bit sum of the data.
     checksum = (2^7 - val) .&. 0x7f

@@ -31,7 +31,7 @@ type SubFrames = Word8
 encode :: DeviceId -> Mmc -> Midi.Message
 encode device_id msg =
     Midi.CommonMessage $ Midi.SystemExclusive 0x7f $
-        B.pack [device_id, 0x06] <> encode_msg msg <> B.singleton Midi.eox_byte
+        B.pack [device_id, 0x06] <> encode_msg msg
 
 encode_msg :: Mmc -> B.ByteString
 encode_msg mmc = B.pack $ case mmc of

@@ -18,9 +18,6 @@ module Midi.Midi (
     , program_change, pitch_bend_sensitivity, reset_channel
     , realtime_sysex
 
-    -- * constants
-    , sox_byte, eox_byte
-
     -- * modify
     , set_channel
 
@@ -176,18 +173,6 @@ reset_channel chan =
 -- time.
 realtime_sysex :: ByteString.ByteString -> Message
 realtime_sysex = CommonMessage . SystemExclusive 0x7f
-
--- * constants
-
--- | These aren't used here, but even though I'd like to constrain all midi
--- parsing to "Midi.Encode", other places wind up dealing with raw sysex msgs.
-sox_byte, eox_byte :: Word8
-sox_byte = 0xf0
-eox_byte = 0xf7
-
--- | Softsynths don't care about device ID, so use this.
-generic_device :: Word8
-generic_device = 0x7f
 
 -- * modify
 
@@ -409,7 +394,7 @@ undrop_frames _ frames = frames
 mtc_sync :: FrameRate -> Smpte -> Message
 mtc_sync rate (Smpte hours mins secs frames) =
     realtime_sysex $ ByteString.pack
-        [chan, 01, 01, rate_code .|. hours, mins, secs, frames, eox_byte]
+        [chan, 01, 01, rate_code .|. hours, mins, secs, frames]
     where
     chan = 0x7f -- send to all devices
     rate_code = shiftL (fromIntegral (fromEnum rate)) 5
@@ -456,11 +441,9 @@ type NoteNumber = Double
 --
 -- Based on <http://www.midi.org/techspecs/midituning.php>
 realtime_tuning :: [(Key, NoteNumber)] -> Message
-realtime_tuning nns = realtime_sysex $ ByteString.pack $ concat
-    [ [generic_device, 8, 2, 0, fromIntegral (length nns)]
-    , concatMap (uncurry key_frequency) nns
-    , [eox_byte]
-    ]
+realtime_tuning nns = realtime_sysex $ ByteString.pack $
+    [generic_device, 8, 2, 0, fromIntegral (length nns)]
+    ++ concatMap (uncurry key_frequency) nns
 
 key_frequency :: Key -> NoteNumber -> [Word8]
 key_frequency key nn = [from_key key, nn_key, msb, lsb]
@@ -488,7 +471,11 @@ split4 word = (shiftR word 4 .&. 0xf, word .&. 0xf)
 join4 :: Word8 -> Word8 -> Word8
 join4 d1 d2 = (shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
 
--- ** manufacturer
+-- * constants
+
+-- | Softsynths don't care about device ID, so use this.
+generic_device :: Word8
+generic_device = 0x7f
 
 manufacturer_name :: Manufacturer -> Text
 manufacturer_name code = Maybe.fromMaybe (showt code) $

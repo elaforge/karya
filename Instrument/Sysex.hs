@@ -274,17 +274,17 @@ expect_bytes bytes prefix
 hex :: ByteString -> String
 hex = unwords . map (\b -> Numeric.showHex b "") . B.unpack
 
--- | Extract substrings delimited by Midi.sox_byte and Midi.eox_byte.  Bytes
--- not within the delimeters are stripped.
+-- | Extract substrings delimited by sox_byte and eox_byte.  Bytes not within
+-- the delimeters are stripped.
 extract_sysex :: ByteString -> [ByteString]
 extract_sysex bytes
     | B.null bytes = []
-    | not $ B.singleton Midi.eox_byte `B.isSuffixOf` sysex = []
+    | not $ B.singleton Midi.Encode.eox_byte `B.isSuffixOf` sysex = []
     | B.null sysex = extract_sysex post
     | otherwise = sysex : extract_sysex post
     where
-    (sysex, post) = break_after (==Midi.eox_byte) $
-        B.dropWhile (/=Midi.sox_byte) bytes
+    (sysex, post) = break_after (==Midi.Encode.eox_byte) $
+        B.dropWhile (/=Midi.Encode.sox_byte) bytes
 
 break_after :: (Word8 -> Bool) -> ByteString -> (ByteString, ByteString)
 break_after f bytes = case B.findIndex f bytes of
