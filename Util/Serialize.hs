@@ -123,9 +123,9 @@ instance Serialize () where
     get = return ()
 
 instance Serialize Bool where
-    put False = putWord8 0
-    put True = putWord8 1
-    get = (/= 0) <$> getWord8
+    put False = put_tag 0
+    put True = put_tag 1
+    get = (/= 0) <$> get_tag
 
 instance Serialize Char where
     put = Serialize.put
@@ -152,10 +152,10 @@ instance (Serialize a) => Serialize (NonEmpty a) where
     get = fmap NonEmpty.fromList get
 
 instance (Serialize a) => Serialize (Maybe a) where
-    put Nothing = putWord8 0
-    put (Just a) = putWord8 1 >> put a
+    put Nothing = put_tag 0
+    put (Just a) = put_tag 1 >> put a
     get = do
-        tag <- getWord8
+        tag <- get_tag
         if tag == 0 then return Nothing else Just <$> get
 
 instance (Ord a, Serialize a) => Serialize (Set.Set a) where

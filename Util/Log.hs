@@ -357,9 +357,8 @@ instance (Monoid.Monoid w, LogMonad m) => LogMonad (Writer.WriterT w m) where
 -- * serialize
 
 -- | Serialize a log msg.  Newline separated text is nice because it's human
--- readable and is a natural record-oriented format.  Previously I used Show,
--- which is bulky and slow.  JSON is hopefully faster, and retains the benefits
--- of Show.
+-- readable and can use newlines for records.  Previously I used Show, which is
+-- bulky and slow.  JSON is hopefully faster, and retains the benefits of Show.
 serialize :: Msg -> ByteString.Lazy.ByteString
 serialize (Msg date caller prio stack text _data) =
     Aeson.encode $ Aeson.Array $ Vector.fromList
