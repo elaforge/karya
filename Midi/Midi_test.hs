@@ -4,10 +4,8 @@
 
 module Midi.Midi_test where
 import qualified Data.ByteString as ByteString
-import qualified Data.Map as Map
 import Data.Word (Word8)
 
-import qualified Util.Num as Num
 import Util.Test
 import qualified Midi.Encode as Encode
 import qualified Midi.Midi as Midi
@@ -56,8 +54,11 @@ e_smpte :: Midi.Smpte -> (Word8, Word8, Word8, Word8)
 e_smpte (Midi.Smpte h m s f) = (h, m, s, f)
 
 test_realtime_tuning = do
-    let f = first untxt . Midi.realtime_tuning . Midi.tuning
-    left_like (f [1.1, 2.5, 3.1, 3.5]) ">1 nn for keys"
-    let (_msg, keys) = expect_right "test_realtime_tuning" $
-            f [1.1, 2.5, 3.1, 5.5]
-    equal keys (Map.fromList [(1, 1.1), (2, 2.5), (3, 3.1), (5, 5.5)])
+    let f = ByteString.unpack . Encode.encode . Midi.realtime_tuning
+    equal (f [(1, 1.5), (2, 2)])
+        [ Midi.sox_byte, 0x7f, 0x7f, 8, 2, 0
+        , 0x02 -- 2 keys
+        , 0x01, 0x01, 0x40, 0x00
+        , 0x02, 0x02, 0x00, 0x00
+        , Midi.eox_byte
+        ]

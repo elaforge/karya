@@ -324,8 +324,8 @@ config_kebyar dev_ = make_config $ concat
     isep_patch name patch =
         (name, sc_patch patch, True, tuning EnvKey.isep, Just isep)
     patch name = (name, sc_patch name, True, [], Nothing)
-    umbang = Wayang.extended_legong_scale "umbang" Legong.umbang
-    isep = Wayang.extended_legong_scale "isep" Legong.isep
+    umbang = Legong.patch_scale BaliScales.Umbang
+    isep = Legong.patch_scale BaliScales.Isep
 
 -- * hang
 

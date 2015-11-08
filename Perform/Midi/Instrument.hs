@@ -348,6 +348,10 @@ instance Pretty.Pretty PatchScale where
     pretty (PatchScale name v) = name <> " ("
         <> showt (Util.Vector.count (/=0) v) <> " pitches)"
 
+patch_scale_keys :: PatchScale -> [(Midi.Key, Pitch.NoteNumber)]
+patch_scale_keys (PatchScale _ nns) =
+    map (second Pitch.nn) $ filter ((/=0) . snd) $ zip [0..] $ Vector.toList nns
+
 -- | Fill in non-adjacent MIDI keys by interpolating the neighboring
 -- NoteNumbers.  This is because a 0 between two notes will prevent pitch
 -- slides.  Another problem is that the MIDI performer has no notion of

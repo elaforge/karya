@@ -6,6 +6,8 @@
 module Derive.Scale.Wayang where
 import qualified Data.Vector as Vector
 
+import qualified Midi.Key2 as Key2
+import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
@@ -14,6 +16,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Midi.Instrument as Instrument
 import Global
 
 
@@ -121,3 +124,26 @@ extend nns =
     ding = nns !! 4
     low = take 5 nns -- oeuai
     high = drop (length nns - 5) nns -- oeuai
+
+
+-- * instrument integration
+
+patch_scale :: Bool -> BaliScales.Tuning -> Instrument.PatchScale
+patch_scale extended tuning =
+    Instrument.make_patch_scale ("wayang " <> showt tuning) $
+        zip (midi_keys extended) (if extended then extend nns else nns)
+    where
+    nns = case tuning of
+        BaliScales.Umbang -> umbang
+        BaliScales.Isep -> isep
+
+-- | If extended is True, emit from i1 on up.  Otherwise, give pemade to
+-- kantilan range.
+midi_keys :: Bool -> [Midi.Key]
+midi_keys extended = trim $ concatMap keys [2..]
+    where
+    trim
+        | extended = take (7*5 + 1)
+        | otherwise = take (3*5) . drop (1 + 3*5)
+    keys oct = map (Midi.to_key (oct * 12) +) -- i o e u a
+        [Key2.e_2, Key2.f_2, Key2.a_2, Key2.b_2, Key2.c_1]

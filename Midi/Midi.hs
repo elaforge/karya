@@ -39,7 +39,7 @@ module Midi.Midi (
     , generate_mtc
     , mtc_sync, mtc_fragments
     -- * tuning
-    , Tuning, tuning, realtime_tuning
+    , realtime_tuning
 
     -- * util
     , join14, split14, join4, split4
@@ -54,7 +54,6 @@ import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text.Encoding as Encoding
-import qualified Data.Vector.Unboxed as Vector
 import Data.Word (Word8)
 
 import qualified Foreign.C
@@ -185,6 +184,10 @@ realtime_sysex = CommonMessage . SystemExclusive 0x7f
 sox_byte, eox_byte :: Word8
 sox_byte = 0xf0
 eox_byte = 0xf7
+
+-- | Softsynths don't care about device ID, so use this.
+generic_device :: Word8
+generic_device = 0x7f
 
 -- * modify
 
@@ -449,43 +452,21 @@ mtc_fragments rate (Smpte hours minutes seconds frames) = map (uncurry Mtc)
 
 type NoteNumber = Double
 
-newtype Tuning = Tuning (Vector.Vector NoteNumber)
-    deriving (Show)
-
-tuning :: [NoteNumber] -> Tuning
-tuning = Tuning . Vector.fromList
-
 -- | Create a realtime tuning msg.
 --
 -- Based on <http://www.midi.org/techspecs/midituning.php>
-realtime_tuning :: Tuning -> Either Text (Message, Map.Map Key NoteNumber)
-    -- ^ Message and a map with the assigned Keys.  All pitches have to have
-    -- their own integral note number.
-realtime_tuning tuning = do
-    keys <- key_map tuning
-    return (message (Map.toAscList (snd <$> keys)), fst <$> keys)
-    where
-    message keys = realtime_sysex $ ByteString.pack $
-        [device_id, 8, 2, 0, fromIntegral (length keys)]
-        ++ concat [from_key key : freq | (key, freq) <- keys]
-        ++ [eox_byte]
-    device_id = 0x7f
+realtime_tuning :: [(Key, NoteNumber)] -> Message
+realtime_tuning nns = realtime_sysex $ ByteString.pack $ concat
+    [ [generic_device, 8, 2, 0, fromIntegral (length nns)]
+    , concatMap (uncurry key_frequency) nns
+    , [eox_byte]
+    ]
 
-key_map :: Tuning -> Either Text (Map.Map Key (NoteNumber, [Word8]))
-key_map (Tuning scale)
-    | not (null dups) = Left $ ">1 nn for keys: "
-        <> pretty [(key, nn) | ((key, _), nn) <- concatMap (uncurry (:)) dups]
-    | otherwise = Right $
-        Map.fromList [(key, (nn, freq)) | ((key, freq), nn) <- keys]
-    where
-    (keys, dups) = Seq.partition_dups (fst . fst) $
-        Seq.key_on key_frequency (Vector.toList scale)
-
-key_frequency :: NoteNumber -> (Key, [Word8])
-key_frequency nn = (to_key key, [key, msb, lsb])
+key_frequency :: Key -> NoteNumber -> [Word8]
+key_frequency key nn = [from_key key, nn_key, msb, lsb]
     where
     (lsb, msb) = split14 $ round $ frac * 2^14
-    (key, frac) = properFraction nn
+    (nn_key, frac) = properFraction nn
 
 
 -- * util

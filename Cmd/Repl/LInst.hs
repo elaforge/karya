@@ -6,7 +6,6 @@
 -- | REPL Cmds dealing with instruments and MIDI config.
 module Cmd.Repl.LInst where
 import Prelude hiding (lookup)
-import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -360,12 +359,11 @@ device_of inst = do
 -- | Set the instrument's PatchScale to the given scale and send a MIDI tuning
 -- message to retune the synth.  Obviously this only works for synths that
 -- support it.
-retune :: Cmd.M m => Instrument -> [Pitch.NoteNumber] -> m ()
+retune :: Cmd.M m => Instrument -> Instrument.PatchScale -> m ()
 retune inst scale = do
-    (msg, keys) <- Cmd.require_right id $ Midi.realtime_tuning $
-        Midi.tuning $ map Pitch.nn_to_double scale
-    set_scale inst $ Instrument.make_patch_scale "name"
-        (Map.toList (Pitch.nn <$> keys))
+    let msg = Midi.realtime_tuning $ map (second Pitch.nn_to_double) $
+            Instrument.patch_scale_keys scale
+    set_scale inst scale
     devs <- map (fst . fst) . Instrument.config_addrs <$>
         get_config (Util.instrument inst)
     mapM_ (flip Cmd.midi msg) (Seq.unique devs)

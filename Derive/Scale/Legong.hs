@@ -12,6 +12,8 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 
 import qualified Util.Seq as Seq
+import qualified Midi.Key as Key
+import qualified Midi.Midi as Midi
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
@@ -19,6 +21,7 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -174,9 +177,28 @@ strip_pemero = go
     go nns = strip nns ++ go (drop 7 nns)
     strip nns = mapMaybe (Seq.at nns) [0, 2, 3, 5, 6]
 
--- | Add one octave on the bottom, so I get down to 1i, in the jegog, up to 6i.
+-- | Add one octave on the bottom, so I get down to 1i, which is jegog range.
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
 extend nns = map (subtract 12) (take oct from_ding) ++ from_ding
     where
     from_ding = map (subtract 12) (take 2 (drop (oct-2) nns)) ++ nns
     oct = 7
+
+-- * instrument integration
+
+patch_scale :: BaliScales.Tuning -> Instrument.PatchScale
+patch_scale tuning =
+    Instrument.make_patch_scale ("legong " <> showt tuning) $
+        zip midi_keys (extend nns)
+    where
+    nns = case tuning of
+        BaliScales.Umbang -> umbang
+        BaliScales.Isep -> isep
+
+-- | Emit from i1 on up.
+midi_keys :: [Midi.Key]
+midi_keys = trim $ concatMap keys [3..]
+    where
+    trim = take (5*7 + 1)
+    keys oct = map (Midi.to_key (oct * 12) +) -- i o e e# u a a#
+        [Key.c_1, Key.d_1, Key.e_1, Key.f_1, Key.g_1, Key.a_1, Key.b_1]

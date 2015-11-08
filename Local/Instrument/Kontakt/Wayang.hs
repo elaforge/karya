@@ -4,10 +4,8 @@
 
 -- | Gender wayang patches.
 module Local.Instrument.Kontakt.Wayang where
-import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
-
 import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
@@ -52,9 +50,9 @@ import Global
 -}
 patches :: [MidiInst.Patch]
 patches = map (MidiInst.with_code (code <> with_weak))
-    [ set_tuning EnvKey.umbang $ scale "umbang" Wayang.umbang $
+    [ set_tuning EnvKey.umbang $ scale BaliScales.Umbang $
         wayang "wayang-umbang"
-    , set_tuning EnvKey.isep $ scale "isep" Wayang.isep $ wayang "wayang-isep"
+    , set_tuning EnvKey.isep $ scale BaliScales.Isep $ wayang "wayang-isep"
     , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
     ] ++ map (MidiInst.with_code (Bali.pasang_code <> with_weak))
     [ wayang "wayang"
@@ -78,8 +76,8 @@ patches = map (MidiInst.with_code (code <> with_weak))
         $ (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
         $ (Instrument.attribute_map #= wayang_keymap)
         $ Instrument.patch $ Instrument.instrument name [] pb_range
-    scale tuning nns = (Instrument.text #= doc)
-        . (Instrument.scale #= Just (wayang_scale tuning nns))
+    scale tuning = (Instrument.text #= doc)
+        . (Instrument.scale #= Just (Wayang.patch_scale False tuning))
         where
         doc = "These set the scale and tuning automatically, and expect the\
             \ patch to be tuned to the instrument's natural scale."
@@ -111,57 +109,6 @@ config dev_ = MidiConfig.config
     dev = Midi.write_device dev_
     inst = Score.Instrument
 
-wayang_scale :: Text -> [Pitch.NoteNumber] -> Instrument.PatchScale
-wayang_scale tuning nns = Instrument.make_patch_scale ("wayang " <> tuning) $
-    zip (wayang_keys False) nns
-
--- | A PatchScale for the extended wayang scale, that goes down to i1.
-extended_wayang_scale :: Text -> [Pitch.NoteNumber] -> Instrument.PatchScale
-extended_wayang_scale tuning nns =
-    Instrument.make_patch_scale ("wayang " <> tuning) $
-        zip (wayang_keys True) (Wayang.extend nns)
-
-extended_legong_scale :: Text -> [Pitch.NoteNumber] -> Instrument.PatchScale
-extended_legong_scale tuning nns =
-    Instrument.make_patch_scale ("legong " <> tuning) $
-        zip legong_keys (Legong.extend nns)
-
-legong_keys :: [Midi.Key]
-legong_keys = trim $ concatMap keys [3..]
-    where
-    trim = take (5*7 + 1)
-    keys oct = map (Midi.to_key (oct * 12) +) -- i o e e# u a a#
-        [Key.c_1, Key.d_1, Key.e_1, Key.f_1, Key.g_1, Key.a_1, Key.b_1]
-
--- | If extended is True, emit i1 on up.  Otherwise, give pemade to kantilan
--- range.
-wayang_keys :: Bool -> [Midi.Key]
-wayang_keys extended = trim $ concatMap keys [2..]
-    where
-    trim
-        | extended = take (7*5 + 1)
-        | otherwise = take (3*5) . drop (1 + 3*5)
-    keys oct = map (Midi.to_key (oct * 12) +) -- i o e u a
-        [Key2.e_2, Key2.f_2, Key2.a_2, Key2.b_2, Key2.c_1]
-
--- | Debugging helper to see if scale degrees line up.
-annotate_scale :: [String] -> [Pitch.NoteNumber] -> [Midi.Key]
-    -> [((Midi.Key, Int), (Pitch.Octave, String), Pitch.NoteNumber)]
-annotate_scale notes nns keys = zip3 keynum_keys oct_notes nns
-    where
-    keynum_keys = zip keys (map Midi.from_key keys)
-    oct_notes = [(oct, note) | oct <- [1..], note <- notes]
-
-annot_legong = annotate_scale notes (Legong.extend Legong.umbang) legong_keys
-    where notes = ["i", "o", "e", "e#", "u", "a", "a#"]
-
-annot_wayang_extended =
-    annotate_scale notes (Wayang.extend Wayang.umbang) (wayang_keys True)
-    where notes = map (:"") "ioeua"
-
-annot_wayang = annotate_scale notes Wayang.umbang (wayang_keys False)
-    where notes = map (:"") "ioeua"
-
 wayang_keymap :: Instrument.AttributeMap
 wayang_keymap = Instrument.AttributeMap
     [ (Attrs.mute <> Attrs.loose, [Instrument.Keyswitch Key2.a_2], keymap)
@@ -185,12 +132,9 @@ retuned_patch scale_id tuning patch_scale =
 -- | Write KSP to retune a 12TET patch.
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
-    [ ("wayang-umbang.ksp",
-        Util.tuning_ksp $ extended_wayang_scale "umbang" Wayang.umbang)
-    , ("wayang-isep.ksp",
-        Util.tuning_ksp $ extended_wayang_scale "isep" Wayang.isep)
-    , ("legong-umbang.ksp",
-        Util.tuning_ksp $ extended_legong_scale "umbang" Legong.umbang)
-    , ("legong-isep.ksp",
-        Util.tuning_ksp $ extended_legong_scale "isep" Legong.isep)
+    [ ("wayang-umbang.ksp", ksp $ Wayang.patch_scale True BaliScales.Umbang)
+    , ("wayang-isep.ksp",   ksp $ Wayang.patch_scale True BaliScales.Isep)
+    , ("legong-umbang.ksp", ksp $ Legong.patch_scale BaliScales.Umbang)
+    , ("legong-isep.ksp",   ksp $ Legong.patch_scale BaliScales.Isep)
     ]
+    where ksp = Util.tuning_ksp
