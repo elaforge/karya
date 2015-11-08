@@ -3,6 +3,16 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  Experiment with MIDI single note tuning change.  Who supports it?
+    . This is basically just limited to a way to set an Instrument.PatchScale.
+      Still, it could be convenient for static scales.  It's complicated for
+      anything dynamic because I still have to schedule to avoid the "same"
+      key.  Though that's the same restriction as pianoteq, so if a bunch
+      of synths can do that, then it might be worth a performer hack.
+    * code to emit the MIDI
+    - find out which synths support it
+    - some way to set PatchScale for insts and send initialization.
+
   * J call for calung that puts in a jegog note.  It needs {infer-duration}.
   * Unsetting for read-only SavedFile breaks ky files.  So I think I need
     either a separate way to mark read-only, or a separate place for the ky
@@ -727,6 +737,14 @@ local: plugins:
     map.
 
 cleanup:
+  See about removing type prefix from record fields.
+    . However, if there are lenses, then I need those names for the lenses.
+      But perhaps the plain version can have a leading _?
+    - Cmd.State
+    - Derive.Deriver.Monad
+    - Ui.State
+    - Ui.StateConfig
+    - Perform.Midi.Instrument
   - Util.TimeVector has a hack where a sample at <=0 is considered to extend
     to -inf.  It's because I want a control track call at 0 to extend back.
     But I could do that directly with a postproc ala the tempo hack.  It seems

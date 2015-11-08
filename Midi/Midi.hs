@@ -16,6 +16,7 @@ module Midi.Midi (
 
     -- * constructors
     , program_change, pitch_bend_sensitivity, reset_channel
+    , realtime_sysex
 
     -- * constants
     , sox_byte, eox_byte
@@ -32,10 +33,13 @@ module Midi.Midi (
     , PitchBendValue, Manufacturer
     , Key(..), from_key, to_key, to_closest_key
     , ChannelMessage(..), CommonMessage(..), RealtimeMessage(..)
+    -- * MTC
     , Mtc(..), FrameRate(..), SmpteFragment(..), Smpte(..)
     , seconds_to_frame, frame_to_seconds, frame_to_smpte, seconds_to_smpte
     , generate_mtc
     , mtc_sync, mtc_fragments
+    -- * tuning
+    , Tuning, tuning, realtime_tuning
 
     -- * util
     , join14, split14, join4, split4
@@ -50,6 +54,7 @@ import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text.Encoding as Encoding
+import qualified Data.Vector.Unboxed as Vector
 import Data.Word (Word8)
 
 import qualified Foreign.C
@@ -167,6 +172,11 @@ reset_channel chan =
     [ ChannelMessage chan AllSoundOff
     , ChannelMessage chan ResetAllControls
     ]
+
+-- | This is a special kind of sysex which is meant to be interpreted in real
+-- time.
+realtime_sysex :: ByteString.ByteString -> Message
+realtime_sysex = CommonMessage . SystemExclusive 0x7f
 
 -- * constants
 
@@ -337,7 +347,7 @@ instance Pretty.Pretty ChannelMessage where
         Aftertouch key vel -> "Aftertouch" <+> format key <+> format vel
         _ -> Pretty.text (showt msg)
 
--- ** MTC
+-- * MTC
 
 data Mtc = Mtc !SmpteFragment !Word8 -- actually Word4
     deriving (Eq, Ord, Show, Read)
@@ -395,9 +405,8 @@ undrop_frames _ frames = frames
 -- a time dicontinuity.
 mtc_sync :: FrameRate -> Smpte -> Message
 mtc_sync rate (Smpte hours mins secs frames) =
-    CommonMessage $ SystemExclusive 0x7f $
-        ByteString.pack [chan, 01, 01, rate_code .|. hours,
-            mins, secs, frames, eox_byte]
+    realtime_sysex $ ByteString.pack
+        [chan, 01, 01, rate_code .|. hours, mins, secs, frames, eox_byte]
     where
     chan = 0x7f -- send to all devices
     rate_code = shiftL (fromIntegral (fromEnum rate)) 5
@@ -435,6 +444,49 @@ mtc_fragments rate (Smpte hours minutes seconds frames) = map (uncurry Mtc)
     (min_msb, min_lsb) = split4 minutes
     (hour_msb, hour_lsb) = split4 hours
     rate_code = shiftL (fromIntegral (fromEnum rate)) 1
+
+-- * tuning
+
+type NoteNumber = Double
+
+newtype Tuning = Tuning (Vector.Vector NoteNumber)
+    deriving (Show)
+
+tuning :: [NoteNumber] -> Tuning
+tuning = Tuning . Vector.fromList
+
+-- | Create a realtime tuning msg.
+--
+-- Based on <http://www.midi.org/techspecs/midituning.php>
+realtime_tuning :: Tuning -> Either Text (Message, Map.Map Key NoteNumber)
+    -- ^ Message and a map with the assigned Keys.  All pitches have to have
+    -- their own integral note number.
+realtime_tuning tuning = do
+    keys <- key_map tuning
+    return (message (Map.toAscList (snd <$> keys)), fst <$> keys)
+    where
+    message keys = realtime_sysex $ ByteString.pack $
+        [device_id, 8, 2, 0, fromIntegral (length keys)]
+        ++ concat [from_key key : freq | (key, freq) <- keys]
+        ++ [eox_byte]
+    device_id = 0x7f
+
+key_map :: Tuning -> Either Text (Map.Map Key (NoteNumber, [Word8]))
+key_map (Tuning scale)
+    | not (null dups) = Left $ ">1 nn for keys: "
+        <> pretty [(key, nn) | ((key, _), nn) <- concatMap (uncurry (:)) dups]
+    | otherwise = Right $
+        Map.fromList [(key, (nn, freq)) | ((key, freq), nn) <- keys]
+    where
+    (keys, dups) = Seq.partition_dups (fst . fst) $
+        Seq.key_on key_frequency (Vector.toList scale)
+
+key_frequency :: NoteNumber -> (Key, [Word8])
+key_frequency nn = (to_key key, [key, msb, lsb])
+    where
+    (lsb, msb) = split14 $ round $ frac * 2^14
+    (key, frac) = properFraction nn
+
 
 -- * util
 
