@@ -18,9 +18,12 @@ import Global
 
 
 load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "pianoteq" "Modartt Pianoteq" pb_range controls)
-    { MidiInst.extra_patches = patches }
+load _dir = return
+    [(synth { Instrument.synth_supports_realtime_tuning = True }, patch_map)]
+    where
+    (synth, patch_map) = MidiInst.make1 $
+        (MidiInst.softsynth "pianoteq" "Modartt Pianoteq" pb_range controls)
+        { MidiInst.extra_patches = patches }
 
 pb_range :: Instrument.PbRange
 pb_range = (-24, 24)

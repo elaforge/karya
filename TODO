@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - The type synonyms MidiInst.SyncDesc -> Cmd.SynthDesc -> MidiDb.SynthDesc
+    is really confusing.  Can I put the patches directly in the Synth?
+  - Sysex always ends with EOX, so I should make Midi.encode do that.  But
+    then I need to strip EOX when loading sysexes.
   Experiment with MIDI single note tuning change.  Who supports it?
     . This is basically just limited to a way to set an Instrument.PatchScale.
       Still, it could be convenient for static scales.  It's complicated for
@@ -10,8 +14,8 @@ UNSORTED
       key.  Though that's the same restriction as pianoteq, so if a bunch
       of synths can do that, then it might be worth a performer hack.
     * code to emit the MIDI
-    - find out which synths support it
-    - some way to set PatchScale for insts and send initialization.
+    * find out which synths support it
+    * some way to set PatchScale for insts and send initialization.
 
   * J call for calung that puts in a jegog note.  It needs {infer-duration}.
   * Unsetting for read-only SavedFile breaks ky files.  So I think I need

@@ -76,9 +76,9 @@ instance Serialize Search.Index where
     get = get >>= \a -> get >>= \b -> return (Search.Index a b)
 
 instance Serialize Instrument.Synth where
-    put (Instrument.Synth a b c) = put a >> put b >> put c
-    get = get >>= \a -> get >>= \b -> get >>= \c ->
-        return (Instrument.Synth a b c)
+    put (Instrument.Synth a b c d) = put a >> put b >> put c >> put d
+    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
+        return (Instrument.Synth a b c d)
 
 instance Serialize (MidiDb.PatchMap ()) where
     put (MidiDb.PatchMap a) = put a

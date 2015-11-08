@@ -584,17 +584,28 @@ data Synth = Synth {
     -- | Often synths have a set of common controls in addition to the
     -- global midi defaults.
     , synth_control_map :: !Control.ControlMap
+    -- | Set if this synth supports MIDI realtime tuning, as emitted by
+    -- 'Midi.realtime_tuning'.  Currently this has no effect, but it's
+    -- a useful note.
+    , synth_supports_realtime_tuning :: !Bool
+        -- If there are ever >1 of these, make it Set SynthFlag.
     } deriving (Eq, Show)
 
 instance Pretty.Pretty Synth where
-    format (Synth name doc cmap) = Pretty.record "Synth"
+    format (Synth name doc cmap tuning) = Pretty.record "Synth"
         [ ("name", Pretty.format name)
         , ("doc", Pretty.format doc)
         , ("control_map", Pretty.format cmap)
+        , ("supports_realtime_tuning", Pretty.format tuning)
         ]
 
 synth :: SynthName -> Text -> [(Midi.Control, Score.Control)] -> Synth
-synth name doc = Synth name doc . Control.control_map
+synth name doc cmap = Synth
+    { synth_name = name
+    , synth_doc = doc
+    , synth_control_map = Control.control_map cmap
+    , synth_supports_realtime_tuning = False
+    }
 
 -- | Synths default to writing to a device with their name.  You'll have to
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
@@ -626,7 +637,6 @@ add_tag tag = tags %= (tag:)
 -- 'Instrument.MidiDb.softsynth'.
 make_softsynth :: SynthName -> Text -> Control.PbRange
     -> [(Midi.Control, Score.Control)] -> (Synth, Patch)
-make_softsynth name doc pb_range controls = (synth, template_patch)
-    where
-    synth = Synth name doc (Control.control_map controls)
-    template_patch = patch (wildcard_instrument pb_range)
+make_softsynth name doc pb_range controls =
+    (synth name doc controls, template_patch)
+    where template_patch = patch (wildcard_instrument pb_range)

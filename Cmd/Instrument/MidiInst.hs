@@ -7,7 +7,7 @@ module Cmd.Instrument.MidiInst (
     SynthDesc
     , Softsynth(..), softsynth
     , Patch
-    , make
+    , make, make1
     -- * code
     , Code(..), empty_code, with_code, with_empty_code
     , Call
@@ -75,8 +75,11 @@ softsynth name doc pb_range controls =
     Softsynth name doc pb_range controls [] id empty_code
 
 make :: Softsynth -> [SynthDesc]
-make (Softsynth name doc pb_range controls extra_patches modify_wildcard code)
-    = [(synth, pmap <> extra)]
+make = (:[]) . make1
+
+make1 :: Softsynth -> SynthDesc
+make1 (Softsynth name doc pb_range controls extra_patches modify_wildcard code)
+    = (synth, pmap <> extra)
     where
     (extra, _) = MidiDb.patch_map (map (second make_code) extra_patches)
     (synth, wildcard_patch) =

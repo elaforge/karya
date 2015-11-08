@@ -6,6 +6,7 @@
 -- | REPL Cmds dealing with instruments and MIDI config.
 module Cmd.Repl.LInst where
 import Prelude hiding (lookup)
+import qualified Data.ByteString as ByteString
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -31,6 +32,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Pitch as Pitch
 import qualified Instrument.MidiDb as MidiDb
 import Global
 import Types
@@ -186,12 +188,15 @@ set_controls inst controls = modify_config_ inst $
 get_controls :: State.M m => m (Map.Map Score.Instrument Score.ControlValMap)
 get_controls = Map.map Instrument.config_controls <$> State.get_midi_config
 
+get_config :: State.M m => Score.Instrument -> m Instrument.Config
+get_config inst = State.require ("no config for " <> pretty inst)
+    . Map.lookup inst =<< State.get_midi_config
+
 modify_config :: State.M m => Instrument
     -> (Instrument.Config -> (Instrument.Config, a)) -> m a
 modify_config inst_ modify = do
     let inst = Util.instrument inst_
-    config <- State.require ("no config for " <> pretty inst)
-        . Map.lookup inst =<< State.get_midi_config
+    config <- get_config inst
     let (new, result) = modify config
     State.modify $ State.config # State.midi # Lens.map inst #= Just new
     return result
@@ -349,6 +354,21 @@ device_of inst = do
     maybe_info <- Cmd.lookup_instrument inst
     return $ Instrument.synth_device . MidiDb.info_synth <$> maybe_info
 
+
+-- * tuning
+
+-- | Set the instrument's PatchScale to the given scale and send a MIDI tuning
+-- message to retune the synth.  Obviously this only works for synths that
+-- support it.
+retune :: Cmd.M m => Instrument -> [Pitch.NoteNumber] -> m ()
+retune inst scale = do
+    (msg, keys) <- Cmd.require_right id $ Midi.realtime_tuning $
+        Midi.tuning $ map Pitch.nn_to_double scale
+    set_scale inst $ Instrument.make_patch_scale "name"
+        (Map.toList (Pitch.nn <$> keys))
+    devs <- map (fst . fst) . Instrument.config_addrs <$>
+        get_config (Util.instrument inst)
+    mapM_ (flip Cmd.midi msg) (Seq.unique devs)
 
 -- * midi interface
 
