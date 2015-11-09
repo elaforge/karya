@@ -28,8 +28,8 @@ import Global
 synth_name :: FilePath
 synth_name = "z1"
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load = MidiInst.load_db (const MidiInst.empty_code) synth_name
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load = MidiInst.load_synth (const MidiInst.empty_code) synth_name
 
 make_db :: FilePath -> IO ()
 make_db dir = do
@@ -39,9 +39,10 @@ make_db dir = do
         (dir </> synth_name </> "bank_b.syx")
     sysex <- Sysex.parse_dir [current_program_dump, program_dump, sysex_manager]
         (dir </> synth_name </> "sysex")
-    MidiInst.save_patches synth
-        (map override_pb (concat [bank_a, bank_b, sysex])) synth_name dir
+    MidiInst.save_synth dir synth $
+        map override_pb (concat [bank_a, bank_b, sysex])
     where
+    synth = Instrument.synth (txt synth_name) "Korg Z1" synth_controls
     current_program_dump =
         fmap (:[]) . (rmap_to_patch <=< decode_current_program)
     program_dump = mapM rmap_to_patch <=< decode_program_dump
@@ -49,9 +50,6 @@ make_db dir = do
     -- multiset.
     override_pb =
         Instrument.instrument_#Instrument.pitch_bend_range #= (-24, 24)
-
-synth :: Instrument.Synth
-synth = Instrument.synth (txt synth_name) "Korg Z1" synth_controls
 
 synth_controls :: [(Midi.Control, Score.Control)]
 synth_controls =
@@ -168,7 +166,7 @@ rmap_to_patch rmap = do
         <*> get "pitch bend.intensity +"
     osc1 <- get "osc.0.type"
     osc2 <- get "osc.1.type"
-    return $ (Instrument.patch (Instrument.instrument name [] pb_range))
+    return $ (Instrument.patch (Instrument.instrument pb_range name []))
         { Instrument.patch_tags =
             [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]
         }

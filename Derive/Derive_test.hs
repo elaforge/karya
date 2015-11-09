@@ -94,7 +94,7 @@ test_attributes = do
     let convert_lookup = DeriveTest.make_convert_lookup [("i1", "s/i1")] $
             DeriveTest.make_db [("s", [patch])]
         patch = Instrument.attribute_map #= attr_map $ Instrument.patch $
-            Instrument.instrument "i1" [] (-1, 1)
+            Instrument.instrument (-1, 1) "i1" []
         keyswitches = Instrument.simple_keyswitches $ map (first Score.attrs)
             [ (["a1", "a2"], 0)
             , (["a0"], 1)

@@ -54,19 +54,16 @@ import qualified Local.Instrument.Reaktor as Reaktor
 import Global
 
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return synth_descs
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load _dir = return $ Just synth
 
-synth_descs :: [MidiInst.SynthDesc]
-synth_descs = MidiInst.make $
-    (MidiInst.softsynth synth "Native Instruments Kontakt" pb_range [])
-    { MidiInst.extra_patches = patches }
-
-synth :: Instrument.SynthName
-synth = "kontakt"
+synth :: MidiInst.Synth
+synth = MidiInst.with_patches patches $
+    Instrument.synth "kontakt" "Native Instruments Kontakt" []
 
 patches :: [MidiInst.Patch]
-patches = concat
+patches = MidiInst.with_empty_code (Instrument.default_patch pb_range [])
+    : concat
     [ misc_patches
     , hang_patches
     , Kendang.patches, Mridangam.patches, Pakhawaj.patches, Wayang.patches
@@ -74,8 +71,7 @@ patches = concat
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
     -> Instrument.Patch
-patch name controls =
-    Instrument.patch $ Instrument.instrument name controls pb_range
+patch = MidiInst.patch pb_range
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get
 -- +-24.
@@ -112,7 +108,7 @@ balalaika =
     [ with_code $
         Instrument.attribute_map #= Instrument.simple_keyswitches ks $
         Instrument.patch $ (Instrument.hold_keyswitch #= True) $
-        Instrument.instrument "balalaika" controls pb_range
+        Instrument.instrument pb_range "balalaika" controls
     ]
     where
     with_code = MidiInst.with_code $ MidiInst.note_generators
@@ -233,7 +229,7 @@ sc_bali = map (first add_doc) $
     range_of = BaliScales.scale_range
     ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name = Instrument.set_flag Instrument.ConstantPitch $
-        Instrument.patch $ Instrument.instrument ("sc-" <> name) [] (-2, 2)
+        MidiInst.patch (-2, 2) ("sc-" <> name) []
     add_doc = Instrument.text
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)
     gangsa_ks = Instrument.attribute_map #= Instrument.simple_keyswitches

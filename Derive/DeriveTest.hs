@@ -146,11 +146,11 @@ perform_stream lookup midi_config stream = (perf_events, midi)
     (midi, _) = Perform.perform Perform.initial_state
         (Instrument.config_addrs <$> midi_config) perf_events
 
--- | Perform events with the given instrument config.
-perform_inst :: Simple.Aliases -> [Cmd.SynthDesc] -> [(Text, [Midi.Channel])]
+-- | Perform events with the given instrument db.
+perform_synths :: Simple.Aliases -> [MidiInst.Synth] -> [(Text, [Midi.Channel])]
     -> Stream.Stream Score.Event
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
-perform_inst aliases synths config =
+perform_synths aliases synths config =
     perform (synth_to_convert_lookup aliases synths) (UiTest.midi_config config)
 
 -- * derive
@@ -197,9 +197,9 @@ derive_block_setup_m setup create =
         default_cmd_state mempty mempty (UiTest.exec State.empty create)
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
-derive_dump :: [MidiInst.SynthDesc] -> Simple.State -> BlockId -> Derive.Result
+derive_dump :: [MidiInst.Synth] -> Simple.State -> BlockId -> Derive.Result
 derive_dump synths dump@(_, _, aliases, _) =
-    derive_block_setup (with_synth_descs aliases synths) state
+    derive_block_setup (with_synths aliases synths) state
     where state = UiTest.eval State.empty (Simple.load_state dump)
 
 -- | Derive a block in the same way that the app does.
@@ -214,7 +214,7 @@ derive_block_standard setup cmd_state cache damage ui_state_ block_id =
     deriver = setup_deriver setup $
         Prelude.Block.eval_root_block global_transform block_id
 
-perform_dump :: [MidiInst.SynthDesc] -> Simple.State -> Derive.Result
+perform_dump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
 perform_dump synths (_, midi, aliases, _) =
     perform lookup config . Derive.r_events
@@ -353,9 +353,8 @@ with_scale scale = with_cmd $ set_cmd_config $ \state -> state
 
 -- | Derive with a bit of the real instrument db.  Useful for testing
 -- instrument calls.
-with_synth_descs :: Simple.Aliases -> [Cmd.SynthDesc] -> Setup
-with_synth_descs aliases synth_descs =
-    with_inst_db aliases (synth_to_db synth_descs)
+with_synths :: Simple.Aliases -> [MidiInst.Synth] -> Setup
+with_synths aliases synths = with_inst_db aliases (synth_to_db synths)
 
 with_inst_db :: Simple.Aliases -> Cmd.InstrumentDb -> Setup
 with_inst_db aliases db = with_aliases <> with_db
@@ -416,29 +415,31 @@ default_db :: Cmd.InstrumentDb
 default_db = make_db [("s", map make_patch ["1", "2", "3"])]
 
 make_patch :: Text -> Instrument.Patch
-make_patch name = Instrument.patch $ Instrument.instrument name [] (-2, 2)
+make_patch name = MidiInst.patch (-2, 2) name []
 
 default_convert_lookup :: Convert.Lookup
 default_convert_lookup = make_convert_lookup UiTest.default_aliases default_db
 
-synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.SynthDesc]
+synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.Synth]
     -> Convert.Lookup
 synth_to_convert_lookup aliases = make_convert_lookup aliases . synth_to_db
 
-synth_to_db :: [Cmd.SynthDesc] -> Cmd.InstrumentDb
-synth_to_db synth_descs =
+synth_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
+synth_to_db synths =
     trace_logs (map (Log.msg Log.Warn Nothing) warns) $ Instrument.Db.db midi_db
-    where (midi_db, warns) = MidiDb.midi_db synth_descs
+    where (midi_db, warns) = MidiDb.midi_db synths
 
 make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
 make_db synth_patches = Instrument.Db.db midi_db
     where
-    midi_db = fst $ MidiDb.midi_db $ concatMap make synth_patches
-    make (synth, patches) = MidiInst.make
-        (MidiInst.softsynth synth "Test Synth" (-2, 2) [])
-        { MidiInst.extra_patches =
-            map (\p -> (p, MidiInst.empty_code)) patches
-        }
+    midi_db = fst $ MidiDb.midi_db $ map make synth_patches
+    make (name, patches) =
+        make_synth name (map MidiInst.with_empty_code patches)
+
+make_synth :: Instrument.SynthName -> [(Instrument.Patch, MidiInst.Code)]
+    -> MidiInst.Synth
+make_synth name patches =
+    MidiInst.with_patches patches $ Instrument.synth name "Test Synth" []
 
 make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup
 make_convert_lookup aliases midi_db =

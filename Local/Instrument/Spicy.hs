@@ -20,21 +20,23 @@ import qualified Perform.Midi.Instrument as Instrument
 import Global
 
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth synth_name "Spicy Guitar, http://www.spicyguitar.com"
-        pb_range controls)
-    { MidiInst.modify_wildcard =
-        (Instrument.instrument_#Instrument.hold_keyswitch #= True)
-        . (Instrument.attribute_map #=
-            Instrument.simple_keyswitches keyswitches)
-    , MidiInst.code = MidiInst.note_calls (MidiInst.null_call note_call)
-    }
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load _dir = return $ Just $
+    MidiInst.with_patches patches $
+    Instrument.synth synth_name "Spicy Guitar, http://www.spicyguitar.com"
+        controls
+
+patches :: [MidiInst.Patch]
+patches = (:[]) $
+    MidiInst.with_code (MidiInst.note_calls (MidiInst.null_call note_call)) $
+    (Instrument.instrument_#Instrument.hold_keyswitch #= True) $
+    (Instrument.attribute_map #= Instrument.simple_keyswitches keyswitches) $
+        Instrument.default_patch (-3, 3) []
+    where
 
 synth_name :: Instrument.SynthName
 synth_name = "spicy"
 
-pb_range = (-3, 3)
 
 -- | WARNING: changing these while playing tends to crash the VST.
 controls :: [(Midi.Control, Score.Control)]

@@ -49,5 +49,4 @@ derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
     ("import india.mridangam" <> title) [(">m", notes)]
 
 with_synth :: DeriveTest.Setup
-with_synth = DeriveTest.with_synth_descs [("m", "kontakt/mridangam")]
-    Kontakt.synth_descs
+with_synth = DeriveTest.with_synths [("m", "kontakt/mridangam")] [Kontakt.synth]

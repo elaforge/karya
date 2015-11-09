@@ -72,10 +72,10 @@ patches = map (MidiInst.with_code (code <> with_weak))
     weak_call args =
         Gender.weak (Sig.control "strength" 0.5) (Args.set_duration dur args)
         where dur = Args.next args - Args.start args
-    wayang name = Instrument.set_flag Instrument.ConstantPitch
-        $ (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
-        $ (Instrument.attribute_map #= wayang_keymap)
-        $ Instrument.patch $ Instrument.instrument name [] pb_range
+    wayang name = Instrument.set_flag Instrument.ConstantPitch $
+        (Instrument.instrument_#Instrument.maybe_decay #= Just 0) $
+        (Instrument.attribute_map #= wayang_keymap) $
+        MidiInst.patch (-24, 24) name []
     scale tuning = (Instrument.text #= doc)
         . (Instrument.scale #= Just (Wayang.patch_scale False tuning))
         where
@@ -83,9 +83,6 @@ patches = map (MidiInst.with_code (code <> with_weak))
             \ patch to be tuned to the instrument's natural scale."
     set_tuning tuning = MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
-
-pb_range :: Instrument.PbRange
-pb_range = (-24, 24)
 
 -- | Set up a gender wayang quartet.
 --

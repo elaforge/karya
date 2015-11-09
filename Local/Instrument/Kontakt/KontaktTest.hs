@@ -20,9 +20,9 @@ derive :: Simple.Aliases -> String -> [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_setup . with_synth
 
 with_synth :: Simple.Aliases -> DeriveTest.Setup
-with_synth aliases = DeriveTest.with_synth_descs aliases Kontakt.synth_descs
+with_synth aliases = DeriveTest.with_synths aliases [Kontakt.synth]
 
 perform :: Simple.Aliases -> Stream.Stream Score.Event
     -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
-perform aliases = DeriveTest.perform_inst aliases Kontakt.synth_descs
+perform aliases = DeriveTest.perform_synths aliases [Kontakt.synth]
     [(inst, [n]) | (n, inst) <- zip [0..] (map fst aliases)]

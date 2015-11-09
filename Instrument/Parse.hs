@@ -129,7 +129,7 @@ make_patch pb_range (PatchLine name bank patch_num tags) =
             map (Midi.ChannelMessage 0) (Midi.program_change bank patch_num)
         , Instrument.patch_tags = tags
         }
-    where inst = Instrument.instrument name [] pb_range
+    where inst = Instrument.instrument pb_range name []
 
 p_line :: Parser State (Maybe PatchLine)
 p_line = Parsec.try (p_bank_decl >> return Nothing)

@@ -17,19 +17,17 @@ import Global
 synth_name :: FilePath
 synth_name = "morpheus"
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load = MidiInst.load_db (const MidiInst.empty_code) synth_name
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load = MidiInst.load_synth (const MidiInst.empty_code) synth_name
 
 make_db :: FilePath -> IO ()
 make_db dir = do
+    let synth = Instrument.synth (txt synth_name) "E-mu Morpheus" synth_controls
     patches <- Parse.patch_file (dir </> synth_name)
     patches <- return $ map
         (Instrument.instrument_#Instrument.pitch_bend_range #= (-12, 12))
         patches
-    MidiInst.save_patches synth patches synth_name dir
-
-synth :: Instrument.Synth
-synth = Instrument.synth (txt synth_name) "E-mu Morpheus" synth_controls
+    MidiInst.save_synth dir synth patches
 
 synth_controls :: [(Midi.Control, Score.Control)]
 synth_controls =

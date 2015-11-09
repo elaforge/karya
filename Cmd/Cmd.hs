@@ -814,7 +814,6 @@ empty_code = InstrumentCode
 -- without getting circular imports.
 type InstrumentDb = Instrument.Db.Db InstrumentCode
 type MidiInfo = MidiDb.Info InstrumentCode
-type SynthDesc = MidiDb.SynthDesc InstrumentCode
 
 -- *** history
 

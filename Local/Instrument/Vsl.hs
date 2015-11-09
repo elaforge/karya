@@ -78,16 +78,12 @@ map_shape f rows = split (map length rows) $ f (concat rows)
 
 -- * instrument definition
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return synth_descs
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load _dir = return $ Just synth
 
-synth_descs :: [MidiInst.SynthDesc]
-synth_descs = MidiInst.make $
-    (MidiInst.softsynth synth "Vienna Symphonic Library" (-2, 2) [])
-    { MidiInst.extra_patches = patches }
-
-synth :: Instrument.SynthName
-synth = "vsl"
+synth :: MidiInst.Synth
+synth = MidiInst.with_patches patches $
+    Instrument.synth "vsl" "Vienna Symphonic Library" []
 
 patches :: [MidiInst.Patch]
 patches =

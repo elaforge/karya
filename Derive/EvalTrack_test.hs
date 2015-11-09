@@ -194,17 +194,19 @@ test_inst_call = do
     let run inst = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup with_inst ""
             [(inst, [(0, 1, "sn")])]
-        with_inst = DeriveTest.with_synth_descs
-            [("i1", "s/1"), ("with-call", "s/with-call")] sdescs
+        with_inst = DeriveTest.with_synths
+            [("i1", "s/1"), ("with-call", "s/with-call")] [synth]
     equal (run ">i1") ([], ["Error: note generator not found: sn"])
     equal (run ">with-call") (["+snare"], [])
     where
-    sdescs = MidiInst.make $ (MidiInst.softsynth "s" "test synth" (-2, 2) [])
-        { MidiInst.extra_patches = [(patch, code)] }
+    synth = DeriveTest.make_synth "s" patches
     code = MidiInst.note_generators [("sn", DUtil.attrs_note Attrs.snare)]
-    patch = Instrument.attribute_map
+    patches =
+        [ (Instrument.attribute_map
             #= Instrument.simple_keymap [(Attrs.snare, 42)] $
-        DeriveTest.make_patch "with-call"
+            DeriveTest.make_patch "with-call", code)
+        , (DeriveTest.make_patch "1", mempty)
+        ]
 
 test_events_around = do
     -- Ensure sliced inverting notes still have access to prev and next events

@@ -152,9 +152,12 @@ instance Pretty.Pretty Instrument where
 
 -- | Initialize with values I think just about every instrument will want to
 -- set.  The rest can be initialized with set_* functions or lenses.
-instrument :: InstrumentName -> [(Midi.Control, Score.Control)]
-    -> Control.PbRange -> Instrument
-instrument name cmap pb_range = Instrument
+--
+-- PbRange comes first for consistency with 'default_patch', which is
+-- ultimately because PbRange tends to be fixed and controls tends to be large.
+instrument :: Control.PbRange -> InstrumentName
+    -> [(Midi.Control, Score.Control)] -> Instrument
+instrument pb_range name cmap = Instrument
     { inst_name = name
     , inst_score = Score.Instrument ""
     , inst_synth = ""
@@ -165,12 +168,10 @@ instrument name cmap pb_range = Instrument
     , inst_maybe_decay = Nothing
     }
 
--- | A wildcard instrument has its name automatically filled in, and has no
--- need for controls since they can go in the Synth.
-wildcard_instrument :: Control.PbRange -> Instrument
-wildcard_instrument = instrument "*" []
-    -- The inst name will be replaced, but 'MidiDb.validate' at least can use
-    -- the template name when reporting errors.
+-- | This is a convention for the default patch of a synth.  This is useful
+-- for softsynths whose patches all generally have the same config.
+default_instrument_name :: InstrumentName
+default_instrument_name = ""
 
 -- ** defaults
 
@@ -339,6 +340,18 @@ patch inst = Patch
     , patch_file = ""
     }
 
+default_patch :: Control.PbRange -> [(Midi.Control, Score.Control)] -> Patch
+default_patch pb_range cmap =
+    patch $ instrument pb_range default_instrument_name cmap
+
+-- | Map attributes to the names of the calls they should map to.  This
+-- is used by the integrator to turn score events into UI events.
+type CallMap = Map.Map Score.Attributes BaseTypes.CallId
+
+type Tag = (TagKey, TagVal)
+type TagKey = Text
+type TagVal = Text
+
 -- | If a patch is tuned to something other than 12TET, this vector maps MIDI
 -- key numbers to their NNs, or 0 if the patch doesn't support that key.
 data PatchScale = PatchScale !Text (Vector.Vector Double)
@@ -417,6 +430,9 @@ has_flag flag = Set.member flag . patch_flags
 set_decay :: RealTime -> Patch -> Patch
 set_decay secs = instrument_#maybe_decay #= Just secs
 
+add_tag :: Tag -> Patch -> Patch
+add_tag tag = tags %= (tag:)
+
 -- | Various instrument flags.
 data Flag =
     -- | Patch doesn't pay attention to duration.  E.g., drum samples may not
@@ -442,6 +458,21 @@ data Flag =
     deriving (Eq, Ord, Show)
 
 instance Pretty.Pretty Flag where pretty = showt
+
+-- | Describe how an instrument should be initialized before it can be played.
+data InitializePatch =
+    -- | Send these msgs to initialize the patch.  Should be a patch change or
+    -- a sysex.
+    InitializeMidi ![Midi.Message]
+    -- | Display this msg to the user and hope they do what it says.
+    | InitializeMessage !Text
+    | NoInitialization
+    deriving (Eq, Ord, Show)
+
+instance Pretty.Pretty InitializePatch where
+    format (InitializeMidi msgs) =
+        Pretty.text "InitializeMidi" Pretty.<+> Pretty.format msgs
+    format init = Pretty.text (showt init)
 
 -- ** attribute map
 
@@ -565,26 +596,17 @@ sort_attributes :: AttributeMap -> AttributeMap
 sort_attributes (AttributeMap table) = AttributeMap (sort table)
     where sort = Seq.sort_on (\(a, _, _) -> - Set.size (Score.attrs_set a))
 
--- ** misc
-
--- | Map attributes to the names of the calls they should map to.  This
--- is used by the integrator to turn score events into UI events.
-type CallMap = Map.Map Score.Attributes BaseTypes.CallId
-
-type Tag = (TagKey, TagVal)
-type TagKey = Text
-type TagVal = Text
-
 -- * synth
 
 -- | A Synth defines common features for a set of instruments.  Synths form
 -- a global flat namespace and must be unique.
-data Synth = Synth {
+data Synth code = Synth {
     -- | Uniquely defines the synth.
     synth_name :: !SynthName
     -- | Full name for the synthesizer.  'synth_name' appears in inst names so
     -- it has a restricted character set.
     , synth_doc :: !Text
+    , synth_patches :: Map.Map InstrumentName (Patch, code)
     -- | Often synths have a set of common controls in addition to the
     -- global midi defaults.
     , synth_control_map :: !Control.ControlMap
@@ -595,52 +617,40 @@ data Synth = Synth {
         -- If there are ever >1 of these, make it Set SynthFlag.
     } deriving (Eq, Show)
 
-instance Pretty.Pretty Synth where
-    format (Synth name doc cmap tuning) = Pretty.record "Synth"
+patches = Lens.lens synth_patches
+    (\f r -> r { synth_patches = f (synth_patches r) })
+
+instance Pretty.Pretty (Synth code) where
+    format (Synth name doc patches cmap tuning) = Pretty.record "Synth"
         [ ("name", Pretty.format name)
         , ("doc", Pretty.format doc)
+        , ("patches", Pretty.format (fst <$> patches))
         , ("control_map", Pretty.format cmap)
         , ("supports_realtime_tuning", Pretty.format tuning)
         ]
 
-synth :: SynthName -> Text -> [(Midi.Control, Score.Control)] -> Synth
+synth :: SynthName -> Text -> [(Midi.Control, Score.Control)] -> Synth code
 synth name doc cmap = Synth
     { synth_name = name
     , synth_doc = doc
+    , synth_patches = mempty
     , synth_control_map = Control.control_map cmap
     , synth_supports_realtime_tuning = False
     }
 
 -- | Synths default to writing to a device with their name.  You'll have to
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
-synth_device :: Synth -> Midi.WriteDevice
+synth_device :: Synth code -> Midi.WriteDevice
 synth_device = Midi.write_device . synth_name
 
 type SynthName = Text
 type InstrumentName = Text
 
--- | Describe how an instrument should be initialized before it can be played.
-data InitializePatch =
-    -- | Send these msgs to initialize the patch.  Should be a patch change or
-    -- a sysex.
-    InitializeMidi ![Midi.Message]
-    -- | Display this msg to the user and hope they do what it says.
-    | InitializeMessage !Text
-    | NoInitialization
-    deriving (Eq, Ord, Show)
+add_patches :: [(Patch, code)] -> Synth code -> Synth code
+add_patches ps = patches %= (pmap <>)
+    where pmap = Map.fromList $ Seq.key_on (patch_name . fst) ps
 
-instance Pretty.Pretty InitializePatch where
-    format (InitializeMidi msgs) =
-        Pretty.text "InitializeMidi" Pretty.<+> Pretty.format msgs
-    format init = Pretty.text (showt init)
-
-add_tag :: Tag -> Patch -> Patch
-add_tag tag = tags %= (tag:)
-
--- | Constructor for a softsynth with a single wildcard patch.  Used by
--- 'Instrument.MidiDb.softsynth'.
-make_softsynth :: SynthName -> Text -> Control.PbRange
-    -> [(Midi.Control, Score.Control)] -> (Synth, Patch)
-make_softsynth name doc pb_range controls =
-    (synth name doc controls, template_patch)
-    where template_patch = patch (wildcard_instrument pb_range)
+modify_code :: (Patch -> b) -> Synth a -> Synth b
+modify_code modify synth = synth
+    { synth_patches = set <$> synth_patches synth }
+    where set (patch, _) = (patch, modify patch)

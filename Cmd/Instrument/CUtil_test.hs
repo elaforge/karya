@@ -48,7 +48,7 @@ insert_call tracks tracknum val_edit msg =
         CmdTest.set_sel tracknum 0 tracknum 0
         CUtil.insert_call char_to_call msg
     where
-    (ustate, cstate) = CmdTest.set_synths (make_synth note_keys)
+    (ustate, cstate) = CmdTest.set_synths [make_synth note_keys]
         [("i1", "synth/1")] (CmdTest.make_tracks tracks)
         CmdTest.default_cmd_state
     char_to_call = CUtil.notes_to_calls (map fst note_keys)
@@ -66,13 +66,13 @@ set_edit_mode val_edit state = state
 
 test_drum_instrument = do
     let run = DeriveTest.derive_tracks_setup
-            (DeriveTest.with_synth_descs aliases drum_synth) ""
-        aliases = [("x", "synth/x")]
+            (DeriveTest.with_synths aliases [drum_synth]) ""
+        aliases = [("x", "synth/1")]
         extract = DeriveTest.extract DeriveTest.e_attributes
     let result = run [(">x", [(0, 0, "bd"), (1, 0, "sn")])]
     equal (extract result) (["+bd", "+snare"], [])
 
-    let (_, midi, logs) = DeriveTest.perform_inst aliases drum_synth
+    let (_, midi, logs) = DeriveTest.perform_synths aliases [drum_synth]
             [("x", [0])] (Derive.r_events result)
     equal logs []
     let e_midi = Seq.map_maybe_snd Midi.channel_message
@@ -94,16 +94,13 @@ test_make_cc_keymap = do
         , (Attrs.high, ([cw 103 1], Key.c1, Key.b1, NN.c4))
         ]
 
-synth :: MidiInst.Softsynth
-synth = MidiInst.softsynth "synth" "Synth" (-24, 24) []
-
-drum_synth :: [MidiInst.SynthDesc]
+drum_synth :: MidiInst.Synth
 drum_synth = make_synth [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]
 
-make_synth :: [(Drums.Note, Midi.Key)] -> [MidiInst.SynthDesc]
-make_synth note_keys = MidiInst.make $ synth
-    { MidiInst.modify_wildcard = CUtil.drum_patch note_keys
-    , MidiInst.code =
+make_synth :: [(Drums.Note, Midi.Key)] -> MidiInst.Synth
+make_synth note_keys = DeriveTest.make_synth "synth" [(patch, code)]
+    where
+    patch = CUtil.drum_patch note_keys $ MidiInst.patch (-24, 24) "1" []
+    code =
         MidiInst.note_generators (CUtil.drum_calls Nothing (map fst note_keys))
         <> MidiInst.cmd (CUtil.drum_cmd (map fst note_keys))
-    }

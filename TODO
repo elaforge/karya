@@ -3,8 +3,12 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - The type synonyms MidiInst.SyncDesc -> Cmd.SynthDesc -> MidiDb.SynthDesc
-    is really confusing.  Can I put the patches directly in the Synth?
+  - Enable TupleSections globally?
+  * The type synonyms MidiInst.SyncDesc -> Cmd.SynthDesc -> MidiDb.SynthDesc
+    are really confusing.  Can I put the patches directly in the Synth?
+    . Also I can get rid of wildcard patches, since I always use aliases now.
+      I just need a conventional name for the "default" patch.  Perhaps ""?
+    . This will break existing scores that use e.g. fm/something.
   * Sysex always ends with EOX, so I should make Midi.encode do that.  But
     then I need to strip EOX when loading sysexes.
   Experiment with MIDI single note tuning change.  Who supports it?

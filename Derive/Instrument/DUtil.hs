@@ -191,7 +191,8 @@ redirect_pitch name pitched_call pitched_controls unpitched_call
     <*> Sig.required_environ "unpitched" Sig.Prefixed
         ("This instrument gets controls: " <> show_controls unpitched_controls)
     ) $ \(pitched, unpitched) -> Sub.inverting $ \args -> composite_call args
-        [ Composite pitched_call pitched (Pitch Score.default_pitch) pitched_controls
+        [ Composite pitched_call pitched (Pitch Score.default_pitch)
+            pitched_controls
         , Composite unpitched_call unpitched NoPitch unpitched_controls
         ]
 

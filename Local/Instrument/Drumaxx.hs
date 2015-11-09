@@ -18,32 +18,27 @@ import qualified Perform.Midi.Instrument as Instrument
 import Global
 
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "drumaxx" "Image-Line Drumaxx" pb_range [])
-    { MidiInst.modify_wildcard = CUtil.drum_patch note_keys
-    , MidiInst.code = code
-    , MidiInst.extra_patches = patches
-    }
-
-pb_range = (-24, 24)
-
-code :: MidiInst.Code
-code = CUtil.drum_code Nothing (map fst note_keys)
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load _dir = return $ Just $ MidiInst.with_patches patches $
+    Instrument.synth "drumaxx" "Image-Line Drumaxx" []
 
 patches :: [MidiInst.Patch]
-patches = map (MidiInst.with_code composite_code)
-    [ Instrument.text #= "This drum takes a pitch signal, which is then sent\
-        \ to the `composite-pitched` instrument, which is a tuned comb filter.\
-        \ The audio routing has to be set up in the VST host." $
+patches =
+    [ MidiInst.with_code (CUtil.drum_code Nothing (map fst note_keys)) $
+        CUtil.drum_patch note_keys $ Instrument.default_patch pb_range []
+    , MidiInst.with_code composite_code $
+        Instrument.text #= composite_doc $
         MidiInst.patch pb_range "comb" []
     ]
     where
     composite_code = MidiInst.note_generators
         [(call, composite call) | call <- map (Drums.note_name . fst) note_keys]
-    composite call = DUtil.redirect_pitch "comb"
-        "" (Just (Set.fromList ["mix", "fbk"]))
-        call Nothing
+    composite call = DUtil.redirect_pitch "comb" ""
+        (Just (Set.fromList ["mix", "fbk"])) call Nothing
+    composite_doc = "This drum takes a pitch signal, which is then sent\
+        \ to the `composite-pitched` instrument, which is a tuned comb filter.\
+        \ The audio routing has to be set up in the VST host."
+    pb_range = (-24, 24)
 
 -- | The octave numbers on the drumaxx are one greater than the standard
 -- usage.  This is for \"Acoustic 2 FG\".  I'll have to come up with

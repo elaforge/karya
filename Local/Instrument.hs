@@ -16,6 +16,7 @@ import System.FilePath ((</>))
 
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Instrument.Db as Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Parse as Parse
@@ -41,7 +42,7 @@ import Global
 -- | By convention, instrument definition modules export a function called
 -- @load@, with this signature.  The FilePath is the 'Config.instrument_dir',
 -- could hold cached instruments, as created by 'MakeDb'.
-type Load = FilePath -> IO [Cmd.SynthDesc]
+type Load = FilePath -> IO (Maybe MidiInst.Synth)
 
 -- | Some synths may require a more expensive load, e.g. they could parse
 -- a directory full of sysex dumps.  These expose a @make_db@ function with
@@ -72,15 +73,15 @@ all_make_dbs =
 
 load :: FilePath -> IO Cmd.InstrumentDb
 load app_dir = do
-    synth_descs <- concatMapM
-        ($ Config.make_path app_dir Config.instrument_dir) all_loads
+    synths <- mapMaybeM ($ Config.make_path app_dir Config.instrument_dir)
+        all_loads
     let annot_fn = Config.make_path app_dir Config.local_dir
             </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \x -> case x of
         -- The parsec error already includes the filename.
         Left err -> Log.warn (txt err) >> return mempty
         Right annots -> return annots
-    let (midi_db, warns) = MidiDb.midi_db synth_descs
+    let (midi_db, warns) = MidiDb.midi_db synths
     forM_ warns $ \msg -> Log.warn $ "inst db: " <> msg
     (midi_db, not_found) <- return $ MidiDb.annotate annots midi_db
     unless (null not_found) $

@@ -7,38 +7,41 @@ module Local.Instrument.Reaktor where
 import qualified Data.Set as Set
 
 import qualified Midi.CC as CC
+import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
 import qualified Derive.Instrument.DUtil as DUtil
+import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
 import Global
 
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return synth_descs
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load _dir = return $ Just synth
 
-synth_descs :: [MidiInst.SynthDesc]
-synth_descs = MidiInst.make
-    (MidiInst.softsynth "reaktor" "Native Instruments Reaktor" pb_range [])
-    { MidiInst.extra_patches = map MidiInst.with_empty_code patches }
-
-pb_range = (-96, 96)
+synth :: MidiInst.Synth
+synth = MidiInst.with_patches patches $
+    Instrument.synth "reaktor" "Native Instruments Reaktor" []
 
 resonant_filter :: MidiInst.Code
 resonant_filter = MidiInst.note_calls $ MidiInst.null_call $
     DUtil.double_pitch "res" Nothing "res"
         (Just (Set.fromList ["mix", "q", "lp-hp", "2-4-pole"]))
 
-patches :: [Instrument.Patch]
-patches =
+patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
+    -> Instrument.Patch
+patch = MidiInst.patch (-96, 96)
+
+patches :: [MidiInst.Patch]
+patches = map MidiInst.with_empty_code $
     -- My own patches.
-    [ MidiInst.pressure $ MidiInst.patch pb_range "fm1" [(4, "depth")]
+    [ MidiInst.pressure $ patch "fm1" [(4, "depth")]
     , Instrument.text #= "Tunable comb filter that processes an audio signal." $
-        MidiInst.patch pb_range "comb" [(1, "mix"), (4, "fbk")]
+        patch "comb" [(1, "mix"), (4, "fbk")]
     , Instrument.text #= "Tunable filter that processes an audio signal." $
-        MidiInst.patch pb_range "filter"
+        patch "filter"
             [ (1, "mix")
             , (CC.cc14, "q")
             , (CC.cc15, "lp-hp")
@@ -46,19 +49,19 @@ patches =
             ]
 
     -- Factory patches.
-    , MidiInst.patch pb_range "lazerbass"
+    , patch "lazerbass"
         -- In 'parameter', replace bend input of 'Basic Pitch prepare' with 96,
         -- replace 'M.tr' input of 'Global P/G' with 0.
         -- Rebind ccs for c1 and c2.
         [ (CC.cc14, Controls.mc1), (CC.cc15, Controls.mc2)
         ]
-    , MidiInst.patch pb_range "steam"
+    , patch "steam"
         -- Steampipe2, set pitch bend range to 96.
         []
 
     -- Commercial patches.
 
-    , MidiInst.patch pb_range "spark"
+    , patch "spark"
         -- Modifications:
         -- Bind cc14 to red "filter cutoff" knob, smoothing from 50 to 10.
         -- Bind cc15 to red "filter reso" knob.
@@ -68,14 +71,14 @@ patches =
         , (CC.cc14, Controls.lpf)
         , (CC.cc15, Controls.q)
         ]
-    , MidiInst.patch pb_range "prism"
+    , patch "prism"
         [ (1, Controls.mc1)
         , (11, Controls.mc2)
         ]
 
     -- Downloaded patches.
 
-    , MidiInst.patch pb_range "shark"
+    , patch "shark"
         -- Downloaded from NI, Shark.ens.
         -- Modifications: pitchbend to 96, signal smoothers from 100ms to 10ms.
         [ (4, Controls.lpf), (3, Controls.q) -- 1st filter
@@ -88,7 +91,7 @@ patches =
         -- 96.  Assign controls to knobs.
         -- Flutter and vib are just macros for air and emb controls, but seem
         -- useful.
-        MidiInst.pressure $ MidiInst.patch pb_range "herald"
+        MidiInst.pressure $ patch "herald"
             [ (CC.mod, Controls.vib)
             , (CC.vib_speed, Controls.vib_speed)
             , (CC.cc14, "atk") -- tongue attack
@@ -172,7 +175,7 @@ silverwood_patches =
     where
     mk name controls =
         Instrument.text #= ("Silverwood woodwind physical model: " <> name) $
-        MidiInst.pressure $ MidiInst.patch pb_range ("sw-" <> name) $
+        MidiInst.pressure $ patch ("sw-" <> name) $
             [ (CC.mod, Controls.vib)
             , (CC.vib_speed, Controls.vib_speed)
             , (CC.cc14, "trem") -- brightness "vibrato", destination 1

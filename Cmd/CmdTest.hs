@@ -320,7 +320,7 @@ extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 -- * inst db
 
 -- | Configure ustate and cstate with the given instruments.
-set_synths :: [MidiInst.SynthDesc] -> Simple.Aliases -> State.State
+set_synths :: [MidiInst.Synth] -> Simple.Aliases -> State.State
     -> Cmd.State -> (State.State, Cmd.State)
 set_synths synths aliases ui_state cmd_state =
     ( UiTest.set_midi_config aliases config ui_state

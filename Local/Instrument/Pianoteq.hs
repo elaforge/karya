@@ -17,43 +17,38 @@ import qualified Perform.NN as NN
 import Global
 
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return
-    [(synth { Instrument.synth_supports_realtime_tuning = True }, patch_map)]
-    where
-    (synth, patch_map) = MidiInst.make1 $
-        (MidiInst.softsynth "pianoteq" "Modartt Pianoteq" pb_range controls)
-        { MidiInst.extra_patches = patches }
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load _dir = return $ Just $
+    MidiInst.with_patches patches $
+    (Instrument.synth "pianoteq" "Modartt Pianoteq" [])
+        { Instrument.synth_supports_realtime_tuning = True }
 
 pb_range :: Instrument.PbRange
 pb_range = (-24, 24)
 
-controls :: [(Midi.Control, Score.Control)]
-controls =
-    [ (67, "soft-pedal")
-    , (69, "harmonic-pedal")
-    , (66, "sost-pedal")
-    , (64, Controls.pedal)
-    -- whole bunch more
-    ]
-
 patches :: [MidiInst.Patch]
 patches =
-    [ (patch "pasang" [], Bali.pasang_code)
+    [ MidiInst.with_empty_code $ Instrument.default_patch pb_range
+        [ (67, "soft-pedal")
+        , (69, "harmonic-pedal")
+        , (66, "sost-pedal")
+        , (64, Controls.pedal)
+        -- whole bunch more
+        ]
+    , (patch "pasang" [], Bali.pasang_code)
     , (MidiInst.nn_range (NN.g2, NN.a6) $ patch "yangqin" [], mempty)
-    , harp_patch
+    , harp
     ]
 
 -- | TODO harp rings by default until explicitly damped.  How can I best
 -- represent that?
-harp_patch :: MidiInst.Patch
-harp_patch = MidiInst.with_code code $ patch "harp" controls
-    where
-    controls =
+harp :: MidiInst.Patch
+harp = MidiInst.with_code code $ patch "harp"
         [ (67, "gliss")
         , (69, harmonic)
         , (66, lute)
         ]
+    where
     code :: MidiInst.Code
     code = MidiInst.note_calls
         [ MidiInst.both "o" $ Make.control_note Module.instrument "o" harmonic 1
@@ -65,5 +60,4 @@ harp_patch = MidiInst.with_code code $ patch "harp" controls
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
     -> Instrument.Patch
-patch name controls =
-    Instrument.patch $ Instrument.instrument name controls pb_range
+patch = MidiInst.patch pb_range

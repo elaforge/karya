@@ -2,12 +2,11 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE TupleSections #-}
 -- | Utilities for the instrument definitions in "Local.Instrument".
 module Cmd.Instrument.MidiInst (
-    SynthDesc
-    , Softsynth(..), softsynth
-    , Patch
-    , make, make1
+    Synth, Patch
+    , with_patches
     -- * code
     , Code(..), empty_code, with_code, with_empty_code
     , Call
@@ -21,7 +20,7 @@ module Cmd.Instrument.MidiInst (
     , environ, default_scale, range, nn_range
 
     -- * db
-    , save_db, save_patches, load_db
+    , save_synth, load_synth
 ) where
 import qualified Data.Text as Text
 import System.FilePath ((</>), (<.>))
@@ -29,7 +28,6 @@ import System.FilePath ((</>), (<.>))
 import qualified Util.Log as Log
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
-import Cmd.Cmd (SynthDesc)
 import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
@@ -44,48 +42,20 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 
 import qualified Instrument.MidiDb as MidiDb
-import qualified Instrument.Serialize as Serialize
+import qualified Instrument.Serialize
 import qualified App.Config as Config
 import Global
 
 
--- | The arguments for the 'softsynth' function in record form, for default
--- parameters.
-data Softsynth = Softsynth {
-    name :: Instrument.SynthName
-    , synth_doc :: Text
-    , pb_range :: Control.PbRange
-    , controls :: [(Midi.Control, Score.Control)]
-    -- | Add explicit non-wildcard patches.
-    , extra_patches :: [Patch]
-    -- | Configure the wildcard patch.
-    , modify_wildcard :: Instrument.Patch -> Instrument.Patch
-    , code :: Code
-    }
-
+type Synth = Instrument.Synth Cmd.InstrumentCode
 type Patch = (Instrument.Patch, Code)
 
--- | Utility to construct a soft synth.  Soft synths are assumed to have
--- their own internal patch management, and thus have only a single wildcard
--- patch, which can be modified if necessary by a passed in function.  In case
--- some patches are special, you can also pass named patches in to be merged.
-softsynth :: Instrument.SynthName -> Text -> Control.PbRange
-    -> [(Midi.Control, Score.Control)] -> Softsynth
-softsynth name doc pb_range controls =
-    Softsynth name doc pb_range controls [] id empty_code
-
-make :: Softsynth -> [SynthDesc]
-make = (:[]) . make1
-
-make1 :: Softsynth -> SynthDesc
-make1 (Softsynth name doc pb_range controls extra_patches modify_wildcard code)
-    = (synth, pmap <> extra)
+with_patches :: [(Instrument.Patch, Code)] -> Instrument.Synth a -> Synth
+with_patches patches synth = synth { Instrument.synth_patches = verified }
     where
-    (extra, _) = MidiDb.patch_map (map (second make_code) extra_patches)
-    (synth, wildcard_patch) =
-        Instrument.make_softsynth name doc pb_range controls
-    pmap = MidiDb.wildcard_patch_map
-        (modify_wildcard wildcard_patch, make_code code)
+    -- Since these patches are likely defined by hand, I assume there are no
+    -- name collisions to be logged.
+    (verified, _logs) = MidiDb.verify_patches $ map (second make_code) patches
 
 -- * code
 
@@ -170,10 +140,11 @@ cmd c = mempty { code_cmds = [c] }
 -- * making patches
 
 -- | Make a patch, with a few parameters that tend to be unique per patch.
+-- Controls come last because they are often a long list.
 patch :: Control.PbRange -> Instrument.InstrumentName
     -> [(Midi.Control, Score.Control)] -> Instrument.Patch
 patch pb_range name controls =
-    Instrument.patch (Instrument.instrument name controls pb_range)
+    Instrument.patch (Instrument.instrument pb_range name controls)
 
 -- | Set a patch to pressure control.
 pressure :: Instrument.Patch -> Instrument.Patch
@@ -208,31 +179,31 @@ nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
 -- parsing a directory full of sysexes.  These patches can export a @make_db@
 -- function, which will do the slow parts and save the results in a cache file.
 -- The @load@ function will simply read the cache file, if present.
-save_db :: [MidiDb.SynthDesc code] -> FilePath -> FilePath -> IO ()
-save_db synths db_name app_dir =
-    Serialize.serialize (db_path app_dir db_name) synths
-
--- | Specialized version of 'save_db' that takes a list of Patches.
-save_patches :: Instrument.Synth -> [Instrument.Patch] -> FilePath -> FilePath
+--
+-- The Synth and its patches are passed separately.  This is because there
+-- may well be patches with duplicate names, and so I need to run
+-- 'MidiDb.verify_patches' before saving.
+save_synth :: FilePath -> Instrument.Synth a -> [Instrument.Patch]
     -> IO ()
-save_patches synth patches db_name app_dir = do
-    -- SynthDesc is expected to have a 'code' parameter, even though
-    -- 'serialize' is about to strip it off.  So put on a fake one.  It seems
-    -- bogus, but otherwise I'd need two versions of 'MidiDb.patch_map' and
-    -- 'logged_synths'.
-    sdesc <- MidiDb.logged_synths synth (map (\p -> (p, ())) patches)
-    save_db [sdesc] db_name app_dir
+save_synth app_dir synth patches = do
+    let (verified, logs) = MidiDb.verify_patches (map (, ()) patches)
+    let synth_name = Instrument.synth_name synth
+    mapM_ (Log.notice . (("synth " <> synth_name <> ": ") <>)) logs
+    Instrument.Serialize.serialize (db_path app_dir (untxt synth_name)) $
+        Instrument.modify_code (const ()) $
+        synth { Instrument.synth_patches = verified }
 
-load_db :: (Instrument.Patch -> Code) -> FilePath -> FilePath -> IO [SynthDesc]
-load_db code_for db_name app_dir = do
+load_synth :: (Instrument.Patch -> Code) -> FilePath -> FilePath
+    -> IO (Maybe Synth)
+load_synth code_for db_name app_dir = do
     let fname = db_path app_dir db_name
-    saved <- Serialize.unserialize (make_code . code_for) fname
+    saved <- Instrument.Serialize.unserialize (make_code . code_for) fname
     case saved of
         Left err -> do
             Log.warn $ "Error loading instrument db " <> showt fname <> ": "
                 <> Text.strip err
-            return []
-        Right (_time, synths) -> return synths
+            return Nothing
+        Right (_time, synth) -> return (Just synth)
 
 db_path :: FilePath -> FilePath -> FilePath
 db_path app_dir name =

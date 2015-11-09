@@ -2,21 +2,19 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, TupleSections #-}
 {- | Functions to save and load the midi db.
 
-    Unlike in 'Cmd.Serialize', I don't bother with versions here, because this
+    Unlike in "Cmd.Serialize", I don't bother with versions here, because this
     is intended to be just a cache.
 -}
 module Instrument.Serialize (serialize, unserialize) where
-import qualified Data.Map as Map
 import qualified Data.Time as Time
 
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import Midi.Instances ()
 import qualified Cmd.Serialize
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
 import Global
 
@@ -24,50 +22,32 @@ import Global
 magic :: Cmd.Serialize.Magic
 magic = Cmd.Serialize.Magic 'i' 'n' 's' 't'
 
--- | Serialize instrument definitions to a file.  Since the @code@ parameter
--- is unserializable code, it will be stripped off.
-serialize :: FilePath -> [MidiDb.SynthDesc code] -> IO ()
-serialize fname synths = Cmd.Serialize.serialize magic fname =<< saved_db synths
+-- | Serialize instrument definitions to a file.  The @code@ parameter is
+-- restricted to @()@ since it can't be serialized.
+serialize :: FilePath -> Instrument.Synth () -> IO ()
+serialize fname = Cmd.Serialize.serialize magic fname <=< saved_db
 
 -- | Unserialize instrument definitions.  Since the code was stripped off by
 -- 'serialize', it must be provided on a per-patch basis to reconstitute the
 -- definitions.
 unserialize :: (Instrument.Patch -> code) -> FilePath
-    -> IO (Either Text (Time.UTCTime, [MidiDb.SynthDesc code]))
+    -> IO (Either Text (Time.UTCTime, Instrument.Synth code))
 unserialize code_for fname = do
     result <- Cmd.Serialize.unserialize magic fname
     return $ case result of
-        Right (Just (SavedDb (time, db))) ->
-            Right (time, make_synths code_for db)
+        Right (Just (SavedDb (time, synth))) ->
+            Right (time, Instrument.modify_code code_for synth)
         Right Nothing -> Left $ txt fname <> ": file doesn't exist"
         Left err -> Left err
 
 
 -- * implementation
 
-newtype Db = Db [MidiDb.SynthDesc ()]
+newtype SavedDb = SavedDb (Time.UTCTime, Instrument.Synth ())
     deriving (Serialize)
 
-make_db :: [MidiDb.SynthDesc code] -> Db
-make_db synths = Db [(synth, strip patches) | (synth, patches) <- synths]
-    where
-    strip (MidiDb.PatchMap patches) = MidiDb.PatchMap $
-        Map.map (\(p, _) -> (p, ())) patches
-
-make_synths :: (Instrument.Patch -> code) -> Db -> [MidiDb.SynthDesc code]
-make_synths code_for (Db synths) =
-    [(synth, insert patches) | (synth, patches) <- synths]
-    where
-    insert (MidiDb.PatchMap patches) = MidiDb.PatchMap $
-        Map.map (\(p, _) -> (p, code_for p)) patches
-
-newtype SavedDb = SavedDb (Time.UTCTime, Db)
-    deriving (Serialize)
-
-saved_db :: [MidiDb.SynthDesc code] -> IO SavedDb
-saved_db synths = do
-    utc <- Time.getCurrentTime
-    return $ SavedDb (utc, make_db synths)
+saved_db :: Instrument.Synth () -> IO SavedDb
+saved_db synth = SavedDb . (, synth) <$> Time.getCurrentTime
 
 -- * instances
 
@@ -75,14 +55,10 @@ instance Serialize Search.Index where
     put (Search.Index a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (Search.Index a b)
 
-instance Serialize Instrument.Synth where
-    put (Instrument.Synth a b c d) = put a >> put b >> put c >> put d
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        return (Instrument.Synth a b c d)
-
-instance Serialize (MidiDb.PatchMap ()) where
-    put (MidiDb.PatchMap a) = put a
-    get = get >>= \a -> return (MidiDb.PatchMap a)
+instance Serialize (Instrument.Synth ()) where
+    put (Instrument.Synth a b c d e) = put a >> put b >> put c >> put d >> put e
+    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
+        return (Instrument.Synth a b c d e)
 
 instance Serialize Instrument.Patch where
     put (Instrument.Patch a b c d e f g h i j) = put a >> put b >> put c

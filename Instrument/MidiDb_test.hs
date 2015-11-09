@@ -17,22 +17,22 @@ import Global
 
 
 test_lookup_midi = do
-    synth_descs <- Kontakt.load ""
-    let midi_db = fst $ MidiDb.midi_db synth_descs
+    Just synth <- Kontakt.load ""
+    let midi_db = fst $ MidiDb.midi_db [synth]
     let f inst = MidiDb.lookup_midi midi_db (Score.Instrument inst)
 
-    let kontakt_inst name = (Instrument.instrument name [] Kontakt.pb_range)
+    let kontakt_inst name = (Instrument.instrument Kontakt.pb_range name [])
             { Instrument.inst_score = Score.Instrument ("kontakt/" <> name)
             , Instrument.inst_synth = "kontakt"
             }
         hang = kontakt_inst "hang"
     equal (f "kontakt/hang") (Just hang)
-    -- wildcard allows any other name
-    equal (f "kontakt/none") $ Just (kontakt_inst "none")
+    -- Has default inst.
+    equal (f "kontakt/") $ Just (kontakt_inst "")
 
-test_patch_map = do
-    let f = first extract . MidiDb.patch_map . mkpatches
-        extract (MidiDb.PatchMap ps) = map (second name) (Map.toList ps)
+test_verify_patches = do
+    let f = first extract . MidiDb.verify_patches . mkpatches
+        extract = map (second name) . Map.toList
         name = Instrument.inst_name . Instrument.patch_instrument . fst
     -- different initialization gets split
     equal (f [("a", pgm_change 1), ("*a", pgm_change 2)])
@@ -52,7 +52,7 @@ mkpatch :: Instrument.InstrumentName -> Instrument.InitializePatch
     -> MidiDb.PatchCode ()
 mkpatch name init = (patch, ())
     where
-    inst = Instrument.instrument name [] (-2, 2)
+    inst = Instrument.instrument (-2, 2) name []
     patch = (Instrument.patch inst)
         { Instrument.patch_initialize = init
         , Instrument.patch_file = "path/" ++ untxt name ++ ".vc"

@@ -117,19 +117,17 @@ query_matches (Index idx _) = map with_tag
             (Map.assocs vals)
 
 instrument_tags :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]
-instrument_tags (MidiDb.MidiDb synths) =
-    concatMap (uncurry synth_tags) (Map.elems synths)
+instrument_tags (MidiDb.MidiDb synths) = concatMap synth_tags (Map.elems synths)
 
-synth_tags :: Instrument.Synth -> MidiDb.PatchMap code
-    -> [(Score.Instrument, [Instrument.Tag])]
-synth_tags synth (MidiDb.PatchMap patches) = do
-    (inst_name, (patch, _)) <- Map.toList patches
+synth_tags :: Instrument.Synth code -> [(Score.Instrument, [Instrument.Tag])]
+synth_tags synth = do
+    (inst_name, (patch, _)) <- Map.toList (Instrument.synth_patches synth)
     let inst = Score.instrument (Instrument.synth_name synth) inst_name
     return (inst, patch_tags synth inst_name patch)
 
 -- | Get tags of a patch, including automatically generated tags.
-patch_tags :: Instrument.Synth -> Instrument.InstrumentName -> Instrument.Patch
-    -> [Instrument.Tag]
+patch_tags :: Instrument.Synth code -> Instrument.InstrumentName
+    -> Instrument.Patch -> [Instrument.Tag]
 patch_tags synth inst_name patch = normalize_tags $
     (Tag.synth, Instrument.synth_name synth)
         : (Tag.name, inst_name)

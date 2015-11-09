@@ -4,22 +4,19 @@
 
 -- | Native Instruments' Massive softsynth.
 module Local.Instrument.Massive where
-import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import Global
 
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load _dir = return $ MidiInst.make $
-    (MidiInst.softsynth "massive" "Native Instruments Massive" (-24, 24)
-            controls)
-        { MidiInst.extra_patches = map MidiInst.with_empty_code patches }
-
-controls :: [(Midi.Control, Score.Control)]
-controls = (1, "macro1")
-    : [(18 + n, Score.unchecked_control $ "macro" <> showt n) | n <- [2..8]]
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load _dir = return $ Just $
+    MidiInst.with_patches (map MidiInst.with_empty_code patches) $
+    Instrument.synth "massive" "Native Instruments Massive" controls
+    where
+    controls = (1, "macro1")
+        : [(18 + n, Score.unchecked_control $ "macro" <> showt n) | n <- [2..8]]
 
 patches :: [Instrument.Patch]
-patches = []
+patches = [Instrument.default_patch (-24, 24) []]

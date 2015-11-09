@@ -41,8 +41,8 @@ import Global
 synth_name :: String
 synth_name = "vl1"
 
-load :: FilePath -> IO [MidiInst.SynthDesc]
-load = MidiInst.load_db (const MidiInst.empty_code) synth_name
+load :: FilePath -> IO (Maybe MidiInst.Synth)
+load = MidiInst.load_synth (const MidiInst.empty_code) synth_name
 
 builtin :: FilePath
 builtin = "vl1v2-factory/vl1_ver2.all"
@@ -50,14 +50,13 @@ builtin = "vl1v2-factory/vl1_ver2.all"
 -- | Read the patch file, scan the sysex dir, and save the results in a cache.
 make_db :: FilePath -> IO ()
 make_db dir = do
+    let synth = Instrument.synth (txt synth_name) "Yamaha VL1" []
     let dirs = map ((dir </> synth_name) </>)
             ["vc", "sysex", "patchman1", "patchman2"]
     patches <- concatMapM parse_dir dirs
     builtins <- parse_builtins (dir </> synth_name </> builtin)
-    MidiInst.save_patches synth (builtins ++ patches) synth_name dir
+    MidiInst.save_synth dir synth (builtins ++ patches)
 
-synth :: Instrument.Synth
-synth = Instrument.synth (txt synth_name) "Yamaha VL1" []
 
 -- * parse
 
@@ -74,7 +73,7 @@ extract_syxs dir fn = do
 
 syx_fname :: Int -> Text -> FilePath
 syx_fname num name = Printf.printf "%03d.%s" num
-    (untxt $ MidiDb.clean_inst_name name)
+    (untxt $ MidiDb.clean_instrument_name name)
 
 send_to_buffer = modify
     [ put_int "memory type" 0x7f
@@ -227,12 +226,10 @@ vl1_patch :: Instrument.InstrumentName -> ElementInfo
     -> Maybe ElementInfo -> Either String Instrument.Patch
 vl1_patch name elt1 maybe_elt2 =
     return $ (if is_pressure then MidiInst.pressure else id)
-        (Instrument.patch inst)
+        (MidiInst.patch pb_range name cmap)
             { Instrument.patch_tags = map ((,) "vl1-element") names }
     where
-    inst = Instrument.instrument name cmap pb_range
-    (pb_ranges, names, cc_groups) =
-        unzip3 $ elt1 : Maybe.maybeToList maybe_elt2
+    (pb_ranges, names, cc_groups) = unzip3 $ elt1 : Maybe.maybeToList maybe_elt2
     -- If it has a pressure control, then assume it's a breath patch.
     is_pressure = CC.breath `elem` map fst cmap
 

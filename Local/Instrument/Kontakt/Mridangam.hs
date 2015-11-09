@@ -20,10 +20,8 @@ import qualified Derive.Score as Score
 import Derive.Score (attr)
 import qualified Derive.TrackLang as TrackLang
 
-import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
-
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
@@ -36,7 +34,7 @@ patches =
     ]
     where
     patch name notes = CUtil.pitched_drum_patch notes $
-        Instrument.patch $ Instrument.instrument name [] pb_range
+        MidiInst.patch (-24, 24) name []
     code = make_code all_notes both_calls
 
 make_code :: [Drums.Note]
@@ -56,9 +54,6 @@ make_code notes both =
         [ [(Drums.note_char n, Drums.note_name n) | n <- notes]
         , [(char, call) | (call, _, Just char) <- both]
         ]
-
-pb_range :: Instrument.PbRange
-pb_range = (-24, 24)
 
 both_calls :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
 both_calls = make_both left_notes right_notes special_names

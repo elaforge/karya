@@ -34,9 +34,6 @@ import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
 
-pb_range :: Instrument.PbRange
-pb_range = (-24, 24)
-
 patches :: [MidiInst.Patch]
 patches =
     [ (CUtil.pitched_drum_patch tunggal_notes $ patch "kendang", tunggal_code)
@@ -45,7 +42,7 @@ patches =
     ]
     where
     tunggal_code = CUtil.drum_code (Just "kendang-tune") (map fst tunggal_notes)
-    patch name = Instrument.patch $ Instrument.instrument name [] pb_range
+    patch name = MidiInst.patch (-24, 24) name []
 
 tunggal_notes :: CUtil.PitchedNotes
 tunggal_notes = do

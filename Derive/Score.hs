@@ -47,7 +47,7 @@ module Derive.Score (
 
     -- * instrument
     , inst_valid_chars
-    , inst_name, empty_inst, instrument, split_inst
+    , inst_name, empty_inst, instrument, split_instrument
 
     -- * util
     , control, unchecked_control
@@ -566,9 +566,9 @@ empty_inst = Instrument ""
 instrument :: Text -> Text -> Instrument
 instrument synth inst = Instrument $ synth <> "/" <> inst
 
-split_inst :: Instrument -> (Text, Text)
-split_inst (Instrument inst) = (synth, Text.drop 1 inst_name)
-    where (synth, inst_name) = Text.break (=='/') inst
+split_instrument :: Instrument -> (Text, Text)
+split_instrument (Instrument inst) = (synth, Text.drop 1 name)
+    where (synth, name) = Text.break (=='/') inst
 
 -- * util
 
