@@ -722,7 +722,9 @@ hlint config = do
     (hs, hscs) <- getAllHaddock config
     need $ map (hscToHs (hscDir config)) hscs
     Util.staunchSystem "hlint" $
-        "--report=hlint.html" : mkIgnore hlintIgnore ++ hs
+        [ "--report=" <> build </> "hlint.html"
+        , "--cpp-define=TESTING"
+        ] ++ mkIgnore hlintIgnore ++ hs
     Util.staunchSystem "hlint" $ mkIgnore
         -- hsc2hs triggers these, not my fault.
         (hlintIgnore ++ ["Redundant bracket", "Avoid lambda"])
