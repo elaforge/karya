@@ -416,9 +416,9 @@ test_pitch_curve = do
 
 test_keyswitch = do
     let e_note_on = mapMaybe $ \wmsg ->
-            ((,) (Midi.wmsg_ts wmsg)) <$> note_on_key (Midi.wmsg_msg wmsg)
+            (,) (Midi.wmsg_ts wmsg) <$> note_on_key (Midi.wmsg_msg wmsg)
         e_note = mapMaybe $ \wmsg ->
-            ((,) (Midi.wmsg_ts wmsg)) <$> note_key (Midi.wmsg_msg wmsg)
+            (,) (Midi.wmsg_ts wmsg) <$> note_key (Midi.wmsg_msg wmsg)
         ks_inst ks hold = inst1
             { Instrument.inst_keyswitch = ks
             , Instrument.inst_hold_keyswitch = hold
@@ -480,7 +480,7 @@ test_keyswitch = do
     let cs1 = [Instrument.ControlSwitch 1 10]
         cs2 = [Instrument.ControlSwitch 1 20]
         e_msg = mapMaybe $ \wmsg ->
-            ((,) (Midi.wmsg_ts wmsg) <$> note_on_cc (Midi.wmsg_msg wmsg))
+            (,) (Midi.wmsg_ts wmsg) <$> note_on_cc (Midi.wmsg_msg wmsg)
         note_on_cc msg
             | Midi.is_note_on msg || Midi.is_cc msg = Just msg
             | otherwise = Nothing

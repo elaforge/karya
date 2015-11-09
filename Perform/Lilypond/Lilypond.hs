@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE ScopedTypeVariables, TupleSections #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Convert from Score events to a lilypond score.
 module Perform.Lilypond.Lilypond where
 import qualified Control.Monad.State.Strict as State
@@ -192,7 +192,7 @@ sort_staves inst_configs = map lookup_name . Seq.sort_on inst_key
         Nothing -> (staff, Types.default_staff_config (inst_of staff))
         Just config -> (staff, config)
     inst_key staff =
-        maybe (1, 0) ((,) 0) $ List.elemIndex (inst_of staff)
+        maybe (1, 0) (0,) $ List.elemIndex (inst_of staff)
             (map fst inst_configs)
     inst_of (StaffGroup inst _) = inst
 

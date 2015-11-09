@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
 
@@ -244,7 +243,7 @@ config1 :: Midi.WriteDevice -> Midi.Channel -> Config
 config1 dev chan = config [(dev, chan)]
 
 config :: [Addr] -> Config
-config = voice_config . map (flip (,) Nothing)
+config = voice_config . map (, Nothing)
 
 voice_config :: [(Addr, Maybe Voices)] -> Config
 voice_config addrs = Config

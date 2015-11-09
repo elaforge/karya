@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE EmptyDataDecls #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-} -- NFData instance
 {- | Sample values are doubles, which means each point in the signal is 8*2
     bytes.  The double resolution is overkill for the value, but float would
     be too small for time given the time stretching.

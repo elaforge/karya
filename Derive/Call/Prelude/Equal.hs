@@ -313,6 +313,5 @@ c_default_merge = Derive.transformer Module.prelude "default-merge" mempty
     <*> Sig.many1 "control" "Control names."
     ) $ \(op_name, controls) _args deriver -> do
         merge <- Derive.get_control_merge op_name
-        let defaults = Map.fromList $
-                map (flip (,) merge) (NonEmpty.toList controls)
+        let defaults = Map.fromList $ map (, merge) (NonEmpty.toList controls)
         Internal.with_default_merge defaults deriver

@@ -299,7 +299,7 @@ with_ruler block_id ruler = with_ui $ \state -> UiTest.exec state make
     where make = Create.new_ruler block_id (Id.ident_name block_id) ruler
 
 with_tsigs :: [TrackId] -> Setup
-with_tsigs = with_tsig_sources . map (flip (,) Nothing)
+with_tsigs = with_tsig_sources . map (, Nothing)
 
 with_tsig_tracknums :: [TrackNum] -> Setup
 with_tsig_tracknums = with_tsigs . map UiTest.mk_tid

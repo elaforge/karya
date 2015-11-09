@@ -230,7 +230,7 @@ round_pitch nn = fromIntegral (round (nn * 1000)) / 1000
 
 convert_scale :: Maybe Instrument.PatchScale -> Signal.NoteNumber
     -> (Signal.NoteNumber, [(Signal.X, Signal.Y)])
-convert_scale Nothing = flip (,) []
+convert_scale Nothing = (, [])
 convert_scale (Just scale) = Signal.map_err $ \(TimeVector.Sample x y) ->
     case Instrument.convert_patch_scale scale (Pitch.NoteNumber y) of
         Just (Pitch.NoteNumber nn) -> Right (TimeVector.Sample x nn)

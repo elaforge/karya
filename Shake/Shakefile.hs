@@ -1065,6 +1065,7 @@ ghcFlags config = concat $
     , cInclude (configFlags config)
     ]
 
+-- | Language extensions which are globally enabled.
 ghcLanguageFlags :: [String]
 ghcLanguageFlags = map ("-X"++)
     -- Without this, it becomes really annoying to use Text everywhere.
@@ -1078,6 +1079,11 @@ ghcLanguageFlags = map ("-X"++)
     -- yields "Non type-variable argument in the constraint: IsString [a]".
     -- I don't really know what that means, but FlexibleContexts fixes it.
     , "FlexibleContexts"
+    -- It's nicer than flip (,), but not worth using if you have to put in
+    -- a LANGUAGE.
+    , "TupleSections"
+    -- Just too useful.
+    , "GeneralizedNewtypeDeriving"
     ]
 
 -- * cc

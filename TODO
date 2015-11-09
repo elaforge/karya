@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Enable TupleSections globally?
+  * Enable TupleSections globally?
   * The type synonyms MidiInst.SyncDesc -> Cmd.SynthDesc -> MidiDb.SynthDesc
     are really confusing.  Can I put the patches directly in the Synth?
     . Also I can get rid of wildcard patches, since I always use aliases now.

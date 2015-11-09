@@ -38,7 +38,7 @@ test_quantize_timestep = do
     equal (run LEvent.End marks "w" [(0.5, 0.1, "")]) (Just [(0.5, 0.5)])
     equal (run LEvent.End marks "w" [(0.5, 0.5, "")]) (Just [(0.5, 0.5)])
 
-    let marks2 = map (flip (,) 0) [0, 1, 2, 3, 4]
+    let marks2 = map (, 0) [0, 1, 2, 3, 4]
     equal (run LEvent.Both marks2 "w" [(0.000000000000199, 1, "")])
         (Just [(0, 1)])
 

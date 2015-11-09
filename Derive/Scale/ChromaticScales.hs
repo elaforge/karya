@@ -195,7 +195,7 @@ call_doc transposers smap doc =
 format_keys :: [Pitch.Key] -> Text
 format_keys keys
     | all (("-" `Text.isInfixOf`) . name) keys = Text.intercalate ", " $
-        map fst $ group_tonic_mode $ map (flip (,) ()) keys
+        map fst $ group_tonic_mode $ map (, ()) keys
     | otherwise = Text.intercalate ", " $ map name keys
     where name (Pitch.Key k) = k
 

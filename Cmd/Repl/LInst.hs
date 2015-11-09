@@ -210,8 +210,7 @@ modify_config_ inst modify = modify_config inst (\c -> (modify c, ()))
 -- | Deallocate the old allocation, and set it to the new one.  Meant for
 -- interactive use.
 alloc :: Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
-alloc inst wdev chans =
-    alloc_voices inst wdev (map (flip (,) Nothing) chans)
+alloc inst wdev chans = alloc_voices inst wdev (map (, Nothing) chans)
 
 -- | Like 'alloc', but you can also give maximum voices per channel.
 alloc_voices :: Instrument -> Text -> [(Midi.Channel, Maybe Instrument.Voices)]

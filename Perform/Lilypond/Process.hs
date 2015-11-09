@@ -3,7 +3,6 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Convert Lilypond Events to lilypond code.
 --
 -- It's a terrible name, but what else am I supposed to call it?  Render?
