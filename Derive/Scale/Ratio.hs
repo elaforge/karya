@@ -38,23 +38,23 @@ scales = map Scale.Simple [scale]
 
 scale :: Scale.Scale
 scale = Scale.Scale
-    { Scale.scale_id = "ratio"
-    , Scale.scale_pattern = "[+-]?\\d+/\\d+ e.g. 2/5 or -4/3"
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = mempty
-    , Scale.scale_read = const $ const $ Left Scale.UnparseableNote
-    , Scale.scale_show = const $ const $ Left Scale.UnparseableNote
-    , Scale.scale_layout = Scale.no_octaves
-    , Scale.scale_transpose = Scales.non_transposing
-    , Scale.scale_enharmonics = Scales.no_enharmonics
-    , Scale.scale_note_to_call = note_to_call
+    { scale_id = "ratio"
+    , scale_pattern = "[+-]?\\d+/\\d+ e.g. 2/5 or -4/3"
+    , scale_symbols = []
+    , scale_transposers = mempty
+    , scale_read = const $ const $ Left Scale.UnparseableNote
+    , scale_show = const $ const $ Left Scale.UnparseableNote
+    , scale_bottom = Pitch.pitch 0 0
+    , scale_layout = Scale.no_octaves
+    , scale_transpose = Scales.non_transposing
+    , scale_enharmonics = Scales.no_enharmonics
+    , scale_note_to_call = note_to_call
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
-    , Scale.scale_input_to_note = \_ _ -> Left Scale.InvalidInput
-    , Scale.scale_input_to_nn = Scales.direct_input_to_nn
-    , Scale.scale_call_doc = Derive.extract_val_doc $
-        note_call (Pitch.Note "1/1") id
+    , scale_input_to_note = \_ _ -> Left Scale.InvalidInput
+    , scale_input_to_nn = Scales.direct_input_to_nn
+    , scale_call_doc = Derive.extract_val_doc $ note_call (Pitch.Note "1/1") id
     }
 
 note_to_call :: Pitch.Note -> Maybe Derive.ValCall

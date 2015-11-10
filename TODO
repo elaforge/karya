@@ -3,6 +3,26 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * Can I get a PatchScale out of a Scale?
+    . How can I figure out the midi keys?
+    . Out of range error for just 9g, even though Scale.notes emits it.
+    . In twelve, -1-0 is -12, which becomes nn 0 since the bottom of the range
+      is -12.
+    . Ultimately scale range is either hardcoded in the scale, or it's
+      a result of MIDI range.  So to find the edges I really need to see what
+      note corresponds to NN 0.
+    . Actually I can make the NN the final arbiter of what is in range,
+      because the limit is MIDI and I only know the NN after evaluation.
+    - Can I move the 0--127 range check into the scale degree calls?
+    * How to get MIDI keys?  I should map to the closest ones.
+      Since it uses NNs, which are absolute, it will just find the closest
+      MIDI key to produce that frequency.
+  - OutOfRange vs. InvalidTransposition
+    The problem with InvalidTransposition is that it wasn't necessarily due to
+    transposition, and the formatting will want to put in the (empty)
+    transpose signals.  But the problem with OutOfRange is that it may well
+    have been out of range due to transposition.  So why not use the same
+    error for both?  OutOfRange is more general.
   * Enable TupleSections globally?
   * The type synonyms MidiInst.SyncDesc -> Cmd.SynthDesc -> MidiDb.SynthDesc
     are really confusing.  Can I put the patches directly in the Synth?

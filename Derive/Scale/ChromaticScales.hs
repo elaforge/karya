@@ -35,7 +35,7 @@ data ScaleMap = ScaleMap {
     , smap_layout :: !Theory.Layout
     -- | Configure how the scale converts 'Pitch.Semi's to frequency.
     , smap_semis_to_nn :: SemisToNoteNumber
-    -- | Inclusive (bottom, top) of scale, for documentation.
+    -- | Inclusive (bottom, top) of scale.
     , smap_range :: !(Pitch.Semi, Pitch.Semi)
     }
 
@@ -62,7 +62,7 @@ scale_map layout fmt keys default_key = ScaleMap
     , smap_semis_to_nn = \_config -> return . Theory.fsemis_to_nn
     , smap_range = range
     }
-    where range = (Theory.nn_to_semis 1, Theory.nn_to_semis 127)
+    where range = (Theory.nn_to_semis 0, Theory.nn_to_semis 127)
 
 type Keys = Map.Map Pitch.Key Theory.Key
 
@@ -72,20 +72,22 @@ make_keys fmt keys =
 
 make_scale :: Pitch.ScaleId -> ScaleMap -> Text -> Scale.Scale
 make_scale scale_id smap doc = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = TheoryFormat.fmt_pattern (smap_fmt smap)
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = Scales.standard_transposers
-    , Scale.scale_read = read_pitch smap . Scales.environ_key
-    , Scale.scale_show = show_pitch smap . Scales.environ_key
-    , Scale.scale_layout = Theory.layout_intervals (smap_layout smap)
-    , Scale.scale_transpose = transpose smap
-    , Scale.scale_enharmonics = enharmonics smap
-    , Scale.scale_note_to_call = note_to_call scale smap
-    , Scale.scale_input_to_note = input_to_note smap
-    , Scale.scale_input_to_nn = Scales.computed_input_to_nn
+    { scale_id = scale_id
+    , scale_pattern = TheoryFormat.fmt_pattern (smap_fmt smap)
+    , scale_symbols = []
+    , scale_transposers = Scales.standard_transposers
+    , scale_read = read_pitch smap . Scales.environ_key
+    , scale_show = show_pitch smap . Scales.environ_key
+    , scale_bottom = Theory.semis_to_pitch_sharps (smap_layout smap)
+        (fst (smap_range smap))
+    , scale_layout = Theory.layout_intervals (smap_layout smap)
+    , scale_transpose = transpose smap
+    , scale_enharmonics = enharmonics smap
+    , scale_note_to_call = note_to_call scale smap
+    , scale_input_to_note = input_to_note smap
+    , scale_input_to_nn = Scales.computed_input_to_nn
         (input_to_note smap) (note_to_call scale smap)
-    , Scale.scale_call_doc = call_doc Scales.standard_transposers smap doc
+    , scale_call_doc = call_doc Scales.standard_transposers smap doc
     }
     where scale = PSignal.Scale scale_id Scales.standard_transposers
 
@@ -144,7 +146,7 @@ pitch_nn smap pitch config@(PSignal.PitchConfig env controls) =
         let semis = Theory.pitch_to_semis (smap_layout smap) pitch
             degree = fromIntegral semis + chromatic + dsteps
         nn <- smap_semis_to_nn smap config degree
-        if 1 <= nn && nn <= 127 then Right nn
+        if 0 <= nn && nn <= 127 then Right nn
             else Left Scale.InvalidTransposition
     where
     chromatic = Map.findWithDefault 0 Controls.chromatic controls
@@ -232,7 +234,7 @@ show_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Pitch
 show_pitch smap key pitch
     | bottom <= semis && semis <= top = Right $
         TheoryFormat.show_pitch (smap_fmt smap) key pitch
-    | otherwise = Left Scale.InvalidTransposition
+    | otherwise = Left Scale.OutOfRange
     where
     (bottom, top) = smap_range smap
     semis = Theory.pitch_to_semis (smap_layout smap) pitch

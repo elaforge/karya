@@ -16,7 +16,7 @@ test_note_to_nn = do
         extract = Score.initial_nn
     equal (f "3b") ([Just 59], [])
     equal (f "4c") ([Just 60], [])
-    equal (f "-1c") ([Nothing], [])
+    equal (f "-2c") ([Nothing], [])
     equal (f "-1c#") ([Just 1], [])
     equal (f "-2b") ([Nothing], [])
     equal (f "0c") ([Just 12], [])

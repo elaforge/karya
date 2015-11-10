@@ -41,38 +41,40 @@ import Types
 -- nn.
 make_scale :: Pitch.ScaleId -> DegreeMap -> Text -> Text -> Scale.Scale
 make_scale scale_id dmap pattern doc = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = pattern
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = standard_transposers
-    , Scale.scale_read = const $ read_note dmap
-    , Scale.scale_show = const $ show_pitch dmap
-    , Scale.scale_layout = Scale.diatonic_layout (dm_per_octave dmap)
-    , Scale.scale_transpose = transpose dmap
-    , Scale.scale_enharmonics = no_enharmonics
-    , Scale.scale_note_to_call = mapped_note_to_call dmap scale
-    , Scale.scale_input_to_note = input_to_note dmap
-    , Scale.scale_input_to_nn = mapped_input_to_nn dmap
-    , Scale.scale_call_doc = call_doc standard_transposers dmap doc
+    { scale_id = scale_id
+    , scale_pattern = pattern
+    , scale_symbols = []
+    , scale_transposers = standard_transposers
+    , scale_read = const $ read_note dmap
+    , scale_show = const $ show_pitch dmap
+    , scale_bottom = Pitch.pitch (dm_start_octave dmap) (dm_start_pc dmap)
+    , scale_layout = Scale.diatonic_layout (dm_per_octave dmap)
+    , scale_transpose = transpose dmap
+    , scale_enharmonics = no_enharmonics
+    , scale_note_to_call = mapped_note_to_call dmap scale
+    , scale_input_to_note = input_to_note dmap
+    , scale_input_to_nn = mapped_input_to_nn dmap
+    , scale_call_doc = call_doc standard_transposers dmap doc
     }
     where scale = PSignal.Scale scale_id standard_transposers
 
 -- | An empty scale that doesn't do anything.
 empty_scale :: Pitch.ScaleId -> Text -> Derive.DocumentedCall -> Scale.Scale
 empty_scale scale_id pattern doc = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = pattern
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = standard_transposers
-    , Scale.scale_read = \_ _ -> Left Scale.UnparseableNote
-    , Scale.scale_show = \_ _ -> Left Scale.OutOfRange
-    , Scale.scale_layout = Scale.layout []
-    , Scale.scale_transpose = \_ _ _ _ -> Left Scale.OutOfRange
-    , Scale.scale_enharmonics = no_enharmonics
-    , Scale.scale_note_to_call = const Nothing
-    , Scale.scale_input_to_note = \_ _ -> Left Scale.OutOfRange
-    , Scale.scale_input_to_nn = \ _ _ -> return $ Left Scale.OutOfRange
-    , Scale.scale_call_doc = doc
+    { scale_id = scale_id
+    , scale_pattern = pattern
+    , scale_symbols = []
+    , scale_transposers = standard_transposers
+    , scale_read = \_ _ -> Left Scale.UnparseableNote
+    , scale_show = \_ _ -> Left Scale.OutOfRange
+    , scale_bottom = Pitch.pitch 1 0
+    , scale_layout = Scale.layout []
+    , scale_transpose = \_ _ _ _ -> Left Scale.OutOfRange
+    , scale_enharmonics = no_enharmonics
+    , scale_note_to_call = const Nothing
+    , scale_input_to_note = \_ _ -> Left Scale.OutOfRange
+    , scale_input_to_nn = \ _ _ -> return $ Left Scale.OutOfRange
+    , scale_call_doc = doc
     }
 
 -- * types
@@ -156,7 +158,7 @@ mapped_note_to_call dmap scale note = do
         (\transposed -> dm_to_note dmap !? (semis + transposed))
     where
     semis_to_nn semis _config transposed =
-        maybe (Left Scale.InvalidTransposition) Right $
+        maybe (Left Scale.OutOfRange) Right $
             dm_to_nn dmap !? (semis + transposed)
 
 -- | Create a note call that respects chromatic and diatonic transposition.

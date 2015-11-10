@@ -10,13 +10,16 @@
 module Derive.Scale (module Derive.Derive, module Derive.Scale) where
 import qualified Data.Vector.Unboxed as Vector
 
+import qualified Midi.Midi as Midi
 import qualified Derive.Derive as Derive
 import Derive.Derive
        (Scale(..), LookupScale(..), lookup_scale, Transposition(..),
         ScaleError(..), Layout)
 import qualified Derive.Env as Env
+import qualified Derive.Eval as Eval
 import qualified Derive.PSignal as PSignal
 
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -89,6 +92,11 @@ transpose transposition scale environ octaves steps =
     <=< scale_transpose scale transposition environ steps
     . Pitch.add_octave octaves <=< scale_read scale environ
 
+transpose_pitch :: Transposition -> Scale -> Env.Environ -> Pitch.Octave
+    -> Pitch.Step -> Pitch.Pitch -> Either ScaleError Pitch.Pitch
+transpose_pitch transposition scale environ octaves steps =
+    scale_transpose scale transposition environ steps
+    . Pitch.add_octave octaves
 
 -- * Range
 
@@ -100,3 +108,54 @@ data Range = Range {
 
 in_range :: Range -> Pitch.Pitch -> Bool
 in_range (Range bottom top) pitch = bottom <= pitch && pitch <= top
+
+-- * pitches
+
+-- | Return the pitches in the scale.  If the scale has an unbounded range,
+-- this may go on forever, so zip with 'note_numbers' if you want the usable
+-- range.  ALso, not all scales actually have defined degrees.
+pitches :: Scale -> Env.Environ -> [Pitch.Pitch]
+pitches scale environ = go (scale_bottom scale)
+    where
+    go pitch = pitch : either (const []) go (step pitch)
+    step = scale_transpose scale Chromatic environ 1
+
+-- | Return the notes in the scale.  As with 'pitches', it may be unbounded.
+notes :: Scale -> Env.Environ -> [Pitch.Note]
+notes scale environ = go (pitches scale environ)
+    where
+    go (p:ps) = case scale_show scale environ p of
+        Right n -> n : go ps
+        Left _ -> []
+    go [] = []
+
+-- | Return pitches of the scale's degrees.
+note_numbers :: Scale -> Env.Environ -> Derive.Deriver [Pitch.NoteNumber]
+note_numbers scale environ = go (notes scale environ)
+    where
+    go [] = return []
+    go (note : notes) = do
+        pitch <- Eval.eval_note scale note
+        case PSignal.pitch_nn (PSignal.coerce pitch) of
+            Right nn -> (nn:) <$> go notes
+            Left err
+                -- TODO retain the ScaleError so I can match on OutOfRange
+                | pretty err == "out of range" -> return []
+                | otherwise -> Derive.throw $ "note_numbers: " <> pretty err
+
+-- | Make a patch scale from the NoteNumbers.
+patch_scale :: Pitch.ScaleId -> [Pitch.NoteNumber] -> Instrument.PatchScale
+patch_scale scale_id nns = Instrument.make_patch_scale (pretty scale_id) $
+    map (first Midi.to_key) $ assign_keys 128 nns
+
+-- | Try to assign MIDI keys that correspond to the NoteNumbers, but
+-- they won't line up if there are too many NoteNumbers.
+assign_keys :: Int -> [Pitch.NoteNumber] -> [(Int, Pitch.NoteNumber)]
+assign_keys top_key nns = go 0 (top_key - length nns) nns
+    where
+    go _ _ [] = []
+    go key extra (nn:nns)
+        | key >= top_key = []
+        | otherwise =
+            (assigned, nn) : go (assigned+1) (extra - (assigned-key)) nns
+        where assigned = key + max 0 (min (floor nn - key) extra)

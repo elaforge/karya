@@ -51,8 +51,9 @@ make_scale scale_id degrees = Scale.Scale
     , scale_pattern = "[0-9][a-" <> show_degree (per_octave - 1) <> "]"
     , scale_symbols = []
     , scale_transposers = transposers
-    , Scale.scale_read = const $ read_pitch per_octave
-    , Scale.scale_show = const (Right . show_pitch)
+    , scale_read = const $ read_pitch per_octave
+    , scale_show = const (Right . show_pitch)
+    , scale_bottom = Pitch.pitch 0 0
     , scale_layout = Scale.diatonic_layout per_octave
     , scale_transpose = transpose per_octave
     , scale_enharmonics = Scales.no_enharmonics
@@ -111,7 +112,7 @@ note_to_call scale degrees note = do
     Just $ Scales.note_to_call scale (semis_to_nn pitch) (semis_to_note pitch)
     where
     semis_to_nn pitch config semis =
-        maybe (Left Scale.InvalidTransposition) Right $ do
+        maybe (Left Scale.OutOfRange) Right $ do
             let octaves = floor $ get Controls.octave
                 a0 = Pitch.nn $ get a0_nn
             nn <- degrees Vector.!? (Pitch.pitch_pc pitch + semis)

@@ -41,20 +41,21 @@ scales = scale_make $ \env (Scale.LookupScale lookup) -> do
 
 make :: Scale.Scale -> Scale.Scale -> Scale.Scale
 make from to = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = "same as `from` scale"
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers =
+    { scale_id = scale_id
+    , scale_pattern = "same as `from` scale"
+    , scale_symbols = []
+    , scale_transposers =
         Scale.scale_transposers from <> Scale.scale_transposers to
-    , Scale.scale_read = Scale.scale_read from
-    , Scale.scale_show = Scale.scale_show from
-    , Scale.scale_layout = Scale.scale_layout from
-    , Scale.scale_transpose = Scale.scale_transpose from
-    , Scale.scale_enharmonics = Scale.scale_enharmonics from
-    , Scale.scale_note_to_call = to_call
-    , Scale.scale_input_to_note = to_note
-    , Scale.scale_input_to_nn = Scales.computed_input_to_nn to_note to_call
-    , Scale.scale_call_doc = doc
+    , scale_read = Scale.scale_read from
+    , scale_show = Scale.scale_show from
+    , scale_bottom = Scale.scale_bottom from
+    , scale_layout = Scale.scale_layout from
+    , scale_transpose = Scale.scale_transpose from
+    , scale_enharmonics = Scale.scale_enharmonics from
+    , scale_note_to_call = to_call
+    , scale_input_to_note = to_note
+    , scale_input_to_nn = Scales.computed_input_to_nn to_note to_call
+    , scale_call_doc = doc
     }
     where
     to_call = note_to_call from to

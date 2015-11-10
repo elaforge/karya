@@ -23,7 +23,7 @@ module Derive.Eval (
     -- * util
     , eval_one, eval_one_call, eval_one_at
     , eval_event, reapply_generator, reapply_generator_normalized
-    , reapply, reapply_string, reapply_call, eval_pitch, apply_pitch
+    , reapply, reapply_string, reapply_call, eval_pitch, eval_note, apply_pitch
     , eval_expr
 ) where
 import qualified Data.Char as Char
@@ -45,6 +45,7 @@ import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
+import qualified Perform.Pitch as Pitch
 import Global
 import Types
 
@@ -346,6 +347,14 @@ eval_pitch pos call =
     where
     ctx :: Derive.Context Derive.Pitch
     ctx = Derive.dummy_context pos 0 "<eval_pitch>"
+
+-- | Get a Pitch from in a given scale.
+eval_note :: Derive.Scale -> Pitch.Note -> Derive.Deriver PSignal.Pitch
+eval_note scale note = case Derive.scale_note_to_call scale note of
+    Nothing -> Derive.throw $ pretty scale <> " has no note " <> pretty note
+    Just vcall -> do
+        val <- apply_pitch 0 vcall
+        Typecheck.typecheck "eval_note" 0 val
 
 -- | This is like 'eval_pitch' when you already know the call, presumably
 -- because you asked 'Derive.scale_note_to_call'.

@@ -79,24 +79,22 @@ layout = Theory.piano_layout
 
 make_scale :: Pitch.ScaleId -> ScaleMap -> Text -> [(Text, Text)] -> Scale.Scale
 make_scale scale_id smap doc doc_fields = Scale.Scale
-    { Scale.scale_id = scale_id
-    , Scale.scale_pattern = TheoryFormat.fmt_pattern fmt
-    , Scale.scale_symbols = []
-    , Scale.scale_transposers = Scales.standard_transposers
-    , Scale.scale_read = TheoryFormat.read_pitch fmt . Scales.environ_key
-    , Scale.scale_show = TheoryFormat.scale_show_pitch fmt . Scales.environ_key
-    , Scale.scale_layout =
-        Scale.diatonic_layout $ TheoryFormat.fmt_pc_per_octave fmt
-    , Scale.scale_transpose = transpose fmt
-    , Scale.scale_enharmonics = enharmonics layout fmt
-    , Scale.scale_note_to_call = note_to_call scale smap
-    , Scale.scale_input_to_note = input_to_note smap
-    , Scale.scale_input_to_nn =
-        Scales.computed_input_to_nn (input_to_note smap)
-            (note_to_call scale smap)
-    , Scale.scale_call_doc =
-        Scales.annotate_call_doc Scales.standard_transposers (doc <> just_doc)
-            doc_fields dummy_call
+    { scale_id = scale_id
+    , scale_pattern = TheoryFormat.fmt_pattern fmt
+    , scale_symbols = []
+    , scale_transposers = Scales.standard_transposers
+    , scale_read = TheoryFormat.read_pitch fmt . Scales.environ_key
+    , scale_show = TheoryFormat.scale_show_pitch fmt . Scales.environ_key
+    , scale_bottom = Theory.semis_to_pitch_sharps layout $ Theory.nn_to_semis 0
+    , scale_layout = Scale.diatonic_layout $ TheoryFormat.fmt_pc_per_octave fmt
+    , scale_transpose = transpose fmt
+    , scale_enharmonics = enharmonics layout fmt
+    , scale_note_to_call = note_to_call scale smap
+    , scale_input_to_note = input_to_note smap
+    , scale_input_to_nn = Scales.computed_input_to_nn (input_to_note smap)
+        (note_to_call scale smap)
+    , scale_call_doc = Scales.annotate_call_doc Scales.standard_transposers
+        (doc <> just_doc) doc_fields dummy_call
     }
     where
     scale = PSignal.Scale scale_id Scales.standard_transposers

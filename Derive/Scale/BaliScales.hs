@@ -179,7 +179,7 @@ semis_to_nn :: Pitch.Semi -> NoteNumbers -> ChromaticScales.SemisToNoteNumber
 semis_to_nn offset nns = \(PSignal.PitchConfig env controls) fsemis_ -> do
     let fsemis = fsemis_ - fromIntegral offset
     tuning <- Scales.read_environ read_tuning (Just Umbang) EnvKey.tuning env
-    let to_either = maybe (Left Scale.InvalidTransposition) Right
+    let to_either = maybe (Left Scale.OutOfRange) Right
     to_either $ case Map.lookup c_ombak controls of
         Nothing -> case tuning of
             Umbang -> get_nn (nn_umbang nns) fsemis

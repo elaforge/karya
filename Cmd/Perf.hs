@@ -143,11 +143,11 @@ smuggle_environ = do
 
 -- | A cheap quick derivation that sets up the correct initial state, but
 -- runs without the cache and throws away any logs.
-derive :: Cmd.M m => Derive.Deriver a -> m (Either String a)
+derive :: Cmd.M m => Derive.Deriver a -> m (Either Text a)
 derive deriver = do
     (val, _, _) <- PlayUtil.run mempty mempty deriver
     return $ case val of
-        Left err -> Left $ prettys err
+        Left err -> Left $ pretty err
         Right val -> Right val
 
 -- * perform
@@ -292,7 +292,7 @@ lookup_default_environ name = do
     -- meanwhile this hack should be safe.
     result <- derive $ apply smuggle_environ
     environ <- case result of
-        Left err -> Cmd.throw $ caller <> ": " <> txt err
+        Left err -> Cmd.throw $ caller <> ": " <> err
         Right val -> case Stream.events_of val of
             [] -> Cmd.throw $ caller <> " didn't get the fake event it wanted"
             event : _ -> return $ Score.event_environ event

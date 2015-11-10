@@ -16,10 +16,12 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.Derive as Derive
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import Global
 import Types
@@ -28,6 +30,14 @@ import Types
 -- | Turn an nn back to a human-readable note name.
 nn_to_note :: Int -> Maybe Pitch.Note
 nn_to_note = Twelve.show_nn . fromIntegral
+
+-- * scales
+
+patch_scale :: Cmd.M m => Pitch.ScaleId -> m Instrument.PatchScale
+patch_scale scale_id = (Cmd.require_right id <=< Perf.derive) $ do
+    scale <- Derive.get_scale scale_id
+    nns <- Scale.note_numbers scale mempty
+    return $ Scale.patch_scale scale_id nns
 
 -- * invert
 

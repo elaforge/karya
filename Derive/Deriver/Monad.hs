@@ -1536,6 +1536,9 @@ data Scale = Scale {
         -> Either ScaleError Pitch.Pitch
     , scale_show :: BaseTypes.Environ -> Pitch.Pitch
         -> Either ScaleError Pitch.Note
+    -- | Bottom pitch of the scale, if there is one.  You can find the top
+    -- pitch by transposing until you get OutOfRange.
+    , scale_bottom :: !Pitch.Pitch
     , scale_layout :: !Layout
     , scale_transpose :: !Transpose
     , scale_enharmonics :: !Enharmonics
