@@ -4,3 +4,5 @@ prio-package-high:
 prio-package-low: haskell98 ghc darcs
 prio-module-high: Ui
 prio-module-low: GHC
+language: OverloadedStrings DisambiguateRecordFields FlexibleContexts
+    TupleSections GeneralizedNewtypeDeriving
