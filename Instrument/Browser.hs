@@ -136,16 +136,20 @@ info_of db score_inst (MidiDb.Info synth patch code) =
         , ("Tags", tags)
         ]
     where
-    Instrument.Synth synth_name synth_doc synth_cmap = synth
+    Instrument.Synth {
+        synth_name = synth_name
+        , synth_doc = synth_doc
+        , synth_control_map = synth_cmap
+        } = synth
     Instrument.Patch {
-        Instrument.patch_instrument = inst
-        , Instrument.patch_scale = scale
-        , Instrument.patch_restricted_environ = environ
-        , Instrument.patch_flags = pflags
-        , Instrument.patch_initialize = initialize
-        , Instrument.patch_attribute_map = attr_map
-        , Instrument.patch_text = text
-        , Instrument.patch_file = file
+        patch_instrument = inst
+        , patch_scale = scale
+        , patch_restricted_environ = environ
+        , patch_flags = pflags
+        , patch_initialize = initialize
+        , patch_attribute_map = attr_map
+        , patch_text = text
+        , patch_file = file
         } = patch
     flags = map showt (Set.toList pflags)
     name = let n = Instrument.inst_name inst in if Text.null n then "*" else n

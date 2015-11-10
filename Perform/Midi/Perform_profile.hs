@@ -102,8 +102,11 @@ mkevent start dur controls pitch_sig =
     Perform.Event (RealTime.seconds start) (RealTime.seconds dur)
         inst1 (Map.fromList controls) pitch_sig Stack.empty
 
+inst1 :: Instrument.Instrument
 inst1 = mkinst "inst1"
-mkinst name = (Instrument.instrument name [] (-2, 2))
+
+mkinst :: Instrument.InstrumentName -> Instrument.Instrument
+mkinst name = (Instrument.instrument (-2, 2) name [])
     { Instrument.inst_score = Score.Instrument name
     , Instrument.inst_maybe_decay = Just 1
     }

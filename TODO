@@ -13,16 +13,27 @@ UNSORTED
       note corresponds to NN 0.
     . Actually I can make the NN the final arbiter of what is in range,
       because the limit is MIDI and I only know the NN after evaluation.
-    - Can I move the 0--127 range check into the scale degree calls?
     * How to get MIDI keys?  I should map to the closest ones.
       Since it uses NNs, which are absolute, it will just find the closest
       MIDI key to produce that frequency.
   - OutOfRange vs. InvalidTransposition
-    The problem with InvalidTransposition is that it wasn't necessarily due to
-    transposition, and the formatting will want to put in the (empty)
-    transpose signals.  But the problem with OutOfRange is that it may well
-    have been out of range due to transposition.  So why not use the same
-    error for both?  OutOfRange is more general.
+    . The problem with InvalidTransposition is that it wasn't necessarily due to
+      transposition, and the formatting will want to put in the (empty)
+      transpose signals.  But the problem with OutOfRange is that it may well
+      have been out of range due to transposition.  So why not use the same
+      error for both?  OutOfRange is more general.
+  Can I move the 0--127 range check into the scale degree calls?
+    . Actually, since it's a MIDI limitation, perhaps I shouldn't limit at
+      all.  Midi.Convert could then throw an error.  But then maybe it's too
+      late for good error reporting, e.g. the transpose values.  Otherwise
+      I could put it in PSignal.Pitch, but it still means the MIDI limitation
+      applies to everyone.
+    - Get rid of PitchError, and convert to ScaleError.
+    - Rename ScaleError -> PitchError
+    - Remove InvalidTransposition, OutOfRange is annotated with
+      transpositions.  The annotation is still per-scale since they all
+      respond to different signals.
+    - Now BaseTypes.pitch_nn can do a range check.
   * Enable TupleSections globally?
   * The type synonyms MidiInst.SyncDesc -> Cmd.SynthDesc -> MidiDb.SynthDesc
     are really confusing.  Can I put the patches directly in the Synth?
