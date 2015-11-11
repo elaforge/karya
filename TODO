@@ -3,66 +3,6 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  * PSignal.to_nn space leak?
-  * Can I get a PatchScale out of a Scale?
-    . How can I figure out the midi keys?
-    . Out of range error for just 9g, even though Scale.notes emits it.
-    . In twelve, -1-0 is -12, which becomes nn 0 since the bottom of the range
-      is -12.
-    . Ultimately scale range is either hardcoded in the scale, or it's
-      a result of MIDI range.  So to find the edges I really need to see what
-      note corresponds to NN 0.
-    . Actually I can make the NN the final arbiter of what is in range,
-      because the limit is MIDI and I only know the NN after evaluation.
-    * How to get MIDI keys?  I should map to the closest ones.
-      Since it uses NNs, which are absolute, it will just find the closest
-      MIDI key to produce that frequency.
-  * OutOfRange vs. InvalidTransposition
-    . The problem with InvalidTransposition is that it wasn't necessarily due to
-      transposition, and the formatting will want to put in the (empty)
-      transpose signals.  But the problem with OutOfRange is that it may well
-      have been out of range due to transposition.  So why not use the same
-      error for both?  OutOfRange is more general.
-  Can I move the 0--127 range check into the scale degree calls?
-    . Actually, since it's a MIDI limitation, perhaps I shouldn't limit at
-      all.  Midi.Convert could then throw an error.  But then maybe it's too
-      late for good error reporting, e.g. the transpose values.  Otherwise
-      I could put it in PSignal.Pitch, but it still means the MIDI limitation
-      applies to everyone.
-    * Get rid of PitchError, and convert to ScaleError.
-    * Rename ScaleError -> PitchError
-    * Remove InvalidTransposition, OutOfRange is annotated with
-      transpositions.  The annotation is still per-scale since they all
-      respond to different signals.
-    * Now BaseTypes.pitch_nn can do a range check.
-  * Enable TupleSections globally?
-  * The type synonyms MidiInst.SyncDesc -> Cmd.SynthDesc -> MidiDb.SynthDesc
-    are really confusing.  Can I put the patches directly in the Synth?
-    . Also I can get rid of wildcard patches, since I always use aliases now.
-      I just need a conventional name for the "default" patch.  Perhaps ""?
-    . This will break existing scores that use e.g. fm/something.
-  * Sysex always ends with EOX, so I should make Midi.encode do that.  But
-    then I need to strip EOX when loading sysexes.
-  Experiment with MIDI single note tuning change.  Who supports it?
-    . This is basically just limited to a way to set an Instrument.PatchScale.
-      Still, it could be convenient for static scales.  It's complicated for
-      anything dynamic because I still have to schedule to avoid the "same"
-      key.  Though that's the same restriction as pianoteq, so if a bunch
-      of synths can do that, then it might be worth a performer hack.
-    * code to emit the MIDI
-    * find out which synths support it
-    * some way to set PatchScale for insts and send initialization.
-
-  * J call for calung that puts in a jegog note.  It needs {infer-duration}.
-  * Unsetting for read-only SavedFile breaks ky files.  So I think I need
-    either a separate way to mark read-only, or a separate place for the ky
-    file path.
-  * support for non-dvorak keyboard
-  * perhaps save_git_as should complain if the name doesn't end with .git
-  * keep track of timestamps of all ky files in PlayUtil.cached_load
-  * final notes on a mridangam sub-block aren't being suppressed
-  * I'm back to getting out of order warnings from ConvertUtil.
-    . Turns out Post functions didn't do any sorting at all.
   - Sortedness tracking for Stream and Post functions.
     . Track down usage of Stream.from_sorted_list, probably most uses are
       bogus.  Stream.from_list and Stream.from_events have to take
@@ -87,99 +27,10 @@ UNSORTED
       terribly compelling.  I think the reason is that it turns out most
       functions can throw.  It doesn't replace get_ vs. lookup_ because they
       are likely to call something else which can throw.
-  * It can be alarming how I accidentally make changes to .git files.  Even
-    though I can undo them, what if I don't notice until too late?  Maybe
-    there should be a lock bit that makes edits into errors?  Or at least
-    suspends the automatic saving?
-    . Technically I can always undo the changes, but the problem is when
-      I don't notice them until much later.
-    . That in turn is risky if I don't notice it.  Maybe I could have an
-      unsaved indicator like some text editors.  E.g. a * in the scroll box.
-    . The problem with this is that if I don't checkpoint, I need to save up
-      all changes for when I start.  Perhaps instead I can just disallow
-      changes?
-    . Why not use file level permissions for this?  Then all I need to do is
-      make sure it doesn't crash when the file is not writable.
-    . For this I want to make git revert any changes if the git write failed.
-      But Undo.maintain_history is called after the ui state change has
-      already been synced.  Can I move it back?  Not really, because it uses
-      the updates.  So I could do a check beforehand.
-    . Check beforehand is awkward since I need the results of
-      Diff.score_changed to know if I should check.
-    . How about a simpler way: when I open a .git, if it's not writable, then
-      don't set SavedFile, just like loading a template.
-    . What about when I forget it's locked, make changes, and then have no way
-      to save those changes?  Disallowing changes seems better because then I
-      can't not notice.  But I make a lot of temporary changes just when
-      playing, e.g.  mute tracks or instruments.
-    . Basically I want the non-incremental save thing.  Using file permissions
-      has a nice guarantee though.  But really if I want to make experimental
-      changes, I can still revert to a tag.
-    . If the .git is read-only, then don't set SaveFile when loading.  Also
-      have a special unsaved indicator if there's no SaveFile.
-  * score unsaved indicator
-    . Have a flag in Cmd.State which is flipped by a state modify.  I could
-      attach it to the State.M instance in Cmd.
-      . This is no good because there are lots of view updates which shouldn't
-        count.
-    . Or, put the flag in Ui.State itself, as an update.  But then every
-      single State function has to emit that update, and I need an efficient
-      way to only add the update if it isn't already there.
-    . Can I use the diff updates?  Flip Cmd.state_saved if there are any
-      non-view updates.
-    . In fact this is necessary, because Diff.derive_diff needs to get changes
-      made by the sync.
-    . However, sync_status shouldn't make any changes that affect
-      derive_diff.  So it should be ok to carry forward the dmg.
-    . No, that doesn't work because derive_diff takes the updates from the
-      sync output.
-    . So I think I have to do another diff.  But it's asking a simpler
-      question, just true or false.  Still, in the common case of no
-      difference, it needs to compare everything just the same.
-    . The way to avoid that is to record the change when it is made, and then
-      I'm back to instrumenting Cmd.unsafe_put.  But then I have to
-      distinguish view from non-view edits.  Looking for a change in
-      unsafe_put is no different than doing a full diff, and it would
-      potentially happen multiple times.  To really do it for real, I need
-      a separate update functions:
-        State.put_views - can modify Block.View and Block.block_config.
-        State.put_score - can modify everything
-      Then only put_score will unconditionally flip Cmd.state_saved.  It would
-      be nicest to come up with a type distinction to enforce that 'put_views'
-      can't modify score things.  Or I could make the types the same and rely
-      on the State functions picking the right one.
-    . There are other things that don't have an effect on derivation:
-      track flags except Block.Disable, Block.track_width, Block.track_merged
-      If I also isolate those things, then I can probably do away with the
-      separate derive_diff.  But it's still different from state_saved,
-      because I do want to count things like track flags.  So probably not
-      worth going this far.
-    . For the moment, do a separate derive_diff, but keep it in mind as
-      a possible source of hiccups.
-
-  * run profiling and upgrade to ghc-7.10.2
-  / rename PassedArgs to CallContext.  Or not?
-  * Rename PSignal.Signal to PSignal.PSignal?
   - No thru on pitch track of >pemade in save/rehearsal/bali/legong/semara-dana.
   - Perf.lookup_instrument on a pitch track could look at its note track.
-  * If I want to have an interpolating rhythm, e.g. chatusram to misram, I can
-    have a parent call that moves its children slightly.
-    . In fact, could I have done the interpolating scale as a similar
-      postproc?  Match in notes to out notes.  Then merge pitch signals by
-      mapping each with a Pitches.interpolated of both.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
-  * shakefile: use cabal sandbox, if one is present
-    . If there is a .cabal-sandbox, pass -no-user-package-db
-      -package-db .cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d/
-    . Use Shake.Util.sandboxPackageDb
-    * Figure out how to get GHC API to read from sandbox.  Probably have to
-      put the same flags into build/*/ghci-flags
-      . This is the same thing that 'cabal repl' does.
-  / Perform.Midi.Convert_test.test_convert is not lazy if the instrument is
-    not found.
-    . Actually it is, I think the problem is when all insts are not found,
-      then of course the output is [].
   - A block with logical range called at time 0 gets messed up.
 
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
@@ -252,8 +103,6 @@ UNSORTED
       - hmm, looks like I'm not importing Local.Repl any more
     . make the repl support :m
     . bundle them into the instrument db
-  * Get rid of Derive.LogsDeriver, now it's Derive.Deriver (Stream.Stream a)
-
   - Do I need Perform.perform_control_msgs.trim or not?  Figure it out and
     write a test if I do need it.
   - fix control scope in parent events that cover up an orphan, as
@@ -847,18 +696,6 @@ performance:
     . Giving up for the moment since I don't understand the output.
   . Seq.sort_on winds up calling compare on Stack 13374153 times! 9.1% time
     I have to sort it because the stack is kept in reverse order.
-    * Why is TrackWarp.run_collections run twice?
-    * Why so many comparisons?  How long is the WarpMap?
-      27568 entries!  This is because every single inverted note adds its
-      own.  That in turn is because I want to have a playback cursor on
-      child tracks, but I have to wait for a note to get the warp.
-      . Instead I could do a shortcut and just immediately assign the
-        parent's trackwarp to a child note track.
-      . I could do that with something like Internal.record_empty_tracks.
-        Or I could remove Internal.add_track_warp entirely, and instead
-        infer the child tracks as a postproc in TrackWarp collect.
-      . Just with add_new_trackwarp there are 161.  I guess because calls of
-        calls all multiply.
     - Per-track stuff can wind up happening zillions of times due to
       inversion, so look for other places where I do work or collect data
       on every track fragment.
@@ -871,44 +708,6 @@ performance:
     . I never know if changes I am making help or hurt performance, because I
       don't trust any of my profiles.  This means I hardly ever run them, at
       which point why bother having them?
-    . I don't trust them because I don't understand why they vary so wildly:
-      cerucuk punyah:
-        app: 48.82s cpu, 11.24s wall
-        verify_performance: 4.94s cpu / 3.95s wall, GC: 70% / 68.2% 3.456e9
-          -N: 12.70s cpu / 4.73s wall, GC: 49.2% cpu / 81.3% wall
-        criterion:
-      viola-sonata:
-        app:
-        verify_performance: 1.92s, GC: 67% 1.927e9
-          -N: 2.24s, GC: 41.2%
-        criterion - n seconds
-      . What's the difference between user and elapsed productivity?
-        User is CPU time, elapsed is wall time.
-      cerucuk punyah: app: 11.24s, verify_performance: 4.73s
-      Differences beteen verify_performance and app:
-        * -threaded RTS
-          Threaded takes more cpu time, but wall is the same.  So it's doing
-          more work for the same result, which is expected since derivation is
-          not parallel.
-        * simultaneous derivation - make app only derive root
-          . No effect.
-        * app demands track signals - turn of all track signals
-          . force only vector length: 11.24 wall -> 8.48 wall
-            events is 8.4 + rest 2.5 = 10.6, which is about right
-            but verify is 4.73 so it's still 2x
-        * app uses PlayUtil.uncached_derive like verify:
-          still 8.73s
-        . Using Performance.derive, verify is still 4.61 wall.
-        * strip out all responder cycle stuff, by running the derivation
-          directly from the setup_cmd:
-          verify: in (12.643, 4.65) then (1.797, 1.028)
-          seq: in (34.703, 8.646) then (10.867, 2.624)
-        * run directly from main, exactly like verify
-          seq: in (12.943, 4.601) then (1.825, 1.042)
-          . So it must be related to the responder thread.
-      . It turns out this is because the ghc repl thread is busily loading
-        modules.  If I wait until that's done, time goes down to 5s, which
-        is close enough to verify's time.
 
     . Productivity is actually really good during derivation: 70-80%.  Only if
       I turn on heap profiling does it go down to 33%.  So maybe there's
