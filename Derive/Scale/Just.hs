@@ -13,6 +13,7 @@ import qualified Data.Vector as Vector
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.JustScales as JustScales
+import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 
@@ -22,9 +23,9 @@ import Global
 
 scales :: [Scale.Make]
 scales = map Scale.Simple
-    [ JustScales.make_scale "just"
+    [ Scales.add_doc "7-limit just scale." $ JustScales.make_scale "just"
         (scale_map TheoryFormat.absolute_c) doc doc_fields
-    , JustScales.make_scale "just-r"
+    , Scales.add_doc "7-limit just scale." $ JustScales.make_scale "just-r"
         (scale_map (TheoryFormat.sargam relative_fmt)) doc doc_fields
     ]
 
