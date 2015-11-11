@@ -229,6 +229,8 @@ data PitchError =
     -- | A required environ value was missing or had the wrong type or value.
     -- The Text is a 'ShowVal.show_val' of the wrong Val.
     | EnvironError !Key !Text
+    -- | The scale doesn't implement that operation.
+    | NotImplemented
         -- The Text should be Val except that makes Eq not work.
     -- | Other kind of error.
     | PitchError !Text
@@ -246,6 +248,7 @@ instance Pretty.Pretty PitchError where
         InvalidInput -> "invalid input"
         EnvironError key err ->
             "environ value for " <> pretty key <> ": " <> err
+        NotImplemented -> "not implemented"
         PitchError msg -> msg
 
 instance Pretty.Pretty PitchConfig where

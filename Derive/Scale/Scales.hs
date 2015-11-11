@@ -64,15 +64,15 @@ empty_scale scale_id pattern doc = Scale.Scale
     , scale_pattern = pattern
     , scale_symbols = []
     , scale_transposers = standard_transposers
-    , scale_read = \_ _ -> Left BaseTypes.UnparseableNote
-    , scale_show = \_ _ -> Left BaseTypes.out_of_range
+    , scale_read = \_ _ -> Left BaseTypes.NotImplemented
+    , scale_show = \_ _ -> Left BaseTypes.NotImplemented
     , scale_bottom = Pitch.pitch 1 0
     , scale_layout = Scale.layout []
-    , scale_transpose = \_ _ _ _ -> Left BaseTypes.out_of_range
+    , scale_transpose = \_ _ _ _ -> Left BaseTypes.NotImplemented
     , scale_enharmonics = no_enharmonics
     , scale_note_to_call = const Nothing
-    , scale_input_to_note = \_ _ -> Left BaseTypes.out_of_range
-    , scale_input_to_nn = \ _ _ -> return $ Left BaseTypes.out_of_range
+    , scale_input_to_note = \_ _ -> Left BaseTypes.NotImplemented
+    , scale_input_to_nn = \ _ _ -> return $ Left BaseTypes.NotImplemented
     , scale_call_doc = doc
     }
 
@@ -138,7 +138,7 @@ transpose dmap _transposition _environ steps pitch
 
 -- | Transpose function for a non-transposing scale.
 non_transposing :: Derive.Transpose
-non_transposing _ _ _ _ = Left BaseTypes.out_of_range
+non_transposing _ _ _ _ = Left BaseTypes.NotImplemented
 
 standard_transposers :: Set.Set Score.Control
 standard_transposers = Set.fromList
