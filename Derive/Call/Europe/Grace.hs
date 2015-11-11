@@ -99,7 +99,7 @@ c_mordent default_neighbor = Derive.generator Module.europe "mordent"
     Sub.inverting $ \args ->
         Lily.when_lilypond (lily_mordent args neighbor) $ do
             pitch <- Call.get_pitch =<< Args.real_start args
-            grace_call args dyn [pitch, Pitches.transpose neighbor pitch]
+            legato_grace args dyn [pitch, Pitches.transpose neighbor pitch]
                 grace_dur place
 
 lily_mordent :: Derive.PassedArgs d -> Pitch.Transpose -> Derive.NoteDeriver
@@ -111,17 +111,29 @@ lily_mordent args neighbor = do
 -- | Grace is in the prelude since it's so commonly used.  Mordent and the
 -- other variations are still in 'Module.europe'.
 c_grace :: Derive.Generator Derive.Note
-c_grace = Derive.generator Module.prelude "grace" (Tags.ornament <> Tags.ly)
+c_grace = make_grace Module.prelude
     "Emit grace notes. The grace notes go through the `(` call, so they will\
     \ overlap or apply a keyswitch, or do whatever `(` does."
+    id $ \args events -> Derive.with_val "legato-dyn" (1 :: Double) $
+        Sub.reapply_call (Args.context args) "(" [] [events]
+
+-- | Make a grace call with the standard arguments.
+make_grace :: Module.Module -> Text
+    -> (Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> (Derive.PassedArgs Score.Event -> [Sub.Event] -> Derive.NoteDeriver)
+    -> Derive.Generator Derive.Note
+make_grace module_ doc transform derive =
+    Derive.generator module_ "grace" (Tags.ornament <> Tags.ly) doc
     $ Sig.call ((,)
     <$> grace_pitches_arg <*> grace_envs
     ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
         base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
-        Lily.when_lilypond (lily_grace args start pitches) $
-            grace_call args dyn pitches grace_dur place
+        Lily.when_lilypond (lily_grace args start pitches) $ do
+            with_dyn <- (*dyn) <$> (Call.dynamic =<< Args.real_start args)
+            derive args =<< basic_grace args pitches
+                (transform . Call.with_dynamic with_dyn) grace_dur place
 
 c_basic_grace :: Derive.Generator Derive.Note
 c_basic_grace = Derive.generator Module.prelude "basic-grace"
@@ -159,9 +171,9 @@ lily_grace args start pitches = do
     -- it stays with the note's voice.
     Lily.prepend_code code $ Call.place args Call.note
 
-grace_call :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
+legato_grace :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
     -> BaseTypes.Duration -> TrackLang.ControlRef -> Derive.NoteDeriver
-grace_call args dyn_scale pitches grace_dur place = do
+legato_grace args dyn_scale pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
     events <- basic_grace args pitches (Call.with_dynamic dyn) grace_dur place
     -- Normally legato notes emphasize the first note, but that's not
@@ -175,32 +187,6 @@ basic_grace :: Derive.PassedArgs a -> [PSignal.Pitch]
 basic_grace args pitches transform =
     make_grace_notes (Args.prev_start args) (Args.extent args) notes
     where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
-
-c_roll :: Derive.Generator Derive.Note
-c_roll = Derive.generator Module.europe "roll" Tags.ornament
-    "These are like grace notes, but they all have the same pitch."
-    $ Sig.call ((,,)
-    <$> Sig.defaulted "times" 1 "Number of grace notes."
-    <*> Sig.defaulted "time" default_grace_dur "Time between the strokes."
-    <*> Sig.defaulted "dyn" 0.5 "Dyn scale for the grace notes."
-    ) $ \(times, Typecheck.DefaultReal time, dyn_scale) ->
-    Sub.inverting $ roll times time dyn_scale
-
-roll :: Int -> BaseTypes.Duration -> Signal.Y -> Derive.PassedArgs a
-    -> Derive.NoteDeriver
-roll times time dyn_scale args = do
-    start <- Args.real_start args
-    pitch <- Call.get_pitch start
-    repeat_notes (Call.with_pitch pitch Call.note) times time dyn_scale args
-
-repeat_notes :: Derive.NoteDeriver -> Int -> BaseTypes.Duration -> Signal.Y
-    -> Derive.PassedArgs a -> Derive.NoteDeriver
-repeat_notes note times time dyn_scale args = do
-    start <- Args.real_start args
-    dyn <- (*dyn_scale) <$> Call.dynamic start
-    let notes = replicate times (Call.with_dynamic dyn note) ++ [note]
-    Sub.derive =<< make_grace_notes (Args.prev_start args)
-        (Args.extent args) notes time (TrackLang.constant_control 0)
 
 make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime)
     -> [Derive.NoteDeriver] -> BaseTypes.Duration -> TrackLang.ControlRef
@@ -247,7 +233,7 @@ c_grace_attr supported =
                 Just attrs -> attr_grace start args grace_dur (length pitches)
                     attrs
                 -- Fall back on normal grace.
-                Nothing -> grace_call args dyn pitches grace_dur place
+                Nothing -> legato_grace args dyn pitches grace_dur place
     where
     attr_grace real_start args grace_dur notes attrs = do
         let (start, dur) = Args.extent args
@@ -268,6 +254,31 @@ grace_attrs pos supported [grace] base = do
     return $ Map.lookup (round diff) supported
 grace_attrs _ _ _ _ = return Nothing
 
+c_roll :: Derive.Generator Derive.Note
+c_roll = Derive.generator Module.europe "roll" Tags.ornament
+    "These are like grace notes, but they all have the same pitch."
+    $ Sig.call ((,,)
+    <$> Sig.defaulted "times" 1 "Number of grace notes."
+    <*> Sig.defaulted "time" default_grace_dur "Time between the strokes."
+    <*> Sig.defaulted "dyn" 0.5 "Dyn scale for the grace notes."
+    ) $ \(times, Typecheck.DefaultReal time, dyn_scale) ->
+    Sub.inverting $ roll times time dyn_scale
+
+roll :: Int -> BaseTypes.Duration -> Signal.Y -> Derive.PassedArgs a
+    -> Derive.NoteDeriver
+roll times time dyn_scale args = do
+    start <- Args.real_start args
+    pitch <- Call.get_pitch start
+    repeat_notes (Call.with_pitch pitch Call.note) times time dyn_scale args
+
+repeat_notes :: Derive.NoteDeriver -> Int -> BaseTypes.Duration -> Signal.Y
+    -> Derive.PassedArgs a -> Derive.NoteDeriver
+repeat_notes note times time dyn_scale args = do
+    start <- Args.real_start args
+    dyn <- (*dyn_scale) <$> Call.dynamic start
+    let notes = replicate times (Call.with_dynamic dyn note) ++ [note]
+    Sub.derive =<< make_grace_notes (Args.prev_start args)
+        (Args.extent args) notes time (TrackLang.constant_control 0)
 
 -- * pitch calls
 

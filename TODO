@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * pianoteq harp should set gliss pedal for grace notes
+  - pianoteq `o` and `m` calls are wrong, because they set the control but
+    don't unset it.
   - Sortedness tracking for Stream and Post functions.
     . Track down usage of Stream.from_sorted_list, probably most uses are
       bogus.  Stream.from_list and Stream.from_events have to take
