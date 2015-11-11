@@ -48,7 +48,6 @@ test_input_to_note = do
         legong = ScaleTest.get_scale Legong.scales "legong"
         legong_p = ScaleTest.get_scale Legong.scales "legong-pemade"
         invalid = "invalid input"
-        range = "out of range"
     -- baro is 1 345 7
     --         i oeu a
     equal (map (f legong (Just "baro"))
@@ -59,6 +58,6 @@ test_input_to_note = do
     equal (f legong (Just "sunaren") (4, 0, 0)) "4i"
     equal (map (f legong_p (Just "baro")) $
             take 12 [(oct, pc, 0) | oct <- [3, 4, 5], pc <- [0..4]])
-        [ range, "o_", "e_", "u_", "a_", "i-", "o-", "e-", "u-", "a-"
-        , "i^", range
+        [ invalid, "o_", "e_", "u_", "a_", "i-", "o-", "e-", "u-", "a-"
+        , "i^", invalid
         ]

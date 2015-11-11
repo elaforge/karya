@@ -12,6 +12,7 @@ import qualified Derive.DeriveTest as DeriveTest
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import Global
 import Types
 
 
@@ -39,22 +40,21 @@ test_interpolated_transpose = do
 
 test_transpose_out_of_range = do
     equal (run_with_title ">" "twelve" [(0, "4c")])
-        [(0, 60)]
+        ([(0, 60)], [])
     equal (run_with_title "> | %t-chrom = 10" "twelve" [(0, "4c")])
-        [(0, 70)]
+        ([(0, 70)], [])
     equal (run_with_title "> | %t-chrom = -10" "twelve" [(0, "4c")])
-        [(0, 50)]
-    -- It's not actually an IO exception but that's how DeriveTest.e_nns
-    -- extractor treats an error in the pitch signal.
-    throws (run_with_title "> | %t-chrom = 200" "twelve" [(0, "4c")])
-        "note can't be transposed"
+        ([(0, 50)], [])
+    let (sig, errs) = run_with_title "> | %t-chrom = 200" "twelve" [(0, "4c")]
+    equal sig []
+    strings_like errs ["260nn is out of range"]
     where
-    run_with_title inst_title pitch_title pitches = extract $
-        DeriveTest.derive_tracks ""
-            [ (inst_title, [(0, 5, "")])
-            , ('*' : pitch_title, [(x, 0, n) | (x, n) <- pitches])
-            ]
-        where extract = head . DeriveTest.extract_events DeriveTest.e_nns
+    run_with_title inst_title pitch_title pitches =
+        head $ DeriveTest.extract_events DeriveTest.e_nns_errors $
+            DeriveTest.derive_tracks ""
+                [ (inst_title, [(0, 5, "")])
+                , ('*' : pitch_title, [(x, 0, n) | (x, n) <- pitches])
+                ]
 
 test_neighbor = do
     equal (CallTest.run_pitch "" [(0, "n (4c) 1 2")])

@@ -539,21 +539,24 @@ e_dyn = e_control Score.c_dynamic
 e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn_rounded = map (second (Num.round_digits 2)) . e_dyn
 
+-- | Like 'e_nns_errors', but throw an exception if there are errors.
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns e = signal_to_nn $ PSignal.apply_controls
-    (Score.event_transformed_controls e) (Score.event_transformed_pitch e)
+e_nns e
+    | not (null errs) = error $
+        "DeriveTest.e_nns: errors flattening signal: " ++ show errs
+    | otherwise = sig
+    where (sig, errs) = e_nns_errors e
 
 -- | Like 'e_nns', but round to cents to make comparison easier.
 e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
 e_nns_rounded = map (second (Num.round_digits 2)) . e_nns
 
-signal_to_nn :: PSignal.PSignal -> [(RealTime, Pitch.NoteNumber)]
-signal_to_nn psig
-    | not (null errs) =
-        error $ "DeriveTest.signal_to_nn: errors flattening signal: "
-            ++ show errs
-    | otherwise = map (second Pitch.NoteNumber) (Signal.unsignal sig)
-    where (sig, errs) = PSignal.to_nn psig
+-- | Extract pitch signal and any errors flattening it.
+e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [String])
+e_nns_errors =
+    (map (second Pitch.nn) . Signal.unsignal *** map (untxt . pretty))
+    . PSignal.to_nn . Score.event_transformed_pitch
+    . Score.normalize (const mempty)
 
 e_pitch :: Score.Event -> String
 e_pitch e = maybe "?" (untxt . Pitch.note_text) (Score.initial_note e)

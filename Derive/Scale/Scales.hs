@@ -32,7 +32,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Signal as Signal
 import Global
 import Types
 
@@ -65,15 +64,15 @@ empty_scale scale_id pattern doc = Scale.Scale
     , scale_pattern = pattern
     , scale_symbols = []
     , scale_transposers = standard_transposers
-    , scale_read = \_ _ -> Left Scale.UnparseableNote
-    , scale_show = \_ _ -> Left Scale.OutOfRange
+    , scale_read = \_ _ -> Left BaseTypes.UnparseableNote
+    , scale_show = \_ _ -> Left BaseTypes.out_of_range
     , scale_bottom = Pitch.pitch 1 0
     , scale_layout = Scale.layout []
-    , scale_transpose = \_ _ _ _ -> Left Scale.OutOfRange
+    , scale_transpose = \_ _ _ _ -> Left BaseTypes.out_of_range
     , scale_enharmonics = no_enharmonics
     , scale_note_to_call = const Nothing
-    , scale_input_to_note = \_ _ -> Left Scale.OutOfRange
-    , scale_input_to_nn = \ _ _ -> return $ Left Scale.OutOfRange
+    , scale_input_to_note = \_ _ -> Left BaseTypes.out_of_range
+    , scale_input_to_nn = \ _ _ -> return $ Left BaseTypes.out_of_range
     , scale_call_doc = doc
     }
 
@@ -116,16 +115,16 @@ degree_map per_octave start_octave start_pc notes_ nns_ = DegreeMap
     (notes, nns) = unzip $ zip notes_ nns_
 
 type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.Semi
-    -> Either Scale.ScaleError Pitch.NoteNumber
+    -> Either BaseTypes.PitchError Pitch.NoteNumber
 
 -- * scale functions
 
-read_note :: DegreeMap -> Pitch.Note -> Either Scale.ScaleError Pitch.Pitch
-read_note dmap note = maybe (Left Scale.UnparseableNote)
+read_note :: DegreeMap -> Pitch.Note -> Either BaseTypes.PitchError Pitch.Pitch
+read_note dmap note = maybe (Left BaseTypes.UnparseableNote)
     (Right . semis_to_pitch dmap) $ Map.lookup note (dm_to_semis dmap)
 
-show_pitch :: DegreeMap -> Pitch.Pitch -> Either Scale.ScaleError Pitch.Note
-show_pitch dmap pitch = maybe (Left Scale.UnparseableNote) Right $
+show_pitch :: DegreeMap -> Pitch.Pitch -> Either BaseTypes.PitchError Pitch.Note
+show_pitch dmap pitch = maybe (Left BaseTypes.UnparseableNote) Right $
     dm_to_note dmap !? pitch_to_semis dmap pitch
 
 -- ** transpose
@@ -134,12 +133,12 @@ transpose :: DegreeMap -> Derive.Transpose
 transpose dmap _transposition _environ steps pitch
     | Maybe.isJust $ dm_to_note dmap !? transposed =
         Right $ semis_to_pitch dmap transposed
-    | otherwise = Left Scale.InvalidTransposition
+    | otherwise = Left BaseTypes.out_of_range
     where transposed = pitch_to_semis dmap pitch + steps
 
 -- | Transpose function for a non-transposing scale.
 non_transposing :: Derive.Transpose
-non_transposing _ _ _ _ = Left Scale.InvalidTransposition
+non_transposing _ _ _ _ = Left BaseTypes.out_of_range
 
 standard_transposers :: Set.Set Score.Control
 standard_transposers = Set.fromList
@@ -158,21 +157,19 @@ mapped_note_to_call dmap scale note = do
         (\transposed -> dm_to_note dmap !? (semis + transposed))
     where
     semis_to_nn semis _config transposed =
-        maybe (Left Scale.OutOfRange) Right $
+        maybe (Left BaseTypes.out_of_range) Right $
             dm_to_nn dmap !? (semis + transposed)
 
 -- | Create a note call that respects chromatic and diatonic transposition.
 -- However, diatonic transposition is mapped to chromatic transposition,
 -- so this is for scales that don't distinguish.
 note_to_call :: PSignal.Scale -> SemisToNoteNumber
-    -> (Pitch.Semi -> Maybe Pitch.Note)
-    -> Derive.ValCall
+    -> (Pitch.Semi -> Maybe Pitch.Note) -> Derive.ValCall
 note_to_call scale semis_to_nn semis_to_note =
     ScaleDegree.scale_degree scale pitch_nn pitch_note
     where
     pitch_nn :: Scale.PitchNn
-    pitch_nn config = scale_to_pitch_error diatonic chromatic $
-        to_nn transpose_steps frac config
+    pitch_nn config = to_nn transpose_steps frac config
         where
         (transpose_steps, frac) = properFraction (diatonic + chromatic)
         (diatonic, chromatic) = transposition config
@@ -183,57 +180,39 @@ note_to_call scale semis_to_nn semis_to_note =
             <*> semis_to_nn config (semis + 1)
             <*> pure (Pitch.NoteNumber frac)
     pitch_note :: Scale.PitchNote
-    pitch_note config = maybe (Left err) Right $ semis_to_note transposed
+    pitch_note config =
+        maybe (Left BaseTypes.out_of_range) Right $ semis_to_note transposed
         where
-        err = invalid_transposition diatonic chromatic
         transposed = floor (chromatic + diatonic)
         (diatonic, chromatic) = transposition config
     transposition config = (get Controls.diatonic, get Controls.chromatic)
-        where
-        get c = Map.findWithDefault 0 c (PSignal.pitch_controls config)
+        where get c = Map.findWithDefault 0 c (PSignal.pitch_controls config)
 
 add_pc :: DegreeMap -> Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch
 add_pc dmap = Pitch.add_pc (dm_per_octave dmap)
 
-scale_to_pitch_error :: Signal.Y -> Signal.Y
-    -> Either Scale.ScaleError a -> Either PSignal.PitchError a
-scale_to_pitch_error diatonic chromatic = first msg
-    where
-    msg err = case err of
-        Scale.InvalidTransposition -> invalid_transposition diatonic chromatic
-        _ -> PSignal.PitchError $ pretty err
-
-invalid_transposition :: Signal.Y -> Signal.Y -> PSignal.PitchError
-invalid_transposition diatonic chromatic =
-    PSignal.PitchError $ "note can't be transposed: "
-        <> Text.unwords (filter (not . Text.null)
-            [fmt "d" diatonic, fmt "c" chromatic])
-    where
-    fmt _ 0 = ""
-    fmt code val = pretty val <> code
-
 -- ** input
 
 type InputToNote = Env.Environ -> Pitch.Input
-    -> Either Scale.ScaleError Pitch.Note
+    -> Either BaseTypes.PitchError Pitch.Note
 
 -- | Input to note for simple scales without keys.
 input_to_note :: DegreeMap -> InputToNote
 input_to_note dmap _environ (Pitch.Input kbd pitch frac) = do
     steps <- simple_kbd_to_scale dmap kbd pitch
-    note <- maybe (Left Scale.UnparseableNote) Right $
+    note <- maybe (Left BaseTypes.UnparseableNote) Right $
         dm_to_note dmap !? steps
     return $ ScaleDegree.pitch_expr frac note
 
 type InputToNn = ScoreTime -> Pitch.Input
-    -> Derive.Deriver (Either Scale.ScaleError Pitch.NoteNumber)
+    -> Derive.Deriver (Either BaseTypes.PitchError Pitch.NoteNumber)
 
 -- | Input to NoteNumber for scales that have a direct relationship between
 -- Degree and NoteNumber.
 mapped_input_to_nn :: DegreeMap -> InputToNn
 mapped_input_to_nn dmap = \_pos (Pitch.Input kbd pitch frac) -> return $ do
     semis <- simple_kbd_to_scale dmap kbd pitch
-    maybe (Left Scale.OutOfRange) Right $ to_nn semis frac
+    maybe (Left BaseTypes.out_of_range) Right $ to_nn semis frac
     where
     to_nn semis frac
         | frac == 0 = lookup semis
@@ -280,7 +259,7 @@ computed_input_to_nn input_to_note note_to_call pos input = do
     where
     get_call env = do
         note <- input_to_note env input
-        maybe (Left Scale.UnparseableNote) Right $ note_to_call note
+        maybe (Left BaseTypes.UnparseableNote) Right $ note_to_call note
 
 make_nn :: Maybe Pitch.NoteNumber -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
     -> Pitch.Frac -> Maybe Pitch.NoteNumber
@@ -294,7 +273,7 @@ make_nn mprev nn mnext frac
 -- *** diatonic
 
 simple_kbd_to_scale :: DegreeMap -> Pitch.KbdType -> Pitch.Pitch
-    -> Either Scale.ScaleError Pitch.Semi
+    -> Either BaseTypes.PitchError Pitch.Semi
 simple_kbd_to_scale dmap kbd pitch =
     pitch_to_semis dmap <$> kbd_to_scale kbd (dm_per_octave dmap) 0 pitch
 
@@ -312,9 +291,9 @@ semis_to_pitch dmap semis =
     per_oct = dm_per_octave dmap
 
 kbd_to_scale :: Pitch.KbdType -> Pitch.PitchClass -> Pitch.PitchClass
-    -> Pitch.Pitch -> Either Scale.ScaleError Pitch.Pitch
+    -> Pitch.Pitch -> Either BaseTypes.PitchError Pitch.Pitch
 kbd_to_scale kbd pc_per_octave tonic =
-    maybe (Left Scale.InvalidInput) Right
+    maybe (Left BaseTypes.InvalidInput) Right
     . lookup_kbd_to_scale kbd pc_per_octave tonic
 
 -- | Convert an absolute Pitch in the input keyboard's layout to a relative
@@ -450,19 +429,19 @@ read_environ :: (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
     (a -> Maybe val) -- ^ parse or Nothing
     -> Maybe val
     -- ^ if Just, a missing value gets this, otherwise it's an error
-    -> Env.Key -> Env.Environ -> Either Scale.ScaleError val
+    -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
 read_environ read_val maybe_deflt name env = case Env.get_val name env of
     Left (Env.WrongType expected) ->
         environ_error ("expected type " <> pretty expected)
     Left Env.NotFound -> case maybe_deflt of
-        Nothing -> Left $ Scale.EnvironError name "not set"
+        Nothing -> Left $ BaseTypes.EnvironError name "not set"
         Just deflt -> Right deflt
     Right val -> parse val
     where
     parse val = maybe
         (environ_error ("unexpected value: " <> ShowVal.show_val val))
         Right (read_val val)
-    environ_error = Left . Scale.EnvironError name
+    environ_error = Left . BaseTypes.EnvironError name
 
 
 -- ** keys
@@ -472,7 +451,7 @@ environ_key = fmap Pitch.Key . Env.maybe_val EnvKey.key
 
 -- | Find a key in a map, or throw a ScaleError.
 get_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key
-    -> Either Scale.ScaleError key
+    -> Either BaseTypes.PitchError key
 get_key deflt _ Nothing = Right deflt
 get_key _ keys (Just key) =
     maybe (Left $ key_error key) Right $ Map.lookup key keys
@@ -481,6 +460,6 @@ lookup_key :: key -> Map.Map Pitch.Key key -> Maybe Pitch.Key -> Maybe key
 lookup_key deflt _ Nothing = Just deflt
 lookup_key _ keys (Just key) = Map.lookup key keys
 
-key_error :: Pitch.Key -> Scale.ScaleError
+key_error :: Pitch.Key -> BaseTypes.PitchError
 key_error (Pitch.Key key) =
-    Scale.EnvironError EnvKey.key ("unknown key: " <> key)
+    BaseTypes.EnvironError EnvKey.key ("unknown key: " <> key)

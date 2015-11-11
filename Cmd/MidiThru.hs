@@ -74,6 +74,7 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
 import qualified Derive.Scale as Scale
@@ -145,7 +146,7 @@ map_scale patch_scale scale environ input = case input of
             Left err -> throw $ "derive_at: " <> err
             -- This just means the key isn't in the scale, it happens a lot so
             -- no need to shout about it.
-            Right (Left Scale.InvalidInput) -> Cmd.abort
+            Right (Left BaseTypes.InvalidInput) -> Cmd.abort
             Right (Left err) -> throw $ pretty err
             Right (Right nn) -> return $ map_patch_scale patch_scale nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)

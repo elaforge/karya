@@ -82,12 +82,13 @@ instance Monoid PSignal where
 instance DeepSeq.NFData PSignal where
     rnf (PSignal vec) = vec `seq` ()
 
--- | This is an untransposed pitch.  All pitches have transposition signals
--- from the dynamic state applied when they are converted to MIDI or whatever
--- backend.  So if I want the final concrete pitch, I have to apply the
--- transposition signals.  But if I want to emit a note with this pitch, I want
--- the untransposed one, or the transposition will be applied twice.  I use
--- a phantom type parameter to keep them straight.
+{- | This is an untransposed pitch.  All pitches have transposition signals
+    from the dynamic state applied when they are converted to MIDI or whatever
+    backend.  So if I want the final concrete pitch, I have to apply the
+    transposition signals.  But if I want to emit a note with this pitch,
+    I want the untransposed one, or the transposition will be applied twice.
+    I use a phantom type parameter to keep them straight.
+-}
 type Pitch = RawPitch Untransposed_
 -- | The transposed version of 'Pitch'.
 type Transposed = RawPitch Transposed_
@@ -121,12 +122,27 @@ coerce = Coerce.coerce
 -- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
 -- are documented by applying 'coerce'.
 pitch_nn :: Transposed -> Either PitchError Pitch.NoteNumber
-pitch_nn p = pitch_eval_nn p (pitch_config p)
+pitch_nn pitch = do
+    nn <- pitch_eval_nn pitch (pitch_config pitch)
+    first (annotate_out_of_range pitch (Just nn)) $
+        if 0 <= nn && nn <= 127 then return nn else Left out_of_range
 
 -- | Usually I only want to evaluate a fully transposed pitch.  Exceptions
 -- are documented by applying 'coerce'.
 pitch_note :: Transposed -> Either PitchError Pitch.Note
-pitch_note p = pitch_eval_note p (pitch_config p)
+pitch_note pitch = first (annotate_out_of_range pitch Nothing) $
+    pitch_eval_note pitch (pitch_config pitch)
+
+annotate_out_of_range :: RawPitch a -> Maybe Pitch.NoteNumber -> PitchError
+    -> PitchError
+annotate_out_of_range pitch maybe_nn (OutOfRange _ old) =
+    OutOfRange maybe_nn (filtered <> old)
+    where
+    filtered = Map.filterWithKey (\k v -> k `Set.member` transposers && v /= 0)
+        cmap
+    PitchConfig _ cmap = pitch_config pitch
+    transposers = pscale_transposers (pitch_scale pitch)
+annotate_out_of_range _ _ err = err
 
 {- | A PitchConfig is the data that can continue to influence the pitch's
     frequency.
@@ -196,9 +212,41 @@ instance Pretty.Pretty (RawPitch a) where
 instance ShowVal.ShowVal (RawPitch a) where
     show_val pitch = "<pitch: " <> pretty pitch <> ">"
 
--- | Error evaluating a pitch.
-newtype PitchError = PitchError Text deriving (Eq, Ord, Read, Show)
-instance Pretty.Pretty PitchError where pretty (PitchError s) = s
+-- | Things that can go wrong evaluating a pitch.
+data PitchError =
+    UnparseableNote
+    -- | Note out of the scale's range.  The values are transpositions from
+    -- the environment, in case it was out of range because of a transposition.
+    --
+    -- Some scales have a restricted range, in which case they should throw
+    -- 'out_of_range', which 'pitch_nn' and 'pitch_note' will annotate with the
+    -- transposition signals.  Other scales have unlimited range, in which case
+    -- they're limited by the backend.  In this case 'pitch_nn' checks 0--127,
+    -- which happens to be MIDI's limitation.
+    | OutOfRange !(Maybe Pitch.NoteNumber) !ScoreTypes.ControlValMap
+    -- | Input note doesn't map to a scale note.
+    | InvalidInput
+    -- | A required environ value was missing or had the wrong type or value.
+    -- The Text is a 'ShowVal.show_val' of the wrong Val.
+    | EnvironError !Key !Text
+        -- The Text should be Val except that makes Eq not work.
+    -- | Other kind of error.
+    | PitchError !Text
+    deriving (Eq, Ord, Show)
+
+out_of_range :: PitchError
+out_of_range = OutOfRange Nothing mempty
+
+instance Pretty.Pretty PitchError where
+    pretty err = case err of
+        UnparseableNote -> "unparseable note"
+        OutOfRange nn vals -> maybe "" ((<>" is ") . pretty) nn
+            <> "out of range"
+            <> if vals == mempty then "" else ": " <> pretty vals
+        InvalidInput -> "invalid input"
+        EnvironError key err ->
+            "environ value for " <> pretty key <> ": " <> err
+        PitchError msg -> msg
 
 instance Pretty.Pretty PitchConfig where
     format (PitchConfig env controls) = Pretty.record "PitchConfig"

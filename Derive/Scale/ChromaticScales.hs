@@ -11,6 +11,7 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -40,7 +41,7 @@ data ScaleMap = ScaleMap {
     }
 
 type SemisToNoteNumber = PSignal.PitchConfig -> Pitch.FSemi
-    -> Either Scale.ScaleError Pitch.NoteNumber
+    -> Either BaseTypes.PitchError Pitch.NoteNumber
 
 twelve_doc :: Text
 twelve_doc = "Scales in the \"twelve\" family use European style note naming.\
@@ -118,36 +119,32 @@ note_to_call scale smap note =
 
 -- | Create a PitchNote for 'ScaleDegree.scale_degree'.
 pitch_note :: ScaleMap -> Pitch.Pitch -> Scale.PitchNote
-pitch_note smap pitch (PSignal.PitchConfig env controls) =
-    Scales.scale_to_pitch_error diatonic chromatic $ do
-        let maybe_key = Scales.environ_key env
-        let d = round diatonic
-            c = round chromatic
-        show_pitch smap maybe_key =<< if d == 0 && c == 0
-            then return pitch
-            else do
-                key <- read_key smap maybe_key
-                return $ Theory.transpose_chromatic key c $
-                    Theory.transpose_diatonic key d pitch
+pitch_note smap pitch (PSignal.PitchConfig env controls) = do
+    let maybe_key = Scales.environ_key env
+    let d = round diatonic
+        c = round chromatic
+    show_pitch smap maybe_key =<< if d == 0 && c == 0
+        then return pitch
+        else do
+            key <- read_key smap maybe_key
+            return $ Theory.transpose_chromatic key c $
+                Theory.transpose_diatonic key d pitch
     where
     chromatic = Map.findWithDefault 0 Controls.chromatic controls
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
 
 -- | Create a PitchNn for 'ScaleDegree.scale_degree'.
 pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
-pitch_nn smap pitch config@(PSignal.PitchConfig env controls) =
-    Scales.scale_to_pitch_error diatonic chromatic $ do
-        let maybe_key = Scales.environ_key env
-        pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
-        dsteps <- if diatonic == 0 then Right 0 else do
-            key <- read_key smap maybe_key
-            return $ Theory.diatonic_to_chromatic key
-                (Pitch.pitch_degree pitch) diatonic
-        let semis = Theory.pitch_to_semis (smap_layout smap) pitch
-            degree = fromIntegral semis + chromatic + dsteps
-        nn <- smap_semis_to_nn smap config degree
-        if 0 <= nn && nn <= 127 then Right nn
-            else Left Scale.InvalidTransposition
+pitch_nn smap pitch config@(PSignal.PitchConfig env controls) = do
+    let maybe_key = Scales.environ_key env
+    pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
+    dsteps <- if diatonic == 0 then Right 0 else do
+        key <- read_key smap maybe_key
+        return $ Theory.diatonic_to_chromatic key
+            (Pitch.pitch_degree pitch) diatonic
+    let semis = Theory.pitch_to_semis (smap_layout smap) pitch
+        degree = fromIntegral semis + chromatic + dsteps
+    smap_semis_to_nn smap config degree
     where
     chromatic = Map.findWithDefault 0 Controls.chromatic controls
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
@@ -156,7 +153,7 @@ input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     pitch <- Scales.kbd_to_scale kbd_type pc_per_octave (key_tonic key) pitch
     unless (Theory.layout_contains_degree key (Pitch.pitch_degree pitch)) $
-        Left Scale.InvalidInput
+        Left BaseTypes.InvalidInput
     -- Relative scales don't need to figure out enharmonic spelling, and
     -- besides it would be wrong since it assumes Pitch 0 0 is C.
     let pick_enharmonic = if TheoryFormat.fmt_relative (smap_fmt smap) then id
@@ -166,7 +163,7 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     note <- invalid_input $ show_pitch smap Nothing $ pick_enharmonic pitch
     return $ ScaleDegree.pitch_expr frac note
     where
-    invalid_input (Left Scale.InvalidTransposition) = Left Scale.InvalidInput
+    invalid_input (Left (BaseTypes.OutOfRange {})) = Left BaseTypes.InvalidInput
     invalid_input x = x
     pc_per_octave = Theory.layout_pc_per_octave (smap_layout smap)
     -- Default to a key because otherwise you couldn't enter notes in an
@@ -230,23 +227,24 @@ key_tonic :: Theory.Key -> Pitch.PitchClass
 key_tonic = Pitch.degree_pc . Theory.key_tonic
 
 show_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Pitch
-    -> Either Scale.ScaleError Pitch.Note
+    -> Either BaseTypes.PitchError Pitch.Note
 show_pitch smap key pitch
     | bottom <= semis && semis <= top = Right $
         TheoryFormat.show_pitch (smap_fmt smap) key pitch
-    | otherwise = Left Scale.OutOfRange
+    | otherwise = Left $ BaseTypes.out_of_range
     where
     (bottom, top) = smap_range smap
     semis = Theory.pitch_to_semis (smap_layout smap) pitch
 
 read_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Note
-    -> Either Scale.ScaleError Pitch.Pitch
+    -> Either BaseTypes.PitchError Pitch.Pitch
 read_pitch smap = TheoryFormat.read_pitch (smap_fmt smap)
 
 read_environ_key :: ScaleMap -> Env.Environ
-    -> Either Scale.ScaleError Theory.Key
+    -> Either BaseTypes.PitchError Theory.Key
 read_environ_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
     . Scales.environ_key
 
-read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Theory.Key
+read_key :: ScaleMap -> Maybe Pitch.Key
+    -> Either BaseTypes.PitchError Theory.Key
 read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)

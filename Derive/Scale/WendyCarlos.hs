@@ -14,6 +14,7 @@ import qualified Data.Vector as Vector
 
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
@@ -80,8 +81,8 @@ make_scale scale_id degrees = Scale.Scale
         \ `a0`. If it's not set, it defaults to 0, which is `c-1`."
 
 read_pitch :: Pitch.PitchClass -> Pitch.Note
-    -> Either Scale.ScaleError Pitch.Pitch
-read_pitch per_octave note = maybe (Left Scale.UnparseableNote) Right $
+    -> Either BaseTypes.PitchError Pitch.Pitch
+read_pitch per_octave note = maybe (Left BaseTypes.UnparseableNote) Right $
     ParseText.maybe_parse (Pitch.pitch <$> ParseText.p_int <*> p_degree)
         (Pitch.note_text note)
     where
@@ -101,8 +102,7 @@ show_degree pc = Text.singleton $ Char.chr $
 
 transpose :: Pitch.PitchClass -> Derive.Transpose
 transpose per_octave _transposition _key steps pitch
-    | Pitch.pitch_pc pitch + steps >= per_octave =
-        Left Scale.InvalidTransposition
+    | Pitch.pitch_pc pitch + steps >= per_octave = Left BaseTypes.out_of_range
     | otherwise = Right $ Pitch.add_pc per_octave steps pitch
 
 note_to_call :: PSignal.Scale -> Degrees -> Pitch.Note
@@ -111,14 +111,13 @@ note_to_call scale degrees note = do
     pitch <- either (const Nothing) Just $ read_pitch per_octave note
     Just $ Scales.note_to_call scale (semis_to_nn pitch) (semis_to_note pitch)
     where
-    semis_to_nn pitch config semis =
-        maybe (Left Scale.OutOfRange) Right $ do
-            let octaves = floor $ get Controls.octave
-                a0 = Pitch.nn $ get a0_nn
-            nn <- degrees Vector.!? (Pitch.pitch_pc pitch + semis)
-            Just $ a0 + nn
-                + Pitch.nn ((Pitch.pitch_octave pitch + octaves) * 12)
+    semis_to_nn pitch config semis = to_either $ do
+        let a0 = Pitch.nn $ get a0_nn
+        nn <- degrees Vector.!? (Pitch.pitch_pc pitch + semis)
+        Just $ a0 + nn + Pitch.nn ((Pitch.pitch_octave pitch + octaves) * 12)
         where
+        to_either = maybe (Left BaseTypes.out_of_range) Right
+        octaves = floor $ get Controls.octave
         get c = Map.findWithDefault 0 c (PSignal.pitch_controls config)
     semis_to_note pitch steps
         | Pitch.pitch_pc pitch + steps >= per_octave = Nothing

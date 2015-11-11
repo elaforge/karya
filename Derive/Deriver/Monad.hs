@@ -116,7 +116,6 @@ module Derive.Deriver.Monad (
     , Scale(..)
     , LookupScale(..)
     , Transpose, Transposition(..), Enharmonics, Layout
-    , ScaleError(..)
 
     -- * merge
     , error_to_warn, merge_logs
@@ -1533,9 +1532,9 @@ data Scale = Scale {
     , scale_transposers :: !(Set.Set Score.Control)
     -- | Parse a Note into a Pitch.Pitch with scale degree and accidentals.
     , scale_read :: BaseTypes.Environ -> Pitch.Note
-        -> Either ScaleError Pitch.Pitch
+        -> Either BaseTypes.PitchError Pitch.Pitch
     , scale_show :: BaseTypes.Environ -> Pitch.Pitch
-        -> Either ScaleError Pitch.Note
+        -> Either BaseTypes.PitchError Pitch.Note
     -- | Bottom pitch of the scale, if there is one.  You can find the top
     -- pitch by transposing until you get OutOfRange.
     , scale_bottom :: !Pitch.Pitch
@@ -1548,7 +1547,7 @@ data Scale = Scale {
 
     -- | Used by note input.
     , scale_input_to_note :: !(BaseTypes.Environ -> Pitch.Input
-        -> Either ScaleError Pitch.Note)
+        -> Either BaseTypes.PitchError Pitch.Note)
     -- | Used by MIDI thru.  This is a shortcut for
     -- @eval . note_to_call . input_to_note@ but can often be implemented more
     -- efficiently by the scale.
@@ -1561,7 +1560,7 @@ data Scale = Scale {
     -- If controls had (shift, stretch) I could normalize them efficiently
     -- and the pitch would just always look at time 0.  But they don't.
     , scale_input_to_nn :: !(ScoreTime -> Pitch.Input
-        -> Deriver (Either ScaleError Pitch.NoteNumber))
+        -> Deriver (Either BaseTypes.PitchError Pitch.NoteNumber))
 
     -- | Documentation for all of the ValCalls that 'scale_note_to_call' can
     -- return.
@@ -1574,7 +1573,7 @@ instance Pretty.Pretty Scale where
 -- | A scale can configure itself by looking in the environment and by looking
 -- up other scales.
 newtype LookupScale = LookupScale (BaseTypes.Environ -> LookupScale
-    -> Pitch.ScaleId -> Maybe (Either ScaleError Scale))
+    -> Pitch.ScaleId -> Maybe (Either BaseTypes.PitchError Scale))
 instance Show LookupScale where show _ = "((LookupScale))"
 
 -- | Scales may ignore Transposition if they don't support it.
@@ -1587,7 +1586,7 @@ instance Show LookupScale where show _ = "((LookupScale))"
 --
 -- TODO could make the key an existential type and export scale_parse_key?
 type Transpose = Transposition -> BaseTypes.Environ -> Pitch.Step -> Pitch.Pitch
-    -> Either ScaleError Pitch.Pitch
+    -> Either BaseTypes.PitchError Pitch.Pitch
 
 data Transposition = Chromatic | Diatonic deriving (Show)
 
@@ -1595,7 +1594,7 @@ data Transposition = Chromatic | Diatonic deriving (Show)
 -- enharmonics are in ascending order until they wrap around, so if you always
 -- take the head of the list you will cycle through all of the enharmonics.
 type Enharmonics = BaseTypes.Environ -> Pitch.Note
-    -> Either ScaleError [Pitch.Note]
+    -> Either BaseTypes.PitchError [Pitch.Note]
 
 -- | The number of chromatic intervals between each 'Pitch.PitchClass',
 -- starting from 0, as returned by 'scale_read'.  The length is the number of
@@ -1609,30 +1608,6 @@ type Enharmonics = BaseTypes.Environ -> Pitch.Note
 -- Combined with 'scale_read' and 'scale_show', I can use this to do math on
 -- scale degrees.
 type Layout = Vector.Unboxed.Vector Pitch.Semi
-
--- | Things that can go wrong during scale operations.
-data ScaleError =
-    InvalidTransposition | UnparseableNote
-    -- | Note out of the scale's range.
-    | OutOfRange
-    -- | Input note doesn't map to a scale note.
-    | InvalidInput
-    -- | A required environ value was missing or had the wrong type or value.
-    | EnvironError !BaseTypes.Key !Text
-        -- The Text should be BaseTypes.Val except that makes Eq not work.
-    -- | Other kind of error.
-    | ScaleError !Text
-    deriving (Eq, Show)
-
-instance Pretty.Pretty ScaleError where
-    pretty err = case err of
-        InvalidTransposition -> "invalid transposition"
-        UnparseableNote -> "unparseable note"
-        OutOfRange -> "out of range"
-        InvalidInput -> "invalid input"
-        EnvironError key err ->
-            "environ value for " <> pretty key <> ": " <> err
-        ScaleError msg -> msg
 
 -- * merge
 

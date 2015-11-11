@@ -13,6 +13,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ScaleDegree as ScaleDegree
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -172,17 +173,14 @@ note_to_call scale smap note =
     where fmt = smap_fmt smap
 
 pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
-pitch_nn smap pitch (PSignal.PitchConfig env controls) =
-    Scales.scale_to_pitch_error chromatic diatonic $ do
-        let maybe_key = Scales.environ_key env
-        key <- read_key smap maybe_key
-        pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
-        let hz = transpose_to_hz
-                (TheoryFormat.fmt_pc_per_octave (smap_fmt smap)) base_hz
-                key (chromatic + diatonic) pitch
-            nn = Pitch.hz_to_nn hz
-        if Num.in_range 0 127 nn then Right nn
-            else Left Scale.InvalidTransposition
+pitch_nn smap pitch (PSignal.PitchConfig env controls) = do
+    let maybe_key = Scales.environ_key env
+    key <- read_key smap maybe_key
+    pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
+    let hz = transpose_to_hz
+            (TheoryFormat.fmt_pc_per_octave (smap_fmt smap)) base_hz
+            key (chromatic + diatonic) pitch
+    return $ Pitch.hz_to_nn hz
     where
     chromatic = Map.findWithDefault 0 Controls.chromatic controls
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
@@ -190,14 +188,13 @@ pitch_nn smap pitch (PSignal.PitchConfig env controls) =
         just_base_control controls
 
 pitch_note :: TheoryFormat.Format -> Pitch.Pitch -> Scale.PitchNote
-pitch_note fmt pitch (PSignal.PitchConfig env controls) =
-    Scales.scale_to_pitch_error chromatic diatonic $ do
-        let maybe_key = Scales.environ_key env
-        pitch <- TheoryFormat.fmt_to_absolute fmt maybe_key pitch
-        let transposed = Pitch.add_pc
-                (TheoryFormat.fmt_pc_per_octave fmt)
-                (round (chromatic + diatonic)) pitch
-        Right $ TheoryFormat.show_pitch fmt maybe_key transposed
+pitch_note fmt pitch (PSignal.PitchConfig env controls) = do
+    let maybe_key = Scales.environ_key env
+    pitch <- TheoryFormat.fmt_to_absolute fmt maybe_key pitch
+    let transposed = Pitch.add_pc
+            (TheoryFormat.fmt_pc_per_octave fmt)
+            (round (chromatic + diatonic)) pitch
+    Right $ TheoryFormat.show_pitch fmt maybe_key transposed
     where
     chromatic = Map.findWithDefault 0 Controls.chromatic controls
     diatonic = Map.findWithDefault 0 Controls.diatonic controls
@@ -247,7 +244,7 @@ instance Pretty.Pretty Key where
     pretty (Key tonic ratios) =
         "(Key " <> showt tonic <> " [" <> show_ratios ratios <> "])"
 
-read_key :: ScaleMap -> Maybe Pitch.Key -> Either Scale.ScaleError Key
+read_key :: ScaleMap -> Maybe Pitch.Key -> Either BaseTypes.PitchError Key
 read_key smap = Scales.get_key (smap_default_key smap) (smap_keys smap)
 
 make_keys :: [Text] -> [(Text, Ratios)] -> Keys

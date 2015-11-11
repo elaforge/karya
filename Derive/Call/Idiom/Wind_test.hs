@@ -15,29 +15,32 @@ import Global
 
 
 title :: String
-title = "import idiom.wind | fundamentals = (list (nn 7) (nn 10)) | wind-idiom"
+title =
+    "import idiom.wind | fundamentals = (list (nn 70) (nn 100)) | wind-idiom"
 
 test_wind = do
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks title
             . UiTest.note_track . mknotes
-        extract e = (Score.event_start e,
-            map (second Pitch.nn_to_hz) $ DeriveTest.e_nns e)
+        extract e =
+            ( Score.event_start e
+            , map (second Pitch.nn_to_hz) $ DeriveTest.e_nns e
+            )
         mknotes ns = [(t, 1, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
-    equalf 0.01 (run ["set (nn 10)"]) ([(0, [(0, 10)])], [])
+    equalf 0.01 (run ["set (nn 100)"]) ([(0, [(0, 100)])], [])
 
-    -- f1: 7 14 21 28
-    -- f2: 10 20 30 40
+    -- harmonics of f1: 70 140 210 280
+    -- harmonics of f2: 10 20 30 40
     -- f1 * h1 to f2 * h1, go to f2 * h1
-    equalf 0.01 (run ["set (nn 7)", "set (nn 10)"])
-        ([(0, [(0, 7), (1, 10)]), (1, [(1, 10)])], [])
+    equalf 0.01 (run ["set (nn 70)", "set (nn 100)"])
+        ([(0, [(0, 70), (1, 100)]), (1, [(1, 100)])], [])
 
     -- f1 * h2 + 1 to f2 * h3, so go to f2 * h2
-    equalf 0.01 (run ["set (nn 15)", "set (nn 30)"])
-        ([(0, [(0, 15), (1, 20)]), (1, [(1, 30)])], [])
+    equalf 0.01 (run ["set (nn 150)", "set (nn 300)"])
+        ([(0, [(0, 150), (1, 200)]), (1, [(1, 300)])], [])
 
     -- f1 * h2 to f1 * h3
-    equalf 0.01 (run ["set (nn 14)", "set (nn 21)"])
-        ([(0, [(0, 14), (1, 14)]), (1, [(1, 21)])], [])
+    equalf 0.01 (run ["set (nn 140)", "set (nn 210)"])
+        ([(0, [(0, 140), (1, 140)]), (1, [(1, 210)])], [])
 
 test_find_harmonic = do
     let f = Wind.find_harmonic

@@ -11,10 +11,10 @@ module Derive.Scale (module Derive.Derive, module Derive.Scale) where
 import qualified Data.Vector.Unboxed as Vector
 
 import qualified Midi.Midi as Midi
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import Derive.Derive
-       (Scale(..), LookupScale(..), lookup_scale, Transposition(..),
-        ScaleError(..), Layout)
+       (Scale(..), LookupScale(..), lookup_scale, Transposition(..), Layout)
 import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
 import qualified Derive.PSignal as PSignal
@@ -28,7 +28,7 @@ data Make =
     -- | Fancy scales can configure themselves.  Since you can't just look at
     -- the Scale directly, it has the ScaleId (pattern, doc) extracted.
     Make !Pitch.ScaleId !(Text, Derive.DocumentedCall)
-        !(Env.Environ -> LookupScale -> Either ScaleError Scale)
+        !(Env.Environ -> LookupScale -> Either BaseTypes.PitchError Scale)
     | Simple !Scale
 
 scale_id_of :: Make -> Pitch.ScaleId
@@ -86,14 +86,14 @@ chromatic_difference layout (Pitch.Pitch oct1 (Pitch.Degree pc1 acc1))
     where oct_diff = semis_per_octave layout * (oct1 - oct2)
 
 transpose :: Transposition -> Scale -> Env.Environ -> Pitch.Octave
-    -> Pitch.Step -> Pitch.Note -> Either ScaleError Pitch.Note
+    -> Pitch.Step -> Pitch.Note -> Either BaseTypes.PitchError Pitch.Note
 transpose transposition scale environ octaves steps =
     scale_show scale environ
     <=< scale_transpose scale transposition environ steps
     . Pitch.add_octave octaves <=< scale_read scale environ
 
 transpose_pitch :: Transposition -> Scale -> Env.Environ -> Pitch.Octave
-    -> Pitch.Step -> Pitch.Pitch -> Either ScaleError Pitch.Pitch
+    -> Pitch.Step -> Pitch.Pitch -> Either BaseTypes.PitchError Pitch.Pitch
 transpose_pitch transposition scale environ octaves steps =
     scale_transpose scale transposition environ steps
     . Pitch.add_octave octaves
@@ -138,10 +138,8 @@ note_numbers scale environ = go (notes scale environ)
         pitch <- Eval.eval_note scale note
         case PSignal.pitch_nn (PSignal.coerce pitch) of
             Right nn -> (nn:) <$> go notes
-            Left err
-                -- TODO retain the ScaleError so I can match on OutOfRange
-                | pretty err == "out of range" -> return []
-                | otherwise -> Derive.throw $ "note_numbers: " <> pretty err
+            Left (BaseTypes.OutOfRange {}) -> return []
+            Left err -> Derive.throw $ "note_numbers: " <> pretty err
 
 -- | Make a patch scale from the NoteNumbers.
 patch_scale :: Pitch.ScaleId -> [Pitch.NoteNumber] -> Instrument.PatchScale

@@ -17,6 +17,7 @@ import qualified Data.Attoparsec.Text as A
 
 import qualified Util.ParseText as ParseText
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
@@ -42,8 +43,8 @@ scale = Scale.Scale
     , scale_pattern = "[+-]?\\d+/\\d+ e.g. 2/5 or -4/3"
     , scale_symbols = []
     , scale_transposers = mempty
-    , scale_read = const $ const $ Left Scale.UnparseableNote
-    , scale_show = const $ const $ Left Scale.UnparseableNote
+    , scale_read = \_ _ -> Left BaseTypes.UnparseableNote
+    , scale_show = \_ _ -> Left BaseTypes.out_of_range
     , scale_bottom = Pitch.pitch 0 0
     , scale_layout = Scale.no_octaves
     , scale_transpose = Scales.non_transposing
@@ -52,7 +53,7 @@ scale = Scale.Scale
     -- Since this isn't a proper scale, I can't think of any sensible way to
     -- input this with a music keyboard, so we'll have to use the computer
     -- keyboard.
-    , scale_input_to_note = \_ _ -> Left Scale.InvalidInput
+    , scale_input_to_note = \_ _ -> Left BaseTypes.InvalidInput
     , scale_input_to_nn = Scales.direct_input_to_nn
     , scale_call_doc = Derive.extract_val_doc $ note_call (Pitch.Note "1/1") id
     }

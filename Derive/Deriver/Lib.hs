@@ -688,8 +688,8 @@ named_nn_at name pos = do
 logged_pitch_nn :: Text -> PSignal.Transposed
     -> Deriver (Maybe Pitch.NoteNumber)
 logged_pitch_nn msg pitch = case PSignal.pitch_nn pitch of
-    Left (PSignal.PitchError err) -> do
-        Log.warn $ "pitch_nn " <> msg <> ": " <> err
+    Left err -> do
+        Log.warn $ "pitch_nn " <> msg <> ": " <> pretty err
         return Nothing
     Right nn -> return $ Just nn
 

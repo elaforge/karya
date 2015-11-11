@@ -92,7 +92,7 @@ test_convert_pitch = do
     equal (convert [event [(0, 1)]]) [Left (0, [(0, 62)])]
     equal (convert [event [(0, 100)]])
         [ Left (0, [])
-        , Right "convert pitch: note can't be transposed: 100d"
+        , Right "convert pitch: 232nn is out of range: {%t-dia: 100}"
         ]
     -- An out of range transposition shouldn't cause a warning.
     equal (convert [event [(0, 0), (100, 100)]]) [Left (0, [(0, 60)])]

@@ -383,13 +383,12 @@ test_shift_control = do
                 psig <- Internal.get_dynamic Derive.state_pitch
                 return (conts, psig)
             extract (conts, pitch) =
-                (unsignal conts, DeriveTest.signal_to_nn pitch)
+                (unsignal conts, first Signal.unsignal (PSignal.to_nn pitch))
             unsignal =
                 Signal.unsignal . Score.typed_val . snd . head . Map.toList
-    equal (run id) $ Right
-        ([(0, 1), (2, 2), (4, 0)], [(0, 60)])
-    equal (run $ Derive.shift_control 2) $ Right
-        ([(2, 1), (4, 2), (6, 0)], [(2, 60)])
+    equal (run id) $ Right ([(0, 1), (2, 2), (4, 0)], ([(0, 60)], []))
+    equal (run $ Derive.shift_control 2) $
+        Right ([(2, 1), (4, 2), (6, 0)], ([(2, 60)], []))
 
 test_tempo_funcs1 = do
     let ((bid, [t_tid, tid1]), ui_state) = UiTest.run State.empty $

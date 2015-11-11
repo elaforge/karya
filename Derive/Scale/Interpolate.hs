@@ -28,7 +28,7 @@ import Global
 scales :: [Scale.Make]
 scales = scale_make $ \env (Scale.LookupScale lookup) -> do
     (from_id, to_id) <- environ_from_to env
-    let find msg scale_id = fromMaybe (Left $ Scale.ScaleError msg) $
+    let find msg scale_id = fromMaybe (Left $ BaseTypes.PitchError msg) $
             lookup env2 (Scale.LookupScale lookup) scale_id
         -- This should avoid an infinite loop if from_id is itself
         -- interpolate.
@@ -115,7 +115,7 @@ rename_environ from to deriver = do
 -- * util
 
 environ_from_to :: Env.Environ
-    -> Either Scale.ScaleError (Pitch.ScaleId, Pitch.ScaleId)
+    -> Either BaseTypes.PitchError (Pitch.ScaleId, Pitch.ScaleId)
 environ_from_to env = do
     from <- Scales.read_environ (Just . TrackLang.sym_to_scale_id) Nothing
         scale_from env

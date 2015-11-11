@@ -18,6 +18,7 @@ import Data.Vector ((!?))
 
 import qualified Util.Num as Num
 import qualified Util.Seq as Seq
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
@@ -179,7 +180,7 @@ semis_to_nn :: Pitch.Semi -> NoteNumbers -> ChromaticScales.SemisToNoteNumber
 semis_to_nn offset nns = \(PSignal.PitchConfig env controls) fsemis_ -> do
     let fsemis = fsemis_ - fromIntegral offset
     tuning <- Scales.read_environ read_tuning (Just Umbang) EnvKey.tuning env
-    let to_either = maybe (Left Scale.OutOfRange) Right
+    let to_either = maybe (Left BaseTypes.out_of_range) Right
     to_either $ case Map.lookup c_ombak controls of
         Nothing -> case tuning of
             Umbang -> get_nn (nn_umbang nns) fsemis

@@ -16,7 +16,7 @@ import Data.Vector ((!))
 import qualified Data.Vector.Unboxed as Unboxed
 
 import qualified Util.ParseText as ParseText
-import qualified Derive.Scale as Scale
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
 import Global
@@ -98,7 +98,7 @@ data Format = Format {
     -- to give all pattern_lookup calls access to the env in scope.  But
     -- I don't need the env to recognize if it's a valid call or not.
     , fmt_to_absolute :: Maybe Pitch.Key -> Pitch.Pitch
-        -> Either Scale.ScaleError Pitch.Pitch
+        -> Either BaseTypes.PitchError Pitch.Pitch
     , fmt_key_tonic :: Maybe Pitch.Key -> Maybe Pitch.PitchClass
     , fmt_pattern :: !Text
     , fmt_pc_per_octave :: Pitch.PitchClass
@@ -107,7 +107,7 @@ data Format = Format {
     }
 type ShowPitch = Maybe Pitch.Key -> Either Pitch.Degree Pitch.Pitch
     -> Pitch.Note
-type ParseKey key = Maybe Pitch.Key -> Either Scale.ScaleError key
+type ParseKey key = Maybe Pitch.Key -> Either BaseTypes.PitchError key
 type Degrees = Vector.Vector Text
 
 make_degrees :: [Text] -> Degrees
@@ -158,22 +158,22 @@ show_pitch fmt key = fmt_show fmt key . Right
 
 -- | 'show_pitch' adapted to 'Scale.scale_show'.
 scale_show_pitch :: Format -> Maybe Pitch.Key -> Pitch.Pitch
-    -> Either Scale.ScaleError Pitch.Note
+    -> Either BaseTypes.PitchError Pitch.Note
 scale_show_pitch fmt key = Right . show_pitch fmt key
 
 show_degree :: Format -> Maybe Pitch.Key -> Pitch.Degree -> Text
 show_degree fmt key = Pitch.note_text . fmt_show fmt key . Left
 
 read_pitch :: Format -> Maybe Pitch.Key -> Pitch.Note
-    -> Either Scale.ScaleError Pitch.Pitch
+    -> Either BaseTypes.PitchError Pitch.Pitch
 read_pitch fmt key = fmt_to_absolute fmt key <=< read_unadjusted_pitch fmt
 
 -- | Parse a Note, but don't adjust it for the key.  This means that relative
 -- pitches will likely be incorrect.  'ToAbsolute' documents why this needs
 -- to be separate.
 read_unadjusted_pitch :: Format -> Pitch.Note
-    -> Either Scale.ScaleError Pitch.Pitch
-read_unadjusted_pitch fmt = maybe (Left Scale.UnparseableNote) Right
+    -> Either BaseTypes.PitchError Pitch.Pitch
+read_unadjusted_pitch fmt = maybe (Left BaseTypes.UnparseableNote) Right
     . ParseText.maybe_parse (fmt_read fmt)
     . Pitch.note_text
 
