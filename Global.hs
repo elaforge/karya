@@ -11,7 +11,7 @@ module Global (
 #endif
     , (<|>)
     , first, second, (***)
-    , Monoid, (<>), mempty, mconcat
+    , Monoid(..), (<>)
     , while, while_
     , whenM, unlessM, whenJust, whenJustM, ifM, andM, orM, findM
     , mconcatMap, concatMapM, mapMaybeM
@@ -41,7 +41,7 @@ module Global (
 ) where
 #if GHC_VERSION < 71000
 import Control.Applicative (pure, (<$>), (<*>), (<*), (*>))
-import Data.Monoid (mempty, mconcat)
+import Data.Monoid (Monoid(..))
 #endif
 import Control.Applicative ((<|>))
 import Control.Monad
