@@ -86,15 +86,12 @@ unsignal = TimeVector.unsignal . sig_vec
 
 -- | Flatten a signal to a non-transposeable Signal.NoteNumber.
 to_nn :: PSignal -> (Signal.NoteNumber, [PitchError])
-to_nn sig = (Signal.signal nns, Set.toList errs)
+to_nn = extract . Seq.partition_merge . map eval . unsignal
     where
-    (errs, nns) = split (unsignal sig)
-    split [] = (Set.empty, [])
-    split ((x, pitch) : rest) = case pitch_nn (coerce pitch) of
-            -- TODO does this make a giant stack of thunks?
-            Left err -> (Set.insert err errs, nns)
-            Right (Pitch.NoteNumber nn) -> (errs, (x, nn) : nns)
-        where (errs, nns) = split rest
+    extract (errs, nns) = (Signal.signal nns, Set.toList errs)
+    eval (x, pitch) = case pitch_nn (coerce pitch) of
+        Left err -> Left (Set.singleton err)
+        Right (Pitch.NoteNumber nn) -> Right (x, nn)
 
 unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> PSignal
 unfoldr f st = PSignal $ TimeVector.unfoldr f st

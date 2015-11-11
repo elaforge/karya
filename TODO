@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - PSignal.to_nn space leak?
+  * PSignal.to_nn space leak?
   * Can I get a PatchScale out of a Scale?
     . How can I figure out the midi keys?
     . Out of range error for just 9g, even though Scale.notes emits it.
