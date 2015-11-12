@@ -20,7 +20,6 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import Derive.Sig (required, defaulted)
 import qualified Derive.Stream as Stream
 import qualified Derive.Typecheck as Typecheck
 
@@ -95,7 +94,7 @@ lookup_call call = Derive.LookupPattern "numbers and hex" doc $
 c_set :: Derive.Generator Derive.Control
 c_set = generator1 "set" mempty
     "Emit a sample with no interpolation." $
-    Sig.call (required "to" "Destination value.") $ \to args -> do
+    Sig.call (Sig.required "to" "Destination value.") $ \to args -> do
         pos <- Args.real_start args
         return $! Signal.signal [(pos, to)]
 
@@ -116,8 +115,8 @@ c_porta = generator1 "porta" mempty
     \ to be higher level, in that instruments or scores can override it to\
     \ represent an idiomatic portamento."
     $ Sig.call ((,,,,)
-    <$> required "to" "Destination value."
-    <*> (Typecheck.default_real <$> defaulted "time"
+    <$> Sig.required "to" "Destination value."
+    <*> (Typecheck.default_real <$> Sig.defaulted "time"
         ControlUtil.default_interpolation_time "Time to reach destination.")
     <*> Sig.defaulted_env "place" Sig.Both (Typecheck.Normalized 0.5)
         "Placement, from before to after the call."
@@ -134,14 +133,14 @@ c_abs :: Derive.Generator Derive.Control
 c_abs = Derive.generator1 Module.prelude "abs" mempty
     "Set the control to an absolute value, provided this control is combined\
     \ via multiplication."
-    $ Sig.call (required "val" "Set to this value.") $ \val args ->
+    $ Sig.call (Sig.required "val" "Set to this value.") $ \val args ->
         set_absolute val =<< Args.real_start args
 
 c_dynamic :: Text -> Signal.Y -> Derive.Generator Derive.Control
 c_dynamic name val = Derive.generator1 Module.prelude name mempty
     "Set the control to an absolute value. This is useful for the `dyn`\
     \ control, so a part can override the dynamic in scope."
-    $ Sig.call (defaulted "val" val "Set to this value.") $ \val args ->
+    $ Sig.call (Sig.defaulted "val" val "Set to this value.") $ \val args ->
         set_absolute val =<< Args.real_start args
 
 set_absolute :: Signal.Y -> RealTime -> Derive.Deriver Signal.Control
@@ -197,8 +196,8 @@ c_neighbor = generator1 "neighbor" mempty
     ("Emit a slide from a value to 0 in absolute time. This is the control\
     \ equivalent of the neighbor pitch call."
     ) $ Sig.call ((,,)
-    <$> defaulted "neighbor" 1 "Start at this value."
-    <*> defaulted "time" (Typecheck.real 0.1) "Time taken to get to 0."
+    <$> Sig.defaulted "neighbor" 1 "Start at this value."
+    <*> Sig.defaulted "time" (Typecheck.real 0.1) "Time taken to get to 0."
     <*> ControlUtil.curve_env
     ) $ \(neighbor, Typecheck.DefaultReal time, curve) args -> do
         (start, end) <- Call.duration_from_start args time
@@ -208,7 +207,7 @@ c_down :: Derive.Generator Derive.Control
 c_down = generator1 "d" Tags.prev
     "Descend at the given speed until the value reaches 0 or the next event."
     $ Sig.call ((,,)
-    <$> defaulted "speed" 1 "Descend this amount per second."
+    <$> Sig.defaulted "speed" 1 "Descend this amount per second."
     <*> ControlUtil.from_env <*> ControlUtil.curve_env
     ) $ \(speed, from, curve) args -> slope_down speed from curve args
 
@@ -217,8 +216,8 @@ c_down_from = generator1 "df" mempty
     "Drop from a certain value. This is like `d` with `from`, but more\
     \ convenient to write."
     $ Sig.call ((,,)
-    <$> defaulted "from" 1 "Start at this value."
-    <*> defaulted "speed" 1 "Descend this amount per second."
+    <$> Sig.defaulted "from" 1 "Start at this value."
+    <*> Sig.defaulted "speed" 1 "Descend this amount per second."
     <*> ControlUtil.curve_env
     ) $ \(from, speed, curve) args -> slope_down speed (Just from) curve args
 
@@ -235,7 +234,7 @@ c_up :: Derive.Generator Derive.Control
 c_up = generator1 "u" Tags.prev
     "Ascend at the given speed until the value reaches 1 or the next event."
     $ Sig.call ((,,)
-    <$> defaulted "speed" 1 "Ascend this amount per second."
+    <$> Sig.defaulted "speed" 1 "Ascend this amount per second."
     <*> ControlUtil.from_env <*> ControlUtil.curve_env
     ) $ \(speed, from, curve) args ->
         slope (ControlUtil.prev_val from args) args curve $ \x1 x2 y1 ->
@@ -257,9 +256,13 @@ c_pedal = generator1 "pedal" mempty
     ("Unlike most control events, this uses a duration. Set the control to\
     \ the given value for the event's duration, and reset to the old\
     \ value afterwards."
-    ) $ Sig.call (defaulted "val" 1 "Set to this value.") $
-    \val args -> do
+    ) $ Sig.call ((,)
+    <$> Sig.defaulted "val" 1 "Set to this value."
+    <*> Sig.environ "dur" Sig.Prefixed 0.05
+        "Use this duration if the event duration is 0."
+    ) $ \(val, dur) args -> do
         (start, end) <- Args.real_range args
+        end <- return $ if start == end then end + dur else end
         let prev = maybe 0 snd $ Args.prev_control args
         return $ Signal.signal [(start, val), (end, prev)]
 
@@ -268,9 +271,9 @@ c_swell = generator1 "swell" mempty
     "Start at the given value, interpolate to a peak, then back to the\
     \ original value. Uses duration."
     $ Sig.call ((,,)
-    <$> required "val" "Start value."
-    <*> defaulted "peak" 1 "Interpolate to this value."
-    <*> defaulted "bias" 0.5 "0 puts the peak at the start, 1 at the end."
+    <$> Sig.required "val" "Start value."
+    <*> Sig.defaulted "peak" 1 "Interpolate to this value."
+    <*> Sig.defaulted "bias" 0.5 "0 puts the peak at the start, 1 at the end."
     ) $ \(val, peak, bias) args -> do
         (start, end) <- Args.real_range args
         let middle = Num.clamp start end $

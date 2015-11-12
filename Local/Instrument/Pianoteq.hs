@@ -44,13 +44,12 @@ patches =
     , harp
     ]
 
--- | TODO harp rings by default until explicitly damped.  How can I best
--- represent that?
 harp :: MidiInst.Patch
-harp = MidiInst.with_code code $ patch "harp"
+harp = MidiInst.with_code code $ Instrument.text #= doc $ patch "harp"
         [ (67, gliss)
         , (69, harmonic)
         , (66, lute)
+        , (64, damp)
         ]
     where
     code :: MidiInst.Code
@@ -62,6 +61,10 @@ harp = MidiInst.with_code code $ patch "harp"
     -- TODO add diatonic gliss call, like zheng
     harmonic = "harmonic"
     lute = "lute"
+    damp = "damp"
+    doc = "The harp has a backwards sustain pedal, in that it sustains by\
+        \ default unless " <> ShowVal.doc_val damp <> " is 1.  The `ped`\
+        \ control call is useful to quickly damp ringing notes."
 
 gliss :: Score.Control
 gliss = "gliss"

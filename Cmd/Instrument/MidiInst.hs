@@ -127,8 +127,8 @@ note_generators calls = mempty { code_note_generators = Derive.call_map calls }
 -- | Add the given calls to the note track scope.
 note_transformers :: [(TrackLang.CallId, Derive.Transformer Derive.Note)]
     -> Code
-note_transformers calls = mempty
-    { code_note_transformers = Derive.call_map calls }
+note_transformers calls =
+    mempty { code_note_transformers = Derive.call_map calls }
 
 postproc :: Cmd.InstrumentPostproc -> Code
 postproc post = mempty { code_postproc = post }

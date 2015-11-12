@@ -116,6 +116,14 @@ test_down_from = do
     equal (run [(0, "df 1 .5")]) [(0, 1), (1, 0.5), (2, 0)]
     equal (run [(0, "df .5 .25")]) [(0, 0.5), (1, 0.25), (2, 0)]
 
+test_pedal = do
+    equal (CallTest.run_control_dur [(0, 1, "ped .5")]) [(0, 0.5), (1, 0)]
+    -- Goes back to the original value.
+    equal (CallTest.run_control_dur [(0, 0, "1"), (1, 1, "ped .5")])
+        [(0, 1), (1, 0.5), (2, 1)]
+    equal (CallTest.run_control_dur [(0, 0, "pedal-dur=.5 | ped .5")])
+        [(0, 0.5), (0.5, 0)]
+
 test_swell = do
     equal (CallTest.run_control_dur [(0, 8, "swell 0 1 .5")]) $
         zip (Seq.range_ 0 1) [0, 0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25, 0]

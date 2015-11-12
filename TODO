@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - ShowVal.doc_val I always type wrong.  How about ShowVal.doc?
   * pianoteq harp should set gliss pedal for grace notes
   - pianoteq `o` and `m` calls are wrong, because they set the control but
     don't unset it.
@@ -330,7 +331,18 @@ UNSORTED
       . Or I could just call it a feature, after all you shouldn't ask for
         a pitch to go below its range and you can explicitly mark the stop
         time if you want.
-  vsl
+  vsl:
+    - figure out how to do tuning
+      . I think it needs to be pitch bend, since it doesn't seem to respond to
+        MTS.  But VSL ensemble should be able to load multiple copies of the
+        patch and share sample data.
+      . Figure this out before doing too many more patches, because I'll have
+        to update them all with global control config, unless there's a way
+        to copy paste that.
+      . However, it apparently can be used with hermode, so not sure how that
+        happens.  Maybe I can just ask VSL support.
+      . Scala files are not very good because I'd have to go manually load
+        them every time, and they're static.
     . Legato attack scale control affects the crossfade level of interval
       samples, experiment with that.
     . figure out how perf reps work, and how I should handle them

@@ -45,8 +45,11 @@ local = "local"
 scale :: Module
 scale = "scale"
 
+-- | Parent module for instrument-specific calls.  This is also used for
+-- instrument calls, though it doesn't really matter since the instrument
+-- acts like an implicit import.
 instrument :: Module
-instrument = "instrument"
+instrument = "inst"
 
 -- | Only emits lilypond, emits no \"normal\" events.  You never need to use
 -- these if you aren't generating lilypond.  This is different from the @ly@
