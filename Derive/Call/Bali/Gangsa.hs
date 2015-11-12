@@ -874,7 +874,7 @@ pasang_key e = (inst, get EnvKey.hand)
 c_pasangan :: Derive.ValCall
 c_pasangan = Derive.val_call module_ "pasangan" mempty
     ("Choose a value depending on the value of the "
-    <> ShowVal.doc_val EnvKey.role <> " variable."
+    <> ShowVal.doc EnvKey.role <> " variable."
     ) $ Sig.call ((,,)
     <$> Sig.required "polos" "Value for polos."
     <*> Sig.required "sangsih" "Value for sangsih."

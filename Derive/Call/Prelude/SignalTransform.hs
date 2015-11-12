@@ -219,7 +219,7 @@ c_redirect merger =
         return $ Stream.from_logs logs
     where
     merge_name Derive.DefaultMerge = "the default merger for the control"
-    merge_name (Derive.Merge merger) = ShowVal.doc_val merger
+    merge_name (Derive.Merge merger) = ShowVal.doc merger
 
 c_cf_sample :: Derive.Transformer Derive.Note
 c_cf_sample = Derive.transformer Module.prelude "cf-sample"

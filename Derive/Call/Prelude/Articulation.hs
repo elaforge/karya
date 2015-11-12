@@ -181,7 +181,7 @@ set_sustain = Call.with_constant Controls.sustain_abs . RealTime.to_seconds
 c_sustain_abs :: Derive.Transformer Derive.Note
 c_sustain_abs = Derive.transformer Module.prelude "sus-a" mempty
     ("Simple legato, extend the duration of the transformed notes by the given\
-    \ amount. This works by setting " <> ShowVal.doc_val Controls.sustain_abs
+    \ amount. This works by setting " <> ShowVal.doc Controls.sustain_abs
     <> "."
     ) $ Sig.callt (Sig.defaulted "time" (Typecheck.real 0.25)
         "Add this duration to the note.")
@@ -192,7 +192,7 @@ c_sustain_abs = Derive.transformer Module.prelude "sus-a" mempty
 c_sustain :: Derive.Transformer Derive.Note
 c_sustain = Derive.transformer Module.prelude "sus" mempty
     ("Simple legato, extend the duration of the transformed notes by the given\
-    \ amount. This works by setting " <> ShowVal.doc_val Controls.sustain
+    \ amount. This works by setting " <> ShowVal.doc Controls.sustain
     <> "."
     ) $ Sig.callt (Sig.defaulted "amount" 1.5
         "Multiply the note's duration by this.")
@@ -201,6 +201,6 @@ c_sustain = Derive.transformer Module.prelude "sus" mempty
 c_detach :: Make.Calls Derive.Note
 c_detach = Make.transform_notes Module.prelude "detach" mempty
     ("Detach the notes slightly, by setting "
-        <> ShowVal.doc_val Controls.sustain_abs <> ".")
+        <> ShowVal.doc Controls.sustain_abs <> ".")
     (defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
         Call.with_constant Controls.sustain_abs (-time)

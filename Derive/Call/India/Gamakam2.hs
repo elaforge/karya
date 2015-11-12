@@ -188,8 +188,8 @@ sequence_doc = "Sequence several pitch calls. Calls are divided into\
     \ sequencing. This just means they emit samples at the beginning and end\
     \ of their range, so the sequence call knows their extent. Normal pitch\
     \ calls may not do that.\
-    \\nThere's a special hack for the " <> ShowVal.doc_val fade_in_call
-    <> " and " <> ShowVal.doc_val fade_out_call <> " calls: they have 0\
+    \\nThere's a special hack for the " <> ShowVal.doc fade_in_call
+    <> " and " <> ShowVal.doc fade_out_call <> " calls: they have 0\
     \ duration, but are overlaid with their neighbors. This is so you can fade\
     \ in or out without having to flatten the pitch."
     where doc v = "`" <> pretty v <> "`"

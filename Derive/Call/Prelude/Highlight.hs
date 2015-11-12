@@ -49,7 +49,7 @@ instance Typecheck.TypecheckSymbol Color.Highlight
 c_highlight_strings :: Derive.Transformer Derive.Note
 c_highlight_strings = Derive.transformer Module.prelude "highlight-strings"
     mempty ("Highlight any notes whose initial pitch either is or isn't in "
-        <> ShowVal.doc_val EnvKey.open_strings <> ".")
+        <> ShowVal.doc EnvKey.open_strings <> ".")
     $ Sig.callt
     ( Sig.environ "open" Sig.Prefixed False
         "If true, put Info on open strings, else put Warning on non-open ones."
@@ -92,8 +92,8 @@ c_highlight_out_of_range :: Derive.Transformer Derive.Note
 c_highlight_out_of_range = Derive.transformer Module.prelude
     "highlight-out-of-range" mempty
     ("Error on notes whose initial pitch is below "
-        <> ShowVal.doc_val EnvKey.instrument_bottom <> " or above "
-        <> ShowVal.doc_val EnvKey.instrument_top <> ". The range must be \
+        <> ShowVal.doc EnvKey.instrument_bottom <> " or above "
+        <> ShowVal.doc EnvKey.instrument_top <> ". The range must be \
         \ in NNs.")
     -- TODO support Pitch.Pitch
     $ Sig.call0t $ const out_of_range

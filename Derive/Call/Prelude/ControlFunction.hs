@@ -127,7 +127,7 @@ random_stream =
 c_cf_swing :: Derive.ValCall
 c_cf_swing = val_call "cf-swing" Tags.control_function
     ("Add a curved  offset to the control, suitable for swing tempo when added\
-    \ to " <> ShowVal.doc_val Controls.start_s <> ". The curve is a sine wave,\
+    \ to " <> ShowVal.doc Controls.start_s <> ". The curve is a sine wave,\
     \ from trough to trough.")
     $ Sig.call ((,)
     <$> Sig.defaulted "rank" Meter.Q

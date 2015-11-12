@@ -206,10 +206,10 @@ replace_note next event = event
 c_apply_start_offset :: Derive.Transformer Derive.Note
 c_apply_start_offset =
     Derive.transformer Module.prelude "apply-start-offset" Tags.postproc
-    ("Apply the " <> ShowVal.doc_val EnvKey.start_offset_val <> " env var.\
+    ("Apply the " <> ShowVal.doc EnvKey.start_offset_val <> " env var.\
      \ This is set by note deriver from the "
-     <> ShowVal.doc_val Controls.start_s <> " and "
-     <> ShowVal.doc_val Controls.start_t <> " controls, so if you want those\
+     <> ShowVal.doc Controls.start_s <> " and "
+     <> ShowVal.doc Controls.start_t <> " controls, so if you want those\
      \ controls to have an effect, you have to use this postproc."
     ) $ Sig.callt (
         Sig.defaulted "min-duration" Nothing "If given, notes on the same hand\

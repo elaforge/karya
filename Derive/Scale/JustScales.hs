@@ -118,7 +118,7 @@ show_ratios = Text.intercalate ", " . map pretty . Vector.toList
 just_doc :: Text
 just_doc =
     "\nJust scales are tuned by ratios from a base frequency, taken from the "
-    <> ShowVal.doc_val just_base_control
+    <> ShowVal.doc just_base_control
     <> " control, as hz. Typically the \"key\" will select the set\
     \ of ratios used, dependent on the scale.\
     \\nJust scales recognize accidentals as an offset by a fixed ratio,\

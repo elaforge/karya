@@ -65,7 +65,7 @@ note_to_call note = note_call note <$>
 note_call :: Pitch.Note -> (Double -> Double) -> Derive.ValCall
 note_call note ratio = Derive.val_call Module.scale "ratio" mempty
     ( "Generate a frequency that is the ratio of the frequency of the "
-    <> ShowVal.doc_val pcontrol_ref
+    <> ShowVal.doc pcontrol_ref
     <> " signal. A negative ratio divides, a positive one multiplies."
     ) $ Sig.call
     (defaulted "hz" 0 "Add an absolute hz value to the output.") $

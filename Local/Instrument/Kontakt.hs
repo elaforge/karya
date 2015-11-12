@@ -180,7 +180,7 @@ guzheng = MidiInst.with_code code $ MidiInst.nn_range range $
         <> MidiInst.note_transformers [("standard-strings", standard_strings)]
         <> MidiInst.note_calls (MidiInst.null_call c_highlight_strings)
     standard_strings = DUtil.transformer0 "standard-strings"
-        ("Set " <> ShowVal.doc_val EnvKey.open_strings
+        ("Set " <> ShowVal.doc EnvKey.open_strings
             <> " to standard pitches: " <> ShowVal.show_val strings)
         $ \_ deriver -> Derive.with_val EnvKey.open_strings
             (map PSignal.nn_pitch strings) deriver
@@ -200,7 +200,7 @@ guzheng = MidiInst.with_code code $ MidiInst.nn_range range $
 c_highlight_strings :: Derive.Generator Derive.Note
 c_highlight_strings = Note.transformed_note
     ("Highlight any notes whose initial pitch either is or isn't in "
-    <> ShowVal.doc_val EnvKey.open_strings <> ".") mempty $ \args deriver -> do
+    <> ShowVal.doc EnvKey.open_strings <> ".") mempty $ \args deriver -> do
         start <- Args.real_start args
         Highlight.out_of_range $
             Highlight.open_strings start Highlight.warn_non_open deriver

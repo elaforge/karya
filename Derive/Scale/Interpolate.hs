@@ -104,7 +104,7 @@ interpolated_degree from to = Derive.val_call Module.scale "pitch" mempty
                 return $ Typecheck.to_val $ Pitches.interpolated p1 p2 n
     where
     doc :: ShowVal.ShowVal a => a -> Text
-    doc = ShowVal.doc_val
+    doc = ShowVal.doc
 
 rename_environ :: Env.Key -> Env.Key -> Derive.Deriver a -> Derive.Deriver a
 rename_environ from to deriver = do

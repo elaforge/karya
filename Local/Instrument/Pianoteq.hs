@@ -63,7 +63,7 @@ harp = MidiInst.with_code code $ Instrument.text #= doc $ patch "harp"
     lute = "lute"
     damp = "damp"
     doc = "The harp has a backwards sustain pedal, in that it sustains by\
-        \ default unless " <> ShowVal.doc_val damp <> " is 1.  The `ped`\
+        \ default unless " <> ShowVal.doc damp <> " is 1.  The `ped`\
         \ control call is useful to quickly damp ringing notes."
 
 gliss :: Score.Control
@@ -72,7 +72,7 @@ gliss = "gliss"
 c_grace :: Derive.Generator Derive.Note
 c_grace = Grace.make_grace Module.instrument
     ("This is just like the standard `g` call, except it sets "
-        <> ShowVal.doc_val gliss <> " and doesn't use `(`.")
+        <> ShowVal.doc gliss <> " and doesn't use `(`.")
     (Derive.with_constant_control gliss (Score.untyped 1)) $ \_args events ->
         Sub.derive events
 

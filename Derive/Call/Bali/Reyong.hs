@@ -312,8 +312,8 @@ make_position table cek byong = Position
 
 c_reyong_damp :: Derive.Transformer Derive.Note
 c_reyong_damp = Derive.transformer module_ "reyong-damp" Tags.postproc
-    ("Add damping for reyong parts. The " <> ShowVal.doc_val damped
-    <> " attribute will force a damp, while " <> ShowVal.doc_val undamped
+    ("Add damping for reyong parts. The " <> ShowVal.doc damped
+    <> " attribute will force a damp, while " <> ShowVal.doc undamped
     <> " will prevent damping. The latter can cause a previously undamped note\
     \ to become damped because the hand is now freed  up.")
     $ Sig.callt ((,,)

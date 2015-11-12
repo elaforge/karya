@@ -75,9 +75,9 @@ make_scale scale_id degrees = Scale.Scale
         \ repeat at the octave, so they support diatonic transposition only\
         \ within a single octave.\
         \\nSince diatonic transposition won't get you up an octave,\
-        \ the " <> ShowVal.doc_val Controls.octave <> " control will transpose\
+        \ the " <> ShowVal.doc Controls.octave <> " control will transpose\
         \ by octaves.\
-        \\nThe " <> ShowVal.doc_val a0_nn <> " control sets the frequency of\
+        \\nThe " <> ShowVal.doc a0_nn <> " control sets the frequency of\
         \ `a0`. If it's not set, it defaults to 0, which is `c-1`."
 
 read_pitch :: Pitch.PitchClass -> Pitch.Note

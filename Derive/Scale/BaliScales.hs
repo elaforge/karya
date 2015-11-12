@@ -44,7 +44,7 @@ make_scale scale_id smap =
         \ should be set to either `umbang` or `isep`, and if it's not\
         \ set, `umbang` is assumed. Normally the umbang and isep\
         \ frequencies are hardcoded according to the scale, but if the "
-        <> ShowVal.doc_val c_ombak
+        <> ShowVal.doc c_ombak
         <> " control is present, they will be tuned that many hz apart."
 
 data ScaleMap = ScaleMap {

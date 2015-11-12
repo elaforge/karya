@@ -206,7 +206,7 @@ double_pitch name base_controls pcontrol secondary_controls =
         ("Instrument that gets `#`, and controls: "
             <> show_controls base_controls)
     <*> Sig.required_environ "second-inst" Sig.Prefixed
-        ("Instrument that gets " <> ShowVal.doc_val pcontrol
+        ("Instrument that gets " <> ShowVal.doc pcontrol
             <> ", and controls: " <> show_controls secondary_controls)
     ) $ \(inst1, inst2) -> Sub.inverting $ \args -> composite_call args
         [ Composite "" inst1 (Pitch Score.default_pitch) base_controls
