@@ -15,7 +15,7 @@ import qualified Data.List.Ordered as Ordered
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
-import Data.Monoid ((<>))
+import Data.Monoid (Monoid(..), (<>))
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 

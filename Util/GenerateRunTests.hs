@@ -18,10 +18,11 @@
     interactive ones.  TODO interactive should be removed
 -}
 module Util.GenerateRunTests (main) where
+import Control.Applicative ((<$>))
 import Control.Monad
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import Data.Monoid ((<>))
+import Data.Monoid (Monoid(..), (<>))
 import qualified Data.Text as Text
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
