@@ -108,7 +108,7 @@ parse_builtins fn = do
 parse_dir :: FilePath -> IO [Instrument.Patch]
 parse_dir dir = do
     fns <- File.listRecursive (const True) dir
-    (warns, patches) <- Seq.partition_either . concat <$> mapM parse_file fns
+    (warns, patches) <- Either.partitionEithers . concat <$> mapM parse_file fns
     mapM_ (Log.warn . txt) warns
     return patches
 

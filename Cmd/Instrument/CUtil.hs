@@ -7,6 +7,7 @@
 --
 -- I need a better name than \"Util\" for everything.
 module Cmd.Instrument.CUtil where
+import qualified Data.Either as Either
 import qualified Data.Map as Map
 
 import qualified Util.Seq as Seq
@@ -269,7 +270,7 @@ drum_pitched_notes notes keymap = (found, (not_found, unused))
     where
     unused = filter (`notElem` note_attrs) (map fst keymap)
     note_attrs = map Drums.note_attrs notes
-    (not_found, found) = Seq.partition_either $ map find notes
+    (not_found, found) = Either.partitionEithers $ map find notes
     find n = maybe (Left n) (Right . (,) n) (lookup (Drums.note_attrs n) keymap)
 
 -- | Create 0 duration calls from the given drum notes.

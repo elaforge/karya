@@ -12,6 +12,7 @@ import qualified Control.Monad.Error as Error
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as State
 
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
@@ -363,7 +364,7 @@ convert_voices events@(event:_) = do
 collect_voices :: [Event] -> Either Text (VoiceMap Event, [Event], [Event])
 collect_voices events = do
     let (spanned, rest) = span_voices events
-        (code, with_voice) = Seq.partition_either spanned
+        (code, with_voice) = Either.partitionEithers spanned
     with_voice <- mapM check_type with_voice
     return $ case Seq.group_fst with_voice of
         [] -> ([], [], events)

@@ -7,6 +7,7 @@ module Util.Seq where
 import Prelude hiding (head, last, tail)
 import qualified Control.Arrow as Arrow
 import qualified Data.Char as Char
+import qualified Data.Either as Either
 import Data.Function
 import Data.Functor ((<$>))
 import qualified Data.List as List
@@ -447,16 +448,6 @@ partition2 f1 f2 xs = (as, bs, xs3)
     (as, xs2) = List.partition f1 xs
     (bs, xs3) = List.partition f2 xs2
 
--- | Partition a list of Eithers into a pair.  Lazy enough to handle an
--- infinite input list.
-partition_either :: [Either a b] -> ([a], [b])
-partition_either [] = ([], [])
-partition_either (x:xs) =
-    let (ls, rs) = partition_either xs
-    in case x of
-        Left l -> (l:ls, rs)
-        Right r -> (ls, r:rs)
-
 partition_with :: (a -> Maybe b) -> [a] -> ([b], [a])
 partition_with f = go
     where
@@ -537,7 +528,8 @@ drop_with f (x:y:xs)
 -- | Like 'drop_dups', but return the dropped values.
 partition_dups :: Ord k => (a -> k) -> [a] -> ([a], [(a, [a])])
     -- ^ ([unique], [(used_for_unique, [dups])])
-partition_dups key xs = partition_either $ concatMap extract (group_sort key xs)
+partition_dups key xs =
+    Either.partitionEithers $ concatMap extract (group_sort key xs)
     where
     extract [] = []
     extract [x] = [Left x]

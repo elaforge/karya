@@ -24,6 +24,7 @@ module Cmd.SaveGit (
 import qualified Control.Exception as Exception
 import Data.ByteString (ByteString)
 import qualified Data.Char as Char
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -342,7 +343,7 @@ dump_diff :: Bool -> State.State -> [Update.UiUpdate]
     -- ^ warnings for updates to values that no longer exist
 dump_diff track_dir state =
     -- I use Left "" as a nop, so filter those out.
-    first (filter (not . Text.null)) . Seq.partition_either . map mk
+    first (filter (not . Text.null)) . Either.partitionEithers . map mk
     where
     mk (Update.View {}) = Left ""
     mk u@(Update.Block block_id _)

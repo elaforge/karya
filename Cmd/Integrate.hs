@@ -52,6 +52,7 @@
     intervening derive step.
 -}
 module Cmd.Integrate (cmd_integrate, integrate, score_integrate) where
+import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -77,7 +78,7 @@ cmd_integrate (Msg.DeriveStatus block_id (Msg.DeriveComplete perf)) = do
     -- If a block or track wants to integrate twice with different events,
     -- I don't know which ones to give to the destinations, and wind up
     -- creating a new track every time.
-    let (dups, integrates) = Seq.partition_either $ map is_dup $
+    let (dups, integrates) = Either.partitionEithers $ map is_dup $
             Seq.group_stable Derive.integrated_source (Cmd.perf_integrated perf)
         is_dup (x :| xs) = if null xs then Right x else Left x
     unless (null dups) $

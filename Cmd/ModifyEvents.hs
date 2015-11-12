@@ -4,6 +4,7 @@
 
 -- | Utilities to modify events in tracks.
 module Cmd.ModifyEvents where
+import qualified Data.Either as Either
 import qualified Data.IntMap as IntMap
 import qualified Data.List as List
 import qualified Data.String as String
@@ -49,7 +50,7 @@ pipeline modify = Parse.join_pipeline . modify . Parse.split_pipeline
 -- failed.
 failable_text :: Cmd.M m => (Text -> Either Text Text) -> Track m
 failable_text f block_id track_id events = do
-    let (failed, ok) = Seq.partition_either $ map (failing_text f) events
+    let (failed, ok) = Either.partitionEithers $ map (failing_text f) events
         errs = [err <> ": " <> Cmd.log_event block_id track_id evt
             | (err, evt) <- failed]
     unless (null errs) $ Cmd.throw $

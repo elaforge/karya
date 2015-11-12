@@ -6,13 +6,13 @@
 module Derive.LEvent where
 import Prelude hiding (length, either, log, zip, zip3)
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import Util.Pretty ((<+>))
-import qualified Util.Seq as Seq
 import qualified Util.SrcPos as SrcPos
 
 import qualified Derive.Stack as Stack
@@ -89,7 +89,7 @@ write_snd_prefix prefix (result, logs) =
     mapM_ Log.write (Log.add_prefix prefix logs) >> return result
 
 partition :: [LEvent d] -> ([d], [Log.Msg])
-partition = Seq.partition_either . map to_either
+partition = Either.partitionEithers . map to_either
     where
     to_either (Event d) = Left d
     to_either (Log msg) = Right msg

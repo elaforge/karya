@@ -15,6 +15,7 @@ module Ui.Diff (
 ) where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.Writer as Writer
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -53,7 +54,7 @@ change_display :: Update.DisplayUpdate -> DiffM ()
 change_display = Logger.logs . (:[]) . Right
 
 run :: DiffM () -> ([Update.UiUpdate], [Update.DisplayUpdate])
-run = Seq.partition_either . Identity.runIdentity . Logger.exec
+run = Either.partitionEithers . Identity.runIdentity . Logger.exec
 
 -- | Emit a list of the necessary 'Update's to turn @st1@ into @st2@.
 diff :: [Update.CmdUpdate] -> State.State -> State.State

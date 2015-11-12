@@ -11,6 +11,7 @@ module Derive.Call.Prelude.Note (
     , adjust_duration
     , min_duration
 ) where
+import qualified Data.Either as Either
 import qualified Data.Map as Map
 import qualified Data.Text as Text
 
@@ -338,6 +339,6 @@ transform_note :: [Either Score.Instrument Score.Attributes]
 transform_note vals deriver =
     with_inst (Call.add_attrs (mconcat attrs) deriver)
     where
-    (insts, attrs) = Seq.partition_either vals
+    (insts, attrs) = Either.partitionEithers vals
     with_inst = maybe id Derive.with_instrument $
         Seq.last $ filter (/=Score.empty_inst) insts

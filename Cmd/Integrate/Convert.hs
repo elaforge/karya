@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Integrate.Convert where
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Text as Text
@@ -73,7 +74,7 @@ integrate :: Config -> Map.Map TrackId TrackNum -> [Score.Event]
     -> (Tracks, [Text])
     -- ^ (tracks, errs)
 integrate config tracknums =
-    Tuple.swap . Seq.partition_either . map (integrate_track config)
+    Tuple.swap . Either.partitionEithers . map (integrate_track config)
     . allocate_tracks tracknums
 
 -- | Allocate the events to separate tracks.
@@ -98,7 +99,7 @@ split_overlapping events = track : split_overlapping rest
     where
     -- Go through the track and collect non-overlapping events, then do it
     -- recursively until there are none left.
-    (track, rest) = Seq.partition_either (strip events)
+    (track, rest) = Either.partitionEithers (strip events)
     strip [] = []
     strip (event:events) = Left event : map Right overlapping ++ strip rest
         where

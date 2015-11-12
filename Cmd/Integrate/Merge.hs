@@ -38,6 +38,7 @@ module Cmd.Integrate.Merge (
     , diff, diff_event, apply
 #endif
 ) where
+import qualified Data.Either as Either
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -480,7 +481,7 @@ apply deletes adds_edits = make . mapMaybe edit
         -- A new event from the integrate.
         | otherwise = Just (unmodified event)
     edit_map = Map.fromList edits
-    (adds, edits) = Seq.partition_either (map to_either adds_edits)
+    (adds, edits) = Either.partitionEithers (map to_either adds_edits)
     to_either (Add event) = Left event
     to_either (Edit key mods) = Right (key, mods)
 
