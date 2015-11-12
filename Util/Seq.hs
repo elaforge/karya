@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE BangPatterns #-}
 module Util.Seq where
 import Prelude hiding (head, last, tail)
 import qualified Control.Arrow as Arrow
@@ -457,16 +456,6 @@ partition_with f = go
         Nothing -> (bs, x:as)
         where (bs, as) = go xs
 
--- | Collect Lefts together, and return Rights.  This is useful when you have
--- a list of errors or values.
-partition_merge :: Monoid m => [Either m a] -> (m, [a])
-partition_merge = go mempty id
-    where
-    go !ms !as (x : xs) = case x of
-        Left m -> go (m <> ms) as xs
-        Right a -> go ms (as . (a:)) xs
-    go !ms !as [] = (ms, as [])
-
 -- * sublists
 
 -- | Split into groups of a certain size.
@@ -558,6 +547,11 @@ unique_on f xs = go Set.empty xs
         | k `Set.member` set = go set xs
         | otherwise = x : go (Set.insert k set) xs
         where k = f x
+
+-- | Like 'unique', but doesn't preserve the order and should be more
+-- efficient.
+unique_unordered :: Ord a => [a] -> [a]
+unique_unordered = Set.toList . Set.fromList
 
 rtake :: Int -> [a] -> [a]
 rtake n = snd . foldr go (n, [])

@@ -28,6 +28,7 @@ module Derive.PSignal (
     , nn_pitch
 ) where
 import Prelude hiding (head, take, drop, last, null)
+import qualified Data.Either as Either
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as V
@@ -36,11 +37,11 @@ import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 import Util.TimeVector (Sample(..))
 
-import qualified Derive.ScoreTypes as Score
 import qualified Derive.BaseTypes as TrackLang
 import Derive.BaseTypes
        (PSignal(..), Transposed, Pitch, pitch, coerce, pitch_nn, pitch_note,
         RawPitch(..), Scale(..), PitchConfig(..), PitchError(..))
+import qualified Derive.ScoreTypes as Score
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -86,11 +87,11 @@ unsignal = TimeVector.unsignal . sig_vec
 
 -- | Flatten a signal to a non-transposeable Signal.NoteNumber.
 to_nn :: PSignal -> (Signal.NoteNumber, [PitchError])
-to_nn = extract . Seq.partition_merge . map eval . unsignal
+to_nn = extract . Either.partitionEithers . map eval . unsignal
     where
-    extract (errs, nns) = (Signal.signal nns, Set.toList errs)
+    extract (errs, nns) = (Signal.signal nns, Seq.unique_unordered errs)
     eval (x, pitch) = case pitch_nn (coerce pitch) of
-        Left err -> Left (Set.singleton err)
+        Left err -> Left err
         Right (Pitch.NoteNumber nn) -> Right (x, nn)
 
 unfoldr :: (state -> Maybe ((RealTime, Pitch), state)) -> state -> PSignal
