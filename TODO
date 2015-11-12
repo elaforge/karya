@@ -7,7 +7,7 @@ UNSORTED
     all at once.
   * ShowVal.doc_val I always type wrong.  How about ShowVal.doc?
   * pianoteq harp should set gliss pedal for grace notes
-  - pianoteq `o` and `m` calls are wrong, because they set the control but
+  * pianoteq `o` and `m` calls are wrong, because they set the control but
     don't unset it.
   - Sortedness tracking for Stream and Post functions.
     . Track down usage of Stream.from_sorted_list, probably most uses are

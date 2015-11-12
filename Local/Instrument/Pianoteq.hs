@@ -4,6 +4,9 @@
 
 -- | Modartt's amazing Pianoteq softsynth.
 module Local.Instrument.Pianoteq where
+import qualified Data.List as List
+import qualified Data.Map as Map
+
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Call.Europe.Grace as Grace
@@ -18,6 +21,8 @@ import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
+import qualified Perform.Signal as Signal
+
 import Global
 
 
@@ -65,6 +70,20 @@ harp = MidiInst.with_code code $ Instrument.text #= doc $ patch "harp"
     doc = "The harp has a backwards sustain pedal, in that it sustains by\
         \ default unless " <> ShowVal.doc damp <> " is 1.  The `ped`\
         \ control call is useful to quickly damp ringing notes."
+
+-- | Controls which are not already explicitly set are explicitly set to 0.
+-- For this to work, the inst has to have only a single channel allocated.
+-- Otherwise it will just go on a different channel and the performer doesn't
+-- know that pianoteq's channels are actually not independent WRT controls.
+reset_controls :: [Score.Control] -> Score.Event -> Score.Event
+reset_controls controls event = event
+    { Score.event_untransformed_controls =
+        List.foldl' reset (Score.event_untransformed_controls event) controls
+    }
+    where
+    reset cmap control = case Map.lookup control cmap of
+        Just sig | not (Signal.null (Score.typed_val sig)) -> cmap
+        _ -> Map.insert control (Score.untyped (Signal.constant 0)) cmap
 
 gliss :: Score.Control
 gliss = "gliss"
