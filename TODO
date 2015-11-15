@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - See if the vsl arp patches are all divided by key, then I can update them
+  * See if the vsl arp patches are all divided by key, then I can update them
     all at once.
   * ShowVal.doc_val I always type wrong.  How about ShowVal.doc?
   * pianoteq harp should set gliss pedal for grace notes
@@ -1366,7 +1366,7 @@ Derive:
       If I put pemero notes in legong, then I can play them when needed.
         But what should they be called?  i o e e# u a a#
         - pick better nns for 4 and 7
-        - add 'lebeng' key with 1234567 cipher notation
+        / add 'lebeng' key with 1234567 cipher notation
           . This is a bit tricky because the PCs per octave changes.
         - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan

@@ -138,7 +138,7 @@ violin_glissandi = map (gliss.)
     [ perf.attr "g", perf.attr "d", perf.attr "a", perf.attr "e"
     , updown.oct.med, updown.oct.fast
     ]
-violin_scale_runs = scale_runs
+violin_scale_runs = run_scales
     [ legato.maj, legato.min, legato.chrom, legato.whole
     , spiccato.maj, spiccato.min, spiccato.chrom, spiccato.whole
     ]
@@ -381,7 +381,7 @@ strings_fast_repetition = fast_rep_bpm [(mempty, [15..19]), (dyn, [15..19])]
 strings_grace_notes = [grace.updown.half, grace.updown.whole]
 strings_glissandi strings =
     [perf.gliss.attr (Text.singleton s) | s <- strings] ++ [gliss.updown.oct]
-strings_scale_runs = scale_runs
+strings_scale_runs = run_scales
     [legato.maj, legato.min, legato.chrom, legato.whole, spiccato.maj]
 
 -- *** basses
@@ -422,7 +422,7 @@ basses_perf_repetition = map (rep.)
     , dyn5.legato.slow, dyn5.legato.fast, dyn5.portato.slow, dyn5.portato.fast
     , dyn9.portato.fast, dyn9.staccato, dyn9.spiccato, dyn9.harsh
     ]
-basses_scale_runs = scale_runs
+basses_scale_runs = run_scales
     [ legato.maj, legato.min, legato.chrom
     , detache.whole.slow, detache.whole.fast
     ]
@@ -434,26 +434,32 @@ harps =
     [ ("harp1", low_keys, harp1)
     , ("harp2", low_keys, harp2)
     ]
-
-harp1 = [harp1_single_notes, harp1_glissandi, harp1_arpeggios]
+harp1 =
+    [ harp1_single_notes, harp1_glissandi
+    , harp1_arpeggios_a3, harp1_arpeggios_a4
+    ]
 
 harp1_single_notes = [norm, mute, table, harm, bisbig, norm.rs.highlow]
-harp1_glissandi = map (gliss.)
-    [ maj.slow, maj.med, maj.fast, min.slow, min.med, min.fast
-    , maj.slow.v2, maj.med.v2, maj.fast.v2
-    , min.slow.v2, min.med.v2, min.fast.v2
-    , dim.slow, dim.med, dim.fast, pent.slow, pent.med, pent.fast
-    , whole.slow, whole.med, whole.fast
+harp1_glissandi = map (gliss.) $ concat
+    [ [mode.speed.pitch | mode <- [maj, min], speed <- speeds3, pitch <- scale]
+    , [notes 4.mode.speed.ver | mode <- [maj, min], speed <- speeds3,
+        ver <- versions 5]
+    , [dim.speed.pitch | speed <- speeds3, pitch <- map attr ["c", "cs", "d"]]
+    , [pent.speed.ver | speed <- speeds3, ver <- versions 3]
+    , [whole.speed.pitch | speed <- speeds3, pitch <- map attr ["c", "cs"]]
     ]
-harp1_arpeggios = map (arpup.notes 3 .)
-    [ maj.slow, maj.fast, maj.straight -- TODO what's this?
-    , min.slow, min.fast, min.straight
-    , dim.slow, aug.slow
-    ] ++ map (arpup.notes 4 .)
-    [ maj.slow, maj.fast, maj.straight
-    , min.slow, min.fast, min.straight
-    , dim.slow, aug.slow
+    where
+    -- Actually, each glissando starts on a different note.  I can update this
+    -- later if I need to.
+    versions v = map version [1..v]
+    speeds3 = [slow, med, fast]
+harp1_arpeggios_a3 = map (notes 3 .) harp1_arpeggios
+harp1_arpeggios_a4 = map (notes 4 .) harp1_arpeggios
+harp1_arpeggios = map (arpup.) $ concat
+    [ [mode.speed.pitch | mode <- [maj, min], speed <- speeds, pitch <- scale]
+    , [mode.speed | mode <- [dim, aug], speed <- speeds]
     ]
+    where speeds = [slow, fast, straight]
 
 harp2 = [harp2_basic_articulations]
 
@@ -471,7 +477,7 @@ woodwinds1 :: [Instrument]
 woodwinds1 =
     [ ("flute1", low_keys, flute1)
     , ("oboe2", low_keys, oboe2)
-    , ("clarinet", low_keys, clarinet_bb)
+    , ("clarinet-bb", low_keys, clarinet_bb)
     , ("bassoon", low_keys, bassoon)
     , ("flutes", low_keys, flutes)
     , ("oboes", low_keys, woodwinds)
@@ -524,15 +530,14 @@ flute1_perf_upbeat_repetition = map (rep.upbeat.)
     ]
 flute1_fast_repetition = fast_rep_bpm [(mempty, [17..21]), (triple, [14..18])]
 flute1_grace_notes = grace_intervals
-flute1_scale_runs = scale_runs
+flute1_scale_runs = run_scales
     [ legato.maj, legato.maj.fast, legato.min, legato.min.fast
     , legato.chrom, legato.whole, legato.chrom.fast, legato.whole.fast
     ]
-flute1_arpeggios = map (arp.)
-    [ legato.dim, legato.dim.fast, legato.maj, legato.maj.fast
-    , legato.min, legato.min.fast
-    , staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
-    , staccato.min, staccato.min.fast
+flute1_arpeggios = arp_scales
+    [ articulation.mode.speed
+    | articulation <- [staccato, legato], mode <- [dim, maj, min]
+    , speed <- [mempty, fast]
     ]
 flute1_mordents = map (mord.) $ concat
     [ map (legato.) variants
@@ -574,7 +579,7 @@ oboe2_perf_repetition = map (rep.)
     , dyn9.portato.fast, dyn9.staccato.slow, dyn9.staccato.fast
     ]
 oboe2_grace_notes = grace_intervals
-oboe2_scale_runs = scale_runs
+oboe2_scale_runs = run_scales
     [legato.maj, legato.min, legato.chrom, legato.whole]
 
 -- *** clarinet bb
@@ -597,7 +602,7 @@ clarinet_bb_dynamics = map (dyn.)
     , med.sec 2, med.sec 3, med.sec 4, med.sec 6
     , str.sec 2, str.sec 3, str.sec 4, str.sec 6
     ] ++
-    [ pfp.sec 2, pfp.sec 3, pfp.sec 6, pfp.sec 8, pfp.sec 10
+    [ pfp.sec 2, pfp.sec 3, pfp.sec 4, pfp.sec 6, pfp.sec 8, pfp.sec 10
     , fpf.sec 4, fpf.sec 6
     , fp, sfz, sffz
     ]
@@ -628,13 +633,12 @@ clarinet_bb_grace_notes = grace_intervals
 clarinet_bb_glissandi = map (gliss.)
     [ perf.gliss.slow, perf.gliss.fast
     ] ++ map (slow.) grace_intervals ++ map (fast.) grace_intervals
-clarinet_bb_scale_runs = scale_runs
+clarinet_bb_scale_runs = run_scales
     [legato.maj, legato.maj.fast, legato.min, legato.chrom, legato.whole]
-clarinet_bb_arpeggios = map (arp.)
-    [ legato.dim, legato.dim.fast, legato.maj, legato.maj.fast
-    , legato.min, legato.min.fast
-    , staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
-    , staccato.min, staccato.min.fast
+clarinet_bb_arpeggios = arp_scales
+    [ articulation.mode.speed
+    | articulation <- [staccato, legato], mode <- [dim, maj, min]
+    , speed <- [mempty, fast]
     ]
 
 -- *** bassoon
@@ -682,7 +686,7 @@ bassoon_perf_upbeat_repetition = map (rep.upbeat.)
     ]
 bassoon_fast_repetition = fast_rep_bpm [(mempty, [14..18]), (dyn, [14..18])]
 bassoon_grace_notes = grace_intervals
-bassoon_scale_runs = scale_runs
+bassoon_scale_runs = run_scales
     [legato.maj, legato.min, legato.chrom, legato.whole]
 
 -- *** flutes
@@ -709,7 +713,7 @@ flutes_repetition = map (rep.)
     [ legato, portato, staccato
     , dyn5.legato, dyn9.portato, dyn9.staccato
     ]
-flutes_scale_runs = scale_runs [legato.chrom, legato.whole]
+flutes_scale_runs = run_scales [legato.chrom, legato.whole]
 
 -- *** woodwinds
 
@@ -781,13 +785,12 @@ piccolo_perf_repetition = map (rep.)
     ]
 piccolo_fast_repetition = fast_rep_bpm [(mempty, [15..20] ++ [22])]
 piccolo_grace_notes = grace_intervals
-piccolo_scale_runs = scale_runs
+piccolo_scale_runs = run_scales
     [legato.maj, legato.min, legato.chrom, legato.whole]
-piccolo_arpeggios = map (arp.)
-    [ legato.dim, legato.dim.fast, legato.maj, legato.maj.fast
-    , legato.min, legato.min.fast
-    , staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
-    , staccato.min, staccato.min.fast
+piccolo_arpeggios = arp_scales
+    [ articulation.mode.speed
+    | articulation <- [staccato, legato], mode <- [dim, maj, min]
+    , speed <- [mempty, fast]
     ]
 piccolo_mordent = map (mord.) [v1, v2, v3, v4, v5, v6]
 
@@ -825,12 +828,11 @@ flute2_perf_repetition = map (rep.)
     ]
 flute2_fast_repetition = fast_rep_bpm [(mempty, [16..21]), (triple, [13..16])]
 flute2_grace_notes = grace_intervals
-flute2_scale_runs = scale_runs
+flute2_scale_runs = run_scales
     [legato.maj, legato.min, legato.chrom, legato.whole]
-flute2_arpeggios = map (arp.)
-    [ legato.dim.fast, legato.maj.fast, legato.min.fast
-    , staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
-    , staccato.min, staccato.min.fast
+flute2_arpeggios = arp_scales $ concat
+    [ [legato.mode.fast | mode <- [dim, maj, min]]
+    , [staccato.mode.speed | mode <- [dim, maj, min], speed <- [mempty, fast]]
     ]
 
 -- *** alto flute
@@ -910,10 +912,10 @@ oboe1_perf_upbeat_repetition = map (perf.upbeat.)
     , dyn4.n1.slow, dyn4.n2.slow, dyn4.n1.fast, dyn4.n2.fast
     ]
 oboe1_grace_notes = grace_intervals
-oboe1_scale_runs = scale_runs
+oboe1_scale_runs = run_scales
     [legato.maj, legato.min, legato.chrom, legato.whole]
-oboe1_arpeggios = map (arp.)
-    [legato.dim, legato.dim.fast, legato.maj, legato.maj.fast]
+oboe1_arpeggios = arp_scales
+    [legato.mode.speed | mode <- [dim, maj], speed <- [mempty, fast]]
 oboe1_mordents = map (mord.) [v1, v2, v3, v4, v5, v6]
 
 -- *** english horn 1
@@ -955,7 +957,7 @@ english_horn1_perf_repetition = map (rep.)
     , dyn9.staccato.slow, dyn9.staccato.fast
     ]
 english_horn1_grace_notes = grace_intervals
-english_horn1_scale_runs = scale_runs
+english_horn1_scale_runs = run_scales
     [legato.maj, legato.min, legato.chrom, legato.whole]
 
 -- *** english horn 2
@@ -1058,7 +1060,7 @@ bass_clarinet_perf_repetition = map (rep.)
     [ legato, portato, staccato
     , dyn5.legato, dyn9.portato, dyn9.staccato
     ]
-bass_clarinet_scale_runs = scale_runs
+bass_clarinet_scale_runs = run_scales
     [legato.maj, legato.min, legato.chrom, legato.whole]
 
 
@@ -1287,11 +1289,9 @@ trumpet_c_upbeat_repetition = upbeat_rep_bpm
     , (n3, [10, 11, 12, 13, 14, 16, 18, 20])
     ]
 trumpet_c_grace_notes = [grace.updown.half, grace.updown.whole]
-trumpet_c_scale_runs = scale_runs [legato.maj]
-trumpet_c_arpeggios = map (arp.)
-    [ staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
-    , staccato.min, staccato.min.fast
-    ]
+trumpet_c_scale_runs = run_scales [legato.maj]
+trumpet_c_arpeggios = arp_scales
+    [staccato.mode.speed | mode <- [dim, maj, min], speed <- [mempty, fast]]
 trumpet_c_mordents = map (mord.legato.) [v1, v2, v3, v4, v5, v6]
 
 trumpet_c_mute =
@@ -1418,10 +1418,8 @@ tenor_trombone_glissandi = map (gliss.)
     , fast.fourth, fast.dim.fifth
     , slow.min.third, slow.maj.third, slow.fourth, slow.dim.fifth
     ]
-tenor_trombone_arpeggios = map (arp.)
-    [ staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
-    , staccato.min, staccato.min.fast
-    ]
+tenor_trombone_arpeggios = arp_scales
+    [staccato.mode.speed | mode <- [dim, maj, min], speed <- [mempty, fast]]
 
 tenor_trombone_mute_a =
     [ tenor_trombone_mute_a_short_long_notes, tenor_trombone_mute_a_dynamics
@@ -1551,11 +1549,9 @@ trumpets_a3_fast_repetition =
 trumpets_a3_upbeat_repetition = upbeat_rep_bpm
     [(n1, [8..14]), (n2, [8..14] ++ [16, 18]), (n3, [8..14] ++ [16, 18])]
 trumpets_a3_scale_runs =
-    scale_runs [legato.maj, legato.min, legato.chrom, legato.whole]
-trumpets_a3_arpeggios = map (arp.)
-    [ staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
-    , staccato.min, staccato.min.fast
-    ]
+    run_scales [legato.maj, legato.min, legato.chrom, legato.whole]
+trumpets_a3_arpeggios = arp_scales
+    [staccato.mode.speed | mode <- [dim, maj, min], speed <- [mempty, fast]]
 trumpets_a3_fall_release = map (fall.)
     [ sus.vib, sus.nv, sus.marcato, sus.tune, sus.rip
     , perf.legato.nv, perf.legato.vib, perf.legato.tune, perf.marcato
@@ -1616,10 +1612,8 @@ horns_a4_fast_repetition =
     fast_rep_bpm [(mempty, [15..19]), (dyn, [15..19])]
 horns_a4_upbeat_repetition = upbeat_rep_bpm
     [(n1, [8..13]), (n2, [8..14] ++ [16, 18]), (n3, [8..14] ++ [16, 18])]
-horns_a4_arpeggios = map (arp.)
-    [ staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
-    , staccato.min, staccato.min.fast
-    ]
+horns_a4_arpeggios = arp_scales
+    [staccato.mode.speed | mode <- [dim, maj, min], speed <- [mempty, fast]]
 horns_a4_glissandi = map (gliss.)
     [ perf, fourth, dim.fifth, fifth, min.sixth, maj.sixth, min.seventh
     , maj.seventh, oct
@@ -1681,10 +1675,8 @@ trombones_a3_fast_repetition =
     fast_rep_bpm [(mempty, [14..18]), (dyn, [14..18])]
 trombones_a3_upbeat_repetition = upbeat_rep_bpm
     [(n1, [8..14]), (n2, [8..14] ++ [16, 18]), (n3, [8..14] ++ [16, 18])]
-trombones_a3_arpeggios = map (arp.)
-    [ staccato.dim, staccato.dim.fast, staccato.maj, staccato.maj.fast
-    , staccato.min, staccato.min.fast
-    ]
+trombones_a3_arpeggios = arp_scales
+    [staccato.mode.speed | mode <- [dim, maj, min], speed <- [mempty, fast]]
 trombones_a3_glissandi = map (gliss.)
     [perf, half, whole, min.third, maj.third, fourth, dim.fifth]
 
@@ -1712,19 +1704,23 @@ trombones_a3_mute_upbeat_repetition = upbeat_rep_bpm
 
 -- * util
 
--- | Turn each attribute into a scale run for that attr starting on each note.
-scale_runs :: [Attributes] -> [Attributes]
-scale_runs attrs = map (run.) (concatMap mkscale attrs)
+run_scales :: [Attributes] -> [Attributes]
+run_scales attrs = map (run.) (with_scale attrs)
+
+arp_scales :: [Attributes] -> [Attributes]
+arp_scales attrs = map (arp.) (with_scale attrs)
+
+-- | Add an attr for each pitch, if it has 'maj' or 'min'.
+with_scale :: [Attributes] -> [Attributes]
+with_scale = concatMap make
     where
-    mkscale attr
-        | any (Score.attrs_contain attr) [maj, min] = scale attr
+    make attr
+        | any (Score.attrs_contain attr) [maj, min] = map (attr.) scale
         | otherwise = [attr]
 
-scale :: Attributes -> [Attributes]
-scale attrs = map (attrs.) notes
-    where
-    notes = map attr
-        ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
+scale :: [Attributes]
+scale = map attr
+    ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
 
 grace_intervals :: [Attributes]
 grace_intervals = map (grace.updown.) intervals_to_oct
@@ -1767,6 +1763,11 @@ sec15 = attr "sec1-5"
 bpm :: Int -> Score.Attributes
 bpm n = attr ("bpm" <> showt n)
 
+-- | General-purpose version, for when I don't have a better way to describe
+-- the difference.
+version :: Int -> Score.Attributes
+version n = attr ("v" <> showt n)
+
 -- | Number of notes.
 notes :: Int -> Score.Attributes
 notes n = attr ("n" <> showt n)
@@ -1780,6 +1781,7 @@ perf = attr "perf" -- interval performances
 
 sus = attr "sus"
 norm = attr "norm"
+-- | An \"arpeggio\" variant where the notes are simultaneous.
 straight = attr "straight"
 
 acc = attr "acc" -- accelerando
