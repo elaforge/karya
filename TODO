@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - support Controls.octave, then I can use it at Vsl.harmonic
   * See if the vsl arp patches are all divided by key, then I can update them
     all at once.
   * ShowVal.doc_val I always type wrong.  How about ShowVal.doc?

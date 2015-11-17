@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE MultiWayIf #-}
 -- | Vienna Symphonic Library.
 module Local.Instrument.Vsl where
 import qualified Data.List as List
@@ -24,6 +25,7 @@ import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Prelude.Trill as Trill
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
@@ -31,6 +33,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Signal as Signal
 import qualified Instrument.Tag as Tag
 import qualified Local.Instrument.VslInst as VslInst
 import Global
@@ -131,7 +134,7 @@ note_calls maybe_hmap patch =
     -- Like the standard note call, but ignore attrs that are already handled
     -- with keyswitches.
     note_call patch = Note.note_call "" "" mempty $
-        maybe (Note.default_note config) (natural_harmonic config) maybe_hmap
+        maybe (Note.default_note config) (harmonic config) maybe_hmap
         where config = note_config patch
     note_config patch = Note.use_attributes
         { Note.config_staccato = not $ has_attr Attrs.staccato patch }
@@ -155,15 +158,20 @@ grace_intervals = Map.fromList $
 -- | If +harm+nat (and optionally a string) attributes are present, try to
 -- play this pitch as a natural harmonic.  That means replacing the pitch and
 -- reapplying the default note call.
-natural_harmonic :: Note.Config -> HarmonicMap -> Note.GenerateNote
-natural_harmonic config (strings, hmap) args = do
+harmonic :: Note.Config -> HarmonicMap -> Note.GenerateNote
+harmonic config (strings, hmap) args = do
     attrs <- Call.get_attrs
-    with_pitch <- if Score.attrs_contain attrs (Attrs.harm <> VslInst.nat)
-        then harmonic_pitch $ List.find (Score.attrs_contain attrs) strings
-        else return id
+    with_pitch <- if
+        | Score.attrs_contain attrs (Attrs.harm <> VslInst.nat) ->
+            natural_harmonic $ List.find (Score.attrs_contain attrs) strings
+        -- VSL has its artificial harmonics pitched one octave too high.
+        | Score.attrs_contain attrs Attrs.harm -> return $
+            Derive.with_added_control Controls.chromatic
+                (Score.untyped (Signal.constant (-12)))
+        | otherwise -> return id
     with_pitch $ Note.default_note config args
     where
-    harmonic_pitch maybe_string = do
+    natural_harmonic maybe_string = do
         nn <- Derive.require "note pitch"
             =<< Derive.nn_at =<< Args.real_start args
         let pitch = Midi.to_key (round nn)
