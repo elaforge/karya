@@ -65,7 +65,7 @@ UNSORTED
 
   - kotekan calls leave keys down in kontakt
   format: Pretty:
-    - format is messed up with
+    * format is messed up with
         (Score.Instrument, Map.Map Score.Instrument Score.Instrument)
         ( >u
         , { >i
@@ -79,7 +79,12 @@ UNSORTED
           , >w: >kontakt/wayang-pemade
           }
         )
-    - also pprint Maps are messed up:
+      . Possible solution is that ", { >i" starts with indent 2, but
+        internally has a indent 1.  If it ends with indent 1, then I have
+        to use that when finding the break.
+        . This is necessary because when a section uses withIndent
+
+    * also pprint Maps are messed up:
       . Derive.Derive_test test_tempo_funcs2:
           prettyp (Derive.collect_warp_map $ Derive.state_collect
             $ Derive.r_state res
@@ -94,8 +99,9 @@ UNSORTED
           ]
           : Right (tid "test/b0.t2")
       ...
-    - pp LPerf.sel_events has an extra level of indent after the [.  Not due
+    / pp LPerf.sel_events has an extra level of indent after the [.  Not due
       to LEvents.
+      . Actually this is correct, 1 for list, 1 for record continuation.
     - Add Util.Format backend for AST as in Util.PPrint
 
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able

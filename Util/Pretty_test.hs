@@ -7,8 +7,11 @@ import qualified Data.Map as Map
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as Lazy
 
+import Util.Format ((</>), (<//>), (<+>), withIndent)
 import qualified Util.Pretty as Pretty
 import Util.Test
+
+import qualified Derive.Score as Score
 import Global
 
 
@@ -87,6 +90,21 @@ test_map = do
         , "  : \"1234\""
         , ", 'b'"
         , "  : \"1234\""
+        , "}"
+        ]
+
+    let doc = ("{" <+> withIndent ">u")
+            </> ("," <+> withIndent sub)
+            <//> "}\n"
+        sub = ("{" <+> withIndent (">i" </> (": >kontakt/wayang-isep")))
+            </> ("," <+> withIndent
+                (">u" </> (": >kontakt/wayang-umbang")))
+            <//> "}\n"
+    equal (render 30 doc)
+        [ "{ >u"
+        , ", { >i: >kontakt/wayang-isep"
+        , "  , >u: >kontakt/wayang-umbang"
+        , "  }"
         , "}"
         ]
 
