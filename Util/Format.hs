@@ -19,7 +19,7 @@ module Util.Format (
     , newline, unlines, wrap, wrapWords
     , withIndent, indent, indent_, indentLine
     , Width, render, renderFlat
-    , simplify
+    , simplify, denest
 #ifdef TESTING
     , Doc(..)
     , BreakType(..), Section(..), B(..), bFromText
@@ -47,9 +47,9 @@ data Doc =
     | Doc :+ Doc -- intentionally lazy
     -- | Use 'shortForm'.
     | ShortForm Doc Doc
-    -- | The contained Doc will be indented by a number of steps.  The new
-    -- indent level only takes effect after the first Break.
-    | Indented !Indent Doc
+    -- | Change the indent by the given number of steps.  The new indent level
+    -- only takes effect after the first Break.
+    | Indent !Indent
     -- | Line break.
     | Break !BreakType
     deriving (Eq, Show)
@@ -66,7 +66,7 @@ infixr :+
     ambiguity errors with IsString.
 
     It's probably still possible if I don't mind some manual promotion, but
-    (<>) sticking text inside Indented or ShortForm doesn't seem that bad.
+    (<>) sticking text inside Indent or ShortForm doesn't seem that bad.
 -}
 
 instance Monoid.Monoid Doc where
@@ -149,10 +149,10 @@ infixr 4 <//> -- looser than </>
     where the break will happen.
 -}
 withIndent :: Doc -> Doc
-withIndent = Indented 1
+withIndent doc = Indent 1 <> doc <> Indent (-1)
 
 indentBreak :: BreakType -> Doc -> Doc
-indentBreak break doc = Indented 1 (Break break :+ doc)
+indentBreak break doc = Indent 1 <> Break break <> doc <> Indent (-1)
 
 -- | Change the indent level and add a no-space break so it takes effect
 -- immediately.
@@ -305,9 +305,9 @@ flatten = postprocSections . stateSections . flush . flip go initialState
             -- this ShortForm.  So this break is temporary and will be replaced
             -- by 'replaceBreaks' below.  If you see a Hard 0 in the Sections
             -- you know this failed.
-            sub = addSection (Hard 0) $ go long initial
+            sub = addSection (Hard 0) $ go long subState
                 where
-                initial = initialState
+                subState = initialState
                     -- This causes @a <> ShortForm b c@ to distribute the @a@
                     -- over @b@ and @c@, as documented by 'shortForm'.
                     { stateCollect = stateCollect state
@@ -315,16 +315,10 @@ flatten = postprocSections . stateSections . flush . flip go initialState
                     , statePreviousIndent = statePreviousIndent state
                     , stateBreakIndent = stateBreakIndent state
                     }
-        Indented n doc -> dedent $ go doc $ indent state
-            where
-            indent state = state
-                { stateIndent = stateIndent state + n
-                , statePreviousIndent = stateIndent state
-                }
-            dedent state = state
-                { stateIndent = stateIndent state - n
-                , statePreviousIndent = stateIndent state
-                }
+        Indent n -> state
+            { stateIndent = stateIndent state + n
+            , statePreviousIndent = stateIndent state
+            }
         Break break -> addSection break state
     -- When I see a Break, I can create a Section for it.
     addSection break state = state
@@ -599,8 +593,19 @@ simplify doc = case doc of
         (d1, d2) -> d1 :+ d2
     ShortForm d1 d2 ->
         ShortForm (Text (Lazy.toStrict (renderFlat d1))) (simplify d2)
-    Indented i d -> Indented i (simplify d)
     _ -> doc
+
+-- | Reduce the Doc to a flattened easier to read version.
+denest :: Doc -> Text
+denest doc = case doc of
+    d1 :+ d2 -> denest d1 <> " " <> denest d2
+    Text t -> showt t
+    Indent n -> if n > 0 then "^" else "v"
+    Break b -> case b of
+        NoSpace -> "/"
+        Space -> "/+"
+        Hard _ -> "//"
+    ShortForm _ doc -> "(" <> denest doc <> ")"
 
 
 -- * misc

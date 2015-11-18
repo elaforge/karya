@@ -258,13 +258,18 @@ test_flatten_shortForm = do
             ]
         ]
 
-    let doc = ShortForm "short form is too long" $
-            Indented 1
-                (ShortForm "short form"
-                    (Text "[ " :+ Indented 1 "abc"
-                        :+ Break NoSpace :+ ", " :+ Indented 1 "def"
-                        :+ Break (Hard 1)))
-            :+ Break Space :+ ", " :+ Indented 1 "tail" :+ Break (Hard 1)
+    let doc = ShortForm "short form is too long" $ mconcat
+            [ indent
+            , ShortForm "short form" $ mconcat
+                [ "[ ", indent, "abc", dedent, Break NoSpace
+                , ", ", indent, "def", dedent, Break (Hard 1)
+                ]
+            , dedent
+            , Break Space, ", ", indent, "tail", dedent, Break (Hard 1)
+            , dedent
+            ]
+        indent = Indent 1
+        dedent = Indent (-1)
     equal (f doc)
         [ S 0 0 "short form is too long" (Hard 1)
             [ S 0 1 "short form" Space
