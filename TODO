@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - support Controls.octave, then I can use it at Vsl.harmonic
+  * support Controls.octave, then I can use it at Vsl.harmonic
   * See if the vsl arp patches are all divided by key, then I can update them
     all at once.
   * ShowVal.doc_val I always type wrong.  How about ShowVal.doc?
@@ -1502,7 +1502,7 @@ Derive:
 
 pitch: scales: scale:
   scales / Derive.Scale:
-    - Put Controls.octave in Scales.standard_transposers.
+    * Put Controls.octave in Scales.standard_transposers.
       . I would have to make Scales.note_to_call handle it, but then I'd need
         a version that doesn't for WendyCarlos.
       . Not sure if the complexity is worth it, wait until I need it.

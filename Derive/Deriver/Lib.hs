@@ -599,6 +599,10 @@ with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
 with_added_control = with_merged_control merge_add
 
+with_added_value :: Score.Control -> Signal.Y -> Deriver a -> Deriver a
+with_added_value control =
+    with_added_control control . Score.untyped . Signal.constant
+
 with_multiplied_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
 with_multiplied_control = with_merged_control merge_mul

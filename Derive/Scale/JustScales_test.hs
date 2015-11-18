@@ -9,6 +9,7 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.State as State
+import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
@@ -159,3 +160,12 @@ test_input_to_nn = do
         run = second (first prettys) . DeriveTest.eval State.empty . f . input
     equalf 0.01 (run 0) $ Right (Right NN.middle_c)
     equalf 0.01 (run 1) $ Right $ Right $ Pitch.modify_hz (* (9/8)) NN.middle_c
+
+test_transpose_controls = do
+    let f p = DeriveTest.extract Score.initial_nn $
+            DeriveTest.derive_tracks "scale=just" $
+            UiTest.note_track [(0, 1, p)]
+        d4 = Pitch.modify_hz (* (9/8)) NN.c4
+    equalf 0.01 (f "%t-chrom=1 | -- 4c") ([Just d4], [])
+    equalf 0.01 (f "%t-dia=1 | -- 4c") ([Just d4], [])
+    equalf 0.01 (f "%t-oct=1 | -- 4c") ([Just NN.c5], [])

@@ -121,17 +121,20 @@ note_to_call scale smap note =
 pitch_note :: ScaleMap -> Pitch.Pitch -> Scale.PitchNote
 pitch_note smap pitch (PSignal.PitchConfig env controls) = do
     let maybe_key = Scales.environ_key env
-    let d = round diatonic
-        c = round chromatic
-    show_pitch smap maybe_key =<< if d == 0 && c == 0
+    let c = round chromatic
+        o = round octave
+        d = round diatonic
+    show_pitch smap maybe_key =<< if o == 0 && d == 0 && c == 0
         then return pitch
         else do
             key <- read_key smap maybe_key
-            return $ Theory.transpose_chromatic key c $
+            return $ Pitch.add_octave o $ Theory.transpose_chromatic key c $
                 Theory.transpose_diatonic key d pitch
     where
-    chromatic = Map.findWithDefault 0 Controls.chromatic controls
-    diatonic = Map.findWithDefault 0 Controls.diatonic controls
+    octave = get Controls.octave
+    chromatic = get Controls.chromatic
+    diatonic = get Controls.diatonic
+    get m = Map.findWithDefault 0 m controls
 
 -- | Create a PitchNn for 'ScaleDegree.scale_degree'.
 pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
@@ -143,11 +146,15 @@ pitch_nn smap pitch config@(PSignal.PitchConfig env controls) = do
         return $ Theory.diatonic_to_chromatic key
             (Pitch.pitch_degree pitch) diatonic
     let semis = Theory.pitch_to_semis (smap_layout smap) pitch
-        degree = fromIntegral semis + chromatic + dsteps
+        degree = octave * fromIntegral per_octave
+            + fromIntegral semis + chromatic + dsteps
     smap_semis_to_nn smap config degree
     where
-    chromatic = Map.findWithDefault 0 Controls.chromatic controls
-    diatonic = Map.findWithDefault 0 Controls.diatonic controls
+    octave = get Controls.octave
+    chromatic = get Controls.chromatic
+    diatonic = get Controls.diatonic
+    get m = Map.findWithDefault 0 m controls
+    per_octave = Theory.layout_semis_per_octave (smap_layout smap)
 
 input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap env (Pitch.Input kbd_type pitch frac) = do

@@ -140,9 +140,14 @@ transpose dmap _transposition _environ steps pitch
 non_transposing :: Derive.Transpose
 non_transposing _ _ _ _ = Left BaseTypes.NotImplemented
 
+-- | Indicate that this scale responds to the standard set of transpose
+-- signals.  It still has to implement the support in its
+-- 'Scale.scale_note_to_call'.
 standard_transposers :: Set.Set Score.Control
 standard_transposers = Set.fromList
-    [Controls.chromatic, Controls.diatonic, Controls.nn, Controls.hz]
+    [ Controls.octave, Controls.chromatic, Controls.diatonic
+    , Controls.nn, Controls.hz
+    ]
 
 -- ** note_to_call
 
@@ -153,26 +158,25 @@ mapped_note_to_call :: DegreeMap -> PSignal.Scale
     -> Pitch.Note -> Maybe Derive.ValCall
 mapped_note_to_call dmap scale note = do
     semis <- Map.lookup note (dm_to_semis dmap)
-    Just $ note_to_call scale (semis_to_nn semis)
-        (\transposed -> dm_to_note dmap !? (semis + transposed))
+    Just $ note_to_call (dm_per_octave dmap) scale (semis_to_nn semis)
+        (semis_to_note semis)
     where
-    semis_to_nn semis _config transposed =
+    semis_to_nn semis _config transpose =
         maybe (Left BaseTypes.out_of_range) Right $
-            dm_to_nn dmap !? (semis + transposed)
+            dm_to_nn dmap !? (semis + transpose)
+    semis_to_note semis transpose = dm_to_note dmap !? (semis + transpose)
 
 -- | Create a note call that respects chromatic and diatonic transposition.
 -- However, diatonic transposition is mapped to chromatic transposition,
 -- so this is for scales that don't distinguish.
-note_to_call :: PSignal.Scale -> SemisToNoteNumber
+note_to_call :: Pitch.Semi -> PSignal.Scale -> SemisToNoteNumber
     -> (Pitch.Semi -> Maybe Pitch.Note) -> Derive.ValCall
-note_to_call scale semis_to_nn semis_to_note =
+note_to_call per_octave scale semis_to_nn semis_to_note =
     ScaleDegree.scale_degree scale pitch_nn pitch_note
     where
     pitch_nn :: Scale.PitchNn
     pitch_nn config = to_nn transpose_steps frac config
-        where
-        (transpose_steps, frac) = properFraction (diatonic + chromatic)
-        (diatonic, chromatic) = transposition config
+        where (transpose_steps, frac) = properFraction $ transposition config
     to_nn semis frac config
         | frac == 0 = semis_to_nn config semis
         | otherwise = Num.scale
@@ -181,11 +185,12 @@ note_to_call scale semis_to_nn semis_to_note =
             <*> pure (Pitch.NoteNumber frac)
     pitch_note :: Scale.PitchNote
     pitch_note config =
-        maybe (Left BaseTypes.out_of_range) Right $ semis_to_note transposed
+        maybe (Left BaseTypes.out_of_range) Right $ semis_to_note transpose
         where
-        transposed = floor (chromatic + diatonic)
-        (diatonic, chromatic) = transposition config
-    transposition config = (get Controls.diatonic, get Controls.chromatic)
+        transpose = floor $ transposition config
+    transposition config =
+        get Controls.octave * fromIntegral per_octave
+            + get Controls.chromatic + get Controls.diatonic
         where get c = Map.findWithDefault 0 c (PSignal.pitch_controls config)
 
 add_pc :: DegreeMap -> Pitch.PitchClass -> Pitch.Pitch -> Pitch.Pitch

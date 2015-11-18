@@ -8,7 +8,6 @@ module Derive.Scale.WendyCarlos (scales) where
 import qualified Data.Attoparsec.Text as Attoparsec.Text
 import qualified Data.Char as Char
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Vector as Vector
 
@@ -67,7 +66,6 @@ make_scale scale_id degrees = Scale.Scale
     }
     where
     transposers = Scales.standard_transposers
-        <> Set.singleton Controls.octave
     per_octave = Vector.length degrees
     note_to_call_ = note_to_call scale degrees
     scale = PSignal.Scale scale_id transposers
@@ -109,7 +107,8 @@ note_to_call :: PSignal.Scale -> Degrees -> Pitch.Note
     -> Maybe Derive.ValCall
 note_to_call scale degrees note = do
     pitch <- either (const Nothing) Just $ read_pitch per_octave note
-    Just $ Scales.note_to_call scale (semis_to_nn pitch) (semis_to_note pitch)
+    -- Pass 0 for per_octave, since I'll be handling the octave here.
+    Just $ Scales.note_to_call 0 scale (semis_to_nn pitch) (semis_to_note pitch)
     where
     semis_to_nn pitch config semis = to_either $ do
         let a0 = Pitch.nn $ get a0_nn

@@ -4,12 +4,16 @@
 
 module Derive.Scale.ChromaticScales_test where
 import Util.Test
+import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
+import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.ScaleTest as ScaleTest
 import qualified Derive.Scale.Twelve as Twelve
+import qualified Derive.Score as Score
 
+import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -46,3 +50,13 @@ test_transpose = do
     equal [f rel "f#-min" Scale.Diatonic n "4s" | n <- [0..4]] $
         map Right ["4s", "4r", "4g", "4m", "4p"]
     equal (f rel "f#-min" Scale.Diatonic 2 "4s") (Right "4g")
+
+test_transpose_controls = do
+    let f p = DeriveTest.extract Score.initial_nn $
+            DeriveTest.derive_tracks "" $ UiTest.note_track [(0, 1, p)]
+    equal (f "%t-chrom=1 | -- 4c") ([Just NN.cs4], [])
+    equal (f "%t-dia=1 | -- 4c") ([Just NN.d4], [])
+    equal (f "%t-oct=1 | -- 4c") ([Just NN.c5], [])
+    equal (f "%t-chrom=.5 | -- 4c") ([Just $ NN.c4 + 0.5], [])
+    equal (f "%t-dia=.5 | -- 4c") ([Just $ NN.cs4], [])
+    equal (f "%t-oct=.5 | -- 4c") ([Just $ NN.fs4], [])

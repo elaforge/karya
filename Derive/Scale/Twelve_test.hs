@@ -14,14 +14,14 @@ test_note_to_nn = do
     let f p = DeriveTest.extract extract $
             DeriveTest.derive_tracks "" $ UiTest.note_track [(0, 1, p)]
         extract = Score.initial_nn
-    equal (f "3b") ([Just 59], [])
-    equal (f "4c") ([Just 60], [])
+    equal (f "3b") ([Just NN.b3], [])
+    equal (f "4c") ([Just NN.c4], [])
     equal (f "-2c") ([Nothing], [])
-    equal (f "-1c#") ([Just 1], [])
+    equal (f "-1c#") ([Just NN.cs_1], [])
     equal (f "-2b") ([Nothing], [])
-    equal (f "0c") ([Just 12], [])
-    equal (f "9f#") ([Just 126], [])
-    equal (f "9g") ([Just 127], [])
+    equal (f "0c") ([Just NN.c0], [])
+    equal (f "9f#") ([Just NN.fs9], [])
+    equal (f "9g") ([Just NN.g9], [])
     equal (f "9g#") ([Nothing], [])
 
 test_note_to_call_relative = do

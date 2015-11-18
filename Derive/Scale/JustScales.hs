@@ -177,13 +177,15 @@ pitch_nn smap pitch (PSignal.PitchConfig env controls) = do
     let maybe_key = Scales.environ_key env
     key <- read_key smap maybe_key
     pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
-    let hz = transpose_to_hz
-            (TheoryFormat.fmt_pc_per_octave (smap_fmt smap)) base_hz
-            key (chromatic + diatonic) pitch
+    let hz = transpose_to_hz per_octave base_hz key
+            (octave * fromIntegral per_octave + chromatic + diatonic) pitch
     return $ Pitch.hz_to_nn hz
     where
-    chromatic = Map.findWithDefault 0 Controls.chromatic controls
-    diatonic = Map.findWithDefault 0 Controls.diatonic controls
+    per_octave = TheoryFormat.fmt_pc_per_octave (smap_fmt smap)
+    octave = get Controls.octave
+    chromatic = get Controls.chromatic
+    diatonic = get Controls.diatonic
+    get m = Map.findWithDefault 0 m controls
     base_hz = Map.findWithDefault (smap_default_base_hz smap)
         just_base_control controls
 
@@ -196,8 +198,9 @@ pitch_note fmt pitch (PSignal.PitchConfig env controls) = do
             (round (chromatic + diatonic)) pitch
     Right $ TheoryFormat.show_pitch fmt maybe_key transposed
     where
-    chromatic = Map.findWithDefault 0 Controls.chromatic controls
-    diatonic = Map.findWithDefault 0 Controls.diatonic controls
+    chromatic = get Controls.chromatic
+    diatonic = get Controls.diatonic
+    get m = Map.findWithDefault 0 m controls
 
 transpose_to_hz :: Pitch.PitchClass -> Pitch.Hz -> Key -> Double
     -> Pitch.Pitch -> Pitch.Hz
