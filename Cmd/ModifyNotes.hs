@@ -5,6 +5,8 @@
 {- | Support for high level score modifications.  This is companion to
     "Cmd.ModifyEvents", which is for low level transformations.
 
+    The main interface to this is "Cmd.Repl.LNote".
+
     The score language is code to to be interpreted, not data to be
     manipulated.  This is good for flexibility, but bad for direct
     transformation.  Therefore, all the functions in here rely on a certain

@@ -29,14 +29,13 @@ import Global
 
 run :: IO ()
 run = do
-    let res = DeriveTest.derive_dump synths dump (UiTest.bid "thani-s")
-        (pevents, msgs, logs) = DeriveTest.perform_dump synths dump res
+    let synth = Kontakt.synth
+    let res = DeriveTest.derive_dump [synth] dump (UiTest.bid "thani-s")
+        (pevents, msgs, logs) = DeriveTest.perform_dump [synth] dump res
     prettyp $ DeriveTest.extract id res
     prettyp pevents
     prettyp msgs
     -- prettyp logs
-
-synths = Kontakt.synth_descs
 
 dump :: Simple.State
 dump = undefined

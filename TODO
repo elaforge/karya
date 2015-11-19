@@ -3,6 +3,21 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  HsPretty:
+    problems:
+      . Missing close paren after wrapped constructors.
+      . If I add an indent after each constructor then I get tons of indents.
+        What I really want is a way to collapse multiple constructor calls
+        with a single argument.
+      . For some reason it's not wrapping tuples properly, they become
+          (a, B
+            c
+          )
+        instead of
+          ( a
+          , B c
+          )
+  - move format related modules to Util.Format.*
   * support Controls.octave, then I can use it at Vsl.harmonic
   * See if the vsl arp patches are all divided by key, then I can update them
     all at once.

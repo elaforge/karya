@@ -10,12 +10,11 @@ import qualified Data.Text as Text
 
 import qualified Ui.Symbol as Symbol
 import qualified Perform.Pitch as Pitch
-import qualified App.Config as Config
 import Global
 
 
 symbols :: [Symbol.Symbol]
-symbols = dotted_numbers <> staff_symbols <> gongchepu
+symbols = dotted_numbers <> staff_symbols <> 工尺譜
 
 -- * dotted numbers
 
@@ -62,22 +61,19 @@ dotted_numbers = map dot_above cs <> map dot2_above
 
 staff_symbols :: [Symbol.Symbol]
 staff_symbols =
-    [ Symbol.symbol "#" [g "\xe10e" 1]
-    , Symbol.symbol "##" [g "\xe125" 2]
-    , Symbol.symbol "b" [g "\xe11a" 2]
-    , Symbol.symbol "bb" [g "\xe123" 2]
+    [ Symbol.symbol "#" [g "\x266f" 1]
+    , Symbol.symbol "##" [g "\x1d12a" 10]
+    , Symbol.symbol "b" [g "\x266d" 1]
+    , Symbol.symbol "bb" [g "\x1d12b" 4]
+    , Symbol.symbol "n" [g "\x266e" 1]
     ]
-    where
-    g str size = (Symbol.glyph str)
-        { Symbol.glyph_font = Just Config.emmentaler
-        , Symbol.glyph_size = size
-        }
+    where g str size = (Symbol.glyph str) { Symbol.glyph_size = size }
 
 
--- * 工尺譜 gongchepu for 南管
+-- * 南管的工尺譜
 
-gongchepu :: [Symbol.Symbol]
-gongchepu =
+工尺譜 :: [Symbol.Symbol]
+工尺譜 =
     -- TODO fix names later
     [ Symbol.simple "si" "士"
     , Symbol.simple "e" "下"
