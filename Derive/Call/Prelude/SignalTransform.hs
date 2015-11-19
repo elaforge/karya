@@ -166,7 +166,7 @@ curve_function curve = case untxt curve of
     -- ['o', 'v', 'e', 'r', n] | Just d <- digit n -> undefined
     _ -> Nothing
     where
-    digit = Num.read_digit
+    digit = Num.readDigit
 
 -- | Use the function to create a segment between each point in the signal.
 smooth :: ControlUtil.Curve -> RealTime -> RealTime

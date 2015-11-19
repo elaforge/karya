@@ -173,8 +173,8 @@ parse_pattern unison polos_pat sangsih_pat polos_telu sangsih_telu =
     KotekanPattern (parse unison) (parse polos_pat) (parse sangsih_pat)
         (parse polos_telu) (parse sangsih_telu)
     where
-    Just destination = Seq.last $ mapMaybe Num.read_digit unison
-    parse = map (fmap (subtract destination) . Num.read_digit) . filter (/=' ')
+    Just destination = Seq.last $ mapMaybe Num.readDigit unison
+    parse = map (fmap (subtract destination) . Num.readDigit) . filter (/=' ')
 
 -- ** norot
 

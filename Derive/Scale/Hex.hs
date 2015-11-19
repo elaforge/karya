@@ -77,7 +77,7 @@ make_hexany xs =
     ]
 
 show_roots :: [Int] -> Text
-show_roots = txt . mapMaybe Num.show_higit
+show_roots = txt . mapMaybe Num.showHigit
 
 make_ratios :: [Int] -> [(Int, [Ratio])]
 make_ratios =

@@ -149,7 +149,7 @@ note_tracker write = do
 -- if dev in state:
 --      state[dev][chan][key] = False
 note_off :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
-note_off dev chan (Midi.Key key) = when (Num.in_range 0 129 key) $ do
+note_off dev chan (Midi.Key key) = when (Num.inRange 0 128 key) $ do
     state <- State.get
     whenJust (Map.lookup dev state) $ \chans -> liftIO $
         Mutable.write (chans ! fromIntegral chan) (fromIntegral key) False
@@ -158,7 +158,7 @@ note_off dev chan (Midi.Key key) = when (Num.in_range 0 129 key) $ do
 --      state[dev] = [[0]*128] * 16
 -- state[dev][chan][key] = True
 note_on :: Midi.WriteDevice -> Midi.Channel -> Midi.Key -> TrackerM ()
-note_on dev chan (Midi.Key key) = when (Num.in_range 0 129 key) $ do
+note_on dev chan (Midi.Key key) = when (Num.inRange 0 128 key) $ do
     state <- State.get
     case Map.lookup dev state of
         Nothing -> do

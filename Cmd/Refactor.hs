@@ -287,7 +287,7 @@ clipped_skeleton from_block to_block tracknums =
             edges <- Skeleton.flatten <$> State.get_skeleton from_block
             State.set_skeleton to_block $ Skeleton.make
                 [ (from-low + 1, to-low + 1) | (from, to) <- edges
-                , Num.in_range low (high+1) from, Num.in_range low (high+1) to
+                , Num.inRange low (high+1) from, Num.inRange low (high+1) to
                 ]
         _ -> return ()
 

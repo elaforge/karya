@@ -217,7 +217,7 @@ parse_relative = map parse1 . filter (/=' ')
     parse1 c = Just (digit c)
     digit c = fromMaybe
         (error $ "Reyong.parse_kotekan: not a digit: " <> show c)
-        (Num.read_digit c)
+        (Num.readDigit c)
 
 -- ** absolute
 

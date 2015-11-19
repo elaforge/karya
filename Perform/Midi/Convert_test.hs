@@ -83,7 +83,7 @@ test_rnd_vel = do
     let (vels, logs) = run "(cf-rnd 0 1)" 10
     equal logs []
     check $ not (all (== head vels) vels)
-    check $ all (Num.in_range 40 90) vels
+    check $ all (Num.inRange 40 90) vels
 
 test_convert_pitch = do
     let event tsig = DeriveTest.mkevent

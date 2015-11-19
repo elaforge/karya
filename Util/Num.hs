@@ -36,8 +36,8 @@ binary b = case Bits.bitSizeMaybe b of
 hex :: (Integral a, Show a) => a -> String
 hex n = Numeric.showHex n ""
 
-show_higit :: Int -> Maybe Char
-show_higit c = case c of
+showHigit :: Int -> Maybe Char
+showHigit c = case c of
     0 -> Just '0'; 1 -> Just '1'; 2 -> Just '2'; 3 -> Just '3'
     4 -> Just '4'; 5 -> Just '5'; 6 -> Just '6'; 7 -> Just '7'
     8 -> Just '8'; 9 -> Just '9'; 10 -> Just 'a'; 11 -> Just 'b'
@@ -46,8 +46,8 @@ show_higit c = case c of
 
 -- * read
 
-read_digit :: Char -> Maybe Int
-read_digit c = case c of
+readDigit :: Char -> Maybe Int
+readDigit c = case c of
     '0' -> Just 0; '1' -> Just 1; '2' -> Just 2; '3' -> Just 3; '4' -> Just 4
     '5' -> Just 5; '6' -> Just 6; '7' -> Just 7; '8' -> Just 8; '9' -> Just 9
     _ -> Nothing
@@ -80,8 +80,8 @@ showFloat0 precision =
 
 -- * transform
 
-round_digits :: (RealFrac a, Fractional b) => Int -> a -> b
-round_digits digits = (/ (10^digits)) . fromIntegral . round . (* (10^digits))
+roundDigits :: (RealFrac a, Fractional b) => Int -> a -> b
+roundDigits digits = (/ (10^digits)) . fromIntegral . round . (* (10^digits))
 
 -- | Clamp a value to be between @low@ and @high@.
 clamp :: Ord a => a -> a -> a -> a
@@ -94,8 +94,8 @@ restrict low high
     | high == low = const low -- avoid dividing by 0 in fmod
     | otherwise = (+low) . (`fmod` (high-low)) . subtract low
 
-in_range :: Ord a => a -> a -> a -> Bool
-in_range low high x = low <= x && x < high
+inRange :: Ord a => a -> a -> a -> Bool
+inRange low high x = low <= x && x < high
 
 -- | Scale @v@, which is between 0 and 1 inclusive, to be between @low@ and
 -- @high@.  If @v@ is not in the 0--1 range, the result will be out of the
@@ -147,7 +147,7 @@ f2d (Types.F# f) = Types.D# (Prim.float2Double# f)
 
 -- | Conversion that clamps at INT_MIN / INT_MAX.
 d2i :: Double -> Int
-d2i d = floor (clamp min_int max_int d)
+d2i d = floor (clamp minInt maxInt d)
     where
-    max_int = fromIntegral (maxBound :: Int)
-    min_int = fromIntegral (minBound :: Int)
+    maxInt = fromIntegral (maxBound :: Int)
+    minInt = fromIntegral (minBound :: Int)

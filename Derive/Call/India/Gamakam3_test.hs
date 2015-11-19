@@ -178,7 +178,7 @@ test_note_end = do
     equal (DeriveTest.extract DeriveTest.e_nns_rounded result)
         ([[(0, 60), (1, 60.5), (2, 61), (3, 61.5)], [(4, 62)]], [])
     -- Track signals come out right.
-    let round_vals = map $ second $ map $ second $ Num.round_digits 2
+    let round_vals = map $ second $ map $ second $ Num.roundDigits 2
     equal (round_vals (DeriveTest.e_tsigs result))
         [((UiTest.default_block_id, UiTest.mk_tid 4),
             [(0, 0), (1, 0.25), (2, 0.5), (3, 0.75), (4, 1)])]

@@ -22,7 +22,7 @@ test_cf_rnd = do
     let (durs, logs) = run "(cf-rnd .5 1.5)" 5
     equal logs []
     check $ not (all (== head durs) durs)
-    check (all (Num.in_range 0.8 1.2) durs)
+    check (all (Num.inRange 0.8 1.2) durs)
 
 test_cf_swing = do
     let run marks amount tracks events = DeriveTest.extract Score.event_start $

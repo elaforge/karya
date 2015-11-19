@@ -537,7 +537,7 @@ e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn = e_control Score.c_dynamic
 
 e_dyn_rounded :: Score.Event -> [(RealTime, Signal.Y)]
-e_dyn_rounded = map (second (Num.round_digits 2)) . e_dyn
+e_dyn_rounded = map (second (Num.roundDigits 2)) . e_dyn
 
 -- | Like 'e_nns_errors', but throw an exception if there are errors.
 e_nns :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
@@ -549,7 +549,7 @@ e_nns e
 
 -- | Like 'e_nns', but round to cents to make comparison easier.
 e_nns_rounded :: Score.Event -> [(RealTime, Pitch.NoteNumber)]
-e_nns_rounded = map (second (Num.round_digits 2)) . e_nns
+e_nns_rounded = map (second (Num.roundDigits 2)) . e_nns
 
 -- | Extract pitch signal and any errors flattening it.
 e_nns_errors :: Score.Event -> ([(RealTime, Pitch.NoteNumber)], [String])
