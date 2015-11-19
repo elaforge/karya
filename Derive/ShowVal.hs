@@ -7,6 +7,7 @@ module Derive.ShowVal where
 import qualified Data.Text as Text
 import qualified Numeric
 
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Perform.RealTime as RealTime
@@ -56,14 +57,14 @@ instance ShowVal Int where
     show_val = showt
 
 instance ShowVal Double where
-    show_val = Pretty.showFloat 3
+    show_val = Num.showFloat 3
 
 instance ShowVal ScoreTime.ScoreTime where
-    show_val = (`Text.snoc` ScoreTime.suffix) . Pretty.showFloat 3
+    show_val = (`Text.snoc` ScoreTime.suffix) . Num.showFloat 3
         . ScoreTime.to_double
 
 instance ShowVal RealTime.RealTime where
-    show_val = (`Text.snoc` RealTime.suffix) . Pretty.showFloat 3
+    show_val = (`Text.snoc` RealTime.suffix) . Num.showFloat 3
         . RealTime.to_seconds
 
 instance ShowVal a => ShowVal (Maybe a) where

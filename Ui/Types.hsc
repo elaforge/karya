@@ -57,7 +57,7 @@ data Zoom = Zoom {
 
 instance Pretty.Pretty Zoom where
     pretty (Zoom offset factor) =
-        "+" <> pretty offset <> "*" <> Pretty.showFloat 1 factor
+        "+" <> pretty offset <> "*" <> Num.showFloat 1 factor
 
 instance CStorable Zoom where
     sizeOf _ = #size ZoomInfo

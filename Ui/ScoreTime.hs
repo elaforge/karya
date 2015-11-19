@@ -16,6 +16,7 @@ import qualified Text.Read as Read
 import qualified Util.ApproxEq as ApproxEq
 import Util.Crc32Instances ()
 import qualified Util.ForeignC as C
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
@@ -83,7 +84,7 @@ instance Show ScoreTime where show (ScoreTime n) = show n
 instance Read.Read ScoreTime where readPrec = ScoreTime <$> Read.readPrec
 
 instance Pretty.Pretty ScoreTime where
-    pretty (ScoreTime p) = Pretty.showFloat 3 p <> Text.singleton suffix
+    pretty (ScoreTime p) = Num.showFloat 3 p <> Text.singleton suffix
 
 to_double :: ScoreTime -> Double
 to_double (ScoreTime p) = p

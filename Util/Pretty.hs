@@ -17,7 +17,7 @@ module Util.Pretty (
     , textList, formattedList, delimitedList, record, recordTitle
     , constructor
     -- * misc
-    , showFloat, showFloat0, readWord
+    , readWord
 ) where
 import qualified Data.ByteString as ByteString
 import qualified Data.Char as Char
@@ -25,7 +25,7 @@ import qualified Data.Dynamic as Dynamic
 import qualified Data.IntMap as IntMap
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
-import Data.Monoid (mconcat, (<>))
+import Data.Monoid ((<>))
 import qualified Data.Ratio as Ratio
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -33,8 +33,6 @@ import Data.Text (Text)
 import qualified Data.Text.Encoding as Encoding
 import qualified Data.Text.IO as Text.IO
 import qualified Data.Text.Lazy as Lazy
-import qualified Data.Text.Lazy.Builder as Builder
-import qualified Data.Text.Lazy.Builder.RealFloat as Builder.RealFloat
 import qualified Data.Time as Time
 import qualified Data.Tree as Tree
 import qualified Data.Vector as Vector
@@ -49,6 +47,7 @@ import qualified Util.Format as Format
 import Util.Format
        (Doc, (</>), (<//>), (<+/>), (<+>), text, string, render, withIndent,
         indent_, indent, indentLine)
+import qualified Util.Num as Num
 import qualified Util.Seq as Seq
 
 
@@ -100,8 +99,8 @@ instance Pretty Word.Word8 where pretty = showt
 instance Pretty Word.Word16 where pretty = showt
 instance Pretty Word.Word32 where pretty = showt
 instance Pretty Word.Word64 where pretty = showt
-instance Pretty Double where pretty = showFloat 3
-instance Pretty Float where pretty = showFloat 3
+instance Pretty Double where pretty = Num.showFloat 3
+instance Pretty Float where pretty = Num.showFloat 3
 
 instance (Integral a, Pretty a) => Pretty (Ratio.Ratio a) where
     pretty r = pretty (Ratio.numerator r) <> "/" <> pretty (Ratio.denominator r)
@@ -225,30 +224,6 @@ delimitedList spacedDelimiter leftc rightc xs = case xs of
     right = text $ Text.singleton rightc
 
 
--- * misc
-
--- | Display a float with the given precision, dropping trailing and leading
--- zeros.  Haskell requires a 0 before the decimal point, so this produces
--- non-Haskell numbers.
-showFloat :: RealFloat a => Int -> a -> Text
-showFloat precision = drop0 . showFloat0 precision
-    where
-    drop0 t
-        | t == "0" = "0"
-        | Just rest <- Text.stripPrefix "-0." t = "-." <> rest
-        | Just rest <- Text.stripPrefix "0." t = Text.cons '.' rest
-        | otherwise = t
-
--- | Like 'showFloat', but use a leading 0, so haskell can parse it.
-showFloat0 :: RealFloat a => Int -> a -> Text
-showFloat0 precision =
-    clean . Lazy.toStrict . Builder.toLazyText
-    . Builder.RealFloat.formatRealFloat Builder.RealFloat.Fixed
-        (Just precision)
-    where
-    clean
-        | precision > 0 = Text.dropWhileEnd (=='.') . Text.dropWhileEnd (=='0')
-        | otherwise = id
 
 -- * Read
 

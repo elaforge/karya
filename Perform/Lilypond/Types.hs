@@ -9,6 +9,7 @@ module Perform.Lilypond.Types where
 import qualified Data.Text as Text
 
 import qualified Util.Lens as Lens
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -222,7 +223,7 @@ time_to_note_durs t
 newtype Time = Time Int deriving (Eq, Ord, Show, Num, Enum, Real, Integral)
 
 instance Pretty.Pretty Time where
-    pretty t = Pretty.showFloat 10
+    pretty t = Num.showFloat 10
         (fromIntegral t / fromIntegral time_per_whole) <> "t"
 
 time_per_whole :: Time

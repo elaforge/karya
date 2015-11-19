@@ -33,6 +33,7 @@ import qualified Data.Vector as Vector
 import qualified Text.Read as Read
 
 import Util.Crc32Instances ()
+import qualified Util.Num as Num
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
@@ -313,7 +314,7 @@ unparse_ui_frame (maybe_bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" (Id.show_id . Id.unpack_id) maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from <> "-" <> float to) maybe_range
-    float = Pretty.showFloat 2 . ScoreTime.to_double
+    float = Num.showFloat 2 . ScoreTime.to_double
 
 -- | This is like 'unparse_ui_frame' except it omits the namespaces for a less
 -- cluttered but potentially ambiguous output.
@@ -325,7 +326,7 @@ unparse_ui_frame_ (maybe_bid, maybe_tid, maybe_range) =
     tid_s = maybe "*" Id.ident_name maybe_tid
     range_s = maybe "*"
         (\(from, to) -> float from <> "-" <> float to) maybe_range
-    float = Pretty.showFloat 2 . ScoreTime.to_double
+    float = Num.showFloat 2 . ScoreTime.to_double
 
 parse_ui_frame :: String -> Maybe UiFrame
 parse_ui_frame = ParseText.maybe_parse_string $ do

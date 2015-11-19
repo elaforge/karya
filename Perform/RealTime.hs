@@ -63,6 +63,7 @@ import qualified Text.Read as Read
 import qualified Util.ApproxEq as ApproxEq
 import Util.Crc32Instances ()
 import qualified Util.ForeignC as C
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
@@ -101,7 +102,7 @@ instance Show RealTime where show (RealTime t) = show t
 instance Read.Read RealTime where readPrec = RealTime <$> Read.readPrec
 
 instance Pretty.Pretty RealTime where
-    pretty t = Pretty.showFloat 2 (to_seconds t) <> Text.singleton suffix
+    pretty t = Num.showFloat 2 (to_seconds t) <> Text.singleton suffix
 
 div :: RealTime -> Double -> RealTime
 div a b = seconds (to_seconds a / b)

@@ -8,6 +8,13 @@
 module Util.Num where
 import qualified Data.Bits as Bits
 import qualified Data.Fixed as Fixed
+import Data.Monoid ((<>))
+import qualified Data.Text as Text
+import Data.Text (Text)
+import qualified Data.Text.Lazy as Text.Lazy
+import qualified Data.Text.Lazy.Builder as Text.Lazy.Builder
+import qualified Data.Text.Lazy.Builder.RealFloat as Lazy.Builder.RealFloat
+
 import qualified GHC.Prim as Prim
 import qualified GHC.Types as Types
 import qualified Numeric
@@ -44,6 +51,32 @@ read_digit c = case c of
     '0' -> Just 0; '1' -> Just 1; '2' -> Just 2; '3' -> Just 3; '4' -> Just 4
     '5' -> Just 5; '6' -> Just 6; '7' -> Just 7; '8' -> Just 8; '9' -> Just 9
     _ -> Nothing
+
+-- * show
+
+-- | Display a float with the given precision, dropping trailing and leading
+-- zeros.  Haskell requires a 0 before the decimal point, so this produces
+-- non-Haskell numbers.
+showFloat :: RealFloat a => Int -> a -> Text
+showFloat precision = drop0 . showFloat0 (Just precision)
+    where
+    drop0 t
+        | t == "0" = "0"
+        | Just rest <- Text.stripPrefix "-0." t = "-." <> rest
+        | Just rest <- Text.stripPrefix "0." t = Text.cons '.' rest
+        | otherwise = t
+
+-- | Like 'showFloat', but use a leading 0, so haskell can parse it.
+showFloat0 :: RealFloat a => Maybe Int -> a -> Text
+showFloat0 precision =
+    dropTrailing0 . Text.Lazy.toStrict . Text.Lazy.Builder.toLazyText
+    . Lazy.Builder.RealFloat.formatRealFloat Lazy.Builder.RealFloat.Fixed
+        precision
+    where
+    dropTrailing0
+        | maybe True (>0) precision =
+            Text.dropWhileEnd (=='.') . Text.dropWhileEnd (=='0')
+        | otherwise = id
 
 -- * transform
 

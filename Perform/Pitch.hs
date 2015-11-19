@@ -41,6 +41,7 @@ import qualified Text.ParserCombinators.ReadP as ReadP
 import qualified Text.Read as Read
 
 import qualified Util.ApproxEq as ApproxEq
+import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
@@ -223,7 +224,7 @@ newtype NoteNumber = NoteNumber Double
         Serialize.Serialize, Typeable.Typeable)
 
 instance Show NoteNumber where
-    show (NoteNumber nn) = untxt $ Pretty.showFloat0 3 nn <> "nn"
+    show (NoteNumber nn) = untxt $ Num.showFloat0 (Just 3) nn <> "nn"
 instance Read NoteNumber where
     readPrec = do
         n <- Read.readPrec

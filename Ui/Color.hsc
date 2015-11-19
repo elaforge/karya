@@ -41,7 +41,7 @@ data Color = Color !Double !Double !Double !Double
 
 instance Pretty.Pretty Color where
     pretty (Color r g b a) = "rgba:"
-        <> Text.intercalate "/" (map (Pretty.showFloat 2) [r, g, b, a])
+        <> Text.intercalate "/" (map (Num.showFloat 2) [r, g, b, a])
 
 -- | An opaque color with the given r, g, and b.
 rgb :: Double -> Double -> Double -> Color
