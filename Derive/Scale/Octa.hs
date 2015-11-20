@@ -36,12 +36,11 @@ absolute_fmt = TheoryFormat.make_absolute_format
 
 relative_fmt :: ChromaticScales.Keys -> TheoryFormat.Format
 relative_fmt keys = make $ TheoryFormat.RelativeFormat
-    { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
-    , TheoryFormat.rel_parse_key = parse_key
-    , TheoryFormat.rel_default_key = default_tkey
-    , TheoryFormat.rel_show_degree = TheoryFormat.show_degree_chromatic
-    , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
-    , TheoryFormat.rel_key_tonic = Pitch.degree_pc . Theory.key_tonic
+    { rel_acc_fmt = TheoryFormat.ascii_accidentals
+    , rel_parse_key = parse_key
+    , rel_default_key = default_tkey
+    , rel_show_degree = TheoryFormat.show_degree_chromatic
+    , rel_to_absolute = TheoryFormat.chromatic_to_absolute
     }
     where
     parse_key = Scales.get_key default_tkey keys

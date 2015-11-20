@@ -35,8 +35,7 @@ letter_degrees = map Text.singleton ['a'..'z']
 
 -- | The usual 7 note scale, which wraps around at @c@ instead of @a@.
 absolute_c :: Format
-absolute_c =
-    make_absolute_format (make_pattern degrees) degrees
+absolute_c = make_absolute_format (make_pattern degrees) degrees
     where degrees = make_degrees absolute_c_degrees
 
 absolute_c_degrees :: [Text]
@@ -58,8 +57,10 @@ data RelativeFormat key = RelativeFormat {
     , rel_default_key :: key
     , rel_show_degree :: ShowDegree key
     , rel_to_absolute :: ToAbsolute key
-    , rel_key_tonic :: key -> Pitch.PitchClass
     }
+
+-- | This is a specialization of 'ShowPitch' for show functions that need
+-- a key.
 type ShowDegree key = key -> ShowOctave -> Degrees -> AccidentalFormat
     -> Either Pitch.Degree Pitch.Pitch -> Pitch.Note
 
@@ -99,7 +100,6 @@ data Format = Format {
     -- I don't need the env to recognize if it's a valid call or not.
     , fmt_to_absolute :: Maybe Pitch.Key -> Pitch.Pitch
         -> Either BaseTypes.PitchError Pitch.Pitch
-    , fmt_key_tonic :: Maybe Pitch.Key -> Maybe Pitch.PitchClass
     , fmt_pattern :: !Text
     , fmt_pc_per_octave :: Pitch.PitchClass
     -- | True if this scale is relative to the key.
@@ -191,7 +191,6 @@ make_absolute_format_config (show_oct, parse_oct) acc_fmt pattern degrees =
     { fmt_show = show_pitch_absolute show_oct degrees acc_fmt
     , fmt_read = p_pitch_absolute parse_oct degrees acc_fmt
     , fmt_to_absolute = const Right
-    , fmt_key_tonic = const Nothing
     , fmt_pattern = octave_pattern <> pattern <> acc_pattern
     , fmt_pc_per_octave = Vector.length degrees
     , fmt_relative = False
@@ -203,33 +202,27 @@ make_relative_format = make_relative_format_config default_octave_format
 
 make_relative_format_config :: Show key => OctaveFormat -> Text -> Degrees
     -> RelativeFormat key -> Format
-make_relative_format_config (show_oct, parse_oct) pattern degrees
-        (RelativeFormat acc_fmt parse_key default_key show_degree to_abs
-            key_tonic) =
-    Format
-        { fmt_show = p_show
-        , fmt_read = p_read
-        , fmt_to_absolute = p_absolute
-        , fmt_key_tonic = p_tonic
-        , fmt_pattern = octave_pattern <> pattern <> acc_pattern
-        , fmt_pc_per_octave = Vector.length degrees
-        , fmt_relative = True
-        }
+make_relative_format_config (show_oct, parse_oct) pattern degrees fmt = Format
+    { fmt_show = p_show
+    , fmt_read = p_read
+    , fmt_to_absolute = p_absolute
+    , fmt_pattern = octave_pattern <> pattern <> acc_pattern
+    , fmt_pc_per_octave = Vector.length degrees
+    , fmt_relative = True
+    }
     where
+    RelativeFormat acc_fmt parse_key default_key show_degree to_abs = fmt
     p_show key = show_degree (either (const default_key) id (parse_key key))
         show_oct degrees acc_fmt
     p_read = p_pitch_relative parse_oct degrees acc_fmt
     p_absolute maybe_key pitch = do
         key <- parse_key maybe_key
         return $ to_abs key degrees pitch
-    p_tonic maybe_key =
-        key_tonic <$> either (const Nothing) Just (parse_key maybe_key)
 
 -- | Given a relative pitch relative to the default key, adjust it to
 -- be absolute.  This is so I can figure out if a relative pitch is valid
 -- without knowing the key, as described in 'fmt_to_absolute'.
 type ToAbsolute key = key -> Degrees -> Pitch.Pitch -> Pitch.Pitch
-
 type Tonic = Pitch.PitchClass
 
 acc_pattern :: Text

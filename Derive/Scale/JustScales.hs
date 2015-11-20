@@ -262,13 +262,11 @@ make_keys degrees key_ratios = Map.fromList
 make_relative_fmt :: Keys -> Key
     -> TheoryFormat.RelativeFormat TheoryFormat.Tonic
 make_relative_fmt keys default_key = TheoryFormat.RelativeFormat
-    { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
-    , TheoryFormat.rel_parse_key = fmap key_tonic
-        . Scales.get_key default_key keys
-    , TheoryFormat.rel_default_key = 0
-    , TheoryFormat.rel_show_degree = TheoryFormat.show_degree_diatonic
-    , TheoryFormat.rel_to_absolute = TheoryFormat.diatonic_to_absolute
-    , TheoryFormat.rel_key_tonic = id
+    { rel_acc_fmt = TheoryFormat.ascii_accidentals
+    , rel_parse_key = fmap key_tonic . Scales.get_key default_key keys
+    , rel_default_key = 0
+    , rel_show_degree = TheoryFormat.show_degree_diatonic
+    , rel_to_absolute = TheoryFormat.diatonic_to_absolute
     }
 
 -- * named intervals

@@ -220,12 +220,11 @@ group_tonic_mode = map extract . Seq.keyed_group_sort key . map (first split)
 
 relative_fmt :: Theory.Key -> Keys -> TheoryFormat.RelativeFormat Theory.Key
 relative_fmt default_key all_keys  = TheoryFormat.RelativeFormat
-    { TheoryFormat.rel_acc_fmt = TheoryFormat.ascii_accidentals
-    , TheoryFormat.rel_parse_key = Scales.get_key default_key all_keys
-    , TheoryFormat.rel_default_key = default_key
-    , TheoryFormat.rel_show_degree = TheoryFormat.show_degree_chromatic
-    , TheoryFormat.rel_to_absolute = TheoryFormat.chromatic_to_absolute
-    , TheoryFormat.rel_key_tonic = key_tonic
+    { rel_acc_fmt = TheoryFormat.ascii_accidentals
+    , rel_parse_key = Scales.get_key default_key all_keys
+    , rel_default_key = default_key
+    , rel_show_degree = TheoryFormat.show_degree_chromatic
+    , rel_to_absolute = TheoryFormat.chromatic_to_absolute
     }
 
 -- * implementation
