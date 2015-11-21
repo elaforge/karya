@@ -38,7 +38,7 @@ module Derive.Scale.Theory (
     , Signature, Intervals
     , layout
     , layout_pc_per_octave, layout_semis_per_octave
-    , layout_contains_degree
+    , contains_degree
 #ifndef TESTING
     , Layout(layout_intervals)
 #else
@@ -405,10 +405,10 @@ layout_at intervals pc =
 
 -- | True if the degree exists as its own key in the layout.
 --
--- For a relative scale, I pretend the layout is shifted such that the
--- tonic is at PC 0, and black notes are only where there are intervals >1.
-layout_contains_degree :: Key -> Pitch.Degree -> Bool
-layout_contains_degree key (Pitch.Degree pc acc)
-    | acc >= 0 = acc < at pc
-    | otherwise = at (pc - 1) + acc > 0
-    where at = layout_at (key_intervals key)
+-- For a relative scale, the Intervals should be from 'key_intervals', which
+-- considers that the tonic is shifted to PC 0.  For an absolute scale, the
+-- keyboard never shifts, so use 'layout_intervals'.
+contains_degree :: Intervals -> Pitch.Degree -> Bool
+contains_degree intervals (Pitch.Degree pc acc)
+    | acc >= 0 = acc < layout_at intervals pc
+    | otherwise = layout_at intervals (pc - 1) + acc > 0

@@ -19,19 +19,22 @@ import Global
 
 
 test_input_to_note = do
-    let f smap key = either pretty Pitch.note_text <$>
-            ChromaticScales.input_to_note smap (ScaleTest.key_environ key)
+    let f smap key = either pretty Pitch.note_text
+            . ChromaticScales.input_to_note smap (ScaleTest.key_environ key)
+            . ascii
         abs = Twelve.absolute_scale_map
         rel = Twelve.relative_scale_map
         ascii = CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
         invalid = "invalid input"
-    equal (map (f abs "c-maj" . ascii)
-            [(4, pc, acc) | pc <- [0..7], acc <- [0, 1]])
+    equal (map (f abs "c-maj") [(4, pc, acc) | pc <- [0..7], acc <- [0, 1]])
         ["4c", "4c#", "4d", "4d#", "4e", invalid, "4f", "4f#", "4g", "4g#"
         , "4a", "4a#", "4b", invalid, "5c", "5c#"
         ]
-    equal (map (f rel "d-min" . ascii)
-            [(4, pc, acc) | pc <- [0..7], acc <- [0, 1]])
+    equal (map (f abs "d-min") [(4, pc, acc) | pc <- [0..7], acc <- [0, 1]])
+        ["4c", "4db", "4d", "4eb", "4e", invalid, "4f", "4gb", "4g", "4ab"
+        , "4a", "4bb", "4b", invalid, "5c", "5db"
+        ]
+    equal (map (f rel "d-min") [(4, pc, acc) | pc <- [0..7], acc <- [0, 1]])
         ["4s", "4s#", "4r", invalid, "4g", "4g#", "4m", "4m#", "4p", invalid
         , "4d", "4d#", "4n", "4n#", "5s", "5s#"
         ]

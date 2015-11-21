@@ -159,17 +159,20 @@ pitch_nn smap pitch config@(PSignal.PitchConfig env controls) = do
 input_to_note :: ScaleMap -> Scales.InputToNote
 input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     pitch <- Scales.kbd_to_scale kbd_type pc_per_octave (key_tonic key) pitch
-    unless (Theory.layout_contains_degree key (Pitch.pitch_degree pitch)) $
+    let intervals = if is_relative
+            then Theory.key_intervals key
+            else Theory.layout_intervals (smap_layout smap)
+    unless (Theory.contains_degree intervals (Pitch.pitch_degree pitch)) $
         Left BaseTypes.InvalidInput
     -- Relative scales don't need to figure out enharmonic spelling, and
     -- besides it would be wrong since it assumes Pitch 0 0 is C.
-    let pick_enharmonic = if TheoryFormat.fmt_relative (smap_fmt smap) then id
-            else Theory.pick_enharmonic key
+    let pick_enharmonic = if is_relative then id else Theory.pick_enharmonic key
     -- Don't pass the key, because I want the Input to also be relative, i.e.
     -- Pitch 0 0 should be scale degree 0 no matter the key.
     note <- invalid_input $ show_pitch smap Nothing $ pick_enharmonic pitch
     return $ ScaleDegree.pitch_expr frac note
     where
+    is_relative = TheoryFormat.fmt_relative (smap_fmt smap)
     invalid_input (Left (BaseTypes.OutOfRange {})) = Left BaseTypes.InvalidInput
     invalid_input x = x
     pc_per_octave = Theory.layout_pc_per_octave (smap_layout smap)
