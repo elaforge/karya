@@ -355,7 +355,7 @@ relative_to_absolute (RelativePitch oct pc acc) =
 
 p_pitch :: ParseOctave -> Degrees -> AccidentalFormat -> A.Parser RelativePitch
 p_pitch parse_octave degrees acc_fmt =
-    parse_octave (RelativePitch 0 <$> p_degree <*> p_accidentals acc_fmt)
+    parse_octave ((,) <$> p_degree <*> p_accidentals acc_fmt)
     where
     p_degree = A.choice
         [ A.string text >> return i
@@ -369,7 +369,8 @@ type OctaveFormat = (ShowOctave, ParseOctave)
 type ShowOctave = Pitch.Octave -> Text -> Text
 -- | This can't just be A.Parser Pitch.Octave because I don't know where the
 -- octave is in the pitch text.
-type ParseOctave = A.Parser RelativePitch -> A.Parser RelativePitch
+type ParseOctave = A.Parser (Pitch.PitchClass, Maybe Pitch.Accidentals)
+    -> A.Parser RelativePitch
 
 -- Most scales display the octave as a leading number.
 default_octave_format :: OctaveFormat
@@ -381,10 +382,8 @@ show_octave oct = (showt oct <>)
 parse_octave :: ParseOctave
 parse_octave parse = do
     oct <- ParseText.p_int
-    -- oct2 should be 0.  This is just because I can't be bothered to make
-    -- a separate UnadjustedDegree.
-    RelativePitch oct2 pc acc <- parse
-    return $ RelativePitch (oct + oct2) pc acc
+    (pc, acc) <- parse
+    return $ RelativePitch oct pc acc
 
 -- ** accidentals
 

@@ -113,12 +113,12 @@ arrow_octaves center = (show_octave, parse_octave)
         | oct < center = (<> Text.replicate (center-oct) "_")
         | otherwise = (<>"-")
     parse_octave p_degree = do
-        TheoryFormat.RelativePitch oct2 pc acc <- p_degree
+        (pc, acc) <- p_degree
         octs <- A.many1 $ A.satisfy $ \c -> c == '_' || c == '-' || c == '^'
         let oct | "_" `List.isPrefixOf` octs = -(length octs)
                 | "-" `List.isPrefixOf` octs = 0
                 | otherwise = length octs
-        return $ TheoryFormat.RelativePitch (center + oct + oct2) pc acc
+        return $ TheoryFormat.RelativePitch (center + oct) pc acc
 
 cipher_relative_dotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
     -> TheoryFormat.Format
@@ -139,17 +139,16 @@ dotted_octaves center = (show_octave, parse_octave)
             <> (if oct >= center then Text.replicate (oct-center) "^"
                 else Text.replicate (center-oct) ".")
             <> "`"
-    parse_octave p_degree = do
-        TheoryFormat.RelativePitch oct pc acc <-
-            p_degree <|> with_octave p_degree
-        return $ TheoryFormat.RelativePitch (oct + center) pc acc
+    parse_octave p_degree =
+        uncurry (TheoryFormat.RelativePitch center) <$> p_degree
+            <|> with_octave p_degree
     with_octave p_degree = do
         A.char '`'
-        TheoryFormat.RelativePitch oct2 pc acc <- p_degree
+        (pc, acc) <- p_degree
         octs <- A.many' $ A.satisfy $ \c -> c == '.' || c == '^'
         A.char '`'
         let oct = Seq.count '^' octs - Seq.count '.' octs
-        return $ TheoryFormat.RelativePitch (center + oct + oct2) pc acc
+        return $ TheoryFormat.RelativePitch (center + oct) pc acc
 
 -- * keys
 
