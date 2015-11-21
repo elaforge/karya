@@ -60,7 +60,7 @@ absolute_fmt = TheoryFormat.make_absolute_format
 
 note_to_call :: ChromaticScales.ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call smap note =
-    case TheoryFormat.read_unadjusted_pitch fmt note of
+    case TheoryFormat.read_relative_pitch fmt note of
         Left _ -> ScaleDegree.scale_degree_interval pscale named_intervals note
         Right pitch -> Just $ scale_degree
             (ChromaticScales.pitch_nn smap pitch)

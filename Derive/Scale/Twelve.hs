@@ -35,7 +35,7 @@ import Global
 
 
 scales :: [Scale.Make]
-scales = map Scale.Simple [scale, relative_scale]
+scales = map Scale.Simple [scale, relative_scale, keyed_scale]
 
 scale :: Scale.Scale
 scale = Scales.set_direct_input_to_nn $
@@ -46,24 +46,42 @@ relative_scale :: Scale.Scale
 relative_scale = ChromaticScales.make_scale "twelve-r" relative_scale_map
     "This is 12TET, but spelled relative to the current key and mode."
 
+keyed_scale :: Scale.Scale
+keyed_scale = ChromaticScales.make_scale "twelve-k" keyed_scale_map
+    "This variant treats accidentals like staff notation. If a pitch doesn't\
+    \ have an accidental, it will inherit from the key signature. It thus\
+    \ needs an explicit natural to cancel that out. Unlike staff notation,\
+    \ accidentals don't persist until the next barline."
+
 scale_id :: Pitch.ScaleId
 scale_id = "twelve"
 
 absolute_scale_map :: ChromaticScales.ScaleMap
 absolute_scale_map =
-    ChromaticScales.scale_map layout fmt all_keys default_theory_key
+    ChromaticScales.scale_map layout absolute_fmt all_keys default_theory_key
 
-fmt :: TheoryFormat.Format
-fmt = TheoryFormat.absolute_c
+absolute_fmt :: TheoryFormat.Format
+absolute_fmt = TheoryFormat.absolute_c
 
 relative_scale_map :: ChromaticScales.ScaleMap
 relative_scale_map =
-    ChromaticScales.scale_map layout (TheoryFormat.sargam relative_fmt)
+    ChromaticScales.scale_map layout (TheoryFormat.sargam fmt)
         all_keys default_theory_key
+    where fmt = ChromaticScales.relative_fmt default_theory_key all_keys
 
-relative_fmt :: TheoryFormat.RelativeFormat Theory.Key
-relative_fmt = ChromaticScales.relative_fmt default_theory_key all_keys
-
+keyed_scale_map :: ChromaticScales.ScaleMap
+keyed_scale_map =
+    ChromaticScales.scale_map layout fmt all_keys default_theory_key
+    where
+    fmt = TheoryFormat.make_absolute_format_keyed
+        TheoryFormat.default_octave_format
+        -- I'm worried that 'n' for natural looks ugly, so let's try the
+        -- symbolic accidentals.
+        TheoryFormat.symbol_accidentals
+        parse_key default_theory_key (TheoryFormat.make_pattern degrees)
+        degrees
+    parse_key = Scales.get_key default_theory_key all_keys
+    degrees = TheoryFormat.make_degrees TheoryFormat.absolute_c_degrees
 
 -- * keys
 
@@ -94,7 +112,7 @@ nn_to_note nn = notes Vector.!? (round nn - 1)
 -- * implementation
 
 all_keys :: Map.Map Pitch.Key Theory.Key
-all_keys = ChromaticScales.make_keys fmt $
+all_keys = ChromaticScales.make_keys absolute_fmt $
     church_keys ++ octatonic_keys ++ whole_keys ++ exotic_keys
 
 church_keys :: [Theory.Key]

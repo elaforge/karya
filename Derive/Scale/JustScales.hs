@@ -157,26 +157,25 @@ transpose fmt _transposition _key steps pitch =
 -- key.
 note_to_call :: PSignal.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call scale smap note =
-    case TheoryFormat.read_unadjusted_pitch fmt note of
+    case TheoryFormat.read_relative_pitch fmt note of
         Left _ -> ScaleDegree.scale_degree_interval
             scale (smap_named_intervals smap) note
-        Right pitch_ -> Just $ ScaleDegree.scale_degree_just
+        Right relative -> Just $ ScaleDegree.scale_degree_just
                 scale (smap_named_intervals smap)
-                (smap_accidental_interval smap ^^ accs)
-                (pitch_nn smap pitch) (pitch_note fmt pitch)
+                (smap_accidental_interval smap ^^ acc)
+                (pitch_nn smap stripped) (pitch_note fmt stripped)
             where
-            pitch = pitch_
-                { Pitch.pitch_degree = (Pitch.pitch_degree pitch_)
-                    { Pitch.degree_accidentals = 0 }
-                }
-            accs = Pitch.pitch_accidentals pitch_
+            (acc, stripped) = case relative of
+                TheoryFormat.RelativePitch oct pc acc ->
+                    (fromMaybe 0 acc,
+                        TheoryFormat.RelativePitch oct pc (Just 0))
     where fmt = smap_fmt smap
 
-pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
-pitch_nn smap pitch (PSignal.PitchConfig env controls) = do
+pitch_nn :: ScaleMap -> TheoryFormat.RelativePitch -> Scale.PitchNn
+pitch_nn smap relative (PSignal.PitchConfig env controls) = do
     let maybe_key = Scales.environ_key env
     key <- read_key smap maybe_key
-    pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
+    pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key relative
     let hz = transpose_to_hz per_octave base_hz key
             (octave * fromIntegral per_octave + chromatic + diatonic) pitch
     return $ Pitch.hz_to_nn hz
@@ -189,10 +188,12 @@ pitch_nn smap pitch (PSignal.PitchConfig env controls) = do
     base_hz = Map.findWithDefault (smap_default_base_hz smap)
         just_base_control controls
 
-pitch_note :: TheoryFormat.Format -> Pitch.Pitch -> Scale.PitchNote
-pitch_note fmt pitch (PSignal.PitchConfig env controls) = do
+pitch_note :: TheoryFormat.Format -> TheoryFormat.RelativePitch
+    -> Scale.PitchNote
+pitch_note fmt relative (PSignal.PitchConfig env controls) = do
     let maybe_key = Scales.environ_key env
-    pitch <- TheoryFormat.fmt_to_absolute fmt maybe_key pitch
+    -- TODO wait, shouldn't I display the relative pitch?
+    pitch <- TheoryFormat.fmt_to_absolute fmt maybe_key relative
     let transposed = Pitch.add_pc
             (TheoryFormat.fmt_pc_per_octave fmt)
             (round (chromatic + diatonic)) pitch

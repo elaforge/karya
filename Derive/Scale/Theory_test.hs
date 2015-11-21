@@ -5,7 +5,6 @@
 module Derive.Scale.Theory_test where
 import qualified Data.Vector.Unboxed as Vector
 
-import qualified Util.ParseText as ParseText
 import Util.Test
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Theory as Theory
@@ -158,20 +157,20 @@ test_step_of = do
 -- * util
 
 key :: Text -> Theory.Key
-key name = either (error $ "can't parse key: " ++ show name) id $
+key name = either (const $ error $ "can't parse key: " ++ show name) id $
     ChromaticScales.read_key Twelve.absolute_scale_map (Just (Pitch.Key name))
 
 p :: Text -> Pitch.Pitch
-p s = either (const $ error $ "can't parse pitch: " ++ show s) id $
-    TheoryFormat.read_unadjusted_pitch TheoryFormat.absolute_c (Pitch.Note s)
+p s = either (const $ error $ "can't parse pitch: " ++ show s)
+    TheoryFormat.relative_to_absolute $
+        TheoryFormat.read_relative_pitch TheoryFormat.absolute_c (Pitch.Note s)
 
 n :: Text -> Pitch.Degree
 n s = Pitch.pitch_degree $
-    either (const $ error $ "can't parse degree: " ++ show s) id $
-    TheoryFormat.read_unadjusted_pitch TheoryFormat.absolute_c $
-    Pitch.Note ("0" <> s)
-
-read_degree fmt = ParseText.maybe_parse (TheoryFormat.fmt_read fmt)
+    either (const $ error $ "can't parse degree: " ++ show s)
+        TheoryFormat.relative_to_absolute $
+            TheoryFormat.read_relative_pitch TheoryFormat.absolute_c $
+            Pitch.Note ("0" <> s)
 
 show_pitch :: Pitch.Pitch -> Text
 show_pitch p = maybe (error $ "can't show pitch: " ++ show p) Pitch.note_text $

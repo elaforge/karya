@@ -1517,6 +1517,29 @@ Derive:
 
 pitch: scales: scale:
   scales / Derive.Scale:
+    * Implement staff-notation style accidentals, where accidentals in the
+      key signature are implicit, but you need explicit naturals.
+      . This is just the same as an absolute scale, except the display is
+        different, and needs to the key.
+      * I need to differentiate no accidentals from a natural.  I think that
+        means Pitch.degree_accidentals has to be Maybe.
+        . This seems to have a big effect because now everyone who deals with
+          Pitches needs to understand about the scale and key.  Instead,
+          Pitches should continue to be non-ambiguous, but the parsing should
+          figure out the Pitch based on the scale.
+    - I think the symbolic pitch_note functions should use RelativePitch,
+      otherwise the symbolic pitch they produce can't be parsed back in to
+      produce the same pitch.
+      . Demonstrate with some tests and fix if necessary.
+      . For ChromaticScales and JustScales
+    - TheoryFormat.make_relative_format is a confusing name because it makes
+      a Format from a RelativeFormat.
+    - TheoryFormat functions have zillions of arguments, can I package some up
+      more?  I guess RelativeFormat is already such a package...
+    - It's confusing how the default_key is built-in to parse_key but also
+      passed separately... maybe it should take a flag to say whether an error
+      should become the default?
+    - Strip type prefixes from Pitch.Pitch and Pitch.Degree?  Add lenses?
     * Put Controls.octave in Scales.standard_transposers.
       . I would have to make Scales.note_to_call handle it, but then I'd need
         a version that doesn't for WendyCarlos.

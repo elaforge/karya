@@ -112,14 +112,18 @@ enharmonics smap env note = do
 
 note_to_call :: PSignal.Scale -> ScaleMap -> Pitch.Note -> Maybe Derive.ValCall
 note_to_call scale smap note =
-    case TheoryFormat.read_unadjusted_pitch (smap_fmt smap) note of
+    case TheoryFormat.read_relative_pitch (smap_fmt smap) note of
         Left _ -> Nothing
-        Right pitch -> Just $ ScaleDegree.scale_degree scale
-            (pitch_nn smap pitch) (pitch_note smap pitch)
+        Right relative -> Just $ ScaleDegree.scale_degree scale
+            (pitch_nn smap relative) (pitch_note smap relative)
 
 -- | Create a PitchNote for 'ScaleDegree.scale_degree'.
-pitch_note :: ScaleMap -> Pitch.Pitch -> Scale.PitchNote
-pitch_note smap pitch (PSignal.PitchConfig env controls) = do
+pitch_note :: ScaleMap -> TheoryFormat.RelativePitch -> Scale.PitchNote
+pitch_note smap relative (PSignal.PitchConfig env controls) = do
+    -- Adjustment to absolute is only necessary for 'pitch_nn', since
+    -- NoteNumbers are absolute.
+    -- TODO I should leave as relative to preserve naturals
+    let pitch = TheoryFormat.relative_to_absolute relative
     let maybe_key = Scales.environ_key env
     let c = round chromatic
         o = round octave
@@ -137,10 +141,10 @@ pitch_note smap pitch (PSignal.PitchConfig env controls) = do
     get m = Map.findWithDefault 0 m controls
 
 -- | Create a PitchNn for 'ScaleDegree.scale_degree'.
-pitch_nn :: ScaleMap -> Pitch.Pitch -> Scale.PitchNn
-pitch_nn smap pitch config@(PSignal.PitchConfig env controls) = do
+pitch_nn :: ScaleMap -> TheoryFormat.RelativePitch -> Scale.PitchNn
+pitch_nn smap relative config@(PSignal.PitchConfig env controls) = do
     let maybe_key = Scales.environ_key env
-    pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key pitch
+    pitch <- TheoryFormat.fmt_to_absolute (smap_fmt smap) maybe_key relative
     dsteps <- if diatonic == 0 then Right 0 else do
         key <- read_key smap maybe_key
         return $ Theory.diatonic_to_chromatic key
@@ -169,7 +173,9 @@ input_to_note smap env (Pitch.Input kbd_type pitch frac) = do
     let pick_enharmonic = if is_relative then id else Theory.pick_enharmonic key
     -- Don't pass the key, because I want the Input to also be relative, i.e.
     -- Pitch 0 0 should be scale degree 0 no matter the key.
-    note <- invalid_input $ show_pitch smap Nothing $ pick_enharmonic pitch
+    note <- invalid_input $ show_pitch smap
+        (if is_relative then Nothing else (Scales.environ_key env))
+        (pick_enharmonic pitch)
     return $ ScaleDegree.pitch_expr frac note
     where
     is_relative = TheoryFormat.fmt_relative (smap_fmt smap)
@@ -238,9 +244,9 @@ key_tonic = Pitch.degree_pc . Theory.key_tonic
 show_pitch :: ScaleMap -> Maybe Pitch.Key -> Pitch.Pitch
     -> Either BaseTypes.PitchError Pitch.Note
 show_pitch smap key pitch
-    | bottom <= semis && semis <= top = Right $
-        TheoryFormat.show_pitch (smap_fmt smap) key pitch
-    | otherwise = Left $ BaseTypes.out_of_range
+    | bottom <= semis && semis <= top =
+        Right $ TheoryFormat.show_pitch (smap_fmt smap) key pitch
+    | otherwise = Left BaseTypes.out_of_range
     where
     (bottom, top) = smap_range smap
     semis = Theory.pitch_to_semis (smap_layout smap) pitch

@@ -5,15 +5,21 @@
 module Derive.Scale.Twelve_test where
 import Util.Test
 import qualified Ui.UiTest as UiTest
+import qualified Cmd.CmdTest as CmdTest
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Scale.ChromaticScales as ChromaticScales
+import qualified Derive.Scale.ScaleTest as ScaleTest
+import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
+
 import qualified Perform.NN as NN
+import qualified Perform.Pitch as Pitch
+import Global
 
 
 test_note_to_nn = do
-    let f p = DeriveTest.extract extract $
+    let f p = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks "" $ UiTest.note_track [(0, 1, p)]
-        extract = Score.initial_nn
     equal (f "3b") ([Just NN.b3], [])
     equal (f "4c") ([Just NN.c4], [])
     equal (f "-2c") ([Nothing], [])
@@ -38,3 +44,24 @@ test_note_to_call_relative = do
     equal (f " | key = c-min" "4p#") ([Just NN.gs4], [])
     equal (f " | key = c-min" "4d") ([Just NN.gs4], [])
     equal (f " | key = c-min" "4db") ([Just NN.g4], [])
+
+test_keyed_to_nn = do
+    let run p = DeriveTest.extract Score.initial_nn $
+            DeriveTest.derive_tracks "scale=twelve-k | key=d-min" $
+            UiTest.note_track [(0, 1, p)]
+    equal (run "4c") ([Just NN.c4], [])
+    equal (run "4b") ([Just NN.as4], [])
+    equal (run "4b`n`") ([Just NN.b4], [])
+    equal (run "4b`#`") ([Just NN.c5], [])
+
+test_keyed_input_to_note = do
+    let f key = either pretty Pitch.note_text <$>
+            ChromaticScales.input_to_note Twelve.keyed_scale_map
+                (ScaleTest.key_environ key)
+        ascii = CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
+        invalid = "invalid input"
+    equal (map (f "d-min" . ascii) [(4, pc, acc) | pc <- [0..6], acc <- [0, 1]])
+        [ "4c", "4d`b`", "4d", "4e`b`", "4e", invalid, "4f", "4g`b`"
+        , "4g", "4a`b`", "4a", "4b", "4b`n`", invalid
+        ]
+    equal (f "d-min" (ascii (4, 1, 1))) "4e`b`"
