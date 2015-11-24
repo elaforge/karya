@@ -1534,7 +1534,7 @@ pitch: scales: scale:
       . For ChromaticScales and JustScales
     - TheoryFormat.make_relative_format is a confusing name because it makes
       a Format from a RelativeFormat.
-    - TheoryFormat functions have zillions of arguments, can I package some up
+    * TheoryFormat functions have zillions of arguments, can I package some up
       more?  I guess RelativeFormat is already such a package...
     - It's confusing how the default_key is built-in to parse_key but also
       passed separately... maybe it should take a flag to say whether an error

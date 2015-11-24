@@ -73,15 +73,17 @@ keyed_scale_map :: ChromaticScales.ScaleMap
 keyed_scale_map =
     ChromaticScales.scale_map layout fmt all_keys default_theory_key
     where
-    fmt = TheoryFormat.make_absolute_format_keyed
-        TheoryFormat.default_octave_format
-        -- I'm worried that 'n' for natural looks ugly, so let's try the
-        -- symbolic accidentals.
-        TheoryFormat.symbol_accidentals
-        parse_key default_theory_key (TheoryFormat.make_pattern degrees)
-        degrees
-    parse_key = Scales.get_key default_theory_key all_keys
+    fmt = TheoryFormat.make_absolute_format_keyed config key_config
+        (TheoryFormat.make_pattern degrees) degrees
+    key_config = TheoryFormat.KeyConfig
+        { key_parse = Scales.get_key default_theory_key all_keys
+        , key_default = default_theory_key
+        }
     degrees = TheoryFormat.make_degrees TheoryFormat.absolute_c_degrees
+    -- I'm worried that 'n' for natural looks ugly, so let's try the symbolic
+    -- accidentals.
+    config = TheoryFormat.default_config
+        { TheoryFormat.config_accidental = TheoryFormat.symbol_accidentals }
 
 -- * keys
 

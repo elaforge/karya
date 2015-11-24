@@ -2,11 +2,16 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-| This is the part of "Derive.Scale.Theory" that's concerned with converting
+{- | This is the part of "Derive.Scale.Theory" that's concerned with converting
     'Pitch.Pitch'es to and from 'Pitch.Note's.
 
     It's split off to avoid cluttering Theory, but also because the
     "Derive.Scale" import would make it a circular dependency.
+
+    This is basically just a bunch of functions that take a million arguments
+    to configure octave format, accidental format, key parsing, etc.  To
+    avoid annoyingly long argument lists, they are mostly packaged up into
+    records, such as 'Config', 'KeyConfig', and 'RelativeFormat'.
 -}
 module Derive.Scale.TheoryFormat where
 import qualified Data.Attoparsec.Text as A
@@ -21,6 +26,58 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Perform.Pitch as Pitch
 import Global
 
+
+-- * types
+
+-- | General purpose config.
+data Config = Config {
+    config_show_octave :: ShowOctave
+    , config_parse_octave :: ParseOctave
+    , config_accidental :: AccidentalFormat
+    }
+
+default_config :: Config
+default_config = Config
+    { config_show_octave = show_octave
+    , config_parse_octave = parse_octave
+    , config_accidental = ascii_accidentals
+    }
+
+set_octave :: ShowOctave -> ParseOctave -> Config -> Config
+set_octave show_octave parse_octave config = config
+    { config_show_octave = show_octave
+    , config_parse_octave = parse_octave
+    }
+
+type ShowOctave = Pitch.Octave -> Text -> Text
+-- | This can't just be A.Parser Pitch.Octave because I don't know where the
+-- octave is in the pitch text.
+type ParseOctave = A.Parser (Pitch.PitchClass, Maybe Pitch.Accidentals)
+    -> A.Parser RelativePitch
+
+-- | Key config is only necessary for formatting that depends on the key, e.g.
+-- 'RelativeFormat'.
+data KeyConfig key = KeyConfig {
+    key_parse :: ParseKey key
+    -- | Default key if there is none, or it's not parseable.  Otherwise, a bad
+    -- or missing key would mean you couldn't even display notes.
+    , key_default :: key
+    }
+type ParseKey key = Maybe Pitch.Key -> Either BaseTypes.PitchError key
+
+-- | This is a just-parsed pitch.  It hasn't yet been adjusted according to the
+-- key, so it's not yet an absolute 'Pitch.Pitch'.  It also represents
+-- a natural explicitly.
+--
+-- 'fmt_to_absolute' is responsible for converting this to a 'Pitch.Pitch',
+-- likely via 'rel_to_absolute'.
+data RelativePitch =
+    RelativePitch !Pitch.Octave !Pitch.PitchClass !(Maybe Pitch.Accidentals)
+    deriving (Show)
+
+relative_to_absolute :: RelativePitch -> Pitch.Pitch
+relative_to_absolute (RelativePitch oct pc acc) =
+    Pitch.Pitch oct (Pitch.Degree pc (fromMaybe 0 acc))
 
 -- * absolute
 
@@ -50,11 +107,8 @@ absolute_c_degrees = ["c", "d", "e", "f", "g", "a", "b"]
 -- 'read_pitch' and 'show_pitch' functions adjust based on the key to display
 -- the absolute Pitch relative to the tonic of the key.
 data RelativeFormat key = RelativeFormat {
-    rel_acc_fmt :: AccidentalFormat
-    , rel_parse_key :: ParseKey key
-    -- Default key if there is none, or it's not parseable.  Otherwise, a bad
-    -- or missing key would mean you couldn't even display notes.
-    , rel_default_key :: key
+    rel_config :: Config
+    , rel_key_config :: KeyConfig key
     , rel_show_degree :: ShowDegree key
     , rel_to_absolute :: ToAbsolute key
     }
@@ -116,7 +170,6 @@ data Format = Format {
 -- same.
 type ShowPitch = Maybe Pitch.Key -> Either Pitch.Degree Pitch.Pitch
     -> Pitch.Note
-type ParseKey key = Maybe Pitch.Key -> Either BaseTypes.PitchError key
 type Degrees = Vector.Vector Text
 
 make_degrees :: [Text] -> Degrees
@@ -189,19 +242,16 @@ read_relative_pitch fmt = maybe (Left BaseTypes.UnparseableNote) Right
 -- ** make
 
 make_absolute_format :: Text -> Degrees -> Format
-make_absolute_format =
-    make_absolute_format_config default_octave_format ascii_accidentals
+make_absolute_format = make_absolute_format_config default_config
 
-make_absolute_format_keyed :: OctaveFormat -> AccidentalFormat
-    -> ParseKey Theory.Key -> Theory.Key -> Text -> Degrees -> Format
-make_absolute_format_keyed oct@(show_oct, parse_oct) acc_fmt
-        parse_key default_key pattern degrees =
-    (make_absolute_format_config oct acc_fmt pattern degrees)
-    { fmt_show = show_pitch_keyed_absolute show_oct degrees acc_fmt
-        parse_key default_key
-    , fmt_read = p_pitch parse_oct degrees acc_fmt
+make_absolute_format_keyed :: Config -> KeyConfig Theory.Key
+    -> Text -> Degrees -> Format
+make_absolute_format_keyed config key_config pattern degrees =
+    (make_absolute_format_config config pattern degrees)
+    { fmt_show = show_pitch_keyed_absolute config key_config degrees
+    , fmt_read = p_pitch config degrees
     , fmt_to_absolute = \maybe_key pitch -> do
-        key <- parse_key maybe_key
+        key <- key_parse key_config maybe_key
         return $ to_abs key pitch
     }
     where
@@ -213,12 +263,10 @@ make_absolute_format_keyed oct@(show_oct, parse_oct) acc_fmt
         Just acc -> Pitch.Pitch octave (Pitch.Degree pc acc)
 
 -- | A configurable version of 'make_absolute_format'.
-make_absolute_format_config :: OctaveFormat -> AccidentalFormat
-    -> Text -> Degrees -> Format
-make_absolute_format_config (show_oct, parse_oct) acc_fmt pattern degrees =
-        Format
-    { fmt_show = show_pitch_absolute show_oct degrees acc_fmt
-    , fmt_read = p_pitch parse_oct degrees acc_fmt
+make_absolute_format_config :: Config -> Text -> Degrees -> Format
+make_absolute_format_config config pattern degrees = Format
+    { fmt_show = show_pitch_absolute config degrees
+    , fmt_read = p_pitch config degrees
     , fmt_to_absolute = \_ -> Right . relative_to_absolute
     , fmt_pattern = octave_pattern <> pattern <> acc_pattern
     , fmt_pc_per_octave = Vector.length degrees
@@ -227,11 +275,7 @@ make_absolute_format_config (show_oct, parse_oct) acc_fmt pattern degrees =
 
 make_relative_format :: Show key => Text -> Degrees -> RelativeFormat key
     -> Format
-make_relative_format = make_relative_format_config default_octave_format
-
-make_relative_format_config :: Show key => OctaveFormat -> Text -> Degrees
-    -> RelativeFormat key -> Format
-make_relative_format_config (show_oct, parse_oct) pattern degrees fmt = Format
+make_relative_format pattern degrees rel_fmt = Format
     { fmt_show = p_show
     , fmt_read = p_read
     , fmt_to_absolute = p_absolute
@@ -240,12 +284,13 @@ make_relative_format_config (show_oct, parse_oct) pattern degrees fmt = Format
     , fmt_relative = True
     }
     where
-    RelativeFormat acc_fmt parse_key default_key show_degree to_abs = fmt
-    p_show key = show_degree (either (const default_key) id (parse_key key))
-        show_oct degrees acc_fmt
-    p_read = p_pitch parse_oct degrees acc_fmt
+    RelativeFormat config key_config show_degree to_abs = rel_fmt
+    p_show key = show_degree
+        (either (const (key_default key_config)) id (key_parse key_config key))
+        (config_show_octave config) degrees (config_accidental config)
+    p_read = p_pitch config degrees
     p_absolute maybe_key pitch = do
-        key <- parse_key maybe_key
+        key <- key_parse key_config maybe_key
         return $ to_abs key degrees pitch
 
 acc_pattern :: Text
@@ -256,15 +301,15 @@ octave_pattern = "[-1-9]"
 
 -- *** absolute
 
-show_pitch_absolute :: ShowOctave -> Degrees -> AccidentalFormat -> ShowPitch
-show_pitch_absolute show_octave degrees acc_fmt _key pitch =
+show_pitch_absolute :: Config -> Degrees -> ShowPitch
+show_pitch_absolute config degrees _key pitch =
     Pitch.Note $ case pitch of
         Left (Pitch.Degree pc acc) ->
             degrees ! (pc `mod` Vector.length degrees)
-                <> show_accidentals acc_fmt acc
+                <> show_accidentals (config_accidental config) acc
         Right (Pitch.Pitch oct (Pitch.Degree pc_ acc)) ->
-            show_octave (oct + pc_oct) $
-                degrees ! pc <> show_accidentals acc_fmt acc
+            config_show_octave config (oct + pc_oct) $
+                degrees ! pc <> show_accidentals (config_accidental config) acc
             where (pc_oct, pc) = pc_ `divMod` Vector.length degrees
 
 -- *** relative
@@ -321,41 +366,27 @@ diatonic_to_absolute tonic degrees (RelativePitch octave pc maybe_acc) =
 -- does, in that accidentals implicit in the key signature are omitted, and
 -- a natural that differs from the key signature is emitted.
 -- TODO tons of args, can I package some up?
-show_pitch_keyed_absolute :: ShowOctave -> Degrees -> AccidentalFormat
-    -> ParseKey Theory.Key -> Theory.Key -> ShowPitch
-show_pitch_keyed_absolute show_octave degrees acc_fmt parse_key default_key
-        maybe_key degree_pitch =
-    -- Debug.trace_retp "show" (degree_pitch, maybe_key) $ Pitch.Note $ case degree_pitch of
+show_pitch_keyed_absolute :: Config -> KeyConfig Theory.Key -> Degrees
+    -> ShowPitch
+show_pitch_keyed_absolute config key_config degrees maybe_key degree_pitch =
     Pitch.Note $ case degree_pitch of
         Left _ -> pitch
         Right (Pitch.Pitch oct _) -> show_octave (oct + pc_oct) pitch
     where
     Pitch.Degree pc_ acc = either id Pitch.pitch_degree degree_pitch
     (pc_oct, pc) = pc_ `divMod` Vector.length degrees
-    key = either (const default_key) id (parse_key maybe_key)
+    key = either (const (key_default key_config)) id
+        (key_parse key_config maybe_key)
     pitch = degrees ! pc <> acc_text
-    acc_text = show_accidentals_keyed acc_fmt (Theory.accidentals_at_pc key pc)
-        acc
+    acc_text = show_accidentals_keyed (config_accidental config)
+        (Theory.accidentals_at_pc key pc) acc
 
 -- * parse
 
--- | This is a just-parsed pitch.  It hasn't yet been adjusted according to the
--- key, so it's not yet an absolute 'Pitch.Pitch'.  It also represents
--- a natural explicitly.
---
--- 'fmt_to_absolute' is responsible for converting this to a 'Pitch.Pitch',
--- likely via 'rel_to_absolute'.
-data RelativePitch =
-    RelativePitch !Pitch.Octave !Pitch.PitchClass !(Maybe Pitch.Accidentals)
-    deriving (Show)
-
-relative_to_absolute :: RelativePitch -> Pitch.Pitch
-relative_to_absolute (RelativePitch oct pc acc) =
-    Pitch.Pitch oct (Pitch.Degree pc (fromMaybe 0 acc))
-
-p_pitch :: ParseOctave -> Degrees -> AccidentalFormat -> A.Parser RelativePitch
-p_pitch parse_octave degrees acc_fmt =
-    parse_octave ((,) <$> p_degree <*> p_accidentals acc_fmt)
+p_pitch :: Config -> Degrees -> A.Parser RelativePitch
+p_pitch config degrees =
+    config_parse_octave config
+        ((,) <$> p_degree <*> p_accidentals (config_accidental config))
     where
     p_degree = A.choice
         [ A.string text >> return i
@@ -364,18 +395,7 @@ p_pitch parse_octave degrees acc_fmt =
 
 -- ** octave
 
--- | Configure how the octave portion of the 'Pitch.Pitch' is shown.
-type OctaveFormat = (ShowOctave, ParseOctave)
-type ShowOctave = Pitch.Octave -> Text -> Text
--- | This can't just be A.Parser Pitch.Octave because I don't know where the
--- octave is in the pitch text.
-type ParseOctave = A.Parser (Pitch.PitchClass, Maybe Pitch.Accidentals)
-    -> A.Parser RelativePitch
-
--- Most scales display the octave as a leading number.
-default_octave_format :: OctaveFormat
-default_octave_format = (show_octave, parse_octave)
-
+-- | Most scales display the octave as a leading number.
 show_octave :: ShowOctave
 show_octave oct = (showt oct <>)
 

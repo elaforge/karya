@@ -88,25 +88,33 @@ ioeua_relative :: Bool -> Theory.Key -> ChromaticScales.Keys
     -> TheoryFormat.Format
 ioeua_relative chromatic default_key keys =
     TheoryFormat.make_relative_format
-        ("[1-9][ioeua]" <> if chromatic then "#?" else "")
-        ioeua (ChromaticScales.relative_fmt default_key keys)
+        ("[1-9][ioeua]" <> if chromatic then "#?" else "") ioeua fmt
+    where
+    fmt = ChromaticScales.relative_fmt default_key keys
 
 ioeua_relative_arrow :: Pitch.Octave -> Bool -> Theory.Key
     -> ChromaticScales.Keys -> TheoryFormat.Format
 ioeua_relative_arrow center chromatic default_key keys =
-    TheoryFormat.make_relative_format_config (arrow_octaves center)
-        ("[ioeua]" <> (if chromatic then "#?" else "") <> "[_^-]")
-        ioeua (ChromaticScales.relative_fmt default_key keys)
+    TheoryFormat.make_relative_format
+        ("[ioeua]" <> (if chromatic then "#?" else "") <> "[_^-]") ioeua fmt
+    where
+    fmt = with_octaves (arrow_octaves center) $
+        ChromaticScales.relative_fmt default_key keys
 
 ioeua_absolute :: TheoryFormat.Format
 ioeua_absolute = TheoryFormat.make_absolute_format "[1-9][ioeua]" ioeua
 
 ioeua_absolute_arrow :: Pitch.Octave -> TheoryFormat.Format
 ioeua_absolute_arrow center = TheoryFormat.make_absolute_format_config
-    (arrow_octaves center) TheoryFormat.ascii_accidentals "[ioeua][_^-]" ioeua
+    (arrow_octaves center TheoryFormat.default_config) "[ioeua][_^-]" ioeua
 
-arrow_octaves :: Pitch.Octave -> TheoryFormat.OctaveFormat
-arrow_octaves center = (show_octave, parse_octave)
+with_octaves :: (TheoryFormat.Config -> TheoryFormat.Config)
+    -> TheoryFormat.RelativeFormat key -> TheoryFormat.RelativeFormat key
+with_octaves f config = config
+    { TheoryFormat.rel_config = f (TheoryFormat.rel_config config) }
+
+arrow_octaves :: Pitch.Octave -> TheoryFormat.Config -> TheoryFormat.Config
+arrow_octaves center = TheoryFormat.set_octave show_octave parse_octave
     where
     show_octave oct
         | oct > center = (<> Text.replicate (oct-center) "^")
@@ -123,15 +131,16 @@ arrow_octaves center = (show_octave, parse_octave)
 cipher_relative_dotted :: Pitch.Octave -> Theory.Key -> ChromaticScales.Keys
     -> TheoryFormat.Format
 cipher_relative_dotted center default_key keys =
-    TheoryFormat.make_relative_format_config (dotted_octaves center)
-        "[12356]|`[12356][.^]*`" cipher5
-        (ChromaticScales.relative_fmt default_key keys)
+    TheoryFormat.make_relative_format "[12356]|`[12356][.^]*`" cipher5 fmt
+    where
+    fmt = with_octaves (dotted_octaves center) $
+        ChromaticScales.relative_fmt default_key keys
 
 cipher5 :: TheoryFormat.Degrees
 cipher5 = TheoryFormat.make_degrees ["1", "2", "3", "5", "6"]
 
-dotted_octaves :: Pitch.Octave -> TheoryFormat.OctaveFormat
-dotted_octaves center = (show_octave, parse_octave)
+dotted_octaves :: Pitch.Octave -> TheoryFormat.Config -> TheoryFormat.Config
+dotted_octaves center = TheoryFormat.set_octave show_octave parse_octave
     where
     show_octave oct d
         | oct == center = d

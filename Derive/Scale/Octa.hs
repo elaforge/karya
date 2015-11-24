@@ -36,15 +36,17 @@ absolute_fmt = TheoryFormat.make_absolute_format
 
 relative_fmt :: ChromaticScales.Keys -> TheoryFormat.Format
 relative_fmt keys = make $ TheoryFormat.RelativeFormat
-    { rel_acc_fmt = TheoryFormat.ascii_accidentals
-    , rel_parse_key = parse_key
-    , rel_default_key = default_tkey
+    { rel_config = TheoryFormat.default_config
+    , rel_key_config = TheoryFormat.KeyConfig
+        { key_parse = parse_key
+        , key_default = default_theory_key
+        }
     , rel_show_degree = TheoryFormat.show_degree_chromatic
     , rel_to_absolute = TheoryFormat.chromatic_to_absolute
     }
     where
-    parse_key = Scales.get_key default_tkey keys
-    Just default_tkey = Map.lookup default_key keys
+    parse_key = Scales.get_key default_theory_key keys
+    Just default_theory_key = Map.lookup default_key keys
     make = TheoryFormat.make_relative_format (TheoryFormat.make_pattern degrees)
         degrees
     degrees = TheoryFormat.make_degrees
@@ -55,8 +57,8 @@ make_scale :: Pitch.ScaleId -> Theory.Layout -> ChromaticScales.Keys
 make_scale scale_id layout keys fmt = Scales.set_direct_input_to_nn $
     ChromaticScales.make_scale scale_id scale_map doc
     where
-    scale_map = ChromaticScales.scale_map layout fmt keys default_tkey
-    Just default_tkey = Map.lookup default_key keys
+    scale_map = ChromaticScales.scale_map layout fmt keys default_theory_key
+    Just default_theory_key = Map.lookup default_key keys
     doc = "Octatonic scales as true 8 note scales, using notes from a-h.\
         \ There are two variants: octa21 starts with a whole step, while\
         \ octa12 starts with a half-step."
