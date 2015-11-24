@@ -11,7 +11,6 @@ import Util.Format ((</>), (<//>), (<+>), withIndent)
 import qualified Util.Pretty as Pretty
 import Util.Test
 
-import qualified Derive.Score as Score
 import Global
 
 

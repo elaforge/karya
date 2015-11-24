@@ -33,7 +33,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Signal as Signal
 import qualified Instrument.Tag as Tag
 import qualified Local.Instrument.VslInst as VslInst
 import Global
