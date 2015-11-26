@@ -1208,13 +1208,14 @@ blocks_with_track_id track_id =
 
 -- ** events
 
--- There are two interpretations of a range: the strict one is that when
--- start==end nothing can be selected.  A more relaxed one is that start==end
--- will still select an event at start.  The relaxed one is often convenient
--- for commands, so there are typically three variants of each ranged command:
--- select events in the strict half-open range (functions end with _range),
--- select an event at a certain point (functions use the singular), and select
--- events in the relaxed half-open range (functions use the plural).
+{- There are two interpretations of a range: the strict one is that when
+    start==end nothing can be selected.  A more relaxed one is that start==end
+    will still select an event at start.  The relaxed one is often convenient
+    for commands, so there are typically three variants of each ranged command:
+    select events in the strict half-open range (functions end with _range),
+    select an event at a certain point (functions use the singular), and select
+    events in the relaxed half-open range (functions use the plural).
+-}
 
 -- | Insert events into track_id as per 'Events.insert'.
 insert_events :: M m => TrackId -> [Event.Event] -> m ()
@@ -1226,13 +1227,22 @@ insert_events track_id events_ = _modify_events track_id $ \old_events ->
         | Event.end event < 0 = Event.set_duration (- Event.start event) event
         | otherwise = event
 
--- | Like 'insert_events', but clip the events to the end of a block.
---
--- This is necessarily block specific, because block duration is defined by its
--- ruler.  Still, you should use this in preference to 'insert_events'.
+{- | Like 'insert_events', but clip the events to the end of a block.
+
+    This is necessarily block specific, because block duration is defined by its
+    ruler.  Still, you should use this in preference to 'insert_events'.
+
+    This uses 'block_end', which means that if events don't go past the end of
+    the ruler, they won't.  If they are already past (e.g. there is no ruler),
+    then they will only be clipped if they move to later in time.  This might
+    be confusing, but it seems generally convenient to not have to constantly
+    manually trim events when they get moved past the end of the ruler, but
+    definitely inconvenient for events to just disappear when there is no
+    ruler.
+-}
 insert_block_events :: M m => BlockId -> TrackId -> [Event.Event] -> m ()
 insert_block_events block_id track_id events = do
-    end <- block_ruler_end block_id
+    end <- block_end block_id
     insert_events track_id (Events.clip end events)
 
 insert_event :: M m => TrackId -> Event.Event -> m ()

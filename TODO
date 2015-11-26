@@ -3,6 +3,21 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - I wind up with a sequence of note transformers, e.g. a rhythmic pattern
+    with '('.  Can I abstract that?
+    . It would be like textual substitution of a block into a parent track,
+      possibly with loop or tile.  Can I do it with a plain call?  I think I
+      can, though I'd have to slice after the substitution.  Also, I think it
+      would have to name a block call, a renamed one wouldn't work.
+      . If that continues to be a problem, maybe I could have c_equal
+        understand renames specially.
+  * State.insert_block_events clips to the end of the ruler, which makes
+      working with a ruler-less block always delete events.
+    . I added it because I wanted move events to clip events at the end of the
+      ruler: 'make insert and delete time clip events to the block'
+    . I think this was a problem because it was inconvenient to select events
+      past the end of the ruler and delete them.  So maybe a better solution
+      would be select to end of track to be to the last event?
   HsPretty:
     problems:
       . Missing close paren after wrapped constructors.
@@ -400,8 +415,6 @@ MILESTONES
     / efficient thru
     * tracklang complete with set of basic calls
     * better REPL situation
-    / midi record
-    / dense / efficient control signals
     * derive cache
     * symbolic score
     + save undo history / incremental save - more extensive testing
@@ -411,6 +424,8 @@ MILESTONES
     * lilypond backend: good enough to render viola-sonata
     * documentation
   1.0
+    - midi record
+    - dense / efficient control signals
     - stable api
     - solution for local data / code
   future
@@ -535,7 +550,7 @@ lilypond:
   - If I can figure out the meter from just the name, then I can get rid
     of the awkward map with hardcoded meters.
     I could have parse generate the Meter and memoize it.
-  - optionally emit the lilypond to display a compound meter
+  - optionally emit the lilypond to display a compound meter, e.g. 3+2/8
   / use Util.Format in ly output
   jianpu
     . Research jianpu conventions, but basically:
@@ -612,6 +627,7 @@ external
   - problem with pianoteq: if the same note occurs on two channels, one
     will be dropped.  Report to pianoteq.  I could work around, but it won't
     occur with real multitimbral instruments anyway.
+    . Could also work around this with realtime midi tuning
   + send a patch to improve Random.Shuffle?
   / patch for hsc2hs for #alignment
     Just doing alignment manually now.
@@ -964,7 +980,7 @@ fltk:
 
 logview:
   - use Fl_Help_View and HTML to display text
-  - Adding new log msgs causes the status bar to shrink back to one line, even
+  / Adding new log msgs causes the status bar to shrink back to one line, even
     though it should be wrapped to two.
   + Logview got some kind of file locked error, presumably trying to track
     a rotated log.
@@ -982,12 +998,6 @@ logview:
 
 Ui:
   Track
-    more compact implemnetation than Data.Map?  profile first!
-      . priorities: memory efficiency, persistent, merge speed (insert many)
-        shallow tree of dense chunks?
-        can I take advantage of non-overlap?  [(pos0, data), (pos1, end), ...]
-        data Event = Event String StyleId | End | ControlVal Double
-      . I think memory efficiency is more important than modification speed
     dense sampled signals
       . efficient storage, preferably as a Signal so no conversion is necessary
       . display dense signals: omit text and trigger lines when zoomed out
@@ -1031,10 +1041,11 @@ test:
     . Also all of those functions that have a 'caller' arg can use implicit
       params.
   criterion
-    - it seems unreasonably fast, why is it so much faster than in seq?
+    / it seems unreasonably fast, why is it so much faster than in seq?
       . 5us for 128 events, plus no_invert is slower than invert?
       . And shouldn't perform for invert and no_invert be the same?
       . Maybe I should force the track signals too?
+      . 'seq' was being slowed down by startup overhead.
     - score from a file
     - parsing
   complete quickcheck derive testing
@@ -1544,9 +1555,8 @@ pitch: scales: scale:
       . I would have to make Scales.note_to_call handle it, but then I'd need
         a version that doesn't for WendyCarlos.
       . Not sure if the complexity is worth it, wait until I need it.
-    - overtone series
+    * overtone series
     - add ratio transpose signal, that multiplies hz
-    - meantone
     support scales that are different ascending vs. descending
       . Scales have two versions of each degree.
       . scale_input_to_note takes a previous Note arg, which it can use to
