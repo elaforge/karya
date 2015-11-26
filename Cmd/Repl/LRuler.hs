@@ -47,6 +47,15 @@
 
     - TODO make a middle measure 5/4?
 
+    - Set a block to 8 sections of 4 avartanams of adi talam:
+
+        > LRuler.local $ LRuler.ruler $ Tala.adi 8
+
+    - Change the selected tracks to tisram:
+
+        > LRuler.local $ LRuler.tracks $ LRuler.ruler $
+        >   Tala.simple Tala.adi_tala 3 8
+
     - Slow and fast rupaka, chatusra nadai:
 
         > LRuler.local $ LRuler.ruler $ Tala.simple Tala.rupaka_tala 4 4
@@ -196,6 +205,9 @@ ruler :: Cmd.M m => Ruler.Ruler -> m Modify
 ruler r = do
     (block_id, tracknum) <- get_block_track
     return $ make_modify block_id tracknum $ const (Right r)
+
+lruler :: Cmd.M m => Ruler.Ruler -> m [RulerId]
+lruler = local . ruler
 
 -- | Modify all rulers.
 modify_rulers :: Cmd.M m => (Ruler.Ruler -> Ruler.Ruler) -> m ()
