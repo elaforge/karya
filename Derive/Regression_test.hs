@@ -19,6 +19,8 @@ import Global
 
 -- | Perform the input score and save the midi msgs to the output file.
 -- This creates the -perf files.
+-- TODO nowadays I save the performance in the score itself, but this predates
+-- that.  I should update this to act the same as verify_performance.
 save_performance :: FilePath -> FilePath -> IO ()
 save_performance output input = do
     cmd_config <- DeriveSaved.load_cmd_config
