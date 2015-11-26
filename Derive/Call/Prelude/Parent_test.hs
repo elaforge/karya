@@ -49,9 +49,9 @@ test_tuplet = do
     -- longer than tuplet is shrunk
     equal (run [(">", [(0, 1, "t")]), (">", [(0, 2, "")])]) [(0, 1, "?")]
 
-    -- leading space is ignored (what should it mean?)
-    equal (run [(">", [(0, 4, "t")]), (">", [(2, 1, ""), (3, 1, "")])])
-        [(0, 2, "?"), (2, 2, "?")]
+    -- Leading space is a rest.
+    equal (run [(">", [(0, 8, "t")]), (">", [(2, 1, ""), (3, 1, "")])])
+        [(4, 2, "?"), (6, 2, "?")]
 
     -- All zero duration notes will infer a duration.
     equal (run $ (">", [(0, 4, "t")])
@@ -71,7 +71,7 @@ test_tuplet_multiple_tracks = do
             ]
     let i1 = Score.Instrument "i1"
         i2 = Score.Instrument "i2"
-    equal (run tracks) [(i1, 0, 6), (i2, 0, 12), (i1, 6, 6)]
+    equal (run tracks) [(i1, 0, 6), (i2, 0, 6), (i1, 6, 6)]
 
 test_tuplet_ly = do
     let run = LilypondTest.measures ["times", "acciaccatura"]

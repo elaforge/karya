@@ -63,33 +63,26 @@ c_tuplet = Derive.generator Module.prelude "tuplet" Tags.subs
     \ duration is common for percussion, so there's a hack to cover this case:\
     \ if there are >1 equidistant zero duration sub events, the distance\
     \ between them is considered their implicit duration.\
-    \\nIf there are multiple note tracks, they are stretched independently."
-    $ Sig.call0 $ \args -> lily_tuplet args $ mconcat <$>
-        (traverse (tuplet (Args.range args)) =<< Sub.sub_events args)
+    \\nIf there are multiple note tracks, they get the stretch of the longest\
+    \ one. This is so the timing will come out right if some of the notes are\
+    \ chords."
+    $ Sig.call0 $ \args -> lily_tuplet args $
+        tuplet (Args.range args) =<< Sub.sub_events args
 
-tuplet :: (ScoreTime, ScoreTime) -> [Sub.Event] -> Derive.NoteDeriver
-tuplet range events = case infer_duration of
-    Nothing -> Sub.fit_to_range range events
-    Just dur ->
-        fit_to_duration range (dur * fromIntegral (length events)) events
+tuplet :: (ScoreTime, ScoreTime) -> [[Sub.Event]] -> Derive.NoteDeriver
+tuplet range tracks = case Seq.maximum (mapMaybe end_of tracks) of
+    Nothing -> return mempty
+    Just end -> mconcat $ map (Sub.fit (fst range, end) range) tracks
     where
+    end_of events = infer_duration events
+        <|> Seq.maximum (map Sub.event_end events)
     -- If it has >1 note, and they are all zero dur, and notes are
     -- equidistant, assume the last one has the same dur.
-    infer_duration = case zipWith (-) (drop 1 starts) starts of
+    infer_duration events = case zipWith (-) (drop 1 starts) starts of
         d : ds | all ((==0) . Sub.event_duration) events && all (==d) ds ->
-            Just d
+            Just $ Sub.event_start (last events) + d
         _ -> Nothing
-    starts = map Sub.event_start events
-
-fit_to_duration :: (ScoreTime, ScoreTime) -> ScoreTime -> [Sub.Event]
-    -> Derive.NoteDeriver
-fit_to_duration (start, end) dur notes = Derive.place start factor $
-    Sub.derive [note { Sub.event_start = Sub.event_start note - note_start }
-        | note <- notes]
-    where
-    factor = (end - start) / (note_end - note_start)
-    note_start = fromMaybe 1 $ Seq.minimum (map Sub.event_start notes)
-    note_end = dur + note_start
+        where starts = map Sub.event_start events
 
 -- | 'c_tuplet' works by lengthening notes to fit in its range, but staff
 -- notation tuplets work by shortening notes.  So I double the duration

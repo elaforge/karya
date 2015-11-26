@@ -14,7 +14,7 @@ module Derive.Call.Sub (
     , place, stretch, at
     , sub_events, sub_events_end_bias
     , modify_notes
-    , derive, derive_pitch, fit_to_range, events_range
+    , derive, derive_pitch, fit
     -- ** RestEvent
     , RestEvent, sub_rest_events
     , fit_rests, strip_rests
@@ -310,12 +310,6 @@ derive_pitch event = do
     let note = Score.initial_note =<< Seq.head (Stream.events_of stream)
     return $ event { event_note = note }
 
--- | Fit the given events into a time range.  Any leading space (time between
--- the start of the range and the first Event) and trailing space is
--- eliminated.
-fit_to_range :: (ScoreTime, ScoreTime) -> [Event] -> Derive.NoteDeriver
-fit_to_range range events = fit (events_range events) range events
-
 -- | Re-fit the events from one range to another.
 fit :: (ScoreTime, ScoreTime) -- ^ fit this range
     -> (ScoreTime, ScoreTime) -- ^ into this range
@@ -326,12 +320,6 @@ fit (from_start, from_end) (to_start, to_end) events =
     -- Subtract from_start because Derive.place is going to add the start back
     -- on again in the form of to_start.
     where factor = (to_end - to_start) / (from_end - from_start)
-
-events_range :: [GenericEvent a] -> (ScoreTime, ScoreTime)
-events_range events = (start, end)
-    where
-    start = fromMaybe 0 $ Seq.minimum $ map event_start events
-    end = fromMaybe 1 $ Seq.maximum $ map event_end events
 
 -- ** RestEvent
 
