@@ -34,16 +34,14 @@ get = fmap Track.track_events . State.get_track
 
 stretch :: ScoreTime -> Cmd.CmdL ()
 stretch n = do
-    selected <- Selection.events
-    let maybe_start = Seq.minimum $
-            mapMaybe (\(_, _, events) -> Event.start <$> Seq.head events)
-                selected
-    whenJust maybe_start $ \start ->
-        ModifyEvents.selection $ ModifyEvents.event $ stretch_event start n
+    (start, _) <- Selection.range
+    ModifyEvents.selection $ ModifyEvents.event $ stretch_event start n
 
 stretch_event :: ScoreTime -> ScoreTime -> Event.Event -> Event.Event
-stretch_event start n =
-    Event.move (\p -> (p - start) * n + start) . Event.modify_duration (*n)
+stretch_event start n event
+    | Event.start event < start = event
+    | otherwise = Event.move (\p -> (p - start) * n + start) $
+        Event.modify_duration (*n) event
 
 -- | Stretch events to fit in the given duration.
 stretch_to :: TrackTime -> Cmd.CmdL ()
