@@ -177,3 +177,12 @@ test_interpolate_events = do
     -- x-x-x-x
     equal (f 0.5 (take 4 events)) $ Just (1.5, 2.5, 'b')
     equal (f 2 (take 4 events)) $ Just (3, 4, 'd')
+
+test_cycle = do
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+    equal (run
+            [ (">", [(1, 4, "cycle +a +b")])
+            , (">", [(1, 1, ""), (2, 1, ""), (3, 1, ""), (4, 1, "")])
+            ])
+        ([(1, "+a"), (2, "+b"), (3, "+a"), (4, "+b")], [])

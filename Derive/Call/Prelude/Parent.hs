@@ -7,6 +7,7 @@
 -- via 'Sub.sub_events'.
 module Derive.Call.Prelude.Parent where
 import qualified Control.Monad.Error as Error
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -15,12 +16,14 @@ import qualified Util.Seq as Seq
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
+import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
@@ -43,6 +46,7 @@ note_calls = Derive.generator_call_map
     , ("`arp-down`", c_real_arpeggio ToLeft)
     , ("`arp-rnd`", c_real_arpeggio Random)
     , ("interpolate", c_interpolate)
+    , ("cycle", c_cycle)
     ]
 
 
@@ -259,3 +263,20 @@ interpolate_events at events = case drop i events of
 all_equal :: Eq a => [a] -> Bool
 all_equal [] = True
 all_equal (x:xs) = all (==x) xs
+
+-- * cycle
+
+c_cycle :: Derive.Generator Derive.Note
+c_cycle = Derive.generator Module.prelude "cycle" Tags.subs
+    "Apply transformers in a cycle to the sub events."
+    $ Sig.call (
+        Sig.many1 "transformer" "Transformers to apply."
+    ) $ \transformers args -> do
+        tracks <- Sub.sub_events args
+        mconcatMap (cycle_call (Args.context args) transformers) tracks
+
+cycle_call :: Derive.Context Score.Event -> NonEmpty BaseTypes.Quoted
+    -> [Sub.Event] -> Derive.NoteDeriver
+cycle_call ctx transformers events =
+    Sub.derive $ zipWith apply (cycle (NonEmpty.toList transformers)) events
+    where apply quoted = fmap $ Eval.eval_quoted_transformers ctx quoted

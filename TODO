@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - I wind up with a sequence of note transformers, e.g. a rhythmic pattern
+  . I wind up with a sequence of note transformers, e.g. a rhythmic pattern
     with '('.  Can I abstract that?
     . It would be like textual substitution of a block into a parent track,
       possibly with loop or tile.  Can I do it with a plain call?  I think I
@@ -11,6 +11,14 @@ UNSORTED
       would have to name a block call, a renamed one wouldn't work.
       . If that continues to be a problem, maybe I could have c_equal
         understand renames specially.
+    * I could have a 'cycle' parent, which takes n transformers and cycles
+      them over its children.
+    - A time-based variant would have to somehow get transformer + duration.
+      I could do it with two layers of transformers, but awkwardly.
+      . Would have to look directly at subs without slicing to get text and
+        durations, then delete the direct sub and do slicing.  Maybe easier to
+        name a block?
+      . The other option is to give up on the graphical version
   * State.insert_block_events clips to the end of the ruler, which makes
       working with a ruler-less block always delete events.
     . I added it because I wanted move events to clip events at the end of the
@@ -18,21 +26,23 @@ UNSORTED
     . I think this was a problem because it was inconvenient to select events
       past the end of the ruler and delete them.  So maybe a better solution
       would be select to end of track to be to the last event?
-  HsPretty:
-    problems:
-      . Missing close paren after wrapped constructors.
-      . If I add an indent after each constructor then I get tons of indents.
-        What I really want is a way to collapse multiple constructor calls
-        with a single argument.
-      . For some reason it's not wrapping tuples properly, they become
-          (a, B
-            c
-          )
-        instead of
-          ( a
-          , B c
-          )
-  - move format related modules to Util.Format.*
+  Format:
+    HsPretty:
+      problems:
+        . Missing close paren after wrapped constructors.
+        . If I add an indent after each constructor then I get tons of indents.
+          What I really want is a way to collapse multiple constructor calls
+          with a single argument.
+        . For some reason it's not wrapping tuples properly, they become
+            (a, B
+              c
+            )
+          instead of
+            ( a
+            , B c
+            )
+    - Util.Pretty still broken: pprint Vsl.violin_harmonics
+    - move format related modules to Util.Format.*
   * support Controls.octave, then I can use it at Vsl.harmonic
   * See if the vsl arp patches are all divided by key, then I can update them
     all at once.
