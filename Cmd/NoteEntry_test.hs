@@ -32,8 +32,6 @@ test_key_to_input = do
     equal (f 0 True (k ';')) (Just [kbd_note_on 12 0 0 0])
 
     equal (f 4 False (k '\'')) (Just [kbd_note_off 72])
-    -- This is one of the few flat notes on the ascii kbd.
-    equal (f 4 True (k 'a')) (Just [kbd_note_on 59 4 0 (-1)])
     equal (f 4 True (k '[')) Nothing
     equal (f 4 True Key.Backspace) Nothing
 

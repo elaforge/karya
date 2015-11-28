@@ -141,9 +141,10 @@ kbd_map = Map.fromList $ concat
     [ [('1', Pitch.Pitch 1 (Pitch.Degree 0 (-1)))]
     , keys 1 "234567890" 1
     , keys 1 "qwertyuiop" 0
-    , [('a', Pitch.Pitch 0 (Pitch.Degree 0 (-1)))]
-    , keys 0 "sdfghjkl;'" 1
-    , keys 0 "zxcvbnm,./" 0
+    -- 'a' is also the append cmd.
+    -- This omits symbol characters so they can retain their edit bindings.
+    , keys 0 "sdfghjkl;" 1
+    , keys 0 "zxcvbnm,." 0
     ]
     where
     keys oct letters accs =

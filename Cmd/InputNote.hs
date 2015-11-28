@@ -238,6 +238,7 @@ control_cc = Control.universal_control_map
 
 -- * from ascii
 
+-- | Create an Input from an ascii keyboard Pitch.
 from_ascii :: Bool -> Pitch.Pitch -> Input
 from_ascii down pitch
     | down = NoteOn note_id (Pitch.Input Pitch.AsciiKbd pitch 0)
