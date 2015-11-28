@@ -158,24 +158,26 @@ grace_intervals = Map.fromList $
 -- play this pitch as a natural harmonic.  That means replacing the pitch and
 -- reapplying the default note call.
 harmonic :: Note.Config -> HarmonicMap -> Note.GenerateNote
-harmonic config (strings, hmap) args = do
+harmonic config hmap args = do
     attrs <- Call.get_attrs
+    let has = Score.attrs_contain attrs
     with_pitch <- if
-        | Score.attrs_contain attrs (Attrs.harm <> VslInst.nat) ->
-            natural_harmonic $ List.find (Score.attrs_contain attrs) strings
+        | has (Attrs.harm <> VslInst.nat) ->
+            natural_harmonic (has Attrs.gliss) $
+                List.find (Score.attrs_contain attrs) (hmap_strings hmap)
         -- VSL has its artificial harmonics pitched one octave too high.
-        | Score.attrs_contain attrs Attrs.harm -> return $
+        | has Attrs.harm -> return $
             Derive.with_added_value Controls.octave (-1)
         | otherwise -> return id
     with_pitch $ Note.default_note config args
     where
-    natural_harmonic maybe_string = do
+    natural_harmonic gliss maybe_string = do
         nn <- Derive.require "note pitch"
             =<< Derive.nn_at =<< Args.real_start args
         let pitch = Midi.to_key (round nn)
-        case find_harmonic hmap pitch maybe_string of
+        case find_harmonic hmap gliss pitch maybe_string of
             Nothing -> Derive.throw $ pretty pitch <> " unplayable on "
-                <> maybe (pretty strings) pretty maybe_string
+                <> maybe (pretty (hmap_strings hmap)) pretty maybe_string
             Just key -> return $
                 Call.with_pitch (PSignal.nn_pitch (Midi.from_key key))
 
@@ -284,20 +286,36 @@ expand_ab attrs
 
 -- * natural harmonics
 
-type HarmonicMap = ([OpenString], Map.Map Midi.Key [(OpenString, Midi.Key)])
+data HarmonicMap = HarmonicMap {
+    hmap_strings :: [OpenString]
+    -- | Map sounding pitch to possible strings and the key to play to get that
+    -- pitch on that string.
+    , hmap_key_to_natural :: Map.Map Midi.Key [(OpenString, Midi.Key)]
+    -- | Same as 'hmap_key_to_natural' except map from the gliss destination.
+    , hmap_key_to_gliss_destination :: Map.Map Midi.Key [(OpenString, Midi.Key)]
+    } deriving (Show)
 type OpenString = Score.Attributes
 
-find_harmonic :: Map.Map Midi.Key [(OpenString, Midi.Key)] -> Midi.Key
-    -> Maybe OpenString -> Maybe Midi.Key
-find_harmonic hmap pitch maybe_str =
-    maybe (fmap snd . Seq.head) lookup maybe_str =<< Map.lookup pitch hmap
+find_harmonic :: HarmonicMap -> Bool -> Midi.Key -> Maybe OpenString
+    -> Maybe Midi.Key
+find_harmonic hmap gliss pitch maybe_str =
+    maybe (fmap snd . Seq.head) lookup maybe_str =<< Map.lookup pitch m
+    where
+    m = (if gliss then hmap_key_to_gliss_destination else hmap_key_to_natural)
+        hmap
 
 harmonic_map :: [(OpenString, Midi.Key)] -> HarmonicMap
-harmonic_map strings = (map fst strings ,) $ Map.multimap $ do
-    (oct, (str, base)) <- zip [0..] strings
-    (key, interval) <- natural_harmonics
-    return (add base interval, (str, add key (oct * 12)))
-    where add key n = Midi.to_key (Midi.from_key key + n)
+harmonic_map strings = HarmonicMap
+    { hmap_strings = map fst strings
+    , hmap_key_to_natural = make natural_harmonics
+    , hmap_key_to_gliss_destination = make gliss_natural_harmonics
+    }
+    where
+    make key_to_interval = Map.multimap $ do
+        (oct, (str, base)) <- zip [0..] strings
+        (key, interval) <- key_to_interval
+        return (add base interval, (str, add key (oct * 12)))
+        where add key n = Midi.to_key (Midi.from_key key + n)
 
 violin_harmonics, viola_harmonics, cello_harmonics, bass_harmonics
     :: HarmonicMap
@@ -318,6 +336,18 @@ natural_harmonics = absolute
     , (Key.f3, 5)
     , (Key.g3, 4)
     , (Key.gs3, 3)
+    , (Key.a3, 3)
+    , (Key.as3, 2)
+    ]
+    where absolute = uncurry zip . second (drop 1 . scanl (+) 0) . unzip
+
+gliss_natural_harmonics :: [(Midi.Key, Int)]
+gliss_natural_harmonics = absolute
+    [ (Key.c3, 12)
+    , (Key.d3, 7)
+    , (Key.e3, 5)
+    , (Key.f3, 4)
+    , (Key.g3, 3)
     , (Key.a3, 3)
     , (Key.as3, 2)
     ]
