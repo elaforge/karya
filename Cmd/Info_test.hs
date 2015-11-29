@@ -11,14 +11,19 @@ import qualified Cmd.Info as Info
 
 
 test_block_tracks = do
-    let f tracks = UiTest.eval
-            (snd (UiTest.run_mkblock [(t, []) | t <- tracks]))
-            (Info.block_tracks UiTest.default_block_id)
-        track title num = State.TrackInfo title (UiTest.mk_tid num) num
+    let f skel tracks = UiTest.eval State.empty $ do
+            let ts = [(t, []) | t <- tracks]
+            UiTest.mkblocks_skel [((UiTest.default_block_name, ts), skel)]
+            Info.block_tracks UiTest.default_block_id
+    let track title num = State.TrackInfo title (UiTest.mk_tid num) num
             (UiTest.btrack (UiTest.mk_tid num))
-    equal (f [">", "*"])
-        [ Info.Track (track ">" 1) (Info.Note [track "*" 2])
+    equal (f [(1, 2)] [">", "*"])
+        [ Info.Track (track ">" 1) (Info.Note [track "*" 2] [])
         , Info.Track (track "*" 2) (Info.Pitch (Just (track ">" 1)))
+        ]
+    equal (f [(1, 2)] [">1", ">2"])
+        [ Info.Track (track ">1" 1) (Info.Note [] [track ">2" 2])
+        , Info.Track (track ">2" 2) (Info.Note [] [])
         ]
 
 test_track_status = do
@@ -29,12 +34,9 @@ test_track_status = do
                 (UiTest.midi_config [("i", [0..3])]) $
                 snd $ UiTest.run_mkview [(t, []) | t <- tracks]
     equal (f [">", "*"] 0) Nothing
-    equal (f [">", "*"] 1) $
-        Just "> at 1: [] -- [* {collapse 2}]"
-    equal (f [">", "*"] 2) $
-        Just "> at 1: [] -- [* {collapse 2}]"
-    equal (f ["*", ">"] 2) $
-        Just "> at 2: [] -- [* {collapse 1}]"
+    equal (f [">", "*"] 1) $ Just "> at 1: [] -- [* {collapse 2}]"
+    equal (f [">", "*"] 2) $ Just "> at 1: [] -- [* {collapse 2}]"
+    equal (f ["*", ">"] 2) $ Just "> at 2: [] -- [* {collapse 1}]"
     equal (f [">", "*"] 3) Nothing
     equal (f [">i", "vel", "ped"] 2) $
         Just ">i at 1: test [0..3] -- [vel {collapse 2}, ped {collapse 3}]"

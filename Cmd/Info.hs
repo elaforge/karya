@@ -43,11 +43,12 @@ data Track = Track {
     } deriving (Show, Eq)
 
 data TrackType =
-    -- | A note track has a list of control tracks.  The list starts with the
-    -- children and continues with its parents.  However, it stops at another
-    -- note track or as soon as a parent has more than one child, because
-    -- that control track doesn't belong to just this note track.
-    Note [State.TrackInfo]
+    -- | A note track has a list of control tracks, and a list of child note
+    -- tracks.  The controls start with the children and continues with its
+    -- parents.  However, it stops at another note track or as soon as a parent
+    -- has more than one child, because that control track doesn't belong to
+    -- just this note track.
+    Note [State.TrackInfo] [State.TrackInfo]
     -- | The note track for this pitch track.
     | Pitch (Maybe State.TrackInfo)
     -- | Tracks this control track has scope over.  This means all its
@@ -78,9 +79,10 @@ make_track (tree, parents) =
 
 track_type_of :: (Tree.Tree State.TrackInfo, TrackTree.TrackTree) -> TrackType
 track_type_of (Tree.Node track subs, parents)
-    | ParseTitle.is_note_track title = Note $ takeWhile is_control children
-        ++ takeWhile is_control (map Tree.rootLabel
-            (takeWhile is_single parents))
+    | ParseTitle.is_note_track title = Note
+        (takeWhile is_control children ++ takeWhile is_control
+            (map Tree.rootLabel (takeWhile is_single parents)))
+        (filter is_note children)
     | ParseTitle.is_pitch_track title =
         Pitch $ List.find is_note (children ++ map Tree.rootLabel parents)
     | otherwise = Control $ children
@@ -104,7 +106,7 @@ pitch_of_note :: State.M m => BlockId -> TrackNum -> m (Maybe State.TrackInfo)
 pitch_of_note block_id tracknum = do
     maybe_track <- lookup_track_type block_id tracknum
     return $ case maybe_track of
-        Just (Track _ (Note controls)) ->
+        Just (Track _ (Note controls _)) ->
             List.find (ParseTitle.is_pitch_track . State.track_title) controls
         _ -> Nothing
 

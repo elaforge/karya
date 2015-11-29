@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  UI awkwardness:
+    * Hitting note entry in a parent track makes a pitch track.  I can detect
+      those and not do that.
+    - Sometimes I want to move all tracks down by time.  Key to select all
+      tracks?
+    - Paste between blocks with different track layout is awkward.  Can I have
+      a note-oriented paste that reuses or creates the track structure?
   . I wind up with a sequence of note transformers, e.g. a rhythmic pattern
     with '('.  Can I abstract that?
     . It would be like textual substitution of a block into a parent track,
@@ -1295,15 +1302,6 @@ Derive:
         . Possibly a way around is to include ControlFunction in ControlRef...
           but why do I want so much to pass control functions?  Especially since
           I can already pass a concrete signal as a ControlSignal.
-    - if I add an Alternative instance to Sig.Parser I can write arg parsers
-      like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
-      else like Derive.Call.Val.num_or_pitch it would be worth trying out.
-      . E.g. Conditional.c_if_c takes: Symbol (Number, Quoted)* Quoted
-      . Implement empty as pure (), then (<|>) should try left and if it fails,
-        try right.  Doc is (x | y).  'some' and 'many' are like Sig.many1 and
-        Sig.many, except they have to backtrack.
-      . But derivation may evaluate expressions and check the type after that.
-        Do I really want to do that with backtracking?
     - if I had a boolean type, I could generalize calls in Conditional:
       . when-e key -> when (env key)
         when-e key val -> when (= (env key) val)
@@ -1324,6 +1322,25 @@ Derive:
       then I get no caching.  Instead I should cache the bottom note track, or
       perhaps every note track.  But that doesn't work because they're all
       sliced up.
+  Derive.Sig:
+    - Support pairs, e.g. a list of pairs of arguments.
+      . many_pairs :: (Typecheck a, Typecheck b) => Text -> Parser [(a, b)]
+      . Can I generalize to triplets etc. without a separate function for
+        each?  Also, could I reuse many / many1?
+      . Can I have a Typecheck instance for (,)?  No, becaues it comes from
+        a single Val.
+      . I would have to turn Sig into a real parser.
+    - Try writing a new Typecheck / Sig which is a real parser.  It can have
+      backtracking and nested parsers.
+    - if I add an Alternative instance to Sig.Parser I can write arg parsers
+      like 'Sig.many xs <|> Sig.many ys'.  I think.  If I wind up with something
+      else like Derive.Call.Val.num_or_pitch it would be worth trying out.
+      . E.g. Conditional.c_if_c takes: Symbol (Number, Quoted)* Quoted
+      . Implement empty as pure (), then (<|>) should try left and if it fails,
+        try right.  Doc is (x | y).  'some' and 'many' are like Sig.many1 and
+        Sig.many, except they have to backtrack.
+      . But derivation may evaluate expressions and check the type after that.
+        Do I really want to do that with backtracking?
   postproc
     performance details / humanization
       - irregularize runs based on fingering patterns, e.g. groups of 3

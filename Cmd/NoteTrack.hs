@@ -172,7 +172,8 @@ next_control_track block_id tracknum is_control = do
                 State.track_tracknum . Info.track_info <$> next)
     where
     -- Wow, monads can be awkward.
-    candidate inst associated right_of (Info.Track track (Info.Note controls)) =
+    candidate inst associated right_of
+            (Info.Track track (Info.Note controls _)) =
         andM
             [ return $ tracknum >= right_of
             , return $ maybe True (`notElem` associated) pitch_tracknum
@@ -197,7 +198,7 @@ this_control_track block_id tracknum is_control = do
 should_create_control :: Cmd.M m => BlockId -> Info.Track
     -> (Text -> Bool) -> m (ControlTrack, Bool)
 should_create_control block_id track is_control = case Info.track_type track of
-    Info.Note controls -> case find controls of
+    Info.Note controls _ -> case find controls of
         Nothing -> return (ControlTrack tracknum (tracknum+1), True)
         Just control ->
             return (ControlTrack tracknum (State.track_tracknum control), False)
