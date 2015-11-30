@@ -183,6 +183,15 @@ test_cycle = do
         extract e = (Score.event_start e, DeriveTest.e_attributes e)
     equal (run
             [ (">", [(1, 4, "cycle +a +b")])
-            , (">", [(1, 1, ""), (2, 1, ""), (3, 1, ""), (4, 1, "")])
+            , (">", [(t, 1, "") | t <- Seq.range 1 4 1])
             ])
         ([(1, "+a"), (2, "+b"), (3, "+a"), (4, "+b")], [])
+
+test_cycle_t = do
+    let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+    equal (run
+            [ (">", [(1, 6, "cycle-t +a 2 +b 1")])
+            , (">", [(t, 1, "") | t <- Seq.range 1 6 1])
+            ])
+        ([(1, "+a"), (2, "+a"), (3, "+b"), (4, "+a"), (5, "+a"), (6, "+b")], [])

@@ -20,7 +20,7 @@ UNSORTED
         understand renames specially.
     * I could have a 'cycle' parent, which takes n transformers and cycles
       them over its children.
-    - A time-based variant would have to somehow get transformer + duration.
+    * A time-based variant would have to somehow get transformer + duration.
       I could do it with two layers of transformers, but awkwardly.
       . Would have to look directly at subs without slicing to get text and
         durations, then delete the direct sub and do slicing.  Maybe easier to

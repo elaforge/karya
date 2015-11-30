@@ -24,6 +24,10 @@ data Type =
     -- | Text string, with enum values if it's an enum.
     | TSymbol (Maybe [Text]) | TControl | TPControl
     | TNotGiven | TSeparator | TMaybe Type | TEither Type Type | TVal
+    -- | Two types in sequence.  This has no corresponding Typecheck instance
+    -- since it doesn't correspond to a single Val, but is used by "Derive.Sig"
+    -- for documentation.
+    | TPair Type Type
     -- | A 'VQuoted'.  This has no Typecheck instance so it should never show
     -- up as a call argument.
     | TQuoted
@@ -69,6 +73,7 @@ types_match :: Type -> Type -> Bool
 types_match t1 t2 = case (t1, t2) of
     (TNum n1 v1, TNum n2 v2) -> num_types_match n1 n2 && num_vals_match v1 v2
     (TMaybe t1, TMaybe t2) -> types_match t1 t2
+    (TPair t1 t2, TPair u1 u2) -> types_match t1 u1 && types_match t2 u2
     (TEither t1 u1, TEither t2 u2) -> types_match t1 t2 && types_match u1 u2
     (TList t1, TList t2) -> types_match t1 t2
     (t1, t2) -> t1 == t2
@@ -96,6 +101,7 @@ subtypes_of n
 instance Pretty.Pretty Type where
     pretty (TMaybe typ) = "Maybe " <> pretty typ
     pretty (TEither a b) = pretty a <> " or " <> pretty b
+    pretty (TPair a b) = "(" <> pretty a <> ", " <> pretty b <> ")"
     pretty (TNum typ val) = append_parens "Num" $
         TextUtil.joinWith ", " (pretty typ) (pretty val)
     pretty (TSymbol enums) =

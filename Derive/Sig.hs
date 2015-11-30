@@ -88,7 +88,7 @@ module Derive.Sig (
     , parsed_manually, no_args
     , required, required_env, defaulted, defaulted_env, defaulted_env_quoted
     , environ, environ_quoted, required_environ
-    , optional, optional_env, many, many1
+    , optional, optional_env, many, many1, many_pairs, many1_pairs
     -- ** defaults
     , EnvironDefault(..)
     , control, typed_control, required_control, pitch
@@ -108,6 +108,7 @@ import qualified Derive.Eval as Eval
 import qualified Derive.ScoreTypes as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Typecheck as Typecheck
+import qualified Derive.ValType as ValType
 
 import qualified Perform.Signal as Signal
 import Global
@@ -126,7 +127,6 @@ parser arg_doc = Parser [arg_doc]
 
 -- | Keep track of state when parsing arguments.
 data State = State {
-    -- | Pairs of the arg number, starting at 0, and the argument.
     state_vals :: ![BaseTypes.Val]
     -- | This has to be incremented every time a Val is taken.  Pairing argnums
     -- in state_vals doesn't work because when I run out I don't know where
@@ -150,12 +150,12 @@ instance Functor Parser where
         parser { parser_parser = fmap (fmap f) . parser_parser parser }
 
 instance Applicative.Applicative Parser where
-    pure a = Parser mempty (\vals -> Right (vals, a))
+    pure a = Parser mempty (\state -> Right (state, a))
     Parser doc1 parse1 <*> Parser doc2 parse2 =
-        Parser (doc1 <> doc2) $ \vals -> do
-            (vals, f) <- parse1 vals
-            (vals, a) <- parse2 vals
-            Right (vals, f a)
+        Parser (doc1 <> doc2) $ \state -> do
+            (state, f) <- parse1 state
+            (state, a) <- parse2 state
+            Right (state, f a)
 
 -- | Annotate a parser with a check on its value.
 check :: (a -> Maybe Text) -- ^ return Just error if there's a problem
@@ -406,25 +406,51 @@ many name doc = parser arg_doc $ \state -> do
 
 -- | Collect the rest of the arguments, but there must be at least one.
 many1 :: forall a. Typecheck.Typecheck a => Text -> Text -> Parser (NonEmpty a)
-many1 name doc = parser arg_doc $ \state ->
-    case zip [state_argnum state ..] (state_vals state) of
-        [] -> Left $
-            Derive.ArgError $ "many1 arg requires at least one value: " <> name
-        v : vs -> do
-            v <- typecheck state v
-            vs <- mapM (typecheck state) vs
-            Right (state { state_vals = [] }, v :| vs)
+many1 name doc = non_empty name $ many name doc
+
+-- | Collect the rest of the arguments, but expect a even number of them and
+-- pair them up.
+many_pairs :: forall a b. (Typecheck.Typecheck a,  Typecheck.Typecheck b) =>
+    Text -> Text -> Parser [(a, b)]
+many_pairs name doc = parser (arg_doc expected) $ \state -> do
+    let vals = state_vals state
+    when (odd (length vals)) $
+        Left $ Derive.ArgError $ "many_pairs requires an even argument length: "
+            <> showt (length vals)
+    vals <- mapM (typecheck state) $ zip [state_argnum state ..] (pairs vals)
+    Right (state { state_vals = [] }, vals)
     where
-    typecheck state (argnum, val) =
-        check_arg state arg_doc (Derive.TypeErrorArg argnum) name val
-    expected = Typecheck.to_type (Proxy :: Proxy a)
-    arg_doc = Derive.ArgDoc
+    typecheck state (argnum, (val1, val2)) = (,)
+        <$> check_arg state (arg_doc (Typecheck.to_type (Proxy :: Proxy a)))
+            (Derive.TypeErrorArg (argnum * 2)) name val1
+        <*> check_arg state (arg_doc (Typecheck.to_type (Proxy :: Proxy b)))
+            (Derive.TypeErrorArg (argnum * 2 + 1)) name val2
+    expected = ValType.TPair (Typecheck.to_type (Proxy :: Proxy a))
+        (Typecheck.to_type (Proxy :: Proxy b))
+    arg_doc expected = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
-        , arg_parser = Derive.Many1
+        , arg_parser = Derive.Many
         , arg_environ_default = Derive.None
         , arg_doc = doc
         }
+    pairs (a : b : xs) = (a, b) : pairs xs
+    pairs _ = []
+
+many1_pairs :: forall a b. (Typecheck.Typecheck a,  Typecheck.Typecheck b) =>
+    Text -> Text -> Parser (NonEmpty (a, b))
+many1_pairs name doc = non_empty name $ many_pairs name doc
+
+-- | Modify a 'many' parser to require at least one thing.
+non_empty :: Text -> Parser [a] -> Parser (NonEmpty a)
+non_empty name (Parser docs p) =
+    Parser (map (\d -> d { Derive.arg_parser = Derive.Many1 }) docs) convert
+    where
+    convert state = case p state of
+        Left err -> Left err
+        Right (_, []) -> Left $ Derive.ArgError $
+            "arg requires at least one value: " <> name
+        Right (state, x : xs) -> Right (state, x :| xs)
 
 argnum_error :: State -> Derive.ErrorPlace
 argnum_error = Derive.TypeErrorArg . state_argnum

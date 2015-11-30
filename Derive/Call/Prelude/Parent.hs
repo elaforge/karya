@@ -47,6 +47,7 @@ note_calls = Derive.generator_call_map
     , ("`arp-rnd`", c_real_arpeggio Random)
     , ("interpolate", c_interpolate)
     , ("cycle", c_cycle)
+    , ("cycle-t", c_cycle_t)
     ]
 
 
@@ -273,10 +274,39 @@ c_cycle = Derive.generator Module.prelude "cycle" Tags.subs
         Sig.many1 "transformer" "Transformers to apply."
     ) $ \transformers args -> do
         tracks <- Sub.sub_events args
-        mconcatMap (cycle_call (Args.context args) transformers) tracks
+        mconcatMap (Sub.derive . cycle_call (Args.context args) transformers)
+            tracks
 
 cycle_call :: Derive.Context Score.Event -> NonEmpty BaseTypes.Quoted
-    -> [Sub.Event] -> Derive.NoteDeriver
-cycle_call ctx transformers events =
-    Sub.derive $ zipWith apply (cycle (NonEmpty.toList transformers)) events
+    -> [Sub.Event] -> [Sub.Event]
+cycle_call ctx transformers =
+    zipWith apply (cycle (NonEmpty.toList transformers))
     where apply quoted = fmap $ Eval.eval_quoted_transformers ctx quoted
+
+c_cycle_t :: Derive.Generator Derive.Note
+c_cycle_t = Derive.generator Module.prelude "cycle-t" Tags.subs
+    "Apply transformers in a cycle to the sub events. This is like 'cycle',\
+    \ except that it also gets a duration for each transformer, and cycles in\
+    \ the given rhythm, rather than for each event."
+    $ Sig.call (
+        Sig.many1_pairs "transformer" "Transformers to apply, and the ScoreTime\
+            \ duration for each transformer."
+    ) $ \transformers args -> do
+        tracks <- Sub.sub_events args
+        let ctx = Args.context args
+        mconcatMap (Sub.derive . cycle_t ctx (Args.start args) transformers)
+            tracks
+
+cycle_t :: Derive.Context Score.Event -> ScoreTime
+    -> NonEmpty (BaseTypes.Quoted, Double) -> [Sub.Event] -> [Sub.Event]
+cycle_t ctx start transformers =
+    go (zip (cycle ts) (tail (scanl (+) start (cycle durs))))
+    where
+    go [] _ = []
+    go _ [] = []
+    go ts@((quoted, until) : rest_ts) (event : events)
+        | Sub.event_start event >= until = go rest_ts (event : events)
+        | otherwise = fmap (Eval.eval_quoted_transformers ctx quoted) event
+            : go ts events
+    (ts, durs) = second (map ScoreTime.double)
+        (unzip (NonEmpty.toList transformers))
