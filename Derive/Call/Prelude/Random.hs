@@ -18,7 +18,6 @@ import qualified Derive.Eval as Eval
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
-import qualified Derive.Typecheck as Typecheck
 
 import Global
 
@@ -64,19 +63,10 @@ c_alternate_weighted :: Derive.Callable d => Derive.Generator d
 c_alternate_weighted =
     Derive.generator Module.prelude "alternate-weighted" Tags.random
     "Pick one of several expressions and evaluate it."
-    $ Sig.call (Sig.many1 "weight,expr"
-        "An even number of args in (Num, Val) pairs.") $
-    \pairs args -> do
-        pairs <- mapM (typecheck args)
-            =<< Sig.paired_args (NonEmpty.toList pairs)
-        case NonEmpty.nonEmpty pairs of
-            Nothing -> Derive.throw "empty list"
-            Just pairs -> pick_weighted pairs =<< Call.random
-    where
-    typecheck args (weight, expr) = do
-        weight <- Typecheck.typecheck "" (Args.start args) weight
-        quoted <- Typecheck.typecheck "" (Args.start args) expr
-        return (weight, Eval.eval_quoted (Args.context args) quoted)
+    $ Sig.call (Sig.many1_pairs "expr" "(weight, expr) pairs.") $
+    \pairs args ->
+        Eval.eval_quoted (Args.context args) . pick_weighted pairs
+            =<< Call.random
 
 c_alternate_tracks :: Derive.Generator Derive.Note
 c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
@@ -129,14 +119,11 @@ c_val_alternate = Derive.val_call Module.prelude "alternate" Tags.random
 c_val_alternate_weighted :: Derive.ValCall
 c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
     Tags.random "Pick one of the arguments randomly."
-    $ Sig.call (Sig.many1
-        "weight,val" "An even number of args in (Num, Val) pairs.") $
-    \pairs args -> do
-        (weights, vals) <- unzip <$> Sig.paired_args (NonEmpty.toList pairs)
-        weights <- mapM (Typecheck.typecheck "" (Args.start args)) weights
-        case NonEmpty.nonEmpty (zip weights vals) of
-            Nothing -> Derive.throw "not reached"
-            Just pairs -> pick_weighted pairs <$> Call.random
+    $ Sig.call (Sig.many1_pairs "val" "(weight, val) pairs.") $
+    \pairs _args -> do
+        let vals :: NonEmpty TrackLang.Val
+            (weights, vals) = NonEmpty.unzip pairs
+        pick_weighted (NonEmpty.zip weights vals) <$> Call.random
 
 c_range :: Derive.ValCall
 c_range = Derive.val_call Module.prelude "range" Tags.random
