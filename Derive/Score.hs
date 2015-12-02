@@ -214,7 +214,7 @@ copy event = event { event_flags = mempty }
 -- Normally this is done by Convert, but if you want to see an event for
 -- debugging it can be nicer to see the normalized version.
 --
--- Unlike Perform.Midi.Convert, this doesn't trim the controls, so it applies
+-- Unlike "Perform.Midi.Convert", this doesn't trim the controls, so it applies
 -- out-of-range transpositions.
 normalize :: (Instrument -> BaseTypes.Environ) -> Event -> Event
 normalize lookup_environ event = event

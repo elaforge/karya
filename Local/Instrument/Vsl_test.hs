@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Local.Instrument.Vsl_test where
+import qualified Data.List as List
+
 import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -10,8 +12,21 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Local.Instrument.Vsl as Vsl
+import qualified Local.Instrument.VslInst as VslInst
+import Global
 
+
+test_attr_priority = do
+    let Just violin = List.find ((=="violin") . Instrument.patch_name)
+            (map fst Vsl.patches)
+        lookup attrs = fst <$> Instrument.lookup_attribute attrs
+            (Instrument.patch_attribute_map violin)
+    -- +pizz wins over +nv
+    equal (lookup (VslInst.pizz <> VslInst.nv)) (lookup VslInst.pizz)
+    -- +harsh wins over +stac
+    equal (lookup (VslInst.harsh <> VslInst.staccato)) (lookup VslInst.harsh)
 
 test_strip_attrs = do
     let f = map ShowVal.show_val . Vsl.strip_attrs . map Score.attrs

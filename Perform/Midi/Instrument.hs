@@ -480,11 +480,17 @@ instance Pretty.Pretty InitializePatch where
     The attributes are matched by subset in order, so their order gives
     a priority.
 
-    For example, if @+pizz@ is before @+cresc@, then @+pizz+cresc@ will map to
-    @+pizz@, unless @+pizz+cresc@ comes before either (of course that
-    particular combination is unlikely to exist).  So if a previous attr set is
-    a subset of a later one, the later one will never be selected.
-    'overlapping_attributes' will check for that.
+    For example, if @+pizz@ is before @+nv@, then @+pizz+nv@ will map to
+    @+pizz@, unless @+pizz+nv@ exists.  The idea is that more specific or
+    more perceptually important attributes go first.  Since pizz vs. arco
+    is a much more obvious distinction than vibrato vs. nv, if you say
+    everything is nv but some notes are also pizz, chances are you want those
+    notes to get pizz even if there isn't a specifically nv pizz variant.
+
+    This also means that if a previous attr is a subset of a later one, the
+    later one will never be selected.  'overlapping_attributes' will check for
+    that, but normally you use a constructor like 'keyswitches', which will
+    call 'sort_attributes' to make sure that can't happen.
 -}
 newtype AttributeMap =
     AttributeMap [(Score.Attributes, [Keyswitch], Maybe Keymap)]

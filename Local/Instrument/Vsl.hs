@@ -88,8 +88,9 @@ synth = MidiInst.with_patches patches $
 
 patches :: [MidiInst.Patch]
 patches =
-    [add_code hmap (make_patch inst category)
-        | ((inst, hmap), category) <- instruments]
+    [ add_code hmap (make_patch inst category)
+    | ((inst, hmap), category) <- instruments
+    ]
     where
     add_code hmap patch = (patch, code)
         where code = MidiInst.note_calls (note_calls hmap patch)
@@ -129,11 +130,10 @@ note_calls maybe_hmap patch =
     where
     g = MidiInst.generator
     with_attr attr calls = if has_attr attr patch then calls else []
-
-    -- Like the standard note call, but ignore attrs that are already handled
-    -- with keyswitches.
-    note_call patch = Note.note_call "" "" mempty $
-        maybe (Note.default_note config) (harmonic config) maybe_hmap
+    note_call patch = Note.note_call ""
+        "This is like the standard note call, but ignores attrs that are\
+            \ already handled with keyswitches."
+        mempty (maybe (Note.default_note config) (harmonic config) maybe_hmap)
         where config = note_config patch
     note_config patch = Note.use_attributes
         { Note.config_staccato = not $ has_attr Attrs.staccato patch }
@@ -201,12 +201,23 @@ make_instrument :: VslInst.Instrument -> Instrument
 make_instrument (name, keys, attrs) = (name, matrix keys attrs)
 
 keyswitch_map :: [Keyswitch] -> Instrument.AttributeMap
-keyswitch_map = Instrument.keyswitches . Seq.sort_on (attr_key . fst) . process
+keyswitch_map = Instrument.keyswitches . Seq.sort_on (priority . fst) . process
     where
     process keyswitches = zip attrs ks
         where (attrs, ks) = unzip (drop_dups keyswitches)
     drop_dups = Seq.unique_on fst
-    attr_key = negate . Set.size . Score.attrs_set
+    priority attrs = Map.findWithDefault 0 attrs attribute_priority
+
+-- | Order attributes by priority.  This should correspond to specificity, or
+-- to perceptual importance, as documented in 'Instrument.AttributeMap'.
+attribute_priority :: Map.Map Score.Attributes Int
+attribute_priority = Map.fromList $ (`zip` [-1, -2 ..]) $ reverse
+    [ VslInst.pizz
+    , VslInst.spiccato
+    , VslInst.harsh
+    , VslInst.staccato
+    , VslInst.nv
+    ]
 
 -- | Since the VSL matrix is only 12x12, a row of articulations greater than
 -- that overflows to the next row.  Given that I'm definitely going to overflow
@@ -237,6 +248,14 @@ keys_from low_key = map Instrument.Keyswitch [low_key ..]
 
 -- * attrs
 
+-- | Remove attrs which can be assumed as a default.  The idea is to make it
+-- easier to address an articulation while still remaining non-ambiguous.
+--
+-- Attrs are removed in order unless removal would create a conflict with
+-- another articulation.  The result is that the attrs early in the strip list
+-- are removed first, so if you have both 'VslInst.med' and 'VslInst.short',
+-- 'VslInst.med' will become the default, while 'VslInst.short' retains its
+-- attribute.
 strip_attrs :: [Score.Attributes] -> [Score.Attributes]
 strip_attrs attrs = snd $ foldr strip_attr (Set.fromList attrs, attrs) strip
     where
@@ -261,7 +280,8 @@ strip_attr attr (all_attrs_set, all_attrs)
     -- 0.39 CPU seconds, now it's down to 0.19.
     --
     -- This whole calculation winds up in 'patches' as a CAF, so it should be
-    -- possible at compile time.
+    -- possible to run at compile time, presumably via TH.  In any case, even
+    -- as a normal CAF, it only happens once per run.
     strip_redundant attrs_set attrs
         | Set.member stripped attrs_set = (attrs_set, attrs)
         | otherwise = (Set.insert stripped attrs_set, stripped)
