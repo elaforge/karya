@@ -5,7 +5,9 @@
 -- | Idiomatic things for various instruments.
 module Derive.Call.Post.Idiom where
 import qualified Data.List as List
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
@@ -35,6 +37,7 @@ note_calls = Derive.transformer_call_map
     , ("avoid-overlap", c_avoid_overlap)
     , ("zero-duration-mute", c_zero_duration_mute)
     , ("extend-duration", c_extend_duration)
+    , ("apply-attributes", c_apply_attributes)
     ]
 
 -- * pizz arp
@@ -173,3 +176,37 @@ extend_duration attrs dur = Post.emap1_ extend . next_same_pitch
         | otherwise = event
         where max_dur = diff event <$> Seq.head nexts
     diff e1 e2 = max 0 $ Score.event_start e2 - Score.event_start e1 - 0.05
+
+
+-- * apply attributes
+
+c_apply_attributes :: Derive.Transformer Derive.Note
+c_apply_attributes = Derive.transformer Module.prelude "apply-attributes"
+    Tags.postproc ("Apply attributes by control signal. This looks for\
+        \ controls with a " <> ShowVal.doc control_prefix <> " prefix.\
+        \ A control named " <> ShowVal.doc (control_prefix <> "a-b")
+
+        <> " will, when non-zero, add the `+a+b` attributes to its events."
+    ) $ Sig.call0t $ \_args deriver -> Post.emap1_ apply_attributes <$> deriver
+
+-- | For all controls that start with @+@ and are positive during the event
+-- start, add those attributes to the event.
+--
+-- TODO a possible variation would be to take 0<v<1 as a probability of
+-- applying the attribute.
+apply_attributes :: Score.Event -> Score.Event
+apply_attributes event = Score.add_attributes (mconcat attrs_to_apply) event
+    where
+    controls :: [(Score.Attributes, Score.Control)]
+    controls = Seq.key_on_maybe control_attributes $ Map.keys $
+        Score.event_untransformed_controls event
+    attrs_to_apply = map fst $ filter ((>0) . get . snd) controls
+    get c = maybe 0 Score.typed_val $
+        Score.control_at (Score.event_start event) c event
+
+control_attributes :: Score.Control -> Maybe Score.Attributes
+control_attributes = fmap (Score.attrs . Text.split (=='-'))
+    . Text.stripPrefix control_prefix . Score.control_name
+
+control_prefix :: Text
+control_prefix = "attr-"

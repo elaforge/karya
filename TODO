@@ -12,7 +12,7 @@ UNSORTED
       the duration, but it wouldn't be notated that way.
       . Also I can add +stac if it's played like that, but doesn't get a dot
         in staff notation.
-  - it's annoying to apply an attr over a period of time because it requires
+  * it's annoying to apply an attr over a period of time because it requires
     a parent track.  Can I make attr controls, e.g. a control named +nv which
     only applies when >0?
     . This is another reason to unify Environ and signals.

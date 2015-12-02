@@ -97,10 +97,10 @@ parse_control_vals vals = case vals of
     --
     -- It would be more regular to require \"%control\" and \"add %control\"
     -- for control tracks, but it looks nicer without the extra noise.
-    [TrackLang.VSymbol control] ->
+    [control_of -> Just control] ->
         Control Nothing <$> parse_control_type control
     -- add control -> relative control
-    [TrackLang.VSymbol merge, TrackLang.VSymbol control] ->
+    [TrackLang.VSymbol merge, control_of -> Just control] ->
         Control (Just merge) <$> parse_control_type control
     -- % -> default control
     -- It might be more regular to allow anything after %, but I'm a fan of
@@ -126,7 +126,9 @@ parse_control_vals vals = case vals of
             Just ('*', scale_id) -> Just (Pitch.ScaleId scale_id)
             _ -> Nothing
     scale _ = Nothing
-
+    control_of :: TrackLang.Val -> Maybe TrackLang.Symbol
+    control_of (TrackLang.VSymbol sym) = Just sym
+    control_of _ = Nothing
     pitch_control_of :: TrackLang.Val -> Maybe Score.PControl
     pitch_control_of (TrackLang.VPControlRef (TrackLang.LiteralControl c)) =
         Just c

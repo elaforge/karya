@@ -46,3 +46,13 @@ test_extend_duration = do
     -- Unless it has the same pitch.
     equal (run [(0, 1, "+a -- 4c"), (1.5, 1, "+a -- 4c")])
         ([(0, 1.45, "4c"), (1.5, 2, "4c")], [])
+
+test_apply_attributes = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks "apply-attributes"
+        extract e = (Score.event_start e, DeriveTest.e_attributes e)
+    equal (run
+            [ ("attr-a-b", [(0, 0, "0"), (1, 0, "1"), (2, 0, "0")])
+            , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
+            ])
+        ([(0, "+"), (1, "+a+b"), (2, "+")], [])

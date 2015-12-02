@@ -19,13 +19,17 @@ test_parse_unparse_control = do
     uncurry equal (round_trip "*a merge")
     uncurry equal (round_trip "*a #name merge")
     uncurry equal (round_trip "tempo")
+    uncurry equal (round_trip "a-b")
+    uncurry equal (round_trip "add a-b")
     uncurry equal (round_trip "c")
     uncurry equal (round_trip "c:d")
+    uncurry equal (round_trip "add c:d")
     left_like (f "c:q") "unknown type"
     uncurry equal (round_trip "%")
     uncurry equal (round_trip "add %")
     left_like (f "$ bad") "parse error"
     left_like (f "a b c") "control track must be one of"
+
 
 test_parse_unparse_note = do
     let f = fmap ParseTitle.unparse_note . ParseTitle.parse_note
