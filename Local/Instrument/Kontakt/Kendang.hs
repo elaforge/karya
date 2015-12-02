@@ -18,6 +18,7 @@ import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
+import Derive.Attrs (soft)
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -261,8 +262,6 @@ realize_kendang _pasang events = events -- TODO
 -- For composite it would be: de tut, kum pung, ka pak, kam pang
 -- If I took the wadon or lanang names, it would be de, kum, ka, kam, or
 -- tut, pung, pak, pang, which both sound weird.
-
-soft = attr "soft"
 
 -- both
 plak = attr "plak"

@@ -216,6 +216,8 @@ attribute_priority = Map.fromList $ (`zip` [-1, -2 ..]) $ reverse
     , VslInst.spiccato
     , VslInst.harsh
     , VslInst.staccato
+    , VslInst.detache
+    , VslInst.detache <> VslInst.long
     , VslInst.nv
     ]
 

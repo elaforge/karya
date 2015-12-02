@@ -630,9 +630,11 @@ clarinet_bb_perf_upbeat_repetition = map (rep.upbeat.)
 clarinet_bb_fast_repetition =
     fast_rep_bpm [(mempty, [14..17]), (dyn, [14..17])]
 clarinet_bb_grace_notes = grace_intervals
-clarinet_bb_glissandi = map (gliss.)
-    [ perf.gliss.slow, perf.gliss.fast
-    ] ++ map (slow.) grace_intervals ++ map (fast.) grace_intervals
+clarinet_bb_glissandi = map (gliss.) $ concat
+    [ [ perf.slow, perf.fast ]
+    , map (slow.updown.) intervals_to_oct
+    , map (fast.updown.) intervals_to_oct
+    ]
 clarinet_bb_scale_runs = run_scales
     [legato.maj, legato.maj.fast, legato.min, legato.chrom, legato.whole]
 clarinet_bb_arpeggios = arp_scales
