@@ -43,15 +43,17 @@ doc_text = Format.render "  " 75 . mconcatMap section
         "##" <+> Format.text call_kind <+> "calls" <> "\n\n"
         <> mconcatMap scope_doc scope_docs
     scope_doc (source, calls) = "### from" <+> Format.text source <> "\n\n"
-        <> Format.unlines (map call_bindings_text calls)
+        <> Format.unlines (map (call_bindings_text True) calls)
 
-call_bindings_text :: CallBindings -> Format.Doc
-call_bindings_text (binds, ctype, call_doc) =
-    show_module (Derive.cdoc_module call_doc)
-    <//> Format.unlines (map show_bind binds)
+call_bindings_text :: Bool -> CallBindings -> Format.Doc
+call_bindings_text show_module (binds, ctype, call_doc) =
+    (if show_module
+        then (module_text (Derive.cdoc_module call_doc) <//>)
+        else id) $
+    Format.unlines (map show_bind binds)
     </> show_call_doc call_doc
     where
-    show_module (Module.Module m) = Format.text $ "\tModule: " <> m
+    module_text (Module.Module m) = Format.text $ "\tModule: " <> m
     show_bind (sym, name) = Format.text $
         sym <> " -- " <> name <> ": (" <> show_call_type ctype <> ")"
     show_call_doc (Derive.CallDoc _module tags doc args)

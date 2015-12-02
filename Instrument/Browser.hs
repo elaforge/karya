@@ -200,7 +200,7 @@ show_calls ctype lookups =
     -- works, so wrapped lines don't get indented, but it doesn't look that
     -- bad.
     Lazy.toStrict $ Format.render "\t" 10000 $ Format.paragraphs $
-        map CallDoc.call_bindings_text bindings
+        map (CallDoc.call_bindings_text False) bindings
     where bindings = CallDoc.lookup_calls ctype lookups
 
 show_tags :: [(Text, Text)] -> Text

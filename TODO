@@ -473,7 +473,7 @@ MILESTONES
 documentation:
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   calldoc: CallDoc:
-    - instrument browser should omit modules, since they don't matter
+    * instrument browser should omit modules, since they don't matter
     * put newline between each call doc in instrument browser
     - collapse control for modules, option to collapse / expand all
       . Haddock:
