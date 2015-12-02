@@ -4,33 +4,45 @@
 
 module Derive.Call.Post.Idiom_test where
 import Util.Test
-import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.DeriveTest as DeriveTest
-import Global
+import qualified Derive.Score as Score
 
 
 test_pizz_arp = do
-    let f = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks_setup (global "pizz-arp .5") ""
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks "pizz-arp .5"
             . concatMap UiTest.note_track
 
-    equal (f [[(0, 1, "+pizz -- 4c")], [(0, 1, "+pizz -- 4d")]])
+    equal (run [[(0, 1, "+pizz -- 4c")], [(0, 1, "+pizz -- 4d")]])
         ([(0, 1, "4c"), (0.5, 1, "4d")], [])
-    equal (f [[(0, 1, "4c")], [(0, 1, "+pizz -- 4d"), (1, 1, "+pizz -- 4e")]])
+    equal (run [[(0, 1, "4c")], [(0, 1, "+pizz -- 4d"), (1, 1, "+pizz -- 4e")]])
         ([(0, 1, "4c"), (0, 1, "4d"), (1, 1, "4e")], [])
 
 test_avoid_overlap = do
-    let f = DeriveTest.extract DeriveTest.e_note
-            . DeriveTest.derive_tracks_setup (global "avoid-overlap .5") ""
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks "avoid-overlap .5"
             . UiTest.note_track
-    equal (f [(0, 1, "4c"), (1, 1, "4d")])
+    equal (run [(0, 1, "4c"), (1, 1, "4d")])
         ([(0, 1, "4c"), (1, 1, "4d")], [])
-    equal (f [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d"), (3, 1, "4c")])
+    equal (run [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4d"), (3, 1, "4c")])
         ([(0, 1, "4c"), (1, 0.5, "4d"), (2, 1, "4d"), (3, 1, "4c")], [])
-    equal (f [(0, 0.25, "4c"), (0.25, 0.25, "4c")])
+    equal (run [(0, 0.25, "4c"), (0.25, 0.25, "4c")])
         ([(0, Note.min_duration, "4c"), (0.25, 0.25, "4c")], [])
 
-global :: Text -> DeriveTest.Setup
-global val = DeriveTest.with_ui $ State.config#State.global_transform #= val
+test_extend_duration = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks "extend-duration (list +a +b) 2"
+            . UiTest.note_track
+    equal (run [(0, 1, "+a -- 4c")]) ([(0, 2, "4c")], [])
+    equal (run [(0, 1, "+b+z -- 4c")]) ([(0, 2, "4c")], [])
+    equal (run [(0, 1, "+z -- 4c")]) ([(0, 1, "4c")], [])
+    -- Won't shorten a duration.
+    equal (run [(0, 4, "+a -- 4c")]) ([(0, 4, "4c")], [])
+    -- Overlap is ok.
+    equal (run [(0, 1, "+a -- 4c"), (1, 1, "+a -- 4d")])
+        ([(0, 2, "4c"), (1, 2, "4d")], [])
+    -- Unless it has the same pitch.
+    equal (run [(0, 1, "+a -- 4c"), (1.5, 1, "+a -- 4c")])
+        ([(0, 1.45, "4c"), (1.5, 2, "4c")], [])

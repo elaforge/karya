@@ -7,7 +7,7 @@ UNSORTED
     * attr priority:
       . +pizz over +nv
       . +harsh over +stac
-    - Can I automatically extend real duration of +stac notes while leaving
+    * Can I automatically extend real duration of +stac notes while leaving
       logical duration alone?  This is because vsl sounds better if you give
       the duration, but it wouldn't be notated that way.
       . Also I can add +stac if it's played like that, but doesn't get a dot

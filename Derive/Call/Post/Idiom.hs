@@ -18,6 +18,7 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, control)
 import qualified Derive.Stream as Stream
@@ -33,6 +34,7 @@ note_calls = Derive.transformer_call_map
     [ ("pizz-arp", c_pizz_arp)
     , ("avoid-overlap", c_avoid_overlap)
     , ("zero-duration-mute", c_zero_duration_mute)
+    , ("extend-duration", c_extend_duration)
     ]
 
 -- * pizz arp
@@ -96,23 +98,32 @@ c_avoid_overlap = Derive.transformer Module.prelude "avoid-overlap"
     $ Sig.callt (defaulted "time" 0.1
         "Ensure at least this much time between two notes of the same pitch.")
     $ \time _args deriver -> Lily.when_lilypond deriver $
-        avoid_overlap time =<< deriver
+        avoid_overlap time <$> deriver
 
-avoid_overlap :: RealTime -> Stream.Stream Score.Event -> Derive.NoteDeriver
-avoid_overlap time = return . Post.emap_asc_ go . Stream.zip_on Post.nexts
+avoid_overlap :: RealTime -> Stream.Stream Score.Event
+    -> Stream.Stream Score.Event
+avoid_overlap time = Post.emap1_ modify . next_same_pitch
     where
-    go (nexts, event) =
-        (:[]) $ case List.find same (takeWhile overlaps nexts) of
-            Nothing -> event
-            Just next -> Score.set_duration dur event
-                where
-                dur = max Note.min_duration $
-                    Score.event_start next - time - Score.event_start event
+    modify (event, []) = event
+    modify (event, next : _)
+        | overlaps event next = Score.set_duration dur event
+        | otherwise = event
         where
-        overlaps next = Score.event_end event + time > Score.event_start next
-        nn = Score.initial_nn event
-        same next = Score.event_instrument event == Score.event_instrument next
-            && Maybe.isJust nn && nn == Score.initial_nn next
+        dur = max Note.min_duration $
+            Score.event_start next - time - Score.event_start event
+    overlaps event next = Score.event_end event + time > Score.event_start next
+
+-- | For each event, get the next events with the same instrument and starting
+-- pitch.
+next_same_pitch :: Stream.Stream Score.Event
+    -> Stream.Stream (Score.Event, [Score.Event])
+next_same_pitch = Post.emap1_ check . Stream.zip_on Post.nexts
+    where
+    check (nexts, event) = (event, filter (same event) nexts)
+    same event next =
+        Score.event_instrument event == Score.event_instrument next
+        && Maybe.isJust nn && nn == Score.initial_nn next
+        where nn = Score.initial_nn event
 
 
 -- * zero dur mute
@@ -128,10 +139,37 @@ c_zero_duration_mute = Derive.transformer Module.prelude
     $ Sig.callt ((,)
     <$> defaulted "attr" Attrs.mute "Add this attribute."
     <*> defaulted "dyn" 0.75 "Scale dynamic by this amount."
-    )
-    $ \(attrs, dyn) _args deriver -> Post.emap1_ (add attrs dyn) <$> deriver
+    ) $ \(attrs, dyn) _args deriver -> Post.emap1_ (add attrs dyn) <$> deriver
     where
     add attrs dyn event
         | Score.event_duration event == 0 =
             Score.modify_dynamic (*dyn) $ Score.add_attributes attrs event
         | otherwise = event
+
+
+-- * extend duration
+
+c_extend_duration :: Derive.Transformer Derive.Note
+c_extend_duration = Derive.transformer Module.prelude "extend-duration"
+    Tags.postproc ("Extend the duration of notes with certain attributes.\
+    \ This is appropriate for attributes like " <> ShowVal.doc Attrs.staccato
+    <> ", which might already have their own built-in duration, and sound\
+    \ better when given as much time to ring as possible."
+    ) $ Sig.callt ((,)
+    <$> Sig.required "attrs" "Extend durations of notes with these attrs."
+    <*> Sig.defaulted "dur" (RealTime.seconds 2)
+        "Extend to a minimum of this duration."
+    ) $ \(attrs, dur) _args deriver -> Lily.when_lilypond deriver $
+        extend_duration attrs dur <$> deriver
+
+-- | Don't overlap with another note with the same pitch, as in 'avoid_overlap'.
+extend_duration :: [Score.Attributes] -> RealTime -> Stream.Stream Score.Event
+    -> Stream.Stream Score.Event
+extend_duration attrs dur = Post.emap1_ extend . next_same_pitch
+    where
+    extend (event, nexts)
+        | any (\a -> Score.has_attribute a event) attrs =
+            Score.duration (max $ maybe dur (min dur) max_dur) event
+        | otherwise = event
+        where max_dur = diff event <$> Seq.head nexts
+    diff e1 e2 = max 0 $ Score.event_start e2 - Score.event_start e1 - 0.05
