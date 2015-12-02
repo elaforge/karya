@@ -16,7 +16,7 @@
 module Util.Format (
     Doc, shortForm, text, string
     , (</>), (<+/>), (<//>), (<+>)
-    , newline, unlines, wrap, wrapWords
+    , newline, unlines, paragraphs, wrap, wrapWords
     , withIndent, indent, indent_, indentLine
     , Width, render, renderFlat
     , simplify, denest
@@ -189,6 +189,13 @@ newline n = Break (Hard n)
 unlines :: [Doc] -> Doc
 unlines [] = mempty
 unlines docs = mconcat (List.intersperse (newline 1) docs) <> newline 1
+
+-- | This is just like 'unlines', but separate docs with two newlines, and
+-- terminate the last with one.
+paragraphs :: [Doc] -> Doc
+paragraphs [] = mempty
+paragraphs docs = mconcat (List.intersperse (newline 2) docs) <> newline 1
+
 
 wrapWords :: [Doc] -> Doc
 wrapWords (d:ds) = List.foldl' (<+/>) d ds
@@ -376,9 +383,11 @@ mergeBreaks (section : sections) = case span empty sections of
         where break = sectionBreak section <> mconcat (map sectionBreak nulls)
     where empty section = bNull (sectionB section)
 
+-- | Render a Doc, wrapping after the given Width.
 render :: Text -> Width -> Doc -> Lazy.Text
 render indent width = renderText indent width . flatten
 
+-- | Render the Doc all on one line, with no newlines.
 renderFlat :: Doc -> Lazy.Text
 renderFlat = renderTextFlat . flatten
 

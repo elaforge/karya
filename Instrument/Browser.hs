@@ -199,7 +199,7 @@ show_calls ctype lookups =
     -- Let fltk do the wrapping.  Of course it doesn't know how the indentation
     -- works, so wrapped lines don't get indented, but it doesn't look that
     -- bad.
-    Lazy.toStrict $ Format.render "\t" 500 $ Format.unlines $
+    Lazy.toStrict $ Format.render "\t" 10000 $ Format.paragraphs $
         map CallDoc.call_bindings_text bindings
     where bindings = CallDoc.lookup_calls ctype lookups
 

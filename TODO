@@ -3,6 +3,19 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  vsl:
+    - attr priority:
+      . +pizz over +nv
+      . +harsh over +stac
+    - Can I automatically extend real duration of +stac notes while leaving
+      logical duration alone?  This is because vsl sounds better if you give
+      the duration, but it wouldn't be notated that way.
+      . Also I can add +stac if it's played like that, but doesn't get a dot
+        in staff notation.
+  - it's annoying to apply an attr over a period of time because it requires
+    a parent track.  Can I make attr controls, e.g. a control named +nv which
+    only applies when >0?
+    . This is another reason to unify Environ and signals.
   UI awkwardness:
     * Hitting note entry in a parent track makes a pitch track.  I can detect
       those and not do that.
@@ -460,6 +473,8 @@ MILESTONES
 documentation:
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
   calldoc: CallDoc:
+    - instrument browser should omit modules, since they don't matter
+    * put newline between each call doc in instrument browser
     - collapse control for modules, option to collapse / expand all
       . Haddock:
         <span id=xyz class="module collapser"
