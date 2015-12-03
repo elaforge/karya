@@ -59,15 +59,15 @@ show_matrix :: VslInst.Instrument -> Text
 show_matrix (name, _, attrs) =
     name <> ":\n" <> Text.unlines (map format matrices)
     where
-    matrices = Seq.chunked 12 $ concatMap (Seq.chunked 12)
+    matrices = Seq.chunked cols $ concatMap (Seq.chunked cols)
         (map_shape strip attrs)
     format = Text.unlines . TextUtil.formatColumns 1
-        -- . (header:) . map (map ShowVal.show_val)
         . zipWith (:) col_header . (header:) . map (map ShowVal.show_val)
-    header = take 12 $ map showt [1..]
-    col_header = take 13 $ map Text.singleton "-abcdefghijkl"
+    header = take cols $ map showt [1..]
+    col_header = take (cols+1) $ map Text.singleton $ '-' : ['a'..]
     strip = strip_attrs . map (`Score.attrs_diff` variants)
     variants = VslInst.updown <> VslInst.crescdim <> VslInst.highlow
+    cols = 12
 
 -- | Transform elements but retain the matrix's shape.
 map_shape :: ([a] -> [b]) -> [[a]] -> [[b]]
@@ -84,7 +84,23 @@ load _dir = return $ Just synth
 
 synth :: MidiInst.Synth
 synth = MidiInst.with_patches patches $
-    Instrument.synth "vsl" "Vienna Symphonic Library" []
+    Instrument.synth "vsl" "Vienna Symphonic Library"
+        [ (11, "expression") -- apparently like cc7 volume?
+        , (22, "attack") -- attack time
+        , (23, "release") -- release time
+        , (24, "filter") -- low pass filter
+        , (20, "slot-xf") -- xfade between a and b slot positions
+        , (2,  "velocity-xf") -- xfade between vel layers, set breath dyn
+        , (28, "velocity-xf-on") -- velocity xfade on/off
+        , (29, "rsamp-on") -- release samples on/off
+        , (25, "delay") -- scale per patch delay
+        , (26, "tuning") -- scale out of tune curve
+        , (27, "humanize") -- scale both 'delay' and 'tuning'
+        , (30, "dyn-range") -- scale effect of velocity
+        , (21, "start-scaler") -- scale start offset
+        , (14, "reverb") -- reverb wet
+        , (15, "reverb-on") -- reverb on/off
+        ]
 
 patches :: [MidiInst.Patch]
 patches =
@@ -193,7 +209,9 @@ make_patch inst category =
 
 instrument_patch :: Text -> Instrument -> Instrument.Patch
 instrument_patch category (name, keyswitches) =
-    Instrument.add_tag (Tag.category, category) $
+    -- Instrument.pressure means I expect to have velocity-xf enabled and
+    -- assigned to cc2.
+    Instrument.pressure $ Instrument.add_tag (Tag.category, category) $
     (Instrument.attribute_map #= keyswitch_map keyswitches) $
         MidiInst.patch (-2, 2) name []
 
@@ -218,7 +236,6 @@ attribute_priority = Map.fromList $ (`zip` [-1, -2 ..]) $ reverse
     , VslInst.staccato
     , VslInst.detache
     , VslInst.detache <> VslInst.long
-    , VslInst.nv
     ]
 
 -- | Since the VSL matrix is only 12x12, a row of articulations greater than
