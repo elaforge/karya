@@ -41,9 +41,9 @@ transport config msg = do
     msg <- Cmd.abort_unless $ Msg.midi msg
     if  | config_repeat config msg -> done Edit.toggle_note_duration
         | config_backward config msg ->
-            done $ Selection.step TimeStep.Rewind False
+            done $ Selection.step TimeStep.Rewind Selection.Replace
         | config_forward config msg ->
-            done $ Selection.step TimeStep.Advance False
+            done $ Selection.step TimeStep.Advance Selection.Replace
         | config_stop config msg -> Play.cmd_context_stop
         -- TODO configure what this is
         -- I could have a "default play" cmd

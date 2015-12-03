@@ -202,41 +202,41 @@ mouse_bindings = concat
 selection_bindings :: Cmd.M m => [Keymap.Binding m]
 selection_bindings = concat
     [ bind_repeatable [] Key.Down "advance selection" $
-        Selection.step TimeStep.Advance False
+        Selection.step TimeStep.Advance move
     , bind_repeatable [Shift] Key.Down "extend advance selection" $
-        Selection.step TimeStep.Advance True
+        Selection.step TimeStep.Advance Selection.Extend
 
     , bind_repeatable [] Key.Up "rewind selection" $
-        Selection.step TimeStep.Rewind False
+        Selection.step TimeStep.Rewind move
     , bind_repeatable [Shift] Key.Up "extend rewind selection" $
-        Selection.step TimeStep.Rewind True
+        Selection.step TimeStep.Rewind Selection.Extend
 
     , bind_repeatable [] Key.Right "shift selection right" $
-        Selection.shift True False 1
+        Selection.shift True move 1
     , bind_repeatable [Shift] Key.Right "extend shift selection right" $
-        Selection.shift True True 1
+        Selection.shift True Selection.Extend 1
 
     , bind_repeatable [] Key.Left "shift selection left" $
-        Selection.shift True False (-1)
+        Selection.shift True move (-1)
     , bind_repeatable [Shift] Key.Left "extend shift selection left" $
-        Selection.shift True True (-1)
+        Selection.shift True Selection.Extend (-1)
 
     , repeatable_char 'h' "move selection left" $
-        Selection.shift True False (-1)
+        Selection.shift True move (-1)
     , repeatable_char 'H' "move selection left" $
-        Selection.shift True True (-1)
+        Selection.shift True Selection.Extend (-1)
     , repeatable_char 'l' "move selection right" $
-        Selection.shift True False 1
+        Selection.shift True move 1
     , repeatable_char 'L' "move selection right" $
-        Selection.shift True True 1
+        Selection.shift True Selection.Extend 1
     , repeatable_char 'j' "move selection advance" $
-        Selection.step TimeStep.Advance False
+        Selection.step TimeStep.Advance move
     , repeatable_char 'J' "move selection advance" $
-        Selection.step TimeStep.Advance True
+        Selection.step TimeStep.Advance Selection.Extend
     , repeatable_char 'k' "move selection rewind" $
-        Selection.step TimeStep.Rewind False
+        Selection.step TimeStep.Rewind move
     , repeatable_char 'K' "move selection rewind" $
-        Selection.step TimeStep.Rewind True
+        Selection.step TimeStep.Rewind Selection.Extend
     -- Mnemonic: next, previous.
     , repeatable_char 'n' "move selection right to note track" $
         Selection.jump_to_track False =<< Cmd.abort_unless
@@ -252,18 +252,19 @@ selection_bindings = concat
             =<< Selection.find_note_track Selection.L True
 
     , repeatable_char 'w' "move selection next event" $
-        Selection.step_with 1 False =<< Track.event_and_note_step
+        Selection.step_with 1 move =<< Track.event_and_note_step
     , repeatable_char 'W' "move selection next event" $
-        Selection.step_with 1 True =<< Track.event_and_note_step
+        Selection.step_with 1 Selection.Extend =<< Track.event_and_note_step
     , repeatable_char 'b' "move selection previous event" $
-        Selection.step_with (-1) False =<< Track.event_and_note_step
+        Selection.step_with (-1) move =<< Track.event_and_note_step
     , repeatable_char 'B' "move selection previous event" $
-        Selection.step_with (-1) True =<< Track.event_and_note_step
+        Selection.step_with (-1) Selection.Extend =<< Track.event_and_note_step
 
     , bind_key [PrimaryCommand] (Key.Char 'a') "select track / all"
         (Selection.cmd_track_all Config.insert_selnum)
     ]
     where
+    move = Selection.default_move
     repeatable_char c = bind_repeatable [] (Key.Char c)
 
 step_play_bindings :: Cmd.M m => [Keymap.Binding m]

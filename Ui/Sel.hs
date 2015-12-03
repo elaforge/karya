@@ -110,3 +110,6 @@ union sel1 sel2 = Selection strack spos ctrack cpos
         se = (min s1 s2, max e1 e2)
         (s1, e1) = range sel1
         (s2, e2) = range sel2
+
+move :: TrackTime -> Selection -> Selection
+move t sel = sel { start_pos = start_pos sel + t, cur_pos = cur_pos sel + t }

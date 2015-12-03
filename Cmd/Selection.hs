@@ -125,39 +125,50 @@ set_and_scroll view_id selnum sel = do
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.
 advance :: Cmd.M m => m ()
-advance = step TimeStep.Advance False
+advance = step TimeStep.Advance default_move
+
+-- | How to move a selection.
+data Move =
+    Extend -- ^ Extend the existing selection.
+    | Move -- ^ Move the existing selection by the step amount.
+    | Replace -- ^ Replace the existing selection with a point selection.
+    deriving (Show)
+
+-- | Use this Move mode when you don't have a more specific idea.
+default_move :: Move
+default_move = Move
 
 -- | Advance the given selection by the current step.
 --
 -- The selection will maintain its current track span, be set to a point, and
 -- advance to the next relevant mark.  "next relevant mark" is the next visible
--- mark in the ruler to the left.  If @extend@ is true, extend the current
--- selection instead of setting a new point selection.
-step :: Cmd.M m => TimeStep.Direction -> Bool -> m ()
-step dir extend = do
+-- mark in the ruler to the left.
+step :: Cmd.M m => TimeStep.Direction -> Move -> m ()
+step dir move = do
     st <- Cmd.get_current_step
-    step_with (TimeStep.direction dir) extend st
+    step_with (TimeStep.direction dir) move st
 
-step_with :: Cmd.M m => Int -> Bool -> TimeStep.TimeStep -> m ()
-step_with steps extend step = do
+step_with :: Cmd.M m => Int -> Move -> TimeStep.TimeStep -> m ()
+step_with steps move step = do
     view_id <- Cmd.get_focused_view
-    Sel.Selection start_track start_pos cur_track cur_pos <-
+    old@(Sel.Selection start_track start_pos cur_track cur_pos) <-
         Cmd.abort_unless =<< State.get_selection view_id Config.insert_selnum
     new_pos <- step_from cur_track cur_pos steps step
-    let new_sel = if extend
-            then Sel.selection start_track start_pos cur_track new_pos
-            else Sel.point_selection cur_track new_pos
+    let new_sel = case move of
+            Extend -> Sel.selection start_track start_pos cur_track new_pos
+            Move -> Sel.move (new_pos - cur_pos) old
+            Replace -> Sel.point_selection cur_track new_pos
     set_and_scroll view_id Config.insert_selnum new_sel
 
 -- | Move the selection across tracks by @shift@, possibly skipping non-event
 -- tracks and collapsed tracks.
---
--- If @extend@ is true, extend the current selection instead of setting a new
--- selection.
-shift :: Cmd.M m => Bool -> Bool -> Int -> m ()
-shift skip_unselectable extend shift = modify $ \block old ->
+shift :: Cmd.M m => Bool -> Move -> Int -> m ()
+shift skip_unselectable move shift = modify $ \block old ->
     let new = State.shift_selection skip_unselectable block shift old
-    in if extend then Sel.merge old new else new
+    in case move of
+        Extend -> Sel.merge old new
+        Move -> new
+        Replace -> Sel.point_selection (Sel.cur_track new) (Sel.cur_pos new)
 
 -- | Unlike 'shift', this uses 'Sel.union', which means that the selection will
 -- always expand, instead of only expanding if the current track is moving away

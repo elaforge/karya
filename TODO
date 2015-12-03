@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Move cmd-m to GlobalKeymap, so it works when you have several tracks
+    selected.
+  - When there is a non-point selection, make it obvious where cur_pos and
+    cur_track are.
   vsl:
     * attr priority:
       . +pizz over +nv
@@ -23,6 +27,8 @@ UNSORTED
       tracks?
     - Paste between blocks with different track layout is awkward.  Can I have
       a note-oriented paste that reuses or creates the track structure?
+    * It seems inconsistent how horizontal movement retains the selection, but
+      not vertical movement.  And it seems useful to keep the duration.
   . I wind up with a sequence of note transformers, e.g. a rhythmic pattern
     with '('.  Can I abstract that?
     . It would be like textual substitution of a block into a parent track,
