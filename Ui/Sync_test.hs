@@ -81,7 +81,7 @@ test_create_resize_destroy_view = thread (return State.empty) $
     ("view with selection and titles", do
         v1 <- setup_state
         State.set_view_rect v1 (Rect.xywh 200 200 200 200)
-        set_selection v1 (Sel.point_selection 1 20)
+        set_selection v1 (Sel.point 1 20)
         view <- State.get_view v1
         State.set_block_title (Block.view_block view) "block title"
         State.set_track_title t_track1_id "new track"

@@ -253,8 +253,9 @@ set_point_sel tracknum pos = do
 -- | Set a point selection on the default view of the given block name.
 set_point_sel_block :: State.M m => String -> Types.TrackNum -> ScoreTime
     -> m ()
-set_point_sel_block block_name tracknum pos = State.set_selection view_id
-        Config.insert_selnum (Just (Sel.point_selection tracknum pos))
+set_point_sel_block block_name tracknum pos =
+    State.set_selection view_id Config.insert_selnum
+        (Just (Sel.point tracknum pos))
     where view_id = UiTest.mk_vid_name block_name
 
 

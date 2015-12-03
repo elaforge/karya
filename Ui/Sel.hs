@@ -37,8 +37,8 @@ selection start_track start_pos cur_track cur_pos =
     Selection start_track start_pos cur_track cur_pos
 
 -- | A point is a selection with no duration.
-point_selection :: TrackNum -> TrackTime -> Selection
-point_selection tracknum pos = selection tracknum pos tracknum pos
+point :: TrackNum -> TrackTime -> Selection
+point tracknum pos = selection tracknum pos tracknum pos
 
 is_point :: Selection -> Bool
 is_point sel = start_pos sel == cur_pos sel

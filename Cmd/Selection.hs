@@ -157,7 +157,7 @@ step_with steps move step = do
     let new_sel = case move of
             Extend -> Sel.selection start_track start_pos cur_track new_pos
             Move -> Sel.move (new_pos - cur_pos) old
-            Replace -> Sel.point_selection cur_track new_pos
+            Replace -> Sel.point cur_track new_pos
     set_and_scroll view_id Config.insert_selnum new_sel
 
 -- | Move the selection across tracks by @shift@, possibly skipping non-event
@@ -168,7 +168,7 @@ shift skip_unselectable move shift = modify $ \block old ->
     in case move of
         Extend -> Sel.merge old new
         Move -> new
-        Replace -> Sel.point_selection (Sel.cur_track new) (Sel.cur_pos new)
+        Replace -> Sel.point (Sel.cur_track new) (Sel.cur_pos new)
 
 -- | Unlike 'shift', this uses 'Sel.union', which means that the selection will
 -- always expand, instead of only expanding if the current track is moving away

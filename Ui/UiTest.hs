@@ -366,8 +366,7 @@ select view_id sel =
     State.set_selection view_id Config.insert_selnum (Just sel)
 
 select_point :: State.M m => ViewId -> TrackNum -> ScoreTime -> m ()
-select_point view_id tracknum pos =
-    select view_id (Sel.point_selection tracknum pos)
+select_point view_id tracknum pos = select view_id (Sel.point tracknum pos)
 
 -- * non-monadic make_- functions
 

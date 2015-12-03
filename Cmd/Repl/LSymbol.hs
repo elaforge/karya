@@ -33,7 +33,7 @@ make = do
         Track.track "" (Events.singleton (Event.event 0 5 "symbol"))
     State.set_track_width bid 0 0
     vid <- Create.view bid
-    Selection.set vid (Just (Sel.point_selection 1 0))
+    Selection.set vid (Just (Sel.point 1 0))
 
 -- | Put the given Symbol into the test block.
 set :: Symbol.Symbol -> Cmd.CmdL ()

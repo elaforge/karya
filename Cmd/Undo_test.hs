@@ -250,8 +250,8 @@ insert_event :: State.M m => ScoreTime -> String -> m ()
 insert_event pos text = UiTest.insert_event 1 (pos, 1, text)
 
 set_sel :: Cmd.M m => ScoreTime -> m ()
-set_sel pos = Cmd.name "select" $ Selection.set_current Config.insert_selnum
-    (Just (Sel.point_selection 1 pos))
+set_sel pos = Cmd.name "select" $
+    Selection.set_current Config.insert_selnum (Just (Sel.point 1 pos))
 
 
 -- ** extract

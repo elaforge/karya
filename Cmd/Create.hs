@@ -231,7 +231,7 @@ sized_view block_id rect = do
             _ -> Just 1
     whenJust maybe_tracknum $ \tracknum ->
         State.set_selection view_id Config.insert_selnum $
-            Just $ Sel.point_selection tracknum 0
+            Just $ Sel.point tracknum 0
     return view_id
 
 -- | This is like 'unfitted_view', but tries to fit the view size to its
