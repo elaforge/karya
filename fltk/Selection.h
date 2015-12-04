@@ -24,7 +24,7 @@ struct Selection {
 
     Color color;
     ScoreTime start, cur;
-    // If this is a point selection, draw an arrow to make it more obvious.
+    // Draw an arrow at the 'cur' end of the selection.
     bool draw_arrow;
 };
 

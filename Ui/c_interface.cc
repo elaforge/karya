@@ -113,7 +113,8 @@ set_selection(BlockViewWindow *view, int selnum, int tracknum,
     // concurrency issue, it's just that the tracknum in the selection may
     // no longer exist.
     if (tracknum > view->block.tracks()) {
-        // 1 ruler + 2 tracks means the valid range is 0--2, so <= tracks().
+        // 1 ruler + 2 tracks means the valid range is 0--2, so
+        // tracknum > tracks().
         return;
     }
     std::vector<Selection> sels_vector(sels, sels + nsels);

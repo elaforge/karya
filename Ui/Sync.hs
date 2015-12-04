@@ -483,22 +483,26 @@ track_selections :: Sel.Num -> TrackNum -> Maybe Sel.Selection
     -> [([TrackNum], [BlockC.Selection])]
 track_selections selnum tracks maybe_sel = case maybe_sel of
     Nothing -> [([0 .. tracks - 1], [])]
-    Just sel -> (clear, [])
-        : if null tracknums then []
-            else [(tracknums, [convert_selection selnum sel])]
+    Just sel -> (clear, []) : convert_selection selnum tracks sel
         where
-        tracknums = Sel.tracknums tracks sel
         (low, high) = Sel.track_range sel
         clear = [0 .. low - 1] ++ [high + 1 .. tracks - 1]
 
-convert_selection :: Sel.Num -> Sel.Selection -> BlockC.Selection
-convert_selection selnum sel = BlockC.Selection
-    { BlockC.sel_color = color
-    , BlockC.sel_start = Sel.start_pos sel
-    , BlockC.sel_cur = Sel.cur_pos sel
-    , BlockC.sel_draw_arrow = Sel.start_pos sel == Sel.cur_pos sel
-    }
-    where color = Config.lookup_selection_color selnum
+convert_selection :: Sel.Num -> TrackNum -> Sel.Selection
+    -> [([TrackNum], [BlockC.Selection])]
+convert_selection selnum tracks sel =
+    filter (not . null . fst)
+        [(cur_tracknums, [bsel True]), (tracknums, [bsel False])]
+    where
+    (cur_tracknums, tracknums) = List.partition (== Sel.cur_track sel)
+        (Sel.tracknums tracks sel)
+    bsel draw_arrow = BlockC.Selection
+        { BlockC.sel_color = color
+        , BlockC.sel_start = Sel.start_pos sel
+        , BlockC.sel_cur = Sel.cur_pos sel
+        , BlockC.sel_draw_arrow = draw_arrow
+        }
+    color = Config.lookup_selection_color selnum
 
 dtracks_with_ruler_id :: State.M m =>
     RulerId -> m [(BlockId, [(TrackNum, Block.TracklikeId)])]

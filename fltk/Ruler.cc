@@ -322,15 +322,23 @@ OverlayRuler::draw_selections()
             fl_color(sel.color.brightness(0.5).fl());
             int cur = y + this->zoom.to_pixels(sel.cur - this->zoom.offset);
             fl_line(x() + 2, cur, x() + w() - 2, cur);
-            if (sel.is_point() && sel.draw_arrow) {
+            if (sel.is_point() || sel.draw_arrow) {
                 // Draw a little bevel thingy.  It can be hard to see a point
                 // selection.
                 const int sz = selection_point_size;
-                fl_color(FL_RED);
-                fl_polygon(
-                    x(), cur - sz,
-                    x() + sz, cur,
-                    x(), cur + sz);
+                if (sel.draw_arrow) {
+                    fl_color(FL_RED);
+                    fl_polygon(
+                        x(), cur - sz,
+                        x() + sz, cur,
+                        x(), cur + sz);
+                } else {
+                    fl_color(sel.color.fl());
+                    fl_polygon(
+                        x(), cur - sz,
+                        x() + sz, cur,
+                        x(), cur);
+                }
             }
         }
     }

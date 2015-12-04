@@ -3,10 +3,18 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Interpret a midi file with keyswitches back to the attrs.
+    . This is so I can load VSL examples and learn from them.
+    . Should it be a score transformation, or start from the parsed MIDI?
+    . MIDI seems easier because it's already in a linear format, while for
+      the score I'd have to interpret it into one.
+    . But then I need to pass the instrument mapping to Midi.load.
   - Move cmd-m to GlobalKeymap, so it works when you have several tracks
     selected.
-  - When there is a non-point selection, make it obvious where cur_pos and
+  * When there is a non-point selection, make it obvious where cur_pos and
     cur_track are.
+    . I still want arrows on point selections because of a multiple track
+      point selection.  But maybe I can make it red only for the track point.
   vsl:
     * attr priority:
       . +pizz over +nv

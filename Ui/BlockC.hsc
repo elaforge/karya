@@ -471,6 +471,8 @@ instance CStorable SkeletonStatus where
 
 -- ** selection
 
+-- | This is the low level version of 'Sel.Selection'.  It only applies to
+-- a single track, and has an explicit color.
 data Selection = Selection {
     sel_color :: !Color.Color
     , sel_start :: !TrackTime
