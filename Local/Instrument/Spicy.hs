@@ -91,5 +91,5 @@ configure dev_name name = Instrument.configs $
     inst name 0 : [inst (name <> "-" <> string) chan
         | (string, chan) <- zip strings [1..]]
     where
-    inst name chan = (Score.instrument synth_name name, [(dev, chan)])
+    inst name chan = (Score.instrument name, [(dev, chan)])
     dev = Midi.write_device dev_name

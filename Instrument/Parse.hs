@@ -51,7 +51,7 @@ p_instrument = do
     synth <- Parsec.many1 $ Parsec.oneOf Score.inst_valid_chars
     Parsec.char '/'
     name <- Parsec.many1 $ Parsec.oneOf Score.inst_valid_chars
-    return $ Score.instrument (txt synth) (txt name)
+    return $ Score.instrument $ txt (synth <> "/" <> name)
     <?> "instrument"
 
 p_tag :: Parser st Instrument.Tag

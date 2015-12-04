@@ -41,7 +41,7 @@ validate = concatMap check_synth
     check_patch synth patch = map (\s -> prefix <> ": " <> s) $
         Instrument.overlapping_attributes (Instrument.patch_attribute_map patch)
         where
-        prefix = pretty $ Score.instrument
+        prefix = pretty $ instrument
             (Instrument.synth_name synth) (Instrument.patch_name patch)
 
 -- | Merge the MidiDbs, favoring instruments in the leftmost one.
@@ -53,7 +53,7 @@ merge (MidiDb synths1) (MidiDb synths2) =
         (Instrument.patches %= (Instrument.synth_patches synth2 <>)) synth1
     rejects = concatMap find_dups (Map.zip_intersection synths1 synths2)
     find_dups (synth_name, synth1, synth2) =
-        map (Score.instrument synth_name) $ Map.keys $ Map.intersection
+        map (instrument synth_name) $ Map.keys $ Map.intersection
             (Instrument.synth_patches synth1) (Instrument.synth_patches synth2)
 
 -- | Apply the given annotations to the instruments in the MidiDb, and
@@ -192,6 +192,10 @@ type NamedPatch code = (Text, [PatchCode code])
 type Merge = Logger.LoggerT Text Identity.Identity
 
 -- * util
+
+-- | Create an Instrument with the full synth address.
+instrument :: Text -> Text -> Score.Instrument
+instrument synth name = Score.instrument $ synth <> "/" <> name
 
 -- | Guess a score inst name from the instrument name.  This may not be the
 -- final name because they may still be processed for uniqueness.

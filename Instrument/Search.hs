@@ -122,7 +122,7 @@ instrument_tags (MidiDb.MidiDb synths) = concatMap synth_tags (Map.elems synths)
 synth_tags :: Instrument.Synth code -> [(Score.Instrument, [Instrument.Tag])]
 synth_tags synth = do
     (inst_name, (patch, _)) <- Map.toList (Instrument.synth_patches synth)
-    let inst = Score.instrument (Instrument.synth_name synth) inst_name
+    let inst = MidiDb.instrument (Instrument.synth_name synth) inst_name
     return (inst, patch_tags synth inst_name patch)
 
 -- | Get tags of a patch, including automatically generated tags.

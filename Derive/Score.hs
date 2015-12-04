@@ -563,8 +563,8 @@ inst_name (Instrument s) = s
 empty_inst :: Instrument
 empty_inst = Instrument ""
 
-instrument :: Text -> Text -> Instrument
-instrument synth inst = Instrument $ synth <> "/" <> inst
+instrument :: Text -> Instrument
+instrument = Instrument
 
 split_instrument :: Instrument -> (Text, Text)
 split_instrument (Instrument inst) = (synth, Text.drop 1 name)

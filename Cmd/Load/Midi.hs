@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Convert a midi file to a block.
 module Cmd.Load.Midi (
     load
     , parse, convert
@@ -129,6 +130,8 @@ instance Monoid NoteTrack where
         NoteTrack (notes1 <> notes2) (pitches1 <> pitches2)
             (Map.mappend controls1 controls2)
 
+-- | Take flat MIDI msgs to a list of tracks where events don't overlap, and
+-- add pitch and control tracks.
 convert_tracks :: [(Text, [Midi])]
     -> ([(Text, Track)], Skeleton.Skeleton, [Warn])
 convert_tracks midi_tracks = (concatMap convert tracks, skeleton, warns)
@@ -150,10 +153,9 @@ note_track_edges = concat . snd . List.mapAccumL edges 1
         end = n + 2 + Map.size controls
         ns = [n .. end-1]
 
-convert_track :: (Text, [Midi])
-    -> ([(Score.Instrument, NoteTrack)], [Warn])
-convert_track (title, msgs) =
-    (map ((,) (Score.instrument "s" title)) tracks, warns)
+-- | Take flat MIDI msgs to a list of tracks where events don't overlap.
+convert_track :: (Text, [Midi]) -> ([(Score.Instrument, NoteTrack)], [Warn])
+convert_track (title, msgs) = (map (Score.instrument title,) tracks, warns)
     where
     (tracks, stuck_on) = split_track msgs
     warns = if null stuck_on then []
