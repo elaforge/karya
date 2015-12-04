@@ -57,16 +57,25 @@ clicked_track msg = case (Msg.mouse_down msg, Msg.context_track msg) of
 -- | Merge all adjacent note/pitch pairs.  If they're already all merged,
 -- unmerge them all.
 toggle_merge_all :: State.M m => BlockId -> m ()
-toggle_merge_all block_id = do
+toggle_merge_all block_id = toggle_merge block_id =<< Info.block_tracks block_id
+
+toggle_merge_selected :: Cmd.M m => m ()
+toggle_merge_selected = do
+    (block_id, tracknums) <- Selection.tracknums
     tracks <- Info.block_tracks block_id
-    let tracknums = no_parents
-            [ State.track_tracknum note
-            | Info.Track note (Info.Note {}) <- tracks
-            ]
+    toggle_merge block_id $ filter
+        ((`elem` tracknums) . State.track_tracknum . Info.track_info) tracks
+
+toggle_merge :: State.M m => BlockId -> [Info.Track] -> m ()
+toggle_merge block_id tracks =
     ifM (andM (map (track_merged block_id) tracknums))
         (mapM_ (State.unmerge_track block_id) tracknums)
         (mapM_ (merge_track block_id) tracknums)
     where
+    tracknums = no_parents
+        [ State.track_tracknum note
+        | Info.Track note (Info.Note {}) <- tracks
+        ]
     -- A note track parent can't merge, so don't count it.
     no_parents (t1:t2:ts) | t1 + 1 == t2 = no_parents (t2:ts)
     no_parents (t:ts) = t : no_parents ts

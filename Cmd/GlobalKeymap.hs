@@ -316,6 +316,7 @@ block_config_bindings = concat
         (BlockConfig.cmd_toggle_flag Block.Collapse)
     , command_char 'M' "toggle merge all"
         (BlockConfig.toggle_merge_all =<< Cmd.get_focused_block)
+    , command_char 'm' "toggle merged" BlockConfig.toggle_merge_selected
     ]
 
 -- | Global bindings for edit type things.

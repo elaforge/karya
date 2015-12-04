@@ -9,7 +9,7 @@ UNSORTED
     . MIDI seems easier because it's already in a linear format, while for
       the score I'd have to interpret it into one.
     . But then I need to pass the instrument mapping to Midi.load.
-  - Move cmd-m to GlobalKeymap, so it works when you have several tracks
+  * Move cmd-m to GlobalKeymap, so it works when you have several tracks
     selected.
   * When there is a non-point selection, make it obvious where cur_pos and
     cur_track are.
