@@ -70,8 +70,7 @@ parse fn = first show_error <$> Z.readMidi fn
     where show_error (Z.ParseErr pos msg) = showt pos <> ": " <> txt msg
 
 convert :: Z.MidiFile -> ([(Text, Track)], Skeleton.Skeleton, [Warn])
-convert = extract . convert_tracks . extract_tracks
-    where extract (tracks, skel, warns) = (tracks, skel, warns)
+convert = convert_tracks . extract_tracks
 
 -- * extract
 
@@ -167,12 +166,10 @@ convert_track (title, msgs) = (map (Score.instrument title,) tracks, warns)
 -- a free track.
 type SplitState = IntMap.IntMap (RealTime, NoteTrack)
 
--- | for each note, assign to the lowest track (use IntMap) which doesn't
--- have an overlap
+-- | For each note, assign to the lowest track which doesn't have an overlap.
 split_track :: [Midi] -> ([NoteTrack], [(RealTime, Midi.Key)])
     -- ^ (tracks, notes stuck on)
-split_track msgs =
-    (extract $ List.foldl' collect IntMap.empty notes, stuck_on)
+split_track msgs = (extract $ List.foldl' collect IntMap.empty notes, stuck_on)
     where
     (notes, stuck_on) = collect_notes msgs
     extract = map snd . IntMap.elems
