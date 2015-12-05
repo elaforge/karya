@@ -371,19 +371,17 @@ targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
 
 data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
-ghcWarnings :: String -> [String]
-ghcWarnings ghcVersion =
+ghcWarnings :: Mode -> String -> [String]
+ghcWarnings mode ghcVersion =
     "-W" : map ("-fwarn-"++) (words warns)
         ++ map ("-fno-warn-"++) noWarns
     where
     warns = "identities tabs incomplete-record-updates missing-fields\
         \ unused-matches  wrong-do-bind"
-    noWarns = if ghcVersion < "71000" then ["amp"]
-        -- transformers-4 wants me to use Except instead of Error, but I can't
-        -- do that as long as I still want to support transformers-3.  I don't
-        -- really want to suppress all deprecations, but I don't think that's
-        -- possible.
-        else ["warnings-deprecations"]
+    noWarns = (if ghcVersion < "71000" then ["amp"] else [])
+        -- TEST ifdefs can cause duplicate exports if they add X(..) to the
+        -- X export.
+        ++ if mode == Test then ["duplicate-exports"] else []
 
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
@@ -420,14 +418,12 @@ configure midi = do
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
             ["-dynamic" | mode /= Profile]
-            ++ ghcWarnings ghcVersion
+            ++ ghcWarnings mode ghcVersion
             ++ ["-F", "-pgmF", hspp]
             ++ case mode of
                 Debug -> []
                 Opt -> ["-O"]
-                -- TEST ifdefs can cause duplicate exports if they add X(..)
-                -- to the X export.
-                Test -> ["-fhpc", "-fno-warn-duplicate-exports"]
+                Test -> ["-fhpc"]
                 -- TODO I don't want SCCs for criterion tests, but
                 -- not sure for plain profiling, maybe I always want manual
                 -- SCCs anyway?
@@ -1065,6 +1061,7 @@ ghcFlags config = concat $
     [ ghcLanguageFlags
     , define (configFlags config)
     , cInclude (configFlags config)
+    , ghcWarnings (buildMode config) (ghcVersion config)
     ]
 
 -- | Language extensions which are globally enabled.
