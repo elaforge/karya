@@ -77,7 +77,8 @@ test_basic = do
         , Stack.Region s e
         ]
     block_call bid = Stack.Call $ "block " <> showt bid
-    extract_perf_event (Perform.Event start dur inst _controls _pitch stack) =
+    extract_perf_event (Perform.Event start dur inst _controls _pitch
+            _svel _evel stack) =
         (Instrument.inst_name inst,
             RealTime.to_seconds start, RealTime.to_seconds dur, stack)
 

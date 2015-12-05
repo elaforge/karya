@@ -105,7 +105,7 @@ suppress_until = "suppress-until"
 -- function output here, so if it turns out to not be a Pressure instrument
 -- it can use this value.
 --
--- Details in 'Perform.Midi.Convert.convert_dynamic'.
+-- Details in NOTE [EnvKey.dynamic_val].
 dynamic_val :: Key
 dynamic_val = "dyn-val"
 
@@ -178,3 +178,42 @@ isep = "isep"
 polos, sangsih :: Text
 polos = "polos"
 sangsih = "sangsih"
+
+
+{- NOTE [EnvKey.dynamic_val]
+    I originally intended to handle 'Instrument.Pressure' with a note call
+    override.  But it turns out that Pressure is also used by Cmd, so I still
+    need it.  But to get vel from control functions I have to include the
+    ControlValMap in Score.Event.
+
+    I waffled for a long time about whether it was better to handle in the note
+    call or in conversion, and initially favored the note call because it feels
+    like complexity should go in Derive, which is configurable, and not in
+    Convert.  But it turns out doing dyn mapping in Derive then breaks
+    integration, so I'd have to undo it for integration.  That made me think
+    that this is really a low level MIDI detail and perhaps it's best handled
+    by Convert after all.
+
+    A side effect is that NoteOff velocities are now always the same as NoteOn
+    ones, since velocity is now a constant sample.  I can revisit this if
+    I ever care about NoteOff velocity.
+
+    One problem with doing the dyn conversion here is that for a control
+    function on dyn to have any effect I need the value from the control
+    function, which means I need a scalar value.  But by the time I get here
+    the control functions are already gone.  The note call can't know
+    which of the dyn signal or control function is wanted, because that
+    decision is made here.  One solution was to put a ControlValMap in
+    Score.Event so they get here, but that means that anything that modifies
+    controls also has to remember to modify the ControlValMap.  I can do that
+    by updating 'Score.modify_control', but it seems like overkill when all
+    I really want is to communicate the dyn value.  So instead I stash the
+    control function value in 'Controls.dynamic_function'.  Unfortunately this
+    brings it's own complications since now I need to remember to modify it
+    when I modify an event's dynamic, and filter it out of integration so it
+    doesn't create a track for it.
+
+    So neither way is very satisfying, but at least this way doesn't require
+    a whole new field in Score.Event.  Perhaps I'll come up with something
+    better someday.
+-}

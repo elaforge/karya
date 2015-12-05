@@ -68,22 +68,30 @@ convert_event lookup event_ = do
         (Instrument.patch_scale patch) (Instrument.patch_attribute_map patch)
         (Instrument.has_flag Instrument.ConstantPitch patch)
         event_controls event
-    let (controls, overridden) =
-            first (convert_controls (Instrument.inst_control_map midi_inst)) $
-            convert_dynamic (Instrument.has_flag Instrument.Pressure patch)
-                (event_controls
-                    `Map.union` lookup_default_controls lookup score_inst)
-                (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))
-    whenJust overridden $ \sig ->
-        Log.warn $ "non-null control overridden by "
-            <> pretty Controls.dynamic <> ": " <> pretty sig
+    let controls = convert_controls (Instrument.inst_control_map midi_inst) $
+            convert_dynamic pressure
+                (event_controls <> lookup_default_controls lookup score_inst)
+        pressure = Instrument.has_flag Instrument.Pressure patch
+        velocity = fromMaybe Perform.default_velocity
+            (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))
     let converted = Perform.Event
-            { Perform.event_start = Score.event_start event
-            , Perform.event_duration = Score.event_duration event
-            , Perform.event_instrument = midi_inst
-            , Perform.event_controls = controls
-            , Perform.event_pitch = pitch
-            , Perform.event_stack = Score.event_stack event
+            { event_start = Score.event_start event
+            , event_duration = Score.event_duration event
+            , event_instrument = midi_inst
+            , event_controls = controls
+            , event_pitch = pitch
+            -- If it's a pressure instrument, then I'm using breath instead
+            -- of velocity.  I still set velocity because some synths (e.g.
+            -- vsl) use the velocity too in certain cases, but it should be
+            -- at least 1 to avoid not even starting the note.  Of course
+            -- even without pressure, a note on with velocity 0 is kind of
+            -- pointless, but maybe someone wants to fade out.
+            , event_start_velocity = if pressure then max 0.008 velocity
+                else velocity
+            -- Due to NOTE [EnvKey.dynamic_val] I wind up with the same end
+            -- velocity as start velocity.
+            , event_end_velocity = velocity
+            , event_stack = Score.event_stack event
             }
     return converted
 
@@ -110,8 +118,7 @@ require_patch inst Nothing = do
 convert_midi_pitch :: Instrument.Instrument -> Maybe Instrument.PatchScale
     -> Instrument.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
     -> ConvertT (Instrument.Instrument, Signal.NoteNumber)
-convert_midi_pitch inst patch_scale attr_map constant_pitch
-        controls event =
+convert_midi_pitch inst patch_scale attr_map constant_pitch controls event =
     case Instrument.lookup_attribute (Score.event_attributes event) attr_map of
         Nothing -> (,) inst <$> psignal
         Just (keyswitches, maybe_keymap) ->
@@ -157,57 +164,14 @@ convert_controls inst_cmap =
     Map.fromAscList . map (second Score.typed_val) . Map.toAscList
         . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k)
 
-{- | I originally intended to move this to the note call, and replace the
-    'Instrument.Pressure' with a note call override.  But it turns out that
-    Pressure is also used by Cmd, so I still need it.  But to get vel from
-    control functions I have to include the ControlValMap in Score.Event.
-
-    I waffled for a long time about whether it was better to handle in the note
-    call or in conversion, and initially favored the note call because it feels
-    like complexity should go in Derive, which is configurable, and not in
-    Convert.  But it turns out doing dyn mapping in Derive then breaks
-    integration, so I'd have to undo it for integration.  That made me think
-    that this is really a low level MIDI detail and perhaps it's best handled
-    by Convert after all.
-
-    A side effect is that NoteOff velocities are now always the same as NoteOn
-    ones, since velocity is now a constant sample.  I can revisit this if
-    I ever care about NoteOff velocity.
-
-    One problem with doing the dyn conversion here is that for a control
-    function on dyn to have any effect I need the value from the control
-    function, which means I need a scalar value.  But by the time I get here
-    the control functions are already gone.  The note call can't know
-    which of the dyn signal or control function is wanted, because that
-    decision is made here.  One solution was to put a ControlValMap in
-    Score.Event so they get here, but that means that anything that modifies
-    controls also has to remember to modify the ControlValMap.  I can do that
-    by updating 'Score.modify_control', but it seems like overkill when all
-    I really want is to communicate the dyn value.  So instead I stash the
-    control function value in 'Controls.dynamic_function'.  Unfortunately this
-    brings it's own complications since now I need to remember to modify it
-    when I modify an event's dynamic, and filter it out of integration so it
-    doesn't create a track for it.
-
-    So neither way is very satisfying, but at least this way doesn't require
-    a whole new field in Score.Event.  Perhaps I'll come up with something
-    better someday.
--}
-convert_dynamic :: Bool -- ^ True if the @p@ control should become breath.
-    -> Score.ControlMap -- ^ Controls to convert.
-    -> Maybe Signal.Y
-    -> (Score.ControlMap, Maybe Score.Control)
-convert_dynamic pressure controls dyn_function =
-    maybe (controls, Nothing) insert_dyn dyn
-    where
-    dyn = if pressure then Map.lookup Controls.dynamic controls
-        else Score.untyped . Signal.constant <$> dyn_function
-    dest = if pressure then Controls.breath else Controls.velocity
-    insert_dyn sig = (Map.insert dest sig controls, overridden)
-    overridden = case Map.lookup dest controls of
-        Just sig | not (Signal.null (Score.typed_val sig))
-            -> Just dest
-        _ -> Nothing
+-- | If it's a 'Instrument.Pressure' instrument, move the 'Controls.dynamic'
+-- control to 'Controls.breath'.
+convert_dynamic :: Bool -> Score.ControlMap -> Score.ControlMap
+convert_dynamic pressure controls
+    | pressure = maybe controls
+        (\sig -> Map.insert Controls.breath sig controls)
+        (Map.lookup Controls.dynamic controls)
+    | otherwise = controls
 
 convert_pitch :: Maybe Instrument.PatchScale -> Env.Environ
     -> Score.ControlMap -> PSignal.PSignal -> ConvertT Signal.NoteNumber

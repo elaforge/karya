@@ -54,23 +54,6 @@ test_convert = do
             (map RealTime.seconds [0..])
     equal (length (take 3 (convert events))) 3
 
-test_convert_dynamic = do
-    let f pressure controls dyn_function = first e_controls $
-            Convert.convert_dynamic pressure
-                (DeriveTest.mkcontrols_const controls)
-                dyn_function
-        e_controls = map (second (Signal.unsignal . Score.typed_val))
-            . filter ((`elem` [Controls.velocity, Controls.breath]) . fst)
-            . Map.toList
-    equal (f False [(Controls.dynamic, 1)] (Just 0.5))
-        ([(Controls.velocity, [(0, 0.5)])], Nothing)
-    equal (f True [(Controls.dynamic, 1)] (Just 0.5))
-        ([(Controls.breath, [(0, 1)])], Nothing)
-
-    -- If both vel and dyn are present, dyn shadows vel, but warn about vel.
-    equal (f False [(Controls.velocity, 1)] (Just 0.5))
-        ([(Controls.velocity, [(0, 0.5)])], Just Controls.velocity)
-
 test_rnd_vel = do
     let run dyn notes = first extract $ DeriveTest.perform_block
             [ (">i1 | %dyn = " <> dyn,

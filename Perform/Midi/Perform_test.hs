@@ -17,17 +17,18 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import Midi.Midi (ChannelMessage(..))
 
+import qualified Cmd.Simple as Simple
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
+import Perform.Midi.PerformTest (inst1, inst2)
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -102,19 +103,6 @@ test_perform = do
 
         , ("dev1", 2.0 - gap, (0, NoteOff 60 100))
         , ("dev1", 3.0 - gap, (1, NoteOff 60 100))
-        ]
-
-    -- velocity curve shows up in NoteOns and NoteOffs
-    let c_vel = (Controls.velocity, linear_interp [(0, 1), (4, 0)])
-    msgs <- f
-        [ (inst1, "a", 0, 2, [c_vel])
-        , (inst1, "b", 2, 2, [c_vel])
-        ]
-    equal msgs
-        [ ("dev1", 0,           (0, NoteOn 60 127))
-        , ("dev1", 2 - gap,     (0, NoteOff 60 64))
-        , ("dev1", 2,           (0, NoteOn 61 64))
-        , ("dev1", 4 - gap,     (0, NoteOff 61 0))
         ]
 
     -- Consecutive notes with the same pitch have NoteOff / NoteOn in the right
@@ -340,12 +328,6 @@ test_clip_warns = do
         -- why it changed when RealTime became integral
         , "Perform: %vol clipped: (4s, 4s)"
         ]
-    check (all_msgs_valid msgs)
-
-test_vel_clip_warns = do
-    let (msgs, warns) = perform inst_addrs1 $ mkevents_inst
-            [("a", 0, 4, [badsig Controls.velocity])]
-    equal warns ["Perform: %vel clipped: (0s, 4s)"]
     check (all_msgs_valid msgs)
 
 test_keyswitch_share_chan = do
@@ -781,7 +763,7 @@ test_allot_warn = do
         extract (LEvent.Log msg) = Just $ Right $ DeriveTest.show_log msg
     let f = mapMaybe extract . allot inst_addrs1
             . map (\(evt, chan) -> (mkevent evt, chan))
-    let no_inst = mkinst "no_inst"
+    let no_inst = PerformTest.mkinst "no_inst"
     equal (f [((inst1, "a", 0, 1, []), 0)])
         [Left ("inst1", "dev1", 0)]
     equal (f [((no_inst, "a", 0, 1, []), 0), ((no_inst, "b", 1, 2, []), 0)])
@@ -808,9 +790,13 @@ mkevents :: [EventSpec] -> [Perform.Event]
 mkevents = map mkevent
 
 mkevent :: EventSpec -> Perform.Event
-mkevent (inst, pitch, start, dur, controls) =
-    Perform.Event start dur inst (Map.fromList controls)
-        (psig start pitch) DeriveTest.fake_stack
+mkevent (inst, pitch, start, dur, controls) = PerformTest.empty_event
+    { Perform.event_start = start
+    , Perform.event_duration = dur
+    , Perform.event_instrument = inst
+    , Perform.event_controls = Map.fromList controls
+    , Perform.event_pitch = psig start pitch
+    }
     where
     psig pos p = Signal.signal [(pos, to_pitch p)]
     to_pitch p = fromMaybe (error ("no pitch " ++ show p)) (lookup p pitch_map)
@@ -822,10 +808,13 @@ type PEvent = (RealTime, RealTime, [(Signal.X, Signal.Y)],
 
 -- | Similar to mkevent, but allow a pitch curve.
 mkpevent :: PEvent -> Perform.Event
-mkpevent (start, dur, psig, conts) =
-    Perform.Event start dur inst1 (PerformTest.make_controls conts)
-        (Signal.map_y Convert.round_pitch (Signal.signal psig))
-        Stack.empty
+mkpevent (start, dur, psig, controls) = PerformTest.empty_event
+    { Perform.event_start = start
+    , Perform.event_duration = dur
+    , Perform.event_controls = Simple.control_map controls
+    , Perform.event_pitch =
+        Signal.map_y Convert.round_pitch (Signal.signal psig)
+    }
 
 mkevents_inst :: [(String, RealTime, RealTime, [Control])] -> [Perform.Event]
 mkevents_inst = map (\(a, b, c, d) -> mkevent (inst1, a, b, c, d))
@@ -843,13 +832,6 @@ linear_interp = Signal.signal . interpolate
         | otherwise = [(x, TimeVector.y_at x0 y0 x1 y1 x)
             | x <- Seq.range_end x0 (x1-1) 1] ++ interpolate rest
     interpolate val = val
-
-inst1 = mkinst "inst1"
-inst2 = mkinst "inst2"
-
-mkinst :: Text -> Instrument.Instrument
-mkinst name = (Instrument.instrument (-1, 1) name [])
-    { Instrument.inst_score = Score.Instrument ("synth1/" <> name) }
 
 dev1, dev2 :: Midi.WriteDevice
 dev1 = Midi.write_device "dev1"

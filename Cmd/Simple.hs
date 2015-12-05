@@ -26,6 +26,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Score as Score
+import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
@@ -196,3 +197,43 @@ midi_config :: MidiConfig -> Instrument.Configs
 midi_config config = Instrument.configs
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr (dev, chan) = (Midi.write_device dev, chan)
+
+
+-- * ExactPerfEvent
+
+-- | Like 'PerfEvent', but is meant to recreate a 'Perform.Event' exactly.
+type ExactPerfEvent =
+    ( Text, RealTime, RealTime, [(Text, [(RealTime, Signal.Y)])]
+    , [(RealTime, Signal.Y)], (Signal.Y, Signal.Y), Stack.Stack
+    )
+
+dump_exact_perf_event :: Perform.Event -> ExactPerfEvent
+dump_exact_perf_event (Perform.Event start dur inst controls pitch svel evel
+        stack) =
+    ( Score.inst_name (Instrument.inst_score inst)
+    , start, dur
+    , map (Score.control_name *** Signal.unsignal) (Map.toList controls)
+    , Signal.unsignal pitch
+    , (svel, evel)
+    , stack
+    )
+
+load_exact_perf_event :: (Score.Instrument -> Maybe Instrument.Instrument)
+    -> ExactPerfEvent -> Maybe Perform.Event
+load_exact_perf_event lookup_inst (inst, start, dur, controls, pitch,
+        (svel, evel), stack) = do
+    inst <- lookup_inst (Score.Instrument inst)
+    return $ Perform.Event
+        { event_instrument = inst
+        , event_start = start
+        , event_duration = dur
+        , event_controls = control_map controls
+        , event_pitch = Signal.signal pitch
+        , event_start_velocity = svel
+        , event_end_velocity = evel
+        , event_stack = stack
+        }
+
+control_map :: [(Text, [(RealTime, Signal.Y)])] -> Perform.ControlMap
+control_map kvs =
+    Map.fromList [(Score.unchecked_control k, Signal.signal v) | (k, v) <- kvs]

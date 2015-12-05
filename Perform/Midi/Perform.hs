@@ -2,10 +2,21 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {- | Main entry point for Perform.Midi.  Render Deriver output down to actual
     midi events.
 -}
-module Perform.Midi.Perform where
+module Perform.Midi.Perform (
+    default_velocity
+    , State(..), initial_state
+    , perform
+    -- * types
+    , MidiEvents
+    , Event(..), ControlMap
+#if TESTING
+    , module Perform.Midi.Perform
+#endif
+) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -18,7 +29,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
-import qualified Derive.Controls as Controls
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
@@ -293,11 +303,11 @@ empty_allot_state = AllotState Map.empty Map.empty
 type AllotKey = (Score.Instrument, Channel)
 
 data Allotted = Allotted {
-    allotted_addr :: !Instrument.Addr
+    _allotted_addr :: !Instrument.Addr
     -- | End time for each allocated voice.
     , allotted_voices :: ![RealTime]
     -- | Maximum length for allotted_voices.
-    , allotted_voice_count :: !Instrument.Voices
+    , _allotted_voice_count :: !Instrument.Voices
     } deriving (Eq, Show)
 
 -- | Try to find an Addr for the given Event.  If that's impossible, return
@@ -541,19 +551,17 @@ perform_note_msgs :: Event -> Instrument.Addr -> Midi.Key
     -> (MidiEvents, RealTime)
 perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     where
-    events = map LEvent.Event
-        [ chan_msg note_on (Midi.NoteOn midi_nn on_vel)
-        , chan_msg note_off (Midi.NoteOff midi_nn off_vel)
+    events =
+        [ LEvent.Event $ chan_msg note_on $
+            Midi.NoteOn midi_nn (Control.val_to_cc (event_start_velocity event))
+        , LEvent.Event $ chan_msg note_off $
+            Midi.NoteOff midi_nn (Control.val_to_cc (event_end_velocity event))
         ]
-        ++ map LEvent.Log warns
     note_on = event_start event
     -- Subtract the adjacent_note_gap, but leave a little bit of duration for
     -- 0-dur notes.
     note_off = max (note_on + adjacent_note_gap)
         (event_end event - adjacent_note_gap)
-    (on_vel, off_vel, vel_clip_warns) = note_velocity event note_on
-        (event_end event)
-    warns = make_clip_warnings event (Controls.velocity, vel_clip_warns)
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
@@ -605,37 +613,12 @@ event_pitch_at pb_range event pos =
     Control.pitch_to_midi pb_range $
         Pitch.NoteNumber $ Signal.at pos (event_pitch event)
 
-note_velocity :: Event -> RealTime -> RealTime
-    -> (Midi.Velocity, Midi.Velocity, [ClipRange])
-note_velocity event note_on note_off =
-    (clipped_vel on_sig, clipped_vel off_sig, clip_warns)
-    where
-    on_sig = fromMaybe default_velocity $
-        control_at event Controls.velocity note_on
-    off_sig = fromMaybe default_velocity $
-        control_at event Controls.velocity note_off
-    clipped_vel val = Control.val_to_cc (fst (clip_val 0 1 val))
-    clip_warns =
-        if snd (clip_val 0 1 on_sig) || snd (clip_val 0 1 off_sig)
-        then [(note_on, note_off)] else []
-
-clip_val :: Signal.Y -> Signal.Y -> Signal.Y -> (Signal.Y, Bool)
-clip_val low high val
-    | val < low = (low, True)
-    | val > high = (high, True)
-    | otherwise = (val, False)
-
 type ClipRange = (RealTime, RealTime)
 
 make_clip_warnings :: Event -> (Score.Control, [ClipRange]) -> [Log.Msg]
 make_clip_warnings event (control, clip_warns) =
     [event_warning event (pretty control <> " clipped: "
         <> pretty (s, e)) | (s, e) <- clip_warns]
-
-control_at :: Event -> Score.Control -> RealTime -> Maybe Signal.Y
-control_at event control pos = do
-    sig <- Map.lookup control (event_controls event)
-    return (Signal.at pos sig)
 
 perform_pitch :: Control.PbRange -> Midi.Key -> RealTime -> RealTime
     -> Maybe RealTime -> Signal.NoteNumber -> [(RealTime, Midi.ChannelMessage)]
@@ -763,11 +746,13 @@ data Event = Event {
     , event_instrument :: !Instrument.Instrument
     , event_controls :: !ControlMap
     , event_pitch :: !Signal.NoteNumber
+    , event_start_velocity :: !Signal.Y
+    , event_end_velocity :: !Signal.Y
     , event_stack :: !Stack.Stack
     } deriving (Eq, Show)
 
 instance DeepSeq.NFData Event where
-    rnf (Event start dur inst controls pitch stack) =
+    rnf (Event start dur inst controls pitch _svel _evel stack) =
         rnf start `seq` rnf dur `seq` rnf inst `seq` rnf controls
         `seq` rnf pitch `seq` rnf stack
         where
@@ -775,15 +760,17 @@ instance DeepSeq.NFData Event where
         rnf = DeepSeq.rnf
 
 instance Pretty.Pretty Event where
-    format (Event start dur inst controls pitch stack) = Pretty.record "Event"
-        [ ("start", Pretty.format start)
-        , ("duration", Pretty.format dur)
-        , ("instrument", Pretty.format (Instrument.inst_score inst))
-        , ("keyswitch", Pretty.format (Instrument.inst_keyswitch inst))
-        , ("controls", Pretty.format controls)
-        , ("pitch", Pretty.format pitch)
-        , ("stack", Pretty.format stack)
-        ]
+    format (Event start dur inst controls pitch svel evel stack) =
+        Pretty.record "Event"
+            [ ("start", Pretty.format start)
+            , ("duration", Pretty.format dur)
+            , ("instrument", Pretty.format (Instrument.inst_score inst))
+            , ("keyswitch", Pretty.format (Instrument.inst_keyswitch inst))
+            , ("controls", Pretty.format controls)
+            , ("pitch", Pretty.format pitch)
+            , ("velocity", Pretty.format (svel, evel))
+            , ("stack", Pretty.format stack)
+            ]
 
 -- | Pretty print the event more briefly than the Pretty instance.
 short_event :: Event -> Text

@@ -12,11 +12,11 @@ import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.PerformTest as PerformTest
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -57,9 +57,9 @@ profile_complex = do
     let pitch_at n = signal [(n, fromIntegral (floor n `mod` 64 + 32))]
         mod_sig = signal [(n, n) | n <- [0, 1/16 .. 15/16]]
         mod_at n = (Controls.mod, Signal.shift (RealTime.seconds n) mod_sig)
-        velocity_at n = fromIntegral (floor n `mod` 64) / 64 + 1/8
-        vel_at n = (Controls.velocity, signal [(n, velocity_at n)])
-    let event n = mkevent n 1 [mod_at n, vel_at n] (pitch_at n)
+        dynamic_at n = fromIntegral (floor n `mod` 64) / 64 + 1/8
+        dyn_at n = (Controls.dynamic, signal [(n, dynamic_at n)])
+    let event n = mkevent n 1 [mod_at n, dyn_at n] (pitch_at n)
     -- 16 ccs + 2 notes = 18
     let evts = take (event_count 18) (map event [0,4..])
     run_multiple evts $ \arg -> do
@@ -98,9 +98,13 @@ run_multiple arg action = forM_ [1..6] $ \n -> do
 
 mkevent :: Double -> Double -> [(Score.Control, Signal.Control)]
     -> Signal.NoteNumber -> Perform.Event
-mkevent start dur controls pitch_sig =
-    Perform.Event (RealTime.seconds start) (RealTime.seconds dur)
-        inst1 (Map.fromList controls) pitch_sig Stack.empty
+mkevent start dur controls pitch_sig = PerformTest.empty_event
+    { Perform.event_start = RealTime.seconds start
+    , Perform.event_duration = RealTime.seconds dur
+    , Perform.event_instrument = inst1
+    , Perform.event_controls = Map.fromList controls
+    , Perform.event_pitch = pitch_sig
+    }
 
 inst1 :: Instrument.Instrument
 inst1 = mkinst "inst1"

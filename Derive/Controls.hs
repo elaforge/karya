@@ -66,10 +66,9 @@ mute = "mute"
 
 -- ** understood by MIDI performer
 
--- | MIDI velocity and breath.  Generally you should use 'dynamic', which
--- will emit velocity or breath depending on the instrument.
-velocity, breath :: Control
-velocity = "vel"
+-- | Breath controller.  Generally you should use 'dynamic', which will emit
+-- velocity or breath depending on the instrument.
+breath :: Control
 breath = "breath"
 
 -- | Channel pressure.

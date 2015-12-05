@@ -45,17 +45,16 @@ control_constructor cmap cont key
 -- Takes a Score.Control because being a MIDI control is a precondition for
 -- conversion into 'Control'.
 is_midi_control :: ControlMap -> Score.Control -> Bool
-is_midi_control cmap control = control == Controls.velocity
-    || Map.member control universal_control_map
+is_midi_control cmap control =
+    Map.member control universal_control_map
     || Map.member control cmap
     || control == Controls.pressure || control == Controls.aftertouch
 
--- | True for controls that must have a channel to themselves.
--- Midi controls are a subset of what I consider controls, since
--- I include all variable note parameters.
+-- | True for controls that must have a channel to themselves.  Midi controls
+-- are a subset of what I consider controls, since I include all variable note
+-- parameters.
 is_channel_control :: Score.Control -> Bool
-    -- Don't include c_pitch because that is checked for sharing separately.
-is_channel_control = (`notElem` [Controls.velocity, Controls.aftertouch])
+is_channel_control = (/= Controls.aftertouch)
 
 control_range :: (Signal.Y, Signal.Y)
 control_range = (0, 1)

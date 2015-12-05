@@ -7,6 +7,7 @@
 module Cmd.Repl.LDebug where
 import qualified Data.Map as Map
 import qualified Data.Text as Text
+import qualified System.IO as IO
 
 import qualified Util.Log as Log
 import qualified Util.PPrint as PPrint
@@ -26,7 +27,6 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Perform as Perform
-import qualified Perform.Midi.PerformTest as PerformTest
 import Global
 import Types
 
@@ -63,8 +63,8 @@ dump_block_perf_events fname block_id = do
     dump_perf_events fname (LEvent.events_of events)
 
 dump_perf_events :: FilePath -> [Perform.Event] -> Cmd.CmdL ()
-dump_perf_events fname events =
-    liftIO $ PerformTest.dump_perf_events fname events
+dump_perf_events fname events = liftIO $ IO.writeFile fname $
+    PPrint.pshow (map Simple.dump_exact_perf_event events)
 
 -- * undo
 
