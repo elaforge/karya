@@ -35,9 +35,12 @@ test_kendang = do
 test_pasang_calls = do
     -- every pasang call should be a tunggal call
     let extract (_, _, _, call) =
-            [sym | (_, sym, _, _) <- Kendang.tunggal_calls, sym == call]
+            [sym | (_, sym, _, _) <- Kendang.tunggal_strokes, sym == call]
     equal (map extract Kendang.pasang_calls)
         [[call] | (_, _, _, call) <- Kendang.pasang_calls]
+
+test_all_strokes_mapped = do
+    equal Kendang._tunggal_unmapped []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_setup

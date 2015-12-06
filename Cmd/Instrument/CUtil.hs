@@ -26,6 +26,7 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
@@ -38,6 +39,7 @@ import qualified Derive.TrackLang as TrackLang
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 
 import qualified App.Config as Config
 import Global
@@ -212,11 +214,12 @@ make_keymap :: Midi.Key -- ^ keyswitches start here
     -> Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
     -> Pitch.NoteNumber -- ^ the pitch of the bottom note of each range
-    -> [[Score.Attributes]] -> [(Score.Attributes, KeyswitchRange)]
-make_keymap base_keyswitch base_key range root_pitch groups = do
+    -> [[Score.Attributes]] -> Map.Map Score.Attributes KeyswitchRange
+make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
     (group, low) <- zip groups [base_key, base_key+range ..]
     (attrs, ks) <- zip group [base_keyswitch ..]
-    return (attrs, ([Instrument.Keyswitch ks], low, low + (range-1), root_pitch))
+    return (attrs,
+        ([Instrument.Keyswitch ks], low, low + (range-1), root_pitch))
 
 -- | This is like 'make_keymap', except that attributes are differentiated by
 -- a 'Instrument.ControlSwitch'.  CCs start at 102, and only groups of size >1
@@ -226,14 +229,15 @@ make_keymap base_keyswitch base_key range root_pitch groups = do
 make_cc_keymap :: Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
     -> Pitch.NoteNumber -- ^ the pitch of the bottom note of each range
-    -> [[Score.Attributes]] -> [(Score.Attributes, KeyswitchRange)]
+    -> [[Score.Attributes]] -> Map.Map Score.Attributes KeyswitchRange
 make_cc_keymap base_key range root_pitch =
-    go base_cc . zip [base_key, base_key + range ..]
+    Map.fromList . go base_cc . zip [base_key, base_key + range ..]
     where
     go _ [] = []
     go cc ((low, group) : groups) = case group of
         [] -> go cc groups
-        [attrs] -> (attrs, ([], low, low + (range-1), root_pitch)) : go cc groups
+        [attrs] -> (attrs, ([], low, low + (range-1), root_pitch))
+            : go cc groups
         _ ->
             [ (attrs, ([Instrument.ControlSwitch cc cc_val],
                 low, low + (range-1), root_pitch))
@@ -261,17 +265,18 @@ make_attribute_map notes = Instrument.make_attribute_map $ Seq.unique
     ]
 
 -- | Make PitchedNotes by pairing each 'Drums.Note' with its 'KeyswitchRange'.
-drum_pitched_notes :: [Drums.Note] -> [(Score.Attributes, KeyswitchRange)]
+drum_pitched_notes :: [Drums.Note] -> Map.Map Score.Attributes KeyswitchRange
     -> (PitchedNotes, ([Drums.Note], [Score.Attributes]))
     -- ^ Also return the notes with no mapping (so they can't be played), and
     -- keymap ranges with no corresponding notes (so there is no call to
     -- play them).
 drum_pitched_notes notes keymap = (found, (not_found, unused))
     where
-    unused = filter (`notElem` note_attrs) (map fst keymap)
+    unused = filter (`notElem` note_attrs) (Map.keys keymap)
     note_attrs = map Drums.note_attrs notes
     (not_found, found) = Either.partitionEithers $ map find notes
-    find n = maybe (Left n) (Right . (,) n) (lookup (Drums.note_attrs n) keymap)
+    find n = maybe (Left n) (Right . (,) n)
+        (Map.lookup (Drums.note_attrs n) keymap)
 
 -- | Create 0 duration calls from the given drum notes.
 --
@@ -302,3 +307,26 @@ tuning_control args control deriver = do
         (Derive.untyped_control_at control =<< Args.real_start args)
     let nn = NN.middle_c + Pitch.nn tuning
     Call.with_pitch (PSignal.nn_pitch nn) deriver
+
+-- * util
+
+-- | Given a map describing how Attributes are mapped to the MIDI key range,
+-- take a key binding to a 'PitchedNotes'.  The reason these are separate is
+-- that the map describes how a particular patch maps attributes, while the
+-- key binding describes the capabilities of the instrument itself.
+--
+-- If a mapping has 'Attrs.soft', it's looked up without the soft, but gets
+-- a 'Drums.note_dynamic'
+resolve_strokes :: Signal.Y -> Map.Map Score.Attributes KeyswitchRange
+    -> [(Char, TrackLang.CallId, Score.Attributes, Drums.Group)]
+    -- ^ (key_binding, emits_text, call_attributes, stop_group)
+    -> (PitchedNotes, [Score.Attributes])
+    -- ^ also return attributes not mapped in this patch
+resolve_strokes soft_dyn keymap = Either.partitionEithers . map resolve
+    where
+    resolve (char, call, attrs, group) =
+        maybe (Right attrs) (Left . (note,)) $
+            Map.lookup (Score.attrs_remove Attrs.soft attrs) keymap
+        where
+        note = (Drums.note_dyn char call attrs dyn) { Drums.note_group = group }
+        dyn = if Score.attrs_contain attrs Attrs.soft then soft_dyn else 1

@@ -46,14 +46,10 @@ patches =
     patch name = MidiInst.patch (-24, 24) name []
 
 tunggal_notes :: CUtil.PitchedNotes
-tunggal_notes = do
-    (char, call, attrs, group) <- tunggal_calls
-    let Just ks_range = lookup (Score.attrs_remove soft attrs) tunggal_keymap
-    let note = (Drums.note_dyn char call attrs dyn) { Drums.note_group = group }
-        dyn = if Score.attrs_contain attrs soft then 0.3 else 1
-    return (note, ks_range)
+(tunggal_notes, _tunggal_unmapped) =
+    CUtil.resolve_strokes 0.3 tunggal_keymap tunggal_strokes
 
-tunggal_keymap :: [(Score.Attributes, CUtil.KeyswitchRange)]
+tunggal_keymap :: Map.Map Score.Attributes CUtil.KeyswitchRange
 tunggal_keymap = CUtil.make_keymap Key2.e_2 Key2.c_1 12 NN.fs3
     [ [de <> Attrs.staccato, plak]
     , [de <> Attrs.thumb, dag <> Attrs.staccato]
@@ -66,9 +62,9 @@ tunggal_keymap = CUtil.make_keymap Key2.e_2 Key2.c_1 12 NN.fs3
     , [de <> Attrs.left, tut <> Attrs.left]
     ]
 
-tunggal_calls :: [(Char, TrackLang.CallId, Score.Attributes, Drums.Group)]
+tunggal_strokes :: [(Char, TrackLang.CallId, Score.Attributes, Drums.Group)]
 kendang_stops :: [(Drums.Group, [Drums.Group])]
-(kendang_stops, tunggal_calls) = (,) stops
+(kendang_stops, tunggal_strokes) = (,) stops
     [ ('b', "PL", plak,                 both)
     -- left
     , ('q', "P", pak,                   left_closed)
@@ -128,7 +124,8 @@ old_tunggal_notes = map (first make_note)
     make_note attrs = Drums.note_dyn char call attrs
             (if Score.attrs_contain attrs soft then 0.3 else 1)
         where
-        Just (char, call, _, _) = List.find ((==attrs) . attrs_of) tunggal_calls
+        Just (char, call, _, _) =
+            List.find ((==attrs) . attrs_of) tunggal_strokes
     attrs_of (_, _, a, _) = a
 
 write_ksp :: IO ()
@@ -164,7 +161,7 @@ pasang_inst Lanang = snd
 -- | (keybinding, call_name, Kendang, dispatch_to_call)
 --
 -- The dispatch calls should all be understood by a kendang tunggal, i.e.
--- in 'tunggal_calls'.
+-- in 'tunggal_strokes'.
 pasang_calls :: [(Char, TrackLang.CallId, Kendang, TrackLang.CallId)]
 pasang_calls =
     [ ('b', "PL", Wadon, "PL")

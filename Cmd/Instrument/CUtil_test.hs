@@ -3,6 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Cmd.Instrument.CUtil_test where
+import qualified Data.Map as Map
+
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Midi.Key as Key
@@ -86,13 +88,14 @@ test_make_cc_keymap = do
     let f = CUtil.make_cc_keymap
         cw = Instrument.ControlSwitch
     equal (f 0 12 NN.c4
-            [[Attrs.left, Attrs.right], [Attrs.open], [Attrs.low, Attrs.high]])
-        [ (Attrs.left, ([cw 102 0], Key.c_1, Key.b_1, NN.c4))
-        , (Attrs.right, ([cw 102 1], Key.c_1, Key.b_1, NN.c4))
-        , (Attrs.open, ([], Key.c0, Key.b0, NN.c4))
-        , (Attrs.low, ([cw 103 0], Key.c1, Key.b1, NN.c4))
-        , (Attrs.high, ([cw 103 1], Key.c1, Key.b1, NN.c4))
-        ]
+        [[Attrs.left, Attrs.right], [Attrs.open], [Attrs.low, Attrs.high]]) $
+        Map.fromList
+            [ (Attrs.left, ([cw 102 0], Key.c_1, Key.b_1, NN.c4))
+            , (Attrs.right, ([cw 102 1], Key.c_1, Key.b_1, NN.c4))
+            , (Attrs.open, ([], Key.c0, Key.b0, NN.c4))
+            , (Attrs.low, ([cw 103 0], Key.c1, Key.b1, NN.c4))
+            , (Attrs.high, ([cw 103 1], Key.c1, Key.b1, NN.c4))
+            ]
 
 drum_synth :: MidiInst.Synth
 drum_synth = make_synth [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]

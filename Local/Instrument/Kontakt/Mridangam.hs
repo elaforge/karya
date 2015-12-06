@@ -181,7 +181,7 @@ write_ksp = mapM_ (uncurry Util.write)
 
 pitched_notes_old :: CUtil.PitchedNotes
 (pitched_notes_old, _pitched_notes_old) =
-    CUtil.drum_pitched_notes all_notes $ map make
+    CUtil.drum_pitched_notes all_notes $ Map.fromList $ map make
     -- left
     [ (tha, (Key.g_1, Key.e0))
     , (thom, (Key.g0, Key.e1))
