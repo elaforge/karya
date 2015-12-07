@@ -613,8 +613,7 @@ clarinet_bb_flutter_trills =
     , trill.maj.third.dyn
     , trill.half.acc, trill.whole.acc, trill.half.acc.dyn, trill.whole.acc.dyn
     ]
-clarinet_bb_perf_interval =
-    [perf.legato, perf.legato.grace.updown, perf.marcato]
+clarinet_bb_perf_interval = [perf.legato, perf.legato.grace, perf.marcato]
 clarinet_bb_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
 clarinet_bb_perf_trill = [perf.trill]
 clarinet_bb_perf_repitition = map (rep.)

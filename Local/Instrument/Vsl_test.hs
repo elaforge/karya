@@ -23,10 +23,12 @@ test_attr_priority = do
             (map fst Vsl.patches)
         lookup attrs = fst <$> Instrument.lookup_attribute attrs
             (Instrument.patch_attribute_map violin)
-    -- +pizz wins over +nv
-    equal (lookup (VslInst.pizz <> VslInst.nv)) (lookup VslInst.pizz)
+    -- +pizz wins over +spiccato
+    equal (lookup (VslInst.pizz <> VslInst.spiccato)) (lookup VslInst.pizz)
     -- +harsh wins over +stac
     equal (lookup (VslInst.harsh <> VslInst.staccato)) (lookup VslInst.harsh)
+    -- Everything wins over +nv.
+    equal (lookup (VslInst.nv <> VslInst.legato)) (lookup VslInst.legato)
 
 test_strip_attrs = do
     let f = map ShowVal.show_val . Vsl.strip_attrs . map Score.attrs

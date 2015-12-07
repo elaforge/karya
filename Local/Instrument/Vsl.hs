@@ -229,14 +229,17 @@ keyswitch_map = Instrument.keyswitches . Seq.sort_on (priority . fst) . process
 -- | Order attributes by priority.  This should correspond to specificity, or
 -- to perceptual importance, as documented in 'Instrument.AttributeMap'.
 attribute_priority :: Map.Map Score.Attributes Int
-attribute_priority = Map.fromList $ (`zip` [-1, -2 ..]) $ reverse
-    [ VslInst.pizz
-    , VslInst.spiccato
-    , VslInst.harsh
-    , VslInst.staccato
-    , VslInst.detache
-    , VslInst.detache <> VslInst.long
-    ]
+attribute_priority = Map.fromList ((`zip` [-1, -2 ..]) (reverse high)) <> low
+    where
+    high =
+        [ VslInst.pizz
+        , VslInst.spiccato
+        , VslInst.harsh
+        , VslInst.staccato
+        , VslInst.detache
+        , VslInst.detache <> VslInst.long
+        ]
+    low = Map.fromList [(VslInst.nv, 100)]
 
 -- | Since the VSL matrix is only 12x12, a row of articulations greater than
 -- that overflows to the next row.  Given that I'm definitely going to overflow
