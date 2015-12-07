@@ -3,6 +3,20 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - use either 'attrs' or 'attributes' consistently
+  - How can I get dyn to only affect attacks?  I could have a 'dyn-a' and use
+    that only at attack time, but what about other controls?
+    . Just hardcode a few signals for now.
+    . But I also want to use vel for some articulations, and cc2 for others.
+      So I think even for pressure instruments I still emit velocity.
+
+    . Sometimes dyn stays constant for the note, and sometimes
+      it's continuous.  Also, in the constant case it sets velocity instead of
+      cc2.
+    . For the second, I think I can just set the velocity to the dyn.
+      Presumably most instruments won't care.
+    . When I have a 'dyn-a', the note deriver gets its value, and merges it
+      with dyn as a constant, using the default dyn merge.
   - Interpret a midi file with keyswitches back to the attrs.
     . This is so I can load VSL examples and learn from them.
     . Should it be a score transformation, or start from the parsed MIDI?

@@ -181,6 +181,13 @@ legato_grace args dyn_scale pitches grace_dur place = do
     Derive.with_val "legato-dyn" (1 :: Double) $
         Sub.reapply_call (Args.context args) "(" [] [events]
 
+basic_grace_dyn :: Signal.Y -> Derive.PassedArgs a -> [PSignal.Pitch]
+    -> BaseTypes.Duration -> TrackLang.ControlRef -> Derive.NoteDeriver
+basic_grace_dyn dyn_scale args pitches grace_dur place= do
+    dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
+    Sub.derive
+        =<< basic_grace args pitches (Call.with_dynamic dyn) grace_dur place
+
 basic_grace :: Derive.PassedArgs a -> [PSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> BaseTypes.Duration -> TrackLang.ControlRef -> Derive.Deriver [Sub.Event]
@@ -212,28 +219,34 @@ make_grace_notes prev (start, dur) notes grace_dur place = do
         score_end <- Derive.score (start + dur)
         return $ Sub.Event score_start (score_end - score_start) note
 
-c_grace_attr :: Map.Map Int Score.Attributes
+c_attr_grace :: Map.Map Int Score.Attributes
     -- ^ Map intervals in semitones (positive or negative) to attrs.
     -> Derive.Generator Derive.Note
-c_grace_attr supported =
+c_attr_grace supported =
     Derive.generator Module.europe "grace" (Tags.ornament <> Tags.ly)
     ("Emit grace notes as attrs, given a set of possible interval attrs.\
     \ If the grace note can't be expressed by the supported attrs, then emit\
     \ notes like the normal grace call.\nSupported: "
     <> Text.intercalate ", " (map ShowVal.show_val (Map.elems supported))
-    ) $ Sig.call ((,)
+    ) $ Sig.call ((,,)
     <$> grace_pitches_arg <*> grace_envs
-    ) $ \(pitches, (grace_dur, dyn, place)) -> Sub.inverting $ \args -> do
+    <*> Sig.environ "attr" Sig.Prefixed Nothing
+        "If given, put this attr on the grace notes. Otherwise, pick a grace\
+        \ note from the support list."
+    ) $ \(pitches, (grace_dur, dyn, place), attr) -> Sub.inverting $ \args -> do
         start <- Args.real_start args
         base <- Call.get_pitch start
         pitches <- resolve_pitches base pitches
-        Lily.when_lilypond (lily_grace args start pitches) $ do
-            maybe_attrs <- grace_attrs start supported pitches base
-            case maybe_attrs of
-                Just attrs -> attr_grace start args grace_dur (length pitches)
-                    attrs
-                -- Fall back on normal grace.
-                Nothing -> legato_grace args dyn pitches grace_dur place
+        Lily.when_lilypond (lily_grace args start pitches) $ case attr of
+            Just attr -> Call.add_attrs attr $
+                basic_grace_dyn dyn args pitches grace_dur place
+            Nothing -> do
+                maybe_attrs <- grace_attrs start supported pitches base
+                case maybe_attrs of
+                    Just attrs -> attr_grace start args grace_dur
+                        (length pitches) attrs
+                    -- Fall back on normal grace.
+                    Nothing -> legato_grace args dyn pitches grace_dur place
     where
     attr_grace real_start args grace_dur notes attrs = do
         let (start, dur) = Args.extent args

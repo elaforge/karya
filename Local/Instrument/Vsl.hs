@@ -162,7 +162,7 @@ has_attr attr = any (`Score.attrs_contain` attr) . patch_attrs
 
 grace_call :: [Score.Attributes] -> Derive.Generator Derive.Note
 grace_call attrs =
-    Grace.c_grace_attr (Map.filter (`elem` attrs) grace_intervals)
+    Grace.c_attr_grace (Map.filter (`elem` attrs) grace_intervals)
 
 grace_intervals :: Map.Map Int Score.Attributes
 grace_intervals = Map.fromList $

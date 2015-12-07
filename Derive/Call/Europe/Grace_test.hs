@@ -128,7 +128,7 @@ test_grace_attr = do
         extract e = (DeriveTest.e_start_dur e, DeriveTest.e_pitch e,
             DeriveTest.e_attributes e)
         setup_call =
-            CallTest.with_note_generator "g" (Grace.c_grace_attr graces)
+            CallTest.with_note_generator "g" (Grace.c_attr_grace graces)
     -- Attrs when it can.
     equal (run (0, 1, "g (3bb)"))
         ([((-1, 2), "4c", "+up+whole")], [])
