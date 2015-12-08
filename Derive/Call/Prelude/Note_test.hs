@@ -7,8 +7,11 @@ import Util.Test
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.LEvent as LEvent
 import qualified Derive.Sig as Sig
 
+import qualified Perform.Midi.Convert as Convert
+import qualified Perform.Midi.Perform as Perform
 import Global
 
 
@@ -50,3 +53,16 @@ test_transpose = do
     equal (run [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")]),
             ("t-chrom", [(0, 0, "1")])])
         (["4c#"], [])
+
+test_dynamic_attack = do
+    let run = first (map (fmap Perform.event_start_velocity) . convert)
+            . DeriveTest.extract id
+            . DeriveTest.derive_tracks "inst = >i1"
+        convert = Convert.convert DeriveTest.default_convert_lookup
+    equal (run [("dyn", [(0, 0, "1")]), (">", [(1, 4, "")])])
+        ([LEvent.Event 1], [])
+    equal (run [("dyn-atk", [(0, 0, "1")]), (">", [(1, 4, "")])])
+        ([LEvent.Event 1], [])
+    equal (run [("dyn", [(0, 0, ".5")]), ("dyn-atk", [(0, 0, ".5")]),
+            (">", [(1, 4, "")])])
+        ([LEvent.Event 0.25], [])

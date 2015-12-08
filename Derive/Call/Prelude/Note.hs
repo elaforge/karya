@@ -190,11 +190,13 @@ default_note config args = do
     let attrs = either (const Score.no_attrs) id $
             Env.get_val EnvKey.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
+    dyn_merger <- Derive.get_default_merger Controls.dynamic
     let event = Score.add_flags flags $
             make_event args dyn2 start (adjusted_end - start) flags
         dyn2 = dyn
-            { Derive.state_environ = stash_convert_values control_vals offset
-                (Derive.state_environ dyn)
+            { Derive.state_environ =
+                stash_convert_values dyn_merger control_vals offset
+                    (Derive.state_environ dyn)
             }
     return $! Stream.from_event event
 
@@ -213,10 +215,6 @@ note_flags zero_dur stack environ
     track_start = start == Just 0
     track_end = start == Env.maybe_val EnvKey.block_end environ
     start = fst <$> Seq.head (mapMaybe Stack.region_of (Stack.innermost stack))
-
-    -- zero dur event at end of track
-    -- Ideally it should be the whole first event, regardless of what its call
-    -- is.  Well, except I don't want to replace a block call.
 
 -- | This is the canonical way to make a Score.Event.  It handles all the
 -- control trimming and control function value stashing that the perform layer
@@ -248,15 +246,19 @@ make_event args dyn start dur flags = Score.Event
         Env.maybe_val EnvKey.instrument environ
 
 -- | Stash the dynamic value from the ControlValMap in
--- 'Controls.dynamic_function'.  Gory details in
--- 'Perform.Midi.Convert.convert_dynamic'.
-stash_convert_values :: Score.ControlValMap -> RealTime -> Env.Environ
-    -> Env.Environ
-stash_convert_values vals offset = start_offset . dyn
+-- 'Controls.dynamic_function'.  Gory details in NOTE [EnvKey.dynamic_val].
+stash_convert_values :: Derive.Merger Signal.Control -> Score.ControlValMap
+    -> RealTime -> Env.Environ -> Env.Environ
+stash_convert_values dyn_merger vals offset = stash_start_offset . stash_dyn
     where
-    start_offset = Env.insert_val EnvKey.start_offset_val offset
-    dyn = maybe id (Env.insert_val EnvKey.dynamic_val)
-        (Map.lookup Controls.dynamic vals)
+    stash_start_offset = Env.insert_val EnvKey.start_offset_val offset
+    stash_dyn = maybe id (Env.insert_val EnvKey.dynamic_val) maybe_dyn
+    maybe_dyn = case (look Controls.dynamic, look Controls.dynamic_attack) of
+        (Just x, Nothing) -> Just x
+        (Nothing, Just y) -> Just y
+        (Just x, Just y) -> Just $ Derive.merge_vals dyn_merger x y
+        (Nothing, Nothing) -> Nothing
+    look c = Map.lookup c vals
 
 -- ** adjust start and duration
 

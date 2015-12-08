@@ -4,7 +4,7 @@ LEGEND
 
 UNSORTED
   - use either 'attrs' or 'attributes' consistently
-  - How can I get dyn to only affect attacks?  I could have a 'dyn-a' and use
+  * How can I get dyn to only affect attacks?  I could have a 'dyn-atk' and use
     that only at attack time, but what about other controls?
     . Just hardcode a few signals for now.
     . But I also want to use vel for some articulations, and cc2 for others.
@@ -15,14 +15,17 @@ UNSORTED
       cc2.
     . For the second, I think I can just set the velocity to the dyn.
       Presumably most instruments won't care.
-    . When I have a 'dyn-a', the note deriver gets its value, and merges it
+    . When I have a 'dyn-atk', the note deriver gets its value, and merges it
       with dyn as a constant, using the default dyn merge.
+      . It's all so ad-hoc, but I can't think of any way to generalize.
   - Interpret a midi file with keyswitches back to the attrs.
     . This is so I can load VSL examples and learn from them.
     . Should it be a score transformation, or start from the parsed MIDI?
     . MIDI seems easier because it's already in a linear format, while for
       the score I'd have to interpret it into one.
     . But then I need to pass the instrument mapping to Midi.load.
+    . Maybe not really worth it?  For learning I can load in reaper and just
+      watch the VSL UI.
   * Move cmd-m to GlobalKeymap, so it works when you have several tracks
     selected.
   * When there is a non-point selection, make it obvious where cur_pos and

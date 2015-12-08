@@ -36,6 +36,13 @@ tempo = "tempo"
 dynamic :: Control
 dynamic = Score.c_dynamic
 
+-- | This is like 'dynamic', but it is only applied to the attack time, even
+-- for Pressure instruments.  This is useful to treat continuous dynamic
+-- instruments as if they were not continuous.  It gets merged with 'dynamic'
+-- with dynamic's default merge.
+dynamic_attack :: Control
+dynamic_attack = "dyn-atk"
+
 -- ** generally understood by the note deriver
 
 -- | Scale note duration.  This is multiplicative, so 1 is no change.

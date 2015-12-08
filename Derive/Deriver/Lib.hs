@@ -566,7 +566,7 @@ with_merged_control :: Merger Signal.Control -> Score.Control
     -> Score.TypedControl -> Deriver a -> Deriver a
 with_merged_control merger control signal deriver = do
     controls <- get_controls
-    let new = apply_merger merger (Map.lookup control controls) signal
+    let new = merge merger (Map.lookup control controls) signal
     with_control control new deriver
 
 resolve_merge :: Merge Signal.Control -> Score.Control
@@ -587,13 +587,20 @@ get_default_merger control = do
     default_merge = merge_mul
 
 -- | Combine two signals with a Merger.
-apply_merger :: Merger Signal.Control -> Maybe Score.TypedControl
+merge :: Merger Signal.Control -> Maybe Score.TypedControl
     -> Score.TypedControl -> Score.TypedControl
-apply_merger _ Nothing new = new
-apply_merger Set (Just _) new = new
-apply_merger (Merger _ merger _) (Just old) new =
+merge _ Nothing new = new
+merge Set (Just _) new = new
+merge (Merger _ merger _) (Just old) new =
     Score.Typed (Score.type_of old <> Score.type_of new)
         (merger (Score.typed_val old) (Score.typed_val new))
+
+merge_vals :: Merger Signal.Control -> Signal.Y -> Signal.Y -> Signal.Y
+merge_vals merger old new = case merger of
+    Set -> new
+    Merger _ merge _ -> maybe new snd $ Signal.head $
+        merge (Signal.constant old) (Signal.constant new)
+        -- This is awkward.  Maybe the merge function should be on scalars?
 
 with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
     -> Deriver a
