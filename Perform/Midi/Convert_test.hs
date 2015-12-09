@@ -91,6 +91,36 @@ test_convert_pitch = do
             Env.insert_val EnvKey.tuning EnvKey.isep
     equal (convert [insert event]) [Left (0, [(0, 72.588)])]
 
+test_dynamic_attack = do
+    let run inst = first (map (fmap extract) . Convert.convert clookup)
+            . DeriveTest.extract id . DeriveTest.derive_tracks ""
+            . (++ [(inst, [(1, 4, "")])])
+        extract e =
+            ( Perform.event_start_velocity e
+            , maybe [] Signal.unsignal $ Map.lookup Controls.breath $
+                Perform.event_controls e
+            )
+        clookup = DeriveTest.make_convert_lookup UiTest.default_aliases $
+            DeriveTest.make_db [("s", [p "1", Instrument.pressure $ p "2"])]
+        p = DeriveTest.make_patch
+    equal (run ">i1" [("dyn", [(0, 0, "1")])])
+        ([LEvent.Event (1, [])], [])
+    equal (run ">i1" [("dyn-atk", [(0, 0, "1")])])
+        ([LEvent.Event (1, [])], [])
+    equal (run ">i1" [("dyn", [(0, 0, ".5")]), ("dyn-atk", [(0, 0, ".5")])])
+        ([LEvent.Event (0.25, [])], [])
+
+    -- For pressure, dyn goes to breath.
+    equal (run ">i2" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
+        ([LEvent.Event (0.5, [(1, 0.5), (2, 1)])], [])
+    -- So does dyn-atk, but it's constant.
+    equal (run ">i2" [("dyn-atk", [(1, 0, ".5"), (2, 0, "1")])])
+        ([LEvent.Event (0.5, [(0, 0.5)])], [])
+    -- Still does the usual merginess.
+    equal (run ">i2"
+            [("dyn-atk", [(1, 0, ".5"), (2, 0, "1")]), ("dyn", [(0, 0, ".5")])])
+        ([LEvent.Event (0.25, [(0, 0.25)])], [])
+
 mkevent :: RealTime -> String -> Text -> Score.Event
 mkevent start pitch inst =
     DeriveTest.mkevent (start, 1, pitch, [], Score.Instrument inst)

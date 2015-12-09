@@ -22,7 +22,6 @@ UNSORTED
     . Just hardcode a few signals for now.
     . But I also want to use vel for some articulations, and cc2 for others.
       So I think even for pressure instruments I still emit velocity.
-
     . Sometimes dyn stays constant for the note, and sometimes
       it's continuous.  Also, in the constant case it sets velocity instead of
       cc2.

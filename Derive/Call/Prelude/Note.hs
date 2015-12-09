@@ -186,19 +186,10 @@ default_note config args = do
     let flags = note_flags (start == end) (Derive.state_stack dyn)
             (Derive.state_environ dyn)
     control_vals <- Derive.controls_at start
-    offset <- get_start_offset start
     let attrs = either (const Score.no_attrs) id $
             Env.get_val EnvKey.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
-    dyn_merger <- Derive.get_default_merger Controls.dynamic
-    let event = Score.add_flags flags $
-            make_event args dyn2 start (adjusted_end - start) flags
-        dyn2 = dyn
-            { Derive.state_environ =
-                stash_convert_values dyn_merger control_vals offset
-                    (Derive.state_environ dyn)
-            }
-    return $! Stream.from_event event
+    Stream.from_event <$> make_event args dyn start (adjusted_end - start) flags
 
 note_flags :: Bool -> Stack.Stack -> Env.Environ -> Flags.Flags
 note_flags zero_dur stack environ
@@ -220,45 +211,59 @@ note_flags zero_dur stack environ
 -- control trimming and control function value stashing that the perform layer
 -- relies on.
 make_event :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
-    -> Flags.Flags -> Score.Event
-make_event args dyn start dur flags = Score.Event
-    { Score.event_start = start
-    , Score.event_duration = dur
-    , Score.event_text = Event.text (Args.event args)
-    , Score.event_untransformed_controls = controls
-    , Score.event_untransformed_pitch = pitch
-    , Score.event_control_offset = 0
-    -- I don't have to trim these because the performer doesn't use them,
-    -- they're only there for any possible postproc.
-    , Score.event_untransformed_pitches = Derive.state_pitches dyn
-    , Score.event_stack = Derive.state_stack dyn
-    , Score.event_highlight = Color.NoHighlight
-    , Score.event_instrument = inst
-    , Score.event_environ = environ
-    , Score.event_flags = flags
-    , Score.event_delayed_args = mempty
-    }
+    -> Flags.Flags -> Derive.Deriver Score.Event
+make_event args dyn start dur flags = do
+    controls <- merge_dynamic_attack start $
+        trim_controls start (Derive.state_controls dyn)
+    offset <- get_start_offset start
+    return $! Score.Event
+        { Score.event_start = start
+        , Score.event_duration = dur
+        , Score.event_text = Event.text (Args.event args)
+        , Score.event_untransformed_controls = controls
+        , Score.event_untransformed_pitch =
+            trim_pitch start (Derive.state_pitch dyn)
+        , Score.event_control_offset = 0
+        -- I don't have to trim these because the performer doesn't use them,
+        -- they're only there for any possible postproc.
+        , Score.event_untransformed_pitches = Derive.state_pitches dyn
+        , Score.event_stack = Derive.state_stack dyn
+        , Score.event_highlight = Color.NoHighlight
+        , Score.event_instrument =
+            fromMaybe Score.empty_inst $ Env.maybe_val EnvKey.instrument environ
+        , Score.event_environ =
+            stash_convert_values start controls offset environ
+        , Score.event_flags = flags
+        , Score.event_delayed_args = mempty
+        }
     where
-    controls = trim_controls start (Derive.state_controls dyn)
-    pitch = trim_pitch start (Derive.state_pitch dyn)
     environ = Derive.state_environ dyn
-    inst = fromMaybe Score.empty_inst $
-        Env.maybe_val EnvKey.instrument environ
+
+-- | 'Controls.dynamic_attack' is sampled at the note start and constant.
+merge_dynamic_attack :: RealTime -> Score.ControlMap
+    -> Derive.Deriver Score.ControlMap
+merge_dynamic_attack start controls =
+    case (look Controls.dynamic, maybe_dyn_attack) of
+        (Just dyn, Just dyn_attack) -> do
+            merger <- Derive.get_default_merger Controls.dynamic
+            return $ Map.insert Controls.dynamic
+                (Derive.merge merger (Just dyn) dyn_attack) controls
+        _ -> return controls
+    where
+    maybe_dyn_attack = fmap (Signal.constant . Signal.at start) <$>
+        look Controls.dynamic_attack
+    look c = Map.lookup c controls
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in NOTE [EnvKey.dynamic_val].
-stash_convert_values :: Derive.Merger Signal.Control -> Score.ControlValMap
-    -> RealTime -> Env.Environ -> Env.Environ
-stash_convert_values dyn_merger vals offset = stash_start_offset . stash_dyn
+stash_convert_values :: RealTime -> Score.ControlMap -> RealTime -> Env.Environ
+    -> Env.Environ
+stash_convert_values start controls offset = stash_start_offset . stash_dyn
     where
     stash_start_offset = Env.insert_val EnvKey.start_offset_val offset
     stash_dyn = maybe id (Env.insert_val EnvKey.dynamic_val) maybe_dyn
-    maybe_dyn = case (look Controls.dynamic, look Controls.dynamic_attack) of
-        (Just x, Nothing) -> Just x
-        (Nothing, Just y) -> Just y
-        (Just x, Just y) -> Just $ Derive.merge_vals dyn_merger x y
-        (Nothing, Nothing) -> Nothing
-    look c = Map.lookup c vals
+    maybe_dyn = Signal.at start . Score.typed_val <$>
+        Map.lookup Controls.dynamic controls
 
 -- ** adjust start and duration
 
