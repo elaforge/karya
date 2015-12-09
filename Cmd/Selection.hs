@@ -506,14 +506,14 @@ relevant_ruler block tracknum = Seq.at (Block.ruler_ids_of in_order) 0
 
 -- | Get the \"point\" position of a Selection.
 point :: Sel.Selection -> TrackTime
-point sel = point_pos (Sel.start_pos sel) (Sel.cur_pos sel)
+point = Sel.cur_pos
 
--- | Given a selection start and end, give the \"point\" position for it.
-point_pos :: TrackTime -> TrackTime -> TrackTime
-point_pos = min
-
+-- | When multiple tracks are selected, only one can be the point.  This
+-- is 'Sel.cur_track', and in fact must be, because 'Sel.start_track' may
+-- be an invalid tracknum.  That is so a selection can maintain its shape even
+-- if it momentarily goes out of bounds.
 point_track :: Sel.Selection -> TrackNum
-point_track sel = min (Sel.start_track sel) (Sel.cur_track sel)
+point_track = Sel.cur_track
 
 -- | A point on a track.
 type Point = (BlockId, TrackNum, TrackId, TrackTime)

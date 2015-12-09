@@ -62,6 +62,7 @@ module Ui.State (
     -- ** selections
     , get_selection, set_selection
     , shift_selection, skip_unselectable_tracks
+    , selectable_tracks
 
     -- * block
     , get_block, lookup_block, all_block_ids, all_block_track_ids
@@ -143,7 +144,6 @@ import qualified Data.Time as Time
 
 import qualified Util.Lens as Lens
 import qualified Util.Logger as Logger
-import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
@@ -861,7 +861,8 @@ move_block_track from to block = do
 
 -- *** tracks by TrackNum
 
--- | Number of tracks in the block.
+-- | Number of tracks in the block.  This includes the ruler, so subtract 1 if
+-- you want all non-ruler tracks.
 track_count :: M m => BlockId -> m TrackNum
 track_count block_id = do
     block <- get_block block_id
@@ -1099,14 +1100,13 @@ remove_from_selection block tracknum selnum sel
 shift_selection :: Bool -- ^ skip unselectable tracks
     -> Block.Block -> TrackNum -> Sel.Selection -> Sel.Selection
 shift_selection skip_unselectable block shift sel =
-    Sel.modify_tracks (Num.clamp 0 max_track . (+shift2)) sel
+    Sel.modify_tracks (+shift2) sel
     where
     shift2
         | skip_unselectable =
             skip_unselectable_tracks block (Sel.cur_track sel) shift
                 - Sel.cur_track sel
         | otherwise = shift
-    max_track = length (Block.block_tracks block)
 
 -- | Shift a tracknum to another track, skipping unselectable tracks.
 skip_unselectable_tracks :: Block.Block -> TrackNum -> Int -> TrackNum
@@ -1124,10 +1124,10 @@ skip_unselectable_tracks block tracknum shift
 
 -- | Get the tracknums from a block that should be selectable.
 selectable_tracks :: Block.Block -> [TrackNum]
-selectable_tracks block = do
-    (i, track) <- zip [0..] (Block.block_tracks block)
-    guard $ Block.track_selectable track
-    return i
+selectable_tracks block =
+    [ tracknum | (tracknum, track) <- zip [0..] (Block.block_tracks block)
+    , Block.track_selectable track
+    ]
 
 -- ** util
 

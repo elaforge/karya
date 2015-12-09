@@ -86,8 +86,8 @@ selection_advance f = do
 -- | Map a function over the events that overlap the selection point.
 overlapping :: Cmd.M m => Track m -> m ()
 overlapping f = do
-    (block_id, _, track_ids, start, end) <- Selection.tracks
-    let pos = Selection.point_pos start end
+    (block_id, _, track_ids, _, _) <- Selection.tracks
+    pos <- Selection.point . snd <$> Selection.get
     forM_ track_ids $ \track_id -> do
         maybe_event <- Events.overlapping pos . Track.track_events <$>
             State.get_track track_id

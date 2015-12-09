@@ -16,7 +16,9 @@ import Types
 type Num = Int
 
 data Selection = Selection {
-    -- | The position the selection was established at.
+    -- | The position the selection was established at.  Since a selection can
+    -- logically go off the edge of a block, this is not necessarily a valid
+    -- TrackNum!
     start_track :: TrackNum
     , start_pos :: TrackTime
 
@@ -24,6 +26,9 @@ data Selection = Selection {
     -- range, the pos are half-open.  This is because these pairs are meant to
     -- be symmetrical, but the c++ layer only supports half-open pos ranges.
     -- I don't think there's much I can do about this.
+    --
+    -- Unlike 'start_track', this should be a valid TrackNum, because cmds want
+    -- to use it as the focused track.
     , cur_track :: TrackNum
     , cur_pos :: TrackTime
     } deriving (Eq, Ord, Show, Read)

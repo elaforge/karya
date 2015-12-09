@@ -380,6 +380,10 @@ void
 BlockView::set_selection(
     int selnum, int tracknum, const std::vector<Selection> &sels)
 {
+    if (!(0 <= tracknum && tracknum < tracks())) {
+        DEBUG("BlockView::set_selection: tracknum out of range: " << tracknum);
+        return;
+    }
     if (tracknum == 0) {
         track_at(0)->set_selection(selnum, 0, sels);
     } else {

@@ -477,8 +477,8 @@ events_of_track_ids state = mapMaybe events_of . Set.toList
     events_of track_id = fmap Track.track_events (Map.lookup track_id tracks)
     tracks = State.state_tracks state
 
--- | Convert Sel.Selection to BlockC.Selection.  Return sets of tracknums and
--- the selections they should have.
+-- | Convert Sel.Selection to BlockC.Selection, and clip to the valid track
+-- range.  Return sets of tracknums and the selections they should have.
 track_selections :: Sel.Num -> TrackNum -> Maybe Sel.Selection
     -> [([TrackNum], [BlockC.Selection])]
 track_selections selnum tracks maybe_sel = case maybe_sel of
