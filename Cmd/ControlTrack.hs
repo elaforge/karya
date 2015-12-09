@@ -66,9 +66,12 @@ cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
 -- can have a normalized number extracted from it, and fall back on this only
 -- if there is no existing event.
 infer_normalized :: State.M m => TrackId -> m Bool
-infer_normalized = fmap (maybe True normal . Seq.head) . State.get_all_events
+infer_normalized =
+    -- Don't get fooled by the ' call, which is fairly common.
+    fmap (maybe True normal . Seq.head . dropWhile (=="'") . map Event.text)
+        . State.get_all_events
     where
-    normal event = any (`Text.isInfixOf` Event.text event) normalized_prefixes
+    normal event = any (`Text.isInfixOf` event) normalized_prefixes
 
 normalized_prefixes :: [Text]
 normalized_prefixes = ["`0x`", "0x"]
