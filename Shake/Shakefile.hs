@@ -381,7 +381,7 @@ ghcWarnings mode ghcVersion =
     noWarns = (if ghcVersion < "71000" then ["amp"] else [])
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
-        ++ if mode == Test then ["duplicate-exports"] else []
+        ++ if mode `elem` [Test, Profile] then ["duplicate-exports"] else []
 
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
