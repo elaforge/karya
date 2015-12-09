@@ -85,7 +85,7 @@ UNSORTED
   UI awkwardness:
     * Hitting note entry in a parent track makes a pitch track.  I can detect
       those and not do that.
-    - Sometimes I want to move all tracks down by time.  Key to select all
+    * Sometimes I want to move all tracks down by time.  Key to select all
       tracks?
     - Paste between blocks with different track layout is awkward.  Can I have
       a note-oriented paste that reuses or creates the track structure?

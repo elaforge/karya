@@ -247,14 +247,13 @@ get_tracks_from_selection from_edge dir = do
 --
 -- TrackNum 0, assumed to be a ruler, is omitted, since selecting the ruler is
 -- not only not useful, it tends to make cmds that want to get a TrackId abort.
-cmd_track_all :: Cmd.M m => Sel.Num -> m ()
-cmd_track_all selnum = do
-    view_id <- Cmd.get_focused_view
-    sel <- Cmd.abort_unless =<< State.get_selection view_id selnum
+cmd_track_all :: Cmd.M m => m ()
+cmd_track_all = do
+    (view_id, sel) <- get
     block_id <- State.block_id_of view_id
     block_end <- State.block_end block_id
-    tracks <- length . Block.block_tracks <$> State.get_block block_id
-    set_selnum view_id selnum (Just (select_track_all block_end tracks sel))
+    tracks <- State.track_count block_id
+    set view_id $ Just (select_track_all block_end tracks sel)
 
 select_track_all :: TrackTime -> TrackNum -> Sel.Selection -> Sel.Selection
 select_track_all block_end tracks sel
@@ -265,9 +264,15 @@ select_track_all block_end tracks sel
     select_rest = until_end $ sel { Sel.cur_pos = start }
         where start = fst $ Sel.range sel
     select_tracks = until_end $ sel { Sel.cur_pos = 0 }
-    select_all = until_end $ track_selection 1 tracks
+    select_all = until_end $ track_selection 1 (tracks - 1)
     until_end = select_until_end block_end
     track_selection from to = Sel.selection from 0 to 0
+
+cmd_tracks :: Cmd.M m => m ()
+cmd_tracks = do
+    (view_id, sel) <- get
+    tracks <- State.track_count =<< State.block_id_of view_id
+    set view_id $ Just $ sel { Sel.start_track = 1, Sel.cur_track = tracks - 1 }
 
 -- ** set selection from clicks
 

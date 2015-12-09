@@ -265,7 +265,9 @@ selection_bindings = concat
         Selection.step_with (-1) Selection.Extend =<< Track.event_and_note_step
 
     , bind_key [PrimaryCommand] (Key.Char 'a') "select track / all"
-        (Selection.cmd_track_all Config.insert_selnum)
+        Selection.cmd_track_all
+    , bind_key [PrimaryCommand] (Key.Char 'A') "select tracks"
+        Selection.cmd_tracks
     ]
     where
     move = Selection.default_move
