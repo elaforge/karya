@@ -145,8 +145,8 @@ player_bindings = concat
     [ bind block local "play local block" Play.local_block
     , bind sel local "play or loop local selection" Play.local_selection
     -- See if playing from the top is more useful than the previous step.
-    , bind prev local "play local top" Play.local_top
-    , bind block root "play root block" Play.root_block
+    , bind prev local "play local from top of window" Play.local_top
+    , bind block root "play root from start" Play.root_block
     , bind sel root "play root from local selection"
         Play.root_from_local_selection
     -- It plays from the selection on the root, instead of the local one.
@@ -154,7 +154,7 @@ player_bindings = concat
     -- a play starting point on the root.
     , bind (block ++ sel) root "play root from root selection"
         Play.root_from_root_selection
-    , bind prev root "play root top" Play.root_top
+    , bind prev root "play root from top of window" Play.root_top
     ]
     where
     bind smods key desc cmd =
@@ -255,13 +255,13 @@ selection_bindings = concat
         Selection.jump_to_track True =<< Cmd.abort_unless
             =<< Selection.find_note_track Selection.L True
 
-    , repeatable_char 'w' "move selection next event" $
+    , repeatable_char 'w' "move selection to next event" $
         Selection.step_with 1 move =<< Track.event_and_note_step
-    , repeatable_char 'W' "move selection next event" $
+    , repeatable_char 'W' "extend selection to next event" $
         Selection.step_with 1 Selection.Extend =<< Track.event_and_note_step
-    , repeatable_char 'b' "move selection previous event" $
+    , repeatable_char 'b' "move selection to previous event" $
         Selection.step_with (-1) move =<< Track.event_and_note_step
-    , repeatable_char 'B' "move selection previous event" $
+    , repeatable_char 'B' "extend selection to previous event" $
         Selection.step_with (-1) Selection.Extend =<< Track.event_and_note_step
 
     , bind_key [PrimaryCommand] (Key.Char 'a') "select track / all"
@@ -301,10 +301,10 @@ view_config_bindings = concat
     , command_char '\\' "maximize and zoom"
         (ViewConfig.maximize_and_zoom =<< Cmd.get_focused_view)
 
-    , secondary 'H' "move focus left" $ ViewConfig.move_focus ViewConfig.West
-    , secondary 'J' "move focus down" $ ViewConfig.move_focus ViewConfig.South
-    , secondary 'K' "move focus up" $ ViewConfig.move_focus ViewConfig.North
-    , secondary 'L' "move focus right" $ ViewConfig.move_focus ViewConfig.East
+    , secondary 'H' "block focus left" $ ViewConfig.move_focus ViewConfig.West
+    , secondary 'J' "block focus down" $ ViewConfig.move_focus ViewConfig.South
+    , secondary 'K' "block focus up" $ ViewConfig.move_focus ViewConfig.North
+    , secondary 'L' "block focus right" $ ViewConfig.move_focus ViewConfig.East
 
     , secondary 'f' "scroll forward" $ ViewConfig.scroll_pages 0.75
     , secondary 'b' "scroll backward" $ ViewConfig.scroll_pages (-0.75)
@@ -315,7 +315,8 @@ block_config_bindings :: Cmd.M m => [Keymap.Binding m]
 block_config_bindings = concat
     [ plain_char 'M' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Mute)
     , plain_char 'S' "toggle solo" (BlockConfig.cmd_toggle_flag Block.Solo)
-    , plain_char 'D' "toggle mute" (BlockConfig.cmd_toggle_flag Block.Disable)
+    , plain_char 'D' "toggle disable"
+        (BlockConfig.cmd_toggle_flag Block.Disable)
     , command_char 'C' "toggle collapse"
         (BlockConfig.cmd_toggle_flag Block.Collapse)
     , command_char 'M' "toggle merge all"
