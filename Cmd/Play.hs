@@ -118,17 +118,20 @@ modify_play_multiplier f = Cmd.modify_play_state $ \st ->
 -- * stop
 
 -- | Context sensitive stop that stops whatever is going on.  First it stops
--- realtime play, then step play, and then it just sends all notes off.
-cmd_context_stop :: Cmd.CmdIO
+-- realtime play, then step play, and then it just sends all notes off.  If
+-- it does the last one, it returns False in case you want to go stop something
+-- else.
+cmd_context_stop :: Cmd.CmdT IO Bool
 cmd_context_stop = gets Cmd.state_play_control >>= \x -> case x of
     Just ctl -> do
         liftIO $ Transport.stop_player ctl
-        return Cmd.Done
+        return True
     Nothing -> do
         step_playing <- Cmd.gets $
             Maybe.isJust . Cmd.state_step . Cmd.state_play
-        if step_playing then StepPlay.cmd_clear else Cmd.all_notes_off
-        return Cmd.Done
+        if step_playing
+            then StepPlay.cmd_clear >> return True
+            else Cmd.all_notes_off >> return False
 
 cmd_stop :: Cmd.CmdIO
 cmd_stop = do

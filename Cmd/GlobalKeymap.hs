@@ -99,8 +99,12 @@ io_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 io_bindings = concat
     [ file_bindings, undo_bindings, quit_bindings
     -- This actually belongs in 'player_bindings', but needs to be in IO.
-    , plain_char ' ' "stop" Play.cmd_context_stop
+    , plain_char ' ' "stop, selection to point"
+        (context_stop >> return Cmd.Done)
     ]
+
+context_stop :: Cmd.CmdT IO ()
+context_stop = unlessM Play.cmd_context_stop Selection.to_point
 
 file_bindings :: [Keymap.Binding (Cmd.CmdT IO)]
 file_bindings = concat

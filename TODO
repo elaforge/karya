@@ -3,7 +3,20 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - use either 'attrs' or 'attributes' consistently
+  - fltk: If I have a non-point selection with the cur_pos at the top, and
+    move it, it gets cut off when moving up, and leaves a bit of the triangle
+    when moving down.  Probably damage is not expanded enough.
+  - naming: use either 'attrs' or 'attributes' consistently
+  Should selection moving use Selection.Move or Selection.Replace?
+    . Move is useful when adding another thing of the same duration, or
+      keeping a zoom level.
+    . Replace is useful when I want to enter notes after a selection.  But
+      sometimes I just want to set the point at the end of the selection,
+      winds up being down-up.  If I had a collapse to point it would do this
+      directly.
+    * Try with space as Selection.to_point.
+  - 'a' keeps getting shadowed by kbd entry.  Can I move it to a symbol on
+    the right side, and have a rule against shadowing those?  Maybe :?
   * How can I get dyn to only affect attacks?  I could have a 'dyn-atk' and use
     that only at attack time, but what about other controls?
     . Just hardcode a few signals for now.

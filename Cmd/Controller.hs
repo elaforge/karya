@@ -44,7 +44,7 @@ transport config msg = do
             done $ Selection.step TimeStep.Rewind Selection.Replace
         | config_forward config msg ->
             done $ Selection.step TimeStep.Advance Selection.Replace
-        | config_stop config msg -> Play.cmd_context_stop
+        | config_stop config msg -> done $ Play.cmd_context_stop
         -- TODO configure what this is
         -- I could have a "default play" cmd
         | config_play config msg -> Cmd.PlayMidi <$> Play.local_top

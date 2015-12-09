@@ -122,6 +122,22 @@ set_and_scroll view_id selnum sel = do
 
 -- ** modify existing selection
 
+-- | Collapse the selection to a point at its (cur_track, cur_pos).
+to_point :: Cmd.M m => m ()
+to_point = do
+    (view_id, sel) <- get
+    selectable <- State.selectable_tracks <$>
+        (State.get_block =<< State.block_id_of view_id)
+    let closest = fromMaybe (Sel.cur_track sel) $
+            find_at_before (Sel.cur_track sel) selectable
+    set view_id $ Just $ sel
+        { Sel.start_track = closest, Sel.cur_track = closest
+        , Sel.start_pos = Sel.cur_pos sel
+        }
+
+find_at_before :: Ord a => a -> [a] -> Maybe a
+find_at_before n = Seq.last . takeWhile (<=n)
+
 -- | Advance the insert selection by the current step, which is a popular thing
 -- to do.
 advance :: Cmd.M m => m ()
