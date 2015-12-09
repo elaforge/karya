@@ -19,6 +19,7 @@ import qualified System.Process as Process
 
 import qualified Util.File as File
 import qualified Util.Lens as Lens
+import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 
 import qualified Midi.Midi as Midi
@@ -59,6 +60,16 @@ find search = do
         , [("events:", Pretty.formatted events) | not (null events)]
         ]
     where section (title, doc) = [title, doc]
+
+-- | Summarize the various types.  Is this really useful?
+summary :: Cmd.CmdL Text
+summary = do
+    State.State views blocks tracks rulers _ <- State.get
+    let f fm = PPrint.list (map show (Map.keys fm))
+    return $ txt $ PPrint.record
+        [ ("views", f views), ("blocks", f blocks)
+        , ("tracks", f tracks), ("rulers", f rulers)
+        ]
 
 -- * configure
 

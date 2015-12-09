@@ -33,7 +33,6 @@ module Cmd.Repl.Global (
 ) where
 import qualified Data.Map as Map
 
-import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
@@ -53,10 +52,8 @@ import Cmd.Repl.LPerf ()
 import Cmd.Repl.LPitch ()
 import Cmd.Repl.LRuler ()
 import Cmd.Repl.LTrack ()
-import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
-import qualified Cmd.Simple as Simple
 import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Derive.Stack as Stack
@@ -243,46 +240,7 @@ revert = Save.revert Nothing
 revert_to :: String -> Cmd.CmdL ()
 revert_to = Save.revert . Just
 
--- * show / modify UI state
-
-show_state :: Cmd.CmdL Text
-show_state = do
-    State.State views blocks tracks rulers _ <- State.get
-    let f fm = PPrint.list (map show (Map.keys fm))
-    return $ txt $ PPrint.record
-        [ ("views", f views), ("blocks", f blocks)
-        , ("tracks", f tracks), ("rulers", f rulers)
-        ]
-
--- ** views
-
-get_views :: Cmd.CmdL [ViewId]
-get_views = State.gets (Map.keys . State.state_views)
-
--- | Show all views whose view id matches a string.
-show_views :: Text -> Cmd.CmdL Text
-show_views match = do
-    st <- State.get
-    return $ Pretty.formatted $ Util.match_map match (State.state_views st)
-
--- ** blocks
-
-show_block :: BlockId -> Cmd.CmdL Text
-show_block block_id = Pretty.formatted <$> State.get_block block_id
-
--- | Show all blocks whose block id matches a string.
--- Useful for quick block inspection.
-show_blocks :: Text -> Cmd.CmdL Text
-show_blocks match = do
-    st <- State.get
-    return $ Pretty.formatted $ Util.match_map match (State.state_blocks st)
-
--- ** tracks
-
-show_track :: TrackId -> Cmd.CmdL Simple.Track
-show_track = Simple.dump_track
-
--- ** misc
+-- * called externally
 
 collapse_track, expand_track :: BlockId -> TrackNum -> Cmd.CmdL ()
 collapse_track block_id tracknum = do
@@ -299,8 +257,6 @@ collapse, expand :: TrackNum -> Cmd.CmdL ()
 collapse tracknum = flip collapse_track tracknum =<< Cmd.get_focused_block
 expand tracknum = flip expand_track tracknum =<< Cmd.get_focused_block
 
-
--- Modify global keymap
 
 -- | Called from the browser.
 set_instrument :: Text -> Cmd.CmdL ()

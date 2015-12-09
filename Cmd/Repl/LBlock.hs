@@ -118,12 +118,12 @@ track_doc = do
 
 -- * block call
 
--- | Rename a block and all occurrances in the current block.
+-- | Rename focused block.
 --
 -- It doesn't update TrackIds so they may still be named under their old block,
 -- but track id names aren't supposed to carry meaning anyway.
-rename :: BlockId -> Id.Id -> Cmd.CmdL ()
-rename = Create.rename_block
+rename :: Id.Id -> Cmd.CmdL ()
+rename to = flip Create.rename_block to =<< Cmd.get_focused_block
 
 -- | Rename a block and update all calls to it in all blocks.  This is not
 -- totally accurate since it updates all symbols that match, but it doesn't

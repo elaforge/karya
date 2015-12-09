@@ -57,12 +57,6 @@ interpret toks = case toks of
             action $ Global.save_git_as arg
         ["load", str] | Just arg <- val str -> action $ Global.load arg
 
-        ["show_state"] -> Just Global.show_state
-        ["show_views", str] | Just arg <- val str ->
-            Just $ Global.show_views arg
-        ["show_blocks", str] | Just arg <- val str ->
-            Just $ Global.show_blocks arg
-
         -- State
         ["State.lookup_root_id"] -> Just $ fmap showt State.lookup_root_id
         ["State.set_root_id", str] | Just arg <- val str ->
