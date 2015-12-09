@@ -113,9 +113,6 @@ public:
         ScoreTime start, ScoreTime end);
     // Deallocate marklist memory.
     void delete_config();
-    // Mark a segment of the track as needing to be redrawn.
-    // Only public so that EventTrack::draw can call it.
-    void damage_range(ScoreTime start, ScoreTime end);
 
     // Y position of the track start.  Use this instead of y() to avoid
     // colliding with the track bevel.
@@ -133,6 +130,8 @@ protected:
     void draw() override;
 
 private:
+    // Mark a segment of the track as needing to be redrawn.
+    void damage_range(ScoreTime start, ScoreTime end, bool selection);
     void draw_marklists();
     bool draw_mark(bool at_zero, int offset, const Mark &mark);
     void draw_selections();

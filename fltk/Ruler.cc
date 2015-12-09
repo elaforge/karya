@@ -68,23 +68,15 @@ OverlayRuler::OverlayRuler(const RulerConfig &config, bool is_ruler_track) :
 }
 
 
-static void
-damage_selection(OverlayRuler *ruler, const std::vector<Selection> &sels)
-{
-    for (auto &sel : sels) {
-        ruler->damage_range(sel.low(), sel.high());
-    }
-    // TODO move the code that extends the damage to cover the arrow
-}
-
-
 void
 OverlayRuler::set_selection(
     int selnum, int tracknum, const std::vector<Selection> &news)
 {
     this->selections.resize(std::max(int(selections.size()), selnum + 1));
-    damage_selection(this, selections[selnum]);
-    damage_selection(this, news);
+    for (auto &sel : selections[selnum])
+        damage_range(sel.low(), sel.high(), true);
+    for (auto &sel : news)
+        damage_range(sel.low(), sel.high(), true);
     this->selections[selnum] = news;
 }
 
@@ -101,7 +93,7 @@ OverlayRuler::set_config(bool is_ruler_track, const RulerConfig &config,
         this->config.use_alpha = false;
         this->config.full_width = false;
     }
-    this->damage_range(start, end);
+    this->damage_range(start, end, false);
 }
 
 void
@@ -136,7 +128,7 @@ OverlayRuler::draw()
 
 
 void
-OverlayRuler::damage_range(ScoreTime start, ScoreTime end)
+OverlayRuler::damage_range(ScoreTime start, ScoreTime end, bool selection)
 {
     IRect r = f_util::rect(this);
     if (start == ScoreTime(-1) && end == ScoreTime(-1)) {
@@ -144,16 +136,12 @@ OverlayRuler::damage_range(ScoreTime start, ScoreTime end)
     } else {
         r.y += this->zoom.to_pixels(start - this->zoom.offset);
         r.h = this->zoom.to_pixels(end - start);
-        // Since the selection point extends downwards a bit, always extend a
-        // little to cover it if it was there.  This is so when the selection
-        // is no longer a point the extra hanging bit will be cleared properly.
-        // The problem doesn't occur above the selection because it hangs down,
-        // not up.
-        // +1, otherwise retina displays get a hanging pixel.
-        r.h += selection_point_size + 1;
-        if (start == end) {
+        if (selection) {
+            // Extend the damage area to cover the bevel arrow thing in
+            // draw_selections().
             r.y -= selection_point_size;
-            r.h += selection_point_size;
+            // +2, otherwise retina displays get a hanging pixel.
+            r.h += selection_point_size * 2 + 2;
         }
     }
 
@@ -323,8 +311,9 @@ OverlayRuler::draw_selections()
             int cur = y + this->zoom.to_pixels(sel.cur - this->zoom.offset);
             fl_line(x() + 2, cur, x() + w() - 2, cur);
             if (sel.is_point() || sel.draw_arrow) {
-                // Draw a little bevel thingy.  It can be hard to see a point
-                // selection.
+                // Draw a little arrow bevel thingy, so you can see a point
+                // selection, or see the cur track for a non-point selection.
+                // 'damage_range' will extend the damage a bit to cover this.
                 const int sz = selection_point_size;
                 if (sel.draw_arrow) {
                     fl_color(FL_RED);

@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - fltk: If I have a non-point selection with the cur_pos at the top, and
+  * fltk: If I have a non-point selection with the cur_pos at the top, and
     move it, it gets cut off when moving up, and leaves a bit of the triangle
     when moving down.  Probably damage is not expanded enough.
   - naming: use either 'attrs' or 'attributes' consistently
