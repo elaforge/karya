@@ -4,7 +4,8 @@
 
 -- | A @.ghci@ file makes sure this module is in scope when debugging
 -- interactively.
-module D where
+module D (module D, pprint) where
+import Util.Pretty (pprint)
 import qualified Data.Text as Text
 import qualified Ui.Id as Id
 import Types
