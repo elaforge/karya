@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Kendang patches for "Local.Instrument.Kontakt".
-module Local.Instrument.Kontakt.Kendang where
+module Local.Instrument.Kontakt.KendangBali where
 import qualified Data.List as List
 import qualified Data.Map as Map
 
@@ -37,9 +37,11 @@ import Global
 
 patches :: [MidiInst.Patch]
 patches =
-    [ (CUtil.pitched_drum_patch tunggal_notes $ patch "kendang", tunggal_code)
-    , (CUtil.drum_patch old_tunggal_notes $ patch "kendang-old", tunggal_code)
-    , (Instrument.triggered $ patch "kendang-pasang", pasang_code)
+    [ (CUtil.pitched_drum_patch tunggal_notes $
+        patch "kendang-bali", tunggal_code)
+    , (CUtil.drum_patch old_tunggal_notes $
+        patch "kendang-bali-old", tunggal_code)
+    , (Instrument.triggered $ patch "kendang-bali-pasang", pasang_code)
     ]
     where
     tunggal_code = CUtil.drum_code (Just "kendang-tune") (map fst tunggal_notes)
@@ -130,7 +132,8 @@ old_tunggal_notes = map (first make_note)
 
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
-    [ ("kendang.ksp", Util.drum_mute_ksp "kendang" tunggal_notes kendang_stops)
+    [ ("kendang-bali.ksp",
+        Util.drum_mute_ksp "kendang bali" tunggal_notes kendang_stops)
     ]
 
 -- * config
@@ -138,9 +141,9 @@ write_ksp = mapM_ (uncurry Util.write)
 -- | @LInst.merge $ KontaktKendang.config ...@
 config :: Text -> Text -> MidiConfig.Config
 config name dev_ = MidiConfig.config
-    [ (name <> "-wadon", "kontakt/kendang", Instrument.config1 dev 0)
-    , (name <> "-lanang", "kontakt/kendang", Instrument.config1 dev 1)
-    , (name, "kontakt/kendang-pasang",
+    [ (name <> "-wadon", "kontakt/kendang-bali", Instrument.config1 dev 0)
+    , (name <> "-lanang", "kontakt/kendang-bali", Instrument.config1 dev 1)
+    , (name, "kontakt/kendang-bali-pasang",
         MidiConfig.environ "wadon" (inst $ name <> "-wadon") $
         MidiConfig.environ "lanang" (inst $ name <> "-lanang") $
         Instrument.config [])

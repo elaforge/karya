@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Local.Instrument.Kontakt.Kendang_test where
+module Local.Instrument.Kontakt.KendangBali_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
@@ -11,7 +11,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Local.Instrument.Kontakt as Kontakt
-import qualified Local.Instrument.Kontakt.Kendang as Kendang
+import qualified Local.Instrument.Kontakt.KendangBali as KendangBali
 import Global
 
 
@@ -35,20 +35,21 @@ test_kendang = do
 test_pasang_calls = do
     -- every pasang call should be a tunggal call
     let extract (_, _, _, call) =
-            [sym | (_, sym, _, _) <- Kendang.tunggal_strokes, sym == call]
-    equal (map extract Kendang.pasang_calls)
-        [[call] | (_, _, _, call) <- Kendang.pasang_calls]
+            [sym | (_, sym, _, _) <- KendangBali.tunggal_strokes, sym == call]
+    equal (map extract KendangBali.pasang_calls)
+        [[call] | (_, _, _, call) <- KendangBali.pasang_calls]
 
 test_all_strokes_mapped = do
-    equal Kendang._tunggal_unmapped []
+    equal KendangBali._tunggal_unmapped []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_setup
     (DeriveTest.with_synths aliases [Kontakt.synth]) ""
     where
     aliases =
-        [ ("k", "kontakt/kendang"), ("pasang", "kontakt/kendang-pasang")
-        , ("w", "kontakt/kendang"), ("l", "kontakt/kendang")
+        [ ("k", "kontakt/kendang-bali")
+        , ("pasang", "kontakt/kendang-bali-pasang")
+        , ("w", "kontakt/kendang-bali"), ("l", "kontakt/kendang-bali")
         ]
 
 inst_title :: String

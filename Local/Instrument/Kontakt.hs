@@ -45,7 +45,7 @@ import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
-import qualified Local.Instrument.Kontakt.Kendang as Kendang
+import qualified Local.Instrument.Kontakt.KendangBali as KendangBali
 import qualified Local.Instrument.Kontakt.KendangSunda as KendangSunda
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Pakhawaj as Pakhawaj
@@ -67,7 +67,7 @@ patches = MidiInst.with_empty_code (Instrument.default_patch pb_range [])
     : concat
     [ misc_patches
     , hang_patches
-    , Kendang.patches, KendangSunda.patches
+    , KendangBali.patches, KendangSunda.patches
     , Mridangam.patches, Pakhawaj.patches, Wayang.patches
     ]
 
