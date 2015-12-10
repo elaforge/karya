@@ -81,8 +81,10 @@ test_collect_notes = do
     equal (f [on Key.c4, off Key.c4, cc 42])
         ([(0, 1, Key.c4, 127, [])], [])
 
+cc :: M.ControlValue -> M.ChannelMessage
 cc = M.ControlChange 1
 
+on, off :: M.Key -> M.ChannelMessage
 on key = M.NoteOn key 127
 off key = M.NoteOff key 127
 

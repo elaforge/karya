@@ -38,6 +38,8 @@ UNSORTED
     . But then I need to pass the instrument mapping to Midi.load.
     . Maybe not really worth it?  For learning I can load in reaper and just
       watch the VSL UI.
+    . But still worth keeping existing work, because I'll need something like
+      that for MIDI record.
   * Move cmd-m to GlobalKeymap, so it works when you have several tracks
     selected.
   * When there is a non-point selection, make it obvious where cur_pos and

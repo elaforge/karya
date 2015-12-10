@@ -14,6 +14,7 @@ import qualified Data.IntMap.Strict as IntMap
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Set as Set
 import qualified Data.Word as Word
 
 import qualified ZMidi.Core as Z
@@ -36,6 +37,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Control as Control
+import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
@@ -159,6 +161,46 @@ convert_track (title, msgs) = (map (Score.instrument title,) tracks, warns)
     (tracks, stuck_on) = split_track msgs
     warns = if null stuck_on then []
         else [title <> ": omitted notes with no note-offs: " <> pretty stuck_on]
+
+-- ** infer_keyswitches
+
+-- TODO incomplete.  I need to modify convert_tracks to take [AttrMidi].
+
+type AttrMidi = (RealTime, Either Score.Attributes Midi.Message)
+type KeyswitchMap = Map.Map (Set.Set Midi.Key) Score.Attributes
+
+-- | Collect sounding keys, and each time look in the AttributeMap for the
+-- current set.  If I find a match, emit the attributes as the current state.
+-- If the pitch is any keyswitch, omit it from the output.
+infer_keyswitches :: KeyswitchMap -> [Midi] -> [AttrMidi]
+infer_keyswitches ks_map = go Set.empty
+    where
+    go _ [] = []
+    go old_held ((t, msg) : msgs) = case note_key msg of
+        Just (True, key) -> map (t,) (set_attrs ++ emit key msg) ++ go held msgs
+            where
+            held = Set.insert key old_held
+            set_attrs = maybe [] ((:[]) . Left) (Map.lookup held ks_map)
+        Just (False, key) -> map (t,) (emit key msg) ++ go held msgs
+            where held = Set.delete key old_held
+        Nothing -> (t, Right msg) : go old_held msgs
+    emit key msg = if Set.member key keyswitches then [] else [Right msg]
+    keyswitches = Set.unions (Map.keys ks_map)
+
+note_key :: Midi.Message -> Maybe (Bool, Midi.Key)
+note_key (Midi.ChannelMessage _ msg) = case msg of
+    Midi.NoteOn key _ -> Just (True, key)
+    Midi.NoteOff key _ -> Just (False, key)
+    _ -> Nothing
+note_key _ = Nothing
+
+keyswitch_map :: Instrument.AttributeMap -> KeyswitchMap
+keyswitch_map (Instrument.AttributeMap amap) =
+    Map.fromList $ filter (not . Set.null . fst)
+        [(Set.fromList (mapMaybe key_of ks), attrs) | (attrs, ks, _) <- amap]
+    where
+    key_of (Instrument.Keyswitch k) = Just k
+    key_of _ = Nothing
 
 -- ** split_track
 
