@@ -43,8 +43,7 @@ get_pos = do
     (view_id, sel) <- Selection.get
     block_id <- State.block_id_of view_id
     let (start, end) = Sel.range sel
-    return $ Pos block_id (Selection.point_track sel) (Selection.point sel)
-        (end - start)
+    return $ Pos block_id (Selection.point_track sel) start (end - start)
 
 -- * events
 

@@ -829,8 +829,7 @@ instance DeepSeq.NFData (Merger a) where
 
 -- *** control ops
 
--- | Default set of control operators.  Merged at runtime with the static
--- config.  TODO but not yet
+-- | The built-in set of control Mergers.
 mergers :: Map.Map BaseTypes.CallId (Merger Signal.Control)
 mergers = Map.fromList $ map to_pair
     [ Set, merge_add, merge_sub, merge_mul, merge_scale
@@ -841,10 +840,14 @@ mergers = Map.fromList $ map to_pair
     ]
     where to_pair merger = (BaseTypes.Symbol (ShowVal.show_val merger), merger)
 
-merge_add, merge_sub, merge_mul, merge_scale :: Merger Signal.Control
+merge_add, merge_sub, merge_mul  :: Merger Signal.Control
 merge_add = Merger "add" Signal.sig_add (Signal.constant 0)
 merge_sub = Merger "sub" Signal.sig_subtract (Signal.constant 0)
 merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
+
+-- | Unlike the rest, this one is not associative.  I never claimed this was
+-- a monoid, did I?
+merge_scale :: Merger Signal.Control
 merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
 
 pitch_mergers :: Map.Map BaseTypes.CallId (Merger PSignal.PSignal)
