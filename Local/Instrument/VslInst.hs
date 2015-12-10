@@ -1190,7 +1190,7 @@ contrabass_clarinet =
     ]
 contrabass_clarinet_short_long_notes = [staccato, portato, sus]
 contrabass_clarinet_dynamics = seconds
-    [ (med, [15, 2, 3, 4, 6]), (pfp, [2, 3, 4, 6, 8]) ]
+    [ (dyn.med, [15, 2, 3, 4, 6]), (pfp, [2, 3, 4, 6, 8]) ]
     ++ [fp, sfz, sffz]
 contrabass_clarinet_perf_interval = [perf.legato, perf.marcato]
 contrabass_clarinet_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
@@ -1209,8 +1209,8 @@ basset_horn_short_long_notes =
     , sus
     ]
 basset_horn_dynamics = seconds
-    [ (med, [15, 2, 3, 4])
-    , (str, [15, 2, 3, 4, 6])
+    [ (dyn.med, [15, 2, 3, 4])
+    , (dyn.str, [15, 2, 3, 4, 6])
     , (pfp, [2, 3, 4, 6, 8])
     ] ++ [fp, sfz, sffz]
 basset_horn_flutter = [flutter, flutter.cresc]
@@ -1307,7 +1307,8 @@ trumpet_c_mute_short_long_notes =
     , sus.vib, sus.progr, sus.nv
     ]
 trumpet_c_mute_dynamics = seconds
-    [ (med.vib, [2, 3, 4]), (med.nv, [2, 3, 4, 6]), (str.nv, [2, 3, 4, 6])
+    [ (dyn.med.vib, [2, 3, 4]), (dyn.med.nv, [2, 3, 4, 6])
+    , (dyn.str.nv, [2, 3, 4, 6])
     , (pfp.vib, [2, 5, 9]), (pfp.nv, [2, 3, 4, 5])
     ] ++ [fp.vib, sfz.vib, sffz.vib, fp.nv, sfz.nv, sffz.nv]
 trumpet_c_mute_flutter_trills =
@@ -1593,7 +1594,7 @@ horns_a4_short_long_notes =
     , sus, sus.marcato, sus.blare
     ]
 horns_a4_dynamics = seconds
-    [ (med, [15, 2, 3, 4, 6]), (str, [3, 4, 6]), (pfp, [4, 6])
+    [ (dyn.med, [15, 2, 3, 4, 6]), (dyn.str, [3, 4, 6]), (pfp, [4, 6])
     ] ++ [fp, sfz, sffz]
 horns_a4_flutter = [flutter, flutter.cresc]
 horns_a4_perf_interval = [perf.legato, perf.legato.sus, perf.marcato]
@@ -1744,8 +1745,8 @@ upbeat_rep_bpm attrs =
         | (attr, bpms) <- attrs]
 
 seconds :: [(Attributes, [Int])] -> [Attributes]
-seconds attrs_secs = prefix_attrs
-    [(dyn.prefix, map sec secs) | (prefix, secs) <- attrs_secs]
+seconds attrs_secs =
+    prefix_attrs [(prefix, map sec secs) | (prefix, secs) <- attrs_secs]
 
 -- | Add a prefix to each list of attributes.
 prefix_attrs :: [(Attributes, [Attributes])] -> [Attributes]
