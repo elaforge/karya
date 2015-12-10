@@ -377,7 +377,7 @@ edit_state_bindings = concat
 
 event_bindings :: Cmd.M m => [Keymap.Binding m]
 event_bindings = concat
-    -- J = move previous event down, K = move next event up.
+    -- J = move previous event to cursor, K = move next event to cursor.
     [ command_char 'J' "move event forward" Edit.cmd_move_event_forward
     , command_char 'K' "move event backward" Edit.cmd_move_event_backward
     , command_char 'j' "insert time" Edit.cmd_insert_time
@@ -408,6 +408,9 @@ event_bindings = concat
 
     , bind_key_status [] (Key.Char 'a') "append text" Edit.append_text
     , bind_key_status [] (Key.Char 'A') "replace last call"
+        Edit.replace_last_call
+    , bind_key_status [] (Key.Char 'z') "append text" Edit.append_text
+    , bind_key_status [] (Key.Char 'Z') "replace last call"
         Edit.replace_last_call
     , bind_key_status [] (Key.Char 'i') "prepend text" Edit.prepend_text
     , bind_key_status [] (Key.Char 'I') "replace first call"

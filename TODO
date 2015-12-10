@@ -15,7 +15,7 @@ UNSORTED
       winds up being down-up.  If I had a collapse to point it would do this
       directly.
     * Try with space as Selection.to_point.
-  - 'a' keeps getting shadowed by kbd entry.  Can I move it to a symbol on
+  * 'a' keeps getting shadowed by kbd entry.  Can I move it to a symbol on
     the right side, and have a rule against shadowing those?  Maybe :?
   * How can I get dyn to only affect attacks?  I could have a 'dyn-atk' and use
     that only at attack time, but what about other controls?
