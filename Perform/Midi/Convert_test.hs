@@ -56,8 +56,7 @@ test_convert = do
 
 test_rnd_vel = do
     let run dyn notes = first extract $ DeriveTest.perform_block
-            [ (">i1 | %dyn = " <> dyn,
-                [(n, 1, "") | n <- Seq.range' 0 notes 1])
+            [ (">i1 | %dyn = " <> dyn, [(n, 1, "") | n <- Seq.range' 0 notes 1])
             , ("*", [(0, 0, "4c")])
             ]
         extract midi = [vel | (_, _, vel) <- DeriveTest.note_on_vel midi]

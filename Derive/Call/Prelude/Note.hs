@@ -162,9 +162,10 @@ c_note_attributes = Derive.transformer Module.prelude "note-attributes"
 type GenerateNote = Derive.NoteArgs -> Derive.NoteDeriver
 
 data Config = Config {
-    -- | Note duration is affected by +staccato.
+    -- | Note duration is affected by 'Attrs.staccato'.
     config_staccato :: !Bool
-    -- | Note duration can depend on %sustain and %sustain-abs.
+    -- | Note duration can depend on 'Controls.sustain' and
+    -- 'Controls.sustain_abs'.
     , config_sustain :: !Bool
     } deriving (Show)
 
