@@ -409,9 +409,12 @@ event_bindings = concat
     , bind_key_status [] (Key.Char 'a') "append text" Edit.append_text
     , bind_key_status [] (Key.Char 'A') "replace last call"
         Edit.replace_last_call
-    , bind_key_status [] (Key.Char 'z') "append text" Edit.append_text
-    , bind_key_status [] (Key.Char 'Z') "replace last call"
-        Edit.replace_last_call
+    -- There are placed to avoid conflict with 'Cmd.state_kbd_entry' for either
+    -- pitched instruments or specialized keymaps like drums.
+    , bind_key_status [] (Key.Char (Keymap.physical_key '/'))
+        "append text" Edit.append_text
+    , bind_key_status [] (Key.Char (Keymap.physical_key '?'))
+        "replace last call" Edit.replace_last_call
     , bind_key_status [] (Key.Char 'i') "prepend text" Edit.prepend_text
     , bind_key_status [] (Key.Char 'I') "replace first call"
         Edit.replace_first_call

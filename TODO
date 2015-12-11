@@ -3,6 +3,19 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - If I have if an arg is Sig.Both, and I have call-arg=x, and then arg=y,
+    the arg=y should override the call-arg=x.
+    . The problem is that it can't know at assignment time when args belong to
+      the same call, but then the call can't tell which one was more recent.
+    . For the first, I could assume that arg should override *-arg.
+    . For the second, I could attach stack depth metadata to the val, then
+      prefer the one with more depth.
+    . The first is simpler, but it seems sketchy to go replace call-arg just
+      because I assigned to arg.  Maybe the argument isn't even supposed to
+      have an Unprefixed variant!
+  - If there was a Sig.Named [x, y, z] then I could have a call default from
+    arbitrary env vars.  Doing this could break the call-arg assumption above
+    though.
   * fltk: If I have a non-point selection with the cur_pos at the top, and
     move it, it gets cut off when moving up, and leaves a bit of the triangle
     when moving down.  Probably damage is not expanded enough.
@@ -17,6 +30,7 @@ UNSORTED
     * Try with space as Selection.to_point.
   * 'a' keeps getting shadowed by kbd entry.  Can I move it to a symbol on
     the right side, and have a rule against shadowing those?  Maybe :?
+    * Actually this is not right for non-dvorak, I should bind by position.
   * How can I get dyn to only affect attacks?  I could have a 'dyn-atk' and use
     that only at attack time, but what about other controls?
     . Just hardcode a few signals for now.
@@ -76,6 +90,7 @@ UNSORTED
     - make sure grace vs. grace.updown is correct
     attribute groups:
       . bass clarinet has nv without vib
+    - rename +sec# to +s#?
     - should be able to select the most appropriate sec# dyn given
       +cresc or +dim on a note.
     * Figure out how to map continuous controls, and crossfade.
