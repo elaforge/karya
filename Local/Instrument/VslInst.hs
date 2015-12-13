@@ -5,8 +5,13 @@
 module Local.Instrument.VslInst (
     module Local.Instrument.VslInst, module Derive.Attrs
 ) where
+import qualified Prelude
 import Prelude hiding (min, (.))
 import qualified Data.Text as Text
+
+import qualified Util.Num as Num
+import qualified Util.ParseText as ParseText
+import qualified Util.Seq as Seq
 
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
@@ -14,7 +19,9 @@ import Derive.Attrs
 import qualified Derive.Score as Score
 import Derive.Score (attr)
 
+import qualified Perform.RealTime as RealTime
 import Global
+import Types
 
 
 -- | Easier to type and looks good without spaces.
@@ -86,14 +93,14 @@ violin_short_long_notes =
     , sus.vib_down, sus.nv
     ]
 violin_dynamics =
-    [ dyn.med.vib.sec15, dyn.med.vib.sec 3, dyn.med.vib.sec 4
-    , dyn.str.vib.sec15, dyn.str.vib.sec 3, dyn.str.vib.sec 4
-    , dyn.med.nv.sec15, dyn.med.nv.sec 3
+    [ dyn.med.vib.sec 1.5, dyn.med.vib.sec 3, dyn.med.vib.sec 4
+    , dyn.str.vib.sec 1.5, dyn.str.vib.sec 3, dyn.str.vib.sec 4
+    , dyn.med.nv.sec 1.5, dyn.med.nv.sec 3
     , pfp.sec 2, pfp.sec 4, fp.vib, sfz.vib, sffz.vib
     ]
 violin_tremolo_trills =
     [ trem.sus, trem.sus.fa, trem.sus.fa.auto
-    , trem.dyn.sec15, trem.dyn.sec 3
+    , trem.dyn.sec 1.5, trem.dyn.sec 3
     , trill.half, trill.whole, trill.half.dyn, trill.whole.dyn
     , trill.acc.half, trill.acc.whole, trill.acc.half.dyn, trill.acc.whole.dyn
     ]
@@ -205,7 +212,7 @@ cello_dynamics = seconds
     ] ++ [fp.vib, sfz.vib, sffz.vib]
 cello_tremolo_trills =
     [ trem.sus, trem.sus.fa, trem.sus.fa.auto
-    , trem.dyn.sec15, trem.dyn.sec 3
+    , trem.dyn.sec 1.5, trem.dyn.sec 3
     , trill.half, trill.whole, trill.half.dyn, trill.whole.dyn
     , trill.acc.half, trill.acc.whole, trill.acc.half.dyn, trill.acc.whole.dyn
     ]
@@ -259,8 +266,8 @@ bass_short_long_notes =
     , sus.vib.marcato, sus.progr, sus.vib_down, sus.nv
     ]
 bass_dynamics =
-    [ dyn.str.vib.sec15, dyn.str.vib.sec 3, dyn.str.vib.sec 4
-    , dyn.med.nv.sec15, dyn.str.nv.sec 3
+    [ dyn.str.vib.sec 1.5, dyn.str.vib.sec 3, dyn.str.vib.sec 4
+    , dyn.med.nv.sec 1.5, dyn.str.nv.sec 3
     , pfp.vib.sec 2, pfp.vib.sec 4, fp.vib, sfz.vib, sffz.vib
     ]
 bass_tremolo_trills =
@@ -322,8 +329,8 @@ strings_short_long_notes =
     , sus.flaut, sus.flaut.fa, sus.flaut.fa.auto
     ]
 strings_dynamics = map (dyn.)
-    [ med.vib.sec15, med.vib.sec 3
-    , str.vib.sec15, str.vib.sec 3, str.vib.sec 6
+    [ med.vib.sec 1.5, med.vib.sec 3
+    , str.vib.sec 1.5, str.vib.sec 3, str.vib.sec 6
     , med.nv.sec 2, dyn.med.nv.sec 4
     , pfp.vib.sec 2, pfp.vib.sec 4, pfp.vib.sec 6
     , fp.vib, sfz.vib, sffz.vib, fp.nv, sfz.nv, sffz.nv
@@ -346,7 +353,7 @@ strings_harmonics =
     ]
 strings_ponticello = map (pont.)
     [ staccato, sus, sus.fa, sus.fa.auto
-    , dyn.str.sec15, dyn.str.sec 2, dyn.str.sec 4
+    , dyn.str.sec 1.5, dyn.str.sec 2, dyn.str.sec 4
     , sfz, trem, trem.fa, trem.fa.auto
     ]
 strings_con_sordino_basic = map (mute.)
@@ -503,7 +510,7 @@ flute1_short_long_notes =
     ]
 flute1_dynamics =
     [ dyn.med.vib.sec 2, dyn.med.vib.sec 3, dyn.str.vib.sec 5
-    , dyn.med.nv.sec15, dyn.med.nv.sec 2, dyn.med.nv.sec 3, dyn.med.nv.sec 4
+    , dyn.med.nv.sec 1.5, dyn.med.nv.sec 2, dyn.med.nv.sec 3, dyn.med.nv.sec 4
     , dyn.str.nv.sec 4, dyn.str.nv.sec 6
     , pfp.vib.sec 3, pfp.vib.sec 6, pfp.vib.sec 9
     , fpf.vib.sec 6, fpf.vib.sec 9
@@ -598,7 +605,7 @@ clarinet_bb_short_long_notes =
     , sus.nv
     ]
 clarinet_bb_dynamics = map (dyn.)
-    [ li.sec15, li.sec 2, li.sec 3, li.sec 4
+    [ li.sec 1.5, li.sec 2, li.sec 3, li.sec 4
     , med.sec 2, med.sec 3, med.sec 4, med.sec 6
     , str.sec 2, str.sec 3, str.sec 4, str.sec 6
     ] ++
@@ -661,7 +668,7 @@ bassoon_short_long_notes =
 bassoon_dynamics = map (dyn.)
     [ med.vib.sec 2, med.vib.sec 3, med.vib.sec 5
     , str.vib.sec 3, str.vib.sec 5
-    , med.nv.sec15, med.nv.sec 2, med.nv.sec 3, med.nv.sec 4, med.nv.sec 6
+    , med.nv.sec 1.5, med.nv.sec 2, med.nv.sec 3, med.nv.sec 4, med.nv.sec 6
     , str.nv.sec 3, str.nv.sec 4, str.nv.sec 6
     ] ++
     [ pfp.vib.sec 3, pfp.vib.sec 5, pfp.vib.sec 8
@@ -769,7 +776,7 @@ piccolo_short_long_notes =
     ]
 piccolo_dynamics =
     [ dyn.str.vib.sec 2, dyn.str.vib.sec 3, dyn.str.vib.sec 5
-    , dyn.str.nv.sec15, dyn.str.nv.sec 2, dyn.str.nv.sec 3, dyn.str.nv.sec 4
+    , dyn.str.nv.sec 1.5, dyn.str.nv.sec 2, dyn.str.nv.sec 3, dyn.str.nv.sec 4
     , pfp.vib.sec 6, fpf.vib.sec 5, fp.vib, sfz.vib.v1, sfz.vib.v2, sfz.vib.v3
     ]
 piccolo_flutter_trills =
@@ -810,7 +817,7 @@ flute2_short_long_notes =
     ]
 flute2_dynamics =
     [ dyn.med.vib.sec 2, dyn.med.vib.sec 3
-    , dyn.med.nv.sec15, dyn.med.nv.sec 2, dyn.med.nv.sec 3
+    , dyn.med.nv.sec 1.5, dyn.med.nv.sec 2, dyn.med.nv.sec 3
     , dyn.str.nv.sec 4, dyn.str.nv.sec 6
     , pfp.vib.sec 2, pfp.vib.sec 4, pfp.vib.sec 8
     , fp.vib, sfz.vib, fp.nv, sfz.nv
@@ -882,7 +889,7 @@ oboe1_short_long_notes =
     ]
 oboe1_dynamics =
     [ dyn.str.vib.sec 3, dyn.str.vib.sec 5
-    , dyn.med.nv.sec15, dyn.med.nv.sec 2, dyn.med.nv.sec 3, dyn.med.nv.sec 4
+    , dyn.med.nv.sec 1.5, dyn.med.nv.sec 2, dyn.med.nv.sec 3, dyn.med.nv.sec 4
     , dyn.med.nv.sec 6
     , dyn.str.nv.sec 4, dyn.str.nv.sec 6
     , pfp.vib.sec 6, pfp.nv.sec 2, pfp.nv.sec 3, pfp.nv.sec 4, pfp.nv.sec 6
@@ -935,7 +942,7 @@ english_horn1_short_long_notes =
     ]
 english_horn1_dynamics =
     [ dyn.med.vib.sec 3, dyn.str.vib.sec 5
-    , dyn.med.nv.sec 1, dyn.med.nv.sec15, dyn.med.nv.sec 2, dyn.med.nv.sec 3
+    , dyn.med.nv.sec 1, dyn.med.nv.sec 1.5, dyn.med.nv.sec 2, dyn.med.nv.sec 3
     , dyn.med.nv.sec 4, dyn.med.nv.sec 6
     , dyn.str.nv.sec 4, dyn.str.nv.sec 6
     , pfp.vib.sec 5, pfp.nv.sec 2, pfp.nv.sec 3, pfp.nv.sec 4, pfp.nv.sec 6
@@ -1010,7 +1017,7 @@ clarinet_eb_short_long_notes =
     , portato.long.na, portato.long.ha, portato.long.sa, sus.nv
     ]
 clarinet_eb_dynamics =
-    [ dyn.li.sec15, dyn.li.sec 2, dyn.med.sec15
+    [ dyn.li.sec 1.5, dyn.li.sec 2, dyn.med.sec 1.5
     , dyn.med.sec 2, dyn.med.sec 3, dyn.med.sec 4
     , dyn.str.sec 2, dyn.str.sec 3, dyn.str.sec 4, dyn.str.sec 6
     , pfp.sec 2, pfp.sec 3, pfp.sec 4, pfp.sec 6, pfp.sec 8
@@ -1047,7 +1054,7 @@ bass_clarinet_short_long_notes =
     , portato.long.nv, portato.sus.nv
     ]
 bass_clarinet_dynamics =
-    [ dyn.med.sec15, dyn.med.sec 2, dyn.med.sec 3, dyn.med.sec 4
+    [ dyn.med.sec 1.5, dyn.med.sec 2, dyn.med.sec 3, dyn.med.sec 4
     , dyn.str.sec 3, dyn.str.sec 4, dyn.str.sec 6
     , pfp.sec 2, pfp.sec 3, pfp.sec 4, pfp.sec 6, pfp.sec 8, pfp.sec 10
     , fp, sfz, sffz
@@ -1080,10 +1087,10 @@ contra_bassoon_short_long_notes =
     ]
 contra_bassoon_dynamics =
     [ dyn.med.vib.sec 2, dyn.med.vib.sec 3, dyn.med.vib.sec 5
-    , dyn.med.nv.sec15, dyn.med.nv.sec 2, dyn.med.nv.sec 3, dyn.med.nv.sec 4
+    , dyn.med.nv.sec 1.5, dyn.med.nv.sec 2, dyn.med.nv.sec 3, dyn.med.nv.sec 4
     , dyn.med.nv.sec 6
     , dyn.str.nv.sec 2, dyn.str.nv.sec 4, dyn.str.nv.sec 6
-    , pfp.sec15, pfp.sec 2, pfp.sec 3, pfp.sec 4, pfp.sec 6
+    , pfp.sec 1.5, pfp.sec 2, pfp.sec 3, pfp.sec 4, pfp.sec 6
     , fp, sfz, sffz
     ]
 contra_bassoon_flutter = [flutter, flutter.cresc]
@@ -1120,8 +1127,8 @@ bass_flute_short_long_notes =
     [staccato, portato.short, portato.med, sus.vib, sus.nv]
 bass_flute_dynamics =
     [ dyn.med.vib.sec 1, dyn.med.vib.sec 2, dyn.med.vib.sec 4
-    , dyn.med.nv.sec15, dyn.med.nv.sec 2, dyn.med.nv.sec 4
-    , dyn.str.nv.sec15, dyn.str.nv.sec 2, dyn.str.nv.sec 3, dyn.str.nv.sec 4
+    , dyn.med.nv.sec 1.5, dyn.med.nv.sec 2, dyn.med.nv.sec 4
+    , dyn.str.nv.sec 1.5, dyn.str.nv.sec 2, dyn.str.nv.sec 3, dyn.str.nv.sec 4
     , pfp.vib.sec 3, pfp.vib.sec 6, pfp.vib.sec 8
     , pfp.nv.sec 2, pfp.nv.sec 3, pfp.nv.sec 4, pfp.nv.sec 6
     , fp.vib, sfz.vib, sffz.vib, fp.nv, sfz.nv, sffz.nv
@@ -1145,10 +1152,10 @@ oboe_damore_short_long_notes =
     , portato.long.sa.vib, portato.long.sa.nv, sus.vib, sus.nv
     ]
 oboe_damore_dynamics =
-    [ dyn.med.vib.sec15, dyn.med.vib.sec 2, dyn.med.vib.sec 3
+    [ dyn.med.vib.sec 1.5, dyn.med.vib.sec 2, dyn.med.vib.sec 3
     , dyn.med.vib.sec 4
     , dyn.str.vib.sec 3, dyn.str.vib.sec 4
-    , dyn.med.nv.sec15, dyn.med.nv.sec 2, dyn.med.nv.sec 3, dyn.med.nv.sec 4
+    , dyn.med.nv.sec 1.5, dyn.med.nv.sec 2, dyn.med.nv.sec 3, dyn.med.nv.sec 4
     , dyn.str.nv.sec 2, dyn.str.nv.sec 3, dyn.str.nv.sec 4
     , pfp.vib.sec 2, pfp.vib.sec 4, pfp.vib.sec 10
     , pfp.nv.sec 2, pfp.nv.sec 3, pfp.nv.sec 4
@@ -1353,7 +1360,7 @@ horn_vienna_flutter_trills =
     [flutter, flutter.cresc, trill.half, trill.whole, trill.lip]
 horn_vienna_stopped = map (stop.)
     [ staccato, portato.med, portato.long, sus
-    , dyn.sec 1, dyn.sec15, dyn.sec 2, dyn.sec 3, dyn.sec 4, dyn.sec 6
+    , dyn.sec 1, dyn.sec 1.5, dyn.sec 2, dyn.sec 3, dyn.sec 4, dyn.sec 6
     , fp, sfz, sffz
     ]
 horn_vienna_perf_interval = map (perf.)
@@ -1656,7 +1663,7 @@ trombones_a3_dynamics = seconds
     ] ++ [fp, sfz, sffz]
 trombones_a3_flutter = [flutter, flutter.cresc]
 trombones_a3_cluster = map (cluster.)
-    [ staccato, sus, dyn.sec15, dyn.sec 4, sfz
+    [ staccato, sus, dyn.sec 1.5, dyn.sec 4, sfz
     , rep.legato, rep.dyn5.legato
     ]
 trombones_a3_perf_interval = [perf.legato, perf.legato.sus, perf.marcato]
@@ -1744,7 +1751,7 @@ upbeat_rep_bpm attrs =
     concat [map (attr.perf.upbeat.rep.) (map bpm (map (10*) bpms))
         | (attr, bpms) <- attrs]
 
-seconds :: [(Attributes, [Int])] -> [Attributes]
+seconds :: [(Attributes, [RealTime])] -> [Attributes]
 seconds attrs_secs =
     prefix_attrs [(prefix, map sec secs) | (prefix, secs) <- attrs_secs]
 
@@ -1754,13 +1761,20 @@ prefix_attrs attrs = concat [map (prefix.) attrs | (prefix, attrs) <- attrs]
 
 -- * attrs
 
-sec :: Int -> Score.Attributes
-sec n
-    | n == 15 = sec15
-    | otherwise = attr ("sec" <> showt n)
+sec :: RealTime -> Score.Attributes
+sec n = attr $ "sec"
+    <> Text.replace "." "-" (Num.showFloat0 Nothing (RealTime.to_seconds n))
 
-sec15 :: Score.Attributes
-sec15 = attr "sec1-5"
+parse_sec :: Score.Attributes -> Maybe (RealTime, Score.Attributes)
+parse_sec attrs = case Seq.partition_with has_sec (Score.attrs_list attrs) of
+    ([secs], rest) -> Just (secs, Score.attrs rest)
+    _ -> Nothing
+    where
+    (.) = (Prelude..)
+    has_sec = parse . Text.replace "-" "." <=< Text.stripPrefix "sec"
+    parse t = case ParseText.parse ParseText.p_unsigned_float t of
+        Left _ -> Nothing
+        Right val -> Just $ RealTime.seconds val
 
 bpm :: Int -> Score.Attributes
 bpm n = attr ("bpm" <> showt n)

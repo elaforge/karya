@@ -401,9 +401,10 @@ with_instrument inst deriver = do
     -- throwing, but it turned out to be error prone, since a misspelled
     -- instrument would derive anyway, only without the right calls and
     -- environ.
-    (inst, Instrument calls environ) <- get_instrument inst
+    (inst, derive_inst) <- get_instrument inst
     let with_inst = with_val_raw EnvKey.instrument inst
-    with_inst $ with_scopes (set_scopes calls) $ with_environ environ deriver
+    with_inst $ with_scopes (set_scopes (inst_calls derive_inst)) $
+        with_environ (inst_environ derive_inst) deriver
     where
     -- Replace the calls in the instrument scope type.
     set_scopes (InstrumentCalls inst_gen inst_trans inst_val)

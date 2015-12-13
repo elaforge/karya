@@ -91,8 +91,15 @@ UNSORTED
     attribute groups:
       . bass clarinet has nv without vib
     - rename +sec# to +s#?
-    - should be able to select the most appropriate sec# dyn given
+    * should be able to select the most appropriate sec# dyn given
       +cresc or +dim on a note.
+      . But derive doesn't have access to the full Patch, so it can't get
+        attributes.  I could either have the inst put a list of its attrs in
+        the environ, or just let derive at the patch.  Is there any harm to
+        the latter?  The original idea was that there are multiple backends
+        so derive shouldn't depend on a particular kind of instrument, but
+        attrs are already generic, and besides portability across instruments
+        is never a goal.
     * Figure out how to map continuous controls, and crossfade.
   * it's annoying to apply an attr over a period of time because it requires
     a parent track.  Can I make attr controls, e.g. a control named +nv which

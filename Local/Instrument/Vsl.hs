@@ -22,20 +22,26 @@ import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.Europe.Grace as Grace
+import qualified Derive.Call.Make as Make
+import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Prelude.Articulation as Articulation
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Prelude.Trill as Trill
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Tag as Tag
 import qualified Local.Instrument.VslInst as VslInst
 import Global
+import Types
 
 
 -- * util
@@ -143,6 +149,7 @@ note_calls maybe_hmap patch =
     <> with_attr VslInst.grace [g "g" (grace_call (patch_attrs patch))]
     <> with_attr VslInst.legato [g "(" Articulation.c_attr_legato]
     <> MidiInst.null_call (note_call patch)
+    <> [MidiInst.both "sec" c_infer_seconds]
     where
     g = MidiInst.generator
     with_attr attr calls = if has_attr attr patch then calls else []
@@ -394,3 +401,35 @@ gliss_natural_harmonics = absolute
     , (Key.as3, 2)
     ]
     where absolute = uncurry zip . second (drop 1 . scanl (+) 0) . unzip
+
+-- * infer seconds
+
+c_infer_seconds :: Make.Calls Derive.Note
+c_infer_seconds = Make.transform_notes Module.instrument "infer-seconds"
+    Tags.attr
+    "Infer a `+sec#` attr based on the duration of the event and the available\
+    \ keymaps for the current instrument and attribute set."
+    ((,)
+    <$> Sig.defaulted "attrs" mempty "Add these attributes."
+    <*> Sig.defaulted "round" Nothing "Round up to a longer `+sec#` attribute,\
+        \ down to a shorter one, or to the closest."
+    ) $ \(attrs, round) deriver -> do
+        (_, inst) <- Derive.get_instrument =<< Call.get_instrument
+        Post.emap1_ (infer_seconds round (Derive.inst_attributes inst)) <$>
+            Call.add_attrs attrs deriver
+
+infer_seconds :: Maybe Call.UpDown -> [Score.Attributes] -> Score.Event
+    -> Score.Event
+infer_seconds round inst_attrs event = case closest of
+    Nothing -> event
+    Just (secs, _) -> Score.add_attributes (VslInst.sec secs) event
+    where
+    dur = Score.event_duration event
+    closest = Seq.minimum_on (abs . subtract dur . fst) $ case round of
+        Nothing -> relevant_attrs
+        Just Call.Up -> filter ((>=dur) . fst) relevant_attrs
+        Just Call.Down -> filter ((<=dur) . fst) relevant_attrs
+    relevant_attrs :: [(RealTime, Score.Attributes)]
+    relevant_attrs = filter (Score.attrs_contain event_attrs . snd) $
+        mapMaybe VslInst.parse_sec inst_attrs
+    event_attrs = Score.event_attributes event

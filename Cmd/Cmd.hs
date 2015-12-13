@@ -799,6 +799,9 @@ derive_instrument :: MidiInfo -> Derive.Instrument
 derive_instrument info = Derive.Instrument
     { Derive.inst_calls = inst_calls (MidiDb.info_code info)
     , Derive.inst_environ = Instrument.patch_environ (MidiDb.info_patch info)
+    , Derive.inst_attributes =
+        case Instrument.patch_attribute_map (MidiDb.info_patch info) of
+            Instrument.AttributeMap amap -> [attrs | (attrs, _, _) <- amap]
     }
 
 empty_code :: InstrumentCode

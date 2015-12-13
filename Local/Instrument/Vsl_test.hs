@@ -40,16 +40,30 @@ test_strip_attrs = do
     equal (f [["sus"], ["vib"]]) ["+", "+vib"]
 
 test_natural_harmonic = do
-    let run inst attrs pitch = DeriveTest.extract extract $
+    let run attrs pitch = DeriveTest.extract extract $
             DeriveTest.derive_tracks_setup with "" $
-                [ (inst, [(0, 1, attrs)])
+                [ (">v", [(0, 1, attrs)])
                 , ("*", [(0, 0, pitch)])
                 ]
         extract = Midi.to_key . maybe 0 round . Score.initial_nn
         with = DeriveTest.with_synths [("v", "vsl/violin")] [Vsl.synth]
-    equal (run ">v" "+harm+nat" "4c")
+    equal (run "+harm+nat" "4c")
         ([], ["Error: c4 unplayable on [+g, +d, +a, +e]"])
-    equal (run ">v" "+harm+nat" "3g") ([Key.c3], [])
-    equal (run ">v" "+harm+nat" "4g") ([Key.d3], [])
-    equal (run ">v" "+harm+nat" "6d") ([Key.gs3], [])
-    equal (run ">v" "+harm+nat+d" "6d") ([Key.f4], [])
+    equal (run "+harm+nat" "3g") ([Key.c3], [])
+    equal (run "+harm+nat" "4g") ([Key.d3], [])
+    equal (run "+harm+nat" "6d") ([Key.gs3], [])
+    equal (run "+harm+nat+d" "6d") ([Key.f4], [])
+
+test_infer_seconds = do
+    let run call = DeriveTest.extract DeriveTest.e_attributes $
+            DeriveTest.derive_tracks_setup with "" $
+                [ (">v", [(0, 2, call)]) ]
+        with = DeriveTest.with_synths [("v", "vsl/violin")] [Vsl.synth]
+    equal (run "sec +cresc") (["+cresc+sec1-5"], [])
+    equal (run "sec +cresc u") (["+cresc+sec3"], [])
+    equal (run "sec +cresc d") (["+cresc+sec1-5"], [])
+
+test_parse_sec = do
+    let f = VslInst.parse_sec
+    equal (f $ VslInst.cresc <> VslInst.sec 1.5) (Just (1.5, VslInst.cresc))
+    equal (f VslInst.cresc) Nothing

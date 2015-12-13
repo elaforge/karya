@@ -65,15 +65,11 @@ note_calls = Make.call_maps
 
 lookup_attr_generator :: Derive.LookupCall (Derive.Generator Derive.Note)
 lookup_attr_generator = make_lookup_attr $ \attrs ->
-    fst $ Make.transform_notes Module.prelude
-        ("add attrs: " <> ShowVal.show_val attrs) Tags.attr "Doc unused."
-        Sig.no_args (\() -> Call.add_attrs attrs)
+    fst $ Make.attributed_note Module.prelude attrs
 
 lookup_attr_transformer :: Derive.LookupCall (Derive.Transformer Derive.Note)
 lookup_attr_transformer = make_lookup_attr $ \attrs ->
-    snd $ Make.transform_notes Module.prelude
-        ("add attrs: " <> ShowVal.show_val attrs) Tags.attr "Doc unused."
-        Sig.no_args (\() -> Call.add_attrs attrs)
+    snd $ Make.attributed_note Module.prelude attrs
 
 make_lookup_attr :: (Score.Attributes -> call) -> Derive.LookupCall call
 make_lookup_attr call =

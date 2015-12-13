@@ -771,6 +771,10 @@ data Instrument = Instrument {
     -- | Merge this with the 'state_environ' when the instrument comes into
     -- scope.
     , inst_environ :: BaseTypes.Environ
+    -- | This is a list of the attributes that the instrument understands, in
+    -- order of priority.  It corresponds to
+    -- 'Perform.Midi.Instrument.AttributeMap'.
+    , inst_attributes :: [Score.Attributes]
     } deriving (Show)
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
