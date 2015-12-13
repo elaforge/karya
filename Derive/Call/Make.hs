@@ -67,29 +67,16 @@ transform_notes :: Module.Module -> Text -> Tags.Tags -> Text -> Sig.Parser a
 transform_notes module_ name tags transform_doc sig transform =
     (generator, transformer)
     where
-    generator = Derive.generator module_ name (tags <> Tags.subs) generator_doc
+    generator = Derive.generator module_ name (tags <> Tags.subs)
+        (transform_doc <> "\n" <> generator_doc)
         $ Sig.call sig $ \params args -> Sub.sub_events args >>= \x -> case x of
             [] -> transform params $ Sub.inverting Call.placed_note args
             subs -> Sub.derive $ map (fmap (transform params)) (concat subs)
     generator_doc = "If there are notes in child tracks, apply the\
-        \ transformation to them. Otherwise apply transformation to the null\
-        \ note call."
+        \ transformation to them. Otherwise apply the transformation to the\
+        \ null note call."
     transformer = Derive.transformer module_ name tags transform_doc $
         Sig.callt sig $ \params _args deriver -> transform params deriver
-
-transform_notes_subevents :: Module.Module -> Text -> Tags.Tags -> Sig.Parser a
-    -> (a -> Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> Derive.Generator Derive.Note
-transform_notes_subevents module_ name tags sig transform =
-    Derive.generator module_ name (tags <> Tags.subs) generator_doc generator
-    where
-    generator_doc = "If there are notes in child tracks, apply the\
-        \ transformation to them. Otherwise apply transformation to the null\
-        \ note call."
-    generator = Sig.call sig $ \params args ->
-        Sub.sub_events args >>= \x -> case x of
-            [] -> transform params $ Sub.inverting Call.placed_note args
-            subs -> Sub.derive $ map (fmap (transform params)) (concat subs)
 
 -- | Create a transformer that just sets an environ value.  This is higher
 -- level and more concise than using the @=@ transformer.
