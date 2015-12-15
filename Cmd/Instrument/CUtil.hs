@@ -28,12 +28,15 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
+import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Note as Note
+import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Sig as Sig
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -210,16 +213,26 @@ type PitchedNotes = [(Drums.Note, KeyswitchRange)]
 
 -- | Make a KeyswitchRange for each grouped Attributes set.  Attributes in the
 -- same group get the same range and are differentiated by keyswitch.
-make_keymap :: Midi.Key -- ^ keyswitches start here
+make_keymap :: Maybe Midi.Key -- ^ Keyswitches start here.  If not given,
+    -- this patch doesn't use keyswitches.
     -> Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
     -> Pitch.NoteNumber -- ^ the pitch of the bottom note of each range
     -> [[Score.Attributes]] -> Map.Map Score.Attributes KeyswitchRange
 make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
     (group, low) <- zip groups [base_key, base_key+range ..]
-    (attrs, ks) <- zip group [base_keyswitch ..]
-    return (attrs,
-        ([Instrument.Keyswitch ks], low, low + (range-1), root_pitch))
+    (attrs, ks) <- zip group $ maybe (repeat [])
+        (\base -> map ((:[]) . Instrument.Keyswitch) [base..]) base_keyswitch
+    return (attrs, (ks, low, low + (range-1), root_pitch))
+
+-- | This is like 'make_keymap', except with the arguments rearranged to more
+-- closely match the sample utils I use.
+make_keymap2 :: Maybe Midi.Key -> Midi.Key -> Midi.Key -> Midi.Key
+    -> Pitch.NoteNumber -> [[Score.Attributes]]
+    -> Map.Map Score.Attributes KeyswitchRange
+make_keymap2 base_keyswitch base_key natural_key range natural_nn =
+    make_keymap base_keyswitch base_key range
+        (natural_nn - Pitch.nn (Midi.from_key natural_key))
 
 -- | This is like 'make_keymap', except that attributes are differentiated by
 -- a 'Instrument.ControlSwitch'.  CCs start at 102, and only groups of size >1
@@ -246,6 +259,8 @@ make_cc_keymap base_key range root_pitch =
     -- There is an unallocated block [102 .. 119], which should be enough.
     base_cc = 102
 
+-- | Annotate a Patch with an 'Instrument.AttributeMap' from the given
+-- PitchedNotes.
 pitched_drum_patch :: PitchedNotes -> Instrument.Patch -> Instrument.Patch
 pitched_drum_patch notes = Instrument.triggered
     . (Instrument.call_map #= make_call_map (map fst notes))
@@ -284,13 +299,21 @@ drum_pitched_notes notes keymap = (found, (not_found, unused))
 -- "Cmd.Instrument.Drums".
 drum_calls :: Maybe Score.Control -> [Drums.Note]
     -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
-drum_calls maybe_tuning_control = map make
+drum_calls maybe_tuning_control = map $ \note ->
+    ( Drums.note_name note
+    , drum_call maybe_tuning_control (Drums.note_dynamic note)
+        (Drums.note_attrs note) id
+    )
+
+drum_call :: Maybe Score.Control -> Signal.Y -> Score.Attributes
+    -> (Derive.NoteDeriver -> Derive.NoteDeriver)
+    -> Derive.Generator Derive.Note
+drum_call maybe_tuning_control dyn attrs transform =
+    Derive.generator Module.instrument name Tags.attr doc generate
     where
-    make note = (Drums.note_name note,
-        note_call (Drums.note_dynamic note) (Drums.note_attrs note))
-    note_call dyn attrs = Note.note_call
-        ("drum attrs: " <> ShowVal.show_val attrs) doc mempty $ \args ->
-        with_dyn dyn $ Call.add_attrs attrs $ with_tuning args $
+    name = "drum attrs: " <> ShowVal.show_val attrs
+    generate = Sig.call Sig.no_args $ \() args ->
+        with_dyn dyn $ Call.add_attrs attrs $ with_tuning args $ transform $
             Note.default_note Note.no_duration_attributes args
     with_dyn = Derive.multiply_control Score.c_dynamic
     with_tuning args = maybe id (tuning_control args) maybe_tuning_control

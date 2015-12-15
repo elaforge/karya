@@ -52,7 +52,7 @@ tunggal_notes :: CUtil.PitchedNotes
     CUtil.resolve_strokes 0.3 tunggal_keymap tunggal_strokes
 
 tunggal_keymap :: Map.Map Score.Attributes CUtil.KeyswitchRange
-tunggal_keymap = CUtil.make_keymap Key2.e_2 Key2.c_1 12 NN.fs3
+tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 NN.fs3
     [ [de <> Attrs.staccato, plak]
     , [de <> Attrs.thumb, dag <> Attrs.staccato]
     , [de, dag]

@@ -41,7 +41,7 @@ test_strip_attrs = do
 
 test_natural_harmonic = do
     let run attrs pitch = DeriveTest.extract extract $
-            DeriveTest.derive_tracks_setup with "" $
+            DeriveTest.derive_tracks_setup with ""
                 [ (">v", [(0, 1, attrs)])
                 , ("*", [(0, 0, pitch)])
                 ]
@@ -56,8 +56,7 @@ test_natural_harmonic = do
 
 test_infer_seconds = do
     let run call = DeriveTest.extract DeriveTest.e_attributes $
-            DeriveTest.derive_tracks_setup with "" $
-                [ (">v", [(0, 2, call)]) ]
+            DeriveTest.derive_tracks_setup with "" [(">v", [(0, 2, call)])]
         with = DeriveTest.with_synths [("v", "vsl/violin")] [Vsl.synth]
     equal (run "sec +cresc") (["+cresc+sec1-5"], [])
     equal (run "sec +cresc u") (["+cresc+sec3"], [])
