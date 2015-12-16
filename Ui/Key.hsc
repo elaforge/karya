@@ -13,11 +13,13 @@ import qualified System.Info
 
 import qualified Util.Pretty as Pretty
 
--- Actually just need FL/Fl_Enumerations.H
+-- Actually I just need FL/Fl_Enumerations.H
 #include "Ui/c_interface.h"
 
 
--- | A keystroke, which is not just a character but also back
+-- | A keystroke.  For 'Char', this is always the unshifted version.  So
+-- assuming that , and < live on the same keycap, you will will see
+-- Shift + Char \',\', not Char \'<\'.
 data Key = Char Char.Char
     | Escape | Backspace | Tab | Enter | Print | KScrollLock
     | Pause | Insert | Home | PageUp | Delete | End | PageDown

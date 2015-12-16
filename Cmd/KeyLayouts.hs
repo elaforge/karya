@@ -8,33 +8,67 @@
 -- 'Cmd.Keymap.physical_key'.  So if your key layout is already qwerty, it's
 -- just @id@.  Otherwise it would be e.g.
 -- @flip Map.lookup (Map.fromList (zip KeyLayouts.qwerty KeyLayouts.dvorak))@.
-module Cmd.KeyLayouts where
+module Cmd.KeyLayouts (
+    Layout, layout, to_unshifted, from_qwerty
+    , qwerty, dvorak
+) where
+import qualified Data.Map as Map
+
+import qualified Util.Seq as Seq
 
 
-qwerty, qwerty_lower, qwerty_upper :: [Char]
-qwerty = qwerty_lower ++ qwerty_upper
-qwerty_lower = concat
+data Layout = Layout {
+    -- | Map from the shifted key to the unshifted one.
+    map_to_unshifted :: Map.Map Char Char
+    -- | Map from the layout to qwerty.
+    , map_from_qwerty :: Map.Map Char Char
+    } deriving (Show)
+
+to_unshifted :: Layout -> Char -> Maybe Char
+to_unshifted layout c = Map.lookup c (map_to_unshifted layout)
+
+from_qwerty :: Layout -> Char -> Maybe Char
+from_qwerty layout c = Map.lookup c (map_from_qwerty layout)
+
+layout :: [Char] -> [Char] -> Layout
+layout unshifted shifted
+    | length unshifted /= length shifted =
+        error $ "KeyLayouts.layout: (unshifted, shifted) not the same length: "
+            ++ show (Seq.zip_padded unshifted shifted)
+    | otherwise = Layout
+        { map_to_unshifted = Map.fromList $ zip shifted unshifted
+        , map_from_qwerty = Map.fromList $
+            zip (qwerty_unshifted ++ qwerty_shifted) (unshifted ++ shifted)
+        }
+
+qwerty_unshifted, qwerty_shifted :: [Char]
+qwerty_unshifted = concat
     [ "1234567890-="
     , "qwertyuiop[]\\"
     , "asdfghjkl;'"
     , "zxcvbnm,./"
     ]
-qwerty_upper = concat
+qwerty_shifted = concat
     [ "!@#$%^&*()_+"
     , "QWERTYUIOP{}|"
     , "ASDFGHJKL:\""
     , "ZXCVBNM<>?"
     ]
 
-dvorak :: [Char]
-dvorak = concat
-    [ "1234567890[]"
-    , "',.pyfgcrl/=\\"
-    , "aoeuidhtns-"
-    , ";qjkxbmwvz"
+qwerty :: Layout
+qwerty = layout qwerty_unshifted qwerty_shifted
 
-    , "!@#$%^&*(){}"
-    , "\"<>PYFGCRL?+|"
-    , "AOEUIDHTNS_"
-    , ":QJKXBMWVZ"
-    ]
+dvorak :: Layout
+dvorak = layout
+    (concat
+        [ "1234567890[]"
+        , "',.pyfgcrl/=\\"
+        , "aoeuidhtns-"
+        , ";qjkxbmwvz"
+        ])
+    (concat
+        [ "!@#$%^&*(){}"
+        , "\"<>PYFGCRL?+|"
+        , "AOEUIDHTNS_"
+        , ":QJKXBMWVZ"
+        ])

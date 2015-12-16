@@ -17,45 +17,14 @@
     Keys are bound using 'SimpleMod's, which are higher level than the ones in
     "Ui.Key".  This provides allows some abstraction between they key bindings
     and which actual modifiers those imply, and allows the conflation of
-    multiple modifiers.  In addition, Shift is stripped for 'Key.Char's, since
-    the shift is already reflected in the character itself.  So while Shift
-    may be included binding e.g. Key.Enter, it must not be included when
-    binding letter keys.
+    multiple modifiers.
 
-    There are multiple ways to treat keys and shift.  I've tried out several
-    variants, and for now I'm using the following, which is also what fltk
-    uses:
-
-    - Hitting a unshifted key should emit the letter it normally emits.  This
-    might seem obvious, but when they keyboard is remapp
-
-    - Hitting a shifted letter still emits a lowercase letter, but includes the
-    Shift modifier.  So technically you can never bind a capital letter,
-    because it never happens.  But as a convenience, if you bind a capital
-    letter, the bind functions will lowercase it and add Shift to the
-    modifiers.
-
-    - Hitting a shifted digit is like letters: the digit and Shift are
-    emitted, not @!@ or @#@ or whatever.  This is probably for the best because
-    different keyboards put different things up there.
-
-    - Unlike letters and digits, symbols emit the shifted symbol, along with
-    shift.  So if @shift+[@ is mapped to @{@ then @shift+{@ will be emitted.
-    If you bind something to Shift-[ then the cmd will never happen.
-    This might be a bad idea or it might not, but it's what fltk does.
-
-    - Special keys like return and backspace of course have no shifted variant,
-    so there's nothing to worry about there.
-
-    Previously I got capital letters !\@#$% symbols from fltk, and then did
-    some processing to strip Shift when it was already implicit in the key.
-    But I ran into trouble when I tried to bind shift-cmd-\/ because shift-\/
-    was '?' but shift-cmd-\/ went back to being '\/' again.  It seemed simpler
-    and more consistent to not handle Shift any differently from other
-    modifiers.
+    If you bind to a shifted key, it will be converted to Shift + unshifted by
+    'KeyLayouts.to_unshifted'.  But if you want to bind to the same physical
+    key with and without shift, then you should bind to the unshifted version
+    and add Shift yourself.
 -}
 module Cmd.Keymap where
-import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
@@ -70,7 +39,9 @@ import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.KeyLayouts as KeyLayouts
 import qualified Cmd.Msg as Msg
+
 import qualified Local.KeyLayout
 import qualified App.Config as Config
 import Global
@@ -93,6 +64,10 @@ shift_char = bind_key [Shift] . Key.Char
 command_char :: Cmd.M m => Char -> Text -> m a -> [Binding m]
 command_char = bind_key [PrimaryCommand] . Key.Char
 
+-- | Bind a Char with the SecondaryCommand.
+secondary_char :: Cmd.M m => Char -> Text -> m a -> [Binding m]
+secondary_char = bind_key [SecondaryCommand] . Key.Char
+
 -- | Bind a key with the given modifiers.
 bind_key :: Cmd.M m => [SimpleMod] -> Key.Key -> Text -> m a -> [Binding m]
 bind_key smods key desc cmd = bind smods (Key False key) desc (const cmd)
@@ -106,8 +81,7 @@ bind_key_status smods key desc cmd =
 -- | Like 'bind_key', but the binding will be retriggered on key repeat.
 bind_repeatable :: Cmd.M m => [SimpleMod] -> Key.Key -> Text -> m a
     -> [Binding m]
-bind_repeatable smods key desc cmd =
-    bind smods (Key True key) desc (const cmd)
+bind_repeatable smods key desc cmd = bind smods (Key True key) desc (const cmd)
 
 -- | 'bind_click' passes the Msg to the cmd, since mouse cmds are more likely
 -- to want the msg to find out where the click was.  @clicks@ is 1 for a single
@@ -145,8 +119,13 @@ bind_status smods_ bindable_ desc cmd =
     ]
     where
     (smods, bindable) = case bindable_ of
-        Key repeat (Key.Char c) | Char.isUpper c ->
-            (Shift : smods_, Key repeat (Key.Char (Char.toLower c)))
+        Key repeat (Key.Char c) ->
+            case KeyLayouts.to_unshifted Local.KeyLayout.layout c of
+                Just unshifted ->
+                    -- Don't worry about a duplicate Shift, 'key_spec' makes
+                    -- this a Set.
+                    (Shift : smods_, Key repeat (Key.Char unshifted))
+                Nothing -> (smods_, bindable_)
         _ -> (smods_, bindable_)
 
 -- ** util
@@ -381,4 +360,4 @@ show_bindable show_repeatable b = case b of
 physical_key :: Char -> Char
 physical_key c =
     fromMaybe (error $ "Keymap.physical_key " ++ show c ++ " not found") $
-    Local.KeyLayout.get c
+    KeyLayouts.from_qwerty Local.KeyLayout.layout c
