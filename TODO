@@ -6,7 +6,7 @@ UNSORTED
   - can I get rid of Merger's identity field and instead apply that
     optimization in the functions themselves?  Then I don't have to pretend
     it's a monoid.
-  - should I have generic soft and loud transformers?
+  * should I have generic soft and loud transformers?
     e.g. p for piano, f for forte
     . How to coexist with both 'scale' and 'mul' merging?  I could use the
       trick of setting absolute dyn, but I don't exactly want it to be

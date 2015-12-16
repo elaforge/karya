@@ -33,6 +33,8 @@ import Global
 import Types
 
 
+-- * global editing state
+
 -- | Unlike the other toggle commands, val edit, being the \"default\" toggle,
 -- always turns other modes off.  So you can't switch directly from some other
 -- kind of edit to val edit.
@@ -55,6 +57,46 @@ get_mode = Cmd.gets (Cmd.state_edit_mode . Cmd.state_edit)
 cmd_toggle_kbd_entry :: Cmd.M m => m ()
 cmd_toggle_kbd_entry = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_kbd_entry = not (Cmd.state_kbd_entry st) }
+
+-- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank.  Otherwise,
+-- set it to the deflt.  This means the marklist names are sticky, so if you
+-- set it manually the default bindings won't mess it up.
+set_step_rank :: Cmd.M m => TimeStep.TimeStep -> Ruler.Rank -> m ()
+set_step_rank deflt rank = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_time_step =
+        set (TimeStep.to_list (Cmd.state_time_step st)) }
+    where
+    set [TimeStep.AbsoluteMark names _] =
+        TimeStep.time_step (TimeStep.AbsoluteMark names rank)
+    set [TimeStep.RelativeMark names _] =
+        TimeStep.time_step (TimeStep.RelativeMark names rank)
+    set _ = deflt
+
+-- | Toggle between absolute and relative mark step.
+toggle_absolute_relative_step :: Cmd.M m => m ()
+toggle_absolute_relative_step = Cmd.modify_edit_state $ \st ->
+        st { Cmd.state_time_step = toggle (Cmd.state_time_step st) }
+    where
+    toggle step = case TimeStep.to_list step of
+        [TimeStep.AbsoluteMark names rank] ->
+            TimeStep.time_step (TimeStep.RelativeMark names rank)
+        [TimeStep.RelativeMark names rank] ->
+            TimeStep.time_step (TimeStep.AbsoluteMark names rank)
+        _ -> step
+
+set_step :: Cmd.M m => TimeStep.TimeStep -> m ()
+set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
+
+cmd_invert_step_direction :: Cmd.M m => m ()
+cmd_invert_step_direction = Cmd.modify_edit_state $ \st ->
+    st { Cmd.state_note_direction = invert (Cmd.state_note_direction st) }
+    where
+    invert TimeStep.Advance = TimeStep.Rewind
+    invert TimeStep.Rewind = TimeStep.Advance
+
+cmd_modify_octave :: Cmd.M m => (Pitch.Octave -> Pitch.Octave) -> m ()
+cmd_modify_octave f = Cmd.modify_edit_state $ \st -> st
+    { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
 
 -- ** util
 
@@ -83,7 +125,7 @@ modify_record_velocity :: (Bool -> Bool) -> Cmd.CmdL ()
 modify_record_velocity f = Cmd.modify_edit_state $ \st ->
     st { Cmd.state_record_velocity = f (Cmd.state_record_velocity st) }
 
--- * universal event cmds
+-- * event start and duration
 
 -- | Insert an event at the current insert pos.
 insert_event :: Cmd.M m => Text -> ScoreTime -> m ()
@@ -445,46 +487,6 @@ cmd_clear_and_advance = do
     when (Sel.is_point sel && Sel.start_track sel == Sel.cur_track sel)
         Selection.advance
 
--- | If the TimeStep is AbsoluteMark or RelativeMark, set its rank.  Otherwise,
--- set it to the deflt.  This means the marklist names are sticky, so if you
--- set it manually the default bindings won't mess it up.
-set_step_rank :: Cmd.M m => TimeStep.TimeStep -> Ruler.Rank -> m ()
-set_step_rank deflt rank = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_time_step =
-        set (TimeStep.to_list (Cmd.state_time_step st)) }
-    where
-    set [TimeStep.AbsoluteMark names _] =
-        TimeStep.time_step (TimeStep.AbsoluteMark names rank)
-    set [TimeStep.RelativeMark names _] =
-        TimeStep.time_step (TimeStep.RelativeMark names rank)
-    set _ = deflt
-
--- | Toggle between absolute and relative mark step.
-toggle_absolute_relative_step :: Cmd.M m => m ()
-toggle_absolute_relative_step = Cmd.modify_edit_state $ \st ->
-        st { Cmd.state_time_step = toggle (Cmd.state_time_step st) }
-    where
-    toggle step = case TimeStep.to_list step of
-        [TimeStep.AbsoluteMark names rank] ->
-            TimeStep.time_step (TimeStep.RelativeMark names rank)
-        [TimeStep.RelativeMark names rank] ->
-            TimeStep.time_step (TimeStep.AbsoluteMark names rank)
-        _ -> step
-
-set_step :: Cmd.M m => TimeStep.TimeStep -> m ()
-set_step step = Cmd.modify_edit_state $ \st -> st { Cmd.state_time_step = step }
-
-cmd_invert_step_direction :: Cmd.M m => m ()
-cmd_invert_step_direction = Cmd.modify_edit_state $ \st ->
-    st { Cmd.state_note_direction = invert (Cmd.state_note_direction st) }
-    where
-    invert TimeStep.Advance = TimeStep.Rewind
-    invert TimeStep.Rewind = TimeStep.Advance
-
-cmd_modify_octave :: Cmd.M m => (Pitch.Octave -> Pitch.Octave) -> m ()
-cmd_modify_octave f = Cmd.modify_edit_state $ \st -> st
-    { Cmd.state_kbd_entry_octave = f (Cmd.state_kbd_entry_octave st) }
-
 -- | Toggle the note duration between the end of the block, and the current
 -- time step.
 toggle_note_duration :: Cmd.M m => m ()
@@ -495,7 +497,7 @@ toggle_note_duration = do
         st { Cmd.state_note_duration = if dur == to_end then step else to_end }
     where to_end = TimeStep.time_step TimeStep.BlockEdge
 
--- * fancier edits
+-- ** fancier start\/duration edits
 
 cmd_set_call_duration :: Cmd.M m => m ()
 cmd_set_call_duration = ModifyEvents.selection $ \block_id track_id events ->
@@ -524,8 +526,9 @@ lookup_call_duration block_id track_id event =
 
 -- * modify text
 
-strip_transformer :: Cmd.M m => m ()
-strip_transformer = ModifyEvents.selection_advance $
+-- | Strip off the first transformer, or the generator.
+strip_call :: Cmd.M m => m ()
+strip_call = ModifyEvents.selection_advance $
     ModifyEvents.text $ ModifyEvents.pipeline $ drop 1
 
 -- ** record action

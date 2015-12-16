@@ -60,11 +60,11 @@ plain_char = plain_key . Key.Char
 shift_char :: Cmd.M m => Char -> Text -> m a -> [Binding m]
 shift_char = bind_key [Shift] . Key.Char
 
--- | Bind a Char with the PrimaryCommand.
+-- | Bind a Char with the 'PrimaryCommand'.
 command_char :: Cmd.M m => Char -> Text -> m a -> [Binding m]
 command_char = bind_key [PrimaryCommand] . Key.Char
 
--- | Bind a Char with the SecondaryCommand.
+-- | Bind a Char with the 'SecondaryCommand'.
 secondary_char :: Cmd.M m => Char -> Text -> m a -> [Binding m]
 secondary_char = bind_key [SecondaryCommand] . Key.Char
 
@@ -189,8 +189,11 @@ data SimpleMod =
     -- This should be used for core and global commands.
     | PrimaryCommand
     -- | Secondary comamnd key: control or option on Mac, alt on Linux and
-    -- Windows.  I'm not sure what this should be used for, but it should be
-    -- different than Mod1 stuff.  Maybe static config user-added commands.
+    -- Windows.  I'm not sure what this should be used for, but perhaps it
+    -- can be for more specific event text modifications, while PrimaryCommand
+    -- is for general purpose modifications.  Also, it should have
+    -- non-primitive cmds, so if you override them locally you won't lose
+    -- anything essential.
     | SecondaryCommand
     -- | Having mouse here allows for mouse button chording.
     | Mouse Types.MouseButton

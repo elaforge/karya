@@ -326,7 +326,7 @@ block_config_bindings = concat
     , command_char 'm' "toggle merged" BlockConfig.toggle_merge_selected
     ]
 
--- | Global bindings for edit type things.
+-- | Modify global edit state.
 edit_state_bindings :: Cmd.M m => [Keymap.Binding m]
 edit_state_bindings = concat
     [ plain_key Key.Escape "toggle val edit" Edit.cmd_toggle_val_edit
@@ -362,8 +362,6 @@ edit_state_bindings = concat
         (Play.modify_play_multiplier (/ (9/8)))
     , command_char '=' "play speed * 9/8"
         (Play.modify_play_multiplier (* (9/8)))
-
-    , command_char ',' "strip transformer" Edit.strip_transformer
     ]
     where
     step_rank rank =
@@ -375,6 +373,7 @@ edit_state_bindings = concat
 -- delete = remove events and move following events back
 -- clear = just remove events
 
+-- | Modify events.
 event_bindings :: Cmd.M m => [Keymap.Binding m]
 event_bindings = concat
     -- J = move previous event to cursor, K = move next event to cursor.
@@ -406,6 +405,8 @@ event_bindings = concat
     , shift_command '3' "record in slot 3" (Edit.save_last_action_to '3')
     , shift_command '4' "record in slot 4" (Edit.save_last_action_to '4')
 
+    -- modify event text
+
     , bind_key_status [] (Key.Char 'a') "append text" Edit.append_text
     , bind_key_status [] (Key.Char 'A') "replace last call"
         Edit.replace_last_call
@@ -418,13 +419,17 @@ event_bindings = concat
     , bind_key_status [] (Key.Char 'i') "prepend text" Edit.prepend_text
     , bind_key_status [] (Key.Char 'I') "replace first call"
         Edit.replace_first_call
+
+    , command_char ',' "strip transformer" Edit.strip_call
     ]
     where
     shift_command = bind_key [Shift, PrimaryCommand] . Key.Char
 
 -- | Bindings which work on pitch tracks.  The reason this is global rather
 -- than in pitch track keymaps is that it's handy to select multiple tracks
--- and have the cmd automatically skip non pitch tracks.
+-- and have the cmd automatically skip non pitch tracks.  This only really
+-- applies to pitch tracks though, because they are often collapsed and edited
+-- from their note track.
 pitch_bindings :: Cmd.M m => [Keymap.Binding m]
 pitch_bindings = concat
     -- These are named after the vi commands for up and down, but they don't

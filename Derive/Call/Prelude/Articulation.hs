@@ -48,7 +48,13 @@ note_calls = Make.call_maps
     , ("m", Make.attributed_note Module.prelude Attrs.mute)
     , (".", Make.attributed_note Module.prelude Attrs.staccato)
     , ("{", Make.attributed_note Module.prelude Attrs.porta)
-    , ("D", c_detach) -- for symmetry with 'd', which delays the start
+    -- I'd use '>', but then it overrides the empty instrument call in note
+    -- tracks.  Besides, this way it has a nice symmetry with '^'.
+    , ("v", c_accent)
+    , ("^", c_weak)
+
+    , ("-", c_shorten_lengthen True)
+    , ("+", c_shorten_lengthen False)
     ]
     [ ("(", c_legato)
     -- These do different things in lilypond mode, but in normal performance
@@ -174,6 +180,9 @@ set_sustain = Call.with_constant Controls.sustain_abs . RealTime.to_seconds
 
 -- * misc
 
+-- | This is the same as 'c_lengthen', but it's here for symmetry with
+-- 'c_sustain'.  Also, conceptually this is lower level, while c_lengthen
+-- is meant to be modified to whatever is locally appropriate.
 c_sustain_abs :: Derive.Transformer Derive.Note
 c_sustain_abs = Derive.transformer Module.prelude "sus-a" mempty
     ("Simple legato, extend the duration of the transformed notes by the given\
@@ -194,9 +203,24 @@ c_sustain = Derive.transformer Module.prelude "sus" mempty
         "Multiply the note's duration by this.")
     $ \amount _args -> Call.with_constant Controls.sustain amount
 
-c_detach :: Make.Calls Derive.Note
-c_detach = Make.transform_notes Module.prelude "detach" mempty
-    ("Detach the notes slightly, by setting "
+c_shorten_lengthen :: Bool -> Make.Calls Derive.Note
+c_shorten_lengthen shorten = Make.transform_notes Module.prelude
+    (if shorten then "shorten" else "lengthen") mempty
+    ("Lengthen or Shorten a note duration, by adding to or subtracting from "
         <> ShowVal.doc Controls.sustain_abs <> ".")
-    (defaulted "time" 0.15 "Set control to `-time`.") $ \time ->
-        Call.with_constant Controls.sustain_abs (-time)
+    (defaulted "time" 0.15 "Subtract this duration.") $ \time ->
+        Call.with_constant Controls.sustain_abs
+            (if shorten then -time else time)
+
+c_accent :: Make.Calls Derive.Note
+c_accent = Make.transform_notes Module.prelude "accent" Tags.ly
+    "Accent the note by multiplying its dynamic."
+    (defaulted "dyn" 1.5 "Multiply dynamic.") $ \dyn ->
+        -- Adding Attrs.accent makes lilypond attach a '>'.
+        Call.add_attrs Attrs.accent . Call.multiply_dynamic dyn
+
+c_weak :: Make.Calls Derive.Note
+c_weak = Make.transform_notes Module.prelude "weaken" mempty
+    "Weaken the note by multiplying its dynamic."
+    (defaulted "dyn" 0.35 "Multiply dynamic.") $ \dyn ->
+        Call.multiply_dynamic dyn
