@@ -72,11 +72,8 @@ echo :: ScoreTime -> Double -> Int -> Derive.NoteDeriver -> Derive.NoteDeriver
 echo delay feedback times deriver
     | times <= 0 = deriver
     | otherwise = deriver <> Derive.shift_control delay (Derive.at delay
-        (scale_dyn feedback $ echo delay feedback (times - 1) deriver))
-
-scale_dyn :: Signal.Y -> Derive.NoteDeriver -> Derive.NoteDeriver
-scale_dyn = Derive.multiply_control Score.c_dynamic
-
+        (Call.multiply_dynamic feedback $ echo delay feedback (times - 1)
+            deriver))
 
 -- | This echo works directly on Events.
 --

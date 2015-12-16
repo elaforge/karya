@@ -229,9 +229,16 @@ with_constant :: Score.Control -> Signal.Y -> Derive.Deriver a
 with_constant control = Derive.with_control control . Score.untyped
     . Signal.constant
 
-multiply_constant :: Score.Control -> Signal.Y -> Derive.Deriver a
-    -> Derive.Deriver a
-multiply_constant control = Derive.with_multiplied_control control
+add_control, multiply_control :: Score.Control -> Score.TypedControl
+    -> Derive.Deriver a -> Derive.Deriver a
+add_control = Derive.with_merged_control Derive.merge_add
+multiply_control = Derive.with_merged_control Derive.merge_mul
+
+add_constant, multiply_constant :: Score.Control -> Signal.Y
+    -> Derive.Deriver a -> Derive.Deriver a
+multiply_constant control = Derive.with_merged_control Derive.merge_mul control
+    . Score.untyped . Signal.constant
+add_constant control = Derive.with_merged_control Derive.merge_add control
     . Score.untyped . Signal.constant
 
 -- * environ

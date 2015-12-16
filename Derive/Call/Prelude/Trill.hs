@@ -109,8 +109,7 @@ c_note_trill hardcoded_start hardcoded_end =
                 (x, maybe_next) <- Seq.zip_next xs
                 let next = fromMaybe end maybe_next
                 return $ Sub.Event x (next-x) Call.note
-        Derive.with_added_control control (Score.untyped transpose) $
-            Sub.derive notes
+        Call.add_control control (Score.untyped transpose) (Sub.derive notes)
 
 c_attr_trill :: Derive.Generator Derive.Note
 c_attr_trill = Derive.generator Module.prelude "attr-tr" Tags.attr

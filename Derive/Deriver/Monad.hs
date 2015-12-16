@@ -813,11 +813,13 @@ data Merge sig = DefaultMerge -- ^ Apply the default merge for this control.
 instance Pretty.Pretty (Merge a) where pretty = showt
 instance DeepSeq.NFData (Merge a) where rnf _ = ()
 
--- | This is a monoid used for combining two signals.  The element should be an
--- identity, like mempty.  ControlMod uses it to avoid affecting signal outside
--- of the modified range.
+-- | Combine two signals.  The element should be an identity, like mempty.
+-- ControlMod uses it to avoid affecting signal outside of the modified range.
+-- The merge function is not obliged to be associative, so this isn't actually
+-- a monoid.  TODO it's all the fault of 'merge_scale'... do I lose something
+-- important with associativity?
 data Merger sig =
-    Merger !Text !(sig -> sig -> sig) !sig -- ^ name mappend mempty
+    Merger !Text !(sig -> sig -> sig) !sig -- ^ name merge identity
     | Set -- ^ Replace the existing signal.
 
 -- It's not really a 'BaseTypes.Val', so this is a bit wrong for ShowVal.  But
@@ -849,8 +851,7 @@ merge_add = Merger "add" Signal.sig_add (Signal.constant 0)
 merge_sub = Merger "sub" Signal.sig_subtract (Signal.constant 0)
 merge_mul = Merger "mul" Signal.sig_multiply (Signal.constant 1)
 
--- | Unlike the rest, this one is not associative.  I never claimed this was
--- a monoid, did I?
+-- | Unlike the rest, this one is not associative.
 merge_scale :: Merger Signal.Control
 merge_scale = Merger "scale" Signal.sig_scale (Signal.constant 0)
 

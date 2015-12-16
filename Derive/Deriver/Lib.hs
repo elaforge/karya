@@ -563,6 +563,9 @@ with_control_maps cmap cfuncs = Internal.local $ \state -> state
 --
 -- If both signals are typed, the existing type wins over the relative
 -- signal's type.  If one is untyped, the typed one wins.
+--
+-- As documetned in 'merge', this acts like a Set if there is no existing
+-- control.
 with_merged_control :: Merger Signal.Control -> Score.Control
     -> Score.TypedControl -> Deriver a -> Deriver a
 with_merged_control merger control signal deriver = do
@@ -588,6 +591,12 @@ get_default_merger control = do
     default_merge = merge_mul
 
 -- | Combine two signals with a Merger.
+--
+-- This has an irregularity in that if there is no existing control then it
+-- acts like a 'Set'.  Otherwise, if you ask to multiply a control by 1, and
+-- there is no control, then there will still be no control.  This would make
+-- it hard to set a control to 1 if it has mul for default merge.  Ultimately
+-- this is because no control is not the same as a constant 0 or 1 control
 merge :: Merger Signal.Control -> Maybe Score.TypedControl
     -> Score.TypedControl -> Score.TypedControl
 merge _ Nothing new = new
@@ -602,24 +611,6 @@ merge_vals merger old new = case merger of
     Merger _ merge _ -> maybe new snd $ Signal.head $
         merge (Signal.constant old) (Signal.constant new)
         -- This is awkward.  Maybe the merge function should be on scalars?
-
-with_added_control :: Score.Control -> Score.TypedControl -> Deriver a
-    -> Deriver a
-with_added_control = with_merged_control merge_add
-
-with_added_value :: Score.Control -> Signal.Y -> Deriver a -> Deriver a
-with_added_value control =
-    with_added_control control . Score.untyped . Signal.constant
-
-with_multiplied_control :: Score.Control -> Score.TypedControl -> Deriver a
-    -> Deriver a
-with_multiplied_control = with_merged_control merge_mul
-
-multiply_control :: Score.Control -> Signal.Y -> Deriver a -> Deriver a
-multiply_control cont val
-    | val == 1 = id
-    | otherwise = with_multiplied_control cont
-        (Score.untyped (Signal.constant val))
 
 -- *** ControlMod
 

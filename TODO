@@ -3,6 +3,19 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - can I get rid of Merger's identity field and instead apply that
+    optimization in the functions themselves?  Then I don't have to pretend
+    it's a monoid.
+  - should I have generic soft and loud transformers?
+    e.g. p for piano, f for forte
+    . How to coexist with both 'scale' and 'mul' merging?  I could use the
+      trick of setting absolute dyn, but I don't exactly want it to be
+      absolute, just say *1.5 or *0.3.  Wait, I guess that's mul.  So merge is
+      another argument.
+    . Then maybe a key to add them.  Then I have 'p | o' instead of '.'.
+      Maybe it should be a symbol to be more distinctive?  '>' for 'f', and '-'
+      for 'p'.
+      . Then '=' to extend dur, and '^' to reduce it?
   - If I have if an arg is Sig.Both, and I have call-arg=x, and then arg=y,
     the arg=y should override the call-arg=x.
     . The problem is that it can't know at assignment time when args belong to

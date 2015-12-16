@@ -189,8 +189,7 @@ harmonic config hmap args = do
             natural_harmonic (has Attrs.gliss) $
                 List.find (Score.attrs_contain attrs) (hmap_strings hmap)
         -- VSL has its artificial harmonics pitched one octave too high.
-        | has Attrs.harm -> return $
-            Derive.with_added_value Controls.octave (-1)
+        | has Attrs.harm -> return $ Call.add_constant Controls.octave (-1)
         | otherwise -> return id
     with_pitch $ Note.default_note config args
     where

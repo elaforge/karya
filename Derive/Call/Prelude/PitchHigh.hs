@@ -102,10 +102,8 @@ make_note_fade name doc pitch_dir align align_fade =
                         -- pitch, I can't just merge normally.
                         AlignStart -> PSignal.prepend slide pitch_sig
                         AlignEnd -> pitch_sig <> slide
-                multiply_dyn dyn $ Derive.with_pitch merged deriver
-
-multiply_dyn :: Signal.Control -> Derive.Deriver a -> Derive.Deriver a
-multiply_dyn = Derive.with_multiplied_control Score.c_dynamic . Score.untyped
+                Call.multiply_control Score.c_dynamic (Score.untyped dyn) $
+                    Derive.with_pitch merged deriver
 
 fade_args :: Sig.Parser (Either Pitch.Transpose PSignal.Pitch,
     Typecheck.DefaultReal, Maybe Typecheck.DefaultReal, ControlUtil.Curve)

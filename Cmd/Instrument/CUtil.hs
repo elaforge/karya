@@ -314,9 +314,8 @@ drum_call maybe_tuning_control dyn attrs transform =
     where
     name = "drum attrs: " <> ShowVal.show_val attrs
     generate = Sig.call Sig.no_args $ \() -> Sub.inverting $ \args ->
-        with_dyn dyn $ Call.add_attrs attrs $ with_tuning args $ transform $
-            Note.default_note Note.no_duration_attributes args
-    with_dyn = Derive.multiply_control Score.c_dynamic
+        Call.multiply_dynamic dyn $ Call.add_attrs attrs $ with_tuning args $
+            transform $ Note.default_note Note.no_duration_attributes args
     with_tuning args = maybe id (tuning_control args) maybe_tuning_control
     doc = case maybe_tuning_control of
         Nothing -> ""
