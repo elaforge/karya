@@ -71,11 +71,12 @@ test_drum_instrument = do
             (DeriveTest.with_synths aliases [drum_synth]) ""
         aliases = [("x", "synth/1")]
         extract = DeriveTest.extract DeriveTest.e_attributes
+    let perform = DeriveTest.perform_synths aliases [drum_synth] [("x", [0])]
+            . Derive.r_events
     let result = run [(">x", [(0, 0, "bd"), (1, 0, "sn")])]
     equal (extract result) (["+bd", "+snare"], [])
 
-    let (_, midi, logs) = DeriveTest.perform_synths aliases [drum_synth]
-            [("x", [0])] (Derive.r_events result)
+    let (_, midi, logs) = perform result
     equal logs []
     let e_midi = Seq.map_maybe_snd Midi.channel_message
             . filter (Midi.is_note . snd) . DeriveTest.extract_midi
@@ -83,6 +84,11 @@ test_drum_instrument = do
         [ (0, NoteOn Key.c2 127), (10, NoteOff Key.c2 127)
         , (1000, NoteOn Key.d2 127), (1010, NoteOff Key.d2 127)
         ]
+
+    -- Ensure the generated calls invert.
+    equal (DeriveTest.extract Score.initial_dynamic $
+            run [(">x", [(0, 0, "bd")]), ("dyn", [(0, 0, ".5")])])
+        ([0.5], [])
 
 test_make_cc_keymap = do
     let f = CUtil.make_cc_keymap
