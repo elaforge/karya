@@ -5,6 +5,7 @@
 -- | Kendang sunda patches for "Local.Instrument.Kontakt".
 module Local.Instrument.Kontakt.KendangSunda (
     patches, write_ksp, pitch_control
+    , resolve_errors
 ) where
 import qualified Data.Map as Map
 
@@ -86,7 +87,7 @@ c_det vague_pitch = Derive.generator Module.instrument name Tags.attr doc $
         Just High -> "det-high"
     pitch_default = case vague_pitch of
         Nothing -> 0.5
-        Just Low -> 0.15
+        Just Low -> 0.25
         Just Middle -> 0.5
         Just High -> 0.75
     attrs = det <> case vague_pitch of
@@ -102,7 +103,7 @@ pitch_control :: Score.Control
 pitch_control = "pitch"
 
 pitched_notes :: CUtil.PitchedNotes
-(pitched_notes, _unmapped_notes) = CUtil.resolve_strokes 0.3 keymap strokes
+(pitched_notes, resolve_errors) = CUtil.resolve_strokes 0.3 keymap strokes
 
 strokes :: [(Char, BaseTypes.CallId, Score.Attributes, Drums.Group)]
 stops :: [(Drums.Group, [Drums.Group])]
@@ -117,15 +118,15 @@ stops :: [(Drums.Group, [Drums.Group])]
     , ('z', "+",    tak,                left_closed)
     , ('s', ".",    dong <> soft,       left_open)
     , ('x', "o",    dong,               left_open)
-    , ('c', "i",    ting,               right_open)
+    , ('c', "i",    ting,               left_semiclosed)
     -- This uses the %pitch control.
-    , ('v', "e",    det,                left_closed)
+    , ('v', "e",    det,                left_semiclosed)
     -- These are hardcoded to a certain pitch.
-    , ('b', "e_",   det <> Attrs.low,   left_closed)
-    , ('n', "e-",   det <> Attrs.middle,left_closed)
-    , ('m', "e^",   det <> Attrs.high,  left_closed)
+    , ('b', "e_",   det <> Attrs.low,   left_semiclosed)
+    , ('n', "e-",   det <> Attrs.middle,left_semiclosed)
+    , ('m', "e^",   det <> Attrs.high,  left_semiclosed)
     -- kulanter gede
-    , ('v', "u",    tung,               kulanter_gede_open)
+    , (',', "u",    tung,               kulanter_gede_open)
     -- indung, kanan
     , ('1', "^",    phak <> soft,       right_closed)
     , ('q', "P",    phak,               right_closed)
@@ -141,11 +142,18 @@ stops :: [(Drums.Group, [Drums.Group])]
     soft = Attrs.soft
     stops =
         [ (left_closed, [left_open])
+        -- TODO this should be (left_semiclosed, [left_open, left_semiclosed]),
+        -- but the ksp doesn't understand cc switching.
+        , (left_open, [left_open])
         , (right_closed, [right_open])
         , (kulanter_leutik_closed, [kulanter_leutik_open])
         ]
     left_open = "left-open"
+    -- TODO this should be its own group, but the ksp doesn't understand cc
+    -- switching.
+    left_semiclosed = "left-open"
     left_closed = "left-closed"
+
     right_open = "right-open"
     right_closed = "right-closed"
     kulanter_gede_open = "kulanter-gede-open"
@@ -173,7 +181,7 @@ keymap = CUtil.make_keymap2 Nothing 8 6 12 NN.c4
 
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
-    [ ("kendang-sunda.ksp",
+    [ ("kendang-sunda.ksp.txt",
         Util.drum_mute_ksp "kendang sunda" pitched_notes stops)
     ]
 

@@ -21,10 +21,13 @@ test_kendang = do
             )
         mknotes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
     equal (run [] ["o", "e_", "e-", "e^"])
-        ([("+dong", [(0, 0)]), ("+det+low", [(0, 0.15)]),
+        ([("+dong", [(0, 0)]), ("+det+low", [(0, 0.25)]),
             ("+det+middle", [(0, 0.5)]), ("+det+high", [(0, 0.75)])], [])
     equal (run [("pitch", [(0, 0, ".45")])] ["o", "e"])
         ([("+dong", [(0, 0)]), ("+det", [(0, 0.45)])], [])
+
+test_resolve = do
+    equal KendangSunda.resolve_errors []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_setup

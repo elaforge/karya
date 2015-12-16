@@ -515,7 +515,7 @@ drop_with f (x:y:xs)
     | otherwise = x : drop_with f (y:xs)
 
 -- | Like 'drop_dups', but return the dropped values.
-partition_dups :: Ord k => (a -> k) -> [a] -> ([a], [(a, [a])])
+partition_dups :: Ord k => (a -> k) -> [a] -> ([a], [(a, NonNull a)])
     -- ^ ([unique], [(used_for_unique, [dups])])
 partition_dups key xs =
     Either.partitionEithers $ concatMap extract (group_sort key xs)

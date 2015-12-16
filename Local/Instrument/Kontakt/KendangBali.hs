@@ -48,7 +48,7 @@ patches =
     patch name = MidiInst.patch (-24, 24) name []
 
 tunggal_notes :: CUtil.PitchedNotes
-(tunggal_notes, _tunggal_unmapped) =
+(tunggal_notes, resolve_errors) =
     CUtil.resolve_strokes 0.3 tunggal_keymap tunggal_strokes
 
 tunggal_keymap :: Map.Map Score.Attributes CUtil.KeyswitchRange

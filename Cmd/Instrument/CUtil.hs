@@ -344,13 +344,20 @@ tuning_control args control deriver = do
 resolve_strokes :: Signal.Y -> Map.Map Score.Attributes KeyswitchRange
     -> [(Char, TrackLang.CallId, Score.Attributes, Drums.Group)]
     -- ^ (key_binding, emits_text, call_attributes, stop_group)
-    -> (PitchedNotes, [Score.Attributes])
-    -- ^ also return attributes not mapped in this patch
-resolve_strokes soft_dyn keymap = Either.partitionEithers . map resolve
+    -> (PitchedNotes, [Text]) -- ^ also return errors
+resolve_strokes soft_dyn keymap =
+    check_dups . Either.partitionEithers . map resolve
     where
     resolve (char, call, attrs, group) =
-        maybe (Right attrs) (Left . (note,)) $
+        maybe (Right $ "unmapped: " <> pretty attrs) (Left . (note,)) $
             Map.lookup (Score.attrs_remove Attrs.soft attrs) keymap
         where
         note = (Drums.note_dyn char call attrs dyn) { Drums.note_group = group }
         dyn = if Score.attrs_contain attrs Attrs.soft then soft_dyn else 1
+    check_dups (notes, msgs) = (notes3, dup_msgs ++ msgs)
+        where
+        dup_msgs = map ((">1 call with name name: "<>) . extract) by_name
+            ++ map ((">1 call mapped to same key: "<>) . extract) by_key
+        extract = pretty . map fst . (\(x, xs) -> x : xs)
+        (notes2, by_name) = Seq.partition_dups (Drums.note_name . fst) notes
+        (notes3, by_key) = Seq.partition_dups (Drums.note_char . fst) notes2

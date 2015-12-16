@@ -39,8 +39,8 @@ test_pasang_calls = do
     equal (map extract KendangBali.pasang_calls)
         [[call] | (_, _, _, call) <- KendangBali.pasang_calls]
 
-test_all_strokes_mapped = do
-    equal KendangBali._tunggal_unmapped []
+test_resolve = do
+    equal KendangBali.resolve_errors []
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_setup
