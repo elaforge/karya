@@ -66,22 +66,26 @@ failable_text f block_id track_id events = do
 
 -- | Map a function over the selected events, as per 'Selection.events'.
 selection :: Cmd.M m => Track m -> m ()
-selection f = do
-    selected <- Selection.events
+selection modify = modify_selected modify =<< Selection.events
+
+-- | Like 'selection', but only operate on the 'Selection.point_track'.
+selected_track :: Cmd.M m => Track m -> m ()
+selected_track modify = modify_selected modify =<< Selection.track_events
+
+modify_selected :: Cmd.M m => Track m -> Selection.SelectedEvents -> m ()
+modify_selected modify selected = do
     block_id <- Cmd.get_focused_block
     forM_ selected $ \(track_id, (start, end), events) -> do
-        maybe_new_events <- f block_id track_id events
+        maybe_new_events <- modify block_id track_id events
         whenJust maybe_new_events $ \new_events -> do
             State.remove_events track_id start end
             State.insert_block_events block_id track_id new_events
 
--- | Like 'selection', but advance it afterwards if it was a point selection.
--- This is convenient for applying a transformation repeatedly.
-selection_advance :: Cmd.M m => Track m -> m ()
-selection_advance f = do
-    selection f
-    whenM (Sel.is_point . snd <$> Selection.get)
-        Selection.advance
+-- | Advance the selection if it was a point.  This is convenient for applying
+-- a transformation repeatedly.
+advance_if_point :: Cmd.M m => m ()
+advance_if_point = whenM (Sel.is_point . snd <$> Selection.get)
+    Selection.advance
 
 -- | Map a function over the events that overlap the selection point.
 overlapping :: Cmd.M m => Track m -> m ()

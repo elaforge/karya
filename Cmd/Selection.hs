@@ -680,21 +680,31 @@ type SelectedAround = [(TrackId, (TrackTime, TrackTime),
     ([Event.Event], [Event.Event], [Event.Event]))]
 type SelectedEvents = [(TrackId, (TrackTime, TrackTime), [Event.Event])]
 
--- | 'events_around' is the default selection behaviour.
+around_to_events :: SelectedAround -> SelectedEvents
+around_to_events = map $ \(track_id, range, (_, within, _)) ->
+    (track_id, range, within)
+
+-- | All selected events.  'events_around' is the default selection behaviour.
 events :: Cmd.M m => m SelectedEvents
-events = fmap extract_events events_around
-    where
-    extract_events :: SelectedAround -> SelectedEvents
-    extract_events = map $ \(track_id, range, (_, within, _)) ->
-        (track_id, range, within)
+events = around_to_events <$> events_around
+
+-- | Like 'events', but only for the 'point_track'.
+track_events :: Cmd.M m => m SelectedEvents
+track_events = do
+    (_, maybe_track_id) <- track
+    track_id <- Cmd.abort_unless maybe_track_id
+    (start, end) <- range
+    around_to_events <$> events_around_tracks [track_id] start end
 
 events_around :: Cmd.M m => m SelectedAround
-events_around = events_around_selnum Config.insert_selnum
+events_around = do
+    (_, _, track_ids, start, end) <- tracks
+    events_around_tracks track_ids start end
 
 -- | Select events whose @pos@ lie strictly within the selection range.
-strict_events_around :: Cmd.M m => Sel.Num -> m SelectedAround
-strict_events_around selnum = do
-    (_, _, track_ids, start, end) <- tracks_selnum selnum
+strict_events_around :: State.M m => [TrackId] -> TrackTime -> TrackTime
+    -> m SelectedAround
+strict_events_around track_ids start end = do
     tracks <- mapM State.get_track track_ids
     let split events =
             (Events.descending pre, Events.ascending within,
@@ -711,9 +721,10 @@ strict_events_around selnum = do
 --
 -- This is the standard definition of a selection, and should be used in all
 -- standard selection using commands.
-events_around_selnum :: Cmd.M m => Sel.Num -> m SelectedAround
-events_around_selnum selnum = do
-    selected <- strict_events_around selnum
+events_around_tracks :: State.M m => [TrackId] -> TrackTime -> TrackTime
+    -> m SelectedAround
+events_around_tracks track_ids start end = do
+    selected <- strict_events_around track_ids start end
     return $ do
         (track_id, range, evts) <- selected
         let evts2 = expand (fst range) evts
@@ -752,7 +763,7 @@ tracknums = do
     (block_id, tracknums, _, _, _) <- tracks
     return (block_id, tracknums)
 
-track :: Cmd.M m => m Perf.Track
+track :: Cmd.M m => m (BlockId, Maybe TrackId)
 track = do
     (view_id, sel) <- get_selnum Config.insert_selnum
     block_id <- State.block_id_of view_id

@@ -526,10 +526,12 @@ lookup_call_duration block_id track_id event =
 
 -- * modify text
 
--- | Strip off the first transformer, or the generator.
+-- | Strip off the first transformer, and then the generator.
 strip_call :: Cmd.M m => m ()
-strip_call = ModifyEvents.selection_advance $
-    ModifyEvents.text $ ModifyEvents.pipeline $ drop 1
+strip_call = do
+    ModifyEvents.selected_track $
+        ModifyEvents.text $ ModifyEvents.pipeline $ drop 1
+    ModifyEvents.advance_if_point
 
 -- ** record action
 

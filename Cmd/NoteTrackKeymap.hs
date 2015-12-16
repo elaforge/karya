@@ -24,10 +24,11 @@ make_keymap = Keymap.make_cmd_map $ concat $
 -- | Add a call that works both as a transformer and generator, as long as
 -- it isn't already there.
 add_transform_generator :: Cmd.M m => Text -> m ()
-add_transform_generator text =
-    ModifyEvents.selection_advance $
-    ModifyEvents.tracks_named ParseTitle.is_note_track $
-    ModifyEvents.text $ ModifyEvents.pipeline add
+add_transform_generator text = do
+    ModifyEvents.selection $
+        ModifyEvents.tracks_named ParseTitle.is_note_track $
+        ModifyEvents.text $ ModifyEvents.pipeline add
+    ModifyEvents.advance_if_point
     where
     add [] = [[text]]
     add calls
