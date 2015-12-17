@@ -177,6 +177,12 @@ tempo_to_warp :: Signal.Tempo -> Signal.Warp
 tempo_to_warp = Signal.integrate 1 . Signal.map_y (1/)
 
 
+test_sig_add = do
+    let f s1 s2 = unsignal $ Signal.sig_add (signal s1) (signal s2)
+    equal (f [(0, 1)] [(1, 1)]) [(0, 1), (1, 2)]
+    -- An identity signal means the other signal is returned directly.
+    equal (f [(1, 2)] [(0, 0)]) [(1, 2)]
+
 -- * comparison
 
 test_pitches_share = do

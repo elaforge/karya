@@ -354,12 +354,12 @@ prepend :: Signal y -> Signal y -> Signal y
 prepend s1 s2 = Signal $ TimeVector.prepend (sig_vec s1) (sig_vec s2)
 
 sig_add, sig_subtract, sig_multiply :: Control -> Control -> Control
-sig_add = sig_op (+)
-sig_subtract = sig_op (-)
-sig_multiply = sig_op (*)
+sig_add = sig_op (Just 0) (+)
+sig_subtract = sig_op (Just 0) (-)
+sig_multiply = sig_op (Just 1) (*)
 
 sig_scale :: Control -> Control -> Control
-sig_scale = sig_op scale
+sig_scale = sig_op (Just 1) scale
 
 scale :: Y -> Y -> Y
 scale x v
@@ -372,8 +372,8 @@ scale_invert old new
     | otherwise = Num.normalize 0 old new - 1
 
 sig_max, sig_min :: Control -> Control -> Control
-sig_max = sig_op max
-sig_min = sig_op min
+sig_max = sig_op Nothing max
+sig_min = sig_op Nothing min
 
 -- ** scalar transformation
 
@@ -448,9 +448,14 @@ map_y = modify . TimeVector.map_y
 map_err :: (Sample Y -> Either err (Sample Y)) -> Signal y -> (Signal y, [err])
 map_err f = first Signal . TimeVector.map_err f . sig_vec
 
-sig_op :: (Y -> Y -> Y) -> Signal y -> Signal y -> Signal y
-sig_op op sig1 sig2 = Signal $
-    TimeVector.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
+sig_op :: Maybe Y -- ^ If an identity value is given, I can avoid copying the
+    -- whole signal if the other one is a constant identity.
+    -> (Y -> Y -> Y) -> Signal y -> Signal y -> Signal y
+sig_op (Just identity) _ sig1 sig2
+    | Just v <- constant_val sig1, v == identity = sig2
+    | Just v <- constant_val sig2, v == identity = sig1
+sig_op _ op sig1 sig2 =
+    Signal $ TimeVector.sig_op 0 op (sig_vec sig1) (sig_vec sig2)
 
 -- ** special functions
 

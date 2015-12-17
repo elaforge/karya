@@ -6,7 +6,7 @@ UNSORTED
   * Cmd.Edit.strip_call should only apply to a note track if you have note and
     pitch tracks selected.  Or maybe it would be simpler to make it only apply
     to the point track?
-  - can I get rid of Merger's identity field and instead apply that
+  * can I get rid of Merger's identity field and instead apply that
     optimization in the functions themselves?  Then I don't have to pretend
     it's a monoid.
   * should I have generic soft and loud transformers?
