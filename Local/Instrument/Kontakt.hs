@@ -49,6 +49,7 @@ import qualified Local.Instrument.Kontakt.KendangBali as KendangBali
 import qualified Local.Instrument.Kontakt.KendangSunda as KendangSunda
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Pakhawaj as Pakhawaj
+import qualified Local.Instrument.Kontakt.Reyong as Reyong
 import qualified Local.Instrument.Kontakt.Wayang as Wayang
 import qualified Local.Instrument.Reaktor as Reaktor
 
@@ -68,7 +69,7 @@ patches = MidiInst.with_empty_code (Instrument.default_patch pb_range [])
     [ misc_patches
     , hang_patches
     , KendangBali.patches, KendangSunda.patches
-    , Mridangam.patches, Pakhawaj.patches, Wayang.patches
+    , Mridangam.patches, Pakhawaj.patches, Reyong.patches, Wayang.patches
     ]
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
@@ -313,18 +314,20 @@ config_kebyar dev_ = make_config $ concat
         [ (Gangsa.inst_polos, to_val $ inst $ name <> "-p")
         , (Gangsa.inst_sangsih, to_val $ inst $ name <> "-s")
         ]
-    tuning val = [(EnvKey.tuning, to_val val)]
     to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
     to_val = RestrictedEnviron.to_val
     inst = Repl.Util.instrument
     umbang_patch name patch =
         ( name, sc_patch patch, True
-        , tuning BaliScales.Umbang, Just $ Legong.patch_scale BaliScales.Umbang
+        , tuning BaliScales.Umbang
+        , Just $ Legong.complete_patch_scale BaliScales.Umbang
         )
     isep_patch name patch =
         ( name, sc_patch patch, True
-        , tuning BaliScales.Isep, Just $ Legong.patch_scale BaliScales.Isep
+        , tuning BaliScales.Isep
+        , Just $ Legong.complete_patch_scale BaliScales.Isep
         )
+    tuning val = [(EnvKey.tuning, to_val val)]
     patch name = (name, sc_patch name, True, [], Nothing)
 
 -- * hang

@@ -127,7 +127,7 @@ write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
     [ ("wayang-umbang.ksp", ksp $ Wayang.patch_scale True BaliScales.Umbang)
     , ("wayang-isep.ksp",   ksp $ Wayang.patch_scale True BaliScales.Isep)
-    , ("legong-umbang.ksp", ksp $ Legong.patch_scale BaliScales.Umbang)
-    , ("legong-isep.ksp",   ksp $ Legong.patch_scale BaliScales.Isep)
+    , ("legong-umbang.ksp", ksp $ Legong.complete_patch_scale BaliScales.Umbang)
+    , ("legong-isep.ksp",   ksp $ Legong.complete_patch_scale BaliScales.Isep)
     ]
     where ksp = Util.tuning_ksp

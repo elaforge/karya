@@ -14,9 +14,10 @@ import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
+import qualified Derive.ShowVal as ShowVal
 
-import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Pitch as Pitch
 import Global
 
 
@@ -130,7 +131,7 @@ extend nns =
 
 patch_scale :: Bool -> BaliScales.Tuning -> Instrument.PatchScale
 patch_scale extended tuning =
-    Instrument.make_patch_scale ("wayang " <> showt tuning) $
+    Instrument.make_patch_scale ("wayang " <> ShowVal.show_val tuning) $
         zip (midi_keys extended) (if extended then extend nns else nns)
     where
     nns = case tuning of

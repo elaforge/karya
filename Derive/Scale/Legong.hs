@@ -20,6 +20,7 @@ import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
@@ -121,7 +122,6 @@ note_numbers = BaliScales.NoteNumbers
                     ugal-------------------------
                        rambat-----------------------------------
   0              7              14             21             28             35
-  11 12 13 15 16 21 22 23 25 26 31 32 33 35 36 41 42 43 45 46 51 52 53 55 56 61
   1i 1o 1e 1u 1a 2i 2o 2e 2u 2a 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i
                              trompong---------------------
                                    pemade-----------------------
@@ -171,12 +171,14 @@ umbang =
 isep :: [Pitch.NoteNumber]
 isep = map (Pitch.add_hz 4) umbang
 
-strip_pemero :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
+-- | I don't actually have the pemero notes on my instruments, so strip them
+-- back out to get the actually recorded scale.
+strip_pemero :: [a] -> [a]
 strip_pemero = go
     where
     go [] = []
     go nns = strip nns ++ go (drop 7 nns)
-    strip nns = mapMaybe (Seq.at nns) [0, 2, 3, 5, 6]
+    strip nns = mapMaybe (Seq.at nns) [0, 1, 2, 4, 5]
 
 -- | Add one octave on the bottom, so I get down to 1i, which is jegog range.
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
@@ -187,10 +189,18 @@ extend nns = map (subtract 12) (take oct from_ding) ++ from_ding
 
 -- * instrument integration
 
-patch_scale :: BaliScales.Tuning -> Instrument.PatchScale
-patch_scale tuning =
-    Instrument.make_patch_scale ("legong " <> showt tuning) $
-        zip midi_keys (extend nns)
+-- | A PatchScale with the entire theoretical range.  This is for instruments
+-- that are normalized to 12tet and then tuned in the patch (e.g. using KSP).
+complete_patch_scale :: BaliScales.Tuning -> Instrument.PatchScale
+complete_patch_scale = patch_scale id
+
+patch_scale ::
+    ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
+    -- ^ drop and take keys for the instrument's range
+    -> BaliScales.Tuning -> Instrument.PatchScale
+patch_scale take_range tuning =
+    Instrument.make_patch_scale ("legong " <> ShowVal.show_val tuning) $
+        take_range $ zip midi_keys (extend nns)
     where
     nns = case tuning of
         BaliScales.Umbang -> umbang

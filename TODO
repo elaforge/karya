@@ -1600,7 +1600,17 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
-        - reyong-damp emits notes with +mute.  So I have a stream of notes
+        reyong patch
+          * pitch map
+          * keyswitches
+          - off-velocity support
+        reyong protocol
+          - to damp, set %damp, which the inst postproc moves to %release-vel
+          - also in postproc, +mute note gets dur=0, %dyn=0, %damp=dyn
+          - How to set open or closed mute?  I need to send the ks from the
+            attr map.  It's ok to send before NoteOn, so I think I can treat
+            it as a normal keyswitch, but maybe I have to send +open too.
+        * reyong-damp emits notes with +mute.  So I have a stream of notes
           where starts and stops are explicit, and each note rings until a
           +mute of the same pitch.  If the instrument uses NoteOffs, I have to
           translate that to merged notes.
