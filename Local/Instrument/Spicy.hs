@@ -30,7 +30,7 @@ patches :: [MidiInst.Patch]
 patches = (:[]) $
     MidiInst.with_code (MidiInst.note_calls (MidiInst.null_call note_call)) $
     (Instrument.instrument_#Instrument.hold_keyswitch #= True) $
-    (Instrument.attribute_map #= Instrument.simple_keyswitches keyswitches) $
+    (Instrument.attribute_map #= Instrument.single_keyswitches keyswitches) $
         Instrument.default_patch (-3, 3) []
     where
 

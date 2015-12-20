@@ -203,7 +203,7 @@ drum_cmd = insert_call . notes_to_calls
 drum_patch :: [(Drums.Note, Midi.Key)] -> Instrument.Patch -> Instrument.Patch
 drum_patch note_keys = Instrument.triggered
     . (Instrument.call_map #= make_call_map (map fst note_keys))
-    . (Instrument.attribute_map #= Instrument.simple_keymap
+    . (Instrument.attribute_map #= Instrument.unpitched_keymap
         [(Drums.note_attrs note, key) | (note, key) <- note_keys])
 
 -- | (keyswitch, low, high, root_pitch).  The root pitch is the pitch at the

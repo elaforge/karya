@@ -10,7 +10,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 
 
-attr_map = Instrument.simple_keyswitches
+attr_map = Instrument.single_keyswitches
     [ (mkattrs "pizz", 0)
     , (mkattrs "sfz trem", 1)
     , (mkattrs "sfz", 2)

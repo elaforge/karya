@@ -108,7 +108,7 @@ mcgill = map MidiInst.with_empty_code
 balalaika :: [MidiInst.Patch]
 balalaika =
     [ with_code $
-        Instrument.attribute_map #= Instrument.simple_keyswitches ks $
+        Instrument.attribute_map #= Instrument.single_keyswitches ks $
         Instrument.patch $ (Instrument.hold_keyswitch #= True) $
         Instrument.instrument pb_range "balalaika" controls
     ]
@@ -139,7 +139,7 @@ balalaika =
 anthology_wind :: [MidiInst.Patch]
 anthology_wind = map MidiInst.with_empty_code
     [ MidiInst.pressure $
-        Instrument.attribute_map #= Instrument.simple_keyswitches dizi_ks $
+        Instrument.attribute_map #= Instrument.single_keyswitches dizi_ks $
         patch "dizi" [(CC.mod, Controls.vib)]
     ]
     where
@@ -175,7 +175,7 @@ sonic_couture =
 guzheng :: MidiInst.Patch
 guzheng = MidiInst.with_code code $ MidiInst.nn_range range $
     Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
-    Instrument.attribute_map #= Instrument.simple_keyswitches ks $
+    Instrument.attribute_map #= Instrument.single_keyswitches ks $
     patch "guzheng" [(23, Controls.lpf), (24, Controls.q), (27, Controls.hpf)]
     where
     code = MidiInst.note_generators [("左", DUtil.attrs_note Attrs.left)]
@@ -234,9 +234,9 @@ sc_bali = map (first add_doc) $
         MidiInst.patch (-2, 2) ("sc-" <> name) []
     add_doc = Instrument.text
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)
-    gangsa_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
+    gangsa_ks = Instrument.attribute_map #= Instrument.single_keyswitches
         [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
-    reyong_ks = Instrument.attribute_map #= Instrument.simple_keyswitches
+    reyong_ks = Instrument.attribute_map #= Instrument.single_keyswitches
         [(Score.attr "cek", Key2.cs1), (mempty, Key2.c1)]
     gong_notes =
         [ (n 'z' "O" (gong <> wadon),   Key2.b1)
@@ -329,7 +329,7 @@ config_kebyar dev_ = make_config $ concat
 
 hang_patches :: [MidiInst.Patch]
 hang_patches = map (MidiInst.with_code hang_code)
-    [ Instrument.attribute_map #= Instrument.simple_keyswitches hang_ks $
+    [ Instrument.attribute_map #= Instrument.single_keyswitches hang_ks $
         patch "hang" []
     ]
 

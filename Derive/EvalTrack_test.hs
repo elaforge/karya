@@ -203,7 +203,7 @@ test_inst_call = do
     code = MidiInst.note_generators [("sn", DUtil.attrs_note Attrs.snare)]
     patches =
         [ (Instrument.attribute_map
-            #= Instrument.simple_keymap [(Attrs.snare, 42)] $
+            #= Instrument.unpitched_keymap [(Attrs.snare, 42)] $
             DeriveTest.make_patch "with-call", code)
         , (DeriveTest.make_patch "1", mempty)
         ]

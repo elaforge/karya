@@ -96,13 +96,13 @@ test_attributes = do
             DeriveTest.make_db [("s", [patch])]
         patch = Instrument.attribute_map #= attr_map $ Instrument.patch $
             Instrument.instrument (-1, 1) "i1" []
-        keyswitches = Instrument.simple_keyswitches $ map (first Score.attrs)
+        keyswitches = Instrument.single_keyswitches $ map (first Score.attrs)
             [ (["a1", "a2"], 0)
             , (["a0"], 1)
             , (["a1"], 2)
             , (["a2"], 3)
             ]
-        keymap = Instrument.simple_keymap [(Score.attr "km", 42)]
+        keymap = Instrument.unpitched_keymap [(Score.attr "km", 42)]
         attr_map = Instrument.AttributeMap $ case (keyswitches, keymap) of
             (Instrument.AttributeMap a, Instrument.AttributeMap b) -> a ++ b
     let res = DeriveTest.derive_tracks ""

@@ -51,15 +51,15 @@ import Global
 patches :: [MidiInst.Patch]
 patches = map (MidiInst.with_code (code <> with_weak))
     [ set_tuning EnvKey.umbang $ scale BaliScales.Umbang $
-        wayang "wayang-umbang"
-    , set_tuning EnvKey.isep $ scale BaliScales.Isep $ wayang "wayang-isep"
-    , Instrument.text #= "Tuned to 12TET." $ wayang "wayang12"
+        patch "wayang-umbang"
+    , set_tuning EnvKey.isep $ scale BaliScales.Isep $ patch "wayang-isep"
+    , Instrument.text #= "Tuned to 12TET." $ patch "wayang12"
     ] ++ map (MidiInst.with_code (Bali.pasang_code <> with_weak))
-    [ wayang "wayang"
+    [ patch "wayang"
     , MidiInst.range (BaliScales.scale_range Wayang.pemade) $
-        wayang "wayang-pemade"
+        patch "wayang-pemade"
     , MidiInst.range (BaliScales.scale_range Wayang.kantilan) $
-        wayang "wayang-kantilan"
+        patch "wayang-kantilan"
     ]
     where
     code = MidiInst.postproc (Gangsa.mute_postproc (Attrs.mute <> Attrs.loose))
@@ -72,9 +72,9 @@ patches = map (MidiInst.with_code (code <> with_weak))
     weak_call args =
         Gender.weak (Sig.control "strength" 0.5) (Args.set_duration dur args)
         where dur = Args.next args - Args.start args
-    wayang name = Instrument.set_flag Instrument.ConstantPitch $
+    patch name = Instrument.set_flag Instrument.ConstantPitch $
         (Instrument.instrument_#Instrument.maybe_decay #= Just 0) $
-        (Instrument.attribute_map #= wayang_keymap) $
+        (Instrument.attribute_map #= attribute_map) $
         MidiInst.patch (-24, 24) name []
     scale tuning = (Instrument.text #= doc)
         . (Instrument.scale #= Just (Wayang.patch_scale False tuning))
@@ -106,8 +106,8 @@ config dev_ = MidiConfig.config
     dev = Midi.write_device dev_
     inst = Score.Instrument
 
-wayang_keymap :: Instrument.AttributeMap
-wayang_keymap = Instrument.AttributeMap
+attribute_map :: Instrument.AttributeMap
+attribute_map = Instrument.AttributeMap
     [ (Attrs.mute <> Attrs.loose, [Instrument.Keyswitch Key2.a_2], keymap)
     , (Attrs.mute, [Instrument.Keyswitch Key2.b_2], keymap)
     ]

@@ -576,8 +576,8 @@ keyswitches attr_ks = sort_attributes $
     AttributeMap [(attrs, ks, Nothing) | (attrs, ks) <- attr_ks]
 
 -- | An AttributeMap with a single Midi.Key keyswitch per Attribute.
-simple_keyswitches :: [(Score.Attributes, Midi.Key)] -> AttributeMap
-simple_keyswitches = keyswitches . map (second ((:[]) . Keyswitch))
+single_keyswitches :: [(Score.Attributes, Midi.Key)] -> AttributeMap
+single_keyswitches = keyswitches . map (second ((:[]) . Keyswitch))
 
 cc_keyswitches :: Midi.Control -> [(Score.Attributes, Midi.ControlValue)]
     -> AttributeMap
@@ -588,8 +588,8 @@ keymap table = sort_attributes $
     AttributeMap [(attr, [], Just keymap) | (attr, keymap) <- table]
 
 -- | An AttributeMap with just unpitched keymaps.
-simple_keymap :: [(Score.Attributes, Midi.Key)] -> AttributeMap
-simple_keymap = keymap . map (second UnpitchedKeymap)
+unpitched_keymap :: [(Score.Attributes, Midi.Key)] -> AttributeMap
+unpitched_keymap = keymap . map (second UnpitchedKeymap)
 
 mapped_attributes :: AttributeMap -> [Score.Attributes]
 mapped_attributes (AttributeMap attrs) = map (\(a, _, _) -> a) attrs
