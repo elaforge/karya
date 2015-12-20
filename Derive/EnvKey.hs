@@ -109,6 +109,10 @@ suppress_until = "suppress-until"
 dynamic_val :: Key
 dynamic_val = "dyn-val"
 
+-- | Like 'dynamic_val', but for the release velocity.
+release_val :: Key
+release_val = "release-val"
+
 -- | RealTime: This stores the RealTime sum of 'Derive.Controls.start_s' and
 -- 'Derive.Controls.start_t', and is later applied by the @apply-start-offset@
 -- postproc.
@@ -188,10 +192,6 @@ sangsih = "sangsih"
     integration, so I'd have to undo it for integration.  That made me think
     that this is really a low level MIDI detail and perhaps it's best handled
     by Convert after all.
-
-    A side effect is that NoteOff velocities are now always the same as NoteOn
-    ones, since velocity is now a constant sample.  I can revisit this if
-    I ever care about NoteOff velocity.
 
     One problem with doing the dyn conversion here is that for a control
     function on dyn to have any effect I need the value from the control

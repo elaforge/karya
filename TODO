@@ -1603,7 +1603,7 @@ Derive:
         reyong patch
           * pitch map
           * keyswitches
-          - off-velocity support
+          * release-vel support
         reyong protocol
           - to damp, set %damp, which the inst postproc moves to %release-vel
           - also in postproc, +mute note gets dur=0, %dyn=0, %damp=dyn

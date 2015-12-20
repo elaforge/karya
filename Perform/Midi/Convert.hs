@@ -74,6 +74,8 @@ convert_event lookup event_ = do
         pressure = Instrument.has_flag Instrument.Pressure patch
         velocity = fromMaybe Perform.default_velocity
             (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))
+        release_velocity = fromMaybe velocity
+            (Env.maybe_val EnvKey.release_val (Score.event_environ event))
     let converted = Perform.Event
             { event_start = Score.event_start event
             , event_duration = Score.event_duration event
@@ -88,9 +90,7 @@ convert_event lookup event_ = do
             -- pointless, but maybe someone wants to fade out.
             , event_start_velocity = if pressure then max 0.008 velocity
                 else velocity
-            -- Due to NOTE [EnvKey.dynamic_val] I wind up with the same end
-            -- velocity as start velocity.
-            , event_end_velocity = velocity
+            , event_end_velocity = release_velocity
             , event_stack = Score.event_stack event
             }
     return converted

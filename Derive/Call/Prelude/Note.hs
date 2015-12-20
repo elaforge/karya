@@ -190,9 +190,8 @@ default_note config args = do
     let attrs = either (const Score.no_attrs) id $
             Env.get_val EnvKey.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
-    Stream.from_event <$> make_event_dyn
-        (Map.lookup Controls.dynamic control_vals) args dyn start
-        (adjusted_end - start) flags
+    Stream.from_event <$> make_event_control_vals
+        control_vals args dyn start (adjusted_end - start) flags
 
 note_flags :: Bool -> Stack.Stack -> Env.Environ -> Flags.Flags
 note_flags zero_dur stack environ
@@ -217,14 +216,14 @@ make_event :: Derive.PassedArgs a -> Derive.Dynamic -> RealTime -> RealTime
     -> Flags.Flags -> Derive.Deriver Score.Event
 make_event args dyn start dur flags = do
     control_vals <- Derive.controls_at start
-    make_event_dyn (Map.lookup Controls.dynamic control_vals) args dyn start
-        dur flags
+    make_event_control_vals control_vals args dyn start dur flags
 
 -- | Specialized version of 'make_event' just so I can avoid calling
 -- Derive.controls_at twice.
-make_event_dyn :: Maybe Signal.Y -> Derive.PassedArgs a -> Derive.Dynamic
-    -> RealTime -> RealTime -> Flags.Flags -> Derive.Deriver Score.Event
-make_event_dyn dyn_val args dyn start dur flags = do
+make_event_control_vals :: Score.ControlValMap -> Derive.PassedArgs a
+    -> Derive.Dynamic -> RealTime -> RealTime -> Flags.Flags
+    -> Derive.Deriver Score.Event
+make_event_control_vals control_vals args dyn start dur flags = do
     offset <- get_start_offset start
     return $! Score.Event
         { Score.event_start = start
@@ -241,7 +240,10 @@ make_event_dyn dyn_val args dyn start dur flags = do
         , Score.event_highlight = Color.NoHighlight
         , Score.event_instrument =
             fromMaybe Score.empty_inst $ Env.maybe_val EnvKey.instrument environ
-        , Score.event_environ = stash_convert_values dyn_val offset environ
+        , Score.event_environ =
+            stash_convert_values (Map.lookup Controls.dynamic control_vals)
+                (Map.lookup Controls.release_velocity control_vals)
+                offset environ
         , Score.event_flags = flags
         , Score.event_delayed_args = mempty
         }
@@ -251,12 +253,17 @@ make_event_dyn dyn_val args dyn start dur flags = do
 
 -- | Stash the dynamic value from the ControlValMap in
 -- 'Controls.dynamic_function'.  Gory details in NOTE [EnvKey.dynamic_val].
-stash_convert_values :: Maybe Signal.Y -> RealTime -> Env.Environ
+stash_convert_values :: Maybe Signal.Y -> Maybe Signal.Y -> RealTime
     -> Env.Environ
-stash_convert_values dyn_val offset = stash_start_offset . stash_dyn
+    -> Env.Environ
+stash_convert_values dyn_val release_val offset =
+    stash_start_offset . stash_release . stash_dyn
     where
     stash_start_offset = Env.insert_val EnvKey.start_offset_val offset
     stash_dyn = maybe id (Env.insert_val EnvKey.dynamic_val) dyn_val
+    -- Perhaps this should be sampled at the event end, but I don't want to
+    -- get a whole new ControlValMap just for that.
+    stash_release = maybe id (Env.insert_val EnvKey.release_val) release_val
 
 -- ** adjust start and duration
 

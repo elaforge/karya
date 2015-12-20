@@ -40,21 +40,22 @@ import Types
 
 
 test_convert = do
+    let run = convert e_pitch
     let noinst n = mkevent n "4c" "noinst"
         nopitch n = Score.set_pitch mempty $ mkevent n "4c" "i1"
         good n = mkevent n "4c" "i1"
 
-    equal (convert [noinst 0, nopitch 1, good 2])
+    equal (run [noinst 0, nopitch 1, good 2])
         [ Right $ "event requires patch in instrument db: "
             ++ ">noinst (further warnings suppressed)"
         -- emits an event anyway so the previous pitch doesn't continue
         , Left (1, [])
-        , Left (2, [(2, 60)])
+        , Left (2, [(2, NN.c4)])
         ]
     -- Make sure it's lazy.
     let events = zipWith ($) (cycle [noinst, nopitch, good])
             (map RealTime.seconds [0..])
-    equal (length (take 3 (convert events))) 3
+    equal (length (take 3 (run events))) 3
 
 test_rnd_vel = do
     let run dyn notes = first extract $ DeriveTest.perform_block
@@ -70,16 +71,17 @@ test_rnd_vel = do
     check $ all (Num.inRange 40 90) vels
 
 test_convert_pitch = do
+    let run = convert e_pitch
     let event tsig = DeriveTest.mkevent
             (0, 1, "4c", [(Controls.diatonic, tsig)], UiTest.i1)
-    equal (convert [event []]) [Left (0, [(0, 60)])]
-    equal (convert [event [(0, 1)]]) [Left (0, [(0, 62)])]
-    equal (convert [event [(0, 100)]])
+    equal (run [event []]) [Left (0, [(0, NN.c4)])]
+    equal (run [event [(0, 1)]]) [Left (0, [(0, NN.d4)])]
+    equal (run [event [(0, 100)]])
         [ Left (0, [])
         , Right "convert pitch: 232nn is out of range: {%t-dia: 100}"
         ]
     -- An out of range transposition shouldn't cause a warning.
-    equal (convert [event [(0, 0), (100, 100)]]) [Left (0, [(0, 60)])]
+    equal (run [event [(0, 0), (100, 100)]]) [Left (0, [(0, NN.c4)])]
 
     -- Convert applies the environ to pitches.
     let event = (DeriveTest.mkevent (0, 1, "4i", [], UiTest.i1))
@@ -87,10 +89,10 @@ test_convert_pitch = do
                 PSignal.signal [(0, DeriveTest.mkpitch legong "4i")]
             }
         Just (Scale.Simple legong) = Map.lookup "legong" Scale.All.scales
-    equal (convert [event]) [Left (0, [(0, 72.46)])]
+    equal (run [event]) [Left (0, [(0, 72.46)])]
     let insert = Score.modify_environ $
             Env.insert_val EnvKey.tuning (ShowVal.show_val BaliScales.Isep)
-    equal (convert [insert event]) [Left (0, [(0, 72.588)])]
+    equal (run [insert event]) [Left (0, [(0, 72.588)])]
 
 test_convert_dynamic = do
     let run inst = first (map (fmap extract) . Convert.convert clookup)
@@ -112,18 +114,30 @@ test_convert_dynamic = do
     equal (run ">i2" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
         ([LEvent.Event (0.5, [(1, 0.5), (2, 1)])], [])
 
+test_release_velocity = do
+    let run = first (convert extract)
+            . DeriveTest.extract id . DeriveTest.derive_tracks "inst = >i1"
+            . UiTest.note_track
+        extract e =
+            (Perform.event_start_velocity e, Perform.event_end_velocity e)
+    equal (run [(0, 1, "%dyn=.5 | -- 4c")]) ([Left (0.5, 0.5)], [])
+    equal (run [(0, 1, "%dyn=.5 | %release-vel=.25 | -- 4c")])
+        ([Left (0.5, 0.25)], [])
+
 mkevent :: RealTime -> String -> Text -> Score.Event
 mkevent start pitch inst =
     DeriveTest.mkevent (start, 1, pitch, [], Score.Instrument inst)
 
-convert :: [Score.Event] -> [Either (Double, [(Signal.X, Signal.Y)]) String]
-convert events =
-    show_logs extract_event $
-        Convert.convert DeriveTest.default_convert_lookup events
+convert :: (Perform.Event -> a) -> [Score.Event] -> [Either a String]
+convert extract =
+    show_logs extract
+        . Convert.convert DeriveTest.default_convert_lookup
 
-extract_event :: Perform.Event -> (Double, [(Signal.X, Signal.Y)])
-extract_event e = (RealTime.to_seconds (Perform.event_start e),
-    Signal.unsignal (Perform.event_pitch e))
+e_pitch :: Perform.Event -> (RealTime, [(RealTime, Pitch.NoteNumber)])
+e_pitch e =
+    ( Perform.event_start e
+    , map (fmap Pitch.nn) $ Signal.unsignal (Perform.event_pitch e)
+    )
 
 show_logs :: (a -> b) -> [LEvent.LEvent a] -> [Either b String]
 show_logs extract =

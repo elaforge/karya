@@ -84,6 +84,11 @@ aftertouch = "at"
 mod :: Control
 mod = "mod"
 
+-- | Normal the NoteOff velocity is the same as 'dynamic', but if set, this
+-- force it to a particular value.
+release_velocity :: Control
+release_velocity = "release-vel"
+
 -- ** transposition
 
 transpose_control :: Pitch.Transpose -> (Double, Control)
