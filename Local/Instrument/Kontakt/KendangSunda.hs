@@ -181,7 +181,7 @@ keymap = CUtil.make_keymap2 Nothing 8 6 12 NN.c4
 
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
-    [ ("kendang-sunda.ksp.txt",
+    [ ("kendang-sunda.ksp",
         Util.drum_mute_ksp "kendang sunda" pitched_notes stops)
     ]
 

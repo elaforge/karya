@@ -1600,6 +1600,29 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
+        - reyong-damp emits notes with +mute.  So I have a stream of notes
+          where starts and stops are explicit, and each note rings until a
+          +mute of the same pitch.  If the instrument uses NoteOffs, I have to
+          translate that to merged notes.
+          . Or could I emit a more easy form?  E.g. give notes a duration,
+            a possible +damped attr, and a note-off-velocity.
+          . If I have +tight and +loose damping and switch with a keyswitch
+            then this is a new form of keyswitch.
+          . On the other hand, if I can make it a non-interfering keyswitch
+            then I think I don't have any of these problems.  But that would
+            have to be poly at.
+          . Transform: reyong-damp adds a %release-vel control instead of
+            +mute.  If it doesn't have one, extend the duration until the next
+            note with the same pitch.  Or emit release vel of 0 and have KSP
+            not stop the sample on release vel 0.  I can use release vel 1 for
+            damp, but without a sample.
+          . A problem with using NoteOff is that I want to be able to do
+            multiple NoteOns without damping.  If Kontakt were flexible
+            I could just emit unbalanced NoteOn and NoteOff but I have to
+            figure out if KSP can replace the usual note allocation stuff.
+            . Track the last note for each pitch.  If I see a NoteOff with
+              non-zero velocity then play the damp sample and cut off the
+              sounding note.
         - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can
           I draw symbols reversed? 入 兩
           . There are several ngembat variations: fast:

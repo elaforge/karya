@@ -1,0 +1,140 @@
+{- Copyright 2015 Evan Laforge
+    This program is distributed under the terms of the GNU General Public
+    License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
+-}
+on init
+    set_script_title("reyong keyswitches and release")
+
+    declare const $OpenKs := 11
+    declare const $CekClosedKs := 12
+    declare const $CekOpenKs := 13
+    declare const $MuteClosedKs := 14
+    declare const $MuteOpenKs := 15
+    declare const $FadeTimeUs := 100 * 1000
+
+    declare %OpenGroups[4]
+    %OpenGroups[0] := find_group("open+v1")
+    %OpenGroups[1] := find_group("open+v2")
+    %OpenGroups[2] := find_group("open+v3")
+    %OpenGroups[3] := find_group("open+v4")
+    declare %CekClosedGroups[6]
+    %CekClosedGroups[0] := find_group("cek+closed+v1")
+    %CekClosedGroups[1] := find_group("cek+closed+v2")
+    %CekClosedGroups[2] := find_group("cek+closed+v3")
+    %CekClosedGroups[3] := find_group("cek+closed+v4")
+    %CekClosedGroups[4] := find_group("cek+closed+v5")
+    %CekClosedGroups[5] := find_group("cek+closed+v6")
+    declare %CekOpenGroups[6]
+    %CekOpenGroups[0] := find_group("cek+open+v1")
+    %CekOpenGroups[1] := find_group("cek+open+v2")
+    %CekOpenGroups[2] := find_group("cek+open+v3")
+    %CekOpenGroups[3] := find_group("cek+open+v4")
+    %CekOpenGroups[4] := find_group("cek+open+v5")
+    %CekOpenGroups[5] := find_group("cek+open+v6")
+    declare %MuteClosedGroups[4]
+    %MuteClosedGroups[0] := find_group("mute+closed+v1")
+    %MuteClosedGroups[1] := find_group("mute+closed+v2")
+    %MuteClosedGroups[2] := find_group("mute+closed+v3")
+    %MuteClosedGroups[3] := find_group("mute+closed+v4")
+    declare %MuteOpenGroups[4]
+    %MuteOpenGroups[0] := find_group("mute+open+v1")
+    %MuteOpenGroups[1] := find_group("mute+open+v2")
+    %MuteOpenGroups[2] := find_group("mute+open+v3")
+    %MuteOpenGroups[3] := find_group("mute+open+v4")
+
+    {- Map $EVENT_NOTE to event id if it's sounding, 0 otherwise. -}
+    declare %sounding[128]
+    {- either $MuteClosedKs or $MuteOpenKs -}
+    declare $mute_state := $MuteClosedKs
+    {- either $OpenKs, $CekClosedKs, or $CekOpenKs -}
+    declare $play_state := $OpenKs
+    {- round-robin position -}
+    declare $rr := 0
+    declare $i
+
+    set_key_color($OpenKs, $KEY_COLOR_YELLOW)
+    set_key_color($CekClosedKs, $KEY_COLOR_RED)
+    set_key_color($CekOpenKs, $KEY_COLOR_RED)
+    set_key_color($MuteClosedKs, $KEY_COLOR_CYAN)
+    set_key_color($MuteOpenKs, $KEY_COLOR_CYAN)
+end on
+
+on note
+    $rr := ($rr + 1) mod (4*6)
+    %sounding[$EVENT_NOTE] := $EVENT_ID
+    select ($EVENT_NOTE)
+        case $OpenKs
+            $play_state := $OpenKs
+        case $CekClosedKs
+            $play_state := $CekClosedKs
+        case $CekOpenKs
+            $play_state := $CekOpenKs
+        case $MuteClosedKs
+            $mute_state := $MuteClosedKs
+        case $MuteOpenKs
+            $mute_state := $MuteOpenKs
+    end select
+
+    { call disable_open }
+    $i := 0
+    while ($i < num_elements(%OpenGroups))
+        disallow_group(%OpenGroups[$i])
+        $i := $i + 1
+    end while
+
+    { call disable_mute }
+    $i := 0
+    while ($i < num_elements(%MuteClosedGroups))
+        disallow_group(%MuteClosedGroups[$i])
+        $i := $i + 1
+    end while
+    $i := 0
+    while ($i < num_elements(%MuteOpenGroups))
+        disallow_group(%MuteOpenGroups[$i])
+        $i := $i + 1
+    end while
+
+    $i := 0
+    while ($i < num_elements(%CekClosedGroups))
+        disallow_group(%CekClosedGroups[$i])
+        $i := $i + 1
+    end while
+    $i := 0
+    while ($i < num_elements(%CekOpenGroups))
+        disallow_group(%CekOpenGroups[$i])
+        $i := $i + 1
+    end while
+    select ($play_state)
+        case $OpenKs
+            allow_group(%OpenGroups[$rr mod 4])
+        case $CekClosedKs
+            allow_group(%CekClosedGroups[$rr mod 6])
+        case $CekOpenKs
+            allow_group(%CekOpenGroups[$rr mod 6])
+    end select
+end on
+
+on release
+    if ($play_state = $OpenKs)
+        if ($EVENT_VELOCITY > 0 and %sounding[$EVENT_NOTE] # 0)
+            fade_out(%sounding[$EVENT_NOTE], $FadeTimeUs, 1)
+            %sounding[$EVENT_NOTE] := 0
+        end if
+        if ($EVENT_VELOCITY > 1)
+            { call disable_open }
+            $i := 0
+            while ($i < num_elements(%OpenGroups))
+                disallow_group(%OpenGroups[$i])
+                $i := $i + 1
+            end while
+
+            select ($mute_state)
+                case $MuteClosedKs
+                    allow_group(%MuteClosedGroups[$rr mod 4])
+                case $MuteOpenKs
+                    allow_group(%MuteOpenGroups[$rr mod 4])
+            end select
+            play_note($EVENT_NOTE, $EVENT_VELOCITY, 0, 0)
+        end if
+    end if
+end on
