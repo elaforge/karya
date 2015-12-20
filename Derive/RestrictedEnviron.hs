@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE DefaultSignatures #-}
 -- | This is a serializable subset of 'BaseTypes.Val' and 'BaseTypes.Environ'.
 -- It omits pitches, which are code and can't be serialized.
 module Derive.RestrictedEnviron where
@@ -16,6 +17,8 @@ import Util.Serialize (get, put)
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
+
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Global
@@ -60,7 +63,13 @@ instance Pretty.Pretty Val where
 
 -- | This duplicates 'TrackLang.Typecheck', but then so does this whole module.
 -- In any case, it's convenient for creaing 'Environ's.
-class ToVal a where to_val :: a -> Val
+--
+-- TODO But I wish I could reuse Typecheck.ToVal TypecheckSymbol TovAl,
+-- otherwise I have to add an extra instance declaration for each type.
+class ToVal a where
+    to_val :: a -> Val
+    default to_val :: ShowVal.ShowVal a => a -> Val
+    to_val = VSymbol . BaseTypes.Symbol . ShowVal.show_val
 
 -- ** VNum
 

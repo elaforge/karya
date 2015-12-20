@@ -318,12 +318,14 @@ config_kebyar dev_ = make_config $ concat
     to_val = RestrictedEnviron.to_val
     inst = Repl.Util.instrument
     umbang_patch name patch =
-        (name, sc_patch patch, True, tuning EnvKey.umbang, Just umbang)
+        ( name, sc_patch patch, True
+        , tuning BaliScales.Umbang, Just $ Legong.patch_scale BaliScales.Umbang
+        )
     isep_patch name patch =
-        (name, sc_patch patch, True, tuning EnvKey.isep, Just isep)
+        ( name, sc_patch patch, True
+        , tuning BaliScales.Isep, Just $ Legong.patch_scale BaliScales.Isep
+        )
     patch name = (name, sc_patch name, True, [], Nothing)
-    umbang = Legong.patch_scale BaliScales.Umbang
-    isep = Legong.patch_scale BaliScales.Isep
 
 -- * hang
 

@@ -17,10 +17,13 @@ import qualified Data.Vector as Vector
 import Data.Vector ((!?))
 
 import qualified Util.Num as Num
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.PSignal as PSignal
+import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
@@ -28,6 +31,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
+import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -172,13 +176,14 @@ make_keys layout keys = Map.fromList
 
 -- * tuning
 
-data Tuning = Umbang | Isep deriving (Show)
+data Tuning = Umbang | Isep deriving (Enum, Bounded, Show)
 
-read_tuning :: Text -> Maybe Tuning
-read_tuning t
-    | t == EnvKey.umbang = Just Umbang
-    | t == EnvKey.isep = Just Isep
-    | otherwise = Nothing
+instance Pretty.Pretty Tuning where pretty = showt
+instance Typecheck.Typecheck Tuning
+instance Typecheck.TypecheckSymbol Tuning
+instance RestrictedEnviron.ToVal Tuning
+instance ShowVal.ShowVal Tuning where
+    show_val = Typecheck.enum_show_val
 
 -- | If ombak is unset, use the hardcoded tunings.  Otherwise, create new
 -- umbang and isep tunings based on the given number.
@@ -189,7 +194,7 @@ c_ombak = "ombak"
 semis_to_nn :: Pitch.Semi -> NoteNumbers -> ChromaticScales.SemisToNoteNumber
 semis_to_nn offset nns = \(PSignal.PitchConfig env controls) fsemis_ -> do
     let fsemis = fsemis_ - fromIntegral offset
-    tuning <- Scales.read_environ read_tuning (Just Umbang) EnvKey.tuning env
+    tuning <- Scales.parse_environ (Just Umbang) EnvKey.tuning env
     let to_either = maybe (Left BaseTypes.out_of_range) Right
     to_either $ case Map.lookup c_ombak controls of
         Nothing -> case tuning of

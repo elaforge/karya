@@ -169,11 +169,6 @@ hold = "hold"
 
 -- * values
 
--- | Scale tuning.
-umbang, isep :: Text
-umbang = "umbang"
-isep = "isep"
-
 -- | Instrument role.
 polos, sangsih :: Text
 polos = "polos"

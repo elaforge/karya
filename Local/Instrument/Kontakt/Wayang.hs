@@ -50,9 +50,8 @@ import Global
 -}
 patches :: [MidiInst.Patch]
 patches = map (MidiInst.with_code (code <> with_weak))
-    [ set_tuning EnvKey.umbang $ scale BaliScales.Umbang $
-        patch "wayang-umbang"
-    , set_tuning EnvKey.isep $ scale BaliScales.Isep $ patch "wayang-isep"
+    [ set_scale BaliScales.Umbang $ patch "wayang-umbang"
+    , set_scale BaliScales.Isep $ patch "wayang-isep"
     , Instrument.text #= "Tuned to 12TET." $ patch "wayang12"
     ] ++ map (MidiInst.with_code (Bali.pasang_code <> with_weak))
     [ patch "wayang"
@@ -76,12 +75,9 @@ patches = map (MidiInst.with_code (code <> with_weak))
         (Instrument.instrument_#Instrument.maybe_decay #= Just 0) $
         (Instrument.attribute_map #= attribute_map) $
         MidiInst.patch (-24, 24) name []
-    scale tuning = (Instrument.text #= doc)
-        . (Instrument.scale #= Just (Wayang.patch_scale False tuning))
-        where
-        doc = "These set the scale and tuning automatically, and expect the\
-            \ patch to be tuned to the instrument's natural scale."
-    set_tuning tuning = MidiInst.default_scale Wayang.scale_id
+    set_scale tuning =
+        (Instrument.scale #= Just (Wayang.patch_scale False tuning))
+        . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
 
 -- | Set up a gender wayang quartet.

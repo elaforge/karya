@@ -448,6 +448,12 @@ read_environ read_val maybe_deflt name env = case Env.get_val name env of
         Right (read_val val)
     environ_error = Left . BaseTypes.EnvironError name
 
+-- | This is 'read_environ', but for instances of 'Typecheck.TypecheckSymbol'.
+parse_environ :: Typecheck.TypecheckSymbol val => Maybe val
+    -- ^ if Just, a missing value gets this, otherwise it's an error
+    -> Env.Key -> Env.Environ -> Either BaseTypes.PitchError val
+parse_environ = read_environ Typecheck.parse_symbol
+
 
 -- ** keys
 

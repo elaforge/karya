@@ -23,7 +23,9 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Scale as Scale
 import qualified Derive.Scale.All as Scale.All
+import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
@@ -87,7 +89,7 @@ test_convert_pitch = do
         Just (Scale.Simple legong) = Map.lookup "legong" Scale.All.scales
     equal (convert [event]) [Left (0, [(0, 72.46)])]
     let insert = Score.modify_environ $
-            Env.insert_val EnvKey.tuning EnvKey.isep
+            Env.insert_val EnvKey.tuning (ShowVal.show_val BaliScales.Isep)
     equal (convert [insert event]) [Left (0, [(0, 72.588)])]
 
 test_convert_dynamic = do

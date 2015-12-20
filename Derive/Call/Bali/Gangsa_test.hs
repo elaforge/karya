@@ -19,6 +19,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
+import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -193,7 +194,8 @@ test_unison_tuning = do
         title = "import bali.gangsa | inst = >" <> inst_title
             <> " | scale=wayang | unison"
         extract e = (pretty $ Score.event_instrument e, Score.initial_nn e)
-        config_inst = set UiTest.i1 EnvKey.umbang . set UiTest.i2 EnvKey.isep
+        config_inst = set UiTest.i1 BaliScales.Umbang
+            . set UiTest.i2 BaliScales.Isep
         set inst tuning = modify_instrument inst $
             Instrument.cenviron #= RestrictedEnviron.make
                 [(EnvKey.tuning, RestrictedEnviron.to_val tuning)]
