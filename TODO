@@ -1615,8 +1615,10 @@ Derive:
               configuration for +open+loose-damp vs. +open+tight-damp.
               I can also add a couple extra keyswitches for just +mute.
         - dit-thom call
+        - two handed +cek call
         - general %damp inference, e.g. two notes with the same pitch
           shouldn't damp.
+          . Also %damp gets louder when notes are closer, or faster.
         * reyong-damp emits notes with +mute.  So I have a stream of notes
           where starts and stops are explicit, and each note rings until a
           +mute of the same pitch.  If the instrument uses NoteOffs, I have to

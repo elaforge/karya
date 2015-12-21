@@ -4,6 +4,7 @@
 -}
 on init
     set_script_title("reyong keyswitches and release")
+    message("")
 
     declare const $OpenKs := 12
     declare const $MuteClosedKs := 13
@@ -14,6 +15,10 @@ on init
     declare const $DampClosedKs := 17
     declare const $DampOpenKs := 18
     declare const $FadeTimeUs := 100 * 1000
+    {- Apparently KSP doesn't support NoteOff velocity, so use a separate
+        control.
+    -}
+    declare const $DampVelocityCc := 4
 
     declare %OpenGroups[4]
     %OpenGroups[0] := find_group("open+v1")
@@ -129,11 +134,11 @@ end on
 
 on release
     if ($play_state = $OpenKs)
-        if ($EVENT_VELOCITY > 0 and %sounding[$EVENT_NOTE] # 0)
+        if (%CC[$DampVelocityCc] > 0 and %sounding[$EVENT_NOTE] # 0)
             fade_out(%sounding[$EVENT_NOTE], $FadeTimeUs, 1)
             %sounding[$EVENT_NOTE] := 0
         end if
-        if ($EVENT_VELOCITY > 1)
+        if (%CC[$DampVelocityCc] > 1)
             { call disable_open }
             $i := 0
             while ($i < num_elements(%OpenGroups))
@@ -147,7 +152,7 @@ on release
                 case $DampOpenKs
                     allow_group(%MuteOpenGroups[$rr mod 4])
             end select
-            play_note($EVENT_NOTE, $EVENT_VELOCITY, 0, 0)
+            play_note($EVENT_NOTE, %CC[$DampVelocityCc], 0, 0)
         end if
     end if
 end on
