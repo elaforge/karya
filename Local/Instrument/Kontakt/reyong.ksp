@@ -5,11 +5,14 @@
 on init
     set_script_title("reyong keyswitches and release")
 
-    declare const $OpenKs := 11
-    declare const $CekClosedKs := 12
-    declare const $CekOpenKs := 13
-    declare const $MuteClosedKs := 14
-    declare const $MuteOpenKs := 15
+    declare const $OpenKs := 12
+    declare const $MuteClosedKs := 13
+    declare const $MuteOpenKs := 14
+    declare const $CekClosedKs := 15
+    declare const $CekOpenKs := 16
+    {- Configure which mute is used for NoteOffs. -}
+    declare const $DampClosedKs := 17
+    declare const $DampOpenKs := 18
     declare const $FadeTimeUs := 100 * 1000
 
     declare %OpenGroups[4]
@@ -44,19 +47,21 @@ on init
 
     {- Map $EVENT_NOTE to event id if it's sounding, 0 otherwise. -}
     declare %sounding[128]
-    {- either $MuteClosedKs or $MuteOpenKs -}
-    declare $mute_state := $MuteClosedKs
-    {- either $OpenKs, $CekClosedKs, or $CekOpenKs -}
+    {- $DampClosedKs or $DampOpenKs -}
+    declare $release_state := $DampOpenKs
+    {- $OpenKs, $MuteClosedKs, $MuteOpenKs, $CekClosedKs, or $CekOpenKs -}
     declare $play_state := $OpenKs
     {- round-robin position -}
     declare $rr := 0
     declare $i
 
     set_key_color($OpenKs, $KEY_COLOR_YELLOW)
+    set_key_color($MuteClosedKs, $KEY_COLOR_YELLOW)
+    set_key_color($MuteOpenKs, $KEY_COLOR_YELLOW)
     set_key_color($CekClosedKs, $KEY_COLOR_RED)
     set_key_color($CekOpenKs, $KEY_COLOR_RED)
-    set_key_color($MuteClosedKs, $KEY_COLOR_CYAN)
-    set_key_color($MuteOpenKs, $KEY_COLOR_CYAN)
+    set_key_color($DampClosedKs, $KEY_COLOR_CYAN)
+    set_key_color($DampOpenKs, $KEY_COLOR_CYAN)
 end on
 
 on note
@@ -65,14 +70,18 @@ on note
     select ($EVENT_NOTE)
         case $OpenKs
             $play_state := $OpenKs
+        case $MuteClosedKs
+            $play_state := $MuteClosedKs
+        case $MuteOpenKs
+            $play_state := $MuteOpenKs
         case $CekClosedKs
             $play_state := $CekClosedKs
         case $CekOpenKs
             $play_state := $CekOpenKs
-        case $MuteClosedKs
-            $mute_state := $MuteClosedKs
-        case $MuteOpenKs
-            $mute_state := $MuteOpenKs
+        case $DampClosedKs
+            $release_state := $DampClosedKs
+        case $DampOpenKs
+            $release_state := $DampOpenKs
     end select
 
     { call disable_open }
@@ -107,6 +116,10 @@ on note
     select ($play_state)
         case $OpenKs
             allow_group(%OpenGroups[$rr mod 4])
+        case $MuteClosedKs
+            allow_group(%MuteClosedGroups[$rr mod 4])
+        case $MuteOpenKs
+            allow_group(%MuteOpenGroups[$rr mod 4])
         case $CekClosedKs
             allow_group(%CekClosedGroups[$rr mod 6])
         case $CekOpenKs
@@ -128,10 +141,10 @@ on release
                 $i := $i + 1
             end while
 
-            select ($mute_state)
-                case $MuteClosedKs
+            select ($release_state)
+                case $DampClosedKs
                     allow_group(%MuteClosedGroups[$rr mod 4])
-                case $MuteOpenKs
+                case $DampOpenKs
                     allow_group(%MuteOpenGroups[$rr mod 4])
             end select
             play_note($EVENT_NOTE, $EVENT_VELOCITY, 0, 0)

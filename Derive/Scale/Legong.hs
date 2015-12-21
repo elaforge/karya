@@ -208,7 +208,7 @@ patch_scale take_range tuning =
 
 -- | Emit from i1 on up.
 midi_keys :: [Midi.Key]
-midi_keys = trim $ concatMap keys [3..]
+midi_keys = trim $ concatMap keys [1..]
     where
     trim = take (5*7 + 1)
     keys oct = map (Midi.to_key (oct * 12) +) -- i o e e# u a a#

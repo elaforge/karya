@@ -97,6 +97,7 @@ data Event = Event {
     event_start :: !RealTime
     , event_duration :: !RealTime
     , event_text :: !Text
+    -- | See NOTE [event_control_offset] for what the untransformed is about.
     , event_untransformed_controls :: !ControlMap
     , event_untransformed_pitch :: !PSignal.PSignal
     -- | Named pitch signals.
@@ -160,6 +161,10 @@ log_events =
 -- and it's the same for all of them.  Also it turns out to be a bit of
 -- a hassle to mess with the signals on events since every time you have to
 -- decide if you need transformed on untransformed.
+--
+-- TODO Actually I kind of hate this, because of the ugly long names and the
+-- constant need to decide if I need to deal with transformed or untransformed
+-- controls.
 
 empty_event :: Event
 empty_event = Event
