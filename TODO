@@ -1610,9 +1610,13 @@ Derive:
             have another control to turn off damping.
         kotekan:
           - update to use a "k" call like gangsa
-          - I think infer-damp is wrong for k/_\
+          * I think infer-damp is wrong for k/_\
             * to debug, make the kotekan calls take a "voices" env to only
               emit certain voices.
+            . It's because the CC for the next note interferes with this one.
+              CC is not as good as note off vel because it's global.  I still
+              need a control that addresses the note.
+            . Poly AT can do it, but I need to assign %damp to poly-at.
         reyong patch
           * pitch map
           * keyswitches

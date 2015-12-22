@@ -4,9 +4,12 @@
 
 -- | Patches for my reyong samples.
 module Local.Instrument.Kontakt.Reyong where
+import qualified Data.Map as Map
+
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Reyong as Reyong
+import qualified Derive.Controls as Controls
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
@@ -22,11 +25,11 @@ patches =
     , (patch "reyong12", code)
     ]
     where
-    code = mempty
+    code = MidiInst.postproc postproc
     patch name = Instrument.set_flag Instrument.ConstantPitch $
         (Instrument.instrument_#Instrument.maybe_decay #= Just 0) $
         (Instrument.attribute_map #= attribute_map) $
-        MidiInst.patch (-24, 24) name [(4, Reyong.damp_control)]
+        MidiInst.patch (-24, 24) name []
     tuning = BaliScales.Umbang -- TODO verify
     set_scale = (Instrument.scale #= Just patch_scale)
         . MidiInst.default_scale Legong.scale_id
@@ -34,6 +37,14 @@ patches =
     -- Trompong starts at 2a, trompong + reyong has 15 keys.
     patch_scale =
         Legong.patch_scale (take 15 . drop (5+4) . Legong.strip_pemero) tuning
+
+postproc :: Score.Event -> Score.Event
+postproc event = case damp of
+    Just sig -> Score.set_control Controls.aftertouch sig event
+    Nothing -> event
+    where
+    damp = Map.lookup Reyong.damp_control $
+        Score.event_untransformed_controls event
 
 attribute_map :: Instrument.AttributeMap
 attribute_map = Instrument.keyswitches $ map (second (map Instrument.Keyswitch))

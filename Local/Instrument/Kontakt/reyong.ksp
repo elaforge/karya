@@ -15,10 +15,6 @@ on init
     declare const $DampClosedKs := 17
     declare const $DampOpenKs := 18
     declare const $FadeTimeUs := 100 * 1000
-    {- Apparently KSP doesn't support NoteOff velocity, so use a separate
-        control.
-    -}
-    declare const $DampVelocityCc := 4
 
     declare %OpenGroups[4]
     %OpenGroups[0] := find_group("open+v1")
@@ -60,6 +56,7 @@ on init
     {- round-robin position -}
     declare $rr := 0
     declare $i
+    declare $damp
 
     set_key_color($OpenKs, $KEY_COLOR_YELLOW)
     set_key_color($MuteClosedKs, $KEY_COLOR_YELLOW)
@@ -134,9 +131,13 @@ on note
 end on
 
 on release
+    {- KSP doesn't support NoteOff velocity, so I have to use a separate
+        control.  It has to be note-addressed so notes don't interfere.
+    -}
+    $damp := %POLY_AT[$EVENT_NOTE]
     if ($play_state = $OpenKs)
         {- Stop all notes with the same pitch. -}
-        if (%CC[$DampVelocityCc] > 0)
+        if ($damp > 0)
             $i := 0
             get_event_ids(%sounding)
             while ($i < $SoundingSize and %sounding[$i] # 0)
@@ -146,7 +147,7 @@ on release
                 $i := $i + 1
             end while
         end if
-        if (%CC[$DampVelocityCc] > 1)
+        if ($damp > 1)
             { call disable_open }
             $i := 0
             while ($i < num_elements(%OpenGroups))
@@ -160,7 +161,7 @@ on release
                 case $DampOpenKs
                     allow_group(%MuteOpenGroups[$rr mod 4])
             end select
-            play_note($EVENT_NOTE, %CC[$DampVelocityCc], 0, 0)
+            play_note($EVENT_NOTE, $damp, 0, 0)
         end if
     end if
 end on
