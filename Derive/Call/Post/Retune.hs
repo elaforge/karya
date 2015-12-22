@@ -94,7 +94,7 @@ realize_retune srate prev event =
 
 -- | Transpose an event by adding to its nn transpose control.
 add_nn_transpose :: Signal.Control -> Score.Event -> Score.Event
-add_nn_transpose = Score.merge_control Controls.nn Signal.sig_add
+add_nn_transpose curve = Score.merge_control Controls.nn (Signal.sig_add curve)
 
 retune_curve :: ControlUtil.SRate -> RealTime -> Pitch.NoteNumber -> RealTime
      -> RealTime -> Signal.Control

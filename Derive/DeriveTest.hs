@@ -530,8 +530,12 @@ e_inst :: Score.Event -> Text
 e_inst = Score.inst_name . Score.event_instrument
 
 e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
-e_control cont event = maybe [] (Signal.unsignal . Score.typed_val) $
-    Map.lookup cont (Score.event_transformed_controls event)
+e_control control event = maybe [] (Signal.unsignal . Score.typed_val) $
+    Map.lookup control (Score.event_transformed_controls event)
+
+e_start_control :: Score.Control -> Score.Event -> Maybe Signal.Y
+e_start_control control event =
+    Score.typed_val <$> Score.control_at (Score.event_start event) control event
 
 e_dyn :: Score.Event -> [(RealTime, Signal.Y)]
 e_dyn = e_control Score.c_dynamic

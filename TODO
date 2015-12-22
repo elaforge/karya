@@ -1600,20 +1600,28 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
+        - ksp: can I loop through sounding notes and mute all with the same
+          $EVENT_NOTE?
+        kotekan:
+          - update to use a "k" call like gangsa
+          - I think infer-damp is wrong for k/_\
+            - to debug, make the kotekan calls take a "voices" env to only
+              emit certain voices.
         reyong patch
           * pitch map
           * keyswitches
           * release-vel support
         reyong protocol
           * to damp, set %damp, which the inst postproc moves to %release-vel
-          - also in postproc, +mute note gets dur=0, %dyn=0, %damp=dyn
-          - How to set open or closed mute?  I need to send the ks from the
+          / also in postproc, +mute note gets dur=0, %dyn=0, %damp=dyn
+          * How to set open or closed mute?  I need to send the ks from the
             attr map.  It's ok to send before NoteOn, so I think I can treat
             it as a normal keyswitch, but maybe I have to send +open too.
             . Actually I think this doesn't work because it can't be
               distinguished from a muted stroke.  So maybe I need separate
               configuration for +open+loose-damp vs. +open+tight-damp.
               I can also add a couple extra keyswitches for just +mute.
+        * hook up Derive.Call.Bali.Reyong
         - dit-thom call
         - two handed +cek call
         - general %damp inference, e.g. two notes with the same pitch

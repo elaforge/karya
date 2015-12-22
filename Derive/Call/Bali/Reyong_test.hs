@@ -21,7 +21,8 @@ title :: String
 title = "import bali.reyong | scale=legong | cancel-pasang"
 
 test_kilitan = do
-    let run = e_voice 1 . DeriveTest.derive_tracks title . UiTest.note_track
+    let run = e_voice 1 ex . DeriveTest.derive_tracks title . UiTest.note_track
+        ex e = (Score.event_start e, DeriveTest.e_pitch e)
     equal (run [(0, 0, "X --"), (1, 0, "O --"), (2, 0, "+ --")])
         (Just [(0, "3u"), (1, "3e"), (1, "3a"), (2, "3e"), (2, "3a")], [])
     equal (run [(0, 4, ">kilit -- 3u"), (4, 4, "kilit -- 3u")])
@@ -31,7 +32,8 @@ test_kilitan = do
             ], [])
 
 test_kotekan = do
-    let run = e_voice 1 . DeriveTest.derive_tracks title . UiTest.note_track
+    let run = e_voice 1 ex . DeriveTest.derive_tracks title . UiTest.note_track
+        ex e = (Score.event_start e, DeriveTest.e_pitch e)
     equal (run [(0, 16, "k\\/ -- 3o")])
         (Just
             [ (2, "3a"), (3, "4i"), (5, "3a"), (6, "4i"), (8, "4i")
@@ -43,11 +45,10 @@ test_kotekan = do
             , (8, "3a")
             ], [])
 
-e_voice :: Int -> Derive.Result -> (Maybe [(RealTime, String)], [String])
-e_voice voice = group_voices . DeriveTest.extract extract
+e_voice :: Int -> (Score.Event -> a) -> Derive.Result -> (Maybe [a], [String])
+e_voice voice extract = group_voices . DeriveTest.extract ex
     where
-    extract e = (DeriveTest.e_environ_val EnvKey.voice e :: Maybe Int,
-        (Score.event_start e, DeriveTest.e_pitch e))
+    ex e = (DeriveTest.e_environ_val EnvKey.voice e :: Maybe Int, extract e)
     group_voices = first (lookup (Just voice) . Seq.group_fst)
 
 test_positions = do
@@ -68,14 +69,29 @@ test_assign_positions = do
 
 -- * damp
 
-test_reyong_damp = do
+test_infer_damp = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks "import bali.reyong | reyong-damp 1"
+            . DeriveTest.derive_tracks
+                "import bali.reyong | infer-damp >i1 1 | inst = >i1 | %damp=.5"
             . UiTest.note_track
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
-            DeriveTest.e_attributes e)
+            fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
     equal (run [(0, 1, "4c"), (1, 1, "+undamped -- 4d")])
-        ([(0, "4c", "+"), (1, "4d", "+undamped"), (1, "4c", "+mute")], [])
+        ([(0, "4c", 0.5), (1, "4d", 0)], [])
+    equal (run [(0, 0.5, "4c"), (0.5, 0.5, "4d"), (1, 1, "4c")])
+        ([(0, "4c", 0), (0.5, "4d", 0.5), (1, "4c", 0.5)], [])
+    equal (run [(0, 1, "4c"), (1, 1, "4c")])
+        ([(0, "4c", 0), (1, "4c", 0.5)], [])
+
+test_infer_damp_kotekan = do
+    let run = e_voice 1 extract
+            . DeriveTest.derive_tracks ("import bali.reyong | scale=legong"
+                <> " | infer-damp >i1 1.5 | inst = >i1")
+            . UiTest.note_track
+        extract e = (Score.event_start e, DeriveTest.e_pitch e,
+            fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
+    equal (run [(0, 4, "k/_\\ -- 4i")])
+        (Just [(0, "3e", 0), (1, "3u", 1), (2, "3e", 1), (4, "3u", 1)], [])
 
 test_can_damp = do
     let f dur = Reyong.can_damp dur . mkevents

@@ -412,13 +412,13 @@ modify_control control modify event = event
 
 -- | Merge a signal with an existing one.  If there is no existing control,
 -- the merge function gets an empty signal.
-merge_control :: Control -> (Signal.Control -> new -> Signal.Control)
-    -> new -> Event -> Event
-merge_control control merge new_signal event = event
+merge_control :: Control -> (Signal.Control -> Signal.Control)
+    -> Event -> Event
+merge_control control merge event = event
     { event_untransformed_controls =
         Map.alter (Just . alter) control (event_untransformed_controls event)
     }
-    where alter old = (`merge` new_signal) <$> fromMaybe mempty old
+    where alter old = merge <$> fromMaybe mempty old
 
 set_control :: Control -> Typed Signal.Control -> Event -> Event
 set_control control signal event = event

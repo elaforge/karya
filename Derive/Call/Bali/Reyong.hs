@@ -17,19 +17,20 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.Stream as Stream
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -60,8 +61,8 @@ note_calls = Derive.call_maps
     , ("k_\\", realize_pattern Gangsa.Once k_11_1_21)
     , ("k\\/", realize_pattern Gangsa.Once rejang)
     , ("/", articulation "cek-loose" ((:[]) . pos_cek)
-        (Attrs.rim <> Attrs.loose))
-    , ("X", articulation "cek" ((:[]) . pos_cek) Attrs.rim)
+        (cek <> Attrs.open))
+    , ("X", articulation "cek" ((:[]) . pos_cek) cek)
     , ("O", articulation "byong" pos_byong mempty)
     , ("+", articulation "byut" pos_byong Attrs.mute)
     , ("'", c_ngoret $ pure Nothing)
@@ -69,10 +70,13 @@ note_calls = Derive.call_maps
     , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
     , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
-    [ ("reyong-damp", c_reyong_damp)
+    [ ("infer-damp", c_infer_damp)
     , ("cancel-pasang", Derive.set_module module_ Gangsa.c_cancel_pasang)
     ]
     where articulation = make_articulation reyong_positions
+
+cek :: Score.Attributes
+cek = Score.attr "cek"
 
 k_12_1_21, k12_12_12, k21_21_21, k_11_1_21, rejang :: Pattern
 k_12_1_21 = reyong_pattern "34-343-4" "-12-1-21"
@@ -85,7 +89,7 @@ reyong_patterns :: [Pattern]
 reyong_patterns = [k_12_1_21, k12_12_12, k21_21_21, k_11_1_21, rejang]
 
 reyong_pattern :: [Char] -> [Char] -> Pattern
-reyong_pattern above below = reyong_kotkean_pattern $ parse_kotekan above below
+reyong_pattern above below = reyong_kotekan_pattern $ parse_kotekan above below
 
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
 c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 1))
@@ -161,8 +165,8 @@ type Pattern = Map.Map Pitch.PitchClass [[Chord]]
 type Chord = [Note]
 type Note = (Pitch.Pitch, Score.Attributes)
 
-reyong_kotkean_pattern :: KotekanPattern -> Pattern
-reyong_kotkean_pattern = kotekan_pattern 5 (map pos_cek reyong_positions)
+reyong_kotekan_pattern :: KotekanPattern -> Pattern
+reyong_kotekan_pattern = kotekan_pattern 5 (map pos_cek reyong_positions)
 
 kotekan_pattern :: Pitch.PitchClass -> [Pitch.Pitch] -> KotekanPattern
     -> Pattern
@@ -310,24 +314,84 @@ make_position table cek byong = Position
 
 -- * damping
 
-c_reyong_damp :: Derive.Transformer Derive.Note
-c_reyong_damp = Derive.transformer module_ "reyong-damp" Tags.postproc
+c_infer_damp :: Derive.Transformer Derive.Note
+c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     ("Add damping for reyong parts. The " <> ShowVal.doc damped
     <> " attribute will force a damp, while " <> ShowVal.doc undamped
     <> " will prevent damping. The latter can cause a previously undamped note\
     \ to become damped because the hand is now freed  up.")
-    $ Sig.callt ((,,)
-    <$> Sig.defaulted "duration" 0.15
+    $ Sig.callt ((,)
+    <$> Sig.required "inst" "Apply damping to this instrument."
+    <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
         "This is how fast the player is able to damp. A note is only damped if\
         \ there is a hand available which has this much time to move into\
         \ position for the damp stroke, and then move into position for its\
         \ next note afterwards."
-    <*> Sig.defaulted "attr" Attrs.mute
-        "A damp stroke is a note of zero duration with this attribute."
-    <*> Sig.defaulted "dyn" 0.75 "Scale dyn for damp strokes."
-    ) $ \(dur, damp_attr, dyn) _args deriver -> do
-        events <- deriver
-        return events <> reyong_damp_voices dur damp_attr dyn events
+    ) $ \(inst, dur) _args deriver -> do
+        dur <- Call.to_function dur
+        -- TODO infer_damp can only add a %damp control, so it preserves order.
+        -- Is there a way to express this statically?
+        Post.apply (infer_damp_voices inst (RealTime.seconds . dur)) <$> deriver
+
+damp_control :: Score.Control
+damp_control = "damp"
+
+-- | Divide notes into voices.  Assign each note to a hand.  The end of each
+-- note needs a free hand to damp.  That can be the same hand if the next note
+-- with that hand is sufficiently far, or the opposite hand if it is not too
+-- busy.
+infer_damp_voices :: Score.Instrument -> (RealTime -> RealTime) -> [Score.Event]
+    -> [Score.Event]
+infer_damp_voices reyong_inst dur_at =
+    Seq.merge_lists Score.event_start . map infer1
+        . Seq.keyed_group_sort Post.voice_key
+    where
+    infer1 ((inst, _voice), events)
+        | inst /= reyong_inst = events
+        | otherwise = zipWith set_damp damps events
+        where damps = infer_damp dur_at events
+
+set_damp :: Signal.Y -> Score.Event -> Score.Event
+set_damp damp = Score.merge_control damp_control merge
+    where
+    merge old
+        | old == Signal.empty = new
+        | otherwise = Signal.sig_multiply old new
+    new = Signal.constant damp
+
+infer_damp :: (RealTime -> RealTime) -> [Score.Event] -> [Signal.Y]
+infer_damp dur_at = snd . List.mapAccumL infer (0, 0) . zip_next . assign_hands
+    where
+    -- TODO also infer damp level
+    infer prev ((hand, event), nexts) = (hands_state, if can_damp then 1 else 0)
+        where
+        can_damp = Score.has_attribute damped event
+            || (not (Score.has_attribute undamped event)
+                && (same_hand_can_damp || other_hand_can_damp))
+        -- The same hand can damp if its next strike is sufficiently distant.
+        same_hand_can_damp = enough_time (next hand)
+        -- The other hand can damp if it has enough time from its previous
+        -- strike to move, and the current hand has moved out of the way by
+        -- changing pitches.
+        -- TODO maybe doesn't need a full dur from prev strike?
+        other_hand_can_damp = and
+            [ (now - prev_strike (other hand)) >= dur
+            , enough_time (next (other hand))
+            , maybe True ((/= Score.initial_nn event) . Score.initial_nn . snd)
+                (next hand)
+            ]
+        now = Score.event_end event
+        prev_strike L = fst prev
+        prev_strike R = snd prev
+        hands_state
+            | can_damp = case hand of
+                L -> (now, snd prev)
+                R -> (fst prev, now)
+            | otherwise = prev
+        next hand = Seq.head $ filter ((==hand) . fst) nexts
+        enough_time = maybe True
+            ((>=dur) . subtract now . Score.event_start . snd)
+        dur = dur_at (Score.event_start event)
 
 damped :: Score.Attributes
 damped = Score.attr "damped"
@@ -341,33 +405,6 @@ instance Pretty.Pretty Hand where pretty = showt
 other :: Hand -> Hand
 other L = R
 other R = L
-
--- | Divide notes into voices.  Assign each note to a hand.  The end of each
--- note needs a free hand to damp.  That can be the same hand if the next note
--- with that hand is sufficiently far, or the opposite hand if it is not too
--- busy.
-reyong_damp_voices :: RealTime -> Score.Attributes -> Signal.Y
-    -> Stream.Stream Score.Event -> Derive.NoteDeriver
-reyong_damp_voices dur damp_attr dyn =
-    mconcatMap (reyong_damp damp_attr dyn dur)
-        . Seq.group_sort event_voice . Stream.events_of
-
--- | To damp, if either hand has enough time before and after then damp,
--- otherwise let it ring.
-reyong_damp :: Score.Attributes -> Signal.Y -> RealTime -> [Score.Event]
-    -> Derive.NoteDeriver
-reyong_damp damp_attr dyn dur =
-    mconcatMap (damped_note damp_attr dyn . snd) . filter fst
-        . zip_on (can_damp dur)
-
-damped_note :: Score.Attributes -> Signal.Y -> Score.Event -> Derive.NoteDeriver
-damped_note attr dyn event =
-    case Score.pitch_at (Score.event_start event) event of
-        Nothing -> Derive.throw $ "no pitch on " <> pretty event
-        Just pitch -> do
-            end <- Derive.score (Score.event_end event)
-            Call.add_attrs attr $ Call.multiply_dynamic dyn $
-                Derive.place end 0 $ Call.pitched_note pitch
 
 can_damp :: RealTime -> [Score.Event] -> [Bool]
 can_damp dur = snd . List.mapAccumL damp (0, 0) . zip_next . assign_hands
@@ -404,9 +441,6 @@ can_damp dur = snd . List.mapAccumL damp (0, 0) . zip_next . assign_hands
 zip_next :: [a] -> [(a, [a])]
 zip_next xs = zip xs (drop 1 (List.tails xs))
 
-zip_on :: ([a] -> [b]) -> [a] -> [(b, a)]
-zip_on f xs = zip (f xs) xs
-
 -- | Assign hands based on the direction of the pitches.  This is a bit
 -- simplistic but hopefully works well enough.
 assign_hands :: [Score.Event] -> [(Hand, Score.Event)]
@@ -420,6 +454,3 @@ assign_hands =
             | pitch == prev_pitch = prev_hand
             | pitch > prev_pitch = R
             | otherwise = L
-
-event_voice :: Score.Event -> Int
-event_voice = fromMaybe 0 . Env.maybe_val EnvKey.voice . Score.event_environ

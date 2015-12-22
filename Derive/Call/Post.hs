@@ -103,8 +103,13 @@ emap_asc_ = emap_
 
 -- | Apply a function to the non-log events.
 -- TODO assumes the function doesn't destroy the order.
-apply :: Functor f => ([a] -> f [b]) -> Stream.Stream a -> f (Stream.Stream b)
-apply f stream = Stream.merge_logs logs . Stream.from_sorted_events <$> f events
+apply :: ([a] -> [b]) -> Stream.Stream a -> Stream.Stream b
+apply f stream = Stream.merge_logs logs $ Stream.from_sorted_events (f events)
+    where (events, logs) = Stream.partition stream
+
+apply_m :: Functor f => ([a] -> f [b]) -> Stream.Stream a -> f (Stream.Stream b)
+apply_m f stream =
+    Stream.merge_logs logs . Stream.from_sorted_events <$> f events
     where (events, logs) = Stream.partition stream
 
 -- | Monadic map with state.  The event type is polymorphic, so you can use
@@ -242,8 +247,16 @@ same_hand event event_of =
     hand_of = Env.maybe_val EnvKey.hand . Score.event_environ
 
 hand_key :: Score.Event -> (Score.Instrument, Maybe Text)
-hand_key e = (Score.event_instrument e,
-    Env.maybe_val EnvKey.hand $ Score.event_environ e)
+hand_key e =
+    ( Score.event_instrument e
+    , Env.maybe_val EnvKey.hand $ Score.event_environ e
+    )
+
+voice_key :: Score.Event -> (Score.Instrument, Int)
+voice_key e =
+    ( Score.event_instrument e
+    , fromMaybe 0 $ Env.maybe_val EnvKey.voice $ Score.event_environ e
+    )
 
 -- ** misc maps
 

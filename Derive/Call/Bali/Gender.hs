@@ -139,7 +139,7 @@ c_realize_ngoret = Derive.transformer module_ "realize-ngoret"
 
 realize_ngoret :: Stream.Stream Score.Event -> Derive.NoteDeriver
 realize_ngoret =
-    Post.apply $ fmap merge . mapM realize . Seq.group_sort Post.hand_key
+    Post.apply_m $ fmap merge . mapM realize . Seq.group_sort Post.hand_key
     where
     -- TODO do I want to ignore streams with irrelevant instruments?
     realize = fmap (map (uncurry realize_damped) . Seq.zip_next)
