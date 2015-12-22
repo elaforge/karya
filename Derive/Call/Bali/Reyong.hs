@@ -94,6 +94,10 @@ reyong_pattern above below = reyong_kotekan_pattern $ parse_kotekan above below
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
 c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 1))
 
+voices_env :: Sig.Parser [Voice]
+voices_env = Sig.environ "reyong-voices" Sig.Unprefixed []
+    "Only emit notes for these positions, from 1 to 4. Empty means all of them."
+
 -- * kilitan
 
 -- | Kilitan is implemented as a set of patterns indexed by an absolute pitch
@@ -102,17 +106,23 @@ c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 1))
 realize_pattern :: Gangsa.Repeat -> Pattern -> Derive.Generator Derive.Note
 realize_pattern repeat pattern =
     Derive.generator module_ "reyong" Tags.inst "Emit reyong kilitan."
-    $ Sig.call Gangsa.dur_env $ \dur -> Sub.inverting $ \args -> do
+    $ Sig.call ((,) <$> Gangsa.dur_env <*> voices_env)
+    $ \(dur, voices) -> Sub.inverting $ \args -> do
         (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
         pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
         mconcatMap (realize show_pitch (Args.range args) dur)
-            (zip [1..] positions)
+            (filter_voices voices (zip [1..] positions))
     where
     realize show_pitch (start, end) dur (voice, position) =
         Gangsa.realize_notes (realize_note show_pitch voice start) $
             Gangsa.realize_pattern repeat True start end dur (const position)
+
+filter_voices :: [Voice] -> [(Voice, a)] -> [(Voice, a)]
+filter_voices voices
+    | null voices = id
+    | otherwise = filter ((`elem` voices) . fst)
 
 -- * articulation
 
@@ -120,9 +130,10 @@ make_articulation :: [Position] -> Text -> (Position -> [Pitch.Pitch])
     -> Score.Attributes -> Derive.Generator Derive.Note
 make_articulation positions name get_notes attrs =
     Derive.generator module_ name Tags.inst "Reyong articulation."
-    $ Sig.call0 $ Sub.inverting $ \args -> do
+    $ Sig.call voices_env $ \voices -> Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Call.get_pitch_functions
-        mconcatMap (realize show_pitch args) (zip [1..] positions)
+        mconcatMap (realize show_pitch args)
+            (filter_voices voices (zip [1..] positions))
     where
     realize show_pitch args (voice, position) = mconcatMap
         (Call.place args . realize_note show_pitch voice (Args.start args))
@@ -310,7 +321,6 @@ make_position table cek byong = Position
     , pos_table = table
     }
     where parse = fst . parse_note table
-
 
 -- * damping
 
