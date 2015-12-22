@@ -1600,7 +1600,7 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
-        - ksp: can I loop through sounding notes and mute all with the same
+        * ksp: can I loop through sounding notes and mute all with the same
           $EVENT_NOTE?
         kotekan:
           - update to use a "k" call like gangsa

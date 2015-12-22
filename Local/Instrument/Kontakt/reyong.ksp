@@ -50,8 +50,9 @@ on init
     %MuteOpenGroups[2] := find_group("mute+open+v3")
     %MuteOpenGroups[3] := find_group("mute+open+v4")
 
-    {- Map $EVENT_NOTE to event id if it's sounding, 0 otherwise. -}
-    declare %sounding[128]
+    {- Use to kill notes of the same pitch. -}
+    declare const $SoundingSize := 256
+    declare %sounding[$SoundingSize]
     {- $DampClosedKs or $DampOpenKs -}
     declare $release_state := $DampOpenKs
     {- $OpenKs, $MuteClosedKs, $MuteOpenKs, $CekClosedKs, or $CekOpenKs -}
@@ -134,9 +135,16 @@ end on
 
 on release
     if ($play_state = $OpenKs)
-        if (%CC[$DampVelocityCc] > 0 and %sounding[$EVENT_NOTE] # 0)
-            fade_out(%sounding[$EVENT_NOTE], $FadeTimeUs, 1)
-            %sounding[$EVENT_NOTE] := 0
+        {- Stop all notes with the same pitch. -}
+        if (%CC[$DampVelocityCc] > 0)
+            $i := 0
+            get_event_ids(%sounding)
+            while ($i < $SoundingSize and %sounding[$i] # 0)
+                if (get_event_par(%sounding[$i], $EVENT_PAR_NOTE) = $EVENT_NOTE)
+                    fade_out(%sounding[$i], $FadeTimeUs, 1)
+                end if
+                $i := $i + 1
+            end while
         end if
         if (%CC[$DampVelocityCc] > 1)
             { call disable_open }
