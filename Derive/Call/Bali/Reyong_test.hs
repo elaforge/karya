@@ -20,7 +20,7 @@ import Types
 
 
 title :: String
-title = "import bali.reyong | scale=legong | cancel-pasang"
+title = "import bali.reyong | scale=legong | cancel-kotekan"
 
 test_kilitan = do
     let run = e_voice 1 ex . DeriveTest.derive_tracks title . UiTest.note_track
@@ -29,7 +29,7 @@ test_kilitan = do
         (Just [(0, "3u"), (1, "3e"), (1, "3a"), (2, "3e"), (2, "3a")], [])
     equal (run [(0, 4, ">kilit -- 3u"), (4, 4, "kilit -- 3u")])
         (Just
-            [ (1, "3u"), (2, "3u"), (3, "3a"), (4, "3u")
+            [ (0, "3u"), (1, "3u"), (2, "3u"), (3, "3a"), (4, "3u")
             , (5, "3a"), (6, "3u"), (7, "3a"), (8, "3u")
             ], [])
 
@@ -55,11 +55,11 @@ test_kotekan_regular = do
     equal (run 1 [(0, 8, "k k-12-12-1 d -- 4e")]) (Just "e-eu-eu-e", [])
     equal (run 2 [(0, 8, "k k-12-12-1 d -- 4e")]) (Just "-o-io-io-", [])
 
-    -- -- Cancelling favors the end note.
-    -- equal (run 2 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k k-12-12-1 d -- 4e")])
-    --     (Just "i-io-i-oio-io-io-", [])
-    -- equal (run 3 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k k-12-12-1 d -- 4e")])
-    --     (Just "ueu-eue-u-eu-eu-e", [])
+    -- Cancelling favors the end note.
+    equal (run 2 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k k-12-12-1 d -- 4e")])
+        (Just "i-io-i-oio-io-io-", [])
+    equal (run 3 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k k-12-12-1 d -- 4e")])
+        (Just "ueu-eue-u-eu-eu-e", [])
 
 e_pattern :: RealTime -- ^ expect the first note at this time
     -> Derive.Result -> ([(Reyong.Voice, String)], [String])
@@ -72,9 +72,10 @@ pitch_digit p = drop 1 p
 e_by_voice :: (Score.Event -> a) -> Derive.Result
     -> ([(Reyong.Voice, [a])], [String])
 e_by_voice extract =
-    first Seq.group_fst . DeriveTest.extract (\e -> (voice_of e, extract e))
-    where
-    voice_of = fromMaybe 0 . Env.maybe_val EnvKey.voice . Score.event_environ
+    first Seq.group_fst . DeriveTest.extract (\e -> (event_voice e, extract e))
+
+event_voice :: Score.Event -> Reyong.Voice
+event_voice = fromMaybe 0 . Env.maybe_val EnvKey.voice . Score.event_environ
 
 e_voice :: Int -> (Score.Event -> a) -> Derive.Result -> (Maybe [a], [String])
 e_voice voice extract = group_voices . DeriveTest.extract ex

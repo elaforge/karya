@@ -1608,10 +1608,13 @@ Derive:
           . Or I could do the min thing in the performer for all MIDI.
           . Or maybe this "pick a low number" thing is no good.  I could
             have another control to turn off damping.
+        - individual notes play in octaves and kempyung
+          . Or perhaps better to write two parts and have them duplicated in
+            the upper octave.
         kotekan:
           * update to use a "k" call like gangsa
-          - implement initial_last
-          - last note should have infer-duration
+          * implement initial_last
+          * last note should have infer-duration
           * I think infer-damp is wrong for k/_\
             * to debug, make the kotekan calls take a "voices" env to only
               emit certain voices.

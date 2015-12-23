@@ -15,6 +15,7 @@ import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -22,6 +23,7 @@ import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Post.Postproc as Postproc
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -75,7 +77,7 @@ note_calls = Derive.call_maps
     , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
     [ ("infer-damp", c_infer_damp)
-    , ("cancel-pasang", Derive.set_module module_ Gangsa.c_cancel_pasang)
+    , ("cancel-kotekan", Derive.set_module module_ c_cancel_kotekan)
     ]
     where articulation = make_articulation reyong_positions
 
@@ -102,6 +104,22 @@ voices_env :: Sig.Parser [Voice]
 voices_env = Sig.environ "reyong-voices" Sig.Unprefixed []
     "Only emit notes for these positions, from 1 to 4. Empty means all of them."
 
+-- * cancel
+
+c_cancel_kotekan :: Derive.Transformer Derive.Note
+c_cancel_kotekan = Derive.transformer module_ "cancel-kotekan" Tags.postproc
+    "This is like the `cancel` call, except it understands flags set by\
+    \ kotekan." $ Postproc.make_cancel cancel Post.voice_key
+
+-- | Same as 'Gangsa.cancel_pasang' except don't handle pasang.
+cancel :: [Score.Event] -> Either Text [Score.Event]
+cancel es = Postproc.cancel_strong_weak Postproc.merge_infer $
+    case Seq.partition2 (has Gangsa.final_flag) (has Gangsa.initial_flag) es of
+        (_, _, normals@(_:_)) -> normals
+        (finals@(_:_), _, []) -> finals
+        ([], initials, []) -> initials
+    where has = Score.has_flags
+
 -- * kilitan
 
 -- | Kilitan is implemented as a set of patterns indexed by an absolute pitch
@@ -110,18 +128,16 @@ voices_env = Sig.environ "reyong-voices" Sig.Unprefixed []
 realize_pattern :: Gangsa.Repeat -> Pattern -> Derive.Generator Derive.Note
 realize_pattern repeat pattern =
     Derive.generator module_ "reyong" Tags.inst "Emit reyong kilitan."
-    $ Sig.call ((,) <$> Gangsa.dur_env <*> voices_env)
-    $ \(dur, voices) -> Sub.inverting $ \args -> do
+    $ Sig.call ((,,)
+    <$> Gangsa.dur_env <*> Gangsa.initial_final_env <*> voices_env)
+    $ \(dur, initial_final, voices) -> Sub.inverting $ \args -> do
         (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
         pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
-        mconcatMap (realize show_pitch (Args.range args) dur)
+        mconcatMap
+            (realize_notes show_pitch initial_final (Args.range args) dur)
             (filter_voices voices (zip [1..] positions))
-    where
-    realize show_pitch (start, end) dur (voice, position) =
-        Gangsa.realize_notes (realize_note show_pitch voice start) $
-            Gangsa.realize_pattern repeat True start end dur (const position)
 
 filter_voices :: [Voice] -> [(Voice, a)] -> [(Voice, a)]
 filter_voices voices
@@ -146,19 +162,26 @@ c_kotekan_regular maybe_kernel = Derive.generator module_ "kotekan" Tags.inst
 
         -- TODO variant of kotekan_pattern that just makes the one for the
         -- right dest pitch.
-        -- TODO use initial_final
         kpattern <- Derive.require "pattern" $ kernel_to_pattern dir kernel
         let pattern = kotekan_pattern 5 (map pos_cek reyong_positions) kpattern
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
-        mconcatMap (realize show_pitch (Args.range args) dur)
+        mconcatMap
+            (realize_notes show_pitch initial_final (Args.range args) dur)
             (filter_voices voices (zip [1..] positions))
+
+realize_notes :: (Pitch.Pitch -> Maybe Pitch.Note) -> (Bool, Bool)
+    -> (ScoreTime, ScoreTime) -> ScoreTime -> (Voice, [[Note]])
+    -> Derive.NoteDeriver
+realize_notes show_pitch (initial, final) (start, end) dur (voice, position) =
+    Gangsa.realize_notes (realize_note show_pitch voice start) $
+        modify_initial $ Gangsa.realize_pattern Gangsa.Repeat final start end
+            dur (const position)
     where
-    -- TODO copy paste from realize_pattern
-    realize show_pitch (start, end) dur (voice, position) =
-        Gangsa.realize_notes (realize_note show_pitch voice start) $
-            Gangsa.realize_pattern Gangsa.Repeat True start end dur
-                (const position)
+    modify_initial ns
+        | initial = map (Gangsa.add_flag Gangsa.initial_flag) pre ++ post
+        | otherwise = post
+        where (pre, post) = span ((ScoreTime.<= start) . Gangsa.note_start) ns
 
 kernel_to_pattern :: Call.UpDown -> Gangsa.Kernel -> Maybe KotekanPattern
 kernel_to_pattern direction kernel = do
