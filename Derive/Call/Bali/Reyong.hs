@@ -95,7 +95,7 @@ reyong_patterns :: [Pattern]
 reyong_patterns = [k_12_1_21, k12_12_12, k21_21_21, k_11_1_21, rejang]
 
 reyong_pattern :: [Char] -> [Char] -> Pattern
-reyong_pattern above below = reyong_kotekan_pattern $ parse_kotekan above below
+reyong_pattern above below = make_pattern $ parse_kotekan above below
 
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
 c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 1))
@@ -136,7 +136,8 @@ realize_pattern repeat pattern =
         positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
             (Map.lookup (Pitch.pitch_pc pitch) pattern)
         mconcatMap
-            (realize_notes show_pitch initial_final (Args.range args) dur)
+            (realize_notes show_pitch repeat initial_final (Args.range args)
+                dur)
             (filter_voices voices (zip [1..] positions))
 
 filter_voices :: [Voice] -> [(Voice, a)] -> [(Voice, a)]
@@ -159,23 +160,21 @@ c_kotekan_regular maybe_kernel = Derive.generator module_ "kotekan" Tags.inst
         kernel <- Derive.require_right id $ Gangsa.make_kernel (untxt kernel_s)
         (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
         pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
-
-        -- TODO variant of kotekan_pattern that just makes the one for the
-        -- right dest pitch.
-        kpattern <- Derive.require "pattern" $ kernel_to_pattern dir kernel
-        let pattern = kotekan_pattern 5 (map pos_cek reyong_positions) kpattern
-        positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
-            (Map.lookup (Pitch.pitch_pc pitch) pattern)
+        pattern <- Derive.require "empty pattern" $ kernel_to_pattern dir kernel
+        let positions = kotekan_pattern 5 (map pos_cek reyong_positions)
+                pattern (Pitch.pitch_pc pitch)
         mconcatMap
-            (realize_notes show_pitch initial_final (Args.range args) dur)
+            (realize_notes show_pitch Gangsa.Repeat initial_final
+                (Args.range args) dur)
             (filter_voices voices (zip [1..] positions))
 
-realize_notes :: (Pitch.Pitch -> Maybe Pitch.Note) -> (Bool, Bool)
-    -> (ScoreTime, ScoreTime) -> ScoreTime -> (Voice, [[Note]])
+realize_notes :: (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat
+    -> (Bool, Bool) -> (ScoreTime, ScoreTime) -> ScoreTime -> (Voice, [[Note]])
     -> Derive.NoteDeriver
-realize_notes show_pitch (initial, final) (start, end) dur (voice, position) =
+realize_notes show_pitch repeat (initial, final) (start, end) dur
+        (voice, position) =
     Gangsa.realize_notes (realize_note show_pitch voice start) $
-        modify_initial $ Gangsa.realize_pattern Gangsa.Repeat final start end
+        modify_initial $ Gangsa.realize_pattern repeat final start end
             dur (const position)
     where
     modify_initial ns
@@ -270,17 +269,21 @@ type Pattern = Map.Map Pitch.PitchClass [[Chord]]
 type Chord = [Note]
 type Note = (Pitch.Pitch, Score.Attributes)
 
-reyong_kotekan_pattern :: KotekanPattern -> Pattern
-reyong_kotekan_pattern = kotekan_pattern 5 (map pos_cek reyong_positions)
+-- | Figure out a pattern for each note of the scale.
+make_pattern :: KotekanPattern -> Pattern
+make_pattern pattern = Map.fromList
+    [ (pc, kotekan_pattern per_octave (map pos_cek reyong_positions) pattern pc)
+    | pc <- pcs
+    ]
+    where
+    per_octave = 5
+    pcs = [0 .. per_octave - 1]
 
 kotekan_pattern :: Pitch.PitchClass -> [Pitch.Pitch] -> KotekanPattern
-    -> Pattern
-kotekan_pattern per_octave centers pattern =
-    Map.fromList $ map (\dest -> (dest, make dest)) [0 .. per_octave - 1]
-    where
-    make dest = map (map convert) $
-        assign_positions pattern per_octave dest centers
-    convert = maybe [] (\p -> [(p, mempty)])
+    -> Pitch.PitchClass -> [[Chord]]
+kotekan_pattern per_octave centers pattern pc =
+    map (map convert) $ assign_positions pattern per_octave pc centers
+    where convert = maybe [] (\p -> [(p, mempty)])
 
 assign_positions :: KotekanPattern -> Pitch.PitchClass -> Pitch.PitchClass
     -> [Pitch.Pitch] -> [[Maybe Pitch.Pitch]]
