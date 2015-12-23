@@ -256,12 +256,12 @@ defaulted_env_ name env_default quoted doc = parser arg_doc $ \state1 ->
             check_arg state arg_doc (argnum_error state1) name val
     where
     deflt state = eval_default arg_doc (argnum_error state) name state quoted
-    show_deflt = either ShowVal.show_val ShowVal.show_val quoted
     expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
-        , arg_parser = Derive.Defaulted show_deflt
+        , arg_parser = Derive.Defaulted $
+            either ShowVal.show_val ShowVal.show_val quoted
         , arg_environ_default = env_default
         , arg_doc = doc
         }
@@ -310,12 +310,12 @@ environ_ name env_default quoted doc = parser arg_doc $ \state ->
             check_arg state arg_doc (environ_error state name) name val
     where
     deflt state = eval_default arg_doc (argnum_error state) name state quoted
-    show_deflt = either ShowVal.show_val ShowVal.show_val quoted
     expected = Typecheck.to_type (Proxy :: Proxy a)
     arg_doc = Derive.ArgDoc
         { arg_name = name
         , arg_type = expected
-        , arg_parser = Derive.Environ (Just (ShowVal.show_val show_deflt))
+        , arg_parser = Derive.Environ $ Just $
+            either ShowVal.show_val ShowVal.show_val quoted
         , arg_environ_default = env_default
         , arg_doc = doc
         }

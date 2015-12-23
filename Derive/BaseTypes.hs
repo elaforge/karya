@@ -440,6 +440,13 @@ instance DeepSeq.NFData Val where
 
 newtype Quoted = Quoted Expr deriving (Show)
 
+-- | Unlike Exprs in general, a Quoted Expr should be representable with
+-- show_val.  This is because a Quoted has only been parsed, not evaluated,
+-- so it shouldn't have anything unshowable, like pitches.
+instance ShowVal.ShowVal Quoted where
+    show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
+instance Pretty.Pretty Quoted where pretty = ShowVal.show_val
+
 newtype Symbol = Symbol Text
     deriving (Eq, Ord, Read, Show, DeepSeq.NFData, String.IsString,
         Serialize.Serialize)
@@ -644,13 +651,6 @@ modify_control_function ::
     -> ControlFunction -> ControlFunction
 modify_control_function modify (ControlFunction name f) =
     ControlFunction name (\dyn control -> modify (f dyn control))
-
--- | Unlike Exprs in general, a Quoted Expr should be representable with
--- show_val.  This is because a Quoted has only been parsed, not evaluated,
--- so it shouldn't have anything unshowable, like pitches.
-instance ShowVal.ShowVal Quoted where
-    show_val (Quoted expr) = "\"(" <> ShowVal.show_val expr <> ")"
-instance Pretty.Pretty Quoted where pretty = ShowVal.show_val
 
 -- | A stripped down "Derive.Deriver.Monad.Dynamic" for ControlFunctions
 -- to use.  The duplication is unfortunate, see 'ControlFunction'.
