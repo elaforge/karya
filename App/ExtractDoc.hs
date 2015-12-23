@@ -64,8 +64,8 @@ sort = Seq.sort_on (map key . snd)
     bindable_key k@(Keymap.Key _ (Key.Char c)) =
         (Map.findWithDefault (Map.size key_order + 1) c key_order, k)
     bindable_key k = (Map.size key_order + 2, k)
-    key_order = Map.fromList $ zip KeyLayouts.qwerty_lower [0,2..]
-        ++ zip KeyLayouts.qwerty_upper [1,3..]
+    key_order = Map.fromList $ zip KeyLayouts.qwerty_unshifted [0,2..]
+        ++ zip KeyLayouts.qwerty_shifted [1,3..]
 
 group :: [(Keymap.KeySpec, Keymap.CmdSpec m)] -> [(Text, [Keymap.KeySpec])]
 group = map (second (map fst)) . Seq.keyed_group_sort (name_of . snd)

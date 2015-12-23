@@ -11,6 +11,7 @@
 module Cmd.KeyLayouts (
     Layout, layout, to_unshifted, from_qwerty
     , qwerty, dvorak
+    , qwerty_unshifted, qwerty_shifted
 ) where
 import qualified Data.Map as Map
 
