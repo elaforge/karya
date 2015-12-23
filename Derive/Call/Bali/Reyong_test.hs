@@ -33,32 +33,18 @@ test_kilitan = do
             , (5, "3a"), (6, "3u"), (7, "3a"), (8, "3u")
             ], [])
 
-test_kotekan = do
-    let run = e_voice 1 ex . DeriveTest.derive_tracks title . UiTest.note_track
-        ex e = (Score.event_start e, DeriveTest.e_pitch e)
-    equal (run [(0, 16, "k\\/ -- 3o")])
-        (Just
-            [ (2, "3a"), (3, "4i"), (5, "3a"), (6, "4i"), (8, "4i")
-            , (9, "3a"), (11, "4i"), (12, "3a"), (14, "3a"), (15, "4i")
-            ], [])
-    equal (run [(0, 8, "k// -- 3a")])
-        (Just
-            [ (0, "3a"), (1, "3u"), (2, "3a"), (4, "3u"), (5, "3a"), (7, "3u")
-            , (8, "3a")
-            ], [])
-
 test_kotekan_regular = do
     let run voice = first (lookup voice) . e_pattern 0
             . DeriveTest.derive_tracks title . UiTest.note_track
     equal (run 1 [(0, 8, "k k-12-1-21 -- 4i")]) (Just "ueu-eue-u", [])
     equal (run 2 [(0, 8, "k k-12-1-21 -- 4i")]) (Just "i-io-i-oi", [])
-    equal (run 1 [(0, 8, "k k-12-12-1 d -- 4e")]) (Just "e-eu-eu-e", [])
-    equal (run 2 [(0, 8, "k k-12-12-1 d -- 4e")]) (Just "-o-io-io-", [])
+    equal (run 1 [(0, 8, "k// -- 4e")]) (Just "e-eu-eu-e", [])
+    equal (run 2 [(0, 8, "k// -- 4e")]) (Just "-o-io-io-", [])
 
     -- Cancelling favors the end note.
-    equal (run 2 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k k-12-12-1 d -- 4e")])
+    equal (run 2 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k// -- 4e")])
         (Just "i-io-i-oio-io-io-", [])
-    equal (run 3 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k k-12-12-1 d -- 4e")])
+    equal (run 3 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k// -- 4e")])
         (Just "ueu-eue-u-eu-eu-e", [])
 
 e_pattern :: RealTime -- ^ expect the first note at this time
@@ -122,7 +108,7 @@ test_infer_damp_kotekan = do
             . UiTest.note_track
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
             fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
-    equal (run [(0, 4, "k/_\\ -- 4i")])
+    equal (run [(0, 4, "k k-12-1-21 -- 4i")])
         (Just [(0, "3e", 0), (1, "3u", 1), (2, "3e", 1), (4, "3u", 1)], [])
 
 test_can_damp = do

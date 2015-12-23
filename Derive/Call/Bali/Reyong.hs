@@ -61,12 +61,11 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
     [ ("kilit", realize_pattern Gangsa.Repeat norot_patterns)
     , (">kilit", realize_pattern Gangsa.Once pickup_patterns)
-    , ("k/_\\", realize_pattern Gangsa.Repeat k_12_1_21)
-    , ("k//", realize_pattern Gangsa.Repeat k12_12_12)
-    , ("k\\\\", realize_pattern Gangsa.Repeat k21_21_21)
+    , ("k//", c_kotekan_regular (Just "-12-12-1") (Just Call.Down))
+    , ("k\\\\", c_kotekan_regular (Just "-21-21-21") (Just Call.Up))
     , ("k_\\", realize_pattern Gangsa.Once k_11_1_21)
-    , ("k\\/", realize_pattern Gangsa.Once rejang)
-    , ("k", c_kotekan_regular Nothing)
+    , ("k//\\\\", realize_pattern Gangsa.Once rejang)
+    , ("k", c_kotekan_regular Nothing Nothing)
     , ("/", articulation "cek-loose" ((:[]) . pos_cek) (cek <> Attrs.open))
     , ("X", articulation "cek" ((:[]) . pos_cek) cek)
     , ("O", articulation "byong" pos_byong mempty)
@@ -147,13 +146,19 @@ filter_voices voices
 
 -- * kotekan
 
-c_kotekan_regular :: Maybe Text -> Derive.Generator Derive.Note
-c_kotekan_regular maybe_kernel = Derive.generator module_ "kotekan" Tags.inst
+c_kotekan_regular :: Maybe Text -> Maybe Call.UpDown
+    -> Derive.Generator Derive.Note
+c_kotekan_regular maybe_kernel maybe_dir =
+    Derive.generator module_ "kotekan" Tags.inst
     ("Render a kotekan pattern from a kernel representing the polos.\
-    \ The sangsih is inferred.\n" <> Gangsa.kotekan_doc)
+    \ The sangsih is inferred. This can emit notes at both the beginning and\
+    \ end of the event, so use `cancel-kotekan` to cancel the extras.")
     $ Sig.call ((,,,,)
-    <$> maybe (Sig.required "kernel" Gangsa.kernel_doc) pure maybe_kernel
-    <*> Sig.defaulted "dir" Call.Up "Inferred part is in this direction."
+    <$> maybe (Sig.required "kernel" kernel_doc) pure maybe_kernel
+    <*> maybe
+        (Sig.defaulted "dir" Call.Up
+            "Inferred part is above or below the explicit one.")
+        pure maybe_dir
     <*> Gangsa.dur_env <*> Gangsa.initial_final_env <*> voices_env
     ) $ \(kernel_s, dir, dur, initial_final, voices) -> Sub.inverting $
     \args -> do
@@ -167,6 +172,12 @@ c_kotekan_regular maybe_kernel = Derive.generator module_ "kotekan" Tags.inst
             (realize_notes show_pitch Gangsa.Repeat initial_final
                 (Args.range args) dur)
             (filter_voices voices (zip [1..] positions))
+
+kernel_doc :: Text
+kernel_doc = "Transposition steps for the part that ends on the destination\
+    \ pitch. It should consist of `-`, `1`, and `2`. You can start with `k` to\
+    \ avoid needing quotes. Starting with `k` will also require the length to\
+    \ be a multiple of 4."
 
 realize_notes :: (Pitch.Pitch -> Maybe Pitch.Note) -> Gangsa.Repeat
     -> (Bool, Bool) -> (ScoreTime, ScoreTime) -> ScoreTime -> (Voice, [[Note]])
