@@ -415,8 +415,8 @@ kernel_doc = "Polos part in transposition steps.\
     \ avoid needing quotes. Starting with `k` will also require the length to\
     \ be a multiple of 4."
 
-realize_kernel :: Bool -> Call.UpDown -> KotekanStyle
-    -> Pasang -> Kernel -> Cycle
+realize_kernel :: Bool -> Call.UpDown -> KotekanStyle -> Pasang -> Kernel
+    -> Cycle
 realize_kernel inverted sangsih_above style pasang kernel =
     end_on_zero $ kernel_to_pattern
         ((if inverted then invert else id) kernel) sangsih_above style pasang

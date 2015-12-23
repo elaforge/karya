@@ -5,10 +5,12 @@ module Derive.Call.Bali.Reyong_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Call.Bali.Gangsa_test as Gangsa_test
 import qualified Derive.Call.Bali.Reyong as Reyong
 import Derive.Call.Bali.Reyong (Hand(..))
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 
@@ -44,6 +46,35 @@ test_kotekan = do
             [ (0, "3a"), (1, "3u"), (2, "3a"), (4, "3u"), (5, "3a"), (7, "3u")
             , (8, "3a")
             ], [])
+
+test_kotekan_regular = do
+    let run voice = first (lookup voice) . e_pattern 0
+            . DeriveTest.derive_tracks title . UiTest.note_track
+    equal (run 1 [(0, 8, "k k-12-1-21 -- 4i")]) (Just "ueu-eue-u", [])
+    equal (run 2 [(0, 8, "k k-12-1-21 -- 4i")]) (Just "i-io-i-oi", [])
+    equal (run 1 [(0, 8, "k k-12-12-1 d -- 4e")]) (Just "e-eu-eu-e", [])
+    equal (run 2 [(0, 8, "k k-12-12-1 d -- 4e")]) (Just "-o-io-io-", [])
+
+    -- -- Cancelling favors the end note.
+    -- equal (run 2 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k k-12-12-1 d -- 4e")])
+    --     (Just "i-io-i-oio-io-io-", [])
+    -- equal (run 3 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k k-12-12-1 d -- 4e")])
+    --     (Just "ueu-eue-u-eu-eu-e", [])
+
+e_pattern :: RealTime -- ^ expect the first note at this time
+    -> Derive.Result -> ([(Reyong.Voice, String)], [String])
+e_pattern start = first (Gangsa_test.convert_to_pattern pitch_digit start)
+    . e_by_voice DeriveTest.e_start_note
+
+pitch_digit :: String -> String
+pitch_digit p = drop 1 p
+
+e_by_voice :: (Score.Event -> a) -> Derive.Result
+    -> ([(Reyong.Voice, [a])], [String])
+e_by_voice extract =
+    first Seq.group_fst . DeriveTest.extract (\e -> (voice_of e, extract e))
+    where
+    voice_of = fromMaybe 0 . Env.maybe_val EnvKey.voice . Score.event_environ
 
 e_voice :: Int -> (Score.Event -> a) -> Derive.Result -> (Maybe [a], [String])
 e_voice voice extract = group_voices . DeriveTest.extract ex

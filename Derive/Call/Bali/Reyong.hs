@@ -3,6 +3,10 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Calls for reyong and trompong techniques.
+--
+-- >  /-------\/----\/-------\/----\--\
+-- > 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u
+-- > 3  5  6  1  2  3  5  6  1  2  3  5
 module Derive.Call.Bali.Reyong where
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
@@ -60,8 +64,8 @@ note_calls = Derive.call_maps
     , ("k\\\\", realize_pattern Gangsa.Repeat k21_21_21)
     , ("k_\\", realize_pattern Gangsa.Once k_11_1_21)
     , ("k\\/", realize_pattern Gangsa.Once rejang)
-    , ("/", articulation "cek-loose" ((:[]) . pos_cek)
-        (cek <> Attrs.open))
+    , ("k", c_kotekan_regular Nothing)
+    , ("/", articulation "cek-loose" ((:[]) . pos_cek) (cek <> Attrs.open))
     , ("X", articulation "cek" ((:[]) . pos_cek) cek)
     , ("O", articulation "byong" pos_byong mempty)
     , ("+", articulation "byut" pos_byong Attrs.mute)
@@ -124,6 +128,70 @@ filter_voices voices
     | null voices = id
     | otherwise = filter ((`elem` voices) . fst)
 
+-- * kotekan
+
+c_kotekan_regular :: Maybe Text -> Derive.Generator Derive.Note
+c_kotekan_regular maybe_kernel = Derive.generator module_ "kotekan" Tags.inst
+    ("Render a kotekan pattern from a kernel representing the polos.\
+    \ The sangsih is inferred.\n" <> Gangsa.kotekan_doc)
+    $ Sig.call ((,,,,)
+    <$> maybe (Sig.required "kernel" Gangsa.kernel_doc) pure maybe_kernel
+    <*> Sig.defaulted "dir" Call.Up "Inferred part is in this direction."
+    <*> Gangsa.dur_env <*> Gangsa.initial_final_env <*> voices_env
+    ) $ \(kernel_s, dir, dur, initial_final, voices) -> Sub.inverting $
+    \args -> do
+        kernel <- Derive.require_right id $ Gangsa.make_kernel (untxt kernel_s)
+        (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
+        pitch <- Call.get_parsed_pitch parse_pitch =<< Args.real_start args
+
+        -- TODO variant of kotekan_pattern that just makes the one for the
+        -- right dest pitch.
+        -- TODO use initial_final
+        kpattern <- Derive.require "pattern" $ kernel_to_pattern dir kernel
+        let pattern = kotekan_pattern 5 (map pos_cek reyong_positions) kpattern
+        positions <- Derive.require ("no pattern for pitch: " <> pretty pitch)
+            (Map.lookup (Pitch.pitch_pc pitch) pattern)
+        mconcatMap (realize show_pitch (Args.range args) dur)
+            (filter_voices voices (zip [1..] positions))
+    where
+    -- TODO copy paste from realize_pattern
+    realize show_pitch (start, end) dur (voice, position) =
+        Gangsa.realize_notes (realize_note show_pitch voice start) $
+            Gangsa.realize_pattern Gangsa.Repeat True start end dur
+                (const position)
+
+kernel_to_pattern :: Call.UpDown -> Gangsa.Kernel -> Maybe KotekanPattern
+kernel_to_pattern direction kernel = do
+    -- Reyong doesn't really have polos and sangsih, so here polos is the
+    -- one that has the destination.
+    let polos = map to_steps kernel
+        sangsih = map infer_sangsih kernel
+    sangsih_last <- msum (reverse sangsih)
+    polos_last <- msum (reverse polos)
+    return $ case direction of
+        Call.Up -> KotekanPattern
+            { kotekan_above = (sangsih, sangsih_last)
+            , kotekan_below = (polos, polos_last)
+            }
+        Call.Down -> KotekanPattern
+            { kotekan_above = (polos, polos_last)
+            , kotekan_below = (sangsih, sangsih_last)
+            }
+    where
+    to_steps a = case a of
+        Gangsa.Low -> Just 0
+        Gangsa.High -> Just 1
+        Gangsa.Rest -> Nothing
+    infer_sangsih a = case direction of
+        Call.Up -> case a of
+            Gangsa.Low -> Just 3
+            Gangsa.High -> Nothing
+            Gangsa.Rest -> Just 2
+        Call.Down -> case a of
+            Gangsa.Low -> Nothing
+            Gangsa.High -> Just (-2)
+            Gangsa.Rest -> Just (-1)
+
 -- * articulation
 
 make_articulation :: [Position] -> Text -> (Position -> [Pitch.Pitch])
@@ -154,6 +222,9 @@ realize_note show_pitch voice start (pitch, attrs) =
 -- * kotekan
 
 data KotekanPattern = KotekanPattern {
+    -- | Pair relative steps with the final note's distance from the
+    -- destination pitch.  This is used to find this line's distance from
+    -- a given position.
     kotekan_above :: !([Maybe Pitch.Step], Pitch.Step)
     , kotekan_below :: !([Maybe Pitch.Step], Pitch.Step)
     } deriving (Show)
@@ -193,6 +264,7 @@ assign_positions :: KotekanPattern -> Pitch.PitchClass -> Pitch.PitchClass
 assign_positions (KotekanPattern above below) per_octave destination =
     map extract . assign_closest distance absolute
     where
+    -- Kotekan at theoretical positions in every octave.
     absolute = concatMap (\dest -> map (transpose dest) [below, above])
         [Pitch.Pitch oct (Pitch.Degree destination 0) | oct <- [0..]]
     transpose pitch (steps, last) =

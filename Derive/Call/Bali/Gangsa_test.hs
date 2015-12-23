@@ -331,16 +331,18 @@ e_by_inst extract = first Seq.group_fst
 e_pattern :: RealTime -- ^ expect the first note at this time
     -> Derive.Result
     -> ([(Score.Instrument, String)], [String])
-e_pattern start = first extract . e_by_inst DeriveTest.e_start_note
-    where
-    extract :: [(Score.Instrument, [(RealTime, String)])]
-        -> [(Score.Instrument, String)]
-    extract inst_notes = map (second (as_pattern start end)) inst_notes
-        where
-        end = fromMaybe 0 $ Seq.maximum $ map fst $ concatMap snd inst_notes
+e_pattern start = first (convert_to_pattern pitch_digit start)
+    . e_by_inst DeriveTest.e_start_note
 
-as_pattern :: RealTime -> RealTime -> [(RealTime, String)] -> String
-as_pattern start end = concat . map format . collect start
+convert_to_pattern :: (String -> String) -> RealTime
+    -> [(a, [(RealTime, String)])] -> [(a, String)]
+convert_to_pattern pitch_digit start inst_notes =
+    map (second (as_pattern pitch_digit start end)) inst_notes
+    where end = fromMaybe 0 $ Seq.maximum $ map fst $ concatMap snd inst_notes
+
+as_pattern :: (String -> String) -> RealTime -> RealTime
+    -> [(RealTime, String)] -> String
+as_pattern pitch_digit start end = concat . map format . collect start
     where
     collect at [] = replicate (round (end - at) + 1) []
     -- for each number, collect everything below
