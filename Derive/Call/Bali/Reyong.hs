@@ -10,6 +10,7 @@
 module Derive.Call.Bali.Reyong where
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map
+import qualified Data.Maybe as Maybe
 
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
@@ -28,6 +29,8 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.PSignal as PSignal
+import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
@@ -68,10 +71,11 @@ note_calls = Derive.call_maps
     , ("k//\\\\", realize_pattern Gangsa.Once $
         reyong_pattern "44-34-3- 43-434-3" "-12-12-2 1-21-12-")
     , ("k", c_kotekan_regular Nothing Nothing)
+    , ("t", c_tumpuk)
     , ("/", articulation "cek-loose" ((:[]) . pos_cek) (cek <> Attrs.open))
     , ("X", articulation "cek" ((:[]) . pos_cek) cek)
     , ("O", articulation "byong" pos_byong mempty)
-    , ("-", articulation "byut-loose" pos_byong (Attrs.mute <> Attrs.open))
+    , ("=", articulation "byut-loose" pos_byong (Attrs.mute <> Attrs.open))
     , ("+", articulation "byut" pos_byong Attrs.mute)
     , ("'", c_ngoret $ pure Nothing)
     , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
@@ -95,6 +99,74 @@ c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 1))
 voices_env :: Sig.Parser [Voice]
 voices_env = Sig.environ "reyong-voices" Sig.Unprefixed []
     "Only emit notes for these positions, from 1 to 4. Empty means all of them."
+
+moving_tumpuk :: [Text]
+moving_tumpuk =
+    [ "p-0.o" ]
+
+-- * tumpuk
+
+c_tumpuk :: Derive.Generator Derive.Note
+c_tumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
+    $ Sig.call ((,)
+    <$> Sig.required "notes" ("Articulations, from `"
+        <> txt (Map.keys articulations) <> "`, pitches from `edcba0123456789`,\
+        \ or a space for a rest.")
+    <*> Sig.defaulted "dur" 0.1 "Duration of each note."
+    ) $ \(notes, dur) -> Sub.inverting $ \args -> do
+        (start, end) <- Args.real_range args
+        pitch <- Call.get_pitch start
+        notes <- Derive.require_right id $ parse_tumpuk (untxt notes)
+        tumpuk start end (Args.prev_event_pitch args) pitch dur notes
+
+-- | Dyn 0 means a rest.
+type TumpukNote = (TumpukPitch, Score.Attributes, Dyn)
+data TumpukPitch = Transpose Pitch.Step | Prev deriving (Show)
+type Dyn = Signal.Y
+
+tumpuk :: RealTime -> RealTime -> Maybe PSignal.Pitch -> PSignal.Pitch
+    -> RealTime -> [TumpukNote] -> Derive.NoteDeriver
+tumpuk event_start event_end prev_pitch event_pitch dur =
+    mconcatMap note . filter ((>0) . note_dyn . snd . fst) . Seq.zip_next
+        . zip (Seq.range_ event_start dur)
+    where
+    note_dyn (_, _, dyn) = dyn
+    note ((start, (tpitch, attrs, dyn)), next) = do
+        start <- Derive.score start
+        end <- Derive.score $ maybe event_end fst next
+        pitch <- case tpitch of
+            Transpose steps -> return $ Pitches.transpose_d steps event_pitch
+            Prev -> Derive.require "no prev pitch" prev_pitch
+        Derive.place start (end-start) $ Call.multiply_dynamic dyn $
+            Call.add_attrs attrs $ Call.pitched_note pitch
+
+parse_tumpuk :: [Char] -> Either Text [TumpukNote]
+parse_tumpuk = fmap (Maybe.catMaybes . snd) . Seq.mapAccumLM parse (Transpose 0)
+    where
+    parse pitch c = case Map.lookup c articulations of
+        Just (attrs, dyn) -> Right (pitch, Just (pitch, attrs, dyn))
+        Nothing -> case Num.readDigit c <|> lookup c negative of
+            Just steps -> Right (Transpose steps, Nothing)
+            Nothing
+                | c == 'p' -> Right (Prev, Nothing)
+                | otherwise -> Left $ "unknown articulation: " <> showt c
+    negative = [('a', -1), ('b', -2), ('c', -3), ('d', -4), ('e', -5)]
+
+-- | These more or less correspond to the group articulations:
+--
+-- > /   X   =   +   o
+-- >         -=  nx  .o
+articulations :: Map.Map Char (Score.Attributes, Dyn)
+articulations = Map.fromList
+    [ (' ', (mempty, 0))
+    , ('.', (mempty, 0.75))
+    , ('o', (mempty, 1))
+    , ('-', (Attrs.mute <> Attrs.open, 0.75))
+    , ('=', (Attrs.mute <> Attrs.open, 1))
+    , ('n', (Attrs.mute, 0.75))
+    -- I would use +, but if you start with one it parses as an attr.
+    , ('x', (Attrs.mute, 1))
+    ]
 
 -- * cancel
 

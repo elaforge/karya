@@ -1600,6 +1600,10 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
+        - I get bogus mutes, maybe due to the note off getting after the next
+          note on.  I think this happens even with damp=0.
+          . damp=0 calls should get a 0 dur.  Then set damp=0 for tumpuk and
+            byongs.
         * ksp: can I loop through sounding notes and mute all with the same
           $EVENT_NOTE?
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
@@ -1678,10 +1682,12 @@ Derive:
             slow:
               561   53561
                21      21
-        tumpek
-          - double calls: +o, oo, -+
+        tumpuk
+          * double calls: +o, oo, -+
             In fact I could have a grace call that takes articulation symbols.
-          - ngoret style: 2- 1-+o
+          * ngoret style: 2- 1-+o
+          - I could have a collection of tumpuk for movement, then a call
+            selects one randomly.
         - kbd entry for /, X, O, + etc.?
         - perhaps 0 duration should infer duration?
         kilitan

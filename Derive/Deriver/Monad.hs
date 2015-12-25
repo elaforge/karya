@@ -444,7 +444,7 @@ data Dynamic = Dynamic {
     , state_mode :: !Mode
     }
 
--- | This is the result of a NotePitchQuery mode derivation, and stored in
+-- | This is the result of a 'NotePitchQuery' mode derivation, and stored in
 -- 'state_neighbors'.
 type NotePitchQueryResult = (Maybe Score.Event, [Log.Msg])
 

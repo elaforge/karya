@@ -96,6 +96,19 @@ test_assign_positions = do
     equal (f p1 3) ["3a - 3u", "4o 4e -", "4a - 4u", "5o 5e -"]
     equal (f p1 4) ["3e 3u -", "4i - 3a", "4e 4u -", "5i - 4a"]
 
+-- * tumpuk
+
+test_tumpuk = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks title_with_damp . UiTest.note_track
+        extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
+    equal (run [(1, 4, "t xo 1 -- 4i")])
+        ([((1, 1, "4i"), "+mute"), ((2, 3, "4i"), "+")], [])
+    strings_like (snd $ run [(1, 4, "t px0o 1 -- 4i")]) ["no prev pitch"]
+    equal (run [(0, 1, "4o"), (1, 4, "t px0o 1 -- 4i")])
+        ([((0, 1, "4o"), "+"), ((1, 1, "4o"), "+mute"), ((2, 3, "4i"), "+")],
+            [])
+
 -- * damp
 
 test_c_infer_damp = do

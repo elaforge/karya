@@ -32,6 +32,28 @@ event = Derive.ctx_event . context
 
 -- * prev and next
 
+{- NOTE [previous-pitch]
+    There are many ways to get the previous pitch:
+
+    'prev_pitch' - The simplest, it uses 'Derive.ctx_prev_val', so it only
+    works when you are in a pitch track, and only gets the immediately previous
+    pitch.  A special hack should make it work even if the pitch track is
+    inverted and the previous pitch is in a different slice.
+
+    'prev_event_pitch' - This is like 'prev_pitch', except that it works at
+    the note track level.  It gets the entire previous event and picks out the
+    last pitch it played.
+
+    'lookup_prev_pitch' - This uses 'Derive.state_note_track', which means that
+    it should work even in an inversion under a note track.
+
+    'lookup_prev_logical_pitch' - This is actually an entirely different
+    mechanism than the others.  Documented in 'Derive.NotePitchQuery'.
+
+    Clearly this is too many.  Probably I can come up with a way to combine the
+    first three.
+-}
+
 -- ** from 'Derive.ctx_prev_val'
 
 prev_control :: Derive.ControlArgs -> Maybe (RealTime, Signal.Y)
@@ -40,8 +62,13 @@ prev_control = Signal.last <=< prev_val
 prev_pitch :: Derive.PitchArgs -> Maybe (RealTime, PSignal.Pitch)
 prev_pitch = PSignal.last <=< prev_val
 
-prev_score_event :: Derive.NoteArgs -> Maybe Score.Event
-prev_score_event = prev_val
+prev_event :: Derive.NoteArgs -> Maybe Score.Event
+prev_event = prev_val
+
+prev_event_pitch :: PassedArgs Score.Event -> Maybe PSignal.Pitch
+prev_event_pitch args =
+    fmap snd . PSignal.last . Score.event_untransformed_pitch
+        =<< prev_val args
 
 -- | Polymorphic version of 'prev_control' or 'prev_pitch'.
 prev_val_end :: Derive.Taggable a => PassedArgs a -> Maybe RealTime
@@ -71,34 +98,44 @@ lookup_prev_note = do
     Derive.gets $ Derive.from_tagged <=< Map.lookup addr . Derive.state_prev_val
         . Derive.state_threaded
 
+lookup_prev_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
+lookup_prev_pitch = do
+    prev_event <- lookup_prev_note
+    return $ fmap snd . PSignal.last . Score.event_untransformed_pitch
+        =<< prev_event
+
 -- ** from 'Derive.state_neighbors'
 
 lookup_prev_logical_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
-lookup_prev_logical_pitch = justm lookup_prev_neighbor $ \event ->
-    return $ Score.pitch_at (Score.event_start event) event
+lookup_prev_logical_pitch =
+    justm (lookup_prev_neighbor "prev pitch") $ \event ->
+        return $ Score.pitch_at (Score.event_start event) event
 
 lookup_next_logical_pitch :: Derive.Deriver (Maybe PSignal.Pitch)
-lookup_next_logical_pitch = justm lookup_next_neighbor $ \event ->
-    return $ Score.pitch_at (Score.event_start event) event
+lookup_next_logical_pitch =
+    justm (lookup_next_neighbor "next pitch") $ \event ->
+        return $ Score.pitch_at (Score.event_start event) event
 
-lookup_prev_neighbor :: Derive.Deriver (Maybe Score.Event)
-lookup_prev_neighbor = get_neighbor_notes >>= \(prev, _) -> case prev of
-    (event, logs) : _ -> do
-        mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
-        return event
-    [] -> return Nothing
+lookup_prev_neighbor :: Text -> Derive.Deriver (Maybe Score.Event)
+lookup_prev_neighbor caller =
+    get_neighbor_notes caller >>= \(prev, _) -> case prev of
+        (event, logs) : _ -> do
+            mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
+            return event
+        [] -> return Nothing
 
-lookup_next_neighbor :: Derive.Deriver (Maybe Score.Event)
-lookup_next_neighbor = get_neighbor_notes >>= \(_, next) -> case next of
-    (event, logs) : _ -> do
-        mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
-        return event
-    [] -> return Nothing
+lookup_next_neighbor :: Text -> Derive.Deriver (Maybe Score.Event)
+lookup_next_neighbor caller =
+    get_neighbor_notes caller >>= \(_, next) -> case next of
+        (event, logs) : _ -> do
+            mapM_ Log.write $ Log.add_prefix "lookup_prev_neighbor" logs
+            return event
+        [] -> return Nothing
 
-get_neighbor_notes :: Derive.Deriver
+get_neighbor_notes :: Text -> Derive.Deriver
     ([Derive.NotePitchQueryResult], [Derive.NotePitchQueryResult])
-get_neighbor_notes =
-    Derive.require "no neighbors"
+get_neighbor_notes caller =
+    Derive.require (caller <> ": no neighbors")
         =<< Derive.gets (Derive.state_neighbors . Derive.state_dynamic)
 
 -- ** eval
