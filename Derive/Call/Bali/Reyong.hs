@@ -63,12 +63,15 @@ note_calls = Derive.call_maps
     , (">kilit", realize_pattern Gangsa.Once pickup_patterns)
     , ("k//", c_kotekan_regular (Just "-12-12-1") (Just Call.Down))
     , ("k\\\\", c_kotekan_regular (Just "-21-21-21") (Just Call.Up))
-    , ("k_\\", realize_pattern Gangsa.Once k_11_1_21)
-    , ("k//\\\\", realize_pattern Gangsa.Once rejang)
+    , ("k_\\", realize_pattern Gangsa.Once $
+        reyong_pattern "-44-43-4" "-11-1-21")
+    , ("k//\\\\", realize_pattern Gangsa.Once $
+        reyong_pattern "44-34-3- 43-434-3" "-12-12-2 1-21-12-")
     , ("k", c_kotekan_regular Nothing Nothing)
     , ("/", articulation "cek-loose" ((:[]) . pos_cek) (cek <> Attrs.open))
     , ("X", articulation "cek" ((:[]) . pos_cek) cek)
     , ("O", articulation "byong" pos_byong mempty)
+    , ("-", articulation "byut-loose" pos_byong (Attrs.mute <> Attrs.open))
     , ("+", articulation "byut" pos_byong Attrs.mute)
     , ("'", c_ngoret $ pure Nothing)
     , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
@@ -82,16 +85,6 @@ note_calls = Derive.call_maps
 
 cek :: Score.Attributes
 cek = Score.attr "cek"
-
-k_12_1_21, k12_12_12, k21_21_21, k_11_1_21, rejang :: Pattern
-k_12_1_21 = reyong_pattern "34-343-4" "-12-1-21"
-k12_12_12 = reyong_pattern "4-34-34-" "12-12-12"
-k21_21_21 = reyong_pattern "-43-43-4" "21-21-21"
-k_11_1_21 = reyong_pattern "-44-43-4" "-11-1-21"
-rejang = reyong_pattern "44-34-3- 43-434-3" "-12-12-2 1-21-12-"
-
-reyong_patterns :: [Pattern]
-reyong_patterns = [k_12_1_21, k12_12_12, k21_21_21, k_11_1_21, rejang]
 
 reyong_pattern :: [Char] -> [Char] -> Pattern
 reyong_pattern above below = make_pattern $ parse_kotekan above below
@@ -230,8 +223,8 @@ kernel_to_pattern direction kernel = do
 make_articulation :: [Position] -> Text -> (Position -> [Pitch.Pitch])
     -> Score.Attributes -> Derive.Generator Derive.Note
 make_articulation positions name get_notes attrs =
-    Derive.generator module_ name Tags.inst "Reyong articulation."
-    $ Sig.call voices_env $ \voices -> Sub.inverting $ \args -> do
+    Derive.generator module_ name Tags.inst "Reyong articulation." $
+    Sig.call voices_env $ \voices -> Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Call.get_pitch_functions
         mconcatMap (realize show_pitch args)
             (filter_voices voices (zip [1..] positions))
@@ -524,38 +517,6 @@ instance Pretty.Pretty Hand where pretty = showt
 other :: Hand -> Hand
 other L = R
 other R = L
-
-can_damp :: RealTime -> [Score.Event] -> [Bool]
-can_damp dur = snd . List.mapAccumL damp (0, 0) . zip_next . assign_hands
-    where
-    damp prev ((hand, event), nexts) = (hands_state, can_damp)
-        where
-        can_damp = Score.has_attribute damped event
-            || (not (Score.has_attribute undamped event)
-                && (same_hand_can_damp || other_hand_can_damp))
-        -- The same hand can damp if its next strike is sufficiently distant.
-        same_hand_can_damp = enough_time (next hand)
-        -- The other hand can damp if it has enough time from its previous
-        -- strike to move, and the current hand has moved out of the way by
-        -- changing pitches.
-        -- TODO maybe doesn't need a full dur from prev strike?
-        other_hand_can_damp = and
-            [ (now - prev_strike (other hand)) >= dur
-            , enough_time (next (other hand))
-            , maybe True ((/= Score.initial_nn event) . Score.initial_nn . snd)
-                (next hand)
-            ]
-        now = Score.event_end event
-        prev_strike L = fst prev
-        prev_strike R = snd prev
-        hands_state
-            | can_damp = case hand of
-                L -> (now, snd prev)
-                R -> (fst prev, now)
-            | otherwise = prev
-        next hand = Seq.head $ filter ((==hand) . fst) nexts
-        enough_time = maybe True
-            ((>=dur) . subtract now . Score.event_start . snd)
 
 zip_next :: [a] -> [(a, [a])]
 zip_next xs = zip xs (drop 1 (List.tails xs))

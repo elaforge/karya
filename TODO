@@ -1608,6 +1608,8 @@ Derive:
           . Or I could do the min thing in the performer for all MIDI.
           . Or maybe this "pick a low number" thing is no good.  I could
             have another control to turn off damping.
+            . The sustain pedal, cc64, is a natural choice.
+            . But CCs are global, so no good.
         - individual notes play in octaves and kempyung
           . Or perhaps better to write two parts and have them duplicated in
             the upper octave.
@@ -1637,11 +1639,14 @@ Derive:
               configuration for +open+loose-damp vs. +open+tight-damp.
               I can also add a couple extra keyswitches for just +mute.
         * hook up Derive.Call.Bali.Reyong
-        - dit-thom call
         - two handed +cek call
-        - general %damp inference, e.g. two notes with the same pitch
-          shouldn't damp.
-          . Also %damp gets louder when notes are closer, or faster.
+        - for infer-damp, also infer damp level
+          . Damp gets louder when notes are closer, or faster.
+        - How to configure open and closed damping?  I can currently do it
+          by adding +open, but that might be to broad because it also applies
+          to +cek.  Or I could always damp closed if that sounds good.
+          Or I could infer it based on speed.  Otherwise, I can change the
+          attr to +loose-mute or +tight-mute to explicitly configure.
         * reyong-damp emits notes with +mute.  So I have a stream of notes
           where starts and stops are explicit, and each note rings until a
           +mute of the same pitch.  If the instrument uses NoteOffs, I have to
@@ -1673,7 +1678,12 @@ Derive:
             slow:
               561   53561
                21      21
-        - various numpuk
+        tumpek
+          - double calls: +o, oo, -+
+            In fact I could have a grace call that takes articulation symbols.
+          - ngoret style: 2- 1-+o
+        - kbd entry for /, X, O, + etc.?
+        - perhaps 0 duration should infer duration?
         kilitan
           - pickups can mute
           - kilitan patterns change over a speed threshold

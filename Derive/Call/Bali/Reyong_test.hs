@@ -69,10 +69,9 @@ e_voice voice extract = group_voices . DeriveTest.extract ex
     ex e = (DeriveTest.e_environ_val EnvKey.voice e :: Maybe Int, extract e)
     group_voices = first (lookup (Just voice) . Seq.group_fst)
 
-test_positions = do
+test_positions =
     -- Force all the positions because of partial functions in there.
     forM_ Reyong.reyong_positions $ \pos -> equal pos pos
-    forM_ Reyong.reyong_patterns $ \p -> equal p p
 
 test_assign_positions = do
     let f pattern dest = extract $ Reyong.assign_positions pattern 5 dest
@@ -87,7 +86,7 @@ test_assign_positions = do
 
 -- * damp
 
-test_infer_damp = do
+test_c_infer_damp = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks
                 "import bali.reyong | infer-damp >i1 1 | inst = >i1 | %damp=.5"
@@ -101,7 +100,7 @@ test_infer_damp = do
     equal (run [(0, 1, "4c"), (1, 1, "4c")])
         ([(0, "4c", 0), (1, "4c", 0.5)], [])
 
-test_infer_damp_kotekan = do
+test_c_infer_damp_kotekan = do
     let run = e_voice 1 extract
             . DeriveTest.derive_tracks ("import bali.reyong | scale=legong"
                 <> " | infer-damp >i1 1.5 | inst = >i1")
@@ -111,22 +110,22 @@ test_infer_damp_kotekan = do
     equal (run [(0, 4, "k k-12-1-21 -- 4i")])
         (Just [(0, "3e", 0), (1, "3u", 1), (2, "3e", 1), (4, "3u", 1)], [])
 
-test_can_damp = do
-    let f dur = Reyong.can_damp dur . mkevents
+test_infer_damp = do
+    let f dur = Reyong.infer_damp (const dur) . mkevents
     -- Damp with the other hand.
-    equal (f 1 [(0, "4c"), (1, "4d"), (2, "4e")]) [True, True, True]
+    equal (f 1 [(0, "4c"), (1, "4d"), (2, "4e")]) [1, 1, 1]
 
     -- 4e can't be damped because both hands are busy.
     equal (f 1 [(0, "4d"), (1, "4e"), (2, "4f"), (2, "4d")])
-        [True, False, True, True]
+        [1, 0, 1, 1]
 
     -- First 4d can't damp because the same hand is busy, and the other
     -- hand is blocked by the same hand.
     equal (f 1.1 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")])
-        [True, False, True, True]
+        [1, 0, 1, 1]
     -- But give a bit more time and all is possible.
     equal (f 0.75 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")])
-        [True, True, True, True]
+        [1, 1, 1, 1]
 
 test_assign_hands = do
     let f = map fst . Reyong.assign_hands . mkevents
