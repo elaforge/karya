@@ -193,47 +193,6 @@ prevs_same_hand :: (a -> Score.Event) -> Stream a -> Stream (Maybe a, a)
 prevs_same_hand event_of = fmap extract . neighbors_same_hand event_of
     where extract (p, e, _) = (p, e)
 
--- | Extract subsequent events.
-nexts :: [a] -> [[a]]
-nexts = drop 1 . List.tails
-
--- | Extract previous events.
-prevs :: [a] -> [[a]]
-prevs = scanl (flip (:)) []
-
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
-uncurry3 f (a, b, c) = f a b c
-
-uncurry4 :: (a -> b -> c -> d -> e) -> (a, b, c, d) -> e
-uncurry4 f (a, b, c, d) = f a b c d
-
--- ** next in track
-
--- | Return only the events that follow the given event on its track.
-next_in_track :: Score.Event -> [Score.Event] -> [Score.Event]
-next_in_track event = filter $ next_prev_in_track True (stack event) . stack
-    where stack = Stack.to_ui . Score.event_stack
-
-prev_in_track :: Score.Event -> [Score.Event] -> [Score.Event]
-prev_in_track event = filter $ next_prev_in_track False (stack event) . stack
-    where stack = Stack.to_ui . Score.event_stack
-
--- | Is the second stack from an event that occurs later (or earlier) on the
--- same track as the first?  This is more complicated than it may seem at first
--- because the second event could come from a different block.  So it should
--- look like @same ; same ; bid same / tid same / range higher or lower ; *@.
-next_prev_in_track :: Bool -> [Stack.UiFrame] -> [Stack.UiFrame] -> Bool
-next_prev_in_track next
-        (f1@(bid1, tid1, r1) : stack1) (f2@(bid2, tid2, r2) : stack2)
-    | f1 == f2 = next_prev_in_track next stack1 stack2
-    | bid1 == bid2 && tid1 == tid2 && r1 `before_after` r2 = True
-    | otherwise = False
-    where
-    before_after (Just (s1, _)) (Just (s2, _)) =
-        if next then s1 < s2 else s1 > s2
-    before_after _ _ = False
-next_prev_in_track _ _ _ = True -- TODO why true?
-
 -- | If the given event has a hand, return only events with the same hand.
 -- Filter for the same instrument regardless.
 same_hand :: Score.Event -> (a -> Score.Event) -> [a] -> [a]
@@ -257,6 +216,20 @@ voice_key e =
     ( Score.event_instrument e
     , fromMaybe 0 $ Env.maybe_val EnvKey.voice $ Score.event_environ e
     )
+
+-- | Extract subsequent events.
+nexts :: [a] -> [[a]]
+nexts = drop 1 . List.tails
+
+-- | Extract previous events.
+prevs :: [a] -> [[a]]
+prevs = scanl (flip (:)) []
+
+uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 f (a, b, c) = f a b c
+
+uncurry4 :: (a -> b -> c -> d -> e) -> (a, b, c, d) -> e
+uncurry4 f (a, b, c, d) = f a b c d
 
 -- ** misc maps
 
