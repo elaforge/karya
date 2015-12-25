@@ -226,14 +226,14 @@ apply_start_offset maybe_min_dur =
     tweak_offset = case maybe_min_dur of
         Nothing -> id
         Just min_dur ->
-            Post.emap1_ (tweak min_dur) . Post.neighbors_same_hand snd
+            Post.emap1_ (tweak min_dur) . Post.neighbors_by Post.hand_key snd
     tweak min_dur (prev, (offset, event), next) = (new_offset, event)
         where
         new_offset = adjust_offset min_dur (extract <$> prev) (extract <$> next)
             offset (Score.event_start event)
         extract (offset, event) = (offset, Score.event_start event)
 
-    apply_offset = Post.emap1_ord_ apply . Post.neighbors_same_hand snd
+    apply_offset = Post.emap1_ord_ apply . Post.neighbors_by Post.hand_key snd
     apply (_, (offset, event), maybe_next) =
         set_dur $ Score.move_start (fromMaybe Note.min_duration maybe_min_dur)
             offset event

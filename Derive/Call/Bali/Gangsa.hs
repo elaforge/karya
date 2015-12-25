@@ -811,7 +811,8 @@ c_realize_noltol = Derive.transformer module_ "realize-noltol"
     $ Sig.call0t $ \_args deriver -> realize_noltol_call =<< deriver
 
 realize_noltol_call :: Stream.Stream Score.Event -> Derive.NoteDeriver
-realize_noltol_call = Post.emap_asc_m_ fst realize . Post.nexts_same_hand id
+realize_noltol_call =
+    Post.emap_asc_m_ fst realize . Post.next_by Score.event_instrument id
     where
     realize (event, next)
         | Score.has_attribute noltol_attr event = Derive.require_right id $

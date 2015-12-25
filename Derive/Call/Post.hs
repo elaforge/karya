@@ -176,6 +176,13 @@ neighbors :: Stream a -> Stream ([a], a, [a])
 neighbors events = emap1_ (\(ps, ns, e) -> (ps, e, ns)) $
     Stream.zip3_on prevs nexts events
 
+-- | Zip each event with its nearest neighbor with the same key.  A key might
+-- be 'Score.event_instrument', 'hand_key', or 'voice_key'.
+--
+-- TODO it's awkward how calls that are not instrument-specific still have to
+-- choose between hand or voice when they want the next \"relevant\" note.
+-- Perhaps hand and voice should be merged into a single concept.  They have to
+-- be distinct for the lilypond backend though.
 neighbors_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
     -> Stream (Maybe a, a, Maybe a)
 neighbors_by key event_of = emap1_ extract . neighbors
@@ -183,6 +190,7 @@ neighbors_by key event_of = emap1_ extract . neighbors
     extract (ps, e, ns) = (same ps, e, same ns)
         where same = Seq.head . filter ((== key (event_of e)) . key . event_of)
 
+-- | Like 'neighbors_by', but only the next neighbor.
 next_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
     -> Stream (a, Maybe a)
 next_by key event_of = emap1_ extract . neighbors_by key event_of
@@ -192,35 +200,6 @@ prev_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
     -> Stream (Maybe a, a)
 prev_by key event_of = emap1_ extract . neighbors_by key event_of
     where extract (p, e, _) = (p, e)
-
--- | Zip each event with its nearest same-instrument same-hand neighbor.
-neighbors_same_hand :: (a -> Score.Event) -> Stream a
-    -> Stream (Maybe a, a, Maybe a)
-neighbors_same_hand event_of = emap1_ extract . neighbors
-    where
-    extract (ps, e, ns) = (same ps, e, same ns)
-        where same = Seq.head . same_hand (event_of e) event_of
-
--- | Like 'neighbors_same_hand', but only the next neighbor.
-nexts_same_hand :: (a -> Score.Event) -> Stream a -> Stream (a, Maybe a)
-nexts_same_hand event_of = fmap extract . neighbors_same_hand event_of
-    where extract (_, e, n) = (e, n)
-
-prevs_same_hand :: (a -> Score.Event) -> Stream a -> Stream (Maybe a, a)
-prevs_same_hand event_of = fmap extract . neighbors_same_hand event_of
-    where extract (p, e, _) = (p, e)
-
--- | If the given event has a hand, return only events with the same hand.
--- Filter for the same instrument regardless.
-same_hand :: Score.Event -> (a -> Score.Event) -> [a] -> [a]
-same_hand event event_of =
-    filter ((== inst_of event) . inst_of . event_of) .  case hand_of event of
-        Nothing -> id
-        Just hand -> filter $ (== Just hand) . hand_of . event_of
-    where
-    inst_of = Score.event_instrument
-    hand_of :: Score.Event -> Maybe Text
-    hand_of = Env.maybe_val EnvKey.hand . Score.event_environ
 
 hand_key :: Score.Event -> (Score.Instrument, Maybe Text)
 hand_key e =

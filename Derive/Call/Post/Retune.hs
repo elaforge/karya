@@ -66,11 +66,11 @@ c_retune = Derive.transformer module_ "retune" Tags.delayed
 
 c_realize_retune :: Derive.Transformer Derive.Note
 c_realize_retune = Derive.transformer module_ "retune-realize"
-    Tags.realize_delayed
-    "Perform annotations added by `retune`."
+    Tags.realize_delayed "Perform annotations added by `retune`."
     $ Sig.call0t $ \_args deriver -> do
         srate <- Call.get_srate
-        Post.emap_m_ snd (realize srate) . Post.prevs_same_hand id =<< deriver
+        Post.emap_m_ snd (realize srate) . Post.prev_by Post.hand_key id
+            =<< deriver
     where
     realize srate (prev, event)
         | Score.has_attribute retune_attr event = Derive.require_right id $
