@@ -45,7 +45,7 @@ c_cancel :: Derive.Transformer Derive.Note
 c_cancel = Derive.transformer Module.prelude "cancel" Tags.postproc
     "Process the 'Derive.Flags.strong' and 'Derive.Flags.weak' flags.\
     \ This will cause notes to be dropped."
-    $ make_cancel (cancel_strong_weak merge_infer) Post.hand_key
+    $ make_cancel (cancel_strong_weak infer_duration_merged) Post.hand_key
 
 -- | Given a set of coincident notes, return either an error, or merge them
 -- into a set of output notes.
@@ -65,7 +65,7 @@ final_duration_arg = Sig.defaulted_env "final-duration" Sig.Unprefixed 1
 group_and_cancel :: Ord key => Cancel -> (Score.Event -> key) -> RealTime
     -> Events -> Either Text Events
 group_and_cancel cancel key final_dur =
-    fmap (infer_duration final_dur . suppress_notes)
+    fmap (infer_duration_single key final_dur . suppress_notes)
     . merge_groups cancel . group_coincident key
 
 -- | Merge notes with 'Flags.strong' and 'Flags.weak'.  The rules are that
@@ -85,9 +85,9 @@ cancel_strong_weak merge events = case partition events of
     partition = Seq.partition2 (Score.has_flags Flags.strong)
         (Score.has_flags Flags.weak)
 
--- | Handle 'Flags.infer_duration'.
-merge_infer :: Score.Event -> [Score.Event] -> Score.Event
-merge_infer strong weaks
+-- | Handle 'Flags.infer_duration' for notes merged together.
+infer_duration_merged :: Score.Event -> [Score.Event] -> Score.Event
+infer_duration_merged strong weaks
     | Score.has_flags Flags.infer_duration strong =
         set_end end $ Score.remove_flags Flags.infer_duration strong
     | otherwise = strong
@@ -96,9 +96,10 @@ merge_infer strong weaks
     end = fromMaybe (Score.event_end strong) $
         Seq.maximum (map Score.event_end weaks)
 
-infer_duration :: RealTime -> Stream.Stream Score.Event
-    -> Stream.Stream Score.Event
-infer_duration final_dur = Post.emap1_ infer . Post.nexts_same_hand id
+-- | Handle 'Flags.infer_duration' for a note by itself.
+infer_duration_single :: Eq key => (Score.Event -> key) -> RealTime
+    -> Stream.Stream Score.Event -> Stream.Stream Score.Event
+infer_duration_single key final_dur = Post.emap1_ infer . Post.next_by key id
     where
     infer (event, next)
         | Score.has_flags Flags.infer_duration event = maybe

@@ -852,11 +852,12 @@ c_cancel_pasang = Derive.transformer module_ "cancel-pasang" Tags.postproc
 -- normal notes, the infer will only happen if there is no next note.  So it
 -- won't ever merge with the duration of a cancelled note.
 cancel_pasang :: [Score.Event] -> Either Text [Score.Event]
-cancel_pasang events = Postproc.cancel_strong_weak Postproc.merge_infer $
-    case Seq.partition2 (has final_flag) (has initial_flag) events of
-        (_, _, normals@(_:_)) -> normals
-        (finals@(_:_), _, []) -> finals
-        ([], initials, []) -> initials
+cancel_pasang events =
+    Postproc.cancel_strong_weak Postproc.infer_duration_merged $
+        case Seq.partition2 (has final_flag) (has initial_flag) events of
+            (_, _, normals@(_:_)) -> normals
+            (finals@(_:_), _, []) -> finals
+            ([], initials, []) -> initials
     where has = Score.has_flags
 
 pasang_key :: Score.Event

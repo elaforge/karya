@@ -480,6 +480,16 @@ quiet_filter_logs = filter ((>=Log.Warn) . Log.msg_priority)
 extract :: (Score.Event -> a) -> Derive.Result -> ([a], [String])
 extract e_event = extract_levents e_event . Stream.to_list . Derive.r_events
 
+filter_events :: (Score.Event -> Bool) -> Derive.Result -> Derive.Result
+filter_events f result =
+    result { Derive.r_events = filt (Derive.r_events result) }
+    where
+    filt = Stream.from_sorted_list . filter (LEvent.log_or f) . Stream.to_list
+
+filter_events_range :: RealTime -> RealTime -> Derive.Result -> Derive.Result
+filter_events_range start end = filter_events $ \e ->
+    start <= Score.event_start e && Score.event_start e < end
+
 extract_events :: (Score.Event -> a) -> Derive.Result -> [a]
 extract_events e_event result = Log.trace_logs logs (map e_event events)
     where (events, logs) = r_split result

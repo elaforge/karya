@@ -176,6 +176,23 @@ neighbors :: Stream a -> Stream ([a], a, [a])
 neighbors events = emap1_ (\(ps, ns, e) -> (ps, e, ns)) $
     Stream.zip3_on prevs nexts events
 
+neighbors_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
+    -> Stream (Maybe a, a, Maybe a)
+neighbors_by key event_of = emap1_ extract . neighbors
+    where
+    extract (ps, e, ns) = (same ps, e, same ns)
+        where same = Seq.head . filter ((== key (event_of e)) . key . event_of)
+
+next_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
+    -> Stream (a, Maybe a)
+next_by key event_of = emap1_ extract . neighbors_by key event_of
+    where extract (_, e, n) = (e, n)
+
+prev_by :: Eq key => (event -> key) -> (a -> event) -> Stream a
+    -> Stream (Maybe a, a)
+prev_by key event_of = emap1_ extract . neighbors_by key event_of
+    where extract (p, e, _) = (p, e)
+
 -- | Zip each event with its nearest same-instrument same-hand neighbor.
 neighbors_same_hand :: (a -> Score.Event) -> Stream a
     -> Stream (Maybe a, a, Maybe a)

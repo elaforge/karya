@@ -20,7 +20,10 @@ import Types
 
 
 title :: String
-title = "import bali.reyong | scale=legong | cancel-kotekan"
+title = "import bali.reyong | scale=legong | cancel-kotekan 5"
+
+title_with_damp ::String
+title_with_damp = title <> " | infer-damp >i1 1.5 | inst = >i1"
 
 test_kilitan = do
     let run = e_voice 1 ex . DeriveTest.derive_tracks title . UiTest.note_track
@@ -47,6 +50,16 @@ test_kotekan_regular = do
     equal (run 3 [(0, 8, "k k-12-1-21 -- 4i"), (8, 8, "k// -- 4e")])
         (Just "ueu-eue-u-eu-eu-e", [])
 
+test_cancel_kotekan = do
+    let run voice = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.filter_events_range 7 9
+            . DeriveTest.filter_events ((==voice) . event_voice)
+            . DeriveTest.derive_tracks title . UiTest.note_track
+    equal (run 2 [(0, 8, "k k-12-1-21 -- 4i")])
+        ([(7, 1, "4o"), (8, 5, "4i")], [])
+    equal (run 2 [(0, 8, "k_\\ -- 4i"), (8, 8, "k//\\\\ -- 4o")])
+        ([(7, 1, "4o"), (8, 1, "4i")], [])
+
 e_pattern :: RealTime -- ^ expect the first note at this time
     -> Derive.Result -> ([(Reyong.Voice, String)], [String])
 e_pattern start = first (Gangsa_test.convert_to_pattern pitch_digit start)
@@ -69,9 +82,8 @@ e_voice voice extract = group_voices . DeriveTest.extract ex
     ex e = (DeriveTest.e_environ_val EnvKey.voice e :: Maybe Int, extract e)
     group_voices = first (lookup (Just voice) . Seq.group_fst)
 
-test_positions =
-    -- Force all the positions because of partial functions in there.
-    forM_ Reyong.reyong_positions $ \pos -> equal pos pos
+-- Force all the positions because of partial functions in there.
+test_positions = forM_ Reyong.reyong_positions $ \pos -> equal pos pos
 
 test_assign_positions = do
     let f pattern dest = extract $ Reyong.assign_positions pattern 5 dest
@@ -101,9 +113,7 @@ test_c_infer_damp = do
         ([(0, "4c", 0), (1, "4c", 0.5)], [])
 
 test_c_infer_damp_kotekan = do
-    let run = e_voice 1 extract
-            . DeriveTest.derive_tracks ("import bali.reyong | scale=legong"
-                <> " | infer-damp >i1 1.5 | inst = >i1")
+    let run = e_voice 1 extract . DeriveTest.derive_tracks title_with_damp
             . UiTest.note_track
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
             fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
