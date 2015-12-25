@@ -236,10 +236,14 @@ multiply_control = Derive.with_merged_control Derive.merge_mul
 
 add_constant, multiply_constant :: Score.Control -> Signal.Y
     -> Derive.Deriver a -> Derive.Deriver a
-multiply_constant control = Derive.with_merged_control Derive.merge_mul control
-    . Score.untyped . Signal.constant
-add_constant control = Derive.with_merged_control Derive.merge_add control
-    . Score.untyped . Signal.constant
+multiply_constant control val
+    | val == 1 = id
+    | otherwise = Derive.with_merged_control Derive.merge_mul control
+        (Score.untyped (Signal.constant val))
+add_constant control val
+    | val == 0 = id
+    | otherwise = Derive.with_merged_control Derive.merge_add control
+        (Score.untyped (Signal.constant val))
 
 -- * environ
 
