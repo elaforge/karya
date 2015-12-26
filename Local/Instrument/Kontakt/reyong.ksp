@@ -55,8 +55,13 @@ on init
     declare $play_state := $OpenKs
     {- round-robin position -}
     declare $rr := 0
+    {- local variables -}
     declare $i
-    declare $damp
+    {- Track the damp value from note on time.  Otherwise, if there are
+        repeated notes with the same pitch, the damp from the second one
+        interferes with the damp value at the end of the first one.
+    -}
+    declare polyphonic $damp
 
     set_key_color($OpenKs, $KEY_COLOR_YELLOW)
     set_key_color($MuteClosedKs, $KEY_COLOR_YELLOW)
@@ -68,6 +73,10 @@ on init
 end on
 
 on note
+    {- KSP doesn't support NoteOff velocity, so I have to use a separate
+        control.  It has to be note-addressed so notes don't interfere.
+    -}
+    $damp := %POLY_AT[$EVENT_NOTE]
     $rr := ($rr + 1) mod (4*6)
     %sounding[$EVENT_NOTE] := $EVENT_ID
     select ($EVENT_NOTE)
@@ -131,10 +140,6 @@ on note
 end on
 
 on release
-    {- KSP doesn't support NoteOff velocity, so I have to use a separate
-        control.  It has to be note-addressed so notes don't interfere.
-    -}
-    $damp := %POLY_AT[$EVENT_NOTE]
     if ($play_state = $OpenKs)
         {- Stop all notes with the same pitch. -}
         if ($damp > 0)

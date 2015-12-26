@@ -1600,10 +1600,23 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
-        - I get bogus mutes, maybe due to the note off getting after the next
+        * I get bogus mutes, maybe due to the note off getting after the next
           note on.  I think this happens even with damp=0.
           . damp=0 calls should get a 0 dur.  Then set damp=0 for tumpuk and
             byongs.
+          . If I get note on, and it's already on, I want to ignore the
+            corresponding note off.  I could keep track of how many are down
+            and only release at 0.
+          . It seems ksp doesn't work because kontakt emits releases for all
+            notes as soon as the first note off is seen.
+          . Set to 0 doesn't work because I get
+            [at=0, note on, at=1, note off, note on, ...]
+            . I could fix it by remembering AT from the note on.  I'd need to
+              make the postproc then sample from the end if I wanted %damp to
+              behave intuitively.
+            . Otherwise, I'd need to make sure the at=1 for the next note
+              doesn't get pushed before the note off.  Maybe in general
+              I shouldn't push controls before NoteOff.
         * ksp: can I loop through sounding notes and mute all with the same
           $EVENT_NOTE?
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
@@ -1688,6 +1701,7 @@ Derive:
           * ngoret style: 2- 1-+o
           - I could have a collection of tumpuk for movement, then a call
             selects one randomly.
+          - It can also play faster if the note is shorter.
         - kbd entry for /, X, O, + etc.?
         - perhaps 0 duration should infer duration?
         kilitan

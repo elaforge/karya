@@ -16,6 +16,7 @@ import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Signal as Signal
 import Global
 
 
@@ -38,12 +39,21 @@ patches =
     patch_scale =
         Legong.patch_scale (take 15 . drop (5+4) . Legong.strip_pemero) tuning
 
+-- | Take the damp value from note off time and put it as a constant
+-- aftertouch.  The KSP will then sample the value at note on time and use it
+-- at note off time.  Otherwise, given two repeated notes with the same pitch,
+-- even polyphonic aftertouch will interfere in the same way that a normal
+-- control would.
+--
+-- This kind of giant hassle to just get note offs reliable is why MIDI is such
+-- garbage.
 postproc :: Score.Event -> Score.Event
-postproc event = case damp of
-    Just sig -> Score.set_control Controls.aftertouch sig event
-    Nothing -> event
+postproc event =
+    Score.set_control Controls.aftertouch
+        (Score.untyped (Signal.constant damp)) event
     where
-    damp = Map.lookup Reyong.damp_control $
+    damp = maybe 0 (Signal.at (Score.event_end event) . Score.typed_val) $
+        Map.lookup Reyong.damp_control $
         Score.event_untransformed_controls event
 
 attribute_map :: Instrument.AttributeMap
