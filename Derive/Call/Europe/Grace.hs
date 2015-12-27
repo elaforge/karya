@@ -42,6 +42,7 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.generator_call_map
     [ ("g", c_grace)
+    , ("g-", c_grace_hold)
     , ("grace", c_basic_grace)
     , ("roll", c_roll)
     , ("`mordent`", c_mordent (Pitch.Diatonic 1))
@@ -117,6 +118,17 @@ c_grace = make_grace Module.prelude
     id $ \args events -> Derive.with_val "legato-dyn" (1 :: Double) $
         Sub.reapply_call (Args.context args) "(" [] [events]
 
+c_grace_hold :: Derive.Generator Derive.Note
+c_grace_hold = make_grace Module.prelude
+    "Like `g`, but doesn't use `(`, and all notes are held to the duration of\
+    \ the event."
+    id $ \_args -> Sub.derive . hold
+    where
+    hold events = maybe events (\e -> map (set_end e) events) end
+        where end = Seq.maximum $ map Sub.event_end events
+    set_end end event =
+        event { Sub.event_duration = end - Sub.event_start event }
+
 -- | Make a grace call with the standard arguments.
 make_grace :: Module.Module -> Text
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
@@ -183,7 +195,7 @@ legato_grace args dyn_scale pitches grace_dur place = do
 
 basic_grace_dyn :: Signal.Y -> Derive.PassedArgs a -> [PSignal.Pitch]
     -> BaseTypes.Duration -> TrackLang.ControlRef -> Derive.NoteDeriver
-basic_grace_dyn dyn_scale args pitches grace_dur place= do
+basic_grace_dyn dyn_scale args pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
     Sub.derive
         =<< basic_grace args pitches (Call.with_dynamic dyn) grace_dur place
