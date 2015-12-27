@@ -149,10 +149,11 @@ quantize_event mode points_ event = (start_points, quantize_event event)
             | otherwise -> quantize_end . quantize_start
     quantize_start = Event.move (quantize start_points)
     quantize_end event =
-        Event.modify_end (quantize (end_points (Event.end event))) event
+        Event.modify_end (quantize (end_points event)) event
     zero = Event.duration event == 0
     start_points = TimeStep.drop_before (Event.start event) points_
-    end_points end = dropWhile (< end) start_points
+    end_points e = dropWhile (<= Event.start e) $
+        TimeStep.drop_before (Event.end e) start_points
 
 quantize :: [TrackTime] -> TrackTime -> TrackTime
 quantize points t = case points of
