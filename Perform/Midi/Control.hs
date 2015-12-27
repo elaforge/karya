@@ -2,8 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{- | Support for MIDI controls.
--}
+-- | Support for MIDI controls.
 module Perform.Midi.Control where
 import qualified Data.Map as Map
 
@@ -15,7 +14,6 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Global
 
-
 type ControlMap = Map.Map Score.Control Midi.Control
 
 control_map :: [(Midi.Control, Score.Control)] -> ControlMap
@@ -23,7 +21,6 @@ control_map cmap = Map.fromList [(c, n) | (n, c) <- cmap]
 
 empty_map :: ControlMap
 empty_map = control_map []
-
 
 -- | Pitchbend range in tempered semitones below and above unity.  The first
 -- integer should probably be negative.
@@ -56,16 +53,12 @@ is_midi_control cmap control =
 is_channel_control :: Score.Control -> Bool
 is_channel_control = (/= Controls.aftertouch)
 
-control_range :: (Signal.Y, Signal.Y)
-control_range = (0, 1)
-
 -- | Given a NoteNumber, return the midi note number and pitch bend amount to
 -- sound at the pitch.
 pitch_to_midi :: PbRange -> Pitch.NoteNumber
     -> Maybe (Midi.Key, Midi.PitchBendValue)
 pitch_to_midi pb_range nn
-    -- A NoteOn at 0 is actually a NoteOff.  In addition, signals default to
-    -- 0 so 0 here probably means the pitch signal was empty.
+    -- Signals default to 0 so 0 probably means the pitch signal was empty.
     | nn <= 0 || nn > 127 = Nothing
     | otherwise = Just (key, pb_from_nn pb_range key nn)
     where key = Midi.to_key (floor nn)

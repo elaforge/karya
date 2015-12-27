@@ -14,7 +14,7 @@ infrastructure to e.g.  chase down the pitch track and group pitches and
 controls with their notes.  This is basically like score macros.  Not too
 appealing.
 
-- Evaluate pitches independently - Not implemented.  Just evaluate the pitches
+* Evaluate pitches independently - Implemented.  Just evaluate the pitches
 from the future.  I'd have to find out what they are, and then evaluate them in
 an environment as close as possible to the one they will be in later.  For the
 first: I can assume the pitch track is below, otherwise I don't need to do

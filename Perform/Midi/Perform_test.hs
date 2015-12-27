@@ -323,10 +323,10 @@ test_clip_warns = do
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
     equal warns
-        [ "Perform: %vol clipped: (1.5s, 2.5s)"
+        [ "%vol clipped: (1.5s, 2.5s)"
         -- TODO this used to be (3.5, 4) but I can't be bothered to find out
         -- why it changed when RealTime became integral
-        , "Perform: %vol clipped: (4s, 4s)"
+        , "%vol clipped: (4s, 4s)"
         ]
     check (all_msgs_valid msgs)
 
@@ -363,7 +363,7 @@ test_no_pitch = do
             { Perform.event_pitch = Signal.constant Signal.invalid_pitch }
     let (midi, logs) = perform inst_addrs1 [event]
     equal (map Midi.wmsg_msg midi) []
-    equal logs ["Perform: no pitch signal"]
+    equal logs ["no pitch signal"]
 
 -- * perform_note
 
@@ -767,7 +767,7 @@ test_allot_warn = do
     equal (f [((inst1, "a", 0, 1, []), 0)])
         [Left ("inst1", "dev1", 0)]
     equal (f [((no_inst, "a", 0, 1, []), 0), ((no_inst, "b", 1, 2, []), 0)])
-        (replicate 2 $ Right "Perform: no allocation for >synth1/no_inst")
+        (replicate 2 $ Right "no allocation for >synth1/no_inst")
 
 allot :: Perform.InstAddrs -> [(Perform.Event, Perform.Channel)]
     -> [LEvent.LEvent (Perform.Event, Instrument.Addr)]

@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - LNote.sort_on_pitch seems to be buggy, it duplicates notes and loses
+    others.
+  - Also, ModifyNotes doesn't seem to understand about parent note tracks.
   * Cmd.Edit.strip_call should only apply to a note track if you have note and
     pitch tracks selected.  Or maybe it would be simpler to make it only apply
     to the point track?
@@ -1660,7 +1663,7 @@ Derive:
         - for infer-damp, also infer damp level
           . Damp gets louder when notes are closer, or faster.
         - How to configure open and closed damping?  I can currently do it
-          by adding +open, but that might be to broad because it also applies
+          by adding +open, but that might be too broad because it also applies
           to +cek.  Or I could always damp closed if that sounds good.
           Or I could infer it based on speed.  Otherwise, I can change the
           attr to +loose-mute or +tight-mute to explicitly configure.

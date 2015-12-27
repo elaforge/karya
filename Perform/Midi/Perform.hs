@@ -835,5 +835,4 @@ overlap_map initial = go initial
         (vals, final_state) = go ((e, val) : overlapping) f events
 
 event_warning :: Event -> Text -> Log.Msg
-event_warning event msg =
-    Log.msg Log.Warn (Just (event_stack event)) ("Perform: " <> msg)
+event_warning event = Log.msg Log.Warn (Just (event_stack event))

@@ -103,7 +103,7 @@ warp from_root = Derive.state_warp <$> dynamic from_root
 dynamic :: Bool -> Cmd.CmdL Derive.Dynamic
 dynamic from_root = do
     track <- Selection.track
-    Cmd.require "no dynamic" =<< if from_root
+    Cmd.require ("no dynamic for track " <> pretty track) =<< if from_root
         then Perf.lookup_root_dynamic track
         else Perf.lookup_dynamic (fst track) track
 
