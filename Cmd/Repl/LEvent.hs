@@ -130,7 +130,21 @@ quantize_timestep mode step block_id track_id events = do
         TimeStep.parse_time_step step
     tracknum <- State.get_tracknum_of block_id track_id
     points <- TimeStep.get_points_from TimeStep.Advance block_id tracknum 0 step
-    return $ Just $ snd $ List.mapAccumL (quantize_event mode) points events
+    return $ Just $ resolve_conflicts points $
+        snd $ List.mapAccumL (quantize_event mode) points events
+
+-- | Quantize can put two events in the same spot.  Resolve the conflicts by
+-- bumping events back until they don't conflict.  If I run out of timesteps,
+-- bump by 1.
+resolve_conflicts :: [TrackTime] -> [Event.Event] -> [Event.Event]
+resolve_conflicts _ [] = []
+resolve_conflicts points (event : events) =
+    event : resolve_conflicts points_after
+        (map (Event.move (const bump)) group ++ rest)
+    where
+    (group, rest) = span ((== Event.start event) . Event.start) events
+    bump = fromMaybe (Event.start event + 1) (Seq.head points_after)
+    points_after = dropWhile (<= Event.start event) points
 
 -- | Zero-duration events will remain zero duration, and not be affected by
 -- End quantization.  Non-zero-duration events will never be quantized to zero

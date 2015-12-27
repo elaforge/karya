@@ -36,7 +36,9 @@ test_quantize_timestep = do
     equal (run LEvent.Both marks1 "w" [(0.6, 0)]) (Just [(1, 0)])
     -- Two events won't quantize into the same time.
     equal (run LEvent.Both marks1 "w" [(0.6, 0.5), (1, 0.5)])
-        (Just [(0, 1), (1, 1)])
+        (Just [(1, 1), (2, 1)])
+    equal (run LEvent.Both marks1 "w" [(0.6, 0.5), (1, 0.5), (1.2, 0.5)])
+        (Just [(1, 1), (2, 1), (3, 1)])
 
     let marks2 = [(1, 0), (2, 1), (3, 0), (4, 0)]
     -- Section ignores the rank 1, note with duration won't snap to 0 dur.
