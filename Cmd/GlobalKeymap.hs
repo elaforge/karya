@@ -243,16 +243,16 @@ selection_bindings = concat
         Selection.step TimeStep.Rewind Selection.Extend
     -- Mnemonic: next, previous.
     , repeatable_char 'n' "move selection right to next note track" $
-        Selection.jump_to_track False =<< Cmd.abort_unless
+        Selection.jump_to_track move =<< Cmd.abort_unless
             =<< Selection.find_note_track Selection.R False
     , repeatable_char 'p' "move selection left to previous note track" $
-        Selection.jump_to_track False =<< Cmd.abort_unless
+        Selection.jump_to_track move =<< Cmd.abort_unless
             =<< Selection.find_note_track Selection.L False
     , plain_char 'N' "expand selection until before the next note track" $
-        Selection.jump_to_track True =<< Cmd.abort_unless
+        Selection.jump_to_track Selection.Extend =<< Cmd.abort_unless
             =<< Selection.find_note_track Selection.R True
     , plain_char 'P' "expand selection until the previous note track" $
-        Selection.jump_to_track True =<< Cmd.abort_unless
+        Selection.jump_to_track Selection.Extend =<< Cmd.abort_unless
             =<< Selection.find_note_track Selection.L True
 
     , repeatable_char 'w' "move selection to next event" $

@@ -190,10 +190,13 @@ shift skip_unselectable move shift = modify $ \block old ->
 -- always expand, instead of only expanding if the current track is moving away
 -- from the start track.  This is because I use this as a way to expand the
 -- selection rather than move it.
-jump_to_track :: Cmd.M m => Bool -> TrackNum -> m ()
-jump_to_track extend tracknum = modify $ \_ old ->
-    let new = old { Sel.start_track = tracknum, Sel.cur_track = tracknum }
-    in if extend then Sel.union old new else new
+jump_to_track :: Cmd.M m => Move -> TrackNum -> m ()
+jump_to_track move tracknum = modify $ \_ old ->
+    let new = Sel.modify_tracks (+ (tracknum - Sel.cur_track old)) old
+    in case move of
+        Extend -> Sel.union old (Sel.modify_tracks (const tracknum) old)
+        Move -> new
+        Replace -> Sel.point (Sel.cur_track new) (Sel.cur_pos new)
 
 modify :: Cmd.M m => (Block.Block -> Sel.Selection -> Sel.Selection) -> m ()
 modify f = do
