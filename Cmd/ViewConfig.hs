@@ -18,7 +18,6 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
 import qualified Ui.Types as Types
-import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Internal as Internal
@@ -91,6 +90,11 @@ zoom_factor view_id dur
         view <- State.get_view view_id
         let pixels = Block.view_visible_time view
         return $ fromIntegral pixels / ScoreTime.to_double dur
+
+maximize_and_zoom :: Cmd.M m => ViewId -> m ()
+maximize_and_zoom view_id = do
+    resize_to_fit True view_id
+    zoom_to_ruler view_id
 
 -- * scroll
 
@@ -252,6 +256,14 @@ group_with cmp keys vals = Tuple.swap $ List.mapAccumL go vals keys
 
 -- ** focus
 
+cycle_focus :: Cmd.M m => Bool -> m ()
+cycle_focus forward = do
+    focused <- Cmd.get_focused_view
+    view_ids <- (if forward then id else reverse) <$> State.all_view_ids
+    case drop 1 $ dropWhile (/=focused) view_ids of
+        next : _ -> Cmd.focus next
+        [] -> whenJust (Seq.head view_ids) Cmd.focus
+
 -- | Right and Left would clash with Either.
 data Direction = North | South | East | West deriving (Show)
 
@@ -267,8 +279,7 @@ move_focus dir = do
             West -> Seq.last $ get_rects (<) Rect.rx
             South -> Seq.head $ get_rects (>) Rect.ry
             North -> Seq.last $ get_rects (<) Rect.ry
-    whenJust next $ \(view_id, _) ->
-        State.update $ Update.CmdBringToFront view_id
+    whenJust next $ Cmd.focus . fst
 
 -- * saved views
 
@@ -287,20 +298,4 @@ restore_views name = do
         =<< State.config#State.saved_views # Lens.map name <#> State.get
     save_views "prev"
     State.put_views views
-    whenJust focused bring_to_front
-
--- * misc
-
-maximize_and_zoom :: Cmd.M m => ViewId -> m ()
-maximize_and_zoom view_id = do
-    resize_to_fit True view_id
-    zoom_to_ruler view_id
-
-bring_to_front :: Cmd.M m => ViewId -> m ()
-bring_to_front view_id = do
-    view <- State.lookup_view view_id
-    case view of
-        Nothing -> Cmd.throw $ "can't bring to front non-existent view "
-            <> showt view_id
-        _ -> return ()
-    State.update $ Update.CmdBringToFront view_id
+    whenJust focused Cmd.focus

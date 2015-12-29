@@ -260,8 +260,7 @@ view block_id = do
 view_or_focus :: Cmd.M m => BlockId -> m ()
 view_or_focus block_id = do
     views <- State.views_of block_id
-    maybe (view block_id >> return ())
-        ViewConfig.bring_to_front (Seq.head (Map.keys views))
+    maybe (view block_id >> return ()) Cmd.focus (Seq.head (Map.keys views))
 
 view_screen :: Cmd.M m => ViewId -> m Rect.Rect
 view_screen view_id =

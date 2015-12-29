@@ -54,7 +54,6 @@ import Cmd.Repl.LRuler ()
 import Cmd.Repl.LTrack ()
 import qualified Cmd.Save as Save
 import qualified Cmd.Selection as Selection
-import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified Derive.Stack as Stack
 import qualified App.Config as Config
@@ -170,7 +169,7 @@ highlight_error (maybe_bid, maybe_tid, maybe_range) = do
     view_ids <- Map.keys <$> State.views_of block_id
     view_ids <- if null view_ids then (:[]) <$> Create.view block_id
         else return view_ids
-    mapM_ ViewConfig.bring_to_front view_ids
+    mapM_ Cmd.focus view_ids
     case (maybe_tid, maybe_range) of
         (Nothing, _) -> forM_ view_ids $ \vid ->
             Selection.set_selnum vid Config.error_selnum

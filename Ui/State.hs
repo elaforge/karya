@@ -467,6 +467,7 @@ get_view view_id = get >>= lookup_id view_id . state_views
 lookup_view :: M m => ViewId -> m (Maybe Block.View)
 lookup_view view_id = gets (Map.lookup view_id . state_views)
 
+-- | All ViewIds, in sorted order.
 all_view_ids :: M m => m [ViewId]
 all_view_ids = gets (Map.keys . state_views)
 

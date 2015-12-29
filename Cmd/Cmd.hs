@@ -1015,6 +1015,17 @@ get_focused_block = fmap Block.view_block (get_focused_view >>= State.get_view)
 lookup_focused_view :: M m => m (Maybe ViewId)
 lookup_focused_view = gets state_focused_view
 
+-- | Request focus.  'state_focused_view' will be updated once fltk reports the
+-- focus change.
+focus :: State.M m => ViewId -> m ()
+focus view_id = do
+    view <- State.lookup_view view_id
+    case view of
+        Nothing ->
+            State.throw $ "Cmd.focus on non-existent view: " <> showt view_id
+        _ -> return ()
+    State.update (Update.CmdBringToFront view_id)
+
 -- | In some circumstances I don't want to abort if there's no focused block.
 lookup_focused_block :: M m => m (Maybe BlockId)
 lookup_focused_block = do

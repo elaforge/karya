@@ -55,7 +55,6 @@ import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitTypes as SaveGitTypes
 import qualified Cmd.Serialize as Serialize
-import qualified Cmd.ViewConfig as ViewConfig
 
 import qualified App.Config as Config
 import Global
@@ -433,4 +432,4 @@ set_state save_file clear_history state = do
         Nothing -> return Nothing
         Just root -> Seq.head . Map.keys <$> State.views_of root
     let focused = msum [root, Seq.head $ Map.keys (State.state_views state)]
-    whenJust focused ViewConfig.bring_to_front
+    whenJust focused Cmd.focus
