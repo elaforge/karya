@@ -163,7 +163,7 @@ player_bindings = concat
     sel = [Shift]
     prev = []
     local = Key.Enter
-    root = Key.Char (Keymap.physical_key '/')
+    root = Key.Char (Keymap.physical_key '\'')
 
 -- | I bind the mouse by device rather than function, since I can't detect
 -- overlaps as easily for mouse bindings.
