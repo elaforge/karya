@@ -138,6 +138,12 @@ from_val_simple val = case from_val val of
     Val (Just a) -> Just a
     _ -> Nothing
 
+-- | Return a simple Eval check which doesn't depend on RealTime.
+eval :: Typecheck a => (a -> Derive.Deriver b) -> Val -> Checked b
+eval parse val = Eval $ \_ -> case from_val_simple val of
+    Nothing -> return Nothing
+    Just x -> Just <$> parse x
+
 class ToVal a where
     to_val :: a -> Val
     -- This could be just ShowVal and thus a plain default method, but I want
