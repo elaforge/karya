@@ -429,7 +429,7 @@ real_duration start dur = case Derive.to_duration dur of
 
 -- | Like 'real_duration', but get the duration in ScoreTime.  If you are
 -- manipulating deriver abstractly instead of directly emitting events then you
--- will place them via 'Derive.d_at' and family, which are in ScoreTime.
+-- will place them via 'Derive.at' and family, which are in ScoreTime.
 score_duration :: (Derive.Time t1, Derive.Time t2) => t1 -> t2
     -> Derive.Deriver ScoreTime
 score_duration start dur = case Derive.to_duration dur of
