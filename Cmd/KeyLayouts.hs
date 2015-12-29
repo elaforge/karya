@@ -3,11 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | This defines some key layouts.  "Local.KeyLayout" is expected to export
--- a function @get :: Char -> Maybe Char@ which will map a key to its
--- corresponding key in USA qwerty, which will be called by
--- 'Cmd.Keymap.physical_key'.  So if your key layout is already qwerty, it's
--- just @id@.  Otherwise it would be e.g.
--- @flip Map.lookup (Map.fromList (zip KeyLayouts.qwerty KeyLayouts.dvorak))@.
+-- @layout :: KeyLayouts.Layout@.  If your key layout is already qwerty, just
+-- use @KeyLayouts.qwerty@.
 module Cmd.KeyLayouts (
     Layout, layout, to_unshifted, from_qwerty
     , qwerty, dvorak
@@ -31,36 +28,40 @@ to_unshifted layout c = Map.lookup c (map_to_unshifted layout)
 from_qwerty :: Layout -> Char -> Maybe Char
 from_qwerty layout c = Map.lookup c (map_from_qwerty layout)
 
-layout :: [Char] -> [Char] -> Layout
-layout unshifted shifted
+layout :: String -> [Char] -> [Char] -> Layout
+layout name unshifted shifted
     | length unshifted /= length shifted =
-        error $ "KeyLayouts.layout: (unshifted, shifted) not the same length: "
+        error $ prefix ++ "(unshifted, shifted) not the same length: "
             ++ show (Seq.zip_padded unshifted shifted)
+    | length unshifted /= length qwerty_unshifted =
+        error $ prefix ++ "size should be " ++ show (length qwerty_unshifted)
+            ++ " but is " ++ show (length unshifted)
     | otherwise = Layout
         { map_to_unshifted = Map.fromList $ zip shifted unshifted
         , map_from_qwerty = Map.fromList $
             zip (qwerty_unshifted ++ qwerty_shifted) (unshifted ++ shifted)
         }
+    where prefix = "KeyLayouts.layout " ++ show name ++ ": "
 
 qwerty_unshifted, qwerty_shifted :: [Char]
 qwerty_unshifted = concat
-    [ "1234567890-="
+    [ "`1234567890-="
     , "qwertyuiop[]\\"
     , "asdfghjkl;'"
     , "zxcvbnm,./"
     ]
 qwerty_shifted = concat
-    [ "!@#$%^&*()_+"
+    [ "~!@#$%^&*()_+"
     , "QWERTYUIOP{}|"
     , "ASDFGHJKL:\""
     , "ZXCVBNM<>?"
     ]
 
 qwerty :: Layout
-qwerty = layout qwerty_unshifted qwerty_shifted
+qwerty = layout "qwerty" qwerty_unshifted qwerty_shifted
 
 dvorak :: Layout
-dvorak = layout
+dvorak = layout "dvorak"
     (concat
         [ "1234567890[]"
         , "',.pyfgcrl/=\\"

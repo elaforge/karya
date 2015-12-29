@@ -13,15 +13,15 @@ import qualified Cmd.KeyLayouts as KeyLayouts
 
 -- | My slightly modified dvorak.
 layout :: KeyLayouts.Layout
-layout = KeyLayouts.layout
+layout = KeyLayouts.layout "local dvorak"
     (concat
-        [ "1234567890-="
+        [ "`1234567890-="
         , "',.pyfgcrl[]\\"
         , "aoeuidhtns/"
         , ";qjkxbmwvz"
         ])
     (concat
-        [ "!@#$%^&*()_+"
+        [ "~!@#$%^&*()_+"
         , "\"<>PYFGCRL{}|"
         , "AOEUIDHTNS?"
         , ":QJKXBMWVZ"
