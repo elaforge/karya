@@ -51,7 +51,7 @@ UNSORTED
       Maybe it should be a symbol to be more distinctive?  '>' for 'f', and '-'
       for 'p'.
       . Then '=' to extend dur, and '^' to reduce it?
-  - If I have if an arg is Sig.Both, and I have call-arg=x, and then arg=y,
+  * If I have if an arg is Sig.Both, and I have call-arg=x, and then arg=y,
     the arg=y should override the call-arg=x.
     . The problem is that it can't know at assignment time when args belong to
       the same call, but then the call can't tell which one was more recent.

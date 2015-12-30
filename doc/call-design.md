@@ -21,11 +21,12 @@ with `>tr = special-trill`.
 
 - Ask lower levels to do things, instead of doing them yourself.  And ask them
 using a higher level method, if available.  So e.g. instead of shortening a
-note with postproc, shorten it with `Derive.d_stretch`.  Or instead of that,
-shorten it by setting `%sus-abs`, which the default note deriver will pay
-attention to.  Another example is that `g`, the grace note call, applies its
-generated notes to the `(` call, which should be bound to do the appropriate
-thing, whether that be overlap notes, bend pitch, or emit a lilypond slur.
+note with postproc, shorten it with `Derive.stretch`.  Or instead of that,
+shorten it by setting 'Derive.Controls.sustain_abs', which the default note
+deriver will pay attention to.  Another example is that `g`, the grace note
+call, applies its generated notes to the `(` call, which should be bound to do
+the appropriate thing, whether that be overlap notes, bend pitch, or emit a
+lilypond slur.
 
 - Sometimes a call has relatives with the same name but a different type.  For
 instance, there is a note call `tr`, a pitch call `tr`, and a control call
@@ -35,8 +36,8 @@ lilypond.  It also knows the bounds of the note, but can only be applied to a
 whole note.  The pitch call can emit chromatic or diatonic intervals, and it
 is given a specific start and end time, so it can be in the middle of a note,
 or span multiple notes.  The control call is the lowest level, but works for
-any control, including `t-chromatic` and `t-diatonic`, but itself has no
-control over where it winds up.
+any control, including 'Derive.Controls.chromatic' and
+'Derive.Controls.diatonic', but itself has no control over where it winds up.
 
 - Similarly, if applicable, a generator should have a corresponding
 transformer, and vice versa.  All transformers can be written as a
@@ -62,7 +63,28 @@ rather than writing `delay = 5` everywhere.
 
 - Too many arguments becomes hard to use.  You can effectively write keyword
 args using the environ defaulting mechanism, e.g.
-`kam (4s) 1 8 .1` becomes `speed = 8 | transition = .1 | kam (4s) 1`
+`kam (4s) 1 8 .1` becomes `speed=8 | transition=.1 | kam (4s) 1`
+
+- The call argument environ defaulting frequently uses both a prefixed and
+non-prefixed form.  For example, the `grace` call has a `place` argument,
+which can be defaulted by either `grace-place` or `place`.  The short form
+will override the long form, so it's useful for a local assignment, while you'd
+use the long form for a global assignment.  Also, several calls may share the
+same unprefixed argument name, which is generally ok.  For example, many
+calls have a `dur` argument, so if you set `dur=x` it will default whatever
+is the logical duration for that call, while if you set `call-dur=x` it will
+specifically address that call.  Calls which are variants of each other may
+even use the same call name so that many of their arguments will coincide.
+
+    Of course this means that you can't conveniently set a separate global
+default for one of those, which might be a problem if the point of the separate
+variations is to be able to have separate defaults, but so far I haven't had
+that problem.
+
+    To support defaulting, and to avoid having to memorize too many argument
+names, calls should try to stick to a standard vocabulary for argument names,
+e.g. `dur` for duration, `time` for a time interval, `pitch` for main pitch,
+etc.
 
 
 ### conventions

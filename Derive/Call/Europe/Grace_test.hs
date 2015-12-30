@@ -67,16 +67,16 @@ test_grace = do
 
     -- grace-place
     let place_tracks note = tracks [(2, 2, prefix <> note)]
-    equal (run_n $ place_tracks "%grace-place = 1 | g (4b)")
+    equal (run_n $ place_tracks "%place = 1 | g (4b)")
         ([(2, 1, "4b"), (3, 1, "4c")], [])
     -- Grace notes shorten if the note can't accomodate them all.
-    equal (run_n $ place_tracks "%grace-place = 1 | g (4a) (4b) (4d)")
+    equal (run_n $ place_tracks "%place = 1 | g (4a) (4b) (4d)")
         ( [ (2, 0.5, "4a"), (2.5, 0.5, "4b")
           , (3, 0.5, "4d"), (3.5, 0.5, "4c")
           ]
         , []
         )
-    equal (run_n $ place_tracks "%grace-place = .5 | g (4b)")
+    equal (run_n $ place_tracks "%place = .5 | g (4b)")
         ([(1.5, 1, "4b"), (2.5, 1.5, "4c")], [])
 
     -- Ensure grace works with attr legato.
@@ -169,8 +169,7 @@ test_grace_p = do
 
 test_mordent_p = do
     let run = CallTest.run_pitch "import europe"
-    equal (run [(0, "grace-dur = 2 | `mordent` (4c)")])
-        [(0, 60), (2, 62), (4, 60)]
+    equal (run [(0, "dur=2 | `mordent` (4c)")]) [(0, 60), (2, 62), (4, 60)]
 
 -- * misc
 

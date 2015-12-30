@@ -531,7 +531,7 @@ environ_keys call_name arg_name env_default = case env_default of
     Derive.None -> []
     Derive.Prefixed -> [prefixed]
     Derive.Unprefixed -> [unprefixed]
-    Derive.Both -> [prefixed, unprefixed]
+    Derive.Both -> [unprefixed, prefixed]
     where
     prefixed = prefixed_environ call_name arg_name
     unprefixed = BaseTypes.Symbol arg_name

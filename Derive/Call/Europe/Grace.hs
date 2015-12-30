@@ -68,8 +68,7 @@ grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_place_env
 
 grace_dur_env :: Sig.Parser BaseTypes.Duration
 grace_dur_env = Typecheck.default_real <$>
-    Sig.environ "grace-dur" Sig.Unprefixed default_grace_dur
-        "Duration of grace notes."
+    Sig.environ "dur" Sig.Both default_grace_dur "Duration of grace notes."
 
 grace_dyn_env :: Sig.Parser Double
 grace_dyn_env =
@@ -77,8 +76,8 @@ grace_dyn_env =
         0.5 "Scale the dyn of the grace notes."
 
 grace_place_env :: Sig.Parser TrackLang.ControlRef
-grace_place_env = Sig.environ "grace-place" Sig.Unprefixed
-    (Sig.control "grace-place" 0) grace_place_doc
+grace_place_env = Sig.environ "place" Sig.Both
+    (Sig.control "place" 0) grace_place_doc
 
 grace_place_doc :: Text
 grace_place_doc =
