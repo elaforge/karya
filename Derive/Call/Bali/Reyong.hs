@@ -9,6 +9,7 @@
 -- > 3  5  6  1  2  3  5  6  1  2  3  5
 module Derive.Call.Bali.Reyong where
 import qualified Data.List as List
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
@@ -72,6 +73,7 @@ note_calls = Derive.call_maps
         reyong_pattern "44-34-3- 43-434-3" "-12-12-2 1-21-12-")
     , ("k", c_kotekan_regular Nothing Nothing)
     , ("t", c_tumpuk)
+    , ("n", c_tumpuk_auto)
     , ("/", articulation "cek-loose" ((:[]) . pos_cek) (cek <> Attrs.open))
     , ("X", articulation "cek" ((:[]) . pos_cek) cek)
     , ("O", articulation "byong" pos_byong mempty)
@@ -100,10 +102,6 @@ voices_env :: Sig.Parser [Voice]
 voices_env = Sig.environ "reyong-voices" Sig.Unprefixed []
     "Only emit notes for these positions, from 1 to 4. Empty means all of them."
 
-moving_tumpuk :: [Text]
-moving_tumpuk =
-    [ "p-0.o" ]
-
 -- * tumpuk
 
 c_tumpuk :: Derive.Generator Derive.Note
@@ -121,7 +119,7 @@ c_tumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
 
 -- | Dyn 0 means a rest.
 type TumpukNote = (TumpukPitch, Score.Attributes, Dyn)
-data TumpukPitch = Transpose Pitch.Step | Prev deriving (Show)
+data TumpukPitch = Transpose Pitch.Step | Prev deriving (Eq, Show)
 type Dyn = Signal.Y
 
 tumpuk :: RealTime -> RealTime -> Maybe PSignal.Pitch -> PSignal.Pitch
@@ -162,11 +160,62 @@ articulations = Map.fromList
     , ('.', (mempty, 0.75))
     , ('o', (mempty, 1))
     , ('-', (Attrs.mute <> Attrs.open, 0.75))
+    -- TODO can't use this in an unquoted string
     , ('=', (Attrs.mute <> Attrs.open, 1))
     , ('n', (Attrs.mute, 0.75))
     -- I would use +, but if you start with one it parses as an attr.
     , ('x', (Attrs.mute, 1))
     ]
+
+c_tumpuk_auto :: Derive.Generator Derive.Note
+c_tumpuk_auto = Derive.generator module_ "tumpuk-auto" Tags.inst
+    "A variant of `tumpuk` that randomly picks a pattern."
+    $ Sig.call0 $ Sub.inverting $ \args -> do
+        (start, end) <- Args.real_range args
+        pitch <- Call.get_pitch start
+        rnd1 : rnd2 : _ <- Call.randoms
+        (notes, dur) <- Derive.require_right id $
+            select_pattern (end-start) rnd1 rnd2
+        tumpuk start end (Args.prev_event_pitch args) pitch dur notes
+
+-- | If dur is long, use the slow end of the patterns.  If dur is short, try to
+-- fit the pattern in the first 2/3, dropping patterns if they exceed that at
+-- their fastest.
+select_pattern :: RealTime -> Double -> Double
+    -> Either Text ([TumpukNote], RealTime)
+select_pattern dur rnd1 rnd2 =
+    maybe (Left err) Right $ select fits_well <|> select fits
+    where
+    select ps = case NonEmpty.nonEmpty ps of
+        Nothing -> Nothing
+        Just ps -> Just $ pick_dur (Call.pick ps rnd1)
+    pick_dur (p, (slow, fast)) = (p, dur)
+        where
+        dur = Num.scale (Num.clamp slow fast min_slow) fast
+            (RealTime.seconds rnd2)
+        min_slow = desired_dur / fromIntegral (length p)
+    err = "no patterns fit duration " <> pretty dur
+    -- Try to take up only this much dur with tumpuk notes, but take up to
+    -- the full duration if nothing fits.
+    desired_dur = dur * (2/3)
+    fits_well = filter ((<= desired_dur) . pattern_dur) tumpuk_patterns
+    fits = filter ((<= dur) . pattern_dur) tumpuk_patterns
+    pattern_dur (p, (_, fast)) = fromIntegral (length p) * fast
+
+-- | Pattern and usable time range.
+-- TODO probably I can vary -=, nx, and .o, or just randomize the dyn for
+-- non-final notes.
+tumpuk_patterns :: [([TumpukNote], (RealTime, RealTime))]
+tumpuk_patterns = expect_right $ mapM (firstA parse_tumpuk)
+    [ ("p-0o", (1/10, 1/14))
+    , ("p-0.o", (1/12, 1/18))
+    , ("p.0.o", (1/14, 1/18))
+    , ("1.0.o", (1/12, 1/18))
+    , ("p.0.p=0o", (1/18, 1/20))
+    ]
+    where
+    expect_right = either (error . untxt . ("tumpuk_patterns: "<>)) id
+    firstA f (a, c) = (,) <$> f a <*> pure c
 
 -- * cancel
 
@@ -411,6 +460,9 @@ parse_relative = map parse1 . filter (/=' ')
 
 -- ** absolute
 
+-- | Map a char to the notes it represents for a certain position.  Each
+-- position has different set of notes available.  This is just to interpret a
+-- mini-notation for each position.
 type NoteTable = Map.Map Char Chord
 
 -- | Pentatonic pitch degree.
@@ -514,8 +566,8 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
         \ next note afterwards."
     ) $ \(inst, dur) _args deriver -> do
         dur <- Call.to_function dur
-        -- TODO infer_damp can only add a %damp control, so it preserves order.
-        -- Is there a way to express this statically?
+        -- TODO infer_damp can only add a %damp control, so it preserves order,
+        -- so Post.apply is safe.  Is there a way to express this statically?
         Post.apply (infer_damp_voices inst (RealTime.seconds . dur)) <$> deriver
 
 damp_control :: Score.Control

@@ -22,8 +22,9 @@ import Types
 title :: String
 title = "import bali.reyong | scale=legong | cancel-kotekan 5"
 
-title_with_damp ::String
-title_with_damp = title <> " | infer-damp >i1 1.5 | inst = >i1"
+title_with_damp :: Double -> String
+title_with_damp dur = title <> " | infer-damp >i1 " <> show dur
+    <> " | inst = >i1"
 
 test_kilitan = do
     let run = e_voice 1 ex . DeriveTest.derive_tracks title . UiTest.note_track
@@ -100,7 +101,7 @@ test_assign_positions = do
 
 test_tumpuk = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks title_with_damp . UiTest.note_track
+            . DeriveTest.derive_tracks (title_with_damp 1.5) . UiTest.note_track
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run [(1, 4, "t xo 1 -- 4i")])
         ([((1, 1, "4i"), "+mute"), ((2, 3, "4i"), "+")], [])
@@ -109,24 +110,41 @@ test_tumpuk = do
         ([((0, 1, "4o"), "+"), ((1, 1, "4o"), "+mute"), ((2, 3, "4i"), "+")],
             [])
 
+test_tumpuk_patterns = do
+    -- Force partial function.
+    equal Reyong.tumpuk_patterns Reyong.tumpuk_patterns
+
+test_select_pattern = do
+    let f = Reyong.select_pattern
+        rnds = [0, 1/16 .. 1]
+        permutations dur = [f dur rnd1 rnd2 | rnd1 <- rnds, rnd2 <- rnds]
+    let dur_of (notes, dur) = fromIntegral (length notes) * dur
+        all_ok xs = (xs, replicate (length xs) (Right True))
+        desired = (* (2/3))
+    -- If there is lots of time, then patterns never exceed 2/3.
+    uncurry equal
+        (all_ok (map ((<= desired 16) . dur_of <$>) (permutations 16)))
+    -- If there is not much time, patterns are either <=1 or Left.
+    -- TODO test that
+    left_like (first untxt $ f 0.1 0 0) "no patterns fit"
+
 -- * damp
 
 test_c_infer_damp = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks
-                "import bali.reyong | infer-damp >i1 1 | inst = >i1 | %damp=.5"
+            . DeriveTest.derive_tracks (title_with_damp 1 <> " | %damp=.5")
             . UiTest.note_track
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
             fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
-    equal (run [(0, 1, "4c"), (1, 1, "+undamped -- 4d")])
-        ([(0, "4c", 0.5), (1, "4d", 0)], [])
-    equal (run [(0, 0.5, "4c"), (0.5, 0.5, "4d"), (1, 1, "4c")])
-        ([(0, "4c", 0), (0.5, "4d", 0.5), (1, "4c", 0.5)], [])
-    equal (run [(0, 1, "4c"), (1, 1, "4c")])
-        ([(0, "4c", 0), (1, "4c", 0.5)], [])
+    equal (run [(0, 1, "4i"), (1, 1, "+undamped -- 4o")])
+        ([(0, "4i", 0.5), (1, "4o", 0)], [])
+    equal (run [(0, 0.5, "4i"), (0.5, 0.5, "4o"), (1, 1, "4i")])
+        ([(0, "4i", 0), (0.5, "4o", 0.5), (1, "4i", 0.5)], [])
+    equal (run [(0, 1, "4i"), (1, 1, "4i")])
+        ([(0, "4i", 0), (1, "4i", 0.5)], [])
 
 test_c_infer_damp_kotekan = do
-    let run = e_voice 1 extract . DeriveTest.derive_tracks title_with_damp
+    let run = e_voice 1 extract . DeriveTest.derive_tracks (title_with_damp 1.5)
             . UiTest.note_track
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
             fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
@@ -137,18 +155,13 @@ test_infer_damp = do
     let f dur = Reyong.infer_damp (const dur) . mkevents
     -- Damp with the other hand.
     equal (f 1 [(0, "4c"), (1, "4d"), (2, "4e")]) [1, 1, 1]
-
     -- 4e can't be damped because both hands are busy.
-    equal (f 1 [(0, "4d"), (1, "4e"), (2, "4f"), (2, "4d")])
-        [1, 0, 1, 1]
-
+    equal (f 1 [(0, "4d"), (1, "4e"), (2, "4f"), (2, "4d")]) [1, 0, 1, 1]
     -- First 4d can't damp because the same hand is busy, and the other
     -- hand is blocked by the same hand.
-    equal (f 1.1 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")])
-        [1, 0, 1, 1]
+    equal (f 1.1 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")]) [1, 0, 1, 1]
     -- But give a bit more time and all is possible.
-    equal (f 0.75 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")])
-        [1, 1, 1, 1]
+    equal (f 0.75 [(0, "4c"), (1, "4d"), (3, "4d"), (4, "4c")]) [1, 1, 1, 1]
 
 test_assign_hands = do
     let f = map fst . Reyong.assign_hands . mkevents

@@ -4,11 +4,11 @@
 
 -- | Calls for randomized scores.
 module Derive.Call.Prelude.Random where
-import qualified Data.Foldable as Foldable
 import qualified Data.List.NonEmpty as NonEmpty
 
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
@@ -17,7 +17,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
 
 import Global
 
@@ -55,8 +54,7 @@ c_alternate = Derive.generator Module.prelude "alternate" Tags.random
     "Pick one of several expressions and evaluate it."
     $ Sig.call (Sig.many1 "expr" "Expression to evaluate.") $
     \exprs args -> do
-        let pairs = fmap ((,) 1) exprs
-        quoted <- pick_weighted pairs <$> Call.random
+        quoted <- Call.pick exprs <$> Call.random
         Eval.eval_quoted (Args.context args) quoted
 
 c_alternate_weighted :: Derive.Callable d => Derive.Generator d
@@ -65,7 +63,7 @@ c_alternate_weighted =
     "Pick one of several expressions and evaluate it."
     $ Sig.call (Sig.many1_pairs "expr" "(weight, expr) pairs.") $
     \pairs args ->
-        Eval.eval_quoted (Args.context args) . pick_weighted pairs
+        Eval.eval_quoted (Args.context args) . Call.pick_weighted pairs
             =<< Call.random
 
 c_alternate_tracks :: Derive.Generator Derive.Note
@@ -83,21 +81,11 @@ c_alternate_tracks = Derive.generator Module.prelude "alternate-tracks"
         case NonEmpty.nonEmpty sub_weights of
             Nothing -> return mempty
             Just sub_weights ->
-                Sub.derive . pick_weighted sub_weights =<< Call.random
+                Sub.derive . Call.pick_weighted sub_weights =<< Call.random
     where
     pair _ (Seq.Both weight sub) = return (weight, sub)
     pair err (Seq.First _) = Derive.throw err
     pair _ (Seq.Second sub) = return (1, sub)
-
-pick_weighted :: NonEmpty (Double, a) -> Double -> a
-pick_weighted weights rnd_ = go 0 weights
-    where
-    rnd = rnd_ * Foldable.sum (fmap fst weights)
-    go collect ((weight, a) :| weights) = case weights of
-        [] -> a
-        w : ws
-            | collect + weight > rnd -> a
-            | otherwise -> go (collect + weight) (w :| ws)
 
 
 -- * val calls
@@ -112,18 +100,17 @@ val_calls = Derive.call_map
 c_val_alternate :: Derive.ValCall
 c_val_alternate = Derive.val_call Module.prelude "alternate" Tags.random
     "Pick one of the arguments randomly."
-    $ Sig.call (Sig.many1 "val" "Value of any type.") $ \vals _ -> do
-        let pairs = fmap ((,) 1) (vals :: NonEmpty TrackLang.Val)
-        pick_weighted pairs <$> Call.random
+    $ Sig.call (Sig.many1 "val" "Value of any type.") $ \vals _ ->
+        Call.pick (vals :: NonEmpty BaseTypes.Val) <$> Call.random
 
 c_val_alternate_weighted :: Derive.ValCall
 c_val_alternate_weighted = Derive.val_call Module.prelude "alternate-weighted"
     Tags.random "Pick one of the arguments randomly."
     $ Sig.call (Sig.many1_pairs "val" "(weight, val) pairs.") $
     \pairs _args -> do
-        let vals :: NonEmpty TrackLang.Val
+        let vals :: NonEmpty BaseTypes.Val
             (weights, vals) = NonEmpty.unzip pairs
-        pick_weighted (NonEmpty.zip weights vals) <$> Call.random
+        Call.pick_weighted (NonEmpty.zip weights vals) <$> Call.random
 
 c_range :: Derive.ValCall
 c_range = Derive.val_call Module.prelude "range" Tags.random

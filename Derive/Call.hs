@@ -378,7 +378,7 @@ instance Random Int where
     randoms = _make_randoms Pure64.randomInt
     randoms_in low high = map (Num.restrict low high) <$> randoms
 
-random :: (Random a) => Derive.Deriver a
+random :: Random a => Derive.Deriver a
 random = head <$> randoms
 
 random_in :: (Random a, Real a) => a -> a -> Derive.Deriver a
@@ -406,6 +406,21 @@ _random_generator :: Derive.Deriver Pure64.PureMT
 _random_generator = do
     seed <- fromMaybe 0 <$> Derive.lookup_val EnvKey.seed
     return $ Pure64.pureMT (floor (seed :: Double))
+
+pick_weighted :: NonEmpty (Double, a) -> Double -> a
+pick_weighted weights rnd_ = go 0 weights
+    where
+    rnd = rnd_ * sum (fmap fst weights)
+    go collect ((weight, a) :| weights) = case weights of
+        [] -> a
+        w : ws
+            | collect + weight > rnd -> a
+            | otherwise -> go (collect + weight) (w :| ws)
+
+-- | Like 'pick_weighted' when all the weights are equal.
+pick :: NonEmpty a -> Double -> a
+pick (x :| xs) rnd = (x:xs) !! i
+    where i = round (rnd * fromIntegral (length xs))
 
 -- * time
 
