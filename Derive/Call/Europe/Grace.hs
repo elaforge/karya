@@ -64,7 +64,7 @@ default_grace_dur = Typecheck.real (1/12)
 -- * standard args
 
 grace_envs :: Sig.Parser (BaseTypes.Duration, Double, TrackLang.ControlRef)
-grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_placement_env
+grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_place_env
 
 grace_dur_env :: Sig.Parser BaseTypes.Duration
 grace_dur_env = Typecheck.default_real <$>
@@ -76,12 +76,12 @@ grace_dyn_env =
     Typecheck.non_negative <$> Sig.environ "grace-dyn" Sig.Unprefixed
         0.5 "Scale the dyn of the grace notes."
 
-grace_placement_env :: Sig.Parser TrackLang.ControlRef
-grace_placement_env = Sig.environ "grace-place" Sig.Unprefixed
-    (Sig.control "grace-place" 0) grace_placement_doc
+grace_place_env :: Sig.Parser TrackLang.ControlRef
+grace_place_env = Sig.environ "grace-place" Sig.Unprefixed
+    (Sig.control "grace-place" 0) grace_place_doc
 
-grace_placement_doc :: Text
-grace_placement_doc =
+grace_place_doc :: Text
+grace_place_doc =
     "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
     \ the base note, and the base note is delayed."
 
@@ -156,7 +156,7 @@ c_basic_grace = Derive.generator Module.prelude "basic-grace"
     $ Sig.call ((,,,)
     <$> Sig.required_env "pitches" Sig.None grace_pitches_doc
     <*> Sig.required_env "dur" Sig.None "Duration of grace notes."
-    <*> Sig.required_env "place" Sig.None grace_placement_doc
+    <*> Sig.required_env "place" Sig.None grace_place_doc
     <*> Sig.defaulted_env "transformer" Sig.None Nothing
         "Apply a transformer to grace notes."
     ) $ \(pitches, grace_dur, place, maybe_transform) ->

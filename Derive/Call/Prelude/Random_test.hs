@@ -3,11 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Prelude.Random_test where
-import qualified Data.List.NonEmpty as NonEmpty
-
 import qualified Util.Seq as Seq
 import Util.Test
-import qualified Derive.Call.Prelude.Random as Random
 import qualified Derive.DeriveTest as DeriveTest
 
 
@@ -60,9 +57,3 @@ test_alternate_tracks = do
         (["+a"], [])
     equal (run [[(0, 1, "alt-t 1 999")], [(0, 1, "+a")], [(0, 1, "+b")]])
         (["+b"], [])
-
-test_pick_weighted = do
-    let f weights = Random.pick_weighted
-            (NonEmpty.fromList (zip weights ("abcdef" :: [Char])))
-    equal (map (f [1, 3]) [0, 0.25, 0.5, 0.75]) "abbb"
-    equal (map (f [3, 1]) [0, 0.25, 0.5, 0.75]) "aaab"

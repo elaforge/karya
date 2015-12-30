@@ -4,6 +4,8 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 module Derive.Call_test where
+import qualified Data.List.NonEmpty as NonEmpty
+
 import Util.Test
 import qualified Ui.State as State
 import qualified Derive.Call as Call
@@ -44,3 +46,9 @@ test_randoms_in = do
     equal (map round $ double 0 (-100) 100) [-68, 98, -92, 19]
     equal (int 0 0 100) [94, 51, 33, 62]
     equal (int 1 (-100) 100) [-72, 62, -70, 46]
+
+test_pick_weighted = do
+    let f weights = Call.pick_weighted
+            (NonEmpty.fromList (zip weights ("abcdef" :: [Char])))
+    equal (map (f [1, 3]) [0, 0.25, 0.5, 0.75]) "abbb"
+    equal (map (f [3, 1]) [0, 0.25, 0.5, 0.75]) "aaab"

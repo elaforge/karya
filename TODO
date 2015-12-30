@@ -61,6 +61,9 @@ UNSORTED
     . The first is simpler, but it seems sketchy to go replace call-arg just
       because I assigned to arg.  Maybe the argument isn't even supposed to
       have an Unprefixed variant!
+    . Wait, why not just look at unprefixed first?  It means I can't use the
+      unprefixed globally, or rather I could but couldn't override it with
+      prefixed, but maybe that's not such a problem.
   - If there was a Sig.Named [x, y, z] then I could have a call default from
     arbitrary env vars.  Doing this could break the call-arg assumption above
     though.
@@ -1728,7 +1731,7 @@ Derive:
               561   53561
                21      21
         tumpuk
-          - grace-place arg
+          * grace-place arg
           * double calls: +o, oo, -+
             In fact I could have a grace call that takes articulation symbols.
           * ngoret style: 2- 1-+o

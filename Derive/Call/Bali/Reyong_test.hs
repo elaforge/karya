@@ -105,6 +105,8 @@ test_tumpuk = do
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run [(1, 4, "t xo 1 -- 4i")])
         ([((1, 1, "4i"), "+mute"), ((2, 3, "4i"), "+")], [])
+    equal (run [(1, 4, "place=0 | t xo 1 -- 4i")])
+        ([((0, 1, "4i"), "+mute"), ((1, 4, "4i"), "+")], [])
     strings_like (snd $ run [(1, 4, "t px0o 1 -- 4i")]) ["no prev pitch"]
     equal (run [(0, 1, "4o"), (1, 4, "t px0o 1 -- 4i")])
         ([((0, 1, "4o"), "+"), ((1, 1, "4o"), "+mute"), ((2, 3, "4i"), "+")],

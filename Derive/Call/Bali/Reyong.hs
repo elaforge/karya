@@ -23,6 +23,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
+import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Post.Postproc as Postproc
@@ -106,32 +107,49 @@ voices_env = Sig.environ "reyong-voices" Sig.Unprefixed []
 
 c_tumpuk :: Derive.Generator Derive.Note
 c_tumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
-    $ Sig.call ((,)
+    $ Sig.call ((,,)
     <$> Sig.required "notes" ("Articulations, from `"
         <> txt (Map.keys articulations) <> "`, pitches from `edcba0123456789`,\
         \ or a space for a rest.")
     <*> Sig.defaulted "dur" 0.1 "Duration of each note."
-    ) $ \(notes, dur) -> Sub.inverting $ \args -> do
-        (start, end) <- Args.real_range args
-        pitch <- Call.get_pitch start
+    <*> place_env
+    ) $ \(notes, dur, place) -> Sub.inverting $ \args -> do
         notes <- Derive.require_right id $ parse_tumpuk (untxt notes)
-        tumpuk start end (Args.prev_event_pitch args) pitch dur notes
+        tumpuk args place dur notes
+
+tumpuk :: Derive.PassedArgs Score.Event -> TrackLang.ControlRef -> RealTime
+    -> [TumpukNote] -> Derive.NoteDeriver
+tumpuk args place dur notes = do
+    (start, end) <- Args.real_range args
+    prev <- traverse Derive.real $ Args.prev_start args
+    place <- Call.control_at place start
+    pitch <- Call.get_pitch start
+    realize_tumpuk prev start end place (Args.prev_event_pitch args) pitch dur
+        notes
+
+place_env :: Sig.Parser TrackLang.ControlRef
+place_env = Sig.environ "place" Sig.Both (Sig.control "place" 1)
+    "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
+    \ the base note, and the base note is delayed."
 
 -- | Dyn 0 means a rest.
 type TumpukNote = (TumpukPitch, Score.Attributes, Dyn)
 data TumpukPitch = Transpose Pitch.Step | Prev deriving (Eq, Show)
 type Dyn = Signal.Y
 
-tumpuk :: RealTime -> RealTime -> Maybe PSignal.Pitch -> PSignal.Pitch
-    -> RealTime -> [TumpukNote] -> Derive.NoteDeriver
-tumpuk event_start event_end prev_pitch event_pitch dur =
-    mconcatMap note . filter ((>0) . note_dyn . snd . fst) . Seq.zip_next
-        . zip (Seq.range_ event_start dur)
+realize_tumpuk :: Maybe RealTime -> RealTime -> RealTime -> Double
+    -> Maybe PSignal.Pitch -> PSignal.Pitch -> RealTime -> [TumpukNote]
+    -> Derive.NoteDeriver
+realize_tumpuk prev event_start event_end place prev_pitch event_pitch dur
+        notes =
+    mconcatMap realize_note $ filter ((>0) . note_dyn . fst) $ zip notes extents
     where
+    extents = Grace.fit_grace_durs (RealTime.seconds place)
+        prev event_start event_end (length notes) dur
     note_dyn (_, _, dyn) = dyn
-    note ((start, (tpitch, attrs, dyn)), next) = do
-        start <- Derive.score start
-        end <- Derive.score $ maybe event_end fst next
+    realize_note ((tpitch, attrs, dyn), (real_start, dur)) = do
+        start <- Derive.score real_start
+        end <- Derive.score (real_start + dur)
         pitch <- case tpitch of
             Transpose steps -> return $ Pitches.transpose_d steps event_pitch
             Prev -> Derive.require "no prev pitch" prev_pitch
@@ -170,13 +188,12 @@ articulations = Map.fromList
 c_tumpuk_auto :: Derive.Generator Derive.Note
 c_tumpuk_auto = Derive.generator module_ "tumpuk-auto" Tags.inst
     "A variant of `tumpuk` that randomly picks a pattern."
-    $ Sig.call0 $ Sub.inverting $ \args -> do
-        (start, end) <- Args.real_range args
-        pitch <- Call.get_pitch start
+    $ Sig.call place_env $ \place -> Sub.inverting $ \args -> do
         rnd1 : rnd2 : _ <- Call.randoms
+        event_dur <- Args.real_duration args
         (notes, dur) <- Derive.require_right id $
-            select_pattern (end-start) rnd1 rnd2
-        tumpuk start end (Args.prev_event_pitch args) pitch dur notes
+            select_pattern event_dur rnd1 rnd2
+        tumpuk args place dur notes
 
 -- | If dur is long, use the slow end of the patterns.  If dur is short, try to
 -- fit the pattern in the first 2/3, dropping patterns if they exceed that at
