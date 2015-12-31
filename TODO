@@ -30,7 +30,7 @@ tracklang problems
       sort_on_pitch more robust.
 
 UNSORTED
-  - Thru should take transpose into account.
+  * Thru should take transpose into account.
     . Well, at least it could use octave.  But it seems ad-hoc.  Is there
       a better way to indicate a transposition is "built-in" and global to the
       instrument?  Maybe put it in the inst environ?
@@ -46,6 +46,17 @@ UNSORTED
       really just read from inst controls.
     . But config_controls is really for something else, it's to fix undefined
       MIDI control state.  I don't seem to use it though.
+    . But for this to work with twelve, I still have to fix
+      direct_input_to_nn, and that's kind of a pain for diatonic.  This is
+      all a huge hassle just because an instrument is off by an octave.
+      Maybe I should just have an octave transpose?  Or just not interpret
+      Controls.diatonic, but then it's just a feature with a hole in it.
+    . I could do a lower level feature, e.g. just a transpose that gets
+      applied at convert and in thru.
+      The problem is that not stripping transposes in thru creates the
+      expectation that input_to_nn should handle them, which makes
+      direct_input_to_nn no longer direct.
+    . I can't really think of any uses for non-octave transposition.
   - LNote.sort_on_pitch seems to be buggy, it duplicates notes and loses
     others.
     . Turns out this seems really complicated.  Do I really care that much?

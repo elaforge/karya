@@ -237,9 +237,17 @@ set_direct_input_to_nn scale = scale
 
 -- | An Input maps directly to a NoteNumber.  This is an efficient
 -- implementation for scales tuned to 12TET.
+--
+-- This obeys 'Controls.octave' but none of the other transposer controls.
+-- This is inconsistent with 'computed_input_to_nn', but trying to implement
+-- diatonic transposition would make this not so direct any more.  And in
+-- any case, "Cmd.MidiThru" shouldn't let through any transposers other than
+-- octave.
 direct_input_to_nn :: InputToNn
-direct_input_to_nn _pos (Pitch.Input _ pitch frac) =
-    return $ Right $ nn + Pitch.nn frac
+direct_input_to_nn pos (Pitch.Input _ pitch frac) = do
+    controls <- Derive.controls_at =<< Derive.real pos
+    let octaves = Map.findWithDefault 0 Controls.octave controls
+    return $ Right $ nn + Pitch.nn (frac + octaves * 12)
     where
     nn = fromIntegral $ Theory.semis_to_nn $
         Theory.pitch_to_semis Theory.piano_layout pitch
