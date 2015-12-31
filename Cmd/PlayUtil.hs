@@ -295,12 +295,12 @@ get_convert_lookup = do
     lookup_info <- Cmd.get_lookup_instrument
     configs <- State.get_midi_config
     let defaults = Map.map (Map.map (Score.untyped . Signal.constant)
-            . Instrument.config_controls) configs
+            . Instrument.config_control_defaults) configs
     return $ Convert.Lookup
         { lookup_scale = lookup_scale
         , lookup_inst = lookup_inst
         , lookup_patch = fmap extract . lookup_info
-        , lookup_default_controls = \inst ->
+        , lookup_control_defaults = \inst ->
             Map.findWithDefault mempty inst defaults
         }
     where

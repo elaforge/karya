@@ -31,6 +31,21 @@ tracklang problems
 
 UNSORTED
   - Thru should take transpose into account.
+    . Well, at least it could use octave.  But it seems ad-hoc.  Is there
+      a better way to indicate a transposition is "built-in" and global to the
+      instrument?  Maybe put it in the inst environ?
+    . For that, I have to put it in inst controls, but those work by unioning
+      at convert time, so transpose doesn't work, controls don't combine.
+      Wouldn't it be more intuitive and useful to set on
+      Derive.with_instrument like the environ?
+    . Bug is that Scales.direct_input_to_nn doesn't take transpose controls
+      into account.
+    . But MidiThru intentionally ignores transpose controls because when I was
+      writing for gender, entering notes on a block under a transpose would
+      sound different than the entered symbolic pitch.  So maybe I should
+      really just read from inst controls.
+    . But config_controls is really for something else, it's to fix undefined
+      MIDI control state.  I don't seem to use it though.
   - LNote.sort_on_pitch seems to be buggy, it duplicates notes and loses
     others.
     . Turns out this seems really complicated.  Do I really care that much?
@@ -64,9 +79,10 @@ UNSORTED
     . Wait, why not just look at unprefixed first?  It means I can't use the
       unprefixed globally, or rather I could but couldn't override it with
       prefixed, but maybe that's not such a problem.
-  - If there was a Sig.Named [x, y, z] then I could have a call default from
+  / If there was a Sig.Named [x, y, z] then I could have a call default from
     arbitrary env vars.  Doing this could break the call-arg assumption above
-    though.
+    though.  And it seems like more complicated stuff to memorize, so let's
+    not do that.
   * fltk: If I have a non-point selection with the cur_pos at the top, and
     move it, it gets cut off when moving up, and leaves a bit of the triangle
     when moving down.  Probably damage is not expanded enough.
@@ -592,6 +608,9 @@ MILESTONES
 
 documentation:
   - Publish haddock with http://documentup.com/feuerbach/standalone-haddock
+  - Can I have Util.Linkify check the validity of single-quote links?  Or
+    maybe I could run a link checker against the final output.  Otherwise
+    'Module.function' references get out of date.
   calldoc: CallDoc:
     * instrument browser should omit modules, since they don't matter
     * put newline between each call doc in instrument browser

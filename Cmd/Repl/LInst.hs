@@ -65,7 +65,7 @@ list = do
     show_config alias_map (inst, config) = ShowVal.show_val inst <> " - "
         <> Info.show_addrs (map fst (Instrument.config_addrs config))
         <> show_alias alias_map inst
-        <> show_controls (Instrument.config_controls config)
+        <> show_controls (Instrument.config_control_defaults config)
         <> show_environ (Instrument.config_restricted_environ config)
         <> show_flags config
     show_alias alias_map inst = case Map.lookup inst alias_map of
@@ -162,8 +162,8 @@ toggle_solo inst = modify_config inst $ \config ->
     in (config { Instrument.config_solo = solo }, solo)
 
 -- | Add an environ val to the instrument config.
-add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Instrument
-    -> Env.Key -> a -> m ()
+add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Instrument -> Env.Key
+    -> a -> m ()
 add_environ inst name val = modify_config_ inst $
     Instrument.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
     where v = RestrictedEnviron.to_val val
@@ -176,16 +176,20 @@ clear_environ inst = modify_config_ inst $ Instrument.cenviron #= mempty
 set_scale :: State.M m => Instrument -> Instrument.PatchScale -> m ()
 set_scale inst scale = modify_config_ inst $ Instrument.cscale #= Just scale
 
-set_control :: State.M m => Instrument -> Score.Control -> Double -> m ()
-set_control inst control val = modify_config_ inst $
-    Instrument.controls#Lens.map control #= Just val
+set_control_default :: State.M m => Instrument -> Score.Control -> Double
+    -> m ()
+set_control_default inst control val = modify_config_ inst $
+    Instrument.control_defaults#Lens.map control #= Just val
 
-set_controls :: State.M m => Instrument -> [(Score.Control, Double)] -> m ()
-set_controls inst controls = modify_config_ inst $
-    Instrument.controls #= Map.fromList controls
+set_control_defaults :: State.M m => Instrument -> [(Score.Control, Double)]
+    -> m ()
+set_control_defaults inst controls = modify_config_ inst $
+    Instrument.control_defaults #= Map.fromList controls
 
-get_controls :: State.M m => m (Map.Map Score.Instrument Score.ControlValMap)
-get_controls = Map.map Instrument.config_controls <$> State.get_midi_config
+get_control_defaults :: State.M m =>
+    m (Map.Map Score.Instrument Score.ControlValMap)
+get_control_defaults =
+    Map.map Instrument.config_control_defaults <$> State.get_midi_config
 
 get_config :: State.M m => Score.Instrument -> m Instrument.Config
 get_config inst = State.require ("no config for " <> pretty inst)

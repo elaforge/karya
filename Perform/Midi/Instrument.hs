@@ -220,7 +220,7 @@ data Config = Config {
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.
-    , config_controls :: !Score.ControlValMap
+    , config_control_defaults :: !Score.ControlValMap
     -- | If true, this instrument is filtered out prior to playing.
     , config_mute :: !Bool
     -- | If any instrument is soloed, all instruments except soloed ones are
@@ -237,8 +237,8 @@ cenviron = Lens.lens config_restricted_environ
     (\f r -> r { config_restricted_environ = f (config_restricted_environ r) })
 cscale = Lens.lens config_scale
     (\f r -> r { config_scale = f (config_scale r) })
-controls = Lens.lens config_controls
-    (\f r -> r { config_controls = f (config_controls r) })
+control_defaults = Lens.lens config_control_defaults
+    (\f r -> r { config_control_defaults = f (config_control_defaults r) })
 mute = Lens.lens config_mute
     (\f r -> r { config_mute = f (config_mute r) })
 solo = Lens.lens config_solo
@@ -255,7 +255,7 @@ voice_config addrs = Config
     { config_addrs = addrs
     , config_restricted_environ = mempty
     , config_scale = Nothing
-    , config_controls = mempty
+    , config_control_defaults = mempty
     , config_mute = False
     , config_solo = False
     }

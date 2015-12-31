@@ -47,7 +47,7 @@ data Lookup = Lookup {
     , lookup_inst :: Score.Instrument -> Maybe Instrument.Instrument
     , lookup_patch :: Score.Instrument
         -> Maybe (Instrument.Patch, Score.Event -> Score.Event)
-    , lookup_default_controls :: Score.Instrument -> Score.ControlMap
+    , lookup_control_defaults :: Score.Instrument -> Score.ControlMap
     }
 
 -- | Convert Score events to Perform events, emitting warnings that may have
@@ -70,7 +70,7 @@ convert_event lookup event_ = do
         event_controls event
     let controls = convert_controls (Instrument.inst_control_map midi_inst) $
             convert_dynamic pressure
-                (event_controls <> lookup_default_controls lookup score_inst)
+                (event_controls <> lookup_control_defaults lookup score_inst)
         pressure = Instrument.has_flag Instrument.Pressure patch
         velocity = fromMaybe Perform.default_velocity
             (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))

@@ -81,6 +81,7 @@ import qualified Cmd.Tala as Tala
 import qualified Cmd.TimeStep as TimeStep
 import qualified Cmd.ViewConfig as ViewConfig
 
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
