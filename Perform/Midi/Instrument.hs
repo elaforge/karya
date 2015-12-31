@@ -215,11 +215,20 @@ data Config = Config {
     config_addrs :: ![(Addr, Maybe Voices)]
     -- | This is a local version of 'patch_restricted_environ'.
     , config_restricted_environ :: !RestrictedEnviron.Environ
+    -- | This is the control equivalent to 'config_restricted_environ'.  These
+    -- controls are merged when the instrument comes into scope.  They can be
+    -- useful for setting default transposition, e.g. if an instrument sounds
+    -- in the wrong octave.  Unlike environ there is no patch version
+    -- because...  didn't seem useful?  If I need it, I can add it.
+    , config_controls :: !Score.ControlValMap
     -- | A local version of 'patch_scale'.
     , config_scale :: !(Maybe PatchScale)
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
-    -- a synthesizer starts in an undefined state.
+    -- a synthesizer starts in an undefined state.  This is different from
+    -- 'config_controls' in that these are meant to provide a default for
+    -- synthesizer state, so these are only applied during conversion, and
+    -- thus should only contain controls the MIDI instrument understands.
     , config_control_defaults :: !Score.ControlValMap
     -- | If true, this instrument is filtered out prior to playing.
     , config_mute :: !Bool
@@ -235,6 +244,8 @@ addrs = Lens.lens config_addrs
     (\f r -> r { config_addrs = f (config_addrs r) })
 cenviron = Lens.lens config_restricted_environ
     (\f r -> r { config_restricted_environ = f (config_restricted_environ r) })
+controls = Lens.lens config_controls
+    (\f r -> r { config_controls = f (config_controls r) })
 cscale = Lens.lens config_scale
     (\f r -> r { config_scale = f (config_scale r) })
 control_defaults = Lens.lens config_control_defaults
@@ -254,6 +265,7 @@ voice_config :: [(Addr, Maybe Voices)] -> Config
 voice_config addrs = Config
     { config_addrs = addrs
     , config_restricted_environ = mempty
+    , config_controls = mempty
     , config_scale = Nothing
     , config_control_defaults = mempty
     , config_mute = False
@@ -261,13 +273,14 @@ voice_config addrs = Config
     }
 
 instance Pretty.Pretty Config where
-    format (Config addrs environ scale controls mute solo) =
+    format (Config addrs environ controls scale control_defaults mute solo) =
             Pretty.record "Config"
         [ ("addrs", Pretty.format addrs)
         , ("environ", Pretty.format environ)
+        , ("controls", Pretty.format controls)
         , ("scale", Pretty.format scale)
         , ("mute", Pretty.format mute)
-        , ("controls", Pretty.format controls)
+        , ("control_defaults", Pretty.format control_defaults)
         , ("solo", Pretty.format solo)
         ]
 

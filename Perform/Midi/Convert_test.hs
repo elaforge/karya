@@ -196,4 +196,4 @@ perform patch aliases tracks = (result, performance)
         [(inst, [n]) | (n, inst) <- zip [0..] (map fst aliases)]
     db = DeriveTest.make_db [("s", [patch])]
     result = DeriveTest.derive_tracks_setup
-        (DeriveTest.with_inst_db aliases db) "" tracks
+        (DeriveTest.with_instrument_db aliases db) "" tracks

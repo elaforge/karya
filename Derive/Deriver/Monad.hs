@@ -767,14 +767,16 @@ initial_constant ui_state library lookup_scale lookup_inst cache score_damage =
 -- things, which are expressed here to avoid excessive dependencies between the
 -- systems.
 data Instrument = Instrument {
-    inst_calls :: InstrumentCalls
+    inst_calls :: !InstrumentCalls
     -- | Merge this with the 'state_environ' when the instrument comes into
     -- scope.
-    , inst_environ :: BaseTypes.Environ
+    , inst_environ :: !BaseTypes.Environ
+    -- | Like 'inst_environ', merge these controls.
+    , inst_controls :: !Score.ControlValMap
     -- | This is a list of the attributes that the instrument understands, in
     -- order of priority.  It corresponds to
     -- 'Perform.Midi.Instrument.AttributeMap'.
-    , inst_attributes :: [Score.Attributes]
+    , inst_attributes :: ![Score.Attributes]
     } deriving (Show)
 
 -- | Some ornaments only apply to a particular instrument, so each instrument

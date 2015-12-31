@@ -795,11 +795,12 @@ instance Pretty.Pretty InstrumentCode where
         , ("cmds", Pretty.format cmds)
         ]
 
-derive_instrument :: MidiInfo -> Derive.Instrument
-derive_instrument info = Derive.Instrument
-    { Derive.inst_calls = inst_calls (MidiDb.info_code info)
-    , Derive.inst_environ = Instrument.patch_environ (MidiDb.info_patch info)
-    , Derive.inst_attributes =
+derive_instrument :: Instrument.Config -> MidiInfo -> Derive.Instrument
+derive_instrument config info = Derive.Instrument
+    { inst_calls = inst_calls (MidiDb.info_code info)
+    , inst_environ = Instrument.patch_environ (MidiDb.info_patch info)
+    , inst_controls = Instrument.config_controls config
+    , inst_attributes =
         case Instrument.patch_attribute_map (MidiDb.info_patch info) of
             Instrument.AttributeMap amap -> [attrs | (attrs, _, _) <- amap]
     }

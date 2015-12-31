@@ -403,8 +403,10 @@ with_instrument inst deriver = do
     -- environ.
     (inst, derive_inst) <- get_instrument inst
     let with_inst = with_val_raw EnvKey.instrument inst
+    let controls = Score.untyped . Signal.constant <$> inst_controls derive_inst
     with_inst $ with_scopes (set_scopes (inst_calls derive_inst)) $
-        with_environ (inst_environ derive_inst) deriver
+        with_environ (inst_environ derive_inst) $
+        with_merged_controls (Map.toList controls) deriver
     where
     -- Replace the calls in the instrument scope type.
     set_scopes (InstrumentCalls inst_gen inst_trans inst_val)
@@ -530,8 +532,11 @@ with_constant_control control val =
     with_control control (Signal.constant <$> val)
 
 with_controls :: [(Score.Control, Score.TypedControl)] -> Deriver a -> Deriver a
-with_controls controls = Internal.local $ \state -> state
-    { state_controls = Util.Map.insert_list controls (state_controls state) }
+with_controls controls
+    | null controls = id
+    | otherwise = Internal.local $ \state -> state
+        { state_controls = Util.Map.insert_list controls (state_controls state)
+        }
 
 -- | Remove both controls and control functions.  Use this when a control has
 -- already been applied, and you don't want it to affect further derivation.
@@ -572,6 +577,18 @@ with_merged_control merger control signal deriver = do
     controls <- get_controls
     let new = merge merger (Map.lookup control controls) signal
     with_control control new deriver
+
+-- | Like 'with_controls', but merge them with their respective default
+-- 'Merger's.
+with_merged_controls :: [(Score.Control, Score.TypedControl)] -> Deriver a
+    -> Deriver a
+with_merged_controls control_vals deriver = do
+    let (controls, new_vals) = unzip control_vals
+    mergers <- mapM get_default_merger controls
+    signals <- get_controls
+    let old_vals = map (flip Map.lookup signals) controls
+        merged = zipWith3 merge mergers old_vals new_vals
+    with_controls (zip controls merged) deriver
 
 resolve_merge :: Merge Signal.Control -> Score.Control
     -> Deriver (Merger Signal.Control)

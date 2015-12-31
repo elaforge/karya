@@ -152,10 +152,14 @@ get_constant cache damage = do
     lookup_inst <- Cmd.get_lookup_instrument
     library <- Cmd.gets $ Cmd.state_library . Cmd.state_config
     defs_library <- get_library
+    let configs = State.config_midi $ State.state_config ui_state
     return $ Derive.initial_constant ui_state (defs_library <> library)
-        lookup_scale (adapt lookup_inst) cache damage
+        lookup_scale (adapt configs lookup_inst) cache damage
     where
-    adapt lookup = \inst -> Cmd.derive_instrument <$> lookup inst
+    adapt configs lookup = \inst ->
+        Cmd.derive_instrument (Map.findWithDefault empty_config inst configs)
+            <$> lookup inst
+    empty_config = Instrument.config []
 
 initial_dynamic :: Derive.Dynamic
 initial_dynamic = Derive.initial_dynamic initial_environ

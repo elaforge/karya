@@ -10,12 +10,12 @@ number of calls.
 
 ### general principles
 
-- Calls should generally be divided into high level and low level.
-Low level calls are concrete, e.g. interpolate between two values with a given
-curve.  High level calls are in musical terms, e.g. slur these three notes.
-Low level calls should be general purpose and orthogonal, but high level ones
-are can be specific to a particular kind of music or piece.  Another use for
-high level calls is that they may be dynamically bound to a particular concrete
+- Calls should generally be divided into high level and low level.  Low level
+calls are concrete, e.g. interpolate between two values with a given curve.
+High level calls are in musical terms, e.g. slur these three notes.  Low level
+calls should be general purpose and orthogonal, but high level ones can be
+specific to a particular kind of music or piece.  Another use for high level
+calls is that they may be dynamically bound to a particular concrete
 implementation.  E.g. the score uses a `tr` note call, but the caller binds it
 with `>tr = special-trill`.
 

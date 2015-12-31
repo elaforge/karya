@@ -32,6 +32,8 @@ import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
+
 import qualified Instrument.MidiDb as MidiDb
 import Global
 import Types
@@ -65,15 +67,16 @@ list = do
     show_config alias_map (inst, config) = ShowVal.show_val inst <> " - "
         <> Info.show_addrs (map fst (Instrument.config_addrs config))
         <> show_alias alias_map inst
-        <> show_controls (Instrument.config_control_defaults config)
         <> show_environ (Instrument.config_restricted_environ config)
+        <> show_controls "" (Instrument.config_controls config)
         <> show_flags config
+        <> show_controls "defaults:" (Instrument.config_control_defaults config)
     show_alias alias_map inst = case Map.lookup inst alias_map of
         Nothing -> ""
         Just source -> " (source: " <> ShowVal.show_val source <> ")"
-    show_controls controls
+    show_controls msg controls
         | Map.null controls = ""
-        | otherwise = " " <> pretty controls
+        | otherwise = " " <> msg <> pretty controls
     show_environ environ
         | environ == mempty = ""
         | otherwise = " " <> pretty environ
@@ -173,23 +176,17 @@ add_environ inst name val = modify_config_ inst $
 clear_environ :: State.M m => Instrument -> m ()
 clear_environ inst = modify_config_ inst $ Instrument.cenviron #= mempty
 
+set_controls :: State.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
+set_controls inst controls = modify_config_ inst $
+    Instrument.controls #= Map.fromList controls
+
 set_scale :: State.M m => Instrument -> Instrument.PatchScale -> m ()
 set_scale inst scale = modify_config_ inst $ Instrument.cscale #= Just scale
 
-set_control_default :: State.M m => Instrument -> Score.Control -> Double
-    -> m ()
-set_control_default inst control val = modify_config_ inst $
-    Instrument.control_defaults#Lens.map control #= Just val
-
-set_control_defaults :: State.M m => Instrument -> [(Score.Control, Double)]
+set_control_defaults :: State.M m => Instrument -> [(Score.Control, Signal.Y)]
     -> m ()
 set_control_defaults inst controls = modify_config_ inst $
     Instrument.control_defaults #= Map.fromList controls
-
-get_control_defaults :: State.M m =>
-    m (Map.Map Score.Instrument Score.ControlValMap)
-get_control_defaults =
-    Map.map Instrument.config_control_defaults <$> State.get_midi_config
 
 get_config :: State.M m => Score.Instrument -> m Instrument.Config
 get_config inst = State.require ("no config for " <> pretty inst)

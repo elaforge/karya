@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Utility functions for derive tests.
 module Derive.DeriveTest where
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -266,6 +267,8 @@ with_cmd cmd = mempty { setup_cmd = cmd }
 with_deriver :: (Derive.Deriver a -> Derive.Deriver a) -> SetupA a
 with_deriver deriver = mempty { setup_deriver = deriver }
 
+-- ** setup_ui
+
 -- | Set the skeleton of the tracks to be linear, i.e. each track is the child
 -- of the one to the left.  This overrides the default behaviour of figuring
 -- out a skeleton by making note tracks start their own branches.
@@ -315,6 +318,10 @@ with_tsig_sources track_ids = with_ui $ State.tracks %= Map.mapWithKey enable
 with_transform :: Text -> Setup
 with_transform = with_ui . (State.config#State.global_transform #=)
 
+with_instrument_config :: Text -> Instrument.Config -> Setup
+with_instrument_config inst config = with_ui $
+    State.config#State.midi %= Map.insert (Score.Instrument inst) config
+
 -- * setup_deriver
 
 with_key :: Text -> SetupA a
@@ -354,10 +361,10 @@ with_scale scale = with_cmd $ set_cmd_config $ \state -> state
 -- | Derive with a bit of the real instrument db.  Useful for testing
 -- instrument calls.
 with_synths :: Simple.Aliases -> [MidiInst.Synth] -> Setup
-with_synths aliases synths = with_inst_db aliases (synth_to_db synths)
+with_synths aliases synths = with_instrument_db aliases (synth_to_db synths)
 
-with_inst_db :: Simple.Aliases -> Cmd.InstrumentDb -> Setup
-with_inst_db aliases db = with_aliases <> with_db
+with_instrument_db :: Simple.Aliases -> Cmd.InstrumentDb -> Setup
+with_instrument_db aliases db = with_aliases <> with_db
     where
     with_db = with_cmd $ set_cmd_config $ \state -> state
         { Cmd.state_instrument_db = db }
@@ -445,7 +452,7 @@ make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup
 make_convert_lookup aliases midi_db =
     run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state)
         PlayUtil.get_convert_lookup
-    where setup = with_inst_db aliases midi_db
+    where setup = with_instrument_db aliases midi_db
 
 -- ** extract
 

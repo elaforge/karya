@@ -484,28 +484,40 @@ instance Serialize Configs where
             _ -> Serialize.bad_version "Instrument.Configs" v
 
 instance Serialize Instrument.Config where
-    put (Instrument.Config a b c d e f) = Serialize.put_version 5
-        >> put a >> put b >> put c >> put d >> put e >> put f
+    put (Instrument.Config a b c d e f g) = Serialize.put_version 6
+        >> put a >> put b >> put c >> put d >> put e >> put f >> put g
     get = do
         v <- Serialize.get_version
         case v of
             4 -> do
                 addrs :: [(Instrument.Addr, Maybe Instrument.Voices)] <- get
                 environ :: RestrictedEnviron.Environ <- get
-                controls :: Score.ControlValMap <- get
+                control_defaults :: Score.ControlValMap <- get
                 mute :: Bool <- get
                 solo :: Bool <- get
-                return $ Instrument.Config addrs environ Nothing controls mute
-                    solo
+                let controls = mempty
+                return $ Instrument.Config addrs environ controls Nothing
+                    control_defaults mute solo
             5 -> do
                 addrs :: [(Instrument.Addr, Maybe Instrument.Voices)] <- get
                 environ :: RestrictedEnviron.Environ <- get
                 scale :: Maybe Instrument.PatchScale <- get
-                controls :: Score.ControlValMap <- get
+                control_defaults :: Score.ControlValMap <- get
                 mute :: Bool <- get
                 solo :: Bool <- get
-                return $ Instrument.Config addrs environ scale controls mute
-                    solo
+                let controls = mempty
+                return $ Instrument.Config addrs environ controls scale
+                    control_defaults mute solo
+            6 -> do
+                addrs :: [(Instrument.Addr, Maybe Instrument.Voices)] <- get
+                environ :: RestrictedEnviron.Environ <- get
+                controls :: Score.ControlValMap <- get
+                scale :: Maybe Instrument.PatchScale <- get
+                control_defaults :: Score.ControlValMap <- get
+                mute :: Bool <- get
+                solo :: Bool <- get
+                return $ Instrument.Config addrs environ controls scale
+                    control_defaults mute solo
             _ -> Serialize.bad_version "Instrument.Config" v
 
 instance Serialize Instrument.PatchScale where
