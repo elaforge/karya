@@ -30,98 +30,12 @@ tracklang problems
       sort_on_pitch more robust.
 
 UNSORTED
-  * Thru should take transpose into account.
-    . Well, at least it could use octave.  But it seems ad-hoc.  Is there
-      a better way to indicate a transposition is "built-in" and global to the
-      instrument?  Maybe put it in the inst environ?
-    . For that, I have to put it in inst controls, but those work by unioning
-      at convert time, so transpose doesn't work, controls don't combine.
-      Wouldn't it be more intuitive and useful to set on
-      Derive.with_instrument like the environ?
-    . Bug is that Scales.direct_input_to_nn doesn't take transpose controls
-      into account.
-    . But MidiThru intentionally ignores transpose controls because when I was
-      writing for gender, entering notes on a block under a transpose would
-      sound different than the entered symbolic pitch.  So maybe I should
-      really just read from inst controls.
-    . But config_controls is really for something else, it's to fix undefined
-      MIDI control state.  I don't seem to use it though.
-    . But for this to work with twelve, I still have to fix
-      direct_input_to_nn, and that's kind of a pain for diatonic.  This is
-      all a huge hassle just because an instrument is off by an octave.
-      Maybe I should just have an octave transpose?  Or just not interpret
-      Controls.diatonic, but then it's just a feature with a hole in it.
-    . I could do a lower level feature, e.g. just a transpose that gets
-      applied at convert and in thru.
-      The problem is that not stripping transposes in thru creates the
-      expectation that input_to_nn should handle them, which makes
-      direct_input_to_nn no longer direct.
-    . I can't really think of any uses for non-octave transposition.
   - LNote.sort_on_pitch seems to be buggy, it duplicates notes and loses
     others.
     . Turns out this seems really complicated.  Do I really care that much?
   - Also, ModifyNotes doesn't seem to understand about parent note tracks.
-  * Cmd.Edit.strip_call should only apply to a note track if you have note and
-    pitch tracks selected.  Or maybe it would be simpler to make it only apply
-    to the point track?
-  * can I get rid of Merger's identity field and instead apply that
-    optimization in the functions themselves?  Then I don't have to pretend
-    it's a monoid.
-  * should I have generic soft and loud transformers?
-    e.g. p for piano, f for forte
-    . How to coexist with both 'scale' and 'mul' merging?  I could use the
-      trick of setting absolute dyn, but I don't exactly want it to be
-      absolute, just say *1.5 or *0.3.  Wait, I guess that's mul.  So merge is
-      another argument.
-    . Then maybe a key to add them.  Then I have 'p | o' instead of '.'.
-      Maybe it should be a symbol to be more distinctive?  '>' for 'f', and '-'
-      for 'p'.
-      . Then '=' to extend dur, and '^' to reduce it?
-  * If I have if an arg is Sig.Both, and I have call-arg=x, and then arg=y,
-    the arg=y should override the call-arg=x.
-    . The problem is that it can't know at assignment time when args belong to
-      the same call, but then the call can't tell which one was more recent.
-    . For the first, I could assume that arg should override *-arg.
-    . For the second, I could attach stack depth metadata to the val, then
-      prefer the one with more depth.
-    . The first is simpler, but it seems sketchy to go replace call-arg just
-      because I assigned to arg.  Maybe the argument isn't even supposed to
-      have an Unprefixed variant!
-    . Wait, why not just look at unprefixed first?  It means I can't use the
-      unprefixed globally, or rather I could but couldn't override it with
-      prefixed, but maybe that's not such a problem.
-  / If there was a Sig.Named [x, y, z] then I could have a call default from
-    arbitrary env vars.  Doing this could break the call-arg assumption above
-    though.  And it seems like more complicated stuff to memorize, so let's
-    not do that.
-  * fltk: If I have a non-point selection with the cur_pos at the top, and
-    move it, it gets cut off when moving up, and leaves a bit of the triangle
-    when moving down.  Probably damage is not expanded enough.
   - naming: use either 'attrs' or 'attributes' consistently
-  Should selection moving use Selection.Move or Selection.Replace?
-    . Move is useful when adding another thing of the same duration, or
-      keeping a zoom level.
-    . Replace is useful when I want to enter notes after a selection.  But
-      sometimes I just want to set the point at the end of the selection,
-      winds up being down-up.  If I had a collapse to point it would do this
-      directly.
-    * Try with space as Selection.to_point.
-  * 'a' keeps getting shadowed by kbd entry.  Can I move it to a symbol on
-    the right side, and have a rule against shadowing those?  Maybe :?
-    * Actually this is not right for non-dvorak, I should bind by position.
-  * How can I get dyn to only affect attacks?  I could have a 'dyn-atk' and use
-    that only at attack time, but what about other controls?
-    . Just hardcode a few signals for now.
-    . But I also want to use vel for some articulations, and cc2 for others.
-      So I think even for pressure instruments I still emit velocity.
-    . Sometimes dyn stays constant for the note, and sometimes
-      it's continuous.  Also, in the constant case it sets velocity instead of
-      cc2.
-    . For the second, I think I can just set the velocity to the dyn.
-      Presumably most instruments won't care.
-    . When I have a 'dyn-atk', the note deriver gets its value, and merges it
-      with dyn as a constant, using the default dyn merge.
-      . It's all so ad-hoc, but I can't think of any way to generalize.
+    Also there is 'inst' vs. 'instrument'
   - Interpret a midi file with keyswitches back to the attrs.
     . This is so I can load VSL examples and learn from them.
     . Should it be a score transformation, or start from the parsed MIDI?
@@ -132,23 +46,7 @@ UNSORTED
       watch the VSL UI.
     . But still worth keeping existing work, because I'll need something like
       that for MIDI record.
-  * Move cmd-m to GlobalKeymap, so it works when you have several tracks
-    selected.
-  * When there is a non-point selection, make it obvious where cur_pos and
-    cur_track are.
-    . I still want arrows on point selections because of a multiple track
-      point selection.  But maybe I can make it red only for the track point.
   vsl:
-    * attr priority:
-      . +pizz over +nv
-      . +harsh over +stac
-    * Can I automatically extend real duration of +stac notes while leaving
-      logical duration alone?  This is because vsl sounds better if you give
-      the duration, but it wouldn't be notated that way.
-      . Also I can add +stac if it's played like that, but doesn't get a dot
-        in staff notation.
-      . Actually, wouldn't it be better to set release time to long for those
-        articulations?
     - figure out how to do tuning
       . I think it needs to be pitch bend, since it doesn't seem to respond to
         MTS.  But VSL ensemble should be able to load multiple copies of the
@@ -169,52 +67,9 @@ UNSORTED
     attribute groups:
       . bass clarinet has nv without vib
     - rename +sec# to +s#?
-    * should be able to select the most appropriate sec# dyn given
-      +cresc or +dim on a note.
-      . But derive doesn't have access to the full Patch, so it can't get
-        attributes.  I could either have the inst put a list of its attrs in
-        the environ, or just let derive at the patch.  Is there any harm to
-        the latter?  The original idea was that there are multiple backends
-        so derive shouldn't depend on a particular kind of instrument, but
-        attrs are already generic, and besides portability across instruments
-        is never a goal.
-    * Figure out how to map continuous controls, and crossfade.
-  * it's annoying to apply an attr over a period of time because it requires
-    a parent track.  Can I make attr controls, e.g. a control named +nv which
-    only applies when >0?
-    . This is another reason to unify Environ and signals.
   UI awkwardness:
-    * Hitting note entry in a parent track makes a pitch track.  I can detect
-      those and not do that.
-    * Sometimes I want to move all tracks down by time.  Key to select all
-      tracks?
     - Paste between blocks with different track layout is awkward.  Can I have
       a note-oriented paste that reuses or creates the track structure?
-    * It seems inconsistent how horizontal movement retains the selection, but
-      not vertical movement.  And it seems useful to keep the duration.
-  . I wind up with a sequence of note transformers, e.g. a rhythmic pattern
-    with '('.  Can I abstract that?
-    . It would be like textual substitution of a block into a parent track,
-      possibly with loop or tile.  Can I do it with a plain call?  I think I
-      can, though I'd have to slice after the substitution.  Also, I think it
-      would have to name a block call, a renamed one wouldn't work.
-      . If that continues to be a problem, maybe I could have c_equal
-        understand renames specially.
-    * I could have a 'cycle' parent, which takes n transformers and cycles
-      them over its children.
-    * A time-based variant would have to somehow get transformer + duration.
-      I could do it with two layers of transformers, but awkwardly.
-      . Would have to look directly at subs without slicing to get text and
-        durations, then delete the direct sub and do slicing.  Maybe easier to
-        name a block?
-      . The other option is to give up on the graphical version
-  * State.insert_block_events clips to the end of the ruler, which makes
-      working with a ruler-less block always delete events.
-    . I added it because I wanted move events to clip events at the end of the
-      ruler: 'make insert and delete time clip events to the block'
-    . I think this was a problem because it was inconvenient to select events
-      past the end of the ruler and delete them.  So maybe a better solution
-      would be select to end of track to be to the last event?
   Format:
     HsPretty:
       problems:
@@ -232,13 +87,6 @@ UNSORTED
             )
     - Util.Pretty still broken: pprint Vsl.violin_harmonics
     - move format related modules to Util.Format.*
-  * support Controls.octave, then I can use it at Vsl.harmonic
-  * See if the vsl arp patches are all divided by key, then I can update them
-    all at once.
-  * ShowVal.doc_val I always type wrong.  How about ShowVal.doc?
-  * pianoteq harp should set gliss pedal for grace notes
-  * pianoteq `o` and `m` calls are wrong, because they set the control but
-    don't unset it.
   - Sortedness tracking for Stream and Post functions.
     . Track down usage of Stream.from_sorted_list, probably most uses are
       bogus.  Stream.from_list and Stream.from_events have to take
@@ -252,7 +100,6 @@ UNSORTED
     . Order is easy to check with quickcheck.  I could come up with some ways to
       do quickchecks on certain score fragments.  Or alternately, apply
       a standard set of checks: start =0, >0, in callee block, etc.
-
   - Cmds don't indicate when they could abort or throw.  I rely on ad-hoc
     conventions like get_ vs. lookup_, but what about it actually being in the
     type signature?  I could try the "lightweight checked exceptions" in:
@@ -293,46 +140,6 @@ UNSORTED
       apply the environ from the new instrument, via Post.set_instrument.
 
   - kotekan calls leave keys down in kontakt
-  format: Pretty:
-    * format is messed up with
-        (Score.Instrument, Map.Map Score.Instrument Score.Instrument)
-        ( >u
-        , { >i
-                : >kontakt/wayang-isep
-            , >u: >kontakt/wayang-umbang, >w: >kontakt/wayang-pemade
-            }
-        )
-      should be:
-        ( >u
-        , { >i: >kontakt/wayang-isep, >u: >kontakt/wayang-umbang
-          , >w: >kontakt/wayang-pemade
-          }
-        )
-      . Possible solution is that ", { >i" starts with indent 2, but
-        internally has a indent 1.  If it ends with indent 1, then I have
-        to use that when finding the break.
-        . This is necessary because when a section uses withIndent
-
-    * also pprint Maps are messed up:
-      . Derive.Derive_test test_tempo_funcs2:
-          prettyp (Derive.collect_warp_map $ Derive.state_collect
-            $ Derive.r_state res
-      { [block (bid "test/b0"), (bid "test/b0"), (tid "test/b0.t1")]
-          : Left ( 0s, 8.5s
-          , Warp (0s, .5s) { signal = <0s:0, 4294967296s:4294967296> }
-          , (bid "test/b0"), (tid "test/b0.t1")
-          )
-      , [ block (bid "test/b0")
-          , (bid "test/b0"), (tid "test/b0.t1"), (tid "test/b0.t2")
-          , (tid "test/b0.t2")
-          ]
-          : Right (tid "test/b0.t2")
-      ...
-    / pp LPerf.sel_events has an extra level of indent after the [.  Not due
-      to LEvents.
-      . Actually this is correct, 1 for list, 1 for record continuation.
-    - Add Util.Format backend for AST as in Util.PPrint
-
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
     to find the instrument.
     . It was because the kendang tracks were below >pno, not "tempo".  So, two
@@ -623,8 +430,6 @@ documentation:
     maybe I could run a link checker against the final output.  Otherwise
     'Module.function' references get out of date.
   calldoc: CallDoc:
-    * instrument browser should omit modules, since they don't matter
-    * put newline between each call doc in instrument browser
     - collapse control for modules, option to collapse / expand all
       . Haddock:
         <span id=xyz class="module collapser"
@@ -1665,25 +1470,6 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
-        * I get bogus mutes, maybe due to the note off getting after the next
-          note on.  I think this happens even with damp=0.
-          . damp=0 calls should get a 0 dur.  Then set damp=0 for tumpuk and
-            byongs.
-          . If I get note on, and it's already on, I want to ignore the
-            corresponding note off.  I could keep track of how many are down
-            and only release at 0.
-          . It seems ksp doesn't work because kontakt emits releases for all
-            notes as soon as the first note off is seen.
-          . Set to 0 doesn't work because I get
-            [at=0, note on, at=1, note off, note on, ...]
-            . I could fix it by remembering AT from the note on.  I'd need to
-              make the postproc then sample from the end if I wanted %damp to
-              behave intuitively.
-            . Otherwise, I'd need to make sure the at=1 for the next note
-              doesn't get pushed before the note off.  Maybe in general
-              I shouldn't push controls before NoteOff.
-        * ksp: can I loop through sounding notes and mute all with the same
-          $EVENT_NOTE?
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.
           . One way is to have a postproc ensure ==0 or >=1/127.
@@ -1695,32 +1481,6 @@ Derive:
         - individual notes play in octaves and kempyung
           . Or perhaps better to write two parts and have them duplicated in
             the upper octave.
-        kotekan:
-          * update to use a "k" call like gangsa
-          * implement initial_last
-          * last note should have infer-duration
-          * I think infer-damp is wrong for k/_\
-            * to debug, make the kotekan calls take a "voices" env to only
-              emit certain voices.
-            . It's because the CC for the next note interferes with this one.
-              CC is not as good as note off vel because it's global.  I still
-              need a control that addresses the note.
-            . Poly AT can do it, but I need to assign %damp to poly-at.
-        reyong patch
-          * pitch map
-          * keyswitches
-          * release-vel support
-        reyong protocol
-          * to damp, set %damp, which the inst postproc moves to %release-vel
-          / also in postproc, +mute note gets dur=0, %dyn=0, %damp=dyn
-          * How to set open or closed mute?  I need to send the ks from the
-            attr map.  It's ok to send before NoteOn, so I think I can treat
-            it as a normal keyswitch, but maybe I have to send +open too.
-            . Actually I think this doesn't work because it can't be
-              distinguished from a muted stroke.  So maybe I need separate
-              configuration for +open+loose-damp vs. +open+tight-damp.
-              I can also add a couple extra keyswitches for just +mute.
-        * hook up Derive.Call.Bali.Reyong
         - two handed +cek call
         - for infer-damp, also infer damp level
           . Damp gets louder when notes are closer, or faster.
@@ -1729,29 +1489,6 @@ Derive:
           to +cek.  Or I could always damp closed if that sounds good.
           Or I could infer it based on speed.  Otherwise, I can change the
           attr to +loose-mute or +tight-mute to explicitly configure.
-        * reyong-damp emits notes with +mute.  So I have a stream of notes
-          where starts and stops are explicit, and each note rings until a
-          +mute of the same pitch.  If the instrument uses NoteOffs, I have to
-          translate that to merged notes.
-          . Or could I emit a more easy form?  E.g. give notes a duration,
-            a possible +damped attr, and a note-off-velocity.
-          . If I have +tight and +loose damping and switch with a keyswitch
-            then this is a new form of keyswitch.
-          . On the other hand, if I can make it a non-interfering keyswitch
-            then I think I don't have any of these problems.  But that would
-            have to be poly at.
-          . Transform: reyong-damp adds a %release-vel control instead of
-            +mute.  If it doesn't have one, extend the duration until the next
-            note with the same pitch.  Or emit release vel of 0 and have KSP
-            not stop the sample on release vel 0.  I can use release vel 1 for
-            damp, but without a sample.
-          . A problem with using NoteOff is that I want to be able to do
-            multiple NoteOns without damping.  If Kontakt were flexible
-            I could just emit unbalanced NoteOn and NoteOff but I have to
-            figure out if KSP can replace the usual note allocation stuff.
-            . Track the last note for each pitch.  If I see a NoteOff with
-              non-zero velocity then play the damp sample and cut off the
-              sounding note.
         - split to ngembat, e.g.  λ 人 hmm, is there a reverse lambda?  Can
           I draw symbols reversed? 入 兩
           . There are several ngembat variations: fast:
@@ -1760,14 +1497,6 @@ Derive:
             slow:
               561   53561
                21      21
-        tumpuk
-          * grace-place arg
-          * double calls: +o, oo, -+
-            In fact I could have a grace call that takes articulation symbols.
-          * ngoret style: 2- 1-+o
-          * I could have a collection of tumpuk for movement, then a call
-            selects one randomly.
-          * It can also play faster if the note is shorter.
         - kbd entry for /, X, O, + etc.?
         - perhaps 0 duration should infer duration?
         kilitan
@@ -1816,16 +1545,6 @@ Derive:
 
 pitch: scales: scale:
   scales / Derive.Scale:
-    * Implement staff-notation style accidentals, where accidentals in the
-      key signature are implicit, but you need explicit naturals.
-      . This is just the same as an absolute scale, except the display is
-        different, and needs to the key.
-      * I need to differentiate no accidentals from a natural.  I think that
-        means Pitch.degree_accidentals has to be Maybe.
-        . This seems to have a big effect because now everyone who deals with
-          Pitches needs to understand about the scale and key.  Instead,
-          Pitches should continue to be non-ambiguous, but the parsing should
-          figure out the Pitch based on the scale.
     - I think the symbolic pitch_note functions should use RelativePitch,
       otherwise the symbolic pitch they produce can't be parsed back in to
       produce the same pitch.
@@ -1833,17 +1552,10 @@ pitch: scales: scale:
       . For ChromaticScales and JustScales
     - TheoryFormat.make_relative_format is a confusing name because it makes
       a Format from a RelativeFormat.
-    * TheoryFormat functions have zillions of arguments, can I package some up
-      more?  I guess RelativeFormat is already such a package...
     - It's confusing how the default_key is built-in to parse_key but also
       passed separately... maybe it should take a flag to say whether an error
       should become the default?
     - Strip type prefixes from Pitch.Pitch and Pitch.Degree?  Add lenses?
-    * Put Controls.octave in Scales.standard_transposers.
-      . I would have to make Scales.note_to_call handle it, but then I'd need
-        a version that doesn't for WendyCarlos.
-      . Not sure if the complexity is worth it, wait until I need it.
-    * overtone series
     - add ratio transpose signal, that multiplies hz
     support scales that are different ascending vs. descending
       . Scales have two versions of each degree.
