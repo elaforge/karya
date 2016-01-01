@@ -35,6 +35,7 @@ import qualified Cmd.Simple as Simple
 import qualified Cmd.TimeStep as TimeStep
 
 import qualified Derive.ParseSkeleton as ParseSkeleton
+import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
@@ -320,6 +321,32 @@ regular_notes :: Int -> [TrackSpec]
 regular_notes n = note_track $ take n
     [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) (cycle pitches)]
     where pitches = [o:p:"" | o <- "34567", p <- "cdefgab"]
+
+-- | Parse a TrackSpec back out to a NoteSpec.
+to_note_spec :: [TrackSpec] -> [NoteSpec]
+to_note_spec =
+    mapMaybe parse . Seq.split_with (ParseTitle.is_note_track . txt . fst)
+    where
+    parse [] = Nothing
+    parse ((inst, notes) : controls) =
+        Just (drop 1 inst, add_pitches pitches notes, [])
+        where
+        pitches = maybe [] snd $
+            List.find (ParseTitle.is_pitch_track . txt . fst) controls
+
+-- | Like 'to_note_spec' but expect just notes and pitches, no controls.
+to_pitch_spec :: [NoteSpec] -> [[EventSpec]]
+to_pitch_spec = map $ \(_, events, _) -> events
+
+add_pitches :: [EventSpec] -> [EventSpec] -> [EventSpec]
+add_pitches = go ""
+    where
+    go p pitches ns@((nt, nd, n) : notes)
+        | ((pt, _, nextp) : restp) <- pitches, pt >= nt = go nextp restp ns
+        | otherwise = (nt, nd, add p n) : go p pitches notes
+    go _ _ [] = []
+    add p n = List.intercalate " -- " $ filter (not . null) [p, n]
+
 
 -- * state to spec
 

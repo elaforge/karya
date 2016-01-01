@@ -32,8 +32,7 @@ foreign import ccall "append_log"
 
 clear_logs :: Window -> Fltk.Fltk ()
 clear_logs view = Fltk.action $ c_clear_logs (Fltk.win_ptr view)
-foreign import ccall "clear_logs"
-    c_clear_logs :: Ptr Window -> IO ()
+foreign import ccall "clear_logs" c_clear_logs :: Ptr Window -> IO ()
 
 set_status :: Window -> UTF8.ByteString -> UTF8.ByteString -> Fltk.Fltk ()
 set_status view status style = Fltk.action $

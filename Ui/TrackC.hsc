@@ -83,13 +83,6 @@ instance CStorable Track.TrackSignal where
 -- a control track is 8 bytes/Double * 600 = 4.6kb.  So * 60 minutes * 8 tracks
 -- = 2.25mb.  Since I tested 0.01s to copy 32mb, this should totally be fast
 -- enough.
---
--- Copying over the valname list when it probably never changes galls a little.
--- However, as with the signal above, a copy is probably fast enough and is
--- much simpler wrt storage, especially because there are variable length
--- strings involved.  I shouldn't use static storage because customizing pitch
--- sig rendering by messing with ValNames seems like a useful thing to do.
--- TOOD ValNames are gone now, revisit this?
 poke_track_signal :: Ptr Track.TrackSignal -> Track.TrackSignal -> IO ()
 poke_track_signal tsigp (Track.TrackSignal sig shift stretch) = do
     (#poke TrackSignal, shift) tsigp shift

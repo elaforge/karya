@@ -77,13 +77,13 @@ run_tracks_ruler :: [UiTest.TrackSpec] -> Cmd.CmdId a -> Result a
 run_tracks_ruler tracks = run (make_tracks_ruler tracks) default_cmd_state
 
 -- | Derive the tracks and then run the cmd with the performance available.
-run_perf_tracks :: [UiTest.TrackSpec] -> Cmd.CmdId val -> IO (Result val)
+run_perf_tracks :: [UiTest.TrackSpec] -> Cmd.CmdT IO a -> IO (Result a)
 run_perf_tracks tracks = run_perf (make_tracks tracks) default_cmd_state
 
-run_perf :: State.State -> Cmd.State -> Cmd.CmdId val -> IO (Result val)
+run_perf :: State.State -> Cmd.State -> Cmd.CmdT IO a -> IO (Result a)
 run_perf ustate cstate cmd = do
     cstate <- update_performance State.empty ustate cstate []
-    return $ run ustate cstate cmd
+    run_io ustate cstate cmd
 
 make_tracks :: [UiTest.TrackSpec] -> State.State
 make_tracks = snd . UiTest.run_mkview
@@ -258,6 +258,12 @@ set_point_sel_block block_name tracknum pos =
         (Just (Sel.point tracknum pos))
     where view_id = UiTest.mk_vid_name block_name
 
+select_all :: Cmd.M m => m ()
+select_all = do
+    tracks <- State.track_count UiTest.default_block_id
+    end <- State.block_end UiTest.default_block_id
+    set_sel_on UiTest.default_view_id 1 0 (tracks - 1) end
+
 
 -- * extractors
 
@@ -314,6 +320,10 @@ extract_ui_state f = extract_state (\state _ -> f state)
 
 e_tracks :: Result a -> Extracted [UiTest.TrackSpec]
 e_tracks = extract_ui_state UiTest.extract_tracks
+
+e_pitch_tracks :: Result a -> Extracted [[UiTest.EventSpec]]
+e_pitch_tracks = extract_ui_state $
+    UiTest.to_pitch_spec . UiTest.to_note_spec . UiTest.extract_tracks
 
 extract_ui :: State.StateId e -> Result v -> Extracted e
 extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
