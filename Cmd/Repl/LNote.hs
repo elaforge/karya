@@ -2,11 +2,12 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Utilities that use "Cmd.ModifyNote" to do higher-level transformations.
+-- | Utilities that use "Cmd.ModifyNotes" to do higher-level transformations.
 module Cmd.Repl.LNote where
 import qualified Data.List as List
-import qualified Data.List.NonEmpty as NonEmpty
+import qualified Data.Map as Map
 
+import qualified Util.Map
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ModifyNotes as ModifyNotes
@@ -58,7 +59,8 @@ distribute = do
 -- | Try to compact non-overlapping notes to use the least number of tracks
 -- possible.
 compact :: Cmd.CmdL ()
-compact = ModifyNotes.selection $ const $
+compact =
+    ModifyNotes.selection $ const $
         return . snd . List.mapAccumL allocate [] . map fst
     where
     allocate state note = (next, set_index i note)
@@ -67,7 +69,7 @@ compact = ModifyNotes.selection $ const $
             (ModifyNotes.note_end note) state
 
 -- | Find the lowest index that a note will fit.  Search the list of end times
--- for one at or before the given start, and return that index and upate the
+-- for one at or before the given start, and return that index and update the
 -- list with the new end.
 find_index :: ScoreTime -> ScoreTime -> [ScoreTime] -> (Int, [ScoreTime])
 find_index start end = go 0
@@ -100,14 +102,46 @@ split_on_pitch high_index break_nn =
         find = find_index (ModifyNotes.note_start note)
             (ModifyNotes.note_end note)
 
--- | Order overlapping notes by pitch, left to right.
-sort_on_pitch :: Cmd.CmdL ()
-sort_on_pitch = ModifyNotes.selection $ ModifyNotes.annotate_nns $
-    return . concatMap (sort . NonEmpty.toList) . Seq.group_stable_with overlap
+-- | Sort by pitch and compact.
+sort_on_pitch :: Cmd.M m => Bool -> m ()
+sort_on_pitch high_left = ModifyNotes.selection $ ModifyNotes.annotate_nns $
+    return . extract . List.foldl' insert mempty
     where
+    insert state note =
+        insert_ordered (\n1 n2 -> cmp (snd n1) (snd n2)) note state
+    cmp = if high_left then (<) else (>)
+
+-- | Find the last index with an overlapping note that isn't place_before,
+-- and put the note on index+1.  If it it overlaps, make a space by bumping
+-- tracks up by one.
+insert_ordered :: ((ModifyNotes.Note, a) -> (ModifyNotes.Note, a) -> Bool)
+    -> (ModifyNotes.Note, a) -> State a -> State a
+insert_ordered place_before note state = case Map.lookup index state of
+    Just (n : _) | overlap note n ->
+        Map.insert index [note] $ bump_index index state
+    _ -> insert_cons index note state
+    where
+    index = maybe 0 ((+1) . fst) $ Seq.last $
+        takeWhile (place_before note . snd) overlapping
+    overlapping = [(i, n) | (i, n : _) <- Map.toAscList state, overlap note n]
     overlap n1 n2 = ModifyNotes.notes_overlap (fst n1) (fst n2)
-    sort = realloc . map fst . Seq.sort_on snd
-    realloc = zipWith set_index [0..]
+
+bump_index :: Int -> Map.Map Int a -> Map.Map Int a
+bump_index index m =
+    pre <> Map.fromAscList (map (first (+1)) (Map.toAscList post))
+    where (pre, post) = Util.Map.split2 index m
+
+extract :: State a -> [ModifyNotes.Note]
+extract state = concat $
+    [ map (set_index i . fst) (reverse notes)
+    | (i, notes) <- Map.toAscList state
+    ]
+
+-- | From track index to notes in reverse order.
+type State annot = Map.Map ModifyNotes.Index [(ModifyNotes.Note, annot)]
+
+insert_cons :: Ord k => k -> a -> Map.Map k [a] -> Map.Map k [a]
+insert_cons k a = Map.alter (Just . maybe [a] (a:)) k
 
 set_index :: ModifyNotes.Index -> ModifyNotes.Note -> ModifyNotes.Note
 set_index i note = note { ModifyNotes.note_index = i }

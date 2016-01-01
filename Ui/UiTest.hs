@@ -336,13 +336,13 @@ to_note_spec =
 
 -- | Like 'to_note_spec' but expect just notes and pitches, no controls.
 to_pitch_spec :: [NoteSpec] -> [[EventSpec]]
-to_pitch_spec = map $ \(_, events, _) -> events
+to_pitch_spec = filter (not . null) . map (\(_, events, _) -> events)
 
 add_pitches :: [EventSpec] -> [EventSpec] -> [EventSpec]
 add_pitches = go ""
     where
     go p pitches ns@((nt, nd, n) : notes)
-        | ((pt, _, nextp) : restp) <- pitches, pt >= nt = go nextp restp ns
+        | ((pt, _, nextp) : restp) <- pitches, nt >= pt = go nextp restp ns
         | otherwise = (nt, nd, add p n) : go p pitches notes
     go _ _ [] = []
     add p n = List.intercalate " -- " $ filter (not . null) [p, n]

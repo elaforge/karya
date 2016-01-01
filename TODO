@@ -30,7 +30,7 @@ tracklang problems
       sort_on_pitch more robust.
 
 UNSORTED
-  - LNote.sort_on_pitch seems to be buggy, it duplicates notes and loses
+  * LNote.sort_on_pitch seems to be buggy, it duplicates notes and loses
     others.
     . Turns out this seems really complicated.  Do I really care that much?
   - Also, ModifyNotes doesn't seem to understand about parent note tracks.
@@ -1272,6 +1272,9 @@ Derive:
         . Possibly a way around is to include ControlFunction in ControlRef...
           but why do I want so much to pass control functions?  Especially since
           I can already pass a concrete signal as a ControlSignal.
+    . It would be nice to be able to have an arg default to ControlRef and
+      have typecheck coerce to scalar via Call.control_at.  But once again the
+      problem is that I can't coerce to a type different from the default.
     - if I had a boolean type, I could generalize calls in Conditional:
       . when-e key -> when (env key)
         when-e key val -> when (= (env key) val)
