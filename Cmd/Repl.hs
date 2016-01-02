@@ -103,8 +103,9 @@ run_cmdio cmd = do
         mapM_ Log.write logs
         case result of
             Left _ -> return ()
-            -- Try to force out any async exceptions.
-            Right (val, _, _) -> val `DeepSeq.deepseq` return ()
+            -- Try to force out any async exceptions.  UI state may also have
+            -- some, but I try to force those out in Ui.State functions.
+            Right (val, _state, _updates) -> val `DeepSeq.deepseq` return ()
         return (cmd_state, midi, result)
     case result of
         Left (exc :: Exception.SomeException) -> return

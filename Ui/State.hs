@@ -1300,16 +1300,14 @@ remove_event :: M m => TrackId -> TrackTime -> m ()
 remove_event track_id pos = _modify_events track_id $ \events ->
     case Events.at pos events of
         Nothing -> (events, Ranges.nothing)
-        Just event ->
-            (Events.remove_event pos events, events_range [event])
+        Just event -> (Events.remove_event pos events, events_range [event])
 
 -- | Remove any events whose starting positions strictly fall within the
 -- half-open range given.
 remove_event_range :: M m => TrackId -> TrackTime -> TrackTime -> m ()
-remove_event_range track_id start end =
-    _modify_events track_id $ \events ->
-        let evts = Events.ascending (Events.in_range start end events)
-        in (Events.remove start end events, events_range evts)
+remove_event_range track_id start end = _modify_events track_id $ \events ->
+    let evts = Events.ascending (Events.in_range start end events)
+    in (Events.remove start end events, events_range evts)
 
 -- | Get the end of the last event of the block.
 track_event_end :: M m => TrackId -> m TrackTime
@@ -1343,7 +1341,12 @@ _modify_events track_id f = do
         new_track = track { Track.track_events = new_events }
     unsafe_modify $ \st ->
         st { state_tracks = Map.insert track_id new_track (state_tracks st) }
-    mapM_ update (ranges_to_updates track_id ranges)
+    -- Force out whatever transformations might be in the new events.  The
+    -- main reason is to force out any IO exceptions that might be hiding in
+    -- REPL expressions, but it seems better for memory in general to keep
+    -- State in normal form.
+    DeepSeq.deepseq new_events $
+        mapM_ update (ranges_to_updates track_id ranges)
 
 ranges_to_updates :: TrackId -> Ranges.Ranges TrackTime -> [Update.CmdUpdate]
 ranges_to_updates track_id ranges = case Ranges.extract ranges of
