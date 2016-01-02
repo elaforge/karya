@@ -17,7 +17,8 @@ import Global
 
 profile_cancel = do
     let f = Postproc.group_and_cancel
-            (Postproc.cancel_strong_weak Postproc.merge_infer) Post.hand_key 2
+            (Postproc.cancel_strong_weak Postproc.infer_duration_merged)
+            Post.hand_key 2
         make = Stream.from_sorted_events . map DeriveTest.mkevent
         inst = Score.Instrument "i1"
     let events = make [(s, 1, "4c", [], inst) | s <- Seq.range 0 (1024 * 50) 1]
