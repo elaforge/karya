@@ -377,7 +377,7 @@ ghcWarnings mode ghcVersion =
         ++ map ("-fno-warn-"++) noWarns
     where
     warns = "identities tabs incomplete-record-updates missing-fields\
-        \ unused-matches  wrong-do-bind"
+        \ unused-matches wrong-do-bind"
     noWarns = (if ghcVersion < "71000" then ["amp"] else [])
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.

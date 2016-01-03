@@ -31,6 +31,7 @@ test_kilitan = do
         ex e = (Score.event_start e, DeriveTest.e_pitch e)
     equal (run [(0, 0, "X --"), (1, 0, "O --"), (2, 0, "+ --")])
         (Just [(0, "3u"), (1, "3e"), (1, "3a"), (2, "3e"), (2, "3a")], [])
+    equal (run [(0, 0, "XX --")]) (Just [(0, "3u"), (0, "3u")], [])
     equal (run [(0, 4, ">kilit -- 3u"), (4, 4, "kilit -- 3u")])
         (Just
             [ (1, "3u"), (2, "3u"), (3, "3a"), (4, "3u")

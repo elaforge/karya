@@ -75,11 +75,16 @@ note_calls = Derive.call_maps
     , ("k", c_kotekan_regular Nothing Nothing)
     , ("t", c_tumpuk)
     , ("n", c_tumpuk_auto)
-    , ("/", articulation "cek-loose" ((:[]) . pos_cek) (cek <> Attrs.open))
-    , ("X", articulation "cek" ((:[]) . pos_cek) cek)
-    , ("O", articulation "byong" pos_byong mempty)
-    , ("=", articulation "byut-loose" pos_byong (Attrs.mute <> Attrs.open))
-    , ("+", articulation "byut" pos_byong Attrs.mute)
+    , ("/", articulation False "cek-loose"
+        ((:[]) . pos_cek) (cek <> Attrs.open))
+    , ("//", articulation True "cek-loose"
+        ((:[]) . pos_cek) (cek <> Attrs.open))
+    , ("X", articulation False "cek" ((:[]) . pos_cek) cek)
+    , ("XX", articulation True "cek" ((:[]) . pos_cek) cek)
+    , ("O", articulation False "byong" pos_byong mempty)
+    , ("=", articulation False "byut-loose"
+        pos_byong (Attrs.mute <> Attrs.open))
+    , ("+", articulation False "byut" pos_byong Attrs.mute)
     , ("'", c_ngoret $ pure Nothing)
     , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
     , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
@@ -359,14 +364,17 @@ kernel_to_pattern direction kernel = do
 
 -- * articulation
 
-make_articulation :: [Position] -> Text -> (Position -> [Pitch.Pitch])
+make_articulation :: [Position] -> Bool -> Text -> (Position -> [Pitch.Pitch])
     -> Score.Attributes -> Derive.Generator Derive.Note
-make_articulation positions name get_notes attrs =
-    Derive.generator module_ name Tags.inst "Reyong articulation." $
+make_articulation positions double name get_notes attrs =
+    Derive.generator module_ name Tags.inst
+    "Reyong articulation. The doubled variants emit two notes, and rely on\
+    \ the usual start time randomization so they're not exactly simultaneous." $
     Sig.call voices_env $ \voices -> Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Call.get_pitch_functions
-        mconcatMap (realize show_pitch args)
-            (filter_voices voices (zip [1..] positions))
+        mconcat $ concat $ replicate (if double then 2 else 1) $
+            map (realize show_pitch args) $
+            filter_voices voices (zip [1..] positions)
     where
     realize show_pitch args (voice, position) = mconcatMap
         (Call.place args . realize_note show_pitch voice (Args.start args))

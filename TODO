@@ -33,6 +33,7 @@ UNSORTED
   * LNote.sort_on_pitch seems to be buggy, it duplicates notes and loses
     others.
     . Turns out this seems really complicated.  Do I really care that much?
+    - Still not right, with multiple chords I get stacked up extra tracks.
   - Also, ModifyNotes doesn't seem to understand about parent note tracks.
   - naming: use either 'attrs' or 'attributes' consistently
     Also there is 'inst' vs. 'instrument'
@@ -178,186 +179,6 @@ UNSORTED
   - Play position doesn't work right for 'loop' and 'tile' calls, it only
     understands the first loop, and doesn't know that 'tile' cuts off the
     beginning.
-  india: gamakam:
-    . It seems like way too much work to try to implement these things in the
-      constraints of the existing system.  Perhaps it would be better to do
-      something very specialized, and see if it works nicely, and if so, only
-      then try to integrate it with the rest of the system.  Then again, the
-      future pitch problem has come up in all sorts of places and I need
-      a better answer for it.
-    Gamakam3:
-      - < is incorrect: in @b5 4.3.4 change to '!!<c' and it comes from
-        m instead of r.
-      * Switch 123 abc from prev pitch relative to swaram relative.
-      * Instead of compact and space-separated notations, have just compact
-        notation, but calls >1 char can use a delimiter, e.g.
-        . What if the delimeter is space?  Then I have to write '! P1 a12'.
-        . Then if I have multiple in a row: '! P1 P2 123'
-          But then I need a trailing space to make the last one long.
-        . Otherwise: '!,P1 P2,123'
-        . This seems like no better than the current scheme.
-        . How about a simpler scheme where capital letters get a single
-          character argument, and the rest have no arguments.
-      * 'T' call should take next digit and set pitch, so I don't have to go
-        out of compact notation.
-      * How about negative?  Can I do '-' with an arg?  Then '=' has to be
-        flat.  Since the arg is just one character, I can't do T-1.  If
-        Ta Tb Tc Td is up to -4.  Do I need an escape hatch?  I could write
-        T-4, where an arg can go up to the next comma.
-        Ta00a
-      * Perhaps I should always start from the previous pitch, and '<' is the
-        previous swaram.
-      notation:
-        - Is it weird to have dyn as a postfix operator?  Should I put it in
-          front, e.g. <[-]?
-          . Well, one thing is that it's easier to parse as postfix because
-            I see a '[' character.  Given '<[-]', the '<' will look like the
-            pitch call '<'.
-        - It should be easier come from current + n than '!Pn !...'.
-        - Maybe aliases for '!<-c-' and '!-d-'?
-        - Snapping to the next pitch at the start of a note is unnatural.
-          Perhaps I can have some easy way to come quickly from the previous
-          real pitch.
-        - It's annoying how a DynCall will break a compact notation, e.g.
-          '![-]< !---' would be nicer as !![-]<--- or even !!-<---
-          Since dynamic calls have a limited character set, maybe I could do
-          this just by making allowed characters non-overlapping.
-          . I could do the same thing with P, for e.g. !!P4---
-          . Maybe I should give separate dynamics a try before thinking about
-            this too much.
-        - !!<c should work for move from previous pitch.
-        - In a janya raga certain notes may be missing, and I should be able
-          to skip them.
-        - Also ragams with narrow intervals, e.g. mayamalavagoula sr
-      . I'm not yet sure how to handle dynamics.  If I do a scale merge, then
-        I can have the dyn calls have defaults around 0, e.g. > is 0 to -1,
-        and => is 1 to 0, or .5 to 0.  Experiment more before I decide if this
-        is a good approach.
-
-      ? I could make gamakam into a postproc.  This means I could get next
-        pitch even across block boundaries.  But ScoreTime is not available.
-        I would need some way to make a control track modify the environ
-        instead of emitting signal, so the note call can then pick that up.
-        Presumably it would emit something like [(start, dur, text)] and then
-        those values have to be merged into a special "Val signal" in Dynamic,
-        which the note can pick up.
-        . pros:
-          . Get next logical pitch even across block boundaries.
-        . cons:
-          . Need special machinery to have a control track emit structured
-            values.  In full generality this is approaching the idea about
-            unifying environ with signals.
-          . No track signal, have to rely on the note track signal.
-      - Currently 0 and - have the same meaning.  Decide which one I want and
-        remove the other.
-        . Currently - is winning... but if I use separate worcds then 0 -1
-          seems a lot easier to read than - -1.
-      - Write docs.
-      - The only reason '* interleave' works is that I trust gamakam calls to
-        always produce a sample at the same time as the parent track's sample,
-        and thus replace it.  This seems like a sketchy thing to rely on.  Can
-        I come up with something more robust?
-
-      . This approach means I can't do variable stretchiness, where I set
-        the oscillation speed to a constant and fit as many as I can, or do
-        a set number but stretch the beginning, middle, or end enough to
-        make up the time.  And it would be a real pain to get a consistent
-        speed.
-      . So it seems like I still want I way to do set duration, and variable
-        duration.  Effectively the even duration division is just a kind of
-        stretchy where everyone wants to stretch equally.  I could incorporate
-        infinite stretchy and nonstretchy with special duration values.  Then
-        duration becomes a weight.  If everyone is 1 then everyone divides
-        evenly as before.
-      . Also since each ornament happens at the same speed it seems like
-        it would sound mechanical.  Of course this is also true if I use
-        a constant kam speed, but at least with that I could have a global
-        speed with a bit of randomization.  I could warp the division times
-        randomly, but really it's not random.
-
-      . For the violin, I want to experiment with other controls, e.g. pitch
-        slides also do less bow-force, or dyn can reduce bow-force and
-        bow-speed.
-
-    / Gamakam2:
-      - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
-        "pitch generator not found: 'k'".  Should mention that it's an end
-        call.
-      begin
-        - j needs to stretch when the notes are fast, but expand to a maximum
-          otherwise.
-          . Doesn't it already do that?  I want it to still leave a bit of
-            pitch.  If that's universal, I can add that as the default middle
-            or end call.  Or just manually add an unstretchy end to notes that
-            should have a minimum of swaram pitch.
-          . > as a special hack for a 0 length fade-out seems awkward, maybe
-            I should have a special symbol, e.g. <' and >'?  But since it's
-            only ever going to be fade in and fade out I can just reserve <>
-            for it.
-          . Would it better to treat all calls as stretchy, but they
-            themselves decide how much to stretch?
-        - janta
-      middle
-        - kam: accelerate near end
-        - test hold and lilt for kam and nkam, adjust for nkam
-        - maybe 'flat' should transition to the pitch instead of snapping
-      end
-      - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
-      - select precomposed calls based on scale degree, previous pitch,
-        and tempo
-      - Currently, if there isn't enough time, the begin call will compress the
-        middle and end down to nothing.  Perhaps begin and end should compress
-        evenly?
-      - When this is usable, I can get rid of all the old gamakam calls.
-      How to get the next pitch?
-        . 'approach' does it by evaluating the next
-          event on the pitch track.  I could do the same, but I'd have to go
-          find the pitch track, and it would be wrong if anything fancy was
-          happening.
-        . What I really want is to run once with the basic pitches, and then add
-          the gamakam later.  That means a postproc, but then I'm doing awkward
-          postproc evaluation.
-        . If I know a note track has a set of basic pitches, then I can evaluate
-          once, ignoring '!'.  Then evaluate again, and stash the events where
-          I can get them.
-        . I could do it with a special track evaluation.  This seems like a lot
-          of work for something I'm not sure is even right.  I'm not even sure
-          gamakam will need the next pitch.  On the other hand, getting next
-          values, or this kind of staged evaluation in general, is a problem
-          that comes up in different contexts.
-    . The split between >, *, t-diatonic, and t-nn is pretty awkward,
-      especially how I duplicate all the pitch calls as control calls.
-      I think I'm going to want a higher level layer, and only work with
-      those calls when I need more precise control.
-      . Could I make everything t-diatonic by using fractions?  On the pitch
-        track I can just use number types, which is so much more appealing.
-      . The nice thing about transpose tracks is that I don't have to repeat
-        the pitch all the time.  And it seems cleaner to put gamakam on its
-        own track.
-      . Maybe I can have a generic transpose track, that expects its calls to
-        return typed values.  Then when it mconcats the signals, it first has
-        to partition into different types, and apply separately.
-      . If I extend this for pitch tracks too, then I can get rid of the
-        ControlMod stuff, but I need basically the same mechanism to say
-        where the signals go, and how they are combined.  It does seem cleaner
-        to return them in LEvents instead of through Collect.  But it means
-        that the control track title becomes a default, since actually it
-        can create any type of control signal.
-        . It would look like: ("transpose", [..])
-      . What about split control tracks?  I think it's too low level and
-        awkward to use, since it requires a separate %t-whatever event
-        squeezed in there somehow.
-      ! However, I could use a pitch track, and then get rid of the extra
-        argument by expecting a separate pitch track above it.
-    . Low level ornaments are control or pitch curves, as I have now.  They
-      are used directly with pitch or control.
-    . Medium level ornaments are for generic pitch, and go on a generic
-      transpose track, they use arg types for diatonic vs. nn.  They can also
-      emit dyn control.  They are specific motions, e.g. (-1 1)
-    - overshoot "curve" for 'smooth': over2 over3, depending how far over
-    . instead of hardcoding specific times, I should say short, medium, long,
-      which can vary and have some randomization:
-      . short, medium, long: -s = "(rnd low high) | -m = .. | -l = ..
 
   - %sus-abs=-.x is not quite right for detached, because it should scale
     a bit for shorter notes.  E.g. it's absolute but scales down to 0 below
@@ -1396,12 +1217,8 @@ Derive:
       - Add an input mode for bols.
     bali:
       - add isep to *legong
-      If I put pemero notes in legong, then I can play them when needed.
-        But what should they be called?  i o e e# u a a#
-        - pick better nns for 4 and 7
-        / add 'lebeng' key with 1234567 cipher notation
-          . This is a bit tricky because the PCs per octave changes.
-        - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
+      - pick better nns for pemero notes 4 and 7
+      - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan
         - negative events are convenient for the pitch, but sometimes I still
           want to control the final note.  Maybe I could still use positive
@@ -1484,7 +1301,7 @@ Derive:
         - individual notes play in octaves and kempyung
           . Or perhaps better to write two parts and have them duplicated in
             the upper octave.
-        - two handed +cek call
+        * two handed +cek call
         - for infer-damp, also infer damp level
           . Damp gets louder when notes are closer, or faster.
         - How to configure open and closed damping?  I can currently do it
@@ -1513,6 +1330,186 @@ Derive:
           damped.  Damp at the first opportunity, where opportunity is defined
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
+  india: gamakam:
+    . It seems like way too much work to try to implement these things in the
+      constraints of the existing system.  Perhaps it would be better to do
+      something very specialized, and see if it works nicely, and if so, only
+      then try to integrate it with the rest of the system.  Then again, the
+      future pitch problem has come up in all sorts of places and I need
+      a better answer for it.
+    Gamakam3:
+      - < is incorrect: in @b5 4.3.4 change to '!!<c' and it comes from
+        m instead of r.
+      * Switch 123 abc from prev pitch relative to swaram relative.
+      * Instead of compact and space-separated notations, have just compact
+        notation, but calls >1 char can use a delimiter, e.g.
+        . What if the delimeter is space?  Then I have to write '! P1 a12'.
+        . Then if I have multiple in a row: '! P1 P2 123'
+          But then I need a trailing space to make the last one long.
+        . Otherwise: '!,P1 P2,123'
+        . This seems like no better than the current scheme.
+        . How about a simpler scheme where capital letters get a single
+          character argument, and the rest have no arguments.
+      * 'T' call should take next digit and set pitch, so I don't have to go
+        out of compact notation.
+      * How about negative?  Can I do '-' with an arg?  Then '=' has to be
+        flat.  Since the arg is just one character, I can't do T-1.  If
+        Ta Tb Tc Td is up to -4.  Do I need an escape hatch?  I could write
+        T-4, where an arg can go up to the next comma.
+        Ta00a
+      * Perhaps I should always start from the previous pitch, and '<' is the
+        previous swaram.
+      notation:
+        - Is it weird to have dyn as a postfix operator?  Should I put it in
+          front, e.g. <[-]?
+          . Well, one thing is that it's easier to parse as postfix because
+            I see a '[' character.  Given '<[-]', the '<' will look like the
+            pitch call '<'.
+        - It should be easier come from current + n than '!Pn !...'.
+        - Maybe aliases for '!<-c-' and '!-d-'?
+        - Snapping to the next pitch at the start of a note is unnatural.
+          Perhaps I can have some easy way to come quickly from the previous
+          real pitch.
+        - It's annoying how a DynCall will break a compact notation, e.g.
+          '![-]< !---' would be nicer as !![-]<--- or even !!-<---
+          Since dynamic calls have a limited character set, maybe I could do
+          this just by making allowed characters non-overlapping.
+          . I could do the same thing with P, for e.g. !!P4---
+          . Maybe I should give separate dynamics a try before thinking about
+            this too much.
+        - !!<c should work for move from previous pitch.
+        - In a janya raga certain notes may be missing, and I should be able
+          to skip them.
+        - Also ragams with narrow intervals, e.g. mayamalavagoula sr
+      . I'm not yet sure how to handle dynamics.  If I do a scale merge, then
+        I can have the dyn calls have defaults around 0, e.g. > is 0 to -1,
+        and => is 1 to 0, or .5 to 0.  Experiment more before I decide if this
+        is a good approach.
+
+      ? I could make gamakam into a postproc.  This means I could get next
+        pitch even across block boundaries.  But ScoreTime is not available.
+        I would need some way to make a control track modify the environ
+        instead of emitting signal, so the note call can then pick that up.
+        Presumably it would emit something like [(start, dur, text)] and then
+        those values have to be merged into a special "Val signal" in Dynamic,
+        which the note can pick up.
+        . pros:
+          . Get next logical pitch even across block boundaries.
+        . cons:
+          . Need special machinery to have a control track emit structured
+            values.  In full generality this is approaching the idea about
+            unifying environ with signals.
+          . No track signal, have to rely on the note track signal.
+      - Currently 0 and - have the same meaning.  Decide which one I want and
+        remove the other.
+        . Currently - is winning... but if I use separate worcds then 0 -1
+          seems a lot easier to read than - -1.
+      - Write docs.
+      - The only reason '* interleave' works is that I trust gamakam calls to
+        always produce a sample at the same time as the parent track's sample,
+        and thus replace it.  This seems like a sketchy thing to rely on.  Can
+        I come up with something more robust?
+
+      . This approach means I can't do variable stretchiness, where I set
+        the oscillation speed to a constant and fit as many as I can, or do
+        a set number but stretch the beginning, middle, or end enough to
+        make up the time.  And it would be a real pain to get a consistent
+        speed.
+      . So it seems like I still want I way to do set duration, and variable
+        duration.  Effectively the even duration division is just a kind of
+        stretchy where everyone wants to stretch equally.  I could incorporate
+        infinite stretchy and nonstretchy with special duration values.  Then
+        duration becomes a weight.  If everyone is 1 then everyone divides
+        evenly as before.
+      . Also since each ornament happens at the same speed it seems like
+        it would sound mechanical.  Of course this is also true if I use
+        a constant kam speed, but at least with that I could have a global
+        speed with a bit of randomization.  I could warp the division times
+        randomly, but really it's not random.
+
+      . For the violin, I want to experiment with other controls, e.g. pitch
+        slides also do less bow-force, or dyn can reduce bow-force and
+        bow-speed.
+
+    / Gamakam2:
+      - '!; k -1' means 'k' is a end call, which doesn't exist, but I get
+        "pitch generator not found: 'k'".  Should mention that it's an end
+        call.
+      begin
+        - j needs to stretch when the notes are fast, but expand to a maximum
+          otherwise.
+          . Doesn't it already do that?  I want it to still leave a bit of
+            pitch.  If that's universal, I can add that as the default middle
+            or end call.  Or just manually add an unstretchy end to notes that
+            should have a minimum of swaram pitch.
+          . > as a special hack for a 0 length fade-out seems awkward, maybe
+            I should have a special symbol, e.g. <' and >'?  But since it's
+            only ever going to be fade in and fade out I can just reserve <>
+            for it.
+          . Would it better to treat all calls as stretchy, but they
+            themselves decide how much to stretch?
+        - janta
+      middle
+        - kam: accelerate near end
+        - test hold and lilt for kam and nkam, adjust for nkam
+        - maybe 'flat' should transition to the pitch instead of snapping
+      end
+      - precomposed calls, e.g. '! j 2 -1; h -1; to 0'
+      - select precomposed calls based on scale degree, previous pitch,
+        and tempo
+      - Currently, if there isn't enough time, the begin call will compress the
+        middle and end down to nothing.  Perhaps begin and end should compress
+        evenly?
+      - When this is usable, I can get rid of all the old gamakam calls.
+      How to get the next pitch?
+        . 'approach' does it by evaluating the next
+          event on the pitch track.  I could do the same, but I'd have to go
+          find the pitch track, and it would be wrong if anything fancy was
+          happening.
+        . What I really want is to run once with the basic pitches, and then add
+          the gamakam later.  That means a postproc, but then I'm doing awkward
+          postproc evaluation.
+        . If I know a note track has a set of basic pitches, then I can evaluate
+          once, ignoring '!'.  Then evaluate again, and stash the events where
+          I can get them.
+        . I could do it with a special track evaluation.  This seems like a lot
+          of work for something I'm not sure is even right.  I'm not even sure
+          gamakam will need the next pitch.  On the other hand, getting next
+          values, or this kind of staged evaluation in general, is a problem
+          that comes up in different contexts.
+    . The split between >, *, t-diatonic, and t-nn is pretty awkward,
+      especially how I duplicate all the pitch calls as control calls.
+      I think I'm going to want a higher level layer, and only work with
+      those calls when I need more precise control.
+      . Could I make everything t-diatonic by using fractions?  On the pitch
+        track I can just use number types, which is so much more appealing.
+      . The nice thing about transpose tracks is that I don't have to repeat
+        the pitch all the time.  And it seems cleaner to put gamakam on its
+        own track.
+      . Maybe I can have a generic transpose track, that expects its calls to
+        return typed values.  Then when it mconcats the signals, it first has
+        to partition into different types, and apply separately.
+      . If I extend this for pitch tracks too, then I can get rid of the
+        ControlMod stuff, but I need basically the same mechanism to say
+        where the signals go, and how they are combined.  It does seem cleaner
+        to return them in LEvents instead of through Collect.  But it means
+        that the control track title becomes a default, since actually it
+        can create any type of control signal.
+        . It would look like: ("transpose", [..])
+      . What about split control tracks?  I think it's too low level and
+        awkward to use, since it requires a separate %t-whatever event
+        squeezed in there somehow.
+      ! However, I could use a pitch track, and then get rid of the extra
+        argument by expecting a separate pitch track above it.
+    . Low level ornaments are control or pitch curves, as I have now.  They
+      are used directly with pitch or control.
+    . Medium level ornaments are for generic pitch, and go on a generic
+      transpose track, they use arg types for diatonic vs. nn.  They can also
+      emit dyn control.  They are specific motions, e.g. (-1 1)
+    - overshoot "curve" for 'smooth': over2 over3, depending how far over
+    . instead of hardcoding specific times, I should say short, medium, long,
+      which can vary and have some randomization:
+      . short, medium, long: -s = "(rnd low high) | -m = .. | -l = ..
 
   pitch calls:
     - 'smooth' pitch transformer
