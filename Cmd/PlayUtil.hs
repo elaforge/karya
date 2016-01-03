@@ -387,7 +387,7 @@ load_ky paths fname = Parse.load_ky paths fname >>= \result -> case result of
     Right (defs, imported) -> do
         Log.notice $ "imported definitions from "
             <> Text.intercalate ", "
-                (map (txt . FilePath.takeFileName) (map fst imported))
+                (map (txt . FilePath.takeFileName . fst) imported)
         let lib = compile_library defs
         forM_ (Library.shadowed lib) $ \((name, _), calls) ->
             Log.warn $ "definitions in " <> showt fname

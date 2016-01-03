@@ -720,6 +720,7 @@ hlint config = do
     Util.staunchSystem "hlint" $
         [ "--report=" <> build </> "hlint.html"
         , "--cpp-define=TESTING"
+        , "--cpp-include=" <> buildDir config
         ] ++ mkIgnore hlintIgnore ++ hs
     Util.staunchSystem "hlint" $ mkIgnore
         -- hsc2hs triggers these, not my fault.

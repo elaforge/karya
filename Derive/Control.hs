@@ -312,7 +312,7 @@ derive_track tinfo transform = do
                 EvalTrack.derive_control_track state tinfo
         Internal.merge_collect collect
         Internal.set_threaded threaded
-        return $ compact $ concat $ map Stream.to_list streams
+        return $ compact $ concatMap Stream.to_list streams
     let (signal_chunks, logs) = Stream.partition stream
     -- I just merged the signals in 'compact', so this should just convert [x]
     -- to x.

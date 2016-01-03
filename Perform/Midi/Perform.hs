@@ -13,7 +13,7 @@ module Perform.Midi.Perform (
     -- * types
     , MidiEvents
     , Event(..), ControlMap
-#if TESTING
+#ifdef TESTING
     , module Perform.Midi.Perform
 #endif
 ) where
