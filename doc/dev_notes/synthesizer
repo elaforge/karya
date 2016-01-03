@@ -135,6 +135,10 @@ sampler
     it's the same stroke.
   - Freedom from keyswitches.  Address variations directly and symbolically.
 
+  - For sample rate conversion I'd still want something efficient.  Surely
+    there are libraries I can bind?  E.g. libsamplerate.
+  - Reverb and filters available via freeverb3.
+
 physical modeling
   string
     - repluck a ringing string
@@ -158,3 +162,131 @@ physical modeling
     - buzzing like snares or kutchi
     - pitch changing via pressure ala kendang sunda or gumiki
     - edge damping
+
+
+
+protocol
+  Note protocol:
+    data Note = Note
+      { instrument :: InstrumentName, start :: RealTime, duration :: RealTime
+      , controls :: Map Text Signal -- e.g. "pitch", "dynamic", "lpf", ...
+      , articulation :: Text
+      , track :: Text -- ^ used to disable / enable by track
+        -- maybe this means I dont need instrument?
+      }
+    . Times are absolute from score start.
+    . It's the job of the sampler script to convert Random -> Note -> [Sample]
+      data Sample = Sample
+        { start :: RealTime, duration :: RealTime
+        , sample :: Text, ratio :: Signal -- ^ sample rate conversion ratio
+        , pan :: Double -- ^ from 0 to 1
+        , offset :: RealTime -- ^ sample start offset
+        , envelope :: Signal
+        }
+    . So it has to choose the sample based on pitch, dyn, articulation,
+      randomization, etc.  It can emit multiple samples for attack, velocity
+      crossfade, or whatever else.  It can also modify the envelope based on
+      stop groups, mute articulation, or whatever else.
+    . Signals are [(RealTime, Double)], and are interpolated to per-sample
+      when rendered.  So I can send sharp transitions if needed, but tracklang
+      has a constant sample rate so maybe I need special support?  Or not,
+      since I can set samples at specific points if needed.
+    . Sampler then interprets Samples, applies sample rate conversion,
+      envelope, and mixing, and writes them into chunks in the cache.
+    . Instrument definitions can be shared, but that's just
+      Map InstrumentName (Set Attribute)
+  Cache protocol
+    . As the cache approaches a pre-rendered audio stream, I do less work
+      in realtime and the start msg gets simpler.  As it gets divided up
+      by time range and instrument, I do more in realtime but incremental
+      rerender becomes finer grained.
+    . Normally instruments don't interact with each other, so this is a good
+      horizontal division.
+    . But I also have solo and mute tracks, so to avoid a rerender I should
+      divide by track.
+    . For timewise division, I don't think I can avoid a rough transition if I
+      cut arbitrarily, so it has to be by Note.  Script can have state, but if
+      I save it then it's not a problem.  Or I can push it into karya for the
+      same effect.  If I put effects like reverb on afterwards then notes
+      should be relatively independent.  Physical modelling will have some
+      state, but I can either save it, or just live with it.
+    . Try to make a new cache chunk every n seconds, but a long note may force
+      it to be longer.  So chunks don't have a uniform time.
+    . Or I could divide up by nubmber of notes and duration.  The ideal is
+      that the cpu to rerender is constant per chunk.  Probably in most cases
+      that's duration, so divide based on duration.
+    . However, for cheap synths like like a sampler, too much division means
+      that the VST cahce playback itself is basically being the sampler, just
+      without resampling.  So it could make longer chunks.  But I don't think
+      that helps, because it's the streaming from disk that's expensive.
+    . If I cache every track, then I'm actually caching mixed notes.
+      But I think I need a more complicated system if I'm to cache at multiple
+      levels.
+      TODO...
+    On-disk format
+      . Just drop a bunch of .wav files in a directory.  Encode the track and
+        times in the filename.
+      . I can first create an empty file to indicate that rendering is in
+        progress.
+  VST protocol
+    clear cache
+      . Since the cache is by (track, time), invalidation has to be the same.
+        When I send a new batch of Notes, I also send time ranges that the
+        Notes are to replace.  I can get those from the cache.  So:
+        . Score gets damaged in a certain range.
+        . Karya correlates damage with cache chunks and send Notes for them.
+        . Synth deletes those chunks and starts rendering new ones.
+    play from a certain time, stop
+      . One difficulty is that I need to start playing from anywhere with zero
+        latency.
+        . This is assuming that opening a file, seeking to a place, and
+          reading out samples is not realtime.
+        . An easy way to fulfil that is to just put the whole cache into
+          memory.
+        . Otherwise I need some advance warning about where playback is going
+          to start.  I could send NoteOn in advance with an agreed-upon
+          latency.  The only issue would be a little bit of audible lag every
+          time I hit play.
+      . ChannelMessage chan (NoteOn key vel)
+        key+vel = 14 bits = 16384, seems like not enough resolution
+        I need 24 hours * 60 * 60s = 86400 * 1000ms = 86400000 = 27 bits
+        or sample accurate at 44.1k = 3810240000 = 32 bits
+      . So encode a 32bit start offset in 5 controller msgs, e.g.
+        (16, 7b), (17, 7b), etc.  to cue the start position.  Send a NoteOn a
+        few ms later to start.
+    . Also I want to support solo and mute tracks, so the cache also has to
+      divide by track.  Then send Notes have to be tagged with track, and I
+      need msgs to enable and disable by track.  Sysex will do since I can
+      encode text.
+
+vst
+  . Write a VST that can trigger samples.  It's basically a simple streaming
+    sampler, small enough that it can all be in C++.
+  - Download VST headers, find some simple examples.
+  - Write basic play a sample on note on.
+  - Convert MIDI stop and stop to cache playback.
+  - Convert MIDI to KP subset
+    How to also support realtime?  Latency not so important, but shouldn't be
+    too bad.
+
+sampler
+  - convert :: [Note] -> [Sample]
+  - read samples via libsndfile
+    . Is flac decoding fast enough to use it for on-disk format?
+  - convert via libsamplerate, schedule envelope, pitch changes, and mixing
+  - convert with multiple threads
+  - cache handling
+    . Since script can have state (e.g. randomization), doesn't that mess up
+      start from any time?  But if I save the state after each note, the
+      script function is deterministic.
+    . Per-note computation for the sampler is actually really cheap.  
+
+TODO
+  karya protocol / KP
+    . design
+  Figure out how to do offline but also realtime
+    . karya -> synth cache protocol
+    . karya note protocol
+    . MIDI protocol to have the VST host play from the cache
+    . MIDI protocol for VST host to get synth to play realtime notes
+      Realtime would be compromised, since I have to convert MIDI to KP
