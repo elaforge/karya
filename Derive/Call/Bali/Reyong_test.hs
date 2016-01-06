@@ -181,3 +181,15 @@ show_pitch :: Maybe Pitch.Pitch -> String
 show_pitch Nothing = "-"
 show_pitch (Just (Pitch.Pitch oct (Pitch.Degree d _))) =
     show oct ++ ("ioeua" !! d) : ""
+
+-- * ngoret
+
+test_ngoret = do
+    let run extract = DeriveTest.extract extract
+            . DeriveTest.derive_tracks
+                "import bali.reyong | scale=legong | realize-reyong >i1"
+            . UiTest.note_track
+    let tracks = [(0, 2, "4i"), (2, 2, "' .5 -- 4e")]
+    equal (run DeriveTest.e_note tracks)
+        ([(0, 2, "4i"), (1.5, 1.5, "4o"), (2, 2, "4e")], [])
+    pprint (run (DeriveTest.e_start_control Reyong.damp_control) tracks)

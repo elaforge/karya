@@ -766,7 +766,7 @@ nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
 -- * realize calls
 
 c_realize_gangsa :: Derive.Transformer Derive.Note
-c_realize_gangsa = Derive.transformer module_ "realize-all" Tags.postproc
+c_realize_gangsa = Derive.transformer module_ "realize-gangsa" Tags.postproc
     "Combine all of the gangsa realize calls in the right order.  Equivalent\
     \ to `realize-noltol | cancel-pasang | realize-ngoret`."
     $ Sig.callt Postproc.final_duration_arg

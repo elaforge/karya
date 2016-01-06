@@ -1290,6 +1290,8 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
+        - call to double note on the lower octave
+        - +mute is not cancelling open notes properly
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.
           . One way is to have a postproc ensure ==0 or >=1/127.

@@ -91,7 +91,9 @@ note_calls = Derive.call_maps
     , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
     ]
     [ ("infer-damp", c_infer_damp)
-    , ("cancel-kotekan", Derive.set_module module_ c_cancel_kotekan)
+    , ("cancel-kotekan", c_cancel_kotekan)
+    , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
+    , ("realize-reyong", c_realize_reyong)
     ]
     where articulation = make_articulation reyong_positions
 
@@ -245,11 +247,11 @@ c_cancel_kotekan :: Derive.Transformer Derive.Note
 c_cancel_kotekan = Derive.transformer module_ "cancel-kotekan" Tags.postproc
     "This is like the `cancel` call, except it understands flags set by\
     \ kotekan, and cancels based on reyong voice." $
-    Postproc.make_cancel cancel Post.voice_key
+    Postproc.make_cancel cancel_kotekan Post.voice_key
 
 -- | Same as 'Gangsa.cancel_pasang' except don't handle pasang.
-cancel :: [Score.Event] -> Either Text [Score.Event]
-cancel es = Postproc.cancel_strong_weak Postproc.infer_duration_merged $
+cancel_kotekan :: [Score.Event] -> Either Text [Score.Event]
+cancel_kotekan es = Postproc.cancel_strong_weak Postproc.infer_duration_merged $
     case Seq.partition2 (has Gangsa.final_flag) (has Gangsa.initial_flag) es of
         (_, _, normals@(_:_)) -> normals
         (finals@(_:_), _, []) -> finals
@@ -582,18 +584,21 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     <> " attribute will force a damp, while " <> ShowVal.doc undamped
     <> " will prevent damping. The latter can cause a previously undamped note\
     \ to become damped because the hand is now freed  up.")
-    $ Sig.callt ((,)
+    $ Sig.callt infer_damp_args $ \(inst, dur) _args deriver -> do
+        dur <- Call.to_function dur
+        -- TODO infer_damp can only add a %damp control, so it preserves order,
+        -- so Post.apply is safe.  Is there a way to express this statically?
+        Post.apply (infer_damp_voices inst (RealTime.seconds . dur)) <$> deriver
+
+infer_damp_args :: Sig.Parser (Score.Instrument, TrackLang.ControlRef)
+infer_damp_args = ((,)
     <$> Sig.required "inst" "Apply damping to this instrument."
     <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
         "This is how fast the player is able to damp. A note is only damped if\
         \ there is a hand available which has this much time to move into\
         \ position for the damp stroke, and then move into position for its\
         \ next note afterwards."
-    ) $ \(inst, dur) _args deriver -> do
-        dur <- Call.to_function dur
-        -- TODO infer_damp can only add a %damp control, so it preserves order,
-        -- so Post.apply is safe.  Is there a way to express this statically?
-        Post.apply (infer_damp_voices inst (RealTime.seconds . dur)) <$> deriver
+    )
 
 damp_control :: Score.Control
 damp_control = "damp"
@@ -684,3 +689,20 @@ assign_hands =
             | pitch == prev_pitch = prev_hand
             | pitch > prev_pitch = R
             | otherwise = L
+
+
+-- * realize-reyong
+
+c_realize_reyong :: Derive.Transformer Derive.Note
+c_realize_reyong = Derive.transformer module_ "realize-reyong" Tags.postproc
+    "Combine all of the reyong realize calls in the right order.  Equivalent\
+    \ to `infer-damp | cancel-kotekan | realize-ngoret`."
+    $ Sig.callt ((,) <$> infer_damp_args <*> Postproc.final_duration_arg)
+    $ \((inst, damp_dur), final_dur) _args deriver -> do
+        damp_dur <- Call.to_function damp_dur
+        let infer_damp = Post.apply $
+                infer_damp_voices inst (RealTime.seconds . damp_dur)
+        infer_damp <$> (cancel final_dur =<< Gender.realize_ngoret =<< deriver)
+    where
+    cancel final_dur = Derive.require_right id
+        . Postproc.group_and_cancel cancel_kotekan Post.voice_key final_dur
