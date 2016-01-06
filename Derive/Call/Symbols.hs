@@ -17,19 +17,31 @@ misc_symbols =
         [Symbol.glyph_at (-2) (0, -0.4) (Symbol.glyph "x")]
     ]
 
+-- | See <http://www.smufl.org/version/latest/>
+--
+-- TODO if I do more of these, I could load glyphnames.json to address these by
+-- name.  I probably don't want to load every single glyph as-is though.
 staff_symbols :: [Symbol.Symbol]
 staff_symbols =
-    [ symbol "mordent" "\xe160"
-    , symbol "rmordent" "\xe161"
+    [ symbol "tr" "\xe566"
+    , symbol "mordent" "\xe56c"
+    , symbol "rmordent" "\xe56d"
+    -- There is also "\xe634", but it's too tall and skinny.
     , Symbol.symbol "arp-up"
-        [arp, Symbol.glyph_at 8 (-0.14, -0.25) arp_arrow_up]
-    , Symbol.symbol "arp-down"
-        [arp, Symbol.glyph_at 8 (-0.14, 0.5) arp_arrow_down]
-    , symbol "ped" "\xe181"
+        [ arp_glyph 90 (0, -0.25) "\xeaad" -- wiggleArpeggiatoUpArrow
+        , arp_glyph 90 (0, 0) "\xeaa9" -- wiggleArpeggiatoUp
+        ]
+    , Symbol.symbol "arp-down" -- Or "\xe635".
+        [ arp_glyph (-90) (0, 0.25) "\xeaae" -- wiggleArpeggiatoDownArrow
+        , arp_glyph (-90) (0, 0) "\xeaaa" -- wiggleArpeggiatoDown
+        ]
+    , symbol "ped" "\xe650"
+    , symbol "ped-up" "\xe655"
     ]
     where
     symbol name str = Symbol.Symbol name False [glyph str]
-    glyph str = Symbol.Glyph str (Just Config.emmentaler) 4 (0, 0) 0
-    arp = (glyph "\xe162") { Symbol.glyph_rotate = 90 }
-    arp_arrow_down = glyph "\xe15d"
-    arp_arrow_up = glyph "\xe15e"
+    arp_glyph rotate align str = (glyph str)
+        { Symbol.glyph_align = align
+        , Symbol.glyph_rotate = rotate
+        }
+    glyph str = Symbol.Glyph str (Just Config.bravura) 8 (0, 0) 0

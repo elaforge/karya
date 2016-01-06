@@ -57,13 +57,13 @@ you need flags:
         % cabal install --extra-include-dirs=$HOME/homebrew/include \
             --extra-lib-dirs=$HOME/homebrew/lib --only-dependencies
 
-- lilypond, for some fonts, and for the lilypond backend, of course.
-Lilypond sometimes changes the position of characters in their fonts, which
-causes symbols to break.  As of 2014-07-02 I'm using the fonts from 2.18.2.
+- lilypond for the lilypond backend.
 
-    OS X: `cp LilyPond.app/Contents/Resources/share/lilypond/current/fonts/otf/emmentaler* ~/Library/Fonts`
+- The bravura font for music symbols: <http://www.smufl.org/fonts/>
 
-    Linux: `cp /usr/share/lilypond/<version>/fonts/otf/ ~/.fonts # or /usr/share/fonts`
+    OS X: `cp *.otf ~/Library/Fonts`
+
+    Linux: `cp *.otf ~/.fonts # or /usr/share/fonts`
 
     Use `fc-list` to see installed fonts and their names.  For some reason, the
 fonts on linux sometimes have backslashes in their names, and sometimes not.

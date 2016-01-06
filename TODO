@@ -2,34 +2,11 @@ LEGEND
   - todo; + in progress; * done; / obsolete, do not want, or can't repro
   ? open question; . note; bug: marks bugs.
 
-tracklang problems
-  . It's too low level for chord-oriented music like piano.  For instance, I
-    have to care about which note is on which track, while staff notation
-    only has one way to write the cord.  So I have to do busywork like sorting
-    notes by pitch, or copy pasting notes around between hands.  The whole
-    thing about "what track is it on" is a result of the proportional time
-    display, otherwise the horizontal position is unnecessary complexity.
-  . The way that note, pitch, and dyn are separate is a hassle for reading and
-    for editing.  Automatic pitch track selection and collapsing helps a bit,
-    but it's still awkward.
-  . Also it's not so easy to differentiate all those tracks, especially if
-    every pitch track has its dyn track.
-  . It can also be complicated to copy paste around if there is a bit of
-    non-trivial structure like parent note tracks.
-  . It's still hard for me to see relative positions and chords just from
-    text.  Staff notation seems much easier.  Also hard to see enharmonic
-    spelling.
-  Solutions?
-    . Theoretically lilypond could give the advantages of staff notation for
-      reading only, but it's too slow for realtime update.
-    . So as an extreme solution I could have a high speed staff display
-      of the current surroundings.  Of course all this only helps with
-      reading, not writing.
-    . More utils like LNote.sort_on_pitch to automate away hassle could help
-      with writing, but not reading.  So maybe it's worth trying to make
-      sort_on_pitch more robust.
-
 UNSORTED
+  * use bravura instead of emmentaler
+    . It won't change codepoints around like emmentaler.  Also easier to
+      install, and has more symbols.
+    . The only problem is that arp-up and arp-down is really long and skinny.
   * LNote.sort_on_pitch seems to be buggy, it duplicates notes and loses
     others.
     . Turns out this seems really complicated.  Do I really care that much?
@@ -1743,6 +1720,34 @@ misc ideas:
   darcs to git:
     . https://github.com/purcell/darcs-to-git
     . http://darcs.net/DarcsBridgeUsage
+
+tracklang problems
+  . It's too low level for chord-oriented music like piano.  For instance, I
+    have to care about which note is on which track, while staff notation
+    only has one way to write the cord.  So I have to do busywork like sorting
+    notes by pitch, or copy pasting notes around between hands.  The whole
+    thing about "what track is it on" is a result of the proportional time
+    display, otherwise the horizontal position is unnecessary complexity.
+  . The way that note, pitch, and dyn are separate is a hassle for reading and
+    for editing.  Automatic pitch track selection and collapsing helps a bit,
+    but it's still awkward.
+  . Also it's not so easy to differentiate all those tracks, especially if
+    every pitch track has its dyn track.
+  . It can also be complicated to copy paste around if there is a bit of
+    non-trivial structure like parent note tracks.
+  . It's still hard for me to see relative positions and chords just from
+    text.  Staff notation seems much easier.  Also hard to see enharmonic
+    spelling.
+  Solutions?
+    . Theoretically lilypond could give the advantages of staff notation for
+      reading only, but it's too slow for realtime update.
+    . So as an extreme solution I could have a high speed staff display
+      of the current surroundings.  Of course all this only helps with
+      reading, not writing.
+    . More utils like LNote.sort_on_pitch to automate away hassle could help
+      with writing, but not reading.  So maybe it's worth trying to make
+      sort_on_pitch more robust.
+
 
 planning / research
   text oriented score:

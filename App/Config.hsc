@@ -390,11 +390,8 @@ window_decoration_h = 0
 
 -- * fonts
 
-emmentaler :: String
-emmentaler = case platform of
-    Mac -> "Emmentaler-11"
-    Linux -> " Emmentaler"
-    -- I have no idea why the lilypond font names are inconsistent.
+bravura :: String
+bravura = "Bravura"
 
 
 -- * event style

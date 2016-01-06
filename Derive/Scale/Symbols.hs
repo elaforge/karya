@@ -62,8 +62,10 @@ dotted_numbers = map dot_above cs <> map dot2_above
 staff_symbols :: [Symbol.Symbol]
 staff_symbols =
     [ Symbol.symbol "#" [g "\x266f" 1]
+    -- bravura: e263
     , Symbol.symbol "##" [g "\x1d12a" 10]
     , Symbol.symbol "b" [g "\x266d" 1]
+    -- bravura: e264
     , Symbol.symbol "bb" [g "\x1d12b" 4]
     , Symbol.symbol "n" [g "\x266e" 1]
     ]
