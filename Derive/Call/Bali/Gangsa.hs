@@ -68,7 +68,7 @@ import Types
 
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.call_maps
-    ([ ("norot", c_norot)
+    [ ("norot", c_norot)
     , (">norot", c_norot_arrival)
     , ("gnorot", c_gender_norot)
     , ("k_\\",  c_kotekan_irregular Pat $
@@ -94,7 +94,7 @@ note_calls = Derive.call_maps
     , ("'n", c_ngoret $ Just <$> Gender.interval_arg)
     , ("'^", c_ngoret $ pure $ Just $ Pitch.Diatonic (-1))
     , ("'_", c_ngoret $ pure $ Just $ Pitch.Diatonic 1)
-    ])
+    ]
     [ ("nyog", c_nyogcag)
     , ("unison", c_unison)
     , ("kempyung", c_kempyung)
@@ -139,13 +139,11 @@ mute_postproc mute_attr event =
 -- * ngoret
 
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
-c_ngoret = Gender.ngoret module_ False damp_arg
-    where
-    damp_arg = Sig.defaulted "damp"
-        (Sig.typed_control "ngoret-damp" 0.15 Score.Real)
-        "Time that the grace note overlaps with this one. So the total\
-        \ duration is time+damp, though it will be clipped to the\
-        \ end of the current note."
+c_ngoret = Gender.ngoret module_ False $ Sig.defaulted "damp"
+    (Sig.typed_control "ngoret-damp" 0.15 Score.Real)
+    "Time that the grace note overlaps with this one. So the total\
+    \ duration is time+damp, though it will be clipped to the\
+    \ end of the current note."
 
 -- * patterns
 

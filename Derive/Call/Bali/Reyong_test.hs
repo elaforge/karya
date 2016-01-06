@@ -20,11 +20,16 @@ import Types
 
 
 title :: String
-title = "import bali.reyong | scale=legong | cancel-kotekan 5"
+title = "import bali.reyong | scale=legong | inst = >i1"
 
-title_with_damp :: Double -> String
-title_with_damp dur = title <> " | infer-damp >i1 " <> show dur
-    <> " | inst = >i1"
+title_cancel :: String
+title_cancel = title <> " | cancel-kotekan 5"
+
+title_damp :: Double -> String
+title_damp dur = title_cancel <> " | infer-damp >i1 " <> show dur
+
+title_realize :: String
+title_realize = title <> " | realize-reyong >i1"
 
 test_kilitan = do
     let run = e_voice 1 ex . DeriveTest.derive_tracks title . UiTest.note_track
@@ -102,7 +107,7 @@ test_assign_positions = do
 
 test_tumpuk = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks (title_with_damp 1.5) . UiTest.note_track
+            . DeriveTest.derive_tracks (title_damp 1.5) . UiTest.note_track
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run [(1, 4, "t xo 1 -- 4i")])
         ([((1, 1, "4i"), "+mute"), ((2, 3, "4i"), "+")], [])
@@ -135,7 +140,7 @@ test_select_pattern = do
 
 test_c_infer_damp = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks (title_with_damp 1 <> " | %damp=.5")
+            . DeriveTest.derive_tracks (title_damp 1 <> " | %damp=.5")
             . UiTest.note_track
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
             fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
@@ -147,7 +152,7 @@ test_c_infer_damp = do
         ([(0, "4i", 0), (1, "4i", 0.5)], [])
 
 test_c_infer_damp_kotekan = do
-    let run = e_voice 1 extract . DeriveTest.derive_tracks (title_with_damp 1.5)
+    let run = e_voice 1 extract . DeriveTest.derive_tracks (title_damp 1.5)
             . UiTest.note_track
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
             fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
@@ -186,10 +191,11 @@ show_pitch (Just (Pitch.Pitch oct (Pitch.Degree d _))) =
 
 test_ngoret = do
     let run extract = DeriveTest.extract extract
-            . DeriveTest.derive_tracks
-                "import bali.reyong | scale=legong | realize-reyong >i1"
+            . DeriveTest.derive_tracks title_realize
             . UiTest.note_track
-    let tracks = [(0, 2, "4i"), (2, 2, "' .5 -- 4e")]
+    let tracks = [(0, 2, "4i"), (2, 2, "' .25 -- 4e")]
     equal (run DeriveTest.e_note tracks)
-        ([(0, 2, "4i"), (1.5, 1.5, "4o"), (2, 2, "4e")], [])
-    pprint (run (DeriveTest.e_start_control Reyong.damp_control) tracks)
+        ([(0, 2, "4i"), (1.75, 0.25, "4o"), (2, 2, "4e")], [])
+    -- TODO shouldn't there be some?
+    equal (run (DeriveTest.e_start_control Reyong.damp_control) tracks)
+        ([Just 1, Just 0, Just 1], [])

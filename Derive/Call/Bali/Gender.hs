@@ -68,6 +68,7 @@ interval_arg = Typecheck.default_diatonic <$> Sig.required "interval"
 ngoret :: Module.Module -> Bool
     -- ^ Extend the previous note's duration to the end of the grace note.
     -> Sig.Parser TrackLang.ControlRef
+    -- ^ Time grace note overlaps with this one.
     -> Sig.Parser (Maybe Pitch.Transpose)
     -> Derive.Generator Derive.Note
 ngoret module_ late_damping damp_arg interval_arg =

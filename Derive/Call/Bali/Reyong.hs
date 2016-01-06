@@ -104,7 +104,7 @@ reyong_pattern :: [Char] -> [Char] -> Pattern
 reyong_pattern above below = make_pattern $ parse_kotekan above below
 
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
-c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 1))
+c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 0))
 
 voices_env :: Sig.Parser [Voice]
 voices_env = Sig.environ "reyong-voices" Sig.Unprefixed []
