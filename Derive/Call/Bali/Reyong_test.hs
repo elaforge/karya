@@ -32,7 +32,8 @@ title_realize :: String
 title_realize = title <> " | realize-reyong >i1"
 
 test_kilitan = do
-    let run = e_voice 1 ex . DeriveTest.derive_tracks title . UiTest.note_track
+    let run = e_voice 1 ex . DeriveTest.derive_tracks title_cancel
+            . UiTest.note_track
         ex e = (Score.event_start e, DeriveTest.e_pitch e)
     equal (run [(0, 0, "X --"), (1, 0, "O --"), (2, 0, "+ --")])
         (Just [(0, "3u"), (1, "3e"), (1, "3a"), (2, "3e"), (2, "3a")], [])
@@ -45,7 +46,7 @@ test_kilitan = do
 
 test_kotekan_regular = do
     let run voice = first (lookup voice) . e_pattern 0
-            . DeriveTest.derive_tracks title . UiTest.note_track
+            . DeriveTest.derive_tracks title_cancel . UiTest.note_track
     equal (run 1 [(0, 8, "k k-12-1-21 -- 4i")]) (Just "ueu-eue-u", [])
     equal (run 2 [(0, 8, "k k-12-1-21 -- 4i")]) (Just "i-io-i-oi", [])
     equal (run 1 [(0, 8, "k// -- 4e")]) (Just "e-eu-eu-e", [])
@@ -61,7 +62,7 @@ test_cancel_kotekan = do
     let run voice = DeriveTest.extract DeriveTest.e_note
             . DeriveTest.filter_events_range 7 9
             . DeriveTest.filter_events ((==voice) . event_voice)
-            . DeriveTest.derive_tracks title . UiTest.note_track
+            . DeriveTest.derive_tracks title_cancel . UiTest.note_track
     equal (run 2 [(0, 8, "k k-12-1-21 -- 4i")])
         ([(7, 1, "4o"), (8, 5, "4i")], [])
     equal (run 2 [(0, 8, "k_\\ -- 4i"), (8, 8, "k//\\\\ -- 4o")])
@@ -196,6 +197,16 @@ test_ngoret = do
     let tracks = [(0, 2, "4i"), (2, 2, "' .25 -- 4e")]
     equal (run DeriveTest.e_note tracks)
         ([(0, 2, "4i"), (1.75, 0.25, "4o"), (2, 2, "4e")], [])
-    -- TODO shouldn't there be some?
     equal (run (DeriveTest.e_start_control Reyong.damp_control) tracks)
         ([Just 1, Just 0, Just 1], [])
+
+-- * lower-octave
+
+test_lower_octave = do
+    let run = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks title_realize
+            . UiTest.note_track
+    equal (run [(0, 1, "4i"), (1, 1, "v | -- 4o"), (2, 1, "4e")])
+        ([(0, 1, "4i"), (1, 1, "4o"), (1, 1, "3o"), (2, 1, "4e")], [])
+    equal (run [(0, 1, "4i"), (1, 1, "v | ' .5 -- 4e")])
+        ([(0, 1, "4i"), (0.5, 0.5, "4o"), (1, 1, "4e"), (1, 1, "3e")], [])

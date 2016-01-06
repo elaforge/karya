@@ -119,9 +119,10 @@ UNSORTED
 
   - I forgot to add Sub.inverting to mridangam.p1 and mridangam.pn calls.  Can
     I have a warning for when a non-inverting call has a note track below it?
-  - It's confusing how sometimes the environ is applied to the pitch during
-    derivation (e.g. Post.set_instrument), and sometimes it waits for Convert
-    to do it.  Do I really need both?
+  - pitch transpose
+    . It's confusing how sometimes the environ is applied to the pitch during
+      derivation (e.g. Post.set_instrument), and sometimes it waits for Convert
+      to do it.  Do I really need both?
     . Post.set_instrument needs to set because I need the environ from the new
       inst.  Could I instead overlay the environ into the event environ?
     . It's error prone because there's nothing that enforces that you set
@@ -139,6 +140,11 @@ UNSORTED
       new instrument's environ, specifically Environ.tuning, to apply to the new
       event's pitches.  So now when I switch instruments I have to explicitly
       apply the environ from the new instrument, via Post.set_instrument.
+    . Also error prone: I applied octave transpositions via Call.add_constant,
+      but then realize-ngoret uses transposed nn to infer, and untransposed
+      pitch for the final pitch, so I get a confusingly wrong result.  The
+      solution is to apply via Pitches.transpose, but I shouldn't have to make
+      complicated decisions like that.
 
   - kotekan calls leave keys down in kontakt
   - empty track doesn't get an Environ, which causes Cmd.Track to not be able
@@ -1290,7 +1296,7 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
-        - call to double note on the lower octave
+        * call to double note on the lower octave
         - +mute is not cancelling open notes properly
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.

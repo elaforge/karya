@@ -4,7 +4,6 @@
 
 -- | Calls to deal with an entire ensemble, or miscellaneous instruments.
 module Derive.Call.Bali.Gong where
-import qualified Util.Debug as Debug
 import qualified Derive.Args as Args
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -50,9 +49,6 @@ pokok :: ScoreTime -> Call.UpDown -> [Score.Instrument] -> Scale.Range
     -> Derive.Deriver Derive.NoteDeriver
 pokok start octave insts range = do
     (parse_pitch, show_pitch, _) <- Call.get_pitch_functions
-    Debug.tracepM "pitch" start
-    psig <- Derive.get_pitch Score.default_pitch
-    Debug.tracepM "psig" psig
     from_pitch <- Call.get_parsed_pitch parse_pitch =<< Derive.real start
     to_note <- Derive.require ("can't show pitch: " <> showt from_pitch) $
         show_pitch (restrict range octave from_pitch)

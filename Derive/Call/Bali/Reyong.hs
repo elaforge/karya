@@ -29,8 +29,10 @@ import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Post.Postproc as Postproc
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Flags as Flags
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
@@ -94,6 +96,7 @@ note_calls = Derive.call_maps
     , ("cancel-kotekan", c_cancel_kotekan)
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     , ("realize-reyong", c_realize_reyong)
+    , ("v", c_lower_octave)
     ]
     where articulation = make_articulation reyong_positions
 
@@ -706,3 +709,20 @@ c_realize_reyong = Derive.transformer module_ "realize-reyong" Tags.postproc
     where
     cancel final_dur = Derive.require_right id
         . Postproc.group_and_cancel cancel_kotekan Post.voice_key final_dur
+
+-- * lower-octave
+
+c_lower_octave :: Derive.Transformer Derive.Note
+c_lower_octave = Derive.transformer module_ "lower-octave"
+    (Tags.postproc <> Tags.under_invert)
+    "Add a note one octave down with 'Derive.Flags.infer_duration'."
+    $ Sig.call0t $ Sub.under_invert $ \args deriver -> do
+        start <- Args.real_start args
+        pitch <- Call.get_pitch start
+        let note = Call.add_flags Flags.infer_duration $
+                Derive.at (Args.start args) $ Call.pitched_note $
+                PSignal.add_control Controls.octave (-1) pitch
+        -- The transposed goes second so realize-ngoret infers to the upper
+        -- pitch rather than the lower one.  This is kind of subtle and
+        -- unsatisfying, but works.
+        deriver <> note
