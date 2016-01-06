@@ -514,7 +514,7 @@ norot_patterns = Map.fromList $ zip [0..] $ map parse by_degree
     where
     parse = zipWith parse_absolute (map pos_table reyong_positions)
     by_degree =
-        [ ["uau-", "oioi", "aua-", "oioi"] -- i
+        [ ["aua-", "oioi", "aua-", "oioi"] -- i
                -- i oeio
         , [":-:-", "eoeo", "iai-", "eoeo"] -- o
         , ["ueue", "ieie", "u-u-", "ueue"] -- e
@@ -527,7 +527,7 @@ pickup_patterns = Map.fromList $ zip [0..] $ map parse by_degree
     where
     parse = zipWith parse_absolute (map pos_table reyong_positions)
     by_degree =
-        [ ["uua-", "iioi", "uua-", "iioi"] -- i
+        [ ["eua-", "iioi", "uua-", "iioi"] -- i
         , ["ua:-", "ooeo", "uai-", "ooeo"] -- o
         , ["eeue", "eeie", "uau-", "eeue"] -- e
         , ["uuau", "ioe-", "uuau", "ioe-"] -- u
