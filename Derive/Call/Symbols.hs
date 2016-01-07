@@ -24,8 +24,8 @@ misc_symbols =
 staff_symbols :: [Symbol.Symbol]
 staff_symbols =
     [ symbol "tr" "\xe566"
-    , symbol "mordent" "\xe56c"
-    , symbol "rmordent" "\xe56d"
+    , symbol "mordent" "\xe56c" -- ornamentMordent
+    , symbol "rmordent" "\xe56d" -- ornamentMordentInverted
     -- There is also "\xe634", but it's too tall and skinny.
     , Symbol.symbol "arp-up"
         [ arp_glyph 90 (0, -0.25) "\xeaad" -- wiggleArpeggiatoUpArrow
@@ -35,8 +35,8 @@ staff_symbols =
         [ arp_glyph (-90) (0, 0.25) "\xeaae" -- wiggleArpeggiatoDownArrow
         , arp_glyph (-90) (0, 0) "\xeaaa" -- wiggleArpeggiatoDown
         ]
-    , symbol "ped" "\xe650"
-    , symbol "ped-up" "\xe655"
+    , symbol "ped" "\xe650" -- keyboardPedalPed
+    , symbol "ped-up" "\xe655" -- keyboardPedalUp
     ]
     where
     symbol name str = Symbol.Symbol name False [glyph str]

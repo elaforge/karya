@@ -1274,7 +1274,7 @@ Derive:
           integration could theoretically do that.
       trompong / reyong:
         * call to double note on the lower octave
-        - +mute is not cancelling open notes properly
+        * +mute is not cancelling open notes properly
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.
           . One way is to have a postproc ensure ==0 or >=1/127.
@@ -1283,9 +1283,7 @@ Derive:
             have another control to turn off damping.
             . The sustain pedal, cc64, is a natural choice.
             . But CCs are global, so no good.
-        - individual notes play in octaves and kempyung
-          . Or perhaps better to write two parts and have them duplicated in
-            the upper octave.
+        - A way to write two parts, and have them expanded to all four.
         * two handed +cek call
         - for infer-damp, also infer damp level
           . Damp gets louder when notes are closer, or faster.
