@@ -8,6 +8,7 @@
 -- > 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u
 -- > 3  5  6  1  2  3  5  6  1  2  3  5
 module Derive.Call.Bali.Reyong where
+import qualified Data.Char as Char
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map.Strict as Map
@@ -512,6 +513,18 @@ parse_note table = extract . head . parse_absolute table . (:[])
     extract [x] = x
     extract xs = error $ "parse_note: expected only one: " <> prettys xs
 
+pickup_patterns :: Map.Map Pitch.PitchClass [[Chord]]
+pickup_patterns = Map.fromList $ zip [0..] $ map parse by_degree
+    where
+    parse = zipWith parse_absolute (map pos_table reyong_positions)
+    by_degree =
+        [ ["eua-", "Iioi", "Uua-", "Iioi"] -- i
+        , ["ua:-", "Ooeo", "uai-", "Ooeo"] -- o
+        , ["Eeue", "Eeie", "uau-", "Eeue"] -- e
+        , ["Uuau", "ioe-", "Uuau", "ioe-"] -- u
+        , ["Aaea", "Eeie", "Aa-a", "Eeie"] -- a
+        ]
+
 norot_patterns :: Map.Map Pitch.PitchClass [[Chord]]
 norot_patterns = Map.fromList $ zip [0..] $ map parse by_degree
     where
@@ -525,26 +538,19 @@ norot_patterns = Map.fromList $ zip [0..] $ map parse by_degree
         , ["eaea", "ieie", "-a-a", "ieie"] -- a
         ]
 
-pickup_patterns :: Map.Map Pitch.PitchClass [[Chord]]
-pickup_patterns = Map.fromList $ zip [0..] $ map parse by_degree
-    where
-    parse = zipWith parse_absolute (map pos_table reyong_positions)
-    by_degree =
-        [ ["eua-", "iioi", "uua-", "iioi"] -- i
-        , ["ua:-", "ooeo", "uai-", "ooeo"] -- o
-        , ["eeue", "eeie", "uau-", "eeue"] -- e
-        , ["uuau", "ioe-", "uuau", "ioe-"] -- u
-        , ["aaea", "eeie", "aa-a", "eeie"] -- a
-        ]
-
+-- | Map letters to chords, starting from the given octave and Degree.  Capital
+-- letters get 'Attrs.mute'.
 note_table :: Pitch.Octave -> Degree -> NoteTable
 note_table octave start = Map.fromList $
     ('-', []) : take (length notes) (drop (to_pc start) pitches)
+        ++ take (length notes) muted
     where
     pitches =
         [ (char, [(Pitch.Pitch oct (Pitch.Degree pc 0), mempty)])
         | oct <- [octave..], (pc, char) <- zip [0..] notes
         ]
+    muted = [(Char.toUpper char, mute notes) | (char, notes) <- pitches]
+    mute = map (fmap (<>Attrs.mute))
     notes = "ioeua"
 
 data Position = Position {

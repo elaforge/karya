@@ -1318,7 +1318,10 @@ Derive:
         - kbd entry for /, X, O, + etc.?
         - perhaps 0 duration should infer duration?
         kilitan
-          - pickups can mute
+          * pickups can mute
+            - mute under a speed threshold
+            - Also I want to be able to control the dyn.  There should be
+              a single control for +mute dyn.
           - kilitan patterns change over a speed threshold
           - variant patterns, e.g. p1 on dong
           - write an alternate style of kilitan, e.g. with a 6 note scale in
