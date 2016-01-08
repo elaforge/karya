@@ -407,15 +407,14 @@ main(int argc, char **argv)
     SymbolTable *t = SymbolTable::get();
 
 #ifdef __linux__
-    Fl_Font music = t->font(" Emmentaler");
     Fl_Font chinese = t->font(" AR PL UKai TW");
     Fl_Font tamil = t->font(" Lohit Tamil");
 #endif
 #ifdef __APPLE__
-    Fl_Font music = t->font("Emmentaler-11");
     Fl_Font chinese = t->font("LiSongPro");
     Fl_Font tamil = Config::font; // thanks to OS X font substitution I guess
 #endif
+    Fl_Font bravura = t->font("Bravura");
 
     SymbolTable::Symbol zerox = SymbolTable::Symbol(
         SymbolTable::Glyph("x", Config::font, -2, DPoint(0, -.4)));
@@ -442,9 +441,16 @@ main(int argc, char **argv)
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(-.3, .2)),
         SymbolTable::Glyph("\xe2\x80\xa2", Config::font, 0, DPoint(.5, .2))));
 
+    t->insert("arp-up", SymbolTable::Symbol(
+        // arrow
+        SymbolTable::Glyph("\xee\xaa\xad", bravura, 8, DPoint(0, -0.25), 90),
+        // wiggle
+        SymbolTable::Glyph("\xee\xaa\xa9", bravura, 8, DPoint(0, 0), 90)));
     t->insert("arp-down", SymbolTable::Symbol(
-        SymbolTable::Glyph("\xee\x85\x9d", music, 8, DPoint(-.14, .5), 0),
-        SymbolTable::Glyph("\xee\x85\xa2", music, 4, DPoint(0, 0), 90)));
+        // arrow
+        SymbolTable::Glyph("\xee\xaa\xae", bravura, 8, DPoint(0, 0.25), -90),
+        // wiggle
+        SymbolTable::Glyph("\xee\xaa\xaa", bravura, 8, DPoint(0, 0), -90)));
 
     // dots: DOT OPERATOR e2 8b 85, bullet e2 80 a2
     // t->load("v-angle-double", "\xef\xb8\xbd", "LiSong Pro", 4);
