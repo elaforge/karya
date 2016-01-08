@@ -1,19 +1,20 @@
-{- Copyright 2015 Evan Laforge
+{ Copyright 2015 Evan Laforge
     This program is distributed under the terms of the GNU General Public
     License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
--}
+}
 on init
     set_script_title("reyong keyswitches and release")
     message("")
 
-    declare const $OpenKs := 12
-    declare const $MuteClosedKs := 13
-    declare const $MuteOpenKs := 14
-    declare const $CekClosedKs := 15
-    declare const $CekOpenKs := 16
-    {- Configure which mute is used for NoteOffs. -}
-    declare const $DampClosedKs := 17
-    declare const $DampOpenKs := 18
+    { The upper end of the aftertouch range is reserved for keyswitches. }
+    declare const $OpenKs := 127
+    declare const $MuteClosedKs := 126
+    declare const $MuteOpenKs := 125
+    declare const $CekClosedKs := 124
+    declare const $CekOpenKs := 123
+    { Configure which mute is used for NoteOffs. }
+    declare const $DampOpenKs := 12
+    declare const $DampClosedKs := 13
     declare const $FadeTimeUs := 100 * 1000
 
     declare %OpenGroups[4]
@@ -46,41 +47,36 @@ on init
     %MuteOpenGroups[2] := find_group("mute+open+v3")
     %MuteOpenGroups[3] := find_group("mute+open+v4")
 
-    {- Use to kill notes of the same pitch. -}
+    { Use to kill notes of the same pitch. }
     declare const $SoundingSize := 256
     declare %sounding[$SoundingSize]
-    {- $DampClosedKs or $DampOpenKs -}
+    { $DampClosedKs or $DampOpenKs }
     declare $release_state := $DampOpenKs
-    {- $OpenKs, $MuteClosedKs, $MuteOpenKs, $CekClosedKs, or $CekOpenKs -}
-    declare $play_state := $OpenKs
-    {- round-robin position -}
+    { $OpenKs, $MuteClosedKs, $MuteOpenKs, $CekClosedKs, or $CekOpenKs }
+    declare polyphonic $play_state := $OpenKs
+    { round-robin position }
     declare $rr := 0
-    {- local variables -}
+    { local variables }
     declare $i
-    {- Track the damp value from note on time.  Otherwise, if there are
+    { Track the damp value from note on time.  Otherwise, if there are
         repeated notes with the same pitch, the damp from the second one
         interferes with the damp value at the end of the first one.
-    -}
+    }
     declare polyphonic $damp
-    declare $event_note {- pass argument to mute function -}
-    declare $t {- temp -}
+    declare $event_note { pass argument to mute function }
+    declare $t { temp }
 
-    set_key_color($OpenKs, $KEY_COLOR_YELLOW)
-    set_key_color($MuteClosedKs, $KEY_COLOR_YELLOW)
-    set_key_color($MuteOpenKs, $KEY_COLOR_YELLOW)
-    set_key_color($CekClosedKs, $KEY_COLOR_RED)
-    set_key_color($CekOpenKs, $KEY_COLOR_RED)
     set_key_color($DampClosedKs, $KEY_COLOR_CYAN)
     set_key_color($DampOpenKs, $KEY_COLOR_CYAN)
 end on
 
-{- Stop all open notes with the same pitch. -}
+{ Stop all open notes with the same pitch. }
 function mute
     $i := 0
     get_event_ids(%sounding)
     $t := $EVENT_PAR_ALLOW_GROUP
     while ($i < $SoundingSize and %sounding[$i] # 0)
-        {- alternately, use $EVENT_PAR_0, but it's anti-modular -}
+        { alternately, use $EVENT_PAR_0, but it's anti-modular }
         if (get_event_par(%sounding[$i], $EVENT_PAR_NOTE) = $event_note and ...
                 (get_event_par_arr(%sounding[$i], $t, %OpenGroups[0]) = 1 ...
                  or get_event_par_arr(%sounding[$i], $t, %OpenGroups[1]) = 1 ...
@@ -93,13 +89,17 @@ function mute
 end function
 
 on note
-    {- KSP doesn't support NoteOff velocity, so I have to use a separate
-        control.  It has to be note-addressed so notes don't interfere.
-    -}
-    $damp := %POLY_AT[$EVENT_NOTE]
     $rr := ($rr + 1) mod (4*6)
     %sounding[$EVENT_NOTE] := $EVENT_ID
-    select ($EVENT_NOTE)
+    select (%POLY_AT[$EVENT_NOTE])
+        case 0 to 122
+            { KSP doesn't support NoteOff velocity, so I have to use a separate
+                control.  It has to be note-addressed so notes don't interfere.
+            }
+            { Rescale 0-122 to 0-127. Undocumented, but KSP ints are 32 bit
+                signed. +1 to round up at 127.
+            }
+            $damp := %POLY_AT[$EVENT_NOTE] * (1270000000 / 122 + 1) / 10000000
         case $OpenKs
             $play_state := $OpenKs
         case $MuteClosedKs
@@ -165,7 +165,7 @@ end on
 
 on release
     if ($play_state = $OpenKs)
-        {- Stop all notes with the same pitch. -}
+        { Stop all notes with the same pitch. }
         if ($damp > 0)
             $event_note := $EVENT_NOTE
             call mute

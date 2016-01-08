@@ -447,26 +447,28 @@ perform_note_in_channel (addr_inst, note_off_map) next_note_on (event, addr) =
 -}
 adjust_chan_state :: AddrInst -> Instrument.Addr -> Event
     -> (MidiEvents, AddrInst)
-adjust_chan_state addr_inst addr event =
-    case chan_state_msgs addr (event_start event) old_inst inst of
-        Left err -> ([LEvent.Log $ event_warning event err], new_addr_inst)
-        Right msgs -> (map LEvent.Event msgs, new_addr_inst)
+adjust_chan_state addr_inst addr event = case event_midi_key event of
+    Nothing -> ([], new_addr_inst)
+    Just midi_key ->
+        case chan_state_msgs midi_key addr (event_start event) old_inst inst of
+            Left err -> ([LEvent.Log $ event_warning event err], new_addr_inst)
+            Right msgs -> (map LEvent.Event msgs, new_addr_inst)
     where
     new_addr_inst = Map.insert addr inst addr_inst
     inst = event_instrument event
     old_inst = Map.lookup addr addr_inst
 
 -- | TODO support program change, I'll have to get ahold of patch_initialize.
-chan_state_msgs :: Instrument.Addr -> RealTime
+chan_state_msgs :: Midi.Key -> Instrument.Addr -> RealTime
     -> Maybe Instrument.Instrument -> Instrument.Instrument
     -> Either Text [Midi.WriteMessage]
-chan_state_msgs addr@(wdev, chan) start maybe_old_inst new_inst
+chan_state_msgs midi_key addr@(wdev, chan) start maybe_old_inst new_inst
     | not same_synth =
         Left $ "two synths on " <> showt addr <> ": " <> inst_desc
     | not same_inst = Left $ "program change not supported yet on "
         <> showt addr <> ": " <> inst_desc
     | not same_ks = Right $
-        keyswitch_messages maybe_old_inst new_inst wdev chan start
+        keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start
     | otherwise = Right []
     where
     inst_desc = showt (fmap extract maybe_old_inst, extract new_inst)
@@ -489,9 +491,10 @@ chan_state_msgs addr@(wdev, chan) start maybe_old_inst new_inst
 -- the future so it knows if there will be another note.  But in practice,
 -- all notes get turned off after playing so the keyswitch should be cleaned up
 -- by that.
-keyswitch_messages :: Maybe Instrument.Instrument -> Instrument.Instrument
-    -> Midi.WriteDevice -> Midi.Channel -> RealTime -> [Midi.WriteMessage]
-keyswitch_messages maybe_old_inst new_inst wdev chan start =
+keyswitch_messages :: Midi.Key -> Maybe Instrument.Instrument
+    -> Instrument.Instrument -> Midi.WriteDevice -> Midi.Channel -> RealTime
+    -> [Midi.WriteMessage]
+keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
     prev_ks_off ++ new_ks_on
     where
     -- Hold keyswitches have to stay down for the for the duration they are in
@@ -521,9 +524,11 @@ keyswitch_messages maybe_old_inst new_inst wdev chan start =
     ks_on ts ks = mkmsg ts $ case ks of
         Instrument.Keyswitch key -> Midi.NoteOn key 64
         Instrument.ControlSwitch cc val -> Midi.ControlChange cc val
+        Instrument.Aftertouch val -> Midi.Aftertouch midi_key val
     ks_off ts ks = map (mkmsg ts) $ case ks of
         Instrument.Keyswitch key -> [Midi.NoteOff key 64]
         Instrument.ControlSwitch {} -> []
+        Instrument.Aftertouch {} -> []
     mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
 
 -- ** perform note
@@ -532,13 +537,13 @@ keyswitch_messages maybe_old_inst new_inst wdev chan start =
 perform_note :: RealTime -> Maybe RealTime -- ^ next note with the same addr
     -> Event -> Instrument.Addr -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
 perform_note prev_note_off next_note_on event addr =
-    case event_pitch_at (event_pb_range event) event (event_start event) of
+    case event_midi_key event of
         Nothing -> ([LEvent.Log $ event_warning event "no pitch signal"],
             prev_note_off)
-        Just (midi_nn, _) ->
-            let (note_msgs, note_off) = _note_msgs midi_nn
-                control_msgs = _control_msgs note_off midi_nn
-            in (merge_events control_msgs note_msgs, note_off)
+        Just midi_key -> (merge_events control_msgs note_msgs, note_off)
+            where
+            (note_msgs, note_off) = _note_msgs midi_key
+            control_msgs = _control_msgs note_off midi_key
     where
     -- 'perform_note_msgs' and 'perform_control_msgs' are really part of one
     -- big function.  Splitting it apart led to a bit of duplicated work but
@@ -568,7 +573,7 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
 perform_control_msgs :: RealTime -> Maybe RealTime -> Event -> Instrument.Addr
     -> RealTime -> Midi.Key -> MidiEvents
 perform_control_msgs prev_note_off next_note_on event (dev, chan) note_off
-        midi_nn =
+        midi_key =
     map LEvent.Event control_msgs ++ map LEvent.Log warns
     where
     control_msgs = merge_messages $
@@ -588,10 +593,10 @@ perform_control_msgs prev_note_off next_note_on event (dev, chan) note_off
         Just next -> Just $ max note_off (next - control_lead_time)
 
     (control_pos_msgs, clip_warns) = unzip $
-        map (perform_control cmap prev_note_off note_on control_end midi_nn)
+        map (perform_control cmap prev_note_off note_on control_end midi_key)
             control_sigs
     pitch_pos_msgs = perform_pitch (event_pb_range event)
-        midi_nn prev_note_off note_on control_end (event_pitch event)
+        midi_key prev_note_off note_on control_end (event_pitch event)
     note_on = event_start event
 
     warns = concatMap (make_clip_warnings event)
@@ -612,6 +617,11 @@ event_pitch_at :: Control.PbRange -> Event -> RealTime
 event_pitch_at pb_range event pos =
     Control.pitch_to_midi pb_range $
         Pitch.NoteNumber $ Signal.at pos (event_pitch event)
+
+-- | Get the Midi.Key that will be used for the event, without pitch bend.
+event_midi_key :: Event -> Maybe Midi.Key
+event_midi_key event =
+    fst <$> event_pitch_at (event_pb_range event) event (event_start event)
 
 type ClipRange = (RealTime, RealTime)
 

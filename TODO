@@ -1199,6 +1199,8 @@ Derive:
         works.
       - Add an input mode for bols.
     bali:
+      - *legong is of by an octave, 4i should map to 4c, but verify sounding
+        pitch too.
       - add isep to *legong
       - pick better nns for pemero notes 4 and 7
       - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
@@ -1273,6 +1275,19 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
+        * I need a per-pitch keyswitch for +mute, otherwise norot breaks.
+          . I could use aftertouch, e.g. reserve 123--127 for per note
+            keyswitch.
+          . But then I need a way to emit two aftertouch values, and I can't
+            do that with a plain control.  So I would need to augment
+            Instrument.Keyswitch with an Aftertouch variant that sends a value
+            with the current pitch.
+          . It would also be possible to use keyswich velocity to address the
+            key, but what I have works and doesn't take too much bandwidth
+            away from damp velocity.
+          - write Reyong_test for rescaled aftertouch
+          - update ksp to use >=123 for keyswitch, and <123 for damp level.
+        - = is no good for a call name because it is parsed as infix.
         * call to double note on the lower octave
         * +mute is not cancelling open notes properly
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to

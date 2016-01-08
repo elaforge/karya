@@ -237,7 +237,7 @@ make_keymap2 base_keyswitch base_key natural_key range natural_nn =
 
 -- | This is like 'make_keymap', except that attributes are differentiated by
 -- a 'Instrument.ControlSwitch'.  CCs start at 102, and only groups of size >1
--- get a CC.  Since each groups is controlled by its own CC number, you can then
+-- get a CC.  Since each group is controlled by its own CC number, you can then
 -- select each variation independently.  This means any set of variations can
 -- be played simultaneously, which is not true for keyswitches.
 make_cc_keymap :: Midi.Key -- ^ notes start here

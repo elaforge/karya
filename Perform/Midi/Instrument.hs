@@ -542,6 +542,10 @@ data Keyswitch =
     Keyswitch !Midi.Key
     -- | This keyswitch is triggered by a control change.
     | ControlSwitch !Midi.Control !Midi.ControlValue
+    -- | This is like 'ControlSwitch', except send a poly aftertouch value
+    -- for the note's pitch.  This allows simultaneous different notes with
+    -- different articulations.
+    | Aftertouch !Midi.ControlValue
     deriving (Eq, Ord, Show, Read)
 
 instance DeepSeq.NFData Keymap where
@@ -549,13 +553,13 @@ instance DeepSeq.NFData Keymap where
     rnf (PitchedKeymap k _ _) = k `seq` ()
 
 instance DeepSeq.NFData Keyswitch where
-    rnf (Keyswitch k) = k `seq` ()
-    rnf (ControlSwitch k _) = k `seq` ()
+    rnf k = k `seq` () -- already strict
 
 instance Pretty.Pretty Keyswitch where
     format (Keyswitch key) = "key:" <> Pretty.format key
     format (ControlSwitch cc val) =
         "cc:" <> Pretty.format cc <> "/" <> Pretty.format val
+    format (Aftertouch val) = "at:" <> Pretty.format val
 
 -- | Look up keyswitches and keymap according to the attribute priorities as
 -- described in 'AttributeMap'.

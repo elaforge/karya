@@ -17,11 +17,11 @@ import Global
 test_wayang = do
     let run notes = extract $ KontaktTest.perform aliases $
             Derive.r_events $ KontaktTest.derive aliases "" $
-                UiTest.note_spec ("u", notes, [])
+                UiTest.note_spec ("u" <> wayang_title, notes, [])
         extract (_, midi, logs) = (DeriveTest.note_on midi, logs)
-    equal (run [(0, 1, "4i")]) ([Key2.e4], [])
-    equal (run [(1, 1, "+mute -- 4i")]) ([Key2.b_2, Key2.e0], [])
-    equal (run [(2, 1, "+mute+loose -- 4i")]) ([Key2.a_2, Key2.e0], [])
+    equal (run [(0, 1, "4i")]) ([Key2.d3], [])
+    equal (run [(1, 1, "+mute -- 4i")]) ([Key2.b_2, Key2.d_1], [])
+    equal (run [(2, 1, "+mute+loose -- 4i")]) ([Key2.a_2, Key2.d_1], [])
 
 test_wayang_zero_dur = do
     let run = DeriveTest.extract extract

@@ -115,9 +115,11 @@ instance Serialize Instrument.Keymap where
 instance Serialize Instrument.Keyswitch where
     put (Instrument.Keyswitch a) = put_tag 0 >> put a
     put (Instrument.ControlSwitch a b) = put_tag 1 >> put a >> put b
+    put (Instrument.Aftertouch a) = put_tag 2 >> put a
     get = do
         tag <- get_tag
         case tag of
             0 -> Instrument.Keyswitch <$> get
             1 -> Instrument.ControlSwitch <$> get <*> get
+            2 -> Instrument.Aftertouch <$> get
             _ -> bad_tag "Instrument.Keyswitch" tag

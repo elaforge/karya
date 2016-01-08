@@ -405,14 +405,13 @@ test_keyswitch = do
             { Instrument.inst_keyswitch = ks
             , Instrument.inst_hold_keyswitch = hold
             }
-        with_addr (ks, hold, note, start, dur) =
-            (mkevent (ks_inst ks hold, note, start, dur, []), (dev1, 0))
+        with_addr (ks, hold, pitch, start, dur) =
+            (mkevent (ks_inst ks hold, pitch, start, dur, []), (dev1, 0))
         ks1 = [Instrument.Keyswitch Key.c1]
         ks2 = [Instrument.Keyswitch Key.d1]
     let ks_gap = Perform.keyswitch_gap
         delta = RealTime.milliseconds 2
-    let f extract evts = extract $ expect_no_logs $
-            perform_notes (map with_addr evts)
+    let f extract = extract . expect_no_logs . perform_notes . map with_addr
 
     -- Redundant ks not emitted.
     equal (f e_note_on [(ks1, False, "a", 0, 1), (ks1, False, "b", 10, 10)])
@@ -473,10 +472,15 @@ test_keyswitch = do
         , (1, Midi.ChannelMessage 0 (Midi.NoteOn Key.cs4 100))
         ]
 
-note_on_key :: Midi.Message -> Maybe Midi.Key
-note_on_key key
-    | Just (True, key) <- note_key key = Just key
-    | otherwise = Nothing
+test_keyswitch_aftertouch = do
+    let f = extract . expect_no_logs . perform_notes . map with_addr
+        with_addr (ks, pitch, start, dur) =
+            (mkevent (ks_inst ks, pitch, start, dur, []), (dev1, 0))
+        ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
+        extract = mapMaybe $ \wmsg -> case Midi.wmsg_msg wmsg of
+            Midi.ChannelMessage _ (Midi.Aftertouch k v) -> Just (k, v)
+            _ -> Nothing
+    equal (f [([Instrument.Aftertouch 42], "a", 0, 1)]) [(Key.c4, 42)]
 
 -- ** extract
 
@@ -518,6 +522,11 @@ note_key :: Midi.Message -> Maybe (Bool, Midi.Key)
 note_key (Midi.ChannelMessage _ (Midi.NoteOn key _)) = Just (True, key)
 note_key (Midi.ChannelMessage _ (Midi.NoteOff key _)) = Just (False, key)
 note_key _ = Nothing
+
+note_on_key :: Midi.Message -> Maybe Midi.Key
+note_on_key key
+    | Just (True, key) <- note_key key = Just key
+    | otherwise = Nothing
 
 perform :: Perform.InstAddrs -> [Perform.Event]
     -> ([Midi.WriteMessage], [String])

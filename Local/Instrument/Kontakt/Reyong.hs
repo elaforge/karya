@@ -6,6 +6,7 @@
 module Local.Instrument.Kontakt.Reyong where
 import qualified Data.Map as Map
 
+import qualified Util.Num as Num
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Reyong as Reyong
@@ -31,7 +32,7 @@ patches =
         (Instrument.instrument_#Instrument.maybe_decay #= Just 0) $
         (Instrument.attribute_map #= attribute_map) $
         MidiInst.patch (-24, 24) name []
-    tuning = BaliScales.Umbang -- TODO verify
+    tuning = BaliScales.Umbang -- TODO verify how mine are tuned
     set_scale = (Instrument.scale #= Just patch_scale)
         . MidiInst.default_scale Legong.scale_id
         . MidiInst.environ EnvKey.tuning tuning
@@ -50,22 +51,28 @@ patches =
 postproc :: Score.Event -> Score.Event
 postproc event =
     Score.set_control Controls.aftertouch
-        (Score.untyped (Signal.constant damp)) event
+        (Score.untyped (Signal.constant rescaled)) event
     where
     damp = maybe 0 (Signal.at (Score.event_end event) . Score.typed_val) $
         Map.lookup Reyong.damp_control $
         Score.event_untransformed_controls event
+    rescaled = Num.normalize 0 127 $ Num.scale 0 damp_max damp
+
+-- | Maximum value I can use for damp aftertouch.  Values above this are
+-- keyswitches.
+damp_max :: Signal.Y
+damp_max = 122
 
 attribute_map :: Instrument.AttributeMap
-attribute_map = Instrument.keyswitches $ map (second (map Instrument.Keyswitch))
-    [ (Attrs.mute, [13])
-    , (Attrs.mute <> Attrs.open, [14])
-    , (Reyong.cek, [15])
-    , (Reyong.cek <> Attrs.open, [16])
-    , (damp_closed, [open, 18])
-    , (mempty, [open, 17])
+attribute_map = Instrument.keyswitches
+    [ (Reyong.cek <> Attrs.open, [at 123])
+    , (Reyong.cek, [at 124])
+    , (Attrs.mute <> Attrs.open, [at 125])
+    , (Attrs.mute, [at 126])
+    , (damp_closed, [at 127, Instrument.Keyswitch 13])
+    , (mempty, [at 127, Instrument.Keyswitch 12])
     ]
-    where open = 12
+    where at = Instrument.Aftertouch
 
 -- | Note releases use +mute+closed.  +mute+open is the default.
 damp_closed :: Score.Attributes
