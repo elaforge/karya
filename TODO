@@ -1287,7 +1287,7 @@ Derive:
             away from damp velocity.
           - write Reyong_test for rescaled aftertouch
           - update ksp to use >=123 for keyswitch, and <123 for damp level.
-        - = is no good for a call name because it is parsed as infix.
+        * = is no good for a call name because it is parsed as infix.
         * call to double note on the lower octave
         * +mute is not cancelling open notes properly
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
@@ -1321,11 +1321,19 @@ Derive:
           * pickups can mute
             - mute under a speed threshold
             - Also I want to be able to control the dyn.  There should be
-              a single control for +mute dyn.
+              a single control for +mute dyn.  Actually I already have that
+              if I multiply %damp, right?  Still, explicit +mute notes and
+              kilitan +mute notes are stronger than damping, so I need two
+              I think.  Damping should default to a fraction of +mute dyn.
           - kilitan patterns change over a speed threshold
+            . Slow speed can use mutes, medium speed without mutes, high speed
+              changes pattern and drops notes.
           - variant patterns, e.g. p1 on dong
+            . Select explicitly or randomize.
           - write an alternate style of kilitan, e.g. with a 6 note scale in
             tisram
+        kotekan
+          - support high dung for position 4
       gender:
         - rambat damping emulation: notes ring on by default until they can be
           damped.  Damp at the first opportunity, where opportunity is defined

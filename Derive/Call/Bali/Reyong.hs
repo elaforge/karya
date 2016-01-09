@@ -85,7 +85,7 @@ note_calls = Derive.call_maps
     , ("X", articulation False "cek" ((:[]) . pos_cek) cek)
     , ("XX", articulation True "cek" ((:[]) . pos_cek) cek)
     , ("O", articulation False "byong" pos_byong mempty)
-    , ("=", articulation False "byut-loose"
+    , ("-", articulation False "byut-loose"
         pos_byong (Attrs.mute <> Attrs.open))
     , ("+", articulation False "byut" pos_byong Attrs.mute)
     , ("'", c_ngoret $ pure Nothing)
@@ -181,16 +181,15 @@ parse_tumpuk = fmap (Maybe.catMaybes . snd) . Seq.mapAccumLM parse (Transpose 0)
 
 -- | These more or less correspond to the group articulations:
 --
--- > /   X   =   +   o
--- >         -=  nx  .o
+-- > /   X   -   +   o
+-- >         m-  nx  .o
 articulations :: Map.Map Char (Score.Attributes, Dyn)
 articulations = Map.fromList
     [ (' ', (mempty, 0))
     , ('.', (mempty, 0.75))
     , ('o', (mempty, 1))
-    , ('-', (Attrs.mute <> Attrs.open, 0.75))
-    -- TODO can't use this in an unquoted string
-    , ('=', (Attrs.mute <> Attrs.open, 1))
+    , ('m', (Attrs.mute <> Attrs.open, 0.75))
+    , ('-', (Attrs.mute <> Attrs.open, 1))
     , ('n', (Attrs.mute, 0.75))
     -- I would use +, but if you start with one it parses as an attr.
     , ('x', (Attrs.mute, 1))
@@ -239,7 +238,7 @@ tumpuk_patterns = expect_right $ mapM (firstA parse_tumpuk)
     , ("p-0.o", (1/12, 1/18))
     , ("p.0.o", (1/14, 1/18))
     , ("1.0.o", (1/12, 1/18))
-    , ("p.0.p=0o", (1/18, 1/20))
+    , ("p.0.pm0o", (1/18, 1/20))
     ]
     where
     expect_right = either (error . untxt . ("tumpuk_patterns: "<>)) id
