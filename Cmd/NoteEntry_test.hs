@@ -53,6 +53,9 @@ test_cmds_with_note = do
     let f kbd_entry msg = NoteEntry.cmds_with_input kbd_entry Nothing
             [cmd_dummy] msg
     let st = CmdTest.default_cmd_state
+            { Cmd.state_edit = (Cmd.state_edit CmdTest.default_cmd_state)
+                { Cmd.state_kbd_entry_octave = 4 }
+            }
 
     -- test kbd entry
     equal [run st (f True (CmdTest.key_down c)) | c <- "1'2,"] $

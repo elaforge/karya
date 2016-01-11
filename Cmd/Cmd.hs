@@ -675,7 +675,7 @@ initial_edit_state = EditState {
     , state_note_direction = TimeStep.Advance
     , state_note_text = ""
     -- This should put middle C in the center of the kbd entry keys.
-    , state_kbd_entry_octave = 4
+    , state_kbd_entry_octave = 3
     , state_recorded_actions = mempty
     , state_edit_box = (box, box)
     } where box = uncurry Block.Box Config.bconfig_box
