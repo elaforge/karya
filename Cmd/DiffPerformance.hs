@@ -6,7 +6,7 @@
 -- This is used to detect when code changes cause a performance to change.
 module Cmd.DiffPerformance (
     -- * save and load
-    midi_magic, load_midi, save_midi
+    load_midi, save_midi
     -- * diff lilypond
     , diff_lilypond
     -- * diff midi
@@ -38,19 +38,17 @@ type Messages = Vector.Vector Midi.WriteMessage
 
 -- * save and load
 
-midi_magic :: Serialize.Magic
-midi_magic = Serialize.Magic 'm' 'i' 'd' 'i'
-
 load_midi :: FilePath -> IO (Either Text Messages)
-load_midi fname = Serialize.unserialize midi_magic fname >>= \x -> case x of
-    Left err -> return $ Left $ "loading " <> showt fname <> ": " <> err
-    Right Nothing -> return $ Left $ "not found: " <> showt fname
-    Right (Just msgs) -> return $ Right msgs
+load_midi fname =
+    Serialize.unserialize Serialize.midi_magic fname >>= \x -> case x of
+        Left err -> return $ Left $ "loading " <> showt fname <> ": " <> err
+        Right Nothing -> return $ Left $ "not found: " <> showt fname
+        Right (Just msgs) -> return $ Right msgs
 
 -- | Perform the input score and save the midi msgs to the output file.
 -- This creates the -perf files.
 save_midi :: FilePath -> Messages -> IO ()
-save_midi = Serialize.serialize midi_magic
+save_midi = Serialize.serialize Serialize.midi_magic
 
 
 -- * diff lilypond

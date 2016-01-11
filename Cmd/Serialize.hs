@@ -13,25 +13,30 @@
     a type error over here pointing at the get/put code that needs to be
     updated.
 -}
-module Cmd.Serialize where
+module Cmd.Serialize (
+    serialize, unserialize
+    -- * Magic
+    , Magic, midi_magic, midi_config_magic, score_magic, views_magic
+    , InstrumentDb(..), instrument_db_magic
+) where
 import qualified Control.Exception as Exception
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Time as Time
+import qualified Data.Vector as Vector
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
-import qualified System.IO as IO
 
 import qualified Util.File as File
-import qualified Util.PPrint as PPrint
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 
 import Midi.Instances ()
+import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
@@ -54,39 +59,15 @@ import Global
 import Types
 
 
--- | This is a four byte prefix to identify a particular file type.  The Chars
--- are just for syntactic convenience only, and must be ASCII.
-data Magic = Magic !Char !Char !Char !Char deriving (Show)
-
-magic_bytes :: Magic -> B.ByteString
-magic_bytes (Magic c1 c2 c3 c4) = Char8.pack [c1, c2, c3, c4]
-
-magic_length :: Int
-magic_length = 4
-
-serialize :: Serialize a => Magic -> FilePath -> a -> IO ()
+serialize :: Serialize a => Magic a -> FilePath -> a -> IO ()
 serialize magic fname state = do
     backup_file fname
     make_dir fname
     File.writeGz fname $ magic_bytes magic <> Serialize.encode state
 
-serialize_text :: Show a => FilePath -> a -> IO ()
-serialize_text fname state = do
-    backup_file fname
-    make_dir fname
-    writeFile fname (show state ++ "\n")
-
--- | Like 'serialize_text' but pretty-print it.  Probably not suitable for
--- giant things.
-serialize_pretty_text :: Show a => FilePath -> a -> IO ()
-serialize_pretty_text fname state = do
-    backup_file fname
-    make_dir fname
-    writeFile fname (PPrint.pshow state)
-
 -- | Returns Left if there was a parsing error, and Right Nothing if the file
--- didn't exist.
-unserialize :: Serialize a => Magic -> FilePath -> IO (Either Text (Maybe a))
+-- didn't exist.  This can throw IO errors.
+unserialize :: Serialize a => Magic a -> FilePath -> IO (Either Text (Maybe a))
 unserialize magic fname = do
     maybe_bytes <- File.ignoreEnoent $ File.readGz fname
     case maybe_bytes of
@@ -106,16 +87,7 @@ unserialize magic fname = do
                         return $ Left $ "exception: " <> show exc
                 return $ either (Left . txt) (Right . Just) val
 
-unserialize_text :: Read a => FilePath -> IO (Either Text a)
-unserialize_text fname = do
-    ui_str <- IO.readFile fname
-    result <- Exception.try $ readIO ui_str
-    return $ case result of
-        Left (exc :: Exception.SomeException) -> Left (showt exc)
-        Right val -> Right val
-
-
--- | Move the file to file.last.  Do this before writing a new one that may
+-- | Move @file@ to @file.last@.  Do this before writing a new one that may
 -- fail.
 backup_file :: FilePath -> IO ()
 backup_file fname = do
@@ -126,6 +98,40 @@ backup_file fname = do
 make_dir :: FilePath -> IO ()
 make_dir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory
 
+
+-- * magic
+
+-- | This is a four byte prefix to identify a particular file type, tagged with
+-- the serialized type.  The Chars are just for syntactic convenience only, and
+-- must be ASCII.
+--
+-- The constructor is not exported, so all magics have to be defined here,
+-- which should make it easy to avoid collisions.
+data Magic a = Magic !Char !Char !Char !Char deriving (Show)
+
+magic_bytes :: Magic a -> B.ByteString
+magic_bytes (Magic c1 c2 c3 c4) = Char8.pack [c1, c2, c3, c4]
+
+magic_length :: Int
+magic_length = 4
+
+-- | Saved MIDI performance.
+midi_magic :: Magic (Vector.Vector Midi.WriteMessage)
+midi_magic = Magic 'm' 'i' 'd' 'i'
+
+midi_config_magic :: Magic MidiConfig.Config
+midi_config_magic = Magic 'm' 'c' 'o' 'n'
+
+score_magic :: Magic State.State
+score_magic = Magic 's' 'c' 'o' 'r'
+
+views_magic :: Magic (Map.Map ViewId Block.View)
+views_magic = Magic 'v' 'i' 'e' 'w'
+
+newtype InstrumentDb = InstrumentDb (Time.UTCTime, Instrument.Synth ())
+
+instrument_db_magic :: Magic InstrumentDb
+instrument_db_magic = Magic 'i' 'n' 's' 't'
 
 -- * Serialize instances
 

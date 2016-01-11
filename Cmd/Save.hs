@@ -156,9 +156,6 @@ date = do
 
 -- * plain serialize
 
-state_magic :: Serialize.Magic
-state_magic = Serialize.Magic 's' 'c' 'o' 'r'
-
 save_state :: Cmd.CmdT IO ()
 save_state = save_state_as =<< Cmd.require "can't save, no save file"
     =<< get_state_path
@@ -185,7 +182,7 @@ write_current_state fname = do
 write_state :: FilePath -> State.State -> IO ()
 write_state fname state = do
     now <- Time.getCurrentTime
-    Serialize.serialize state_magic fname $
+    Serialize.serialize Serialize.score_magic fname $
         State.config#State.meta#State.last_save #= now $
         State.clear state
 
@@ -207,7 +204,7 @@ read_state fname = do
 
 -- | Lower level 'read_state'.
 read_state_ :: FilePath -> IO (Either Text (Maybe State.State))
-read_state_ = Serialize.unserialize state_magic
+read_state_ = Serialize.unserialize Serialize.score_magic
 
 -- ** path
 
@@ -333,16 +330,13 @@ default_git = "save" ++ SaveGit.git_suffix
 
 -- * config
 
-midi_config_magic :: Serialize.Magic
-midi_config_magic = Serialize.Magic 'm' 'c' 'o' 'n'
-
 save_midi_config :: FilePath -> Cmd.CmdT IO ()
 save_midi_config fname = do
     config <- State.get_config id
     fname <- expand_filename fname
     Log.notice $ "write midi config to " <> showt fname
     rethrow_io "save_midi_config" $ liftIO $
-        Serialize.serialize midi_config_magic fname $
+        Serialize.serialize Serialize.midi_config_magic fname $
         MidiConfig.Config (State.config_midi config)
             (State.config_aliases config)
 
@@ -354,7 +348,7 @@ load_midi_config fname = do
         Cmd.require (showt fname <> " doesn't exist")
         =<< Cmd.require_right
             (\err -> "unserializing midi config " <> showt fname <> ": " <> err)
-        =<< liftIO (Serialize.unserialize midi_config_magic fname)
+        =<< liftIO (Serialize.unserialize Serialize.midi_config_magic fname)
     State.modify_config $ (State.midi #= midi) . (State.aliases #= aliases)
 
 -- * misc

@@ -2,7 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, StandaloneDeriving #-}
 {- | Functions to save and load the midi db.
 
     Unlike in "Cmd.Serialize", I don't bother with versions here, because this
@@ -13,19 +13,17 @@ import qualified Data.Time as Time
 
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import Midi.Instances ()
-import qualified Cmd.Serialize
+import qualified Cmd.Serialize as Serialize
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Search as Search
 import Global
 
 
-magic :: Cmd.Serialize.Magic
-magic = Cmd.Serialize.Magic 'i' 'n' 's' 't'
-
 -- | Serialize instrument definitions to a file.  The @code@ parameter is
 -- restricted to @()@ since it can't be serialized.
 serialize :: FilePath -> Instrument.Synth () -> IO ()
-serialize fname = Cmd.Serialize.serialize magic fname <=< saved_db
+serialize fname =
+    Serialize.serialize Serialize.instrument_db_magic fname <=< instrument_db
 
 -- | Unserialize instrument definitions.  Since the code was stripped off by
 -- 'serialize', it must be provided on a per-patch basis to reconstitute the
@@ -33,9 +31,9 @@ serialize fname = Cmd.Serialize.serialize magic fname <=< saved_db
 unserialize :: (Instrument.Patch -> code) -> FilePath
     -> IO (Either Text (Time.UTCTime, Instrument.Synth code))
 unserialize code_for fname = do
-    result <- Cmd.Serialize.unserialize magic fname
+    result <- Serialize.unserialize Serialize.instrument_db_magic fname
     return $ case result of
-        Right (Just (SavedDb (time, synth))) ->
+        Right (Just (Serialize.InstrumentDb (time, synth))) ->
             Right (time, Instrument.modify_code code_for synth)
         Right Nothing -> Left $ txt fname <> ": file doesn't exist"
         Left err -> Left err
@@ -43,11 +41,10 @@ unserialize code_for fname = do
 
 -- * implementation
 
-newtype SavedDb = SavedDb (Time.UTCTime, Instrument.Synth ())
-    deriving (Serialize)
+deriving instance Serialize Serialize.InstrumentDb
 
-saved_db :: Instrument.Synth () -> IO SavedDb
-saved_db synth = SavedDb . (, synth) <$> Time.getCurrentTime
+instrument_db :: Instrument.Synth () -> IO Serialize.InstrumentDb
+instrument_db synth = Serialize.InstrumentDb . (, synth) <$> Time.getCurrentTime
 
 -- * instances
 
