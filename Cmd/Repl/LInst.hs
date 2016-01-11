@@ -58,12 +58,17 @@ info_all = do
 
 -- | Print out instrument configs all purty-like.
 list :: State.M m => m Text
-list = do
+list = list_like ""
+
+list_like :: State.M m => Text -> m Text
+list_like pattern = do
     config <- State.get_midi_config
     alias_map <- aliases
     return $ Text.intercalate "\n" $
-        map (show_config alias_map) (Map.toList config)
+        map (show_config alias_map) $ filter (matches . fst) $
+        Map.toAscList config
     where
+    matches inst = pattern `Text.isInfixOf` Score.inst_name inst
     show_config alias_map (inst, config) = ShowVal.show_val inst <> " - "
         <> Info.show_addrs (map fst (Instrument.config_addrs config))
         <> show_alias alias_map inst
