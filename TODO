@@ -3,6 +3,26 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - legong 4i is around 5c, it should be in a similar octave as 4c, so I need
+    to go down an octave.  This means the center of pemade should be 3i, not 4i.
+    . But I think I still want legong-c to have 1 at pemade middle.
+    . The problem is I'll have to transpose all *legong using scores.
+    - Verify *wayang.
+  - legong-c scale doesn't seem to work with gong-retuned.
+    . It's because I modified Legong.midi_keys for Reyong
+    . Reyong is one octave above SC.  SC is close to 12tet.
+    . The only way to stay sane is to do everything absolute.  So:
+      4c is middle C, or around 60nn.
+    . legong still 1 octave too high, I can get it down by adding another
+      octave on the bottom of extend, but where excatly does the octave come
+      from?
+    - why is test_input_to_note broken?
+    - regenerate patch scale ksp, verify with SC and reyong
+  * save instrument config via LInst.save has no backward compatibility
+    . But I like the part where it's human readable.  Or I could make a cat
+      util.
+    - Why does unserialize need to return Maybe?
+    - unserialize should catch other IO errors as long as it's using Either
   * use bravura instead of emmentaler
     . It won't change codepoints around like emmentaler.  Also easier to
       install, and has more symbols.

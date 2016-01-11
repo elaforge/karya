@@ -43,6 +43,7 @@ import qualified Ui.State as State
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
+import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
@@ -85,8 +86,7 @@ serialize_pretty_text fname state = do
 
 -- | Returns Left if there was a parsing error, and Right Nothing if the file
 -- didn't exist.
-unserialize :: Serialize a => Magic -> FilePath
-    -> IO (Either Text (Maybe a))
+unserialize :: Serialize a => Magic -> FilePath -> IO (Either Text (Maybe a))
 unserialize magic fname = do
     maybe_bytes <- File.ignoreEnoent $ File.readGz fname
     case maybe_bytes of
@@ -469,6 +469,17 @@ instance Serialize Track.RenderSource where
         _ -> bad_tag "Track.RenderSource" tag
 
 -- ** Midi.Instrument
+
+instance Serialize.Serialize MidiConfig.Config where
+    put (MidiConfig.Config a b) = Serialize.put_version 0 >> put a >> put b
+    get = do
+        v <- Serialize.get_version
+        case v of
+            0 -> do
+                midi :: Instrument.Configs <- get
+                aliases :: Map.Map Score.Instrument Score.Instrument <- get
+                return $ MidiConfig.Config midi aliases
+            _ -> Serialize.bad_version "MidiConfig.Config" v
 
 -- | It's a type synonym, but Serialize needs a newtype.
 newtype Configs = Configs Instrument.Configs

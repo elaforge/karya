@@ -6,6 +6,7 @@
 module Cmd.Instrument.MidiConfig where
 import qualified Data.Map as Map
 
+import qualified Util.Pretty as Pretty
 import qualified Ui.State as State
 import qualified Derive.Env as Env
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
@@ -19,6 +20,12 @@ data Config = Config {
     config_midi :: Instrument.Configs
     , config_aliases :: Map.Map Score.Instrument Score.Instrument
     } deriving (Show)
+
+instance Pretty.Pretty Config where
+    format (Config midi aliases) = Pretty.record "Config"
+        [ ("midi", Pretty.format midi)
+        , ("aliases", Pretty.format aliases)
+        ]
 
 type Instrument = Text
 type Alias = Text

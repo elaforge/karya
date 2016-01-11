@@ -51,6 +51,7 @@ import qualified Ui.State as State
 import qualified Ui.Transform as Transform
 
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitTypes as SaveGitTypes
@@ -332,23 +333,29 @@ default_git = "save" ++ SaveGit.git_suffix
 
 -- * config
 
+midi_config_magic :: Serialize.Magic
+midi_config_magic = Serialize.Magic 'm' 'c' 'o' 'n'
+
 save_midi_config :: FilePath -> Cmd.CmdT IO ()
 save_midi_config fname = do
     config <- State.get_config id
     fname <- expand_filename fname
     Log.notice $ "write midi config to " <> showt fname
     rethrow_io "save_midi_config" $ liftIO $
-        Serialize.serialize_pretty_text fname
-            (State.config_midi config, State.config_aliases config)
+        Serialize.serialize midi_config_magic fname $
+        MidiConfig.Config (State.config_midi config)
+            (State.config_aliases config)
 
 load_midi_config :: FilePath -> Cmd.CmdT IO ()
 load_midi_config fname = do
     fname <- expand_filename fname
     Log.notice $ "load midi config from " <> showt fname
-    (config, aliases) <- Cmd.require_right
-        (\err -> "unserializing midi config " <> showt fname <> ": " <> err)
-        =<< liftIO (Serialize.unserialize_text fname)
-    State.modify_config $ (State.midi #= config) . (State.aliases #= aliases)
+    MidiConfig.Config midi aliases <-
+        Cmd.require (showt fname <> " doesn't exist")
+        =<< Cmd.require_right
+            (\err -> "unserializing midi config " <> showt fname <> ": " <> err)
+        =<< liftIO (Serialize.unserialize midi_config_magic fname)
+    State.modify_config $ (State.midi #= midi) . (State.aliases #= aliases)
 
 -- * misc
 
