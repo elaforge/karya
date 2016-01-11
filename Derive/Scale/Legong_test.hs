@@ -21,24 +21,27 @@ test_note_to_call = do
     let run key ps = DeriveTest.extract Score.initial_nn $
             DeriveTest.derive_tracks ("scale=" ++ key) $
             UiTest.note_track [(t, 1, p) | (t, p) <- zip (Seq.range_ 0 1) ps]
-        from_ding = drop (7+5) Legong.umbang
+        ding = drop 5 Legong.umbang
 
-    -- Default to umbang.
-    equal (run "legong" ["1i"])
+    -- 4i is close to middle C (60nn).
+    equal (run "legong" ["4i"]) ([Just (head ding)], [])
+    equal (run "legong" ["3i"])
         ([Just $ head (Legong.extend Legong.umbang)], [])
-    equal (run "legong" ["tuning=isep | -- 1i"])
+    -- *legong-c is centered around pemade middle ding
+    let i5 = drop 7 ding
+    equal (run "legong-c" ["1"]) ([Just (head i5)], [])
+    equal (run "legong-pemade" ["i-"]) ([Just (head i5)], [])
+    equal (run "legong-pemade" ["i-", "o-", "e-"]) (map Just (take 3 i5), [])
+
+    equal (run "legong" ["tuning=isep | -- 3i"])
         ([Just $ head (Legong.extend Legong.isep)], [])
     equal (run "legong" ["4i", "4o", "4e", "4e#"])
-        (map Just (take 4 from_ding), [])
+        (map Just (take 4 ding), [])
 
     -- baro is 1 345 7
     equal (run "legong | key=baro"
             ["4i", "4i#", "4o", "4e", "4u", "4u#", "4a", "5i"])
-        (map Just (take 8 from_ding), [])
-
-    equal (run "legong-pemade" ["i-", "o-", "e-"])
-        (map Just (take 3 from_ding), [])
-    equal (run "legong-pemade" ["i-"]) ([Just 72.46], [])
+        (map Just (take 8 ding), [])
 
 test_input_to_note = do
     let f scale key = either pretty Pitch.note_text
@@ -46,8 +49,9 @@ test_input_to_note = do
                 (maybe mempty ScaleTest.key_environ key)
             . CmdTest.ascii_kbd . (\(a, b, c) -> CmdTest.pitch a b c)
         legong = ScaleTest.get_scale Legong.scales "legong"
-        legong_p = ScaleTest.get_scale Legong.scales "legong-pemade"
+        legong_pemade = ScaleTest.get_scale Legong.scales "legong-pemade"
         invalid = "invalid input"
+
     -- baro is 1 345 7
     --         i oeu a
     equal (map (f legong (Just "baro"))
@@ -56,8 +60,8 @@ test_input_to_note = do
         , "5i", "5i#"
         ]
     equal (f legong (Just "sunaren") (4, 0, 0)) "4i"
-    equal (map (f legong_p (Just "baro")) $
-            take 12 [(oct, pc, 0) | oct <- [3, 4, 5], pc <- [0..4]])
+    equal (map (f legong_pemade (Just "baro")) $
+            take 12 [(oct, pc, 0) | oct <- [4..6], pc <- [0..4]])
         [ invalid, "o_", "e_", "u_", "a_", "i-", "o-", "e-", "u-", "a-"
         , "i^", invalid
         ]

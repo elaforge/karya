@@ -17,11 +17,11 @@ test_jegog = do
         extract e = (s, d, p, DeriveTest.e_inst e)
             where (s, d, p) = DeriveTest.e_note e
         jegog = "i1"
-    equal (run [(0, 1, "J | -- 3i")])
-        ([(0, 1, "3i", ""), (0, 1, "1i", jegog)], [])
+    equal (run [(0, 1, "J | -- 4i")])
+        ([(0, 1, "4i", ""), (0, 1, "3i", jegog)], [])
     -- Duration is until the next jegog note.
-    equal (run [(0, 1, "J | -- 3o"), (1, 1, "3e"), (2, 1, "J | -- 3u")])
-        ([ (0, 1, "3o", ""), (0, 2, "1o", jegog)
-         , (1, 1, "3e", "")
-         , (2, 1, "3u", ""), (2, 1, "1u", jegog)
+    equal (run [(0, 1, "J | -- 4o"), (1, 1, "4e"), (2, 1, "J | -- 4u")])
+        ([ (0, 1, "4o", ""), (0, 2, "3o", jegog)
+         , (1, 1, "4e", "")
+         , (2, 1, "4u", ""), (2, 1, "3u", jegog)
          ], [])

@@ -2,11 +2,32 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Saih Pelegongan.
---
--- Tuning from my gender rambat.
---
--- TODO: pengisep and pengumbang
+{- | Saih pelegongan.
+
+    Tuning from my gender rambat.  I extend the scale to cover the complete
+    gong range.  I start at octave 3 so that the octaves more or less line
+    up with 12tet.
+
+    TODO: add pengisep and pengumbang
+
+    @
+    3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
+    jegog---------
+                   calung--------
+                                  penyacah------
+       ugal-------------------------
+          rambat-----------------------------------
+    0              7              14             21             28
+    3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
+                trompong---------------------
+                      pemade-----------------------
+                                     kantilan---------------------
+                         reyong-----------------------------
+                         |------|---       |---|---
+                                  |------|---    |---------|
+    3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
+    @
+-}
 module Derive.Scale.Legong where
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
@@ -45,40 +66,31 @@ scales = map Scale.Simple
 complete_scale :: BaliScales.ScaleMap
 complete_scale = scale_map
     (BaliScales.ioeua_relative True default_key all_keys)
-    (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
 
 cipher_scale :: BaliScales.ScaleMap
 cipher_scale = scale_map
-    (BaliScales.cipher_relative_dotted 4 default_key all_keys)
-    (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
+    (BaliScales.cipher_relative_dotted 5 default_key all_keys)
+
+scale_map :: TheoryFormat.Format -> BaliScales.ScaleMap
+scale_map fmt =
+    BaliScales.scale_map layout fmt base_oct all_keys default_key
+        note_numbers Nothing
 
 jegog, calung, penyacah :: BaliScales.ScaleMap
-jegog = inst_scale_map 1 (0, 0) (1, -1)
-calung = inst_scale_map 2 (1, 0) (2, -1)
-penyacah = inst_scale_map 3 (2, 0) (3, -1)
+jegog = inst_scale_map 1 (3, 0) (4, -1)
+calung = inst_scale_map 2 (4, 0) (5, -1)
+penyacah = inst_scale_map 3 (5, 0) (6, -1)
 
 pemade :: BaliScales.ScaleMap
-pemade = inst_scale_map 4 (2, 1) (4, 0)
+pemade = inst_scale_map 5 (4, 1) (6, 0)
 
 kantilan :: BaliScales.ScaleMap
-kantilan = inst_scale_map 5 (3, 1) (5, 0)
-
-ugal_range, rambat_range, trompong_range, reyong_range :: Scale.Range
-ugal_range = Scale.Range (Pitch.pitch 2 1) (Pitch.pitch 4 0)
-rambat_range = Scale.Range (Pitch.pitch 2 2) (Pitch.pitch 5 0)
-trompong_range = Scale.Range (Pitch.pitch 2 5) (Pitch.pitch 4 4)
-reyong_range = Scale.Range (Pitch.pitch 3 2) (Pitch.pitch 5 4)
+kantilan = inst_scale_map 6 (5, 1) (7, 0)
 
 inst_scale_map :: Pitch.Octave -> (Pitch.Octave, Pitch.Semi)
     -> (Pitch.Octave, Pitch.Semi) -> BaliScales.ScaleMap
-inst_scale_map center_octave (low_oct, low_pc) (high_oct, high_pc) = scale_map
-    (BaliScales.ioeua_relative_arrow center_octave True default_key all_keys)
-    (low_oct * 7 + low_pc, high_oct * 7 + high_pc)
-
-scale_map :: TheoryFormat.Format -> (Pitch.Semi, Pitch.Semi)
-    -> BaliScales.ScaleMap
-scale_map fmt range =
-    BaliScales.scale_map layout fmt all_keys default_key note_numbers range
+inst_scale_map = BaliScales.instrument_scale_map layout all_keys default_key
+    note_numbers base_oct
 
 scale_id :: Pitch.ScaleId
 scale_id = "legong"
@@ -113,24 +125,18 @@ note_numbers :: BaliScales.NoteNumbers
 note_numbers = BaliScales.NoteNumbers
     (Vector.fromList (extend umbang)) (Vector.fromList (extend isep))
 
+ugal_range, rambat_range, trompong_range, reyong_range :: Scale.Range
+ugal_range = Scale.Range (Pitch.pitch 3 1) (Pitch.pitch 5 0)
+rambat_range = Scale.Range (Pitch.pitch 3 2) (Pitch.pitch 6 0)
+trompong_range = Scale.Range (Pitch.pitch 3 5) (Pitch.pitch 5 4)
+reyong_range = Scale.Range (Pitch.pitch 4 2) (Pitch.pitch 6 4)
+
+-- | Lowest note start on this octave.
+base_oct :: Pitch.Octave
+base_oct = 3
+
 {- | Extended scale.
 
- @
-  1i 1o 1e 1u 1a 2i 2o 2e 2u 2a 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i
-  jegog---------
-                 calung--------
-                    ugal-------------------------
-                       rambat-----------------------------------
-  0              7              14             21             28             35
-  1i 1o 1e 1u 1a 2i 2o 2e 2u 2a 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i
-                             trompong---------------------
-                                   pemade-----------------------
-                                                  kantilan---------------------
-                                      reyong-----------------------------
-                                      |------|---       |---|---
-                                               |------|---    |---------|
-  1i 1o 1e 1u 1a 2i 2o 2e 2u 2a 3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i
- @
 -}
 umbang :: [Pitch.NoteNumber]
 umbang =
@@ -180,9 +186,9 @@ strip_pemero = go
     go nns = strip nns ++ go (drop 7 nns)
     strip nns = mapMaybe (Seq.at nns) [0, 1, 2, 4, 5]
 
--- | Add one octave on the bottom, so I get down to 1i, which is jegog range.
+-- | Extend down to 3i, which is jegog range.
 extend :: [Pitch.NoteNumber] -> [Pitch.NoteNumber]
-extend nns = map (subtract 12) (take oct from_ding) ++ from_ding
+extend nns = from_ding
     where
     from_ding = map (subtract 12) (take 2 (drop (oct-2) nns)) ++ nns
     oct = 7
@@ -206,9 +212,10 @@ patch_scale take_range tuning =
         BaliScales.Umbang -> umbang
         BaliScales.Isep -> isep
 
--- | Emit from i1 on up.
+-- | Emit from i3 on up.
 midi_keys :: [Midi.Key]
-midi_keys = trim $ concatMap keys [1..]
+midi_keys = trim $ concatMap keys [base_oct + 1 ..]
+    -- base_oct + 1 because MIDI starts at octave -1
     where
     trim = take (5*7 + 1)
     keys oct = map (Midi.to_key (oct * 12) +) -- i o e e# u a a#

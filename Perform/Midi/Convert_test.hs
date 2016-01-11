@@ -89,10 +89,10 @@ test_convert_pitch = do
                 PSignal.signal [(0, DeriveTest.mkpitch legong "4i")]
             }
         Just (Scale.Simple legong) = Map.lookup "legong" Scale.All.scales
-    equal (run [event]) [Left (0, [(0, 72.46)])]
+    equal (run [event]) [Left (0, [(0, 60.73)])]
     let insert = Score.modify_environ $
             Env.insert_val EnvKey.tuning (ShowVal.show_val BaliScales.Isep)
-    equal (run [insert event]) [Left (0, [(0, 72.588)])]
+    equal (run [insert event]) [Left (0, [(0, 60.982)])]
 
 test_convert_dynamic = do
     let run inst = first (map (fmap extract) . Convert.convert clookup)

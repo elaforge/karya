@@ -36,9 +36,9 @@ patches =
     set_scale = (Instrument.scale #= Just patch_scale)
         . MidiInst.default_scale Legong.scale_id
         . MidiInst.environ EnvKey.tuning tuning
-    -- Trompong starts at 2a, trompong + reyong has 15 keys.
+    -- Trompong starts at 3a, trompong + reyong has 15 keys.
     patch_scale =
-        Legong.patch_scale (take 15 . drop (5+4) . Legong.strip_pemero) tuning
+        Legong.patch_scale (take 15 . drop 4 . Legong.strip_pemero) tuning
 
 -- | Take the damp value from note off time and put it as a constant
 -- aftertouch.  The KSP will then sample the value at note on time and use it

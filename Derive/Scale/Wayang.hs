@@ -2,7 +2,18 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Saih gender wayang.
+{- | Saih gender wayang.
+
+    I use ding deng dong dung dang.  I don't know if this is ever actually used
+    for gender, but the notation is compact and I don't think there are any
+    other conventions.
+
+    @
+    3o  3e  3u  3a  4i  4o  4e  4u  4a  5i  5o  5e  5u  5a  6i
+    pemade -------------------------------
+                        kantilan -----------------------------
+    @
+-}
 module Derive.Scale.Wayang where
 import qualified Data.Vector as Vector
 
@@ -13,7 +24,6 @@ import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.ChromaticScales as ChromaticScales
 import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
-import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
@@ -36,25 +46,21 @@ scales = map Scale.Simple
     ]
 
 complete_scale :: BaliScales.ScaleMap
-complete_scale = scale_map BaliScales.ioeua_absolute
-    (0, Vector.length (BaliScales.nn_umbang note_numbers) - 1)
+complete_scale =
+    BaliScales.scale_map layout BaliScales.ioeua_absolute base_oct all_keys
+        default_key note_numbers Nothing
 
 pemade :: BaliScales.ScaleMap
-pemade = scale_map (BaliScales.ioeua_absolute_arrow 4) (2*5 + 1, 4*5)
+pemade = BaliScales.instrument_scale_map layout all_keys default_key
+    note_numbers base_oct 4 (3, 1) (5, 0)
 
 kantilan :: BaliScales.ScaleMap
-kantilan = scale_map (BaliScales.ioeua_absolute_arrow 5) (3*5 + 1, 5*5)
+kantilan = BaliScales.instrument_scale_map layout all_keys default_key
+    note_numbers base_oct 5 (4, 1) (6, 0)
 
--- | Use ding deng dong dung dang.  I don't know if this is ever actually used
--- for gender, but the notation is compact.
---
--- > 3o  3e  3u  3a  4i  4o  4e  4u  4a  5i  5o  5e  5u  5a  6i
--- > pemade -------------------------------
--- >                     kantilan -----------------------------
-scale_map :: TheoryFormat.Format -> (Pitch.Semi, Pitch.Semi)
-    -> BaliScales.ScaleMap
-scale_map fmt range =
-    BaliScales.scale_map layout fmt all_keys default_key note_numbers range
+-- | Start octave for the extended scale.
+base_oct :: Pitch.Octave
+base_oct = 1
 
 scale_id :: Pitch.ScaleId
 scale_id = "wayang"
@@ -141,7 +147,8 @@ patch_scale extended tuning =
 -- | If extended is True, emit from i1 on up.  Otherwise, give pemade to
 -- kantilan range.
 midi_keys :: Bool -> [Midi.Key]
-midi_keys extended = trim $ concatMap keys [2..]
+midi_keys extended = trim $ concatMap keys [base_oct + 1 ..]
+    -- base_oct + 1 because MIDI starts at octave -1
     where
     trim
         | extended = take (7*5 + 1)

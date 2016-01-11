@@ -24,6 +24,7 @@ import qualified Cmd.Repl.Util as Repl.Util
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
@@ -291,7 +292,10 @@ config_kebyar dev_ = make_config $ concat
       ]
     ]
     where
-    -- Expects (name, patch, gets_chan, environ, scale).
+    -- (name, patch_name, gets_chan, environ, scale)
+    make_config :: [(Text, Text, Bool, [(BaseTypes.Key, RestrictedEnviron.Val)],
+            Maybe Instrument.PatchScale)]
+        -> MidiConfig.Config
     make_config = MidiConfig.config . snd . List.mapAccumL allocate 0
         where
         allocate chan (alias, inst, gets_chan, environ, scale) =

@@ -565,16 +565,16 @@ position1 :: Position
 position1 = make_position ptable 'u' "ea"
     where
     ptable = Map.insert ':' (map (parse_note table) "ei") table
-        where table = note_table 3 E
+        where table = note_table 4 E
 
 position2 :: Position
-position2 = make_position (note_table 4 I) 'o' "ie"
+position2 = make_position (note_table 5 I) 'o' "ie"
 
 position3 :: Position
-position3 = make_position (note_table 4 U) 'a' "ui"
+position3 = make_position (note_table 5 U) 'a' "ui"
 
 position4 :: Position
-position4 = make_position (note_table 5 I) 'e' "ou"
+position4 = make_position (note_table 6 I) 'e' "ou"
 
 make_position :: NoteTable -> Char -> [Char] -> Position
 make_position table cek byong = Position

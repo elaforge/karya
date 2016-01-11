@@ -23,22 +23,22 @@ test_aftertouch = do
             _ -> Nothing
     -- AT keyswitch to open, damp to 0, release damp to +mute+open.
     equal (run [(0, 1, "4i")])
-        ( [ Midi.Aftertouch Key.c3 127, Midi.Aftertouch Key.c3 0
-          , Midi.NoteOn 12 64, Midi.NoteOn Key.c3 127
+        ( [ Midi.Aftertouch Key.c4 127, Midi.Aftertouch Key.c4 0
+          , Midi.NoteOn 12 64, Midi.NoteOn Key.c4 127
           ]
         , []
         )
     -- AT keyswitch to open, damp to 1, release damp to +mute+closed.
     equal (run [(0, 1, "%damp=1 | +damp-closed -- 5i")])
-        ( [ Midi.Aftertouch Key.c4 127, Midi.Aftertouch Key.c4 122
-          , Midi.NoteOn 13 64, Midi.NoteOn Key.c4 127
+        ( [ Midi.Aftertouch Key.c5 127, Midi.Aftertouch Key.c5 122
+          , Midi.NoteOn 13 64, Midi.NoteOn Key.c5 127
           ]
         , []
         )
     -- Damp to 0, AT keyswitch to +mute.
     equal (run [(0, 1, "+mute -- 5i")])
-        ( [ Midi.Aftertouch Key.c4 0, Midi.Aftertouch Key.c4 126
-          , Midi.NoteOn Key.c4 127
+        ( [ Midi.Aftertouch Key.c5 0, Midi.Aftertouch Key.c5 126
+          , Midi.NoteOn Key.c5 127
           ]
         , []
         )

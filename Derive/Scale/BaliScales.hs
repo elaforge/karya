@@ -56,20 +56,42 @@ data ScaleMap = ScaleMap {
     , smap_note_numbers :: !NoteNumbers
     }
 
-scale_map :: Theory.Layout -> TheoryFormat.Format -> ChromaticScales.Keys
-    -> Theory.Key -> NoteNumbers -> (Pitch.Semi, Pitch.Semi) -> ScaleMap
-scale_map layout fmt all_keys default_key note_numbers range = ScaleMap
-    { smap_chromatic =
-        (ChromaticScales.scale_map layout fmt all_keys default_key)
-        { ChromaticScales.smap_semis_to_nn = semis_to_nn offset note_numbers
-        -- Convert range to absolute.
-        , ChromaticScales.smap_range = ((+offset) *** (+offset)) range
+scale_map :: Theory.Layout -> TheoryFormat.Format -> Pitch.Octave
+    -- ^ The octave where the NoteNumbers start.  It should be such that
+    -- octave 4 is close to middle C.
+    -> ChromaticScales.Keys
+    -> Theory.Key -> NoteNumbers -> Maybe (Pitch.Semi, Pitch.Semi)
+    -- ^ If not given, use the complete range of the NoteNumbers.
+    -> ScaleMap
+scale_map layout fmt base_oct all_keys default_key note_numbers maybe_range =
+    ScaleMap
+        { smap_chromatic =
+            (ChromaticScales.scale_map layout fmt all_keys default_key)
+            { ChromaticScales.smap_semis_to_nn = semis_to_nn offset note_numbers
+            -- Convert range to absolute.
+            , ChromaticScales.smap_range = ((+offset) *** (+offset)) range
+            }
+        , smap_note_numbers = note_numbers
         }
-    , smap_note_numbers = note_numbers
-    }
     where
-    -- Scales start at octave 1.
-    offset = Theory.layout_semis_per_octave layout
+    offset = Theory.layout_semis_per_octave layout * base_oct
+    range = fromMaybe (0, Vector.length (nn_umbang note_numbers) - 1)
+        maybe_range
+
+-- | This is a specialized version of 'scale_map' that
+instrument_scale_map :: Theory.Layout -> ChromaticScales.Keys -> Theory.Key
+    -> NoteNumbers -> Pitch.Octave -> Pitch.Octave
+    -> (Pitch.Octave, Pitch.Semi) -> (Pitch.Octave, Pitch.Semi)
+    -> ScaleMap
+instrument_scale_map layout all_keys default_key note_numbers
+        base_oct center_oct (low_oct, low_pc) (high_oct, high_pc) =
+    scale_map layout fmt base_oct all_keys default_key note_numbers $ Just
+        ( (low_oct-base_oct) * per_oct + low_pc
+        , (high_oct-base_oct) * per_oct + high_pc
+        )
+    where
+    fmt = ioeua_relative_arrow center_oct True default_key all_keys
+    per_oct = Theory.layout_semis_per_octave layout
 
 data NoteNumbers = NoteNumbers {
     nn_umbang :: !(Vector.Vector Pitch.NoteNumber)

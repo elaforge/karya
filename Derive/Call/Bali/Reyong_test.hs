@@ -36,12 +36,12 @@ test_kilitan = do
             . UiTest.note_track
         ex e = (Score.event_start e, DeriveTest.e_pitch e)
     equal (run [(0, 0, "X --"), (1, 0, "O --"), (2, 0, "+ --")])
-        (Just [(0, "3u"), (1, "3e"), (1, "3a"), (2, "3e"), (2, "3a")], [])
-    equal (run [(0, 0, "XX --")]) (Just [(0, "3u"), (0, "3u")], [])
+        (Just [(0, "4u"), (1, "4e"), (1, "4a"), (2, "4e"), (2, "4a")], [])
+    equal (run [(0, 0, "XX --")]) (Just [(0, "4u"), (0, "4u")], [])
     equal (run [(0, 4, ">kilit -- 3u"), (4, 4, "kilit -- 3u")])
         (Just
-            [ (1, "3u"), (2, "3u"), (3, "3a"), (4, "3u")
-            , (5, "3a"), (6, "3u"), (7, "3a"), (8, "3u")
+            [ (1, "4u"), (2, "4u"), (3, "4a"), (4, "4u")
+            , (5, "4a"), (6, "4u"), (7, "4a"), (8, "4u")
             ], [])
 
 test_kotekan_regular = do
@@ -64,9 +64,9 @@ test_cancel_kotekan = do
             . DeriveTest.filter_events ((==voice) . event_voice)
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track
     equal (run 2 [(0, 8, "k k-12-1-21 -- 4i")])
-        ([(7, 1, "4o"), (8, 5, "4i")], [])
+        ([(7, 1, "5o"), (8, 5, "5i")], [])
     equal (run 2 [(0, 8, "k_\\ -- 4i"), (8, 8, "k//\\\\ -- 4o")])
-        ([(7, 1, "4o"), (8, 1, "4i")], [])
+        ([(7, 1, "5o"), (8, 1, "5i")], [])
 
 e_pattern :: RealTime -- ^ expect the first note at this time
     -> Derive.Result -> ([(Reyong.Voice, String)], [String])
@@ -98,11 +98,11 @@ test_assign_positions = do
             (map Reyong.pos_cek Reyong.reyong_positions)
         extract = map (unwords . map show_pitch)
         p1 = Reyong.parse_kotekan "4-3" "12-"
-    equal (f p1 0) ["3u 3a -", "4o - 4i", "4u 4a -", "5o - 5i"]
-    equal (f p1 1) ["3a 4i -", "4e - 4o", "4a 5i -", "5e - 5o"]
-    equal (f p1 2) ["3u - 3e", "4i 4o -", "4u - 4e", "5i 5o -"]
-    equal (f p1 3) ["3a - 3u", "4o 4e -", "4a - 4u", "5o 5e -"]
-    equal (f p1 4) ["3e 3u -", "4i - 3a", "4e 4u -", "5i - 4a"]
+    equal (f p1 0) ["4u 4a -", "5o - 5i", "5u 5a -", "6o - 6i"]
+    equal (f p1 1) ["4a 5i -", "5e - 5o", "5a 6i -", "6e - 6o"]
+    equal (f p1 2) ["4u - 4e", "5i 5o -", "5u - 5e", "6i 6o -"]
+    equal (f p1 3) ["4a - 4u", "5o 5e -", "5a - 5u", "6o 6e -"]
+    equal (f p1 4) ["4e 4u -", "5i - 4a", "5e 5u -", "6i - 5a"]
 
 -- * tumpuk
 
@@ -158,7 +158,7 @@ test_c_infer_damp_kotekan = do
         extract e = (Score.event_start e, DeriveTest.e_pitch e,
             fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
     equal (run [(0, 4, "k k-12-1-21 -- 4i")])
-        (Just [(0, "3e", 0), (1, "3u", 1), (2, "3e", 1), (4, "3u", 1)], [])
+        (Just [(0, "4e", 0), (1, "4u", 1), (2, "4e", 1), (4, "4u", 1)], [])
 
 test_infer_damp = do
     let f dur = Reyong.infer_damp (const dur) . mkevents
