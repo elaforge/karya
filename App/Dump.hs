@@ -3,17 +3,11 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Quick hack to print out the binary save files.
---
--- TODO flags not actually used.  Maybe I don't need them?
 module App.Dump where
-import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
-
-import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as Environment
 import qualified System.Exit
-
 import Text.Printf
 
 import qualified Util.Pretty as Pretty
@@ -24,32 +18,19 @@ import qualified Cmd.SaveGit as SaveGit
 import Global
 
 
-options :: [GetOpt.OptDescr Flag]
-options =
-    [ GetOpt.Option [] ["track"] (GetOpt.NoArg TrackContents)
-        "show track contents"
-    , GetOpt.Option [] ["ruler"] (GetOpt.NoArg RulerContents)
-        "show ruler contents"
-    ]
-
-data Flag = TrackContents | RulerContents deriving (Show, Eq)
-
 main :: IO ()
 main = do
     args <- Environment.getArgs
-    (flags, args) <- case GetOpt.getOpt GetOpt.Permute options args of
-        (flags, args, []) -> return (flags, args)
-        (_, _, errs) -> usage $ "flag errors: " ++ Seq.join ", " errs
-    let is_git = (".git" `List.isSuffixOf`)
     case args of
         [fname]
-            | is_git fname -> dump_git flags fname Nothing
-            | otherwise -> dump_simple flags fname
-        [fname, commit] | is_git fname -> dump_git flags fname (Just commit)
-        _ -> usage $ "expected a single filename: " ++ Seq.join ", " args
+            | SaveGit.is_git fname -> dump_git fname Nothing
+            | otherwise -> dump_simple fname
+        [fname, commit] | SaveGit.is_git fname -> dump_git fname (Just commit)
+        _ -> usage $ "expected a single filename, got: " ++ Seq.join ", " args
     where
     usage msg = do
-        putStr (GetOpt.usageInfo msg options)
+        putStrLn msg
+        putStrLn "usage: dump name [ git-commit ]"
         System.Exit.exitWith (System.Exit.ExitFailure 1)
 
 die :: Text -> IO a
@@ -57,16 +38,16 @@ die msg = do
     Text.IO.putStrLn $ "Error: " <> msg
     System.Exit.exitWith (System.Exit.ExitFailure 1)
 
-dump_simple :: [Flag] -> FilePath -> IO ()
-dump_simple flags fname = do
+dump_simple :: FilePath -> IO ()
+dump_simple fname = do
     save <- either (die . (("reading " <> showt fname <> ":") <>)) return
         =<< Save.read_state_ fname
     state <- maybe (die $ "file not found: " <> showt fname) return save
-    pprint_state flags state
+    pprint_state state
 
 -- | Either a commit hash or a save point ref.
-dump_git :: [Flag] -> FilePath -> Maybe String -> IO ()
-dump_git flags repo maybe_arg = do
+dump_git :: FilePath -> Maybe String -> IO ()
+dump_git repo maybe_arg = do
     maybe_commit <- case maybe_arg of
         Nothing -> return Nothing
         Just arg -> do
@@ -78,10 +59,10 @@ dump_git flags repo maybe_arg = do
             =<< SaveGit.load repo maybe_commit
     printf "commit: %s, names: %s\n" (prettys commit)
         (untxt (Text.intercalate ", " names))
-    pprint_state flags state
+    pprint_state state
 
-pprint_state :: [Flag] -> State.State -> IO ()
-pprint_state _flags = Text.IO.putStrLn . clean . Pretty.formatted
+pprint_state :: State.State -> IO ()
+pprint_state = Text.IO.putStrLn . clean . Pretty.formatted
 
 clean :: Text -> Text
 clean text = case Text.lines text of
