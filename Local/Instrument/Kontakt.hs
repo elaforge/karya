@@ -303,11 +303,15 @@ config_kebyar dev_ = make_config $ concat
             where
             config = Instrument.cscale #= scale $
                 Instrument.cenviron #= RestrictedEnviron.make environ $
-                Instrument.config1 dev chan
+                -- pasang instruments don't get an allocation.  Otherwise they
+                -- don't have the right tuning.
+                (if gets_chan then Instrument.config1 dev chan
+                    else Instrument.config [])
     dev = Midi.write_device dev_
 
     -- Actually pemade and kantilan have an umbang isep pair for both polos and
-    -- sangsih.
+    -- sangsih, but since I don't have that many sample sets I have
+    -- a mini-ensemble with only one pair of each gangsa.
     pasang name =
         [ (name, sc_patch name <> "-pasang", False, polos_sangsih name, Nothing)
         , umbang_patch (name <> "-p") name

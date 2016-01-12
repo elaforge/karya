@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - kontakt/sc-*-pasasng without a 'unison' or similar call doesn't have the
+  * kontakt/sc-*-pasasng without a 'unison' or similar call doesn't have the
     right PatchScale
   * legong 4i is around 5c, it should be in a similar octave as 4c, so I need
     to go down an octave.  This means the center of pemade should be 3i, not 4i.
@@ -37,8 +37,11 @@ UNSORTED
     . Turns out this seems really complicated.  Do I really care that much?
     - Still not right, with multiple chords I get stacked up extra tracks.
   - Also, ModifyNotes doesn't seem to understand about parent note tracks.
-  - naming: use either 'attrs' or 'attributes' consistently
-    Also there is 'inst' vs. 'instrument'
+  naming
+    - use either 'attrs' or 'attributes' consistently
+      . Lots of places have 'attrs', so maybe go with it?
+    - Also there is 'inst' vs. 'instrument', e.g. Derive.Score has lots of
+      'inst'.
   - Interpret a midi file with keyswitches back to the attrs.
     . This is so I can load VSL examples and learn from them.
     . Should it be a score transformation, or start from the parsed MIDI?
