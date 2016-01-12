@@ -243,8 +243,10 @@ alloc_default inst_ chans = do
 merge_config :: State.M m => Instrument.Configs -> m ()
 merge_config config = State.modify $ State.config#State.midi %= (config<>)
 
-merge :: State.M m => MidiConfig.Config -> m ()
+-- | Merge or replace both 'Instrument.Configs' and aliases.
+merge, replace :: State.M m => MidiConfig.Config -> m ()
 merge = MidiConfig.merge
+replace = MidiConfig.replace
 
 -- * rest
 

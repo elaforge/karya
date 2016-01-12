@@ -35,6 +35,10 @@ merge (Config midi aliases) = State.modify $
     (State.config#State.midi %= (midi<>))
     . (State.config#State.aliases %= (aliases<>))
 
+replace :: State.M m => Config -> m ()
+replace (Config midi aliases) = State.modify $
+    (State.config#State.midi #= midi) . (State.config#State.aliases #= aliases)
+
 config :: [(Alias, Instrument, Instrument.Config)] -> Config
 config configs = Config
     { config_midi =
