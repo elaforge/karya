@@ -473,14 +473,18 @@ test_keyswitch = do
         ]
 
 test_keyswitch_aftertouch = do
-    let f = extract . expect_no_logs . perform_notes . map with_addr
+    let f = expect_no_logs . perform_notes . map with_addr
         with_addr (ks, pitch, start, dur) =
             (mkevent (ks_inst ks, pitch, start, dur, []), (dev1, 0))
-        ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
-        extract = mapMaybe $ \wmsg -> case Midi.wmsg_msg wmsg of
+        ks_inst ks = inst1
+            { Instrument.inst_keyswitch = [Instrument.Aftertouch ks] }
+        e_at = mapMaybe $ \wmsg -> case Midi.wmsg_msg wmsg of
             Midi.ChannelMessage _ (Midi.Aftertouch k v) -> Just (k, v)
             _ -> Nothing
-    equal (f [([Instrument.Aftertouch 42], "a", 0, 1)]) [(Key.c4, 42)]
+    equal (e_at $ f [(42, "a", 0, 1)]) [(Key.c4, 42)]
+    -- The same AT is emitted for both pitches.
+    equal (e_at $ f [(42, "a", 0, 1), (42, "b", 0, 1)])
+        [(Key.c4, 42), (Key.cs4, 42)]
 
 -- ** extract
 

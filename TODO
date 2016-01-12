@@ -1303,6 +1303,12 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
+        * After switching to aftertouch for +cek, it only seems to stick for
+          one note.
+          . It's because I only send one Aftertouch.  Probably because it
+            doesn't understand that I need one for each note.
+        - do I need voice inference for reyong tracks?  Or not so bad to add
+          a v=n?  Maybe I can have a cmd to add tracks.
         * I need a per-pitch keyswitch for +mute, otherwise norot breaks.
           . I could use aftertouch, e.g. reserve 123--127 for per note
             keyswitch.

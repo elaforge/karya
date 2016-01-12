@@ -467,30 +467,44 @@ chan_state_msgs midi_key addr@(wdev, chan) start maybe_old_inst new_inst
         Left $ "two synths on " <> showt addr <> ": " <> inst_desc
     | not same_inst = Left $ "program change not supported yet on "
         <> showt addr <> ": " <> inst_desc
-    | not same_ks = Right $
+    | not (same_keyswitches maybe_old_inst new_inst) = Right $
         keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start
     | otherwise = Right []
     where
     inst_desc = showt (fmap extract maybe_old_inst, extract new_inst)
     extract inst = (Instrument.inst_synth inst, Instrument.inst_score inst)
-
     same_synth = case maybe_old_inst of
         Nothing -> True
         Just o -> Instrument.inst_synth o == Instrument.inst_synth new_inst
     same_inst = case maybe_old_inst of
         Nothing -> True -- when pchange is supported I can assume false
         Just o -> Instrument.inst_name o == Instrument.inst_name new_inst
-    -- No previous inst is the same as not having a keyswitch.
-    same_ks = maybe [] Instrument.inst_keyswitch maybe_old_inst
-        == Instrument.inst_keyswitch new_inst
 
--- | TODO if the last note was a hold keyswitch, this will leave the keyswitch
--- down.  Technically I should clean that up, but it's a hassle because
--- I'd need to keep the keyswitch down state in the PerformState so
--- 'perform_notes' can clean them all up, or let 'adjust_chan_state' look into
--- the future so it knows if there will be another note.  But in practice,
--- all notes get turned off after playing so the keyswitch should be cleaned up
--- by that.
+same_keyswitches :: Maybe Instrument.Instrument -> Instrument.Instrument
+    -> Bool
+same_keyswitches maybe_old new =
+    go (maybe [] Instrument.inst_keyswitch maybe_old)
+        (Instrument.inst_keyswitch new)
+    where
+    go [] [] = True
+    -- To actually get this right I'd have to either change the Instrument
+    -- Keyswitch to have the MIDI key, or keep a map of the aftertouch state
+    -- by key.  Both sound like a hassle, so I'll just emit possibly redundant
+    -- msgs.
+    go (Instrument.Aftertouch _ : _) (Instrument.Aftertouch _ : _) = False
+    go (x : xs) (y : ys) = x == y && go xs ys
+    go _ _ = False
+
+{- | Emit keyswitch msgs to adjust the channel to the new instrument.
+
+    TODO if the last note was a hold keyswitch, this will leave the keyswitch
+    down.  Technically I should clean that up, but it's a hassle because I'd
+    need to keep the keyswitch down state in the PerformState so
+    'perform_notes' can clean them all up, or let 'adjust_chan_state' look into
+    the future so it knows if there will be another note.  But in practice, all
+    notes get turned off after playing so the keyswitch should be cleaned up by
+    that.
+-}
 keyswitch_messages :: Midi.Key -> Maybe Instrument.Instrument
     -> Instrument.Instrument -> Midi.WriteDevice -> Midi.Channel -> RealTime
     -> [Midi.WriteMessage]
