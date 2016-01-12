@@ -261,13 +261,10 @@ type ControlValue = Word8
 type PitchBendValue = Float
 type Manufacturer = Word8
 
-newtype Key = Key Word8 deriving (Eq, Ord, Num, Enum, Read)
+newtype Key = Key Word8 deriving (Eq, Ord, Num, Enum, Show, Read)
 
-instance Pretty.Pretty Key where pretty = showt
--- | This means the show is not the inverse of Read, but I can get that back
--- later if necessary, and named pitches are very convenient.
-instance Show Key where
-    show (Key key) = note ++ show (oct - 1)
+instance Pretty.Pretty Key where
+    pretty (Key key) = note <> showt (oct - 1)
         where
         (oct, k) = (fromIntegral key :: Int) `divMod` 12
         note = case k of
