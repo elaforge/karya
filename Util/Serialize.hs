@@ -39,10 +39,10 @@ import qualified System.IO.Unsafe as Unsafe
 import Global
 
 
-encode :: (Serialize a) => a -> ByteString
+encode :: Serialize a => a -> ByteString
 encode = Serialize.runPut . put
 
-decode :: (Serialize a) => ByteString -> Either String a
+decode :: Serialize a => ByteString -> Either String a
 decode = Serialize.runGet get
 
 class Serialize a where

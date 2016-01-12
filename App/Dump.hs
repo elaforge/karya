@@ -2,19 +2,24 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Quick hack to print out the binary save files.
+-- | Utility to print out any of the binary formats used.
 module App.Dump where
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
+import qualified Data.Vector as Vector
+
 import qualified System.Environment as Environment
 import qualified System.Exit
-import Text.Printf
+import qualified Text.Printf as Printf
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
+import qualified Util.Serialize
+
+import qualified Midi.Midi as Midi
 import qualified Ui.State as State
-import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
+import qualified Cmd.Serialize as Serialize
 import Global
 
 
@@ -24,26 +29,41 @@ main = do
     case args of
         [fname]
             | SaveGit.is_git fname -> dump_git fname Nothing
-            | otherwise -> dump_simple fname
+            | otherwise -> dump fname >>= \x -> case x of
+                Nothing -> return ()
+                Just err -> do
+                    Text.IO.putStrLn $ txt fname <> ": " <> err
+                    System.Exit.exitWith (System.Exit.ExitFailure 1)
         [fname, commit] | SaveGit.is_git fname -> dump_git fname (Just commit)
         _ -> usage $ "expected a single filename, got: " ++ Seq.join ", " args
     where
     usage msg = do
         putStrLn msg
-        putStrLn "usage: dump name [ git-commit ]"
+        putStrLn "usage: dump file [ git-commit ]"
         System.Exit.exitWith (System.Exit.ExitFailure 1)
+
+dump :: FilePath -> IO (Maybe Text)
+dump fname =
+    unserialize fname Serialize.score_magic ((:[]) . dump_score) $
+    unserialize fname Serialize.midi_config_magic ((:[]) . Pretty.formatted) $
+    unserialize fname Serialize.midi_magic dump_midi $
+    unserialize fname Serialize.views_magic ((:[]) . Pretty.formatted) $
+    return $ Just "no magic codes match"
+
+unserialize :: Util.Serialize.Serialize a => FilePath -> Serialize.Magic a
+    -> (a -> [Text]) -> IO (Maybe Text) -> IO (Maybe Text)
+unserialize fname magic dump next = do
+    val <- Serialize.unserialize magic fname
+    case val of
+        Right val ->
+            mapM_ (Text.IO.putStrLn . Text.strip) (dump val) >> return Nothing
+        Left Serialize.BadMagic {} -> next
+        Left err -> return $ Just (pretty err)
 
 die :: Text -> IO a
 die msg = do
     Text.IO.putStrLn $ "Error: " <> msg
     System.Exit.exitWith (System.Exit.ExitFailure 1)
-
-dump_simple :: FilePath -> IO ()
-dump_simple fname = do
-    save <- either (die . (("reading " <> showt fname <> ":") <>)) return
-        =<< Save.read_state_ fname
-    state <- maybe (die $ "file not found: " <> showt fname) return save
-    pprint_state state
 
 -- | Either a commit hash or a save point ref.
 dump_git :: FilePath -> Maybe String -> IO ()
@@ -57,12 +77,15 @@ dump_git repo maybe_arg = do
     (state, commit, names) <- either
         (die . (("reading " <> showt repo <> ":") <>)) return
             =<< SaveGit.load repo maybe_commit
-    printf "commit: %s, names: %s\n" (prettys commit)
+    Printf.printf "commit: %s, names: %s\n" (prettys commit)
         (untxt (Text.intercalate ", " names))
-    pprint_state state
+    Text.IO.putStrLn $ dump_score state
 
-pprint_state :: State.State -> IO ()
-pprint_state = Text.IO.putStrLn . clean . Pretty.formatted
+dump_score :: State.State -> Text
+dump_score = clean . Pretty.formatted
+
+dump_midi :: Vector.Vector Midi.WriteMessage -> [Text]
+dump_midi = map Pretty.formatted . Vector.toList
 
 clean :: Text -> Text
 clean text = case Text.lines text of

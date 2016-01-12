@@ -40,10 +40,8 @@ type Messages = Vector.Vector Midi.WriteMessage
 
 load_midi :: FilePath -> IO (Either Text Messages)
 load_midi fname =
-    Serialize.unserialize Serialize.midi_magic fname >>= \x -> case x of
-        Left err -> return $ Left $ "loading " <> showt fname <> ": " <> err
-        Right Nothing -> return $ Left $ "not found: " <> showt fname
-        Right (Just msgs) -> return $ Right msgs
+    first ((("loading " <> showt fname <> ": ") <>) . pretty) <$>
+        Serialize.unserialize Serialize.midi_magic fname
 
 -- | Perform the input score and save the midi msgs to the output file.
 -- This creates the -perf files.

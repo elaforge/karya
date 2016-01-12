@@ -21,12 +21,12 @@ UNSORTED
     * why is test_input_to_note broken?
     * regenerate patch scale ksp, verify with SC and reyong
   * save instrument config via LInst.save has no backward compatibility
-    - unserialize should catch other IO errors as long as it's using Either
+    * unserialize should catch other IO errors as long as it's using Either
       . Also it can put ENOENT in Left instead of returning Nothing.
       . But, do I really care?  After all I still catch IO errors in the
         responder loop.
     * consolidate Magics into Serialize
-  - extend dump to dump any serialized type
+  * extend dump to dump any serialized type
     . infer load type based on magic
   * use bravura instead of emmentaler
     . It won't change codepoints around like emmentaler.  Also easier to

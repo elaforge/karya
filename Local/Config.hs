@@ -72,7 +72,6 @@ parse_args argv = case argv of
     [] -> Save.load_template "save/default" >> return Cmd.Done
     -- Load a template.
     ["-t", fn] -> Save.load_template fn >> return Cmd.Done
-    ["views", fn] -> Trans.liftIO (SaveGit.dump_views fn) >> return Cmd.Done
     ["mod", fn] -> Setup.load_mod fn
     ["midi", fn] -> Setup.load_midi fn
     [fn] -> Save.load fn >> return Cmd.Done

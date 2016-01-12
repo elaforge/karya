@@ -14,7 +14,7 @@
     updated.
 -}
 module Cmd.Serialize (
-    serialize, unserialize
+    serialize, UnserializeError(..), unserialize
     -- * Magic
     , Magic, midi_magic, midi_config_magic, score_magic, views_magic
     , InstrumentDb(..), instrument_db_magic
@@ -29,8 +29,10 @@ import qualified Data.Vector as Vector
 
 import qualified System.Directory as Directory
 import qualified System.FilePath as FilePath
+import qualified System.IO.Error as IO.Error
 
 import qualified Util.File as File
+import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
@@ -65,27 +67,29 @@ serialize magic fname state = do
     make_dir fname
     File.writeGz fname $ magic_bytes magic <> Serialize.encode state
 
--- | Returns Left if there was a parsing error, and Right Nothing if the file
--- didn't exist.  This can throw IO errors.
-unserialize :: Serialize a => Magic a -> FilePath -> IO (Either Text (Maybe a))
-unserialize magic fname = do
-    maybe_bytes <- File.ignoreEnoent $ File.readGz fname
-    case maybe_bytes of
-        Nothing -> return (Right Nothing)
-        Just bytes
-            | not (magic_bytes magic `B.isPrefixOf` bytes) ->
-                return $ Left $ "expected magic code "
-                    <> showt (magic_bytes magic) <> " but got "
-                    <> showt (B.take magic_length bytes)
-            | otherwise -> do
-                -- This is subtle.  Apparently Serialize.decode can still throw
-                -- an exception unless the contents of the Either is forced to
-                -- whnf.
-                val <- Exception.evaluate
-                        (Serialize.decode (B.drop magic_length bytes))
-                    `Exception.catch` \(exc :: Exception.SomeException) ->
-                        return $ Left $ "exception: " <> show exc
-                return $ either (Left . txt) (Right . Just) val
+data UnserializeError = BadMagic B.ByteString B.ByteString
+    | IOError IO.Error.IOError | UnserializeError String
+    deriving (Show)
+
+unserialize :: Serialize a => Magic a -> FilePath
+    -> IO (Either UnserializeError a)
+unserialize magic fname = catch $ do
+    bytes <- File.readGz fname
+    let (file_magic, rest) = B.splitAt magic_length bytes
+    if file_magic /= magic_bytes magic
+        then return $ Left $ BadMagic (magic_bytes magic) file_magic
+        else first UnserializeError <$>
+            Exception.evaluate (Serialize.decode rest)
+            -- Apparently Serialize.decode can still throw an exception unless
+            -- the contents of the Either is forced to whnf.
+    where catch = fmap (either (Left . IOError) id) . Exception.try
+
+instance Pretty.Pretty UnserializeError where
+    pretty e = case e of
+        BadMagic expected got -> "expected file magic " <> showt expected
+            <> " but got " <> showt got
+        IOError exc -> "io error: " <> showt exc
+        UnserializeError err -> "unserialize error: " <> txt err
 
 -- | Move @file@ to @file.last@.  Do this before writing a new one that may
 -- fail.

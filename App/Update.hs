@@ -35,11 +35,7 @@ update from_fn to_fn = do
         Right state -> Save.write_state to_fn state
 
 unserialize :: FilePath -> IO (Either Text State.State)
-unserialize = fmap fix . Save.read_state_
-    where
-    fix (Left err) = Left err
-    fix (Right Nothing) = Left "file not found"
-    fix (Right (Just v)) = Right v
+unserialize = fmap (first pretty) . Save.read_state_
 
 load_git :: SaveGit.Repo -> IO (Either Text State.State)
 load_git repo = fmap extract <$> SaveGit.load repo Nothing

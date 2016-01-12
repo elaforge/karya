@@ -14,7 +14,7 @@ module Cmd.SaveGit (
     -- * load
     , load, load_previous_history, load_next_history
     -- * views
-    , save_views, load_views, dump_views
+    , save_views, load_views
     -- * util
     , infer_commit, try
 #ifdef TESTING
@@ -33,6 +33,7 @@ import qualified Data.Text as Text
 import qualified Numeric
 import qualified System.FilePath as FilePath
 import System.FilePath ((</>))
+import qualified System.IO.Error as IO.Error
 
 import qualified Util.File as File
 import qualified Util.Git as Git
@@ -311,14 +312,13 @@ save_views repo =
     Cmd.Serialize.serialize Cmd.Serialize.views_magic (repo </> "views")
 
 load_views :: Git.Repo -> IO (Either Text (Map.Map ViewId Block.View))
-load_views repo = fmap (fromMaybe mempty) <$>
-    Cmd.Serialize.unserialize Cmd.Serialize.views_magic (repo </> "views")
-
-dump_views :: Git.Repo -> IO ()
-dump_views fn = do
-    views <- fmap (fromMaybe mempty) <$>
-        Cmd.Serialize.unserialize Cmd.Serialize.views_magic fn
-    Pretty.pprint (views :: Either Text (Map.Map ViewId Block.View))
+load_views repo = do
+    x <- Cmd.Serialize.unserialize Cmd.Serialize.views_magic (repo </> "views")
+    case x of
+        Left (Cmd.Serialize.IOError exc) | IO.Error.isDoesNotExistError exc ->
+            return $ Right mempty
+        Left err -> return $ Left (pretty err)
+        Right views -> return $ Right views
 
 -- * dump / undump
 

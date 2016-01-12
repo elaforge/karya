@@ -33,10 +33,9 @@ unserialize :: (Instrument.Patch -> code) -> FilePath
 unserialize code_for fname = do
     result <- Serialize.unserialize Serialize.instrument_db_magic fname
     return $ case result of
-        Right (Just (Serialize.InstrumentDb (time, synth))) ->
+        Right (Serialize.InstrumentDb (time, synth)) ->
             Right (time, Instrument.modify_code code_for synth)
-        Right Nothing -> Left $ txt fname <> ": file doesn't exist"
-        Left err -> Left err
+        Left err -> Left (pretty err)
 
 
 -- * implementation

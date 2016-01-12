@@ -150,9 +150,7 @@ load_score fname =
                 (state, _, _) <- require_right $ SaveGit.load repo Nothing
                 return (state, FilePath.takeDirectory repo)
             Cmd.SaveState fname -> do
-                maybe_state <- require_right $ Save.read_state_ fname
-                state <- maybe (Error.throwError "file not found") return
-                    maybe_state
+                state <- require_right $ Save.read_state_ fname
                 return (state, FilePath.takeDirectory fname)
         case State.config#State.ky_file #$ state of
             Nothing -> return (state, mempty)

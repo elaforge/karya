@@ -197,14 +197,13 @@ read_state fname = do
     writable <- liftIO $ File.writable fname
     Log.notice $ "read state from " <> showt fname
         <> if writable then "" else " (ro)"
-    state <- Cmd.require (mkmsg "doesn't exist")
-        =<< Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
+    state <- Cmd.require_right mkmsg =<< liftIO (read_state_ fname)
     return (state, Just
         (if writable then Cmd.ReadWrite else Cmd.ReadOnly, SaveState fname))
 
 -- | Lower level 'read_state'.
-read_state_ :: FilePath -> IO (Either Text (Maybe State.State))
-read_state_ = Serialize.unserialize Serialize.score_magic
+read_state_ :: FilePath -> IO (Either Text State.State)
+read_state_ = fmap (first pretty) . Serialize.unserialize Serialize.score_magic
 
 -- ** path
 
@@ -344,10 +343,9 @@ load_midi_config :: FilePath -> Cmd.CmdT IO ()
 load_midi_config fname = do
     fname <- expand_filename fname
     Log.notice $ "load midi config from " <> showt fname
-    MidiConfig.Config midi aliases <-
-        Cmd.require (showt fname <> " doesn't exist")
-        =<< Cmd.require_right
-            (\err -> "unserializing midi config " <> showt fname <> ": " <> err)
+    let mkmsg err = "unserializing midi config " <> showt fname <> ": "
+            <> pretty err
+    MidiConfig.Config midi aliases <- Cmd.require_right mkmsg
         =<< liftIO (Serialize.unserialize Serialize.midi_config_magic fname)
     State.modify_config $ (State.midi #= midi) . (State.aliases #= aliases)
 
