@@ -324,17 +324,22 @@ score_in_selection track_ids start end =
 
 in_tracks :: (d -> Stack.Stack) -> [TrackId] -> Events d -> Events d
 in_tracks event_stack track_ids =
-    filter $ is_event (has . tracks_of . event_stack)
+    filter $ LEvent.log_or (has . tracks_of . event_stack)
     where
-    is_event f = LEvent.either f (const True)
     tracks_of = mapMaybe Stack.track_of . Stack.innermost
     has tids = any (`elem` tids) track_ids
 
-in_range :: Ord k => (d -> k) -> k -> k -> Events d -> Events d
+in_range :: (a -> RealTime) -> RealTime -> RealTime -> [LEvent.LEvent a]
+    -> [LEvent.LEvent a]
 in_range start_of start end =
-    takeWhile (is_event ((<end) . start_of))
-        . dropWhile (is_event ((<start) . start_of))
-    where is_event f = LEvent.either f (const True)
+    takeWhile (LEvent.log_or $ (<end) . start_of)
+    . dropWhile (LEvent.log_or $ before start . start_of)
+    where
+    before start ts
+        -- I can't put a selection before 0, so assume that means I want
+        -- everything before 0 too.
+        | start == 0 = False
+        | otherwise = ts < start
 
 -- * perform_events
 
@@ -367,8 +372,7 @@ get_sel_midi from_root = do
     (block_id, start, end) <-
         if from_root then Selection.realtime else Selection.local_realtime
     events <- block_midi block_id
-    return $ takeWhile (LEvent.log_or $ (<=end) . Midi.wmsg_ts) $
-        dropWhile (LEvent.log_or $ (<start) . Midi.wmsg_ts) events
+    return $ in_range Midi.wmsg_ts start end events
 
 -- | Get all logs whose 'Log.msg_text' matches a regex.
 logs_like :: BlockId -> String -> Cmd.CmdL [Log.Msg]

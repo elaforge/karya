@@ -1307,6 +1307,11 @@ Derive:
           one note.
           . It's because I only send one Aftertouch.  Probably because it
             doesn't understand that I need one for each note.
+        reyong damping is messed up now
+          * LPerf.sel_midi seems to cut off <0 events
+          - ksp seems to ignore aftertouch on second note
+          - Every note has 3 keyswitches every time seems excessive.  Maybe
+            filter after all?
         - do I need voice inference for reyong tracks?  Or not so bad to add
           a v=n?  Maybe I can have a cmd to add tracks.
         * I need a per-pitch keyswitch for +mute, otherwise norot breaks.
