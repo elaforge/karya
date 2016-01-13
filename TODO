@@ -1309,9 +1309,36 @@ Derive:
             doesn't understand that I need one for each note.
         reyong damping is messed up now
           * LPerf.sel_midi seems to cut off <0 events
-          - ksp seems to ignore aftertouch on second note
-          - Every note has 3 keyswitches every time seems excessive.  Maybe
+          * ksp seems to ignore aftertouch on second note
+            . It's because I use at as a keyswitch, but I don't use on at so
+              I miss the one in between.  I can use on poly_at, but then
+              there is no event to attach
+              I need to attach damp and play state to the event, or since
+              there's no event yet, save it by $EVENT_NOTE
+            . Since this is all being such a hassle, why not use controls,
+              e.g. cc42 = 4 is note 4 is +mute.
+            . Using CCs still won't fix the every note has ks problem because
+              it still needs to understand per-pitch state.  AT is probably
+              better because it's designed for per-pitch.
+            . The whole point of using release was to avoid this kind of
+              conflict, but I wind up wanting to use to use +mute anyway.  So
+              I think I can get rid of the on release stuff and do it all with
+              cc keyswitches.  Can I go back to global keyswitches by turning
+              +mute into (Aftertouch=nn, NoteOn vel=0, NoteOff).
+            . But that's still kind of a one-off hack that only works for
+              one articulation.  It would still be nice to have every
+              keyswitch per-pitch.
+            . Actually, why can't I use a global control for damp level and
+              reserve AT for keyswitches?
+            . Use AT only for keyswitches.
+            . Use explicit +mutes instead of using %damp.
+            . Use %damp for inferred +mute dyn.
+          * Every note has 3 keyswitches every time seems excessive.  Maybe
             filter after all?
+            . It's because the presence of Aftertouch makes it emit all
+              keyswitches.
+            . On the other hand, isn't it equivalent to my preferred protocol
+              which would include all state in each message?
         - do I need voice inference for reyong tracks?  Or not so bad to add
           a v=n?  Maybe I can have a cmd to add tracks.
         * I need a per-pitch keyswitch for +mute, otherwise norot breaks.
@@ -1324,8 +1351,8 @@ Derive:
           . It would also be possible to use keyswich velocity to address the
             key, but what I have works and doesn't take too much bandwidth
             away from damp velocity.
-          - write Reyong_test for rescaled aftertouch
-          - update ksp to use >=123 for keyswitch, and <123 for damp level.
+          * write Reyong_test for rescaled aftertouch
+          * update ksp to use >=123 for keyswitch, and <123 for damp level.
         * = is no good for a call name because it is parsed as infix.
         * call to double note on the lower octave
         * +mute is not cancelling open notes properly

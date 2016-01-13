@@ -5,6 +5,7 @@ module Derive.Call.Bali.Reyong_test where
 import qualified Util.Seq as Seq
 import Util.Test
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Gangsa_test as Gangsa_test
 import qualified Derive.Call.Bali.Reyong as Reyong
 import Derive.Call.Bali.Reyong (Hand(..))
@@ -15,6 +16,7 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 
 import qualified Perform.Pitch as Pitch
+import qualified Perform.Signal as Signal
 import Global
 import Types
 
@@ -108,7 +110,7 @@ test_assign_positions = do
 
 test_tumpuk = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_tracks (title_damp 1.5) . UiTest.note_track
+            . DeriveTest.derive_tracks title . UiTest.note_track
         extract e = (DeriveTest.e_note e, DeriveTest.e_attributes e)
     equal (run [(1, 4, "t xo 1 -- 4i")])
         ([((1, 1, "4i"), "+mute"), ((2, 3, "4i"), "+")], [])
@@ -143,22 +145,37 @@ test_c_infer_damp = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks (title_damp 1 <> " | %damp=.5")
             . UiTest.note_track
-        extract e = (Score.event_start e, DeriveTest.e_pitch e,
-            fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
+        extract e = (Score.event_start e, DeriveTest.e_pitch e, e_damp e)
+    -- +undamped prevents damping.
     equal (run [(0, 1, "4i"), (1, 1, "+undamped -- 4o")])
-        ([(0, "4i", 0.5), (1, "4o", 0)], [])
+        ([(0, "4i", Nothing), (1, "4o", Nothing), (1, "4i", Just 0.5)], [])
+    -- Too fast, no damp for 4i.
     equal (run [(0, 0.5, "4i"), (0.5, 0.5, "4o"), (1, 1, "4i")])
-        ([(0, "4i", 0), (0.5, "4o", 0.5), (1, "4i", 0.5)], [])
+        ( [ (0, "4i", Nothing), (0.5, "4o", Nothing)
+          , (1, "4i", Nothing), (1, "4o", Just 0.5), (2, "4i", Just 0.5)
+          ]
+        , []
+        )
+    -- Repeated notes, only the second is damped.
     equal (run [(0, 1, "4i"), (1, 1, "4i")])
-        ([(0, "4i", 0), (1, "4i", 0.5)], [])
+        ([(0, "4i", Nothing), (1, "4i", Nothing), (2, "4i", Just 0.5)], [])
 
 test_c_infer_damp_kotekan = do
     let run = e_voice 1 extract . DeriveTest.derive_tracks (title_damp 1.5)
             . UiTest.note_track
-        extract e = (Score.event_start e, DeriveTest.e_pitch e,
-            fromMaybe 0 $ DeriveTest.e_start_control Reyong.damp_control e)
+        extract e = (Score.event_start e, DeriveTest.e_pitch e, e_damp e)
+    -- The first 4e is too fast, so no damp.
     equal (run [(0, 4, "k k-12-1-21 -- 4i")])
-        (Just [(0, "4e", 0), (1, "4u", 1), (2, "4e", 1), (4, "4u", 1)], [])
+        ( Just [(0, "4e", Nothing), (1, "4u", Nothing), (2, "4e", Nothing),
+            (2, "4u", Just 1), (3, "4e", Just 1), (4, "4u", Nothing),
+            (5, "4u", Just 1)]
+        , []
+        )
+
+e_damp :: Score.Event -> Maybe Signal.Y
+e_damp e
+    | Score.has_attribute Attrs.mute e = Just (Score.initial_dynamic e)
+    | otherwise = Nothing
 
 test_infer_damp = do
     let f dur = Reyong.infer_damp (const dur) . mkevents
@@ -191,21 +208,24 @@ show_pitch (Just (Pitch.Pitch oct (Pitch.Degree d _))) =
 -- * ngoret
 
 test_ngoret = do
-    let run extract = DeriveTest.extract extract
+    let run = DeriveTest.extract (\e -> (e_damp e, DeriveTest.e_note e))
             . DeriveTest.derive_tracks title_realize
             . UiTest.note_track
     let tracks = [(0, 2, "4i"), (2, 2, "' .25 -- 4e")]
-    equal (run DeriveTest.e_note tracks)
+    let e_notes ns = [n | (Nothing, n) <- ns]
+    equal (first e_notes $ run tracks)
         ([(0, 2, "4i"), (1.75, 0.25, "4o"), (2, 2, "4e")], [])
-    equal (run (DeriveTest.e_start_control Reyong.damp_control) tracks)
-        ([Just 1, Just 0, Just 1], [])
+    let e_damps ns = [(s, p) | (Just _, (s, _, p)) <- ns]
+    equal (first e_damps $ run tracks) ([(2, "4i"), (4, "4e")], [])
 
 -- * lower-octave
 
 test_lower_octave = do
-    let run = DeriveTest.extract DeriveTest.e_note
+    let run = first e_notes
+            . DeriveTest.extract (\e -> (e_damp e, DeriveTest.e_note e))
             . DeriveTest.derive_tracks title_realize
             . UiTest.note_track
+        e_notes ns = [n | (Nothing, n) <- ns]
     equal (run [(0, 1, "4i"), (1, 1, "v | -- 4o"), (2, 1, "4e")])
         ([(0, 1, "4i"), (1, 1, "4o"), (1, 1, "3o"), (2, 1, "4e")], [])
     equal (run [(0, 1, "4i"), (1, 1, "v | ' .5 -- 4e")])

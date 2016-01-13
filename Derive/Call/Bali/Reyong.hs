@@ -599,14 +599,13 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
         Post.apply (infer_damp_voices inst (RealTime.seconds . dur)) <$> deriver
 
 infer_damp_args :: Sig.Parser (Score.Instrument, TrackLang.ControlRef)
-infer_damp_args = ((,)
+infer_damp_args = (,)
     <$> Sig.required "inst" "Apply damping to this instrument."
     <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
         "This is how fast the player is able to damp. A note is only damped if\
         \ there is a hand available which has this much time to move into\
         \ position for the damp stroke, and then move into position for its\
         \ next note afterwards."
-    )
 
 damp_control :: Score.Control
 damp_control = "damp"
@@ -623,16 +622,21 @@ infer_damp_voices reyong_inst dur_at =
     where
     infer1 ((inst, _voice), events)
         | inst /= reyong_inst = events
-        | otherwise = zipWith set_damp damps events
+        | otherwise = Seq.merge_on Score.event_start events
+            (mapMaybe (uncurry set_damp) (zip damps events))
         where damps = infer_damp dur_at events
 
-set_damp :: Signal.Y -> Score.Event -> Score.Event
-set_damp damp = Score.merge_control damp_control merge
+set_damp :: Signal.Y -> Score.Event -> Maybe Score.Event
+set_damp damp_dyn event
+    | damp > 0 = Just $
+        Score.add_attributes Attrs.mute $
+        Score.set_dynamic damp $
+        event { Score.event_start = Score.event_end event,
+                Score.event_duration = 0 }
+    | otherwise = Nothing
     where
-    merge old
-        | old == Signal.empty = new
-        | otherwise = Signal.sig_multiply old new
-    new = Signal.constant damp
+    damp = damp_dyn * maybe 1 Score.typed_val
+        (Score.control_at (Score.event_end event) damp_control event)
 
 infer_damp :: (RealTime -> RealTime) -> [Score.Event] -> [Signal.Y]
 infer_damp dur_at = snd . List.mapAccumL infer (0, 0) . zip_next . assign_hands

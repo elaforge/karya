@@ -4,20 +4,14 @@
 
 -- | Patches for my reyong samples.
 module Local.Instrument.Kontakt.Reyong where
-import qualified Data.Map as Map
-
-import qualified Util.Num as Num
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Reyong as Reyong
-import qualified Derive.Controls as Controls
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
-import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Signal as Signal
 import Global
 
 
@@ -27,7 +21,7 @@ patches =
     , (patch "reyong12", code)
     ]
     where
-    code = MidiInst.postproc postproc
+    code = mempty
     patch name = Instrument.set_flag Instrument.ConstantPitch $
         (Instrument.instrument_#Instrument.maybe_decay #= Just 0) $
         (Instrument.attribute_map #= attribute_map) $
@@ -40,40 +34,12 @@ patches =
     patch_scale =
         Legong.patch_scale (take 15 . drop 4 . Legong.strip_pemero) tuning
 
--- | Take the damp value from note off time and put it as a constant
--- aftertouch.  The KSP will then sample the value at note on time and use it
--- at note off time.  Otherwise, given two repeated notes with the same pitch,
--- even polyphonic aftertouch will interfere in the same way that a normal
--- control would.
---
--- This kind of giant hassle to just get note offs reliable is why MIDI is such
--- garbage.
-postproc :: Score.Event -> Score.Event
-postproc event =
-    Score.set_control Controls.aftertouch
-        (Score.untyped (Signal.constant rescaled)) event
-    where
-    damp = maybe 0 (Signal.at (Score.event_end event) . Score.typed_val) $
-        Map.lookup Reyong.damp_control $
-        Score.event_untransformed_controls event
-    rescaled = Num.normalize 0 127 $ Num.scale 0 damp_max damp
-
--- | Maximum value I can use for damp aftertouch.  Values above this are
--- keyswitches.
-damp_max :: Signal.Y
-damp_max = 122
-
 attribute_map :: Instrument.AttributeMap
-attribute_map = Instrument.keyswitches
-    [ (Reyong.cek <> Attrs.open, [at 123])
-    , (Reyong.cek, [at 124])
-    , (Attrs.mute <> Attrs.open, [at 125])
-    , (Attrs.mute, [at 126])
-    , (damp_closed, [at 127, Instrument.Keyswitch 13])
-    , (mempty, [at 127, Instrument.Keyswitch 12])
+attribute_map = Instrument.keyswitches $ map at
+    [ (Reyong.cek <> Attrs.open, 4)
+    , (Reyong.cek, 3)
+    , (Attrs.mute <> Attrs.open, 2)
+    , (Attrs.mute, 1)
+    , (mempty, 0)
     ]
-    where at = Instrument.Aftertouch
-
--- | Note releases use +mute+closed.  +mute+open is the default.
-damp_closed :: Score.Attributes
-damp_closed = Score.attr "damp-closed"
+    where at = second ((:[]) . Instrument.Aftertouch)

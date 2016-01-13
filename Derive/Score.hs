@@ -32,7 +32,7 @@ module Derive.Score (
     -- ** modify events
     , move, place, move_start, duration, set_duration
     -- *** control
-    , control_at, event_control, initial_dynamic, modify_dynamic
+    , control_at, event_control, initial_dynamic, modify_dynamic, set_dynamic
     , modify_control, merge_control
     , set_control, event_controls_at
     -- *** pitch
@@ -394,6 +394,8 @@ initial_dynamic event = maybe 0 typed_val $
      -- Derive.initial_controls should mean this is never Nothing.
     control_at (event_start event) c_dynamic event
 
+-- | Use this instead of 'modify_control' because it also sets
+-- 'EnvKey.dynamic_val'.
 modify_dynamic :: (Signal.Y -> Signal.Y) -> Event -> Event
 modify_dynamic modify =
     modify_environ_key EnvKey.dynamic_val
@@ -402,6 +404,13 @@ modify_dynamic modify =
     where
     num_of (Just (BaseTypes.VNum n)) = typed_val n
     num_of _ = 0
+
+-- | Use this instead of 'set_control' because it also sets
+-- 'EnvKey.dynamic_val'.
+set_dynamic :: Signal.Y -> Event -> Event
+set_dynamic dyn =
+    modify_environ_key EnvKey.dynamic_val (const $ BaseTypes.VNum $ untyped dyn)
+        . set_control c_dynamic (untyped (Signal.constant dyn))
 
 modify_control :: Control -> (Signal.Y -> Signal.Y) -> Event -> Event
 modify_control control modify event = event

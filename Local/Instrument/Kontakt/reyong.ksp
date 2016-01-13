@@ -7,14 +7,12 @@ on init
     message("")
 
     { The upper end of the aftertouch range is reserved for keyswitches. }
-    declare const $OpenKs := 127
-    declare const $MuteClosedKs := 126
-    declare const $MuteOpenKs := 125
-    declare const $CekClosedKs := 124
-    declare const $CekOpenKs := 123
+    declare const $OpenKs := 0
+    declare const $MuteClosedKs := 1
+    declare const $MuteOpenKs := 2
+    declare const $CekClosedKs := 3
+    declare const $CekOpenKs := 4
     { Configure which mute is used for NoteOffs. }
-    declare const $DampOpenKs := 12
-    declare const $DampClosedKs := 13
     declare const $FadeTimeUs := 100 * 1000
 
     declare %OpenGroups[4]
@@ -50,24 +48,12 @@ on init
     { Use to kill notes of the same pitch. }
     declare const $SoundingSize := 256
     declare %sounding[$SoundingSize]
-    { $DampClosedKs or $DampOpenKs }
-    declare $release_state := $DampOpenKs
-    { $OpenKs, $MuteClosedKs, $MuteOpenKs, $CekClosedKs, or $CekOpenKs }
-    declare polyphonic $play_state := $OpenKs
     { round-robin position }
     declare $rr := 0
     { local variables }
     declare $i
-    { Track the damp value from note on time.  Otherwise, if there are
-        repeated notes with the same pitch, the damp from the second one
-        interferes with the damp value at the end of the first one.
-    }
-    declare polyphonic $damp
     declare $event_note { pass argument to mute function }
     declare $t { temp }
-
-    set_key_color($DampClosedKs, $KEY_COLOR_CYAN)
-    set_key_color($DampOpenKs, $KEY_COLOR_CYAN)
 end on
 
 { Stop all open notes with the same pitch. }
@@ -91,61 +77,8 @@ end function
 on note
     $rr := ($rr + 1) mod (4*6)
     %sounding[$EVENT_NOTE] := $EVENT_ID
+    disallow_group($ALL_GROUPS)
     select (%POLY_AT[$EVENT_NOTE])
-        case 0 to 122
-            { KSP doesn't support NoteOff velocity, so I have to use a separate
-                control.  It has to be note-addressed so notes don't interfere.
-            }
-            { Rescale 0-122 to 0-127. Undocumented, but KSP ints are 32 bit
-                signed. +1 to round up at 127.
-            }
-            $damp := %POLY_AT[$EVENT_NOTE] * (1270000000 / 122 + 1) / 10000000
-        case $OpenKs
-            $play_state := $OpenKs
-        case $MuteClosedKs
-            $play_state := $MuteClosedKs
-        case $MuteOpenKs
-            $play_state := $MuteOpenKs
-        case $CekClosedKs
-            $play_state := $CekClosedKs
-        case $CekOpenKs
-            $play_state := $CekOpenKs
-        case $DampClosedKs
-            $release_state := $DampClosedKs
-        case $DampOpenKs
-            $release_state := $DampOpenKs
-    end select
-
-    { call disable_open }
-    $i := 0
-    while ($i < num_elements(%OpenGroups))
-        disallow_group(%OpenGroups[$i])
-        $i := $i + 1
-    end while
-
-    { call disable_mute }
-    $i := 0
-    while ($i < num_elements(%MuteClosedGroups))
-        disallow_group(%MuteClosedGroups[$i])
-        $i := $i + 1
-    end while
-    $i := 0
-    while ($i < num_elements(%MuteOpenGroups))
-        disallow_group(%MuteOpenGroups[$i])
-        $i := $i + 1
-    end while
-
-    $i := 0
-    while ($i < num_elements(%CekClosedGroups))
-        disallow_group(%CekClosedGroups[$i])
-        $i := $i + 1
-    end while
-    $i := 0
-    while ($i < num_elements(%CekOpenGroups))
-        disallow_group(%CekOpenGroups[$i])
-        $i := $i + 1
-    end while
-    select ($play_state)
         case $OpenKs
             allow_group(%OpenGroups[$rr mod 4])
         case $MuteClosedKs
@@ -161,30 +94,4 @@ on note
         case $CekOpenKs
             allow_group(%CekOpenGroups[$rr mod 6])
     end select
-end on
-
-on release
-    if ($play_state = $OpenKs)
-        { Stop all notes with the same pitch. }
-        if ($damp > 0)
-            $event_note := $EVENT_NOTE
-            call mute
-        end if
-        if ($damp > 1)
-            { call disable_open }
-            $i := 0
-            while ($i < num_elements(%OpenGroups))
-                disallow_group(%OpenGroups[$i])
-                $i := $i + 1
-            end while
-
-            select ($release_state)
-                case $DampClosedKs
-                    allow_group(%MuteClosedGroups[$rr mod 4])
-                case $DampOpenKs
-                    allow_group(%MuteOpenGroups[$rr mod 4])
-            end select
-            play_note($EVENT_NOTE, $damp, 0, 0)
-        end if
-    end if
 end on
