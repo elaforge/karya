@@ -163,8 +163,6 @@ physical modeling
     - pitch changing via pressure ala kendang sunda or gumiki
     - edge damping
 
-
-
 protocol
   Note protocol:
     data Note = Note
@@ -217,12 +215,19 @@ protocol
       that's duration, so divide based on duration.
     . However, for cheap synths like like a sampler, too much division means
       that the VST cahce playback itself is basically being the sampler, just
-      without resampling.  So it could make longer chunks.  But I don't think
-      that helps, because it's the streaming from disk that's expensive.
+      without resampling and envelope.  So it could make longer chunks.  But I
+      don't think that helps, because it's the streaming from disk that's
+      expensive.
     . If I cache every track, then I'm actually caching mixed notes.
       But I think I need a more complicated system if I'm to cache at multiple
       levels.
-      TODO...
+    . Or if I do by-instrument and not by track then I have more mixing.
+      Instruments with complicated chords mix together.  Since instruments are
+      allocated manually I won't have hundreds of them, so maybe this is a
+      good division.  However, this means that mute and solo don't work, I
+      have to do a track disable and rerender.  Otherwise, I could bind
+      to instrument mute and solo and do it per-instrument.  Or perhaps I
+      should just try it both ways and see which works better.
     On-disk format
       . Just drop a bunch of .wav files in a directory.  Encode the track and
         times in the filename.
@@ -259,16 +264,6 @@ protocol
       need msgs to enable and disable by track.  Sysex will do since I can
       encode text.
 
-vst
-  . Write a VST that can trigger samples.  It's basically a simple streaming
-    sampler, small enough that it can all be in C++.
-  - Download VST headers, find some simple examples.
-  - Write basic play a sample on note on.
-  - Convert MIDI stop and stop to cache playback.
-  - Convert MIDI to KP subset
-    How to also support realtime?  Latency not so important, but shouldn't be
-    too bad.
-
 sampler
   - convert :: [Note] -> [Sample]
   - read samples via libsndfile
@@ -279,14 +274,67 @@ sampler
     . Since script can have state (e.g. randomization), doesn't that mess up
       start from any time?  But if I save the state after each note, the
       script function is deterministic.
-    . Per-note computation for the sampler is actually really cheap.  
+    . Per-note computation for the sampler is actually really cheap.
+
+modalys
+  . http://forumnet.ircam.fr/product/modalys-en/
+
+  Pocedure:
+    . Write instruments in lisp, set up with control inputs and output points.
+    . Compile to binary to check for errors and load faster (I assume this is
+      the "write to .mlys" feature?).
+    . A given score defines a set of instruments.  I assume if I have a scheme
+      to avoid name collisions between controllers I could load all the
+      compiled definitions into a single lisp session.
+    . When I want to calculate a portion of the score, I have a set of notes,
+      each of which is a start time, duration, and a set of control signals.
+      I'm not so sure about the best way to get control signals into modalys.
+
+      One way is to merge all the notes for each instrument into a sound file
+      with a channel for each control, then generate a lisp script to connect
+      each sound file to its corresponding instrument.  The problem is that
+      the sound file needs to either have a constant sampling rate, or I need
+      to put each contoller into its own file and play some very careful
+      tricks with the variable sampling rate... which would mean two sound
+      files for each controller.  It would be much simpler to use a constant
+      sampling rate, but with say a sampling rate of 100hz that's about 1.37mb
+      for an hour, so say 20 instruments each with 5 controllers I have to
+      write a 137mb sound file.  This is likely pretty fast, but still quite
+      inefficient given that most controllers are static most of the time.
+
+      The other approach would be to emit giant envelope controller
+      expressions, but I worry that this would be even less efficient for
+      complicated signals, since it has to be interpreted as text by lisp.
+
+      Ideally I could write a binary file with breakpoints, but as far as I
+      can tell modalys doesn't provide hooks to implement my own controller.
+      Or does it?  Normally for this kind of system I would assume the source
+      is included, but with commercial software I can't be certain.
+    . Once the output files are written, they go in the playback cache.  I
+      have a separate VST that can play from the cache when it gets a start
+      time via MIDI.  This way I can stream into a DAW and coexist with MIDI
+      instruments.
+    . For realtime preview (or realtime everything, if I have simple
+      instruments and few notes), I can generate a file with the OSC
+      configuration and send OSC to it.
+  Questions:
+    ? Can I start modalys and control it via stdin / socket?
+    ? Can I read breakpoints from a file?
 
 TODO
   karya protocol / KP
-    . design
+    * design
   Figure out how to do offline but also realtime
     . karya -> synth cache protocol
     . karya note protocol
     . MIDI protocol to have the VST host play from the cache
     . MIDI protocol for VST host to get synth to play realtime notes
       Realtime would be compromised, since I have to convert MIDI to KP
+  vst
+    . Write a VST that can trigger samples.  It's basically a simple streaming
+      sampler, small enough that it can all be in C++.
+    - Download VST headers, find some simple examples.
+    - Write VST that just plays a sample on note on.
+    - Support playback at an arbitrary time.
+    - Support cache directory, which means mixing multiple samples.
+    - Protocol to mute by instrument, or by track.

@@ -1227,7 +1227,7 @@ Derive:
         works.
       - Add an input mode for bols.
     bali:
-      - *legong is of by an octave, 4i should map to 4c, but verify sounding
+      * *legong is off by an octave, 4i should map to 4c, but verify sounding
         pitch too.
       - add isep to *legong
       - pick better nns for pemero notes 4 and 7
