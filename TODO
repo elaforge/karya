@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   remove 7.8 compatibility, upgrade to 7.10
     * remove unneeded imports
-    - use ExceptT instead of ErrorT
+    * use ExceptT instead of ErrorT
       . remove -fno-warn-warnings-deprecations
     - use ImplicitParams, get rid of hspp
   * kontakt/sc-*-pasasng without a 'unison' or similar call doesn't have the
@@ -533,7 +533,7 @@ cleanup:
     I already have a lot of places directly using BaseTypes.  But on the other
     hand, BaseTypes is already too large, and I don't really want to further
     clutter it up with little constructor utilities.
-  - use Control.Monad.Except instead of Error
+  * use Control.Monad.Except instead of Error
     . not worth it until I don't need to support 7.8, can I suppress the
       warnings?
   - Move Derive.info_prev_val to the environ, maintained by EvalTrack.

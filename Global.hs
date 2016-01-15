@@ -41,7 +41,6 @@ import Control.Monad
        ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard,
         liftM, mplus, msum, mzero, replicateM, replicateM_, when, unless, void,
         zipWithM, zipWithM_)
-import qualified Control.Monad.Error as Error
 import Control.Monad.Trans (lift, liftIO)
 
 import Data.List.NonEmpty (NonEmpty(..))
@@ -70,8 +69,3 @@ showt = txt . show
 -- | A value proxy for a type, used for class methods that just want a type,
 -- not a value.
 data Proxy a = Proxy
-
--- | This is pretty bad, but and I can get rid of it when I upgrade to
--- transformers-4.  That can only happen when I upgrade ghc, since I use the
--- ghc package.
-instance Error.Error Text.Text where strMsg = txt

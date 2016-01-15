@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {- | Core CmdT monad that cmds run in.
 
     A Cmd is what user actions turn into.  The main thing they do is edit
@@ -55,7 +54,7 @@ module Cmd.Cmd (
 import qualified Control.Applicative as Applicative
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State.Strict as MonadState
 import qualified Control.Monad.Trans as Trans
@@ -235,7 +234,7 @@ type CmdStack m = State.StateT
 type MidiThru = Midi.Interface.Message
 
 newtype CmdT m a = CmdT (CmdStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError State.Error,
+    deriving (Functor, Monad, Trans.MonadIO, Except.MonadError State.Error,
         Applicative.Applicative)
 
 class (Log.LogMonad m, State.M m) => M m where
@@ -258,11 +257,11 @@ instance (Applicative.Applicative m, Monad m) => M (CmdT m) where
     get = (CmdT . lift) MonadState.get
     put st = (CmdT . lift) (MonadState.put st)
     write_midi msg = (CmdT . lift . lift) (Logger.log msg)
-    abort = Error.throwError State.Abort
-    catch_abort m = Error.catchError (fmap Just m) catch
+    abort = Except.throwError State.Abort
+    catch_abort m = Except.catchError (fmap Just m) catch
         where
         catch State.Abort = return Nothing
-        catch err = Error.throwError err
+        catch err = Except.throwError err
 
 midi :: M m => Midi.WriteDevice -> Midi.Message -> m ()
 midi dev msg = write_midi $ Midi.Interface.Midi $ Midi.WriteMessage dev 0 msg

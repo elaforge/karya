@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {-# LANGUAGE BangPatterns #-}
 {- | The overall UI state is described here.  This is an immutable data
     structure that contains all the tracks, rulers, note data, and so forth.
@@ -130,7 +129,7 @@ module Ui.State (
 ) where
 import qualified Control.Applicative as Applicative
 import qualified Control.DeepSeq as DeepSeq
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as State
 import qualified Control.Monad.Trans as Trans
@@ -292,11 +291,10 @@ instance Pretty.Pretty TrackInfo where
 -- mean TrackUpdates can overlap, so 'Ui.Sync.sync' should collapse them.
 type StateStack m = State.StateT State
     (Logger.LoggerT Update.CmdUpdate
-        (Error.ErrorT Error m))
+        (Except.ExceptT Error m))
 newtype StateT m a = StateT (StateStack m a)
-    deriving (Functor, Monad, Trans.MonadIO, Error.MonadError Error,
+    deriving (Functor, Monad, Trans.MonadIO, Except.MonadError Error,
         Applicative.Applicative)
-instance Error.Error Error where strMsg = Error Nothing . txt
 
 -- | Just a convenient abbreviation.
 type StateId a = StateT Identity.Identity a
@@ -323,7 +321,7 @@ instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     update upd = (StateT . lift) (Logger.log upd)
     get_updates = (StateT . lift) Logger.peek
     throw_srcpos srcpos msg =
-        (StateT . lift . lift) (Error.throwError (Error srcpos msg))
+        (StateT . lift . lift) (Except.throwError (Error srcpos msg))
 
 throw :: M m => Text -> m a
 throw = throw_srcpos Nothing
@@ -362,7 +360,7 @@ modify f = do
 run :: (Monad m) =>
    State -> StateT m a -> m (Either Error (a, State, [Update.CmdUpdate]))
 run state m = do
-    res <- (Error.runErrorT . Logger.run . flip State.runStateT state
+    res <- (Except.runExceptT . Logger.run . flip State.runStateT state
         . (\(StateT x) -> x)) m
     return $ case res of
         Left err -> Left err

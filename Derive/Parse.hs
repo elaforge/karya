@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {-# LANGUAGE CPP #-}
 -- | TrackLang parsers using Text and Attoparsec.
 module Derive.Parse (
@@ -23,7 +22,7 @@ module Derive.Parse (
 ) where
 import Prelude hiding (lex)
 import qualified Control.Applicative as A (many)
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Data.Attoparsec.Text as A
 import Data.Attoparsec.Text ((<?>))
 import qualified Data.List as List
@@ -432,7 +431,7 @@ load_ky :: [FilePath] -> FilePath
     -- ^ (all_definitions, [(import_path, mtime)])
 load_ky paths fname =
     catch_io (txt fname) $
-        fmap annotate . Error.runErrorT $ load Set.empty [fname]
+        fmap annotate . Except.runExceptT $ load Set.empty [fname]
     where
     load _ [] = return []
     load loaded (lib:libs)
@@ -443,7 +442,7 @@ load_ky paths fname =
             (imports, defs) <- expect_right $ parse_ky content
             ((defs, (fname, timestamp)) :) <$>
                 load (Set.insert lib loaded) (libs ++ imports)
-    expect_right = either Error.throwError return
+    expect_right = either Except.throwError return
     annotate (Left err) = Left $ txt fname <> ": " <> err
     annotate (Right results) = Right (mconcat defs, loaded)
         where (defs, loaded) = unzip results

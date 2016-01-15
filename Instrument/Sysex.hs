@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {-# LANGUAGE ScopedTypeVariables, TypeSynonymInstances, FlexibleInstances #-}
 {- | Support for generating and parsing sysex files from a "spec" file.
 
@@ -10,7 +9,7 @@
     blocks depending on the value of an enum.
 -}
 module Instrument.Sysex where
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Writer.Strict as Writer
 import qualified Data.Bits as Bits
 import Data.Bits ((.&.), (.|.))
@@ -319,13 +318,13 @@ config_8bit = Config decode_8bit_num encode_8bit_num (const 1)
 
 -- * encode
 
-type EncodeM a = Error.ErrorT Error (Writer.Writer Builder.Builder) a
+type EncodeM a = Except.ExceptT Error (Writer.Writer Builder.Builder) a
 
 encode :: Config -> Specs -> RMap -> Either Error ByteString
 encode config specs rmap = run_encode (mapM_ (encode_spec config [] rmap) specs)
 
 run_encode :: EncodeM () -> Either Error ByteString
-run_encode m = case Writer.runWriter (Error.runErrorT m) of
+run_encode m = case Writer.runWriter (Except.runExceptT m) of
     (Left err, _) -> Left err
     (Right (), builder) ->
         Right $ Lazy.toStrict $ Builder.toLazyByteString builder
@@ -380,7 +379,7 @@ encode_spec config path rmap (name, spec) = case spec of
             Just specs -> return specs
             Nothing -> throw $ "not found in union "
                 <> show (map fst enum_specs) <> ": " <> untxt enum
-        bytes <- either Error.throwError return $ run_encode $
+        bytes <- either Except.throwError return $ run_encode $
             mapM_ (encode_spec config (name:path) union_rmap) specs
         Writer.tell $ Builder.byteString $ bytes
             <> B.replicate (nbytes - B.length bytes) 0
@@ -400,14 +399,14 @@ encode_spec config path rmap (name, spec) = case spec of
     lookup_map k rmap = maybe (throw (k <> " not found")) return $
         Map.lookup k rmap
     lookup_field field = case rmap_lookup rmap field of
-            Left err -> Error.throwError $ prefix <> err
+            Left err -> Except.throwError $ prefix <> err
             Right val -> return val
         where
         prefix
             | field == name = show_path (name : path)
             | otherwise = show_path (field : name : path)
-    throw msg = Error.throwError $ show_path (name:path) <> msg
-    throw_with field msg = Error.throwError $ show_path (field:path) <> msg
+    throw msg = Except.throwError $ show_path (name:path) <> msg
+    throw_with field msg = Except.throwError $ show_path (field:path) <> msg
 
 encode_byte :: RMap -> [(Name, BitField)] -> Either (Name, Error) Word8
 encode_byte rmap bits = do

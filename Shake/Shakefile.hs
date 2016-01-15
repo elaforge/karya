@@ -73,7 +73,8 @@ globalPackages = concat $
     , w "directory filepath process bytestring time unix array pretty"
     , w "ghc-prim old-locale"
     --  basic
-    , w "transformers mtl deepseq data-ordlist cereal text stm network"
+    , w "deepseq data-ordlist cereal text stm network"
+    , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
     , w "vector utf8-string semigroups"
     , [("extra", ">=1.3")]
     , w "attoparsec" -- Derive: tracklang parsing

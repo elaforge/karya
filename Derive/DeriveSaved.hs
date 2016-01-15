@@ -2,10 +2,9 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 -- | Utilities to directly perform a saved score.
 module Derive.DeriveSaved where
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Vector as Vector
 import qualified System.FilePath as FilePath
@@ -143,7 +142,7 @@ perform cmd_state ui_state events =
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: FilePath -> IO (Either Text (State.State, Derive.Library))
 load_score fname =
-    Test.print_timer ("load " ++ fname) (\_ _ _ -> "") $ Error.runErrorT $ do
+    Test.print_timer ("load " ++ fname) (\_ _ _ -> "") $ Except.runExceptT $ do
         save <- require_right $ Save.infer_save_type fname
         (state, dir) <- case save of
             Cmd.SaveRepo repo -> do
@@ -157,12 +156,12 @@ load_score fname =
             Just ky_fname -> do
                 app_dir <- liftIO Config.get_app_dir
                 let paths = dir : map (Config.make_path app_dir) Config.ky_paths
-                (lib, _) <- either Error.throwError return
+                (lib, _) <- either Except.throwError return
                     =<< liftIO (PlayUtil.load_ky paths ky_fname)
                 return (state, lib)
 
-require_right :: IO (Either Text a) -> Error.ErrorT Text IO a
-require_right io = either Error.throwError return =<< liftIO io
+require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
+require_right io = either Except.throwError return =<< liftIO io
 
 -- | Load cmd config, which basically means the inst db.
 load_cmd_config :: IO Cmd.Config

@@ -2,11 +2,10 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 -- | Note calls that transform other note calls.  They rely on track slicing
 -- via 'Sub.sub_events'.
 module Derive.Call.Prelude.Parent where
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
 
@@ -103,24 +102,24 @@ lily_tuplet :: Derive.PassedArgs d -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
     where
-    lily config = either err return =<< Error.runErrorT . check config
+    lily config = either err return =<< Except.runExceptT . check config
         =<< Sub.sub_events args
     check config notes = do
         notes <- case filter (not . null) notes of
-            [] -> Error.throwError "no sub events"
-            [[]] -> Error.throwError "no sub events"
-            _ : _ : _ -> Error.throwError ">1 non-empty sub track"
+            [] -> Except.throwError "no sub events"
+            [[]] -> Except.throwError "no sub events"
+            _ : _ : _ -> Except.throwError ">1 non-empty sub track"
             [notes] -> return notes
         events <- lift $ Stream.write_logs
             =<< Sub.derive (map (Sub.place (Args.start args) 2) notes)
             -- Double the notes duration, since staff notation tuplets shorten
             -- notes.
         dur <- case filter (not . Lily.is_code0) events of
-            [] -> Error.throwError "no sub events"
-            [_] -> Error.throwError "just one event"
+            [] -> Except.throwError "no sub events"
+            [_] -> Except.throwError "just one event"
             e : es
                 | all ((== dur e) . dur) es -> return (dur e)
-                | otherwise -> Error.throwError $
+                | otherwise -> Except.throwError $
                     "all event durations must be equal: "
                     <> Text.intercalate ", " (map (pretty . dur) (e:es))
                 where dur = Score.event_duration
@@ -135,7 +134,7 @@ lily_tuplet args not_lily = Lily.when_lilypond_config lily not_lily
         Log.warn $ "can't convert to ly tuplet: " <> msg
         not_lily
     to_dur config msg t = maybe
-        (Error.throwError $ msg <> " duration must be simple")
+        (Except.throwError $ msg <> " duration must be simple")
         return (Lily.is_duration config t)
 
 tuplet_code :: Lilypond.Duration -> Lilypond.Duration -> Int -> [Lily.Note]

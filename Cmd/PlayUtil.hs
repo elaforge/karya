@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 -- | Functions to do with performance.  This is split off from "Cmd.Play",
 -- which contains play Cmds and their direct support.
 module Cmd.PlayUtil (
@@ -21,7 +20,7 @@ module Cmd.PlayUtil (
     , load_ky
     , compile_library
 ) where
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -358,7 +357,7 @@ cached_load state fname = run $ do
         (lib, timestamps) <- require_right =<< liftIO (load_ky paths fname)
         return $ Just (Right lib, timestamps)
     where
-    run = fmap map_error . Error.runErrorT
+    run = fmap map_error . Except.runExceptT
     map_error (Left msg) = case Cmd.state_ky_cache state of
         -- If it failed last time then don't replace the error.  Otherwise,
         -- 'update_ky_cache' will clear the performance and I'll get an endless
@@ -366,8 +365,8 @@ cached_load state fname = run $ do
         Just (Cmd.KyCache (Left _) _) -> Nothing
         _ -> Just (Left msg, mempty)
     map_error (Right val) = val
-    require msg = maybe (Error.throwError msg) return
-    require_right = either Error.throwError return
+    require msg = maybe (Except.throwError msg) return
+    require_right = either Except.throwError return
     cached_timestamps = case Cmd.state_ky_cache state of
         Nothing -> mempty
         Just (Cmd.KyCache _ timestamps) -> timestamps

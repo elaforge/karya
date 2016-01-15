@@ -17,6 +17,7 @@ module Util.Logger (
 import Prelude hiding (log)
 import qualified Control.Applicative as Applicative
 import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Control.Monad.Reader as Reader
 import qualified Control.Monad.State.Lazy as Lazy
 import qualified Control.Monad.State.Strict as Strict
@@ -30,7 +31,7 @@ import qualified Data.Monoid as Monoid
 -- appends because appending nil doesn't strictly eliminate the nil.
 newtype LoggerT w m a = LoggerT { runLoggerT :: Strict.StateT [w] m a }
     deriving (Applicative.Applicative, Functor, Monad, Trans.MonadTrans,
-        Trans.MonadIO, Error.MonadError e, Reader.MonadReader r)
+        Trans.MonadIO, Except.MonadError e, Reader.MonadReader r)
 
 run :: Monad m => LoggerT w m a -> m (a, [w])
 run m = do
@@ -73,6 +74,10 @@ instance MonadLogger w m => MonadLogger w (Lazy.StateT s m) where
 
 instance (Error.Error e, MonadLogger w m) =>
         MonadLogger w (Error.ErrorT e m) where
+    log = Trans.lift . log
+    peek = Trans.lift peek
+
+instance MonadLogger w m => MonadLogger w (Except.ExceptT e m) where
     log = Trans.lift . log
     peek = Trans.lift peek
 

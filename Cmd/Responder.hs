@@ -2,7 +2,6 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {-# LANGUAGE CPP #-}
 {- | The responder is the main event loop on the haskell side.
@@ -29,7 +28,7 @@ import qualified Control.Concurrent.STM as STM
 import qualified Control.Concurrent.STM.TChan as TChan
 import qualified Control.Exception as Exception
 import Control.Monad
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Control.Monad.State.Strict as Monad.State
 
 import qualified Data.ByteString.Char8 as ByteString.Char8
@@ -235,9 +234,6 @@ make_rstate state = RState state (state_ui state) (state_ui state)
 type ResponderM = Monad.State.StateT RState IO
 
 newtype Done = Done Result
--- Ick.  This goes away when I can upgrade to transformers-4.
-instance Error.Error Done where
-    strMsg = error . ("Error Responder.Done instance: "++)
 
 type Result = Either State.Error Cmd.Status
 
@@ -344,7 +340,7 @@ respond state msg = run_responder True state $ do
     record_keys msg
     load_ky
     -- Normal cmds abort as son as one returns a non-Continue.
-    result <- fmap unerror $ Error.runErrorT $ do
+    result <- fmap unerror $ Except.runExceptT $ do
         record_ui_updates msg
         run_core_cmds msg
         return $ Right Cmd.Done
@@ -385,14 +381,14 @@ record_ui_updates msg = do
     (result, cmd_state) <- lift $ run_cmd $ Left $
         Internal.cmd_record_ui_updates msg
     case result of
-        Left err -> Error.throwError $ Done (Left err)
+        Left err -> Except.throwError $ Done (Left err)
         Right (status, ui_state) -> do
             Monad.State.modify $ \st -> st
                 { rstate_ui_from = ui_state, rstate_ui_to = ui_state
                 , rstate_cmd_to = cmd_state
                 }
             when (not_continue status) $
-                Error.throwError $ Done (Right status)
+                Except.throwError $ Done (Right status)
 
 -- | This runs after normal cmd processing to update various status displays.
 -- It doesn't run after an exception, but *should* run after a Done.
@@ -440,7 +436,7 @@ hardcoded_io_cmds ui_chan repl_session repl_dirs =
 -- ** run cmds
 
 type EitherCmd = Either (Cmd.CmdId Cmd.Status) Cmd.CmdIO
-type ErrorResponderM = Error.ErrorT Done ResponderM
+type ErrorResponderM = Except.ExceptT Done ResponderM
 
 -- | Run a cmd and ignore the 'Cmd.Status', but log a complaint if it wasn't
 -- Continue.
@@ -462,12 +458,12 @@ run_throw :: EitherCmd -> ErrorResponderM ()
 run_throw cmd = do
     (result, cmd_state) <- lift $ run_cmd cmd
     case result of
-        Left err -> Error.throwError $ Done (Left err)
+        Left err -> Except.throwError $ Done (Left err)
         Right (status, ui_state) -> do
             Monad.State.modify $ \st ->
                 st { rstate_ui_to = ui_state, rstate_cmd_to = cmd_state }
             when (not_continue status) $
-                Error.throwError $ Done (Right status)
+                Except.throwError $ Done (Right status)
 
 run_cmd :: EitherCmd -> ResponderM
     (Either State.Error (Cmd.Status, State.State), Cmd.State)
