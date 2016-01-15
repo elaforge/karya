@@ -22,7 +22,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Derive_profile as Derive_profile
 
-import Global
 import Types
 
 

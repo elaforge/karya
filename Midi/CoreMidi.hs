@@ -7,7 +7,6 @@
 TODO documentation
 -}
 module Midi.CoreMidi (initialize) where
-import Control.Applicative ((<$>), (<*>))
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.MVar as MVar
 import qualified Control.Concurrent.STM as STM

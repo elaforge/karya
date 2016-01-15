@@ -9,7 +9,6 @@ module Midi.Instances where
 import qualified Util.Serialize as Serialize
 import qualified Midi.Encode as Encode
 import qualified Midi.Midi as Midi
-import Global
 
 
 instance Serialize.Serialize Midi.ReadMessage where

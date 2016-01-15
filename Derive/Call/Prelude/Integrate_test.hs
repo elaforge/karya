@@ -12,7 +12,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Stream as Stream
 
-import Global
 import Types
 
 

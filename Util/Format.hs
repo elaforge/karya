@@ -31,7 +31,7 @@ import Prelude hiding (unlines)
 import qualified Data.List as List
 import qualified Data.Monoid as Monoid
 import qualified Data.Char.WCWidth as WCWidth
-import Data.Monoid ((<>), mempty, mconcat)
+import Data.Monoid ((<>))
 import qualified Data.String as String
 import qualified Data.Text as Text
 import Data.Text (Text)

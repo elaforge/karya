@@ -8,14 +8,12 @@ import qualified Control.Arrow as Arrow
 import qualified Data.Char as Char
 import qualified Data.Either as Either
 import Data.Function
-import Data.Functor ((<$>))
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.Ordered as Ordered
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.Monoid as Monoid
-import Data.Monoid (Monoid(..), (<>))
+import Data.Monoid ((<>))
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 
@@ -678,14 +676,14 @@ split1 sep xs = (pre, drop (length sep) post)
     where (pre, post) = break_tails (sep `List.isPrefixOf`) xs
 
 -- | Interspense a separator and concat.
-join :: Monoid.Monoid a => a -> [a] -> a
-join sep = Monoid.mconcat . List.intersperse sep
+join :: Monoid a => a -> [a] -> a
+join sep = mconcat . List.intersperse sep
 
 -- | Binary join, but the separator is only used if both joinees are non-empty.
-join2 :: (Monoid.Monoid a, Eq a) => a -> a -> a -> a
+join2 :: (Monoid a, Eq a) => a -> a -> a -> a
 join2 sep x y
-    | y == Monoid.mempty = x
-    | x == Monoid.mempty = y
+    | y == mempty = x
+    | x == mempty = y
     | otherwise = x <> sep <> y
 
 -- | Split the list on the points where the given function returns true.

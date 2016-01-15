@@ -15,8 +15,6 @@ import qualified Cmd.Play as Play
 import qualified Cmd.Selection as Selection
 import qualified Cmd.TimeStep as TimeStep
 
-import Global
-
 
 -- | Buttons you might find on the transport section of a controller keyboard.
 -- Since everyone's setup is different, this is expected to be configured in

@@ -9,7 +9,6 @@ module Util.Fltk (
     , Window, win_ptr, MsgCallback, Msg(..)
     , create_window, read_msg
 ) where
-import Data.Functor ((<$>))
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Concurrent.STM as STM
 import Foreign

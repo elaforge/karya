@@ -9,7 +9,6 @@ import Data.Word (Word8)
 import Util.Test
 import qualified Midi.Encode as Encode
 import qualified Midi.Midi as Midi
-import Global
 
 
 test_generate_mtc = do

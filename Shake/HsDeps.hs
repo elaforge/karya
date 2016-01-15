@@ -9,7 +9,6 @@ import qualified Control.Exception as Exception
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.ByteString.Char8 as B
-import Data.Functor ((<$>))
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 

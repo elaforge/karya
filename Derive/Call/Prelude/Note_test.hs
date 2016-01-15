@@ -9,8 +9,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Sig as Sig
 
-import Global
-
 
 test_note_track_call = do
     let run = DeriveTest.extract extract

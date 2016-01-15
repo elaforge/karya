@@ -11,8 +11,6 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Sig as Sig
 
-import Global
-
 
 calls :: Derive.Callable d => Derive.CallMaps d
 calls = Derive.transformer_call_map

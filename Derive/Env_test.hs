@@ -8,7 +8,6 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
-import Global
 import Types
 
 

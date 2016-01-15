@@ -12,7 +12,6 @@ import qualified Cmd.Meter as Meter
 import qualified Cmd.Repl.LRuler as LRuler
 import qualified Cmd.RulerUtil as RulerUtil
 
-import Global
 import Types
 
 

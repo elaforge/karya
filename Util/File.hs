@@ -13,7 +13,6 @@ import Control.Monad.Extra (whenM, orM)
 
 import qualified Data.ByteString as ByteString
 import qualified Data.ByteString.Lazy as Lazy
-import Data.Functor ((<$>))
 import Data.Text (Text)
 import qualified Data.Text.IO as Text.IO
 

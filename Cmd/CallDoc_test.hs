@@ -7,7 +7,6 @@ import Util.Test
 import qualified Cmd.CallDoc as CallDoc
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Scale.All as Scale.All
-import Global
 
 
 test_doc_html = do

@@ -6,7 +6,6 @@ module Derive.Scale.Scales_test where
 import Util.Test
 import qualified Derive.Scale.Scales as Scales
 import qualified Perform.Pitch as Pitch
-import Global
 
 
 test_ascii_kbd_pitch = do

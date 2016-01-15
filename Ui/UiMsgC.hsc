@@ -10,7 +10,6 @@ import qualified Ui.Key as Key
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Util as Util
 import Types
-import Global
 
 
 get_ui_msgs :: IO [UiMsg.UiMsg]

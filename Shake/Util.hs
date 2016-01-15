@@ -13,7 +13,6 @@ module Shake.Util (
     -- * general
     , ifM, whenM
 ) where
-import Control.Applicative ((<$>))
 import Control.Monad
 import Control.Monad.Trans (liftIO)
 

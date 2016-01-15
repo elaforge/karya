@@ -49,8 +49,6 @@ import qualified Derive.Call.Prelude.Trill as Trill
 import qualified Derive.Call.Prelude.Val as Val
 import qualified Derive.Derive as Derive
 
-import Global
-
 
 library :: Derive.Library
 library = Derive.Library

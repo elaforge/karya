@@ -8,7 +8,6 @@ import qualified Data.IORef as IORef
 import Util.Test
 import qualified Midi.Interface as Interface
 import qualified Midi.Midi as Midi
-import Global
 
 
 test_note_tracker = do

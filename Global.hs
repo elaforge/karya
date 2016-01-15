@@ -6,9 +6,6 @@
 -- | A local Prelude, meant to be imported unqualified.
 module Global (
     Proxy(..)
-#if GHC_VERSION < 71000
-    , pure, (<$>), (<*>), (<*), (*>)
-#endif
     , (<|>)
     , first, second, (***)
     , Monoid(..), (<>)
@@ -39,10 +36,6 @@ module Global (
     , Text.Text
     , txt, untxt, showt
 ) where
-#if GHC_VERSION < 71000
-import Control.Applicative (pure, (<$>), (<*>), (<*), (*>))
-import Data.Monoid (Monoid(..))
-#endif
 import Control.Applicative ((<|>))
 import Control.Monad
        ((<=<), (>=>), ap, filterM, foldM, forM, forM_, forever, guard,

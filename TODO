@@ -3,6 +3,11 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  remove 7.8 compatibility, upgrade to 7.10
+    * remove unneeded imports
+    - use ExceptT instead of ErrorT
+      . remove -fno-warn-warnings-deprecations
+    - use ImplicitParams, get rid of hspp
   * kontakt/sc-*-pasasng without a 'unison' or similar call doesn't have the
     right PatchScale
   * legong 4i is around 5c, it should be in a similar octave as 4c, so I need

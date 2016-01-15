@@ -12,7 +12,6 @@ import qualified Derive.DeriveTest as DeriveTest
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
-import Global
 import Types
 
 

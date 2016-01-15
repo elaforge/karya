@@ -53,7 +53,6 @@ import qualified Util.Serialize as Serialize
 
 import qualified Ui.Event as Event
 import qualified Ui.ScoreTime as ScoreTime
-import Global
 import Types
 
 

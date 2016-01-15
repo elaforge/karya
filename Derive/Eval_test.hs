@@ -14,8 +14,6 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
-import Global
-
 
 test_recursive_call = do
     let extract = DeriveTest.extract DeriveTest.e_event

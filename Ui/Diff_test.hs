@@ -17,7 +17,6 @@ import qualified Ui.Update as Update
 
 import qualified Derive.Derive as Derive
 import qualified App.Config as Config
-import Global
 import Types
 
 

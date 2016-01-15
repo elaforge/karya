@@ -17,7 +17,6 @@ import qualified Derive.Score as Score
 import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
-import Global
 
 
 test_note_trill = do

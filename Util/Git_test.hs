@@ -9,8 +9,6 @@ import qualified Util.Git as Git
 import Util.Git (Modification(..))
 import Util.Test
 
-import Global
-
 
 test_misc = Git.initialize $ do
     repo <- new_repo

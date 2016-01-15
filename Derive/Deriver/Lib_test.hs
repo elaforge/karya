@@ -9,7 +9,6 @@ import Util.Test
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Perform.Midi.Instrument as Instrument
-import Global
 
 
 test_with_instrument_controls = do

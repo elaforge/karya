@@ -43,10 +43,8 @@ module Util.Test (
     -- * debugging
     , module Debug
 ) where
-import Control.Applicative ((<$>))
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
-
 import qualified Data.Algorithm.Diff as Diff
 import qualified Data.IORef as IORef
 import qualified Data.IntMap as IntMap

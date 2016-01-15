@@ -8,7 +8,6 @@
 {- | Shakefile for seq and associated binaries.
 -}
 module Shake.Shakefile where
-import Control.Applicative ((<$>))
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
 import Control.Monad
@@ -22,7 +21,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Monoid as Monoid
-import Data.Monoid (mempty, (<>))
+import Data.Monoid ((<>))
 import qualified Data.Typeable as Typeable
 
 import qualified Development.Shake as Shake

@@ -16,7 +16,7 @@ using namespace geom;
 
 
 #define DEBUG(X) do { std::cout << __FILE__ << ':' << __LINE__ << ' ' \
-    << X << '\n'; std::cout.flush(); } while (0)
+    << X << std::endl; } while (0)
 
 // Assert //////////////////////////////
 

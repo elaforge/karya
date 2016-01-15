@@ -14,7 +14,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 
 import qualified Perform.Signal as Signal
-import Global
 
 
 test_breakpoints = do

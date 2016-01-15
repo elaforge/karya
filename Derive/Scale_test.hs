@@ -11,7 +11,6 @@ import qualified Derive.Env as Env
 import qualified Derive.Scale as Scale
 
 import qualified Perform.Pitch as Pitch
-import Global
 
 
 print_note_numbers :: Pitch.ScaleId -> IO ()
