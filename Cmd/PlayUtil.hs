@@ -77,7 +77,7 @@ initial_environ = Env.from_list
     -- Looking up any val call relies on having a scale in scope.
     , (EnvKey.scale, TrackLang.VSymbol
         (TrackLang.Symbol Config.default_scale_id))
-    , (EnvKey.attributes, TrackLang.VAttributes Score.no_attrs)
+    , (EnvKey.attributes, TrackLang.VAttributes mempty)
     , (EnvKey.seed, TrackLang.num 0)
     ]
 

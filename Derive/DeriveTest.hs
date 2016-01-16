@@ -413,7 +413,7 @@ default_environ = Env.from_list
     [ (EnvKey.srate, TrackLang.num 1)
     , (EnvKey.scale,
         TrackLang.VSymbol (TrackLang.scale_id_to_sym Twelve.scale_id))
-    , (EnvKey.attributes, TrackLang.VAttributes Score.no_attrs)
+    , (EnvKey.attributes, TrackLang.VAttributes mempty)
     ]
 
 -- *** instrument defaults

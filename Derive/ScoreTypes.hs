@@ -224,6 +224,3 @@ attrs_remove (Attributes remove) (Attributes attrs) =
 
 attrs_list :: Attributes -> [Attribute]
 attrs_list = Set.toList . attrs_set
-
-no_attrs :: Attributes
-no_attrs = Attributes Set.empty

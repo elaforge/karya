@@ -20,12 +20,8 @@
     attribute is @+pizz-right@ instead.
 -}
 module Derive.Attrs (module Derive.Attrs, Attributes) where
-import qualified Derive.Score as Score
 import Derive.Score (Attributes, attr)
 
-
-no_attrs :: Attributes
-no_attrs = Score.no_attrs
 
 -- * articulations
 

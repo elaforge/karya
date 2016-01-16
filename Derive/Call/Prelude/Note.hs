@@ -187,7 +187,7 @@ default_note config args = do
     let flags = note_flags (start == end) (Derive.state_stack dyn)
             (Derive.state_environ dyn)
     control_vals <- Derive.controls_at start
-    let attrs = either (const Score.no_attrs) id $
+    let attrs = either (const mempty) id $
             Env.get_val EnvKey.attributes (Derive.state_environ dyn)
     let adjusted_end = duration_attributes config control_vals attrs start end
     Stream.from_event <$> make_event_control_vals
