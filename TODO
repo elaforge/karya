@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * Switching from and to 0 dur events is still awkward.  I always wind up
+    doing a ^Z then ^s
+  - Don't change event duration if I'm editing the text of an existing one.
   remove 7.8 compatibility, upgrade to 7.10
     * remove unneeded imports
     * use ExceptT instead of ErrorT
@@ -121,7 +124,7 @@ UNSORTED
       terribly compelling.  I think the reason is that it turns out most
       functions can throw.  It doesn't replace get_ vs. lookup_ because they
       are likely to call something else which can throw.
-  - No thru on pitch track of >pemade in save/rehearsal/bali/legong/semara-dana.
+  / No thru on pitch track of >pemade in save/rehearsal/bali/legong/semara-dana.
   - Perf.lookup_instrument on a pitch track could look at its note track.
   - Criterion testing: why is cmd_derive faster than derive?  It should be
     doing more work!
@@ -455,6 +458,7 @@ external
   + send a patch to improve Random.Shuffle?
   / patch for hsc2hs for #alignment
     Just doing alignment manually now.
+    . ghc 8 finally has this
 
 local: plugins:
   I also want local code in haskell.

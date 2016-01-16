@@ -177,6 +177,12 @@ cmd_set_duration = modify_event_near_point modify
         | Event.negative event = set_dur (start - Event.start event) event
         | otherwise = set_dur (end - Event.start event) event
 
+cmd_toggle_zero_duration :: Cmd.M m => m ()
+cmd_toggle_zero_duration = modify_event_near_point $ \(_start, end) event ->
+    if Event.duration event == 0
+        then Event.set_duration (end - Event.start event) event
+        else Event.set_duration 0 event
+
 -- | Similar to 'ModifyEvents.event', but if the selection is a point, modify
 -- the previous or next event, depending on if it's positive or negative.
 modify_event_near_point :: Cmd.M m =>
@@ -208,8 +214,8 @@ modify_event_near_point modify = do
 -- If the event is non-zero, then make it zero.  Otherwise, set its end to the
 -- cursor.  Unless the cursor is on the event start, and then extend it by
 -- a timestep.
-cmd_toggle_zero_duration :: Cmd.M m => m ()
-cmd_toggle_zero_duration = alter_duration toggle_zero_timestep
+cmd_toggle_zero_timestep :: Cmd.M m => m ()
+cmd_toggle_zero_timestep = alter_duration toggle_zero_timestep
 
 toggle_zero_timestep :: Cmd.M m => BlockId -> TrackId -> Event.Event
     -> m Event.Event
