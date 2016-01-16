@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   * Switching from and to 0 dur events is still awkward.  I always wind up
     doing a ^Z then ^s
-  - Don't change event duration if I'm editing the text of an existing one.
+  * Don't change event duration if I'm editing the text of an existing one.
   remove 7.8 compatibility, upgrade to 7.10
     * remove unneeded imports
     * use ExceptT instead of ErrorT

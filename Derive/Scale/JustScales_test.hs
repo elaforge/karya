@@ -65,7 +65,7 @@ test_transpose_smooth = do
     let run = DeriveTest.extract DeriveTest.e_nns $
             DeriveTest.derive_tracks "scale=raga | key=kharaharapriya"
             [ ("*", [(0, 0, "4g")])
-            , ("t-diatonic",
+            , ("t-dia",
                 [(0, 0, "-1"), (1, 0, "-.7"), (2, 0, "-.4"), (3, 0, "0")])
             , (">", [(0, 8, "")])
             ]

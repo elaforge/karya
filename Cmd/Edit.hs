@@ -651,7 +651,8 @@ handle_floating_input zero_dur msg = do
     -- 0 dur means a point selection, which means to use the time step.
     insert_recorded_action '.' $ make_action old_text (Text.strip text)
         (if space then Just 0 else if dur == 0 then Nothing else Just dur)
-    try_set_call_duration block_id track_id start
+    when (old_text == Nothing) $
+        try_set_call_duration block_id track_id start
     return Cmd.Done
     where
     event_range start dur = do
