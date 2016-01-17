@@ -8,7 +8,7 @@ import qualified Ui.State as State
 import qualified Derive.Call.Speed as Speed
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Signal as Signal
 import Types
@@ -17,11 +17,11 @@ import Types
 test_starts = do
     let f speed range =
             DeriveTest.eval State.empty (Speed.starts speed range True)
-        score_control = TrackLang.ControlSignal . Score.Typed Score.Score
+        score_control = BaseTypes.ControlSignal . Score.Typed Score.Score
             . Signal.constant
     let s = 4 * 2/3 :: RealTime
     -- Make sure float imprecision doesn't cause the end to be omitted.
-    equalf 0.0001 (f (TrackLang.constant_control 12) (s, 4.375 * 2/3))
+    equalf 0.0001 (f (BaseTypes.constant_control 12) (s, 4.375 * 2/3))
         (Right [s, s + 1/12, s + 2/12, s + 3/12])
     equalf 0.0001 (f (score_control 12) (s, 4.375 * 2/3))
         (Right [s, s + 1/12, s + 2/12, s + 3/12])

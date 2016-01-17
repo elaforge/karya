@@ -48,7 +48,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.Tempo as Tempo
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Signal as Signal
 import Global
@@ -83,7 +83,7 @@ control_deriver block_id = do
                 derive_control_tree block_range tree
 
 -- | Name of the call for the control deriver hack.
-capture_null_control :: TrackLang.CallId
+capture_null_control :: BaseTypes.CallId
 capture_null_control = "capture-null-control"
 
 -- | Ensure the tree meets the requirements documented by 'control_deriver'
@@ -105,7 +105,7 @@ check_control_tree block_end forest = case forest of
         <> showt (map (TrackTree.track_title . Tree.rootLabel) tracks)
     where
     events = Events.singleton $
-        Event.event 0 block_end (TrackLang.unsym capture_null_control)
+        Event.event 0 block_end (BaseTypes.unsym capture_null_control)
     capture_track = TrackTree.make_track ">" events block_end
 
 derive_control_tree :: (ScoreTime, ScoreTime) -> TrackTree.EventsTree

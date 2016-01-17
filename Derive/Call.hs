@@ -35,7 +35,6 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -257,7 +256,7 @@ lookup_scale :: Derive.Deriver (Maybe Scale.Scale)
 lookup_scale = Derive.lookup_scale =<< get_scale_id
 
 get_scale_id :: Derive.Deriver Pitch.ScaleId
-get_scale_id = TrackLang.sym_to_scale_id <$> Derive.get_val EnvKey.scale
+get_scale_id = BaseTypes.sym_to_scale_id <$> Derive.get_val EnvKey.scale
 
 lookup_key :: Derive.Deriver (Maybe Pitch.Key)
 lookup_key = fmap Pitch.Key <$> Derive.lookup_val EnvKey.key
@@ -300,11 +299,11 @@ parse_pitch parse pitch = do
 
 eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Pitch
 eval_note pos note = Eval.eval_pitch pos $
-    TrackLang.call (BaseTypes.Symbol (Pitch.note_text note)) []
+    BaseTypes.call (BaseTypes.Symbol (Pitch.note_text note)) []
 
 -- | Generate a single note, from 0 to 1.
 note :: Derive.NoteDeriver
-note = Eval.eval_one_call True $ TrackLang.call "" []
+note = Eval.eval_one_call True $ BaseTypes.call "" []
 
 -- | Like 'note', but the note reuses the start and duration from the passed
 -- args, rather than being normalized from 0 to 1.  This is appropriate when
@@ -322,7 +321,7 @@ attr_note attrs = add_attrs attrs note
 
 -- | A zero-duration 'note'.
 triggered_note :: Derive.NoteDeriver
-triggered_note = Eval.eval_one_at True 0 0 $ TrackLang.call "" [] :| []
+triggered_note = Eval.eval_one_at True 0 0 $ BaseTypes.call "" [] :| []
 
 place :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
 place = uncurry Derive.place . Args.extent

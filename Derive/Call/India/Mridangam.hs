@@ -17,7 +17,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import Global
 import Types
@@ -71,7 +71,7 @@ c_pattern_repeat clip_start = Derive.generator module_ "pattern" Tags.inst
     $ Sig.call ((,)
     <$> pattern_arg
     <*> Sig.defaulted_env_quoted "dur" Sig.Prefixed
-        (TrackLang.quoted "ts" [TrackLang.str "e"])
+        (BaseTypes.quoted "ts" [BaseTypes.str "e"])
         "Duration for each letter in the pattern."
     ) $ \(pattern, dur) -> Sub.inverting $ \args -> do
         let notes = pattern_repeat clip_start (Args.range args) dur $
@@ -98,7 +98,7 @@ realize_pattern ctx = map realize . Text.unpack
     realize c
         | c == ' ' || c == '_' = Nothing
         | otherwise = Just $ Eval.apply_generator ctx
-            (TrackLang.Symbol (Text.singleton c)) []
+            (BaseTypes.Symbol (Text.singleton c)) []
 
 
 -- * patterns

@@ -39,7 +39,7 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -109,7 +109,7 @@ reyong_pattern :: [Char] -> [Char] -> Pattern
 reyong_pattern above below = make_pattern $ parse_kotekan above below
 
 c_ngoret :: Sig.Parser (Maybe Pitch.Transpose) -> Derive.Generator Derive.Note
-c_ngoret = Gender.ngoret module_ False (pure (TrackLang.constant_control 0))
+c_ngoret = Gender.ngoret module_ False (pure (BaseTypes.constant_control 0))
 
 voices_env :: Sig.Parser [Voice]
 voices_env = Sig.environ "reyong-voices" Sig.Unprefixed []
@@ -129,7 +129,7 @@ c_tumpuk = Derive.generator module_ "tumpuk" Tags.inst "Pile up notes together."
         notes <- Derive.require_right id $ parse_tumpuk (untxt notes)
         tumpuk args place dur notes
 
-tumpuk :: Derive.PassedArgs Score.Event -> TrackLang.ControlRef -> RealTime
+tumpuk :: Derive.PassedArgs Score.Event -> BaseTypes.ControlRef -> RealTime
     -> [TumpukNote] -> Derive.NoteDeriver
 tumpuk args place dur notes = do
     (start, end) <- Args.real_range args
@@ -139,7 +139,7 @@ tumpuk args place dur notes = do
     realize_tumpuk prev start end place (Args.prev_event_pitch args) pitch dur
         notes
 
-place_env :: Sig.Parser TrackLang.ControlRef
+place_env :: Sig.Parser BaseTypes.ControlRef
 place_env = Sig.environ "place" Sig.Both (Sig.control "place" 1)
     "At 0, grace notes fall before their base note.  At 1, grace notes fall on\
     \ the base note, and the base note is delayed."
@@ -599,7 +599,7 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
         -- so Post.apply is safe.  Is there a way to express this statically?
         Post.apply (infer_damp_voices inst (RealTime.seconds . dur)) <$> deriver
 
-infer_damp_args :: Sig.Parser (Score.Instrument, TrackLang.ControlRef)
+infer_damp_args :: Sig.Parser (Score.Instrument, BaseTypes.ControlRef)
 infer_damp_args = (,)
     <$> Sig.required "inst" "Apply damping to this instrument."
     <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)

@@ -54,7 +54,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, defaulted_env, required)
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -86,9 +85,9 @@ control_calls = Derive.generator_call_map $
 
 kampita_variations :: Text
     -> (Maybe Trill.Direction -> Maybe Trill.Direction -> call)
-    -> [(TrackLang.CallId, call)]
+    -> [(BaseTypes.CallId, call)]
 kampita_variations name call =
-    [ (TrackLang.Symbol $ affix s <> name <> affix e, call s e)
+    [ (BaseTypes.Symbol $ affix s <> name <> affix e, call s e)
     | s <- dirs, e <- dirs
     ]
     where
@@ -103,11 +102,11 @@ transition_default = 0.08
 jaru_time_default :: RealTime
 jaru_time_default = 0.15
 
-speed_arg :: Sig.Parser TrackLang.ControlRef
+speed_arg :: Sig.Parser BaseTypes.ControlRef
 speed_arg = defaulted "speed" (Sig.typed_control "tr-speed" 6 Score.Real)
     "Alternate pitches at this speed."
 
-neighbor_arg :: Sig.Parser TrackLang.ControlRef
+neighbor_arg :: Sig.Parser BaseTypes.ControlRef
 neighbor_arg = defaulted "neighbor"
     (Sig.typed_control "tr-neighbor" 1 Score.Untyped)
     "Alternate between 0 and this value."
@@ -143,7 +142,7 @@ c_kampita start_dir end_dir = generator1 "kam" mempty
             (Score.untyped transpose) $ PSignal.signal [(start, pitch)]
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
-    -> TrackLang.ControlRef -> (ScoreTime, ScoreTime)
+    -> BaseTypes.ControlRef -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [RealTime]
 trill_transitions = Trill.adjusted_transitions include_end
     where
@@ -248,7 +247,7 @@ c_kampita_c start_dir end_dir = generator1 "kam" mempty
 
 -- | You don't think there are too many arguments, do you?
 kampita :: Maybe Trill.Direction -> Maybe Trill.Direction -> Trill.Adjust
-    -> Typecheck.Function -> TrackLang.ControlRef -> RealTime
+    -> Typecheck.Function -> BaseTypes.ControlRef -> RealTime
     -> BaseTypes.Duration -> Double -> Derive.PassedArgs a
     -> Derive.Deriver Signal.Control
 kampita start_dir end_dir adjust neighbor speed transition hold lilt args = do
@@ -313,7 +312,7 @@ c_nkampita_c start_dir end_dir = generator1 "nkam" mempty
         -- next note, but for now this seems more convenient.
         let num_transitions = 1 + cycles * 2
                 + (if even_transitions == Just True then 0 else 1)
-        let speed = TrackLang.constant_control $
+        let speed = BaseTypes.constant_control $
                 (num_transitions - 1) / RealTime.to_seconds (end - start)
         transitions <- trill_transitions Nothing Trill.Shorten lilt hold speed
                 (Args.range_or_next args)
@@ -335,7 +334,7 @@ c_dip_c = generator1 "dip" mempty
     ) $ \(high, low, speed, dyn_scale, transition) args ->
         dip high low speed dyn_scale transition (Args.range_or_next args)
 
-dip :: Double -> Double -> TrackLang.ControlRef -> Double
+dip :: Double -> Double -> BaseTypes.ControlRef -> Double
     -> RealTime -> (ScoreTime, ScoreTime) -> Derive.Deriver Signal.Control
 dip high low speed dyn_scale transition (start, end) = do
     srate <- Call.get_srate

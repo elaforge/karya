@@ -28,10 +28,10 @@ import qualified Cmd.ModifyEvents as ModifyEvents
 import qualified Cmd.Repl.Util as Util
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
 
 import Global hiding (pretty)
 import Types
@@ -144,14 +144,14 @@ replace from to = do
         ModifyEvents.tracks_named ParseTitle.is_note_track $
         ModifyEvents.text $ replace_block_call from to
 
-map_symbol :: (TrackLang.Symbol -> TrackLang.Symbol) -> Text -> Text
+map_symbol :: (BaseTypes.Symbol -> BaseTypes.Symbol) -> Text -> Text
 map_symbol f text =
-    either (const text) (ShowVal.show_val . TrackLang.map_symbol f)
+    either (const text) (ShowVal.show_val . BaseTypes.map_symbol f)
         (Parse.parse_expr text)
 
 replace_block_call :: BlockId -> Id.Id -> Text -> Text
 replace_block_call from to =
-    map_symbol $ \(TrackLang.Symbol sym) -> TrackLang.Symbol (f sym)
+    map_symbol $ \(BaseTypes.Symbol sym) -> BaseTypes.Symbol (f sym)
     where
     f sym
         | sym == Id.ident_name from = Id.ident_name to

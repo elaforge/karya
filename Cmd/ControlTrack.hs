@@ -17,10 +17,10 @@ import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
 import Global
@@ -244,7 +244,7 @@ unparse (Event method val args)
 modify_val :: (Signal.Y -> Signal.Y) -> Text -> Maybe Text
     -- ^ Nothing if I couldn't parse out a VNum.
 modify_val f text = case Parse.parse_val (event_val event) of
-        Right (TrackLang.VNum n) -> Just $ unparse $
+        Right (BaseTypes.VNum n) -> Just $ unparse $
             event { event_val = show_val (f <$> n) }
         _ -> Nothing
     where
@@ -252,4 +252,4 @@ modify_val f text = case Parse.parse_val (event_val event) of
     show_val num
         | Score.Typed Score.Untyped n <- num,
             ShowVal.is_hex_val (event_val event) = ShowVal.show_hex_val n
-        | otherwise = ShowVal.show_val (TrackLang.VNum num)
+        | otherwise = ShowVal.show_val (BaseTypes.VNum num)

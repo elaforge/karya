@@ -27,7 +27,6 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond as Lilypond
@@ -63,7 +62,7 @@ default_grace_dur = Typecheck.real (1/12)
 
 -- * standard args
 
-grace_envs :: Sig.Parser (BaseTypes.Duration, Double, TrackLang.ControlRef)
+grace_envs :: Sig.Parser (BaseTypes.Duration, Double, BaseTypes.ControlRef)
 grace_envs = (,,) <$> grace_dur_env <*> grace_dyn_env <*> grace_place_env
 
 grace_dur_env :: Sig.Parser BaseTypes.Duration
@@ -75,7 +74,7 @@ grace_dyn_env =
     Typecheck.non_negative <$> Sig.environ "grace-dyn" Sig.Unprefixed
         0.5 "Scale the dyn of the grace notes."
 
-grace_place_env :: Sig.Parser TrackLang.ControlRef
+grace_place_env :: Sig.Parser BaseTypes.ControlRef
 grace_place_env = Sig.environ "place" Sig.Both
     (Sig.control "place" 0) grace_place_doc
 
@@ -183,7 +182,7 @@ lily_grace args start pitches = do
     Lily.prepend_code code $ Call.place args Call.note
 
 legato_grace :: Derive.NoteArgs -> Signal.Y -> [PSignal.Pitch]
-    -> BaseTypes.Duration -> TrackLang.ControlRef -> Derive.NoteDeriver
+    -> BaseTypes.Duration -> BaseTypes.ControlRef -> Derive.NoteDeriver
 legato_grace args dyn_scale pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
     events <- basic_grace args pitches (Call.with_dynamic dyn) grace_dur place
@@ -193,7 +192,7 @@ legato_grace args dyn_scale pitches grace_dur place = do
         Sub.reapply_call (Args.context args) "(" [] [events]
 
 basic_grace_dyn :: Signal.Y -> Derive.PassedArgs a -> [PSignal.Pitch]
-    -> BaseTypes.Duration -> TrackLang.ControlRef -> Derive.NoteDeriver
+    -> BaseTypes.Duration -> BaseTypes.ControlRef -> Derive.NoteDeriver
 basic_grace_dyn dyn_scale args pitches grace_dur place = do
     dyn <- (*dyn_scale) <$> (Call.dynamic =<< Args.real_start args)
     Sub.derive
@@ -201,13 +200,13 @@ basic_grace_dyn dyn_scale args pitches grace_dur place = do
 
 basic_grace :: Derive.PassedArgs a -> [PSignal.Pitch]
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
-    -> BaseTypes.Duration -> TrackLang.ControlRef -> Derive.Deriver [Sub.Event]
+    -> BaseTypes.Duration -> BaseTypes.ControlRef -> Derive.Deriver [Sub.Event]
 basic_grace args pitches transform =
     make_grace_notes (Args.prev_start args) (Args.extent args) notes
     where notes = map (transform . Call.pitched_note) pitches ++ [Call.note]
 
 make_grace_notes :: Maybe ScoreTime -> (ScoreTime, ScoreTime)
-    -> [Derive.NoteDeriver] -> BaseTypes.Duration -> TrackLang.ControlRef
+    -> [Derive.NoteDeriver] -> BaseTypes.Duration -> BaseTypes.ControlRef
     -> Derive.Deriver [Sub.Event]
 make_grace_notes prev (start, dur) notes grace_dur place = do
     real_start <- Derive.real start
@@ -302,7 +301,7 @@ repeat_notes note times time dyn_scale args = do
     dyn <- (*dyn_scale) <$> Call.dynamic start
     let notes = replicate times (Call.with_dynamic dyn note) ++ [note]
     Sub.derive =<< make_grace_notes (Args.prev_start args)
-        (Args.extent args) notes time (TrackLang.constant_control 0)
+        (Args.extent args) notes time (BaseTypes.constant_control 0)
 
 -- * pitch calls
 

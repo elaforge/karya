@@ -42,7 +42,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -337,7 +336,7 @@ reapply_string ctx s = case Parse.parse_expr s of
 reapply_call :: Derive.Callable d => Derive.Context d -> BaseTypes.Symbol
     -> [BaseTypes.Term] -> Derive.Deriver (Stream.Stream d)
 reapply_call ctx call_id call_args =
-    reapply ctx (TrackLang.call call_id call_args :| [])
+    reapply ctx (BaseTypes.call call_id call_args :| [])
 
 -- | A version of 'eval' specialized to evaluate pitch calls.
 eval_pitch :: ScoreTime -> BaseTypes.PitchCall -> Derive.Deriver PSignal.Pitch

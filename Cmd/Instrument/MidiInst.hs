@@ -27,6 +27,7 @@ import System.FilePath ((</>), (<.>))
 import qualified Util.Log as Log
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
@@ -34,7 +35,6 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
@@ -95,17 +95,17 @@ make_code (Code generator transformer val postproc cmds) = Cmd.InstrumentCode
 -- | Bundle together generators and transformers.  The rationale is described
 -- in 'Derive.CallMaps'.
 data Call d =
-    Generator TrackLang.CallId (Derive.Generator d)
-    | Transformer TrackLang.CallId (Derive.Transformer d)
-    | Both TrackLang.CallId (Derive.Generator d) (Derive.Transformer d)
+    Generator BaseTypes.CallId (Derive.Generator d)
+    | Transformer BaseTypes.CallId (Derive.Transformer d)
+    | Both BaseTypes.CallId (Derive.Generator d) (Derive.Transformer d)
 
-generator :: TrackLang.CallId -> Derive.Generator d -> Call d
+generator :: BaseTypes.CallId -> Derive.Generator d -> Call d
 generator = Generator
 
-transformer :: TrackLang.CallId -> Derive.Transformer d -> Call d
+transformer :: BaseTypes.CallId -> Derive.Transformer d -> Call d
 transformer = Transformer
 
-both :: TrackLang.CallId -> Make.Calls d -> Call d
+both :: BaseTypes.CallId -> Make.Calls d -> Call d
 both name (g, t) = Both name g t
 
 -- | Add the given call as the null note call to the note track.  This also
@@ -121,11 +121,11 @@ note_calls calls =
         ++ [(name, c) | Both name _ c <- calls])
 
 -- | Add the given calls to the note track scope.
-note_generators :: [(TrackLang.CallId, Derive.Generator Derive.Note)] -> Code
+note_generators :: [(BaseTypes.CallId, Derive.Generator Derive.Note)] -> Code
 note_generators calls = mempty { code_note_generators = Derive.call_map calls }
 
 -- | Add the given calls to the note track scope.
-note_transformers :: [(TrackLang.CallId, Derive.Transformer Derive.Note)]
+note_transformers :: [(BaseTypes.CallId, Derive.Transformer Derive.Note)]
     -> Code
 note_transformers calls =
     mempty { code_note_transformers = Derive.call_map calls }
@@ -159,7 +159,7 @@ environ name val = Instrument.environ
 
 -- | The instrument will set the given scale when it comes into scope.
 default_scale :: Pitch.ScaleId -> Instrument.Patch -> Instrument.Patch
-default_scale = environ EnvKey.scale . TrackLang.scale_id_to_sym
+default_scale = environ EnvKey.scale . BaseTypes.scale_id_to_sym
 
 -- | Set instrument range.
 range :: Scale.Range -> Instrument.Patch -> Instrument.Patch

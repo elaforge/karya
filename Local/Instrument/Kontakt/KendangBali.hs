@@ -27,7 +27,7 @@ import qualified Derive.Score as Score
 import Derive.Score (attr)
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
@@ -64,7 +64,7 @@ tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 NN.fs3
     , [de <> Attrs.left, tut <> Attrs.left]
     ]
 
-tunggal_strokes :: [(Char, TrackLang.CallId, Score.Attributes, Drums.Group)]
+tunggal_strokes :: [(Char, BaseTypes.CallId, Score.Attributes, Drums.Group)]
 kendang_stops :: [(Drums.Group, [Drums.Group])]
 (kendang_stops, tunggal_strokes) = (,) stops
     [ ('b', "PL", plak,                 both)
@@ -165,7 +165,7 @@ pasang_inst Lanang = snd
 --
 -- The dispatch calls should all be understood by a kendang tunggal, i.e.
 -- in 'tunggal_strokes'.
-pasang_calls :: [(Char, TrackLang.CallId, Kendang, TrackLang.CallId)]
+pasang_calls :: [(Char, BaseTypes.CallId, Kendang, BaseTypes.CallId)]
 pasang_calls =
     [ ('b', "PL", Wadon, "PL")
     , ('t', "Ø", Lanang, "Ø")
@@ -197,12 +197,12 @@ pasang_cmd :: Cmd.Cmd
 pasang_cmd = CUtil.insert_call $ Map.fromList
     [(char, name) | (char, name, _, _) <- pasang_calls]
 
-c_pasang_calls :: [(TrackLang.CallId, Derive.Generator Derive.Note)]
+c_pasang_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Note)]
 c_pasang_calls =
     [(name, dispatch kendang call) | (_, name, kendang, call) <- pasang_calls]
 
 -- | Create a call that just dispatches to another call, possibly transformed.
-dispatch :: Kendang -> TrackLang.CallId -> Derive.Generator Derive.Note
+dispatch :: Kendang -> BaseTypes.CallId -> Derive.Generator Derive.Note
 dispatch kendang call = Derive.generator Module.instrument name Tags.inst
     "Dispatch to wadon or lanang." $ Sig.call pasang_env $ \pasang args ->
         Derive.with_instrument (pasang_inst kendang pasang) $

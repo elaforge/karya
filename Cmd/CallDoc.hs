@@ -21,12 +21,12 @@ import qualified Util.TextUtil as TextUtil
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -85,7 +85,7 @@ environ_keys :: Text -> Sig.EnvironDefault -> Text
 environ_keys name deflt =
     "[" <> Text.intercalate ", " (map unsym (Sig.environ_keys "*" name deflt))
         <> "]"
-    where unsym (TrackLang.Symbol sym) = sym
+    where unsym (BaseTypes.Symbol sym) = sym
 
 write_doc :: Text -> Format.Doc
 write_doc = Format.indent . Format.wrapWords . map Format.text . Text.words
@@ -331,7 +331,7 @@ binding_tags (binds, ctype, call_doc) =
         [ unsym $ Sig.prefixed_environ name (Derive.arg_name arg)
         | name <- names
         ] ++ arg_control_tags (Derive.arg_parser arg)
-    unsym (TrackLang.Symbol sym) = sym
+    unsym (BaseTypes.Symbol sym) = sym
     -- An arg with a control signal default should look like "%sig,.5".
     -- This is a hack, since the default isn't stored in a structured way.
     arg_control_tags (Derive.Defaulted deflt)
@@ -563,7 +563,7 @@ lookup_calls ctype = group . map (extract . go) . concatMap flatten
         [(Right sym, call) | (sym, call) <- Map.toAscList cmap]
     go (Left pattern, call) = ("lookup: " <> pattern, call)
     go (Right sym, call) = (show_sym sym, call)
-    show_sym (TrackLang.Symbol sym)
+    show_sym (BaseTypes.Symbol sym)
         | Text.null sym = "\"\""
         | otherwise = sym
     extract (sym, Derive.DocumentedCall name doc) = ((sym, name), doc)

@@ -27,7 +27,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -108,14 +108,14 @@ postproc_generator name new_doc (Derive.Call _ old_doc func) f = Derive.Call
     append_doc text (Derive.CallDoc tags module_ doc args) =
         Derive.CallDoc tags module_ (doc <> "\n" <> text) args
 
-multiple_calls :: [(TrackLang.CallId, [TrackLang.CallId])]
-    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
+multiple_calls :: [(BaseTypes.CallId, [BaseTypes.CallId])]
+    -> [(BaseTypes.CallId, Derive.Generator Derive.Note)]
 multiple_calls calls =
-    [(call, multiple_call (TrackLang.unsym call) subcalls)
+    [(call, multiple_call (BaseTypes.unsym call) subcalls)
         | (call, subcalls) <- calls]
 
 -- | Create a call that just dispatches to other calls.
-multiple_call :: Text -> [TrackLang.CallId] -> Derive.Generator Derive.Note
+multiple_call :: Text -> [BaseTypes.CallId] -> Derive.Generator Derive.Note
 multiple_call name calls = generator0 name
     -- I intentionally omit the calls from the doc string, so they will
     -- combine in the call doc.  Presumably the calls are apparent from the
@@ -123,12 +123,12 @@ multiple_call name calls = generator0 name
     "Dispatch to multiple calls." $ \args ->
         mconcatMap (Eval.reapply_generator args) calls
 
-double_calls :: [(TrackLang.CallId, TrackLang.CallId)]
+double_calls :: [(BaseTypes.CallId, BaseTypes.CallId)]
     -- ^ (call_name, repeated_call)
-    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
+    -> [(BaseTypes.CallId, Derive.Generator Derive.Note)]
 double_calls = map (second double_call)
 
-double_call :: TrackLang.CallId -> Derive.Generator Derive.Note
+double_call :: BaseTypes.CallId -> Derive.Generator Derive.Note
 double_call repeated = generator "double"
     "Doubled call. This is a specialization of `roll`."
     $ Sig.call ((,)
@@ -153,7 +153,7 @@ composite_doc = "Composite instrument calls create notes for multiple\
 -- a secondary pitch as a resonance.
 data Composite = Composite {
     -- | Dispatch to this call.
-    c_call :: !TrackLang.CallId
+    c_call :: !BaseTypes.CallId
     -- | And this instrument.
     , c_instrument :: !Score.Instrument
     , c_pitch :: !Pitch
@@ -178,7 +178,7 @@ type Controls = Maybe (Set.Set Score.Control)
 show_controls :: Controls -> Text
 show_controls = maybe "(all)" pretty
 
-redirect_pitch :: Text -> TrackLang.CallId -> Controls -> TrackLang.CallId
+redirect_pitch :: Text -> BaseTypes.CallId -> Controls -> BaseTypes.CallId
     -> Controls -> Derive.Generator Derive.Note
 redirect_pitch name pitched_call pitched_controls unpitched_call
         unpitched_controls =

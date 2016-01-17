@@ -43,6 +43,7 @@ import qualified Ui.State as State
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Block as Prelude.Block
 import qualified Derive.Derive as Derive
@@ -55,7 +56,6 @@ import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
@@ -73,12 +73,12 @@ import Types
 initial_environ :: Env.Environ
 initial_environ = Env.from_list
     -- Control interpolators rely on this.
-    [ (EnvKey.srate, TrackLang.num 0.015)
+    [ (EnvKey.srate, BaseTypes.num 0.015)
     -- Looking up any val call relies on having a scale in scope.
-    , (EnvKey.scale, TrackLang.VSymbol
-        (TrackLang.Symbol Config.default_scale_id))
-    , (EnvKey.attributes, TrackLang.VAttributes mempty)
-    , (EnvKey.seed, TrackLang.num 0)
+    , (EnvKey.scale, BaseTypes.VSymbol
+        (BaseTypes.Symbol Config.default_scale_id))
+    , (EnvKey.attributes, BaseTypes.VAttributes mempty)
+    , (EnvKey.seed, BaseTypes.num 0)
     ]
 
 -- | Derive with the cache.
@@ -405,9 +405,9 @@ compile_library (Parse.Definitions note control pitch val) = Derive.Library
         (compile make_generator gen) (compile make_transformer trans)
     compile make = map $ \(call_id, expr) -> (call_id, make call_id expr)
 
-make_generator :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Expr
+make_generator :: Derive.Callable d => BaseTypes.Symbol -> BaseTypes.Expr
     -> Derive.Generator d
-make_generator (TrackLang.Symbol name) expr =
+make_generator (BaseTypes.Symbol name) expr =
     Derive.generator Module.local name mempty ("Local definition: " <> name) $
     case assign_symbol expr of
         Nothing -> Sig.call0 generator
@@ -415,9 +415,9 @@ make_generator (TrackLang.Symbol name) expr =
             \args -> Eval.reapply_generator args call_id
     where generator args = Eval.eval_toplevel (Derive.passed_ctx args) expr
 
-make_transformer :: Derive.Callable d => TrackLang.Symbol -> TrackLang.Expr
+make_transformer :: Derive.Callable d => BaseTypes.Symbol -> BaseTypes.Expr
     -> Derive.Transformer d
-make_transformer (TrackLang.Symbol name) expr =
+make_transformer (BaseTypes.Symbol name) expr =
     Derive.transformer Module.local name mempty ("Local definition: " <> name) $
     case assign_symbol expr of
         Nothing -> Sig.call0t transformer
@@ -431,13 +431,13 @@ make_transformer (TrackLang.Symbol name) expr =
         Eval.apply_transformer (Derive.passed_ctx args) call_id
             (Derive.passed_vals args) deriver
 
-make_val_call :: TrackLang.CallId -> TrackLang.Expr -> Derive.ValCall
-make_val_call (TrackLang.Symbol name) expr =
+make_val_call :: BaseTypes.CallId -> BaseTypes.Expr -> Derive.ValCall
+make_val_call (BaseTypes.Symbol name) expr =
     Derive.val_call Module.local name mempty ("Local definiton: " <> name) $
     case assign_symbol expr of
         Nothing -> Sig.call0 $ \args -> case expr of
             call :| [] ->
-                Eval.eval (Derive.passed_ctx args) (TrackLang.ValCall call)
+                Eval.eval (Derive.passed_ctx args) (BaseTypes.ValCall call)
             _ -> Derive.throw "val calls don't support pipeline syntax"
         Just call_id -> Sig.parsed_manually "Args parsed by reapplied call."
             (call_args call_id)
@@ -450,6 +450,6 @@ make_val_call (TrackLang.Symbol name) expr =
 -- | If there are arguments in the definition, then don't accept any in the
 -- score.  I could do partial application, but it seems confusing, so
 -- I won't add it unless I need it.
-assign_symbol :: TrackLang.Expr -> Maybe TrackLang.CallId
-assign_symbol (TrackLang.Call call_id [] :| []) = Just call_id
+assign_symbol :: BaseTypes.Expr -> Maybe BaseTypes.CallId
+assign_symbol (BaseTypes.Call call_id [] :| []) = Just call_id
 assign_symbol _ = Nothing

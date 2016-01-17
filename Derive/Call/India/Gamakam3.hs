@@ -41,7 +41,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -635,7 +635,7 @@ apply_arg call arg = call
     -- I've already hardcoded the argument, but 'eval' will want to apply it
     -- anyway, since it can't tell the difference from an alias call and
     -- a normal call.
-    ignore = Sig.defaulted "ignore" (TrackLang.num 0) ""
+    ignore = Sig.defaulted "ignore" (BaseTypes.num 0) ""
 
 -- ** PitchCall implementation
 
@@ -676,7 +676,7 @@ pc_flat = PCall Sig.no_args $ \() ctx -> do
 pc_relative :: Bool -> PCall
 pc_relative swaram_relative = PCall (Sig.required "to" "To pitch.")
     $ \arg ctx -> case arg of
-        Left (TrackLang.Symbol sym)
+        Left (BaseTypes.Symbol sym)
             | sym == "-" -> do
                 (start, end) <- ctx_range ctx
                 pitch <- get_from
@@ -742,10 +742,10 @@ pc_set_pitch_relative from_current = PCall (Sig.required "to" "To pitch.") $
                 else get_from
         return mempty
 
-parse_transpose :: Either Pitch.Transpose TrackLang.Symbol
+parse_transpose :: Either Pitch.Transpose BaseTypes.Symbol
     -> Derive.Deriver Pitch.Transpose
 parse_transpose (Left t) = return t
-parse_transpose (Right (TrackLang.Symbol sym)) = case untxt sym of
+parse_transpose (Right (BaseTypes.Symbol sym)) = case untxt sym of
     [c] | 'a' <= c && c <= 'z' -> return $ Pitch.Diatonic $ fromIntegral $
         fromEnum 'a' - fromEnum c - 1
     _ -> Derive.throw $ "expected a lowercase letter: " <> showt sym

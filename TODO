@@ -531,12 +531,24 @@ cleanup:
     . But Quoted is also Expr... should it be non-empty?
     . I now don't remember where it was that I had an Expr that made sense as
       [], so maybe I don't care about this anymore?
-  - Perhaps I should get rid of TrackLang entirely.  Currently it re-exports
+  * Perhaps I should get rid of TrackLang entirely.  Currently it re-exports
     from Derive.BaseTypes, and has a few utilities to create BaseTypes.  It
     seems like a win for clarity if I can get rid of re-export modules, and
     I already have a lot of places directly using BaseTypes.  But on the other
     hand, BaseTypes is already too large, and I don't really want to further
     clutter it up with little constructor utilities.
+    Pro get rid of TrackLang:
+      . it's not that big, and moving everything into BaseTypes is not that
+        much bloat.
+      . It's a hassle to find out which module to import the symbol from.
+      . I still wind up importing BaseTypes to reduce dependencies, and the
+        original plan of importing as Score or Pitch or whatever seems too
+        complicated.
+    Cons:
+      . I still have Score and PitchSignal doing the re-export thing, so it's
+        inconsistent.  The original rule of don't use BaseTypes directly is no
+        longer true.  Of course, I don't do that anyway to reduce
+        dependencies.
   * use Control.Monad.Except instead of Error
     . not worth it until I don't need to support 7.8, can I suppress the
       warnings?

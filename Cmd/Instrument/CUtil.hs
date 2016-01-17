@@ -27,6 +27,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Prelude.Note as Note
@@ -38,7 +39,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
@@ -55,13 +55,13 @@ type Call = Text
 
 -- * eval call
 
-insert_call :: Cmd.M m => Map.Map Char TrackLang.CallId -> Msg.Msg
+insert_call :: Cmd.M m => Map.Map Char BaseTypes.CallId -> Msg.Msg
     -> m Cmd.Status
 insert_call = insert_expr . Map.fromList . map (Keymap.physical_key *** to_expr)
         . Map.toList
-    where to_expr call = TrackLang.call call [] :| []
+    where to_expr call = BaseTypes.call call [] :| []
 
-notes_to_calls :: [Drums.Note] -> Map.Map Char TrackLang.CallId
+notes_to_calls :: [Drums.Note] -> Map.Map Char BaseTypes.CallId
 notes_to_calls notes =
     Map.fromList [(Drums.note_char n, Drums.note_name n) | n <- notes]
 
@@ -78,7 +78,7 @@ notes_to_calls notes =
     work in real time.  Still, perhaps it would be possible to integrate them
     better than I have.
 -}
-insert_expr :: Cmd.M m => Map.Map Char TrackLang.Expr -> Msg.Msg
+insert_expr :: Cmd.M m => Map.Map Char BaseTypes.Expr -> Msg.Msg
     -> m Cmd.Status
 insert_expr char_to_expr msg = do
     unlessM Cmd.is_kbd_entry Cmd.abort
@@ -101,7 +101,7 @@ insert_expr char_to_expr msg = do
                 call_keydown expr
             UiMsg.KeyUp -> call_keyup expr
 
-call_keydown :: Cmd.M m => TrackLang.Expr -> m ()
+call_keydown :: Cmd.M m => BaseTypes.Expr -> m ()
 call_keydown expr = do
     whenM Cmd.is_val_edit $ suppressed $ do
         pos <- EditUtil.get_pos
@@ -116,7 +116,7 @@ call_keydown expr = do
     suppressed = Cmd.suppress_history Cmd.ValEdit
         ("keymap: " <> ShowVal.show_val expr)
 
-call_keyup :: Cmd.M m => TrackLang.Expr -> m ()
+call_keyup :: Cmd.M m => BaseTypes.Expr -> m ()
 call_keyup expr = do
     -- This runs expr_to_midi twice, and relies on it producing exactly the
     -- same thing twice, so the NoteOffs will cancel out the NoteOns.
@@ -132,7 +132,7 @@ call_keyup expr = do
     mapM_ (uncurry Cmd.midi) note_offs
 
 -- | Call a note call and return the MIDI msgs it produces.
-expr_to_midi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> TrackLang.Expr
+expr_to_midi :: Cmd.M m => BlockId -> TrackId -> TrackTime -> BaseTypes.Expr
     -> m [Midi.WriteMessage]
 expr_to_midi block_id track_id pos expr = do
     result <- LEvent.write_snd_prefix "CUtil.expr_to_midi"
@@ -157,7 +157,7 @@ expr_to_midi block_id track_id pos expr = do
     I could use that to play an example note.  Wait until I have a "play
     current line" framework up for that.
 -}
-keyswitches :: Cmd.M m => [(Char, TrackLang.CallId, Midi.Key)] -> Msg.Msg
+keyswitches :: Cmd.M m => [(Char, BaseTypes.CallId, Midi.Key)] -> Msg.Msg
     -> m Cmd.Status
 keyswitches inputs = \msg -> do
     EditUtil.fallthrough msg
@@ -165,7 +165,7 @@ keyswitches inputs = \msg -> do
     (call, key) <- Cmd.abort_unless $ Map.lookup char to_call
     MidiThru.channel_messages Nothing False
         [Midi.NoteOn key 64, Midi.NoteOff key 64]
-    Cmd.set_note_text (TrackLang.unsym call)
+    Cmd.set_note_text (BaseTypes.unsym call)
     return Cmd.Done
     where
     to_call = Map.fromList [(char, (call, key)) | (char, call, key) <- inputs]
@@ -299,7 +299,7 @@ drum_pitched_notes notes keymap = (found, (not_found, unused))
 -- This should probably go in DUtil, but that would make it depend on
 -- "Cmd.Instrument.Drums".
 drum_calls :: Maybe Score.Control -> [Drums.Note]
-    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
+    -> [(BaseTypes.CallId, Derive.Generator Derive.Note)]
 drum_calls maybe_tuning_control = map $ \note ->
     ( Drums.note_name note
     , drum_call maybe_tuning_control (Drums.note_dynamic note)
@@ -341,7 +341,7 @@ tuning_control args control deriver = do
 -- If a mapping has 'Attrs.soft', it's looked up without the soft, but gets
 -- a 'Drums.note_dynamic'
 resolve_strokes :: Signal.Y -> Map.Map Score.Attributes KeyswitchRange
-    -> [(Char, TrackLang.CallId, Score.Attributes, Drums.Group)]
+    -> [(Char, BaseTypes.CallId, Score.Attributes, Drums.Group)]
     -- ^ (key_binding, emits_text, call_attributes, stop_group)
     -> (PitchedNotes, [Text]) -- ^ also return errors
 resolve_strokes soft_dyn keymap =

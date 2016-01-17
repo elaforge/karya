@@ -9,7 +9,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import Global
 
@@ -38,7 +38,7 @@ c_mapc = Derive.transformer Module.prelude "mapc" Tags.postproc
         Post.emap_m_ id mapper =<< deriver
 
 map_control :: Derive.Context Derive.Control -> Score.Control
-    -> TrackLang.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
+    -> BaseTypes.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
 map_control ctx control transformer event = do
     let Score.Typed typ sig = fromMaybe mempty $
             Score.event_control control event
@@ -48,7 +48,7 @@ map_control ctx control transformer event = do
     return [Score.set_control control (Score.Typed typ sig) event]
 
 map_pcontrol :: Derive.Context Derive.Pitch -> Score.PControl
-    -> TrackLang.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
+    -> BaseTypes.Quoted -> Score.Event -> Derive.Deriver [Score.Event]
 map_pcontrol ctx control transformer event = do
     let sig = fromMaybe mempty $ Score.event_pitch control event
     sig <- (LEvent.write_snd =<<) $ Post.derive_signal $

@@ -18,7 +18,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 import Derive.Score (attr)
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
@@ -38,7 +38,7 @@ patches =
     code = make_code all_notes both_calls
 
 make_code :: [Drums.Note]
-    -> [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)] -> MidiInst.Code
+    -> [(BaseTypes.CallId, [BaseTypes.CallId], Maybe Char)] -> MidiInst.Code
 make_code notes both =
     MidiInst.note_generators generators
         <> MidiInst.note_transformers transformers
@@ -55,7 +55,7 @@ make_code notes both =
         , [(char, call) | (call, _, Just char) <- both]
         ]
 
-both_calls :: [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
+both_calls :: [(BaseTypes.CallId, [BaseTypes.CallId], Maybe Char)]
 both_calls = make_both left_notes right_notes special_names
     [ ("N", 'g'), ("D", 'b')
     , ("K", 'h'), ("T", 'n')
@@ -64,26 +64,26 @@ both_calls = make_both left_notes right_notes special_names
     where
     special_names = [("P", ["+", "k"]), ("X", ["+", "t"])]
         ++ [(sym c, ["o", sym (Char.toLower c)]) | c <- "KTNDAUVI"]
-    sym = TrackLang.Symbol . Text.singleton
+    sym = BaseTypes.Symbol . Text.singleton
 
 -- | Create calls for all simultaneous left and right hand combinations, and
 -- key bindings for a few common ones.
 make_both :: [Drums.Note] -> [Drums.Note]
-    -> [(TrackLang.CallId, [TrackLang.CallId])] -- ^ special names for pairs
-    -> [(TrackLang.CallId, Char)]
-    -> [(TrackLang.CallId, [TrackLang.CallId], Maybe Char)]
+    -> [(BaseTypes.CallId, [BaseTypes.CallId])] -- ^ special names for pairs
+    -> [(BaseTypes.CallId, Char)]
+    -> [(BaseTypes.CallId, [BaseTypes.CallId], Maybe Char)]
 make_both left right special_names keys =
     [ (call, subcalls, lookup call keys)
     | (call, subcalls) <- special_names ++ pairs
     ]
     where
     pairs =
-        [ (TrackLang.Symbol $ u rcall <> u lcall, [rcall, lcall])
+        [ (BaseTypes.Symbol $ u rcall <> u lcall, [rcall, lcall])
         | lcall <- map Drums.note_name left
         , rcall <- map Drums.note_name right
         , Text.length (u lcall) == 1 && Text.length (u rcall) == 1
         ]
-    u = TrackLang.unsym
+    u = BaseTypes.unsym
 
 -- | The convention is symbols for thoppi, and letters for valantalai.  Also,
 -- vowels for open sounds, consonants for closed ones.  Soft strokes look like

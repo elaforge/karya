@@ -12,16 +12,16 @@ module Derive.TestInstances where
 -- Eventually that should stop, but meanwhile...
 #ifdef TESTING
 
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.PSignal as PSignal
 import qualified Cmd.Cmd as Cmd
 
 -- Normally Vals aren't comparable for equality because of the pesky VPitch,
 -- but it's too convenient for testing to lose.
-deriving instance Eq TrackLang.Val
-deriving instance Eq TrackLang.Call
-deriving instance Eq TrackLang.Term
-deriving instance Eq TrackLang.Quoted
+deriving instance Eq BaseTypes.Val
+deriving instance Eq BaseTypes.Call
+deriving instance Eq BaseTypes.Term
+deriving instance Eq BaseTypes.Quoted
 
 instance Eq PSignal.PSignal where
     sig1 == sig2 = PSignal.unsignal sig1 == PSignal.unsignal sig2
@@ -36,7 +36,7 @@ instance Eq Cmd.Status where
     Cmd.PlayMidi _ == Cmd.PlayMidi _ = True
     _ == _ = False
 
-instance Eq TrackLang.ControlFunction where
+instance Eq BaseTypes.ControlFunction where
     _ == _ = False
 
 #endif

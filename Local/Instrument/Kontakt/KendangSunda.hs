@@ -23,7 +23,6 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.NN as NN
 import qualified Local.Instrument.Kontakt.Util as Util
@@ -41,8 +40,8 @@ patches =
         <> MidiInst.note_generators
             (replace_det $ CUtil.drum_calls (Just tuning_control) notes)
 
-replace_det :: [(TrackLang.CallId, Derive.Generator Derive.Note)]
-    -> [(TrackLang.CallId, Derive.Generator Derive.Note)]
+replace_det :: [(BaseTypes.CallId, Derive.Generator Derive.Note)]
+    -> [(BaseTypes.CallId, Derive.Generator Derive.Note)]
 replace_det = (calls++) . filter ((`notElem` map fst calls) . fst)
     where
     calls =

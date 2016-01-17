@@ -28,7 +28,6 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted)
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -80,7 +79,7 @@ note_call note ratio = Derive.val_call Module.scale "ratio" mempty
             pscale (const $ return out_nn) (const $ return note)
             (PSignal.PitchConfig env mempty)
     where
-    pcontrol_ref = TrackLang.LiteralControl control :: TrackLang.PControlRef
+    pcontrol_ref = BaseTypes.LiteralControl control :: BaseTypes.PControlRef
     control = "ratio-source"
     pcontrol = "ratio-source" -- TODO remove
     pscale = Pitches.scale scale

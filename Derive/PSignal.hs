@@ -37,7 +37,7 @@ import qualified Util.Seq as Seq
 import qualified Util.TimeVector as TimeVector
 import Util.TimeVector (Sample(..))
 
-import qualified Derive.BaseTypes as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (PSignal(..), Transposed, Pitch, pitch, coerce, pitch_nn, pitch_note,
         RawPitch(..), Scale(..), PitchConfig(..), PitchError(..))
@@ -139,7 +139,7 @@ apply_control cont sig = apply_controls (Map.singleton cont sig)
 
 -- | Apply an environ to all the pitches in the signal.  Unlike
 -- 'apply_controls', this doesn't have to resample the signal.
-apply_environ :: TrackLang.Environ -> PSignal -> PSignal
+apply_environ :: BaseTypes.Environ -> PSignal -> PSignal
 apply_environ env = modify $ TimeVector.map_y $ config (PitchConfig env mempty)
 
 -- | Not exported, use the one in Derive.Score instead.

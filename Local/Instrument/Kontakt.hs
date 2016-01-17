@@ -42,7 +42,6 @@ import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
@@ -361,7 +360,7 @@ hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)
     | (_, key, Just text, Just char) <- hang_strokes]
 
 -- | The order is important because it determines attr lookup priority.
-hang_strokes :: [(Score.Attributes, Midi.Key, Maybe TrackLang.CallId,
+hang_strokes :: [(Score.Attributes, Midi.Key, Maybe BaseTypes.CallId,
     Maybe Char)]
 hang_strokes =
     [ (Attrs.center,  Key.c2,     Just "",   Just 'Z')

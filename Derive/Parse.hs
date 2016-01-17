@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE CPP #-}
--- | TrackLang parsers using Text and Attoparsec.
+-- | BaseTypes parsers using Text and Attoparsec.
 module Derive.Parse (
     parse_expr, parse_control_title
     , parse_val, parse_attrs, parse_num, parse_call
@@ -42,7 +42,7 @@ import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
-import qualified Derive.BaseTypes as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
@@ -51,18 +51,18 @@ import qualified Perform.Signal as Signal
 import Global
 
 
-parse_expr :: Text -> Either Text TrackLang.Expr
+parse_expr :: Text -> Either Text BaseTypes.Expr
 parse_expr = parse (p_pipeline True)
 
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
 -- follow the normal calling process but pattern match directly on vals.
 parse_control_title :: Text
-    -> Either Text ([TrackLang.Val], [TrackLang.Call])
+    -> Either Text ([BaseTypes.Val], [BaseTypes.Call])
 parse_control_title = ParseText.parse p_control_title
 
 -- | Parse a single Val.
-parse_val :: Text -> Either Text TrackLang.Val
+parse_val :: Text -> Either Text BaseTypes.Val
 parse_val = ParseText.parse (lexeme p_val)
 
 -- | Parse attributes in the form +a+b.
@@ -77,7 +77,7 @@ parse_num = ParseText.parse (lexeme (p_hex <|> p_untyped_num))
 parse_call :: Text -> Maybe Text
 parse_call text = case parse_expr text of
     Right expr -> case NonEmpty.last expr of
-        TrackLang.Call (TrackLang.Symbol call) _ -> Just call
+        BaseTypes.Call (BaseTypes.Symbol call) _ -> Just call
     _ -> Nothing
 
 parse :: A.Parser a -> Text -> Either Text a
@@ -155,84 +155,84 @@ p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
 -- * toplevel parsers
 
 -- | See 'parse_control_title'.
-p_control_title :: A.Parser ([TrackLang.Val], [TrackLang.Call])
+p_control_title :: A.Parser ([BaseTypes.Val], [BaseTypes.Call])
 p_control_title = do
-    vals <- A.many (lexeme $ TrackLang.VSymbol <$> p_scale_id <|> p_val)
+    vals <- A.many (lexeme $ BaseTypes.VSymbol <$> p_scale_id <|> p_val)
     expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_pipeline True)
     return (vals, expr)
 
-p_pipeline :: Bool -> A.Parser TrackLang.Expr
+p_pipeline :: Bool -> A.Parser BaseTypes.Expr
 p_pipeline toplevel = do
     -- It definitely matches at least one, because p_null_call always matches.
     c : cs <- A.sepBy1 (p_expr toplevel) p_pipe
     return $ c :| cs
 
-p_expr :: Bool -> A.Parser TrackLang.Call
+p_expr :: Bool -> A.Parser BaseTypes.Call
 p_expr toplevel = A.try p_unparsed_expr <|> A.try p_equal
     <|> A.try (p_call toplevel) <|> p_null_call
 
-p_unparsed_expr :: A.Parser TrackLang.Call
+p_unparsed_expr :: A.Parser BaseTypes.Call
 p_unparsed_expr = do
-    A.string $ TrackLang.unsym unparsed_call
+    A.string $ BaseTypes.unsym unparsed_call
     text <- A.takeWhile $ \c -> c /= '|' && c /= ')'
-    let arg = TrackLang.Symbol $ Text.strip text
-    return $ TrackLang.Call unparsed_call
-        [TrackLang.Literal $ TrackLang.VSymbol arg]
+    let arg = BaseTypes.Symbol $ Text.strip text
+    return $ BaseTypes.Call unparsed_call
+        [BaseTypes.Literal $ BaseTypes.VSymbol arg]
 
 -- | This is a magic call name that surpresses normal parsing.  Instead, the
 -- rest of the event expression is passed as a string.  The only characters
 -- that can't be used are ) and |, so an unparsed call can still be included in
 -- a sub expression.
-unparsed_call :: TrackLang.Symbol
+unparsed_call :: BaseTypes.Symbol
 unparsed_call = "!"
 
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
 
-p_equal :: A.Parser TrackLang.Call
+p_equal :: A.Parser BaseTypes.Call
 p_equal = do
     assignee <- p_string <|> p_call_symbol True
     spaces
     A.char '='
     spaces
     vals <- A.many1 p_term
-    return $ TrackLang.Call TrackLang.c_equal $
-        TrackLang.Literal (TrackLang.VSymbol assignee) : vals
+    return $ BaseTypes.Call BaseTypes.c_equal $
+        BaseTypes.Literal (BaseTypes.VSymbol assignee) : vals
 
-p_call :: Bool -> A.Parser TrackLang.Call
+p_call :: Bool -> A.Parser BaseTypes.Call
 p_call toplevel =
-    TrackLang.Call <$> lexeme (p_call_symbol toplevel) <*> A.many p_term
+    BaseTypes.Call <$> lexeme (p_call_symbol toplevel) <*> A.many p_term
 
-p_null_call :: A.Parser TrackLang.Call
-p_null_call = return (TrackLang.Call "" []) <?> "null call"
+p_null_call :: A.Parser BaseTypes.Call
+p_null_call = return (BaseTypes.Call "" []) <?> "null call"
 
 -- | Any word in call position is considered a Symbol.  This means that
 -- you can have calls like @4@ and @>@, which are useful names for notes or
 -- ornaments.
 p_call_symbol :: Bool -- ^ A call at the top level can allow a ).
-    -> A.Parser TrackLang.Symbol
-p_call_symbol toplevel = TrackLang.Symbol <$> p_word toplevel
+    -> A.Parser BaseTypes.Symbol
+p_call_symbol toplevel = BaseTypes.Symbol <$> p_word toplevel
 
-p_term :: A.Parser TrackLang.Term
+p_term :: A.Parser BaseTypes.Term
 p_term = lexeme $
-    TrackLang.Literal <$> p_val <|> TrackLang.ValCall <$> p_sub_call
+    BaseTypes.Literal <$> p_val <|> BaseTypes.ValCall <$> p_sub_call
 
-p_sub_call :: A.Parser TrackLang.Call
+p_sub_call :: A.Parser BaseTypes.Call
 p_sub_call = ParseText.between (A.char '(') (A.char ')') (p_call False)
 
-p_val :: A.Parser TrackLang.Val
+p_val :: A.Parser BaseTypes.Val
 p_val =
-    TrackLang.VInstrument <$> p_instrument
-    <|> TrackLang.VAttributes <$> p_attributes
-    <|> TrackLang.VNum . Score.untyped <$> p_hex
-    <|> TrackLang.VNum <$> p_num
-    <|> TrackLang.VSymbol <$> p_string
-    <|> TrackLang.VControlRef <$> p_control_ref
-    <|> TrackLang.VPControlRef <$> p_pcontrol_ref
-    <|> TrackLang.VQuoted <$> p_quoted
-    <|> (A.char '_' >> return TrackLang.VNotGiven)
-    <|> (A.char ';' >> return TrackLang.VSeparator)
-    <|> TrackLang.VSymbol <$> p_symbol
+    BaseTypes.VInstrument <$> p_instrument
+    <|> BaseTypes.VAttributes <$> p_attributes
+    <|> BaseTypes.VNum . Score.untyped <$> p_hex
+    <|> BaseTypes.VNum <$> p_num
+    <|> BaseTypes.VSymbol <$> p_string
+    <|> BaseTypes.VControlRef <$> p_control_ref
+    <|> BaseTypes.VPControlRef <$> p_pcontrol_ref
+    <|> BaseTypes.VQuoted <$> p_quoted
+    <|> (A.char '_' >> return BaseTypes.VNotGiven)
+    <|> (A.char ';' >> return BaseTypes.VSeparator)
+    <|> BaseTypes.VSymbol <$> p_symbol
 
 p_num :: A.Parser Score.TypedVal
 p_num = do
@@ -276,8 +276,8 @@ parse_hex c1 c2 = higit c1 * 16 + higit c2
 
 -- | A string is anything between single quotes.  A single quote itself is
 -- represented by two single quotes in a row.
-p_string :: A.Parser TrackLang.Symbol
-p_string = TrackLang.Symbol <$> p_single_quote_string
+p_string :: A.Parser BaseTypes.Symbol
+p_string = BaseTypes.Symbol <$> p_single_quote_string
 
 p_single_quote_string :: A.Parser Text
 p_single_quote_string = do
@@ -291,35 +291,35 @@ p_attributes :: A.Parser Score.Attributes
 p_attributes = A.char '+'
     *> (Score.attrs <$> A.sepBy (p_identifier False "+") (A.char '+'))
 
-p_control_ref :: A.Parser TrackLang.ControlRef
+p_control_ref :: A.Parser BaseTypes.ControlRef
 p_control_ref = do
     A.char '%'
     control <- Score.unchecked_control <$> A.option "" (p_identifier False ",")
     deflt <- ParseText.optional (A.char ',' >> p_num)
     return $ case deflt of
-        Nothing -> TrackLang.LiteralControl control
-        Just val -> TrackLang.DefaultedControl control (Signal.constant <$> val)
+        Nothing -> BaseTypes.LiteralControl control
+        Just val -> BaseTypes.DefaultedControl control (Signal.constant <$> val)
     <?> "control"
 
 -- | Unlike 'p_control_ref', this doesn't parse a comma and a default value,
 -- because pitches don't have literals.  Instead, use the @pitch-control@ val
 -- call.
-p_pcontrol_ref :: A.Parser TrackLang.PControlRef
+p_pcontrol_ref :: A.Parser BaseTypes.PControlRef
 p_pcontrol_ref = do
     A.char '#'
-    TrackLang.LiteralControl . Score.unchecked_pcontrol <$>
+    BaseTypes.LiteralControl . Score.unchecked_pcontrol <$>
         A.option "" (p_identifier False "")
     <?> "pitch control"
 
-p_quoted :: A.Parser TrackLang.Quoted
+p_quoted :: A.Parser BaseTypes.Quoted
 p_quoted =
-    A.string "\"(" *> (TrackLang.Quoted <$> p_pipeline False) <* A.char ')'
+    A.string "\"(" *> (BaseTypes.Quoted <$> p_pipeline False) <* A.char ')'
 
 -- | This is special syntax that's only allowed in control track titles.
-p_scale_id :: A.Parser TrackLang.Symbol
+p_scale_id :: A.Parser BaseTypes.Symbol
 p_scale_id = do
     A.char '*'
-    TrackLang.Symbol . Text.cons '*' <$> A.option "" (p_identifier False "")
+    BaseTypes.Symbol . Text.cons '*' <$> A.option "" (p_identifier False "")
     <?> "scale id"
 
 p_instrument :: A.Parser Score.Instrument
@@ -333,12 +333,12 @@ p_instrument =
 -- They can also start with a *.  This is a special hack to support *scale
 -- syntax in pitch track titles, but who knows, maybe it'll be useful in other
 -- places too.
-p_symbol :: A.Parser TrackLang.Symbol
+p_symbol :: A.Parser BaseTypes.Symbol
 p_symbol = do
     c <- A.satisfy $ \c -> c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
         || c == '-' || c == '*'
     rest <- p_null_word
-    return $ TrackLang.Symbol $ Text.cons c rest
+    return $ BaseTypes.Symbol $ Text.cons c rest
 
 -- | Identifiers are somewhat more strict than usual.  They must be lowercase,
 -- and the only non-letter allowed is hyphen.  This means words must be
@@ -476,7 +476,7 @@ instance Monoid Definitions where
             (Definitions (a2, b2) (c2, d2) (e2, f2) g2) =
         Definitions (a1<>a2, b1<>b2) (c1<>c2, d1<>d2) (e1<>e2, f1<>f2) (g1<>g2)
 
-type Definition = (TrackLang.CallId, TrackLang.Expr)
+type Definition = (BaseTypes.CallId, BaseTypes.Expr)
 type LineNumber = Int
 
 {- | Parse a definitions file.  This file gives a way to define new calls

@@ -9,7 +9,7 @@ import qualified Cmd.Meter as Meter
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.NN as NN
 import Global
@@ -18,8 +18,8 @@ import Global
 test_env = do
     let run = CallTest.run_val
     equal (run Nothing "e x") (Nothing, ["Error: environ val not found: x"])
-    equal (run Nothing "e x 42") (Just (TrackLang.num 42), [])
-    equal (run (Just "x = 42") "e x") (Just (TrackLang.num 42), [])
+    equal (run Nothing "e x 42") (Just (BaseTypes.num 42), [])
+    equal (run (Just "x = 42") "e x") (Just (BaseTypes.num 42), [])
     equal (run (Just "x = 42") "e x str")
         (Nothing, ["Error: env x expected Symbol but got Num"])
 

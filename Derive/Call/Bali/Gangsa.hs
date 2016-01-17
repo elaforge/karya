@@ -36,6 +36,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Module as Module
@@ -55,7 +56,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -631,7 +631,7 @@ muted_note note = note { note_muted = True }
 instance Pretty.Pretty KotekanNote where
     format (KotekanNote inst steps attrs) = Pretty.format (inst, steps, attrs)
 
-under_threshold_function :: TrackLang.ControlRef -> ScoreTime
+under_threshold_function :: BaseTypes.ControlRef -> ScoreTime
     -> Derive.Deriver (ScoreTime -> Bool) -- ^ say if a note at this time
     -- with the given duration would be under the kotekan threshold
 under_threshold_function kotekan dur = do
@@ -880,8 +880,8 @@ c_pasangan = Derive.val_call module_ "pasangan" mempty
     <*> Sig.required "sangsih" "Value for sangsih."
     <*> role_env
     ) $ \(polos, sangsih, role) _args -> case role of
-        Polos -> return (polos :: TrackLang.Val)
-        Sangsih -> return (sangsih :: TrackLang.Val)
+        Polos -> return (polos :: BaseTypes.Val)
+        Sangsih -> return (sangsih :: BaseTypes.Val)
 
 -- * implementation
 
@@ -897,11 +897,11 @@ get_pitch args = Call.get_pitch =<< Args.real_start args
 
 dur_env :: Sig.Parser ScoreTime
 dur_env = Sig.environ_quoted "kotekan-dur" Sig.Unprefixed
-    (TrackLang.quoted "ts" [TrackLang.str "e"]) "Duration of derived notes."
+    (BaseTypes.quoted "ts" [BaseTypes.str "e"]) "Duration of derived notes."
 
-kotekan_env :: Sig.Parser TrackLang.ControlRef
+kotekan_env :: Sig.Parser BaseTypes.ControlRef
 kotekan_env =
-    Sig.environ "kotekan" Sig.Unprefixed (TrackLang.constant_control 0.15)
+    Sig.environ "kotekan" Sig.Unprefixed (BaseTypes.constant_control 0.15)
         "If note durations are below this, divide the parts between polos and\
         \ sangsih."
 
@@ -915,7 +915,7 @@ initial_final_env = (,)
 
 instrument_top_env :: Sig.Parser (Maybe Pitch.Pitch)
 instrument_top_env =
-    Sig.environ (TrackLang.unsym EnvKey.instrument_top) Sig.Unprefixed Nothing
+    Sig.environ (BaseTypes.unsym EnvKey.instrument_top) Sig.Unprefixed Nothing
         "Top pitch this instrument can play. Normally the instrument sets\
         \ it via the instrument environ."
 
@@ -936,9 +936,9 @@ type Pasang = (Score.Instrument, Score.Instrument)
 
 pasang_env :: Sig.Parser Pasang
 pasang_env = (,)
-    <$> Sig.required_environ (TrackLang.unsym inst_polos) Sig.Unprefixed
+    <$> Sig.required_environ (BaseTypes.unsym inst_polos) Sig.Unprefixed
         "Polos instrument."
-    <*> Sig.required_environ (TrackLang.unsym inst_sangsih) Sig.Unprefixed
+    <*> Sig.required_environ (BaseTypes.unsym inst_sangsih) Sig.Unprefixed
         "Sangsih instrument."
 
 inst_polos :: Env.Key
@@ -953,7 +953,7 @@ instance Typecheck.Typecheck Role
 instance Typecheck.TypecheckSymbol Role
 
 role_env :: Sig.Parser Role
-role_env = Sig.required_environ (TrackLang.unsym EnvKey.role) Sig.Unprefixed
+role_env = Sig.required_environ (BaseTypes.unsym EnvKey.role) Sig.Unprefixed
     "Instrument role."
 
 initial_flag, final_flag :: Flags.Flags

@@ -25,7 +25,7 @@ import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
@@ -49,7 +49,7 @@ pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.transformer_call_map
     [("=", c_equal), (default_merge, c_default_merge)]
 
-default_merge :: TrackLang.CallId
+default_merge :: BaseTypes.CallId
 default_merge = "default-merge"
 
 -- * implementation
@@ -105,17 +105,17 @@ equal_transformer args deriver =
     either Derive.throw_arg_error ($deriver) $ case Derive.passed_vals args of
         -- The first arg is definitely a symbol because that's how the parser
         -- parses it.
-        [TrackLang.VSymbol lhs, val] -> parse_equal Nothing lhs val
-        [TrackLang.VSymbol lhs, TrackLang.VSymbol merge, val] ->
+        [BaseTypes.VSymbol lhs, val] -> parse_equal Nothing lhs val
+        [BaseTypes.VSymbol lhs, BaseTypes.VSymbol merge, val] ->
             parse_equal (Just (Merge merge)) lhs val
-        [TrackLang.VSymbol lhs, TrackLang.VNotGiven, val] ->
+        [BaseTypes.VSymbol lhs, BaseTypes.VNotGiven, val] ->
             parse_equal (Just Default) lhs val
         args -> Left $ "unexpected arg types: "
             <> Text.intercalate ", " (map (pretty . ValType.type_of) args)
 
-parse_equal :: Maybe Merge -> TrackLang.Symbol -> TrackLang.Val
+parse_equal :: Maybe Merge -> BaseTypes.Symbol -> BaseTypes.Val
     -> Either Text (Derive.Deriver a -> Derive.Deriver a)
-parse_equal Nothing (TrackLang.Symbol lhs) rhs
+parse_equal Nothing (BaseTypes.Symbol lhs) rhs
     -- Assign to call.
     | Just new <- Text.stripPrefix "^" lhs = Right $
         override_call new rhs "note"
@@ -130,17 +130,17 @@ parse_equal Nothing (TrackLang.Symbol lhs) rhs
             (Derive.s_generator#Derive.s_control)
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" lhs = Right $ override_val_call new rhs
-parse_equal Nothing (TrackLang.Symbol lhs) rhs
+parse_equal Nothing (BaseTypes.Symbol lhs) rhs
     -- Create instrument alias.
     | Just new <- Text.stripPrefix ">" lhs = case rhs of
-        TrackLang.VInstrument inst -> Right $
+        BaseTypes.VInstrument inst -> Right $
             Derive.with_instrument_alias (Score.Instrument new) inst
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
             <> pretty (ValType.type_of rhs)
 parse_equal maybe_merge lhs rhs
     -- Assign to control.
     | Just control <- is_control =<< parse_val lhs = case rhs of
-        TrackLang.VControlRef rhs -> Right $ \deriver ->
+        BaseTypes.VControlRef rhs -> Right $ \deriver ->
             Typecheck.to_signal_or_function rhs >>= \x -> case x of
                 Left sig -> do
                     merger <- get_merger control maybe_merge
@@ -148,38 +148,38 @@ parse_equal maybe_merge lhs rhs
                 Right f -> case maybe_merge of
                     Just merge -> Derive.throw_arg_error $ merge_error merge
                     Nothing -> Derive.with_control_function control f deriver
-        TrackLang.VNum rhs -> Right $ \deriver -> do
+        BaseTypes.VNum rhs -> Right $ \deriver -> do
             merger <- get_merger control maybe_merge
             Derive.with_merged_control merger control (fmap Signal.constant rhs)
                 deriver
-        TrackLang.VControlFunction f -> case maybe_merge of
+        BaseTypes.VControlFunction f -> case maybe_merge of
             Just merge -> Left $ merge_error merge
             Nothing -> Right $ Derive.with_control_function control f
-        TrackLang.VNotGiven -> Right $ Derive.remove_controls [control]
+        BaseTypes.VNotGiven -> Right $ Derive.remove_controls [control]
         _ -> Left $ "binding a control expected a control, num, control\
             \ function, or _, but got " <> pretty (ValType.type_of rhs)
     where
-    is_control (TrackLang.VControlRef (TrackLang.LiteralControl c)) = Just c
+    is_control (BaseTypes.VControlRef (BaseTypes.LiteralControl c)) = Just c
     is_control _ = Nothing
 parse_equal maybe_merge lhs rhs
     -- Assign to pitch control.
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
-        TrackLang.VPitch rhs -> Right $ \deriver -> do
+        BaseTypes.VPitch rhs -> Right $ \deriver -> do
             merger <- get_pitch_merger maybe_merge
             Derive.with_merged_pitch merger control (PSignal.constant rhs)
                 deriver
-        TrackLang.VPControlRef rhs -> Right $ \deriver -> do
+        BaseTypes.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_psignal rhs
             merger <- get_pitch_merger maybe_merge
             Derive.with_merged_pitch merger control sig deriver
-        TrackLang.VNum (Score.Typed Score.Nn nn) -> Right $ \deriver -> do
+        BaseTypes.VNum (Score.Typed Score.Nn nn) -> Right $ \deriver -> do
             merger <- get_pitch_merger maybe_merge
             Derive.with_merged_pitch merger control
                 (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn))) deriver
         _ -> Left $ "binding a pitch signal expected a pitch, pitch"
             <> " control, or nn, but got " <> pretty (ValType.type_of rhs)
     where
-    is_pitch (TrackLang.VPControlRef (TrackLang.LiteralControl c)) = Just c
+    is_pitch (BaseTypes.VPControlRef (BaseTypes.LiteralControl c)) = Just c
     is_pitch _ = Nothing
 parse_equal (Just merge) _ _ = Left $ merge_error merge
 parse_equal Nothing lhs val = Right $ Derive.with_val lhs val
@@ -190,7 +190,7 @@ merge_error merge = "operator is only supported when assigning to a control: "
         Default -> "_"
         Merge sym -> pretty sym
 
-data Merge = Default | Merge TrackLang.CallId deriving (Show)
+data Merge = Default | Merge BaseTypes.CallId deriving (Show)
 
 -- | Unlike 'Derive.MergeDefault', the default is Derive.Set.
 get_merger :: Score.Control -> Maybe Merge
@@ -207,14 +207,14 @@ get_pitch_merger maybe_merge = case maybe_merge of
     Just Default -> return Derive.Set
     Just (Merge name) -> Derive.get_pitch_merger name
 
-parse_val :: TrackLang.Symbol -> Maybe TrackLang.Val
-parse_val = either (const Nothing) Just . Parse.parse_val . TrackLang.unsym
+parse_val :: BaseTypes.Symbol -> Maybe BaseTypes.Val
+parse_val = either (const Nothing) Just . Parse.parse_val . BaseTypes.unsym
 
 -- | Look up a call with the given CallId and add it as an override to the
 -- scope given by the lenses.  I wanted to pass just one lens, but apparently
 -- they're not sufficiently polymorphic.
 override_call :: (Derive.Callable d1, Derive.Callable d2) =>
-    Text -> TrackLang.Val -> Text
+    Text -> BaseTypes.Val -> Text
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Generator d1))
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Transformer d2))
     -> Derive.Deriver a -> Derive.Deriver a
@@ -234,13 +234,13 @@ override_call lhs rhs name_ generator transformer deriver
 -- everything else is turned into a Symbol via ShowVal.  This will cause
 -- a parse error for un-showable Vals, but what else is new?
 resolve_source :: Text -> Lens Derive.Scopes (Derive.ScopeType a)
-    -> (TrackLang.Quoted -> a) -> TrackLang.Val -> Derive.Deriver a
+    -> (BaseTypes.Quoted -> a) -> BaseTypes.Val -> Derive.Deriver a
 resolve_source name lens make_quoted rhs = case rhs of
-    TrackLang.VQuoted quoted -> return $ make_quoted quoted
-    TrackLang.VSymbol call_id -> get_call name (lens #$) call_id
-    _ -> get_call name (lens #$) (TrackLang.Symbol (ShowVal.show_val rhs))
+    BaseTypes.VQuoted quoted -> return $ make_quoted quoted
+    BaseTypes.VSymbol call_id -> get_call name (lens #$) call_id
+    _ -> get_call name (lens #$) (BaseTypes.Symbol (ShowVal.show_val rhs))
 
-override_val_call :: Text -> TrackLang.Val -> Derive.Deriver a
+override_val_call :: Text -> BaseTypes.Val -> Derive.Deriver a
     -> Derive.Deriver a
 override_val_call lhs rhs deriver = do
     call <- resolve_source "val" Derive.s_val quoted_val_call rhs
@@ -249,19 +249,19 @@ override_val_call lhs rhs deriver = do
     Derive.with_scopes modify deriver
 
 get_call :: Text -> (Derive.Scopes -> Derive.ScopeType call)
-    -> TrackLang.CallId -> Derive.Deriver call
+    -> BaseTypes.CallId -> Derive.Deriver call
 get_call name get call_id =
     maybe (Derive.throw $ Eval.unknown_call_id name call_id)
         return =<< Derive.lookup_with get call_id
 
 single_lookup :: Text -> Derive.Call d
     -> Derive.LookupCall (Derive.Call d)
-single_lookup name = Derive.LookupMap . Map.singleton (TrackLang.Symbol name)
+single_lookup name = Derive.LookupMap . Map.singleton (BaseTypes.Symbol name)
 
 single_val_lookup :: Text -> Derive.ValCall
     -> Derive.LookupCall Derive.ValCall
 single_val_lookup name =
-    Derive.LookupMap . Map.singleton (TrackLang.Symbol name)
+    Derive.LookupMap . Map.singleton (BaseTypes.Symbol name)
 
 
 -- * quoted
@@ -270,27 +270,27 @@ single_val_lookup name =
 -- function definiion, but is really just macro expansion, with all the
 -- variable capture problems implied.  But since the only variables I have are
 -- calls maybe it's not so bad.
-quoted_generator :: Derive.Callable d => TrackLang.Quoted -> Derive.Generator d
-quoted_generator quoted@(TrackLang.Quoted expr) =
+quoted_generator :: Derive.Callable d => BaseTypes.Quoted -> Derive.Generator d
+quoted_generator quoted@(BaseTypes.Quoted expr) =
     Derive.generator quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0 $ \args -> Eval.eval_expr False (Args.context args) expr
 
-quoted_transformer :: Derive.Callable d => TrackLang.Quoted
+quoted_transformer :: Derive.Callable d => BaseTypes.Quoted
     -> Derive.Transformer d
-quoted_transformer quoted@(TrackLang.Quoted expr) =
+quoted_transformer quoted@(BaseTypes.Quoted expr) =
     Derive.transformer quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0t $ \args deriver ->
         Eval.eval_transformers (Args.context args) (NonEmpty.toList expr)
             deriver
 
-quoted_val_call :: TrackLang.Quoted -> Derive.ValCall
+quoted_val_call :: BaseTypes.Quoted -> Derive.ValCall
 quoted_val_call quoted = Derive.val_call quoted_module "quoted-call" mempty
     ("Created from expression: " <> ShowVal.show_val quoted)
     $ Sig.call0 $ \args -> do
         call <- case quoted of
-            TrackLang.Quoted (call :| []) -> return $ TrackLang.ValCall call
+            BaseTypes.Quoted (call :| []) -> return $ BaseTypes.ValCall call
             _ -> Derive.throw $
                 "expected a val call, but got a full expression: "
                 <> ShowVal.show_val quoted

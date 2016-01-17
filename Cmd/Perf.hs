@@ -25,6 +25,7 @@ import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.PlayUtil as PlayUtil
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.Deriver.Internal as Internal
 import qualified Derive.Env as Env
@@ -37,7 +38,6 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -51,13 +51,13 @@ import Types
 
 -- | Specialized version of 'derive_expr' for note calls with no arguments.
 derive_note_call :: Cmd.M m => BlockId -> TrackId -> TrackTime
-    -> TrackLang.CallId -> m (Either Text [Score.Event], [Log.Msg])
+    -> BaseTypes.CallId -> m (Either Text [Score.Event], [Log.Msg])
 derive_note_call block_id track_id pos call =
-    derive_expr block_id track_id pos (TrackLang.Call call [] :| [])
+    derive_expr block_id track_id pos (BaseTypes.Call call [] :| [])
 
 -- | Derive an expression.
 derive_expr :: (Cmd.M m, Derive.Callable d) => BlockId -> TrackId -> TrackTime
-    -> TrackLang.Expr -> m (Either Text [d], [Log.Msg])
+    -> BaseTypes.Expr -> m (Either Text [d], [Log.Msg])
 derive_expr block_id track_id pos expr = do
     (result, logs) <- derive_at block_id track_id
         (Eval.eval_one_at False pos 1 expr)
@@ -186,7 +186,7 @@ find_scale_id (block_id, maybe_track_id) = (to_scale_id <$>) $
     firstJust (lookup_environ_val EnvKey.scale =<< global_environ) $
     return Nothing
     where
-    to_scale_id = fmap TrackLang.sym_to_scale_id
+    to_scale_id = fmap BaseTypes.sym_to_scale_id
     lookup maybe_track_id = lookup_val (block_id, maybe_track_id) EnvKey.scale
     lookup_parents = case maybe_track_id of
         Nothing -> return Nothing
@@ -309,7 +309,7 @@ get_default_environ name =
 -- 'Config.default_scale_id' if there is none.
 default_scale_id :: Cmd.M m => m Pitch.ScaleId
 default_scale_id =
-    maybe (Pitch.ScaleId Config.default_scale_id) TrackLang.sym_to_scale_id <$>
+    maybe (Pitch.ScaleId Config.default_scale_id) BaseTypes.sym_to_scale_id <$>
         lookup_default_environ EnvKey.scale
 
 

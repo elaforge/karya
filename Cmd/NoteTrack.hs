@@ -39,11 +39,11 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PitchTrack as PitchTrack
 import qualified Cmd.Selection as Selection
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Eval as Eval
 import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.MidiDb as MidiDb
@@ -280,7 +280,7 @@ block_call caller = fmap Seq.head . block_calls caller
 to_block_id :: Map.Map BlockId a -> Id.Namespace -> Maybe BlockId -> Text
     -> (Maybe BlockId)
 to_block_id blocks ns caller =
-    valid <=< Eval.call_to_block_id ns caller . TrackLang.Symbol
+    valid <=< Eval.call_to_block_id ns caller . BaseTypes.Symbol
     where
     valid block_id
         | Just _ <- Map.lookup block_id blocks = Just block_id

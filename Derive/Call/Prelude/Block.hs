@@ -30,7 +30,7 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Signal as Signal
 import Global
@@ -157,7 +157,7 @@ d_block block_id = do
         else case ParseTitle.parse_block title of
             Left err -> Derive.throw $ "block title: " <> err
             -- A title with just a comment will come out like this.
-            Right (TrackLang.Call call [] :| []) | call == "" -> return id
+            Right (BaseTypes.Call call [] :| []) | call == "" -> return id
             Right expr ->
                 return $ Eval.eval_transformers info (NonEmpty.toList expr)
                 where info = Derive.dummy_context 0 1 "block title"
@@ -166,12 +166,12 @@ d_block block_id = do
         *> BlockUtil.note_deriver block_id
 
 -- | Given a block id, produce a call expression that will call that block.
-call_from_block_id :: BlockId -> TrackLang.Call
+call_from_block_id :: BlockId -> BaseTypes.Call
 call_from_block_id block_id =
-    TrackLang.call (TrackLang.Symbol $ Id.show_id $ Id.unpack_id block_id) []
+    BaseTypes.call (BaseTypes.Symbol $ Id.show_id $ Id.unpack_id block_id) []
 
 -- | Like 'Eval.call_to_block_id' but make sure the block exists.
-call_to_block_id :: TrackLang.Symbol -> Derive.Deriver (Maybe BlockId)
+call_to_block_id :: BaseTypes.Symbol -> Derive.Deriver (Maybe BlockId)
 call_to_block_id sym = do
     caller <- Internal.lookup_current_block_id
     ns <- Derive.get_ui_state $ State.config_namespace . State.state_config
@@ -220,7 +220,7 @@ d_control_block block_id = Internal.with_stack_block block_id $ do
 
 c_capture_null_control :: Derive.Generator Derive.Note
 c_capture_null_control = Derive.generator1 Module.internal
-    (TrackLang.unsym BlockUtil.capture_null_control) mempty
+    (BaseTypes.unsym BlockUtil.capture_null_control) mempty
     ("This is an internal call used to capture the control signal at the\
     \ bottom of a control block."
     ) $ Sig.call0 $ \_ -> do

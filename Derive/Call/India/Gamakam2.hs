@@ -31,7 +31,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -67,7 +66,7 @@ pitch_calls = Derive.generator_call_map $ concat
     , end_aliases
     ]
 
-begin_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+begin_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
 begin_calls =
     [ ("set-pitch", c_set_pitch)
     , ("flat-start", c_flat_start)
@@ -83,7 +82,7 @@ begin_calls =
 -- | I don't want to take up short names for the whole track scope, but within
 -- a sequence call it seems reasonable.  In addition, I know if it's a begin or
 -- end call, and use the same name for logically similar things.
-begin_aliases :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+begin_aliases :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
 begin_aliases = map (second (Derive.set_module begin_module))
     [ ("-", c_flat_start)
     , ("c", c_from PitchFromCurrent NoFade)
@@ -95,7 +94,7 @@ begin_aliases = map (second (Derive.set_module begin_module))
     , (fade_in_call, c_fade True)
     ]
 
-middle_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+middle_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
 middle_calls = ("flat", c_flat)
     : kampita_variations "kam" (c_kampita "" neighbor)
     ++ kampita_variations "kam2" (c_kampita "" Kampita2)
@@ -104,14 +103,14 @@ middle_calls = ("flat", c_flat)
     where neighbor = Kampita1 0
 
 kampita_variations :: Text -> (Maybe Trill.Direction -> call)
-    -> [(TrackLang.CallId, call)]
+    -> [(BaseTypes.CallId, call)]
 kampita_variations name call =
-    [ (TrackLang.Symbol $ name <> Trill.direction_affix end, call end)
+    [ (BaseTypes.Symbol $ name <> Trill.direction_affix end, call end)
     | end <- dirs
     ]
     where dirs = [Nothing, Just Trill.Low, Just Trill.High]
 
-middle_aliases :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+middle_aliases :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
 middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
     [ ("-", c_flat)
     ] :
@@ -124,7 +123,7 @@ middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
     where
     hardcoded name arg dir =
         [ (name, c_kampita doc arg dir)
-        , (TrackLang.Symbol $ "n" <> TrackLang.unsym name,
+        , (BaseTypes.Symbol $ "n" <> BaseTypes.unsym name,
             c_nkampita doc arg dir)
         ]
     doc = Text.unlines
@@ -134,14 +133,14 @@ middle_aliases = map (second (Derive.set_module middle_module)) $ concat $
         , "`o*` avoids the swaram, like `k2_ -1 1`."
         ]
 
-alias_prefix :: Text -> Text -> [(TrackLang.CallId, call)]
-    -> [(TrackLang.CallId, call)]
+alias_prefix :: Text -> Text -> [(BaseTypes.CallId, call)]
+    -> [(BaseTypes.CallId, call)]
 alias_prefix from to calls = do
-    (TrackLang.Symbol name, call) <- calls
+    (BaseTypes.Symbol name, call) <- calls
     Just rest <- [Text.stripPrefix to name]
-    return (TrackLang.Symbol (from <> rest), call)
+    return (BaseTypes.Symbol (from <> rest), call)
 
-end_calls :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+end_calls :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
 end_calls =
     [ ("flat-end", c_flat_end)
     , ("to", c_to NoFade)
@@ -149,7 +148,7 @@ end_calls =
     , ("fade-out", c_fade False)
     ]
 
-end_aliases :: [(TrackLang.CallId, Derive.Generator Derive.Pitch)]
+end_aliases :: [(BaseTypes.CallId, Derive.Generator Derive.Pitch)]
 end_aliases = map (second (Derive.set_module end_module))
     [ ("-", c_flat_end)
     , ("t", c_to NoFade)
@@ -158,11 +157,11 @@ end_aliases = map (second (Derive.set_module end_module))
     ]
 
 -- | Special behaviour documented in 'sequence_doc'.
-fade_out_call :: TrackLang.CallId
+fade_out_call :: BaseTypes.CallId
 fade_out_call = "->" -- The leading dash makes these parse as symbols.
 
 -- | Unlike 'fade_out_call', this doesn't need special treatment.
-fade_in_call :: TrackLang.CallId
+fade_in_call :: BaseTypes.CallId
 fade_in_call = "-<"
 
 -- * sequence
@@ -338,11 +337,11 @@ with_empty_collect = fmap (second Derive.collect_control_mods)
 data Expr =
     -- | This is a call which was embedded in the argument list of the sequence
     -- call, so its arguments have already been evaluated.
-    EvaluatedExpr TrackLang.CallId [TrackLang.Val]
+    EvaluatedExpr BaseTypes.CallId [BaseTypes.Val]
     -- | A call and its arguments can be protected from evaluation by quoting
     -- it.  This is also necessary to use a transformer, since @;@ has higher
     -- precedence than @|@ (actually it's just a value, not an operator).
-    | QuotedExpr !TrackLang.Expr
+    | QuotedExpr !BaseTypes.Expr
     deriving Show
 
 instance Pretty.Pretty Expr where
@@ -360,7 +359,7 @@ instance Pretty.Pretty Expr where
 -- > ; middle1;
 -- > begin1; middle2
 -- > begin1; middle2; middle3; ...; end_n
-parse_sequence :: [TrackLang.Val] -> (Expr, [Expr], Maybe Expr)
+parse_sequence :: [BaseTypes.Val] -> (Expr, [Expr], Maybe Expr)
 parse_sequence exprs = postproc $
     case Seq.map_tail (drop 1) $ Seq.split_with is_separator exprs of
         [] -> (Nothing, [], Nothing)
@@ -378,10 +377,10 @@ parse_sequence exprs = postproc $
     add_hold xs = xs
     to_expr [] = Nothing
     to_expr (call : args) = Just $ case call of
-        TrackLang.VQuoted (TrackLang.Quoted expr) -> QuotedExpr expr
-        TrackLang.VSymbol sym -> EvaluatedExpr sym args
-        _ -> EvaluatedExpr (TrackLang.Symbol (ShowVal.show_val call)) args
-    is_separator TrackLang.VSeparator = True
+        BaseTypes.VQuoted (BaseTypes.Quoted expr) -> QuotedExpr expr
+        BaseTypes.VSymbol sym -> EvaluatedExpr sym args
+        _ -> EvaluatedExpr (BaseTypes.Symbol (ShowVal.show_val call)) args
+    is_separator BaseTypes.VSeparator = True
     is_separator _ = False
 
 -- * start
@@ -591,7 +590,7 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
         -- 'end_dir' may reduce the number of transitions, to a minimum of 2,
         -- which winds up sounding like a single transition: [0, 1].
         let num_transitions = cycles * 2 + if even == Just True then 0 else 1
-        let speed = TrackLang.constant_control $
+        let speed = BaseTypes.constant_control $
                 (num_transitions - 1) / RealTime.to_seconds (end - start)
         transpose <- kampita_transpose curve even adjust pitches speed
             transition hold lilt (Args.range args)
@@ -599,7 +598,7 @@ c_nkampita doc kam_args end_dir = generator1 "nkam" mempty
 
 -- ** implementation
 
-resolve_pitches :: KampitaArgs -> (TrackLang.ControlRef, TrackLang.ControlRef)
+resolve_pitches :: KampitaArgs -> (BaseTypes.ControlRef, BaseTypes.ControlRef)
     -> Derive.Deriver ((Typecheck.Function, Typecheck.Function), Score.Control)
 resolve_pitches kam_args (pitch1, pitch2) = do
     (pitch1, control1) <- Call.to_transpose_function Typecheck.Nn pitch1
@@ -613,7 +612,7 @@ resolve_pitches kam_args (pitch1, pitch2) = do
     return ((pitch1, pitch2), control1)
 
 kampita_pitch_args :: KampitaArgs
-    -> Sig.Parser (TrackLang.ControlRef, TrackLang.ControlRef)
+    -> Sig.Parser (BaseTypes.ControlRef, BaseTypes.ControlRef)
 kampita_pitch_args kam_args = case kam_args of
     Kampita0 p1 p2 -> (,) <$> pure (control p1) <*> pure (control p2)
     Kampita1 p1 -> (,) <$> pure (control p1)
@@ -624,7 +623,7 @@ kampita_pitch_args kam_args = case kam_args of
         <*> Sig.defaulted "pitch2" (sig "kam-pitch2" 1) "Second interval."
     where
     control val =
-        TrackLang.ControlSignal $ Score.untyped (Signal.constant val)
+        BaseTypes.ControlSignal $ Score.untyped (Signal.constant val)
     sig name deflt = Sig.typed_control name deflt Score.Nn
 
 kampita_env :: Sig.Parser (RealTime, BaseTypes.Duration, Double, Trill.Adjust)
@@ -654,7 +653,7 @@ kampita start args control transpose = do
 
 -- | You don't think there are too many arguments, do you?
 kampita_transpose :: ControlUtil.Curve -> Maybe Bool -> Trill.Adjust
-    -> (Typecheck.Function, Typecheck.Function) -> TrackLang.ControlRef
+    -> (Typecheck.Function, Typecheck.Function) -> BaseTypes.ControlRef
     -> RealTime -> BaseTypes.Duration -> Double -> (ScoreTime, ScoreTime)
     -> Derive.Deriver Signal.Control
 kampita_transpose curve even adjust (pitch1, pitch2) speed transition hold lilt
@@ -677,7 +676,7 @@ trill_from_transitions val1 val2 transitions = Signal.signal
     [(x, sig x) | (x, sig) <- zip transitions (cycle [val1, val2])]
 
 trill_transitions :: Maybe Bool -> Trill.Adjust -> Double -> ScoreTime
-    -> TrackLang.ControlRef -> (ScoreTime, ScoreTime)
+    -> BaseTypes.ControlRef -> (ScoreTime, ScoreTime)
     -> Derive.Deriver [RealTime]
 trill_transitions = Trill.adjusted_transitions include_end
     where

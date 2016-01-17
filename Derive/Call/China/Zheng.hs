@@ -22,7 +22,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -46,9 +45,9 @@ pitch_calls :: Derive.CallMaps Derive.Pitch
 pitch_calls = Derive.generator_call_map $ trill_variations c_pitch_trill
 
 trill_variations :: (Maybe Trill.Direction -> call)
-    -> [(TrackLang.Symbol, call)]
+    -> [(BaseTypes.Symbol, call)]
 trill_variations make =
-    [ (TrackLang.Symbol $ "tr" <> Trill.direction_affix end, make end)
+    [ (BaseTypes.Symbol $ "tr" <> Trill.direction_affix end, make end)
     | end <- dirs
     ]
     where dirs = [Nothing, Just Trill.High, Just Trill.Low]
@@ -143,7 +142,7 @@ c_pitch_trill start_dir = Derive.generator1 module_ "tr" mempty
         trill_signal start_dir pitch neighbor speed hold args
 
 trill_signal :: Maybe Trill.Direction -> PSignal.Pitch
-    -> TrackLang.ControlRef -> TrackLang.ControlRef -> BaseTypes.Duration
+    -> BaseTypes.ControlRef -> BaseTypes.ControlRef -> BaseTypes.Duration
     -> Derive.PassedArgs a -> Derive.Deriver PSignal.PSignal
 trill_signal start_dir pitch neighbor speed hold args = do
     (neighbor, control) <- Call.to_transpose_function Typecheck.Nn neighbor
@@ -157,11 +156,11 @@ trill_signal start_dir pitch neighbor speed hold args = do
     transition = 0.08
     lilt = 0
 
-neighbor_arg :: Sig.Parser TrackLang.ControlRef
+neighbor_arg :: Sig.Parser BaseTypes.ControlRef
 neighbor_arg = Sig.defaulted "neighbor"
     (Sig.typed_control "tr-neighbor" 1 Score.Nn)
     "Alternate with a pitch at this interval."
 
-speed_arg :: Sig.Parser TrackLang.ControlRef
+speed_arg :: Sig.Parser BaseTypes.ControlRef
 speed_arg = Sig.defaulted "speed" (Sig.typed_control "tr-speed" 20 Score.Real)
     "Alternate pitches at this speed."

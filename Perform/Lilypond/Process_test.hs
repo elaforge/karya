@@ -7,7 +7,7 @@ import qualified Data.Text as Text
 
 import Util.Test
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -199,8 +199,8 @@ test_simplify_voices = do
 test_voices_and_code = do
     let f wanted = LilypondTest.extract_lys (Just wanted)
             . LilypondTest.process . map LilypondTest.environ_event
-        v n = (EnvKey.voice, TrackLang.num n)
-        append text = (Constants.v_ly_append_all, TrackLang.str text)
+        v n = (EnvKey.voice, BaseTypes.num n)
+        append text = (Constants.v_ly_append_all, BaseTypes.str text)
 
     -- Code events are assigned to the first voice.
     equal (f ["mf"]

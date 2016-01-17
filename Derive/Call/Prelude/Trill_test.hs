@@ -14,7 +14,6 @@ import qualified Derive.Call.Sub as Sub
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Signal as Signal
 
@@ -232,8 +231,8 @@ test_score_trill = do
     equal (run $ Derive.stretch 2 $ f 1 (cnst 1) (cnst 2)) $
         Right [(0, 0), (1, 1)]
 
-mkcontrol :: Score.Type -> Signal.Control -> TrackLang.ControlRef
-mkcontrol typ = TrackLang.ControlSignal . Score.Typed typ
+mkcontrol :: Score.Type -> Signal.Control -> BaseTypes.ControlRef
+mkcontrol typ = BaseTypes.ControlSignal . Score.Typed typ
 
 test_pitch_trill = do
     equal (CallTest.run_pitch "" [(0, "tr (4e) 2 2"), (2.8, "4c")]) $

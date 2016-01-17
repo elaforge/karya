@@ -65,7 +65,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, required)
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -467,12 +466,12 @@ trill_env start_dir end_dir =
 -- globally, and so you can have a short @hold=n |@ for a single call.
 hold_env :: Sig.Parser BaseTypes.Duration
 hold_env = Typecheck.default_real <$>
-    Sig.environ (TrackLang.unsym EnvKey.hold) Sig.Both
+    Sig.environ (BaseTypes.unsym EnvKey.hold) Sig.Both
         (Typecheck.real 0) "Time to hold the first pitch."
 
-trill_variations :: [(TrackLang.Symbol, Maybe Direction, Maybe Direction)]
+trill_variations :: [(BaseTypes.Symbol, Maybe Direction, Maybe Direction)]
 trill_variations =
-    [ (TrackLang.Symbol $ "tr"
+    [ (BaseTypes.Symbol $ "tr"
             <> (if start == Nothing && end /= Nothing
                 then "-" else direction_affix start)
             <> direction_affix end,

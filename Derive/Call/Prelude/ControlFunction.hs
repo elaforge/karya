@@ -25,7 +25,6 @@ import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -133,7 +132,7 @@ c_cf_swing = val_call "cf-swing" Tags.control_function
     <$> Sig.defaulted "rank" Meter.Q
         "The time steps are on the beat, and midway between offset by the\
         \ given amount."
-    <*> Sig.defaulted "amount" (TrackLang.real_control "swing" (1/3))
+    <*> Sig.defaulted "amount" (BaseTypes.real_control "swing" (1/3))
         "Swing amount, multiplied by the rank duration / 2."
     ) $ \(rank, amount) _args -> return $!
         BaseTypes.ControlFunction "cf-swing" (cf_swing_ rank amount)

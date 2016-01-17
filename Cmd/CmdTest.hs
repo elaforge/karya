@@ -34,13 +34,13 @@ import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
 import qualified Cmd.Simple as Simple
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -446,11 +446,11 @@ oct_pc oct pc = pitch oct pc 0
 
 set_scale :: Cmd.M m => BlockId -> BlockId -> TrackId -> Pitch.ScaleId -> m ()
 set_scale root_id block_id track_id scale_id = set_env root_id block_id track_id
-    [(EnvKey.scale, TrackLang.VSymbol (TrackLang.scale_id_to_sym scale_id))]
+    [(EnvKey.scale, BaseTypes.VSymbol (BaseTypes.scale_id_to_sym scale_id))]
 
 -- | Fake up just enough Performance to have environ in it.
 set_env :: Cmd.M m => BlockId -> BlockId -> TrackId
-    -> [(Env.Key, TrackLang.Val)] -> m ()
+    -> [(Env.Key, BaseTypes.Val)] -> m ()
 set_env root_id block_id track_id environ =
     Cmd.modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert root_id

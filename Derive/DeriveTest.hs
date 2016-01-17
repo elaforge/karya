@@ -51,7 +51,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import Derive.TestInstances ()
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Midi.Convert as Convert
@@ -410,10 +410,10 @@ default_dynamic = Derive.initial_dynamic default_environ
 default_environ :: Env.Environ
 default_environ = Env.from_list
     -- tests are easier to write and read with integral interpolation
-    [ (EnvKey.srate, TrackLang.num 1)
+    [ (EnvKey.srate, BaseTypes.num 1)
     , (EnvKey.scale,
-        TrackLang.VSymbol (TrackLang.scale_id_to_sym Twelve.scale_id))
-    , (EnvKey.attributes, TrackLang.VAttributes mempty)
+        BaseTypes.VSymbol (BaseTypes.scale_id_to_sym Twelve.scale_id))
+    , (EnvKey.attributes, BaseTypes.VAttributes mempty)
     ]
 
 -- *** instrument defaults
@@ -597,8 +597,8 @@ e_environ name = fmap ShowVal.show_val . Env.lookup name . Score.event_environ
 
 e_environ_like :: (String -> Bool) -> Score.Event -> [(Env.Key, String)]
 e_environ_like f event =
-    [ (TrackLang.Symbol k, untxt $ ShowVal.show_val v)
-    | (TrackLang.Symbol k, v) <- Env.to_list (Score.event_environ event)
+    [ (BaseTypes.Symbol k, untxt $ ShowVal.show_val v)
+    | (BaseTypes.Symbol k, v) <- Env.to_list (Score.event_environ event)
     , f (untxt k)
     ]
 
@@ -671,7 +671,7 @@ e_state = Derive.state_ui . Derive.state_constant . Derive.r_state
 
 -- * call
 
-passed_args :: Text -> [TrackLang.Val] -> Derive.PassedArgs derived
+passed_args :: Text -> [BaseTypes.Val] -> Derive.PassedArgs derived
 passed_args name vals = Derive.PassedArgs
     { Derive.passed_vals = vals
     , Derive.passed_call_name = name
@@ -751,7 +751,7 @@ mkpitch scale p = case eval State.empty deriver of
     Right pitch -> pitch
     where
     deriver = Derive.with_scale scale $
-        Eval.eval_pitch 0 $ TrackLang.call (TrackLang.Symbol (txt p)) []
+        Eval.eval_pitch 0 $ BaseTypes.call (BaseTypes.Symbol (txt p)) []
 
 default_scale :: Scale.Scale
 default_scale = Twelve.scale

@@ -24,7 +24,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, control)
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.RealTime as RealTime
 import Global
@@ -52,7 +52,7 @@ c_pizz_arp = Derive.transformer Module.prelude "pizz-arp"
     \time _args deriver -> Lily.when_lilypond deriver $
         pizz_arp time =<< deriver
 
-pizz_arp :: TrackLang.ControlRef -> Stream.Stream Score.Event
+pizz_arp :: BaseTypes.ControlRef -> Stream.Stream Score.Event
     -> Derive.NoteDeriver
 pizz_arp time = map_simultaneous 0.025 (Score.has_attribute Attrs.pizz) $
     \(event :| chord) -> do

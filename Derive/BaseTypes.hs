@@ -4,26 +4,21 @@
 
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
-{-# OPTIONS_HADDOCK not-home #-}
-{- | This is a bit of song and dance to avoid circular imports.
+{- | This module defines basic tracklang types.
 
-    "Derive.Score", "Derive.PSignal", and "Derive.TrackLang" all define
-    basic types.  They also refer to each others types, which means they must
-    all be defined in the same module.  But each set of types also comes with
-    its own set of functions, and it would make for a giant messy module to
-    put them all together.
+    They all have to pretty much be here to avoid circular imports.  But to
+    avoid this module becoming even larger than it already is, subsets are
+    re-exported from "Derive.Score" and "Derive.PSignal".  PSignal is types
+    related directly to pitches.  Score is for types required for
+    'Derive.Score.Event'.  There is a third subset, which is types related to
+    'Val', which used to be re-exported from a TrackLang module, but are now
+    intended to be imported directly from here.  I eventually got rid of
+    TrackLang because it just added a few small utilities but no additional
+    dependencies, and since modules started directly using BaseTypes anyway
+    to avoid dependencies.  Many Score types are further divided into
+    "Derive.ScoreTypes", once again to avoid circular imports.
 
-    So the basic types are defined here, and re-exported from their intended
-    modules.  All importers should access the symbols from the higher-level
-    modules if at all possible.  Even the ones that must import BaseTypes
-    (which should be only the modules collected in BasyTypes itself) should
-    use @import qualified as@ to make clear the module that the symbols
-    *should* be coming from.
-
-    It's a little grody but still nicer than hs-boot.
-
-    TODO some haddock flags to make sure the docs are collected in the high
-    level modules?
+    Perhaps the simplest would be to get rid of all the re-export guff.
 
     Here are the names for various aspects of signals:
 
@@ -31,7 +26,7 @@
     > scalar    Signal.Y                  PSignal.Y
     > name      Score.Control             Score.PControl
     > signal    Signal.Control            PSignal.PSignal
-    > ref       TrackLang.ControlRef      TrackLang.PControlRef   Ref
+    > ref       BaseTypes.ControlRef      BaseTypes.PControlRef   Ref
 -}
 module Derive.BaseTypes where
 import qualified Control.DeepSeq as DeepSeq
@@ -44,14 +39,18 @@ import qualified Data.String as String
 import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.Ruler as Ruler
+import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Pitch as Pitch
+import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -280,7 +279,7 @@ multiply_duration :: Duration -> Int -> Duration
 multiply_duration (RealDuration t) n = RealDuration (t * fromIntegral n)
 multiply_duration (ScoreDuration t) n = ScoreDuration (t * fromIntegral n)
 
--- * Derive.TrackLang
+-- * tracklang types
 
 newtype Environ = Environ (Map.Map Key Val)
     deriving (Show, Monoid, Pretty.Pretty, DeepSeq.NFData)
@@ -483,6 +482,34 @@ show_call_val val = ShowVal.show_val val
 instance ShowVal.ShowVal Text where
     show_val = ShowVal.show_val . Symbol
 
+-- ** val utils
+
+-- | Make an untyped VNum.
+num :: Double -> Val
+num = VNum . ScoreTypes.untyped
+
+str :: Text -> Val
+str = VSymbol . Symbol
+
+score_time :: ScoreTime -> Val
+score_time = VNum . ScoreTypes.Typed ScoreTypes.Score . ScoreTime.to_double
+
+real_time :: RealTime -> Val
+real_time = VNum . ScoreTypes.Typed ScoreTypes.Real . RealTime.to_seconds
+
+transposition :: Pitch.Transpose -> Val
+transposition t = VNum $ case t of
+    Pitch.Diatonic d -> ScoreTypes.Typed ScoreTypes.Diatonic d
+    Pitch.Chromatic d -> ScoreTypes.Typed ScoreTypes.Chromatic d
+    Pitch.Nn d -> ScoreTypes.Typed ScoreTypes.Nn d
+
+to_scale_id :: Val -> Maybe Pitch.ScaleId
+to_scale_id (VSymbol (Symbol a)) = Just (Pitch.ScaleId a)
+to_scale_id _ = Nothing
+
+quoted :: Symbol -> [Val] -> Quoted
+quoted name args = Quoted $ literal_call name args :| []
+
 -- ** Ref
 
 data Ref control val =
@@ -540,6 +567,14 @@ show_control sig_text control = case control of
         ShowVal.show_val control <> "," <> sig_text deflt
     LiteralControl control -> ShowVal.show_val control
 
+-- | Defaulted control from a RealTime.
+real_control :: ScoreTypes.Control -> RealTime -> ControlRef
+real_control c deflt = DefaultedControl c $
+    ScoreTypes.untyped $ Signal.constant (RealTime.to_seconds deflt)
+
+constant_control :: Signal.Y -> ControlRef
+constant_control = ControlSignal . ScoreTypes.untyped . Signal.constant
+
 -- ** Call
 
 -- | Symbols used in function call position.  This is just to document that
@@ -582,6 +617,58 @@ instance DeepSeq.NFData Call where
 instance DeepSeq.NFData Term where
     rnf (ValCall call) = DeepSeq.rnf call
     rnf (Literal val) = DeepSeq.rnf val
+
+-- *** call utils
+
+sym_to_scale_id :: Symbol -> Pitch.ScaleId
+sym_to_scale_id (Symbol s) = Pitch.ScaleId s
+
+scale_id_to_sym :: Pitch.ScaleId -> Symbol
+scale_id_to_sym (Pitch.ScaleId s) = Symbol s
+
+-- | Transform the Symbols in an expression.  This affects both symbols in call
+-- position, and argument symbols.
+map_symbol :: (Symbol -> Symbol) -> Expr -> Expr
+map_symbol f = fmap call
+    where
+    call (Call sym terms) = Call (f sym) (map term terms)
+    term (ValCall c) = ValCall (call c)
+    term (Literal (VSymbol sym)) = Literal (VSymbol (f sym))
+    term (Literal lit) = Literal lit
+
+-- | Transform the arguments in an expression.  This affects only vals in
+-- argument position.
+map_args :: (Val -> Val) -> Expr -> Expr
+map_args f = fmap call
+    where
+    call (Call sym terms) = Call sym (map term terms)
+    term (ValCall c) = ValCall (call c)
+    term (Literal lit) = Literal (f lit)
+
+map_call_id :: (CallId -> CallId) -> Call -> Call
+map_call_id f (Call call args) = Call (f call) args
+
+-- | Transform only the CallId in the generator position.
+map_generator :: (CallId -> CallId) -> Expr -> Expr
+map_generator f (call1 :| calls) = case calls of
+    [] -> map_call_id f call1 :| []
+    _ : _ -> call1 :| Seq.map_last (map_call_id f) calls
+
+-- | Convenient constructor for Call.
+call :: Symbol -> [Term] -> Call
+call sym = Call sym
+
+call0 :: Symbol -> Call
+call0 sym = Call sym []
+
+literal_call :: Symbol -> [Val] -> Call
+literal_call sym args = call sym (map Literal args)
+
+inst :: Text -> Term
+inst = Literal . VInstrument . ScoreTypes.Instrument
+
+val_call :: Symbol -> [Val] -> Term
+val_call sym args = ValCall (literal_call sym args)
 
 
 -- * Derive.Score

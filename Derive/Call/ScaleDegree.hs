@@ -28,7 +28,7 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -115,7 +115,7 @@ parse_relative_interval named_intervals note =
         <|> parse_num)
     where
     parse_num = case Parse.parse_val (Pitch.note_text note) of
-        Right (TrackLang.VNum (Score.Typed Score.Untyped num)) -> Just num
+        Right (BaseTypes.VNum (Score.Typed Score.Untyped num)) -> Just num
         _ -> Nothing
     unsign val = if val < 0 then recip (abs val) else val
 

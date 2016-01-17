@@ -22,7 +22,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import Derive.Sig (control)
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -76,14 +76,14 @@ c_stopped_string = Derive.transformer module_ "stopped-string"
     <*> open_strings_env
     ) $ \(delay, open_strings) _args deriver -> do
         srate <- Call.get_srate
-        let attack = TrackLang.constant_control 0
-            release = TrackLang.constant_control 0
+        let attack = BaseTypes.constant_control 0
+            release = BaseTypes.constant_control 0
         let linear = PitchUtil.interpolate_segment srate id
         string_idiom linear linear open_strings attack delay release =<< deriver
 
 open_strings_env :: Sig.Parser [PSignal.Pitch]
 open_strings_env = Sig.check non_empty $
-    Sig.environ (TrackLang.unsym EnvKey.open_strings) Sig.Unprefixed []
+    Sig.environ (BaseTypes.unsym EnvKey.open_strings) Sig.Unprefixed []
         "Pitches of the open strings."
     where
     non_empty xs
@@ -116,9 +116,9 @@ string_idiom ::
     PitchUtil.Interpolate -- ^ interpolator to draw the attack curve
     -> PitchUtil.Interpolate -- ^ draw the release curve
     -> [PSignal.Pitch] -- ^ Pitches of open strings.
-    -> TrackLang.ControlRef -- ^ Attack time.
-    -> TrackLang.ControlRef -- ^ Release delay.
-    -> TrackLang.ControlRef -- ^ Time for string to return to its open pitch.
+    -> BaseTypes.ControlRef -- ^ Attack time.
+    -> BaseTypes.ControlRef -- ^ Release delay.
+    -> BaseTypes.ControlRef -- ^ Time for string to return to its open pitch.
     -> Stream.Stream Score.Event -> Derive.NoteDeriver
 string_idiom attack_interpolate release_interpolate open_strings attack delay
         release all_events = Post.event_head all_events $ \event events -> do

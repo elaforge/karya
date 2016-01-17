@@ -18,7 +18,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.RealTime as RealTime
@@ -141,13 +141,13 @@ parallel_derivers start event_dur derivers durs =
     call_dur = fromMaybe 0 (Seq.maximum durs)
 
 calls_to_derivers :: Derive.Callable d => Derive.PassedArgs d
-    -> NonEmpty TrackLang.Quoted
-    -> [(TrackLang.Quoted, Derive.Deriver (Stream.Stream d))]
+    -> NonEmpty BaseTypes.Quoted
+    -> [(BaseTypes.Quoted, Derive.Deriver (Stream.Stream d))]
 calls_to_derivers args calls = zip (NonEmpty.toList calls)
     (map (Eval.eval_quoted_normalized (Args.context args))
         (NonEmpty.toList calls))
 
-get_score_duration :: (TrackLang.Quoted, Derive.Deriver a)
+get_score_duration :: (BaseTypes.Quoted, Derive.Deriver a)
     -> Derive.Deriver ScoreTime
 get_score_duration (quoted, d) =
     Derive.get_score_duration d >>= \dur -> case dur of
@@ -155,7 +155,7 @@ get_score_duration (quoted, d) =
             <> ShowVal.show_val quoted
         Derive.CallDuration dur -> return dur
 
-get_real_duration :: (TrackLang.Quoted, Derive.Deriver a)
+get_real_duration :: (BaseTypes.Quoted, Derive.Deriver a)
     -> Derive.Deriver RealTime
 get_real_duration (quoted, d) =
     Derive.get_real_duration d >>= \dur -> case dur of
@@ -177,11 +177,11 @@ c_multiple = Derive.transformer Module.prelude "multiple" mempty
     apply ctx deriver trans =
         Eval.eval_transformers ctx (to_transformer trans) deriver
 
-to_transformer :: Either Score.Instrument TrackLang.Quoted -> [TrackLang.Call]
+to_transformer :: Either Score.Instrument BaseTypes.Quoted -> [BaseTypes.Call]
 to_transformer val = case val of
-    Left inst -> [TrackLang.literal_call ParseTitle.note_track_symbol
+    Left inst -> [BaseTypes.literal_call ParseTitle.note_track_symbol
         [Typecheck.to_val inst]]
-    Right (TrackLang.Quoted expr) -> NonEmpty.toList expr
+    Right (BaseTypes.Quoted expr) -> NonEmpty.toList expr
 
 c_debug :: Derive.Transformer Derive.Note
 c_debug = Derive.transformer Module.prelude "debug" mempty

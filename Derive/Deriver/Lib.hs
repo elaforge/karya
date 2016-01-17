@@ -34,7 +34,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.TrackWarp as TrackWarp
 import qualified Derive.Typecheck as Typecheck
 
@@ -122,7 +121,7 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
         _ -> id
     set_scale = case Env.get_val EnvKey.scale env of
         Right sym -> \deriver -> do
-            scale <- get_scale (TrackLang.sym_to_scale_id sym)
+            scale <- get_scale (BaseTypes.sym_to_scale_id sym)
             with_scale scale deriver
         _ -> id
 
@@ -310,7 +309,7 @@ get_val name = do
 with_val :: (Typecheck.Typecheck val, Typecheck.ToVal val) => Env.Key -> val
     -> Deriver a -> Deriver a
 with_val name val deriver
-    | name == EnvKey.scale, Just scale_id <- TrackLang.to_scale_id v = do
+    | name == EnvKey.scale, Just scale_id <- BaseTypes.to_scale_id v = do
         scale <- get_scale scale_id
         with_scale scale deriver
     | name == EnvKey.instrument, Just inst <- Typecheck.from_val_simple v =
@@ -357,7 +356,7 @@ modify_val name modify = Internal.localm $ \state -> do
 
 with_scale :: Scale -> Deriver d -> Deriver d
 with_scale scale =
-    with_val_raw EnvKey.scale (TrackLang.scale_id_to_sym (scale_id scale))
+    with_val_raw EnvKey.scale (BaseTypes.scale_id_to_sym (scale_id scale))
     . with_scopes (val . pitch)
     where
     pitch = s_generator#s_pitch#s_scale #= [scale_to_lookup scale val_to_pitch]
@@ -504,7 +503,7 @@ controls_at pos = do
 
 state_controls_at :: RealTime -> Ruler.Marklists
     -- ^ Ruler marklists from the same track as the Dynamic.  Needed by
-    -- control functions, via 'TrackLang.dyn_ruler'.
+    -- control functions, via 'BaseTypes.dyn_ruler'.
     -> Dynamic -> Score.ControlValMap
 state_controls_at pos ruler dyn =
     Map.fromList $ map (resolve (Internal.convert_dynamic ruler dyn) pos) $
@@ -859,7 +858,7 @@ shift_control shift deriver = do
 
 -- | Wrap 'make_val_call' with a 'Typecheck.to_val' to automatically convert
 -- to a 'BaseTypes.Val'.  This is not in "Derive.Deriver.Monad" to avoid
--- a circular import with "Derive.TrackLang".
+-- a circular import with "Derive.BaseTypes".
 val_call :: (Typecheck.Typecheck a, Typecheck.ToVal a) => Module.Module
     -> Text -> Tags.Tags -> Text
     -> WithArgDoc (PassedArgs Tagged -> Deriver a) -> ValCall

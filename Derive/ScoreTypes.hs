@@ -17,8 +17,10 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.ShowVal as ShowVal
+import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
+
 import Global
 import Types
 
@@ -170,6 +172,13 @@ merge_typed f (Typed typ1 v1) (Typed typ2 v2) = Typed (typ1<>typ2) (f v1 v2)
 
 untyped :: a -> Typed a
 untyped = Typed Untyped
+
+type_to_transpose :: TypedVal -> Maybe Pitch.Transpose
+type_to_transpose (Typed typ val) = case typ of
+    Diatonic -> Just $ Pitch.Diatonic val
+    Chromatic -> Just $ Pitch.Chromatic val
+    Nn -> Just $ Pitch.Nn val
+    _ -> Nothing
 
 -- * ControlMap
 

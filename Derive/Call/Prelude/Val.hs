@@ -26,7 +26,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 import qualified Derive.ValType as ValType
 
@@ -72,7 +72,7 @@ c_next_val = val_call "next-val" Tags.next
         next_val event start (Derive.ctx_track_type (Derive.passed_ctx args))
 
 next_val :: Event.Event -> RealTime -> Maybe ParseTitle.Type
-    -> Derive.Deriver TrackLang.Val
+    -> Derive.Deriver BaseTypes.Val
 next_val event start ttype = case ttype of
     Just ParseTitle.ControlTrack -> eval_control start event
     Just ParseTitle.TempoTrack -> eval_control start event
@@ -80,14 +80,14 @@ next_val event start ttype = case ttype of
         signal <- eval event
         case PSignal.at start signal of
             Nothing -> Derive.throw "next pitch event didn't emit a pitch"
-            Just pitch -> return $ TrackLang.VPitch pitch
+            Just pitch -> return $ BaseTypes.VPitch pitch
     Just ParseTitle.NoteTrack ->
         Derive.throw "can't get next value for note tracks"
     Nothing -> Derive.throw "no track type"
     where
     eval_control start event = do
         signal <- eval event
-        return $ TrackLang.VNum $ Score.untyped $
+        return $ BaseTypes.VNum $ Score.untyped $
             Signal.at start (signal :: Signal.Control)
     eval event = mconcat . Stream.events_of <$>
         (either Derive.throw return =<< Eval.eval_event event)
@@ -99,10 +99,10 @@ c_prev_val = val_call "prev-val" Tags.prev
         start <- Args.real_start args
         case Args.prev_val args of
             Just (Derive.TagControl sig) ->
-                return $ TrackLang.num $ Signal.at start sig
+                return $ BaseTypes.num $ Signal.at start sig
             Just (Derive.TagPitch sig) ->
                 maybe (Derive.throw "no previous pitch")
-                    (return . TrackLang.VPitch) (PSignal.at start sig)
+                    (return . BaseTypes.VPitch) (PSignal.at start sig)
             _ -> Derive.throw "no previous value"
 
 c_env :: Derive.ValCall
@@ -133,7 +133,7 @@ c_timestep = val_call "timestep" mempty
     ) $ Sig.call ((,)
     <$> Sig.required "rank" "Emit a duration of this rank."
     <*> Sig.defaulted "multiply" 1 "Multiply duration."
-    ) $ \(rank, steps) args -> TrackLang.score_time <$>
+    ) $ \(rank, steps) args -> BaseTypes.score_time <$>
         Call.meter_duration (Args.start args) rank steps
 
 c_timestep_reciprocal :: Derive.ValCall
@@ -143,7 +143,7 @@ c_timestep_reciprocal = Make.modify_vcall c_timestep Module.prelude
     \ useful for e.g. trills which take cycles per second rather than duration."
     ) reciprocal
     where
-    reciprocal (TrackLang.VNum num) = TrackLang.VNum $ recip <$> num
+    reciprocal (BaseTypes.VNum num) = BaseTypes.VNum $ recip <$> num
     reciprocal val = val
 
 c_reciprocal :: Derive.ValCall
@@ -176,8 +176,8 @@ c_hz = val_call "hz" mempty
         Right (Right nn) ->
             return (Pitch.nn_to_hz (Pitch.NoteNumber nn) :: Double)
 
-get_name_nn :: TrackLang.Symbol -> Derive.Deriver Pitch.NoteNumber
-get_name_nn (TrackLang.Symbol name) =
+get_name_nn :: BaseTypes.Symbol -> Derive.Deriver Pitch.NoteNumber
+get_name_nn (BaseTypes.Symbol name) =
     Derive.require ("unknown pitch: " <> showt name) $ name_to_nn (untxt name)
 
 -- | c-1 is 0, g9 is 127.
@@ -196,7 +196,7 @@ name_to_nn _ = Nothing
 c_list :: Derive.ValCall
 c_list = val_call "list" mempty "Create a list." $
     Sig.call (Sig.many "val" "Value.") $ \vals _ ->
-        return $ TrackLang.VList vals
+        return $ BaseTypes.VList vals
 
 c_scoretime :: Derive.ValCall
 c_scoretime = val_call "scoretime" mempty
@@ -240,7 +240,7 @@ make_pitch (Right name_pitch) pc accs
 
 c_pcontrol_ref :: Derive.ValCall
 c_pcontrol_ref = val_call "pcontrol-ref" mempty
-    "Create a 'Derive.TrackLang.PControlRef'. For control literals, the\
+    "Create a 'Derive.BaseTypes.PControlRef'. For control literals, the\
     \ `#name` syntax suffices, but if you want to give a default pitch,\
     \ you need this call."
     $ Sig.call ((,)
@@ -248,8 +248,8 @@ c_pcontrol_ref = val_call "pcontrol-ref" mempty
     <*> Sig.defaulted "default" Nothing
         "Default pitch, if the signal is not set."
     ) $ \(pcontrol, maybe_default) _ -> return $ case maybe_default of
-        Nothing -> TrackLang.LiteralControl (pcontrol :: Score.PControl)
-        Just pitch -> TrackLang.DefaultedControl pcontrol
+        Nothing -> BaseTypes.LiteralControl (pcontrol :: Score.PControl)
+        Just pitch -> BaseTypes.DefaultedControl pcontrol
             (PSignal.constant pitch)
 
 -- * lookup
@@ -276,24 +276,24 @@ c_exp_next = val_call "exp-next" mempty
     <*> breakpoints_arg
     ) $ \(exp, vals) args -> c_breakpoints 1 (ControlUtil.expon exp) vals args
 
-breakpoints_arg :: Sig.Parser (NonEmpty TrackLang.Val)
+breakpoints_arg :: Sig.Parser (NonEmpty BaseTypes.Val)
 breakpoints_arg = Sig.many1 "bp" "Breakpoints are distributed evenly between\
     \ the event start and the next event. They can be all numbers, or all\
     \ pitches."
 
 -- ** implementation
 
-c_breakpoints :: Int -> (Double -> Double) -> NonEmpty TrackLang.Val
-    -> Derive.PassedArgs a -> Derive.Deriver TrackLang.Val
+c_breakpoints :: Int -> (Double -> Double) -> NonEmpty BaseTypes.Val
+    -> Derive.PassedArgs a -> Derive.Deriver BaseTypes.Val
 c_breakpoints argnum f vals args = do
     (start, end) <- Args.real_range_or_next args
     srate <- Call.get_srate
     vals <- num_or_pitch (Args.start args) argnum vals
     return $ case vals of
-        Left nums -> TrackLang.VControlRef $ TrackLang.ControlSignal $
+        Left nums -> BaseTypes.VControlRef $ BaseTypes.ControlSignal $
             Score.untyped $ ControlUtil.breakpoints srate f $
             ControlUtil.distribute start end nums
-        Right pitches -> TrackLang.VPControlRef $ TrackLang.ControlSignal $
+        Right pitches -> BaseTypes.VPControlRef $ BaseTypes.ControlSignal $
             PitchUtil.breakpoints srate f $
             ControlUtil.distribute start end pitches
 
@@ -301,13 +301,13 @@ c_breakpoints argnum f vals args = do
 --
 -- TODO If 'Sig.Parser' supported Alternative, maybe I could build this as
 -- a parser and get both shorter code and documentation.
-num_or_pitch :: ScoreTime -> Int -> NonEmpty TrackLang.Val
+num_or_pitch :: ScoreTime -> Int -> NonEmpty BaseTypes.Val
     -> Derive.Deriver (Either [Signal.Y] [PSignal.Pitch])
 num_or_pitch start argnum (val :| vals) = case val of
-    TrackLang.VNum num -> do
+    BaseTypes.VNum num -> do
         vals <- mapM (expect tnum) (zip [argnum + 1 ..] vals)
         return $ Left (Score.typed_val num : vals)
-    TrackLang.VPitch pitch -> do
+    BaseTypes.VPitch pitch -> do
         vals <- mapM (expect ValType.TPitch) (zip [argnum + 1 ..] vals)
         return $ Right (pitch : vals)
     _ -> type_error argnum "bp" (ValType.TEither tnum ValType.TPitch) val
@@ -317,7 +317,7 @@ num_or_pitch start argnum (val :| vals) = case val of
         maybe (type_error argnum "bp" typ val) return
             =<< Typecheck.from_val_eval start val
 
-type_error :: Int -> Text -> ValType.Type -> TrackLang.Val -> Derive.Deriver a
+type_error :: Int -> Text -> ValType.Type -> BaseTypes.Val -> Derive.Deriver a
 type_error argnum name expected received =
     Derive.throw_error $ Derive.CallError $
         Derive.TypeError (Derive.TypeErrorArg argnum) Derive.Literal name

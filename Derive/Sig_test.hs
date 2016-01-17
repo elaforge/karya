@@ -9,7 +9,7 @@ import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import Global
@@ -18,9 +18,9 @@ import Global
 test_type_error = do
     let ints :: Sig.Parser [Int]
         ints = Sig.many "ints" ""
-        str = TrackLang.str "hi"
-        int = TrackLang.num 42
-        int_sym :: Sig.Parser (Int, TrackLang.Symbol)
+        str = BaseTypes.str "hi"
+        int = BaseTypes.num 42
+        int_sym :: Sig.Parser (Int, BaseTypes.Symbol)
         int_sym = (,) <$> Sig.required "int" "" <*> Sig.defaulted "sym" "" ""
     left_like (call ints [str])
         "arg 1/ints: expected Num (integral) but got Symbol: hi"
@@ -30,8 +30,8 @@ test_type_error = do
 test_eval_quoted = do
     let int :: Sig.Parser Int
         int = Sig.required "int" "doc"
-    let quoted sym = TrackLang.VQuoted $ TrackLang.Quoted $
-            TrackLang.call0 sym :| []
+    let quoted sym = BaseTypes.VQuoted $ BaseTypes.Quoted $
+            BaseTypes.call0 sym :| []
     let run val = call_with $ DeriveTest.setup_deriver $
             CallTest.with_val_call "v" (val_call val)
         val_call val = Derive.val_call "test" "v" mempty "" $ Sig.call0 $ \_ ->
@@ -43,37 +43,37 @@ test_eval_quoted = do
         "arg 1/int from \"(v): expected Num"
     equal (run (0 :: Int) int [quoted "v"]) (Right 0)
 
-    let quot :: Sig.Parser TrackLang.Quoted
+    let quot :: Sig.Parser BaseTypes.Quoted
         quot = Sig.required "quot" "doc"
-    equal (run (0 :: Int) quot [TrackLang.VSymbol "x"])
-        (Right (TrackLang.Quoted (TrackLang.call0 "x" :| [])))
+    equal (run (0 :: Int) quot [BaseTypes.VSymbol "x"])
+        (Right (BaseTypes.Quoted (BaseTypes.call0 "x" :| [])))
     equal (run (0 :: Int) quot [quoted "v"])
-        (Right (TrackLang.Quoted (TrackLang.call0 "v" :| [])))
+        (Right (BaseTypes.Quoted (BaseTypes.call0 "v" :| [])))
 
 test_not_given = do
     let int :: Sig.Parser (Maybe Int)
         int = Sig.optional "int" Nothing ""
         ints :: Sig.Parser [Int]
         ints = Sig.many "ints" ""
-    let num = TrackLang.num
+    let num = BaseTypes.num
     equal (call int []) (Right Nothing)
     equal (call int [num 42]) (Right (Just 42))
     equal (call ((,) <$> int <*> ints) [num 42])
         (Right (Just 42, []))
     equal (call ((,) <$> int <*> ints) [num 42, num 52])
         (Right (Just 42, [52]))
-    equal (call ((,) <$> int <*> ints) [TrackLang.VNotGiven, num 52])
+    equal (call ((,) <$> int <*> ints) [BaseTypes.VNotGiven, num 52])
         (Right (Nothing, [52]))
 
-call :: Sig.Parser a -> [TrackLang.Val] -> Either String a
+call :: Sig.Parser a -> [BaseTypes.Val] -> Either String a
 call = call_with id
 
 call_with :: (Derive.Deriver a -> Derive.Deriver a) -> Sig.Parser a
-    -> [TrackLang.Val] -> Either String a
+    -> [BaseTypes.Val] -> Either String a
 call_with with p vals = DeriveTest.eval State.empty $
     with $ run (Sig.call p (\val _args -> return val)) vals
 
-run :: Derive.WithArgDoc (Sig.Generator Derive.Tagged a) -> [TrackLang.Val]
+run :: Derive.WithArgDoc (Sig.Generator Derive.Tagged a) -> [BaseTypes.Val]
     -> Derive.Deriver a
 run (f, _) vals = f args
     where

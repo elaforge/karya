@@ -18,7 +18,6 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.TrackLang as TrackLang
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -117,9 +116,9 @@ rename_environ from to deriver = do
 environ_from_to :: Env.Environ
     -> Either BaseTypes.PitchError (Pitch.ScaleId, Pitch.ScaleId)
 environ_from_to env = do
-    from <- Scales.read_environ (Just . TrackLang.sym_to_scale_id) Nothing
+    from <- Scales.read_environ (Just . BaseTypes.sym_to_scale_id) Nothing
         scale_from env
-    to <- Scales.read_environ (Just . TrackLang.sym_to_scale_id) (Just from)
+    to <- Scales.read_environ (Just . BaseTypes.sym_to_scale_id) (Just from)
         scale_to env
     return (from, to)
 

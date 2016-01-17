@@ -58,7 +58,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stream as Stream
 import qualified Derive.Tempo as Tempo
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -78,7 +78,7 @@ d_control_track toplevel (Tree.Node track _) deriver = do
 
 -- * eval_track
 
-eval_track :: Bool -> TrackTree.Track -> [TrackLang.Call]
+eval_track :: Bool -> TrackTree.Track -> [BaseTypes.Call]
     -> ParseTitle.ControlType -> Derive.NoteDeriver -> Derive.NoteDeriver
 eval_track toplevel track expr ctype deriver = case ctype of
     ParseTitle.Tempo maybe_sym -> do
@@ -122,7 +122,7 @@ in_normal_mode deriver = Derive.get_mode >>= \mode -> case mode of
 -- 'Controls.null' is used by control calls, and uses 'Derive.Set' by default.
 -- Since the control call emits signal which then goes in a control track,
 -- a merge operator would wind up being applied twice.
-get_merger :: Score.Control -> Maybe TrackLang.CallId
+get_merger :: Score.Control -> Maybe BaseTypes.CallId
     -> Derive.Deriver (Derive.Merger Signal.Control)
 get_merger control merge = case merge of
     Nothing
@@ -130,13 +130,13 @@ get_merger control merge = case merge of
         | otherwise -> Derive.get_default_merger control
     Just sym -> Derive.get_control_merge sym
 
-get_pitch_merger :: Maybe TrackLang.CallId
+get_pitch_merger :: Maybe BaseTypes.CallId
     -> Derive.Deriver (Derive.Merger PSignal.PSignal)
 get_pitch_merger = maybe (return Derive.Set) Derive.get_pitch_merger
 
 -- | A tempo track is derived like other signals, but in absolute time.
 -- Otherwise it would wind up being composed with the environmental warp twice.
-tempo_call :: Bool -> Maybe TrackLang.Symbol -> TrackTree.Track
+tempo_call :: Bool -> Maybe BaseTypes.Symbol -> TrackTree.Track
     -> Derive.Deriver (TrackResults Signal.Control)
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 tempo_call toplevel sym track sig_deriver deriver = do
@@ -166,7 +166,7 @@ tempo_call toplevel sym track sig_deriver deriver = do
             (TrackTree.track_events track)
         Internal.with_control_damage damage deriver
 
-dispatch_tempo :: Monoid a => Bool -> Maybe TrackLang.Symbol
+dispatch_tempo :: Monoid a => Bool -> Maybe BaseTypes.Symbol
     -> Maybe (ScoreTime, ScoreTime) -> Maybe TrackId -> Signal.Tempo
     -> Derive.Deriver a -> Derive.Deriver a
 dispatch_tempo toplevel sym block_range maybe_track_id signal deriver =

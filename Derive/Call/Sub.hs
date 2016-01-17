@@ -40,7 +40,7 @@ import qualified Derive.Score as Score
 import qualified Derive.Slice as Slice
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
-import qualified Derive.TrackLang as TrackLang
+import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import Global
@@ -367,7 +367,7 @@ strip_rests events = [Event s d n | Event s d (Just n) <- events]
 -- because they expect a track structure in 'Derive.ctx_sub_tracks'.  This
 -- bypasses that and directly passes 'Event's to the note parent, courtesy
 -- of 'Derive.ctx_sub_events'.
-reapply :: Derive.Context Score.Event -> TrackLang.Expr -> [[Event]]
+reapply :: Derive.Context Score.Event -> BaseTypes.Expr -> [[Event]]
     -> Derive.NoteDeriver
 reapply ctx expr notes = Eval.reapply subs expr
     where
@@ -376,10 +376,10 @@ reapply ctx expr notes = Eval.reapply subs expr
             Just $ map (map (\(Event s d n) -> (s, d, n))) notes
         }
 
-reapply_call :: Derive.Context Score.Event -> TrackLang.CallId
-    -> [TrackLang.Term] -> [[Event]] -> Derive.NoteDeriver
+reapply_call :: Derive.Context Score.Event -> BaseTypes.CallId
+    -> [BaseTypes.Term] -> [[Event]] -> Derive.NoteDeriver
 reapply_call ctx call_id call_args =
-    reapply ctx (TrackLang.call call_id call_args :| [])
+    reapply ctx (BaseTypes.call call_id call_args :| [])
 
 {- NOTE [under-invert]
     . To make 'lift' to an absolute pitch work outside of inversion, I'd need
