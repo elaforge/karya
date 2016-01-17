@@ -5,7 +5,7 @@
 -- | Cmdline program to verify that a saved score still derives the same MIDI
 -- msgs or lilypond code as the last saved performance.
 module App.VerifyPerformance (main) where
-import qualified Control.Monad.Error as Error
+import qualified Control.Monad.Except as Except
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
@@ -119,16 +119,16 @@ expand_verify_me fname = do
         Nothing -> [fname]
         Just contents -> map ((fname</>) . untxt) $ Text.lines contents
 
-type Error a = Error.ErrorT Text IO a
+type Error a = Except.ExceptT Text IO a
 
 run :: Error [Text] -> IO Int
 run m = do
-    errors <- either (\err -> return [err]) return =<< Error.runErrorT m
+    errors <- either (\err -> return [err]) return =<< Except.runExceptT m
     mapM_ Text.IO.putStrLn errors
     return (length errors)
 
-require_right :: IO (Either Text a) -> Error.ErrorT Text IO a
-require_right io = either Error.throwError return =<< liftIO io
+require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
+require_right io = either Except.throwError return =<< liftIO io
 
 -- * implementation
 
