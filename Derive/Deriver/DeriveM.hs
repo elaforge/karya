@@ -31,9 +31,9 @@ run st m = runD m st []
 write :: Log.Msg -> Deriver st err ()
 write msg = Deriver $ \st logs _ win -> win st (msg:logs) ()
 
-{-# INLINE returnC #-}
-returnC :: a -> Deriver st err a
-returnC a = Deriver $ \st logs _ win -> win st logs a
+{-# INLINE pureC #-}
+pureC :: a -> Deriver st err a
+pureC a = Deriver $ \st logs _ win -> win st logs a
 
 {-# INLINE bindC #-}
 bindC :: Deriver st err a -> (a -> Deriver st err b) -> Deriver st err b
@@ -64,7 +64,6 @@ put :: st -> Deriver st err ()
 put !st = Deriver $ \_ logs _ win -> win st logs ()
 
 instance Monad (Deriver st err) where
-    return = returnC
     (>>=) = bindC
     -- fail = throw
 
@@ -82,5 +81,5 @@ apC mf ma = do
     return (f a)
 
 instance Applicative.Applicative (Deriver st err) where
-    pure = returnC
+    pure = pureC
     (<*>) = apC

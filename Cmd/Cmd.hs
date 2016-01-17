@@ -24,29 +24,9 @@
     Identity cmds (bound to keystrokes) and the REPL must be polymorphic in the
     monad.
 
-    Formerly this was @Monad m => CmdT m ...@, but with the upgrade to mtl2
-    Functor would have to be added to the class context, but only for cmds
-    that happened to use Applicative operators.  Rather than deal such
-    messiness, there's a class @Cmd.M@ that brings in Functor and Applicative
-    as superclasses.
-
-    It's all a bit messy and unpleasant and should be technically unnecessary
-    since Identity monads should be able to run in IO anyway.  Other
-    solutions:
-
-    - Run all cmds in IO.  I don't think I actually get anything from
-    disallowing IO.  It seems like a nice property to be able to always e.g.
-    abort cmds halfway through with nothing to undo.
-
-    - Run all cmds in restricted IO by only giving access to readFile and
-    writeFile.
-
-    - Run all cmds in Identity by giving unsafePerformIO access to r/w files.
-    The assumption is that read and write ordering is never important within
-    a single cmd.
-
-    Unfortunately cmds also use getDirectoryContents, forkIO, killThread, etc.
-    So I think what I have is the only reasonable solution.
+    Previously I used @M@ instead of @Monad m => CmdT m ...@ to establish
+    Functor, but post-AMP I don't need that any more.  But to maintain
+    consistency I'll keep using @M@.
 -}
 module Cmd.Cmd (
     module Cmd.Cmd, Performance(..), Events
