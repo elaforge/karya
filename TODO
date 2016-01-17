@@ -1393,7 +1393,8 @@ Derive:
               561   53561
                21      21
         - kbd entry for /, X, O, + etc.?
-        - perhaps 0 duration should infer duration?
+        * perhaps 0 duration should infer duration?  To be consistent with
+          gangsa, it should be +mute.
         kilitan
           * pickups can mute
             - mute under a speed threshold

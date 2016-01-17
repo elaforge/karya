@@ -45,7 +45,7 @@ import Types
 note_calls :: Derive.CallMaps Derive.Note
 note_calls = Make.call_maps
     [ ("o", Make.attributed_note Module.prelude Attrs.harm)
-    , ("m", Make.attributed_note Module.prelude Attrs.mute)
+    , (mute_call, Make.attributed_note Module.prelude Attrs.mute)
     , (".", Make.attributed_note Module.prelude Attrs.staccato)
     , ("{", Make.attributed_note Module.prelude Attrs.porta)
     -- I'd use '>', but then it overrides the empty instrument call in note
@@ -66,6 +66,9 @@ note_calls = Make.call_maps
     , ("sus", c_sustain)
     ]
     <> Derive.CallMaps [lookup_attr_generator] [lookup_attr_transformer]
+
+mute_call :: BaseTypes.CallId
+mute_call = "m"
 
 -- * lookp attr
 

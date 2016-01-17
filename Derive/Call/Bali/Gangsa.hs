@@ -116,8 +116,8 @@ module_ = "bali" <> "gangsa"
 -- * instrument transform
 
 -- | Variable mute for gangsa.  Intended for the 'Cmd.Cmd.inst_postproc' field.
--- This interprets the @%mute@ control and turns it into either a @%mod@
--- control or @mute_attr@.
+-- This interprets 'Controls.mute' and turns it into either a @%mod@ control or
+-- @mute_attr@.
 mute_postproc :: Score.Attributes -> Score.Event -> Score.Event
 mute_postproc mute_attr event =
     case Score.control_at (Score.event_start event) Controls.mute event of

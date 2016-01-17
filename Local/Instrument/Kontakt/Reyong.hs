@@ -5,11 +5,18 @@
 -- | Patches for my reyong samples.
 module Local.Instrument.Kontakt.Reyong where
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Reyong as Reyong
+import qualified Derive.Call.Prelude.Articulation as Articulation
+import qualified Derive.Call.Prelude.Note as Note
+import qualified Derive.Call.Sub as Sub
 import qualified Derive.EnvKey as EnvKey
+import qualified Derive.Eval as Eval
+import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
+import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
 import Global
@@ -21,7 +28,13 @@ patches =
     , (patch "reyong12", code)
     ]
     where
-    code = mempty
+    code = MidiInst.note_calls null_call
+    null_call = MidiInst.null_call $ DUtil.zero_duration "note"
+        ("When the event has zero duration, dispatch to the "
+            <> ShowVal.doc Articulation.mute_call <> " call.")
+        (\args ->
+            Eval.reapply_call (Args.context args) Articulation.mute_call [])
+        (Sub.inverting $ Note.default_note Note.use_attributes)
     patch name = Instrument.set_flag Instrument.ConstantPitch $
         (Instrument.instrument_#Instrument.maybe_decay #= Just 0) $
         (Instrument.attribute_map #= attribute_map) $
