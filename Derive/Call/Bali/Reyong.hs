@@ -97,7 +97,8 @@ note_calls = Derive.call_maps
     , ("cancel-kotekan", c_cancel_kotekan)
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     , ("realize-reyong", c_realize_reyong)
-    , ("v", c_lower_octave)
+    , ("v", c_lower_octave_note)
+    , ("upper", c_upper_voice)
     ]
     where articulation = make_articulation reyong_positions
 
@@ -719,12 +720,13 @@ c_realize_reyong = Derive.transformer module_ "realize-reyong" Tags.postproc
     cancel final_dur = Derive.require_right id
         . Postproc.group_and_cancel cancel_kotekan Post.voice_key final_dur
 
--- * lower-octave
+-- * octave transposition
 
-c_lower_octave :: Derive.Transformer Derive.Note
-c_lower_octave = Derive.transformer module_ "lower-octave"
+c_lower_octave_note :: Derive.Transformer Derive.Note
+c_lower_octave_note = Derive.transformer module_ "lower-octave-note"
     (Tags.postproc <> Tags.under_invert)
-    "Add a note one octave down with 'Derive.Flags.infer_duration'."
+    "Double a note with a single note one octave down, and add\
+    \ 'Derive.Flags.infer_duration'."
     $ Sig.call0t $ Sub.under_invert $ \args deriver -> do
         start <- Args.real_start args
         pitch <- Call.get_pitch start
@@ -735,3 +737,14 @@ c_lower_octave = Derive.transformer module_ "lower-octave"
         -- pitch rather than the lower one.  This is kind of subtle and
         -- unsatisfying, but works.
         deriver <> note
+
+c_upper_voice :: Derive.Transformer Derive.Note
+c_upper_voice = Derive.transformer module_ "upper-voice" mempty
+    ("Double a part with " <> ShowVal.doc Controls.octave
+        <> " + 1 and increment the voice.")
+    $ Sig.callt (Sig.defaulted "increment" (2 :: Int)
+        ("Increment " <> ShowVal.doc EnvKey.voice <> " by this."))
+    $ \increment _args deriver -> do
+        voice <- Derive.get_val EnvKey.voice
+        deriver <> Call.add_constant Controls.octave 1
+            (Derive.with_val EnvKey.voice (voice + increment) deriver)

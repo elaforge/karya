@@ -477,16 +477,16 @@ local: plugins:
   . ghc can now unload code: http://ghc.haskell.org/trac/ghc/ticket/8039
   . might be relevant: http://hackage.haskell.org/package/dynamic-loader
     http://codeutopia.net/blog/2011/08/20/adventures-in-haskell-dynamic-loading-and-compiling-of-modules/
-  - to do per-score code, I can put it in Local.Score.<namespace>
+  . to do per-score code, I can put it in Local.Score.<namespace>
     Convert to module name by replacing -x with (upper x) and capitalizing the
     first letter.
     Then when you load a score, incorporate the static config from that
     module.  Shakefile can link in the local modules under the right name.
     . If it gets to be too much overhead to link on every single build, then
       I can load dynamically at runtime.
-  - Either dynamically load local inst definitions and local StaticConfig, or
+  / Either dynamically load local inst definitions and local StaticConfig, or
     auto-generate the link file Local/Instrument.hs.
-  - come up with plan for reloading inst config and static config
+  / come up with plan for reloading inst config and static config
     Really what I want to be able to do is recompile the static config
     incrementally, relink it with the main binary *quickly*, and restart the
     app with exactly the same state.  This should be a lightweight operation,
@@ -1373,7 +1373,9 @@ Derive:
             have another control to turn off damping.
             . The sustain pedal, cc64, is a natural choice.
             . But CCs are global, so no good.
-        - A way to write two parts, and have them expanded to all four.
+        * A way to write two parts, and have them expanded to all four.
+          . I can do it with a transformer to rederive the deriver plus an
+            octave and voice+2, and then calls that omit based on voice.
         * two handed +cek call
         - for infer-damp, also infer damp level
           . Damp gets louder when notes are closer, or faster.
@@ -1847,7 +1849,6 @@ tracklang problems
       with writing, but not reading.  So maybe it's worth trying to make
       sort_on_pitch more robust.
 
-
 planning / research
   text oriented score:
     . This is a pure-text score notation.  It renders down to tracklang, but
@@ -1864,9 +1865,9 @@ planning / research
       MML: http://www.nullsleep.com/treasure/mck_guide/
     . Mridangam: http://korvai.org/notation/notation-html/index.html
   cmj:
-    - bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
+    . bezier-spline-modeling-of-pitch-continuous-melodic-expression.pdf
       Contact Bret Battey about PICACS: http://www.mti.dmu.ac.uk/~bbattey/
-    - Wendy Carlos' tuning article: "Tuning at the crossroads", CMJ 11/1
+    . Wendy Carlos' tuning article: "Tuning at the crossroads", CMJ 11/1
   things for expressive music
     There needs to be some way for notes to affect surrounding notes.  For
     example

@@ -218,9 +218,9 @@ test_ngoret = do
     let e_damps ns = [(s, p) | (Just _, (s, _, p)) <- ns]
     equal (first e_damps $ run tracks) ([(2, "4i"), (4, "4e")], [])
 
--- * lower-octave
+-- * octave transposition
 
-test_lower_octave = do
+test_lower_octave_note = do
     let run = first e_notes
             . DeriveTest.extract (\e -> (e_damp e, DeriveTest.e_note e))
             . DeriveTest.derive_tracks title_realize
@@ -230,3 +230,15 @@ test_lower_octave = do
         ([(0, 1, "4i"), (1, 1, "4o"), (1, 1, "3o"), (2, 1, "4e")], [])
     equal (run [(0, 1, "4i"), (1, 1, "v | ' .5 -- 4e")])
         ([(0, 1, "4i"), (0.5, 0.5, "4o"), (1, 1, "4e"), (1, 1, "3e")], [])
+
+test_upper_voice = do
+    let run = DeriveTest.extract extract
+            . DeriveTest.derive_tracks (title <> " | v=1 | upper")
+            . UiTest.note_track
+        extract e = (DeriveTest.e_note e, DeriveTest.e_environ EnvKey.voice e)
+    equal (run [(0, 1, "3i"), (1, 1, "3o")])
+        ( [ ((0, 1, "3i"), Just "1"), ((0, 1, "4i"), Just "3")
+          , ((1, 1, "3o"), Just "1"), ((1, 1, "4o"), Just "3")
+          ]
+        , []
+        )
