@@ -222,7 +222,7 @@ clean_instrument_name :: Text -> Text
 clean_instrument_name =
     Text.dropWhileEnd (=='-') . Text.dropWhile (=='-')
         . strip_dups
-        . Text.filter (`elem` Score.inst_valid_chars) . Text.map replace
+        . Text.filter (`elem` Score.instrument_valid_chars) . Text.map replace
         . Text.toLower
     where
     strip_dups = Text.intercalate "-" . filter (not . Text.null)

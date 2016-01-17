@@ -14,7 +14,7 @@ test_jegog = do
             <> " | cancel"
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks title . UiTest.note_track
-        extract e = (s, d, p, DeriveTest.e_inst e)
+        extract e = (s, d, p, DeriveTest.e_instrument e)
             where (s, d, p) = DeriveTest.e_note e
         jegog = "i1"
     equal (run [(0, 1, "J | -- 4i")])

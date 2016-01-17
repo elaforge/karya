@@ -539,12 +539,12 @@ e_everything e =
     ( Score.event_start e
     , Score.event_duration e
     , untxt $ Score.event_text e
-    , e_inst e
+    , e_instrument e
     , Score.attrs_list (Score.event_attributes e)
     )
 
-e_inst :: Score.Event -> Text
-e_inst = Score.inst_name . Score.event_instrument
+e_instrument :: Score.Event -> Text
+e_instrument = Score.instrument_name . Score.event_instrument
 
 e_control :: Score.Control -> Score.Event -> [(RealTime, Signal.Y)]
 e_control control event = maybe [] (Signal.unsignal . Score.typed_val) $

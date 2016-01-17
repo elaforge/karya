@@ -48,7 +48,7 @@ UNSORTED
   naming
     - use either 'attrs' or 'attributes' consistently
       . Lots of places have 'attrs', so maybe go with it?
-    - Also there is 'inst' vs. 'instrument', e.g. Derive.Score has lots of
+    * Also there is 'inst' vs. 'instrument', e.g. Derive.Score has lots of
       'inst'.
   - Interpret a midi file with keyswitches back to the attrs.
     . This is so I can load VSL examples and learn from them.

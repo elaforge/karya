@@ -17,7 +17,7 @@ import Global
 
 
 test_search = do
-    let f = map Score.inst_name . Search.search index . Search.parse
+    let f = map Score.instrument_name . Search.search index . Search.parse
     equal (f "") t_all_insts
     equal (f "synth=") t_all_insts
     equal (f "category=key control=comb") ["z1/comb-clav"]
@@ -37,7 +37,8 @@ midi_db :: MidiDb.MidiDb ()
 midi_db = fst $ MidiDb.midi_db [z1_synth, fm8_synth]
 
 t_all_insts :: [Text]
-t_all_insts = map Score.inst_name (Map.keys (Search.idx_instrument_tags index))
+t_all_insts =
+    map Score.instrument_name (Map.keys (Search.idx_instrument_tags index))
 
 z1_synth :: Instrument.Synth ()
 z1_synth = (Instrument.synth "z1" "Korg Z1" [(13, "pe 1")])

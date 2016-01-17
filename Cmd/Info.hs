@@ -142,20 +142,20 @@ lookup_instrument_of block_id tracknum = do
         Nothing -> Perf.lookup_instrument (block_id, Just track_id)
         Just inst -> Just <$> get_default_instrument block_id track_id inst
 
--- | If the instrument is 'Score.empty_inst', look up what it really is in
--- the performance.
+-- | If the instrument is 'Score.empty_instrument', look up what it really is
+-- in the performance.
 get_default_instrument :: Cmd.M m => BlockId -> TrackId
     -> Score.Instrument -> m Score.Instrument
 get_default_instrument block_id track_id inst
-    | inst == Score.empty_inst =
+    | inst == Score.empty_instrument =
         fromMaybe inst <$> Perf.lookup_instrument (block_id, Just track_id)
     | otherwise = return inst
 
 
 -- * inst info
 
-inst_info :: Cmd.M m => Score.Instrument -> m Text
-inst_info inst = do
+instrument_info :: Cmd.M m => Score.Instrument -> m Text
+instrument_info inst = do
     config <- Map.lookup inst <$> State.get_midi_config
     info <- Cmd.lookup_instrument inst
     return $ ShowVal.show_val inst <> ": " <> show_instrument_info config info
@@ -202,14 +202,14 @@ show_runs = concatMap show_run . Seq.split_between (\a b -> a+1 < b)
     show_run xs = map showt xs
 
 
--- * set_inst_status
+-- * set_instrument_status
 
 -- | Stick some handy info about the current instrument into the status.
 --
 -- This should be run whenever the track focus changes, or tracks are expanded
 -- or collapsed.
-set_inst_status :: Cmd.M m => BlockId -> TrackNum -> m ()
-set_inst_status block_id tracknum = do
+set_instrument_status :: Cmd.M m => BlockId -> TrackNum -> m ()
+set_instrument_status block_id tracknum = do
     status <- get_track_status block_id tracknum
     whenJust status $ Cmd.set_global_status "inst"
 

@@ -43,10 +43,10 @@ test_wayang_pasang = do
     let run notes = KontaktTest.derive aliases "import bali.gangsa" $
             UiTest.note_spec (title, notes, [])
         title = wayang_title <> " | unison"
-    equal (DeriveTest.extract DeriveTest.e_inst $ run [(0, 1, "")])
+    equal (DeriveTest.extract DeriveTest.e_instrument $ run [(0, 1, "")])
         (["u", "i"], [])
     let result = run [(0, 1, "4i")]
-    equal (DeriveTest.extract DeriveTest.e_inst result)
+    equal (DeriveTest.extract DeriveTest.e_instrument result)
         (["u", "i"], [])
     equal (fst $ DeriveTest.extract Score.initial_nn result)
         [Just 62.95, Just 62.5]
@@ -67,7 +67,7 @@ test_wayang_kempyung = do
             KontaktTest.derive (make_aliases inst_suffix)
                 "import bali.gangsa" $ UiTest.note_spec
                 (wayang_title <> append <> " | kempyung", notes, [])
-        extract e = (DeriveTest.e_inst e, DeriveTest.e_note e)
+        extract e = (DeriveTest.e_instrument e, DeriveTest.e_note e)
     -- Top note is 6i.
     equal (run "kantilan" "" [(0, 1, "5e"), (1, 1, "5u")])
         ([ ("u", (0, 1, "5e")), ("i", (0, 1, "6i"))

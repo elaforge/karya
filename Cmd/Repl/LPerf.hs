@@ -350,7 +350,7 @@ convert events = do
 
 perf_event_inst :: Perform.Event -> Text
 perf_event_inst =
-    Score.inst_name . Instrument.inst_score . Perform.event_instrument
+    Score.instrument_name . Instrument.inst_score . Perform.event_instrument
 
 -- * midi
 

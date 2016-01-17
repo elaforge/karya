@@ -18,11 +18,11 @@ import Global
 test_kendang = do
     let run extract inst notes = DeriveTest.extract extract $ derive
             [(">" <> inst <> inst_title, mknotes notes)]
-        e_inst e = (DeriveTest.e_inst e, DeriveTest.e_attributes e)
+        e_instrument e = (DeriveTest.e_instrument e, DeriveTest.e_attributes e)
         mknotes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
-    equal (run e_inst "k" ["PL", "P", "o"])
+    equal (run e_instrument "k" ["PL", "P", "o"])
         ([("k", "+plak"), ("k", "+pak"), ("k", "+tut")], [])
-    equal (run e_inst "pasang"
+    equal (run e_instrument "pasang"
             ["PL", "k", "P", "t", "T", "u", "U"])
         ([("w", "+plak"), ("w", "+pak"), ("l", "+pak"),
             ("w", "+pang"), ("l", "+pang"), ("w", "+tut"), ("l", "+tut")], [])

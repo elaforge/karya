@@ -70,7 +70,8 @@ test_integrate = do
 
 test_split_overlapping = do
     let f = map (map extract) . Convert.split_overlapping . map mkevent
-        mkevent (s, e) = DeriveTest.mkevent (s, e, "4c", [], Score.empty_inst)
+        mkevent (s, e) =
+            DeriveTest.mkevent (s, e, "4c", [], Score.empty_instrument)
         extract e = (Score.event_start e, Score.event_duration e)
     equal (f [(0, 1), (1, 1)]) [[(0, 1), (1, 1)]]
     equal (f [(0, 1), (0.5, 1), (1, 1)]) [[(0, 1), (1, 1)], [(0.5, 1)]]

@@ -16,7 +16,7 @@ import Types
 test_equal = do
     -- Test the '=' call, but also test the special parsing Derive.Note deriver
     -- eval in general.
-    let run title evts = DeriveTest.extract e_inst $
+    let run title evts = DeriveTest.extract e_instrument $
             DeriveTest.derive_tracks "" [(title, evts)]
     strings_like (snd $ run ">" [(0, 1, "%c = >i |")])
         ["expected *, but got Instrument"]
@@ -47,7 +47,7 @@ test_equal_modify = do
     equal (run [(0, 1, "%c = .5 | %c = add .5 |")]) ([[(0, 1)]], [])
 
 test_equal_inst = do
-    let run with_ui title track = DeriveTest.extract DeriveTest.e_inst $
+    let run with_ui title track = DeriveTest.extract DeriveTest.e_instrument $
             DeriveTest.derive_tracks_setup with_ui title
                 [(track, [(0, 1, "")])]
     strings_like (snd $ run mempty ">new = hi" ">new")
@@ -72,7 +72,7 @@ test_equal_inst = do
         ["no instrument found for >alias"]
 
 test_equal_note_transformer = do
-    let run events = DeriveTest.extract e_inst $
+    let run events = DeriveTest.extract e_instrument $
             DeriveTest.derive_tracks_linear ""
                 [ (">", events)
                 , (">", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
@@ -128,5 +128,5 @@ test_default_merge = do
     equal (run "default-merge set c") ([[(0, 0.5)]], [])
     equal (run "default-merge add c") ([[(0, 1)]], [])
 
-e_inst :: Score.Event -> (RealTime, Text)
-e_inst e = (Score.event_start e, DeriveTest.e_inst e)
+e_instrument :: Score.Event -> (RealTime, Text)
+e_instrument e = (Score.event_start e, DeriveTest.e_instrument e)

@@ -174,7 +174,7 @@ convert_staves wanted events = first untxt $
     map extract_staves <$> Lilypond.convert_staff_groups default_config 0 events
     where
     extract_staves (Lilypond.StaffGroup inst staves) =
-        (untxt $ Score.inst_name inst, map show_staff staves)
+        (untxt $ Score.instrument_name inst, map show_staff staves)
     show_staff = unwords . mapMaybe (either show_voices show_ly)
     show_ly ly
         | is_wanted code = Just code

@@ -45,12 +45,12 @@ lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.MidiInfo)
 lookup = Cmd.lookup_instrument . Util.instrument
 
 info :: Instrument -> Cmd.CmdL Text
-info = Info.inst_info . Util.instrument
+info = Info.instrument_info . Util.instrument
 
 info_all :: Cmd.CmdL Text
 info_all = do
     config <- State.get_midi_config
-    info <- mapM Info.inst_info (Map.keys config)
+    info <- mapM Info.instrument_info (Map.keys config)
     return $ showt (length info) <> " instruments:\n"
         <> Text.intercalate "\n" info
 
@@ -68,7 +68,7 @@ list_like pattern = do
         map (show_config alias_map) $ filter (matches . fst) $
         Map.toAscList config
     where
-    matches inst = pattern `Text.isInfixOf` Score.inst_name inst
+    matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
     show_config alias_map (inst, config) = ShowVal.show_val inst <> " - "
         <> Info.show_addrs (map fst (Instrument.config_addrs config))
         <> show_alias alias_map inst

@@ -98,7 +98,7 @@ dump_state = do
     return
         ( State.config#State.global_transform #$ state
         , dump_midi_config $ State.config#State.midi #$ state
-        , map (Score.inst_name *** Score.inst_name) . Map.toList $
+        , map (Score.instrument_name *** Score.instrument_name) . Map.toList $
             State.config#State.aliases #$ state
         , blocks
         )
@@ -140,7 +140,7 @@ dump_selection = do
 
 dump_midi_config :: Instrument.Configs -> MidiConfig
 dump_midi_config configs =
-    [(Score.inst_name inst, chans_of config)
+    [(Score.instrument_name inst, chans_of config)
         | (inst, config) <- Map.toList configs]
     where
     chans_of config = [(Midi.write_device_text dev, chan)
@@ -210,7 +210,7 @@ type ExactPerfEvent =
 dump_exact_perf_event :: Perform.Event -> ExactPerfEvent
 dump_exact_perf_event (Perform.Event start dur inst controls pitch svel evel
         stack) =
-    ( Score.inst_name (Instrument.inst_score inst)
+    ( Score.instrument_name (Instrument.inst_score inst)
     , start, dur
     , map (Score.control_name *** Signal.unsignal) (Map.toList controls)
     , Signal.unsignal pitch

@@ -246,10 +246,10 @@ collapse_track block_id tracknum = do
     -- TODO if the track to collapse is a pitch track, merge it with its
     -- note track instead
     State.add_track_flag block_id tracknum Block.Collapse
-    Info.set_inst_status block_id tracknum
+    Info.set_instrument_status block_id tracknum
 expand_track block_id tracknum = do
     State.remove_track_flag block_id tracknum Block.Collapse
-    Info.set_inst_status block_id tracknum
+    Info.set_instrument_status block_id tracknum
 
 -- | Called from logview.
 collapse, expand :: TrackNum -> Cmd.CmdL ()

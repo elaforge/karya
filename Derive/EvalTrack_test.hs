@@ -401,7 +401,7 @@ test_empty_parent_track = do
     -- Ensure orphan tracks pick the instrument up from the parent.
     -- Well, the absentee parent, since they're orphans.
     let run = DeriveTest.extract extract . DeriveTest.derive_tracks_linear ""
-        extract e = (Score.event_start e, DeriveTest.e_inst e)
+        extract e = (Score.event_start e, DeriveTest.e_instrument e)
     equal (run [(">i1", [(0, 1, "t")]), (">", [(0, 1, "")])]) ([(0, "i1")], [])
     equal (run [(">i1", []), (">", [(0, 1, "")])]) ([(0, "i1")], [])
 

@@ -48,9 +48,9 @@ p_annotation_line =
 
 p_instrument :: Parser st Score.Instrument
 p_instrument = do
-    synth <- Parsec.many1 $ Parsec.oneOf Score.inst_valid_chars
+    synth <- Parsec.many1 $ Parsec.oneOf Score.instrument_valid_chars
     Parsec.char '/'
-    name <- Parsec.many1 $ Parsec.oneOf Score.inst_valid_chars
+    name <- Parsec.many1 $ Parsec.oneOf Score.instrument_valid_chars
     return $ Score.instrument $ txt (synth <> "/" <> name)
     <?> "instrument"
 

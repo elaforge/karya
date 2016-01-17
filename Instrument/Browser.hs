@@ -222,7 +222,7 @@ quote s
 -- @set_instrument \"synth/inst\"@ to the REPL port.
 choose_instrument :: Score.Instrument -> IO ()
 choose_instrument inst = do
-    let cmd = "set_instrument " ++ show (Score.inst_name inst)
+    let cmd = "set_instrument " ++ show (Score.instrument_name inst)
     putStrLn $ "send: " ++ cmd
     (response, logs) <- SendCmd.send (txt cmd)
         `Exception.catch` \(exc :: Exception.SomeException) ->
@@ -239,7 +239,7 @@ process_query chan win db displayed query = do
         diff = Seq.indexed_pairs (==) displayed matches
     forM_ diff $ \(i, paired) -> case paired of
         Seq.Second inst -> Fltk.send_action chan $
-            BrowserC.insert_line win (i+1) (Score.inst_name inst)
+            BrowserC.insert_line win (i+1) (Score.instrument_name inst)
         Seq.First _inst -> Fltk.send_action chan $
             BrowserC.remove_line win (i+1)
         _ -> return ()

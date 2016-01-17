@@ -79,7 +79,7 @@ note_call = Note.transformed_note
                 Derive.with_instrument (string_inst inst string) deriver
             _ -> deriver
     string_inst inst string =
-        Score.Instrument $ Score.inst_name inst <> "-" <> string
+        Score.Instrument $ Score.instrument_name inst <> "-" <> string
 
 strings :: [Text]
 strings = ["e1", "a", "d", "g", "b", "e2"]

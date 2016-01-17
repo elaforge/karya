@@ -16,7 +16,7 @@ import Global
 test_parse_annotations = do
     let f = (show *** map extract)
             .  Parsec.runParser Parse.p_annotation_file () "test"
-        extract (inst, annots) = (Score.inst_name inst, annots)
+        extract (inst, annots) = (Score.instrument_name inst, annots)
     equal (f "s/1 there\n") $ Right [("s/1", [("there", "")])]
     equal (f "s/1\n") $ Right [("s/1", [])]
     equal (f "s/1 a=b c=d\n") $

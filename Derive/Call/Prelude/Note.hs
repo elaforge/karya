@@ -128,10 +128,10 @@ c_note_track = Derive.transformer Module.prelude "note-track" mempty
 note_track :: Derive.Context Derive.Note -> Score.Instrument
     -> [Score.Attributes] -> Derive.NoteDeriver -> Derive.NoteDeriver
 note_track ctx inst attrs deriver = do
-    let call_id = BaseTypes.Symbol $ ">" <> Score.inst_name inst
+    let call_id = BaseTypes.Symbol $ ">" <> Score.instrument_name inst
     maybe_call <- Derive.lookup_transformer call_id
     let transform = maybe id (call_transformer ctx) maybe_call
-        with_inst = if inst == Score.empty_inst then id
+        with_inst = if inst == Score.empty_instrument then id
             else Derive.with_instrument inst
     with_inst $ Call.add_attrs (mconcat attrs) $ transform deriver
 
@@ -238,8 +238,8 @@ make_event_control_vals control_vals args dyn start dur flags = do
         , Score.event_untransformed_pitches = Derive.state_pitches dyn
         , Score.event_stack = Derive.state_stack dyn
         , Score.event_highlight = Color.NoHighlight
-        , Score.event_instrument =
-            fromMaybe Score.empty_inst $ Env.maybe_val EnvKey.instrument environ
+        , Score.event_instrument = fromMaybe Score.empty_instrument $
+            Env.maybe_val EnvKey.instrument environ
         , Score.event_environ =
             stash_convert_values (Map.lookup Controls.dynamic control_vals)
                 (Map.lookup Controls.release_velocity control_vals)
@@ -348,4 +348,4 @@ transform_note vals deriver =
     where
     (insts, attrs) = Either.partitionEithers vals
     with_inst = maybe id Derive.with_instrument $
-        Seq.last $ filter (/=Score.empty_inst) insts
+        Seq.last $ filter (/=Score.empty_instrument) insts

@@ -221,7 +221,7 @@ test_kempyung = do
 
 test_nyogcag = do
     let run = derive_extract extract " | nyog"
-        extract e = (Score.event_start e, DeriveTest.e_inst e)
+        extract e = (Score.event_start e, DeriveTest.e_instrument e)
     let notes = [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
     equal (run notes) ([(0, "i1"), (1, "i2"), (2, "i1")], [])
 

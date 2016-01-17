@@ -16,7 +16,7 @@ test_convert = do
     let f = map (fmap extract) . Convert.convert config . map mkevent
         config = Types.default_config { Types.config_quarter_duration = 0.05 }
         mkevent (start, dur, pitch) =
-            DeriveTest.mkevent (start, dur, pitch, [], Score.empty_inst)
+            DeriveTest.mkevent (start, dur, pitch, [], Score.empty_instrument)
         extract e = (Types.event_start e, Types.event_duration e,
             Types.event_pitch e)
     equal (f [(0, 0.05, "3b"), (0.05, 0.1, "4c#")])

@@ -46,8 +46,8 @@ module Derive.Score (
     , warp_to_signal
 
     -- * instrument
-    , inst_valid_chars
-    , inst_name, empty_inst, instrument, split_instrument
+    , instrument_valid_chars
+    , instrument_name, empty_instrument, instrument, split_instrument
 
     -- * util
     , control, unchecked_control
@@ -177,7 +177,7 @@ empty_event = Event
     , event_control_offset = 0
     , event_stack = Stack.empty
     , event_highlight = Color.NoHighlight
-    , event_instrument = empty_inst
+    , event_instrument = empty_instrument
     , event_environ = mempty
     , event_flags = mempty
     , event_delayed_args = mempty
@@ -568,14 +568,14 @@ warp_to_signal (Warp sig shift stretch)
 -- * instrument
 
 -- | Set of characters allowed in an instrument name.
-inst_valid_chars :: [Char]
-inst_valid_chars = '-' : ['0'..'9'] ++ ['a'..'z']
+instrument_valid_chars :: [Char]
+instrument_valid_chars = '-' : ['0'..'9'] ++ ['a'..'z']
 
-inst_name :: Instrument -> Text
-inst_name (Instrument s) = s
+instrument_name :: Instrument -> Text
+instrument_name (Instrument s) = s
 
-empty_inst :: Instrument
-empty_inst = Instrument ""
+empty_instrument :: Instrument
+empty_instrument = Instrument ""
 
 instrument :: Text -> Instrument
 instrument = Instrument

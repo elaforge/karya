@@ -483,7 +483,7 @@ sync_selection_status view_id maybe_sel = case maybe_sel of
     Just (sel, block_id, maybe_track_id) -> do
         ns <- State.get_namespace
         set $ Just $ selection_status ns sel maybe_track_id
-        Info.set_inst_status block_id (Sel.cur_track sel)
+        Info.set_instrument_status block_id (Sel.cur_track sel)
     where set = Cmd.set_view_status view_id Config.status_selection
 
 selection_status :: Id.Namespace -> Sel.Selection -> Maybe TrackId -> Text

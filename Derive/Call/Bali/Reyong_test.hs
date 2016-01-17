@@ -197,8 +197,8 @@ test_assign_hands = do
     equal (f [(0, "4d"), (1, "4e"), (2, "4f"), (2, "4d")]) [L, R, R, L]
 
 mkevents :: [(RealTime, String)] -> [Score.Event]
-mkevents =
-    map $ DeriveTest.mkevent . (\(t, p) -> (t, 1, p, [], Score.empty_inst))
+mkevents = map $
+    DeriveTest.mkevent . (\(t, p) -> (t, 1, p, [], Score.empty_instrument))
 
 show_pitch :: Maybe Pitch.Pitch -> String
 show_pitch Nothing = "-"

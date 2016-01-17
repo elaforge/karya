@@ -121,7 +121,7 @@ empty_staff_config = StaffConfig
 
 default_staff_config :: Score.Instrument -> StaffConfig
 default_staff_config inst =
-    empty_staff_config { staff_long = Score.inst_name inst }
+    empty_staff_config { staff_long = Score.instrument_name inst }
 
 -- | This is emitted for every staff, regardless of its 'staff_code'.
 global_staff_code :: [Text]

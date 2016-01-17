@@ -241,7 +241,8 @@ track_voices tracks = map (fmap only_inst) $ count_occurrences inst_of tracks
     where
     inst_of = not_empty <=< ParseTitle.title_to_instrument . State.track_title
         where
-        not_empty inst = if inst == Score.empty_inst then Nothing else Just inst
+        not_empty inst = if inst == Score.empty_instrument
+            then Nothing else Just inst
     only_inst (track, voice)
         | Just _ <- inst_of track = (track, Just voice)
         | otherwise = (track, Nothing)
