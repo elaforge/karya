@@ -4,26 +4,21 @@
 
 {-# LANGUAGE ScopedTypeVariables #-} -- for pattern type sig in catch
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 -- | Basic testing utilities.
 module Util.Test (
-    skip_human
+    Config(..), modify_config, with_name
     -- * tests
     -- ** pure checks
-    , check, check_srcpos
-    , equal, equal_srcpos
-    , equalf, equalf_srcpos
-    , strings_like, strings_like_srcpos
-    , left_like, left_like_srcpos
-    , match, match_srcpos
+    , check, equal, equalf, strings_like, left_like , match
     -- ** exception checks
-    , throws, throws_srcpos
+    , throws
 
     -- ** io checks
-    , io_equal, io_equal_srcpos
-    , io_human, io_human_srcpos
-    , pause
+    , io_equal, io_human, pause
 
-    , success, failure, success_srcpos, failure_srcpos
+    -- ** low level
+    , success, failure
 
     -- * extracting
     , expect_right
@@ -54,6 +49,9 @@ import Data.Monoid ((<>))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 
+import qualified GHC.SrcLoc as SrcLoc
+import qualified GHC.Stack as Stack
+
 import qualified System.Directory as Directory
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
@@ -72,32 +70,40 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
-import qualified Util.SrcPos as SrcPos
 
 
--- | If this is True, skip through human-feedback tests.  That way I can at
--- least get the coverage and check for crashes, even if I can't verify the
--- results.
-{-# NOINLINE skip_human #-}
-skip_human :: IORef.IORef Bool
-skip_human = Unsafe.unsafePerformIO (IORef.newIORef False)
+{-# NOINLINE test_config #-}
+test_config :: IORef.IORef Config
+test_config = Unsafe.unsafePerformIO (IORef.newIORef (Config "no-test" False))
 
-check :: Bool -> IO Bool
-check = check_srcpos Nothing
+modify_config :: (Config -> Config) -> IO ()
+modify_config = IORef.modifyIORef test_config
 
-check_srcpos :: SrcPos.SrcPos -> Bool -> IO Bool
-check_srcpos srcpos False = failure_srcpos srcpos "assertion false"
-check_srcpos srcpos True = success_srcpos srcpos "assertion true"
+with_name :: String -> IO a -> IO a
+with_name name action = do
+    modify_config (\config -> config { config_test_name = name })
+    action
+
+data Config = Config {
+    config_test_name :: !String
+    -- | If True, skip through human-feedback tests.  That way I can at least
+    -- get the coverage and check for crashes, even if I can't verify the
+    -- results.
+    , config_skip_human :: !Bool
+    } deriving (Show)
+
+check :: Stack => Bool -> IO Bool
+check False = failure "assertion false"
+check True = success "assertion true"
+
+type Stack = (?stack :: Stack.CallStack)
 
 -- * equal and diff
 
-equal :: (Show a, Eq a) => a -> a -> IO Bool
-equal = equal_srcpos Nothing
-
-equal_srcpos :: (Show a, Eq a) => SrcPos.SrcPos -> a -> a -> IO Bool
-equal_srcpos srcpos a b
-    | a == b = success_srcpos srcpos $ pretty True
-    | otherwise = failure_srcpos srcpos $ pretty False
+equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
+equal a b
+    | a == b = success $ pretty True
+    | otherwise = failure $ pretty False
     where pretty = pretty_compare "==" "/=" a b
 
 -- | Show the values nicely, whether they are equal or not.
@@ -202,74 +208,56 @@ data Numbered a = Numbered {
 
 -- * approximately equal
 
-equalf :: (Show a, ApproxEq.ApproxEq a) => Double -> a -> a -> IO Bool
-equalf = equalf_srcpos Nothing
-
-equalf_srcpos :: (Show a, ApproxEq.ApproxEq a) => SrcPos.SrcPos -> Double
-    -> a -> a -> IO Bool
-equalf_srcpos srcpos eta a b
-    | ApproxEq.eq eta a b = success_srcpos srcpos $ pretty True
-    | otherwise = failure_srcpos srcpos $ pretty False
+equalf :: (Stack, Show a, ApproxEq.ApproxEq a) => Double -> a -> a -> IO Bool
+equalf eta a b
+    | ApproxEq.eq eta a b = success $ pretty True
+    | otherwise = failure $ pretty False
     where pretty = pretty_compare "~~" "/~" a b
 
 -- * other assertions
 
 -- | Strings in the first list match regexes in the second list.
-strings_like :: [String] -> [String] -> IO Bool
-strings_like = strings_like_srcpos Nothing
-
-strings_like_srcpos :: SrcPos.SrcPos -> [String] -> [String] -> IO Bool
-strings_like_srcpos srcpos gotten expected
-    | null gotten && null expected = success_srcpos srcpos "[] =~ []"
+strings_like :: Stack => [String] -> [String] -> IO Bool
+strings_like gotten expected
+    | null gotten && null expected = success "[] =~ []"
     | otherwise = and <$>
         mapM string_like (zip [0..] (Seq.zip_padded gotten expected))
     where
-    string_like (n, Seq.Second reg) = failure_srcpos srcpos $
+    string_like (n, Seq.Second reg) = failure $
         show n ++ ": gotten list too short: expected " ++ show reg
-    string_like (n, Seq.First gotten) = failure_srcpos srcpos $
+    string_like (n, Seq.First gotten) = failure $
         show n ++ ": expected list too short: got " ++ show gotten
     string_like (n, Seq.Both gotten reg)
-        | pattern_matches reg gotten = success_srcpos srcpos $
+        | pattern_matches reg gotten = success $
             show n ++ ": " ++ gotten ++ " =~ " ++ reg
-        | otherwise = failure_srcpos srcpos $
-            show n ++ ": " ++ gotten ++ " !~ " ++ reg
-
-left_like :: Show a => Either String a -> String -> IO Bool
-left_like = left_like_srcpos Nothing
+        | otherwise = failure $ show n ++ ": " ++ gotten ++ " !~ " ++ reg
 
 -- | It's common for Left to be an error msg, or be something that can be
 -- converted to one.
-left_like_srcpos :: Show a =>
-    SrcPos.SrcPos -> Either String a -> String -> IO Bool
-left_like_srcpos srcpos gotten expected = case gotten of
+left_like :: (Stack, Show a) => Either String a -> String -> IO Bool
+left_like gotten expected = case gotten of
     Left msg
-        | pattern_matches expected msg -> success_srcpos srcpos $
+        | pattern_matches expected msg -> success $
             "Left " ++ msg ++ " =~ Left " ++ expected
-        | otherwise -> failure_srcpos srcpos $
-            "Left " ++ msg ++ " !~ Left " ++ expected
-    Right a -> failure_srcpos srcpos $
-        "Right (" ++ show a ++ ") !~ Left " ++ expected
+        | otherwise -> failure $ "Left " ++ msg ++ " !~ Left " ++ expected
+    Right a -> failure $ "Right (" ++ show a ++ ") !~ Left " ++ expected
 
-match :: String -> String -> IO Bool
-match = match_srcpos Nothing
-
-match_srcpos :: SrcPos.SrcPos -> String -> String -> IO Bool
-match_srcpos srcpos gotten pattern
-    | pattern_matches pattern gotten = success_srcpos srcpos $
+match :: Stack => String -> String -> IO Bool
+match gotten pattern
+    | pattern_matches pattern gotten = success $
         gotten ++ "\n\t=~\n" ++ pattern
-    | otherwise = failure_srcpos srcpos $
-        gotten ++ "\n\t!~\n" ++ pattern
+    | otherwise = failure $ gotten ++ "\n\t!~\n" ++ pattern
 
 -- | This is a simplified pattern that only has the @*@ operator, which is
 -- equivalent to regex's @.*?@.  This reduces the amount of quoting you have
 -- to write.  You can escape @*@ with a backslash.
 pattern_matches :: String -> String -> Bool
 pattern_matches pattern =
-    not . null . Regex.groups (pattern_to_reg pattern) . Text.pack
+    not . null . Regex.groups (pattern_to_regex pattern) . Text.pack
 
-pattern_to_reg :: String -> Regex.Regex
-pattern_to_reg =
-    Regex.compileOptionsUnsafe "Test.pattern_to_reg" [Regex.DotAll] . mkstar
+pattern_to_regex :: String -> Regex.Regex
+pattern_to_regex =
+    Regex.compileOptionsUnsafe "Test.pattern_to_regex" [Regex.DotAll] . mkstar
         . Regex.escape
     where
     mkstar "" = ""
@@ -278,57 +266,45 @@ pattern_to_reg =
     mkstar (c : cs) = c : mkstar cs
 
 -- | The given pure value should throw an exception that matches the predicate.
-throws :: Show a => a -> String -> IO Bool
-throws = throws_srcpos Nothing
-
-throws_srcpos :: Show a => SrcPos.SrcPos -> a -> String -> IO Bool
-throws_srcpos srcpos val exc_like =
-    (Exception.evaluate val
-        >> failure_srcpos srcpos ("didn't throw: " ++ show val))
+throws :: (Stack, Show a) => a -> String -> IO Bool
+throws val exc_like =
+    (Exception.evaluate val >> failure ("didn't throw: " ++ show val))
     `Exception.catch` \(exc :: Exception.SomeException) ->
         if exc_like `List.isInfixOf` show exc
-            then success_srcpos srcpos ("caught exc: " ++ show exc)
-            else failure_srcpos srcpos $
+            then success ("caught exc: " ++ show exc)
+            else failure $
                 "exception <" ++ show exc ++ "> didn't match " ++ show exc_like
 
--- IO oriented checks, the first value is pulled from IO.
-
-io_equal :: (Eq a, Show a) => IO a -> a -> IO Bool
-io_equal = io_equal_srcpos Nothing
-
-io_equal_srcpos :: (Eq a, Show a) => SrcPos.SrcPos -> IO a -> a -> IO Bool
-io_equal_srcpos srcpos io_val expected = do
+io_equal :: (Stack, Eq a, Show a) => IO a -> a -> IO Bool
+io_equal io_val expected = do
     val <- io_val
-    equal_srcpos srcpos val expected
+    equal val expected
 
--- Only a human can check these things.
-io_human :: String -> IO a -> IO a
-io_human = io_human_srcpos Nothing
-
-io_human_srcpos :: SrcPos.SrcPos -> String -> IO a -> IO a
-io_human_srcpos srcpos expected_msg op = do
+-- | Only a human can check these things.
+io_human :: Stack => String -> IO a -> IO a
+io_human expected_msg op = do
     putStrLn $ "should see: " ++ expected_msg
-    get_char_human
+    human_get_char
     result <- op
     putStr "  ... ok (y/n/q)? "
-    c <- get_char_human
+    c <- human_get_char
     putChar '\n'
     case c of
-        'y' -> success_srcpos srcpos $ "saw " ++ show expected_msg
+        'y' -> success $ "saw " ++ show expected_msg
         'q' -> error "quit test"
-        _ -> failure_srcpos srcpos $ "didn't see " ++ show expected_msg
+        _ -> failure $ "didn't see " ++ show expected_msg
     return result
 
 pause :: String -> IO ()
 pause msg = do
     putStr $ "pausing, hit almost any key... "
         ++ if null msg then "" else " -- " ++ msg
-    get_char_human
+    human_get_char
     putStr "\n"
 
-
--- * unpacking
-
+-- TODO use 'failure'
+-- but then it's in IO.  I should have some kind of combinator that can
+-- turn unexpected things into Left, and then lift equal into Right.
 expect_right :: Show a => String -> Either a b -> b
 expect_right msg (Left v) = error $ msg ++ ": " ++ show v
 expect_right _ (Right v) = v
@@ -352,7 +328,7 @@ print_timer msg show_val op = do
     IO.hFlush IO.stdout
     return val
 
-force :: (DeepSeq.NFData a) => a -> IO ()
+force :: DeepSeq.NFData a => a -> IO ()
 force x = x `DeepSeq.deepseq` return ()
 
 -- * util
@@ -386,30 +362,35 @@ pprint val = s `DeepSeq.deepseq` putStr s
 -- These used to write to stderr, but the rest of the diagnostic output goes to
 -- stdout, and it's best these appear in context.
 
-success, failure :: String -> IO Bool
-success = success_srcpos Nothing
-failure = failure_srcpos Nothing
-
 -- | Print a msg with a special tag indicating a passing test.
-success_srcpos :: SrcPos.SrcPos -> String -> IO Bool
-success_srcpos srcpos msg = do
-    print_test_line srcpos vt100_green "++-> " msg
+success :: Stack => String -> IO Bool
+success msg = do
+    print_test_line ?stack vt100_green "++-> " msg
     return True
 
 -- | Print a msg with a special tag indicating a failing test.
-failure_srcpos :: SrcPos.SrcPos -> String -> IO Bool
-failure_srcpos srcpos msg = do
-    print_test_line srcpos vt100_red "__-> " msg
+failure :: Stack => String -> IO Bool
+failure msg = do
+    print_test_line ?stack vt100_red "__-> " msg
     return False
 
-print_test_line :: SrcPos.SrcPos -> String -> String -> String -> IO ()
-print_test_line srcpos color_code prefix msg = do
+print_test_line :: Stack.CallStack -> String -> String -> String -> IO ()
+print_test_line stack color_code prefix msg = do
     -- Make sure the output doesn't get mixed with trace debug msgs.
     force msg
     -- A little magic to make failures more obvious in tty output.
     isatty <- Terminal.queryTerminal IO.stdOutput
+    test_name <- config_test_name <$> IORef.readIORef test_config
     putStrLn $ highlight isatty color_code $ prefix
-        ++ SrcPos.show_srcpos srcpos ++ " " ++ msg
+        ++ show_stack test_name stack ++ " " ++ msg
+
+show_stack :: String -> Stack.CallStack -> String
+show_stack test_name =
+    maybe "<empty-stack>" show_frame . Seq.last . Stack.getCallStack
+    where
+    show_frame (_, srcloc) =
+        SrcLoc.srcLocFile srcloc ++ ":" ++ show (SrcLoc.srcLocStartLine srcloc)
+        ++ " [" ++ test_name ++ "]"
 
 -- | Highlight the line unless the text already has highlighting in it.
 highlight :: Bool -> String -> String -> String
@@ -434,9 +415,9 @@ vt100_normal :: String
 vt100_normal = "\ESC[m\ESC[m"
 
 -- | getChar with no buffering.
-get_char_human :: IO Char
-get_char_human = do
-    skip <- IORef.readIORef skip_human
+human_get_char :: IO Char
+human_get_char = do
+    skip <- config_skip_human <$> IORef.readIORef test_config
     if skip
         then return 'y'
         else do

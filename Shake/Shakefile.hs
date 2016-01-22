@@ -127,9 +127,6 @@ fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
 ghcBinary :: FilePath
 ghcBinary = "ghc"
 
-hspp :: FilePath
-hspp = modeToDir Opt </> "hspp"
-
 defaultOptions :: Shake.ShakeOptions
 defaultOptions = Shake.shakeOptions
     { Shake.shakeFiles = build </> "shake"
@@ -371,17 +368,16 @@ targetToMode target = snd <$> List.find ((`List.isPrefixOf` target) . fst)
 
 data MidiConfig = StubMidi | JackMidi | CoreMidi deriving (Show, Eq)
 
-ghcWarnings :: Mode -> String -> [String]
-ghcWarnings mode ghcVersion =
-    "-W" : map ("-fwarn-"++) (words warns)
-        ++ map ("-fno-warn-"++) noWarns
+ghcWarnings :: Mode -> [String]
+ghcWarnings mode =
+    "-W" : map ("-fwarn-"++) (words warns) ++ map ("-fno-warn-"++) noWarns
     where
     warns = "identities tabs incomplete-record-updates missing-fields\
         \ unused-matches wrong-do-bind"
-    noWarns = (if ghcVersion < "71000" then ["amp"] else [])
+    noWarns =
         -- TEST ifdefs can cause duplicate exports if they add X(..) to the
         -- X export.
-        ++ if mode `elem` [Test, Profile] then ["duplicate-exports"] else []
+        if mode `elem` [Test, Profile] then ["duplicate-exports"] else []
 
 configure :: MidiConfig -> IO (Mode -> Config)
 configure midi = do
@@ -418,8 +414,7 @@ configure midi = do
             -- Except for profiling, where it wants "p_dyn" libraries, which
             -- don't seem to exist.
             ["-dynamic" | mode /= Profile]
-            ++ ghcWarnings mode ghcVersion
-            ++ ["-F", "-pgmF", hspp]
+            ++ ghcWarnings mode
             ++ case mode of
                 Debug -> []
                 Opt -> ["-O"]
@@ -523,13 +518,6 @@ main = withLockedDatabase $ do
         matchBuildDir hsconfigH ?> configHeaderRule
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
-        -- hspp is depended on by all .hs files.  To avoid recursion, I
-        -- build hspp itself with --make.
-        hspp %> \fn -> do
-            -- But I need to mark hspp's deps so it will rebuild.
-            need =<< HsDeps.transitiveImportsOf (const Nothing) "Util/Hspp.hs"
-            Util.cmdline $ makeHs (configFlags (modeConfig Opt))
-                (oDir (modeConfig Opt)) fn "Util/Hspp.hs"
         matchObj "fltk/fltk.a" ?> \fn -> do
             let config = infer fn
             need (fltkDeps config)
@@ -781,7 +769,7 @@ makeHaddock config = do
         , "--source-entity=../hscolour/%{MODULE/.//}.html#%{NAME}"
         , "--prologue=doc/prologue"
         -- Don't report every single function without a doc.
-        , if ghcVersion config >= "71000" then "--no-print-missing-docs" else ""
+        , "--no-print-missing-docs"
         -- Source references qualified names as written in the doc.
         , "-q", "aliased"
         , "-o", build </> "haddock"
@@ -969,7 +957,6 @@ hsORule infer = matchHsObj ?>> \fns -> do
     let config = infer obj
     isHsc <- liftIO $ Directory.doesFileExist (objToSrc config obj ++ "c")
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
-    need [hspp]
     imports <- HsDeps.importsOf (cppFlags config hs) hs
     includes <- if Maybe.isJust (cppFlags config hs)
         then includesOf "hsORule" config hs else return []
@@ -1062,7 +1049,7 @@ ghcFlags config = concat $
     [ ghcLanguageFlags
     , define (configFlags config)
     , cInclude (configFlags config)
-    , ghcWarnings (buildMode config) (ghcVersion config)
+    , ghcWarnings (buildMode config)
     ]
 
 -- | Language extensions which are globally enabled.

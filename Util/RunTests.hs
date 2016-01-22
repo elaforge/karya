@@ -8,7 +8,6 @@
 module Util.RunTests where
 import qualified Control.Exception as Exception
 import Control.Monad
-import qualified Data.IORef as IORef
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -23,7 +22,6 @@ import qualified System.Process as Process
 
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
-import qualified Util.SrcPos as SrcPos
 import qualified Util.Test as Test
 
 
@@ -78,7 +76,8 @@ runTests argv0 tests flags args
     | List `elem` flags = printTests
     | otherwise = do
         when (NonInteractive `elem` flags) $
-            IORef.writeIORef Test.skip_human True
+            Test.modify_config $ \config ->
+                config { Test.config_skip_human = True }
         printTests
         let (initTests, nonInitTests) =
                 List.partition (Maybe.isJust . testInitialize) matches
@@ -97,8 +96,9 @@ runSubprocess argv0 test = do
     putStrLn $ "subprocess: " ++ show argv0 ++ " " ++ show [testName test]
     val <- Process.rawSystem argv0 [testName test]
     case val of
-        System.Exit.ExitFailure code -> void $ Test.failure_srcpos Nothing $
-            "test returned " ++ show code ++ ": " ++ testName test
+        System.Exit.ExitFailure code -> Test.with_name (testName test) $
+            void $ Test.failure $
+                "test returned " ++ show code ++ ": " ++ testName test
         _ -> return ()
 
 -- | Match all tests whose names match any regex, or if a test is an exact
@@ -115,12 +115,10 @@ matchingTests regexes tests = concatMap match regexes
             tests
 
 runTest :: Test -> IO ()
-runTest test = do
+runTest test = Test.with_name (last (Seq.split "." (testName test))) $ do
     putStrLn $ unwords [metaPrefix, "run-test", testName test]
-    let name = last (Seq.split "." (testName test))
     start <- CPUTime.getCPUTime
-    maybe id id (testInitialize test) $ catch_srcpos
-        (Just (testFilename test, Just name, testLine test)) (testRun test)
+    maybe id id (testInitialize test) $ catch (testRun test)
     end <- CPUTime.getCPUTime
     -- CPUTime is in picoseconds.
     let secs = fromIntegral (end - start) / 10^12
@@ -129,13 +127,12 @@ runTest test = do
         Numeric.showFFloat (Just 3) secs ""]
     return ()
 
-catch_srcpos :: SrcPos.SrcPos -> IO a -> IO ()
-catch_srcpos srcpos op = do
+catch :: IO a -> IO ()
+catch op = do
     result <- Exception.try op
     case result of
         Left (exc :: Exception.SomeException) -> do
-            void $ Test.failure_srcpos srcpos
-                ("test threw exception: " ++ show exc)
+            void $ Test.failure ("test threw exception: " ++ show exc)
             -- Die on async exception, otherwise it will try to continue
             -- after ^C or out of memory.
             case Exception.fromException exc of

@@ -13,7 +13,6 @@ import qualified Data.Text as Text
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
 import Util.Pretty ((<+>))
-import qualified Util.SrcPos as SrcPos
 
 import qualified Derive.Stack as Stack
 import Global
@@ -30,12 +29,11 @@ instance Pretty.Pretty d => Pretty.Pretty (LEvent d) where
 -- | A variation on 'Log.format_msg', except this can format the stack nicely.
 format_log :: Log.Msg -> Pretty.Doc
 format_log msg =
-    Pretty.text stars <+> Pretty.text srcpos <+> Pretty.format stack
+    Pretty.text stars <+> Pretty.text caller <+> Pretty.format stack
         <> Pretty.indent_ (Pretty.text (Log.msg_text msg))
     where
     stars = Text.replicate (fromEnum (Log.msg_priority msg)) "*"
-    srcpos = maybe "" ((<>": ") . txt . SrcPos.show_srcpos . Just)
-        (Log.msg_caller msg)
+    caller = Log.show_caller (Log.msg_caller msg) <> ": "
     stack = case Log.msg_stack msg of
         Nothing -> Pretty.text "[]"
         Just stack -> Stack.format_ui stack

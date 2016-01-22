@@ -13,33 +13,31 @@ import qualified LogView.Process as Process
 import Global
 
 
+test_process_msg = do
+    let f = fmap (UTF8.toString . Process.style_text) . fst
+            . Process.process_msg (Process.initial_state "")
+    equal (f (Log.msg Log.Debug Nothing "hi"))
+        (Just "*\tLogView/Process_test.hs:19 hi\n")
+
 test_render_status = do
     let status = Map.fromList [("a", "one {click} 1"), ("b", "two")]
     let f = Process.render_status
-    pprint (f status)
+    equal (f status) $ Process.StyledText
+        "a: one {click} 1 || b: two"
+        "DAAAAAACCCCCCCAAEEEEDAAAAA"
 
-test_process_msg = do
-    let state = (Process.initial_state "")
+test_catch_pattern = do
+    let f key val = Process.state_status $ snd $ Process.process_msg state $
+            mkmsg key val
+        mkmsg key val = Log.msg Log.Debug Nothing $
+            "global status: " <> key <> " -- " <> val
+        state = (Process.initial_state "")
             { Process.state_catch_patterns = [Process.global_status_pattern]
             , Process.state_status = Map.fromList [("key", "val1")]
             }
-        f state msg = fmap (UTF8.toString . Process.style_text) styled
-            where styled = fst $ Process.process_msg state msg
-
-    -- test general formatting
-    msg <- Log.initialized_msg_srcpos Nothing Log.Debug "hi"
-    equal (f state msg) (Just "*\thi\n")
-
-    -- test catch patterns
-    let set_status key val = Log.initialized_msg Log.Debug $
-            "global status: " <> key <> " -- " <> val
-    msg <- set_status "key" "val2"
-    equal (Process.state_status $ snd $ Process.process_msg state msg)
-        (Map.fromList [("key", "val2")])
+    equal (f "key" "val2") (Map.fromList [("key", "val2")])
     -- Key is deleted.
-    msg <- set_status "key" ""
-    equal (Process.state_status $ snd $ Process.process_msg state msg)
-        Map.empty
+    equal (f "key" "") Map.empty
 
 test_flatten_ranges = do
     let f = Process.flatten_ranges 'z'
@@ -56,10 +54,7 @@ test_regex_style = do
             . Process.regex_style Process.style_plain Process.msg_text_regexes
     equal (f "{a}") "CCC"
     equal (f "x {a} x") "AACCCAA"
-    equal (f "x (bid \"a\") x")
-             "AADDDDDDDDDAA"
-    equal (f "x { a (bid \"name\") b } x")
-             "AACCCCDDDDDDDDDDDDCCCCAA"
+    equal (f "x (bid \"a\") x") "AADDDDDDDDDAA"
+    equal (f "x { a (bid \"name\") b } x") "AACCCCDDDDDDDDDDDDCCCCAA"
     let len = ByteString.length (UTF8.fromString "字")
-    equal (f "x { 字 }")
-        ("AACC" ++ replicate len 'C' ++ "CC")
+    equal (f "x { 字 }") ("AACC" ++ replicate len 'C' ++ "CC")

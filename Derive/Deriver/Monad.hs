@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleContexts #-} -- for super-classes of Callable
+{-# LANGUAGE ImplicitParams #-}
 {- | Implementation for the Deriver monad.
 
     This module should contain only 'Deriver' and the definitions needed to
@@ -33,8 +34,7 @@ module Derive.Deriver.Monad (
 
     -- * error
     , Error(..), ErrorVal(..), CallError(..), ErrorPlace(..), EvalSource(..)
-    , throw, throw_srcpos, throw_arg_error, throw_arg_error_srcpos
-    , throw_error, throw_error_srcpos
+    , throw, throw_arg_error, throw_error
 
     -- * derived types
     , Callable(..), Tagged(..), Taggable(..)
@@ -128,13 +128,13 @@ import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Vector.Unboxed
+import qualified GHC.Stack
 
 import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Map as Map
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
-import qualified Util.SrcPos as SrcPos
 
 import qualified Ui.Event as Event
 import qualified Ui.State as State
@@ -179,13 +179,13 @@ instance Log.LogMonad Deriver where
 
 -- * error
 
-data Error = Error SrcPos.SrcPos Stack.Stack ErrorVal
+data Error = Error !GHC.Stack.CallStack !Stack.Stack !ErrorVal
     deriving (Show)
 
 instance Pretty.Pretty Error where
-    pretty (Error srcpos stack val) =
-        txt (SrcPos.show_srcpos srcpos) <> " " <> pretty stack
-            <> ": " <> pretty val
+    pretty (Error call_stack stack val) =
+        Log.show_caller (Log.stack_to_caller call_stack)
+            <> " " <> pretty stack <> ": " <> pretty val
 
 data ErrorVal = GenericError !Text | CallError !CallError
     deriving (Show)
@@ -245,26 +245,16 @@ instance Pretty.Pretty ErrorPlace where
     pretty (TypeErrorArg num) = showt (num + 1)
     pretty (TypeErrorEnviron key) = "environ:" <> pretty key
 
-throw :: Text -> Deriver a
+throw :: Log.Stack => Text -> Deriver a
 throw = throw_error . GenericError
 
-throw_srcpos :: SrcPos.SrcPos -> Text -> Deriver a
-throw_srcpos srcpos = throw_error_srcpos srcpos . GenericError
+throw_arg_error :: Log.Stack => Text -> Deriver a
+throw_arg_error = throw_error . CallError . ArgError
 
-throw_arg_error :: Text -> Deriver a
-throw_arg_error = throw_arg_error_srcpos Nothing
-
-throw_arg_error_srcpos :: SrcPos.SrcPos -> Text -> Deriver a
-throw_arg_error_srcpos srcpos =
-    throw_error_srcpos srcpos . CallError . ArgError
-
-throw_error :: ErrorVal -> Deriver a
-throw_error = throw_error_srcpos Nothing
-
-throw_error_srcpos :: SrcPos.SrcPos -> ErrorVal -> Deriver a
-throw_error_srcpos srcpos err = do
+throw_error :: Log.Stack => ErrorVal -> Deriver a
+throw_error err = do
     stack <- gets (state_stack . state_dynamic)
-    DeriveM.throw (Error srcpos stack err)
+    DeriveM.throw (Error ?stack stack err)
 
 
 -- * derived types
@@ -1637,8 +1627,9 @@ merge_logs result logs = case result of
     Left err -> Stream.from_logs $ error_to_warn err : logs
 
 error_to_warn :: Error -> Log.Msg
-error_to_warn (Error srcpos stack val) =
-    Log.msg_srcpos srcpos Log.Warn (Just stack) ("Error: " <> pretty val)
+error_to_warn (Error call_stack stack val) =
+    Log.msg_call_stack call_stack Log.Warn (Just stack)
+        ("Error: " <> pretty val)
 
 {- NOTE [control-modification]
     . Control tracks return a single control, and how that merges into the

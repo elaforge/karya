@@ -852,8 +852,7 @@ test:
     ((bid "test/b2"),
      [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, ""), (2.0, 1.0, "")]),
       ("*", [(0.0, 0.0, "4e"), (1.0, 0.0, "4d"), (2.0, 0.0, "4c")])])
-  - If I abandon ghc 7.8 compatibility, I can use ImplicitParams for call
-    stack
+  * If I abandon ghc 7.8 compatibility, I can use ImplicitParams for call stack
     . Get rid of _srcpos variants and hspp for Util.Test and 'throws'
     . Extracters like 'expect_right' can use failure instead of throwing an
       exception.
@@ -863,9 +862,15 @@ test:
       . Another implicit parameter, but that would make calling the tests
         annoying.  I don't think I can make implicit parameters optional.  But
         perhaps I could put the 'let' in the .ghci?
+        . No, apparently not.  But a test run function would be ok if I put it
+          in D or ghcit, right?
+        . Actually this doesn't work because the tests are inferred as IO (),
+          without implicit params.
       . Making tests 'ReaderT String IO' would also make calling tests
         annoying.
       . Mutable global variable?
+        I already have something like this in skip_human, though I shouldn't
+        do more.
       . However, if tests are not in IO, I can also make pure tests, e.g.
         TestT m ().  Now I can have them return their results instead of
         printing.  If I ensure it's lazy I can still see where any wedge
@@ -878,8 +883,14 @@ test:
       . If I make tests have type (?stack :: CallStack) => IO (), then I can
         get the caller name from the next stack frame.  Unfortunately, all
         tests would then need explicit annotations, which seems error-prone.
-    . Also all of those functions that have a 'caller' arg can use implicit
-      params.
+    Functions with _srcpos
+      * Derive.Deriver.Monad
+      * Ui.State
+      * Derive.Deriver.Lib
+      * Cmd.Cmd
+    Functions with caller arg
+      . Actually since the call stack gets only the current function, it can't
+        get the caller name, just source and line number.  So maybe both?
   criterion
     / it seems unreasonably fast, why is it so much faster than in seq?
       . 5us for 128 events, plus no_invert is slower than invert?

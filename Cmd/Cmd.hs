@@ -54,7 +54,6 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
-import qualified Util.SrcPos as SrcPos
 
 import qualified Midi.Interface as Interface
 import qualified Midi.Interface
@@ -260,17 +259,14 @@ instance (Functor m, Monad m) => State.M (CmdT m) where
     unsafe_put st = CmdT (State.unsafe_put st)
     update upd = CmdT (State.update upd)
     get_updates = CmdT State.get_updates
-    throw_srcpos srcpos msg = CmdT (State.throw_srcpos srcpos msg)
+    throw_call_stack stack msg = CmdT (State.throw_call_stack stack msg)
 
 -- ** exceptions
 
 -- | This is the same as State.throw, but it feels like things in Cmd may not
 -- always want to reuse State's exceptions, so they should call this one.
-throw :: M m => Text -> m a
+throw :: (Log.Stack, M m) => Text -> m a
 throw = State.throw
-
-throw_srcpos :: M m => SrcPos.SrcPos -> Text -> m a
-throw_srcpos = State.throw_srcpos
 
 -- | Run a subcomputation that is allowed to abort.
 ignore_abort :: M m => m a -> m ()
@@ -289,20 +285,12 @@ rethrow_io =
 abort_unless :: M m => Maybe a -> m a
 abort_unless = maybe abort return
 
--- | Throw an exception with the given msg on Nothing
-require :: M m => Text -> Maybe a -> m a
-require = require_srcpos Nothing
+-- | Throw an exception with the given msg on Nothing.
+require :: (Log.Stack, M m) => Text -> Maybe a -> m a
+require msg = maybe (throw msg) return
 
-require_srcpos :: M m => SrcPos.SrcPos -> Text -> Maybe a -> m a
-require_srcpos srcpos msg = maybe (throw_srcpos srcpos msg) return
-
-require_right :: M m => (err -> Text) -> Either err a -> m a
-require_right = require_right_srcpos Nothing
-
-require_right_srcpos :: M m => SrcPos.SrcPos -> (err -> Text)
-    -> Either err a -> m a
-require_right_srcpos srcpos fmt_err =
-    either (throw_srcpos srcpos . fmt_err) return
+require_right :: (Log.Stack, M m) => (err -> Text) -> Either err a -> m a
+require_right fmt_err = either (throw . fmt_err) return
 
 -- * State
 

@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ImplicitParams #-}
 {- | The overall UI state is described here.  This is an immutable data
     structure that contains all the tracks, rulers, note data, and so forth.
     It exports a StateT monad for modification and access.
@@ -38,12 +39,12 @@ module Ui.State (
     , Track(..), Range(..), TrackInfo(..)
     -- * StateT monad
     , M, StateT, StateId, get, unsafe_put, update, get_updates
-    , throw_srcpos, throw
+    , throw_call_stack, throw
     , run, run_id, eval, eval_rethrow, exec, exec_rethrow
     , gets, unsafe_modify, put, modify
     -- ** errors
     , Error(..)
-    , require, require_srcpos, require_right, require_right_srcpos
+    , require, require_right
 
     -- * config
     , get_namespace, set_namespace
@@ -140,14 +141,15 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
+import qualified GHC.Stack
 
 import qualified Util.Lens as Lens
+import qualified Util.Log as Log
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
 import qualified Util.Ranges as Ranges
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
-import qualified Util.SrcPos as SrcPos
 
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
@@ -313,18 +315,18 @@ class (Applicative.Applicative m, Monad m) => M m where
     unsafe_put :: State -> m ()
     update :: Update.CmdUpdate -> m ()
     get_updates :: m [Update.CmdUpdate]
-    throw_srcpos :: SrcPos.SrcPos -> Text -> m a
+    throw_call_stack :: GHC.Stack.CallStack -> Text -> m a
 
 instance (Applicative.Applicative m, Monad m) => M (StateT m) where
     get = StateT State.get
     unsafe_put st = StateT (State.put st)
     update upd = (StateT . lift) (Logger.log upd)
     get_updates = (StateT . lift) Logger.peek
-    throw_srcpos srcpos msg =
-        (StateT . lift . lift) (Except.throwError (Error srcpos msg))
+    throw_call_stack call_stack msg =
+        (StateT . lift . lift) (Except.throwError (Error call_stack msg))
 
-throw :: M m => Text -> m a
-throw = throw_srcpos Nothing
+throw :: (Log.Stack, M m) => Text -> m a
+throw = throw_call_stack ?stack
 
 gets :: M m => (State -> a) -> m a
 gets f = fmap f get
@@ -397,25 +399,18 @@ exec_rethrow msg state =
 -- | Abort is used by Cmd, so don't throw it from here.  This isn't exactly
 -- modular, but ErrorT can't be composed and extensible exceptions are too
 -- much bother at the moment.
-data Error = Error !SrcPos.SrcPos !Text | Abort deriving (Show)
+data Error = Error !GHC.Stack.CallStack !Text | Abort deriving (Show)
 
 instance Pretty.Pretty Error where
-    pretty (Error srcpos msg) = txt (SrcPos.show_srcpos srcpos) <> " " <> msg
+    pretty (Error stack msg) =
+        Log.show_caller (Log.stack_to_caller stack) <> " " <> msg
     pretty Abort = "(abort)"
 
-require :: M m => Text -> Maybe a -> m a
-require = require_srcpos Nothing
+require :: (Log.Stack, M m) => Text -> Maybe a -> m a
+require err = maybe (throw_call_stack ?stack err) return
 
-require_srcpos :: M m => SrcPos.SrcPos -> Text -> Maybe a -> m a
-require_srcpos srcpos err = maybe (throw_srcpos srcpos err) return
-
-require_right :: M m => (err -> Text) -> Either err a -> m a
-require_right = require_right_srcpos Nothing
-
-require_right_srcpos :: M m => SrcPos.SrcPos -> (err -> Text)
-    -> Either err a -> m a
-require_right_srcpos srcpos fmt_err =
-    either (throw_srcpos srcpos . fmt_err) return
+require_right :: (Log.Stack, M m) => (err -> Text) -> Either err a -> m a
+require_right fmt_err = either (throw_call_stack ?stack . fmt_err) return
 
 -- * config
 

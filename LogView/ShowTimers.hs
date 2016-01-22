@@ -12,7 +12,6 @@ import qualified Text.Printf as Printf
 import qualified Text.Read as Read
 
 import qualified Util.Log as Log
-import qualified Util.SrcPos as SrcPos
 import qualified LogView.Tail as Tail
 
 
@@ -42,7 +41,7 @@ loop threshold = go
                     when (diff >= threshold) $
                         putStr vt100_red
                     Printf.printf "%.03f %s %s" diff
-                        (SrcPos.show_srcpos (Log.msg_caller msg))
+                        (Text.unpack (Log.show_caller (Log.msg_caller msg)))
                         (Text.unpack (Log.msg_text msg))
                     when (diff >= threshold) $
                         putStr vt100_normal

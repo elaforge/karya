@@ -858,5 +858,5 @@ overlap_map initial = go initial
         log_events = if logging then map LEvent.Log logs else []
         (vals, final_state) = go ((e, val) : overlapping) f events
 
-event_warning :: Event -> Text -> Log.Msg
+event_warning :: Log.Stack => Event -> Text -> Log.Msg
 event_warning event = Log.msg Log.Warn (Just (event_stack event))

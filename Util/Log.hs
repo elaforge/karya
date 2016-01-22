@@ -4,6 +4,7 @@
 
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Monad.Error
 {-# LANGUAGE GeneralizedNewtypeDeriving, DeriveGeneric, BangPatterns #-}
+{-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 {- | Functions for logging.
 
     Log msgs are used to report everything from errors and debug msgs to status
@@ -14,17 +15,17 @@
 module Util.Log (
     configure
     -- * msgs
+    , Stack
     , Msg(..), msg_string
+    , Caller(..), show_caller
     , Data(..), empty_data, has_data, get_data
     , Prio(..), State(..)
     , write_json, write_formatted
-    , msg, msg_srcpos, initialized_msg, initialized_msg_srcpos
+    , stack_to_caller
+    , msg, msg_call_stack, initialized_msg
     , timer, debug, notice, warn, error
-    , timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
     , debug_stack, notice_stack, warn_stack, error_stack
-    , debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos
-        , error_stack_srcpos
-    , debug_data_srcpos, debug_data
+    , debug_data
     , add_prefix
     , trace_logs
     -- * LogT monad
@@ -61,18 +62,20 @@ import qualified Data.Time as Time
 import qualified Data.Vector as Vector
 
 import qualified GHC.Generics as Generics
+import qualified GHC.SrcLoc as SrcLoc
+import qualified GHC.Stack as Stack
+import GHC.Stack (CallStack)
 import qualified System.CPUTime as CPUTime
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Text.ParserCombinators.ReadP as ReadP
-import Text.Printf (printf)
 import qualified Text.Read as Read
 
 import qualified Util.Debug as Debug
 import qualified Util.Logger as Logger
 import qualified Util.Pretty as Pretty
-import qualified Util.SrcPos as SrcPos
+import qualified Util.Seq as Seq
 
 import qualified Derive.Stack as Stack
 import Global
@@ -80,7 +83,7 @@ import Global
 
 data Msg = Msg {
     msg_date :: !Time.UTCTime
-    , msg_caller :: !SrcPos.SrcPos
+    , msg_caller :: !Caller
     , msg_priority :: !Prio
     -- | Msgs which are logged from the deriver may record the position in the
     -- score the msg was emitted.
@@ -98,6 +101,12 @@ msg_string = Text.unpack . msg_text
 
 instance Pretty.Pretty Msg where
     pretty = format_msg
+
+data Caller = Caller !FilePath !Int | NoCaller deriving (Eq, Show, Read)
+
+show_caller :: Caller -> Text
+show_caller (Caller fname line) = txt fname <> ":" <> showt line
+show_caller NoCaller = "<no-caller>"
 
 -- | Attach an arbitrary payload to a log msg.
 --
@@ -198,78 +207,62 @@ data Prio =
     | Error
     deriving (Show, Enum, Eq, Ord, Read, Generics.Generic)
 
+-- | Add this to the context of a function to make that function's caller
+-- show up in 'msg_caller'.
+type Stack = (?stack :: CallStack)
+
 -- | Create a msg without initializing it, so it doesn't have to be in
 -- LogMonad.
-msg :: Prio -> Maybe Stack.Stack -> Text -> Msg
-msg = msg_srcpos Nothing
+msg :: Stack => Prio -> Maybe Stack.Stack -> Text -> Msg
+msg = msg_call_stack ?stack
 
--- | Create a msg without initializing it.
-msg_srcpos :: SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> Text -> Msg
-msg_srcpos srcpos prio stack text =
-    Msg no_date_yet srcpos prio stack text NoData
+-- | Like 'msg' but when you already have a CallStack.
+msg_call_stack :: CallStack -> Prio -> Maybe Stack.Stack -> Text -> Msg
+msg_call_stack call_stack prio stack text =
+    Msg no_date_yet (stack_to_caller call_stack) prio stack text NoData
 
--- | Create a msg with the give prio and text.
-initialized_msg_srcpos :: LogMonad m => SrcPos.SrcPos -> Prio -> Text -> m Msg
-initialized_msg_srcpos srcpos prio = make_msg srcpos prio Nothing
+stack_to_caller :: CallStack -> Caller
+stack_to_caller = maybe NoCaller extract . Seq.last . Stack.getCallStack
+    where
+    extract (_, srcloc) = Caller (strip (SrcLoc.srcLocFile srcloc))
+        (SrcLoc.srcLocStartLine srcloc)
+    strip ('.':'/':s) = s
+    strip s = s
 
-initialized_msg :: LogMonad m => Prio -> Text -> m Msg
-initialized_msg = initialized_msg_srcpos Nothing
+-- | Create a msg with the given prio and text.
+initialized_msg :: (Stack, LogMonad m) => Prio -> Text -> m Msg
+initialized_msg prio = make_msg prio Nothing
 
 -- | This is the main way to construct a Msg since 'initialize_msg' is called.
-make_msg :: LogMonad m => SrcPos.SrcPos -> Prio -> Maybe Stack.Stack -> Text
-    -> m Msg
-make_msg srcpos prio stack text =
-    initialize_msg (msg_srcpos srcpos prio stack text)
+make_msg :: (Stack, LogMonad m) => Prio -> Maybe Stack.Stack -> Text -> m Msg
+make_msg prio stack text = initialize_msg (msg prio stack text)
 
-log :: LogMonad m => Prio -> SrcPos.SrcPos -> Text -> m ()
-log prio srcpos text = write =<< make_msg srcpos prio Nothing text
+log :: (Stack, LogMonad m) => Prio -> Text -> m ()
+log prio text = write =<< make_msg prio Nothing text
 
-log_stack :: LogMonad m => Prio -> SrcPos.SrcPos -> Stack.Stack -> Text
-    -> m ()
-log_stack prio srcpos stack text =
-    write =<< make_msg srcpos prio (Just stack) text
+log_stack :: (Stack, LogMonad m) => Prio -> Stack.Stack -> Text -> m ()
+log_stack prio stack text = write =<< make_msg prio (Just stack) text
 
-timer_srcpos, debug_srcpos, notice_srcpos, warn_srcpos, error_srcpos
-    :: LogMonad m => SrcPos.SrcPos -> Text -> m ()
-timer_srcpos = log Timer
-debug_srcpos = log Debug
-notice_srcpos = log Notice
-warn_srcpos = log Warn
-error_srcpos = log Error
-
-timer, debug, notice, warn, error :: LogMonad m => Text -> m ()
-timer = timer_srcpos Nothing
-debug = debug_srcpos Nothing
-notice = notice_srcpos Nothing
-warn = warn_srcpos Nothing
-error = error_srcpos Nothing
+timer, debug, notice, warn, error :: (Stack, LogMonad m) => Text -> m ()
+timer = log Timer
+debug = log Debug
+notice = log Notice
+warn = log Warn
+error = log Error
 
 -- Yay permutation game.  I could probably do a typeclass trick to make 'stack'
 -- an optional arg, but I think I'd wind up with all the same boilerplate here.
-debug_stack_srcpos, notice_stack_srcpos, warn_stack_srcpos, error_stack_srcpos
-    :: LogMonad m => SrcPos.SrcPos -> Stack.Stack -> Text -> m ()
-debug_stack_srcpos = log_stack Debug
-notice_stack_srcpos = log_stack Notice
-warn_stack_srcpos = log_stack Warn
-error_stack_srcpos = log_stack Error
-
-debug_stack, notice_stack, warn_stack, error_stack :: LogMonad m =>
-    Stack.Stack -> Text -> m ()
-debug_stack = debug_stack_srcpos Nothing
-notice_stack = notice_stack_srcpos Nothing
-warn_stack = warn_stack_srcpos Nothing
-error_stack = error_stack_srcpos Nothing
+debug_stack, notice_stack, warn_stack, error_stack
+    :: (Stack, LogMonad m) => Stack.Stack -> Text -> m ()
+debug_stack = log_stack Debug
+notice_stack = log_stack Notice
+warn_stack = log_stack Warn
+error_stack = log_stack Error
 
 -- | Write a Debug msg with arbitrary data attached to 'msg_data'.
-debug_data :: (LogMonad m, Dynamic.Typeable a) => Text -> a -> m ()
-debug_data = debug_data_srcpos Nothing
-
-debug_data_srcpos :: (LogMonad m, Dynamic.Typeable a) => SrcPos.SrcPos
-    -> Text -> a -> m ()
-debug_data_srcpos srcpos text data_ =
-    write . add_data =<< make_msg srcpos Debug Nothing text
-    where
-    add_data msg = msg { msg_data = Data (Dynamic.toDyn data_) }
+debug_data :: (Stack, LogMonad m, Dynamic.Typeable a) => Text -> a -> m ()
+debug_data text data_ = write . add_data =<< make_msg Debug Nothing text
+    where add_data msg = msg { msg_data = Data (Dynamic.toDyn data_) }
 
 -- | Prefix msgs with the given string.
 add_prefix :: Text -> [Msg] -> [Msg]
@@ -314,9 +307,13 @@ format_msg (Msg _date caller prio stack text _data) =
     log_msg <> maybe "" ((" "<>) . pretty) stack
     where
     prio_stars Timer = "-"
-    prio_stars prio = replicate (fromEnum prio) '*'
-    log_msg = txt $ printf "%-4s %s - %s"
-        (prio_stars prio) (SrcPos.show_srcpos caller) (Text.unpack text)
+    prio_stars prio = Text.replicate (fromEnum prio) "*"
+    log_msg = mconcat
+        [ Text.justifyLeft 5 ' ' (prio_stars prio)
+        , show_caller caller
+        , " - "
+        , text
+        ]
 
 -- | Add a time to the msg if it doesn't already have one.  Msgs can be logged
 -- outside of IO, so they don't get a date until they are written.
@@ -378,8 +375,16 @@ deserialize bytes = case Aeson.decode bytes of
         _ -> Left "expected a 5 element array"
     _ -> Left "can't decode json"
 
-instance Aeson.FromJSON Prio
 instance Aeson.ToJSON Prio
+instance Aeson.FromJSON Prio
+
+instance Aeson.ToJSON Caller where
+    toJSON (Caller fname line) = toJSON (fname, line)
+    toJSON NoCaller = Aeson.Null
+instance Aeson.FromJSON Caller where
+    parseJSON val = case val of
+        Aeson.Null -> return NoCaller
+        _ -> uncurry Caller <$> parseJSON val
 
 -- * util
 

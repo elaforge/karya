@@ -107,7 +107,7 @@ data StyledText = StyledText {
     style_text :: B.ByteString
     -- | 'Style' characters, same length as style_text.
     , style_style :: B.ByteString
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 type ProcessM = State.StateT State Identity.Identity
 
@@ -216,9 +216,10 @@ format_msg msg = run_formatter $ do
     with_plain "\t"
     let style = if Log.msg_priority msg < Log.Warn
             then style_plain else style_warn
-    whenJust (Log.msg_caller msg) $ \caller -> do
-        emit_srcpos caller
-        with_plain " "
+    case Log.msg_caller msg of
+        Log.NoCaller -> return ()
+        Log.Caller fname line ->
+            with_style style_filename $ fname <> ":" <> show line <> " "
     whenJust (Log.msg_stack msg) $ \stack -> emit_stack stack >> with_plain " "
     regex_style style msg_text_regexes (Log.msg_string msg)
     with_plain "\n"
@@ -241,12 +242,6 @@ run_formatter = build . Writer.execWriter
     where
     build (Builder text styles) = StyledText (b text) (b styles)
     b = Lazy.toStrict . Builder.toLazyByteString
-
-emit_srcpos :: (String, Maybe String, Int) -> Formatter
-emit_srcpos (file, func_name, line) = do
-    with_style style_filename $ file ++ ":" ++ show line ++ " "
-    maybe (return ())
-        (\func -> with_style style_func_name ("[" ++ func ++ "]")) func_name
 
 emit_stack :: Stack.Stack -> Formatter
 emit_stack stack = do
