@@ -295,14 +295,16 @@ with_style style text = Writer.tell $
 type Style = Word.Word8
 
 style_plain, style_warn, style_clickable, style_emphasis, style_divider,
-    style_func_name, style_filename :: Style
+    style_filename :: Style
 style_plain = word 'A'
 style_warn = word 'B'
 style_clickable = word 'C'
 style_emphasis = word 'D'
 style_divider = word 'E'
-style_func_name = word 'F'
-style_filename = word 'G'
+-- I lost calling function name when I switched from hspp to implicit call
+-- stacks.
+-- style_func_name = word 'F'
+style_filename = word 'F'
 
 word :: Char -> Word.Word8
 word = toEnum . fromEnum

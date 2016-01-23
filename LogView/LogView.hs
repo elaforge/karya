@@ -188,7 +188,6 @@ print_logs log_chan = forever $
     Text.IO.putStrLn . Log.format_msg
         =<< STM.atomically (TChan.readTChan log_chan)
 
-
 data Msg = NewLog Log.Msg | ClickedWord String | FilterChanged String
     deriving (Show)
 
