@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - shakefile: support for per-target package sets, so I can integrate Synth
+    . There should be one master set of packages and versions, and then
+      a binary can select a subset from it.
+    . Generate multiple .cabal files.
+  - Can I make prev val or {Note,Control,Pitch}Deriver return values more
+    typesafe with GADTs?
+    . Study https://github.com/goldfirere/glambda for ideas.
   * Switching from and to 0 dur events is still awkward.  I always wind up
     doing a ^Z then ^s
   * Don't change event duration if I'm editing the text of an existing one.

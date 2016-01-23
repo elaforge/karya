@@ -209,13 +209,20 @@ data HsBinary = HsBinary {
     hsName :: FilePath
     , hsMain :: FilePath -- ^ main module
     , hsLibraries :: [FilePath] -- ^ additional deps, relative to obj dir
-    , hsGui :: Maybe Bool -- ^ Just if it's a GUI app and thus needs
-    -- make_bundle on the mac, True if it has an icon at build/name.icns.
+    , hsGui :: GuiType
     } deriving (Show)
+
+-- | GUI apps require some postprocessing.
+data GuiType =
+    NoGui -- ^ plain app
+    | MakeBundle -- ^ run make_bundle on mac
+    | HasIcon -- ^ run make_bundle, and add an icon from build/name.icns
+    deriving (Show, Eq)
 
 hsBinaries :: [HsBinary]
 hsBinaries =
-    [ gui "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"] True
+    [ binary "browser" "Instrument/Browser.hs" ["Instrument/browser_ui.cc.o"]
+        HasIcon
     , plain "dump" "App/Dump.hs"
     -- ExtractDoc wants the global keymap, which winds up importing cmds that
     -- directly call UI level functions.  Even though it doesn't call the
@@ -226,11 +233,11 @@ hsBinaries =
     , plain "generate_run_tests" "Util/GenerateRunTests.hs"
     , plain "linkify" "Util/Linkify.hs"
     , plain "logcat" "LogView/LogCat.hs"
-    , gui "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] True
+    , binary "logview" "LogView/LogView.hs" ["LogView/logview_ui.cc.o"] HasIcon
     , plain "make_db" "Instrument/MakeDb.hs"
     , plain "pprint" "App/PPrint.hs"
     , plain "repl" "App/Repl.hs"
-    , gui "seq" "App/Main.hs" ["fltk/fltk.a"] True
+    , binary "seq" "App/Main.hs" ["fltk/fltk.a"] HasIcon
     , plain "send" "App/Send.hs"
     , plain "shakefile" "Shake/Shakefile.hs"
     , plain "show_timers" "LogView/ShowTimers.hs"
@@ -239,8 +246,8 @@ hsBinaries =
     , plain "verify_performance" "App/VerifyPerformance.hs"
     ]
     where
-    plain name path = HsBinary name path [] Nothing
-    gui name path deps icon = HsBinary name path deps (Just icon)
+    plain name path = HsBinary name path [] NoGui
+    binary = HsBinary
 
 runProfile :: FilePath
 runProfile = modeToDir Profile </> "RunProfile"
@@ -534,8 +541,9 @@ main = withLockedDatabase $ do
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
             buildHs config (map (oDir config </>) (hsLibraries binary)) [] hs fn
             case hsGui binary of
-                Just has_icon -> makeBundle fn True has_icon
-                _ -> return ()
+                NoGui -> return ()
+                MakeBundle -> makeBundle fn True False
+                HasIcon -> makeBundle fn True True
         (build </> "*.icns") %> \fn -> do
             -- Build OS X .icns file from .iconset dir.
             let src = "doc/icon" </> replaceExt fn "iconset"
