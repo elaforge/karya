@@ -3,13 +3,20 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE OverloadedStrings #-}
-module Shake.HsDeps (importsOf, transitiveImportsOf) where
+module Shake.HsDeps (
+    importsOf, transitiveImportsOf
+    , importsPackagagesOf_
+    , loadPackageDb, savePackageDb
+) where
 import qualified Control.Concurrent as Concurrent
 import qualified Control.Exception as Exception
+import Control.Monad
 import qualified Control.Monad.Trans as Trans
 
 import qualified Data.ByteString.Char8 as B
+import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.Serialize as Serialize
 import qualified Data.Set as Set
 
 import qualified Development.Shake as Shake
@@ -18,21 +25,78 @@ import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified System.Process as Process
 
+import qualified Util.Map
 import qualified Shake.Util as Util
 
 
+type Package = String
 type ModuleName = B.ByteString
 
 -- | Find files of modules this module imports, in the form A/B.hs or A/B.hsc.
 -- Paths that don't exist are assumed to be package imports and are omitted.
 importsOf :: Maybe [String] -> FilePath -> Shake.Action [FilePath]
-importsOf cppFlags fn = Shake.need [fn] >> Trans.liftIO (importsOf_ cppFlags fn)
+importsOf cppFlags fn = do
+    Shake.need [fn]
+    Trans.liftIO (importsOf_ cppFlags fn)
 
 importsOf_ :: Maybe [String] -- ^ If Just, first run CPP with these flags.
     -> FilePath -> IO [FilePath]
 importsOf_ cppFlags fn = do
-    contents <- withCppFile cppFlags fn B.hGetContents
-    Maybe.catMaybes <$> mapM fileOf (parseImports contents)
+    mods <- parseImports <$> preprocess cppFlags fn
+    Maybe.catMaybes <$> mapM fileOf mods
+
+-- * PackageDb
+
+-- | Map a module name to the package it comes from.
+type PackageDb = Map.Map ModuleName Package
+
+-- | Get local imports and package dependencies.
+--
+-- I thought I wound use this but wound up not wanting it.  But I'll leave the
+-- basic implementation here in case I change my mind.  This still needs to
+-- be integrated with 'importsOf' and 'transitiveImportsOf'.
+importsPackagagesOf_ :: PackageDb
+    -> Maybe [String] -- ^ If Just, first run CPP with these flags.
+    -> FilePath -> IO ([FilePath], [Package])
+importsPackagagesOf_ packageDb cppFlags fn = do
+    mods <- parseImports <$> preprocess cppFlags fn
+    files <- Maybe.catMaybes <$> mapM fileOf mods
+    return (files, Maybe.mapMaybe (`Map.lookup` packageDb) mods)
+
+-- | Load cached module to package db.
+loadPackageDb :: FilePath -> Shake.Action PackageDb
+loadPackageDb fn = do
+    Shake.need [fn]
+    Trans.liftIO $ do
+        result <- Serialize.decode <$> B.readFile fn
+        either (Util.errorIO . (("load from " ++ fn ++ ":")++)) return result
+
+-- | Call 'getModuleToPackage' and save its contents to the file.
+-- If there are colliding modules, throw an IO exception.
+savePackageDb :: [Package] -> FilePath -> IO ()
+savePackageDb packages cacheFn = do
+    (packageDb, collisions) <- getModuleToPackage packages
+    unless (null collisions) $
+        Util.errorIO $ "modules found in >1 package:\n" ++ unlines
+            [B.unpack k ++ ": " ++ unwords vs | (k, vs) <- collisions]
+    B.writeFile cacheFn $ Serialize.encode packageDb
+
+getModuleToPackage :: [Package]
+    -> IO (Map.Map ModuleName Package, [(ModuleName, [Package])])
+    -- ^ also return any modules found under multiple packages
+getModuleToPackage packages = do
+    packageMods <- zip packages <$> mapM getExposedModules packages
+    return $ Util.Map.unique2
+        [(mod, package) | (package, mods) <- packageMods, mod <- mods]
+
+getExposedModules :: Package -> IO [ModuleName]
+getExposedModules package =
+    parse <$> processStdout "ghc-pkg" ["field", package, "exposed-modules"]
+    where
+    -- The first word is "exposed-modules:".
+    -- TODO gets duplicates if you have the same package installed under
+    -- different versions.
+    parse = drop 1 . B.words
 
 -- | Like 'importsOf' but transitive.  Includes the given module.
 --
@@ -41,8 +105,9 @@ importsOf_ cppFlags fn = do
 -- Otherwise the '#include' that belongs to hsc2hs will get processed by CPP.
 transitiveImportsOf :: (FilePath -> Maybe [String]) -> FilePath
     -> Shake.Action [FilePath]
-transitiveImportsOf cppFlagsOf fn =
-    Shake.need [fn] >> Trans.liftIO (transitiveImportsOf_ cppFlagsOf fn)
+transitiveImportsOf cppFlagsOf fn = do
+    Shake.need [fn]
+    Trans.liftIO $ transitiveImportsOf_ cppFlagsOf fn
 
 transitiveImportsOf_ :: (FilePath -> Maybe [String]) -> FilePath
     -> IO [FilePath]
@@ -54,7 +119,7 @@ transitiveImportsOf_ cppFlagsOf fn = go Set.empty [fn]
             imports <- importsOf_ (cppFlagsOf fn) fn
             let checked' = Set.insert fn checked
             go checked' (fns ++ filter (`Set.notMember` checked') imports)
-    go checked [] = return $ Set.toList checked
+    go checked [] = return (Set.toList checked)
 
 fileOf :: ModuleName -> IO (Maybe FilePath)
 fileOf mod =
@@ -74,24 +139,24 @@ parseImports = Maybe.mapMaybe (parse . B.words) . B.lines
     parse (w1:w2:_) | w1 == "import" = Just w2
     parse _ = Nothing
 
-withCppFile :: Maybe [String] -> FilePath -> (IO.Handle -> IO a) -> IO a
-withCppFile Nothing fn = withFile fn
-withCppFile (Just flags) fn = Exception.bracket open IO.hClose
-    where
-    open = do
-        (_, Just stdout, _, _) <- loggedProcess $
-            -- Use -w to suppress warnings.  CPP doesn't understand haskell
-            -- comments and will warn about unterminated 's in comments.
-            -- -P suppresses the '# line' stuff I don't care about.
-            (Process.proc "cpp" (["-w", "-P"] ++ flags ++ [fn]))
-                { Process.std_out = Process.CreatePipe }
-        return stdout
+-- | Read the file, and preprocess with CPP if cppFlags are given.
+preprocess :: Maybe [String] -> FilePath -> IO B.ByteString
+preprocess Nothing fn = B.readFile fn
+preprocess (Just flags) fn = processStdout "cpp" (["-w", "-P"] ++ flags ++ [fn])
+    -- Use -w to suppress warnings.  CPP doesn't understand haskell comments
+    -- and will warn about unterminated 's in comments.  -P suppresses the
+    -- '# line' stuff I don't care about.
 
 
 -- * util
 
-withFile :: FilePath -> (IO.Handle -> IO a) -> IO a
-withFile fn = Exception.bracket (IO.openFile fn IO.ReadMode) IO.hClose
+processStdout :: FilePath -> [String] -> IO B.ByteString
+processStdout cmd args = Exception.bracket open IO.hClose B.hGetContents
+    where
+    open = do
+        (_, Just stdout, _, _) <- loggedProcess $
+            (Process.proc cmd args) { Process.std_out = Process.CreatePipe }
+        return stdout
 
 -- | Like 'Process.createProcess', but actually report when the binary isn't
 -- found.

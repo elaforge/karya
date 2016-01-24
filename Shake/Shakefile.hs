@@ -61,6 +61,9 @@ useEventLog = False
 
 -- ** packages
 
+-- | Package, with or without version e.g. containers-0.5.5.1
+type Package = String
+
 -- | This is the big list of packages that should make everyone happy.
 allPackages :: [Package]
 allPackages = map fst globalPackages
@@ -70,7 +73,7 @@ globalPackages :: [(Package, String)]
 globalPackages = concat
     -- really basic deps
     [ [("base", ">=4.6"), ("containers", ">=0.5")]
-    , w "directory filepath process bytestring time unix array pretty ghc-prim"
+    , w "directory filepath process bytestring time unix array ghc-prim"
     --  basic
     , w "deepseq data-ordlist cereal text stm network"
     , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
@@ -79,7 +82,7 @@ globalPackages = concat
     -- shakefile
     , [("shake", ">=0.13"), ("binary", ""), ("hashable", "")]
     -- Util
-    , w "haskell-src" -- Util.PPrint
+    , w "pretty haskell-src" -- Util.PPrint
     , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
     , [("Diff", ">=0.2")] -- Util.Test
     , w "zlib" -- Util.File
@@ -294,7 +297,8 @@ nameToMain = Map.fromList [(hsName b, hsMain b) | b <- hsBinaries]
 -- | Haskell files that use the FFI likely have dependencies on C++ source.
 -- I could figure this out automatically by looking for @foreign import ...@
 -- and searching for a neighboring .cc file with those symbols, but it's
--- simpler to give the dependency explicitly.
+-- simpler to give the dependency explicitly.  TODO a somewhat more modular way
+-- would be a magic comment that declares a dependency on a C file.
 hsToCc :: Map.Map FilePath [FilePath]
 hsToCc = Map.fromList $
     [ ("Midi/CoreMidi.hs", ["Midi/core_midi.cc"])
@@ -521,7 +525,7 @@ main = withLockedDatabase $ do
     writeGhciFlags modeConfig
     makeDataLink
     Shake.shakeArgsWith defaultOptions [] $ \[] targets -> return $ Just $ do
-        "karya.cabal" %> makeKaryaCabal
+        cabalRule
         matchBuildDir hsconfigH ?> configHeaderRule
         let infer = inferConfig modeConfig
         setupOracle env (modeConfig Debug)
@@ -815,42 +819,26 @@ wantsHaddock midi hs = not $ or
     , Char.isLower $ head hs
     ]
 
--- ** cabal
+-- ** packages
 
--- | Package, with or without version e.g. containers-0.5.5.1
-type Package = String
-
-makeKaryaCabal :: FilePath -> Shake.Action ()
-makeKaryaCabal fn = do
-    -- Always build, since it can't tell when 'globalPackages' has changed,
-    -- but writeFileChanged will avoid further work if it hasn't.
-    Shake.alwaysRerun
+cabalRule :: Shake.Rules ()
+cabalRule = (>> Shake.want [fn]) $ fn %> \_ -> do
     template <- Shake.readFile' "doc/karya.cabal.template"
     Shake.writeFileChanged fn $ template ++ buildDepends ++ "\n"
     where
+    fn = "karya.cabal"
     indent = replicate 8 ' '
-    buildDepends = (indent++) $ List.intercalate (",\n" ++ indent) $
+    buildDepends = (indent<>) $ List.intercalate (",\n" ++ indent) $
         List.sort $ map mkline globalPackages
     mkline (package, constraint) =
         package ++ if null constraint then "" else " " ++ constraint
 
 -- ** hs
 
-makeHs :: Flags -> FilePath -> FilePath -> FilePath -> Util.Cmdline
-makeHs flags dir out main =
-    ( "GHC-MAKE"
-    , out
-    , ghcBinary : packageFlags flags allPackages ++
-        [ "--make", "-outputdir", dir, "-O2", "-o", out
-        , "-main-is", pathToModule main, main
-        ]
-    )
-
 -- | Build a haskell binary.
 buildHs :: Config -> [FilePath] -> [Package] -> FilePath -> FilePath
     -> Shake.Action ()
 buildHs config libs extraPackages hs fn = do
-    need ["karya.cabal"]
     when (isHsconfigBinary fn) $
         need [hsconfigPath config]
     srcs <- HsDeps.transitiveImportsOf (cppFlags config) hs

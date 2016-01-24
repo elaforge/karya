@@ -4,7 +4,9 @@
 
 -- | Extra utils for "Data.Map".
 module Util.Map where
+import Control.Arrow (first)
 import Prelude hiding (min, max)
+import qualified Data.Either as Either
 import Data.Function
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -74,6 +76,15 @@ unique assocs = (Map.fromList pairs, concat rest)
     pair (x:xs) = (x, xs)
     pair [] = error "[]: List.groupBy violated its postcondition"
     (pairs, rest) = separate assocs
+
+-- | Make a map, but if any keys collide, omit that key and return it along
+-- with the multiple values.
+unique2 :: Ord k => [(k, v)] -> (Map.Map k v, [(k, [v])])
+unique2 = first Map.fromAscList . Either.partitionEithers . map separate
+    . Seq.group_fst
+    where
+    separate (k, [v]) = Left (k, v)
+    separate (k, vs) = Right (k, vs)
 
 -- | Given two maps, pair up the elements in @map1@ with a samed-keyed element
 -- in @map2@, if there is one.  Elements that are only in @map1@ or @map2@ will

@@ -11,9 +11,11 @@ module Shake.Util (
     -- * ghc
     , sandboxPackageDb
     -- * general
-    , ifM, whenM
+    , ifM, whenM, errorIO
 ) where
+import qualified Control.Exception as Exception
 import Control.Monad
+import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (liftIO)
 
 import qualified Data.Char as Char
@@ -55,9 +57,9 @@ doCmdline staunch (abbr, output, cmd_:args) = do
     res <- Shake.traced ("cmdline: " ++ desc) $
         Process.rawSystem "nice" (cmd : args)
     when (not staunch && res /= Exit.ExitSuccess) $
-        error $ "Failed:\n" ++ unwords (cmd : args)
+        errorIO $ "Failed:\n" ++ unwords (cmd : args)
 doCmdline _ (abbr, output, []) =
-    error $ "0 args for cmdline: " ++ show (abbr, output)
+    errorIO $ "0 args for cmdline: " ++ show (abbr, output)
 
 system :: FilePath -> [String] -> Shake.Action ()
 system cmd args = cmdline (unwords (cmd:args), "", cmd:args)
@@ -71,7 +73,7 @@ shell cmd = do
     Shake.putQuiet cmd
     res <- Shake.traced ("shell: " ++ cmd) $ Process.system cmd
     when (res /= Exit.ExitSuccess) $
-        error $ "Failed:\n" ++ cmd
+        errorIO $ "Failed:\n" ++ cmd
 
 -- | Log one thing at quiet, and another at normal or above.
 putQuietNormal :: String -> String -> Shake.Action ()
@@ -121,3 +123,6 @@ ifM cond consequent alternative =
 
 whenM :: Monad m => m Bool -> m () -> m ()
 whenM cond consequent = cond >>= \b -> when b consequent
+
+errorIO :: Trans.MonadIO m => String -> m a
+errorIO = Trans.liftIO . Exception.throwIO . Exception.ErrorCall
