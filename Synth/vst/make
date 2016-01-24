@@ -1,0 +1,27 @@
+#!/bin/zsh
+
+name=PlayCache
+vst_base=/usr/local/src/music/vst3-sdk
+brew=$HOME/homebrew
+flags=(
+    -DBASE_DIR='"'$(pwd)'"'
+    -I$vst_base
+    -I$brew/include -L$brew/lib
+    -O2 -Wall -std=c++11
+)
+
+sources=(
+    $vst_base/public.sdk/source/vst2.x/audioeffect.cpp
+    $vst_base/public.sdk/source/vst2.x/audioeffectx.cpp
+    $vst_base/public.sdk/source/vst2.x/vstplugmain.cpp
+    Sample.cc
+    PlayCache.cc
+)
+
+libs=(-lsndfile)
+
+vst=build/$name.vst
+rm -rf $vst
+cp -r $name.vst.template $vst
+echo g++ $flags -bundle -o $name.vst/Contents/MacOS/$name $libs $sources
+g++ $flags -bundle -o $vst/Contents/MacOS/$name $libs $sources

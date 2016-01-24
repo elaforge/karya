@@ -1,0 +1,11 @@
+[ { "instrument": "inst", "start": 0,
+    "controls": {"pitch": [[0, 60]], "envelope": [[0, 0.15]]},
+    "attribute": "open" }
+, { "instrument": "inst", "start": 0.5,
+    "controls": {"pitch": [[0, 62]], "envelope": [[0, 0.35]]},
+    "attribute": "open" }
+, { "instrument": "inst", "start": 1, "controls": {"pitch": [[0, 63]]},
+    "attribute": "open" }
+, { "instrument": "inst", "start": 2, "controls": {}, "attribute": "cek" }
+, { "instrument": "inst", "start": 2.05, "controls": {}, "attribute": "cek" }
+]
