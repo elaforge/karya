@@ -67,39 +67,39 @@ allPackages = map fst globalPackages
 
 -- | This is used to create karya.cabal and supply -package arguments to ghc.
 globalPackages :: [(Package, String)]
-globalPackages = concat $
+globalPackages = concat
     -- really basic deps
     [ [("base", ">=4.6"), ("containers", ">=0.5")]
-    , w "directory filepath process bytestring time unix array pretty"
-    , w "ghc-prim old-locale"
+    , w "directory filepath process bytestring time unix array pretty ghc-prim"
     --  basic
     , w "deepseq data-ordlist cereal text stm network"
     , [("transformers", ">=0.4"), ("mtl", ">=2.2.1")]
     , w "vector utf8-string semigroups"
     , [("extra", ">=1.3")]
-    , w "attoparsec" -- Derive: tracklang parsing
     -- shakefile
-    , w "Cabal"
-    , [("shake", ">=0.13"), ("binary", "")]
-    -- Derive: score randomization
-    , w "mersenne-random-pure64 digest random-shuffle"
+    , [("shake", ">=0.13"), ("binary", ""), ("hashable", "")]
+    -- Util
+    , w "haskell-src" -- Util.PPrint
+    , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")] -- Util.Regex
+    , [("Diff", ">=0.2")] -- Util.Test
+    , w "zlib" -- Util.File
+    , w "wcwidth" -- Util.Format
     , w "dlist" -- Util.TimeVector
+    -- karya
+    , w "old-locale"
+    , w "attoparsec" -- Derive: tracklang parsing
     , w "hlibgit2"
     , [("fclabels", ">=2")]
-    , [("ghc", ">=7.6.1")] -- REPL
+    , [("ghc", ">=7.10")] -- REPL
     , w "ghc-paths haskeline terminfo" -- REPL
+    -- Derive: score randomization
+    , w "mersenne-random-pure64 digest random-shuffle"
     -- Instrument.Parse, could use attoparsec, but parsec errors are better
     , w "parsec"
-    , w "haskell-src" -- Util.PPrint
-    , [("pcre-light", ">=0.4"), ("pcre-heavy", ">=0.2")]
-    , [("Diff", ">=0.2")] -- Util.Test
     , w "QuickCheck" -- Derive.DeriveQuickCheck
     , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
-    , w "hashable zlib"
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
-
     , w "aeson" -- serialize and unserialize log msgs
-    , w "wcwidth" -- used by Util.Format
     ]
     where w = map (\p -> (p, "")) . words
 
