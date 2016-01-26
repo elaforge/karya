@@ -89,7 +89,7 @@ class BlockView : public Fl_Group {
 public:
     BlockView(int X, int Y, int W, int H,
         const BlockModelConfig &model_config, const char *window_title);
-    ~BlockView();
+    virtual ~BlockView();
 
     int handle(int evt) override;
     void resize(int X, int Y, int W, int H) override;

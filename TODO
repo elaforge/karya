@@ -36,10 +36,6 @@ UNSORTED
     . buildHs - for the link.  Needs union of all hsORule packages.
       This just takes the binary packages list.
     . hsORule - for compile.  So it needs packages that the hs imports.
-
-  - Can I make prev val or {Note,Control,Pitch}Deriver return values more
-    typesafe with GADTs?
-    . Study https://github.com/goldfirere/glambda for ideas.
   * Switching from and to 0 dur events is still awkward.  I always wind up
     doing a ^Z then ^s
   * Don't change event duration if I'm editing the text of an existing one.
@@ -47,7 +43,7 @@ UNSORTED
     * remove unneeded imports
     * use ExceptT instead of ErrorT
       . remove -fno-warn-warnings-deprecations
-    - use ImplicitParams, get rid of hspp
+    * use ImplicitParams, get rid of hspp
   * kontakt/sc-*-pasasng without a 'unison' or similar call doesn't have the
     right PatchScale
   * legong 4i is around 5c, it should be in a similar octave as 4c, so I need
@@ -546,6 +542,9 @@ local: plugins:
     map.
 
 cleanup:
+  - Can I make prev val or {Note,Control,Pitch}Deriver return values more
+    typesafe with GADTs?
+    . Study https://github.com/goldfirere/glambda for ideas.
   See about removing type prefix from record fields.
     . However, if there are lenses, then I need those names for the lenses.
       But perhaps the plain version can have a leading _?

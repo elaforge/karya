@@ -4,6 +4,7 @@
 
 {-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+-- | The 'Note' type and support.
 module Synth.Sampler.Note where
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map

@@ -10,10 +10,13 @@
 #include "Sample.h"
 
 
+// This is a simple VST that understands MIDI messages to play from a certain
+// time, and plays back samples from the cache directory.  It's expected that
+// offline synthesizers will be maintaining the cache.
 class PlayCache : public AudioEffectX {
 public:
     PlayCache(audioMasterCallback audioMaster);
-    ~PlayCache();
+    virtual ~PlayCache();
 
     // configure
 

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE LambdaCase #-}
--- | Process audio.
+-- | Offline sampler.
 module Synth.Sampler.Main (main) where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Aeson as Aeson

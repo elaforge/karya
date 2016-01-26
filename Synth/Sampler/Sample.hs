@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE DeriveGeneric #-}
+-- | The 'Sample' type and support.
 module Synth.Sampler.Sample where
 import qualified Control.Exception as Exception
 import qualified Data.Aeson as Aeson
@@ -12,6 +13,7 @@ import qualified Data.Conduit.Audio.Sndfile as Sndfile
 
 import qualified GHC.Generics as Generics
 
+import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Num as Num
 import Global
 import qualified Synth.Sampler.Signal as Signal
@@ -58,7 +60,7 @@ realize (Sample start filename offset env ratio) = try $ do
 resample :: Double -> Audio -> Audio
 resample ratio audio
     -- Don't do any work if it's close enough to 1.
-    | abs (ratio - 1) <= closeEnough = audio
+    | ApproxEq.eq closeEnough ratio 1 = audio
     | otherwise = (SampleRate.resample ratio SampleRate.SincBestQuality audio)
         { Audio.rate = Audio.rate audio }
         -- Since I am changing the pitch I actually do want to retain the old
@@ -70,7 +72,7 @@ resample ratio audio
 
 applyEnvelope :: Time -> Signal.Signal -> Audio -> Audio
 applyEnvelope start sig
-    | approxEq 0.01 val 1 = id
+    | ApproxEq.eq 0.01 val 1 = id
     | otherwise = Audio.gain val
     where val = Num.d2f (Signal.at start sig)
     -- TODO scale by envelope, and shorten the audio if the 'sig' ends on 0
@@ -83,6 +85,3 @@ mix [] = empty
     -- emit silence while there are no Audios in scope
     -- otherwise, keep track of frame for each Audio and emit a chunk with it
     -- mixed.
-
-approxEq :: (Num a, Ord a) => a -> a -> a -> Bool
-approxEq eta a b = abs (a-b) <= eta

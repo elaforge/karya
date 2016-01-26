@@ -102,8 +102,8 @@ performance
     . Or I can map directly with vector-mmap.  For that I need to record the
       offsets in the file.
 
-Put karya things into libraries:
-  . TimeVector?  Specifically at_linear, bsearch functions
+Reuse karya code:
+  - TimeVector?  Specifically at_linear, bsearch functions
   * Logging.
   - Testing.
   - Pitch.nnToHz
@@ -111,4 +111,4 @@ Put karya things into libraries:
   * Util.Debug
   * Util.Pretty
   * Util.Num
-  - Util.ApproxEq
+  * Util.ApproxEq
