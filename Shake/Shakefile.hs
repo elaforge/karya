@@ -5,8 +5,7 @@
 {-# LANGUAGE FlexibleContexts, ViewPatterns #-}
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{- | Shakefile for seq and associated binaries.
--}
+-- | Shakefile for seq and associated binaries.
 module Shake.Shakefile where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Control.Exception as Exception
@@ -123,15 +122,29 @@ extraPackages = ["criterion"]
 
 -- * config implementation
 
--- Static constants.
-build :: FilePath
-build = "build"
-
 fltkConfig :: FilePath
 fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
 
+-- TODO don't hardcode my homedir?  Or maybe vars like this can go in
+-- a separate module for local configuration?
+
+-- | Extra -I flags that all compiles get, including haskell cpp and hsc2hs.
+globalIncludes :: [Flag]
+globalIncludes = ["-I/Users/elaforge/homebrew/include"]
+
+-- | Extra -L flags for the C++ link.
+globalLibDirs :: [Flag]
+globalLibDirs = ["-L/Users/elaforge/homebrew/lib"]
+
+-- | Root of the VST SDK.
+vstBase :: FilePath
+vstBase = "/usr/local/src/music/vst3-sdk"
+
 ghcBinary :: FilePath
 ghcBinary = "ghc"
+
+build :: FilePath
+build = "build"
 
 defaultOptions :: Shake.ShakeOptions
 defaultOptions = Shake.shakeOptions
@@ -150,6 +163,8 @@ data Config = Config {
     , configFlags :: Flags
     -- | GHC version as returned by 'parseGhcVersion'.
     , ghcVersion :: String
+    -- | Absolute path to the root directory for the project.
+    , rootDir :: FilePath
     } deriving (Show)
 
 buildDir :: Config -> FilePath
@@ -171,7 +186,7 @@ includeDirs config = [dir | '-':'I':dir <- cInclude (configFlags config)]
 type Flag = String
 
 data Flags = Flags {
-    -- | -D flags.
+    -- | -D flags.  This is used by both g++ has ghc.
     define :: [Flag]
     -- | Linker flags to link in whatever MIDI driver we are using today.
     -- There should be corresponding flags in 'define' to enable said driver.
@@ -180,15 +195,19 @@ data Flags = Flags {
     -- Technically they don't all need the same dirs, but it doesn't hurt to
     -- have unneeded ones.
     , cInclude :: [Flag]
+    -- | Analogous to 'cInclude', this has -L flags, used when linking all
+    -- C++ binaries.  TODO also use when linking hs?
+    , cLibDirs :: [Flag]
 
     -- | Flags for g++.  This is the complete list and includes the 'define's
-    -- and 'cInclude's.
-    , ccFlags :: [Flag]
+    -- and 'cInclude's.  This is global because all CcBinaries get these flags.
+    , globalCcFlags :: [Flag]
     -- | Additional flags needed when compiling fltk.
     , fltkCc :: [Flag]
     -- | Additional flags needed when linking fltk.
     , fltkLd :: [Flag]
-    -- | GHC-specific flags.  Unlike 'ccFlags', this *isn't* the complete list.
+    -- | GHC-specific flags.  Unlike 'globalCcFlags', this *isn't* the complete
+    -- list.
     , hcFlags :: [Flag]
     -- | Flags needed when linking haskell.  Doesn't include the -packages.
     , hLinkFlags :: [Flag]
@@ -199,11 +218,11 @@ data Flags = Flags {
     } deriving (Show)
 
 instance Monoid.Monoid Flags where
-    mempty = Flags [] [] [] [] [] [] [] [] [] []
-    mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1)
-            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2) =
+    mempty = Flags [] [] [] [] [] [] [] [] [] [] []
+    mappend (Flags a1 b1 c1 d1 e1 f1 g1 h1 i1 j1 k1)
+            (Flags a2 b2 c2 d2 e2 f2 g2 h2 i2 j2 k2) =
         Flags (a1<>a2) (b1<>b2) (c1<>c2) (d1<>d2) (e1<>e2) (f1<>f2) (g1<>g2)
-            (h1<>h2) (i1<>i2) (j1<>j2)
+            (h1<>h2) (i1<>i2) (j1<>j2) (k1<>k2)
 
 -- * binaries
 
@@ -211,10 +230,13 @@ instance Monoid.Monoid Flags where
 
 -- ** hs
 
+{- | Describe a single haskell binary.  The dependencies are inferred by
+    chasing imports.
+-}
 data HsBinary = HsBinary {
     hsName :: FilePath
     , hsMain :: FilePath -- ^ main module
-    , hsLibraries :: [FilePath] -- ^ additional deps, relative to obj dir
+    , hsDeps :: [FilePath] -- ^ additional deps, relative to obj dir
     , hsGui :: GuiType
     } deriving (Show)
 
@@ -234,8 +256,7 @@ hsBinaries =
     -- directly call UI level functions.  Even though it doesn't call the
     -- cmds, they're packaged together with the keybindings, so I wind up
     -- having to link in all that stuff anyway.
-    , (plain "extract_doc" "App/ExtractDoc.hs")
-        { hsLibraries = ["fltk/fltk.a"] }
+    , (plain "extract_doc" "App/ExtractDoc.hs") { hsDeps = ["fltk/fltk.a"] }
     , plain "generate_run_tests" "Util/GenerateRunTests.hs"
     , plain "linkify" "Util/Linkify.hs"
     , plain "logcat" "LogView/LogCat.hs"
@@ -320,24 +341,63 @@ criterionHsSuffix = "_criterion.hs"
 
 -- ** cc
 
+{- | Describe a C++ binary target.  Unlike 'HsBinary', this has all the
+    binary's obj file dependencies explicitly listed.  This is because C source
+    files import separate include files, so I can't infer all the dependencies
+    just by chasing imports, unless I want to assume that each name.h has
+    a corresponding name.cc.  In any case, I have relatively little C++ and it
+    changes rarely, so I don't mind a hardcoded list.  An explicit list of deps
+    means I can also give compile flags per source file, instead of having
+    a global list of flags that applies to all sources.
+-}
 data CcBinary = CcBinary {
     ccName :: String
-    , ccDeps :: [FilePath]
-    } deriving (Show)
+    -- | Object files required, relative to build/<mode>/obj.
+    , ccRelativeDeps :: [FilePath]
+    , ccCompileFlags :: Config -> [Flag]
+    , ccLinkFlags :: Config -> [Flag]
+    }
+
+ccDeps :: Config -> CcBinary -> [FilePath]
+ccDeps config binary = map (oDir config </>) (ccRelativeDeps binary)
 
 ccBinaries :: [CcBinary]
 ccBinaries =
-    [ CcBinary "test_block" ["fltk/test_block.cc.o", "fltk/fltk.a"]
-    , CcBinary "test_browser" ["Instrument/test_browser.cc.o",
-        "Instrument/browser_ui.cc.o", "fltk/f_util.cc.o"]
-    , CcBinary "test_logview" ["LogView/test_logview.cc.o",
-        "LogView/logview_ui.cc.o", "fltk/f_util.cc.o"]
+    -- get fltkLds, ultimately from $(fltk-config)
+    [ fltk "test_block" ["fltk/test_block.cc.o", "fltk/fltk.a"]
+    , fltk "test_browser"
+        [ "Instrument/test_browser.cc.o", "Instrument/browser_ui.cc.o"
+        , "fltk/f_util.cc.o"
+        ]
+    , fltk "test_logview"
+        [ "LogView/test_logview.cc.o", "LogView/logview_ui.cc.o"
+        , "fltk/f_util.cc.o"
+        ]
+    , CcBinary
+        { ccName = "play_cache"
+        , ccRelativeDeps =
+            map ("Synth/vst"</>) ["Sample.cc.o", "PlayCache.cc.o"]
+        , ccCompileFlags = \config ->
+            [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "Synth/vst") ++ "\""
+            , "-I" ++ vstBase
+            ]
+        , ccLinkFlags = const $ "-bundle" : "-lsndfile"
+            : map ((vstBase </> "public.sdk/source/vst2.x") </>)
+                ["audioeffect.cpp", "audioeffectx.cpp", "vstplugmain.cpp"]
+        }
     ]
+    where
+    fltk name deps =
+        CcBinary name deps (fltkCc . configFlags) (fltkLd . configFlags)
 
--- | Since fltk.a is a library, not a binary, I can't just chase includes to
--- know all the source files.  I could read fltk/*.cc at runtime, but the fltk
--- directory changes so rarely it seems not a great burden to just hardcode
--- them all here.
+{- | Since fltk.a is a library, not a binary, I can't just chase includes to
+    know all the source files.  I could read fltk/*.cc at runtime, but the fltk
+    directory changes so rarely it seems not a great burden to just hardcode
+    them all here.
+
+    'ccORule' has a special hack to give these 'fltkCc' flags, since I don't
+    have a separate CcLibrary target.
+-}
 fltkDeps :: Config -> [FilePath]
 fltkDeps config = map (srcToObj config . ("fltk"</>))
     [ "Block.cc"
@@ -406,6 +466,8 @@ configure midi = do
     fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
     let ghcVersion = parseGhcVersion ghcLib
     sandbox <- Util.sandboxPackageDb
+    -- TODO this breaks if you run from a different directory
+    rootDir <- Directory.getCurrentDirectory
     return $ \mode -> Config
         { buildMode = mode
         , hscDir = build </> "hsc"
@@ -415,14 +477,17 @@ configure midi = do
         , configFlags = setCcFlags $
             setConfigFlags sandbox fltkCs fltkLds mode ghcVersion osFlags
         , ghcVersion = ghcVersion
+        , rootDir = rootDir
         }
     where
     setConfigFlags sandbox fltkCs fltkLds mode ghcVersion flags = flags
-        { define = define osFlags
-            ++ ["-DTESTING" | mode `elem` [Test, Profile]]
-            ++ ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
-            ++ ["-DGHC_VERSION=" ++ ghcVersion]
-        , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"]
+        { define = (define osFlags ++) $ concat
+            [ ["-DTESTING" | mode `elem` [Test, Profile]]
+            , ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
+            , ["-DGHC_VERSION=" ++ ghcVersion]
+            ]
+        , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"] ++ globalIncludes
+        , cLibDirs = globalLibDirs
         , fltkCc = fltkCs
         , fltkLd = fltkLds
         , hcFlags =
@@ -455,16 +520,15 @@ configure midi = do
         }
         where
     setCcFlags flags = flags
-        { ccFlags =
+        { globalCcFlags = define flags ++ cInclude flags
             -- Always compile c++ with optimization because I don't have much
             -- of it and it compiles quickly.
-            fltkCc flags ++ define flags ++ cInclude flags
-                ++ ["-Wall", "-std=c++11", "-O2"]
-                ++ ["-fPIC"] -- necessary for ghci loading to work in 7.8
-                -- Turn on Effective C++ warnings, which includes uninitialized
-                -- variables.  Unfortunately it's very noisy with lots of
-                -- false positives.
-                -- ++ ["-Weffc++"]
+            ++ ["-Wall", "-std=c++11", "-O2"]
+            ++ ["-fPIC"] -- necessary for ghci loading to work in 7.8
+            -- Turn on Effective C++ warnings, which includes uninitialized
+            -- variables.  Unfortunately it's very noisy with lots of false
+            -- positives.
+            -- ++ ["-Weffc++"]
         }
     libs = []
     osFlags = case System.Info.os of
@@ -540,15 +604,18 @@ main = withLockedDatabase $ do
             system "ar" $ ["-rs", fn] ++ fltkDeps config
         forM_ ccBinaries $ \binary -> matchBuildDir (ccName binary) ?> \fn -> do
             let config = infer fn
-            let objs = map (oDir config </>) (ccDeps binary)
+            let objs = ccDeps config binary
             need objs
-            Util.cmdline $ linkCc config fn objs
+            let flags = cLibDirs (configFlags config)
+                    ++ ccCompileFlags binary config
+                    ++ ccLinkFlags binary config
+            Util.cmdline $ linkCc flags fn objs
             makeBundle fn False False
         forM_ hsBinaries $ \binary -> matchBuildDir (hsName binary) ?> \fn -> do
             let config = infer fn
             hs <- maybe (errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
-            buildHs config (map (oDir config </>) (hsLibraries binary)) [] hs fn
+            buildHs config (map (oDir config </>) (hsDeps binary)) [] hs fn
             case hsGui binary of
                 NoGui -> return ()
                 MakeBundle -> makeBundle fn True False
@@ -1081,22 +1148,38 @@ ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
     Shake.askOracleWith (Question () :: Question FltkQ) ("" :: String)
     let config = infer obj
     let cc = objToSrc config obj
+    -- The contents of 'fltkDeps' won't be in CcBinaries, so they use only the
+    -- global flags.  This is a hack that only works because I only have
+    -- one C++ library.  If I ever have another one I'll need a CcLibrary
+    -- target.
+    let flags = Maybe.fromMaybe (fltkCc (configFlags config)) $
+            findFlags config obj
     includes <- includesOf "ccORule" config cc
     logDeps config "cc" obj (cc:includes)
-    Util.cmdline $ compileCc config cc obj
+    Util.cmdline $ compileCc config flags cc obj
 
-compileCc :: Config -> FilePath -> FilePath -> Util.Cmdline
-compileCc config cc obj =
+-- | Find which CcBinary has the obj file in its 'ccDeps' and get its
+-- 'ccCompileFlags'.  This assumes that each obj file only occurs in one
+-- CcBinary.  Another way to do this would be to create explicit rules for each
+-- Mode for each source file, but I wonder if that would add to startup
+-- overhead.
+findFlags :: Config -> FilePath -> Maybe [Flag]
+findFlags config obj = ($config) . ccCompileFlags <$> List.find find ccBinaries
+    where find binary = obj `elem` ccDeps config binary
+
+compileCc :: Config -> [Flag] -> FilePath -> FilePath -> Util.Cmdline
+compileCc config flags cc obj =
     ( "C++ " <> show (buildMode config)
     , obj
-    , ["g++", "-c"] ++ ccFlags (configFlags config) ++ ["-o", obj, cc]
+    , ["g++", "-c"] ++ globalCcFlags (configFlags config) ++ flags
+        ++ ["-o", obj, cc]
     )
 
-linkCc :: Config -> FilePath -> [FilePath] -> Util.Cmdline
-linkCc config binary objs =
+linkCc :: [Flag] -> FilePath -> [FilePath] -> Util.Cmdline
+linkCc flags binary objs =
     ( "LD-CC"
     , binary
-    , "g++" : objs ++ fltkLd (configFlags config) ++ ["-o", binary]
+    , "g++" : objs ++ flags ++ ["-o", binary]
     )
 
 -- * hsc

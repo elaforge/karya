@@ -22,9 +22,9 @@ enum {
     pVolume = 0
 };
 
-// BASE_DIR must be defined when compiling.
-static const char *log_filename = BASE_DIR "/PlayCache.log";
-static const char *sample_filename = BASE_DIR "/sample.wav";
+// VST_BASE_DIR must be defined when compiling.
+static const char *log_filename = VST_BASE_DIR "/PlayCache.log";
+static const char *sample_filename = VST_BASE_DIR "/sample.wav";
 
 AudioEffect *createEffectInstance(audioMasterCallback audioMaster)
 {
