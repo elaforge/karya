@@ -12,10 +12,13 @@ import qualified Data.Conduit.Audio.SampleRate as SampleRate
 import qualified Data.Conduit.Audio.Sndfile as Sndfile
 
 import qualified GHC.Generics as Generics
+import qualified Sound.File.Sndfile as File.Sndfile
+import System.FilePath ((</>))
 
 import qualified Util.ApproxEq as ApproxEq
 import qualified Util.Num as Num
 import Global
+import qualified Synth.Sampler.Config as Config
 import qualified Synth.Sampler.Signal as Signal
 import Synth.Sampler.Types
 
@@ -27,7 +30,7 @@ type SamplePath = FilePath
 -- played.
 data Sample = Sample {
     start :: !Time
-    -- | Relative to the sampler root.  TODO define this better?
+    -- | Relative to 'Config.instrumentDbDir'.
     , filename :: !SamplePath
     -- | Sample start offset.
     , offset :: !Time
@@ -42,20 +45,16 @@ instance Aeson.ToJSON Sample
 instance Aeson.FromJSON Sample
 
 -- | Evaluating the Audio could probably produce more exceptions...
-realize :: Sample -> IO (Either Text Audio)
-realize (Sample start filename offset env ratio) = try $ do
-    -- open filename, error if can't be found
-    audio <- Sndfile.sourceSndFrom (Audio.Seconds offset) filename
+realize :: Sample -> IO Audio
+realize (Sample start filename offset env ratio) = do
+    audio <- Sndfile.sourceSndFrom (Audio.Seconds offset)
+        (Config.instrumentDbDir </> filename)
     return $ Audio.padStart (Audio.Seconds start) $
         resample (Signal.at start ratio) $ applyEnvelope start env audio
-    where
-    -- TODO if the input file is not found, this throws a SystemError, not an
-    -- IOError.  Who is doing that?
-    try io = either (Left . annotate) Right <$> Exception.try io
-    -- annotate :: IO.Error.IOError -> Text
-    annotate :: Exception.SomeException -> Text
-    annotate = showt
-    -- annotate exc = txt filename <> ": " <> showt exc
+
+catchSndfile :: IO a -> IO (Either Text a)
+catchSndfile = fmap try . Exception.try
+    where try = either (Left . txt . File.Sndfile.errorString) Right
 
 resample :: Double -> Audio -> Audio
 resample ratio audio
@@ -80,8 +79,8 @@ applyEnvelope start sig
 empty :: Audio
 empty = Audio.silent (Audio.Frames 0) 44100 2
 
-mix :: [(Time, Audio)] -> Audio
-mix [] = empty
+-- mix :: [(Time, Audio)] -> Audio
+-- mix [] = empty
     -- emit silence while there are no Audios in scope
     -- otherwise, keep track of frame for each Audio and emit a chunk with it
     -- mixed.

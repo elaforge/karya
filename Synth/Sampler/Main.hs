@@ -29,44 +29,41 @@ main :: IO ()
 main = do
     args <- Environment.getArgs
     case args of
-        [] -> process "out"
-        [from, to] -> convertFormat from to
-        _ -> errorIO "bad args"
+        [notesFn] -> process notesFn "synth_cache"
+        _ -> errorIO $ "usage: sampler notes.json"
 
-convertFormat :: FilePath -> FilePath -> IO ()
-convertFormat from to = do
-    print =<< Sndfile.getFileInfo from
-    source <- Sndfile.sourceSnd from
-    if Sndfile.checkFormat outputInfo
-        then Resource.runResourceT $ Sndfile.sinkSnd to outputFormat
-            (source :: Audio)
-        else putStrLn "invalid output format"
-
-process :: FilePath -> IO ()
-process outputDir = do
-    notes <- loadNotes
+process :: FilePath -> FilePath -> IO ()
+process notesFn outputDir = do
+    notes <- loadNotes notesFn
     samples <- either (errorIO . untxt) return $ mapM Convert.noteToSample notes
     mapM_ print samples
     realizeSamples outputDir samples
 
-loadNotes :: IO [Note.Note]
-loadNotes = do
-    val <- Aeson.decode <$> ByteString.Lazy.readFile "notes.json"
+loadNotes :: FilePath -> IO [Note.Note]
+loadNotes notesFn = do
+    val <- Aeson.decode <$> ByteString.Lazy.readFile notesFn
     maybe (errorIO "can't parse json") return val
 
 realizeSamples :: FilePath -> [Sample.Sample] -> IO ()
 realizeSamples outputDir samples = do
     putStrLn $ "load " <> show (length samples) <> " samples"
-    audios <- forM samples $ \sample -> Sample.realize sample >>= \case
-        Left err -> do
-            Log.warn $ "sample " <> txt (Sample.filename sample) <> ": " <> err
-            return Nothing
-        Right audio -> return (Just audio)
+    audios <- mapM realizeSample samples
     putStrLn "processing"
-    Resource.runResourceT $
+    result <- Sample.catchSndfile $ Resource.runResourceT $
         Sndfile.sinkSnd (outputDir </> "out.wav") outputFormat
             (mixAll (Maybe.catMaybes audios))
+    case result of
+        Left err -> Log.error $ "writing to output: "
+            <> showt (outputDir </> "out.wav") <> ": " <> err
+        Right () -> return ()
     putStrLn "done"
+
+realizeSample :: Sample.Sample -> IO (Maybe Audio)
+realizeSample sample = Sample.catchSndfile (Sample.realize sample) >>= \case
+    Left err -> do
+        Log.warn $ "sample " <> txt (Sample.filename sample) <> ": " <> err
+        return Nothing
+    Right audio -> return (Just audio)
 
 mixAll :: [Audio] -> Audio
 mixAll [] = Audio.silent (Audio.Frames 0) 44100 2 -- TODO
