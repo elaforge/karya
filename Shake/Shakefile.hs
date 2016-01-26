@@ -39,6 +39,7 @@ import qualified Util.PPrint as PPrint
 import qualified Util.Seq as Seq
 
 import qualified Shake.CcDeps as CcDeps
+import qualified Shake.Config as Config
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Progress as Progress
 import qualified Shake.Util as Util
@@ -119,24 +120,6 @@ extraPackages :: [Package]
 extraPackages = ["criterion"]
 
 -- * config implementation
-
-fltkConfig :: FilePath
-fltkConfig = "/usr/local/src/fltk-1.3/fltk-config"
-
--- TODO don't hardcode my homedir?  Or maybe vars like this can go in
--- a separate module for local configuration?
-
--- | Extra -I flags that all compiles get, including haskell cpp and hsc2hs.
-globalIncludes :: [Flag]
-globalIncludes = ["-I/Users/elaforge/homebrew/include"]
-
--- | Extra -L flags for the C++ link.
-globalLibDirs :: [Flag]
-globalLibDirs = ["-L/Users/elaforge/homebrew/lib"]
-
--- | Root of the VST SDK.
-vstBase :: FilePath
-vstBase = "/usr/local/src/music/vst3-sdk"
 
 ghcBinary :: FilePath
 ghcBinary = "ghc"
@@ -377,10 +360,10 @@ ccBinaries =
             map ("Synth/vst"</>) ["Sample.cc.o", "PlayCache.cc.o"]
         , ccCompileFlags = \config ->
             [ "-DVST_BASE_DIR=\"" ++ (rootDir config </> "Synth/vst") ++ "\""
-            , "-I" ++ vstBase
+            , "-I" ++ Config.vstBase
             ]
         , ccLinkFlags = const $ "-bundle" : "-lsndfile"
-            : map ((vstBase </> "public.sdk/source/vst2.x") </>)
+            : map ((Config.vstBase </> "public.sdk/source/vst2.x") </>)
                 ["audioeffect.cpp", "audioeffectx.cpp", "vstplugmain.cpp"]
         }
     ]
@@ -459,9 +442,9 @@ configure midi = do
     let wantedFltk w = any (\c -> ('-':c:"") `List.isPrefixOf` w) ['I', 'D']
     -- fltk-config --cflags started putting -g and -O2 in the flags, which
     -- messes up hsc2hs, which wants only CPP flags.
-    fltkCs <- filter wantedFltk . words <$> run fltkConfig ["--cflags"]
-    fltkLds <- words <$> run fltkConfig ["--ldflags"]
-    fltkVersion <- takeWhile (/='\n') <$> run fltkConfig ["--version"]
+    fltkCs <- filter wantedFltk . words <$> run Config.fltkConfig ["--cflags"]
+    fltkLds <- words <$> run Config.fltkConfig ["--ldflags"]
+    fltkVersion <- takeWhile (/='\n') <$> run Config.fltkConfig ["--version"]
     let ghcVersion = parseGhcVersion ghcLib
     sandbox <- Util.sandboxPackageDb
     -- TODO this breaks if you run from a different directory
@@ -484,8 +467,9 @@ configure midi = do
             , ["-DBUILD_DIR=\"" ++ modeToDir mode ++ "\""]
             , ["-DGHC_VERSION=" ++ ghcVersion]
             ]
-        , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"] ++ globalIncludes
-        , cLibDirs = globalLibDirs
+        , cInclude = ["-I.", "-I" ++ modeToDir mode, "-Ifltk"]
+            ++ Config.globalIncludes
+        , cLibDirs = Config.globalLibDirs
         , fltkCc = fltkCs
         , fltkLd = fltkLds
         , hcFlags =
