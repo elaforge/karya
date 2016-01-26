@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Note where
+module Synth.Sampler.Note where
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.String as String
@@ -8,8 +8,9 @@ import qualified Data.String as String
 import qualified GHC.Generics as Generics
 
 import Global
-import qualified Instrument
-import qualified Signal
+import qualified Synth.Sampler.Instrument as Instrument
+import qualified Synth.Sampler.Signal as Signal
+import Synth.Sampler.Types
 
 
 -- | High level representation of one note.  This will be converted into

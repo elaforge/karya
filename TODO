@@ -3,13 +3,14 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - shakefile: support for per-target package sets, so I can integrate Synth
+  - why no deriving Show for System.Process.CreateProcess and CmdSpec?
+  / shakefile: support for per-target package sets, so I can integrate Synth
     . There should be one master set of packages and versions, and then
       a binary can select a subset from it.  Ideally I could chase packages
       along with modules... and I suppose I could if I have a mapping from
       module to package, but I'd need to cache in a file.  Of course that's
       not too hard...
-    - How do I know when to rebuild?  It's when the packages list changes.
+    . How do I know when to rebuild?  It's when the packages list changes.
       So I need to remember what the package list was, and only rebuild when
       it changes.  I could do it automatically by saving the packages with the
       cache and only rebuild if it's changed.  The cabal file is updated when
@@ -27,11 +28,9 @@ UNSORTED
       build synth and karya separately... but do I really need that so much?
     * Generate multiple .cabal files.
     . globalPackages - makeHaddock
-    - buildHs - for the link.  Needs union of all hsORule packages.
+    . buildHs - for the link.  Needs union of all hsORule packages.
       This just takes the binary packages list.
-    - hsORule - for compile.  So it needs packages that the hs imports.
-    . If I have hsToPackages, then hsORule can look it up based on module
-      name.  buildHs can 
+    . hsORule - for compile.  So it needs packages that the hs imports.
 
   - Can I make prev val or {Note,Control,Pitch}Deriver return values more
     typesafe with GADTs?

@@ -1,7 +1,6 @@
-{-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
 -- | Process audio.
-module Main (main) where
+module Synth.Sampler.Main (main) where
 import qualified Control.Monad.Trans.Resource as Resource
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as ByteString.Lazy
@@ -14,11 +13,12 @@ import qualified Sound.File.Sndfile as Sndfile
 import qualified System.Environment as Environment
 import System.FilePath ((</>))
 
-import qualified Convert
+import qualified Util.Log as Log
 import Global
-import qualified Log
-import qualified Note
-import qualified Sample
+import qualified Synth.Sampler.Convert as Convert
+import qualified Synth.Sampler.Note as Note
+import qualified Synth.Sampler.Sample as Sample
+import Synth.Sampler.Types
 
 
 main :: IO ()
@@ -41,7 +41,7 @@ convertFormat from to = do
 process :: FilePath -> IO ()
 process outputDir = do
     notes <- loadNotes
-    samples <- either errorIO return $ mapM Convert.noteToSample notes
+    samples <- either (errorIO . untxt) return $ mapM Convert.noteToSample notes
     mapM_ print samples
     realizeSamples outputDir samples
 

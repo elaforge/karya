@@ -104,11 +104,11 @@ performance
 
 Put karya things into libraries:
   . TimeVector?  Specifically at_linear, bsearch functions
-  - Logging.
+  * Logging.
   - Testing.
   - Pitch.nnToHz
-  - Seq.minimumOn
-  - Util.Debug
-  - Util.Pretty
-  - Util.Num
+  * Seq.minimumOn
+  * Util.Debug
+  * Util.Pretty
+  * Util.Num
   - Util.ApproxEq

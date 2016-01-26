@@ -103,6 +103,9 @@ globalPackages = concat
     , w "ekg" -- removed if not useEkg, but is here so the cabal file has it
     , [("zmidi-core", ">=0.6")] -- for Cmd.Load.Midi
     , w "aeson" -- serialize and unserialize log msgs
+    -- Synth
+    , w "conduit conduit-audio conduit-audio-sndfile conduit-audio-samplerate"
+    , w "hsndfile resourcet"
     ]
     where w = map (\p -> (p, "")) . words
 
@@ -247,6 +250,8 @@ hsBinaries =
     , plain "test_midi" "Midi/TestMidi.hs"
     , plain "update" "App/Update.hs"
     , plain "verify_performance" "App/VerifyPerformance.hs"
+
+    , plain "sampler" "Synth/Sampler/Main.hs"
     ]
     where
     plain name path = HsBinary name path [] NoGui
@@ -769,7 +774,7 @@ getMarkdown = map ("doc"</>) <$> Shake.getDirectoryFiles "doc" ["*.md"]
 
 makeHaddock :: Config -> Shake.Action ()
 makeHaddock config = do
-    let packages = map fst globalPackages
+    let packages = allPackages
     (hs, hscs) <- getAllHaddock config
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config

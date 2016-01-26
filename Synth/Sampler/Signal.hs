@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | 'Signal' implementation.
-module Signal where
+module Synth.Sampler.Signal where
 import qualified Data.Aeson as Aeson
 import qualified Data.Vector.Storable as Vector
 import qualified Foreign

@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Sample where
+module Synth.Sampler.Sample where
 import qualified Control.Exception as Exception
 import qualified Data.Aeson as Aeson
 import qualified Data.Conduit.Audio as Audio
@@ -8,9 +8,10 @@ import qualified Data.Conduit.Audio.Sndfile as Sndfile
 
 import qualified GHC.Generics as Generics
 
+import qualified Util.Num as Num
 import Global
-import qualified Num
-import qualified Signal
+import qualified Synth.Sampler.Signal as Signal
+import Synth.Sampler.Types
 
 
 -- | Path to a sample, relative to the instrument db root.

@@ -1,3 +1,0 @@
-#!/bin/zsh
-ghc -Wall -fno-warn-name-shadowing -XOverloadedStrings \
-    --make Main.hs -O2 -outputdir build -o build/main

@@ -1,7 +1,7 @@
-module InstrumentDb where
+module Synth.Sampler.InstrumentDb where
 import qualified Data.Map as Map
 
-import qualified Instrument
+import qualified Synth.Sampler.Instrument as Instrument
 
 
 type Db = Map.Map Instrument.Name Instrument.Instrument

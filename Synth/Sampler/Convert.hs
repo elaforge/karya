@@ -1,17 +1,17 @@
 {-# LANGUAGE OverloadedStrings, DisambiguateRecordFields #-}
 -- | Convert 'Note.Note's to 'Sample.Sample's.
-module Convert where
+module Synth.Sampler.Convert where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import System.FilePath ((</>))
 
+import qualified Util.Seq as Seq
 import Global
-import qualified Instrument
-import qualified InstrumentDb
-import qualified Note
-import qualified Sample
-import qualified Seq
-import qualified Signal
+import qualified Synth.Sampler.Instrument as Instrument
+import qualified Synth.Sampler.InstrumentDb as InstrumentDb
+import qualified Synth.Sampler.Note as Note
+import qualified Synth.Sampler.Sample as Sample
+import qualified Synth.Sampler.Signal as Signal
 
 
 noteToSample :: Note.Note -> Either Text Sample.Sample
@@ -40,7 +40,7 @@ lookupSample :: Instrument.Instrument -> Instrument.Attribute
     -> Maybe Instrument.NoteNumber -> Maybe (FilePath, Instrument.Sample)
 lookupSample inst attr maybePitch = case maybePitch of
     Nothing -> List.find ((==Nothing) . Instrument.pitch . snd) samples
-    Just pitch -> fmap snd $ Seq.minimumOn (abs . subtract pitch . fst) $
+    Just pitch -> fmap snd $ Seq.minimum_on (abs . subtract pitch . fst) $
         keyOnMaybe (Instrument.pitch . snd) samples
     where
     samples = filter ((==attr) . Instrument.attribute . snd) $ Map.toList $
