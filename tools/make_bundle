@@ -27,7 +27,7 @@ exec "\$dir/\$bin.app/Contents/MacOS/$name" $args "\$@"
 EOF
 chmod +x "$binpath.run"
 
-# Make sure the script is idempotent.
+# Make sure this script is idempotent.
 if [[ $(head -c2 $binpath) = '#!' ]] then
     echo replacing shell script
     mv $binpath.run $binpath

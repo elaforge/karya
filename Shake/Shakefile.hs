@@ -43,7 +43,6 @@ import qualified Shake.Config as Config
 import qualified Shake.HsDeps as HsDeps
 import qualified Shake.Progress as Progress
 import qualified Shake.Util as Util
-import Shake.Util (system)
 
 
 -- * config
@@ -334,6 +333,8 @@ data CcBinary = CcBinary {
     , ccRelativeDeps :: [FilePath]
     , ccCompileFlags :: Config -> [Flag]
     , ccLinkFlags :: Config -> [Flag]
+    -- | Run this after building, with a complete path to the binary.
+    , ccPostproc :: FilePath -> Shake.Action ()
     }
 
 ccDeps :: Config -> CcBinary -> [FilePath]
@@ -362,11 +363,18 @@ ccBinaries =
         , ccLinkFlags = const $ "-bundle" : "-lsndfile"
             : map ((Config.vstBase </> "public.sdk/source/vst2.x") </>)
                 ["audioeffect.cpp", "audioeffectx.cpp", "vstplugmain.cpp"]
+        , ccPostproc = makeVst
         }
     ]
     where
     fltk name deps =
         CcBinary name deps (fltkCc . configFlags) (fltkLd . configFlags)
+            (makeBundle False False)
+    makeVst fn = do
+        let vst = fn ++ ".vst"
+        Util.system "rm" ["-rf", vst]
+        Util.system "cp" ["-r", "Synth/vst/play_cache.vst.template", vst]
+        Util.system "cp" [fn, vst </> "Contents/MacOS"]
 
 {- | Since fltk.a is a library, not a binary, I can't just chase includes to
     know all the source files.  I could read fltk/*.cc at runtime, but the fltk
@@ -580,7 +588,7 @@ main = withLockedDatabase $ do
         matchObj "fltk/fltk.a" ?> \fn -> do
             let config = infer fn
             need (fltkDeps config)
-            system "ar" $ ["-rs", fn] ++ fltkDeps config
+            Util.system "ar" $ ["-rs", fn] ++ fltkDeps config
         forM_ ccBinaries $ \binary -> matchBuildDir (ccName binary) ?> \fn -> do
             let config = infer fn
             let objs = ccDeps config binary
@@ -589,7 +597,7 @@ main = withLockedDatabase $ do
                     ++ ccCompileFlags binary config
                     ++ ccLinkFlags binary config
             Util.cmdline $ linkCc flags fn objs
-            makeBundle fn False False
+            ccPostproc binary fn
         forM_ hsBinaries $ \binary -> matchBuildDir (hsName binary) ?> \fn -> do
             let config = infer fn
             hs <- maybe (Util.errorIO $ "no main module for " ++ fn) return
@@ -597,13 +605,13 @@ main = withLockedDatabase $ do
             buildHs config (map (oDir config </>) (hsDeps binary)) [] hs fn
             case hsGui binary of
                 NoGui -> return ()
-                MakeBundle -> makeBundle fn True False
-                HasIcon -> makeBundle fn True True
+                MakeBundle -> makeBundle True False fn
+                HasIcon -> makeBundle True True fn
         (build </> "*.icns") %> \fn -> do
             -- Build OS X .icns file from .iconset dir.
             let src = "doc/icon" </> replaceExt fn "iconset"
             need [src]
-            system "iconutil" ["-c", "icns", "-o", fn, src]
+            Util.system "iconutil" ["-c", "icns", "-o", fn, src]
         forM_ extractableDocs $ \fn ->
             fn %> extractDoc (modeConfig Debug)
         testRules (modeConfig Test)
@@ -717,8 +725,8 @@ dispatch modeConfig targets = do
             -- a debug one, but debug deriving is really slow.
             let opt = (modeToDir Opt </>)
             needEverything [opt "verify_performance"]
-            system "test/run_tests" [runTests]
-            system "mkdir" ["-p", build </> "verify"]
+            Util.system "test/run_tests" [runTests]
+            Util.system "mkdir" ["-p", build </> "verify"]
             Util.shell $ opt "verify_performance --out=build/verify"
                 <> " save/complete/*"
         -- Compile everything, like checkin but when I don't want to test.
@@ -729,8 +737,8 @@ dispatch modeConfig targets = do
         "clean" -> action $ do
             -- The shake database will remain because shake creates it after the
             -- shakefile runs, but that's probably ok.
-            system "rm" ["-rf", build]
-            system "mkdir" [build]
+            Util.system "rm" ["-rf", build]
+            Util.system "mkdir" [build]
         "doc" -> action $ makeAllDocumentation (modeConfig Test)
         "haddock" -> action $ makeHaddock (modeConfig Test)
         "hlint" -> action $ hlint (modeConfig Debug)
@@ -739,23 +747,23 @@ dispatch modeConfig targets = do
             need [runProfile]
             let with_scc = "-fprof-auto-top"
                     `elem` hcFlags (configFlags (modeConfig Profile))
-            system "tools/summarize_profile.py"
+            Util.system "tools/summarize_profile.py"
                 [if with_scc then "scc" else "no-scc"]
         "show-debug" -> action $ liftIO $ PPrint.pprint (modeConfig Debug)
         "show-opt" -> action $ liftIO $ PPrint.pprint (modeConfig Opt)
         "tests" -> action $ do
             need [runTests]
-            system "test/run_tests" [runTests]
+            Util.system "test/run_tests" [runTests]
         "tests-normal" -> action $ do
             need [runTests]
-            system "test/run_tests" [runTests, "^normal-"]
+            Util.system "test/run_tests" [runTests, "^normal-"]
         "tests-complete" -> action $ do
             -- Separated from normal tests because the GUI tests tend to wedge.
             need [runTests]
-            system "test/run_tests" [runTests, "normal-", "gui-"]
+            Util.system "test/run_tests" [runTests, "normal-", "gui-"]
         (dropPrefix "tests-" -> Just tests) -> action $ do
             need [runTestsTarget (Just tests)]
-            system "test/run_tests" [runTestsTarget (Just tests)]
+            Util.system "test/run_tests" [runTestsTarget (Just tests)]
         _ -> return False
     action act = Shake.action act >> return True
     runTestsTarget tests = runTests ++ maybe "" ('-':) tests
@@ -802,7 +810,7 @@ makeAllDocumentation config = do
     makeHaddock config
     -- TODO do these individually so they can be parallelized and won't run
     -- each time
-    system "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
+    Util.system "tools/colorize" $ (build </> "hscolour") : hs ++ hscs
 
 -- | Docs produced by extract_doc.
 extractableDocs :: [FilePath]
@@ -825,7 +833,7 @@ makeHaddock config = do
     need $ hsconfigPath config : map (hscToHs (hscDir config)) hscs
     let flags = configFlags config
     interfaces <- liftIO $ getHaddockInterfaces packages
-    system "haddock" $ filter (not . null)
+    Util.system "haddock" $ filter (not . null)
         [ "--html", "-B", ghcLib config
         , "--source-base=../hscolour/"
         , "--source-module=../hscolour/%{MODULE/.//}.html"
@@ -899,12 +907,12 @@ buildHs config libs extraPackages hs fn = do
     logDeps config "build" fn objs
     Util.cmdline $ linkHs config fn (extraPackages ++ allPackages) objs
 
-makeBundle :: FilePath -> Bool -> Bool -> Shake.Action ()
-makeBundle binary isHaskell hasIcon
+makeBundle :: Bool -> Bool -> FilePath -> Shake.Action ()
+makeBundle isHaskell hasIcon binary
     | System.Info.os == "darwin" = do
         let icon = build </> replaceExt binary "icns"
         when hasIcon $ need [icon]
-        system "tools/make_bundle"
+        Util.system "tools/make_bundle"
             [ binary
             , if hasIcon then icon else ""
             , if isHaskell then "+RTS -N -RTS" else ""
@@ -922,9 +930,9 @@ testRules config = do
         -- automatically added when any .o that uses it is linked in.
         buildHs config [oDir config </> "fltk/fltk.a"] [] (fn ++ ".hs") fn
         -- This sticks around and breaks hpc.
-        system "rm" ["-f", replaceExt fn "tix"]
+        Util.system "rm" ["-f", replaceExt fn "tix"]
         -- This gets reset on each new test run.
-        system "rm" ["-f", "test.output"]
+        Util.system "rm" ["-f", "test.output"]
 
 profileRules :: Config -> Shake.Rules ()
 profileRules config = do
@@ -943,7 +951,7 @@ generateTestHs hsSuffix fn = do
         Util.errorIO $ "no tests match pattern: " ++ show pattern
     let generate = modeToDir Opt </> "generate_run_tests"
     need $ generate : tests
-    system generate (fn : tests)
+    Util.system generate (fn : tests)
 
 -- | Build build/(mode)/RunCriterion-A.B.C from A/B/C_criterion.hs
 criterionRules :: Config -> Shake.Rules ()
@@ -985,7 +993,7 @@ markdownRule :: FilePath -> Shake.Rules ()
 markdownRule linkifyBin = docDir </> "*.md.html" %> \html -> do
     let doc = htmlToDoc html
     need [linkifyBin, doc]
-    system "tools/convert_doc" [doc, html] -- wrapper around pandoc
+    Util.system "tools/convert_doc" [doc, html] -- wrapper around pandoc
 
 -- | build/doc/xyz.md.html -> doc/xyz.md
 htmlToDoc :: FilePath -> FilePath
@@ -1264,11 +1272,11 @@ includesOf caller config moreIncludes fn = do
     unless (null notFound) $
         liftIO $ putStrLn $ caller
             ++ ": WARNING: c includes not found: " ++ show notFound
-            ++ " (looked in " ++ show dirs ++ ")"
+            ++ " (looked in " ++ unwords dirs ++ ")"
     return includes
     where
     -- hsconfig.h is the only automatically generated header.  Because the
-    -- #include line doesn't give the path (and can't, since each buil dir
+    -- #include line doesn't give the path (and can't, since each build dir
     -- has its own hsconfig.h), I have to special case it.
     hsconfig (includes, notFound)
         | hsconfigH `elem` notFound =
