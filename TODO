@@ -8,6 +8,7 @@ UNSORTED
     . Why do I need a separate fltkCc and fltkLd?  Also, linkCc gives fltkLd
       to all binaries.
     . Make ccCompileFlags and ccLinkFlags complete for CcBinaries.
+    - make a .vst for play_cache, not a bundle
   / shakefile: support for per-target package sets, so I can integrate Synth
     . There should be one master set of packages and versions, and then
       a binary can select a subset from it.  Ideally I could chase packages

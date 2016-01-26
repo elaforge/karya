@@ -159,9 +159,6 @@ oDir = (</> "obj") . buildDir
 docDir :: FilePath
 docDir = build </> "doc"
 
-includeDirs :: Config -> [FilePath]
-includeDirs config = [dir | '-':'I':dir <- cInclude (configFlags config)]
-
 -- * flags
 
 type Flag = String
@@ -509,7 +506,7 @@ configure midi = do
             ++ ["-fPIC"] -- necessary for ghci loading to work in 7.8
             -- Turn on Effective C++ warnings, which includes uninitialized
             -- variables.  Unfortunately it's very noisy with lots of false
-            -- positives.
+            -- positives.  Also, this is only for g++.
             -- ++ ["-Weffc++"]
         }
     libs = []
@@ -1009,7 +1006,7 @@ hsORule infer = matchHsObj ?>> \fns -> do
     let hs = if isHsc then objToHscHs config obj else objToSrc config obj
     imports <- HsDeps.importsOf (cppFlags config hs) hs
     includes <- if Maybe.isJust (cppFlags config hs)
-        then includesOf "hsORule" config hs else return []
+        then includesOf "hsORule" config [] hs else return []
     need includes
     let his = map (objToHi . srcToObj config) imports
     -- I depend on the .hi files instead of the .hs.o files.  GHC avoids
@@ -1136,7 +1133,8 @@ ccORule infer = matchObj "//*.cc.o" ?> \obj -> do
     -- target.
     let flags = Maybe.fromMaybe (fltkCc (configFlags config)) $
             findFlags config obj
-    includes <- includesOf "ccORule" config cc
+        localIncludes = filter ("-I" `List.isPrefixOf`) flags
+    includes <- includesOf "ccORule" config localIncludes cc
     logDeps config "cc" obj (cc:includes)
     Util.cmdline $ compileCc config flags cc obj
 
@@ -1169,7 +1167,7 @@ linkCc flags binary objs =
 hsRule :: Config -> Shake.Rules ()
 hsRule config = hscDir config ++ "//*.hs" %> \hs -> do
     let hsc = hsToHsc (hscDir config) hs
-    includes <- includesOf "hsRule" config hsc
+    includes <- includesOf "hsRule" config [] hsc
     logDeps config "hsc" hs (hsc : includes)
     Util.cmdline $ hsc2hs config hs hsc
 
@@ -1258,9 +1256,10 @@ logDeps config stage fn deps = do
     Shake.putLoud $ "***" ++ stage ++ ": " ++ fn ++ " <- "
         ++ unwords (map (dropDir (oDir config)) deps)
 
-includesOf :: String -> Config -> FilePath -> Shake.Action [FilePath]
-includesOf caller config fn = do
-    let dirs = includeDirs config
+includesOf :: String -> Config -> [Flag] -> FilePath -> Shake.Action [FilePath]
+includesOf caller config moreIncludes fn = do
+    let dirs =
+            [dir | '-':'I':dir <- cInclude (configFlags config) ++ moreIncludes]
     (includes, notFound) <- hsconfig <$> CcDeps.transitiveIncludesOf dirs fn
     unless (null notFound) $
         liftIO $ putStrLn $ caller
