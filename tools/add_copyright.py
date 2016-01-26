@@ -34,7 +34,10 @@ def process(fn):
     if re.match(copyright_pattern, contents):
         # print fn, 'already has copyright'
         return
-    print 'adding copyright to', fn
+    if dry_run:
+        print 'would have added copyright to', fn
+    else:
+        print 'adding copyright to', fn
     if dry_run:
         return
     tmp = fn + '.tmp'
