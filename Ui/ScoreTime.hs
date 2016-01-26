@@ -21,6 +21,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 
 import qualified Ui.Util as Util
+import qualified Derive.ShowVal as ShowVal
 import Global
 
 
@@ -31,6 +32,9 @@ newtype ScoreTime = ScoreTime Double deriving
     ( DeepSeq.NFData, Num, Fractional, Real, RealFrac, Eq, Ord
     , Serialize.Serialize, CRC32.CRC32, ApproxEq.ApproxEq
     )
+
+instance ShowVal.ShowVal ScoreTime where
+    show_val = (`Text.snoc` suffix) . Num.showFloat 3 . to_double
 
 {- | This is also ScoreTime, but it's relative to the beginning of the track.
     I.e., UI events are all in track time, but when they get shifted and

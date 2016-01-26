@@ -76,7 +76,9 @@ mapY :: (Y -> Y) -> Signal -> Signal
 mapY f = apply $ Vector.map $ \(Sample x y) -> Sample x (f y)
 
 
--- copy paste from TimeVector :(
+-- This has some overlaps with Util.TimeVector, but as long as there isn't much
+-- it should be ok.  Meanwhile, these types are simpler because they are
+-- monomorphic.
 
 -- | Return the highest index of the given X.  So the next value is
 -- guaranteed to have a higher x, if it exists.  Return -1 if @x@ is before

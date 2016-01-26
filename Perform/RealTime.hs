@@ -69,6 +69,7 @@ import qualified Util.Serialize as Serialize
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Util as Util
+import qualified Derive.ShowVal as ShowVal
 import Global
 
 
@@ -100,6 +101,9 @@ instance C.CStorable RealTime where
 
 instance Show RealTime where show (RealTime t) = show t
 instance Read.Read RealTime where readPrec = RealTime <$> Read.readPrec
+
+instance ShowVal.ShowVal RealTime where
+    show_val = (`Text.snoc` suffix) . Num.showFloat 3 . to_seconds
 
 instance Pretty.Pretty RealTime where
     pretty t = Num.showFloat 2 (to_seconds t) <> Text.singleton suffix

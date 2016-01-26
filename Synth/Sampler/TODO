@@ -103,10 +103,10 @@ performance
       offsets in the file.
 
 Reuse karya code:
-  - TimeVector?  Specifically at_linear, bsearch functions
+  / TimeVector?  Specifically at_linear, bsearch functions
   * Logging.
-  - Testing.
-  - Pitch.nnToHz
+  * Testing.
+  * Pitch.nnToHz
   * Seq.minimumOn
   * Util.Debug
   * Util.Pretty

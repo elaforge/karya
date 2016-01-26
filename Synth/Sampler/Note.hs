@@ -12,6 +12,7 @@ import qualified Data.String as String
 
 import qualified GHC.Generics as Generics
 
+import qualified Perform.Pitch as Pitch
 import Global
 import qualified Synth.Sampler.Instrument as Instrument
 import qualified Synth.Sampler.Signal as Signal
@@ -48,8 +49,8 @@ initialControl :: Control -> Note -> Maybe Signal.Y
 initialControl control note =
     Signal.at (start note) <$> Map.lookup control (controls note)
 
-initialPitch :: Note -> Maybe Instrument.NoteNumber
-initialPitch = initialControl pitch
+initialPitch :: Note -> Maybe Pitch.NoteNumber
+initialPitch = fmap Pitch.nn . initialControl pitch
 
 -- * controls
 
