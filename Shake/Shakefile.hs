@@ -8,9 +8,7 @@
 -- | Shakefile for seq and associated binaries.
 module Shake.Shakefile where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Control.Exception as Exception
 import Control.Monad
-import qualified Control.Monad.Trans as Trans
 import Control.Monad.Trans (liftIO)
 
 import qualified Data.Binary as Binary
@@ -613,7 +611,7 @@ main = withLockedDatabase $ do
             makeBundle fn False False
         forM_ hsBinaries $ \binary -> matchBuildDir (hsName binary) ?> \fn -> do
             let config = infer fn
-            hs <- maybe (errorIO $ "no main module for " ++ fn) return
+            hs <- maybe (Util.errorIO $ "no main module for " ++ fn) return
                 (Map.lookup (FilePath.takeFileName fn) nameToMain)
             buildHs config (map (oDir config </>) (hsDeps binary)) [] hs fn
             case hsGui binary of
@@ -961,7 +959,7 @@ generateTestHs hsSuffix fn = do
             ++ "*" ++ hsSuffix ++ ".hs"
     tests <- Util.findHs pattern "."
     when (null tests) $
-        errorIO $ "no tests match pattern: " ++ show pattern
+        Util.errorIO $ "no tests match pattern: " ++ show pattern
     let generate = modeToDir Opt </> "generate_run_tests"
     need $ generate : tests
     system generate (fn : tests)
@@ -1261,9 +1259,6 @@ dropDir odir fn
 
 strip :: String -> String
 strip = reverse . dropWhile Char.isSpace . reverse . dropWhile Char.isSpace
-
-errorIO :: Trans.MonadIO m => String -> m a
-errorIO = liftIO . Exception.throwIO . Exception.ErrorCall
 
 -- | Foor/Bar.hs -> Foo.Bar
 pathToModule :: FilePath -> String
