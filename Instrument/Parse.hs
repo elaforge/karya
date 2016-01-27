@@ -25,7 +25,7 @@ type Parser st a = Parsec.Parsec Text st a
 
 -- * annotation file
 
-type Annotation = Instrument.Tag
+type Annotation = Tag.Tag
 
 -- | Format is @synth\/inst-name tag1=x tag2=y@.
 --
@@ -54,7 +54,7 @@ p_instrument = do
     return $ Score.instrument $ txt (synth <> "/" <> name)
     <?> "instrument"
 
-p_tag :: Parser st Instrument.Tag
+p_tag :: Parser st Tag.Tag
 p_tag = (,) <$> (txt <$> Parsec.many1 tag_char)
         <*> (txt <$> Parsec.option "" (Parsec.char '=' *> Parsec.many1 tag_char))
     where tag_char = Parsec.alphaNum <|> Parsec.char '-'
@@ -105,7 +105,7 @@ data PatchLine = PatchLine {
     patch_name :: Text
     , patch_bank :: Int
     , patch_program :: Midi.Program
-    , patch_tags :: [Instrument.Tag]
+    , patch_tags :: [Tag.Tag]
     } deriving (Show)
 
 p_patch_file :: Parser State [Instrument.Patch]

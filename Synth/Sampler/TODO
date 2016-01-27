@@ -42,7 +42,7 @@ UNSORTED
   * implement Attribute
   * Verify tuning is correct.
   ? Why does a ratio of 0.5 go up by an octave?
-  - karya support for offline instruments
+  karya support for offline instruments
     . I think I'll need some kind of resolution for the Signal "linear or
       constant" problem.
       . Not yet though since I'm just using percussion.
@@ -52,12 +52,6 @@ UNSORTED
         Maybe it's not so bad this way, that way I can reuse libraries and
         build etc.  But I need a more robust way to link different packages,
         because the sampler will have separate dependencies.
-    - Integration with the instrument db.  This means I also share
-      InstrumentDb, or at least the interesting parts of it.
-    - Perform.Synth.Instrument
-    - Perform.Synth.Convert converts to Notes and serializes them
-    - Perform.Synth.Perform invokes the sampler
-    - Cmd.Play sends start and stop MIDI msgs
 
   - divide score by instrument and time range, and render separate chunks
   - cache invalidate and rerender protocol

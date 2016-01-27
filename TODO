@@ -36,6 +36,9 @@ UNSORTED
     . buildHs - for the link.  Needs union of all hsORule packages.
       This just takes the binary packages list.
     . hsORule - for compile.  So it needs packages that the hs imports.
+    . But if I accumulate more synths, e.g. csound-expression, then maybe all
+      these deps get a bit excessive?  The chance is greater that someone
+      doesn't want a certain synth.
   * Switching from and to 0 dur events is still awkward.  I always wind up
     doing a ^Z then ^s
   * Don't change event duration if I'm editing the text of an existing one.
@@ -321,6 +324,20 @@ documentation:
           args
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
+
+Synth:
+  . Integration with Synth.Sampler
+  - Integration with the instrument db.  This means I also share
+    InstrumentDb, or at least the interesting parts of it.
+    . I think this just means project Sampler Instruments to Synth.Instrument.
+  * Perform.Synth.Instrument
+    . This should be a generalization that all Synth instruments can support,
+      so no specific details like samples.
+  - Synth instrument DB.
+    . This means that the instrument DB needs to store non-MIDI instruments.
+  - Perform.Synth.Convert converts to Notes and serializes them
+  - Perform.Synth.Perform invokes the sampler
+  - Cmd.Play sends start and stop MIDI msgs
 
 shakefile: build:
   - use new system calls and logging levels

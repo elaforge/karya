@@ -39,13 +39,14 @@ import qualified Util.Seq as Seq
 import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
+import qualified Instrument.Tag as Tag
 import Global
 import Types
 
@@ -315,7 +316,7 @@ data Patch = Patch {
     -- | Key-value pairs used to index the patch.  A key may appear more than
     -- once with different values.  Tags are free-form, but there is a list of
     -- standard tags in "Instrument.Tag".
-    , patch_tags :: ![Tag]
+    , patch_tags :: ![Tag.Tag]
     -- | Some free form text about the patch.
     , patch_text :: !Text
     -- | The patch was read from this file.
@@ -364,10 +365,6 @@ default_patch pb_range cmap =
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
 type CallMap = Map.Map Score.Attributes BaseTypes.CallId
-
-type Tag = (TagKey, TagVal)
-type TagKey = Text
-type TagVal = Text
 
 -- | If a patch is tuned to something other than 12TET, this vector maps MIDI
 -- key numbers to their NNs, or 0 if the patch doesn't support that key.
@@ -447,7 +444,7 @@ has_flag flag = Set.member flag . patch_flags
 set_decay :: RealTime -> Patch -> Patch
 set_decay secs = instrument_#maybe_decay #= Just secs
 
-add_tag :: Tag -> Patch -> Patch
+add_tag :: Tag.Tag -> Patch -> Patch
 add_tag tag = tags %= (tag:)
 
 -- | Various instrument flags.

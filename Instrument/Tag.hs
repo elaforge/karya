@@ -8,32 +8,35 @@
 -- Any attribute of a patch that should be searchable should be given a tag.
 module Instrument.Tag where
 import Data.Text (Text)
-import Perform.Midi.Instrument (TagKey)
 
 
-category :: TagKey
+type Tag = (Key, Value)
+type Key = Text
+type Value = Text
+
+category :: Key
 category = "category"
 
 -- | One control tag is given for each control signal the instrument
 -- supports.  Automatically added.
-control :: TagKey
+control :: Key
 control = "control"
 
 -- | Patch was loaded from this file.
-file :: TagKey
+file :: Key
 file = "file"
 
 -- | Instrument name.  Automatically added.
-name :: TagKey
+name :: Key
 name = "name"
 
 -- | Synth name.  Automatically added.
-synth :: TagKey
+synth :: Key
 synth = "synth"
 
 -- | Indicates that the instrument has a sysex message as its midi
 -- initialization, which probably means it's not built in to the synth.
-sysex :: TagKey
+sysex :: Key
 sysex = "sysex"
 
 

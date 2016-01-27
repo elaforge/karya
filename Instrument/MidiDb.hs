@@ -19,6 +19,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Tag as Tag
 import Global
 
 
@@ -58,7 +59,7 @@ merge (MidiDb synths1) (MidiDb synths2) =
 
 -- | Apply the given annotations to the instruments in the MidiDb, and
 -- return non-existent instruments.
-annotate :: Map.Map Score.Instrument [Instrument.Tag] -> MidiDb code
+annotate :: Map.Map Score.Instrument [Tag.Tag] -> MidiDb code
     -> (MidiDb code, [Score.Instrument])
 annotate annots midi_db = Map.foldrWithKey modify (midi_db, []) annots
     where

@@ -40,7 +40,7 @@ newtype Query = Query [Clause]
     deriving (Show)
 
 -- | Clause inverted? tag val
-data Clause = Clause Bool Instrument.TagKey Instrument.TagVal
+data Clause = Clause Bool Tag.Key Tag.Value
     deriving (Show)
 
 -- | Search the db.  The input Query is in the parsed db query language, and
@@ -62,13 +62,12 @@ search idx (Query clauses)
     negative = Set.fromList $ concat $
         query_matches idx [(k, v) | Clause True k v <- clauses]
 
-tags_of :: Index -> Score.Instrument -> Maybe [Instrument.Tag]
+tags_of :: Index -> Score.Instrument -> Maybe [Tag.Tag]
 tags_of idx inst = Map.lookup inst (idx_instrument_tags idx)
 
 data Index = Index {
-    idx_by_key :: Map.Map Instrument.TagKey
-        (Map.Map Instrument.TagVal [Score.Instrument])
-    , idx_instrument_tags :: Map.Map Score.Instrument [Instrument.Tag]
+    idx_by_key :: Map.Map Tag.Key (Map.Map Tag.Value [Score.Instrument])
+    , idx_instrument_tags :: Map.Map Score.Instrument [Tag.Tag]
     } deriving (Show)
 
 empty_index :: Index
@@ -107,8 +106,7 @@ parse = Query . map clause . Text.words
 
 -- * implementation
 
-query_matches :: Index -> [(Instrument.TagKey, Instrument.TagVal)]
-    -> [[Score.Instrument]]
+query_matches :: Index -> [(Tag.Key, Tag.Value)] -> [[Score.Instrument]]
 query_matches (Index idx _) = map with_tag
     where
     with_tag (key, val) = case Map.lookup key idx of
@@ -116,10 +114,10 @@ query_matches (Index idx _) = map with_tag
         Just vals -> concatMap snd $ filter ((val `Text.isInfixOf`) . fst)
             (Map.assocs vals)
 
-instrument_tags :: MidiDb.MidiDb code -> [(Score.Instrument, [Instrument.Tag])]
+instrument_tags :: MidiDb.MidiDb code -> [(Score.Instrument, [Tag.Tag])]
 instrument_tags (MidiDb.MidiDb synths) = concatMap synth_tags (Map.elems synths)
 
-synth_tags :: Instrument.Synth code -> [(Score.Instrument, [Instrument.Tag])]
+synth_tags :: Instrument.Synth code -> [(Score.Instrument, [Tag.Tag])]
 synth_tags synth = do
     (inst_name, (patch, _)) <- Map.toList (Instrument.synth_patches synth)
     let inst = MidiDb.instrument (Instrument.synth_name synth) inst_name
@@ -127,7 +125,7 @@ synth_tags synth = do
 
 -- | Get tags of a patch, including automatically generated tags.
 patch_tags :: Instrument.Synth code -> Instrument.InstrumentName
-    -> Instrument.Patch -> [Instrument.Tag]
+    -> Instrument.Patch -> [Tag.Tag]
 patch_tags synth inst_name patch = normalize_tags $
     (Tag.synth, Instrument.synth_name synth)
         : (Tag.name, inst_name)
@@ -143,9 +141,9 @@ patch_tags synth inst_name patch = normalize_tags $
             | otherwise -> []
         _ -> []
 
-normalize_tags :: [Instrument.Tag] -> [Instrument.Tag]
+normalize_tags :: [Tag.Tag] -> [Tag.Tag]
 normalize_tags =
     Seq.drop_dups id . List.sort . map (Text.toLower *** Text.toLower)
 
-control_tags :: Control.ControlMap -> [Instrument.Tag]
+control_tags :: Control.ControlMap -> [Tag.Tag]
 control_tags = map ((,) Tag.control . Score.control_name) . Map.keys
