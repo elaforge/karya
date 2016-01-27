@@ -9,6 +9,8 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Vector.Storable as Vector
 import qualified Foreign
 
+import qualified Util.Serialize as Serialize
+
 
 -- | A time series signal.  It should be sorted by 'x'.  There is implicit
 -- linear interpolation between each sample, so a discontinuity requires two
@@ -25,12 +27,18 @@ import qualified Foreign
 -- discontinuities.  Or I could emulate MIDI and do a fixed latency
 -- interpolation.
 newtype Signal = Signal { vector :: Vector }
-    deriving (Show, Aeson.FromJSON, Aeson.ToJSON)
+    deriving (Show, Aeson.FromJSON, Aeson.ToJSON, Serialize.Serialize)
+    -- TODO I should be able to get a more efficient deserialize with
+    -- vector-mmap
 
 data Sample = Sample {
     sx :: {-# UNPACK #-} !X
     , sy :: {-# UNPACK #-} !Y
     } deriving (Show)
+
+instance Serialize.Serialize Sample where
+    get = Sample <$> Serialize.get <*> Serialize.get
+    put (Sample x y) = Serialize.put x *> Serialize.put y
 
 type Vector = Vector.Vector Sample
 type X = Double

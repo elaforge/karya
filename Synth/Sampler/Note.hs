@@ -12,6 +12,8 @@ import qualified Data.String as String
 
 import qualified GHC.Generics as Generics
 
+import qualified Util.Serialize as Serialize
+import Util.Serialize (get, put)
 import qualified Perform.Pitch as Pitch
 import Global
 import qualified Synth.Sampler.Instrument as Instrument
@@ -32,11 +34,16 @@ data Note = Note {
 instance Aeson.ToJSON Note
 instance Aeson.FromJSON Note
 
+instance Serialize.Serialize Note where
+    put (Note a b c d) = put a *> put b *> put c *> put d
+    get = Note <$> get <*> get <*> get <*> get
+
 note :: Instrument.Name -> Time -> Note
 note inst start = Note inst start mempty ""
 
 newtype Control = Control Text
-    deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON)
+    deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON,
+        Serialize.Serialize)
 
 instance Aeson.ToJSON a => Aeson.ToJSON (Map.Map Control a) where
     toJSON = Aeson.toJSON . Map.fromAscList . map (first (\(Control a) -> a))

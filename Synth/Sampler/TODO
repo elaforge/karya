@@ -46,7 +46,7 @@ UNSORTED
     . I think I'll need some kind of resolution for the Signal "linear or
       constant" problem.
       . Not yet though since I'm just using percussion.
-    - Data.Binary support for Note, which needs to go in a shared library.
+    * Data.Binary support for Note, which needs to go in a shared library.
       . How to share?  The easiest way is to just directly import it.  But
         then I wind up with a dependency on a file from a different repo.
         Maybe it's not so bad this way, that way I can reuse libraries and

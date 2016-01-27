@@ -8,6 +8,7 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
 import qualified Data.String as String
 
+import qualified Util.Serialize as Serialize
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -42,4 +43,5 @@ pitchedSample pitch = Sample (Just pitch) ""
 -- arco.  This should probably be called Articulation, but is called Attribute
 -- for consistency with Karya.
 newtype Attribute = Attribute Text
-    deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON)
+    deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON,
+        Serialize.Serialize)
