@@ -16,7 +16,7 @@ import Util.Serialize (get, put)
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.Score as Score
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Pitch as Pitch
@@ -37,11 +37,11 @@ convert (Environ env) = BaseTypes.Environ $ Map.map convert_val env
 -- * val
 
 data Val =
-    VNum !Score.TypedVal
-    | VAttributes !Score.Attributes
+    VNum !ScoreTypes.TypedVal
+    | VAttributes !ScoreTypes.Attributes
     | VControlRef !BaseTypes.ControlRef
     | VNotePitch !Pitch.Pitch
-    | VInstrument !Score.Instrument
+    | VInstrument !ScoreTypes.Instrument
     | VSymbol !BaseTypes.Symbol
     | VQuoted !Expr
     | VList ![Val]
@@ -74,26 +74,26 @@ class ToVal a where
 -- ** VNum
 
 instance ToVal Val where to_val = id
-instance ToVal Double where to_val = VNum . Score.untyped
-instance ToVal Int where to_val = VNum . Score.untyped . fromIntegral
+instance ToVal Double where to_val = VNum . ScoreTypes.untyped
+instance ToVal Int where to_val = VNum . ScoreTypes.untyped . fromIntegral
 instance ToVal Pitch.NoteNumber where
-    to_val = VNum . Score.Typed Score.Nn . Pitch.nn_to_double
+    to_val = VNum . ScoreTypes.Typed ScoreTypes.Nn . Pitch.nn_to_double
 instance ToVal Pitch.Transpose where
     to_val n = case n of
-        Pitch.Diatonic n -> VNum $ Score.Typed Score.Diatonic n
-        Pitch.Chromatic n -> VNum $ Score.Typed Score.Chromatic n
-        Pitch.Nn n -> VNum $ Score.Typed Score.Nn n
+        Pitch.Diatonic n -> VNum $ ScoreTypes.Typed ScoreTypes.Diatonic n
+        Pitch.Chromatic n -> VNum $ ScoreTypes.Typed ScoreTypes.Chromatic n
+        Pitch.Nn n -> VNum $ ScoreTypes.Typed ScoreTypes.Nn n
 instance ToVal ScoreTime where
-    to_val = VNum . Score.Typed Score.Score . ScoreTime.to_double
+    to_val = VNum . ScoreTypes.Typed ScoreTypes.Score . ScoreTime.to_double
 instance ToVal RealTime where
-    to_val = VNum . Score.Typed Score.Real . RealTime.to_seconds
+    to_val = VNum . ScoreTypes.Typed ScoreTypes.Real . RealTime.to_seconds
 
 -- ** rest
 
-instance ToVal Score.Attributes where to_val = VAttributes
+instance ToVal ScoreTypes.Attributes where to_val = VAttributes
 instance ToVal BaseTypes.ControlRef where to_val = VControlRef
 instance ToVal Pitch.Pitch where to_val = VNotePitch
-instance ToVal Score.Instrument where to_val = VInstrument
+instance ToVal ScoreTypes.Instrument where to_val = VInstrument
 instance ToVal BaseTypes.Symbol where to_val = VSymbol
 instance ToVal Text where to_val = VSymbol . BaseTypes.Symbol
 instance ToVal Expr where to_val = VQuoted
