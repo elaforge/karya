@@ -48,6 +48,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.BrowserC as BrowserC
+import qualified Instrument.Common as Common
 import qualified Instrument.Db as Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Search as Search
@@ -170,17 +171,17 @@ field (title, raw_text)
     where text = Text.strip raw_text
 
 show_attribute_map :: Instrument.AttributeMap -> Text
-show_attribute_map (Instrument.AttributeMap table) =
-    Text.unlines (map fmt (Seq.sort_on low_key table))
+show_attribute_map (Common.AttributeMap table) =
+    Text.unlines $ map fmt (Seq.sort_on (low_key . snd) table)
     where
-    attrs = map (\(a, _, _) -> prettys a) table
+    attrs = map (prettys . fst) table
     longest = fromMaybe 0 $ Seq.maximum (map length attrs)
     -- If this instrument uses a keymap, it's easier to read the attribute map
     -- if I put it in keymap order.
-    low_key (_, _, Just (Instrument.UnpitchedKeymap k)) = Just k
-    low_key (_, _, Just (Instrument.PitchedKeymap k _ _)) = Just k
-    low_key (_, _, Nothing) = Nothing
-    fmt (attrs, keyswitches, maybe_keymap) =
+    low_key (_, Just (Instrument.UnpitchedKeymap k)) = Just k
+    low_key (_, Just (Instrument.PitchedKeymap k _ _)) = Just k
+    low_key (_, Nothing) = Nothing
+    fmt (attrs, (keyswitches, maybe_keymap)) =
         -- Still not quite right for lining up columns.
         txt (printf "%-*s\t" longest (prettys attrs))
             <> pretty keyswitches <> maybe "" ((" "<>) . pretty) maybe_keymap

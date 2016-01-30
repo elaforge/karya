@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Utilities for the instrument definitions in "Local.Instrument".
 module Cmd.Instrument.MidiInst (
     Synth, Patch
@@ -20,11 +21,19 @@ module Cmd.Instrument.MidiInst (
 
     -- * db
     , save_synth, load_synth
+
+    , generate_names
 ) where
+import qualified Data.Map as Map
+import qualified Control.Monad.Identity as Identity
 import qualified Data.Text as Text
+import qualified System.FilePath as FilePath
 import System.FilePath ((</>), (<.>))
 
 import qualified Util.Log as Log
+import qualified Util.Logger as Logger
+import qualified Util.Seq as Seq
+
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
@@ -40,8 +49,10 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 
+import qualified Instrument.Inst as Inst
 import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Serialize
+
 import qualified App.Config as Config
 import Global
 
@@ -207,3 +218,52 @@ load_synth code_for db_name app_dir = do
 db_path :: FilePath -> FilePath -> FilePath
 db_path app_dir name =
     Config.make_path app_dir Config.instrument_cache_dir </> name <.> "db"
+
+
+-- * generate_names
+
+-- | 'Instrument.inst_name' is the name as it appears on the synth, so it's not
+-- guaranteed to be unique.  Also, due to loading from sysexes, there may be
+-- duplicate patches.  Generate valid names for the patches, drop duplicates,
+-- and disambiguate names that wind up the same.
+generate_names :: forall a. [(Instrument.Patch, a)]
+    -> (Map.Map Inst.Name (Instrument.Patch, a), [Text])
+generate_names =
+    run . (concatMapM split <=< mapM drop_dup_initialization)
+        . Seq.keyed_group_sort (clean_name . inst_name)
+    where
+    run = first Map.fromList . Identity.runIdentity . Logger.run
+    -- If the name and initialization is the same, they are likely duplicates.
+    drop_dup_initialization :: (Inst.Name, [(Instrument.Patch, a)])
+        -> Logger (Inst.Name, [(Instrument.Patch, a)])
+    drop_dup_initialization (name, patches) = do
+        let (unique, dups) = Seq.partition_dups
+                (Instrument.patch_initialize . fst) patches
+        forM_ dups $ \(patch, dups) ->
+            log ("dropped patches with the same initialization as "
+                <> details patch) dups
+        return (name, unique)
+    -- The remaining patches are probably different and just happened to get
+    -- the same name, so number them to disambiguate.
+    split :: (Inst.Name, [(Instrument.Patch, a)])
+        -> Logger [(Inst.Name, (Instrument.Patch, a))]
+    split (name, patches@(_:_:_)) = do
+        let named = zip (map ((name<>) . showt) [1..]) patches
+        log ("split into " <> Text.intercalate ", " (map fst named)) patches
+        return named
+    split (name, patches) = return $ map (name,) patches
+
+    log _ [] = return ()
+    log msg patches = Logger.log $ msg <> ": "
+        <> Text.intercalate ", " (map details patches)
+    details patch = inst_name patch <> " ("
+        <> txt (FilePath.takeFileName (Instrument.patch_file (fst patch)))
+        <> ")"
+    inst_name = Instrument.inst_name . Instrument.patch_instrument . fst
+
+type Logger a = Logger.LoggerT Text Identity.Identity a
+
+-- | Patches often have names which are annoying to type.  Do a bit of
+-- normalization.
+clean_name :: Text -> Inst.Name
+clean_name = Text.unwords . Text.words

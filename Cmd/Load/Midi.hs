@@ -41,6 +41,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
+import qualified Instrument.Common as Common
 import Global
 import Types
 
@@ -195,9 +196,9 @@ note_key (Midi.ChannelMessage _ msg) = case msg of
 note_key _ = Nothing
 
 keyswitch_map :: Instrument.AttributeMap -> KeyswitchMap
-keyswitch_map (Instrument.AttributeMap amap) =
+keyswitch_map (Common.AttributeMap amap) =
     Map.fromList $ filter (not . Set.null . fst)
-        [(Set.fromList (mapMaybe key_of ks), attrs) | (attrs, ks, _) <- amap]
+        [(Set.fromList (mapMaybe key_of ks), attrs) | (attrs, (ks, _)) <- amap]
     where
     key_of (Instrument.Keyswitch k) = Just k
     key_of _ = Nothing

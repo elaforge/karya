@@ -36,6 +36,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
 
+import qualified Instrument.Common as Common
 import Global
 import Types
 
@@ -103,8 +104,8 @@ test_attributes = do
             , (["a2"], 3)
             ]
         keymap = Instrument.unpitched_keymap [(Score.attr "km", 42)]
-        attr_map = Instrument.AttributeMap $ case (keyswitches, keymap) of
-            (Instrument.AttributeMap a, Instrument.AttributeMap b) -> a ++ b
+        attr_map = Common.AttributeMap $ case (keyswitches, keymap) of
+            (Common.AttributeMap a, Common.AttributeMap b) -> a ++ b
     let res = DeriveTest.derive_tracks ""
             [ (">i1 +a1", [(0, 1, "n +a0"), (1, 1, "n +a2")])
             , ("*twelve", [(0, 0, "4c")])

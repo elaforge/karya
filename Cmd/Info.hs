@@ -30,6 +30,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Common as Common
 import qualified Instrument.MidiDb as MidiDb
 import Global
 import Types
@@ -186,7 +187,7 @@ show_addrs addrs = semicolon_list
 
 show_attribute_map :: Instrument.AttributeMap -> Text
 show_attribute_map =
-    comma_list . map ShowVal.show_val . Instrument.mapped_attributes
+    comma_list . map ShowVal.show_val . Common.mapped_attributes
 
 comma_list, semicolon_list :: [Text] -> Text
 comma_list [] = "[]"

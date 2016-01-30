@@ -26,9 +26,7 @@ module Perform.Midi.Instrument (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq
-import qualified Data.List as List
 import qualified Data.Map as Map
-import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Vector
 
@@ -42,10 +40,10 @@ import qualified Midi.Midi as Midi
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
+import qualified Instrument.Common as Common
 import qualified Instrument.Tag as Tag
 import Global
 import Types
@@ -351,7 +349,7 @@ patch inst = Patch
     , patch_restricted_environ = mempty
     , patch_flags = Set.empty
     , patch_initialize = NoInitialization
-    , patch_attribute_map = AttributeMap []
+    , patch_attribute_map = Common.AttributeMap []
     , patch_call_map = Map.empty
     , patch_tags = []
     , patch_text = ""
@@ -488,28 +486,12 @@ instance Pretty.Pretty InitializePatch where
         Pretty.text "InitializeMidi" Pretty.<+> Pretty.format msgs
     format init = Pretty.text (showt init)
 
--- ** attribute map
+-- ** AttributeMap
 
-{- | This determines what Attributes the instrument can respond to.  Each
-    set of Attributes is mapped to optional Keyswitches and maybe a Keymap.
-    The attributes are matched by subset in order, so their order gives
-    a priority.
-
-    For example, if @+pizz@ is before @+nv@, then @+pizz+nv@ will map to
-    @+pizz@, unless @+pizz+nv@ exists.  The idea is that more specific or
-    more perceptually important attributes go first.  Since pizz vs. arco
-    is a much more obvious distinction than vibrato vs. nv, if you say
-    everything is nv but some notes are also pizz, chances are you want those
-    notes to get pizz even if there isn't a specifically nv pizz variant.
-
-    This also means that if a previous attr is a subset of a later one, the
-    later one will never be selected.  'overlapping_attributes' will check for
-    that, but normally you use a constructor like 'keyswitches', which will
-    call 'sort_attributes' to make sure that can't happen.
--}
-newtype AttributeMap =
-    AttributeMap [(Score.Attributes, [Keyswitch], Maybe Keymap)]
-    deriving (Eq, Show, Pretty.Pretty, DeepSeq.NFData)
+-- | This is a specialization of 'Common.AttributeMap' for MIDI.
+-- Should use a constructor like 'keyswitches', which will call
+-- 'Common.sort_attributes' to make sure there are no overlaps.
+type AttributeMap = Common.AttributeMap ([Keyswitch], Maybe Keymap)
 
 -- | A Keymap corresponds to a timbre selected by MIDI key range, rather than
 -- keyswitches.  Unlike a keyswitch, this doesn't change the state of the MIDI
@@ -558,36 +540,10 @@ instance Pretty.Pretty Keyswitch where
         "cc:" <> Pretty.format cc <> "/" <> Pretty.format val
     format (Aftertouch val) = "at:" <> Pretty.format val
 
--- | Look up keyswitches and keymap according to the attribute priorities as
--- described in 'AttributeMap'.
-lookup_attribute :: Score.Attributes -> AttributeMap
-    -> Maybe ([Keyswitch], Maybe Keymap)
-lookup_attribute attrs (AttributeMap table) =
-    (\(_, ks, km) -> (ks, km)) <$> List.find is_subset table
-    where is_subset (inst_attrs, _, _) = attrs `Score.attrs_contain` inst_attrs
-
--- | Figured out if any attributes shadow other attributes.  I think this
--- shouldn't happen if you called 'sort_attributes', or used any of the
--- constructors other than 'AttributeMap'.
-overlapping_attributes :: AttributeMap -> [Text]
-overlapping_attributes attr_map =
-    Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
-    where
-    attrs = mapped_attributes attr_map
-    check prevs attr = case List.find (Score.attrs_contain attr) prevs of
-        Just other_attr -> Just $ "attrs "
-            <> ShowVal.show_val attr <> " shadowed by "
-            <> ShowVal.show_val other_attr
-        Nothing -> Nothing
-
-make_attribute_map :: [(Score.Attributes, [Keyswitch], Maybe Keymap)]
-    -> AttributeMap
-make_attribute_map = sort_attributes . AttributeMap
-
 -- | An AttributeMap with just keyswitches.
 keyswitches :: [(Score.Attributes, [Keyswitch])] -> AttributeMap
-keyswitches attr_ks = sort_attributes $
-    AttributeMap [(attrs, ks, Nothing) | (attrs, ks) <- attr_ks]
+keyswitches attr_ks =
+    Common.attribute_map [(attrs, (ks, Nothing)) | (attrs, ks) <- attr_ks]
 
 -- | An AttributeMap with a single Midi.Key keyswitch per Attribute.
 single_keyswitches :: [(Score.Attributes, Midi.Key)] -> AttributeMap
@@ -598,25 +554,12 @@ cc_keyswitches :: Midi.Control -> [(Score.Attributes, Midi.ControlValue)]
 cc_keyswitches cc = keyswitches . map (second ((:[]) . ControlSwitch cc))
 
 keymap :: [(Score.Attributes, Keymap)] -> AttributeMap
-keymap table = sort_attributes $
-    AttributeMap [(attr, [], Just keymap) | (attr, keymap) <- table]
+keymap table =
+    Common.attribute_map [(attr, ([], Just keymap)) | (attr, keymap) <- table]
 
 -- | An AttributeMap with just unpitched keymaps.
 unpitched_keymap :: [(Score.Attributes, Midi.Key)] -> AttributeMap
 unpitched_keymap = keymap . map (second UnpitchedKeymap)
-
-mapped_attributes :: AttributeMap -> [Score.Attributes]
-mapped_attributes (AttributeMap attrs) = map (\(a, _, _) -> a) attrs
-
--- | 'lookup_attribute' looks for the first subset, which means that a smaller
--- set of attributes can shadow a larger set.  Since it's annoying to have to
--- worry about order, sort larger sets to the back.
---
--- The sort is stable, so it shouldn't destroy the priority implicit in the
--- order.
-sort_attributes :: AttributeMap -> AttributeMap
-sort_attributes (AttributeMap table) = AttributeMap (sort table)
-    where sort = Seq.sort_on (\(a, _, _) -> - Set.size (Score.attrs_set a))
 
 -- * synth
 

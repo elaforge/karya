@@ -38,6 +38,7 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Common as Common
 import qualified Instrument.Tag as Tag
 import qualified Local.Instrument.VslInst as VslInst
 import Global
@@ -162,7 +163,7 @@ note_calls maybe_hmap patch =
         { Note.config_staccato = not $ has_attr Attrs.staccato patch }
 
 patch_attrs :: Instrument.Patch -> [Score.Attributes]
-patch_attrs = Instrument.mapped_attributes . Instrument.patch_attribute_map
+patch_attrs = Common.mapped_attributes . Instrument.patch_attribute_map
 
 has_attr :: Score.Attributes -> Instrument.Patch -> Bool
 has_attr attr = any (`Score.attrs_contain` attr) . patch_attrs

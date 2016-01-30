@@ -342,7 +342,7 @@ Synth:
     . Don't worry about it for now.  If it actually matters then I'll want to
       have a tool to show transitive dependencies.
     . I can infer attrs by looking at Sample attributes.
-    - Put shared instrument stuff into its own module
+    * Put shared instrument stuff into its own module
   * Perform.Synth.Instrument
     . This should be a generalization that all Synth instruments can support,
       so no specific details like samples.
@@ -361,12 +361,14 @@ Synth:
       Actually it's just the doc and control map.  So I can merge those into
       the instruments at the synth declaration and get rid of Synth.
 
-    - Write a replacement Instrument.Db as much as possible without breaking
+    * Write a replacement Instrument.Db as much as possible without breaking
       existing code.
-    - Then convert everything over to use that.
-
-    - Update Cmd.Cmd
-    - Merge Instrument.Db and Instrument.MidiDb
+    Then convert everything over to use that.
+      - MidiInst
+      - Local.Instrument declarations
+      - Instrument.Browser
+      - Cmd.Cmd
+      - Deriver
   - I need a better name than Synth for this.  It collides with synth/inst.
     A protocol name, as MIDI is.
     . Cipta?  Karawitan?  Yin or Im for 音?  聲音 sia*-im
@@ -689,6 +691,7 @@ cleanup:
     clear redundant offs, but that's easier right?
 
 performance:
+  - experiment with GC flags, e.g. -H.
   - find space leaks with nmitchell's stack limit technique:
     . run build/profile/verify_performance +RTS -K975K -xc -RTS --mode=Profile
         p/cerucuk-punyah.state

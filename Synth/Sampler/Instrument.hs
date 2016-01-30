@@ -63,7 +63,7 @@ instance Pretty.Pretty Sample where
 -- instruments.
 inferInstrument :: [Sample] -> Instrument.Instrument
 inferInstrument samples = Instrument.empty
-    { Instrument.inst_attributes =
+    { Instrument.inst_attribute_map =
         Instrument.attribute_map $ Seq.unique $ map attributes samples
     , Instrument.inst_flags = Set.fromList $
         if all ((==Nothing) . pitch) samples then [Instrument.Triggered] else []

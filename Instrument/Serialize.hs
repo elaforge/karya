@@ -94,10 +94,6 @@ instance Serialize Instrument.InitializePatch where
             2 -> return Instrument.NoInitialization
             _ -> bad_tag "Instrument.InitializePatch" tag
 
-instance Serialize Instrument.AttributeMap where
-    put (Instrument.AttributeMap a) = put a
-    get = get >>= \a -> return (Instrument.AttributeMap a)
-
 instance Serialize Instrument.Keymap where
     put (Instrument.UnpitchedKeymap a) = put_tag 0 >> put a
     put (Instrument.PitchedKeymap a b c) = put_tag 1 >> put a >> put b >> put c

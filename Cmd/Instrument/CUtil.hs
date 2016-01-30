@@ -45,6 +45,7 @@ import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
 import qualified App.Config as Config
 import Global
 import Types
@@ -272,11 +273,12 @@ make_call_map =
     Map.fromList . map (\n -> (Drums.note_attrs n, Drums.note_name n))
 
 make_attribute_map :: PitchedNotes -> Instrument.AttributeMap
-make_attribute_map notes = Instrument.make_attribute_map $ Seq.unique
+make_attribute_map notes = Common.attribute_map $ Seq.unique
     -- It's ok to have Notes with the same (attr, keyswitch), for instance if
     -- there are loud and soft versions, but make_attribute_map will see them
     -- as overlapping attrs, so filter out duplicates.
-    [ (Drums.note_attrs note, ks, Just (Instrument.PitchedKeymap low high root))
+    [ (Drums.note_attrs note,
+        (ks, Just (Instrument.PitchedKeymap low high root)))
     | (note, (ks, low, high, root)) <- notes
     ]
 

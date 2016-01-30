@@ -88,6 +88,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 
+import qualified Instrument.Common as Common
 import qualified Instrument.Db
 import qualified Instrument.MidiDb as MidiDb
 import qualified App.Config as Config
@@ -769,7 +770,7 @@ derive_instrument config info = Derive.Instrument
     , inst_controls = Instrument.config_controls config
     , inst_attributes =
         case Instrument.patch_attribute_map (MidiDb.info_patch info) of
-            Instrument.AttributeMap amap -> [attrs | (attrs, _, _) <- amap]
+            Common.AttributeMap amap -> map fst amap
     }
 
 empty_code :: InstrumentCode
@@ -1034,11 +1035,6 @@ set_status :: M m => (Int, Text) -> Maybe Text -> m ()
 set_status key val = do
     view_ids <- State.gets (Map.keys . State.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val
-
-get_midi_instrument :: M m => Score.Instrument -> m Instrument.Instrument
-get_midi_instrument inst = do
-    lookup <- get_lookup_midi_instrument
-    require ("get_midi_instrument " <> pretty inst) $ lookup inst
 
 lookup_instrument :: M m => Score.Instrument -> m (Maybe MidiInfo)
 lookup_instrument inst = ($ inst) <$> get_lookup_instrument

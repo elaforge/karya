@@ -6,10 +6,8 @@
 -}
 module Instrument.MidiDb where
 import qualified Control.Monad.Identity as Identity
-import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-
 import qualified System.FilePath as FilePath
 
 import qualified Util.Logger as Logger
@@ -19,6 +17,7 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Common as Common
 import qualified Instrument.Tag as Tag
 import Global
 
@@ -40,7 +39,7 @@ validate = concatMap check_synth
     check_synth synth = concatMap (check_patch synth . fst) $
         Map.elems (Instrument.synth_patches synth)
     check_patch synth patch = map (\s -> prefix <> ": " <> s) $
-        Instrument.overlapping_attributes (Instrument.patch_attribute_map patch)
+        Common.overlapping_attributes (Instrument.patch_attribute_map patch)
         where
         prefix = pretty $ instrument
             (Instrument.synth_name synth) (Instrument.patch_name patch)
@@ -103,8 +102,8 @@ data Info code = Info {
     info_synth :: Instrument.Synth code
     , info_patch :: Instrument.Patch
     -- | Instruments can have Cmds and deriver calls, but those types can't
-    -- be referenced directly here for to avoid circular imports.  The
-    -- complete definition is in 'Cmd.Cmd.MidiInfo'.
+    -- be referenced directly here to avoid circular imports.  The complete
+    -- definition is in 'Cmd.Cmd.MidiInfo'.
     , info_code :: code
     } deriving (Show)
 
@@ -207,15 +206,6 @@ instrument synth name = Score.instrument $ synth <> "/" <> name
 score_instrument_name :: Instrument.Instrument -> Instrument.InstrumentName
 score_instrument_name = clean_instrument_name . Instrument.inst_name
 
--- | Since instruments are stored in the index as lower case for case
--- insensitive lookup, they should be stored as lower case here too.
---
--- TODO: having two different structures for lookup seems messy, it would be
--- nicer to put it in the index flat, but not clear how best to reconcile that
--- with PatchTemplates.
-lc :: String -> String
-lc = map Char.toLower
-
 -- | People like to put wacky characters in their names, but it makes them
 -- hard to type.  This affects the key under which the instrument is stored
 -- and therefore lookup, but the inst_name field remains unchanged.
@@ -231,9 +221,3 @@ clean_instrument_name =
     replace c
         | c `elem` (" _/" :: [Char]) = '-'
         | otherwise = c
-
--- | Modify the patch template to have the given name.
-set_patch_name :: Instrument.InstrumentName -> Instrument.Patch
-    -> Instrument.Patch
-set_patch_name name patch = patch { Instrument.patch_instrument =
-    (Instrument.patch_instrument patch) { Instrument.inst_name = name } }

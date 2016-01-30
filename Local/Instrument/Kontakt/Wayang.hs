@@ -25,6 +25,7 @@ import qualified Derive.Sig as Sig
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
+import qualified Instrument.Common as Common
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
@@ -103,9 +104,9 @@ config dev_ = MidiConfig.config
     inst = Score.Instrument
 
 attribute_map :: Instrument.AttributeMap
-attribute_map = Instrument.AttributeMap
-    [ (Attrs.mute <> Attrs.loose, [Instrument.Keyswitch Key2.a_2], keymap)
-    , (Attrs.mute, [Instrument.Keyswitch Key2.b_2], keymap)
+attribute_map = Common.attribute_map
+    [ (Attrs.mute <> Attrs.loose, ([Instrument.Keyswitch Key2.a_2], keymap))
+    , (Attrs.mute, ([Instrument.Keyswitch Key2.b_2], keymap))
     ]
     where
     keymap = Just $

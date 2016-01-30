@@ -8,6 +8,7 @@
 -- circular imports.
 module Derive.ScoreTypes where
 import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.String as String
@@ -29,6 +30,9 @@ import Types
 -- the instrument db to get the backend specific Instrument type as well as
 -- the backend itself, but things at the Derive layer and above don't care
 -- about all that.
+--
+-- This should be a valid identifier as defined by 'Ui.Id.valid'.  Otherwise
+-- you can't parse it as a tracklang literal.
 newtype Instrument = Instrument Text
     deriving (Eq, Ord, Show, Read, DeepSeq.NFData, Serialize.Serialize)
 
@@ -202,7 +206,8 @@ type TypedControlValMap = Map.Map Control (Typed Signal.Y)
 -- a drum from a drumset, or something like that.
 type Attribute = Text
 newtype Attributes = Attributes (Set.Set Attribute)
-    deriving (Monoid, Eq, Ord, Read, Show, Serialize.Serialize, DeepSeq.NFData)
+    deriving (Monoid, Eq, Ord, Read, Show, Serialize.Serialize, DeepSeq.NFData,
+        Aeson.ToJSON, Aeson.FromJSON)
 
 instance Pretty.Pretty Attributes where pretty = ShowVal.show_val
 instance ShowVal.ShowVal Attributes where

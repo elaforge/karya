@@ -33,6 +33,7 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
 import Global
 
 
@@ -119,7 +120,7 @@ convert_midi_pitch :: Instrument.Instrument -> Maybe Instrument.PatchScale
     -> Instrument.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
     -> ConvertT (Instrument.Instrument, Signal.NoteNumber)
 convert_midi_pitch inst patch_scale attr_map constant_pitch controls event =
-    case Instrument.lookup_attribute (Score.event_attributes event) attr_map of
+    case Common.lookup_attributes (Score.event_attributes event) attr_map of
         Nothing -> (,) inst <$> psignal
         Just (keyswitches, maybe_keymap) ->
             (,) (set_keyswitches keyswitches inst)
