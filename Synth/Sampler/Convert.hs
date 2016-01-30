@@ -20,13 +20,13 @@ import qualified Synth.Sampler.Signal as Signal
 
 
 noteToSample :: Note.Note -> Either Text Sample.Sample
-noteToSample note@(Note.Note instName start controls attr) = do
+noteToSample note@(Note.Note instName start controls attrs) = do
     inst <- maybe (Left $ "instrument not found: " <> instName) Right $
         Map.lookup instName InstrumentDb.db
-    let msg = "sample not found for " <> showt (instName, attr)
+    let msg = "sample not found for " <> showt (instName, attrs)
             <> " with pitch " <> showt (Note.initialPitch note)
     (samplePath, instSample) <- maybe (Left msg) Right $
-        lookupSample inst attr (Note.initialPitch note)
+        lookupSample inst attrs (Note.initialPitch note)
     let get k = Map.lookup k controls
     return $ Sample.Sample
         { start = start
@@ -42,14 +42,14 @@ noteToSample note@(Note.Note instName start controls attr) = do
 
 -- | Find the sample with the closest pitch, or if there is no pitch, the first
 -- unpitched sample.
-lookupSample :: Instrument.Instrument -> Instrument.Attribute
+lookupSample :: Instrument.Instrument -> Instrument.Attributes
     -> Maybe Pitch.NoteNumber -> Maybe (FilePath, Instrument.Sample)
-lookupSample inst attr maybePitch = case maybePitch of
+lookupSample inst attrs maybePitch = case maybePitch of
     Nothing -> List.find ((==Nothing) . Instrument.pitch . snd) samples
     Just pitch -> fmap snd $ Seq.minimum_on (abs . subtract pitch . fst) $
         keyOnMaybe (Instrument.pitch . snd) samples
     where
-    samples = filter ((==attr) . Instrument.attribute . snd) $ Map.toList $
+    samples = filter ((==attrs) . Instrument.attributes . snd) $ Map.toList $
         Instrument.samples inst
 
 keyOnMaybe :: (a -> Maybe k) -> [a] -> [(k, a)]

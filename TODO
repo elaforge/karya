@@ -326,15 +326,72 @@ documentation:
       that have someone listening to them in a certain scope.
 
 Synth:
-  . Integration with Synth.Sampler
-  - Integration with the instrument db.  This means I also share
+  * Integration with the instrument db.  This means I also share
     InstrumentDb, or at least the interesting parts of it.
     . I think this just means project Sampler Instruments to Synth.Instrument.
+    . If I want to store a Synth.Instrument in the sampler, then I wind up
+      getting a bunch of karya modules, especially for RestrictedEnviron.
+      It imports a bunch of stuff and I don't know if I want Synth to have
+      so many dependencies on karya.  On the other hand, those are presumably
+      the minimal dependencies to express an environ that can be mapped to
+      a Val, since that's the whole point of RestrictedEnviron.  So if I want
+      to put an environ directly in the instrument definition, I'm pretty much
+      committed to importing that code.
+    . Unfortunately RestrictedEnviron imports Derive.BaseTypes, which pulls in
+      a lot of stuff.
+    . Don't worry about it for now.  If it actually matters then I'll want to
+      have a tool to show transitive dependencies.
+    . I can infer attrs by looking at Sample attributes.
+    - Put shared instrument stuff into its own module
   * Perform.Synth.Instrument
     . This should be a generalization that all Synth instruments can support,
       so no specific details like samples.
-  - Synth instrument DB.
+  - inst db and browser:
     . This means that the instrument DB needs to store non-MIDI instruments.
+    . I should have a sum, 'data InstrumentBackend = Midi . | Synth .'
+    . Then have just one inst db lookup which returns
+      (common, InstrumentBackend)
+    . If the InstrumentDb becomes 'Map SynthName Inst.Inst' then where can
+      I put the MIDI synth-specific stuff?  I can also have SynthBackend, but
+      then how can I ensure they match?
+    . What would Synth look like on other backends?  >sampler/inst >csound/inst
+      I think I don't need Synth structure.  In this case, Synth means
+    . So the DB is 'Map SynthName Inst'.  Either I need backend specific code
+      to look up Synths in a separate db, or MIDI insts become (Synth, Patch).
+      Actually it's just the doc and control map.  So I can merge those into
+      the instruments at the synth declaration and get rid of Synth.
+
+    - Write a replacement Instrument.Db as much as possible without breaking
+      existing code.
+    - Then convert everything over to use that.
+
+    - Update Cmd.Cmd
+    - Merge Instrument.Db and Instrument.MidiDb
+  - I need a better name than Synth for this.  It collides with synth/inst.
+    A protocol name, as MIDI is.
+    . Cipta?  Karawitan?  Yin or Im for 音?  聲音 sia*-im
+      The only thing is that im looks like a typo, and IM is already
+      something.  But Im should be ok?
+    . This would mean renaming Perform.Synth -> Perform.Im, and Synth -> Im.
+    . One bonus is that the icon choice is easy.  Sampler is 錄音, synthesizer
+      is 成音.
+  - Better name for Instrument.Inst.
+    . Ensemble?  I don't want the plural implication, just the idea of
+      a generalized instrument.  琴?
+    . Or maybe Instrument should be the general form, since it's already used
+      pervasively in Derive, and instead I should have a name for
+      backend-specific inst.  How about Patch?
+    . It's awkward because I already have a Patch / Instrument distinction
+      in Perform.Midi, but maybe I could rename those.  Patch and
+      PerformancePatch?  Or just merge Instrument into Patch, and move
+      Perform-specific stuff into Midi.Perform.  Then instead of the awkward
+      "fields filled in during lookup" thing, I have Convert project
+      a Midi.Patch to a Perform.Patch.
+  - Now that I only address instruments as aliases, do I really need the
+    qualified >synth/inst form?  Shouldn't I just have a
+    'QualifiedName Text Text'?  I think all it means is that LInst.add
+    becomes 'LInst.add "inst" "synth" "inst" "loop1" [0].  Of course I could
+    still separate with a / if I don't like all those string args.
   - Perform.Synth.Convert converts to Notes and serializes them
   - Perform.Synth.Perform invokes the sampler
   - Cmd.Play sends start and stop MIDI msgs

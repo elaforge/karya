@@ -28,7 +28,7 @@ data Note = Note {
     , start :: !Time
     -- | E.g. envelope, pitch, lpf.
     , controls :: !(Map.Map Control Signal.Signal)
-    , attribute :: !Instrument.Attribute
+    , attributes :: !Instrument.Attributes
     } deriving (Show, Generics.Generic)
 
 instance Aeson.ToJSON Note
@@ -39,7 +39,7 @@ instance Serialize.Serialize Note where
     get = Note <$> get <*> get <*> get <*> get
 
 note :: Instrument.Name -> Time -> Note
-note inst start = Note inst start mempty ""
+note inst start = Note inst start mempty mempty
 
 newtype Control = Control Text
     deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON,
