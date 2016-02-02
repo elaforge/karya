@@ -160,11 +160,11 @@ instance Serialize State.State where
             _ -> Serialize.bad_version "State.State" v
 
 instance Serialize State.Config where
-    put (State.Config ns meta root midi transform instruments lilypond defaults
+    put (State.Config ns meta root midi transform aliases lilypond defaults
             saved_views defs)
-        =  Serialize.put_version 9
+        =  Serialize.put_version 10
             >> put ns >> put meta >> put root >> put (Configs midi)
-            >> put transform >> put instruments >> put lilypond >> put defaults
+            >> put transform >> put aliases >> put lilypond >> put defaults
             >> put saved_views >> put defs
     get = Serialize.get_version >>= \v -> case v of
         8 -> do
@@ -173,11 +173,12 @@ instance Serialize State.Config where
             root :: Maybe BlockId <- get
             Configs midi :: Configs <- get
             transform :: Text <- get
-            instruments :: Map.Map Score.Instrument Score.Instrument <- get
+            aliases :: Map.Map Score.Instrument Score.Instrument <- get
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
             saved_views :: State.SavedViews <- get
-            return $ State.Config ns meta root midi transform instruments
+            return $ State.Config ns meta root midi transform
+                (Inst.parse_qualified . Score.instrument_name <$> aliases)
                 lilypond defaults saved_views Nothing
         9 -> do
             ns :: Id.Namespace <- get
@@ -185,12 +186,26 @@ instance Serialize State.Config where
             root :: Maybe BlockId <- get
             Configs midi :: Configs <- get
             transform :: Text <- get
-            instruments :: Map.Map Score.Instrument Score.Instrument <- get
+            aliases :: Map.Map Score.Instrument Score.Instrument <- get
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
             saved_views :: State.SavedViews <- get
             defs :: Maybe FilePath <- get
-            return $ State.Config ns meta root midi transform instruments
+            return $ State.Config ns meta root midi transform
+                (Inst.parse_qualified . Score.instrument_name <$> aliases)
+                lilypond defaults saved_views defs
+        10 -> do
+            ns :: Id.Namespace <- get
+            meta :: State.Meta <- get
+            root :: Maybe BlockId <- get
+            Configs midi :: Configs <- get
+            transform :: Text <- get
+            aliases :: Map.Map Score.Instrument Inst.Qualified <- get
+            lilypond :: Lilypond.Config <- get
+            defaults :: State.Default <- get
+            saved_views :: State.SavedViews <- get
+            defs :: Maybe FilePath <- get
+            return $ State.Config ns meta root midi transform aliases
                 lilypond defaults saved_views defs
         _ -> Serialize.bad_version "State.Config" v
 
@@ -486,13 +501,18 @@ instance Serialize Track.RenderSource where
 -- ** Midi.Instrument
 
 instance Serialize.Serialize MidiConfig.Config where
-    put (MidiConfig.Config a b) = Serialize.put_version 0 >> put a >> put b
+    put (MidiConfig.Config a b) = Serialize.put_version 1 >> put a >> put b
     get = do
         v <- Serialize.get_version
         case v of
             0 -> do
                 midi :: Instrument.Configs <- get
                 aliases :: Map.Map Score.Instrument Score.Instrument <- get
+                return $ MidiConfig.Config midi
+                    (Inst.parse_qualified . Score.instrument_name <$> aliases)
+            1 -> do
+                midi :: Instrument.Configs <- get
+                aliases :: Map.Map Score.Instrument Inst.Qualified <- get
                 return $ MidiConfig.Config midi aliases
             _ -> Serialize.bad_version "MidiConfig.Config" v
 

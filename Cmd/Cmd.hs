@@ -1049,15 +1049,9 @@ get_midi_patch inst =
 lookup_instrument :: M m => Score.Instrument -> m (Maybe Inst)
 lookup_instrument inst = fmap fst . ($ inst) <$> get_lookup_instrument
 
-lookup_alias :: State.M m => Score.Instrument
-    -> m (Maybe (Inst.SynthName, Inst.Name))
-lookup_alias inst =
-    fmap split_inst <$> Map.lookup inst <$>
-        (State.config#State.aliases <#> State.get)
-    where
-    -- TODO aliases should be to Inst.Qualified
-    split_inst (Score.Instrument inst) = (pre, Text.drop 1 post)
-        where (pre, post) = Text.break (=='/') inst
+lookup_qualified :: State.M m => Score.Instrument -> m (Maybe Inst.Qualified)
+lookup_qualified inst =
+    Map.lookup inst <$> (State.config#State.aliases <#> State.get)
 
 -- | Get a function to look up a 'Score.Instrument'.  This is where
 -- 'Ui.StateConfig' is applied to the instrument db, applying aliases
@@ -1070,9 +1064,7 @@ get_lookup_instrument = do
     configs <- State.get_midi_config
     db <- gets $ state_instrument_db . state_config
     return $ \inst_name -> do
-        -- TODO aliases should be to Inst.Qualified
-        qualified <- Inst.parse_qualified . Score.instrument_name <$>
-            Map.lookup inst_name aliases
+        qualified <- Map.lookup inst_name aliases
         inst <- Inst.lookup qualified db
         return (merge_environ configs inst_name inst, qualified)
     where

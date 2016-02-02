@@ -38,7 +38,10 @@ import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
+
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Inst as Inst
+
 import qualified App.Config as Config
 import Types
 import Global
@@ -491,8 +494,8 @@ set_midi_config aliases config =
     (State.config#State.midi #= config)
     . (State.config#State.aliases #= make_aliases aliases)
 
-make_aliases :: Simple.Aliases -> Map.Map Score.Instrument Score.Instrument
-make_aliases = Map.fromList . map (Score.Instrument *** Score.Instrument)
+make_aliases :: Simple.Aliases -> Map.Map Score.Instrument Inst.Qualified
+make_aliases = Map.fromList . map (Score.Instrument *** Inst.parse_qualified)
 
 default_aliases :: Simple.Aliases
 default_aliases = [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]

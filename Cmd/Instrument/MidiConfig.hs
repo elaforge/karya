@@ -13,12 +13,13 @@ import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Inst as Inst
 import Global
 
 
 data Config = Config {
     config_midi :: Instrument.Configs
-    , config_aliases :: Map.Map Score.Instrument Score.Instrument
+    , config_aliases :: Map.Map Score.Instrument Inst.Qualified
     } deriving (Show)
 
 instance Pretty.Pretty Config where
@@ -43,8 +44,8 @@ config :: [(Alias, Instrument, Instrument.Config)] -> Config
 config configs = Config
     { config_midi =
         Map.fromList [(inst alias, config) | (alias, _, config) <- configs]
-    , config_aliases =
-        Map.fromList [(inst alias, inst name) | (alias, name, _) <- configs]
+    , config_aliases = Map.fromList
+        [(inst alias, Inst.parse_qualified name) | (alias, name, _) <- configs]
     }
     where inst = Score.Instrument
 

@@ -9,6 +9,7 @@ import Util.Test
 import qualified Ui.State as State
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Instrument.Inst as Inst
 import Global
 import Types
 
@@ -59,8 +60,8 @@ test_equal_inst = do
 
     -- Alias to an instrument that doesn't exist.
     let with_alias to = DeriveTest.with_ui $
-            State.config#State.aliases
-                %= Map.insert (Score.Instrument "alias") (Score.Instrument to)
+            State.config#State.aliases %= Map.insert (Score.Instrument "alias")
+                (Inst.parse_qualified to)
     equal (run (with_alias "s/1") "" ">alias") (["alias"], [])
     equal (run (with_alias "s/1") ">new = >alias" ">new") (["alias"], [])
 

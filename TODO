@@ -325,7 +325,7 @@ documentation:
     - I could go look through arg docs for controls and list all the controls
       that have someone listening to them in a certain scope.
 
-Synth:
+Synth: Im:
   * Integration with the instrument db.  This means I also share
     InstrumentDb, or at least the interesting parts of it.
     . I think this just means project Sampler Instruments to Synth.Instrument.
@@ -346,7 +346,7 @@ Synth:
   * Perform.Synth.Instrument
     . This should be a generalization that all Synth instruments can support,
       so no specific details like samples.
-  - inst db and browser:
+  inst db and browser:
     . This means that the instrument DB needs to store non-MIDI instruments.
     . I should have a sum, 'data InstrumentBackend = Midi . | Synth .'
     . Then have just one inst db lookup which returns
@@ -403,7 +403,7 @@ Synth:
     'QualifiedName Text Text'?  I think all it means is that LInst.add
     becomes 'LInst.add "inst" "synth" "inst" "loop1" [0].  Of course I could
     still separate with a / if I don't like all those string args.
-  - Aliases should use Inst.Qualified.
+  * Aliases should use Inst.Qualified.
   - Incorporate Midi.Instrument.Instrument into Patch.  Move Instrument to
     Perform as a purely perform-level type.
   - Rename Perform.Synth to Perform.Im.

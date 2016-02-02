@@ -33,6 +33,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Inst as Inst
 import qualified App.Config as Config
 import Global
 import Types
@@ -98,7 +99,7 @@ dump_state = do
     return
         ( State.config#State.global_transform #$ state
         , dump_midi_config $ State.config#State.midi #$ state
-        , map (Score.instrument_name *** Score.instrument_name) . Map.toList $
+        , map (Score.instrument_name *** Inst.show_qualified) . Map.toList $
             State.config#State.aliases #$ state
         , blocks
         )
@@ -157,7 +158,7 @@ load_state (global_transform, midi, aliases, blocks) =
             (State.config#State.global_transform #= global_transform)
             . (State.config#State.midi #= midi_config midi)
             . (State.config#State.aliases #=
-                Map.fromList (map (Score.Instrument *** Score.Instrument)
+                Map.fromList (map (Score.Instrument *** Inst.parse_qualified)
                     aliases))
 
 load_block_to_clip :: FilePath -> Cmd.CmdT IO ()

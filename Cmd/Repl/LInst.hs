@@ -34,6 +34,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Inst as Inst
 import Global
 import Types
 
@@ -77,7 +78,7 @@ list_like pattern = do
         <> show_controls "defaults:" (Instrument.config_control_defaults config)
     show_alias alias_map inst = case Map.lookup inst alias_map of
         Nothing -> ""
-        Just source -> " (source: " <> ShowVal.show_val source <> ")"
+        Just qualified -> " (qualified: " <> pretty qualified <> ")"
     show_controls msg controls
         | Map.null controls = ""
         | otherwise = " " <> msg <> pretty controls
@@ -96,7 +97,7 @@ midi_config :: State.M m => m Instrument.Configs
 midi_config = State.get_midi_config
 
 -- | Alias map.  It maps from alias to underlying instrument.
-aliases :: State.M m => m (Map.Map Score.Instrument Score.Instrument)
+aliases :: State.M m => m (Map.Map Score.Instrument Inst.Qualified)
 aliases = State.config#State.aliases <#> State.get
 
 -- | Rename an instrument, in both aliases and allocations.
@@ -109,7 +110,7 @@ rename from_ to_ =
         Nothing -> configs
         Just config -> Map.insert to config $ Map.delete from configs
     rename_alias aliases = case Map.lookup from aliases of
-        Just source -> Map.insert to source $ Map.delete from aliases
+        Just qualified -> Map.insert to qualified $ Map.delete from aliases
         Nothing -> aliases
     from = Util.instrument from_
     to = Util.instrument to_
@@ -122,9 +123,9 @@ rename from_ to_ =
 -- to @>m@, and assign it to the MIDI WriteDevice @loop1@, with a single MIDI
 -- channel 0 allocated.
 add :: Instrument -> Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
-add alias inst wdev chans = do
-    alloc alias wdev chans
-    add_alias alias inst
+add name qualified wdev chans = do
+    alloc name wdev chans
+    add_alias name qualified
 
 save :: FilePath -> Cmd.CmdL ()
 save = Save.save_midi_config
@@ -137,24 +138,26 @@ load = Save.load_midi_config
 -- derivation.  For instance, pasang instruments are stand-ins for polos
 -- sangsih pairs.
 add_empty :: Instrument -> Instrument -> Cmd.CmdL ()
-add_empty alias inst = add alias inst "empty" []
+add_empty name qualified = add name qualified "empty" []
 
 -- | Remove both an alias and its allocation.
 remove :: Instrument -> Cmd.CmdL ()
-remove alias = do
-    remove_alias alias
-    dealloc alias
+remove inst = do
+    remove_alias inst
+    dealloc inst
 
 -- | Add a new instrument, copied from an existing one.  The argument order is
 -- the same as used by 'add'.
-add_alias :: Instrument -> Instrument -> Cmd.CmdL ()
-add_alias alias inst = State.modify $
-    State.config#State.aliases %= Map.insert (Util.instrument alias)
-        (Util.instrument inst)
+add_alias :: Instrument -> Qualified -> Cmd.CmdL ()
+add_alias inst qualified = do
+    qualified <- parse_qualified qualified
+    State.modify $
+        State.config#State.aliases %= Map.insert (Util.instrument inst)
+            qualified
 
 remove_alias :: Instrument -> Cmd.CmdL ()
-remove_alias alias = State.modify $
-    State.config#State.aliases %= Map.delete (Util.instrument alias)
+remove_alias inst = State.modify $
+    State.config#State.aliases %= Map.delete (Util.instrument inst)
 
 -- | Toggle and return the new value.
 toggle_mute :: State.M m => Instrument -> m Bool
@@ -248,21 +251,22 @@ replace = MidiConfig.replace
 
 -- * rest
 
--- | Steps to load a new instrument.  All of them are optional, depending on
--- the circumstances.
---
--- - Deallocate address asignments for the old instrument, if one is being
--- replaced.
---
--- - Allocate addresses for the new instrument.
---
--- - Title track with new instrument.
---
--- - Send midi init.
---
--- For example, typing a new instrument in a track title should only complain
--- if there is no allocation, but not necessarily deallocate the replaced
--- instrument or send midi init.
+{- | Steps to load a new instrument.  All of them are optional, depending on
+    the circumstances.
+
+    - Deallocate address asignments for the old instrument, if one is being
+    replaced.
+
+    - Allocate addresses for the new instrument.
+
+    - Title track with new instrument.
+
+    - Send midi init.
+
+    For example, typing a new instrument in a track title should only complain
+    if there is no allocation, but not necessarily deallocate the replaced
+    instrument or send midi init.
+-}
 set :: Instrument -> Cmd.CmdL ()
 set inst_ = do
     let inst = Util.instrument inst_
@@ -350,8 +354,8 @@ auto_config block_id = do
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
 device_of :: Score.Instrument -> Cmd.CmdL Midi.WriteDevice
 device_of inst = do
-    (synth, _) <- Cmd.require ("no instrument: " <> pretty inst)
-        =<< Cmd.lookup_alias inst
+    Inst.Qualified synth _ <- Cmd.require ("no instrument: " <> pretty inst)
+        =<< Cmd.lookup_qualified inst
     return $ Midi.write_device synth
 
 
@@ -402,3 +406,11 @@ teach dev chan cc = Cmd.midi (Midi.write_device dev) $
     Midi.ChannelMessage chan (Midi.ControlChange cc 1)
 
 type Instrument = Text
+-- | This is parsed into a 'Inst.Qualified'.
+type Qualified = Text
+
+parse_qualified :: Cmd.M m => Qualified -> m Inst.Qualified
+parse_qualified text
+    | "/" `Text.isInfixOf` text = return $ Inst.parse_qualified text
+    | otherwise =
+        Cmd.throw $ "qualified inst name lacks a /: " <> showt text

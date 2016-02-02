@@ -24,6 +24,7 @@ import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Inst as Inst
 import Global
 import Types
 
@@ -56,7 +57,7 @@ data Config = Config {
     -- | Local instrument aliases.  Map instruments through this map before
     -- setting them, so this goes from instrument alias to underlying
     -- instrument.
-    , config_aliases :: !(Map.Map Score.Instrument Score.Instrument)
+    , config_aliases :: !(Map.Map Score.Instrument Inst.Qualified)
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     , config_saved_views :: !SavedViews
