@@ -13,7 +13,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Derive.ScoreTypes (Attributes, attr)
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Synth.Instrument as Instrument
+import qualified Perform.Im.Instrument as Instrument
 import Global
 
 

@@ -378,7 +378,7 @@ Synth: Im:
       * Remove Instrument.MidiDb and Instrument.Db
       * Now that I don't set inst_name and inst_synth when reading from the
         db, I should set them in Midi.Convert.
-  - I need a better name than Synth for this.  It collides with synth/inst.
+  * I need a better name than Synth for this.  It collides with synth/inst.
     A protocol name, as MIDI is.
     . Cipta?  Karawitan?  Yin or Im for 音?  聲音 sia*-im
       The only thing is that im looks like a typo, and IM is already
@@ -406,10 +406,9 @@ Synth: Im:
   * Aliases should use Inst.Qualified.
   - Incorporate Midi.Instrument.Instrument into Patch.  Move Instrument to
     Perform as a purely perform-level type.
-  - Rename Perform.Synth to Perform.Im.
-
-  - Perform.Synth.Convert converts to Notes and serializes them
-  - Perform.Synth.Perform invokes the sampler
+  * Rename Perform.Synth to Perform.Im.
+  - Perform.Im.Convert converts to Notes and serializes them
+  - Perform.Im.Perform invokes the sampler
   - Cmd.Play sends start and stop MIDI msgs
 
 shakefile: build:

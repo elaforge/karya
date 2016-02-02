@@ -27,7 +27,7 @@ import qualified Util.Serialize as Serialize
 
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Perform.Midi.Instrument as Midi.Instrument
-import qualified Perform.Synth.Instrument as Synth.Instrument
+import qualified Perform.Im.Instrument as Im.Instrument
 import qualified Instrument.Common as Common
 import qualified Instrument.Tag as Tag
 import Global
@@ -50,7 +50,7 @@ instance Pretty.Pretty code => Pretty.Pretty (Inst code) where
         , ("common", Pretty.format common)
         ]
 
-data Backend = Midi !Midi.Instrument.Patch | Im Synth.Instrument.Instrument
+data Backend = Midi !Midi.Instrument.Patch | Im Im.Instrument.Instrument
     deriving (Show)
 
 instance Pretty.Pretty Backend where
@@ -67,7 +67,7 @@ inst_attributes inst = case inst_backend inst of
     Midi inst -> Common.mapped_attributes $
         Midi.Instrument.patch_attribute_map inst
     Im inst -> Common.mapped_attributes $
-        Synth.Instrument.inst_attribute_map inst
+        Im.Instrument.inst_attribute_map inst
 
 -- * Qualified
 
@@ -166,7 +166,7 @@ validate inst = case inst_backend inst of
     Midi patch -> Common.overlapping_attributes $
         Midi.Instrument.patch_attribute_map patch
     Im patch -> Common.overlapping_attributes $
-        Synth.Instrument.inst_attribute_map patch
+        Im.Instrument.inst_attribute_map patch
 
 -- | Merge the Dbs, and return any duplicate synths.
 merge :: Db code -> Db code -> (Db code, [SynthName])
