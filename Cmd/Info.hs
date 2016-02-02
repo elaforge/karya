@@ -30,8 +30,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.Common as Common
-import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Inst as Inst
 import Global
 import Types
 
@@ -161,12 +160,10 @@ instrument_info inst = do
     info <- Cmd.lookup_instrument inst
     return $ ShowVal.show_val inst <> ": " <> show_instrument_info config info
 
-show_instrument_info :: Maybe Instrument.Config -> Maybe Cmd.MidiInfo -> Text
-show_instrument_info config info = fields
+show_instrument_info :: Maybe Instrument.Config -> Maybe Cmd.Inst -> Text
+show_instrument_info config inst = fields
     [ ("attribute map", maybe ""
-        (show_attribute_map . Instrument.patch_attribute_map
-            . MidiDb.info_patch)
-        info)
+        (comma_list . map ShowVal.show_val . Inst.inst_attributes) inst)
     , ("addrs", maybe "" show_addrs
         (map fst . Instrument.config_addrs <$> config))
     , ("flags", Text.unwords $ ["mute" | get Instrument.config_mute]
@@ -184,10 +181,6 @@ show_addrs addrs = semicolon_list
         <> "[" <> Text.intercalate "," (show_runs (map snd addrs)) <> "]"
     | (wdev, addrs) <- Seq.keyed_group_sort fst addrs
     ]
-
-show_attribute_map :: Instrument.AttributeMap -> Text
-show_attribute_map =
-    comma_list . map ShowVal.show_val . Common.mapped_attributes
 
 comma_list, semicolon_list :: [Text] -> Text
 comma_list [] = "[]"

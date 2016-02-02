@@ -27,10 +27,10 @@ import Global
 
 
 patches :: [MidiInst.Patch]
-patches =
-    [ (patch "mridangam-d" notes_d, code)
-    , (patch "mridangam-g" notes_g, code)
-    , (patch "mridangam" pitched_notes_old, code)
+patches = map (MidiInst.code #= code)
+    [ patch "mridangam-d" notes_d
+    , patch "mridangam-g" notes_g
+    , patch "mridangam" pitched_notes_old
     ]
     where
     patch name notes = CUtil.pitched_drum_patch notes $

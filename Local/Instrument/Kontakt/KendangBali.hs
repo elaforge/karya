@@ -37,11 +37,12 @@ import Global
 
 patches :: [MidiInst.Patch]
 patches =
-    [ (CUtil.pitched_drum_patch tunggal_notes $
-        patch "kendang-bali", tunggal_code)
-    , (CUtil.drum_patch old_tunggal_notes $
-        patch "kendang-bali-old", tunggal_code)
-    , (Instrument.triggered $ patch "kendang-bali-pasang", pasang_code)
+    [ MidiInst.code #= tunggal_code $ CUtil.pitched_drum_patch tunggal_notes $
+        patch "kendang-bali"
+    , MidiInst.code #= tunggal_code $ CUtil.drum_patch old_tunggal_notes $
+        patch "kendang-bali-old"
+    , MidiInst.code #= pasang_code $ MidiInst.patch_ %= Instrument.triggered $
+        patch "kendang-bali-pasang"
     ]
     where
     tunggal_code = CUtil.drum_code (Just "kendang-tune") (map fst tunggal_notes)

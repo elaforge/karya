@@ -8,10 +8,12 @@ import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
+import qualified Util.Lens as Lens
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
@@ -21,33 +23,46 @@ import Global
 
 
 data Common code = Common {
-    code :: !code
+    -- | Cmds and Derive calls.  This is abstract so this can be defined
+    -- without incurring a dependency on "Cmd.Cmd", which would wind up being
+    -- a circular dependency.
+    common_code :: !code
     -- | This environ is merged into the derive environ when the instrument
     -- comes into scope, and also when the pitch of 'Score.Event's with this
     -- instrument is converted.  Typically it sets things like instrument
     -- range, tuning details, etc.
-    , restricted_environ :: !RestrictedEnviron.Environ
+    , common_environ :: !RestrictedEnviron.Environ
     -- | Key-value pairs used to index the instrument.  A key may appear more
     -- than once with different values.  Tags are free-form, but there is
     -- a list of standard tags in "Instrument.Tag".
-    , tags :: ![Tag.Tag]
-    -- | This is the name of the instrument on the synthesizer, and likely has
-    -- all sorts of wacky characters in it, and may not be unique, even on
-    -- a single synth.  This is just for reference, and is not actually used by
-    -- anyone.  The instrument name is probably the same but mangled into
-    -- a valid identifier.
-    , full_name :: !Text
-    -- | Some free form text about the instrument.
-    , text :: !Text
+    , common_tags :: ![Tag.Tag]
+    -- | So, instrument, tell me about yourself.
+    , common_doc :: !Text
     } deriving (Show)
 
+get_environ :: Common code -> BaseTypes.Environ
+get_environ = RestrictedEnviron.convert . common_environ
+
+code = Lens.lens common_code (\f r -> r { common_code = f (common_code r) })
+environ = Lens.lens common_environ
+    (\f r -> r { common_environ = f (common_environ r) })
+tags = Lens.lens common_tags (\f r -> r { common_tags = f (common_tags r) })
+doc = Lens.lens common_doc (\f r -> r { common_doc = f (common_doc r) })
+
+common :: code -> Common code
+common code = Common
+    { common_code = code
+    , common_environ = mempty
+    , common_tags = []
+    , common_doc = ""
+    }
+
 instance Pretty.Pretty code => Pretty.Pretty (Common code) where
-    format (Common code env tags full_name text) = Pretty.record "Instrument"
+    format (Common code env tags doc) = Pretty.record "Instrument"
         [ ("code", Pretty.format code)
         , ("restricted_environ", Pretty.format env)
         , ("tags", Pretty.format tags)
-        , ("full_name", Pretty.format full_name)
-        , ("text", Pretty.format text)
+        , ("doc", Pretty.format doc)
         ]
 
 -- * AttributeMap

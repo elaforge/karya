@@ -178,9 +178,9 @@ keyswitches inputs = \msg -> do
 -- enumeration of symbols and no pitch or duration.  Each key maps to its
 -- own symbol.
 simple_drum :: Maybe Score.Control -> [(Drums.Note, Midi.Key)]
-    -> Instrument.Patch -> MidiInst.Patch
+    -> MidiInst.Patch -> MidiInst.Patch
 simple_drum tune_control note_keys patch =
-    MidiInst.with_code code (drum_patch note_keys patch)
+    MidiInst.code #= code $ drum_patch note_keys patch
     where code = drum_code tune_control (map fst note_keys)
 
 -- ** code
@@ -201,8 +201,8 @@ drum_cmd = insert_call . notes_to_calls
 
 -- ** patch
 
-drum_patch :: [(Drums.Note, Midi.Key)] -> Instrument.Patch -> Instrument.Patch
-drum_patch note_keys = Instrument.triggered
+drum_patch :: [(Drums.Note, Midi.Key)] -> MidiInst.Patch -> MidiInst.Patch
+drum_patch note_keys = (MidiInst.patch_ %=) $ Instrument.triggered
     . (Instrument.call_map #= make_call_map (map fst note_keys))
     . (Instrument.attribute_map #= Instrument.unpitched_keymap
         [(Drums.note_attrs note, key) | (note, key) <- note_keys])
@@ -263,8 +263,8 @@ make_cc_keymap base_key range root_pitch =
 
 -- | Annotate a Patch with an 'Instrument.AttributeMap' from the given
 -- PitchedNotes.
-pitched_drum_patch :: PitchedNotes -> Instrument.Patch -> Instrument.Patch
-pitched_drum_patch notes = Instrument.triggered
+pitched_drum_patch :: PitchedNotes -> MidiInst.Patch -> MidiInst.Patch
+pitched_drum_patch notes = (MidiInst.patch_ %=) $ Instrument.triggered
     . (Instrument.call_map #= make_call_map (map fst notes))
     . (Instrument.attribute_map #= make_attribute_map notes)
 

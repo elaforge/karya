@@ -364,11 +364,20 @@ Synth:
     * Write a replacement Instrument.Db as much as possible without breaking
       existing code.
     Then convert everything over to use that.
-      - MidiInst
-      - Local.Instrument declarations
-      - Instrument.Browser
-      - Cmd.Cmd
-      - Deriver
+      * MidiInst
+      * Instrument.Browser
+      * Instrument.Search
+      * Cmd.Cmd
+      remove Midi.Istrument fields:
+        / inst_name, inst_score, inst_synth
+          . inst_name is used to generate Inst.Qualifieds.
+          . (inst_score, inst_synth) are used by Perform as an ID
+        * patch_restricted_environ, patch_tags, patch_text, patch_file
+      * convert all Local.Instrument declarations
+      * tests
+      * Remove Instrument.MidiDb and Instrument.Db
+      * Now that I don't set inst_name and inst_synth when reading from the
+        db, I should set them in Midi.Convert.
   - I need a better name than Synth for this.  It collides with synth/inst.
     A protocol name, as MIDI is.
     . Cipta?  Karawitan?  Yin or Im for 音?  聲音 sia*-im
@@ -389,11 +398,16 @@ Synth:
       Perform-specific stuff into Midi.Perform.  Then instead of the awkward
       "fields filled in during lookup" thing, I have Convert project
       a Midi.Patch to a Perform.Patch.
-  - Now that I only address instruments as aliases, do I really need the
+  * Now that I only address instruments as aliases, do I really need the
     qualified >synth/inst form?  Shouldn't I just have a
     'QualifiedName Text Text'?  I think all it means is that LInst.add
     becomes 'LInst.add "inst" "synth" "inst" "loop1" [0].  Of course I could
     still separate with a / if I don't like all those string args.
+  - Aliases should use Inst.Qualified.
+  - Incorporate Midi.Instrument.Instrument into Patch.  Move Instrument to
+    Perform as a purely perform-level type.
+  - Rename Perform.Synth to Perform.Im.
+
   - Perform.Synth.Convert converts to Notes and serializes them
   - Perform.Synth.Perform invokes the sampler
   - Cmd.Play sends start and stop MIDI msgs

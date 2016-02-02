@@ -86,6 +86,8 @@ import Perform.Midi.Instrument (Addr)
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import Global
 
 
@@ -106,10 +108,13 @@ midi_thru_instrument score_inst input = do
     let addrs = map fst $ Instrument.config_addrs config
     unless (null addrs) $ do
         scale <- Perf.get_scale =<< Selection.track
-        patch <- Cmd.get_midi_patch score_inst
+        inst <- Cmd.require ("no instrument: " <> pretty score_inst)
+            =<< Cmd.lookup_instrument score_inst
+        patch <- Cmd.require ("midi patch for " <> pretty score_inst) $
+            Inst.inst_midi inst
         input <- Cmd.require
             (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
-            =<< map_scale patch config scale input
+            =<< map_scale patch (Inst.inst_common inst) config scale input
 
         wdev_state <- Cmd.get_wdev_state
         let (thru_msgs, maybe_wdev_state) =
@@ -120,9 +125,10 @@ midi_thru_instrument score_inst input = do
         mapM_ (uncurry Cmd.midi) thru_msgs
 
 -- | Realize the Input as a pitch in the given scale.
-map_scale :: Cmd.M m => Instrument.Patch -> Instrument.Config -> Scale.Scale
+map_scale :: Cmd.M m => Instrument.Patch -> Common.Common a
+    -> Instrument.Config -> Scale.Scale
     -> InputNote.Input -> m (Maybe InputNote.InputNn)
-map_scale patch config scale input = case input of
+map_scale patch common config scale input = case input of
     InputNote.NoteOn note_id input vel -> do
         maybe_nn <- convert input
         return $ fmap (\k -> InputNote.NoteOn note_id k vel) maybe_nn
@@ -141,7 +147,7 @@ map_scale patch config scale input = case input of
             -- Environ is important because it may set scale values that
             -- influence the pitch.  TODO but shouldn't it already come from
             -- Perf.derive_at?  And shouldn't I not override that?
-            Derive.with_environ (Instrument.patch_environ patch) $
+            Derive.with_environ (Common.get_environ common) $
             only_allow_octave_transpose
                 (Instrument.config_controls config) scale $
             Scale.scale_input_to_nn scale pos input

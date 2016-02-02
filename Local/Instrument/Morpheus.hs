@@ -10,24 +10,26 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Inst as Inst
 import qualified Instrument.Parse as Parse
 import Global
 
 
-synth_name :: FilePath
+synth_name :: Inst.SynthName
 synth_name = "morpheus"
 
 load :: FilePath -> IO (Maybe MidiInst.Synth)
-load = MidiInst.load_synth (const MidiInst.empty_code) synth_name
+load = MidiInst.load_synth (const mempty) synth_name "E-mu Morpheus"
 
 make_db :: FilePath -> IO ()
 make_db dir = do
-    let synth = Instrument.synth (txt synth_name) "E-mu Morpheus" synth_controls
-    patches <- Parse.patch_file (dir </> synth_name)
+    patches <- map MidiInst.patch_from_pair <$>
+        Parse.patch_file (dir </> untxt synth_name)
     patches <- return $ map
-        (Instrument.instrument_#Instrument.pitch_bend_range #= (-12, 12))
+        (MidiInst.patch_#Instrument.instrument_#Instrument.pitch_bend_range
+            #= (-12, 12))
         patches
-    MidiInst.save_synth dir synth patches
+    MidiInst.save_synth dir synth_name patches
 
 synth_controls :: [(Midi.Control, Score.Control)]
 synth_controls =

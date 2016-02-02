@@ -45,17 +45,40 @@ import Global
 import Types
 
 
+synth :: MidiInst.Synth
+synth = MidiInst.synth "vsl" "Vienna Symphonic Library" $
+    MidiInst.synth_controls controls patches
+    where
+    controls =
+        [ (11, "expression") -- apparently like cc7 volume?
+        , (22, "attack") -- attack time
+        , (23, "release") -- release time
+        , (24, "filter") -- low pass filter
+        , (20, "slot-xf") -- xfade between a and b slot positions
+        , (2,  "velocity-xf") -- xfade between vel layers, set breath dyn
+        , (28, "velocity-xf-on") -- velocity xfade on/off
+        , (29, "rsamp-on") -- release samples on/off
+        , (25, "delay") -- scale per patch delay
+        , (26, "tuning") -- scale out of tune curve
+        , (27, "humanize") -- scale both 'delay' and 'tuning'
+        , (30, "dyn-range") -- scale effect of velocity
+        , (21, "start-scaler") -- scale start offset
+        , (14, "reverb") -- reverb wet
+        , (15, "reverb-on") -- reverb on/off
+        ]
+
 -- * util
 
 -- | For interactive use, find keyswitches with the given attributes.
 find_attrs :: Instrument.InstrumentName -> String -> [Text]
 find_attrs inst with_attrs =
     map ShowVal.show_val $ filter (`Score.attrs_contain` search)
-        (patch_attrs patch)
+        (patch_attrs (MidiInst.patch_patch patch))
     where
     search = either (error . untxt) id (Parse.parse_attrs with_attrs)
     patch = fromMaybe (error $ "patch not found: " ++ show inst) $
-        List.find ((==inst) . Instrument.patch_name) (map fst patches)
+        List.find ((==inst) . Instrument.patch_name . MidiInst.patch_patch)
+            patches
 
 -- | Write matrices to a file for visual reference.
 write_matrices :: IO ()
@@ -86,37 +109,15 @@ map_shape f rows = split (map length rows) $ f (concat rows)
 
 -- * instrument definition
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
-load _dir = return $ Just synth
-
-synth :: MidiInst.Synth
-synth = MidiInst.with_patches patches $
-    Instrument.synth "vsl" "Vienna Symphonic Library"
-        [ (11, "expression") -- apparently like cc7 volume?
-        , (22, "attack") -- attack time
-        , (23, "release") -- release time
-        , (24, "filter") -- low pass filter
-        , (20, "slot-xf") -- xfade between a and b slot positions
-        , (2,  "velocity-xf") -- xfade between vel layers, set breath dyn
-        , (28, "velocity-xf-on") -- velocity xfade on/off
-        , (29, "rsamp-on") -- release samples on/off
-        , (25, "delay") -- scale per patch delay
-        , (26, "tuning") -- scale out of tune curve
-        , (27, "humanize") -- scale both 'delay' and 'tuning'
-        , (30, "dyn-range") -- scale effect of velocity
-        , (21, "start-scaler") -- scale start offset
-        , (14, "reverb") -- reverb wet
-        , (15, "reverb-on") -- reverb on/off
-        ]
-
 patches :: [MidiInst.Patch]
 patches =
     [ add_code hmap (make_patch inst category)
     | ((inst, hmap), category) <- instruments
     ]
     where
-    add_code hmap patch = (patch, code)
-        where code = MidiInst.note_calls (note_calls hmap patch)
+    add_code hmap patch = MidiInst.code
+        #= MidiInst.note_calls (note_calls hmap (MidiInst.patch_patch patch)) $
+            patch
 
 instruments :: [((VslInst.Instrument, Maybe HarmonicMap), Text)]
 instruments = concatMap tag $
@@ -209,17 +210,18 @@ harmonic config hmap args = do
 type Instrument = (Instrument.InstrumentName, [Keyswitch])
 type Keyswitch = (Score.Attributes, [Instrument.Keyswitch])
 
-make_patch :: VslInst.Instrument -> Text -> Instrument.Patch
+make_patch :: VslInst.Instrument -> Text -> MidiInst.Patch
 make_patch inst category =
     instrument_patch category (second strip (make_instrument inst))
     where strip = uncurry zip . first strip_attrs . unzip
 
-instrument_patch :: Text -> Instrument -> Instrument.Patch
+instrument_patch :: Text -> Instrument -> MidiInst.Patch
 instrument_patch category (name, keyswitches) =
     -- Instrument.pressure means I expect to have velocity-xf enabled and
     -- assigned to cc2.
-    Instrument.pressure $ Instrument.add_tag (Tag.category, category) $
-    (Instrument.attribute_map #= keyswitch_map keyswitches) $
+    MidiInst.pressure $
+    MidiInst.common#Common.tags %= ((Tag.category, category) :) $
+    MidiInst.attribute_map #= keyswitch_map keyswitches $
         MidiInst.patch (-2, 2) name []
 
 make_instrument :: VslInst.Instrument -> Instrument

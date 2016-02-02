@@ -5,14 +5,10 @@
 -- | Image-Line's Morphine softsynth.
 module Local.Instrument.Morphine where
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Perform.Midi.Instrument as Instrument
 
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
-load _dir = return $ Just $ MidiInst.with_patches patches $
-    Instrument.synth "morphine" "Image-Line Morphine" []
+synth :: MidiInst.Synth
+synth = MidiInst.synth "morphine" "Image-Line Morphine" patches
 
 patches :: [MidiInst.Patch]
-patches = map MidiInst.with_empty_code
-    [ Instrument.default_patch (-12, 12) []
-    ]
+patches = [MidiInst.default_patch (-12, 12) []]

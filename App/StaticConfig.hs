@@ -13,7 +13,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Derive.Derive as Derive
 import qualified Derive.Scale.All as Scale.All
-import qualified Instrument.Db
+import qualified Instrument.Inst as Inst
 import qualified App.Config as Config
 import Global
 
@@ -44,7 +44,7 @@ data StaticConfig = StaticConfig {
 
 empty :: StaticConfig
 empty = StaticConfig {
-    instrument_db = Instrument.Db.empty
+    instrument_db = Inst.empty
     , local_repl_dirs = []
     , global_cmds = []
     , library = mempty

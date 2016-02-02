@@ -9,18 +9,19 @@ import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.India.Pakhawaj as Pakhawaj
 import Derive.Call.India.Pakhawaj (Stroke(..))
 import Derive.Score (attr)
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.NN as NN
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
 import qualified Local.Instrument.Kontakt.Util as Util
+import Global
 
 
 patches :: [MidiInst.Patch]
-patches = [(patch "pakhawaj" pitched_notes, code)]
+patches = [MidiInst.code #= code $ patch "pakhawaj" pitched_notes]
     where
     patch name notes = CUtil.pitched_drum_patch notes $
         MidiInst.patch (-24, 24) name []

@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE ScopedTypeVariables #-} -- needed for SomeException
+{-# LANGUAGE FlexibleInstances #-}
 {- | Serialize and unserialize all the data types used by Ui.State.State.
 
     Types that I think might change have versions.  If the type changes,
@@ -57,6 +58,8 @@ import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import Global
 import Types
 
@@ -132,10 +135,12 @@ score_magic = Magic 's' 'c' 'o' 'r'
 views_magic :: Magic (Map.Map ViewId Block.View)
 views_magic = Magic 'v' 'i' 'e' 'w'
 
-newtype InstrumentDb = InstrumentDb (Time.UTCTime, Instrument.Synth ())
-
 instrument_db_magic :: Magic InstrumentDb
 instrument_db_magic = Magic 'i' 'n' 's' 't'
+
+-- | Time serialized, patches.
+data InstrumentDb = InstrumentDb
+    Time.UTCTime (Map.Map Inst.Name (Instrument.Patch, Common.Common ()))
 
 -- * Serialize instances
 

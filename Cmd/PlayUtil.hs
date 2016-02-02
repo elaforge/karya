@@ -63,7 +63,8 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified App.Config as Config
 import Global
 import Types
@@ -155,9 +156,10 @@ get_constant cache damage = do
     return $ Derive.initial_constant ui_state (defs_library <> library)
         lookup_scale (adapt configs lookup_inst) cache damage
     where
-    adapt configs lookup = \inst ->
-        Cmd.derive_instrument (Map.findWithDefault empty_config inst configs)
-            <$> lookup inst
+    adapt configs lookup = \inst -> case lookup inst of
+        Just (patch, _) -> Just $ Cmd.derive_instrument
+            (Map.findWithDefault empty_config inst configs) patch
+        Nothing -> Nothing
     empty_config = Instrument.config []
 
 initial_dynamic :: Derive.Dynamic
@@ -294,21 +296,26 @@ perform_events events = do
 get_convert_lookup :: Cmd.M m => m Convert.Lookup
 get_convert_lookup = do
     lookup_scale <- Cmd.gets $ Cmd.state_lookup_scale . Cmd.state_config
-    lookup_inst <- Cmd.get_lookup_midi_instrument
-    lookup_info <- Cmd.get_lookup_instrument
+    lookup_inst <- Cmd.get_lookup_instrument
     configs <- State.get_midi_config
     let defaults = Map.map (Map.map (Score.untyped . Signal.constant)
             . Instrument.config_control_defaults) configs
     return $ Convert.Lookup
         { lookup_scale = lookup_scale
-        , lookup_inst = lookup_inst
-        , lookup_patch = fmap extract . lookup_info
+        , lookup_patch = to_patch <=< lookup_inst
         , lookup_control_defaults = \inst ->
             Map.findWithDefault mempty inst defaults
         }
     where
-    extract info = (MidiDb.info_patch info,
-        Cmd.inst_postproc $ MidiDb.info_code info)
+    to_patch :: (Cmd.Inst, Inst.Qualified)
+        -> Maybe (Instrument.Patch, Inst.Qualified, Score.Event -> Score.Event)
+    to_patch (inst, qualified) = case Inst.inst_backend inst of
+        Inst.Midi patch -> Just
+            ( patch
+            , qualified
+            , Cmd.inst_postproc (Common.common_code (Inst.inst_common inst))
+            )
+        _ -> Nothing
 
 
 -- * definition file

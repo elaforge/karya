@@ -5,37 +5,42 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Utilities for the instrument definitions in "Local.Instrument".
 module Cmd.Instrument.MidiInst (
-    Synth, Patch
-    , with_patches
+    Synth, synth
     -- * code
-    , Code(..), empty_code, with_code, with_empty_code
-    , Call
+    , Code(..), Call
     , generator, transformer, both, note_calls
     , note_generators, note_transformers, null_call
     , postproc, cmd
 
-    -- * making patches
-    , patch, pressure
+    -- * Patch
+    , Patch(..), patch_, common
+    , make_patch, patch_from_pair, patch, default_patch
+    -- ** modify
+    , code, doc, attribute_map, decay, synth_controls, pressure
     -- ** environ
     , environ, default_scale, range, nn_range
 
     -- * db
     , save_synth, load_synth
-
-    , generate_names
+    , check_names, generate_names, clean_name
 ) where
-import qualified Data.Map as Map
 import qualified Control.Monad.Identity as Identity
+import qualified Data.Map as Map
 import qualified Data.Text as Text
-import qualified System.FilePath as FilePath
+import qualified Data.Time as Time
+
 import System.FilePath ((</>), (<.>))
 
+import qualified Util.Lens as Lens
 import qualified Util.Log as Log
 import qualified Util.Logger as Logger
+import qualified Util.Map
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Serialize as Serialize
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
@@ -49,23 +54,37 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 
+import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.MidiDb as MidiDb
 import qualified Instrument.Serialize
+import qualified Instrument.Tag as Tag
 
 import qualified App.Config as Config
 import Global
+import Types
 
 
-type Synth = Instrument.Synth Cmd.InstrumentCode
-type Patch = (Instrument.Patch, Code)
+type Synth = Inst.SynthDecl Cmd.InstrumentCode
 
-with_patches :: [(Instrument.Patch, Code)] -> Instrument.Synth a -> Synth
-with_patches patches synth = synth { Instrument.synth_patches = verified }
+synth :: Inst.SynthName -> Text -> [Patch] -> Synth
+synth name doc patches =
+    (name, doc, zip (map name_of patches) (map make_inst patches))
     where
-    -- Since these patches are likely defined by hand, I assume there are no
-    -- name collisions to be logged.
-    (verified, _logs) = MidiDb.verify_patches $ map (second make_code) patches
+    name_of = (patch_ # Instrument.instrument_ # Instrument.name #$)
+
+make_inst :: Patch -> Inst.Inst Cmd.InstrumentCode
+make_inst (Patch patch common) = Inst.Inst
+    { inst_backend = Inst.Midi patch
+    , inst_common = common
+        { Common.common_code = make_code (Common.common_code common) }
+    }
+
+make_code :: Code -> Cmd.InstrumentCode
+make_code (Code generator transformer val postproc cmds) = Cmd.InstrumentCode
+    { Cmd.inst_calls = Derive.InstrumentCalls generator transformer val
+    , Cmd.inst_postproc = postproc
+    , Cmd.inst_cmds = cmds
+    }
 
 -- * code
 
@@ -80,26 +99,19 @@ data Code = Code {
     , code_cmds :: [Cmd.Cmd]
     }
 
+instance Pretty.Pretty Code where
+    format (Code note_gens note_trans val_calls _postproc cmds) =
+        Pretty.record "Code"
+            [ ("note_generators", Pretty.format $ length note_gens)
+            , ("note_transformers", Pretty.format $ length note_trans)
+            , ("val_calls", Pretty.format $ length val_calls)
+            , ("cmds", Pretty.format $ length cmds)
+            ]
+
 instance Monoid Code where
     mempty = Code [] [] mempty id []
     mappend (Code g1 t1 v1 post1 cmds1) (Code g2 t2 v2 post2 cmds2) =
         Code (g1<>g2) (t1<>t2) (v1<>v2) (post1 . post2) (cmds1<>cmds2)
-
-empty_code :: Code
-empty_code = mempty
-
-with_code :: Code -> Instrument.Patch -> Patch
-with_code code patch = (patch, code)
-
-with_empty_code :: Instrument.Patch -> Patch
-with_empty_code = with_code empty_code
-
-make_code :: Code -> Cmd.InstrumentCode
-make_code (Code generator transformer val postproc cmds) = Cmd.InstrumentCode
-    { Cmd.inst_calls = Derive.InstrumentCalls generator transformer val
-    , Cmd.inst_postproc = postproc
-    , Cmd.inst_cmds = cmds
-    }
 
 -- ** code constructors
 
@@ -147,38 +159,93 @@ postproc post = mempty { code_postproc = post }
 cmd :: Cmd.Cmd -> Code
 cmd c = mempty { code_cmds = [c] }
 
--- * making patches
+-- * Patch
+
+data Patch = Patch {
+    patch_patch :: Instrument.Patch
+    , patch_common :: Common.Common Code
+    }
+
+-- TODO this name is error-prone
+patch_ = Lens.lens patch_patch (\f r -> r { patch_patch = f (patch_patch r) })
+common = Lens.lens patch_common
+    (\f r -> r { patch_common = f (patch_common r) })
+
+instance Pretty.Pretty Patch where
+    format (Patch patch common) = Pretty.record "Patch"
+        [ ("patch", Pretty.format patch)
+        , ("common", Pretty.format common)
+        ]
+
+-- | Make a patch.
+make_patch :: Instrument.Patch -> Patch
+make_patch p = Patch
+    { patch_patch = p
+    , patch_common = Common.common mempty
+    }
+
+-- | Convert patches as emitted by 'Instrument.Sysex.Patch'.
+patch_from_pair :: (Instrument.Patch, Common.Common ()) -> Patch
+patch_from_pair (patch, common) =
+    Patch patch (common { Common.common_code = mempty })
 
 -- | Make a patch, with a few parameters that tend to be unique per patch.
 -- Controls come last because they are often a long list.
 patch :: Control.PbRange -> Instrument.InstrumentName
-    -> [(Midi.Control, Score.Control)] -> Instrument.Patch
+    -> [(Midi.Control, Score.Control)] -> Patch
 patch pb_range name controls =
-    Instrument.patch (Instrument.instrument pb_range name controls)
+    make_patch $ Instrument.patch $ Instrument.instrument pb_range name controls
+
+-- | Make a default patch for the synth.
+default_patch :: Control.PbRange -> [(Midi.Control, Score.Control)] -> Patch
+default_patch pb_range controls = Patch
+    { patch_patch = Instrument.default_patch pb_range controls
+    , patch_common = Common.common mempty
+    }
+
+-- ** modify
+
+code :: Lens Patch Code
+code = common # Common.code
+
+doc :: Lens Patch Text
+doc = common # Common.doc
+
+attribute_map :: Lens Patch Instrument.AttributeMap
+attribute_map = patch_ # Instrument.attribute_map
+
+decay :: Lens Patch (Maybe RealTime)
+decay = patch_ # Instrument.instrument_ # Instrument.maybe_decay
+
+-- | Annotate all the patches with some global controls.
+synth_controls :: [(Midi.Control, Score.Control)] -> [Patch] -> [Patch]
+synth_controls controls = map add
+    where
+    add = patch_ # Instrument.instrument_ # Instrument.control_map
+        %= (Control.control_map controls <>)
 
 -- | Set a patch to pressure control.
-pressure :: Instrument.Patch -> Instrument.Patch
-pressure = Instrument.set_decay 0 . Instrument.set_flag Instrument.Pressure
+pressure :: Patch -> Patch
+pressure =
+    patch_ %= Instrument.set_decay 0 . Instrument.set_flag Instrument.Pressure
 
 -- ** environ
 
 -- | The instrument will also set the given environ when it comes into scope.
-environ :: RestrictedEnviron.ToVal a => Env.Key -> a -> Instrument.Patch
-    -> Instrument.Patch
-environ name val = Instrument.environ
+environ :: RestrictedEnviron.ToVal a => Env.Key -> a -> Patch -> Patch
+environ name val = common#Common.environ
     %= (RestrictedEnviron.make [(name, RestrictedEnviron.to_val val)] <>)
 
 -- | The instrument will set the given scale when it comes into scope.
-default_scale :: Pitch.ScaleId -> Instrument.Patch -> Instrument.Patch
+default_scale :: Pitch.ScaleId -> Patch -> Patch
 default_scale = environ EnvKey.scale . BaseTypes.scale_id_to_sym
 
 -- | Set instrument range.
-range :: Scale.Range -> Instrument.Patch -> Instrument.Patch
+range :: Scale.Range -> Patch -> Patch
 range range = environ EnvKey.instrument_bottom (Scale.range_bottom range)
     . environ EnvKey.instrument_top (Scale.range_top range)
 
-nn_range :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Instrument.Patch
-    -> Instrument.Patch
+nn_range :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Patch -> Patch
 nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
     . environ EnvKey.instrument_top top
 
@@ -189,31 +256,34 @@ nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
 -- parsing a directory full of sysexes.  These patches can export a @make_db@
 -- function, which will do the slow parts and save the results in a cache file.
 -- The @load@ function will simply read the cache file, if present.
---
--- The Synth and its patches are passed separately.  This is because there
--- may well be patches with duplicate names, and so I need to run
--- 'MidiDb.verify_patches' before saving.
-save_synth :: FilePath -> Instrument.Synth a -> [Instrument.Patch]
-    -> IO ()
-save_synth app_dir synth patches = do
-    let (verified, logs) = MidiDb.verify_patches (map (, ()) patches)
-    let synth_name = Instrument.synth_name synth
+save_synth :: FilePath -> Inst.SynthName -> [Patch] -> IO ()
+save_synth app_dir synth_name patches = do
+    -- Assume these are loaded from files, so I'll need to generate valid
+    -- names.
+    let (patch_map, logs) = generate_names patches
     mapM_ (Log.notice . (("synth " <> synth_name <> ": ") <>)) logs
+    now <- Time.getCurrentTime
     Instrument.Serialize.serialize (db_path app_dir (untxt synth_name)) $
-        Instrument.modify_code (const ()) $
-        synth { Instrument.synth_patches = verified }
+        Serialize.InstrumentDb now (strip_code <$> patch_map)
+    where
+    strip_code :: Patch -> (Instrument.Patch, Common.Common ())
+    strip_code (Patch patch common) =
+        (patch, common { Common.common_code = () })
 
-load_synth :: (Instrument.Patch -> Code) -> FilePath -> FilePath
+load_synth :: (Instrument.Patch -> Code) -> Inst.SynthName -> Text -> FilePath
     -> IO (Maybe Synth)
-load_synth code_for db_name app_dir = do
-    let fname = db_path app_dir db_name
-    saved <- Instrument.Serialize.unserialize (make_code . code_for) fname
-    case saved of
+load_synth get_code synth_name doc app_dir = do
+    let fname = db_path app_dir (untxt synth_name)
+    Instrument.Serialize.unserialize fname >>= \x -> case x of
         Left err -> do
             Log.warn $ "Error loading instrument db " <> showt fname <> ": "
-                <> Text.strip err
+                <> Text.strip (pretty err)
             return Nothing
-        Right (_time, synth) -> return (Just synth)
+        Right (Serialize.InstrumentDb _time patch_map) -> return $ Just
+            (synth_name, doc, map (second make) (Map.toList patch_map))
+    where
+    make (patch, common) = make_inst $ Patch patch $
+        common { Common.common_code = get_code patch }
 
 db_path :: FilePath -> FilePath -> FilePath
 db_path app_dir name =
@@ -222,31 +292,36 @@ db_path app_dir name =
 
 -- * generate_names
 
+-- | Like 'generate_names', but don't drop or rename duplicates, just report
+-- them as errors.
+check_names :: [Patch] -> (Map.Map Inst.Name Patch, [Inst.Name])
+check_names = second (map fst) . Util.Map.unique . Seq.key_on inst_name
+    where
+    inst_name = Instrument.inst_name . Instrument.patch_instrument . patch_patch
+
 -- | 'Instrument.inst_name' is the name as it appears on the synth, so it's not
 -- guaranteed to be unique.  Also, due to loading from sysexes, there may be
 -- duplicate patches.  Generate valid names for the patches, drop duplicates,
 -- and disambiguate names that wind up the same.
-generate_names :: forall a. [(Instrument.Patch, a)]
-    -> (Map.Map Inst.Name (Instrument.Patch, a), [Text])
-generate_names =
+generate_names :: [Patch] -> (Map.Map Inst.Name Patch, [Text])
+generate_names = -- This only touches the 'patch_patch' field.
     run . (concatMapM split <=< mapM drop_dup_initialization)
         . Seq.keyed_group_sort (clean_name . inst_name)
     where
     run = first Map.fromList . Identity.runIdentity . Logger.run
     -- If the name and initialization is the same, they are likely duplicates.
-    drop_dup_initialization :: (Inst.Name, [(Instrument.Patch, a)])
-        -> Logger (Inst.Name, [(Instrument.Patch, a)])
+    drop_dup_initialization :: (Inst.Name, [Patch])
+        -> Logger (Inst.Name, [Patch])
     drop_dup_initialization (name, patches) = do
         let (unique, dups) = Seq.partition_dups
-                (Instrument.patch_initialize . fst) patches
+                (Instrument.patch_initialize . patch_patch) patches
         forM_ dups $ \(patch, dups) ->
             log ("dropped patches with the same initialization as "
                 <> details patch) dups
         return (name, unique)
     -- The remaining patches are probably different and just happened to get
     -- the same name, so number them to disambiguate.
-    split :: (Inst.Name, [(Instrument.Patch, a)])
-        -> Logger [(Inst.Name, (Instrument.Patch, a))]
+    split :: (Inst.Name, [Patch]) -> Logger [(Inst.Name, Patch)]
     split (name, patches@(_:_:_)) = do
         let named = zip (map ((name<>) . showt) [1..]) patches
         log ("split into " <> Text.intercalate ", " (map fst named)) patches
@@ -256,14 +331,24 @@ generate_names =
     log _ [] = return ()
     log msg patches = Logger.log $ msg <> ": "
         <> Text.intercalate ", " (map details patches)
-    details patch = inst_name patch <> " ("
-        <> txt (FilePath.takeFileName (Instrument.patch_file (fst patch)))
-        <> ")"
-    inst_name = Instrument.inst_name . Instrument.patch_instrument . fst
+    details patch =
+        inst_name patch <> " (" <> fromMaybe "" (filename patch) <> ")"
+    inst_name = Instrument.inst_name . Instrument.patch_instrument . patch_patch
+    filename = lookup Tag.file . Common.common_tags . patch_common
 
 type Logger a = Logger.LoggerT Text Identity.Identity a
 
--- | Patches often have names which are annoying to type.  Do a bit of
--- normalization.
+-- | People like to put wacky characters in their names, but it makes them
+-- hard to type.
 clean_name :: Text -> Inst.Name
-clean_name = Text.unwords . Text.words
+clean_name =
+    Text.dropWhileEnd (=='-') . Text.dropWhile (=='-')
+        . strip_dups
+        . Text.filter (`elem` Score.instrument_valid_chars) . Text.map replace
+        . Text.toLower
+    where
+    strip_dups = Text.intercalate "-" . filter (not . Text.null)
+        . Text.split (=='-')
+    replace c
+        | c `elem` (" _/" :: [Char]) = '-'
+        | otherwise = c

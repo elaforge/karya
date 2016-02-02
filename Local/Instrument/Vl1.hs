@@ -32,30 +32,31 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified Instrument.Sysex as Sysex
+
 import Local.Instrument.Vl1Spec
 import Global
 
 
-synth_name :: String
+synth_name :: Inst.SynthName
 synth_name = "vl1"
 
 load :: FilePath -> IO (Maybe MidiInst.Synth)
-load = MidiInst.load_synth (const MidiInst.empty_code) synth_name
-
-builtin :: FilePath
-builtin = "vl1v2-factory/vl1_ver2.all"
+load = MidiInst.load_synth (const mempty) synth_name "Yamaha Vl1"
 
 -- | Read the patch file, scan the sysex dir, and save the results in a cache.
 make_db :: FilePath -> IO ()
 make_db dir = do
-    let synth = Instrument.synth (txt synth_name) "Yamaha VL1" []
-    let dirs = map ((dir </> synth_name) </>)
+    let dirs = map ((dir </> untxt synth_name) </>)
             ["vc", "sysex", "patchman1", "patchman2"]
     patches <- concatMapM parse_dir dirs
-    builtins <- parse_builtins (dir </> synth_name </> builtin)
-    MidiInst.save_synth dir synth (builtins ++ patches)
+    builtins <- parse_builtins (dir </> untxt synth_name </> builtin)
+    MidiInst.save_synth dir synth_name (builtins ++ patches)
+
+builtin :: FilePath
+builtin = "vl1v2-factory/vl1_ver2.all"
 
 
 -- * parse
@@ -72,8 +73,8 @@ extract_syxs dir fn = do
         writeFile (fn ++ ".rec") (unlines (Sysex.show_flat rec))
 
 syx_fname :: Int -> Text -> FilePath
-syx_fname num name = Printf.printf "%03d.%s" num
-    (untxt $ MidiDb.clean_instrument_name name)
+syx_fname num name =
+    Printf.printf "%03d.%s" num (untxt $ MidiInst.clean_name name)
 
 send_to_buffer = modify
     [ put_int "memory type" 0x7f
@@ -98,21 +99,24 @@ modify = foldr (<=<) return
 put_int :: String -> Int -> Sysex.RMap -> Either String Sysex.RMap
 put_int path int = Sysex.put_rmap path int
 
-parse_builtins :: FilePath -> IO [Instrument.Patch]
+parse_builtins :: FilePath -> IO [MidiInst.Patch]
 parse_builtins fn = do
-    results <- parse_file fn
-    mapM_ (Log.warn . txt) (Either.lefts results)
-    return [Sysex.initialize_program 0 i patch
-        | (i, Right patch) <- zip [0..] results]
+    (warns, patches) <- Either.partitionEithers <$> parse_file fn
+    mapM_ (Log.warn . txt) warns
+    return $ zipWith initialize [0..] patches
+    where
+    initialize n = MidiInst.patch_#Instrument.initialize
+        #= Instrument.InitializeMidi
+            (map (Midi.ChannelMessage 0) (Midi.program_change 0 n))
 
-parse_dir :: FilePath -> IO [Instrument.Patch]
+parse_dir :: FilePath -> IO [MidiInst.Patch]
 parse_dir dir = do
     fns <- File.listRecursive (const True) dir
     (warns, patches) <- Either.partitionEithers . concat <$> mapM parse_file fns
     mapM_ (Log.warn . txt) warns
     return patches
 
-parse_file :: FilePath -> IO [Either String Instrument.Patch]
+parse_file :: FilePath -> IO [Either String MidiInst.Patch]
 parse_file fn = do
     syxs <- file_to_syx fn
     txt <- fromMaybe "" <$> File.ignoreEnoent
@@ -123,13 +127,12 @@ parse_file fn = do
     where
     failed i msg = "parsing " ++ show fn ++ "/" ++ show i ++ ": " ++ msg
 
-combine :: FilePath -> Text -> ByteString -> Instrument.Patch
-    -> Instrument.Patch
-combine fn txt syx patch = Sysex.add_file fn $ patch
-    { Instrument.patch_text = Text.strip txt
-    , Instrument.patch_initialize =
-        Instrument.InitializeMidi [Midi.Encode.decode syx]
-    }
+combine :: FilePath -> Text -> ByteString -> MidiInst.Patch -> MidiInst.Patch
+combine fn doc syx =
+    (MidiInst.common %= Sysex.add_file fn)
+    . (MidiInst.doc #= Text.strip doc)
+    . (MidiInst.patch_#Instrument.initialize #=
+        Instrument.InitializeMidi [Midi.Encode.decode syx])
 
 decode_sysex :: ByteString -> Either String Sysex.RMap
 decode_sysex bytes = fst <$> decode patch_spec bytes
@@ -139,13 +142,13 @@ encode_sysex = fmap append_suffix . encode patch_spec
 
 file_to_syx :: FilePath -> IO [ByteString]
 file_to_syx fn = map add_extra_zero <$> case FilePath.takeExtension fn of
-        ".all" -> split_1bk Nothing <$> B.readFile fn
-        ".1vc" -> split_1vc <$> B.readFile fn
-        ".1bk" -> split_1bk Nothing <$> B.readFile fn
-        ".syx" -> split_syx <$> B.readFile fn
-        ".txt" -> return []
-        ".rec" -> return []
-        _ -> Log.warn ("skipping " <> showt fn) >> return []
+    ".all" -> split_1bk Nothing <$> B.readFile fn
+    ".1vc" -> split_1vc <$> B.readFile fn
+    ".1bk" -> split_1bk Nothing <$> B.readFile fn
+    ".syx" -> split_syx <$> B.readFile fn
+    ".txt" -> return []
+    ".rec" -> return []
+    _ -> Log.warn ("skipping " <> showt fn) >> return []
     where
     -- | Convert .1vc format to .syx format.  Derived by looking at vlone70
     -- conversions with od.
@@ -210,24 +213,24 @@ checksum bytes = (2^7 - val) .&. 0x7f
 -- controls.
 type ElementInfo = (Control.PbRange, Text, [(Midi.Control, [Score.Control])])
 
-record_to_patch :: Sysex.RMap -> Either String Instrument.Patch
+record_to_patch :: Sysex.RMap -> Either String MidiInst.Patch
 record_to_patch rmap = do
     name <- get "name"
     elt1 <- extract_element 0 rmap
     maybe_elt2 <- ifM ((== ("dual" :: Text)) <$> get "voice mode")
         (Just <$> extract_element 1 rmap)
         (return Nothing)
-    vl1_patch name elt1 maybe_elt2
+    return $ vl1_patch name elt1 maybe_elt2
     where
-    get :: (Sysex.RecordVal a) => String -> Either String a
+    get :: Sysex.RecordVal a => String -> Either String a
     get = flip Sysex.get_rmap rmap
 
 vl1_patch :: Instrument.InstrumentName -> ElementInfo
-    -> Maybe ElementInfo -> Either String Instrument.Patch
+    -> Maybe ElementInfo -> MidiInst.Patch
 vl1_patch name elt1 maybe_elt2 =
-    return $ (if is_pressure then MidiInst.pressure else id)
-        (MidiInst.patch pb_range name cmap)
-            { Instrument.patch_tags = map ((,) "vl1-element") names }
+    (if is_pressure then MidiInst.pressure else id) $
+        MidiInst.common#Common.tags #= map ((,) "vl1-element") names $
+        MidiInst.patch pb_range name cmap
     where
     (pb_ranges, names, cc_groups) = unzip3 $ elt1 : Maybe.maybeToList maybe_elt2
     -- If it has a pressure control, then assume it's a breath patch.

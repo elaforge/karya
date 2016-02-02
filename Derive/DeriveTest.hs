@@ -32,6 +32,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Simple as Simple
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Prelude.Block as Prelude.Block
 import Derive.DDebug () -- just make sure it compiles
@@ -51,7 +52,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import Derive.TestInstances ()
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Midi.Convert as Convert
@@ -61,8 +61,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Db
-import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Inst as Inst
 import qualified App.Config as Config
 import Global
 import Types
@@ -422,7 +421,7 @@ default_db :: Cmd.InstrumentDb
 default_db = make_db [("s", map make_patch ["1", "2", "3"])]
 
 make_patch :: Text -> Instrument.Patch
-make_patch name = MidiInst.patch (-2, 2) name []
+make_patch name = Instrument.patch $ Instrument.instrument (-2, 2) name []
 
 default_convert_lookup :: Convert.Lookup
 default_convert_lookup = make_convert_lookup UiTest.default_aliases default_db
@@ -432,27 +431,22 @@ synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.Synth]
 synth_to_convert_lookup aliases = make_convert_lookup aliases . synth_to_db
 
 synth_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
-synth_to_db synths =
-    trace_logs (map (Log.msg Log.Warn Nothing) warns) $ Instrument.Db.db midi_db
-    where (midi_db, warns) = MidiDb.midi_db synths
+synth_to_db synths = trace_logs (map (Log.msg Log.Warn Nothing) warns) db
+    where (db, warns) = Inst.db synths
 
 make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
-make_db synth_patches = Instrument.Db.db midi_db
+make_db synth_patches = fst $ Inst.db $ map make synth_patches
     where
-    midi_db = fst $ MidiDb.midi_db $ map make synth_patches
-    make (name, patches) =
-        make_synth name (map MidiInst.with_empty_code patches)
+    make (name, patches) = make_synth name (map MidiInst.make_patch patches)
 
-make_synth :: Instrument.SynthName -> [(Instrument.Patch, MidiInst.Code)]
-    -> MidiInst.Synth
-make_synth name patches =
-    MidiInst.with_patches patches $ Instrument.synth name "Test Synth" []
+make_synth :: Inst.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
+make_synth name patches = MidiInst.synth name "Test Synth" patches
 
 make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup
-make_convert_lookup aliases midi_db =
+make_convert_lookup aliases db =
     run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state)
         PlayUtil.get_convert_lookup
-    where setup = with_instrument_db aliases midi_db
+    where setup = with_instrument_db aliases db
 
 -- ** extract
 

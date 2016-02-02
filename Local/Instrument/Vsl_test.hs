@@ -8,6 +8,7 @@ import qualified Data.List as List
 import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -20,8 +21,9 @@ import Global
 
 
 test_attr_priority = do
-    let Just violin = List.find ((=="violin") . Instrument.patch_name)
-            (map fst Vsl.patches)
+    let Just violin = List.find
+            ((=="violin") . Instrument.patch_name)
+            (map MidiInst.patch_patch Vsl.patches)
         lookup attrs = fst <$> Common.lookup_attributes attrs
             (Instrument.patch_attribute_map violin)
     -- +pizz wins over +spiccato

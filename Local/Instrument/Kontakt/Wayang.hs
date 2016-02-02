@@ -50,11 +50,11 @@ import Global
     should add just +mute, and can inherit +loose if it's set.
 -}
 patches :: [MidiInst.Patch]
-patches = map (MidiInst.with_code (code <> with_weak))
+patches = map (MidiInst.code #= code <> with_weak)
     [ set_scale BaliScales.Umbang $ patch "wayang-umbang"
     , set_scale BaliScales.Isep $ patch "wayang-isep"
-    , Instrument.text #= "Tuned to 12TET." $ patch "wayang12"
-    ] ++ map (MidiInst.with_code (Bali.pasang_code <> with_weak))
+    , MidiInst.doc #= "Tuned to 12TET." $ patch "wayang12"
+    ] ++ map (MidiInst.code #= Bali.pasang_code <> with_weak)
     [ patch "wayang"
     , MidiInst.range (BaliScales.scale_range Wayang.pemade) $
         patch "wayang-pemade"
@@ -72,12 +72,14 @@ patches = map (MidiInst.with_code (code <> with_weak))
     weak_call args =
         Gender.weak (Sig.control "strength" 0.5) (Args.set_duration dur args)
         where dur = Args.next args - Args.start args
-    patch name = Instrument.set_flag Instrument.ConstantPitch $
-        (Instrument.instrument_#Instrument.maybe_decay #= Just 0) $
-        (Instrument.attribute_map #= attribute_map) $
-        MidiInst.patch (-24, 24) name []
+    patch name = set_params $ MidiInst.patch (-24, 24) name []
+    set_params = (MidiInst.patch_ %=) $
+        Instrument.set_flag Instrument.ConstantPitch
+        . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
+        . (Instrument.attribute_map #= attribute_map)
     set_scale tuning =
-        (Instrument.scale #= Just (Wayang.patch_scale False tuning))
+        (MidiInst.patch_#Instrument.scale
+            #= Just (Wayang.patch_scale False tuning))
         . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
 
@@ -115,10 +117,11 @@ attribute_map = Common.attribute_map
 -- * retuned patch
 
 retuned_patch :: Pitch.ScaleId -> Text -> Instrument.PatchScale
-    -> Instrument.Patch -> Instrument.Patch
+    -> MidiInst.Patch -> MidiInst.Patch
 retuned_patch scale_id tuning patch_scale =
     MidiInst.default_scale scale_id . MidiInst.environ EnvKey.tuning tuning
-    . (Instrument.text #= doc) . (Instrument.scale #= Just patch_scale)
+    . (MidiInst.doc #= doc)
+    . (MidiInst.patch_#Instrument.scale #= Just patch_scale)
     where
     doc = "The instrument is expected to tune to the scale using the\
         \ generated KSP."

@@ -20,36 +20,39 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified Instrument.Sysex as Sysex
+
 import Local.Instrument.Z1Spec
 import Global
 
 
-synth_name :: FilePath
+synth_name :: Inst.SynthName
 synth_name = "z1"
 
 load :: FilePath -> IO (Maybe MidiInst.Synth)
-load = MidiInst.load_synth (const MidiInst.empty_code) synth_name
+load = MidiInst.load_synth (const mempty) synth_name "Korg Z1"
 
 make_db :: FilePath -> IO ()
 make_db dir = do
     bank_a <- Sysex.parse_builtins 0 program_dump
-        (dir </> synth_name </> "bank_a.syx")
+        (dir </> untxt synth_name </> "bank_a.syx")
     bank_b <- Sysex.parse_builtins 1 program_dump
-        (dir </> synth_name </> "bank_b.syx")
+        (dir </> untxt synth_name </> "bank_b.syx")
     sysex <- Sysex.parse_dir [current_program_dump, program_dump, sysex_manager]
-        (dir </> synth_name </> "sysex")
-    MidiInst.save_synth dir synth $
-        map override_pb (concat [bank_a, bank_b, sysex])
+        (dir </> untxt synth_name </> "sysex")
+    MidiInst.save_synth dir synth_name $
+        map (override_pb . MidiInst.patch_from_pair) $
+        concat [bank_a, bank_b, sysex]
     where
-    synth = Instrument.synth (txt synth_name) "Korg Z1" synth_controls
     current_program_dump =
         fmap (:[]) . (rmap_to_patch <=< decode_current_program)
     program_dump = mapM rmap_to_patch <=< decode_program_dump
     -- Each patch has its own pb range, but you can override them in the
     -- multiset.
-    override_pb =
-        Instrument.instrument_#Instrument.pitch_bend_range #= (-24, 24)
+    override_pb = MidiInst.patch_
+        # Instrument.instrument_ # Instrument.pitch_bend_range #= (-24, 24)
 
 synth_controls :: [(Midi.Control, Score.Control)]
 synth_controls =
@@ -92,14 +95,16 @@ decode_program_dump bytes = do
             (spec_bytes patch_spec) (dekorg bytes)
     mapM (fmap ((rmap <>) . fst) . decode patch_spec) syxs
 
-sysex_manager :: ByteString -> Either String [Instrument.Patch]
+sysex_manager :: ByteString
+    -> Either String [(Instrument.Patch, Common.Common ())]
 sysex_manager bytes = do
     bytes <- Sysex.expect_bytes bytes $ Char8.pack "Sysex Manager"
     -- The first sysex is something else.
     let sysexes = drop 1 $ Sysex.extract_sysex bytes
     patches <- mapM (rmap_to_patch <=< decode_current_program) sysexes
     -- Add the initialize here, since 'bytes' isn't actually a valid sysex.
-    return $ zipWith Sysex.initialize_sysex sysexes patches
+    return [(Sysex.initialize_sysex sysex patch, common)
+        | (sysex, (patch, common)) <- zip sysexes patches]
 
 test_decode = do
     -- let fn = "inst_db/z1/sysex/lib2/apollo44.syx"
@@ -158,7 +163,8 @@ encode_sysex encode_header encode_body = do
 
 -- ** record
 
-rmap_to_patch :: Sysex.RMap -> Either String Instrument.Patch
+rmap_to_patch :: Sysex.RMap
+    -> Either String (Instrument.Patch, Common.Common ())
 rmap_to_patch rmap = do
     name <- get "name"
     category <- get "category"
@@ -166,10 +172,9 @@ rmap_to_patch rmap = do
         <*> get "pitch bend.intensity +"
     osc1 <- get "osc.0.type"
     osc2 <- get "osc.1.type"
-    return $ (Instrument.patch (Instrument.instrument pb_range name []))
-        { Instrument.patch_tags =
-            [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]
-        }
+    let tags = [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]
+    let common = Common.tags #= tags $ Common.common ()
+    return (Instrument.patch $ Instrument.instrument pb_range name [], common)
     where
     get :: (Sysex.RecordVal a) => String -> Either String a
     get = flip Sysex.get_rmap rmap

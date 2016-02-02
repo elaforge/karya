@@ -56,16 +56,12 @@ import qualified Local.Instrument.Reaktor as Reaktor
 import Global
 
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
-load _dir = return $ Just synth
-
 synth :: MidiInst.Synth
-synth = MidiInst.with_patches patches $
-    Instrument.synth "kontakt" "Native Instruments Kontakt" []
+synth = MidiInst.synth "kontakt" "Native Instrument Kontakt" patches
 
 patches :: [MidiInst.Patch]
-patches = MidiInst.with_empty_code (Instrument.default_patch pb_range [])
-    : concat
+patches =
+    MidiInst.default_patch pb_range [] : concat
     [ misc_patches
     , hang_patches
     , KendangBali.patches, KendangSunda.patches
@@ -73,7 +69,7 @@ patches = MidiInst.with_empty_code (Instrument.default_patch pb_range [])
     ]
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
-    -> Instrument.Patch
+    -> MidiInst.Patch
 patch = MidiInst.patch pb_range
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get
@@ -89,13 +85,13 @@ misc_patches = concat
     ]
 
 library :: [MidiInst.Patch]
-library = map MidiInst.with_empty_code
+library =
     [ patch "choir" [(1, "vowel")]
     ]
 
 -- | From the McGill sample library.
 mcgill :: [MidiInst.Patch]
-mcgill = map MidiInst.with_empty_code
+mcgill =
     [ pressure "viol", pressure "shawm", pressure "crumhorn"
     , plucked "lute"
     ]
@@ -108,14 +104,14 @@ mcgill = map MidiInst.with_empty_code
 -- I changed it to support (-24, 24) pb range.
 balalaika :: [MidiInst.Patch]
 balalaika =
-    [ with_code $
-        Instrument.attribute_map #= Instrument.single_keyswitches ks $
-        Instrument.patch $ (Instrument.hold_keyswitch #= True) $
+    [ MidiInst.code #= code $
+        MidiInst.attribute_map #= Instrument.single_keyswitches ks $
+        MidiInst.make_patch $ Instrument.patch $
+        (Instrument.hold_keyswitch #= True) $
         Instrument.instrument pb_range "balalaika" controls
     ]
     where
-    with_code = MidiInst.with_code $ MidiInst.note_generators
-        [("(", Articulation.c_attr_legato)]
+    code = MidiInst.note_generators [("(", Articulation.c_attr_legato)]
     -- g6 strum, a6 solo, b6 harmony
     controls =
         [ (1, "trem-dyn")
@@ -138,9 +134,9 @@ balalaika =
 -- Change volume to cc 2.
 -- Change b3 and c3 to be normal keyswitches instead of toggles.
 anthology_wind :: [MidiInst.Patch]
-anthology_wind = map MidiInst.with_empty_code
+anthology_wind =
     [ MidiInst.pressure $
-        Instrument.attribute_map #= Instrument.single_keyswitches dizi_ks $
+        MidiInst.attribute_map #= Instrument.single_keyswitches dizi_ks $
         patch "dizi" [(CC.mod, Controls.vib)]
     ]
     where
@@ -168,15 +164,15 @@ anthology_wind = map MidiInst.with_empty_code
 
 sonic_couture :: [MidiInst.Patch]
 sonic_couture =
-    [ MidiInst.with_empty_code $ patch "ebow"
+    [ patch "ebow"
         [(1, "harm"), (21, Controls.lpf), (22, Controls.q), (23, Controls.hpf)]
     , guzheng
     ]
 
 guzheng :: MidiInst.Patch
-guzheng = MidiInst.with_code code $ MidiInst.nn_range range $
-    Instrument.instrument_#Instrument.maybe_decay #= Just 5 $
-    Instrument.attribute_map #= Instrument.single_keyswitches ks $
+guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
+    MidiInst.decay #= Just 5 $
+    MidiInst.attribute_map #= Instrument.single_keyswitches ks $
     patch "guzheng" [(23, Controls.lpf), (24, Controls.q), (27, Controls.hpf)]
     where
     code = MidiInst.note_generators [("左", DUtil.attrs_note Attrs.left)]
@@ -209,7 +205,7 @@ c_highlight_strings = Note.transformed_note
             Highlight.open_strings start Highlight.warn_non_open deriver
 
 sc_bali :: [MidiInst.Patch]
-sc_bali = map (first add_doc) $
+sc_bali = map add_doc $
     CUtil.simple_drum Nothing gong_notes (sc_patch "gong")
     : CUtil.simple_drum Nothing kempli_kajar_notes (sc_patch "kempli")
     : concat
@@ -219,25 +215,26 @@ sc_bali = map (first add_doc) $
     , gangsa Legong.ugal_range "ugal"
     , gangsa (range_of Legong.pemade) "pemade"
     , gangsa (range_of Legong.kantilan) "kantilan"
-    ] ++ map MidiInst.with_empty_code
+    ] ++
     [ reyong_ks $ ranged_patch Legong.reyong_range "reyong"
     , ranged_patch Legong.trompong_range "trompong"
     ]
     where
     gangsa range name =
-        [ MidiInst.with_code Bali.pasang_code $
+        [ MidiInst.code #= Bali.pasang_code $
             ranged_patch range (name <> "-pasang")
-        , MidiInst.with_empty_code $ gangsa_ks $ ranged_patch range name
+        , gangsa_ks $ ranged_patch range name
         ]
     range_of = BaliScales.scale_range
     ranged_patch range = MidiInst.range range . sc_patch
-    sc_patch name = Instrument.set_flag Instrument.ConstantPitch $
+    sc_patch name =
+        MidiInst.patch_ %= Instrument.set_flag Instrument.ConstantPitch $
         MidiInst.patch (-2, 2) ("sc-" <> name) []
-    add_doc = Instrument.text
+    add_doc = MidiInst.doc
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)
-    gangsa_ks = Instrument.attribute_map #= Instrument.single_keyswitches
+    gangsa_ks = MidiInst.attribute_map #= Instrument.single_keyswitches
         [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
-    reyong_ks = Instrument.attribute_map #= Instrument.single_keyswitches
+    reyong_ks = MidiInst.attribute_map #= Instrument.single_keyswitches
         [(Score.attr "cek", Key2.cs1), (mempty, Key2.c1)]
     gong_notes =
         [ (n 'z' "O" (gong <> wadon),   Key2.b1)
@@ -274,7 +271,7 @@ kempli = Score.attr "kempli"
 kajar = Score.attr "kajar"
 
 misc :: [MidiInst.Patch]
-misc = [MidiInst.with_code Reaktor.resonant_filter $ patch "filtered" []]
+misc = [MidiInst.code #= Reaktor.resonant_filter $ patch "filtered" []]
 
 config_kebyar :: Text -> MidiConfig.Config
 config_kebyar dev_ = make_config $ concat
@@ -340,8 +337,8 @@ config_kebyar dev_ = make_config $ concat
 -- * hang
 
 hang_patches :: [MidiInst.Patch]
-hang_patches = map (MidiInst.with_code hang_code)
-    [ Instrument.attribute_map #= Instrument.single_keyswitches hang_ks $
+hang_patches = map (MidiInst.code #= hang_code)
+    [ MidiInst.attribute_map #= Instrument.single_keyswitches hang_ks $
         patch "hang" []
     ]
 

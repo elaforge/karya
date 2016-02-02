@@ -31,7 +31,8 @@ import Global
 
 patches :: [MidiInst.Patch]
 patches =
-    [ (CUtil.pitched_drum_patch pitched_notes $ patch "kendang-sunda", code)
+    [ MidiInst.code #= code $ CUtil.pitched_drum_patch pitched_notes $
+        patch "kendang-sunda"
     ]
     where
     patch name = MidiInst.patch (-24, 24) name [(4, pitch_control)]

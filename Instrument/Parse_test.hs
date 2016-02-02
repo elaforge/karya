@@ -7,16 +7,18 @@ import qualified Text.Parsec as Parsec
 
 import Util.Test
 import qualified Midi.Midi as Midi
-import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified Instrument.Parse as Parse
+
 import Global
 
 
 test_parse_annotations = do
     let f = (show *** map extract)
             .  Parsec.runParser Parse.p_annotation_file () "test"
-        extract (inst, annots) = (Score.instrument_name inst, annots)
+        extract (qualified, annots) = (Inst.show_qualified qualified, annots)
     equal (f "s/1 there\n") $ Right [("s/1", [("there", "")])]
     equal (f "s/1\n") $ Right [("s/1", [])]
     equal (f "s/1 a=b c=d\n") $
@@ -31,11 +33,11 @@ test_parse_patch_file = do
             . Parsec.runParser Parse.p_patch_file Parse.empty_state "test"
         extract f = show *** map f
 
-    let e_init patch = case Instrument.patch_initialize patch of
+    let e_init (patch, _) = case Instrument.patch_initialize patch of
             Instrument.InitializeMidi msgs ->
                 [m | Midi.ChannelMessage _ m <- msgs]
             init -> error $ "unexpected init: " ++ show init
-        e_tags = Instrument.patch_tags
+        e_tags = Common.common_tags . snd
 
     let cc = Midi.ControlChange
     equal (parse e_init patch_file) $ Right

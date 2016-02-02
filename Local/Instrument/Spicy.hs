@@ -17,25 +17,24 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Inst as Inst
 import Global
 
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
-load _dir = return $ Just $
-    MidiInst.with_patches patches $
-    Instrument.synth synth_name "Spicy Guitar, http://www.spicyguitar.com"
-        controls
+synth_name :: Inst.SynthName
+synth_name = "spicy"
+
+synth :: MidiInst.Synth
+synth = MidiInst.synth synth_name "Spicy Guitar, http://www.spicyguitar.com" $
+    MidiInst.synth_controls controls patches
 
 patches :: [MidiInst.Patch]
 patches = (:[]) $
-    MidiInst.with_code (MidiInst.note_calls (MidiInst.null_call note_call)) $
+    MidiInst.code #= MidiInst.note_calls (MidiInst.null_call note_call) $
+    MidiInst.make_patch $
     (Instrument.instrument_#Instrument.hold_keyswitch #= True) $
     (Instrument.attribute_map #= Instrument.single_keyswitches keyswitches) $
         Instrument.default_patch (-3, 3) []
-    where
-
-synth_name :: Instrument.SynthName
-synth_name = "spicy"
 
 
 -- | WARNING: changing these while playing tends to crash the VST.

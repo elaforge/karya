@@ -18,12 +18,8 @@ import qualified Perform.Midi.Instrument as Instrument
 import Global
 
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
-load _dir = return $ Just synth
-
 synth :: MidiInst.Synth
-synth = MidiInst.with_patches patches $
-    Instrument.synth "reaktor" "Native Instruments Reaktor" []
+synth = MidiInst.synth "reaktor" "Native Instruments Reaktor" patches
 
 resonant_filter :: MidiInst.Code
 resonant_filter = MidiInst.note_calls $ MidiInst.null_call $
@@ -31,16 +27,16 @@ resonant_filter = MidiInst.note_calls $ MidiInst.null_call $
         (Just (Set.fromList ["mix", "q", "lp-hp", "2-4-pole"]))
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
-    -> Instrument.Patch
+    -> MidiInst.Patch
 patch = MidiInst.patch (-96, 96)
 
 patches :: [MidiInst.Patch]
-patches = map MidiInst.with_empty_code $
+patches =
     -- My own patches.
     [ MidiInst.pressure $ patch "fm1" [(4, "depth")]
-    , Instrument.text #= "Tunable comb filter that processes an audio signal." $
+    , MidiInst.doc #= "Tunable comb filter that processes an audio signal." $
         patch "comb" [(1, "mix"), (4, "fbk")]
-    , Instrument.text #= "Tunable filter that processes an audio signal." $
+    , MidiInst.doc #= "Tunable filter that processes an audio signal." $
         patch "filter"
             [ (1, "mix")
             , (CC.cc14, "q")
@@ -85,7 +81,7 @@ patches = map MidiInst.with_empty_code $
         , (10, "color")
         ]
 
-    , Instrument.text #= "Herald brass physical model." $
+    , MidiInst.doc #= "Herald brass physical model." $
         -- Downloaded from NI, Herald_Brass_V2.ens.
         -- Modifications: disconnect the PM port and replace with pitch bend of
         -- 96.  Assign controls to knobs.
@@ -106,7 +102,7 @@ patches = map MidiInst.with_empty_code $
             , (CC.cc22, "flut-speed") -- flutter tongue speed
             ]
 
-    , Instrument.text #= "Serenade bowed string physical model." $
+    , MidiInst.doc #= "Serenade bowed string physical model." $
         -- Downloaded from NI, Serenade.ens.
         -- Modifications: Remove gesture and replace with a direct mapping to
         -- cc2.  Add pitch bend to pitch.  Assign controls to knobs.
@@ -119,7 +115,7 @@ patches = map MidiInst.with_empty_code $
         -- probably has minimal affect on the sound.  If dropping to
         -- 0 momentarily sounds like a direction change then that's good
         -- enough.
-        Instrument.attribute_map #=
+        MidiInst.patch_ # Instrument.attribute_map #=
             Instrument.cc_keyswitches CC.cc20 [(Attrs.pizz, 127), (mempty, 0)] $
         MidiInst.pressure $ MidiInst.patch (-24, 24) "serenade"
             [ (CC.mod, Controls.vib)
@@ -164,7 +160,7 @@ patches = map MidiInst.with_empty_code $
 
     Nothing for organ model yet, I don't really care much about organs.
 -}
-silverwood_patches :: [Instrument.Patch]
+silverwood_patches :: [MidiInst.Patch]
 silverwood_patches =
     [ mk "clarinet" [(CC.cc16, "register")]
     , mk "flute" [(CC.cc17, "embouch")]
@@ -174,7 +170,7 @@ silverwood_patches =
     ]
     where
     mk name controls =
-        Instrument.text #= ("Silverwood woodwind physical model: " <> name) $
+        MidiInst.doc #= ("Silverwood woodwind physical model: " <> name) $
         MidiInst.pressure $ patch ("sw-" <> name) $
             [ (CC.mod, Controls.vib)
             , (CC.vib_speed, Controls.vib_speed)

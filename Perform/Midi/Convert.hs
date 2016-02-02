@@ -34,6 +34,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import Global
 
 
@@ -45,9 +46,8 @@ type State = Set.Set Score.Instrument
 
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
-    , lookup_inst :: Score.Instrument -> Maybe Instrument.Instrument
     , lookup_patch :: Score.Instrument
-        -> Maybe (Instrument.Patch, Score.Event -> Score.Event)
+        -> Maybe (Instrument.Patch, Inst.Qualified, Score.Event -> Score.Event)
     , lookup_control_defaults :: Score.Instrument -> Score.ControlMap
     }
 
@@ -59,11 +59,10 @@ convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
 convert_event :: Lookup -> Score.Event -> ConvertT Perform.Event
 convert_event lookup event_ = do
     let score_inst = Score.event_instrument event_
-    (patch, postproc) <- require_patch score_inst $
+    (patch, qualified, postproc) <- require_patch score_inst $
         lookup_patch lookup score_inst
+    let midi_inst = patch_instrument qualified score_inst patch
     let event = postproc event_
-    midi_inst <- require ("instrument not in db: " <> pretty score_inst) $
-        lookup_inst lookup score_inst
     let event_controls = Score.event_transformed_controls event
     (midi_inst, pitch) <- convert_midi_pitch midi_inst
         (Instrument.patch_scale patch) (Instrument.patch_attribute_map patch)
@@ -77,7 +76,7 @@ convert_event lookup event_ = do
             (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))
         release_velocity = fromMaybe velocity
             (Env.maybe_val EnvKey.release_val (Score.event_environ event))
-    let converted = Perform.Event
+    return $ Perform.Event
             { event_start = Score.event_start event
             , event_duration = Score.event_duration event
             , event_instrument = midi_inst
@@ -94,7 +93,15 @@ convert_event lookup event_ = do
             , event_end_velocity = release_velocity
             , event_stack = Score.event_stack event
             }
-    return converted
+
+patch_instrument :: Inst.Qualified -> Score.Instrument -> Instrument.Patch
+    -> Instrument.Instrument
+patch_instrument (Inst.Qualified synth name) score_inst patch =
+    (Instrument.patch_instrument patch)
+        { Instrument.inst_name = name
+        , Instrument.inst_synth = synth
+        , Instrument.inst_score = score_inst
+        }
 
 -- | Abort if the patch wasn't found.  If it wasn't found the first time, it
 -- won't be found the second time either, so avoid spamming the log by throwing

@@ -18,12 +18,14 @@ import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified Instrument.Tag as Tag
+
 import Global
 
 
-type Search = Query -> [Score.Instrument]
+type Search = Query -> [Inst.Qualified]
 
 -- | A simple tag-oriented query language.  Instruments match whose tags match
 -- all of the given TagKeys exactly, and whose corresponding vals have the
@@ -62,12 +64,12 @@ search idx (Query clauses)
     negative = Set.fromList $ concat $
         query_matches idx [(k, v) | Clause True k v <- clauses]
 
-tags_of :: Index -> Score.Instrument -> Maybe [Tag.Tag]
+tags_of :: Index -> Inst.Qualified -> Maybe [Tag.Tag]
 tags_of idx inst = Map.lookup inst (idx_instrument_tags idx)
 
 data Index = Index {
-    idx_by_key :: Map.Map Tag.Key (Map.Map Tag.Value [Score.Instrument])
-    , idx_instrument_tags :: Map.Map Score.Instrument [Tag.Tag]
+    idx_by_key :: Map.Map Tag.Key (Map.Map Tag.Value [Inst.Qualified])
+    , idx_instrument_tags :: Map.Map Inst.Qualified [Tag.Tag]
     } deriving (Show)
 
 empty_index :: Index
@@ -81,13 +83,13 @@ merge_indices (Index keys0 inv0) (Index keys1 inv1) =
     merge_keys = Map.unionWith merge_vals
     merge_vals = Map.unionWith (++)
 
-make_index :: MidiDb.MidiDb code -> Index
-make_index midi_db = Index
+make_index :: Inst.Db code -> Index
+make_index db = Index
     { idx_by_key = Map.map Map.multimap (Map.multimap idx)
     , idx_instrument_tags = Map.fromList inst_tags
     }
     where
-    inst_tags = instrument_tags midi_db
+    inst_tags = instrument_tags db
     idx = [(key, (val, inst)) | (inst, tags) <- inst_tags, (key, val) <- tags]
 
 -- | The query language looks like \"a b= c=d !e=f\", which means
@@ -106,7 +108,7 @@ parse = Query . map clause . Text.words
 
 -- * implementation
 
-query_matches :: Index -> [(Tag.Key, Tag.Value)] -> [[Score.Instrument]]
+query_matches :: Index -> [(Tag.Key, Tag.Value)] -> [[Inst.Qualified]]
 query_matches (Index idx _) = map with_tag
     where
     with_tag (key, val) = case Map.lookup key idx of
@@ -114,32 +116,36 @@ query_matches (Index idx _) = map with_tag
         Just vals -> concatMap snd $ filter ((val `Text.isInfixOf`) . fst)
             (Map.assocs vals)
 
-instrument_tags :: MidiDb.MidiDb code -> [(Score.Instrument, [Tag.Tag])]
-instrument_tags (MidiDb.MidiDb synths) = concatMap synth_tags (Map.elems synths)
+instrument_tags :: Inst.Db code -> [(Inst.Qualified, [Tag.Tag])]
+instrument_tags = concatMap synth_tags . Inst.synths
 
-synth_tags :: Instrument.Synth code -> [(Score.Instrument, [Tag.Tag])]
-synth_tags synth = do
-    (inst_name, (patch, _)) <- Map.toList (Instrument.synth_patches synth)
-    let inst = MidiDb.instrument (Instrument.synth_name synth) inst_name
-    return (inst, patch_tags synth inst_name patch)
+synth_tags :: (Inst.SynthName, Inst.Synth code) -> [(Inst.Qualified, [Tag.Tag])]
+synth_tags (synth_name, synth) = do
+    (inst_name, inst) <- Map.toList (Inst.synth_insts synth)
+    let tags = normalize_tags $
+            common_tags synth_name inst_name (Inst.inst_common inst)
+            ++ inst_tags (Inst.inst_backend inst)
+    return (Inst.Qualified synth_name inst_name, tags)
 
--- | Get tags of a patch, including automatically generated tags.
-patch_tags :: Instrument.Synth code -> Instrument.InstrumentName
-    -> Instrument.Patch -> [Tag.Tag]
-patch_tags synth inst_name patch = normalize_tags $
-    (Tag.synth, Instrument.synth_name synth)
-        : (Tag.name, inst_name)
-        : control_tags (Instrument.synth_control_map synth)
-        ++ control_tags
-            (Instrument.inst_control_map (Instrument.patch_instrument patch))
-        ++ Instrument.patch_tags patch
-        ++ has_sysex
-    where
-    has_sysex = case Instrument.patch_initialize patch of
+common_tags :: Inst.SynthName -> Inst.Name -> Common.Common code -> [Tag.Tag]
+common_tags synth_name inst_name common =
+    (Tag.synth, synth_name)
+    : (Tag.name, inst_name)
+    : Common.common_tags common
+
+-- | Get tags of an inst, including automatically generated tags.
+inst_tags :: Inst.Backend -> [Tag.Tag]
+inst_tags (Inst.Midi patch) = concat
+    [ [(Tag.backend, "midi")]
+    , control_tags $
+        Instrument.inst_control_map (Instrument.patch_instrument patch)
+    , case Instrument.patch_initialize patch of
         Instrument.InitializeMidi msgs
             | any Midi.is_sysex msgs -> [(Tag.sysex, "")]
             | otherwise -> []
         _ -> []
+    ]
+inst_tags (Inst.Im _patch) = [(Tag.backend, "im")]
 
 normalize_tags :: [Tag.Tag] -> [Tag.Tag]
 normalize_tags =

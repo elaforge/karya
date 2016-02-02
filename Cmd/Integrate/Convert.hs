@@ -31,7 +31,7 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Inst as Inst
 import Global
 import Types
 
@@ -51,9 +51,10 @@ type LookupCall = Score.Instrument -> Instrument.CallMap
 convert :: Cmd.M m => BlockId -> Stream.Stream Score.Event -> m Tracks
 convert source_block stream = do
     lookup_inst <- Cmd.get_lookup_instrument
-    let lookup_call =
-            maybe mempty (Instrument.patch_call_map . MidiDb.info_patch)
-            . lookup_inst
+    -- TODO CallMap could go in Common but I don't know how much I care about
+    -- this feature.
+    let lookup_call = maybe mempty Instrument.patch_call_map
+            . (Inst.inst_midi . fst <=< lookup_inst)
     default_scale_id <- Perf.default_scale_id
     tracknums <- Map.fromList <$> State.tracknums_of source_block
     let (events, logs) = Stream.partition stream

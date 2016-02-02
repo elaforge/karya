@@ -34,14 +34,13 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.MidiDb as MidiDb
 import Global
 import Types
 
 
 -- * instrument info
 
-lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.MidiInfo)
+lookup :: Instrument -> Cmd.CmdL (Maybe Cmd.Inst)
 lookup = Cmd.lookup_instrument . Util.instrument
 
 info :: Instrument -> Cmd.CmdL Text
@@ -235,8 +234,7 @@ alloc_default :: Instrument -> [(Midi.Channel, Maybe Instrument.Voices)]
     -> Cmd.CmdL ()
 alloc_default inst_ chans = do
     let inst = Util.instrument inst_
-    wdev <- maybe (Cmd.throw $ "inst not in db: " <> pretty inst) return
-        =<< device_of inst
+    wdev <- device_of inst
     alloc_instrument inst [((wdev, c), v) | (c, v) <- chans]
 
 -- | Merge the given configs into the existing one.
@@ -277,12 +275,12 @@ set inst_ = do
         =<< State.get_event_track_at block_id tracknum
     whenJust (ParseTitle.title_to_instrument title) dealloc_instrument
 
-    dev <- Cmd.require ("no device for " <> showt inst) =<< device_of inst
+    dev <- device_of inst
     chan <- find_chan_for dev
     alloc_instrument inst [((dev, chan), Nothing)]
 
     State.set_track_title track_id (ParseTitle.instrument_to_title inst)
-    initialize inst chan
+    initialize inst dev chan
     Log.notice $ "allocating " <> showt (dev, chan) <> " to " <> showt inst
 
 
@@ -297,13 +295,11 @@ find_chan_for dev = do
     let match = fmap snd $ List.find (not . (`elem` taken)) addrs
     Cmd.require ("couldn't find free channel for " <> showt dev) match
 
-initialize :: Score.Instrument -> Midi.Channel -> Cmd.CmdL ()
-initialize inst chan = do
-    info <- Cmd.require ("inst not found: " <> showt inst)
-        =<< Cmd.lookup_instrument inst
-    let init = Instrument.patch_initialize (MidiDb.info_patch info)
-    let dev = Instrument.synth_device (MidiDb.info_synth info)
-    send_initialization init inst dev chan
+initialize :: Score.Instrument -> Midi.WriteDevice -> Midi.Channel
+    -> Cmd.CmdL ()
+initialize inst wdev chan = do
+    patch <- Cmd.get_midi_patch inst
+    send_initialization (Instrument.patch_initialize patch) inst wdev chan
 
 send_initialization :: Instrument.InitializePatch
     -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
@@ -343,22 +339,20 @@ auto_config :: BlockId -> Cmd.CmdL Instrument.Configs
 auto_config block_id = do
     insts <- block_instruments block_id
     devs <- mapM device_of insts
-    let no_dev = [inst | (inst, Nothing) <- zip insts devs]
-        inst_devs = [(inst, dev) | (inst, Just dev) <- zip insts devs]
-        addrs =
+    let addrs =
             [ (inst, [(dev, fromIntegral i)])
-            | (dev, by_dev) <- Seq.keyed_group_sort snd inst_devs
+            | (dev, by_dev) <- Seq.keyed_group_sort snd (zip insts devs)
             , (i, (inst, _dev)) <- Seq.enumerate by_dev
             ]
-    unless (null no_dev) $
-        Log.warn $ "no synth or midi device found for instruments: "
-            <> showt no_dev
     return $ Instrument.configs addrs
 
-device_of :: Score.Instrument -> Cmd.CmdL (Maybe Midi.WriteDevice)
+-- | Synths default to writing to a device with their name.  You'll have to
+-- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
+device_of :: Score.Instrument -> Cmd.CmdL Midi.WriteDevice
 device_of inst = do
-    maybe_info <- Cmd.lookup_instrument inst
-    return $ Instrument.synth_device . MidiDb.info_synth <$> maybe_info
+    (synth, _) <- Cmd.require ("no instrument: " <> pretty inst)
+        =<< Cmd.lookup_alias inst
+    return $ Midi.write_device synth
 
 
 -- * tuning

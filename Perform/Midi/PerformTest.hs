@@ -12,7 +12,7 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
-import qualified Instrument.Db
+import qualified Instrument.Inst as Inst
 import qualified Local.Instrument
 import qualified App.Config as Config
 import Global
@@ -29,8 +29,10 @@ dump_perf_events fname events =
 read_perf_events :: [Simple.ExactPerfEvent] -> IO [Perform.Event]
 read_perf_events events = do
     db <- Local.Instrument.load =<< Config.get_app_dir
-    return $ mapMaybe
-        (Simple.load_exact_perf_event (Instrument.Db.db_lookup_midi db)) events
+    let lookup inst = fmap Instrument.patch_instrument . Inst.inst_midi
+            =<< Inst.lookup (Inst.parse_qualified (Score.instrument_name inst))
+                db
+    return $ mapMaybe (Simple.load_exact_perf_event lookup) events
 
 empty_event :: Perform.Event
 empty_event = Perform.Event

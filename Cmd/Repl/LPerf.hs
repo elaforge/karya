@@ -44,7 +44,8 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import qualified App.Config as Config
 import Global
 import Types
@@ -197,9 +198,9 @@ block_uncached_events block_id = normalize_events . Stream.to_list
 normalize_events :: Cmd.M m => [LEvent.LEvent Score.Event]
     -> m [LEvent.LEvent Score.Event]
 normalize_events events = do
-    lookup_info <- Cmd.get_lookup_instrument
-    let lookup_env = maybe mempty (Instrument.patch_environ . MidiDb.info_patch)
-            . lookup_info
+    lookup <- Cmd.get_lookup_instrument
+    let lookup_env = maybe mempty (Common.get_environ . Inst.inst_common . fst)
+            . lookup
     return $ map (fmap (Score.normalize lookup_env)) events
 
 block_perform_events :: BlockId -> Cmd.CmdL [Perform.Event]

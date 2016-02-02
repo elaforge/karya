@@ -14,20 +14,18 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import Derive.Attrs
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Perform.Midi.Instrument as Instrument
 import Global
 
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
-load _dir = return $ Just $ MidiInst.with_patches patches $
-    Instrument.synth "drumaxx" "Image-Line Drumaxx" []
+synth :: MidiInst.Synth
+synth = MidiInst.synth "drumaxx" "Imagine-Line Drumaxx" patches
 
 patches :: [MidiInst.Patch]
 patches =
-    [ MidiInst.with_code (CUtil.drum_code Nothing (map fst note_keys)) $
-        CUtil.drum_patch note_keys $ Instrument.default_patch pb_range []
-    , MidiInst.with_code composite_code $
-        Instrument.text #= composite_doc $
+    [ MidiInst.code #= CUtil.drum_code Nothing (map fst note_keys) $
+        CUtil.drum_patch note_keys $ MidiInst.default_patch pb_range []
+    , MidiInst.code #= composite_code $
+        MidiInst.doc #= composite_doc $
         MidiInst.patch pb_range "comb" []
     ]
     where

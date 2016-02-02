@@ -202,10 +202,11 @@ test_inst_call = do
     synth = DeriveTest.make_synth "s" patches
     code = MidiInst.note_generators [("sn", DUtil.attrs_note Attrs.snare)]
     patches =
-        [ (Instrument.attribute_map
-            #= Instrument.unpitched_keymap [(Attrs.snare, 42)] $
-            DeriveTest.make_patch "with-call", code)
-        , (DeriveTest.make_patch "1", mempty)
+        [ MidiInst.code #= code $ MidiInst.make_patch $
+            Instrument.attribute_map
+                #= Instrument.unpitched_keymap [(Attrs.snare, 42)] $
+            DeriveTest.make_patch "with-call"
+        , MidiInst.make_patch $ DeriveTest.make_patch "1"
         ]
 
 test_events_around = do

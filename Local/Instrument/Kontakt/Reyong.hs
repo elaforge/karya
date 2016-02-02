@@ -24,8 +24,8 @@ import Global
 
 patches :: [MidiInst.Patch]
 patches =
-    [ (set_scale $ patch "reyong", code)
-    , (patch "reyong12", code)
+    [ set_scale $ patch "reyong"
+    , patch "reyong12"
     ]
     where
     code = MidiInst.note_calls null_call
@@ -35,12 +35,14 @@ patches =
         (\args ->
             Eval.reapply_call (Args.context args) Articulation.mute_call [])
         (Sub.inverting $ Note.default_note Note.use_attributes)
-    patch name = Instrument.set_flag Instrument.ConstantPitch $
-        (Instrument.instrument_#Instrument.maybe_decay #= Just 0) $
-        (Instrument.attribute_map #= attribute_map) $
+    patch name = MidiInst.code #= code $ set_params $
         MidiInst.patch (-24, 24) name []
+    set_params = (MidiInst.patch_ %=) $
+        Instrument.set_flag Instrument.ConstantPitch
+        . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
+        . (Instrument.attribute_map #= attribute_map)
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned
-    set_scale = (Instrument.scale #= Just patch_scale)
+    set_scale = (MidiInst.patch_#Instrument.scale #= Just patch_scale)
         . MidiInst.default_scale Legong.scale_id
         . MidiInst.environ EnvKey.tuning tuning
     -- Trompong starts at 3a, trompong + reyong has 15 keys.

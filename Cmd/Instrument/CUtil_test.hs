@@ -107,9 +107,10 @@ drum_synth :: MidiInst.Synth
 drum_synth = make_synth [(Drums.c_bd, Key.c2), (Drums.c_sn, Key.d2)]
 
 make_synth :: [(Drums.Note, Midi.Key)] -> MidiInst.Synth
-make_synth note_keys = DeriveTest.make_synth "synth" [(patch, code)]
+make_synth note_keys = DeriveTest.make_synth "synth" [patch]
     where
-    patch = CUtil.drum_patch note_keys $ MidiInst.patch (-24, 24) "1" []
+    patch = MidiInst.code #= code $
+        CUtil.drum_patch note_keys $ MidiInst.patch (-24, 24) "1" []
     code =
         MidiInst.note_generators (CUtil.drum_calls Nothing (map fst note_keys))
         <> MidiInst.cmd (CUtil.drum_cmd (map fst note_keys))

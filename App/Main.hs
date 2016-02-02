@@ -51,7 +51,7 @@ import qualified Derive.Library as Library
 import qualified Derive.Scale.All as Scale.All
 import qualified Derive.Scale.Symbols as Scale.Symbols
 
-import qualified Instrument.Db as Db
+import qualified Instrument.Inst as Inst
 import qualified LogView.Tail as Tail
 
 import qualified App.Config as Config
@@ -98,7 +98,7 @@ main = initialize $ \repl_socket midi_interface -> do
     Log.notice "app starting"
     static_config <- Local.Config.load_static_config
     let loaded_msg = "loaded "
-            <> showt (Db.size (StaticConfig.instrument_db static_config))
+            <> showt (Inst.size (StaticConfig.instrument_db static_config))
             <> " instruments"
     Log.notice loaded_msg
     putStrLn $ untxt loaded_msg

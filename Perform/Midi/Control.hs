@@ -5,6 +5,7 @@
 -- | Support for MIDI controls.
 module Perform.Midi.Control where
 import qualified Data.Map as Map
+import qualified Data.Tuple as Tuple
 
 import qualified Util.Num as Num
 import qualified Midi.Midi as Midi
@@ -14,10 +15,11 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 import Global
 
+
 type ControlMap = Map.Map Score.Control Midi.Control
 
 control_map :: [(Midi.Control, Score.Control)] -> ControlMap
-control_map cmap = Map.fromList [(c, n) | (n, c) <- cmap]
+control_map = Map.fromList . map Tuple.swap
 
 empty_map :: ControlMap
 empty_map = control_map []

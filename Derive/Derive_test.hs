@@ -466,7 +466,7 @@ test_fractional_pitch = do
 test_control = do
     let res = DeriveTest.derive_tracks ""
             [ (">i1", [(0, 1, ""), (1, 1, "")])
-            , ("*twelve", [(0, 1, "4c"), (1, 1, "4c#")])
+            , ("*", [(0, 1, "4c"), (1, 1, "4c#")])
             , ("cc1", [(0, 0, "1"), (1, 0, "i .75"), (2, 0, "i 0")])
             ]
     let (perf_events, mmsgs, logs) =

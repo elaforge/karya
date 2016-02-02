@@ -5,14 +5,10 @@
 -- | Applied Accoustic's Tassman softsynth.
 module Local.Instrument.Tassman where
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Perform.Midi.Instrument as Instrument
 
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
-load _dir = return $ Just $ MidiInst.with_patches patches $
-    Instrument.synth "tassman" "Applied Accoustics Tassman" []
+synth :: MidiInst.Synth
+synth = MidiInst.synth "tassman" "Applied Accoustics Tassman" patches
 
 patches :: [MidiInst.Patch]
-patches = map MidiInst.with_empty_code
-    [ Instrument.default_patch (-24, 24) []
-    ]
+patches = [MidiInst.default_patch (-24, 24) []]

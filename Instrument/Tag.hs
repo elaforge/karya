@@ -14,6 +14,10 @@ type Tag = (Key, Value)
 type Key = Text
 type Value = Text
 
+-- | Synthesizer backend, e.g. MIDI or Im.
+backend :: Key
+backend = "backend"
+
 category :: Key
 category = "category"
 

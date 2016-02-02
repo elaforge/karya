@@ -23,34 +23,33 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
 import Global
 
 
-load :: FilePath -> IO (Maybe MidiInst.Synth)
-load _dir = return $ Just $
-    MidiInst.with_patches patches $
-    (Instrument.synth "pianoteq" "Modartt Pianoteq" [])
-        { Instrument.synth_supports_realtime_tuning = True }
-
-pb_range :: Instrument.PbRange
-pb_range = (-24, 24)
+synth :: MidiInst.Synth
+synth = MidiInst.synth "pianoteq" "Modartt Pianoteq" patches
 
 patches :: [MidiInst.Patch]
 patches =
-    [ MidiInst.with_empty_code $ Instrument.default_patch pb_range
+    [ MidiInst.default_patch pb_range
         [ (67, "soft-pedal")
         , (69, "harmonic-pedal")
         , (66, "sost-pedal")
         , (64, Controls.pedal)
         -- whole bunch more
         ]
-    , (patch "pasang" [], Bali.pasang_code)
-    , (MidiInst.nn_range (NN.g2, NN.a6) $ patch "yangqin" [], mempty)
+    , MidiInst.code #= Bali.pasang_code $ patch "pasang" []
+    , MidiInst.nn_range (NN.g2, NN.a6) $ patch "yangqin" []
     , harp
     ]
 
+pb_range :: Instrument.PbRange
+pb_range = (-24, 24)
+
 harp :: MidiInst.Patch
-harp = MidiInst.with_code code $ Instrument.text #= doc $ patch "harp"
+harp = MidiInst.code #= code $ MidiInst.common#Common.doc #= doc $
+    patch "harp"
         [ (67, gliss)
         , (69, harmonic)
         , (66, lute)
@@ -96,5 +95,5 @@ c_grace = Grace.make_grace Module.instrument
         Sub.derive events
 
 patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
-    -> Instrument.Patch
+    -> MidiInst.Patch
 patch = MidiInst.patch pb_range

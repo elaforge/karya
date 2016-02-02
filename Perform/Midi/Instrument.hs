@@ -44,7 +44,6 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
-import qualified Instrument.Tag as Tag
 import Global
 import Types
 
@@ -100,12 +99,9 @@ data Instrument = Instrument {
     , inst_maybe_decay :: !(Maybe RealTime)
     } deriving (Eq, Ord, Show)
 
-name = Lens.lens inst_name
-    (\f r -> r { inst_name = f (inst_name r) })
-score = Lens.lens inst_score
-    (\f r -> r { inst_score = f (inst_score r) })
-synth_ = Lens.lens inst_synth
-    (\f r -> r { inst_synth = f (inst_synth r) })
+name = Lens.lens inst_name (\f r -> r { inst_name = f (inst_name r) })
+score = Lens.lens inst_score (\f r -> r { inst_score = f (inst_score r) })
+synth_ = Lens.lens inst_synth (\f r -> r { inst_synth = f (inst_synth r) })
 keyswitch = Lens.lens inst_keyswitch
     (\f r -> r { inst_keyswitch = f (inst_keyswitch r) })
 hold_keyswitch = Lens.lens inst_hold_keyswitch
@@ -116,7 +112,6 @@ pitch_bend_range = Lens.lens inst_pitch_bend_range
     (\f r -> r { inst_pitch_bend_range = f (inst_pitch_bend_range r) })
 maybe_decay = Lens.lens inst_maybe_decay
     (\f r -> r { inst_maybe_decay = f (inst_maybe_decay r) })
-
 
 instance NFData Instrument where
     -- don't bother with the rest since instruments are constructed all at once
@@ -302,30 +297,15 @@ data Patch = Patch {
     -- used in performance, because e.g. synth controls can get added in.
     patch_instrument :: !Instrument
     , patch_scale :: !(Maybe PatchScale)
-    -- | This environ is merged into the derive environ when the instrument
-    -- comes into scope, and also when the pitch of 'Score.Event's with this
-    -- instrument is converted.  Typically it sets things like instrument
-    -- range, tuning details, etc.
-    , patch_restricted_environ :: !RestrictedEnviron.Environ
     , patch_flags :: !(Set.Set Flag)
     , patch_initialize :: !InitializePatch
     , patch_attribute_map :: !AttributeMap
     , patch_call_map :: !CallMap
-    -- | Key-value pairs used to index the patch.  A key may appear more than
-    -- once with different values.  Tags are free-form, but there is a list of
-    -- standard tags in "Instrument.Tag".
-    , patch_tags :: ![Tag.Tag]
-    -- | Some free form text about the patch.
-    , patch_text :: !Text
-    -- | The patch was read from this file.
-    , patch_file :: !FilePath
     } deriving (Eq, Show)
 
 instrument_ = Lens.lens patch_instrument
     (\f r -> r { patch_instrument = f (patch_instrument r) })
 scale = Lens.lens patch_scale (\f r -> r { patch_scale = f (patch_scale r) })
-environ = Lens.lens patch_restricted_environ
-    (\f r -> r { patch_restricted_environ = f (patch_restricted_environ r) })
 flags = Lens.lens patch_flags
     (\f r -> r { patch_flags = f (patch_flags r) })
 initialize = Lens.lens patch_initialize
@@ -334,26 +314,16 @@ attribute_map = Lens.lens patch_attribute_map
     (\f r -> r { patch_attribute_map = f (patch_attribute_map r) })
 call_map = Lens.lens patch_call_map
     (\f r -> r { patch_call_map = f (patch_call_map r) })
-tags = Lens.lens patch_tags (\f r -> r { patch_tags = f (patch_tags r) })
-text = Lens.lens patch_text (\f r -> r { patch_text = f (patch_text r) })
-file = Lens.lens patch_file (\f r -> r { patch_file = f (patch_file r) })
-
-patch_environ :: Patch -> BaseTypes.Environ
-patch_environ = RestrictedEnviron.convert . patch_restricted_environ
 
 -- | Create a Patch with empty vals, to set them as needed.
 patch :: Instrument -> Patch
 patch inst = Patch
     { patch_instrument = inst
     , patch_scale = Nothing
-    , patch_restricted_environ = mempty
     , patch_flags = Set.empty
     , patch_initialize = NoInitialization
     , patch_attribute_map = Common.AttributeMap []
     , patch_call_map = Map.empty
-    , patch_tags = []
-    , patch_text = ""
-    , patch_file = ""
     }
 
 default_patch :: Control.PbRange -> [(Midi.Control, Score.Control)] -> Patch
@@ -408,19 +378,14 @@ convert_patch_scale (PatchScale _ scale) (Pitch.NoteNumber nn) =
 
 -- | A Pretty instance is useful because InitializeMidi tends to be huge.
 instance Pretty.Pretty Patch where
-    format (Patch inst scale environ flags init attr_map call_map
-            tags text file) =
+    format (Patch inst scale flags init attr_map call_map) =
         Pretty.record "Patch"
             [ ("instrument", Pretty.format inst)
             , ("scale", Pretty.format scale)
-            , ("environ", Pretty.format environ)
             , ("flags", Pretty.format flags)
             , ("initialize", Pretty.format init)
             , ("attribute_map", Pretty.format attr_map)
             , ("call_map", Pretty.format call_map)
-            , ("tags", Pretty.format tags)
-            , ("text", Pretty.format text)
-            , ("file", Pretty.format file)
             ]
 
 patch_name :: Patch -> InstrumentName
@@ -441,9 +406,6 @@ has_flag flag = Set.member flag . patch_flags
 
 set_decay :: RealTime -> Patch -> Patch
 set_decay secs = instrument_#maybe_decay #= Just secs
-
-add_tag :: Tag.Tag -> Patch -> Patch
-add_tag tag = tags %= (tag:)
 
 -- | Various instrument flags.
 data Flag =
@@ -602,11 +564,6 @@ synth name doc cmap = Synth
     , synth_control_map = Control.control_map cmap
     , synth_supports_realtime_tuning = False
     }
-
--- | Synths default to writing to a device with their name.  You'll have to
--- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
-synth_device :: Synth code -> Midi.WriteDevice
-synth_device = Midi.write_device . synth_name
 
 type SynthName = Text
 type InstrumentName = Text

@@ -24,7 +24,7 @@ import qualified Cmd.Msg as Msg
 import qualified Derive.Controls as Controls
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
-import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Inst as Inst
 import Global
 
 
@@ -69,10 +69,8 @@ run_cmds_with_input :: Cmd.M m => [Msg.Msg -> m Cmd.Status]
     -> (Msg.Msg -> m Cmd.Status)
 run_cmds_with_input cmds msg = do
     kbd_entry <- Cmd.gets $ Cmd.state_kbd_entry . Cmd.state_edit
-    maybe_patch <-
-        justm EditUtil.lookup_instrument $ \inst ->
-        justm (Cmd.lookup_instrument inst) $ \info ->
-            return $ Just (MidiDb.info_patch info)
+    maybe_patch <- justm EditUtil.lookup_instrument $ \inst ->
+        justm (Cmd.lookup_instrument inst) $ return . Inst.inst_midi
     cmds_with_input kbd_entry maybe_patch cmds msg
 
 -- | Convert a Msg to 'Msg.InputNote's, if applicable.  Returns Nothing if

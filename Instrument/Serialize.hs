@@ -9,43 +9,33 @@
     is intended to be just a cache.
 -}
 module Instrument.Serialize (serialize, unserialize) where
-import qualified Data.Time as Time
-
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import Midi.Instances ()
 import qualified Cmd.Serialize as Serialize
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.Common as Common
 import qualified Instrument.Search as Search
-import Global
 
 
--- | Serialize instrument definitions to a file.  The @code@ parameter is
--- restricted to @()@ since it can't be serialized.
-serialize :: FilePath -> Instrument.Synth () -> IO ()
-serialize fname =
-    Serialize.serialize Serialize.instrument_db_magic fname <=< instrument_db
+-- | Serialize instrument definitions to a file.
+serialize :: FilePath -> Serialize.InstrumentDb -> IO ()
+serialize = Serialize.serialize Serialize.instrument_db_magic
 
--- | Unserialize instrument definitions.  Since the code was stripped off by
--- 'serialize', it must be provided on a per-patch basis to reconstitute the
--- definitions.
-unserialize :: (Instrument.Patch -> code) -> FilePath
-    -> IO (Either Text (Time.UTCTime, Instrument.Synth code))
-unserialize code_for fname = do
-    result <- Serialize.unserialize Serialize.instrument_db_magic fname
-    return $ case result of
-        Right (Serialize.InstrumentDb (time, synth)) ->
-            Right (time, Instrument.modify_code code_for synth)
-        Left err -> Left (pretty err)
+-- | Unserialize instrument definitions.
+unserialize :: FilePath
+    -> IO (Either Serialize.UnserializeError Serialize.InstrumentDb)
+unserialize = Serialize.unserialize Serialize.instrument_db_magic
 
-
--- * implementation
-
-deriving instance Serialize Serialize.InstrumentDb
-
-instrument_db :: Instrument.Synth () -> IO Serialize.InstrumentDb
-instrument_db synth = Serialize.InstrumentDb . (, synth) <$> Time.getCurrentTime
 
 -- * instances
+
+instance Serialize Serialize.InstrumentDb where
+    put (Serialize.InstrumentDb a b) = put a >> put b
+    get = Serialize.InstrumentDb <$> get <*> get
+
+instance Serialize (Common.Common ()) where
+    put (Common.Common a b c d) = put a >> put b >> put c >> put d
+    get = Common.Common <$> get <*> get <*> get <*> get
 
 instance Serialize Search.Index where
     put (Search.Index a b) = put a >> put b
@@ -57,11 +47,9 @@ instance Serialize (Instrument.Synth ()) where
         return (Instrument.Synth a b c d e)
 
 instance Serialize Instrument.Patch where
-    put (Instrument.Patch a b c d e f g h i j) = put a >> put b >> put c
-        >> put d >> put e >> put f >> put g >> put h >> put i >> put j
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
-        get >>= \f -> get >>= \g -> get >>= \h -> get >>= \i -> get >>= \j ->
-            return (Instrument.Patch a b c d e f g h i j)
+    put (Instrument.Patch a b c d e f) = put a >> put b >> put c
+        >> put d >> put e >> put f
+    get = Instrument.Patch <$> get <*> get <*> get <*> get <*> get <*> get
 
 instance Serialize Instrument.Flag where
     put Instrument.Triggered = put_tag 0

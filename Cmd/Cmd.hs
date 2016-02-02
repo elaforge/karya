@@ -89,8 +89,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
 
 import qualified Instrument.Common as Common
-import qualified Instrument.Db
-import qualified Instrument.MidiDb as MidiDb
+import qualified Instrument.Inst as Inst
 import qualified App.Config as Config
 import Global
 import Types
@@ -763,15 +762,14 @@ instance Pretty.Pretty InstrumentCode where
         , ("cmds", Pretty.format cmds)
         ]
 
-derive_instrument :: Instrument.Config -> MidiInfo -> Derive.Instrument
-derive_instrument config info = Derive.Instrument
-    { inst_calls = inst_calls (MidiDb.info_code info)
-    , inst_environ = Instrument.patch_environ (MidiDb.info_patch info)
+derive_instrument :: Instrument.Config -> Inst -> Derive.Instrument
+derive_instrument config inst = Derive.Instrument
+    { inst_calls = inst_calls $ Common.common_code common
+    , inst_environ = Common.get_environ common
     , inst_controls = Instrument.config_controls config
-    , inst_attributes =
-        case Instrument.patch_attribute_map (MidiDb.info_patch info) of
-            Common.AttributeMap amap -> map fst amap
+    , inst_attributes = Inst.inst_attributes inst
     }
+    where common = Inst.inst_common inst
 
 empty_code :: InstrumentCode
 empty_code = InstrumentCode
@@ -780,11 +778,13 @@ empty_code = InstrumentCode
     , inst_cmds = []
     }
 
--- | Instantiate the MidiDb with the code types.  The only reason the MidiDb
--- types have the type parameter is so I can define them in their own module
--- without getting circular imports.
-type InstrumentDb = Instrument.Db.Db InstrumentCode
-type MidiInfo = MidiDb.Info InstrumentCode
+-- | Instantiate 'Inst.Db' with the code type.  The only reason the Db has the
+-- type parameter is so I can define it in its own module without a circular
+-- import.
+type InstrumentDb = Inst.Db InstrumentCode
+-- | Like 'InstrumentDb'.
+type Inst = Inst.Inst InstrumentCode
+
 
 -- *** history
 
@@ -1036,52 +1036,59 @@ set_status key val = do
     view_ids <- State.gets (Map.keys . State.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
-lookup_instrument :: M m => Score.Instrument -> m (Maybe MidiInfo)
-lookup_instrument inst = ($ inst) <$> get_lookup_instrument
+lookup_midi_patch :: M m => Score.Instrument -> m (Maybe Instrument.Patch)
+lookup_midi_patch inst =
+    justm (lookup_instrument inst) $ return . Inst.inst_midi
 
-get_lookup_midi_instrument :: M m =>
-    m (Score.Instrument -> Maybe Instrument.Instrument)
-get_lookup_midi_instrument = do
-    aliases <- State.config#State.aliases <#> State.get
-    gets $ lookup_alias aliases . state_instrument_db . state_config
+get_midi_patch :: M m => Score.Instrument -> m Instrument.Patch
+get_midi_patch inst =
+    require ("not midi instrument: " <> pretty inst) . Inst.inst_midi
+    =<< require ("instrument not found: " <> pretty inst)
+    =<< lookup_instrument inst
+
+lookup_instrument :: M m => Score.Instrument -> m (Maybe Inst)
+lookup_instrument inst = fmap fst . ($ inst) <$> get_lookup_instrument
+
+lookup_alias :: State.M m => Score.Instrument
+    -> m (Maybe (Inst.SynthName, Inst.Name))
+lookup_alias inst =
+    fmap split_inst <$> Map.lookup inst <$>
+        (State.config#State.aliases <#> State.get)
     where
-    lookup_alias aliases db score_inst = do
-        -- Update Instrument.inst_score with the alias name.
-        inst <- Instrument.Db.db_lookup_midi db
-            =<< Map.lookup score_inst aliases
-        return $! (Instrument.score #= score_inst) inst
+    -- TODO aliases should be to Inst.Qualified
+    split_inst (Score.Instrument inst) = (pre, Text.drop 1 post)
+        where (pre, post) = Text.break (=='/') inst
 
 -- | Get a function to look up a 'Score.Instrument'.  This is where
 -- 'Ui.StateConfig' is applied to the instrument db, applying aliases
 -- and 'Instrument.config_environ', so anyone looking up a Patch should go
 -- through this.
-get_lookup_instrument :: M m => m (Score.Instrument -> Maybe MidiInfo)
+get_lookup_instrument
+    :: M m => m (Score.Instrument -> Maybe (Inst, Inst.Qualified))
 get_lookup_instrument = do
     aliases <- State.config#State.aliases <#> State.get
     configs <- State.get_midi_config
-    lookup <- gets $
-        Instrument.Db.db_lookup . state_instrument_db . state_config
-    return $ \inst -> do
-        info <- lookup =<< Map.lookup inst aliases
-        return $ info
-            { MidiDb.info_patch = merge_environ configs inst $
-                Instrument.instrument_#Instrument.score #= inst $
-                MidiDb.info_patch info
-            }
+    db <- gets $ state_instrument_db . state_config
+    return $ \inst_name -> do
+        -- TODO aliases should be to Inst.Qualified
+        qualified <- Inst.parse_qualified . Score.instrument_name <$>
+            Map.lookup inst_name aliases
+        inst <- Inst.lookup qualified db
+        return (merge_environ configs inst_name inst, qualified)
     where
-    merge_environ configs inst =
-        (Instrument.environ %= (environ <>)) . (Instrument.scale %= (scale <|>))
+    merge_environ configs inst_name =
+        (Inst.common#Common.environ %= (environ <>)) . set_scale
         where
+        -- MIDI instruments can also get a patch from the local config.
+        set_scale inst = case (scale, Inst.inst_backend inst) of
+            (Just scale, Inst.Midi patch) -> inst
+                { Inst.inst_backend = Inst.Midi $
+                    (Instrument.scale #= Just scale) patch
+                }
+            _ -> inst
         scale = Instrument.config_scale =<< config
         environ = maybe mempty Instrument.config_restricted_environ config
-        config = Map.lookup inst configs
-
--- | Lookup a detailed patch along with the environ that it likes.
-get_midi_patch :: M m => Score.Instrument -> m Instrument.Patch
-get_midi_patch inst = do
-    info <- require ("get_midi_patch " <> pretty inst)
-        =<< lookup_instrument inst
-    return $ MidiDb.info_patch info
+        config = Map.lookup inst_name configs
 
 get_wdev_state :: M m => m WriteDeviceState
 get_wdev_state = gets state_wdev_state
