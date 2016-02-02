@@ -3,6 +3,12 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE TypeOperators, MultiParamTypeClasses #-}
+-- | Re-export a minimal version of the fclabels API.
+--
+-- I'd like to be able to write @(a #= 'x') . (b #= 'y')@ without parentheses,
+-- but since (.) already binds the strongest at 9, I can't make (#=) stronger.
+-- Besides, I already want (#=) to bind loosely so I can write @x#y #= 1+2@.
+-- I would need a version of (.) at 0, but that's too much trouble.
 module Util.Lens (
     Lens, lens
     , (#)
