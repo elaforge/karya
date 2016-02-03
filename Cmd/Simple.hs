@@ -28,12 +28,13 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified App.Config as Config
 import Global
 import Types
@@ -85,7 +86,7 @@ score_event evt =
 
 perf_event :: Perform.Event -> PerfEvent
 perf_event evt =
-    ( untxt $ Instrument.inst_name (Perform.event_instrument evt)
+    ( untxt $ Score.instrument_name $ Patch.name $ Perform.event_patch evt
     , from_real start
     , from_real (Perform.event_duration evt)
     , Pitch.nn (Signal.at start (Perform.event_pitch evt))
@@ -99,8 +100,8 @@ dump_state = do
     return
         ( State.config#State.global_transform #$ state
         , dump_midi_config $ State.config#State.midi #$ state
-        , map (Score.instrument_name *** Inst.show_qualified) . Map.toList $
-            State.config#State.aliases #$ state
+        , map (Score.instrument_name *** InstTypes.show_qualified)
+            . Map.toList $ State.config#State.aliases #$ state
         , blocks
         )
 
@@ -157,9 +158,8 @@ load_state (global_transform, midi, aliases, blocks) =
         State.modify $
             (State.config#State.global_transform #= global_transform)
             . (State.config#State.midi #= midi_config midi)
-            . (State.config#State.aliases #=
-                Map.fromList (map (Score.Instrument *** Inst.parse_qualified)
-                    aliases))
+            . (State.config#State.aliases #= Map.fromList
+                (map (Score.Instrument *** InstTypes.parse_qualified) aliases))
 
 load_block_to_clip :: FilePath -> Cmd.CmdT IO ()
 load_block_to_clip fn = read_block fn >>= Clip.state_to_clip
@@ -209,9 +209,9 @@ type ExactPerfEvent =
     )
 
 dump_exact_perf_event :: Perform.Event -> ExactPerfEvent
-dump_exact_perf_event (Perform.Event start dur inst controls pitch svel evel
+dump_exact_perf_event (Perform.Event start dur patch controls pitch svel evel
         stack) =
-    ( Score.instrument_name (Instrument.inst_score inst)
+    ( Score.instrument_name (Patch.name patch)
     , start, dur
     , map (Score.control_name *** Signal.unsignal) (Map.toList controls)
     , Signal.unsignal pitch
@@ -219,13 +219,13 @@ dump_exact_perf_event (Perform.Event start dur inst controls pitch svel evel
     , stack
     )
 
-load_exact_perf_event :: (Score.Instrument -> Maybe Instrument.Instrument)
+load_exact_perf_event :: (InstTypes.Qualified -> Maybe Patch.Patch)
     -> ExactPerfEvent -> Maybe Perform.Event
-load_exact_perf_event lookup_inst (inst, start, dur, controls, pitch,
+load_exact_perf_event lookup_patch (inst, start, dur, controls, pitch,
         (svel, evel), stack) = do
-    inst <- lookup_inst (Score.Instrument inst)
+    patch <- lookup_patch (InstTypes.parse_qualified inst)
     return $ Perform.Event
-        { event_instrument = inst
+        { event_patch = patch
         , event_start = start
         , event_duration = dur
         , event_controls = control_map controls

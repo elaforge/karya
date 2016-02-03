@@ -21,14 +21,14 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
 
 import Local.Instrument.Z1Spec
 import Global
 
 
-synth_name :: Inst.SynthName
+synth_name :: InstTypes.SynthName
 synth_name = "z1"
 
 load :: FilePath -> IO (Maybe MidiInst.Synth)
@@ -51,8 +51,7 @@ make_db dir = do
     program_dump = mapM rmap_to_patch <=< decode_program_dump
     -- Each patch has its own pb range, but you can override them in the
     -- multiset.
-    override_pb = MidiInst.patch_
-        # Instrument.instrument_ # Instrument.pitch_bend_range #= (-24, 24)
+    override_pb = MidiInst.patch_#Instrument.pitch_bend_range #= (-24, 24)
 
 synth_controls :: [(Midi.Control, Score.Control)]
 synth_controls =
@@ -174,7 +173,7 @@ rmap_to_patch rmap = do
     osc2 <- get "osc.1.type"
     let tags = [("category", category), ("z1-osc", osc1), ("z1-osc", osc2)]
     let common = Common.tags #= tags $ Common.common ()
-    return (Instrument.patch $ Instrument.instrument pb_range name [], common)
+    return (Instrument.patch pb_range name, common)
     where
     get :: (Sysex.RecordVal a) => String -> Either String a
     get = flip Sysex.get_rmap rmap

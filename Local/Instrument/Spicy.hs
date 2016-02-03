@@ -17,11 +17,11 @@ import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import Global
 
 
-synth_name :: Inst.SynthName
+synth_name :: InstTypes.SynthName
 synth_name = "spicy"
 
 synth :: MidiInst.Synth
@@ -32,9 +32,9 @@ patches :: [MidiInst.Patch]
 patches = (:[]) $
     MidiInst.code #= MidiInst.note_calls (MidiInst.null_call note_call) $
     MidiInst.make_patch $
-    (Instrument.instrument_#Instrument.hold_keyswitch #= True) $
+    Instrument.set_flag Instrument.HoldKeyswitch $
     (Instrument.attribute_map #= Instrument.single_keyswitches keyswitches) $
-        Instrument.default_patch (-3, 3) []
+        Instrument.patch (-3, 3) Instrument.default_name
 
 
 -- | WARNING: changing these while playing tends to crash the VST.
@@ -85,7 +85,7 @@ strings = ["e1", "a", "d", "g", "b", "e2"]
 
 -- | Create the proper midi config to work with the string attrs used by
 -- 'note_call'.
-configure :: Text -> Instrument.InstrumentName -> Instrument.Configs
+configure :: Text -> InstTypes.Name -> Instrument.Configs
 configure dev_name name = Instrument.configs $
     inst name 0 : [inst (name <> "-" <> string) chan
         | (string, chan) <- zip strings [1..]]

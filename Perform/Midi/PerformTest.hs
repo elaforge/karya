@@ -11,8 +11,11 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
+
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument
 import qualified App.Config as Config
 import Global
@@ -29,16 +32,19 @@ dump_perf_events fname events =
 read_perf_events :: [Simple.ExactPerfEvent] -> IO [Perform.Event]
 read_perf_events events = do
     db <- Local.Instrument.load =<< Config.get_app_dir
-    let lookup inst = fmap Instrument.patch_instrument . Inst.inst_midi
-            =<< Inst.lookup (Inst.parse_qualified (Score.instrument_name inst))
-                db
-    return $ mapMaybe (Simple.load_exact_perf_event lookup) events
+    return $ mapMaybe (Simple.load_exact_perf_event (lookup_patch db)) events
+
+lookup_patch :: Inst.Db code -> InstTypes.Qualified -> Maybe Patch.Patch
+lookup_patch db qualified = do
+    inst <- Inst.inst_midi =<< Inst.lookup qualified db
+    return $ Patch.patch (Score.Instrument (InstTypes.show_qualified qualified))
+        inst
 
 empty_event :: Perform.Event
 empty_event = Perform.Event
     { event_start = 0
     , event_duration = 0
-    , event_instrument = inst1
+    , event_patch = patch1
     , event_controls = mempty
     , event_pitch = mempty
     , event_start_velocity = Perform.default_velocity
@@ -46,13 +52,13 @@ empty_event = Perform.Event
     , event_stack = DeriveTest.fake_stack
     }
 
-inst1, inst2 :: Instrument.Instrument
-inst1 = mkinst "inst1"
-inst2 = mkinst "inst2"
+patch1, patch2 :: Patch.Patch
+patch1 = mkpatch "patch1"
+patch2 = mkpatch "patch2"
 
-mkinst :: Text -> Instrument.Instrument
-mkinst name = (Instrument.instrument (-1, 1) name [])
-    { Instrument.inst_score = Score.Instrument ("synth1/" <> name) }
+mkpatch :: Text -> Patch.Patch
+mkpatch name = Patch.patch (Score.Instrument ("synth1/" <> name))
+    (Instrument.patch (-1, 1) name)
 
 
 -- * extract

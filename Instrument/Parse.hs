@@ -17,7 +17,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
 import qualified Instrument.Tag as Tag
 
@@ -35,23 +35,23 @@ type Annotation = Tag.Tag
 -- TODO other attributes are not supported, but if there were, they could look
 -- like @*pb-range=12 *flag=pressure@
 parse_annotations :: FilePath
-    -> IO (Either String (Map.Map Inst.Qualified [Annotation]))
+    -> IO (Either String (Map.Map InstTypes.Qualified [Annotation]))
 parse_annotations fn = do
     result <- Parse.file mempty p_annotation_file () fn
     return $ (show *** Map.fromListWith (++)) result
 
-p_annotation_file :: Parser st [(Inst.Qualified, [Annotation])]
+p_annotation_file :: Parser st [(InstTypes.Qualified, [Annotation])]
 p_annotation_file = concat <$> Parsec.many line <* Parsec.eof
     where
     line = ((:[]) <$> Parsec.try p_annotation_line) <|> (p_eol >> return [])
 
-p_annotation_line :: Parser st (Inst.Qualified, [Annotation])
+p_annotation_line :: Parser st (InstTypes.Qualified, [Annotation])
 p_annotation_line =
     ((,) <$> lexeme p_qualified <*> Parsec.many (lexeme p_tag)) <* p_eol
 
-p_qualified :: Parser st Inst.Qualified
+p_qualified :: Parser st InstTypes.Qualified
 p_qualified =
-    Inst.Qualified <$> chars <*> (Parsec.char '/' *> chars) <?> "instrument"
+    InstTypes.Qualified <$> chars <*> (Parsec.char '/' *> chars) <?> "qualified"
     where
     chars = txt <$> Parsec.many1 (Parsec.oneOf Score.instrument_valid_chars)
 
@@ -127,7 +127,7 @@ p_patch_file = do
 make_patch :: Control.PbRange -> PatchLine -> Sysex.Patch
 make_patch pb_range (PatchLine name bank patch_num tags) = (patch, common)
     where
-    patch = (Instrument.patch $ Instrument.instrument pb_range name [])
+    patch = (Instrument.patch pb_range name)
         { Instrument.patch_initialize = Instrument.InitializeMidi $
             map (Midi.ChannelMessage 0) (Midi.program_change bank patch_num)
         }

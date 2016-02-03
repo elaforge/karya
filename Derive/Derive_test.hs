@@ -31,6 +31,7 @@ import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -54,7 +55,7 @@ test_basic = do
     equal (e_events res) ([(0, 16, ""), (16, 16, "")], [])
 
     -- 2: conversion to midi perf events
-    let evt = (,,,) "1"
+    let evt = (,,,) (Score.Instrument "i1")
     equal (map extract_perf_event perf_events)
         [ evt 0 16 (mkstack (0, 16))
         , evt 16 16 (mkstack (16, 32))
@@ -78,10 +79,10 @@ test_basic = do
         , Stack.Region s e
         ]
     block_call bid = Stack.Call $ "block " <> showt bid
-    extract_perf_event (Perform.Event start dur inst _controls _pitch
+    extract_perf_event (Perform.Event start dur patch _controls _pitch
             _svel _evel stack) =
-        (Instrument.inst_name inst,
-            RealTime.to_seconds start, RealTime.to_seconds dur, stack)
+        (Patch.name patch, RealTime.to_seconds start, RealTime.to_seconds dur,
+            stack)
 
 test_round_pitch = do
     -- A note sufficiently close to 4c becomes 4c.
@@ -95,8 +96,8 @@ test_attributes = do
     -- Test that attributes work, through derivation and performance.
     let convert_lookup = DeriveTest.make_convert_lookup [("i1", "s/i1")] $
             DeriveTest.make_db [("s", [patch])]
-        patch = Instrument.attribute_map #= attr_map $ Instrument.patch $
-            Instrument.instrument (-1, 1) "i1" []
+        patch = Instrument.attribute_map #= attr_map $
+            Instrument.patch (-1, 1) "i1"
         keyswitches = Instrument.single_keyswitches $ map (first Score.attrs)
             [ (["a1", "a2"], 0)
             , (["a0"], 1)

@@ -10,12 +10,12 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
 import Global
 
 
-synth_name :: Inst.SynthName
+synth_name :: InstTypes.SynthName
 synth_name = "morpheus"
 
 load :: FilePath -> IO (Maybe MidiInst.Synth)
@@ -26,8 +26,7 @@ make_db dir = do
     patches <- map MidiInst.patch_from_pair <$>
         Parse.patch_file (dir </> untxt synth_name)
     patches <- return $ map
-        (MidiInst.patch_#Instrument.instrument_#Instrument.pitch_bend_range
-            #= (-12, 12))
+        (MidiInst.patch_#Instrument.pitch_bend_range #= (-12, 12))
         patches
     MidiInst.save_synth dir synth_name patches
 

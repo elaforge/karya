@@ -33,14 +33,14 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
 
 import Local.Instrument.Vl1Spec
 import Global
 
 
-synth_name :: Inst.SynthName
+synth_name :: InstTypes.SynthName
 synth_name = "vl1"
 
 load :: FilePath -> IO (Maybe MidiInst.Synth)
@@ -225,8 +225,8 @@ record_to_patch rmap = do
     get :: Sysex.RecordVal a => String -> Either String a
     get = flip Sysex.get_rmap rmap
 
-vl1_patch :: Instrument.InstrumentName -> ElementInfo
-    -> Maybe ElementInfo -> MidiInst.Patch
+vl1_patch :: InstTypes.Name -> ElementInfo -> Maybe ElementInfo
+    -> MidiInst.Patch
 vl1_patch name elt1 maybe_elt2 =
     (if is_pressure then MidiInst.pressure else id) $
         MidiInst.common#Common.tags #= map ((,) "vl1-element") names $

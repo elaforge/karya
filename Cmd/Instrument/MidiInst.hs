@@ -56,6 +56,7 @@ import qualified Perform.Pitch as Pitch
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Serialize
 import qualified Instrument.Tag as Tag
 
@@ -66,11 +67,10 @@ import Types
 
 type Synth = Inst.SynthDecl Cmd.InstrumentCode
 
-synth :: Inst.SynthName -> Text -> [Patch] -> Synth
+synth :: InstTypes.SynthName -> Text -> [Patch] -> Synth
 synth name doc patches =
     (name, doc, zip (map name_of patches) (map make_inst patches))
-    where
-    name_of = (patch_ # Instrument.instrument_ # Instrument.name #$)
+    where name_of = (patch_ # Instrument.name #$)
 
 make_inst :: Patch -> Inst.Inst Cmd.InstrumentCode
 make_inst (Patch patch common) = Inst.Inst
@@ -191,15 +191,17 @@ patch_from_pair (patch, common) =
 
 -- | Make a patch, with a few parameters that tend to be unique per patch.
 -- Controls come last because they are often a long list.
-patch :: Control.PbRange -> Instrument.InstrumentName
-    -> [(Midi.Control, Score.Control)] -> Patch
+patch :: Control.PbRange -> InstTypes.Name -> [(Midi.Control, Score.Control)]
+    -> Patch
 patch pb_range name controls =
-    make_patch $ Instrument.patch $ Instrument.instrument pb_range name controls
+    make_patch $ (Instrument.patch pb_range name)
+        { Instrument.patch_control_map = Control.control_map controls }
 
 -- | Make a default patch for the synth.
 default_patch :: Control.PbRange -> [(Midi.Control, Score.Control)] -> Patch
 default_patch pb_range controls = Patch
-    { patch_patch = Instrument.default_patch pb_range controls
+    { patch_patch = (Instrument.patch pb_range Instrument.default_name)
+        { Instrument.patch_control_map = Control.control_map controls }
     , patch_common = Common.common mempty
     }
 
@@ -215,19 +217,17 @@ attribute_map :: Lens Patch Instrument.AttributeMap
 attribute_map = patch_ # Instrument.attribute_map
 
 decay :: Lens Patch (Maybe RealTime)
-decay = patch_ # Instrument.instrument_ # Instrument.maybe_decay
+decay = patch_ # Instrument.decay
 
 -- | Annotate all the patches with some global controls.
 synth_controls :: [(Midi.Control, Score.Control)] -> [Patch] -> [Patch]
-synth_controls controls = map add
-    where
-    add = patch_ # Instrument.instrument_ # Instrument.control_map
-        %= (Control.control_map controls <>)
+synth_controls controls = map $
+    patch_ # Instrument.control_map %= (Control.control_map controls <>)
 
 -- | Set a patch to pressure control.
 pressure :: Patch -> Patch
-pressure =
-    patch_ %= Instrument.set_decay 0 . Instrument.set_flag Instrument.Pressure
+pressure = (patch_#Instrument.decay #= Just 0)
+    . (patch_ %= Instrument.set_flag Instrument.Pressure)
 
 -- ** environ
 
@@ -256,7 +256,7 @@ nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
 -- parsing a directory full of sysexes.  These patches can export a @make_db@
 -- function, which will do the slow parts and save the results in a cache file.
 -- The @load@ function will simply read the cache file, if present.
-save_synth :: FilePath -> Inst.SynthName -> [Patch] -> IO ()
+save_synth :: FilePath -> InstTypes.SynthName -> [Patch] -> IO ()
 save_synth app_dir synth_name patches = do
     -- Assume these are loaded from files, so I'll need to generate valid
     -- names.
@@ -270,8 +270,8 @@ save_synth app_dir synth_name patches = do
     strip_code (Patch patch common) =
         (patch, common { Common.common_code = () })
 
-load_synth :: (Instrument.Patch -> Code) -> Inst.SynthName -> Text -> FilePath
-    -> IO (Maybe Synth)
+load_synth :: (Instrument.Patch -> Code) -> InstTypes.SynthName -> Text
+    -> FilePath -> IO (Maybe Synth)
 load_synth get_code synth_name doc app_dir = do
     let fname = db_path app_dir (untxt synth_name)
     Instrument.Serialize.unserialize fname >>= \x -> case x of
@@ -294,24 +294,23 @@ db_path app_dir name =
 
 -- | Like 'generate_names', but don't drop or rename duplicates, just report
 -- them as errors.
-check_names :: [Patch] -> (Map.Map Inst.Name Patch, [Inst.Name])
-check_names = second (map fst) . Util.Map.unique . Seq.key_on inst_name
-    where
-    inst_name = Instrument.inst_name . Instrument.patch_instrument . patch_patch
+check_names :: [Patch] -> (Map.Map InstTypes.Name Patch, [InstTypes.Name])
+check_names = second (map fst) . Util.Map.unique
+    . Seq.key_on (Instrument.patch_name . patch_patch)
 
 -- | 'Instrument.inst_name' is the name as it appears on the synth, so it's not
 -- guaranteed to be unique.  Also, due to loading from sysexes, there may be
 -- duplicate patches.  Generate valid names for the patches, drop duplicates,
 -- and disambiguate names that wind up the same.
-generate_names :: [Patch] -> (Map.Map Inst.Name Patch, [Text])
+generate_names :: [Patch] -> (Map.Map InstTypes.Name Patch, [Text])
 generate_names = -- This only touches the 'patch_patch' field.
     run . (concatMapM split <=< mapM drop_dup_initialization)
         . Seq.keyed_group_sort (clean_name . inst_name)
     where
     run = first Map.fromList . Identity.runIdentity . Logger.run
     -- If the name and initialization is the same, they are likely duplicates.
-    drop_dup_initialization :: (Inst.Name, [Patch])
-        -> Logger (Inst.Name, [Patch])
+    drop_dup_initialization :: (InstTypes.Name, [Patch])
+        -> Logger (InstTypes.Name, [Patch])
     drop_dup_initialization (name, patches) = do
         let (unique, dups) = Seq.partition_dups
                 (Instrument.patch_initialize . patch_patch) patches
@@ -321,7 +320,7 @@ generate_names = -- This only touches the 'patch_patch' field.
         return (name, unique)
     -- The remaining patches are probably different and just happened to get
     -- the same name, so number them to disambiguate.
-    split :: (Inst.Name, [Patch]) -> Logger [(Inst.Name, Patch)]
+    split :: (InstTypes.Name, [Patch]) -> Logger [(InstTypes.Name, Patch)]
     split (name, patches@(_:_:_)) = do
         let named = zip (map ((name<>) . showt) [1..]) patches
         log ("split into " <> Text.intercalate ", " (map fst named)) patches
@@ -333,14 +332,14 @@ generate_names = -- This only touches the 'patch_patch' field.
         <> Text.intercalate ", " (map details patches)
     details patch =
         inst_name patch <> " (" <> fromMaybe "" (filename patch) <> ")"
-    inst_name = Instrument.inst_name . Instrument.patch_instrument . patch_patch
+    inst_name = Instrument.patch_name . patch_patch
     filename = lookup Tag.file . Common.common_tags . patch_common
 
 type Logger a = Logger.LoggerT Text Identity.Identity a
 
 -- | People like to put wacky characters in their names, but it makes them
 -- hard to type.
-clean_name :: Text -> Inst.Name
+clean_name :: Text -> InstTypes.Name
 clean_name =
     Text.dropWhileEnd (=='-') . Text.dropWhile (=='-')
         . strip_dups

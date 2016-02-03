@@ -9,7 +9,7 @@ import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
 
 import Global
@@ -18,7 +18,8 @@ import Global
 test_parse_annotations = do
     let f = (show *** map extract)
             .  Parsec.runParser Parse.p_annotation_file () "test"
-        extract (qualified, annots) = (Inst.show_qualified qualified, annots)
+        extract (qualified, annots) =
+            (InstTypes.show_qualified qualified, annots)
     equal (f "s/1 there\n") $ Right [("s/1", [("there", "")])]
     equal (f "s/1\n") $ Right [("s/1", [])]
     equal (f "s/1 a=b c=d\n") $

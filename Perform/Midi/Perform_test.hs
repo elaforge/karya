@@ -26,9 +26,10 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
-import Perform.Midi.PerformTest (inst1, inst2)
+import Perform.Midi.PerformTest (patch1, patch2)
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -58,10 +59,10 @@ test_perform = do
 
     -- fractional notes get their own channels
     msgs <- f
-        [ (inst1, "a", 0, 1, [])
-        , (inst1, "a2", 1, 1, [])
-        , (inst1, "b", 2, 1, [])
-        , (inst1, "b2", 3, 1, [])
+        [ (patch1, "a", 0, 1, [])
+        , (patch1, "a2", 1, 1, [])
+        , (patch1, "b", 2, 1, [])
+        , (patch1, "b2", 3, 1, [])
         ]
     equal msgs
         [ ("dev1", 0.0, (0, NoteOn 60 100))
@@ -77,11 +78,11 @@ test_perform = do
         , ("dev1", 4.0 - gap, (1, NoteOff 61 100))
         ]
 
-    -- channel 0 reused for inst1, inst2 gets its own channel
+    -- channel 0 reused for patch1, patch2 gets its own channel
     msgs <- f
-        [ (inst1, "a", 0, 1, [])
-        , (inst1, "b", 0, 1, [])
-        , (inst2, "c", 0, 1, [])
+        [ (patch1, "a", 0, 1, [])
+        , (patch1, "b", 0, 1, [])
+        , (patch2, "c", 0, 1, [])
         ]
     equal msgs
         [ ("dev1", 0.0, (0, NoteOn 60 100))
@@ -94,8 +95,8 @@ test_perform = do
 
     -- identical notes get split across channels 0 and 1
     msgs <- f
-        [ (inst1, "a", 0, 2, [])
-        , (inst1, "a", 1, 2, [])
+        [ (patch1, "a", 0, 2, [])
+        , (patch1, "a", 1, 2, [])
         ]
     equal msgs
         [ ("dev1", 0.0, (0, NoteOn 60 100))
@@ -108,8 +109,8 @@ test_perform = do
     -- Consecutive notes with the same pitch have NoteOff / NoteOn in the right
     -- order.
     msgs <- f
-        [ (inst1, "a", 0, 1, [])
-        , (inst1, "a", 1, 1, [])
+        [ (patch1, "a", 0, 1, [])
+        , (patch1, "a", 1, 1, [])
         ]
     equal msgs
         [ ("dev1", 0.0, (0, NoteOn 60 100))
@@ -121,10 +122,10 @@ test_perform = do
 test_perform_voices = do
     let f config = first e_note_ons . perform (mk_inst_addrs config)
             . map (mkevent . mke)
-        mke (p, start) = (inst1, p, start, 1, [])
+        mke (p, start) = (patch1, p, start, 1, [])
         mk_inst_addrs chans =
             Map.fromList [(i, [((dev1, c), v) | (c, v) <- chans])]
-            where i = Instrument.inst_score inst1
+            where i = Patch.name patch1
     let config12 = [(0, Just 1), (1, Just 2)]
     equal (f config12 [("a", 0)]) ([(0, (0, Key.c4))], [])
     -- b gets bumped to the next channel.
@@ -145,7 +146,7 @@ test_aftertouch = do
     let f = e_ts_chan_msg . fst . perform inst_addrs1
                 . Seq.sort_on Perform.event_start . map event
         event (pitch, start, dur, aftertouch) = mkevent
-            (inst1, pitch, start, dur,
+            (patch1, pitch, start, dur,
                 [(Controls.aftertouch, Signal.signal aftertouch)])
     equal (f [("a", 0, 1, [(0, 1)]), ("b", 0, 1, [(0, 0)])])
         [ (-min_cc_lead, 0, Aftertouch Key.c4 127)
@@ -165,8 +166,8 @@ test_controls_after_note_off = do
         sig xs = [(Controls.vol, Signal.signal xs)]
 
     let msgs = f
-            [ (inst2, "a", 0, 1, sig [(0, 1), (1.95, 0.5)])
-            , (inst2, "b", 2, 1, sig [(2, 1)])
+            [ (patch2, "a", 0, 1, sig [(0, 1), (1.95, 0.5)])
+            , (patch2, "b", 2, 1, sig [(2, 1)])
             ]
     -- Signal at 1.95 dropped because of the next note on.
     equal (e_ts_cmsg msgs)
@@ -177,8 +178,8 @@ test_controls_after_note_off = do
         ]
 
     let msgs = f
-            [ (inst2, "a", 0, 2, sig [(0, 1), (1.95, 0.5)])
-            , (inst2, "b", 2, 1, sig [(2, 1)])
+            [ (patch2, "a", 0, 2, sig [(0, 1), (1.95, 0.5)])
+            , (patch2, "b", 2, 1, sig [(2, 1)])
             ]
     -- But not this time, because its within the first note.
     equal (e_ts_cmsg msgs)
@@ -191,8 +192,8 @@ test_controls_after_note_off = do
         ]
 
     let msgs = f
-            [ (inst2, "a", 0, 1, sig [(0, 1), (1.5, 0.5)])
-            , (inst2, "b", 2, 1, sig [(2, 1)])
+            [ (patch2, "a", 0, 1, sig [(0, 1), (1.5, 0.5)])
+            , (patch2, "b", 2, 1, sig [(2, 1)])
             ]
     -- Room enough for both.
     equal (e_ts_cmsg msgs)
@@ -207,8 +208,8 @@ test_controls_after_note_off = do
     -- 0.5 visible even though it's after the end of the decay.
     let e_cc7 = PerformTest.extract_msg (PerformTest.e_cc 7)
     equal (e_cc7 $ f
-            [ (inst1, "a", 0, 1, sig [(0, 1), (4, 0.5)])
-            , (inst1, "a", 8, 1, [])
+            [ (patch1, "a", 0, 1, sig [(0, 1), (4, 0.5)])
+            , (patch1, "a", 8, 1, [])
             ])
         [127, 64]
 
@@ -216,15 +217,15 @@ test_control_lead_time = do
     -- verify that controls are given lead time if they are on their own
     -- channels, and not if they aren't
     let run = extract . perform inst_addrs2 . mkevents
-        run_inst1 = extract . perform inst_addrs2 . mkevents_inst
+        run_inst1 = extract . perform inst_addrs2 . mkevents_patch
         extract = first e_ts_chan_msg
     let vol start = (Controls.vol, linear_interp [(start, 0), (start + 2, 1)])
         mkvol sig = (Controls.vol, Signal.signal sig)
 
     -- Even overlapping notes get a 'min_cc_lead' lead time.
     equal (run
-            [ (inst2, "a", 0, 2, [mkvol [(0, 0.5)]])
-            , (inst2, "a", 1, 1, [mkvol [(1, 0.25)]])
+            [ (patch2, "a", 0, 2, [mkvol [(0, 0.5)]])
+            , (patch2, "a", 1, 1, [mkvol [(1, 0.25)]])
             ])
         ([ (-min_cc_lead, 2, ControlChange 7 64), (-min_cc_lead, 2, PitchBend 0)
          , (0, 2, NoteOn Key.c4 100)
@@ -270,7 +271,7 @@ test_control_lead_time = do
          ], [])
 
     -- Force them to be on the same channel, so I wind up with 'min_cc_lead'.
-    equal (run [(inst2, "a", 0, 8, []), (inst2, "b2", 4, 4, [])])
+    equal (run [(patch2, "a", 0, 8, []), (patch2, "b2", 4, 4, [])])
         ([ (-min_cc_lead, 2, PitchBend 0)
          , (0, 2, NoteOn 60 100)
          , (4 - min_cc_lead, 2, PitchBend 0.5)
@@ -279,7 +280,7 @@ test_control_lead_time = do
          , (8 - gap, 2, NoteOff 61 100)
          ], [])
 
-    equal (run [(inst2, "a", 0, 4, []), (inst2, "b", 4, 4, [vol 4])])
+    equal (run [(patch2, "a", 0, 4, []), (patch2, "b", 4, 4, [vol 4])])
         ([ (-min_cc_lead, 2, PitchBend 0)
          , (0, 2, NoteOn 60 100)
          , (4 - gap, 2, NoteOff 60 100)
@@ -296,7 +297,7 @@ test_pedal = do
     let pedal sig = (Controls.pedal, Signal.signal sig)
     -- The pedal extends note duration, so I get the pedal-off even though it's
     -- a long ways past the supposed end of the note.
-    equal (run [(inst1, "a", 0, 2, [pedal [(0, 1), (40, 0)]])]) ([127, 0], [])
+    equal (run [(patch1, "a", 0, 2, [pedal [(0, 1), (40, 0)]])]) ([127, 0], [])
     -- TODO actually this works because I don't clip controls unless there's
     -- a next note, which works well enough for pedal in simple cases.  There
     -- are probably still some cases where this isn't enough, but I'll deal
@@ -318,7 +319,7 @@ badsig :: Score.Control -> (Score.Control, Signal.Control)
 badsig cont = (cont, linear_interp [(0, 0), (1.5, 1.5), (2.5, 0.5), (4, 2)])
 
 test_clip_warns = do
-    let events = [mkevent (inst1, "a", 0, 4, [badsig Controls.vol])]
+    let events = [mkevent (patch1, "a", 0, 4, [badsig Controls.vol])]
         (msgs, warns) = perform inst_addrs1 events
     -- TODO check that warnings came at the right places
     -- check that the clips happen at the same places as the warnings
@@ -334,7 +335,7 @@ test_keyswitch_share_chan = do
     let f evts = first extract $ perform inst_addrs1 (map make evts)
         extract = map snd . e_note_ons
         make (ks, pitch, start) = mkevent (ks_inst ks, pitch, start, 1, [])
-        ks_inst ks = inst1 { Instrument.inst_keyswitch = ks }
+        ks_inst ks = patch1 { Patch.keyswitch = ks }
         ks1 = [Instrument.Keyswitch Key.c1]
         ks2 = [Instrument.Keyswitch Key.d1]
 
@@ -352,14 +353,14 @@ test_keyswitch_share_chan = do
 
 test_perform_lazy = do
     let perform evts = perform_notes [(evt, (dev1, 0)) | evt <- evts]
-    let endless = map mkevent [(inst1, n:"", ts, 4, [])
+    let endless = map mkevent [(patch1, n:"", ts, 4, [])
             | (n, ts) <- zip (cycle ['a'..'g']) (Seq.range_ 0 4)]
     let (msgs, _warns) = perform endless
     res <- run_timeout 1 $ return (take 20 msgs)
     equal (fmap length res) (Just 20)
 
 test_no_pitch = do
-    let event = (mkevent (inst1, "a", 0, 2, []))
+    let event = (mkevent (patch1, "a", 0, 2, []))
             { Perform.event_pitch = Signal.constant Signal.invalid_pitch }
     let (midi, logs) = perform inst_addrs1 [event]
     equal (map Midi.wmsg_msg midi) []
@@ -401,9 +402,9 @@ test_keyswitch = do
             (,) (Midi.wmsg_ts wmsg) <$> note_on_key (Midi.wmsg_msg wmsg)
         e_note = mapMaybe $ \wmsg ->
             (,) (Midi.wmsg_ts wmsg) <$> note_key (Midi.wmsg_msg wmsg)
-        ks_inst ks hold = inst1
-            { Instrument.inst_keyswitch = ks
-            , Instrument.inst_hold_keyswitch = hold
+        ks_inst ks hold = patch1
+            { Patch.keyswitch = ks
+            , Patch.hold_keyswitch = hold
             }
         with_addr (ks, hold, pitch, start, dur) =
             (mkevent (ks_inst ks hold, pitch, start, dur, []), (dev1, 0))
@@ -476,8 +477,7 @@ test_keyswitch_aftertouch = do
     let f = expect_no_logs . perform_notes . map with_addr
         with_addr (ks, pitch, start, dur) =
             (mkevent (ks_inst ks, pitch, start, dur, []), (dev1, 0))
-        ks_inst ks = inst1
-            { Instrument.inst_keyswitch = [Instrument.Aftertouch ks] }
+        ks_inst ks = patch1 { Patch.keyswitch = [Instrument.Aftertouch ks] }
         e_at = mapMaybe $ \wmsg -> case Midi.wmsg_msg wmsg of
             Midi.ChannelMessage _ (Midi.Aftertouch k v) -> Just (k, v)
             _ -> Nothing
@@ -600,11 +600,11 @@ test_control_overlap = do
     -- Ensure that a control that falls within the adjacent_note_gap won't
     -- mess up the next note.
     let events =
-            [ (mkevent (inst2, "a", 0, 1, []))
+            [ (mkevent (patch2, "a", 0, 1, []))
                 { Perform.event_pitch = Signal.signal
                     [(0.0, 81.0), (0.9999, 79)]
                 }
-            , mkevent (inst2, "b", 1, 1, [])
+            , mkevent (patch2, "b", 1, 1, [])
             ]
         extract = PerformTest.extract_msg_ts PerformTest.e_cmsg
     let (midi, logs) = perform inst_addrs2 events
@@ -659,8 +659,8 @@ test_channelize = do
 
     -- don't bother channelizing if the inst only has one addr
     equal (map snd $ channelize inst_addrs2 $ mkevents
-        [ (inst2, "a", 0, 2, [])
-        , (inst2, "a2", 1, 2, [])
+        [ (patch2, "a", 0, 2, [])
+        , (patch2, "a2", 1, 2, [])
         ])
         [0, 0]
 
@@ -722,7 +722,7 @@ test_overlap_map = do
     let extent e = (Perform.event_start e, Perform.event_duration e)
     let f overlapping event =
             ((extent event, map (extent . fst) overlapping), [])
-    let events = mkevents_inst
+    let events = mkevents_patch
             [ ("a", 0, 2, [])
             , ("b", 1, 3, [])
             , ("c", 2, 2, [])
@@ -748,7 +748,7 @@ channelize inst_addrs events = LEvent.events_of $ fst $
 
 test_allot = do
     let mk inst chan start = (mkevent (inst, "a", start, 1, []), chan)
-        mk1 = mk inst1
+        mk1 = mk patch1
         f = map (snd . snd) . LEvent.events_of . allot inst_addrs1 . in_time
         in_time mks = zipWith ($) mks (Seq.range_ 0 1)
 
@@ -759,28 +759,30 @@ test_allot = do
     equal (f [mk1 3, mk1 2, mk1 2, mk1 3]) [0, 1, 1, 0]
 
     -- Instruments with no allocation get filtered out.
-    equal (f [mk1 1, mk inst2 1, mk1 2]) [0, 1]
+    equal (f [mk1 1, mk patch2 1, mk1 2]) [0, 1]
 
 test_allot_steal = do
     let f = extract . allot inst_addrs1 . map mk . zip (Seq.range_ 0 1)
         extract = first (map (snd . snd)) . LEvent.partition
-        mk (start, chan) = (mkevent (inst1, "a", start, 1, []), chan)
+        mk (start, chan) = (mkevent (patch1, "a", start, 1, []), chan)
     -- 0->0, 1->1, 2->steal 0, 0 -> should go to 1, becasue 0 was stolen
     let (chans, _logs) = f [0, 1, 2, 0]
     equal chans [0, 1, 0, 1]
 
 test_allot_warn = do
-    let extract (LEvent.Event (e, (dev, chan))) = Just $ Left
-            (Instrument.inst_name (Perform.event_instrument e),
-                pretty dev, chan)
-        extract (LEvent.Log msg) = Just $ Right $ DeriveTest.show_log msg
     let f = mapMaybe extract . allot inst_addrs1
             . map (\(evt, chan) -> (mkevent evt, chan))
-    let no_inst = PerformTest.mkinst "no_inst"
-    equal (f [((inst1, "a", 0, 1, []), 0)])
-        [Left ("inst1", "dev1", 0)]
-    equal (f [((no_inst, "a", 0, 1, []), 0), ((no_inst, "b", 1, 2, []), 0)])
-        (replicate 2 $ Right "no allocation for >synth1/no_inst")
+        extract (LEvent.Event (e, (dev, chan))) = Just $ Left
+            ( Score.instrument_name $ Patch.name $ Perform.event_patch e
+            , pretty dev
+            , chan
+            )
+        extract (LEvent.Log msg) = Just $ Right $ DeriveTest.show_log msg
+    let no_patch = PerformTest.mkpatch "no_patch"
+    equal (f [((patch1, "a", 0, 1, []), 0)])
+        [Left ("synth1/patch1", "dev1", 0)]
+    equal (f [((no_patch, "a", 0, 1, []), 0), ((no_patch, "b", 1, 2, []), 0)])
+        (replicate 2 $ Right "no allocation for >synth1/no_patch")
 
 allot :: Perform.InstAddrs -> [(Perform.Event, Perform.Channel)]
     -> [LEvent.LEvent (Perform.Event, Instrument.Addr)]
@@ -796,17 +798,17 @@ secs = RealTime.seconds
 -- yield fractional pitches.
 --
 -- (inst, text, start, dur, controls)
-type EventSpec = (Instrument.Instrument, String, RealTime, RealTime, [Control])
+type EventSpec = (Patch.Patch, String, RealTime, RealTime, [Control])
 type Control = (Score.Control, Signal.Control)
 
 mkevents :: [EventSpec] -> [Perform.Event]
 mkevents = map mkevent
 
 mkevent :: EventSpec -> Perform.Event
-mkevent (inst, pitch, start, dur, controls) = PerformTest.empty_event
+mkevent (patch, pitch, start, dur, controls) = PerformTest.empty_event
     { Perform.event_start = start
     , Perform.event_duration = dur
-    , Perform.event_instrument = inst
+    , Perform.event_patch = patch
     , Perform.event_controls = Map.fromList controls
     , Perform.event_pitch = psig start pitch
     }
@@ -829,11 +831,11 @@ mkpevent (start, dur, psig, controls) = PerformTest.empty_event
         Signal.map_y Convert.round_pitch (Signal.signal psig)
     }
 
-mkevents_inst :: [(String, RealTime, RealTime, [Control])] -> [Perform.Event]
-mkevents_inst = map (\(a, b, c, d) -> mkevent (inst1, a, b, c, d))
+mkevents_patch :: [(String, RealTime, RealTime, [Control])] -> [Perform.Event]
+mkevents_patch = map (\(a, b, c, d) -> mkevent (patch1, a, b, c, d))
 
-set_inst :: Instrument.Instrument -> Perform.Event -> Perform.Event
-set_inst inst event = event { Perform.event_instrument = inst }
+-- set_patch :: Instrument.Instrument -> Perform.Event -> Perform.Event
+-- set_patch patch event = event { Perform.event_instrument = patch }
 
 -- | Make a signal with linear interpolation between the points.
 linear_interp :: [(Signal.X, Signal.Y)] -> Signal.Control
@@ -852,14 +854,12 @@ dev2 = Midi.write_device "dev2"
 
 inst_addrs1 :: Perform.InstAddrs
 inst_addrs1 = Map.fromList
-    [ (Instrument.inst_score inst1,
-        [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
+    [ (Patch.name patch1, [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
     ]
 
--- Also includes inst2.
+-- Also includes patch2.
 inst_addrs2 :: Perform.InstAddrs
 inst_addrs2 = Map.fromList
-    [ (Instrument.inst_score inst1,
-        [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
-    , (Instrument.inst_score inst2, [((dev2, 2), Nothing)])
+    [ (Patch.name patch1, [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
+    , (Patch.name patch2, [((dev2, 2), Nothing)])
     ]

@@ -75,7 +75,7 @@ patches = map (MidiInst.code #= code <> with_weak)
     patch name = set_params $ MidiInst.patch (-24, 24) name []
     set_params = (MidiInst.patch_ %=) $
         Instrument.set_flag Instrument.ConstantPitch
-        . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
+        . (Instrument.decay #= Just 0)
         . (Instrument.attribute_map #= attribute_map)
     set_scale tuning =
         (MidiInst.patch_#Instrument.scale

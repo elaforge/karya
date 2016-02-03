@@ -39,7 +39,7 @@ import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -143,7 +143,7 @@ inst_controls block_id =
             _ -> Nothing
     merge1 (start1, end1) (start2, end2) =
         (Seq.min_on fst start1 start2, Seq.max_on fst end1 end2)
-    event_inst = Instrument.inst_score . Perform.event_instrument
+    event_inst = Patch.name . Perform.event_patch
 
 -- * derive
 
@@ -350,8 +350,7 @@ convert events = do
     return $ Midi.Convert.convert lookup events
 
 perf_event_inst :: Perform.Event -> Text
-perf_event_inst =
-    Score.instrument_name . Instrument.inst_score . Perform.event_instrument
+perf_event_inst = Score.instrument_name . Patch.name . Perform.event_patch
 
 -- * midi
 

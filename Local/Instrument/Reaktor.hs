@@ -15,6 +15,7 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Instrument.InstTypes as InstTypes
 import Global
 
 
@@ -26,8 +27,7 @@ resonant_filter = MidiInst.note_calls $ MidiInst.null_call $
     DUtil.double_pitch "res" Nothing "res"
         (Just (Set.fromList ["mix", "q", "lp-hp", "2-4-pole"]))
 
-patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
-    -> MidiInst.Patch
+patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
 patch = MidiInst.patch (-96, 96)
 
 patches :: [MidiInst.Patch]

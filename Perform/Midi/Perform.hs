@@ -35,6 +35,7 @@ import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import Perform.RealTime (RealTime)
@@ -158,7 +159,7 @@ channelize_event inst_addrs overlapping event =
         -- are none.
         _ -> (0, [])
     where
-    inst_name = Instrument.inst_score (event_instrument event)
+    inst_name = Patch.name (event_patch event)
     -- If there's no shareable channel, make up a channel one higher than the
     -- maximum channel in use.
     chan = fromMaybe (maximum (-1 : map snd overlapping) + 1) maybe_chan
@@ -194,7 +195,7 @@ shareable_chan overlapping event =
 can_share_chan :: Event -> Event -> Maybe Text
 can_share_chan old new = case (initial_pitch old, initial_pitch new) of
     _ | start >= end -> Nothing
-    -- Previously I required that the whole Instrument be equal, which caused
+    -- Previously I required that the whole Patch be equal, which caused
     -- notes with different keyswitches to not share channels.  However, they
     -- actually can share channels, though they still can't play
     -- simultaneously.  I need to be as aggressive as possible sharing
@@ -213,7 +214,7 @@ can_share_chan old new = case (initial_pitch old, initial_pitch new) of
         | otherwise -> Nothing
     _ -> Nothing
     where
-    inst_of = Instrument.inst_score . event_instrument
+    inst_of = Patch.name . event_patch
     start = event_start new
     -- Note that I add the control_lead_time to the decay of the old note
     -- rather than subtracting it from the start of the new one.  Subtracting
@@ -339,7 +340,7 @@ allot_event inst_addrs state (event, ichan) =
         { allotted_voices =
             filter (> event_start event) (allotted_voices allotted)
         }
-    inst = Instrument.inst_score $ event_instrument event
+    inst = Patch.name $ event_patch event
     update = update_allot_state (inst, ichan) (event_end event)
     no_alloc = event_warning event ("no allocation for " <> pretty inst)
 
@@ -387,7 +388,7 @@ type PerformState = (AddrInst, NoteOffMap)
 -- at that address.
 --
 -- Used to emit keyswitches or program changes.
-type AddrInst = Map.Map Instrument.Addr Instrument.Instrument
+type AddrInst = Map.Map Instrument.Addr Patch.Patch
 
 -- | Map from an address to the last time a note was playing on that address.
 -- This includes the last note's decay time, so the channel should be reusable
@@ -455,36 +456,28 @@ adjust_chan_state addr_inst addr event = case event_midi_key event of
             Right msgs -> (map LEvent.Event msgs, new_addr_inst)
     where
     new_addr_inst = Map.insert addr inst addr_inst
-    inst = event_instrument event
+    inst = event_patch event
     old_inst = Map.lookup addr addr_inst
 
 -- | TODO support program change, I'll have to get ahold of patch_initialize.
 chan_state_msgs :: Midi.Key -> Instrument.Addr -> RealTime
-    -> Maybe Instrument.Instrument -> Instrument.Instrument
+    -> Maybe Patch.Patch -> Patch.Patch
     -> Either Text [Midi.WriteMessage]
 chan_state_msgs midi_key addr@(wdev, chan) start maybe_old_inst new_inst
-    | not same_synth =
-        Left $ "two synths on " <> showt addr <> ": " <> inst_desc
     | not same_inst = Left $ "program change not supported yet on "
-        <> showt addr <> ": " <> inst_desc
+        <> showt addr <> ": " <> pretty
+            (Patch.name <$> maybe_old_inst, Patch.name new_inst)
     | not (same_keyswitches maybe_old_inst new_inst) = Right $
         keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start
     | otherwise = Right []
     where
-    inst_desc = showt (fmap extract maybe_old_inst, extract new_inst)
-    extract inst = (Instrument.inst_synth inst, Instrument.inst_score inst)
-    same_synth = case maybe_old_inst of
-        Nothing -> True
-        Just o -> Instrument.inst_synth o == Instrument.inst_synth new_inst
     same_inst = case maybe_old_inst of
         Nothing -> True -- when pchange is supported I can assume false
-        Just o -> Instrument.inst_name o == Instrument.inst_name new_inst
+        Just o -> Patch.name o == Patch.name new_inst
 
-same_keyswitches :: Maybe Instrument.Instrument -> Instrument.Instrument
-    -> Bool
+same_keyswitches :: Maybe Patch.Patch -> Patch.Patch -> Bool
 same_keyswitches maybe_old new =
-    go (maybe [] Instrument.inst_keyswitch maybe_old)
-        (Instrument.inst_keyswitch new)
+    go (maybe [] Patch.keyswitch maybe_old) (Patch.keyswitch new)
     where
     go [] [] = True
     -- To actually get this right I'd have to either change the Instrument
@@ -505,8 +498,8 @@ same_keyswitches maybe_old new =
     notes get turned off after playing so the keyswitch should be cleaned up by
     that.
 -}
-keyswitch_messages :: Midi.Key -> Maybe Instrument.Instrument
-    -> Instrument.Instrument -> Midi.WriteDevice -> Midi.Channel -> RealTime
+keyswitch_messages :: Midi.Key -> Maybe Patch.Patch
+    -> Patch.Patch -> Midi.WriteDevice -> Midi.Channel -> RealTime
     -> [Midi.WriteMessage]
 keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
     prev_ks_off ++ new_ks_on
@@ -517,15 +510,15 @@ keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
     -- I have to emit a NoteOff for it.
     prev_ks_off = Maybe.fromMaybe [] $ do
         old <- maybe_old_inst
-        guard (Instrument.inst_hold_keyswitch old)
+        guard (Patch.hold_keyswitch old)
         -- I apply the adjacent_note_gap to the ks note off too.  It's probably
         -- unnecessary, but this way the note and the ks go off at the same
         -- time.
         return $ concatMap (ks_off (start-adjacent_note_gap))
-            (Instrument.inst_keyswitch old)
+            (Patch.keyswitch old)
 
-    new_ks = Instrument.inst_keyswitch new_inst
-    is_hold = Instrument.inst_hold_keyswitch new_inst
+    new_ks = Patch.keyswitch new_inst
+    is_hold = Patch.hold_keyswitch new_inst
     ks_start = start - keyswitch_gap - delta * fromIntegral (length new_ks - 1)
     ks_starts = iterate (+delta) ks_start
     delta = RealTime.milliseconds 2
@@ -593,7 +586,7 @@ perform_control_msgs prev_note_off next_note_on event (dev, chan) note_off
     control_msgs = merge_messages $
         map (map chan_msg) (pitch_pos_msgs : control_pos_msgs)
     control_sigs = Map.toList (event_controls event)
-    cmap = Instrument.inst_control_map (event_instrument event)
+    cmap = Patch.control_map (event_patch event)
     -- |===---
     --      -|===---
     -- Drop controls that would overlap with the next note on.
@@ -619,7 +612,7 @@ perform_control_msgs prev_note_off next_note_on event (dev, chan) note_off
         Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 
 event_pb_range :: Event -> Control.PbRange
-event_pb_range = Instrument.inst_pitch_bend_range . event_instrument
+event_pb_range = Patch.pitch_bend_range . event_patch
 
 -- | Get pitch at the given point of the signal.
 --
@@ -767,7 +760,7 @@ resort = go mempty
 data Event = Event {
     event_start :: !RealTime
     , event_duration :: !RealTime
-    , event_instrument :: !Instrument.Instrument
+    , event_patch :: !Patch.Patch
     , event_controls :: !ControlMap
     , event_pitch :: !Signal.NoteNumber
     , event_start_velocity :: !Signal.Y
@@ -784,12 +777,12 @@ instance DeepSeq.NFData Event where
         rnf = DeepSeq.rnf
 
 instance Pretty.Pretty Event where
-    format (Event start dur inst controls pitch svel evel stack) =
+    format (Event start dur patch controls pitch svel evel stack) =
         Pretty.record "Event"
             [ ("start", Pretty.format start)
             , ("duration", Pretty.format dur)
-            , ("instrument", Pretty.format (Instrument.inst_score inst))
-            , ("keyswitch", Pretty.format (Instrument.inst_keyswitch inst))
+            , ("patch", Pretty.format (Patch.name patch))
+            , ("keyswitch", Pretty.format (Patch.keyswitch patch))
             , ("controls", Pretty.format controls)
             , ("pitch", Pretty.format pitch)
             , ("velocity", Pretty.format (svel, evel))
@@ -799,10 +792,10 @@ instance Pretty.Pretty Event where
 -- | Pretty print the event more briefly than the Pretty instance.
 short_event :: Event -> Text
 short_event event =
-    pretty (start, event_duration event, inst, pitch, event_controls event)
+    pretty (start, event_duration event, name, pitch, event_controls event)
     where
     start = event_start event
-    inst = Instrument.inst_score (event_instrument event)
+    name = Patch.name (event_patch event)
     pitch = Pitch.NoteNumber $ Signal.at start (event_pitch event)
 
 event_end :: Event -> RealTime
@@ -814,8 +807,8 @@ note_begin event = event_start event - control_lead_time
 -- | The end of an event after taking decay into account.  The note shouldn't
 -- be sounding past this time.
 note_end :: Event -> RealTime
-note_end event =
-    event_end event + Instrument.inst_decay (event_instrument event)
+note_end event = event_end event
+    + fromMaybe Patch.default_decay (Patch.decay (event_patch event))
 
 -- | This isn't directly the midi channel, since it goes higher than 15, but
 -- will later be mapped to midi channels.

@@ -386,7 +386,7 @@ Synth: Im:
     . This would mean renaming Perform.Synth -> Perform.Im, and Synth -> Im.
     . One bonus is that the icon choice is easy.  Sampler is 錄音, synthesizer
       is 成音.
-  - Better name for Instrument.Inst.
+  / Better name for Instrument.Inst.
     . Ensemble?  I don't want the plural implication, just the idea of
       a generalized instrument.  琴?
     . Or maybe Instrument should be the general form, since it's already used
@@ -398,14 +398,25 @@ Synth: Im:
       Perform-specific stuff into Midi.Perform.  Then instead of the awkward
       "fields filled in during lookup" thing, I have Convert project
       a Midi.Patch to a Perform.Patch.
+    . I think I don't want to change Perform.*.Instrument to Patch because it
+      makes sense that Score.Instrument refers to an Instrument.  Patch is
+      a lower level concept, so instead I should exchange Patch and
+      Instrument.  Then we have Inst -> Instrument -> Patch.
   * Now that I only address instruments as aliases, do I really need the
     qualified >synth/inst form?  Shouldn't I just have a
     'QualifiedName Text Text'?  I think all it means is that LInst.add
     becomes 'LInst.add "inst" "synth" "inst" "loop1" [0].  Of course I could
     still separate with a / if I don't like all those string args.
   * Aliases should use Inst.Qualified.
-  - Incorporate Midi.Instrument.Instrument into Patch.  Move Instrument to
-    Perform as a purely perform-level type.
+  * Incorporate Midi.Instrument.Instrument into Patch, rename to Instrument.
+    Move the required fields from Instrument to Perform.Patch.
+    . inst_hold_keyswitch becomes a Flag
+    . inst_control_map -> dulplicate
+    . inst_pitch_bend_range -> dulplicate
+    . inst_maybe_decay -> dulplicate
+  - rename Midi.Instrument.Patch to Instrument
+    . PatchScale -> Scale
+  - What happened to running MidiInst.check_names when making a Synth?
   * Rename Perform.Synth to Perform.Im.
   - Perform.Im.Convert converts to Notes and serializes them
   - Perform.Im.Perform invokes the sampler

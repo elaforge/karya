@@ -39,7 +39,7 @@ patches =
         MidiInst.patch (-24, 24) name []
     set_params = (MidiInst.patch_ %=) $
         Instrument.set_flag Instrument.ConstantPitch
-        . (Instrument.instrument_#Instrument.maybe_decay #= Just 0)
+        . (Instrument.decay #= Just 0)
         . (Instrument.attribute_map #= attribute_map)
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned
     set_scale = (MidiInst.patch_#Instrument.scale #= Just patch_scale)

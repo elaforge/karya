@@ -34,7 +34,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import Global
 import Types
 
@@ -97,7 +97,7 @@ midi_config :: State.M m => m Instrument.Configs
 midi_config = State.get_midi_config
 
 -- | Alias map.  It maps from alias to underlying instrument.
-aliases :: State.M m => m (Map.Map Score.Instrument Inst.Qualified)
+aliases :: State.M m => m (Map.Map Score.Instrument InstTypes.Qualified)
 aliases = State.config#State.aliases <#> State.get
 
 -- | Rename an instrument, in both aliases and allocations.
@@ -354,8 +354,9 @@ auto_config block_id = do
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
 device_of :: Score.Instrument -> Cmd.CmdL Midi.WriteDevice
 device_of inst = do
-    Inst.Qualified synth _ <- Cmd.require ("no instrument: " <> pretty inst)
-        =<< Cmd.lookup_qualified inst
+    InstTypes.Qualified synth _ <-
+        Cmd.require ("no instrument: " <> pretty inst)
+            =<< Cmd.lookup_qualified inst
     return $ Midi.write_device synth
 
 
@@ -409,8 +410,8 @@ type Instrument = Text
 -- | This is parsed into a 'Inst.Qualified'.
 type Qualified = Text
 
-parse_qualified :: Cmd.M m => Qualified -> m Inst.Qualified
+parse_qualified :: Cmd.M m => Qualified -> m InstTypes.Qualified
 parse_qualified text
-    | "/" `Text.isInfixOf` text = return $ Inst.parse_qualified text
+    | "/" `Text.isInfixOf` text = return $ InstTypes.parse_qualified text
     | otherwise =
         Cmd.throw $ "qualified inst name lacks a /: " <> showt text

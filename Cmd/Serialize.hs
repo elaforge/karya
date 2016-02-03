@@ -59,7 +59,7 @@ import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import Global
 import Types
 
@@ -140,7 +140,7 @@ instrument_db_magic = Magic 'i' 'n' 's' 't'
 
 -- | Time serialized, patches.
 data InstrumentDb = InstrumentDb
-    Time.UTCTime (Map.Map Inst.Name (Instrument.Patch, Common.Common ()))
+    Time.UTCTime (Map.Map InstTypes.Name (Instrument.Patch, Common.Common ()))
 
 -- * Serialize instances
 
@@ -178,7 +178,7 @@ instance Serialize State.Config where
             defaults :: State.Default <- get
             saved_views :: State.SavedViews <- get
             return $ State.Config ns meta root midi transform
-                (Inst.parse_qualified . Score.instrument_name <$> aliases)
+                (InstTypes.parse_qualified . Score.instrument_name <$> aliases)
                 lilypond defaults saved_views Nothing
         9 -> do
             ns :: Id.Namespace <- get
@@ -192,7 +192,7 @@ instance Serialize State.Config where
             saved_views :: State.SavedViews <- get
             defs :: Maybe FilePath <- get
             return $ State.Config ns meta root midi transform
-                (Inst.parse_qualified . Score.instrument_name <$> aliases)
+                (InstTypes.parse_qualified . Score.instrument_name <$> aliases)
                 lilypond defaults saved_views defs
         10 -> do
             ns :: Id.Namespace <- get
@@ -200,7 +200,7 @@ instance Serialize State.Config where
             root :: Maybe BlockId <- get
             Configs midi :: Configs <- get
             transform :: Text <- get
-            aliases :: Map.Map Score.Instrument Inst.Qualified <- get
+            aliases :: Map.Map Score.Instrument InstTypes.Qualified <- get
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
             saved_views :: State.SavedViews <- get
@@ -509,10 +509,11 @@ instance Serialize.Serialize MidiConfig.Config where
                 midi :: Instrument.Configs <- get
                 aliases :: Map.Map Score.Instrument Score.Instrument <- get
                 return $ MidiConfig.Config midi
-                    (Inst.parse_qualified . Score.instrument_name <$> aliases)
+                    (InstTypes.parse_qualified . Score.instrument_name
+                        <$> aliases)
             1 -> do
                 midi :: Instrument.Configs <- get
-                aliases :: Map.Map Score.Instrument Inst.Qualified <- get
+                aliases :: Map.Map Score.Instrument InstTypes.Qualified <- get
                 return $ MidiConfig.Config midi aliases
             _ -> Serialize.bad_version "MidiConfig.Config" v
 

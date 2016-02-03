@@ -6,15 +6,16 @@ module Instrument.Inst_test where
 import Util.Test
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument.Kontakt as Kontakt
 
 
 test_lookup = do
     let db = fst $ Inst.db [Kontakt.synth]
-    let f synth name = Instrument.patch_instrument <$>
-            (Inst.inst_midi =<< Inst.lookup (Inst.Qualified synth name) db)
+    let f synth name =
+            Inst.inst_midi =<< Inst.lookup (InstTypes.Qualified synth name) db
 
-    let kontakt_inst name = Instrument.instrument Kontakt.pb_range name []
-    equal (f "kontakt" "hang") $ Just (kontakt_inst "hang")
+    let kontakt_inst name = Instrument.patch Kontakt.pb_range name
+    equal (Instrument.patch_name <$> f "kontakt" "hang") $ Just "hang"
     -- Has default inst.
     equal (f "kontakt" "") $ Just (kontakt_inst "")

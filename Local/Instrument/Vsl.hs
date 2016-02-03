@@ -39,7 +39,9 @@ import qualified Derive.Sig as Sig
 
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Common as Common
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Tag as Tag
+
 import qualified Local.Instrument.VslInst as VslInst
 import Global
 import Types
@@ -70,7 +72,7 @@ synth = MidiInst.synth "vsl" "Vienna Symphonic Library" $
 -- * util
 
 -- | For interactive use, find keyswitches with the given attributes.
-find_attrs :: Instrument.InstrumentName -> String -> [Text]
+find_attrs :: InstTypes.Name -> String -> [Text]
 find_attrs inst with_attrs =
     map ShowVal.show_val $ filter (`Score.attrs_contain` search)
         (patch_attrs (MidiInst.patch_patch patch))
@@ -207,7 +209,7 @@ harmonic config hmap args = do
 
 -- * keyswitches
 
-type Instrument = (Instrument.InstrumentName, [Keyswitch])
+type Instrument = (InstTypes.Name, [Keyswitch])
 type Keyswitch = (Score.Attributes, [Instrument.Keyswitch])
 
 make_patch :: VslInst.Instrument -> Text -> MidiInst.Patch

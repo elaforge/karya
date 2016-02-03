@@ -43,8 +43,11 @@ import qualified Derive.Scale.Legong as Legong
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
+import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
+
+import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument.Kontakt.KendangBali as KendangBali
 import qualified Local.Instrument.Kontakt.KendangSunda as KendangSunda
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
@@ -68,8 +71,7 @@ patches =
     , Mridangam.patches, Pakhawaj.patches, Reyong.patches, Wayang.patches
     ]
 
-patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
-    -> MidiInst.Patch
+patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
 patch = MidiInst.patch pb_range
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get
@@ -106,9 +108,10 @@ balalaika :: [MidiInst.Patch]
 balalaika =
     [ MidiInst.code #= code $
         MidiInst.attribute_map #= Instrument.single_keyswitches ks $
-        MidiInst.make_patch $ Instrument.patch $
-        (Instrument.hold_keyswitch #= True) $
-        Instrument.instrument pb_range "balalaika" controls
+        MidiInst.make_patch $
+        Instrument.set_flag Instrument.HoldKeyswitch $
+        Instrument.control_map #= Control.control_map controls $
+        Instrument.patch pb_range "balalaika"
     ]
     where
     code = MidiInst.note_generators [("(", Articulation.c_attr_legato)]

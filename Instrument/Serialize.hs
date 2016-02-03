@@ -41,34 +41,25 @@ instance Serialize Search.Index where
     put (Search.Index a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (Search.Index a b)
 
-instance Serialize (Instrument.Synth ()) where
-    put (Instrument.Synth a b c d e) = put a >> put b >> put c >> put d >> put e
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d -> get >>= \e ->
-        return (Instrument.Synth a b c d e)
-
 instance Serialize Instrument.Patch where
-    put (Instrument.Patch a b c d e f) = put a >> put b >> put c
-        >> put d >> put e >> put f
+    put (Instrument.Patch a b c d e f g h i) = put a >> put b >> put c
+        >> put d >> put e >> put f >> put g >> put h >> put i
     get = Instrument.Patch <$> get <*> get <*> get <*> get <*> get <*> get
+        <*> get <*> get <*> get
 
 instance Serialize Instrument.Flag where
     put Instrument.Triggered = put_tag 0
     put Instrument.Pressure = put_tag 1
     put Instrument.ConstantPitch = put_tag 2
+    put Instrument.HoldKeyswitch = put_tag 3
     get = do
         tag <- get_tag
         case tag of
             0 -> return Instrument.Triggered
             1 -> return Instrument.Pressure
             2 -> return Instrument.ConstantPitch
+            3 -> return Instrument.HoldKeyswitch
             _ -> bad_tag "Instrument.Flag" tag
-
-instance Serialize Instrument.Instrument where
-    put (Instrument.Instrument a b c d e f g h) = put a >> put b >> put c
-        >> put d >> put e >> put f >> put g >> put h
-    get = get >>= \a -> get >>= \b -> get >>= \c -> get >>= \d ->
-        get >>= \e -> get >>= \f -> get >>= \g -> get >>= \h ->
-            return (Instrument.Instrument a b c d e f g h)
 
 instance Serialize Instrument.InitializePatch where
     put (Instrument.InitializeMidi a) = put_tag 0 >> put a

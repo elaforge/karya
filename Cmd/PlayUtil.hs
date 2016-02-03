@@ -65,6 +65,8 @@ import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
 import qualified App.Config as Config
 import Global
 import Types
@@ -307,12 +309,11 @@ get_convert_lookup = do
             Map.findWithDefault mempty inst defaults
         }
     where
-    to_patch :: (Cmd.Inst, Inst.Qualified)
-        -> Maybe (Instrument.Patch, Inst.Qualified, Score.Event -> Score.Event)
-    to_patch (inst, qualified) = case Inst.inst_backend inst of
+    to_patch :: (Cmd.Inst, InstTypes.Qualified)
+        -> Maybe (Instrument.Patch, Score.Event -> Score.Event)
+    to_patch (inst, _qualified) = case Inst.inst_backend inst of
         Inst.Midi patch -> Just
             ( patch
-            , qualified
             , Cmd.inst_postproc (Common.common_code (Inst.inst_common inst))
             )
         _ -> Nothing

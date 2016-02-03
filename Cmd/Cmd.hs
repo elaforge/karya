@@ -83,6 +83,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -90,6 +91,8 @@ import qualified Perform.Transport as Transport
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
 import qualified App.Config as Config
 import Global
 import Types
@@ -701,10 +704,10 @@ data WriteDeviceState = WriteDeviceState {
     , wdev_pitch_track :: !(Map.Map InputNote.NoteId (BlockId, TrackNum))
 
     -- Used by no one, yet:  (TODO should someone use this?)
-    -- | Remember the current inst of each addr.  More than one instrument or
+    -- | Remember the current patch of each addr.  More than one patch or
     -- keyswitch can share the same addr, so I need to keep track which one is
     -- active to minimize switches.
-    , wdev_addr_inst :: !(Map.Map Instrument.Addr Instrument.Instrument)
+    , wdev_addr_inst :: !(Map.Map Instrument.Addr Patch.Patch)
     } deriving (Eq, Show)
 
 type Serial = Int
@@ -1049,7 +1052,8 @@ get_midi_patch inst =
 lookup_instrument :: M m => Score.Instrument -> m (Maybe Inst)
 lookup_instrument inst = fmap fst . ($ inst) <$> get_lookup_instrument
 
-lookup_qualified :: State.M m => Score.Instrument -> m (Maybe Inst.Qualified)
+lookup_qualified :: State.M m => Score.Instrument
+    -> m (Maybe InstTypes.Qualified)
 lookup_qualified inst =
     Map.lookup inst <$> (State.config#State.aliases <#> State.get)
 
@@ -1058,7 +1062,7 @@ lookup_qualified inst =
 -- and 'Instrument.config_environ', so anyone looking up a Patch should go
 -- through this.
 get_lookup_instrument
-    :: M m => m (Score.Instrument -> Maybe (Inst, Inst.Qualified))
+    :: M m => m (Score.Instrument -> Maybe (Inst, InstTypes.Qualified))
 get_lookup_instrument = do
     aliases <- State.config#State.aliases <#> State.get
     configs <- State.get_midi_config

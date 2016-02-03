@@ -24,9 +24,11 @@ import qualified Perform.NN as NN
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
+import qualified Instrument.InstTypes as InstTypes
 import Global
 
 
+-- Supports MTS, aka real time tuning.
 synth :: MidiInst.Synth
 synth = MidiInst.synth "pianoteq" "Modartt Pianoteq" patches
 
@@ -94,6 +96,5 @@ c_grace = Grace.make_grace Module.instrument
     (Derive.with_constant_control gliss (Score.untyped 1)) $ \_args events ->
         Sub.derive events
 
-patch :: Instrument.InstrumentName -> [(Midi.Control, Score.Control)]
-    -> MidiInst.Patch
+patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
 patch = MidiInst.patch pb_range

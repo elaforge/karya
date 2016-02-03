@@ -62,6 +62,7 @@ import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified App.Config as Config
 import Global
 import Types
@@ -420,8 +421,8 @@ default_environ = Env.from_list
 default_db :: Cmd.InstrumentDb
 default_db = make_db [("s", map make_patch ["1", "2", "3"])]
 
-make_patch :: Text -> Instrument.Patch
-make_patch name = Instrument.patch $ Instrument.instrument (-2, 2) name []
+make_patch :: InstTypes.Name -> Instrument.Patch
+make_patch name = Instrument.patch (-2, 2) name
 
 default_convert_lookup :: Convert.Lookup
 default_convert_lookup = make_convert_lookup UiTest.default_aliases default_db
@@ -439,7 +440,7 @@ make_db synth_patches = fst $ Inst.db $ map make synth_patches
     where
     make (name, patches) = make_synth name (map MidiInst.make_patch patches)
 
-make_synth :: Inst.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
+make_synth :: InstTypes.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
 make_synth name patches = MidiInst.synth name "Test Synth" patches
 
 make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup

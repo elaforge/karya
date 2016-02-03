@@ -85,7 +85,7 @@ msg_to_inputs kbd_entry maybe_patch msg = do
         then do
             octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
             let is_pressure = maybe False
-                    (Instrument.has_flag Instrument.Pressure) maybe_patch
+                    (`Instrument.has_flag` Instrument.Pressure) maybe_patch
             return $ kbd_input is_pressure octave msg
         else return Nothing
     maybe (midi_input msg) (return . Just) new_msgs

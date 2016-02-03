@@ -119,8 +119,7 @@ midi_thru_instrument score_inst input = do
         wdev_state <- Cmd.get_wdev_state
         let (thru_msgs, maybe_wdev_state) =
                 input_to_midi pb_range wdev_state addrs input
-            pb_range = Instrument.inst_pitch_bend_range
-                (Instrument.patch_instrument patch)
+            pb_range = Instrument.patch_pitch_bend_range patch
         whenJust maybe_wdev_state $ Cmd.modify_wdev_state . const
         mapM_ (uncurry Cmd.midi) thru_msgs
 

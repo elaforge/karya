@@ -11,7 +11,7 @@ module Instrument.MakeDb where
 import qualified Data.Text.IO as Text.IO
 import qualified System.Environment as Environment
 
-import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument as Instrument
 import qualified App.Config as Config
 import Global
@@ -32,7 +32,7 @@ main = do
                 errorIO $ "dbs not found: " <> show not_found
             make db_path found
 
-make :: FilePath -> [(Inst.SynthName, (Instrument.MakeDb, a))] -> IO ()
+make :: FilePath -> [(InstTypes.SynthName, (Instrument.MakeDb, a))] -> IO ()
 make db_path = mapM_ $ \(name, (make, _)) -> do
     Text.IO.putStrLn $ "-------- db: " <> name
     make db_path

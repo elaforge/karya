@@ -20,24 +20,26 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Tag as Tag
 
 import Global
 
 
-type Search = Query -> [Inst.Qualified]
+type Search = Query -> [InstTypes.Qualified]
 
--- | A simple tag-oriented query language.  Instruments match whose tags match
--- all of the given TagKeys exactly, and whose corresponding vals have the
--- queried val as a substring.  All the pairs must match, but pairs that
--- match nothing won't cause the match to fail.  A tag beginning with @!@ will
--- subtract its matches from the result.
---
--- For example, a single word @tag1@ will match all instruments that have the
--- given tag.  @tag1=x@ requires that tag1 has an \"x\" in it.
---
--- @tag1=x tag2=y !bad !not=want@ requires both tags to match, the
--- @bad@ tag to not be present, and the @not@ tag to not contain \"want\".
+{- | A simple tag-oriented query language.  Instruments match whose tags match
+    all of the given TagKeys exactly, and whose corresponding vals have the
+    queried val as a substring.  All the pairs must match, but pairs that match
+    nothing won't cause the match to fail.  A tag beginning with @!@ will
+    subtract its matches from the result.
+
+    For example, a single word @tag1@ will match all instruments that have the
+    given tag.  @tag1=x@ requires that tag1 has an \"x\" in it.
+
+    @tag1=x tag2=y !bad !not=want@ requires both tags to match, the @bad@ tag
+    to not be present, and the @not@ tag to not contain \"want\".
+    -}
 newtype Query = Query [Clause]
     deriving (Show)
 
@@ -64,12 +66,12 @@ search idx (Query clauses)
     negative = Set.fromList $ concat $
         query_matches idx [(k, v) | Clause True k v <- clauses]
 
-tags_of :: Index -> Inst.Qualified -> Maybe [Tag.Tag]
+tags_of :: Index -> InstTypes.Qualified -> Maybe [Tag.Tag]
 tags_of idx inst = Map.lookup inst (idx_instrument_tags idx)
 
 data Index = Index {
-    idx_by_key :: Map.Map Tag.Key (Map.Map Tag.Value [Inst.Qualified])
-    , idx_instrument_tags :: Map.Map Inst.Qualified [Tag.Tag]
+    idx_by_key :: Map.Map Tag.Key (Map.Map Tag.Value [InstTypes.Qualified])
+    , idx_instrument_tags :: Map.Map InstTypes.Qualified [Tag.Tag]
     } deriving (Show)
 
 empty_index :: Index
@@ -108,7 +110,7 @@ parse = Query . map clause . Text.words
 
 -- * implementation
 
-query_matches :: Index -> [(Tag.Key, Tag.Value)] -> [[Inst.Qualified]]
+query_matches :: Index -> [(Tag.Key, Tag.Value)] -> [[InstTypes.Qualified]]
 query_matches (Index idx _) = map with_tag
     where
     with_tag (key, val) = case Map.lookup key idx of
@@ -116,18 +118,20 @@ query_matches (Index idx _) = map with_tag
         Just vals -> concatMap snd $ filter ((val `Text.isInfixOf`) . fst)
             (Map.assocs vals)
 
-instrument_tags :: Inst.Db code -> [(Inst.Qualified, [Tag.Tag])]
+instrument_tags :: Inst.Db code -> [(InstTypes.Qualified, [Tag.Tag])]
 instrument_tags = concatMap synth_tags . Inst.synths
 
-synth_tags :: (Inst.SynthName, Inst.Synth code) -> [(Inst.Qualified, [Tag.Tag])]
+synth_tags :: (InstTypes.SynthName, Inst.Synth code)
+    -> [(InstTypes.Qualified, [Tag.Tag])]
 synth_tags (synth_name, synth) = do
     (inst_name, inst) <- Map.toList (Inst.synth_insts synth)
     let tags = normalize_tags $
             common_tags synth_name inst_name (Inst.inst_common inst)
             ++ inst_tags (Inst.inst_backend inst)
-    return (Inst.Qualified synth_name inst_name, tags)
+    return (InstTypes.Qualified synth_name inst_name, tags)
 
-common_tags :: Inst.SynthName -> Inst.Name -> Common.Common code -> [Tag.Tag]
+common_tags :: InstTypes.SynthName -> InstTypes.Name -> Common.Common code
+    -> [Tag.Tag]
 common_tags synth_name inst_name common =
     (Tag.synth, synth_name)
     : (Tag.name, inst_name)
@@ -137,8 +141,7 @@ common_tags synth_name inst_name common =
 inst_tags :: Inst.Backend -> [Tag.Tag]
 inst_tags (Inst.Midi patch) = concat
     [ [(Tag.backend, "midi")]
-    , control_tags $
-        Instrument.inst_control_map (Instrument.patch_instrument patch)
+    , control_tags $ Instrument.patch_control_map patch
     , case Instrument.patch_initialize patch of
         Instrument.InitializeMidi msgs
             | any Midi.is_sysex msgs -> [(Tag.sysex, "")]

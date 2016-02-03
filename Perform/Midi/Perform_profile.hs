@@ -14,12 +14,13 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.InstTypes as InstTypes
 import Global
 
 
@@ -101,21 +102,18 @@ mkevent :: Double -> Double -> [(Score.Control, Signal.Control)]
 mkevent start dur controls pitch_sig = PerformTest.empty_event
     { Perform.event_start = RealTime.seconds start
     , Perform.event_duration = RealTime.seconds dur
-    , Perform.event_instrument = inst1
+    , Perform.event_patch = patch1
     , Perform.event_controls = Map.fromList controls
     , Perform.event_pitch = pitch_sig
     }
 
-inst1 :: Instrument.Instrument
-inst1 = mkinst "inst1"
+patch1 :: Patch.Patch
+patch1 = mkpatch "patch1"
 
-mkinst :: Instrument.InstrumentName -> Instrument.Instrument
-mkinst name = (Instrument.instrument (-2, 2) name [])
-    { Instrument.inst_score = Score.Instrument name
-    , Instrument.inst_maybe_decay = Just 1
-    }
+mkpatch :: InstTypes.Name -> Patch.Patch
+mkpatch name = (PerformTest.mkpatch name) { Patch.decay = Just 1 }
 
 inst_addrs :: Perform.InstAddrs
 inst_addrs = Map.fromList
-    [(Score.Instrument "inst1", [((dev, n), Nothing) | n <- [0..8]])]
+    [(Score.Instrument "patch1", [((dev, n), Nothing) | n <- [0..8]])]
     where dev = Midi.write_device "dev1"

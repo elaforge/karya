@@ -17,7 +17,9 @@ import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
+
 import qualified Local.Instrument.Drumaxx as Drumaxx
 import qualified Local.Instrument.Fm8 as Fm8
 import qualified Local.Instrument.Kontakt as Kontakt
@@ -63,7 +65,7 @@ all_synths =
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
-all_loads :: [(Inst.SynthName, (MakeDb, Load))]
+all_loads :: [(InstTypes.SynthName, (MakeDb, Load))]
 all_loads =
     [ (Morpheus.synth_name, (Morpheus.make_db, Morpheus.load))
     , (Vl1.synth_name, (Vl1.make_db, Vl1.load))
