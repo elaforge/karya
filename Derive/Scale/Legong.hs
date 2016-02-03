@@ -195,17 +195,17 @@ extend nns = from_ding
 
 -- * instrument integration
 
--- | A PatchScale with the entire theoretical range.  This is for instruments
+-- | A Scale with the entire theoretical range.  This is for instruments
 -- that are normalized to 12tet and then tuned in the patch (e.g. using KSP).
-complete_patch_scale :: BaliScales.Tuning -> Instrument.PatchScale
-complete_patch_scale = patch_scale id
+complete_instrument_scale :: BaliScales.Tuning -> Instrument.Scale
+complete_instrument_scale = instrument_scale id
 
-patch_scale ::
+instrument_scale ::
     ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
-    -> BaliScales.Tuning -> Instrument.PatchScale
-patch_scale take_range tuning =
-    Instrument.make_patch_scale ("legong " <> ShowVal.show_val tuning) $
+    -> BaliScales.Tuning -> Instrument.Scale
+instrument_scale take_range tuning =
+    Instrument.make_scale ("legong " <> ShowVal.show_val tuning) $
         take_range $ zip midi_keys (extend nns)
     where
     nns = case tuning of

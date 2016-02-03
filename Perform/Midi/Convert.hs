@@ -114,7 +114,7 @@ require_patch inst Nothing = do
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Patch.Patch -> Maybe Instrument.PatchScale
+convert_midi_pitch :: Patch.Patch -> Maybe Instrument.Scale
     -> Instrument.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
     -> ConvertT (Patch.Patch, Signal.NoteNumber)
 convert_midi_pitch patch scale attr_map constant_pitch controls event =
@@ -172,7 +172,7 @@ convert_dynamic pressure controls
         (Map.lookup Controls.dynamic controls)
     | otherwise = controls
 
-convert_pitch :: Maybe Instrument.PatchScale -> Env.Environ
+convert_pitch :: Maybe Instrument.Scale -> Env.Environ
     -> Score.ControlMap -> PSignal.PSignal -> ConvertT Signal.NoteNumber
 convert_pitch scale env controls psig = do
     let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $
@@ -191,10 +191,10 @@ convert_pitch scale env controls psig = do
 round_pitch :: Signal.Y -> Signal.Y
 round_pitch nn = fromIntegral (round (nn * 1000)) / 1000
 
-convert_scale :: Maybe Instrument.PatchScale -> Signal.NoteNumber
+convert_scale :: Maybe Instrument.Scale -> Signal.NoteNumber
     -> (Signal.NoteNumber, [(Signal.X, Signal.Y)])
 convert_scale Nothing = (, [])
 convert_scale (Just scale) = Signal.map_err $ \(TimeVector.Sample x y) ->
-    case Instrument.convert_patch_scale scale (Pitch.NoteNumber y) of
+    case Instrument.convert_scale scale (Pitch.NoteNumber y) of
         Just (Pitch.NoteNumber nn) -> Right (TimeVector.Sample x nn)
         Nothing -> Left (x, y)

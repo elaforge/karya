@@ -142,8 +142,8 @@ note_numbers scale environ = go (notes scale environ)
             Left err -> Derive.throw $ "note_numbers: " <> pretty err
 
 -- | Make a patch scale from the NoteNumbers.
-patch_scale :: Pitch.ScaleId -> [Pitch.NoteNumber] -> Instrument.PatchScale
-patch_scale scale_id nns = Instrument.make_patch_scale (pretty scale_id) $
+patch_scale :: Pitch.ScaleId -> [Pitch.NoteNumber] -> Instrument.Scale
+patch_scale scale_id nns = Instrument.make_scale (pretty scale_id) $
     map (first Midi.to_key) $ assign_keys 128 nns
 
 -- | Try to assign MIDI keys that correspond to the NoteNumbers, but

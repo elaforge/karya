@@ -293,7 +293,7 @@ config_kebyar dev_ = make_config $ concat
     where
     -- (name, patch_name, gets_chan, environ, scale)
     make_config :: [(Text, Text, Bool, [(BaseTypes.Key, RestrictedEnviron.Val)],
-            Maybe Instrument.PatchScale)]
+            Maybe Instrument.Scale)]
         -> MidiConfig.Config
     make_config = MidiConfig.config . snd . List.mapAccumL allocate 0
         where
@@ -327,12 +327,12 @@ config_kebyar dev_ = make_config $ concat
     umbang_patch name patch =
         ( name, sc_patch patch, True
         , tuning BaliScales.Umbang
-        , Just $ Legong.complete_patch_scale BaliScales.Umbang
+        , Just $ Legong.complete_instrument_scale BaliScales.Umbang
         )
     isep_patch name patch =
         ( name, sc_patch patch, True
         , tuning BaliScales.Isep
-        , Just $ Legong.complete_patch_scale BaliScales.Isep
+        , Just $ Legong.complete_instrument_scale BaliScales.Isep
         )
     tuning val = [(EnvKey.tuning, to_val val)]
     patch name = (name, sc_patch name, True, [], Nothing)

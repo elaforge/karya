@@ -415,7 +415,7 @@ Synth: Im:
     . inst_pitch_bend_range -> dulplicate
     . inst_maybe_decay -> dulplicate
   - rename Midi.Instrument.Patch to Instrument
-    . PatchScale -> Scale
+    * PatchScale -> Scale
   - What happened to running MidiInst.check_names when making a Synth?
   * Rename Perform.Synth to Perform.Im.
   - Perform.Im.Convert converts to Notes and serializes them

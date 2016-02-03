@@ -79,7 +79,7 @@ patches = map (MidiInst.code #= code <> with_weak)
         . (Instrument.attribute_map #= attribute_map)
     set_scale tuning =
         (MidiInst.patch_#Instrument.scale
-            #= Just (Wayang.patch_scale False tuning))
+            #= Just (Wayang.instrument_scale False tuning))
         . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
 
@@ -116,12 +116,12 @@ attribute_map = Common.attribute_map
 
 -- * retuned patch
 
-retuned_patch :: Pitch.ScaleId -> Text -> Instrument.PatchScale
+retuned_patch :: Pitch.ScaleId -> Text -> Instrument.Scale
     -> MidiInst.Patch -> MidiInst.Patch
-retuned_patch scale_id tuning patch_scale =
+retuned_patch scale_id tuning instrument_scale =
     MidiInst.default_scale scale_id . MidiInst.environ EnvKey.tuning tuning
     . (MidiInst.doc #= doc)
-    . (MidiInst.patch_#Instrument.scale #= Just patch_scale)
+    . (MidiInst.patch_#Instrument.scale #= Just instrument_scale)
     where
     doc = "The instrument is expected to tune to the scale using the\
         \ generated KSP."
@@ -129,9 +129,13 @@ retuned_patch scale_id tuning patch_scale =
 -- | Write KSP to retune a 12TET patch.
 write_ksp :: IO ()
 write_ksp = mapM_ (uncurry Util.write)
-    [ ("wayang-umbang.ksp", ksp $ Wayang.patch_scale True BaliScales.Umbang)
-    , ("wayang-isep.ksp",   ksp $ Wayang.patch_scale True BaliScales.Isep)
-    , ("legong-umbang.ksp", ksp $ Legong.complete_patch_scale BaliScales.Umbang)
-    , ("legong-isep.ksp",   ksp $ Legong.complete_patch_scale BaliScales.Isep)
+    [ ("wayang-umbang.ksp", ksp $
+        Wayang.instrument_scale True BaliScales.Umbang)
+    , ("wayang-isep.ksp", ksp $
+        Wayang.instrument_scale True BaliScales.Isep)
+    , ("legong-umbang.ksp", ksp $
+        Legong.complete_instrument_scale BaliScales.Umbang)
+    , ("legong-isep.ksp", ksp $
+        Legong.complete_instrument_scale BaliScales.Isep)
     ]
     where ksp = Util.tuning_ksp

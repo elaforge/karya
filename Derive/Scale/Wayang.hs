@@ -135,9 +135,9 @@ extend nns =
 
 -- * instrument integration
 
-patch_scale :: Bool -> BaliScales.Tuning -> Instrument.PatchScale
-patch_scale extended tuning =
-    Instrument.make_patch_scale ("wayang " <> ShowVal.show_val tuning) $
+instrument_scale :: Bool -> BaliScales.Tuning -> Instrument.Scale
+instrument_scale extended tuning =
+    Instrument.make_scale ("wayang " <> ShowVal.show_val tuning) $
         zip (midi_keys extended) (if extended then extend nns else nns)
     where
     nns = case tuning of

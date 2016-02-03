@@ -33,7 +33,7 @@ nn_to_note = Twelve.show_nn . fromIntegral
 
 -- * scales
 
-patch_scale :: Cmd.M m => Pitch.ScaleId -> m Instrument.PatchScale
+patch_scale :: Cmd.M m => Pitch.ScaleId -> m Instrument.Scale
 patch_scale scale_id = (Cmd.require_right id <=< Perf.derive) $ do
     scale <- Derive.get_scale scale_id
     nns <- Scale.note_numbers scale mempty

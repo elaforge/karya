@@ -157,7 +157,7 @@ map_scale patch common config scale input = case input of
             Right (Left BaseTypes.InvalidInput) -> Cmd.abort
             Right (Left err) -> throw $ pretty err
             Right (Right nn) -> return $
-                map_patch_scale (Instrument.patch_scale patch) nn
+                map_instrument_scale (Instrument.patch_scale patch) nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
 
 -- | Remove transposers because otherwise the thru pitch doesn't match the
@@ -176,10 +176,10 @@ only_allow_octave_transpose controls scale =
             (Set.toList (Scale.scale_transposers scale)))
         (repeat (Score.untyped Signal.empty))
 
-map_patch_scale :: Maybe Instrument.PatchScale -> Pitch.NoteNumber
+map_instrument_scale :: Maybe Instrument.Scale -> Pitch.NoteNumber
     -> Maybe Pitch.NoteNumber
-map_patch_scale Nothing = Just
-map_patch_scale (Just scale) = Instrument.convert_patch_scale scale
+map_instrument_scale Nothing = Just
+map_instrument_scale (Just scale) = Instrument.convert_scale scale
 
 input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.InputNn

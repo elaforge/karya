@@ -42,12 +42,12 @@ patches =
         . (Instrument.decay #= Just 0)
         . (Instrument.attribute_map #= attribute_map)
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned
-    set_scale = (MidiInst.patch_#Instrument.scale #= Just patch_scale)
+    set_scale = (MidiInst.patch_#Instrument.scale #= Just instrument_scale)
         . MidiInst.default_scale Legong.scale_id
         . MidiInst.environ EnvKey.tuning tuning
     -- Trompong starts at 3a, trompong + reyong has 15 keys.
-    patch_scale =
-        Legong.patch_scale (take 15 . drop 4 . Legong.strip_pemero) tuning
+    instrument_scale =
+        Legong.instrument_scale (take 15 . drop 4 . Legong.strip_pemero) tuning
 
 attribute_map :: Instrument.AttributeMap
 attribute_map = Instrument.keyswitches $ map at

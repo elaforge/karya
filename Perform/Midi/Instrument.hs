@@ -84,7 +84,7 @@ data Config = Config {
     -- because...  didn't seem useful?  If I need it, I can add it.
     , config_controls :: !Score.ControlValMap
     -- | A local version of 'patch_scale'.
-    , config_scale :: !(Maybe PatchScale)
+    , config_scale :: !(Maybe Scale)
     -- | Default controls for this instrument, will always be set unless
     -- explicitly replaced.  This hopefully avoids the problem where
     -- a synthesizer starts in an undefined state.  This is different from
@@ -173,7 +173,7 @@ data Patch = Patch {
     -- figure out how long to generate control messages, or possibly determine
     -- overlap for channel allocation, though I use LRU so it shouldn't matter.
     , patch_decay :: !(Maybe RealTime)
-    , patch_scale :: !(Maybe PatchScale)
+    , patch_scale :: !(Maybe Scale)
     , patch_flags :: !(Set.Set Flag)
     , patch_initialize :: !InitializePatch
     , patch_attribute_map :: !AttributeMap
@@ -235,15 +235,15 @@ type CallMap = Map.Map Score.Attributes BaseTypes.CallId
 
 -- | If a patch is tuned to something other than 12TET, this vector maps MIDI
 -- key numbers to their NNs, or 0 if the patch doesn't support that key.
-data PatchScale = PatchScale !Text (Vector.Vector Double)
+data Scale = Scale !Text (Vector.Vector Double)
     deriving (Eq, Show, Read)
 
-instance Pretty.Pretty PatchScale where
-    pretty (PatchScale name v) = name <> " ("
+instance Pretty.Pretty Scale where
+    pretty (Scale name v) = name <> " ("
         <> showt (Util.Vector.count (/=0) v) <> " pitches)"
 
-patch_scale_keys :: PatchScale -> [(Midi.Key, Pitch.NoteNumber)]
-patch_scale_keys (PatchScale _ nns) =
+scale_keys :: Scale -> [(Midi.Key, Pitch.NoteNumber)]
+scale_keys (Scale _ nns) =
     map (second Pitch.nn) $ filter ((/=0) . snd) $ zip [0..] $ Vector.toList nns
 
 -- | Fill in non-adjacent MIDI keys by interpolating the neighboring
@@ -251,9 +251,9 @@ patch_scale_keys (PatchScale _ nns) =
 -- slides.  Another problem is that the MIDI performer has no notion of
 -- instruments that don't support certain key numbers.  That could be added
 -- but it's simpler to just not have patches like that.
-make_patch_scale :: Text -> [(Midi.Key, Pitch.NoteNumber)] -> PatchScale
-make_patch_scale name keys =
-    PatchScale name (empty Vector.// map convert (interpolate keys))
+make_scale :: Text -> [(Midi.Key, Pitch.NoteNumber)] -> Scale
+make_scale name keys =
+    Scale name (empty Vector.// map convert (interpolate keys))
     where
     convert (k, Pitch.NoteNumber nn) = (Midi.from_key k, nn)
     interpolate ((k1, nn1) : rest@((k2, nn2) : _))
@@ -268,8 +268,8 @@ make_patch_scale name keys =
     interpolate xs = xs
     empty = Vector.fromList $ replicate 128 0
 
-convert_patch_scale :: PatchScale -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
-convert_patch_scale (PatchScale _ scale) (Pitch.NoteNumber nn) =
+convert_scale :: Scale -> Pitch.NoteNumber -> Maybe Pitch.NoteNumber
+convert_scale (Scale _ scale) (Pitch.NoteNumber nn) =
     case Util.Vector.bracketing scale nn of
         Just (i, low, high) | low /= 0 -> Just $ Pitch.NoteNumber $
             fromIntegral i + Num.normalize low high nn

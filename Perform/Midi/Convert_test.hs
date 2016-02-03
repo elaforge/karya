@@ -143,9 +143,9 @@ show_logs :: (a -> b) -> [LEvent.LEvent a] -> [Either b String]
 show_logs extract =
     map $ LEvent.either (Left . extract) (Right . DeriveTest.show_log)
 
--- * patch scale
+-- * instrument scale
 
-test_patch_scale = do
+test_instrument_scale = do
     let (_, (evts, _midi, logs)) = perform patch [("i1", "s/1")]
             [ (">i1", [(0, 1, ""), (1, 1, ""), (2, 1, "")])
             , ("*", [(0, 0, "4c"), (1, 0, "4c#"), (2, 0, "4d")])
@@ -154,8 +154,8 @@ test_patch_scale = do
     equal (map (Signal.unsignal . Perform.event_pitch) evts)
         [[(0, 1)], [(1, 1.5)], [(2, 2)]]
     where
-    patch = Instrument.scale #= Just pscale $ DeriveTest.make_patch "1"
-    pscale = Instrument.make_patch_scale "test" [(1, 60), (2, 62), (3, 63)]
+    patch = Instrument.scale #= Just scale $ DeriveTest.make_patch "1"
+    scale = Instrument.make_scale "test" [(1, 60), (2, 62), (3, 63)]
 
 -- * keymap
 

@@ -30,8 +30,8 @@ write fname = either (errorIO . untxt) $ \t -> do
 
 -- | Create a script in Kontakt's hilariously incompetent KSP language to
 -- retune a 12TET patch to the given scale.
-tuning_ksp :: Instrument.PatchScale -> Either Text Text
-tuning_ksp (Instrument.PatchScale name scale) =
+tuning_ksp :: Instrument.Scale -> Either Text Text
+tuning_ksp (Instrument.Scale name scale) =
     interpolate values tuning_template
     where
     values = Map.fromList

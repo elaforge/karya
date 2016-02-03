@@ -187,7 +187,7 @@ set_controls :: State.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
 set_controls inst controls = modify_config_ inst $
     Instrument.controls #= Map.fromList controls
 
-set_scale :: State.M m => Instrument -> Instrument.PatchScale -> m ()
+set_scale :: State.M m => Instrument -> Instrument.Scale -> m ()
 set_scale inst scale = modify_config_ inst $ Instrument.cscale #= Just scale
 
 set_control_defaults :: State.M m => Instrument -> [(Score.Control, Signal.Y)]
@@ -362,13 +362,13 @@ device_of inst = do
 
 -- * tuning
 
--- | Set the instrument's PatchScale to the given scale and send a MIDI tuning
+-- | Set the instrument's Scale to the given scale and send a MIDI tuning
 -- message to retune the synth.  Obviously this only works for synths that
 -- support it.
-retune :: Cmd.M m => Instrument -> Instrument.PatchScale -> m ()
+retune :: Cmd.M m => Instrument -> Instrument.Scale -> m ()
 retune inst scale = do
     let msg = Midi.realtime_tuning $ map (second Pitch.nn_to_double) $
-            Instrument.patch_scale_keys scale
+            Instrument.scale_keys scale
     set_scale inst scale
     devs <- map (fst . fst) . Instrument.config_addrs <$>
         get_config (Util.instrument inst)
