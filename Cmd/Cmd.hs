@@ -83,7 +83,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -707,7 +707,7 @@ data WriteDeviceState = WriteDeviceState {
     -- | Remember the current patch of each addr.  More than one patch or
     -- keyswitch can share the same addr, so I need to keep track which one is
     -- active to minimize switches.
-    , wdev_addr_inst :: !(Map.Map Instrument.Addr Patch.Patch)
+    , wdev_addr_inst :: !(Map.Map Instrument.Addr Midi.Types.Patch)
     } deriving (Eq, Show)
 
 type Serial = Int
@@ -1075,7 +1075,7 @@ get_lookup_instrument = do
     merge_environ configs inst_name =
         (Inst.common#Common.environ %= (environ <>)) . set_scale
         where
-        -- MIDI instruments can also get a patch from the local config.
+        -- MIDI instruments can also get a scale from the local config.
         set_scale inst = case (scale, Inst.inst_backend inst) of
             (Just scale, Inst.Midi patch) -> inst
                 { Inst.inst_backend = Inst.Midi $

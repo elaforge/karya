@@ -26,7 +26,7 @@ import qualified Derive.Cache as Cache
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
-import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Types as Types
 import Global
 import Types
 
@@ -62,7 +62,7 @@ dump_block_perf_events fname block_id = do
     events <- LPerf.convert . LEvent.events_of =<< LPerf.block_events block_id
     dump_perf_events fname (LEvent.events_of events)
 
-dump_perf_events :: FilePath -> [Perform.Event] -> Cmd.CmdL ()
+dump_perf_events :: FilePath -> [Types.Event] -> Cmd.CmdL ()
 dump_perf_events fname events = liftIO $ IO.writeFile fname $
     PPrint.pshow (map Simple.dump_exact_perf_event events)
 

@@ -26,10 +26,10 @@ import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
 import Perform.Midi.PerformTest (patch1, patch2)
+import qualified Perform.Midi.Types as Types
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -51,7 +51,7 @@ min_cc_lead = Perform.min_control_lead_time
 test_perform = do
     let f events = do
             let (msgs, warns) = perform inst_addrs2 $
-                    Seq.sort_on Perform.event_start (map mkevent events)
+                    Seq.sort_on Types.event_start (map mkevent events)
             equal warns []
             return $ extract msgs
         extract = PerformTest.extract PerformTest.e_chan_msg
@@ -125,7 +125,7 @@ test_perform_voices = do
         mke (p, start) = (patch1, p, start, 1, [])
         mk_inst_addrs chans =
             Map.fromList [(i, [((dev1, c), v) | (c, v) <- chans])]
-            where i = Patch.name patch1
+            where i = Types.patch_name patch1
     let config12 = [(0, Just 1), (1, Just 2)]
     equal (f config12 [("a", 0)]) ([(0, (0, Key.c4))], [])
     -- b gets bumped to the next channel.
@@ -144,7 +144,7 @@ test_perform_voices = do
 
 test_aftertouch = do
     let f = e_ts_chan_msg . fst . perform inst_addrs1
-                . Seq.sort_on Perform.event_start . map event
+                . Seq.sort_on Types.event_start . map event
         event (pitch, start, dur, aftertouch) = mkevent
             (patch1, pitch, start, dur,
                 [(Controls.aftertouch, Signal.signal aftertouch)])
@@ -335,7 +335,7 @@ test_keyswitch_share_chan = do
     let f evts = first extract $ perform inst_addrs1 (map make evts)
         extract = map snd . e_note_ons
         make (ks, pitch, start) = mkevent (ks_inst ks, pitch, start, 1, [])
-        ks_inst ks = patch1 { Patch.keyswitch = ks }
+        ks_inst ks = patch1 { Types.patch_keyswitch = ks }
         ks1 = [Instrument.Keyswitch Key.c1]
         ks2 = [Instrument.Keyswitch Key.d1]
 
@@ -361,7 +361,7 @@ test_perform_lazy = do
 
 test_no_pitch = do
     let event = (mkevent (patch1, "a", 0, 2, []))
-            { Perform.event_pitch = Signal.constant Signal.invalid_pitch }
+            { Types.event_pitch = Signal.constant Signal.invalid_pitch }
     let (midi, logs) = perform inst_addrs1 [event]
     equal (map Midi.wmsg_msg midi) []
     equal logs ["no pitch signal"]
@@ -403,8 +403,8 @@ test_keyswitch = do
         e_note = mapMaybe $ \wmsg ->
             (,) (Midi.wmsg_ts wmsg) <$> note_key (Midi.wmsg_msg wmsg)
         ks_inst ks hold = patch1
-            { Patch.keyswitch = ks
-            , Patch.hold_keyswitch = hold
+            { Types.patch_keyswitch = ks
+            , Types.patch_hold_keyswitch = hold
             }
         with_addr (ks, hold, pitch, start, dur) =
             (mkevent (ks_inst ks hold, pitch, start, dur, []), (dev1, 0))
@@ -477,7 +477,8 @@ test_keyswitch_aftertouch = do
     let f = expect_no_logs . perform_notes . map with_addr
         with_addr (ks, pitch, start, dur) =
             (mkevent (ks_inst ks, pitch, start, dur, []), (dev1, 0))
-        ks_inst ks = patch1 { Patch.keyswitch = [Instrument.Aftertouch ks] }
+        ks_inst ks = patch1
+            { Types.patch_keyswitch = [Instrument.Aftertouch ks] }
         e_at = mapMaybe $ \wmsg -> case Midi.wmsg_msg wmsg of
             Midi.ChannelMessage _ (Midi.Aftertouch k v) -> Just (k, v)
             _ -> Nothing
@@ -532,8 +533,7 @@ note_on_key key
     | Just (True, key) <- note_key key = Just key
     | otherwise = Nothing
 
-perform :: Perform.InstAddrs -> [Perform.Event]
-    -> ([Midi.WriteMessage], [String])
+perform :: Perform.InstAddrs -> [Types.Event] -> ([Midi.WriteMessage], [String])
 perform inst_addrs = first consistent_order . DeriveTest.extract_levents id
     . fst . Perform.perform Perform.initial_state inst_addrs . map LEvent.Event
 
@@ -547,7 +547,7 @@ sort_groups key = concatMap List.sort . List.groupBy (\a b -> key a == key b)
 consistent_order :: [Midi.WriteMessage] -> [Midi.WriteMessage]
 consistent_order = sort_groups Midi.wmsg_ts
 
-perform_notes :: [(Perform.Event, Instrument.Addr)]
+perform_notes :: [(Types.Event, Instrument.Addr)]
     -> ([Midi.WriteMessage], [String])
 perform_notes = DeriveTest.extract_levents id . fst
     . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
@@ -601,8 +601,7 @@ test_control_overlap = do
     -- mess up the next note.
     let events =
             [ (mkevent (patch2, "a", 0, 1, []))
-                { Perform.event_pitch = Signal.signal
-                    [(0.0, 81.0), (0.9999, 79)]
+                { Types.event_pitch = Signal.signal [(0.0, 81.0), (0.9999, 79)]
                 }
             , mkevent (patch2, "b", 1, 1, [])
             ]
@@ -719,7 +718,7 @@ test_can_share_chan = do
         False
 
 test_overlap_map = do
-    let extent e = (Perform.event_start e, Perform.event_duration e)
+    let extent e = (Types.event_start e, Types.event_duration e)
     let f overlapping event =
             ((extent event, map (extent . fst) overlapping), [])
     let events = mkevents_patch
@@ -739,8 +738,8 @@ test_overlap_map = do
         , ((6, 2), [])
         ]
 
-channelize :: Perform.InstAddrs -> [Perform.Event]
-    -> [(Perform.Event, Perform.Channel)]
+channelize :: Perform.InstAddrs -> [Types.Event]
+    -> [(Types.Event, Perform.Channel)]
 channelize inst_addrs events = LEvent.events_of $ fst $
     Perform.channelize [] inst_addrs (map LEvent.Event events)
 
@@ -773,7 +772,7 @@ test_allot_warn = do
     let f = mapMaybe extract . allot inst_addrs1
             . map (\(evt, chan) -> (mkevent evt, chan))
         extract (LEvent.Event (e, (dev, chan))) = Just $ Left
-            ( Score.instrument_name $ Patch.name $ Perform.event_patch e
+            ( Score.instrument_name $ Types.patch_name $ Types.event_patch e
             , pretty dev
             , chan
             )
@@ -784,8 +783,8 @@ test_allot_warn = do
     equal (f [((no_patch, "a", 0, 1, []), 0), ((no_patch, "b", 1, 2, []), 0)])
         (replicate 2 $ Right "no allocation for >synth1/no_patch")
 
-allot :: Perform.InstAddrs -> [(Perform.Event, Perform.Channel)]
-    -> [LEvent.LEvent (Perform.Event, Instrument.Addr)]
+allot :: Perform.InstAddrs -> [(Types.Event, Perform.Channel)]
+    -> [LEvent.LEvent (Types.Event, Instrument.Addr)]
 allot inst_addrs events = fst $
     Perform.allot Perform.empty_allot_state inst_addrs (map LEvent.Event events)
 
@@ -798,19 +797,19 @@ secs = RealTime.seconds
 -- yield fractional pitches.
 --
 -- (inst, text, start, dur, controls)
-type EventSpec = (Patch.Patch, String, RealTime, RealTime, [Control])
+type EventSpec = (Types.Patch, String, RealTime, RealTime, [Control])
 type Control = (Score.Control, Signal.Control)
 
-mkevents :: [EventSpec] -> [Perform.Event]
+mkevents :: [EventSpec] -> [Types.Event]
 mkevents = map mkevent
 
-mkevent :: EventSpec -> Perform.Event
+mkevent :: EventSpec -> Types.Event
 mkevent (patch, pitch, start, dur, controls) = PerformTest.empty_event
-    { Perform.event_start = start
-    , Perform.event_duration = dur
-    , Perform.event_patch = patch
-    , Perform.event_controls = Map.fromList controls
-    , Perform.event_pitch = psig start pitch
+    { Types.event_start = start
+    , Types.event_duration = dur
+    , Types.event_patch = patch
+    , Types.event_controls = Map.fromList controls
+    , Types.event_pitch = psig start pitch
     }
     where
     psig pos p = Signal.signal [(pos, to_pitch p)]
@@ -822,20 +821,19 @@ type PEvent = (RealTime, RealTime, [(Signal.X, Signal.Y)],
     [(Text, [(Signal.X, Signal.Y)])])
 
 -- | Similar to mkevent, but allow a pitch curve.
-mkpevent :: PEvent -> Perform.Event
+mkpevent :: PEvent -> Types.Event
 mkpevent (start, dur, psig, controls) = PerformTest.empty_event
-    { Perform.event_start = start
-    , Perform.event_duration = dur
-    , Perform.event_controls = Simple.control_map controls
-    , Perform.event_pitch =
-        Signal.map_y Convert.round_pitch (Signal.signal psig)
+    { Types.event_start = start
+    , Types.event_duration = dur
+    , Types.event_controls = Simple.control_map controls
+    , Types.event_pitch = Signal.map_y Convert.round_pitch (Signal.signal psig)
     }
 
-mkevents_patch :: [(String, RealTime, RealTime, [Control])] -> [Perform.Event]
+mkevents_patch :: [(String, RealTime, RealTime, [Control])] -> [Types.Event]
 mkevents_patch = map (\(a, b, c, d) -> mkevent (patch1, a, b, c, d))
 
--- set_patch :: Instrument.Instrument -> Perform.Event -> Perform.Event
--- set_patch patch event = event { Perform.event_instrument = patch }
+-- set_patch :: Instrument.Instrument -> Types.Event -> Types.Event
+-- set_patch patch event = event { Types.event_patch = patch }
 
 -- | Make a signal with linear interpolation between the points.
 linear_interp :: [(Signal.X, Signal.Y)] -> Signal.Control
@@ -854,12 +852,12 @@ dev2 = Midi.write_device "dev2"
 
 inst_addrs1 :: Perform.InstAddrs
 inst_addrs1 = Map.fromList
-    [ (Patch.name patch1, [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
+    [ (Types.patch_name patch1, [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
     ]
 
 -- Also includes patch2.
 inst_addrs2 :: Perform.InstAddrs
 inst_addrs2 = Map.fromList
-    [ (Patch.name patch1, [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
-    , (Patch.name patch2, [((dev2, 2), Nothing)])
+    [ (Types.patch_name patch1, [((dev1, 0), Nothing), ((dev1, 1), Nothing)])
+    , (Types.patch_name patch2, [((dev2, 2), Nothing)])
     ]

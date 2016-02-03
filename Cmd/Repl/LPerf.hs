@@ -39,8 +39,8 @@ import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Convert as Midi.Convert
-import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Types as Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
@@ -135,7 +135,7 @@ inst_controls block_id =
     where
     merge insts event =
         Map.insertWith (Map.unionWith merge1) (event_inst event)
-            (control_vals (Perform.event_controls event))
+            (control_vals (Types.event_controls event))
             insts
     control_vals = Map.mapMaybe $ \sig ->
         case (Signal.head sig, Signal.last sig) of
@@ -143,7 +143,7 @@ inst_controls block_id =
             _ -> Nothing
     merge1 (start1, end1) (start2, end2) =
         (Seq.min_on fst start1 start2, Seq.max_on fst end1 end2)
-    event_inst = Patch.name . Perform.event_patch
+    event_inst = Types.patch_name . Types.event_patch
 
 -- * derive
 
@@ -203,7 +203,7 @@ normalize_events events = do
             . lookup
     return $ map (fmap (Score.normalize lookup_env)) events
 
-block_perform_events :: BlockId -> Cmd.CmdL [Perform.Event]
+block_perform_events :: BlockId -> Cmd.CmdL [Types.Event]
 block_perform_events block_id = (LEvent.events_of <$>) $
     convert . LEvent.events_of =<< block_events_unnormalized block_id
 
@@ -220,14 +220,14 @@ block_midi block_id = do
 sel_events :: Cmd.CmdL [Score.Event]
 sel_events = get_sel_events False block_events
 
-sel_pevents :: Cmd.CmdL (Events Perform.Event)
+sel_pevents :: Cmd.CmdL (Events Types.Event)
 sel_pevents = convert =<< get_sel_events False block_events_unnormalized
 
 -- | Like 'sel_events' but take the root derivation.
 root_sel_events :: Cmd.CmdL [Score.Event]
 root_sel_events = get_sel_events True block_events
 
-root_sel_pevents :: Cmd.CmdL (Events Perform.Event)
+root_sel_pevents :: Cmd.CmdL (Events Types.Event)
 root_sel_pevents = convert =<< get_sel_events True block_events_unnormalized
 
 -- ** extract
@@ -344,13 +344,13 @@ in_range start_of start end =
 
 -- * perform_events
 
-convert :: [Score.Event] -> Cmd.CmdL (Events Perform.Event)
+convert :: [Score.Event] -> Cmd.CmdL (Events Types.Event)
 convert events = do
     lookup <- PlayUtil.get_convert_lookup
     return $ Midi.Convert.convert lookup events
 
-perf_event_inst :: Perform.Event -> Text
-perf_event_inst = Score.instrument_name . Patch.name . Perform.event_patch
+perf_event_inst :: Types.Event -> Text
+perf_event_inst = Score.instrument_name . Types.patch_name . Types.event_patch
 
 -- * midi
 

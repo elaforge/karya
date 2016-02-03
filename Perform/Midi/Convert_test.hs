@@ -29,7 +29,7 @@ import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Types as Types
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -99,9 +99,9 @@ test_convert_dynamic = do
             . DeriveTest.extract id . DeriveTest.derive_tracks ""
             . (++ [(inst, [(1, 4, "")])])
         extract e =
-            ( Perform.event_start_velocity e
+            ( Types.event_start_velocity e
             , maybe [] Signal.unsignal $ Map.lookup Controls.breath $
-                Perform.event_controls e
+                Types.event_controls e
             )
         clookup = DeriveTest.make_convert_lookup UiTest.default_aliases $
             DeriveTest.make_db [("s", [p "1", Instrument.pressure $ p "2"])]
@@ -119,7 +119,7 @@ test_release_velocity = do
             . DeriveTest.extract id . DeriveTest.derive_tracks "inst = >i1"
             . UiTest.note_track
         extract e =
-            (Perform.event_start_velocity e, Perform.event_end_velocity e)
+            (Types.event_start_velocity e, Types.event_end_velocity e)
     equal (run [(0, 1, "%dyn=.5 | -- 4c")]) ([Left (0.5, 0.5)], [])
     equal (run [(0, 1, "%dyn=.5 | %release-vel=.25 | -- 4c")])
         ([Left (0.5, 0.25)], [])
@@ -128,15 +128,15 @@ mkevent :: RealTime -> String -> Text -> Score.Event
 mkevent start pitch inst =
     DeriveTest.mkevent (start, 1, pitch, [], Score.Instrument inst)
 
-convert :: (Perform.Event -> a) -> [Score.Event] -> [Either a String]
+convert :: (Types.Event -> a) -> [Score.Event] -> [Either a String]
 convert extract =
     show_logs extract
         . Convert.convert DeriveTest.default_convert_lookup
 
-e_pitch :: Perform.Event -> (RealTime, [(RealTime, Pitch.NoteNumber)])
+e_pitch :: Types.Event -> (RealTime, [(RealTime, Pitch.NoteNumber)])
 e_pitch e =
-    ( Perform.event_start e
-    , map (fmap Pitch.nn) $ Signal.unsignal (Perform.event_pitch e)
+    ( Types.event_start e
+    , map (fmap Pitch.nn) $ Signal.unsignal (Types.event_pitch e)
     )
 
 show_logs :: (a -> b) -> [LEvent.LEvent a] -> [Either b String]
@@ -151,7 +151,7 @@ test_instrument_scale = do
             , ("*", [(0, 0, "4c"), (1, 0, "4c#"), (2, 0, "4d")])
             ]
     equal logs []
-    equal (map (Signal.unsignal . Perform.event_pitch) evts)
+    equal (map (Signal.unsignal . Types.event_pitch) evts)
         [[(0, 1)], [(1, 1.5)], [(2, 2)]]
     where
     patch = Instrument.scale #= Just scale $ DeriveTest.make_patch "1"
@@ -173,7 +173,7 @@ test_pitched_keymap = do
             (mktracks ["3c", "4c", "5c", "6c"])
     equal (DeriveTest.r_logs res) []
     equal logs []
-    equal (map (nn_signal . Perform.event_pitch) events)
+    equal (map (nn_signal . Types.event_pitch) events)
         [ [(0, NN.c2)]
         , [(1, NN.c2)]
         , [(2, NN.c3)]
@@ -186,7 +186,7 @@ nn_signal :: Signal.NoteNumber -> [(Signal.X, Pitch.NoteNumber)]
 nn_signal = map (second Pitch.nn) . Signal.unsignal
 
 perform :: Instrument.Patch -> Simple.Aliases -> [UiTest.TrackSpec]
-    -> (Derive.Result, ([Perform.Event], [Midi.WriteMessage], [Log.Msg]))
+    -> (Derive.Result, ([Types.Event], [Midi.WriteMessage], [Log.Msg]))
 perform patch aliases tracks = (result, performance)
     where
     performance = DeriveTest.perform

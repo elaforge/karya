@@ -31,8 +31,7 @@ import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackWarp as TrackWarp
 
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Patch as Patch
-import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 import qualified Perform.Transport as Transport
@@ -79,10 +78,10 @@ test_basic = do
         , Stack.Region s e
         ]
     block_call bid = Stack.Call $ "block " <> showt bid
-    extract_perf_event (Perform.Event start dur patch _controls _pitch
+    extract_perf_event (Midi.Types.Event start dur patch _controls _pitch
             _svel _evel stack) =
-        (Patch.name patch, RealTime.to_seconds start, RealTime.to_seconds dur,
-            stack)
+        (Midi.Types.patch_name patch, RealTime.to_seconds start,
+            RealTime.to_seconds dur, stack)
 
 test_round_pitch = do
     -- A note sufficiently close to 4c becomes 4c.

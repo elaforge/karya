@@ -2,9 +2,21 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | This is called Inst because I already have way too many modules named
--- Instrument and I couldn't think of anything better.  TODO think of something
--- better.
+{- | This is called Inst because I already have way too many modules named
+    Instrument and I couldn't think of anything better.  TODO think of
+    something better.
+
+    The hierarchy, from general to specific goes:
+
+    - 'InstTypes.Qualified' - global name of an Inst, used to instantiate
+    a ScoreTypes.Instrument.
+
+    - 'ScoreTypes.Instrument' - name an instance of an Inst within a score
+
+    - 'Inst' - instrument encompassing all backends.
+
+    - Patch - backend-specific instrument
+-}
 module Instrument.Inst (
     -- * Inst
     Inst(..), common, backend, Backend(..)

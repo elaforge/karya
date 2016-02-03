@@ -11,8 +11,8 @@ import qualified Cmd.Simple as Simple
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Types as Types
 
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
@@ -25,23 +25,23 @@ import Types
 
 -- | Dump perform events to a Readable format so they can be pasted into
 -- a test.  This is analogous to 'Ui.UiTest.to_spec'.
-dump_perf_events :: FilePath -> [Perform.Event] -> IO ()
+dump_perf_events :: FilePath -> [Types.Event] -> IO ()
 dump_perf_events fname events =
     IO.writeFile fname $ PPrint.pshow (map Simple.dump_exact_perf_event events)
 
-read_perf_events :: [Simple.ExactPerfEvent] -> IO [Perform.Event]
+read_perf_events :: [Simple.ExactPerfEvent] -> IO [Types.Event]
 read_perf_events events = do
     db <- Local.Instrument.load =<< Config.get_app_dir
     return $ mapMaybe (Simple.load_exact_perf_event (lookup_patch db)) events
 
-lookup_patch :: Inst.Db code -> InstTypes.Qualified -> Maybe Patch.Patch
+lookup_patch :: Inst.Db code -> InstTypes.Qualified -> Maybe Types.Patch
 lookup_patch db qualified = do
     inst <- Inst.inst_midi =<< Inst.lookup qualified db
-    return $ Patch.patch (Score.Instrument (InstTypes.show_qualified qualified))
+    return $ Types.patch (Score.Instrument (InstTypes.show_qualified qualified))
         inst
 
-empty_event :: Perform.Event
-empty_event = Perform.Event
+empty_event :: Types.Event
+empty_event = Types.Event
     { event_start = 0
     , event_duration = 0
     , event_patch = patch1
@@ -52,12 +52,12 @@ empty_event = Perform.Event
     , event_stack = DeriveTest.fake_stack
     }
 
-patch1, patch2 :: Patch.Patch
+patch1, patch2 :: Types.Patch
 patch1 = mkpatch "patch1"
 patch2 = mkpatch "patch2"
 
-mkpatch :: Text -> Patch.Patch
-mkpatch name = Patch.patch (Score.Instrument ("synth1/" <> name))
+mkpatch :: Text -> Types.Patch
+mkpatch name = Types.patch (Score.Instrument ("synth1/" <> name))
     (Instrument.patch (-1, 1) name)
 
 

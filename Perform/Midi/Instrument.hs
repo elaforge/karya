@@ -4,22 +4,6 @@
 
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
-
-    This is all a little too complicated.
-
-    The complete description for a set of instruments is a 'MidiDb.SynthDesc'.
-    This is just a ('Synth', PatchMap) pair, and a PatchMap is a map from
-    instrument name to 'Patch'.  A Patch contains an 'Instrument', which is the
-    subset of data needed for performance.  Since there is a separate
-    Instrument per keyswitch, multiple Instruments may be generated from
-    a single Patch.  Patches also inherit some information from their Synth.
-    So the hierarchy, from general to specific, goes
-    @'Synth' -> 'Patch' -> 'Instrument'@.
-
-    Creation of a SynthDesc is a little complicated because of the
-    inter-relationships between the types.  A Patch is created with an
-    Instrument as a template, but the template Instrument also wants know
-    the synth name for error reporting, so those should be kept in sync.
 -}
 module Perform.Midi.Instrument (
     module Perform.Midi.Instrument, Control.PbRange
@@ -46,7 +30,6 @@ import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import Global
 import Types
-
 
 
 -- * config
@@ -80,8 +63,7 @@ data Config = Config {
     -- | This is the control equivalent to 'config_restricted_environ'.  These
     -- controls are merged when the instrument comes into scope.  They can be
     -- useful for setting default transposition, e.g. if an instrument sounds
-    -- in the wrong octave.  Unlike environ there is no patch version
-    -- because...  didn't seem useful?  If I need it, I can add it.
+    -- in the wrong octave.
     , config_controls :: !Score.ControlValMap
     -- | A local version of 'patch_scale'.
     , config_scale :: !(Maybe Scale)
@@ -152,10 +134,7 @@ type Addr = (Midi.WriteDevice, Midi.Channel)
 -- | Number of simultaneous voices a certain Addr supports, aka polyphony.
 type Voices = Int
 
--- * instrument db types
-
--- When there are multiple backends, this will have to move to a more general
--- place.
+-- * Patch
 
 -- | A Patch has information about one specific instrument.  The performance
 -- 'Instrument' and MIDI config are derived from it, via its 'Synth'.

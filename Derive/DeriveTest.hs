@@ -57,6 +57,7 @@ import qualified Derive.Typecheck as Typecheck
 import qualified Perform.Midi.Convert as Convert
 import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -127,7 +128,7 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     result = derive_blocks blocks
 
 perform :: Convert.Lookup -> Instrument.Configs -> Stream.Stream Score.Event
-    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
+    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform lookup midi_config events =
     (fst (LEvent.partition perf_events), mmsgs, logs)
     where
@@ -135,12 +136,12 @@ perform lookup midi_config events =
     (mmsgs, logs) = extract_logs perf
 
 perform_defaults :: Stream.Stream Score.Event
-    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
+    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform_defaults = perform default_convert_lookup UiTest.default_midi_config
 
 perform_stream :: Convert.Lookup -> Instrument.Configs
     -> Stream.Stream Score.Event
-    -> ([LEvent.LEvent Perform.Event], [LEvent.LEvent Midi.WriteMessage])
+    -> ([LEvent.LEvent Midi.Types.Event], [LEvent.LEvent Midi.WriteMessage])
 perform_stream lookup midi_config stream = (perf_events, midi)
     where
     perf_events = Convert.convert lookup (Stream.events_of stream)
@@ -150,7 +151,7 @@ perform_stream lookup midi_config stream = (perf_events, midi)
 -- | Perform events with the given instrument db.
 perform_synths :: Simple.Aliases -> [MidiInst.Synth] -> [(Text, [Midi.Channel])]
     -> Stream.Stream Score.Event
-    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
+    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform_synths aliases synths config =
     perform (synth_to_convert_lookup aliases synths) (UiTest.midi_config config)
 
@@ -216,7 +217,7 @@ derive_block_standard setup cmd_state cache damage ui_state_ block_id =
         Prelude.Block.eval_root_block global_transform block_id
 
 perform_dump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
-    -> ([Perform.Event], [Midi.WriteMessage], [Log.Msg])
+    -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform_dump synths (_, midi, aliases, _) =
     perform lookup config . Derive.r_events
     where

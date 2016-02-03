@@ -14,9 +14,9 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
+import qualified Perform.Midi.Types as Types
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
@@ -84,7 +84,7 @@ profile_multiplex = do
 
 -- * implementation
 
-perform :: [Perform.Event] -> ([Midi.WriteMessage], [String])
+perform :: [Types.Event] -> ([Midi.WriteMessage], [String])
 perform = split_logs . fst
     . Perform.perform Perform.initial_state inst_addrs . map LEvent.Event
 
@@ -98,20 +98,20 @@ run_multiple arg action = forM_ [1..6] $ \n -> do
     print_timer (show n) (\_ _ -> id) (action arg)
 
 mkevent :: Double -> Double -> [(Score.Control, Signal.Control)]
-    -> Signal.NoteNumber -> Perform.Event
+    -> Signal.NoteNumber -> Types.Event
 mkevent start dur controls pitch_sig = PerformTest.empty_event
-    { Perform.event_start = RealTime.seconds start
-    , Perform.event_duration = RealTime.seconds dur
-    , Perform.event_patch = patch1
-    , Perform.event_controls = Map.fromList controls
-    , Perform.event_pitch = pitch_sig
+    { Types.event_start = RealTime.seconds start
+    , Types.event_duration = RealTime.seconds dur
+    , Types.event_patch = patch1
+    , Types.event_controls = Map.fromList controls
+    , Types.event_pitch = pitch_sig
     }
 
-patch1 :: Patch.Patch
+patch1 :: Types.Patch
 patch1 = mkpatch "patch1"
 
-mkpatch :: InstTypes.Name -> Patch.Patch
-mkpatch name = (PerformTest.mkpatch name) { Patch.decay = Just 1 }
+mkpatch :: InstTypes.Name -> Types.Patch
+mkpatch name = (PerformTest.mkpatch name) { Types.patch_decay = Just 1 }
 
 inst_addrs :: Perform.InstAddrs
 inst_addrs = Map.fromList

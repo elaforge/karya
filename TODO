@@ -414,8 +414,38 @@ Synth: Im:
     . inst_control_map -> dulplicate
     . inst_pitch_bend_range -> dulplicate
     . inst_maybe_decay -> dulplicate
-  - rename Midi.Instrument.Patch to Instrument
+  * rename Midi.Instrument.Patch to Types
     * PatchScale -> Scale
+    . The problem is I wind up with
+        MidiInst.Instrument {
+          instrument_instrument :: Instrument.Instrument
+          , instrument_common :: Common
+          }
+    . Actually it's nice to have a Inst -> Patch distinction.  Then I have
+      Instrument = (Patch, Common).  Patch.Patch is local to Perform, so it
+      seems better to duplicate a name at the lower level.  But I really don't
+      want to have Instrument.Patch.  Maybe Patch.Patch becomes PerformPatch?
+      MidiPatch?
+    . But if I keep Patch then I should rename Perform.Im.Instrument -> Patch.
+    . But then I have
+       1 Score.Instrument -> Inst -> Patch -> PerformPatch,
+       2 Score.Instrument -> Inst -> Instrument -> Patch
+       3 Score.Instrument -> Inst -> Qin -> Patch
+       4 Score.Instrument -> Qin -> Patch -> PerformPatch
+    . I like 1.  Like I have Perform Event aka pevent, I have Perform Patch,
+      aka ppatch.  Still icky, but I could do import PerformPatch as P in
+      Perform.
+    . I could also move Perform.Event into a separate module, because Perform
+      is too big and also other modules want the event, but nothing else.
+      But Perform.Event is a nice name, otherwise?  Midi?  It could be
+      Perform.Midi.  Then Midi.Event, Midi.Patch.
+    . Midi is no good because lots of places import Midi.Midi.
+      MTypes, MidiTypes?  Lots of precedent for MidiTypes but it's so long.
+      Might as well be Types for Midi.Types.
+  - rename Perform.Midi.Instrument to Patch
+  - rename MidiInst.Patch to Inst?  This is because it's at the
+    Instrument.Inst level, and would also resolve the awkward 'patch' vs.
+    'patch_'.
   - What happened to running MidiInst.check_names when making a Synth?
   * Rename Perform.Synth to Perform.Im.
   - Perform.Im.Convert converts to Notes and serializes them

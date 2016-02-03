@@ -28,8 +28,7 @@ import qualified Cmd.Selection as Selection
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Patch as Patch
-import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -84,14 +83,15 @@ score_event evt =
     , Score.initial_nn evt
     )
 
-perf_event :: Perform.Event -> PerfEvent
+perf_event :: Midi.Types.Event -> PerfEvent
 perf_event evt =
-    ( untxt $ Score.instrument_name $ Patch.name $ Perform.event_patch evt
+    ( untxt $ Score.instrument_name $ Midi.Types.patch_name $
+        Midi.Types.event_patch evt
     , from_real start
-    , from_real (Perform.event_duration evt)
-    , Pitch.nn (Signal.at start (Perform.event_pitch evt))
+    , from_real (Midi.Types.event_duration evt)
+    , Pitch.nn (Signal.at start (Midi.Types.event_pitch evt))
     )
-    where start = Perform.event_start evt
+    where start = Midi.Types.event_start evt
 
 dump_state :: State.M m => m State
 dump_state = do
@@ -202,16 +202,16 @@ midi_config config = Instrument.configs
 
 -- * ExactPerfEvent
 
--- | Like 'PerfEvent', but is meant to recreate a 'Perform.Event' exactly.
+-- | Like 'PerfEvent', but is meant to recreate a 'Midi.Types.Event' exactly.
 type ExactPerfEvent =
     ( Text, RealTime, RealTime, [(Text, [(RealTime, Signal.Y)])]
     , [(RealTime, Signal.Y)], (Signal.Y, Signal.Y), Stack.Stack
     )
 
-dump_exact_perf_event :: Perform.Event -> ExactPerfEvent
-dump_exact_perf_event (Perform.Event start dur patch controls pitch svel evel
+dump_exact_perf_event :: Midi.Types.Event -> ExactPerfEvent
+dump_exact_perf_event (Midi.Types.Event start dur patch controls pitch svel evel
         stack) =
-    ( Score.instrument_name (Patch.name patch)
+    ( Score.instrument_name (Midi.Types.patch_name patch)
     , start, dur
     , map (Score.control_name *** Signal.unsignal) (Map.toList controls)
     , Signal.unsignal pitch
@@ -219,12 +219,12 @@ dump_exact_perf_event (Perform.Event start dur patch controls pitch svel evel
     , stack
     )
 
-load_exact_perf_event :: (InstTypes.Qualified -> Maybe Patch.Patch)
-    -> ExactPerfEvent -> Maybe Perform.Event
+load_exact_perf_event :: (InstTypes.Qualified -> Maybe Midi.Types.Patch)
+    -> ExactPerfEvent -> Maybe Midi.Types.Event
 load_exact_perf_event lookup_patch (inst, start, dur, controls, pitch,
         (svel, evel), stack) = do
     patch <- lookup_patch (InstTypes.parse_qualified inst)
-    return $ Perform.Event
+    return $ Midi.Types.Event
         { event_patch = patch
         , event_start = start
         , event_duration = dur
@@ -235,6 +235,6 @@ load_exact_perf_event lookup_patch (inst, start, dur, controls, pitch,
         , event_stack = stack
         }
 
-control_map :: [(Text, [(RealTime, Signal.Y)])] -> Perform.ControlMap
+control_map :: [(Text, [(RealTime, Signal.Y)])] -> Midi.Types.ControlMap
 control_map kvs =
     Map.fromList [(Score.unchecked_control k, Signal.signal v) | (k, v) <- kvs]

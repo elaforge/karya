@@ -29,7 +29,7 @@ import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (require)
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Patch as Patch
+import qualified Perform.Midi.Types as Types
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -53,22 +53,22 @@ data Lookup = Lookup {
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: Lookup -> [Score.Event] -> [LEvent.LEvent Perform.Event]
+convert :: Lookup -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
 
-convert_event :: Lookup -> Score.Event -> ConvertT Perform.Event
+convert_event :: Lookup -> Score.Event -> ConvertT Types.Event
 convert_event lookup event_ = do
     let score_inst = Score.event_instrument event_
     (patch, postproc) <- require_patch score_inst $
         lookup_patch lookup score_inst
-    let midi_patch = Patch.patch score_inst patch
+    let midi_patch = Types.patch score_inst patch
     let event = postproc event_
     let event_controls = Score.event_transformed_controls event
     (midi_patch, pitch) <- convert_midi_pitch midi_patch
         (Instrument.patch_scale patch) (Instrument.patch_attribute_map patch)
         (Instrument.has_flag patch Instrument.ConstantPitch)
         event_controls event
-    let controls = convert_controls (Patch.control_map midi_patch) $
+    let controls = convert_controls (Types.patch_control_map midi_patch) $
             convert_dynamic pressure
                 (event_controls <> lookup_control_defaults lookup score_inst)
         pressure = Instrument.has_flag patch Instrument.Pressure
@@ -76,23 +76,23 @@ convert_event lookup event_ = do
             (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))
         release_velocity = fromMaybe velocity
             (Env.maybe_val EnvKey.release_val (Score.event_environ event))
-    return $ Perform.Event
-            { event_start = Score.event_start event
-            , event_duration = Score.event_duration event
-            , event_patch = midi_patch
-            , event_controls = controls
-            , event_pitch = pitch
-            -- If it's a pressure instrument, then I'm using breath instead
-            -- of velocity.  I still set velocity because some synths (e.g.
-            -- vsl) use the velocity too in certain cases, but it should be
-            -- at least 1 to avoid not even starting the note.  Of course
-            -- even without pressure, a note on with velocity 0 is kind of
-            -- pointless, but maybe someone wants to fade out.
-            , event_start_velocity = if pressure then max 0.008 velocity
-                else velocity
-            , event_end_velocity = release_velocity
-            , event_stack = Score.event_stack event
-            }
+    return $ Types.Event
+        { event_start = Score.event_start event
+        , event_duration = Score.event_duration event
+        , event_patch = midi_patch
+        , event_controls = controls
+        , event_pitch = pitch
+        -- If it's a pressure instrument, then I'm using breath instead
+        -- of velocity.  I still set velocity because some synths (e.g.
+        -- vsl) use the velocity too in certain cases, but it should be
+        -- at least 1 to avoid not even starting the note.  Of course
+        -- even without pressure, a note on with velocity 0 is kind of
+        -- pointless, but maybe someone wants to fade out.
+        , event_start_velocity = if pressure then max 0.008 velocity
+            else velocity
+        , event_end_velocity = release_velocity
+        , event_stack = Score.event_stack event
+        }
 
 -- | Abort if the patch wasn't found.  If it wasn't found the first time, it
 -- won't be found the second time either, so avoid spamming the log by throwing
@@ -114,9 +114,9 @@ require_patch inst Nothing = do
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Patch.Patch -> Maybe Instrument.Scale
+convert_midi_pitch :: Types.Patch -> Maybe Instrument.Scale
     -> Instrument.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
-    -> ConvertT (Patch.Patch, Signal.NoteNumber)
+    -> ConvertT (Types.Patch, Signal.NoteNumber)
 convert_midi_pitch patch scale attr_map constant_pitch controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
         Nothing -> (,) patch <$> psignal
@@ -125,7 +125,8 @@ convert_midi_pitch patch scale attr_map constant_pitch controls event =
                 <$> maybe psignal set_keymap maybe_keymap
     where
     set_keyswitches [] patch = patch
-    set_keyswitches keyswitches patch = patch { Patch.keyswitch = keyswitches }
+    set_keyswitches keyswitches patch =
+        patch { Types.patch_keyswitch = keyswitches }
     set_keymap (Instrument.UnpitchedKeymap key) =
         return $ Signal.constant (Midi.from_key key)
     set_keymap (Instrument.PitchedKeymap low high low_nn) =
@@ -152,13 +153,13 @@ convert_midi_pitch patch scale attr_map constant_pitch controls event =
         -- Trim controls to avoid applying out of range transpositions.
         trimmed = fmap (fmap (Signal.drop_at_after note_end)) controls
         note_end = Score.event_end event
-            + fromMaybe Patch.default_decay (Patch.decay patch)
+            + fromMaybe Types.default_decay (Types.patch_decay patch)
 
 -- | Convert deriver controls to performance controls.  Drop all non-MIDI
 -- controls, since those will inhibit channel sharing later.
 convert_controls :: Control.ControlMap -- ^ Instrument's control map.
     -> Score.ControlMap -- ^ Controls to convert.
-    -> Perform.ControlMap
+    -> Types.ControlMap
 convert_controls inst_cmap =
     Map.fromAscList . map (second Score.typed_val) . Map.toAscList
         . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k)
