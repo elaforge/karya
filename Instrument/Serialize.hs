@@ -12,7 +12,7 @@ module Instrument.Serialize (serialize, unserialize) where
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import Midi.Instances ()
 import qualified Cmd.Serialize as Serialize
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.Search as Search
 
@@ -41,56 +41,56 @@ instance Serialize Search.Index where
     put (Search.Index a b) = put a >> put b
     get = get >>= \a -> get >>= \b -> return (Search.Index a b)
 
-instance Serialize Instrument.Patch where
-    put (Instrument.Patch a b c d e f g h i) = put a >> put b >> put c
+instance Serialize Patch.Patch where
+    put (Patch.Patch a b c d e f g h i) = put a >> put b >> put c
         >> put d >> put e >> put f >> put g >> put h >> put i
-    get = Instrument.Patch <$> get <*> get <*> get <*> get <*> get <*> get
+    get = Patch.Patch <$> get <*> get <*> get <*> get <*> get <*> get
         <*> get <*> get <*> get
 
-instance Serialize Instrument.Flag where
-    put Instrument.Triggered = put_tag 0
-    put Instrument.Pressure = put_tag 1
-    put Instrument.ConstantPitch = put_tag 2
-    put Instrument.HoldKeyswitch = put_tag 3
+instance Serialize Patch.Flag where
+    put Patch.Triggered = put_tag 0
+    put Patch.Pressure = put_tag 1
+    put Patch.ConstantPitch = put_tag 2
+    put Patch.HoldKeyswitch = put_tag 3
     get = do
         tag <- get_tag
         case tag of
-            0 -> return Instrument.Triggered
-            1 -> return Instrument.Pressure
-            2 -> return Instrument.ConstantPitch
-            3 -> return Instrument.HoldKeyswitch
-            _ -> bad_tag "Instrument.Flag" tag
+            0 -> return Patch.Triggered
+            1 -> return Patch.Pressure
+            2 -> return Patch.ConstantPitch
+            3 -> return Patch.HoldKeyswitch
+            _ -> bad_tag "Patch.Flag" tag
 
-instance Serialize Instrument.InitializePatch where
-    put (Instrument.InitializeMidi a) = put_tag 0 >> put a
-    put (Instrument.InitializeMessage a) = put_tag 1 >> put a
-    put Instrument.NoInitialization = put_tag 2
+instance Serialize Patch.InitializePatch where
+    put (Patch.InitializeMidi a) = put_tag 0 >> put a
+    put (Patch.InitializeMessage a) = put_tag 1 >> put a
+    put Patch.NoInitialization = put_tag 2
     get = do
         tag <- get_tag
         case tag of
-            0 -> get >>= \a -> return (Instrument.InitializeMidi a)
-            1 -> get >>= \a -> return (Instrument.InitializeMessage a)
-            2 -> return Instrument.NoInitialization
-            _ -> bad_tag "Instrument.InitializePatch" tag
+            0 -> get >>= \a -> return (Patch.InitializeMidi a)
+            1 -> get >>= \a -> return (Patch.InitializeMessage a)
+            2 -> return Patch.NoInitialization
+            _ -> bad_tag "Patch.InitializePatch" tag
 
-instance Serialize Instrument.Keymap where
-    put (Instrument.UnpitchedKeymap a) = put_tag 0 >> put a
-    put (Instrument.PitchedKeymap a b c) = put_tag 1 >> put a >> put b >> put c
+instance Serialize Patch.Keymap where
+    put (Patch.UnpitchedKeymap a) = put_tag 0 >> put a
+    put (Patch.PitchedKeymap a b c) = put_tag 1 >> put a >> put b >> put c
     get = do
         tag <- get_tag
         case tag of
-            0 -> Instrument.UnpitchedKeymap <$> get
-            1 -> Instrument.PitchedKeymap <$> get <*> get <*> get
-            _ -> bad_tag "Instrument.Keymap" tag
+            0 -> Patch.UnpitchedKeymap <$> get
+            1 -> Patch.PitchedKeymap <$> get <*> get <*> get
+            _ -> bad_tag "Patch.Keymap" tag
 
-instance Serialize Instrument.Keyswitch where
-    put (Instrument.Keyswitch a) = put_tag 0 >> put a
-    put (Instrument.ControlSwitch a b) = put_tag 1 >> put a >> put b
-    put (Instrument.Aftertouch a) = put_tag 2 >> put a
+instance Serialize Patch.Keyswitch where
+    put (Patch.Keyswitch a) = put_tag 0 >> put a
+    put (Patch.ControlSwitch a b) = put_tag 1 >> put a >> put b
+    put (Patch.Aftertouch a) = put_tag 2 >> put a
     get = do
         tag <- get_tag
         case tag of
-            0 -> Instrument.Keyswitch <$> get
-            1 -> Instrument.ControlSwitch <$> get <*> get
-            2 -> Instrument.Aftertouch <$> get
-            _ -> bad_tag "Instrument.Keyswitch" tag
+            0 -> Patch.Keyswitch <$> get
+            1 -> Patch.ControlSwitch <$> get <*> get
+            2 -> Patch.Aftertouch <$> get
+            _ -> bad_tag "Patch.Keyswitch" tag

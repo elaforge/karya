@@ -21,7 +21,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.InstTypes as InstTypes
@@ -43,7 +43,7 @@ data Config = Config {
     , config_root :: !(Maybe BlockId)
 
     -- | This maps the midi instruments used in this State to their Configs.
-    , config_midi :: !Instrument.Configs
+    , config_midi :: !Patch.Configs
     -- | This is a tracklang transformer expression that's wrapped around every
     -- derivation.  So if it's @x = 1 | y = 2@ then the environment will be so
     -- modified for every derivation.
@@ -93,7 +93,7 @@ empty_config = Config
     { config_namespace = Id.namespace "untitled"
     , config_meta = empty_meta
     , config_root = Nothing
-    , config_midi = Instrument.configs []
+    , config_midi = Patch.configs []
     , config_global_transform = ""
     , config_aliases = mempty
     , config_lilypond = Lilypond.default_config

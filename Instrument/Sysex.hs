@@ -36,7 +36,7 @@ import qualified Util.Seq as Seq
 import qualified Midi.Encode
 import qualified Midi.Midi as Midi
 import qualified Ui.Util
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.Tag as Tag
 import Global
@@ -45,7 +45,7 @@ import Global
 -- * parse files
 
 type Parser a = ByteString -> Either String a
-type Patch = (Instrument.Patch, Common.Common ())
+type Patch = (Patch.Patch, Common.Common ())
 
 -- | For every file below the directory ending with .syx, try all of the
 -- given parsers on it.
@@ -65,8 +65,8 @@ parse_file parsers fn bytes =
     where
     -- Only add the sysex if the parser hasn't already added one.  This is
     -- because some parsers may parse things that aren't actually sysexes.
-    initialize bytes patch = case Instrument.initialize #$ patch of
-        Instrument.NoInitialization -> initialize_sysex bytes patch
+    initialize bytes patch = case Patch.initialize #$ patch of
+        Patch.NoInitialization -> initialize_sysex bytes patch
         _ -> patch
 
 -- | Parse a file just like 'parse_file'.  But this file is expected to be
@@ -93,13 +93,12 @@ try_parsers parsers bytes = case Either.rights results of
 -- | Assume the sysex midi channel is 0.
 initialize_program :: Int -> Midi.Program -> Patch -> Patch
 initialize_program bank n = first $
-    Instrument.initialize #= Instrument.InitializeMidi
+    Patch.initialize #= Patch.InitializeMidi
         (map (Midi.ChannelMessage 0) (Midi.program_change bank n))
 
-initialize_sysex :: ByteString -> Instrument.Patch -> Instrument.Patch
+initialize_sysex :: ByteString -> Patch.Patch -> Patch.Patch
 initialize_sysex bytes =
-    Instrument.initialize #= Instrument.InitializeMidi
-        [Midi.Encode.decode bytes]
+    Patch.initialize #= Patch.InitializeMidi [Midi.Encode.decode bytes]
 
 add_file :: FilePath -> Common.Common a -> Common.Common a
 add_file fn = Common.tags %= ((Tag.file, txt (FilePath.takeFileName fn)) :)

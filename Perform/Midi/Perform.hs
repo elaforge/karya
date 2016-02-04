@@ -29,7 +29,7 @@ import qualified Midi.Midi as Midi
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as T
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -121,8 +121,7 @@ perform state inst_addrs events = (final_msgs, final_state)
     (final_msgs, _) = post_process mempty msgs
 
 -- | Map each instrument to its allocated Addrs.
-type InstAddrs =
-    Map.Map Score.Instrument [(Instrument.Addr, Maybe Instrument.Voices)]
+type InstAddrs = Map.Map Score.Instrument [(Patch.Addr, Maybe Patch.Voices)]
 
 -- * channelize
 
@@ -278,7 +277,7 @@ controls_equal start end cs1 cs2 = start >= end || all eq pairs
 -- Events with instruments that have no address allocation in the config
 -- will be dropped.
 allot :: AllotState -> InstAddrs -> [LEvent.LEvent (T.Event, Channel)]
-    -> ([LEvent.LEvent (T.Event, Instrument.Addr)], AllotState)
+    -> ([LEvent.LEvent (T.Event, Patch.Addr)], AllotState)
 allot state inst_addrs events = (event_addrs, final_state)
     where
     (final_state, event_addrs) = List.mapAccumL allot1 state events
@@ -290,7 +289,7 @@ data AllotState = AllotState {
     -- This is used by the voice stealer to figure out which voice is ripest
     -- for plunder.  It also has the AllotKey so the previous allotment can be
     -- deleted.
-    ast_available :: !(Map.Map Instrument.Addr (RealTime, AllotKey))
+    ast_available :: !(Map.Map Patch.Addr (RealTime, AllotKey))
     -- | Map input channels to an instrument address in the allocated range.
     -- Once an (inst, chan) pair has been allotted to a particular Addr, it
     -- should keep going to that Addr, as long as voices remain.
@@ -305,11 +304,11 @@ empty_allot_state = AllotState Map.empty Map.empty
 type AllotKey = (Score.Instrument, Channel)
 
 data Allotted = Allotted {
-    _allotted_addr :: !Instrument.Addr
+    _allotted_addr :: !Patch.Addr
     -- | End time for each allocated voice.
     , allotted_voices :: ![RealTime]
     -- | Maximum length for allotted_voices.
-    , _allotted_voice_count :: !Instrument.Voices
+    , _allotted_voice_count :: !Patch.Voices
     } deriving (Eq, Show)
 
 -- | Try to find an Addr for the given Event.  If that's impossible, return
@@ -319,7 +318,7 @@ data Allotted = Allotted {
 -- go to the same addr, as long as it has voices left.  Otherwise, take over
 -- another channel.
 allot_event :: InstAddrs -> AllotState -> (T.Event, Channel)
-    -> (AllotState, LEvent.LEvent (T.Event, Instrument.Addr))
+    -> (AllotState, LEvent.LEvent (T.Event, Patch.Addr))
 allot_event inst_addrs state (event, ichan) =
     case expire_voices <$> Map.lookup (inst, ichan) (ast_allotted state) of
         -- If there is an already allotted addr with a free voice, add this
@@ -347,7 +346,7 @@ allot_event inst_addrs state (event, ichan) =
 
 -- | Record this addr as now being allotted, and add its voice allocation.
 update_allot_state :: (Score.Instrument, Channel) -> RealTime
-    -> Maybe (Instrument.Voices, Maybe AllotKey) -> Instrument.Addr
+    -> Maybe (Patch.Voices, Maybe AllotKey) -> Patch.Addr
     -> [RealTime] -> AllotState -> AllotState
 update_allot_state inst_chan end maybe_new_allot addr voices state = state
     { ast_available = Map.insert addr (end, inst_chan) (ast_available state)
@@ -367,7 +366,7 @@ update_allot_state inst_chan end maybe_new_allot addr voices state = state
 -- addrs with no limitation, but profiling revealed no detectable difference.
 -- So either it's not important or my profiles are broken.
 steal_addr :: InstAddrs -> Score.Instrument -> AllotState
-    -> Maybe (Instrument.Addr, Instrument.Voices, Maybe AllotKey)
+    -> Maybe (Patch.Addr, Patch.Voices, Maybe AllotKey)
 steal_addr inst_addrs inst state = case Map.lookup inst inst_addrs of
     Just addr_voices -> case Seq.minimum_on (fst . snd) avail of
         Just ((addr, voices), (_, maybe_inst_chan)) ->
@@ -389,7 +388,7 @@ type PerformState = (AddrInst, NoteOffMap)
 -- at that address.
 --
 -- Used to emit keyswitches or program changes.
-type AddrInst = Map.Map Instrument.Addr T.Patch
+type AddrInst = Map.Map Patch.Addr T.Patch
 
 -- | Map from an address to the last time a note was playing on that address.
 -- This includes the last note's decay time, so the channel should be reusable
@@ -398,7 +397,7 @@ type AddrInst = Map.Map Instrument.Addr T.Patch
 -- Used to give leading cc times a little breathing room.
 --
 -- It only needs to be 'min cc_lead (now - note_off)'
-type NoteOffMap = Map.Map Instrument.Addr RealTime
+type NoteOffMap = Map.Map Patch.Addr RealTime
 
 -- | Pass an empty AddrInst because I can't make any assumptions about the
 -- state of the synthesizer.  The one from the wdev state might be out of
@@ -408,7 +407,7 @@ empty_perform_state = (Map.empty, Map.empty)
 
 -- | Given an ordered list of note events, produce the appropriate midi msgs.
 -- The input events are ordered, but may overlap.
-perform_notes :: PerformState -> [LEvent.LEvent (T.Event, Instrument.Addr)]
+perform_notes :: PerformState -> [LEvent.LEvent (T.Event, Patch.Addr)]
     -> (MidiEvents, PerformState)
 perform_notes state events =
     (Seq.merge_asc_lists merge_key midi_msgs, final_state)
@@ -424,8 +423,7 @@ perform_notes state events =
 -- | Emit msgs to set the channel state, and msgs for a single note.
 perform_note_in_channel :: PerformState
     -> Maybe RealTime -- ^ next note with the same addr
-    -> (T.Event, Instrument.Addr)
-    -> (PerformState, MidiEvents)
+    -> (T.Event, Patch.Addr) -> (PerformState, MidiEvents)
 perform_note_in_channel (addr_inst, note_off_map) next_note_on (event, addr) =
     ((addr_inst2, Map.insert addr note_off note_off_map), msgs)
     where
@@ -447,8 +445,7 @@ perform_note_in_channel (addr_inst, note_off_map) next_note_on (event, addr) =
     Another strategy would be to always emit msgs and rely on playback filter,
     but that would triple the number of msgs, which seems excessive.
 -}
-adjust_chan_state :: AddrInst -> Instrument.Addr -> T.Event
-    -> (MidiEvents, AddrInst)
+adjust_chan_state :: AddrInst -> Patch.Addr -> T.Event -> (MidiEvents, AddrInst)
 adjust_chan_state addr_inst addr event = case event_midi_key event of
     Nothing -> ([], new_addr_inst)
     Just midi_key ->
@@ -461,7 +458,7 @@ adjust_chan_state addr_inst addr event = case event_midi_key event of
     old = Map.lookup addr addr_inst
 
 -- | TODO support program change, I'll have to get ahold of patch_initialize.
-chan_state_msgs :: Midi.Key -> Instrument.Addr -> RealTime
+chan_state_msgs :: Midi.Key -> Patch.Addr -> RealTime
     -> Maybe T.Patch -> T.Patch
     -> Either Text [Midi.WriteMessage]
 chan_state_msgs midi_key addr@(wdev, chan) start maybe_old_inst new_inst
@@ -485,7 +482,7 @@ same_keyswitches maybe_old new =
     -- Keyswitch to have the MIDI key, or keep a map of the aftertouch state
     -- by key.  Both sound like a hassle, so I'll just emit possibly redundant
     -- msgs.
-    go (Instrument.Aftertouch _ : _) (Instrument.Aftertouch _ : _) = False
+    go (Patch.Aftertouch _ : _) (Patch.Aftertouch _ : _) = False
     go (x : xs) (y : ys) = x == y && go xs ys
     go _ _ = False
 
@@ -530,21 +527,20 @@ keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
             | (t, ks) <- zip ks_starts new_ks]
 
     ks_on ts ks = mkmsg ts $ case ks of
-        Instrument.Keyswitch key -> Midi.NoteOn key 64
-        Instrument.ControlSwitch cc val -> Midi.ControlChange cc val
-        Instrument.Aftertouch val -> Midi.Aftertouch midi_key val
+        Patch.Keyswitch key -> Midi.NoteOn key 64
+        Patch.ControlSwitch cc val -> Midi.ControlChange cc val
+        Patch.Aftertouch val -> Midi.Aftertouch midi_key val
     ks_off ts ks = map (mkmsg ts) $ case ks of
-        Instrument.Keyswitch key -> [Midi.NoteOff key 64]
-        Instrument.ControlSwitch {} -> []
-        Instrument.Aftertouch {} -> []
+        Patch.Keyswitch key -> [Midi.NoteOff key 64]
+        Patch.ControlSwitch {} -> []
+        Patch.Aftertouch {} -> []
     mkmsg ts msg = Midi.WriteMessage wdev ts (Midi.ChannelMessage chan msg)
 
 -- ** perform note
 
 -- | Emit MIDI for a single event.
 perform_note :: RealTime -> Maybe RealTime -- ^ next note with the same addr
-    -> T.Event -> Instrument.Addr
-    -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
+    -> T.Event -> Patch.Addr -> (MidiEvents, RealTime) -- ^ (msgs, note_off)
 perform_note prev_note_off next_note_on event addr =
     case event_midi_key event of
         Nothing -> ([LEvent.Log $ event_warning event "no pitch signal"],
@@ -561,8 +557,7 @@ perform_note prev_note_off next_note_on event addr =
     _control_msgs = perform_control_msgs prev_note_off next_note_on event addr
 
 -- | Perform the note on and note off.
-perform_note_msgs :: T.Event -> Instrument.Addr -> Midi.Key
-    -> (MidiEvents, RealTime)
+perform_note_msgs :: T.Event -> Patch.Addr -> Midi.Key -> (MidiEvents, RealTime)
 perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     where
     events =
@@ -579,7 +574,7 @@ perform_note_msgs event (dev, chan) midi_nn = (events, note_off)
     chan_msg pos msg = Midi.WriteMessage dev pos (Midi.ChannelMessage chan msg)
 
 -- | Perform control change messages.
-perform_control_msgs :: RealTime -> Maybe RealTime -> T.Event -> Instrument.Addr
+perform_control_msgs :: RealTime -> Maybe RealTime -> T.Event -> Patch.Addr
     -> RealTime -> Midi.Key -> MidiEvents
 perform_control_msgs prev_note_off next_note_on event (dev, chan) note_off
         midi_key =
@@ -694,7 +689,7 @@ perform_signal prev_note_off start end sig = initial : pairs
 
 -- * post process
 
-type PostprocState = Map.Map Instrument.Addr AddrState
+type PostprocState = Map.Map Patch.Addr AddrState
 
 -- | Keep a running state for each channel and drop duplicate msgs.
 type AddrState =

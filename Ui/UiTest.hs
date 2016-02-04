@@ -39,7 +39,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.InstTypes as InstTypes
 
 import qualified App.Config as Config
@@ -481,15 +481,14 @@ set_default_midi_config =
     (State.config#State.midi #= default_midi_config)
     . (State.config#State.aliases #= make_aliases default_aliases)
 
-default_midi_config :: Instrument.Configs
+default_midi_config :: Patch.Configs
 default_midi_config = midi_config [("i1", [0..2]), ("i2", [3])]
 
-midi_config :: [(Text, [Midi.Channel])] -> Instrument.Configs
+midi_config :: [(Text, [Midi.Channel])] -> Patch.Configs
 midi_config config = Simple.midi_config
     [(inst, map ((,) "test") chans) | (inst, chans) <- config]
 
-set_midi_config :: Simple.Aliases -> Instrument.Configs -> State.State
-    -> State.State
+set_midi_config :: Simple.Aliases -> Patch.Configs -> State.State -> State.State
 set_midi_config aliases config =
     (State.config#State.midi #= config)
     . (State.config#State.aliases #= make_aliases aliases)

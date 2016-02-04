@@ -26,7 +26,7 @@ import qualified Derive.Scale.Scales as Scales
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.ShowVal as ShowVal
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -135,9 +135,9 @@ extend nns =
 
 -- * instrument integration
 
-instrument_scale :: Bool -> BaliScales.Tuning -> Instrument.Scale
+instrument_scale :: Bool -> BaliScales.Tuning -> Patch.Scale
 instrument_scale extended tuning =
-    Instrument.make_scale ("wayang " <> ShowVal.show_val tuning) $
+    Patch.make_scale ("wayang " <> ShowVal.show_val tuning) $
         zip (midi_keys extended) (if extended then extend nns else nns)
     where
     nns = case tuning of

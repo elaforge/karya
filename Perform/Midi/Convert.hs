@@ -28,9 +28,9 @@ import qualified Derive.Score as Score
 import qualified Perform.ConvertUtil as ConvertUtil
 import Perform.ConvertUtil (require)
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
-import qualified Perform.Midi.Types as Types
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
+import qualified Perform.Midi.Types as Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
@@ -47,7 +47,7 @@ type State = Set.Set Score.Instrument
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
     , lookup_patch :: Score.Instrument
-        -> Maybe (Instrument.Patch, Score.Event -> Score.Event)
+        -> Maybe (Patch.Patch, Score.Event -> Score.Event)
     , lookup_control_defaults :: Score.Instrument -> Score.ControlMap
     }
 
@@ -65,13 +65,13 @@ convert_event lookup event_ = do
     let event = postproc event_
     let event_controls = Score.event_transformed_controls event
     (midi_patch, pitch) <- convert_midi_pitch midi_patch
-        (Instrument.patch_scale patch) (Instrument.patch_attribute_map patch)
-        (Instrument.has_flag patch Instrument.ConstantPitch)
+        (Patch.patch_scale patch) (Patch.patch_attribute_map patch)
+        (Patch.has_flag patch Patch.ConstantPitch)
         event_controls event
     let controls = convert_controls (Types.patch_control_map midi_patch) $
             convert_dynamic pressure
                 (event_controls <> lookup_control_defaults lookup score_inst)
-        pressure = Instrument.has_flag patch Instrument.Pressure
+        pressure = Patch.has_flag patch Patch.Pressure
         velocity = fromMaybe Perform.default_velocity
             (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))
         release_velocity = fromMaybe velocity
@@ -114,8 +114,8 @@ require_patch inst Nothing = do
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Types.Patch -> Maybe Instrument.Scale
-    -> Instrument.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
+convert_midi_pitch :: Types.Patch -> Maybe Patch.Scale
+    -> Patch.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
     -> ConvertT (Types.Patch, Signal.NoteNumber)
 convert_midi_pitch patch scale attr_map constant_pitch controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
@@ -127,9 +127,9 @@ convert_midi_pitch patch scale attr_map constant_pitch controls event =
     set_keyswitches [] patch = patch
     set_keyswitches keyswitches patch =
         patch { Types.patch_keyswitch = keyswitches }
-    set_keymap (Instrument.UnpitchedKeymap key) =
+    set_keymap (Patch.UnpitchedKeymap key) =
         return $ Signal.constant (Midi.from_key key)
-    set_keymap (Instrument.PitchedKeymap low high low_nn) =
+    set_keymap (Patch.PitchedKeymap low high low_nn) =
         convert_keymap (Midi.from_key low) (Midi.from_key high) low_nn
             =<< psignal
     convert_keymap :: Signal.Y -> Signal.Y -> Pitch.NoteNumber
@@ -164,7 +164,7 @@ convert_controls inst_cmap =
     Map.fromAscList . map (second Score.typed_val) . Map.toAscList
         . Map.filterWithKey (\k _ -> Control.is_midi_control inst_cmap k)
 
--- | If it's a 'Instrument.Pressure' instrument, move the 'Controls.dynamic'
+-- | If it's a 'Patch.Pressure' instrument, move the 'Controls.dynamic'
 -- control to 'Controls.breath'.
 convert_dynamic :: Bool -> Score.ControlMap -> Score.ControlMap
 convert_dynamic pressure controls
@@ -173,7 +173,7 @@ convert_dynamic pressure controls
         (Map.lookup Controls.dynamic controls)
     | otherwise = controls
 
-convert_pitch :: Maybe Instrument.Scale -> Env.Environ
+convert_pitch :: Maybe Patch.Scale -> Env.Environ
     -> Score.ControlMap -> PSignal.PSignal -> ConvertT Signal.NoteNumber
 convert_pitch scale env controls psig = do
     let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $
@@ -192,10 +192,10 @@ convert_pitch scale env controls psig = do
 round_pitch :: Signal.Y -> Signal.Y
 round_pitch nn = fromIntegral (round (nn * 1000)) / 1000
 
-convert_scale :: Maybe Instrument.Scale -> Signal.NoteNumber
+convert_scale :: Maybe Patch.Scale -> Signal.NoteNumber
     -> (Signal.NoteNumber, [(Signal.X, Signal.Y)])
 convert_scale Nothing = (, [])
 convert_scale (Just scale) = Signal.map_err $ \(TimeVector.Sample x y) ->
-    case Instrument.convert_scale scale (Pitch.NoteNumber y) of
+    case Patch.convert_scale scale (Pitch.NoteNumber y) of
         Just (Pitch.NoteNumber nn) -> Right (TimeVector.Sample x nn)
         Nothing -> Left (x, y)

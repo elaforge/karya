@@ -29,7 +29,7 @@ import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Inst as Inst
 import Global
 import Types
@@ -160,14 +160,14 @@ instrument_info inst = do
     info <- Cmd.lookup_instrument inst
     return $ ShowVal.show_val inst <> ": " <> show_instrument_info config info
 
-show_instrument_info :: Maybe Instrument.Config -> Maybe Cmd.Inst -> Text
+show_instrument_info :: Maybe Patch.Config -> Maybe Cmd.Inst -> Text
 show_instrument_info config inst = fields
     [ ("attribute map", maybe ""
         (comma_list . map ShowVal.show_val . Inst.inst_attributes) inst)
     , ("addrs", maybe "" show_addrs
-        (map fst . Instrument.config_addrs <$> config))
-    , ("flags", Text.unwords $ ["mute" | get Instrument.config_mute]
-        ++ ["solo" | get Instrument.config_solo])
+        (map fst . Patch.config_addrs <$> config))
+    , ("flags", Text.unwords $ ["mute" | get Patch.config_mute]
+        ++ ["solo" | get Patch.config_solo])
     ]
     where
     get f = maybe False f config
@@ -175,7 +175,7 @@ show_instrument_info config inst = fields
         . filter (not . Text.null . snd)
 
 -- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
-show_addrs :: [Instrument.Addr] -> Text
+show_addrs :: [Patch.Addr] -> Text
 show_addrs addrs = semicolon_list
     [ pretty wdev <> " "
         <> "[" <> Text.intercalate "," (show_runs (map snd addrs)) <> "]"
@@ -222,7 +222,7 @@ get_track_status block_id tracknum = do
     status block_id tree note_tracknum inst = do
         let controls = control_tracks_of tree note_tracknum
         track_descs <- show_track_status block_id controls
-        addrs <- maybe [] Instrument.config_addrs . Map.lookup inst <$>
+        addrs <- maybe [] Patch.config_addrs . Map.lookup inst <$>
             State.get_midi_config
         let title = ParseTitle.instrument_to_title inst
         return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)

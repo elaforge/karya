@@ -764,8 +764,7 @@ data Instrument = Instrument {
     -- | Like 'inst_environ', merge these controls.
     , inst_controls :: !Score.ControlValMap
     -- | This is a list of the attributes that the instrument understands, in
-    -- order of priority.  It corresponds to
-    -- 'Perform.Midi.Instrument.AttributeMap'.
+    -- order of priority.  It corresponds to 'Perform.Midi.Patch.AttributeMap'.
     , inst_attributes :: ![Score.Attributes]
     } deriving (Show)
 

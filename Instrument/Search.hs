@@ -17,7 +17,7 @@ import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
@@ -141,9 +141,9 @@ common_tags synth_name inst_name common =
 inst_tags :: Inst.Backend -> [Tag.Tag]
 inst_tags (Inst.Midi patch) = concat
     [ [(Tag.backend, "midi")]
-    , control_tags $ Instrument.patch_control_map patch
-    , case Instrument.patch_initialize patch of
-        Instrument.InitializeMidi msgs
+    , control_tags $ Patch.patch_control_map patch
+    , case Patch.patch_initialize patch of
+        Patch.InitializeMidi msgs
             | any Midi.is_sysex msgs -> [(Tag.sysex, "")]
             | otherwise -> []
         _ -> []

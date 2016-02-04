@@ -81,8 +81,8 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
-import Perform.Midi.Instrument (Addr)
+import qualified Perform.Midi.Patch as Patch
+import Perform.Midi.Patch (Addr)
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
@@ -105,7 +105,7 @@ midi_thru_instrument :: Cmd.M m => Score.Instrument -> InputNote.Input -> m ()
 midi_thru_instrument score_inst input = do
     config <- Cmd.require ("no config for " <> pretty score_inst)
         . Map.lookup score_inst =<< State.get_midi_config
-    let addrs = map fst $ Instrument.config_addrs config
+    let addrs = map fst $ Patch.config_addrs config
     unless (null addrs) $ do
         scale <- Perf.get_scale =<< Selection.track
         inst <- Cmd.require ("no instrument: " <> pretty score_inst)
@@ -119,13 +119,13 @@ midi_thru_instrument score_inst input = do
         wdev_state <- Cmd.get_wdev_state
         let (thru_msgs, maybe_wdev_state) =
                 input_to_midi pb_range wdev_state addrs input
-            pb_range = Instrument.patch_pitch_bend_range patch
+            pb_range = Patch.patch_pitch_bend_range patch
         whenJust maybe_wdev_state $ Cmd.modify_wdev_state . const
         mapM_ (uncurry Cmd.midi) thru_msgs
 
 -- | Realize the Input as a pitch in the given scale.
-map_scale :: Cmd.M m => Instrument.Patch -> Common.Common a
-    -> Instrument.Config -> Scale.Scale
+map_scale :: Cmd.M m => Patch.Patch -> Common.Common a
+    -> Patch.Config -> Scale.Scale
     -> InputNote.Input -> m (Maybe InputNote.InputNn)
 map_scale patch common config scale input = case input of
     InputNote.NoteOn note_id input vel -> do
@@ -147,8 +147,7 @@ map_scale patch common config scale input = case input of
             -- influence the pitch.  TODO but shouldn't it already come from
             -- Perf.derive_at?  And shouldn't I not override that?
             Derive.with_environ (Common.get_environ common) $
-            only_allow_octave_transpose
-                (Instrument.config_controls config) scale $
+            only_allow_octave_transpose (Patch.config_controls config) scale $
             Scale.scale_input_to_nn scale pos input
         case result of
             Left err -> throw $ "derive_at: " <> err
@@ -157,12 +156,12 @@ map_scale patch common config scale input = case input of
             Right (Left BaseTypes.InvalidInput) -> Cmd.abort
             Right (Left err) -> throw $ pretty err
             Right (Right nn) -> return $
-                map_instrument_scale (Instrument.patch_scale patch) nn
+                map_instrument_scale (Patch.patch_scale patch) nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
 
 -- | Remove transposers because otherwise the thru pitch doesn't match the
 -- entered pitch and it's very confusing.  However, I retain 'Controls.octave'
--- so I can use 'Instrument.config_controls' to fix the octave on instruments
+-- so I can use 'Patch.config_controls' to fix the octave on instruments
 -- that have it wrong.
 only_allow_octave_transpose :: Score.ControlValMap -> Scale.Scale
     -> Derive.Deriver a -> Derive.Deriver a
@@ -176,10 +175,10 @@ only_allow_octave_transpose controls scale =
             (Set.toList (Scale.scale_transposers scale)))
         (repeat (Score.untyped Signal.empty))
 
-map_instrument_scale :: Maybe Instrument.Scale -> Pitch.NoteNumber
+map_instrument_scale :: Maybe Patch.Scale -> Pitch.NoteNumber
     -> Maybe Pitch.NoteNumber
 map_instrument_scale Nothing = Just
-map_instrument_scale (Just scale) = Instrument.convert_scale scale
+map_instrument_scale (Just scale) = Patch.convert_scale scale
 
 input_to_midi :: Control.PbRange -> Cmd.WriteDeviceState
     -> [Addr] -> InputNote.InputNn
@@ -268,4 +267,4 @@ get_addrs :: Cmd.M m => Maybe Score.Instrument -> m [Addr]
 get_addrs maybe_inst = do
     inst <- maybe (Cmd.abort_unless =<< EditUtil.lookup_instrument)
         return maybe_inst
-    Instrument.get_addrs inst <$> State.get_midi_config
+    Patch.get_addrs inst <$> State.get_midi_config

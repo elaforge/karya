@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import Util.Test
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 
 
 test_with_instrument_controls = do
@@ -16,7 +16,7 @@ test_with_instrument_controls = do
             DeriveTest.derive_tracks_setup (with_config controls) title
                 [(">i1", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
         with_config controls = DeriveTest.with_instrument_config "i1" $
-            (Instrument.config []) { Instrument.config_controls = controls }
+            (Patch.config []) { Patch.config_controls = controls }
     -- This doesn't test the controls directly, but rather that the
     -- transposition is applied as expected.
     equal (run "" mempty) ([(0, 1, "4c")], [])

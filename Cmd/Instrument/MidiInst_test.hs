@@ -8,7 +8,7 @@ import qualified Data.Map as Map
 import Util.Test
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Tag as Tag
@@ -19,7 +19,7 @@ import Global
 test_generate_names = do
     let f = first extract . MidiInst.generate_names . map (uncurry mkpatch)
         extract = map (second name) . Map.toList
-        name = Instrument.patch_name .  MidiInst.patch_patch
+        name = Patch.patch_name .  MidiInst.patch_patch
     -- different initialization gets split
     equal (f [("a", pgm_change 1), (" a", pgm_change 2)])
         ([("a1", "a"), ("a2", " a")],
@@ -32,12 +32,11 @@ test_generate_names = do
     equal (f [("a", pgm_change 1), ("b", pgm_change 1)])
         ([("a", "a"), ("b", "b")], [])
 
-mkpatch :: InstTypes.Name -> Instrument.InitializePatch -> MidiInst.Patch
+mkpatch :: InstTypes.Name -> Patch.InitializePatch -> MidiInst.Patch
 mkpatch name init =
     MidiInst.common#Common.tags #= [(Tag.file, name <> ".vc")] $
-    MidiInst.patch_#Instrument.initialize #= init $
-        MidiInst.patch (-2, 2) name []
+    MidiInst.patch_#Patch.initialize #= init $ MidiInst.patch (-2, 2) name []
 
-pgm_change :: Midi.Program -> Instrument.InitializePatch
-pgm_change pgm = Instrument.InitializeMidi $ map (Midi.ChannelMessage 0) $
+pgm_change :: Midi.Program -> Patch.InitializePatch
+pgm_change pgm = Patch.InitializeMidi $ map (Midi.ChannelMessage 0) $
     Midi.program_change 0 pgm

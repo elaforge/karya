@@ -28,7 +28,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Convert as Convert
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as Types
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
@@ -104,7 +104,7 @@ test_convert_dynamic = do
                 Types.event_controls e
             )
         clookup = DeriveTest.make_convert_lookup UiTest.default_aliases $
-            DeriveTest.make_db [("s", [p "1", Instrument.pressure $ p "2"])]
+            DeriveTest.make_db [("s", [p "1", Patch.pressure $ p "2"])]
         p = DeriveTest.make_patch
     equal (run ">i1" [("dyn", [(0, 0, "1")])])
         ([LEvent.Event (1, [])], [])
@@ -154,16 +154,16 @@ test_instrument_scale = do
     equal (map (Signal.unsignal . Types.event_pitch) evts)
         [[(0, 1)], [(1, 1.5)], [(2, 2)]]
     where
-    patch = Instrument.scale #= Just scale $ DeriveTest.make_patch "1"
-    scale = Instrument.make_scale "test" [(1, 60), (2, 62), (3, 63)]
+    patch = Patch.scale #= Just scale $ DeriveTest.make_patch "1"
+    scale = Patch.make_scale "test" [(1, 60), (2, 62), (3, 63)]
 
 -- * keymap
 
 test_pitched_keymap = do
     let patch = set_keymap [bd] $ DeriveTest.make_patch "1"
-        bd = ("bd", Instrument.PitchedKeymap Key.c2 Key.c3 NN.c4)
-        set_keymap kmap = Instrument.attribute_map
-            #= Instrument.keymap (map (first Score.attr) kmap)
+        bd = ("bd", Patch.PitchedKeymap Key.c2 Key.c3 NN.c4)
+        set_keymap kmap = Patch.attribute_map
+            #= Patch.keymap (map (first Score.attr) kmap)
         mktracks ps =
             [ (">i1", [(n, 1, "+bd") | (n, _) <- vals])
             , ("*", [(n, 0, p) | (n, p) <- vals])
@@ -185,7 +185,7 @@ test_pitched_keymap = do
 nn_signal :: Signal.NoteNumber -> [(Signal.X, Pitch.NoteNumber)]
 nn_signal = map (second Pitch.nn) . Signal.unsignal
 
-perform :: Instrument.Patch -> Simple.Aliases -> [UiTest.TrackSpec]
+perform :: Patch.Patch -> Simple.Aliases -> [UiTest.TrackSpec]
     -> (Derive.Result, ([Types.Event], [Midi.WriteMessage], [Log.Msg]))
 perform patch aliases tracks = (result, performance)
     where

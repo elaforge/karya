@@ -7,7 +7,7 @@ import qualified Text.Parsec as Parsec
 
 import Util.Test
 import qualified Midi.Midi as Midi
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
@@ -34,9 +34,8 @@ test_parse_patch_file = do
             . Parsec.runParser Parse.p_patch_file Parse.empty_state "test"
         extract f = show *** map f
 
-    let e_init (patch, _) = case Instrument.patch_initialize patch of
-            Instrument.InitializeMidi msgs ->
-                [m | Midi.ChannelMessage _ m <- msgs]
+    let e_init (patch, _) = case Patch.patch_initialize patch of
+            Patch.InitializeMidi msgs -> [m | Midi.ChannelMessage _ m <- msgs]
             init -> error $ "unexpected init: " ++ show init
         e_tags = Common.common_tags . snd
 

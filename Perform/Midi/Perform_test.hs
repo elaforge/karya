@@ -25,7 +25,7 @@ import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Convert as Convert
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.PerformTest as PerformTest
 import Perform.Midi.PerformTest (patch1, patch2)
@@ -336,8 +336,8 @@ test_keyswitch_share_chan = do
         extract = map snd . e_note_ons
         make (ks, pitch, start) = mkevent (ks_inst ks, pitch, start, 1, [])
         ks_inst ks = patch1 { Types.patch_keyswitch = ks }
-        ks1 = [Instrument.Keyswitch Key.c1]
-        ks2 = [Instrument.Keyswitch Key.d1]
+        ks1 = [Patch.Keyswitch Key.c1]
+        ks2 = [Patch.Keyswitch Key.d1]
 
     -- -- Too close, so they split channels.
     -- equal (f [(ks1, "a", 0), (ks2, "b", 1)])
@@ -408,8 +408,8 @@ test_keyswitch = do
             }
         with_addr (ks, hold, pitch, start, dur) =
             (mkevent (ks_inst ks hold, pitch, start, dur, []), (dev1, 0))
-        ks1 = [Instrument.Keyswitch Key.c1]
-        ks2 = [Instrument.Keyswitch Key.d1]
+        ks1 = [Patch.Keyswitch Key.c1]
+        ks2 = [Patch.Keyswitch Key.d1]
     let ks_gap = Perform.keyswitch_gap
         delta = RealTime.milliseconds 2
     let f extract = extract . expect_no_logs . perform_notes . map with_addr
@@ -459,8 +459,8 @@ test_keyswitch = do
         ]
 
     -- control switches
-    let cs1 = [Instrument.ControlSwitch 1 10]
-        cs2 = [Instrument.ControlSwitch 1 20]
+    let cs1 = [Patch.ControlSwitch 1 10]
+        cs2 = [Patch.ControlSwitch 1 20]
         e_msg = mapMaybe $ \wmsg ->
             (,) (Midi.wmsg_ts wmsg) <$> note_on_cc (Midi.wmsg_msg wmsg)
         note_on_cc msg
@@ -478,7 +478,7 @@ test_keyswitch_aftertouch = do
         with_addr (ks, pitch, start, dur) =
             (mkevent (ks_inst ks, pitch, start, dur, []), (dev1, 0))
         ks_inst ks = patch1
-            { Types.patch_keyswitch = [Instrument.Aftertouch ks] }
+            { Types.patch_keyswitch = [Patch.Aftertouch ks] }
         e_at = mapMaybe $ \wmsg -> case Midi.wmsg_msg wmsg of
             Midi.ChannelMessage _ (Midi.Aftertouch k v) -> Just (k, v)
             _ -> Nothing
@@ -547,8 +547,7 @@ sort_groups key = concatMap List.sort . List.groupBy (\a b -> key a == key b)
 consistent_order :: [Midi.WriteMessage] -> [Midi.WriteMessage]
 consistent_order = sort_groups Midi.wmsg_ts
 
-perform_notes :: [(Types.Event, Instrument.Addr)]
-    -> ([Midi.WriteMessage], [String])
+perform_notes :: [(Types.Event, Patch.Addr)] -> ([Midi.WriteMessage], [String])
 perform_notes = DeriveTest.extract_levents id . fst
     . Perform.perform_notes Perform.empty_perform_state . map LEvent.Event
 
@@ -784,7 +783,7 @@ test_allot_warn = do
         (replicate 2 $ Right "no allocation for >synth1/no_patch")
 
 allot :: Perform.InstAddrs -> [(Types.Event, Perform.Channel)]
-    -> [LEvent.LEvent (Types.Event, Instrument.Addr)]
+    -> [LEvent.LEvent (Types.Event, Patch.Addr)]
 allot inst_addrs events = fst $
     Perform.allot Perform.empty_allot_state inst_addrs (map LEvent.Event events)
 
@@ -832,7 +831,7 @@ mkpevent (start, dur, psig, controls) = PerformTest.empty_event
 mkevents_patch :: [(String, RealTime, RealTime, [Control])] -> [Types.Event]
 mkevents_patch = map (\(a, b, c, d) -> mkevent (patch1, a, b, c, d))
 
--- set_patch :: Instrument.Instrument -> Types.Event -> Types.Event
+-- set_patch :: Patch.Instrument -> Types.Event -> Types.Event
 -- set_patch patch event = event { Types.event_patch = patch }
 
 -- | Make a signal with linear interpolation between the points.

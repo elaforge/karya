@@ -10,7 +10,7 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Simple as Simple
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Types
 
@@ -58,7 +58,7 @@ patch2 = mkpatch "patch2"
 
 mkpatch :: Text -> Types.Patch
 mkpatch name = Types.patch (Score.Instrument ("synth1/" <> name))
-    (Instrument.patch (-1, 1) name)
+    (Patch.patch (-1, 1) name)
 
 
 -- * extract

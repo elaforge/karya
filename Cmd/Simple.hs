@@ -27,7 +27,7 @@ import qualified Cmd.Selection as Selection
 
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -140,13 +140,13 @@ dump_selection = do
     return [(track_id, map event events)
         | (track_id, _, events) <- track_events]
 
-dump_midi_config :: Instrument.Configs -> MidiConfig
+dump_midi_config :: Patch.Configs -> MidiConfig
 dump_midi_config configs =
     [(Score.instrument_name inst, chans_of config)
         | (inst, config) <- Map.toList configs]
     where
     chans_of config = [(Midi.write_device_text dev, chan)
-        | ((dev, chan), _) <- Instrument.config_addrs config]
+        | ((dev, chan), _) <- Patch.config_addrs config]
 
 
 -- * load
@@ -194,8 +194,8 @@ load_event :: Event -> Event.Event
 load_event (start, dur, text) =
     Event.event (ScoreTime.double start) (ScoreTime.double dur) text
 
-midi_config :: MidiConfig -> Instrument.Configs
-midi_config config = Instrument.configs
+midi_config :: MidiConfig -> Patch.Configs
+midi_config config = Patch.configs
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr (dev, chan) = (Midi.write_device dev, chan)
 

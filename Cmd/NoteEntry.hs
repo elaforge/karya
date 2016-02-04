@@ -22,7 +22,7 @@ import qualified Cmd.Keymap as Keymap
 import qualified Cmd.Msg as Msg
 
 import qualified Derive.Controls as Controls
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Inst as Inst
 import Global
@@ -49,7 +49,7 @@ import Global
     additional Cmd feature to re-emits a new Msg.  In addition, it would
     preclude the ability to shadow it and catch MIDI msgs for other purposes.
 -}
-cmds_with_input :: Cmd.M m => Bool -> Maybe Instrument.Patch
+cmds_with_input :: Cmd.M m => Bool -> Maybe Patch.Patch
     -> [Msg.Msg -> m Cmd.Status] -> (Msg.Msg -> m Cmd.Status)
 cmds_with_input kbd_entry maybe_patch cmds msg =
     msg_to_inputs kbd_entry maybe_patch msg >>= \x -> case x of
@@ -77,7 +77,7 @@ run_cmds_with_input cmds msg = do
 -- the Msg is not convertible to InputNotes (and therefore other cmds should
 -- get it), and Just [] if it is but didn't emit any InputNotes (and therefore
 -- this other cmds shouldn't get it).
-msg_to_inputs :: Cmd.M m => Bool -> Maybe Instrument.Patch -> Msg.Msg
+msg_to_inputs :: Cmd.M m => Bool -> Maybe Patch.Patch -> Msg.Msg
     -> m (Maybe [Msg.Msg])
 msg_to_inputs kbd_entry maybe_patch msg = do
     has_mods <- are_modifiers_down
@@ -85,7 +85,7 @@ msg_to_inputs kbd_entry maybe_patch msg = do
         then do
             octave <- Cmd.gets (Cmd.state_kbd_entry_octave . Cmd.state_edit)
             let is_pressure = maybe False
-                    (`Instrument.has_flag` Instrument.Pressure) maybe_patch
+                    (`Patch.has_flag` Patch.Pressure) maybe_patch
             return $ kbd_input is_pressure octave msg
         else return Nothing
     maybe (midi_input msg) (return . Just) new_msgs

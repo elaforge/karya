@@ -30,7 +30,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.Tempo as Tempo
 import qualified Derive.TrackWarp as TrackWarp
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -95,15 +95,14 @@ test_attributes = do
     -- Test that attributes work, through derivation and performance.
     let convert_lookup = DeriveTest.make_convert_lookup [("i1", "s/i1")] $
             DeriveTest.make_db [("s", [patch])]
-        patch = Instrument.attribute_map #= attr_map $
-            Instrument.patch (-1, 1) "i1"
-        keyswitches = Instrument.single_keyswitches $ map (first Score.attrs)
+        patch = Patch.attribute_map #= attr_map $ Patch.patch (-1, 1) "i1"
+        keyswitches = Patch.single_keyswitches $ map (first Score.attrs)
             [ (["a1", "a2"], 0)
             , (["a0"], 1)
             , (["a1"], 2)
             , (["a2"], 3)
             ]
-        keymap = Instrument.unpitched_keymap [(Score.attr "km", 42)]
+        keymap = Patch.unpitched_keymap [(Score.attr "km", 42)]
         attr_map = Common.AttributeMap $ case (keyswitches, keymap) of
             (Common.AttributeMap a, Common.AttributeMap b) -> a ++ b
     let res = DeriveTest.derive_tracks ""

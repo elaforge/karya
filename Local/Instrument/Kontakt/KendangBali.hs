@@ -29,7 +29,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.BaseTypes as BaseTypes
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
@@ -41,7 +41,7 @@ patches =
         patch "kendang-bali"
     , MidiInst.code #= tunggal_code $ CUtil.drum_patch old_tunggal_notes $
         patch "kendang-bali-old"
-    , MidiInst.code #= pasang_code $ MidiInst.patch_ %= Instrument.triggered $
+    , MidiInst.code #= pasang_code $ MidiInst.patch_ %= Patch.triggered $
         patch "kendang-bali-pasang"
     ]
     where
@@ -142,12 +142,12 @@ write_ksp = mapM_ (uncurry Util.write)
 -- | @LInst.merge $ KontaktKendang.config ...@
 config :: Text -> Text -> MidiConfig.Config
 config name dev_ = MidiConfig.config
-    [ (name <> "-wadon", "kontakt/kendang-bali", Instrument.config1 dev 0)
-    , (name <> "-lanang", "kontakt/kendang-bali", Instrument.config1 dev 1)
+    [ (name <> "-wadon", "kontakt/kendang-bali", Patch.config1 dev 0)
+    , (name <> "-lanang", "kontakt/kendang-bali", Patch.config1 dev 1)
     , (name, "kontakt/kendang-bali-pasang",
         MidiConfig.environ "wadon" (inst $ name <> "-wadon") $
         MidiConfig.environ "lanang" (inst $ name <> "-lanang") $
-        Instrument.config [])
+        Patch.config [])
     ]
     where
     dev = Midi.write_device dev_

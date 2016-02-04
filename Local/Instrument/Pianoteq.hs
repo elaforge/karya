@@ -19,7 +19,7 @@ import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
 import qualified Perform.Signal as Signal
 
@@ -46,7 +46,7 @@ patches =
     , harp
     ]
 
-pb_range :: Instrument.PbRange
+pb_range :: Patch.PbRange
 pb_range = (-24, 24)
 
 harp :: MidiInst.Patch

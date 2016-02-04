@@ -17,7 +17,7 @@ import qualified Ui.UiTest as UiTest
 
 import Cmd.Serialize () -- for instances
 import qualified Perform.Lilypond.Types as Lilypond
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import Types
 
 
@@ -53,7 +53,7 @@ test_serialize = do
             , Track.Line (Just (Track.Pitch "there"))
             ]
     equal rstyle (recode rstyle)
-    let config = Instrument.config []
+    let config = Patch.config []
     equal config (recode config)
     equal Lilypond.empty_staff_config (recode Lilypond.empty_staff_config)
 

@@ -82,8 +82,8 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
-import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.Midi.Types as Midi.Types
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Midi.Perform
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -682,15 +682,15 @@ instance Pretty.Pretty Action where
 data WriteDeviceState = WriteDeviceState {
     -- Used by Cmd.MidiThru:
     -- | Last pb val for each Addr.
-    wdev_pb :: !(Map.Map Instrument.Addr Midi.PitchBendValue)
+    wdev_pb :: !(Map.Map Patch.Addr Midi.PitchBendValue)
     -- | NoteId currently playing in each Addr.  An Addr may have >1 NoteId.
-    , wdev_note_addr :: !(Map.Map InputNote.NoteId Instrument.Addr)
+    , wdev_note_addr :: !(Map.Map InputNote.NoteId Patch.Addr)
     -- | The note id is not guaranteed to have any relationship to the key,
     -- so the MIDI NoteOff needs to know what key the MIDI NoteOn used.
     , wdev_note_key :: !(Map.Map InputNote.NoteId Midi.Key)
     -- | Map an addr to a number that increases when it's assigned a note.
     -- This is used along with 'wdev_serial' to implement addr round-robin.
-    , wdev_addr_serial :: !(Map.Map Instrument.Addr Serial)
+    , wdev_addr_serial :: !(Map.Map Patch.Addr Serial)
     -- | Next serial number for 'wdev_addr_serial'.
     , wdev_serial :: !Serial
     -- | Last NoteId seen.  This is needed to emit controls (rather than just
@@ -707,7 +707,7 @@ data WriteDeviceState = WriteDeviceState {
     -- | Remember the current patch of each addr.  More than one patch or
     -- keyswitch can share the same addr, so I need to keep track which one is
     -- active to minimize switches.
-    , wdev_addr_inst :: !(Map.Map Instrument.Addr Midi.Types.Patch)
+    , wdev_addr_inst :: !(Map.Map Patch.Addr Midi.Types.Patch)
     } deriving (Eq, Show)
 
 type Serial = Int
@@ -765,11 +765,11 @@ instance Pretty.Pretty InstrumentCode where
         , ("cmds", Pretty.format cmds)
         ]
 
-derive_instrument :: Instrument.Config -> Inst -> Derive.Instrument
+derive_instrument :: Patch.Config -> Inst -> Derive.Instrument
 derive_instrument config inst = Derive.Instrument
     { inst_calls = inst_calls $ Common.common_code common
     , inst_environ = Common.get_environ common
-    , inst_controls = Instrument.config_controls config
+    , inst_controls = Patch.config_controls config
     , inst_attributes = Inst.inst_attributes inst
     }
     where common = Inst.inst_common inst
@@ -1039,11 +1039,11 @@ set_status key val = do
     view_ids <- State.gets (Map.keys . State.state_views)
     forM_ view_ids $ \view_id -> set_view_status view_id key val
 
-lookup_midi_patch :: M m => Score.Instrument -> m (Maybe Instrument.Patch)
+lookup_midi_patch :: M m => Score.Instrument -> m (Maybe Patch.Patch)
 lookup_midi_patch inst =
     justm (lookup_instrument inst) $ return . Inst.inst_midi
 
-get_midi_patch :: M m => Score.Instrument -> m Instrument.Patch
+get_midi_patch :: M m => Score.Instrument -> m Patch.Patch
 get_midi_patch inst =
     require ("not midi instrument: " <> pretty inst) . Inst.inst_midi
     =<< require ("instrument not found: " <> pretty inst)
@@ -1059,7 +1059,7 @@ lookup_qualified inst =
 
 -- | Get a function to look up a 'Score.Instrument'.  This is where
 -- 'Ui.StateConfig' is applied to the instrument db, applying aliases
--- and 'Instrument.config_environ', so anyone looking up a Patch should go
+-- and 'Patch.config_environ', so anyone looking up a Patch should go
 -- through this.
 get_lookup_instrument
     :: M m => m (Score.Instrument -> Maybe (Inst, InstTypes.Qualified))
@@ -1079,11 +1079,11 @@ get_lookup_instrument = do
         set_scale inst = case (scale, Inst.inst_backend inst) of
             (Just scale, Inst.Midi patch) -> inst
                 { Inst.inst_backend = Inst.Midi $
-                    (Instrument.scale #= Just scale) patch
+                    (Patch.scale #= Just scale) patch
                 }
             _ -> inst
-        scale = Instrument.config_scale =<< config
-        environ = maybe mempty Instrument.config_restricted_environ config
+        scale = Patch.config_scale =<< config
+        environ = maybe mempty Patch.config_restricted_environ config
         config = Map.lookup inst_name configs
 
 get_wdev_state :: M m => m WriteDeviceState

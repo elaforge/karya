@@ -51,7 +51,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 
 import qualified Instrument.Common as Common
@@ -70,7 +70,7 @@ type Synth = Inst.SynthDecl Cmd.InstrumentCode
 synth :: InstTypes.SynthName -> Text -> [Patch] -> Synth
 synth name doc patches =
     (name, doc, zip (map name_of patches) (map make_inst patches))
-    where name_of = (patch_ # Instrument.name #$)
+    where name_of = (patch_ # Patch.name #$)
 
 make_inst :: Patch -> Inst.Inst Cmd.InstrumentCode
 make_inst (Patch patch common) = Inst.Inst
@@ -162,7 +162,7 @@ cmd c = mempty { code_cmds = [c] }
 -- * Patch
 
 data Patch = Patch {
-    patch_patch :: Instrument.Patch
+    patch_patch :: Patch.Patch
     , patch_common :: Common.Common Code
     }
 
@@ -178,14 +178,14 @@ instance Pretty.Pretty Patch where
         ]
 
 -- | Make a patch.
-make_patch :: Instrument.Patch -> Patch
+make_patch :: Patch.Patch -> Patch
 make_patch p = Patch
     { patch_patch = p
     , patch_common = Common.common mempty
     }
 
--- | Convert patches as emitted by 'Instrument.Sysex.Patch'.
-patch_from_pair :: (Instrument.Patch, Common.Common ()) -> Patch
+-- | Convert patches as emitted by 'Patch.Sysex.Patch'.
+patch_from_pair :: (Patch.Patch, Common.Common ()) -> Patch
 patch_from_pair (patch, common) =
     Patch patch (common { Common.common_code = mempty })
 
@@ -194,14 +194,14 @@ patch_from_pair (patch, common) =
 patch :: Control.PbRange -> InstTypes.Name -> [(Midi.Control, Score.Control)]
     -> Patch
 patch pb_range name controls =
-    make_patch $ (Instrument.patch pb_range name)
-        { Instrument.patch_control_map = Control.control_map controls }
+    make_patch $ (Patch.patch pb_range name)
+        { Patch.patch_control_map = Control.control_map controls }
 
 -- | Make a default patch for the synth.
 default_patch :: Control.PbRange -> [(Midi.Control, Score.Control)] -> Patch
 default_patch pb_range controls = Patch
-    { patch_patch = (Instrument.patch pb_range Instrument.default_name)
-        { Instrument.patch_control_map = Control.control_map controls }
+    { patch_patch = (Patch.patch pb_range Patch.default_name)
+        { Patch.patch_control_map = Control.control_map controls }
     , patch_common = Common.common mempty
     }
 
@@ -213,21 +213,21 @@ code = common # Common.code
 doc :: Lens Patch Text
 doc = common # Common.doc
 
-attribute_map :: Lens Patch Instrument.AttributeMap
-attribute_map = patch_ # Instrument.attribute_map
+attribute_map :: Lens Patch Patch.AttributeMap
+attribute_map = patch_ # Patch.attribute_map
 
 decay :: Lens Patch (Maybe RealTime)
-decay = patch_ # Instrument.decay
+decay = patch_ # Patch.decay
 
 -- | Annotate all the patches with some global controls.
 synth_controls :: [(Midi.Control, Score.Control)] -> [Patch] -> [Patch]
 synth_controls controls = map $
-    patch_ # Instrument.control_map %= (Control.control_map controls <>)
+    patch_ # Patch.control_map %= (Control.control_map controls <>)
 
 -- | Set a patch to pressure control.
 pressure :: Patch -> Patch
-pressure = (patch_#Instrument.decay #= Just 0)
-    . (patch_ %= Instrument.set_flag Instrument.Pressure)
+pressure = (patch_#Patch.decay #= Just 0)
+    . (patch_ %= Patch.set_flag Patch.Pressure)
 
 -- ** environ
 
@@ -266,11 +266,11 @@ save_synth app_dir synth_name patches = do
     Instrument.Serialize.serialize (db_path app_dir (untxt synth_name)) $
         Serialize.InstrumentDb now (strip_code <$> patch_map)
     where
-    strip_code :: Patch -> (Instrument.Patch, Common.Common ())
+    strip_code :: Patch -> (Patch.Patch, Common.Common ())
     strip_code (Patch patch common) =
         (patch, common { Common.common_code = () })
 
-load_synth :: (Instrument.Patch -> Code) -> InstTypes.SynthName -> Text
+load_synth :: (Patch.Patch -> Code) -> InstTypes.SynthName -> Text
     -> FilePath -> IO (Maybe Synth)
 load_synth get_code synth_name doc app_dir = do
     let fname = db_path app_dir (untxt synth_name)
@@ -296,9 +296,9 @@ db_path app_dir name =
 -- them as errors.
 check_names :: [Patch] -> (Map.Map InstTypes.Name Patch, [InstTypes.Name])
 check_names = second (map fst) . Util.Map.unique
-    . Seq.key_on (Instrument.patch_name . patch_patch)
+    . Seq.key_on (Patch.patch_name . patch_patch)
 
--- | 'Instrument.inst_name' is the name as it appears on the synth, so it's not
+-- | 'Patch.inst_name' is the name as it appears on the synth, so it's not
 -- guaranteed to be unique.  Also, due to loading from sysexes, there may be
 -- duplicate patches.  Generate valid names for the patches, drop duplicates,
 -- and disambiguate names that wind up the same.
@@ -313,7 +313,7 @@ generate_names = -- This only touches the 'patch_patch' field.
         -> Logger (InstTypes.Name, [Patch])
     drop_dup_initialization (name, patches) = do
         let (unique, dups) = Seq.partition_dups
-                (Instrument.patch_initialize . patch_patch) patches
+                (Patch.patch_initialize . patch_patch) patches
         forM_ dups $ \(patch, dups) ->
             log ("dropped patches with the same initialization as "
                 <> details patch) dups
@@ -332,7 +332,7 @@ generate_names = -- This only touches the 'patch_patch' field.
         <> Text.intercalate ", " (map details patches)
     details patch =
         inst_name patch <> " (" <> fromMaybe "" (filename patch) <> ")"
-    inst_name = Instrument.patch_name . patch_patch
+    inst_name = Patch.patch_name . patch_patch
     filename = lookup Tag.file . Common.common_tags . patch_common
 
 type Logger a = Logger.LoggerT Text Identity.Identity a

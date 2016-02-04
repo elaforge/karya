@@ -11,7 +11,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
@@ -45,7 +45,7 @@ t_all_insts :: [Text]
 t_all_insts =
     map InstTypes.show_qualified (Map.keys (Search.idx_instrument_tags index))
 
-z1_patches :: [(Instrument.Patch, Text)]
+z1_patches :: [(Patch.Patch, Text)]
 z1_patches =
     [ (mkpatch "mr-delgado" [(14, "delgado")], "synth-lead")
     , (mkpatch "studio-ep" [], "epiano")
@@ -56,21 +56,18 @@ z1_patches =
     , (mkpatch "pulse-clav" [(16, "pe1")], "keyboard")
     ]
 
-fm8_patches :: [(Instrument.Patch, Text)]
+fm8_patches :: [(Patch.Patch, Text)]
 fm8_patches = [(mkpatch "" [], "fm")]
 
-mkpatch :: InstTypes.Name -> [(Midi.Control, ScoreTypes.Control)]
-    -> Instrument.Patch
-mkpatch name controls = (Instrument.patch (-2, 2) name)
-    { Instrument.patch_control_map = Control.control_map controls }
+mkpatch :: InstTypes.Name -> [(Midi.Control, ScoreTypes.Control)] -> Patch.Patch
+mkpatch name controls = (Patch.patch (-2, 2) name)
+    { Patch.patch_control_map = Control.control_map controls }
 
-make_db :: [(InstTypes.SynthName, [(Instrument.Patch, Text)])]
-    -> Cmd.InstrumentDb
+make_db :: [(InstTypes.SynthName, [(Patch.Patch, Text)])] -> Cmd.InstrumentDb
 make_db synth_patches = fst $ Inst.db $ map make synth_patches
     where make (name, patches) = make_synth name patches
 
-make_synth :: InstTypes.SynthName -> [(Instrument.Patch, Text)]
-    -> MidiInst.Synth
+make_synth :: InstTypes.SynthName -> [(Patch.Patch, Text)] -> MidiInst.Synth
 make_synth name = MidiInst.synth name "Test Synth" . map make
     where
     make (patch, category) = MidiInst.Patch patch (Common.common mempty)

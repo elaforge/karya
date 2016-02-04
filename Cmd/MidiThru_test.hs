@@ -12,7 +12,7 @@ import Cmd.CmdTest (note_off, control)
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.MidiThru as MidiThru
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 
 
 test_input_to_midi = do
@@ -67,7 +67,7 @@ extract_msg :: Midi.Message -> (Midi.Channel, Midi.ChannelMessage)
 extract_msg (Midi.ChannelMessage chan msg) = (chan, msg)
 extract_msg msg = error $ "bad msg: " ++ show msg
 
-thread_inputs :: Cmd.WriteDeviceState -> [([Instrument.Addr], InputNote.Input)]
+thread_inputs :: Cmd.WriteDeviceState -> [([Patch.Addr], InputNote.Input)]
     -> ([(Midi.WriteDevice, Midi.Message)], Cmd.WriteDeviceState)
 thread_inputs initial_state = foldl go ([], initial_state)
     where

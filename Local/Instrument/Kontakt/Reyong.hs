@@ -18,7 +18,7 @@ import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong
 import qualified Derive.ShowVal as ShowVal
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import Global
 
 
@@ -38,23 +38,23 @@ patches =
     patch name = MidiInst.code #= code $ set_params $
         MidiInst.patch (-24, 24) name []
     set_params = (MidiInst.patch_ %=) $
-        Instrument.set_flag Instrument.ConstantPitch
-        . (Instrument.decay #= Just 0)
-        . (Instrument.attribute_map #= attribute_map)
+        Patch.set_flag Patch.ConstantPitch
+        . (Patch.decay #= Just 0)
+        . (Patch.attribute_map #= attribute_map)
     tuning = BaliScales.Umbang -- TODO verify how mine are tuned
-    set_scale = (MidiInst.patch_#Instrument.scale #= Just instrument_scale)
+    set_scale = (MidiInst.patch_#Patch.scale #= Just instrument_scale)
         . MidiInst.default_scale Legong.scale_id
         . MidiInst.environ EnvKey.tuning tuning
     -- Trompong starts at 3a, trompong + reyong has 15 keys.
     instrument_scale =
         Legong.instrument_scale (take 15 . drop 4 . Legong.strip_pemero) tuning
 
-attribute_map :: Instrument.AttributeMap
-attribute_map = Instrument.keyswitches $ map at
+attribute_map :: Patch.AttributeMap
+attribute_map = Patch.keyswitches $ map at
     [ (Reyong.cek <> Attrs.open, 4)
     , (Reyong.cek, 3)
     , (Attrs.mute <> Attrs.open, 2)
     , (Attrs.mute, 1)
     , (mempty, 0)
     ]
-    where at = second ((:[]) . Instrument.Aftertouch)
+    where at = second ((:[]) . Patch.Aftertouch)

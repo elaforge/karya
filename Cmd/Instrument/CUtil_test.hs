@@ -24,7 +24,7 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
 import Global
 import Types
@@ -92,7 +92,7 @@ test_drum_instrument = do
 
 test_make_cc_keymap = do
     let f = CUtil.make_cc_keymap
-        cw = Instrument.ControlSwitch
+        cw = Patch.ControlSwitch
     equal (f 0 12 NN.c4
         [[Attrs.left, Attrs.right], [Attrs.open], [Attrs.low, Attrs.high]]) $
         Map.fromList

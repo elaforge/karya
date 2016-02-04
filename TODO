@@ -442,7 +442,7 @@ Synth: Im:
     . Midi is no good because lots of places import Midi.Midi.
       MTypes, MidiTypes?  Lots of precedent for MidiTypes but it's so long.
       Might as well be Types for Midi.Types.
-  - rename Perform.Midi.Instrument to Patch
+  * rename Perform.Midi.Instrument to Patch
   - rename MidiInst.Patch to Inst?  This is because it's at the
     Instrument.Inst level, and would also resolve the awkward 'patch' vs.
     'patch_'.

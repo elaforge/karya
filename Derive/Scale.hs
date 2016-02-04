@@ -19,7 +19,7 @@ import qualified Derive.Env as Env
 import qualified Derive.Eval as Eval
 import qualified Derive.PSignal as PSignal
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -142,8 +142,8 @@ note_numbers scale environ = go (notes scale environ)
             Left err -> Derive.throw $ "note_numbers: " <> pretty err
 
 -- | Make a patch scale from the NoteNumbers.
-patch_scale :: Pitch.ScaleId -> [Pitch.NoteNumber] -> Instrument.Scale
-patch_scale scale_id nns = Instrument.make_scale (pretty scale_id) $
+patch_scale :: Pitch.ScaleId -> [Pitch.NoteNumber] -> Patch.Scale
+patch_scale scale_id nns = Patch.make_scale (pretty scale_id) $
     map (first Midi.to_key) $ assign_keys 128 nns
 
 -- | Try to assign MIDI keys that correspond to the NoteNumbers, but

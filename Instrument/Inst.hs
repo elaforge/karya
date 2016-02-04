@@ -35,7 +35,7 @@ import qualified Util.Pretty as Pretty
 
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Perform.Im.Instrument as Im.Instrument
-import qualified Perform.Midi.Instrument as Midi.Instrument
+import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Tag as Tag
@@ -60,14 +60,14 @@ instance Pretty.Pretty code => Pretty.Pretty (Inst code) where
         , ("common", Pretty.format common)
         ]
 
-data Backend = Midi !Midi.Instrument.Patch | Im Im.Instrument.Instrument
+data Backend = Midi !Midi.Patch.Patch | Im Im.Instrument.Instrument
     deriving (Show)
 
 instance Pretty.Pretty Backend where
     format (Midi inst) = Pretty.format inst
     format (Im inst) = Pretty.format inst
 
-inst_midi :: Inst code -> Maybe Midi.Instrument.Patch
+inst_midi :: Inst code -> Maybe Midi.Patch.Patch
 inst_midi inst = case inst_backend inst of
     Midi inst -> Just inst
     _ -> Nothing
@@ -75,7 +75,7 @@ inst_midi inst = case inst_backend inst of
 inst_attributes :: Inst code -> [ScoreTypes.Attributes]
 inst_attributes inst = case inst_backend inst of
     Midi inst -> Common.mapped_attributes $
-        Midi.Instrument.patch_attribute_map inst
+        Midi.Patch.patch_attribute_map inst
     Im inst -> Common.mapped_attributes $
         Im.Instrument.inst_attribute_map inst
 
@@ -143,7 +143,7 @@ db synth_insts = (Db db, synth_errors ++ inst_errors ++ validate_errors)
 validate :: Inst code -> [Text]
 validate inst = case inst_backend inst of
     Midi patch -> Common.overlapping_attributes $
-        Midi.Instrument.patch_attribute_map patch
+        Midi.Patch.patch_attribute_map patch
     Im patch -> Common.overlapping_attributes $
         Im.Instrument.inst_attribute_map patch
 

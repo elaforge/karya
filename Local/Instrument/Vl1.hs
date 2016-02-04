@@ -31,7 +31,7 @@ import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
@@ -105,8 +105,8 @@ parse_builtins fn = do
     mapM_ (Log.warn . txt) warns
     return $ zipWith initialize [0..] patches
     where
-    initialize n = MidiInst.patch_#Instrument.initialize
-        #= Instrument.InitializeMidi
+    initialize n = MidiInst.patch_#Patch.initialize
+        #= Patch.InitializeMidi
             (map (Midi.ChannelMessage 0) (Midi.program_change 0 n))
 
 parse_dir :: FilePath -> IO [MidiInst.Patch]
@@ -131,8 +131,8 @@ combine :: FilePath -> Text -> ByteString -> MidiInst.Patch -> MidiInst.Patch
 combine fn doc syx =
     (MidiInst.common %= Sysex.add_file fn)
     . (MidiInst.doc #= Text.strip doc)
-    . (MidiInst.patch_#Instrument.initialize #=
-        Instrument.InitializeMidi [Midi.Encode.decode syx])
+    . (MidiInst.patch_#Patch.initialize #=
+        Patch.InitializeMidi [Midi.Encode.decode syx])
 
 decode_sysex :: ByteString -> Either String Sysex.RMap
 decode_sysex bytes = fst <$> decode patch_spec bytes

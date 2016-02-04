@@ -32,7 +32,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
 import Global
 import Types
@@ -203,8 +203,7 @@ test_inst_call = do
     code = MidiInst.note_generators [("sn", DUtil.attrs_note Attrs.snare)]
     patches =
         [ MidiInst.code #= code $ MidiInst.make_patch $
-            Instrument.attribute_map
-                #= Instrument.unpitched_keymap [(Attrs.snare, 42)] $
+            Patch.attribute_map #= Patch.unpitched_keymap [(Attrs.snare, 42)] $
             DeriveTest.make_patch "with-call"
         , MidiInst.make_patch $ DeriveTest.make_patch "1"
         ]

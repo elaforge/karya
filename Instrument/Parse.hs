@@ -15,7 +15,7 @@ import qualified Util.Parse as Parse
 import qualified Midi.Midi as Midi
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Sysex as Sysex
@@ -127,8 +127,8 @@ p_patch_file = do
 make_patch :: Control.PbRange -> PatchLine -> Sysex.Patch
 make_patch pb_range (PatchLine name bank patch_num tags) = (patch, common)
     where
-    patch = (Instrument.patch pb_range name)
-        { Instrument.patch_initialize = Instrument.InitializeMidi $
+    patch = (Patch.patch pb_range name)
+        { Patch.patch_initialize = Patch.InitializeMidi $
             map (Midi.ChannelMessage 0) (Midi.program_change bank patch_num)
         }
     common = (Common.common ()) { Common.common_tags = tags }

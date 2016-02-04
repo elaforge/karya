@@ -17,7 +17,7 @@ import qualified Util.TextUtil as TextUtil
 import qualified Midi.Midi as Midi
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import Global
 
 
@@ -30,8 +30,8 @@ write fname = either (errorIO . untxt) $ \t -> do
 
 -- | Create a script in Kontakt's hilariously incompetent KSP language to
 -- retune a 12TET patch to the given scale.
-tuning_ksp :: Instrument.Scale -> Either Text Text
-tuning_ksp (Instrument.Scale name scale) =
+tuning_ksp :: Patch.Scale -> Either Text Text
+tuning_ksp (Patch.Scale name scale) =
     interpolate values tuning_template
     where
     values = Map.fromList
@@ -98,7 +98,7 @@ drum_mute_values notes =
         Vector.// zip (map Midi.from_key keyswitches) [0..]
     (keyswitches, keyswitch_notes) = unzip $ Map.toAscList keyswitch_to_notes
     -- If this instrument doesn't use keyswitches (it could use
-    -- 'Instrument.ControlSwitch'es), then they all wind up with 0.  I need
+    -- 'Patch.ControlSwitch'es), then they all wind up with 0.  I need
     -- at least one keyswitch so pitch_to_group isn't empty, and pretending
     -- there's one at 0 is fine since it never changes.  This is fine, assuming
     -- that overlapping groups all belong to the same stop gorup.
@@ -106,7 +106,7 @@ drum_mute_values notes =
         [ (ks_of keyswitch, (Drums.note_group note, (low, high)))
         | (note, (keyswitch, low, high, _)) <- notes
         ]
-    ks_of (Instrument.Keyswitch ks : _) = ks
+    ks_of (Patch.Keyswitch ks : _) = ks
     ks_of _ = 0
     groups = Seq.drop_dups id (List.sort (map (Drums.note_group . fst) notes))
     group_to_id = Map.fromList $ zip groups [0..]

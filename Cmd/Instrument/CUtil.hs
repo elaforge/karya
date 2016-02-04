@@ -40,8 +40,8 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
-import qualified Perform.Midi.Instrument as Instrument
 import qualified Perform.NN as NN
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
@@ -202,15 +202,15 @@ drum_cmd = insert_call . notes_to_calls
 -- ** patch
 
 drum_patch :: [(Drums.Note, Midi.Key)] -> MidiInst.Patch -> MidiInst.Patch
-drum_patch note_keys = (MidiInst.patch_ %=) $ Instrument.triggered
-    . (Instrument.call_map #= make_call_map (map fst note_keys))
-    . (Instrument.attribute_map #= Instrument.unpitched_keymap
+drum_patch note_keys = (MidiInst.patch_ %=) $ Patch.triggered
+    . (Patch.call_map #= make_call_map (map fst note_keys))
+    . (Patch.attribute_map #= Patch.unpitched_keymap
         [(Drums.note_attrs note, key) | (note, key) <- note_keys])
 
 -- | (keyswitch, low, high, root_pitch).  The root pitch is the pitch at the
--- bottom of the key range, and winds up in 'Instrument.PitchedKeymap'.
+-- bottom of the key range, and winds up in 'Patch.PitchedKeymap'.
 type KeyswitchRange =
-    ([Instrument.Keyswitch], Midi.Key, Midi.Key, Pitch.NoteNumber)
+    ([Patch.Keyswitch], Midi.Key, Midi.Key, Pitch.NoteNumber)
 type PitchedNotes = [(Drums.Note, KeyswitchRange)]
 
 -- | Make a KeyswitchRange for each grouped Attributes set.  Attributes in the
@@ -224,7 +224,7 @@ make_keymap :: Maybe Midi.Key -- ^ Keyswitches start here.  If not given,
 make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
     (group, low) <- zip groups [base_key, base_key+range ..]
     (attrs, ks) <- zip group $ maybe (repeat [])
-        (\base -> map ((:[]) . Instrument.Keyswitch) [base..]) base_keyswitch
+        (\base -> map ((:[]) . Patch.Keyswitch) [base..]) base_keyswitch
     return (attrs, (ks, low, low + (range-1), root_pitch))
 
 -- | This is like 'make_keymap', except with the arguments rearranged to more
@@ -237,7 +237,7 @@ make_keymap2 base_keyswitch base_key natural_key range natural_nn =
         (natural_nn - Pitch.nn (Midi.from_key natural_key))
 
 -- | This is like 'make_keymap', except that attributes are differentiated by
--- a 'Instrument.ControlSwitch'.  CCs start at 102, and only groups of size >1
+-- a 'Patch.ControlSwitch'.  CCs start at 102, and only groups of size >1
 -- get a CC.  Since each group is controlled by its own CC number, you can then
 -- select each variation independently.  This means any set of variations can
 -- be played simultaneously, which is not true for keyswitches.
@@ -254,31 +254,30 @@ make_cc_keymap base_key range root_pitch =
         [attrs] -> (attrs, ([], low, low + (range-1), root_pitch))
             : go cc groups
         _ ->
-            [ (attrs, ([Instrument.ControlSwitch cc cc_val],
+            [ (attrs, ([Patch.ControlSwitch cc cc_val],
                 low, low + (range-1), root_pitch))
             | (attrs, cc_val) <- zip group [0 ..]
             ] ++ go (cc+1) groups
     -- There is an unallocated block [102 .. 119], which should be enough.
     base_cc = 102
 
--- | Annotate a Patch with an 'Instrument.AttributeMap' from the given
+-- | Annotate a Patch with an 'Patch.AttributeMap' from the given
 -- PitchedNotes.
 pitched_drum_patch :: PitchedNotes -> MidiInst.Patch -> MidiInst.Patch
-pitched_drum_patch notes = (MidiInst.patch_ %=) $ Instrument.triggered
-    . (Instrument.call_map #= make_call_map (map fst notes))
-    . (Instrument.attribute_map #= make_attribute_map notes)
+pitched_drum_patch notes = (MidiInst.patch_ %=) $ Patch.triggered
+    . (Patch.call_map #= make_call_map (map fst notes))
+    . (Patch.attribute_map #= make_attribute_map notes)
 
-make_call_map :: [Drums.Note] -> Instrument.CallMap
+make_call_map :: [Drums.Note] -> Patch.CallMap
 make_call_map =
     Map.fromList . map (\n -> (Drums.note_attrs n, Drums.note_name n))
 
-make_attribute_map :: PitchedNotes -> Instrument.AttributeMap
+make_attribute_map :: PitchedNotes -> Patch.AttributeMap
 make_attribute_map notes = Common.attribute_map $ Seq.unique
     -- It's ok to have Notes with the same (attr, keyswitch), for instance if
     -- there are loud and soft versions, but make_attribute_map will see them
     -- as overlapping attrs, so filter out duplicates.
-    [ (Drums.note_attrs note,
-        (ks, Just (Instrument.PitchedKeymap low high root)))
+    [ (Drums.note_attrs note, (ks, Just (Patch.PitchedKeymap low high root)))
     | (note, (ks, low, high, root)) <- notes
     ]
 

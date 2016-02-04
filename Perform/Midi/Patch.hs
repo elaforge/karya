@@ -5,8 +5,8 @@
 {- | Description of a midi-specific instrument, as well as the runtime midi
     device and channel mapping.
 -}
-module Perform.Midi.Instrument (
-    module Perform.Midi.Instrument, Control.PbRange
+module Perform.Midi.Patch (
+    module Perform.Midi.Patch, Control.PbRange
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map

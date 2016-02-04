@@ -30,7 +30,7 @@ import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
@@ -70,12 +70,12 @@ list_like pattern = do
     where
     matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
     show_config alias_map (inst, config) = ShowVal.show_val inst <> " - "
-        <> Info.show_addrs (map fst (Instrument.config_addrs config))
+        <> Info.show_addrs (map fst (Patch.config_addrs config))
         <> show_alias alias_map inst
-        <> show_environ (Instrument.config_restricted_environ config)
-        <> show_controls "" (Instrument.config_controls config)
+        <> show_environ (Patch.config_restricted_environ config)
+        <> show_controls "" (Patch.config_controls config)
         <> show_flags config
-        <> show_controls "defaults:" (Instrument.config_control_defaults config)
+        <> show_controls "defaults:" (Patch.config_control_defaults config)
     show_alias alias_map inst = case Map.lookup inst alias_map of
         Nothing -> ""
         Just qualified -> " (qualified: " <> pretty qualified <> ")"
@@ -89,11 +89,11 @@ list_like pattern = do
         | null flags = ""
         | otherwise = " {" <> Text.intercalate ", " flags <> "}"
         where
-        flags = ["mute" | Instrument.config_mute config]
-            ++ ["solo" | Instrument.config_solo config]
+        flags = ["mute" | Patch.config_mute config]
+            ++ ["solo" | Patch.config_solo config]
 
 -- | The not-so-purty version.
-midi_config :: State.M m => m Instrument.Configs
+midi_config :: State.M m => m Patch.Configs
 midi_config = State.get_midi_config
 
 -- | Alias map.  It maps from alias to underlying instrument.
@@ -162,45 +162,45 @@ remove_alias inst = State.modify $
 -- | Toggle and return the new value.
 toggle_mute :: State.M m => Instrument -> m Bool
 toggle_mute inst = modify_config inst $ \config ->
-    let mute = not $ Instrument.config_mute config
-    in (config { Instrument.config_mute = mute }, mute)
+    let mute = not $ Patch.config_mute config
+    in (config { Patch.config_mute = mute }, mute)
 
 -- | Toggle and return the new value.
 toggle_solo :: State.M m => Instrument -> m Bool
 toggle_solo inst = modify_config inst $ \config ->
-    let solo = not $ Instrument.config_solo config
-    in (config { Instrument.config_solo = solo }, solo)
+    let solo = not $ Patch.config_solo config
+    in (config { Patch.config_solo = solo }, solo)
 
 -- | Add an environ val to the instrument config.
 add_environ :: (RestrictedEnviron.ToVal a, State.M m) => Instrument -> Env.Key
     -> a -> m ()
 add_environ inst name val = modify_config_ inst $
-    Instrument.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
+    Patch.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
     where v = RestrictedEnviron.to_val val
 
 -- | Clear the instrument config's environ.  The instrument's built-in environ
--- from 'Instrument.patch_environ' is still present.
+-- from 'Patch.patch_environ' is still present.
 clear_environ :: State.M m => Instrument -> m ()
-clear_environ inst = modify_config_ inst $ Instrument.cenviron #= mempty
+clear_environ inst = modify_config_ inst $ Patch.cenviron #= mempty
 
 set_controls :: State.M m => Instrument -> [(Score.Control, Signal.Y)] -> m ()
 set_controls inst controls = modify_config_ inst $
-    Instrument.controls #= Map.fromList controls
+    Patch.controls #= Map.fromList controls
 
-set_scale :: State.M m => Instrument -> Instrument.Scale -> m ()
-set_scale inst scale = modify_config_ inst $ Instrument.cscale #= Just scale
+set_scale :: State.M m => Instrument -> Patch.Scale -> m ()
+set_scale inst scale = modify_config_ inst $ Patch.cscale #= Just scale
 
 set_control_defaults :: State.M m => Instrument -> [(Score.Control, Signal.Y)]
     -> m ()
 set_control_defaults inst controls = modify_config_ inst $
-    Instrument.control_defaults #= Map.fromList controls
+    Patch.control_defaults #= Map.fromList controls
 
-get_config :: State.M m => Score.Instrument -> m Instrument.Config
+get_config :: State.M m => Score.Instrument -> m Patch.Config
 get_config inst = State.require ("no config for " <> pretty inst)
     . Map.lookup inst =<< State.get_midi_config
 
-modify_config :: State.M m => Instrument
-    -> (Instrument.Config -> (Instrument.Config, a)) -> m a
+modify_config :: State.M m => Instrument -> (Patch.Config -> (Patch.Config, a))
+    -> m a
 modify_config inst_ modify = do
     let inst = Util.instrument inst_
     config <- get_config inst
@@ -208,8 +208,8 @@ modify_config inst_ modify = do
     State.modify $ State.config # State.midi # Lens.map inst #= Just new
     return result
 
-modify_config_ :: State.M m => Instrument
-    -> (Instrument.Config -> Instrument.Config) -> m ()
+modify_config_ :: State.M m => Instrument -> (Patch.Config -> Patch.Config)
+    -> m ()
 modify_config_ inst modify = modify_config inst (\c -> (modify c, ()))
 
 
@@ -221,7 +221,7 @@ alloc :: Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 alloc inst wdev chans = alloc_voices inst wdev (map (, Nothing) chans)
 
 -- | Like 'alloc', but you can also give maximum voices per channel.
-alloc_voices :: Instrument -> Text -> [(Midi.Channel, Maybe Instrument.Voices)]
+alloc_voices :: Instrument -> Text -> [(Midi.Channel, Maybe Patch.Voices)]
     -> Cmd.CmdL ()
 alloc_voices inst_ wdev chan_voices = do
     let inst = Util.instrument inst_
@@ -233,7 +233,7 @@ dealloc :: Instrument -> Cmd.CmdL ()
 dealloc = dealloc_instrument . Util.instrument
 
 -- | Allocate the given channels for the instrument using its default device.
-alloc_default :: Instrument -> [(Midi.Channel, Maybe Instrument.Voices)]
+alloc_default :: Instrument -> [(Midi.Channel, Maybe Patch.Voices)]
     -> Cmd.CmdL ()
 alloc_default inst_ chans = do
     let inst = Util.instrument inst_
@@ -241,10 +241,10 @@ alloc_default inst_ chans = do
     alloc_instrument inst [((wdev, c), v) | (c, v) <- chans]
 
 -- | Merge the given configs into the existing one.
-merge_config :: State.M m => Instrument.Configs -> m ()
+merge_config :: State.M m => Patch.Configs -> m ()
 merge_config config = State.modify $ State.config#State.midi %= (config<>)
 
--- | Merge or replace both 'Instrument.Configs' and aliases.
+-- | Merge or replace both 'Patch.Configs' and aliases.
 merge, replace :: State.M m => MidiConfig.Config -> m ()
 merge = MidiConfig.merge
 replace = MidiConfig.replace
@@ -295,7 +295,7 @@ find_chan_for :: Midi.WriteDevice -> Cmd.CmdL Midi.Channel
 find_chan_for dev = do
     config <- State.get_midi_config
     let addrs = map ((,) dev) [0..15]
-        taken = concatMap (map fst . Instrument.config_addrs) (Map.elems config)
+        taken = concatMap (map fst . Patch.config_addrs) (Map.elems config)
     let match = fmap snd $ List.find (not . (`elem` taken)) addrs
     Cmd.require ("couldn't find free channel for " <> showt dev) match
 
@@ -303,24 +303,23 @@ initialize :: Score.Instrument -> Midi.WriteDevice -> Midi.Channel
     -> Cmd.CmdL ()
 initialize inst wdev chan = do
     patch <- Cmd.get_midi_patch inst
-    send_initialization (Instrument.patch_initialize patch) inst wdev chan
+    send_initialization (Patch.patch_initialize patch) inst wdev chan
 
-send_initialization :: Instrument.InitializePatch
+send_initialization :: Patch.InitializePatch
     -> Score.Instrument -> Midi.WriteDevice -> Midi.Channel -> Cmd.CmdL ()
 send_initialization init inst dev chan = case init of
-    Instrument.InitializeMidi msgs -> do
+    Patch.InitializeMidi msgs -> do
         Log.notice $ "sending midi init: " <> pretty msgs
         mapM_ (Cmd.midi dev . Midi.set_channel chan) msgs
-    Instrument.InitializeMessage msg ->
+    Patch.InitializeMessage msg ->
         -- TODO warn doesn't seem quite right for this...
         Log.warn $ "initialize instrument " <> showt inst <> ": " <> msg
-    Instrument.NoInitialization -> return ()
+    Patch.NoInitialization -> return ()
 
-alloc_instrument :: Score.Instrument
-    -> [(Instrument.Addr, Maybe Instrument.Voices)] -> Cmd.CmdL ()
+alloc_instrument :: Score.Instrument -> [(Patch.Addr, Maybe Patch.Voices)]
+    -> Cmd.CmdL ()
 alloc_instrument inst addrs = State.modify $
-    State.config#State.midi#Lens.map inst
-        #= Just (Instrument.voice_config addrs)
+    State.config#State.midi#Lens.map inst #= Just (Patch.voice_config addrs)
 
 dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
 dealloc_instrument inst = State.modify $
@@ -339,7 +338,7 @@ block_instruments block_id = do
 --
 -- TODO: won't work if there are >1 block, need a merge config
 -- TODO: same inst with different keyswitches should get the same addrs
-auto_config :: BlockId -> Cmd.CmdL Instrument.Configs
+auto_config :: BlockId -> Cmd.CmdL Patch.Configs
 auto_config block_id = do
     insts <- block_instruments block_id
     devs <- mapM device_of insts
@@ -348,7 +347,7 @@ auto_config block_id = do
             | (dev, by_dev) <- Seq.keyed_group_sort snd (zip insts devs)
             , (i, (inst, _dev)) <- Seq.enumerate by_dev
             ]
-    return $ Instrument.configs addrs
+    return $ Patch.configs addrs
 
 -- | Synths default to writing to a device with their name.  You'll have to
 -- map it to a real hardware WriteDevice in the 'Cmd.Cmd.write_device_map'.
@@ -365,12 +364,12 @@ device_of inst = do
 -- | Set the instrument's Scale to the given scale and send a MIDI tuning
 -- message to retune the synth.  Obviously this only works for synths that
 -- support it.
-retune :: Cmd.M m => Instrument -> Instrument.Scale -> m ()
+retune :: Cmd.M m => Instrument -> Patch.Scale -> m ()
 retune inst scale = do
     let msg = Midi.realtime_tuning $ map (second Pitch.nn_to_double) $
-            Instrument.scale_keys scale
+            Patch.scale_keys scale
     set_scale inst scale
-    devs <- map (fst . fst) . Instrument.config_addrs <$>
+    devs <- map (fst . fst) . Patch.config_addrs <$>
         get_config (Util.instrument inst)
     mapM_ (flip Cmd.midi msg) (Seq.unique devs)
 

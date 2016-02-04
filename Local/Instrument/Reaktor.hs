@@ -14,7 +14,7 @@ import qualified Derive.Controls as Controls
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.InstTypes as InstTypes
 import Global
 
@@ -115,8 +115,8 @@ patches =
         -- probably has minimal affect on the sound.  If dropping to
         -- 0 momentarily sounds like a direction change then that's good
         -- enough.
-        MidiInst.patch_ # Instrument.attribute_map #=
-            Instrument.cc_keyswitches CC.cc20 [(Attrs.pizz, 127), (mempty, 0)] $
+        MidiInst.patch_ # Patch.attribute_map #=
+            Patch.cc_keyswitches CC.cc20 [(Attrs.pizz, 127), (mempty, 0)] $
         MidiInst.pressure $ MidiInst.patch (-24, 24) "serenade"
             [ (CC.mod, Controls.vib)
             , (CC.vib_speed, Controls.vib_speed)

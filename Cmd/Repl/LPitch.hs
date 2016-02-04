@@ -21,7 +21,7 @@ import qualified Derive.Scale as Scale
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.ShowVal as ShowVal
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import Global
 import Types
@@ -33,7 +33,7 @@ nn_to_note = Twelve.show_nn . fromIntegral
 
 -- * scales
 
-patch_scale :: Cmd.M m => Pitch.ScaleId -> m Instrument.Scale
+patch_scale :: Cmd.M m => Pitch.ScaleId -> m Patch.Scale
 patch_scale scale_id = (Cmd.require_right id <=< Perf.derive) $ do
     scale <- Derive.get_scale scale_id
     nns <- Scale.note_numbers scale mempty

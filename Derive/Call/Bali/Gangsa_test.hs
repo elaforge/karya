@@ -22,7 +22,7 @@ import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import Global
 import Types
 
@@ -197,12 +197,12 @@ test_unison_tuning = do
         config_inst = set UiTest.i1 BaliScales.Umbang
             . set UiTest.i2 BaliScales.Isep
         set inst tuning = modify_instrument inst $
-            Instrument.cenviron #= RestrictedEnviron.make
+            Patch.cenviron #= RestrictedEnviron.make
                 [(EnvKey.tuning, RestrictedEnviron.to_val tuning)]
     equal (run [(0, 1, "4i")]) ([(">i1", Just 62.95), (">i2", Just 62.5)], [])
 
-modify_instrument :: Score.Instrument
-    -> (Instrument.Config -> Instrument.Config) -> State.State -> State.State
+modify_instrument :: Score.Instrument -> (Patch.Config -> Patch.Config)
+    -> State.State -> State.State
 modify_instrument inst modify state =
     case Map.lookup inst $ State.config#State.midi #$ state of
         Nothing -> state

@@ -37,7 +37,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Tag as Tag
@@ -79,8 +79,7 @@ find_attrs inst with_attrs =
     where
     search = either (error . untxt) id (Parse.parse_attrs with_attrs)
     patch = fromMaybe (error $ "patch not found: " ++ show inst) $
-        List.find ((==inst) . Instrument.patch_name . MidiInst.patch_patch)
-            patches
+        List.find ((==inst) . Patch.patch_name . MidiInst.patch_patch) patches
 
 -- | Write matrices to a file for visual reference.
 write_matrices :: IO ()
@@ -145,7 +144,7 @@ solo_string_instruments = map (second Just)
 
 -- | Add various note calls, depending on the attributes that the patch
 -- understands.
-note_calls :: Maybe HarmonicMap -> Instrument.Patch
+note_calls :: Maybe HarmonicMap -> Patch.Patch
     -> [MidiInst.Call Derive.Note]
 note_calls maybe_hmap patch =
     with_attr Attrs.trill [g "tr" Trill.c_attr_trill]
@@ -165,10 +164,10 @@ note_calls maybe_hmap patch =
     note_config patch = Note.use_attributes
         { Note.config_staccato = not $ has_attr Attrs.staccato patch }
 
-patch_attrs :: Instrument.Patch -> [Score.Attributes]
-patch_attrs = Common.mapped_attributes . Instrument.patch_attribute_map
+patch_attrs :: Patch.Patch -> [Score.Attributes]
+patch_attrs = Common.mapped_attributes . Patch.patch_attribute_map
 
-has_attr :: Score.Attributes -> Instrument.Patch -> Bool
+has_attr :: Score.Attributes -> Patch.Patch -> Bool
 has_attr attr = any (`Score.attrs_contain` attr) . patch_attrs
 
 grace_call :: [Score.Attributes] -> Derive.Generator Derive.Note
@@ -210,7 +209,7 @@ harmonic config hmap args = do
 -- * keyswitches
 
 type Instrument = (InstTypes.Name, [Keyswitch])
-type Keyswitch = (Score.Attributes, [Instrument.Keyswitch])
+type Keyswitch = (Score.Attributes, [Patch.Keyswitch])
 
 make_patch :: VslInst.Instrument -> Text -> MidiInst.Patch
 make_patch inst category =
@@ -219,7 +218,7 @@ make_patch inst category =
 
 instrument_patch :: Text -> Instrument -> MidiInst.Patch
 instrument_patch category (name, keyswitches) =
-    -- Instrument.pressure means I expect to have velocity-xf enabled and
+    -- MidiInst.pressure means I expect to have velocity-xf enabled and
     -- assigned to cc2.
     MidiInst.pressure $
     MidiInst.common#Common.tags %= ((Tag.category, category) :) $
@@ -229,8 +228,8 @@ instrument_patch category (name, keyswitches) =
 make_instrument :: VslInst.Instrument -> Instrument
 make_instrument (name, keys, attrs) = (name, matrix keys attrs)
 
-keyswitch_map :: [Keyswitch] -> Instrument.AttributeMap
-keyswitch_map = Instrument.keyswitches . Seq.sort_on (priority . fst) . process
+keyswitch_map :: [Keyswitch] -> Patch.AttributeMap
+keyswitch_map = Patch.keyswitches . Seq.sort_on (priority . fst) . process
     where
     process keyswitches = zip attrs ks
         where (attrs, ks) = unzip (drop_dups keyswitches)
@@ -238,7 +237,7 @@ keyswitch_map = Instrument.keyswitches . Seq.sort_on (priority . fst) . process
     priority attrs = Map.findWithDefault 0 attrs attribute_priority
 
 -- | Order attributes by priority.  This should correspond to specificity, or
--- to perceptual importance, as documented in 'Instrument.AttributeMap'.
+-- to perceptual importance, as documented in 'Patch.AttributeMap'.
 attribute_priority :: Map.Map Score.Attributes Int
 attribute_priority = Map.fromList ((`zip` [-1, -2 ..]) (reverse high)) <> low
     where
@@ -276,8 +275,8 @@ matrix keys = add . Seq.chunked 12 . concatMap (Seq.chunked 12)
     ab = keys_from (VslInst.key_ab keys)
     select_matrix = keys_from (VslInst.key_matrix keys)
 
-keys_from :: Midi.Key -> [Instrument.Keyswitch]
-keys_from low_key = map Instrument.Keyswitch [low_key ..]
+keys_from :: Midi.Key -> [Patch.Keyswitch]
+keys_from low_key = map Patch.Keyswitch [low_key ..]
 
 -- * attrs
 

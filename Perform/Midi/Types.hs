@@ -11,7 +11,7 @@ import qualified Util.Pretty as Pretty
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
@@ -19,9 +19,9 @@ import Global
 import Types
 
 
--- | The Patch is derived from an 'Instrument.Instrument' and contains all the
--- data necessary to render a 'Perform.Midi.Perform.Event' to a midi message.
--- Each Event has an attached Patch.
+-- | The Patch is derived from a 'Patch.Patch' and contains all the data
+-- necessary to render a 'Perform.Midi.Perform.Event' to a midi message.  Each
+-- Event has an attached Patch.
 data Patch = Patch {
     -- | The name for the instrument as used in the score.  It should globally
     -- identify the instrument within this score.
@@ -31,7 +31,7 @@ data Patch = Patch {
     -- level, each instrument of each note is specialized to the particular
     -- keyswitches intended.  So this is normally empty, but filled in by
     -- convert prior to perform.
-    , patch_keyswitch :: ![Instrument.Keyswitch]
+    , patch_keyswitch :: ![Patch.Keyswitch]
     -- | If true, the keysitch has to be held while the note is playing.
     -- Otherwise, it will just be tapped before the note starts.
     , patch_hold_keyswitch :: !Bool
@@ -46,14 +46,14 @@ data Patch = Patch {
     , patch_decay :: !(Maybe RealTime)
     } deriving (Eq, Ord, Show)
 
-patch :: Score.Instrument -> Instrument.Patch -> Patch
+patch :: Score.Instrument -> Patch.Patch -> Patch
 patch score_inst inst = Patch
     { patch_name = score_inst
     , patch_keyswitch = mempty
-    , patch_hold_keyswitch = Instrument.has_flag inst Instrument.HoldKeyswitch
-    , patch_control_map = Instrument.patch_control_map inst
-    , patch_pitch_bend_range = Instrument.patch_pitch_bend_range inst
-    , patch_decay = Instrument.patch_decay inst
+    , patch_hold_keyswitch = Patch.has_flag inst Patch.HoldKeyswitch
+    , patch_control_map = Patch.patch_control_map inst
+    , patch_pitch_bend_range = Patch.patch_pitch_bend_range inst
+    , patch_decay = Patch.patch_decay inst
     }
 
 instance DeepSeq.NFData Patch where

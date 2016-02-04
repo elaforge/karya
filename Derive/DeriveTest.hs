@@ -55,7 +55,7 @@ import Derive.TestInstances ()
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Midi.Convert as Convert
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.Pitch as Pitch
@@ -127,7 +127,7 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
         (Derive.r_events result)
     result = derive_blocks blocks
 
-perform :: Convert.Lookup -> Instrument.Configs -> Stream.Stream Score.Event
+perform :: Convert.Lookup -> Patch.Configs -> Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform lookup midi_config events =
     (fst (LEvent.partition perf_events), mmsgs, logs)
@@ -139,14 +139,14 @@ perform_defaults :: Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform_defaults = perform default_convert_lookup UiTest.default_midi_config
 
-perform_stream :: Convert.Lookup -> Instrument.Configs
+perform_stream :: Convert.Lookup -> Patch.Configs
     -> Stream.Stream Score.Event
     -> ([LEvent.LEvent Midi.Types.Event], [LEvent.LEvent Midi.WriteMessage])
 perform_stream lookup midi_config stream = (perf_events, midi)
     where
     perf_events = Convert.convert lookup (Stream.events_of stream)
     (midi, _) = Perform.perform Perform.initial_state
-        (Instrument.config_addrs <$> midi_config) perf_events
+        (Patch.config_addrs <$> midi_config) perf_events
 
 -- | Perform events with the given instrument db.
 perform_synths :: Simple.Aliases -> [MidiInst.Synth] -> [(Text, [Midi.Channel])]
@@ -319,7 +319,7 @@ with_tsig_sources track_ids = with_ui $ State.tracks %= Map.mapWithKey enable
 with_transform :: Text -> Setup
 with_transform = with_ui . (State.config#State.global_transform #=)
 
-with_instrument_config :: Text -> Instrument.Config -> Setup
+with_instrument_config :: Text -> Patch.Config -> Setup
 with_instrument_config inst config = with_ui $
     State.config#State.midi %= Map.insert (Score.Instrument inst) config
 
@@ -422,8 +422,8 @@ default_environ = Env.from_list
 default_db :: Cmd.InstrumentDb
 default_db = make_db [("s", map make_patch ["1", "2", "3"])]
 
-make_patch :: InstTypes.Name -> Instrument.Patch
-make_patch name = Instrument.patch (-2, 2) name
+make_patch :: InstTypes.Name -> Patch.Patch
+make_patch name = Patch.patch (-2, 2) name
 
 default_convert_lookup :: Convert.Lookup
 default_convert_lookup = make_convert_lookup UiTest.default_aliases default_db
@@ -436,7 +436,7 @@ synth_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
 synth_to_db synths = trace_logs (map (Log.msg Log.Warn Nothing) warns) db
     where (db, warns) = Inst.db synths
 
-make_db :: [(Text, [Instrument.Patch])] -> Cmd.InstrumentDb
+make_db :: [(Text, [Patch.Patch])] -> Cmd.InstrumentDb
 make_db synth_patches = fst $ Inst.db $ map make synth_patches
     where
     make (name, patches) = make_synth name (map MidiInst.make_patch patches)

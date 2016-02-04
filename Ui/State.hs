@@ -165,7 +165,7 @@ import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Derive.Stack as Stack
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified App.Config as Config
 import Global
 import Types
@@ -420,10 +420,10 @@ get_namespace = get_config config_namespace
 set_namespace :: M m => Id.Namespace -> m ()
 set_namespace ns = modify_config $ \st -> st { config_namespace = ns }
 
-get_midi_config :: M m => m Instrument.Configs
+get_midi_config :: M m => m Patch.Configs
 get_midi_config = get_config config_midi
 
-set_midi_config :: M m => Instrument.Configs -> m ()
+set_midi_config :: M m => Patch.Configs -> m ()
 set_midi_config config = modify_config $ \st -> st { config_midi = config }
 
 get_default :: M m => (Default -> a) -> m a

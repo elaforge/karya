@@ -37,7 +37,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 
@@ -195,12 +195,12 @@ note_key (Midi.ChannelMessage _ msg) = case msg of
     _ -> Nothing
 note_key _ = Nothing
 
-keyswitch_map :: Instrument.AttributeMap -> KeyswitchMap
+keyswitch_map :: Patch.AttributeMap -> KeyswitchMap
 keyswitch_map (Common.AttributeMap amap) =
     Map.fromList $ filter (not . Set.null . fst)
         [(Set.fromList (mapMaybe key_of ks), attrs) | (attrs, (ks, _)) <- amap]
     where
-    key_of (Instrument.Keyswitch k) = Just k
+    key_of (Patch.Keyswitch k) = Just k
     key_of _ = Nothing
 
 -- ** split_track

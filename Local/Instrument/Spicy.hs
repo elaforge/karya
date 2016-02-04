@@ -16,7 +16,7 @@ import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.InstTypes as InstTypes
 import Global
 
@@ -32,9 +32,9 @@ patches :: [MidiInst.Patch]
 patches = (:[]) $
     MidiInst.code #= MidiInst.note_calls (MidiInst.null_call note_call) $
     MidiInst.make_patch $
-    Instrument.set_flag Instrument.HoldKeyswitch $
-    (Instrument.attribute_map #= Instrument.single_keyswitches keyswitches) $
-        Instrument.patch (-3, 3) Instrument.default_name
+    Patch.set_flag Patch.HoldKeyswitch $
+    Patch.attribute_map #= Patch.single_keyswitches keyswitches $
+    Patch.patch (-3, 3) Patch.default_name
 
 
 -- | WARNING: changing these while playing tends to crash the VST.
@@ -85,8 +85,8 @@ strings = ["e1", "a", "d", "g", "b", "e2"]
 
 -- | Create the proper midi config to work with the string attrs used by
 -- 'note_call'.
-configure :: Text -> InstTypes.Name -> Instrument.Configs
-configure dev_name name = Instrument.configs $
+configure :: Text -> InstTypes.Name -> Patch.Configs
+configure dev_name name = Patch.configs $
     inst name 0 : [inst (name <> "-" <> string) chan
         | (string, chan) <- zip strings [1..]]
     where

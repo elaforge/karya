@@ -20,7 +20,7 @@ import qualified Cmd.Meters as Meters
 import qualified Cmd.RulerUtil as RulerUtil
 
 import qualified Derive.Score as Score
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import Global
 
 
@@ -51,7 +51,7 @@ empty_block = do
     Create.view bid
     return Cmd.Done
 
-make_midi_config :: Text -> [(Text, [Midi.Channel])] -> Instrument.Configs
-make_midi_config dev config = Instrument.configs
+make_midi_config :: Text -> [(Text, [Midi.Channel])] -> Patch.Configs
+make_midi_config dev config = Patch.configs
     [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
     where mkaddr chan = (Midi.write_device dev, chan)

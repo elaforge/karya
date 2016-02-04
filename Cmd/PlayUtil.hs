@@ -58,7 +58,7 @@ import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Midi.Convert as Convert
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -162,7 +162,7 @@ get_constant cache damage = do
         Just (patch, _) -> Just $ Cmd.derive_instrument
             (Map.findWithDefault empty_config inst configs) patch
         Nothing -> Nothing
-    empty_config = Instrument.config []
+    empty_config = Patch.config []
 
 initial_dynamic :: Derive.Dynamic
 initial_dynamic = Derive.initial_dynamic initial_environ
@@ -268,7 +268,7 @@ solo_to_mute tree blocks soloed = Set.fromList
 
 -- | Similar to the Solo and Mute track flags, individual instruments can be
 -- soloed or muted.
-filter_instrument_muted :: Instrument.Configs -> [Score.Event] -> [Score.Event]
+filter_instrument_muted :: Patch.Configs -> [Score.Event] -> [Score.Event]
 filter_instrument_muted configs
     | not (Set.null soloed) = filter $
         (`Set.member` soloed) . Score.event_instrument
@@ -276,9 +276,9 @@ filter_instrument_muted configs
         (`Set.notMember` muted) . Score.event_instrument
     | otherwise = id
     where
-    soloed = Set.fromList $ map fst $ filter (Instrument.config_solo . snd) $
+    soloed = Set.fromList $ map fst $ filter (Patch.config_solo . snd) $
         Map.toList configs
-    muted = Set.fromList $ map fst $ filter (Instrument.config_mute . snd) $
+    muted = Set.fromList $ map fst $ filter (Patch.config_mute . snd) $
         Map.toList configs
 
 perform_events :: Cmd.M m => Cmd.Events -> m Perform.MidiEvents
@@ -287,7 +287,7 @@ perform_events events = do
     lookup <- get_convert_lookup
     blocks <- State.gets (Map.toList . State.state_blocks)
     tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
-    let inst_addrs = Instrument.config_addrs <$> configs
+    let inst_addrs = Patch.config_addrs <$> configs
     return $ fst $ Perform.perform Perform.initial_state inst_addrs $
         Convert.convert lookup $ filter_track_muted tree blocks $
         filter_instrument_muted configs $
@@ -301,7 +301,7 @@ get_convert_lookup = do
     lookup_inst <- Cmd.get_lookup_instrument
     configs <- State.get_midi_config
     let defaults = Map.map (Map.map (Score.untyped . Signal.constant)
-            . Instrument.config_control_defaults) configs
+            . Patch.config_control_defaults) configs
     return $ Convert.Lookup
         { lookup_scale = lookup_scale
         , lookup_patch = to_patch <=< lookup_inst
@@ -310,7 +310,7 @@ get_convert_lookup = do
         }
     where
     to_patch :: (Cmd.Inst, InstTypes.Qualified)
-        -> Maybe (Instrument.Patch, Score.Event -> Score.Event)
+        -> Maybe (Patch.Patch, Score.Event -> Score.Event)
     to_patch (inst, _qualified) = case Inst.inst_backend inst of
         Inst.Midi patch -> Just
             ( patch

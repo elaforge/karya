@@ -43,7 +43,7 @@ import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.TheoryFormat as TheoryFormat
 import qualified Derive.ShowVal as ShowVal
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -197,15 +197,15 @@ extend nns = from_ding
 
 -- | A Scale with the entire theoretical range.  This is for instruments
 -- that are normalized to 12tet and then tuned in the patch (e.g. using KSP).
-complete_instrument_scale :: BaliScales.Tuning -> Instrument.Scale
+complete_instrument_scale :: BaliScales.Tuning -> Patch.Scale
 complete_instrument_scale = instrument_scale id
 
 instrument_scale ::
     ([(Midi.Key, Pitch.NoteNumber)] -> [(Midi.Key, Pitch.NoteNumber)])
     -- ^ drop and take keys for the instrument's range
-    -> BaliScales.Tuning -> Instrument.Scale
+    -> BaliScales.Tuning -> Patch.Scale
 instrument_scale take_range tuning =
-    Instrument.make_scale ("legong " <> ShowVal.show_val tuning) $
+    Patch.make_scale ("legong " <> ShowVal.show_val tuning) $
         take_range $ zip midi_keys (extend nns)
     where
     nns = case tuning of

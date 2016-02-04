@@ -14,8 +14,7 @@
     the instrument.
 
     The instrument info is basically just a pretty-printed version of the
-    contents of 'Instrument.Patch'.  The 'Instrument.patch_tags' field is
-    especially relevant, since that's what 'Search.Query' uses.
+    contents of 'Patch.Patch'.
 
     Some parts of the instrument db may be generated offline, by
     "Instrument.MakeDb".
@@ -44,7 +43,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.BrowserC as BrowserC
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -148,7 +147,7 @@ common_fields tags (Common.Common code env _tags doc) =
     Derive.InstrumentCalls note_generators note_transformers val_calls =
         Cmd.inst_calls code
 
-instrument_fields :: InstTypes.Name -> Instrument.Patch -> [(Text, Text)]
+instrument_fields :: InstTypes.Name -> Patch.Patch -> [(Text, Text)]
 instrument_fields name inst =
     -- important properties
     [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList flags)
@@ -162,7 +161,7 @@ instrument_fields name inst =
     , ("Original name", if name == orig_name then "" else showt orig_name)
     ]
     where
-    Instrument.Patch {
+    Patch.Patch {
         patch_name = orig_name
         , patch_control_map = control_map
         , patch_pitch_bend_range = pb_range
@@ -184,7 +183,7 @@ field (title, raw_text)
     | otherwise = "\t" <> title <> ":\n" <> text <> "\n"
     where text = Text.strip raw_text
 
-show_attribute_map :: Instrument.AttributeMap -> Text
+show_attribute_map :: Patch.AttributeMap -> Text
 show_attribute_map (Common.AttributeMap table) =
     Text.unlines $ map fmt (Seq.sort_on (low_key . snd) table)
     where
@@ -192,8 +191,8 @@ show_attribute_map (Common.AttributeMap table) =
     longest = fromMaybe 0 $ Seq.maximum (map length attrs)
     -- If this instrument uses a keymap, it's easier to read the attribute map
     -- if I put it in keymap order.
-    low_key (_, Just (Instrument.UnpitchedKeymap k)) = Just k
-    low_key (_, Just (Instrument.PitchedKeymap k _ _)) = Just k
+    low_key (_, Just (Patch.UnpitchedKeymap k)) = Just k
+    low_key (_, Just (Patch.PitchedKeymap k _ _)) = Just k
     low_key (_, Nothing) = Nothing
     fmt (attrs, (keyswitches, maybe_keymap)) =
         -- Still not quite right for lining up columns.
@@ -222,10 +221,10 @@ show_tags :: [(Text, Text)] -> Text
 show_tags tags =
     Text.unwords [quote k <> "=" <> quote v | (k, v) <- Seq.sort_on fst tags]
 
-show_initialize :: Instrument.InitializePatch -> Text
-show_initialize Instrument.NoInitialization = ""
-show_initialize (Instrument.InitializeMessage msg) = "Message: " <> msg
-show_initialize (Instrument.InitializeMidi msgs) =
+show_initialize :: Patch.InitializePatch -> Text
+show_initialize Patch.NoInitialization = ""
+show_initialize (Patch.InitializeMessage msg) = "Message: " <> msg
+show_initialize (Patch.InitializeMidi msgs) =
     Text.unlines (map pretty msgs)
 
 quote :: Text -> Text

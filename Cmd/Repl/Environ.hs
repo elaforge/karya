@@ -90,7 +90,7 @@ import qualified Derive.Score as Score
 import qualified Perform.Lilypond as Lilypond
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Midi.Convert as Convert
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
 import qualified Perform.NN as NN
 import qualified Perform.RealTime as RealTime

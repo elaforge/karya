@@ -12,13 +12,13 @@ import qualified Derive.Env as Env
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.InstTypes as InstTypes
 import Global
 
 
 data Config = Config {
-    config_midi :: Instrument.Configs
+    config_midi :: Patch.Configs
     , config_aliases :: Map.Map Score.Instrument InstTypes.Qualified
     } deriving (Show)
 
@@ -40,7 +40,7 @@ replace :: State.M m => Config -> m ()
 replace (Config midi aliases) = State.modify $
     (State.config#State.midi #= midi) . (State.config#State.aliases #= aliases)
 
-config :: [(Alias, Instrument, Instrument.Config)] -> Config
+config :: [(Alias, Instrument, Patch.Config)] -> Config
 config configs = Config
     { config_midi =
         Map.fromList [(inst alias, config) | (alias, _, config) <- configs]
@@ -51,11 +51,10 @@ config configs = Config
     }
     where inst = Score.Instrument
 
-configs :: [(Text, Instrument.Config)] -> Instrument.Configs
+configs :: [(Text, Patch.Config)] -> Patch.Configs
 configs = Map.fromList . map (first Score.Instrument)
 
 environ :: RestrictedEnviron.ToVal a => Env.Key -> a
-    -> Instrument.Config -> Instrument.Config
-environ name val =
-    Instrument.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
+    -> Patch.Config -> Patch.Config
+environ name val = Patch.cenviron %= (RestrictedEnviron.make [(name, v)] <>)
     where v = RestrictedEnviron.to_val val

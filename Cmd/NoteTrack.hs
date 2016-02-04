@@ -45,7 +45,7 @@ import qualified Derive.Parse as Parse
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified App.Config as Config
 import Global
 import Types
@@ -316,7 +316,7 @@ ensure_note_event pos = do
 triggered_inst :: Cmd.M m => Maybe Score.Instrument -> m Bool
 triggered_inst Nothing = return False -- don't know, but guess it's not
 triggered_inst (Just inst) =
-    maybe False (`Instrument.has_flag` Instrument.Triggered)
+    maybe False (`Patch.has_flag` Patch.Triggered)
         <$> Cmd.lookup_midi_patch inst
 
 modify_event_at :: Cmd.M m => EditUtil.Pos -> Bool -> Bool

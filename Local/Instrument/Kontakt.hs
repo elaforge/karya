@@ -44,7 +44,7 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.Midi.Control as Control
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
 
 import qualified Instrument.InstTypes as InstTypes
@@ -76,7 +76,7 @@ patch = MidiInst.patch pb_range
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get
 -- +-24.
-pb_range :: Instrument.PbRange
+pb_range :: Patch.PbRange
 pb_range = (-24, 24)
 
 -- * misc
@@ -107,11 +107,11 @@ mcgill =
 balalaika :: [MidiInst.Patch]
 balalaika =
     [ MidiInst.code #= code $
-        MidiInst.attribute_map #= Instrument.single_keyswitches ks $
+        MidiInst.attribute_map #= Patch.single_keyswitches ks $
         MidiInst.make_patch $
-        Instrument.set_flag Instrument.HoldKeyswitch $
-        Instrument.control_map #= Control.control_map controls $
-        Instrument.patch pb_range "balalaika"
+        Patch.set_flag Patch.HoldKeyswitch $
+        Patch.control_map #= Control.control_map controls $
+        Patch.patch pb_range "balalaika"
     ]
     where
     code = MidiInst.note_generators [("(", Articulation.c_attr_legato)]
@@ -139,7 +139,7 @@ balalaika =
 anthology_wind :: [MidiInst.Patch]
 anthology_wind =
     [ MidiInst.pressure $
-        MidiInst.attribute_map #= Instrument.single_keyswitches dizi_ks $
+        MidiInst.attribute_map #= Patch.single_keyswitches dizi_ks $
         patch "dizi" [(CC.mod, Controls.vib)]
     ]
     where
@@ -175,7 +175,7 @@ sonic_couture =
 guzheng :: MidiInst.Patch
 guzheng = MidiInst.code #= code $ MidiInst.nn_range range $
     MidiInst.decay #= Just 5 $
-    MidiInst.attribute_map #= Instrument.single_keyswitches ks $
+    MidiInst.attribute_map #= Patch.single_keyswitches ks $
     patch "guzheng" [(23, Controls.lpf), (24, Controls.q), (27, Controls.hpf)]
     where
     code = MidiInst.note_generators [("左", DUtil.attrs_note Attrs.left)]
@@ -231,13 +231,13 @@ sc_bali = map add_doc $
     range_of = BaliScales.scale_range
     ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name =
-        MidiInst.patch_ %= Instrument.set_flag Instrument.ConstantPitch $
+        MidiInst.patch_ %= Patch.set_flag Patch.ConstantPitch $
         MidiInst.patch (-2, 2) ("sc-" <> name) []
     add_doc = MidiInst.doc
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)
-    gangsa_ks = MidiInst.attribute_map #= Instrument.single_keyswitches
+    gangsa_ks = MidiInst.attribute_map #= Patch.single_keyswitches
         [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
-    reyong_ks = MidiInst.attribute_map #= Instrument.single_keyswitches
+    reyong_ks = MidiInst.attribute_map #= Patch.single_keyswitches
         [(Score.attr "cek", Key2.cs1), (mempty, Key2.c1)]
     gong_notes =
         [ (n 'z' "O" (gong <> wadon),   Key2.b1)
@@ -293,19 +293,18 @@ config_kebyar dev_ = make_config $ concat
     where
     -- (name, patch_name, gets_chan, environ, scale)
     make_config :: [(Text, Text, Bool, [(BaseTypes.Key, RestrictedEnviron.Val)],
-            Maybe Instrument.Scale)]
+            Maybe Patch.Scale)]
         -> MidiConfig.Config
     make_config = MidiConfig.config . snd . List.mapAccumL allocate 0
         where
         allocate chan (alias, inst, gets_chan, environ, scale) =
             (if gets_chan then chan+1 else chan, (alias, inst, config))
             where
-            config = Instrument.cscale #= scale $
-                Instrument.cenviron #= RestrictedEnviron.make environ $
+            config = Patch.cscale #= scale $
+                Patch.cenviron #= RestrictedEnviron.make environ $
                 -- pasang instruments don't get an allocation.  Otherwise they
                 -- don't have the right tuning.
-                (if gets_chan then Instrument.config1 dev chan
-                    else Instrument.config [])
+                (if gets_chan then Patch.config1 dev chan else Patch.config [])
     dev = Midi.write_device dev_
 
     -- Actually pemade and kantilan have an umbang isep pair for both polos and
@@ -341,7 +340,7 @@ config_kebyar dev_ = make_config $ concat
 
 hang_patches :: [MidiInst.Patch]
 hang_patches = map (MidiInst.code #= hang_code)
-    [ MidiInst.attribute_map #= Instrument.single_keyswitches hang_ks $
+    [ MidiInst.attribute_map #= Patch.single_keyswitches hang_ks $
         patch "hang" []
     ]
 

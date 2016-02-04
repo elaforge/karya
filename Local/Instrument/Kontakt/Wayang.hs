@@ -23,7 +23,7 @@ import qualified Derive.Scale.Wayang as Wayang
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
-import qualified Perform.Midi.Instrument as Instrument
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
 import qualified Local.Instrument.Kontakt.Util as Util
@@ -74,11 +74,10 @@ patches = map (MidiInst.code #= code <> with_weak)
         where dur = Args.next args - Args.start args
     patch name = set_params $ MidiInst.patch (-24, 24) name []
     set_params = (MidiInst.patch_ %=) $
-        Instrument.set_flag Instrument.ConstantPitch
-        . (Instrument.decay #= Just 0)
-        . (Instrument.attribute_map #= attribute_map)
+        Patch.set_flag Patch.ConstantPitch . (Patch.decay #= Just 0)
+        . (Patch.attribute_map #= attribute_map)
     set_scale tuning =
-        (MidiInst.patch_#Instrument.scale
+        (MidiInst.patch_#Patch.scale
             #= Just (Wayang.instrument_scale False tuning))
         . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
@@ -91,13 +90,13 @@ patches = map (MidiInst.code #= code <> with_weak)
 config :: Text -> MidiConfig.Config
 config dev_ = MidiConfig.config
     [ ("p", "kontakt/wayang-pemade",
-        pasang "p-umbang" "p-isep" $ Instrument.config [])
+        pasang "p-umbang" "p-isep" $ Patch.config [])
     , ("k", "kontakt/wayang-kantilan",
-        pasang "k-umbang" "k-isep" $ Instrument.config [])
-    , ("p-isep", "kontakt/wayang-isep", Instrument.config1 dev 0)
-    , ("p-umbang", "kontakt/wayang-umbang", Instrument.config1 dev 1)
-    , ("k-isep", "kontakt/wayang-isep", Instrument.config1 dev 2)
-    , ("k-umbang", "kontakt/wayang-umbang", Instrument.config1 dev 3)
+        pasang "k-umbang" "k-isep" $ Patch.config [])
+    , ("p-isep", "kontakt/wayang-isep", Patch.config1 dev 0)
+    , ("p-umbang", "kontakt/wayang-umbang", Patch.config1 dev 1)
+    , ("k-isep", "kontakt/wayang-isep", Patch.config1 dev 2)
+    , ("k-umbang", "kontakt/wayang-umbang", Patch.config1 dev 3)
     ]
     where
     pasang polos sangsih = MidiConfig.environ Gangsa.inst_polos (inst polos)
@@ -105,23 +104,22 @@ config dev_ = MidiConfig.config
     dev = Midi.write_device dev_
     inst = Score.Instrument
 
-attribute_map :: Instrument.AttributeMap
+attribute_map :: Patch.AttributeMap
 attribute_map = Common.attribute_map
-    [ (Attrs.mute <> Attrs.loose, ([Instrument.Keyswitch Key2.a_2], keymap))
-    , (Attrs.mute, ([Instrument.Keyswitch Key2.b_2], keymap))
+    [ (Attrs.mute <> Attrs.loose, ([Patch.Keyswitch Key2.a_2], keymap))
+    , (Attrs.mute, ([Patch.Keyswitch Key2.b_2], keymap))
     ]
     where
-    keymap = Just $
-        Instrument.PitchedKeymap Key2.c_1 Key2.b2 (Midi.from_key Key2.c3)
+    keymap = Just $ Patch.PitchedKeymap Key2.c_1 Key2.b2 (Midi.from_key Key2.c3)
 
 -- * retuned patch
 
-retuned_patch :: Pitch.ScaleId -> Text -> Instrument.Scale
+retuned_patch :: Pitch.ScaleId -> Text -> Patch.Scale
     -> MidiInst.Patch -> MidiInst.Patch
 retuned_patch scale_id tuning instrument_scale =
     MidiInst.default_scale scale_id . MidiInst.environ EnvKey.tuning tuning
     . (MidiInst.doc #= doc)
-    . (MidiInst.patch_#Instrument.scale #= Just instrument_scale)
+    . (MidiInst.patch_#Patch.scale #= Just instrument_scale)
     where
     doc = "The instrument is expected to tune to the scale using the\
         \ generated KSP."
