@@ -16,7 +16,7 @@ import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
 import qualified Perform.Pitch as Pitch
 import Global
-import qualified Synth.Sampler.Instrument as Instrument
+import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Signal as Signal
 import Synth.Sampler.Types
 
@@ -24,11 +24,11 @@ import Synth.Sampler.Types
 -- | High level representation of one note.  This will be converted into
 -- one or more 'Sample.Sample's.
 data Note = Note {
-    instrument :: !Instrument.Name
+    instrument :: !Patch.Name
     , start :: !Time
     -- | E.g. envelope, pitch, lpf.
     , controls :: !(Map.Map Control Signal.Signal)
-    , attributes :: !Instrument.Attributes
+    , attributes :: !Patch.Attributes
     } deriving (Show, Generics.Generic)
 
 instance Aeson.ToJSON Note
@@ -38,7 +38,7 @@ instance Serialize.Serialize Note where
     put (Note a b c d) = put a *> put b *> put c *> put d
     get = Note <$> get <*> get <*> get <*> get
 
-note :: Instrument.Name -> Time -> Note
+note :: Patch.Name -> Time -> Note
 note inst start = Note inst start mempty mempty
 
 newtype Control = Control Text

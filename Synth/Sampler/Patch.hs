@@ -3,8 +3,8 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Synth.Sampler.Instrument (
-    module Synth.Sampler.Instrument, Attributes, attr
+module Synth.Sampler.Patch (
+    module Synth.Sampler.Patch, Attributes, attr
 ) where
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -13,36 +13,36 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import Derive.ScoreTypes (Attributes, attr)
 import qualified Perform.Pitch as Pitch
-import qualified Perform.Im.Instrument as Instrument
+import qualified Perform.Im.Patch as Patch
 import Global
 
 
-data Instrument = Instrument {
+data Patch = Patch {
     -- | Sample file names are relative to this.
     sampleDirectory :: !FilePath
-    , karyaInstrument :: Instrument.Instrument
+    , karyaPatch :: !Patch.Patch
     -- | Paths are relative to 'sampleDirectory'.
     , samples :: !(Map.Map FilePath Sample)
     } deriving (Show)
 
-instrument :: FilePath -> [(FilePath, Sample)] -> Instrument
-instrument dir samples = Instrument
+instrument :: FilePath -> [(FilePath, Sample)] -> Patch
+instrument dir samples = Patch
     { sampleDirectory = dir
-    , karyaInstrument = inferInstrument (map snd samples)
+    , karyaPatch = inferPatch (map snd samples)
     , samples = Map.fromList samples
     }
 
-instance Pretty.Pretty Instrument where
-    format (Instrument dir inst samples) = Pretty.record "Instrument"
+instance Pretty.Pretty Patch where
+    format (Patch dir inst samples) = Pretty.record "Patch"
         [ ("sampleDirectory", Pretty.format dir)
-        , ("karyaInstrument", Pretty.format inst)
+        , ("karyaPatch", Pretty.format inst)
         , ("samples", Pretty.format samples)
         ]
 
 -- | Unique identifier for an instrument.
 type Name = Text
 
--- | Sample in an Instrument.
+-- | Sample in an Patch.
 data Sample = Sample {
     pitch :: !(Maybe Pitch.NoteNumber)
     -- | Select Samples whose attribute match the Note's attribute.
@@ -61,10 +61,10 @@ instance Pretty.Pretty Sample where
 
 -- | This doesn't allow you to specify priority, but is sufficient for simple
 -- instruments.
-inferInstrument :: [Sample] -> Instrument.Instrument
-inferInstrument samples = Instrument.empty
-    { Instrument.inst_attribute_map =
-        Instrument.attribute_map $ Seq.unique $ map attributes samples
-    , Instrument.inst_flags = Set.fromList $
-        if all ((==Nothing) . pitch) samples then [Instrument.Triggered] else []
+inferPatch :: [Sample] -> Patch.Patch
+inferPatch samples = Patch.empty
+    { Patch.patch_attribute_map =
+        Patch.attribute_map $ Seq.unique $ map attributes samples
+    , Patch.patch_flags = Set.fromList $
+        if all ((==Nothing) . pitch) samples then [Patch.Triggered] else []
     }

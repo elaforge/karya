@@ -2,8 +2,8 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
--- | Describe an Im 'Instrument', from the sequencer's point of view.
-module Perform.Im.Instrument where
+-- | Describe an Im 'Patch', from the sequencer's point of view.
+module Perform.Im.Patch where
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
@@ -12,18 +12,18 @@ import qualified Instrument.Common as Common
 import Global
 
 
-data Instrument = Instrument {
-    inst_controls :: !(Set.Set ScoreTypes.Control)
-    , inst_attribute_map :: !AttributeMap
-    , inst_flags :: !(Set.Set Flag)
+data Patch = Patch {
+    patch_controls :: !(Set.Set ScoreTypes.Control)
+    , patch_attribute_map :: !AttributeMap
+    , patch_flags :: !(Set.Set Flag)
     } deriving (Show)
 
-empty :: Instrument
-empty = Instrument mempty (Common.AttributeMap []) mempty
+empty :: Patch
+empty = Patch mempty (Common.AttributeMap []) mempty
 
-instance Pretty.Pretty Instrument where
-    format (Instrument controls attr_map flags) =
-        Pretty.record "Instrument"
+instance Pretty.Pretty Patch where
+    format (Patch controls attr_map flags) =
+        Pretty.record "Patch"
             [ ("controls", Pretty.format controls)
             , ("attribute_map", Pretty.format attr_map)
             , ("flags", Pretty.format flags)
