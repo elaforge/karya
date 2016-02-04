@@ -35,7 +35,7 @@ patches =
         patch "kendang-sunda"
     ]
     where
-    patch name = MidiInst.patch (-24, 24) name [(4, pitch_control)]
+    patch name = MidiInst.named_patch (-24, 24) name [(4, pitch_control)]
     notes = map fst pitched_notes
     code = MidiInst.cmd (CUtil.drum_cmd notes)
         <> MidiInst.note_generators

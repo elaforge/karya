@@ -105,7 +105,7 @@ parse_builtins fn = do
     mapM_ (Log.warn . txt) warns
     return $ zipWith initialize [0..] patches
     where
-    initialize n = MidiInst.patch_#Patch.initialize
+    initialize n = MidiInst.patch#Patch.initialize
         #= Patch.InitializeMidi
             (map (Midi.ChannelMessage 0) (Midi.program_change 0 n))
 
@@ -131,7 +131,7 @@ combine :: FilePath -> Text -> ByteString -> MidiInst.Patch -> MidiInst.Patch
 combine fn doc syx =
     (MidiInst.common %= Sysex.add_file fn)
     . (MidiInst.doc #= Text.strip doc)
-    . (MidiInst.patch_#Patch.initialize #=
+    . (MidiInst.patch#Patch.initialize #=
         Patch.InitializeMidi [Midi.Encode.decode syx])
 
 decode_sysex :: ByteString -> Either String Sysex.RMap
@@ -230,7 +230,7 @@ vl1_patch :: InstTypes.Name -> ElementInfo -> Maybe ElementInfo
 vl1_patch name elt1 maybe_elt2 =
     (if is_pressure then MidiInst.pressure else id) $
         MidiInst.common#Common.tags #= map ((,) "vl1-element") names $
-        MidiInst.patch pb_range name cmap
+        MidiInst.named_patch pb_range name cmap
     where
     (pb_ranges, names, cc_groups) = unzip3 $ elt1 : Maybe.maybeToList maybe_elt2
     -- If it has a pressure control, then assume it's a breath patch.

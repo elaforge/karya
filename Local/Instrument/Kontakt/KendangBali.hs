@@ -41,12 +41,12 @@ patches =
         patch "kendang-bali"
     , MidiInst.code #= tunggal_code $ CUtil.drum_patch old_tunggal_notes $
         patch "kendang-bali-old"
-    , MidiInst.code #= pasang_code $ MidiInst.patch_ %= Patch.triggered $
+    , MidiInst.code #= pasang_code $ MidiInst.patch %= Patch.triggered $
         patch "kendang-bali-pasang"
     ]
     where
     tunggal_code = CUtil.drum_code (Just "kendang-tune") (map fst tunggal_notes)
-    patch name = MidiInst.patch (-24, 24) name []
+    patch name = MidiInst.named_patch (-24, 24) name []
 
 tunggal_notes :: CUtil.PitchedNotes
 (tunggal_notes, resolve_errors) =

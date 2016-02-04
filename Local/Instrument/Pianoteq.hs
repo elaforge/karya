@@ -97,4 +97,4 @@ c_grace = Grace.make_grace Module.instrument
         Sub.derive events
 
 patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
-patch = MidiInst.patch pb_range
+patch = MidiInst.named_patch pb_range

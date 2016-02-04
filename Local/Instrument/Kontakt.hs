@@ -72,7 +72,7 @@ patches =
     ]
 
 patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
-patch = MidiInst.patch pb_range
+patch = MidiInst.named_patch pb_range
 
 -- One pitch bend modulator can only do +-12, but if you put two on you get
 -- +-24.
@@ -231,8 +231,8 @@ sc_bali = map add_doc $
     range_of = BaliScales.scale_range
     ranged_patch range = MidiInst.range range . sc_patch
     sc_patch name =
-        MidiInst.patch_ %= Patch.set_flag Patch.ConstantPitch $
-        MidiInst.patch (-2, 2) ("sc-" <> name) []
+        MidiInst.patch %= Patch.set_flag Patch.ConstantPitch $
+        MidiInst.named_patch (-2, 2) ("sc-" <> name) []
     add_doc = MidiInst.doc
         %= ("Sonic Couture's Balinese gamelan sample set. " <>)
     gangsa_ks = MidiInst.attribute_map #= Patch.single_keyswitches

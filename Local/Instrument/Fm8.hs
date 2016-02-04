@@ -24,7 +24,7 @@ patches =
     -- of decay.  If this sort of thing becomes common maybe I'll need a
     -- per-score way to override instrument parameters.
     , MidiInst.decay #= Just 0.4 $ MidiInst.pressure $
-        MidiInst.patch pb_range "pressure" []
+        MidiInst.named_patch pb_range "pressure" []
     ]
     where
     pb_range = (-96, 96)

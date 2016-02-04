@@ -13,8 +13,8 @@ module Cmd.Instrument.MidiInst (
     , postproc, cmd
 
     -- * Patch
-    , Patch(..), patch_, common
-    , make_patch, patch_from_pair, patch, default_patch
+    , Patch(..), patch, common
+    , make_patch, patch_from_pair, named_patch, default_patch
     -- ** modify
     , code, doc, attribute_map, decay, synth_controls, pressure
     -- ** environ
@@ -70,7 +70,7 @@ type Synth = Inst.SynthDecl Cmd.InstrumentCode
 synth :: InstTypes.SynthName -> Text -> [Patch] -> Synth
 synth name doc patches =
     (name, doc, zip (map name_of patches) (map make_inst patches))
-    where name_of = (patch_ # Patch.name #$)
+    where name_of = (patch#Patch.name #$)
 
 make_inst :: Patch -> Inst.Inst Cmd.InstrumentCode
 make_inst (Patch patch common) = Inst.Inst
@@ -166,8 +166,7 @@ data Patch = Patch {
     , patch_common :: Common.Common Code
     }
 
--- TODO this name is error-prone
-patch_ = Lens.lens patch_patch (\f r -> r { patch_patch = f (patch_patch r) })
+patch = Lens.lens patch_patch (\f r -> r { patch_patch = f (patch_patch r) })
 common = Lens.lens patch_common
     (\f r -> r { patch_common = f (patch_common r) })
 
@@ -191,9 +190,11 @@ patch_from_pair (patch, common) =
 
 -- | Make a patch, with a few parameters that tend to be unique per patch.
 -- Controls come last because they are often a long list.
-patch :: Control.PbRange -> InstTypes.Name -> [(Midi.Control, Score.Control)]
-    -> Patch
-patch pb_range name controls =
+--
+-- TODO I don't love the name, but 'patch' is already taken by the lens.
+named_patch :: Control.PbRange -> InstTypes.Name
+    -> [(Midi.Control, Score.Control)] -> Patch
+named_patch pb_range name controls =
     make_patch $ (Patch.patch pb_range name)
         { Patch.patch_control_map = Control.control_map controls }
 
@@ -214,20 +215,20 @@ doc :: Lens Patch Text
 doc = common # Common.doc
 
 attribute_map :: Lens Patch Patch.AttributeMap
-attribute_map = patch_ # Patch.attribute_map
+attribute_map = patch # Patch.attribute_map
 
 decay :: Lens Patch (Maybe RealTime)
-decay = patch_ # Patch.decay
+decay = patch # Patch.decay
 
 -- | Annotate all the patches with some global controls.
 synth_controls :: [(Midi.Control, Score.Control)] -> [Patch] -> [Patch]
 synth_controls controls = map $
-    patch_ # Patch.control_map %= (Control.control_map controls <>)
+    patch # Patch.control_map %= (Control.control_map controls <>)
 
 -- | Set a patch to pressure control.
 pressure :: Patch -> Patch
-pressure = (patch_#Patch.decay #= Just 0)
-    . (patch_ %= Patch.set_flag Patch.Pressure)
+pressure = (patch#Patch.decay #= Just 0)
+    . (patch %= Patch.set_flag Patch.Pressure)
 
 -- ** environ
 

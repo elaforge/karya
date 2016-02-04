@@ -34,7 +34,7 @@ patches = map (MidiInst.code #= code)
     ]
     where
     patch name notes = CUtil.pitched_drum_patch notes $
-        MidiInst.patch (-24, 24) name []
+        MidiInst.named_patch (-24, 24) name []
     code = make_code all_notes both_calls
 
 make_code :: [Drums.Note]

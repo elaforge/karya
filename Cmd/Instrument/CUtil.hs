@@ -202,7 +202,7 @@ drum_cmd = insert_call . notes_to_calls
 -- ** patch
 
 drum_patch :: [(Drums.Note, Midi.Key)] -> MidiInst.Patch -> MidiInst.Patch
-drum_patch note_keys = (MidiInst.patch_ %=) $ Patch.triggered
+drum_patch note_keys = (MidiInst.patch %=) $ Patch.triggered
     . (Patch.call_map #= make_call_map (map fst note_keys))
     . (Patch.attribute_map #= Patch.unpitched_keymap
         [(Drums.note_attrs note, key) | (note, key) <- note_keys])
@@ -264,7 +264,7 @@ make_cc_keymap base_key range root_pitch =
 -- | Annotate a Patch with an 'Patch.AttributeMap' from the given
 -- PitchedNotes.
 pitched_drum_patch :: PitchedNotes -> MidiInst.Patch -> MidiInst.Patch
-pitched_drum_patch notes = (MidiInst.patch_ %=) $ Patch.triggered
+pitched_drum_patch notes = (MidiInst.patch %=) $ Patch.triggered
     . (Patch.call_map #= make_call_map (map fst notes))
     . (Patch.attribute_map #= make_attribute_map notes)
 

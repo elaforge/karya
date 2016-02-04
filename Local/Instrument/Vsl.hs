@@ -223,7 +223,7 @@ instrument_patch category (name, keyswitches) =
     MidiInst.pressure $
     MidiInst.common#Common.tags %= ((Tag.category, category) :) $
     MidiInst.attribute_map #= keyswitch_map keyswitches $
-        MidiInst.patch (-2, 2) name []
+        MidiInst.named_patch (-2, 2) name []
 
 make_instrument :: VslInst.Instrument -> Instrument
 make_instrument (name, keys, attrs) = (name, matrix keys attrs)

@@ -35,7 +35,8 @@ test_generate_names = do
 mkpatch :: InstTypes.Name -> Patch.InitializePatch -> MidiInst.Patch
 mkpatch name init =
     MidiInst.common#Common.tags #= [(Tag.file, name <> ".vc")] $
-    MidiInst.patch_#Patch.initialize #= init $ MidiInst.patch (-2, 2) name []
+    MidiInst.patch#Patch.initialize #= init $
+    MidiInst.named_patch (-2, 2) name []
 
 pgm_change :: Midi.Program -> Patch.InitializePatch
 pgm_change pgm = Patch.InitializeMidi $ map (Midi.ChannelMessage 0) $

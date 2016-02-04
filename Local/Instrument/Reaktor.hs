@@ -28,7 +28,7 @@ resonant_filter = MidiInst.note_calls $ MidiInst.null_call $
         (Just (Set.fromList ["mix", "q", "lp-hp", "2-4-pole"]))
 
 patch :: InstTypes.Name -> [(Midi.Control, Score.Control)] -> MidiInst.Patch
-patch = MidiInst.patch (-96, 96)
+patch = MidiInst.named_patch (-96, 96)
 
 patches :: [MidiInst.Patch]
 patches =
@@ -115,9 +115,9 @@ patches =
         -- probably has minimal affect on the sound.  If dropping to
         -- 0 momentarily sounds like a direction change then that's good
         -- enough.
-        MidiInst.patch_ # Patch.attribute_map #=
+        MidiInst.patch # Patch.attribute_map #=
             Patch.cc_keyswitches CC.cc20 [(Attrs.pizz, 127), (mempty, 0)] $
-        MidiInst.pressure $ MidiInst.patch (-24, 24) "serenade"
+        MidiInst.pressure $ MidiInst.named_patch (-24, 24) "serenade"
             [ (CC.mod, Controls.vib)
             , (CC.vib_speed, Controls.vib_speed)
             , (CC.cc14, "bow-speed")

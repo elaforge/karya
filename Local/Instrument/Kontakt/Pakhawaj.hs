@@ -24,7 +24,7 @@ patches :: [MidiInst.Patch]
 patches = [MidiInst.code #= code $ patch "pakhawaj" pitched_notes]
     where
     patch name notes = CUtil.pitched_drum_patch notes $
-        MidiInst.patch (-24, 24) name []
+        MidiInst.named_patch (-24, 24) name []
     code = Mridangam.make_code all_notes both_calls
 
 pitched_notes :: CUtil.PitchedNotes

@@ -26,7 +26,7 @@ patches =
         CUtil.drum_patch note_keys $ MidiInst.default_patch pb_range []
     , MidiInst.code #= composite_code $
         MidiInst.doc #= composite_doc $
-        MidiInst.patch pb_range "comb" []
+        MidiInst.named_patch pb_range "comb" []
     ]
     where
     composite_code = MidiInst.note_generators

@@ -72,12 +72,12 @@ patches = map (MidiInst.code #= code <> with_weak)
     weak_call args =
         Gender.weak (Sig.control "strength" 0.5) (Args.set_duration dur args)
         where dur = Args.next args - Args.start args
-    patch name = set_params $ MidiInst.patch (-24, 24) name []
-    set_params = (MidiInst.patch_ %=) $
+    patch name = set_params $ MidiInst.named_patch (-24, 24) name []
+    set_params = (MidiInst.patch %=) $
         Patch.set_flag Patch.ConstantPitch . (Patch.decay #= Just 0)
         . (Patch.attribute_map #= attribute_map)
     set_scale tuning =
-        (MidiInst.patch_#Patch.scale
+        (MidiInst.patch#Patch.scale
             #= Just (Wayang.instrument_scale False tuning))
         . MidiInst.default_scale Wayang.scale_id
         . MidiInst.environ EnvKey.tuning tuning
@@ -119,7 +119,7 @@ retuned_patch :: Pitch.ScaleId -> Text -> Patch.Scale
 retuned_patch scale_id tuning instrument_scale =
     MidiInst.default_scale scale_id . MidiInst.environ EnvKey.tuning tuning
     . (MidiInst.doc #= doc)
-    . (MidiInst.patch_#Patch.scale #= Just instrument_scale)
+    . (MidiInst.patch#Patch.scale #= Just instrument_scale)
     where
     doc = "The instrument is expected to tune to the scale using the\
         \ generated KSP."

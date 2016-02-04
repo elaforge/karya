@@ -443,9 +443,11 @@ Synth: Im:
       MTypes, MidiTypes?  Lots of precedent for MidiTypes but it's so long.
       Might as well be Types for Midi.Types.
   * rename Perform.Midi.Instrument to Patch
-  - rename MidiInst.Patch to Inst?  This is because it's at the
+  / rename MidiInst.Patch to Inst?  This is because it's at the
     Instrument.Inst level, and would also resolve the awkward 'patch' vs.
     'patch_'.
+    . Then I'd have to rename Sysex.Patch also and all of the 'patches'
+      becoming 'insts' seems kind of gross.  So leave it as is.
   - What happened to running MidiInst.check_names when making a Synth?
   * Rename Perform.Synth to Perform.Im.
   - Perform.Im.Convert converts to Notes and serializes them
