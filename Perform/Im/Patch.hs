@@ -4,6 +4,7 @@
 
 -- | Describe an Im 'Patch', from the sequencer's point of view.
 module Perform.Im.Patch where
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
@@ -13,7 +14,8 @@ import Global
 
 
 data Patch = Patch {
-    patch_controls :: !(Set.Set ScoreTypes.Control)
+    -- | Map supported controls to documentation.
+    patch_controls :: !(Map.Map ScoreTypes.Control Text)
     , patch_attribute_map :: !AttributeMap
     , patch_flags :: !(Set.Set Flag)
     } deriving (Show)
@@ -22,12 +24,11 @@ empty :: Patch
 empty = Patch mempty (Common.AttributeMap []) mempty
 
 instance Pretty.Pretty Patch where
-    format (Patch controls attr_map flags) =
-        Pretty.record "Patch"
-            [ ("controls", Pretty.format controls)
-            , ("attribute_map", Pretty.format attr_map)
-            , ("flags", Pretty.format flags)
-            ]
+    format (Patch controls attr_map flags) = Pretty.record "Patch"
+        [ ("controls", Pretty.format controls)
+        , ("attribute_map", Pretty.format attr_map)
+        , ("flags", Pretty.format flags)
+        ]
 
 -- | Since the synth understands Attributes directly, this is just a list of
 -- support Attributes along with their priority.

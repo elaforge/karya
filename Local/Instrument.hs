@@ -36,6 +36,7 @@ import qualified Local.Instrument.Z1 as Z1
 
 import qualified App.Config as Config
 import Global
+import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
 
 
 -- | Instrument definition modules that need to load from disk export a
@@ -56,12 +57,15 @@ type Load = FilePath -> IO (Maybe MidiInst.Synth)
 type MakeDb = FilePath -> IO ()
 
 -- | Synth declarations for each synth that is declared purely.
-all_synths :: [MidiInst.Synth]
-all_synths =
+midi_synths :: [MidiInst.Synth]
+midi_synths =
     [ Drumaxx.synth, Fm8.synth, Kontakt.synth, Massive.synth
     , Morphine.synth, Pianoteq.synth, Reaktor.synth, Spicy.synth, Tassman.synth
     , Vsl.synth
     ]
+
+im_synths :: [MidiInst.Synth]
+im_synths = [Sampler.PatchDb.synth]
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
@@ -77,7 +81,7 @@ load app_dir = do
     loaded <- mapMaybeM
         (($ Config.make_path app_dir Config.instrument_dir) . snd . snd)
         all_loads
-    let synths = loaded ++ all_synths
+    let synths = im_synths ++ loaded ++ midi_synths
     let annot_fn = Config.make_path app_dir Config.local_dir
             </> "instrument_annotations"
     annots <- Parse.parse_annotations annot_fn >>= \x -> case x of

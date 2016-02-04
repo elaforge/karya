@@ -69,7 +69,7 @@ type Synth = Inst.SynthDecl Cmd.InstrumentCode
 
 synth :: InstTypes.SynthName -> Text -> [Patch] -> Synth
 synth name doc patches =
-    (name, doc, zip (map name_of patches) (map make_inst patches))
+    Inst.SynthDecl name doc (zip (map name_of patches) (map make_inst patches))
     where name_of = (patch#Patch.name #$)
 
 make_inst :: Patch -> Inst.Inst Cmd.InstrumentCode
@@ -280,8 +280,9 @@ load_synth get_code synth_name doc app_dir = do
             Log.warn $ "Error loading instrument db " <> showt fname <> ": "
                 <> Text.strip (pretty err)
             return Nothing
-        Right (Serialize.InstrumentDb _time patch_map) -> return $ Just
-            (synth_name, doc, map (second make) (Map.toList patch_map))
+        Right (Serialize.InstrumentDb _time patch_map) -> return $ Just $
+            Inst.SynthDecl synth_name doc
+                (map (second make) (Map.toList patch_map))
     where
     make (patch, common) = make_inst $ Patch patch $
         common { Common.common_code = get_code patch }

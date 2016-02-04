@@ -23,7 +23,7 @@ module Instrument.Inst (
     , inst_midi, inst_attributes
     -- * db
     , Db, Synth(..), empty, size, synth_names, synths, lookup_synth, lookup
-    , SynthDecl, db, merge
+    , SynthDecl(..), db, merge
     , annotate
 ) where
 import Prelude hiding (lookup)
@@ -117,14 +117,16 @@ lookup (InstTypes.Qualified synth name) (Db db) =
 
 -- | Unchecked synth declaration.  'db' will check it for duplicates and other
 -- problems.  (name, doc, patches)
-type SynthDecl code = (InstTypes.SynthName, Text, [(InstTypes.Name, Inst code)])
+data SynthDecl code =
+    SynthDecl !InstTypes.SynthName !Text ![(InstTypes.Name, Inst code)]
+    deriving (Show)
 
 -- | Construct and validate a Db, returning any errors that occurred.
 db :: [SynthDecl code] -> (Db code, [Text])
-db synth_insts = (Db db, synth_errors ++ inst_errors ++ validate_errors)
+db synth_decls = (Db db, synth_errors ++ inst_errors ++ validate_errors)
     where
     (inst_maps, inst_errors) = second concat $ unzip $ do
-        (synth, synth_doc, insts) <- synth_insts
+        SynthDecl synth synth_doc insts <- synth_decls
         let (inst_map, dups) = Util.Map.unique insts
         let errors =
                 [ "duplicate inst: " <> pretty (InstTypes.Qualified synth name)
@@ -136,7 +138,7 @@ db synth_insts = (Db db, synth_errors ++ inst_errors ++ validate_errors)
     validate_errors = concat
         [ map ((pretty (InstTypes.Qualified synth name) <> ": ") <>)
             (validate inst)
-        | (synth, _, insts) <- synth_insts, (name, inst) <- insts
+        | SynthDecl synth _ insts <- synth_decls, (name, inst) <- insts
         ]
 
 -- | Return any errors found in the Inst.

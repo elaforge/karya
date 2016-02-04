@@ -5,8 +5,11 @@
 module Synth.Sampler.PatchDb where
 import qualified Data.Map as Map
 
+import qualified Cmd.Cmd as Cmd
+import qualified Instrument.Inst as Inst
 import qualified Synth.Sampler.Patch as Patch
 import Synth.Sampler.Patch (attr)
+import Global
 
 
 type Db = Map.Map Patch.Name Patch.Patch
@@ -25,3 +28,8 @@ open = attr "open"
 
 attrs :: Patch.Attributes -> Patch.Sample -> Patch.Sample
 attrs attrs sample = sample { Patch.attributes = attrs }
+
+-- | Declaration for "Local.Instrument".
+synth :: Inst.SynthDecl Cmd.InstrumentCode
+synth = Inst.SynthDecl "sampler" "音 sampler"
+    (map (second Patch.makeInst) (Map.toList db))
