@@ -1050,7 +1050,7 @@ get_midi_patch inst =
     =<< lookup_instrument inst
 
 lookup_instrument :: M m => Score.Instrument -> m (Maybe Inst)
-lookup_instrument inst = fmap fst . ($ inst) <$> get_lookup_instrument
+lookup_instrument inst = ($ inst) <$> get_lookup_instrument
 
 lookup_qualified :: State.M m => Score.Instrument
     -> m (Maybe InstTypes.Qualified)
@@ -1061,8 +1061,7 @@ lookup_qualified inst =
 -- 'Ui.StateConfig' is applied to the instrument db, applying aliases
 -- and 'Patch.config_environ', so anyone looking up a Patch should go
 -- through this.
-get_lookup_instrument
-    :: M m => m (Score.Instrument -> Maybe (Inst, InstTypes.Qualified))
+get_lookup_instrument :: M m => m (Score.Instrument -> Maybe Inst)
 get_lookup_instrument = do
     aliases <- State.config#State.aliases <#> State.get
     configs <- State.get_midi_config
@@ -1070,7 +1069,7 @@ get_lookup_instrument = do
     return $ \inst_name -> do
         qualified <- Map.lookup inst_name aliases
         inst <- Inst.lookup qualified db
-        return (merge_environ configs inst_name inst, qualified)
+        return $ merge_environ configs inst_name inst
     where
     merge_environ configs inst_name =
         (Inst.common#Common.environ %= (environ <>)) . set_scale

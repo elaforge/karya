@@ -63,10 +63,6 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
-import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
-
 import qualified App.Config as Config
 import Global
 import Types
@@ -159,7 +155,7 @@ get_constant cache damage = do
         lookup_scale (adapt configs lookup_inst) cache damage
     where
     adapt configs lookup = \inst -> case lookup inst of
-        Just (patch, _) -> Just $ Cmd.derive_instrument
+        Just patch -> Just $ Cmd.derive_instrument
             (Map.findWithDefault empty_config inst configs) patch
         Nothing -> Nothing
     empty_config = Patch.config []
@@ -285,12 +281,13 @@ perform_events :: Cmd.M m => Cmd.Events -> m Perform.MidiEvents
 perform_events events = do
     configs <- State.get_midi_config
     lookup <- get_convert_lookup
+    lookup_inst <- Cmd.get_lookup_instrument
     blocks <- State.gets (Map.toList . State.state_blocks)
     tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
     let inst_addrs = Patch.config_addrs <$> configs
     return $ fst $ Perform.perform Perform.initial_state inst_addrs $
-        Convert.convert lookup $ filter_track_muted tree blocks $
-        filter_instrument_muted configs $
+        Convert.convert lookup lookup_inst $
+        filter_track_muted tree blocks $ filter_instrument_muted configs $
         -- Performance should be lazy, so converting to a list here means I can
         -- avoid doing work for the notes that never get played.
         Vector.toList events
@@ -298,25 +295,14 @@ perform_events events = do
 get_convert_lookup :: Cmd.M m => m Convert.Lookup
 get_convert_lookup = do
     lookup_scale <- Cmd.gets $ Cmd.state_lookup_scale . Cmd.state_config
-    lookup_inst <- Cmd.get_lookup_instrument
     configs <- State.get_midi_config
     let defaults = Map.map (Map.map (Score.untyped . Signal.constant)
             . Patch.config_control_defaults) configs
     return $ Convert.Lookup
         { lookup_scale = lookup_scale
-        , lookup_patch = to_patch <=< lookup_inst
         , lookup_control_defaults = \inst ->
             Map.findWithDefault mempty inst defaults
         }
-    where
-    to_patch :: (Cmd.Inst, InstTypes.Qualified)
-        -> Maybe (Patch.Patch, Score.Event -> Score.Event)
-    to_patch (inst, _qualified) = case Inst.inst_backend inst of
-        Inst.Midi patch -> Just
-            ( patch
-            , Cmd.inst_postproc (Common.common_code (Inst.inst_common inst))
-            )
-        _ -> Nothing
 
 
 -- * definition file

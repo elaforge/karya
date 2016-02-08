@@ -199,7 +199,7 @@ normalize_events :: Cmd.M m => [LEvent.LEvent Score.Event]
     -> m [LEvent.LEvent Score.Event]
 normalize_events events = do
     lookup <- Cmd.get_lookup_instrument
-    let lookup_env = maybe mempty (Common.get_environ . Inst.inst_common . fst)
+    let lookup_env = maybe mempty (Common.get_environ . Inst.inst_common)
             . lookup
     return $ map (fmap (Score.normalize lookup_env)) events
 
@@ -347,7 +347,8 @@ in_range start_of start end =
 convert :: [Score.Event] -> Cmd.CmdL (Events Types.Event)
 convert events = do
     lookup <- PlayUtil.get_convert_lookup
-    return $ Midi.Convert.convert lookup events
+    lookup_inst <- Cmd.get_lookup_instrument
+    return $ Midi.Convert.convert lookup lookup_inst events
 
 perf_event_inst :: Types.Event -> Text
 perf_event_inst = Score.instrument_name . Types.patch_name . Types.event_patch

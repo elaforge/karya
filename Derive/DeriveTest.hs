@@ -127,7 +127,7 @@ perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
         (Derive.r_events result)
     result = derive_blocks blocks
 
-perform :: Convert.Lookup -> Patch.Configs -> Stream.Stream Score.Event
+perform :: Lookup -> Patch.Configs -> Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform lookup midi_config events =
     (fst (LEvent.partition perf_events), mmsgs, logs)
@@ -139,12 +139,12 @@ perform_defaults :: Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
 perform_defaults = perform default_convert_lookup UiTest.default_midi_config
 
-perform_stream :: Convert.Lookup -> Patch.Configs
+perform_stream :: Lookup -> Patch.Configs
     -> Stream.Stream Score.Event
     -> ([LEvent.LEvent Midi.Types.Event], [LEvent.LEvent Midi.WriteMessage])
-perform_stream lookup midi_config stream = (perf_events, midi)
+perform_stream (lookup_inst, lookup) midi_config stream = (perf_events, midi)
     where
-    perf_events = Convert.convert lookup (Stream.events_of stream)
+    perf_events = Convert.convert lookup lookup_inst (Stream.events_of stream)
     (midi, _) = Perform.perform Perform.initial_state
         (Patch.config_addrs <$> midi_config) perf_events
 
@@ -365,12 +365,14 @@ with_synths :: Simple.Aliases -> [MidiInst.Synth] -> Setup
 with_synths aliases synths = with_instrument_db aliases (synth_to_db synths)
 
 with_instrument_db :: Simple.Aliases -> Cmd.InstrumentDb -> Setup
-with_instrument_db aliases db = with_aliases <> with_db
+with_instrument_db aliases db = with_aliases aliases <> with_db
     where
     with_db = with_cmd $ set_cmd_config $ \state -> state
         { Cmd.state_instrument_db = db }
-    with_aliases = with_ui $
-        State.config#State.aliases #= UiTest.make_aliases aliases
+
+with_aliases :: Simple.Aliases -> Setup
+with_aliases aliases = with_ui $
+    State.config#State.aliases %= (UiTest.make_aliases aliases <>)
 
 set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
 set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }
@@ -425,11 +427,10 @@ default_db = make_db [("s", map make_patch ["1", "2", "3"])]
 make_patch :: InstTypes.Name -> Patch.Patch
 make_patch name = Patch.patch (-2, 2) name
 
-default_convert_lookup :: Convert.Lookup
+default_convert_lookup :: Lookup
 default_convert_lookup = make_convert_lookup UiTest.default_aliases default_db
 
-synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.Synth]
-    -> Convert.Lookup
+synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.Synth] -> Lookup
 synth_to_convert_lookup aliases = make_convert_lookup aliases . synth_to_db
 
 synth_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
@@ -444,10 +445,12 @@ make_db synth_patches = fst $ Inst.db $ map make synth_patches
 make_synth :: InstTypes.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
 make_synth name patches = MidiInst.synth name "Test Synth" patches
 
-make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Convert.Lookup
+type Lookup = (Score.Instrument -> Maybe Cmd.Inst, Convert.Lookup)
+
+make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Lookup
 make_convert_lookup aliases db =
-    run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state)
-        PlayUtil.get_convert_lookup
+    run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state) $
+        (,) <$> Cmd.get_lookup_instrument <*> PlayUtil.get_convert_lookup
     where setup = with_instrument_db aliases db
 
 -- ** extract

@@ -5,62 +5,45 @@
 -- | Utilities for writing Convert modules, which take Score.Events to the
 -- performer specific events.
 module Perform.ConvertUtil where
-import qualified Control.Monad.Except as Except
-import qualified Control.Monad.Identity as Identity
-import qualified Control.Monad.State.Strict as State
+import qualified Data.Set as Set
 
 import qualified Util.Log as Log
+import qualified Cmd.Cmd as Cmd
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
-import qualified Derive.Stack as Stack
-
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import Global
 
 
-type ConvertT state a =
-    (Except.ExceptT Error (State.StateT state (Log.LogT Identity.Identity)) a)
-
-newtype Error = Error (Maybe Text) deriving (Show)
-
-convert :: state -> (Score.Event -> ConvertT state a)
+-- | Wrapper that performs common operations for convert functions.
+-- Warn if the input isn't sorted, look up the instrument, and run
+-- 'Cmd.inst_postproc'.
+convert :: (Score.Event -> Inst.Backend -> [LEvent.LEvent a])
+    -> (Score.Instrument -> Maybe Cmd.Inst)
     -> [Score.Event] -> [LEvent.LEvent a]
-convert state convert_event = go state Nothing
+convert process lookup_inst = go Nothing Set.empty
     where
     go _ _ [] = []
-    go state prev (event : rest) =
-        converted ++ map LEvent.Log logs ++ go next_state (Just event) rest
+    go maybe_prev warned (event : events) = increases $ case lookup_inst inst of
+        Nothing
+            -- Only warn the first time an instrument isn't seen, to avoid
+            -- spamming the log.
+            | inst `Set.member` warned -> go (Just event) warned events
+            | otherwise -> warn ("instrument not found: " <> pretty inst)
+                : go (Just event) (Set.insert inst warned) events
+        Just (Inst.Inst backend common) ->
+            process (Cmd.inst_postproc (Common.common_code common) event)
+                backend
+            ++ go (Just event) warned events
         where
-        (result, logs, next_state) = run_convert state
-            (Score.event_stack event) (convert1 prev event)
-        converted = case result of
-            Nothing -> []
-            Just event -> [LEvent.Event event]
-    convert1 maybe_prev event = do
-        -- Sorted is a postcondition of the deriver.
-        whenJust maybe_prev $ \prev ->
-            when (Score.event_start event < Score.event_start prev) $
-                Log.warn $ "start of " <> Score.log_event event
-                    <> " less than previous " <> Score.log_event prev
-        convert_event event
-
-run_convert :: state -> Stack.Stack -> ConvertT state a
-    -> (Maybe a, [Log.Msg], state)
-run_convert state stack conv = case val of
-    Left (Error Nothing) -> (Nothing, logs, out_state)
-    Left (Error (Just err)) ->
-        (Nothing, Log.msg Log.Warn (Just stack) err : logs, out_state)
-    Right val -> (Just val, logs, out_state)
-    where
-    run = Identity.runIdentity
-        . Log.run . flip State.runStateT state . Except.runExceptT
-    ((val, out_state), stackless_logs) = run conv
-    logs = [msg { Log.msg_stack = Just stack } | msg <- stackless_logs]
-
-require :: Text -> Maybe a -> ConvertT st a
-require msg = maybe (throw $ "event requires " <> msg) return
-
-throw :: Text -> ConvertT st a
-throw = Except.throwError . Error . Just
-
-abort :: ConvertT st a
-abort = Except.throwError (Error Nothing)
+        inst = Score.event_instrument event
+        -- Sorted is a postcondition of the deriver, verify that.
+        increases events
+            | Just prev <- maybe_prev,
+                    Score.event_start event < Score.event_start prev =
+                warn ("start of " <> Score.log_event event
+                    <> " less than previous " <> Score.log_event prev)
+                : events
+            | otherwise = events
+    warn = LEvent.Log . Log.msg Log.Warn Nothing

@@ -292,8 +292,7 @@ test_movements = do
             ] ++ UiTest.regular_notes 6
     equal logs []
     -- \score, first movement, \score, second movement, movement title
-    match text
-        "score*c4 d4 e4 f4*score*g4 a4 r2*number 2"
+    match text "score*c4 d4 e4 f4*score*g4 a4 r2*number 2"
 
 make_ly :: Types.Config -> [UiTest.TrackSpec] -> (String, [String])
 make_ly config = first (LilypondTest.make_ly config)

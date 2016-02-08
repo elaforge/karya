@@ -212,11 +212,13 @@ extract f = first (map f) . partition_logs
 partition_logs :: Derive.Result -> ([Types.Event], [String])
 partition_logs result = (events, extract_logs (dlogs ++ logs))
     where
-    (events, logs) = LEvent.partition $ Convert.convert config $
+    (events, logs) = LEvent.partition $ convert $
         Stream.events_of $ Derive.r_events result
-    config = default_config { Types.config_quarter_duration = 1 }
     dlogs = Stream.logs_of (Derive.r_events result)
     extract_logs = map DeriveTest.show_log . DeriveTest.quiet_filter_logs
+
+convert :: [Score.Event] -> [LEvent.LEvent Types.Event]
+convert = Convert.convert (default_config { Types.config_quarter_duration = 1 })
 
 derive_tracks :: [UiTest.TrackSpec] -> Derive.Result
 derive_tracks = derive_tracks_setup mempty

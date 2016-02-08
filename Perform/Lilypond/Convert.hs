@@ -4,10 +4,14 @@
 
 -- | Convert Derive.Score output into Lilypond.Events.
 module Perform.Lilypond.Convert (convert, pitch_to_lily, quantize) where
+import qualified Control.Monad.Except as Except
+import qualified Control.Monad.Identity as Identity
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
+import qualified Util.Log as Log
+import qualified Cmd.Cmd as Cmd
 import qualified Derive.Env as Env
 import qualified Derive.LEvent as LEvent
 import qualified Derive.PSignal as PSignal
@@ -16,49 +20,62 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 
 import qualified Perform.ConvertUtil as ConvertUtil
-import Perform.ConvertUtil (throw)
 import qualified Perform.Lilypond.Constants as Constants
 import qualified Perform.Lilypond.Types as Types
+import qualified Perform.Midi.Patch as Midi.Patch
 
+import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import Global
 import Types
 
 
 -- * convert
 
-type ConvertT a = ConvertUtil.ConvertT () a
-
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
+--
+-- Unlike the other backend converts, this one doesn't need a lookup inst
+-- function.  It just fakes up an inst for whatever you ask it.  This means
+-- 'Constants.ly_global' doesn't actually need an allocation.  The bad part is
+-- that postproc is not applied, but I'll worry about that if I ever have
+-- a postproc that affects lilypond.
 convert :: Types.Config -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert config =
-    ConvertUtil.convert () (convert_event quarter) . want_instrument
+    ConvertUtil.convert event1 lookup_inst . filter_instruments
     where
-    quarter = Types.config_quarter_duration config
-    want_instrument
+    lookup_inst = const $ Just fake_inst
+    fake_inst = Inst.Inst (Inst.Midi (Midi.Patch.patch (-1, 1) "ly-fake-inst"))
+        (Common.common Cmd.empty_code)
+    event1 event _backend =
+        convert_event (Types.config_quarter_duration config) event
+    filter_instruments
         | null (Types.config_staves config) = id
         | otherwise = filter ((`Set.member` insts) . Score.event_instrument)
-        where
-        insts = Set.fromList $ Constants.ly_global : [inst | (inst, staff)
-            <- Types.config_staves config, Types.staff_display staff]
+    insts = Set.fromList $ Constants.ly_global :
+        [ inst
+        | (inst, staff) <- Types.config_staves config
+        , Types.staff_display staff
+        ]
 
--- | Normally events have a duration and a pitch, and the lilypond performer
--- converts this into a normal lilypond note.  However, the deriver can emit
--- lilypond code directly with either a zero duration event or one without
--- a pitch:
---
--- - If the event has 0 duration, it must have prepend or append code or have
--- the magic 'Constants.ly_global' instrument.  The code will go before or after
--- other events at the same time.  Any pitch is ignored.
---
--- - If it doesn't have a pitch, then it must have prepend or append code.
--- prepend ++ append will be emitted and considered to have the given amount of
--- duration.
---
--- - If the event has a pitch it will be emitted as a note, with optional
--- prepended or appended code.
-convert_event :: RealTime -> Score.Event -> ConvertT Types.Event
-convert_event quarter event = do
+{- | Normally events have a duration and a pitch, and the lilypond performer
+    converts this into a normal lilypond note.  However, the deriver can emit
+    lilypond code directly with either a zero duration event or one without
+    a pitch:
+
+    - If the event has 0 duration, it must have prepend or append code or have
+    the magic 'Constants.ly_global' instrument.  The code will go before or
+    after other events at the same time.  Any pitch is ignored.
+
+    - If it doesn't have a pitch, then it must have prepend or append code.
+    prepend ++ append will be emitted and considered to have the given amount
+    of duration.
+
+    - If the event has a pitch it will be emitted as a note, with optional
+    prepended or appended code.
+-}
+convert_event :: RealTime -> Score.Event -> [LEvent.LEvent Types.Event]
+convert_event quarter event = run $ do
     let dur = Types.real_to_time quarter (Score.event_duration event)
     maybe_pitch <- convert_pitch event
     pitch <- case (dur, maybe_pitch) of
@@ -68,18 +85,16 @@ convert_event quarter event = do
                 throw "event with non-zero duration and no code requires pitch"
             | otherwise -> return ""
         (_, Just pitch) -> return pitch
-    let converted = Types.Event
-            { Types.event_start =
-                Types.real_to_time quarter (Score.event_start event)
-            , Types.event_duration =
-                Types.real_to_time quarter (Score.event_duration event)
-            , Types.event_pitch = pitch
-            , Types.event_instrument = Score.event_instrument event
-            , Types.event_environ = Score.event_environ event
-            , Types.event_stack = Score.event_stack event
-            , Types.event_clipped = False
-            }
-    return converted
+    return $ Types.Event
+        { event_start = Types.real_to_time quarter (Score.event_start event)
+        , event_duration =
+            Types.real_to_time quarter (Score.event_duration event)
+        , event_pitch = pitch
+        , event_instrument = Score.event_instrument event
+        , event_environ = Score.event_environ event
+        , event_stack = Score.event_stack event
+        , event_clipped = False
+        }
     where
     check_0dur
         | not is_ly_global && not has_prepend && not has_append = throw $
@@ -94,10 +109,15 @@ convert_event quarter event = do
     has_append = has Constants.v_ly_append_all
     has v = Maybe.isJust $ Env.lookup v (Score.event_environ event)
     code_attrs = [Constants.v_ly_prepend, Constants.v_ly_append_all]
+    run = (:[]) . either LEvent.Log LEvent.Event . Identity.runIdentity
+        . Except.runExceptT
+
+throw :: (Log.Stack, Except.MonadError Log.Msg m) => Text -> m a
+throw = Except.throwError . Log.msg Log.Warn Nothing
 
 type Pitch = Text
 
-convert_pitch :: Score.Event -> ConvertT (Maybe Pitch)
+convert_pitch :: Except.MonadError Log.Msg m => Score.Event -> m (Maybe Pitch)
 convert_pitch event = case Score.initial_pitch event of
     Nothing -> return Nothing
     Just pitch -> either (throw . ("convert_pitch: "<>)) (return . Just) $

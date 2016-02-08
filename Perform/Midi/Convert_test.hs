@@ -40,14 +40,13 @@ import Types
 
 
 test_convert = do
-    let run = convert e_pitch
+    let run = convert DeriveTest.default_convert_lookup e_pitch
     let noinst n = mkevent n "4c" "noinst"
         nopitch n = Score.set_pitch mempty $ mkevent n "4c" "i1"
         good n = mkevent n "4c" "i1"
 
     equal (run [noinst 0, nopitch 1, good 2])
-        [ Right $ "event requires patch in instrument db: "
-            ++ ">noinst (further warnings suppressed)"
+        [ Right $ "instrument not found: >noinst"
         -- emits an event anyway so the previous pitch doesn't continue
         , Left (1, [])
         , Left (2, [(2, NN.c4)])
@@ -71,7 +70,7 @@ test_rnd_vel = do
     check $ all (Num.inRange 40 90) vels
 
 test_convert_pitch = do
-    let run = convert e_pitch
+    let run = convert DeriveTest.default_convert_lookup e_pitch
     let event tsig = DeriveTest.mkevent
             (0, 1, "4c", [(Controls.diatonic, tsig)], UiTest.i1)
     equal (run [event []]) [Left (0, [(0, NN.c4)])]
@@ -95,7 +94,7 @@ test_convert_pitch = do
     equal (run [insert event]) [Left (0, [(0, 60.982)])]
 
 test_convert_dynamic = do
-    let run inst = first (map (fmap extract) . Convert.convert clookup)
+    let run inst = first (convert clookup extract)
             . DeriveTest.extract id . DeriveTest.derive_tracks ""
             . (++ [(inst, [(1, 4, "")])])
         extract e =
@@ -107,15 +106,15 @@ test_convert_dynamic = do
             DeriveTest.make_db [("s", [p "1", Patch.pressure $ p "2"])]
         p = DeriveTest.make_patch
     equal (run ">i1" [("dyn", [(0, 0, "1")])])
-        ([LEvent.Event (1, [])], [])
+        ([Left (1, [])], [])
     equal (run ">i1" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
-        ([LEvent.Event (0.5, [])], [])
+        ([Left (0.5, [])], [])
     -- For pressure, dyn goes to breath.
     equal (run ">i2" [("dyn", [(1, 0, ".5"), (2, 0, "1")])])
-        ([LEvent.Event (0.5, [(1, 0.5), (2, 1)])], [])
+        ([Left (0.5, [(1, 0.5), (2, 1)])], [])
 
 test_release_velocity = do
-    let run = first (convert extract)
+    let run = first (convert DeriveTest.default_convert_lookup extract)
             . DeriveTest.extract id . DeriveTest.derive_tracks "inst = >i1"
             . UiTest.note_track
         extract e =
@@ -128,10 +127,10 @@ mkevent :: RealTime -> String -> Text -> Score.Event
 mkevent start pitch inst =
     DeriveTest.mkevent (start, 1, pitch, [], Score.Instrument inst)
 
-convert :: (Types.Event -> a) -> [Score.Event] -> [Either a String]
-convert extract =
-    show_logs extract
-        . Convert.convert DeriveTest.default_convert_lookup
+convert :: DeriveTest.Lookup -> (Types.Event -> a) -> [Score.Event]
+    -> [Either a String]
+convert lookup extract =
+    show_logs extract . Convert.convert (snd lookup) (fst lookup)
 
 e_pitch :: Types.Event -> (RealTime, [(RealTime, Pitch.NoteNumber)])
 e_pitch e =

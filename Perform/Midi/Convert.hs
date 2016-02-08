@@ -9,14 +9,14 @@
     physically located in Perform.Midi.
 -}
 module Perform.Midi.Convert where
-import qualified Control.Monad.State.Strict as State
+import qualified Control.Monad.Identity as Identity
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
 import qualified Util.TimeVector as TimeVector
 import qualified Midi.Midi as Midi
+import qualified Cmd.Cmd as Cmd
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.Env as Env
@@ -26,7 +26,6 @@ import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 
 import qualified Perform.ConvertUtil as ConvertUtil
-import Perform.ConvertUtil (require)
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Perform
@@ -35,42 +34,35 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
+import qualified Instrument.Inst as Inst
 import Global
 
 
-type ConvertT a = ConvertUtil.ConvertT State a
-
--- | Remember which non-allocated instruments have been warned about to
--- suppress further warnings.
-type State = Set.Set Score.Instrument
-
 data Lookup = Lookup {
     lookup_scale :: Derive.LookupScale
-    , lookup_patch :: Score.Instrument
-        -> Maybe (Patch.Patch, Score.Event -> Score.Event)
     , lookup_control_defaults :: Score.Instrument -> Score.ControlMap
     }
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: Lookup -> [Score.Event] -> [LEvent.LEvent Types.Event]
-convert lookup = ConvertUtil.convert Set.empty (convert_event lookup)
+convert :: Lookup -> (Score.Instrument -> Maybe Cmd.Inst)
+    -> [Score.Event] -> [LEvent.LEvent Types.Event]
+convert lookup = ConvertUtil.convert $ \event backend -> case backend of
+    Inst.Midi patch -> convert_event lookup event patch
+    _ -> []
 
-convert_event :: Lookup -> Score.Event -> ConvertT Types.Event
-convert_event lookup event_ = do
-    let score_inst = Score.event_instrument event_
-    (patch, postproc) <- require_patch score_inst $
-        lookup_patch lookup score_inst
-    let midi_patch = Types.patch score_inst patch
-    let event = postproc event_
+convert_event :: Lookup -> Score.Event -> Patch.Patch
+    -> [LEvent.LEvent Types.Event]
+convert_event lookup event patch = run $ do
+    let inst = Score.event_instrument event
     let event_controls = Score.event_transformed_controls event
-    (midi_patch, pitch) <- convert_midi_pitch midi_patch
+    (midi_patch, pitch) <- convert_midi_pitch (Types.patch inst patch)
         (Patch.patch_scale patch) (Patch.patch_attribute_map patch)
         (Patch.has_flag patch Patch.ConstantPitch)
         event_controls event
     let controls = convert_controls (Types.patch_control_map midi_patch) $
             convert_dynamic pressure
-                (event_controls <> lookup_control_defaults lookup score_inst)
+                (event_controls <> lookup_control_defaults lookup inst)
         pressure = Patch.has_flag patch Patch.Pressure
         velocity = fromMaybe Perform.default_velocity
             (Env.maybe_val EnvKey.dynamic_val (Score.event_environ event))
@@ -94,18 +86,9 @@ convert_event lookup event_ = do
         , event_stack = Score.event_stack event
         }
 
--- | Abort if the patch wasn't found.  If it wasn't found the first time, it
--- won't be found the second time either, so avoid spamming the log by throwing
--- Nothing after the first time.
-require_patch :: Score.Instrument -> Maybe a -> ConvertT a
-require_patch _ (Just v) = return v
-require_patch inst Nothing = do
-    not_found <- State.get
-    if Set.member inst not_found then ConvertUtil.abort
-        else do
-            State.put (Set.insert inst not_found)
-            require ("patch in instrument db: " <> pretty inst
-                <> " (further warnings suppressed)") Nothing
+run :: Log.LogT Identity.Identity a -> [LEvent.LEvent a]
+run = merge . Identity.runIdentity . Log.run
+    where merge (note, logs) = LEvent.Event note : map LEvent.Log logs
 
 -- | If the Event has an attribute matching its keymap, use the pitch from the
 -- keymap.  Otherwise convert the pitch signal.  Possibly warn if there are
@@ -114,9 +97,9 @@ require_patch inst Nothing = do
 -- TODO this used to warn about unmatched attributes, but it got annoying
 -- because I use attributes freely.  It still seems like it could be useful,
 -- so maybe I want to put it back in again someday.
-convert_midi_pitch :: Types.Patch -> Maybe Patch.Scale
+convert_midi_pitch :: Log.LogMonad m => Types.Patch -> Maybe Patch.Scale
     -> Patch.AttributeMap -> Bool -> Score.ControlMap -> Score.Event
-    -> ConvertT (Types.Patch, Signal.NoteNumber)
+    -> m (Types.Patch, Signal.NoteNumber)
 convert_midi_pitch patch scale attr_map constant_pitch controls event =
     case Common.lookup_attributes (Score.event_attributes event) attr_map of
         Nothing -> (,) patch <$> psignal
@@ -131,10 +114,10 @@ convert_midi_pitch patch scale attr_map constant_pitch controls event =
         return $ Signal.constant (Midi.from_key key)
     set_keymap (Patch.PitchedKeymap low high low_nn) =
         convert_keymap (Midi.from_key low) (Midi.from_key high) low_nn
-            =<< psignal
+            <$> psignal
     convert_keymap :: Signal.Y -> Signal.Y -> Pitch.NoteNumber
-        -> Signal.NoteNumber -> ConvertT Signal.NoteNumber
-    convert_keymap low high low_pitch sig = return clipped
+        -> Signal.NoteNumber -> Signal.NoteNumber
+    convert_keymap low high low_pitch sig = clipped
         where
         -- TODO warn about out_of_range
         (clipped, out_of_range) = Signal.clip_bounds low high $
@@ -151,6 +134,7 @@ convert_midi_pitch patch scale attr_map constant_pitch controls event =
             Score.pitch_at (Score.event_start event) event
         convert = convert_pitch scale (Score.event_environ event)
         -- Trim controls to avoid applying out of range transpositions.
+        -- TODO should I also trim the pitch signal to avoid doing extra work?
         trimmed = fmap (fmap (Signal.drop_at_after note_end)) controls
         note_end = Score.event_end event
             + fromMaybe Types.default_decay (Types.patch_decay patch)
@@ -173,8 +157,8 @@ convert_dynamic pressure controls
         (Map.lookup Controls.dynamic controls)
     | otherwise = controls
 
-convert_pitch :: Maybe Patch.Scale -> Env.Environ
-    -> Score.ControlMap -> PSignal.PSignal -> ConvertT Signal.NoteNumber
+convert_pitch :: Log.LogMonad m => Maybe Patch.Scale -> Env.Environ
+    -> Score.ControlMap -> PSignal.PSignal -> m Signal.NoteNumber
 convert_pitch scale env controls psig = do
     let (sig, nn_errs) = PSignal.to_nn $ PSignal.apply_controls controls $
             PSignal.apply_environ env psig
