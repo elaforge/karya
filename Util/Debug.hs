@@ -80,7 +80,7 @@ tracef :: Show b => Text -> (a -> b) -> a -> a
 tracef msg f val = write (with_msg msg (pshow (f val))) val
 
 tracefp :: Pretty.Pretty b => Text -> (a -> b) -> a -> a
-tracefp msg f val = write (with_msg msg (Pretty.pretty (f val))) val
+tracefp msg f val = write (with_msg msg (Pretty.formatted (f val))) val
 
 -- | Trace input and output of a function.
 trace_ret :: (Show a, Show b) => Text -> a -> b -> b
