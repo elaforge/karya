@@ -941,11 +941,11 @@ profileRules config = do
         buildHs config [oDir config </> "fltk/fltk.a"] [] (fn ++ ".hs") fn
 
 generateTestHs :: FilePath -> FilePath -> Shake.Action ()
-generateTestHs hsSuffix fn = do
+generateTestHs suffix fn = do
     -- build/test/RunTests-Xyz.hs -> **/*Xyz*_test.hs
     let contains = drop 1 $ dropWhile (/='-') $ FilePath.dropExtension fn
-        pattern = (if null contains then "" else '*' : contains)
-            ++ "*" ++ hsSuffix ++ ".hs"
+        pattern = if null contains then '*' : suffix ++ ".hs"
+            else contains ++ suffix ++ ".hs"
     tests <- Util.findHs pattern "."
     when (null tests) $
         Util.errorIO $ "no tests match pattern: " ++ show pattern
