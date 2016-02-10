@@ -106,8 +106,10 @@ force_performance perf = perf_logs perf `DeepSeq.deepseq` perf_events perf
 type Events = Vector.Vector Score.Event
 
 instance Show Performance where
-    show perf = "((Performance " <> prettys len <> "))"
-        where len = Derive.cache_size (perf_derive_cache perf)
+    show perf = "((Performance " <> show (Vector.length (perf_events perf))
+        <> " events " <> show (length (perf_logs perf)) <> " logs))"
+        -- Show events and logs.  This way there's a hint to look at logs if
+        -- there are mysteriously no events.
 
 instance Pretty.Pretty Performance where
     format perf = Pretty.record "Performance"
