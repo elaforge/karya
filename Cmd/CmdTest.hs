@@ -337,7 +337,7 @@ set_synths synths aliases ui_state cmd_state =
     ( UiTest.set_midi_config aliases config ui_state
     , cmd_state
         { Cmd.state_config = (Cmd.state_config cmd_state)
-            { Cmd.state_instrument_db = DeriveTest.synth_to_db synths }
+            { Cmd.config_instrument_db = DeriveTest.synth_to_db synths }
         }
     )
     where

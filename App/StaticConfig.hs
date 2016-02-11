@@ -92,16 +92,15 @@ make_read_devices = Set.fromList . map Midi.read_device
 cmd_config :: FilePath -> Interface.Interface -> StaticConfig
     -> Cmd.Config
 cmd_config app_dir interface config = Cmd.Config
-    { state_app_dir = app_dir
-    , state_midi_interface = interface
-    , state_ky_paths = map (Config.make_path app_dir) Config.ky_paths
-    , state_rdev_map = rdev_map midi_config
-    , state_wdev_map = wdev_map midi_config
-    , state_instrument_db = instrument_db config
-    , state_library = library config
-    -- TODO later this should also be merged with static config
-    , state_lookup_scale = Scale.All.lookup_scale
-    , state_highlight_colors = highlight_colors config
-    , state_im = Cmd.default_im_config
+    { config_app_dir = app_dir
+    , config_midi_interface = interface
+    , config_ky_paths = map (Config.make_path app_dir) Config.ky_paths
+    , config_rdev_map = rdev_map midi_config
+    , config_wdev_map = wdev_map midi_config
+    , config_instrument_db = instrument_db config
+    , config_library = library config
+    , config_lookup_scale = Scale.All.lookup_scale
+    , config_highlight_colors = highlight_colors config
+    , config_im = Cmd.default_im_config
     }
     where midi_config = midi config

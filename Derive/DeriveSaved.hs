@@ -175,16 +175,16 @@ cmd_config inst_db = do
     interface <- StubMidi.interface
     app_dir <- Config.get_app_dir
     return $ Cmd.Config
-        { state_app_dir = app_dir
-        , state_midi_interface = interface
-        , state_ky_paths = map (Config.make_path app_dir) Config.ky_paths
-        , state_rdev_map = mempty
-        , state_wdev_map = mempty
-        , state_instrument_db = inst_db
-        , state_library = Call.All.library
-        , state_lookup_scale = Scale.All.lookup_scale
-        , state_highlight_colors = mempty
-        , state_im = Cmd.default_im_config
+        { config_app_dir = app_dir
+        , config_midi_interface = interface
+        , config_ky_paths = map (Config.make_path app_dir) Config.ky_paths
+        , config_rdev_map = mempty
+        , config_wdev_map = mempty
+        , config_instrument_db = inst_db
+        , config_library = Call.All.library
+        , config_lookup_scale = Scale.All.lookup_scale
+        , config_highlight_colors = mempty
+        , config_im = Cmd.default_im_config
             { Cmd.im_binary = "/usr/bin/true"
             , Cmd.im_notes = Test.tmp_base_dir </> "im_notes"
             }

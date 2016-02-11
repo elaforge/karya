@@ -106,7 +106,7 @@ find_doc search  = Lazy.toStrict . CallDoc.doc_text
 html_doc :: Cmd.CmdL ()
 html_doc = do
     doc <- track_doc
-    app_dir <- Cmd.gets (Cmd.state_app_dir . Cmd.state_config)
+    app_dir <- Cmd.gets (Cmd.config_app_dir . Cmd.state_config)
     hstate <- liftIO $ CallDoc.get_html_state "haddock" app_dir
     liftIO $ Text.IO.writeFile "build/derive_doc.html" $
         CallDoc.doc_html hstate doc

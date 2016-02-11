@@ -12,7 +12,7 @@ UNSORTED
   / test: get rid of expect_right in favor of propagating the Left and using
     equal_right
   - test: delete build/test/tmp on every test run to avoid test contamination
-  - rename Cmd.Config's fields from state_* to config_*
+  * rename Cmd.Config's fields from state_* to config_*
   - Ui.StateConfig.config_aliases should be called instruments or something,
     the name 'aliases' should be reserved for derive level aliases.
   * integrate Synth/vst into the build

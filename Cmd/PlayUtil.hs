@@ -146,9 +146,9 @@ get_constant :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage
     -> m Derive.Constant
 get_constant cache damage = do
     ui_state <- State.get
-    lookup_scale <- Cmd.gets $ Cmd.state_lookup_scale . Cmd.state_config
+    lookup_scale <- Cmd.gets $ Cmd.config_lookup_scale . Cmd.state_config
     lookup_inst <- Cmd.get_lookup_instrument
-    library <- Cmd.gets $ Cmd.state_library . Cmd.state_config
+    library <- Cmd.gets $ Cmd.config_library . Cmd.state_config
     defs_library <- get_library
     let configs = State.config_midi $ State.state_config ui_state
     return $ Derive.initial_constant ui_state (defs_library <> library)
@@ -294,7 +294,7 @@ perform_events events = do
 
 get_convert_lookup :: Cmd.M m => m Convert.Lookup
 get_convert_lookup = do
-    lookup_scale <- Cmd.gets $ Cmd.state_lookup_scale . Cmd.state_config
+    lookup_scale <- Cmd.gets $ Cmd.config_lookup_scale . Cmd.state_config
     configs <- State.get_midi_config
     let defaults = Map.map (Map.map (Score.untyped . Signal.constant)
             . Patch.config_control_defaults) configs
@@ -342,7 +342,7 @@ cached_load :: Cmd.State -> FilePath
 cached_load state fname = run $ do
     dir <- require ("need a SaveFile to find " <> showt fname) $
         Cmd.state_save_dir state
-    let paths = dir : Cmd.state_ky_paths (Cmd.state_config state)
+    let paths = dir : Cmd.config_ky_paths (Cmd.state_config state)
     current_timestamps <- require_right
         =<< liftIO (get_timestamps (Map.keys cached_timestamps))
     let fresh = not (Map.null cached_timestamps)

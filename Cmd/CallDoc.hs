@@ -427,7 +427,7 @@ filter_calls matches = map (second (map scope_doc))
 
 -- | Emit docs for all calls in the default scope.
 builtin :: Cmd.M m => m Document
-builtin = library <$> Cmd.gets (Cmd.state_library . Cmd.state_config)
+builtin = library <$> Cmd.gets (Cmd.config_library . Cmd.state_config)
 
 -- | Extract all the documentation from a Library.  Document extraction is
 -- a big mess of walking over nested data and converting it to a parallel

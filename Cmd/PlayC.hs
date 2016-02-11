@@ -152,7 +152,7 @@ get_event_highlights :: Cmd.M m => BlockId
     -> Cmd.Events
     -> m [((ViewId, TrackNum), (Range, Color.Color))]
 get_event_highlights block_id events = do
-    colors <- Cmd.gets $ Cmd.state_highlight_colors . Cmd.state_config
+    colors <- Cmd.gets $ Cmd.config_highlight_colors . Cmd.state_config
     resolve_tracks $ event_highlights block_id colors events
 
 resolve_tracks :: State.M m => [((BlockId, TrackId), a)]

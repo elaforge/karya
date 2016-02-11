@@ -29,7 +29,7 @@ test_respond = do
             #= UiTest.make_aliases [("im", "sampler/inst")]
         set_db state = state
             { Cmd.state_config = (Cmd.state_config state)
-                { Cmd.state_instrument_db = db }
+                { Cmd.config_instrument_db = db }
             }
         (db, warns) = Inst.db Local.Instrument.im_synths
     equal warns []

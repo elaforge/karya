@@ -433,46 +433,46 @@ reinit_state present cstate = cstate
 -- the static config.
 data Config = Config {
     -- | App root, initialized from 'Config.get_app_dir'.
-    state_app_dir :: !FilePath
-    , state_midi_interface :: !Midi.Interface.Interface
+    config_app_dir :: !FilePath
+    , config_midi_interface :: !Midi.Interface.Interface
     -- | Search path for local definition files, from 'Config.definition_path'.
-    , state_ky_paths :: ![FilePath]
+    , config_ky_paths :: ![FilePath]
     -- | Reroute MIDI inputs and outputs.  These come from
     -- 'App.StaticConfig.read_device_map' and
     -- 'App.StaticConfig.write_device_map' and probably shouldn't be changed
     -- at runtime.
-    , state_rdev_map :: !(Map.Map Midi.ReadDevice Midi.ReadDevice)
+    , config_rdev_map :: !(Map.Map Midi.ReadDevice Midi.ReadDevice)
     -- | WriteDevices can be score-specific, though, so another map is kept in
     -- 'State.State', which may override the one here.
-    , state_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
-    , state_instrument_db :: !InstrumentDb
+    , config_wdev_map :: !(Map.Map Midi.WriteDevice Midi.WriteDevice)
+    , config_instrument_db :: !InstrumentDb
     -- | Library of calls for the deriver.
-    , state_library :: !Derive.Library
+    , config_library :: !Derive.Library
     -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
-    , state_lookup_scale :: !Derive.LookupScale
-    , state_highlight_colors :: !(Map.Map Color.Highlight Color.Color)
-    , state_im :: !ImConfig
+    , config_lookup_scale :: !Derive.LookupScale
+    , config_highlight_colors :: !(Map.Map Color.Highlight Color.Color)
+    , config_im :: !ImConfig
     } deriving (Show)
 
--- | Get a midi writer that takes the 'state_wdev_map' into account.
+-- | Get a midi writer that takes the 'config_wdev_map' into account.
 state_midi_writer :: State -> Midi.Interface.Message -> IO ()
 state_midi_writer state imsg = do
     let out = case imsg of
             Midi.Interface.Midi wmsg -> Midi.Interface.Midi $ map_wdev wmsg
             _ -> imsg
     ok <- Midi.Interface.write_message
-        (state_midi_interface (state_config state)) out
+        (config_midi_interface (state_config state)) out
     unless ok $ Log.warn $ "error writing " <> pretty out
     where
     map_wdev (Midi.WriteMessage wdev time msg) =
         Midi.WriteMessage (lookup_wdev wdev) time msg
     lookup_wdev wdev = Map.findWithDefault wdev wdev
-        (state_wdev_map (state_config state))
+        (config_wdev_map (state_config state))
 
 -- | Convert a relative path to place it in the app dir.
 path :: State -> Config.RelativePath -> FilePath
 path state (Config.RelativePath path) =
-    state_app_dir (state_config state) </> path
+    config_app_dir (state_config state) </> path
 
 data ImConfig = ImConfig {
     -- | This can turn of Im processing entirely, which should be a bit more
@@ -1093,7 +1093,7 @@ state_lookup_instrument ui_state cmd_state = \inst_name -> do
     where
     aliases = State.config#State.aliases #$ ui_state
     configs = State.config#State.midi #$ ui_state
-    db = state_instrument_db (state_config cmd_state)
+    db = config_instrument_db (state_config cmd_state)
     merge_environ configs inst_name =
         (Inst.common#Common.environ %= (environ <>)) . set_scale
         where

@@ -353,7 +353,7 @@ modify_dynamic f = Derive.modify $ \st ->
 
 with_scale :: Scale.Scale -> Setup
 with_scale scale = with_cmd $ set_cmd_config $ \state -> state
-    { Cmd.state_lookup_scale = lookup (Cmd.state_lookup_scale state) }
+    { Cmd.config_lookup_scale = lookup (Cmd.config_lookup_scale state) }
     where
     -- Fall back on the old lookup.  This is important because *twelve is the
     -- default scale so I want it to keep working.
@@ -370,7 +370,7 @@ with_instrument_db :: Simple.Aliases -> Cmd.InstrumentDb -> Setup
 with_instrument_db aliases db = with_aliases aliases <> with_db
     where
     with_db = with_cmd $ set_cmd_config $ \state -> state
-        { Cmd.state_instrument_db = db }
+        { Cmd.config_instrument_db = db }
 
 with_aliases :: Simple.Aliases -> Setup
 with_aliases aliases = with_ui $
@@ -387,16 +387,16 @@ default_cmd_state = Cmd.initial_state (cmd_config default_db)
 -- | Config to initialize the Cmd.State.
 cmd_config :: Cmd.InstrumentDb -> Cmd.Config
 cmd_config inst_db = Cmd.Config
-    { state_app_dir = "."
-    , state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
-    , state_ky_paths = []
-    , state_rdev_map = mempty
-    , state_wdev_map = mempty
-    , state_instrument_db = inst_db
-    , state_library = Call.All.library
-    , state_lookup_scale = Scale.All.lookup_scale
-    , state_highlight_colors = Config.highlight_colors
-    , state_im = Cmd.default_im_config
+    { config_app_dir = "."
+    , config_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
+    , config_ky_paths = []
+    , config_rdev_map = mempty
+    , config_wdev_map = mempty
+    , config_instrument_db = inst_db
+    , config_library = Call.All.library
+    , config_lookup_scale = Scale.All.lookup_scale
+    , config_highlight_colors = Config.highlight_colors
+    , config_im = Cmd.default_im_config
         { Cmd.im_binary = "/usr/bin/true"
         , Cmd.im_notes = default_im_notes
         }

@@ -176,7 +176,7 @@ generate_performance ui_state wait send_status block_id = do
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
     th <- liftIO $ Thread.start $
-        evaluate_performance (Cmd.state_im (Cmd.state_config cmd_state))
+        evaluate_performance (Cmd.config_im (Cmd.state_config cmd_state))
             (Cmd.state_lookup_instrument ui_state cmd_state) wait send_status
             block_id perf
     Monad.State.modify $ modify_play_state $ \st -> st

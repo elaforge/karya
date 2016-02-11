@@ -102,7 +102,7 @@ state_transport_info state = Transport.Info
     , Transport.info_state = state_monitor_state state
     }
     where
-    interface = Cmd.state_midi_interface (Cmd.state_config (state_cmd state))
+    interface = Cmd.config_midi_interface (Cmd.state_config (state_cmd state))
 
 type MsgReader = IO Msg.Msg
 type Loopback = Msg.Msg -> IO ()
