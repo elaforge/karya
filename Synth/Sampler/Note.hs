@@ -8,14 +8,14 @@
 module Synth.Sampler.Note where
 import qualified Data.Aeson as Aeson
 import qualified Data.Map.Strict as Map
-import qualified Data.String as String
-
 import qualified GHC.Generics as Generics
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
+
 import qualified Perform.Pitch as Pitch
-import Global
+import qualified Synth.Sampler.Control as Control
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.Signal as Signal
 import Synth.Sampler.Types
@@ -26,8 +26,9 @@ import Synth.Sampler.Types
 data Note = Note {
     instrument :: !Patch.Name
     , start :: !Time
+    , duration :: !Time
     -- | E.g. envelope, pitch, lpf.
-    , controls :: !(Map.Map Control Signal.Signal)
+    , controls :: !(Map.Map Control.Control Signal.Signal)
     , attributes :: !Patch.Attributes
     } deriving (Show, Generics.Generic)
 
@@ -35,34 +36,41 @@ instance Aeson.ToJSON Note
 instance Aeson.FromJSON Note
 
 instance Serialize.Serialize Note where
-    put (Note a b c d) = put a *> put b *> put c *> put d
-    get = Note <$> get <*> get <*> get <*> get
+    put (Note a b c d e) = put a *> put b *> put c *> put d *> put e
+    get = Note <$> get <*> get <*> get <*> get <*> get
 
-note :: Patch.Name -> Time -> Note
-note inst start = Note inst start mempty mempty
+instance Pretty.Pretty Note where
+    format (Note inst start dur controls attrs) = Pretty.record "Note"
+        [ ("instrument", Pretty.format inst)
+        , ("start", Pretty.format start)
+        , ("duration", Pretty.format dur)
+        , ("controls", Pretty.format controls)
+        , ("attributes", Pretty.format attrs)
+        ]
 
-newtype Control = Control Text
-    deriving (Eq, Ord, Show, String.IsString, Aeson.ToJSON, Aeson.FromJSON,
-        Serialize.Serialize)
+note :: Patch.Name -> Time -> Time -> Note
+note inst start duration = Note
+    { instrument = inst
+    , start = start
+    , duration = duration
+    , controls = mempty
+    , attributes = mempty
+    }
 
-instance Aeson.ToJSON a => Aeson.ToJSON (Map.Map Control a) where
-    toJSON = Aeson.toJSON . Map.fromAscList . map (first (\(Control a) -> a))
-        . Map.toAscList
-instance Aeson.FromJSON a => Aeson.FromJSON (Map.Map Control a) where
-    parseJSON = fmap (Map.fromAscList . map (first Control) . Map.toAscList)
-        . Aeson.parseJSON
-
-initialControl :: Control -> Note -> Maybe Signal.Y
+initialControl :: Control.Control -> Note -> Maybe Signal.Y
 initialControl control note =
     Signal.at (start note) <$> Map.lookup control (controls note)
 
 initialPitch :: Note -> Maybe Pitch.NoteNumber
-initialPitch = fmap Pitch.nn . initialControl pitch
+initialPitch = fmap Pitch.nn . initialControl Control.pitch
 
--- * controls
+-- * serialize
 
-envelope :: Control
-envelope = "envelope"
+serialize :: FilePath -> [Note] -> IO ()
+serialize = Serialize.serialize notes_magic
 
-pitch :: Control
-pitch = "pitch"
+unserialize :: FilePath -> IO (Either Serialize.UnserializeError [Note])
+unserialize  = Serialize.unserialize notes_magic
+
+notes_magic :: Serialize.Magic [Note]
+notes_magic = Serialize.Magic 's' 'a' 'm' 'p'

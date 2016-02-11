@@ -85,9 +85,10 @@ repl_dir = local_dir </> "Repl"
 log_dir :: RelativePath
 log_dir = "log"
 
--- | 'Ui.State.state_project_dir' is in this directory, by default.
+-- | Saved scores are expected to be relative to this directory.
 save_dir :: RelativePath
 save_dir = "save"
+
 
 -- * status view
 

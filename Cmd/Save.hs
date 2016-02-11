@@ -44,6 +44,7 @@ import qualified Util.Git as Git
 import qualified Util.Locale as Locale
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
+import qualified Util.Serialize as Serialize
 import qualified Util.TextUtil as TextUtil
 
 import qualified Ui.Id as Id
@@ -55,7 +56,7 @@ import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitTypes as SaveGitTypes
-import qualified Cmd.Serialize as Serialize
+import qualified Cmd.Serialize
 
 import qualified App.Config as Config
 import Global
@@ -182,7 +183,7 @@ write_current_state fname = do
 write_state :: FilePath -> State.State -> IO ()
 write_state fname state = do
     now <- Time.getCurrentTime
-    Serialize.serialize Serialize.score_magic fname $
+    Serialize.serialize Cmd.Serialize.score_magic fname $
         State.config#State.meta#State.last_save #= now $
         State.clear state
 
@@ -203,7 +204,8 @@ read_state fname = do
 
 -- | Lower level 'read_state'.
 read_state_ :: FilePath -> IO (Either Text State.State)
-read_state_ = fmap (first pretty) . Serialize.unserialize Serialize.score_magic
+read_state_ =
+    fmap (first pretty) . Serialize.unserialize Cmd.Serialize.score_magic
 
 -- ** path
 
@@ -335,7 +337,7 @@ save_midi_config fname = do
     fname <- expand_filename fname
     Log.notice $ "write midi config to " <> showt fname
     rethrow_io "save_midi_config" $ liftIO $
-        Serialize.serialize Serialize.midi_config_magic fname $
+        Serialize.serialize Cmd.Serialize.midi_config_magic fname $
         MidiConfig.Config (State.config_midi config)
             (State.config_aliases config)
 
@@ -346,7 +348,7 @@ load_midi_config fname = do
     let mkmsg err = "unserializing midi config " <> showt fname <> ": "
             <> pretty err
     MidiConfig.Config midi aliases <- Cmd.require_right mkmsg
-        =<< liftIO (Serialize.unserialize Serialize.midi_config_magic fname)
+        =<< liftIO (Serialize.unserialize Cmd.Serialize.midi_config_magic fname)
     State.modify_config $ (State.midi #= midi) . (State.aliases #= aliases)
 
 -- * misc

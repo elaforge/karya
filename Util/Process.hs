@@ -47,6 +47,18 @@ readProcessWithExitCode env cmd args stdin = do
     ex <- Process.waitForProcess pid
     return (ex, out, err)
 
+-- | Start a subprocess in the background, and kill it if an exception is
+-- raised.
+supervisedProcess :: Process.CreateProcess -> (Process.ProcessHandle -> IO a)
+    -> IO a
+supervisedProcess create action = Exception.mask $ \restore -> do
+    -- I hope this mask means that I can't get killed after starting the
+    -- process but before installing the exception handler.
+    (_, _, _, pid) <- logged create
+    Exception.onException (restore (action pid)) $ do
+        Log.warn $ "received exception, killing " <> showt (binaryOf create)
+        Process.terminateProcess pid
+
 -- | Like 'Process.createProcess', but log if the binary wasn't found or
 -- failed.
 logged :: Process.CreateProcess -> IO (Maybe IO.Handle,
@@ -57,15 +69,15 @@ logged create = do
         code <- Process.waitForProcess pid
         case code of
             Exit.ExitFailure c -> Log.error $
-                "subprocess " <> Text.pack (show (binaryOf create))
-                <> " failed: "
-                <> if c == 127 then "binary not found" else Text.pack (show c)
+                "subprocess " <> showt (binaryOf create) <> " exited: "
+                <> if c == 127 then "binary not found" else showt c
             _ -> return ()
     return r
-    where
-    binaryOf create = case Process.cmdspec create of
-        Process.RawCommand fn _ -> fn
-        Process.ShellCommand cmd -> takeWhile (/=' ') cmd
+
+binaryOf :: Process.CreateProcess -> FilePath
+binaryOf create = case Process.cmdspec create of
+    Process.RawCommand fn _ -> fn
+    Process.ShellCommand cmd -> takeWhile (/=' ') cmd
 
 isAlive :: Posix.ProcessID -> IO Bool
 isAlive pid = (Posix.signalProcess Posix.nullSignal pid >> return True)
@@ -84,3 +96,6 @@ commandName pid = do
 exit :: Int -> IO a
 exit 0 = Exit.exitSuccess
 exit n = Exit.exitWith $ Exit.ExitFailure n
+
+showt :: Show a => a -> Text.Text
+showt = Text.pack . show

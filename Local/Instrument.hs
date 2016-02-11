@@ -10,7 +10,10 @@
 
     "Instrument.MakeDb" is used to run the @make_db@s.
 -}
-module Local.Instrument (Load, MakeDb, load, all_loads) where
+module Local.Instrument (
+    Load, MakeDb, load, all_loads
+    , midi_synths, im_synths
+) where
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log

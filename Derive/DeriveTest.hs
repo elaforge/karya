@@ -8,12 +8,14 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import System.FilePath ((</>))
 import qualified System.IO.Unsafe as Unsafe
 
 import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
+import qualified Util.Test as Test
 
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
@@ -385,16 +387,23 @@ default_cmd_state = Cmd.initial_state (cmd_config default_db)
 -- | Config to initialize the Cmd.State.
 cmd_config :: Cmd.InstrumentDb -> Cmd.Config
 cmd_config inst_db = Cmd.Config
-    { Cmd.state_app_dir = "."
-    , Cmd.state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
-    , Cmd.state_ky_paths = []
-    , Cmd.state_rdev_map = mempty
-    , Cmd.state_wdev_map = mempty
-    , Cmd.state_instrument_db = inst_db
-    , Cmd.state_library = Call.All.library
-    , Cmd.state_lookup_scale = Scale.All.lookup_scale
-    , Cmd.state_highlight_colors = Config.highlight_colors
+    { state_app_dir = "."
+    , state_midi_interface = Unsafe.unsafePerformIO StubMidi.interface
+    , state_ky_paths = []
+    , state_rdev_map = mempty
+    , state_wdev_map = mempty
+    , state_instrument_db = inst_db
+    , state_library = Call.All.library
+    , state_lookup_scale = Scale.All.lookup_scale
+    , state_highlight_colors = Config.highlight_colors
+    , state_im = Cmd.default_im_config
+        { Cmd.im_binary = "/usr/bin/true"
+        , Cmd.im_notes = default_im_notes
+        }
     }
+
+default_im_notes :: FilePath
+default_im_notes = Test.tmp_base_dir </> "im_notes"
 
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale = Scale.All.lookup_scale

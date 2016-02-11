@@ -9,7 +9,6 @@ import qualified Cmd.Cmd as Cmd
 import qualified Instrument.Inst as Inst
 import qualified Synth.Sampler.Patch as Patch
 import Synth.Sampler.Patch (attr)
-import Global
 
 
 type Db = Map.Map Patch.Name Patch.Patch
@@ -32,4 +31,4 @@ attrs attrs sample = sample { Patch.attributes = attrs }
 -- | Declaration for "Local.Instrument".
 synth :: Inst.SynthDecl Cmd.InstrumentCode
 synth = Inst.SynthDecl "sampler" "音 sampler"
-    (map (second Patch.makeInst) (Map.toList db))
+    [(name, Patch.makeInst name patch) | (name, patch) <- Map.toList db]

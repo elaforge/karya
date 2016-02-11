@@ -4,7 +4,7 @@
 
 {-# LANGUAGE ScopedTypeVariables #-} -- needed for SomeException
 {-# LANGUAGE FlexibleInstances #-}
-{- | Serialize and unserialize all the data types used by Ui.State.State.
+{- | Instances to serialize and unserialize data types used by Ui.State.State.
 
     Types that I think might change have versions.  If the type changes,
     increment the put_version and add a new branch to the get_version case.
@@ -15,31 +15,17 @@
     updated.
 -}
 module Cmd.Serialize (
-    serialize, UnserializeError(..), unserialize
-    -- * Magic
-    , Magic, midi_magic, midi_config_magic, score_magic, views_magic
-    , InstrumentDb(..), instrument_db_magic
+    midi_config_magic, score_magic, views_magic
 ) where
-import qualified Control.Exception as Exception
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as Char8
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Time as Time
-import qualified Data.Vector as Vector
 
-import qualified System.Directory as Directory
-import qualified System.FilePath as FilePath
-import qualified System.IO.Error as IO.Error
-
-import qualified Util.File as File
-import qualified Util.Pretty as Pretty
 import qualified Util.Rect as Rect
 import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 
 import Midi.Instances ()
-import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Events as Events
@@ -58,89 +44,19 @@ import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import Global
 import Types
 
 
-serialize :: Serialize a => Magic a -> FilePath -> a -> IO ()
-serialize magic fname state = do
-    backup_file fname
-    make_dir fname
-    File.writeGz fname $ magic_bytes magic <> Serialize.encode state
+midi_config_magic :: Serialize.Magic MidiConfig.Config
+midi_config_magic = Serialize.Magic 'm' 'c' 'o' 'n'
 
-data UnserializeError = BadMagic B.ByteString B.ByteString
-    | IOError IO.Error.IOError | UnserializeError String
-    deriving (Show)
+score_magic :: Serialize.Magic State.State
+score_magic = Serialize.Magic 's' 'c' 'o' 'r'
 
-unserialize :: Serialize a => Magic a -> FilePath
-    -> IO (Either UnserializeError a)
-unserialize magic fname = catch $ do
-    bytes <- File.readGz fname
-    let (file_magic, rest) = B.splitAt magic_length bytes
-    if file_magic /= magic_bytes magic
-        then return $ Left $ BadMagic (magic_bytes magic) file_magic
-        else first UnserializeError <$>
-            Exception.evaluate (Serialize.decode rest)
-            -- Apparently Serialize.decode can still throw an exception unless
-            -- the contents of the Either is forced to whnf.
-    where catch = fmap (either (Left . IOError) id) . Exception.try
-
-instance Pretty.Pretty UnserializeError where
-    pretty e = case e of
-        BadMagic expected got -> "expected file magic " <> showt expected
-            <> " but got " <> showt got
-        IOError exc -> "io error: " <> showt exc
-        UnserializeError err -> "unserialize error: " <> txt err
-
--- | Move @file@ to @file.last@.  Do this before writing a new one that may
--- fail.
-backup_file :: FilePath -> IO ()
-backup_file fname = do
-    File.requireWritable fname
-    File.requireWritable (fname ++ ".last")
-    void $ File.ignoreEnoent $ Directory.renameFile fname (fname ++ ".last")
-
-make_dir :: FilePath -> IO ()
-make_dir = Directory.createDirectoryIfMissing True . FilePath.takeDirectory
-
-
--- * magic
-
--- | This is a four byte prefix to identify a particular file type, tagged with
--- the serialized type.  The Chars are just for syntactic convenience only, and
--- must be ASCII.
---
--- The constructor is not exported, so all magics have to be defined here,
--- which should make it easy to avoid collisions.
-data Magic a = Magic !Char !Char !Char !Char deriving (Show)
-
-magic_bytes :: Magic a -> B.ByteString
-magic_bytes (Magic c1 c2 c3 c4) = Char8.pack [c1, c2, c3, c4]
-
-magic_length :: Int
-magic_length = 4
-
--- | Saved MIDI performance.
-midi_magic :: Magic (Vector.Vector Midi.WriteMessage)
-midi_magic = Magic 'm' 'i' 'd' 'i'
-
-midi_config_magic :: Magic MidiConfig.Config
-midi_config_magic = Magic 'm' 'c' 'o' 'n'
-
-score_magic :: Magic State.State
-score_magic = Magic 's' 'c' 'o' 'r'
-
-views_magic :: Magic (Map.Map ViewId Block.View)
-views_magic = Magic 'v' 'i' 'e' 'w'
-
-instrument_db_magic :: Magic InstrumentDb
-instrument_db_magic = Magic 'i' 'n' 's' 't'
-
--- | Time serialized, patches.
-data InstrumentDb = InstrumentDb
-    Time.UTCTime (Map.Map InstTypes.Name (Patch.Patch, Common.Common ()))
+views_magic :: Serialize.Magic (Map.Map ViewId Block.View)
+views_magic = Serialize.Magic 'v' 'i' 'e' 'w'
 
 -- * Serialize instances
 
@@ -500,6 +416,19 @@ instance Serialize Track.RenderSource where
 
 -- ** Midi.Instrument
 
+-- | It's a type synonym, but Serialize needs a newtype.
+newtype Configs = Configs Patch.Configs
+
+instance Serialize Configs where
+    put (Configs a) = Serialize.put_version 5 >> put a
+    get = do
+        v <- Serialize.get_version
+        case v of
+            5 -> do
+                insts :: Map.Map Score.Instrument Patch.Config <- get
+                return $ Configs insts
+            _ -> Serialize.bad_version "Patch.Configs" v
+
 instance Serialize.Serialize MidiConfig.Config where
     put (MidiConfig.Config a b) = Serialize.put_version 1 >> put a >> put b
     get = do
@@ -516,19 +445,6 @@ instance Serialize.Serialize MidiConfig.Config where
                 aliases :: Map.Map Score.Instrument InstTypes.Qualified <- get
                 return $ MidiConfig.Config midi aliases
             _ -> Serialize.bad_version "MidiConfig.Config" v
-
--- | It's a type synonym, but Serialize needs a newtype.
-newtype Configs = Configs Patch.Configs
-
-instance Serialize Configs where
-    put (Configs a) = Serialize.put_version 5 >> put a
-    get = do
-        v <- Serialize.get_version
-        case v of
-            5 -> do
-                insts :: Map.Map Score.Instrument Patch.Config <- get
-                return $ Configs insts
-            _ -> Serialize.bad_version "Patch.Configs" v
 
 instance Serialize Patch.Config where
     put (Patch.Config a b c d e f g) = Serialize.put_version 6
@@ -611,9 +527,3 @@ instance Serialize Lilypond.StaffConfig where
 instance Serialize Lilypond.Duration where
     put = put . fromEnum
     get = toEnum <$> get
-
--- ** misc
-
-instance Serialize Time.UTCTime where
-    put time = put (show time)
-    get = get >>= return . read

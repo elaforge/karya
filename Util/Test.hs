@@ -10,7 +10,7 @@ module Util.Test (
     Config(..), modify_config, with_name
     -- * tests
     -- ** pure checks
-    , check, equal, equalf, strings_like, left_like , match
+    , check, equal, equal_right, equalf, strings_like, left_like , match
     -- ** exception checks
     , throws
 
@@ -33,7 +33,7 @@ module Util.Test (
     , prettyp, pprint
 
     -- * filesystem
-    , unique_tmp_dir, tmp_dir
+    , unique_tmp_dir, tmp_dir, tmp_base_dir
 
     -- * debugging
     , module Debug
@@ -53,6 +53,7 @@ import qualified GHC.SrcLoc as SrcLoc
 import qualified GHC.Stack as Stack
 
 import qualified System.Directory as Directory
+import System.FilePath ((</>))
 import qualified System.IO as IO
 import qualified System.IO.Unsafe as Unsafe
 import qualified System.Posix.IO as IO
@@ -105,6 +106,10 @@ equal a b
     | a == b = success $ pretty True
     | otherwise = failure $ pretty False
     where pretty = pretty_compare "==" "/=" a b
+
+equal_right :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
+equal_right (Right a) b = equal a b
+equal_right (Left err) _ = failure $ "Left: " <> PPrint.pshow err
 
 -- | Show the values nicely, whether they are equal or not.
 pretty_compare :: Show a =>
@@ -433,12 +438,17 @@ human_get_char = do
 -- | Get a tmp dir, which will be unique for each test run.
 unique_tmp_dir :: String -> IO FilePath
 unique_tmp_dir prefix = do
-    Directory.createDirectoryIfMissing True "build/test/tmp"
-    Temp.mkdtemp $ "build/test/tmp/" ++ prefix ++ "-"
+    Directory.createDirectoryIfMissing True tmp_base_dir
+    Temp.mkdtemp $ tmp_base_dir </> prefix ++ "-"
 
 -- | Get a tmp dir, which is the same on each test run.
 tmp_dir :: String -> IO FilePath
 tmp_dir name = do
-    let dir = "build/test/tmp/" ++ name
+    let dir = tmp_base_dir </> name
     Directory.createDirectoryIfMissing True dir
     return dir
+
+-- | All tmp files used by tests should go in this directory.
+-- TODO instead of being hardcoded this should be configured per-project.
+tmp_base_dir :: FilePath
+tmp_base_dir = "build/test/tmp"

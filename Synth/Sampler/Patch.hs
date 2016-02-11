@@ -2,28 +2,31 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Synth.Sampler.Patch (
     module Synth.Sampler.Patch, Attributes, attr
 ) where
 import qualified Data.Map.Strict as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
+import qualified Derive.ScoreTypes as ScoreTypes
 import Derive.ScoreTypes (Attributes, attr)
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
+import qualified Synth.Sampler.Control as Control
 import Global
 
 
 data Patch = Patch {
     -- | Sample file names are relative to this.
     sampleDirectory :: !FilePath
-    , karyaPatch :: !Patch.Patch
     , karyaCommon :: !(Common.Common Cmd.InstrumentCode)
     -- | Paths are relative to 'sampleDirectory'.
     , samples :: !(Map.Map FilePath Sample)
@@ -37,15 +40,13 @@ data Patch = Patch {
 instrument :: FilePath -> [(FilePath, Sample)] -> Patch
 instrument dir samples = Patch
     { sampleDirectory = dir
-    , karyaPatch = inferPatch (map snd samples)
     , karyaCommon = Common.common Cmd.empty_code
     , samples = Map.fromList samples
     }
 
 instance Pretty.Pretty Patch where
-    format (Patch dir inst common samples) = Pretty.record "Patch"
+    format (Patch dir common samples) = Pretty.record "Patch"
         [ ("sampleDirectory", Pretty.format dir)
-        , ("karyaPatch", Pretty.format inst)
         , ("karyaCommon", Pretty.format common)
         , ("samples", Pretty.format samples)
         ]
@@ -70,19 +71,24 @@ instance Pretty.Pretty Sample where
     format (Sample pitch attrs) = Pretty.constructor "Sample"
         [Pretty.format pitch, Pretty.format attrs]
 
-makeInst :: Patch -> Inst.Inst Cmd.InstrumentCode
-makeInst patch = Inst.Inst
-    { inst_backend = Inst.Im (inferPatch (Map.elems (samples patch)))
+makeInst :: InstTypes.Name -> Patch -> Inst.Inst Cmd.InstrumentCode
+makeInst name patch = Inst.Inst
+    { inst_backend = Inst.Im (inferPatch name (Map.elems (samples patch)))
     , inst_common = karyaCommon patch
     }
 
 -- | This doesn't allow you to specify priority, but is sufficient for simple
 -- instruments.
-inferPatch :: [Sample] -> Patch.Patch
-inferPatch samples = Patch.Patch
-    { patch_controls = mempty
+inferPatch :: InstTypes.Name -> [Sample] -> Patch.Patch
+inferPatch name samples = Patch.Patch
+    { patch_name = name
+    , patch_controls = Map.fromList $ concat
+        [ [(c Control.pitch, "Pitch signal.")
+            | any (Maybe.isJust . pitch) samples]
+        ]
     , patch_attribute_map =
         Patch.attribute_map $ Seq.unique $ map attributes samples
     , patch_flags = Set.fromList $
         if all ((==Nothing) . pitch) samples then [Patch.Triggered] else []
     }
+    where c (Control.Control a) = ScoreTypes.Control a

@@ -82,9 +82,9 @@ import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 import qualified Derive.TrackWarp as TrackWarp
 
-import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Midi.Perform as Midi.Perform
+import qualified Perform.Midi.Types as Midi.Types
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
@@ -93,6 +93,7 @@ import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 
+import qualified Synth.Sampler.Config as Sampler.Config
 import qualified App.Config as Config
 import Global
 import Types
@@ -450,6 +451,7 @@ data Config = Config {
     -- | Turn 'Pitch.ScaleId's into 'Scale.Scale's.
     , state_lookup_scale :: !Derive.LookupScale
     , state_highlight_colors :: !(Map.Map Color.Highlight Color.Color)
+    , state_im :: !ImConfig
     } deriving (Show)
 
 -- | Get a midi writer that takes the 'state_wdev_map' into account.
@@ -471,6 +473,24 @@ state_midi_writer state imsg = do
 path :: State -> Config.RelativePath -> FilePath
 path state (Config.RelativePath path) =
     state_app_dir (state_config state) </> path
+
+data ImConfig = ImConfig {
+    -- | This can turn of Im processing entirely, which should be a bit more
+    -- efficient when you know there won't be any.  TODO I can infer this based
+    -- on the lack of backend=im instrument allocations.
+    im_enabled :: !Bool
+    -- | Path to the binary.
+    , im_binary :: !FilePath
+    -- | Write serialized notes to this file.
+    , im_notes :: !FilePath
+    } deriving (Show)
+
+default_im_config :: ImConfig
+default_im_config = ImConfig {
+    im_enabled = True
+    , im_binary = Sampler.Config.binary
+    , im_notes = Sampler.Config.notes
+    }
 
 -- ** PlayState
 
@@ -1062,15 +1082,18 @@ lookup_qualified inst =
 -- and 'Patch.config_environ', so anyone looking up a Patch should go
 -- through this.
 get_lookup_instrument :: M m => m (Score.Instrument -> Maybe Inst)
-get_lookup_instrument = do
-    aliases <- State.config#State.aliases <#> State.get
-    configs <- State.get_midi_config
-    db <- gets $ state_instrument_db . state_config
-    return $ \inst_name -> do
-        qualified <- Map.lookup inst_name aliases
-        inst <- Inst.lookup qualified db
-        return $ merge_environ configs inst_name inst
+get_lookup_instrument = state_lookup_instrument <$> State.get <*> get
+
+state_lookup_instrument :: State.State -> State -> Score.Instrument
+    -> Maybe Inst
+state_lookup_instrument ui_state cmd_state = \inst_name -> do
+    qualified <- Map.lookup inst_name aliases
+    inst <- Inst.lookup qualified db
+    return $ merge_environ configs inst_name inst
     where
+    aliases = State.config#State.aliases #$ ui_state
+    configs = State.config#State.midi #$ ui_state
+    db = state_instrument_db (state_config cmd_state)
     merge_environ configs inst_name =
         (Inst.common#Common.environ %= (environ <>)) . set_scale
         where

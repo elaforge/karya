@@ -40,7 +40,6 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Serialize as Serialize
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
@@ -265,7 +264,7 @@ save_synth app_dir synth_name patches = do
     mapM_ (Log.notice . (("synth " <> synth_name <> ": ") <>)) logs
     now <- Time.getCurrentTime
     Instrument.Serialize.serialize (db_path app_dir (untxt synth_name)) $
-        Serialize.InstrumentDb now (strip_code <$> patch_map)
+        Instrument.Serialize.InstrumentDb now (strip_code <$> patch_map)
     where
     strip_code :: Patch -> (Patch.Patch, Common.Common ())
     strip_code (Patch patch common) =
@@ -280,8 +279,8 @@ load_synth get_code synth_name doc app_dir = do
             Log.warn $ "Error loading instrument db " <> showt fname <> ": "
                 <> Text.strip (pretty err)
             return Nothing
-        Right (Serialize.InstrumentDb _time patch_map) -> return $ Just $
-            Inst.SynthDecl synth_name doc
+        Right (Instrument.Serialize.InstrumentDb _time patch_map) ->
+            return $ Just $ Inst.SynthDecl synth_name doc
                 (map (second make) (Map.toList patch_map))
     where
     make (patch, common) = make_inst $ Patch patch $

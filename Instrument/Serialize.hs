@@ -8,30 +8,40 @@
     Unlike in "Cmd.Serialize", I don't bother with versions here, because this
     is intended to be just a cache.
 -}
-module Instrument.Serialize (serialize, unserialize) where
+module Instrument.Serialize (serialize, unserialize, InstrumentDb(..)) where
+import qualified Data.Map as Map
+import qualified Data.Time as Time
+
+import qualified Util.Serialize as Serialize
 import Util.Serialize (Serialize, get, put, get_tag, put_tag, bad_tag)
 import Midi.Instances ()
-import qualified Cmd.Serialize as Serialize
+import Cmd.Serialize ()
 import qualified Perform.Midi.Patch as Patch
 import qualified Instrument.Common as Common
+import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Search as Search
 
 
 -- | Serialize instrument definitions to a file.
-serialize :: FilePath -> Serialize.InstrumentDb -> IO ()
-serialize = Serialize.serialize Serialize.instrument_db_magic
+serialize :: FilePath -> InstrumentDb -> IO ()
+serialize = Serialize.serialize instrument_db_magic
 
 -- | Unserialize instrument definitions.
-unserialize :: FilePath
-    -> IO (Either Serialize.UnserializeError Serialize.InstrumentDb)
-unserialize = Serialize.unserialize Serialize.instrument_db_magic
+unserialize :: FilePath -> IO (Either Serialize.UnserializeError InstrumentDb)
+unserialize = Serialize.unserialize instrument_db_magic
 
+instrument_db_magic :: Serialize.Magic InstrumentDb
+instrument_db_magic = Serialize.Magic 'i' 'n' 's' 't'
+
+-- | Time serialized, patches.
+data InstrumentDb = InstrumentDb
+    Time.UTCTime (Map.Map InstTypes.Name (Patch.Patch, Common.Common ()))
 
 -- * instances
 
-instance Serialize Serialize.InstrumentDb where
-    put (Serialize.InstrumentDb a b) = put a >> put b
-    get = Serialize.InstrumentDb <$> get <*> get
+instance Serialize InstrumentDb where
+    put (InstrumentDb a b) = put a >> put b
+    get = InstrumentDb <$> get <*> get
 
 instance Serialize (Common.Common ()) where
     put (Common.Common a b c d) = put a >> put b >> put c >> put d

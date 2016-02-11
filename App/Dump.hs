@@ -14,12 +14,15 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
-import qualified Util.Serialize
+import qualified Util.Serialize as Serialize
 
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
+import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Cmd.SaveGit as SaveGit
-import qualified Cmd.Serialize as Serialize
+import qualified Cmd.Serialize
+
+import qualified Synth.Sampler.Note as Sampler.Note
 import Global
 
 
@@ -44,15 +47,18 @@ main = do
 
 dump :: FilePath -> IO (Maybe Text)
 dump fname =
-    unserialize fname Serialize.score_magic ((:[]) . dump_score) $
-    unserialize fname Serialize.midi_config_magic ((:[]) . Pretty.formatted) $
-    unserialize fname Serialize.midi_magic dump_midi $
-    unserialize fname Serialize.views_magic ((:[]) . Pretty.formatted) $
+    try fname Cmd.Serialize.score_magic ((:[]) . dump_score) $
+    try fname Cmd.Serialize.midi_config_magic ((:[]) . Pretty.formatted) $
+    try fname Cmd.Serialize.views_magic ((:[]) . Pretty.formatted) $
+    try fname DiffPerformance.midi_magic dump_midi $
+    try fname Sampler.Note.notes_magic (map Pretty.formatted) $
     return $ Just "no magic codes match"
 
-unserialize :: Util.Serialize.Serialize a => FilePath -> Serialize.Magic a
+-- | Try to unserialize the file, and try the passed continuation if it failed
+-- with Serialize.BadMagic.
+try :: Serialize.Serialize a => FilePath -> Serialize.Magic a
     -> (a -> [Text]) -> IO (Maybe Text) -> IO (Maybe Text)
-unserialize fname magic dump next = do
+try fname magic dump next = do
     val <- Serialize.unserialize magic fname
     case val of
         Right val ->

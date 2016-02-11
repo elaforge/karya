@@ -309,13 +309,13 @@ unparse_names msg names = msg ++ "\n" ++ show names ++ "\n"
 
 save_views :: Git.Repo -> Map.Map ViewId Block.View -> IO ()
 save_views repo =
-    Cmd.Serialize.serialize Cmd.Serialize.views_magic (repo </> "views")
+    Serialize.serialize Cmd.Serialize.views_magic (repo </> "views")
 
 load_views :: Git.Repo -> IO (Either Text (Map.Map ViewId Block.View))
 load_views repo = do
-    x <- Cmd.Serialize.unserialize Cmd.Serialize.views_magic (repo </> "views")
+    x <- Serialize.unserialize Cmd.Serialize.views_magic (repo </> "views")
     case x of
-        Left (Cmd.Serialize.IOError exc) | IO.Error.isDoesNotExistError exc ->
+        Left (Serialize.IOError exc) | IO.Error.isDoesNotExistError exc ->
             return $ Right mempty
         Left err -> return $ Left (pretty err)
         Right views -> return $ Right views

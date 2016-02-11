@@ -9,7 +9,9 @@ import qualified Data.Aeson as Aeson
 import qualified Data.Vector.Storable as Vector
 import qualified Foreign
 
+import qualified Util.Pretty as Pretty
 import qualified Util.Serialize as Serialize
+import Global
 
 
 -- | A time series signal.  It should be sorted by 'x'.  There is implicit
@@ -27,18 +29,22 @@ import qualified Util.Serialize as Serialize
 -- discontinuities.  Or I could emulate MIDI and do a fixed latency
 -- interpolation.
 newtype Signal = Signal { vector :: Vector }
-    deriving (Show, Aeson.FromJSON, Aeson.ToJSON, Serialize.Serialize)
+    deriving (Eq, Show, Aeson.FromJSON, Aeson.ToJSON, Serialize.Serialize,
+        Pretty.Pretty)
     -- TODO I should be able to get a more efficient deserialize with
     -- vector-mmap
 
 data Sample = Sample {
     sx :: {-# UNPACK #-} !X
     , sy :: {-# UNPACK #-} !Y
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 instance Serialize.Serialize Sample where
     get = Sample <$> Serialize.get <*> Serialize.get
     put (Sample x y) = Serialize.put x *> Serialize.put y
+
+instance Pretty.Pretty Sample where
+    format (Sample x y) = Pretty.format x <> Pretty.char ':' <> Pretty.format y
 
 type Vector = Vector.Vector Sample
 type X = Double
@@ -63,6 +69,13 @@ empty = Signal mempty
 
 constant :: Y -> Signal
 constant y = Signal $ Vector.singleton (Sample 0 y)
+
+fromList :: [(X, Y)] -> Signal
+fromList = Signal . Vector.fromList . map (uncurry Sample)
+
+toList :: Signal -> [(X, Y)]
+toList = map toPair . Vector.toList . vector
+    where toPair (Sample x y) = (x, y)
 
 at :: X -> Signal -> Y
 at x sig = interpolate vec (highestIndex x vec)

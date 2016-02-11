@@ -11,16 +11,19 @@ import System.FilePath ((</>))
 
 import qualified Util.Seq as Seq
 import qualified Perform.Pitch as Pitch
-import Global
+import qualified Synth.Sampler.Control as Control
+import qualified Synth.Sampler.Note as Note
 import qualified Synth.Sampler.Patch as Patch
 import qualified Synth.Sampler.PatchDb as PatchDb
-import qualified Synth.Sampler.Note as Note
 import qualified Synth.Sampler.Sample as Sample
 import qualified Synth.Sampler.Signal as Signal
 
+import Global
 
+
+-- TODO use dur for an envelope
 noteToSample :: Note.Note -> Either Text Sample.Sample
-noteToSample note@(Note.Note instName start controls attrs) = do
+noteToSample note@(Note.Note instName start _dur controls attrs) = do
     inst <- maybe (Left $ "instrument not found: " <> instName) Right $
         Map.lookup instName PatchDb.db
     let msg = "sample not found for " <> showt (instName, attrs)
@@ -32,8 +35,8 @@ noteToSample note@(Note.Note instName start controls attrs) = do
         { start = start
         , filename = Patch.sampleDirectory inst </> samplePath
         , offset = 0
-        , envelope = fromMaybe (Signal.constant 1) $ get Note.envelope
-        , ratio = case (Patch.pitch instSample, get Note.pitch) of
+        , envelope = fromMaybe (Signal.constant 1) $ get Control.envelope
+        , ratio = case (Patch.pitch instSample, get Control.pitch) of
             (Just sampleNn, Just noteNns) ->
                 Signal.mapY (pitchToRatio (Pitch.nn_to_hz sampleNn) . Pitch.nn)
                     noteNns

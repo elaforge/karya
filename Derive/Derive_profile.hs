@@ -26,7 +26,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.Stream as Stream
 
-import qualified Perform.Midi.Convert as Convert
 import Global
 import Types
 
@@ -203,7 +202,8 @@ derive_profile :: String -> State.StateId a -> IO ()
 derive_profile name create = replicateM_ 6 $
     run_profile name Nothing (UiTest.exec State.empty create)
 
-run_profile :: String -> Maybe Convert.Lookup -- ^ If given, also run a perform.
+run_profile :: String
+    -> Maybe DeriveTest.Lookup -- ^ If given, also run a perform.
     -> State.State -> IO ()
 run_profile fname maybe_lookup ui_state = do
     block_id <- maybe (errorIO $ fname <> ": no root block") return $

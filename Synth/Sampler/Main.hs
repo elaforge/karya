@@ -18,31 +18,36 @@ import qualified System.Environment as Environment
 import System.FilePath ((</>))
 
 import qualified Util.Log as Log
-import Global
+import qualified Synth.Sampler.Config as Config
 import qualified Synth.Sampler.Convert as Convert
 import qualified Synth.Sampler.Note as Note
 import qualified Synth.Sampler.Sample as Sample
 import Synth.Sampler.Types
+
+import Global
 
 
 main :: IO ()
 main = do
     args <- Environment.getArgs
     case args of
-        [notesFn] -> process notesFn "synth_cache"
+        [notesJson] -> process Config.cache =<< loadJson notesJson
+        [] -> process Config.cache =<< loadBinary Config.notes
         _ -> errorIO $ "usage: sampler notes.json"
 
-process :: FilePath -> FilePath -> IO ()
-process notesFn outputDir = do
-    notes <- loadNotes notesFn
+process :: FilePath -> [Note.Note] -> IO ()
+process outputDir notes = do
     samples <- either (errorIO . untxt) return $ mapM Convert.noteToSample notes
     mapM_ print samples
     realizeSamples outputDir samples
 
-loadNotes :: FilePath -> IO [Note.Note]
-loadNotes notesFn = do
-    val <- Aeson.decode <$> ByteString.Lazy.readFile notesFn
+loadJson :: FilePath -> IO [Note.Note]
+loadJson filename = do
+    val <- Aeson.decode <$> ByteString.Lazy.readFile filename
     maybe (errorIO "can't parse json") return val
+
+loadBinary :: FilePath -> IO [Note.Note]
+loadBinary = either (errorIO . prettys) return <=< Note.unserialize
 
 realizeSamples :: FilePath -> [Sample.Sample] -> IO ()
 realizeSamples outputDir samples = do
@@ -66,7 +71,8 @@ realizeSample sample = Sample.catchSndfile (Sample.realize sample) >>= \case
     Right audio -> return (Just audio)
 
 mixAll :: [Audio] -> Audio
-mixAll [] = Audio.silent (Audio.Frames 0) 44100 2 -- TODO
+-- TODO surely there is some better way to do mempty?
+mixAll [] = Audio.silent (Audio.Frames 0) 44100 2
 mixAll audios = List.foldl1' Audio.mix audios
 
 -- I'd write flac, but it's integer only.

@@ -13,13 +13,19 @@ module Cmd.Performance (
     SendStatus, update_performance, performance, derive
 ) where
 import qualified Control.Concurrent as Concurrent
+import qualified Control.Exception as Exception
 import qualified Control.Monad.State as Monad.State
+
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as Vector
 
+import qualified System.IO.Error as IO.Error
+import qualified System.Process as Process
+
 import qualified Util.Log as Log
 import qualified Util.Map as Map
+import qualified Util.Process
 import qualified Util.Seq as Seq
 import qualified Util.Thread as Thread
 
@@ -30,8 +36,12 @@ import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.Derive as Derive
+import qualified Derive.Score as Score
 import qualified Derive.Stream as Stream
+
+import qualified Perform.Im.Convert as Im.Convert
 import qualified Perform.RealTime as RealTime
+import qualified Instrument.Inst as Inst
 import qualified App.Config as Config
 import Global
 import Types
@@ -166,7 +176,9 @@ generate_performance ui_state wait send_status block_id = do
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
     th <- liftIO $ Thread.start $
-        evaluate_performance wait send_status block_id perf
+        evaluate_performance (Cmd.state_im (Cmd.state_config cmd_state))
+            (Cmd.state_lookup_instrument ui_state cmd_state) wait send_status
+            block_id perf
     Monad.State.modify $ modify_play_state $ \st -> st
         { Cmd.state_performance_threads = Map.insert block_id
             th (Cmd.state_performance_threads st)
@@ -198,9 +210,9 @@ derive ui_state cmd_state block_id = (perf, logs)
     (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
         PlayUtil.derive_block prev_cache damage block_id
 
-evaluate_performance :: Thread.Seconds -> SendStatus -> BlockId
-    -> Cmd.Performance -> IO ()
-evaluate_performance wait send_status block_id perf = do
+evaluate_performance :: Cmd.ImConfig -> (Score.Instrument -> Maybe Cmd.Inst)
+    -> Thread.Seconds -> SendStatus -> BlockId -> Cmd.Performance -> IO ()
+evaluate_performance im_config lookup_inst wait send_status block_id perf = do
     send_status block_id Msg.OutOfDate
     Thread.delay wait
     send_status block_id Msg.Deriving
@@ -211,36 +223,65 @@ evaluate_performance wait send_status block_id perf = do
         Log.notice $ "derived " <> showt block_id <> " in "
             <> pretty (RealTime.seconds cpu_secs) <> " cpu, "
             <> pretty (RealTime.seconds wall_secs) <> " wall"
-    send_status block_id $ Msg.DeriveComplete perf
+    evaluate_im im_config lookup_inst (Cmd.perf_events perf) $
+        \events maybe_pid -> do
+            send_status block_id $ Msg.DeriveComplete $
+                perf { Cmd.perf_events = events }
+            whenJust maybe_pid $ \pid ->
+                Exception.catch (void $ Process.waitForProcess pid) catch
+    where
+    catch :: Exception.IOException -> IO ()
+    catch exc
+        | IO.Error.isDoesNotExistError exc = return ()
+        | otherwise = Log.warn $ "waiting for im process: " <> showt exc
+
+-- | Convert Im events, serialize them, and start 'Cmd.im_binary' to render
+-- them.
+evaluate_im :: Cmd.ImConfig -> (Score.Instrument -> Maybe Cmd.Inst)
+    -> Cmd.Events -> (Cmd.Events -> Maybe Process.ProcessHandle -> IO a) -> IO a
+evaluate_im im_config lookup_inst events action
+    | not (Cmd.im_enabled im_config) = action events Nothing
+    | null im_events = action rest_events Nothing
+    | otherwise = do
+        Im.Convert.write lookup_inst (Cmd.im_notes im_config) im_events
+        let proc = Process.proc (Cmd.im_binary im_config) []
+        Util.Process.supervisedProcess proc $ \pid ->
+            action rest_events (Just pid)
+    where
+    (im_events, rest_events) =
+        Vector.partition (is_im . Score.event_instrument) events
+    is_im inst = case lookup_inst inst of
+        Just (Inst.Inst (Inst.Im {}) _) -> True
+        _ -> False
 
 -- | Make a broken performance with just an error msg.  This ensures that
 -- the msg is logged when you try to play, but will still suppress further
 -- performance, so you don't get a million msgs.
 broken_performance :: Text -> Cmd.Performance
 broken_performance msg = Cmd.Performance
-    { Cmd.perf_derive_cache = mempty
-    , Cmd.perf_events = mempty
-    , Cmd.perf_logs = [Log.msg Log.Warn Nothing msg]
-    , Cmd.perf_logs_written = False
-    , Cmd.perf_track_dynamic = mempty
-    , Cmd.perf_integrated = mempty
-    , Cmd.perf_damage = mempty
-    , Cmd.perf_warps = mempty
-    , Cmd.perf_track_signals = mempty
+    { perf_derive_cache = mempty
+    , perf_events = mempty
+    , perf_logs = [Log.msg Log.Warn Nothing msg]
+    , perf_logs_written = False
+    , perf_track_dynamic = mempty
+    , perf_integrated = mempty
+    , perf_damage = mempty
+    , perf_warps = mempty
+    , perf_track_signals = mempty
     }
 
 -- | Constructor for 'Cmd.Performance'.
 performance :: Derive.Result -> Cmd.Performance
 performance result = Cmd.Performance
-    { Cmd.perf_derive_cache = Derive.r_cache result
-    , Cmd.perf_events = Vector.fromList events
-    , Cmd.perf_logs = logs
-    , Cmd.perf_logs_written = False
-    , Cmd.perf_track_dynamic = Derive.r_track_dynamic result
-    , Cmd.perf_integrated = Derive.r_integrated result
-    , Cmd.perf_damage = mempty
-    , Cmd.perf_warps = Derive.r_track_warps result
-    , Cmd.perf_track_signals = Derive.r_track_signals result
+    { perf_derive_cache = Derive.r_cache result
+    , perf_events = Vector.fromList events
+    , perf_logs = logs
+    , perf_logs_written = False
+    , perf_track_dynamic = Derive.r_track_dynamic result
+    , perf_integrated = Derive.r_integrated result
+    , perf_damage = mempty
+    , perf_warps = Derive.r_track_warps result
+    , perf_track_signals = Derive.r_track_signals result
     }
     where (events, logs) = Stream.partition (Derive.r_events result)
 

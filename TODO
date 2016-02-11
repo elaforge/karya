@@ -3,6 +3,18 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - test: shakefile fore RunTests is buggy, when I modify a test source it
+    regenerates the source, but doesn't recompile
+    . It's in the need list, but even though generate_run_tests runs
+      when Im_test.hs is modified, the test itself isn't recompiled.
+    . Due to circular import.  WTF is up with shake not detecting circular
+      imports?
+  - test: get rid of expect_right in favor of propagating the Left and using
+    equal_right
+  - test: delete build/test/tmp on every test run to avoid test contamination
+  - rename Cmd.Config's fields from state_* to config_*
+  - Ui.StateConfig.config_aliases should be called instruments or something,
+    the name 'aliases' should be reserved for derive level aliases.
   * integrate Synth/vst into the build
     . The flags stuff is kind of a mess.
     . Why do I need a separate fltkCc and fltkLd?  Also, linkCc gives fltkLd
@@ -450,9 +462,47 @@ Synth: Im:
       becoming 'insts' seems kind of gross.  So leave it as is.
   - What happened to running MidiInst.check_names when making a Synth?
   * Rename Perform.Synth to Perform.Im.
-  - Perform.Im.Convert converts to Notes and serializes them
-  - Perform.Im.Perform invokes the sampler
+  * Perform.Im.Convert converts to Notes and serializes them
+    * convert
+    * caller has to dispatch based on backend
+      . Midi returns MidiEvents which get stored, but Im returns Notes, which
+        are serialized.
+      . Actually, perform only happens when I hit play.  Really I want to do
+        the convert and play when derivation is complete.  So it should go in
+        Cmd.Performance?
+      . Evaluating the msgs is pure, but sending them to the synth is not.
+        But I definitely want to do that in the background.  Also, the derive
+        thread can be killed at any time.  So serialize and invoke has to be
+        done in the derive thread.
+      . If the synth is a separate process, it's not as easy to integrate
+        deriving light and kill.  But I'm pretty sure I still want it to be
+        separate, so the OS will manage the resources separately.
+    * serialize
+    . If the eval thread is killed, the sampler process will be.  But since
+      the sampler is started only after the events are evaluated, this is a
+      small window.  What I want is if you enter new notes, a running sampler
+      for the old ones will be killed.  So I think I need to have the evaluate
+      thread wait for the sampler process to complete so it can stick around
+      to kill it.  Then I need to make sure it'll get killed even if
+      a DeriveComplete has been sent.  I think this will happen because I only
+      remove a thread ID from Cmd.state_performance_threads when I kill it or
+      when it's replaced by a new BlockId.
+    testing:
+      * round trip: do a respond cycle with im notes, make sure they show up
+        in im/notes.
+  * Perform.Im.Perform invokes the sampler
   - Cmd.Play sends start and stop MIDI msgs
+  - infer Cmd.im_enabled
+  - If there is only one cache mutated by the synth, then a play in process
+    will be spoiled by a new render.  I can fix this by making a new cache
+    each time, and hardlinking the unchanged entries.  I can remove the old
+    one if the play is stopped and there is a newer one, so this could be done
+    by the PlayCache vst.
+  more efficient Perform.Im.Convert
+    - Zero-copy conversion for the signals.
+      . But first I have to decide how I want to handle interpolation.
+      . This doesn't matter as long as the synth doesn't support signals.
+    - Trim signals.
 
 shakefile: build:
   - use new system calls and logging levels

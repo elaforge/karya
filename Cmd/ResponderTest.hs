@@ -14,7 +14,8 @@ module Cmd.ResponderTest (
     States
     , mkstates, mk_cmd_state
     -- * Result
-    , Result(..), result_states, result_ui_state, result_cmd_state
+    , Result(..), print_results, result_states, result_ui_state
+    , result_cmd_state
     , result_perf
     -- * run
     , respond_cmd, next, respond_until, continue_until
@@ -32,6 +33,7 @@ import qualified System.IO.Unsafe as Unsafe
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
+import qualified Util.Pretty as Pretty
 import Util.Test
 import qualified Util.Thread as Thread
 
@@ -96,6 +98,23 @@ data Result = Result {
     , result_loopback :: Chan.Chan Msg.Msg
     }
 
+instance Pretty.Pretty Result where
+    format result = Pretty.format (result_msg result) <> " -> "
+        <> Pretty.format (CmdTest.result_logs (result_cmd result))
+
+-- | Print Results and anything interesting in them.
+print_results :: [Result] -> IO ()
+print_results = mapM_ $ \result -> do
+    Pretty.pprint (result_msg result)
+    case result_msg result of
+        Msg.DeriveStatus _ (Msg.DeriveComplete perf) ->
+            mapM_ Pretty.pprint (Cmd.perf_logs perf)
+        _ -> return ()
+    let logs = CmdTest.result_logs (result_cmd result)
+    unless (null logs) $ do
+        putStrLn "\tcmd logs:"
+        mapM_ Pretty.pprint logs
+
 result_states :: Result -> States
 result_states r = (result_ui_state r, result_cmd_state r)
 
@@ -143,8 +162,8 @@ continue_until is_complete result = reverse <$> go [] (result_states result)
             Just msg -> do
                 result <- respond1 (Just chan) states Nothing msg
                 if is_complete msg
-                    then return $ result : accum
-                    else go (result:accum) (result_states result)
+                    then return (result : accum)
+                    else go (result : accum) (result_states result)
 
 read_msg :: Chan.Chan Msg.Msg -> IO (Maybe Msg.Msg)
 read_msg = Thread.timeout 7 . Chan.readChan

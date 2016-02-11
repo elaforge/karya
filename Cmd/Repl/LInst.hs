@@ -60,25 +60,29 @@ info_all = do
 list :: State.M m => m Text
 list = list_like ""
 
+-- | Pretty print matching instruments:
+--
+-- > >pno - pianoteq/ loop1 [0..15]
+-- > >syn - sampler/inst
 list_like :: State.M m => Text -> m Text
 list_like pattern = do
-    config <- State.get_midi_config
+    configs <- State.get_midi_config
     alias_map <- aliases
     return $ Text.intercalate "\n" $
-        map (show_config alias_map) $ filter (matches . fst) $
-        Map.toAscList config
+        map (show_inst configs) $ filter (matches . fst) $
+        Map.toAscList alias_map
     where
     matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
-    show_config alias_map (inst, config) = ShowVal.show_val inst <> " - "
-        <> Info.show_addrs (map fst (Patch.config_addrs config))
-        <> show_alias alias_map inst
-        <> show_environ (Patch.config_restricted_environ config)
-        <> show_controls "" (Patch.config_controls config)
-        <> show_flags config
-        <> show_controls "defaults:" (Patch.config_control_defaults config)
-    show_alias alias_map inst = case Map.lookup inst alias_map of
-        Nothing -> ""
-        Just qualified -> " (qualified: " <> pretty qualified <> ")"
+    show_inst configs (inst, qualified) = ShowVal.show_val inst <> " - "
+        <> InstTypes.show_qualified qualified
+        <> maybe "" show_config (Map.lookup inst configs)
+    show_config config = mconcat
+        [ Info.show_addrs (map fst (Patch.config_addrs config))
+        , show_environ (Patch.config_restricted_environ config)
+        , show_controls "" (Patch.config_controls config)
+        , show_flags config
+        , show_controls "defaults:" (Patch.config_control_defaults config)
+        ]
     show_controls msg controls
         | Map.null controls = ""
         | otherwise = " " <> msg <> pretty controls
@@ -122,10 +126,13 @@ rename from_ to_ =
 -- This will create an instance of the @kontakt/mridangam@ instrument aliased
 -- to @>m@, and assign it to the MIDI WriteDevice @loop1@, with a single MIDI
 -- channel 0 allocated.
-add :: Instrument -> Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
+add :: Instrument -> Qualified -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 add name qualified wdev chans = do
     alloc name wdev chans
     add_alias name qualified
+
+add_im :: Instrument -> Qualified -> Cmd.CmdL ()
+add_im = add_alias
 
 save :: FilePath -> Cmd.CmdL ()
 save = Save.save_midi_config
@@ -145,6 +152,9 @@ remove :: Instrument -> Cmd.CmdL ()
 remove inst = do
     remove_alias inst
     dealloc inst
+
+remove_im :: Instrument -> Cmd.CmdL ()
+remove_im = remove_alias
 
 -- | Add a new instrument, copied from an existing one.  The argument order is
 -- the same as used by 'add'.

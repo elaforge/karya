@@ -8,6 +8,7 @@ import qualified Control.Monad.Except as Except
 import qualified Data.Text.Lazy as Lazy
 import qualified Data.Vector as Vector
 import qualified System.FilePath as FilePath
+import System.FilePath ((</>))
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
@@ -174,13 +175,17 @@ cmd_config inst_db = do
     interface <- StubMidi.interface
     app_dir <- Config.get_app_dir
     return $ Cmd.Config
-        { Cmd.state_app_dir = app_dir
-        , Cmd.state_midi_interface = interface
-        , Cmd.state_ky_paths = map (Config.make_path app_dir) Config.ky_paths
-        , Cmd.state_rdev_map = mempty
-        , Cmd.state_wdev_map = mempty
-        , Cmd.state_instrument_db = inst_db
-        , Cmd.state_library = Call.All.library
-        , Cmd.state_lookup_scale = Scale.All.lookup_scale
-        , Cmd.state_highlight_colors = mempty
+        { state_app_dir = app_dir
+        , state_midi_interface = interface
+        , state_ky_paths = map (Config.make_path app_dir) Config.ky_paths
+        , state_rdev_map = mempty
+        , state_wdev_map = mempty
+        , state_instrument_db = inst_db
+        , state_library = Call.All.library
+        , state_lookup_scale = Scale.All.lookup_scale
+        , state_highlight_colors = mempty
+        , state_im = Cmd.default_im_config
+            { Cmd.im_binary = "/usr/bin/true"
+            , Cmd.im_notes = Test.tmp_base_dir </> "im_notes"
+            }
         }
