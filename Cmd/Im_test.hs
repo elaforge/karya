@@ -36,8 +36,8 @@ test_respond = do
     results <- until_complete states (return ())
     ResponderTest.print_results results
     notes <- Note.unserialize DeriveTest.default_im_notes
-    equal_right (map Note.start <$> notes) [0, 1]
-    equal_right (map (Map.toAscList . fmap Signal.toList . Note.controls)
+    right_equal (map Note.start <$> notes) [0, 1]
+    right_equal (map (Map.toAscList . fmap Signal.toList . Note.controls)
             <$> notes)
         [ [ (Control.envelope, [(0, 0.5)])
           , (Control.pitch, [(0, realToFrac NN.c4)])

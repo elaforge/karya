@@ -10,7 +10,8 @@ module Util.Test (
     Config(..), modify_config, with_name
     -- * tests
     -- ** pure checks
-    , check, equal, equal_right, equalf, strings_like, left_like , match
+    , check, equal, right_equal, equalf, strings_like
+    , left_like , match
     -- ** exception checks
     , throws
 
@@ -107,9 +108,9 @@ equal a b
     | otherwise = failure $ pretty False
     where pretty = pretty_compare "==" "/=" a b
 
-equal_right :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
-equal_right (Right a) b = equal a b
-equal_right (Left err) _ = failure $ "Left: " <> PPrint.pshow err
+right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
+right_equal (Right a) b = equal a b
+right_equal (Left err) _ = failure $ "Left: " <> PPrint.pshow err
 
 -- | Show the values nicely, whether they are equal or not.
 pretty_compare :: Show a =>
@@ -307,11 +308,9 @@ pause msg = do
     human_get_char
     putStr "\n"
 
--- TODO use 'failure'
--- but then it's in IO.  I should have some kind of combinator that can
--- turn unexpected things into Left, and then lift equal into Right.
-expect_right :: Show a => String -> Either a b -> b
-expect_right msg (Left v) = error $ msg ++ ": " ++ show v
+expect_right :: (Stack, Show a) => String -> Either a b -> b
+expect_right msg (Left v) =
+    error $ show_stack msg ?stack ++ " - " ++ msg ++ ": " ++ show v
 expect_right _ (Right v) = v
 
 

@@ -26,8 +26,8 @@ test_do_save = Git.initialize $ do
             , ("2", [(0, 1, "2a")])
             ]
     SaveGit.save repo state ["save"]
-    (state2, _, _) <- expect_right "load" <$> SaveGit.load repo Nothing
-    equal (strip_views state) (strip_views state2)
+    state2 <- fmap (\(a, _, _) -> a) <$> SaveGit.load repo Nothing
+    right_equal (strip_views <$> state2) (strip_views state)
 
 test_checkpoint = Git.initialize $ do
     repo <- new_repo

@@ -3,13 +3,13 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - test: shakefile fore RunTests is buggy, when I modify a test source it
+  / test: shakefile fore RunTests is buggy, when I modify a test source it
     regenerates the source, but doesn't recompile
     . It's in the need list, but even though generate_run_tests runs
       when Im_test.hs is modified, the test itself isn't recompiled.
     . Due to circular import.  WTF is up with shake not detecting circular
       imports?
-  - test: get rid of expect_right in favor of propagating the Left and using
+  / test: get rid of expect_right in favor of propagating the Left and using
     equal_right
   - test: delete build/test/tmp on every test run to avoid test contamination
   - rename Cmd.Config's fields from state_* to config_*
