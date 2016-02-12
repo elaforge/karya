@@ -479,7 +479,7 @@ r_4 = Meter.r_4
 set_default_midi_config :: State.State -> State.State
 set_default_midi_config =
     (State.config#State.midi #= default_midi_config)
-    . (State.config#State.aliases #= make_aliases default_aliases)
+    . (State.config#State.allocations #= make_allocations default_allocations)
 
 default_midi_config :: Patch.Configs
 default_midi_config = midi_config [("i1", [0..2]), ("i2", [3])]
@@ -488,17 +488,20 @@ midi_config :: [(Text, [Midi.Channel])] -> Patch.Configs
 midi_config config = Simple.midi_config
     [(inst, map ((,) "test") chans) | (inst, chans) <- config]
 
-set_midi_config :: Simple.Aliases -> Patch.Configs -> State.State -> State.State
-set_midi_config aliases config =
+set_midi_config :: Simple.Allocations -> Patch.Configs -> State.State
+    -> State.State
+set_midi_config allocations config =
     (State.config#State.midi #= config)
-    . (State.config#State.aliases #= make_aliases aliases)
+    . (State.config#State.allocations #= make_allocations allocations)
 
-make_aliases :: Simple.Aliases -> Map.Map Score.Instrument InstTypes.Qualified
-make_aliases = Map.fromList
+make_allocations :: Simple.Allocations
+    -> Map.Map Score.Instrument InstTypes.Qualified
+make_allocations = Map.fromList
     . map (Score.Instrument *** InstTypes.parse_qualified)
 
-default_aliases :: Simple.Aliases
-default_aliases = [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
+default_allocations :: Simple.Allocations
+default_allocations =
+    [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
 
 i1, i2, i3 :: Score.Instrument
 i1 = Score.Instrument "i1"

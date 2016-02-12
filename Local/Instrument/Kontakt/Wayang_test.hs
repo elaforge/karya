@@ -68,7 +68,7 @@ test_wayang_pasang = do
 
 test_wayang_kempyung = do
     let run inst_suffix append notes = DeriveTest.extract extract $
-            KontaktTest.derive (make_aliases inst_suffix)
+            KontaktTest.derive (make_allocations inst_suffix)
                 "import bali.gangsa" $ UiTest.note_spec
                 (wayang_title <> append <> " | kempyung", notes, [])
         extract e = (DeriveTest.e_instrument e, DeriveTest.e_note e)
@@ -87,11 +87,11 @@ test_wayang_kempyung = do
          , ("u", (1, 1, "4e")), ("i", (1, 1, "4e"))
          ], [])
 
-aliases :: Simple.Aliases
-aliases = make_aliases "pemade"
+aliases :: Simple.Allocations
+aliases = make_allocations "pemade"
 
-make_aliases :: Text -> [(Text, Text)]
-make_aliases suffix =
+make_allocations :: Text -> Simple.Allocations
+make_allocations suffix =
     [ ("w", "kontakt/wayang-" <> suffix)
     , ("u", "kontakt/wayang-umbang"), ("i", "kontakt/wayang-isep")
     ]

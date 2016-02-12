@@ -54,10 +54,12 @@ data Config = Config {
     -- if you put it in sub-blocks then you repeat yourself and possibly apply
     -- it multiple times.
     , config_global_transform :: !Text
-    -- | Local instrument aliases.  Map instruments through this map before
-    -- setting them, so this goes from instrument alias to underlying
-    -- instrument.
-    , config_aliases :: !(Map.Map Score.Instrument InstTypes.Qualified)
+    -- | Instrument allocations.
+    , config_allocations :: !(Map.Map Score.Instrument InstTypes.Qualified)
+        -- TODO I'm not a big fan of this name, since it's generic and not
+        -- obviously related to instruments.  However the previous name,
+        -- 'aliases', was too and I somehow lived through that.  I tried
+        -- 'instruments', but it seemed too easy to confuse with Score.Inst.
     , config_lilypond :: !Lilypond.Config
     , config_default :: !Default
     , config_saved_views :: !SavedViews
@@ -77,8 +79,8 @@ midi = Lens.lens config_midi
     (\f r -> r { config_midi = f (config_midi r) })
 global_transform = Lens.lens config_global_transform
     (\f r -> r { config_global_transform = f (config_global_transform r) })
-aliases = Lens.lens config_aliases
-    (\f r -> r { config_aliases = f (config_aliases r) })
+allocations = Lens.lens config_allocations
+    (\f r -> r { config_allocations = f (config_allocations r) })
 lilypond = Lens.lens config_lilypond
     (\f r -> r { config_lilypond = f (config_lilypond r) })
 default_ = Lens.lens config_default
@@ -95,7 +97,7 @@ empty_config = Config
     , config_root = Nothing
     , config_midi = Patch.configs []
     , config_global_transform = ""
-    , config_aliases = mempty
+    , config_allocations = mempty
     , config_lilypond = Lilypond.default_config
     , config_default = empty_default
     , config_saved_views = mempty
@@ -177,7 +179,7 @@ empty_default :: Default
 empty_default = Default { default_tempo = 1 }
 
 instance Pretty.Pretty Config where
-    format (Config namespace meta root midi global_transform aliases lily
+    format (Config namespace meta root midi global_transform allocations lily
             default_ saved_views definition) =
         Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
@@ -185,7 +187,7 @@ instance Pretty.Pretty Config where
             , ("root", Pretty.format root)
             , ("midi", Pretty.format midi)
             , ("global_transform", Pretty.format global_transform)
-            , ("aliases", Pretty.format aliases)
+            , ("allocations", Pretty.format allocations)
             , ("lilypond", Pretty.format lily)
             , ("default", Pretty.format default_)
             , ("saved views", Pretty.format saved_views)

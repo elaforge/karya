@@ -151,11 +151,12 @@ perform_stream (lookup_inst, lookup) midi_config stream = (perf_events, midi)
         (Patch.config_addrs <$> midi_config) perf_events
 
 -- | Perform events with the given instrument db.
-perform_synths :: Simple.Aliases -> [MidiInst.Synth] -> [(Text, [Midi.Channel])]
-    -> Stream.Stream Score.Event
+perform_synths :: Simple.Allocations -> [MidiInst.Synth]
+    -> [(Text, [Midi.Channel])] -> Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
-perform_synths aliases synths config =
-    perform (synth_to_convert_lookup aliases synths) (UiTest.midi_config config)
+perform_synths allocations synths config =
+    perform (synth_to_convert_lookup allocations synths)
+        (UiTest.midi_config config)
 
 -- * derive
 
@@ -202,8 +203,8 @@ derive_block_setup_m setup create =
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
 derive_dump :: [MidiInst.Synth] -> Simple.State -> BlockId -> Derive.Result
-derive_dump synths dump@(_, _, aliases, _) =
-    derive_block_setup (with_synths aliases synths) state
+derive_dump synths dump@(_, _, allocations, _) =
+    derive_block_setup (with_synths allocations synths) state
     where state = UiTest.eval State.empty (Simple.load_state dump)
 
 -- | Derive a block in the same way that the app does.
@@ -220,10 +221,10 @@ derive_block_standard setup cmd_state cache damage ui_state_ block_id =
 
 perform_dump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
-perform_dump synths (_, midi, aliases, _) =
+perform_dump synths (_, midi, allocations, _) =
     perform lookup config . Derive.r_events
     where
-    lookup = synth_to_convert_lookup aliases synths
+    lookup = synth_to_convert_lookup allocations synths
     config = Simple.midi_config midi
 
 derive :: State.State -> Derive.NoteDeriver -> Derive.Result
@@ -363,18 +364,18 @@ with_scale scale = with_cmd $ set_cmd_config $ \state -> state
 
 -- | Derive with a bit of the real instrument db.  Useful for testing
 -- instrument calls.
-with_synths :: Simple.Aliases -> [MidiInst.Synth] -> Setup
-with_synths aliases synths = with_instrument_db aliases (synth_to_db synths)
+with_synths :: Simple.Allocations -> [MidiInst.Synth] -> Setup
+with_synths allocs synths = with_instrument_db allocs (synth_to_db synths)
 
-with_instrument_db :: Simple.Aliases -> Cmd.InstrumentDb -> Setup
-with_instrument_db aliases db = with_aliases aliases <> with_db
+with_instrument_db :: Simple.Allocations -> Cmd.InstrumentDb -> Setup
+with_instrument_db allocs db = with_allocations allocs <> with_db
     where
     with_db = with_cmd $ set_cmd_config $ \state -> state
         { Cmd.config_instrument_db = db }
 
-with_aliases :: Simple.Aliases -> Setup
-with_aliases aliases = with_ui $
-    State.config#State.aliases %= (UiTest.make_aliases aliases <>)
+with_allocations :: Simple.Allocations -> Setup
+with_allocations allocations = with_ui $
+    State.config#State.allocations %= (UiTest.make_allocations allocations <>)
 
 set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
 set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }
@@ -437,10 +438,11 @@ make_patch :: InstTypes.Name -> Patch.Patch
 make_patch name = Patch.patch (-2, 2) name
 
 default_convert_lookup :: Lookup
-default_convert_lookup = make_convert_lookup UiTest.default_aliases default_db
+default_convert_lookup =
+    make_convert_lookup UiTest.default_allocations default_db
 
-synth_to_convert_lookup :: Simple.Aliases -> [MidiInst.Synth] -> Lookup
-synth_to_convert_lookup aliases = make_convert_lookup aliases . synth_to_db
+synth_to_convert_lookup :: Simple.Allocations -> [MidiInst.Synth] -> Lookup
+synth_to_convert_lookup allocs = make_convert_lookup allocs . synth_to_db
 
 synth_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
 synth_to_db synths = trace_logs (map (Log.msg Log.Warn Nothing) warns) db
@@ -456,11 +458,11 @@ make_synth name patches = MidiInst.synth name "Test Synth" patches
 
 type Lookup = (Score.Instrument -> Maybe Cmd.Inst, Convert.Lookup)
 
-make_convert_lookup :: Simple.Aliases -> Cmd.InstrumentDb -> Lookup
-make_convert_lookup aliases db =
+make_convert_lookup :: Simple.Allocations -> Cmd.InstrumentDb -> Lookup
+make_convert_lookup allocs db =
     run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state) $
         (,) <$> Cmd.get_lookup_instrument <*> PlayUtil.get_convert_lookup
-    where setup = with_instrument_db aliases db
+    where setup = with_instrument_db allocs db
 
 -- ** extract
 

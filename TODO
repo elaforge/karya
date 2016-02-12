@@ -13,8 +13,19 @@ UNSORTED
     equal_right
   - test: delete build/test/tmp on every test run to avoid test contamination
   * rename Cmd.Config's fields from state_* to config_*
-  - Ui.StateConfig.config_aliases should be called instruments or something,
+  * Ui.StateConfig.config_aliases should be called instruments or something,
     the name 'aliases' should be reserved for derive level aliases.
+    . 'instruments' is the obvious choice, but then I have more things named
+      instruments, wouldn't it be ambiguous?  E.g. 'add_instrument' could be
+      adding the configuration or the Inst.  'allocations'?  assignments?
+      instances?
+      instrument_allocations is super long, but inst_alloc is ok for local
+      definitions.
+  - How about unifying config instrument allocation:
+    config_instruments :: Map Score.Instrument (Qualified, Allocation)
+    data Allocation = Midi Midi.Config | Im
+    . I think I can then get rid of MidiConfig.
+
   * integrate Synth/vst into the build
     . The flags stuff is kind of a mess.
     . Why do I need a separate fltkCc and fltkLd?  Also, linkCc gives fltkLd

@@ -339,7 +339,7 @@ save_midi_config fname = do
     rethrow_io "save_midi_config" $ liftIO $
         Serialize.serialize Cmd.Serialize.midi_config_magic fname $
         MidiConfig.Config (State.config_midi config)
-            (State.config_aliases config)
+            (State.config_allocations config)
 
 load_midi_config :: FilePath -> Cmd.CmdT IO ()
 load_midi_config fname = do
@@ -347,9 +347,10 @@ load_midi_config fname = do
     Log.notice $ "load midi config from " <> showt fname
     let mkmsg err = "unserializing midi config " <> showt fname <> ": "
             <> pretty err
-    MidiConfig.Config midi aliases <- Cmd.require_right mkmsg
+    MidiConfig.Config midi allocations <- Cmd.require_right mkmsg
         =<< liftIO (Serialize.unserialize Cmd.Serialize.midi_config_magic fname)
-    State.modify_config $ (State.midi #= midi) . (State.aliases #= aliases)
+    State.modify_config $
+        (State.midi #= midi) . (State.allocations #= allocations)
 
 -- * misc
 

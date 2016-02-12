@@ -40,9 +40,10 @@ import Types
 
 
 -- | Dump a score, or part of a score, to paste into a test.
--- (global_transform, midi_config, aliases, blocks)
-type State = (Text, MidiConfig, Aliases, [Block])
-type Aliases = [(Text, Text)]
+-- (global_transform, midi_config, allocations, blocks)
+type State = (Text, MidiConfig, Allocations, [Block])
+-- | (Score.Instrument, InstTypes.Qualified)
+type Allocations = [(Text, Text)]
 
 -- | (id_name, title, tracks, skeleton)
 type Block = (Text, Text, [Maybe Track], [Skeleton.Edge])
@@ -101,7 +102,7 @@ dump_state = do
         ( State.config#State.global_transform #$ state
         , dump_midi_config $ State.config#State.midi #$ state
         , map (Score.instrument_name *** InstTypes.show_qualified)
-            . Map.toList $ State.config#State.aliases #$ state
+            . Map.toList $ State.config#State.allocations #$ state
         , blocks
         )
 
@@ -152,14 +153,15 @@ dump_midi_config configs =
 -- * load
 
 load_state :: State.M m => State -> m State.State
-load_state (global_transform, midi, aliases, blocks) =
+load_state (global_transform, midi, allocations, blocks) =
     State.exec_rethrow "convert state" State.empty $ do
         mapM_ make_block blocks
         State.modify $
             (State.config#State.global_transform #= global_transform)
             . (State.config#State.midi #= midi_config midi)
-            . (State.config#State.aliases #= Map.fromList
-                (map (Score.Instrument *** InstTypes.parse_qualified) aliases))
+            . (State.config#State.allocations #= Map.fromList
+                (map (Score.Instrument *** InstTypes.parse_qualified)
+                    allocations))
 
 load_block_to_clip :: FilePath -> Cmd.CmdT IO ()
 load_block_to_clip fn = read_block fn >>= Clip.state_to_clip

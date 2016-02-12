@@ -22,11 +22,11 @@ import Global
 
 
 test_respond = do
-    let states = (add_alias *** set_db) $ ResponderTest.mkstates $
+    let states = (add_allocation *** set_db) $ ResponderTest.mkstates $
             UiTest.note_spec
                 ("im", [(0, 1, "4c"), (1, 1, "4d")], [("dyn", [(0, ".5")])])
-        add_alias = State.config#State.aliases
-            #= UiTest.make_aliases [("im", "sampler/inst")]
+        add_allocation = State.config#State.allocations
+            #= UiTest.make_allocations [("im", "sampler/inst")]
         set_db state = state
             { Cmd.state_config = (Cmd.state_config state)
                 { Cmd.config_instrument_db = db }

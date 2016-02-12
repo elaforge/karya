@@ -59,18 +59,19 @@ test_equal_inst = do
     equal (run mempty ">new = >i1 | >newer = >new" ">newer") (["i1"], [])
 
     -- Alias to an instrument that doesn't exist.
-    let with_alias to = DeriveTest.with_ui $
-            State.config#State.aliases %= Map.insert (Score.Instrument "alias")
-                (InstTypes.parse_qualified to)
-    equal (run (with_alias "s/1") "" ">alias") (["alias"], [])
-    equal (run (with_alias "s/1") ">new = >alias" ">new") (["alias"], [])
+    let with_alloc to = DeriveTest.with_ui $
+            State.config#State.allocations
+                %= Map.insert (Score.Instrument "inst")
+                    (InstTypes.parse_qualified to)
+    equal (run (with_alloc "s/1") "" ">inst") (["inst"], [])
+    equal (run (with_alloc "s/1") ">new = >inst" ">new") (["inst"], [])
 
-    strings_like (snd $ run (with_alias "unknown") "" ">alias")
-        ["no instrument found for >alias"]
-    -- I don't get ">unknown (aliased from >alias)" because it's the equal call
+    strings_like (snd $ run (with_alloc "unknown") "" ">inst")
+        ["no instrument found for >inst"]
+    -- I don't get ">unknown (aliased from >inst)" because it's the equal call
     -- itself that throws the error.
-    strings_like (snd $ run (with_alias "unknown") ">new = >alias" ">new")
-        ["no instrument found for >alias"]
+    strings_like (snd $ run (with_alloc "unknown") ">new = >inst" ">new")
+        ["no instrument found for >inst"]
 
 test_equal_note_transformer = do
     let run events = DeriveTest.extract e_instrument $

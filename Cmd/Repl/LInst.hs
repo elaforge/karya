@@ -67,10 +67,10 @@ list = list_like ""
 list_like :: State.M m => Text -> m Text
 list_like pattern = do
     configs <- State.get_midi_config
-    alias_map <- aliases
+    alloc_map <- allocations
     return $ Text.intercalate "\n" $
         map (show_inst configs) $ filter (matches . fst) $
-        Map.toAscList alias_map
+        Map.toAscList alloc_map
     where
     matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
     show_inst configs (inst, qualified) = ShowVal.show_val inst <> " - "
@@ -100,39 +100,39 @@ list_like pattern = do
 midi_config :: State.M m => m Patch.Configs
 midi_config = State.get_midi_config
 
--- | Alias map.  It maps from alias to underlying instrument.
-aliases :: State.M m => m (Map.Map Score.Instrument InstTypes.Qualified)
-aliases = State.config#State.aliases <#> State.get
+-- | Instrument allocations.
+allocations :: State.M m => m (Map.Map Score.Instrument InstTypes.Qualified)
+allocations = State.config#State.allocations <#> State.get
 
--- | Rename an instrument, in both aliases and allocations.
+-- | Rename an instrument.
 rename :: State.M m => Instrument -> Instrument -> m ()
 rename from_ to_ =
-    State.modify $ (State.config#State.midi %= rename_alloc)
-        . (State.config#State.aliases %= rename_alias)
+    State.modify $ (State.config#State.midi %= rename_midi)
+        . (State.config#State.allocations %= rename_alloc)
     where
-    rename_alloc configs = case Map.lookup from configs of
+    rename_midi configs = case Map.lookup from configs of
         Nothing -> configs
         Just config -> Map.insert to config $ Map.delete from configs
-    rename_alias aliases = case Map.lookup from aliases of
-        Just qualified -> Map.insert to qualified $ Map.delete from aliases
-        Nothing -> aliases
+    rename_alloc allocs = case Map.lookup from allocs of
+        Just qualified -> Map.insert to qualified $ Map.delete from allocs
+        Nothing -> allocs
     from = Util.instrument from_
     to = Util.instrument to_
 
--- | Allocate a new instrument and create an alias for it.  For instance:
+-- | Allocate a new instrument.  For instance:
 --
 -- > LInst.add \"m\" \"kontakt/mridangam-g\" \"loop1\" [0]
 --
--- This will create an instance of the @kontakt/mridangam@ instrument aliased
--- to @>m@, and assign it to the MIDI WriteDevice @loop1@, with a single MIDI
+-- This will create an instance of the @kontakt/mridangam@ instrument named
+-- @>m@, and assign it to the MIDI WriteDevice @loop1@, with a single MIDI
 -- channel 0 allocated.
 add :: Instrument -> Qualified -> Text -> [Midi.Channel] -> Cmd.CmdL ()
 add name qualified wdev chans = do
-    alloc name wdev chans
-    add_alias name qualified
+    allocate_midi name wdev chans
+    allocate name qualified
 
 add_im :: Instrument -> Qualified -> Cmd.CmdL ()
-add_im = add_alias
+add_im = allocate
 
 save :: FilePath -> Cmd.CmdL ()
 save = Save.save_midi_config
@@ -147,27 +147,27 @@ load = Save.load_midi_config
 add_empty :: Instrument -> Instrument -> Cmd.CmdL ()
 add_empty name qualified = add name qualified "empty" []
 
--- | Remove both an alias and its allocation.
+-- | Remove an instrument allocation.
 remove :: Instrument -> Cmd.CmdL ()
 remove inst = do
-    remove_alias inst
-    dealloc inst
+    deallocate inst
+    deallocate_midi inst
 
 remove_im :: Instrument -> Cmd.CmdL ()
-remove_im = remove_alias
+remove_im = deallocate
 
 -- | Add a new instrument, copied from an existing one.  The argument order is
 -- the same as used by 'add'.
-add_alias :: Instrument -> Qualified -> Cmd.CmdL ()
-add_alias inst qualified = do
+allocate :: Instrument -> Qualified -> Cmd.CmdL ()
+allocate inst qualified = do
     qualified <- parse_qualified qualified
     State.modify $
-        State.config#State.aliases %= Map.insert (Util.instrument inst)
+        State.config#State.allocations %= Map.insert (Util.instrument inst)
             qualified
 
-remove_alias :: Instrument -> Cmd.CmdL ()
-remove_alias inst = State.modify $
-    State.config#State.aliases %= Map.delete (Util.instrument inst)
+deallocate :: Instrument -> Cmd.CmdL ()
+deallocate inst = State.modify $
+    State.config#State.allocations %= Map.delete (Util.instrument inst)
 
 -- | Toggle and return the new value.
 toggle_mute :: State.M m => Instrument -> m Bool
@@ -227,20 +227,21 @@ modify_config_ inst modify = modify_config inst (\c -> (modify c, ()))
 
 -- | Deallocate the old allocation, and set it to the new one.  Meant for
 -- interactive use.
-alloc :: Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
-alloc inst wdev chans = alloc_voices inst wdev (map (, Nothing) chans)
+allocate_midi :: Instrument -> Text -> [Midi.Channel] -> Cmd.CmdL ()
+allocate_midi inst wdev chans =
+    allocate_midi_voices inst wdev (map (, Nothing) chans)
 
--- | Like 'alloc', but you can also give maximum voices per channel.
-alloc_voices :: Instrument -> Text -> [(Midi.Channel, Maybe Patch.Voices)]
-    -> Cmd.CmdL ()
-alloc_voices inst_ wdev chan_voices = do
+-- | Like 'allocate_midi', but you can also give maximum voices per channel.
+allocate_midi_voices :: Instrument -> Text
+    -> [(Midi.Channel, Maybe Patch.Voices)] -> Cmd.CmdL ()
+allocate_midi_voices inst_ wdev chan_voices = do
     let inst = Util.instrument inst_
     dealloc_instrument inst
     let dev = Midi.write_device wdev
     alloc_instrument inst [((dev, c), v) | (c, v) <- chan_voices]
 
-dealloc :: Instrument -> Cmd.CmdL ()
-dealloc = dealloc_instrument . Util.instrument
+deallocate_midi :: Instrument -> Cmd.CmdL ()
+deallocate_midi = dealloc_instrument . Util.instrument
 
 -- | Allocate the given channels for the instrument using its default device.
 alloc_default :: Instrument -> [(Midi.Channel, Maybe Patch.Voices)]
@@ -254,7 +255,7 @@ alloc_default inst_ chans = do
 merge_config :: State.M m => Patch.Configs -> m ()
 merge_config config = State.modify $ State.config#State.midi %= (config<>)
 
--- | Merge or replace both 'Patch.Configs' and aliases.
+-- | Merge or replace instrument allocations.
 merge, replace :: State.M m => MidiConfig.Config -> m ()
 merge = MidiConfig.merge
 replace = MidiConfig.replace
@@ -333,7 +334,7 @@ alloc_instrument inst addrs = State.modify $
 
 dealloc_instrument :: Score.Instrument -> Cmd.CmdL ()
 dealloc_instrument inst = State.modify $
-    State.config#State.midi#Lens.map inst #= Nothing
+    State.config#State.midi %= Map.delete inst
 
 block_instruments :: BlockId -> Cmd.CmdL [Score.Instrument]
 block_instruments block_id = do

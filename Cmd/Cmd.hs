@@ -1075,23 +1075,22 @@ lookup_instrument inst = ($ inst) <$> get_lookup_instrument
 lookup_qualified :: State.M m => Score.Instrument
     -> m (Maybe InstTypes.Qualified)
 lookup_qualified inst =
-    Map.lookup inst <$> (State.config#State.aliases <#> State.get)
+    Map.lookup inst <$> (State.config#State.allocations <#> State.get)
 
--- | Get a function to look up a 'Score.Instrument'.  This is where
--- 'Ui.StateConfig' is applied to the instrument db, applying aliases
--- and 'Patch.config_environ', so anyone looking up a Patch should go
--- through this.
 get_lookup_instrument :: M m => m (Score.Instrument -> Maybe Inst)
 get_lookup_instrument = state_lookup_instrument <$> State.get <*> get
 
+-- | Get a function to look up a 'Score.Instrument'.  This is where
+-- the environ and other local configuration is applied, so anyone looking up
+-- a Patch should go through this.
 state_lookup_instrument :: State.State -> State -> Score.Instrument
     -> Maybe Inst
 state_lookup_instrument ui_state cmd_state = \inst_name -> do
-    qualified <- Map.lookup inst_name aliases
+    qualified <- Map.lookup inst_name allocations
     inst <- Inst.lookup qualified db
     return $ merge_environ configs inst_name inst
     where
-    aliases = State.config#State.aliases #$ ui_state
+    allocations = State.config#State.allocations #$ ui_state
     configs = State.config#State.midi #$ ui_state
     db = config_instrument_db (state_config cmd_state)
     merge_environ configs inst_name =

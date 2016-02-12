@@ -23,22 +23,23 @@ data Config = Config {
     } deriving (Show)
 
 instance Pretty.Pretty Config where
-    format (Config midi aliases) = Pretty.record "Config"
+    format (Config midi allocations) = Pretty.record "Config"
         [ ("midi", Pretty.format midi)
-        , ("aliases", Pretty.format aliases)
+        , ("allocations", Pretty.format allocations)
         ]
 
 type Instrument = Text
 type Alias = Text
 
 merge :: State.M m => Config -> m ()
-merge (Config midi aliases) = State.modify $
+merge (Config midi allocations) = State.modify $
     (State.config#State.midi %= (midi<>))
-    . (State.config#State.aliases %= (aliases<>))
+    . (State.config#State.allocations %= (allocations<>))
 
 replace :: State.M m => Config -> m ()
-replace (Config midi aliases) = State.modify $
-    (State.config#State.midi #= midi) . (State.config#State.aliases #= aliases)
+replace (Config midi allocations) = State.modify $
+    (State.config#State.midi #= midi)
+    . (State.config#State.allocations #= allocations)
 
 config :: [(Alias, Instrument, Patch.Config)] -> Config
 config configs = Config

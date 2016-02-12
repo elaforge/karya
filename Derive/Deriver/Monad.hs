@@ -406,10 +406,9 @@ data Dynamic = Dynamic {
     -- | Calls currently in scope.
     , state_scopes :: !Scopes
     -- | Instrument aliases as (alias, destination) pairs.  Map through this
-    -- before looking in 'state_lookup_instrument'.  This is analogous to the
-    -- instrument db level aliasing, except this only present in a dynamically
-    -- scoped part of derivation.  The alias destination is always the final
-    -- instrument, not another alias.
+    -- before looking in 'state_lookup_instrument'.  The alias destination is
+    -- always the final instrument, not another alias, so you never have to
+    -- look up multiple times.
     , state_instrument_aliases :: !(Map.Map Score.Instrument Score.Instrument)
     , state_control_damage :: !ControlDamage
     -- | This is a delayed transform.  If a call wants to evaluate under
