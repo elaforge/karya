@@ -6,7 +6,7 @@
 module Local.Instrument.Kontakt.Wayang where
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
-import qualified Cmd.Instrument.MidiConfig as MidiConfig
+import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -26,6 +26,7 @@ import qualified Derive.Sig as Sig
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
+import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
@@ -87,8 +88,8 @@ patches = map (MidiInst.code #= code <> with_weak)
 -- There are two pasang instruments, which then rely on the kotekan calls to
 -- split into inst-polos and inst-sangsih.  This uses the traditional setup
 -- with polos on umbang.
-config :: Text -> MidiConfig.Config
-config dev_ = MidiConfig.config
+config :: Text -> StateConfig.Allocations
+config dev_ = StateConfig.midi_allocations $ map make
     [ ("p", "kontakt/wayang-pemade",
         pasang "p-umbang" "p-isep" $ Patch.config [])
     , ("k", "kontakt/wayang-kantilan",
@@ -99,8 +100,10 @@ config dev_ = MidiConfig.config
     , ("k-umbang", "kontakt/wayang-umbang", Patch.config1 dev 3)
     ]
     where
-    pasang polos sangsih = MidiConfig.environ Gangsa.inst_polos (inst polos)
-        . MidiConfig.environ Gangsa.inst_sangsih (inst sangsih)
+    make (name, qualified, config) =
+        (inst name, (InstTypes.parse_qualified qualified, config))
+    pasang polos sangsih = Patch.add_environ Gangsa.inst_polos (inst polos)
+        . Patch.add_environ Gangsa.inst_sangsih (inst sangsih)
     dev = Midi.write_device dev_
     inst = Score.Instrument
 

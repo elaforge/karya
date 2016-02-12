@@ -44,12 +44,13 @@ test_resolve = do
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_setup
-    (DeriveTest.with_synths aliases [Kontakt.synth]) ""
+    (DeriveTest.with_synths allocs [Kontakt.synth]) ""
     where
-    aliases =
+    allocs = UiTest.allocations
         [ ("k", "kontakt/kendang-bali")
         , ("pasang", "kontakt/kendang-bali-pasang")
-        , ("w", "kontakt/kendang-bali"), ("l", "kontakt/kendang-bali")
+        , ("w", "kontakt/kendang-bali")
+        , ("l", "kontakt/kendang-bali")
         ]
 
 inst_title :: String

@@ -26,7 +26,7 @@ test_respond = do
             UiTest.note_spec
                 ("im", [(0, 1, "4c"), (1, 1, "4d")], [("dyn", [(0, ".5")])])
         add_allocation = State.config#State.allocations
-            #= UiTest.make_allocations [("im", "sampler/inst")]
+            #= UiTest.allocations [("im", "sampler/inst")]
         set_db state = state
             { Cmd.state_config = (Cmd.state_config state)
                 { Cmd.config_instrument_db = db }

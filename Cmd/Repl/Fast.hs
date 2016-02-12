@@ -61,7 +61,6 @@ interpret toks = case toks of
         ["State.lookup_root_id"] -> Just $ fmap showt State.lookup_root_id
         ["State.set_root_id", str] | Just arg <- val str ->
             action $ State.set_root_id arg
-        ["State.get_midi_config"] -> action State.get_midi_config
         _ -> Nothing
     where
     action c = Just (fmap showt c)

@@ -34,18 +34,6 @@ import Types
 
 -- * config
 
--- | Per-score instrument configuration.
-type Configs = Map.Map Score.Instrument Config
-
-configs :: [(Score.Instrument, [Addr])] -> Configs
-configs = Map.fromList . map (second config)
-
-voice_configs :: [(Score.Instrument, [(Addr, Maybe Voices)])] -> Configs
-voice_configs = Map.fromList . map (second voice_config)
-
-get_addrs :: Score.Instrument -> Configs -> [Addr]
-get_addrs inst = maybe [] (map fst . config_addrs) . Map.lookup inst
-
 -- | Configuration for one instrument on a score.
 data Config = Config {
     -- | An instrument may have multiple addresses assigned to it, which means
@@ -86,7 +74,7 @@ config_environ = RestrictedEnviron.convert . config_restricted_environ
 
 addrs = Lens.lens config_addrs
     (\f r -> r { config_addrs = f (config_addrs r) })
-cenviron = Lens.lens config_restricted_environ
+environ = Lens.lens config_restricted_environ
     (\f r -> r { config_restricted_environ = f (config_restricted_environ r) })
 controls = Lens.lens config_controls
     (\f r -> r { config_controls = f (config_controls r) })
@@ -102,6 +90,7 @@ solo = Lens.lens config_solo
 config1 :: Midi.WriteDevice -> Midi.Channel -> Config
 config1 dev chan = config [(dev, chan)]
 
+-- | Make a simple config.
 config :: [Addr] -> Config
 config = voice_config . map (, Nothing)
 
@@ -115,6 +104,11 @@ voice_config addrs = Config
     , config_mute = False
     , config_solo = False
     }
+
+add_environ :: RestrictedEnviron.ToVal a => BaseTypes.Key -> a
+    -> Config -> Config
+add_environ key val = environ %= (RestrictedEnviron.make [(key, v)] <>)
+    where v = RestrictedEnviron.to_val val
 
 instance Pretty.Pretty Config where
     format (Config addrs environ controls scale control_defaults mute solo) =

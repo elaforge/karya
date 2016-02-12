@@ -195,7 +195,8 @@ test_inst_call = do
             DeriveTest.derive_tracks_setup with_inst ""
             [(inst, [(0, 1, "sn")])]
         with_inst = DeriveTest.with_synths
-            [("i1", "s/1"), ("with-call", "s/with-call")] [synth]
+            (UiTest.allocations [("i1", "s/1"), ("with-call", "s/with-call")])
+            [synth]
     equal (run ">i1") ([], ["Error: note generator not found: sn"])
     equal (run ">with-call") (["+snare"], [])
     where

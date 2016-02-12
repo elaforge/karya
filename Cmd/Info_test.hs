@@ -8,6 +8,9 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.CmdTest as CmdTest
 import qualified Cmd.Info as Info
+import qualified Cmd.Simple as Simple
+
+import Global
 
 
 test_block_tracks = do
@@ -30,13 +33,13 @@ test_track_status = do
     let f tracks num = CmdTest.eval ustate CmdTest.default_cmd_state
             (Info.get_track_status UiTest.default_block_id num)
             where
-            ustate = UiTest.set_midi_config [("i", "s/i")]
-                (UiTest.midi_config [("i", [0..3])]) $
+            ustate = (State.config#State.allocations #= allocs) $
                 snd $ UiTest.run_mkview [(t, []) | t <- tracks]
+            allocs = Simple.allocations [("i", ("s/1", map ("wdev",) [0..3]))]
     equal (f [">", "*"] 0) Nothing
     equal (f [">", "*"] 1) $ Just "> at 1: [] -- [* {collapse 2}]"
     equal (f [">", "*"] 2) $ Just "> at 1: [] -- [* {collapse 2}]"
     equal (f ["*", ">"] 2) $ Just "> at 2: [] -- [* {collapse 1}]"
     equal (f [">", "*"] 3) Nothing
     equal (f [">i", "vel", "ped"] 2) $
-        Just ">i at 1: test [0..3] -- [vel {collapse 2}, ped {collapse 3}]"
+        Just ">i at 1: wdev [0..3] -- [vel {collapse 2}, ped {collapse 3}]"

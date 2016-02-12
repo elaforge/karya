@@ -13,7 +13,6 @@ import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Simple as Simple
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -102,7 +101,7 @@ test_convert_dynamic = do
             , maybe [] Signal.unsignal $ Map.lookup Controls.breath $
                 Types.event_controls e
             )
-        clookup = DeriveTest.make_convert_lookup UiTest.default_aliases $
+        clookup = DeriveTest.make_convert_lookup UiTest.default_allocations $
             DeriveTest.make_db [("s", [p "1", Patch.pressure $ p "2"])]
         p = DeriveTest.make_patch
     equal (run ">i1" [("dyn", [(0, 0, "1")])])
@@ -184,15 +183,14 @@ test_pitched_keymap = do
 nn_signal :: Signal.NoteNumber -> [(Signal.X, Pitch.NoteNumber)]
 nn_signal = map (second Pitch.nn) . Signal.unsignal
 
-perform :: Patch.Patch -> Simple.Aliases -> [UiTest.TrackSpec]
+perform :: Patch.Patch -> [(Text, Text)] -> [UiTest.TrackSpec]
     -> (Derive.Result, ([Types.Event], [Midi.WriteMessage], [Log.Msg]))
-perform patch aliases tracks = (result, performance)
+perform patch allocs tracks = (result, performance)
     where
+    allocations = UiTest.allocations allocs
     performance = DeriveTest.perform
-        (DeriveTest.make_convert_lookup aliases db) config
-        (Derive.r_events result)
-    config = UiTest.midi_config
-        [(inst, [n]) | (n, inst) <- zip [0..] (map fst aliases)]
+        (DeriveTest.make_convert_lookup allocations db)
+        allocations (Derive.r_events result)
     db = DeriveTest.make_db [("s", [patch])]
     result = DeriveTest.derive_tracks_setup
-        (DeriveTest.with_instrument_db aliases db) "" tracks
+        (DeriveTest.with_instrument_db allocations db) "" tracks

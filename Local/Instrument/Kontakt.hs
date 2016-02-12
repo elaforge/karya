@@ -14,13 +14,12 @@ import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 
+import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
-import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Keymap as Keymap
-import qualified Cmd.Repl.Util as Repl.Util
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -60,7 +59,10 @@ import Global
 
 
 synth :: MidiInst.Synth
-synth = MidiInst.synth "kontakt" "Native Instrument Kontakt" patches
+synth = MidiInst.synth synth_name "Native Instrument Kontakt" patches
+
+synth_name :: InstTypes.SynthName
+synth_name = "kontakt"
 
 patches :: [MidiInst.Patch]
 patches =
@@ -276,7 +278,7 @@ kajar = Score.attr "kajar"
 misc :: [MidiInst.Patch]
 misc = [MidiInst.code #= Reaktor.resonant_filter $ patch "filtered" []]
 
-config_kebyar :: Text -> MidiConfig.Config
+config_kebyar :: Text -> StateConfig.Allocations
 config_kebyar dev_ = make_config $ concat
     [ pasang "jegog"
     , pasang "calung"
@@ -291,17 +293,19 @@ config_kebyar dev_ = make_config $ concat
       ]
     ]
     where
-    -- (name, patch_name, gets_chan, environ, scale)
-    make_config :: [(Text, Text, Bool, [(BaseTypes.Key, RestrictedEnviron.Val)],
-            Maybe Patch.Scale)]
-        -> MidiConfig.Config
-    make_config = MidiConfig.config . snd . List.mapAccumL allocate 0
+    -- (inst, qualified, gets_chan, environ, scale)
+    make_config :: [(Text, Text, Bool,
+            [(BaseTypes.Key, RestrictedEnviron.Val)], Maybe Patch.Scale)]
+        -> StateConfig.Allocations
+    make_config = StateConfig.midi_allocations . snd . List.mapAccumL allocate 0
         where
-        allocate chan (alias, inst, gets_chan, environ, scale) =
-            (if gets_chan then chan+1 else chan, (alias, inst, config))
+        allocate chan (inst, qualified, gets_chan, environ, scale) =
+            (next_chan,
+                (make_inst inst, (InstTypes.parse_qualified qualified, config)))
             where
+            next_chan = if gets_chan then chan+1 else chan
             config = Patch.cscale #= scale $
-                Patch.cenviron #= RestrictedEnviron.make environ $
+                Patch.environ #= RestrictedEnviron.make environ $
                 -- pasang instruments don't get an allocation.  Otherwise they
                 -- don't have the right tuning.
                 (if gets_chan then Patch.config1 dev chan else Patch.config [])
@@ -311,30 +315,31 @@ config_kebyar dev_ = make_config $ concat
     -- sangsih, but since I don't have that many sample sets I have
     -- a mini-ensemble with only one pair of each gangsa.
     pasang name =
-        [ (name, sc_patch name <> "-pasang", False, polos_sangsih name, Nothing)
+        [ (name, sc_qualified name <> "-pasang", False, polos_sangsih name,
+            Nothing)
         , umbang_patch (name <> "-p") name
         , isep_patch (name <> "-s") name
         ]
-    sc_patch name = "kontakt/sc-" <> name
+    sc_qualified name = synth_name <> "/sc-" <> name
     polos_sangsih name =
-        [ (Gangsa.inst_polos, to_val $ inst $ name <> "-p")
-        , (Gangsa.inst_sangsih, to_val $ inst $ name <> "-s")
+        [ (Gangsa.inst_polos, to_val $ make_inst $ name <> "-p")
+        , (Gangsa.inst_sangsih, to_val $ make_inst $ name <> "-s")
         ]
     to_val :: RestrictedEnviron.ToVal a => a -> RestrictedEnviron.Val
     to_val = RestrictedEnviron.to_val
-    inst = Repl.Util.instrument
+    make_inst = Score.instrument
     umbang_patch name patch =
-        ( name, sc_patch patch, True
+        ( name, sc_qualified patch, True
         , tuning BaliScales.Umbang
         , Just $ Legong.complete_instrument_scale BaliScales.Umbang
         )
     isep_patch name patch =
-        ( name, sc_patch patch, True
+        ( name, sc_qualified patch, True
         , tuning BaliScales.Isep
         , Just $ Legong.complete_instrument_scale BaliScales.Isep
         )
     tuning val = [(EnvKey.tuning, to_val val)]
-    patch name = (name, sc_patch name, True, [], Nothing)
+    patch name = (name, sc_qualified name, True, [], Nothing)
 
 -- * hang
 

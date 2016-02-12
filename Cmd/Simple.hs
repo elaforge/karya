@@ -18,6 +18,7 @@ import qualified Ui.Id as Id
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
@@ -40,10 +41,8 @@ import Types
 
 
 -- | Dump a score, or part of a score, to paste into a test.
--- (global_transform, midi_config, allocations, blocks)
-type State = (Text, MidiConfig, Allocations, [Block])
--- | (Score.Instrument, InstTypes.Qualified)
-type Allocations = [(Text, Text)]
+-- (global_transform, allocations, blocks)
+type State = (Text, Allocations, [Block])
 
 -- | (id_name, title, tracks, skeleton)
 type Block = (Text, Text, [Maybe Track], [Skeleton.Edge])
@@ -60,8 +59,10 @@ type ScoreEvent = (Double, Double, String, Maybe Pitch.NoteNumber)
 -- | (inst, start, duration, initial_nn)
 type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 
--- | (instrument, [(device, chan)])
-type MidiConfig = [(Text, [(Text, Midi.Channel)])]
+-- | (instrument, (qualified, [(device, chan)]))
+--
+-- StateConfig.Im gets [] for chans.
+type Allocations = [(Text, (Text, [(Text, Midi.Channel)]))]
 
 from_score :: ScoreTime -> Double
 from_score = ScoreTime.to_double
@@ -100,9 +101,7 @@ dump_state = do
     blocks <- mapM dump_block (Map.keys (State.state_blocks state))
     return
         ( State.config#State.global_transform #$ state
-        , dump_midi_config $ State.config#State.midi #$ state
-        , map (Score.instrument_name *** InstTypes.show_qualified)
-            . Map.toList $ State.config#State.allocations #$ state
+        , dump_allocations $ State.config#State.allocations #$ state
         , blocks
         )
 
@@ -141,27 +140,28 @@ dump_selection = do
     return [(track_id, map event events)
         | (track_id, _, events) <- track_events]
 
-dump_midi_config :: Patch.Configs -> MidiConfig
-dump_midi_config configs =
-    [(Score.instrument_name inst, chans_of config)
-        | (inst, config) <- Map.toList configs]
+dump_allocations :: StateConfig.Allocations -> Allocations
+dump_allocations (StateConfig.Allocations allocs) = do
+    (inst, (qualified, alloc)) <- Map.toList allocs
+    let addrs = case alloc of
+            StateConfig.Midi config -> addrs_of config
+            StateConfig.Im -> []
+    return (Score.instrument_name inst,
+        (InstTypes.show_qualified qualified, addrs))
     where
-    chans_of config = [(Midi.write_device_text dev, chan)
+    addrs_of config = [(Midi.write_device_text dev, chan)
         | ((dev, chan), _) <- Patch.config_addrs config]
 
 
 -- * load
 
 load_state :: State.M m => State -> m State.State
-load_state (global_transform, midi, allocations, blocks) =
+load_state (global_transform, allocs, blocks) =
     State.exec_rethrow "convert state" State.empty $ do
         mapM_ make_block blocks
         State.modify $
             (State.config#State.global_transform #= global_transform)
-            . (State.config#State.midi #= midi_config midi)
-            . (State.config#State.allocations #= Map.fromList
-                (map (Score.Instrument *** InstTypes.parse_qualified)
-                    allocations))
+            . (State.config#State.allocations #= allocations allocs)
 
 load_block_to_clip :: FilePath -> Cmd.CmdT IO ()
 load_block_to_clip fn = read_block fn >>= Clip.state_to_clip
@@ -196,10 +196,15 @@ load_event :: Event -> Event.Event
 load_event (start, dur, text) =
     Event.event (ScoreTime.double start) (ScoreTime.double dur) text
 
-midi_config :: MidiConfig -> Patch.Configs
-midi_config config = Patch.configs
-    [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr (dev, chan) = (Midi.write_device dev, chan)
+allocations :: Allocations -> StateConfig.Allocations
+allocations allocs = StateConfig.Allocations $ Map.fromList $ do
+    (inst, (qualified, addrs)) <- allocs
+    let alloc = case addrs of
+            [] -> StateConfig.Im
+            _ -> StateConfig.Midi $ Patch.config $
+                map (first Midi.write_device) addrs
+    return (Score.Instrument inst,
+        (InstTypes.parse_qualified qualified, alloc))
 
 
 -- * ExactPerfEvent

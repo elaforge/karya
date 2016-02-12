@@ -28,8 +28,8 @@ module Ui.State (
     , empty, create, clear
     -- * config
     , Config(..), empty_config, SavedViews
-    , namespace_, meta, root, midi, global_transform, allocations, lilypond
-    , default_, saved_views, ky_file
+    , namespace_, meta, root, global_transform, allocations, allocations_map
+    , lilypond, default_, saved_views, ky_file
     , Meta(..), empty_meta, creation, last_save, notes, midi_performances
     , lilypond_performances
     , Performance(..), MidiPerformance, LilypondPerformance
@@ -48,9 +48,9 @@ module Ui.State (
 
     -- * config
     , get_namespace, set_namespace
-    , get_midi_config, set_midi_config
     , get_default, modify_default, get_root_id, lookup_root_id, set_root_id
     , modify_config, get_config
+    , allocation
 
     -- * view
     , get_view, lookup_view, all_view_ids
@@ -141,6 +141,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Time as Time
+
 import qualified GHC.Stack
 
 import qualified Util.Lens as Lens
@@ -164,8 +165,9 @@ import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
+import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.Stack as Stack
-import qualified Perform.Midi.Patch as Patch
+import qualified Instrument.InstTypes as InstTypes
 import qualified App.Config as Config
 import Global
 import Types
@@ -420,12 +422,6 @@ get_namespace = get_config config_namespace
 set_namespace :: M m => Id.Namespace -> m ()
 set_namespace ns = modify_config $ \st -> st { config_namespace = ns }
 
-get_midi_config :: M m => m Patch.Configs
-get_midi_config = get_config config_midi
-
-set_midi_config :: M m => Patch.Configs -> m ()
-set_midi_config config = modify_config $ \st -> st { config_midi = config }
-
 get_default :: M m => (Default -> a) -> m a
 get_default f = f <$> get_config config_default
 
@@ -451,6 +447,10 @@ modify_config f = unsafe_modify $ \st ->
 
 get_config :: M m => (Config -> a) -> m a
 get_config f = gets (f . state_config)
+
+allocation :: ScoreTypes.Instrument
+    -> Lens State (Maybe (InstTypes.Qualified, Allocation))
+allocation inst = config # allocations_map # Lens.map inst
 
 -- * view
 

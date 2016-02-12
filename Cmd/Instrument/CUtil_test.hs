@@ -51,7 +51,7 @@ insert_call tracks tracknum val_edit msg =
         CUtil.insert_call char_to_call msg
     where
     (ustate, cstate) = CmdTest.set_synths [make_synth note_keys]
-        [("i1", "synth/1")] (CmdTest.make_tracks tracks)
+        (UiTest.allocations [("i1", "synth/1")]) (CmdTest.make_tracks tracks)
         CmdTest.default_cmd_state
     char_to_call = CUtil.notes_to_calls (map fst note_keys)
     note_keys =
@@ -68,10 +68,10 @@ set_edit_mode val_edit state = state
 
 test_drum_instrument = do
     let run = DeriveTest.derive_tracks_setup
-            (DeriveTest.with_synths aliases [drum_synth]) ""
-        aliases = [("x", "synth/1")]
+            (DeriveTest.with_synths allocs [drum_synth]) ""
+        allocs = UiTest.allocations [("x", "synth/1")]
         extract = DeriveTest.extract DeriveTest.e_attributes
-    let perform = DeriveTest.perform_synths aliases [drum_synth] [("x", [0])]
+    let perform = DeriveTest.perform_synths allocs [drum_synth]
             . Derive.r_events
     let result = run [(">x", [(0, 0, "bd"), (1, 0, "sn")])]
     equal (extract result) (["+bd", "+snare"], [])

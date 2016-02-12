@@ -10,6 +10,7 @@
 module Ui.StateConfig where
 import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
+import qualified Data.Monoid as Monoid
 import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified Data.Vector as Vector
@@ -42,8 +43,6 @@ data Config = Config {
     -- a program with a more absolute notion of time, like a DAW.
     , config_root :: !(Maybe BlockId)
 
-    -- | This maps the midi instruments used in this State to their Configs.
-    , config_midi :: !Patch.Configs
     -- | This is a tracklang transformer expression that's wrapped around every
     -- derivation.  So if it's @x = 1 | y = 2@ then the environment will be so
     -- modified for every derivation.
@@ -55,7 +54,7 @@ data Config = Config {
     -- it multiple times.
     , config_global_transform :: !Text
     -- | Instrument allocations.
-    , config_allocations :: !(Map.Map Score.Instrument InstTypes.Qualified)
+    , config_allocations :: !Allocations
         -- TODO I'm not a big fan of this name, since it's generic and not
         -- obviously related to instruments.  However the previous name,
         -- 'aliases', was too and I somehow lived through that.  I tried
@@ -75,8 +74,6 @@ meta = Lens.lens config_meta
     (\f r -> r { config_meta = f (config_meta r) })
 root = Lens.lens config_root
     (\f r -> r { config_root = f (config_root r) })
-midi = Lens.lens config_midi
-    (\f r -> r { config_midi = f (config_midi r) })
 global_transform = Lens.lens config_global_transform
     (\f r -> r { config_global_transform = f (config_global_transform r) })
 allocations = Lens.lens config_allocations
@@ -90,12 +87,19 @@ saved_views = Lens.lens config_saved_views
 ky_file = Lens.lens config_ky_file
     (\f r -> r { config_ky_file = f (config_ky_file r) })
 
+-- | Unwrap the newtype for convenience.
+allocations_map ::
+    Lens Config (Map.Map Score.Instrument (InstTypes.Qualified, Allocation))
+allocations_map = Lens.lens (open . config_allocations)
+    (\f r -> r { config_allocations =
+        Allocations $ f $ open $ config_allocations r })
+    where open (Allocations a) = a
+
 empty_config :: Config
 empty_config = Config
     { config_namespace = Id.namespace "untitled"
     , config_meta = empty_meta
     , config_root = Nothing
-    , config_midi = Patch.configs []
     , config_global_transform = ""
     , config_allocations = mempty
     , config_lilypond = Lilypond.default_config
@@ -103,6 +107,23 @@ empty_config = Config
     , config_saved_views = mempty
     , config_ky_file = Nothing
     }
+
+newtype Allocations =
+    Allocations (Map.Map Score.Instrument (InstTypes.Qualified, Allocation))
+    deriving (Eq, Show, Pretty.Pretty, Monoid.Monoid)
+
+midi_allocations :: [(Score.Instrument, (InstTypes.Qualified, Patch.Config))]
+    -> Allocations
+midi_allocations allocs = Allocations $ Map.fromList
+    [ (inst, (qual, Midi config))
+    | (inst, (qual, config)) <- allocs
+    ]
+
+data Allocation = Midi !Patch.Config | Im deriving (Eq, Show)
+
+instance Pretty.Pretty Allocation where
+    format (Midi config) = Pretty.format config
+    format Im = "Im"
 
 -- | Extra data that doesn't have any effect on the score.
 data Meta = Meta {
@@ -179,13 +200,12 @@ empty_default :: Default
 empty_default = Default { default_tempo = 1 }
 
 instance Pretty.Pretty Config where
-    format (Config namespace meta root midi global_transform allocations lily
+    format (Config namespace meta root global_transform allocations lily
             default_ saved_views definition) =
         Pretty.record "Config"
             [ ("namespace", Pretty.format namespace)
             , ("meta", Pretty.format meta)
             , ("root", Pretty.format root)
-            , ("midi", Pretty.format midi)
             , ("global_transform", Pretty.format global_transform)
             , ("allocations", Pretty.format allocations)
             , ("lilypond", Pretty.format lily)

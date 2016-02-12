@@ -15,7 +15,7 @@ test_with_instrument_controls = do
     let run title controls = DeriveTest.extract DeriveTest.e_note $
             DeriveTest.derive_tracks_setup (with_config controls) title
                 [(">i1", [(0, 1, "")]), ("*", [(0, 0, "4c")])]
-        with_config controls = DeriveTest.with_instrument_config "i1" $
+        with_config controls = DeriveTest.with_midi_config "i1" "s/1" $
             (Patch.config []) { Patch.config_controls = controls }
     -- This doesn't test the controls directly, but rather that the
     -- transposition is applied as expected.

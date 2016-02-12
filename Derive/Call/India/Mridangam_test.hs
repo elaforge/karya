@@ -10,7 +10,6 @@ import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 
 import qualified Local.Instrument.Kontakt as Kontakt
-
 import Global
 
 
@@ -49,4 +48,5 @@ derive_tracks title notes = DeriveTest.derive_tracks_setup with_synth
     ("import india.mridangam" <> title) [(">m", notes)]
 
 with_synth :: DeriveTest.Setup
-with_synth = DeriveTest.with_synths [("m", "kontakt/mridangam")] [Kontakt.synth]
+with_synth = DeriveTest.with_synths
+    (UiTest.allocations [("m", "kontakt/mridangam")]) [Kontakt.synth]

@@ -7,6 +7,7 @@ import qualified Util.Seq as Seq
 import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import qualified Ui.UiTest as UiTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Local.Instrument.Kontakt.KontaktTest as KontaktTest
@@ -14,11 +15,11 @@ import Global
 
 
 test_mridangam = do
-    let run pitch = KontaktTest.derive aliases ("# = (" <> pitch <> ")")
+    let run pitch = KontaktTest.derive allocs ("# = (" <> pitch <> ")")
             . map (((,) ">m") . notes)
         notes ns = [(t, 0, n) | (t, n) <- zip (Seq.range_ 0 1) ns]
-        perf = KontaktTest.perform aliases . Derive.r_events
-        aliases = [("m", "kontakt/mridangam-d")]
+        perf = KontaktTest.perform allocs . Derive.r_events
+        allocs = UiTest.allocations [("m", "kontakt/mridangam-d")]
 
     let (_events, midi, logs) = perf $ run "3g#" [["k", "t", "n", "d", "i"]]
     equal logs []

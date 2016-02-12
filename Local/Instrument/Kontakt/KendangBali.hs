@@ -11,14 +11,15 @@ import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 
+import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
-import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
 import Derive.Attrs (soft)
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
@@ -27,10 +28,10 @@ import qualified Derive.Score as Score
 import Derive.Score (attr)
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
+import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
@@ -140,16 +141,18 @@ write_ksp = mapM_ (uncurry Util.write)
 -- * config
 
 -- | @LInst.merge $ KontaktKendang.config ...@
-config :: Text -> Text -> MidiConfig.Config
-config name dev_ = MidiConfig.config
+config :: Text -> Text -> StateConfig.Allocations
+config name dev_ = StateConfig.midi_allocations $ map make
     [ (name <> "-wadon", "kontakt/kendang-bali", Patch.config1 dev 0)
     , (name <> "-lanang", "kontakt/kendang-bali", Patch.config1 dev 1)
     , (name, "kontakt/kendang-bali-pasang",
-        MidiConfig.environ "wadon" (inst $ name <> "-wadon") $
-        MidiConfig.environ "lanang" (inst $ name <> "-lanang") $
+        Patch.add_environ "wadon" (inst $ name <> "-wadon") $
+        Patch.add_environ "lanang" (inst $ name <> "-lanang") $
         Patch.config [])
     ]
     where
+    make (name, qualified, config) =
+        (inst name, (InstTypes.parse_qualified qualified, config))
     dev = Midi.write_device dev_
     inst = Score.Instrument
 

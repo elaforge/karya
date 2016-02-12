@@ -8,7 +8,6 @@ module Local.Setup where
 import qualified Control.Monad.Trans as Trans
 
 import qualified Util.Seq as Seq
-import qualified Midi.Midi as Midi
 import qualified Ui.Id as Id
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
@@ -19,8 +18,6 @@ import qualified Cmd.Meter as Meter
 import qualified Cmd.Meters as Meters
 import qualified Cmd.RulerUtil as RulerUtil
 
-import qualified Derive.Score as Score
-import qualified Perform.Midi.Patch as Patch
 import Global
 
 
@@ -31,8 +28,6 @@ load_mod fn = do
             (Load.Mod.map_block (Load.Mod.add_default_volume 1 38)) blocks
     Load.Mod.create (Id.namespace $ txt $ head $ Seq.split "." fn)
         (Load.Mod.convert_blocks 0.25 blocks2)
-    State.modify_config $
-        State.midi #= make_midi_config "loop1" [("pianoteq/c1", [0..8])]
     return Cmd.Done
 
 load_midi :: FilePath -> Cmd.CmdIO
@@ -50,8 +45,3 @@ empty_block = do
     State.set_track_width bid 1 40
     Create.view bid
     return Cmd.Done
-
-make_midi_config :: Text -> [(Text, [Midi.Channel])] -> Patch.Configs
-make_midi_config dev config = Patch.configs
-    [(Score.Instrument inst, map mkaddr chans) | (inst, chans) <- config]
-    where mkaddr chan = (Midi.write_device dev, chan)

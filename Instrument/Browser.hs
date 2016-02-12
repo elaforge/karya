@@ -233,10 +233,10 @@ quote s
     | otherwise = s
 
 -- | Send the chosen instrument to the sequencer.  This will send
--- @set_instrument \"synth/inst\"@ to the REPL port.
+-- @change_instrument \"synth/inst\"@ to the REPL port.
 choose_instrument :: InstTypes.Qualified -> IO ()
 choose_instrument qualified = do
-    let cmd = "set_instrument " ++ show (InstTypes.show_qualified qualified)
+    let cmd = "change_instrument " ++ show (InstTypes.show_qualified qualified)
     putStrLn $ "send: " ++ cmd
     (response, logs) <- SendCmd.send (txt cmd)
         `Exception.catch` \(exc :: Exception.SomeException) ->

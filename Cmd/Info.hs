@@ -9,7 +9,6 @@
 -}
 module Cmd.Info where
 import qualified Data.List as List
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import qualified Data.Tree as Tree
@@ -20,6 +19,7 @@ import qualified Util.Seq as Seq
 import qualified Util.Tree as Tree
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
@@ -27,10 +27,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Perf as Perf
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
-import qualified Derive.ShowVal as ShowVal
-
 import qualified Perform.Midi.Patch as Patch
-import qualified Instrument.Inst as Inst
 import Global
 import Types
 
@@ -154,26 +151,6 @@ get_default_instrument block_id track_id inst
 
 -- * inst info
 
-instrument_info :: Cmd.M m => Score.Instrument -> m Text
-instrument_info inst = do
-    config <- Map.lookup inst <$> State.get_midi_config
-    info <- Cmd.lookup_instrument inst
-    return $ ShowVal.show_val inst <> ": " <> show_instrument_info config info
-
-show_instrument_info :: Maybe Patch.Config -> Maybe Cmd.Inst -> Text
-show_instrument_info config inst = fields
-    [ ("attribute map", maybe ""
-        (comma_list . map ShowVal.show_val . Inst.inst_attributes) inst)
-    , ("addrs", maybe "" show_addrs
-        (map fst . Patch.config_addrs <$> config))
-    , ("flags", Text.unwords $ ["mute" | get Patch.config_mute]
-        ++ ["solo" | get Patch.config_solo])
-    ]
-    where
-    get f = maybe False f config
-    fields = Text.unlines . map (\(k, v) -> k <> ": " <> v)
-        . filter (not . Text.null . snd)
-
 -- | Looks like: "wdev1 [0..2]; wdev2 [0,4]"
 show_addrs :: [Patch.Addr] -> Text
 show_addrs addrs = semicolon_list
@@ -222,8 +199,10 @@ get_track_status block_id tracknum = do
     status block_id tree note_tracknum inst = do
         let controls = control_tracks_of tree note_tracknum
         track_descs <- show_track_status block_id controls
-        addrs <- maybe [] Patch.config_addrs . Map.lookup inst <$>
-            State.get_midi_config
+        alloc <- State.allocation inst <#> State.get
+        let addrs = case alloc of
+                Just (_, StateConfig.Midi config) -> Patch.config_addrs config
+                _ -> []
         let title = ParseTitle.instrument_to_title inst
         return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)
             note_tracknum (untxt (show_addrs (map fst addrs)))

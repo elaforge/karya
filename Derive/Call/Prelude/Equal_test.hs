@@ -3,13 +3,9 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Derive.Call.Prelude.Equal_test where
-import qualified Data.Map as Map
-
 import Util.Test
-import qualified Ui.State as State
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
-import qualified Instrument.InstTypes as InstTypes
 import Global
 import Types
 
@@ -57,21 +53,6 @@ test_equal_inst = do
         ["no instrument found for >nonexistent"]
     equal (run mempty ">new = >i1" ">new") (["i1"], [])
     equal (run mempty ">new = >i1 | >newer = >new" ">newer") (["i1"], [])
-
-    -- Alias to an instrument that doesn't exist.
-    let with_alloc to = DeriveTest.with_ui $
-            State.config#State.allocations
-                %= Map.insert (Score.Instrument "inst")
-                    (InstTypes.parse_qualified to)
-    equal (run (with_alloc "s/1") "" ">inst") (["inst"], [])
-    equal (run (with_alloc "s/1") ">new = >inst" ">new") (["inst"], [])
-
-    strings_like (snd $ run (with_alloc "unknown") "" ">inst")
-        ["no instrument found for >inst"]
-    -- I don't get ">unknown (aliased from >inst)" because it's the equal call
-    -- itself that throws the error.
-    strings_like (snd $ run (with_alloc "unknown") ">new = >inst" ">new")
-        ["no instrument found for >inst"]
 
 test_equal_note_transformer = do
     let run events = DeriveTest.extract e_instrument $

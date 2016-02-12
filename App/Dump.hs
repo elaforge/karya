@@ -48,7 +48,7 @@ main = do
 dump :: FilePath -> IO (Maybe Text)
 dump fname =
     try fname Cmd.Serialize.score_magic ((:[]) . dump_score) $
-    try fname Cmd.Serialize.midi_config_magic ((:[]) . Pretty.formatted) $
+    try fname Cmd.Serialize.allocations_magic ((:[]) . Pretty.formatted) $
     try fname Cmd.Serialize.views_magic ((:[]) . Pretty.formatted) $
     try fname DiffPerformance.midi_magic dump_midi $
     try fname Sampler.Note.notes_magic (map Pretty.formatted) $

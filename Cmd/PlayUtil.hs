@@ -15,6 +15,7 @@ module Cmd.PlayUtil (
     , perform_from, shift_messages, first_time
     , events_from, overlapping_events
     , perform_events, get_convert_lookup
+    , midi_configs
     -- * definition file
     , update_ky_cache
     , load_ky
@@ -40,6 +41,7 @@ import qualified Util.Vector as Vector
 import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.TrackTree as TrackTree
 
 import qualified Cmd.Cmd as Cmd
@@ -150,15 +152,17 @@ get_constant cache damage = do
     lookup_inst <- Cmd.get_lookup_instrument
     library <- Cmd.gets $ Cmd.config_library . Cmd.state_config
     defs_library <- get_library
-    let configs = State.config_midi $ State.state_config ui_state
+    let allocs = State.config#State.allocations_map #$ ui_state
     return $ Derive.initial_constant ui_state (defs_library <> library)
-        lookup_scale (adapt configs lookup_inst) cache damage
+        lookup_scale (adapt allocs lookup_inst) cache damage
     where
-    adapt configs lookup = \inst -> case lookup inst of
-        Just patch -> Just $ Cmd.derive_instrument
-            (Map.findWithDefault empty_config inst configs) patch
+    adapt allocs lookup_inst = \inst -> case lookup_inst inst of
+        Just patch -> Just $
+            Cmd.derive_instrument (lookup_controls inst allocs) patch
         Nothing -> Nothing
-    empty_config = Patch.config []
+    lookup_controls inst allocs = case Map.lookup inst allocs of
+        Just (_, StateConfig.Midi config) -> Patch.config_controls config
+        _ -> mempty
 
 initial_dynamic :: Derive.Dynamic
 initial_dynamic = Derive.initial_dynamic initial_environ
@@ -264,44 +268,56 @@ solo_to_mute tree blocks soloed = Set.fromList
 
 -- | Similar to the Solo and Mute track flags, individual instruments can be
 -- soloed or muted.
-filter_instrument_muted :: Patch.Configs -> [Score.Event] -> [Score.Event]
-filter_instrument_muted configs
+filter_instrument_muted :: StateConfig.Allocations -> [Score.Event]
+    -> [Score.Event]
+filter_instrument_muted allocs
     | not (Set.null soloed) = filter $
         (`Set.member` soloed) . Score.event_instrument
     | not (Set.null muted) = filter $
         (`Set.notMember` muted) . Score.event_instrument
     | otherwise = id
     where
-    soloed = Set.fromList $ map fst $ filter (Patch.config_solo . snd) $
-        Map.toList configs
-    muted = Set.fromList $ map fst $ filter (Patch.config_mute . snd) $
-        Map.toList configs
+    configs = Map.toList $ midi_configs allocs
+    soloed = Set.fromList $ map fst $ filter (Patch.config_solo . snd) configs
+    muted = Set.fromList $ map fst $ filter (Patch.config_mute . snd) configs
 
 perform_events :: Cmd.M m => Cmd.Events -> m Perform.MidiEvents
 perform_events events = do
-    configs <- State.get_midi_config
+    allocs <- State.gets $ State.config_allocations . State.state_config
     lookup <- get_convert_lookup
     lookup_inst <- Cmd.get_lookup_instrument
     blocks <- State.gets (Map.toList . State.state_blocks)
     tree <- concat <$> mapM (TrackTree.track_tree_of . fst) blocks
-    let inst_addrs = Patch.config_addrs <$> configs
+    let inst_addrs = Patch.config_addrs <$> midi_configs allocs
     return $ fst $ Perform.perform Perform.initial_state inst_addrs $
         Convert.convert lookup lookup_inst $
-        filter_track_muted tree blocks $ filter_instrument_muted configs $
+        filter_track_muted tree blocks $ filter_instrument_muted allocs $
         -- Performance should be lazy, so converting to a list here means I can
         -- avoid doing work for the notes that never get played.
         Vector.toList events
 
+midi_configs :: StateConfig.Allocations -> Map.Map Score.Instrument Patch.Config
+midi_configs (StateConfig.Allocations allocs) = Map.fromAscList
+    [ (inst, config)
+    | (inst, (_, alloc)) <- Map.toAscList allocs
+    , Just config <- [midi_config alloc]
+    ]
+
+midi_config :: StateConfig.Allocation -> Maybe Patch.Config
+midi_config (StateConfig.Midi a) = Just a
+midi_config _ = Nothing
+
 get_convert_lookup :: Cmd.M m => m Convert.Lookup
 get_convert_lookup = do
     lookup_scale <- Cmd.gets $ Cmd.config_lookup_scale . Cmd.state_config
-    configs <- State.get_midi_config
-    let defaults = Map.map (Map.map (Score.untyped . Signal.constant)
-            . Patch.config_control_defaults) configs
+    allocs <- State.config#State.allocations_map <#> State.get
     return $ Convert.Lookup
         { lookup_scale = lookup_scale
-        , lookup_control_defaults = \inst ->
-            Map.findWithDefault mempty inst defaults
+        , lookup_control_defaults = \inst -> case Map.lookup inst allocs of
+            Just (_, StateConfig.Midi config) ->
+                Score.untyped . Signal.constant <$>
+                    Patch.config_control_defaults config
+            _ -> mempty
         }
 
 

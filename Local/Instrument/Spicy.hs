@@ -9,6 +9,7 @@ import qualified Data.Text as Text
 import qualified Util.Seq as Seq
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
@@ -85,10 +86,13 @@ strings = ["e1", "a", "d", "g", "b", "e2"]
 
 -- | Create the proper midi config to work with the string attrs used by
 -- 'note_call'.
-configure :: Text -> InstTypes.Name -> Patch.Configs
-configure dev_name name = Patch.configs $
+configure :: Text -> InstTypes.Name -> StateConfig.Allocations
+configure dev_name name = StateConfig.midi_allocations $
     inst name 0 : [inst (name <> "-" <> string) chan
         | (string, chan) <- zip strings [1..]]
     where
-    inst name chan = (Score.instrument name, [(dev, chan)])
+    inst name chan =
+        ( Score.instrument name
+        , (InstTypes.Qualified synth_name name, Patch.config [(dev, chan)])
+        )
     dev = Midi.write_device dev_name

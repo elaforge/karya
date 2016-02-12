@@ -12,10 +12,10 @@ import Global
 
 
 test_aftertouch = do
-    let run notes = extract $ KontaktTest.perform aliases $
-            Derive.r_events $ KontaktTest.derive aliases title $
+    let run notes = extract $ KontaktTest.perform allocs $
+            Derive.r_events $ KontaktTest.derive allocs title $
                 UiTest.note_spec ("r", notes, [])
-        aliases = [("r", "kontakt/reyong")]
+        allocs = UiTest.allocations [("r", "kontakt/reyong")]
         extract (_, midi, logs) = (mapMaybe e_midi midi, logs)
         e_midi msg = case Midi.channel_message $ Midi.wmsg_msg msg of
             Just (m@(Midi.NoteOn {})) -> Just m

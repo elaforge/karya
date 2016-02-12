@@ -20,6 +20,8 @@ import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Cmd.Simple as Simple
+
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveSaved as DeriveSaved
 import qualified Derive.DeriveTest as DeriveTest
@@ -132,7 +134,7 @@ make_nested :: State.M m => [UiTest.TrackSpec] -> Int -> Int -> Int -> m ()
 make_nested bottom_tracks size depth bottom_size = do
     ruler_id <- Create.ruler "ruler" UiTest.default_ruler
     go ruler_id UiTest.default_block_name depth
-    State.modify set_midi_config
+    State.modify set_allocations
     where
     go ruler_id block_name 1 = do
         UiTest.mkblock_ruler ruler_id (UiTest.bid block_name) ""
@@ -153,7 +155,7 @@ mkblock tracks = do
     -- let's profile without it first.
     State.set_skeleton UiTest.default_block_id $
         ParseSkeleton.note_bottom_parser tinfo
-    State.modify set_midi_config
+    State.modify set_allocations
 
 -- * implementation
 
@@ -186,7 +188,7 @@ derive_size create = do
     ui_state = UiTest.exec State.empty create
     result = DeriveTest.derive_block ui_state UiTest.default_block_id
     mmsgs = snd $ DeriveTest.perform_stream DeriveTest.default_convert_lookup
-        (State.config_midi (State.state_config ui_state))
+        (State.config#State.allocations #$ ui_state)
         (Derive.r_events result)
 
 busy_wait :: Int -> Double
@@ -218,7 +220,7 @@ run_profile fname maybe_lookup ui_state = do
         return events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
-                (State.config_midi (State.state_config ui_state))
+                (State.config#State.allocations #$ ui_state)
                 (Stream.from_sorted_list events)
         force mmsgs
         return mmsgs
@@ -240,8 +242,13 @@ cpu_to_sec s = fromIntegral s / fromIntegral (10^12)
 
 -- * state building
 
-inst1 = ">s/1"
-inst2 = ">s/2"
+inst1 = ">i1"
+inst2 = ">i2"
+
+set_allocations :: State.State -> State.State
+set_allocations = State.config#State.allocations #= Simple.allocations
+    [("i1", ("s/1", dev [0, 1])), ("i2", ("s/2", dev [2]))]
+    where dev = map ("wdev",)
 
 note_track inst = ctrack 1 inst [""]
 make_tempo n = track_take (ceiling (fromIntegral n / 10)) $
@@ -272,7 +279,3 @@ track_drop n = second (shift . drop n)
 
 track_take :: Int -> UiTest.TrackSpec -> UiTest.TrackSpec
 track_take = second . take
-
-set_midi_config :: State.State -> State.State
-set_midi_config = State.config#State.midi #= UiTest.midi_config
-    [(txt $ drop 1 inst1, [0, 1]), (txt $ drop 1 inst2, [2])]

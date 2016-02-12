@@ -8,8 +8,8 @@ import qualified Midi.Key as Key
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.UiTest as UiTest
-import qualified Cmd.Simple as Simple
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -19,8 +19,8 @@ import Global
 
 
 test_wayang = do
-    let run notes = extract $ KontaktTest.perform aliases $
-            Derive.r_events $ KontaktTest.derive aliases "" $
+    let run notes = extract $ KontaktTest.perform allocations $
+            Derive.r_events $ KontaktTest.derive allocations "" $
                 UiTest.note_spec ("u" <> wayang_title, notes, [])
         extract (_, midi, logs) = (DeriveTest.note_on midi, logs)
     equal (run [(0, 1, "4i")]) ([Key2.d3], [])
@@ -29,7 +29,8 @@ test_wayang = do
 
 test_wayang_zero_dur = do
     let run = DeriveTest.extract extract
-            . DeriveTest.derive_blocks_setup (KontaktTest.with_synth aliases)
+            . DeriveTest.derive_blocks_setup
+                (KontaktTest.with_synth allocations)
         top = "top -- inst = >u | cancel"
         extract e = (Score.event_duration e,
             not $ null $ DeriveTest.e_control "mute" e)
@@ -44,7 +45,7 @@ test_wayang_zero_dur = do
         ([(1, False), (1, False), (1, False)], [])
 
 test_wayang_pasang = do
-    let run notes = KontaktTest.derive aliases "import bali.gangsa" $
+    let run notes = KontaktTest.derive allocations "import bali.gangsa" $
             UiTest.note_spec (title, notes, [])
         title = wayang_title <> " | unison"
     equal (DeriveTest.extract DeriveTest.e_instrument $ run [(0, 1, "")])
@@ -55,7 +56,7 @@ test_wayang_pasang = do
     equal (fst $ DeriveTest.extract Score.initial_nn result)
         [Just 62.95, Just 62.5]
 
-    let (_events, midi, logs) = KontaktTest.perform aliases
+    let (_events, midi, logs) = KontaktTest.perform allocations
             (Derive.r_events result)
     equal logs []
     -- Note no PitchBend, which means the split instruments applied
@@ -87,11 +88,11 @@ test_wayang_kempyung = do
          , ("u", (1, 1, "4e")), ("i", (1, 1, "4e"))
          ], [])
 
-aliases :: Simple.Allocations
-aliases = make_allocations "pemade"
+allocations :: StateConfig.Allocations
+allocations = make_allocations "pemade"
 
-make_allocations :: Text -> Simple.Allocations
-make_allocations suffix =
+make_allocations :: Text -> StateConfig.Allocations
+make_allocations suffix = UiTest.allocations
     [ ("w", "kontakt/wayang-" <> suffix)
     , ("u", "kontakt/wayang-umbang"), ("i", "kontakt/wayang-isep")
     ]

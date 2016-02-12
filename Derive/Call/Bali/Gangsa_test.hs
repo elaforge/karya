@@ -4,21 +4,19 @@
 
 module Derive.Call.Bali.Gangsa_test where
 import qualified Data.List as List
-import qualified Data.Map as Map
 
-import qualified Util.Lens as Lens
 import qualified Util.Seq as Seq
 import Util.Test
-
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.UiTest as UiTest
+
 import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Flags as Flags
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
 
@@ -197,18 +195,16 @@ test_unison_tuning = do
         config_inst = set UiTest.i1 BaliScales.Umbang
             . set UiTest.i2 BaliScales.Isep
         set inst tuning = modify_instrument inst $
-            Patch.cenviron #= RestrictedEnviron.make
-                [(EnvKey.tuning, RestrictedEnviron.to_val tuning)]
+            Patch.add_environ EnvKey.tuning tuning
     equal (run [(0, 1, "4i")]) ([(">i1", Just 62.95), (">i2", Just 62.5)], [])
 
 modify_instrument :: Score.Instrument -> (Patch.Config -> Patch.Config)
     -> State.State -> State.State
-modify_instrument inst modify state =
-    case Map.lookup inst $ State.config#State.midi #$ state of
-        Nothing -> state
-        Just config ->
-            (State.config#State.midi#Lens.map inst #= Just (modify config))
-            state
+modify_instrument inst modify = State.allocation inst %= update
+    where
+    update (Just (qualified, StateConfig.Midi config)) =
+        Just (qualified, StateConfig.Midi (modify config))
+    update x = x
 
 test_kempyung = do
     let run title = derive_extract extract (title <> " | kempyung")

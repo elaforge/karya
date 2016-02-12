@@ -258,5 +258,5 @@ expand tracknum = flip expand_track tracknum =<< Cmd.get_focused_block
 
 
 -- | Called from the browser.
-set_instrument :: Text -> Cmd.CmdL ()
-set_instrument = LInst.set
+change_instrument :: Text -> Cmd.CmdL ()
+change_instrument = LInst.change_instrument

@@ -67,6 +67,7 @@ import qualified Ui.Event as Event
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
@@ -785,11 +786,11 @@ instance Pretty.Pretty InstrumentCode where
         , ("cmds", Pretty.format cmds)
         ]
 
-derive_instrument :: Patch.Config -> Inst -> Derive.Instrument
-derive_instrument config inst = Derive.Instrument
+derive_instrument :: Score.ControlValMap -> Inst -> Derive.Instrument
+derive_instrument controls inst = Derive.Instrument
     { inst_calls = inst_calls $ Common.common_code common
     , inst_environ = Common.get_environ common
-    , inst_controls = Patch.config_controls config
+    , inst_controls = controls
     , inst_attributes = Inst.inst_attributes inst
     }
     where common = Inst.inst_common inst
@@ -1074,8 +1075,7 @@ lookup_instrument inst = ($ inst) <$> get_lookup_instrument
 
 lookup_qualified :: State.M m => Score.Instrument
     -> m (Maybe InstTypes.Qualified)
-lookup_qualified inst =
-    Map.lookup inst <$> (State.config#State.allocations <#> State.get)
+lookup_qualified inst = fmap fst <$> (State.allocation inst <#> State.get)
 
 get_lookup_instrument :: M m => m (Score.Instrument -> Maybe Inst)
 get_lookup_instrument = state_lookup_instrument <$> State.get <*> get
@@ -1086,14 +1086,12 @@ get_lookup_instrument = state_lookup_instrument <$> State.get <*> get
 state_lookup_instrument :: State.State -> State -> Score.Instrument
     -> Maybe Inst
 state_lookup_instrument ui_state cmd_state = \inst_name -> do
-    qualified <- Map.lookup inst_name allocations
+    (qualified, alloc) <- State.allocation inst_name #$ ui_state
     inst <- Inst.lookup qualified db
-    return $ merge_environ configs inst_name inst
+    return $ merge_environ alloc inst
     where
-    allocations = State.config#State.allocations #$ ui_state
-    configs = State.config#State.midi #$ ui_state
     db = config_instrument_db (state_config cmd_state)
-    merge_environ configs inst_name =
+    merge_environ alloc =
         (Inst.common#Common.environ %= (environ <>)) . set_scale
         where
         -- MIDI instruments can also get a scale from the local config.
@@ -1105,7 +1103,9 @@ state_lookup_instrument ui_state cmd_state = \inst_name -> do
             _ -> inst
         scale = Patch.config_scale =<< config
         environ = maybe mempty Patch.config_restricted_environ config
-        config = Map.lookup inst_name configs
+        config = case alloc of
+            StateConfig.Midi config -> Just config
+            StateConfig.Im -> Nothing
 
 get_wdev_state :: M m => m WriteDeviceState
 get_wdev_state = gets state_wdev_state

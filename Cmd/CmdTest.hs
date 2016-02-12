@@ -21,6 +21,7 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Key as Key
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Types as Types
 import qualified Ui.UiMsg as UiMsg
 import qualified Ui.UiTest as UiTest
@@ -32,7 +33,6 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Performance as Performance
-import qualified Cmd.Simple as Simple
 
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Derive as Derive
@@ -331,18 +331,15 @@ extract_ui m = extract_ui_state $ \state -> UiTest.eval state m
 -- * inst db
 
 -- | Configure ustate and cstate with the given instruments.
-set_synths :: [MidiInst.Synth] -> Simple.Allocations -> State.State
+set_synths :: [MidiInst.Synth] -> StateConfig.Allocations -> State.State
     -> Cmd.State -> (State.State, Cmd.State)
 set_synths synths allocs ui_state cmd_state =
-    ( UiTest.set_midi_config allocs config ui_state
+    ( (State.config#State.allocations #= allocs) ui_state
     , cmd_state
         { Cmd.state_config = (Cmd.state_config cmd_state)
             { Cmd.config_instrument_db = DeriveTest.synth_to_db synths }
         }
     )
-    where
-    config = UiTest.midi_config
-        [(inst, [chan]) | (inst, chan) <- zip (map fst allocs) [0..]]
 
 -- * msg
 

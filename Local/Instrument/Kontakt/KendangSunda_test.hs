@@ -31,5 +31,5 @@ test_resolve = do
 
 derive :: [UiTest.TrackSpec] -> Derive.Result
 derive = DeriveTest.derive_tracks_setup
-    (DeriveTest.with_synths aliases [Kontakt.synth]) ""
-    where aliases = [("k", "kontakt/kendang-sunda")]
+    (DeriveTest.with_synths allocs [Kontakt.synth]) ""
+    where allocs = UiTest.allocations [("k", "kontakt/kendang-sunda")]

@@ -15,7 +15,7 @@
     updated.
 -}
 module Cmd.Serialize (
-    midi_config_magic, score_magic, views_magic
+    allocations_magic, score_magic, views_magic
 ) where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -34,10 +34,10 @@ import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 
-import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
 import qualified Perform.Lilypond.Types as Lilypond
@@ -49,8 +49,8 @@ import Global
 import Types
 
 
-midi_config_magic :: Serialize.Magic MidiConfig.Config
-midi_config_magic = Serialize.Magic 'm' 'c' 'o' 'n'
+allocations_magic :: Serialize.Magic StateConfig.Allocations
+allocations_magic = Serialize.Magic 'a' 'l' 'l' 'o'
 
 score_magic :: Serialize.Magic State.State
 score_magic = Serialize.Magic 's' 'c' 'o' 'r'
@@ -76,54 +76,104 @@ instance Serialize State.State where
             _ -> Serialize.bad_version "State.State" v
 
 instance Serialize State.Config where
-    put (State.Config ns meta root midi transform aliases lilypond defaults
+    put (State.Config ns meta root transform allocs lilypond defaults
             saved_views defs)
-        =  Serialize.put_version 10
-            >> put ns >> put meta >> put root >> put (Configs midi)
-            >> put transform >> put aliases >> put lilypond >> put defaults
-            >> put saved_views >> put defs
+        =  Serialize.put_version 11
+            >> put ns >> put meta >> put root >> put transform
+            >> put allocs >> put lilypond >> put defaults >> put saved_views
+            >> put defs
     get = Serialize.get_version >>= \v -> case v of
         8 -> do
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
+            midi :: MidiConfigs <- get
             transform :: Text <- get
-            aliases :: Map.Map Score.Instrument Score.Instrument <- get
+            old_allocs :: Map.Map Score.Instrument Score.Instrument <- get
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
             saved_views :: State.SavedViews <- get
-            return $ State.Config ns meta root midi transform
-                (InstTypes.parse_qualified . Score.instrument_name <$> aliases)
-                lilypond defaults saved_views Nothing
+            let allocs = upgrade_allocations midi
+                    (InstTypes.parse_qualified . Score.instrument_name
+                        <$> old_allocs)
+            return $ State.Config ns meta root transform
+                allocs lilypond defaults saved_views Nothing
         9 -> do
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
+            midi :: MidiConfigs <- get
             transform :: Text <- get
-            aliases :: Map.Map Score.Instrument Score.Instrument <- get
+            old_allocs :: Map.Map Score.Instrument Score.Instrument <- get
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
             saved_views :: State.SavedViews <- get
             defs :: Maybe FilePath <- get
-            return $ State.Config ns meta root midi transform
-                (InstTypes.parse_qualified . Score.instrument_name <$> aliases)
-                lilypond defaults saved_views defs
+            let allocs = upgrade_allocations midi
+                    (InstTypes.parse_qualified . Score.instrument_name
+                        <$> old_allocs)
+            return $ State.Config ns meta root transform allocs lilypond
+                defaults saved_views defs
         10 -> do
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
             root :: Maybe BlockId <- get
-            Configs midi :: Configs <- get
+            midi :: MidiConfigs <- get
             transform :: Text <- get
-            aliases :: Map.Map Score.Instrument InstTypes.Qualified <- get
+            old_allocs :: Map.Map Score.Instrument InstTypes.Qualified <- get
             lilypond :: Lilypond.Config <- get
             defaults :: State.Default <- get
             saved_views :: State.SavedViews <- get
             defs :: Maybe FilePath <- get
-            return $ State.Config ns meta root midi transform aliases
+            let allocs = upgrade_allocations midi old_allocs
+            return $ State.Config ns meta root transform allocs
                 lilypond defaults saved_views defs
+        11 -> do
+            ns :: Id.Namespace <- get
+            meta :: State.Meta <- get
+            root :: Maybe BlockId <- get
+            transform :: Text <- get
+            insts :: StateConfig.Allocations <- get
+            lilypond :: Lilypond.Config <- get
+            defaults :: State.Default <- get
+            saved_views :: State.SavedViews <- get
+            defs :: Maybe FilePath <- get
+            return $ State.Config ns meta root transform insts lilypond
+                defaults saved_views defs
         _ -> Serialize.bad_version "State.Config" v
+
+-- | Upgrade from the old style where midi config and instrument allocation are
+-- stored separately.
+upgrade_allocations :: MidiConfigs
+    -> Map.Map Score.Instrument InstTypes.Qualified -> StateConfig.Allocations
+upgrade_allocations (MidiConfigs midi) allocs =
+    StateConfig.Allocations $ Map.fromList $ map upgrade $ Map.toList allocs
+    where
+    upgrade (inst, qual) = case Map.lookup inst midi of
+        Nothing -> (inst, (qual, StateConfig.Im))
+        Just config -> (inst, (qual, StateConfig.Midi config))
+
+instance Serialize StateConfig.Allocation where
+    put (StateConfig.Midi a) = put_tag 0 >> put a
+    put StateConfig.Im = put_tag 1
+    get = get_tag >>= \tag -> case tag of
+        0 -> StateConfig.Midi <$> get
+        1 -> return StateConfig.Im
+        _ -> bad_tag "StateConfig.Allocation" tag
+
+-- | For backward compatibility.
+newtype MidiConfigs = MidiConfigs (Map.Map Score.Instrument Patch.Config)
+    deriving (Show)
+
+instance Serialize MidiConfigs where
+    put (MidiConfigs a) = Serialize.put_version 5 >> put a
+    get = do
+        v <- Serialize.get_version
+        case v of
+            5 -> do
+                insts :: Map.Map Score.Instrument Patch.Config <- get
+                return $ MidiConfigs insts
+            _ -> Serialize.bad_version "Patch.MidiConfigs" v
 
 instance Serialize State.Meta where
     put (State.Meta a b c d e) = Serialize.put_version 3
@@ -416,35 +466,16 @@ instance Serialize Track.RenderSource where
 
 -- ** Midi.Instrument
 
--- | It's a type synonym, but Serialize needs a newtype.
-newtype Configs = Configs Patch.Configs
-
-instance Serialize Configs where
-    put (Configs a) = Serialize.put_version 5 >> put a
-    get = do
-        v <- Serialize.get_version
-        case v of
-            5 -> do
-                insts :: Map.Map Score.Instrument Patch.Config <- get
-                return $ Configs insts
-            _ -> Serialize.bad_version "Patch.Configs" v
-
-instance Serialize.Serialize MidiConfig.Config where
-    put (MidiConfig.Config a b) = Serialize.put_version 1 >> put a >> put b
+instance Serialize.Serialize StateConfig.Allocations where
+    put (StateConfig.Allocations a) = Serialize.put_version 0 >> put a
     get = do
         v <- Serialize.get_version
         case v of
             0 -> do
-                midi :: Patch.Configs <- get
-                aliases :: Map.Map Score.Instrument Score.Instrument <- get
-                return $ MidiConfig.Config midi
-                    (InstTypes.parse_qualified . Score.instrument_name
-                        <$> aliases)
-            1 -> do
-                midi :: Patch.Configs <- get
-                aliases :: Map.Map Score.Instrument InstTypes.Qualified <- get
-                return $ MidiConfig.Config midi aliases
-            _ -> Serialize.bad_version "MidiConfig.Config" v
+                configs :: Map.Map Score.Instrument
+                    (InstTypes.Qualified, StateConfig.Allocation) <- get
+                return $ StateConfig.Allocations configs
+            _ -> Serialize.bad_version "StateConfig.Allocations" v
 
 instance Serialize Patch.Config where
     put (Patch.Config a b c d e f g) = Serialize.put_version 6

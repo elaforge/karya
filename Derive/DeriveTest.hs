@@ -25,6 +25,7 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 
@@ -125,38 +126,37 @@ perform_block tracks = perform_blocks [(UiTest.default_block_name, tracks)]
 perform_blocks :: [UiTest.BlockSpec] -> ([Midi.WriteMessage], [String])
 perform_blocks blocks = (mmsgs, map show_log (filter interesting_log logs))
     where
-    (_, mmsgs, logs) = perform default_convert_lookup UiTest.default_midi_config
-        (Derive.r_events result)
+    (_, mmsgs, logs) = perform default_convert_lookup
+        UiTest.default_allocations (Derive.r_events result)
     result = derive_blocks blocks
 
-perform :: Lookup -> Patch.Configs -> Stream.Stream Score.Event
+perform :: Lookup -> StateConfig.Allocations -> Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
-perform lookup midi_config events =
+perform lookup allocations events =
     (fst (LEvent.partition perf_events), mmsgs, logs)
     where
-    (perf_events, perf) = perform_stream lookup midi_config events
+    (perf_events, perf) = perform_stream lookup allocations events
     (mmsgs, logs) = extract_logs perf
 
 perform_defaults :: Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
-perform_defaults = perform default_convert_lookup UiTest.default_midi_config
+perform_defaults = perform default_convert_lookup UiTest.default_allocations
 
-perform_stream :: Lookup -> Patch.Configs
+perform_stream :: Lookup -> StateConfig.Allocations
     -> Stream.Stream Score.Event
     -> ([LEvent.LEvent Midi.Types.Event], [LEvent.LEvent Midi.WriteMessage])
-perform_stream (lookup_inst, lookup) midi_config stream = (perf_events, midi)
+perform_stream (lookup_inst, lookup) allocations stream = (perf_events, midi)
     where
     perf_events = Convert.convert lookup lookup_inst (Stream.events_of stream)
-    (midi, _) = Perform.perform Perform.initial_state
-        (Patch.config_addrs <$> midi_config) perf_events
+    (midi, _) = Perform.perform Perform.initial_state inst_addrs perf_events
+    inst_addrs = Patch.config_addrs <$> PlayUtil.midi_configs allocations
 
 -- | Perform events with the given instrument db.
-perform_synths :: Simple.Allocations -> [MidiInst.Synth]
-    -> [(Text, [Midi.Channel])] -> Stream.Stream Score.Event
+perform_synths :: StateConfig.Allocations -> [MidiInst.Synth]
+    -> Stream.Stream Score.Event
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
-perform_synths allocations synths config =
-    perform (synth_to_convert_lookup allocations synths)
-        (UiTest.midi_config config)
+perform_synths allocations synths =
+    perform (synth_to_convert_lookup allocations synths) allocations
 
 -- * derive
 
@@ -203,8 +203,9 @@ derive_block_setup_m setup create =
 
 -- | Derive the results of a "Cmd.Repl.LDebug".dump_block.
 derive_dump :: [MidiInst.Synth] -> Simple.State -> BlockId -> Derive.Result
-derive_dump synths dump@(_, _, allocations, _) =
-    derive_block_setup (with_synths allocations synths) state
+derive_dump synths dump@(_, allocations, _) =
+    derive_block_setup (with_synths (Simple.allocations allocations) synths)
+        state
     where state = UiTest.eval State.empty (Simple.load_state dump)
 
 -- | Derive a block in the same way that the app does.
@@ -221,11 +222,11 @@ derive_block_standard setup cmd_state cache damage ui_state_ block_id =
 
 perform_dump :: [MidiInst.Synth] -> Simple.State -> Derive.Result
     -> ([Midi.Types.Event], [Midi.WriteMessage], [Log.Msg])
-perform_dump synths (_, midi, allocations, _) =
-    perform lookup config . Derive.r_events
+perform_dump synths (_, allocations, _) =
+    perform lookup allocs . Derive.r_events
     where
-    lookup = synth_to_convert_lookup allocations synths
-    config = Simple.midi_config midi
+    lookup = synth_to_convert_lookup allocs synths
+    allocs = Simple.allocations allocations
 
 derive :: State.State -> Derive.NoteDeriver -> Derive.Result
 derive ui_state deriver = Derive.extract_result $
@@ -322,9 +323,10 @@ with_tsig_sources track_ids = with_ui $ State.tracks %= Map.mapWithKey enable
 with_transform :: Text -> Setup
 with_transform = with_ui . (State.config#State.global_transform #=)
 
-with_instrument_config :: Text -> Patch.Config -> Setup
-with_instrument_config inst config = with_ui $
-    State.config#State.midi %= Map.insert (Score.Instrument inst) config
+with_midi_config :: Text -> Text -> Patch.Config -> Setup
+with_midi_config inst qualified config = with_ui $
+    State.config#State.allocations_map %= Map.insert (Score.instrument inst)
+        (InstTypes.parse_qualified qualified, StateConfig.Midi config)
 
 -- * setup_deriver
 
@@ -364,18 +366,18 @@ with_scale scale = with_cmd $ set_cmd_config $ \state -> state
 
 -- | Derive with a bit of the real instrument db.  Useful for testing
 -- instrument calls.
-with_synths :: Simple.Allocations -> [MidiInst.Synth] -> Setup
+with_synths :: StateConfig.Allocations -> [MidiInst.Synth] -> Setup
 with_synths allocs synths = with_instrument_db allocs (synth_to_db synths)
 
-with_instrument_db :: Simple.Allocations -> Cmd.InstrumentDb -> Setup
+with_instrument_db :: StateConfig.Allocations -> Cmd.InstrumentDb -> Setup
 with_instrument_db allocs db = with_allocations allocs <> with_db
     where
     with_db = with_cmd $ set_cmd_config $ \state -> state
         { Cmd.config_instrument_db = db }
 
-with_allocations :: Simple.Allocations -> Setup
+with_allocations :: StateConfig.Allocations -> Setup
 with_allocations allocations = with_ui $
-    State.config#State.allocations %= (UiTest.make_allocations allocations <>)
+    State.config#State.allocations %= (allocations <>)
 
 set_cmd_config :: (Cmd.Config -> Cmd.Config) -> Cmd.State -> Cmd.State
 set_cmd_config f state = state { Cmd.state_config = f (Cmd.state_config state) }
@@ -441,7 +443,7 @@ default_convert_lookup :: Lookup
 default_convert_lookup =
     make_convert_lookup UiTest.default_allocations default_db
 
-synth_to_convert_lookup :: Simple.Allocations -> [MidiInst.Synth] -> Lookup
+synth_to_convert_lookup :: StateConfig.Allocations -> [MidiInst.Synth] -> Lookup
 synth_to_convert_lookup allocs = make_convert_lookup allocs . synth_to_db
 
 synth_to_db :: [MidiInst.Synth] -> Cmd.InstrumentDb
@@ -458,7 +460,7 @@ make_synth name patches = MidiInst.synth name "Test Synth" patches
 
 type Lookup = (Score.Instrument -> Maybe Cmd.Inst, Convert.Lookup)
 
-make_convert_lookup :: Simple.Allocations -> Cmd.InstrumentDb -> Lookup
+make_convert_lookup :: StateConfig.Allocations -> Cmd.InstrumentDb -> Lookup
 make_convert_lookup allocs db =
     run_cmd (setup_ui setup State.empty) (setup_cmd setup default_cmd_state) $
         (,) <$> Cmd.get_lookup_instrument <*> PlayUtil.get_convert_lookup

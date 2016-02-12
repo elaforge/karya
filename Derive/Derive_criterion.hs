@@ -131,4 +131,4 @@ get_root_id = fromMaybe (error "no root block") . (State.config#State.root #$)
 perform :: State.State -> Stream.Stream Score.Event -> Perform.MidiEvents
 perform state events =
     snd $ DeriveTest.perform_stream DeriveTest.default_convert_lookup
-        (State.config_midi (State.state_config state)) events
+        (State.config#State.allocations #$ state) events

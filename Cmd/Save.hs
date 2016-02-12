@@ -24,7 +24,7 @@ module Cmd.Save (
     , save_git, save_git_as, load_git, revert
     , get_git_path
     -- * config
-    , save_midi_config, load_midi_config
+    , save_allocations, load_allocations
     -- * misc
     , save_views
 ) where
@@ -52,7 +52,6 @@ import qualified Ui.State as State
 import qualified Ui.Transform as Transform
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Instrument.MidiConfig as MidiConfig
 import qualified Cmd.Play as Play
 import qualified Cmd.SaveGit as SaveGit
 import qualified Cmd.SaveGitTypes as SaveGitTypes
@@ -331,26 +330,23 @@ default_git = "save" ++ SaveGit.git_suffix
 
 -- * config
 
-save_midi_config :: FilePath -> Cmd.CmdT IO ()
-save_midi_config fname = do
-    config <- State.get_config id
+save_allocations :: FilePath -> Cmd.CmdT IO ()
+save_allocations fname = do
+    allocs <- State.config#State.allocations <#> State.get
     fname <- expand_filename fname
-    Log.notice $ "write midi config to " <> showt fname
-    rethrow_io "save_midi_config" $ liftIO $
-        Serialize.serialize Cmd.Serialize.midi_config_magic fname $
-        MidiConfig.Config (State.config_midi config)
-            (State.config_allocations config)
+    Log.notice $ "write instrument allocations to " <> showt fname
+    rethrow_io "save_allocations" $ liftIO $
+        Serialize.serialize Cmd.Serialize.allocations_magic fname allocs
 
-load_midi_config :: FilePath -> Cmd.CmdT IO ()
-load_midi_config fname = do
+load_allocations :: FilePath -> Cmd.CmdT IO ()
+load_allocations fname = do
     fname <- expand_filename fname
-    Log.notice $ "load midi config from " <> showt fname
-    let mkmsg err = "unserializing midi config " <> showt fname <> ": "
-            <> pretty err
-    MidiConfig.Config midi allocations <- Cmd.require_right mkmsg
-        =<< liftIO (Serialize.unserialize Cmd.Serialize.midi_config_magic fname)
-    State.modify_config $
-        (State.midi #= midi) . (State.allocations #= allocations)
+    Log.notice $ "load instrument allocations from " <> showt fname
+    let mkmsg err = "unserializing instrument allocations " <> showt fname
+            <> ": " <> pretty err
+    allocs <- Cmd.require_right mkmsg
+        =<< liftIO (Serialize.unserialize Cmd.Serialize.allocations_magic fname)
+    State.modify_config $ State.allocations #= allocs
 
 -- * misc
 

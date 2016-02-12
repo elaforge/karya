@@ -14,7 +14,6 @@ import qualified Data.Text as Text
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 
-import qualified Midi.Midi as Midi
 import qualified Ui.Block as Block
 import qualified Ui.Color as Color
 import qualified Ui.Event as Event
@@ -25,6 +24,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 import qualified Ui.Types as Types
@@ -38,9 +38,6 @@ import qualified Derive.ParseSkeleton as ParseSkeleton
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-
-import qualified Perform.Midi.Patch as Patch
-import qualified Instrument.InstTypes as InstTypes
 
 import qualified App.Config as Config
 import Types
@@ -219,7 +216,7 @@ mkblock_ruler ruler_id block_id title tracks = do
     -- This ensures that any state created via these functions will have the
     -- default midi config.  This saves some hassle since all tests can assume
     -- there are some instruments defined.
-    State.modify set_default_midi_config
+    State.modify set_default_allocations
     return (block_id, tids)
 
 create_block :: State.M m => Id.Id -> String -> [Block.TracklikeId] -> m BlockId
@@ -474,34 +471,27 @@ r_1, r_4 :: Ruler.Rank
 r_1 = Meter.r_1
 r_4 = Meter.r_4
 
--- * midi config
+-- * allocations
 
-set_default_midi_config :: State.State -> State.State
-set_default_midi_config =
-    (State.config#State.midi #= default_midi_config)
-    . (State.config#State.allocations #= make_allocations default_allocations)
+-- | Make Simple.Allocations from just (inst, qualified).
+allocations :: [(Text, Text)] -> StateConfig.Allocations
+allocations allocs = Simple.allocations
+    [ (inst, (qualified, [("wdev", chan)]))
+    | ((inst, qualified), chan) <- zip allocs [0..]
+    ]
 
-default_midi_config :: Patch.Configs
-default_midi_config = midi_config [("i1", [0..2]), ("i2", [3])]
+set_default_allocations :: State.State -> State.State
+set_default_allocations = State.config#State.allocations #= default_allocations
 
-midi_config :: [(Text, [Midi.Channel])] -> Patch.Configs
-midi_config config = Simple.midi_config
-    [(inst, map ((,) "test") chans) | (inst, chans) <- config]
-
-set_midi_config :: Simple.Allocations -> Patch.Configs -> State.State
-    -> State.State
-set_midi_config allocations config =
-    (State.config#State.midi #= config)
-    . (State.config#State.allocations #= make_allocations allocations)
-
-make_allocations :: Simple.Allocations
-    -> Map.Map Score.Instrument InstTypes.Qualified
-make_allocations = Map.fromList
-    . map (Score.Instrument *** InstTypes.parse_qualified)
-
-default_allocations :: Simple.Allocations
-default_allocations =
-    [("i", "s/1"), ("i1", "s/1"), ("i2", "s/2"), ("i3", "s/3")]
+-- | (instrument, (qualified, [(device, chan)]))
+default_allocations :: StateConfig.Allocations
+default_allocations = Simple.allocations
+    [ ("i", ("s/1", dev [0..2]))
+    , ("i1", ("s/1", dev [0..2]))
+    , ("i2", ("s/2", dev [3]))
+    , ("i3", ("s/3", dev [4]))
+    ]
+    where dev = map ("wdev",)
 
 i1, i2, i3 :: Score.Instrument
 i1 = Score.Instrument "i1"

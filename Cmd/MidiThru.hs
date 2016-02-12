@@ -66,6 +66,7 @@ import qualified Util.Map as Map
 import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.EditUtil as EditUtil
 import qualified Cmd.InputNote as InputNote
@@ -103,8 +104,11 @@ cmd_midi_thru msg = do
 
 midi_thru_instrument :: Cmd.M m => Score.Instrument -> InputNote.Input -> m ()
 midi_thru_instrument score_inst input = do
-    config <- Cmd.require ("no config for " <> pretty score_inst)
-        . Map.lookup score_inst =<< State.get_midi_config
+    alloc <- Cmd.require ("no config for " <> pretty score_inst)
+        =<< (State.allocation score_inst <#> State.get)
+    config <- case alloc of
+        (_, StateConfig.Midi config) -> return config
+        _ -> Cmd.abort -- Ignore non-MIDI instruments.
     let addrs = map fst $ Patch.config_addrs config
     unless (null addrs) $ do
         scale <- Perf.get_scale =<< Selection.track
@@ -255,8 +259,9 @@ with_addr (wdev, chan) msg = (wdev, Midi.ChannelMessage chan msg)
 -- instrument.  This bypasses all of the WriteDeviceState stuff so it won't
 -- cooperate with addr allocation, but hopefully this won't cause problems for
 -- simple uses like keymapped instruments.
-channel_messages :: Cmd.M m => Maybe Score.Instrument -> Bool
-    -> [Midi.ChannelMessage] -> m ()
+channel_messages :: Cmd.M m => Maybe Score.Instrument -- ^ use this inst, or
+    -- the one on the selected track if Nothing.
+    -> Bool -> [Midi.ChannelMessage] -> m ()
 channel_messages maybe_inst first_addr msgs = do
     addrs <- get_addrs maybe_inst
     let addrs2 = if first_addr then take 1 addrs else addrs
@@ -267,4 +272,7 @@ get_addrs :: Cmd.M m => Maybe Score.Instrument -> m [Addr]
 get_addrs maybe_inst = do
     inst <- maybe (Cmd.abort_unless =<< EditUtil.lookup_instrument)
         return maybe_inst
-    Patch.get_addrs inst <$> State.get_midi_config
+    alloc <- State.allocation inst <#> State.get
+    return $ case alloc of
+        Just (_, StateConfig.Midi config) -> map fst $ Patch.config_addrs config
+        _ -> []

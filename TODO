@@ -3,6 +3,20 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Add a Dummy Allocation for dummy instruments.
+  - Modification of State is still kind of messy since I have lens and
+    non-lens versions.  And if I wanted to modify with a lens I wouldn't be
+    able to add an effect, like causing damage.  If I used ekmett lenses maybe
+    I could unify effectful modification.  I'd also need a way to focus
+    on UI state.
+    . For example, I can add an allocation with State.allocations, but if
+      I wanted to make that cause damage I couldn't.  Of course maybe it
+      doesn't matter since I infer damage based on config changes.
+  - Some fields from Perform.Midi.Patch.Config should be in a general
+    instrument config: config_restricted_environ, config_controls,
+    config_mute, config_solo
+  - Why re-export StateConfig from Ui.State?  Why not directly reference
+    StateConfig?
   / test: shakefile fore RunTests is buggy, when I modify a test source it
     regenerates the source, but doesn't recompile
     . It's in the need list, but even though generate_run_tests runs
@@ -21,11 +35,10 @@ UNSORTED
       instances?
       instrument_allocations is super long, but inst_alloc is ok for local
       definitions.
-  - How about unifying config instrument allocation:
+  * How about unifying config instrument allocation:
     config_instruments :: Map Score.Instrument (Qualified, Allocation)
     data Allocation = Midi Midi.Config | Im
     . I think I can then get rid of MidiConfig.
-
   * integrate Synth/vst into the build
     . The flags stuff is kind of a mess.
     . Why do I need a separate fltkCc and fltkLd?  Also, linkCc gives fltkLd
