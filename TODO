@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Add a Dummy Allocation for dummy instruments.
+  * Add a Dummy Allocation for dummy instruments.  LInst.add_empty uses it.
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
     able to add an effect, like causing damage.  If I used ekmett lenses maybe

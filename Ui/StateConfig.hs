@@ -119,11 +119,19 @@ midi_allocations allocs = Allocations $ Map.fromList
     | (inst, (qual, config)) <- allocs
     ]
 
-data Allocation = Midi !Patch.Config | Im deriving (Eq, Show)
+data Allocation =
+    Midi !Patch.Config
+    | Im
+    -- | This is for instruments without a backend.  For example a paired
+    -- instrument might be written as one instrument, but realized as two
+    -- different ones.
+    | Dummy
+    deriving (Eq, Show)
 
 instance Pretty.Pretty Allocation where
     format (Midi config) = Pretty.format config
     format Im = "Im"
+    format Dummy = "Dummy"
 
 -- | Extra data that doesn't have any effect on the score.
 data Meta = Meta {

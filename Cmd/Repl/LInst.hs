@@ -64,8 +64,9 @@ list_like pattern = do
         , " - "
         , InstTypes.show_qualified qualified
         , case alloc of
-            StateConfig.Im -> " 音"
             StateConfig.Midi config -> show_config config
+            StateConfig.Im -> " 音"
+            StateConfig.Dummy -> " (dummy instrument)"
         ]
     show_config config = mconcat
         [ Info.show_addrs (map fst (Patch.config_addrs config))
@@ -141,13 +142,15 @@ save = Save.save_allocations
 load :: FilePath -> Cmd.CmdL ()
 load = Save.load_allocations
 
--- | Create an instrument with no channel allocation.  This is used for
--- instruments which are expected to be converted into other instruments during
--- derivation.  For instance, pasang instruments are stand-ins for polos
--- sangsih pairs.
-add_empty :: Instrument -> Instrument -> Cmd.CmdL ()
-add_empty name qualified = add name qualified "empty" []
-    -- I use a dummy device to make it clearer what this instrument is for.
+-- | Create a dummy instrument .  This is used for instruments which are
+-- expected to be converted into other instruments during derivation.  For
+-- instance, pasang instruments are stand-ins for polos sangsih pairs.
+add_dummy :: Instrument -> Instrument -> Cmd.CmdL ()
+add_dummy inst qualified = do
+    qualified <- parse_qualified qualified
+    State.modify_config $
+        State.allocations_map %= Map.insert (Util.instrument inst)
+            (qualified, StateConfig.Dummy)
 
 -- | Remove an instrument allocation.
 remove :: Instrument -> Cmd.CmdL ()
@@ -195,7 +198,8 @@ get_midi_config inst = do
         =<< State.allocation inst <#> State.get
     case alloc of
         StateConfig.Midi config -> return (qualified, config)
-        StateConfig.Im -> State.throw $ "not a midi instrument: " <> pretty inst
+        _ -> State.throw $ "not a midi instrument: " <> pretty inst <> ": "
+            <> pretty alloc
 
 modify_midi :: State.M m => Instrument -> (Patch.Config -> (Patch.Config, a))
     -> m a

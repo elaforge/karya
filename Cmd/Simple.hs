@@ -61,7 +61,7 @@ type PerfEvent = (String, Double, Double, Pitch.NoteNumber)
 
 -- | (instrument, (qualified, [(device, chan)]))
 --
--- StateConfig.Im gets [] for chans.
+-- [] chans means it's StateConfig.Dummy.
 type Allocations = [(Text, (Text, [(Text, Midi.Channel)]))]
 
 from_score :: ScoreTime -> Double
@@ -146,6 +146,7 @@ dump_allocations (StateConfig.Allocations allocs) = do
     let addrs = case alloc of
             StateConfig.Midi config -> addrs_of config
             StateConfig.Im -> []
+            StateConfig.Dummy -> []
     return (Score.instrument_name inst,
         (InstTypes.show_qualified qualified, addrs))
     where
@@ -200,7 +201,7 @@ allocations :: Allocations -> StateConfig.Allocations
 allocations allocs = StateConfig.Allocations $ Map.fromList $ do
     (inst, (qualified, addrs)) <- allocs
     let alloc = case addrs of
-            [] -> StateConfig.Im
+            [] -> StateConfig.Dummy
             _ -> StateConfig.Midi $ Patch.config $
                 map (first Midi.write_device) addrs
     return (Score.Instrument inst,

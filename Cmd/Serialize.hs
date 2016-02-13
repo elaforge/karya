@@ -156,9 +156,11 @@ upgrade_allocations (MidiConfigs midi) allocs =
 instance Serialize StateConfig.Allocation where
     put (StateConfig.Midi a) = put_tag 0 >> put a
     put StateConfig.Im = put_tag 1
+    put StateConfig.Dummy = put_tag 2
     get = get_tag >>= \tag -> case tag of
         0 -> StateConfig.Midi <$> get
         1 -> return StateConfig.Im
+        2 -> return StateConfig.Dummy
         _ -> bad_tag "StateConfig.Allocation" tag
 
 -- | For backward compatibility.

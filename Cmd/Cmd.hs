@@ -1105,7 +1105,7 @@ state_lookup_instrument ui_state cmd_state = \inst_name -> do
         environ = maybe mempty Patch.config_restricted_environ config
         config = case alloc of
             StateConfig.Midi config -> Just config
-            StateConfig.Im -> Nothing
+            _ -> Nothing
 
 get_wdev_state :: M m => m WriteDeviceState
 get_wdev_state = gets state_wdev_state
