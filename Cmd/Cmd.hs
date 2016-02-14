@@ -476,20 +476,15 @@ path state (Config.RelativePath path) =
     config_app_dir (state_config state) </> path
 
 data ImConfig = ImConfig {
-    -- | This can turn of Im processing entirely, which should be a bit more
-    -- efficient when you know there won't be any.  TODO I can infer this based
-    -- on the lack of backend=im instrument allocations.
-    im_enabled :: !Bool
     -- | Path to the binary.
-    , im_binary :: !FilePath
+    im_binary :: !FilePath
     -- | Write serialized notes to this file.
     , im_notes :: !FilePath
     } deriving (Show)
 
 default_im_config :: ImConfig
 default_im_config = ImConfig {
-    im_enabled = True
-    , im_binary = Sampler.Config.binary
+    im_binary = Sampler.Config.binary
     , im_notes = Sampler.Config.notes
     }
 

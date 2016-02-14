@@ -7,12 +7,16 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.UiTest as UiTest
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.ResponderTest as ResponderTest
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Score as Score
 import qualified Perform.NN as NN
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument
 import qualified Synth.Sampler.Control as Control
 import qualified Synth.Sampler.Note as Note
@@ -25,8 +29,11 @@ test_respond = do
     let states = (add_allocation *** set_db) $ ResponderTest.mkstates $
             UiTest.note_spec
                 ("im", [(0, 1, "4c"), (1, 1, "4d")], [("dyn", [(0, ".5")])])
-        add_allocation = State.config#State.allocations
-            #= UiTest.allocations [("im", "sampler/inst")]
+        add_allocation = State.config#State.allocations #= allocs
+        allocs = StateConfig.Allocations $ Map.fromList
+            [ (Score.Instrument "im",
+                (InstTypes.Qualified "sampler" "inst", StateConfig.Im))
+            ]
         set_db state = state
             { Cmd.state_config = (Cmd.state_config state)
                 { Cmd.config_instrument_db = db }

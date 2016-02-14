@@ -31,6 +31,8 @@ import qualified Util.Thread as Thread
 
 import qualified Ui.Block as Block
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
+
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Msg as Msg
 import qualified Cmd.PlayUtil as PlayUtil
@@ -175,8 +177,11 @@ generate_performance ui_state wait send_status block_id = do
     cmd_state <- Monad.State.get
     let (perf, logs) = derive ui_state cmd_state block_id
     mapM_ Log.write logs
-    th <- liftIO $ Thread.start $
-        evaluate_performance (Cmd.config_im (Cmd.state_config cmd_state))
+    th <- liftIO $ Thread.start $ do
+        let im_config = Cmd.config_im (Cmd.state_config cmd_state)
+        let allocs = State.config#State.allocations #$ ui_state
+        evaluate_performance
+            (if im_allocated allocs then Just im_config else Nothing)
             (Cmd.state_lookup_instrument ui_state cmd_state) wait send_status
             block_id perf
     Monad.State.modify $ modify_play_state $ \st -> st
@@ -210,8 +215,9 @@ derive ui_state cmd_state block_id = (perf, logs)
     (_state, _midi, logs, cmd_result) = Cmd.run_id ui_state cmd_state $
         PlayUtil.derive_block prev_cache damage block_id
 
-evaluate_performance :: Cmd.ImConfig -> (Score.Instrument -> Maybe Cmd.Inst)
-    -> Thread.Seconds -> SendStatus -> BlockId -> Cmd.Performance -> IO ()
+evaluate_performance :: Maybe Cmd.ImConfig
+    -> (Score.Instrument -> Maybe Cmd.Inst) -> Thread.Seconds -> SendStatus
+    -> BlockId -> Cmd.Performance -> IO ()
 evaluate_performance im_config lookup_inst wait send_status block_id perf = do
     send_status block_id Msg.OutOfDate
     Thread.delay wait
@@ -237,22 +243,28 @@ evaluate_performance im_config lookup_inst wait send_status block_id perf = do
 
 -- | Convert Im events, serialize them, and start 'Cmd.im_binary' to render
 -- them.
-evaluate_im :: Cmd.ImConfig -> (Score.Instrument -> Maybe Cmd.Inst)
+evaluate_im :: Maybe Cmd.ImConfig -> (Score.Instrument -> Maybe Cmd.Inst)
     -> Cmd.Events -> (Cmd.Events -> Maybe Process.ProcessHandle -> IO a) -> IO a
-evaluate_im im_config lookup_inst events action
-    | not (Cmd.im_enabled im_config) = action events Nothing
-    | null im_events = action rest_events Nothing
-    | otherwise = do
+evaluate_im maybe_im_config lookup_inst events action
+    | Just im_config <- maybe_im_config, not (null im_events) = do
         Im.Convert.write lookup_inst (Cmd.im_notes im_config) im_events
         let proc = Process.proc (Cmd.im_binary im_config) []
         Util.Process.supervisedProcess proc $ \pid ->
             action rest_events (Just pid)
+    | otherwise = action events Nothing
     where
     (im_events, rest_events) =
         Vector.partition (is_im . Score.event_instrument) events
     is_im inst = case lookup_inst inst of
         Just (Inst.Inst (Inst.Im {}) _) -> True
         _ -> False
+
+-- | If there are no StateConfig.Im instruments, then I don't need to bother to
+-- partition out its events.  However, it means I won't get errors if there
+-- happen to be any, but I'll worry about that if it becomes a problem.
+im_allocated :: StateConfig.Allocations -> Bool
+im_allocated (StateConfig.Allocations allocs) =
+    any ((==StateConfig.Im) . snd) (Map.elems allocs)
 
 -- | Make a broken performance with just an error msg.  This ensures that
 -- the msg is logged when you try to play, but will still suppress further

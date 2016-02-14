@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - What happened to running MidiInst.check_names when making a Synth?
   * Add a Dummy Allocation for dummy instruments.  LInst.add_empty uses it.
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
@@ -484,7 +485,6 @@ Synth: Im:
     'patch_'.
     . Then I'd have to rename Sysex.Patch also and all of the 'patches'
       becoming 'insts' seems kind of gross.  So leave it as is.
-  - What happened to running MidiInst.check_names when making a Synth?
   * Rename Perform.Synth to Perform.Im.
   * Perform.Im.Convert converts to Notes and serializes them
     * convert
@@ -516,7 +516,10 @@ Synth: Im:
         in im/notes.
   * Perform.Im.Perform invokes the sampler
   - Cmd.Play sends start and stop MIDI msgs
-  - infer Cmd.im_enabled
+  * infer Cmd.im_enabled
+  - Performance.im_allocated can be fooled by instruments in an Im synth which
+    don't have Im allocation.  Perhaps I need a lint to check that kind of
+    thing?
   - If there is only one cache mutated by the synth, then a play in process
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
