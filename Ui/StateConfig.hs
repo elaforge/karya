@@ -25,6 +25,7 @@ import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import Global
 import Types
@@ -108,9 +109,53 @@ empty_config = Config
     , config_ky_file = Nothing
     }
 
+-- | Insert an allocation into 'config_allocations' while checking it for
+-- validity.
+--
+-- TODO Of course there's no enforcement for this.  I could get rid of the
+-- lens, but there is still uncontrolled access through 'State.modify_config'.
+-- On the other hand, it might not really matter, and I do use unchecked
+-- modification when the backend doesn't change.
+allocate :: (InstTypes.Qualified -> Maybe (Inst.Inst a)) -> Score.Instrument
+    -> InstTypes.Qualified -> Allocation -> Allocations
+    -> Either Text Allocations
+allocate lookup_inst instrument qualified alloc (Allocations allocs) =
+    maybe (Right inserted) Left
+        (verify_allocation lookup_inst instrument qualified alloc)
+    where
+    inserted = Allocations $ Map.insert instrument (qualified, alloc) allocs
+
+verify_allocation :: (InstTypes.Qualified -> Maybe (Inst.Inst code))
+    -> Score.Instrument -> InstTypes.Qualified -> Allocation -> Maybe Text
+verify_allocation lookup_inst instrument qualified alloc =
+    fmap (prefix<>) $ case (alloc, backend) of
+        (_, Nothing) -> Just "can't allocate non-existent instrument"
+        (Midi {}, Just (Inst.Midi {})) -> Nothing
+        (Im, Just (Inst.Im {})) -> Nothing
+        -- TODO Dummy should perhaps only match with a Dummy backend, but I'd
+        -- need to move some fields from Patch.Config to a Common record so
+        -- they can still have environ.
+        (Dummy, Just _) -> Nothing
+        (_, Just backend) -> Just $ "allocation type " <> allocation_type
+            <> " /= instrument type " <> backend_type backend
+    where
+    backend = Inst.inst_backend <$> lookup_inst qualified
+    prefix = pretty instrument <> " from " <> pretty qualified <> ": "
+    allocation_type = case alloc of
+        Midi {} -> "midi"
+        Im -> "im"
+        Dummy -> "dummy"
+    backend_type backend = case backend of
+        Inst.Midi {} -> "midi"
+        Inst.Im {} -> "im"
+
 newtype Allocations =
     Allocations (Map.Map Score.Instrument (InstTypes.Qualified, Allocation))
     deriving (Eq, Show, Pretty.Pretty, Monoid.Monoid)
+
+make_allocations :: [(Score.Instrument, (InstTypes.Qualified, Allocation))]
+    -> Allocations
+make_allocations = Allocations . Map.fromList
 
 midi_allocations :: [(Score.Instrument, (InstTypes.Qualified, Patch.Config))]
     -> Allocations

@@ -1102,6 +1102,10 @@ state_lookup_instrument ui_state cmd_state = \inst_name -> do
             StateConfig.Midi config -> Just config
             _ -> Nothing
 
+state_lookup_qualified :: State -> InstTypes.Qualified -> Maybe Inst
+state_lookup_qualified state qualified =
+    Inst.lookup qualified $ config_instrument_db (state_config state)
+
 get_wdev_state :: M m => m WriteDeviceState
 get_wdev_state = gets state_wdev_state
 

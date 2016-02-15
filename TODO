@@ -13,9 +13,20 @@ UNSORTED
     . For example, I can add an allocation with State.allocations, but if
       I wanted to make that cause damage I couldn't.  Of course maybe it
       doesn't matter since I infer damage based on config changes.
+    . Also I can't make sure that StateConfig.allocate is used instead of
+      directly modifying the map.  The root of the problem is that I have
+      unrestricted modification via State.modify_config, but even if I removed
+      that I'd want something as convenient as lenses, but with the posibility
+      of effects, or at least access to Ui.State and Cmd.State.
+    . That said, I'm not sure how much this actually matters.  Maybe I should
+      wait to see if it's actually a problem before worrying about it.
+    . I guess it already has been a bit of a problem, in that the test had
+      a bug where it put on the wrong backend.
   - Some fields from Perform.Midi.Patch.Config should be in a general
     instrument config: config_restricted_environ, config_controls,
     config_mute, config_solo
+    . This means I can't use StateConfig.Dummy because I need environ for the
+      dummy instruments.
   - Why re-export StateConfig from Ui.State?  Why not directly reference
     StateConfig?
   / test: shakefile fore RunTests is buggy, when I modify a test source it
@@ -517,7 +528,7 @@ Synth: Im:
   * Perform.Im.Perform invokes the sampler
   - Cmd.Play sends start and stop MIDI msgs
   * infer Cmd.im_enabled
-  - Performance.im_allocated can be fooled by instruments in an Im synth which
+  * Performance.im_allocated can be fooled by instruments in an Im synth which
     don't have Im allocation.  Perhaps I need a lint to check that kind of
     thing?
   - If there is only one cache mutated by the synth, then a play in process

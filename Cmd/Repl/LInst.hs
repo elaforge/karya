@@ -7,6 +7,7 @@
 module Cmd.Repl.LInst where
 import Prelude hiding (lookup)
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Log as Log
@@ -124,17 +125,13 @@ add_default inst qualified chans = do
 add_config :: Instrument -> Qualified -> Patch.Config -> Cmd.CmdL ()
 add_config inst qualified config = do
     qualified <- parse_qualified qualified
-    State.modify_config $
-        State.allocations_map %= Map.insert (Util.instrument inst)
-            (qualified, StateConfig.Midi config)
+    allocate (Util.instrument inst) qualified (StateConfig.Midi config)
 
 -- | Allocate a new Im instrument.
 add_im :: Instrument -> Qualified -> Cmd.CmdL ()
 add_im inst qualified = do
     qualified <- parse_qualified qualified
-    State.modify_config $
-        State.allocations_map %= Map.insert (Util.instrument inst)
-            (qualified, StateConfig.Im)
+    allocate (Util.instrument inst) qualified StateConfig.Im
 
 save :: FilePath -> Cmd.CmdL ()
 save = Save.save_allocations
@@ -148,14 +145,25 @@ load = Save.load_allocations
 add_dummy :: Instrument -> Instrument -> Cmd.CmdL ()
 add_dummy inst qualified = do
     qualified <- parse_qualified qualified
-    State.modify_config $
-        State.allocations_map %= Map.insert (Util.instrument inst)
-            (qualified, StateConfig.Dummy)
+    allocate (Util.instrument inst) qualified StateConfig.Dummy
 
 -- | Remove an instrument allocation.
 remove :: Instrument -> Cmd.CmdL ()
-remove inst = State.modify_config $
-    State.allocations_map %= Map.delete (Util.instrument inst)
+remove = deallocate . Util.instrument
+
+-- | All allocations should go through this to verify their validity, unless
+-- it's modifying an existing allocation and not changing the Qualified name.
+allocate :: Cmd.M m => Score.Instrument -> InstTypes.Qualified
+    -> StateConfig.Allocation -> m ()
+allocate inst qualified alloc = do
+    lookup_inst <- Cmd.gets Cmd.state_lookup_qualified
+    allocs <- State.config#State.allocations <#> State.get
+    allocs <- Cmd.require_right id $
+        StateConfig.allocate lookup_inst inst qualified alloc allocs
+    State.modify_config $ State.allocations #= allocs
+
+deallocate :: Cmd.M m => Score.Instrument -> m ()
+deallocate inst = State.modify_config $ State.allocations_map %= Map.delete inst
 
 -- | Toggle and return the new value.
 toggle_mute :: State.M m => Instrument -> m Bool
@@ -216,8 +224,16 @@ modify_midi_ :: State.M m => Instrument -> (Patch.Config -> Patch.Config)
 modify_midi_ inst modify = modify_midi inst (\c -> (modify c, ()))
 
 -- | Merge the given configs into the existing one.
-merge :: State.M m => StateConfig.Allocations -> m ()
-merge allocs = State.modify_config $ State.allocations %= (allocs<>)
+merge :: Cmd.M m => StateConfig.Allocations -> m ()
+merge allocations@(StateConfig.Allocations allocs) = do
+    lookup_inst <- Cmd.gets Cmd.state_lookup_qualified
+    let errors = Maybe.catMaybes
+            [ StateConfig.verify_allocation lookup_inst inst qual alloc
+            | (inst, (qual, alloc)) <- Map.toList allocs
+            ]
+    unless (null errors) $
+        Cmd.throw $ "merged allocations: " <> Text.intercalate "; " errors
+    State.modify_config $ State.allocations %= (allocations<>)
 
 
 -- * change_instrument
@@ -236,9 +252,8 @@ change_instrument new_qualified = do
         =<< ParseTitle.title_to_instrument <$> State.get_track_title track_id
     (_, config) <- get_midi_config old_inst
     -- Replace the old instrument and reuse its addr.
-    State.modify_config $ State.allocations_map %=
-        (Map.insert new_inst (new_qualified, StateConfig.Midi config)
-            . Map.delete old_inst)
+    deallocate old_inst
+    allocate new_inst new_qualified (StateConfig.Midi config)
     (wdev, chan) <- case Patch.config_addrs config of
         (addr, _) : _ -> return addr
         _ -> Cmd.throw $ "inst has no addr allocation: " <> pretty old_inst
