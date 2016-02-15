@@ -140,9 +140,9 @@ write_ksp = mapM_ (uncurry Util.write)
 
 -- * config
 
--- | @LInst.merge $ KontaktKendang.config ...@
-config :: Text -> Text -> StateConfig.Allocations
-config name dev_ = StateConfig.midi_allocations $ map make
+-- | @LInst.merge $ KontaktKendang.allocations ...@
+allocations :: Text -> Text -> StateConfig.Allocations
+allocations name dev_ = StateConfig.midi_allocations $ map make
     [ (name <> "-wadon", "kontakt/kendang-bali", Patch.config1 dev 0)
     , (name <> "-lanang", "kontakt/kendang-bali", Patch.config1 dev 1)
     , (name, "kontakt/kendang-bali-pasang",

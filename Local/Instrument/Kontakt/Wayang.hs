@@ -88,8 +88,8 @@ patches = map (MidiInst.code #= code <> with_weak)
 -- There are two pasang instruments, which then rely on the kotekan calls to
 -- split into inst-polos and inst-sangsih.  This uses the traditional setup
 -- with polos on umbang.
-config :: Text -> StateConfig.Allocations
-config dev_ = StateConfig.midi_allocations $ map make
+allocations :: Text -> StateConfig.Allocations
+allocations dev_ = StateConfig.midi_allocations $ map make
     [ ("p", "kontakt/wayang-pemade",
         pasang "p-umbang" "p-isep" $ Patch.config [])
     , ("k", "kontakt/wayang-kantilan",

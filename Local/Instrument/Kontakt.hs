@@ -278,8 +278,8 @@ kajar = Score.attr "kajar"
 misc :: [MidiInst.Patch]
 misc = [MidiInst.code #= Reaktor.resonant_filter $ patch "filtered" []]
 
-config_kebyar :: Text -> StateConfig.Allocations
-config_kebyar dev_ = make_config $ concat
+kebyar_allocations :: Text -> StateConfig.Allocations
+kebyar_allocations dev_ = make_config $ concat
     [ pasang "jegog"
     , pasang "calung"
     , pasang "penyacah"

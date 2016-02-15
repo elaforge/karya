@@ -86,8 +86,8 @@ strings = ["e1", "a", "d", "g", "b", "e2"]
 
 -- | Create the proper midi config to work with the string attrs used by
 -- 'note_call'.
-configure :: Text -> InstTypes.Name -> StateConfig.Allocations
-configure dev_name name = StateConfig.midi_allocations $
+allocations :: Text -> InstTypes.Name -> StateConfig.Allocations
+allocations dev_name name = StateConfig.midi_allocations $
     inst name 0 : [inst (name <> "-" <> string) chan
         | (string, chan) <- zip strings [1..]]
     where
