@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - What happened to running MidiInst.check_names when making a Synth?
+  / What happened to running MidiInst.check_names when making a Synth?
+    . Let's not bother until I actually notice a problem.
   * Add a Dummy Allocation for dummy instruments.  LInst.add_empty uses it.
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
@@ -29,7 +30,7 @@ UNSORTED
       dummy instruments.
   - Why re-export StateConfig from Ui.State?  Why not directly reference
     StateConfig?
-  / test: shakefile fore RunTests is buggy, when I modify a test source it
+  / test: shakefile for RunTests is buggy, when I modify a test source it
     regenerates the source, but doesn't recompile
     . It's in the need list, but even though generate_run_tests runs
       when Im_test.hs is modified, the test itself isn't recompiled.

@@ -17,6 +17,7 @@ import qualified System.IO as IO
 import qualified System.IO.Error as IO.Error
 import qualified System.Posix as Posix
 import qualified System.Process as Process
+import qualified System.Process.Internals as Internals
 
 import qualified Util.Log as Log
 
@@ -27,7 +28,7 @@ readProcessWithExitCode :: Maybe [(String, String)] -> FilePath -> [String]
     -> ByteString.ByteString
     -> IO (Exit.ExitCode, ByteString.ByteString, ByteString.ByteString)
 readProcessWithExitCode env cmd args stdin = do
-    (Just inh, Just outh, Just errh, pid) <-
+    (Just inh, Just outh, Just errh, hdl) <-
         Process.createProcess (Process.proc cmd args)
             { Process.env = env
             , Process.std_in = Process.CreatePipe
@@ -44,7 +45,7 @@ readProcessWithExitCode env cmd args stdin = do
     err <- MVar.takeMVar errMVar
     IO.hClose outh
     IO.hClose errh
-    ex <- Process.waitForProcess pid
+    ex <- Process.waitForProcess hdl
     return (ex, out, err)
 
 -- | Start a subprocess in the background, and kill it if an exception is
@@ -54,19 +55,21 @@ supervisedProcess :: Process.CreateProcess -> (Process.ProcessHandle -> IO a)
 supervisedProcess create action = Exception.mask $ \restore -> do
     -- I hope this mask means that I can't get killed after starting the
     -- process but before installing the exception handler.
-    (_, _, _, pid) <- logged create
-    Exception.onException (restore (action pid)) $ do
+    (_, _, _, hdl) <- logged create
+    Exception.onException (restore (action hdl)) $ do
+        pid <- handleToPid hdl
         Log.warn $ "received exception, killing " <> showt (binaryOf create)
-        Process.terminateProcess pid
+            <> maybe "" ((" "<>) . showt) pid
+        Process.terminateProcess hdl
 
 -- | Like 'Process.createProcess', but log if the binary wasn't found or
 -- failed.
 logged :: Process.CreateProcess -> IO (Maybe IO.Handle,
        Maybe IO.Handle, Maybe IO.Handle, Process.ProcessHandle)
 logged create = do
-    r@(_, _, _, pid) <- Process.createProcess create
+    r@(_, _, _, hdl) <- Process.createProcess create
     Concurrent.forkIO $ do
-        code <- Process.waitForProcess pid
+        code <- Process.waitForProcess hdl
         case code of
             Exit.ExitFailure c -> Log.error $
                 "subprocess " <> showt (binaryOf create) <> " exited: "
@@ -96,6 +99,12 @@ commandName pid = do
 exit :: Int -> IO a
 exit 0 = Exit.exitSuccess
 exit n = Exit.exitWith $ Exit.ExitFailure n
+
+handleToPid :: Internals.ProcessHandle -> IO (Maybe Posix.ProcessID)
+handleToPid (Internals.ProcessHandle mvar _) =
+    MVar.readMVar mvar >>= \x -> case x of
+        Internals.OpenHandle pid -> return (Just pid)
+        _ -> return Nothing
 
 showt :: Show a => a -> Text.Text
 showt = Text.pack . show

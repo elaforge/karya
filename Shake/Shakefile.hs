@@ -342,7 +342,6 @@ ccDeps config binary = map (oDir config </>) (ccRelativeDeps binary)
 
 ccBinaries :: [CcBinary]
 ccBinaries =
-    -- get fltkLds, ultimately from $(fltk-config)
     [ fltk "test_block" ["fltk/test_block.cc.o", "fltk/fltk.a"]
     , fltk "test_browser"
         [ "Instrument/test_browser.cc.o", "Instrument/browser_ui.cc.o"
