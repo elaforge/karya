@@ -375,6 +375,9 @@ documentation:
       that have someone listening to them in a certain scope.
 
 Synth: Im:
+  - The extra build dependencies are annoying when compiling a new karya.
+    . To avoid this I need to make separate .cabal files.
+    . Then I need to pass different -packages.
   * Integration with the instrument db.  This means I also share
     InstrumentDb, or at least the interesting parts of it.
     . I think this just means project Sampler Instruments to Synth.Instrument.
@@ -528,6 +531,21 @@ Synth: Im:
         in im/notes.
   * Perform.Im.Perform invokes the sampler
   - Cmd.Play sends start and stop MIDI msgs
+    . This is actually quite simple, just send an extra MIDI msg on play and
+      another on stop.  I just need a start time and an Addr.
+    . Start time is from the play position.
+    . Addr could be a dummy MIDI instrument representing play-cache.
+    . If a play-cache inst is allocated, then add a prepare and start msg to
+      its Addr.
+    . Presumably the prepare msg should be a moment in advance to give the vst
+      time to load a few samples so it can start playing instantly.  But
+      I don't know how much that will be, and in any case it's not implemented
+      now, so just put them together.
+  * Now that I'm pretty sure I won't be directly managing playback
+    subprocesses and that all playback will happen via MIDI, can I simplify
+    the whole transport mess?
+    . Actually it kind of has to be that way.  Simplified the documentation at
+      least.
   * infer Cmd.im_enabled
   * Performance.im_allocated can be fooled by instruments in an Im synth which
     don't have Im allocation.  Perhaps I need a lint to check that kind of
