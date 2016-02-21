@@ -166,7 +166,7 @@ viola_short_long_notes =
     , sus.vib.progr, sus.vib_down, sus.nv
     ]
 viola_dynamics = seconds
-    [ (dyn.med, [15, 3]), (dyn.str, [15, 3, 4]), (dyn.med.nv, [15, 3])
+    [ (dyn.med, [1.5, 3]), (dyn.str, [1.5, 3, 4]), (dyn.med.nv, [1.5, 3])
     , (pfp.vib, [2, 4])
     ] ++ [fp.vib, sfz.vib, sffz.vib]
 viola_pizz_legno = [pizz, pizz.snap, legno]
@@ -207,7 +207,8 @@ cello_short_long_notes =
     , sus.vib.marcato, sus.vib.espr, sus.vib.progr, sus.vib_down, sus.nv
     ]
 cello_dynamics = seconds
-    [ (dyn.med.vib, [15, 3]), (dyn.str.vib, [15, 3, 4]), (dyn.med.nv, [15, 3])
+    [ (dyn.med.vib, [1.5, 3]), (dyn.str.vib, [1.5, 3, 4])
+    , (dyn.med.nv, [1.5, 3])
     , (pfp.vib, [2, 4])
     ] ++ [fp.vib, sfz.vib, sffz.vib]
 cello_tremolo_trills =
@@ -1179,8 +1180,8 @@ heckelphone =
 heckelphone_short_long_notes =
     [staccato, portato.short, portato.med, sus.vib, sus.nv]
 heckelphone_dynamics = seconds
-    [ (dyn.med.vib, [15, 2, 3, 5])
-    , (dyn.str.nv, [15, 2, 3, 4, 6])
+    [ (dyn.med.vib, [1.5, 2, 3, 5])
+    , (dyn.str.nv, [1.5, 2, 3, 4, 6])
     , (pfp.vib, [2, 3, 5, 8])
     ] ++ [fp.vib, sfz.vib, sffz.vib]
 heckelphone_flutter = [flutter]
@@ -1197,7 +1198,7 @@ contrabass_clarinet =
     ]
 contrabass_clarinet_short_long_notes = [staccato, portato, sus]
 contrabass_clarinet_dynamics = seconds
-    [ (dyn.med, [15, 2, 3, 4, 6]), (pfp, [2, 3, 4, 6, 8]) ]
+    [ (dyn.med, [1.5, 2, 3, 4, 6]), (pfp, [2, 3, 4, 6, 8]) ]
     ++ [fp, sfz, sffz]
 contrabass_clarinet_perf_interval = [perf.legato, perf.marcato]
 contrabass_clarinet_perf_interval_fast = [perf.legato.fast, perf.marcato.fast]
@@ -1216,8 +1217,8 @@ basset_horn_short_long_notes =
     , sus
     ]
 basset_horn_dynamics = seconds
-    [ (dyn.med, [15, 2, 3, 4])
-    , (dyn.str, [15, 2, 3, 4, 6])
+    [ (dyn.med, [1.5, 2, 3, 4])
+    , (dyn.str, [1.5, 2, 3, 4, 6])
     , (pfp, [2, 3, 4, 6, 8])
     ] ++ [fp, sfz, sffz]
 basset_horn_flutter = [flutter, flutter.cresc]
@@ -1269,8 +1270,8 @@ trumpet_c_short_long_notes =
     , sus.vib, sus.vib_str, sus.progr, sus.nv
     ]
 trumpet_c_dynamics = seconds
-    [ (dyn.li.nv, [15, 2, 3, 4]), (dyn.med.vib, [2, 3, 4, 6])
-    , (dyn.med.nv, [15, 2, 3, 4, 6]), (dyn.str.vib, [3, 6])
+    [ (dyn.li.nv, [1.5, 2, 3, 4]), (dyn.med.vib, [2, 3, 4, 6])
+    , (dyn.med.nv, [1.5, 2, 3, 4, 6]), (dyn.str.vib, [3, 6])
     , (dyn.str.nv, [2, 3, 4, 6])
     , (pfp.vib, [4, 8]), (pfp.nv, [4, 6, 8])
     ] ++ [fp, sfz, sffz]
@@ -1352,8 +1353,8 @@ horn_vienna_short_long_notes =
     , sus.vib, sus.nv, sus.blare
     ]
 horn_vienna_dynamics = seconds
-    [ (dyn.li.nv, [1, 15, 2, 3, 4, 6]), (dyn.med.vib, [4, 6])
-    , (dyn.med.nv, [1, 15, 2, 3, 4, 6]), (dyn.str.nv, [2, 3, 4, 6])
+    [ (dyn.li.nv, [1, 1.5, 2, 3, 4, 6]), (dyn.med.vib, [4, 6])
+    , (dyn.med.nv, [1, 1.5, 2, 3, 4, 6]), (dyn.str.nv, [2, 3, 4, 6])
     , (pfp.nv.v1, [6]), (pfp.nv.v2, [6]), (pfp.nv, [8])
     ] ++ [fp, sfz, sffz]
 horn_vienna_flutter_trills =
@@ -1403,8 +1404,8 @@ tenor_trombone_short_long_notes =
     , sus.progr, sus.vib, sus.vib_str, sus.nv
     ]
 tenor_trombone_dynamics = seconds
-    [ (dyn.li.vib, [15, 2, 3, 4]), (dyn.li.nv, [1, 15, 2, 3, 4, 6])
-    , (dyn.med.vib, [2, 3, 4, 6]), (dyn.med.nv, [15, 2, 3, 4, 6])
+    [ (dyn.li.vib, [1.5, 2, 3, 4]), (dyn.li.nv, [1, 1.5, 2, 3, 4, 6])
+    , (dyn.med.vib, [2, 3, 4, 6]), (dyn.med.nv, [1.5, 2, 3, 4, 6])
     , (dyn.str.vib, [4]), (dyn.str.nv, [2, 3, 4, 6]), (pfp.nv, [6])
     ] ++ [fp, sfz, sffz]
 tenor_trombone_flutter = [flutter, flutter.cresc]
@@ -1442,7 +1443,7 @@ tenor_trombone_mute_a_short_long_notes =
     , sus.progr, sus.nv
     ]
 tenor_trombone_mute_a_dynamics = seconds
-    [ (dyn.med.vib, [15, 2, 3, 4]), (dyn.med.nv, [15, 2, 3, 4, 6])
+    [ (dyn.med.vib, [1.5, 2, 3, 4]), (dyn.med.nv, [1.5, 2, 3, 4, 6])
     , (pfp.nv, [2, 3, 4])
     ] ++ [fp, sfz, sffz]
 tenor_trombone_mute_a_flutter = [flutter]
@@ -1464,7 +1465,7 @@ tenor_trombone_mute_b =
 tenor_trombone_mute_b_short_long_notes =
     [staccato, portato.short, portato.med, sus.progr, sus.nv]
 tenor_trombone_mute_b_dynamics = seconds
-    [ (dyn.med.vib, [15, 2, 3, 4]), (dyn.med.nv, [15, 2, 3, 4])
+    [ (dyn.med.vib, [1.5, 2, 3, 4]), (dyn.med.nv, [1.5, 2, 3, 4])
     , (pfp.nv, [2, 3, 4])
     ] ++ [fp, sfz, sffz]
 tenor_trombone_mute_b_flutter = [flutter, flutter.cresc]
@@ -1490,7 +1491,7 @@ tuba_short_long_notes =
     , sus.vib.v1, sus.vib.v2, sus.nv
     ]
 tuba_dynamics = seconds
-    [ (dyn.li.nv, [1, 15, 2, 3, 4]), (dyn.med.vib, [2, 3, 4, 6])
+    [ (dyn.li.nv, [1, 1.5, 2, 3, 4]), (dyn.med.vib, [2, 3, 4, 6])
     , (dyn.med.nv, [2, 3, 4, 6]), (dyn.str.nv, [2, 3, 4, 6])
     , (pfp.nv, [4])
     ] ++ [fp, sfz, sffz]
@@ -1530,7 +1531,7 @@ trumpets_a3_short_long_notes =
     , sus.vib, sus.nv, sus.marcato, sus.tune, sus.rip, fall, fall.fa
     ]
 trumpets_a3_dynamics = seconds
-    [ (dyn.med, [15, 2, 3, 4, 6]), (dyn.str, [2, 3, 4, 6])
+    [ (dyn.med, [1.5, 2, 3, 4, 6]), (dyn.str, [2, 3, 4, 6])
     , (pfp, [2, 3, 4, 6])
     ] ++ [fp, sfz, sffz]
 trumpets_a3_flutter_trills =
@@ -1601,7 +1602,7 @@ horns_a4_short_long_notes =
     , sus, sus.marcato, sus.blare
     ]
 horns_a4_dynamics = seconds
-    [ (dyn.med, [15, 2, 3, 4, 6]), (dyn.str, [3, 4, 6]), (pfp, [4, 6])
+    [ (dyn.med, [1.5, 2, 3, 4, 6]), (dyn.str, [3, 4, 6]), (pfp, [4, 6])
     ] ++ [fp, sfz, sffz]
 horns_a4_flutter = [flutter, flutter.cresc]
 horns_a4_perf_interval = [perf.legato, perf.legato.sus, perf.marcato]
@@ -1635,7 +1636,7 @@ horns_a4_stopped =
     ]
 horns_a4_stopped_short_long_notes = [staccato, sus]
 horns_a4_stopped_dynamics =
-    seconds [(dyn.med, [15, 2, 3, 4])] ++ [fp, sfz, sffz]
+    seconds [(dyn.med, [1.5, 2, 3, 4])] ++ [fp, sfz, sffz]
 horns_a4_stopped_perf_interval = [perf.legato, perf.legato.sus]
 horns_a4_stopped_perf_repetition = map (perf.rep.)
     [legato, portato, staccato, dyn5.legato, dyn9.portato, dyn9.staccato]
@@ -1658,7 +1659,7 @@ trombones_a3_short_long_notes =
     , sus, sus.marcato
     ]
 trombones_a3_dynamics = seconds
-    [ (dyn.med, [15, 2, 3, 4, 6]), (dyn.str, [2, 3, 4, 6])
+    [ (dyn.med, [1.5, 2, 3, 4, 6]), (dyn.str, [2, 3, 4, 6])
     , (pfp, [4, 6, 8, 10])
     ] ++ [fp, sfz, sffz]
 trombones_a3_flutter = [flutter, flutter.cresc]
