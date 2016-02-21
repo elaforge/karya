@@ -45,7 +45,8 @@ module Midi.Midi (
 ) where
 import qualified Control.DeepSeq as DeepSeq
 import Control.DeepSeq (rnf)
-import Data.Bits
+import qualified Data.Bits as Bits
+import Data.Bits ((.&.), (.|.))
 import qualified Data.ByteString as ByteString
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -393,7 +394,7 @@ mtc_sync rate (Smpte hours mins secs frames) =
         [chan, 01, 01, rate_code .|. hours, mins, secs, frames]
     where
     chan = 0x7f -- send to all devices
-    rate_code = shiftL (fromIntegral (fromEnum rate)) 5
+    rate_code = Bits.shiftL (fromIntegral (fromEnum rate)) 5
     -- TODO is chan the same as MMC DeviceId?
 
 -- | Generate MTC starting at the given time and going on until the well of
@@ -427,7 +428,7 @@ mtc_fragments rate (Smpte hours minutes seconds frames) = map (uncurry Mtc)
     (sec_msb, sec_lsb) = split4 seconds
     (min_msb, min_lsb) = split4 minutes
     (hour_msb, hour_lsb) = split4 hours
-    rate_code = shiftL (fromIntegral (fromEnum rate)) 1
+    rate_code = Bits.shiftL (fromIntegral (fromEnum rate)) 1
 
 -- * tuning
 
@@ -452,20 +453,20 @@ key_frequency key nn = [from_key key, nn_key, msb, lsb]
 
 -- | Split an Int into two 7 bit words.
 split14 :: Int -> (Word8, Word8) -- ^ (LSB, MSB)
-split14 i = (fromIntegral (i .&. 0x7f), fromIntegral (shiftR i 7 .&. 0x7f))
+split14 i = (fromIntegral (i .&. 0x7f), fromIntegral (Bits.shiftR i 7 .&. 0x7f))
 
 -- | Join (LSB, MSB) 7-bit words into an int.
 join14 :: Word8 -> Word8 -> Int
 join14 lsb msb =
-    shiftL (fromIntegral msb .&. 0x7f) 7 .|. (fromIntegral lsb .&. 0x7f)
+    Bits.shiftL (fromIntegral msb .&. 0x7f) 7 .|. (fromIntegral lsb .&. 0x7f)
 
 -- | Split a Word8 into (msb, lsb) nibbles, and join back.
 split4 :: Word8 -> (Word8, Word8)
-split4 word = (shiftR word 4 .&. 0xf, word .&. 0xf)
+split4 word = (Bits.shiftR word 4 .&. 0xf, word .&. 0xf)
 
 -- | Join msb and lsb into a Word8.
 join4 :: Word8 -> Word8 -> Word8
-join4 d1 d2 = (shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
+join4 d1 d2 = (Bits.shiftL d1 4 .&. 0xf0) .|. (d2 .&. 0x0f)
 
 -- * constants
 
