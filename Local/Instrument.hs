@@ -19,6 +19,7 @@ import System.FilePath ((</>))
 import qualified Util.Log as Log
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Perform.Im.Play
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
 import qualified Instrument.Parse as Parse
@@ -37,9 +38,9 @@ import qualified Local.Instrument.Vl1 as Vl1
 import qualified Local.Instrument.Vsl as Vsl
 import qualified Local.Instrument.Z1 as Z1
 
+import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
 import qualified App.Config as Config
 import Global
-import qualified Synth.Sampler.PatchDb as Sampler.PatchDb
 
 
 -- | Instrument definition modules that need to load from disk export a
@@ -68,7 +69,7 @@ midi_synths =
     ]
 
 im_synths :: [MidiInst.Synth]
-im_synths = [Sampler.PatchDb.synth]
+im_synths = [Perform.Im.Play.play_cache_synth, Sampler.PatchDb.synth]
 
 -- | Each synth that caches to disk has a function to make the cache, and one
 -- to load it.
