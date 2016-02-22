@@ -3,9 +3,6 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  / What happened to running MidiInst.check_names when making a Synth?
-    . Let's not bother until I actually notice a problem.
-  * Add a Dummy Allocation for dummy instruments.  LInst.add_empty uses it.
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
     able to add an effect, like causing damage.  If I used ekmett lenses maybe
@@ -39,25 +36,6 @@ UNSORTED
   / test: get rid of expect_right in favor of propagating the Left and using
     equal_right
   - test: delete build/test/tmp on every test run to avoid test contamination
-  * rename Cmd.Config's fields from state_* to config_*
-  * Ui.StateConfig.config_aliases should be called instruments or something,
-    the name 'aliases' should be reserved for derive level aliases.
-    . 'instruments' is the obvious choice, but then I have more things named
-      instruments, wouldn't it be ambiguous?  E.g. 'add_instrument' could be
-      adding the configuration or the Inst.  'allocations'?  assignments?
-      instances?
-      instrument_allocations is super long, but inst_alloc is ok for local
-      definitions.
-  * How about unifying config instrument allocation:
-    config_instruments :: Map Score.Instrument (Qualified, Allocation)
-    data Allocation = Midi Midi.Config | Im
-    . I think I can then get rid of MidiConfig.
-  * integrate Synth/vst into the build
-    . The flags stuff is kind of a mess.
-    . Why do I need a separate fltkCc and fltkLd?  Also, linkCc gives fltkLd
-      to all binaries.
-    . Make ccCompileFlags and ccLinkFlags complete for CcBinaries.
-    * make a .vst for play_cache, not a bundle
   / shakefile: support for per-target package sets, so I can integrate Synth
     . There should be one master set of packages and versions, and then
       a binary can select a subset from it.  Ideally I could chase packages
@@ -80,7 +58,7 @@ UNSORTED
       up with all packages.  At that point I wonder what exactly the giant
       benefit is that makes this all worth it.  It would just be to be able to
       build synth and karya separately... but do I really need that so much?
-    * Generate multiple .cabal files.
+    . Generate multiple .cabal files.
     . globalPackages - makeHaddock
     . buildHs - for the link.  Needs union of all hsORule packages.
       This just takes the binary packages list.
@@ -88,43 +66,6 @@ UNSORTED
     . But if I accumulate more synths, e.g. csound-expression, then maybe all
       these deps get a bit excessive?  The chance is greater that someone
       doesn't want a certain synth.
-  * Switching from and to 0 dur events is still awkward.  I always wind up
-    doing a ^Z then ^s
-  * Don't change event duration if I'm editing the text of an existing one.
-  remove 7.8 compatibility, upgrade to 7.10
-    * remove unneeded imports
-    * use ExceptT instead of ErrorT
-      . remove -fno-warn-warnings-deprecations
-    * use ImplicitParams, get rid of hspp
-  * kontakt/sc-*-pasasng without a 'unison' or similar call doesn't have the
-    right PatchScale
-  * legong 4i is around 5c, it should be in a similar octave as 4c, so I need
-    to go down an octave.  This means the center of pemade should be 3i, not 4i.
-    . But I think I still want legong-c to have 1 at pemade middle.
-    . The problem is I'll have to transpose all *legong using scores.
-    * Verify *wayang.
-  * legong-c scale doesn't seem to work with gong-retuned.
-    . It's because I modified Legong.midi_keys for Reyong
-    . Reyong is one octave above SC.  SC is close to 12tet.
-    . The only way to stay sane is to do everything absolute.  So:
-      4c is middle C, or around 60nn.
-    . legong still 1 octave too high, I can get it down by adding another
-      octave on the bottom of extend, but where excatly does the octave come
-      from?
-    * why is test_input_to_note broken?
-    * regenerate patch scale ksp, verify with SC and reyong
-  * save instrument config via LInst.save has no backward compatibility
-    * unserialize should catch other IO errors as long as it's using Either
-      . Also it can put ENOENT in Left instead of returning Nothing.
-      . But, do I really care?  After all I still catch IO errors in the
-        responder loop.
-    * consolidate Magics into Serialize
-  * extend dump to dump any serialized type
-    . infer load type based on magic
-  * use bravura instead of emmentaler
-    . It won't change codepoints around like emmentaler.  Also easier to
-      install, and has more symbols.
-    . The only problem is that arp-up and arp-down is really long and skinny.
   * LNote.sort_on_pitch seems to be buggy, it duplicates notes and loses
     others.
     . Turns out this seems really complicated.  Do I really care that much?
@@ -133,8 +74,6 @@ UNSORTED
   naming
     - use either 'attrs' or 'attributes' consistently
       . Lots of places have 'attrs', so maybe go with it?
-    * Also there is 'inst' vs. 'instrument', e.g. Derive.Score has lots of
-      'inst'.
   - Interpret a midi file with keyswitches back to the attrs.
     . This is so I can load VSL examples and learn from them.
     . Should it be a score transformation, or start from the parsed MIDI?
@@ -381,178 +320,6 @@ Synth: Im:
   - The extra build dependencies are annoying when compiling a new karya.
     . To avoid this I need to make separate .cabal files.
     . Then I need to pass different -packages.
-  * Integration with the instrument db.  This means I also share
-    InstrumentDb, or at least the interesting parts of it.
-    . I think this just means project Sampler Instruments to Synth.Instrument.
-    . If I want to store a Synth.Instrument in the sampler, then I wind up
-      getting a bunch of karya modules, especially for RestrictedEnviron.
-      It imports a bunch of stuff and I don't know if I want Synth to have
-      so many dependencies on karya.  On the other hand, those are presumably
-      the minimal dependencies to express an environ that can be mapped to
-      a Val, since that's the whole point of RestrictedEnviron.  So if I want
-      to put an environ directly in the instrument definition, I'm pretty much
-      committed to importing that code.
-    . Unfortunately RestrictedEnviron imports Derive.BaseTypes, which pulls in
-      a lot of stuff.
-    . Don't worry about it for now.  If it actually matters then I'll want to
-      have a tool to show transitive dependencies.
-    . I can infer attrs by looking at Sample attributes.
-    * Put shared instrument stuff into its own module
-  * Perform.Synth.Instrument
-    . This should be a generalization that all Synth instruments can support,
-      so no specific details like samples.
-  inst db and browser:
-    . This means that the instrument DB needs to store non-MIDI instruments.
-    . I should have a sum, 'data InstrumentBackend = Midi . | Synth .'
-    . Then have just one inst db lookup which returns
-      (common, InstrumentBackend)
-    . If the InstrumentDb becomes 'Map SynthName Inst.Inst' then where can
-      I put the MIDI synth-specific stuff?  I can also have SynthBackend, but
-      then how can I ensure they match?
-    . What would Synth look like on other backends?  >sampler/inst >csound/inst
-      I think I don't need Synth structure.  In this case, Synth means
-    . So the DB is 'Map SynthName Inst'.  Either I need backend specific code
-      to look up Synths in a separate db, or MIDI insts become (Synth, Patch).
-      Actually it's just the doc and control map.  So I can merge those into
-      the instruments at the synth declaration and get rid of Synth.
-
-    * Write a replacement Instrument.Db as much as possible without breaking
-      existing code.
-    Then convert everything over to use that.
-      * MidiInst
-      * Instrument.Browser
-      * Instrument.Search
-      * Cmd.Cmd
-      remove Midi.Istrument fields:
-        / inst_name, inst_score, inst_synth
-          . inst_name is used to generate Inst.Qualifieds.
-          . (inst_score, inst_synth) are used by Perform as an ID
-        * patch_restricted_environ, patch_tags, patch_text, patch_file
-      * convert all Local.Instrument declarations
-      * tests
-      * Remove Instrument.MidiDb and Instrument.Db
-      * Now that I don't set inst_name and inst_synth when reading from the
-        db, I should set them in Midi.Convert.
-  * I need a better name than Synth for this.  It collides with synth/inst.
-    A protocol name, as MIDI is.
-    . Cipta?  Karawitan?  Yin or Im for 音?  聲音 sia*-im
-      The only thing is that im looks like a typo, and IM is already
-      something.  But Im should be ok?
-    . This would mean renaming Perform.Synth -> Perform.Im, and Synth -> Im.
-    . One bonus is that the icon choice is easy.  Sampler is 錄音, synthesizer
-      is 成音.
-  / Better name for Instrument.Inst.
-    . Ensemble?  I don't want the plural implication, just the idea of
-      a generalized instrument.  琴?
-    . Or maybe Instrument should be the general form, since it's already used
-      pervasively in Derive, and instead I should have a name for
-      backend-specific inst.  How about Patch?
-    . It's awkward because I already have a Patch / Instrument distinction
-      in Perform.Midi, but maybe I could rename those.  Patch and
-      PerformancePatch?  Or just merge Instrument into Patch, and move
-      Perform-specific stuff into Midi.Perform.  Then instead of the awkward
-      "fields filled in during lookup" thing, I have Convert project
-      a Midi.Patch to a Perform.Patch.
-    . I think I don't want to change Perform.*.Instrument to Patch because it
-      makes sense that Score.Instrument refers to an Instrument.  Patch is
-      a lower level concept, so instead I should exchange Patch and
-      Instrument.  Then we have Inst -> Instrument -> Patch.
-  * Now that I only address instruments as aliases, do I really need the
-    qualified >synth/inst form?  Shouldn't I just have a
-    'QualifiedName Text Text'?  I think all it means is that LInst.add
-    becomes 'LInst.add "inst" "synth" "inst" "loop1" [0].  Of course I could
-    still separate with a / if I don't like all those string args.
-  * Aliases should use Inst.Qualified.
-  * Incorporate Midi.Instrument.Instrument into Patch, rename to Instrument.
-    Move the required fields from Instrument to Perform.Patch.
-    . inst_hold_keyswitch becomes a Flag
-    . inst_control_map -> dulplicate
-    . inst_pitch_bend_range -> dulplicate
-    . inst_maybe_decay -> dulplicate
-  * rename Midi.Instrument.Patch to Types
-    * PatchScale -> Scale
-    . The problem is I wind up with
-        MidiInst.Instrument {
-          instrument_instrument :: Instrument.Instrument
-          , instrument_common :: Common
-          }
-    . Actually it's nice to have a Inst -> Patch distinction.  Then I have
-      Instrument = (Patch, Common).  Patch.Patch is local to Perform, so it
-      seems better to duplicate a name at the lower level.  But I really don't
-      want to have Instrument.Patch.  Maybe Patch.Patch becomes PerformPatch?
-      MidiPatch?
-    . But if I keep Patch then I should rename Perform.Im.Instrument -> Patch.
-    . But then I have
-       1 Score.Instrument -> Inst -> Patch -> PerformPatch,
-       2 Score.Instrument -> Inst -> Instrument -> Patch
-       3 Score.Instrument -> Inst -> Qin -> Patch
-       4 Score.Instrument -> Qin -> Patch -> PerformPatch
-    . I like 1.  Like I have Perform Event aka pevent, I have Perform Patch,
-      aka ppatch.  Still icky, but I could do import PerformPatch as P in
-      Perform.
-    . I could also move Perform.Event into a separate module, because Perform
-      is too big and also other modules want the event, but nothing else.
-      But Perform.Event is a nice name, otherwise?  Midi?  It could be
-      Perform.Midi.  Then Midi.Event, Midi.Patch.
-    . Midi is no good because lots of places import Midi.Midi.
-      MTypes, MidiTypes?  Lots of precedent for MidiTypes but it's so long.
-      Might as well be Types for Midi.Types.
-  * rename Perform.Midi.Instrument to Patch
-  / rename MidiInst.Patch to Inst?  This is because it's at the
-    Instrument.Inst level, and would also resolve the awkward 'patch' vs.
-    'patch_'.
-    . Then I'd have to rename Sysex.Patch also and all of the 'patches'
-      becoming 'insts' seems kind of gross.  So leave it as is.
-  * Rename Perform.Synth to Perform.Im.
-  * Perform.Im.Convert converts to Notes and serializes them
-    * convert
-    * caller has to dispatch based on backend
-      . Midi returns MidiEvents which get stored, but Im returns Notes, which
-        are serialized.
-      . Actually, perform only happens when I hit play.  Really I want to do
-        the convert and play when derivation is complete.  So it should go in
-        Cmd.Performance?
-      . Evaluating the msgs is pure, but sending them to the synth is not.
-        But I definitely want to do that in the background.  Also, the derive
-        thread can be killed at any time.  So serialize and invoke has to be
-        done in the derive thread.
-      . If the synth is a separate process, it's not as easy to integrate
-        deriving light and kill.  But I'm pretty sure I still want it to be
-        separate, so the OS will manage the resources separately.
-    * serialize
-    . If the eval thread is killed, the sampler process will be.  But since
-      the sampler is started only after the events are evaluated, this is a
-      small window.  What I want is if you enter new notes, a running sampler
-      for the old ones will be killed.  So I think I need to have the evaluate
-      thread wait for the sampler process to complete so it can stick around
-      to kill it.  Then I need to make sure it'll get killed even if
-      a DeriveComplete has been sent.  I think this will happen because I only
-      remove a thread ID from Cmd.state_performance_threads when I kill it or
-      when it's replaced by a new BlockId.
-    testing:
-      * round trip: do a respond cycle with im notes, make sure they show up
-        in im/notes.
-  * Perform.Im.Perform invokes the sampler
-  * Cmd.Play sends start and stop MIDI msgs
-    . This is actually quite simple, just send an extra MIDI msg on play and
-      another on stop.  I just need a start time and an Addr.
-    . Start time is from the play position.
-    . Addr could be a dummy MIDI instrument representing play-cache.
-    . If a play-cache inst is allocated, then add a prepare and start msg to
-      its Addr.
-    . Presumably the prepare msg should be a moment in advance to give the vst
-      time to load a few samples so it can start playing instantly.  But
-      I don't know how much that will be, and in any case it's not implemented
-      now, so just put them together.
-  * Now that I'm pretty sure I won't be directly managing playback
-    subprocesses and that all playback will happen via MIDI, can I simplify
-    the whole transport mess?
-    . Actually it kind of has to be that way.  Simplified the documentation at
-      least.
-  * infer Cmd.im_enabled
-  * Performance.im_allocated can be fooled by instruments in an Im synth which
-    don't have Im allocation.  Perhaps I need a lint to check that kind of
-    thing?
   - If there is only one cache mutated by the synth, then a play in process
     will be spoiled by a new render.  I can fix this by making a new cache
     each time, and hardlinking the unchanged entries.  I can remove the old
@@ -809,27 +576,6 @@ cleanup:
     . But Quoted is also Expr... should it be non-empty?
     . I now don't remember where it was that I had an Expr that made sense as
       [], so maybe I don't care about this anymore?
-  * Perhaps I should get rid of TrackLang entirely.  Currently it re-exports
-    from Derive.BaseTypes, and has a few utilities to create BaseTypes.  It
-    seems like a win for clarity if I can get rid of re-export modules, and
-    I already have a lot of places directly using BaseTypes.  But on the other
-    hand, BaseTypes is already too large, and I don't really want to further
-    clutter it up with little constructor utilities.
-    Pro get rid of TrackLang:
-      . it's not that big, and moving everything into BaseTypes is not that
-        much bloat.
-      . It's a hassle to find out which module to import the symbol from.
-      . I still wind up importing BaseTypes to reduce dependencies, and the
-        original plan of importing as Score or Pitch or whatever seems too
-        complicated.
-    Cons:
-      . I still have Score and PitchSignal doing the re-export thing, so it's
-        inconsistent.  The original rule of don't use BaseTypes directly is no
-        longer true.  Of course, I don't do that anyway to reduce
-        dependencies.
-  * use Control.Monad.Except instead of Error
-    . not worth it until I don't need to support 7.8, can I suppress the
-      warnings?
   - Move Derive.info_prev_val to the environ, maintained by EvalTrack.
     . This gets rid of all the Taggable stuff, at the cost of making
       Args.prev_val in Deriver and dynamically typed.
@@ -1131,45 +877,6 @@ test:
     ((bid "test/b2"),
      [(">s/i1", [(0.0, 1.0, ""), (1.0, 1.0, ""), (2.0, 1.0, "")]),
       ("*", [(0.0, 0.0, "4e"), (1.0, 0.0, "4d"), (2.0, 0.0, "4c")])])
-  * If I abandon ghc 7.8 compatibility, I can use ImplicitParams for call stack
-    . Get rid of _srcpos variants and hspp for Util.Test and 'throws'
-    . Extracters like 'expect_right' can use failure instead of throwing an
-      exception.
-    . This means I don't have function names, which is kind of useful for
-      tests.  How can I get the name from the test runner to the equal
-      function?
-      . Another implicit parameter, but that would make calling the tests
-        annoying.  I don't think I can make implicit parameters optional.  But
-        perhaps I could put the 'let' in the .ghci?
-        . No, apparently not.  But a test run function would be ok if I put it
-          in D or ghcit, right?
-        . Actually this doesn't work because the tests are inferred as IO (),
-          without implicit params.
-      . Making tests 'ReaderT String IO' would also make calling tests
-        annoying.
-      . Mutable global variable?
-        I already have something like this in skip_human, though I shouldn't
-        do more.
-      . However, if tests are not in IO, I can also make pure tests, e.g.
-        TestT m ().  Now I can have them return their results instead of
-        printing.  If I ensure it's lazy I can still see where any wedge
-        happens.
-        . What's the benefit of this?  I can parallelize without worrying.
-        . Getting totals of tests and checks run becomes trivial, don't have
-          to grep output.
-        . But I need to separate IO-using tests, e.g. test_io_xyz, and they
-          need liftIOs.
-      . If I make tests have type (?stack :: CallStack) => IO (), then I can
-        get the caller name from the next stack frame.  Unfortunately, all
-        tests would then need explicit annotations, which seems error-prone.
-    Functions with _srcpos
-      * Derive.Deriver.Monad
-      * Ui.State
-      * Derive.Deriver.Lib
-      * Cmd.Cmd
-    Functions with caller arg
-      . Actually since the call stack gets only the current function, it can't
-        get the caller name, just source and line number.  So maybe both?
   criterion
     / it seems unreasonably fast, why is it so much faster than in seq?
       . 5us for 128 events, plus no_invert is slower than invert?
@@ -1534,12 +1241,8 @@ Derive:
         calls.
         . In general I don't have a way to interpret a track as a whole.  This
           is the "track call" thing I was thinking about a long time ago.
-      * Implement pakhawaj bol realization as a sub event call to make sure it
-        works.
       - Add an input mode for bols.
     bali:
-      * *legong is off by an octave, 4i should map to 4c, but verify sounding
-        pitch too.
       - add isep to *legong
       - pick better nns for pemero notes 4 and 7
       - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
@@ -1614,59 +1317,9 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
-        * After switching to aftertouch for +cek, it only seems to stick for
-          one note.
-          . It's because I only send one Aftertouch.  Probably because it
-            doesn't understand that I need one for each note.
         reyong damping is messed up now
-          * LPerf.sel_midi seems to cut off <0 events
-          * ksp seems to ignore aftertouch on second note
-            . It's because I use at as a keyswitch, but I don't use on at so
-              I miss the one in between.  I can use on poly_at, but then
-              there is no event to attach
-              I need to attach damp and play state to the event, or since
-              there's no event yet, save it by $EVENT_NOTE
-            . Since this is all being such a hassle, why not use controls,
-              e.g. cc42 = 4 is note 4 is +mute.
-            . Using CCs still won't fix the every note has ks problem because
-              it still needs to understand per-pitch state.  AT is probably
-              better because it's designed for per-pitch.
-            . The whole point of using release was to avoid this kind of
-              conflict, but I wind up wanting to use to use +mute anyway.  So
-              I think I can get rid of the on release stuff and do it all with
-              cc keyswitches.  Can I go back to global keyswitches by turning
-              +mute into (Aftertouch=nn, NoteOn vel=0, NoteOff).
-            . But that's still kind of a one-off hack that only works for
-              one articulation.  It would still be nice to have every
-              keyswitch per-pitch.
-            . Actually, why can't I use a global control for damp level and
-              reserve AT for keyswitches?
-            . Use AT only for keyswitches.
-            . Use explicit +mutes instead of using %damp.
-            . Use %damp for inferred +mute dyn.
-          * Every note has 3 keyswitches every time seems excessive.  Maybe
-            filter after all?
-            . It's because the presence of Aftertouch makes it emit all
-              keyswitches.
-            . On the other hand, isn't it equivalent to my preferred protocol
-              which would include all state in each message?
         - do I need voice inference for reyong tracks?  Or not so bad to add
           a v=n?  Maybe I can have a cmd to add tracks.
-        * I need a per-pitch keyswitch for +mute, otherwise norot breaks.
-          . I could use aftertouch, e.g. reserve 123--127 for per note
-            keyswitch.
-          . But then I need a way to emit two aftertouch values, and I can't
-            do that with a plain control.  So I would need to augment
-            Instrument.Keyswitch with an Aftertouch variant that sends a value
-            with the current pitch.
-          . It would also be possible to use keyswich velocity to address the
-            key, but what I have works and doesn't take too much bandwidth
-            away from damp velocity.
-          * write Reyong_test for rescaled aftertouch
-          * update ksp to use >=123 for keyswitch, and <123 for damp level.
-        * = is no good for a call name because it is parsed as infix.
-        * call to double note on the lower octave
-        * +mute is not cancelling open notes properly
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.
           . One way is to have a postproc ensure ==0 or >=1/127.
@@ -1675,10 +1328,6 @@ Derive:
             have another control to turn off damping.
             . The sustain pedal, cc64, is a natural choice.
             . But CCs are global, so no good.
-        * A way to write two parts, and have them expanded to all four.
-          . I can do it with a transformer to rederive the deriver plus an
-            octave and voice+2, and then calls that omit based on voice.
-        * two handed +cek call
         - for infer-damp, also infer damp level
           . Damp gets louder when notes are closer, or faster.
         - How to configure open and closed damping?  I can currently do it
@@ -1695,16 +1344,13 @@ Derive:
               561   53561
                21      21
         - kbd entry for /, X, O, + etc.?
-        * perhaps 0 duration should infer duration?  To be consistent with
-          gangsa, it should be +mute.
         kilitan
-          * pickups can mute
-            - mute under a speed threshold
-            - Also I want to be able to control the dyn.  There should be
-              a single control for +mute dyn.  Actually I already have that
-              if I multiply %damp, right?  Still, explicit +mute notes and
-              kilitan +mute notes are stronger than damping, so I need two
-              I think.  Damping should default to a fraction of +mute dyn.
+          - pickups mute under a speed threshold
+          - Also I want to be able to control the dyn.  There should be
+            a single control for +mute dyn.  Actually I already have that
+            if I multiply %damp, right?  Still, explicit +mute notes and
+            kilitan +mute notes are stronger than damping, so I need two
+            I think.  Damping should default to a fraction of +mute dyn.
           - kilitan patterns change over a speed threshold
             . Slow speed can use mutes, medium speed without mutes, high speed
               changes pattern and drops notes.
