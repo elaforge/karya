@@ -85,6 +85,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Id as Id
 import qualified Ui.Sel as Sel
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Types as Types
 
 import qualified Cmd.Cmd as Cmd
@@ -98,8 +99,11 @@ import qualified Derive.Cache as Cache
 import qualified Derive.LEvent as LEvent
 import qualified Derive.Stack as Stack
 
+import qualified Perform.Im.Play as Im.Play
+import qualified Perform.Midi.Patch as Patch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Transport as Transport
+
 import Global
 import Types
 
@@ -360,6 +364,7 @@ from_realtime block_id repeat_at start_ = do
     -- further in advance.
     let mtc = PlayUtil.shift_messages 1 start $ map LEvent.Event $
             generate_mtc maybe_sync start
+    play_cache_addr <- lookup_play_cache_addr
 
     -- Events can wind up before 0, say if there's a grace note on a note at 0.
     -- To have them play correctly, perform_from will give me negative events
@@ -369,11 +374,31 @@ from_realtime block_id repeat_at start_ = do
     start <- let mstart = PlayUtil.first_time msgs
         in return $ if start == 0 && mstart < 0 then mstart else start
     msgs <- return $ PlayUtil.shift_messages multiplier start msgs
+    let im_msgs = maybe [] (im_play_msgs start) play_cache_addr
     -- See doc for "Cmd.PlayC" for why I return a magic value.
     return $ Cmd.PlayMidiArgs maybe_sync (pretty block_id)
-        (merge_midi msgs mtc)
+        (im_msgs ++ merge_midi msgs mtc)
         (Just (Cmd.perf_inv_tempo perf . (+start) . (/multiplier)))
         ((*multiplier) . subtract start <$> repeat_at)
+
+lookup_play_cache_addr :: State.M m => m (Maybe Patch.Addr)
+lookup_play_cache_addr = do
+    allocs <- State.config#State.allocations_map <#> State.get
+    case lookup Im.Play.qualified (Map.elems allocs) of
+        Nothing -> return Nothing
+        Just alloc -> case alloc of
+            StateConfig.Midi config -> case Patch.config_addrs config of
+                [] -> State.throw $
+                    pretty Im.Play.qualified <> " allocation with no addrs"
+                (addr, _) : _ -> return $ Just addr
+            _ -> State.throw $
+                    pretty Im.Play.qualified <> " with non-MIDI allocation"
+
+im_play_msgs :: RealTime -> Patch.Addr -> [LEvent.LEvent Midi.WriteMessage]
+im_play_msgs start (wdev, chan) =
+    map (LEvent.Event . Midi.WriteMessage wdev start
+            . Midi.ChannelMessage chan)
+        (Im.Play.prepare start ++ [Im.Play.start])
 
 -- | Merge a finite list of notes with an infinite list of MTC.
 merge_midi :: [LEvent.LEvent Midi.WriteMessage]

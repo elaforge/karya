@@ -375,6 +375,9 @@ documentation:
       that have someone listening to them in a certain scope.
 
 Synth: Im:
+  - The start time should be in fractions of a second instead of sample
+    frames, so I'm not dependent on sample rate.  Also, will I need to emit
+    negative time?
   - The extra build dependencies are annoying when compiling a new karya.
     . To avoid this I need to make separate .cabal files.
     . Then I need to pass different -packages.
@@ -530,7 +533,7 @@ Synth: Im:
       * round trip: do a respond cycle with im notes, make sure they show up
         in im/notes.
   * Perform.Im.Perform invokes the sampler
-  - Cmd.Play sends start and stop MIDI msgs
+  * Cmd.Play sends start and stop MIDI msgs
     . This is actually quite simple, just send an extra MIDI msg on play and
       another on stop.  I just need a start time and an Addr.
     . Start time is from the play position.
@@ -1717,6 +1720,11 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
+    - I need an easy way to start from a pitch instead of moving to it.  If
+      I write T#, then it works for positive.  But what about T-1?
+      . Maybe a parsing rule that says '-' means include the next character.
+    - Also I want little oscillations, e.g. 0 0 1nn 0 0.
+
     . It seems like way too much work to try to implement these things in the
       constraints of the existing system.  Perhaps it would be better to do
       something very specialized, and see if it works nicely, and if so, only
