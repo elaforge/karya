@@ -33,8 +33,6 @@ UNSORTED
       when Im_test.hs is modified, the test itself isn't recompiled.
     . Due to circular import.  WTF is up with shake not detecting circular
       imports?
-  / test: get rid of expect_right in favor of propagating the Left and using
-    equal_right
   - test: delete build/test/tmp on every test run to avoid test contamination
   / shakefile: support for per-target package sets, so I can integrate Synth
     . There should be one master set of packages and versions, and then
@@ -58,7 +56,6 @@ UNSORTED
       up with all packages.  At that point I wonder what exactly the giant
       benefit is that makes this all worth it.  It would just be to be able to
       build synth and karya separately... but do I really need that so much?
-    . Generate multiple .cabal files.
     . globalPackages - makeHaddock
     . buildHs - for the link.  Needs union of all hsORule packages.
       This just takes the binary packages list.
@@ -1317,7 +1314,6 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
-        reyong damping is messed up now
         - do I need voice inference for reyong tracks?  Or not so bad to add
           a v=n?  Maybe I can have a cmd to add tracks.
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to

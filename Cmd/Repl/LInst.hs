@@ -60,14 +60,14 @@ list_like pattern = do
         Map.toAscList alloc_map
     where
     matches inst = pattern `Text.isInfixOf` Score.instrument_name inst
-    show_alloc (inst, (qualified, alloc)) = mconcat
+    show_alloc (inst, (qualified, alloc)) = Text.unwords
         [ ShowVal.show_val inst
-        , " - "
+        , "-"
         , InstTypes.show_qualified qualified
         , case alloc of
             StateConfig.Midi config -> show_config config
-            StateConfig.Im -> " 音"
-            StateConfig.Dummy -> " (dummy instrument)"
+            StateConfig.Im -> "音"
+            StateConfig.Dummy -> "(dummy instrument)"
         ]
     show_config config = mconcat
         [ Info.show_addrs (map fst (Patch.config_addrs config))
