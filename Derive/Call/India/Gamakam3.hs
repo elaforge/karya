@@ -527,7 +527,7 @@ pitch_call_map = resolve $ Map.unique $ concat
       , alias 'y' ["-1nn"], alias 'z' ["1nn"] -- relative motion by NN
       ]
     -- absolute motion
-    -- I actually wanted to implemented motion relative to the base pitch, but
+    -- I actually wanted to implement motion relative to the base pitch, but
     -- couldn't think of a nice mnemonic for the names.  In any case, maybe
     -- swaram-absolute is actually more intuitive.
     , [ pcall c "Absolute motion to swaram." (pc_absolute pc)
@@ -568,24 +568,22 @@ pitch_call_map2 = resolve $ Map.unique $ concat
     , [parse_name $ pcall c "Relative motion." (pc_relative True)
         | c <- "0123456789"]
     , [parse_name $ pcall '-' "Negative relative motion." (pc_relative True)]
-    -- TODO 'd' conflicts with absolute motion
-    , [alias c [showt n] | (c, n) <- zip "abcd" [-1, -2 ..]]
+    -- 'd' would conflict with absolute motion
+    , [alias c [showt n] | (c, n) <- zip "abc" [-1, -2 ..]]
     -- , [ alias 'a' ["-1"], alias 'b' ["-2"], alias 'c'
     --     -- TODO does't work if arg is just 1 character
     --   -- , alias 'y' ["-1nn"], alias 'z' ["1nn"] -- relative motion by NN
     --   ]
     -- absolute motion
 
-    -- , [ pcall c "Absolute motion to swaram." (pc_absolute pc)
-    --   | (pc, c) <- zip [0..] ("srgmpdn" :: [Char])
-    --   ]
+    , [pcall 'e' "Pitch up by a little." (pc_relative_move (Pitch.Nn 1))]
+
+    , [ pcall c "Absolute motion to swaram." (pc_absolute pc)
+      | (pc, c) <- zip [0..] ("srgmpdn" :: [Char])
+      ]
     , [ pcall 'h' "Absolute motion to current pitch."
         (pc_move_direction Current)
       , pcall 'v' "Absolute motion to next pitch." (pc_move_direction Next)
-      -- compound motion
-      -- , alias 'u' ["-1", "1"]
-      -- , alias 'h' ["1", "-1"] -- single turn
-      , pcall 'j' "Janta." pc_janta
 
       -- set config
       , config extend_name "Extend the duration of the previous call." pc_extend
@@ -686,6 +684,11 @@ pc_relative swaram_relative = PCall (Sig.required "to" "To pitch.")
             from_pitch <- if swaram_relative
                 then State.gets state_current_pitch else get_from
             move_to ctx (Pitches.transpose transpose from_pitch)
+
+pc_relative_move :: Pitch.Transpose -> PCall
+pc_relative_move transpose = PCall Sig.no_args $ \() ctx -> do
+    from_pitch <- get_from
+    move_to ctx (Pitches.transpose transpose from_pitch)
 
 data PitchDirection = Previous | Current | Next deriving (Show, Eq)
 instance Pretty.Pretty PitchDirection where pretty = showt
@@ -827,10 +830,16 @@ p_exprs2 = A.skipSpace *> A.many1 (p_pitch_expr2 <* A.skipSpace)
 
 p_pitch_expr2 :: Parser Expr
 p_pitch_expr2 = do
-    c <- A.satisfy (\c -> c /= '!' && valid_pcall_char c)
+    c <- A.satisfy (/=' ')
     if is_argument_call c
-        then PitchExpr c . Text.singleton <$> A.satisfy (/='!')
+        then PitchExpr c <$> p_pitch_expr_arg
         else return $ PitchExpr c ""
+
+p_pitch_expr_arg :: Parser Text
+p_pitch_expr_arg = do
+    minus <- A.option False (A.char '-' >> return True)
+    c <- A.satisfy (/=' ')
+    return $ (if minus then ("-"<>) else id) (Text.singleton c)
 
 is_argument_call :: Char -> Bool
 is_argument_call c = Char.isUpper c || c == '-'

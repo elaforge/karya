@@ -22,7 +22,7 @@ import Types
 
 test_relative = do
     let run c = derive_tracks2 DeriveTest.e_nns_rounded $
-            make_tracks (4, "--") (2, c)
+            make_2notes (4, "--") (2, c)
         output nns = ([[(0, 60)], nns, [(6, 64)]], [])
     -- equal (run "!T0") (output [(4, 62), (5, 62)]) -- TODO
     equal (run "!T10") (output [(4, 63), (5, 62.5)])
@@ -34,14 +34,29 @@ test_parse_sequence2 = do
     let f = first untxt . Gamakam.parse_sequence2
     equal (f "P10") $ Right [PitchExpr 'P' "1", PitchExpr '0' ""]
     equal (f "p1") $ Right [PitchExpr 'p' "", PitchExpr '1' ""]
+    -- '-' will include the next character so I can pass a negative digit.
+    equal (f "P-10") $ Right [PitchExpr 'P' "-1", PitchExpr '0' ""]
+    equal (f "p-1") $ Right [PitchExpr 'p' "", PitchExpr '-' "1"]
 
 test_extension2 = do
-    let run = derive_tracks2 DeriveTest.e_nns_rounded . make_tracks (4, "--")
+    let run = derive_tracks2 DeriveTest.e_nns_rounded . make_2notes (4, "--")
     strings_like (snd $ run (4, "!_==1_"))
         (replicate 2 "extension with no preceding call")
     -- TODO
     -- equal (run (4, "!==1_"))
     --     ([[(0, 60)], [(4, 62), (5, 62), (6, 62), (7, 63)], [(8, 64)]], [])
+
+test_prev_pitch = do
+    let run = derive_tracks2 DeriveTest.e_nns_rounded . make_tracks
+    pprint $ make_tracks
+        [ (0, 1, "4c", "!="), (1, 1, "4d", "")
+        , (2, 1, "4e", ""), (3, 1, "4f", "!=")
+        ]
+    pprint (run
+        [ (0, 1, "4c", "!="), (1, 1, "4d", "")
+        , (2, 1, "4e", ""), (3, 1, "4f", "!=")
+        ])
+    -- pprint (run [(0, 1, "4c", "!="), (1, 1, "4d", ""), (2, 1, "4e", "!=")])
 
 test_call_maps = do
     equal (Map.keys Gamakam.pitch_call_map) (Map.keys Gamakam.pitch_call_map)
@@ -93,7 +108,7 @@ test_parse_sequence = do
 
 test_sequence = do
     let run c = derive_tracks DeriveTest.e_nns_rounded $
-            make_tracks (4, "--") (6, c)
+            make_2notes (4, "--") (6, c)
         output nns = ([[(0, 60)], nns, [(10, 64)]], [])
 
     -- 4 5 6 7 8 9 10
@@ -160,7 +175,7 @@ test_sequence_multiple = do
         ([[(0, 0), (1, 0.25), (2, 0.5), (3, 0.25), (4, 0)]], [])
 
 test_extension = do
-    let run = derive_tracks DeriveTest.e_nns_rounded . make_tracks (4, "--")
+    let run = derive_tracks DeriveTest.e_nns_rounded . make_2notes (4, "--")
     strings_like (snd $ run (4, "!!_--1_"))
         ["extension with no preceding call", "no preceding call"]
     equal (run (4, "!!--1_"))
@@ -186,7 +201,7 @@ test_note_end = do
 
 test_dyn = do
     let run c = derive_tracks DeriveTest.e_dyn_rounded $
-            make_tracks (4, "--") (6, c)
+            make_2notes (4, "--") (6, c)
     equal (run "!-") ([[(0, 1)], [(0, 1)], [(0, 1)]], [])
     equal (run "!-[-]> -")
         ([[(0, 1)], [(4, 1), (6, 1), (7, 0.5), (8, 0)], [(0, 1)]], [])
@@ -212,25 +227,32 @@ test_dyn = do
          , [(0, 1)]], [])
 
 test_dyn_prev = do
-    let run call1 = derive_tracks DeriveTest.e_dyn_rounded . make_tracks call1
+    let run call1 = derive_tracks DeriveTest.e_dyn_rounded . make_2notes call1
     equal (run (2, "![-]>.5") (2, "![-]=1"))
         ([[(0, 1), (1, 0.75)], [(2, 0.75), (3, 0.88)], [(0, 1)]], [])
 
 test_sequence_interleave = do
-    let run c = derive_tracks extract $ make_tracks (4, "--") (6, c)
+    let run c = derive_tracks extract $ make_2notes (4, "--") (6, c)
         extract = DeriveTest.e_nns_rounded
     equal (run "!!0") ([[(0, 60)], [(4, 62)], [(10, 64)]], [])
 
     -- pprint (run "! P1c !-c-")
     -- pprint (run "! P2 0 -2")
 
-make_tracks :: (ScoreTime, String) -> (ScoreTime, String) -> [UiTest.TrackSpec]
-make_tracks (dur1, call1) (dur2, call2) =
-    [ (">", [(0, dur1, ""), (dur1, dur2, ""), (dur1 + dur2, 2, "")])
-    , ("*", [(0, 0, "4c"), (dur1, 0, "4d"), (dur1 + dur2, 0, "4e")])
+make_tracks :: [(ScoreTime, ScoreTime, String, String)] -> [UiTest.TrackSpec]
+make_tracks notes =
+    [ (">", [(start, dur, "") | (start, dur, _, _) <- notes])
+    , ("*", [(start, 0, pitch) | (start, _, pitch, _) <- notes, pitch /= ""])
     , ("* interleave",
-        [(0, dur1, call1), (dur1, dur2, call2)])
+        [(start, 0, call) | (start, _, _, call) <- notes, call /= ""])
     , ("dyn", [(0, 0, "1")])
+    ]
+
+make_2notes :: (ScoreTime, String) -> (ScoreTime, String) -> [UiTest.TrackSpec]
+make_2notes (dur1, call1) (dur2, call2) = make_tracks
+    [ (0, dur1, "4c", call1)
+    , (dur1, dur2, "4d", call2)
+    , (dur1 + dur2, 2, "4e", "")
     ]
 
 -- * dyn
