@@ -38,6 +38,9 @@ test_parse_sequence2 = do
     equal (f "P-10") $ Right [PitchExpr 'P' "-1", PitchExpr '0' ""]
     equal (f "p-1") $ Right [PitchExpr 'p' "", PitchExpr '-' "1"]
 
+    equal (f "1[01]") $
+        Right [PitchExpr '1' "", Group [PitchExpr '0' "", PitchExpr '1' ""]]
+
 test_extension2 = do
     let run = derive_tracks2 DeriveTest.e_nns_rounded . make_2notes (4, "--")
     strings_like (snd $ run (4, "!_==1_"))
@@ -62,6 +65,19 @@ test_call_maps = do
     equal (Map.keys Gamakam.pitch_call_map) (Map.keys Gamakam.pitch_call_map)
     equal (Map.keys Gamakam.pitch_call_map2) (Map.keys Gamakam.pitch_call_map2)
     equal (Map.keys Gamakam.dyn_call_map) (Map.keys Gamakam.dyn_call_map)
+
+test_resolve_exprs = do
+    let f = fmap (map extract) . Gamakam.resolve_exprs True
+            <=< Gamakam.parse_sequence2
+        extract expr = case expr of
+            PitchExpr call text -> PitchExpr (extract_call call) text
+            Group exprs -> Group (map extract exprs)
+            DynExpr _ arg1 arg2 exprs ->
+                DynExpr () arg1 arg2 (map extract exprs)
+        extract_call call =
+            (Gamakam.pcall_name call, Gamakam.pcall_duration call)
+    equal (f "10") $ Right [PitchExpr ('1', 1) "", PitchExpr ('0', 1) ""]
+    equal (f "[10]") $ Right [PitchExpr ('1', 0.5) "", PitchExpr ('0', 0.5) ""]
 
 -- * pitch
 
@@ -98,13 +114,6 @@ test_parse_sequence = do
     left_like (f "ab [c") "parse error"
     left_like (f "!ab[c") "parse error"
     left_like (f "ab c]") "parse error"
-
--- test_resolve_exprs = do
---     equal (f "!56u") $ Right
---         [ PitchExpr '5' "", PitchExpr '6' "", PitchExpr '-' "1"
---         , PitchExpr '1' ""
---         ]
---     equal (f "!!12") $ Left "not found: '!', not found: '('"
 
 test_sequence = do
     let run c = derive_tracks DeriveTest.e_nns_rounded $

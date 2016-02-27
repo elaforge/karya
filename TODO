@@ -1365,7 +1365,7 @@ Derive:
     * I need an easy way to start from a pitch instead of moving to it.  If
       I write T#, then it works for positive.  But what about T-1?
       . Maybe a parsing rule that says '-' means include the next character.
-    - Also I want little oscillations, e.g. 0 0 1nn 0 0.
+    * Also I want little oscillations, e.g. 0 0 1nn 0 0.
       I could do that with a notation to group pitch movements into one
       unit, e.g. '==[e0][e0]'.  That could combine with '_' for more speed
       varation: '[e0e]_0'.

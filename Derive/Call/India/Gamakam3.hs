@@ -7,10 +7,11 @@
 -- | Calls for Carnatic gamakam.
 module Derive.Call.India.Gamakam3 (
     pitch_calls, control_calls, note_calls
-    -- testing
-    , parse_sequence, Expr_(..)
-    , parse_sequence2
+-- #ifdef TESTING
+    , parse_sequence, Expr_(..), ResolvedExpr, PitchCall(..)
+    , parse_sequence2, resolve_exprs
     , dyn_call_map, pitch_call_map, pitch_call_map2
+-- #endif
 ) where
 import qualified Control.Monad.State as State
 import qualified Data.Attoparsec.Text as A
@@ -325,6 +326,7 @@ eval (PitchExpr ((start, end), pcall) arg_) = case pcall_call pcall of
         , ctx_end = end
         , ctx_call_name = Text.cons (pcall_name pcall) arg_
         }
+eval (Group exprs) = concatMapM eval exprs
 eval (DynExpr (name, call) arg1 arg2 exprs) = case (start, end) of
     (Just start, Just end) -> do
         state <- State.get
@@ -344,6 +346,7 @@ eval (DynExpr (name, call) arg1 arg2 exprs) = case (start, end) of
 -- | DynExpr Name Arg1 Arg2 exprs | PitchExpr Name Arg
 data Expr_ dyn pitch = DynExpr !dyn !Text !Text ![Expr_ dyn pitch]
     | PitchExpr !pitch !Text
+    | Group [Expr_ dyn pitch]
     deriving (Eq, Show, Functor, Foldable, Traversable)
 type ResolvedExpr = Expr_ (Text, DynCall) PitchCall
 type Expr = Expr_ Text Char
@@ -355,6 +358,7 @@ zip_exprs :: [a] -> [Expr_ dyn b] -> [Expr_ dyn (a, b)]
 zip_exprs xs exprs = fst $ State.runState (traverse go exprs) xs
     where
     go (DynExpr c arg1 arg2 exprs) = DynExpr c arg1 arg2 <$> traverse go exprs
+    go (Group exprs) = Group <$> traverse go exprs
     go (PitchExpr call arg) = do
         x : xs <- State.get
         State.put xs
@@ -374,6 +378,9 @@ resolve_exprs parse2 = concatMapM resolve
         Just call -> do
             resolved <- resolve_exprs parse2 exprs
             return [DynExpr (c, call) a1 a2 resolved]
+    resolve (Group exprs) =
+        map (modify_duration (* (1 / fromIntegral (length exprs)))) <$>
+            concatMapM resolve exprs
     resolve (PitchExpr c arg) = case Map.lookup c pcall_map of
         Nothing -> Left $ "pitch call not found: " <> showt c
         -- Apply the same argument to all of them.  But I should only get
@@ -395,11 +402,12 @@ resolve_extensions = resolve <=< check_no_args
         | otherwise =
             -- The parser won't parse 1_2 anyway, but let's check anyway.
             Left $ "_ calls can't have args: " <> Text.intercalate ", " errs
-        where errs = mapMaybe has_arg exprs
+        where errs = concatMap has_arg exprs
     has_arg expr@(PitchExpr _ arg)
-        | is_extension expr && arg /= mempty = Just arg
-        | otherwise = Nothing
-    has_arg _ = Nothing
+        | is_extension expr && arg /= mempty = [arg]
+        | otherwise = []
+    has_arg (Group exprs) = concatMap has_arg exprs
+    has_arg _ = []
     is_extension (PitchExpr call _) = pcall_name call == extend_name
     is_extension _ = False
 
@@ -826,11 +834,17 @@ valid_dcall_arg c = Char.isDigit c || c == '.'
 -- * parser2
 
 p_exprs2 :: Parser [Expr]
-p_exprs2 = A.skipSpace *> A.many1 (p_pitch_expr2 <* A.skipSpace)
+p_exprs2 = A.skipSpace *> A.many1 (p_expr2 <* A.skipSpace)
+
+p_expr2 :: Parser Expr
+p_expr2 = p_group <|> p_pitch_expr2
+
+p_group :: Parser Expr
+p_group = Group <$> (A.char '[' *> p_exprs2 <* A.char ']')
 
 p_pitch_expr2 :: Parser Expr
 p_pitch_expr2 = do
-    c <- A.satisfy (/=' ')
+    c <- A.satisfy $ \c -> c /=' ' && c /= '[' && c /= ']'
     if is_argument_call c
         then PitchExpr c <$> p_pitch_expr_arg
         else return $ PitchExpr c ""
