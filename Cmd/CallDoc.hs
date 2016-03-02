@@ -52,6 +52,7 @@ call_bindings_text show_module (binds, ctype, call_doc) =
         else id) $
     Format.unlines (map show_bind binds)
     </> show_call_doc call_doc
+    <> "\n\n"
     where
     module_text (Module.Module m) = Format.text $ "\tModule: " <> m
     show_bind (sym, name) = Format.text $
@@ -482,7 +483,7 @@ instrument_calls (Derive.InstrumentCalls gs ts vals) =
 -- | Get documentation for calls in scope at the given block and track.
 track :: Cmd.M m => BlockId -> TrackId -> m Document
 track block_id track_id = do
-    dynamic <- Cmd.require "dynamic for doc"
+    dynamic <- Cmd.require "CallDoc.track: no root dynamic"
         =<< Perf.lookup_root_dynamic (block_id, Just track_id)
     ttype <- ParseTitle.track_type <$> State.get_track_title track_id
     return $ track_sections ttype (Derive.state_scopes dynamic)

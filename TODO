@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - make GenerateRunTests understand comments
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
     able to add an effect, like causing damage.  If I used ekmett lenses maybe
@@ -291,6 +292,12 @@ documentation:
     maybe I could run a link checker against the final output.  Otherwise
     'Module.function' references get out of date.
   calldoc: CallDoc:
+    * need a newline separating calls
+    - Module shouldn't take up its own line
+    - why does reyong vv have two entries that look the same?
+    - isn't showing that calls are shadowed?
+    - LBlock should have a function to just show calls in scope, module, and
+      shadowed or not
     - collapse control for modules, option to collapse / expand all
       . Haddock:
         <span id=xyz class="module collapser"
@@ -1314,6 +1321,9 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong / reyong:
+        - 'n' tumpuk-auto is not working?
+        - instead of the awkward >kilit or the cancel range, should I do
+          next note preparation as the end of the current kilit call?
         - do I need voice inference for reyong tracks?  Or not so bad to add
           a v=n?  Maybe I can have a cmd to add tracks.
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
@@ -1362,6 +1372,8 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
+    + split india.gamakam3.a into gamakam4
+      . Keeping DynExpr around is complicating things.
     * I need an easy way to start from a pitch instead of moving to it.  If
       I write T#, then it works for positive.  But what about T-1?
       . Maybe a parsing rule that says '-' means include the next character.
