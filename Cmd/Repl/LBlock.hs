@@ -97,9 +97,16 @@ replace_titles from to = map_titles $ Text.replace from to
 doc :: Cmd.CmdL Text
 doc = Lazy.toStrict . CallDoc.doc_text <$> track_doc
 
-find_doc :: Text -> Cmd.CmdL Text
-find_doc search  = Lazy.toStrict . CallDoc.doc_text
-    . CallDoc.filter_calls (search `Text.isInfixOf`) <$> track_doc
+doc_equal :: CallDoc.SymbolName -> Cmd.CmdL Text
+doc_equal name = find_doc (\sym _call -> sym == name)
+
+doc_like :: Text -> Cmd.CmdL Text
+doc_like pattern = find_doc $ \sym call ->
+    pattern `Text.isInfixOf` sym || pattern `Text.isInfixOf` call
+
+find_doc :: (CallDoc.SymbolName -> CallDoc.CallName -> Bool) -> Cmd.CmdL Text
+find_doc matches  = Lazy.toStrict . CallDoc.doc_text
+    . CallDoc.filter_calls matches <$> track_doc
 
 -- | Write HTML documentation for the selected track to
 -- @build/derive_doc.html@.
@@ -110,6 +117,18 @@ html_doc = do
     hstate <- liftIO $ CallDoc.get_html_state "haddock" app_dir
     liftIO $ Text.IO.writeFile "build/derive_doc.html" $
         CallDoc.doc_html hstate doc
+
+-- | Print a summary of bindings in scope, grouped by namespace and sorted by
+-- shadow priority.  This is useful to see if your call is being shadowed.
+--
+-- If the same call shows up twice it may mean you imported the same module
+-- twice.
+bindings_equal :: CallDoc.SymbolName -> Cmd.CmdL Text
+bindings_equal name = find_bindings (==name)
+
+find_bindings :: (CallDoc.SymbolName -> Bool) -> Cmd.CmdL Text
+find_bindings matches = CallDoc.bindings_text
+    . CallDoc.filter_calls (\sym _call -> matches sym) <$> track_doc
 
 track_doc :: Cmd.CmdL CallDoc.Document
 track_doc = do

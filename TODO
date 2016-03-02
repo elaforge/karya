@@ -294,9 +294,11 @@ documentation:
   calldoc: CallDoc:
     * need a newline separating calls
     * Module shouldn't take up its own line
-    - why does reyong vv have two entries that look the same?
-    - isn't showing that calls are shadowed?
-    - LBlock should have a function to just show calls in scope, module, and
+    / why does reyong vv have two entries that look the same?
+      . Because I imported bali.reyong twice.  I guess this is good because
+        it shows a possible problem.
+    * isn't showing that calls are shadowed?
+    * LBlock should have a function to just show calls in scope, module, and
       shadowed or not
     - collapse control for modules, option to collapse / expand all
       . Haddock:

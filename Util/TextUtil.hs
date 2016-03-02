@@ -43,6 +43,11 @@ join2 t1 t2 = Text.unwords $ filter (not . Text.null) [t1, t2]
 joinWith :: Text -> Text -> Text -> Text
 joinWith sep t1 t2 = Text.intercalate sep $ filter (not . Text.null) [t1, t2]
 
+ellipsis :: Int -> Text -> Text
+ellipsis maxWidth text
+    | Text.length text <= maxWidth = text
+    | otherwise = Text.take (maxWidth - 3) text <> "..."
+
 -- | Format the given rows into columns, aligned vertically.
 formatColumns :: Int -> [[Text]] -> [Text]
 formatColumns padding rows = map format_row rows

@@ -15,6 +15,7 @@ import qualified Data.Text.Lazy as Lazy
 import qualified Util.File as File
 import qualified Util.Format as Format
 import Util.Format ((<+>), (</>), (<//>), (<+/>))
+import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.TextUtil as TextUtil
 
@@ -42,21 +43,21 @@ doc_text = Format.render "  " 75 . mconcatMap section
     section (call_kind, scope_docs) =
         "##" <+> Format.text call_kind <+> "calls" <> "\n\n"
         <> mconcatMap scope_doc scope_docs
-    scope_doc (source, calls) = "### from" <+> Format.text source <> "\n\n"
-        <> Format.unlines (map (call_bindings_text True) calls)
+    scope_doc (source, calls) = "### from" <+> Format.text (pretty source)
+        <> "\n\n" <> Format.unlines (map (call_bindings_text True) calls)
 
 call_bindings_text :: Bool -> CallBindings -> Format.Doc
-call_bindings_text show_module (binds, ctype, call_doc) =
+call_bindings_text include_module (binds, ctype, call_doc) =
     Format.unlines (map show_bind binds)
     </> show_call_doc call_doc
     <> "\n\n"
     where
-    Module.Module module_name = Derive.cdoc_module call_doc
     show_bind (sym, name) =
         Format.text sym <+> "--" <+> Format.text name
-        <+> (if show_module then "(" <> Format.text module_name <> ")"
+        <+> (if include_module
+            then Format.text (show_module (Derive.cdoc_module call_doc))
             else mempty)
-        <+> ("[" <> Format.text (show_call_type ctype) <> "]")
+        <+> ("(" <> Format.text (pretty ctype) <> ")")
     show_call_doc (Derive.CallDoc _module tags doc args)
         | tags == mempty && no_args args = write_doc doc
         | otherwise = write_doc doc <//> write_tags tags
@@ -91,6 +92,9 @@ environ_keys name deflt =
 write_doc :: Text -> Format.Doc
 write_doc = Format.indent . Format.wrapWords . map Format.text . Text.words
 
+show_module :: Module.Module -> Text
+show_module (Module.Module name) = "[" <> name <> "]"
+
 show_parser :: Derive.ArgParser -> (Maybe Text, Maybe Text)
     -- ^ (superscript to mark this arg, default value)
 show_parser p = case p of
@@ -100,6 +104,40 @@ show_parser p = case p of
     Derive.Many -> (Just "*", Nothing)
     Derive.Many1 -> (Just "+", Nothing)
     Derive.Environ deflt -> (Just "env", deflt)
+
+{- | Print an abbreviated list of calls, grouped by namespace and ordered by
+    shadowing priority.  Should look like:
+
+    >     note generator
+    > n -- note (instrument) [inst] When the event has zero duration, dispatc...
+    > n -- note (imported) [prelude] The note call is the main note generator...
+    >     note transformer
+    > n -- note-attributes (imported) [prelude] This is similar to to `=`, bu...
+-}
+bindings_text :: Document -> Text
+bindings_text =
+    Text.unlines . filter (not . Text.null) . concatMap section . flatten
+    where
+    section ((call_kind, call_type), bindings)
+        | null bindings = []
+        | otherwise = "\t" <> call_kind <> " " <> pretty call_type
+            : map binding bindings
+    binding (scope_source, ((symbol_name, call_name), call_doc)) =
+        doc <> " " <> TextUtil.ellipsis (width - Text.length doc - 1)
+            (Derive.cdoc_doc call_doc)
+        where
+        doc = symbol_name <> " -- " <> call_name <> " (" <> pretty scope_source
+            <> ") " <> show_module (Derive.cdoc_module call_doc)
+    width = 76
+    flatten :: Document
+        -> [((CallKind, CallType), [(ScopeSource, (Binding, Derive.CallDoc))])]
+    flatten sections = map (second (Seq.sort_on fst . concat)) $ Seq.group_fst
+        [ ((call_kind, call_type),
+            map (scope_source,) (map (, call_doc) bindings))
+        | (call_kind, scope_docs) <- sections
+        , (scope_source, call_bindings) <- scope_docs
+        , (bindings, call_type, call_doc) <- call_bindings
+        ]
 
 -- ** html output
 
@@ -123,23 +161,22 @@ doc_html hstate = un_html . (html_header hstate <>) . mconcatMap section
     section (call_kind, scope_docs) =
         tag_class "div" "call-kind" $ tag "h2" (html call_kind)
             <> "\n\n" <> mconcatMap (scope_doc call_kind) scope_docs
-    scope_doc call_kind (source, calls)
-        -- 'builtin_scope_doc' does this since Library doesn't have source
+    scope_doc call_kind (source, call_bindings) = case source of
+        -- 'imported_scope_doc' does this since Library doesn't have source
         -- types.
-        | Text.null source = doc
-        | otherwise =
-            tag_class "div" "call-source" $ tag "h3" ("from " <> html source)
-                <> "\n\n" <> doc
+        IrrelevantSource -> doc
+        _ -> tag_class "div" "call-source" $
+            tag "h3" ("from " <> html (pretty source)) <> "\n\n" <> doc
         where
         doc = "<dl class=main-dl>\n"
             <> mconcatMap (show_module_group call_kind)
-                (Seq.keyed_group_sort module_of calls)
+                (Seq.keyed_group_sort module_of call_bindings)
             <> "</dl>\n"
     module_of (_, _, call_doc) = Derive.cdoc_module call_doc
-    show_module_group call_kind (module_, calls) =
+    show_module_group call_kind (module_, call_bindings) =
         tag_class "div" "call-module" $
-            show_module module_ (length calls) <> "<br>\n"
-            <> mconcatMap (call_bindings_html hstate call_kind) calls
+            show_module module_ (length call_bindings) <> "<br>\n"
+            <> mconcatMap (call_bindings_html hstate call_kind) call_bindings
     show_module (Module.Module m) calls = tag "center" $
         tag "b" "Module: " <> tag "code" (html m)
             <> " (" <> html (showt calls) <> " calls)"
@@ -285,7 +322,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
         <> " -- " <> tag "b" (html name) <> ": "
         <> (if first then show_ctype else "") <> "\n"
     show_ctype = "<div style='float:right'>"
-        <> tag "em" (html (show_call_type ctype)) <> "</div>"
+        <> tag "em" (html (pretty ctype)) <> "</div>"
     show_call_doc (Derive.CallDoc _module tags doc args) =
         "<dd> <dl class=compact>\n"
         <> html_doc hstate doc
@@ -319,7 +356,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
 -- the call kind.
 binding_tags :: CallBindings -> [Text]
 binding_tags (binds, ctype, call_doc) =
-    Seq.unique $ "type:" <> show_call_type ctype : extract call_doc
+    Seq.unique $ "type:" <> pretty ctype : extract call_doc
     where
     names = map snd binds
     extract call_doc = module_ (Derive.cdoc_module call_doc)
@@ -413,18 +450,67 @@ scale_docs = sort_calls . lookup_calls ValCall . map convert
 
 -- * doc
 
--- | Document is an intermediate format between Derive.Scope and the eventual
--- textual output.
+-- | An intermediate format between 'Derive.Scopes' and the eventual textual
+-- output.
 type Document = [Section]
 
+type Section = (CallKind, [ScopeDoc])
+
+-- | From the fields of 'Derive.Scope' and 'Derive.Scopes': note, control,
+-- pitch, or val.
+type CallKind = Text
+
+-- | Documentation for one type of scope.
+type ScopeDoc = (ScopeSource, [CallBindings])
+
+-- | From the fields of 'Derive.ScopeType'.  These sort by the override
+-- priority, so an Override binding will shadow an Instrument binding.
+data ScopeSource = Override | Instrument | Scale | Imported | IrrelevantSource
+    deriving (Eq, Ord, Show)
+instance Pretty.Pretty ScopeSource where pretty = Text.toLower . showt
+
+-- | Multiple bound symbols with the same DocumentedCall are grouped together:
+type CallBindings = ([Binding], CallType, Derive.CallDoc)
+type Binding = (SymbolName, CallName)
+-- | This is the name the call is bound to.
+type SymbolName = Text
+-- | This is the intrinsic name of the call, from 'Derive.call_name'.
+type CallName = Text
+
+data CallType = ValCall | GeneratorCall | TransformerCall
+    deriving (Eq, Ord, Show)
+
+instance Pretty.Pretty CallType where
+    pretty ctype = case ctype of
+        ValCall -> "val"
+        GeneratorCall -> "generator"
+        TransformerCall -> "transformer"
+
+
+-- ** implementation
+
 -- | Keep only CallDocs whose name or binding name matches the function.
--- TODO strip empty sections afterwards
-filter_calls :: (Text -> Bool) -> Document -> Document
-filter_calls matches = map (second (map scope_doc))
+filter_calls :: (SymbolName -> CallName -> Bool) -> Document -> Document
+filter_calls matches = strip_empty . map (second (map scope_doc))
     where
-    scope_doc = second (filter call_bindings)
-    call_bindings (bindings, _, _) = any binding bindings
-    binding (sym, call) = matches sym || matches call
+    scope_doc = second (map call_bindings)
+    call_bindings (bindings, call_type, call_doc) =
+        (filter binding bindings, call_type, call_doc)
+    binding (sym, call) = matches sym call
+
+strip_empty :: Document -> Document
+strip_empty = mapMaybe section
+    where
+    section (call_kind, scope_docs) = case mapMaybe scope_doc scope_docs of
+        [] -> Nothing
+        stripped -> Just (call_kind, stripped)
+    scope_doc (scope_source, call_bindings) =
+        case mapMaybe call_binding call_bindings of
+            [] -> Nothing
+            stripped -> Just (scope_source, stripped)
+    call_binding b@(bindings, _, _)
+        | null bindings = Nothing
+        | otherwise = Just b
 
 -- | Emit docs for all calls in the default scope.
 builtin :: Cmd.M m => m Document
@@ -439,7 +525,7 @@ library (Derive.Library note control pitch val) =
     [ ("note", call_maps note)
     , ("control", call_maps control)
     , ("pitch", call_maps pitch)
-    , ("val", builtin_scope_doc ValCall (map convert_val_call val))
+    , ("val", imported_scope_doc ValCall (map convert_val_call val))
     ]
 
 -- | A 'Derive.LookupCall' with the call stripped out and replaced with
@@ -464,19 +550,20 @@ fmap_lookup _ (Derive.LookupPattern pattern doc _) =
 -- | Create docs for generator and transformer calls, and merge and sort them.
 call_maps :: Derive.CallMaps d -> [ScopeDoc]
 call_maps (Derive.CallMaps generator transformer) = merge_scope_docs $
-    builtin_scope_doc GeneratorCall (convert generator)
-    ++ builtin_scope_doc TransformerCall (convert transformer)
+    imported_scope_doc GeneratorCall (convert generator)
+    ++ imported_scope_doc TransformerCall (convert transformer)
     where convert = map convert_call
 
 -- ** instrument doc
 
 -- | Get docs for the calls introduced by an instrument.
-instrument_calls :: Derive.InstrumentCalls -> [ScopeDoc]
+instrument_calls :: Derive.InstrumentCalls -> Document
 instrument_calls (Derive.InstrumentCalls gs ts vals) =
-    [ ("note", lookup_calls GeneratorCall (map convert_call gs)
-        ++ lookup_calls TransformerCall (map convert_call ts))
-    , ("val", lookup_calls ValCall (map convert_val_call vals))
+    [ ("note", [(Instrument,
+        lookup GeneratorCall gs ++ lookup TransformerCall ts)])
+    , ("val", [(Instrument, lookup_calls ValCall (map convert_val_call vals))])
     ]
+    where lookup ctype = lookup_calls ctype . map convert_call
 
 -- ** track doc
 
@@ -487,12 +574,6 @@ track block_id track_id = do
         =<< Perf.lookup_root_dynamic (block_id, Just track_id)
     ttype <- ParseTitle.track_type <$> State.get_track_title track_id
     return $ track_sections ttype (Derive.state_scopes dynamic)
-
--- | (call kind, docs)
---
--- Call kind is note, control, pitch, val.  CallType is val, generator,
--- transformer.
-type Section = (Text, [ScopeDoc])
 
 -- | This is an alternate doc extraction path which extracts the docs from
 -- 'Derive.Scopes' instead of 'Derive.Library'.
@@ -514,12 +595,9 @@ track_sections ttype (Derive.Scopes (Derive.Scope gnote gcontrol gpitch)
 
 convert_scope :: (Derive.LookupCall call -> LookupCall)
     -> Derive.ScopeType call -> Derive.ScopeType Derive.DocumentedCall
-convert_scope convert (Derive.ScopeType override inst scale builtin) =
+convert_scope convert (Derive.ScopeType override inst scale imported) =
     Derive.ScopeType (map convert override) (map convert inst)
-        (map convert scale) (map convert builtin)
-
--- | Documentation for one type of scope: (scope_source, calls)
-type ScopeDoc = (Text, [CallBindings])
+        (map convert scale) (map convert imported)
 
 -- | Create docs for generator and transformer calls, and merge and sort them.
 merged_scope_docs :: Derive.ScopeType Derive.DocumentedCall
@@ -538,23 +616,18 @@ sort_calls = Seq.sort_on $ \(binds, _, _) ->
 -- | A 'Derive.Library' only has builtins, but ScopeDoc wants a source so
 -- it can work uniformly with 'track_sections', which does have separate
 -- sources.
-builtin_scope_doc :: CallType -> [LookupCall] -> [ScopeDoc]
-builtin_scope_doc ctype lookups = [("", lookup_calls ctype lookups)]
+imported_scope_doc :: CallType -> [LookupCall] -> [ScopeDoc]
+imported_scope_doc ctype lookups =
+    [(IrrelevantSource, lookup_calls ctype lookups)]
 
 scope_type :: CallType -> Derive.ScopeType Derive.DocumentedCall -> [ScopeDoc]
-scope_type ctype (Derive.ScopeType override inst scale builtin) =
+scope_type ctype (Derive.ScopeType override inst scale imported) =
     filter (not . null . snd)
-    [ ("override", lookup_calls ctype override)
-    , ("instrument", lookup_calls ctype inst)
-    , ("scale", lookup_calls ctype scale)
-    , ("builtin", lookup_calls ctype builtin)
+    [ (Override, lookup_calls ctype override)
+    , (Instrument, lookup_calls ctype inst)
+    , (Scale, lookup_calls ctype scale)
+    , (Imported, lookup_calls ctype imported)
     ]
-
--- | Multiple bound symbols with the same DocumentedCall are grouped together:
-type CallBindings = ([Binding], CallType, Derive.CallDoc)
-type Binding = (SymbolName, CallName)
-type CallName = Text
-type SymbolName = Text
 
 lookup_calls :: CallType -> [LookupCall] -> [CallBindings]
 lookup_calls ctype = group . map (extract . go) . concatMap flatten
@@ -571,11 +644,3 @@ lookup_calls ctype = group . map (extract . go) . concatMap flatten
     -- Group calls with the same CallDoc.
     group docs = [(map fst group, ctype, doc)
         | (doc, group) <- Seq.keyed_group_sort snd docs]
-
-data CallType = ValCall | GeneratorCall | TransformerCall
-    deriving (Eq, Ord, Show)
-
-show_call_type :: CallType -> Text
-show_call_type ValCall = "val"
-show_call_type GeneratorCall = "generator"
-show_call_type TransformerCall = "transformer"
