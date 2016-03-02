@@ -47,16 +47,16 @@ doc_text = Format.render "  " 75 . mconcatMap section
 
 call_bindings_text :: Bool -> CallBindings -> Format.Doc
 call_bindings_text show_module (binds, ctype, call_doc) =
-    (if show_module
-        then (module_text (Derive.cdoc_module call_doc) <//>)
-        else id) $
     Format.unlines (map show_bind binds)
     </> show_call_doc call_doc
     <> "\n\n"
     where
-    module_text (Module.Module m) = Format.text $ "\tModule: " <> m
-    show_bind (sym, name) = Format.text $
-        sym <> " -- " <> name <> ": (" <> show_call_type ctype <> ")"
+    Module.Module module_name = Derive.cdoc_module call_doc
+    show_bind (sym, name) =
+        Format.text sym <+> "--" <+> Format.text name
+        <+> (if show_module then "(" <> Format.text module_name <> ")"
+            else mempty)
+        <+> ("[" <> Format.text (show_call_type ctype) <> "]")
     show_call_doc (Derive.CallDoc _module tags doc args)
         | tags == mempty && no_args args = write_doc doc
         | otherwise = write_doc doc <//> write_tags tags

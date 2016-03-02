@@ -293,7 +293,7 @@ documentation:
     'Module.function' references get out of date.
   calldoc: CallDoc:
     * need a newline separating calls
-    - Module shouldn't take up its own line
+    * Module shouldn't take up its own line
     - why does reyong vv have two entries that look the same?
     - isn't showing that calls are shadowed?
     - LBlock should have a function to just show calls in scope, module, and
