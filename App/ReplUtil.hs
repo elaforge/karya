@@ -47,7 +47,7 @@ encode_response (result, logs) = encode_record (result_s : logs)
         Format t -> t
 
 decode_response :: ByteString.ByteString -> (Text, [Text])
-decode_response bytes = (Text.strip result, logs)
+decode_response bytes = (result, logs)
     where
     (result, logs) = case decode_record bytes of
         [] -> ("", [])
@@ -55,11 +55,10 @@ decode_response bytes = (Text.strip result, logs)
     format1 result
         | result == "()" = ""
         | Just ('!', s) <- Text.uncons result = s
-        | otherwise = Text.strip $ Text.pack $ PPrint.format_str $
-            Text.unpack result
+        | otherwise = Text.pack $ PPrint.format_str $ Text.unpack result
 
 format_response :: (Text, [Text]) -> Text
-format_response (response, logs_) = Text.strip $ Text.unlines $
+format_response (response, logs_) = Text.unlines $
     (if null logs then [] else "Logs:" : logs ++ [""]) ++ [response]
     where logs = abbreviate_logs (map Text.strip logs_)
 

@@ -29,4 +29,4 @@ send msg = do
     ByteString.Char8.hPutStr hdl $ ReplUtil.encode_request $
         Text.replace "\n" " " $ Text.strip msg
     IO.hFlush hdl
-    fmap ReplUtil.decode_response $ ByteString.Char8.hGetContents hdl
+    ReplUtil.decode_response <$> ByteString.Char8.hGetContents hdl
