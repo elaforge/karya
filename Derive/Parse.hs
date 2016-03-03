@@ -439,7 +439,7 @@ load_ky paths fname =
         | otherwise = do
             (fname, timestamp) <- expect_right =<< liftIO (find_ky paths lib)
             content <- liftIO $ Text.IO.readFile fname
-            (imports, defs) <- expect_right $ parse_ky content
+            (imports, defs) <- expect_right $ parse_ky fname content
             ((defs, (fname, timestamp)) :) <$>
                 load (Set.insert lib loaded) (libs ++ imports)
     expect_right = either Except.throwError return
@@ -447,6 +447,7 @@ load_ky paths fname =
     annotate (Right results) = Right (mconcat defs, loaded)
         where (defs, loaded) = unzip results
 
+-- | Find the file in the given paths and return its modification time.
 find_ky :: [FilePath] -> FilePath -> IO (Either Text (FilePath, Time.UTCTime))
 find_ky paths fname =
     catch_io (txt fname) $ maybe (Left msg) Right <$>
@@ -476,7 +477,8 @@ instance Monoid Definitions where
             (Definitions (a2, b2) (c2, d2) (e2, f2) g2) =
         Definitions (a1<>a2, b1<>b2) (c1<>c2, d1<>d2) (e1<>e2, f1<>f2) (g1<>g2)
 
-type Definition = (BaseTypes.CallId, BaseTypes.Expr)
+-- | (defining_file, (call_sym, expr))
+type Definition = (FilePath, (BaseTypes.CallId, BaseTypes.Expr))
 type LineNumber = Int
 
 {- | Parse a definitions file.  This file gives a way to define new calls
@@ -504,8 +506,8 @@ type LineNumber = Int
     @x = a@ (no arguments) is equivalent to @^x = a@, in that @x@ can take the
     same arguments as @a@.
 -}
-parse_ky :: Text -> Either Text ([FilePath], Definitions)
-parse_ky text = do
+parse_ky :: FilePath -> Text -> Either Text ([FilePath], Definitions)
+parse_ky filename text = do
     let (imports, sections) = split_sections text
     let extra = Set.toList $
             Map.keysSet sections `Set.difference` Set.fromList headers
@@ -516,11 +518,13 @@ parse_ky text = do
     let get header = Map.findWithDefault [] header parsed
         get2 kind = (get (kind <> " " <> generator),
             get (kind <> " " <> transformer))
+    let add_fname = map (filename,)
+        add_fname2 = add_fname *** add_fname
     return $ (,) imports $ Definitions
-        { def_note = get2 note
-        , def_control = get2 control
-        , def_pitch = get2 pitch
-        , def_val = get val
+        { def_note = add_fname2 $ get2 note
+        , def_control = add_fname2 $ get2 control
+        , def_pitch = add_fname2 $ get2 pitch
+        , def_val = add_fname $ get val
         }
     where
     val = "val"
@@ -556,11 +560,11 @@ p_imports = A.skipMany empty_line *> A.many p_import <* A.skipMany empty_line
     p_import = A.string "import" *> spaces *> (untxt <$> p_single_quote_string)
         <* spaces <* A.char '\n'
 
-p_section :: A.Parser [Definition]
+p_section :: A.Parser [(BaseTypes.CallId, BaseTypes.Expr)]
 p_section =
     A.skipMany empty_line *> A.many p_definition <* A.skipMany empty_line
 
-p_definition :: A.Parser Definition
+p_definition :: A.Parser (BaseTypes.CallId, BaseTypes.Expr)
 p_definition = do
     assignee <- p_call_symbol True
     spaces

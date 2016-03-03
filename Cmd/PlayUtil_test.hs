@@ -48,7 +48,7 @@ test_ky_file = do
 
 put_library :: Cmd.M m => Text -> m ()
 put_library text = Cmd.modify $ \st -> st
-    { Cmd.state_ky_cache = Just $ case Parse.parse_ky text of
+    { Cmd.state_ky_cache = Just $ case Parse.parse_ky "fname.ky" text of
         Left err -> Cmd.KyCache (Left err) mempty
         Right (_, defs) ->
             Cmd.KyCache (Right $ PlayUtil.compile_library defs) mempty

@@ -56,6 +56,7 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Library as Library
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
+import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stack as Stack
 
@@ -413,22 +414,23 @@ compile_library (Parse.Definitions note control pitch val) = Derive.Library
     where
     call_maps (gen, trans) = Derive.call_maps
         (compile make_generator gen) (compile make_transformer trans)
-    compile make = map $ \(call_id, expr) -> (call_id, make call_id expr)
+    compile make = map $ \(fname, (call_id, expr)) ->
+        (call_id, make fname call_id expr)
 
-make_generator :: Derive.Callable d => BaseTypes.Symbol -> BaseTypes.Expr
-    -> Derive.Generator d
-make_generator (BaseTypes.Symbol name) expr =
-    Derive.generator Module.local name mempty ("Local definition: " <> name) $
+make_generator :: Derive.Callable d => FilePath -> BaseTypes.Symbol
+    -> BaseTypes.Expr -> Derive.Generator d
+make_generator fname (BaseTypes.Symbol name) expr =
+    Derive.generator Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0 generator
         Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $
             \args -> Eval.reapply_generator args call_id
     where generator args = Eval.eval_toplevel (Derive.passed_ctx args) expr
 
-make_transformer :: Derive.Callable d => BaseTypes.Symbol -> BaseTypes.Expr
-    -> Derive.Transformer d
-make_transformer (BaseTypes.Symbol name) expr =
-    Derive.transformer Module.local name mempty ("Local definition: " <> name) $
+make_transformer :: Derive.Callable d => FilePath -> BaseTypes.Symbol
+    -> BaseTypes.Expr -> Derive.Transformer d
+make_transformer fname (BaseTypes.Symbol name) expr =
+    Derive.transformer Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0t transformer
         Just call_id -> Sig.parsed_manually "Args parsed by reapplied call." $
@@ -441,9 +443,10 @@ make_transformer (BaseTypes.Symbol name) expr =
         Eval.apply_transformer (Derive.passed_ctx args) call_id
             (Derive.passed_vals args) deriver
 
-make_val_call :: BaseTypes.CallId -> BaseTypes.Expr -> Derive.ValCall
-make_val_call (BaseTypes.Symbol name) expr =
-    Derive.val_call Module.local name mempty ("Local definiton: " <> name) $
+make_val_call :: FilePath -> BaseTypes.CallId -> BaseTypes.Expr
+    -> Derive.ValCall
+make_val_call fname (BaseTypes.Symbol name) expr =
+    Derive.val_call Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0 $ \args -> case expr of
             call :| [] ->
@@ -456,6 +459,10 @@ make_val_call (BaseTypes.Symbol name) expr =
         call <- Eval.get_val_call call_id
         Derive.vcall_call call $ args
             { Derive.passed_call_name = Derive.vcall_name call }
+
+make_doc :: FilePath -> Text -> BaseTypes.Expr -> Text
+make_doc fname name expr =
+    name <> " defined in " <> txt fname <> ": " <> ShowVal.show_val expr
 
 -- | If there are arguments in the definition, then don't accept any in the
 -- score.  I could do partial application, but it seems confusing, so

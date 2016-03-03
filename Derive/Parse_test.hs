@@ -232,7 +232,7 @@ test_load_ky = do
     let write imports =
             writeFile (dir </> "defs") (make_ky imports ["defs-call"])
     let load = (untxt *** first extract) <$> Parse.load_ky [dir, lib] "defs"
-        extract = map fst . fst . Parse.def_note
+        extract = map (fst . snd) . fst . Parse.def_note
     write ["z1"]
     v <- load
     left_like v "ky file not found: z"
@@ -252,8 +252,8 @@ test_load_ky = do
             ])
 
 test_parse_ky = do
-    let f extract = (untxt *** extract) . Parse.parse_ky
-        note = f (map (second NonEmpty.head) . fst . Parse.def_note . snd)
+    let f extract = (untxt *** extract) . Parse.parse_ky "fname.ky"
+        note = f (map (second NonEmpty.head . snd) . fst . Parse.def_note . snd)
             . ("note generator:\n"<>)
     let sym = Literal . VSymbol
     left_like (f id "x:\na = b\n") "unknown sections: x"
