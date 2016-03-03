@@ -21,6 +21,7 @@ import qualified Util.Seq as Seq
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
@@ -39,7 +40,6 @@ import qualified Derive.Pitches as Pitches
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -77,7 +77,7 @@ note_calls = Derive.call_maps
         reyong_pattern "44-34-3- 43-434-3" "-12-12-2 1-21-12-")
     , ("k", c_kotekan_regular Nothing Nothing)
     , ("t", c_tumpuk)
-    , ("n", c_tumpuk_auto)
+    , ("a", c_tumpuk_auto)
     , ("/", articulation False "cek-loose"
         ((:[]) . pos_cek) (cek <> Attrs.open))
     , ("//", articulation True "cek-loose"
@@ -97,7 +97,7 @@ note_calls = Derive.call_maps
     , ("cancel-kotekan", c_cancel_kotekan)
     , ("realize-ngoret", Derive.set_module module_ Gender.c_realize_ngoret)
     , ("realize-reyong", c_realize_reyong)
-    , ("v", c_lower_octave_note)
+    , ("vv", c_lower_octave_note)
     , ("upper", c_upper_voice)
     ]
     where articulation = make_articulation reyong_positions

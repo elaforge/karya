@@ -226,9 +226,9 @@ test_lower_octave_note = do
             . DeriveTest.derive_tracks title_realize
             . UiTest.note_track
         e_notes ns = [n | (Nothing, n) <- ns]
-    equal (run [(0, 1, "4i"), (1, 1, "v | -- 4o"), (2, 1, "4e")])
+    equal (run [(0, 1, "4i"), (1, 1, "vv | -- 4o"), (2, 1, "4e")])
         ([(0, 1, "4i"), (1, 1, "4o"), (1, 1, "3o"), (2, 1, "4e")], [])
-    equal (run [(0, 1, "4i"), (1, 1, "v | ' .5 -- 4e")])
+    equal (run [(0, 1, "4i"), (1, 1, "vv | ' .5 -- 4e")])
         ([(0, 1, "4i"), (0.5, 0.5, "4o"), (1, 1, "4e"), (1, 1, "3e")], [])
 
 test_upper_voice = do
