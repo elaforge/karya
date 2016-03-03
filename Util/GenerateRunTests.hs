@@ -71,8 +71,32 @@ type LineNumber = Int
 
 -- * extract
 
+-- | Extract test functions and a possible initilaize function from the file.
 extract :: FilePath -> Text -> ([Test], Maybe Text)
-extract fname content = (extractTests content, extractInitialize fname content)
+extract fname content =
+    (extractTests stripped, extractInitialize fname stripped)
+    where stripped = stripComments content
+
+-- | This will be fooled by a {- or -} inside a string.  I don't strip --
+-- comments because the extract functions look for left justified text.
+stripComments :: Text -> Text
+stripComments = mconcat . go 0
+    where
+    go nesting text
+        | Text.null post = [text]
+        | "{-" `Text.isPrefixOf` post = (if nesting > 0 then id else (pre:))
+            (go (nesting+1) (Text.drop 2 post))
+        | otherwise = (if nesting == 0 then (pre <> Text.take 2 post :) else id)
+            (go (max 0 (nesting-1)) (Text.drop 2 post))
+        where (pre, post) = breakOnFirst "{-" "-}" text
+
+breakOnFirst :: Text -> Text -> Text -> (Text, Text)
+breakOnFirst a b text
+    | Text.length aPre <= Text.length bPre = (aPre, aPost)
+    | otherwise = (bPre, bPost)
+    where
+    (aPre, aPost) = Text.breakOn a text
+    (bPre, bPost) = Text.breakOn b text
 
 extractInitialize :: FilePath -> Text -> Maybe Text
 extractInitialize fname content
