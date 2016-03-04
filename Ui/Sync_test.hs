@@ -420,7 +420,7 @@ thread setup tests = do
         state <- run state action
         -- Sort by view to ensure a consistent order.
         unparsed <- map snd . List.sort <$> BlockC.dump
-        putStr "***dump: " >> pslist unparsed
+        putStr "***dump: " >> pprint unparsed
         let dumps = map parse_dump unparsed
         passed <- match_dumps desc dumps expected
         unless passed (pause "")
@@ -502,8 +502,10 @@ sync_states st1 st2 = sync st1 st2 []
 sync :: State.State -> State.State -> [Update.CmdUpdate] -> IO ()
 sync st1 st2 cmd_updates = do
     let (_cupdates, dupdates) = Diff.diff cmd_updates st1 st2
-    pmlist "cmd updates" cmd_updates
-    pmlist "updates" dupdates
+    putStr "cmd updates: "
+    pprint cmd_updates
+    putStr "updates: "
+    pprint dupdates
     result <- Sync.sync global_ui_channel Map.empty Internal.set_style st2
         dupdates
     case result of

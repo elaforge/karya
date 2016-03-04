@@ -29,8 +29,6 @@ module Util.Test (
     , force
 
     -- * pretty printing
-    , printf
-    , plist, pslist, pmlist
     , prettyp, pprint
 
     -- * filesystem
@@ -61,7 +59,7 @@ import qualified System.Posix.IO as IO
 import qualified System.Posix.Temp as Temp
 import qualified System.Posix.Terminal as Terminal
 
-import Text.Printf
+import qualified Text.Printf as Printf
 
 import qualified Util.ApproxEq as ApproxEq
 import Util.Debug as Debug
@@ -322,12 +320,12 @@ timer = Log.time_eval
 
 print_timer :: String -> (Double -> Double -> a -> String) -> IO a -> IO a
 print_timer msg show_val op = do
-    printf "%s - " msg
+    Printf.printf "%s - " msg
     IO.hFlush IO.stdout
     (val, cpu_secs, secs) <- timer $ do
         !val <- op
         return val
-    printf "time: %.2fs cpu %.2fs wall - %s\n" cpu_secs secs
+    Printf.printf "time: %.2fs cpu %.2fs wall - %s\n" cpu_secs secs
         (show_val cpu_secs secs val)
     IO.hFlush IO.stdout
     return val
@@ -336,23 +334,6 @@ force :: DeepSeq.NFData a => a -> IO ()
 force x = x `DeepSeq.deepseq` return ()
 
 -- * util
-
--- | Print a list with newlines between its elements.
-plist :: Show a => [a] -> IO ()
-plist [] = putStrLn "[]"
-plist xs = do
-    mapM_ (\(i, x) -> putStr (show i ++ ": ") >> print x) (Seq.enumerate xs)
-    putChar '\n'
-
-pslist :: [String] -> IO ()
-pslist [] = putStrLn "[]"
-pslist xs = putStr $
-    concatMap (\(i, x) -> printf "%02d. %s\n" i x) (Seq.enumerate xs)
-
-pmlist :: Show a => String -> [a] -> IO ()
-pmlist msg xs
-    | null xs = return ()
-    | otherwise = putStrLn (msg++":") >> plist xs
 
 prettyp :: Pretty.Pretty a => a -> IO ()
 prettyp val = s `DeepSeq.deepseq` Text.IO.putStr s
