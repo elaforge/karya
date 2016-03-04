@@ -297,8 +297,8 @@ parse_pitch parse pitch = do
 
 -- * note
 
-eval_note :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Pitch
-eval_note pos note = Eval.eval_pitch pos $
+eval_pitch :: ScoreTime -> Pitch.Note -> Derive.Deriver PSignal.Pitch
+eval_pitch pos note = Eval.eval_pitch pos $
     BaseTypes.call (BaseTypes.Symbol (Pitch.note_text note)) []
 
 -- | Generate a single note, from 0 to 1.

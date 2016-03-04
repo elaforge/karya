@@ -255,6 +255,6 @@ with_default_pitch start default_pitch deriver = do
                 note <- Derive.require
                     ("scale has no for default: " <> pretty pitch)
                     (to_note pitch)
-                pitch <- Call.eval_note start note
+                pitch <- Call.eval_pitch start note
                 Derive.with_constant_pitch pitch deriver
             Right pitch -> Derive.with_constant_pitch pitch deriver

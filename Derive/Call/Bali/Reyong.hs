@@ -395,7 +395,7 @@ realize_note show_pitch voice start (pitch, attrs) =
     Derive.with_val EnvKey.voice voice $ do
         note <- Derive.require ("unshowable pitch: " <> pretty pitch)
             (show_pitch pitch)
-        Call.pitched_note =<< Call.eval_note start note
+        Call.pitched_note =<< Call.eval_pitch start note
 
 
 -- * kotekan
