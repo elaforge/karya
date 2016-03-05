@@ -380,17 +380,21 @@ record_empty_track block_id track_id =
 get_control_function_dynamic :: Deriver BaseTypes.Dynamic
 get_control_function_dynamic = do
     ruler <- get_ruler
-    get_dynamic (convert_dynamic ruler)
+    state <- get
+    return $ convert_dynamic ruler (state_dynamic state)
+        (state_event_serial (state_threaded state))
 
-convert_dynamic :: Ruler.Marklists -> Dynamic -> BaseTypes.Dynamic
-convert_dynamic ruler dyn = BaseTypes.Dynamic
-    { BaseTypes.dyn_controls = state_controls dyn
-    , BaseTypes.dyn_control_functions = state_control_functions dyn
-    , BaseTypes.dyn_pitches = state_pitches dyn
-    , BaseTypes.dyn_pitch = state_pitch dyn
-    , BaseTypes.dyn_environ = state_environ dyn
-    , BaseTypes.dyn_warp = state_warp dyn
-    , BaseTypes.dyn_ruler = ruler
+convert_dynamic :: Ruler.Marklists -> Dynamic -> Int -- ^ 'state_event_serial'
+    -> BaseTypes.Dynamic
+convert_dynamic ruler dyn serial = BaseTypes.Dynamic
+    { dyn_controls = state_controls dyn
+    , dyn_control_functions = state_control_functions dyn
+    , dyn_pitches = state_pitches dyn
+    , dyn_pitch = state_pitch dyn
+    , dyn_environ = state_environ dyn
+    , dyn_event_serial = serial
+    , dyn_warp = state_warp dyn
+    , dyn_ruler = ruler
     }
 
 -- | Get the 'Ruler.meter' marklists, if there is a ruler track here.  This
@@ -405,3 +409,15 @@ get_ruler = lookup_current_tracknum >>= \x -> case x of
             ruler_id <- fromMaybe State.no_ruler <$>
                 State.ruler_track_at block_id tracknum
             Ruler.ruler_marklists <$> State.get_ruler ruler_id
+
+
+-- * Threaded
+
+modify_threaded :: (Threaded -> Threaded) -> Deriver ()
+modify_threaded f = modify $ \state -> state
+    { state_threaded = f (state_threaded state) }
+
+-- | Increment 'state_event_serial'.
+increment_event_serial :: Deriver ()
+increment_event_serial = modify_threaded $ \threaded -> threaded
+    { state_event_serial = state_event_serial threaded + 1 }

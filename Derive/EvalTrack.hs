@@ -245,13 +245,14 @@ derive_event_stream derive_empty tinfo
     where
     track = tinfo_track tinfo
     -- Derive the empty space after the previous event and before this one.
-    (stream, state) = maybe (Stream.empty, prev_state) (run_derive prev_state) $
-        case cur_events of
-            event : next_events ->
-                derive_empty tinfo (Seq.head prev_events) (Just event)
-                    (Just (derive_event tinfo prev_val prev_events event
-                        next_events))
-            [] -> derive_empty tinfo (Seq.head prev_events) Nothing Nothing
+    (stream, state) = maybe (Stream.empty, prev_state)
+        (run_derive (reset_event_serial prev_state)) maybe_derive
+    maybe_derive = case cur_events of
+        event : next_events ->
+            derive_empty tinfo (Seq.head prev_events) (Just event)
+                (Just (derive_event tinfo prev_val prev_events event
+                    next_events))
+        [] -> derive_empty tinfo (Seq.head prev_events) Nothing Nothing
     save_val = if should_save_val then next_val else prev_save_val
     next_val = tinfo_prev_val tinfo prev_val stream
     -- Only save a prev val if the event won't be derived again, e.g.
@@ -263,6 +264,16 @@ derive_event_stream derive_empty tinfo
         _ : next : _ -> Event.start next <= TrackTree.track_end track
         _ -> False
     is_note = ParseTitle.is_note_track $ TrackTree.track_title track
+
+-- | See 'Derive.state_event_serial' for what this is doing.
+reset_event_serial :: Derive.State -> Derive.State
+reset_event_serial state =
+    case Derive.state_inversion (Derive.state_dynamic state) of
+        Derive.NotInverted -> state
+            { Derive.state_threaded = (Derive.state_threaded state)
+                { Derive.state_event_serial = 0 }
+            }
+        _ -> state
 
 lookup_prev_val :: Derive.Taggable a => TrackTree.Track -> Derive.State
     -> Maybe a

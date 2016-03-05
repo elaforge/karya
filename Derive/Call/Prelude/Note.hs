@@ -225,6 +225,7 @@ make_event_control_vals :: Score.ControlValMap -> Derive.PassedArgs a
     -> Derive.Deriver Score.Event
 make_event_control_vals control_vals args dyn start dur flags = do
     offset <- get_start_offset start
+    Internal.increment_event_serial
     return $! Score.Event
         { Score.event_start = start
         , Score.event_duration = dur

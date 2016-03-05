@@ -404,7 +404,8 @@ _make_randoms f = List.unfoldr (Just . f) <$> _random_generator
 _random_generator :: Derive.Deriver Pure64.PureMT
 _random_generator = do
     seed <- fromMaybe 0 <$> Derive.lookup_val EnvKey.seed
-    return $ Pure64.pureMT (floor (seed :: Double))
+    serial <- Derive.gets $ Derive.state_event_serial . Derive.state_threaded
+    return $ Pure64.pureMT (fromIntegral serial + floor (seed :: Double))
 
 pick_weighted :: NonEmpty (Double, a) -> Double -> a
 pick_weighted weights rnd_ = go 0 weights

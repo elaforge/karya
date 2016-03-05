@@ -86,7 +86,9 @@ control_vals from_root = do
     mlists <- Ruler.ruler_marklists <$> State.get_ruler ruler_id
     dyn <- dynamic from_root
     pos <- get_realtime from_root
-    return $ Derive.state_controls_at pos mlists dyn
+    -- I can't get 'Derive.state_event_serial' back, so the randomization will
+    -- likely be different.
+    return $ Derive.state_controls_at pos mlists dyn 0
 
 -- | Like 'control_vals', but without control functions.
 raw_control_vals :: Bool -> Cmd.CmdL Score.TypedControlValMap

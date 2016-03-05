@@ -46,6 +46,23 @@ test_kilitan = do
             , (5, "4a"), (6, "4u"), (7, "4a"), (8, "4u")
             ], [])
 
+test_kilitan_random_start = do
+    let run = e_by_voice extract
+            . DeriveTest.derive_tracks (title <> " | reyong-voices = (list 1 3)\
+                \ | apply-start-offset | %start-s = (cf-rnd-a .5)")
+            . UiTest.note_track
+        extract e = (Score.event_start e, DeriveTest.e_pitch e)
+    -- Notes all created by the same call all have unique randomization.
+    -- This indirectly tests 'Derive.state_event_serial', also directly tested
+    -- in "Derive.EvalTrack_test".
+    let (notes, logs) = run [(0, 4, "kilit -- 4i")]
+    equal logs []
+    let [voice1, voice3] = map snd notes
+    equal (map snd voice1) ["4a", "4u", "4a"]
+    equal (map snd voice3) ["5a", "5u", "5a"]
+    forM_ (zip (map fst voice1) (map fst voice3)) $ \(start1, start3) ->
+        not_equal start1 start3
+
 test_kotekan_regular = do
     let run voice = first (lookup voice) . e_pattern 0
             . DeriveTest.derive_tracks title_cancel . UiTest.note_track

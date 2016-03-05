@@ -747,6 +747,8 @@ data Dynamic = Dynamic {
     , dyn_pitches :: !PitchMap
     , dyn_pitch :: !PSignal
     , dyn_environ :: !Environ
+    -- | This is from 'Derive.Deriver.Monad.state_event_serial'.
+    , dyn_event_serial :: !Int
     , dyn_warp :: !ScoreTypes.Warp
     , dyn_ruler :: Ruler.Marklists -- intentionally lazy
     } deriving (Show)
@@ -758,6 +760,7 @@ empty_dynamic = Dynamic
     , dyn_pitches = mempty
     , dyn_pitch = mempty
     , dyn_environ = mempty
+    , dyn_event_serial = 0
     , dyn_warp = ScoreTypes.id_warp
     , dyn_ruler = mempty
     }

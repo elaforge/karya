@@ -10,7 +10,7 @@ module Util.Test (
     Config(..), modify_config, with_name
     -- * tests
     -- ** pure checks
-    , check, equal, right_equal, equalf, strings_like
+    , check, equal, right_equal, not_equal, equalf, strings_like
     , left_like , match
     -- ** exception checks
     , throws
@@ -109,6 +109,12 @@ equal a b
 right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
 right_equal (Right a) b = equal a b
 right_equal (Left err) _ = failure $ "Left: " <> PPrint.pshow err
+
+not_equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
+not_equal a b
+    | a /= b = success $ pretty False
+    | otherwise = failure $ pretty True
+    where pretty = pretty_compare "==" "/=" a b
 
 -- | Show the values nicely, whether they are equal or not.
 pretty_compare :: Show a =>

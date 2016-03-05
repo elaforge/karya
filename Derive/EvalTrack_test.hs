@@ -18,6 +18,7 @@ import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Module as Module
+import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -40,6 +41,33 @@ import Types
 
 module_ :: Module.Module
 module_ = "test-module"
+
+test_event_serial = do
+    -- Verify that 'Derive.state_event_serial' is reset for each event.
+    --
+    -- Ultimately, I want different randomization for each note in a single
+    -- event, but randomization is not affected if a previous event changes.
+    let run = DeriveTest.extract (fromMaybe (error "no control")
+                . DeriveTest.e_start_control "serial")
+            . DeriveTest.derive_tracks_setup with_calls ""
+            . UiTest.note_track
+        with_calls = CallTest.with_note_generator "" note
+            <> CallTest.with_note_generator "notes" notes
+    equal (run [(0, 1, "notes 1 -- 4c"), (1, 1, "notes 1 -- 4d")])
+        ([0, 0], [])
+    equal (run [(0, 1, "notes 2 -- 4c"), (1, 1, "notes 1 -- 4d")])
+        ([0, 1, 0], [])
+    equal (run [(0, 1, "notes 1 -- 4c"), (1, 1, "notes 2 -- 4d")])
+        ([0, 0, 1], [])
+    where
+    note = Note.transformed_note "" mempty $ \_args deriver -> do
+        serial <- Derive.gets $
+            Derive.state_event_serial . Derive.state_threaded
+        Derive.with_constant_control "serial"
+            (Score.untyped (fromIntegral serial)) deriver
+    notes = Derive.generator CallTest.module_ "test" mempty "test doc" $
+        Sig.call (Sig.required "notes" "Number of notes.") $ \notes _args ->
+            mconcat $ replicate notes Call.note
 
 test_threaded_last_val = do
     let run notes = DeriveTest.extract (DeriveTest.e_control "c") $
