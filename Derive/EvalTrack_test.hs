@@ -30,6 +30,7 @@ import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
+import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
@@ -527,3 +528,12 @@ test_bi_zipper = do
         , ([4, 3, 2, 1, 0], 5, [6])
         , ([5, 4, 3, 2, 1, 0], 6, [])
         ]
+
+test_parse_error = do
+    let run = first (map Score.event_start) . DeriveTest.extract_logs
+            . Stream.to_list . Derive.r_events . DeriveTest.derive_tracks ""
+    let (events, logs) = run [(">", [(1, 2, "- 4:12")])]
+    equal events []
+    equal (map (fmap Stack.to_ui . Log.msg_stack) logs)
+        [Just [(Just (UiTest.bid "b1"), Just (UiTest.tid "b1.t1"),
+            Just (1, 3))]]

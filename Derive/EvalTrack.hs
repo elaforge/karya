@@ -384,11 +384,10 @@ derive_event_ctx :: Derive.Callable d => Derive.Context d -> Event.Event
     -> Derive.Deriver (Stream.Stream d)
 derive_event_ctx ctx event
     | "--" `Text.isPrefixOf` Text.dropWhile (==' ') text = return Stream.empty
-    | otherwise = case Parse.parse_expr text of
-        Left err -> Log.warn err >> return Stream.empty
-        Right expr ->
-            with_event_region (Derive.ctx_track_shifted ctx) event $
-                with_note_start_end $ Eval.eval_toplevel ctx expr
+    | otherwise = with_event_region (Derive.ctx_track_shifted ctx) event $
+        case Parse.parse_expr text of
+            Left err -> Log.warn err >> return Stream.empty
+            Right expr -> with_note_start_end $ Eval.eval_toplevel ctx expr
     where
     text = Event.text event
     with_note_start_end = case Derive.ctx_track_type ctx of
