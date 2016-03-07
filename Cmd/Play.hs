@@ -186,15 +186,20 @@ root_from_root_selection = do
     (block_id, _, track_id, pos) <- Selection.get_root_insert
     from_score block_id (Just track_id) pos Nothing
 
--- | Play the root performance from the selection on the current block.  If
--- this block isn't linked from the root, then fall back on 'local_selection'.
-root_from_local_selection :: Cmd.M m => m Cmd.PlayMidiArgs
-root_from_local_selection = do
-    (block_id, _, track_id, pos) <- Selection.get_insert
+-- | The same as 'local_selection', but use the root performance.
+root_selection :: Cmd.M m => m Cmd.PlayMidiArgs
+root_selection = do
+    (block_id, _, track_id, _) <- Selection.get_insert
+    (_, sel) <- Selection.get
+    let (pos, repeat_at) = if Sel.is_point sel
+            then (Sel.start_pos sel, Nothing)
+            else Just <$> Sel.range sel
     root_id <- State.get_root_id
     perf <- get_performance root_id
-    maybe local_selection (from_realtime root_id Nothing)
-        =<< Perf.lookup_realtime perf block_id (Just track_id) pos
+    let realtime_at = Perf.lookup_realtime perf block_id (Just track_id)
+    real_repeat_at <- maybe (return Nothing) realtime_at repeat_at
+    maybe local_selection (from_realtime root_id real_repeat_at)
+        =<< realtime_at pos
 
 -- | Find the previous step on the focused block, get its RealTime, and play
 -- from the root at that RealTime.  If this block isn't linked from the root,

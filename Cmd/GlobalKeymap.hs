@@ -147,8 +147,7 @@ player_bindings = concat
     -- See if playing from the top is more useful than the previous step.
     , bind prev local "play local from top of window" Play.local_top
     , bind block root "play root from start" Play.root_block
-    , bind sel root "play root from local selection"
-        Play.root_from_local_selection
+    , bind sel root "play or loop root from local selection" Play.root_selection
     -- It plays from the selection on the root, instead of the local one.
     -- This breaks the modifier+key pattern, but it's useful to manually set
     -- a play starting point on the root.

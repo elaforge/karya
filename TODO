@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * is there no way to loop a selection from root?
   * parse error has the whole track, not the place where it occurred.
   - seems zero dur notes for mute isn't working for sc-ugal?
     Or rather, inconsistently.
@@ -1398,6 +1399,11 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
+        - Ceks get +cek+mute+open.  Probably infer-damp doesn't know to ignore
+          them.
+        / a zero duration note should be without damp
+          . But this conflicts with the use of zero duration *as* a damp.
+            I should use +undamped for that.
         / 'n' tumpuk-auto is not working?
           . Shadowed by the inst 'n' call.
         - instead of the awkward >kilit or the cancel range, should I do
