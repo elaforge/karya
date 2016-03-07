@@ -162,7 +162,7 @@ test_c_infer_damp = do
     let run = DeriveTest.extract extract
             . DeriveTest.derive_tracks (title_damp 1 <> " | %damp=.5")
             . UiTest.note_track
-        extract e = (Score.event_start e, DeriveTest.e_pitch e, e_damp e)
+        extract e = (Score.event_start e, DeriveTest.e_pitch e, e_damp_dyn e)
     -- +undamped prevents damping.
     equal (run [(0, 1, "4i"), (1, 1, "+undamped -- 4o")])
         ([(0, "4i", Nothing), (1, "4o", Nothing), (1, "4i", Just 0.5)], [])
@@ -180,7 +180,7 @@ test_c_infer_damp = do
 test_c_infer_damp_kotekan = do
     let run = e_voice 1 extract . DeriveTest.derive_tracks (title_damp 1.5)
             . UiTest.note_track
-        extract e = (Score.event_start e, DeriveTest.e_pitch e, e_damp e)
+        extract e = (Score.event_start e, DeriveTest.e_pitch e, e_damp_dyn e)
     -- The first 4e is too fast, so no damp.
     equal (run [(0, 4, "k k-12-1-21 -- 4i")])
         ( Just [(0, "4e", Nothing), (1, "4u", Nothing), (2, "4e", Nothing),
@@ -189,8 +189,25 @@ test_c_infer_damp_kotekan = do
         , []
         )
 
-e_damp :: Score.Event -> Maybe Signal.Y
-e_damp e
+test_c_infer_damp_cek = do
+    let run = e_voice 1 extract
+            . DeriveTest.derive_tracks (title_damp 0.5 <> " | v=1")
+            . UiTest.note_track
+        extract e = (Score.event_start e, DeriveTest.e_pitch e,
+            DeriveTest.e_attributes e)
+    -- Ceks and byongs don't get damps.
+    equal (run [(0, 0, "X --")]) (Just [(0, "4u", "+cek")], [])
+    equal (run [(0, 0, "O --"), (1, 1, "4i"), (3, 0, "+ --")])
+        ( Just
+            [ (0, "4e", "+"), (0, "4a", "+")
+            , (1, "4i", "+"), (2, "4i", "+mute")
+            , (3, "4e", "+mute"), (3, "4a", "+mute")
+            ]
+        , []
+        )
+
+e_damp_dyn :: Score.Event -> Maybe Signal.Y
+e_damp_dyn e
     | Score.has_attribute Attrs.mute e = Just (Score.initial_dynamic e)
     | otherwise = Nothing
 
@@ -225,7 +242,7 @@ show_pitch (Just (Pitch.Pitch oct (Pitch.Degree d _))) =
 -- * ngoret
 
 test_ngoret = do
-    let run = DeriveTest.extract (\e -> (e_damp e, DeriveTest.e_note e))
+    let run = DeriveTest.extract (\e -> (e_damp_dyn e, DeriveTest.e_note e))
             . DeriveTest.derive_tracks title_realize
             . UiTest.note_track
     let tracks = [(0, 2, "4i"), (2, 2, "' .25 -- 4e")]
@@ -239,7 +256,7 @@ test_ngoret = do
 
 test_lower_octave_note = do
     let run = first e_notes
-            . DeriveTest.extract (\e -> (e_damp e, DeriveTest.e_note e))
+            . DeriveTest.extract (\e -> (e_damp_dyn e, DeriveTest.e_note e))
             . DeriveTest.derive_tracks title_realize
             . UiTest.note_track
         e_notes ns = [n | (Nothing, n) <- ns]

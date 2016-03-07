@@ -608,6 +608,8 @@ infer_damp_args = (,)
         \ position for the damp stroke, and then move into position for its\
         \ next note afterwards."
 
+-- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created
+-- by infer-damp.
 damp_control :: Score.Control
 damp_control = "damp"
 
@@ -627,11 +629,11 @@ infer_damp_voices reyong_inst dur_at =
             (mapMaybe (uncurry set_damp) (zip damps events))
         where damps = infer_damp dur_at events
 
+-- | Possibly create a damped note at the end of the given note.
 set_damp :: Signal.Y -> Score.Event -> Maybe Score.Event
 set_damp damp_dyn event
     | damp > 0 = Just $
-        Score.add_attributes Attrs.mute $
-        Score.set_dynamic damp $
+        Score.add_attributes Attrs.mute $ Score.set_dynamic damp $
         event { Score.event_start = Score.event_end event,
                 Score.event_duration = 0 }
     | otherwise = Nothing
@@ -643,10 +645,10 @@ infer_damp :: (RealTime -> RealTime) -> [Score.Event] -> [Signal.Y]
 infer_damp dur_at = snd . List.mapAccumL infer (0, 0) . zip_next . assign_hands
     where
     -- TODO also infer damp level
-    infer prev ((hand, event), nexts) = (hands_state, if can_damp then 1 else 0)
+    infer prev ((hand, event), nexts) = (hands_state, if damp then 1 else 0)
         where
-        can_damp = Score.has_attribute damped event
-            || (not (Score.has_attribute undamped event)
+        damp = Score.has_attribute damped event
+            || (could_damp event
                 && (same_hand_can_damp || other_hand_can_damp))
         -- The same hand can damp if its next strike is sufficiently distant.
         same_hand_can_damp = enough_time (next hand)
@@ -664,7 +666,7 @@ infer_damp dur_at = snd . List.mapAccumL infer (0, 0) . zip_next . assign_hands
         prev_strike L = fst prev
         prev_strike R = snd prev
         hands_state
-            | can_damp = case hand of
+            | damp = case hand of
                 L -> (now, snd prev)
                 R -> (fst prev, now)
             | otherwise = prev
@@ -672,6 +674,14 @@ infer_damp dur_at = snd . List.mapAccumL infer (0, 0) . zip_next . assign_hands
         enough_time = maybe True
             ((>=dur) . subtract now . Score.event_start . snd)
         dur = dur_at (Score.event_start event)
+
+-- | True for events which could get an inferred damp.
+could_damp :: Score.Event -> Bool
+could_damp event =
+    Score.event_duration event > 0 && not (any has [cek, Attrs.mute])
+    where
+    has = Score.attrs_contain attrs
+    attrs = Score.event_attributes event
 
 damped :: Score.Attributes
 damped = Score.attr "damped"
