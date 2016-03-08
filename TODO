@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - Why does build/opt/seq depend on Util.Test?  Maybe it should have the
+    #pragma too.
+  - ! should still strip comments.
+  - Pipe should be an exception to "first call is any non-space", so I can
+    write a|b.  Or... is that so great after all?  With proportional fonts,
+    the spaces are small and I don't want multiple ways to do it.
+  - Gangsa +mute definitely still gets stuck down.  E.g. last block of gabor.
   * is there no way to loop a selection from root?
   * parse error has the whole track, not the place where it occurred.
   - seems zero dur notes for mute isn't working for sc-ugal?
@@ -1456,6 +1463,13 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
+    - dyn's '-' will have to become '=' to avoid conflicting with -- as
+      a comment.  Also it's more consistent with pitch now. But '=' is
+      taken by 'dc_move EQ'... but what does that even mean?
+    - prev pitch is still wrong:
+      . [(0, 1),      (1, 2)]
+        ["!T1 -- 2g", "2r", "!0 -- 2s"]
+        Prev pitch for "!0" winds up being ma from "!T1".
     + split india.gamakam3.a into gamakam4
       . Keeping DynExpr around is complicating things.
     * I need an easy way to start from a pitch instead of moving to it.  If
