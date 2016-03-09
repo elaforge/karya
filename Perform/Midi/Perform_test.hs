@@ -410,48 +410,54 @@ test_keyswitch = do
             (mkevent (ks_inst ks hold, pitch, start, dur, []), (dev1, 0))
         ks1 = [Patch.Keyswitch Key.c1]
         ks2 = [Patch.Keyswitch Key.d1]
-    let ks_gap = Perform.keyswitch_gap
-        delta = RealTime.milliseconds 2
+    let ks_lead = Perform.keyswitch_lead_time
+        ks_dur = RealTime.milliseconds 16
     let f extract = extract . expect_no_logs . perform_notes . map with_addr
 
     -- Redundant ks not emitted.
     equal (f e_note_on [(ks1, False, "a", 0, 1), (ks1, False, "b", 10, 10)])
-        [ (0 - ks_gap, Key.c1)
+        [ (0 - ks_lead, Key.c1)
         , (0, Key.c4)
         , (10, Key.cs4)
         ]
     -- Keyswitch changed.
     equal (f e_note_on [(ks1, False, "a", 0, 1), (ks2, False, "b", 10, 10)])
-        [ (0 - ks_gap, Key.c1), (0, Key.c4)
-        , (10 - ks_gap, Key.d1), (10, Key.cs4)
+        [ (0 - ks_lead, Key.c1), (0, Key.c4)
+        , (10 - ks_lead, Key.d1), (10, Key.cs4)
         ]
 
     -- No keyswitch to keyswitch.
     equal (f e_note_on [([], False, "a", 0, 1), (ks1, False, "b", 10, 10)])
         [ (0, Key.c4)
-        , (10 - ks_gap, Key.c1), (10, Key.cs4)
+        , (10 - ks_lead, Key.c1), (10, Key.cs4)
         ]
 
     -- Multiple keyswitches.
-    equal (f e_note [(ks1 ++ ks2, False, "a", 0, 1)])
-        [ (0 - ks_gap - delta, (True, Key.c1)), (0 - ks_gap, (False, Key.c1))
-        , (0 - ks_gap, (True, Key.d1)), (0 - ks_gap + delta, (False, Key.d1))
-        , (0, (True, Key.c4)), (1 - gap, (False, Key.c4))
+    let result = f e_note [(ks1 ++ ks2, False, "a", 0, 1)]
+    equal (map fst result) (List.sort (map fst result))
+    equal result
+        [ (-ks_lead, (True, Key.c1)), (-ks_lead, (True, Key.d1))
+        , (0, (True, Key.c4))
+        , (-ks_lead+ks_dur, (False, Key.c1)), (-ks_lead+ks_dur, (False, Key.d1))
+        , (1 - gap, (False, Key.c4))
         ]
-    -- If one keyswitch is emitted, they all are.
+    -- Multiple keyswitches on multiple notes.
     equal (f e_note [(ks1 ++ ks2, False, "a", 0, 1), (ks1, False, "b", 1, 1)])
-        [ (0 - ks_gap - delta, (True, Key.c1)), (0 - ks_gap, (False, Key.c1))
-        , (0 - ks_gap, (True, Key.d1)), (0 - ks_gap + delta, (False, Key.d1))
-        , (0, (True, Key.c4)), (1 - gap, (False, Key.c4))
-        , (1 - ks_gap, (True, Key.c1))
-        , (1 - ks_gap + delta, (False, Key.c1))
-        , (1, (True, Key.cs4)), (2 - gap, (False, Key.cs4))
+        [ (-ks_lead, (True, Key.c1)), (-ks_lead, (True, Key.d1))
+        , (0, (True, Key.c4))
+        , (-ks_lead+ks_dur, (False, Key.c1)), (-ks_lead+ks_dur, (False, Key.d1))
+        , (1 - gap, (False, Key.c4))
+
+        , (1-ks_lead, (True, Key.c1))
+        , (1, (True, Key.cs4))
+        , (1-ks_lead+ks_dur, (False, Key.c1))
+        , (2 - gap, (False, Key.cs4))
         ]
 
     -- Hold keyswitch.
     equal (f e_note [(ks1, True, "a", 0, 1), (ks1, True, "b", 1, 1),
             ([], False, "c", 2, 1)])
-        [ (0 - ks_gap, (True, Key.c1))
+        [ (0 - ks_lead, (True, Key.c1))
         , (0, (True, Key.c4))
         , (1 - gap, (False, Key.c4)), (1, (True, Key.cs4))
         , (2 - gap, (False, Key.cs4)), (2 - gap, (False, Key.c1))
@@ -467,9 +473,9 @@ test_keyswitch = do
             | Midi.is_note_on msg || Midi.is_cc msg = Just msg
             | otherwise = Nothing
     equal (f e_msg [(cs1, False, "a", 0, 1), (cs2, False, "b", 1, 1)])
-        [ (0 - ks_gap, Midi.ChannelMessage 0 (Midi.ControlChange 1 10))
+        [ (0 - ks_lead, Midi.ChannelMessage 0 (Midi.ControlChange 1 10))
         , (0, Midi.ChannelMessage 0 (Midi.NoteOn Key.c4 100))
-        , (1 - ks_gap, Midi.ChannelMessage 0 (Midi.ControlChange 1 20))
+        , (1 - ks_lead, Midi.ChannelMessage 0 (Midi.ControlChange 1 20))
         , (1, Midi.ChannelMessage 0 (Midi.NoteOn Key.cs4 100))
         ]
 

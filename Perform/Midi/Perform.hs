@@ -53,8 +53,8 @@ default_velocity = 0.79
 
 -- | A keyswitch gets this much lead time before the note it is meant to
 -- apply to.
-keyswitch_gap :: RealTime
-keyswitch_gap = RealTime.milliseconds 4
+keyswitch_lead_time :: RealTime
+keyswitch_lead_time = RealTime.milliseconds 4
 
 -- | Most synths don't respond to control change and pitch bend instantly, but
 -- smooth it out, so if you set pitch bend immediately before playing the note
@@ -517,15 +517,15 @@ keyswitch_messages midi_key maybe_old_inst new_inst wdev chan start =
 
     new_ks = T.patch_keyswitch new_inst
     is_hold = T.patch_hold_keyswitch new_inst
-    ks_start = start - keyswitch_gap - delta * fromIntegral (length new_ks - 1)
-    ks_starts = iterate (+delta) ks_start
-    delta = RealTime.milliseconds 2
+    ks_start = start - keyswitch_lead_time
+    -- It seems if the duration is too short, Kontakt won't recognize it.
+    -- Honestly nothing really surprises me about Kontakt anymore.
+    ks_dur = RealTime.milliseconds 16
 
     new_ks_on
-        | is_hold = zipWith ks_on ks_starts new_ks
-        | otherwise = concat [ks_on t ks : ks_off (t+delta) ks
-            | (t, ks) <- zip ks_starts new_ks]
-
+        | is_hold = map (ks_on ks_start) new_ks
+        | otherwise = map (ks_on ks_start) new_ks
+            ++ concatMap (ks_off (ks_start+ks_dur)) new_ks
     ks_on ts ks = mkmsg ts $ case ks of
         Patch.Keyswitch key -> Midi.NoteOn key 64
         Patch.ControlSwitch cc val -> Midi.ControlChange cc val
