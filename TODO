@@ -1463,14 +1463,31 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
-    - dyn's '-' will have to become '=' to avoid conflicting with -- as
+    - Aliases can't use [], so for the 'n' and 'u' aliases I need to support
+      the duration arg.
+    * simplify dynamic call parsing
+      . Single digits for absolute levels, 0-9.
+      . Relative motions make more sense for dynamic though.
+      . But that's what > and < are, right?  I could do an optional digit to
+        move by that many tenths, >2.  Effectively it's a slope.
+      . I'll also want T to set instead of move.
+        Then > is the same as 0.  < is T01
+        Unless I do the argument thing, but I could also write that +1 or -2.
+      . <5==<=> 0   to .5, hold, .5 to 1, then 1 to 0
+        T5>         set to .5, then to 0
+      . What about >^3?  Go down by 3 with the quick curve. But what makes me
+        think dynamic changes need fancy curve control when pitches don't seem
+        to?
+      . Or just use different symbols for different kinds of slopes, e.g.
+        <> is linear.  Or hardcode < to +exp and > to -exp.
+    * dyn's '-' will have to become '=' to avoid conflicting with -- as
       a comment.  Also it's more consistent with pitch now. But '=' is
       taken by 'dc_move EQ'... but what does that even mean?
     - prev pitch is still wrong:
       . [(0, 1),      (1, 2)]
         ["!T1 -- 2g", "2r", "!0 -- 2s"]
         Prev pitch for "!0" winds up being ma from "!T1".
-    + split india.gamakam3.a into gamakam4
+    * split india.gamakam3.a into gamakam4
       . Keeping DynExpr around is complicating things.
     * I need an easy way to start from a pitch instead of moving to it.  If
       I write T#, then it works for positive.  But what about T-1?

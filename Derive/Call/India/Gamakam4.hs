@@ -8,8 +8,9 @@
 module Derive.Call.India.Gamakam4 (
     pitch_calls, control_calls, note_calls
 -- #ifdef TESTING
-    , parse_sequence, Call(..), PitchCall(..), ParsedPitch(..)
-    , resolve_calls
+    , parse_sequence, parse_dyn_sequence
+    , Call(..), PitchCall(..), ParsedPitch(..)
+    , resolve_pitch_calls
     , dyn_call_map, pitch_call_map
 -- #endif
 ) where
@@ -26,20 +27,17 @@ import qualified Util.Pretty as Pretty
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
-import qualified Derive.Call as Call
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.PitchUtil as PitchUtil
-import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.PSignal as PSignal
 import qualified Derive.Parse as Parse
 import qualified Derive.Pitches as Pitches
-import qualified Derive.Scale as Scale
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -69,9 +67,9 @@ c_sequence :: Derive.Generator Derive.Pitch
 c_sequence = Derive.generator1 module_
     "sequence" mempty sequence_doc
     $ Sig.call ((,) <$> Sig.required "sequence" sequence_arg_doc <*> config_env)
-    $ \(text, (transition, dyn_transition)) args -> do
+    $ \(text, transition) args -> do
         (start, end) <- Args.range_or_note_end args
-        maybe_state <- get_state transition dyn_transition args
+        maybe_state <- get_state transition args
         case maybe_state of
             Nothing -> return mempty
             Just state -> do
@@ -79,18 +77,15 @@ c_sequence = Derive.generator1 module_
                     pitch_sequence (end - start) state text
                 return $ mconcat $ DList.toList pitches
     where
-    config_env :: Sig.Parser (Typecheck.Normalized, Typecheck.Normalized)
-    config_env = (,)
-        <$> Sig.environ "transition" Sig.Both (Typecheck.Normalized 0.5)
+    config_env :: Sig.Parser Typecheck.Normalized
+    config_env =
+        Sig.environ "transition" Sig.Both (Typecheck.Normalized 0.5)
             "Time for each pitch movement, in proportion of the total time\
             \ available."
-        <*> Sig.environ "dyn-transition" Sig.Both (Typecheck.Normalized 1)
-            "Time for each dyn movement, in proportion of the total time\
-            \ available."
 
-get_state :: Typecheck.Normalized -> Typecheck.Normalized
-    -> Derive.PassedArgs Derive.Pitch -> Derive.Deriver (Maybe State)
-get_state transition dyn_transition args =
+get_state :: Typecheck.Normalized -> Derive.PassedArgs Derive.Pitch
+    -> Derive.Deriver (Maybe State)
+get_state transition args =
     -- If there's no pitch then this is likely at the edge of a slice, and can
     -- be ignored.  TODO I think?
     justm (get_pitch (Args.start args)) $ \cur -> do
@@ -107,20 +102,9 @@ get_state transition dyn_transition args =
             , state_current_pitch = cur
             , state_previous_pitch = fromMaybe cur maybe_prev
             , state_next_pitch = fromMaybe cur maybe_next
-            , state_dyn = DynState
-                { state_from_dyn =
-                    fromMaybe 1 $ lookup_last_dyn =<< prev_event
-                , state_dyn_transition = dyn_transition
-                }
             }
     where
     get_pitch = Derive.pitch_at <=< Derive.real
-
-lookup_last_dyn :: Score.Event -> Maybe Signal.Y
-lookup_last_dyn event = do
-    sig <- Map.lookup Controls.dynamic $
-        Score.event_untransformed_controls event
-    snd <$> Signal.last (Score.typed_val sig)
 
 sequence_doc :: Text
 sequence_doc = "doc doc\
@@ -134,98 +118,68 @@ sequence_arg_doc = "Abbreviated string of calls... TODO"
 
 c_dyn_sequence :: Derive.Generator Derive.Control
 c_dyn_sequence = Derive.generator1 module_ "dyn-sequence" mempty doc
-    $ Sig.call ((,) <$> Sig.required "sequence" arg_doc <*> config_env)
-    $ \(text, dyn_transition) args -> do
+    $ Sig.call (Sig.required "sequence" arg_doc)
+    $ \text args -> do
         (start, end) <- Args.range_or_note_end args
         let state = DynState
-                { state_from_dyn = maybe 0 snd (Args.prev_control args)
-                , state_dyn_transition = dyn_transition
-                }
+                { state_from_dyn = maybe 0 snd (Args.prev_control args) }
         Derive.at start $ dyn_sequence (end - start) state text
     where
     doc = "doc doc"
     arg_doc = "blah blah"
-    config_env :: Sig.Parser Typecheck.Normalized
-    config_env = Sig.environ "dyn-transition" Sig.Both (Typecheck.Normalized 1)
-        "Time for each dyn movement, in proportion of the total time available."
 
-data DynState = DynState {
-    state_from_dyn :: !Signal.Y
-    , state_dyn_transition :: !Typecheck.Normalized
-    } deriving (Show)
+newtype DynState = DynState { state_from_dyn :: Signal.Y }
+    deriving (Show)
 
 instance Pretty.Pretty DynState where
-    format (DynState from_dyn dyn_transition) = Pretty.recordTitle "DynState"
+    format (DynState from_dyn) = Pretty.recordTitle "DynState"
         [ ("from_dyn", Pretty.format from_dyn)
-        , ("dyn_transition", Pretty.format dyn_transition)
         ]
 
 dyn_sequence :: ScoreTime -> DynState -> Text -> Derive.Deriver Signal.Control
 dyn_sequence dur state arg = do
     exprs <- Derive.require_right (("parsing " <> showt arg <> ": ")<>) $
-        resolve_dyn_exprs =<< parse_dyn_sequence arg
+        resolve_dyn_calls =<< parse_dyn_sequence arg
     let starts = slice_time dur (replicate (length exprs) 1)
         ranges = zip starts (drop 1 starts)
     (results, _) <- State.runStateT (mapM eval_dyn (zip ranges exprs)) state
     return $ mconcat results
 
-type DynSequenceCall call = (call, Text, Text)
-
-eval_dyn :: ((ScoreTime, ScoreTime), DynSequenceCall (Text, DynCall))
+eval_dyn :: ((ScoreTime, ScoreTime), Call (DynCall, Char))
     -> M DynState Signal.Control
-eval_dyn ((start, end), ((name, DynCall _ sig1 sig2 func), arg1, arg2)) = do
+eval_dyn ((start, end), (Call (DynCall _ sig func, name) arg)) = do
     let ctx = Context
             { ctx_start = start
             , ctx_end = end
-            , ctx_call_name = name
+            , ctx_call_name = Text.singleton name
             }
-    parsed_arg1 <- parse_args name arg1 sig1
-    parsed_arg2 <- parse_args name arg2 sig2
-    func parsed_arg1 parsed_arg2 ctx
+    parsed_arg <- parse_args (Text.singleton name) arg sig
+    func parsed_arg ctx
 
 -- ** parse
 
-{-
-    Simplify by switching to the new scheme for parsing:
-    Single digits for absolute levels, 0-9.
-    Relative motions make more sense for dynamic though.
-    But that's what > and < are, right?  I could do an optional digit to move by
-    that many tenths, >2.  Effectively it's a slope.
-    I'll also want T to set instead of move.
-    Then > is the same as 0.  < is T01
-    Unless I do the argument thing, but I could also write that +1 or -2.
-
-    <5==<=> 0   to .5, hold, .5 to 1, then 1 to 0
-    T5>         set to .5, then to 0
--}
-
-parse_dyn_sequence :: Text -> Either Text [DynSequenceCall Text]
+parse_dyn_sequence :: Text -> Either Text [Call Char]
 parse_dyn_sequence = ParseText.parse p_dyn_calls
 
-p_dyn_calls :: Parser [DynSequenceCall Text]
+p_dyn_calls :: Parser [Call Char]
 p_dyn_calls = A.skipSpace *> A.many1 (p_dyn_call <* A.skipSpace)
 
-p_dyn_call :: Parser (DynSequenceCall Text)
-p_dyn_call = p_flat <|> p_call
+p_dyn_call :: Parser (Call Char)
+p_dyn_call = do
+    c <- A.anyChar
+    arg <- if dyn_has_argument c then p_dyn_arg else return ""
+    return $ Call c arg
     where
-    p_flat = do
-        A.char '='
-        return ("=", "", "")
-    p_call = do
-        arg1 <- A.takeWhile valid_dcall_arg
-        sym <- A.takeWhile1 valid_dcall_char
-        arg2 <- A.takeWhile valid_dcall_arg
-        return (sym, arg1, arg2)
+    p_dyn_arg = A.option "" (Text.singleton <$> A.digit)
 
-valid_dcall_char :: Char -> Bool
-valid_dcall_char c = valid_pcall_char c && c `elem` ("+=<>^_" :: [Char])
+dyn_has_argument :: Char -> Bool
+dyn_has_argument c = Char.isUpper c || c == '<' || c == '>'
 
-resolve_dyn_exprs :: [DynSequenceCall Text]
-    -> Either Text [DynSequenceCall (Text, DynCall)]
-resolve_dyn_exprs = mapM $ \(name, arg1, arg2) ->
+resolve_dyn_calls :: [Call Char] -> Either Text [Call (DynCall, Char)]
+resolve_dyn_calls = mapM $ \(Call name arg) ->
     case Map.lookup name dyn_call_map of
         Nothing -> Left $ "dyn call not found: " <> showt name
-        Just call -> return ((name, call), arg1, arg2)
+        Just call -> return $ Call (call, name) arg
 
 -- * State
 
@@ -237,18 +191,16 @@ data State = State {
     , state_current_pitch :: !PSignal.Pitch
     , state_previous_pitch :: !PSignal.Pitch
     , state_next_pitch :: !PSignal.Pitch
-    , state_dyn :: !DynState
     }
 
 instance Pretty.Pretty State where
-    format (State from_pitch transition cur prev next dyn) =
+    format (State from_pitch transition cur prev next) =
         Pretty.recordTitle "State"
             [ ("from_pitch", Pretty.format from_pitch)
             , ("transition", Pretty.format transition)
             , ("current_pitch", Pretty.format cur)
             , ("previous_pitch", Pretty.format prev)
             , ("next_pitch", Pretty.format next)
-            , ("dyn", Pretty.format dyn)
             ]
 
 set_pitch :: PSignal.Pitch -> M State ()
@@ -269,23 +221,24 @@ instance Monoid Result where
 pitch_sequence :: ScoreTime -> State -> Text -> Derive.Deriver Result
 pitch_sequence dur state arg = do
     calls <- Derive.require_right (("parsing " <> showt arg <> ": ")<>) $
-        resolve_extensions =<< resolve_calls =<< parse_sequence arg
+        resolve_extensions =<< resolve_pitch_calls =<< parse_sequence arg
     let starts = slice_time dur (call_durations calls)
         ranges = zip starts (drop 1 starts)
-    (results, _) <- State.runStateT (mapM eval (zip_calls ranges calls)) state
+    (results, _) <- State.runStateT (mapM eval_pitch (zip_calls ranges calls))
+        state
     return $ mconcat results
 
 slice_time :: ScoreTime -> [Double] -> [ScoreTime]
 slice_time dur slices = scanl (+) 0 $ map ((*one) . ScoreTime.double) slices
     where one = dur / ScoreTime.double (sum slices)
 
-eval :: Call ((ScoreTime, ScoreTime), PitchCall) -> M State Result
-eval (Call ((start, end), pcall) arg_) = case pcall_call pcall of
+eval_pitch :: Call ((ScoreTime, ScoreTime), PitchCall) -> M State Result
+eval_pitch (Call ((start, end), pcall) arg_) = case pcall_call pcall of
     PCall signature func -> do
-        parsed_arg <- parse_args (ctx_call_name ctx) arg signature
+        parsed_arg <- parse_args (ctx_call_name ctx) (pcall_arg pcall arg_)
+            signature
         (Result . DList.singleton) <$> func parsed_arg ctx
     where
-    arg = pcall_arg pcall arg_
     ctx = Context
         { ctx_start = start
         , ctx_end = end
@@ -298,6 +251,7 @@ data Call call = Call !call !Text
 call_durations :: [Call PitchCall] -> [Double]
 call_durations = map pcall_duration . map (\(Call call _) -> call)
 
+-- TODO surely I can do it in a simpler way?
 zip_calls :: [a] -> [Call b] -> [Call (a, b)]
 zip_calls xs calls = fst $ State.runState (traverse go calls) xs
     where
@@ -309,8 +263,8 @@ zip_calls xs calls = fst $ State.runState (traverse go calls) xs
 parse_sequence :: Text -> Either Text [ParsedPitch]
 parse_sequence = ParseText.parse p_exprs
 
-resolve_calls :: [ParsedPitch] -> Either Text [Call PitchCall]
-resolve_calls = concatMapM resolve
+resolve_pitch_calls :: [ParsedPitch] -> Either Text [Call PitchCall]
+resolve_pitch_calls = concatMapM resolve
     where
     resolve (PitchGroup exprs) =
         map (modify_duration (* (1 / fromIntegral (length exprs)))) <$>
@@ -349,86 +303,63 @@ modify_duration modify = fmap $ \call ->
 
 -- * DynCall
 
-data DynCall = forall a b. DynCall {
+data DynCall = forall a. DynCall {
     _dcall_doc :: Text
-    , _dcall_signature1 :: Sig.Parser a
-    , _dcall_signature2 :: Sig.Parser b
-    , _dcall_func :: a -> b -> Context -> M DynState Signal.Control
+    , _dcall_signature :: Sig.Parser a
+    , _dcall_func :: a -> Context -> M DynState Signal.Control
     }
 
-dyn_call_map :: Map.Map Text DynCall
-dyn_call_map = Map.fromList $ (("=", dc_flat) :) $
-    validate_names $ moves ++
-        [ ("=>", dc_attack)
-        ]
-    where
-    moves = speed_permutations
-        [ ("<", dc_move LT)
-        , (">", dc_move GT)
-        , ("+", dc_move EQ)
-        ]
-    validate_names = map $ first $ \name ->
-        if Text.all valid_dcall_char name then name
-            else error $ "invalid name: " <> show name
-    speed_permutations calls =
-        [ (name <> suffix, call speed)
-        | (name, call) <- calls, (speed, suffix) <- speeds
-        ]
-    speeds = [(Nothing, ""), (Just Fast, "^"), (Just Medium, "="),
-        (Just Slow, "_")]
+dyn_call_map :: Map.Map Char DynCall
+dyn_call_map = Map.fromList $
+    [ ('=', dc_flat)
+    , ('<', dc_move True)
+    , ('>', dc_move False)
+    ] ++ [(head (show n), dc_move_to (n/9)) | n <- [0..9]]
 
 dc_flat :: DynCall
-dc_flat = DynCall "No movement." Sig.no_args Sig.no_args $ \() () ctx -> do
+dc_flat = DynCall "No movement." Sig.no_args $ \() ctx -> do
     prev <- State.gets state_from_dyn
     start <- lift $ Derive.real (ctx_start ctx)
     return $ Signal.signal [(start, prev)]
 
-dc_move :: Ordering -> Maybe TransitionTime -> DynCall
-dc_move ord speed = DynCall doc sig1 sig2 $ \from to args -> do
+-- < is from 0, to 1 or the arg
+-- > is from prev value, to 0 or the arg
+dc_move :: Bool -> DynCall
+dc_move crescendo = DynCall doc sig1 $ \maybe_move args -> do
     (start, end) <- ctx_range args
-    -- TODO these could come from an environ value
-    transition <- case speed of
-        Just Fast -> return $ Typecheck.Normalized 0.1
-        Just Medium -> return $ Typecheck.Normalized 0.5
-        Just Slow -> return $ Typecheck.Normalized 1
-        Nothing -> State.gets state_dyn_transition
-    from <- maybe get_from return from
-    to <- ($to) $ case ord of
-        LT -> return . fromMaybe 1
-        GT -> return . fromMaybe 0
-        -- 1 should be unreached since sig2 is required when ord == EQ.
-        EQ -> return . fromMaybe 1
-    move_dyn transition ord start from end to
+    from <- if crescendo then return 0 else State.gets state_from_dyn
+    let to = if crescendo
+            then maybe 1 (from+) maybe_move
+            else maybe 0 (from-) maybe_move
+    dyn_curve start from end to
     where
-    get_from = State.gets state_from_dyn
-    sig1 = Sig.defaulted "from" Nothing "From value."
-    sig2 = case ord of
-        EQ -> Just <$> Sig.required "to" "To value."
-        _ -> Sig.defaulted "to" Nothing "To value."
-
+    sig1 :: Sig.Parser (Maybe Double)
+    sig1 = fmap normalize <$> Sig.defaulted "move" Nothing "Relative movement."
+    normalize :: Int -> Double
+    normalize = (/9) . fromIntegral
     doc = "Hi, doc\
         \ < -> from prev, to 1, align to start\
         \ > -> from prev, to 0, align to end\
         \ = -> from prev, to arg, align to middle"
 
--- | This is like 'dc_move', but with default defaults for the args.
-dc_attack :: DynCall
-dc_attack = DynCall "Impulse for note attack."
-    (Sig.defaulted "from" 1 "From value.")
-    (Sig.defaulted "to" 0.5 "To value.") $ \from to ctx -> do
-        (start, end) <- ctx_range ctx
-        move_dyn (Typecheck.Normalized 0.5) EQ start from end to
+dc_move_to :: Double -> DynCall
+dc_move_to to = DynCall doc Sig.no_args $ \() args -> do
+    (start, end) <- ctx_range args
+    from <- State.gets state_from_dyn
+    dyn_curve start from end to
+    where
+    doc = "doc doc"
 
-move_dyn :: Typecheck.Normalized -> Ordering -> RealTime -> Signal.Y -> RealTime
-    -> Signal.Y -> M DynState Signal.Control
-move_dyn (Typecheck.Normalized transition) align start from end to = do
-    let curve = snd ControlUtil.sigmoid_curve $ case align of
-            LT -> (0, weight)
-            GT -> (weight, 0)
-            EQ -> (weight, weight)
-        weight = 1 - transition
+dyn_curve :: RealTime -> Signal.Y -> RealTime -> Signal.Y
+    -> M DynState Signal.Control
+dyn_curve start from end to = do
     State.modify $ \state -> state { state_from_dyn = to }
     lift $ ControlUtil.make_segment curve start from end to
+    where
+    crescendo = to >= from
+    weight = if crescendo then 0.9 else 0
+    curve = snd ControlUtil.sigmoid_curve $
+        if crescendo then (0, weight) else (weight, 0)
 
 -- * PitchCall
 
@@ -460,17 +391,12 @@ pitch_call_map = resolve $ Map.unique $ concat
     , [parse_name $ pcall c "Relative motion." (pc_relative True)
         | c <- "0123456789"]
     , [parse_name $ pcall '-' "Negative relative motion." (pc_relative True)]
-    -- 'd' would conflict with absolute motion
     , [alias c 1 [showt n] | (c, n) <- zip "abc" [-1, -2 ..]]
 
     , [pcall 'e' "Pitch up by a little." (pc_relative_move (Pitch.Nn 1))]
     , [pcall 'f' "Pitch down by a little." (pc_relative_move (Pitch.Nn (-1)))]
     , [alias 'n' 0.5 ["e", "f"]]
     , [alias 'u' 0.5 ["f", "e"]]
-
-    -- , [ pcall c "Absolute motion to swaram." (pc_absolute pc)
-    --   | (pc, c) <- zip [0..] ("srgmpdn" :: [Char])
-    --   ]
 
     , [ pcall 'h' "Absolute motion to current pitch."
         (pc_move_direction Current)
@@ -521,8 +447,8 @@ apply_arg call arg = call
     }
     where
     -- Accept anything for an argument but ignore it.  This is because
-    -- I've already hardcoded the argument, but 'eval' will want to apply it
-    -- anyway, since it can't tell the difference from an alias call and
+    -- I've already hardcoded the argument, but 'eval_pitch' will want to apply
+    -- it anyway, since it can't tell the difference from an alias call and
     -- a normal call.
     ignore = Sig.defaulted "ignore" (BaseTypes.num 0) ""
 
@@ -594,31 +520,6 @@ pc_move_direction :: PitchDirection -> PCall
 pc_move_direction dir = PCall Sig.no_args $ \() ctx ->
     move_to ctx =<< get_direction_pitch dir
 
-pc_absolute :: Pitch.PitchClass -> PCall
-pc_absolute pc = PCall Sig.no_args $ \() ctx -> do
-    from_pitch <- get_from
-    to_pitch <- lift $ find_closest_pc (ctx_start ctx) pc from_pitch
-    move_to ctx to_pitch
-
--- | Given a PitchClass and a previous pitch, infer the octave for the
--- PitchClass which is closest to the previous pitch.
-find_closest_pc :: ScoreTime -> Pitch.PitchClass -> PSignal.Pitch
-    -> Derive.Deriver PSignal.Pitch
-find_closest_pc start pc pitch = do
-    (from_note, to_note, _) <- Call.get_pitch_functions
-    scale <- Call.get_scale
-    pitch <- Call.parse_pitch from_note (PSignal.apply mempty pitch)
-    let unwrapped = Pitch.pitch oct pc
-        wrapped = Pitch.pitch
-            (if pc >= Pitch.pitch_pc pitch then oct - 1 else oct + 1) pc
-        oct = Pitch.pitch_octave pitch
-    per_octave <- Derive.require "scale must have octaves" $
-        Scale.pc_per_octave (Scale.scale_layout scale)
-    let to_pitch = if distance unwrapped <= distance wrapped
-            then unwrapped else wrapped
-        distance p = abs (Pitch.subtract_pitch per_octave pitch p)
-    Call.eval_pitch start =<< Derive.require "to_note" (to_note to_pitch)
-
 pc_set_pitch :: PitchDirection -> PCall
 pc_set_pitch dir = PCall Sig.no_args $ \() _ctx -> do
     set_pitch =<< get_direction_pitch dir
@@ -677,12 +578,6 @@ data ParsedPitch = CallArg !Char !Text | PitchGroup ![ParsedPitch]
 
 type Parser a = A.Parser a
 
-valid_pcall_char :: Char -> Bool
-valid_pcall_char c = c /= '[' && c /= ']' && c /= ' '
-
-valid_dcall_arg :: Char -> Bool
-valid_dcall_arg c = Char.isDigit c || c == '.'
-
 p_exprs :: Parser [ParsedPitch]
 p_exprs = A.skipSpace *> A.many1 (p_expr <* A.skipSpace)
 
@@ -692,7 +587,7 @@ p_expr = p_group <|> p_pitch_expr
 p_pitch_expr :: Parser ParsedPitch
 p_pitch_expr = do
     c <- A.satisfy $ \c -> c /=' ' && c /= '[' && c /= ']'
-    if is_argument_call c
+    if pitch_has_argument c
         then CallArg c <$> p_pitch_expr_arg
         else return $ CallArg c ""
 
@@ -705,8 +600,8 @@ p_pitch_expr_arg = do
     c <- A.satisfy (/=' ')
     return $ (if minus then ("-"<>) else id) (Text.singleton c)
 
-is_argument_call :: Char -> Bool
-is_argument_call c = Char.isUpper c || c == '-'
+pitch_has_argument :: Char -> Bool
+pitch_has_argument c = Char.isUpper c || c == '-'
 
 
 -- * misc
