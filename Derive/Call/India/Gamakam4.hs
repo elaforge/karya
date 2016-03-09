@@ -2,17 +2,15 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 -- | Calls for Carnatic gamakam.
 module Derive.Call.India.Gamakam4 (
     pitch_calls, control_calls, note_calls
--- #ifdef TESTING
-    , parse_sequence, parse_dyn_sequence
-    , Call(..), PitchCall(..), ParsedPitch(..)
-    , resolve_pitch_calls
-    , dyn_call_map, pitch_call_map
--- #endif
+#ifdef TESTING
+    , module Derive.Call.India.Gamakam4
+#endif
 ) where
 import qualified Control.Monad.State as State
 import qualified Data.Attoparsec.Text as A
@@ -79,9 +77,9 @@ c_sequence = Derive.generator1 module_
     where
     config_env :: Sig.Parser Typecheck.Normalized
     config_env =
-        Sig.environ "transition" Sig.Both (Typecheck.Normalized 0.5)
-            "Time for each pitch movement, in proportion of the total time\
-            \ available."
+        Sig.environ "transition" Sig.Both (Typecheck.Normalized 0.5) $
+            "Time for each pitch movement, in proportion of the total time"
+            <> " available."
 
 get_state :: Typecheck.Normalized -> Derive.PassedArgs Derive.Pitch
     -> Derive.Deriver (Maybe State)
@@ -107,9 +105,11 @@ get_state transition args =
     get_pitch = Derive.pitch_at <=< Derive.real
 
 sequence_doc :: Text
-sequence_doc = "doc doc\
-    \ Currently the transition curve is hardcoded to a sigmoid curve, but\
-    \ I could add a curve env var if necessary."
+sequence_doc = mconcat
+    [ "doc doc"
+    , " Currently the transition curve is hardcoded to a sigmoid curve, but"
+    , " I could add a curve env var if necessary."
+    ]
 
 sequence_arg_doc :: Text
 sequence_arg_doc = "Abbreviated string of calls... TODO"
@@ -337,10 +337,12 @@ dc_move crescendo = DynCall doc sig1 $ \maybe_move args -> do
     sig1 = fmap normalize <$> Sig.defaulted "move" Nothing "Relative movement."
     normalize :: Int -> Double
     normalize = (/9) . fromIntegral
-    doc = "Hi, doc\
-        \ < -> from prev, to 1, align to start\
-        \ > -> from prev, to 0, align to end\
-        \ = -> from prev, to arg, align to middle"
+    doc = mconcat
+        [ "Hi, doc"
+        , " < -> from prev, to 1, align to start"
+        , " > -> from prev, to 0, align to end"
+        , " = -> from prev, to arg, align to middle"
+        ]
 
 dc_move_to :: Double -> DynCall
 dc_move_to to = DynCall doc Sig.no_args $ \() args -> do
@@ -608,6 +610,6 @@ pitch_has_argument c = Char.isUpper c || c == '-'
 
 c_sahitya :: Derive.Taggable a => Derive.Transformer a
 c_sahitya = Derive.transformer module_ "sahitya" mempty
-    "Ignore the transformed deriver. Put this on a track to ignore its\
-    \ contents, and put in sahitya."
+    ("Ignore the transformed deriver. Put this on a track to ignore its"
+    <> " contents, and put in sahitya.")
     $ Sig.call0t $ \_args _deriver -> return Stream.empty
