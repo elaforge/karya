@@ -185,9 +185,9 @@ test_sequence_multiple = do
 
 test_extension = do
     let run = derive_tracks DeriveTest.e_nns_rounded . make_2notes (4, "--")
-    strings_like (snd $ run (4, "!!_--1_"))
+    strings_like (snd $ run (4, "!_ - - 1 _"))
         ["extension with no preceding call", "no preceding call"]
-    equal (run (4, "!!--1_"))
+    equal (run (4, "!- - 1 _"))
         ([[(0, 60)], [(4, 62), (5, 62), (6, 62), (7, 63)], [(8, 64)]], [])
 
 test_note_end = do
@@ -220,15 +220,16 @@ test_dyn = do
     -- Dyn is as long as the call it modifies.
     equal (run "!-[-]0<")
         ([[(0, 1)], [(4, 0), (7, 0), (8, 0.33), (9, 0.67)], [(0, 1)]], [])
-    equal (run "!![--]0<")
-        ([ [(0, 1)]
-         , [(4, 0), (5, 0.17), (6, 0.33), (7, 0.5), (8, 0.67), (9, 0.83)]
-         , [(0, 1)]], [])
-    -- Fast and biased to the left.
-    equal (run "!![--]0<^")
-        ([ [(0, 1)]
-         , [(4, 0), (5, 0.51), (6, 0.73), (7, 0.87), (8, 0.95), (9, 0.99)]
-         , [(0, 1)]], [])
+    -- Disabled because -- is now a comment.
+    -- equal (run "!![--]0<")
+    --     ([ [(0, 1)]
+    --      , [(4, 0), (5, 0.17), (6, 0.33), (7, 0.5), (8, 0.67), (9, 0.83)]
+    --      , [(0, 1)]], [])
+    -- -- Fast and biased to the left.
+    -- equal (run "!![--]0<^")
+    --     ([ [(0, 1)]
+    --      , [(4, 0), (5, 0.51), (6, 0.73), (7, 0.87), (8, 0.95), (9, 0.99)]
+    --      , [(0, 1)]], [])
     -- Continue from the previous dyn.
     equal (run "![-]0<.5 [-]>")
         ([ [(0, 1)]

@@ -5,7 +5,7 @@ LEGEND
 UNSORTED
   - Why does build/opt/seq depend on Util.Test?  Maybe it should have the
     #pragma too.
-  - ! should still strip comments.
+  * ! should still strip comments.
   - Pipe should be an exception to "first call is any non-space", so I can
     write a|b.  Or... is that so great after all?  With proportional fonts,
     the spaces are small and I don't want multiple ways to do it.

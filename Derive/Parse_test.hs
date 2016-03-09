@@ -11,11 +11,11 @@ import System.FilePath ((</>))
 import qualified Util.ParseText as ParseText
 import Util.Test
 import qualified Derive.BaseTypes as BaseTypes
+import Derive.BaseTypes (Ref(..), Symbol(..), Val(..), Call(..), Term(..))
 import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import Derive.TestInstances ()
-import Derive.BaseTypes (Ref(..), Symbol(..), Val(..), Call(..), Term(..))
 
 import qualified Perform.Signal as Signal
 import Global
@@ -80,6 +80,8 @@ test_unparsed_call = do
             BaseTypes.Quoted (call "!" [vsym "blah"] :| [])]]
     -- ! takes precedence over =
     equal (f "!a=b") $ Right [call "!" [vsym "a=b"]]
+    -- But comments are still comments.
+    equal (f "!'a' -- b") $ Right [call "!" [vsym "'a'"]]
 
 test_parse_val = do
     let attrs = Just . VAttributes . Score.attrs

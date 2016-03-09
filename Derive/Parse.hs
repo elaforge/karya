@@ -175,9 +175,15 @@ p_unparsed_expr :: A.Parser BaseTypes.Call
 p_unparsed_expr = do
     A.string $ BaseTypes.unsym unparsed_call
     text <- A.takeWhile $ \c -> c /= '|' && c /= ')'
-    let arg = BaseTypes.Symbol $ Text.strip text
+    let arg = BaseTypes.Symbol $ Text.strip $ strip_comment text
     return $ BaseTypes.Call unparsed_call
         [BaseTypes.Literal $ BaseTypes.VSymbol arg]
+
+-- | Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
+-- tokenization is suppressed for 'unparsed_call' so that doesn't happen, but
+-- I still want to allow comments, for consistency.
+strip_comment :: Text -> Text
+strip_comment = fst . Text.breakOn "--"
 
 -- | This is a magic call name that surpresses normal parsing.  Instead, the
 -- rest of the event expression is passed as a string.  The only characters
