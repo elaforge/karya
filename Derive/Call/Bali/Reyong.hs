@@ -678,10 +678,9 @@ infer_damp dur_at = snd . List.mapAccumL infer (0, 0) . zip_next . assign_hands
 -- | True for events which could get an inferred damp.
 could_damp :: Score.Event -> Bool
 could_damp event =
-    Score.event_duration event > 0 && not (any has [cek, Attrs.mute])
-    where
-    has = Score.attrs_contain attrs
-    attrs = Score.event_attributes event
+    Score.event_duration event > 0
+        && not (any (Score.attrs_contain attrs) [undamped, cek, Attrs.mute])
+    where attrs = Score.event_attributes event
 
 damped :: Score.Attributes
 damped = Score.attr "damped"
