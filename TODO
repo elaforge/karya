@@ -3,8 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Why does build/opt/seq depend on Util.Test?  Maybe it should have the
-    #pragma too.
+  * Why does build/opt/seq depend on Util.Test?  Maybe it should have the
+    #error too.
   * ! should still strip comments.
   - Pipe should be an exception to "first call is any non-space", so I can
     write a|b.  Or... is that so great after all?  With proportional fonts,

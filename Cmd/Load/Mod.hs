@@ -14,7 +14,6 @@ import qualified Data.Text.IO as Text.IO
 import qualified Util.Map as Map
 import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
-import Util.Test
 import qualified Util.Then as Then
 
 import qualified Ui.Block as Block
@@ -104,14 +103,14 @@ make_block mkid rid name tracks = do
 
 -- * convert
 
-test = do
-    Right bs <- parse "test.dump"
-    -- Right bs <- parse "bloom.dump"
-    let bs2 = map (map_block (add_default_volume 1 38)) bs
-    pprint $ convert_blocks 1 bs2
-    -- pprint $ convert_track (head (to_tracks (head bs)))
-    -- pprint $ convert_notes (head (to_tracks (head bs)))
-    -- where to_tracks (Block rows) = Seq.rotate (map (\(Row ns) -> ns)  rows)
+-- test = do
+--     Right bs <- parse "test.dump"
+--     -- Right bs <- parse "bloom.dump"
+--     let bs2 = map (map_block (add_default_volume 1 38)) bs
+--     pprint $ convert_blocks 1 bs2
+--     -- pprint $ convert_track (head (to_tracks (head bs)))
+--     -- pprint $ convert_notes (head (to_tracks (head bs)))
+--     -- where to_tracks (Block rows) = Seq.rotate (map (\(Row ns) -> ns)  rows)
 
 -- | An intermediate representation, between the row-oriented Block and
 -- State.State.
