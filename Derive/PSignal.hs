@@ -157,9 +157,9 @@ at x = TimeVector.at x . sig_vec
 sample_at :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
 sample_at x = TimeVector.sample_at x . sig_vec
 
--- | Find the pitch immediately before the point.
-before :: RealTime -> PSignal -> Maybe Pitch
-before x = fmap sy . TimeVector.before x . sig_vec
+-- | Find the last pitch before the point.
+before :: RealTime -> PSignal -> Maybe (RealTime, Pitch)
+before x = fmap TimeVector.to_pair . TimeVector.before x . sig_vec
 
 shift :: RealTime -> PSignal -> PSignal
 shift x = modify (TimeVector.shift x)

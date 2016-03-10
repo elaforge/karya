@@ -28,7 +28,7 @@ test_sequence = do
     let run c = derive_tracks DeriveTest.e_nns_rounded $
             make_2notes (4, "--") (2, c)
         output nns = ([[(0, NN.c4)], nns, [(6, NN.e4)]], [])
-    -- equal (run "!T0") (output [(4, 62), (5, 62)]) -- TODO
+    equal (run "!^=") (output [(4, 62)])
     equal (run "!T10") (output [(4, 63), (5, 62.5)])
     equal (run "!-1") (output [(4, NN.c4), (5, NN.c4)])
     equal (run "!Ta0") (output [(4, 60), (5, 61)])
@@ -69,16 +69,35 @@ test_extension = do
         ([[(0, 60)], [(4, 62), (5, 62), (6, 62), (7, 63)], [(8, 64)]], [])
 
 test_prev_pitch = do
-    let run = derive_tracks DeriveTest.e_nns_rounded . make_tracks
-    pprint $ make_tracks
-        [ (0, 1, "4c", "!="), (1, 1, "4d", "")
-        , (2, 1, "4e", ""), (3, 1, "4f", "!=")
-        ]
-    pprint (run
-        [ (0, 1, "4c", "!="), (1, 1, "4d", "")
-        , (2, 1, "4e", ""), (3, 1, "4f", "!=")
-        ])
-    -- pprint (run [(0, 1, "4c", "!="), (1, 1, "4d", ""), (2, 1, "4e", "!=")])
+    let run = derive_tracks DeriveTest.e_nns_rounded
+    -- Prev pitch comes from previous call.
+    equal (run
+            [ (">", [(0, 2, "")])
+            , ("*", [(0, 0, "4c")])
+            , ("*", [(0, 0, "!T1="), (1, 0, "!=")])
+            ])
+        ([[(0, NN.cs4), (1, NN.cs4), (2, NN.cs4)]], [])
+    -- Prev pitch comes from prev event.
+    equal (run (make_2notes (4, "--") (2, "!-1")))
+        ([[(0, NN.c4)], [(4, NN.c4), (5, NN.c4)], [(6, NN.e4)]], [])
+    -- Prev pitch comes from the parent pitch track.
+    equal (run
+            [ (">", [(0, 1, ""), (1, 2, "")])
+            , ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")])
+            , ("* interleave", [(0, 0, "!T1="), (2, 0, "!0")])
+            ])
+        -- T1 is 4c#, then set to 4d, and come from 4d to 4e.
+        ([[(0, NN.cs4)], [(1, NN.d4), (2, NN.d4), (3, NN.e4)]], [])
+
+    -- equal (run
+    --         [ (">", [(0, 3, ""), (3, 2, "")])
+    --         , ("*", [(0, 0, "4d"), (1, 0, "4e"), (2, 0, "4d"),
+    --             (3, 0, "4c"), (4, 0, "4d")])
+    --         , ("* interleave", [(1, 0, "!="), (2, 0, "--"), (4, 0, "!=")])
+    --         ])
+    --     ([[(0, NN.d4), (1, NN.d4), (2, NN.d4)],
+    --         [(3, NN.c4), (4, NN.c4), (5, NN.c4)]], [])
+
 
 test_resolve_pitch_calls = do
     let f = fmap (map (fmap extract)) . Gamakam.resolve_pitch_calls

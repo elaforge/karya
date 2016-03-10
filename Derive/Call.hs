@@ -167,9 +167,10 @@ to_psignal :: BaseTypes.PControlRef -> Derive.Deriver PSignal.PSignal
 to_psignal control = case control of
     BaseTypes.ControlSignal sig -> return sig
     BaseTypes.DefaultedControl cont deflt ->
-        maybe (return deflt) return =<< Derive.get_pitch cont
+        maybe (return deflt) return =<< Derive.get_named_pitch cont
     BaseTypes.LiteralControl cont ->
-        Derive.require ("not found: " <> showt cont) =<< Derive.get_pitch cont
+        Derive.require ("not found: " <> showt cont)
+            =<< Derive.get_named_pitch cont
 
 nn_at :: RealTime -> BaseTypes.PControlRef
     -> Derive.Deriver (Maybe Pitch.NoteNumber)

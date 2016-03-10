@@ -22,6 +22,7 @@ import qualified Data.Text as Text
 import qualified Util.Map as Map
 import qualified Util.ParseText as ParseText
 import qualified Util.Pretty as Pretty
+import qualified Util.Seq as Seq
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Derive.Args as Args
@@ -67,7 +68,7 @@ c_sequence = Derive.generator1 module_
     $ Sig.call ((,) <$> Sig.required "sequence" sequence_arg_doc <*> config_env)
     $ \(text, transition) args -> do
         (start, end) <- Args.range_or_note_end args
-        maybe_state <- get_state transition args
+        maybe_state <- initial_pitch_state transition args
         case maybe_state of
             Nothing -> return mempty
             Just state -> do
@@ -81,21 +82,33 @@ c_sequence = Derive.generator1 module_
             "Time for each pitch movement, in proportion of the total time"
             <> " available."
 
-get_state :: Typecheck.Normalized -> Derive.PassedArgs Derive.Pitch
+initial_pitch_state :: Typecheck.Normalized -> Derive.PassedArgs Derive.Pitch
     -> Derive.Deriver (Maybe State)
-get_state transition args =
+initial_pitch_state transition args =
     -- If there's no pitch then this is likely at the edge of a slice, and can
     -- be ignored.  TODO I think?
     justm (get_pitch (Args.start args)) $ \cur -> do
+        -- Getting the previous pitch is kind of ridiculously complicated.
+        -- First, Args.prev_pitch means there was a preceding pitch call, so
+        -- I take that one if present.  Otherwise, the pitch can come from
+        -- either the previous event, or the previous pitch on the current
+        -- pitch signal, whichever is newer.  The current pitch signal will
+        -- be newer if there is a pitch on the parent pitch track with no
+        -- corresponding gamakam on this one.
         prev_event <- Args.lookup_prev_note
-        let prev_event_pitch = fmap snd . PSignal.last
+        let prev_event_pitch = PSignal.last
                 . Score.event_untransformed_pitch =<< prev_event
-            prev_pitch = snd <$> Args.prev_pitch args
+        let prev_pitch = snd <$> Args.prev_pitch args
+        start <- Args.real_start args
+        pitch_signal <- PSignal.before start <$> Derive.get_pitch
+        let context_pitch = case (prev_event_pitch, pitch_signal) of
+                (Just a, Just b) -> Just $ snd $ Seq.max_on fst a b
+                (a, b) -> snd <$> (a <|> b)
         maybe_prev <- Args.lookup_prev_logical_pitch
         maybe_next <- Args.lookup_next_logical_pitch
         return $ Just $ State
             { state_from_pitch =
-                fromMaybe cur (prev_pitch <|> prev_event_pitch)
+                fromMaybe cur (prev_pitch <|> context_pitch)
             , state_transition = transition
             , state_current_pitch = cur
             , state_previous_pitch = fromMaybe cur maybe_prev

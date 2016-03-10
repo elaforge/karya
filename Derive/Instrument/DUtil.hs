@@ -225,7 +225,7 @@ composite_call args composites = mconcatMap (split args) composites
         Pitch control
             | control == Score.default_pitch -> deriver
             | otherwise -> do
-                sig <- Derive.get_pitch control
+                sig <- Derive.get_named_pitch control
                 Derive.with_pitch (fromMaybe mempty sig) deriver
     with_controls controls deriver = do
         cmap <- Derive.get_controls

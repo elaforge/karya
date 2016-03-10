@@ -663,12 +663,12 @@ with_control_mods mods end deriver = do
 -- the transposition signals so they don't get applied again at performance
 -- conversion.
 pitch_at :: RealTime -> Deriver (Maybe PSignal.Pitch)
-pitch_at pos = PSignal.at pos <$> Internal.get_dynamic state_pitch
+pitch_at pos = PSignal.at pos <$> get_pitch
 
 -- | Like 'pitch_at', this is a raw pitch.
 named_pitch_at :: Score.PControl -> RealTime -> Deriver (Maybe PSignal.Pitch)
 named_pitch_at name pos = do
-    psig <- get_pitch name
+    psig <- get_named_pitch name
     return $ maybe Nothing (PSignal.at pos) psig
 
 -- | Resolve the raw pitch returned from 'pitch_at' to the final transposed
@@ -684,8 +684,11 @@ nn_at :: RealTime -> Deriver (Maybe Pitch.NoteNumber)
 nn_at pos = justm (pitch_at pos) $ \pitch ->
     logged_pitch_nn ("nn " <> pretty pos) =<< resolve_pitch pos pitch
 
-get_pitch :: Score.PControl -> Deriver (Maybe PSignal.PSignal)
-get_pitch name
+get_pitch :: Deriver PSignal.PSignal
+get_pitch = Internal.get_dynamic state_pitch
+
+get_named_pitch :: Score.PControl -> Deriver (Maybe PSignal.PSignal)
+get_named_pitch name
     | name == Score.default_pitch = Just <$> Internal.get_dynamic state_pitch
     | otherwise = Map.lookup name <$> Internal.get_dynamic state_pitches
 
