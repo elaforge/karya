@@ -7,6 +7,7 @@
 module D where
 import qualified Data.Text as Text
 
+import qualified Util.PPrint as PPrint
 import qualified Util.Pretty as Pretty
 import qualified Ui.Id as Id
 import Types
@@ -15,6 +16,9 @@ import Types
 -- | Rename 'Pretty.pprint' so it doesn't conflict with "Util.Test".
 ppr :: Pretty.Pretty a => a -> IO ()
 ppr = Pretty.pprint
+
+pp :: Show a => a -> IO ()
+pp = PPrint.pprint
 
 mkid :: Text.Text -> Id.Id
 mkid name = Id.read_short _default_ns name
