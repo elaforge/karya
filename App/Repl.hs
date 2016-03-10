@@ -106,8 +106,9 @@ read_eval_print (Just input)
     | otherwise = do
         response <- liftIO $ Exception.handle catch_all $
             ReplUtil.format_response <$> SendCmd.send (Text.pack input)
+        response <- return $ Text.stripEnd response
         unless (Text.null response) $
-            liftIO $ Text.IO.putStrLn (Text.stripEnd response)
+            liftIO $ Text.IO.putStrLn response
         return True
     where
     catch_all :: Exception.SomeException -> IO Text.Text
