@@ -4,6 +4,7 @@
 
 module Cmd.Responder_profile where
 import qualified Data.Map as Map
+import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
 import Util.Test
@@ -53,7 +54,7 @@ profile_null_cmd = do
     let key = CmdTest.keypress Key.ShiftL
     let keys = take (10*1024) (cycle key)
     (_, cpu, _) <- timer $ ResponderTest.thread False states keys
-    printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
+    Printf.printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
 
 profile_selection = do
     Log.configure $ \st -> st { Log.state_log_level = Log.Warn }
@@ -70,7 +71,7 @@ profile_selection = do
             ++ take (256*2) (cycle (CmdTest.keypress Key.Up))
     let keys = take (10*1024) (cycle one_cycle)
     (_, cpu, _) <- timer $ ResponderTest.thread False states keys
-    printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
+    Printf.printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / (10*1024))
 
 profile_thru = do
     let (ui_state, cmd_state) = ResponderTest.mkstates [(">i1", [(0, 0, "")])]
@@ -79,7 +80,7 @@ profile_thru = do
             CmdTest.make_midi (Midi.NoteOff 60 20)]
         keys = take ncmds (cycle key)
     (_, cpu, _) <- timer $ ResponderTest.thread False (ui_state, cmd_state) keys
-    printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / fromIntegral ncmds)
+    Printf.printf "%.2f sec, %.4f sec per cmd\n" cpu (cpu / fromIntegral ncmds)
 
 modify_edit_state :: Cmd.State -> (Cmd.EditState -> Cmd.EditState) -> Cmd.State
 modify_edit_state st f = st { Cmd.state_edit = f (Cmd.state_edit st) }
