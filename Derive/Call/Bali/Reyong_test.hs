@@ -156,6 +156,17 @@ test_select_pattern = do
     -- TODO test that
     left_like (first untxt $ f 0.1 0 0) "no patterns fit"
 
+-- * c_byong
+
+test_c_byong = do
+    let run voice = DeriveTest.extract DeriveTest.e_note
+            . DeriveTest.derive_tracks (title <> " | v=" <> show voice)
+            . UiTest.note_track
+    equal (run 1 [(1, 2, "o --")]) ([(1, 2, "4e"), (1, 2, "4a")], [])
+    equal (run 2 [(1, 2, "o --")]) ([(1, 2, "5i"), (1, 2, "5e")], [])
+    equal (run 0 [(0, 2, "o --")]) ([], ["Error: unknown position: 0"])
+    equal (run 1 [(1, 2, ": --")]) ([(1, 2, "4e"), (1, 2, "5i")], [])
+
 -- * damp
 
 test_c_infer_damp = do

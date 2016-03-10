@@ -26,11 +26,8 @@ import Global
 -- together.  The rationale is described in 'Derive.CallMaps'.
 type Calls d = (Derive.Generator d, Derive.Transformer d)
 
-call_maps :: [(BaseTypes.CallId, Calls d)]
-    -> [(BaseTypes.CallId, Derive.Generator d)]
-    -> [(BaseTypes.CallId, Derive.Transformer d)] -> Derive.CallMaps d
-call_maps calls generators transformers =
-    Derive.call_maps (gs ++ generators) (ts ++ transformers)
+call_maps :: [(BaseTypes.CallId, Calls d)] -> Derive.CallMaps d
+call_maps calls = Derive.call_maps gs ts
     where
     gs = zip (map fst calls) (map (fst . snd) calls)
     ts = zip (map fst calls) (map (snd . snd) calls)

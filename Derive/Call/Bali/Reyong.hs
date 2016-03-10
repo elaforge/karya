@@ -26,6 +26,7 @@ import qualified Derive.Call as Call
 import qualified Derive.Call.Bali.Gangsa as Gangsa
 import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Europe.Grace as Grace
+import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Post.Postproc as Postproc
@@ -78,6 +79,8 @@ note_calls = Derive.call_maps
     , ("k", c_kotekan_regular Nothing Nothing)
     , ("t", c_tumpuk)
     , ("a", c_tumpuk_auto)
+    , ("o", c_byong)
+    , (":", c_pitches [Pitch.pitch 4 2, Pitch.pitch 5 0])
     , ("/", articulation False "cek-loose"
         ((:[]) . pos_cek) (cek <> Attrs.open))
     , ("//", articulation True "cek-loose"
@@ -100,6 +103,7 @@ note_calls = Derive.call_maps
     , ("vv", c_lower_octave_note)
     , ("upper", c_upper_voice)
     ]
+    <> Make.call_maps [("lv", Make.attributed_note module_ undamped)]
     where articulation = make_articulation reyong_positions
 
 cek :: Score.Attributes
@@ -244,6 +248,32 @@ tumpuk_patterns = expect_right $ mapM (firstA parse_tumpuk)
     where
     expect_right = either (error . untxt . ("tumpuk_patterns: "<>)) id
     firstA f (a, c) = (,) <$> f a <*> pure c
+
+-- * c_byong
+
+c_byong :: Derive.Generator Derive.Note
+c_byong = Derive.generator module_ "byong" Tags.inst
+    "Play the byong notes, but only for the current voice, and following\
+    \ normal damping rules."
+    $ Sig.call0 $ Sub.inverting $ \args -> do
+        voice <- Derive.get_val EnvKey.voice
+        position <- Derive.require ("unknown position: " <> showt voice) $
+            Seq.at reyong_positions (voice - 1 :: Int)
+        (_, show_pitch, _) <- Call.get_pitch_functions
+        let realize = Call.place args
+                . realize_note show_pitch voice (Args.start args)
+        mconcatMap (realize . (, mempty)) (pos_byong position)
+
+c_pitches :: [Pitch.Pitch] -> Derive.Generator Derive.Note
+c_pitches pitches = Derive.generator module_ "pitches" Tags.inst
+    "Play the given pitches. Really only for `4e` and `5i` for the penyorog."
+    $ Sig.call0 $ Sub.inverting $ \args -> do
+        (_, show_pitch, _) <- Call.get_pitch_functions
+        let realize pitch = do
+                note <- Derive.require ("unshowable pitch: " <> pretty pitch)
+                    (show_pitch pitch)
+                Call.pitched_note =<< Call.eval_pitch (Args.start args) note
+        mconcatMap (Call.place args . realize) pitches
 
 -- * cancel
 
@@ -391,8 +421,7 @@ type Voice = Int
 realize_note :: (Pitch.Pitch -> Maybe Pitch.Note) -> Voice -> ScoreTime
     -> Note -> Derive.NoteDeriver
 realize_note show_pitch voice start (pitch, attrs) =
-    Call.add_attrs attrs $
-    Derive.with_val EnvKey.voice voice $ do
+    Call.add_attrs attrs $ Derive.with_val EnvKey.voice voice $ do
         note <- Derive.require ("unshowable pitch: " <> pretty pitch)
             (show_pitch pitch)
         Call.pitched_note =<< Call.eval_pitch start note
@@ -513,15 +542,23 @@ parse_note table = extract . head . parse_absolute table . (:[])
     extract [x] = x
     extract xs = error $ "parse_note: expected only one: " <> prettys xs
 
+{-
+    1 penyorog        3 ponggang
+             2 pengenter    4 pemetit
+    |------|---       |---|---
+             |------|---    |---------|
+    4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
+-}
 pickup_patterns :: Map.Map Pitch.PitchClass [[Chord]]
 pickup_patterns = Map.fromList $ zip [0..] $ map parse by_degree
     where
     parse = zipWith parse_absolute (map pos_table reyong_positions)
     by_degree =
+        -- 1       2       3       4
         [ ["eua-", "Iioi", "Uua-", "Iioi"] -- i
         , ["ua:-", "Ooeo", "uai-", "Ooeo"] -- o
         , ["Eeue", "Eeie", "uau-", "Eeue"] -- e
-        , ["Uuau", "ioe-", "Uuau", "ioe-"] -- u
+        , ["Uuau", "ioe-", "Uuau", "ioeu"] -- u
         , ["Aaea", "Eeie", "Aa-a", "Eeie"] -- a
         ]
 
@@ -530,11 +567,12 @@ norot_patterns = Map.fromList $ zip [0..] $ map parse by_degree
     where
     parse = zipWith parse_absolute (map pos_table reyong_positions)
     by_degree =
+        -- 1       2       3       4
         [ ["aua-", "oioi", "aua-", "oioi"] -- i
                -- i oeio
         , [":-:-", "eoeo", "iai-", "eoeo"] -- o
         , ["ueue", "ieie", "u-u-", "ueue"] -- e
-        , ["auau", "eoe-", "auau", "eoe-"] -- u
+        , ["auau", "eoe-", "auau", "eueu"] -- u
         , ["eaea", "ieie", "-a-a", "ieie"] -- a
         ]
 

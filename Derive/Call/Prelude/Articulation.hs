@@ -56,15 +56,16 @@ note_calls = Make.call_maps
     , ("-", c_shorten_lengthen True)
     , ("+", c_shorten_lengthen False)
     ]
-    [ ("(", c_legato)
-    -- These do different things in lilypond mode, but in normal performance
-    -- they are just the same as a slur.
-    , ("^(", c_legato)
-    , ("_(", c_legato)
-    ]
-    [ ("sus-a", c_sustain_abs)
-    , ("sus", c_sustain)
-    ]
+    <> Derive.call_maps
+        [ ("(", c_legato)
+        -- These do different things in lilypond mode, but in normal
+        -- performance they are just the same as a slur.
+        , ("^(", c_legato)
+        , ("_(", c_legato)
+        ]
+        [ ("sus-a", c_sustain_abs)
+        , ("sus", c_sustain)
+        ]
     <> Derive.CallMaps [lookup_attr_generator] [lookup_attr_transformer]
 
 mute_call :: BaseTypes.CallId

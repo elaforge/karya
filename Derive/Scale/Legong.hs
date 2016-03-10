@@ -23,8 +23,8 @@
                       pemade-----------------------
                                      kantilan---------------------
                          reyong-----------------------------
-                         |------|---       |---|---
-                                  |------|---    |---------|
+                         |1-----|---       |3--|---
+                                  |2-----|---    |4--------|
     3i 3o 3e 3u 3a 4i 4o 4e 4u 4a 5i 5o 5e 5u 5a 6i 6o 6e 6u 6a 7i
     @
 -}
@@ -135,9 +135,7 @@ reyong_range = Scale.Range (Pitch.pitch 4 2) (Pitch.pitch 6 4)
 base_oct :: Pitch.Octave
 base_oct = 3
 
-{- | Extended scale.
-
--}
+-- | Extended scale.
 umbang :: [Pitch.NoteNumber]
 umbang =
     [ 51.82 -- deng, rambat begin

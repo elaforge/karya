@@ -54,14 +54,15 @@ note_calls = Make.call_maps
     , ("xstaff", c_xstaff)
     , ("xstaff-a", c_xstaff_around)
     ]
-    [ ("if-ly", c_if_ly)
-    ]
-    [ ("ly-global", c_ly_global)
-    , ("ly-track", c_ly_track)
-    , ("not-ly-track", c_not_ly_track)
-    , ("unless-ly", c_unless_ly)
-    , ("when-ly", c_when_ly)
-    ]
+    <> Derive.call_maps
+        [ ("if-ly", c_if_ly)
+        ]
+        [ ("ly-global", c_ly_global)
+        , ("ly-track", c_ly_track)
+        , ("not-ly-track", c_not_ly_track)
+        , ("unless-ly", c_unless_ly)
+        , ("when-ly", c_when_ly)
+        ]
 
 c_when_ly :: Derive.Transformer Derive.Note
 c_when_ly = transformer "when-ly" mempty
