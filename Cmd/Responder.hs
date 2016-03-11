@@ -52,11 +52,11 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.GlobalKeymap as GlobalKeymap
 import qualified Cmd.Integrate as Integrate
 import qualified Cmd.Internal as Internal
+import qualified Cmd.Ky as Ky
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
 import qualified Cmd.PlayC as PlayC
-import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Repl as Repl
 import qualified Cmd.ResponderSync as ResponderSync
 import qualified Cmd.Save as Save
@@ -366,7 +366,7 @@ record_keys msg = do
 load_ky :: ResponderM ()
 load_ky = do
     rstate <- Monad.State.get
-    cmd_state <- liftIO $ PlayUtil.update_ky_cache
+    cmd_state <- liftIO $ Ky.update_cache
         (rstate_ui_to rstate) (rstate_cmd_to rstate)
     Monad.State.put $ rstate { rstate_cmd_to = cmd_state }
 

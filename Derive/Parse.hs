@@ -491,7 +491,7 @@ type LineNumber = Int
     in the tracklang language, which is less powerful but more concise than
     haskell.
 
-    The syntax is a sequence of @import path/to/file@ lines followed by
+    The syntax is a sequence of @import path\/to\/file@ lines followed by
     a sequence of sections.  A section is a @header:@ line followed by
     definitions.  The header determines the type of the calls defined after it,
     e.g.:

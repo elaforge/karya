@@ -17,6 +17,7 @@ import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Ky as Ky
 import qualified Cmd.Lilypond
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Performance as Performance
@@ -158,7 +159,7 @@ load_score fname =
                 app_dir <- liftIO Config.get_app_dir
                 let paths = dir : map (Config.make_path app_dir) Config.ky_paths
                 (lib, _) <- either Except.throwError return
-                    =<< liftIO (PlayUtil.load_ky paths ky_fname)
+                    =<< liftIO (Ky.load paths ky_fname)
                 return (state, lib)
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a

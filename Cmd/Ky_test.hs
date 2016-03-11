@@ -2,13 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
-module Cmd.PlayUtil_test where
+module Cmd.Ky_test where
 import qualified Data.Text as Text
 
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.CmdTest as CmdTest
+import qualified Cmd.Ky as Ky
 import qualified Cmd.PlayUtil as PlayUtil
 
 import qualified Derive.DeriveTest as DeriveTest
@@ -51,5 +52,5 @@ put_library text = Cmd.modify $ \st -> st
     { Cmd.state_ky_cache = Just $ case Parse.parse_ky "fname.ky" text of
         Left err -> Cmd.KyCache (Left err) mempty
         Right (_, defs) ->
-            Cmd.KyCache (Right $ PlayUtil.compile_library defs) mempty
+            Cmd.KyCache (Right $ Ky.compile_library defs) mempty
     }
