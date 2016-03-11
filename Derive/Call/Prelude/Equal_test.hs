@@ -50,7 +50,7 @@ test_equal_inst = do
     strings_like (snd $ run mempty ">new = hi" ">new")
         ["expected an instrument"]
     strings_like (snd $ run mempty ">new = >nonexistent" ">new")
-        ["no instrument found for >nonexistent"]
+        ["instrument alias destination doesn't exist"]
     equal (run mempty ">new = >i1" ">new") (["i1"], [])
     equal (run mempty ">new = >i1 | >newer = >new" ">newer") (["i1"], [])
 
@@ -70,6 +70,12 @@ test_equal_call = do
     let run = DeriveTest.extract DeriveTest.e_note . DeriveTest.derive_tracks ""
     -- Rebind a note call.
     equal (run [(">", [(0, 1, "^zzz = n | zzz")])]) ([(0, 1, "?")], [])
+    -- Bind to a instrument transformer, as called by note-track.
+    let run_env = DeriveTest.extract extract
+            . DeriveTest.derive_tracks ">>i1 = \"(v=1)"
+        extract e = (DeriveTest.e_instrument e, DeriveTest.e_environ "v" e)
+    equal (run_env [(">i1", [(0, 1, "")])]) ([("i1", Just "1")], [])
+
     equal (run [("> | *zzz = set", [(0, 1, "")]), ("*", [(0, 0, "zzz (4c)")])])
         ([(0, 1, "4c")], [])
     equal (run [("> | *4 = set", [(0, 1, "")]), ("*", [(0, 0, "4 (4c)")])])
@@ -78,7 +84,7 @@ test_equal_call = do
             ("*", [(0, 0, "set (zzz p)")])])
         ([(0, 1, "4c")], [])
 
-    -- RHS that doesn't look like
+    -- RHS that's not a symbol.
     let run2 = DeriveTest.extract DeriveTest.e_attributes
             . DeriveTest.derive_tracks ""
     equal (run2 [("> | ^左 = +left", [(0, 1, "左")])]) (["+left"], [])

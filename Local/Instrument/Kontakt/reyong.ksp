@@ -2,6 +2,11 @@
     This program is distributed under the terms of the GNU General Public
     License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 }
+
+{ Handle keyswitches and round-robin for the various articulations.
+    However, keyswitches are per-pitch, and come from poly aftertouch.
+    Also, mute articulations will stop a ringing note at the same pitch.
+}
 on init
     set_script_title("reyong keyswitches and release")
     message("")

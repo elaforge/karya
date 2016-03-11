@@ -107,12 +107,14 @@ load paths fname = Parse.load_ky paths fname >>= \result -> case result of
         return $ Right (lib, Map.fromList imported)
 
 compile_library :: Parse.Definitions -> Derive.Library
-compile_library (Parse.Definitions note control pitch val) = Derive.Library
-    { lib_note = call_maps note
-    , lib_control = call_maps control
-    , lib_pitch = call_maps pitch
-    , lib_val = Derive.call_map $ compile make_val_call val
-    }
+compile_library (Parse.Definitions note control pitch val aliases) =
+    Derive.Library
+        { lib_note = call_maps note
+        , lib_control = call_maps control
+        , lib_pitch = call_maps pitch
+        , lib_val = Derive.call_map $ compile make_val_call val
+        , lib_instrument_aliases = Map.fromList aliases
+        }
     where
     call_maps (gen, trans) = Derive.call_maps
         (compile make_generator gen) (compile make_transformer trans)

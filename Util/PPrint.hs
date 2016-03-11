@@ -27,11 +27,11 @@ import qualified Util.Seq as Seq
 
 -- * showable
 
-pprint :: (Show a) => a -> IO ()
+pprint :: Show a => a -> IO ()
 pprint = putStr . pshow
 
 -- | Pretty show.
-pshow :: (Show a) => a -> String
+pshow :: Show a => a -> String
 pshow = format . show
 
 -- * String

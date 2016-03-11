@@ -53,10 +53,11 @@ import qualified Derive.Derive as Derive
 
 library :: Derive.Library
 library = Derive.Library
-    { Derive.lib_note = note_maps
-    , Derive.lib_control = control_maps
-    , Derive.lib_pitch = pitch_maps
-    , Derive.lib_val = val_map
+    { lib_note = note_maps
+    , lib_control = control_maps
+    , lib_pitch = pitch_maps
+    , lib_val = val_map
+    , lib_instrument_aliases = mempty
     }
 
 note_maps :: Derive.CallMaps Derive.Note

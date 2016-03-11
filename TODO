@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - %t-oct=1 in the block title seems to mess up pitch track signal
   * Why does build/opt/seq depend on Util.Test?  Maybe it should have the
     #error too.
   * ! should still strip comments.
@@ -1321,9 +1322,10 @@ Derive:
           is the "track call" thing I was thinking about a long time ago.
       - Add an input mode for bols.
     bali:
-      - add isep to *legong
-      - pick better nns for pemero notes 4 and 7
-      - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
+      legong scale:
+        - add isep to *legong
+        - pick better nns for pemero notes 4 and 7
+        - dotted cipher notation should use 4 and 7 instead of 3# and 6#.
       kotekan: gangsa:
         - How norot puts notes before itself can be awkward, would it be
           simpler to have the pickup emitted by the end of the previous call?
@@ -1406,6 +1408,14 @@ Derive:
           I duplicate the entire structure, from score on down.  Score
           integration could theoretically do that.
       trompong: reyong:
+        - Reyong thru notes frquently have the wrong articulation or are
+          entirely silent.  Maybe need to be sure to send all the keyswitches
+          each time?
+          . The difference with reyong is that it uses aftertouch keyswitches.
+          . I think thru doesn't send keyswitches because it assumes I want
+            to keep using the last articulation, and otherwise can't know
+            which one I mean.
+          - First reproduce and see what MIDI is actually being sent.
         * Ceks get +cek+mute+open.  Probably infer-damp doesn't know to ignore
           them.
         / a zero duration note should be without damp
@@ -1415,8 +1425,37 @@ Derive:
           . Shadowed by the inst 'n' call.
         - instead of the awkward >kilit or the cancel range, should I do
           next note preparation as the end of the current kilit call?
-        - do I need voice inference for reyong tracks?  Or not so bad to add
+        * do I need voice inference for reyong tracks?  Or not so bad to add
           a v=n?  Maybe I can have a cmd to add tracks.
+          . Or I could do instrument variations, e.g. >r1 >r2 >r3 >r4
+          . I could do this with an instrument alias plus transformer, e.g.
+            '>r1 = >r | v=1'.  I think both '=' and ky need modification to
+            support this.
+          . Ultimately this is implemented by Note.c_note_track.  It looks up
+            a transformer with the same name, and the Derive.with_instrument
+            is hardcoded to set the given instrument, so it can't set another
+            one.
+          . But it could with an istrument alias, e.g.
+            >r1 = >r
+            >r1 = v=1
+            . But maybe can't set instrument aliases from ky?  In fact,
+            I think ky and '=' are disjoint, ky can only make transformers,
+            '=' can only make aliases.  I should unify them, so I can do both
+            from both places.  But under what syntax?
+          . '=' uses prefixes to squeeze into limited space.  ky uses sections
+            for that, so perhaps I should just add an 'instrument aliases'
+            section.  What about '='?  Maybe ">>"?
+          . So it would be:
+            note transformer:
+              >r1 = v=1
+              >r2 = v=2
+            instrument alias:
+              >r1 = >r
+              >r2 = >r
+          . So it's still kind of awkward, and relies on certain instrument
+            allocations being present.
+          . The problem with putting aliases in Library is that I use Library
+            for imports, and I don't want to set aliases on every import.
         - A %damp of 0x01 is still counted as 0 due to 7-bit MIDI.  I have to
           have at least 0x02, but this seems like exposing details.
           . One way is to have a postproc ensure ==0 or >=1/127.
@@ -1441,18 +1480,23 @@ Derive:
               561   53561
                21      21
         - kbd entry for /, X, O, + etc.?
-        kilitan
+        kilitan: norot:
+          variants:
+            - controlled by variant control
+            - omit notes
+            - hardcoded variants, e.g. p1 on dong
+            - Delayed note, e.g. on ding, oiioioi
+            - Pickup can be iioi style, but parts that don't have the pitch
+              often play the normal kilitan, or a passing tone.
           above speed threshold:
             - open damping and then no damping
             - omit notes
-            - Entirely different patterns, but I have to understand them first.
+            - Entirely different fast patterns.
           - Also I want to be able to control the dyn.  There should be
             a single control for +mute dyn.  Actually I already have that
             if I multiply %damp, right?  Still, explicit +mute notes and
             kilitan +mute notes are stronger than damping, so I need two
             I think.  Damping should default to a fraction of +mute dyn.
-          - variant patterns, e.g. p1 on dong
-            . Select explicitly or randomize.
           - write an alternate style of kilitan, e.g. with a 6 note scale in
             tisram
         kotekan
@@ -1463,6 +1507,11 @@ Derive:
           as a break with no notes for a certain amount of time.  Can only damp
           two neighboring notes at a time.
   india: gamakam:
+    dyn:
+      - dyn > seems to be linear?
+      - I think I do want a linear or slow attack for <, otherwise all attacks
+        are sharp.
+      - < should start from prev dyn, not 0.
     - Aliases can't use [], so for the 'n' and 'u' aliases I need to support
       the duration arg.
     * simplify dynamic call parsing

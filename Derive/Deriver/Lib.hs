@@ -66,6 +66,7 @@ data Result = Result {
 -- | Kick off a derivation.
 derive :: Constant -> Dynamic -> Deriver a -> RunResult a
 derive constant dynamic = run (initial_state constant dynamic)
+    . with_initial_instrument_aliases
     . with_initial_scope (state_environ dynamic) . with_default_imported
 
 extract_result :: RunResult (Stream.Stream Score.Event) -> Result
@@ -124,6 +125,13 @@ with_initial_scope env deriver = set_inst (set_scale deriver)
             with_scale scale deriver
         _ -> id
 
+-- | Apply the instrument aliases loaded from the ky file.  This should only
+-- happen when starting a derivation.
+with_initial_instrument_aliases :: Deriver a -> Deriver a
+with_initial_instrument_aliases deriver = do
+    aliases <- lib_instrument_aliases <$> Internal.get_constant state_library
+    with_instrument_aliases aliases deriver
+
 with_default_imported :: Deriver a -> Deriver a
 with_default_imported deriver =
     foldr (with_imported True) deriver
@@ -158,7 +166,7 @@ with_imported :: Bool -> Module.Module -> Deriver a -> Deriver a
 with_imported empty_ok module_ deriver = do
     lib <- Internal.get_constant state_library
     lib <- case extract_module module_ lib of
-        Library (CallMaps [] []) (CallMaps [] []) (CallMaps [] []) []
+        Library (CallMaps [] []) (CallMaps [] []) (CallMaps [] []) [] _aliases
             | not empty_ok -> -- Likely the module name was typoed.
                 throw $ "no calls in the imported module: " <> pretty module_
         extracted -> return extracted
@@ -183,9 +191,9 @@ with_scopes modify = Internal.local $ \state ->
 
 -- | Filter out any calls that aren't in the given modules.
 extract_module :: Module.Module -> Library -> Library
-extract_module module_ (Library note control pitch val) =
+extract_module module_ (Library note control pitch val _aliases) =
     Library (extract2 note) (extract2 control) (extract2 pitch)
-        (extract vcall_doc val)
+        (extract vcall_doc val) mempty
     where
     extract2 (CallMaps gs ts) =
         CallMaps (extract call_doc gs) (extract call_doc ts)
@@ -203,8 +211,9 @@ extract_module module_ (Library note control pitch val) =
 -- filtered out.  This might be confusing since you might not even know a
 -- call comes from a LookupPattern, but then you can't import it by name.
 extract_symbols :: (BaseTypes.CallId -> Bool) -> Library -> Library
-extract_symbols wanted (Library note control pitch val) =
+extract_symbols wanted (Library note control pitch val _aliases) =
     Library (extract2 note) (extract2 control) (extract2 pitch) (extract val)
+        mempty
     where
     extract2 (CallMaps gs ts) = CallMaps (extract gs) (extract ts)
     extract = mapMaybe has_name
@@ -215,7 +224,7 @@ extract_symbols wanted (Library note control pitch val) =
     has_name (LookupPattern {}) = Nothing
 
 library_symbols :: Library -> [BaseTypes.CallId]
-library_symbols (Library note control pitch val) =
+library_symbols (Library note control pitch val _aliases) =
     extract2 note <> extract2 control <> extract2 pitch <> extract val
     where
     extract2 (CallMaps gs ts) = extract gs <> extract ts
@@ -224,7 +233,7 @@ library_symbols (Library note control pitch val) =
     names_of (LookupPattern {}) = []
 
 import_library :: Library -> Scopes -> Scopes
-import_library (Library lib_note lib_control lib_pitch lib_val)
+import_library (Library lib_note lib_control lib_pitch lib_val _aliases)
         (Scopes gen trans val) =
     Scopes
         { scopes_generator = Scope
@@ -412,27 +421,43 @@ with_instrument inst deriver = do
 
 with_instrument_alias :: Score.Instrument -> Score.Instrument
     -> Deriver a -> Deriver a
-with_instrument_alias alias inst deriver = do
-    _ <- get_instrument inst -- ensure it exists
-    Internal.local with deriver
+with_instrument_alias alias inst =
+    with_instrument_aliases (Map.singleton alias inst)
+
+with_instrument_aliases :: Map.Map Score.Instrument Score.Instrument
+    -> Deriver a -> Deriver a
+with_instrument_aliases aliases deriver = do
+    forM_ (Map.elems aliases) $ \inst ->
+        lookup_instrument inst >>= \(_, result) -> case result of
+            Nothing -> throw $ "instrument alias destination doesn't exist: "
+                <> pretty inst
+            Just _ -> return ()
+    if null aliases then deriver else Internal.local with deriver
     where
     with state = state
-        { state_instrument_aliases = insert (state_instrument_aliases state) }
-    insert aliases =
-        Map.insert alias (Map.findWithDefault inst inst aliases) aliases
+        { state_instrument_aliases = (resolve <$> aliases) <> old_aliases }
+        where
+        old_aliases = state_instrument_aliases state
+        resolve inst = Map.findWithDefault inst inst old_aliases
 
--- | Look up the instrument.  Also return the instrument name after chasing
--- through aliases.  This is what goes in 'Score.event_instrument', since it's
--- what the performer understands.
 get_instrument :: Score.Instrument -> Deriver (Score.Instrument, Instrument)
 get_instrument inst = do
+    (real_inst, result) <- lookup_instrument inst
+    let msg = "no instrument found for " <> ShowVal.show_val real_inst
+            <> if real_inst == inst then ""
+                else " (aliased from " <> ShowVal.show_val inst <> ")"
+    require msg ((,) real_inst <$> result)
+
+-- | Look up the instrument.  Also return the instrument name after resolving
+-- any alias.  This is what goes in 'Score.event_instrument', since it's what
+-- the performer understands.
+lookup_instrument :: Score.Instrument
+    -> Deriver (Score.Instrument, Maybe Instrument)
+lookup_instrument inst = do
     aliases <- Internal.get_dynamic state_instrument_aliases
     let real_inst = Map.findWithDefault inst inst aliases
     lookup_inst <- gets $ state_lookup_instrument . state_constant
-    let msg = ShowVal.show_val real_inst <> if real_inst == inst then ""
-            else " (aliased from " <> ShowVal.show_val inst <> ")"
-    val <- require ("no instrument found for " <> msg) $ lookup_inst real_inst
-    return (real_inst, val)
+    return (real_inst, lookup_inst real_inst)
 
 -- | Merge the given environ into the environ in effect.
 with_environ :: Env.Environ -> Deriver a -> Deriver a

@@ -475,13 +475,15 @@ data Definitions = Definitions {
     , def_control :: !([Definition], [Definition])
     , def_pitch :: !([Definition], [Definition])
     , def_val :: ![Definition]
+    , def_aliases :: ![(Score.Instrument, Score.Instrument)]
     } deriving (Show)
 
 instance Monoid Definitions where
-    mempty = Definitions ([], []) ([], []) ([], []) []
-    mappend (Definitions (a1, b1) (c1, d1) (e1, f1) g1)
-            (Definitions (a2, b2) (c2, d2) (e2, f2) g2) =
+    mempty = Definitions ([], []) ([], []) ([], []) [] []
+    mappend (Definitions (a1, b1) (c1, d1) (e1, f1) g1 h1)
+            (Definitions (a2, b2) (c2, d2) (e2, f2) g2 h2) =
         Definitions (a1<>a2, b1<>b2) (c1<>c2, d1<>d2) (e1<>e2, f1<>f2) (g1<>g2)
+            (h1<>h2)
 
 -- | (defining_file, (call_sym, expr))
 type Definition = (FilePath, (BaseTypes.CallId, BaseTypes.Expr))
@@ -500,9 +502,13 @@ type LineNumber = Int
     >
     > note generator:
     > x = y
+    >
+    > alias:
+    > >new-inst = >source-inst
 
-    Valid headers are @val:@ or @(note|control|pitch) (generator|transformer):@.
-    A line is continued if it is indented.
+    Valid headers are @val:@, @(note|control|pitch) (generator|transformer):@,
+    or @alias:@.  A line is continued if it is indented, and @--@ comments
+    until the end of the line.
 
     This is similar to the "Derive.Call.Equal" call, but not quite the same.
     Firstly, it uses headers for the call type instead of equal's weirdo
@@ -516,7 +522,7 @@ parse_ky :: FilePath -> Text -> Either Text ([FilePath], Definitions)
 parse_ky filename text = do
     let (imports, sections) = split_sections text
     let extra = Set.toList $
-            Map.keysSet sections `Set.difference` Set.fromList headers
+            Map.keysSet sections `Set.difference` Set.fromList valid_headers
     unless (null extra) $
         Left $ "unknown sections: " <> Text.intercalate ", " extra
     imports <- ParseText.parse_lines 1 p_imports imports
@@ -524,6 +530,7 @@ parse_ky filename text = do
     let get header = Map.findWithDefault [] header parsed
         get2 kind = (get (kind <> " " <> generator),
             get (kind <> " " <> transformer))
+    aliases <- mapM parse_alias (get alias)
     let add_fname = map (filename,)
         add_fname2 = add_fname *** add_fname
     return $ (,) imports $ Definitions
@@ -531,6 +538,7 @@ parse_ky filename text = do
         , def_control = add_fname2 $ get2 control
         , def_pitch = add_fname2 $ get2 pitch
         , def_val = add_fname $ get val
+        , def_aliases = aliases
         }
     where
     val = "val"
@@ -539,12 +547,35 @@ parse_ky filename text = do
     pitch = "pitch"
     generator = "generator"
     transformer = "transformer"
-    headers = val : [t1 <> " " <> t2 | t1 <- [note, control, pitch],
-        t2 <- [generator, transformer]]
+    alias = "instrument alias"
+    valid_headers = val : alias :
+        [ t1 <> " " <> t2
+        | t1 <- [note, control, pitch], t2 <- [generator, transformer]
+        ]
     parse_section [] = return []
     parse_section ((lineno, line0) : lines) =
         ParseText.parse_lines lineno p_section $
             Text.unlines (line0 : map snd lines)
+
+parse_alias :: (BaseTypes.CallId, BaseTypes.Expr)
+    -> Either Text (Score.Instrument, Score.Instrument)
+parse_alias (BaseTypes.Symbol sym, expr) = do
+    lhs <- parse_instrument "lhs" sym
+    rhs <- case expr of
+        BaseTypes.Call (BaseTypes.Symbol sym) [] :| [] ->
+            parse_instrument "rhs" sym
+        _ -> Left $ "rhs of alias should just be a single >inst: "
+            <> ShowVal.show_val expr
+    return (lhs, rhs)
+
+parse_instrument :: Text -> Text -> Either Text Score.Instrument
+parse_instrument side sym = do
+    let prefix = "instrument alias on " <> side
+    sym <- maybe (Left $ prefix <> " should start with >: " <> showt sym)
+        Right (Text.stripPrefix ">" sym)
+    if not (Text.all (`elem` Score.instrument_valid_chars) sym)
+        then Left $ prefix <> " has invalid chars: " <> showt sym
+        else Right (Score.instrument sym)
 
 split_sections :: Text -> (Text, Map.Map Text [(LineNumber, Text)])
 split_sections =

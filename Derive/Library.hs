@@ -18,7 +18,7 @@ import Global
 type Shadowed = ((Text, Module.Module), [BaseTypes.CallId])
 
 shadowed :: Derive.Library -> [Shadowed]
-shadowed (Derive.Library note control pitch val) =
+shadowed (Derive.Library note control pitch val _aliases) =
     filter (not . null . snd) $ concat
         [ call_maps "note" note
         , call_maps "control" control

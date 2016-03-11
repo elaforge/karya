@@ -266,7 +266,8 @@ c_byong = Derive.generator module_ "byong" Tags.inst
 
 c_pitches :: [Pitch.Pitch] -> Derive.Generator Derive.Note
 c_pitches pitches = Derive.generator module_ "pitches" Tags.inst
-    "Play the given pitches. Really only for `4e` and `5i` for the penyorog."
+    ("Play notes for each pitch: " <> ShowVal.doc pitches
+        <> ". Really only for `4e` and `5i` for the penyorog.")
     $ Sig.call0 $ Sub.inverting $ \args -> do
         (_, show_pitch, _) <- Call.get_pitch_functions
         let realize pitch = do

@@ -78,17 +78,23 @@ equal_doc =
     \\nSet an environ value by setting a plain symbol or unset it by assigning\
     \ to `_`: `x = 42` or `x = _`.\
     \\nAlias instrument names like: `>alias = >inst`.\
-    \\nIf the symbol is prefixed with `^`, `*`, `.`, or `-`, it will add a new\
-    \ name for a ^note, *pitch, .control, or -val call, respectively. It sets\
-    \ the generator\
-    \ by default, but will set the transformer if you prefix another `-`.  You\
-    \ need quoting for symbols that don't match 'Derive.Parse.p_symbol'.\
+    \\nIf the symbol is prefixed with `>>`, `^`, `*`, `.`, or `-`, it will add\
+    \ a new name for a ^note, *pitch, .control, or -val call, respectively.\
+    \ It sets the generator by default, but will set the transformer if you\
+    \ prefix another `-`. `>>` is special cased to only create a note\
+    \ transformer, whose name will be prefixed with `>`. This is used to set\
+    \ an instrument transformer, which can apply a transformer when an\
+    \ instrument is set by the title of a note track, as implemented by\
+    \ by `note-track`.\
+    \\nYou need quoting for symbols that don't match 'Derive.Parse.p_symbol'.\
     \\nE.g.: set note generator: `^phrase = some-block`,\
     \ note transformer: `^-mute = +mute+loose`,\
     \ control transfomrer: `'.-i' = t`, val call: `'-4c' = 5c`.\
+    \\nYou can bypass all this cryptic prefix garbage by using a `ky` file.\
+    \ It has more space available so it can use a more readable syntax.\
     \\nIf you bind a call to a quoted expression, this creates a new\
     \ call: `^abc = \"(a b c)` will create a `abc` call, which is a macro for\
-    \ `a b c`. The created call does not take arguments (yet!).\
+    \ `a b c`. The created call does not take arguments.\
     \\nSet constant signals by assigning to a signal literal: `%c = .5` or\
     \ pitch: `#p = (4c)`.  `# = (4c)` sets the default pitch signal.\
     \ You can rename a signal via `%a = %b` or `#x = #y`. Control signal\
@@ -120,6 +126,9 @@ parse_equal Nothing (BaseTypes.Symbol lhs) rhs
     | Just new <- Text.stripPrefix "^" lhs = Right $
         override_call new rhs "note"
             (Derive.s_generator#Derive.s_note)
+            (Derive.s_transformer#Derive.s_note)
+    | Just new <- Text.stripPrefix ">>" lhs = Right $
+        override_transformer (">" <> new) rhs "note"
             (Derive.s_transformer#Derive.s_note)
     | Just new <- Text.stripPrefix "*" lhs = Right $
         override_call new rhs "pitch"
@@ -218,17 +227,27 @@ override_call :: (Derive.Callable d1, Derive.Callable d2) =>
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Generator d1))
     -> Lens Derive.Scopes (Derive.ScopeType (Derive.Transformer d2))
     -> Derive.Deriver a -> Derive.Deriver a
-override_call lhs rhs name_ generator transformer deriver
+override_call lhs rhs name generator transformer deriver
     | Just stripped <- Text.stripPrefix "-" lhs =
-        override_scope stripped transformer deriver
-            =<< resolve_source (name_ <> " transformer") transformer
-                quoted_transformer rhs
-    | otherwise = override_scope lhs generator deriver
-        =<< resolve_source (name_ <> " generator") generator
+        override_transformer stripped rhs name transformer deriver
+    | otherwise = override_generator_scope
+        =<< resolve_source (name <> " generator") generator
             quoted_generator rhs
     where
-    override_scope lhs lens deriver call = Derive.with_scopes modify deriver
-        where modify = lens#Derive.s_override %= (single_lookup lhs call :)
+    override_generator_scope call = Derive.with_scopes modify deriver
+        where modify = generator#Derive.s_override %= (single_lookup lhs call :)
+
+-- | Make an expression into a transformer and stick it into the
+-- 'Derive.s_override' slot.
+override_transformer :: Derive.Callable d => Text -> BaseTypes.Val -> Text
+    -> Lens Derive.Scopes (Derive.ScopeType (Derive.Transformer d))
+    -> Derive.Deriver a -> Derive.Deriver a
+override_transformer lhs rhs name transformer deriver =
+    override_scope =<< resolve_source (name <> " transformer") transformer
+            quoted_transformer rhs
+    where
+    override_scope call = Derive.with_scopes
+        (transformer#Derive.s_override %= (single_lookup lhs call :)) deriver
 
 -- | A VQuoted becomes a call, a Symbol is expected to name a call, and
 -- everything else is turned into a Symbol via ShowVal.  This will cause

@@ -220,7 +220,7 @@ test_expand_macros = do
     equal (f "hi \"@a\" there") (Right "hi \"@a\" there")
 
 
--- * definitions file
+-- * ky file
 
 test_load_ky = do
     let make_ky imports defs = unlines $
@@ -271,6 +271,14 @@ test_parse_ky = do
         Right ["x", "y"]
     equal (f fst "import\n\t'x'\n") $ Right ["x"]
     left_like (f fst "blort x\nimport y\n") "expected eof"
+
+    let aliases = Parse.def_aliases . snd
+    left_like (f aliases "instrument alias:\na = b\n")
+        "alias on lhs should start with >"
+    left_like (f aliases "instrument alias:\n>a = b\n")
+        "alias on rhs should start with >"
+    equal (f aliases "instrument alias:\n>a = >b\n")
+        (Right [(Score.Instrument "a", Score.Instrument "b")])
 
 test_split_sections = do
     let f = second Map.toList . Parse.split_sections

@@ -521,7 +521,7 @@ builtin = library <$> Cmd.gets (Cmd.config_library . Cmd.state_config)
 -- nested data structure.  It's tedious, but the types make it hard to get
 -- wrong.
 library :: Derive.Library -> [Section]
-library (Derive.Library note control pitch val) =
+library (Derive.Library note control pitch val _aliases) =
     [ ("note", call_maps note)
     , ("control", call_maps control)
     , ("pitch", call_maps pitch)

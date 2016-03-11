@@ -532,22 +532,29 @@ data Library = Library {
     , lib_control :: !(CallMaps Control)
     , lib_pitch :: !(CallMaps Pitch)
     , lib_val :: ![LookupCall ValCall]
+    -- | A set of instrument aliases to apply to 'state_instrument_aliases'
+    -- at the beginning of derivation.  This doesn't really fit here since
+    -- it's not a CallMap, but it's convenient to return from the ky loading
+    -- function, and other users can leave it empty.
+    , lib_instrument_aliases :: !(Map.Map Score.Instrument Score.Instrument)
     }
 
 instance Monoid Library where
-    mempty = Library mempty mempty mempty mempty
-    mappend (Library note1 control1 pitch1 val1)
-            (Library note2 control2 pitch2 val2) =
+    mempty = Library mempty mempty mempty mempty mempty
+    mappend (Library note1 control1 pitch1 val1 aliases1)
+            (Library note2 control2 pitch2 val2 aliases2) =
         Library (note1<>note2) (control1<>control2) (pitch1<>pitch2)
-            (val1<>val2)
+            (val1<>val2) (aliases2<>aliases1)
+            -- Put aliases2 first so it takes priority.
 
 instance Show Library where show _ = "((Library))"
 instance Pretty.Pretty Library where
-    format (Library note control pitch val) = Pretty.record "Library"
+    format (Library note control pitch val aliases) = Pretty.record "Library"
         [ ("note", Pretty.format note)
         , ("control", Pretty.format control)
         , ("pitch", Pretty.format pitch)
         , ("val", Pretty.format val)
+        , ("aliases", Pretty.format aliases)
         ]
 
 -- | This represents all calls in scope.  Different types of calls are in scope
