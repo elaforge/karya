@@ -233,6 +233,7 @@ strings_like gotten expected
     | otherwise = and <$>
         mapM string_like (zip [0..] (Seq.zip_padded gotten expected))
     where
+    string_like :: Stack => (Int, Seq.Paired String String) -> IO Bool
     string_like (n, Seq.Second reg) = failure $
         show n ++ ": gotten list too short: expected " ++ show reg
     string_like (n, Seq.First gotten) = failure $
