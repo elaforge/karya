@@ -15,6 +15,7 @@ import Global
 
 data Patch = Patch {
     -- | Map supported controls to documentation.
+    -- TODO maybe I need a separate one for pitch controls.
     patch_controls :: !(Map.Map ScoreTypes.Control Text)
     , patch_attribute_map :: !AttributeMap
     , patch_flags :: !(Set.Set Flag)

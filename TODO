@@ -1416,6 +1416,11 @@ Derive:
             to keep using the last articulation, and otherwise can't know
             which one I mean.
           - First reproduce and see what MIDI is actually being sent.
+        - Force a certain keyswitch for midi thru.
+          . Config is 'Map Score.Instrument Attributes', and I can set it
+            from the selection or manually.
+          . Should it be in Cmd.State or UI state?  Let's put it in UI state
+            so I don't have to reset it every time I restart.
         * Ceks get +cek+mute+open.  Probably infer-damp doesn't know to ignore
           them.
         / a zero duration note should be without damp

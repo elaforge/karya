@@ -42,8 +42,10 @@ import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
+import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
+
 import qualified Instrument.BrowserC as BrowserC
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
@@ -124,7 +126,7 @@ info_of synth_name name synth_doc (Inst.Inst backend common) tags =
     body = format_fields $ common_fields tags common ++ backend_fields
     backend_fields = case backend of
         Inst.Midi inst -> instrument_fields name inst
-        Inst.Im _patch -> [] -- TODO
+        Inst.Im patch -> patch_fields patch
 
 common_fields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
 common_fields tags (Common.Common code env _tags doc) =
@@ -170,6 +172,15 @@ instrument_fields name inst =
         , patch_initialize = initialize
         , patch_attribute_map = attr_map
         } = inst
+
+patch_fields :: Im.Patch.Patch -> [(Text, Text)]
+patch_fields (Im.Patch.Patch controls attr_map flags) =
+    [ ("Flags", Text.intercalate ", " $ map showt $ Set.toList flags)
+    , ("Attributes", Text.intercalate ", " $ map pretty $
+        Common.mapped_attributes attr_map)
+    , ("Controls", Text.unlines [pretty control <> "\t" <> doc |
+        (control, doc) <- Map.toAscList controls])
+    ]
 
 format_fields :: [(Text, Text)] -> Text
 format_fields = Text.unlines . filter (not . Text.null) . map field
