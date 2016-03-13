@@ -1066,24 +1066,25 @@ get_midi_patch inst =
     =<< lookup_instrument inst
 
 lookup_instrument :: M m => Score.Instrument -> m (Maybe Inst)
-lookup_instrument inst = ($ inst) <$> get_lookup_instrument
+lookup_instrument inst = fmap fst . ($ inst) <$> get_lookup_instrument
 
 lookup_qualified :: State.M m => Score.Instrument
     -> m (Maybe InstTypes.Qualified)
 lookup_qualified inst = fmap fst <$> (State.allocation inst <#> State.get)
 
-get_lookup_instrument :: M m => m (Score.Instrument -> Maybe Inst)
+get_lookup_instrument :: M m =>
+    m (Score.Instrument -> Maybe (Inst, InstTypes.Qualified))
 get_lookup_instrument = state_lookup_instrument <$> State.get <*> get
 
 -- | Get a function to look up a 'Score.Instrument'.  This is where
 -- the environ and other local configuration is applied, so anyone looking up
 -- a Patch should go through this.
 state_lookup_instrument :: State.State -> State -> Score.Instrument
-    -> Maybe Inst
+    -> Maybe (Inst, InstTypes.Qualified)
 state_lookup_instrument ui_state cmd_state = \inst_name -> do
     (qualified, alloc) <- State.allocation inst_name #$ ui_state
     inst <- Inst.lookup qualified db
-    return $ merge_environ alloc inst
+    return (merge_environ alloc inst, qualified)
     where
     db = config_instrument_db (state_config cmd_state)
     merge_environ alloc =

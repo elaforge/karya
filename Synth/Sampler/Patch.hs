@@ -18,8 +18,6 @@ import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
-import qualified Instrument.InstTypes as InstTypes
-
 import qualified Synth.Sampler.Control as Control
 import Global
 
@@ -71,18 +69,17 @@ instance Pretty.Pretty Sample where
     format (Sample pitch attrs) = Pretty.constructor "Sample"
         [Pretty.format pitch, Pretty.format attrs]
 
-makeInst :: InstTypes.Name -> Patch -> Inst.Inst Cmd.InstrumentCode
-makeInst name patch = Inst.Inst
-    { inst_backend = Inst.Im (inferPatch name (Map.elems (samples patch)))
+makeInst :: Patch -> Inst.Inst Cmd.InstrumentCode
+makeInst patch = Inst.Inst
+    { inst_backend = Inst.Im (inferPatch (Map.elems (samples patch)))
     , inst_common = karyaCommon patch
     }
 
 -- | This doesn't allow you to specify priority, but is sufficient for simple
 -- instruments.
-inferPatch :: InstTypes.Name -> [Sample] -> Patch.Patch
-inferPatch name samples = Patch.Patch
-    { patch_name = name
-    , patch_controls = Map.fromList $ concat
+inferPatch :: [Sample] -> Patch.Patch
+inferPatch samples = Patch.Patch
+    { patch_controls = Map.fromList $ concat
         [ [(c Control.pitch, "Pitch signal.")
             | any (Maybe.isJust . pitch) samples]
         ]

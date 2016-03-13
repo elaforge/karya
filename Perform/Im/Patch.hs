@@ -10,31 +10,26 @@ import qualified Data.Set as Set
 import qualified Util.Pretty as Pretty
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
 import Global
 
 
 data Patch = Patch {
-    -- | This is a unique key to address this patch on the synthesizer.
-    patch_name :: InstTypes.Name
     -- | Map supported controls to documentation.
-    , patch_controls :: !(Map.Map ScoreTypes.Control Text)
+    patch_controls :: !(Map.Map ScoreTypes.Control Text)
     , patch_attribute_map :: !AttributeMap
     , patch_flags :: !(Set.Set Flag)
     } deriving (Show)
 
-patch :: InstTypes.Name -> Patch
-patch name = Patch
-    { patch_name = name
-    , patch_controls = mempty
+patch :: Patch
+patch = Patch
+    { patch_controls = mempty
     , patch_attribute_map = Common.AttributeMap []
     , patch_flags = mempty
     }
 
 instance Pretty.Pretty Patch where
-    format (Patch name controls attr_map flags) = Pretty.record "Patch"
-        [ ("name", Pretty.format name)
-        , ("controls", Pretty.format controls)
+    format (Patch controls attr_map flags) = Pretty.record "Patch"
+        [ ("controls", Pretty.format controls)
         , ("attribute_map", Pretty.format attr_map)
         , ("flags", Pretty.format flags)
         ]

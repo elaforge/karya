@@ -26,6 +26,8 @@ import qualified Perform.Midi.Patch as Midi.Patch
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
 import Global
 import Types
 
@@ -44,10 +46,11 @@ convert :: Types.Config -> [Score.Event] -> [LEvent.LEvent Types.Event]
 convert config =
     ConvertUtil.convert event1 lookup_inst . filter_instruments
     where
-    lookup_inst = const $ Just fake_inst
+    lookup_inst = const $
+        Just (fake_inst, InstTypes.Qualified "ly" "ly-fake-inst")
     fake_inst = Inst.Inst (Inst.Midi (Midi.Patch.patch (-1, 1) "ly-fake-inst"))
         (Common.common Cmd.empty_code)
-    event1 event _backend =
+    event1 event _backend _name =
         convert_event (Types.config_quarter_duration config) event
     filter_instruments
         | null (Types.config_staves config) = id

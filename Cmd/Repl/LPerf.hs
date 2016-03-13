@@ -201,7 +201,7 @@ normalize_events :: Cmd.M m => [LEvent.LEvent Score.Event]
     -> m [LEvent.LEvent Score.Event]
 normalize_events events = do
     lookup <- Cmd.get_lookup_instrument
-    let lookup_env = maybe mempty (Common.get_environ . Inst.inst_common)
+    let lookup_env = maybe mempty (Common.get_environ . Inst.inst_common . fst)
             . lookup
     return $ map (fmap (Score.normalize lookup_env)) events
 

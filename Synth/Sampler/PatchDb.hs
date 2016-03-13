@@ -31,4 +31,4 @@ attrs attrs sample = sample { Patch.attributes = attrs }
 -- | Declaration for "Local.Instrument".
 synth :: Inst.SynthDecl Cmd.InstrumentCode
 synth = Inst.SynthDecl "sampler" "音 sampler"
-    [(name, Patch.makeInst name patch) | (name, patch) <- Map.toList db]
+    [(name, Patch.makeInst patch) | (name, patch) <- Map.toList db]

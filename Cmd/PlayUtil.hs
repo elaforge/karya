@@ -140,7 +140,7 @@ get_constant cache damage = do
         lookup_scale (adapt allocs lookup_inst) cache damage
     where
     adapt allocs lookup_inst = \inst -> case lookup_inst inst of
-        Just patch -> Just $
+        Just (patch, _qualified) -> Just $
             Cmd.derive_instrument (lookup_controls inst allocs) patch
         Nothing -> Nothing
     lookup_controls inst allocs = case Map.lookup inst allocs of

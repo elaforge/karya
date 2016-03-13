@@ -458,7 +458,8 @@ make_db synth_patches = fst $ Inst.db $ map make synth_patches
 make_synth :: InstTypes.SynthName -> [MidiInst.Patch] -> MidiInst.Synth
 make_synth name patches = MidiInst.synth name "Test Synth" patches
 
-type Lookup = (Score.Instrument -> Maybe Cmd.Inst, Convert.Lookup)
+type Lookup =
+    (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified), Convert.Lookup)
 
 make_convert_lookup :: StateConfig.Allocations -> Cmd.InstrumentDb -> Lookup
 make_convert_lookup allocs db =

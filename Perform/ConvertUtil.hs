@@ -13,14 +13,16 @@ import qualified Derive.LEvent as LEvent
 import qualified Derive.Score as Score
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
 import Global
 
 
 -- | Wrapper that performs common operations for convert functions.
 -- Warn if the input isn't sorted, look up the instrument, and run
 -- 'Cmd.inst_postproc'.
-convert :: (Score.Event -> Inst.Backend -> [LEvent.LEvent a])
-    -> (Score.Instrument -> Maybe Cmd.Inst)
+convert :: (Score.Event -> Inst.Backend -> InstTypes.Name -> [LEvent.LEvent a])
+    -> (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified))
     -> [Score.Event] -> [LEvent.LEvent a]
 convert process lookup_inst = go Nothing Set.empty
     where
@@ -32,9 +34,9 @@ convert process lookup_inst = go Nothing Set.empty
             | inst `Set.member` warned -> go (Just event) warned events
             | otherwise -> warn ("instrument not found: " <> pretty inst)
                 : go (Just event) (Set.insert inst warned) events
-        Just (Inst.Inst backend common) ->
+        Just (Inst.Inst backend common, InstTypes.Qualified _ name) ->
             process (Cmd.inst_postproc (Common.common_code common) event)
-                backend
+                backend name
             ++ go (Just event) warned events
         where
         inst = Score.event_instrument event

@@ -25,6 +25,8 @@ import qualified Perform.Signal
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
 import qualified Synth.Sampler.Control as Control
 import qualified Synth.Sampler.Note as Note
 import qualified Synth.Sampler.Signal as Signal
@@ -35,20 +37,21 @@ import Global
 
 -- | Serialize the events to the given patch.  This is done atomically because
 -- this is run from the derive thread, which can be killed at any time.
-write :: (Score.Instrument -> Maybe Cmd.Inst) -> FilePath
-    -> Vector.Vector Score.Event -> IO ()
+write :: (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified))
+    -> FilePath -> Vector.Vector Score.Event -> IO ()
 write lookup_inst filename events = do
     notes <- LEvent.write_logs $ convert lookup_inst (Vector.toList events)
     Note.serialize filename notes
 
-convert :: (Score.Instrument -> Maybe Cmd.Inst) -> [Score.Event]
-    -> [LEvent.LEvent Note.Note]
-convert = ConvertUtil.convert $ \event backend -> case backend of
-    Inst.Im patch -> convert_event event patch
+convert :: (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified))
+    -> [Score.Event] -> [LEvent.LEvent Note.Note]
+convert = ConvertUtil.convert $ \event backend name -> case backend of
+    Inst.Im patch -> convert_event event patch name
     _ -> []
 
-convert_event :: Score.Event -> Patch.Patch -> [LEvent.LEvent Note.Note]
-convert_event event patch = run $ do
+convert_event :: Score.Event -> Patch.Patch -> InstTypes.Name
+    -> [LEvent.LEvent Note.Note]
+convert_event event patch name = run $ do
     let supported = Patch.patch_controls patch
         -- TODO trim controls
         controls = Score.event_transformed_controls event
@@ -58,7 +61,7 @@ convert_event event patch = run $ do
                 (Score.event_transformed_pitch event)
         else return Nothing
     return $ Note.Note
-        { instrument = Patch.patch_name patch
+        { instrument = name
         , start = RealTime.to_seconds $ Score.event_start event
         , duration = RealTime.to_seconds $ Score.event_duration event
         , controls =

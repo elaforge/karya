@@ -35,6 +35,8 @@ import qualified Perform.Signal as Signal
 
 import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
+import qualified Instrument.InstTypes as InstTypes
+
 import Global
 
 
@@ -45,9 +47,9 @@ data Lookup = Lookup {
 
 -- | Convert Score events to Perform events, emitting warnings that may have
 -- happened along the way.
-convert :: Lookup -> (Score.Instrument -> Maybe Cmd.Inst)
+convert :: Lookup -> (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified))
     -> [Score.Event] -> [LEvent.LEvent Types.Event]
-convert lookup = ConvertUtil.convert $ \event backend -> case backend of
+convert lookup = ConvertUtil.convert $ \event backend _name -> case backend of
     Inst.Midi patch -> convert_event lookup event patch
     _ -> []
 
