@@ -121,11 +121,10 @@ info_of synth_name name synth_doc (Inst.Inst backend common) tags =
     synth_name <> " -- " <> (if Text.null name then "*" else name) <> " -- "
         <> synth_doc <> "\n\n" <> body
     where
-    body = fields $
-        case backend of
-            Inst.Midi inst -> instrument_fields name inst
-            Inst.Im _patch -> [] -- TODO
-        ++ common_fields tags common
+    body = format_fields $ common_fields tags common ++ backend_fields
+    backend_fields = case backend of
+        Inst.Midi inst -> instrument_fields name inst
+        Inst.Im _patch -> [] -- TODO
 
 common_fields :: [Tag.Tag] -> Common.Common Cmd.InstrumentCode -> [(Text, Text)]
 common_fields tags (Common.Common code env _tags doc) =
@@ -172,8 +171,8 @@ instrument_fields name inst =
         , patch_attribute_map = attr_map
         } = inst
 
-fields :: [(Text, Text)] -> Text
-fields = Text.unlines . filter (not . Text.null) . map field
+format_fields :: [(Text, Text)] -> Text
+format_fields = Text.unlines . filter (not . Text.null) . map field
 
 field :: (Text, Text) -> Text
 field (title, raw_text)
