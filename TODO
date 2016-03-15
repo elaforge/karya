@@ -1517,7 +1517,7 @@ Derive:
       - I think I do want a linear or slow attack for <, otherwise all attacks
         are sharp.
       - < should start from prev dyn, not 0.
-    - Aliases can't use [], so for the 'n' and 'u' aliases I need to support
+    * Aliases can't use [], so for the 'n' and 'u' aliases I need to support
       the duration arg.
     * simplify dynamic call parsing
       . Single digits for absolute levels, 0-9.
@@ -1541,7 +1541,14 @@ Derive:
       . [(0, 1),      (1, 2)]
         ["!T1 -- 2g", "2r", "!0 -- 2s"]
         Prev pitch for "!0" winds up being ma from "!T1".
-    - there still seems to be a case where prev pitch is wrong
+    - There still seems to be a case where prev pitch is wrong, it has to
+      do with a '--' event.
+    - And another prev pitch bug:
+      [ (">", [(0, 3, ""), (3, 1, "")])
+      , ("*", [(0, 0, "2d"), (1, 0, "3s"), (2, 0, "3r"), (4, 0, "3s")])
+      , ("*", [(0, 0, "!^20"), (1, 0, "!0="), (4, 0, "!=")])
+      ]
+      . Last note should get 3r, but instead gets 3s.
     * split india.gamakam3.a into gamakam4
       . Keeping DynExpr around is complicating things.
     * I need an easy way to start from a pitch instead of moving to it.  If

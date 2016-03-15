@@ -71,32 +71,42 @@ test_extension = do
 test_prev_pitch = do
     let run = derive_tracks DeriveTest.e_nns_rounded
     -- Prev pitch comes from previous call.
-    equal (run
-            [ (">", [(0, 2, "")])
-            , ("*", [(0, 0, "4c")])
-            , ("*", [(0, 0, "!T1="), (1, 0, "!=")])
-            ])
+    equal (run $ note_pitch_gamakam
+            [(0, 2, "")]
+            [(0, 0, "4c")]
+            [(0, 0, "!T1="), (1, 0, "!=")])
         ([[(0, NN.cs4), (1, NN.cs4), (2, NN.cs4)]], [])
     -- Prev pitch comes from prev event.
     equal (run (make_2notes (4, "--") (2, "!-1")))
         ([[(0, NN.c4)], [(4, NN.c4), (5, NN.c4)], [(6, NN.e4)]], [])
     -- Prev pitch comes from the parent pitch track.
-    equal (run
-            [ (">", [(0, 1, ""), (1, 2, "")])
-            , ("*", [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")])
-            , ("* interleave", [(0, 0, "!T1="), (2, 0, "!0")])
-            ])
+    equal (run $ note_pitch_gamakam
+            [(0, 1, ""), (1, 2, "")]
+            [(0, 0, "4c"), (1, 0, "4d"), (2, 0, "4e")]
+            [(0, 0, "!T1="), (2, 0, "!0")])
         -- T1 is 4c#, then set to 4d, and come from 4d to 4e.
         ([[(0, NN.cs4)], [(1, NN.d4), (2, NN.d4), (3, NN.e4)]], [])
 
-    -- equal (run
-    --         [ (">", [(0, 3, ""), (3, 2, "")])
-    --         , ("*", [(0, 0, "4d"), (1, 0, "4e"), (2, 0, "4d"),
-    --             (3, 0, "4c"), (4, 0, "4d")])
-    --         , ("* interleave", [(1, 0, "!="), (2, 0, "--"), (4, 0, "!=")])
-    --         ])
-    --     ([[(0, NN.d4), (1, NN.d4), (2, NN.d4)],
-    --         [(3, NN.c4), (4, NN.c4), (5, NN.c4)]], [])
+    -- TODO
+    equal (run $ note_pitch_gamakam
+            [(0, 3, ""), (3, 2, "")]
+            [(0, 0, "4d"), (1, 0, "4e"), (2, 0, "4d"),
+                (3, 0, "4c"), (4, 0, "4d")]
+            [(1, 0, "!="), (2, 0, "--"), (4, 0, "!=")])
+        ([[(0, NN.d4), (1, NN.d4), (2, NN.d4)],
+            [(3, NN.c4), (4, NN.c4), (5, NN.c4)]], [])
+
+    -- TODO
+    let (result, logs) = run $ note_pitch_gamakam
+            [(0, 3, ""), (3, 1, "")]
+            [(0, 0, "2d"), (1, 0, "4c"), (2, 0, "4d"), (4, 0, "4c")]
+            [(0, 0, "!^20"), (1, 0, "!0="), (4, 0, "!=")]
+    -- Last note should get 4d, but instead gets 4c.
+    equal logs []
+    equal result
+        [ [(0, NN.d2), (1, NN.c4), (2, NN.d4)]
+        , [(3, 60)]
+        ]
 
 
 test_resolve_pitch_calls = do
@@ -128,6 +138,12 @@ test_sequence_interleave = do
     let run c = derive_tracks extract $ make_2notes (4, "--") (6, c)
         extract = DeriveTest.e_nns_rounded
     equal (run "!=") ([[(0, NN.c4)], [(4, NN.c4)], [(10, NN.e4)]], [])
+
+test_alias = do
+    let run dur g = derive_tracks DeriveTest.e_nns_rounded $
+            make_tracks [(0, dur, "4c", g)]
+    equal (run 2 "!0-1") (run 2 "!0a")
+    equal (run 2 "!0[e0]") (run 2 "!0n")
 
 -- * dyn
 
@@ -168,7 +184,14 @@ derive_tracks extract = DeriveTest.extract extract
     . DeriveTest.derive_tracks
         "import india.gamakam4 | transition=1 | dyn-transition=1"
 
-make_tracks :: [(ScoreTime, ScoreTime, String, String)] -> [UiTest.TrackSpec]
+note_pitch_gamakam :: [UiTest.EventSpec] -> [UiTest.EventSpec]
+    -> [UiTest.EventSpec] -> [UiTest.TrackSpec]
+note_pitch_gamakam notes pitches gamakams =
+    [(">", notes), ("*", pitches), ("* interleave", gamakams)]
+
+make_tracks :: [(ScoreTime, ScoreTime, String, String)]
+    -- ^ (start, dur, pitch, gamakam)
+    -> [UiTest.TrackSpec]
 make_tracks notes =
     [ (">", [(start, dur, "") | (start, dur, _, _) <- notes])
     , ("*", [(start, 0, pitch) | (start, _, pitch, _) <- notes, pitch /= ""])

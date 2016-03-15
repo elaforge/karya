@@ -408,15 +408,14 @@ pitch_call_map = resolve $ Map.unique $ concat
     , [parse_name $ pcall '-' "Negative relative motion." (pc_relative True)]
     , [alias c 1 [showt n] | (c, n) <- zip "abc" [-1, -2 ..]]
 
-    , [pcall 'e' "Pitch up by a little." (pc_relative_move (Pitch.Nn 1))]
-    , [pcall 'f' "Pitch down by a little." (pc_relative_move (Pitch.Nn (-1)))]
+    -- TODO do I need a swaram_relative=True version?
+    , [pcall 'e' "Pitch up by a little." (pc_relative_move False (Pitch.Nn 1))]
+    , [pcall 'f' "Pitch down by a little."
+        (pc_relative_move False (Pitch.Nn (-1)))]
     , [alias 'n' 0.5 ["e", "f"]]
     , [alias 'u' 0.5 ["f", "e"]]
 
-    , [ pcall 'h' "Absolute motion to current pitch."
-        (pc_move_direction Current)
-      , pcall 'v' "Absolute motion to next pitch." (pc_move_direction Next)
-
+    , [ pcall 'v' "Absolute motion to next pitch." (pc_move_direction Next)
       -- set config
       , config extend_name "Extend the duration of the previous call." pc_extend
       , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
@@ -435,16 +434,18 @@ pitch_call_map = resolve $ Map.unique $ concat
         | null duplicates = either (error . untxt) id (resolve_aliases calls)
         | otherwise = error $ "duplicate calls: " <> show (map fst duplicates)
     parse_name = second $ second $ \g -> g { pcall_parse_call_name = True }
-    alias name duration to = (name, Left to)
+    alias name duration to = (name, Left (duration, to))
     pcall name doc c = (name, Right $ PitchCall name doc 1 False c)
     config name doc c = (name, Right $ PitchCall name doc 0 False c)
 
-resolve_aliases :: Map.Map Char (Either [Text] PitchCall)
+resolve_aliases :: Map.Map Char (Either (Double, [Text]) PitchCall)
     -> Either Text (Map.Map Char [PitchCall])
 resolve_aliases call_map = Map.fromList <$> mapM resolve (Map.toList call_map)
     where
     resolve (name, Right call) = Right (name, [call])
-    resolve (name, Left calls) = (,) name <$> mapM resolve1 calls
+    resolve (name, Left (duration, calls)) =
+        (,) name . map (set_dur duration) <$> mapM resolve1 calls
+    set_dur dur pcall = pcall { pcall_duration = dur }
     resolve1 to = do
         (c, arg) <- maybe (Left "empty alias") Right $ Text.uncons to
         call <- maybe (Left $ "not found: " <> showt c) Right $
@@ -517,9 +518,10 @@ pc_relative swaram_relative = PCall (Sig.required "to" "To pitch.")
                 then State.gets state_current_pitch else get_from
             move_to ctx (Pitches.transpose transpose from_pitch)
 
-pc_relative_move :: Pitch.Transpose -> PCall
-pc_relative_move transpose = PCall Sig.no_args $ \() ctx -> do
-    from_pitch <- get_from
+pc_relative_move :: Bool -> Pitch.Transpose -> PCall
+pc_relative_move swaram_relative transpose = PCall Sig.no_args $ \() ctx -> do
+    from_pitch <- if swaram_relative
+        then State.gets state_current_pitch else get_from
     move_to ctx (Pitches.transpose transpose from_pitch)
 
 data PitchDirection = Previous | Current | Next deriving (Show, Eq)
