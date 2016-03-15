@@ -83,7 +83,7 @@ c_sequence = Derive.generator1 module_
             <> " available."
 
 initial_pitch_state :: Typecheck.Normalized -> Derive.PassedArgs Derive.Pitch
-    -> Derive.Deriver (Maybe State)
+    -> Derive.Deriver (Maybe PitchState)
 initial_pitch_state transition args =
     -- If there's no pitch then this is likely at the edge of a slice, and can
     -- be ignored.  TODO I think?
@@ -106,7 +106,7 @@ initial_pitch_state transition args =
                 (a, b) -> snd <$> (a <|> b)
         maybe_prev <- Args.lookup_prev_logical_pitch
         maybe_next <- Args.lookup_next_logical_pitch
-        return $ Just $ State
+        return $ Just $ PitchState
             { state_from_pitch =
                 fromMaybe cur (prev_pitch <|> context_pitch)
             , state_transition = transition
@@ -198,7 +198,7 @@ resolve_dyn_calls = mapM $ \(Call name arg) ->
 
 type M s a = State.StateT s Derive.Deriver a
 
-data State = State {
+data PitchState = PitchState {
     state_from_pitch :: !PSignal.Pitch
     , state_transition :: !Typecheck.Normalized
     , state_current_pitch :: !PSignal.Pitch
@@ -206,9 +206,9 @@ data State = State {
     , state_next_pitch :: !PSignal.Pitch
     }
 
-instance Pretty.Pretty State where
-    format (State from_pitch transition cur prev next) =
-        Pretty.recordTitle "State"
+instance Pretty.Pretty PitchState where
+    format (PitchState from_pitch transition cur prev next) =
+        Pretty.recordTitle "PitchState"
             [ ("from_pitch", Pretty.format from_pitch)
             , ("transition", Pretty.format transition)
             , ("current_pitch", Pretty.format cur)
@@ -216,10 +216,10 @@ instance Pretty.Pretty State where
             , ("next_pitch", Pretty.format next)
             ]
 
-set_pitch :: PSignal.Pitch -> M State ()
+set_pitch :: PSignal.Pitch -> M PitchState ()
 set_pitch p = State.modify $ \state -> state { state_from_pitch = p }
 
-get_from :: M State PSignal.Pitch
+get_from :: M PitchState PSignal.Pitch
 get_from = State.gets state_from_pitch
 
 -- * sequence
@@ -231,7 +231,7 @@ instance Monoid Result where
     mempty = Result mempty
     mappend (Result pitch1) (Result pitch2) = Result (pitch1<>pitch2)
 
-pitch_sequence :: ScoreTime -> State -> Text -> Derive.Deriver Result
+pitch_sequence :: ScoreTime -> PitchState -> Text -> Derive.Deriver Result
 pitch_sequence dur state arg = do
     calls <- Derive.require_right (("parsing " <> showt arg <> ": ")<>) $
         resolve_extensions =<< resolve_pitch_calls =<< parse_sequence arg
@@ -245,7 +245,7 @@ slice_time :: ScoreTime -> [Double] -> [ScoreTime]
 slice_time dur slices = scanl (+) 0 $ map ((*one) . ScoreTime.double) slices
     where one = dur / ScoreTime.double (sum slices)
 
-eval_pitch :: Call ((ScoreTime, ScoreTime), PitchCall) -> M State Result
+eval_pitch :: Call ((ScoreTime, ScoreTime), PitchCall) -> M PitchState Result
 eval_pitch (Call ((start, end), pcall) arg_) = case pcall_call pcall of
     PCall signature func -> do
         parsed_arg <- parse_args (ctx_call_name ctx) (pcall_arg pcall arg_)
@@ -396,7 +396,7 @@ pcall_arg pcall arg
 
 data PCall = forall a. PCall {
     _pcall_signature :: Sig.Parser a
-    , _pcall_func :: a -> Context -> M State PSignal.PSignal
+    , _pcall_func :: a -> Context -> M PitchState PSignal.PSignal
     }
 
 pitch_call_map :: Map.Map Char [PitchCall]
@@ -527,7 +527,7 @@ pc_relative_move swaram_relative transpose = PCall Sig.no_args $ \() ctx -> do
 data PitchDirection = Previous | Current | Next deriving (Show, Eq)
 instance Pretty.Pretty PitchDirection where pretty = showt
 
-get_direction_pitch :: PitchDirection -> M State PSignal.Pitch
+get_direction_pitch :: PitchDirection -> M PitchState PSignal.Pitch
 get_direction_pitch dir = case dir of
     Previous -> State.gets state_previous_pitch
     Current -> State.gets state_current_pitch
@@ -574,14 +574,14 @@ pc_set_transition_time time = PCall Sig.no_args $ \() _ctx -> do
 
 -- ** util
 
-move_to :: Context -> PSignal.Pitch -> M State PSignal.PSignal
+move_to :: Context -> PSignal.Pitch -> M PitchState PSignal.PSignal
 move_to ctx pitch = do
     (start, end) <- ctx_range ctx
     from_pitch <- get_from
     move_pitch start from_pitch end pitch
 
 move_pitch :: RealTime -> PSignal.Pitch -> RealTime -> PSignal.Pitch
-    -> M State PSignal.PSignal
+    -> M PitchState PSignal.PSignal
 move_pitch start from_pitch end to_pitch = do
     Typecheck.Normalized transition <- State.gets state_transition
     let curve = snd ControlUtil.sigmoid_curve (1-transition, 1-transition)
