@@ -12,6 +12,7 @@ import qualified Derive.Call.India.Gamakam4 as Gamakam
 import Derive.Call.India.Gamakam4 (Call(..), ParsedPitch(..))
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+import qualified Derive.Sig as Sig
 
 import qualified Perform.NN as NN
 import Global
@@ -56,17 +57,26 @@ test_parse_sequence = do
     -- '-' will include the next character so I can pass a negative digit.
     equal (f "P-10") $ Right [CallArg 'P' "-1", CallArg '0' ""]
     equal (f "p-1") $ Right [CallArg 'p' "", CallArg '-' "1"]
-
     equal (f "1[01]") $
         Right [CallArg '1' "", PitchGroup [CallArg '0' "", CallArg '1' ""]]
-    pprint (f "e-e")
 
-test_extension = do
+test_postfix = do
     let run = derive_tracks DeriveTest.e_nns_rounded . make_2notes (4, "--")
     strings_like (snd $ run (4, "!_==1_"))
-        (replicate 2 "extension with no preceding call")
+        (replicate 2 "postfix call with no preceding call")
     equal (run (4, "!T0==1_"))
         ([[(0, 60)], [(4, 62), (5, 62), (6, 62), (7, 63)], [(8, 64)]], [])
+
+test_resolve_postfix = do
+    let f = fmap (map extract) . Gamakam.resolve_postfix . map make
+        make name = Gamakam.Call (Gamakam.PitchCall name "doc" 1 False empty) ""
+        empty = Gamakam.PCall Sig.no_args $ \() _ctx -> return mempty
+        extract (Gamakam.Call pcall _) =
+            (Gamakam.pcall_name pcall, Gamakam.pcall_duration pcall)
+    equal (f "x_") (Right [('x', 2)])
+    equal (f "x.") (Right [('x', 0.5)])
+    equal (f "x__") (Right [('x', 3)])
+    equal (f "x__.") (Right [('x', 1.5)])
 
 test_prev_pitch = do
     let run = derive_tracks DeriveTest.e_nns_rounded

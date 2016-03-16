@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - If I create a 0 dur note with floating edit, then make another with '.',
+    the second one has a duration.
   - %t-oct=1 in the block title seems to mess up pitch track signal
   * Why does build/opt/seq depend on Util.Test?  Maybe it should have the
     #error too.
@@ -1517,6 +1519,15 @@ Derive:
       - I think I do want a linear or slow attack for <, otherwise all attacks
         are sharp.
       - < should start from prev dyn, not 0.
+    * I need a way to set to 1/2 dur.  Perhaps suffixed '.', analogous to '_'.
+    - Could I get rid of the special parsing of [] by just having '[' be
+      a call to set duration (/2) and ']' is (*2)?  Then they don't have to be
+      balanced.
+      . No, because duration must be set before calls are called.  But I can
+        do a magic token like '_'.  This makes '_' redundant, but perhaps it's
+        easier to read because it only applies to a single call, e.g. '10.1' vs
+        '1]0[1'.
+    - expose the pitch call map and dyn call map to documentation
     * Aliases can't use [], so for the 'n' and 'u' aliases I need to support
       the duration arg.
     * simplify dynamic call parsing

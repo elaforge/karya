@@ -16,7 +16,9 @@ import qualified Control.Monad.State as State
 import qualified Data.Attoparsec.Text as A
 import qualified Data.Char as Char
 import qualified Data.DList as DList
+import qualified Data.List as List
 import qualified Data.Map as Map
+import qualified Data.Maybe as Maybe
 import qualified Data.Text as Text
 
 import qualified Util.Map as Map
@@ -109,10 +111,10 @@ initial_pitch_state transition args =
         return $ Just $ PitchState
             { state_from_pitch =
                 fromMaybe cur (prev_pitch <|> context_pitch)
-            , state_transition = transition
             , state_current_pitch = cur
             , state_previous_pitch = fromMaybe cur maybe_prev
             , state_next_pitch = fromMaybe cur maybe_next
+            , state_transition = transition
             }
     where
     get_pitch = Derive.pitch_at <=< Derive.real
@@ -199,21 +201,23 @@ resolve_dyn_calls = mapM $ \(Call name arg) ->
 type M s a = State.StateT s Derive.Deriver a
 
 data PitchState = PitchState {
+    -- Maintained automatically.
     state_from_pitch :: !PSignal.Pitch
-    , state_transition :: !Typecheck.Normalized
     , state_current_pitch :: !PSignal.Pitch
     , state_previous_pitch :: !PSignal.Pitch
     , state_next_pitch :: !PSignal.Pitch
+    -- Can be manually set by calls.
+    , state_transition :: !Typecheck.Normalized
     }
 
 instance Pretty.Pretty PitchState where
-    format (PitchState from_pitch transition cur prev next) =
+    format (PitchState from_pitch cur prev next transition) =
         Pretty.recordTitle "PitchState"
             [ ("from_pitch", Pretty.format from_pitch)
-            , ("transition", Pretty.format transition)
             , ("current_pitch", Pretty.format cur)
             , ("previous_pitch", Pretty.format prev)
             , ("next_pitch", Pretty.format next)
+            , ("transition", Pretty.format transition)
             ]
 
 set_pitch :: PSignal.Pitch -> M PitchState ()
@@ -234,7 +238,7 @@ instance Monoid Result where
 pitch_sequence :: ScoreTime -> PitchState -> Text -> Derive.Deriver Result
 pitch_sequence dur state arg = do
     calls <- Derive.require_right (("parsing " <> showt arg <> ": ")<>) $
-        resolve_extensions =<< resolve_pitch_calls =<< parse_sequence arg
+        resolve_postfix =<< resolve_pitch_calls =<< parse_sequence arg
     let starts = slice_time dur (call_durations calls)
         ranges = zip starts (drop 1 starts)
     (results, _) <- State.runStateT (mapM eval_pitch (zip_calls ranges calls))
@@ -288,25 +292,34 @@ resolve_pitch_calls = concatMapM resolve
         -- multiple PitchExprs for aliases, which expect no argument.
         Just calls -> Right [Call c arg | c <- calls]
 
-resolve_extensions :: [Call PitchCall] -> Either Text [Call PitchCall]
-resolve_extensions = resolve <=< check_no_args
+resolve_postfix :: [Call PitchCall] -> Either Text [Call PitchCall]
+resolve_postfix = resolve <=< check_no_args
     where
     resolve [] = Right []
     resolve (expr : exprs)
-        | is_extension expr = Left "extension with no preceding call"
-        | otherwise = (modify_duration (+ fromIntegral (length pre)) expr :)
-            <$> resolve post
-        where (pre, post) = span is_extension exprs
+        | Maybe.isJust (is_postfix expr) =
+            Left "postfix call with no preceding call"
+        | otherwise = (modify_duration modify expr :) <$> resolve post
+        where
+        (pre, post) = Seq.span_while is_postfix exprs
+        modify dur = List.foldl' (flip ($)) dur pre
+    -- The parser shouldn't look for args, but let's check anyway.
     check_no_args exprs
         | null errs = Right exprs
-        | otherwise =
-            -- The parser won't parse 1_2 anyway, but let's check anyway.
-            Left $ "_ calls can't have args: " <> Text.intercalate ", " errs
+        | otherwise = Left $
+            "postfix calls can't have args: " <> Text.intercalate ", " errs
         where errs = concatMap has_arg exprs
     has_arg expr@(Call _ arg)
-        | is_extension expr && arg /= mempty = [arg]
+        | Maybe.isJust (is_postfix expr) && arg /= mempty = [arg]
         | otherwise = []
-    is_extension (Call call _) = pcall_name call == extend_name
+    is_postfix (Call call _) = Map.lookup (pcall_name call) postfix_calls
+
+postfix_calls :: Map.Map Char (Double -> Double)
+postfix_calls = Map.fromList [('_', (+1)), ('.', (/2))]
+
+postfix_doc :: Text
+postfix_doc = "Postfix call that modifies the duration of the previous call."
+    <> " `_` adds 1 to it, `.` divides by 2."
 
 modify_duration :: (Double -> Double) -> Call PitchCall -> Call PitchCall
 modify_duration modify = fmap $ \call ->
@@ -417,7 +430,6 @@ pitch_call_map = resolve $ Map.unique $ concat
 
     , [ pcall 'v' "Absolute motion to next pitch." (pc_move_direction Next)
       -- set config
-      , config extend_name "Extend the duration of the previous call." pc_extend
       , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
       , config '^' "Set from pitch to current." (pc_set_pitch Current)
       , config 'P' "Set from pitch to relative steps."
@@ -427,6 +439,10 @@ pitch_call_map = resolve $ Map.unique $ concat
       , config 'F' "Fast transition time." (pc_set_transition_time Fast)
       , config 'M' "Medium transition time." (pc_set_transition_time Medium)
       , config 'S' "Slow transition time." (pc_set_transition_time Slow)
+      ]
+    -- Just a placeholder, effects are actually applied by 'resolve_postfix'.
+    , [ config c postfix_doc (PCall Sig.no_args $ \() _ctx -> return mempty)
+      | c <- Map.keys postfix_calls
       ]
     ]
     where
@@ -490,13 +506,6 @@ data Context = Context {
 ctx_range :: Context -> M s (RealTime, RealTime)
 ctx_range ctx = lift $
     (,) <$> Derive.real (ctx_start ctx) <*> Derive.real (ctx_end ctx)
-
--- | This is just a place holder, its effect is applied in 'resolve_extensions'.
-pc_extend :: PCall
-pc_extend = PCall Sig.no_args $ \() _ctx -> return mempty
-
-extend_name :: Char
-extend_name = '_'
 
 pc_flat :: PCall
 pc_flat = PCall Sig.no_args $ \() ctx -> do
