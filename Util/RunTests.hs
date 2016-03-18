@@ -127,12 +127,12 @@ runTest test = Test.with_test_name (last (Seq.split "." (testName test))) $ do
         Numeric.showFFloat (Just 3) secs ""]
     return ()
 
-catch :: IO a -> IO ()
-catch op = do
+catch :: String -> IO a -> IO ()
+catch name op = do
     result <- Exception.try op
     case result of
         Left (exc :: Exception.SomeException) -> do
-            void $ Test.failure ("test threw exception: " ++ show exc)
+            void $ Test.failure $ name ++ " threw exception: " ++ show exc
             -- Die on async exception, otherwise it will try to continue
             -- after ^C or out of memory.
             case Exception.fromException exc of
