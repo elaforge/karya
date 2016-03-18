@@ -184,7 +184,6 @@ data Backend =
     -- instrument might be written as one instrument, but realized as two
     -- different ones.
     | Dummy
-    | Upgrade !Patch.Config !Common.Config
     deriving (Eq, Show)
 
 instance Pretty.Pretty Backend where

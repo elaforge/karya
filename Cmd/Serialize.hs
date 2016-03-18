@@ -154,20 +154,14 @@ upgrade_allocations (MidiConfigs midi) allocs =
     where
     upgrade (inst, qual) = case Map.lookup inst midi of
         Nothing -> (inst, StateConfig.allocation qual StateConfig.Im)
-        Just (PatchCommonConfig patch common) ->
-            (inst, StateConfig.Allocation qual common (StateConfig.Midi patch))
+        Just patch ->
+            (inst, StateConfig.allocation qual (StateConfig.Midi patch))
 
 instance Serialize.Serialize StateConfig.Allocations where
     put (StateConfig.Allocations a) = Serialize.put_version 1 >> put a
     get = do
         v <- Serialize.get_version
         case v of
-            0 -> do
-                configs :: Map.Map Score.Instrument
-                    (InstTypes.Qualified, StateConfig.Backend) <- get
-                let upgrade (qual, backend) = upgrade_backend qual
-                        Common.empty_config backend
-                return $ StateConfig.Allocations $ upgrade <$> configs
             1 -> do
                 configs :: Map.Map Score.Instrument StateConfig.Allocation
                     <- get
@@ -182,28 +176,17 @@ instance Serialize StateConfig.Allocation where
             qualified :: InstTypes.Qualified <- get
             config :: Common.Config <- get
             backend :: StateConfig.Backend <- get
-            return $ upgrade_backend qualified config backend
+            return $ StateConfig.Allocation qualified config backend
         _ -> Serialize.bad_version "StateConfig.Allocation" v
-
-upgrade_backend :: InstTypes.Qualified -> Common.Config -> StateConfig.Backend
-    -> StateConfig.Allocation
-upgrade_backend qualified config backend = case backend of
-    StateConfig.Upgrade patch common -> StateConfig.Allocation
-        qualified common (StateConfig.Midi patch)
-    _ -> StateConfig.Allocation qualified config backend
 
 instance Serialize StateConfig.Backend where
     put (StateConfig.Midi a) = put_tag 0 >> put a
     put StateConfig.Im = put_tag 1
     put StateConfig.Dummy = put_tag 2
-    put (StateConfig.Upgrade patch common) =
-        error $ "got Upgrade: " <> prettys (patch, common)
     get = get_tag >>= \tag -> case tag of
         0 -> do
-            PatchCommonConfig patch common :: PatchCommonConfig <- get
-            return $ if common == Common.empty_config
-                then StateConfig.Midi patch
-                else StateConfig.Upgrade patch common
+            config :: Patch.Config <- get
+            return $ StateConfig.Midi config
         1 -> return StateConfig.Im
         2 -> return StateConfig.Dummy
         _ -> bad_tag "StateConfig.Backend" tag
@@ -221,7 +204,7 @@ instance Serialize Common.Config where
         _ -> Serialize.bad_version "Common.Config" v
 
 -- | For backward compatibility.
-newtype MidiConfigs = MidiConfigs (Map.Map Score.Instrument PatchCommonConfig)
+newtype MidiConfigs = MidiConfigs (Map.Map Score.Instrument Patch.Config)
     deriving (Show)
 
 instance Serialize MidiConfigs where
@@ -230,7 +213,7 @@ instance Serialize MidiConfigs where
         v <- Serialize.get_version
         case v of
             5 -> do
-                insts :: Map.Map Score.Instrument PatchCommonConfig <- get
+                insts :: Map.Map Score.Instrument Patch.Config <- get
                 return $ MidiConfigs insts
             _ -> Serialize.bad_version "Patch.MidiConfigs" v
 
@@ -548,8 +531,6 @@ instance Serialize Patch.Config where
                 return $ Patch.Config addrs scale control_defaults
             6 -> do
                 addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                -- TODO these have moved to Common.Config... how can I get them
-                -- over there?
                 _environ :: RestrictedEnviron.Environ <- get
                 _controls :: Score.ControlValMap <- get
                 scale :: Maybe Patch.Scale <- get
@@ -563,53 +544,6 @@ instance Serialize Patch.Config where
                 control_defaults :: Score.ControlValMap <- get
                 return $ Patch.Config addrs scale control_defaults
             _ -> Serialize.bad_version "Patch.Config" v
-
-data PatchCommonConfig = PatchCommonConfig Patch.Config Common.Config
-    deriving (Show)
-
-instance Serialize PatchCommonConfig where
-    put (PatchCommonConfig a b) = put a >> put b
-    get = do
-        v <- Serialize.get_version
-        case v of
-            4 -> do
-                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                environ :: RestrictedEnviron.Environ <- get
-                control_defaults :: Score.ControlValMap <- get
-                mute :: Bool <- get
-                solo :: Bool <- get
-                return $ PatchCommonConfig
-                    (Patch.Config addrs Nothing control_defaults)
-                    (Common.Config environ mempty mute solo)
-            5 -> do
-                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                environ :: RestrictedEnviron.Environ <- get
-                scale :: Maybe Patch.Scale <- get
-                control_defaults :: Score.ControlValMap <- get
-                mute :: Bool <- get
-                solo :: Bool <- get
-                return $ PatchCommonConfig
-                    (Patch.Config addrs scale control_defaults)
-                    (Common.Config environ mempty mute solo)
-            6 -> do
-                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                environ :: RestrictedEnviron.Environ <- get
-                controls :: Score.ControlValMap <- get
-                scale :: Maybe Patch.Scale <- get
-                control_defaults :: Score.ControlValMap <- get
-                mute :: Bool <- get
-                solo :: Bool <- get
-                return $ PatchCommonConfig
-                    (Patch.Config addrs scale control_defaults)
-                    (Common.Config environ controls mute solo)
-            7 -> do
-                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                scale :: Maybe Patch.Scale <- get
-                control_defaults :: Score.ControlValMap <- get
-                return $ PatchCommonConfig
-                    (Patch.Config addrs scale control_defaults)
-                    Common.empty_config
-            _ -> Serialize.bad_version "(Patch.Config, Common.Config)" v
 
 instance Serialize Patch.Scale where
     put (Patch.Scale a b) = put a >> put b
