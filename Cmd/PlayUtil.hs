@@ -48,6 +48,7 @@ import qualified Perform.Midi.Perform as Perform
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
 import qualified App.Config as Config
 import Global
 import Types
@@ -144,7 +145,7 @@ get_constant cache damage = do
             Cmd.derive_instrument (lookup_controls inst allocs) patch
         Nothing -> Nothing
     lookup_controls inst allocs = case Map.lookup inst allocs of
-        Just (_, StateConfig.Midi config) -> Patch.config_controls config
+        Just alloc -> Common.config_controls (StateConfig.alloc_config alloc)
         _ -> mempty
 
 -- | Get Library from the cache.
@@ -262,16 +263,16 @@ solo_to_mute tree blocks soloed = Set.fromList
 -- soloed or muted.
 filter_instrument_muted :: StateConfig.Allocations -> [Score.Event]
     -> [Score.Event]
-filter_instrument_muted allocs
+filter_instrument_muted (StateConfig.Allocations allocs)
     | not (Set.null soloed) = filter $
         (`Set.member` soloed) . Score.event_instrument
     | not (Set.null muted) = filter $
         (`Set.notMember` muted) . Score.event_instrument
     | otherwise = id
     where
-    configs = Map.toList $ midi_configs allocs
-    soloed = Set.fromList $ map fst $ filter (Patch.config_solo . snd) configs
-    muted = Set.fromList $ map fst $ filter (Patch.config_mute . snd) configs
+    configs = map (second StateConfig.alloc_config) (Map.toList allocs)
+    soloed = Set.fromList $ map fst $ filter (Common.config_solo . snd) configs
+    muted = Set.fromList $ map fst $ filter (Common.config_mute . snd) configs
 
 perform_events :: Cmd.M m => Cmd.Events -> m Perform.MidiEvents
 perform_events events = do
@@ -291,11 +292,11 @@ perform_events events = do
 midi_configs :: StateConfig.Allocations -> Map.Map Score.Instrument Patch.Config
 midi_configs (StateConfig.Allocations allocs) = Map.fromAscList
     [ (inst, config)
-    | (inst, (_, alloc)) <- Map.toAscList allocs
-    , Just config <- [midi_config alloc]
+    | (inst, alloc) <- Map.toAscList allocs
+    , Just config <- [midi_config (StateConfig.alloc_backend alloc)]
     ]
 
-midi_config :: StateConfig.Allocation -> Maybe Patch.Config
+midi_config :: StateConfig.Backend -> Maybe Patch.Config
 midi_config (StateConfig.Midi a) = Just a
 midi_config _ = Nothing
 
@@ -306,8 +307,7 @@ get_convert_lookup = do
     return $ Convert.Lookup
         { lookup_scale = lookup_scale
         , lookup_control_defaults = \inst -> case Map.lookup inst allocs of
-            Just (_, StateConfig.Midi config) ->
-                Score.untyped . Signal.constant <$>
-                    Patch.config_control_defaults config
+            Just alloc -> Score.untyped . Signal.constant <$>
+                Common.config_controls (StateConfig.alloc_config alloc)
             _ -> mempty
         }

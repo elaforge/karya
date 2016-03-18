@@ -31,7 +31,7 @@ import qualified Derive.Stream as Stream
 
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
-import qualified Instrument.InstTypes as InstTypes
+import qualified Instrument.Common as Common
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
@@ -142,17 +142,17 @@ write_ksp = mapM_ (uncurry Util.write)
 
 -- | @LInst.merge $ KontaktKendang.allocations ...@
 allocations :: Text -> Text -> StateConfig.Allocations
-allocations name dev_ = StateConfig.midi_allocations $ map make
-    [ (name <> "-wadon", "kontakt/kendang-bali", Patch.config1 dev 0)
-    , (name <> "-lanang", "kontakt/kendang-bali", Patch.config1 dev 1)
-    , (name, "kontakt/kendang-bali-pasang",
-        Patch.add_environ "wadon" (inst $ name <> "-wadon") $
-        Patch.add_environ "lanang" (inst $ name <> "-lanang") $
-        Patch.config [])
+allocations name dev_ = MidiInst.allocations
+    [ (name <> "-wadon", "kontakt/kendang-bali", id, midi_channel 0)
+    , (name <> "-lanang", "kontakt/kendang-bali", id, midi_channel 1)
+    , ( name, "kontakt/kendang-bali-pasang"
+      , Common.add_environ "wadon" (inst $ name <> "-wadon")
+        . Common.add_environ "lanang" (inst $ name <> "-lanang")
+      , StateConfig.Dummy
+      )
     ]
     where
-    make (name, qualified, config) =
-        (inst name, (InstTypes.parse_qualified qualified, config))
+    midi_channel = StateConfig.Midi . Patch.config1 dev
     dev = Midi.write_device dev_
     inst = Score.Instrument
 

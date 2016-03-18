@@ -142,13 +142,13 @@ dump_selection = do
 
 dump_allocations :: StateConfig.Allocations -> Allocations
 dump_allocations (StateConfig.Allocations allocs) = do
-    (inst, (qualified, alloc)) <- Map.toList allocs
-    let addrs = case alloc of
+    (inst, alloc) <- Map.toList allocs
+    let addrs = case StateConfig.alloc_backend alloc of
             StateConfig.Midi config -> addrs_of config
             StateConfig.Im -> []
             StateConfig.Dummy -> []
-    return (Score.instrument_name inst,
-        (InstTypes.show_qualified qualified, addrs))
+    let qualified = InstTypes.show_qualified $ StateConfig.alloc_qualified alloc
+    return (Score.instrument_name inst, (qualified, addrs))
     where
     addrs_of config = [(Midi.write_device_text dev, chan)
         | ((dev, chan), _) <- Patch.config_addrs config]
@@ -200,12 +200,13 @@ load_event (start, dur, text) =
 allocations :: Allocations -> StateConfig.Allocations
 allocations allocs = StateConfig.Allocations $ Map.fromList $ do
     (inst, (qualified, addrs)) <- allocs
-    let alloc = case addrs of
+    let backend = case addrs of
             [] -> StateConfig.Dummy
             _ -> StateConfig.Midi $ Patch.config $
                 map (first Midi.write_device) addrs
-    return (Score.Instrument inst,
-        (InstTypes.parse_qualified qualified, alloc))
+        alloc = StateConfig.allocation (InstTypes.parse_qualified qualified)
+            backend
+    return (Score.Instrument inst, alloc)
 
 
 -- * ExactPerfEvent

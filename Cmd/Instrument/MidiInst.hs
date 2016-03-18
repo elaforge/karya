@@ -19,6 +19,8 @@ module Cmd.Instrument.MidiInst (
     , code, doc, attribute_map, decay, synth_controls, pressure
     -- ** environ
     , environ, default_scale, range, nn_range
+    -- * allocations
+    , allocations
 
     -- * db
     , save_synth, load_synth
@@ -39,6 +41,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 
 import qualified Midi.Midi as Midi
+import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Make as Make
@@ -248,6 +251,20 @@ range range = environ EnvKey.instrument_bottom (Scale.range_bottom range)
 nn_range :: (Pitch.NoteNumber, Pitch.NoteNumber) -> Patch -> Patch
 nn_range (bottom, top) = environ EnvKey.instrument_bottom bottom
     . environ EnvKey.instrument_top top
+
+-- * Allocations
+
+allocations ::
+    [(Text, Text, Common.Config -> Common.Config, StateConfig.Backend)]
+    -- ^ (inst, qualified, set_config, backend)
+    -> StateConfig.Allocations
+allocations = StateConfig.make_allocations . map make
+    where
+    make (name, qualified, set_config, backend) =
+        ( Score.Instrument name
+        , StateConfig.Allocation (InstTypes.parse_qualified qualified)
+            (set_config Common.empty_config) backend
+        )
 
 
 -- * db

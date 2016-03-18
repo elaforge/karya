@@ -58,11 +58,11 @@ convert_event :: Lookup -> Score.Event -> Patch.Patch
 convert_event lookup event patch = run $ do
     let inst = Score.event_instrument event
     let event_controls = Score.event_transformed_controls event
-    (midi_patch, pitch) <- convert_midi_pitch (Types.patch inst patch)
+    (perf_patch, pitch) <- convert_midi_pitch (Types.patch inst patch)
         (Patch.patch_scale patch) (Patch.patch_attribute_map patch)
         (Patch.has_flag patch Patch.ConstantPitch)
         event_controls event
-    let controls = convert_controls (Types.patch_control_map midi_patch) $
+    let controls = convert_controls (Types.patch_control_map perf_patch) $
             convert_dynamic pressure
                 (event_controls <> lookup_control_defaults lookup inst)
         pressure = Patch.has_flag patch Patch.Pressure
@@ -73,7 +73,7 @@ convert_event lookup event patch = run $ do
     return $ Types.Event
         { event_start = Score.event_start event
         , event_duration = Score.event_duration event
-        , event_patch = midi_patch
+        , event_patch = perf_patch
         , event_controls = controls
         , event_pitch = pitch
         -- If it's a pressure instrument, then I'm using breath instead

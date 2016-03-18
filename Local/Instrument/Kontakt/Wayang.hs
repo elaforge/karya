@@ -26,7 +26,6 @@ import qualified Derive.Sig as Sig
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
-import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument.Kontakt.Util as Util
 import Global
 
@@ -89,21 +88,20 @@ patches = map (MidiInst.code #= code <> with_weak)
 -- split into inst-polos and inst-sangsih.  This uses the traditional setup
 -- with polos on umbang.
 allocations :: Text -> StateConfig.Allocations
-allocations dev_ = StateConfig.midi_allocations $ map make
-    [ ("p", "kontakt/wayang-pemade",
-        pasang "p-umbang" "p-isep" $ Patch.config [])
-    , ("k", "kontakt/wayang-kantilan",
-        pasang "k-umbang" "k-isep" $ Patch.config [])
-    , ("p-isep", "kontakt/wayang-isep", Patch.config1 dev 0)
-    , ("p-umbang", "kontakt/wayang-umbang", Patch.config1 dev 1)
-    , ("k-isep", "kontakt/wayang-isep", Patch.config1 dev 2)
-    , ("k-umbang", "kontakt/wayang-umbang", Patch.config1 dev 3)
+allocations dev_ = MidiInst.allocations
+    [ ("p", "kontakt/wayang-pemade", pasang "p-umbang" "p-isep",
+        StateConfig.Dummy)
+    , ("k", "kontakt/wayang-kantilan", pasang "k-umbang" "k-isep",
+        StateConfig.Dummy)
+    , ("p-isep", "kontakt/wayang-isep", id, midi_channel 0)
+    , ("p-umbang", "kontakt/wayang-umbang", id, midi_channel 1)
+    , ("k-isep", "kontakt/wayang-isep", id, midi_channel 2)
+    , ("k-umbang", "kontakt/wayang-umbang", id, midi_channel 3)
     ]
     where
-    make (name, qualified, config) =
-        (inst name, (InstTypes.parse_qualified qualified, config))
-    pasang polos sangsih = Patch.add_environ Gangsa.inst_polos (inst polos)
-        . Patch.add_environ Gangsa.inst_sangsih (inst sangsih)
+    midi_channel = StateConfig.Midi . Patch.config1 dev
+    pasang polos sangsih = Common.add_environ Gangsa.inst_polos (inst polos)
+        . Common.add_environ Gangsa.inst_sangsih (inst sangsih)
     dev = Midi.write_device dev_
     inst = Score.Instrument
 

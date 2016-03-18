@@ -200,8 +200,8 @@ get_track_status block_id tracknum = do
         let controls = control_tracks_of tree note_tracknum
         track_descs <- show_track_status block_id controls
         alloc <- State.allocation inst <#> State.get
-        let addrs = case alloc of
-                Just (_, StateConfig.Midi config) -> Patch.config_addrs config
+        let addrs = case StateConfig.alloc_backend <$> alloc of
+                Just (StateConfig.Midi config) -> Patch.config_addrs config
                 _ -> []
         let title = ParseTitle.instrument_to_title inst
         return $ txt $ Printf.printf "%s at %d: %s -- [%s]" (untxt title)

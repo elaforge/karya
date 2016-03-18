@@ -104,12 +104,12 @@ cmd_midi_thru msg = do
 
 midi_thru_instrument :: Cmd.M m => Score.Instrument -> InputNote.Input -> m ()
 midi_thru_instrument score_inst input = do
-    alloc <- Cmd.require ("no config for " <> pretty score_inst)
+    alloc <- Cmd.require ("no alloc for " <> pretty score_inst)
         =<< (State.allocation score_inst <#> State.get)
-    config <- case alloc of
-        (_, StateConfig.Midi config) -> return config
+    midi_config <- case StateConfig.alloc_backend alloc of
+        StateConfig.Midi midi_config -> return midi_config
         _ -> Cmd.abort -- Ignore non-MIDI instruments.
-    let addrs = map fst $ Patch.config_addrs config
+    let addrs = map fst $ Patch.config_addrs midi_config
     unless (null addrs) $ do
         scale <- Perf.get_scale =<< Selection.track
         inst <- Cmd.require ("no instrument: " <> pretty score_inst)
@@ -118,7 +118,8 @@ midi_thru_instrument score_inst input = do
             Inst.inst_midi inst
         input <- Cmd.require
             (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
-            =<< map_scale patch (Inst.inst_common inst) config scale input
+            =<< map_scale patch (Inst.inst_common inst)
+                (StateConfig.alloc_config alloc) scale input
 
         wdev_state <- Cmd.get_wdev_state
         let (thru_msgs, maybe_wdev_state) =
@@ -129,7 +130,7 @@ midi_thru_instrument score_inst input = do
 
 -- | Realize the Input as a pitch in the given scale.
 map_scale :: Cmd.M m => Patch.Patch -> Common.Common a
-    -> Patch.Config -> Scale.Scale
+    -> Common.Config -> Scale.Scale
     -> InputNote.Input -> m (Maybe InputNote.InputNn)
 map_scale patch common config scale input = case input of
     InputNote.NoteOn note_id input vel -> do
@@ -151,7 +152,7 @@ map_scale patch common config scale input = case input of
             -- influence the pitch.  TODO but shouldn't it already come from
             -- Perf.derive_at?  And shouldn't I not override that?
             Derive.with_environ (Common.get_environ common) $
-            only_allow_octave_transpose (Patch.config_controls config) scale $
+            only_allow_octave_transpose (Common.config_controls config) scale $
             Scale.scale_input_to_nn scale pos input
         case result of
             Left err -> throw $ "derive_at: " <> err
@@ -273,6 +274,6 @@ get_addrs maybe_inst = do
     inst <- maybe (Cmd.abort_unless =<< EditUtil.lookup_instrument)
         return maybe_inst
     alloc <- State.allocation inst <#> State.get
-    return $ case alloc of
-        Just (_, StateConfig.Midi config) -> map fst $ Patch.config_addrs config
+    return $ case StateConfig.alloc_backend <$> alloc of
+        Just (StateConfig.Midi config) -> map fst $ Patch.config_addrs config
         _ -> []

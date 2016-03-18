@@ -65,8 +65,10 @@ import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
+
 import qualified App.Config as Config
 import Global
 import Types
@@ -323,10 +325,11 @@ with_tsig_sources track_ids = with_ui $ State.tracks %= Map.mapWithKey enable
 with_transform :: Text -> Setup
 with_transform = with_ui . (State.config#State.global_transform #=)
 
-with_midi_config :: Text -> Text -> Patch.Config -> Setup
-with_midi_config inst qualified config = with_ui $
+with_midi_config :: Text -> Text -> Common.Config -> Patch.Config -> Setup
+with_midi_config inst qualified common_config midi_config = with_ui $
     State.config#State.allocations_map %= Map.insert (Score.instrument inst)
-        (InstTypes.parse_qualified qualified, StateConfig.Midi config)
+        (StateConfig.Allocation (InstTypes.parse_qualified qualified)
+            common_config (StateConfig.Midi midi_config))
 
 -- * setup_deriver
 

@@ -25,8 +25,10 @@ import qualified Perform.Lilypond.Types as Lilypond
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.Signal as Signal
 
+import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import qualified Instrument.InstTypes as InstTypes
+
 import Global
 import Types
 
@@ -89,8 +91,7 @@ ky_file = Lens.lens config_ky_file
     (\f r -> r { config_ky_file = f (config_ky_file r) })
 
 -- | Unwrap the newtype for convenience.
-allocations_map ::
-    Lens Config (Map.Map Score.Instrument (InstTypes.Qualified, Allocation))
+allocations_map :: Lens Config (Map.Map Score.Instrument Allocation)
 allocations_map = Lens.lens (open . config_allocations)
     (\f r -> r { config_allocations =
         Allocations $ f $ open $ config_allocations r })
@@ -117,18 +118,15 @@ empty_config = Config
 -- On the other hand, it might not really matter, and I do use unchecked
 -- modification when the backend doesn't change.
 allocate :: (InstTypes.Qualified -> Maybe (Inst.Inst a)) -> Score.Instrument
-    -> InstTypes.Qualified -> Allocation -> Allocations
-    -> Either Text Allocations
-allocate lookup_inst instrument qualified alloc (Allocations allocs) =
-    maybe (Right inserted) Left
-        (verify_allocation lookup_inst instrument qualified alloc)
-    where
-    inserted = Allocations $ Map.insert instrument (qualified, alloc) allocs
+    -> Allocation -> Allocations -> Either Text Allocations
+allocate lookup_inst instrument alloc (Allocations allocs) =
+    maybe (Right inserted) Left $ verify_allocation lookup_inst instrument alloc
+    where inserted = Allocations $ Map.insert instrument alloc allocs
 
 verify_allocation :: (InstTypes.Qualified -> Maybe (Inst.Inst code))
-    -> Score.Instrument -> InstTypes.Qualified -> Allocation -> Maybe Text
-verify_allocation lookup_inst instrument qualified alloc =
-    fmap (prefix<>) $ case (alloc, backend) of
+    -> Score.Instrument -> Allocation -> Maybe Text
+verify_allocation lookup_inst instrument alloc =
+    fmap (prefix<>) $ case (alloc_backend alloc, backend) of
         (_, Nothing) -> Just "can't allocate non-existent instrument"
         (Midi {}, Just (Inst.Midi {})) -> Nothing
         (Im, Just (Inst.Im {})) -> Nothing
@@ -139,9 +137,10 @@ verify_allocation lookup_inst instrument qualified alloc =
         (_, Just backend) -> Just $ "allocation type " <> allocation_type
             <> " /= instrument type " <> backend_type backend
     where
+    qualified = alloc_qualified alloc
     backend = Inst.inst_backend <$> lookup_inst qualified
     prefix = pretty instrument <> " from " <> pretty qualified <> ": "
-    allocation_type = case alloc of
+    allocation_type = case alloc_backend alloc of
         Midi {} -> "midi"
         Im -> "im"
         Dummy -> "dummy"
@@ -149,31 +148,46 @@ verify_allocation lookup_inst instrument qualified alloc =
         Inst.Midi {} -> "midi"
         Inst.Im {} -> "im"
 
-newtype Allocations =
-    Allocations (Map.Map Score.Instrument (InstTypes.Qualified, Allocation))
+newtype Allocations = Allocations (Map.Map Score.Instrument Allocation)
     deriving (Eq, Show, Pretty.Pretty, Monoid.Monoid)
 
-make_allocations :: [(Score.Instrument, (InstTypes.Qualified, Allocation))]
-    -> Allocations
+make_allocations :: [(Score.Instrument, Allocation)] -> Allocations
 make_allocations = Allocations . Map.fromList
 
 midi_allocations :: [(Score.Instrument, (InstTypes.Qualified, Patch.Config))]
     -> Allocations
 midi_allocations allocs = Allocations $ Map.fromList
-    [ (inst, (qual, Midi config))
+    [ (inst, allocation qual (Midi config))
     | (inst, (qual, config)) <- allocs
     ]
 
-data Allocation =
+data Allocation = Allocation {
+    alloc_qualified :: !InstTypes.Qualified
+    , alloc_config :: !Common.Config
+    , alloc_backend :: !Backend
+    } deriving (Eq, Show)
+
+allocation :: InstTypes.Qualified -> Backend -> Allocation
+allocation qualified backend = Allocation qualified Common.empty_config backend
+
+instance Pretty.Pretty Allocation where
+    format (Allocation qualified config backend) = Pretty.record "Allocation"
+        [ ("qualified", Pretty.format qualified)
+        , ("config", Pretty.format config)
+        , ("backend", Pretty.format backend)
+        ]
+
+data Backend =
     Midi !Patch.Config
     | Im
     -- | This is for instruments without a backend.  For example a paired
     -- instrument might be written as one instrument, but realized as two
     -- different ones.
     | Dummy
+    | Upgrade !Patch.Config !Common.Config
     deriving (Eq, Show)
 
-instance Pretty.Pretty Allocation where
+instance Pretty.Pretty Backend where
     format (Midi config) = Pretty.format config
     format Im = "Im"
     format Dummy = "Dummy"

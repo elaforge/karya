@@ -46,6 +46,7 @@ import qualified Perform.Midi.Control as Control
 import qualified Perform.Midi.Patch as Patch
 import qualified Perform.NN as NN
 
+import qualified Instrument.Common as Common
 import qualified Instrument.InstTypes as InstTypes
 import qualified Local.Instrument.Kontakt.KendangBali as KendangBali
 import qualified Local.Instrument.Kontakt.KendangSunda as KendangSunda
@@ -297,18 +298,21 @@ kebyar_allocations dev_ = make_config $ concat
     make_config :: [(Text, Text, Bool,
             [(BaseTypes.Key, RestrictedEnviron.Val)], Maybe Patch.Scale)]
         -> StateConfig.Allocations
-    make_config = StateConfig.midi_allocations . snd . List.mapAccumL allocate 0
+    make_config = MidiInst.allocations . snd . List.mapAccumL allocate 0
         where
         allocate chan (inst, qualified, gets_chan, environ, scale) =
-            (next_chan,
-                (make_inst inst, (InstTypes.parse_qualified qualified, config)))
+            ( next_chan
+            , (inst, qualified, set_config, backend)
+            )
             where
             next_chan = if gets_chan then chan+1 else chan
-            config = Patch.cscale #= scale $
-                Patch.environ #= RestrictedEnviron.make environ $
-                -- pasang instruments don't get an allocation.  Otherwise they
+            backend
+                | gets_chan = StateConfig.Midi $
+                    Patch.cscale #= scale $ Patch.config1 dev chan
+                -- Pasang instruments don't get an allocation.  Otherwise they
                 -- don't have the right tuning.
-                (if gets_chan then Patch.config1 dev chan else Patch.config [])
+                | otherwise = StateConfig.Dummy
+            set_config = Common.cenviron #= RestrictedEnviron.make environ
     dev = Midi.write_device dev_
 
     -- Actually pemade and kantilan have an umbang isep pair for both polos and

@@ -21,9 +21,7 @@ import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
 import qualified Derive.BaseTypes as BaseTypes
-import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.Score as Score
-
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
@@ -46,13 +44,6 @@ data Config = Config {
     -- Each Addr has a count of how many simultaneous voices the addr can
     -- handle.  Nothing means there's no limit.
     config_addrs :: ![(Addr, Maybe Voices)]
-    -- | This is a local version of 'patch_restricted_environ'.
-    , config_restricted_environ :: !RestrictedEnviron.Environ
-    -- | This is the control equivalent to 'config_restricted_environ'.  These
-    -- controls are merged when the instrument comes into scope.  They can be
-    -- useful for setting default transposition, e.g. if an instrument sounds
-    -- in the wrong octave.
-    , config_controls :: !Score.ControlValMap
     -- | A local version of 'patch_scale'.
     , config_scale :: !(Maybe Scale)
     -- | Default controls for this instrument, will always be set unless
@@ -62,30 +53,14 @@ data Config = Config {
     -- synthesizer state, so these are only applied during conversion, and
     -- thus should only contain controls the MIDI instrument understands.
     , config_control_defaults :: !Score.ControlValMap
-    -- | If true, this instrument is filtered out prior to playing.
-    , config_mute :: !Bool
-    -- | If any instrument is soloed, all instruments except soloed ones are
-    -- filtered out prior to playing.
-    , config_solo :: !Bool
     } deriving (Eq, Read, Show)
-
-config_environ :: Config -> BaseTypes.Environ
-config_environ = RestrictedEnviron.convert . config_restricted_environ
 
 addrs = Lens.lens config_addrs
     (\f r -> r { config_addrs = f (config_addrs r) })
-environ = Lens.lens config_restricted_environ
-    (\f r -> r { config_restricted_environ = f (config_restricted_environ r) })
-controls = Lens.lens config_controls
-    (\f r -> r { config_controls = f (config_controls r) })
 cscale = Lens.lens config_scale
     (\f r -> r { config_scale = f (config_scale r) })
 control_defaults = Lens.lens config_control_defaults
     (\f r -> r { config_control_defaults = f (config_control_defaults r) })
-mute = Lens.lens config_mute
-    (\f r -> r { config_mute = f (config_mute r) })
-solo = Lens.lens config_solo
-    (\f r -> r { config_solo = f (config_solo r) })
 
 config1 :: Midi.WriteDevice -> Midi.Channel -> Config
 config1 dev chan = config [(dev, chan)]
@@ -97,29 +72,15 @@ config = voice_config . map (, Nothing)
 voice_config :: [(Addr, Maybe Voices)] -> Config
 voice_config addrs = Config
     { config_addrs = addrs
-    , config_restricted_environ = mempty
-    , config_controls = mempty
     , config_scale = Nothing
     , config_control_defaults = mempty
-    , config_mute = False
-    , config_solo = False
     }
 
-add_environ :: RestrictedEnviron.ToVal a => BaseTypes.Key -> a
-    -> Config -> Config
-add_environ key val = environ %= (RestrictedEnviron.make [(key, v)] <>)
-    where v = RestrictedEnviron.to_val val
-
 instance Pretty.Pretty Config where
-    format (Config addrs environ controls scale control_defaults mute solo) =
-            Pretty.record "Config"
+    format (Config addrs scale control_defaults) = Pretty.record "Config"
         [ ("addrs", Pretty.format addrs)
-        , ("environ", Pretty.format environ)
-        , ("controls", Pretty.format controls)
         , ("scale", Pretty.format scale)
-        , ("mute", Pretty.format mute)
         , ("control_defaults", Pretty.format control_defaults)
-        , ("solo", Pretty.format solo)
         ]
 
 -- | MIDI instruments are addressed by a (device, channel) pair, allocated in

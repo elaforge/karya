@@ -30,7 +30,6 @@ test_serialize = do
     uncurry equal $ run State.state_blocks
     uncurry equal $ run State.state_tracks
     uncurry equal $ run State.state_rulers
-
     equal State.empty (recode State.empty)
 
     -- Performance

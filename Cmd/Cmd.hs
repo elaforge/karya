@@ -1070,7 +1070,8 @@ lookup_instrument inst = fmap fst . ($ inst) <$> get_lookup_instrument
 
 lookup_qualified :: State.M m => Score.Instrument
     -> m (Maybe InstTypes.Qualified)
-lookup_qualified inst = fmap fst <$> (State.allocation inst <#> State.get)
+lookup_qualified inst = fmap StateConfig.alloc_qualified <$>
+    (State.allocation inst <#> State.get)
 
 get_lookup_instrument :: M m =>
     m (Score.Instrument -> Maybe (Inst, InstTypes.Qualified))
@@ -1082,25 +1083,25 @@ get_lookup_instrument = state_lookup_instrument <$> State.get <*> get
 state_lookup_instrument :: State.State -> State -> Score.Instrument
     -> Maybe (Inst, InstTypes.Qualified)
 state_lookup_instrument ui_state cmd_state = \inst_name -> do
-    (qualified, alloc) <- State.allocation inst_name #$ ui_state
+    StateConfig.Allocation qualified config backend <-
+        State.allocation inst_name #$ ui_state
     inst <- Inst.lookup qualified db
-    return (merge_environ alloc inst, qualified)
+    let environ = Common.config_environ config
+    return (merge_environ environ backend inst, qualified)
     where
     db = config_instrument_db (state_config cmd_state)
-    merge_environ alloc =
+    merge_environ environ backend =
         (Inst.common#Common.environ %= (environ <>)) . set_scale
         where
         -- MIDI instruments can also get a scale from the local config.
         set_scale inst = case (scale, Inst.inst_backend inst) of
             (Just scale, Inst.Midi patch) -> inst
-                { Inst.inst_backend = Inst.Midi $
-                    (Patch.scale #= Just scale) patch
+                { Inst.inst_backend =
+                    Inst.Midi $ (Patch.scale #= Just scale) patch
                 }
             _ -> inst
-        scale = Patch.config_scale =<< config
-        environ = maybe mempty Patch.config_restricted_environ config
-        config = case alloc of
-            StateConfig.Midi config -> Just config
+        scale = case backend of
+            StateConfig.Midi config -> Patch.config_scale config
             _ -> Nothing
 
 state_lookup_qualified :: State -> InstTypes.Qualified -> Maybe Inst

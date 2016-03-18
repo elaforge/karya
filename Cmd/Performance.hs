@@ -266,7 +266,7 @@ evaluate_im maybe_im_config lookup_inst events action
 -- happen to be any, but I'll worry about that if it becomes a problem.
 im_allocated :: StateConfig.Allocations -> Bool
 im_allocated (StateConfig.Allocations allocs) =
-    any ((==StateConfig.Im) . snd) (Map.elems allocs)
+    any ((==StateConfig.Im) . StateConfig.alloc_backend) (Map.elems allocs)
 
 -- | Make a broken performance with just an error msg.  This ensures that
 -- the msg is logged when you try to play, but will still suppress further

@@ -31,8 +31,8 @@ test_respond = do
                 ("im", [(0, 1, "4c"), (1, 1, "4d")], [("dyn", [(0, ".5")])])
         add_allocation = State.config#State.allocations #= allocs
         allocs = StateConfig.Allocations $ Map.fromList
-            [ (Score.Instrument "im",
-                (InstTypes.Qualified "sampler" "inst", StateConfig.Im))
+            [ (Score.Instrument "im", StateConfig.allocation
+                (InstTypes.Qualified "sampler" "inst") StateConfig.Im)
             ]
         set_db state = state
             { Cmd.state_config = (Cmd.state_config state)

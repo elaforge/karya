@@ -121,6 +121,13 @@ data SynthDecl code =
     SynthDecl !InstTypes.SynthName !Text ![(InstTypes.Name, Inst code)]
     deriving (Show)
 
+instance Pretty.Pretty code => Pretty.Pretty (SynthDecl code) where
+    format (SynthDecl name doc insts) = Pretty.record "SynthDecl"
+        [ ("name", Pretty.format name)
+        , ("doc", Pretty.format doc)
+        , ("instruments", Pretty.format insts)
+        ]
+
 -- | Construct and validate a Db, returning any errors that occurred.
 db :: [SynthDecl code] -> (Db code, [Text])
 db synth_decls = (Db db, synth_errors ++ inst_errors ++ validate_errors)

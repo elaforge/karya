@@ -99,7 +99,7 @@ UNSORTED
       wait to see if it's actually a problem before worrying about it.
     . I guess it already has been a bit of a problem, in that the test had
       a bug where it put on the wrong backend.
-  - Some fields from Perform.Midi.Patch.Config should be in a general
+  * Some fields from Perform.Midi.Patch.Config should be in a general
     instrument config: config_restricted_environ, config_controls,
     config_mute, config_solo
     . This means I can't use StateConfig.Dummy because I need environ for the

@@ -73,6 +73,7 @@
     clears the PlayMonitorControl.
 -}
 module Cmd.Play where
+import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
@@ -389,9 +390,10 @@ from_realtime block_id repeat_at start_ = do
 lookup_play_cache_addr :: State.M m => m (Maybe Patch.Addr)
 lookup_play_cache_addr = do
     allocs <- State.config#State.allocations_map <#> State.get
-    case lookup Im.Play.qualified (Map.elems allocs) of
+    let is_im = (==Im.Play.qualified) . StateConfig.alloc_qualified
+    case List.find is_im (Map.elems allocs) of
         Nothing -> return Nothing
-        Just alloc -> case alloc of
+        Just alloc -> case StateConfig.alloc_backend alloc of
             StateConfig.Midi config -> case Patch.config_addrs config of
                 [] -> State.throw $
                     pretty Im.Play.qualified <> " allocation with no addrs"

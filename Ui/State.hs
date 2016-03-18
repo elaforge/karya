@@ -160,14 +160,13 @@ import qualified Ui.Id as Id
 import qualified Ui.Ruler as Ruler
 import qualified Ui.Sel as Sel
 import qualified Ui.Skeleton as Skeleton
-import Ui.StateConfig
+import Ui.StateConfig hiding (allocation)
 import qualified Ui.Track as Track
 import qualified Ui.Types as Types
 import qualified Ui.Update as Update
 
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.Stack as Stack
-import qualified Instrument.InstTypes as InstTypes
 import qualified App.Config as Config
 import Global
 import Types
@@ -448,8 +447,7 @@ modify_config f = unsafe_modify $ \st ->
 get_config :: M m => (Config -> a) -> m a
 get_config f = gets (f . state_config)
 
-allocation :: ScoreTypes.Instrument
-    -> Lens State (Maybe (InstTypes.Qualified, Allocation))
+allocation :: ScoreTypes.Instrument -> Lens State (Maybe Allocation)
 allocation inst = config # allocations_map # Lens.map inst
 
 -- * view

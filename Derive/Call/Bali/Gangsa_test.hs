@@ -20,7 +20,7 @@ import qualified Derive.Flags as Flags
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Score as Score
 
-import qualified Perform.Midi.Patch as Patch
+import qualified Instrument.Common as Common
 import Global
 import Types
 
@@ -194,17 +194,16 @@ test_unison_tuning = do
         extract e = (pretty $ Score.event_instrument e, Score.initial_nn e)
         config_inst = set UiTest.i1 BaliScales.Umbang
             . set UiTest.i2 BaliScales.Isep
-        set inst tuning = modify_instrument inst $
-            Patch.add_environ EnvKey.tuning tuning
+        set inst tuning = modify_config inst $
+            Common.add_environ EnvKey.tuning tuning
     equal (run [(0, 1, "4i")]) ([(">i1", Just 62.95), (">i2", Just 62.5)], [])
 
-modify_instrument :: Score.Instrument -> (Patch.Config -> Patch.Config)
+modify_config :: Score.Instrument -> (Common.Config -> Common.Config)
     -> State.State -> State.State
-modify_instrument inst modify = State.allocation inst %= update
+modify_config inst modify = State.allocation inst %= fmap update
     where
-    update (Just (qualified, StateConfig.Midi config)) =
-        Just (qualified, StateConfig.Midi (modify config))
-    update x = x
+    update alloc = alloc
+        { StateConfig.alloc_config = modify (StateConfig.alloc_config alloc) }
 
 test_kempyung = do
     let run title = derive_extract extract (title <> " | kempyung")

@@ -120,3 +120,53 @@ overlapping_attributes (AttributeMap table) =
 sort_attribute_map :: AttributeMap a -> AttributeMap a
 sort_attribute_map (AttributeMap table) = AttributeMap (sort table)
     where sort = Seq.sort_on (\(a, _) -> - Set.size (ScoreTypes.attrs_set a))
+
+
+-- * Config
+
+-- | Configuration for a specific allocation of an instrument in a specific
+-- score.
+data Config = Config {
+    -- | This is a local version of 'common_environ'.
+    config_environ :: !RestrictedEnviron.Environ
+    -- | This is the control equivalent to 'config_environ'.  These
+    -- controls are merged when the instrument comes into scope.  They can be
+    -- useful for setting default transposition, e.g. if an instrument sounds
+    -- in the wrong octave.
+    , config_controls :: !ScoreTypes.ControlValMap
+    -- | If true, this instrument is filtered out prior to playing.
+    , config_mute :: !Bool
+    -- | If any instrument is soloed, all instruments except soloed ones are
+    -- filtered out prior to playing.
+    , config_solo :: !Bool
+    } deriving (Eq, Show)
+
+empty_config :: Config
+empty_config = Config
+    { config_environ = mempty
+    , config_controls = mempty
+    , config_mute = False
+    , config_solo = False
+    }
+
+cenviron = Lens.lens config_environ
+    (\f r -> r { config_environ = f (config_environ r) })
+controls = Lens.lens config_controls
+    (\f r -> r { config_controls = f (config_controls r) })
+mute = Lens.lens config_mute
+    (\f r -> r { config_mute = f (config_mute r) })
+solo = Lens.lens config_solo
+    (\f r -> r { config_solo = f (config_solo r) })
+
+instance Pretty.Pretty Config where
+    format (Config environ controls mute solo) = Pretty.record "Config"
+        [ ("environ", Pretty.format environ)
+        , ("controls", Pretty.format controls)
+        , ("mute", Pretty.format mute)
+        , ("solo", Pretty.format solo)
+        ]
+
+add_environ :: RestrictedEnviron.ToVal a => BaseTypes.Key -> a
+    -> Config -> Config
+add_environ key val = cenviron %= (RestrictedEnviron.make [(key, v)] <>)
+    where v = RestrictedEnviron.to_val val
