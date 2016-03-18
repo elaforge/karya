@@ -7,7 +7,7 @@
 {-# LANGUAGE ImplicitParams, ConstraintKinds #-}
 -- | Basic testing utilities.
 module Util.Test (
-    Config(..), modify_config, with_name
+    Config(..), modify_test_config, with_test_name
     -- * tests
     -- ** pure checks
     , check, equal, right_equal, not_equal, equalf, strings_like
@@ -76,12 +76,12 @@ import qualified Util.Seq as Seq
 test_config :: IORef.IORef Config
 test_config = Unsafe.unsafePerformIO (IORef.newIORef (Config "no-test" False))
 
-modify_config :: (Config -> Config) -> IO ()
-modify_config = IORef.modifyIORef test_config
+modify_test_config :: (Config -> Config) -> IO ()
+modify_test_config = IORef.modifyIORef test_config
 
-with_name :: String -> IO a -> IO a
-with_name name action = do
-    modify_config (\config -> config { config_test_name = name })
+with_test_name :: String -> IO a -> IO a
+with_test_name name action = do
+    modify_test_config (\config -> config { config_test_name = name })
     action
 
 data Config = Config {

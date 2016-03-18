@@ -76,7 +76,7 @@ runTests argv0 tests flags args
     | List `elem` flags = printTests
     | otherwise = do
         when (NonInteractive `elem` flags) $
-            Test.modify_config $ \config ->
+            Test.modify_test_config $ \config ->
                 config { Test.config_skip_human = True }
         printTests
         let (initTests, nonInitTests) =
@@ -96,7 +96,7 @@ runSubprocess argv0 test = do
     putStrLn $ "subprocess: " ++ show argv0 ++ " " ++ show [testName test]
     val <- Process.rawSystem argv0 [testName test]
     case val of
-        System.Exit.ExitFailure code -> Test.with_name (testName test) $
+        System.Exit.ExitFailure code -> Test.with_test_name (testName test) $
             void $ Test.failure $
                 "test returned " ++ show code ++ ": " ++ testName test
         _ -> return ()
@@ -115,10 +115,10 @@ matchingTests regexes tests = concatMap match regexes
             tests
 
 runTest :: Test -> IO ()
-runTest test = Test.with_name (last (Seq.split "." (testName test))) $ do
+runTest test = Test.with_test_name (last (Seq.split "." (testName test))) $ do
     putStrLn $ unwords [metaPrefix, "run-test", testName test]
     start <- CPUTime.getCPUTime
-    maybe id id (testInitialize test) $ catch (testRun test)
+    maybe id id (testInitialize test) $ catch (testSymName test) (testRun test)
     end <- CPUTime.getCPUTime
     -- CPUTime is in picoseconds.
     let secs = fromIntegral (end - start) / 10^12
