@@ -74,9 +74,8 @@ def copytree(source, dest):
         shutil.copytree(source, dest)
 
 def update(source, dest):
-    if dry_run:
-        print 'update', source, dest
-    else:
+    print 'build/opt/update', source, dest
+    if not dry_run:
         code = subprocess.call(['build/opt/update', source, dest])
         if code != 0:
             raise ValueError(code)
@@ -84,6 +83,8 @@ def update(source, dest):
 def is_score(fn):
     try:
         with gzip.GzipFile(fn) as fp:
+            # From Cmd.Serialize.score_magic
+            # TODO I should have a haskell program for this.
             return fp.read(4) == 'scor'
     except IOError:
         return False

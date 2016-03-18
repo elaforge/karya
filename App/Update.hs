@@ -6,12 +6,15 @@
 -- a non-versioned datatype changes.
 --
 -- Git saves are flattened into a plain saves.
+--
+-- @tools/update_all.py@ can update a whole directory of saves.
 module App.Update where
 import qualified Data.Text.IO as Text.IO
 import qualified System.Environment as Environment
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 
+import qualified Util.Git as Git
 import qualified Ui.State as State
 import qualified Cmd.Save as Save
 import qualified Cmd.SaveGit as SaveGit
@@ -19,7 +22,7 @@ import Global
 
 
 main :: IO ()
-main = do
+main = Git.initialize $ do
     args <- Environment.getArgs
     case args of
         [from_fn, to_fn] -> update from_fn to_fn

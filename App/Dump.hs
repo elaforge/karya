@@ -12,6 +12,7 @@ import qualified System.Environment as Environment
 import qualified System.Exit
 import qualified Text.Printf as Printf
 
+import qualified Util.Git as Git
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
@@ -27,7 +28,7 @@ import Global
 
 
 main :: IO ()
-main = do
+main = Git.initialize $ do
     args <- Environment.getArgs
     case args of
         [fname]
