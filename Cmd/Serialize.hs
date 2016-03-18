@@ -86,51 +86,6 @@ instance Serialize State.Config where
             >> put allocs >> put lilypond >> put defaults >> put saved_views
             >> put defs
     get = Serialize.get_version >>= \v -> case v of
-        8 -> do
-            ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
-            root :: Maybe BlockId <- get
-            midi :: MidiConfigs <- get
-            transform :: Text <- get
-            old_allocs :: Map.Map Score.Instrument Score.Instrument <- get
-            lilypond :: Lilypond.Config <- get
-            defaults :: State.Default <- get
-            saved_views :: State.SavedViews <- get
-            let allocs = upgrade_allocations midi
-                    (InstTypes.parse_qualified . Score.instrument_name
-                        <$> old_allocs)
-            return $ State.Config ns meta root transform
-                allocs lilypond defaults saved_views Nothing
-        9 -> do
-            ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
-            root :: Maybe BlockId <- get
-            midi :: MidiConfigs <- get
-            transform :: Text <- get
-            old_allocs :: Map.Map Score.Instrument Score.Instrument <- get
-            lilypond :: Lilypond.Config <- get
-            defaults :: State.Default <- get
-            saved_views :: State.SavedViews <- get
-            defs :: Maybe FilePath <- get
-            let allocs = upgrade_allocations midi
-                    (InstTypes.parse_qualified . Score.instrument_name
-                        <$> old_allocs)
-            return $ State.Config ns meta root transform allocs lilypond
-                defaults saved_views defs
-        10 -> do
-            ns :: Id.Namespace <- get
-            meta :: State.Meta <- get
-            root :: Maybe BlockId <- get
-            midi :: MidiConfigs <- get
-            transform :: Text <- get
-            old_allocs :: Map.Map Score.Instrument InstTypes.Qualified <- get
-            lilypond :: Lilypond.Config <- get
-            defaults :: State.Default <- get
-            saved_views :: State.SavedViews <- get
-            defs :: Maybe FilePath <- get
-            let allocs = upgrade_allocations midi old_allocs
-            return $ State.Config ns meta root transform allocs
-                lilypond defaults saved_views defs
         11 -> do
             ns :: Id.Namespace <- get
             meta :: State.Meta <- get
@@ -144,18 +99,6 @@ instance Serialize State.Config where
             return $ State.Config ns meta root transform insts lilypond
                 defaults saved_views defs
         _ -> Serialize.bad_version "State.Config" v
-
--- | Upgrade from the old style where midi config and instrument allocation are
--- stored separately.
-upgrade_allocations :: MidiConfigs
-    -> Map.Map Score.Instrument InstTypes.Qualified -> StateConfig.Allocations
-upgrade_allocations (MidiConfigs midi) allocs =
-    StateConfig.Allocations $ Map.fromList $ map upgrade $ Map.toList allocs
-    where
-    upgrade (inst, qual) = case Map.lookup inst midi of
-        Nothing -> (inst, StateConfig.allocation qual StateConfig.Im)
-        Just patch ->
-            (inst, StateConfig.allocation qual (StateConfig.Midi patch))
 
 instance Serialize.Serialize StateConfig.Allocations where
     put (StateConfig.Allocations a) = Serialize.put_version 1 >> put a
@@ -221,12 +164,6 @@ instance Serialize State.Meta where
     put (State.Meta a b c d e) = Serialize.put_version 3
         >> put a >> put b >> put c >> put d >> put e
     get = Serialize.get_version >>= \v -> case v of
-        2 -> do
-            creation :: Time.UTCTime <- get
-            notes :: Text <- get
-            midi :: Map.Map BlockId State.MidiPerformance <- get
-            lily :: Map.Map BlockId State.LilypondPerformance <- get
-            return $ State.Meta creation creation notes midi lily
         3 -> do
             creation :: Time.UTCTime <- get
             last_save :: Time.UTCTime <- get
@@ -305,12 +242,6 @@ instance Serialize Block.Track where
     get = do
         v <- Serialize.get_version
         case v of
-            2 -> do
-                id :: Block.TracklikeId <- get
-                width :: Types.Width <- get
-                flags :: Set.Set Block.TrackFlag <- get
-                merged :: [Types.TrackId] <- get
-                return $ Block.Track id width flags (Set.fromList merged)
             3 -> do
                 id :: Block.TracklikeId <- get
                 width :: Types.Width <- get
@@ -412,17 +343,6 @@ instance Serialize Ruler.Ruler where
     get = do
         v <- Serialize.get_version
         case v of
-            5 -> do
-                marklists :: Map.Map Ruler.Name Ruler.Marklist <- get
-                bg :: Color.Color <- get
-                show_names :: Bool <- get
-                align_to_bottom :: Bool <- get
-                return $ Ruler.Ruler (Map.mapWithKey upgrade marklists) bg
-                    show_names align_to_bottom
-                where
-                upgrade name mlist
-                    | name == Ruler.meter = (Just "meter", mlist)
-                    | otherwise = (Nothing, mlist)
             6 -> do
                 marklists :: Map.Map Ruler.Name (Maybe Ruler.MeterType,
                     Ruler.Marklist) <- get
@@ -514,30 +434,6 @@ instance Serialize Patch.Config where
     get = do
         v <- Serialize.get_version
         case v of
-            4 -> do
-                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                _environ :: RestrictedEnviron.Environ <- get
-                control_defaults :: Score.ControlValMap <- get
-                _mute :: Bool <- get
-                _solo :: Bool <- get
-                return $ Patch.Config addrs Nothing control_defaults
-            5 -> do
-                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                _environ :: RestrictedEnviron.Environ <- get
-                scale :: Maybe Patch.Scale <- get
-                control_defaults :: Score.ControlValMap <- get
-                _mute :: Bool <- get
-                _solo :: Bool <- get
-                return $ Patch.Config addrs scale control_defaults
-            6 -> do
-                addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
-                _environ :: RestrictedEnviron.Environ <- get
-                _controls :: Score.ControlValMap <- get
-                scale :: Maybe Patch.Scale <- get
-                control_defaults :: Score.ControlValMap <- get
-                _mute :: Bool <- get
-                _solo :: Bool <- get
-                return $ Patch.Config addrs scale control_defaults
             7 -> do
                 addrs :: [(Patch.Addr, Maybe Patch.Voices)] <- get
                 scale :: Maybe Patch.Scale <- get
@@ -571,12 +467,6 @@ instance Serialize Lilypond.StaffConfig where
     get = do
         v <- Serialize.get_version
         case v of
-            1 -> do
-                long :: Lilypond.Instrument <- get
-                short :: Lilypond.Instrument <- get
-                code :: [Text] <- get
-                display :: Bool <- get
-                return $ Lilypond.StaffConfig long short code display False
             2 -> do
                 long :: Lilypond.Instrument <- get
                 short :: Lilypond.Instrument <- get
