@@ -57,8 +57,9 @@ decode_response bytes = (result, logs)
         | Just ('!', s) <- Text.uncons result = s
         | otherwise = Text.pack $ PPrint.format_str $ Text.unpack result
 
+-- | Format the response and strip trailing whitespace.
 format_response :: (Text, [Text]) -> Text
-format_response (response, logs_) = Text.unlines $
+format_response (response, logs_) = Text.stripEnd $ Text.unlines $
     (if null logs then [] else "Logs:" : logs ++ [""]) ++ [response]
     where logs = abbreviate_logs (map Text.strip logs_)
 
