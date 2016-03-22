@@ -3,11 +3,20 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * For the ruler, I kind of don't like the whole idea of sections.  I already
+    have too many levels.  At least not for Cmd.Tala, where each avartanam can
+    be quite long.  It turns out I never have a block with multiple sections,
+    unless I want the score to use them, and in that case they're irregular.
+    Still, shouldn't sections be for pallavi, anupallavi, caranam, etc.?  But
+    in practice in the score I can move around well enough with 'w' and 'b',
+    and I don't need a whole new level and cmd-1 for that.
+    . Or maybe it's enough to just remove the Sections arguments in Cmd.Tala?
   - Util.Test should have a version intended for unqualified import.
     Otherwise functions like 'modify_config' get in the way.
   - In Cmd.Simple, put the dumps and loads next to each other
   - If I create a 0 dur note with floating edit, then make another with '.',
     the second one has a duration.
+    . Apparently reproducing is not so simple.
   - %t-oct=1 in the block title seems to mess up pitch track signal
   * Why does build/opt/seq depend on Util.Test?  Maybe it should have the
     #error too.
@@ -1522,6 +1531,8 @@ Derive:
       - I think I do want a linear or slow attack for <, otherwise all attacks
         are sharp.
       - < should start from prev dyn, not 0.
+      - Do I still want transition speed?
+    - 'v' for next pitch is wrong when the next pitch isn't on a note start
     * I need a way to set to 1/2 dur.  Perhaps suffixed '.', analogous to '_'.
     - Could I get rid of the special parsing of [] by just having '[' be
       a call to set duration (/2) and ']' is (*2)?  Then they don't have to be

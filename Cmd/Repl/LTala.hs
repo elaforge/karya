@@ -23,7 +23,7 @@ chatusram_to_tisram = do
     let dur = (end - start) * (2/3)
     LRuler.local $ LRuler.modify_selected $
         LRuler.replace_range start (start + dur) $
-        Tala.simple_meter Tala.adi_tala 3 10
+        Tala.simple_meter Tala.adi_tala 3 10 4
     -- Delete final 1/3.
     Edit.delete_block_time block_id (start + dur) end
 

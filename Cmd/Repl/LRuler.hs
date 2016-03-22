@@ -47,7 +47,7 @@
 
     - TODO make a middle measure 5/4?
 
-    - Set a block to 8 sections of 4 avartanams of adi talam:
+    - Set a block to 8 avartanams of adi talam:
 
         > LRuler.local $ LRuler.ruler $ Tala.adi 8
 

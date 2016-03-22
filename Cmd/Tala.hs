@@ -35,20 +35,27 @@ ruler = Ruler.meter_ruler (Just Meter.mtype_tala) . Meter.labeled_marklist
 
 -- * standard talams
 
--- | Create a ruler from just one Tala.
-simple :: Tala -> Nadai -> Sections -> Ruler.Ruler
-simple tala nadai sections = ruler $ simple_meter tala nadai sections
+-- | Create a ruler from just one Tala.  Section is hardcoded to 1 since
+-- usually there isn't a section structure.
+simple :: Tala -> Nadai -> Avartanams -> Ruler.Ruler
+simple tala nadai avartanams = ruler $ simple_meter tala nadai 1 avartanams
 
 -- | 4 avartanams of the given tala.
-simple_meter :: Tala -> Nadai -> Sections -> Meter.LabeledMeter
-simple_meter tala nadai sections = make_meter [Ruler tala sections 4 nadai 1]
+simple_meter :: Tala -> Nadai -> Sections -> Avartanams -> Meter.LabeledMeter
+simple_meter tala nadai sections avartanams = make_meter $ (:[]) $ Ruler
+    { ruler_tala = tala
+    , ruler_sections = sections
+    , ruler_avartanams = avartanams
+    , ruler_nadai = nadai
+    , ruler_dur = 1
+    }
 
--- | n sections of 4 avartanams of everyone's favorite talam.
-adi :: Sections -> Ruler.Ruler
+-- | n avartanams of everyone's favorite talam.
+adi :: Avartanams -> Ruler.Ruler
 adi = simple adi_tala 4
 
 -- | 'adi' but in tisram.
-adi3 :: Sections -> Ruler.Ruler
+adi3 :: Avartanams -> Ruler.Ruler
 adi3 = simple adi_tala 3
 
 -- * implementation
