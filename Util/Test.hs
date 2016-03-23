@@ -104,7 +104,7 @@ equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
 equal a b
     | a == b = success $ pretty True
     | otherwise = failure $ pretty False
-    where pretty = pretty_compare "==" "/=" a b
+    where pretty = pretty_compare "==" "/=" True a b
 
 right_equal :: (Stack, Show err, Show a, Eq a) => Either err a -> a -> IO Bool
 right_equal (Right a) b = equal a b
@@ -112,20 +112,24 @@ right_equal (Left err) _ = failure $ "Left: " <> PPrint.pshow err
 
 not_equal :: (Stack, Show a, Eq a) => a -> a -> IO Bool
 not_equal a b
-    | a /= b = success $ pretty False
-    | otherwise = failure $ pretty True
-    where pretty = pretty_compare "==" "/=" a b
+    | a == b = failure $ pretty True
+    | otherwise = success $ pretty False
+    where pretty = pretty_compare "==" "/=" False a b
 
 -- | Show the values nicely, whether they are equal or not.
 pretty_compare :: Show a =>
     String -- ^ equal operator
     -> String -- ^ inequal operator
-    -> a -> a -> Bool -> String
-pretty_compare equal inequal a b is_equal
+    -> Bool -- ^ If True then equal is expected so inequal will be highlighted
+    -- red.  Otherwise, inequal is expected and highlighted green.
+    -> a -> a -> Bool -- ^ True if as are equal
+    -> String
+pretty_compare equal inequal expect_equal a b is_equal
     | is_equal = equal <> " " <> ellipse (show a)
-    | big_values = '\n' : diff_values inequal pa pb
-    | otherwise = pa <> " " <> inequal <> " " <> pb
+    | not big_values = pa <> " " <> inequal <> " " <> pb
+    | otherwise = '\n' : diff_values color inequal pa pb
     where
+    color = if expect_equal then vt100_red else vt100_green
     -- If the values are a bit long, run the diff highlighter on them.
     big_values = '\n' `elem` pa || '\n' `elem` pb || length pa + length pb >= 60
     -- Equal values are usually not interesting, so abbreviate if they're too
@@ -139,24 +143,24 @@ pretty_compare equal inequal a b is_equal
     pb = Seq.strip $ PPrint.pshow b
 
 -- | Diff two strings and highlight the different parts.
-diff_values :: String -> String -> String -> String
-diff_values inequal first second = concat
-    [ Seq.strip $ highlight_lines firsts first
+diff_values :: ColorCode -> String -> String -> String -> String
+diff_values color inequal first second = concat
+    [ Seq.strip $ highlight_lines color firsts first
     , "\n\t" ++ inequal ++ "\n"
-    , Seq.strip $ highlight_lines seconds second
+    , Seq.strip $ highlight_lines color seconds second
     ]
     where (firsts, seconds) = diff first second
 
-highlight_lines :: IntMap.IntMap [CharRange] -> String -> String
-highlight_lines nums = unlines . zipWith hi [0..] . lines
+highlight_lines :: ColorCode -> IntMap.IntMap [CharRange] -> String -> String
+highlight_lines color nums = unlines . zipWith hi [0..] . lines
     where
     hi i line = case IntMap.lookup i nums of
-        Just ranges -> highlight_red_ranges ranges line
+        Just ranges -> highlight_ranges color ranges line
         Nothing -> line
 
-highlight_red_ranges :: [CharRange] -> String -> String
-highlight_red_ranges ranges text = concatMap hi (split_ranges ranges text)
-    where hi (outside, inside) = outside ++ highlight_red inside
+highlight_ranges :: ColorCode -> [CharRange] -> String -> String
+highlight_ranges color ranges text = concatMap hi (split_ranges ranges text)
+    where hi (outside, inside) = outside ++ highlight color inside
 
 split_ranges :: [(Int, Int)] -> [a] -> [([a], [a])] -- ^ (out, in) pairs
 split_ranges ranges = go 0 ranges
@@ -222,7 +226,7 @@ equalf :: (Stack, Show a, ApproxEq.ApproxEq a) => Double -> a -> a -> IO Bool
 equalf eta a b
     | ApproxEq.eq eta a b = success $ pretty True
     | otherwise = failure $ pretty False
-    where pretty = pretty_compare "~~" "/~" a b
+    where pretty = pretty_compare "~~" "/~" True a b
 
 -- * other assertions
 
@@ -366,15 +370,20 @@ failure msg = do
     print_test_line ?stack vt100_red "__-> " msg
     return False
 
-print_test_line :: Stack.CallStack -> String -> String -> String -> IO ()
-print_test_line stack color_code prefix msg = do
+print_test_line :: Stack.CallStack -> ColorCode -> String -> String -> IO ()
+print_test_line stack color prefix msg = do
     -- Make sure the output doesn't get mixed with trace debug msgs.
     force msg
-    -- A little magic to make failures more obvious in tty output.
     isatty <- Terminal.queryTerminal IO.stdOutput
     test_name <- config_test_name <$> IORef.readIORef test_config
-    putStrLn $ highlight isatty color_code $ prefix
-        ++ show_stack test_name stack ++ " " ++ msg
+    let full_msg = prefix <> show_stack test_name stack <> " " <> msg
+        highlighted
+            -- I only want colors in tty output.
+            | not isatty = strip_colors full_msg
+            -- Don't put on a color if it already has some.
+            | vt100_prefix `List.isInfixOf` full_msg = full_msg
+            | otherwise = highlight color full_msg
+    putStrLn highlighted
 
 show_stack :: String -> Stack.CallStack -> String
 show_stack test_name =
@@ -385,26 +394,31 @@ show_stack test_name =
         ++ " [" ++ test_name ++ "]"
 
 -- | Highlight the line unless the text already has highlighting in it.
-highlight :: Bool -> String -> String -> String
-highlight isatty code text
-    | isatty = if code `List.isInfixOf` text then text
-        else code ++ text ++ vt100_normal
-    | otherwise = Seq.replace code "" $ Seq.replace vt100_normal "" text
+highlight :: ColorCode -> String -> String
+highlight (ColorCode code) text
+    | null text = text
+    | otherwise = code <> text <> vt100_normal
 
-highlight_red :: String -> String
-highlight_red text
-    | null text = ""
-    | otherwise = vt100_red ++ text ++ vt100_normal
+-- | Remove vt100 color codes.
+strip_colors :: String -> String
+strip_colors text = case Seq.split vt100_prefix text of
+    x : xs -> concat $ x : map (drop 1 . dropWhile (/='m')) xs
+    [] -> ""
 
--- | These codes should probably come from termcap, but I can't be bothered.
-vt100_red :: String
-vt100_red = "\ESC[31m"
+newtype ColorCode = ColorCode String deriving (Show)
 
-vt100_green :: String
-vt100_green = "\ESC[32m"
+vt100_prefix :: String
+vt100_prefix = "\ESC["
 
 vt100_normal :: String
 vt100_normal = "\ESC[m\ESC[m"
+
+-- | These codes should probably come from termcap, but I can't be bothered.
+vt100_red :: ColorCode
+vt100_red = ColorCode "\ESC[31m"
+
+vt100_green :: ColorCode
+vt100_green = ColorCode "\ESC[32m"
 
 -- | getChar with no buffering.
 human_get_char :: IO Char

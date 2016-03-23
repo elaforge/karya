@@ -3,6 +3,21 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - get rid of the Cmd.Cmd type alias, it's Identity restriction means tests
+    that use IO can't call it, and doesn't really pull its weight anyway.
+  - Just scales at the b-c transition are awkward because if you change
+    %just-base across it you jump an octave.  %t-oct can work but it has to be
+    global or input is awkward.  So, put it in transform?
+    . That's less convenient than editing a block but that's a UI problem.
+    . MidiThru doesn't seem to apply it though.
+    . Wait, how does it get %just-base, but not %t-oct?
+    . It should pick up both from Perf.derive_at, and the environ.  Write
+      a test to demonstrate, and then I can also resolve the TODO in
+      MidiThru.map_scale.
+  - Write a test for Bali.pasang_thru, this also tests MidiThru treatment of
+    environ.
+    . CmdTest.update_performance: why no damage if config was changed and
+      block added?
   * For the ruler, I kind of don't like the whole idea of sections.  I already
     have too many levels.  At least not for Cmd.Tala, where each avartanam can
     be quite long.  It turns out I never have a block with multiple sections,
