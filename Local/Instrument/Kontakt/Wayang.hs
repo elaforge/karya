@@ -7,6 +7,7 @@ module Local.Instrument.Kontakt.Wayang where
 import qualified Midi.Key2 as Key2
 import qualified Midi.Midi as Midi
 import qualified Ui.StateConfig as StateConfig
+import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -15,7 +16,6 @@ import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.Scale.BaliScales as BaliScales
 import qualified Derive.Scale.Legong as Legong

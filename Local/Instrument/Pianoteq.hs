@@ -8,6 +8,7 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 
 import qualified Midi.Midi as Midi
+import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Make as Make
@@ -15,7 +16,6 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
-import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 

@@ -3,7 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 -- | Calls for Balinese instruments.
-module Derive.Instrument.Bali where
+module Cmd.Instrument.Bali where
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.InputNote as InputNote
 import qualified Cmd.Instrument.MidiInst as MidiInst

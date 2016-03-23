@@ -16,6 +16,7 @@ import qualified Midi.Midi as Midi
 
 import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Instrument.Bali as Bali
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
@@ -33,7 +34,6 @@ import qualified Derive.Call.Prelude.Note as Note
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.EnvKey as EnvKey
-import qualified Derive.Instrument.Bali as Bali
 import qualified Derive.Instrument.DUtil as DUtil
 import qualified Derive.PSignal as PSignal
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
