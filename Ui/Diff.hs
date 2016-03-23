@@ -322,8 +322,11 @@ run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
 derive_diff :: State.State -> State.State -> [Update.UiUpdate]
     -> Derive.ScoreDamage
 derive_diff st1 st2 updates = postproc $ run_derive_diff $ do
-    mapM_ (uncurry3 derive_diff_block) $
-        Map.zip_intersection (State.state_blocks st1) (State.state_blocks st2)
+    mapM_ (uncurry derive_diff_block) $
+        Map.pairs (State.state_blocks st1) (State.state_blocks st2)
+    -- This doesn't check for added or removed tracks, because for them to
+    -- have any effect they must be added to or removed from a block, which
+    -- 'derive_diff_block' will catch.
     mapM_ (uncurry3 derive_diff_track) $
         Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
     where
@@ -344,6 +347,7 @@ postproc_damage state (Derive.ScoreDamage tracks _ blocks) =
     track_of_block (Block.TId tid _) = Map.member tid tracks
     track_of_block _ = False
 
+-- | Derive damage from UiUpdates.
 updates_damage :: Map.Map RulerId [BlockId] -> [Update.UiUpdate]
     -> Derive.ScoreDamage
 updates_damage block_rulers updates = mempty
@@ -352,22 +356,29 @@ updates_damage block_rulers updates = mempty
     }
     where
     tracks = Map.fromListWith (<>) $ mapMaybe Update.track_changed updates
-    blocks = Set.fromList [block_id | Update.Ruler ruler_id <- updates,
-        block_id <- Map.findWithDefault [] ruler_id block_rulers]
+    blocks = Set.fromList
+        [ block_id
+        | Update.Ruler ruler_id <- updates
+        , block_id <- Map.findWithDefault [] ruler_id block_rulers
+        ]
 
-derive_diff_block :: BlockId -> Block.Block -> Block.Block -> DeriveDiffM ()
-derive_diff_block block_id block1 block2 = do
-    let unequal f = unequal_on f block1 block2
-    when (unequal (Text.strip . Block.block_title)
-            || unequal Block.block_skeleton)
-        block_damage
-    let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
-    let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
-    forM_ tpairs $ \(_, pair) -> case pair of
-        Seq.Both track1 track2
-            | flags_differ track1 track2 -> block_damage
-            | otherwise -> return ()
-        _ -> block_damage
+derive_diff_block :: BlockId -> Seq.Paired Block.Block Block.Block
+    -> DeriveDiffM ()
+derive_diff_block block_id pair = case pair of
+    Seq.Both block1 block2 -> do
+        let unequal f = unequal_on f block1 block2
+        when (unequal (Text.strip . Block.block_title)
+                || unequal Block.block_skeleton)
+            block_damage
+        let (ts1, ts2) = (Block.block_tracks block1, Block.block_tracks block2)
+        let tpairs = Seq.indexed_pairs_on Block.tracklike_id ts1 ts2
+        forM_ tpairs $ \(_, pair) -> case pair of
+            Seq.Both track1 track2
+                | flags_differ track1 track2 -> block_damage
+                | otherwise -> return ()
+            _ -> block_damage
+    Seq.First _ -> block_damage
+    Seq.Second _ -> block_damage
     where
     block_damage =
         Writer.tell $ mempty { Derive.sdamage_blocks = Set.singleton block_id }

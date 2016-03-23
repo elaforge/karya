@@ -79,6 +79,15 @@ test_derive_diff = do
         (mkdamage [] [] [])
     equal (f (State.add_track_flag bid 2 Block.Collapse))
         (mkdamage [] [] [])
+    let tlike = Block.TId (UiTest.mk_tid 4) State.no_ruler
+    equal (f (State.insert_track bid 3 (Block.track tlike 10)))
+        (mkdamage [] [] [bid])
+
+test_derive_diff_add_remove_block = do
+    let f from to = Diff.derive_diff from to []
+    let ([_tid], ustate) = UiTest.run_mkblock [(">i", [])]
+    equal (f State.empty ustate) (mkdamage [] [] [bid])
+    equal (f ustate State.empty) (mkdamage [] [] [bid])
 
 test_derive_diff_updates = do
     let ([_, tid2], ustate) = UiTest.run_mkblock
