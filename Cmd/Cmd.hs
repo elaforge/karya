@@ -979,8 +979,10 @@ get_performance :: M m => BlockId -> m Performance
 get_performance block_id = abort_unless =<< lookup_performance block_id
 
 -- | Clear all performances, which will cause them to be rederived.
--- It could get out of IO by using unsafePerformIO to kill the threads (it
--- should be safe), but I won't do it unless I have to.
+-- It's in IO because it wants to kill any threads still deriving.
+--
+-- TODO I'm not actually sure if this is safe.  A stale DeriveComplete
+-- coming in should be ignored, right?  Why not State.update_all_tracks?
 invalidate_performances :: CmdT IO ()
 invalidate_performances = do
     threads <- gets (Map.elems . state_performance_threads . state_play)

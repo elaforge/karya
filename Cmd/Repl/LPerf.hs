@@ -153,7 +153,7 @@ inst_controls block_id =
 
 -- | Clear out all caches and rederive from scratch.
 rederive :: Cmd.CmdL ()
-rederive = PlayUtil.clear_caches
+rederive = Cmd.invalidate_performances
 
 compare_cached_events :: BlockId
     -> Cmd.CmdL [Either Simple.ScoreEvent Simple.ScoreEvent]

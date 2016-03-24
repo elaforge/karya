@@ -3,6 +3,13 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * Shouldn't I be verifying this ScoreDamage stuff with a test?  Cache_test?
+    Then I can show if config changes are reflected.
+  * Config change causes all blocks to be damaged, but does that really work?
+    Wouldn't the cache just notice that "nothing changed" and emit the old
+    score?
+    . No, because caching is at track level, and that takes out all the
+      caches.
   - get rid of the Cmd.Cmd type alias, it's Identity restriction means tests
     that use IO can't call it, and doesn't really pull its weight anyway.
   - Just scales at the b-c transition are awkward because if you change

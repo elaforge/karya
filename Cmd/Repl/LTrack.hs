@@ -155,13 +155,11 @@ drop_dups = ModifyEvents.selection $ ModifyEvents.events $
 filled :: Cmd.CmdL ()
 filled = do
     (block_id, _, track_ids, _, _) <- Selection.tracks
-    PlayUtil.clear_cache block_id
     mapM_ (State.set_render_style (Track.Filled Nothing)) track_ids
 
 line :: Cmd.CmdL ()
 line = do
     (block_id, _, track_ids, _, _) <- Selection.tracks
-    PlayUtil.clear_cache block_id
     mapM_ (State.set_render_style (Track.Line Nothing)) track_ids
 
 note_pitch :: Cmd.CmdL ()
@@ -180,7 +178,6 @@ note_render :: Cmd.M m => (Maybe Track.RenderSource -> Track.RenderStyle)
 note_render mode control_name = do
     control <- Cmd.require_right id $ Score.parse_generic_control control_name
     (block_id, _, track_ids, _, _) <- Selection.tracks
-    PlayUtil.clear_cache block_id
     track_ids <- filterM is_note track_ids
     mapM_ (State.set_render_style
         (mode (Just (either Track.Control Track.Pitch control)))) track_ids
@@ -190,5 +187,4 @@ note_render mode control_name = do
 no_render :: Cmd.CmdL ()
 no_render = do
     (block_id, _, track_ids, _, _) <- Selection.tracks
-    PlayUtil.clear_cache block_id
     mapM_ (State.set_render_style Track.NoRender) track_ids

@@ -17,11 +17,13 @@ import qualified Ui.Diff as Diff
 import qualified Ui.Event as Event
 import qualified Ui.Events as Events
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
 import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
 import qualified Derive.Cache as Cache
+import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
@@ -29,6 +31,7 @@ import qualified Derive.Stack as Stack
 import qualified Derive.Stream as Stream
 import qualified Derive.TrackWarp as TrackWarp
 
+import qualified Instrument.Common as Common
 import Global
 import Types
 
@@ -155,6 +158,28 @@ test_subblock_damage = do
             create $ insert_event "sub.t1" 0 1 ""
     equal (diff_events cached uncached) []
     equal (DeriveTest.extract Score.event_start cached) ([0, 2], [])
+
+test_config_damage = do
+    let create = mkblocks
+            [ ("top", [(">i1", [(0, 1, "sub")])])
+            , ("sub=ruler", [(">", [(0, 1, "")]), ("*", [(0, 0, "4c")])])
+            ]
+    -- I can't change StateConfig.config_global_transform because that will
+    -- invalidate the cache via changed stack.
+    let (_, cached, uncached) = compare_cached create $
+            modify_alloc_config UiTest.i1 $
+                Common.controls #= Map.fromList [(Controls.octave, 1)]
+    equal (diff_events cached uncached) []
+    equal (DeriveTest.extract DeriveTest.e_pitch cached) (["5c"], [])
+
+modify_alloc_config :: State.M m => Score.Instrument
+    -> (Common.Config -> Common.Config) -> m ()
+modify_alloc_config inst modify =
+    State.modify_config $ State.allocations_map %= Map.alter mod inst
+    where
+    mod Nothing = error $ "modify_alloc_config: no inst " <> prettys inst
+    mod (Just alloc) = Just $ alloc
+        { StateConfig.alloc_config = modify (StateConfig.alloc_config alloc) }
 
 test_logs = do
     let create = mkblocks

@@ -83,23 +83,18 @@ get_default_tempo :: Cmd.CmdL Signal.Y
 get_default_tempo = State.config#State.default_#State.tempo <#> State.get
 
 set_default_tempo :: Signal.Y -> Cmd.CmdL ()
-set_default_tempo t = do
-    modify_config $ State.default_#State.tempo #= t
-    PlayUtil.clear_caches
-
-modify_config :: (State.Config -> State.Config) -> Cmd.CmdL ()
-modify_config f = State.modify_config f >> Cmd.invalidate_performances
+set_default_tempo t = State.modify_config $ State.default_#State.tempo #= t
 
 -- | 'State.config_global_transform' is an expression that's applied to the
 -- output of derivation.
 set_transform :: Text -> Cmd.CmdL ()
-set_transform = State.modify . (State.config#State.global_transform #=)
+set_transform = State.modify_config . (State.global_transform #=)
 
 get_transform :: Cmd.CmdL Text
 get_transform = State.config#State.global_transform <#> State.get
 
 transform :: (Text -> Text) -> Cmd.CmdL ()
-transform = State.modify . (State.config#State.global_transform %=)
+transform = State.modify_config . (State.global_transform %=)
 
 set_ky :: Maybe FilePath -> Cmd.CmdL ()
 set_ky = State.modify_config . (State.ky_file #=)
@@ -112,10 +107,10 @@ get_meta = State.config#State.meta <#> State.get
 set_creation_time :: Cmd.CmdL ()
 set_creation_time = do
     now <- liftIO Time.getCurrentTime
-    State.modify $ State.config#State.meta#State.creation #= now
+    State.modify_config $ State.meta#State.creation #= now
 
 set_notes :: Text -> Cmd.CmdL ()
-set_notes = State.modify . (State.config#State.meta#State.notes #=)
+set_notes = State.modify_config . (State.meta#State.notes #=)
 
 -- *** midi performance
 

@@ -88,7 +88,6 @@ import qualified Cmd.Create as Create
 import qualified Cmd.Meter as Meter
 import qualified Cmd.Meters as Meters
 import qualified Cmd.NoteTrack as NoteTrack
-import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.RulerUtil as RulerUtil
 import qualified Cmd.Selection as Selection
 
@@ -451,16 +450,12 @@ modify = (modify_m =<<)
 -- | Modify a ruler or rulers, making a copy if they're shared with another
 -- block.
 local_m :: Cmd.M m => Modify -> m [RulerId]
-local_m (Modify block_id scope modify) = do
-    PlayUtil.clear_caches -- The ruler can affect derivation.
-    RulerUtil.local scope block_id modify
+local_m (Modify block_id scope modify) = RulerUtil.local scope block_id modify
 
 -- | Modify the ruler on the focused block.  Other blocks with the same ruler
 -- will also be modified.
 modify_m :: Cmd.M m => Modify -> m ()
-modify_m (Modify block_id scope modify) = do
-    PlayUtil.clear_caches
-    RulerUtil.modify scope block_id modify
+modify_m (Modify block_id scope modify) = RulerUtil.modify scope block_id modify
 
 -- | Modify a local copy of the main block ruler.
 local_ruler :: State.M m => BlockId -> (Ruler.Ruler -> Ruler.Ruler) -> m RulerId

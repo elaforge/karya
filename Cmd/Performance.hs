@@ -156,11 +156,13 @@ kill_threads = do
 
 -- * performance evaluation
 
--- | True if this BlockId should be regenerated.  This happens if there is any
--- damage, or if there is no existing performance.  I use
--- 'Cmd.state_performance_threads' and not 'Cmd.state_current_performance',
--- because the thread is filled in synchronously, while the current performance
--- is filled in later.
+-- | True if this BlockId should be regenerated.  This happens if there is
+-- no performance, which means either there never was one, or it was deleted
+-- by 'kill_threads' thanks to ScoreDamage.
+--
+-- I use 'Cmd.state_performance_threads' and not
+-- 'Cmd.state_current_performance', because the thread is filled in
+-- synchronously, while the current performance is filled in later.
 needs_generate :: Cmd.State -> BlockId -> Bool
 needs_generate state block_id = not (Map.member block_id perfs)
     where perfs = Cmd.state_performance_threads $ Cmd.state_play state

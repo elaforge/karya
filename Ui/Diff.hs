@@ -321,14 +321,22 @@ run_derive_diff = snd . Identity.runIdentity . Writer.runWriterT
 -- a block without a view.
 derive_diff :: State.State -> State.State -> [Update.UiUpdate]
     -> Derive.ScoreDamage
-derive_diff st1 st2 updates = postproc $ run_derive_diff $ do
-    mapM_ (uncurry derive_diff_block) $
-        Map.pairs (State.state_blocks st1) (State.state_blocks st2)
-    -- This doesn't check for added or removed tracks, because for them to
-    -- have any effect they must be added to or removed from a block, which
-    -- 'derive_diff_block' will catch.
-    mapM_ (uncurry3 derive_diff_track) $
-        Map.zip_intersection (State.state_tracks st1) (State.state_tracks st2)
+derive_diff st1 st2 updates = postproc $ run_derive_diff $
+    -- If the config has changed, then everything is damaged.
+    if unequal_on State.state_config st1 st2
+    then Writer.tell $ mempty
+        { Derive.sdamage_blocks = Map.keysSet (State.state_blocks st1)
+            <> Map.keysSet (State.state_blocks st2)
+        }
+    else do
+        mapM_ (uncurry derive_diff_block) $
+            Map.pairs (State.state_blocks st1) (State.state_blocks st2)
+        -- This doesn't check for added or removed tracks, because for them to
+        -- have any effect they must be added to or removed from a block, which
+        -- 'derive_diff_block' will catch.
+        mapM_ (uncurry3 derive_diff_track) $
+            Map.zip_intersection (State.state_tracks st1)
+                (State.state_tracks st2)
     where
     postproc = postproc_damage st2 . (updates_damage block_rulers updates <>)
     block_rulers = Map.multimap
@@ -377,6 +385,10 @@ derive_diff_block block_id pair = case pair of
                 | flags_differ track1 track2 -> block_damage
                 | otherwise -> return ()
             _ -> block_damage
+    -- This means I wind up with damage on a block that is gone.  I think this
+    -- is correct, since the cache will still have recorded dependencies on
+    -- that block, which will cause its dependents to be rederived, as
+    -- expected.
     Seq.First _ -> block_damage
     Seq.Second _ -> block_damage
     where
@@ -391,9 +403,12 @@ flags_differ track1 track2 = relevant track1 /= relevant track2
 
 derive_diff_track :: TrackId -> Track.Track -> Track.Track -> DeriveDiffM ()
 derive_diff_track track_id track1 track2 =
-    when (unequal_on (Text.strip . Track.track_title) track1 track2) $
+    when (unequal (Text.strip . Track.track_title)
+            || unequal Track.track_render) $
         Writer.tell $ mempty { Derive.sdamage_tracks =
             Map.singleton track_id Ranges.everything }
+    where
+    unequal f = unequal_on f track1 track2
 
 -- * score_changed
 

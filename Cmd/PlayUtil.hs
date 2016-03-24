@@ -7,7 +7,6 @@
 module Cmd.PlayUtil (
     initial_environ
     , cached_derive, uncached_derive
-    , clear_cache, clear_caches
     , derive_block, run, run_with_dynamic
     , is_score_damage_log
     , get_constant, initial_dynamic
@@ -77,22 +76,6 @@ cached_derive block_id = do
 
 uncached_derive :: Cmd.M m => BlockId -> m Derive.Result
 uncached_derive = derive_block mempty mempty
-
-clear_cache :: Cmd.M m => BlockId -> m ()
-clear_cache block_id = Cmd.modify_play_state $ \st -> st
-    { Cmd.state_performance = delete (Cmd.state_performance st)
-    , Cmd.state_current_performance = delete (Cmd.state_current_performance st)
-    -- Must remove this too or it won't want to rederive.
-    , Cmd.state_performance_threads = delete (Cmd.state_performance_threads st)
-    }
-    where delete = Map.delete block_id
-
-clear_caches :: Cmd.M m => m ()
-clear_caches = Cmd.modify_play_state $ \st -> st
-    { Cmd.state_performance = mempty
-    , Cmd.state_current_performance = mempty
-    , Cmd.state_performance_threads = mempty
-    }
 
 -- | Derive the contents of the given block to score events.
 derive_block :: Cmd.M m => Derive.Cache -> Derive.ScoreDamage

@@ -12,11 +12,14 @@ import qualified Ui.Block as Block
 import qualified Ui.Diff as Diff
 import qualified Ui.Skeleton as Skeleton
 import qualified Ui.State as State
+import qualified Ui.StateConfig as StateConfig
+import qualified Ui.Track as Track
 import qualified Ui.UiTest as UiTest
 import qualified Ui.Update as Update
 
 import qualified Derive.Derive as Derive
 import qualified App.Config as Config
+import Global
 import Types
 
 
@@ -69,8 +72,12 @@ test_derive_diff = do
             , (">i", [(0, 1, ""), (1, 1, "")])
             ]
     let f modify = Diff.derive_diff ustate (UiTest.exec ustate modify) []
+    -- Track damage.
     equal (f (State.set_track_title tid2 ">i2"))
         (mkdamage [(tid2, Ranges.everything)] [bid] [])
+    equal (f (State.set_render_style (Track.Filled Nothing) tid2))
+        (mkdamage [(tid2, Ranges.everything)] [bid] [])
+    -- Block damage.
     equal (f (State.set_block_title bid "new"))
         (mkdamage [] [] [bid])
     equal (f (State.set_skeleton bid (Skeleton.make [(2, 1)])))
@@ -79,15 +86,19 @@ test_derive_diff = do
         (mkdamage [] [] [])
     equal (f (State.add_track_flag bid 2 Block.Collapse))
         (mkdamage [] [] [])
+    -- Config damage.
     let tlike = Block.TId (UiTest.mk_tid 4) State.no_ruler
     equal (f (State.insert_track bid 3 (Block.track tlike 10)))
         (mkdamage [] [] [bid])
-
-test_derive_diff_add_remove_block = do
-    let f from to = Diff.derive_diff from to []
-    let ([_tid], ustate) = UiTest.run_mkblock [(">i", [])]
-    equal (f State.empty ustate) (mkdamage [] [] [bid])
-    equal (f ustate State.empty) (mkdamage [] [] [bid])
+    let modify_config = State.modify_default $ StateConfig.tempo #= 0.5
+    equal (f modify_config) (mkdamage [] [] [bid])
+    -- A config change damages blocks that were removed as well.
+    equal (f (modify_config >> State.destroy_block bid))
+        (mkdamage [] [] [bid])
+    -- Add and remove blocks.
+    equal (f (UiTest.create_block (UiTest.mkid "new") "" []))
+        (mkdamage [] [] [UiTest.bid "new"])
+    equal (f (State.destroy_block bid)) (mkdamage [] [] [bid])
 
 test_derive_diff_updates = do
     let ([_, tid2], ustate) = UiTest.run_mkblock
@@ -98,6 +109,7 @@ test_derive_diff_updates = do
     equal (f [Update.Track tid2 (Update.TrackEvents 1 2)])
         (mkdamage [(tid2, Ranges.range 1 2)] [bid] [])
 
+bid :: BlockId
 bid = UiTest.default_block_id
 
 mkdamage :: [(TrackId, Ranges.Ranges ScoreTime)] -> [BlockId] -> [BlockId]
