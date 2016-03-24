@@ -112,14 +112,18 @@ instance Show Performance where
         -- there are mysteriously no events.
 
 instance Pretty.Pretty Performance where
-    format perf = Pretty.record "Performance"
-        [ ("cache", Pretty.format (Map.keys c))
-        , ("events", Pretty.format (Vector.length (perf_events perf)))
-        , ("integrated", Pretty.format (perf_integrated perf))
-        , ("damage", Pretty.format (perf_damage perf))
-        , ("warps", Pretty.format (perf_warps perf))
+    format (Performance cache events logs logs_written track_dynamic
+            integrated damage warps track_signals) = Pretty.record "Performance"
+        [ ("cache", Pretty.format $ Map.keys $ (\(Derive.Cache c) -> c) cache)
+        , ("events", Pretty.format (Vector.length events))
+        , ("logs", Pretty.format logs)
+        , ("logs_written", Pretty.format logs_written)
+        , ("track_dynamic", Pretty.format track_dynamic)
+        , ("integrated", Pretty.format integrated)
+        , ("damage", Pretty.format damage)
+        , ("warps", Pretty.format warps)
+        , ("track_signals", Pretty.format track_signals)
         ]
-        where Derive.Cache c = perf_derive_cache perf
 
 -- * views
 
