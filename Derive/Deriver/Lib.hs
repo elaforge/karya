@@ -441,12 +441,14 @@ with_instrument_aliases aliases deriver = do
         resolve inst = Map.findWithDefault inst inst old_aliases
 
 get_instrument :: Score.Instrument -> Deriver (Score.Instrument, Instrument)
-get_instrument inst = do
-    (real_inst, result) <- lookup_instrument inst
-    let msg = "no instrument found for " <> ShowVal.show_val real_inst
-            <> if real_inst == inst then ""
-                else " (aliased from " <> ShowVal.show_val inst <> ")"
-    require msg ((,) real_inst <$> result)
+get_instrument score_inst = do
+    (real_inst, result) <- lookup_instrument score_inst
+    case result of
+        Nothing -> throw $ "no instrument found for "
+            <> ShowVal.show_val real_inst
+            <> if real_inst == score_inst then ""
+                else " (aliased from " <> ShowVal.show_val score_inst <> ")"
+        Just inst -> return (real_inst, inst)
 
 -- | Look up the instrument.  Also return the instrument name after resolving
 -- any alias.  This is what goes in 'Score.event_instrument', since it's what

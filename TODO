@@ -3,10 +3,13 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - The problem with Bali.pasang_thru is that I still get the normal thru.
+  / The problem with Bali.pasang_thru is that I still get the normal thru.
     The two ways I can think of to solve this is to somehow replace the
     thru command, or disable by setting a flag.  I'm not even sure how to do
     the first since cmds are all kind of the same.
+    . Actually, the pasang instrument should be a Dummy, so the default thru
+      should abort on it.  So at least for the moment it seems I don't need
+      this.
   * Shouldn't I be verifying this ScoreDamage stuff with a test?  Cache_test?
     Then I can show if config changes are reflected.
   * Config change causes all blocks to be damaged, but does that really work?
@@ -25,7 +28,7 @@ UNSORTED
     . It should pick up both from Perf.derive_at, and the environ.  Write
       a test to demonstrate, and then I can also resolve the TODO in
       MidiThru.map_scale.
-  - Write a test for Bali.pasang_thru, this also tests MidiThru treatment of
+  * Write a test for Bali.pasang_thru, this also tests MidiThru treatment of
     environ.
     . CmdTest.update_performance: why no damage if config was changed and
       block added?

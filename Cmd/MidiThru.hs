@@ -107,9 +107,10 @@ midi_thru_instrument score_inst input = do
         =<< (State.allocation score_inst <#> State.get)
     midi_config <- case StateConfig.alloc_backend alloc of
         StateConfig.Midi midi_config -> return midi_config
-        StateConfig.Dummy ->
-            Cmd.throw $ "can't do MIDI thru for a Dummy instrument: "
-                <> pretty score_inst
+        -- Explicitly abort on a Dummy.  If you want thru for a Dummy, then it
+        -- should install its own thru cmd (that presumably uses a non-Dummy),
+        -- and this one will abort and be effectively disabled.
+        StateConfig.Dummy -> Cmd.abort
         _ -> Cmd.abort -- Ignore non-MIDI instruments.
     let addrs = map fst $ Patch.config_addrs midi_config
     unless (null addrs) $ do
