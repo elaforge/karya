@@ -87,13 +87,12 @@ import Perform.Midi.Patch (Addr)
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
-import qualified Instrument.Common as Common
 import qualified Instrument.Inst as Inst
 import Global
 
 
 -- | Send midi thru, addressing it to the given Instrument.
-cmd_midi_thru :: Cmd.Cmd
+cmd_midi_thru :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_midi_thru msg = do
     input <- case msg of
         Msg.InputNote input -> return input
@@ -108,31 +107,31 @@ midi_thru_instrument score_inst input = do
         =<< (State.allocation score_inst <#> State.get)
     midi_config <- case StateConfig.alloc_backend alloc of
         StateConfig.Midi midi_config -> return midi_config
+        StateConfig.Dummy ->
+            Cmd.throw $ "can't do MIDI thru for a Dummy instrument: "
+                <> pretty score_inst
         _ -> Cmd.abort -- Ignore non-MIDI instruments.
     let addrs = map fst $ Patch.config_addrs midi_config
     unless (null addrs) $ do
         scale <- Perf.get_scale =<< Selection.track
         inst <- Cmd.require ("no instrument: " <> pretty score_inst)
             =<< Cmd.lookup_instrument score_inst
-        patch <- Cmd.require ("midi patch for " <> pretty score_inst) $
+        patch <- Cmd.require ("no midi patch for " <> pretty score_inst) $
             Inst.inst_midi inst
-        input <- Cmd.require
+        input_nn <- Cmd.require
             (pretty (Scale.scale_id scale) <> " doesn't have " <> pretty input)
-            =<< map_scale patch (Inst.inst_common inst)
-                (StateConfig.alloc_config alloc) scale input
-
+            =<< input_to_nn score_inst (Patch.patch_scale patch) scale input
         wdev_state <- Cmd.get_wdev_state
         let (thru_msgs, maybe_wdev_state) =
-                input_to_midi pb_range wdev_state addrs input
+                input_to_midi pb_range wdev_state addrs input_nn
             pb_range = Patch.patch_pitch_bend_range patch
         whenJust maybe_wdev_state $ Cmd.modify_wdev_state . const
         mapM_ (uncurry Cmd.midi) thru_msgs
 
 -- | Realize the Input as a pitch in the given scale.
-map_scale :: Cmd.M m => Patch.Patch -> Common.Common a
-    -> Common.Config -> Scale.Scale
+input_to_nn :: Cmd.M m => Score.Instrument -> Maybe Patch.Scale -> Scale.Scale
     -> InputNote.Input -> m (Maybe InputNote.InputNn)
-map_scale patch common config scale input = case input of
+input_to_nn inst patch_scale scale input = case input of
     InputNote.NoteOn note_id input vel -> do
         maybe_nn <- convert input
         return $ fmap (\k -> InputNote.NoteOn note_id k vel) maybe_nn
@@ -148,11 +147,8 @@ map_scale patch common config scale input = case input of
         (block_id, _, track_id, pos) <- Selection.get_insert
         -- I ignore _logs, any interesting errors should be in 'result'.
         (result, _logs) <- Perf.derive_at block_id track_id $
-            -- Environ is important because it may set scale values that
-            -- influence the pitch.  TODO but shouldn't it already come from
-            -- Perf.derive_at?  And shouldn't I not override that?
-            Derive.with_environ (Common.get_environ common) $
-            only_allow_octave_transpose (Common.config_controls config) scale $
+            Derive.with_instrument inst $
+            allow_only_octave_transpose scale $
             Scale.scale_input_to_nn scale pos input
         case result of
             Left err -> throw $ "derive_at: " <> err
@@ -160,21 +156,17 @@ map_scale patch common config scale input = case input of
             -- no need to shout about it.
             Right (Left BaseTypes.InvalidInput) -> Cmd.abort
             Right (Left err) -> throw $ pretty err
-            Right (Right nn) -> return $
-                map_instrument_scale (Patch.patch_scale patch) nn
+            Right (Right nn) -> return $ map_instrument_scale patch_scale nn
         where throw = Cmd.throw .  ("error deriving input key's nn: " <>)
 
 -- | Remove transposers because otherwise the thru pitch doesn't match the
 -- entered pitch and it's very confusing.  However, I retain 'Controls.octave'
 -- so I can use 'Patch.config_controls' to fix the octave on instruments
 -- that have it wrong.
-only_allow_octave_transpose :: Score.ControlValMap -> Scale.Scale
-    -> Derive.Deriver a -> Derive.Deriver a
-only_allow_octave_transpose controls scale =
-    Derive.with_controls ((Controls.octave, octave) : transposers)
+allow_only_octave_transpose :: Scale.Scale -> Derive.Deriver a
+    -> Derive.Deriver a
+allow_only_octave_transpose scale = Derive.with_controls transposers
     where
-    octave = Score.untyped $ Signal.constant $
-        Map.findWithDefault 0 Controls.octave controls
     transposers =
         zip (filter (/=Controls.octave)
             (Set.toList (Scale.scale_transposers scale)))

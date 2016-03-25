@@ -3,6 +3,10 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - The problem with Bali.pasang_thru is that I still get the normal thru.
+    The two ways I can think of to solve this is to somehow replace the
+    thru command, or disable by setting a flag.  I'm not even sure how to do
+    the first since cmds are all kind of the same.
   * Shouldn't I be verifying this ScoreDamage stuff with a test?  Cache_test?
     Then I can show if config changes are reflected.
   * Config change causes all blocks to be damaged, but does that really work?
@@ -12,7 +16,7 @@ UNSORTED
       caches.
   - get rid of the Cmd.Cmd type alias, it's Identity restriction means tests
     that use IO can't call it, and doesn't really pull its weight anyway.
-  - Just scales at the b-c transition are awkward because if you change
+  * Just scales at the b-c transition are awkward because if you change
     %just-base across it you jump an octave.  %t-oct can work but it has to be
     global or input is awkward.  So, put it in transform?
     . That's less convenient than editing a block but that's a UI problem.
