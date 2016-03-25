@@ -761,6 +761,12 @@ type Tracks = (BlockId, [TrackNum], [TrackId], TrackTime, TrackTime)
 tracks :: Cmd.M m => m Tracks
 tracks = tracks_selnum Config.insert_selnum
 
+-- | Just the TrackIds part of 'tracks'.
+track_ids :: Cmd.M m => m [TrackId]
+track_ids = do
+    (_, _, track_ids, _, _) <- tracks
+    return track_ids
+
 tracknums :: Cmd.M m => m (BlockId, [TrackNum])
 tracknums = do
     (block_id, tracknums, _, _, _) <- tracks

@@ -21,7 +21,6 @@ import qualified Ui.Types as Types
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
 import qualified Cmd.ModifyEvents as ModifyEvents
-import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Selection as Selection
 
 import qualified Derive.ParseTitle as ParseTitle
@@ -153,14 +152,12 @@ drop_dups = ModifyEvents.selection $ ModifyEvents.events $
 -- * signal render
 
 filled :: Cmd.CmdL ()
-filled = do
-    (block_id, _, track_ids, _, _) <- Selection.tracks
-    mapM_ (State.set_render_style (Track.Filled Nothing)) track_ids
+filled = mapM_ (State.set_render_style (Track.Filled Nothing))
+    =<< Selection.track_ids
 
 line :: Cmd.CmdL ()
-line = do
-    (block_id, _, track_ids, _, _) <- Selection.tracks
-    mapM_ (State.set_render_style (Track.Line Nothing)) track_ids
+line = mapM_ (State.set_render_style (Track.Line Nothing))
+    =<< Selection.track_ids
 
 note_pitch :: Cmd.CmdL ()
 note_pitch = nline "#"
@@ -177,7 +174,7 @@ note_render :: Cmd.M m => (Maybe Track.RenderSource -> Track.RenderStyle)
     -> m ()
 note_render mode control_name = do
     control <- Cmd.require_right id $ Score.parse_generic_control control_name
-    (block_id, _, track_ids, _, _) <- Selection.tracks
+    track_ids <- Selection.track_ids
     track_ids <- filterM is_note track_ids
     mapM_ (State.set_render_style
         (mode (Just (either Track.Control Track.Pitch control)))) track_ids
@@ -185,6 +182,5 @@ note_render mode control_name = do
     is_note = fmap ParseTitle.is_note_track . State.get_track_title
 
 no_render :: Cmd.CmdL ()
-no_render = do
-    (block_id, _, track_ids, _, _) <- Selection.tracks
-    mapM_ (State.set_render_style Track.NoRender) track_ids
+no_render =
+    mapM_ (State.set_render_style Track.NoRender) =<< Selection.track_ids
