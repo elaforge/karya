@@ -16,6 +16,7 @@ import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Cmd.Msg as Msg
 
 import qualified Derive.Attrs as Attrs
 import Derive.Attrs (soft)
@@ -197,7 +198,7 @@ pasang_code =
     <> MidiInst.note_generators c_pasang_calls
     <> MidiInst.cmd pasang_cmd
 
-pasang_cmd :: Cmd.Cmd
+pasang_cmd :: Cmd.M m => Msg.Msg -> m Cmd.Status
 pasang_cmd = CUtil.insert_call $ Map.fromList
     [(char, name) | (char, name, _, _) <- pasang_calls]
 

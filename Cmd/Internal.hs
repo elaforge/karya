@@ -55,7 +55,7 @@ import Types
 -- * record keys
 
 -- | Record keydowns into the 'State' modifier map.
-cmd_record_keys :: Cmd.Cmd
+cmd_record_keys :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_record_keys msg = cont $ whenJust (msg_to_mod msg) $ \(down, mb_mod) -> do
     mods <- Cmd.keys_down
     -- The kbd model is that absolute sets of modifiers are sent over, but the
@@ -129,7 +129,7 @@ msg_to_mod msg = case msg of
 -- * focus
 
 -- | Keep 'Cmd.state_focused_view' up to date.
-record_focus :: Cmd.Cmd
+record_focus :: Cmd.M m => Msg.Msg -> m Cmd.Status
 record_focus msg = case msg of
     Msg.Ui (UiMsg.UiMsg (UiMsg.Context { UiMsg.ctx_focus = Just view_id }) msg)
             -> do
@@ -153,7 +153,7 @@ set_focused_view view_id = do
 -- Unlike all the other Cmds, the state changes this makes are not synced.
 -- UiUpdates report changes that have already occurred directly on the UI, so
 -- syncing them would be redundant.
-cmd_record_ui_updates :: Cmd.Cmd
+cmd_record_ui_updates :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_record_ui_updates (Msg.Ui (UiMsg.UiMsg _
         (UiMsg.UpdateScreenSize screen screens rect))) = do
     Cmd.modify $ \st -> st { Cmd.state_screens =
@@ -168,7 +168,7 @@ cmd_record_ui_updates msg = do
     -- return Continue to give 'update_ui_state' a crack at it
     return Cmd.Continue
 
-ui_update :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> Cmd.CmdId ()
+ui_update :: Cmd.M m => Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> m ()
 ui_update maybe_tracknum view_id update = case update of
     UiMsg.UpdateTrackScroll hpos -> State.set_track_scroll view_id hpos
     UiMsg.UpdateTimeScroll offset -> State.modify_zoom view_id $ \zoom ->
@@ -197,7 +197,7 @@ ui_update maybe_tracknum view_id update = case update of
 -- | This is the other half of 'cmd_record_ui_updates', whose output is synced
 -- like normal Cmds.  When its a block update I have to update the other
 -- views.
-update_ui_state :: Cmd.Cmd
+update_ui_state :: Cmd.M m => Msg.Msg -> m Cmd.Status
 update_ui_state msg = do
     (ctx, view_id, update) <- Cmd.abort_unless (update_of msg)
     if UiMsg.ctx_floating_input ctx
@@ -209,7 +209,7 @@ update_ui_state msg = do
             ui_update_state (fst <$> UiMsg.ctx_track ctx) view_id update
             return Cmd.Done
 
-ui_update_state :: Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> Cmd.CmdId ()
+ui_update_state :: Cmd.M m => Maybe TrackNum -> ViewId -> UiMsg.UiUpdate -> m ()
 ui_update_state maybe_tracknum view_id update = case update of
     UiMsg.UpdateInput (Just text) -> do
         view <- State.get_view view_id

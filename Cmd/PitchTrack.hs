@@ -41,7 +41,7 @@ import Global
 --
 -- Like control tracks, @'@ will add a @'@ call, which repeats the last value.
 -- This is useful to extend a constant pitch value to the desired breakpoint.
-cmd_val_edit :: Cmd.Cmd
+cmd_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
     EditUtil.fallthrough msg
     case msg of
@@ -63,7 +63,7 @@ cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "pitch track val edit" $ do
 -- | Method edit directs keystrokes to the (optional) call around the pitch
 -- call.  Pitches by themselves simply set a constant pitch by default, but
 -- a call can create an interpolated curve, or a trill, or anything really.
-cmd_method_edit :: Cmd.Cmd
+cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
         "pitch track method edit" $ do
     EditUtil.fallthrough msg
@@ -85,7 +85,7 @@ method_edit_at pos key = modify_event_at pos $ \event ->
         False)
 
 -- | Record the last note entered.  Should be called by 'with_note'.
-cmd_record_note_status :: Cmd.Cmd
+cmd_record_note_status :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_record_note_status msg = do
     case msg of
         Msg.InputNote (InputNote.NoteOn _ input _) -> do

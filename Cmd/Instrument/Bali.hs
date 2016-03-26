@@ -22,7 +22,7 @@ pasang_code :: MidiInst.Code
 pasang_code = MidiInst.cmd pasang_thru
 
 -- | Dispatch MIDI through to both polos and sangsih instruments.
-pasang_thru :: Cmd.Cmd
+pasang_thru :: Cmd.M m => Msg.Msg -> m Cmd.Status
 pasang_thru msg = do
     NoteEntry.run_cmds_with_input [cmd] msg
     -- This cmd just does midi thru, so I don't want it to return Done and

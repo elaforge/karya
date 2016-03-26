@@ -162,7 +162,8 @@ type States = (State.State, Cmd.State)
 
 -- | Thread a bunch of msgs through the command with the selection set to
 -- (1, 0).
-thread :: [String] -> (Cmd.State -> Cmd.State) -> Cmd.Cmd
+thread :: [String] -> (Cmd.State -> Cmd.State)
+    -> (Msg.Msg -> Cmd.CmdId Cmd.Status)
     -> [Msg.Msg] -> Either String (State.State, Cmd.State)
 thread tracks modify_cmd_state cmd msgs =
     CmdTest.thread_tracks [(t, []) | t <- tracks] modify_cmd_state

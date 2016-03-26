@@ -75,7 +75,7 @@ import qualified App.Config as Config
 import Global
 
 
-pure_cmds :: [Cmd.Cmd]
+pure_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
 pure_cmds = [Keymap.make_cmd (fst (Keymap.make_cmd_map pure_bindings))]
 
 io_cmds :: [Msg.Msg -> Cmd.CmdIO]

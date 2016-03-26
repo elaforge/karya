@@ -637,7 +637,7 @@ event_at track_id pos =
 -- | Handle UpdateInput that comes back from the floating input.
 --
 -- A leading space will create a zero duration event.
-handle_floating_input :: Bool -> Cmd.Cmd
+handle_floating_input :: Cmd.M m => Bool -> Msg.Msg -> m Cmd.Status
 handle_floating_input zero_dur msg = do
     text <- Cmd.abort_unless $ floating_input_msg msg
     EditUtil.Pos block_id tracknum start dur <- EditUtil.get_pos

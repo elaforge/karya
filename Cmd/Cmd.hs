@@ -100,10 +100,6 @@ import Global
 import Types
 
 
--- | This makes Cmds more specific than they have to be, and doesn't let them
--- run in other monads like IO.  It's unlikely to become a problem, but if it
--- does, I'll have to stop using these aliases.
-type Cmd = Msg.Msg -> CmdId Status
 type CmdId = CmdT Identity.Identity
 -- | Yes this is inconsistent with CmdId, but since IO is in the Prelude a type
 -- alias wouldn't help much.
@@ -760,7 +756,7 @@ perf_closest_warp = TrackWarp.closest_warp . perf_warps
 data InstrumentCode = InstrumentCode {
     inst_calls :: !Derive.InstrumentCalls
     , inst_postproc :: !InstrumentPostproc
-    , inst_cmds :: ![Cmd]
+    , inst_cmds :: ![Msg.Msg -> CmdId Status]
     }
 
 -- | Process each event before conversion.  This is like a postproc call,

@@ -21,6 +21,7 @@ import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.Keymap as Keymap
+import qualified Cmd.Msg as Msg
 
 import qualified Derive.Args as Args
 import qualified Derive.Attrs as Attrs
@@ -363,7 +364,7 @@ hang_code =
         ]
     <> MidiInst.cmd hang_cmd
 
-hang_cmd :: Cmd.Cmd
+hang_cmd :: Cmd.M m => Msg.Msg -> m Cmd.Status
 hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)
     | (_, key, Just text, Just char) <- hang_strokes]
 

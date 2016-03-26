@@ -14,6 +14,7 @@ import qualified Cmd.Edit as Edit
 import qualified Cmd.Info as Info
 import qualified Cmd.Keymap as Keymap
 import qualified Cmd.MidiThru as MidiThru
+import qualified Cmd.Msg as Msg
 import qualified Cmd.NoteEntry as NoteEntry
 import qualified Cmd.NoteTrack as NoteTrack
 import qualified Cmd.NoteTrackKeymap as NoteTrackKeymap
@@ -29,7 +30,7 @@ import Global
 import Types
 
 
-track_cmd :: Cmd.Cmd
+track_cmd :: Msg.Msg -> Cmd.CmdId Cmd.Status
 track_cmd msg = do
     cmds <- get_track_cmds `Except.catchError` \exc -> do
         case exc of
@@ -41,7 +42,7 @@ track_cmd msg = do
     Cmd.sequence_cmds cmds msg
 
 -- | Get cmds according to the currently focused block and track.
-get_track_cmds :: Cmd.CmdId [Cmd.Cmd]
+get_track_cmds :: Cmd.CmdId [Msg.Msg -> Cmd.CmdId Cmd.Status]
 get_track_cmds = do
     -- If this fails, it means the the track type can't be determined and there
     -- will be no track cmds.
@@ -95,7 +96,7 @@ lookup_inst block_id track_id =
 
 -- | Cmds that use InputNotes, and hence must be called with
 -- 'NoteEntry.cmds_with_input'.
-input_cmds :: Cmd.EditMode -> Info.Track -> [Cmd.Cmd]
+input_cmds :: Cmd.EditMode -> Info.Track -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
 input_cmds edit_mode track = universal ++ case Info.track_type track of
     Info.Note _ children
         | null children -> case edit_mode of
@@ -119,7 +120,7 @@ input_cmds edit_mode track = universal ++ case Info.track_type track of
         State.track_title (Info.track_info track)
 
 -- | Track-specific Cmds.
-track_cmds :: Cmd.EditMode -> Info.Track -> [Cmd.Cmd]
+track_cmds :: Cmd.EditMode -> Info.Track -> [Msg.Msg -> Cmd.CmdId Cmd.Status]
 track_cmds edit_mode track = case Info.track_type track of
     Info.Note {} -> case edit_mode of
         Cmd.MethodEdit -> [NoteTrack.cmd_method_edit]
@@ -132,7 +133,7 @@ track_cmds edit_mode track = case Info.track_type track of
         _ -> []
 
 -- | Track-specific keymaps.
-keymap_cmds :: Cmd.M m => Info.Track -> m [Cmd.Cmd]
+keymap_cmds :: Cmd.M m => Info.Track -> m [Msg.Msg -> Cmd.CmdId Cmd.Status]
 keymap_cmds track = case Info.track_type track of
     Info.Note {} -> do
         let (cmd_map, warns) = NoteTrackKeymap.make_keymap

@@ -43,6 +43,7 @@ import qualified Util.Seq as Seq
 import qualified Midi.Midi as Midi
 import qualified Ui.StateConfig as StateConfig
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Make as Make
 import qualified Derive.Derive as Derive
@@ -98,7 +99,7 @@ data Code = Code {
         [Derive.LookupCall (Derive.Transformer Derive.Note)]
     , code_val_calls :: [Derive.LookupCall Derive.ValCall]
     , code_postproc :: Cmd.InstrumentPostproc
-    , code_cmds :: [Cmd.Cmd]
+    , code_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
     }
 
 instance Pretty.Pretty Code where
@@ -158,7 +159,7 @@ note_transformers calls =
 postproc :: Cmd.InstrumentPostproc -> Code
 postproc post = mempty { code_postproc = post }
 
-cmd :: Cmd.Cmd -> Code
+cmd :: (Msg.Msg -> Cmd.CmdId Cmd.Status) -> Code
 cmd c = mempty { code_cmds = [c] }
 
 -- * Patch

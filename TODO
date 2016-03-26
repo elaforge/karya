@@ -23,7 +23,7 @@ UNSORTED
     score?
     . No, because caching is at track level, and that takes out all the
       caches.
-  - get rid of the Cmd.Cmd type alias, it's Identity restriction means tests
+  * get rid of the Cmd.Cmd type alias, its Identity restriction means tests
     that use IO can't call it, and doesn't really pull its weight anyway.
     . On the other hand, what if I want to give another argument or change the
       type of the cmd?  I think in those cases the code in all those Cmds will

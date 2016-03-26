@@ -67,7 +67,7 @@ data ControlTrack = ControlTrack {
 --
 -- If I'm in chord mode, try to find the next track and put notes there.  If
 -- there is no appropriate next track, the cmd will throw an error.
-cmd_val_edit :: Cmd.Cmd
+cmd_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_val_edit msg = Cmd.suppress_history Cmd.ValEdit "note track val edit" $ do
     EditUtil.fallthrough msg
     EditUtil.Pos block_id sel_tracknum pos dur <- EditUtil.get_pos
@@ -237,7 +237,7 @@ find_pitch_track note_id = do
 -- * method edit
 
 -- | Method edit is redirected to the pitch track, creating one if necessary.
-cmd_method_edit :: Cmd.Cmd
+cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_method_edit msg = Cmd.suppress_history Cmd.MethodEdit
         "note track method edit" $ do
     EditUtil.fallthrough msg

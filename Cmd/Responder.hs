@@ -420,7 +420,7 @@ run_core_cmds msg = do
     mapM_ (run_throw . Right . ($msg)) io_cmds
 
 -- | These cmds always get the first shot at the Msg.
-hardcoded_cmds :: [Cmd.Cmd]
+hardcoded_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status]
 hardcoded_cmds =
     [Internal.record_focus, Internal.update_ui_state, Track.track_cmd]
 

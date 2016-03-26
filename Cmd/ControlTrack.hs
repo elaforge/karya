@@ -40,7 +40,7 @@ import Types
     The @'@ key will enter a @'@ call, which repeats the last value.  This is
     useful to extend a constant pitch value to the desired breakpoint.
 -}
-cmd_val_edit :: Cmd.Cmd
+cmd_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_val_edit msg = suppress "control track val edit" $ do
     EditUtil.fallthrough msg
     (_, _, track_id, _) <- Selection.get_insert
@@ -51,7 +51,7 @@ cmd_val_edit msg = suppress "control track val edit" $ do
 
 -- | Editing a tempo track is just like editing a normal control track, except
 -- that it doesn't do the hex entry thing.
-cmd_tempo_val_edit :: Cmd.Cmd
+cmd_tempo_val_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_tempo_val_edit msg = suppress "tempo track val edit" $ do
     EditUtil.fallthrough msg
     edit_non_normalized msg
@@ -155,7 +155,7 @@ update_hex val_ key
         _ -> Nothing
         where strip t = msum $ map (($t) . Text.stripPrefix) normalized_prefixes
 
-cmd_method_edit :: Cmd.Cmd
+cmd_method_edit :: Cmd.M m => Msg.Msg -> m Cmd.Status
 cmd_method_edit msg =
     Cmd.suppress_history Cmd.MethodEdit "control track method edit" $ do
     EditUtil.fallthrough msg

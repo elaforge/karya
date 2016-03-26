@@ -40,8 +40,8 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
-import qualified Perform.NN as NN
 import qualified Perform.Midi.Patch as Patch
+import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
 
@@ -196,7 +196,7 @@ drum_code tuning_control notes =
     MidiInst.note_generators (drum_calls tuning_control notes)
     <> MidiInst.cmd (drum_cmd notes)
 
-drum_cmd :: [Drums.Note] -> Cmd.Cmd
+drum_cmd :: Cmd.M m => [Drums.Note] -> Msg.Msg -> m Cmd.Status
 drum_cmd = insert_call . notes_to_calls
 
 -- ** patch
