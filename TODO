@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - The regression tests have been failing, but it was hidden because they
+  * The regression tests have been failing, but it was hidden because they
     printed a "loading" msg first, that hid the '__'.  This 'grep stdout'
     thing seems kind of sketchy.  Finally switch to a more reliable scheme?
     . Nah, I'll just fix the problem with printing a partial line that can

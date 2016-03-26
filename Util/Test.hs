@@ -333,13 +333,19 @@ print_timer :: String -> (Double -> Double -> a -> String) -> IO a -> IO a
 print_timer msg show_val op = do
     Printf.printf "%s - " msg
     IO.hFlush IO.stdout
-    (val, cpu_secs, secs) <- timer $ do
+    result <- Exception.try $ timer $ do
         !val <- op
         return val
-    Printf.printf "time: %.2fs cpu %.2fs wall - %s\n" cpu_secs secs
-        (show_val cpu_secs secs val)
-    IO.hFlush IO.stdout
-    return val
+    case result of
+        Right (val, cpu_secs, secs) -> do
+            Printf.printf "time: %.2fs cpu %.2fs wall - %s\n" cpu_secs secs
+                (show_val cpu_secs secs val)
+            return val
+        Left (exc :: Exception.SomeException) -> do
+            -- Complete the line so the exception doesn't interrupt it.  This
+            -- is important if it's a 'failure' line!
+            putStrLn $ "threw exception: " <> show exc
+            Exception.throwIO exc
 
 force :: DeepSeq.NFData a => a -> IO ()
 force x = x `DeepSeq.deepseq` return ()
