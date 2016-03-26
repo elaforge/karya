@@ -22,7 +22,7 @@ import qualified System.Process as Process
 
 import qualified Util.Regex as Regex
 import qualified Util.Seq as Seq
-import qualified Util.Test as Test
+import qualified Util.Testing as Testing
 
 
 data Test = Test {
@@ -76,8 +76,8 @@ runTests argv0 tests flags args
     | List `elem` flags = printTests
     | otherwise = do
         when (NonInteractive `elem` flags) $
-            Test.modify_test_config $ \config ->
-                config { Test.config_skip_human = True }
+            Testing.modify_test_config $ \config ->
+                config { Testing.config_skip_human = True }
         printTests
         let (initTests, nonInitTests) =
                 List.partition (Maybe.isJust . testInitialize) matches
@@ -96,8 +96,8 @@ runSubprocess argv0 test = do
     putStrLn $ "subprocess: " ++ show argv0 ++ " " ++ show [testName test]
     val <- Process.rawSystem argv0 [testName test]
     case val of
-        System.Exit.ExitFailure code -> Test.with_test_name (testName test) $
-            void $ Test.failure $
+        System.Exit.ExitFailure code -> Testing.with_test_name (testName test) $
+            void $ Testing.failure $
                 "test returned " ++ show code ++ ": " ++ testName test
         _ -> return ()
 
@@ -115,7 +115,7 @@ matchingTests regexes tests = concatMap match regexes
             tests
 
 runTest :: Test -> IO ()
-runTest test = Test.with_test_name (last (Seq.split "." (testName test))) $ do
+runTest test = Testing.with_test_name name $ do
     putStrLn $ unwords [metaPrefix, "run-test", testName test]
     start <- CPUTime.getCPUTime
     maybe id id (testInitialize test) $ catch (testSymName test) (testRun test)
@@ -126,13 +126,14 @@ runTest test = Test.with_test_name (last (Seq.split "." (testName test))) $ do
     putStrLn $ unwords [metaPrefix, "timing ", testName test,
         Numeric.showFFloat (Just 3) secs ""]
     return ()
+    where name = last (Seq.split "." (testName test))
 
 catch :: String -> IO a -> IO ()
 catch name op = do
     result <- Exception.try op
     case result of
         Left (exc :: Exception.SomeException) -> do
-            void $ Test.failure $ name ++ " threw exception: " ++ show exc
+            void $ Testing.failure $ name ++ " threw exception: " ++ show exc
             -- Die on async exception, otherwise it will try to continue
             -- after ^C or out of memory.
             case Exception.fromException exc of

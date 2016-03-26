@@ -5,7 +5,8 @@
 -- | Try to find space leaks in specific functions.
 module Derive.SpaceLeak_profile where
 import qualified Util.Seq as Seq
-import Util.Test
+import qualified Util.Testing as Testing
+
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Post.Postproc as Postproc
 import qualified Derive.DeriveTest as DeriveTest
@@ -23,6 +24,6 @@ profile_cancel = do
         inst = Score.Instrument "i1"
     let events = make [(s, 1, "4c", [], inst) | s <- Seq.range 0 (1024 * 50) 1]
     -- With force, run with -K2905K
-    force events
-    print_timer "force" (\_ _ val -> "done: " <> val) $
+    Testing.force events
+    Testing.print_timer "force" (\_ _ val -> "done: " <> val) $
         return $! either show (show . length . Stream.to_list) $ f events

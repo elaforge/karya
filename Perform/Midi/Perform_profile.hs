@@ -6,7 +6,7 @@ module Perform.Midi.Perform_profile where
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
-import Util.Test
+import qualified Util.Testing as Testing
 import qualified Midi.Midi as Midi
 import qualified Derive.Controls as Controls
 import qualified Derive.DeriveTest as DeriveTest
@@ -36,8 +36,7 @@ profile_notes = do
     let evts = take (event_count 2) [mkevent n 1 [] Signal.empty | n <- [0..]]
     run_multiple evts $ \arg -> do
         let (msgs, logs) = perform arg
-        force logs
-        force msgs
+        Testing.force (logs, msgs)
         return $ show (length msgs) ++ " msgs"
 
 profile_control = do
@@ -49,8 +48,7 @@ profile_control = do
     run_multiple cont $ \arg -> do
         let (msgs, warns) = Perform.perform_control Control.empty_map 0 0
                 (Just (RealTime.seconds len)) 42 arg
-        force warns
-        force msgs
+        Testing.force (warns, msgs)
         return $ show (length msgs) ++ " msgs"
 
 profile_complex = do
@@ -65,8 +63,7 @@ profile_complex = do
     let evts = take (event_count 18) (map event [0,4..])
     run_multiple evts $ \arg -> do
         let (msgs, logs) = perform arg
-        force logs
-        force msgs
+        Testing.force (logs, msgs)
         return $ show (length msgs) ++ " msgs"
 
 profile_multiplex = do
@@ -77,8 +74,7 @@ profile_multiplex = do
     let evts = take (event_count 18) (map event [0..])
     run_multiple evts $ \arg -> do
         let (msgs, logs) = perform arg
-        force logs
-        force msgs
+        Testing.force (logs, msgs)
         return $ show (length msgs) ++ " msgs"
 
 
@@ -95,7 +91,7 @@ run_multiple :: a -> (a -> IO String) -> IO ()
 run_multiple arg action = forM_ [1..6] $ \n -> do
     putStr $ show n ++ ": "
     IO.hFlush IO.stdout
-    print_timer (show n) (\_ _ -> id) (action arg)
+    Testing.print_timer (show n) (\_ _ -> id) (action arg)
 
 mkevent :: Double -> Double -> [(Score.Control, Signal.Control)]
     -> Signal.NoteNumber -> Types.Event

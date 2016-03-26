@@ -5,6 +5,8 @@
 module Cmd.SaveGit_test where
 import qualified Util.Git as Git
 import Util.Test
+import qualified Util.Testing as Testing
+
 import qualified Ui.Diff as Diff
 import qualified Ui.Events as Events
 import qualified Ui.Id as Id
@@ -148,4 +150,4 @@ mkview :: [UiTest.TrackSpec] -> State.StateId ()
 mkview tracks = void $ UiTest.mkblock_view (UiTest.default_block_name, tracks)
 
 new_repo :: IO FilePath
-new_repo = (++ SaveGit.git_suffix) <$> unique_tmp_dir "git"
+new_repo = (++ SaveGit.git_suffix) <$> Testing.unique_tmp_dir "git"

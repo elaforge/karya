@@ -15,7 +15,7 @@ import qualified Util.Log as Log
 import qualified Util.Num as Num
 import qualified Util.Ranges as Ranges
 import qualified Util.Seq as Seq
-import qualified Util.Test as Test
+import qualified Util.Testing as Testing
 
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
@@ -409,7 +409,7 @@ cmd_config inst_db = Cmd.Config
     }
 
 default_im_notes :: FilePath
-default_im_notes = Test.tmp_base_dir </> "im_notes"
+default_im_notes = Testing.tmp_base_dir </> "im_notes"
 
 default_lookup_scale :: Derive.LookupScale
 default_lookup_scale = Scale.All.lookup_scale

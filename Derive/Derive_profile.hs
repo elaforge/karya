@@ -11,7 +11,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
 import qualified Util.Seq as Seq
-import Util.Test
+import qualified Util.Testing as Testing
 
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Ui.State as State
@@ -177,12 +177,13 @@ derive_saved with_perform fname = do
 
 derive_size :: State.StateId a -> IO ()
 derive_size create = do
-    print_timer "force mmsgs" (\_ _ _ -> "done") (force mmsgs)
-    print_timer "gc" (\_ _ _ -> "") Mem.performGC
+    Testing.print_timer "force mmsgs" (\_ _ _ -> "done") (Testing.force mmsgs)
+    Testing.print_timer "gc" (\_ _ _ -> "") Mem.performGC
     -- This puts a gap in the heap graph so I can tell which each phase begins.
     -- Surely there is a less ridiculous way to do this.
-    print_timer "busy" (\_ _ -> id) $ return $ show (busy_wait 100000000)
-    print_timer "length" (\_ _ -> id) $ return $ show (length mmsgs)
+    Testing.print_timer "busy" (\_ _ -> id) $ return $ show
+        (busy_wait 100000000)
+    Testing.print_timer "length" (\_ _ -> id) $ return $ show (length mmsgs)
     return ()
     where
     ui_state = UiTest.exec State.empty create
@@ -215,21 +216,21 @@ run_profile fname maybe_lookup ui_state = do
     let result = DeriveTest.derive_block ui_state block_id
     let events = Stream.to_list $ Derive.r_events result
     section "derive" $ do
-        force events
-        prettyp events
+        Testing.force events
+        Testing.prettyp events
         return events
     whenJust maybe_lookup $ \lookup -> section "midi" $ do
         let mmsgs = snd $ DeriveTest.perform_stream lookup
                 (State.config#State.allocations #$ ui_state)
                 (Stream.from_sorted_list events)
-        force mmsgs
+        Testing.force mmsgs
         return mmsgs
 
 time_section :: Integer -> String -> IO [a] -> IO ()
 time_section start_cpu title op = do
     putStr $ "--> " ++ title ++ ": "
     IO.hFlush IO.stdout
-    (vals, cpu_secs, _secs) <- timer op
+    (vals, cpu_secs, _secs) <- Testing.timer op
     cur_cpu <- CPUTime.getCPUTime
     let len = length vals
     Printf.printf "%d vals -> %.2f (%.2f / sec) (running: %.2f)\n"

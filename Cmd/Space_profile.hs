@@ -8,6 +8,8 @@ import qualified Data.Map as Map
 
 import qualified Util.Memory as Memory
 import Util.Test
+import qualified Util.Testing as Testing
+
 import qualified Ui.State as State
 import qualified Ui.Transform as Transform
 import qualified Cmd.Save as Save
@@ -30,7 +32,7 @@ profile_load = do
 
 load :: FilePath -> IO State.State
 load fname = do
-    result <- print_timer ("unserialize " ++ show fname)
+    result <- Testing.print_timer ("unserialize " ++ show fname)
         (\_ _ _ -> "") (Save.read_state_ fname)
     return $ expect_right "load" result
 

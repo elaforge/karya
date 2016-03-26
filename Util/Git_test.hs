@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified Util.Git as Git
 import Util.Git (Modification(..))
 import Util.Test
+import qualified Util.Testing as Testing
 
 
 test_misc = Git.initialize $ do
@@ -107,6 +108,6 @@ test_modifications_to_dir = Git.initialize $ do
 
 new_repo :: IO FilePath
 new_repo = do
-    repo <- unique_tmp_dir "git"
+    repo <- Testing.unique_tmp_dir "git"
     io_equal (Git.init repo) False
     return repo

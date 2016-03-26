@@ -12,7 +12,7 @@ import System.FilePath ((</>))
 import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
-import qualified Util.Test as Test
+import qualified Util.Testing as Testing
 import qualified Midi.Midi as Midi
 import qualified Midi.StubMidi as StubMidi
 import qualified Ui.State as State
@@ -59,16 +59,16 @@ add_library lib state = state
 timed_perform :: Cmd.State -> FilePath -> State.State -> Cmd.Events
     -> IO ([Midi.WriteMessage], [Log.Msg])
 timed_perform cmd_state msg state events =
-    Test.print_timer msg (timer_msg (length . fst)) $ do
+    Testing.print_timer msg (timer_msg (length . fst)) $ do
         let (msgs, logs) = perform cmd_state state events
-        Test.force (msgs, logs)
+        Testing.force (msgs, logs)
         return (msgs, logs)
 
 timed_derive :: FilePath -> State.State -> Cmd.State -> BlockId
     -> IO (Cmd.Events, [Log.Msg])
 timed_derive name ui_state cmd_state block_id = do
     let (perf, logs) = Performance.derive ui_state cmd_state block_id
-    Test.print_timer name (timer_msg Vector.length) $ do
+    Testing.print_timer name (timer_msg Vector.length) $ do
         () <- return $ Msg.force_performance perf
         return $! Cmd.perf_events perf
     let warns = filter ((>=Log.Warn) . Log.msg_priority) (Cmd.perf_logs perf)
@@ -86,7 +86,7 @@ timed_derive2 name ui_state cmd_state block_id =
             let (events, derive_logs) = first Vector.fromList $
                     Stream.partition $ Derive.r_events result
                 msg = "derive " <> name <> " " <> prettys block_id
-            events <- Test.print_timer msg (timer_msg Vector.length)
+            events <- Testing.print_timer msg (timer_msg Vector.length)
                 (return $! events)
             return (events, cmd_logs ++ filter (not . boring) derive_logs)
     where
@@ -102,7 +102,7 @@ timed_lilypond name ui_state cmd_state block_id = case result of
     Left err -> return (Left err, [])
     Right (levents, cmd_logs) -> do
         let (events, derive_logs) = Stream.partition levents
-        events <- Test.print_timer ("lilypond " <> name) (timer_msg length)
+        events <- Testing.print_timer ("lilypond " <> name) (timer_msg length)
             (return $! events)
         let (result, ly_logs) = Cmd.Lilypond.extract_movements
                 config "title" events
@@ -144,23 +144,25 @@ perform cmd_state ui_state events =
 -- | Load a score and its accompanying local definitions library, if it has one.
 load_score :: FilePath -> IO (Either Text (State.State, Derive.Library))
 load_score fname =
-    Test.print_timer ("load " ++ fname) (\_ _ _ -> "") $ Except.runExceptT $ do
-        save <- require_right $ Save.infer_save_type fname
-        (state, dir) <- case save of
-            Cmd.SaveRepo repo -> do
-                (state, _, _) <- require_right $ SaveGit.load repo Nothing
-                return (state, FilePath.takeDirectory repo)
-            Cmd.SaveState fname -> do
-                state <- require_right $ Save.read_state_ fname
-                return (state, FilePath.takeDirectory fname)
-        case State.config#State.ky_file #$ state of
-            Nothing -> return (state, mempty)
-            Just ky_fname -> do
-                app_dir <- liftIO Config.get_app_dir
-                let paths = dir : map (Config.make_path app_dir) Config.ky_paths
-                (lib, _) <- either Except.throwError return
-                    =<< liftIO (Ky.load paths ky_fname)
-                return (state, lib)
+    Testing.print_timer ("load " ++ fname) (\_ _ _ -> "") $
+        Except.runExceptT $ do
+            save <- require_right $ Save.infer_save_type fname
+            (state, dir) <- case save of
+                Cmd.SaveRepo repo -> do
+                    (state, _, _) <- require_right $ SaveGit.load repo Nothing
+                    return (state, FilePath.takeDirectory repo)
+                Cmd.SaveState fname -> do
+                    state <- require_right $ Save.read_state_ fname
+                    return (state, FilePath.takeDirectory fname)
+            case State.config#State.ky_file #$ state of
+                Nothing -> return (state, mempty)
+                Just ky_fname -> do
+                    app_dir <- liftIO Config.get_app_dir
+                    let paths = dir
+                            : map (Config.make_path app_dir) Config.ky_paths
+                    (lib, _) <- either Except.throwError return
+                        =<< liftIO (Ky.load paths ky_fname)
+                    return (state, lib)
 
 require_right :: IO (Either Text a) -> Except.ExceptT Text IO a
 require_right io = either Except.throwError return =<< liftIO io
@@ -187,6 +189,6 @@ cmd_config inst_db = do
         , config_highlight_colors = mempty
         , config_im = Cmd.default_im_config
             { Cmd.im_binary = "/usr/bin/true"
-            , Cmd.im_notes = Test.tmp_base_dir </> "im_notes"
+            , Cmd.im_notes = Testing.tmp_base_dir </> "im_notes"
             }
         }

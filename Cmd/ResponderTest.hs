@@ -34,7 +34,7 @@ import qualified Text.Printf as Printf
 
 import qualified Util.Log as Log
 import qualified Util.Pretty as Pretty
-import Util.Test
+import qualified Util.Testing as Testing
 import qualified Util.Thread as Thread
 
 import qualified Midi.Interface as Interface
@@ -187,7 +187,7 @@ thread_delay :: Bool -> States -> [(Msg.Msg, Thread.Seconds)] -> IO [Result]
 thread_delay _ _ [] = return []
 thread_delay print_timing states ((msg, delay) : msgs) = do
     Printf.printf "thread msg: %s\n" (prettys msg)
-    (result, cpu_secs, _secs) <- timer $ respond_msg states msg
+    (result, cpu_secs, _secs) <- Testing.timer $ respond_msg states msg
     when print_timing $
         Printf.printf "%s -> lag: %.2fs\n" (prettys msg) cpu_secs
     Thread.delay delay
@@ -241,9 +241,9 @@ respond1 reuse_loopback (ui_state, cmd_state) maybe_cmd msg = do
     -- driver, so force explicitly here.  Not sure if this really makes
     -- a difference.
     midi <- get_vals midi_chan
-    force midi
+    Testing.force midi
     updates <- concat <$> get_vals update_chan
-    force updates
+    Testing.force updates
     let cmd_result = CmdTest.Result
             { CmdTest.result_val = Right Nothing
             , CmdTest.result_cmd_state = Responder.state_cmd rstate

@@ -3,7 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - Util.Test should have a version intended for unqualified import.
+  * Util.Test should have a version intended for unqualified import.
     Otherwise functions like 'modify_config' get in the way.
   - If I create a 0 dur note with floating edit, then make another with '.',
     the second one has a duration.

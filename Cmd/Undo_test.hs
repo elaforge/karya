@@ -10,6 +10,7 @@ import qualified Util.Git as Git
 import qualified Util.Rect as Rect
 import qualified Util.Seq as Seq
 import Util.Test
+import qualified Util.Testing as Testing
 
 import qualified Ui.Block as Block
 import qualified Ui.Id as Id
@@ -242,7 +243,7 @@ save_git repo states = do
     ResponderTest.respond_cmd states (Save.save_git_as repo)
 
 get_repo :: IO SaveGit.Repo
-get_repo = (++ SaveGit.git_suffix) <$> unique_tmp_dir "git"
+get_repo = (++ SaveGit.git_suffix) <$> Testing.unique_tmp_dir "git"
 
 -- * implementation
 

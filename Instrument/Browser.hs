@@ -40,6 +40,8 @@ import qualified Util.Seq as Seq
 
 import qualified Cmd.CallDoc as CallDoc
 import qualified Cmd.Cmd as Cmd
+import qualified Cmd.Msg as Msg
+
 import qualified Derive.Derive as Derive
 import qualified Derive.Score as Score
 import qualified Perform.Im.Patch as Im.Patch
@@ -214,7 +216,7 @@ show_control_map cmap =
     Text.intercalate ", " [Score.control_name cont <> " (" <> showt num <> ")"
         | (cont, num) <- Map.toList cmap]
 
-show_cmds :: [Cmd.Cmd] -> Text
+show_cmds :: [Msg.Msg -> Cmd.CmdId Cmd.Status] -> Text
 show_cmds [] = ""
 show_cmds cmds = showt (length cmds) <> " cmds (cmds can't be introspected yet)"
 

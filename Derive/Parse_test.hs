@@ -10,6 +10,8 @@ import System.FilePath ((</>))
 
 import qualified Util.ParseText as ParseText
 import Util.Test
+import qualified Util.Testing as Testing
+
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes (Ref(..), Symbol(..), Val(..), Call(..), Term(..))
 import qualified Derive.Parse as Parse
@@ -226,7 +228,7 @@ test_load_ky = do
     let make_ky imports defs = unlines $
             ["import '" <> i <> "'" | i <- imports]
             ++ "note generator:" : [d <> " = z" | d <- defs]
-    dir <- unique_tmp_dir "ky"
+    dir <- Testing.unique_tmp_dir "ky"
     let lib = dir </> "lib"
     Directory.createDirectory lib
     writeFile (lib </> "lib1") $ make_ky ["lib2"] ["lib1-call"]

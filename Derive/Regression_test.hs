@@ -10,7 +10,9 @@ import qualified Data.Vector as Vector
 import qualified System.FilePath as FilePath
 
 import Util.Test
+import qualified Util.Testing as Testing
 import qualified Util.Thread as Thread
+
 import Midi.Instances ()
 import qualified Cmd.DiffPerformance as DiffPerformance
 import qualified Derive.DeriveSaved as DeriveSaved
@@ -43,7 +45,7 @@ compare_performance saved score = timeout score $ do
         =<< DiffPerformance.load_midi saved
     got <- DeriveSaved.perform_file cmd_config score
     let name = FilePath.takeFileName score
-    dir <- tmp_dir "regression"
+    dir <- Testing.tmp_dir "regression"
     (maybe_diff, wrote_files) <- DiffPerformance.diff_lines name dir
         (DiffPerformance.show_midi expected) (DiffPerformance.show_midi got)
     case maybe_diff of
