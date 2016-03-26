@@ -3,6 +3,12 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - The regression tests have been failing, but it was hidden because they
+    printed a "loading" msg first, that hid the '__'.  This 'grep stdout'
+    thing seems kind of sketchy.  Finally switch to a more reliable scheme?
+    . Nah, I'll just fix the problem with printing a partial line that can
+      be interrupted.  It means that tests generally shouldn't print a partial
+      line, but I hardly ever do that.
   / The problem with Bali.pasang_thru is that I still get the normal thru.
     The two ways I can think of to solve this is to somehow replace the
     thru command, or disable by setting a flag.  I'm not even sure how to do
@@ -19,6 +25,10 @@ UNSORTED
       caches.
   - get rid of the Cmd.Cmd type alias, it's Identity restriction means tests
     that use IO can't call it, and doesn't really pull its weight anyway.
+    . On the other hand, what if I want to give another argument or change the
+      type of the cmd?  I think in those cases the code in all those Cmds will
+      also have to change, so I'll be editing all that stuff anyway.  I could
+      make Cmd more flexible with 'type Cmd m = Msg -> m Status'.
   * Just scales at the b-c transition are awkward because if you change
     %just-base across it you jump an octave.  %t-oct can work but it has to be
     global or input is awkward.  So, put it in transform?
@@ -42,7 +52,7 @@ UNSORTED
     . Or maybe it's enough to just remove the Sections arguments in Cmd.Tala?
   - Util.Test should have a version intended for unqualified import.
     Otherwise functions like 'modify_config' get in the way.
-  - In Cmd.Simple, put the dumps and loads next to each other
+  * In Cmd.Simple, put the dumps and loads next to each other
   - If I create a 0 dur note with floating edit, then make another with '.',
     the second one has a duration.
     . Apparently reproducing is not so simple.

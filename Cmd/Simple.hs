@@ -95,6 +95,8 @@ perf_event evt =
     )
     where start = Midi.Types.event_start evt
 
+-- * state
+
 dump_state :: State.M m => m State
 dump_state = do
     state <- State.get
@@ -104,6 +106,16 @@ dump_state = do
         , dump_allocations $ State.config#State.allocations #$ state
         , blocks
         )
+
+load_state :: State.M m => State -> m State.State
+load_state (global_transform, allocs, blocks) =
+    State.exec_rethrow "convert state" State.empty $ do
+        mapM_ make_block blocks
+        State.modify $
+            (State.config#State.global_transform #= global_transform)
+            . (State.config#State.allocations #= allocations allocs)
+
+-- * block
 
 dump_block :: State.M m => BlockId -> m Block
 dump_block block_id = do
@@ -120,9 +132,34 @@ dump_block block_id = do
             ++ to_skel subs
     num = State.track_tracknum
 
+load_block :: Cmd.M m => Block -> m State.State
+load_block block = State.exec_rethrow "convert block" State.empty $
+    make_block block
+
+load_block_to_clip :: FilePath -> Cmd.CmdT IO ()
+load_block_to_clip fn = read_block fn >>= Clip.state_to_clip
+
+read_block :: FilePath -> Cmd.CmdT IO State.State
+read_block fn = do
+    simple_block <- liftIO (readIO =<< readFile fn :: IO Block)
+    load_block simple_block
+
+make_block :: State.M m => Block -> m BlockId
+make_block (id_name, title, tracks, skel) = do
+    tracks <- mapM load_tracklike tracks
+    block_id <- State.create_block (Id.read_id id_name) title tracks
+    State.set_skeleton block_id (Skeleton.make skel)
+    return block_id
+
 dump_tracklike :: State.M m => Block.TracklikeId -> m (Maybe Track)
 dump_tracklike =
     maybe (return Nothing) (fmap Just . dump_track) . Block.track_id_of
+
+load_tracklike :: State.M m => Maybe Track -> m Block.Track
+load_tracklike Nothing = return $ Block.track (Block.RId State.no_ruler) 0
+load_tracklike (Just track) = load_track track
+
+-- * track
 
 dump_track :: State.M m => TrackId -> m Track
 dump_track track_id = do
@@ -134,11 +171,23 @@ simplify_track track_id track =
     (Id.ident_text track_id, Track.track_title track, map event events)
     where events = Events.ascending (Track.track_events track)
 
+load_track :: State.M m => Track -> m Block.Track
+load_track (id_name, title, events) = do
+    track_id <- State.create_track (Id.read_id id_name) $
+        Track.track title (Events.from_list (map load_event events))
+    return $ Block.track (Block.TId track_id State.no_ruler) Config.track_width
+
+load_event :: Event -> Event.Event
+load_event (start, dur, text) =
+    Event.event (ScoreTime.double start) (ScoreTime.double dur) text
+
 dump_selection :: Cmd.CmdL [(TrackId, [Event])]
 dump_selection = do
     track_events <- Selection.events
     return [(track_id, map event events)
         | (track_id, _, events) <- track_events]
+
+-- * allocations
 
 dump_allocations :: StateConfig.Allocations -> Allocations
 dump_allocations (StateConfig.Allocations allocs) = do
@@ -152,50 +201,6 @@ dump_allocations (StateConfig.Allocations allocs) = do
     where
     addrs_of config = [(Midi.write_device_text dev, chan)
         | ((dev, chan), _) <- Patch.config_addrs config]
-
-
--- * load
-
-load_state :: State.M m => State -> m State.State
-load_state (global_transform, allocs, blocks) =
-    State.exec_rethrow "convert state" State.empty $ do
-        mapM_ make_block blocks
-        State.modify $
-            (State.config#State.global_transform #= global_transform)
-            . (State.config#State.allocations #= allocations allocs)
-
-load_block_to_clip :: FilePath -> Cmd.CmdT IO ()
-load_block_to_clip fn = read_block fn >>= Clip.state_to_clip
-
-read_block :: FilePath -> Cmd.CmdT IO State.State
-read_block fn = do
-    simple_block <- liftIO (readIO =<< readFile fn :: IO Block)
-    load_block simple_block
-
-load_block :: Cmd.M m => Block -> m State.State
-load_block block = State.exec_rethrow "convert block" State.empty $
-    make_block block
-
-make_block :: State.M m => Block -> m BlockId
-make_block (id_name, title, tracks, skel) = do
-    tracks <- mapM load_tracklike tracks
-    block_id <- State.create_block (Id.read_id id_name) title tracks
-    State.set_skeleton block_id (Skeleton.make skel)
-    return block_id
-
-load_tracklike :: State.M m => Maybe Track -> m Block.Track
-load_tracklike Nothing = return $ Block.track (Block.RId State.no_ruler) 0
-load_tracklike (Just track) = load_track track
-
-load_track :: State.M m => Track -> m Block.Track
-load_track (id_name, title, events) = do
-    track_id <- State.create_track (Id.read_id id_name) $
-        Track.track title (Events.from_list (map load_event events))
-    return $ Block.track (Block.TId track_id State.no_ruler) Config.track_width
-
-load_event :: Event -> Event.Event
-load_event (start, dur, text) =
-    Event.event (ScoreTime.double start) (ScoreTime.double dur) text
 
 allocations :: Allocations -> StateConfig.Allocations
 allocations allocs = StateConfig.Allocations $ Map.fromList $ do
