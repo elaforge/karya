@@ -33,7 +33,6 @@ UNSORTED
       a bug where it put on the wrong backend.
   - Why re-export StateConfig from Ui.State?  Why not directly reference
     StateConfig?
-  - test: delete build/test/tmp on every test run to avoid test contamination
   / shakefile: support for per-target package sets, so I can integrate Synth
     . There should be one master set of packages and versions, and then
       a binary can select a subset from it.  Ideally I could chase packages
@@ -860,6 +859,11 @@ Ui:
       . display dense signals: omit text and trigger lines when zoomed out
 
 test:
+  - delete build/test/tmp on every test run to avoid test contamination
+    . test/run_tests will clear it out, but sometimes I run them directly
+    . But this is pretty much limited to expecting a file in a certain
+      place, which pretty much only Perform.Im.Convert does.  Tests that
+      create tmp files should use Testing.unique_tmp_dir.
   - Integrate_test.test_block_integrate is flaky, sometimes I get:
     __-> Cmd/Integrate_test.hs:48 [test_block_integrate]
     ((bid "test/b2"),

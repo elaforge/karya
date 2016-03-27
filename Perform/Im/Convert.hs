@@ -34,7 +34,6 @@ import qualified Synth.Sampler.Signal as Signal
 import Global
 
 
-
 -- | Serialize the events to the given patch.  This is done atomically because
 -- this is run from the derive thread, which can be killed at any time.
 write :: (Score.Instrument -> Maybe (Cmd.Inst, InstTypes.Qualified))

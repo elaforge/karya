@@ -3,6 +3,7 @@
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
 module Perform.Midi.Perform_profile where
+import qualified Control.DeepSeq as DeepSeq
 import qualified Data.Map as Map
 import qualified System.IO as IO
 
@@ -27,17 +28,16 @@ import Global
 total_events :: Int
 total_events = 40 * 1000
 
+signal :: [(Double, Signal.Y)] -> Signal.Signal y
 signal = Signal.signal . map (first RealTime.seconds)
 
 event_count msgs_per_event = floor (fromIntegral total_events / msgs_per_event)
 
 profile_notes = do
     -- simple notes with no controls
-    let evts = take (event_count 2) [mkevent n 1 [] Signal.empty | n <- [0..]]
-    run_multiple evts $ \arg -> do
-        let (msgs, logs) = perform arg
-        Testing.force (logs, msgs)
-        return $ show (length msgs) ++ " msgs"
+    let evts = take (event_count 2) [mkevent n 1 [] pitch | n <- [0..]]
+        pitch = Signal.constant 60
+    run_multiple evts $ \arg -> print_msgs $ perform arg
 
 profile_control = do
     -- just perform_control generating control msgs
@@ -45,11 +45,9 @@ profile_control = do
     let sig = signal (zip [0, 0.25 .. len] (cycle vals))
         vals = map (/10) ([0..10] ++ [10, 9 .. 1])
     let cont = (Controls.mod, sig)
-    run_multiple cont $ \arg -> do
-        let (msgs, warns) = Perform.perform_control Control.empty_map 0 0
-                (Just (RealTime.seconds len)) 42 arg
-        Testing.force (warns, msgs)
-        return $ show (length msgs) ++ " msgs"
+    run_multiple cont $ \arg ->
+        print_msgs $ Perform.perform_control Control.empty_map 0 0
+            (Just (RealTime.seconds len)) 42 arg
 
 profile_complex = do
     -- notes with pitches and multiple controls, but no multiplexing
@@ -61,10 +59,7 @@ profile_complex = do
     let event n = mkevent n 1 [mod_at n, dyn_at n] (pitch_at n)
     -- 16 ccs + 2 notes = 18
     let evts = take (event_count 18) (map event [0,4..])
-    run_multiple evts $ \arg -> do
-        let (msgs, logs) = perform arg
-        Testing.force (logs, msgs)
-        return $ show (length msgs) ++ " msgs"
+    run_multiple evts $ \arg -> print_msgs $ perform arg
 
 profile_multiplex = do
     -- notes with non-shareable pitches
@@ -72,11 +67,16 @@ profile_multiplex = do
         pitch_at n = Signal.shift (RealTime.seconds n) pitch_sig
     let event n = mkevent n 1 [] (pitch_at n)
     let evts = take (event_count 18) (map event [0..])
-    run_multiple evts $ \arg -> do
-        let (msgs, logs) = perform arg
-        Testing.force (logs, msgs)
-        return $ show (length msgs) ++ " msgs"
+    run_multiple evts $ \arg -> print_msgs $ perform arg
 
+print_msgs :: (Show msg, DeepSeq.NFData msg, Show log, DeepSeq.NFData log) =>
+    ([msg], [log]) -> IO String
+print_msgs (msgs, logs) = do
+    Testing.force (msgs, logs)
+    -- Make failures visible.
+    Testing.pprint (take 4 logs)
+    Testing.pprint (take 4 msgs)
+    return $ show (length msgs) ++ " msgs"
 
 -- * implementation
 

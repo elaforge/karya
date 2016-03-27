@@ -57,8 +57,7 @@ patch1 = mkpatch "patch1"
 patch2 = mkpatch "patch2"
 
 mkpatch :: Text -> Types.Patch
-mkpatch name = Types.patch (Score.Instrument ("synth1/" <> name))
-    (Patch.patch (-1, 1) name)
+mkpatch name = Types.patch (Score.Instrument name) (Patch.patch (-1, 1) name)
 
 
 -- * extract
