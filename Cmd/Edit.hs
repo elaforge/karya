@@ -637,20 +637,22 @@ event_at track_id pos =
 -- | Handle UpdateInput that comes back from the floating input.
 --
 -- A leading space will create a zero duration event.
-handle_floating_input :: Cmd.M m => Bool -> Msg.Msg -> m Cmd.Status
-handle_floating_input zero_dur msg = do
+handle_floating_input :: Cmd.M m =>
+    Bool -- ^ True to always create a zero duration event.
+    -> Msg.Msg -> m Cmd.Status
+handle_floating_input always_zero_dur msg = do
     text <- Cmd.abort_unless $ floating_input_msg msg
     EditUtil.Pos block_id tracknum start dur <- EditUtil.get_pos
     (start, dur) <- event_range start dur
     track_id <- Cmd.require "handle_floating_input on non-event track"
         =<< State.event_track_at block_id tracknum
     old_text <- event_text_at track_id start
-    let space = " " `Text.isPrefixOf` text
+    let zero_dur = always_zero_dur || " " `Text.isPrefixOf` text
     EditUtil.modify_event_at (EditUtil.Pos block_id tracknum start dur)
-        (zero_dur || space) False (const (Just (Text.strip text), False))
+        zero_dur False (const (Just (Text.strip text), False))
     -- 0 dur means a point selection, which means to use the time step.
     insert_recorded_action '.' $ make_action old_text (Text.strip text)
-        (if space then Just 0 else if dur == 0 then Nothing else Just dur)
+        (if zero_dur then Just 0 else if dur == 0 then Nothing else Just dur)
     when (old_text == Nothing) $
         try_set_call_duration block_id track_id start
     return Cmd.Done

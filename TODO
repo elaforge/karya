@@ -5,15 +5,33 @@ LEGEND
 UNSORTED
   * Util.Test should have a version intended for unqualified import.
     Otherwise functions like 'modify_config' get in the way.
-  - If I create a 0 dur note with floating edit, then make another with '.',
+  * If I create a 0 dur note with floating edit, then make another with '.',
     the second one has a duration.
     . Apparently reproducing is not so simple.
+    . 'z' '!0' to add 0 dur event to control track, then '.' should do it.
   - %t-oct=1 in the block title seems to mess up pitch track signal
   - Pipe should be an exception to "first call is any non-space", so I can
     write a|b.  Or... is that so great after all?  With proportional fonts,
     the spaces are small and I don't want multiple ways to do it.
   - 'apply-start-offset | %start-s = (cf-rnd-a .05)' is a pretty obscure way
     to randomize note starts.  Maybe I should have an alias for it?
+    . I wind up with more and more of these aliases.  I should have an easier
+      way to put these together.  They inherit the exposed parameters of the
+      callees, and have docs generated automatically.
+    . How to name the argument and extract its doc?
+
+      randomize_start = call_alias
+        [ "apply-start-offset"
+        , "%start-s = (cf-rnd-a $n)"
+        ]
+      a_then_b = call_alias ["a $a", "b"]
+
+    . Then I can use it to add arguments to ky definitions.
+    . It would be nice to have a typed way to name the arguments, but ky at
+      least will need to parse a string.
+    . So make a parsed form: [Call CallId [Either Arg Term]]
+    - Then extract the Args, and return Either Error Call.
+
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
     able to add an effect, like causing damage.  If I used ekmett lenses maybe
