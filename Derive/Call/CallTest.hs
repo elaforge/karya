@@ -2,6 +2,7 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+-- | Utilities for testing calls.
 module Derive.Call.CallTest where
 import qualified Control.Monad as Monad
 import qualified Data.Map as Map

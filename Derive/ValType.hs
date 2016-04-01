@@ -23,7 +23,9 @@ data Type =
     | TInstrument
     -- | Text string, with enum values if it's an enum.
     | TSymbol (Maybe [Text]) | TControl | TPControl
-    | TNotGiven | TSeparator | TMaybe Type | TEither Type Type | TVal
+    | TNotGiven | TSeparator | TMaybe Type | TEither Type Type
+    -- | This is the \"any\" type.
+    | TVal
     -- | Two types in sequence.  This has no corresponding Typecheck instance
     -- since it doesn't correspond to a single Val, but is used by "Derive.Sig"
     -- for documentation.

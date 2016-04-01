@@ -11,12 +11,14 @@ module Derive.Eval (
     , apply_generator
     -- ** transformer
     , eval_transformers, eval_transform_expr
-    , apply_transformer, eval_quoted_transformers
+    , apply_transformer, apply_transformers
+    , eval_quoted_transformers
     -- ** val calls
     , eval, apply
     , get_val_call
 
     -- * lookup call
+    , get_generator, get_transformer
     , unknown_call_id, call_to_block_id, block_id_to_call
     , is_relative, make_relative
 
@@ -54,8 +56,8 @@ import Types
 -- | Apply a toplevel expression.
 eval_toplevel :: Derive.Callable d => Derive.Context d -> BaseTypes.Expr
     -> Derive.Deriver (Stream.Stream d)
-eval_toplevel ctx expr = eval_transformers ctx transform_calls $
-    eval_generator ctx generator_call
+eval_toplevel ctx expr =
+    eval_transformers ctx transform_calls (eval_generator ctx generator_call)
     where (transform_calls, generator_call) = Seq.ne_viewr expr
 
 eval_quoted :: Derive.Callable d => Derive.Context d -> BaseTypes.Quoted
@@ -88,7 +90,7 @@ eval_generator ctx (BaseTypes.Call call_id args) = do
     vals <- mapM (eval ctx) args
     apply_generator ctx call_id vals
 
--- | Like 'apply_generator', but for when the args are already parsed and
+-- | Like 'eval_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
 apply_generator :: Derive.Callable d => Derive.Context d
     -> BaseTypes.CallId -> [BaseTypes.Val] -> Derive.Deriver (Stream.Stream d)
@@ -173,6 +175,13 @@ apply_transformer ctx call_id args deriver = do
             }
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed deriver
+
+-- | A list version of 'apply_transformer'.
+apply_transformers :: Derive.Callable d => Derive.Context d
+    -> [(BaseTypes.CallId, [BaseTypes.Val])] -> Derive.Deriver (Stream.Stream d)
+    -> Derive.Deriver (Stream.Stream d)
+apply_transformers ctx calls deriver = foldr apply deriver calls
+    where apply (call_id, args) = apply_transformer ctx call_id args
 
 -- ** val calls
 

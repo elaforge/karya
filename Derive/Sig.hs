@@ -87,6 +87,7 @@ module Derive.Sig (
     , required, required_env, defaulted, defaulted_env, defaulted_env_quoted
     , environ, environ_quoted, required_environ
     , optional, optional_env, many, many1, many_pairs, many1_pairs
+    , many_vals
     -- ** defaults
     , EnvironDefault(..)
     , control, typed_control, required_control, pitch
@@ -377,7 +378,9 @@ many :: forall a. Typecheck.Typecheck a => Text -> Text -> Parser [a]
 many name doc = parser arg_doc $ \state -> do
     vals <- mapM (typecheck state)
         (zip [state_argnum state ..] (state_vals state))
-    Right (state { state_vals = [] }, vals)
+    let state2 = increment_argnum (length (state_vals state)) $
+            state { state_vals = []}
+    Right (state2, vals)
     where
     typecheck state (argnum, val) =
         check_arg state arg_doc (Derive.TypeErrorArg argnum) name val
@@ -404,7 +407,8 @@ many_pairs name doc = parser (arg_doc expected) $ \state -> do
         Left $ Derive.ArgError $ "many_pairs requires an even argument length: "
             <> showt (length vals)
     vals <- mapM (typecheck state) $ zip [state_argnum state ..] (pairs vals)
-    Right (state { state_vals = [] }, vals)
+    let state2 = increment_argnum (length vals) $ state { state_vals = [] }
+    Right (state2, vals)
     where
     typecheck state (argnum, (val1, val2)) = (,)
         <$> check_arg state (arg_doc (Typecheck.to_type (Proxy :: Proxy a)))
@@ -438,12 +442,22 @@ non_empty name (Parser docs p) =
             "arg requires at least one value: " <> name
         Right (state, x : xs) -> Right (state, x :| xs)
 
+-- | Accept one Val for each ArgDoc given, but otherwise do no typechecking.
+many_vals :: [Derive.ArgDoc] -> Parser [BaseTypes.Val]
+many_vals docs = Parser docs $ \state ->
+    let (vals, rest) = splitAt (length docs) (state_vals state)
+        state2 = increment_argnum (length vals) $ state { state_vals = rest}
+    in Right (state2, vals)
+
 argnum_error :: State -> Derive.ErrorPlace
 argnum_error = Derive.TypeErrorArg . state_argnum
 
 environ_error :: State -> Text -> Derive.ErrorPlace
 environ_error state name =
     Derive.TypeErrorEnviron (prefixed_environ (state_call_name state) name)
+
+increment_argnum :: Int -> State -> State
+increment_argnum n state = state { state_argnum = n + state_argnum state }
 
 -- ** defaults
 
@@ -474,7 +488,7 @@ get_val env_default state name = case state_vals state of
         BaseTypes.VNotGiven -> fromMaybe BaseTypes.VNotGiven $
             lookup_default env_default state name
         _ -> v)
-    where next = state { state_argnum = state_argnum state + 1 }
+    where next = increment_argnum 1 state
 
 check_arg :: forall a. Typecheck.Typecheck a => State -> Derive.ArgDoc
     -> Derive.ErrorPlace -> Text -> BaseTypes.Val -> Either Error a
