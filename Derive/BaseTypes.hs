@@ -584,6 +584,8 @@ type CallId = Symbol
 -- | The only operator is @|@, so a list suffices for an AST.
 type Expr = NonEmpty Call
 data Call = Call CallId [Term] deriving (Show)
+-- | TODO this is weird, in that Literal is evaluated but ValCall is not.
+-- Why is it so weird?
 data Term = ValCall Call | Literal Val deriving (Show)
 
 calls_equal :: Call -> Call -> Maybe Bool

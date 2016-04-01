@@ -3,6 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - BaseTypes.CallId should have a name more reminiscent of Symbol.
+    CallSymbol?
   * Util.Test should have a version intended for unqualified import.
     Otherwise functions like 'modify_config' get in the way.
   * If I create a 0 dur note with floating edit, then make another with '.',
@@ -13,24 +15,33 @@ UNSORTED
   - Pipe should be an exception to "first call is any non-space", so I can
     write a|b.  Or... is that so great after all?  With proportional fonts,
     the spaces are small and I don't want multiple ways to do it.
-  - 'apply-start-offset | %start-s = (cf-rnd-a .05)' is a pretty obscure way
-    to randomize note starts.  Maybe I should have an alias for it?
+  macros
+    . 'apply-start-offset | %start-s = (cf-rnd-a .05)' is a pretty obscure way
+      to randomize note starts.  Maybe I should have an alias for it?
     . I wind up with more and more of these aliases.  I should have an easier
       way to put these together.  They inherit the exposed parameters of the
       callees, and have docs generated automatically.
-    . How to name the argument and extract its doc?
-
-      randomize_start = call_alias
-        [ "apply-start-offset"
-        , "%start-s = (cf-rnd-a $n)"
-        ]
-      a_then_b = call_alias ["a $a", "b"]
-
+    . Name the argument and extract its doc.
     . Then I can use it to add arguments to ky definitions.
     . It would be nice to have a typed way to name the arguments, but ky at
       least will need to parse a string.
     . So make a parsed form: [Call CallId [Either Arg Term]]
-    - Then extract the Args, and return Either Error Call.
+      Then extract the Args, and return Either Error Call.
+    . It needs to resolve the calls to propagate the arg docs, but if it does
+      that then it needs a Derive.Library, which means that unless I do
+      something clever with laziness, a macro can't use another macro.  Also
+      I'd have to have a unevaluated call and then have a separate step to
+      evaluate it.  Both of these problems go away if I just re-evaluate
+      textually, but so does the argument docs.
+    . Also, since it's pre-resolved, it won't notice if a call has been
+      overridden.
+    . Of course ky defined macros might not care about that.
+    * Basic implementation of dynamically bound macro.
+    * Support nested Vars, e.g. 'a (b $c)'.
+    - Extend ky file parser to understand $vars.
+    - I can also have a "statically bound" variant which can extract the
+      ArgDocs.  To avoid a complicated resolution phase, it takes the calls
+      directly, e.g. [(Transformer d, [Arg])] -> (Generator d, [Arg]) -> ...
 
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be

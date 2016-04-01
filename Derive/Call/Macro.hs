@@ -35,9 +35,10 @@ import Global
 
 newtype Expr var = Expr (NonEmpty (Call var))
     deriving (Show)
-data Call var = Call BaseTypes.CallId [Either var BaseTypes.Term]
+data Call var = Call BaseTypes.CallId [Either var (Term var)]
     deriving (Show)
-data Var = Var Text deriving (Show)
+data Term var = ValCall (Call var) | Literal BaseTypes.Val deriving (Show)
+newtype Var = Var Text deriving (Show)
 
 generator :: Derive.Callable d => Module.Module -> Text -> Tags.Tags
     -> Expr Var -> Derive.Generator d
@@ -52,10 +53,14 @@ transformer module_ name tags expr =
         Sig.callt (make_signature (extract_vars expr)) (transformer_macro expr)
 
 extract_vars :: Expr Var -> [(Var, BaseTypes.CallId, Int)]
-extract_vars (Expr calls) = concatMap extract (NonEmpty.toList calls)
+extract_vars (Expr calls) = concatMap extract_call (NonEmpty.toList calls)
     where
-    extract (Call call_id args) =
-        [(var, call_id, argnum) | (argnum, Left var) <- zip [0..] args]
+    extract_call (Call call_id args) =
+        concatMap (extract_arg call_id) (zip [0..] args)
+    extract_arg call_id (argnum, arg) = case arg of
+        Left var -> [(var, call_id, argnum)]
+        Right (Literal _) -> []
+        Right (ValCall call) -> extract_call call
 
 generator_macro :: Derive.Callable d => Expr Var -> [BaseTypes.Val]
     -> Derive.PassedArgs d -> Derive.Deriver (Stream.Stream d)
@@ -72,26 +77,27 @@ transformer_macro :: Derive.Callable d => Expr Var -> [BaseTypes.Val]
     -> Derive.PassedArgs d
     -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 transformer_macro expr vals args deriver = do
-    Expr calls <- Derive.require_right id $ substitute_vars vals expr
+    calls <- Derive.require_right id $ substitute_vars vals expr
     let ctx = Derive.passed_ctx args
     trans <- mapM (eval_args ctx) (NonEmpty.toList calls)
     Eval.apply_transformers ctx trans deriver
 
-split_expr :: Expr a -> ([Call a], Call a)
-split_expr (Expr calls) = Seq.ne_viewr calls
+split_expr :: BaseTypes.Expr -> ([BaseTypes.Call], BaseTypes.Call)
+split_expr = Seq.ne_viewr
 
-eval_args :: Derive.Taggable a => Derive.Context a -> Call BaseTypes.Val
+eval_args :: Derive.Taggable a => Derive.Context a -> BaseTypes.Call
     -> Derive.Deriver (BaseTypes.CallId, [BaseTypes.Val])
-eval_args ctx (Call call_id args) =
-    (,) call_id <$> mapM (either return (Eval.eval ctx)) args
+eval_args ctx (BaseTypes.Call call_id args) =
+    (,) call_id <$> mapM (Eval.eval ctx) args
 
-substitute_vars :: [BaseTypes.Val] -> Expr Var
-    -> Either Text (Expr BaseTypes.Val)
-substitute_vars vals (Expr calls) = run vals (Expr <$> mapM sub_call calls)
+substitute_vars :: [BaseTypes.Val] -> Expr Var -> Either Text BaseTypes.Expr
+substitute_vars vals (Expr calls) = run vals (mapM sub_call calls)
     where
-    sub_call (Call call_id args) = Call call_id <$> mapM sub_arg args
-    sub_arg (Left (Var _)) = Left <$> pop
-    sub_arg (Right term) = return (Right term)
+    sub_call (Call call_id args) = BaseTypes.Call call_id <$> mapM sub_arg args
+    sub_arg (Left (Var _)) = BaseTypes.Literal <$> pop
+    sub_arg (Right term) = case term of
+        Literal val -> return (BaseTypes.Literal val)
+        ValCall call -> BaseTypes.ValCall <$> sub_call call
     pop = do
         vals <- Monad.State.get
         case vals of
@@ -137,6 +143,10 @@ instance ShowVal.ShowVal a => ShowVal.ShowVal (Call a) where
     show_val (Call call_id args) = Text.unwords $
         ShowVal.show_val call_id
             : map (either ShowVal.show_val ShowVal.show_val) args
+
+instance ShowVal.ShowVal a => ShowVal.ShowVal (Term a) where
+    show_val (ValCall call) = "(" <> ShowVal.show_val call <> ")"
+    show_val (Literal val) = ShowVal.show_val val
 
 instance ShowVal.ShowVal Var where
     show_val (Var name) = "$" <> name
