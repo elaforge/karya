@@ -143,8 +143,9 @@ make_transformer fname (BaseTypes.Symbol name) expr =
     transformer args deriver =
         Eval.eval_transformers (Derive.passed_ctx args)
             (NonEmpty.toList expr) deriver
-    reapply call_id args deriver =
-        Eval.apply_transformer (Derive.passed_ctx args) call_id
+    reapply call_id args deriver = do
+        call <- Eval.get_transformer call_id
+        Eval.apply_transformer (Derive.passed_ctx args) call
             (Derive.passed_vals args) deriver
 
 make_val_call :: FilePath -> BaseTypes.CallId -> BaseTypes.Expr

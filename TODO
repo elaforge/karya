@@ -39,7 +39,7 @@ UNSORTED
     * Basic implementation of dynamically bound macro.
     * Support nested Vars, e.g. 'a (b $c)'.
     - Extend ky file parser to understand $vars.
-    - I can also have a "statically bound" variant which can extract the
+    * I can also have a "statically bound" variant which can extract the
       ArgDocs.  To avoid a complicated resolution phase, it takes the calls
       directly, e.g. [(Transformer d, [Arg])] -> (Generator d, [Arg]) -> ...
 

@@ -68,9 +68,11 @@ generator_macro expr vals args = do
     expr <- Derive.require_right id $ substitute_vars vals expr
     let (trans, gen) = split_expr expr
     let ctx = Derive.passed_ctx args
-    trans <- mapM (eval_args ctx) trans
+    (trans_calls, trans_args) <- unzip <$> mapM (eval_args ctx) trans
+    trans_calls <- mapM Eval.get_transformer trans_calls
     (gen_call, gen_args) <- eval_args ctx gen
-    Eval.apply_transformers ctx trans $
+    gen_call <- Eval.get_generator gen_call
+    Eval.apply_transformers ctx (zip trans_calls trans_args) $
         Eval.apply_generator ctx gen_call gen_args
 
 transformer_macro :: Derive.Callable d => Expr Var -> [BaseTypes.Val]
@@ -79,8 +81,10 @@ transformer_macro :: Derive.Callable d => Expr Var -> [BaseTypes.Val]
 transformer_macro expr vals args deriver = do
     calls <- Derive.require_right id $ substitute_vars vals expr
     let ctx = Derive.passed_ctx args
-    trans <- mapM (eval_args ctx) (NonEmpty.toList calls)
-    Eval.apply_transformers ctx trans deriver
+    (trans_calls, trans_args) <-
+        unzip <$> mapM (eval_args ctx) (NonEmpty.toList calls)
+    trans_calls <- mapM Eval.get_transformer trans_calls
+    Eval.apply_transformers ctx (zip trans_calls trans_args) deriver
 
 split_expr :: BaseTypes.Expr -> ([BaseTypes.Call], BaseTypes.Call)
 split_expr = Seq.ne_viewr

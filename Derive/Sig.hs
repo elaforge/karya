@@ -444,10 +444,14 @@ non_empty name (Parser docs p) =
 
 -- | Accept one Val for each ArgDoc given, but otherwise do no typechecking.
 many_vals :: [Derive.ArgDoc] -> Parser [BaseTypes.Val]
-many_vals docs = Parser docs $ \state ->
-    let (vals, rest) = splitAt (length docs) (state_vals state)
+many_vals docs = Parser docs parser
+    where
+    -- I don't check the number of arguments because this is used for call
+    -- macros, and I need to give the sub-call a chance to default its args.
+    parser state = Right (state2, vals)
+        where
+        (vals, rest) = splitAt (length docs) (state_vals state)
         state2 = increment_argnum (length vals) $ state { state_vals = rest}
-    in Right (state2, vals)
 
 argnum_error :: State -> Derive.ErrorPlace
 argnum_error = Derive.TypeErrorArg . state_argnum

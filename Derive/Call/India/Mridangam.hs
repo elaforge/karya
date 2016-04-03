@@ -97,9 +97,9 @@ realize_pattern ctx = map realize . Text.unpack
     where
     realize c
         | c == ' ' || c == '_' = Nothing
-        | otherwise = Just $ Eval.apply_generator ctx
-            (BaseTypes.Symbol (Text.singleton c)) []
-
+        | otherwise = Just $ do
+            call <- Eval.get_generator (BaseTypes.Symbol (Text.singleton c))
+            Eval.apply_generator ctx call []
 
 -- * patterns
 

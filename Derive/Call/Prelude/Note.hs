@@ -5,7 +5,7 @@
 -- | Basic calls for note tracks.
 module Derive.Call.Prelude.Note (
     note_calls
-    , c_note, transformed_note, note_call
+    , c_note, c_note_attributes, transformed_note, note_call
     , Config(..), use_attributes, no_duration_attributes
     , GenerateNote, default_note, note_flags, make_event
     , adjust_duration

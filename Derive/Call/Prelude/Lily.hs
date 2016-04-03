@@ -82,12 +82,14 @@ c_unless_ly = transformer "unless-ly" mempty
 when_ly :: Bool -> Derive.PassedArgs Score.Event -> Derive.NoteDeriver
     -> Derive.NoteDeriver
 when_ly inverted args deriver = case Derive.passed_vals args of
-    [] -> when deriver mempty
-    call : vals -> when (apply args (to_sym call) vals deriver) deriver
+    [] -> when_lily deriver mempty
+    call : vals -> when_lily (apply args (to_sym call) vals deriver) deriver
     where
     to_sym = BaseTypes.Symbol . BaseTypes.show_call_val
-    when = if inverted then flip Lily.when_lilypond else Lily.when_lilypond
-    apply args = Eval.apply_transformer (Derive.passed_ctx args)
+    when_lily = if inverted then flip Lily.when_lilypond else Lily.when_lilypond
+    apply args call_id vals deriver = do
+        call <- Eval.get_transformer call_id
+        Eval.apply_transformer (Derive.passed_ctx args) call vals deriver
 
 c_ly_global :: Derive.Transformer Derive.Note
 c_ly_global = transformer "ly-global" mempty

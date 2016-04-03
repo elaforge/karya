@@ -324,8 +324,9 @@ place_event start dur ctx = ctx
 eval_expr :: Derive.Callable d => Derive.Context d -> Expr
     -> Derive.Deriver (Stream.Stream d)
 eval_expr ctx (QuotedExpr expr) = Eval.eval_toplevel ctx expr
-eval_expr ctx (EvaluatedExpr call_id args) =
-    Eval.apply_generator ctx call_id args
+eval_expr ctx (EvaluatedExpr call_id args) = do
+    call <- Eval.get_generator call_id
+    Eval.apply_generator ctx call args
 
 with_empty_collect :: Derive.Deriver a
     -> Derive.Deriver (a, [Derive.ControlMod])

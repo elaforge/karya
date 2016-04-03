@@ -88,14 +88,14 @@ eval_generator :: forall d. Derive.Callable d => Derive.Context d
     -> BaseTypes.Call -> Derive.Deriver (Stream.Stream d)
 eval_generator ctx (BaseTypes.Call call_id args) = do
     vals <- mapM (eval ctx) args
-    apply_generator ctx call_id vals
+    call <- get_generator call_id
+    apply_generator ctx call vals
 
 -- | Like 'eval_generator', but for when the args are already parsed and
 -- evaluated.  This is useful when one generator wants to dispatch to another.
 apply_generator :: Derive.Callable d => Derive.Context d
-    -> BaseTypes.CallId -> [BaseTypes.Val] -> Derive.Deriver (Stream.Stream d)
-apply_generator ctx call_id args = do
-    call <- get_generator call_id
+    -> Derive.Generator d -> [BaseTypes.Val] -> Derive.Deriver (Stream.Stream d)
+apply_generator ctx call args = do
     let passed = Derive.PassedArgs
             { Derive.passed_vals = args
             , Derive.passed_call_name = Derive.call_name call
@@ -164,22 +164,22 @@ eval_quoted_transformers ctx (BaseTypes.Quoted expr) =
 -- but apply only one, and apply to already evaluated 'BaseTypes.Val's.  This
 -- is useful when you want to re-apply an already parsed set of vals.
 apply_transformer :: Derive.Callable d => Derive.Context d
-    -> BaseTypes.CallId -> [BaseTypes.Val] -> Derive.Deriver (Stream.Stream d)
-    -> Derive.Deriver (Stream.Stream d)
-apply_transformer ctx call_id args deriver = do
-    call <- get_transformer call_id
-    let passed = Derive.PassedArgs
-            { Derive.passed_vals = args
-            , Derive.passed_call_name = Derive.call_name call
-            , Derive.passed_ctx = ctx
-            }
+    -> Derive.Transformer d -> [BaseTypes.Val]
+    -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
+apply_transformer ctx call args deriver =
     Internal.with_stack_call (Derive.call_name call) $
         Derive.call_func call passed deriver
+    where
+    passed = Derive.PassedArgs
+            { passed_vals = args
+            , passed_call_name = Derive.call_name call
+            , passed_ctx = ctx
+            }
 
 -- | A list version of 'apply_transformer'.
 apply_transformers :: Derive.Callable d => Derive.Context d
-    -> [(BaseTypes.CallId, [BaseTypes.Val])] -> Derive.Deriver (Stream.Stream d)
-    -> Derive.Deriver (Stream.Stream d)
+    -> [(Derive.Transformer d, [BaseTypes.Val])]
+    -> Derive.Deriver (Stream.Stream d) -> Derive.Deriver (Stream.Stream d)
 apply_transformers ctx calls deriver = foldr apply deriver calls
     where apply (call_id, args) = apply_transformer ctx call_id args
 
@@ -197,9 +197,9 @@ apply :: Derive.Context Derive.Tagged -> Derive.ValCall
 apply ctx call args = do
     vals <- mapM (eval ctx) args
     let passed = Derive.PassedArgs
-            { Derive.passed_vals = vals
-            , Derive.passed_call_name = Derive.vcall_name call
-            , Derive.passed_ctx = ctx
+            { passed_vals = vals
+            , passed_call_name = Derive.vcall_name call
+            , passed_ctx = ctx
             }
     Derive.vcall_call call passed
 
@@ -310,7 +310,8 @@ reapply_generator :: Derive.Callable d => Derive.PassedArgs d
     -> BaseTypes.CallId -> Derive.Deriver (Stream.Stream d)
 reapply_generator args call_id = do
     let ctx = Derive.passed_ctx args
-    apply_generator ctx call_id (Derive.passed_vals args)
+    call <- get_generator call_id
+    apply_generator ctx call (Derive.passed_vals args)
 
 -- | Like 'reapply_generator', but the note is given normalized time, 0--1,
 -- instead of inheriting the start and duration from the args.  This is
