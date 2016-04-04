@@ -116,6 +116,8 @@ test_default_merge = do
     equal (run "") ([[(0, 0.25)]], [])
     equal (run "default-merge set c") ([[(0, 0.5)]], [])
     equal (run "default-merge add c") ([[(0, 1)]], [])
+    -- 'mul' is the default for most controls.
+    equal (run "default-merge _ c") ([[(0, 0.25)]], [])
 
 e_instrument :: Score.Event -> (RealTime, Text)
 e_instrument e = (Score.event_start e, DeriveTest.e_instrument e)

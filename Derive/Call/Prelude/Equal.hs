@@ -57,9 +57,31 @@ default_merge = "default-merge"
 c_equal :: Derive.Callable d => Derive.Transformer d
 c_equal = Derive.transformer Module.prelude "equal" Tags.subs equal_doc $
     Sig.callt equal_args $ \(lhs, rhs, merge) _args deriver -> do
-        transform <- Derive.require_right id $
-            parse_equal (parse_merge merge) lhs rhs
+        transform <- Derive.require_right id $ parse_equal merge lhs rhs
         transform deriver
+
+c_equal_generator :: Derive.Generator Derive.Note
+c_equal_generator = Derive.generator Module.prelude "equal" Tags.subs
+    "Similar to the transformer, this will evaluate the notes below in\
+    \ a transformed environ." $
+    Sig.call equal_args $ \(lhs, rhs, merge) args -> do
+        transform <- Derive.require_right id $ parse_equal merge lhs rhs
+        transform . Sub.derive . concat =<< Sub.sub_events args
+
+equal_args :: Sig.Parser (BaseTypes.Symbol, BaseTypes.Val, Merge)
+equal_args = (,,)
+    <$> Sig.required "lhs" "Assign to this. This looks like a Symbol, but\
+        \ can actualy contain any characters except `=`, due to the special\
+        \ infix parsing for `=`. Symbolic prefixes determine what is\
+        \ assigned, and the valid types for the rhs."
+    <*> Sig.required "rhs" "Source of the assignment."
+    <*> (parse_merge <$> Sig.defaulted "merge" (Left "set") merge_doc)
+
+merge_doc :: Text
+merge_doc = "Merge operator. This can be `_` to use the default for the\
+    \ control, `set` to replace the old signal, or one of the operators from\
+    \ 'Derive.Deriver.Monad.mergers': "
+    <> Text.intercalate ", " (map ShowVal.doc (Map.keys Derive.mergers)) <> "."
 
 data Merge = Default | Set | Merge BaseTypes.CallId deriving (Show)
 
@@ -68,36 +90,11 @@ instance ShowVal.ShowVal Merge where
     show_val Set = "set"
     show_val (Merge sym) = ShowVal.show_val sym
 
-merge_doc :: Text
-merge_doc = "Merge operator. This can be `_` to use the default for the\
-    \ control, `set` to replace the old signal, or one of the operators from\
-    \ 'Derive.Deriver.Monad.mergers': "
-    <> Text.intercalate ", " (map ShowVal.doc (Map.keys Derive.mergers)) <> "."
-
 parse_merge :: Either BaseTypes.CallId Typecheck.NotGiven -> Merge
 parse_merge (Left name)
     | name == "set" = Set
     | otherwise = Merge name
 parse_merge (Right Typecheck.NotGiven) = Default
-
-c_equal_generator :: Derive.Generator Derive.Note
-c_equal_generator = Derive.generator Module.prelude "equal" Tags.subs
-    "Similar to the transformer, this will evaluate the notes below in\
-    \ a transformed environ." $
-    Sig.call equal_args $ \(lhs, rhs, merge) args -> do
-        transform <- Derive.require_right id $
-            parse_equal (parse_merge merge) lhs rhs
-        transform . Sub.derive . concat =<< Sub.sub_events args
-
-equal_args :: Sig.Parser (BaseTypes.Symbol, BaseTypes.Val,
-    Either BaseTypes.Symbol Typecheck.NotGiven)
-equal_args = (,,)
-    <$> Sig.required "lhs" "Assign to this. This looks like a Symbol, but\
-        \ can actualy contain any characters except `=`, due to the special\
-        \ infix parsing for `=`. Symbolic prefixes determine what is\
-        \ assigned, and the valid types for the rhs."
-    <*> Sig.required "rhs" "Source of the assignment."
-    <*> Sig.defaulted "merge" (Left "set") merge_doc
 
 equal_doc :: Text
 equal_doc =
@@ -337,10 +334,9 @@ c_default_merge = Derive.transformer Module.prelude "default-merge" mempty
     "Set the default merge operators for controls. These apply when the\
     \ control track doesn't have an explicit operator."
     $ Sig.callt ((,)
-    <$> Sig.required "merge" "Merge operator, from\
-        \ 'Derive.Deriver.Monad.default_control_op_map'."
-    <*> Sig.many1 "control" "Control names."
-    ) $ \(op_name, controls) _args deriver -> do
-        merge <- Derive.get_control_merge op_name
-        let defaults = Map.fromList $ map (, merge) (NonEmpty.toList controls)
-        Internal.with_default_merge defaults deriver
+    <$> (parse_merge <$> Sig.required "merge" merge_doc)
+    <*> (NonEmpty.toList <$> Sig.many1 "control" "Control names.")
+    ) $ \(merge, controls) _args deriver -> do
+        mergers <- mapM (\c -> get_merger c merge) controls
+        Internal.with_default_merge (Map.fromList (zip controls mergers))
+            deriver

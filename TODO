@@ -49,7 +49,7 @@ UNSORTED
       args even if they're Vals... except the merge operator: '%a = add b'.
       But that could use a defaulted arg: '%a = b add' or even
       'merge=add | %a=b'.
-  - Equal.c_default_merge should use the same merge arg as c_equal.
+  * Equal.c_default_merge should use the same merge arg as c_equal.
 
   - A problem with environ defaulted args is that if I do e.g.
     'merge=add | a=b | block', then all of 'block' will have merge=add.
