@@ -591,6 +591,18 @@ instance Typecheck BaseTypes.Quoted where
     to_type _ = ValType.TQuoted
 instance ToVal BaseTypes.Quoted where to_val = VQuoted
 
+data NotGiven = NotGiven deriving (Show, Eq)
+
+instance ShowVal.ShowVal NotGiven where
+    show_val NotGiven = "_"
+
+instance Typecheck NotGiven where
+    from_val VNotGiven = Val $ Just NotGiven
+    from_val _ = Val Nothing
+    to_type _ = ValType.TNotGiven
+
+instance ToVal NotGiven where
+    to_val NotGiven = VNotGiven
 
 -- * util
 
