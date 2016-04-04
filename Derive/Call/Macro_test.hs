@@ -53,12 +53,11 @@ test_transformer = do
 attr :: Text -> Macro.Term a
 attr = Macro.Literal . Typecheck.to_val . Score.attr
 
-make_expr :: [(Text, [Either Text (Macro.Term Macro.Var)])]
+make_expr :: [(BaseTypes.CallId, [Either Text (Macro.Term Macro.Var)])]
     -> Macro.Expr Macro.Var
 make_expr calls = Macro.Expr $ c :| cs
     where c : cs = map (uncurry make_call) calls
 
-make_call :: Text -> [Either Text (Macro.Term Macro.Var)]
+make_call :: BaseTypes.CallId -> [Either Text (Macro.Term Macro.Var)]
     -> Macro.Call Macro.Var
-make_call sym args = Macro.Call (BaseTypes.Symbol sym)
-    (map (first Macro.Var) args)
+make_call call_id args = Macro.Call call_id (map (first Macro.Var) args)

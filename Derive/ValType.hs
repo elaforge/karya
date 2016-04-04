@@ -114,6 +114,7 @@ instance Pretty.Pretty Type where
     pretty TPControl = append_parens "PControl" ("#" <> Id.valid_description)
     pretty (TList typ) = "list of " <> pretty typ
     pretty (TOther text) = text
+    pretty TNotGiven = "_"
     pretty typ = Text.drop 1 (showt typ)
 
 append_parens :: Text -> Text -> Text

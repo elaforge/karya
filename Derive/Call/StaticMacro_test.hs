@@ -32,7 +32,7 @@ test_generator = do
     equal (run [trans [attr "a"]] (gen []) "m") (["+a"], [])
     equal (run [] (gen [attr "a"]) "m") (["+a"], [])
     strings_like (snd $ run [trans [Var]] (gen [Var]) "m +a")
-        ["expected Instrument * got NotGiven"]
+        ["expected Instrument * got _"]
     equal (run [trans [Var]] (gen [Var]) "m +a +b")
         (["+a+b"], [])
     -- Does defaulting work for the sub-calls?
@@ -53,7 +53,7 @@ test_transformer = do
         trans = make_call Note.c_note_attributes
     equal (run [trans [attr "a"]] "m") (["+a+z"], [])
     strings_like (snd $ run [trans [Var], trans [Var]] "m +x")
-        ["expected Instrument * got NotGiven"]
+        ["expected Instrument * got _"]
     equal (run [trans [Var], trans [Var]] "m +x +y")
         (["+x+y+z"], [])
 
