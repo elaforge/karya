@@ -287,8 +287,8 @@ eval_default arg_doc place name state (Right quoted) =
 --
 -- Of course, the call could just look in the environ itself, but this way it's
 -- uniform and automatically documented.
-environ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) => Text
-    -> Derive.EnvironDefault
+environ :: forall a. (Typecheck.Typecheck a, ShowVal.ShowVal a) =>
+    Text -> Derive.EnvironDefault
     -- ^ None doesn't make any sense, but, well, don't pass that then.
     -> a -> Text -> Parser a
 environ name env_default = environ_ name env_default . Left

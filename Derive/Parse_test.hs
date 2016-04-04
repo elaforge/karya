@@ -191,6 +191,7 @@ test_p_equal = do
         Right $ Call "=" $ map (Literal . VSymbol) ["a", "b", "c"]
     -- Quotes let you put '=' in the assignee.
     equal (f "'=>' = 1") (eq (VSymbol "=>") (num 1))
+    equal (f ".-i = t") (eq (VSymbol ".-i") (Literal (VSymbol "t")))
 
     left_like (f "a = ()") "parse error"
     left_like (f "a=") "not enough input"

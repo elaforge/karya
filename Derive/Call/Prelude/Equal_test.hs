@@ -39,9 +39,9 @@ test_equal = do
 test_equal_modify = do
     let run evts = DeriveTest.extract (DeriveTest.e_control "c") $
             DeriveTest.derive_tracks "" [(">", evts)]
-    strings_like (snd $ run [(0, 1, "c = add .5 |")])
-        ["operator is only supported when"]
-    equal (run [(0, 1, "%c = .5 | %c = add .5 |")]) ([[(0, 1)]], [])
+    strings_like (snd $ run [(0, 1, "c = .5 add |")])
+        ["merge is only supported when"]
+    equal (run [(0, 1, "%c = .5 | %c = .5 add |")]) ([[(0, 1)]], [])
 
 test_equal_inst = do
     let run with_ui title track = DeriveTest.extract DeriveTest.e_instrument $

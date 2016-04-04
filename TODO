@@ -42,7 +42,23 @@ UNSORTED
     * I can also have a "statically bound" variant which can extract the
       ArgDocs.  To avoid a complicated resolution phase, it takes the calls
       directly, e.g. [(Transformer d, [Arg])] -> (Generator d, [Arg]) -> ...
+    - Both macro and static macros seem pretty awkward to use.  But it's not
+      like doing it by hand would be any less awkward, right?
+    * One cause of awkwardness: c_equal uses ArgsParsedSpecially.  I could
+      support that in macros, but I could probably also have it use normal
+      args even if they're Vals... except the merge operator: '%a = add b'.
+      But that could use a defaulted arg: '%a = b add' or even
+      'merge=add | %a=b'.
+  - Equal.c_default_merge should use the same merge arg as c_equal.
 
+  - A problem with environ defaulted args is that if I do e.g.
+    'merge=add | a=b | block', then all of 'block' will have merge=add.
+    There's no way to set it just for 'a=b'.  So they're not necessarily
+    a great substitute for keyword args.  Also keyword args should complain if
+    you give one it doesn't understand.
+    . I think a=b syntax is available, but do I want to make a Val out of it?
+      It would be resolved by Derive.Sig, and not actually make it to calls,
+      but Quoted is like that too.
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
     able to add an effect, like causing damage.  If I used ekmett lenses maybe

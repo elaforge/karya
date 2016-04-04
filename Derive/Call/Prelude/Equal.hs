@@ -55,20 +55,49 @@ default_merge = "default-merge"
 -- * implementation
 
 c_equal :: Derive.Callable d => Derive.Transformer d
-c_equal = Derive.transformer Module.prelude "equal" Tags.subs
-    equal_doc (Sig.parsed_manually equal_arg_doc equal_transformer)
+c_equal = Derive.transformer Module.prelude "equal" Tags.subs equal_doc $
+    Sig.callt equal_args $ \(lhs, rhs, merge) _args deriver -> do
+        transform <- Derive.require_right id $
+            parse_equal (parse_merge merge) lhs rhs
+        transform deriver
+
+data Merge = Default | Set | Merge BaseTypes.CallId deriving (Show)
+
+instance ShowVal.ShowVal Merge where
+    show_val Default = "_"
+    show_val Set = "set"
+    show_val (Merge sym) = ShowVal.show_val sym
+
+merge_doc :: Text
+merge_doc = "Merge operator. This can be `_` to use the default for the\
+    \ control, `set` to replace the old signal, or one of the operators from\
+    \ 'Derive.Deriver.Monad.mergers': "
+    <> Text.intercalate ", " (map ShowVal.doc (Map.keys Derive.mergers)) <> "."
+
+parse_merge :: Either BaseTypes.CallId Typecheck.NotGiven -> Merge
+parse_merge (Left name)
+    | name == "set" = Set
+    | otherwise = Merge name
+parse_merge (Right Typecheck.NotGiven) = Default
 
 c_equal_generator :: Derive.Generator Derive.Note
 c_equal_generator = Derive.generator Module.prelude "equal" Tags.subs
     "Similar to the transformer, this will evaluate the notes below in\
-    \ a transformed environ."
-    (Sig.parsed_manually equal_arg_doc generate)
-    where
-    generate args = Sub.derive . map (fmap (equal_transformer args))
-        . concat =<< Sub.sub_events args
+    \ a transformed environ." $
+    Sig.call equal_args $ \(lhs, rhs, merge) args -> do
+        transform <- Derive.require_right id $
+            parse_equal (parse_merge merge) lhs rhs
+        transform . Sub.derive . concat =<< Sub.sub_events args
 
-equal_arg_doc :: Text
-equal_arg_doc = "Many types."
+equal_args :: Sig.Parser (BaseTypes.Symbol, BaseTypes.Val,
+    Either BaseTypes.Symbol Typecheck.NotGiven)
+equal_args = (,,)
+    <$> Sig.required "lhs" "Assign to this. This looks like a Symbol, but\
+        \ can actualy contain any characters except `=`, due to the special\
+        \ infix parsing for `=`. Symbolic prefixes determine what is\
+        \ assigned, and the valid types for the rhs."
+    <*> Sig.required "rhs" "Source of the assignment."
+    <*> Sig.defaulted "merge" (Left "set") merge_doc
 
 equal_doc :: Text
 equal_doc =
@@ -78,7 +107,7 @@ equal_doc =
     \\nSet an environ value by setting a plain symbol or unset it by assigning\
     \ to `_`: `x = 42` or `x = _`.\
     \\nAlias instrument names like: `>alias = >inst`.\
-    \\nIf the symbol is prefixed with `>>`, `^`, `*`, `.`, or `-`, it will add\
+    \\nIf the lhs is prefixed with `>>`, `^`, `*`, `.`, or `-`, it will add\
     \ a new name for a ^note, *pitch, .control, or -val call, respectively.\
     \ It sets the generator by default, but will set the transformer if you\
     \ prefix another `-`. `>>` is special cased to only create a note\
@@ -86,10 +115,9 @@ equal_doc =
     \ an instrument transformer, which can apply a transformer when an\
     \ instrument is set by the title of a note track, as implemented by\
     \ by `note-track`.\
-    \\nYou need quoting for symbols that don't match 'Derive.Parse.p_symbol'.\
     \\nE.g.: set note generator: `^phrase = some-block`,\
     \ note transformer: `^-mute = +mute+loose`,\
-    \ control transfomrer: `'.-i' = t`, val call: `'-4c' = 5c`.\
+    \ control transfomrer: `.-i = t`, val call: `-4c = (5c)`.\
     \\nYou can bypass all this cryptic prefix garbage by using a `ky` file.\
     \ It has more space available so it can use a more readable syntax.\
     \\nIf you bind a call to a quoted expression, this creates a new\
@@ -106,22 +134,9 @@ equal_doc =
     -- Previously > was for binding note calls, but that was taken by
     -- instrument aliasing.  ^ at least looks like a rotated >.
 
-equal_transformer :: Derive.PassedArgs d -> Derive.Deriver a -> Derive.Deriver a
-equal_transformer args deriver =
-    either Derive.throw_arg_error ($deriver) $ case Derive.passed_vals args of
-        -- The first arg is definitely a symbol because that's how the parser
-        -- parses it.
-        [BaseTypes.VSymbol lhs, val] -> parse_equal Nothing lhs val
-        [BaseTypes.VSymbol lhs, BaseTypes.VSymbol merge, val] ->
-            parse_equal (Just (Merge merge)) lhs val
-        [BaseTypes.VSymbol lhs, BaseTypes.VNotGiven, val] ->
-            parse_equal (Just Default) lhs val
-        args -> Left $ "unexpected arg types: "
-            <> Text.intercalate ", " (map (pretty . ValType.type_of) args)
-
-parse_equal :: Maybe Merge -> BaseTypes.Symbol -> BaseTypes.Val
+parse_equal :: Merge -> BaseTypes.Symbol -> BaseTypes.Val
     -> Either Text (Derive.Deriver a -> Derive.Deriver a)
-parse_equal Nothing (BaseTypes.Symbol lhs) rhs
+parse_equal Set (BaseTypes.Symbol lhs) rhs
     -- Assign to call.
     | Just new <- Text.stripPrefix "^" lhs = Right $
         override_call new rhs "note"
@@ -139,50 +154,50 @@ parse_equal Nothing (BaseTypes.Symbol lhs) rhs
             (Derive.s_generator#Derive.s_control)
             (Derive.s_transformer#Derive.s_control)
     | Just new <- Text.stripPrefix "-" lhs = Right $ override_val_call new rhs
-parse_equal Nothing (BaseTypes.Symbol lhs) rhs
+parse_equal Set (BaseTypes.Symbol lhs) rhs
     -- Create instrument alias.
     | Just new <- Text.stripPrefix ">" lhs = case rhs of
         BaseTypes.VInstrument inst -> Right $
             Derive.with_instrument_alias (Score.Instrument new) inst
         _ -> Left $ "aliasing an instrument expected an instrument rhs, got "
             <> pretty (ValType.type_of rhs)
-parse_equal maybe_merge lhs rhs
+parse_equal merge lhs rhs
     -- Assign to control.
     | Just control <- is_control =<< parse_val lhs = case rhs of
         BaseTypes.VControlRef rhs -> Right $ \deriver ->
             Typecheck.to_signal_or_function rhs >>= \x -> case x of
                 Left sig -> do
-                    merger <- get_merger control maybe_merge
+                    merger <- get_merger control merge
                     Derive.with_merged_control merger control sig deriver
-                Right f -> case maybe_merge of
-                    Just merge -> Derive.throw_arg_error $ merge_error merge
-                    Nothing -> Derive.with_control_function control f deriver
+                Right f -> case merge of
+                    Set -> Derive.with_control_function control f deriver
+                    merge -> Derive.throw_arg_error $ merge_error merge
         BaseTypes.VNum rhs -> Right $ \deriver -> do
-            merger <- get_merger control maybe_merge
+            merger <- get_merger control merge
             Derive.with_merged_control merger control (fmap Signal.constant rhs)
                 deriver
-        BaseTypes.VControlFunction f -> case maybe_merge of
-            Just merge -> Left $ merge_error merge
-            Nothing -> Right $ Derive.with_control_function control f
+        BaseTypes.VControlFunction f -> case merge of
+            Set -> Right $ Derive.with_control_function control f
+            merge -> Left $ merge_error merge
         BaseTypes.VNotGiven -> Right $ Derive.remove_controls [control]
         _ -> Left $ "binding a control expected a control, num, control\
             \ function, or _, but got " <> pretty (ValType.type_of rhs)
     where
     is_control (BaseTypes.VControlRef (BaseTypes.LiteralControl c)) = Just c
     is_control _ = Nothing
-parse_equal maybe_merge lhs rhs
+parse_equal merge lhs rhs
     -- Assign to pitch control.
     | Just control <- is_pitch =<< parse_val lhs = case rhs of
         BaseTypes.VPitch rhs -> Right $ \deriver -> do
-            merger <- get_pitch_merger maybe_merge
+            merger <- get_pitch_merger merge
             Derive.with_merged_pitch merger control (PSignal.constant rhs)
                 deriver
         BaseTypes.VPControlRef rhs -> Right $ \deriver -> do
             sig <- Call.to_psignal rhs
-            merger <- get_pitch_merger maybe_merge
+            merger <- get_pitch_merger merge
             Derive.with_merged_pitch merger control sig deriver
         BaseTypes.VNum (Score.Typed Score.Nn nn) -> Right $ \deriver -> do
-            merger <- get_pitch_merger maybe_merge
+            merger <- get_pitch_merger merge
             Derive.with_merged_pitch merger control
                 (PSignal.constant (PSignal.nn_pitch (Pitch.nn nn))) deriver
         _ -> Left $ "binding a pitch signal expected a pitch, pitch"
@@ -190,31 +205,26 @@ parse_equal maybe_merge lhs rhs
     where
     is_pitch (BaseTypes.VPControlRef (BaseTypes.LiteralControl c)) = Just c
     is_pitch _ = Nothing
-parse_equal (Just merge) _ _ = Left $ merge_error merge
-parse_equal Nothing lhs val = Right $ Derive.with_val lhs val
+parse_equal Set lhs val = Right $ Derive.with_val lhs val
+parse_equal merge _ _ = Left $ merge_error merge
 
 merge_error :: Merge -> Text
-merge_error merge = "operator is only supported when assigning to a control: "
-    <> case merge of
-        Default -> "_"
-        Merge sym -> pretty sym
-
-data Merge = Default | Merge BaseTypes.CallId deriving (Show)
+merge_error merge = "merge is only supported when assigning to a control: "
+    <> ShowVal.show_val merge
 
 -- | Unlike 'Derive.MergeDefault', the default is Derive.Set.
-get_merger :: Score.Control -> Maybe Merge
+get_merger :: Score.Control -> Merge
     -> Derive.Deriver (Derive.Merger Signal.Control)
-get_merger control maybe_merge = case maybe_merge of
-    Nothing -> return Derive.Set
-    Just Default -> Derive.get_default_merger control
-    Just (Merge merge) -> Derive.get_control_merge merge
+get_merger control merge = case merge of
+    Set -> return Derive.Set
+    Default -> Derive.get_default_merger control
+    Merge merge -> Derive.get_control_merge merge
 
-get_pitch_merger :: Maybe Merge
-    -> Derive.Deriver (Derive.Merger PSignal.PSignal)
-get_pitch_merger maybe_merge = case maybe_merge of
-    Nothing -> return Derive.Set
-    Just Default -> return Derive.Set
-    Just (Merge name) -> Derive.get_pitch_merger name
+get_pitch_merger :: Merge -> Derive.Deriver (Derive.Merger PSignal.PSignal)
+get_pitch_merger merge = case merge of
+    Set -> return Derive.Set
+    Default -> return Derive.Set
+    Merge name -> Derive.get_pitch_merger name
 
 parse_val :: BaseTypes.Symbol -> Maybe BaseTypes.Val
 parse_val = either (const Nothing) Just . Parse.parse_val . BaseTypes.unsym
