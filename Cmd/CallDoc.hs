@@ -237,13 +237,15 @@ javascript = Seq.join "\n"
     [ search_javascript
     , ""
     , hide_empty_javascript
-    , ""
-    , "window.onload = function() {"
-    , "    var input = document.getElementById('input');"
-    , "    input.focus();"
-    , "    input.setSelectionRange(999, 999);"
-    , "    search(input.value);"
-    , "};"
+    -- Theoretically this is useful, but in practice I'm usually reloading to
+    -- see doc changes, and so auto-focus is just an annoyance.
+    -- , ""
+    -- , "window.onload = function() {"
+    -- , "    var input = document.getElementById('input');"
+    -- , "    input.focus();"
+    -- , "    input.setSelectionRange(999, 999);"
+    -- , "    search(input.value);"
+    -- , "};"
     ]
 
 search_javascript :: Html
@@ -319,7 +321,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
     show_bind (first, (sym, name)) =
         "<dt>" <> tag "code" (html sym)
         -- This used to be &mdash;, but that's too hard to use text search on.
-        <> " -- " <> tag "b" (html name) <> ": "
+        <> " -- " <> tag "b" (html name)
         <> (if first then show_ctype else "") <> "\n"
     show_ctype = "<div style='float:right'>"
         <> tag "em" (html (pretty ctype)) <> "</div>"
