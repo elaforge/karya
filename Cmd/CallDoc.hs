@@ -62,7 +62,7 @@ call_bindings_text include_module (binds, ctype, call_doc) =
         | tags == mempty && no_args args = write_doc doc
         | otherwise = write_doc doc <//> write_tags tags
             <> Format.indentLine (arg_docs args)
-    arg_docs (Derive.ArgsParsedSpecially doc) =
+    arg_docs (Derive.ArgsParsedManually doc) =
         "Args parsed by call:" <+/> write_doc doc <> "\n"
     arg_docs (Derive.ArgDocs args) = Format.unlines (map arg_doc args)
     arg_doc (Derive.ArgDoc name typ parser env_default doc) =
@@ -329,7 +329,7 @@ call_bindings_html hstate call_kind bindings@(binds, ctype, call_doc) =
         <> write_tags tags <> "\n"
         <> tag "ul" (arg_docs args)
         <> "</dl>\n"
-    arg_docs (Derive.ArgsParsedSpecially doc) =
+    arg_docs (Derive.ArgsParsedManually doc) =
         "\n<li><b>Args parsed by call:</b> " <> html_doc hstate doc
     arg_docs (Derive.ArgDocs args) = mconcatMap arg_doc args
     arg_doc (Derive.ArgDoc name typ parser env_default doc) =
@@ -364,7 +364,7 @@ binding_tags (binds, ctype, call_doc) =
     cdoc_tags = Tags.untag . Derive.cdoc_tags
     module_ (Module.Module m) = "m:" <> m
     args_tags (Derive.ArgDocs args) = concatMap arg_tags args
-    args_tags (Derive.ArgsParsedSpecially {}) = []
+    args_tags (Derive.ArgsParsedManually {}) = []
     arg_tags arg =
         [ unsym $ Sig.prefixed_environ name (Derive.arg_name arg)
         | name <- names

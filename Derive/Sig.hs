@@ -199,7 +199,7 @@ parse_vals parser ctx name vals =
 -- This is for calls whose args are more complicated than the Parser can
 -- handle.
 parsed_manually :: Text -> a -> Derive.WithArgDoc a
-parsed_manually doc f = (f, Derive.ArgsParsedSpecially doc)
+parsed_manually doc f = (f, Derive.ArgsParsedManually doc)
 
 -- | Parser for nullary calls.  Either use this with 'call' and 'callt', or use
 -- 'call0' and 'call0t' as a shortcut.

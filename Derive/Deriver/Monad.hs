@@ -1241,7 +1241,7 @@ data CallDoc = CallDoc {
 
 data ArgDocs = ArgDocs [ArgDoc]
     -- | This means the call parses the args itself in some special way.
-    | ArgsParsedSpecially Text
+    | ArgsParsedManually Text
     deriving (Eq, Ord, Show)
 
 data ArgDoc = ArgDoc {

@@ -126,12 +126,12 @@ extract_args (Call call args) = extract (Derive.call_doc call) args
                 "call can take up to " <> showt (length docs)
                 <> " args, but was given " <> showt (length args)
             | otherwise -> concatMapM extract_arg (zip docs args)
-        Derive.ArgsParsedSpecially _ ->
+        Derive.ArgsParsedManually _ ->
             -- TODO This means an arbitrary number of Vals.  I think I'd have
             -- to insist on only one Var, and then give all the arguments to
             -- it.  It's not that hard, but I don't have a reason to support it
             -- at the moment.
-            Left "ArgsParsedSpecially not supported"
+            Left "ArgsParsedManually not supported"
         where
         extract_arg (doc, arg) = case arg of
             Var -> Right [doc]
