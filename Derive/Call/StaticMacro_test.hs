@@ -15,7 +15,6 @@ import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
-import qualified Derive.Typecheck as Typecheck
 
 import Global
 
@@ -58,7 +57,7 @@ test_transformer = do
         (["+x+y+z"], [])
 
 attr :: Text -> Arg
-attr = Given . StaticMacro.Literal . Typecheck.to_val . Score.attr
+attr = StaticMacro.literal . Score.attr
 
 make_call :: call -> [Arg] -> StaticMacro.Call call
 make_call call args = StaticMacro.Call call args

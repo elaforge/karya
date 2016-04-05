@@ -7,7 +7,7 @@
 -- The equal call is heavily overloaded because I want to reuse the nice infix
 -- syntax.  Unfortunately it results in lots of cryptic prefixes.  Is it worth
 -- it?
-module Derive.Call.Prelude.Equal (note_calls, control_calls, pitch_calls) where
+module Derive.Call.Prelude.Equal (note_calls, control_calls, pitch_calls, c_equal) where
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as Map
 import qualified Data.Text as Text

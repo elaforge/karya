@@ -6,7 +6,10 @@
 -- are given directly in haskell, instead of looked up as strings during
 -- evaluation.  This means that the calls can't be rebound, but on the other
 -- hand, it can re-export the documentation for the sub-calls.
-module Derive.Call.StaticMacro where
+module Derive.Call.StaticMacro (
+    Call(..), Arg(..), val_call, literal
+    , generator, transformer
+) where
 import qualified Control.Monad.Identity as Identity
 import qualified Control.Monad.State as Monad.State
 import qualified Data.List as List
@@ -21,13 +24,13 @@ import qualified Derive.Eval as Eval
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
+import qualified Derive.Typecheck as Typecheck
 
 import Global
 
 
-data Call call = Call !call ![Arg]
-    deriving (Show)
-
+data Call call = Call !call ![Arg] deriving (Show)
+data Arg = Var | Given !Term deriving (Show)
 data Term = ValCall !Derive.ValCall ![Arg] | Literal !BaseTypes.Val
     deriving (Show)
 
@@ -36,7 +39,11 @@ data ResolvedTerm =
     RValCall !Derive.ValCall ![ResolvedTerm] | RLiteral !BaseTypes.Val
     deriving (Show)
 
-data Arg = Var | Given !Term deriving (Show)
+val_call :: Derive.ValCall -> [Arg] -> Arg
+val_call call args = Given $ ValCall call args
+
+literal :: Typecheck.ToVal a => a -> Arg
+literal = Given . Literal . Typecheck.to_val
 
 generator :: Derive.Callable d => Module.Module -> Text -> Tags.Tags
     -> [Call (Derive.Transformer d)]
@@ -141,7 +148,12 @@ extract_args (Call call args) = extract (Derive.call_doc call) args
 -- ** doc
 
 make_doc :: [Text] -> Text
-make_doc calls = "A composite call to: " <> Text.intercalate " | " calls
+make_doc calls =
+    "A composite call to: `" <> Text.intercalate " | " calls <> "`.\
+    \\nEach `$` is lifted to be an argument of this macro.\
+    \\nThis directly calls the underlying sub-calls, so it's not dependent on\
+    \ the names they are bound to, which also means the macro text may not be a\
+    \ valid expression."
 
 call_doc :: Call (Derive.Call f) -> Text
 call_doc (Call call args) = Text.unwords $
@@ -149,6 +161,6 @@ call_doc (Call call args) = Text.unwords $
 
 arg_doc :: Arg -> Text
 arg_doc (Given (Literal val)) = ShowVal.show_val val
-arg_doc (Given (ValCall call args)) = Text.unwords $
-    Derive.vcall_name call : map arg_doc args
+arg_doc (Given (ValCall call args)) =
+    "(" <> Text.unwords (Derive.vcall_name call : map arg_doc args) <> ")"
 arg_doc Var = "$"

@@ -13,7 +13,10 @@ import qualified Util.Seq as Seq
 
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
+import qualified Derive.Call.Prelude.ControlFunction as ControlFunction
+import qualified Derive.Call.Prelude.Equal as Equal
 import qualified Derive.Call.Prelude.Note as Note
+import qualified Derive.Call.StaticMacro as StaticMacro
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -37,6 +40,7 @@ note_calls :: Derive.CallMaps Derive.Note
 note_calls = Derive.transformer_call_map
     [ ("apply-start-offset", c_apply_start_offset)
     , ("cancel", c_cancel)
+    , ("randomize-start", c_randomize_start)
     ]
 
 -- * cancel
@@ -197,6 +201,18 @@ replace_note next event = event
     start = Score.event_start event
 
 -- * apply start offset
+
+c_randomize_start :: Derive.Transformer Derive.Note
+c_randomize_start = either (error . ("c_randomize_start: "++) . untxt) id $
+    StaticMacro.transformer Module.prelude "randomize-start" Tags.postproc
+        -- apply-start-offset | %start-s = (cf-rnd-a+ $)
+        [ StaticMacro.Call c_apply_start_offset []
+        , StaticMacro.Call Equal.c_equal
+            [ StaticMacro.literal (ShowVal.show_val Controls.start_s)
+            , StaticMacro.val_call (ControlFunction.c_cf_rnd_around (+))
+                [StaticMacro.Var]
+            ]
+        ]
 
 {- | Previously I applied the @%start-s@ and @%start-t@ controls in the note
     generator, but I wound up with notes getting out of sync with their

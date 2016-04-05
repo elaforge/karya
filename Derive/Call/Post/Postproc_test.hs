@@ -85,6 +85,14 @@ test_suppress_until = do
             ])
         ([0, 1, 3], [])
 
+test_randomize_start = do
+    let run title = DeriveTest.extract Score.event_start
+            . DeriveTest.derive_tracks title
+    let notes = [(">", [(0, 1, ""), (1, 1, "")])]
+    let (starts, logs) = run "randomize-start 5" notes
+    equal logs []
+    not_equal starts [0, 1]
+
 -- TODO disabled as long as Postproc.replace_note is disabled.
 -- test_infer_duration_controls = do
 --     -- A zero duration note at the end of a block gets controls from right

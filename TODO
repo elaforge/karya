@@ -3,6 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - in save/transcribe/evvari, signal renders for gamakam tracks are flat.
+  - A log msg with a stack but no Block is likely from the global transform.
+    Logview should make that clear.
   - BaseTypes.CallId should have a name more reminiscent of Symbol.
     CallSymbol?
   * Util.Test should have a version intended for unqualified import.
@@ -16,7 +19,7 @@ UNSORTED
     write a|b.  Or... is that so great after all?  With proportional fonts,
     the spaces are small and I don't want multiple ways to do it.
   macros
-    . 'apply-start-offset | %start-s = (cf-rnd-a .05)' is a pretty obscure way
+    * 'apply-start-offset | %start-s = (cf-rnd-a .05)' is a pretty obscure way
       to randomize note starts.  Maybe I should have an alias for it?
     . I wind up with more and more of these aliases.  I should have an easier
       way to put these together.  They inherit the exposed parameters of the
@@ -42,7 +45,7 @@ UNSORTED
     * I can also have a "statically bound" variant which can extract the
       ArgDocs.  To avoid a complicated resolution phase, it takes the calls
       directly, e.g. [(Transformer d, [Arg])] -> (Generator d, [Arg]) -> ...
-    - Both macro and static macros seem pretty awkward to use.  But it's not
+    . Both macro and static macros seem pretty awkward to use.  But it's not
       like doing it by hand would be any less awkward, right?
     * One cause of awkwardness: c_equal uses ArgsParsedSpecially.  I could
       support that in macros, but I could probably also have it use normal
