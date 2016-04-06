@@ -86,7 +86,7 @@ merge_doc = "Merge operator. This can be `_` to use the default for the\
 data Merge = Default | Set | Merge BaseTypes.CallId deriving (Show)
 
 instance ShowVal.ShowVal Merge where
-    show_val Default = "_"
+    show_val Default = ShowVal.show_val Typecheck.NotGiven
     show_val Set = "set"
     show_val (Merge sym) = ShowVal.show_val sym
 

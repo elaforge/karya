@@ -4,18 +4,7 @@
 
 -- | Exports from "Util.Testing".  This is meant to be imported unqualified.
 module Util.Test (module Util.Testing) where
-import Util.Testing (
-    -- * pure assertions
-    check, equal, right_equal, not_equal, equalf, strings_like
-    , left_like , match
-    -- * exception assertions
-    , throws
-    -- * io assertions
-    , io_equal, io_human, pause
-    -- * low level
-    , success, failure
-    -- * extracting
-    , expect_right
-    -- * pretty printing
-    , prettyp, pprint
-    )
+import Util.Testing
+       (check, equal, right_equal, not_equal, equalf, strings_like, left_like,
+        match, throws, io_equal, io_human, pause, success, failure,
+        expect_right, prettyp, pprint)

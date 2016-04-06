@@ -5,18 +5,14 @@
 {-# LANGUAGE CPP #-}
 {- | Derivers for control tracks.  That means tempo, control, and pitch.
 
-    Control tracks (specifically control tracks, not tempo or pitch) can have
-    a combining operator.  If no operator is given, they are combined with
-    @mul@.  @set@ will replace the signal.  So two tracks named @c@ will
-    multiply, same as if the second were @mul c@.  If you want to override @c@
-    then @set c@ will do that.
+    Control and pitch tracks can have a 'Derive.Merger'.  If no merger is
+    given, they are combined with 'Derive.get_default_merger'.  @set@ will
+    replace the signal.  So two tracks named @c@ will multiply, same as if the
+    second were @mul c@.  If you want to override @c@ then @set c@ will do
+    that.
 
-    A control with a combining operator but nothing to combine with should still
-    do something sensible because operators come with an identity value, e.g.
-    @1@ for @mul@ and @0@ for @add@.
-
-    Tempo tracks don't support operators because they are converted into
-    a warp, which is then combined via composition.  Pitch tracks always
+    Tempo tracks don't support mergers because they are converted into
+    a warp, which is then combined via composition.  Pitch tracks normally
     replace each other because adding together absolute pitches is undefined.
     Relative pitches can be added or multiplied, and this is expressed via
     normal controls using transposition signals like 'Controls.chromatic'.

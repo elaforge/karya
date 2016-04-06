@@ -3,8 +3,9 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - The merge operator in Cmd.Control should also use the same parse_merge
+  / The merge operator in Cmd.Control should also use the same parse_merge
     function as Equal.  Also update haddock.
+    . Actually it's not really appropriate, since "" is default.
   - A log msg with a stack but no Block is likely from the global transform.
     Logview should make that clear.
   - BaseTypes.CallId should have a name more reminiscent of Symbol.
@@ -55,7 +56,6 @@ UNSORTED
       But that could use a defaulted arg: '%a = b add' or even
       'merge=add | %a=b'.
   * Equal.c_default_merge should use the same merge arg as c_equal.
-
   - A problem with environ defaulted args is that if I do e.g.
     'merge=add | a=b | block', then all of 'block' will have merge=add.
     There's no way to set it just for 'a=b'.  So they're not necessarily
