@@ -61,8 +61,8 @@ get_current :: Cmd.M m => BlockId -> m Cmd.Performance
 get_current block_id = Cmd.abort_unless =<< Map.lookup block_id <$>
     Cmd.gets (Cmd.state_current_performance . Cmd.state_play)
 
-track_signals :: Cmd.CmdL (Maybe Track.TrackSignal)
-track_signals = do
+track_signal :: Cmd.CmdL (Maybe Track.TrackSignal)
+track_signal = do
     (block_id, _, track_id, _) <- Selection.get_insert
     perf <- get block_id
     return $ Map.lookup (block_id, track_id) (Cmd.perf_track_signals perf)

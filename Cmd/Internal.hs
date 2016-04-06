@@ -35,7 +35,6 @@ import qualified Ui.UiMsg as UiMsg
 import qualified Ui.Update as Update
 
 import qualified Cmd.Cmd as Cmd
-import qualified Cmd.Info as Info
 import qualified Cmd.Msg as Msg
 import qualified Cmd.Perf as Perf
 import qualified Cmd.Selection as Selection
@@ -480,10 +479,11 @@ sync_zoom_status _view_id = return ()
 sync_selection_status :: Cmd.M m => ViewId -> Maybe Cmd.TrackSelection -> m ()
 sync_selection_status view_id maybe_sel = case maybe_sel of
     Nothing -> set Nothing
-    Just (sel, block_id, maybe_track_id) -> do
+    Just (sel, _block_id, maybe_track_id) -> do
         ns <- State.get_namespace
         set $ Just $ selection_status ns sel maybe_track_id
-        Info.set_instrument_status block_id (Sel.cur_track sel)
+        -- This didn't seem too useful, but maybe I'll change my mind?
+        -- Info.set_instrument_status block_id (Sel.cur_track sel)
     where set = Cmd.set_view_status view_id Config.status_selection
 
 selection_status :: Id.Namespace -> Sel.Selection -> Maybe TrackId -> Text
