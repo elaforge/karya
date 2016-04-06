@@ -109,13 +109,19 @@ type ControlMap = Map.Map Score.Control Score.TypedControl
 -- "Perform.Midi.Convert").
 apply_controls :: ControlMap -> PSignal -> PSignal
 apply_controls controls sig
-    | V.null (sig_vec sig) = sig
-    | otherwise = sig { sig_vec = resampled }
+    | Just (x, _) <- head sig = sig { sig_vec = resample x }
+    | otherwise = sig
     where
-    resampled = TimeVector.sig_op2 initial_controls initial_pitch
+    resample x = TimeVector.sig_op_poly initial_controls initial_pitch
         (\vmap -> coerce . apply vmap)
-        (sample_controls controls (sig_transposers sig))
+        (sample_controls (trim x controls) (sig_transposers sig))
         (sig_vec sig)
+    -- Trim away control samples before the first pitch sample.  Otherwise,
+    -- a transpose signal can cause the pitch signal to be extended to where
+    -- previously no pitch existed.  In practice this causes a problem when
+    -- flattening a PSignal for the track signal, where a transpose signal can
+    -- cause every pitch signal fragment to start at 0.
+    trim = fmap . fmap . Signal.drop_before_strict
     Sample start initial_pitch = V.unsafeHead (sig_vec sig)
     initial_controls = controls_at start controls
 

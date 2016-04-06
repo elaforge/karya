@@ -42,6 +42,7 @@ import qualified Ui.Block as Block
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Cache as Cache
 import qualified Derive.Call as Call
 import qualified Derive.Controls as Controls
@@ -58,7 +59,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Stream as Stream
 import qualified Derive.Tempo as Tempo
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.Signal as Signal
@@ -361,7 +361,7 @@ is_normal_mode = Derive.get_mode >>= \mode -> return $ case mode of
 
 stash_signal_fragment :: BlockId -> TrackId -> TrackTime -> Signal.Control
     -> Derive.Deriver ()
-stash_signal_fragment block_id track_id pos sig =
+stash_signal_fragment block_id track_id slice_end sig =
     -- TODO I think this is faster than Internal.merge_collect, but I haven't
     -- profiled so I don't know
     Internal.modify_collect $ \collect -> collect
@@ -376,8 +376,8 @@ stash_signal_fragment block_id track_id pos sig =
     -- first place.
     insert (Just old) = Just $ case Util.Map.max old of
         Just (_, prev) | sig == prev -> old
-        _ -> Map.insert pos sig old
-    insert _ = Just $ Map.singleton pos sig
+        _ -> Map.insert slice_end sig old
+    insert _ = Just $ Map.singleton slice_end sig
 
 stash_signal :: BlockId -> TrackId -> Signal.Control -> Derive.Deriver ()
 stash_signal block_id track_id sig = do

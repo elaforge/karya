@@ -3,7 +3,8 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
-  - in save/transcribe/evvari, signal renders for gamakam tracks are flat.
+  - The merge operator in Cmd.Control should also use the same parse_merge
+    function as Equal.  Also update haddock.
   - A log msg with a stack but no Block is likely from the global transform.
     Logview should make that clear.
   - BaseTypes.CallId should have a name more reminiscent of Symbol.
@@ -14,7 +15,8 @@ UNSORTED
     the second one has a duration.
     . Apparently reproducing is not so simple.
     . 'z' '!0' to add 0 dur event to control track, then '.' should do it.
-  - %t-oct=1 in the block title seems to mess up pitch track signal
+  * %t-oct=1 in the block title seems to mess up pitch track signal
+    . in save/transcribe/evvari, signal renders for gamakam tracks are flat.
   - Pipe should be an exception to "first call is any non-space", so I can
     write a|b.  Or... is that so great after all?  With proportional fonts,
     the spaces are small and I don't want multiple ways to do it.

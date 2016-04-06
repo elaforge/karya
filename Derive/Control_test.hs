@@ -165,6 +165,16 @@ test_default_merge = do
     equal (run "dyn") ([[(0, 0.25)]], [])
     equal (run "t-dia") ([[(0, 1)]], [])
 
+test_track_signal_transpose = do
+    let run title = e_tsig_sigs $ DeriveTest.derive_tracks_setup setup title $
+            UiTest.note_track [(0, 1, "4c"), (1, 1, "4d"), (2, 1, "4e")]
+        setup = DeriveTest.with_tsig_tracknums [2]
+    equal (run "") [[(0, 60), (1, 62), (2, 64)]]
+    -- Make sure the transposition doesn't mess up the signal.  This tests
+    -- that PSignal.apply_controls doesn't create pitch signal starting at 0
+    -- where the transpose control starts.
+    equal (run "%t-oct=1") [[(0, 72), (1, 74), (2, 76)]]
+
 test_stash_signal = do
     -- make sure that TrackSignals are recorded when control tracks are derived
     let itrack = (">i", [])
@@ -233,6 +243,9 @@ test_stash_signal_default_tempo = do
         set_tempo = DeriveTest.with_ui $
             State.config#State.default_#State.tempo #= 2
     equal r [([(0, 60), (5, 62), (10, 60)], 0, 0.5)]
+
+e_tsig_sigs :: Derive.Result -> [[(RealTime, Signal.Y)]]
+e_tsig_sigs = map (\(sig, _, _) -> sig) . e_tsigs
 
 e_tsigs :: Derive.Result -> [([(RealTime, Signal.Y)], ScoreTime, ScoreTime)]
     -- ^ for each track, (signal, shift, stretch)

@@ -27,10 +27,12 @@ test_apply_controls = do
     equal (f [(trans1, [(0, 0), (1, -1), (2, 0)])] [(0, 2)])
         [(0, Right 2), (1, Right 1), (2, Right 2)]
 
-    equal (f [(trans1, [(1, 1), (3, 3)]), (trans2, [(0, 0)])] [(1, 0)])
+    equal (f [(trans1, [(1, 1), (3, 3)]), (trans2, [(0, 0)])] [(0, 0)])
         [(0, Right 0), (1, Right 1), (3, Right 3)]
-    equal (f [(trans1, [(1, 1), (3, 3)]), (trans2, [(0, 0), (2, 2)])] [(1, 0)])
+    equal (f [(trans1, [(1, 1), (3, 3)]), (trans2, [(0, 0), (2, 2)])] [(0, 0)])
         [(0, Right 0), (1, Right 1), (2, Right 1), (3, Right 3)]
+    -- Transposition won't create pitch where none existed.
+    equal (f [(trans1, [(0, 1)])] [(2, 2)]) [(2, Right 3)]
 
 mksignal :: [(RealTime, Pitch.NoteNumber)] -> PSignal.PSignal
 mksignal = PSignal.signal . map (second mkpitch)

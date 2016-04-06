@@ -349,13 +349,13 @@ map_err f vec = second reverse $ State.runState (V.mapM go vec) []
 sig_op :: V.Vector v (Sample y) =>
     y -- ^ the implicit y value of a vector before its first sample
     -> (y -> y -> y) -> v (Sample y) -> v (Sample y) -> v (Sample y)
-sig_op initial f vec1 vec2 = V.unfoldr go (initial, initial, 0, 0)
+sig_op initial combine vec1 vec2 = V.unfoldr go (initial, initial, 0, 0)
     where
     go (prev_ay, prev_by, i1, i2) =
         case resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
             Nothing -> Nothing
             Just (x, ay, by, i1, i2) ->
-                Just (Sample x (f ay by), (ay, by, i1, i2))
+                Just (Sample x (combine ay by), (ay, by, i1, i2))
     len1 = V.length vec1
     len2 = V.length vec2
 
@@ -363,8 +363,9 @@ sig_op initial f vec1 vec2 = V.unfoldr go (initial, initial, 0, 0)
 --
 -- The signature is specialized to Boxed since you might as well use 'sig_op'
 -- for Unboxed vectors.
-sig_op2 :: y1 -> y2 -> (y1 -> y2 -> y3) -> Boxed y1 -> Boxed y2 -> Boxed y3
-sig_op2 initial1 initial2 f vec1 vec2 = V.unfoldr go (initial1, initial2, 0, 0)
+sig_op_poly :: y1 -> y2 -> (y1 -> y2 -> y3) -> Boxed y1 -> Boxed y2 -> Boxed y3
+sig_op_poly initial1 initial2 combine vec1 vec2 =
+    V.unfoldr go (initial1, initial2, 0, 0)
     where
     -- Yeah I could probably make 'sig_op' a specialization of this, but can't
     -- be bothered at the moment.
@@ -372,7 +373,7 @@ sig_op2 initial1 initial2 f vec1 vec2 = V.unfoldr go (initial1, initial2, 0, 0)
         case resample1 prev_ay prev_by len1 len2 i1 i2 vec1 vec2 of
             Nothing -> Nothing
             Just (x, ay, by, i1, i2) ->
-                Just (Sample x (f ay by), (ay, by, i1, i2))
+                Just (Sample x (combine ay by), (ay, by, i1, i2))
     len1 = V.length vec1
     len2 = V.length vec2
 

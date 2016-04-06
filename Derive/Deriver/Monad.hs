@@ -904,7 +904,7 @@ data Collect = Collect {
 -- If the track is then evaluated again, the monoid instance will discard the
 -- duplicate.
 --
--- The signal fragments are kept sorted by the slice order.  Since
+-- The signal fragments are indexed by the slice position.  Since
 -- 'Signal.merge' makes the earlier signals win in case of overlaps, this
 -- ensures a trimmed earlier fragment won't replace a more complete later one.
 type SignalFragments =
