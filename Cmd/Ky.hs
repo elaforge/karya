@@ -24,6 +24,7 @@ import qualified Util.Log as Log
 import qualified Ui.State as State
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Call.Macro as Macro
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
@@ -122,8 +123,27 @@ compile_library (Parse.Definitions note control pitch val aliases) =
         (call_id, make fname call_id expr)
 
 make_generator :: Derive.Callable d => FilePath -> BaseTypes.Symbol
+    -> Parse.Expr -> Derive.Generator d
+make_generator fname (BaseTypes.Symbol name) var_expr
+    | Just expr <- no_free_vars var_expr = simple_generator fname name expr
+    | otherwise = Macro.generator Module.local name mempty
+        ("Defined in " <> txt fname <> ".") var_expr
+
+make_transformer :: Derive.Callable d => FilePath -> BaseTypes.Symbol
+    -> Parse.Expr -> Derive.Transformer d
+make_transformer fname (BaseTypes.Symbol name) var_expr
+    | Just expr <- no_free_vars var_expr = simple_transformer fname name expr
+    | otherwise = Macro.transformer Module.local name mempty
+        ("Defined in " <> txt fname <> ".") var_expr
+
+make_val_call :: FilePath -> BaseTypes.CallId -> Parse.Expr -> Derive.ValCall
+make_val_call fname (BaseTypes.Symbol name) var_expr
+    | Just expr <- no_free_vars var_expr = simple_val_call fname name expr
+    | otherwise = error "var call macros not supported yet" -- TODO
+
+simple_generator :: Derive.Callable d => FilePath -> Text
     -> BaseTypes.Expr -> Derive.Generator d
-make_generator fname (BaseTypes.Symbol name) expr =
+simple_generator fname name expr =
     Derive.generator Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0 generator
@@ -131,9 +151,9 @@ make_generator fname (BaseTypes.Symbol name) expr =
             \args -> Eval.reapply_generator args call_id
     where generator args = Eval.eval_toplevel (Derive.passed_ctx args) expr
 
-make_transformer :: Derive.Callable d => FilePath -> BaseTypes.Symbol
+simple_transformer :: Derive.Callable d => FilePath -> Text
     -> BaseTypes.Expr -> Derive.Transformer d
-make_transformer fname (BaseTypes.Symbol name) expr =
+simple_transformer fname name expr =
     Derive.transformer Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0t transformer
@@ -148,9 +168,8 @@ make_transformer fname (BaseTypes.Symbol name) expr =
         Eval.apply_transformer (Derive.passed_ctx args) call
             (Derive.passed_vals args) deriver
 
-make_val_call :: FilePath -> BaseTypes.CallId -> BaseTypes.Expr
-    -> Derive.ValCall
-make_val_call fname (BaseTypes.Symbol name) expr =
+simple_val_call :: FilePath -> Text -> BaseTypes.Expr -> Derive.ValCall
+simple_val_call fname name expr =
     Derive.val_call Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
         Nothing -> Sig.call0 $ \args -> case expr of
@@ -164,6 +183,16 @@ make_val_call fname (BaseTypes.Symbol name) expr =
         call <- Eval.get_val_call call_id
         Derive.vcall_call call $ args
             { Derive.passed_call_name = Derive.vcall_name call }
+
+-- | If the Parse.Expr has no 'Parse.VarTerm's, it doesn't need to be a macro.
+no_free_vars :: Parse.Expr -> Maybe BaseTypes.Expr
+no_free_vars (Parse.Expr expr) = traverse convent_call expr
+    where
+    convent_call (Parse.Call call_id terms) =
+        BaseTypes.Call call_id <$> traverse convert_term terms
+    convert_term (Parse.VarTerm _) = Nothing
+    convert_term (Parse.ValCall call) = BaseTypes.ValCall <$> convent_call call
+    convert_term (Parse.Literal val) = Just $ BaseTypes.Literal val
 
 make_doc :: FilePath -> Text -> BaseTypes.Expr -> Text
 make_doc fname name expr =

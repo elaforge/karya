@@ -15,9 +15,10 @@ module Derive.Parse (
     -- * ky file
     , Definitions(..), Definition
     , load_ky, find_ky, parse_ky
+    -- ** types
+    , Expr(..), Call(..), Term(..), Var(..)
 #ifdef TESTING
-    , p_equal, p_definition
-    , split_sections
+    , module Derive.Parse
 #endif
 ) where
 import Prelude hiding (lex)
@@ -168,8 +169,8 @@ p_pipeline toplevel = do
     return $ c :| cs
 
 p_expr :: Bool -> A.Parser BaseTypes.Call
-p_expr toplevel = A.try p_unparsed_expr <|> A.try p_equal
-    <|> A.try (p_call toplevel) <|> p_null_call
+p_expr toplevel =
+    p_unparsed_expr <|> p_equal <|> p_call toplevel <|> p_null_call
 
 p_unparsed_expr :: A.Parser BaseTypes.Call
 p_unparsed_expr = do
@@ -195,15 +196,19 @@ unparsed_call = "!"
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
 
-p_equal :: A.Parser BaseTypes.Call
-p_equal = do
-    assignee <- p_string <|> p_call_symbol True
+p_equal_lhs :: A.Parser (BaseTypes.CallId, BaseTypes.Val)
+p_equal_lhs = do
+    lhs <- p_string <|> p_call_symbol True
     spaces
     A.char '='
     spaces
-    vals <- A.many1 p_term
-    return $ BaseTypes.Call BaseTypes.c_equal $
-        BaseTypes.Literal (BaseTypes.VSymbol assignee) : vals
+    return (BaseTypes.c_equal, BaseTypes.VSymbol lhs)
+
+p_equal :: A.Parser BaseTypes.Call
+p_equal = do
+    (call_id, lhs) <- p_equal_lhs
+    rhs <- A.many1 p_term
+    return $ BaseTypes.Call call_id $ BaseTypes.Literal lhs : rhs
 
 p_call :: Bool -> A.Parser BaseTypes.Call
 p_call toplevel =
@@ -486,7 +491,7 @@ instance Monoid Definitions where
             (h1<>h2)
 
 -- | (defining_file, (call_sym, expr))
-type Definition = (FilePath, (BaseTypes.CallId, BaseTypes.Expr))
+type Definition = (FilePath, (BaseTypes.CallId, Expr))
 type LineNumber = Int
 
 {- | Parse a definitions file.  This file gives a way to define new calls
@@ -557,12 +562,13 @@ parse_ky filename text = do
         ParseText.parse_lines lineno p_section $
             Text.unlines (line0 : map snd lines)
 
-parse_alias :: (BaseTypes.CallId, BaseTypes.Expr)
+-- | The alias section allows only @>inst = >inst@ definitions.
+parse_alias :: (BaseTypes.CallId, Expr)
     -> Either Text (Score.Instrument, Score.Instrument)
 parse_alias (BaseTypes.Symbol sym, expr) = do
     lhs <- parse_instrument "lhs" sym
     rhs <- case expr of
-        BaseTypes.Call (BaseTypes.Symbol sym) [] :| [] ->
+        Expr (Call (BaseTypes.Symbol sym) [] :| []) ->
             parse_instrument "rhs" sym
         _ -> Left $ "rhs of alias should just be a single >inst: "
             <> ShowVal.show_val expr
@@ -597,16 +603,94 @@ p_imports = A.skipMany empty_line *> A.many p_import <* A.skipMany empty_line
     p_import = A.string "import" *> spaces *> (untxt <$> p_single_quote_string)
         <* spaces <* A.char '\n'
 
-p_section :: A.Parser [(BaseTypes.CallId, BaseTypes.Expr)]
+p_section :: A.Parser [(BaseTypes.CallId, Expr)]
 p_section =
     A.skipMany empty_line *> A.many p_definition <* A.skipMany empty_line
 
-p_definition :: A.Parser (BaseTypes.CallId, BaseTypes.Expr)
+p_definition :: A.Parser (BaseTypes.CallId, Expr)
 p_definition = do
     assignee <- p_call_symbol True
     spaces
     A.skip (=='=')
     spaces
-    expr <- p_pipeline True
+    expr <- p_pipeline_ky
     A.skipMany empty_line
     return (assignee, expr)
+
+-- ** types
+
+-- | These are parallel to the 'BaseTypes.Expr' types, except they add
+-- 'VarTerm'.  The duplication is unfortunate, but as long as this remains
+-- a simple AST it seems better than the various heavyweight techniques for
+-- parameterizing an AST.
+newtype Expr = Expr (NonEmpty Call)
+    deriving (Show)
+data Call = Call !BaseTypes.CallId ![Term]
+    deriving (Show)
+data Term = VarTerm !Var | ValCall !Call | Literal !BaseTypes.Val
+    deriving (Show)
+newtype Var = Var Text deriving (Show)
+
+instance ShowVal.ShowVal Expr where
+    show_val (Expr calls) = Text.intercalate " | " $
+        map ShowVal.show_val (NonEmpty.toList calls)
+
+instance ShowVal.ShowVal Call where
+    show_val (Call call_id args) = Text.unwords $
+        ShowVal.show_val call_id : map ShowVal.show_val args
+
+instance ShowVal.ShowVal Term where
+    show_val (VarTerm var) = ShowVal.show_val var
+    show_val (ValCall call) = "(" <> ShowVal.show_val call <> ")"
+    show_val (Literal val) = ShowVal.show_val val
+
+instance ShowVal.ShowVal Var where
+    show_val (Var name) = "$" <> name
+
+-- ** parsers
+
+-- TODO rename these to p_expr_ky etc, and the non-ky versions too
+
+-- | As 'Expr' parallels 'BaseTypes.Expr', these parsers parallel 'p_pipeline'
+-- and so on.
+p_pipeline_ky :: A.Parser Expr
+p_pipeline_ky = do
+    -- It definitely matches at least one, because p_null_call always matches.
+    c : cs <- A.sepBy1 p_expr_ky p_pipe
+    return $ Expr (c :| cs)
+
+p_expr_ky :: A.Parser Call
+p_expr_ky =
+    call_to_ky <$> p_unparsed_expr
+    <|> p_equal_ky <|> p_call_ky
+    <|> call_to_ky <$> p_null_call
+
+p_equal_ky :: A.Parser Call
+p_equal_ky = do
+    (call_id, lhs) <- p_equal_lhs
+    rhs <- A.many1 p_term_ky
+    return $ Call call_id (Literal lhs : rhs)
+
+call_to_ky :: BaseTypes.Call -> Call
+call_to_ky (BaseTypes.Call call_id args) = Call call_id (map convert args)
+    where
+    convert (BaseTypes.Literal val) = Literal val
+    convert (BaseTypes.ValCall call) = ValCall (call_to_ky call)
+
+p_sub_call_ky :: A.Parser Call
+p_sub_call_ky = ParseText.between (A.char '(') (A.char ')') p_call_ky
+
+-- p_term_ky instead of p_term
+p_call_ky :: A.Parser Call
+p_call_ky = Call <$> lexeme (p_call_symbol False) <*> A.many p_term_ky
+
+p_term_ky :: A.Parser Term
+p_term_ky = lexeme $ VarTerm <$> p_var
+    <|> Literal <$> p_val
+    <|> ValCall <$> p_sub_call_ky
+
+p_var :: A.Parser Var
+p_var = A.char '$' *> (Var <$> A.takeWhile1 is_var_char)
+
+is_var_char :: Char -> Bool
+is_var_char c = 'a' <= c || 'z' <= c || c == '-'

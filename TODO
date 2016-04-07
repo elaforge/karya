@@ -44,7 +44,7 @@ UNSORTED
     . Of course ky defined macros might not care about that.
     * Basic implementation of dynamically bound macro.
     * Support nested Vars, e.g. 'a (b $c)'.
-    - Extend ky file parser to understand $vars.
+    * Extend ky file parser to understand $vars.
     * I can also have a "statically bound" variant which can extract the
       ArgDocs.  To avoid a complicated resolution phase, it takes the calls
       directly, e.g. [(Transformer d, [Arg])] -> (Generator d, [Arg]) -> ...
@@ -1076,7 +1076,7 @@ Cmd:
       a bit of a hassle.
 
 local definitions .ky:
-  - define functions with arguments in .ky?
+  * define functions with arguments in .ky?
     sd x y = from=$x | drop $y
 
 Derive:

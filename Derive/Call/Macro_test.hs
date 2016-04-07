@@ -10,6 +10,7 @@ import qualified Derive.Call.Macro as Macro
 import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
+import qualified Derive.Parse as Parse
 import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
@@ -23,17 +24,17 @@ test_generator = do
                 [(">", [(0, 1, call)])]
         setup expr =
             CallTest.with_note_generator "m"
-                (Macro.generator Module.prelude "m" mempty expr)
+                (Macro.generator Module.prelude "m" mempty "doc" expr)
             <> CallTest.with_val_call "id" c_id
     equal (run [("+a", []), ("+b", [])] "m") (["+a+b"], [])
-    equal (run [("n", [Right (attr "a")])] "m") (["+a"], [])
-    equal (run [("n", [Left "var"])] "m +z") (["+z"], [])
-    equal (run [("n", [Left "var"]), ("n", [Left "var"])] "m +x +y")
+    equal (run [("n", [attr "a"])] "m") (["+a"], [])
+    equal (run [("n", [var "var"])] "m +z") (["+z"], [])
+    equal (run [("n", [var "var"]), ("n", [var "var"])] "m +x +y")
         (["+x+y"], [])
 
-    let val_call arg = Right $ Macro.ValCall (make_call "id" [arg])
-    equal (run [("n", [val_call (Right (attr "a"))])] "m") (["+a"], [])
-    equal (run [("n", [val_call (Left "var")])] "m +x") (["+x"], [])
+    let val_call arg = Parse.ValCall (Parse.Call "id" [arg])
+    equal (run [("n", [val_call (attr "a")])] "m") (["+a"], [])
+    equal (run [("n", [val_call (var "var")])] "m +x") (["+x"], [])
 
 c_id :: Derive.ValCall
 c_id = Derive.val_call "test" "id" mempty "doc" $
@@ -45,19 +46,17 @@ test_transformer = do
             DeriveTest.derive_tracks_setup (setup (make_expr expr)) ""
                 [(">", [(0, 1, call <> " | +z")])]
         setup = CallTest.with_note_transformer "m"
-            . Macro.transformer Module.prelude "m" mempty
-    equal (run [("n", [Right (attr "a")])] "m") (["+a+z"], [])
-    equal (run [("n", [Left "var"]), ("n", [Left "var"])] "m +x +y")
+            . Macro.transformer Module.prelude "m" mempty "doc"
+    equal (run [("n", [attr "a"])] "m") (["+a+z"], [])
+    equal (run [("n", [var "var"]), ("n", [var "var"])] "m +x +y")
         (["+x+y+z"], [])
 
-attr :: Text -> Macro.Term a
-attr = Macro.Literal . Typecheck.to_val . Score.attr
+var :: Text -> Parse.Term
+var = Parse.VarTerm . Parse.Var
 
-make_expr :: [(BaseTypes.CallId, [Either Text (Macro.Term Macro.Var)])]
-    -> Macro.Expr Macro.Var
-make_expr calls = Macro.Expr $ c :| cs
-    where c : cs = map (uncurry make_call) calls
+attr :: Text -> Parse.Term
+attr = Parse.Literal . Typecheck.to_val . Score.attr
 
-make_call :: BaseTypes.CallId -> [Either Text (Macro.Term Macro.Var)]
-    -> Macro.Call Macro.Var
-make_call call_id args = Macro.Call call_id (map (first Macro.Var) args)
+make_expr :: [(BaseTypes.CallId, [Parse.Term])] -> Parse.Expr
+make_expr calls = Parse.Expr $ c :| cs
+    where c : cs = map (uncurry Parse.Call) calls

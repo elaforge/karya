@@ -256,19 +256,24 @@ test_load_ky = do
             , (lib </> "lib2", lib2)
             ])
 
+e_expr :: Parse.Expr -> [(BaseTypes.CallId, [Text])]
+e_expr (Parse.Expr (call :| calls)) = e_call call : map e_call calls
+    where
+    e_call (Parse.Call call_id terms) = (call_id, map ShowVal.show_val terms)
+
 test_parse_ky = do
     let f extract = (untxt *** extract) . Parse.parse_ky "fname.ky"
-        note = f (map (second NonEmpty.head . snd) . fst . Parse.def_note . snd)
-            . ("note generator:\n"<>)
-    let sym = Literal . VSymbol
+        note = f e_note . ("note generator:\n"<>)
+        e_note = map (second (head . e_expr) . snd) . fst . Parse.def_note . snd
     left_like (f id "x:\na = b\n") "unknown sections: x"
     equal (note " --c\na = b\n\n") $
-        Right [("a", Call "b" [])]
+        Right [("a", ("b", []))]
     equal (note "a = b\n --c\n\n c\nd = e\n  -- hi\n") $
-        Right [("a", Call "b" [sym "c"]), ("d", Call "e" [])]
+        Right [("a", ("b", ["c"])), ("d", ("e", []))]
     equal (note "a = b\n c\n --comment\n\nd = e\n") $
-        Right [("a", Call "b" [sym "c"]), ("d", Call "e" [])]
+        Right [("a", ("b", ["c"])), ("d", ("e", []))]
     left_like (note "a = b\nc\n") ""
+    equal (note "a = b $c") $ Right [("a", ("b", ["$c"]))]
     -- imports
     equal (f fst "import 'x' -- blah\nimport 'y'\n") $
         Right ["x", "y"]
@@ -291,9 +296,9 @@ test_split_sections = do
         ("import a\nimport b\n", [("a", [(4, "2")])])
 
 test_p_definition = do
-    let f = first untxt . ParseText.parse_lines 1 Parse.p_definition
-    equal (f "a =\n b\n c\n") $
-        Right ("a", Call "b" [Literal (VSymbol "c")] :| [])
+    let f = (untxt *** second e_expr)
+            . ParseText.parse_lines 1 Parse.p_definition
+    equal (f "a =\n b\n c\n") (Right ("a", [("b", ["c"])]))
     left_like (f "a =\n b\nc = d\n") ""
-    equal (f "a = n +z\n") $
-        Right ("a", Call "n" [Literal (VAttributes (Score.attr "z"))] :| [])
+    equal (f "a = n +z\n") (Right ("a", [("n", ["+z"])]))
+    equal (f "a = b $c") (Right ("a", [("b", ["$c"])]))
