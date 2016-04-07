@@ -53,7 +53,7 @@ import Global
 
 
 parse_expr :: Text -> Either Text BaseTypes.Expr
-parse_expr = parse (p_pipeline True)
+parse_expr = parse (p_expr True)
 
 -- | Parse a control track title.  The first expression in the composition is
 -- parsed simply as a list of values, not a Call.  Control track titles don't
@@ -159,19 +159,22 @@ p_hs_string = fmap (\s -> "\"" <> s <> "\"") $
 p_control_title :: A.Parser ([BaseTypes.Val], [BaseTypes.Call])
 p_control_title = do
     vals <- A.many (lexeme $ BaseTypes.VSymbol <$> p_scale_id <|> p_val)
-    expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_pipeline True)
+    expr <- A.option [] (p_pipe >> NonEmpty.toList <$> p_expr True)
     return (vals, expr)
 
-p_pipeline :: Bool -> A.Parser BaseTypes.Expr
-p_pipeline toplevel = do
+p_expr :: Bool -> A.Parser BaseTypes.Expr
+p_expr toplevel = do
     -- It definitely matches at least one, because p_null_call always matches.
-    c : cs <- A.sepBy1 (p_expr toplevel) p_pipe
+    c : cs <- A.sepBy1 (p_toplevel_call toplevel) p_pipe
     return $ c :| cs
 
-p_expr :: Bool -> A.Parser BaseTypes.Call
-p_expr toplevel =
+-- | A toplevel call has a few special syntactic forms, other than the plain
+-- @call arg arg ...@ form parsed by 'p_call'.
+p_toplevel_call :: Bool -> A.Parser BaseTypes.Call
+p_toplevel_call toplevel =
     p_unparsed_expr <|> p_equal <|> p_call toplevel <|> p_null_call
 
+-- | Parse a 'unparsed_call'.
 p_unparsed_expr :: A.Parser BaseTypes.Call
 p_unparsed_expr = do
     A.string $ BaseTypes.unsym unparsed_call
@@ -180,18 +183,18 @@ p_unparsed_expr = do
     return $ BaseTypes.Call unparsed_call
         [BaseTypes.Literal $ BaseTypes.VSymbol arg]
 
--- | Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
--- tokenization is suppressed for 'unparsed_call' so that doesn't happen, but
--- I still want to allow comments, for consistency.
-strip_comment :: Text -> Text
-strip_comment = fst . Text.breakOn "--"
-
 -- | This is a magic call name that surpresses normal parsing.  Instead, the
 -- rest of the event expression is passed as a string.  The only characters
 -- that can't be used are ) and |, so an unparsed call can still be included in
 -- a sub expression.
 unparsed_call :: BaseTypes.Symbol
 unparsed_call = "!"
+
+-- | Normally comments are considered whitespace by 'spaces_to_eol'.  Normal
+-- tokenization is suppressed for 'unparsed_call' so that doesn't happen, but
+-- I still want to allow comments, for consistency.
+strip_comment :: Text -> Text
+strip_comment = fst . Text.breakOn "--"
 
 p_pipe :: A.Parser ()
 p_pipe = void $ lexeme (A.char '|')
@@ -323,8 +326,7 @@ p_pcontrol_ref = do
     <?> "pitch control"
 
 p_quoted :: A.Parser BaseTypes.Quoted
-p_quoted =
-    A.string "\"(" *> (BaseTypes.Quoted <$> p_pipeline False) <* A.char ')'
+p_quoted = A.string "\"(" *> (BaseTypes.Quoted <$> p_expr False) <* A.char ')'
 
 -- | This is special syntax that's only allowed in control track titles.
 p_scale_id :: A.Parser BaseTypes.Symbol
@@ -613,7 +615,7 @@ p_definition = do
     spaces
     A.skip (=='=')
     spaces
-    expr <- p_pipeline_ky
+    expr <- p_expr_ky
     A.skipMany empty_line
     return (assignee, expr)
 
@@ -649,20 +651,18 @@ instance ShowVal.ShowVal Var where
 
 -- ** parsers
 
--- TODO rename these to p_expr_ky etc, and the non-ky versions too
-
--- | As 'Expr' parallels 'BaseTypes.Expr', these parsers parallel 'p_pipeline'
+-- | As 'Expr' parallels 'BaseTypes.Expr', these parsers parallel 'p_expr'
 -- and so on.
-p_pipeline_ky :: A.Parser Expr
-p_pipeline_ky = do
+p_expr_ky :: A.Parser Expr
+p_expr_ky = do
     -- It definitely matches at least one, because p_null_call always matches.
-    c : cs <- A.sepBy1 p_expr_ky p_pipe
+    c : cs <- A.sepBy1 p_toplevel_call_ky p_pipe
     return $ Expr (c :| cs)
 
-p_expr_ky :: A.Parser Call
-p_expr_ky =
-    call_to_ky <$> p_unparsed_expr
-    <|> p_equal_ky <|> p_call_ky
+p_toplevel_call_ky :: A.Parser Call
+p_toplevel_call_ky = call_to_ky <$> p_unparsed_expr
+    <|> p_equal_ky
+    <|> p_call_ky
     <|> call_to_ky <$> p_null_call
 
 p_equal_ky :: A.Parser Call
@@ -680,7 +680,6 @@ call_to_ky (BaseTypes.Call call_id args) = Call call_id (map convert args)
 p_sub_call_ky :: A.Parser Call
 p_sub_call_ky = ParseText.between (A.char '(') (A.char ')') p_call_ky
 
--- p_term_ky instead of p_term
 p_call_ky :: A.Parser Call
 p_call_ky = Call <$> lexeme (p_call_symbol False) <*> A.many p_term_ky
 
