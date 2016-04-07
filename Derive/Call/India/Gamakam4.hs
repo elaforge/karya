@@ -121,13 +121,68 @@ initial_pitch_state transition args =
 
 sequence_doc :: Text
 sequence_doc = mconcat
-    [ "doc doc"
-    , " Currently the transition curve is hardcoded to a sigmoid curve, but"
+    [ "This is a mini-language, where each one or two characters is a call."
+    , " An upper-case call will take a single character argument. A special"
+    , " parsing rule means that `-` and its following character is considered"
+    , " a single character, so `-1` is a valid call or argument."
+    , " Most of these calls represent a pitch movement:\n"
+    , Text.unlines (map pitch_call_doc (Map.toAscList pitch_call_map))
+    , "\nCurrently the transition curve is hardcoded to a sigmoid curve, but"
     , " I could add a curve env var if necessary."
     ]
 
+pitch_call_doc :: (Char, [PitchCall]) -> Text
+pitch_call_doc (name, pcalls) =
+    Text.singleton name <> " - " <> Text.intercalate "; " (map doc_of pcalls)
+    where
+    doc_of pcall = pcall_doc pcall
+        <> if pcall_duration pcall /= 1
+            then " (dur " <> pretty (pcall_duration pcall) <> ")" else ""
+
 sequence_arg_doc :: Text
-sequence_arg_doc = "Abbreviated string of calls... TODO"
+sequence_arg_doc = "A string of pitch movements."
+
+pitch_call_map :: Map.Map Char [PitchCall]
+pitch_call_map = resolve $ Map.unique $ concat
+    [ [pcall '=' "Hold flat pitch." pc_flat]
+    -- relative motion
+    , [parse_name $ pcall c "Relative motion." (pc_relative True)
+        | c <- "0123456789"]
+    , [parse_name $ pcall '-' "Negative relative motion." (pc_relative True)]
+    , [alias c 1 [showt n] | (c, n) <- zip "abc" [-1, -2 ..]]
+
+    -- TODO do I need a swaram_relative=True version?
+    , [pcall 'e' "Pitch up by a little." (pc_relative_move False (Pitch.Nn 1))]
+    , [pcall 'f' "Pitch down by a little."
+        (pc_relative_move False (Pitch.Nn (-1)))]
+    , [alias 'n' 0.5 ["e", "f"]]
+    , [alias 'u' 0.5 ["f", "e"]]
+
+    , [ pcall 'v' "Absolute motion to next pitch." (pc_move_direction Next)
+      -- set config
+      , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
+      , config '^' "Set from pitch to current." (pc_set_pitch Current)
+      , config 'P' "Set from pitch to relative steps."
+        (pc_set_pitch_relative False)
+      , config 'T' "Set from pitch relative to swaram."
+        (pc_set_pitch_relative True)
+      , config 'F' "Fast transition time." (pc_set_transition_time Fast)
+      , config 'M' "Medium transition time." (pc_set_transition_time Medium)
+      , config 'S' "Slow transition time." (pc_set_transition_time Slow)
+      ]
+    -- Just a placeholder, effects are actually applied by 'resolve_postfix'.
+    , [ config c postfix_doc (PCall Sig.no_args $ \() _ctx -> return mempty)
+      | c <- Map.keys postfix_calls
+      ]
+    ]
+    where
+    resolve (calls, duplicates)
+        | null duplicates = either (error . untxt) id (resolve_aliases calls)
+        | otherwise = error $ "duplicate calls: " <> show (map fst duplicates)
+    parse_name = second $ second $ \g -> g { pcall_parse_call_name = True }
+    alias name duration to = (name, Left (duration, to))
+    pcall name doc c = (name, Right $ PitchCall name doc 1 False c)
+    config name doc c = (name, Right $ PitchCall name doc 0 False c)
 
 -- * dyn-sequence
 
@@ -142,6 +197,13 @@ c_dyn_sequence = Derive.generator1 module_ "dyn-sequence" mempty doc
     where
     doc = "doc doc"
     arg_doc = "blah blah"
+
+dyn_call_map :: Map.Map Char DynCall
+dyn_call_map = Map.fromList $
+    [ ('=', dc_flat)
+    , ('<', dc_move True)
+    , ('>', dc_move False)
+    ] ++ [(head (show n), dc_move_to (n/9)) | n <- [0..9]]
 
 newtype DynState = DynState { state_from_dyn :: Signal.Y }
     deriving (Show)
@@ -335,13 +397,6 @@ data DynCall = forall a. DynCall {
     , _dcall_func :: a -> Context -> M DynState Signal.Control
     }
 
-dyn_call_map :: Map.Map Char DynCall
-dyn_call_map = Map.fromList $
-    [ ('=', dc_flat)
-    , ('<', dc_move True)
-    , ('>', dc_move False)
-    ] ++ [(head (show n), dc_move_to (n/9)) | n <- [0..9]]
-
 dc_flat :: DynCall
 dc_flat = DynCall "No movement." Sig.no_args $ \() ctx -> do
     prev <- State.gets state_from_dyn
@@ -395,7 +450,7 @@ data PitchCall = PitchCall {
     -- TODO take this out, as with DynCall
     -- then I can merge PCall into this, as with DynCall
     pcall_name :: !Char
-    , _pcall_doc :: !Text
+    , pcall_doc :: !Text
     , pcall_duration :: !Double
     -- | If True, cons 'pcall_name' on to the arg before parsing it.
     , pcall_parse_call_name :: !Bool
@@ -411,48 +466,6 @@ data PCall = forall a. PCall {
     _pcall_signature :: Sig.Parser a
     , _pcall_func :: a -> Context -> M PitchState PSignal.PSignal
     }
-
-pitch_call_map :: Map.Map Char [PitchCall]
-pitch_call_map = resolve $ Map.unique $ concat
-    [ [pcall '=' "Hold flat pitch." pc_flat]
-    -- relative motion
-    , [parse_name $ pcall c "Relative motion." (pc_relative True)
-        | c <- "0123456789"]
-    , [parse_name $ pcall '-' "Negative relative motion." (pc_relative True)]
-    , [alias c 1 [showt n] | (c, n) <- zip "abc" [-1, -2 ..]]
-
-    -- TODO do I need a swaram_relative=True version?
-    , [pcall 'e' "Pitch up by a little." (pc_relative_move False (Pitch.Nn 1))]
-    , [pcall 'f' "Pitch down by a little."
-        (pc_relative_move False (Pitch.Nn (-1)))]
-    , [alias 'n' 0.5 ["e", "f"]]
-    , [alias 'u' 0.5 ["f", "e"]]
-
-    , [ pcall 'v' "Absolute motion to next pitch." (pc_move_direction Next)
-      -- set config
-      , config '<' "Set from pitch to previous." (pc_set_pitch Previous)
-      , config '^' "Set from pitch to current." (pc_set_pitch Current)
-      , config 'P' "Set from pitch to relative steps."
-        (pc_set_pitch_relative False)
-      , config 'T' "Set from pitch relative to swaram."
-        (pc_set_pitch_relative True)
-      , config 'F' "Fast transition time." (pc_set_transition_time Fast)
-      , config 'M' "Medium transition time." (pc_set_transition_time Medium)
-      , config 'S' "Slow transition time." (pc_set_transition_time Slow)
-      ]
-    -- Just a placeholder, effects are actually applied by 'resolve_postfix'.
-    , [ config c postfix_doc (PCall Sig.no_args $ \() _ctx -> return mempty)
-      | c <- Map.keys postfix_calls
-      ]
-    ]
-    where
-    resolve (calls, duplicates)
-        | null duplicates = either (error . untxt) id (resolve_aliases calls)
-        | otherwise = error $ "duplicate calls: " <> show (map fst duplicates)
-    parse_name = second $ second $ \g -> g { pcall_parse_call_name = True }
-    alias name duration to = (name, Left (duration, to))
-    pcall name doc c = (name, Right $ PitchCall name doc 1 False c)
-    config name doc c = (name, Right $ PitchCall name doc 0 False c)
 
 resolve_aliases :: Map.Map Char (Either (Double, [Text]) PitchCall)
     -> Either Text (Map.Map Char [PitchCall])
