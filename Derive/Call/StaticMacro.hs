@@ -2,12 +2,14 @@
 -- This program is distributed under the terms of the GNU General Public
 -- License 3.0, see COPYING or http://www.gnu.org/licenses/gpl-3.0.txt
 
+{-# LANGUAGE ImplicitParams #-}
 -- | A static macro is like a "Derive.Call.Macro", except that its calls
 -- are given directly in haskell, instead of looked up as strings during
 -- evaluation.  This means that the calls can't be rebound, but on the other
 -- hand, it can re-export the documentation for the sub-calls.
 module Derive.Call.StaticMacro (
     Call(..), Arg(..), call, literal
+    , check
     , generator, transformer
 ) where
 import qualified Control.Monad.Identity as Identity
@@ -16,6 +18,7 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
+import qualified Util.Log as Log
 import qualified Util.TextUtil as TextUtil
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
@@ -45,6 +48,14 @@ call c args = Given $ ValCall c args
 
 literal :: Typecheck.ToVal a => a -> Arg
 literal = Given . Literal . Typecheck.to_val
+
+-- | Check the output of 'generator', 'transformer', or 'val' and crash if
+-- it had a statically-detectable error.  Of course I'd much rather this
+-- were a type error, but it's not worth breaking out TH for it.
+check :: Log.Stack => String -> Either Text a -> a
+check call_name (Left err) = error $ untxt (Log.show_stack ?stack) <> " - "
+    <> call_name <> ": " <> untxt err
+check _ (Right val) = val
 
 generator :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text
     -> [Call (Derive.Transformer d)]

@@ -17,7 +17,7 @@ module Util.Log (
     -- * msgs
     , Stack
     , Msg(..), msg_string
-    , Caller(..), show_caller
+    , Caller(..), show_caller, show_stack
     , Data(..), empty_data, has_data, get_data
     , Prio(..), State(..)
     , write_json, write_formatted
@@ -107,6 +107,9 @@ data Caller = Caller !FilePath !Int | NoCaller deriving (Eq, Show, Read)
 show_caller :: Caller -> Text
 show_caller (Caller fname line) = txt fname <> ":" <> showt line
 show_caller NoCaller = "<no-caller>"
+
+show_stack :: CallStack -> Text
+show_stack = show_caller . stack_to_caller
 
 -- | Attach an arbitrary payload to a log msg.
 --

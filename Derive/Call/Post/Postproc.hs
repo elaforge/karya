@@ -203,8 +203,8 @@ replace_note next event = event
 -- * apply start offset
 
 c_randomize_start :: Derive.Transformer Derive.Note
-c_randomize_start = either (error . ("c_randomize_start: "++) . untxt) id $
-    StaticMacro.transformer Module.prelude "randomize-start" Tags.postproc
+c_randomize_start = StaticMacro.check "c_randomize_start" $
+    StaticMacro.transformer Module.prelude "randomize-start" Tags.postproc ""
         -- apply-start-offset | %start-s = (cf-rnd-a+ $)
         [ StaticMacro.Call c_apply_start_offset []
         , StaticMacro.Call Equal.c_equal
