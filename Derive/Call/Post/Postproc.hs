@@ -209,7 +209,7 @@ c_randomize_start = either (error . ("c_randomize_start: "++) . untxt) id $
         [ StaticMacro.Call c_apply_start_offset []
         , StaticMacro.Call Equal.c_equal
             [ StaticMacro.literal (ShowVal.show_val Controls.start_s)
-            , StaticMacro.val_call (ControlFunction.c_cf_rnd_around (+))
+            , StaticMacro.call (ControlFunction.c_cf_rnd_around (+))
                 [StaticMacro.Var]
             ]
         ]

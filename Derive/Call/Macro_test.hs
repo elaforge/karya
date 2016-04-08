@@ -22,10 +22,8 @@ test_generator = do
     let run expr call = DeriveTest.extract DeriveTest.e_attributes $
             DeriveTest.derive_tracks_setup (setup (make_expr expr)) ""
                 [(">", [(0, 1, call)])]
-        setup expr =
-            CallTest.with_note_generator "m"
-                (Macro.generator Module.prelude "m" mempty "doc" expr)
-            <> CallTest.with_val_call "id" c_id
+        setup expr = with_id <> CallTest.with_note_generator "m"
+            (Macro.generator Module.prelude "m" mempty "doc" expr)
     equal (run [("+a", []), ("+b", [])] "m") (["+a+b"], [])
     equal (run [("n", [attr "a"])] "m") (["+a"], [])
     equal (run [("n", [var "var"])] "m +z") (["+z"], [])
@@ -35,6 +33,18 @@ test_generator = do
     let val_call arg = Parse.ValCall (Parse.Call "id" [arg])
     equal (run [("n", [val_call (attr "a")])] "m") (["+a"], [])
     equal (run [("n", [val_call (var "var")])] "m +x") (["+x"], [])
+
+test_val = do
+    let run call = DeriveTest.extract DeriveTest.e_attributes $
+            DeriveTest.derive_tracks_setup setup ""
+                [(">", [(0, 1, call)])]
+        setup = with_id <> CallTest.with_val_call "m"
+            (Macro.val_call Module.prelude "m" mempty "doc" expr)
+        expr = Parse.Call "id" [var "arg"]
+    equal (run "n (m +a)") (["+a"], [])
+
+with_id :: DeriveTest.Setup
+with_id = CallTest.with_val_call "id" c_id
 
 c_id :: Derive.ValCall
 c_id = Derive.val_call "test" "id" mempty "doc" $

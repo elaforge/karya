@@ -7,7 +7,7 @@
 -- evaluation.  This means that the calls can't be rebound, but on the other
 -- hand, it can re-export the documentation for the sub-calls.
 module Derive.Call.StaticMacro (
-    Call(..), Arg(..), val_call, literal
+    Call(..), Arg(..), call, literal
     , generator, transformer
 ) where
 import qualified Control.Monad.Identity as Identity
@@ -16,6 +16,7 @@ import qualified Data.List as List
 import qualified Data.Text as Text
 import qualified Data.Tuple as Tuple
 
+import qualified Util.TextUtil as TextUtil
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -39,20 +40,20 @@ data ResolvedTerm =
     RValCall !Derive.ValCall ![ResolvedTerm] | RLiteral !BaseTypes.Val
     deriving (Show)
 
-val_call :: Derive.ValCall -> [Arg] -> Arg
-val_call call args = Given $ ValCall call args
+call :: Derive.ValCall -> [Arg] -> Arg
+call c args = Given $ ValCall c args
 
 literal :: Typecheck.ToVal a => a -> Arg
 literal = Given . Literal . Typecheck.to_val
 
-generator :: Derive.Callable d => Module.Module -> Text -> Tags.Tags
+generator :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text
     -> [Call (Derive.Transformer d)]
     -> Call (Derive.Generator d) -> Either Text (Derive.Generator d)
-generator module_ name tags trans gen = do
+generator module_ name tags doc trans gen = do
     trans_args <- concatMapM extract_args trans
     gen_args <- extract_args gen
     let args = trans_args ++ gen_args
-    return $ Derive.generator module_ name tags (make_doc call_docs) $
+    return $ Derive.generator module_ name tags (make_doc doc call_docs) $
         Sig.call (Sig.many_vals args) $ \vals args ->
             generator_macro trans gen vals (Derive.passed_ctx args)
     where call_docs = map call_doc trans ++ [call_doc gen]
@@ -73,11 +74,11 @@ generator_macro trans gen vals ctx = do
     where
     split (Call call args) = (call, args)
 
-transformer :: Derive.Callable d => Module.Module -> Text -> Tags.Tags
+transformer :: Derive.Callable d => Module.Module -> Text -> Tags.Tags -> Text
     -> [Call (Derive.Transformer d)] -> Either Text (Derive.Transformer d)
-transformer module_ name tags trans = do
+transformer module_ name tags doc trans = do
     args <- concatMapM extract_args trans
-    return $ Derive.transformer module_ name tags (make_doc call_docs) $
+    return $ Derive.transformer module_ name tags (make_doc doc call_docs) $
         Sig.callt (Sig.many_vals args) $ \vals args ->
             transformer_macro trans vals (Derive.passed_ctx args)
     where call_docs = map call_doc trans
@@ -147,9 +148,9 @@ extract_args (Call call args) = extract (Derive.call_doc call) args
 
 -- ** doc
 
-make_doc :: [Text] -> Text
-make_doc calls =
-    "A composite call to: `" <> Text.intercalate " | " calls <> "`.\
+make_doc :: Text -> [Text] -> Text
+make_doc doc calls = TextUtil.joinWith "\n" doc $
+    "A static macro for: `" <> Text.intercalate " | " calls <> "`.\
     \\nEach `$` is lifted to be an argument of this macro.\
     \\nThis directly calls the underlying sub-calls, so it's not dependent on\
     \ the names they are bound to, which also means the macro text may not be a\

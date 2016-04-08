@@ -7,7 +7,7 @@
 -- | Create macros, which are calls that can substitute arguments into
 -- an expression.  E.g. @apply-start-offset | start-s = (cf-rnd-a $distance)@.
 module Derive.Call.Macro (
-    generator, transformer
+    generator, transformer, val_call
 #ifdef TESTING
     , module Derive.Call.Macro
 #endif
@@ -46,6 +46,13 @@ transformer module_ name tags doc expr =
     Derive.transformer module_ name tags (make_doc doc expr) $
         Sig.callt (make_signature (extract_vars expr)) (transformer_macro expr)
 
+val_call :: Module.Module -> Text -> Tags.Tags -> Text -> Parse.Call
+    -> Derive.ValCall
+val_call module_ name tags doc call_expr =
+    Derive.make_val_call module_ name tags (make_doc doc expr) $
+        Sig.call (make_signature (extract_vars expr)) (val_macro call_expr)
+    where expr = Parse.Expr (call_expr :| [])
+
 extract_vars :: Parse.Expr -> [(Parse.Var, BaseTypes.CallId, Int)]
 extract_vars (Parse.Expr calls) = concatMap extract_call (NonEmpty.toList calls)
     where
@@ -79,6 +86,13 @@ transformer_macro expr vals args deriver = do
         unzip <$> mapM (eval_args ctx) (NonEmpty.toList calls)
     trans_calls <- mapM Eval.get_transformer trans_calls
     Eval.apply_transformers ctx (zip trans_calls trans_args) deriver
+
+val_macro :: Parse.Call -> [BaseTypes.Val] -> Derive.PassedArgs Derive.Tagged
+    -> Derive.Deriver BaseTypes.Val
+val_macro call_expr vals args = do
+    call_expr :| _ <- Derive.require_right id $
+        substitute_vars vals (Parse.Expr (call_expr :| []))
+    Eval.eval (Derive.passed_ctx args) (BaseTypes.ValCall call_expr)
 
 split_expr :: BaseTypes.Expr -> ([BaseTypes.Call], BaseTypes.Call)
 split_expr = Seq.ne_viewr
@@ -134,4 +148,4 @@ ordinal n = showt n <> case n of
 
 make_doc :: Text -> Parse.Expr -> Text
 make_doc doc expr =
-    TextUtil.joinWith "\n" ("A macro for " <> ShowVal.doc expr <> ".") doc
+    TextUtil.joinWith "\n" ("A macro for: " <> ShowVal.doc expr <> ".") doc

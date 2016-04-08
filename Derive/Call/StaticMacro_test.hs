@@ -25,7 +25,7 @@ test_generator = do
                 "" [(">", [(0, 1, call)])]
         setup trans gen = CallTest.with_note_generator "m" $
             expect_right "StaticMacro.generator" $
-            StaticMacro.generator Module.prelude "m" mempty trans gen
+            StaticMacro.generator Module.prelude "m" mempty "doc" trans gen
         gen = make_call Note.c_note
         trans = make_call Note.c_note_attributes
     equal (run [trans [attr "a"]] (gen []) "m") (["+a"], [])
@@ -48,7 +48,7 @@ test_transformer = do
                 [(">", [(0, 1, call <> " | +z")])]
         setup trans = CallTest.with_note_transformer "m" $
             expect_right "StaticMacro.transformer" $
-            StaticMacro.transformer Module.prelude "m" mempty trans
+            StaticMacro.transformer Module.prelude "m" mempty "doc" trans
         trans = make_call Note.c_note_attributes
     equal (run [trans [attr "a"]] "m") (["+a+z"], [])
     strings_like (snd $ run [trans [Var], trans [Var]] "m +x")

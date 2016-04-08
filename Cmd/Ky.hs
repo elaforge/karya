@@ -138,8 +138,18 @@ make_transformer fname (BaseTypes.Symbol name) var_expr
 
 make_val_call :: FilePath -> BaseTypes.CallId -> Parse.Expr -> Derive.ValCall
 make_val_call fname (BaseTypes.Symbol name) var_expr
-    | Just expr <- no_free_vars var_expr = simple_val_call fname name expr
-    | otherwise = error "var call macros not supported yet" -- TODO
+    | Just expr <- no_free_vars var_expr = case expr of
+        call_expr :| [] -> simple_val_call fname name call_expr
+        _ -> broken
+    | otherwise = case var_expr of
+        Parse.Expr (call_expr :| []) -> Macro.val_call Module.local name mempty
+            ("Defined in " <> txt fname <> ".") call_expr
+        _ -> broken
+    where
+    broken = broken_val_call name $
+        "Broken val call defined in " <> txt fname
+        <> ": val calls don't support pipeline syntax: "
+        <> ShowVal.show_val var_expr
 
 simple_generator :: Derive.Callable d => FilePath -> Text
     -> BaseTypes.Expr -> Derive.Generator d
@@ -168,21 +178,24 @@ simple_transformer fname name expr =
         Eval.apply_transformer (Derive.passed_ctx args) call
             (Derive.passed_vals args) deriver
 
-simple_val_call :: FilePath -> Text -> BaseTypes.Expr -> Derive.ValCall
-simple_val_call fname name expr =
+simple_val_call :: FilePath -> Text -> BaseTypes.Call -> Derive.ValCall
+simple_val_call fname name call_expr =
     Derive.val_call Module.local name mempty (make_doc fname name expr) $
     case assign_symbol expr of
-        Nothing -> Sig.call0 $ \args -> case expr of
-            call :| [] ->
-                Eval.eval (Derive.passed_ctx args) (BaseTypes.ValCall call)
-            _ -> Derive.throw "val calls don't support pipeline syntax"
+        Nothing -> Sig.call0 $ \args ->
+            Eval.eval (Derive.passed_ctx args) (BaseTypes.ValCall call_expr)
         Just call_id -> Sig.parsed_manually "Args parsed by reapplied call."
             (call_args call_id)
     where
+    expr = call_expr :| []
     call_args call_id args = do
         call <- Eval.get_val_call call_id
         Derive.vcall_call call $ args
             { Derive.passed_call_name = Derive.vcall_name call }
+
+broken_val_call :: Text -> Text -> Derive.ValCall
+broken_val_call name msg = Derive.make_val_call Module.local name mempty
+    msg $ Sig.parsed_manually "broken" $ \_ -> Derive.throw msg
 
 -- | If the Parse.Expr has no 'Parse.VarTerm's, it doesn't need to be a macro.
 no_free_vars :: Parse.Expr -> Maybe BaseTypes.Expr
