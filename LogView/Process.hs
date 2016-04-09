@@ -82,22 +82,22 @@ type Catch = Log.Msg -> Status -> Status
 
 -- | Extract text from a log msg and put it in 'state_status', via
 -- 'catch_regexes'.
-type CatchPattern = (String, Regex.Regex)
+type CatchPattern = (Text, Regex.Regex)
 
 -- ** status
 
-type Status = Map.Map String String
+type Status = Map.Map Text Text
 
 render_status :: Status -> StyledText
 render_status status = run_formatter $
     sequence_ $ List.intersperse (with_style style_divider " || ")
         (map format_status (Map.assocs status))
 
-format_status :: (String, String) -> Formatter
+format_status :: (Text, Text) -> Formatter
 format_status (k, v) = do
-    with_style style_emphasis (txt k)
+    with_style style_emphasis k
     with_style style_plain ": "
-    regex_style style_plain clickable_braces (txt v)
+    regex_style style_plain clickable_braces v
 
 clickable_braces :: [(Regex.Regex, Style)]
 clickable_braces =
@@ -163,16 +163,16 @@ suppress_last msg process = do
 --
 -- If the value is \"\", then the key is removed.
 catch_regexes :: [CatchPattern] -> Catch
-catch_regexes patterns msg = Map.filter (not . null) . Map.union status
+catch_regexes patterns msg = Map.filter (not . Text.null) . Map.union status
     where
     status = Map.unions $
-        map (($ Log.msg_string msg) . match_pattern) patterns
+        map (($ Log.msg_text msg) . match_pattern) patterns
 
 -- | The app sends this on startup, so I can clear out any status from the
 -- last session.
 catch_start :: Catch
 catch_start msg status
-    | Log.msg_string msg == "app starting" = Map.empty
+    | Log.msg_text msg == "app starting" = Map.empty
     | otherwise = status
 
 -- | This catches msgs emitted by 'Cmd.Cmd.set_global_status'.
@@ -181,11 +181,11 @@ global_status_pattern =
     ("_", Regex.compileUnsafe "global_status_pattern"
         "^global status: (.*?) -- (.*)")
 
-match_pattern :: CatchPattern -> String -> Map.Map String String
-match_pattern (title, reg) = Map.fromList . map extract . Regex.groups reg . txt
+match_pattern :: CatchPattern -> Text -> Map.Map Text Text
+match_pattern (title, reg) = Map.fromList . map extract . Regex.groups reg
     where
-    extract (_, [match]) = (title, untxt match)
-    extract (_, [match_title, match]) = (untxt match_title, untxt match)
+    extract (_, [match]) = (title, match)
+    extract (_, [match_title, match]) = (match_title, match)
     extract _ = error $ show reg ++ " has >2 groups"
 
 
