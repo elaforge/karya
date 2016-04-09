@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  - LogView could use Text instead of String
   - Try compiling with a larger generation 0: +RTS -A128m -RTS
   - Profile seq with larger gen 0 and separate arenas for different cores:
     +RTS -A128m -n2m -RTS
@@ -10,7 +11,7 @@ UNSORTED
   / The merge operator in Cmd.Control should also use the same parse_merge
     function as Equal.  Also update haddock.
     . Actually it's not really appropriate, since "" is default.
-  - A log msg with a stack but no Block is likely from the global transform.
+  * A log msg with a stack but no Block is likely from the global transform.
     Logview should make that clear.
   * Util.Test should have a version intended for unqualified import.
     Otherwise functions like 'modify_config' get in the way.

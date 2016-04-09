@@ -136,6 +136,7 @@ catches patterns =
     , catch_start
     ]
 
+-- | Return Nothing if the given msg is the same as the last one.
 suppress_last :: Log.Msg -> ProcessM (Maybe a) -> ProcessM (Maybe a)
 suppress_last msg process = do
     last_displayed <- State.gets state_last_displayed
@@ -210,6 +211,7 @@ eval_filter (Filter _ pred) msg text = pred msg text
 
 -- * format_msg
 
+-- | Format and colorize a single Log.Msg.
 format_msg :: Log.Msg -> StyledText
 format_msg msg = run_formatter $ do
     with_plain (prio_stars (Log.msg_priority msg))
@@ -245,10 +247,15 @@ run_formatter = build . Writer.execWriter
 
 emit_stack :: Stack.Stack -> Formatter
 emit_stack stack = do
-    with_style style_clickable $ Seq.join "/" (map fmt (Stack.to_ui stack))
+    if stack == Stack.empty then return ()
+        -- This likely means the global transform failed.
+        else if null ui_stack then with_plain $
+            "[" <> Seq.join " / " (map prettys (Stack.outermost stack)) <> "]"
+        else with_style style_clickable $ Seq.join "/" (map fmt ui_stack)
     whenJust (last_call stack) $ \call ->
         with_plain $ ' ' : untxt call ++ ": "
     where
+    ui_stack = Stack.to_ui stack
     fmt frame = "{s " ++ show (Stack.unparse_ui_frame frame) ++ "}"
     last_call = Seq.head . mapMaybe Stack.call_of . Stack.innermost
 
