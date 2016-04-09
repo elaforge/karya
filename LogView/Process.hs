@@ -30,6 +30,8 @@ import qualified Data.Functor.Identity as Identity
 import qualified Data.List as List
 import qualified Data.Map as Map
 import qualified Data.Sequence as Sequence
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text.Encoding
 import qualified Data.Word as Word
 
 import qualified Util.Log as Log
@@ -93,9 +95,9 @@ render_status status = run_formatter $
 
 format_status :: (String, String) -> Formatter
 format_status (k, v) = do
-    with_style style_emphasis k
+    with_style style_emphasis (txt k)
     with_style style_plain ": "
-    regex_style style_plain clickable_braces v
+    regex_style style_plain clickable_braces (txt v)
 
 clickable_braces :: [(Regex.Regex, Style)]
 clickable_braces =
@@ -221,13 +223,13 @@ format_msg msg = run_formatter $ do
     case Log.msg_caller msg of
         Log.NoCaller -> return ()
         Log.Caller fname line ->
-            with_style style_filename $ fname <> ":" <> show line <> " "
+            with_style style_filename $ txt fname <> ":" <> showt line <> " "
     whenJust (Log.msg_stack msg) $ \stack -> emit_stack stack >> with_plain " "
-    regex_style style msg_text_regexes (Log.msg_string msg)
+    regex_style style msg_text_regexes (Log.msg_text msg)
     with_plain "\n"
     where
     prio_stars Log.Timer = "-"
-    prio_stars prio = replicate (fromEnum prio) '*'
+    prio_stars prio = Text.replicate (fromEnum prio) "*"
 
 -- | Pair together text along with the magic Style characters.  The Styles
 -- should be the same length as the string.
@@ -250,13 +252,15 @@ emit_stack stack = do
     if stack == Stack.empty then return ()
         -- This likely means the global transform failed.
         else if null ui_stack then with_plain $
-            "[" <> Seq.join " / " (map prettys (Stack.outermost stack)) <> "]"
-        else with_style style_clickable $ Seq.join "/" (map fmt ui_stack)
+            "[" <> Text.intercalate " / " (map pretty (Stack.outermost stack))
+            <> "]"
+        else with_style style_clickable $
+            Text.intercalate "/" (map fmt ui_stack)
     whenJust (last_call stack) $ \call ->
-        with_plain $ ' ' : untxt call ++ ": "
+        with_plain $ " " <> call <> ": "
     where
     ui_stack = Stack.to_ui stack
-    fmt frame = "{s " ++ show (Stack.unparse_ui_frame frame) ++ "}"
+    fmt frame = "{s " <> showt (Stack.unparse_ui_frame frame) <> "}"
     last_call = Seq.head . mapMaybe Stack.call_of . Stack.innermost
 
 msg_text_regexes :: [(Regex.Regex, Style)]
@@ -264,17 +268,17 @@ msg_text_regexes = map (first (Regex.compileUnsafe "msg_text_regexes"))
     [ ("\\([bvt]id \".*?\"\\)", style_emphasis)
     ] ++ clickable_braces
 
-regex_style :: Style -> [(Regex.Regex, Style)] -> String -> Formatter
+regex_style :: Style -> [(Regex.Regex, Style)] -> Text -> Formatter
 regex_style default_style regex_styles text =
     sequence_ emits >> with_style default_style rest
     where
     (rest, emits) = List.mapAccumL emit text ranges
-    emit text (chars, style) = (post, with_style style pre)
-        where (pre, post) = splitAt chars text
+    emit text (i, style) = (post, with_style style pre)
+        where (pre, post) = Text.splitAt i text
     ranges = flatten_ranges default_style
         [ (range, style)
         | (reg, style) <- regex_styles
-        , (range, _) <- Regex.groupRanges reg (txt text)
+        , (range, _) <- Regex.groupRanges reg text
         ]
 
 flatten_ranges :: a -> [((Int, Int), a)] -> [(Int, a)]
@@ -289,15 +293,15 @@ flatten_ranges deflt = filter ((>0) . fst) . snd . go 0 . Seq.sort_on fst
         next = maybe e (fst . fst) (Seq.head ranges)
         (last_n, rest) = go e ranges
 
-with_plain :: String -> Formatter
+with_plain :: Text -> Formatter
 with_plain = with_style style_plain
 
-with_style :: Style -> String -> Formatter
-with_style _ "" = return ()
+with_style :: Style -> Text -> Formatter
+with_style _ text | Text.null text = return ()
 with_style style text = Writer.tell $
     Builder (Builder.byteString utf8)
         (Builder.byteString (B.replicate (B.length utf8) style))
-    where utf8 = UTF8.fromString text
+    where utf8 = Text.Encoding.encodeUtf8 text
 
 type Style = Word.Word8
 
