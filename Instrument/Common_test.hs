@@ -6,7 +6,7 @@ module Instrument.Common_test where
 import qualified Data.Text as Text
 
 import Util.Test
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.Attrs as Attrs
 import qualified Instrument.Common as Common
 import Global
 
@@ -27,5 +27,5 @@ attr_map = Common.attribute_map
     , (mkattrs "trem", 3)
     ]
 
-mkattrs :: Text -> ScoreTypes.Attributes
-mkattrs = ScoreTypes.attrs . Text.words
+mkattrs :: Text -> Attrs.Attributes
+mkattrs = Attrs.attrs . Text.words

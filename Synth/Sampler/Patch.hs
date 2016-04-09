@@ -13,7 +13,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Cmd.Cmd as Cmd
 import qualified Derive.ScoreTypes as ScoreTypes
-import Derive.ScoreTypes (Attributes, attr)
+import Derive.Attrs (Attributes, attr)
 import qualified Perform.Im.Patch as Patch
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common

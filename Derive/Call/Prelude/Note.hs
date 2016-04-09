@@ -126,7 +126,7 @@ c_note_track = Derive.transformer Module.prelude "note-track" mempty
         note_track (Derive.passed_ctx args) inst attrs deriver
 
 note_track :: Derive.Context Derive.Note -> Score.Instrument
-    -> [Score.Attributes] -> Derive.NoteDeriver -> Derive.NoteDeriver
+    -> [Attrs.Attributes] -> Derive.NoteDeriver -> Derive.NoteDeriver
 note_track ctx inst attrs deriver = do
     let call_id = BaseTypes.Symbol $ ">" <> Score.instrument_name inst
     maybe_call <- Derive.lookup_transformer call_id
@@ -298,13 +298,13 @@ min_duration = 1 / 64
     which could be negative.  They clip at a minimum duration to keep from
     going negative.
 -}
-duration_attributes :: Config -> Score.ControlValMap -> Score.Attributes
+duration_attributes :: Config -> Score.ControlValMap -> Attrs.Attributes
     -> RealTime -> RealTime -> RealTime -- ^ new end
 duration_attributes config controls attrs start end
     | start >= end = end -- don't mess with 0 dur or negative notes
     | otherwise = start + max min_duration (dur * sustain + sustain_abs)
     where
-    has = Score.attrs_contain attrs
+    has = Attrs.contain attrs
     dur = end - start
     staccato = config_staccato config && has Attrs.staccato
     sustain = if staccato then sustain_ * 0.5 else sustain_
@@ -342,7 +342,7 @@ trim_pitch = PSignal.drop_before
 
 -- ** transform
 
-transform_note :: [Either Score.Instrument Score.Attributes]
+transform_note :: [Either Score.Instrument Attrs.Attributes]
     -> Derive.NoteDeriver -> Derive.NoteDeriver
 transform_note vals deriver =
     with_inst (Call.add_attrs (mconcat attrs) deriver)

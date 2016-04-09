@@ -105,7 +105,7 @@ pitch_control = "pitch"
 pitched_notes :: CUtil.PitchedNotes
 (pitched_notes, resolve_errors) = CUtil.resolve_strokes 0.3 keymap strokes
 
-strokes :: [(Char, BaseTypes.CallId, Score.Attributes, Drums.Group)]
+strokes :: [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
 stops :: [(Drums.Group, [Drums.Group])]
 (stops, strokes) = (,) stops
     -- TODO paired strokes:
@@ -160,7 +160,7 @@ stops :: [(Drums.Group, [Drums.Group])]
     kulanter_leutik_closed = "kulanter-leutik-closed"
     kulanter_leutik_open = "kulanter-leutik-open"
 
-keymap :: Map.Map Score.Attributes CUtil.KeyswitchRange
+keymap :: Map.Map Attrs.Attributes CUtil.KeyswitchRange
 keymap = CUtil.make_keymap2 Nothing 8 6 12 NN.c4
     -- indung, left
     [ [dong, det, det <> Attrs.low, det <> Attrs.middle, det <> Attrs.high]
@@ -188,47 +188,47 @@ write_ksp = mapM_ (uncurry Util.write)
 -- indung, kiri
 
 -- | Open left hand stroke, low pitch.
-dong :: Score.Attributes
-dong = Score.attr "dong"
+dong :: Attrs.Attributes
+dong = Attrs.attr "dong"
 
 -- | Open left hand stroke, high pitch.
-det :: Score.Attributes
-det = Score.attr "det"
+det :: Attrs.Attributes
+det = Attrs.attr "det"
 
 -- | Right side harmonic played on the left hand.
-ting :: Score.Attributes
-ting = Score.attr "ting"
+ting :: Attrs.Attributes
+ting = Attrs.attr "ting"
 
 -- | Closed left hand stroke.  This isn't an official name.
-tak :: Score.Attributes
-tak = Score.attr "tak"
+tak :: Attrs.Attributes
+tak = Attrs.attr "tak"
 
 -- indung, kanan
 
 -- | Open right hand stroke.
-ping :: Score.Attributes
-ping = Score.attr "ping"
+ping :: Attrs.Attributes
+ping = Attrs.attr "ping"
 
 -- | Open right hand rim.
-pong :: Score.Attributes
-pong = Score.attr "pong"
+pong :: Attrs.Attributes
+pong = Attrs.attr "pong"
 
 -- | Closed right hand stroke.
-phak :: Score.Attributes
-phak = Score.attr "phak"
+phak :: Attrs.Attributes
+phak = Attrs.attr "phak"
 
 -- | Phak with one finger.
-phak1 :: Score.Attributes
-phak1 = Score.attr "phak1"
+phak1 :: Attrs.Attributes
+phak1 = Attrs.attr "phak1"
 
 -- | Kulanter gede, open stroke.
-tung :: Score.Attributes
-tung = Score.attr "tung"
+tung :: Attrs.Attributes
+tung = Attrs.attr "tung"
 
 -- | Kulanter leutik, closed stroke.
-pak :: Score.Attributes
-pak = Score.attr "pak"
+pak :: Attrs.Attributes
+pak = Attrs.attr "pak"
 
 -- | Kulanter leutik, open stroke.
-peung :: Score.Attributes
-peung = Score.attr "peung"
+peung :: Attrs.Attributes
+peung = Attrs.attr "peung"

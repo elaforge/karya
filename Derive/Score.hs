@@ -66,6 +66,7 @@ import qualified Data.Typeable as Typeable
 import qualified Util.Pretty as Pretty
 import qualified Ui.Color as Color
 import qualified Ui.Id as Id
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes
        (ControlMap, ControlFunction(..), ControlFunctionMap, PitchMap)
@@ -77,9 +78,7 @@ import Derive.ScoreTypes
        (Instrument(..), Control, control_name, PControl, pcontrol_name,
         Warp(..), id_warp, id_warp_signal, Type(..), Typed(..), ControlValMap,
         TypedControlValMap, untyped, merge_typed, type_to_code, code_to_type,
-        TypedControl, TypedVal, Attributes, Attribute, attr, attrs,
-        set_to_attrs, attrs_diff, attrs_contain, attrs_remove, attrs_set,
-        attrs_list)
+        TypedControl, TypedVal)
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Pitch as Pitch
@@ -127,7 +126,7 @@ data Event = Event {
     -- I couldn't think of a type safe way to do this, but Dynamic should be
     -- safe enough if you use a shared type declaration in both writer and
     -- reader.
-    , event_delayed_args :: !(Map.Map Attributes Dynamic.Dynamic)
+    , event_delayed_args :: !(Map.Map Attrs.Attributes Dynamic.Dynamic)
     } deriving (Show, Typeable.Typeable)
 
 -- | Format an event in a way suitable for including inline in log messages.
@@ -257,36 +256,36 @@ modify_environ_key name modify = modify_environ $ \(BaseTypes.Environ env) ->
 
 -- ** attributes
 
-event_attributes :: Event -> Attributes
+event_attributes :: Event -> Attrs.Attributes
 event_attributes = environ_attributes . event_environ
 
-has_attribute :: Attributes -> Event -> Bool
-has_attribute attr = (`attrs_contain` attr) . event_attributes
+has_attribute :: Attrs.Attributes -> Event -> Bool
+has_attribute attr = (`Attrs.contain` attr) . event_attributes
 
-intersecting_attributes :: Attributes -> Event -> Bool
-intersecting_attributes attrs = not . Set.null
-    . Set.intersection (attrs_set attrs) . attrs_set . event_attributes
+intersecting_attributes :: Attrs.Attributes -> Event -> Bool
+intersecting_attributes attrs event =
+    Attrs.intersection attrs (event_attributes event) /= mempty
 
-environ_attributes :: BaseTypes.Environ -> Attributes
+environ_attributes :: BaseTypes.Environ -> Attrs.Attributes
 environ_attributes environ =
     case BaseTypes.lookup EnvKey.attributes environ of
         Just (BaseTypes.VAttributes attrs) -> attrs
         _ -> mempty
 
-modify_attributes :: (Attributes -> Attributes) -> Event -> Event
+modify_attributes :: (Attrs.Attributes -> Attrs.Attributes) -> Event -> Event
 modify_attributes modify = modify_environ $ \env ->
     BaseTypes.insert EnvKey.attributes
         (BaseTypes.VAttributes (modify (environ_attributes env))) env
 
-add_attributes :: Attributes -> Event -> Event
+add_attributes :: Attrs.Attributes -> Event -> Event
 add_attributes attrs
     | attrs == mempty = id
     | otherwise = modify_attributes (<>attrs)
 
-remove_attributes :: Attributes -> Event -> Event
+remove_attributes :: Attrs.Attributes -> Event -> Event
 remove_attributes attrs event
     | attrs == mempty || not (has_attribute attrs event) = event
-    | otherwise = modify_attributes (attrs_remove attrs) event
+    | otherwise = modify_attributes (Attrs.remove attrs) event
 
 instance DeepSeq.NFData Event where
     rnf (Event start dur text controls pitch pitches _ _ _ _ _ flags
@@ -315,24 +314,24 @@ instance Pretty.Pretty Event where
 
 -- ** delayed args
 
-put_attr_arg :: Typeable.Typeable a => Attributes -> a -> Event -> Event
+put_attr_arg :: Typeable.Typeable a => Attrs.Attributes -> a -> Event -> Event
 put_attr_arg attr arg = add_attributes attr . put_arg attr arg
 
-put_arg :: Typeable.Typeable a => Attributes -> a -> Event -> Event
+put_arg :: Typeable.Typeable a => Attrs.Attributes -> a -> Event -> Event
 put_arg attr arg event = event
     { event_delayed_args = Map.insert attr (Dynamic.toDyn arg)
         (event_delayed_args event)
     }
 
-get_just_arg :: Typeable.Typeable a => Attributes -> Event -> Maybe a
+get_just_arg :: Typeable.Typeable a => Attrs.Attributes -> Event -> Maybe a
 get_just_arg attrs =
     Dynamic.fromDynamic <=< Map.lookup attrs . event_delayed_args
 
-get_arg :: Typeable.Typeable a => Attributes -> Event -> Either Text a
+get_arg :: Typeable.Typeable a => Attrs.Attributes -> Event -> Either Text a
 get_arg attrs = fromMaybe (Left $ "no delayed args for " <> pretty attrs)
     . lookup_arg attrs
 
-lookup_arg :: Typeable.Typeable a => Attributes -> Event
+lookup_arg :: Typeable.Typeable a => Attrs.Attributes -> Event
     -> Maybe (Either Text a)
 lookup_arg attrs event = case Map.lookup attrs (event_delayed_args event) of
     Nothing -> Nothing

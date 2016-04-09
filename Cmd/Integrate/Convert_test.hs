@@ -8,8 +8,10 @@ import qualified Data.Map as Map
 import Util.Test
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Integrate.Convert as Convert
+import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
+
 import qualified Perform.Pitch as Pitch
 import Global
 
@@ -17,7 +19,7 @@ import Global
 test_integrate = do
     let f = first (map extract . concatMap flatten) . integrate
         integrate = Convert.integrate (lookup_attrs, Pitch.twelve) tracknums
-        plak = Score.attr "plak"
+        plak = Attrs.attr "plak"
         lookup_attrs = const $ Map.fromList [(plak, "plak")]
         tracknums = Map.fromList [(UiTest.mk_tid n, n) | n <- [1..10]]
         flatten (note, controls) = note : controls

@@ -12,10 +12,10 @@ import qualified Data.Traversable as Traversable
 import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
-import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 
@@ -54,7 +54,7 @@ realize_events end flam_dur =
     to (t, attrs) = Sub.Event t 0 (ShowVal.show_val attrs)
 
 bols_to_attribute :: ScoreTime -> [(ScoreTime, Bol)]
-    -> [(ScoreTime, Score.Attributes)]
+    -> [(ScoreTime, Attrs.Attributes)]
 bols_to_attribute flam notes =
     concat $ zipWith (bol_to_attribute flam) ts (infer_tette bols)
     where (ts, bols) = unzip notes
@@ -73,18 +73,18 @@ realize_bols end = fmap realize_notes . match_syllables
         where dur = maybe end fst next - t
 
 bol_to_attribute :: ScoreTime -> ScoreTime -> Bol
-    -> [(ScoreTime, Score.Attributes)]
+    -> [(ScoreTime, Attrs.Attributes)]
 bol_to_attribute flam t bol = case bol of
     One s -> [(t, stroke_to_attribute s)]
     Together s1 s2 -> [(t, stroke_to_attribute s1), (t, stroke_to_attribute s2)]
     Flam s1 s2 ->
         [(t, stroke_to_attribute s1), (t + flam, stroke_to_attribute s2)]
 
-stroke_to_attribute :: Stroke -> Score.Attributes
+stroke_to_attribute :: Stroke -> Attrs.Attributes
 stroke_to_attribute s = case s of
     -- This should have already been eliminated by 'infer_tette'.
-    Tette -> Score.attr "tet"
-    _ -> Score.attr (Text.toLower (showt s))
+    Tette -> Attrs.attr "tet"
+    _ -> Attrs.attr (Text.toLower (showt s))
 
 -- * implementation
 

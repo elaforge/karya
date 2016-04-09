@@ -81,7 +81,7 @@ lookup_attr_transformer :: Derive.LookupCall (Derive.Transformer Derive.Note)
 lookup_attr_transformer = make_lookup_attr $ \attrs ->
     snd $ Make.attributed_note Module.prelude attrs
 
-make_lookup_attr :: (Score.Attributes -> call) -> Derive.LookupCall call
+make_lookup_attr :: (Attrs.Attributes -> call) -> Derive.LookupCall call
 make_lookup_attr call =
     Derive.LookupPattern "attribute starting with `+` or `=`" doc $
         \(BaseTypes.Symbol sym) -> parse_symbol sym
@@ -92,7 +92,7 @@ make_lookup_attr call =
             _ -> return Nothing
         _ -> return Nothing
     doc = Derive.extract_doc $ fst $
-        Make.attributed_note Module.prelude (Score.attr "example-attr")
+        Make.attributed_note Module.prelude (Attrs.attr "example-attr")
 
 -- * legato
 

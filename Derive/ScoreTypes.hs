@@ -8,9 +8,7 @@
 -- circular imports.
 module Derive.ScoreTypes where
 import qualified Control.DeepSeq as DeepSeq
-import qualified Data.Aeson as Aeson
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import qualified Data.String as String
 import qualified Data.Text as Text
 
@@ -197,44 +195,3 @@ instance ShowVal.ShowVal TypedVal where
 -- transpositions, and hence untyped.
 type ControlValMap = Map.Map Control Signal.Y
 type TypedControlValMap = Map.Map Control (Typed Signal.Y)
-
--- ** Attributes
-
--- | Instruments can have a set of attributes along with them.  These are
--- propagated dynamically down the derivation stack.  They function like
--- arguments to an instrument, and will typically select an articulation, or
--- a drum from a drumset, or something like that.
-type Attribute = Text
-newtype Attributes = Attributes (Set.Set Attribute)
-    deriving (Monoid, Eq, Ord, Read, Show, Serialize.Serialize, DeepSeq.NFData,
-        Aeson.ToJSON, Aeson.FromJSON)
-
-instance Pretty.Pretty Attributes where pretty = ShowVal.show_val
-instance ShowVal.ShowVal Attributes where
-    show_val = ("+"<>) . Text.intercalate "+" . attrs_list
-
-attr :: Text -> Attributes
-attr = Attributes . Set.singleton
-
-attrs :: [Text] -> Attributes
-attrs = Attributes . Set.fromList
-
-set_to_attrs :: Set.Set Attribute -> Attributes
-set_to_attrs = Attributes
-
-attrs_diff :: Attributes -> Attributes -> Attributes
-attrs_diff (Attributes x) (Attributes y) = Attributes (Set.difference x y)
-
--- | True if the first argument contains the attributes in the second.
-attrs_contain :: Attributes -> Attributes -> Bool
-attrs_contain (Attributes super) (Attributes sub) = sub `Set.isSubsetOf` super
-
-attrs_set :: Attributes -> Set.Set Attribute
-attrs_set (Attributes attrs) = attrs
-
-attrs_remove :: Attributes -> Attributes -> Attributes
-attrs_remove (Attributes remove) (Attributes attrs) =
-    Attributes $ attrs `Set.difference` remove
-
-attrs_list :: Attributes -> [Attribute]
-attrs_list = Set.toList . attrs_set

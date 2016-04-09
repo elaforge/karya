@@ -20,8 +20,10 @@ import qualified Util.Seq as Seq
 import qualified Util.Vector
 
 import qualified Midi.Midi as Midi
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
+
 import qualified Perform.Midi.Control as Control
 import qualified Perform.Pitch as Pitch
 import qualified Instrument.Common as Common
@@ -165,7 +167,7 @@ default_name = ""
 
 -- | Map attributes to the names of the calls they should map to.  This
 -- is used by the integrator to turn score events into UI events.
-type CallMap = Map.Map Score.Attributes BaseTypes.CallId
+type CallMap = Map.Map Attrs.Attributes BaseTypes.CallId
 
 -- | If a patch is tuned to something other than 12TET, this vector maps MIDI
 -- key numbers to their NNs, or 0 if the patch doesn't support that key.
@@ -321,22 +323,22 @@ instance Pretty.Pretty Keyswitch where
     format (Aftertouch val) = "at:" <> Pretty.format val
 
 -- | An AttributeMap with just keyswitches.
-keyswitches :: [(Score.Attributes, [Keyswitch])] -> AttributeMap
+keyswitches :: [(Attrs.Attributes, [Keyswitch])] -> AttributeMap
 keyswitches attr_ks =
     Common.attribute_map [(attrs, (ks, Nothing)) | (attrs, ks) <- attr_ks]
 
 -- | An AttributeMap with a single Midi.Key keyswitch per Attribute.
-single_keyswitches :: [(Score.Attributes, Midi.Key)] -> AttributeMap
+single_keyswitches :: [(Attrs.Attributes, Midi.Key)] -> AttributeMap
 single_keyswitches = keyswitches . map (second ((:[]) . Keyswitch))
 
-cc_keyswitches :: Midi.Control -> [(Score.Attributes, Midi.ControlValue)]
+cc_keyswitches :: Midi.Control -> [(Attrs.Attributes, Midi.ControlValue)]
     -> AttributeMap
 cc_keyswitches cc = keyswitches . map (second ((:[]) . ControlSwitch cc))
 
-keymap :: [(Score.Attributes, Keymap)] -> AttributeMap
+keymap :: [(Attrs.Attributes, Keymap)] -> AttributeMap
 keymap table =
     Common.attribute_map [(attr, ([], Just keymap)) | (attr, keymap) <- table]
 
 -- | An AttributeMap with just unpitched keymaps.
-unpitched_keymap :: [(Score.Attributes, Midi.Key)] -> AttributeMap
+unpitched_keymap :: [(Attrs.Attributes, Midi.Key)] -> AttributeMap
 unpitched_keymap = keymap . map (second UnpitchedKeymap)

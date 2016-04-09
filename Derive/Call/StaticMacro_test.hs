@@ -4,6 +4,7 @@
 
 module Derive.Call.StaticMacro_test where
 import Util.Test
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Make as Make
@@ -13,7 +14,6 @@ import qualified Derive.Call.StaticMacro as StaticMacro
 import Derive.Call.StaticMacro (Arg(..))
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
-import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
 import Global
@@ -57,7 +57,7 @@ test_transformer = do
         (["+x+y+z"], [])
 
 attr :: Text -> Arg
-attr = StaticMacro.literal . Score.attr
+attr = StaticMacro.literal . Attrs.attr
 
 make_call :: call -> [Arg] -> StaticMacro.Call call
 make_call call args = StaticMacro.Call call args

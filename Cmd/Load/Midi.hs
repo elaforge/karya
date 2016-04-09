@@ -31,6 +31,7 @@ import qualified Ui.State as State
 
 import qualified Cmd.Cmd as Cmd
 import qualified Cmd.Create as Create
+import qualified Derive.Attrs as Attrs
 import qualified Derive.ParseTitle as ParseTitle
 import qualified Derive.Scale.Twelve as Twelve
 import qualified Derive.Score as Score
@@ -167,8 +168,8 @@ convert_track (title, msgs) = (map (Score.instrument title,) tracks, warns)
 
 -- TODO incomplete.  I need to modify convert_tracks to take [AttrMidi].
 
-type AttrMidi = (RealTime, Either Score.Attributes Midi.Message)
-type KeyswitchMap = Map.Map (Set.Set Midi.Key) Score.Attributes
+type AttrMidi = (RealTime, Either Attrs.Attributes Midi.Message)
+type KeyswitchMap = Map.Map (Set.Set Midi.Key) Attrs.Attributes
 
 -- | Collect sounding keys, and each time look in the AttributeMap for the
 -- current set.  If I find a match, emit the attributes as the current state.

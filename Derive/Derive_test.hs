@@ -22,6 +22,7 @@ import qualified Ui.State as State
 import qualified Ui.UiTest as UiTest
 
 import qualified Cmd.Simple as Simple
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Deriver.Internal as Internal
@@ -98,13 +99,13 @@ test_attributes = do
             (UiTest.allocations [("i1", "s/i1")])
             (DeriveTest.make_db [("s", [patch])])
         patch = Patch.attribute_map #= attr_map $ Patch.patch (-1, 1) "i1"
-        keyswitches = Patch.single_keyswitches $ map (first Score.attrs)
+        keyswitches = Patch.single_keyswitches $ map (first Attrs.attrs)
             [ (["a1", "a2"], 0)
             , (["a0"], 1)
             , (["a1"], 2)
             , (["a2"], 3)
             ]
-        keymap = Patch.unpitched_keymap [(Score.attr "km", 42)]
+        keymap = Patch.unpitched_keymap [(Attrs.attr "km", 42)]
         attr_map = Common.AttributeMap $ case (keyswitches, keymap) of
             (Common.AttributeMap a, Common.AttributeMap b) -> a ++ b
     let res = DeriveTest.derive_tracks ""

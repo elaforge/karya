@@ -11,6 +11,7 @@ import qualified Data.Text as Text
 
 import qualified Util.Seq as Seq
 import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Lily as Lily
 import qualified Derive.Call.Module as Module
@@ -24,7 +25,6 @@ import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import Derive.Sig (defaulted, control)
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.RealTime as RealTime
 import Global
@@ -166,7 +166,7 @@ c_extend_duration = Derive.transformer Module.prelude "extend-duration"
         extend_duration attrs dur <$> deriver
 
 -- | Don't overlap with another note with the same pitch, as in 'avoid_overlap'.
-extend_duration :: [Score.Attributes] -> RealTime -> Stream.Stream Score.Event
+extend_duration :: [Attrs.Attributes] -> RealTime -> Stream.Stream Score.Event
     -> Stream.Stream Score.Event
 extend_duration attrs dur = Post.emap1_ extend . next_same_pitch
     where
@@ -197,15 +197,15 @@ c_apply_attributes = Derive.transformer Module.prelude "apply-attributes"
 apply_attributes :: Score.Event -> Score.Event
 apply_attributes event = Score.add_attributes (mconcat attrs_to_apply) event
     where
-    controls :: [(Score.Attributes, Score.Control)]
+    controls :: [(Attrs.Attributes, Score.Control)]
     controls = Seq.key_on_maybe control_attributes $ Map.keys $
         Score.event_untransformed_controls event
     attrs_to_apply = map fst $ filter ((>0) . get . snd) controls
     get c = maybe 0 Score.typed_val $
         Score.control_at (Score.event_start event) c event
 
-control_attributes :: Score.Control -> Maybe Score.Attributes
-control_attributes = fmap (Score.attrs . Text.split (=='-'))
+control_attributes :: Score.Control -> Maybe Attrs.Attributes
+control_attributes = fmap (Attrs.attrs . Text.split (=='-'))
     . Text.stripPrefix control_prefix . Score.control_name
 
 control_prefix :: Text

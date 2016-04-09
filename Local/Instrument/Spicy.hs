@@ -52,7 +52,7 @@ controls =
     , (28, "harm")
     ]
 
-keyswitches :: [(Score.Attributes, Midi.Key)]
+keyswitches :: [(Attrs.Attributes, Midi.Key)]
 keyswitches =
     [ (Attrs.legato, Key.b2)
     , (Attrs.mute, Key.c3)
@@ -72,8 +72,10 @@ note_call = Note.transformed_note
         attrs <- Call.get_attrs
         inst <- Call.lookup_instrument
         let string = Seq.head
-                [string | attr <- Score.attrs_list attrs, string <- strings,
-                    attr == string]
+                [ string
+                | attr <- Attrs.to_list attrs, string <- strings
+                , attr == string
+                ]
         case (inst, string) of
             (Just inst, Just string) ->
                 Derive.with_instrument (string_inst inst string) deriver

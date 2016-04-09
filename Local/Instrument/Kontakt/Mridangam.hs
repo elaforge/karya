@@ -15,10 +15,8 @@ import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
 import qualified Derive.Attrs as Attrs
-import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.Score as Score
-import Derive.Score (attr)
 import qualified Derive.BaseTypes as BaseTypes
+import qualified Derive.Instrument.DUtil as DUtil
 
 import qualified Perform.NN as NN
 import qualified Perform.Pitch as Pitch
@@ -156,7 +154,7 @@ notes_d, notes_g :: CUtil.PitchedNotes
     -- the bottom of the pitch range.
 
 make_notes :: Pitch.NoteNumber
-    -> (CUtil.PitchedNotes, ([Drums.Note], [Score.Attributes]))
+    -> (CUtil.PitchedNotes, ([Drums.Note], [Attrs.Attributes]))
 make_notes root_nn = CUtil.drum_pitched_notes all_notes $
     CUtil.make_cc_keymap Key2.c_1 12 root_nn
     [ [tha]
@@ -200,17 +198,17 @@ pitched_notes_old :: CUtil.PitchedNotes
 
 -- * attrs
 
-tha = attr "tha"
-thom = attr "thom"
-ki = attr "ki"
-ta = attr "ta"
-nam = attr "nam"
-din = attr "din"
-dheem = attr "dheem"
-arai = attr "arai"
-muru = attr "muru"
-meetu = attr "meetu"
+tha = Attrs.attr "tha"
+thom = Attrs.attr "thom"
+ki = Attrs.attr "ki"
+ta = Attrs.attr "ta"
+nam = Attrs.attr "nam"
+din = Attrs.attr "din"
+dheem = Attrs.attr "dheem"
+arai = Attrs.attr "arai"
+muru = Attrs.attr "muru"
+meetu = Attrs.attr "meetu"
 
-gumki = attr "gumki"
+gumki = Attrs.attr "gumki"
 -- Without ravai.
-dry = attr "dry"
+dry = Attrs.attr "dry"

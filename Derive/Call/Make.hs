@@ -6,6 +6,7 @@
 -- | This is like "Derive.Call", but higher level.  It has templates for
 -- creating calls.
 module Derive.Call.Make where
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Module as Module
@@ -33,7 +34,7 @@ call_maps calls = Derive.call_maps gs ts
     ts = zip (map fst calls) (map (snd . snd) calls)
 
 -- | This is a specialization of 'transform_notes' that adds Attributes.
-attributed_note :: Module.Module -> Score.Attributes -> Calls Derive.Note
+attributed_note :: Module.Module -> Attrs.Attributes -> Calls Derive.Note
 attributed_note module_ attrs = transform_notes module_
     ("note with " <> ShowVal.show_val attrs) Tags.attr
     "Add attributes to the notes." Sig.no_args (\() -> Call.add_attrs attrs)

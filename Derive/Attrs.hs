@@ -19,8 +19,61 @@
     articulation, while plain pizz is a mode.  But it's trivial if the
     attribute is @+pizz-right@ instead.
 -}
-module Derive.Attrs (module Derive.Attrs, Attributes) where
-import Derive.Score (Attributes, attr)
+module Derive.Attrs where
+import qualified Control.DeepSeq as DeepSeq
+import qualified Data.Aeson as Aeson
+import qualified Data.Set as Set
+import qualified Data.Text as Text
+
+import qualified Util.Pretty as Pretty
+import qualified Util.Serialize as Serialize
+import qualified Derive.ShowVal as ShowVal
+
+import Global
+
+
+-- | Instruments can have a set of attributes along with them.  These are
+-- propagated dynamically down the derivation stack.  They function like
+-- arguments to an instrument, and will typically select an articulation, or
+-- a drum from a drumset, or something like that.
+type Attribute = Text
+newtype Attributes = Attributes (Set.Set Attribute)
+    deriving (Monoid, Eq, Ord, Read, Show, Serialize.Serialize, DeepSeq.NFData,
+        Aeson.ToJSON, Aeson.FromJSON)
+
+instance Pretty.Pretty Attributes where pretty = ShowVal.show_val
+instance ShowVal.ShowVal Attributes where
+    show_val = ("+"<>) . Text.intercalate "+" . to_list
+
+attr :: Text -> Attributes
+attr = Attributes . Set.singleton
+
+attrs :: [Text] -> Attributes
+attrs = Attributes . Set.fromList
+
+from_set :: Set.Set Attribute -> Attributes
+from_set = Attributes
+
+to_set :: Attributes -> Set.Set Attribute
+to_set (Attributes attrs) = attrs
+
+to_list :: Attributes -> [Attribute]
+to_list = Set.toList . to_set
+
+difference :: Attributes -> Attributes -> Attributes
+difference (Attributes x) (Attributes y) = Attributes (Set.difference x y)
+
+intersection :: Attributes -> Attributes -> Attributes
+intersection (Attributes x) (Attributes y) = Attributes (Set.intersection x y)
+
+-- | True if the first argument contains the attributes in the second.
+contain :: Attributes -> Attributes -> Bool
+contain (Attributes super) (Attributes sub) = sub `Set.isSubsetOf` super
+
+-- | Remove the attributes in the first argument from the second.
+remove :: Attributes -> Attributes -> Attributes
+remove (Attributes remove) (Attributes attrs) =
+    Attributes $ attrs `Set.difference` remove
 
 
 -- * articulations

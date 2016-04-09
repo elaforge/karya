@@ -74,7 +74,7 @@ synth = MidiInst.synth "vsl" "Vienna Symphonic Library" $
 -- | For interactive use, find keyswitches with the given attributes.
 find_attrs :: InstTypes.Name -> String -> [Text]
 find_attrs inst with_attrs =
-    map ShowVal.show_val $ filter (`Score.attrs_contain` search)
+    map ShowVal.show_val $ filter (`Attrs.contain` search)
         (patch_attrs (MidiInst.patch_patch patch))
     where
     search = either (error . untxt) id (Parse.parse_attrs with_attrs)
@@ -96,7 +96,7 @@ show_matrix (name, _, attrs) =
         . zipWith (:) col_header . (header:) . map (map ShowVal.show_val)
     header = take cols $ map showt [1..]
     col_header = take (cols+1) $ map Text.singleton $ '-' : ['a'..]
-    strip = strip_attrs . map (`Score.attrs_diff` variants)
+    strip = strip_attrs . map (`Attrs.difference` variants)
     variants = VslInst.updown <> VslInst.crescdim <> VslInst.highlow
     cols = 12
 
@@ -164,17 +164,17 @@ note_calls maybe_hmap patch =
     note_config patch = Note.use_attributes
         { Note.config_staccato = not $ has_attr Attrs.staccato patch }
 
-patch_attrs :: Patch.Patch -> [Score.Attributes]
+patch_attrs :: Patch.Patch -> [Attrs.Attributes]
 patch_attrs = Common.mapped_attributes . Patch.patch_attribute_map
 
-has_attr :: Score.Attributes -> Patch.Patch -> Bool
-has_attr attr = any (`Score.attrs_contain` attr) . patch_attrs
+has_attr :: Attrs.Attributes -> Patch.Patch -> Bool
+has_attr attr = any (`Attrs.contain` attr) . patch_attrs
 
-grace_call :: [Score.Attributes] -> Derive.Generator Derive.Note
+grace_call :: [Attrs.Attributes] -> Derive.Generator Derive.Note
 grace_call attrs =
     Grace.c_attr_grace (Map.filter (`elem` attrs) grace_intervals)
 
-grace_intervals :: Map.Map Int Score.Attributes
+grace_intervals :: Map.Map Int Attrs.Attributes
 grace_intervals = Map.fromList $
     [(n, VslInst.grace <> VslInst.up <> attrs) | (n, attrs) <- ints]
     ++ [(-n, VslInst.grace <> VslInst.down <> attrs) | (n, attrs) <- ints]
@@ -186,11 +186,11 @@ grace_intervals = Map.fromList $
 harmonic :: Note.Config -> HarmonicMap -> Note.GenerateNote
 harmonic config hmap args = do
     attrs <- Call.get_attrs
-    let has = Score.attrs_contain attrs
+    let has = Attrs.contain attrs
     with_pitch <- if
         | has (Attrs.harm <> VslInst.nat) ->
             natural_harmonic (has Attrs.gliss) $
-                List.find (Score.attrs_contain attrs) (hmap_strings hmap)
+                List.find (Attrs.contain attrs) (hmap_strings hmap)
         -- VSL has its artificial harmonics pitched one octave too high.
         | has Attrs.harm -> return $ Call.add_constant Controls.octave (-1)
         | otherwise -> return id
@@ -209,7 +209,7 @@ harmonic config hmap args = do
 -- * keyswitches
 
 type Instrument = (InstTypes.Name, [Keyswitch])
-type Keyswitch = (Score.Attributes, [Patch.Keyswitch])
+type Keyswitch = (Attrs.Attributes, [Patch.Keyswitch])
 
 make_patch :: VslInst.Instrument -> Text -> MidiInst.Patch
 make_patch inst category =
@@ -238,7 +238,7 @@ keyswitch_map = Patch.keyswitches . Seq.sort_on (priority . fst) . process
 
 -- | Order attributes by priority.  This should correspond to specificity, or
 -- to perceptual importance, as documented in 'Patch.AttributeMap'.
-attribute_priority :: Map.Map Score.Attributes Int
+attribute_priority :: Map.Map Attrs.Attributes Int
 attribute_priority = Map.fromList ((`zip` [-1, -2 ..]) (reverse high)) <> low
     where
     high =
@@ -260,7 +260,7 @@ attribute_priority = Map.fromList ((`zip` [-1, -2 ..]) (reverse high)) <> low
 -- keyswitches, but it would be hard to read and easy to mess up, wouldn't let
 -- me disable and enable cells by row, and with custom patches I'll probably
 -- wind up with more than 144 anyway.
-matrix :: VslInst.Keys -> [[Score.Attributes]] -> [Keyswitch]
+matrix :: VslInst.Keys -> [[Attrs.Attributes]] -> [Keyswitch]
 matrix keys = add . Seq.chunked 12 . concatMap (Seq.chunked 12)
     where
     add matrices = do
@@ -288,7 +288,7 @@ keys_from low_key = map Patch.Keyswitch [low_key ..]
 -- are removed first, so if you have both 'VslInst.med' and 'VslInst.short',
 -- 'VslInst.med' will become the default, while 'VslInst.short' retains its
 -- attribute.
-strip_attrs :: [Score.Attributes] -> [Score.Attributes]
+strip_attrs :: [Attrs.Attributes] -> [Attrs.Attributes]
 strip_attrs attrs = snd $ foldr strip_attr (Set.fromList attrs, attrs) strip
     where
     strip = reverse
@@ -298,10 +298,10 @@ strip_attrs attrs = snd $ foldr strip_attr (Set.fromList attrs, attrs) strip
         ]
 
 -- | Strip the given attr, but only if it wouldn't cause clashes.
-strip_attr :: Score.Attributes -> (Set.Set Score.Attributes, [Score.Attributes])
-    -> (Set.Set Score.Attributes, [Score.Attributes])
+strip_attr :: Attrs.Attributes -> (Set.Set Attrs.Attributes, [Attrs.Attributes])
+    -> (Set.Set Attrs.Attributes, [Attrs.Attributes])
 strip_attr attr (all_attrs_set, all_attrs)
-    | any (`Score.attrs_contain` attr) all_attrs =
+    | any (`Attrs.contain` attr) all_attrs =
         List.mapAccumL strip_redundant all_attrs_set all_attrs
     | otherwise = (all_attrs_set, all_attrs)
     where
@@ -317,23 +317,22 @@ strip_attr attr (all_attrs_set, all_attrs)
     strip_redundant attrs_set attrs
         | Set.member stripped attrs_set = (attrs_set, attrs)
         | otherwise = (Set.insert stripped attrs_set, stripped)
-        where stripped = Score.attrs_diff attrs attr
+        where stripped = Attrs.difference attrs attr
 
-expand_ab :: Score.Attributes -> Maybe [Score.Attributes]
+expand_ab :: Attrs.Attributes -> Maybe [Attrs.Attributes]
 expand_ab attrs
     | Just stripped <- extract VslInst.updown =
         Just [stripped <> VslInst.up, stripped <> VslInst.down]
     | Just stripped <- extract VslInst.crescdim =
-        Just $ map (`strip` VslInst.dyn)
+        Just $ map (`Attrs.difference` VslInst.dyn)
             [stripped <> VslInst.cresc, stripped <> VslInst.dim]
     | Just stripped <- extract VslInst.highlow =
         Just [stripped <> VslInst.high, stripped <> VslInst.low]
     | otherwise = Nothing
     where
     extract attr
-        | Score.attrs_contain attrs attr = Just $ strip attrs attr
+        | Attrs.contain attrs attr = Just $ Attrs.difference attrs attr
         | otherwise = Nothing
-    strip = Score.attrs_diff
 
 
 -- * natural harmonics
@@ -346,7 +345,7 @@ data HarmonicMap = HarmonicMap {
     -- | Same as 'hmap_key_to_natural' except map from the gliss destination.
     , hmap_key_to_gliss_destination :: Map.Map Midi.Key [(OpenString, Midi.Key)]
     } deriving (Show)
-type OpenString = Score.Attributes
+type OpenString = Attrs.Attributes
 
 find_harmonic :: HarmonicMap -> Bool -> Midi.Key -> Maybe OpenString
     -> Maybe Midi.Key
@@ -371,13 +370,13 @@ harmonic_map strings = HarmonicMap
 
 violin_harmonics, viola_harmonics, cello_harmonics, bass_harmonics
     :: HarmonicMap
-violin_harmonics = harmonic_map $ map (first Score.attr)
+violin_harmonics = harmonic_map $ map (first Attrs.attr)
     [("g", Key.g3), ("d", Key.d4), ("a", Key.a4), ("e", Key.e4)]
-viola_harmonics = harmonic_map $ map (first Score.attr)
+viola_harmonics = harmonic_map $ map (first Attrs.attr)
     [("c", Key.c3), ("g", Key.g3), ("d", Key.d4), ("a", Key.a4)]
-cello_harmonics = harmonic_map $ map (first Score.attr)
+cello_harmonics = harmonic_map $ map (first Attrs.attr)
     [("c", Key.c2), ("g", Key.g2), ("d", Key.d3), ("a", Key.a3)]
-bass_harmonics = harmonic_map $ map (first Score.attr)
+bass_harmonics = harmonic_map $ map (first Attrs.attr)
     [("e", Key.e1), ("a", Key.a1), ("d", Key.d2), ("g", Key.g2)]
 
 natural_harmonics :: [(Midi.Key, Int)]
@@ -421,7 +420,7 @@ c_infer_seconds = Make.transform_notes Module.instrument "infer-seconds"
         Post.emap1_ (infer_seconds round (Derive.inst_attributes inst)) <$>
             Call.add_attrs attrs deriver
 
-infer_seconds :: Maybe Call.UpDown -> [Score.Attributes] -> Score.Event
+infer_seconds :: Maybe Call.UpDown -> [Attrs.Attributes] -> Score.Event
     -> Score.Event
 infer_seconds round inst_attrs event = case closest of
     Nothing -> event
@@ -432,7 +431,7 @@ infer_seconds round inst_attrs event = case closest of
         Nothing -> relevant_attrs
         Just Call.Up -> filter ((>=dur) . fst) relevant_attrs
         Just Call.Down -> filter ((<=dur) . fst) relevant_attrs
-    relevant_attrs :: [(RealTime, Score.Attributes)]
-    relevant_attrs = filter (Score.attrs_contain event_attrs . snd) $
+    relevant_attrs :: [(RealTime, Attrs.Attributes)]
+    relevant_attrs = filter (Attrs.contain event_attrs . snd) $
         mapMaybe VslInst.parse_sec inst_attrs
     event_attrs = Score.event_attributes event

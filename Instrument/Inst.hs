@@ -33,7 +33,7 @@ import qualified Util.Lens as Lens
 import qualified Util.Map
 import qualified Util.Pretty as Pretty
 
-import qualified Derive.ScoreTypes as ScoreTypes
+import qualified Derive.Attrs as Attrs
 import qualified Perform.Im.Patch as Im.Patch
 import qualified Perform.Midi.Patch as Midi.Patch
 import qualified Instrument.Common as Common
@@ -72,7 +72,7 @@ inst_midi inst = case inst_backend inst of
     Midi inst -> Just inst
     _ -> Nothing
 
-inst_attributes :: Inst code -> [ScoreTypes.Attributes]
+inst_attributes :: Inst code -> [Attrs.Attributes]
 inst_attributes inst = case inst_backend inst of
     Midi patch -> Common.mapped_attributes $
         Midi.Patch.patch_attribute_map patch

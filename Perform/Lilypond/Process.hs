@@ -25,7 +25,6 @@ import qualified Derive.Env as Env
 import qualified Derive.EnvKey as EnvKey
 import qualified Derive.Scale.Theory as Theory
 import qualified Derive.Scale.Twelve as Twelve
-import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
 
 import qualified Perform.Lilypond.Constants as Constants
@@ -39,7 +38,7 @@ import Global
 
 
 -- | Automatically add lilypond code for certain attributes.
-simple_articulations :: [(Score.Attributes, Code)]
+simple_articulations :: [(Attrs.Attributes, Code)]
 simple_articulations =
     [ (Attrs.harm, "-\\flageolet")
     , (Attrs.mute, "-+")
@@ -56,7 +55,7 @@ simple_articulations =
 
 -- | Certain attributes are modal, in that they emit one thing when they
 -- start, and another when they stop.
-modal_articulations :: [(Score.Attributes, Code, Code)]
+modal_articulations :: [(Attrs.Attributes, Code, Code)]
 modal_articulations =
     [ (Attrs.pizz, "^\"pizz.\"", "^\"arco\"")
     , (Attrs.nv, "^\"nv\"", "^\"vib\"")
@@ -246,8 +245,8 @@ convert_chord meter events = do
 -- 'Code' Notes.
 --
 -- The rules are documented in 'Perform.Lilypond.Convert.convert_event'.
-make_lys :: Time -> Score.Attributes -> Meter.Meter -> NonEmpty Event
-    -> ([Ly], Time, Score.Attributes, [Event])
+make_lys :: Time -> Attrs.Attributes -> Meter.Meter -> NonEmpty Event
+    -> ([Ly], Time, Attrs.Attributes, [Event])
     -- ^ (note, note end time, last attrs, remaining events)
 make_lys measure_start prev_attrs meter events =
     (notes, end, last_attrs, clipped ++ remaining)
@@ -279,7 +278,7 @@ make_lys measure_start prev_attrs meter events =
     -- Circumfix the possible real note with zero-dur code placeholders.
     notes = prepend ++ maybe [] (:[]) maybe_note ++ append
 
-make_note :: Time -> Score.Attributes -> Meter.Meter
+make_note :: Time -> Attrs.Attributes -> Meter.Meter
     -> NonEmpty Event -- ^ Events that occur at the same time.
     -- All these events must have >0 duration!
     -> Maybe Time -> (Ly, Time, [Event])
@@ -578,7 +577,7 @@ data State = State {
     -- | Current position in time, aka the end of the previous note.
     , state_time :: Time
         -- | Used in conjunction with 'modal_articulations'.
-    , state_prev_attrs :: Score.Attributes
+    , state_prev_attrs :: Attrs.Attributes
     , state_key :: Key
     } deriving (Show)
 
@@ -790,7 +789,7 @@ clip_event end e
         e { event_start = end, event_duration = left, event_clipped = True }
     where left = event_end e - end
 
-attrs_to_code :: Score.Attributes -> Score.Attributes -> Code
+attrs_to_code :: Attrs.Attributes -> Attrs.Attributes -> Code
 attrs_to_code prev_attrs attrs = mconcat $ mconcat
     [ [code | (attr, code) <- simple_articulations, has attr]
     , [start | (attr, start, _) <- modal_articulations,
@@ -799,5 +798,5 @@ attrs_to_code prev_attrs attrs = mconcat $ mconcat
         not (has attr), prev_has attr]
     ]
     where
-    has = Score.attrs_contain attrs
-    prev_has = Score.attrs_contain prev_attrs
+    has = Attrs.contain attrs
+    prev_has = Attrs.contain prev_attrs

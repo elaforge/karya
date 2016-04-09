@@ -107,8 +107,8 @@ note_calls = Derive.call_maps
     <> Make.call_maps [("lv", Make.attributed_note module_ undamped)]
     where articulation = make_articulation reyong_positions
 
-cek :: Score.Attributes
-cek = Score.attr "cek"
+cek :: Attrs.Attributes
+cek = Attrs.attr "cek"
 
 reyong_pattern :: [Char] -> [Char] -> Pattern
 reyong_pattern above below = make_pattern $ parse_kotekan above below
@@ -150,7 +150,7 @@ place_env = Sig.environ "place" Sig.Both (Sig.control "place" 1)
     \ the base note, and the base note is delayed."
 
 -- | Dyn 0 means a rest.
-type TumpukNote = (TumpukPitch, Score.Attributes, Dyn)
+type TumpukNote = (TumpukPitch, Attrs.Attributes, Dyn)
 data TumpukPitch = Transpose Pitch.Step | Prev deriving (Eq, Show)
 type Dyn = Signal.Y
 
@@ -189,7 +189,7 @@ parse_tumpuk = fmap (Maybe.catMaybes . snd) . Seq.mapAccumLM parse (Transpose 0)
 --
 -- > /   X   -   +   o
 -- >         m-  nx  .o
-articulations :: Map.Map Char (Score.Attributes, Dyn)
+articulations :: Map.Map Char (Attrs.Attributes, Dyn)
 articulations = Map.fromList
     [ (' ', (mempty, 0))
     , ('.', (mempty, 0.75))
@@ -403,7 +403,7 @@ kernel_to_pattern direction kernel = do
 -- * articulation
 
 make_articulation :: [Position] -> Bool -> Text -> (Position -> [Pitch.Pitch])
-    -> Score.Attributes -> Derive.Generator Derive.Note
+    -> Attrs.Attributes -> Derive.Generator Derive.Note
 make_articulation positions double name get_notes attrs =
     Derive.generator module_ name Tags.inst
     "Reyong articulation. The doubled variants emit two notes, and rely on\
@@ -455,7 +455,7 @@ data KotekanPattern = KotekanPattern {
 
 type Pattern = Map.Map Pitch.PitchClass [[Chord]]
 type Chord = [Note]
-type Note = (Pitch.Pitch, Score.Attributes)
+type Note = (Pitch.Pitch, Attrs.Attributes)
 
 -- | Figure out a pattern for each note of the scale.
 make_pattern :: KotekanPattern -> Pattern
@@ -717,14 +717,14 @@ infer_damp dur_at = snd . List.mapAccumL infer (0, 0) . zip_next . assign_hands
 could_damp :: Score.Event -> Bool
 could_damp event =
     Score.event_duration event > 0
-        && not (any (Score.attrs_contain attrs) [undamped, cek, Attrs.mute])
+        && not (any (Attrs.contain attrs) [undamped, cek, Attrs.mute])
     where attrs = Score.event_attributes event
 
-damped :: Score.Attributes
-damped = Score.attr "damped"
+damped :: Attrs.Attributes
+damped = Attrs.attr "damped"
 
-undamped :: Score.Attributes
-undamped = Score.attr "undamped"
+undamped :: Attrs.Attributes
+undamped = Attrs.attr "undamped"
 
 data Hand = L | R deriving (Eq, Show)
 instance Pretty.Pretty Hand where pretty = showt

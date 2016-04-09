@@ -10,6 +10,7 @@ import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
 import qualified Cmd.Instrument.MidiInst as MidiInst
+import qualified Derive.Attrs as Attrs
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
@@ -35,7 +36,7 @@ test_attr_priority = do
     equal (lookup (VslInst.nv <> VslInst.legato)) (lookup VslInst.legato)
 
 test_strip_attrs = do
-    let f = map ShowVal.show_val . Vsl.strip_attrs . map Score.attrs
+    let f = map ShowVal.show_val . Vsl.strip_attrs . map Attrs.attrs
     -- Strip them.
     equal (f [["sus"], ["vib", "marcato"]]) ["+", "+marcato"]
     -- Can't strip if it would be non-unique.

@@ -55,8 +55,8 @@ insert_call tracks tracknum val_edit msg =
         CmdTest.default_cmd_state
     char_to_call = CUtil.notes_to_calls (map fst note_keys)
     note_keys =
-        [ (Drums.note 'a' "anote" (Score.attr "a"), Key.c2)
-        , (Drums.note 'b' "bnote" (Score.attr "b"), Key.d2)
+        [ (Drums.note 'a' "anote" (Attrs.attr "a"), Key.c2)
+        , (Drums.note 'b' "bnote" (Attrs.attr "b"), Key.d2)
         ]
     extract r = (CmdTest.trace_logs (CmdTest.e_tracks r), CmdTest.e_midi r)
 

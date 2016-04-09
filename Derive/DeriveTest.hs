@@ -35,6 +35,7 @@ import qualified Cmd.Instrument.MidiInst as MidiInst
 import qualified Cmd.PlayUtil as PlayUtil
 import qualified Cmd.Simple as Simple
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.All as Call.All
 import qualified Derive.Call.Prelude.Block as Prelude.Block
@@ -556,7 +557,7 @@ e_everything e =
     , Score.event_duration e
     , untxt $ Score.event_text e
     , e_instrument e
-    , Score.attrs_list (Score.event_attributes e)
+    , Attrs.to_list (Score.event_attributes e)
     )
 
 e_instrument :: Score.Event -> Text

@@ -12,6 +12,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.TextUtil as TextUtil
 import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Meter as Meter
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes (Val(..))
 import qualified Derive.Controls as Controls
@@ -526,11 +527,11 @@ instance ToVal Score.PControl where
 
 -- ** other types
 
-instance Typecheck Score.Attributes where
+instance Typecheck Attrs.Attributes where
     from_val (VAttributes a) = Val $ Just a
     from_val _ = Val Nothing
     to_type _ = ValType.TAttributes
-instance ToVal Score.Attributes where to_val = VAttributes
+instance ToVal Attrs.Attributes where to_val = VAttributes
 
 -- | Use a 'TypedFunction' or 'Function' instead of this.
 instance Typecheck BaseTypes.ControlRef where

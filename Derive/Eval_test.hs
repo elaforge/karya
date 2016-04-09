@@ -6,12 +6,12 @@ module Derive.Eval_test where
 import Util.Test
 import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Eval as Eval
 import qualified Derive.Instrument.DUtil as DUtil
-import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 
 
@@ -40,6 +40,6 @@ test_reapply_generator = do
     with = CallTest.with_note_generators $
         ("ab", DUtil.multiple_call "ab" ["a", "b"])
         : CUtil.drum_calls Nothing
-            [ Drums.note 'a' "a" (Score.attr "a")
-            , Drums.note 'b' "b" (Score.attr "b")
+            [ Drums.note 'a' "a" (Attrs.attr "a")
+            , Drums.note 'b' "b" (Attrs.attr "b")
             ]

@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 import qualified Util.Pretty as Pretty
+import qualified Derive.Attrs as Attrs
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Instrument.Common as Common
 import Global
@@ -37,9 +38,9 @@ instance Pretty.Pretty Patch where
 
 -- | Since the synth understands Attributes directly, this is just a list of
 -- support Attributes along with their priority.
-type AttributeMap = Common.AttributeMap ScoreTypes.Attributes
+type AttributeMap = Common.AttributeMap Attrs.Attributes
 
-attribute_map :: [ScoreTypes.Attributes] -> AttributeMap
+attribute_map :: [Attrs.Attributes] -> AttributeMap
 attribute_map =
     Common.sort_attribute_map . Common.AttributeMap . map (\a -> (a, a))
 

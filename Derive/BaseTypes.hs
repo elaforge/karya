@@ -45,8 +45,10 @@ import qualified Util.TimeVector as TimeVector
 
 import qualified Ui.Ruler as Ruler
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Derive.Attrs as Attrs
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
+
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
 import qualified Perform.Signal as Signal
@@ -313,7 +315,7 @@ data Val =
     -- | A set of Attributes for an instrument.
     --
     -- Literal: @+attr@, @+attr1+attr2@.
-    | VAttributes !ScoreTypes.Attributes
+    | VAttributes !Attrs.Attributes
 
     -- | A control name.  An optional value gives a default if the control
     -- isn't present.

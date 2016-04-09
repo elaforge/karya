@@ -11,9 +11,11 @@ import qualified Data.Text as Text
 import qualified Util.Lens as Lens
 import qualified Util.Num as Num
 import qualified Util.Pretty as Pretty
+
+import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
 import qualified Derive.Stack as Stack
-import qualified Derive.BaseTypes as BaseTypes
 
 import qualified Perform.Pitch as Pitch
 import qualified Perform.RealTime as RealTime
@@ -253,7 +255,7 @@ data Event = Event {
 event_end :: Event -> Time
 event_end event = event_start event + event_duration event
 
-event_attributes :: Event -> Score.Attributes
+event_attributes :: Event -> Attrs.Attributes
 event_attributes = Score.environ_attributes . event_environ
 
 instance Pretty.Pretty Event where

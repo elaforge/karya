@@ -119,7 +119,7 @@ module_ = "bali" <> "gangsa"
 -- | Variable mute for gangsa.  Intended for the 'Cmd.Cmd.inst_postproc' field.
 -- This interprets 'Controls.mute' and turns it into either a @%mod@ control or
 -- @mute_attr@.
-mute_postproc :: Score.Attributes -> Score.Event -> Score.Event
+mute_postproc :: Attrs.Attributes -> Score.Event -> Score.Event
 mute_postproc mute_attr event =
     case Score.control_at (Score.event_start event) Controls.mute event of
         Nothing -> set_mod 0 event
@@ -776,8 +776,8 @@ c_realize_gangsa = StaticMacro.check "c_realize_gangsa" $
 -- | (noltol-time, kotekan-dur)
 type NoltolArg = (RealTime, RealTime)
 
-noltol_attr :: Score.Attributes
-noltol_attr = Score.attr "noltol"
+noltol_attr :: Attrs.Attributes
+noltol_attr = Attrs.attr "noltol"
 
 c_noltol :: Derive.Transformer Derive.Note
 c_noltol = Derive.transformer module_ "noltol" Tags.delayed
@@ -959,7 +959,7 @@ final_flag = Flags.flag "final"
 noltol_flag :: Flags.Flags
 noltol_flag = Flags.flag "noltol"
 
-put_attr_for_inst :: Typeable.Typeable a => Score.Instrument -> Score.Attributes
+put_attr_for_inst :: Typeable.Typeable a => Score.Instrument -> Attrs.Attributes
     -> a -> Score.Event -> Score.Event
 put_attr_for_inst inst attr arg event
     | Score.event_instrument event == inst = Score.put_attr_arg attr arg event

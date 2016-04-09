@@ -4,6 +4,7 @@
 
 module Derive.Call.Macro_test where
 import Util.Test
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Macro as Macro
@@ -11,7 +12,6 @@ import qualified Derive.Call.Module as Module
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
 import qualified Derive.Parse as Parse
-import qualified Derive.Score as Score
 import qualified Derive.Sig as Sig
 import qualified Derive.Typecheck as Typecheck
 
@@ -65,7 +65,7 @@ var :: Text -> Parse.Term
 var = Parse.VarTerm . Parse.Var
 
 attr :: Text -> Parse.Term
-attr = Parse.Literal . Typecheck.to_val . Score.attr
+attr = Parse.Literal . Typecheck.to_val . Attrs.attr
 
 make_expr :: [(BaseTypes.CallId, [Parse.Term])] -> Parse.Expr
 make_expr calls = Parse.Expr $ c :| cs

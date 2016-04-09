@@ -26,7 +26,6 @@ import qualified Derive.Call.Tags as Tags
 import qualified Derive.Derive as Derive
 import qualified Derive.Eval as Eval
 import qualified Derive.Score as Score
-import Derive.Score (attr)
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
 
@@ -54,7 +53,7 @@ tunggal_notes :: CUtil.PitchedNotes
 (tunggal_notes, resolve_errors) =
     CUtil.resolve_strokes 0.3 tunggal_keymap tunggal_strokes
 
-tunggal_keymap :: Map.Map Score.Attributes CUtil.KeyswitchRange
+tunggal_keymap :: Map.Map Attrs.Attributes CUtil.KeyswitchRange
 tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 NN.fs3
     [ [de <> Attrs.staccato, plak]
     , [de <> Attrs.thumb, dag <> Attrs.staccato]
@@ -67,7 +66,7 @@ tunggal_keymap = CUtil.make_keymap (Just Key2.e_2) Key2.c_1 12 NN.fs3
     , [de <> Attrs.left, tut <> Attrs.left]
     ]
 
-tunggal_strokes :: [(Char, BaseTypes.CallId, Score.Attributes, Drums.Group)]
+tunggal_strokes :: [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
 kendang_stops :: [(Drums.Group, [Drums.Group])]
 (kendang_stops, tunggal_strokes) = (,) stops
     [ ('b', "PL", plak,                 both)
@@ -127,7 +126,7 @@ old_tunggal_notes = map (first make_note)
     ]
     where
     make_note attrs = Drums.note_dyn char call attrs
-            (if Score.attrs_contain attrs soft then 0.3 else 1)
+            (if Attrs.contain attrs soft then 0.3 else 1)
         where
         Just (char, call, _, _) =
             List.find ((==attrs) . attrs_of) tunggal_strokes
@@ -269,15 +268,15 @@ realize_kendang _pasang events = events -- TODO
 -- tut, pung, pak, pang, which both sound weird.
 
 -- both
-plak = attr "plak"
+plak = Attrs.attr "plak"
 
 -- right
-de = attr "de"
-tut = attr "tut"
-ka = attr "ka" -- neutral stroke
-dag = attr "dag" -- de with panggul
-tek = attr "tek"
+de = Attrs.attr "de"
+tut = Attrs.attr "tut"
+ka = Attrs.attr "ka" -- neutral stroke
+dag = Attrs.attr "dag" -- de with panggul
+tek = Attrs.attr "tek"
 
 -- left
-pak = attr "pak"
-pang = attr "pang" -- rim
+pak = Attrs.attr "pak"
+pang = Attrs.attr "pang" -- rim

@@ -43,6 +43,7 @@ import qualified Util.ParseText as ParseText
 import qualified Util.Seq as Seq
 
 import qualified Ui.Id as Id
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Score as Score
 import qualified Derive.ScoreTypes as ScoreTypes
@@ -67,7 +68,7 @@ parse_val :: Text -> Either Text BaseTypes.Val
 parse_val = ParseText.parse (lexeme p_val)
 
 -- | Parse attributes in the form +a+b.
-parse_attrs :: String -> Either Text Score.Attributes
+parse_attrs :: String -> Either Text Attrs.Attributes
 parse_attrs = parse p_attributes . Text.pack
 
 -- | Parse a number or hex code, without a type suffix.
@@ -301,9 +302,9 @@ p_single_quote_string = do
 
 -- There's no particular reason to restrict attrs to idents, but this will
 -- force some standardization on the names.
-p_attributes :: A.Parser Score.Attributes
+p_attributes :: A.Parser Attrs.Attributes
 p_attributes = A.char '+'
-    *> (Score.attrs <$> A.sepBy (p_identifier False "+") (A.char '+'))
+    *> (Attrs.attrs <$> A.sepBy (p_identifier False "+") (A.char '+'))
 
 p_control_ref :: A.Parser BaseTypes.ControlRef
 p_control_ref = do

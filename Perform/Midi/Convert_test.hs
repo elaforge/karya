@@ -13,6 +13,7 @@ import Util.Test
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
 import qualified Derive.DeriveTest as DeriveTest
@@ -161,7 +162,7 @@ test_pitched_keymap = do
     let patch = set_keymap [bd] $ DeriveTest.make_patch "1"
         bd = ("bd", Patch.PitchedKeymap Key.c2 Key.c3 NN.c4)
         set_keymap kmap = Patch.attribute_map
-            #= Patch.keymap (map (first Score.attr) kmap)
+            #= Patch.keymap (map (first Attrs.attr) kmap)
         mktracks ps =
             [ (">i1", [(n, 1, "+bd") | (n, _) <- vals])
             , ("*", [(n, 0, p) | (n, p) <- vals])

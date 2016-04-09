@@ -125,7 +125,7 @@ balalaika =
         , (2, "trem-speed")
         ]
     ks =
-        [ (Score.attr "str2", Key.ds4)
+        [ (Attrs.attr "str2", Key.ds4)
         , (Attrs.gliss, Key.c4)
         , (Attrs.legato, Key.as3)
         , (Attrs.vib, Key.d4)
@@ -164,8 +164,8 @@ anthology_wind =
     -- f2 slide 1 up / down
     -- g2 slide 2 up / down
     -- a2 slide 2 down
-    ornament = Score.attr "o"
-    blow = Score.attr "blow"
+    ornament = Attrs.attr "o"
+    blow = Attrs.attr "blow"
 
 -- * sonic couture
 
@@ -242,7 +242,7 @@ sc_bali = map add_doc $
     gangsa_ks = MidiInst.attribute_map #= Patch.single_keyswitches
         [(Attrs.mute, Key2.cs1), (mempty, Key2.c1)]
     reyong_ks = MidiInst.attribute_map #= Patch.single_keyswitches
-        [(Score.attr "cek", Key2.cs1), (mempty, Key2.c1)]
+        [(Attrs.attr "cek", Key2.cs1), (mempty, Key2.c1)]
     gong_notes =
         [ (n 'z' "O" (gong <> wadon),   Key2.b1)
         , (n 'x' "o" (gong <> lanang),  Key2.c2)
@@ -268,14 +268,14 @@ sc_bali = map add_doc $
         where n = Drums.note
     open = Attrs.open
 
-gong = Score.attr "gong"
-kemong = Score.attr "kemong"
-kempur = Score.attr "kempur"
-bebende = Score.attr "bebende"
-wadon = Score.attr "wadon"
-lanang = Score.attr "lanang"
-kempli = Score.attr "kempli"
-kajar = Score.attr "kajar"
+gong = Attrs.attr "gong"
+kemong = Attrs.attr "kemong"
+kempur = Attrs.attr "kempur"
+bebende = Attrs.attr "bebende"
+wadon = Attrs.attr "wadon"
+lanang = Attrs.attr "lanang"
+kempli = Attrs.attr "kempli"
+kajar = Attrs.attr "kajar"
 
 misc :: [MidiInst.Patch]
 misc = [MidiInst.code #= Reaktor.resonant_filter $ patch "filtered" []]
@@ -369,7 +369,7 @@ hang_cmd = CUtil.keyswitches [(Keymap.physical_key char, text, key)
     | (_, key, Just text, Just char) <- hang_strokes]
 
 -- | The order is important because it determines attr lookup priority.
-hang_strokes :: [(Score.Attributes, Midi.Key, Maybe BaseTypes.CallId,
+hang_strokes :: [(Attrs.Attributes, Midi.Key, Maybe BaseTypes.CallId,
     Maybe Char)]
 hang_strokes =
     [ (Attrs.center,  Key.c2,     Just "",   Just 'Z')
@@ -380,5 +380,5 @@ hang_strokes =
     , (mempty,        Key.c2,     Nothing,   Nothing)
     ]
 
-hang_ks :: [(Score.Attributes, Midi.Key)]
+hang_ks :: [(Attrs.Attributes, Midi.Key)]
 hang_ks = [(attrs, key) | (attrs, key, _, _) <- hang_strokes]

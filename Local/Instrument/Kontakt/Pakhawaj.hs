@@ -9,10 +9,10 @@ import qualified Cmd.Instrument.CUtil as CUtil
 import qualified Cmd.Instrument.Drums as Drums
 import qualified Cmd.Instrument.MidiInst as MidiInst
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.India.Pakhawaj as Pakhawaj
 import Derive.Call.India.Pakhawaj (Stroke(..))
-import Derive.Score (attr)
 
 import qualified Perform.NN as NN
 import qualified Local.Instrument.Kontakt.Mridangam as Mridangam
@@ -115,5 +115,5 @@ all_notes :: [Drums.Note]
 all_notes = left_notes ++ right_notes
 
 -- mridangam strokes
-din = attr "din"
-nam = attr "nam"
+din = Attrs.attr "din"
+nam = Attrs.attr "nam"

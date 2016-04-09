@@ -4,6 +4,8 @@
 
 module Local.Instrument.VslInst (
     module Local.Instrument.VslInst, module Derive.Attrs
+    -- Local.Instrument.Vsl uses a lot of attributes, but it shouldn't have to
+    -- know which ones are defined here and which are in Derive.Attrs.
 ) where
 import qualified Prelude
 import Prelude hiding (min, (.))
@@ -15,9 +17,8 @@ import qualified Util.Seq as Seq
 
 import qualified Midi.Key as Key
 import qualified Midi.Midi as Midi
+import qualified Derive.Attrs as Attrs
 import Derive.Attrs
-import qualified Derive.Score as Score
-import Derive.Score (attr)
 
 import qualified Perform.RealTime as RealTime
 import Global
@@ -25,7 +26,7 @@ import Types
 
 
 -- | Easier to type and looks good without spaces.
-(.) :: Score.Attributes -> Score.Attributes -> Score.Attributes
+(.) :: Attributes -> Attributes -> Attributes
 (.) = (<>)
 
 data Keys = Keys {
@@ -1725,7 +1726,7 @@ with_scale :: [Attributes] -> [Attributes]
 with_scale = concatMap make
     where
     make attr
-        | any (Score.attrs_contain attr) [maj, min] = map (attr.) scale
+        | any (Attrs.contain attr) [maj, min] = map (attr.) scale
         | otherwise = [attr]
 
 scale :: [Attributes]
@@ -1762,13 +1763,13 @@ prefix_attrs attrs = concat [map (prefix.) attrs | (prefix, attrs) <- attrs]
 
 -- * attrs
 
-sec :: RealTime -> Score.Attributes
+sec :: RealTime -> Attributes
 sec n = attr $ "sec"
     <> Text.replace "." "-" (Num.showFloat0 Nothing (RealTime.to_seconds n))
 
-parse_sec :: Score.Attributes -> Maybe (RealTime, Score.Attributes)
-parse_sec attrs = case Seq.partition_with has_sec (Score.attrs_list attrs) of
-    ([secs], rest) -> Just (secs, Score.attrs rest)
+parse_sec :: Attributes -> Maybe (RealTime, Attributes)
+parse_sec attrs = case Seq.partition_with has_sec (Attrs.to_list attrs) of
+    ([secs], rest) -> Just (secs, Attrs.attrs rest)
     _ -> Nothing
     where
     (.) = (Prelude..)
@@ -1777,16 +1778,16 @@ parse_sec attrs = case Seq.partition_with has_sec (Score.attrs_list attrs) of
         Left _ -> Nothing
         Right val -> Just $ RealTime.seconds val
 
-bpm :: Int -> Score.Attributes
+bpm :: Int -> Attributes
 bpm n = attr ("bpm" <> showt n)
 
 -- | General-purpose version, for when I don't have a better way to describe
 -- the difference.
-version :: Int -> Score.Attributes
+version :: Int -> Attributes
 version n = attr ("v" <> showt n)
 
 -- | Number of notes.
-notes :: Int -> Score.Attributes
+notes :: Int -> Attributes
 notes n = attr ("n" <> showt n)
 
 n1 = notes 1

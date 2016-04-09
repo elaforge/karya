@@ -12,6 +12,7 @@ import qualified Util.ParseText as ParseText
 import Util.Test
 import qualified Util.Testing as Testing
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import Derive.BaseTypes (Ref(..), Symbol(..), Val(..), Call(..), Term(..))
 import qualified Derive.Parse as Parse
@@ -86,7 +87,7 @@ test_unparsed_call = do
     equal (f "!'a' -- b") $ Right [call "!" [vsym "'a'"]]
 
 test_parse_val = do
-    let attrs = Just . VAttributes . Score.attrs
+    let attrs = Just . VAttributes . Attrs.attrs
         sym = Just . VSymbol
     let invertible =
             [ (">", Just $ VInstrument (Score.Instrument ""))

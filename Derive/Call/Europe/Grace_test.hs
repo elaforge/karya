@@ -7,6 +7,7 @@ import qualified Data.Map as Map
 
 import Util.Test
 import qualified Ui.UiTest as UiTest
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call.CallTest as CallTest
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Prelude.Articulation as Articulation
@@ -145,10 +146,10 @@ test_grace_attr = do
     equal (run (0, 1, "g (4a)"))
         ([((-1, 1.5), "4a", "+"), ((0, 1), "4c", "+")], [])
 
-graces :: Map.Map Int Score.Attributes
+graces :: Map.Map Int Attrs.Attributes
 graces = Map.fromList
-    [ (-1, Score.attrs ["half", "down"])
-    , (2, Score.attrs ["whole", "up"])
+    [ (-1, Attrs.attrs ["half", "down"])
+    , (2, Attrs.attrs ["whole", "up"])
     ]
 
 test_roll = do

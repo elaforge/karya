@@ -13,6 +13,8 @@ import qualified Data.Text as Text
 
 import qualified Util.Pretty as Pretty
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
+import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call as Call
 import qualified Derive.Call.Europe.Grace as Grace
 import qualified Derive.Call.Module as Module
@@ -27,7 +29,6 @@ import qualified Derive.Score as Score
 import qualified Derive.ShowVal as ShowVal
 import qualified Derive.Sig as Sig
 import qualified Derive.Stream as Stream
-import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Typecheck as Typecheck
 
 import qualified Perform.Pitch as Pitch
@@ -56,7 +57,7 @@ transformer0 name doc call =
     Derive.transformer Module.instrument name mempty doc (Sig.call0t call)
 
 -- | Make a call that simply calls the default note call with the given attrs.
-attrs_note :: Score.Attributes -> Derive.Generator Derive.Note
+attrs_note :: Attrs.Attributes -> Derive.Generator Derive.Note
 attrs_note attrs =
     generator0 ("attrs_note " <> ShowVal.show_val attrs)
         "Invoke the default note call with the given attrs." $ \args ->

@@ -15,6 +15,7 @@ import qualified Util.Serialize as Serialize
 import Util.Serialize (get, put)
 
 import qualified Ui.ScoreTime as ScoreTime
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.ScoreTypes as ScoreTypes
 import qualified Derive.ShowVal as ShowVal
@@ -38,7 +39,7 @@ convert (Environ env) = BaseTypes.Environ $ Map.map convert_val env
 
 data Val =
     VNum !ScoreTypes.TypedVal
-    | VAttributes !ScoreTypes.Attributes
+    | VAttributes !Attrs.Attributes
     | VControlRef !BaseTypes.ControlRef
     | VNotePitch !Pitch.Pitch
     | VInstrument !ScoreTypes.Instrument
@@ -90,7 +91,7 @@ instance ToVal RealTime where
 
 -- ** rest
 
-instance ToVal ScoreTypes.Attributes where to_val = VAttributes
+instance ToVal Attrs.Attributes where to_val = VAttributes
 instance ToVal BaseTypes.ControlRef where to_val = VControlRef
 instance ToVal Pitch.Pitch where to_val = VNotePitch
 instance ToVal ScoreTypes.Instrument where to_val = VInstrument

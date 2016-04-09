@@ -220,7 +220,7 @@ make_keymap :: Maybe Midi.Key -- ^ Keyswitches start here.  If not given,
     -> Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
     -> Pitch.NoteNumber -- ^ the pitch of the bottom note of each range
-    -> [[Score.Attributes]] -> Map.Map Score.Attributes KeyswitchRange
+    -> [[Attrs.Attributes]] -> Map.Map Attrs.Attributes KeyswitchRange
 make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
     (group, low) <- zip groups [base_key, base_key+range ..]
     (attrs, ks) <- zip group $ maybe (repeat [])
@@ -230,8 +230,8 @@ make_keymap base_keyswitch base_key range root_pitch groups = Map.fromList $ do
 -- | This is like 'make_keymap', except with the arguments rearranged to more
 -- closely match the sample utils I use.
 make_keymap2 :: Maybe Midi.Key -> Midi.Key -> Midi.Key -> Midi.Key
-    -> Pitch.NoteNumber -> [[Score.Attributes]]
-    -> Map.Map Score.Attributes KeyswitchRange
+    -> Pitch.NoteNumber -> [[Attrs.Attributes]]
+    -> Map.Map Attrs.Attributes KeyswitchRange
 make_keymap2 base_keyswitch base_key natural_key range natural_nn =
     make_keymap base_keyswitch base_key range
         (natural_nn - Pitch.nn (Midi.from_key natural_key))
@@ -244,7 +244,7 @@ make_keymap2 base_keyswitch base_key natural_key range natural_nn =
 make_cc_keymap :: Midi.Key -- ^ notes start here
     -> Midi.Key -- ^ each sound is mapped over this range
     -> Pitch.NoteNumber -- ^ the pitch of the bottom note of each range
-    -> [[Score.Attributes]] -> Map.Map Score.Attributes KeyswitchRange
+    -> [[Attrs.Attributes]] -> Map.Map Attrs.Attributes KeyswitchRange
 make_cc_keymap base_key range root_pitch =
     Map.fromList . go base_cc . zip [base_key, base_key + range ..]
     where
@@ -282,8 +282,8 @@ make_attribute_map notes = Common.attribute_map $ Seq.unique
     ]
 
 -- | Make PitchedNotes by pairing each 'Drums.Note' with its 'KeyswitchRange'.
-drum_pitched_notes :: [Drums.Note] -> Map.Map Score.Attributes KeyswitchRange
-    -> (PitchedNotes, ([Drums.Note], [Score.Attributes]))
+drum_pitched_notes :: [Drums.Note] -> Map.Map Attrs.Attributes KeyswitchRange
+    -> (PitchedNotes, ([Drums.Note], [Attrs.Attributes]))
     -- ^ Also return the notes with no mapping (so they can't be played), and
     -- keymap ranges with no corresponding notes (so there is no call to
     -- play them).
@@ -307,7 +307,7 @@ drum_calls maybe_tuning_control = map $ \note ->
         (Drums.note_attrs note) id
     )
 
-drum_call :: Maybe Score.Control -> Signal.Y -> Score.Attributes
+drum_call :: Maybe Score.Control -> Signal.Y -> Attrs.Attributes
     -> (Derive.NoteDeriver -> Derive.NoteDeriver)
     -> Derive.Generator Derive.Note
 drum_call maybe_tuning_control dyn attrs transform =
@@ -341,8 +341,8 @@ tuning_control args control deriver = do
 --
 -- If a mapping has 'Attrs.soft', it's looked up without the soft, but gets
 -- a 'Drums.note_dynamic'
-resolve_strokes :: Signal.Y -> Map.Map Score.Attributes KeyswitchRange
-    -> [(Char, BaseTypes.CallId, Score.Attributes, Drums.Group)]
+resolve_strokes :: Signal.Y -> Map.Map Attrs.Attributes KeyswitchRange
+    -> [(Char, BaseTypes.CallId, Attrs.Attributes, Drums.Group)]
     -- ^ (key_binding, emits_text, call_attributes, stop_group)
     -> (PitchedNotes, [Text]) -- ^ also return errors
 resolve_strokes soft_dyn keymap =
@@ -350,10 +350,10 @@ resolve_strokes soft_dyn keymap =
     where
     resolve (char, call, attrs, group) =
         maybe (Right $ "unmapped: " <> pretty attrs) (Left . (note,)) $
-            Map.lookup (Score.attrs_remove Attrs.soft attrs) keymap
+            Map.lookup (Attrs.remove Attrs.soft attrs) keymap
         where
         note = (Drums.note_dyn char call attrs dyn) { Drums.note_group = group }
-        dyn = if Score.attrs_contain attrs Attrs.soft then soft_dyn else 1
+        dyn = if Attrs.contain attrs Attrs.soft then soft_dyn else 1
     check_dups (notes, msgs) = (notes3, dup_msgs ++ msgs)
         where
         dup_msgs = map ((">1 call with name name: "<>) . extract) by_name

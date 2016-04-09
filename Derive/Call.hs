@@ -23,6 +23,7 @@ import qualified Ui.ScoreTime as ScoreTime
 import qualified Cmd.Meter as Meter
 import qualified Cmd.TimeStep as TimeStep
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Controls as Controls
 import qualified Derive.Derive as Derive
@@ -268,7 +269,7 @@ get_instrument = Derive.get_val EnvKey.instrument
 lookup_instrument :: Derive.Deriver (Maybe Score.Instrument)
 lookup_instrument = Derive.lookup_val EnvKey.instrument
 
-get_attrs :: Derive.Deriver Score.Attributes
+get_attrs :: Derive.Deriver Attrs.Attributes
 get_attrs = fromMaybe mempty <$> Derive.lookup_val EnvKey.attributes
 
 -- | Get symbolic pitch manipulating functions for the current scale.  This
@@ -317,7 +318,7 @@ pitched_note :: PSignal.Pitch -> Derive.NoteDeriver
 pitched_note pitch = with_pitch pitch note
 
 -- | Add an attribute and generate a single note.
-attr_note :: Score.Attributes -> Derive.NoteDeriver
+attr_note :: Attrs.Attributes -> Derive.NoteDeriver
 attr_note attrs = add_attrs attrs note
 
 -- | A zero-duration 'note'.
@@ -333,13 +334,13 @@ placed_note args = place args note
 -- * transformer notes
 
 -- | Derive with transformed Attributes.
-with_attrs :: (Score.Attributes -> Score.Attributes) -> Derive.Deriver d
+with_attrs :: (Attrs.Attributes -> Attrs.Attributes) -> Derive.Deriver d
     -> Derive.Deriver d
 with_attrs f deriver = do
     attrs <- get_attrs
     Derive.with_val EnvKey.attributes (f attrs) deriver
 
-add_attrs :: Score.Attributes -> Derive.Deriver d -> Derive.Deriver d
+add_attrs :: Attrs.Attributes -> Derive.Deriver d -> Derive.Deriver d
 add_attrs attrs
     | attrs == mempty = id
     | otherwise = with_attrs (<> attrs)

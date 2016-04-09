@@ -13,6 +13,7 @@ import qualified Util.Pretty as Pretty
 import qualified Util.Seq as Seq
 import qualified Util.Serialize as Serialize
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.RestrictedEnviron as RestrictedEnviron
 import qualified Derive.ScoreTypes as ScoreTypes
@@ -83,19 +84,19 @@ instance Pretty.Pretty code => Pretty.Pretty (Common code) where
     that, but normally you use a constructor that calls 'sort_attributes' to
     make sure that can't happen.
 -}
-newtype AttributeMap a = AttributeMap [(ScoreTypes.Attributes, a)]
+newtype AttributeMap a = AttributeMap [(Attrs.Attributes, a)]
     deriving (Eq, Show, Pretty.Pretty, Serialize.Serialize)
 
-attribute_map :: [(ScoreTypes.Attributes, a)] -> AttributeMap a
+attribute_map :: [(Attrs.Attributes, a)] -> AttributeMap a
 attribute_map = sort_attribute_map . AttributeMap
 
-mapped_attributes :: AttributeMap a -> [ScoreTypes.Attributes]
+mapped_attributes :: AttributeMap a -> [Attrs.Attributes]
 mapped_attributes (AttributeMap table) = map fst table
 
 -- | Look up the value as described in 'AttributeMap'.
-lookup_attributes :: ScoreTypes.Attributes -> AttributeMap a -> Maybe a
+lookup_attributes :: Attrs.Attributes -> AttributeMap a -> Maybe a
 lookup_attributes attrs (AttributeMap table) =
-    snd <$> List.find ((attrs `ScoreTypes.attrs_contain`) . fst) table
+    snd <$> List.find ((attrs `Attrs.contain`) . fst) table
 
 -- | Figured out if any attributes shadow other attributes.  I think this
 -- shouldn't happen if you called 'sort_attribute_map', or used any of the
@@ -105,7 +106,7 @@ overlapping_attributes (AttributeMap table) =
     Maybe.catMaybes $ zipWith check (List.inits attrs) attrs
     where
     attrs = map fst table
-    check prevs attr = case List.find (ScoreTypes.attrs_contain attr) prevs of
+    check prevs attr = case List.find (Attrs.contain attr) prevs of
         Just other_attr -> Just $ "attrs "
             <> ShowVal.show_val attr <> " shadowed by "
             <> ShowVal.show_val other_attr
@@ -119,7 +120,7 @@ overlapping_attributes (AttributeMap table) =
 -- order.
 sort_attribute_map :: AttributeMap a -> AttributeMap a
 sort_attribute_map (AttributeMap table) = AttributeMap (sort table)
-    where sort = Seq.sort_on (\(a, _) -> - Set.size (ScoreTypes.attrs_set a))
+    where sort = Seq.sort_on (\(a, _) -> - Set.size (Attrs.to_set a))
 
 
 -- * Config

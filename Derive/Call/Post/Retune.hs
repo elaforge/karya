@@ -6,6 +6,7 @@
 module Derive.Call.Post.Retune where
 import qualified Util.Num as Num
 import qualified Derive.Args as Args
+import qualified Derive.Attrs as Attrs
 import qualified Derive.Call as Call
 import qualified Derive.Call.ControlUtil as ControlUtil
 import qualified Derive.Call.Module as Module
@@ -34,8 +35,8 @@ note_calls = Derive.transformer_call_map
 module_ :: Module.Module
 module_ = "retune"
 
-retune_attr :: Score.Attributes
-retune_attr = Score.attr "retune"
+retune_attr :: Attrs.Attributes
+retune_attr = Attrs.attr "retune"
 
 -- | (time, dist)
 type RetuneArg = (RealTime, Pitch.NoteNumber)

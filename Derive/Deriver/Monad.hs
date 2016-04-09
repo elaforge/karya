@@ -128,6 +128,7 @@ import Control.DeepSeq (rnf)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.Vector.Unboxed as Vector.Unboxed
+
 import qualified GHC.Stack
 
 import qualified Util.Lens as Lens
@@ -142,6 +143,7 @@ import qualified Ui.Symbol as Symbol
 import qualified Ui.Track as Track
 import qualified Ui.TrackTree as TrackTree
 
+import qualified Derive.Attrs as Attrs
 import qualified Derive.BaseTypes as BaseTypes
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Tags as Tags
@@ -778,7 +780,7 @@ data Instrument = Instrument {
     , inst_controls :: !Score.ControlValMap
     -- | This is a list of the attributes that the instrument understands, in
     -- order of priority.  It corresponds to 'Perform.Midi.Patch.AttributeMap'.
-    , inst_attributes :: ![Score.Attributes]
+    , inst_attributes :: ![Attrs.Attributes]
     } deriving (Show)
 
 -- | Some ornaments only apply to a particular instrument, so each instrument
