@@ -30,6 +30,7 @@ import qualified Derive.Call.Make as Make
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Post.Postproc as Postproc
+import qualified Derive.Call.StaticMacro as StaticMacro
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -632,20 +633,18 @@ c_infer_damp = Derive.transformer module_ "infer-damp" Tags.postproc
     <> " attribute will force a damp, while " <> ShowVal.doc undamped
     <> " will prevent damping. The latter can cause a previously undamped note\
     \ to become damped because the hand is now freed  up.")
-    $ Sig.callt infer_damp_args $ \(inst, dur) _args deriver -> do
+    $ Sig.callt ((,)
+        <$> Sig.required "inst" "Apply damping to this instrument."
+        <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
+            "This is how fast the player is able to damp. A note is only damped\
+            \ if there is a hand available which has this much time to move\
+            \ into position for the damp stroke, and then move into position\
+            \ for its next note afterwards."
+    ) $ \(inst, dur) _args deriver -> do
         dur <- Call.to_function dur
         -- TODO infer_damp can only add a %damp control, so it preserves order,
         -- so Post.apply is safe.  Is there a way to express this statically?
         Post.apply (infer_damp_voices inst (RealTime.seconds . dur)) <$> deriver
-
-infer_damp_args :: Sig.Parser (Score.Instrument, BaseTypes.ControlRef)
-infer_damp_args = (,)
-    <$> Sig.required "inst" "Apply damping to this instrument."
-    <*> Sig.defaulted "dur" (Sig.control "damp-dur" 0.15)
-        "This is how fast the player is able to damp. A note is only damped if\
-        \ there is a hand available which has this much time to move into\
-        \ position for the damp stroke, and then move into position for its\
-        \ next note afterwards."
 
 -- | Multiply this by 'Controls.dynamic' for the dynamic of +mute notes created
 -- by infer-damp.
@@ -755,18 +754,13 @@ assign_hands =
 -- * realize-reyong
 
 c_realize_reyong :: Derive.Transformer Derive.Note
-c_realize_reyong = Derive.transformer module_ "realize-reyong" Tags.postproc
-    "Combine all of the reyong realize calls in the right order.  Equivalent\
-    \ to `infer-damp | cancel-kotekan | realize-ngoret`."
-    $ Sig.callt ((,) <$> infer_damp_args <*> Postproc.final_duration_arg)
-    $ \((inst, damp_dur), final_dur) _args deriver -> do
-        damp_dur <- Call.to_function damp_dur
-        let infer_damp = Post.apply $
-                infer_damp_voices inst (RealTime.seconds . damp_dur)
-        infer_damp <$> (cancel final_dur =<< Gender.realize_ngoret =<< deriver)
-    where
-    cancel final_dur = Derive.require_right id
-        . Postproc.group_and_cancel cancel_kotekan Post.voice_key final_dur
+c_realize_reyong = StaticMacro.check "c_realize_reyong" $
+    StaticMacro.transformer module_ "realize-reyong" Tags.postproc doc
+        [ StaticMacro.Call c_infer_damp [StaticMacro.Var, StaticMacro.Var]
+        , StaticMacro.Call c_cancel_kotekan [StaticMacro.Var]
+        , StaticMacro.Call Gender.c_realize_ngoret []
+        ]
+    where doc = "Combine the reyong realize calls in the right order."
 
 -- * octave transposition
 

@@ -3,6 +3,7 @@ LEGEND
   ? open question; . note; bug: marks bugs.
 
 UNSORTED
+  * Perhaps change the various realize-* calls to static macros.
   / The merge operator in Cmd.Control should also use the same parse_merge
     function as Equal.  Also update haddock.
     . Actually it's not really appropriate, since "" is default.
@@ -64,6 +65,8 @@ UNSORTED
     . I think a=b syntax is available, but do I want to make a Val out of it?
       It would be resolved by Derive.Sig, and not actually make it to calls,
       but Quoted is like that too.
+    . And realistically it seems really invasive to support a=b if it's not
+      a Val.  But I wind up with weird things like a=b=c.
   - Modification of State is still kind of messy since I have lens and
     non-lens versions.  And if I wanted to modify with a lens I wouldn't be
     able to add an effect, like causing damage.  If I used ekmett lenses maybe

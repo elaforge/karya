@@ -42,6 +42,7 @@ import qualified Derive.Call.Bali.Gender as Gender
 import qualified Derive.Call.Module as Module
 import qualified Derive.Call.Post as Post
 import qualified Derive.Call.Post.Postproc as Postproc
+import qualified Derive.Call.StaticMacro as StaticMacro
 import qualified Derive.Call.Sub as Sub
 import qualified Derive.Call.Tags as Tags
 import qualified Derive.Controls as Controls
@@ -764,18 +765,13 @@ nyogcag (polos, sangsih) is_polos event = (not is_polos, [with_inst])
 -- * realize calls
 
 c_realize_gangsa :: Derive.Transformer Derive.Note
-c_realize_gangsa = Derive.transformer module_ "realize-gangsa" Tags.postproc
-    "Combine all of the gangsa realize calls in the right order.  Equivalent\
-    \ to `realize-noltol | cancel-pasang | realize-ngoret`."
-    $ Sig.callt Postproc.final_duration_arg
-    $ \final_dur _args deriver ->
-        -- TODO Since I can't deforest between (=<<), this might not be any
-        -- more efficient than the tracklang version.
-        realize_noltol_call =<< cancel final_dur =<< Gender.realize_ngoret
-            =<< deriver
-    where
-    cancel final_dur = Derive.require_right id
-        . Postproc.group_and_cancel cancel_pasang pasang_key final_dur
+c_realize_gangsa = StaticMacro.check "c_realize_gangsa" $
+    StaticMacro.transformer module_ "realize-gangsa" Tags.postproc doc
+        [ StaticMacro.Call c_realize_noltol []
+        , StaticMacro.Call c_cancel_pasang [StaticMacro.Var]
+        , StaticMacro.Call Gender.c_realize_ngoret []
+        ]
+    where doc = "Combine the gangsa realize calls in the right order."
 
 -- | (noltol-time, kotekan-dur)
 type NoltolArg = (RealTime, RealTime)
